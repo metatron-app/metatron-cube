@@ -15,7 +15,7 @@ do
     echo scp -r $TARGET $i:$BASEDIR/
     scp -r $TARGET $i:$BASEDIR/
     if [[ $TARGET == *.tar.gz ]]; then
-        DIR=${BASENAME%.tar.gz}
+        DIR=${BASENAME%-bin.tar.gz}
     ssh $i "cd $BASEDIR ; rm druid; tar zxvf $BASENAME ; ln -s $BASEDIR/$DIR druid"
     #ssh $i rm -rf $DIR.tar.gz
         #ssh $i tar zxvf $BASENAME
