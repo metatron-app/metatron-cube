@@ -19,20 +19,20 @@
 
 package io.druid.segment;
 
-import com.metamx.common.guava.Sequence;
-import io.druid.granularity.QueryGranularity;
-import io.druid.query.filter.Filter;
-import org.joda.time.Interval;
+import com.fasterxml.jackson.annotation.JsonSubTypes;
+import com.fasterxml.jackson.annotation.JsonTypeInfo;
 
 /**
  */
-public interface CursorFactory
+@JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
+@JsonSubTypes(value = {
+    @JsonSubTypes.Type(name = "map", value = MapVirtualColumn.class)
+})
+public interface VirtualColumn
 {
-  public Sequence<Cursor> makeCursors(
-      Filter filter,
-      Interval interval,
-      VirtualColumns virtualColumns,
-      QueryGranularity gran,
-      boolean descending
-  );
+  String getOutputName();
+
+  ObjectColumnSelector init(String dimension, ColumnSelectorFactory factory);
+
+  byte[] getCacheKey();
 }

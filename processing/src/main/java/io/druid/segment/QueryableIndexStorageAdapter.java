@@ -191,7 +191,13 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
   }
 
   @Override
-  public Sequence<Cursor> makeCursors(Filter filter, Interval interval, QueryGranularity gran, boolean descending)
+  public Sequence<Cursor> makeCursors(
+      Filter filter,
+      Interval interval,
+      VirtualColumns virtualColumns,
+      QueryGranularity gran,
+      boolean descending
+  )
   {
     Interval actualInterval = interval;
 
@@ -229,6 +235,7 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
         new CursorSequenceBuilder(
             index,
             actualInterval,
+            virtualColumns,
             gran,
             offset,
             minDataTimestamp,
@@ -243,6 +250,7 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
   {
     private final ColumnSelector index;
     private final Interval interval;
+    private final VirtualColumns virtualColumns;
     private final QueryGranularity gran;
     private final Offset offset;
     private final long minDataTimestamp;
@@ -252,6 +260,7 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
     public CursorSequenceBuilder(
         ColumnSelector index,
         Interval interval,
+        VirtualColumns virtualColumns,
         QueryGranularity gran,
         Offset offset,
         long minDataTimestamp,
@@ -261,6 +270,7 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
     {
       this.index = index;
       this.interval = interval;
+      this.virtualColumns = virtualColumns;
       this.gran = gran;
       this.offset = offset;
       this.minDataTimestamp = minDataTimestamp;
@@ -275,7 +285,7 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
       final Map<String, DictionaryEncodedColumn> dictionaryColumnCache = Maps.newHashMap();
       final Map<String, GenericColumn> genericColumnCache = Maps.newHashMap();
       final Map<String, ComplexColumn> complexColumnCache = Maps.newHashMap();
-      final Map<String, Object> objectColumnCache = Maps.newHashMap();
+      final Map<String, ObjectColumnSelector> objectColumnCache = Maps.newHashMap();
 
       final GenericColumn timestamps = index.getColumn(Column.TIME_COLUMN_NAME).getGenericColumn();
 
@@ -582,96 +592,27 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
                     @Override
                     public ObjectColumnSelector makeObjectColumnSelector(String column)
                     {
-                      Object cachedColumnVals = objectColumnCache.get(column);
-
-                      if (cachedColumnVals == null) {
-                        Column holder = index.getColumn(column);
-
-                        if (holder != null) {
-                          final ColumnCapabilities capabilities = holder.getCapabilities();
-
-                          if (capabilities.isDictionaryEncoded()) {
-                            cachedColumnVals = holder.getDictionaryEncoding();
-                          } else if (capabilities.getType() == ValueType.COMPLEX) {
-                            cachedColumnVals = holder.getComplexColumn();
-                          } else {
-                            cachedColumnVals = holder.getGenericColumn();
-                          }
-                        }
-
-                        if (cachedColumnVals != null) {
-                          objectColumnCache.put(column, cachedColumnVals);
-                        }
+                      ObjectColumnSelector cachedColumnVals = objectColumnCache.get(column);
+                      if (cachedColumnVals != null) {
+                        return cachedColumnVals;
                       }
 
-                      if (cachedColumnVals == null) {
+                      Column holder = index.getColumn(column);
+                      if (holder == null) {
+                        VirtualColumn vc = virtualColumns.getVirtualColumn(column);
+                        if (vc != null) {
+                          objectColumnCache.put(column, cachedColumnVals = vc.init(column, this));
+                          return cachedColumnVals;
+                        }
                         return null;
                       }
 
-                      if (cachedColumnVals instanceof GenericColumn) {
-                        final GenericColumn columnVals = (GenericColumn) cachedColumnVals;
-                        final ValueType type = columnVals.getType();
+                      final ColumnCapabilities capabilities = holder.getCapabilities();
 
+                      if (capabilities.isDictionaryEncoded()) {
+                        final DictionaryEncodedColumn columnVals = holder.getDictionaryEncoding();
                         if (columnVals.hasMultipleValues()) {
-                          throw new UnsupportedOperationException(
-                              "makeObjectColumnSelector does not support multi-value GenericColumns"
-                          );
-                        }
-
-                        if (type == ValueType.FLOAT) {
-                          return new ObjectColumnSelector<Float>()
-                          {
-                            @Override
-                            public Class classOfObject()
-                            {
-                              return Float.TYPE;
-                            }
-
-                            @Override
-                            public Float get()
-                            {
-                              return columnVals.getFloatSingleValueRow(cursorOffset.getOffset());
-                            }
-                          };
-                        }
-                        if (type == ValueType.LONG) {
-                          return new ObjectColumnSelector<Long>()
-                          {
-                            @Override
-                            public Class classOfObject()
-                            {
-                              return Long.TYPE;
-                            }
-
-                            @Override
-                            public Long get()
-                            {
-                              return columnVals.getLongSingleValueRow(cursorOffset.getOffset());
-                            }
-                          };
-                        }
-                        if (type == ValueType.STRING) {
-                          return new ObjectColumnSelector<String>()
-                          {
-                            @Override
-                            public Class classOfObject()
-                            {
-                              return String.class;
-                            }
-
-                            @Override
-                            public String get()
-                            {
-                              return columnVals.getStringSingleValueRow(cursorOffset.getOffset());
-                            }
-                          };
-                        }
-                      }
-
-                      if (cachedColumnVals instanceof DictionaryEncodedColumn) {
-                        final DictionaryEncodedColumn columnVals = (DictionaryEncodedColumn) cachedColumnVals;
-                        if (columnVals.hasMultipleValues()) {
-                          return new ObjectColumnSelector<Object>()
+                          cachedColumnVals = new ObjectColumnSelector<Object>()
                           {
                             @Override
                             public Class classOfObject()
@@ -697,7 +638,7 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
                             }
                           };
                         } else {
-                          return new ObjectColumnSelector<String>()
+                          cachedColumnVals = new ObjectColumnSelector<String>()
                           {
                             @Override
                             public Class classOfObject()
@@ -712,23 +653,83 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
                             }
                           };
                         }
+                      } else if (capabilities.getType() == ValueType.COMPLEX) {
+                        final ComplexColumn columnVals = holder.getComplexColumn();
+                        cachedColumnVals = new ObjectColumnSelector()
+                        {
+                          @Override
+                          public Class classOfObject()
+                          {
+                            return columnVals.getClazz();
+                          }
+
+                          @Override
+                          public Object get()
+                          {
+                            return columnVals.getRowValue(cursorOffset.getOffset());
+                          }
+                        };
+                      } else {
+                        final GenericColumn columnVals = holder.getGenericColumn();
+                        final ValueType type = columnVals.getType();
+
+                        if (columnVals.hasMultipleValues()) {
+                          throw new UnsupportedOperationException(
+                              "makeObjectColumnSelector does not support multi-value GenericColumns"
+                          );
+                        }
+
+                        if (type == ValueType.FLOAT) {
+                          cachedColumnVals = new ObjectColumnSelector<Float>()
+                          {
+                            @Override
+                            public Class classOfObject()
+                            {
+                              return Float.TYPE;
+                            }
+
+                            @Override
+                            public Float get()
+                            {
+                              return columnVals.getFloatSingleValueRow(cursorOffset.getOffset());
+                            }
+                          };
+                        } else if (type == ValueType.LONG) {
+                          cachedColumnVals = new ObjectColumnSelector<Long>()
+                          {
+                            @Override
+                            public Class classOfObject()
+                            {
+                              return Long.TYPE;
+                            }
+
+                            @Override
+                            public Long get()
+                            {
+                              return columnVals.getLongSingleValueRow(cursorOffset.getOffset());
+                            }
+                          };
+                        } else if (type == ValueType.STRING) {
+                          cachedColumnVals = new ObjectColumnSelector<String>()
+                          {
+                            @Override
+                            public Class classOfObject()
+                            {
+                              return String.class;
+                            }
+
+                            @Override
+                            public String get()
+                            {
+                              return columnVals.getStringSingleValueRow(cursorOffset.getOffset());
+                            }
+                          };
+                        }
                       }
-
-                      final ComplexColumn columnVals = (ComplexColumn) cachedColumnVals;
-                      return new ObjectColumnSelector()
-                      {
-                        @Override
-                        public Class classOfObject()
-                        {
-                          return columnVals.getClazz();
-                        }
-
-                        @Override
-                        public Object get()
-                        {
-                          return columnVals.getRowValue(cursorOffset.getOffset());
-                        }
-                      };
+                      if (cachedColumnVals != null) {
+                        objectColumnCache.put(column, cachedColumnVals);
+                      }
+                      return cachedColumnVals;
                     }
                   };
                 }

@@ -37,6 +37,7 @@ import io.druid.segment.ObjectColumnSelector;
 import io.druid.segment.Segment;
 import io.druid.timeline.DataSegmentUtils;
 import io.druid.segment.StorageAdapter;
+import io.druid.segment.VirtualColumns;
 import io.druid.segment.column.Column;
 import io.druid.segment.data.IndexedInts;
 import io.druid.segment.filter.Filters;
@@ -85,6 +86,7 @@ public class SelectQueryEngine
     return QueryRunnerHelper.makeCursorBasedQuery(
         adapter,
         query.getQuerySegmentSpec().getIntervals(),
+        VirtualColumns.valueOf(query.getVirtualColumns()),
         Filters.toFilter(query.getDimensionsFilter()),
         query.isDescending(),
         query.getGranularity(),

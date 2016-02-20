@@ -46,6 +46,8 @@ import io.druid.segment.NullDimensionSelector;
 import io.druid.segment.ObjectColumnSelector;
 import io.druid.segment.SingleScanTimeDimSelector;
 import io.druid.segment.StorageAdapter;
+import io.druid.segment.VirtualColumn;
+import io.druid.segment.VirtualColumns;
 import io.druid.segment.column.Column;
 import io.druid.segment.column.ColumnCapabilities;
 import io.druid.segment.data.Indexed;
@@ -177,7 +179,13 @@ public class IncrementalIndexStorageAdapter implements StorageAdapter
   }
 
   @Override
-  public Sequence<Cursor> makeCursors(final Filter filter, final Interval interval, final QueryGranularity gran, final boolean descending)
+  public Sequence<Cursor> makeCursors(
+      final Filter filter,
+      final Interval interval,
+      final VirtualColumns virtualColumns,
+      final QueryGranularity gran,
+      final boolean descending
+  )
   {
     if (index.isEmpty()) {
       return Sequences.empty();
@@ -555,49 +563,52 @@ public class IncrementalIndexStorageAdapter implements StorageAdapter
 
                 IncrementalIndex.DimensionDesc dimensionDesc = index.getDimension(column);
 
-                if (dimensionDesc != null) {
-
-                  final int dimensionIndex = dimensionDesc.getIndex();
-                  final IncrementalIndex.DimDim dimDim = dimensionDesc.getValues();
-
-                  return new ObjectColumnSelector<Object>()
-                  {
-                    @Override
-                    public Class classOfObject()
-                    {
-                      return Object.class;
-                    }
-
-                    @Override
-                    public Object get()
-                    {
-                      IncrementalIndex.TimeAndDims key = currEntry.getKey();
-                      if (key == null) {
-                        return null;
-                      }
-
-                      int[][] dims = key.getDims();
-                      if (dimensionIndex >= dims.length) {
-                        return null;
-                      }
-
-                      final int[] dimIdx = dims[dimensionIndex];
-                      if (dimIdx == null || dimIdx.length == 0) {
-                        return null;
-                      }
-                      if (dimIdx.length == 1) {
-                        return dimDim.getValue(dimIdx[0]);
-                      }
-                      Comparable[] dimVals = new String[dimIdx.length];
-                      for (int i = 0; i < dimIdx.length; i++) {
-                        dimVals[i] = dimDim.getValue(dimIdx[i]);
-                      }
-                      return dimVals;
-                    }
-                  };
+                if (dimensionDesc == null) {
+                  VirtualColumn virtualColumn = virtualColumns.getVirtualColumn(column);
+                  if (virtualColumn != null) {
+                    return virtualColumn.init(column, this);
+                  }
+                  return null;
                 }
 
-                return null;
+                final int dimensionIndex = dimensionDesc.getIndex();
+                final IncrementalIndex.DimDim dimDim = dimensionDesc.getValues();
+
+                return new ObjectColumnSelector<Object>()
+                {
+                  @Override
+                  public Class classOfObject()
+                  {
+                    return Object.class;
+                  }
+
+                  @Override
+                  public Object get()
+                  {
+                    IncrementalIndex.TimeAndDims key = currEntry.getKey();
+                    if (key == null) {
+                      return null;
+                    }
+
+                    int[][] dims = key.getDims();
+                    if (dimensionIndex >= dims.length) {
+                      return null;
+                    }
+
+                    final int[] dimIdx = dims[dimensionIndex];
+                    if (dimIdx == null || dimIdx.length == 0) {
+                      return null;
+                    }
+                    if (dimIdx.length == 1) {
+                      return dimDim.getValue(dimIdx[0]);
+                    }
+                    Comparable[] dimVals = new Comparable[dimIdx.length];
+                    for (int i = 0; i < dimIdx.length; i++) {
+                      dimVals[i] = dimDim.getValue(dimIdx[i]);
+                    }
+                    return dimVals;
+                  }
+                };
               }
             };
           }
