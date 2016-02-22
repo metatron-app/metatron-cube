@@ -730,6 +730,13 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
                         }
                       };
                     }
+
+                    @Override
+                    public ValueType columnType(String columnName)
+                    {
+                      Column column = index.getColumn(columnName);
+                      return column == null ? null : column.getCapabilities().getType();
+                    }
                   };
                 }
               }

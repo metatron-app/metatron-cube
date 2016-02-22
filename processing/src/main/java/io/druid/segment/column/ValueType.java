@@ -26,5 +26,17 @@ public enum ValueType
   FLOAT,
   LONG,
   STRING,
-  COMPLEX
+  COMPLEX;
+
+  public static ValueType of(String valueType) {
+    if (valueType == null) {
+      return null;
+    }
+    try {
+      return ValueType.valueOf(valueType.toUpperCase());
+    }
+    catch (IllegalArgumentException e) {
+      return COMPLEX;
+    }
+  }
 }

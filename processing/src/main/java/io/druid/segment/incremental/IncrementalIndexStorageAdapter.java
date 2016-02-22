@@ -48,6 +48,7 @@ import io.druid.segment.SingleScanTimeDimSelector;
 import io.druid.segment.StorageAdapter;
 import io.druid.segment.column.Column;
 import io.druid.segment.column.ColumnCapabilities;
+import io.druid.segment.column.ValueType;
 import io.druid.segment.data.Indexed;
 import io.druid.segment.data.IndexedInts;
 import io.druid.segment.data.ListIndexed;
@@ -598,6 +599,12 @@ public class IncrementalIndexStorageAdapter implements StorageAdapter
                 }
 
                 return null;
+              }
+
+              @Override
+              public ValueType columnType(String columnName)
+              {
+                return index.getMetricValueType(columnName);
               }
             };
           }
