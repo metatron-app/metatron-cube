@@ -626,7 +626,7 @@ public abstract class IncrementalIndex<AggregatorType> implements Iterable<Row>,
             overflow = Lists.newArrayList();
             overflowTypes = Lists.newArrayList();
           }
-          overflow.add(getDimVals(desc.getValues(), dimensionValues));
+          overflow.add(getDimVals(desc, dimensionValues));
           overflowTypes.add(valType);
         } else if (desc.getIndex() > dims.length || dims[desc.getIndex()] != null) {
           /*
@@ -640,7 +640,7 @@ public abstract class IncrementalIndex<AggregatorType> implements Iterable<Row>,
            */
           throw new ISE("Dimension[%s] occurred more than once in InputRow", dimension);
         } else {
-          dims[desc.getIndex()] = getDimVals(desc.getValues(), dimensionValues);
+          dims[desc.getIndex()] = getDimVals(desc, dimensionValues);
         }
       }
     }
@@ -694,8 +694,9 @@ public abstract class IncrementalIndex<AggregatorType> implements Iterable<Row>,
     }
   }
 
-  private int[] getDimVals(final DimDim dimLookup, final List<Comparable> dimValues)
+  private int[] getDimVals(final DimensionDesc dimDesc, final List<Comparable> dimValues)
   {
+    final DimDim dimLookup = dimDesc.getValues();
     if (dimValues.size() == 0) {
       // NULL VALUE
       dimLookup.add(null);
@@ -709,13 +710,22 @@ public abstract class IncrementalIndex<AggregatorType> implements Iterable<Row>,
       return new int[]{dimLookup.add(dimVal)};
     }
 
-    Comparable[] dimArray = dimValues.toArray(new Comparable[dimValues.size()]);
-    Arrays.sort(dimArray, ordering);
+    final MultiValueHandling multiValueHandling = dimDesc.getMultiValueHandling();
+
+    final Comparable[] dimArray = dimValues.toArray(new Comparable[dimValues.size()]);
+    if (multiValueHandling != MultiValueHandling.ARRAY) {
+      Arrays.sort(dimArray, ordering);
+    }
 
     final int[] retVal = new int[dimArray.length];
 
+    int prevId = -1;
     for (int i = 0; i < dimArray.length; i++) {
       retVal[i] = dimLookup.add(dimArray[i]);
+      if (multiValueHandling == MultiValueHandling.SET && retVal[i] == prevId) {
+        continue;
+      }
+      prevId = retVal[i];
     }
 
     return retVal;
@@ -955,12 +965,20 @@ public abstract class IncrementalIndex<AggregatorType> implements Iterable<Row>,
     return maxIngestedEventTime;
   }
 
+  // todo add configuration after druid-io/druid-api#74 is included
+  public static enum MultiValueHandling {
+    SORTED_ARRAY,
+    ARRAY,
+    SET
+  }
+
   public static final class DimensionDesc
   {
     private final int index;
     private final String name;
     private final DimDim values;
     private final ColumnCapabilitiesImpl capabilities;
+    private final MultiValueHandling multiValueHandling = MultiValueHandling.SORTED_ARRAY;
 
     public DimensionDesc(int index, String name, DimDim values, ColumnCapabilitiesImpl capabilities)
     {
@@ -988,6 +1006,11 @@ public abstract class IncrementalIndex<AggregatorType> implements Iterable<Row>,
     public ColumnCapabilitiesImpl getCapabilities()
     {
       return capabilities;
+    }
+
+    public MultiValueHandling getMultiValueHandling()
+    {
+      return multiValueHandling;
     }
   }
 
