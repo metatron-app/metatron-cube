@@ -17,14 +17,20 @@
  * under the License.
  */
 
-package io.druid.query.aggregation;
+package io.druid.query.aggregation.variance;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.base.Preconditions;
 import com.google.common.primitives.Doubles;
 import com.google.common.primitives.Longs;
 import com.metamx.common.StringUtils;
+import io.druid.query.aggregation.Aggregator;
+import io.druid.query.aggregation.AggregatorFactory;
+import io.druid.query.aggregation.AggregatorFactoryNotMergeableException;
+import io.druid.query.aggregation.Aggregators;
+import io.druid.query.aggregation.BufferAggregator;
 import io.druid.segment.ColumnSelectorFactory;
 import io.druid.segment.column.ValueType;
 import org.apache.commons.codec.binary.Base64;
@@ -37,6 +43,7 @@ import java.util.Objects;
 
 /**
  */
+@JsonTypeName("variance")
 public class VarianceAggregatorFactory extends AggregatorFactory
 {
   private static final byte CACHE_TYPE_ID = 0x4;

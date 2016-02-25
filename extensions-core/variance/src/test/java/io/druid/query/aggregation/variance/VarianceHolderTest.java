@@ -17,7 +17,7 @@
  * under the License.
  */
 
-package io.druid.query.aggregation;
+package io.druid.query.aggregation.variance;
 
 import org.junit.Assert;
 import org.junit.Test;

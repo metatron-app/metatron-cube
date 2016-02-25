@@ -308,7 +308,7 @@ public class TopNQueryRunnerTest
         .aggregators(
             Lists.<AggregatorFactory>newArrayList(
                 Iterables.concat(
-                    QueryRunnerTestHelper.commonPlusVarAggregators,
+                    QueryRunnerTestHelper.commonAggregators,
                     Lists.newArrayList(
                         new DoubleMaxAggregatorFactory("maxIndex", "index"),
                         new DoubleMinAggregatorFactory("minIndex", "index")
@@ -332,7 +332,6 @@ public class TopNQueryRunnerTest
                                 .put("uniques", QueryRunnerTestHelper.UNIQUES_9)
                                 .put("maxIndex", 277.2735290527344D)
                                 .put("minIndex", 59.02102279663086D)
-                                .put("index_var", 438.8602170459229)
                                 .build(),
                     ImmutableMap.<String, Object>builder()
                                 .put("market", "total_market")
@@ -342,7 +341,6 @@ public class TopNQueryRunnerTest
                                 .put("uniques", QueryRunnerTestHelper.UNIQUES_2)
                                 .put("maxIndex", 1743.9217529296875D)
                                 .put("minIndex", 792.3260498046875D)
-                                .put("index_var", 27531.08421592896)
                                 .build(),
                     ImmutableMap.<String, Object>builder()
                                 .put("market", "upfront")
@@ -352,7 +350,6 @@ public class TopNQueryRunnerTest
                                 .put("uniques", QueryRunnerTestHelper.UNIQUES_2)
                                 .put("maxIndex", 1870.06103515625D)
                                 .put("minIndex", 545.9906005859375D)
-                                .put("index_var", 79271.48356838564)
                                 .build()
                 )
             )

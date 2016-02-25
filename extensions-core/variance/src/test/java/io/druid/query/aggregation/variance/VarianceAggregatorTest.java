@@ -17,9 +17,10 @@
  * under the License.
  */
 
-package io.druid.query.aggregation;
+package io.druid.query.aggregation.variance;
 
 import io.druid.jackson.DefaultObjectMapper;
+import io.druid.query.aggregation.TestFloatColumnSelector;
 import io.druid.segment.ColumnSelectorFactory;
 import io.druid.segment.column.ValueType;
 import org.easymock.EasyMock;

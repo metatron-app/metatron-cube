@@ -17,10 +17,11 @@
  * under the License.
  */
 
-package io.druid.query.aggregation;
+package io.druid.query.aggregation.variance;
 
 import com.google.common.primitives.Doubles;
 import com.google.common.primitives.Longs;
+import io.druid.query.aggregation.BufferAggregator;
 import io.druid.segment.FloatColumnSelector;
 import io.druid.segment.LongColumnSelector;
 import io.druid.segment.ObjectColumnSelector;

@@ -1428,11 +1428,8 @@ public class TimeseriesQueryRunnerTest
                                   .granularity(QueryRunnerTestHelper.dayGran)
                                   .filters("bobby", null)
                                   .intervals(QueryRunnerTestHelper.firstToThird)
-                                  .aggregators(QueryRunnerTestHelper.commonPlusVarAggregators)
-                                  .postAggregators(
-                                      Arrays.<PostAggregator>asList(
-                                          QueryRunnerTestHelper.addRowsIndexConstant,
-                                          QueryRunnerTestHelper.stddevOfIndex))
+                                  .aggregators(QueryRunnerTestHelper.commonAggregators)
+                                  .postAggregators(Arrays.<PostAggregator>asList(QueryRunnerTestHelper.addRowsIndexConstant))
                                   .descending(descending)
                                   .build();
 
@@ -1440,26 +1437,22 @@ public class TimeseriesQueryRunnerTest
         new Result<>(
             new DateTime("2011-04-01"),
             new TimeseriesResultValue(
-                QueryRunnerTestHelper.of(
+                ImmutableMap.<String, Object>of(
                     "rows", 13L,
                     "index", 6626.151596069336,
                     "addRowsIndexConstant", 6640.151596069336,
-                    "uniques", QueryRunnerTestHelper.UNIQUES_9,
-                    "index_var", descending ? 340509.8674374324 : 340509.8669123871,
-                    "index_stddev", descending ? 583.5322334176857 : 583.5322329678003
+                    "uniques", QueryRunnerTestHelper.UNIQUES_9
                 )
             )
         ),
         new Result<>(
             new DateTime("2011-04-02"),
             new TimeseriesResultValue(
-                QueryRunnerTestHelper.of(
+                ImmutableMap.<String, Object>of(
                     "rows", 13L,
                     "index", 5833.2095947265625,
                     "addRowsIndexConstant", 5847.2095947265625,
-                    "uniques", QueryRunnerTestHelper.UNIQUES_9,
-                    "index_var", descending ? 239133.7880389738 : 239133.78661310193,
-                    "index_stddev", descending ? 489.01307552965676 : 489.01307407174903
+                    "uniques", QueryRunnerTestHelper.UNIQUES_9
                 )
             )
         )

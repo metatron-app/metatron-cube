@@ -28,7 +28,6 @@ import io.druid.query.aggregation.CountAggregatorFactory;
 import io.druid.query.aggregation.DoubleMaxAggregatorFactory;
 import io.druid.query.aggregation.DoubleMinAggregatorFactory;
 import io.druid.query.aggregation.DoubleSumAggregatorFactory;
-import io.druid.query.aggregation.VarianceAggregatorFactory;
 import io.druid.query.aggregation.FilteredAggregatorFactory;
 import io.druid.query.aggregation.HistogramAggregatorFactory;
 import io.druid.query.aggregation.JavaScriptAggregatorFactory;
@@ -36,7 +35,6 @@ import io.druid.query.aggregation.LongMaxAggregatorFactory;
 import io.druid.query.aggregation.LongMinAggregatorFactory;
 import io.druid.query.aggregation.LongSumAggregatorFactory;
 import io.druid.query.aggregation.PostAggregator;
-import io.druid.query.aggregation.VarianceSerde;
 import io.druid.query.aggregation.cardinality.CardinalityAggregatorFactory;
 import io.druid.query.aggregation.hyperloglog.HyperUniqueFinalizingPostAggregator;
 import io.druid.query.aggregation.hyperloglog.HyperUniquesAggregatorFactory;
@@ -59,10 +57,6 @@ public class AggregatorsModule extends SimpleModule
       ComplexMetrics.registerSerde("hyperUnique", new HyperUniquesSerde(Hashing.murmur3_128()));
     }
 
-    if (ComplexMetrics.getSerdeForType("variance") == null) {
-      ComplexMetrics.registerSerde("variance", new VarianceSerde());
-    }
-
     setMixInAnnotation(AggregatorFactory.class, AggregatorFactoryMixin.class);
     setMixInAnnotation(PostAggregator.class, PostAggregatorMixin.class);
   }
@@ -80,8 +74,7 @@ public class AggregatorsModule extends SimpleModule
       @JsonSubTypes.Type(name = "histogram", value = HistogramAggregatorFactory.class),
       @JsonSubTypes.Type(name = "hyperUnique", value = HyperUniquesAggregatorFactory.class),
       @JsonSubTypes.Type(name = "cardinality", value = CardinalityAggregatorFactory.class),
-      @JsonSubTypes.Type(name = "filtered", value = FilteredAggregatorFactory.class),
-      @JsonSubTypes.Type(name = "variance", value = VarianceAggregatorFactory.class)
+      @JsonSubTypes.Type(name = "filtered", value = FilteredAggregatorFactory.class)
   })
   public static interface AggregatorFactoryMixin
   {

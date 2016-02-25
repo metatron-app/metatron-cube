@@ -156,11 +156,11 @@ public class ArithmeticPostAggregator implements PostAggregator
            "name='" + name + '\'' +
            ", fnName='" + fnName + '\'' +
            ", fields=" + fields +
-           ", binary=" + binary +
+           (binary != null ? ", binary=" + binary : ", unary=" + unary) +
            '}';
   }
 
-  private static enum UnaryOp
+  public static enum UnaryOp
   {
     SQRT("sqrt") {
       public double compute(double v)
@@ -201,7 +201,7 @@ public class ArithmeticPostAggregator implements PostAggregator
     }
   }
 
-  private static enum BinaryOp
+  public static enum BinaryOp
   {
     PLUS("+") {
       public double compute(double lhs, double rhs)

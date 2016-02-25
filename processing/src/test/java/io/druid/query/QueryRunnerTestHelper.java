@@ -35,11 +35,8 @@ import io.druid.js.JavaScriptConfig;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.CountAggregatorFactory;
 import io.druid.query.aggregation.DoubleSumAggregatorFactory;
-import io.druid.query.aggregation.VarianceAggregatorFactory;
-import io.druid.query.aggregation.VarianceFinalizingPostAggregator;
 import io.druid.query.aggregation.JavaScriptAggregatorFactory;
 import io.druid.query.aggregation.LongSumAggregatorFactory;
-import io.druid.query.aggregation.PostAggregator;
 import io.druid.query.aggregation.cardinality.CardinalityAggregatorFactory;
 import io.druid.query.aggregation.hyperloglog.HyperUniqueFinalizingPostAggregator;
 import io.druid.query.aggregation.hyperloglog.HyperUniquesAggregatorFactory;
@@ -122,14 +119,11 @@ public class QueryRunnerTestHelper
   public static final String addRowsIndexConstantMetric = "addRowsIndexConstant";
   public static final List<String> metrics = Lists.newArrayList(indexMetric, uniqueMetric, addRowsIndexConstantMetric);
 
-  public static final String indexVarianceMetric = "index_var";
-
   public static String dependentPostAggMetric = "dependentPostAgg";
   public static final CountAggregatorFactory rowsCount = new CountAggregatorFactory("rows");
   public static final LongSumAggregatorFactory indexLongSum = new LongSumAggregatorFactory("index", indexMetric);
   public static final LongSumAggregatorFactory __timeLongSum = new LongSumAggregatorFactory("sumtime", timeDimension);
   public static final DoubleSumAggregatorFactory indexDoubleSum = new DoubleSumAggregatorFactory("index", indexMetric);
-  public static final VarianceAggregatorFactory indexVariance = new VarianceAggregatorFactory(indexVarianceMetric, indexMetric);
   public static final String JS_COMBINE_A_PLUS_B = "function combine(a, b) { return a + b; }";
   public static final String JS_RESET_0 = "function reset() { return 0; }";
   public static final JavaScriptAggregatorFactory jsIndexSumIfPlacementishA = new JavaScriptAggregatorFactory(
@@ -170,7 +164,6 @@ public class QueryRunnerTestHelper
   public static final ConstantPostAggregator constant = new ConstantPostAggregator("const", 1L);
   public static final FieldAccessPostAggregator rowsPostAgg = new FieldAccessPostAggregator("rows", "rows");
   public static final FieldAccessPostAggregator indexPostAgg = new FieldAccessPostAggregator("index", "index");
-  public static final FieldAccessPostAggregator indexVarPostAgg = new FieldAccessPostAggregator("index_var", "index_var");
   public static final ArithmeticPostAggregator addRowsIndexConstant =
       new ArithmeticPostAggregator(
           addRowsIndexConstantMetric, "+", Lists.newArrayList(constant, rowsPostAgg, indexPostAgg)
@@ -192,25 +185,11 @@ public class QueryRunnerTestHelper
       "+",
       Lists.newArrayList(new HyperUniqueFinalizingPostAggregator(uniqueMetric, uniqueMetric), new ConstantPostAggregator(null, 1))
   );
-  public static final String stddevOfIndexMetric = "index_stddev";
-  public static final ArithmeticPostAggregator stddevOfIndex = new ArithmeticPostAggregator(
-      stddevOfIndexMetric, "SQRT",
-      Lists.<PostAggregator>newArrayList(
-          new VarianceFinalizingPostAggregator(indexVarianceMetric, indexVarianceMetric)
-      )
-  );
 
   public static final List<AggregatorFactory> commonAggregators = Arrays.asList(
       rowsCount,
       indexDoubleSum,
       qualityUniques
-  );
-
-  public static final List<AggregatorFactory> commonPlusVarAggregators = Arrays.asList(
-      rowsCount,
-      indexDoubleSum,
-      qualityUniques,
-      indexVariance
   );
 
   public static final double UNIQUES_9 = 9.019833517963864;

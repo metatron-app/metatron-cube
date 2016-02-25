@@ -17,7 +17,7 @@
  * under the License.
  */
 
-package io.druid.query.aggregation;
+package io.druid.query.aggregation.variance;
 
 import com.google.common.collect.Ordering;
 import io.druid.data.input.InputRow;
