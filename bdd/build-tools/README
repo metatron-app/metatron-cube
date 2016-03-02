@@ -1,0 +1,5 @@
+* requirements
+  python 2.6 or higher (not python 3)
+  yum install python-pip
+  pip install requests  # for rest api
+  pip install gitpython # for git control
