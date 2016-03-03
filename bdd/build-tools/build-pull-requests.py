@@ -59,10 +59,19 @@ def runCmd(cmdstr):
 
 
 def git_of(path):
-    repo = git.Repo(path)
-    assert not repo.bare        # assume 'path' contains cloned working dir
-    # print repo.remotes.origin.url
+    try:
+        repo = git.Repo(path)
+        assert not repo.bare        # assume 'path' contains cloned working dir
+        # print repo.remotes.origin.url
+    except git.InvalidGitRepositoryError as e:
+        print "Invalid Git repository : %s" % path
+        sys.exit(1)
     return repo
+
+
+def git_clean(repo):
+    repo.head.reset(index=True, working_tree=True)
+    repo.git.clean('-fdx')
 
 
 def prepare_working_copy(repo):
@@ -154,9 +163,9 @@ def get_patches(info, use_diff=True):
     for issue, details in info.items():
         if details['state'] == 'mergeable':
             url = details['diff_url'] if use_diff else details['patch_url']
+            logging.critical('try to get patches from %s' % url)
             patch_resp = requests.get(url)  # redirection handled automatically
             filename = patch_dir + '/' + url.split('/')[-1]
-            logging.info('try to get patches from %s' % url)
             with open(filename, 'w') as f: 
                 f.write(patch_resp.text)
             print ' patch of %d was copied to %s' % (issue, filename)
@@ -176,6 +185,8 @@ def apply_patches(git_dir, repo, patch_dir, issues, do_commit=False):
     os.chdir(git_dir)
     for pf in patch_files:
         issue_num = int(os.path.basename(os.path.splitext(pf)[0]))
+        if issues and not issue_num in issues:
+            continue
         print " start patching %d" % issue_num
         out, rc = getCallResult("patch -p1 -f --dry-run < " + pf)
         if rc != 0: # merge failure
@@ -192,6 +203,8 @@ def apply_patches(git_dir, repo, patch_dir, issues, do_commit=False):
         if rc != 0: # build failure
             print " build %d failed" % issue_num
             build_failed.append(issue_num)
+            # restore state
+            git_clean(repo)
             continue
 
         # build success
