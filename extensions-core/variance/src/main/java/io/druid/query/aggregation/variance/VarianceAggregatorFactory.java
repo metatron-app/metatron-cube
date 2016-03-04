@@ -96,9 +96,9 @@ public class VarianceAggregatorFactory extends AggregatorFactory
       );
     }
     return new VarianceAggregator.ObjectInput(
-          name,
-          metricFactory.makeObjectColumnSelector(fieldName)
-      );
+        name,
+        metricFactory.makeObjectColumnSelector(fieldName)
+    );
   }
 
   @Override
@@ -121,9 +121,9 @@ public class VarianceAggregatorFactory extends AggregatorFactory
       );
     }
     return new VarianceBufferAggregator.ObjectInput(
-          name,
-          metricFactory.makeObjectColumnSelector(fieldName)
-      );
+        name,
+        metricFactory.makeObjectColumnSelector(fieldName)
+    );
   }
 
   @Override
