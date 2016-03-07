@@ -20,6 +20,7 @@ import getopt
 import time
 import logging
 import subprocess
+import codecs
 
 
 # global variables
@@ -108,6 +109,7 @@ def prepare_working_copy(repo):
 def rest_get(url_str):
     if gUseCred:
         url_str += "?client_id=%s&client_secret=%s" % (client_id, client_secret)
+    logging.debug("try to get %s" % url_str)
     return requests.get(url_str)
 
 
@@ -122,9 +124,24 @@ def get_open_pull_requests(git_url_str, authors, issues):
     new_path = '/repos' + '.'.join(git_url.path.split('.')[:-1]) + '/pulls'
     pull_url = git_url._replace(netloc = new_netloc, path = new_path)
     pull_url_str = urlparse.urlunparse(pull_url)
-    logging.debug("request to %s" % pull_url_str)
     response = rest_get(pull_url_str)
-    pull_json = response.json()
+    pull_json = []
+    while True:
+        one_page_pull_json = response.json()
+        pull_json += one_page_pull_json
+        link = response.headers['Link']
+        logging.debug(" got %d pull requests" % len(one_page_pull_json))
+        logging.debug(" paging info: %s" % link)
+        #'<https://api.github.com/repositories/6358188/pulls?client_id=d24549a4d54170b80d87&client_secret=51b213e4148f80f846580902b0cf3bed9b33c836&page=2>; rel="next", <https://api.github.com/repositories/6358188/pulls?client_id=d24549a4d54170b80d87&client_secret=51b213e4148f80f846580902b0cf3bed9b33c836&page=3>; rel="last"'
+        next_str = link.split(',')[0]
+        if next_str.split(';')[1][1:] == 'rel="next"':
+            pull_url_str = next_str.split(';')[0][1:-1]
+            logging.debug("try to get %s" % pull_url_str)
+            response = requests.get(pull_url_str)   # DO NOT call rest_get, credential already included
+        else:       # no more page
+            break
+
+    # pull_json = response.json()
     # print json.dumps(pull_json, indent=2)
     logging.debug(json.dumps(pull_json, indent=2))
 
@@ -184,7 +201,7 @@ def get_patches(info, use_diff=True):
             logging.critical('try to get patches from %s' % url)
             patch_resp = rest_get(url)  # redirection handled automatically
             filename = patch_dir + '/' + url.split('/')[-1]
-            with open(filename, 'w') as f: 
+            with codecs.open(filename, 'w', encoding='utf-8') as f: 
                 f.write(patch_resp.text)
             print ' patch of %d was copied to %s' % (issue, filename)
     return patch_dir
