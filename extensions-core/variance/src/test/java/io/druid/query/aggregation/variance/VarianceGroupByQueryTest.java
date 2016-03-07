@@ -25,6 +25,7 @@ import io.druid.data.input.Row;
 import io.druid.granularity.PeriodGranularity;
 import io.druid.query.QueryRunner;
 import io.druid.query.QueryRunnerTestHelper;
+import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.LongSumAggregatorFactory;
 import io.druid.query.aggregation.PostAggregator;
 import io.druid.query.dimension.DefaultDimensionSpec;
@@ -69,7 +70,49 @@ public class VarianceGroupByQueryTest
     this.runner = runner;
   }
 
-    @Test
+  @Test
+  public void testGroupByVarianceOnly()
+  {
+    GroupByQuery query = GroupByQuery
+        .builder()
+        .setDataSource(QueryRunnerTestHelper.dataSource)
+        .setQuerySegmentSpec(QueryRunnerTestHelper.firstToThird)
+        .setDimensions(Lists.<DimensionSpec>newArrayList(new DefaultDimensionSpec("quality", "alias")))
+        .setAggregatorSpecs(Arrays.<AggregatorFactory>asList(VarianceTestHelper.indexVarianceAggr))
+        .setPostAggregatorSpecs(Arrays.<PostAggregator>asList(VarianceTestHelper.stddevOfIndexAggr))
+        .setGranularity(QueryRunnerTestHelper.dayGran)
+        .build();
+
+    VarianceTestHelper.RowBuilder builder =
+        new VarianceTestHelper.RowBuilder(new String[]{"alias", "index_stddev", "index_var"});
+
+    List<Row> expectedResults = builder
+        .add("2011-04-01", "automotive", 0d, 0d)
+        .add("2011-04-01", "business", 0d, 0d)
+        .add("2011-04-01", "entertainment", 0d, 0d)
+        .add("2011-04-01", "health", 0d, 0d)
+        .add("2011-04-01", "mezzanine", 601.772618810676d, 362130.28475025925d)
+        .add("2011-04-01", "news", 0d, 0d)
+        .add("2011-04-01", "premium", 593.2927553579219d, 351996.29356019496d)
+        .add("2011-04-01", "technology", 0d, 0d)
+        .add("2011-04-01", "travel", 0d, 0d)
+
+        .add("2011-04-02", "automotive", 0d, 0d)
+        .add("2011-04-02", "business", 0d, 0d)
+        .add("2011-04-02", "entertainment", 0d, 0d)
+        .add("2011-04-02", "health", 0d, 0d)
+        .add("2011-04-02", "mezzanine", 499.1587153657871d, 249159.42312562282d)
+        .add("2011-04-02", "news", 0d, 0d)
+        .add("2011-04-02", "premium", 507.3626581332543d, 257416.86686804148d)
+        .add("2011-04-02", "technology", 0d, 0d)
+        .add("2011-04-02", "travel", 0d, 0d)
+        .build();
+
+    Iterable<Row> results = GroupByQueryRunnerTestHelper.runQuery(factory, runner, query);
+    TestHelper.assertExpectedObjects(expectedResults, results, "");
+  }
+
+  @Test
   public void testGroupBy()
   {
     GroupByQuery query = GroupByQuery
@@ -119,7 +162,7 @@ public class VarianceGroupByQueryTest
     TestHelper.assertExpectedObjects(expectedResults, results, "");
   }
 
-   @Test
+  @Test
   public void testPostAggHavingSpec()
   {
     VarianceTestHelper.RowBuilder expect = new VarianceTestHelper.RowBuilder(

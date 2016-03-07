@@ -19,10 +19,13 @@
 
 package io.druid.query.aggregation.variance;
 
+import com.google.common.collect.Lists;
 import org.junit.Assert;
 import org.junit.Test;
 
 import java.util.Arrays;
+import java.util.List;
+import java.util.Random;
 
 public class VarianceHolderTest
 {
@@ -76,6 +79,7 @@ public class VarianceHolderTest
   @Test
   public void testVariance()
   {
+    Random random = new Random();
     for (float[] values : Arrays.asList(market_upfront, market_total_market)) {
       double sum = 0;
       for (float f : values) {
@@ -94,6 +98,21 @@ public class VarianceHolderTest
         holder.add(f);
       }
       Assert.assertEquals(holder.getVariance(), variance, 0.001);
+
+      for (int mergeOn : new int[] {2, 3, 5, 9}) {
+        List<VarianceHolder> holders = Lists.newArrayListWithCapacity(mergeOn);
+        for (int i = 0; i < mergeOn; i++) {
+          holders.add(new VarianceHolder());
+        }
+        for (float f : values) {
+          holders.get(random.nextInt(mergeOn)).add(f);
+        }
+        VarianceHolder holder1 = holders.get(0);
+        for (int i = 1; i < mergeOn; i++) {
+          holder1 = (VarianceHolder) VarianceHolder.combineValues(holder1, holders.get(i));
+        }
+        Assert.assertEquals(holder1.getVariance(), variance, 0.01);
+      }
     }
   }
 }

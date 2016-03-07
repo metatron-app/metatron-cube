@@ -74,8 +74,18 @@ public class VarianceHolder
     VarianceHolder holder1 = (VarianceHolder) lhs;
     VarianceHolder holder2 = (VarianceHolder) rhs;
 
+    if (holder2.count == 0) {
+      return holder1;
+    }
+    if (holder1.count == 0) {
+      holder1.nvariance = holder2.nvariance;
+      holder1.count = holder2.count;
+      holder1.sum = holder2.sum;
+      return holder1;
+    }
+
     final double ratio = holder1.count / (double) holder2.count;
-    final double t = ratio * holder1.sum - holder2.sum;
+    final double t = holder1.sum / ratio - holder2.sum;
 
     holder1.nvariance += holder2.nvariance + (ratio / (holder1.count + holder2.count) * t * t);
     holder1.count += holder2.count;
@@ -117,16 +127,11 @@ public class VarianceHolder
     return this;
   }
 
-  public VarianceHolder add(VarianceHolder another)
-  {
-    combineValues(this, another);
-    return this;
-  }
-
   public Double getVariance()
   {
-    if (count == 0) { // SQL standard - return null for zero elements
-      return null;
+    if (count == 0) {
+      // in SQL standard, we should return null for zero elements. But druid there should not be such a case
+      throw new IllegalStateException("should not be empty holder");
     } else if (count == 1) {
       return 0d;
     } else {

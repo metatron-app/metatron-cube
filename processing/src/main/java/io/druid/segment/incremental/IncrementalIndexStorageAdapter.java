@@ -308,7 +308,7 @@ public class IncrementalIndexStorageAdapter implements StorageAdapter
                 }
 
                 if (Thread.interrupted()) {
-                  throw new QueryInterruptedException( new InterruptedException());
+                  throw new QueryInterruptedException(new InterruptedException());
                 }
 
                 boolean foundMatched = false;
@@ -604,7 +604,12 @@ public class IncrementalIndexStorageAdapter implements StorageAdapter
               @Override
               public ValueType columnType(String columnName)
               {
-                return index.getMetricValueType(columnName);
+                ValueType type = index.getMetricValueType(columnName);
+                if (type == null) {
+                  IncrementalIndex.DimensionDesc dimensionDesc = index.getDimension(columnName);
+                  return dimensionDesc == null ? null : dimensionDesc.getCapabilities().getType();
+                }
+                return type;
               }
             };
           }

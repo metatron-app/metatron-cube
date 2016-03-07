@@ -32,7 +32,7 @@ import java.util.Set;
 
 /**
  */
-@JsonTypeName("varianceValue")
+@JsonTypeName("hiveVarianceValue")
 public class VarianceFinalizingPostAggregator implements PostAggregator
 {
   private final String name;

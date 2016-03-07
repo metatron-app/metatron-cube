@@ -96,7 +96,13 @@ public class VarianceAggregatorTest
     Assert.assertEquals(sum, holder.sum, 0.0001);
     Assert.assertEquals(nvariance, holder.nvariance, 0.0001);
     if (count == 0) {
-      Assert.assertNull(holder.getVariance());
+      try {
+        holder.getVariance();
+        Assert.fail("Should throw ISE");
+      }
+      catch (IllegalStateException e) {
+        Assert.assertTrue(e.getMessage().contains("should not be empty holder"));
+      }
     } else {
       Assert.assertEquals(holder.getVariance(), variances[(int) count - 1], 0.0001);
     }
