@@ -46,8 +46,8 @@ public class VarianceDruidModule implements DruidModule
   @Override
   public void configure(Binder binder)
   {
-    if (ComplexMetrics.getSerdeForType("hiveVariance") == null) {
-      ComplexMetrics.registerSerde("hiveVariance", new VarianceSerde());
+    if (ComplexMetrics.getSerdeForType("variance") == null) {
+      ComplexMetrics.registerSerde("variance", new VarianceSerde());
     }
   }
 }

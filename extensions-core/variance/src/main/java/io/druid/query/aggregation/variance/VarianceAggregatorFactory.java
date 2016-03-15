@@ -54,7 +54,7 @@ public class VarianceAggregatorFactory extends AggregatorFactory
   @JsonCreator
   public VarianceAggregatorFactory(
       @JsonProperty("name") String name,
-      @JsonProperty("fieldName") final String fieldName
+      @JsonProperty("fieldName") String fieldName
   )
   {
     Preconditions.checkNotNull(name, "Must have a valid, non-null aggregator name");
