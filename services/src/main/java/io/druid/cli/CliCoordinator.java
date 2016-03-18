@@ -21,6 +21,7 @@ package io.druid.cli;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Predicates;
+import com.google.common.base.Optional;
 import com.google.common.collect.ImmutableList;
 import com.google.inject.Binder;
 import com.google.inject.Inject;
@@ -41,6 +42,7 @@ import io.druid.guice.LazySingleton;
 import io.druid.guice.LifecycleModule;
 import io.druid.guice.ManageLifecycle;
 import io.druid.guice.annotations.CoordinatorIndexingServiceHelper;
+import io.druid.guice.PropertiesModule;
 import io.druid.metadata.MetadataRuleManager;
 import io.druid.metadata.MetadataRuleManagerConfig;
 import io.druid.metadata.MetadataRuleManagerProvider;
@@ -209,5 +211,11 @@ public class CliCoordinator extends ServerRunnable
           }
         }
     );
+  }
+
+  @Override
+  protected Optional<PropertiesModule> getPropertiesModules()
+  {
+    return Optional.of(new PropertiesModule("coordinator/runtime.properties"));
   }
 }
