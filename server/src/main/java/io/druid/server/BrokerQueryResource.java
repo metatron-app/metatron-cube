@@ -158,8 +158,9 @@ public class BrokerQueryResource extends QueryResource
           final SegmentDescriptor descriptor = new SegmentDescriptor(
               holder.getInterval(), holder.getVersion(), chunk.getChunkNumber()
           );
+          long size = selector.getSegment().getSize();
           List<DruidServerMetadata> candidates = selector.getCandidates();
-          located.add(new LocatedSegmentDescriptor(descriptor, candidates));
+          located.add(new LocatedSegmentDescriptor(descriptor, size, candidates));
         }
       }
     }
