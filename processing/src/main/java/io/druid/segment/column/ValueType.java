@@ -19,6 +19,8 @@
 
 package io.druid.segment.column;
 
+import com.metamx.common.logger.Logger;
+
 /**
 */
 public enum ValueType
@@ -28,6 +30,8 @@ public enum ValueType
   STRING,
   COMPLEX;
 
+  private static final Logger log = new Logger(ValueType.class);
+
   public static ValueType of(String valueType) {
     if (valueType == null) {
       return null;
@@ -36,6 +40,7 @@ public enum ValueType
       return ValueType.valueOf(valueType.toUpperCase());
     }
     catch (IllegalArgumentException e) {
+      log.debug("Unsupported type string " + valueType + ".. regarding it as COMPLEX type");
       return COMPLEX;
     }
   }

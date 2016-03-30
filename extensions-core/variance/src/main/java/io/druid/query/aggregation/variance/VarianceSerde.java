@@ -34,7 +34,7 @@ import java.nio.ByteBuffer;
  */
 public class VarianceSerde extends ComplexMetricSerde
 {
-  private static Ordering<VarianceHolder> comparator = new Ordering<VarianceHolder>()
+  private static final Ordering<VarianceHolder> comparator = new Ordering<VarianceHolder>()
   {
     @Override
     public int compare(

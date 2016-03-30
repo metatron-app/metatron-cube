@@ -33,7 +33,6 @@ import io.druid.query.QueryRunnerFactory;
 import io.druid.query.QueryToolChest;
 import org.joda.time.DateTime;
 
-import java.util.List;
 import java.util.Map;
 
 /**
