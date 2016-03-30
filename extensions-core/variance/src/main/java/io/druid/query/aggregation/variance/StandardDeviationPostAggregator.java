@@ -25,6 +25,7 @@ import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Sets;
 import io.druid.query.aggregation.PostAggregator;
+import io.druid.query.aggregation.post.ArithmeticPostAggregator;
 
 import java.util.Comparator;
 import java.util.Map;
@@ -32,14 +33,14 @@ import java.util.Set;
 
 /**
  */
-@JsonTypeName("varianceValue")
-public class VarianceFinalizingPostAggregator implements PostAggregator
+@JsonTypeName("stddev")
+public class StandardDeviationPostAggregator implements PostAggregator
 {
-  private final String name;
-  private final String fieldName;
+  protected final String name;
+  protected final String fieldName;
 
   @JsonCreator
-  public VarianceFinalizingPostAggregator(
+  public StandardDeviationPostAggregator(
       @JsonProperty("name") String name,
       @JsonProperty("fieldName") String fieldName
   )
@@ -57,15 +58,15 @@ public class VarianceFinalizingPostAggregator implements PostAggregator
   }
 
   @Override
-  public Comparator<VarianceHolder> getComparator()
+  public Comparator<Double> getComparator()
   {
-    return VarianceHolder.COMPARATOR;
+    return ArithmeticPostAggregator.DEFAULT_COMPARATOR;
   }
 
   @Override
   public Object compute(Map<String, Object> combinedAggregators)
   {
-    return ((VarianceHolder) combinedAggregators.get(fieldName)).getVariance();
+    return Math.sqrt(((VarianceHolder) combinedAggregators.get(fieldName)).getVariance());
   }
 
   @Override

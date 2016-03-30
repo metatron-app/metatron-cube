@@ -27,7 +27,6 @@ import io.druid.data.input.Row;
 import io.druid.query.QueryRunnerTestHelper;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.PostAggregator;
-import io.druid.query.aggregation.post.ArithmeticPostAggregator;
 import org.joda.time.DateTime;
 
 import java.util.Arrays;
@@ -47,11 +46,9 @@ public class VarianceTestHelper extends QueryRunnerTestHelper
 
   public static final String stddevOfIndexMetric = "index_stddev";
 
-  public static final ArithmeticPostAggregator stddevOfIndexAggr = new ArithmeticPostAggregator(
-      stddevOfIndexMetric, ArithmeticPostAggregator.UnaryOp.SQRT.name(),
-      Arrays.<PostAggregator>asList(
-          new VarianceFinalizingPostAggregator(indexVarianceMetric, indexVarianceMetric)
-      )
+  public static final PostAggregator stddevOfIndexPostAggr = new StandardDeviationPostAggregator(
+      stddevOfIndexMetric,
+      indexVarianceMetric
   );
 
   public static final List<AggregatorFactory> commonPlusVarAggregators = Arrays.asList(

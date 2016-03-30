@@ -21,7 +21,6 @@ package io.druid.query.aggregation.post;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
@@ -32,14 +31,13 @@ import java.util.Comparator;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Set;
 
 /**
  */
 public class ArithmeticPostAggregator implements PostAggregator
 {
-  private static final Comparator DEFAULT_COMPARATOR = new Comparator()
+  public static final Comparator DEFAULT_COMPARATOR = new Comparator()
   {
     @Override
     public int compare(Object o, Object o1)
@@ -51,12 +49,9 @@ public class ArithmeticPostAggregator implements PostAggregator
   private final String name;
   private final String fnName;
   private final List<PostAggregator> fields;
-  private final UnaryOp unary;
-  private final BinaryOp binary;
+  private final Ops op;
   private final Comparator comparator;
   private final String ordering;
-
-  private final Function<Map<String, Object>, Double> function;
 
   public ArithmeticPostAggregator(
       String name,
@@ -76,27 +71,16 @@ public class ArithmeticPostAggregator implements PostAggregator
   )
   {
     Preconditions.checkArgument(fnName != null, "fn cannot not be null");
+    Preconditions.checkArgument(fields != null && fields.size() > 1, "Illegal number of fields[%s], must be > 1");
 
     this.name = name;
     this.fnName = fnName;
     this.fields = fields;
 
-    this.binary = BinaryOp.lookup(fnName);
-    this.unary = UnaryOp.lookup(fnName);
-
-    if (binary != null) {
-      Preconditions.checkArgument(
-          fields != null && fields.size() >= 2, "Illegal number of fields[%s], must be >= 2"
-      );
-    } else if (unary != null) {
-      Preconditions.checkArgument(
-          fields != null && fields.size() == 1, "Illegal number of fields[%s], must be == 1"
-      );
-    } else {
-      throw new IAE("Unknown operation[%s], known operations[%s and %s] ", fnName, UnaryOp.getFns(), BinaryOp.getFns());
+    this.op = Ops.lookup(fnName);
+    if (op == null) {
+      throw new IAE("Unknown operation[%s], known operations[%s]", fnName, Ops.getFns());
     }
-
-    this.function = toFunction();
 
     this.ordering = ordering;
     this.comparator = ordering == null ? DEFAULT_COMPARATOR : Ordering.valueOf(ordering);
@@ -121,7 +105,15 @@ public class ArithmeticPostAggregator implements PostAggregator
   @Override
   public Object compute(Map<String, Object> values)
   {
-    return function.apply(values);
+    Iterator<PostAggregator> fieldsIter = fields.iterator();
+    double retVal = 0.0;
+    if (fieldsIter.hasNext()) {
+      retVal = ((Number) fieldsIter.next().compute(values)).doubleValue();
+      while (fieldsIter.hasNext()) {
+        retVal = op.compute(retVal, ((Number) fieldsIter.next().compute(values)).doubleValue());
+      }
+    }
+    return retVal;
   }
 
   @Override
@@ -156,95 +148,59 @@ public class ArithmeticPostAggregator implements PostAggregator
            "name='" + name + '\'' +
            ", fnName='" + fnName + '\'' +
            ", fields=" + fields +
-           (binary != null ? ", binary=" + binary : ", unary=" + unary) +
+           ", op=" + op +
            '}';
   }
 
-  public static enum UnaryOp
+  private static enum Ops
   {
-    SQRT("sqrt") {
-      public double compute(double v)
-      {
-        return Math.sqrt(v);
-      }
-    };
-    private final String fn;
+    PLUS("+")
+        {
+          public double compute(double lhs, double rhs)
+          {
+            return lhs + rhs;
+          }
+        },
+    MINUS("-")
+        {
+          public double compute(double lhs, double rhs)
+          {
+            return lhs - rhs;
+          }
+        },
+    MULT("*")
+        {
+          public double compute(double lhs, double rhs)
+          {
+            return lhs * rhs;
+          }
+        },
+    DIV("/")
+        {
+          public double compute(double lhs, double rhs)
+          {
+            return (rhs == 0.0) ? 0 : (lhs / rhs);
+          }
+        },
+    QUOTIENT("quotient")
+        {
+          public double compute(double lhs, double rhs)
+          {
+            return lhs / rhs;
+          }
+        };
 
-    UnaryOp(String fn)
-    {
-      this.fn = fn;
-    }
-
-    public String getFn()
-    {
-      return fn;
-    }
-
-    public abstract double compute(double v);
-
-    private static final Map<String, UnaryOp> lookupMap = Maps.newHashMap();
+    private static final Map<String, Ops> lookupMap = Maps.newHashMap();
 
     static {
-      for (UnaryOp op : UnaryOp.values()) {
-        lookupMap.put(op.getFn(), op);
-      }
-    }
-
-    static UnaryOp lookup(String fn)
-    {
-      return lookupMap.get(fn.toLowerCase());
-    }
-
-    static Set<String> getFns()
-    {
-      return lookupMap.keySet();
-    }
-  }
-
-  public static enum BinaryOp
-  {
-    PLUS("+") {
-      public double compute(double lhs, double rhs)
-      {
-        return lhs + rhs;
-      }
-    },
-    MINUS("-") {
-      public double compute(double lhs, double rhs)
-      {
-        return lhs - rhs;
-      }
-    },
-    MULT("*") {
-      public double compute(double lhs, double rhs)
-      {
-        return lhs * rhs;
-      }
-    },
-    DIV("/") {
-      public double compute(double lhs, double rhs)
-      {
-        return (rhs == 0.0) ? 0 : (lhs / rhs);
-      }
-    },
-    QUOTIENT("quotient") {
-      public double compute(double lhs, double rhs)
-      {
-        return lhs / rhs;
-      }
-    };
-
-    private static final Map<String, BinaryOp> lookupMap = Maps.newHashMap();
-
-    static {
-      for (BinaryOp op : BinaryOp.values()) {
+      for (Ops op : Ops.values()) {
         lookupMap.put(op.getFn(), op);
       }
     }
 
     private final String fn;
 
-    BinaryOp(String fn)
+    Ops(String fn)
     {
       this.fn = fn;
     }
@@ -256,7 +212,7 @@ public class ArithmeticPostAggregator implements PostAggregator
 
     public abstract double compute(double lhs, double rhs);
 
-    static BinaryOp lookup(String fn)
+    static Ops lookup(String fn)
     {
       return lookupMap.get(fn);
     }
@@ -267,56 +223,21 @@ public class ArithmeticPostAggregator implements PostAggregator
     }
   }
 
-  public Function<Map<String, Object>, Double> toFunction()
-  {
-    if (binary != null) {
-      return new Function<Map<String, Object>, Double>()
-      {
-        @Override
-        public Double apply(Map<String, Object> input)
-        {
-          Iterator<PostAggregator> fieldsIter = fields.iterator();
-          double retVal = 0.0;
-          if (fieldsIter.hasNext()) {
-            retVal = ((Number) fieldsIter.next().compute(input)).doubleValue();
-            while (fieldsIter.hasNext()) {
-              retVal = binary.compute(retVal, ((Number) fieldsIter.next().compute(input)).doubleValue());
-            }
-          }
-          return retVal;
-        }
-      };
-    }
-    return new Function<Map<String, Object>, Double>()
-    {
-      private final PostAggregator aggregator = fields.get(0);
-
-      @Override
-      public Double apply(Map<String, Object> input)
-      {
-        return unary.compute(((Number) aggregator.compute(input)).doubleValue());
-      }
-    };
-  }
-
-  public static enum Ordering implements Comparator<Double>
-  {
+  public static enum Ordering implements Comparator<Double> {
     // ensures the following order: numeric > NaN > Infinite
     numericFirst {
-      public int compare(Double lhs, Double rhs)
-      {
-        if (isFinite(lhs) && !isFinite(rhs)) {
+      public int compare(Double lhs, Double rhs) {
+        if(isFinite(lhs) && !isFinite(rhs)) {
           return 1;
         }
-        if (!isFinite(lhs) && isFinite(rhs)) {
+        if(!isFinite(lhs) && isFinite(rhs)) {
           return -1;
         }
         return Double.compare(lhs, rhs);
       }
 
       // Double.isFinite only exist in JDK8
-      private boolean isFinite(double value)
-      {
+      private boolean isFinite(double value) {
         return !Double.isInfinite(value) && !Double.isNaN(value);
       }
     }
@@ -346,10 +267,7 @@ public class ArithmeticPostAggregator implements PostAggregator
     if (name != null ? !name.equals(that.name) : that.name != null) {
       return false;
     }
-    if (!Objects.equals(binary, that.binary)) {
-      return false;
-    }
-    if (!Objects.equals(unary, that.unary)) {
+    if (op != that.op) {
       return false;
     }
     if (ordering != null ? !ordering.equals(that.ordering) : that.ordering != null) {
@@ -362,6 +280,12 @@ public class ArithmeticPostAggregator implements PostAggregator
   @Override
   public int hashCode()
   {
-    return Objects.hash(name, fnName, fields, binary, unary, comparator, ordering);
+    int result = name != null ? name.hashCode() : 0;
+    result = 31 * result + fnName.hashCode();
+    result = 31 * result + fields.hashCode();
+    result = 31 * result + op.hashCode();
+    result = 31 * result + comparator.hashCode();
+    result = 31 * result + (ordering != null ? ordering.hashCode() : 0);
+    return result;
   }
 }

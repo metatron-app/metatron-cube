@@ -127,7 +127,7 @@ public class VarianceHolder
     return this;
   }
 
-  public Double getVariance()
+  public double getVariance()
   {
     if (count == 0) {
       // in SQL standard, we should return null for zero elements. But druid there should not be such a case

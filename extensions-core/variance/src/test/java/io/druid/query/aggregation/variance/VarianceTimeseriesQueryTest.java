@@ -69,7 +69,7 @@ public class VarianceTimeseriesQueryTest
                                   .postAggregators(
                                       Arrays.<PostAggregator>asList(
                                           VarianceTestHelper.addRowsIndexConstant,
-                                          VarianceTestHelper.stddevOfIndexAggr
+                                          VarianceTestHelper.stddevOfIndexPostAggr
                                       )
                                   )
                                   .descending(descending)

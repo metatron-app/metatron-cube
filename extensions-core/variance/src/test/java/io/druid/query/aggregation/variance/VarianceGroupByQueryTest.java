@@ -79,7 +79,7 @@ public class VarianceGroupByQueryTest
         .setQuerySegmentSpec(QueryRunnerTestHelper.firstToThird)
         .setDimensions(Lists.<DimensionSpec>newArrayList(new DefaultDimensionSpec("quality", "alias")))
         .setAggregatorSpecs(Arrays.<AggregatorFactory>asList(VarianceTestHelper.indexVarianceAggr))
-        .setPostAggregatorSpecs(Arrays.<PostAggregator>asList(VarianceTestHelper.stddevOfIndexAggr))
+        .setPostAggregatorSpecs(Arrays.<PostAggregator>asList(VarianceTestHelper.stddevOfIndexPostAggr))
         .setGranularity(QueryRunnerTestHelper.dayGran)
         .build();
 
@@ -128,7 +128,7 @@ public class VarianceGroupByQueryTest
             )
         )
         .setPostAggregatorSpecs(
-            Arrays.<PostAggregator>asList(VarianceTestHelper.stddevOfIndexAggr)
+            Arrays.<PostAggregator>asList(VarianceTestHelper.stddevOfIndexPostAggr)
         )
         .setGranularity(QueryRunnerTestHelper.dayGran)
         .build();
@@ -187,7 +187,7 @@ public class VarianceGroupByQueryTest
                 VarianceTestHelper.indexVarianceAggr
             )
         )
-        .setPostAggregatorSpecs(ImmutableList.<PostAggregator>of(VarianceTestHelper.stddevOfIndexAggr))
+        .setPostAggregatorSpecs(ImmutableList.<PostAggregator>of(VarianceTestHelper.stddevOfIndexPostAggr))
         .setGranularity(new PeriodGranularity(new Period("P1M"), null, null))
         .setHavingSpec(
             new OrHavingSpec(

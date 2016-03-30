@@ -38,7 +38,7 @@ public class VarianceDruidModule implements DruidModule
     return ImmutableList.of(
         new SimpleModule().registerSubtypes(
             VarianceAggregatorFactory.class,
-            VarianceFinalizingPostAggregator.class
+            StandardDeviationPostAggregator.class
         )
     );
   }
