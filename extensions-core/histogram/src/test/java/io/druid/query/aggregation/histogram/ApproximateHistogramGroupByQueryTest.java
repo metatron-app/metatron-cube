@@ -155,7 +155,8 @@ public class ApproximateHistogramGroupByQueryTest
         10,
         5,
         Float.NEGATIVE_INFINITY,
-        Float.POSITIVE_INFINITY
+        Float.POSITIVE_INFINITY,
+        false
     );
 
     GroupByQuery query = new GroupByQuery.Builder()
@@ -229,7 +230,8 @@ public class ApproximateHistogramGroupByQueryTest
         10,
         5,
         Float.NEGATIVE_INFINITY,
-        Float.POSITIVE_INFINITY
+        Float.POSITIVE_INFINITY,
+        false
     );
 
     GroupByQuery query = new GroupByQuery.Builder()
