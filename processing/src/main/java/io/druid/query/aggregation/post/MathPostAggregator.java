@@ -24,6 +24,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Sets;
 import io.druid.math.expr.Expr;
+import io.druid.math.expr.ExprEval;
 import io.druid.math.expr.Parser;
 import io.druid.query.aggregation.PostAggregator;
 
@@ -98,7 +99,7 @@ public class MathPostAggregator implements PostAggregator
   @Override
   public Object compute(Map<String, Object> values)
   {
-    return parsed.eval(Parser.withMap(values));
+    return parsed.eval(Parser.withMap(values)).value();
   }
 
   @Override

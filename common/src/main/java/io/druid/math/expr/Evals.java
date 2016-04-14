@@ -23,33 +23,36 @@ import com.google.common.base.Function;
 import com.google.common.base.Strings;
 import io.druid.data.input.impl.DimensionSchema;
 import org.apache.commons.lang.StringUtils;
+import java.util.Objects;
 
 /**
  */
 public class Evals
 {
-  static Number eq(Number leftVal, Number rightVal)
+  static boolean eq(ExprEval leftVal, ExprEval rightVal)
   {
-    if (isAnyLong(leftVal, rightVal)) {
-      return booleanToLong(leftVal.longValue() == rightVal.longValue());
-    } else {
-      return booleanToDouble(leftVal.doubleValue() == rightVal.doubleValue());
+    if (isSameType(leftVal, rightVal)) {
+      return Objects.equals(leftVal.value(), rightVal.value());
     }
+    if (isAllNumeric(leftVal, rightVal)) {
+      return leftVal.doubleValue() == rightVal.doubleValue();
+    }
+    return false;
   }
 
-  static Number booleanToLong(boolean value)
+  private static boolean isSameType(ExprEval leftVal, ExprEval rightVal)
   {
-    return value ? 1L : 0L;
+    return leftVal.type() == rightVal.type();
   }
 
-  static Number booleanToDouble(boolean value)
+  static boolean isAllNumeric(ExprEval left, ExprEval right)
   {
-    return value ? 1.0d : 0.0d;
+    return left.isNumeric() && right.isNumeric();
   }
 
-  static boolean isAnyLong(Number left, Number right)
+  static boolean isAllString(ExprEval left, ExprEval right)
   {
-    return left instanceof Long && right instanceof Long;
+    return left.type() == ExprType.STRING && right.type() == ExprType.STRING;
   }
 
   public static boolean asBoolean(Number x)

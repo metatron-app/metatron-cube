@@ -662,7 +662,7 @@ public class IncrementalIndexStorageAdapter implements StorageAdapter
                   @Override
                   public Number get()
                   {
-                    return parsed.eval(binding);
+                    return parsed.eval(binding).numberValue();
                   }
                 };
               }
@@ -862,7 +862,7 @@ public class IncrementalIndexStorageAdapter implements StorageAdapter
         @Override
         public boolean matches()
         {
-          return Evals.asBoolean(parsed.eval(binding));
+          return parsed.eval(binding).asBoolean();
         }
       };
     }

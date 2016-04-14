@@ -19,15 +19,17 @@
 
 package io.druid.math.expr;
 
+import com.google.common.base.Strings;
 import com.google.common.math.LongMath;
 
 import java.util.List;
+import java.util.Objects;
 
 /**
  */
 public interface Expr
 {
-  Number eval(NumericBinding bindings);
+  ExprEval eval(NumericBinding bindings);
 
   interface NumericBinding
   {
@@ -51,9 +53,31 @@ class LongExpr implements Expr
   }
 
   @Override
-  public Number eval(NumericBinding bindings)
+  public ExprEval eval(NumericBinding bindings)
   {
-    return value;
+    return ExprEval.of(value, ExprType.LONG);
+  }
+}
+
+class StringExpr implements Expr
+{
+  private final String value;
+
+  public StringExpr(String value)
+  {
+    this.value = value;
+  }
+
+  @Override
+  public String toString()
+  {
+    return String.valueOf(value);
+  }
+
+  @Override
+  public ExprEval eval(NumericBinding bindings)
+  {
+    return ExprEval.of(value, ExprType.STRING);
   }
 }
 
@@ -73,9 +97,9 @@ class DoubleExpr implements Expr
   }
 
   @Override
-  public Number eval(NumericBinding bindings)
+  public ExprEval eval(NumericBinding bindings)
   {
-    return value;
+    return ExprEval.of(value, ExprType.DOUBLE);
   }
 }
 
@@ -95,14 +119,19 @@ class IdentifierExpr implements Expr
   }
 
   @Override
-  public Number eval(NumericBinding bindings)
+  public ExprEval eval(NumericBinding bindings)
   {
-    Number val = bindings.get(value);
+    Object val = bindings.get(value);
     if (val == null) {
       throw new RuntimeException("No binding found for " + value);
-    } else {
-      return val instanceof Long ? val : val.doubleValue();
     }
+    if (val instanceof Integer || val instanceof Long) {
+      return ExprEval.of(val, ExprType.LONG);
+    }
+    if (val instanceof Float || val instanceof Double) {
+      return ExprEval.of(val, ExprType.DOUBLE);
+    }
+    return ExprEval.of(String.valueOf(val), ExprType.STRING);
   }
 }
 
@@ -124,7 +153,7 @@ class FunctionExpr implements Expr
   }
 
   @Override
-  public Number eval(NumericBinding bindings)
+  public ExprEval eval(NumericBinding bindings)
   {
     return Parser.func.get(name.toLowerCase()).apply(args, bindings);
   }
@@ -140,14 +169,16 @@ class UnaryMinusExpr implements Expr
   }
 
   @Override
-  public Number eval(NumericBinding bindings)
+  public ExprEval eval(NumericBinding bindings)
   {
-    Number valObj = expr.eval(bindings);
-    if (valObj instanceof Long) {
-      return -1 * valObj.longValue();
-    } else {
-      return -1 * valObj.doubleValue();
+    ExprEval ret = expr.eval(bindings);
+    if (ret.type() == ExprType.LONG) {
+      return ExprEval.of(-ret.longValue());
     }
+    if (ret.type() == ExprType.DOUBLE) {
+      return ExprEval.of(-ret.doubleValue());
+    }
+    throw new IllegalArgumentException("unsupported type " + ret.type());
   }
 
   @Override
@@ -167,10 +198,16 @@ class UnaryNotExpr implements Expr
   }
 
   @Override
-  public Number eval(NumericBinding bindings)
+  public ExprEval eval(NumericBinding bindings)
   {
-    Number valObj = expr.eval(bindings);
-    return valObj.doubleValue() > 0 ? 0.0d : 1.0d;
+    ExprEval ret = expr.eval(bindings);
+    if (ret.type() == ExprType.LONG) {
+      return ExprEval.of(ret.asBoolean() ? 0L : 1L);
+    }
+    if (ret.type() == ExprType.DOUBLE) {
+      return ExprEval.of(ret.asBoolean() ? 0.0d :1.0d);
+    }
+    throw new IllegalArgumentException("unsupported type " + ret.type());
   }
 
   @Override
@@ -193,10 +230,45 @@ abstract class BinaryOpExprBase implements Expr
     this.right = right;
   }
 
-  protected boolean isLong(Number left, Number right)
+  @Override
+  public String toString()
   {
-    return Evals.isAnyLong(left, right);
+    return "(" + op + " " + left + " " + right + ")";
   }
+}
+
+abstract class BinaryNumericOpExprBase extends BinaryOpExprBase
+{
+  public BinaryNumericOpExprBase(String op, Expr left, Expr right)
+  {
+    super(op, left, right);
+  }
+
+  @Override
+  public ExprEval eval(NumericBinding bindings)
+  {
+    ExprEval leftVal = left.eval(bindings);
+    ExprEval rightVal = right.eval(bindings);
+    if (leftVal.type() == ExprType.STRING || rightVal.type() == ExprType.STRING) {
+      return evalString(Strings.nullToEmpty(leftVal.asString()), Strings.nullToEmpty(rightVal.asString()));
+    }
+    if (leftVal.value() == null || rightVal.value() == null) {
+      throw new IllegalArgumentException("null value");
+    }
+    if (leftVal.type() == ExprType.LONG && rightVal.type() == ExprType.LONG) {
+      return ExprEval.of(evalLong(leftVal.longValue(), rightVal.longValue()));
+    }
+    return ExprEval.of(evalDouble(leftVal.doubleValue(), rightVal.doubleValue()));
+  }
+
+  protected ExprEval evalString(String left, String right)
+  {
+    throw new IllegalArgumentException("unsupported type " + ExprType.STRING);
+  }
+
+  protected abstract long evalLong(long left, long right);
+
+  protected abstract double evalDouble(double left, double right);
 
   @Override
   public String toString()
@@ -205,7 +277,7 @@ abstract class BinaryOpExprBase implements Expr
   }
 }
 
-class BinMinusExpr extends BinaryOpExprBase
+class BinMinusExpr extends BinaryNumericOpExprBase
 {
 
   BinMinusExpr(String op, Expr left, Expr right)
@@ -214,19 +286,19 @@ class BinMinusExpr extends BinaryOpExprBase
   }
 
   @Override
-  public Number eval(NumericBinding bindings)
+  protected final long evalLong(long left, long right)
   {
-    Number leftVal = left.eval(bindings);
-    Number rightVal = right.eval(bindings);
-    if (isLong(leftVal, rightVal)) {
-      return leftVal.longValue() - rightVal.longValue();
-    } else {
-      return leftVal.doubleValue() - rightVal.doubleValue();
-    }
+    return left - right;
+  }
+
+  @Override
+  protected final double evalDouble(double left, double right)
+  {
+    return left - right;
   }
 }
 
-class BinPowExpr extends BinaryOpExprBase
+class BinPowExpr extends BinaryNumericOpExprBase
 {
 
   BinPowExpr(String op, Expr left, Expr right)
@@ -235,19 +307,19 @@ class BinPowExpr extends BinaryOpExprBase
   }
 
   @Override
-  public Number eval(NumericBinding bindings)
+  protected final long evalLong(long left, long right)
   {
-    Number leftVal = left.eval(bindings);
-    Number rightVal = right.eval(bindings);
-    if (isLong(leftVal, rightVal)) {
-      return LongMath.pow(leftVal.longValue(), rightVal.intValue());
-    } else {
-      return Math.pow(leftVal.doubleValue(), rightVal.doubleValue());
-    }
+    return LongMath.pow(left, (int) right);
+  }
+
+  @Override
+  protected final double evalDouble(double left, double right)
+  {
+    return Math.pow(left, right);
   }
 }
 
-class BinMulExpr extends BinaryOpExprBase
+class BinMulExpr extends BinaryNumericOpExprBase
 {
 
   BinMulExpr(String op, Expr left, Expr right)
@@ -256,19 +328,19 @@ class BinMulExpr extends BinaryOpExprBase
   }
 
   @Override
-  public Number eval(NumericBinding bindings)
+  protected final long evalLong(long left, long right)
   {
-    Number leftVal = left.eval(bindings);
-    Number rightVal = right.eval(bindings);
-    if (isLong(leftVal, rightVal)) {
-      return leftVal.longValue() * rightVal.longValue();
-    } else {
-      return leftVal.doubleValue() * rightVal.doubleValue();
-    }
+    return left * right;
+  }
+
+  @Override
+  protected final double evalDouble(double left, double right)
+  {
+    return left * right;
   }
 }
 
-class BinDivExpr extends BinaryOpExprBase
+class BinDivExpr extends BinaryNumericOpExprBase
 {
 
   BinDivExpr(String op, Expr left, Expr right)
@@ -277,19 +349,19 @@ class BinDivExpr extends BinaryOpExprBase
   }
 
   @Override
-  public Number eval(NumericBinding bindings)
+  protected final long evalLong(long left, long right)
   {
-    Number leftVal = left.eval(bindings);
-    Number rightVal = right.eval(bindings);
-    if (isLong(leftVal, rightVal)) {
-      return leftVal.longValue() / rightVal.longValue();
-    } else {
-      return leftVal.doubleValue() / rightVal.doubleValue();
-    }
+    return left / right;
+  }
+
+  @Override
+  protected final double evalDouble(double left, double right)
+  {
+    return left / right;
   }
 }
 
-class BinModuloExpr extends BinaryOpExprBase
+class BinModuloExpr extends BinaryNumericOpExprBase
 {
 
   BinModuloExpr(String op, Expr left, Expr right)
@@ -298,19 +370,19 @@ class BinModuloExpr extends BinaryOpExprBase
   }
 
   @Override
-  public Number eval(NumericBinding bindings)
+  protected final long evalLong(long left, long right)
   {
-    Number leftVal = left.eval(bindings);
-    Number rightVal = right.eval(bindings);
-    if (isLong(leftVal, rightVal)) {
-      return leftVal.longValue() % rightVal.longValue();
-    } else {
-      return leftVal.doubleValue() % rightVal.doubleValue();
-    }
+    return left % right;
+  }
+
+  @Override
+  protected final double evalDouble(double left, double right)
+  {
+    return left % right;
   }
 }
 
-class BinPlusExpr extends BinaryOpExprBase
+class BinPlusExpr extends BinaryNumericOpExprBase
 {
 
   BinPlusExpr(String op, Expr left, Expr right)
@@ -319,19 +391,24 @@ class BinPlusExpr extends BinaryOpExprBase
   }
 
   @Override
-  public Number eval(NumericBinding bindings)
+  protected ExprEval evalString(String left, String right) {
+    return ExprEval.of(left + right);
+  }
+
+  @Override
+  protected final long evalLong(long left, long right)
   {
-    Number leftVal = left.eval(bindings);
-    Number rightVal = right.eval(bindings);
-    if (isLong(leftVal, rightVal)) {
-      return leftVal.longValue() + rightVal.longValue();
-    } else {
-      return leftVal.doubleValue() + rightVal.doubleValue();
-    }
+    return left + right;
+  }
+
+  @Override
+  protected final double evalDouble(double left, double right)
+  {
+    return left + right;
   }
 }
 
-class BinLtExpr extends BinaryOpExprBase
+class BinLtExpr extends BinaryNumericOpExprBase
 {
 
   BinLtExpr(String op, Expr left, Expr right)
@@ -340,19 +417,25 @@ class BinLtExpr extends BinaryOpExprBase
   }
 
   @Override
-  public Number eval(NumericBinding bindings)
+  protected ExprEval evalString(String left, String right)
   {
-    Number leftVal = left.eval(bindings);
-    Number rightVal = right.eval(bindings);
-    if (isLong(leftVal, rightVal)) {
-      return leftVal.longValue() < rightVal.longValue() ? 1L : 0L;
-    } else {
-      return leftVal.doubleValue() < rightVal.doubleValue() ? 1.0d : 0.0d;
-    }
+    return ExprEval.of(left.compareTo(right) < 0 ? 1L : 0L);
+  }
+
+  @Override
+  protected final long evalLong(long left, long right)
+  {
+    return left < right ? 1L : 0L;
+  }
+
+  @Override
+  protected final double evalDouble(double left, double right)
+  {
+    return left < right ? 1.0d : 0.0d;
   }
 }
 
-class BinLeqExpr extends BinaryOpExprBase
+class BinLeqExpr extends BinaryNumericOpExprBase
 {
 
   BinLeqExpr(String op, Expr left, Expr right)
@@ -361,19 +444,25 @@ class BinLeqExpr extends BinaryOpExprBase
   }
 
   @Override
-  public Number eval(NumericBinding bindings)
+  protected ExprEval evalString(String left, String right)
   {
-    Number leftVal = left.eval(bindings);
-    Number rightVal = right.eval(bindings);
-    if (isLong(leftVal, rightVal)) {
-      return leftVal.longValue() <= rightVal.longValue() ? 1L : 0L;
-    } else {
-      return leftVal.doubleValue() <= rightVal.doubleValue() ? 1.0d : 0.0d;
-    }
+    return ExprEval.of(left.compareTo(right) <= 0 ? 1L : 0L);
+  }
+
+  @Override
+  protected final long evalLong(long left, long right)
+  {
+    return left <= right ? 1L : 0L;
+  }
+
+  @Override
+  protected final double evalDouble(double left, double right)
+  {
+    return left <= right ? 1.0d : 0.0d;
   }
 }
 
-class BinGtExpr extends BinaryOpExprBase
+class BinGtExpr extends BinaryNumericOpExprBase
 {
 
   BinGtExpr(String op, Expr left, Expr right)
@@ -382,19 +471,25 @@ class BinGtExpr extends BinaryOpExprBase
   }
 
   @Override
-  public Number eval(NumericBinding bindings)
+  protected ExprEval evalString(String left, String right)
   {
-    Number leftVal = left.eval(bindings);
-    Number rightVal = right.eval(bindings);
-    if (isLong(leftVal, rightVal)) {
-      return leftVal.longValue() > rightVal.longValue() ? 1L : 0L;
-    } else {
-      return leftVal.doubleValue() > rightVal.doubleValue() ? 1.0d : 0.0d;
-    }
+    return ExprEval.of(left.compareTo(right) > 0 ? 1L : 0L);
+  }
+
+  @Override
+  protected final long evalLong(long left, long right)
+  {
+    return left > right ? 1L : 0L;
+  }
+
+  @Override
+  protected final double evalDouble(double left, double right)
+  {
+    return left > right ? 1.0d : 0.0d;
   }
 }
 
-class BinGeqExpr extends BinaryOpExprBase
+class BinGeqExpr extends BinaryNumericOpExprBase
 {
 
   BinGeqExpr(String op, Expr left, Expr right)
@@ -403,19 +498,25 @@ class BinGeqExpr extends BinaryOpExprBase
   }
 
   @Override
-  public Number eval(NumericBinding bindings)
+  protected ExprEval evalString(String left, String right)
   {
-    Number leftVal = left.eval(bindings);
-    Number rightVal = right.eval(bindings);
-    if (isLong(leftVal, rightVal)) {
-      return leftVal.longValue() >= rightVal.longValue() ? 1L : 0L;
-    } else {
-      return leftVal.doubleValue() >= rightVal.doubleValue() ? 1.0d : 0.0d;
-    }
+    return ExprEval.of(left.compareTo(right) >= 0 ? 1L : 0L);
+  }
+
+  @Override
+  protected final long evalLong(long left, long right)
+  {
+    return left >= right ? 1L : 0L;
+  }
+
+  @Override
+  protected final double evalDouble(double left, double right)
+  {
+    return left >= right ? 1.0d : 0.0d;
   }
 }
 
-class BinEqExpr extends BinaryOpExprBase
+class BinEqExpr extends BinaryNumericOpExprBase
 {
 
   BinEqExpr(String op, Expr left, Expr right)
@@ -424,15 +525,25 @@ class BinEqExpr extends BinaryOpExprBase
   }
 
   @Override
-  public Number eval(NumericBinding bindings)
+  protected ExprEval evalString(String left, String right)
   {
-    Number leftVal = left.eval(bindings);
-    Number rightVal = right.eval(bindings);
-    return Evals.eq(leftVal, rightVal);
+    return ExprEval.of(left.equals(right) ? 1L : 0L);
+  }
+
+  @Override
+  protected final long evalLong(long left, long right)
+  {
+    return left == right ? 1L : 0L;
+  }
+
+  @Override
+  protected final double evalDouble(double left, double right)
+  {
+    return left == right ? 1.0d : 0.0d;
   }
 }
 
-class BinNeqExpr extends BinaryOpExprBase
+class BinNeqExpr extends BinaryNumericOpExprBase
 {
 
   BinNeqExpr(String op, Expr left, Expr right)
@@ -441,19 +552,25 @@ class BinNeqExpr extends BinaryOpExprBase
   }
 
   @Override
-  public Number eval(NumericBinding bindings)
+  protected ExprEval evalString(String left, String right)
   {
-    Number leftVal = left.eval(bindings);
-    Number rightVal = right.eval(bindings);
-    if (isLong(leftVal, rightVal)) {
-      return leftVal.longValue() != rightVal.longValue() ? 1L : 0L;
-    } else {
-      return leftVal.doubleValue() != rightVal.doubleValue() ? 1.0d : 0.0d;
-    }
+    return ExprEval.of(!Objects.equals(left, right) ? 1L : 0L);
+  }
+
+  @Override
+  protected final long evalLong(long left, long right)
+  {
+    return left != right ? 1L : 0L;
+  }
+
+  @Override
+  protected final double evalDouble(double left, double right)
+  {
+    return left != right ? 1.0d : 0.0d;
   }
 }
 
-class BinAndExpr extends BinaryOpExprBase
+class BinAndExpr extends BinaryNumericOpExprBase
 {
 
   BinAndExpr(String op, Expr left, Expr right)
@@ -461,32 +578,19 @@ class BinAndExpr extends BinaryOpExprBase
     super(op, left, right);
   }
 
-  @Override
-  public Number eval(NumericBinding bindings)
+  protected long evalLong(long left, long right)
   {
-    Number leftVal = left.eval(bindings);
-    Number rightVal = right.eval(bindings);
-    if (isLong(leftVal, rightVal)) {
-      long lval = leftVal.longValue();
-      if (lval > 0) {
-        long rval = rightVal.longValue();
-        return rval > 0 ? 1L : 0L;
-      } else {
-        return 0;
-      }
-    } else {
-      double lval = leftVal.doubleValue();
-      if (lval > 0) {
-        double rval = rightVal.doubleValue();
-        return rval > 0 ? 1.0d : 0.0d;
-      } else {
-        return 0.0d;
-      }
-    }
+    return left > 0 && right > 0 ? 1L : 0L;
+  }
+
+  @Override
+  protected double evalDouble(double left, double right)
+  {
+    return left > 0 && right > 0 ? 1.0d : 0.0d;
   }
 }
 
-class BinOrExpr extends BinaryOpExprBase
+class BinOrExpr extends BinaryNumericOpExprBase
 {
 
   BinOrExpr(String op, Expr left, Expr right)
@@ -495,26 +599,14 @@ class BinOrExpr extends BinaryOpExprBase
   }
 
   @Override
-  public Number eval(NumericBinding bindings)
+  protected long evalLong(long left, long right)
   {
-    Number leftVal = left.eval(bindings);
-    Number rightVal = right.eval(bindings);
-    if (isLong(leftVal, rightVal)) {
-      long lval = leftVal.longValue();
-      if (lval > 0) {
-        return 1;
-      } else {
-        long rval = rightVal.longValue();
-        return rval > 0 ? 1L : 0L;
-      }
-    } else {
-      double lval = leftVal.doubleValue();
-      if (lval > 0) {
-        return 1.0d;
-      } else {
-        double rval = rightVal.doubleValue();
-        return rval > 0 ? 1.0d : 0.0d;
-      }
-    }
+    return left > 0 || right > 0 ? 1L : 0L;
+  }
+
+  @Override
+  protected double evalDouble(double left, double right)
+  {
+    return left > 0 || right > 0 ? 1.0d : 0.0d;
   }
 }
