@@ -1,6 +1,6 @@
 #!/bin/sh
 root_dir=$(pwd)
-druid_release=druid-0.9.0-SNAPSHOT 
+druid_release=druid-0.9.1-SNAPSHOT 
 target_dir=${root_dir}/distribution/target
 git_revision=`git rev-parse HEAD`
 git_origin=`git config --get remote.origin.url`
@@ -22,7 +22,7 @@ cp -a ./conf-dev ${target_dir}/${druid_release}/conf
 cp -a ./*.sh ${target_dir}/${druid_release}
 
 cd ${target_dir}
-tar xvzf mysql-metadata-storage-bin.tar.gz
+tar xvzf mysql-metadata-storage-0.9.1-SNAPSHOT.tar.gz
 cp -a ./mysql-metadata-storage ${druid_release}/extensions/
 rm "${druid_release_tar}"
 mv ${druid_release} ${druid_release_dir}
