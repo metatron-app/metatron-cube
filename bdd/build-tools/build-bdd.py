@@ -90,12 +90,19 @@ def git_commit(repo, commit_message):
     # for diff in index.diff(None):
         # print diff.a_blob.path
     # index.add(repo.untracked_files)
+
+    # NOTE: check-in patches only if current branch is a temporal branch for build!!!
+    cur_brname = str(repo.active_branch)
+    if not cur_brname.startswith('build_'):
+        print "WARNING: the current branch %s is not for build" % (cur_brname)
+
     repo.git.add(all=True)
     username = "bdd_builder"
     email = "%s@bdd.com" % username
     author = git.Actor("%s <%s>" % (username, email), email)
+    decorated_message = "***** %s (into %s) *****" % (commit_message, cur_brname)
     try:
-        repo.git.commit(message=commit_message, author=author)
+        repo.git.commit(message=decorated_message, author=author)
     except git.exc.GitCommandError as ge:
         pass
 
@@ -195,7 +202,7 @@ def merge_stash(git_dir, repo):
                     git_clean(repo)
                     failed("build \'%s\' failed" % br_name)
 
-                commit_message = "****** merge branch %s *****" % (br_name)
+                commit_message = "merge branch %s" % (br_name)
                 git_commit(repo, commit_message)
     finally:
         os.chdir(saved_path)
@@ -351,7 +358,7 @@ def apply_patches(git_dir, repo, patch_dir, issue_nums, info, do_commit=False):
                 title = ''
                 if info and issue_num in info and 'title' in info[issue_num]:
                     title = info[issue_num]['title']
-                commit_message = "****** merge pull request #%d: %s *****" % (issue_num, title)
+                commit_message = "merge pull request #%d: %s" % (issue_num, title)
                 git_commit(repo, commit_message)
 
         print "merge failed : %s" % (', '.join(map(str, merge_failed)))
@@ -391,7 +398,7 @@ def push_tag_and_branch(repo):
         print "WARNING: current branch %s is not for build" % (cur_brname)
 
 
-def remove_old_branches(repo):
+def remove_old_branches(repo, threshold):
     origin = repo.remotes.origin
 
     for br in repo.branches:
@@ -400,17 +407,19 @@ def remove_old_branches(repo):
             br_ts = br_name[6:]
             fmt = '%m%d_%H%M%S'
             td = datatime.strptime(gTimeStr, fmt) - datetime.strptime(br_ts, fmt)
-            if td > timedelta(days=7):  # old enough, remote it!
+            if td > timedelta(days=threshold):  # old enough, remote it!
                 origin.push(':%s' % br_name)
                 repo.delete_head(br, '-D')  # delete force
 
 
 def usage(exec_name):
     usage = '''Usage: %s [-siapv] [arg] druid_working_copy
-    -s, --step   e.g, 2 (only show pull requests info)
-    -i, --issue  e.g, 1702,2308
-    -a, --author e.g, piggy
-    -p, --patch  patch directory (already acquired by step 4)
+    -s, --step       e.g, 2 (only show pull requests info)
+    -i, --issue      e.g, 1702,2308
+    -a, --author     e.g, piggy
+    -p, --patch      patch directory (already acquired by step 4)
+    -f, --force-push push build branch
+    -c, --clean      e.g, 7 (days, defaults: 7, clean build branches)
     -v, --verbose
  NOTE: it'd be better to add druid-github repository using
  $ git remote add github https://github.com/druid-io/druid.git
@@ -421,8 +430,8 @@ def usage(exec_name):
 if __name__ == "__main__":
     gExecName = os.path.basename(sys.argv[0])
     try:
-        opts, args = getopt.getopt(sys.argv[1:], "s:i:a:p:vf", 
-                        ["step=", "issue=", "author=", "patch=", "verbose", "force-push"])
+        opts, args = getopt.getopt(sys.argv[1:], "c:s:i:a:p:vf",
+                        ["clean=", "step=", "issue=", "author=", "patch=", "verbose", "force-push"])
     except getopt.GetoptError as err:
         # print help information and exit:
         print str(err) # will print something like "option -a not recognized"
@@ -433,8 +442,11 @@ if __name__ == "__main__":
     authors = None
     patch_dir = None
     force_push = False
+    clean_branch = None     # in days, None: do not clean
     loglvl = logging.CRITICAL
     for o, a in opts:
+        if o in ("-c", "--clean"):
+            clean_branch = int(a)
         if o in ("-s", "--step"):
             steps = map(int, a.split(','))
         elif o in ("-i", "--issue"):
@@ -490,5 +502,6 @@ if __name__ == "__main__":
     # 6. finalize result
     if 6 in steps and force_push:
         push_tag_and_branch(repo)
-        # remove_old_branches(repo)
 
+    if clean_branch:
+        remove_old_branches(repo, clean_branch)
