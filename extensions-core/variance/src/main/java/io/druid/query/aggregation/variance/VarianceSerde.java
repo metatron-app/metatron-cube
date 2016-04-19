@@ -101,13 +101,7 @@ public class VarianceSerde extends ComplexMetricSerde
       @Override
       public byte[] toBytes(VarianceHolder collector)
       {
-        if (collector == null) {
-          return new byte[]{};
-        }
-        ByteBuffer val = collector.toByteBuffer();
-        byte[] retVal = new byte[val.remaining()];
-        val.asReadOnlyBuffer().get(retVal);
-        return retVal;
+        return collector == null ? new byte[]{} : collector.toByteArray();
       }
 
       @Override

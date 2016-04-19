@@ -143,6 +143,7 @@ public class VarianceHolder
   public byte[] toByteArray()
   {
     final ByteBuffer buffer = toByteBuffer();
+    buffer.flip();
     byte[] theBytes = new byte[buffer.remaining()];
     buffer.get(theBytes);
 
