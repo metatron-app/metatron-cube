@@ -78,6 +78,26 @@ public class EvalTest
     Assert.assertEquals(2.0, evaluate("sqrt(4.0)", bindings).doubleValue(), 0.0001);
     Assert.assertEquals(2.0, evaluate("if(1.0, 2.0, 3.0)", bindings).doubleValue(), 0.0001);
     Assert.assertEquals(3.0, evaluate("if(0.0, 2.0, 3.0)", bindings).doubleValue(), 0.0001);
+    
+    // exists
+    Assert.assertEquals(
+        3.0,
+        evaluate("case (x - 1, 0.0, 2.0, 1.0, 3.0)", bindings).doubleValue(),
+        0.0001
+    );
+
+    // not-exists (implicit 0)
+    Assert.assertEquals(
+        0.0,
+        evaluate("case (x + 10, 0.0, 2.0, 2.0, 3.0)", bindings).doubleValue(),
+        0.0001
+    );
+    // not-exists (explicit)
+    Assert.assertEquals(
+        100.0,
+        evaluate("case (x + 10, 0.0, 2.0, 2.0, 3.0, 100.0)", bindings).doubleValue(),
+        0.0001
+    );
   }
 
   private Number evaluate(String in, Map<String, Supplier<Number>> bindings) {
@@ -128,5 +148,23 @@ public class EvalTest
         "if(0, 9223372036854775807, 9223372036854775806)",
         bindings
     ).longValue());
+
+    // exists
+    Assert.assertEquals(
+        3L,
+        evaluate("case (x - 1, 9223372036854775807, 2, 9223372036854775806, 3)", bindings)
+              .longValue()
+    );
+
+    // not-exists (implicit 0)
+    Assert.assertEquals(
+        0L,
+        evaluate("case (x + 10, 0, 2, 1, 3)", bindings).longValue()
+    );
+    // not-exists (explicit)
+    Assert.assertEquals(
+        100L,
+        evaluate("case (x + 10, 0, 2, 1, 3, 100)", bindings).longValue()
+    );
   }
 }
