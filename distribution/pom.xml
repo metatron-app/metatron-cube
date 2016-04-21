@@ -81,6 +81,8 @@
                                 <argument>-c</argument>
                                 <argument>io.druid.extensions:druid-histogram</argument>
                                 <argument>-c</argument>
+                                <argument>io.druid.extensions:druid-hive-extensions</argument>
+                                <argument>-c</argument>
                                 <argument>io.druid.extensions:druid-kafka-eight</argument>
                                 <argument>-c</argument>
                                 <argument>io.druid.extensions:druid-kafka-extraction-namespace</argument>
