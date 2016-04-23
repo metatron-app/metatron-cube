@@ -47,7 +47,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 
-public class HiveDruidInputFormat extends QueryBasedInputFormat implements HiveOutputFormat
+public class DruidHiveInputFormat extends QueryBasedInputFormat implements HiveOutputFormat
 {
   public static final String CONF_SELECT_COLUMNS = "hive.io.file.readcolumn.names";
 
