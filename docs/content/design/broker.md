@@ -63,3 +63,12 @@ Returns the metrics of the datasource.
 
 Returns a flag indicating if the broker knows about all segments in Zookeeper. This can be used to know when a broker node is ready to be queried after a restart.
 
+* `/druid/v2/candidates/?datasource=<datasource-name>&intervals=<comma-separated-intervals-in-ISO8601-format`
+
+Returns segment information lists for the given datasource and intervals.
+
+### PUT
+
+* `/druid/v2/candidates/`
+
+Returns segment information lists for the given query.
