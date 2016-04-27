@@ -41,14 +41,16 @@ public class VarianceTestHelper extends QueryRunnerTestHelper
 
   public static final VarianceAggregatorFactory indexVarianceAggr = new VarianceAggregatorFactory(
       indexVarianceMetric,
-      indexMetric
+      indexMetric,
+      false
   );
 
   public static final String stddevOfIndexMetric = "index_stddev";
 
   public static final PostAggregator stddevOfIndexPostAggr = new StandardDeviationPostAggregator(
       stddevOfIndexMetric,
-      indexVarianceMetric
+      indexVarianceMetric,
+      false
   );
 
   public static final List<AggregatorFactory> commonPlusVarAggregators = Arrays.asList(

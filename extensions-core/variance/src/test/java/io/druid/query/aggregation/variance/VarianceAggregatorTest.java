@@ -39,7 +39,8 @@ public class VarianceAggregatorTest
   private TestFloatColumnSelector selector;
 
   private final float[] values = {1.1f, 2.7f, 3.5f, 1.3f};
-  private final double[] variances = new double[values.length]; // calculated
+  private final double[] variances_pop = new double[values.length]; // calculated
+  private final double[] variances_samp = new double[values.length]; // calculated
 
   public VarianceAggregatorTest() throws Exception
   {
@@ -54,7 +55,8 @@ public class VarianceAggregatorTest
         for (int j = 0; j <= i; j++) {
           temp += Math.pow(values[j] - mean, 2);
         }
-        variances[i] = temp / (i + 1);
+        variances_pop[i] = temp / (i + 1);
+        variances_samp[i] = temp / i;
       }
     }
   }
@@ -97,14 +99,15 @@ public class VarianceAggregatorTest
     Assert.assertEquals(nvariance, holder.nvariance, 0.0001);
     if (count == 0) {
       try {
-        holder.getVariance();
+        holder.getVariance(false);
         Assert.fail("Should throw ISE");
       }
       catch (IllegalStateException e) {
         Assert.assertTrue(e.getMessage().contains("should not be empty holder"));
       }
     } else {
-      Assert.assertEquals(holder.getVariance(), variances[(int) count - 1], 0.0001);
+      Assert.assertEquals(holder.getVariance(true), variances_pop[(int) count - 1], 0.0001);
+      Assert.assertEquals(holder.getVariance(false), variances_samp[(int) count - 1], 0.0001);
     }
   }
 
@@ -141,9 +144,9 @@ public class VarianceAggregatorTest
   @Test
   public void testEqualsAndHashCode() throws Exception
   {
-    VarianceAggregatorFactory one = new VarianceAggregatorFactory("name1", "fieldName1");
-    VarianceAggregatorFactory oneMore = new VarianceAggregatorFactory("name1", "fieldName1");
-    VarianceAggregatorFactory two = new VarianceAggregatorFactory("name2", "fieldName2");
+    VarianceAggregatorFactory one = new VarianceAggregatorFactory("name1", "fieldName1", false);
+    VarianceAggregatorFactory oneMore = new VarianceAggregatorFactory("name1", "fieldName1", false);
+    VarianceAggregatorFactory two = new VarianceAggregatorFactory("name2", "fieldName2", false);
 
     Assert.assertEquals(one.hashCode(), oneMore.hashCode());
 

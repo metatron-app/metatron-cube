@@ -91,13 +91,15 @@ public class VarianceHolderTest
         temp += Math.pow(f - mean, 2);
       }
 
-      final double variance = temp / values.length;
+      final double variance_pop = temp / values.length;
+      final double variance_sample = temp / (values.length - 1);
 
       VarianceHolder holder = new VarianceHolder();
       for (float f : values) {
         holder.add(f);
       }
-      Assert.assertEquals(holder.getVariance(), variance, 0.001);
+      Assert.assertEquals(holder.getVariance(true), variance_pop, 0.001);
+      Assert.assertEquals(holder.getVariance(false), variance_sample, 0.001);
 
       for (int mergeOn : new int[] {2, 3, 5, 9}) {
         List<VarianceHolder> holders = Lists.newArrayListWithCapacity(mergeOn);
@@ -111,7 +113,8 @@ public class VarianceHolderTest
         for (int i = 1; i < mergeOn; i++) {
           holder1 = (VarianceHolder) VarianceHolder.combineValues(holder1, holders.get(i));
         }
-        Assert.assertEquals(holder1.getVariance(), variance, 0.01);
+        Assert.assertEquals(holder1.getVariance(true), variance_pop, 0.01);
+        Assert.assertEquals(holder1.getVariance(false), variance_sample, 0.01);
       }
     }
   }

@@ -38,17 +38,20 @@ public class StandardDeviationPostAggregator implements PostAggregator
 {
   protected final String name;
   protected final String fieldName;
+  protected final boolean variancePop;
 
   @JsonCreator
   public StandardDeviationPostAggregator(
       @JsonProperty("name") String name,
-      @JsonProperty("fieldName") String fieldName
+      @JsonProperty("fieldName") String fieldName,
+      @JsonProperty("variancePop") boolean variancePop
   )
   {
     this.fieldName = Preconditions.checkNotNull(fieldName, "fieldName is null");
     //Note that, in general, name shouldn't be null, we are defaulting
     //to fieldName here just to be backward compatible with 0.7.x
     this.name = name == null ? fieldName : name;
+    this.variancePop = variancePop;
   }
 
   @Override
@@ -66,7 +69,7 @@ public class StandardDeviationPostAggregator implements PostAggregator
   @Override
   public Object compute(Map<String, Object> combinedAggregators)
   {
-    return Math.sqrt(((VarianceHolder) combinedAggregators.get(fieldName)).getVariance());
+    return Math.sqrt(((VarianceHolder) combinedAggregators.get(fieldName)).getVariance(variancePop));
   }
 
   @Override
@@ -80,5 +83,11 @@ public class StandardDeviationPostAggregator implements PostAggregator
   public String getFieldName()
   {
     return fieldName;
+  }
+
+  @JsonProperty("variancePop")
+  public boolean isVariancePop()
+  {
+    return variancePop;
   }
 }

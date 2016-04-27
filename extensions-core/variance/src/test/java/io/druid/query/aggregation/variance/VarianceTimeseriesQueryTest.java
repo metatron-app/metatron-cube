@@ -42,7 +42,7 @@ import java.util.List;
 @RunWith(Parameterized.class)
 public class VarianceTimeseriesQueryTest
 {
-  @Parameterized.Parameters
+  @Parameterized.Parameters(name="{0}:descending={1}")
   public static Iterable<Object[]> constructorFeeder() throws IOException
   {
     return TimeseriesQueryRunnerTest.constructorFeeder();
@@ -84,8 +84,8 @@ public class VarianceTimeseriesQueryTest
                     "index", 6626.151596069336,
                     "addRowsIndexConstant", 6640.151596069336,
                     "uniques", VarianceTestHelper.UNIQUES_9,
-                    "index_var", descending ? 340509.8674374324 : 340509.8669123871,
-                    "index_stddev", descending ? 583.5322334176857 : 583.5322329678003
+                    "index_var", descending ? 368885.6897238851 : 368885.689155086,
+                    "index_stddev", descending ? 607.3596049490657 : 607.35960448081
                 )
             )
         ),
@@ -97,8 +97,8 @@ public class VarianceTimeseriesQueryTest
                     "index", 5833.2095947265625,
                     "addRowsIndexConstant", 5847.2095947265625,
                     "uniques", VarianceTestHelper.UNIQUES_9,
-                    "index_var", descending ? 239133.7880389738 : 239133.78661310193,
-                    "index_stddev", descending ? 489.01307552965676 : 489.01307407174903
+                    "index_var", descending ? 259061.6037088883 : 259061.60216419376,
+                    "index_stddev", descending ? 508.9809463122252 : 508.98094479478675
                 )
             )
         )

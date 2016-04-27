@@ -127,7 +127,7 @@ public class VarianceHolder
     return this;
   }
 
-  public double getVariance()
+  public double getVariance(boolean variancePop)
   {
     if (count == 0) {
       // in SQL standard, we should return null for zero elements. But druid there should not be such a case
@@ -135,7 +135,7 @@ public class VarianceHolder
     } else if (count == 1) {
       return 0d;
     } else {
-      return nvariance / count;
+      return variancePop ? nvariance / count : nvariance / (count - 1);
     }
   }
 

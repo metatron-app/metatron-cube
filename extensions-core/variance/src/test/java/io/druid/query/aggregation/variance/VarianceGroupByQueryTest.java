@@ -91,9 +91,9 @@ public class VarianceGroupByQueryTest
         .add("2011-04-01", "business", 0d, 0d)
         .add("2011-04-01", "entertainment", 0d, 0d)
         .add("2011-04-01", "health", 0d, 0d)
-        .add("2011-04-01", "mezzanine", 601.772618810676d, 362130.28475025925d)
+        .add("2011-04-01", "mezzanine", 737.0179286322613d, 543195.4271253889d)
         .add("2011-04-01", "news", 0d, 0d)
-        .add("2011-04-01", "premium", 593.2927553579219d, 351996.29356019496d)
+        .add("2011-04-01", "premium", 726.6322593583996d, 527994.4403402924d)
         .add("2011-04-01", "technology", 0d, 0d)
         .add("2011-04-01", "travel", 0d, 0d)
 
@@ -101,9 +101,9 @@ public class VarianceGroupByQueryTest
         .add("2011-04-02", "business", 0d, 0d)
         .add("2011-04-02", "entertainment", 0d, 0d)
         .add("2011-04-02", "health", 0d, 0d)
-        .add("2011-04-02", "mezzanine", 499.1587153657871d, 249159.42312562282d)
+        .add("2011-04-02", "mezzanine", 611.3420766546617d, 373739.13468843425d)
         .add("2011-04-02", "news", 0d, 0d)
-        .add("2011-04-02", "premium", 507.3626581332543d, 257416.86686804148d)
+        .add("2011-04-02", "premium", 621.3898134843073d, 386125.30030206224d)
         .add("2011-04-02", "technology", 0d, 0d)
         .add("2011-04-02", "travel", 0d, 0d)
         .build();
@@ -141,9 +141,9 @@ public class VarianceGroupByQueryTest
         .add("2011-04-01", "business", 1L, 118L, 0d, 0d)
         .add("2011-04-01", "entertainment", 1L, 158L, 0d, 0d)
         .add("2011-04-01", "health", 1L, 120L, 0d, 0d)
-        .add("2011-04-01", "mezzanine", 3L, 2870L, 601.772618810676d, 362130.28475025925d)
+        .add("2011-04-01", "mezzanine", 3L, 2870L, 737.0179286322613d, 543195.4271253889d)
         .add("2011-04-01", "news", 1L, 121L, 0d, 0d)
-        .add("2011-04-01", "premium", 3L, 2900L, 593.2927553579219d, 351996.29356019496d)
+        .add("2011-04-01", "premium", 3L, 2900L, 726.6322593583996d, 527994.4403402924d)
         .add("2011-04-01", "technology", 1L, 78L, 0d, 0d)
         .add("2011-04-01", "travel", 1L, 119L, 0d, 0d)
 
@@ -151,9 +151,9 @@ public class VarianceGroupByQueryTest
         .add("2011-04-02", "business", 1L, 112L, 0d, 0d)
         .add("2011-04-02", "entertainment", 1L, 166L, 0d, 0d)
         .add("2011-04-02", "health", 1L, 113L, 0d, 0d)
-        .add("2011-04-02", "mezzanine", 3L, 2447L, 499.1587153657871d, 249159.42312562282d)
+        .add("2011-04-02", "mezzanine", 3L, 2447L, 611.3420766546617d, 373739.13468843425d)
         .add("2011-04-02", "news", 1L, 114L, 0d, 0d)
-        .add("2011-04-02", "premium", 3L, 2505L, 507.3626581332543d, 257416.86686804148d)
+        .add("2011-04-02", "premium", 3L, 2505L, 621.3898134843073d, 386125.30030206224d)
         .add("2011-04-02", "technology", 1L, 97L, 0d, 0d)
         .add("2011-04-02", "travel", 1L, 126L, 0d, 0d)
         .build();
@@ -170,9 +170,9 @@ public class VarianceGroupByQueryTest
     );
 
     List<Row> expectedResults = expect
-        .add("2011-04-01", "automotive", 2L, 269L, 149.5004909524141, 12.227039337158203)
-        .add("2011-04-01", "mezzanine", 6L, 4420L, 211736.47039168197, 460.1483134726042)
-        .add("2011-04-01", "premium", 6L, 4416L, 210232.66836577826, 458.5113612177764)
+        .add("2011-04-01", "automotive", 2L, 269L, 299.0009819048282, 17.29164485827847)
+        .add("2011-04-01", "mezzanine", 6L, 4420L, 254083.76447001836, 504.06722217380724)
+        .add("2011-04-01", "premium", 6L, 4416L, 252279.2020389339, 502.27403082275106)
         .build();
 
     GroupByQuery query = GroupByQuery
@@ -192,7 +192,7 @@ public class VarianceGroupByQueryTest
         .setHavingSpec(
             new OrHavingSpec(
                 ImmutableList.<HavingSpec>of(
-                    new GreaterThanHavingSpec(VarianceTestHelper.stddevOfIndexMetric, 10L) // 3 rows
+                    new GreaterThanHavingSpec(VarianceTestHelper.stddevOfIndexMetric, 15L) // 3 rows
                 )
             )
         )
@@ -212,8 +212,8 @@ public class VarianceGroupByQueryTest
     );
 
     expectedResults = expect
-        .add("2011-04-01", "automotive", 2L, 269L, 149.5004909524141, 12.227039337158203)
-        .add("2011-04-01", "premium", 6L, 4416L, 210232.66836577826, 458.5113612177764)
+        .add("2011-04-01", "automotive", 2L, 269L, 299.0009819048282, 17.29164485827847)
+        .add("2011-04-01", "premium", 6L, 4416L, 252279.2020389339, 502.27403082275106)
         .build();
 
     results = GroupByQueryRunnerTestHelper.runQuery(factory, runner, query);

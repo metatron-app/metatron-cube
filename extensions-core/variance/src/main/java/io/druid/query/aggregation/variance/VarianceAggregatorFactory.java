@@ -50,11 +50,13 @@ public class VarianceAggregatorFactory extends AggregatorFactory
 
   private final String fieldName;
   private final String name;
+  private final boolean variancePop;
 
   @JsonCreator
   public VarianceAggregatorFactory(
       @JsonProperty("name") String name,
-      @JsonProperty("fieldName") String fieldName
+      @JsonProperty("fieldName") String fieldName,
+      @JsonProperty("variancePop") boolean variancePop
   )
   {
     Preconditions.checkNotNull(name, "Must have a valid, non-null aggregator name");
@@ -62,6 +64,7 @@ public class VarianceAggregatorFactory extends AggregatorFactory
 
     this.name = name;
     this.fieldName = fieldName;
+    this.variancePop = variancePop;
   }
 
   @Override
@@ -129,13 +132,13 @@ public class VarianceAggregatorFactory extends AggregatorFactory
   @Override
   public AggregatorFactory getCombiningFactory()
   {
-    return new VarianceAggregatorFactory(name, name);
+    return new VarianceAggregatorFactory(name, name, variancePop);
   }
 
   @Override
   public List<AggregatorFactory> getRequiredColumns()
   {
-    return Arrays.<AggregatorFactory>asList(new VarianceAggregatorFactory(fieldName, fieldName));
+    return Arrays.<AggregatorFactory>asList(new VarianceAggregatorFactory(fieldName, fieldName, variancePop));
   }
 
   @Override
@@ -169,7 +172,7 @@ public class VarianceAggregatorFactory extends AggregatorFactory
   @Override
   public Object finalizeComputation(Object object)
   {
-    return ((VarianceHolder) object).getVariance();
+    return ((VarianceHolder) object).getVariance(variancePop);
   }
 
   @Override
@@ -200,6 +203,12 @@ public class VarianceAggregatorFactory extends AggregatorFactory
     return name;
   }
 
+  @JsonProperty
+  public boolean isVariancePop()
+  {
+    return variancePop;
+  }
+
   @Override
   public List<String> requiredFields()
   {
@@ -210,7 +219,10 @@ public class VarianceAggregatorFactory extends AggregatorFactory
   public byte[] getCacheKey()
   {
     byte[] fieldNameBytes = StringUtils.toUtf8(fieldName);
-    return ByteBuffer.allocate(1 + fieldNameBytes.length).put(CACHE_TYPE_ID).put(fieldNameBytes).array();
+    return ByteBuffer.allocate(2 + fieldNameBytes.length)
+                     .put(CACHE_TYPE_ID)
+                     .put(variancePop ? (byte)1 : 0)
+                     .put(fieldNameBytes).array();
   }
 
   @Override
@@ -219,6 +231,7 @@ public class VarianceAggregatorFactory extends AggregatorFactory
     return getClass().getSimpleName() + "{" +
            "fieldName='" + fieldName + '\'' +
            ", name='" + name + '\'' +
+           ", variancePop='" + variancePop + '\'' +
            '}';
   }
 
@@ -234,7 +247,7 @@ public class VarianceAggregatorFactory extends AggregatorFactory
 
     VarianceAggregatorFactory that = (VarianceAggregatorFactory) o;
 
-    if (!Objects.equals(fieldName, that.fieldName)) {
+    if (variancePop != that.variancePop) {
       return false;
     }
     if (!Objects.equals(name, that.name)) {
@@ -247,6 +260,9 @@ public class VarianceAggregatorFactory extends AggregatorFactory
   @Override
   public int hashCode()
   {
-    return Objects.hash(fieldName, name);
+    int result = fieldName.hashCode();
+    result = 31 * result + name.hashCode();
+    result = 31 * result + (variancePop ? 1 : 0);
+    return result;
   }
 }
