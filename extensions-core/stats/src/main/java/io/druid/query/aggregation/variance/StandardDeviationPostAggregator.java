@@ -48,9 +48,7 @@ public class StandardDeviationPostAggregator implements PostAggregator
   )
   {
     this.fieldName = Preconditions.checkNotNull(fieldName, "fieldName is null");
-    //Note that, in general, name shouldn't be null, we are defaulting
-    //to fieldName here just to be backward compatible with 0.7.x
-    this.name = name == null ? fieldName : name;
+    this.name = Preconditions.checkNotNull(name, "name is null");
     this.variancePop = variancePop;
   }
 

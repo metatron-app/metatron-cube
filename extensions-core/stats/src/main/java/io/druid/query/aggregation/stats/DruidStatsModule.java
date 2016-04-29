@@ -17,20 +17,23 @@
  * under the License.
  */
 
-package io.druid.query.aggregation.variance;
+package io.druid.query.aggregation.stats;
 
 import com.fasterxml.jackson.databind.Module;
 import com.fasterxml.jackson.databind.module.SimpleModule;
 import com.google.common.collect.ImmutableList;
 import com.google.inject.Binder;
 import io.druid.initialization.DruidModule;
+import io.druid.query.aggregation.variance.StandardDeviationPostAggregator;
+import io.druid.query.aggregation.variance.VarianceAggregatorFactory;
+import io.druid.query.aggregation.variance.VarianceSerde;
 import io.druid.segment.serde.ComplexMetrics;
 
 import java.util.List;
 
 /**
  */
-public class VarianceDruidModule implements DruidModule
+public class DruidStatsModule implements DruidModule
 {
   @Override
   public List<? extends Module> getJacksonModules()

@@ -72,11 +72,11 @@ public abstract class VarianceAggregator implements Aggregator
     throw new UnsupportedOperationException("VarianceAggregator does not support getLong()");
   }
 
-  public static final class FloatInput extends VarianceAggregator
+  public static final class FloatVarianceAggregator extends VarianceAggregator
   {
     private final FloatColumnSelector selector;
 
-    public FloatInput(String name, FloatColumnSelector selector)
+    public FloatVarianceAggregator(String name, FloatColumnSelector selector)
     {
       super(name);
       this.selector = selector;
@@ -91,15 +91,15 @@ public abstract class VarianceAggregator implements Aggregator
     @Override
     public Aggregator clone()
     {
-      return new FloatInput(name, selector);
+      return new FloatVarianceAggregator(name, selector);
     }
   }
 
-  public static final class LongInput extends VarianceAggregator
+  public static final class LongVarianceAggregator extends VarianceAggregator
   {
     private final LongColumnSelector selector;
 
-    public LongInput(String name, LongColumnSelector selector)
+    public LongVarianceAggregator(String name, LongColumnSelector selector)
     {
       super(name);
       this.selector = selector;
@@ -114,15 +114,15 @@ public abstract class VarianceAggregator implements Aggregator
     @Override
     public Aggregator clone()
     {
-      return new LongInput(name, selector);
+      return new LongVarianceAggregator(name, selector);
     }
   }
 
-  public static final class ObjectInput extends VarianceAggregator
+  public static final class ObjectVarianceAggregator extends VarianceAggregator
   {
     private final ObjectColumnSelector selector;
 
-    public ObjectInput(String name, ObjectColumnSelector selector)
+    public ObjectVarianceAggregator(String name, ObjectColumnSelector selector)
     {
       super(name);
       this.selector = selector;
@@ -137,7 +137,7 @@ public abstract class VarianceAggregator implements Aggregator
     @Override
     public Aggregator clone()
     {
-      return new ObjectInput(name, selector);
+      return new ObjectVarianceAggregator(name, selector);
     }
   }
 }

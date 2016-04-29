@@ -94,6 +94,11 @@ public class VarianceHolder
     return holder1;
   }
 
+  static int getMaxIntermediateSize()
+  {
+    return Longs.BYTES + Doubles.BYTES + Doubles.BYTES;
+  }
+
   long count; // number of elements
   double sum; // sum of elements
   double nvariance; // sum[x-avg^2] (this is actually n times of the variance)

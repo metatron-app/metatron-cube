@@ -23,8 +23,6 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.base.Preconditions;
-import com.google.common.primitives.Doubles;
-import com.google.common.primitives.Longs;
 import com.metamx.common.StringUtils;
 import io.druid.query.aggregation.Aggregator;
 import io.druid.query.aggregation.AggregatorFactory;
@@ -46,7 +44,7 @@ import java.util.Objects;
 @JsonTypeName("variance")
 public class VarianceAggregatorFactory extends AggregatorFactory
 {
-  private static final byte CACHE_TYPE_ID = 0x4;
+  private static final byte CACHE_TYPE_ID = 16;
 
   private final String fieldName;
   private final String name;
@@ -76,7 +74,7 @@ public class VarianceAggregatorFactory extends AggregatorFactory
   @Override
   public int getMaxIntermediateSize()
   {
-    return Longs.BYTES + Doubles.BYTES + Doubles.BYTES;
+    return VarianceHolder.getMaxIntermediateSize();
   }
 
   @Override
@@ -87,18 +85,18 @@ public class VarianceAggregatorFactory extends AggregatorFactory
       return Aggregators.noopAggregator();
     }
     if (valueType == ValueType.FLOAT) {
-      return new VarianceAggregator.FloatInput(
+      return new VarianceAggregator.FloatVarianceAggregator(
           name,
           metricFactory.makeFloatColumnSelector(fieldName)
       );
     }
     if (valueType == ValueType.LONG) {
-      return new VarianceAggregator.LongInput(
+      return new VarianceAggregator.LongVarianceAggregator(
           name,
           metricFactory.makeLongColumnSelector(fieldName)
       );
     }
-    return new VarianceAggregator.ObjectInput(
+    return new VarianceAggregator.ObjectVarianceAggregator(
         name,
         metricFactory.makeObjectColumnSelector(fieldName)
     );
@@ -112,18 +110,18 @@ public class VarianceAggregatorFactory extends AggregatorFactory
       return Aggregators.noopBufferAggregator();
     }
     if (valueType == ValueType.FLOAT) {
-      return new VarianceBufferAggregator.FloatInput(
+      return new VarianceBufferAggregator.FloatVarianceAggregator(
           name,
           metricFactory.makeFloatColumnSelector(fieldName)
       );
     }
     if (valueType == ValueType.LONG) {
-      return new VarianceBufferAggregator.LongInput(
+      return new VarianceBufferAggregator.LongVarianceAggregator(
           name,
           metricFactory.makeLongColumnSelector(fieldName)
       );
     }
-    return new VarianceBufferAggregator.ObjectInput(
+    return new VarianceBufferAggregator.ObjectVarianceAggregator(
         name,
         metricFactory.makeObjectColumnSelector(fieldName)
     );
