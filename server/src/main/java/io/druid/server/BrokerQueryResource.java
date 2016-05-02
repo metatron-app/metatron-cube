@@ -20,12 +20,9 @@
 package io.druid.server;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.ObjectWriter;
 import com.fasterxml.jackson.jaxrs.smile.SmileMediaTypes;
-import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.inject.Inject;
-import com.metamx.common.guava.Sequences;
 import com.metamx.emitter.service.ServiceEmitter;
 import io.druid.client.TimelineServerView;
 import io.druid.client.selector.ServerSelector;
@@ -96,32 +93,13 @@ public class BrokerQueryResource extends QueryResource
       @Context final HttpServletRequest req // used only to get request content-type and remote address
   ) throws IOException
   {
-    final String reqContentType = req.getContentType();
-    final boolean isSmile = SmileMediaTypes.APPLICATION_JACKSON_SMILE.equals(reqContentType)
-                            || APPLICATION_SMILE.equals(reqContentType);
-    final String contentType = isSmile ? SmileMediaTypes.APPLICATION_JACKSON_SMILE : MediaType.APPLICATION_JSON;
-
-    ObjectMapper objectMapper = isSmile ? smileMapper : jsonMapper;
-    final ObjectWriter jsonWriter = pretty != null
-                                    ? objectMapper.writerWithDefaultPrettyPrinter()
-                                    : objectMapper.writer();
-
+    final RequestContext context = new RequestContext(req.getContentType(), pretty != null);
     try {
-      Query<?> query = objectMapper.readValue(in, Query.class);
-      List<LocatedSegmentDescriptor> located = getTargetLocations(query.getDataSource(), query.getIntervals());
-      if (located == null || located.isEmpty()) {
-        return Response.ok(Sequences.empty()).build();
-      }
-      return Response.ok(jsonWriter.writeValueAsString(located), contentType).build();
+      Query<?> query = context.getInputMapper().readValue(in, Query.class);
+      return context.ok(getTargetLocations(query.getDataSource(), query.getIntervals()));
     }
     catch (Exception e) {
-      return Response.serverError().type(contentType).entity(
-          jsonWriter.writeValueAsString(
-              ImmutableMap.of(
-                  "error", e.getMessage() == null ? "null exception" : e.getMessage()
-              )
-          )
-      ).build();
+      return context.gotError(e);
     }
   }
 
@@ -130,9 +108,12 @@ public class BrokerQueryResource extends QueryResource
   @Produces(MediaType.APPLICATION_JSON)
   public Response getQueryTargets(
       @QueryParam("datasource") String datasource,
-      @QueryParam("intervals") String intervals
+      @QueryParam("intervals") String intervals,
+      @QueryParam("pretty") String pretty,
+      @Context final HttpServletRequest req
   ) throws IOException
   {
+    final RequestContext context = new RequestContext(req.getContentType(), pretty != null);
     List<Interval> intervalList = Lists.newArrayList();
     for (String interval : intervals.split(",")) {
       intervalList.add(Interval.parse(interval.trim()));
@@ -141,7 +122,12 @@ public class BrokerQueryResource extends QueryResource
         new TableDataSource(datasource),
         JodaUtils.condenseIntervals(intervalList)
     );
-    return Response.ok(located).build();
+    try {
+      return context.ok(located);
+    }
+    catch (Exception e) {
+      return context.gotError(e);
+    }
   }
 
   private List<LocatedSegmentDescriptor> getTargetLocations(DataSource datasource, List<Interval> intervals)

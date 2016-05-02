@@ -81,7 +81,7 @@ public class QueryResource
   @Deprecated // use SmileMediaTypes.APPLICATION_JACKSON_SMILE
   protected static final String APPLICATION_SMILE = "application/smile";
 
-  protected static final int RESPONSE_CTX_HEADER_LEN_LIMIT = 7*1024;
+  protected static final int RESPONSE_CTX_HEADER_LEN_LIMIT = 7 * 1024;
 
   protected final ServerConfig config;
   protected final ObjectMapper jsonMapper;
@@ -161,19 +161,13 @@ public class QueryResource
     Query query = null;
     String queryId = null;
 
-    final String reqContentType = req.getContentType();
-    final boolean isSmile = SmileMediaTypes.APPLICATION_JACKSON_SMILE.equals(reqContentType)
-                            || APPLICATION_SMILE.equals(reqContentType);
-    final String contentType = isSmile ? SmileMediaTypes.APPLICATION_JACKSON_SMILE : MediaType.APPLICATION_JSON;
-
-    ObjectMapper objectMapper = isSmile ? smileMapper : jsonMapper;
-    final ObjectWriter jsonWriter = pretty != null
-                                    ? objectMapper.writerWithDefaultPrettyPrinter()
-                                    : objectMapper.writer();
+    final RequestContext context = new RequestContext(req.getContentType(), pretty != null);
+    final String contentType = context.getContentType();
+    final ObjectWriter jsonWriter = context.getOutputWriter();
 
     final String currThreadName = Thread.currentThread().getName();
     try {
-      query = objectMapper.readValue(in, Query.class);
+      query = context.getInputMapper().readValue(in, Query.class);
       queryId = query.getId();
       if (queryId == null) {
         queryId = UUID.randomUUID().toString();
@@ -336,13 +330,7 @@ public class QueryResource
       catch (Exception e2) {
         log.error(e2, "Unable to log query [%s]!", query);
       }
-      return Response.serverError().type(contentType).entity(
-          jsonWriter.writeValueAsBytes(
-              ImmutableMap.of(
-                  "error", e.getMessage() == null ? "null exception" : e.getMessage()
-              )
-          )
-      ).build();
+      return context.gotError(e);
     }
     catch (Exception e) {
       // Input stream has already been consumed by the json object mapper if query == null
@@ -365,14 +353,16 @@ public class QueryResource
                 new DateTime(start),
                 req.getRemoteAddr(),
                 query,
-                new QueryStats(ImmutableMap.<String, Object>of(
-                    "query/time",
-                    queryTime,
-                    "success",
-                    false,
-                    "exception",
-                    e.toString()
-                ))
+                new QueryStats(
+                    ImmutableMap.<String, Object>of(
+                        "query/time",
+                        queryTime,
+                        "success",
+                        false,
+                        "exception",
+                        e.toString()
+                    )
+                )
             )
         );
       }
@@ -386,16 +376,56 @@ public class QueryResource
          .addData("peer", req.getRemoteAddr())
          .emit();
 
+      return context.gotError(e);
+    }
+    finally {
+      Thread.currentThread().setName(currThreadName);
+    }
+  }
+
+  protected class RequestContext
+  {
+    final boolean isSmile;
+    final boolean isPretty;
+    final String contentType;
+
+    RequestContext(String requestType, boolean pretty)
+    {
+      isSmile = SmileMediaTypes.APPLICATION_JACKSON_SMILE.equals(requestType)
+                || APPLICATION_SMILE.equals(requestType);
+      isPretty = pretty;
+      contentType = isSmile ? SmileMediaTypes.APPLICATION_JACKSON_SMILE : MediaType.APPLICATION_JSON;
+    }
+
+    String getContentType()
+    {
+      return contentType;
+    }
+
+    ObjectMapper getInputMapper()
+    {
+      return isSmile ? smileMapper : jsonMapper;
+    }
+
+    ObjectWriter getOutputWriter()
+    {
+      return isPretty ? getInputMapper().writerWithDefaultPrettyPrinter() : getInputMapper().writer();
+    }
+
+    Response ok(Object object) throws IOException
+    {
+      return Response.ok(getOutputWriter().writeValueAsString(object), contentType).build();
+    }
+
+    Response gotError(Exception e) throws IOException
+    {
       return Response.serverError().type(contentType).entity(
-          jsonWriter.writeValueAsBytes(
+          getOutputWriter().writeValueAsBytes(
               ImmutableMap.of(
                   "error", e.getMessage() == null ? "null exception" : e.getMessage()
               )
           )
       ).build();
-    }
-    finally {
-      Thread.currentThread().setName(currThreadName);
     }
   }
 }
