@@ -191,6 +191,7 @@ def merge_stash(git_dir, repo):
                     logging.critical("failure: merge %s into %s" % (str(br), cur_branch_name))
                     print "failure: merge %s into %s" % (str(br), cur_branch_name)
                     git_clean(repo)
+                    failed("merge \'%s\' failed" % br_name)
 
                 # try to build
                 out, rc = getCallResult(build_cmd)
