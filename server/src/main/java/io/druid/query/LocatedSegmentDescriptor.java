@@ -22,30 +22,37 @@ package io.druid.query;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Sets;
 import io.druid.server.coordination.DruidServerMetadata;
 import org.joda.time.Interval;
 
 import java.util.List;
-import java.util.Set;
+import java.util.Objects;
 
 /**
+ * public, evolving
+ * <p/>
+ * extended version of SegmentDescriptor, which is internal class, with location and size information
  */
-public class LocatedSegmentDescriptor extends SegmentDescriptor
+public class LocatedSegmentDescriptor
 {
+  private final Interval interval;
+  private final String version;
+  private final int partitionNumber;
   private final long size;
   private final List<DruidServerMetadata> locations;
 
   @JsonCreator
   public LocatedSegmentDescriptor(
-      @JsonProperty("itvl") Interval interval,
-      @JsonProperty("ver") String version,
-      @JsonProperty("part") int partitionNumber,
+      @JsonProperty("interval") Interval interval,
+      @JsonProperty("version") String version,
+      @JsonProperty("partitionNumber") int partitionNumber,
       @JsonProperty("size") long size,
       @JsonProperty("locations") List<DruidServerMetadata> locations
   )
   {
-    super(interval, version, partitionNumber);
+    this.interval = interval;
+    this.version = version;
+    this.partitionNumber = partitionNumber;
     this.size = size;
     this.locations = locations == null ? ImmutableList.<DruidServerMetadata>of() : locations;
   }
@@ -53,6 +60,24 @@ public class LocatedSegmentDescriptor extends SegmentDescriptor
   public LocatedSegmentDescriptor(SegmentDescriptor descriptor, long size, List<DruidServerMetadata> candidates)
   {
     this(descriptor.getInterval(), descriptor.getVersion(), descriptor.getPartitionNumber(), size, candidates);
+  }
+
+  @JsonProperty("interval")
+  public Interval getInterval()
+  {
+    return interval;
+  }
+
+  @JsonProperty("version")
+  public String getVersion()
+  {
+    return version;
+  }
+
+  @JsonProperty("partitionNumber")
+  public int getPartitionNumber()
+  {
+    return partitionNumber;
   }
 
   @JsonProperty("size")
@@ -75,23 +100,38 @@ public class LocatedSegmentDescriptor extends SegmentDescriptor
     }
 
     LocatedSegmentDescriptor other = (LocatedSegmentDescriptor) o;
-    return getHostNames().equals(other.getHostNames());
-  }
 
-  private Set<String> getHostNames()
-  {
-    Set<String> hostNames = Sets.newHashSet();
-    for (DruidServerMetadata meta : locations) {
-      hostNames.add(meta.getHost());
+    if (partitionNumber != other.partitionNumber) {
+      return false;
     }
-    return hostNames;
+    if (!Objects.equals(interval, other.interval)) {
+      return false;
+    }
+    if (!Objects.equals(version, other.version)) {
+      return false;
+    }
+
+    return true;
   }
 
   @Override
   public int hashCode()
   {
-    int result = super.hashCode();
-    result = 31 * result + getHostNames().hashCode();
+    int result = Objects.hashCode(interval);
+    result = 31 * result + Objects.hashCode(version);
+    result = 31 * result + partitionNumber;
     return result;
+  }
+
+  @Override
+  public String toString()
+  {
+    return "LocatedSegmentDescriptor{" +
+           "interval=" + interval +
+           ", version='" + version + '\'' +
+           ", partitionNumber=" + partitionNumber +
+           ", size=" + size +
+           ", locations=" + locations +
+           '}';
   }
 }
