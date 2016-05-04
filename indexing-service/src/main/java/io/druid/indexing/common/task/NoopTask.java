@@ -85,6 +85,20 @@ public class NoopTask extends AbstractTask
     this.firehoseFactory = firehoseFactory;
   }
 
+  public NoopTask(String id, String groupId)
+  {
+    super(
+        id == null ? String.format("noop_%s_%s", new DateTime(), UUID.randomUUID().toString()) : id,
+        groupId == null ? String.format("noop_%s_%s", new DateTime(), UUID.randomUUID().toString()) : groupId,
+        "none",
+        null
+    );
+    runTime = defaultRunTime;
+    isReadyTime = defaultIsReadyTime;
+    isReadyResult = defaultIsReadyResult;
+    firehoseFactory = null;
+  }
+
   @Override
   public String getType()
   {
