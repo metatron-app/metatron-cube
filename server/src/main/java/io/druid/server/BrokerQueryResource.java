@@ -1,21 +1,21 @@
 /*
-* Licensed to Metamarkets Group Inc. (Metamarkets) under one
-* or more contributor license agreements. See the NOTICE file
-* distributed with this work for additional information
-* regarding copyright ownership. Metamarkets licenses this file
-* to you under the Apache License, Version 2.0 (the
-* "License"); you may not use this file except in compliance
-* with the License. You may obtain a copy of the License at
-*
-* http://www.apache.org/licenses/LICENSE-2.0
-*
-* Unless required by applicable law or agreed to in writing,
-* software distributed under the License is distributed on an
-* "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
-* KIND, either express or implied. See the License for the
-* specific language governing permissions and limitations
-* under the License.
-*/
+ * Licensed to Metamarkets Group Inc. (Metamarkets) under one
+ * or more contributor license agreements. See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership. Metamarkets licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License. You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied. See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
 
 package io.druid.server;
 
@@ -23,18 +23,26 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.jaxrs.smile.SmileMediaTypes;
 import com.google.common.collect.Lists;
 import com.google.inject.Inject;
+import com.metamx.common.guava.Sequence;
+import com.metamx.common.guava.Sequences;
 import com.metamx.emitter.service.ServiceEmitter;
 import io.druid.client.TimelineServerView;
 import io.druid.client.selector.ServerSelector;
 import io.druid.common.utils.JodaUtils;
+import io.druid.common.utils.StringUtils;
+import io.druid.guice.LocalDataStorageDruidModule;
 import io.druid.guice.annotations.Json;
 import io.druid.guice.annotations.Smile;
+import io.druid.query.BaseQuery;
 import io.druid.query.DataSource;
 import io.druid.query.LocatedSegmentDescriptor;
 import io.druid.query.Query;
 import io.druid.query.QuerySegmentWalker;
+import io.druid.query.QueryToolChestWarehouse;
+import io.druid.query.ResultWriter;
 import io.druid.query.SegmentDescriptor;
 import io.druid.query.TableDataSource;
+import io.druid.query.TabularFormat;
 import io.druid.server.coordination.DruidServerMetadata;
 import io.druid.server.initialization.ServerConfig;
 import io.druid.server.log.RequestLogger;
@@ -56,8 +64,11 @@ import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 
 /**
  */
@@ -65,6 +76,8 @@ import java.util.List;
 public class BrokerQueryResource extends QueryResource
 {
   private final TimelineServerView brokerServerView;
+  private final QueryToolChestWarehouse warehouse;
+  private final Map<String, ResultWriter> writerMap;
 
   @Inject
   public BrokerQueryResource(
@@ -72,15 +85,20 @@ public class BrokerQueryResource extends QueryResource
       @Json ObjectMapper jsonMapper,
       @Smile ObjectMapper smileMapper,
       QuerySegmentWalker texasRanger,
+      QueryToolChestWarehouse warehouse,
       ServiceEmitter emitter,
       RequestLogger requestLogger,
       QueryManager queryManager,
       AuthConfig authConfig,
+      Map<String, ResultWriter> writerMap,
       TimelineServerView brokerServerView
   )
   {
     super(config, jsonMapper, smileMapper, texasRanger, emitter, requestLogger, queryManager, authConfig);
     this.brokerServerView = brokerServerView;
+    this.warehouse = warehouse;
+    this.writerMap = writerMap;
+    log.info("Supporting writer schemes.. " + writerMap.keySet());
   }
 
   @POST
@@ -151,5 +169,34 @@ public class BrokerQueryResource extends QueryResource
       }
     }
     return located;
+  }
+
+  @Override
+  protected Sequence toDispatchSequence(Query query, Sequence res) throws IOException
+  {
+    String forwardURL = BaseQuery.getResultForwardURL(query);
+    if (forwardURL != null && !StringUtils.isNullOrEmpty(forwardURL)) {
+      URI uri;
+      try {
+        uri = new URI(forwardURL);
+      }
+      catch (URISyntaxException e) {
+        log.warn("Invalid uri `" + forwardURL + "`", e);
+        return Sequences.empty();
+      }
+      String scheme = uri.getScheme() == null ? LocalDataStorageDruidModule.SCHEME : uri.getScheme();
+
+      ResultWriter writer = writerMap.get(scheme);
+      if (writer == null) {
+        log.warn("Unsupported scheme `" + scheme + "`");
+        return Sequences.empty();
+      }
+      TabularFormat result = warehouse.getToolChest(query).toTabularFormat(res);
+      writer.write(uri, result, BaseQuery.getResultForwardContext(query));
+
+      return Sequences.empty();
+    }
+
+    return super.toDispatchSequence(query, res);
   }
 }

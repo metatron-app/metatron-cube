@@ -57,6 +57,7 @@ import io.druid.query.QueryDataSource;
 import io.druid.query.QueryRunner;
 import io.druid.query.QueryToolChest;
 import io.druid.query.SubqueryQueryRunner;
+import io.druid.query.TabularFormat;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.MetricManipulationFn;
 import io.druid.query.aggregation.PostAggregator;
@@ -184,16 +185,20 @@ public class GroupByQueryQueryToolChest extends QueryToolChest<Row, GroupByQuery
       // subsequent ones) and return an error if the aggregator types are different.
       for (AggregatorFactory aggregatorFactory : query.getAggregatorSpecs()) {
         for (final AggregatorFactory transferAgg : aggregatorFactory.getRequiredColumns()) {
-          if (Iterables.any(aggs, new Predicate<AggregatorFactory>()
-          {
-            @Override
-            public boolean apply(AggregatorFactory agg)
-            {
-              return agg.getName().equals(transferAgg.getName()) && !agg.equals(transferAgg);
-            }
-          })) {
-            throw new IAE("Inner aggregator can currently only be referenced by a single type of outer aggregator" +
-                          " for '%s'", transferAgg.getName());
+          if (Iterables.any(
+              aggs, new Predicate<AggregatorFactory>()
+              {
+                @Override
+                public boolean apply(AggregatorFactory agg)
+                {
+                  return agg.getName().equals(transferAgg.getName()) && !agg.equals(transferAgg);
+                }
+              }
+          )) {
+            throw new IAE(
+                "Inner aggregator can currently only be referenced by a single type of outer aggregator" +
+                " for '%s'", transferAgg.getName()
+            );
           }
 
           aggs.add(transferAgg);
@@ -428,7 +433,7 @@ public class GroupByQueryQueryToolChest extends QueryToolChest<Row, GroupByQuery
               public Sequence<Row> run(Query<Row> query, Map<String, Object> responseContext)
               {
                 GroupByQuery groupByQuery = (GroupByQuery) query;
-                if (groupByQuery.getDimFilter() != null){
+                if (groupByQuery.getDimFilter() != null) {
                   groupByQuery = groupByQuery.withDimFilter(groupByQuery.getDimFilter().optimize());
                 }
                 final GroupByQuery delegateGroupByQuery = groupByQuery;
@@ -622,5 +627,33 @@ public class GroupByQueryQueryToolChest extends QueryToolChest<Row, GroupByQuery
           }
         }
     );
+  }
+
+  @Override
+  public TabularFormat toTabularFormat(final Sequence<Row> sequence)
+  {
+    return new TabularFormat()
+    {
+      @Override
+      public Sequence<Map<String, Object>> getSequence()
+      {
+        return Sequences.map(
+            sequence, new Function<Row, Map<String, Object>>()
+            {
+              @Override
+              public Map<String, Object> apply(@Nullable Row input)
+              {
+                return ((MapBasedRow) input).getEvent();
+              }
+            }
+        );
+      }
+
+      @Override
+      public Map<String, Object> getMetaData()
+      {
+        return null;
+      }
+    };
   }
 }

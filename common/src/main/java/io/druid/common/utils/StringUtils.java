@@ -51,4 +51,9 @@ public class StringUtils extends com.metamx.common.StringUtils
   {
     return string == null ? EMPTY_BYTES : toUtf8(string);
   }
+
+  public static boolean isNullOrEmpty(String value)
+  {
+    return value == null || value.isEmpty();
+  }
 }

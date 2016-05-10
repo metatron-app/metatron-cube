@@ -20,12 +20,19 @@
 package io.druid.storage.hdfs;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.io.ByteSink;
 import com.google.common.io.ByteSource;
 import com.google.inject.Inject;
 import com.metamx.common.CompressionUtils;
+import com.metamx.common.guava.Accumulator;
 import com.metamx.common.logger.Logger;
+import io.druid.common.utils.PropUtils;
+import io.druid.data.output.Formatter;
+import io.druid.data.output.Formatters;
+import io.druid.query.ResultWriter;
+import io.druid.query.TabularFormat;
 import io.druid.segment.SegmentUtils;
 import io.druid.segment.loading.DataSegmentPusher;
 import io.druid.segment.loading.DataSegmentPusherUtil;
@@ -38,10 +45,12 @@ import org.apache.hadoop.fs.Path;
 import java.io.File;
 import java.io.IOException;
 import java.io.OutputStream;
+import java.net.URI;
+import java.util.Map;
 
 /**
  */
-public class HdfsDataSegmentPusher implements DataSegmentPusher
+public class HdfsDataSegmentPusher implements DataSegmentPusher, ResultWriter
 {
   private static final Logger log = new Logger(HdfsDataSegmentPusher.class);
 
@@ -114,6 +123,55 @@ public class HdfsDataSegmentPusher implements DataSegmentPusher
   private ImmutableMap<String, Object> makeLoadSpec(Path outFile)
   {
     return ImmutableMap.<String, Object>of("type", "hdfs", "path", outFile.toString());
+  }
+
+  @Override
+  public void write(URI location, final TabularFormat result, final Map<String, String> context)
+      throws IOException
+  {
+    Path targetDirectory = new Path(location);
+    FileSystem fileSystem = targetDirectory.getFileSystem(hadoopConfig);
+
+    boolean cleanup = PropUtils.parseBoolean(context, "cleanup", false);
+    if (cleanup) {
+      fileSystem.delete(targetDirectory, true);
+    }
+    if (fileSystem.isFile(targetDirectory)) {
+      throw new IllegalStateException("'resultDirectory' should not be a file");
+    }
+    if (!fileSystem.exists(targetDirectory) && !fileSystem.mkdirs(targetDirectory)) {
+      throw new IllegalStateException("failed to make target directory");
+    }
+    Path dataFile = new Path(targetDirectory, "data");
+
+    final byte[] newLine = System.lineSeparator().getBytes();
+    final Formatter formatter = Formatters.getFormatter(context, jsonMapper);
+    try (final OutputStream output = fileSystem.create(dataFile)) {
+      result.getSequence().accumulate(
+          null, new Accumulator<Object, Map<String, Object>>()
+          {
+            @Override
+            public Object accumulate(Object accumulated, Map<String, Object> in)
+            {
+              try {
+                output.write(formatter.format(in));
+                output.write(newLine);
+              }
+              catch (Exception e) {
+                throw Throwables.propagate(e);
+              }
+              return null;
+            }
+          }
+      );
+    }
+    Map<String, Object> metaData = result.getMetaData();
+    if (metaData != null && !metaData.isEmpty()) {
+      Path metaFile = new Path(targetDirectory, ".meta");
+      try (OutputStream output = fileSystem.create(metaFile)) {
+        jsonMapper.writeValue(output, metaData);
+      }
+    }
   }
 
   private static class HdfsOutputStreamSupplier extends ByteSink

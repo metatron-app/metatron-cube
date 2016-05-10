@@ -29,10 +29,10 @@ import com.google.common.collect.Maps;
 import com.google.common.collect.Ordering;
 import com.google.common.collect.Sets;
 import com.google.inject.Inject;
-import com.metamx.common.ISE;
 import com.metamx.common.StringUtils;
 import com.metamx.common.guava.Comparators;
 import com.metamx.common.guava.Sequence;
+import com.metamx.common.guava.Sequences;
 import com.metamx.common.guava.nary.BinaryFn;
 import com.metamx.emitter.service.ServiceMetricEvent;
 import io.druid.granularity.QueryGranularity;
@@ -45,6 +45,7 @@ import io.druid.query.QueryToolChest;
 import io.druid.query.Result;
 import io.druid.query.ResultGranularTimestampComparator;
 import io.druid.query.ResultMergeQueryRunner;
+import io.druid.query.TabularFormat;
 import io.druid.query.aggregation.MetricManipulationFn;
 import io.druid.query.dimension.DimensionSpec;
 import io.druid.query.filter.DimFilter;
@@ -82,8 +83,10 @@ public class SelectQueryQueryToolChest extends QueryToolChest<Result<SelectResul
   private final IntervalChunkingQueryRunnerDecorator intervalChunkingQueryRunnerDecorator;
 
   @Inject
-  public SelectQueryQueryToolChest(ObjectMapper jsonMapper,
-      IntervalChunkingQueryRunnerDecorator intervalChunkingQueryRunnerDecorator)
+  public SelectQueryQueryToolChest(
+      ObjectMapper jsonMapper,
+      IntervalChunkingQueryRunnerDecorator intervalChunkingQueryRunnerDecorator
+  )
   {
     this.jsonMapper = jsonMapper;
     this.intervalChunkingQueryRunnerDecorator = intervalChunkingQueryRunnerDecorator;
@@ -362,5 +365,49 @@ public class SelectQueryQueryToolChest extends QueryToolChest<Result<SelectResul
       }
     }
     return queryIntervals;
+  }
+
+  @Override
+  public TabularFormat toTabularFormat(final Sequence<Result<SelectResultValue>> sequence)
+  {
+    return new TabularFormat()
+    {
+      final Map<String, Object> pagingSpec = Maps.newHashMap();
+
+      @Override
+      public Sequence<Map<String, Object>> getSequence()
+      {
+        return Sequences.concat(
+            Sequences.map(
+                sequence, new Function<Result<SelectResultValue>, Sequence<Map<String, Object>>>()
+                {
+                  @Override
+                  public Sequence<Map<String, Object>> apply(Result<SelectResultValue> input)
+                  {
+                    pagingSpec.putAll(input.getValue().getPagingIdentifiers());
+                    return Sequences.simple(
+                        Iterables.transform(
+                            input.getValue().getEvents(), new Function<EventHolder, Map<String, Object>>()
+                            {
+                              @Override
+                              public Map<String, Object> apply(EventHolder input)
+                              {
+                                return input.getEvent();
+                              }
+                            }
+                        )
+                    );
+                  }
+                }
+            )
+        );
+      }
+
+      @Override
+      public Map<String, Object> getMetaData()
+      {
+        return pagingSpec;
+      }
+    };
   }
 }
