@@ -29,7 +29,8 @@ import java.util.Comparator;
 @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type", defaultImpl = LexicographicSearchSortSpec.class)
 @JsonSubTypes(value = {
     @JsonSubTypes.Type(name = "lexicographic", value = LexicographicSearchSortSpec.class),
-    @JsonSubTypes.Type(name = "strlen", value = StrlenSearchSortSpec.class)
+    @JsonSubTypes.Type(name = "strlen", value = StrlenSearchSortSpec.class),
+    @JsonSubTypes.Type(name = "generic", value = GenericSearchSortSpec.class)
 })
 public interface SearchSortSpec
 {

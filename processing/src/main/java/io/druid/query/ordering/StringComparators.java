@@ -25,6 +25,7 @@ import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.fasterxml.jackson.annotation.JsonTypeInfo.As;
 import com.fasterxml.jackson.annotation.JsonTypeInfo.Id;
+import com.google.common.primitives.Ints;
 import com.google.common.primitives.UnsignedBytes;
 import com.metamx.common.IAE;
 import com.metamx.common.StringUtils;
@@ -34,14 +35,20 @@ public class StringComparators
 {
   public static final String LEXICOGRAPHIC_NAME = "lexicographic";
   public static final String ALPHANUMERIC_NAME = "alphanumeric";
+  public static final String INTEGER_NAME = "integer";
+  public static final String FLOATING_POINT_NAME = "floatingpoint";
   
   public static final LexicographicComparator LEXICOGRAPHIC = new LexicographicComparator();
   public static final AlphanumericComparator ALPHANUMERIC = new AlphanumericComparator();
+  public static final IntegerComparator INTEGER = new IntegerComparator();
+  public static final FloatingPointComparator FLOATING_POINT = new FloatingPointComparator();
     
   @JsonTypeInfo(use=Id.NAME, include=As.PROPERTY, property="type", defaultImpl = LexicographicComparator.class)
   @JsonSubTypes(value = {
       @JsonSubTypes.Type(name = StringComparators.LEXICOGRAPHIC_NAME, value = LexicographicComparator.class),
-      @JsonSubTypes.Type(name = StringComparators.ALPHANUMERIC_NAME, value = AlphanumericComparator.class)
+      @JsonSubTypes.Type(name = StringComparators.ALPHANUMERIC_NAME, value = AlphanumericComparator.class),
+      @JsonSubTypes.Type(name = StringComparators.INTEGER_NAME, value = IntegerComparator.class),
+      @JsonSubTypes.Type(name = StringComparators.FLOATING_POINT_NAME, value = FloatingPointComparator.class)
   })
   public static interface StringComparator extends Comparator<String>
   {
@@ -293,14 +300,99 @@ public class StringComparators
     }
   }
 
+  public static class IntegerComparator implements StringComparator
+  {
+    @Override
+    public int compare(String s, String s2)
+    {
+      // Avoid conversion to bytes for equal references
+      if(s == s2){
+        return 0;
+      }
+      // null first
+      if (s == null) {
+        return -1;
+      }
+      if (s2 == null) {
+        return 1;
+      }
+
+      return Ints.compare(Integer.valueOf(s), Integer.valueOf(s2));
+    }
+
+    @Override
+    public boolean equals(Object o)
+    {
+      if (this == o) {
+        return true;
+      }
+      if (o == null || getClass() != o.getClass()) {
+        return false;
+      }
+
+      return true;
+    }
+
+    @Override
+    public String toString()
+    {
+      return StringComparators.INTEGER_NAME;
+    }
+  }
+
+  public static class FloatingPointComparator implements StringComparator
+  {
+    @Override
+    public int compare(String s, String s2)
+    {
+      // Avoid conversion to bytes for equal references
+      if(s == s2){
+        return 0;
+      }
+      // null first
+      if (s == null) {
+        return -1;
+      }
+      if (s2 == null) {
+        return 1;
+      }
+
+      return Double.compare(Double.valueOf(s), Double.valueOf(s2));
+    }
+
+    @Override
+    public boolean equals(Object o)
+    {
+      if (this == o) {
+        return true;
+      }
+      if (o == null || getClass() != o.getClass()) {
+        return false;
+      }
+
+      return true;
+    }
+
+    @Override
+    public String toString()
+    {
+      return StringComparators.FLOATING_POINT_NAME;
+    }
+  }
+
   public static StringComparator makeComparator(String type)
   {
-    if (type.equals(StringComparators.LEXICOGRAPHIC_NAME)) {
-      return LEXICOGRAPHIC;
-    } else if (type.equals(StringComparators.ALPHANUMERIC_NAME)) {
-      return ALPHANUMERIC;
-    } else {
-      throw new IAE("Unknown string comparator[%s]", type);
+    switch (type) {
+      case StringComparators.LEXICOGRAPHIC_NAME:
+        return LEXICOGRAPHIC;
+      case StringComparators.ALPHANUMERIC_NAME:
+        return ALPHANUMERIC;
+      case StringComparators.INTEGER_NAME:
+        return INTEGER;
+      case StringComparators.FLOATING_POINT_NAME:
+        return FLOATING_POINT;
+      default:
+        throw new IAE("Unknown string comparator[%s]", type);
     }
   }
 }
