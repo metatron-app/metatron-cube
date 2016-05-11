@@ -40,7 +40,6 @@ import io.druid.segment.DimensionSelector;
 import io.druid.segment.FloatColumnSelector;
 import io.druid.segment.LongColumnSelector;
 import io.druid.segment.ObjectColumnSelector;
-import io.druid.segment.column.ValueType;
 import io.druid.segment.data.ArrayBasedIndexedInts;
 import io.druid.segment.data.IndexedInts;
 import org.junit.Assert;
@@ -162,12 +161,6 @@ public class FilteredAggregatorTest
       public ObjectColumnSelector makeObjectColumnSelector(String columnName)
       {
         throw new UnsupportedOperationException();
-      }
-
-      @Override
-      public ValueType columnType(String columnName)
-      {
-        return columnName.equals("value") ? ValueType.FLOAT : null;
       }
     };
   }

@@ -2121,7 +2121,7 @@ public class GroupByQueryRunnerTest
         .setGranularity(QueryRunnerTestHelper.dayGran)
         .build();
 
-     List<Row> expectedResults = Arrays.asList(
+    List<Row> expectedResults = Arrays.asList(
         GroupByQueryRunnerTestHelper.createExpectedRow("2011-04-01", "alias", "health0000", "rows", 1L, "idx", 121L),
         GroupByQueryRunnerTestHelper.createExpectedRow("2011-04-01", "alias", "health09", "rows", 3L, "idx", 2870L),
         GroupByQueryRunnerTestHelper.createExpectedRow("2011-04-01", "alias", "health20", "rows", 1L, "idx", 118L),
@@ -4835,7 +4835,7 @@ public class GroupByQueryRunnerTest
 
     MapLookupExtractor mapLookupExtractor = new MapLookupExtractor(extractionMap, false);
     LookupExtractionFn lookupExtractionFn = new LookupExtractionFn(mapLookupExtractor, false, "missing", true, false);
-    DimFilter filter = new ExtractionDimFilter("quality","mezzanineANDnews",lookupExtractionFn,null);
+    DimFilter filter = new ExtractionDimFilter("quality", "mezzanineANDnews", lookupExtractionFn, null);
     GroupByQuery query = GroupByQuery.builder().setDataSource(QueryRunnerTestHelper.dataSource)
                                      .setQuerySegmentSpec(QueryRunnerTestHelper.firstToThird)
                                      .setDimensions(
@@ -4887,7 +4887,7 @@ public class GroupByQueryRunnerTest
   }
 
   @Test
-  public  void testGroupByWithExtractionDimFilterOptimazitionManyToOne()
+  public void testGroupByWithExtractionDimFilterOptimazitionManyToOne()
   {
     Map<String, String> extractionMap = new HashMap<>();
     extractionMap.put("mezzanine", "newsANDmezzanine");
@@ -4926,7 +4926,8 @@ public class GroupByQueryRunnerTest
   }
 
 
-  @Test public void testGroupByWithExtractionDimFilterNullDims()
+  @Test
+  public void testGroupByWithExtractionDimFilterNullDims()
   {
     Map<String, String> extractionMap = new HashMap<>();
     extractionMap.put("", "EMPTY");

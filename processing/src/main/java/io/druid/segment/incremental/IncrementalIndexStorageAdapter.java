@@ -48,13 +48,10 @@ import io.druid.segment.SingleScanTimeDimSelector;
 import io.druid.segment.StorageAdapter;
 import io.druid.segment.column.Column;
 import io.druid.segment.column.ColumnCapabilities;
-import io.druid.segment.column.ValueType;
 import io.druid.segment.data.Indexed;
 import io.druid.segment.data.IndexedInts;
 import io.druid.segment.data.ListIndexed;
 import io.druid.segment.filter.BooleanValueMatcher;
-import io.druid.segment.serde.ComplexMetricSerde;
-import io.druid.segment.serde.ComplexMetrics;
 import org.joda.time.DateTime;
 import org.joda.time.Interval;
 
@@ -533,14 +530,13 @@ public class IncrementalIndexStorageAdapter implements StorageAdapter
                 final Integer metricIndexInt = index.getMetricIndex(column);
                 if (metricIndexInt != null) {
                   final int metricIndex = metricIndexInt;
-
-                  final ComplexMetricSerde serde = ComplexMetrics.getSerdeForType(index.getMetricType(column));
+                  final Class classOfObject = index.getMetricClass(column);
                   return new ObjectColumnSelector()
                   {
                     @Override
                     public Class classOfObject()
                     {
-                      return serde.getObjectStrategy().getClazz();
+                      return classOfObject;
                     }
 
                     @Override
@@ -599,17 +595,6 @@ public class IncrementalIndexStorageAdapter implements StorageAdapter
                 }
 
                 return null;
-              }
-
-              @Override
-              public ValueType columnType(String columnName)
-              {
-                ValueType type = index.getMetricValueType(columnName);
-                if (type == null) {
-                  IncrementalIndex.DimensionDesc dimensionDesc = index.getDimension(columnName);
-                  return dimensionDesc == null ? null : dimensionDesc.getCapabilities().getType();
-                }
-                return type;
               }
             };
           }

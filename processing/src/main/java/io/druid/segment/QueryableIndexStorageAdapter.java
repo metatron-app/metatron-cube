@@ -21,7 +21,6 @@ package io.druid.segment;
 
 import com.google.common.base.Function;
 import com.google.common.base.Predicates;
-import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
@@ -729,13 +728,6 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
                           return columnVals.getRowValue(cursorOffset.getOffset());
                         }
                       };
-                    }
-
-                    @Override
-                    public ValueType columnType(String columnName)
-                    {
-                      Column column = index.getColumn(columnName);
-                      return column == null ? null : column.getCapabilities().getType();
                     }
                   };
                 }

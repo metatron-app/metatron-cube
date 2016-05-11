@@ -23,6 +23,7 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.base.Preconditions;
+import com.metamx.common.IAE;
 import com.metamx.common.StringUtils;
 import io.druid.query.aggregation.Aggregator;
 import io.druid.query.aggregation.AggregatorFactory;
@@ -30,7 +31,7 @@ import io.druid.query.aggregation.AggregatorFactoryNotMergeableException;
 import io.druid.query.aggregation.Aggregators;
 import io.druid.query.aggregation.BufferAggregator;
 import io.druid.segment.ColumnSelectorFactory;
-import io.druid.segment.column.ValueType;
+import io.druid.segment.ObjectColumnSelector;
 import org.apache.commons.codec.binary.Base64;
 
 import java.nio.ByteBuffer;
@@ -80,50 +81,64 @@ public class VarianceAggregatorFactory extends AggregatorFactory
   @Override
   public Aggregator factorize(ColumnSelectorFactory metricFactory)
   {
-    ValueType valueType = metricFactory.columnType(fieldName);
-    if (valueType == null) {
+    ObjectColumnSelector selector = metricFactory.makeObjectColumnSelector(fieldName);
+    if (selector == null) {
       return Aggregators.noopAggregator();
     }
-    if (valueType == ValueType.FLOAT) {
+
+    Class classOfObject = selector.classOfObject();
+    if (classOfObject == Float.TYPE || classOfObject == Float.class) {
       return new VarianceAggregator.FloatVarianceAggregator(
           name,
           metricFactory.makeFloatColumnSelector(fieldName)
       );
     }
-    if (valueType == ValueType.LONG) {
+    if (classOfObject == Long.TYPE || classOfObject == Long.class) {
       return new VarianceAggregator.LongVarianceAggregator(
           name,
           metricFactory.makeLongColumnSelector(fieldName)
       );
     }
-    return new VarianceAggregator.ObjectVarianceAggregator(
-        name,
-        metricFactory.makeObjectColumnSelector(fieldName)
+    if (classOfObject == Object.class || VarianceHolder.class.isAssignableFrom(classOfObject)) {
+      return new VarianceAggregator.ObjectVarianceAggregator(
+          name,
+          metricFactory.makeObjectColumnSelector(fieldName)
+      );
+    }
+    throw new IAE(
+        "Incompatible type for metric[%s], expected a float, long or VarianceHolder, got a %s", fieldName, classOfObject
     );
   }
 
   @Override
   public BufferAggregator factorizeBuffered(ColumnSelectorFactory metricFactory)
   {
-    ValueType valueType = metricFactory.columnType(fieldName);
-    if (valueType == null) {
+    ObjectColumnSelector selector = metricFactory.makeObjectColumnSelector(fieldName);
+    if (selector == null) {
       return Aggregators.noopBufferAggregator();
     }
-    if (valueType == ValueType.FLOAT) {
+
+    Class classOfObject = selector.classOfObject();
+    if (classOfObject == Float.TYPE || classOfObject == Float.class) {
       return new VarianceBufferAggregator.FloatVarianceAggregator(
           name,
           metricFactory.makeFloatColumnSelector(fieldName)
       );
     }
-    if (valueType == ValueType.LONG) {
+    if (classOfObject == Long.TYPE || classOfObject == Long.class) {
       return new VarianceBufferAggregator.LongVarianceAggregator(
           name,
           metricFactory.makeLongColumnSelector(fieldName)
       );
     }
-    return new VarianceBufferAggregator.ObjectVarianceAggregator(
-        name,
-        metricFactory.makeObjectColumnSelector(fieldName)
+    if (classOfObject == Object.class || VarianceHolder.class.isAssignableFrom(classOfObject)) {
+      return new VarianceBufferAggregator.ObjectVarianceAggregator(
+          name,
+          metricFactory.makeObjectColumnSelector(fieldName)
+      );
+    }
+    throw new IAE(
+        "Incompatible type for metric[%s], expected a float, long or VarianceHolder, got a %s", fieldName, classOfObject
     );
   }
 
@@ -219,7 +234,7 @@ public class VarianceAggregatorFactory extends AggregatorFactory
     byte[] fieldNameBytes = StringUtils.toUtf8(fieldName);
     return ByteBuffer.allocate(2 + fieldNameBytes.length)
                      .put(CACHE_TYPE_ID)
-                     .put(variancePop ? (byte)1 : 0)
+                     .put(variancePop ? (byte) 1 : 0)
                      .put(fieldNameBytes).array();
   }
 

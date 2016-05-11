@@ -27,6 +27,7 @@ import io.druid.data.input.Row;
 import io.druid.query.QueryRunnerTestHelper;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.PostAggregator;
+import io.druid.query.aggregation.stats.DruidStatsModule;
 import org.joda.time.DateTime;
 
 import java.util.Arrays;
@@ -37,6 +38,11 @@ import java.util.Map;
  */
 public class VarianceTestHelper extends QueryRunnerTestHelper
 {
+  static {
+    DruidStatsModule module = new DruidStatsModule();
+    module.configure(null);
+  }
+
   public static final String indexVarianceMetric = "index_var";
 
   public static final VarianceAggregatorFactory indexVarianceAggr = new VarianceAggregatorFactory(

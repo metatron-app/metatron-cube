@@ -254,12 +254,6 @@ public abstract class IncrementalIndex<AggregatorType> implements Iterable<Row>,
       }
 
       @Override
-      public ValueType columnType(String columnName)
-      {
-        return ValueType.of(agg.getTypeName());
-      }
-
-      @Override
       public DimensionSelector makeDimensionSelector(
           DimensionSpec dimensionSpec
       )
@@ -764,10 +758,20 @@ public abstract class IncrementalIndex<AggregatorType> implements Iterable<Row>,
     return metricDesc != null ? metricDesc.getType() : null;
   }
 
-  public ValueType getMetricValueType(String metric)
+  public Class getMetricClass(String metric)
   {
-    final MetricDesc metricDesc = metricDescs.get(metric);
-    return metricDesc != null ? metricDesc.getCapabilities().getType() : null;
+    MetricDesc metricDesc = metricDescs.get(metric);
+    switch (metricDesc.getCapabilities().getType()) {
+      case COMPLEX:
+        return ComplexMetrics.getSerdeForType(metricDesc.getType()).getObjectStrategy().getClazz();
+      case FLOAT:
+        return Float.TYPE;
+      case LONG:
+        return Long.TYPE;
+      case STRING:
+        return String.class;
+    }
+    return null;
   }
 
   public Interval getInterval()
