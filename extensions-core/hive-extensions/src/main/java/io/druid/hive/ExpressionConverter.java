@@ -48,6 +48,7 @@ import org.apache.hadoop.hive.serde2.ColumnProjectionUtils;
 import org.apache.hadoop.hive.serde2.objectinspector.PrimitiveObjectInspector;
 import org.apache.hadoop.hive.serde2.typeinfo.PrimitiveTypeInfo;
 import org.apache.hadoop.hive.serde2.typeinfo.TypeInfoFactory;
+import org.apache.parquet.Strings;
 import org.joda.time.Interval;
 
 import java.sql.Timestamp;
@@ -66,8 +67,6 @@ import java.util.Set;
 public class ExpressionConverter
 {
   private static final Logger logger = new Logger(ExpressionConverter.class);
-
-  public static final String TIME_COLUMN_NAME = "__time";
 
   static Map<String, List<Range>> convert(Configuration configuration, Map<String, PrimitiveTypeInfo> types)
   {
@@ -133,7 +132,7 @@ public class ExpressionConverter
     return dimFilter;
   }
 
-  public static Map<String, PrimitiveTypeInfo> getColumnTypes(Configuration configuration)
+  public static Map<String, PrimitiveTypeInfo> getColumnTypes(Configuration configuration, String timeColumnName)
   {
     String[] colNames = configuration.getStrings(serdeConstants.LIST_COLUMNS);
     String[] colTypes = configuration.getStrings(serdeConstants.LIST_COLUMN_TYPES);
@@ -148,7 +147,7 @@ public class ExpressionConverter
       }
       String colName = colNames[i].trim();
       PrimitiveTypeInfo typeInfo = TypeInfoFactory.getPrimitiveTypeInfo(colTypes[i]);
-      if (colName.equals(ExpressionConverter.TIME_COLUMN_NAME) &&
+      if (colName.equals(timeColumnName) &&
           typeInfo.getPrimitiveCategory() != PrimitiveObjectInspector.PrimitiveCategory.LONG &&
           typeInfo.getPrimitiveCategory() != PrimitiveObjectInspector.PrimitiveCategory.TIMESTAMP) {
         logger.warn("time column should be defined as bigint or timestamp type");
@@ -332,7 +331,7 @@ public class ExpressionConverter
   private static Comparable toTimestamp(Object literal)
   {
     if (literal instanceof Timestamp) {
-      return (Timestamp)literal;
+      return (Timestamp) literal;
     }
     if (literal instanceof Date) {
       return new Timestamp(((Date) literal).getTime());
@@ -341,7 +340,10 @@ public class ExpressionConverter
       return new Timestamp(((Number) literal).longValue());
     }
     if (literal instanceof String) {
-        String string = (String) literal;
+      String string = (String) literal;
+      if (Strings.isNullOrEmpty(string)) {
+        return null;
+      }
       if (StringUtils.isNumeric(string)) {
         return new Timestamp(Long.valueOf(string));
       }
@@ -367,14 +369,15 @@ public class ExpressionConverter
       return ((Timestamp) literal).getTime();
     }
     if (literal instanceof String) {
-      try {
-        return Long.valueOf((String) literal);
+      String string = (String) literal;
+      if (Strings.isNullOrEmpty(string)) {
+        return null;
       }
-      catch (NumberFormatException e) {
-        // ignore
+      if (StringUtils.isNumeric(string)) {
+        return Long.valueOf(string);
       }
       try {
-        return DateFormat.getDateInstance().parse((String) literal).getTime();
+        return DateFormat.getDateInstance().parse(string).getTime();
       }
       catch (ParseException e) {
         // best effort. ignore
@@ -389,8 +392,15 @@ public class ExpressionConverter
       return ((Number) literal).intValue();
     }
     if (literal instanceof String) {
+      String string = (String) literal;
+      if (Strings.isNullOrEmpty(string)) {
+        return null;
+      }
+      if (StringUtils.isNumeric(string)) {
+        return Integer.valueOf(string);
+      }
       try {
-        return Integer.valueOf((String) literal);
+        return Double.valueOf(string).intValue();
       }
       catch (NumberFormatException e) {
         // ignore
@@ -405,8 +415,12 @@ public class ExpressionConverter
       return ((Number) literal).floatValue();
     }
     if (literal instanceof String) {
+      String string = (String) literal;
+      if (Strings.isNullOrEmpty(string)) {
+        return null;
+      }
       try {
-        return Float.valueOf((String) literal);
+        return Double.valueOf(string).floatValue();
       }
       catch (NumberFormatException e) {
         // ignore
@@ -421,8 +435,12 @@ public class ExpressionConverter
       return ((Number) literal).doubleValue();
     }
     if (literal instanceof String) {
+      String string = (String) literal;
+      if (Strings.isNullOrEmpty(string)) {
+        return null;
+      }
       try {
-        return Double.valueOf((String) literal);
+        return Double.valueOf(string);
       }
       catch (NumberFormatException e) {
         // ignore

@@ -26,6 +26,7 @@ import com.google.common.collect.Range;
 import io.druid.indexer.hadoop.QueryBasedInputFormat;
 import io.druid.query.filter.AndDimFilter;
 import io.druid.query.filter.DimFilter;
+import io.druid.segment.column.Column;
 import org.apache.commons.lang.StringUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
@@ -84,9 +85,10 @@ public class DruidHiveInputFormat extends QueryBasedInputFormat implements HiveO
   protected final Configuration configure(Configuration configuration, ObjectMapper mapper)
       throws IOException
   {
-    Map<String, PrimitiveTypeInfo> types = ExpressionConverter.getColumnTypes(configuration);
+    String timeColumn = configuration.get(CONF_DRUID_TIME_COLUMN_NAME, Column.TIME_COLUMN_NAME);
+    Map<String, PrimitiveTypeInfo> types = ExpressionConverter.getColumnTypes(configuration, timeColumn);
     Map<String, List<Range>> converted = ExpressionConverter.convert(configuration, types);
-    List<Range> timeRanges = converted.remove(ExpressionConverter.TIME_COLUMN_NAME);
+    List<Range> timeRanges = converted.remove(timeColumn);
     if (timeRanges == null || timeRanges.isEmpty()) {
       throw new IllegalArgumentException("failed to extract intervals from predicate");
     }

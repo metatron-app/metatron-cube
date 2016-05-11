@@ -22,6 +22,8 @@ package io.druid.hive;
 import com.google.common.collect.Lists;
 import com.metamx.common.logger.Logger;
 import io.druid.indexer.hadoop.MapWritable;
+import io.druid.indexer.hadoop.QueryBasedInputFormat;
+import io.druid.segment.column.Column;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hive.serde2.AbstractSerDe;
 import org.apache.hadoop.hive.serde2.SerDeException;
@@ -61,12 +63,14 @@ public class DruidHiveSerDe extends AbstractSerDe
     List<String> columnNames = serdeParams.getColumnNames();
     List<TypeInfo> columnTypes = serdeParams.getColumnTypes();
 
+    String timeColumn = configuration.get(QueryBasedInputFormat.CONF_DRUID_TIME_COLUMN_NAME, Column.TIME_COLUMN_NAME);
+
     List<ObjectInspector> inspectors = Lists.newArrayListWithExpectedSize(columnNames.size());
     for (int i = 0; i < columnTypes.size(); ++i) {
       PrimitiveTypeInfo typeInfo = (PrimitiveTypeInfo) columnTypes.get(i);
       inspectors.add(PrimitiveObjectInspectorFactory.getPrimitiveJavaObjectInspector(typeInfo));
       if (typeInfo.getPrimitiveCategory() != PrimitiveObjectInspector.PrimitiveCategory.STRING
-          && ExpressionConverter.TIME_COLUMN_NAME.equals(columnNames.get(i))) {
+          && timeColumn.equals(columnNames.get(i))) {
         timeConvert = typeInfo.getPrimitiveCategory();
         timeIndex = i;
       }

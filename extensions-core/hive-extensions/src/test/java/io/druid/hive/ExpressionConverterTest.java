@@ -26,6 +26,7 @@ import com.google.common.collect.Maps;
 import com.google.common.collect.Range;
 import io.druid.jackson.DefaultObjectMapper;
 import io.druid.query.filter.DimFilter;
+import io.druid.segment.column.Column;
 import org.apache.hadoop.hive.ql.plan.ExprNodeColumnDesc;
 import org.apache.hadoop.hive.ql.plan.ExprNodeConstantDesc;
 import org.apache.hadoop.hive.ql.plan.ExprNodeDesc;
@@ -290,7 +291,7 @@ public class ExpressionConverterTest
   ) throws Exception
   {
     Map<String, List<Range>> converted = ExpressionConverter.getRanges(predicate, types);
-    List<Range> ranges = converted.remove(ExpressionConverter.TIME_COLUMN_NAME);
+    List<Range> ranges = converted.remove(Column.TIME_COLUMN_NAME);
     List<Interval> intervals = ExpressionConverter.toInterval(ranges);
     Assert.assertEquals(expected1, Lists.transform(ranges, Functions.toStringFunction()));
     Assert.assertEquals(expected2, Lists.transform(intervals, Functions.toStringFunction()));

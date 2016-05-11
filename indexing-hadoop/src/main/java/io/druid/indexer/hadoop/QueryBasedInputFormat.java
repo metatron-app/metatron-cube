@@ -98,6 +98,7 @@ public class QueryBasedInputFormat extends InputFormat<NullWritable, MapWritable
   public static final String CONF_DRUID_INTERVALS = "druid.intervals";
   public static final String CONF_DRUID_COLUMNS = "druid.columns";
   public static final String CONF_DRUID_FILTERS = "druid.filters";
+  public static final String CONF_DRUID_TIME_COLUMN_NAME = "druid.time.column.name";
 
   public static final String CONF_MAX_SPLIT_SIZE = "druid.max.split.size";
   public static final String CONF_SELECT_THRESHOLD = "druid.select.threshold";
@@ -424,10 +425,12 @@ public class QueryBasedInputFormat extends InputFormat<NullWritable, MapWritable
           .intervals(intervals)
           .granularity(QueryGranularities.ALL);
 
+      final String timeColumn = configuration.get(CONF_DRUID_TIME_COLUMN_NAME, Column.TIME_COLUMN_NAME);
+
       List<DimensionSpec> dimensionSpecs = Lists.newArrayList();
       for (String column : configuration.get(CONF_DRUID_COLUMNS).split(",")) {
         column = column.trim();
-        if (column.equals(Column.TIME_COLUMN_NAME)) {
+        if (column.equals(timeColumn)) {
           dimensionSpecs.add(
               new ExtractionDimensionSpec(
                   column,
