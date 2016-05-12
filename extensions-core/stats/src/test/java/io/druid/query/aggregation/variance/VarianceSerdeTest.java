@@ -32,9 +32,9 @@ public class VarianceSerdeTest
   public void testSerde()
   {
     Random r = new Random();
-    VarianceHolder holder = new VarianceHolder();
+    VarianceAggregatorCollector holder = new VarianceAggregatorCollector();
     ObjectStrategy strategy = new VarianceSerde().getObjectStrategy();
-    Assert.assertEquals(VarianceHolder.class, strategy.getClazz());
+    Assert.assertEquals(VarianceAggregatorCollector.class, strategy.getClazz());
 
     for (int i = 0; i < 100; i++) {
       byte[] array = strategy.toBytes(holder);

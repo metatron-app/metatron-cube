@@ -54,7 +54,7 @@ public abstract class VarianceBufferAggregator implements BufferAggregator
   @Override
   public Object get(final ByteBuffer buf, final int position)
   {
-    VarianceHolder holder = new VarianceHolder();
+    VarianceAggregatorCollector holder = new VarianceAggregatorCollector();
     holder.count = buf.getLong(position);
     holder.sum = buf.getDouble(position + SUM_OFFSET);
     holder.nvariance = buf.getDouble(position + NVARIANCE_OFFSET);
@@ -88,25 +88,19 @@ public abstract class VarianceBufferAggregator implements BufferAggregator
       this.selector = selector;
     }
 
-  @Override
-  public void aggregate(ByteBuffer buf, int position)
-  {
-    float v = selector.get();
-    long count = buf.getLong(position + COUNT_OFFSET) + 1;
-    double sum = buf.getDouble(position + SUM_OFFSET) + v;
-    buf.putLong(position, count);
-    buf.putDouble(position + SUM_OFFSET, sum);
-    if (count > 1) {
-      double t = count * v - sum;
-      double variance = buf.getDouble(position + NVARIANCE_OFFSET) + (t * t) / ((double) count * (count - 1));
-      buf.putDouble(position + NVARIANCE_OFFSET, variance);
-    }
-  }
-
     @Override
-    public BufferAggregator clone()
+    public void aggregate(ByteBuffer buf, int position)
     {
-      return new FloatVarianceAggregator(name, selector);
+      float v = selector.get();
+      long count = buf.getLong(position + COUNT_OFFSET) + 1;
+      double sum = buf.getDouble(position + SUM_OFFSET) + v;
+      buf.putLong(position, count);
+      buf.putDouble(position + SUM_OFFSET, sum);
+      if (count > 1) {
+        double t = count * v - sum;
+        double variance = buf.getDouble(position + NVARIANCE_OFFSET) + (t * t) / ((double) count * (count - 1));
+        buf.putDouble(position + NVARIANCE_OFFSET, variance);
+      }
     }
   }
 
@@ -120,25 +114,19 @@ public abstract class VarianceBufferAggregator implements BufferAggregator
       this.selector = selector;
     }
 
-  @Override
-  public void aggregate(ByteBuffer buf, int position)
-  {
-    long v = selector.get();
-    long count = buf.getLong(position + COUNT_OFFSET) + 1;
-    double sum = buf.getDouble(position + SUM_OFFSET) + v;
-    buf.putLong(position, count);
-    buf.putDouble(position + SUM_OFFSET, sum);
-    if (count > 1) {
-      double t = count * v - sum;
-      double variance = buf.getDouble(position + NVARIANCE_OFFSET) + (t * t) / ((double) count * (count - 1));
-      buf.putDouble(position + NVARIANCE_OFFSET, variance);
-    }
-  }
-
     @Override
-    public BufferAggregator clone()
+    public void aggregate(ByteBuffer buf, int position)
     {
-      return new LongVarianceAggregator(name, selector);
+      long v = selector.get();
+      long count = buf.getLong(position + COUNT_OFFSET) + 1;
+      double sum = buf.getDouble(position + SUM_OFFSET) + v;
+      buf.putLong(position, count);
+      buf.putDouble(position + SUM_OFFSET, sum);
+      if (count > 1) {
+        double t = count * v - sum;
+        double variance = buf.getDouble(position + NVARIANCE_OFFSET) + (t * t) / ((double) count * (count - 1));
+        buf.putDouble(position + NVARIANCE_OFFSET, variance);
+      }
     }
   }
 
@@ -155,7 +143,7 @@ public abstract class VarianceBufferAggregator implements BufferAggregator
     @Override
     public void aggregate(ByteBuffer buf, int position)
     {
-      VarianceHolder holder2 = (VarianceHolder) selector.get();
+      VarianceAggregatorCollector holder2 = (VarianceAggregatorCollector) selector.get();
 
       long count = buf.getLong(position + COUNT_OFFSET);
       double sum = buf.getDouble(position + SUM_OFFSET);
@@ -171,12 +159,6 @@ public abstract class VarianceBufferAggregator implements BufferAggregator
       buf.putLong(position, count);
       buf.putDouble(position + SUM_OFFSET, sum);
       buf.putDouble(position + NVARIANCE_OFFSET, nvariance);
-    }
-
-    @Override
-    public BufferAggregator clone()
-    {
-      return new ObjectVarianceAggregator(name, selector);
     }
   }
 }

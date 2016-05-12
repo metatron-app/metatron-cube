@@ -30,7 +30,7 @@ public abstract class VarianceAggregator implements Aggregator
 {
   protected final String name;
 
-  protected final VarianceHolder holder = new VarianceHolder();
+  protected final VarianceAggregatorCollector holder = new VarianceAggregatorCollector();
 
   public VarianceAggregator(String name)
   {
@@ -87,12 +87,6 @@ public abstract class VarianceAggregator implements Aggregator
     {
       holder.add(selector.get());
     }
-
-    @Override
-    public Aggregator clone()
-    {
-      return new FloatVarianceAggregator(name, selector);
-    }
   }
 
   public static final class LongVarianceAggregator extends VarianceAggregator
@@ -110,12 +104,6 @@ public abstract class VarianceAggregator implements Aggregator
     {
       holder.add(selector.get());
     }
-
-    @Override
-    public Aggregator clone()
-    {
-      return new LongVarianceAggregator(name, selector);
-    }
   }
 
   public static final class ObjectVarianceAggregator extends VarianceAggregator
@@ -131,13 +119,7 @@ public abstract class VarianceAggregator implements Aggregator
     @Override
     public void aggregate()
     {
-      VarianceHolder.combineValues(holder, selector.get());
-    }
-
-    @Override
-    public Aggregator clone()
-    {
-      return new ObjectVarianceAggregator(name, selector);
+      VarianceAggregatorCollector.combineValues(holder, selector.get());
     }
   }
 }

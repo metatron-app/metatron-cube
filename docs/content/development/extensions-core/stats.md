@@ -13,14 +13,14 @@ Algorithm of the aggregator is the same with that of apache hive. This is the de
 Evaluate the variance using the algorithm described by Chan, Golub, and LeVeque in
 "Algorithms for computing the sample variance: analysis and recommendations"
 The American Statistician, 37 (1983) pp. 242--247.
-<p/>
+
 variance = variance1 + variance2 + n/(m*(m+n)) * pow(((m/n)*t1 - t2),2)
-<p/>
+
 where: - variance is sum[x-avg^2] (this is actually n times the variance)
 and is updated at every step. - n is the count of elements in chunk1 - m is
 the count of elements in chunk2 - t1 = sum of elements in chunk1, t2 =
 sum of elements in chunk2.
-<p/>
+
 This algorithm was proven to be numerically stable by J.L. Barlow in
 "Error analysis of a pairwise summation algorithm to compute sample variance"
 Numer. Math, 58 (1991) pp. 583--590
@@ -38,13 +38,13 @@ To query for results, an "variance" aggregator must be included in the query.
   "type" : "variance",
   "name" : <output_name>,
   "fieldName" : <metric_name>,
-  "variancePop" : <boolean>
+  "estimator" : <string>
 }
 ```
 
 |Property                 |Description                   |Default                           |
 |-------------------------|------------------------------|----------------------------------|
-|`variancePop`            |Set true to acquire variance_pop rather than variance_sample, which is default.|false|
+|`estimator`|Set "population" to get variance_pop rather than variance_sample, which is default.|null|
 
 
 ### Standard Deviation post-aggregator
@@ -56,7 +56,7 @@ To acquire standard deviation from variance, user can use "stddev" post aggregat
   "type": "stddev",
   "name": "<output_name>",
   "fieldName": "<aggregator_name>",
-  "variancePop": <boolean>
+  "estimator": <string>
 }
 ```
 

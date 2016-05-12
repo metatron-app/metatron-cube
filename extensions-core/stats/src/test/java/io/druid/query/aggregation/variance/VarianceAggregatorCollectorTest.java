@@ -27,7 +27,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Random;
 
-public class VarianceHolderTest
+public class VarianceAggregatorCollectorTest
 {
   private static final float[] market_upfront = new float[]{
       800.0f, 800.0f, 826.0602f, 1564.6177f, 1006.4021f, 869.64374f, 809.04175f, 1458.4027f, 852.4375f, 879.9881f,
@@ -94,7 +94,7 @@ public class VarianceHolderTest
       final double variance_pop = temp / values.length;
       final double variance_sample = temp / (values.length - 1);
 
-      VarianceHolder holder = new VarianceHolder();
+      VarianceAggregatorCollector holder = new VarianceAggregatorCollector();
       for (float f : values) {
         holder.add(f);
       }
@@ -102,16 +102,16 @@ public class VarianceHolderTest
       Assert.assertEquals(holder.getVariance(false), variance_sample, 0.001);
 
       for (int mergeOn : new int[] {2, 3, 5, 9}) {
-        List<VarianceHolder> holders = Lists.newArrayListWithCapacity(mergeOn);
+        List<VarianceAggregatorCollector> holders = Lists.newArrayListWithCapacity(mergeOn);
         for (int i = 0; i < mergeOn; i++) {
-          holders.add(new VarianceHolder());
+          holders.add(new VarianceAggregatorCollector());
         }
         for (float f : values) {
           holders.get(random.nextInt(mergeOn)).add(f);
         }
-        VarianceHolder holder1 = holders.get(0);
+        VarianceAggregatorCollector holder1 = holders.get(0);
         for (int i = 1; i < mergeOn; i++) {
-          holder1 = (VarianceHolder) VarianceHolder.combineValues(holder1, holders.get(i));
+          holder1 = (VarianceAggregatorCollector) VarianceAggregatorCollector.combineValues(holder1, holders.get(i));
         }
         Assert.assertEquals(holder1.getVariance(true), variance_pop, 0.01);
         Assert.assertEquals(holder1.getVariance(false), variance_sample, 0.01);

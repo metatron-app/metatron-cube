@@ -78,21 +78,21 @@ public class VarianceAggregatorTest
 
     Assert.assertEquals("billy", agg.getName());
 
-    assertValues((VarianceHolder) agg.get(), 0, 0d, 0d);
+    assertValues((VarianceAggregatorCollector) agg.get(), 0, 0d, 0d);
     aggregate(selector, agg);
-    assertValues((VarianceHolder) agg.get(), 1, 1.1d, 0d);
+    assertValues((VarianceAggregatorCollector) agg.get(), 1, 1.1d, 0d);
     aggregate(selector, agg);
-    assertValues((VarianceHolder) agg.get(), 2, 3.8d, 1.28d);
+    assertValues((VarianceAggregatorCollector) agg.get(), 2, 3.8d, 1.28d);
     aggregate(selector, agg);
-    assertValues((VarianceHolder) agg.get(), 3, 7.3d, 2.9866d);
+    assertValues((VarianceAggregatorCollector) agg.get(), 3, 7.3d, 2.9866d);
     aggregate(selector, agg);
-    assertValues((VarianceHolder) agg.get(), 4, 8.6d, 3.95d);
+    assertValues((VarianceAggregatorCollector) agg.get(), 4, 8.6d, 3.95d);
 
     agg.reset();
-    assertValues((VarianceHolder) agg.get(), 0, 0d, 0d);
+    assertValues((VarianceAggregatorCollector) agg.get(), 0, 0d, 0d);
   }
 
-  private void assertValues(VarianceHolder holder, long count, double sum, double nvariance)
+  private void assertValues(VarianceAggregatorCollector holder, long count, double sum, double nvariance)
   {
     Assert.assertEquals(count, holder.count);
     Assert.assertEquals(sum, holder.sum, 0.0001);
@@ -121,32 +121,32 @@ public class VarianceAggregatorTest
     ByteBuffer buffer = ByteBuffer.wrap(new byte[aggFactory.getMaxIntermediateSize()]);
     agg.init(buffer, 0);
 
-    assertValues((VarianceHolder) agg.get(buffer, 0), 0, 0d, 0d);
+    assertValues((VarianceAggregatorCollector) agg.get(buffer, 0), 0, 0d, 0d);
     aggregate(selector, agg, buffer, 0);
-    assertValues((VarianceHolder) agg.get(buffer, 0), 1, 1.1d, 0d);
+    assertValues((VarianceAggregatorCollector) agg.get(buffer, 0), 1, 1.1d, 0d);
     aggregate(selector, agg, buffer, 0);
-    assertValues((VarianceHolder) agg.get(buffer, 0), 2, 3.8d, 1.28d);
+    assertValues((VarianceAggregatorCollector) agg.get(buffer, 0), 2, 3.8d, 1.28d);
     aggregate(selector, agg, buffer, 0);
-    assertValues((VarianceHolder) agg.get(buffer, 0), 3, 7.3d, 2.9866d);
+    assertValues((VarianceAggregatorCollector) agg.get(buffer, 0), 3, 7.3d, 2.9866d);
     aggregate(selector, agg, buffer, 0);
-    assertValues((VarianceHolder) agg.get(buffer, 0), 4, 8.6d, 3.95d);
+    assertValues((VarianceAggregatorCollector) agg.get(buffer, 0), 4, 8.6d, 3.95d);
   }
 
   @Test
   public void testCombine()
   {
-    VarianceHolder holder1 = new VarianceHolder().add(1.1f).add(2.7f);
-    VarianceHolder holder2 = new VarianceHolder().add(3.5f).add(1.3f);
-    VarianceHolder expected = new VarianceHolder(4, 8.6d, 3.95d);
-    Assert.assertTrue(expected.equalsWithEpsilon((VarianceHolder) aggFactory.combine(holder1, holder2), 0.00001));
+    VarianceAggregatorCollector holder1 = new VarianceAggregatorCollector().add(1.1f).add(2.7f);
+    VarianceAggregatorCollector holder2 = new VarianceAggregatorCollector().add(3.5f).add(1.3f);
+    VarianceAggregatorCollector expected = new VarianceAggregatorCollector(4, 8.6d, 3.95d);
+    Assert.assertTrue(expected.equalsWithEpsilon((VarianceAggregatorCollector) aggFactory.combine(holder1, holder2), 0.00001));
   }
 
   @Test
   public void testEqualsAndHashCode() throws Exception
   {
-    VarianceAggregatorFactory one = new VarianceAggregatorFactory("name1", "fieldName1", false);
-    VarianceAggregatorFactory oneMore = new VarianceAggregatorFactory("name1", "fieldName1", false);
-    VarianceAggregatorFactory two = new VarianceAggregatorFactory("name2", "fieldName2", false);
+    VarianceAggregatorFactory one = new VarianceAggregatorFactory("name1", "fieldName1", null);
+    VarianceAggregatorFactory oneMore = new VarianceAggregatorFactory("name1", "fieldName1", null);
+    VarianceAggregatorFactory two = new VarianceAggregatorFactory("name2", "fieldName2", null);
 
     Assert.assertEquals(one.hashCode(), oneMore.hashCode());
 

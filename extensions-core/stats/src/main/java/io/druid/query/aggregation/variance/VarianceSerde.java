@@ -34,11 +34,11 @@ import java.nio.ByteBuffer;
  */
 public class VarianceSerde extends ComplexMetricSerde
 {
-  private static final Ordering<VarianceHolder> comparator = new Ordering<VarianceHolder>()
+  private static final Ordering<VarianceAggregatorCollector> comparator = new Ordering<VarianceAggregatorCollector>()
   {
     @Override
     public int compare(
-        VarianceHolder arg1, VarianceHolder arg2
+        VarianceAggregatorCollector arg1, VarianceAggregatorCollector arg2
     )
     {
       return arg1.toByteBuffer().compareTo(arg2.toByteBuffer());
@@ -57,15 +57,15 @@ public class VarianceSerde extends ComplexMetricSerde
     return new ComplexMetricExtractor()
     {
       @Override
-      public Class<VarianceHolder> extractedClass()
+      public Class<VarianceAggregatorCollector> extractedClass()
       {
-        return VarianceHolder.class;
+        return VarianceAggregatorCollector.class;
       }
 
       @Override
-      public VarianceHolder extractValue(InputRow inputRow, String metricName)
+      public VarianceAggregatorCollector extractValue(InputRow inputRow, String metricName)
       {
-        return (VarianceHolder) inputRow.getRaw(metricName);
+        return (VarianceAggregatorCollector) inputRow.getRaw(metricName);
       }
     };
   }
@@ -82,30 +82,30 @@ public class VarianceSerde extends ComplexMetricSerde
   @Override
   public ObjectStrategy getObjectStrategy()
   {
-    return new ObjectStrategy<VarianceHolder>()
+    return new ObjectStrategy<VarianceAggregatorCollector>()
     {
       @Override
-      public Class<? extends VarianceHolder> getClazz()
+      public Class<? extends VarianceAggregatorCollector> getClazz()
       {
-        return VarianceHolder.class;
+        return VarianceAggregatorCollector.class;
       }
 
       @Override
-      public VarianceHolder fromByteBuffer(ByteBuffer buffer, int numBytes)
+      public VarianceAggregatorCollector fromByteBuffer(ByteBuffer buffer, int numBytes)
       {
         final ByteBuffer readOnlyBuffer = buffer.asReadOnlyBuffer();
         readOnlyBuffer.limit(readOnlyBuffer.position() + numBytes);
-        return VarianceHolder.from(readOnlyBuffer);
+        return VarianceAggregatorCollector.from(readOnlyBuffer);
       }
 
       @Override
-      public byte[] toBytes(VarianceHolder collector)
+      public byte[] toBytes(VarianceAggregatorCollector collector)
       {
         return collector == null ? new byte[]{} : collector.toByteArray();
       }
 
       @Override
-      public int compare(VarianceHolder o1, VarianceHolder o2)
+      public int compare(VarianceAggregatorCollector o1, VarianceAggregatorCollector o2)
       {
         return comparator.compare(o1, o2);
       }

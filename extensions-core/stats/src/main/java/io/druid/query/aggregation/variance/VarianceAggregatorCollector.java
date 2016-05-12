@@ -34,29 +34,33 @@ import java.util.Comparator;
  * Evaluate the variance using the algorithm described by Chan, Golub, and LeVeque in
  * "Algorithms for computing the sample variance: analysis and recommendations"
  * The American Statistician, 37 (1983) pp. 242--247.
- * <p/>
+ *
  * variance = variance1 + variance2 + n/(m*(m+n)) * pow(((m/n)*t1 - t2),2)
- * <p/>
+ *
  * where: - variance is sum[x-avg^2] (this is actually n times the variance)
  * and is updated at every step. - n is the count of elements in chunk1 - m is
  * the count of elements in chunk2 - t1 = sum of elements in chunk1, t2 =
  * sum of elements in chunk2.
- * <p/>
+ *
  * This algorithm was proven to be numerically stable by J.L. Barlow in
  * "Error analysis of a pairwise summation algorithm to compute sample variance"
  * Numer. Math, 58 (1991) pp. 583--590
  */
-public class VarianceHolder
+public class VarianceAggregatorCollector
 {
-  public static VarianceHolder from(ByteBuffer buffer)
-  {
-    return new VarianceHolder(buffer.getLong(), buffer.getDouble(), buffer.getDouble());
+  public static boolean isVariancePop(String estimator) {
+    return estimator != null && estimator.equalsIgnoreCase("population");
   }
 
-  public static final Comparator<VarianceHolder> COMPARATOR = new Comparator<VarianceHolder>()
+  public static VarianceAggregatorCollector from(ByteBuffer buffer)
+  {
+    return new VarianceAggregatorCollector(buffer.getLong(), buffer.getDouble(), buffer.getDouble());
+  }
+
+  public static final Comparator<VarianceAggregatorCollector> COMPARATOR = new Comparator<VarianceAggregatorCollector>()
   {
     @Override
-    public int compare(VarianceHolder o1, VarianceHolder o2)
+    public int compare(VarianceAggregatorCollector o1, VarianceAggregatorCollector o2)
     {
       int compare = Longs.compare(o1.count, o2.count);
       if (compare == 0) {
@@ -71,8 +75,8 @@ public class VarianceHolder
 
   static Object combineValues(Object lhs, Object rhs)
   {
-    VarianceHolder holder1 = (VarianceHolder) lhs;
-    VarianceHolder holder2 = (VarianceHolder) rhs;
+    final VarianceAggregatorCollector holder1 = (VarianceAggregatorCollector) lhs;
+    final VarianceAggregatorCollector holder2 = (VarianceAggregatorCollector) rhs;
 
     if (holder2.count == 0) {
       return holder1;
@@ -103,8 +107,9 @@ public class VarianceHolder
   double sum; // sum of elements
   double nvariance; // sum[x-avg^2] (this is actually n times of the variance)
 
-  public VarianceHolder()
+  public VarianceAggregatorCollector()
   {
+    this(0, 0, 0);
   }
 
   public void reset()
@@ -114,14 +119,14 @@ public class VarianceHolder
     nvariance = 0;
   }
 
-  public VarianceHolder(long count, double sum, double nvariance)
+  public VarianceAggregatorCollector(long count, double sum, double nvariance)
   {
     this.count = count;
     this.sum = sum;
     this.nvariance = nvariance;
   }
 
-  public VarianceHolder add(float v)
+  public VarianceAggregatorCollector add(float v)
   {
     count++;
     sum += v;
@@ -164,7 +169,7 @@ public class VarianceHolder
   }
 
   @VisibleForTesting
-  boolean equalsWithEpsilon(VarianceHolder o, double epsilon)
+  boolean equalsWithEpsilon(VarianceAggregatorCollector o, double epsilon)
   {
     if (this == o) {
       return true;
@@ -193,7 +198,7 @@ public class VarianceHolder
       return false;
     }
 
-    VarianceHolder that = (VarianceHolder) o;
+    VarianceAggregatorCollector that = (VarianceAggregatorCollector) o;
 
     if (count != that.count) {
       return false;

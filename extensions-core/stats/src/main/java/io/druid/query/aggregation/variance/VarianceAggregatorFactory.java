@@ -49,13 +49,15 @@ public class VarianceAggregatorFactory extends AggregatorFactory
 
   private final String fieldName;
   private final String name;
-  private final boolean variancePop;
+  private final String estimator;
+
+  private final boolean isVariancePop;
 
   @JsonCreator
   public VarianceAggregatorFactory(
       @JsonProperty("name") String name,
       @JsonProperty("fieldName") String fieldName,
-      @JsonProperty("variancePop") boolean variancePop
+      @JsonProperty("estimator") String estimator
   )
   {
     Preconditions.checkNotNull(name, "Must have a valid, non-null aggregator name");
@@ -63,7 +65,8 @@ public class VarianceAggregatorFactory extends AggregatorFactory
 
     this.name = name;
     this.fieldName = fieldName;
-    this.variancePop = variancePop;
+    this.estimator = estimator;
+    this.isVariancePop = VarianceAggregatorCollector.isVariancePop(estimator);
   }
 
   @Override
@@ -75,7 +78,7 @@ public class VarianceAggregatorFactory extends AggregatorFactory
   @Override
   public int getMaxIntermediateSize()
   {
-    return VarianceHolder.getMaxIntermediateSize();
+    return VarianceAggregatorCollector.getMaxIntermediateSize();
   }
 
   @Override
@@ -99,7 +102,7 @@ public class VarianceAggregatorFactory extends AggregatorFactory
           metricFactory.makeLongColumnSelector(fieldName)
       );
     }
-    if (classOfObject == Object.class || VarianceHolder.class.isAssignableFrom(classOfObject)) {
+    if (classOfObject == Object.class || VarianceAggregatorCollector.class.isAssignableFrom(classOfObject)) {
       return new VarianceAggregator.ObjectVarianceAggregator(
           name,
           metricFactory.makeObjectColumnSelector(fieldName)
@@ -131,7 +134,7 @@ public class VarianceAggregatorFactory extends AggregatorFactory
           metricFactory.makeLongColumnSelector(fieldName)
       );
     }
-    if (classOfObject == Object.class || VarianceHolder.class.isAssignableFrom(classOfObject)) {
+    if (classOfObject == Object.class || VarianceAggregatorCollector.class.isAssignableFrom(classOfObject)) {
       return new VarianceBufferAggregator.ObjectVarianceAggregator(
           name,
           metricFactory.makeObjectColumnSelector(fieldName)
@@ -145,19 +148,19 @@ public class VarianceAggregatorFactory extends AggregatorFactory
   @Override
   public AggregatorFactory getCombiningFactory()
   {
-    return new VarianceAggregatorFactory(name, name, variancePop);
+    return new VarianceAggregatorFactory(name, name, estimator);
   }
 
   @Override
   public List<AggregatorFactory> getRequiredColumns()
   {
-    return Arrays.<AggregatorFactory>asList(new VarianceAggregatorFactory(fieldName, fieldName, variancePop));
+    return Arrays.<AggregatorFactory>asList(new VarianceAggregatorFactory(fieldName, fieldName, estimator));
   }
 
   @Override
   public AggregatorFactory getMergingFactory(AggregatorFactory other) throws AggregatorFactoryNotMergeableException
   {
-    if (other.getName().equals(this.getName()) && this.getClass() == other.getClass()) {
+    if (Objects.equals(getName(), other.getName()) && this.getClass() == other.getClass()) {
       return getCombiningFactory();
     } else {
       throw new AggregatorFactoryNotMergeableException(this, other);
@@ -167,36 +170,36 @@ public class VarianceAggregatorFactory extends AggregatorFactory
   @Override
   public Comparator getComparator()
   {
-    return VarianceHolder.COMPARATOR;
+    return VarianceAggregatorCollector.COMPARATOR;
   }
 
   @Override
   public Object getAggregatorStartValue()
   {
-    return new VarianceHolder();
+    return new VarianceAggregatorCollector();
   }
 
   @Override
   public Object combine(Object lhs, Object rhs)
   {
-    return VarianceHolder.combineValues(lhs, rhs);
+    return VarianceAggregatorCollector.combineValues(lhs, rhs);
   }
 
   @Override
   public Object finalizeComputation(Object object)
   {
-    return ((VarianceHolder) object).getVariance(variancePop);
+    return ((VarianceAggregatorCollector) object).getVariance(isVariancePop);
   }
 
   @Override
   public Object deserialize(Object object)
   {
     if (object instanceof byte[]) {
-      return VarianceHolder.from(ByteBuffer.wrap((byte[]) object));
+      return VarianceAggregatorCollector.from(ByteBuffer.wrap((byte[]) object));
     } else if (object instanceof ByteBuffer) {
-      return VarianceHolder.from((ByteBuffer) object);
+      return VarianceAggregatorCollector.from((ByteBuffer) object);
     } else if (object instanceof String) {
-      return VarianceHolder.from(
+      return VarianceAggregatorCollector.from(
           ByteBuffer.wrap(Base64.decodeBase64(StringUtils.toUtf8((String) object)))
       );
     }
@@ -217,9 +220,9 @@ public class VarianceAggregatorFactory extends AggregatorFactory
   }
 
   @JsonProperty
-  public boolean isVariancePop()
+  public String getEstimator()
   {
-    return variancePop;
+    return estimator;
   }
 
   @Override
@@ -232,10 +235,11 @@ public class VarianceAggregatorFactory extends AggregatorFactory
   public byte[] getCacheKey()
   {
     byte[] fieldNameBytes = StringUtils.toUtf8(fieldName);
-    return ByteBuffer.allocate(2 + fieldNameBytes.length)
+    return ByteBuffer.allocate(2 + fieldNameBytes.length + 1)
                      .put(CACHE_TYPE_ID)
-                     .put(variancePop ? (byte) 1 : 0)
-                     .put(fieldNameBytes).array();
+                     .put(isVariancePop ? (byte) 1 : 0)
+                     .put(fieldNameBytes)
+                     .put((byte) 0xFF).array();
   }
 
   @Override
@@ -244,7 +248,7 @@ public class VarianceAggregatorFactory extends AggregatorFactory
     return getClass().getSimpleName() + "{" +
            "fieldName='" + fieldName + '\'' +
            ", name='" + name + '\'' +
-           ", variancePop='" + variancePop + '\'' +
+           ", isVariancePop='" + isVariancePop + '\'' +
            '}';
   }
 
@@ -260,10 +264,10 @@ public class VarianceAggregatorFactory extends AggregatorFactory
 
     VarianceAggregatorFactory that = (VarianceAggregatorFactory) o;
 
-    if (variancePop != that.variancePop) {
+    if (!Objects.equals(name, that.name)) {
       return false;
     }
-    if (!Objects.equals(name, that.name)) {
+    if (!Objects.equals(isVariancePop, that.isVariancePop)) {
       return false;
     }
 
@@ -274,8 +278,8 @@ public class VarianceAggregatorFactory extends AggregatorFactory
   public int hashCode()
   {
     int result = fieldName.hashCode();
-    result = 31 * result + name.hashCode();
-    result = 31 * result + (variancePop ? 1 : 0);
+    result = 31 * result + Objects.hashCode(name);
+    result = 31 * result + Objects.hashCode(isVariancePop);
     return result;
   }
 }
