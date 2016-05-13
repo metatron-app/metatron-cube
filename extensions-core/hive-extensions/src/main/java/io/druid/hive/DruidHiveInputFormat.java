@@ -33,8 +33,10 @@ import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hive.ql.exec.FileSinkOperator;
 import org.apache.hadoop.hive.ql.io.HiveOutputFormat;
+import org.apache.hadoop.hive.serde2.objectinspector.ObjectInspector;
 import org.apache.hadoop.hive.serde2.objectinspector.PrimitiveObjectInspector;
 import org.apache.hadoop.hive.serde2.typeinfo.PrimitiveTypeInfo;
+import org.apache.hadoop.hive.serde2.typeinfo.TypeInfo;
 import org.apache.hadoop.mapred.FileSplit;
 import org.apache.hadoop.mapred.InputSplit;
 import org.apache.hadoop.mapred.JobConf;
@@ -86,7 +88,7 @@ public class DruidHiveInputFormat extends QueryBasedInputFormat implements HiveO
       throws IOException
   {
     String timeColumn = configuration.get(CONF_DRUID_TIME_COLUMN_NAME, Column.TIME_COLUMN_NAME);
-    Map<String, PrimitiveTypeInfo> types = ExpressionConverter.getColumnTypes(configuration, timeColumn);
+    Map<String, TypeInfo> types = ExpressionConverter.getColumnTypes(configuration, timeColumn);
     Map<String, List<Range>> converted = ExpressionConverter.convert(configuration, types);
     List<Range> timeRanges = converted.remove(timeColumn);
     if (timeRanges == null || timeRanges.isEmpty()) {
@@ -99,7 +101,9 @@ public class DruidHiveInputFormat extends QueryBasedInputFormat implements HiveO
 
     List<DimFilter> filters = Lists.newArrayList();
     for (Map.Entry<String, List<Range>> entry : converted.entrySet()) {
-      if (types.get(entry.getKey()).getPrimitiveCategory() == PrimitiveObjectInspector.PrimitiveCategory.STRING) {
+      TypeInfo typeInfo = types.get(entry.getKey());
+      if (typeInfo.getCategory() == ObjectInspector.Category.PRIMITIVE &&
+          ((PrimitiveTypeInfo) typeInfo).getPrimitiveCategory() == PrimitiveObjectInspector.PrimitiveCategory.STRING) {
         DimFilter filter = ExpressionConverter.toFilter(entry.getKey(), entry.getValue());
         if (filter != null) {
           filters.add(filter);

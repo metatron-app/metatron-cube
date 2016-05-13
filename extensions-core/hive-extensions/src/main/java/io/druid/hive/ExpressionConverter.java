@@ -36,6 +36,8 @@ import io.druid.query.filter.OrDimFilter;
 import io.druid.query.filter.SelectorDimFilter;
 import org.apache.commons.lang.StringUtils;
 import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.hive.common.type.HiveDecimal;
+import org.apache.hadoop.hive.common.type.HiveVarchar;
 import org.apache.hadoop.hive.ql.exec.SerializationUtilities;
 import org.apache.hadoop.hive.ql.io.sarg.ConvertAstToSearchArg;
 import org.apache.hadoop.hive.ql.io.sarg.ExpressionTree;
@@ -45,18 +47,19 @@ import org.apache.hadoop.hive.ql.plan.ExprNodeGenericFuncDesc;
 import org.apache.hadoop.hive.ql.plan.TableScanDesc;
 import org.apache.hadoop.hive.serde.serdeConstants;
 import org.apache.hadoop.hive.serde2.ColumnProjectionUtils;
+import org.apache.hadoop.hive.serde2.objectinspector.ObjectInspector;
 import org.apache.hadoop.hive.serde2.objectinspector.PrimitiveObjectInspector;
 import org.apache.hadoop.hive.serde2.typeinfo.PrimitiveTypeInfo;
-import org.apache.hadoop.hive.serde2.typeinfo.TypeInfoFactory;
+import org.apache.hadoop.hive.serde2.typeinfo.TypeInfo;
+import org.apache.hadoop.hive.serde2.typeinfo.TypeInfoUtils;
+import org.apache.hadoop.hive.serde2.typeinfo.VarcharTypeInfo;
 import org.apache.parquet.Strings;
 import org.joda.time.Interval;
 
+import java.sql.Date;
 import java.sql.Timestamp;
-import java.text.DateFormat;
-import java.text.ParseException;
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.Date;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -68,7 +71,7 @@ public class ExpressionConverter
 {
   private static final Logger logger = new Logger(ExpressionConverter.class);
 
-  static Map<String, List<Range>> convert(Configuration configuration, Map<String, PrimitiveTypeInfo> types)
+  static Map<String, List<Range>> convert(Configuration configuration, Map<String, TypeInfo> types)
   {
     String filterExprSerialized = configuration.get(TableScanDesc.FILTER_EXPR_CONF_STR);
     if (filterExprSerialized == null) {
@@ -132,24 +135,27 @@ public class ExpressionConverter
     return dimFilter;
   }
 
-  public static Map<String, PrimitiveTypeInfo> getColumnTypes(Configuration configuration, String timeColumnName)
+  public static Map<String, TypeInfo> getColumnTypes(Configuration configuration, String timeColumnName)
   {
     String[] colNames = configuration.getStrings(serdeConstants.LIST_COLUMNS);
-    String[] colTypes = configuration.getStrings(serdeConstants.LIST_COLUMN_TYPES);
+    List<TypeInfo> colTypes = TypeInfoUtils.getTypeInfosFromTypeString(configuration.get(serdeConstants.LIST_COLUMN_TYPES));
     Set<Integer> projections = Sets.newHashSet(ColumnProjectionUtils.getReadColumnIDs(configuration));
     if (colNames == null || colTypes == null) {
       return ImmutableMap.of();
     }
-    Map<String, PrimitiveTypeInfo> typeMap = Maps.newHashMap();
-    for (int i = 0; i < colTypes.length; i++) {
+
+    Map<String, TypeInfo> typeMap = Maps.newHashMap();
+    for (int i = 0; i < colNames.length; i++) {
       if (!projections.isEmpty() && !projections.contains(i)) {
         continue;
       }
       String colName = colNames[i].trim();
-      PrimitiveTypeInfo typeInfo = TypeInfoFactory.getPrimitiveTypeInfo(colTypes[i]);
+      TypeInfo typeInfo = colTypes.get(i);
       if (colName.equals(timeColumnName) &&
-          typeInfo.getPrimitiveCategory() != PrimitiveObjectInspector.PrimitiveCategory.LONG &&
-          typeInfo.getPrimitiveCategory() != PrimitiveObjectInspector.PrimitiveCategory.TIMESTAMP) {
+          (typeInfo.getCategory() != ObjectInspector.Category.PRIMITIVE ||
+           ((PrimitiveTypeInfo) typeInfo).getPrimitiveCategory() != PrimitiveObjectInspector.PrimitiveCategory.LONG &&
+           ((PrimitiveTypeInfo) typeInfo).getPrimitiveCategory()
+           != PrimitiveObjectInspector.PrimitiveCategory.TIMESTAMP)) {
         logger.warn("time column should be defined as bigint or timestamp type");
       }
       typeMap.put(colName, typeInfo);
@@ -157,7 +163,7 @@ public class ExpressionConverter
     return typeMap;
   }
 
-  static Map<String, List<Range>> getRanges(ExprNodeGenericFuncDesc filterExpr, Map<String, PrimitiveTypeInfo> types)
+  static Map<String, List<Range>> getRanges(ExprNodeGenericFuncDesc filterExpr, Map<String, TypeInfo> types)
   {
     logger.info("Start analyzing predicate " + filterExpr.getExprString());
     SearchArgument searchArgument = ConvertAstToSearchArg.create(filterExpr);
@@ -172,8 +178,12 @@ public class ExpressionConverter
         if (extracted == null) {
           continue;
         }
-        PrimitiveTypeInfo type = types.get(extracted);
-        List<Range> ranges = extractRanges(type, child, leaves, false);
+        TypeInfo type = types.get(extracted);
+        if (type.getCategory() != ObjectInspector.Category.PRIMITIVE) {
+          continue;
+        }
+        PrimitiveTypeInfo ptype = (PrimitiveTypeInfo) type;
+        List<Range> ranges = extractRanges(ptype, child, leaves, false);
         if (ranges == null) {
           continue;
         }
@@ -195,10 +205,13 @@ public class ExpressionConverter
     } else {
       String extracted = extractSoleColumn(root, leaves);
       if (extracted != null) {
-        PrimitiveTypeInfo type = types.get(extracted);
-        List<Range> ranges = extractRanges(type, root, leaves, false);
-        if (ranges != null) {
-          rangeMap.put(extracted, ranges);
+        TypeInfo type = types.get(extracted);
+        if (type.getCategory() == ObjectInspector.Category.PRIMITIVE) {
+          PrimitiveTypeInfo ptype = (PrimitiveTypeInfo) type;
+          List<Range> ranges = extractRanges(ptype, root, leaves, false);
+          if (ranges != null) {
+            rangeMap.put(extracted, ranges);
+          }
         }
       }
     }
@@ -309,19 +322,160 @@ public class ExpressionConverter
     return null;
   }
 
+  // enforce list
+  static Function<Object, Object> listConverter()
+  {
+    return new Function<Object, Object>()
+    {
+      @Override
+      public Object apply(Object input)
+      {
+        if (input == null || input instanceof List || input.getClass().isArray()) {
+          return input;
+        }
+        return Arrays.asList(input);
+      }
+    };
+  }
+
+  static Function<Object, Object> converter(PrimitiveTypeInfo type)
+  {
+    switch (type.getPrimitiveCategory()) {
+      case BOOLEAN:
+        return new Function<Object, Object>()
+        {
+          @Override
+          public Object apply(Object input)
+          {
+            return toBoolean(input);
+          }
+        };
+      case BYTE:
+        return new Function<Object, Object>()
+        {
+          @Override
+          public Object apply(Object input)
+          {
+            return toByte(input);
+          }
+        };
+      case SHORT:
+        return new Function<Object, Object>()
+        {
+          @Override
+          public Object apply(Object input)
+          {
+            return toShort(input);
+          }
+        };
+      case INT:
+        return new Function<Object, Object>()
+        {
+          @Override
+          public Object apply(Object input)
+          {
+            return toInt(input);
+          }
+        };
+      case LONG:
+        return new Function<Object, Object>()
+        {
+          @Override
+          public Object apply(Object input)
+          {
+            return toLong(input);
+          }
+        };
+      case FLOAT:
+        return new Function<Object, Object>()
+        {
+          @Override
+          public Object apply(Object input)
+          {
+            return toFloat(input);
+          }
+        };
+      case DOUBLE:
+        return new Function<Object, Object>()
+        {
+          @Override
+          public Object apply(Object input)
+          {
+            return toDouble(input);
+          }
+        };
+      case DECIMAL:
+        return new Function<Object, Object>()
+        {
+          @Override
+          public Object apply(Object input)
+          {
+            return toDecimal(input);
+          }
+        };
+      case STRING:
+        return new Function<Object, Object>()
+        {
+          @Override
+          public Object apply(Object input)
+          {
+            return input == null ? null : String.valueOf(input);
+          }
+        };
+      case VARCHAR:
+        final int length = ((VarcharTypeInfo) type).getLength();
+        return new Function<Object, Object>()
+        {
+          @Override
+          public Object apply(Object input)
+          {
+            return input == null ? null : new HiveVarchar(String.valueOf(input), length);
+          }
+        };
+      case DATE:
+        return new Function<Object, Object>()
+        {
+          @Override
+          public Object apply(Object input)
+          {
+            return toDate(input);
+          }
+        };
+      case TIMESTAMP:
+        return new Function<Object, Object>()
+        {
+          @Override
+          public Object apply(Object input)
+          {
+            return toTimestamp(input);
+          }
+        };
+      default:
+        throw new UnsupportedOperationException("Not supported type " + type);
+    }
+  }
+
   private static Comparable literalToType(Object literal, PrimitiveTypeInfo type)
   {
     switch (type.getPrimitiveCategory()) {
-      case LONG:
-        return toLong(literal);
+      case BYTE:
+        return toByte(literal);
+      case SHORT:
+        return toShort(literal);
       case INT:
         return toInt(literal);
+      case LONG:
+        return toLong(literal);
       case FLOAT:
         return toFloat(literal);
       case DOUBLE:
         return toDouble(literal);
+      case DECIMAL:
+        return toDecimal(literal);
       case STRING:
         return String.valueOf(literal);
+      case DATE:
+        return toDate(literal);
       case TIMESTAMP:
         return toTimestamp(literal);
     }
@@ -330,11 +484,14 @@ public class ExpressionConverter
 
   private static Comparable toTimestamp(Object literal)
   {
+    if (literal == null) {
+      return null;
+    }
     if (literal instanceof Timestamp) {
       return (Timestamp) literal;
     }
-    if (literal instanceof Date) {
-      return new Timestamp(((Date) literal).getTime());
+    if (literal instanceof java.util.Date) {
+      return new Timestamp(((java.util.Date) literal).getTime());
     }
     if (literal instanceof Number) {
       return new Timestamp(((Number) literal).longValue());
@@ -357,8 +514,46 @@ public class ExpressionConverter
     return null;
   }
 
+  private static Comparable toDate(Object literal)
+  {
+    if (literal == null) {
+      return null;
+    }
+    if (literal instanceof Date) {
+      return (Date)literal;
+    }
+    if (literal instanceof java.util.Date) {
+      return new Date(((java.util.Date)literal).getTime());
+    }
+    if (literal instanceof Timestamp) {
+      return new Date(((Timestamp) literal).getTime());
+    }
+    if (literal instanceof Number) {
+      return new Date(((Number) literal).longValue());
+    }
+    if (literal instanceof String) {
+      String string = (String) literal;
+      if (Strings.isNullOrEmpty(string)) {
+        return null;
+      }
+      if (StringUtils.isNumeric(string)) {
+        return new Date(Long.valueOf(string));
+      }
+      try {
+        return Date.valueOf(string);
+      }
+      catch (NumberFormatException e) {
+        // ignore
+      }
+    }
+    return null;
+  }
+
   private static Long toLong(Object literal)
   {
+    if (literal == null) {
+      return null;
+    }
     if (literal instanceof Number) {
       return ((Number) literal).longValue();
     }
@@ -377,10 +572,80 @@ public class ExpressionConverter
         return Long.valueOf(string);
       }
       try {
-        return DateFormat.getDateInstance().parse(string).getTime();
+        return Timestamp.valueOf(string).getTime();
       }
-      catch (ParseException e) {
+      catch (IllegalArgumentException e) {
         // best effort. ignore
+      }
+    }
+    return null;
+  }
+
+  private static Boolean toBoolean(Object literal)
+  {
+    if (literal == null) {
+      return null;
+    }
+    if (literal instanceof Number) {
+      return ((Number) literal).doubleValue() > 0;
+    }
+    if (literal instanceof String) {
+      String string = (String) literal;
+      if (Strings.isNullOrEmpty(string)) {
+        return null;
+      }
+      return Boolean.valueOf(string);
+    }
+    return null;
+  }
+
+  private static Byte toByte(Object literal)
+  {
+    if (literal == null) {
+      return null;
+    }
+    if (literal instanceof Number) {
+      return ((Number) literal).byteValue();
+    }
+    if (literal instanceof String) {
+      String string = (String) literal;
+      if (Strings.isNullOrEmpty(string)) {
+        return null;
+      }
+      if (StringUtils.isNumeric(string)) {
+        return Byte.valueOf(string);
+      }
+      try {
+        return Double.valueOf(string).byteValue();
+      }
+      catch (NumberFormatException e) {
+        // ignore
+      }
+    }
+    return null;
+  }
+
+  private static Short toShort(Object literal)
+  {
+    if (literal == null) {
+      return null;
+    }
+    if (literal instanceof Number) {
+      return ((Number) literal).shortValue();
+    }
+    if (literal instanceof String) {
+      String string = (String) literal;
+      if (Strings.isNullOrEmpty(string)) {
+        return null;
+      }
+      if (StringUtils.isNumeric(string)) {
+        return Short.valueOf(string);
+      }
+      try {
+        return Double.valueOf(string).shortValue();
+      }
+      catch (NumberFormatException e) {
+        // ignore
       }
     }
     return null;
@@ -388,6 +653,9 @@ public class ExpressionConverter
 
   private static Integer toInt(Object literal)
   {
+    if (literal == null) {
+      return null;
+    }
     if (literal instanceof Number) {
       return ((Number) literal).intValue();
     }
@@ -411,6 +679,9 @@ public class ExpressionConverter
 
   private static Float toFloat(Object literal)
   {
+    if (literal == null) {
+      return null;
+    }
     if (literal instanceof Number) {
       return ((Number) literal).floatValue();
     }
@@ -431,6 +702,9 @@ public class ExpressionConverter
 
   private static Double toDouble(Object literal)
   {
+    if (literal == null) {
+      return null;
+    }
     if (literal instanceof Number) {
       return ((Number) literal).doubleValue();
     }
@@ -447,5 +721,11 @@ public class ExpressionConverter
       }
     }
     return null;
+  }
+
+  private static HiveDecimal toDecimal(Object literal)
+  {
+    Long longVal = toLong(literal);
+    return longVal == null ? null : HiveDecimal.create(longVal);
   }
 }

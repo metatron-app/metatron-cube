@@ -40,6 +40,7 @@ import org.apache.hadoop.hive.ql.udf.generic.GenericUDFOPNotEqual;
 import org.apache.hadoop.hive.ql.udf.generic.GenericUDFOPOr;
 import org.apache.hadoop.hive.serde2.objectinspector.primitive.PrimitiveObjectInspectorFactory;
 import org.apache.hadoop.hive.serde2.typeinfo.PrimitiveTypeInfo;
+import org.apache.hadoop.hive.serde2.typeinfo.TypeInfo;
 import org.apache.hadoop.hive.serde2.typeinfo.TypeInfoFactory;
 import org.joda.time.DateTime;
 import org.joda.time.Interval;
@@ -58,7 +59,7 @@ public class ExpressionConverterTest
   @Test
   public void test() throws Exception
   {
-    Map<String, PrimitiveTypeInfo> types = Maps.newHashMap();
+    Map<String, TypeInfo> types = Maps.newHashMap();
     types.put("__time", TypeInfoFactory.longTypeInfo);
     types.put("col1", TypeInfoFactory.stringTypeInfo);
     types.put("col2", TypeInfoFactory.stringTypeInfo);
@@ -285,7 +286,7 @@ public class ExpressionConverterTest
 
   private void validate(
       ExprNodeGenericFuncDesc predicate,
-      Map<String, PrimitiveTypeInfo> types,
+      Map<String, TypeInfo> types,
       List<String> expected1,
       List<String> expected2
   ) throws Exception
