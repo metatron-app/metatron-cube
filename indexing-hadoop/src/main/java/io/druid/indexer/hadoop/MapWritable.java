@@ -32,7 +32,7 @@ import java.util.Objects;
  */
 public class MapWritable implements Writable
 {
-  private final Map<String, Object> value;
+  private Map<String, Object> value;
 
   public MapWritable()
   {
@@ -49,10 +49,9 @@ public class MapWritable implements Writable
     return value;
   }
 
-  public void update(Map<String, Object> newMap)
+  public void setValue(Map<String, Object> newMap)
   {
-    value.clear();
-    value.putAll(newMap);
+    this.value = newMap;
   }
 
   @Override

@@ -22,13 +22,18 @@ package io.druid.indexer.hadoop;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Charsets;
+import com.google.common.base.Function;
 import com.google.common.base.Functions;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
+import com.google.common.base.Throwables;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
+import com.google.common.net.HostAndPort;
+import com.google.common.util.concurrent.Futures;
+import com.google.common.util.concurrent.ListenableFuture;
 import com.metamx.common.Pair;
 import com.metamx.common.StringUtils;
 import com.metamx.common.lifecycle.Lifecycle;
@@ -55,7 +60,9 @@ import io.druid.query.select.EventHolder;
 import io.druid.query.select.PagingSpec;
 import io.druid.query.select.SelectQuery;
 import io.druid.query.select.SelectResultValue;
+import io.druid.query.spec.MultipleIntervalSegmentSpec;
 import io.druid.segment.column.Column;
+import io.druid.server.DruidNode;
 import io.druid.server.coordination.DruidServerMetadata;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.NullWritable;
@@ -75,6 +82,7 @@ import javax.ws.rs.core.MediaType;
 import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
+import java.io.Reader;
 import java.net.URL;
 import java.net.URLEncoder;
 import java.util.ArrayList;
@@ -86,6 +94,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.TreeSet;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicLong;
 
 public class QueryBasedInputFormat extends InputFormat<NullWritable, MapWritable>
@@ -397,7 +406,8 @@ public class QueryBasedInputFormat extends InputFormat<NullWritable, MapWritable
     private Druids.SelectQueryBuilder builder;
     private Request request;
 
-    private boolean finished;
+    private int intervalIndex;
+    private List<Interval> intervals;
     private Iterator<EventHolder> events = Iterators.emptyIterator();
     private Map<String, Integer> paging = null;
 
@@ -411,9 +421,29 @@ public class QueryBasedInputFormat extends InputFormat<NullWritable, MapWritable
     {
       logger.info("Start loading " + split);
 
+      List<HostAndPort> locations = Lists.transform(
+          Arrays.asList(split.getLocations()),
+          new Function<String, HostAndPort>()
+          {
+            @Override
+            public HostAndPort apply(String input)
+            {
+              return HostAndPort.fromString(input);
+            }
+          }
+      );
+
+      String localHost = DruidNode.getDefaultHost();
+
       String location = split.getLocations()[0];
-      String dataSource = split.getDataSource();
-      List<Interval> intervals = split.getIntervals();
+      for (HostAndPort hostAndPort : locations) {
+        if (hostAndPort.getHostText().equals(localHost)) {
+          location = "localhost:" + hostAndPort.getPort();
+          break;
+        }
+      }
+
+      intervals = split.getIntervals();
 
       client = HttpClientInit.createClient(HttpClientConfig.builder().build(), lifecycle);
 
@@ -421,8 +451,7 @@ public class QueryBasedInputFormat extends InputFormat<NullWritable, MapWritable
       threshold = configuration.getInt(CONF_SELECT_THRESHOLD, DEFAULT_SELECT_THRESHOLD);
 
       builder = new Druids.SelectQueryBuilder()
-          .dataSource(dataSource)
-          .intervals(intervals)
+          .dataSource(split.getDataSource())
           .granularity(QueryGranularities.ALL);
 
       final String timeColumn = configuration.get(CONF_DRUID_TIME_COLUMN_NAME, Column.TIME_COLUMN_NAME);
@@ -454,6 +483,9 @@ public class QueryBasedInputFormat extends InputFormat<NullWritable, MapWritable
           HttpMethod.POST,
           new URL(String.format("%s/druid/v2", "http://" + location))
       );
+
+      logger.info("Using queryable node " + request.getUrl());
+
       try {
         lifecycle.start();
       }
@@ -461,59 +493,119 @@ public class QueryBasedInputFormat extends InputFormat<NullWritable, MapWritable
         throw new IOException(e);
       }
 
-      if (logger.isInfoEnabled()) {
-        logger.info("Retrieving from druid using query.. " + nextQuery());
-      }
+      future = submitQuery(true);
     }
+
+    private transient Future<SelectResultValue> future;
+    private transient StatusResponseHandler handler = new StatusResponseHandler(Charsets.UTF_8);
 
     private void nextPage() throws IOException, InterruptedException
     {
-      StatusResponseHolder response;
+      SelectResultValue response = retrieveResult();
+      if (response != null && !response.getEvents().isEmpty()) {
+        events = response.iterator();
+        paging = response.getPagingIdentifiers();
+      } else {
+        events = Iterators.emptyIterator();
+      }
+      future = submitQuery(!events.hasNext());
+    }
+
+    private SelectResultValue retrieveResult() throws InterruptedException, IOException
+    {
+      long start = System.currentTimeMillis();
+      SelectResultValue response;
       try {
-        response = client.go(
-            request.setContent(mapper.writeValueAsBytes(nextQuery()))
-                   .setHeader(
-                       HttpHeaders.Names.CONTENT_TYPE,
-                       MediaType.APPLICATION_JSON
-                   ),
-            new StatusResponseHandler(Charsets.UTF_8)
-        ).get();
+        response = future.get();
       }
       catch (ExecutionException e) {
         throw new IOException(e.getCause());
       }
-
-      HttpResponseStatus status = response.getStatus();
-      if (!status.equals(HttpResponseStatus.OK)) {
-        throw new RuntimeException(response.getContent());
+      finally {
+        logger.info("Waited on future in %d msec", System.currentTimeMillis() - start);
       }
+      return response;
+    }
 
-      List<Result<SelectResultValue>> value = mapper.readValue(
-          response.getContent(),
-          new TypeReference<List<Result<SelectResultValue>>>()
-          {
-          }
-      );
-      if (!value.isEmpty()) {
-        SelectResultValue result = value.get(0).getValue();
-        events = result.iterator();
-        paging = result.getPagingIdentifiers();
+    private Future<SelectResultValue> submitQuery(boolean nextInterval) throws IOException
+    {
+      if (nextInterval && intervalIndex >= intervals.size()) {
+        return null;
+      }
+      if (nextInterval) {
+        builder.intervals(new MultipleIntervalSegmentSpec(Arrays.asList(intervals.get(intervalIndex++))));
+        builder.pagingSpec(new PagingSpec(null, threshold, true));
       } else {
-        events = Iterators.emptyIterator();
-        finished = true;
+        builder.pagingSpec(new PagingSpec(paging, threshold, true));
+      }
+      SelectQuery query = builder.build();
+      logger.info("Submitting.. " + query.getPagingSpec());
+
+      long start = System.currentTimeMillis();
+      try {
+        return wrapWithParse(
+            client.go(
+                request.setContent(mapper.writeValueAsBytes(query))
+                       .setHeader(
+                           HttpHeaders.Names.CONTENT_TYPE,
+                           MediaType.APPLICATION_JSON
+                       ),
+                handler
+            )
+        );
+      }
+      finally {
+        logger.info("Submitted in %d msec", System.currentTimeMillis() - start);
       }
     }
 
-    private SelectQuery nextQuery()
+    private Future<SelectResultValue> wrapWithParse(ListenableFuture<StatusResponseHolder> holder)
     {
-      PagingSpec pagingSpec = new PagingSpec(paging, threshold, true);
-      return builder.pagingSpec(pagingSpec).build();
+      return Futures.transform(
+          holder,
+          new Function<StatusResponseHolder, SelectResultValue>()
+          {
+            @Override
+            public SelectResultValue apply(StatusResponseHolder input)
+            {
+              HttpResponseStatus status = input.getStatus();
+              if (!status.equals(HttpResponseStatus.OK)) {
+                throw new RuntimeException(input.getContent());
+              }
+              logger.info("Parsing %d bytes datum", input.getBuilder().length());
+
+              long start = System.currentTimeMillis();
+              List<Result<SelectResultValue>> value = parse(new BuilderReader(input.getBuilder()));
+              if (value.isEmpty()) {
+                return null;
+              }
+              SelectResultValue result = value.get(0).getValue();
+              logger.info("Parsed %d rows in %d msec", result.getEvents().size(), System.currentTimeMillis() - start);
+              return result;
+            }
+          }
+      );
+    }
+
+    private List<Result<SelectResultValue>> parse(Reader content)
+    {
+      try {
+        return mapper.readValue(
+            content,
+            new TypeReference<List<Result<SelectResultValue>>>()
+            {
+            }
+        );
+      }
+      catch (Exception e) {
+        throw Throwables.propagate(e);
+      }
     }
 
     @Override
     public boolean nextKeyValue() throws IOException, InterruptedException
     {
-      if (!finished && !events.hasNext()) {
+      while (future != null && !events.hasNext()) {
         nextPage();
       }
       return events.hasNext();
@@ -528,13 +620,18 @@ public class QueryBasedInputFormat extends InputFormat<NullWritable, MapWritable
     @Override
     public MapWritable getCurrentValue() throws IOException, InterruptedException
     {
-      return new MapWritable(events.next().getEvent());
+      try {
+        return new MapWritable(events.next().getEvent());
+      }
+      finally {
+        events.remove();
+      }
     }
 
     @Override
     public float getProgress() throws IOException
     {
-      return finished ? 1 : 0;
+      return intervalIndex / intervals.size();
     }
 
     @Override
@@ -554,8 +651,13 @@ public class QueryBasedInputFormat extends InputFormat<NullWritable, MapWritable
     {
       try {
         if (nextKeyValue()) {
-          value.update(events.next().getEvent());
-          return true;
+          try {
+            value.setValue(events.next().getEvent());
+            return true;
+          }
+          finally {
+            events.remove();
+          }
         }
       }
       catch (InterruptedException e) {

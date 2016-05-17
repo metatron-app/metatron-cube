@@ -150,16 +150,18 @@ public class DruidHiveInputFormat extends QueryBasedInputFormat implements HiveO
 
     public InputSplitWrapper(Path path, DruidInputSplit druidSplit)
     {
-      super(path, 0, 0, druidSplit.getLocations());
+      super(path, 0, druidSplit.getLength(), druidSplit.getLocations());
       this.druidSplit = druidSplit;
     }
 
+    @Override
     public void write(DataOutput out) throws IOException
     {
       super.write(out);
       druidSplit.write(out);
     }
 
+    @Override
     public void readFields(DataInput in) throws IOException
     {
       super.readFields(in);
