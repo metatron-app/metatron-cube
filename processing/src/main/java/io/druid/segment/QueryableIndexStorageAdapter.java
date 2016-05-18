@@ -21,7 +21,6 @@ package io.druid.segment;
 
 import com.google.common.base.Function;
 import com.google.common.base.Predicates;
-import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
@@ -612,8 +611,14 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
                       if (capabilities.isDictionaryEncoded()) {
                         final DictionaryEncodedColumn columnVals = holder.getDictionaryEncoding();
                         if (columnVals.hasMultipleValues()) {
-                          cachedColumnVals = new ObjectColumnSelector<Object>()
+                          cachedColumnVals = new ObjectColumnSelector.WithBaggage<Object>()
                           {
+                            @Override
+                            public void close() throws IOException
+                            {
+                              columnVals.close();
+                            }
+
                             @Override
                             public Class classOfObject()
                             {
@@ -638,8 +643,14 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
                             }
                           };
                         } else {
-                          cachedColumnVals = new ObjectColumnSelector<String>()
+                          cachedColumnVals = new ObjectColumnSelector.WithBaggage<String>()
                           {
+                            @Override
+                            public void close() throws IOException
+                            {
+                              columnVals.close();
+                            }
+
                             @Override
                             public Class classOfObject()
                             {
@@ -655,8 +666,14 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
                         }
                       } else if (capabilities.getType() == ValueType.COMPLEX) {
                         final ComplexColumn columnVals = holder.getComplexColumn();
-                        cachedColumnVals = new ObjectColumnSelector()
+                        cachedColumnVals = new ObjectColumnSelector.WithBaggage()
                         {
+                          @Override
+                          public void close() throws IOException
+                          {
+                            columnVals.close();
+                          }
+
                           @Override
                           public Class classOfObject()
                           {
@@ -680,8 +697,14 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
                         }
 
                         if (type == ValueType.FLOAT) {
-                          cachedColumnVals = new ObjectColumnSelector<Float>()
+                          cachedColumnVals = new ObjectColumnSelector.WithBaggage<Float>()
                           {
+                            @Override
+                            public void close() throws IOException
+                            {
+                              columnVals.close();
+                            }
+
                             @Override
                             public Class classOfObject()
                             {
@@ -695,8 +718,14 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
                             }
                           };
                         } else if (type == ValueType.LONG) {
-                          cachedColumnVals = new ObjectColumnSelector<Long>()
+                          cachedColumnVals = new ObjectColumnSelector.WithBaggage<Long>()
                           {
+                            @Override
+                            public void close() throws IOException
+                            {
+                              columnVals.close();
+                            }
+
                             @Override
                             public Class classOfObject()
                             {
@@ -710,8 +739,14 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
                             }
                           };
                         } else if (type == ValueType.STRING) {
-                          cachedColumnVals = new ObjectColumnSelector<String>()
+                          cachedColumnVals = new ObjectColumnSelector.WithBaggage<String>()
                           {
+                            @Override
+                            public void close() throws IOException
+                            {
+                              columnVals.close();
+                            }
+
                             @Override
                             public Class classOfObject()
                             {

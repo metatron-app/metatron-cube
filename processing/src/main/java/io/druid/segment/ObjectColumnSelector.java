@@ -19,8 +19,14 @@
 
 package io.druid.segment;
 
+import java.io.Closeable;
+
 public interface ObjectColumnSelector<T>
 {
   public Class<T> classOfObject();
   public T get();
+
+  interface WithBaggage<T> extends ObjectColumnSelector<T>, Closeable
+  {
+  }
 }
