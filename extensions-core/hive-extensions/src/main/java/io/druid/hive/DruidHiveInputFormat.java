@@ -33,6 +33,7 @@ import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hive.ql.exec.FileSinkOperator;
 import org.apache.hadoop.hive.ql.io.HiveOutputFormat;
+import org.apache.hadoop.hive.ql.plan.ExprNodeGenericFuncDesc;
 import org.apache.hadoop.hive.serde2.objectinspector.ObjectInspector;
 import org.apache.hadoop.hive.serde2.objectinspector.PrimitiveObjectInspector;
 import org.apache.hadoop.hive.serde2.typeinfo.PrimitiveTypeInfo;
@@ -87,9 +88,15 @@ public class DruidHiveInputFormat extends QueryBasedInputFormat implements HiveO
   protected final Configuration configure(Configuration configuration, ObjectMapper mapper)
       throws IOException
   {
+    ExprNodeGenericFuncDesc exprDesc = ExpressionConverter.deserializeExprDesc(configuration);
+    if (exprDesc == null) {
+      throw new IllegalArgumentException("has no predicate");
+    }
     String timeColumn = configuration.get(CONF_DRUID_TIME_COLUMN_NAME, Column.TIME_COLUMN_NAME);
+    logger.info("Using timestamp column " + timeColumn);
+
     Map<String, TypeInfo> types = ExpressionConverter.getColumnTypes(configuration, timeColumn);
-    Map<String, List<Range>> converted = ExpressionConverter.convert(configuration, types);
+    Map<String, List<Range>> converted = ExpressionConverter.getRanges(exprDesc, types);
     List<Range> timeRanges = converted.remove(timeColumn);
     if (timeRanges == null || timeRanges.isEmpty()) {
       throw new IllegalArgumentException("failed to extract intervals from predicate");

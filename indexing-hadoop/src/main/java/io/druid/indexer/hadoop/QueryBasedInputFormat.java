@@ -53,8 +53,6 @@ import io.druid.query.LocatedSegmentDescriptor;
 import io.druid.query.Result;
 import io.druid.query.dimension.DefaultDimensionSpec;
 import io.druid.query.dimension.DimensionSpec;
-import io.druid.query.dimension.ExtractionDimensionSpec;
-import io.druid.query.extraction.TimeFormatExtractionFn;
 import io.druid.query.filter.DimFilter;
 import io.druid.query.select.EventHolder;
 import io.druid.query.select.PagingSpec;
@@ -459,15 +457,8 @@ public class QueryBasedInputFormat extends InputFormat<NullWritable, MapWritable
       List<DimensionSpec> dimensionSpecs = Lists.newArrayList();
       for (String column : configuration.get(CONF_DRUID_COLUMNS).split(",")) {
         column = column.trim();
-        if (column.equals(timeColumn)) {
-          dimensionSpecs.add(
-              new ExtractionDimensionSpec(
-                  column,
-                  column,
-                  new TimeFormatExtractionFn("yyyy-MM-dd'T'HH:mm:ss'Z'", null, null)
-              )
-          );
-        } else {
+        if (!column.equals(timeColumn)) {
+          // use EventHolder.timestampKey for time
           dimensionSpecs.add(new DefaultDimensionSpec(column, column));
         }
       }

@@ -71,14 +71,10 @@ public class ExpressionConverter
 {
   private static final Logger logger = new Logger(ExpressionConverter.class);
 
-  static Map<String, List<Range>> convert(Configuration configuration, Map<String, TypeInfo> types)
+  static ExprNodeGenericFuncDesc deserializeExprDesc(Configuration configuration)
   {
     String filterExprSerialized = configuration.get(TableScanDesc.FILTER_EXPR_CONF_STR);
-    if (filterExprSerialized == null) {
-      logger.info("No predicate is pushed down");
-      return Collections.emptyMap();
-    }
-    return getRanges(SerializationUtilities.deserializeExpression(filterExprSerialized), types);
+    return filterExprSerialized == null ? null : SerializationUtilities.deserializeExpression(filterExprSerialized);
   }
 
   public static List<Interval> toInterval(List<Range> ranges)

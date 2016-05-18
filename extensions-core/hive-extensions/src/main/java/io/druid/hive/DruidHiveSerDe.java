@@ -22,9 +22,9 @@ package io.druid.hive;
 import com.google.common.base.Function;
 import com.google.common.base.Functions;
 import com.google.common.collect.Lists;
-import com.metamx.common.logger.Logger;
 import io.druid.indexer.hadoop.MapWritable;
 import io.druid.indexer.hadoop.QueryBasedInputFormat;
+import io.druid.query.select.EventHolder;
 import io.druid.segment.column.Column;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hive.serde2.AbstractSerDe;
@@ -33,7 +33,6 @@ import org.apache.hadoop.hive.serde2.SerDeStats;
 import org.apache.hadoop.hive.serde2.lazy.LazySerDeParameters;
 import org.apache.hadoop.hive.serde2.objectinspector.ObjectInspector;
 import org.apache.hadoop.hive.serde2.objectinspector.ObjectInspectorFactory;
-import org.apache.hadoop.hive.serde2.objectinspector.PrimitiveObjectInspector;
 import org.apache.hadoop.hive.serde2.objectinspector.primitive.PrimitiveObjectInspectorFactory;
 import org.apache.hadoop.hive.serde2.typeinfo.ListTypeInfo;
 import org.apache.hadoop.hive.serde2.typeinfo.PrimitiveTypeInfo;
@@ -41,9 +40,6 @@ import org.apache.hadoop.hive.serde2.typeinfo.TypeInfo;
 import org.apache.hadoop.io.Writable;
 import org.joda.time.DateTime;
 
-import javax.annotation.Nullable;
-import java.sql.Timestamp;
-import java.util.Date;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
@@ -52,8 +48,6 @@ import java.util.Properties;
  */
 public class DruidHiveSerDe extends AbstractSerDe
 {
-  private static final Logger logger = new Logger(DruidHiveSerDe.class);
-
   private List<Converter> converters;
   private ObjectInspector inspector;
 
@@ -65,13 +59,16 @@ public class DruidHiveSerDe extends AbstractSerDe
     List<String> columnNames = serdeParams.getColumnNames();
     List<TypeInfo> columnTypes = serdeParams.getColumnTypes();
 
-    String timeColumn = configuration.get(QueryBasedInputFormat.CONF_DRUID_TIME_COLUMN_NAME, Column.TIME_COLUMN_NAME);
+    String timeColumn = properties.getProperty(
+        QueryBasedInputFormat.CONF_DRUID_TIME_COLUMN_NAME,
+        Column.TIME_COLUMN_NAME
+    );
 
     converters = Lists.newArrayListWithExpectedSize(columnNames.size());
     for (int i = 0; i < columnTypes.size(); ++i) {
       String columnName = columnNames.get(i);
       TypeInfo columnType = columnTypes.get(i);
-      converters.add(toConverter(columnName, columnType, timeColumn));
+      converters.add(toConverter(columnName, columnType, columnName.equals(timeColumn)));
     }
 
     inspector = ObjectInspectorFactory.getStandardStructObjectInspector(
@@ -88,30 +85,28 @@ public class DruidHiveSerDe extends AbstractSerDe
     );
   }
 
-  private Converter toConverter(String columnName, TypeInfo columnType, String timeColumn)
+  private Converter toConverter(String columnName, TypeInfo columnType, boolean timeColumn)
   {
     switch (columnType.getCategory()) {
       case PRIMITIVE:
         PrimitiveTypeInfo ptype = (PrimitiveTypeInfo) columnType;
-        if (timeColumn.equals(columnName)) {
-          return timeConverter(columnName, ptype.getPrimitiveCategory());
+        Function<Object, Object> converter = ExpressionConverter.converter(ptype);
+        if (timeColumn) {
+          converter = Functions.compose(converter, TIME_EXTRACTOR);
+          columnName = EventHolder.timestampKey;
         }
-        return new Converter(
-            columnName,
-            PrimitiveObjectInspectorFactory.getPrimitiveJavaObjectInspector(ptype),
-            ExpressionConverter.converter(ptype)
-        );
+        ObjectInspector objectInspector = PrimitiveObjectInspectorFactory.getPrimitiveJavaObjectInspector(ptype);
+        return new Converter(columnName, objectInspector, converter);
       case LIST:
         TypeInfo element = ((ListTypeInfo) columnType).getListElementTypeInfo();
         if (element.getCategory() != ObjectInspector.Category.PRIMITIVE) {
           throw new UnsupportedOperationException("Not supported element type " + element);
         }
-        ObjectInspector elementOI = PrimitiveObjectInspectorFactory.getPrimitiveJavaObjectInspector((PrimitiveTypeInfo) element);
-        return new Converter(
-            columnName,
-            ObjectInspectorFactory.getStandardListObjectInspector(elementOI),
-            ExpressionConverter.listConverter()
+        PrimitiveTypeInfo elementType = (PrimitiveTypeInfo) element;
+        ObjectInspector listObjectInspector = ObjectInspectorFactory.getStandardListObjectInspector(
+            PrimitiveObjectInspectorFactory.getPrimitiveJavaObjectInspector(elementType)
         );
+        return new Converter(columnName, listObjectInspector, ExpressionConverter.listConverter());
       default:
         // todo
         throw new UnsupportedOperationException("Not supported element type " + columnType);
@@ -153,51 +148,14 @@ public class DruidHiveSerDe extends AbstractSerDe
     return inspector;
   }
 
-  private Converter timeConverter(String column, PrimitiveObjectInspector.PrimitiveCategory category)
+  private static final Function<Object, Object> TIME_EXTRACTOR = new Function<Object, Object>()
   {
-    Function<Object, Object> converter = Functions.identity();
-    ObjectInspector inspector = PrimitiveObjectInspectorFactory.getPrimitiveJavaObjectInspector(category);
-    switch (category) {
-      case LONG:
-        converter = new Function<Object, Object>()
-        {
-          @Nullable
-          @Override
-          public Object apply(Object input)
-          {
-            return input == null ? null : new DateTime(input).getMillis();
-          }
-        };
-        break;
-      case DATE:
-        converter = new Function<Object, Object>()
-        {
-          @Nullable
-          @Override
-          public Object apply(Object input)
-          {
-            return input == null ? null : new Date(new DateTime(input).getMillis());
-          }
-        };
-        break;
-      case TIMESTAMP:
-        converter = new Function<Object, Object>()
-        {
-          @Nullable
-          @Override
-          public Object apply(Object input)
-          {
-            return input == null ? null : new Timestamp(new DateTime(input).getMillis());
-          }
-        };
-      default:
-        if (category != PrimitiveObjectInspector.PrimitiveCategory.STRING) {
-          logger.warn("Not supported time conversion type " + category + ".. regarding to string");
-        }
-        inspector = PrimitiveObjectInspectorFactory.javaStringObjectInspector;
+    @Override
+    public Object apply(Object input)
+    {
+      return input instanceof DateTime ? ((DateTime)input).getMillis() : new DateTime(input).getMillis();
     }
-    return new Converter(column, inspector, converter);
-  }
+  };
 
   private class Converter
   {

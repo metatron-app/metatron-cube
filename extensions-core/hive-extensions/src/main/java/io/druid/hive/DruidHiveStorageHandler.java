@@ -19,15 +19,31 @@
 
 package io.druid.hive;
 
+import com.metamx.common.logger.Logger;
+import org.apache.hadoop.hive.ql.exec.SerializationUtilities;
+import org.apache.hadoop.hive.ql.exec.TableScanOperator;
 import org.apache.hadoop.hive.ql.metadata.DefaultStorageHandler;
+import org.apache.hadoop.hive.ql.metadata.HiveException;
+import org.apache.hadoop.hive.ql.metadata.InputEstimator;
+import org.apache.hadoop.hive.ql.metadata.Table;
+import org.apache.hadoop.hive.ql.plan.TableScanDesc;
 import org.apache.hadoop.hive.serde2.SerDe;
+import org.apache.hadoop.mapred.FileSplit;
 import org.apache.hadoop.mapred.InputFormat;
+import org.apache.hadoop.mapred.InputSplit;
+import org.apache.hadoop.mapred.JobConf;
 import org.apache.hadoop.mapred.OutputFormat;
+import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
+
+import java.io.IOException;
+import java.util.Map;
 
 /**
  */
-public class DruidHiveStorageHandler extends DefaultStorageHandler
+public class DruidHiveStorageHandler extends DefaultStorageHandler implements InputEstimator
 {
+  private static final Logger logger = new Logger(DruidHiveStorageHandler.class);
+
   @Override
   public Class<? extends InputFormat> getInputFormatClass()
   {
@@ -44,5 +60,38 @@ public class DruidHiveStorageHandler extends DefaultStorageHandler
   public Class<? extends SerDe> getSerDeClass()
   {
     return DruidHiveSerDe.class;
+  }
+
+  @Override
+  public InputEstimator.Estimation estimate(JobConf job, TableScanOperator ts, long remaining) throws HiveException
+  {
+    TableScanDesc desc = ts.getConf();
+    Table table = desc.getTableMetadata();
+    logger.info("Estimating size of " + table.getDbName() + "." + table.getTableName());
+
+    if (desc.getFilterExpr() == null || table.getDataLocation() == null) {
+      return new InputEstimator.Estimation(1, Integer.MAX_VALUE);
+    }
+
+    JobConf dummy = new JobConf(job);
+    for (Map.Entry<String, String> entry : table.getParameters().entrySet()) {
+      dummy.set(entry.getKey(), entry.getValue());
+    }
+    dummy.set(TableScanDesc.FILTER_EXPR_CONF_STR, SerializationUtilities.serializeExpression(desc.getFilterExpr()));
+    dummy.set(FileInputFormat.INPUT_DIR, table.getDataLocation().toString());
+
+    DruidHiveInputFormat formatter = new DruidHiveInputFormat();
+    try {
+      long totalLength = 0;
+      for (InputSplit split : formatter.getSplits(dummy, -1)) {
+        totalLength += ((FileSplit) split).getLength();
+      }
+      logger.info("Estimated size " + totalLength + " bytes");
+      return new InputEstimator.Estimation(1, totalLength);
+    }
+    catch (IOException e) {
+      logger.warn(e, "Failed to estimate size of " + table.getDbName() + "." + table.getTableName());
+    }
+    return new InputEstimator.Estimation(1, Integer.MAX_VALUE);
   }
 }
