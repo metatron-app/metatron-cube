@@ -32,6 +32,7 @@ import com.metamx.common.guava.Sequence;
 import com.metamx.common.guava.Sequences;
 import io.druid.granularity.QueryGranularity;
 import io.druid.math.expr.Expr;
+import io.druid.math.expr.ExprEval;
 import io.druid.math.expr.Parser;
 import io.druid.query.QueryInterruptedException;
 import io.druid.query.dimension.DimensionSpec;
@@ -796,50 +797,23 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
                     }
 
                     @Override
-                    public NumericColumnSelector makeMathExpressionSelector(String expression)
+                    public ExprEvalColumnSelector makeMathExpressionSelector(String expression)
                     {
                       final Expr parsed = Parser.parse(expression);
                       final Set<String> required = Sets.newHashSet(Parser.findRequiredBindings(parsed));
 
-                      final Map<String, Supplier<Number>> values = Maps.newHashMapWithExpectedSize(required.size());
+                      final Map<String, Supplier<Object>> values = Maps.newHashMapWithExpectedSize(required.size());
                       for (String columnName : index.getColumnNames()) {
-                        if (!required.contains(columnName)) {
-                          continue;
-                        }
-                        final GenericColumn column = index.getColumn(columnName).getGenericColumn();
-                        if (column == null) {
-                          continue;
-                        }
-                        if (column.getType() == ValueType.FLOAT) {
-                          values.put(
-                              columnName, new Supplier<Number>()
-                              {
-                                @Override
-                                public Number get()
-                                {
-                                  return column.getFloatSingleValueRow(cursorOffset.getOffset());
-                                }
-                              }
-                          );
-                        } else if (column.getType() == ValueType.LONG) {
-                          values.put(
-                              columnName, new Supplier<Number>()
-                              {
-                                @Override
-                                public Number get()
-                                {
-                                  return column.getLongSingleValueRow(cursorOffset.getOffset());
-                                }
-                              }
-                          );
+                        if (required.contains(columnName)) {
+                          values.put(columnName, makeObjectColumnSelector(columnName));
                         }
                       }
                       final Expr.NumericBinding binding = Parser.withSuppliers(values);
-                      return new NumericColumnSelector() {
+                      return new ExprEvalColumnSelector() {
                         @Override
-                        public Number get()
+                        public ExprEval get()
                         {
-                          return parsed.eval(binding).numberValue();
+                          return parsed.eval(binding);
                         }
                       };
                     }

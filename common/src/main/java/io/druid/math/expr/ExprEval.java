@@ -75,6 +75,11 @@ public class ExprEval extends Pair<Object, ExprType>
     return ((Number) lhs).longValue();
   }
 
+  public float floatValue()
+  {
+    return ((Number) lhs).floatValue();
+  }
+
   public double doubleValue()
   {
     return ((Number) lhs).doubleValue();

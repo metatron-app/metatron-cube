@@ -22,6 +22,8 @@ package io.druid.math.expr;
 import com.fasterxml.jackson.databind.util.ISO8601DateFormat;
 import com.google.common.base.Strings;
 import io.druid.math.expr.Expr.NumericBinding;
+import org.joda.time.DateTime;
+import org.joda.time.Days;
 
 import java.text.DateFormat;
 import java.text.ParseException;
@@ -739,24 +741,24 @@ interface Function
         throw new RuntimeException("function 'timestampFromEpoch' needs at least 1 argument");
       }
       ExprEval value = args.get(0).eval(bindings);
-      if (value.rhs != ExprType.STRING) {
-        throw new IllegalArgumentException("first argument should be string type but got " + value.rhs + " type");
+      if (value.type() != ExprType.STRING) {
+        throw new IllegalArgumentException("first argument should be string type but got " + value.type() + " type");
       }
 
       DateFormat formatter = ISO8601;
       if (args.size() > 1) {
         ExprEval format = args.get(1).eval(bindings);
-        if (format.rhs != ExprType.STRING) {
-          throw new IllegalArgumentException("first argument should be string type but got " + format.rhs + " type");
+        if (format.type() != ExprType.STRING) {
+          throw new IllegalArgumentException("first argument should be string type but got " + format.type() + " type");
         }
-        formatter = new SimpleDateFormat((String) format.lhs);
+        formatter = new SimpleDateFormat(format.stringValue());
       }
       Date date;
       try {
-        date = formatter.parse((String) value.lhs);
+        date = formatter.parse(value.stringValue());
       }
       catch (ParseException e) {
-        throw new IllegalArgumentException("invalid value " + value.lhs);
+        throw new IllegalArgumentException("invalid value " + value.stringValue());
       }
       return toValue(date);
     }
@@ -801,6 +803,26 @@ interface Function
         return args.get(1).eval(bindings);
       }
       return eval;
+    }
+  }
+
+  class DateDiffFunc implements Function
+  {
+    @Override
+    public String name()
+    {
+      return "datediff";
+    }
+
+    @Override
+    public ExprEval apply(List<Expr> args, NumericBinding bindings)
+    {
+      if (args.size() < 2) {
+        throw new RuntimeException("function 'datediff' need at least 2 arguments");
+      }
+      DateTime t1 = Evals.toDateTime(args.get(0).eval(bindings));
+      DateTime t2 = Evals.toDateTime(args.get(1).eval(bindings));
+      return ExprEval.of(Days.daysBetween(t1.withTimeAtStartOfDay(), t2.withTimeAtStartOfDay()).getDays());
     }
   }
 

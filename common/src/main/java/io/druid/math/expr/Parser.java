@@ -105,21 +105,28 @@ public class Parser
     return new Expr.NumericBinding()
     {
       @Override
-      public Number get(String name)
+      public Object get(String name)
       {
-        return (Number)bindings.get(name);
+        Object value = bindings.get(name);
+        if (value == null && !bindings.containsKey(name)) {
+          throw new RuntimeException("No binding found for " + name);
+        }
+        return value;
       }
     };
   }
 
-  public static Expr.NumericBinding withSuppliers(final Map<String, Supplier<Number>> bindings)
+  public static Expr.NumericBinding withSuppliers(final Map<String, Supplier<Object>> bindings)
   {
     return new Expr.NumericBinding()
     {
       @Override
-      public Number get(String name)
+      public Object get(String name)
       {
-        Supplier<Number> supplier = bindings.get(name);
+        Supplier<Object> supplier = bindings.get(name);
+        if (supplier == null && !bindings.containsKey(name)) {
+          throw new RuntimeException("No binding found for " + name);
+        }
         return supplier == null ? null : supplier.get();
       }
     };

@@ -39,7 +39,7 @@ import io.druid.segment.ColumnSelectorFactory;
 import io.druid.segment.DimensionSelector;
 import io.druid.segment.FloatColumnSelector;
 import io.druid.segment.LongColumnSelector;
-import io.druid.segment.NumericColumnSelector;
+import io.druid.segment.ExprEvalColumnSelector;
 import io.druid.segment.ObjectColumnSelector;
 import io.druid.segment.data.ArrayBasedIndexedInts;
 import io.druid.segment.data.IndexedInts;
@@ -165,7 +165,7 @@ public class FilteredAggregatorTest
       }
 
       @Override
-      public NumericColumnSelector makeMathExpressionSelector(String expression)
+      public ExprEvalColumnSelector makeMathExpressionSelector(String expression)
       {
         throw new UnsupportedOperationException();
       }

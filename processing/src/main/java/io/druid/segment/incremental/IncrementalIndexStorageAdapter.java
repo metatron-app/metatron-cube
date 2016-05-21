@@ -23,7 +23,6 @@ import com.google.common.base.Function;
 import com.google.common.base.Predicate;
 import com.google.common.base.Strings;
 import com.google.common.base.Supplier;
-import com.google.common.base.Suppliers;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
@@ -34,8 +33,8 @@ import com.metamx.common.guava.Sequence;
 import com.metamx.common.guava.Sequences;
 import io.druid.data.input.impl.DimensionSchema;
 import io.druid.granularity.QueryGranularity;
-import io.druid.math.expr.Evals;
 import io.druid.math.expr.Expr;
+import io.druid.math.expr.ExprEval;
 import io.druid.math.expr.Parser;
 import io.druid.query.QueryInterruptedException;
 import io.druid.query.aggregation.AggregatorUtil;
@@ -47,11 +46,11 @@ import io.druid.query.filter.ValueMatcherFactory;
 import io.druid.segment.Capabilities;
 import io.druid.segment.Cursor;
 import io.druid.segment.DimensionSelector;
+import io.druid.segment.ExprEvalColumnSelector;
 import io.druid.segment.FloatColumnSelector;
 import io.druid.segment.LongColumnSelector;
 import io.druid.segment.Metadata;
 import io.druid.segment.NullDimensionSelector;
-import io.druid.segment.NumericColumnSelector;
 import io.druid.segment.ObjectColumnSelector;
 import io.druid.segment.SingleScanTimeDimSelector;
 import io.druid.segment.StorageAdapter;
@@ -619,50 +618,30 @@ public class IncrementalIndexStorageAdapter implements StorageAdapter
               }
 
               @Override
-              public NumericColumnSelector makeMathExpressionSelector(String expression)
+              public ExprEvalColumnSelector makeMathExpressionSelector(String expression)
               {
                 final Expr parsed = Parser.parse(expression);
 
                 final Set<String> required = Sets.newHashSet(Parser.findRequiredBindings(parsed));
-                final Map<String, Supplier<Number>> values = Maps.newHashMapWithExpectedSize(required.size());
+                final Map<String, Supplier<Object>> values = Maps.newHashMapWithExpectedSize(required.size());
 
                 for (String columnName : index.getMetricNames()) {
-                  if (!required.contains(columnName)) {
-                    continue;
+                  if (required.contains(columnName)) {
+                    values.put(columnName, makeObjectColumnSelector(columnName));
                   }
-                  ValueType type = index.getCapabilities(columnName).getType();
-                  if (type == ValueType.FLOAT) {
-                    final int metricIndex = index.getMetricIndex(columnName);
-                    values.put(
-                        columnName, new Supplier<Number>()
-                        {
-                          @Override
-                          public Number get()
-                          {
-                            return index.getMetricFloatValue(currEntry.getValue(), metricIndex);
-                          }
-                        }
-                    );
-                  } else if (type == ValueType.LONG) {
-                    final int metricIndex = index.getMetricIndex(columnName);
-                    values.put(
-                        columnName, new Supplier<Number>()
-                        {
-                          @Override
-                          public Number get()
-                          {
-                            return index.getMetricLongValue(currEntry.getValue(), metricIndex);
-                          }
-                        }
-                    );
+                }
+                for (String columnName : index.getDimensionNames()) {
+                  if (required.contains(columnName)) {
+                    values.put(columnName, makeObjectColumnSelector(columnName));
                   }
                 }
                 final Expr.NumericBinding binding = Parser.withSuppliers(values);
-                return new NumericColumnSelector() {
+                return new ExprEvalColumnSelector()
+                {
                   @Override
-                  public Number get()
+                  public ExprEval get()
                   {
-                    return parsed.eval(binding).numberValue();
+                    return parsed.eval(binding);
                   }
                 };
               }
@@ -802,7 +781,7 @@ public class IncrementalIndexStorageAdapter implements StorageAdapter
     {
       final Expr parsed = Parser.parse(expression);
 
-      final Map<String, Supplier<Number>> values = Maps.newHashMap();
+      final Map<String, Supplier<Object>> values = Maps.newHashMap();
       for (String column : Parser.findRequiredBindings(parsed)) {
         IncrementalIndex.DimensionDesc dimensionDesc = index.getDimension(column);
         if (dimensionDesc != null) {
@@ -812,7 +791,7 @@ public class IncrementalIndexStorageAdapter implements StorageAdapter
           final int dimIndex = dimensionDesc.getIndex();
           final IncrementalIndex.DimDim dimDim = dimensionDesc.getValues();
           final DimensionSchema.ValueType type = dimensionDesc.getCapabilities().getType().asDimensionType();
-          final Supplier<Comparable> supplier = new Supplier<Comparable>()
+          final Supplier<Object> supplier = new Supplier<Object>()
           {
             @Override
             public Comparable get()
@@ -824,14 +803,14 @@ public class IncrementalIndexStorageAdapter implements StorageAdapter
               return null;
             }
           };
-          values.put(column, Suppliers.compose(Evals.asNumberFunc(type), supplier));
+          values.put(column, supplier);
           continue;
         }
         IncrementalIndex.MetricDesc metricDesc = index.getMetricDesc(column);
         if (metricDesc != null) {
           final int metricIndex = metricDesc.getIndex();
-          final ValueType type = ValueType.valueOf(metricDesc.getType().toUpperCase());
-          if (type == ValueType.FLOAT) {
+          final ValueType type = ValueType.of(metricDesc.getType());
+          if (ValueType.FLOAT == type) {
             final FloatColumnSelector selector = new FloatColumnSelector()
             {
               @Override
@@ -841,7 +820,7 @@ public class IncrementalIndexStorageAdapter implements StorageAdapter
               }
             };
             values.put(column, AggregatorUtil.asSupplier(selector));
-          } else if (type == ValueType.LONG) {
+          } else if (ValueType.LONG == type) {
             final LongColumnSelector selector = new LongColumnSelector()
             {
               @Override

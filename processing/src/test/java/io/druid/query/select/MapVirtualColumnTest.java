@@ -34,6 +34,7 @@ import io.druid.query.Druids;
 import io.druid.query.QueryRunner;
 import io.druid.query.QueryRunnerTestHelper;
 import io.druid.query.Result;
+import io.druid.segment.ExprVirtualColumn;
 import io.druid.segment.IncrementalIndexSegment;
 import io.druid.segment.MapVirtualColumn;
 import io.druid.segment.QueryableIndex;
@@ -96,8 +97,8 @@ public class MapVirtualColumnTest
 
     CharSource input = CharSource.wrap(
         "2011-01-12T00:00:00.000Z\ta\tkey1,key2,key3\tvalue1,value2,value3\n" +
-        "2011-01-12T00:00:00.000Z\tb\tkey4,key5,key6\tvalue4\n" +
-        "2011-01-12T00:00:00.000Z\tc\tkey1,key5\tvalue1,value5,value9\n"
+        "2011-01-12T00:00:00.001Z\t\tkey4,key5,key6\tvalue4\n" +
+        "2011-01-12T00:00:00.002Z\tc\tkey1,key5\tvalue1,value5,value9\n"
     );
 
     IncrementalIndex index1 = TestIndex.loadIncrementalIndex(index, input, parser);
@@ -135,13 +136,15 @@ public class MapVirtualColumnTest
     List<Map> expectedResults = Arrays.<Map>asList(
         mapOf(
             "dim", "a",
+            "dim_nvl", "a",
             "params.key1", "value1",
             "params.key3", "value3",
             "params.key5", null,
             "params", mapOf("key1", "value1", "key2", "value2", "key3", "value3")
         ),
         mapOf(
-            "dim", "b",
+            "dim", null,
+            "dim_nvl", "null",
             "params.key1", null,
             "params.key3", null,
             "params.key5", null,
@@ -149,15 +152,19 @@ public class MapVirtualColumnTest
         ),
         mapOf(
             "dim", "c",
+            "dim_nvl", "c",
             "params.key1", "value1",
             "params.key3", null,
             "params.key5", "value5",
             "params", mapOf("key1", "value1", "key5", "value5")
         )
     );
-    List<VirtualColumn> virtualColumns = Arrays.<VirtualColumn>asList(new MapVirtualColumn("keys", "values", "params"));
+    List<VirtualColumn> virtualColumns = Arrays.<VirtualColumn>asList(
+        new MapVirtualColumn("keys", "values", "params"),
+        new ExprVirtualColumn("nvl(dim, 'null')", "dim_nvl")
+    );
     SelectQuery selectQuery = builder.dimensions(Arrays.asList("dim"))
-                                     .metrics(Arrays.asList("params.key1", "params.key3", "params.key5", "params"))
+                                     .metrics(Arrays.asList("params.key1", "params.key3", "params.key5", "params", "dim_nvl"))
                                      .virtualColumns(virtualColumns)
                                      .build();
     checkSelectQuery(selectQuery, expectedResults);

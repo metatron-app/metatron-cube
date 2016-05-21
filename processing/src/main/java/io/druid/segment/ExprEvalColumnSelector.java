@@ -19,9 +19,11 @@
 
 package io.druid.segment;
 
+import io.druid.math.expr.ExprEval;
+
 /**
  */
-public interface NumericColumnSelector
+public interface ExprEvalColumnSelector
 {
-  Number get();
+  ExprEval get();
 }

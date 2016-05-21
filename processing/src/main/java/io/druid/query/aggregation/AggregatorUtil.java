@@ -25,7 +25,7 @@ import com.metamx.common.Pair;
 import io.druid.segment.ColumnSelectorFactory;
 import io.druid.segment.FloatColumnSelector;
 import io.druid.segment.LongColumnSelector;
-import io.druid.segment.NumericColumnSelector;
+import io.druid.segment.ExprEvalColumnSelector;
 
 import java.util.HashSet;
 import java.util.LinkedList;
@@ -90,13 +90,13 @@ public class AggregatorUtil
     return new Pair(condensedAggs, condensedPostAggs);
   }
 
-  public static Supplier<Number> asSupplier(final FloatColumnSelector selector) {
-    return new Supplier<Number>()
+  public static Supplier<Object> asSupplier(final FloatColumnSelector selector) {
+    return new Supplier<Object>()
     {
       @Override
       public Number get()
       {
-        return (float)selector.get();
+        return selector.get();
       }
     };
   }
@@ -110,7 +110,7 @@ public class AggregatorUtil
     if (fieldName != null) {
       return metricFactory.makeFloatColumnSelector(fieldName);
     }
-    final NumericColumnSelector numeric = metricFactory.makeMathExpressionSelector(fieldExpression);
+    final ExprEvalColumnSelector numeric = metricFactory.makeMathExpressionSelector(fieldExpression);
     return new FloatColumnSelector()
     {
       @Override
@@ -121,13 +121,13 @@ public class AggregatorUtil
     };
   }
 
-  public static Supplier<Number> asSupplier(final LongColumnSelector selector) {
-    return new Supplier<Number>()
+  public static Supplier<Object> asSupplier(final LongColumnSelector selector) {
+    return new Supplier<Object>()
     {
       @Override
       public Number get()
       {
-        return (long)selector.get();
+        return selector.get();
       }
     };
   }
@@ -141,7 +141,7 @@ public class AggregatorUtil
     if (fieldName != null) {
       return metricFactory.makeLongColumnSelector(fieldName);
     }
-    final NumericColumnSelector numeric = metricFactory.makeMathExpressionSelector(fieldExpression);
+    final ExprEvalColumnSelector numeric = metricFactory.makeMathExpressionSelector(fieldExpression);
     return new LongColumnSelector()
     {
       @Override

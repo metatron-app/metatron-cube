@@ -23,12 +23,18 @@ import com.google.common.base.Function;
 import com.google.common.base.Strings;
 import io.druid.data.input.impl.DimensionSchema;
 import org.apache.commons.lang.StringUtils;
+import org.joda.time.DateTime;
+import org.joda.time.format.DateTimeFormat;
+import org.joda.time.format.DateTimeFormatter;
+
 import java.util.Objects;
 
 /**
  */
 public class Evals
 {
+  static final DateTimeFormatter defaultFormat = DateTimeFormat.forPattern("yyyy-MM-dd HH:mm:ss");
+
   static boolean eq(ExprEval leftVal, ExprEval rightVal)
   {
     if (isSameType(leftVal, rightVal)) {
@@ -101,5 +107,16 @@ public class Evals
         };
     }
     throw new UnsupportedOperationException("Unsupported type " + type);
+  }
+
+  static DateTime toDateTime(ExprEval arg)
+  {
+    switch (arg.type()) {
+      case STRING:
+        String string = arg.stringValue();
+        return StringUtils.isNumeric(string) ? new DateTime(Long.valueOf(string)) : defaultFormat.parseDateTime(string);
+      default:
+        return new DateTime(arg.longValue());
+    }
   }
 }

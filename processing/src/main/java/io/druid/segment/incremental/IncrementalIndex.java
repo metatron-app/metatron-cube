@@ -44,6 +44,7 @@ import io.druid.data.input.impl.DimensionsSpec;
 import io.druid.data.input.impl.SpatialDimensionSchema;
 import io.druid.granularity.QueryGranularity;
 import io.druid.math.expr.Expr;
+import io.druid.math.expr.ExprEval;
 import io.druid.math.expr.Parser;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.PostAggregator;
@@ -54,7 +55,7 @@ import io.druid.segment.DimensionSelector;
 import io.druid.segment.FloatColumnSelector;
 import io.druid.segment.LongColumnSelector;
 import io.druid.segment.Metadata;
-import io.druid.segment.NumericColumnSelector;
+import io.druid.segment.ExprEvalColumnSelector;
 import io.druid.segment.ObjectColumnSelector;
 import io.druid.segment.column.Column;
 import io.druid.segment.column.ColumnCapabilities;
@@ -260,19 +261,19 @@ public abstract class IncrementalIndex<AggregatorType> implements Iterable<Row>,
       }
 
       @Override
-      public NumericColumnSelector makeMathExpressionSelector(String expression)
+      public ExprEvalColumnSelector makeMathExpressionSelector(String expression)
       {
         final Expr parsed = Parser.parse(expression);
 
         final Set<String> required = Sets.newHashSet(Parser.findRequiredBindings(parsed));
-        final Map<String, Supplier<Number>> values = Maps.newHashMapWithExpectedSize(required.size());
+        final Map<String, Supplier<Object>> values = Maps.newHashMapWithExpectedSize(required.size());
 
         for (final String columnName : required) {
           values.put(
-              columnName, new Supplier<Number>()
+              columnName, new Supplier<Object>()
               {
                 @Override
-                public Number get()
+                public Object get()
                 {
                   return in.get().getFloatMetric(columnName);
                 }
@@ -281,12 +282,12 @@ public abstract class IncrementalIndex<AggregatorType> implements Iterable<Row>,
         }
         final Expr.NumericBinding binding = Parser.withSuppliers(values);
 
-        return new NumericColumnSelector()
+        return new ExprEvalColumnSelector()
         {
           @Override
-          public Number get()
+          public ExprEval get()
           {
-            return parsed.eval(binding).numberValue();
+            return parsed.eval(binding);
           }
         };
       }

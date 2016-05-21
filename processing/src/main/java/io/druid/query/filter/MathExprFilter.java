@@ -23,9 +23,8 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;
 import com.metamx.common.StringUtils;
-import io.druid.math.expr.Evals;
 import io.druid.segment.ColumnSelectorFactory;
-import io.druid.segment.NumericColumnSelector;
+import io.druid.segment.ExprEvalColumnSelector;
 
 import java.nio.ByteBuffer;
 
@@ -79,13 +78,13 @@ public class MathExprFilter implements DimFilter
       @Override
       public ValueMatcher makeMatcher(ColumnSelectorFactory columnSelectorFactory)
       {
-        final NumericColumnSelector selector = columnSelectorFactory.makeMathExpressionSelector(expression);
+        final ExprEvalColumnSelector selector = columnSelectorFactory.makeMathExpressionSelector(expression);
         return new ValueMatcher()
         {
           @Override
           public boolean matches()
           {
-            return Evals.asBoolean(selector.get());
+            return selector.get().asBoolean();
           }
         };
       }

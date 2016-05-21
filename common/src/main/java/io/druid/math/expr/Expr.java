@@ -33,7 +33,7 @@ public interface Expr
 
   interface NumericBinding
   {
-    Number get(String name);
+    Object get(String name);
   }
 }
 
@@ -122,16 +122,13 @@ class IdentifierExpr implements Expr
   public ExprEval eval(NumericBinding bindings)
   {
     Object val = bindings.get(value);
-    if (val == null) {
-      throw new RuntimeException("No binding found for " + value);
-    }
     if (val instanceof Integer || val instanceof Long) {
       return ExprEval.of(val, ExprType.LONG);
     }
     if (val instanceof Float || val instanceof Double) {
       return ExprEval.of(val, ExprType.DOUBLE);
     }
-    return ExprEval.of(String.valueOf(val), ExprType.STRING);
+    return ExprEval.of(val == null ? null : String.valueOf(val), ExprType.STRING);
   }
 }
 

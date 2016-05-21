@@ -19,9 +19,11 @@
 
 package io.druid.segment;
 
+import com.google.common.base.Supplier;
+
 import java.io.Closeable;
 
-public interface ObjectColumnSelector<T>
+public interface ObjectColumnSelector<T> extends Supplier<T>
 {
   public Class<T> classOfObject();
   public T get();
