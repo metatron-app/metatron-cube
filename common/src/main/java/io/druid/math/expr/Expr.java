@@ -345,7 +345,7 @@ class BinLtExpr extends BinaryOpExprBase
     Number leftVal = left.eval(bindings);
     Number rightVal = right.eval(bindings);
     if (isLong(leftVal, rightVal)) {
-      return leftVal.longValue() < rightVal.longValue() ? 1 : 0;
+      return leftVal.longValue() < rightVal.longValue() ? 1L : 0L;
     } else {
       return leftVal.doubleValue() < rightVal.doubleValue() ? 1.0d : 0.0d;
     }
@@ -366,7 +366,7 @@ class BinLeqExpr extends BinaryOpExprBase
     Number leftVal = left.eval(bindings);
     Number rightVal = right.eval(bindings);
     if (isLong(leftVal, rightVal)) {
-      return leftVal.longValue() <= rightVal.longValue() ? 1 : 0;
+      return leftVal.longValue() <= rightVal.longValue() ? 1L : 0L;
     } else {
       return leftVal.doubleValue() <= rightVal.doubleValue() ? 1.0d : 0.0d;
     }
@@ -387,7 +387,7 @@ class BinGtExpr extends BinaryOpExprBase
     Number leftVal = left.eval(bindings);
     Number rightVal = right.eval(bindings);
     if (isLong(leftVal, rightVal)) {
-      return leftVal.longValue() > rightVal.longValue() ? 1 : 0;
+      return leftVal.longValue() > rightVal.longValue() ? 1L : 0L;
     } else {
       return leftVal.doubleValue() > rightVal.doubleValue() ? 1.0d : 0.0d;
     }
@@ -408,7 +408,7 @@ class BinGeqExpr extends BinaryOpExprBase
     Number leftVal = left.eval(bindings);
     Number rightVal = right.eval(bindings);
     if (isLong(leftVal, rightVal)) {
-      return leftVal.longValue() >= rightVal.longValue() ? 1 : 0;
+      return leftVal.longValue() >= rightVal.longValue() ? 1L : 0L;
     } else {
       return leftVal.doubleValue() >= rightVal.doubleValue() ? 1.0d : 0.0d;
     }
@@ -446,7 +446,7 @@ class BinNeqExpr extends BinaryOpExprBase
     Number leftVal = left.eval(bindings);
     Number rightVal = right.eval(bindings);
     if (isLong(leftVal, rightVal)) {
-      return leftVal.longValue() != rightVal.longValue() ? 1 : 0;
+      return leftVal.longValue() != rightVal.longValue() ? 1L : 0L;
     } else {
       return leftVal.doubleValue() != rightVal.doubleValue() ? 1.0d : 0.0d;
     }
@@ -470,7 +470,7 @@ class BinAndExpr extends BinaryOpExprBase
       long lval = leftVal.longValue();
       if (lval > 0) {
         long rval = rightVal.longValue();
-        return rval > 0 ? 1 : 0;
+        return rval > 0 ? 1L : 0L;
       } else {
         return 0;
       }
@@ -505,7 +505,7 @@ class BinOrExpr extends BinaryOpExprBase
         return 1;
       } else {
         long rval = rightVal.longValue();
-        return rval > 0 ? 1 : 0;
+        return rval > 0 ? 1L : 0L;
       }
     } else {
       double lval = leftVal.doubleValue();

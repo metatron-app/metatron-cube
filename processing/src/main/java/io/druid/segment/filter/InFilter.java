@@ -29,12 +29,14 @@ import io.druid.query.filter.BitmapIndexSelector;
 import io.druid.query.filter.Filter;
 import io.druid.query.filter.ValueMatcher;
 import io.druid.query.filter.ValueMatcherFactory;
+import io.druid.segment.ColumnSelectorFactory;
+import io.druid.segment.ObjectColumnSelector;
 
 import java.util.Set;
 
 /**
  */
-public class InFilter implements Filter
+public class InFilter extends Filter.WithDictionary
 {
   private final String dimension;
   private final Set<String> values;
@@ -81,20 +83,48 @@ public class InFilter implements Filter
   }
 
   @Override
+  public ValueMatcher makeMatcher(ColumnSelectorFactory columnSelectorFactory)
+  {
+    final Predicate<String> predicate = toPredicate();
+    final ObjectColumnSelector selector = Filters.getStringSelector(columnSelectorFactory, dimension);
+    return new ValueMatcher()
+    {
+      @Override
+      public boolean matches()
+      {
+        return predicate.apply((String)selector.get());
+      }
+    };
+  }
+
+  @Override
   public ValueMatcher makeMatcher(ValueMatcherFactory factory)
   {
-    return factory.makeValueMatcher(
-        dimension, new Predicate<String>()
-        {
-          @Override
-          public boolean apply(String input)
-          {
-            if (extractionFn != null) {
-              input = extractionFn.apply(input);
-            }
-            return values.contains(Strings.nullToEmpty(input));
-          }
+    return factory.makeValueMatcher(dimension, toPredicate());
+  }
+
+  private Predicate<String> toPredicate()
+  {
+    return new Predicate<String>()
+    {
+      @Override
+      public boolean apply(String input)
+      {
+        if (extractionFn != null) {
+          input = extractionFn.apply(input);
         }
-    );
+        return values.contains(Strings.nullToEmpty(input));
+      }
+    };
+  }
+
+  @Override
+  public String toString()
+  {
+    return "InFilter{" +
+           "dimension='" + dimension + '\'' +
+           ", values=" + values +
+           ", extractionFn=" + extractionFn +
+           '}';
   }
 }

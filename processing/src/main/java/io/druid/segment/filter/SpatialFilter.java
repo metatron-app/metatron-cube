@@ -26,13 +26,13 @@ import io.druid.query.filter.BitmapIndexSelector;
 import io.druid.query.filter.Filter;
 import io.druid.query.filter.ValueMatcher;
 import io.druid.query.filter.ValueMatcherFactory;
+import io.druid.segment.ColumnSelectorFactory;
+import io.druid.segment.ObjectColumnSelector;
 import io.druid.segment.incremental.SpatialDimensionRowTransformer;
-
-import java.util.Arrays;
 
 /**
  */
-public class SpatialFilter implements Filter
+public class SpatialFilter extends Filter.WithDictionary
 {
   private final String dimension;
   private final Bound bound;
@@ -54,23 +54,42 @@ public class SpatialFilter implements Filter
   }
 
   @Override
+  public ValueMatcher makeMatcher(ColumnSelectorFactory columnSelectorFactory)
+  {
+    final Predicate predicate = toPredicate();
+    final ObjectColumnSelector selector = columnSelectorFactory.makeObjectColumnSelector(dimension);
+    return new ValueMatcher()
+    {
+      @Override
+      public boolean matches()
+      {
+        return predicate.apply(selector.get());
+      }
+    };
+  }
+
+  @Override
   public ValueMatcher makeMatcher(ValueMatcherFactory factory)
   {
     return factory.makeValueMatcher(
-        dimension,
-        new Predicate()
-        {
-          @Override
-          public boolean apply(Object input)
-          {
-            if (input instanceof String) {
-              final float[] coordinate = SpatialDimensionRowTransformer.decode((String) input);
-              return bound.contains(coordinate);
-            } else {
-              return false;
-            }
-          }
-        }
+        dimension, toPredicate()
     );
+  }
+
+  private Predicate toPredicate()
+  {
+    return new Predicate()
+    {
+      @Override
+      public boolean apply(Object input)
+      {
+        if (input instanceof String) {
+          final float[] coordinate = SpatialDimensionRowTransformer.decode((String) input);
+          return bound.contains(coordinate);
+        } else {
+          return false;
+        }
+      }
+    };
   }
 }

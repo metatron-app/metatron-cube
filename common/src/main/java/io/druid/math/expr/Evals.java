@@ -19,6 +19,11 @@
 
 package io.druid.math.expr;
 
+import com.google.common.base.Function;
+import com.google.common.base.Strings;
+import io.druid.data.input.impl.DimensionSchema;
+import org.apache.commons.lang.StringUtils;
+
 /**
  */
 public class Evals
@@ -45,5 +50,53 @@ public class Evals
   static boolean isAnyLong(Number left, Number right)
   {
     return left instanceof Long && right instanceof Long;
+  }
+
+  public static boolean asBoolean(Number x)
+  {
+    if (x == null) {
+      return false;
+    } else if (x instanceof Long) {
+      return x.longValue() > 0;
+    } else {
+      return x.doubleValue() > 0;
+    }
+  }
+
+  public static com.google.common.base.Function<Comparable, Number> asNumberFunc(DimensionSchema.ValueType type)
+  {
+    switch (type) {
+      case FLOAT:
+        return new Function<Comparable, Number>()
+        {
+          @Override
+          public Number apply(Comparable input)
+          {
+            return input == null ? 0F : (Float) input;
+          }
+        };
+      case LONG:
+        return new Function<Comparable, Number>()
+        {
+          @Override
+          public Number apply(Comparable input)
+          {
+            return input == null ? 0L : (Long) input;
+          }
+        };
+      case STRING:
+        return new Function<Comparable, Number>()
+        {
+          @Override
+          public Number apply(Comparable input)
+          {
+            String string = (String) input;
+            return Strings.isNullOrEmpty(string)
+                   ? 0L
+                   : StringUtils.isNumeric(string) ? Long.valueOf(string) : Double.valueOf(string);
+          }
+        };
+    }
+    throw new UnsupportedOperationException("Unsupported type " + type);
   }
 }

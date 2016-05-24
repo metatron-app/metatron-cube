@@ -24,11 +24,20 @@ import io.druid.query.filter.BitmapIndexSelector;
 import io.druid.query.filter.Filter;
 import io.druid.query.filter.ValueMatcher;
 import io.druid.query.filter.ValueMatcherFactory;
+import io.druid.segment.ColumnSelectorFactory;
+
+import java.util.Arrays;
+import java.util.List;
 
 /**
  */
-public class NotFilter implements Filter
+public class NotFilter extends Filter.WithDictionary implements Filter.Relational
 {
+  public static Filter of(Filter filter)
+  {
+    return filter == null ? null : new NotFilter(filter);
+  }
+
   private final Filter baseFilter;
 
   public NotFilter(
@@ -38,6 +47,11 @@ public class NotFilter implements Filter
     this.baseFilter = baseFilter;
   }
 
+  public Filter getBaseFilter()
+  {
+    return baseFilter;
+  }
+
   @Override
   public ImmutableBitmap getBitmapIndex(BitmapIndexSelector selector)
   {
@@ -45,6 +59,21 @@ public class NotFilter implements Filter
         baseFilter.getBitmapIndex(selector),
         selector.getNumRows()
     );
+  }
+
+  @Override
+  public ValueMatcher makeMatcher(ColumnSelectorFactory columnSelectorFactory)
+  {
+    final ValueMatcher baseMatcher = baseFilter.makeMatcher(columnSelectorFactory);
+
+    return new ValueMatcher()
+    {
+      @Override
+      public boolean matches()
+      {
+        return !baseMatcher.matches();
+      }
+    };
   }
 
   @Override
@@ -60,5 +89,23 @@ public class NotFilter implements Filter
         return !baseMatcher.matches();
       }
     };
+  }
+
+  @Override
+  public boolean supportsBitmap()
+  {
+    return baseFilter.supportsBitmap();
+  }
+
+  @Override
+  public List<Filter> getChildren()
+  {
+    return Arrays.asList(baseFilter);
+  }
+
+  @Override
+  public String toString()
+  {
+    return "NOT " + baseFilter;
   }
 }

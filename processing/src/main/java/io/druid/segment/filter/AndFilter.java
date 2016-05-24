@@ -25,13 +25,20 @@ import io.druid.query.filter.BitmapIndexSelector;
 import io.druid.query.filter.Filter;
 import io.druid.query.filter.ValueMatcher;
 import io.druid.query.filter.ValueMatcherFactory;
+import io.druid.segment.ColumnSelectorFactory;
 
+import java.util.Arrays;
 import java.util.List;
 
 /**
  */
-public class AndFilter implements Filter
+public class AndFilter extends Filter.WithDictionary implements Filter.Relational
 {
+  public static Filter of(Filter... filters)
+  {
+    return filters == null ? null : filters.length == 1 ? filters[0] : new AndFilter(Arrays.asList(filters));
+  }
+
   private final List<Filter> filters;
 
   public AndFilter(
@@ -57,10 +64,23 @@ public class AndFilter implements Filter
   }
 
   @Override
+  public ValueMatcher makeMatcher(ColumnSelectorFactory columnSelectorFactory)
+  {
+    if (filters.size() == 0) {
+      return BooleanValueMatcher.FALSE;
+    }
+    ValueMatcher[] matchers = new ValueMatcher[filters.size()];
+    for (int i = 0; i < filters.size(); i++) {
+      matchers[i] = filters.get(i).makeMatcher(columnSelectorFactory);
+    }
+    return makeMatcher(matchers);
+  }
+
+  @Override
   public ValueMatcher makeMatcher(ValueMatcherFactory factory)
   {
     if (filters.size() == 0) {
-      return new BooleanValueMatcher(false);
+      return BooleanValueMatcher.FALSE;
     }
 
     final ValueMatcher[] matchers = new ValueMatcher[filters.size()];
@@ -90,5 +110,28 @@ public class AndFilter implements Filter
         return true;
       }
     };
+  }
+
+  @Override
+  public boolean supportsBitmap()
+  {
+    for (Filter child : filters) {
+      if (!child.supportsBitmap()) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  @Override
+  public List<Filter> getChildren()
+  {
+    return filters;
+  }
+
+  @Override
+  public String toString()
+  {
+    return "AND " + filters;
   }
 }

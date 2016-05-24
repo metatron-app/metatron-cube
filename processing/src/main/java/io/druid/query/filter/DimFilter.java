@@ -24,7 +24,7 @@ import com.fasterxml.jackson.annotation.JsonTypeInfo;
 
 /**
  */
-@JsonTypeInfo(use=JsonTypeInfo.Id.NAME, property="type")
+@JsonTypeInfo(use=JsonTypeInfo.Id.NAME, property="type", defaultImpl = MathExprFilter.class)
 @JsonSubTypes(value={
     @JsonSubTypes.Type(name="and", value=AndDimFilter.class),
     @JsonSubTypes.Type(name="or", value=OrDimFilter.class),
@@ -36,7 +36,8 @@ import com.fasterxml.jackson.annotation.JsonTypeInfo;
     @JsonSubTypes.Type(name="javascript", value=JavaScriptDimFilter.class),
     @JsonSubTypes.Type(name="spatial", value=SpatialDimFilter.class),
     @JsonSubTypes.Type(name="in", value=InDimFilter.class),
-    @JsonSubTypes.Type(name="bound", value=BoundDimFilter.class)
+    @JsonSubTypes.Type(name="bound", value=BoundDimFilter.class),
+    @JsonSubTypes.Type(name="math", value=MathExprFilter.class)
 
 })
 public interface DimFilter

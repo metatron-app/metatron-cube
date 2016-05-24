@@ -74,9 +74,11 @@ import io.druid.query.extraction.TimeFormatExtractionFn;
 import io.druid.query.filter.AndDimFilter;
 import io.druid.query.filter.BoundDimFilter;
 import io.druid.query.filter.DimFilter;
+import io.druid.query.filter.DimFilters;
 import io.druid.query.filter.ExtractionDimFilter;
 import io.druid.query.filter.InDimFilter;
 import io.druid.query.filter.JavaScriptDimFilter;
+import io.druid.query.filter.MathExprFilter;
 import io.druid.query.filter.OrDimFilter;
 import io.druid.query.filter.RegexDimFilter;
 import io.druid.query.filter.SearchQueryDimFilter;
@@ -3053,6 +3055,19 @@ public class GroupByQueryRunnerTest
     // Subqueries are handled by the ToolChest
     Iterable<Row> results = GroupByQueryRunnerTestHelper.runQuery(factory, runner, query);
     TestHelper.assertExpectedObjects(expectedResults, results, "");
+
+    expectedResults = Arrays.asList(
+        GroupByQueryRunnerTestHelper.createExpectedRow("2011-04-01", "alias", "a", "rows", 6L, "idx", 771L),
+        GroupByQueryRunnerTestHelper.createExpectedRow("2011-04-02", "alias", "a", "rows", 6L, "idx", 778L)
+    );
+
+    query = query.withDimFilter(
+        DimFilters.or(
+            new InDimFilter("alias", Arrays.asList("a", "b"), null),
+            new MathExprFilter("idx > 100 && idx < 200"),
+            new InDimFilter("alias", Arrays.asList("b", "c"), null)));
+    TestHelper.assertExpectedObjects(
+        expectedResults, GroupByQueryRunnerTestHelper.runQuery(factory, runner, query), "");
   }
 
   @Test

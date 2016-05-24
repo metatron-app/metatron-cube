@@ -27,10 +27,12 @@ import io.druid.query.filter.BitmapIndexSelector;
 import io.druid.query.filter.Filter;
 import io.druid.query.filter.ValueMatcher;
 import io.druid.query.filter.ValueMatcherFactory;
+import io.druid.segment.ColumnSelectorFactory;
+import io.druid.segment.ObjectColumnSelector;
 
 /**
  */
-public class DimensionPredicateFilter implements Filter
+public class DimensionPredicateFilter extends Filter.WithDictionary
 {
   private final String dimension;
   private final Predicate<String> predicate;
@@ -62,6 +64,20 @@ public class DimensionPredicateFilter implements Filter
   public ImmutableBitmap getBitmapIndex(final BitmapIndexSelector selector)
   {
     return Filters.matchPredicate(dimension, selector, predicate);
+  }
+
+  @Override
+  public ValueMatcher makeMatcher(ColumnSelectorFactory columnSelectorFactory)
+  {
+    final ObjectColumnSelector selector = Filters.getStringSelector(columnSelectorFactory, dimension);
+    return new ValueMatcher()
+    {
+      @Override
+      public boolean matches()
+      {
+        return predicate.apply((String)selector.get());
+      }
+    };
   }
 
   @Override

@@ -20,15 +20,43 @@
 package io.druid.segment.column;
 
 import com.metamx.common.logger.Logger;
+import io.druid.data.input.impl.DimensionSchema;
 
 /**
-*/
+ */
 public enum ValueType
 {
-  FLOAT,
-  LONG,
-  STRING,
-  COMPLEX;
+  FLOAT {
+    @Override
+    public DimensionSchema.ValueType asDimensionType()
+    {
+      return DimensionSchema.ValueType.FLOAT;
+    }
+  },
+  LONG {
+    @Override
+    public DimensionSchema.ValueType asDimensionType()
+    {
+      return DimensionSchema.ValueType.LONG;
+    }
+  },
+  STRING {
+    @Override
+    public DimensionSchema.ValueType asDimensionType()
+    {
+      return DimensionSchema.ValueType.STRING;
+    }
+  },
+  COMPLEX {
+    @Override
+    public DimensionSchema.ValueType asDimensionType()
+    {
+      return DimensionSchema.ValueType.COMPLEX;
+    }
+  };
+
+  // definitely need to be merged into one
+  public abstract DimensionSchema.ValueType asDimensionType();
 
   private static final Logger log = new Logger(ValueType.class);
 

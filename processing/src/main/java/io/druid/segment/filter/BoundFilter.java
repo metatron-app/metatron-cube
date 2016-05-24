@@ -28,12 +28,14 @@ import io.druid.query.filter.Filter;
 import io.druid.query.filter.ValueMatcher;
 import io.druid.query.filter.ValueMatcherFactory;
 import io.druid.query.ordering.StringComparators;
+import io.druid.segment.ColumnSelectorFactory;
+import io.druid.segment.ObjectColumnSelector;
 import io.druid.segment.column.BitmapIndex;
 
 import java.util.Comparator;
 import java.util.Iterator;
 
-public class BoundFilter implements Filter
+public class BoundFilter extends Filter.WithDictionary
 {
   private final BoundDimFilter boundDimFilter;
   private final Comparator<String> comparator;
@@ -135,6 +137,21 @@ public class BoundFilter implements Filter
           }
       );
     }
+  }
+
+  @Override
+  public ValueMatcher makeMatcher(ColumnSelectorFactory columnSelectorFactory)
+  {
+    final String dimension = boundDimFilter.getDimension();
+    final ObjectColumnSelector selector = Filters.getStringSelector(columnSelectorFactory, dimension);
+    return new ValueMatcher()
+    {
+      @Override
+      public boolean matches()
+      {
+        return doesMatch((String)selector.get());
+      }
+    };
   }
 
   @Override

@@ -26,9 +26,11 @@ import io.druid.query.filter.Filter;
 import io.druid.query.filter.JavaScriptDimFilter;
 import io.druid.query.filter.ValueMatcher;
 import io.druid.query.filter.ValueMatcherFactory;
+import io.druid.segment.ColumnSelectorFactory;
+import io.druid.segment.ObjectColumnSelector;
 import org.mozilla.javascript.Context;
 
-public class JavaScriptFilter implements Filter
+public class JavaScriptFilter extends Filter.WithDictionary
 {
   private final String dimension;
   private final JavaScriptDimFilter.JavaScriptPredicate predicate;
@@ -64,9 +66,32 @@ public class JavaScriptFilter implements Filter
   }
 
   @Override
+  public ValueMatcher makeMatcher(ColumnSelectorFactory columnSelectorFactory)
+  {
+    final ObjectColumnSelector selector = Filters.getStringSelector(columnSelectorFactory, dimension);
+    return new ValueMatcher()
+    {
+      @Override
+      public boolean matches()
+      {
+        return predicate.apply((String)selector.get());
+      }
+    };
+  }
+
+  @Override
   public ValueMatcher makeMatcher(ValueMatcherFactory factory)
   {
     // suboptimal, since we need create one context per call to predicate.apply()
     return factory.makeValueMatcher(dimension, predicate);
+  }
+
+  @Override
+  public String toString()
+  {
+    return "JavaScriptFilter{" +
+           "dimension='" + dimension + '\'' +
+           ", predicate=" + predicate +
+           '}';
   }
 }
