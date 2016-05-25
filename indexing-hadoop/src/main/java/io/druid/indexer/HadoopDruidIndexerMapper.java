@@ -19,9 +19,16 @@
 
 package io.druid.indexer;
 
+import com.google.common.base.Function;
+import com.google.common.base.Preconditions;
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Iterables;
+import com.google.common.collect.Lists;
+import com.metamx.common.Pair;
 import com.metamx.common.RE;
 import com.metamx.common.logger.Logger;
 import io.druid.data.input.InputRow;
+import io.druid.data.input.MapBasedInputRow;
 import io.druid.data.input.impl.InputRowParser;
 import io.druid.data.input.impl.StringInputRowParser;
 import io.druid.segment.indexing.granularity.GranularitySpec;
@@ -30,6 +37,8 @@ import org.apache.hadoop.mapreduce.Mapper;
 import org.joda.time.DateTime;
 
 import java.io.IOException;
+import java.util.List;
+import java.util.Map;
 
 public abstract class HadoopDruidIndexerMapper<KEYOUT, VALUEOUT> extends Mapper<Object, Object, KEYOUT, VALUEOUT>
 {
@@ -39,6 +48,8 @@ public abstract class HadoopDruidIndexerMapper<KEYOUT, VALUEOUT> extends Mapper<
   private InputRowParser parser;
   protected GranularitySpec granularitySpec;
 
+  private Function<InputRow, Iterable<InputRow>> generator;
+
   @Override
   protected void setup(Context context)
       throws IOException, InterruptedException
@@ -46,6 +57,72 @@ public abstract class HadoopDruidIndexerMapper<KEYOUT, VALUEOUT> extends Mapper<
     config = HadoopDruidIndexerConfig.fromConfiguration(context.getConfiguration());
     parser = config.getParser();
     granularitySpec = config.getGranularitySpec();
+    final String nameField = config.getSchema().getTuningConfig().getJobProperties().get("hynix.columns.param");
+    final String valueField = config.getSchema().getTuningConfig().getJobProperties().get("hynix.columns.value");
+
+    if (nameField != null && valueField != null) {
+      generator = new Function<InputRow, Iterable<InputRow>>()
+      {
+        @Override
+        public Iterable<InputRow> apply(final InputRow input)
+        {
+          final Map<String, Object> mapRow = ((MapBasedInputRow)input).getEvent();
+
+          Object nameObject = mapRow.get(nameField);
+          Object valueObject = mapRow.get(valueField);
+          Preconditions.checkArgument((nameObject instanceof String[]) && (valueObject instanceof String[]),
+              "param and value columns specified in hynix.columns should contain string array data");
+          List<Pair<String, String>> validPairs = Lists.newArrayList();
+
+          final String[] names = (String[])nameObject;
+          final String[] values = (String[])valueObject;
+          Preconditions.checkArgument(names.length == values.length,
+              "number of elements in param and value array should be the same");
+          for (int idx = 0; idx < names.length; idx++)
+          {
+            if (isNumeric(values[idx])) {
+              validPairs.add(Pair.of(names[idx], values[idx]));
+            }
+          }
+
+          return Iterables.transform(
+              validPairs, new Function<Pair<String,String>, InputRow>()
+              {
+                @Override
+                public InputRow apply(Pair<String, String> pair)
+                {
+                  mapRow.put(nameField, pair.lhs);
+                  mapRow.put(valueField, pair.rhs);
+                  return input;
+                }
+              }
+          );
+        }
+      };
+    } else {
+      generator = new Function<InputRow, Iterable<InputRow>>()
+      {
+        @Override
+        public Iterable<InputRow> apply(InputRow input)
+        {
+          return ImmutableList.of(input);
+        }
+      };
+    }
+  }
+
+  private boolean isNumeric(String str)
+  {
+    try {
+      Float.parseFloat(str);
+      if ("NaN".equals(str)) {
+        throw new NumberFormatException();
+      }
+    }
+    catch (NumberFormatException e) {
+      return false;
+    }
+    return true;
   }
 
   public HadoopDruidIndexerConfig getConfig()
@@ -64,28 +141,35 @@ public abstract class HadoopDruidIndexerMapper<KEYOUT, VALUEOUT> extends Mapper<
   ) throws IOException, InterruptedException
   {
     try {
-      final InputRow inputRow;
-      try {
-        inputRow = parseInputRow(value, parser);
+      final InputRow inputRow = parseRow(value, context);
+      if (inputRow == null) {
+        return;
       }
-      catch (Exception e) {
-        if (config.isIgnoreInvalidRows()) {
-          log.debug(e, "Ignoring invalid row [%s] due to parsing error", value.toString());
-          context.getCounter(HadoopDruidIndexerConfig.IndexJobCounters.INVALID_ROW_COUNTER).increment(1);
-          return; // we're ignoring this invalid row
-        } else {
-          throw e;
-        }
-      }
-
       if (!granularitySpec.bucketIntervals().isPresent()
           || granularitySpec.bucketInterval(new DateTime(inputRow.getTimestampFromEpoch()))
                             .isPresent()) {
-        innerMap(inputRow, value, context);
+        for (InputRow row : generator.apply(inputRow)) {
+          innerMap(row, value, context);
+        }
       }
     }
     catch (RuntimeException e) {
       throw new RE(e, "Failure on row[%s]", value);
+    }
+  }
+
+  private InputRow parseRow(Object value, Context context) {
+    try {
+      return parseInputRow(value, parser);
+    }
+    catch (Exception e) {
+      if (config.isIgnoreInvalidRows()) {
+        log.debug(e, "Ignoring invalid row [%s] due to parsing error", value.toString());
+        context.getCounter(HadoopDruidIndexerConfig.IndexJobCounters.INVALID_ROW_COUNTER).increment(1);
+        return null; // we're ignoring this invalid row
+      } else {
+        throw e;
+      }
     }
   }
 
