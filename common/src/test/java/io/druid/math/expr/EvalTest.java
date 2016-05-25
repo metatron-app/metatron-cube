@@ -170,4 +170,23 @@ public class EvalTest
     // not-exists (explicit)
     Assert.assertEquals(100L, evalLong("case (x + 10, 0, 2, 1, 3, 100)", bindings));
   }
+
+  @Test
+  public void testJavaScript()
+  {
+    Map<String, Object> mapping = new HashMap<>();
+    for (int i = 0; i < 30; i++) {
+      mapping.put("x", i);
+      Expr.NumericBinding bindings = Parser.withMap(mapping);
+      String eval = Parser.parse(
+          "javascript('x', 'if (x < 10) return \"X\"; else if (x < 20) return \"Y\"; else return \"Z\";')").eval(bindings).stringValue();
+      if (i < 10) {
+        Assert.assertEquals("X", eval);
+      } else if (i < 20) {
+        Assert.assertEquals("Y", eval);
+      } else {
+        Assert.assertEquals("Z", eval);
+      }
+    }
+  }
 }

@@ -121,14 +121,7 @@ class IdentifierExpr implements Expr
   @Override
   public ExprEval eval(NumericBinding bindings)
   {
-    Object val = bindings.get(value);
-    if (val instanceof Integer || val instanceof Long) {
-      return ExprEval.of(val, ExprType.LONG);
-    }
-    if (val instanceof Float || val instanceof Double) {
-      return ExprEval.of(val, ExprType.DOUBLE);
-    }
-    return ExprEval.of(val == null ? null : String.valueOf(val), ExprType.STRING);
+    return ExprEval.bestEffortOf(bindings.get(value));
   }
 }
 

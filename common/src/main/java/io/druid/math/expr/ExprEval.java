@@ -25,6 +25,19 @@ import com.metamx.common.Pair;
  */
 public class ExprEval extends Pair<Object, ExprType>
 {
+  public static ExprEval bestEffortOf(Object val)
+  {
+    if (val instanceof Number) {
+      if (val instanceof Byte || val instanceof Short || val instanceof Integer || val instanceof Long) {
+        return ExprEval.of(val, ExprType.LONG);
+      }
+      if (val instanceof Float || val instanceof Double) {
+        return ExprEval.of(val, ExprType.DOUBLE);
+      }
+    }
+    return ExprEval.of(val == null ? null : String.valueOf(val), ExprType.STRING);
+  }
+
   public static ExprEval of(Object value, ExprType type)
   {
     return new ExprEval(value, type);

@@ -21,8 +21,11 @@ package io.druid.math.expr;
 
 import com.fasterxml.jackson.databind.util.ISO8601DateFormat;
 import io.druid.math.expr.Expr.NumericBinding;
+import org.apache.commons.lang.StringUtils;
 import org.joda.time.DateTime;
 import org.joda.time.Days;
+import org.mozilla.javascript.Context;
+import org.mozilla.javascript.ScriptableObject;
 
 import java.text.DateFormat;
 import java.text.ParseException;
@@ -858,6 +861,86 @@ interface Function
         return args.get(args.size() - 1).eval(bindings);
       }
       return leftVal.defaultValue();
+    }
+  }
+
+  class JavaScriptFunc implements Function
+  {
+    ScriptableObject scope;
+    org.mozilla.javascript.Function fnApply;
+    com.google.common.base.Function<NumericBinding, Object[]> bindingExtractor;
+
+    @Override
+    public String name()
+    {
+      return "javascript";
+    }
+
+    @Override
+    public ExprEval apply(List<Expr> args, NumericBinding bindings)
+    {
+      if (fnApply == null) {
+        if (args.size() != 2) {
+          throw new RuntimeException("function 'javascript' needs 2 argument");
+        }
+        makeFunction(getConstantString(args.get(0)), getConstantString(args.get(1)));
+      }
+
+      final Object[] params = bindingExtractor.apply(bindings);
+      // one and only one context per thread
+      final Context cx = Context.enter();
+      try {
+        return ExprEval.bestEffortOf(fnApply.call(cx, scope, scope, params));
+      }
+      finally {
+        Context.exit();
+      }
+    }
+
+    private String getConstantString(Expr arg)
+    {
+      if (!(arg instanceof StringExpr)) {
+        throw new RuntimeException("arguments of 'javascript' should be constant string type");
+      }
+      return arg.eval(null).stringValue();
+    }
+
+    private void makeFunction(String required, String script)
+    {
+      final String[] bindings = splitAndTrim(required);
+      final String function = "function(" + StringUtils.join(bindings, ",") + ") {" + script + "}";
+
+      final Context cx = Context.enter();
+      try {
+        cx.setOptimizationLevel(9);
+        this.scope = cx.initStandardObjects();
+        this.fnApply = cx.compileFunction(scope, function, "script", 1, null);
+      }
+      finally {
+        Context.exit();
+      }
+
+      final Object[] convey = new Object[bindings.length];
+      bindingExtractor = new com.google.common.base.Function<NumericBinding, Object[]>()
+      {
+        @Override
+        public Object[] apply(NumericBinding input)
+        {
+          for (int i = 0; i < bindings.length; i++) {
+            convey[i] = input.get(bindings[i]);
+          }
+          return convey;
+        }
+      };
+    }
+
+    private String[] splitAndTrim(String required)
+    {
+      String[] splits = required.split(",");
+      for (int i = 0; i < splits.length; i++) {
+        splits[i] = splits[i].trim();
+      }
+      return splits;
     }
   }
 }
