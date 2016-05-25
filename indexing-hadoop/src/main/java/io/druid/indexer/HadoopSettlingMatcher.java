@@ -19,32 +19,46 @@
 
 package io.druid.indexer;
 
-import com.fasterxml.jackson.databind.Module;
-import com.fasterxml.jackson.databind.jsontype.NamedType;
-import com.fasterxml.jackson.databind.module.SimpleModule;
-import com.google.inject.Binder;
-import io.druid.initialization.DruidModule;
+import java.util.regex.Pattern;
 
-import java.util.Arrays;
-import java.util.List;
-
-/**
- */
-public class IndexingHadoopModule implements DruidModule
+public class HadoopSettlingMatcher
 {
-  @Override
-  public List<? extends Module> getJacksonModules()
+  private Pattern[] patterns;
+
+  public HadoopSettlingMatcher(
+      Pattern[] patterns
+  )
   {
-    return Arrays.<Module>asList(
-        new SimpleModule("IndexingHadoopModule")
-            .registerSubtypes(
-                new NamedType(HadoopyStringInputRowParser.class, "hadoopyString")
-            )
-    );
+    this.patterns = patterns;
+  }
+
+  public boolean matches(String[] dimValues)
+  {
+    for (int idx =0; idx < patterns.length; idx++) {
+      Pattern pattern = patterns[idx];
+      if (!pattern.matcher(dimValues[idx]).matches()) {
+        return false;
+      }
+    }
+
+    return true;
   }
 
   @Override
-  public void configure(Binder binder)
+  public boolean equals(Object o)
   {
+    if (o instanceof HadoopSettlingMatcher) {
+      HadoopSettlingMatcher that = (HadoopSettlingMatcher)o;
+
+      for (int idx = 0; idx < patterns.length; idx++) {
+        if (patterns[idx] != that.patterns[idx]) {
+          return false;
+        }
+      }
+
+      return true;
+    }
+
+    return false;
   }
 }

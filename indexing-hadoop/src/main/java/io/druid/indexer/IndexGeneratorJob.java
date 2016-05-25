@@ -39,6 +39,7 @@ import com.metamx.common.logger.Logger;
 import io.druid.common.guava.ThreadRenamingRunnable;
 import io.druid.concurrent.Execs;
 import io.druid.data.input.InputRow;
+import io.druid.data.input.MapBasedInputRow;
 import io.druid.data.input.Row;
 import io.druid.data.input.Rows;
 import io.druid.indexer.hadoop.SegmentInputRow;
@@ -48,6 +49,7 @@ import io.druid.segment.ProgressIndicator;
 import io.druid.segment.QueryableIndex;
 import io.druid.segment.incremental.IncrementalIndex;
 import io.druid.segment.incremental.IncrementalIndexSchema;
+import io.druid.segment.incremental.IndexSizeExceededException;
 import io.druid.segment.incremental.OnheapIncrementalIndex;
 import io.druid.timeline.DataSegment;
 import org.apache.commons.io.FileUtils;
@@ -173,8 +175,13 @@ public class IndexGeneratorJob implements Jobby
       }
 
       if (config.getSchema().getTuningConfig().getUseCombiner()) {
-        job.setCombinerClass(IndexGeneratorCombiner.class);
-        job.setCombinerKeyGroupingComparatorClass(BytesWritable.Comparator.class);
+        // when settling is used, combiner should be turned off
+        if (config.getSchema().getSettlingConfig() == null) {
+          job.setCombinerClass(IndexGeneratorCombiner.class);
+          job.setCombinerKeyGroupingComparatorClass(BytesWritable.Comparator.class);
+        } else {
+          log.error("Combiner is set but ignored as settling cannot use combiner");
+        }
       }
 
       job.setNumReduceTasks(numReducers);
@@ -295,9 +302,10 @@ public class IndexGeneratorJob implements Jobby
           new SortableBytes(
               bucket.get().toGroupKey(),
               // sort rows by truncated timestamp and hashed dimensions to help reduce spilling on the reducer side
-              ByteBuffer.allocate(Longs.BYTES + hashedDimensions.length)
+              ByteBuffer.allocate(Longs.BYTES + hashedDimensions.length + Longs.BYTES)
                         .putLong(truncatedTimestamp)
                         .put(hashedDimensions)
+                        .putLong(inputRow.getTimestampFromEpoch())
                         .array()
           ).toBytesWritable(),
           new BytesWritable(serializedInputRow)
@@ -469,9 +477,11 @@ public class IndexGeneratorJob implements Jobby
   public static class IndexGeneratorReducer extends Reducer<BytesWritable, BytesWritable, BytesWritable, Text>
   {
     protected HadoopDruidIndexerConfig config;
+    protected SettlingConfig settlingConfig;
     private List<String> metricNames = Lists.newArrayList();
     private AggregatorFactory[] aggregators;
     private AggregatorFactory[] combiningAggs;
+    private AggregatorFactory[] rangedAggs;
 
     protected ProgressIndicator makeProgressIndicator(final Context context)
     {
@@ -527,12 +537,18 @@ public class IndexGeneratorJob implements Jobby
         throws IOException, InterruptedException
     {
       config = HadoopDruidIndexerConfig.fromConfiguration(context.getConfiguration());
+      settlingConfig = config.getSchema().getSettlingConfig();
+      if (settlingConfig != null) {
+        settlingConfig.setUp();
+      }
 
       aggregators = config.getSchema().getDataSchema().getAggregators();
       combiningAggs = new AggregatorFactory[aggregators.length];
+      rangedAggs = new AggregatorFactory[aggregators.length];
       for (int i = 0; i < aggregators.length; ++i) {
         metricNames.add(aggregators[i].getName());
         combiningAggs[i] = aggregators[i].getCombiningFactory();
+        rangedAggs[i] = combiningAggs[i];
       }
     }
 
@@ -550,7 +566,7 @@ public class IndexGeneratorJob implements Jobby
       List<ListenableFuture<?>> persistFutures = Lists.newArrayList();
       IncrementalIndex index = makeIncrementalIndex(
           bucket,
-          combiningAggs,
+          rangedAggs,
           config,
           null
       );
@@ -597,64 +613,79 @@ public class IndexGeneratorJob implements Jobby
           persistExecutor = MoreExecutors.sameThreadExecutor();
         }
 
+        List<InputRow> rows = Lists.newLinkedList();
+        int lengthSkipLastTS = key.getLength() - Longs.BYTES;
+        byte[] firstKeyBytes = new byte[lengthSkipLastTS];
+        System.arraycopy(key.getBytes(), 0, firstKeyBytes, 0, lengthSkipLastTS);
+        BytesWritable prev = new BytesWritable(firstKeyBytes);
+
         for (final BytesWritable bw : values) {
           context.progress();
 
           final InputRow inputRow = index.formatRow(InputRowSerde.fromBytes(bw.getBytes(), aggregators));
-          int numRows = index.add(inputRow);
 
-          ++lineCount;
+          if (prev.compareTo(key.getBytes(), 0, lengthSkipLastTS) != 0) {
+            prev.set(key.getBytes(), 0, lengthSkipLastTS);
+            int numRows = addRows(index, rows);
+            lineCount += rows.size();
+            rows.clear();
 
-          if (!index.canAppendRow()) {
-            allDimensionNames.addAll(index.getDimensionOrder());
+            if (!index.canAppendRow()) {
+              allDimensionNames.addAll(index.getDimensionOrder());
 
-            log.info(index.getOutOfRowsReason());
-            log.info(
-                "%,d lines to %,d rows in %,d millis",
-                lineCount - runningTotalLineCount,
-                numRows,
-                System.currentTimeMillis() - startTime
-            );
-            runningTotalLineCount = lineCount;
+              log.info(index.getOutOfRowsReason());
+              log.info(
+                  "%,d lines to %,d rows in %,d millis",
+                  lineCount - runningTotalLineCount,
+                  numRows,
+                  System.currentTimeMillis() - startTime
+              );
+              runningTotalLineCount = lineCount;
 
-            final File file = new File(baseFlushFile, String.format("index%,05d", indexCount));
-            toMerge.add(file);
+              final File file = new File(baseFlushFile, String.format("index%,05d", indexCount));
+              toMerge.add(file);
 
-            context.progress();
-            final IncrementalIndex persistIndex = index;
-            persistFutures.add(
-                persistExecutor.submit(
-                    new ThreadRenamingRunnable(String.format("%s-persist", file.getName()))
-                    {
-                      @Override
-                      public void doRun()
+              context.progress();
+              final IncrementalIndex persistIndex = index;
+              persistFutures.add(
+                  persistExecutor.submit(
+                      new ThreadRenamingRunnable(String.format("%s-persist", file.getName()))
                       {
-                        try {
-                          persist(persistIndex, interval, file, progressIndicator);
-                        }
-                        catch (Exception e) {
-                          log.error(e, "persist index error");
-                          throw Throwables.propagate(e);
-                        }
-                        finally {
-                          // close this index
-                          persistIndex.close();
+                        @Override
+                        public void doRun()
+                        {
+                          try {
+                            persist(persistIndex, interval, file, progressIndicator);
+                          }
+                          catch (Exception e) {
+                            log.error(e, "persist index error");
+                            throw Throwables.propagate(e);
+                          }
+                          finally {
+                            // close this index
+                            persistIndex.close();
+                          }
                         }
                       }
-                    }
-                )
-            );
+                  )
+              );
 
-            index = makeIncrementalIndex(
-                bucket,
-                combiningAggs,
-                config,
-                allDimensionNames
-            );
-            startTime = System.currentTimeMillis();
-            ++indexCount;
+              index = makeIncrementalIndex(
+                  bucket,
+                  rangedAggs,
+                  config,
+                  allDimensionNames
+              );
+              startTime = System.currentTimeMillis();
+              ++indexCount;
+            }
           }
+
+          rows.add(inputRow);
         }
+
+        addRows(index, rows);
+        lineCount += rows.size();
 
         allDimensionNames.addAll(index.getDimensionOrder());
 
@@ -745,6 +776,28 @@ public class IndexGeneratorJob implements Jobby
         }
       }
     }
+
+    private int addRows(IncrementalIndex index, List<InputRow> rows) throws IndexSizeExceededException
+    {
+      boolean settlingApplied = false;
+      int numRows = 0;
+      if (settlingConfig != null) {
+        // adjust aggregator factory
+        settlingApplied = settlingConfig.applySettling(rows.get(0), combiningAggs, rangedAggs);
+      }
+      for (InputRow row: rows)
+      {
+        if (settlingConfig != null) {
+          MapBasedInputRow mapBasedInputRow = (MapBasedInputRow)row;
+          mapBasedInputRow.getDimensions().add(settlingConfig.getSettlingYN());
+          mapBasedInputRow.getEvent().put(settlingConfig.getSettlingYN(), settlingApplied ? "Y" : "N");
+        }
+        numRows = index.add(row);
+      }
+
+      return numRows;
+    }
+
   }
 
   public static class IndexGeneratorOutputFormat extends TextOutputFormat

@@ -91,6 +91,11 @@
             <groupId>com.google.code.findbugs</groupId>
             <artifactId>jsr305</artifactId>
         </dependency>
+        <dependency>
+            <groupId>org.apache.hive</groupId>
+            <artifactId>hive-jdbc</artifactId>
+            <version>2.0.0</version>
+        </dependency>
 
         <!-- Tests -->
         <dependency>
@@ -103,6 +108,11 @@
             <artifactId>easymock</artifactId>
             <scope>test</scope>
         </dependency>
+		<dependency>
+			<groupId>com.google.http-client</groupId>
+			<artifactId>google-http-client</artifactId>
+			<version>1.20.0</version>
+		</dependency>		
         <dependency>
             <groupId>org.hamcrest</groupId>
             <artifactId>hamcrest-all</artifactId>
@@ -123,9 +133,9 @@
             <scope>test</scope>
         </dependency>
         <dependency>
-            <groupId>org.apache.hadoop</groupId>
-            <artifactId>hadoop-hdfs</artifactId>
-            <version>${hadoop.compile.version}</version>
+            <groupId>org.apache.hive</groupId>
+            <artifactId>hive-jdbc</artifactId>
+            <version>2.0.0</version>
             <scope>test</scope>
         </dependency>
         <dependency>

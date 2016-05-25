@@ -19,32 +19,18 @@
 
 package io.druid.indexer;
 
-import com.fasterxml.jackson.databind.Module;
-import com.fasterxml.jackson.databind.jsontype.NamedType;
-import com.fasterxml.jackson.databind.module.SimpleModule;
-import com.google.inject.Binder;
-import io.druid.initialization.DruidModule;
+import com.fasterxml.jackson.annotation.JsonSubTypes;
+import com.fasterxml.jackson.annotation.JsonTypeInfo;
+import io.druid.data.input.InputRow;
+import io.druid.query.aggregation.AggregatorFactory;
 
-import java.util.Arrays;
-import java.util.List;
-
-/**
- */
-public class IndexingHadoopModule implements DruidModule
-{
-  @Override
-  public List<? extends Module> getJacksonModules()
-  {
-    return Arrays.<Module>asList(
-        new SimpleModule("IndexingHadoopModule")
-            .registerSubtypes(
-                new NamedType(HadoopyStringInputRowParser.class, "hadoopyString")
-            )
-    );
-  }
-
-  @Override
-  public void configure(Binder binder)
-  {
-  }
+@JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
+@JsonSubTypes(value = {
+    @JsonSubTypes.Type(name = "jdbc", value = HadoopSettlingConfig.class)
+})
+public interface SettlingConfig {
+  // setUp() should be called once before applySettling() calls
+  void setUp();
+  boolean applySettling(InputRow row, AggregatorFactory[] org, AggregatorFactory[] applied);
+  String getSettlingYN();
 }
