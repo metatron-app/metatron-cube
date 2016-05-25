@@ -20,7 +20,6 @@
 package io.druid.math.expr;
 
 import com.fasterxml.jackson.databind.util.ISO8601DateFormat;
-import com.google.common.base.Strings;
 import io.druid.math.expr.Expr.NumericBinding;
 import org.joda.time.DateTime;
 import org.joda.time.Days;
@@ -689,12 +688,19 @@ interface Function
     @Override
     public ExprEval apply(List<Expr> args, NumericBinding bindings)
     {
-      if (args.size() != 3) {
-        throw new RuntimeException("function 'if' needs 3 argument");
+      if (args.size() < 3) {
+        throw new RuntimeException("function 'if' needs at least 3 argument");
+      }
+      if (args.size() % 2 == 0) {
+        throw new RuntimeException("function 'if' needs default value");
       }
 
-      ExprEval x = args.get(0).eval(bindings);
-      return x.asBoolean() ? args.get(1).eval(bindings) : args.get(2).eval(bindings);
+      for (int i = 0; i < args.size() - 1; i += 2) {
+        if (args.get(i).eval(bindings).asBoolean()) {
+          return args.get(i + 1).eval(bindings);
+        }
+      }
+      return args.get(args.size() - 1).eval(bindings);
     }
   }
 
@@ -801,7 +807,7 @@ interface Function
         throw new RuntimeException("function 'nvl' needs 2 argument");
       }
       ExprEval eval = args.get(0).eval(bindings);
-      if (eval.value() == null || (eval.type() == ExprType.STRING && Strings.isNullOrEmpty(eval.stringValue()))) {
+      if (eval.isNull()) {
         return args.get(1).eval(bindings);
       }
       return eval;

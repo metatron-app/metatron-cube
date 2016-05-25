@@ -95,6 +95,24 @@ public class EvalTest
   }
 
   @Test
+  public void testEvalIf()
+  {
+    Map<String, Number> mapping = new HashMap<>();
+    for (int i = 0; i < 30; i++) {
+      mapping.put("x", i);
+      Expr.NumericBinding bindings = Parser.withMap(mapping);
+      String eval = Parser.parse("if(x < 10, 'X', x < 20, 'Y', 'Z')").eval(bindings).stringValue();
+      if (i < 10) {
+        Assert.assertEquals("X", eval);
+      } else if (i < 20) {
+        Assert.assertEquals("Y", eval);
+      } else {
+        Assert.assertEquals("Z", eval);
+      }
+    }
+  }
+
+  @Test
   public void testLongEval()
   {
     Map<String, Number> mapping = new HashMap<>();

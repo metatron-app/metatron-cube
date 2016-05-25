@@ -60,6 +60,10 @@ public class ExprEval extends Pair<Object, ExprType>
     return rhs;
   }
 
+  public boolean isNull() {
+    return lhs == null || rhs == ExprType.STRING && stringValue().isEmpty();
+  }
+
   public boolean isNumeric()
   {
     return rhs == ExprType.LONG || rhs == ExprType.DOUBLE;
