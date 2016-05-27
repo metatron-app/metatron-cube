@@ -34,7 +34,6 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
-import java.util.Arrays;
 import java.util.List;
 import java.util.Properties;
 
@@ -47,10 +46,10 @@ public class PropertiesModule implements Module
 
   private final List<String> propertiesFiles;
 
-  public PropertiesModule(String... propertiesFiles)
+  public PropertiesModule(List<String> propertiesFiles)
   {
     this.propertiesFiles = Lists.newArrayList(DEFAULT_PROPERTIES_LOC);
-    this.propertiesFiles.addAll(Arrays.asList(propertiesFiles));
+    this.propertiesFiles.addAll(propertiesFiles);
   }
 
   @Override

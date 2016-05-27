@@ -20,14 +20,20 @@
 package io.druid.cli;
 
 import com.google.common.base.Throwables;
+import com.google.common.collect.ImmutableMap;
 import com.google.inject.Injector;
 import com.metamx.common.lifecycle.Lifecycle;
 import com.metamx.common.logger.Logger;
+import io.druid.guice.GuiceInjectors;
+
+import java.util.Map;
 
 /**
  */
 public abstract class ServerRunnable extends GuiceRunnable
 {
+  private static final Logger LOGGER = new Logger(ServerRunnable.class);
+
   public ServerRunnable(Logger log)
   {
     super(log);
@@ -36,14 +42,43 @@ public abstract class ServerRunnable extends GuiceRunnable
   @Override
   public void run()
   {
-    final Injector injector = makeInjector();
-    final Lifecycle lifecycle = initLifecycle(injector);
-
     try {
-      lifecycle.join();
+      start().join();
     }
     catch (Exception e) {
       throw Throwables.propagate(e);
+    }
+  }
+
+  protected Lifecycle start()
+  {
+    return initLifecycle(makeInjector());
+  }
+
+  private static final Map<String, Class<? extends ServerRunnable>> COMMANDS =
+      ImmutableMap.<String, Class<? extends ServerRunnable>>builder()
+                  .put("coordinator", CliCoordinator.class)
+                  .put("historical", CliHistorical.class)
+                  .put("broker", CliBroker.class)
+                  .put("overlord", CliOverlord.class)
+                  .put("middleManager", CliMiddleManager.class)
+                  .put("realtime", CliRealtime.class).build();
+
+  public static void main(String[] args) throws Exception
+  {
+    Lifecycle[] runners = new Lifecycle[args.length];
+    for (int i = 0; i < args.length; i++) {
+      Class<? extends ServerRunnable> clazz = COMMANDS.get(args[i]);
+      final ServerRunnable target = clazz.newInstance();
+      final Injector injector = GuiceInjectors.makeStartupInjector(
+          args[i] + "/runtime.properties"
+      );
+      injector.injectMembers(target);
+      LOGGER.info("Starting "  + args[i]);
+      runners[i] = target.start();
+    }
+    for (Lifecycle thread : runners) {
+      thread.join();
     }
   }
 }

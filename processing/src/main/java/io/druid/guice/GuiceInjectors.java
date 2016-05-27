@@ -27,6 +27,7 @@ import com.google.inject.Injector;
 import com.google.inject.Module;
 import io.druid.jackson.JacksonModule;
 
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 
@@ -39,7 +40,7 @@ public class GuiceInjectors
     return ImmutableList.<Module>of(
         new DruidGuiceExtensions(),
         new JacksonModule(),
-        new PropertiesModule(propertiesLocations),
+        new PropertiesModule(Arrays.asList(propertiesLocations)),
         new ConfigModule(),
         new Module()
         {

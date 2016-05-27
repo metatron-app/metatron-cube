@@ -19,7 +19,6 @@
 
 package io.druid.cli;
 
-import com.google.common.base.Optional;
 import com.google.common.collect.ImmutableList;
 import com.google.inject.Binder;
 import com.google.inject.Inject;
@@ -27,11 +26,11 @@ import com.google.inject.Module;
 import com.google.inject.name.Names;
 import com.metamx.common.logger.Logger;
 import io.airlift.airline.Command;
-import io.druid.guice.PropertiesModule;
 import io.druid.guice.RealtimeModule;
 import io.druid.query.lookup.LookupModule;
 import io.druid.server.initialization.jetty.ChatHandlerServerModule;
 
+import java.util.Arrays;
 import java.util.List;
 import java.util.Properties;
 
@@ -73,8 +72,8 @@ public class CliRealtime extends ServerRunnable
   }
 
   @Override
-  protected Optional<PropertiesModule> getPropertiesModules()
+  protected List<String> getPropertiesLocations()
   {
-    return Optional.of(new PropertiesModule("realtime/runtime.properties"));
+    return Arrays.asList("realtime/runtime.properties");
   }
 }

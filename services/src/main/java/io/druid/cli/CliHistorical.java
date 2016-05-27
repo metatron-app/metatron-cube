@@ -19,7 +19,6 @@
 
 package io.druid.cli;
 
-import com.google.common.base.Optional;
 import com.google.common.collect.ImmutableList;
 import com.google.inject.Binder;
 import com.google.inject.Module;
@@ -35,7 +34,6 @@ import io.druid.guice.LazySingleton;
 import io.druid.guice.LifecycleModule;
 import io.druid.guice.ManageLifecycle;
 import io.druid.guice.NodeTypeConfig;
-import io.druid.guice.PropertiesModule;
 import io.druid.query.QuerySegmentWalker;
 import io.druid.query.lookup.LookupModule;
 import io.druid.server.QueryResource;
@@ -46,6 +44,7 @@ import io.druid.server.initialization.jetty.JettyServerInitializer;
 import io.druid.server.metrics.MetricsModule;
 import org.eclipse.jetty.server.Server;
 
+import java.util.Arrays;
 import java.util.List;
 
 /**
@@ -98,8 +97,8 @@ public class CliHistorical extends ServerRunnable
   }
 
   @Override
-  protected Optional<PropertiesModule> getPropertiesModules()
+  protected List<String> getPropertiesLocations()
   {
-    return Optional.of(new PropertiesModule("historical/runtime.properties"));
+    return Arrays.asList("historical/runtime.properties");
   }
 }

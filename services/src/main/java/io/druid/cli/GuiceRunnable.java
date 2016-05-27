@@ -32,6 +32,7 @@ import io.druid.initialization.Initialization;
 import io.druid.initialization.LogLevelAdjuster;
 import io.druid.server.log.StartupLoggingConfig;
 
+import java.util.Arrays;
 import java.util.List;
 import java.util.Properties;
 
@@ -56,20 +57,25 @@ public abstract class GuiceRunnable implements Runnable
 
   protected abstract List<? extends Module> getModules();
 
-  protected Optional<PropertiesModule> getPropertiesModules() {
-    return Optional.absent();
+  protected List<String> getPropertiesLocations()
+  {
+    return Arrays.asList("runtime.properties");
   }
 
   public Injector makeInjector()
   {
     try {
-      return Initialization.makeInjectorWithModules(
-          baseInjector, getPropertiesModules(), getModules()
-      );
+      return Initialization.makeInjectorWithModules(baseInjector, getPropertiesModule(), getModules());
     }
     catch (Exception e) {
       throw Throwables.propagate(e);
     }
+  }
+
+  private Optional<PropertiesModule> getPropertiesModule()
+  {
+    List<String> properties = getPropertiesLocations();
+    return properties.isEmpty() ? Optional.<PropertiesModule>absent() : Optional.of(new PropertiesModule(properties));
   }
 
   public Lifecycle initLifecycle(Injector injector)

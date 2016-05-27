@@ -19,7 +19,6 @@
 
 package io.druid.cli;
 
-import com.google.common.base.Optional;
 import com.google.common.collect.ImmutableList;
 import com.google.inject.Binder;
 import com.google.inject.Module;
@@ -35,7 +34,6 @@ import io.druid.guice.JsonConfigProvider;
 import io.druid.guice.LazySingleton;
 import io.druid.guice.LifecycleModule;
 import io.druid.guice.ManageLifecycle;
-import io.druid.guice.PropertiesModule;
 import io.druid.guice.annotations.Self;
 import io.druid.guice.http.JettyHttpClientModule;
 import io.druid.query.lookup.LookupModule;
@@ -49,6 +47,7 @@ import io.druid.server.router.TieredBrokerSelectorStrategiesProvider;
 import io.druid.server.router.TieredBrokerSelectorStrategy;
 import org.eclipse.jetty.server.Server;
 
+import java.util.Arrays;
 import java.util.List;
 
 /**
@@ -114,8 +113,8 @@ public class CliRouter extends ServerRunnable
   }
 
   @Override
-  protected Optional<PropertiesModule> getPropertiesModules()
+  protected List<String> getPropertiesLocations()
   {
-    return Optional.of(new PropertiesModule("router/runtime.properties"));
+    return Arrays.asList("router/runtime.properties");
   }
 }

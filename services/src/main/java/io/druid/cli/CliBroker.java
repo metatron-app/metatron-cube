@@ -19,7 +19,6 @@
 
 package io.druid.cli;
 
-import com.google.common.base.Optional;
 import com.google.common.collect.ImmutableList;
 import com.google.inject.Binder;
 import com.google.inject.Module;
@@ -40,7 +39,6 @@ import io.druid.guice.Jerseys;
 import io.druid.guice.JsonConfigProvider;
 import io.druid.guice.LazySingleton;
 import io.druid.guice.LifecycleModule;
-import io.druid.guice.PropertiesModule;
 import io.druid.query.MapQueryToolChestWarehouse;
 import io.druid.query.QuerySegmentWalker;
 import io.druid.query.QueryToolChestWarehouse;
@@ -122,8 +120,8 @@ public class CliBroker extends ServerRunnable
   }
 
   @Override
-  protected Optional<PropertiesModule> getPropertiesModules()
+  protected List<String> getPropertiesLocations()
   {
-    return Optional.of(new PropertiesModule("broker/runtime.properties"));
+    return Arrays.asList("broker/runtime.properties");
   }
 }

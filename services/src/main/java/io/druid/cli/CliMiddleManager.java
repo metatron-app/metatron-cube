@@ -19,7 +19,6 @@
 
 package io.druid.cli;
 
-import com.google.common.base.Optional;
 import com.google.common.collect.ImmutableList;
 import com.google.inject.Binder;
 import com.google.inject.Module;
@@ -36,7 +35,6 @@ import io.druid.guice.JsonConfigProvider;
 import io.druid.guice.LazySingleton;
 import io.druid.guice.LifecycleModule;
 import io.druid.guice.ManageLifecycle;
-import io.druid.guice.PropertiesModule;
 import io.druid.guice.annotations.Self;
 import io.druid.indexing.common.config.TaskConfig;
 import io.druid.indexing.overlord.ForkingTaskRunner;
@@ -51,6 +49,7 @@ import io.druid.server.DruidNode;
 import io.druid.server.initialization.jetty.JettyServerInitializer;
 import org.eclipse.jetty.server.Server;
 
+import java.util.Arrays;
 import java.util.List;
 
 /**
@@ -118,8 +117,8 @@ public class CliMiddleManager extends ServerRunnable
   }
 
   @Override
-  protected Optional<PropertiesModule> getPropertiesModules()
+  protected List<String> getPropertiesLocations()
   {
-    return Optional.of(new PropertiesModule("middleManager/runtime.properties"));
+    return Arrays.asList("middleManager/runtime.properties");
   }
 }

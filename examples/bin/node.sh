@@ -10,6 +10,8 @@ if [ $# -le 1 ]; then
   exit 1
 fi
 
+mkdir -p var/druid/pids
+
 nodeType=$1
 shift
 
@@ -27,7 +29,7 @@ case $startStop in
       fi
     fi
 
-    nohup java `cat conf/druid/$nodeType/jvm.config | xargs` -cp conf/druid/_common:conf/druid/$nodeType:lib/* io.druid.cli.Main server $nodeType > log/$nodeType.log &
+    nohup java `cat conf/druid/$nodeType/jvm.config | xargs` -cp conf/druid:lib/* io.druid.cli.Main server $nodeType > log/$nodeType.log &
     nodeType_PID=$!
     echo $nodeType_PID > $pid
     echo "Started $nodeType node ($nodeType_PID)"
