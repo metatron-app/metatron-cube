@@ -70,8 +70,8 @@ public abstract class HadoopDruidIndexerMapper<KEYOUT, VALUEOUT> extends Mapper<
 
           Object nameObject = mapRow.get(nameField);
           Object valueObject = mapRow.get(valueField);
-          Preconditions.checkArgument((nameObject instanceof String[]) && (valueObject instanceof String[]),
-              "param and value columns specified in hynix.columns should contain string array data");
+          Preconditions.checkArgument((nameObject instanceof Object[]) && (valueObject instanceof Object[]),
+              "param and value columns specified in hynix.columns should contain array data");
           List<Pair<String, String>> validPairs = Lists.newArrayList();
 
           final String[] names = (String[])nameObject;
