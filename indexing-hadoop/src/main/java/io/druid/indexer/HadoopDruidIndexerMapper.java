@@ -74,14 +74,16 @@ public abstract class HadoopDruidIndexerMapper<KEYOUT, VALUEOUT> extends Mapper<
               "param and value columns specified in hynix.columns should contain array data");
           List<Pair<String, String>> validPairs = Lists.newArrayList();
 
-          final String[] names = (String[])nameObject;
-          final String[] values = (String[])valueObject;
+          final Object[] names = (Object[])nameObject;
+          final Object[] values = (Object[])valueObject;
           Preconditions.checkArgument(names.length == values.length,
               "number of elements in param and value array should be the same");
           for (int idx = 0; idx < names.length; idx++)
           {
-            if (isNumeric(values[idx])) {
-              validPairs.add(Pair.of(names[idx], values[idx]));
+            String name = (String)names[idx];
+            String value = (String)values[idx];
+            if (isNumeric(value)) {
+              validPairs.add(Pair.of(name, value));
             }
           }
 
