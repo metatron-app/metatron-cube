@@ -21,7 +21,8 @@ package io.druid.cli;
 
 import com.google.inject.Inject;
 import com.google.inject.Injector;
-import com.google.inject.servlet.GuiceFilter;
+import com.google.inject.servlet.DelegatedGuiceFilter;
+import io.druid.server.GuiceServletConfig;
 import io.druid.server.coordinator.DruidCoordinatorConfig;
 import io.druid.server.http.OverlordProxyServlet;
 import io.druid.server.http.RedirectFilter;
@@ -54,6 +55,7 @@ class CoordinatorJettyServerInitializer implements JettyServerInitializer
   {
     final ServletContextHandler root = new ServletContextHandler(ServletContextHandler.SESSIONS);
     root.setInitParameter("org.eclipse.jetty.servlet.Default.dirAllowed", "false");
+    root.addEventListener(new GuiceServletConfig(injector));
 
     ServletHolder holderPwd = new ServletHolder("default", DefaultServlet.class);
 
@@ -72,17 +74,17 @@ class CoordinatorJettyServerInitializer implements JettyServerInitializer
     root.addFilter(JettyServerInitUtils.defaultGzipFilterHolder(), "/*", null);
 
     // /status should not redirect, so add first
-    root.addFilter(GuiceFilter.class, "/status/*", null);
+    root.addFilter(DelegatedGuiceFilter.class, "/status/*", null);
 
     // redirect anything other than status to the current lead
     root.addFilter(new FilterHolder(injector.getInstance(RedirectFilter.class)), "/*", null);
 
     // The coordinator really needs a standarized api path
     // Can't use '/*' here because of Guice and Jetty static content conflicts
-    root.addFilter(GuiceFilter.class, "/info/*", null);
-    root.addFilter(GuiceFilter.class, "/druid/coordinator/*", null);
+    root.addFilter(DelegatedGuiceFilter.class, "/info/*", null);
+    root.addFilter(DelegatedGuiceFilter.class, "/druid/coordinator/*", null);
     // this will be removed in the next major release
-    root.addFilter(GuiceFilter.class, "/coordinator/*", null);
+    root.addFilter(DelegatedGuiceFilter.class, "/coordinator/*", null);
 
     root.addServlet(new ServletHolder(injector.getInstance(OverlordProxyServlet.class)), "/druid/indexer/*");
 

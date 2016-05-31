@@ -23,12 +23,13 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.inject.Inject;
 import com.google.inject.Injector;
 import com.google.inject.Provider;
-import com.google.inject.servlet.GuiceFilter;
+import com.google.inject.servlet.DelegatedGuiceFilter;
 import com.metamx.emitter.service.ServiceEmitter;
 import io.druid.guice.annotations.Json;
 import io.druid.guice.annotations.Smile;
 import io.druid.guice.http.DruidHttpClientConfig;
 import io.druid.server.AsyncQueryForwardingServlet;
+import io.druid.server.GuiceServletConfig;
 import io.druid.server.initialization.jetty.JettyServerInitUtils;
 import io.druid.server.initialization.jetty.JettyServerInitializer;
 import io.druid.server.log.RequestLogger;
@@ -78,7 +79,7 @@ public class RouterJettyServerInitializer implements JettyServerInitializer
   public void initialize(Server server, Injector injector)
   {
     final ServletContextHandler root = new ServletContextHandler(ServletContextHandler.SESSIONS);
-
+    root.addEventListener(new GuiceServletConfig(injector));
     root.addServlet(new ServletHolder(new DefaultServlet()), "/*");
 
     final AsyncQueryForwardingServlet asyncQueryForwardingServlet = new AsyncQueryForwardingServlet(
@@ -99,7 +100,7 @@ public class RouterJettyServerInitializer implements JettyServerInitializer
     JettyServerInitUtils.addExtensionFilters(root, injector);
     root.addFilter(JettyServerInitUtils.defaultAsyncGzipFilterHolder(), "/*", null);
     // Can't use '/*' here because of Guice conflicts with AsyncQueryForwardingServlet path
-    root.addFilter(GuiceFilter.class, "/status/*", null);
+    root.addFilter(DelegatedGuiceFilter.class, "/status/*", null);
 
     final HandlerList handlerList = new HandlerList();
     handlerList.setHandlers(new Handler[]{JettyServerInitUtils.getJettyRequestLogHandler(), root});

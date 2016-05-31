@@ -27,7 +27,7 @@ import com.google.inject.Module;
 import com.google.inject.TypeLiteral;
 import com.google.inject.multibindings.MapBinder;
 import com.google.inject.name.Names;
-import com.google.inject.servlet.GuiceFilter;
+import com.google.inject.servlet.DelegatedGuiceFilter;
 import com.google.inject.util.Providers;
 import com.metamx.common.logger.Logger;
 import io.airlift.airline.Command;
@@ -73,6 +73,7 @@ import io.druid.indexing.overlord.setup.WorkerBehaviorConfig;
 import io.druid.indexing.overlord.supervisor.SupervisorResource;
 import io.druid.indexing.worker.config.WorkerConfig;
 import io.druid.segment.realtime.firehose.ChatHandlerProvider;
+import io.druid.server.GuiceServletConfig;
 import io.druid.server.audit.AuditManagerProvider;
 import io.druid.server.http.RedirectFilter;
 import io.druid.server.http.RedirectInfo;
@@ -256,6 +257,7 @@ public class CliOverlord extends ServerRunnable
       root.setInitParameter("org.eclipse.jetty.servlet.Default.dirAllowed", "false");
       root.setInitParameter("org.eclipse.jetty.servlet.Default.redirectWelcome", "true");
       root.setWelcomeFiles(new String[]{"index.html", "console.html"});
+      root.addEventListener(new GuiceServletConfig(injector));
 
       ServletHolder holderPwd = new ServletHolder("default", DefaultServlet.class);
 
@@ -272,13 +274,13 @@ public class CliOverlord extends ServerRunnable
       root.addFilter(JettyServerInitUtils.defaultGzipFilterHolder(), "/*", null);
 
       // /status should not redirect, so add first
-      root.addFilter(GuiceFilter.class, "/status/*", null);
+      root.addFilter(DelegatedGuiceFilter.class, "/status/*", null);
 
       // redirect anything other than status to the current lead
       root.addFilter(new FilterHolder(injector.getInstance(RedirectFilter.class)), "/*", null);
 
       // Can't use /* here because of Guice and Jetty static content conflicts
-      root.addFilter(GuiceFilter.class, "/druid/*", null);
+      root.addFilter(DelegatedGuiceFilter.class, "/druid/*", null);
 
       HandlerList handlerList = new HandlerList();
       handlerList.setHandlers(new Handler[]{JettyServerInitUtils.getJettyRequestLogHandler(), root});
