@@ -29,6 +29,7 @@ import io.druid.segment.serde.ComplexMetricExtractor;
 import io.druid.segment.serde.ComplexMetricSerde;
 
 import java.nio.ByteBuffer;
+import java.util.List;
 
 /**
  */
@@ -65,7 +66,21 @@ public class VarianceSerde extends ComplexMetricSerde
       @Override
       public VarianceAggregatorCollector extractValue(InputRow inputRow, String metricName)
       {
-        return (VarianceAggregatorCollector) inputRow.getRaw(metricName);
+        Object rawValue = inputRow.getRaw(metricName);
+
+        if (rawValue instanceof VarianceAggregatorCollector) {
+          return (VarianceAggregatorCollector) rawValue;
+        }
+        VarianceAggregatorCollector collector = new VarianceAggregatorCollector();
+
+        List<String> dimValues = inputRow.getDimension(metricName);
+        if (dimValues != null && dimValues.size() > 0) {
+          for (String dimValue : dimValues) {
+            float value = Float.parseFloat(dimValue);
+            collector.add(value);
+          }
+        }
+        return collector;
       }
     };
   }
