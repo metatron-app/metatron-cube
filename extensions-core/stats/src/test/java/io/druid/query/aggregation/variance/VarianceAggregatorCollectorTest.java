@@ -20,9 +20,13 @@
 package io.druid.query.aggregation.variance;
 
 import com.google.common.collect.Lists;
+import com.metamx.common.Pair;
+import io.druid.segment.FloatColumnSelector;
+import io.druid.segment.ObjectColumnSelector;
 import org.junit.Assert;
 import org.junit.Test;
 
+import java.nio.ByteBuffer;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Random;
@@ -102,20 +106,66 @@ public class VarianceAggregatorCollectorTest
       Assert.assertEquals(holder.getVariance(false), variance_sample, 0.001);
 
       for (int mergeOn : new int[] {2, 3, 5, 9}) {
-        List<VarianceAggregatorCollector> holders = Lists.newArrayListWithCapacity(mergeOn);
+        List<VarianceAggregatorCollector> holders1 = Lists.newArrayListWithCapacity(mergeOn);
+        List<Pair<VarianceBufferAggregator, ByteBuffer>> holders2 = Lists.newArrayListWithCapacity(mergeOn);
+
+        FloatHandOver valueHandOver = new FloatHandOver();
         for (int i = 0; i < mergeOn; i++) {
-          holders.add(new VarianceAggregatorCollector());
+          holders1.add(new VarianceAggregatorCollector());
+          holders2.add(Pair.<VarianceBufferAggregator, ByteBuffer>of(
+                           new VarianceBufferAggregator.FloatVarianceAggregator("XX", valueHandOver),
+                           ByteBuffer.allocate(VarianceAggregatorCollector.getMaxIntermediateSize())
+                       ));
         }
         for (float f : values) {
-          holders.get(random.nextInt(mergeOn)).add(f);
+          valueHandOver.v = f;
+          int index = random.nextInt(mergeOn);
+          holders1.get(index).add(f);
+          holders2.get(index).lhs.aggregate(holders2.get(index).rhs, 0);
         }
-        VarianceAggregatorCollector holder1 = holders.get(0);
+        VarianceAggregatorCollector holder1 = holders1.get(0);
         for (int i = 1; i < mergeOn; i++) {
-          holder1 = (VarianceAggregatorCollector) VarianceAggregatorCollector.combineValues(holder1, holders.get(i));
+          holder1 = (VarianceAggregatorCollector) VarianceAggregatorCollector.combineValues(holder1, holders1.get(i));
         }
-        Assert.assertEquals(holder1.getVariance(true), variance_pop, 0.01);
-        Assert.assertEquals(holder1.getVariance(false), variance_sample, 0.01);
+        ObjectHandOver collectHandOver = new ObjectHandOver();
+        ByteBuffer buffer = ByteBuffer.allocate(VarianceAggregatorCollector.getMaxIntermediateSize());
+        VarianceBufferAggregator.ObjectVarianceAggregator merger = new VarianceBufferAggregator.ObjectVarianceAggregator("xxx", collectHandOver);
+        for (int i = 0; i < mergeOn; i++) {
+          collectHandOver.v = holders2.get(i).lhs.get(holders2.get(i).rhs, 0);
+          merger.aggregate(buffer, 0);
+        }
+        VarianceAggregatorCollector holder2 = (VarianceAggregatorCollector) merger.get(buffer, 0);
+        Assert.assertEquals(holder2.getVariance(true), variance_pop, 0.01);
+        Assert.assertEquals(holder2.getVariance(false), variance_sample, 0.01);
       }
+    }
+  }
+
+  private static class FloatHandOver implements FloatColumnSelector
+  {
+    float v;
+
+    @Override
+    public float get()
+    {
+      return v;
+    }
+  }
+
+  private static class ObjectHandOver implements ObjectColumnSelector
+  {
+    Object v;
+
+    @Override
+    public Class classOfObject()
+    {
+      return v == null ? Object.class : v.getClass();
+    }
+
+    @Override
+    public Object get()
+    {
+      return v;
     }
   }
 }
