@@ -36,11 +36,12 @@ import io.druid.query.TableDataSource;
 import io.druid.query.dimension.DefaultDimensionSpec;
 import io.druid.query.dimension.DimensionSpec;
 import io.druid.query.dimension.ExtractionDimensionSpec;
-import io.druid.query.lookup.LookupExtractionFn;
+import io.druid.query.extraction.ExpressionExtractionFn;
 import io.druid.query.extraction.MapLookupExtractor;
 import io.druid.query.filter.AndDimFilter;
 import io.druid.query.filter.DimFilter;
 import io.druid.query.filter.SelectorDimFilter;
+import io.druid.query.lookup.LookupExtractionFn;
 import io.druid.query.spec.LegacySegmentSpec;
 import io.druid.query.spec.QuerySegmentSpec;
 import org.joda.time.DateTime;
@@ -363,6 +364,104 @@ public class SelectQueryRunnerTest
   }
 
   @Test
+  public void testSelectWithExpressionExtraction()
+  {
+    SelectQuery query = newTestQuery()
+        .dimensionSpecs(
+            Arrays.asList(
+                DefaultDimensionSpec.of(QueryRunnerTestHelper.marketDimension),
+                new ExtractionDimensionSpec(
+                    QueryRunnerTestHelper.qualityDimension, "expr",
+                    new ExpressionExtractionFn("concat(quality, '+', quality)")
+                )
+            )
+        )
+        .build();
+
+    HashMap<String, Object> context = new HashMap<String, Object>();
+    Iterable<Result<SelectResultValue>> results = Sequences.toList(
+        runner.run(query, context),
+        Lists.<Result<SelectResultValue>>newArrayList()
+    );
+
+    List<Result<SelectResultValue>> expectedResultsAsc = Arrays.asList(
+        new Result<SelectResultValue>(
+            new DateTime("2011-01-12T00:00:00.000Z"),
+            new SelectResultValue(
+                ImmutableMap.of(QueryRunnerTestHelper.segmentId, 2),
+                Arrays.asList(
+                    new EventHolder(
+                        QueryRunnerTestHelper.segmentId,
+                        0,
+                        new ImmutableMap.Builder<String, Object>()
+                            .put(EventHolder.timestampKey, new DateTime("2011-01-12T00:00:00.000Z"))
+                            .put("market", "spot")
+                            .put("expr", "automotive+automotive")
+                            .build()
+                    ),
+                    new EventHolder(
+                        QueryRunnerTestHelper.segmentId,
+                        1,
+                        new ImmutableMap.Builder<String, Object>()
+                            .put(EventHolder.timestampKey, new DateTime("2011-01-12T00:00:00.000Z"))
+                            .put("market", "spot")
+                            .put("expr", "business+business")
+                            .build()
+                    ),
+                    new EventHolder(
+                        QueryRunnerTestHelper.segmentId,
+                        2,
+                        new ImmutableMap.Builder<String, Object>()
+                            .put(EventHolder.timestampKey, new DateTime("2011-01-12T00:00:00.000Z"))
+                            .put("market", "spot")
+                            .put("expr", "entertainment+entertainment")
+                            .build()
+                    )
+                )
+            )
+        )
+    );
+    List<Result<SelectResultValue>> expectedResultsDsc = Arrays.asList(
+        new Result<SelectResultValue>(
+            new DateTime("2011-01-12T00:00:00.000Z"),
+            new SelectResultValue(
+                ImmutableMap.of(QueryRunnerTestHelper.segmentId, -3),
+                Arrays.asList(
+                    new EventHolder(
+                        QueryRunnerTestHelper.segmentId,
+                        -1,
+                        new ImmutableMap.Builder<String, Object>()
+                            .put(EventHolder.timestampKey, new DateTime("2011-04-15T00:00:00.000Z"))
+                            .put("market", "upfront")
+                            .put("expr", "premium+premium")
+                            .build()
+                    ),
+                    new EventHolder(
+                        QueryRunnerTestHelper.segmentId,
+                        -2,
+                        new ImmutableMap.Builder<String, Object>()
+                            .put(EventHolder.timestampKey, new DateTime("2011-04-15T00:00:00.000Z"))
+                            .put("market", "upfront")
+                            .put("expr", "mezzanine+mezzanine")
+                            .build()
+                    ),
+                    new EventHolder(
+                        QueryRunnerTestHelper.segmentId,
+                        -3,
+                        new ImmutableMap.Builder<String, Object>()
+                            .put(EventHolder.timestampKey, new DateTime("2011-04-15T00:00:00.000Z"))
+                            .put("market", "total_market")
+                            .put("expr", "premium+premium")
+                            .build()
+                    )
+                )
+            )
+        )
+    );
+    verify(descending ? expectedResultsDsc : expectedResultsAsc, results);
+  }
+
+  @Test
   public void testSelectPagination()
   {
     SelectQuery query = newTestQuery()
@@ -587,14 +686,18 @@ public class SelectQueryRunnerTest
 
   private List<List<Map<String, Object>>> toFullEvents(final String[]... valueSet)
   {
-    return toEvents(new String[]{EventHolder.timestampKey + ":TIME",
-                                 QueryRunnerTestHelper.marketDimension + ":STRING",
-                                 QueryRunnerTestHelper.qualityDimension + ":STRING",
-                                 QueryRunnerTestHelper.placementDimension + ":STRING",
-                                 QueryRunnerTestHelper.placementishDimension + ":STRINGS",
-                                 QueryRunnerTestHelper.indexMetric + ":FLOAT",
-                                 QueryRunnerTestHelper.partialNullDimension + ":STRING"},
-                    valueSet);
+    return toEvents(
+        new String[]{
+            EventHolder.timestampKey + ":TIME",
+            QueryRunnerTestHelper.marketDimension + ":STRING",
+            QueryRunnerTestHelper.qualityDimension + ":STRING",
+            QueryRunnerTestHelper.placementDimension + ":STRING",
+            QueryRunnerTestHelper.placementishDimension + ":STRINGS",
+            QueryRunnerTestHelper.indexMetric + ":FLOAT",
+            QueryRunnerTestHelper.partialNullDimension + ":STRING"
+        },
+        valueSet
+    );
   }
 
   private List<List<Map<String, Object>>> toEvents(final String[] dimSpecs, final String[]... valueSet)

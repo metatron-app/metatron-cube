@@ -33,6 +33,7 @@ import io.druid.query.lookup.RegisteredLookupExtractionFn;
     @JsonSubTypes.Type(name = "partial", value = MatchingDimExtractionFn.class),
     @JsonSubTypes.Type(name = "searchQuery", value = SearchQuerySpecDimExtractionFn.class),
     @JsonSubTypes.Type(name = "javascript", value = JavaScriptExtractionFn.class),
+    @JsonSubTypes.Type(name = "expression", value = ExpressionExtractionFn.class),
     @JsonSubTypes.Type(name = "timeFormat", value = TimeFormatExtractionFn.class),
     @JsonSubTypes.Type(name = "identity", value = IdentityExtractionFn.class),
     @JsonSubTypes.Type(name = "lookup", value = LookupExtractionFn.class),

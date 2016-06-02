@@ -943,4 +943,22 @@ interface Function
       return splits;
     }
   }
+
+  class ConcatFunc implements Function
+  {
+    @Override
+    public String name()
+    {
+      return "concat";
+    }
+
+    @Override
+    public ExprEval apply(List<Expr> args, NumericBinding bindings) {
+      StringBuilder b = new StringBuilder();
+      for (Expr expr : args) {
+        b.append(expr.eval(bindings).asString());
+      }
+      return ExprEval.of(b.toString());
+    }
+  }
 }

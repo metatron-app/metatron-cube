@@ -23,6 +23,7 @@ package io.druid.math.expr;
 import com.google.common.base.Supplier;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
+import com.google.common.collect.Sets;
 import com.metamx.common.logger.Logger;
 import com.google.common.collect.Lists;
 import io.druid.math.expr.antlr.ExprLexer;
@@ -35,6 +36,7 @@ import org.antlr.v4.runtime.tree.ParseTreeWalker;
 import java.lang.reflect.Modifier;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 public class Parser
 {
@@ -77,10 +79,10 @@ public class Parser
 
   public static List<String> findRequiredBindings(Expr parsed)
   {
-    return findRecursive(parsed, Lists.<String>newArrayList());
+    return Lists.newArrayList(findRecursive(parsed, Sets.<String>newLinkedHashSet()));
   }
 
-  private static List<String> findRecursive(Expr expr, List<String> found)
+  private static Set<String> findRecursive(Expr expr, Set<String> found)
   {
     if (expr instanceof IdentifierExpr) {
       found.add(expr.toString());
