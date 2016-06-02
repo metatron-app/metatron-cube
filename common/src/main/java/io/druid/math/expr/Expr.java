@@ -145,7 +145,7 @@ class FunctionExpr implements Expr
   @Override
   public ExprEval eval(NumericBinding bindings)
   {
-    return Parser.func.get(name.toLowerCase()).apply(args, bindings);
+    return Parser.func.get(name.toLowerCase()).get().apply(args, bindings);
   }
 }
 

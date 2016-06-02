@@ -19,11 +19,13 @@
 
 package io.druid.math.expr;
 
+import com.google.common.collect.Sets;
 import org.junit.Assert;
 import org.junit.Test;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Set;
 
 /**
  */
@@ -169,6 +171,36 @@ public class EvalTest
     Assert.assertEquals(0L, evalLong("case (x + 10, 0, 2, 1, 3)", bindings));
     // not-exists (explicit)
     Assert.assertEquals(100L, evalLong("case (x + 10, 0, 2, 1, 3, 100)", bindings));
+  }
+
+  @Test
+  public void testIn()
+  {
+    Set<String> strings = Sets.newHashSet("a", "c", "f");
+    Map<String, Object> mapping = new HashMap<>();
+    for (int i = 0; i < 5; i++) {
+      String value = String.valueOf((char) ('a' + i));
+      mapping.put("x", value);
+      Expr.NumericBinding bindings = Parser.withMap(mapping);
+      boolean eval = Parser.parse("in(x, 'a', 'c', 'f')").eval(bindings).asBoolean();
+      Assert.assertEquals(strings.contains(value), eval);
+    }
+    Set<Long> longs = Sets.newHashSet(1L, 3L, 5L);
+    for (int i = 0; i < 5; i++) {
+      long value = i;
+      mapping.put("x", value);
+      Expr.NumericBinding bindings = Parser.withMap(mapping);
+      boolean eval = Parser.parse("in(x, 1, 3, 5)").eval(bindings).asBoolean();
+      Assert.assertEquals(longs.contains(value), eval);
+    }
+    Set<Double> doubles = Sets.newHashSet(1D, 3D, 5D);
+    for (int i = 0; i < 5; i++) {
+      double value = i;
+      mapping.put("x", value);
+      Expr.NumericBinding bindings = Parser.withMap(mapping);
+      boolean eval = Parser.parse("in(x, 1.0, 3.0, 5.0)").eval(bindings).asBoolean();
+      Assert.assertEquals(doubles.contains(value), eval);
+    }
   }
 
   @Test

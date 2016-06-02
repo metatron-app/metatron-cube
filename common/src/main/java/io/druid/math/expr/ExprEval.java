@@ -58,6 +58,11 @@ public class ExprEval extends Pair<Object, ExprType>
     return of(stringValue, ExprType.STRING);
   }
 
+  public static ExprEval of(boolean bool)
+  {
+    return of(bool ? 1L : 0L);
+  }
+
   public ExprEval(Object lhs, ExprType rhs)
   {
     super(lhs, rhs);
@@ -142,4 +147,5 @@ public class ExprEval extends Pair<Object, ExprType>
     }
     return ExprEval.of(null);
   }
+
 }

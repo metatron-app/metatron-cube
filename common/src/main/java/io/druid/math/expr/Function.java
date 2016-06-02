@@ -20,6 +20,8 @@
 package io.druid.math.expr;
 
 import com.fasterxml.jackson.databind.util.ISO8601DateFormat;
+import com.google.common.base.Supplier;
+import com.google.common.collect.Sets;
 import io.druid.math.expr.Expr.NumericBinding;
 import org.apache.commons.lang.StringUtils;
 import org.joda.time.DateTime;
@@ -32,6 +34,7 @@ import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.List;
+import java.util.Set;
 
 /**
  */
@@ -40,6 +43,8 @@ interface Function
   String name();
 
   ExprEval apply(List<Expr> args, NumericBinding bindings);
+
+  interface Factory extends Supplier<Function> {}
 
   abstract class SingleParam implements Function
   {
@@ -883,7 +888,7 @@ interface Function
         if (args.size() != 2) {
           throw new RuntimeException("function 'javascript' needs 2 argument");
         }
-        makeFunction(getConstantString(args.get(0)), getConstantString(args.get(1)));
+        makeFunction(Evals.getConstantString(args.get(0)), Evals.getConstantString(args.get(1)));
       }
 
       final Object[] params = bindingExtractor.apply(bindings);
@@ -895,14 +900,6 @@ interface Function
       finally {
         Context.exit();
       }
-    }
-
-    private String getConstantString(Expr arg)
-    {
-      if (!(arg instanceof StringExpr)) {
-        throw new RuntimeException("arguments of 'javascript' should be constant string type");
-      }
-      return arg.eval(null).stringValue();
     }
 
     private void makeFunction(String required, String script)
@@ -959,6 +956,37 @@ interface Function
         b.append(expr.eval(bindings).asString());
       }
       return ExprEval.of(b.toString());
+    }
+  }
+
+  class InFunc implements Function, Factory
+  {
+    @Override
+    public String name()
+    {
+      return "in";
+    }
+
+    private transient Set set;
+
+    @Override
+    public ExprEval apply(List<Expr> args, NumericBinding bindings) {
+      if (set == null) {
+        if (args.size() < 2) {
+          throw new RuntimeException("function 'in' needs at least 2 arguments");
+        }
+        set = Sets.newHashSet();
+        for (int i = 1; i < args.size(); i++) {
+          set.add(args.get(i).eval(null).value());
+        }
+      }
+      return ExprEval.of(set.contains(args.get(0).eval(bindings).value()));
+    }
+
+    @Override
+    public Function get()
+    {
+      return new InFunc();
     }
   }
 }

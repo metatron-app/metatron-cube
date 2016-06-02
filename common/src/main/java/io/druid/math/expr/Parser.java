@@ -21,6 +21,7 @@ package io.druid.math.expr;
 
 
 import com.google.common.base.Supplier;
+import com.google.common.base.Suppliers;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
@@ -41,15 +42,18 @@ import java.util.Set;
 public class Parser
 {
   static final Logger log = new Logger(Parser.class);
-  static final Map<String, Function> func;
+  static final Map<String, Supplier<Function>> func;
 
   static {
-    Map<String, Function> functionMap = Maps.newHashMap();
+    Map<String, Supplier<Function>> functionMap = Maps.newHashMap();
     for (Class clazz : Function.class.getClasses()) {
       if (!Modifier.isAbstract(clazz.getModifiers()) && Function.class.isAssignableFrom(clazz)) {
         try {
           Function function = (Function)clazz.newInstance();
-          functionMap.put(function.name().toLowerCase(), function);
+          String name = function.name().toLowerCase();
+          Supplier<Function> supplier = function instanceof Function.Factory ? (Function.Factory) function
+                                                                             : Suppliers.ofInstance(function);
+          functionMap.put(name, supplier);
         }
         catch (Exception e) {
           log.info("failed to instantiate " + clazz.getName() + ".. ignoring", e);

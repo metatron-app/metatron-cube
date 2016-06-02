@@ -61,6 +61,14 @@ public class Evals
     return left.type() == ExprType.STRING && right.type() == ExprType.STRING;
   }
 
+  static String getConstantString(Expr arg)
+  {
+    if (!(arg instanceof StringExpr)) {
+      throw new RuntimeException("arguments of 'javascript' should be constant string type");
+    }
+    return arg.eval(null).stringValue();
+  }
+
   public static boolean asBoolean(Number x)
   {
     if (x == null) {
