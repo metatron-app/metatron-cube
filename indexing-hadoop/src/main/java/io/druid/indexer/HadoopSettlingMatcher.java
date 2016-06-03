@@ -36,8 +36,10 @@ public class HadoopSettlingMatcher
   {
     for (int idx =0; idx < patterns.length; idx++) {
       Pattern pattern = patterns[idx];
-      if (!pattern.matcher(dimValues[idx]).matches()) {
-        return false;
+      if (dimValues[idx] != null) {
+        if (!pattern.matcher(dimValues[idx]).matches()) {
+          return false;
+        }
       }
     }
 
