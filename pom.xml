@@ -109,6 +109,7 @@
         <module>extensions-contrib/statsd-emitter</module>
         <module>extensions-contrib/range</module>
         <module>extensions-contrib/area</module>
+        <module>extensions-contrib/orc-extensions</module>
 
         <!-- distribution packaging -->
         <module>distribution</module>
