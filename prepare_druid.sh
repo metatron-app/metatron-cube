@@ -37,8 +37,8 @@ echo "hive jdbc deps"
 cp -a ./bdd/deps/hive-deps/* ${target_dir}/${druid_release}/lib/
 
 echo "copy orc extension"
-mkdir -p ${target_dir}/${druid_release}/extensions/orc-extension
-cp ./extensions-contrib/orc-extensions/target/druid-orc-extensions-0.9.1-SNAPSHOT.jar ${target_dir}/${druid_release}/extensions/orc-extension/
+mkdir -p ${target_dir}/${druid_release}/extensions/druid-orc-extensions
+cp ./extensions-contrib/orc-extensions/target/druid-orc-extensions-0.9.1-SNAPSHOT.jar ${target_dir}/${druid_release}/extensions/druid-orc-extensions/
 
 cd ${target_dir}
 echo "copy mysql metadata module"

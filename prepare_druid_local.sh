@@ -8,7 +8,6 @@ mkdir -p logs
 cd $root_dir
 cp -a ./conf-quickstart distribution/target/druid-0.9.1-SNAPSHOT 
 
-mkdir distribution/target/druid-0.9.1-SNAPSHOT/extensions/orc-extension
-cp -a extensions-contrib/orc-extensions/target/druid-orc-extensions-0.9.1-SNAPSHOT.jar distribution/target/druid-0.9.1-SNAPSHOT/extensions/orc-extension/
-cp -a ../apache-hive-2.0.0-bin/lib/* distribution/target/druid-0.9.1-SNAPSHOT/extensions/orc-extension/
-
+mkdir distribution/target/druid-0.9.1-SNAPSHOT/extensions/druid-orc-extensions
+cp -a extensions-contrib/orc-extensions/target/druid-orc-extensions-0.9.1-SNAPSHOT.jar distribution/target/druid-0.9.1-SNAPSHOT/extensions/druid-orc-extensions/
+cp -a ../apache-hive-2.0.0-bin/lib/* distribution/target/druid-0.9.1-SNAPSHOT/extensions/druid-orc-extensions/
