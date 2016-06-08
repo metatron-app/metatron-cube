@@ -56,11 +56,10 @@ import io.druid.segment.filter.Filters;
 import org.joda.time.DateTime;
 import org.joda.time.Interval;
 
-import javax.annotation.Nullable;
 import java.io.Closeable;
 import java.io.IOException;
 import java.nio.ByteBuffer;
-import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -123,7 +122,7 @@ public class GroupByQueryEngine
                           @Override
                           public RowIterator make()
                           {
-                            return new RowIterator(query, cursor, bufferHolder.get(), config.get(), false);
+                            return new RowIterator(query, cursor, bufferHolder.get(), config.get());
                           }
 
                           @Override
@@ -148,13 +147,14 @@ public class GroupByQueryEngine
     );
   }
 
-  private static abstract class RowUpdater
+  private static class RowUpdater
   {
     private final ByteBuffer metricValues;
     private final BufferAggregator[] aggregators;
     private final PositionMaintainer positionMaintainer;
+    private final Map<int[], Integer> positions = Maps.newTreeMap(Ints.lexicographicalComparator());
 
-    protected final Map<ByteBuffer, Integer> positions = Maps.newTreeMap();
+    private final int[] increments;
 
     public RowUpdater(
         ByteBuffer metricValues,
@@ -165,36 +165,42 @@ public class GroupByQueryEngine
       this.metricValues = metricValues;
       this.aggregators = aggregators;
       this.positionMaintainer = positionMaintainer;
+      this.increments = positionMaintainer.getIncrements();
     }
 
-    protected int getNumRows() {
+    private int getNumRows()
+    {
       return positions.size();
     }
 
-    protected abstract Map<ByteBuffer, Integer> getPositions();
+    private Map<int[], Integer> getPositions()
+    {
+      return positions;
+    }
 
-    protected abstract void putPosition(ByteBuffer key, int position);
-
-    private List<ByteBuffer> updateValues(
-        ByteBuffer key,
-        List<DimensionSelector> dims
+    private List<int[]> updateValues(
+        final int[] key,
+        final int index,
+        final List<DimensionSelector> dims
     )
     {
-      if (dims.size() > 0) {
-        List<ByteBuffer> retVal = null;
-        List<ByteBuffer> unaggregatedBuffers = null;
+      if (index < key.length) {
+        List<int[]> retVal = null;
+        List<int[]> unaggregatedBuffers = null;
 
-        final DimensionSelector dimSelector = dims.get(0);
+        final DimensionSelector dimSelector = dims.get(index);
         final IndexedInts row = dimSelector.getRow();
         if (row == null || row.size() == 0) {
-          ByteBuffer newKey = key.duplicate();
-          newKey.putInt(-1);
-          unaggregatedBuffers = updateValues(newKey, dims.subList(1, dims.size()));
+          key[index] = -1;
+          unaggregatedBuffers = updateValues(key, index + 1, dims);
+        } else if (row.size() == 1) {
+          key[index] = row.get(0);
+          unaggregatedBuffers = updateValues(key, index + 1, dims);
         } else {
           for (Integer dimValue : row) {
-            ByteBuffer newKey = key.duplicate();
-            newKey.putInt(dimValue);
-            unaggregatedBuffers = updateValues(newKey, dims.subList(1, dims.size()));
+            int[] newKey = Arrays.copyOf(key, key.length);
+            newKey[index] = dimValue;
+            unaggregatedBuffers = updateValues(newKey, index + 1, dims);
           }
         }
         if (unaggregatedBuffers != null) {
@@ -205,23 +211,16 @@ public class GroupByQueryEngine
         }
         return retVal;
       } else {
-        key.clear();
         Integer position = positions.get(key);
-        int[] increments = positionMaintainer.getIncrements();
+
         int thePosition;
-
         if (position == null) {
-          ByteBuffer keyCopy = ByteBuffer.allocate(key.limit());
-          keyCopy.put(key.asReadOnlyBuffer());
-          keyCopy.clear();
-
           position = positionMaintainer.getNext();
           if (position == null) {
-            return Lists.newArrayList(keyCopy);
+            return Lists.newArrayList(key);
           }
 
-          putPosition(keyCopy, position);
-
+          positions.put(key, position);
           thePosition = position;
           for (int i = 0; i < aggregators.length; ++i) {
             aggregators[i].init(metricValues, thePosition);
@@ -236,55 +235,6 @@ public class GroupByQueryEngine
         }
         return null;
       }
-    }
-  }
-
-  private static class UnsortedRowUpdater extends RowUpdater
-  {
-    public UnsortedRowUpdater(
-        ByteBuffer metricValues,
-        BufferAggregator[] aggregators,
-        PositionMaintainer positionMaintainer
-    )
-    {
-      super(metricValues, aggregators, positionMaintainer);
-    }
-
-    protected final Map<ByteBuffer, Integer> getPositions()
-    {
-      return positions;
-    }
-
-    protected final void putPosition(ByteBuffer key, int position)
-    {
-      positions.put(key, position);
-    }
-  }
-
-  private static class SortedUpdater extends RowUpdater
-  {
-    private final Map<ByteBuffer, Integer> sortedPositions = Maps.newTreeMap();
-
-    public SortedUpdater(
-        ByteBuffer metricValues,
-        BufferAggregator[] aggregators,
-        PositionMaintainer positionMaintainer
-    )
-    {
-      super(metricValues, aggregators, positionMaintainer);
-    }
-
-    @Override
-    protected final Map<ByteBuffer, Integer> getPositions()
-    {
-      return sortedPositions;
-    }
-
-    @Override
-    protected final void putPosition(ByteBuffer key, int position)
-    {
-      positions.put(key, position);
-      sortedPositions.put(key, position);
     }
   }
 
@@ -342,26 +292,23 @@ public class GroupByQueryEngine
     private final Cursor cursor;
     private final ByteBuffer metricsBuffer;
     private final int maxIntermediateRows;
-    private final GroupByQueryConfig config;
-    private final boolean sort;
 
     private final List<DimensionSpec> dimensionSpecs;
     private final List<DimensionSelector> dimensions;
-    private final ArrayList<String> dimNames;
+    private final List<String> dimNames;
     private final List<AggregatorFactory> aggregatorSpecs;
     private final BufferAggregator[] aggregators;
     private final String[] metricNames;
     private final int[] sizesRequired;
 
-    private List<ByteBuffer> unprocessedKeys;
+    private List<int[]> unprocessedKeys;
     private Iterator<Row> delegate;
 
     public RowIterator(
         GroupByQuery query,
         final Cursor cursor,
         ByteBuffer metricsBuffer,
-        GroupByQueryConfig config,
-        boolean sort
+        GroupByQueryConfig config
     )
     {
       this.query = query;
@@ -373,8 +320,6 @@ public class GroupByQueryEngine
               config.getMaxIntermediateRows()
           ), config.getMaxIntermediateRows()
       );
-      this.config = config;
-      this.sort = sort;
 
       unprocessedKeys = null;
       delegate = Iterators.emptyIterator();
@@ -430,12 +375,10 @@ public class GroupByQueryEngine
       }
 
       final PositionMaintainer positionMaintainer = new PositionMaintainer(0, sizesRequired, metricsBuffer.remaining());
-      final RowUpdater rowUpdater = sort
-                                    ? new SortedUpdater(metricsBuffer, aggregators, positionMaintainer)
-                                    : new UnsortedRowUpdater(metricsBuffer, aggregators, positionMaintainer);
+      final RowUpdater rowUpdater = new RowUpdater(metricsBuffer, aggregators, positionMaintainer);
       if (unprocessedKeys != null) {
-        for (ByteBuffer key : unprocessedKeys) {
-          final List<ByteBuffer> unprocUnproc = rowUpdater.updateValues(key, ImmutableList.<DimensionSelector>of());
+        for (int[] key : unprocessedKeys) {
+          final List<int[]> unprocUnproc = rowUpdater.updateValues(key, key.length, ImmutableList.<DimensionSelector>of());
           if (unprocUnproc != null) {
             throw new ISE("Not enough memory to process the request.");
           }
@@ -443,9 +386,9 @@ public class GroupByQueryEngine
         cursor.advance();
       }
       while (!cursor.isDone() && rowUpdater.getNumRows() < maxIntermediateRows) {
-        ByteBuffer key = ByteBuffer.allocate(dimensions.size() * Ints.BYTES);
+        int[] key = new int[dimensions.size()];
 
-        unprocessedKeys = rowUpdater.updateValues(key, dimensions);
+        unprocessedKeys = rowUpdater.updateValues(key, 0, dimensions);
         if (unprocessedKeys != null) {
           break;
         }
@@ -468,20 +411,20 @@ public class GroupByQueryEngine
       delegate = FunctionalIterator
           .create(rowUpdater.getPositions().entrySet().iterator())
           .transform(
-              new Function<Map.Entry<ByteBuffer, Integer>, Row>()
+              new Function<Map.Entry<int[], Integer>, Row>()
               {
                 private final DateTime timestamp = cursor.getTime();
                 private final int[] increments = positionMaintainer.getIncrements();
 
                 @Override
-                public Row apply(@Nullable Map.Entry<ByteBuffer, Integer> input)
+                public Row apply(Map.Entry<int[], Integer> input)
                 {
                   Map<String, Object> theEvent = Maps.newLinkedHashMap();
 
-                  ByteBuffer keyBuffer = input.getKey().duplicate();
+                  int[] keyArray = input.getKey();
                   for (int i = 0; i < dimensions.size(); ++i) {
                     final DimensionSelector dimSelector = dimensions.get(i);
-                    final int dimVal = keyBuffer.getInt();
+                    final int dimVal = keyArray[i];
                     if (dimVal >= 0) {
                       theEvent.put(dimNames.get(i), dimSelector.lookupName(dimVal));
                     }
