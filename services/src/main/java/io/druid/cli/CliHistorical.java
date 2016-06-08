@@ -44,7 +44,6 @@ import io.druid.server.initialization.jetty.JettyServerInitializer;
 import io.druid.server.metrics.MetricsModule;
 import org.eclipse.jetty.server.Server;
 
-import java.util.Arrays;
 import java.util.List;
 
 /**
@@ -94,11 +93,5 @@ public class CliHistorical extends ServerRunnable
         },
         new LookupModule()
     );
-  }
-
-  @Override
-  protected List<String> getPropertiesLocations()
-  {
-    return Arrays.asList("historical/runtime.properties");
   }
 }

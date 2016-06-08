@@ -19,7 +19,6 @@
 
 package io.druid.cli;
 
-import com.google.common.base.Optional;
 import com.google.common.base.Throwables;
 import com.google.common.collect.Ordering;
 import com.google.inject.Inject;
@@ -27,12 +26,10 @@ import com.google.inject.Injector;
 import com.google.inject.Module;
 import com.metamx.common.lifecycle.Lifecycle;
 import com.metamx.common.logger.Logger;
-import io.druid.guice.PropertiesModule;
 import io.druid.initialization.Initialization;
 import io.druid.initialization.LogLevelAdjuster;
 import io.druid.server.log.StartupLoggingConfig;
 
-import java.util.Arrays;
 import java.util.List;
 import java.util.Properties;
 
@@ -57,25 +54,16 @@ public abstract class GuiceRunnable implements Runnable
 
   protected abstract List<? extends Module> getModules();
 
-  protected List<String> getPropertiesLocations()
-  {
-    return Arrays.asList("runtime.properties");
-  }
-
   public Injector makeInjector()
   {
     try {
-      return Initialization.makeInjectorWithModules(baseInjector, getPropertiesModule(), getModules());
+      return Initialization.makeInjectorWithModules(
+          baseInjector, getModules()
+      );
     }
     catch (Exception e) {
       throw Throwables.propagate(e);
     }
-  }
-
-  private Optional<PropertiesModule> getPropertiesModule()
-  {
-    List<String> properties = getPropertiesLocations();
-    return properties.isEmpty() ? Optional.<PropertiesModule>absent() : Optional.of(new PropertiesModule(properties));
   }
 
   public Lifecycle initLifecycle(Injector injector)

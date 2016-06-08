@@ -78,6 +78,7 @@ public class PropertiesModule implements Module
         log.info("Loading properties from %s (%s)", propertiesFile, ClassLoader.getSystemResource(propertiesFile));
         try {
           fileProps.load(new InputStreamReader(stream, Charsets.UTF_8));
+          props.putAll(fileProps);
         }
         catch (IOException e) {
           throw Throwables.propagate(e);

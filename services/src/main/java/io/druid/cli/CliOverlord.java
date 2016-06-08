@@ -90,7 +90,6 @@ import org.eclipse.jetty.servlet.ServletContextHandler;
 import org.eclipse.jetty.servlet.ServletHolder;
 import org.eclipse.jetty.util.resource.ResourceCollection;
 
-import java.util.Arrays;
 import java.util.List;
 
 /**
@@ -237,13 +236,6 @@ public class CliOverlord extends ServerRunnable
         new IndexingServiceFirehoseModule(),
         new IndexingServiceTaskLogsModule()
     );
-  }
-
-
-  @Override
-  protected List<String> getPropertiesLocations()
-  {
-    return Arrays.asList("overlord/runtime.properties");
   }
 
   /**

@@ -54,7 +54,6 @@ import io.druid.server.metrics.MetricsModule;
 import io.druid.server.router.TieredBrokerConfig;
 import org.eclipse.jetty.server.Server;
 
-import java.util.Arrays;
 import java.util.List;
 
 /**
@@ -117,11 +116,5 @@ public class CliBroker extends ServerRunnable
         },
         new LookupModule()
     );
-  }
-
-  @Override
-  protected List<String> getPropertiesLocations()
-  {
-    return Arrays.asList("broker/runtime.properties");
   }
 }

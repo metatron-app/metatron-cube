@@ -47,7 +47,6 @@ import io.druid.server.router.TieredBrokerSelectorStrategiesProvider;
 import io.druid.server.router.TieredBrokerSelectorStrategy;
 import org.eclipse.jetty.server.Server;
 
-import java.util.Arrays;
 import java.util.List;
 
 /**
@@ -110,11 +109,5 @@ public class CliRouter extends ServerRunnable
         },
         new LookupModule()
     );
-  }
-
-  @Override
-  protected List<String> getPropertiesLocations()
-  {
-    return Arrays.asList("router/runtime.properties");
   }
 }

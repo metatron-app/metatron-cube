@@ -30,7 +30,6 @@ import io.druid.guice.RealtimeModule;
 import io.druid.query.lookup.LookupModule;
 import io.druid.server.initialization.jetty.ChatHandlerServerModule;
 
-import java.util.Arrays;
 import java.util.List;
 import java.util.Properties;
 
@@ -69,11 +68,5 @@ public class CliRealtime extends ServerRunnable
         new ChatHandlerServerModule(properties),
         new LookupModule()
     );
-  }
-
-  @Override
-  protected List<String> getPropertiesLocations()
-  {
-    return Arrays.asList("realtime/runtime.properties");
   }
 }

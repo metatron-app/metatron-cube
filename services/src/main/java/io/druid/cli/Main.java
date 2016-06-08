@@ -85,7 +85,10 @@ public class Main
            .withDefaultCommand(Help.class)
            .withCommands(CliPeon.class, CliInternalHadoopIndexer.class);
 
-    final Injector injector = GuiceInjectors.makeStartupInjector();
+    String[] properties = args.length > 1 && args[0].equals("server") ?
+                          new String[]{args[1] + "/runtime.properties"} :
+                          new String[]{};
+    final Injector injector = GuiceInjectors.makeStartupInjector(properties);
     final ExtensionsConfig config = injector.getInstance(ExtensionsConfig.class);
     final Collection<CliCommandCreator> extensionCommands = Initialization.getFromExtensions(
         config,
