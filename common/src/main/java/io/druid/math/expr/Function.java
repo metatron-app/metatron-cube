@@ -20,6 +20,7 @@
 package io.druid.math.expr;
 
 import com.fasterxml.jackson.databind.util.ISO8601DateFormat;
+import com.google.common.base.Strings;
 import com.google.common.base.Supplier;
 import com.google.common.collect.Sets;
 import io.druid.math.expr.Expr.NumericBinding;
@@ -33,6 +34,7 @@ import java.text.DateFormat;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.Date;
+import java.util.Formatter;
 import java.util.List;
 import java.util.Set;
 
@@ -44,7 +46,9 @@ interface Function
 
   ExprEval apply(List<Expr> args, NumericBinding bindings);
 
-  interface Factory extends Supplier<Function> {}
+  interface Factory extends Supplier<Function>
+  {
+  }
 
   abstract class SingleParam implements Function
   {
@@ -950,12 +954,359 @@ interface Function
     }
 
     @Override
-    public ExprEval apply(List<Expr> args, NumericBinding bindings) {
+    public ExprEval apply(List<Expr> args, NumericBinding bindings)
+    {
       StringBuilder b = new StringBuilder();
       for (Expr expr : args) {
         b.append(expr.eval(bindings).asString());
       }
       return ExprEval.of(b.toString());
+    }
+  }
+
+  class FormatFunc implements Function, Factory
+  {
+    final StringBuilder builder = new StringBuilder();
+    final Formatter formatter = new Formatter(builder);
+
+    String format;
+    Object[] formatArgs;
+
+    @Override
+    public String name()
+    {
+      return "format";
+    }
+
+    @Override
+    public ExprEval apply(List<Expr> args, NumericBinding bindings)
+    {
+      if (format == null) {
+        if (args.isEmpty()) {
+          throw new RuntimeException("function 'format' needs at least 1 argument");
+        }
+        format = Evals.getConstantString(args.get(0));
+        formatArgs = new Object[args.size() - 1];
+      }
+      builder.setLength(0);
+      for (int i = 0; i < formatArgs.length; i++) {
+        formatArgs[i] = args.get(i + 1).eval(bindings).value();
+      }
+      formatter.format(format, formatArgs);
+      return ExprEval.of(builder.toString());
+    }
+
+    @Override
+    public Function get()
+    {
+      return new FormatFunc();
+    }
+  }
+
+  class LPadFunc implements Function, Factory
+  {
+    @Override
+    public String name()
+    {
+      return "lpad";
+    }
+
+    private transient int length = -1;
+    private transient char padding;
+
+    @Override
+    public ExprEval apply(List<Expr> args, NumericBinding bindings)
+    {
+      if (length < 0) {
+        if (args.size() < 3) {
+          throw new RuntimeException("function 'lpad' needs 3 arguments");
+        }
+        length = (int) Evals.getConstantLong(args.get(1));
+        String string = Evals.getConstantString(args.get(2));
+        if (string.length() != 1) {
+          throw new RuntimeException("3rd argument of function 'lpad' should be constant char");
+        }
+        padding = string.charAt(0);
+      }
+      String input = args.get(0).eval(bindings).asString();
+      return ExprEval.of(Strings.padStart(input, length, padding));
+    }
+
+    @Override
+    public Function get()
+    {
+      return new LPadFunc();
+    }
+  }
+
+  class RPadFunc implements Function, Factory
+  {
+    @Override
+    public String name()
+    {
+      return "rpad";
+    }
+
+    private transient int length = -1;
+    private transient char padding;
+
+    @Override
+    public ExprEval apply(List<Expr> args, NumericBinding bindings)
+    {
+      if (length < 0) {
+        if (args.size() < 3) {
+          throw new RuntimeException("function 'rpad' needs 3 arguments");
+        }
+        length = (int) Evals.getConstantLong(args.get(1));
+        String string = Evals.getConstantString(args.get(2));
+        if (string.length() != 1) {
+          throw new RuntimeException("3rd argument of function 'rpad' should be constant char");
+        }
+        padding = string.charAt(0);
+      }
+      String input = args.get(0).eval(bindings).asString();
+      return ExprEval.of(Strings.padEnd(input, length, padding));
+    }
+
+    @Override
+    public Function get()
+    {
+      return new RPadFunc();
+    }
+  }
+
+  class UpperFunc implements Function
+  {
+    @Override
+    public String name()
+    {
+      return "upper";
+    }
+
+    @Override
+    public ExprEval apply(List<Expr> args, NumericBinding bindings)
+    {
+      if (args.size() != 1) {
+        throw new RuntimeException("function 'upper' needs 1 argument");
+      }
+      String input = args.get(0).eval(bindings).asString();
+      return ExprEval.of(input == null ? null : input.toUpperCase());
+    }
+  }
+
+  class LowerFunc implements Function
+  {
+    @Override
+    public String name()
+    {
+      return "lower";
+    }
+
+    @Override
+    public ExprEval apply(List<Expr> args, NumericBinding bindings)
+    {
+      if (args.size() != 1) {
+        throw new RuntimeException("function 'lower' needs 1 argument");
+      }
+      String input = args.get(0).eval(bindings).asString();
+      return ExprEval.of(input == null ? null : input.toLowerCase());
+    }
+  }
+
+  class SplitFunc implements Function
+  {
+    @Override
+    public String name()
+    {
+      return "split";
+    }
+
+    @Override
+    public ExprEval apply(List<Expr> args, NumericBinding bindings)
+    {
+      if (args.size() != 3) {
+        throw new RuntimeException("function 'split' needs 3 arguments");
+      }
+      String input = args.get(0).eval(bindings).asString();
+      String splitter = args.get(1).eval(bindings).asString();
+      int index = (int)args.get(2).eval(bindings).longValue();
+
+      String[] split = input.split(splitter);
+      return ExprEval.of(index >= split.length ? null : split[index]);
+    }
+  }
+
+  class ProperFunc implements Function
+  {
+    @Override
+    public String name()
+    {
+      return "proper";
+    }
+
+    @Override
+    public ExprEval apply(List<Expr> args, NumericBinding bindings)
+    {
+      if (args.size() != 1) {
+        throw new RuntimeException("function 'proper' needs 1 argument");
+      }
+      String input = args.get(0).eval(bindings).asString();
+      return ExprEval.of(
+          Strings.isNullOrEmpty(input) ? input :
+          Character.toUpperCase(input.charAt(0)) + input.substring(1)
+      );
+    }
+  }
+
+  class LengthFunc implements Function
+  {
+    @Override
+    public String name()
+    {
+      return "length";
+    }
+
+    @Override
+    public ExprEval apply(List<Expr> args, NumericBinding bindings)
+    {
+      if (args.size() != 1) {
+        throw new RuntimeException("function 'length' needs 1 argument");
+      }
+      String input = args.get(0).eval(bindings).asString();
+      return ExprEval.of(Strings.isNullOrEmpty(input) ? 0 : input.length());
+    }
+  }
+
+  class LeftFunc implements Function
+  {
+    @Override
+    public String name()
+    {
+      return "left";
+    }
+
+    @Override
+    public ExprEval apply(List<Expr> args, NumericBinding bindings)
+    {
+      if (args.size() != 2) {
+        throw new RuntimeException("function 'left' needs 2 arguments");
+      }
+      String input = args.get(0).eval(bindings).asString();
+      int index = (int) args.get(1).eval(bindings).longValue();
+
+      return ExprEval.of(Strings.isNullOrEmpty(input) || input.length() < index ? input : input.substring(0, index));
+    }
+  }
+
+  class RightFunc implements Function
+  {
+    @Override
+    public String name()
+    {
+      return "right";
+    }
+
+    @Override
+    public ExprEval apply(List<Expr> args, NumericBinding bindings)
+    {
+      if (args.size() != 2) {
+        throw new RuntimeException("function 'right' needs 2 arguments");
+      }
+      String input = args.get(0).eval(bindings).asString();
+      int index = (int)args.get(1).eval(bindings).longValue();
+
+      return ExprEval.of(
+          Strings.isNullOrEmpty(input) || input.length() < index
+          ? input
+          : input.substring(input.length() - index)
+      );
+    }
+  }
+
+  class MidFunc implements Function
+  {
+    @Override
+    public String name()
+    {
+      return "mid";
+    }
+
+    @Override
+    public ExprEval apply(List<Expr> args, NumericBinding bindings)
+    {
+      if (args.size() != 3) {
+        throw new RuntimeException("function 'mid' needs 3 arguments");
+      }
+      String input = args.get(0).eval(bindings).asString();
+      int start = (int)args.get(1).eval(bindings).longValue();
+      int end = (int)args.get(2).eval(bindings).longValue();
+
+      return ExprEval.of(Strings.isNullOrEmpty(input) ? input : input.substring(start, end));
+    }
+  }
+
+  class IndexOfFunc implements Function
+  {
+    @Override
+    public String name()
+    {
+      return "indexOf";
+    }
+
+    @Override
+    public ExprEval apply(List<Expr> args, NumericBinding bindings)
+    {
+      if (args.size() != 2) {
+        throw new RuntimeException("function 'indexOf' needs 2 arguments");
+      }
+      String input = args.get(0).eval(bindings).asString();
+      String find = args.get(1).eval(bindings).asString();
+
+      return ExprEval.of(Strings.isNullOrEmpty(input) || Strings.isNullOrEmpty(find) ? -1 : input.indexOf(find));
+    }
+  }
+
+  class ReplaceFunc implements Function
+  {
+    @Override
+    public String name()
+    {
+      return "replace";
+    }
+
+    @Override
+    public ExprEval apply(List<Expr> args, NumericBinding bindings)
+    {
+      if (args.size() != 3) {
+        throw new RuntimeException("function 'indexOf' needs 2 arguments");
+      }
+      String input = args.get(0).eval(bindings).asString();
+      String find = args.get(1).eval(bindings).asString();
+      String replace = args.get(2).eval(bindings).asString();
+
+      return ExprEval.of(
+          Strings.isNullOrEmpty(input) || Strings.isNullOrEmpty(find) ? input :
+          StringUtils.replace(input, find, replace)
+      );
+    }
+  }
+
+  class TrimFunc implements Function
+  {
+    @Override
+    public String name()
+    {
+      return "trim";
+    }
+
+    @Override
+    public ExprEval apply(List<Expr> args, NumericBinding bindings)
+    {
+      if (args.size() != 1) {
+        throw new RuntimeException("function 'trim' needs 1 argument");
+      }
+      String input = args.get(0).eval(bindings).asString();
+      return ExprEval.of(Strings.isNullOrEmpty(input) ? input : input.trim());
     }
   }
 
@@ -970,7 +1321,8 @@ interface Function
     private transient Set set;
 
     @Override
-    public ExprEval apply(List<Expr> args, NumericBinding bindings) {
+    public ExprEval apply(List<Expr> args, NumericBinding bindings)
+    {
       if (set == null) {
         if (args.size() < 2) {
           throw new RuntimeException("function 'in' needs at least 2 arguments");

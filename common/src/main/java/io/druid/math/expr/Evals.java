@@ -64,9 +64,17 @@ public class Evals
   static String getConstantString(Expr arg)
   {
     if (!(arg instanceof StringExpr)) {
-      throw new RuntimeException("arguments of 'javascript' should be constant string type");
+      throw new RuntimeException(arg + " is not constant string");
     }
     return arg.eval(null).stringValue();
+  }
+
+  static long getConstantLong(Expr arg)
+  {
+    if (!(arg instanceof LongExpr)) {
+      throw new RuntimeException(arg + " is not constant long");
+    }
+    return arg.eval(null).longValue();
   }
 
   public static boolean asBoolean(Number x)

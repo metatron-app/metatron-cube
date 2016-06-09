@@ -19,6 +19,7 @@
 
 package io.druid.math.expr;
 
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Sets;
 import org.junit.Assert;
 import org.junit.Test;
@@ -171,6 +172,60 @@ public class EvalTest
     Assert.assertEquals(0L, evalLong("case (x + 10, 0, 2, 1, 3)", bindings));
     // not-exists (explicit)
     Assert.assertEquals(100L, evalLong("case (x + 10, 0, 2, 1, 3, 100)", bindings));
+  }
+
+  @Test
+  public void testFormat()
+  {
+    Expr.NumericBinding bindings = Parser.withMap(ImmutableMap.of("x", 1, "y", "ss"));
+    Assert.assertEquals("001, ss", Parser.parse("format('%03d, %s', x, y)").eval(bindings).stringValue());
+  }
+
+  @Test
+  public void testLPad()
+  {
+    Expr.NumericBinding bindings = Parser.withMap(ImmutableMap.of("x", 7, "y", "2010"));
+    Assert.assertEquals("007", Parser.parse("lpad(x, 3, '0')").eval(bindings).stringValue());
+    Assert.assertEquals("2010", Parser.parse("lpad(y, 3, '0')").eval(bindings).stringValue());
+  }
+
+  @Test
+  public void testRPad()
+  {
+    Expr.NumericBinding bindings = Parser.withMap(ImmutableMap.of("x", 7, "y", "2010"));
+    Assert.assertEquals("700", Parser.parse("rpad(x, 3, '0')").eval(bindings).stringValue());
+    Assert.assertEquals("2010", Parser.parse("rpad(y, 3, '0')").eval(bindings).stringValue());
+  }
+
+  @Test
+  public void testSplit()
+  {
+    Expr.NumericBinding bindings = Parser.withMap(ImmutableMap.of("x", "a:b:c"));
+    Assert.assertEquals("c", Parser.parse("split(x, ':', 2)").eval(bindings).stringValue());
+    Assert.assertEquals(null, Parser.parse("split(x, ':', 4)").eval(bindings).stringValue());
+  }
+
+  @Test
+  public void testRight()
+  {
+    Expr.NumericBinding bindings = Parser.withMap(ImmutableMap.of("x", "abcde", "y", "abc"));
+    Assert.assertEquals("bcde", Parser.parse("right(x, 4)").eval(bindings).stringValue());
+    Assert.assertEquals("abc", Parser.parse("right(y, 4)").eval(bindings).stringValue());
+  }
+
+  @Test
+  public void testMid()
+  {
+    Expr.NumericBinding bindings = Parser.withMap(ImmutableMap.of("x", "abcde", "y", "abc"));
+    Assert.assertEquals("cd", Parser.parse("mid(x, 2, 4)").eval(bindings).stringValue());
+    Assert.assertEquals("d", Parser.parse("mid(x, 3, 4)").eval(bindings).stringValue());
+  }
+
+  @Test
+  public void testReplace()
+  {
+    Expr.NumericBinding bindings = Parser.withMap(ImmutableMap.of("x", "abcxbcdexbc", "y", "abc"));
+    Assert.assertEquals("a!x!dex!", Parser.parse("replace(x, 'bc', '!')").eval(bindings).stringValue());
   }
 
   @Test
