@@ -205,8 +205,10 @@ public class HadoopSettlingConfig implements SettlingConfig
         String type = getAggCode(org[idx]);
         if (type != null) {
           Pair<Integer, Integer> aggRange = mapForRow.get(type);
-          applied[idx] = new RangeAggregatorFactory(org[idx], aggRange.lhs, aggRange.rhs);
-          settlingApplied = true;
+          if (aggRange != null) {
+            applied[idx] = new RangeAggregatorFactory(org[idx], aggRange.lhs, aggRange.rhs);
+            settlingApplied = true;
+          }
         } else if (mean != null) {
           applied[idx] = new RangeAggregatorFactory(org[idx], mean.lhs, mean.rhs);
           settlingApplied = true;
