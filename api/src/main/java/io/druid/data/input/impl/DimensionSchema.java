@@ -93,7 +93,7 @@ public abstract class DimensionSchema
   protected DimensionSchema(String name, MultiValueHandling multiValueHandling)
   {
     this.name = Preconditions.checkNotNull(name, "Dimension name cannot be null.");
-    this.multiValueHandling = multiValueHandling == null ? MultiValueHandling.SORTED_ARRAY : multiValueHandling;
+    this.multiValueHandling = multiValueHandling == null ? MultiValueHandling.ARRAY : multiValueHandling;
   }
 
   @JsonProperty

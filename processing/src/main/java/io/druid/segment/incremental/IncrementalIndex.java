@@ -1068,7 +1068,7 @@ public abstract class IncrementalIndex<AggregatorType> implements Iterable<Row>,
       this.values = values;
       this.capabilities = capabilities;
       this.multiValueHandling =
-          multiValueHandling == null ? DimensionSchema.MultiValueHandling.SORTED_ARRAY : multiValueHandling;
+          multiValueHandling == null ? DimensionSchema.MultiValueHandling.ARRAY : multiValueHandling;
     }
 
     public int getIndex()

@@ -27,6 +27,7 @@ import com.metamx.common.ISE;
 import io.druid.collections.StupidPool;
 import io.druid.data.input.MapBasedInputRow;
 import io.druid.data.input.Row;
+import io.druid.data.input.impl.DimensionSchema;
 import io.druid.data.input.impl.DimensionsSpec;
 import io.druid.data.input.impl.FloatDimensionSchema;
 import io.druid.data.input.impl.LongDimensionSchema;
@@ -76,9 +77,9 @@ public class IncrementalIndexTest
   {
     DimensionsSpec dimensions = new DimensionsSpec(
         Arrays.asList(
-            new StringDimensionSchema("string"),
-            new FloatDimensionSchema("float"),
-            new LongDimensionSchema("long")
+            new StringDimensionSchema("string", DimensionSchema.MultiValueHandling.SORTED_ARRAY),
+            new FloatDimensionSchema("float", DimensionSchema.MultiValueHandling.SORTED_ARRAY),
+            new LongDimensionSchema("long", DimensionSchema.MultiValueHandling.SORTED_ARRAY)
         ), null, null
     );
     AggregatorFactory[] metrics = {
