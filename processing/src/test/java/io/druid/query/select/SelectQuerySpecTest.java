@@ -50,6 +50,7 @@ public class SelectQuerySpecTest
         + "\"metrics\":[\"index\"],"
         + "\"virtualColumns\":null,"
         + "\"pagingSpec\":{\"pagingIdentifiers\":{},\"threshold\":3},"
+        + "\"concatString\":null,"
         + "\"context\":null}";
 
     String current =
@@ -62,6 +63,7 @@ public class SelectQuerySpecTest
         + "\"metrics\":[\"index\"],"
         + "\"virtualColumns\":null,"
         + "\"pagingSpec\":{\"pagingIdentifiers\":{},\"threshold\":3,\"fromNext\":false},"
+        + "\"concatString\":null,"
         + "\"context\":null}";
 
     SelectQuery query = new SelectQuery(
@@ -74,6 +76,7 @@ public class SelectQuerySpecTest
         Arrays.<String>asList("index"),
         null,
         new PagingSpec(null, 3),
+        null,
         null
     );
 

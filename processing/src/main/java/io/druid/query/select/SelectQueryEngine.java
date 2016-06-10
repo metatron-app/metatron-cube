@@ -41,6 +41,7 @@ import io.druid.segment.VirtualColumns;
 import io.druid.segment.column.Column;
 import io.druid.segment.data.IndexedInts;
 import io.druid.segment.filter.Filters;
+import org.apache.commons.lang.StringUtils;
 import org.joda.time.DateTime;
 import org.joda.time.Interval;
 
@@ -141,7 +142,11 @@ public class SelectQueryEngine
                     for (int i = 0; i < vals.size(); ++i) {
                       dimVals.add(selector.lookupName(vals.get(i)));
                     }
-                    theEvent.put(dim, dimVals);
+                    if (query.getConcatString() != null) {
+                      theEvent.put(dim, StringUtils.join(dimVals, query.getConcatString()));
+                    } else {
+                      theEvent.put(dim, dimVals);
+                    }
                   }
                 }
               }

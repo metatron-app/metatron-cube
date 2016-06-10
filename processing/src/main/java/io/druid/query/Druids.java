@@ -1084,6 +1084,7 @@ public class Druids
     private List<String> metrics;
     private List<VirtualColumn> virtualColumns;
     private PagingSpec pagingSpec;
+    private String concatString;
 
     public SelectQueryBuilder()
     {
@@ -1095,6 +1096,7 @@ public class Druids
       dimensions = Lists.newArrayList();
       metrics = Lists.newArrayList();
       pagingSpec = null;
+      concatString = null;
     }
 
     public SelectQuery build()
@@ -1109,6 +1111,7 @@ public class Druids
           metrics,
           virtualColumns,
           pagingSpec,
+          concatString,
           context
       );
     }
@@ -1220,6 +1223,12 @@ public class Druids
     public SelectQueryBuilder pagingSpec(PagingSpec p)
     {
       pagingSpec = p;
+      return this;
+    }
+
+    public SelectQueryBuilder concatString(String c)
+    {
+      concatString = c;
       return this;
     }
   }
