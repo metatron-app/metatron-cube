@@ -19,11 +19,8 @@
 
 package io.druid.indexer;
 
-import com.google.api.client.util.Maps;
-import com.google.common.base.Preconditions;
+import com.google.common.collect.Maps;
 
-import java.io.IOException;
-import java.util.Arrays;
 import java.util.Map;
 import java.util.regex.Pattern;
 
