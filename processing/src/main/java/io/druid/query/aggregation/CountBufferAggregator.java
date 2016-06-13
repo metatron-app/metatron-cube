@@ -19,12 +19,25 @@
 
 package io.druid.query.aggregation;
 
+import com.google.common.base.Predicate;
+
 import java.nio.ByteBuffer;
 
 /**
  */
 public class CountBufferAggregator implements BufferAggregator
 {
+  private final Predicate predicate;
+
+  public CountBufferAggregator(Predicate predicate)
+  {
+    this.predicate = predicate;
+  }
+
+  public CountBufferAggregator()
+  {
+    this(null);
+  }
 
   @Override
   public void init(ByteBuffer buf, int position)
@@ -35,7 +48,9 @@ public class CountBufferAggregator implements BufferAggregator
   @Override
   public void aggregate(ByteBuffer buf, int position)
   {
-    buf.putLong(position, buf.getLong(position) + 1);
+    if (predicate.apply(null)) {
+      buf.putLong(position, buf.getLong(position) + 1);
+    }
   }
 
   @Override

@@ -19,6 +19,8 @@
 
 package io.druid.query.aggregation;
 
+import com.google.common.base.Predicate;
+import com.google.common.base.Predicates;
 import io.druid.segment.LongColumnSelector;
 
 import java.nio.ByteBuffer;
@@ -28,12 +30,17 @@ import java.nio.ByteBuffer;
 public class LongSumBufferAggregator implements BufferAggregator
 {
   private final LongColumnSelector selector;
+  private final Predicate predicate;
 
-  public LongSumBufferAggregator(
-      LongColumnSelector selector
-  )
+  public LongSumBufferAggregator(LongColumnSelector selector, Predicate predicate)
   {
     this.selector = selector;
+    this.predicate = predicate;
+  }
+
+  public LongSumBufferAggregator(LongColumnSelector selector)
+  {
+    this(selector, Predicates.alwaysTrue());
   }
 
   @Override
@@ -45,7 +52,9 @@ public class LongSumBufferAggregator implements BufferAggregator
   @Override
   public void aggregate(ByteBuffer buf, int position)
   {
-    buf.putLong(position, buf.getLong(position) + selector.get());
+    if (predicate.apply(null)) {
+      buf.putLong(position, buf.getLong(position) + selector.get());
+    }
   }
 
   @Override

@@ -19,6 +19,8 @@
 
 package io.druid.query.aggregation;
 
+import com.google.common.base.Predicate;
+import com.google.common.base.Predicates;
 import com.google.common.collect.Ordering;
 import com.google.common.primitives.Doubles;
 import io.druid.segment.FloatColumnSelector;
@@ -44,22 +46,31 @@ public class DoubleSumAggregator implements Aggregator
   }
 
   private final FloatColumnSelector selector;
+  private final Predicate predicate;
   private final String name;
 
   private double sum;
 
-  public DoubleSumAggregator(String name, FloatColumnSelector selector)
+  public DoubleSumAggregator(String name, FloatColumnSelector selector, Predicate predicate)
   {
     this.name = name;
     this.selector = selector;
+    this.predicate = predicate;
 
     this.sum = 0;
+  }
+
+  public DoubleSumAggregator(String name, FloatColumnSelector selector)
+  {
+    this(name, selector, Predicates.alwaysTrue());
   }
 
   @Override
   public void aggregate()
   {
-    sum += selector.get();
+    if (predicate.apply(null)) {
+      sum += selector.get();
+    }
   }
 
   @Override
@@ -95,7 +106,7 @@ public class DoubleSumAggregator implements Aggregator
   @Override
   public Aggregator clone()
   {
-    return new DoubleSumAggregator(name, selector);
+    return new DoubleSumAggregator(name, selector, predicate);
   }
 
   @Override

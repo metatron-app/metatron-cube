@@ -22,6 +22,8 @@ package io.druid.query.aggregation;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;
+import com.google.common.collect.Lists;
+import com.google.common.collect.Sets;
 import com.google.common.primitives.Longs;
 import io.druid.common.utils.StringUtils;
 import io.druid.math.expr.Parser;
@@ -33,6 +35,7 @@ import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
+import java.util.Set;
 
 /**
  */
@@ -43,12 +46,14 @@ public class LongSumAggregatorFactory extends AggregatorFactory
   private final String name;
   private final String fieldName;
   private final String fieldExpression;
+  private final String predicate;
 
   @JsonCreator
   public LongSumAggregatorFactory(
       @JsonProperty("name") String name,
       @JsonProperty("fieldName") String fieldName,
-      @JsonProperty("fieldExpression") String fieldExpression
+      @JsonProperty("fieldExpression") String fieldExpression,
+      @JsonProperty("predicate") String predicate
   )
   {
     Preconditions.checkNotNull(name, "Must have a valid, non-null aggregator name");
@@ -59,23 +64,31 @@ public class LongSumAggregatorFactory extends AggregatorFactory
     this.name = name;
     this.fieldName = fieldName;
     this.fieldExpression = fieldExpression;
+    this.predicate = predicate;
   }
 
   public LongSumAggregatorFactory(String name, String fieldName)
   {
-    this(name, fieldName, null);
+    this(name, fieldName, null, null);
   }
 
   @Override
   public Aggregator factorize(ColumnSelectorFactory metricFactory)
   {
-    return new LongSumAggregator(name, getLongColumnSelector(metricFactory));
+    return new LongSumAggregator(
+        name,
+        getLongColumnSelector(metricFactory),
+        AggregatorUtil.toPredicate(predicate, metricFactory)
+    );
   }
 
   @Override
   public BufferAggregator factorizeBuffered(ColumnSelectorFactory metricFactory)
   {
-    return new LongSumBufferAggregator(getLongColumnSelector(metricFactory));
+    return new LongSumBufferAggregator(
+        getLongColumnSelector(metricFactory),
+        AggregatorUtil.toPredicate(predicate, metricFactory)
+    );
   }
 
   private LongColumnSelector getLongColumnSelector(ColumnSelectorFactory metricFactory)
@@ -98,7 +111,7 @@ public class LongSumAggregatorFactory extends AggregatorFactory
   @Override
   public AggregatorFactory getCombiningFactory()
   {
-    return new LongSumAggregatorFactory(name, name, null);
+    return new LongSumAggregatorFactory(name, name);
   }
 
   @Override
@@ -114,7 +127,7 @@ public class LongSumAggregatorFactory extends AggregatorFactory
   @Override
   public List<AggregatorFactory> getRequiredColumns()
   {
-    return Arrays.<AggregatorFactory>asList(new LongSumAggregatorFactory(fieldName, fieldName, fieldExpression));
+    return Arrays.<AggregatorFactory>asList(new LongSumAggregatorFactory(fieldName, fieldName, fieldExpression, predicate));
   }
 
   @Override
@@ -141,6 +154,12 @@ public class LongSumAggregatorFactory extends AggregatorFactory
     return fieldExpression;
   }
 
+  @JsonProperty
+  public String getPredicate()
+  {
+    return predicate;
+  }
+
   @Override
   @JsonProperty
   public String getName()
@@ -151,7 +170,16 @@ public class LongSumAggregatorFactory extends AggregatorFactory
   @Override
   public List<String> requiredFields()
   {
-    return fieldName != null ? Arrays.asList(fieldName) : Parser.findRequiredBindings(fieldExpression);
+    Set<String> required = Sets.newHashSet();
+    if (fieldName != null) {
+      required.add(fieldName);
+    } else {
+      required.addAll(Parser.findRequiredBindings(fieldExpression));
+    }
+    if (predicate != null) {
+      required.addAll(Parser.findRequiredBindings(predicate));
+    }
+    return Lists.newArrayList(required);
   }
 
   @Override
@@ -159,9 +187,10 @@ public class LongSumAggregatorFactory extends AggregatorFactory
   {
     byte[] fieldNameBytes = StringUtils.toUtf8WithNullToEmpty(fieldName);
     byte[] fieldExpressionBytes = StringUtils.toUtf8WithNullToEmpty(fieldExpression);
+    byte[] predicateBytes = StringUtils.toUtf8WithNullToEmpty(predicate);
 
-    return ByteBuffer.allocate(1 + fieldNameBytes.length + fieldExpressionBytes.length)
-                     .put(CACHE_TYPE_ID).put(fieldNameBytes).put(fieldExpressionBytes).array();
+    return ByteBuffer.allocate(1 + fieldNameBytes.length + fieldExpressionBytes.length + predicateBytes.length)
+                     .put(CACHE_TYPE_ID).put(fieldNameBytes).put(fieldExpressionBytes).put(predicateBytes).array();
   }
 
   @Override
@@ -188,6 +217,7 @@ public class LongSumAggregatorFactory extends AggregatorFactory
     return "LongSumAggregatorFactory{" +
            "fieldName='" + fieldName + '\'' +
            ", fieldExpression='" + fieldExpression + '\'' +
+           ", predicate='" + predicate + '\'' +
            ", name='" + name + '\'' +
            '}';
   }
@@ -210,6 +240,9 @@ public class LongSumAggregatorFactory extends AggregatorFactory
     if (!Objects.equals(fieldExpression, that.fieldExpression)) {
       return false;
     }
+    if (!Objects.equals(predicate, that.predicate)) {
+      return false;
+    }
     if (!Objects.equals(name, that.name)) {
       return false;
     }
@@ -222,6 +255,7 @@ public class LongSumAggregatorFactory extends AggregatorFactory
   {
     int result = fieldName != null ? fieldName.hashCode() : 0;
     result = 31 * result + (fieldExpression != null ? fieldExpression.hashCode() : 0);
+    result = 31 * result + (predicate != null ? predicate.hashCode() : 0);
     result = 31 * result + (name != null ? name.hashCode() : 0);
     return result;
   }

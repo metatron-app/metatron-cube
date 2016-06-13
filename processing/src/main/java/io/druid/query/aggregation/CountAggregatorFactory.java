@@ -36,27 +36,35 @@ public class CountAggregatorFactory extends AggregatorFactory
 {
   private static final byte[] CACHE_KEY = new byte[]{0x0};
   private final String name;
+  private final String predicate;
 
   @JsonCreator
   public CountAggregatorFactory(
-      @JsonProperty("name") String name
+      @JsonProperty("name") String name,
+      @JsonProperty("predicate") String predicate
   )
   {
     Preconditions.checkNotNull(name, "Must have a valid, non-null aggregator name");
 
     this.name = name;
+    this.predicate = predicate;
+  }
+
+  public CountAggregatorFactory(String name)
+  {
+    this(name, null);
   }
 
   @Override
   public Aggregator factorize(ColumnSelectorFactory metricFactory)
   {
-    return new CountAggregator(name);
+    return new CountAggregator(name, AggregatorUtil.toPredicate(predicate, metricFactory));
   }
 
   @Override
   public BufferAggregator factorizeBuffered(ColumnSelectorFactory metricFactory)
   {
-    return new CountBufferAggregator();
+    return new CountBufferAggregator(AggregatorUtil.toPredicate(predicate, metricFactory));
   }
 
   @Override
@@ -102,6 +110,12 @@ public class CountAggregatorFactory extends AggregatorFactory
     return name;
   }
 
+  @JsonProperty
+  public String getPredicate()
+  {
+    return predicate;
+  }
+
   @Override
   public List<String> requiredFields()
   {
@@ -136,6 +150,7 @@ public class CountAggregatorFactory extends AggregatorFactory
   public String toString()
   {
     return "CountAggregatorFactory{" +
+           "name='" + name + '\'' +
            "name='" + name + '\'' +
            '}';
   }

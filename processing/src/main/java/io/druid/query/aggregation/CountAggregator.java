@@ -19,6 +19,9 @@
 
 package io.druid.query.aggregation;
 
+import com.google.common.base.Predicate;
+import com.google.common.base.Predicates;
+
 import java.util.Comparator;
 
 /**
@@ -34,16 +37,25 @@ public class CountAggregator implements Aggregator
 
   long count = 0;
   private final String name;
+  private final Predicate predicate;
+
+  public CountAggregator(String name, Predicate predicate)
+  {
+    this.name = name;
+    this.predicate = predicate;
+  }
 
   public CountAggregator(String name)
   {
-    this.name = name;
+    this(name, Predicates.alwaysTrue());
   }
 
   @Override
   public void aggregate()
   {
-    ++count;
+    if (predicate.apply(null)) {
+      ++count;
+    }
   }
 
   @Override
@@ -79,7 +91,7 @@ public class CountAggregator implements Aggregator
   @Override
   public Aggregator clone()
   {
-    return new CountAggregator(name);
+    return new CountAggregator(name, predicate);
   }
 
   @Override

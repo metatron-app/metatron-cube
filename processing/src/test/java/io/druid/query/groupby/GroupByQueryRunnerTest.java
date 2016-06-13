@@ -51,6 +51,7 @@ import io.druid.query.QueryToolChest;
 import io.druid.query.Result;
 import io.druid.query.TestQueryRunners;
 import io.druid.query.aggregation.AggregatorFactory;
+import io.druid.query.aggregation.CountAggregatorFactory;
 import io.druid.query.aggregation.DoubleMaxAggregatorFactory;
 import io.druid.query.aggregation.DoubleSumAggregatorFactory;
 import io.druid.query.aggregation.FilteredAggregatorFactory;
@@ -1403,7 +1404,7 @@ public class GroupByQueryRunnerTest
     builder.setAggregatorSpecs(
         Arrays.asList(
             QueryRunnerTestHelper.rowsCount,
-            new LongSumAggregatorFactory("idx", null, "index * 2 + indexMin / 10")
+            new LongSumAggregatorFactory("idx", null, "index * 2 + indexMin / 10", null)
         )
     );
     fullQuery = builder.build();
@@ -1595,11 +1596,39 @@ public class GroupByQueryRunnerTest
         Iterables.limit(expectedResults, 5), mergeRunner.run(builder.limit(5).build(), context), "limited"
     );
 
+    builder.setAggregatorSpecs(
+        Arrays.asList(
+            QueryRunnerTestHelper.rowsCount,
+            new CountAggregatorFactory("rows1", "index > 110"),
+            new CountAggregatorFactory("rows2", "index > 130"),
+            new LongSumAggregatorFactory("idx", "index"),
+            new LongSumAggregatorFactory("idx2", "index", null, "index > 110"),
+            new DoubleSumAggregatorFactory("idx3", "index", null, "index > 130")
+        )
+    );
+
+    expectedResults = GroupByQueryRunnerTestHelper.createExpectedRows(
+        new String[]{"__time", "alias", "rows", "rows1", "rows2", "idx", "idx2", "idx3"},
+        new Object[]{"2011-04-01", "travel", 2L, 2L, 0L, 243L, 243L, 0D},
+        new Object[]{"2011-04-01", "technology", 2L, 0L, 0L, 177L, 0L, 0D},
+        new Object[]{"2011-04-01", "news", 2L, 1L, 0L, 221L, 114L, 0D},
+        new Object[]{"2011-04-01", "health", 2L, 1L, 0L, 216L, 113L, 0D},
+        new Object[]{"2011-04-01", "entertainment", 2L, 2L, 2L, 319L, 319L, 319.94403076171875D},
+        new Object[]{"2011-04-01", "business", 2L, 1L, 0L, 217L, 112L, 0D},
+        new Object[]{"2011-04-01", "automotive", 2L, 2L, 1L, 269L, 269L, 147.42593383789062D},
+        new Object[]{"2011-04-01", "premium", 6L, 6L, 5L, 4416L, 4416L, 4296.4765625D},
+        new Object[]{"2011-04-01", "mezzanine", 6L, 5L, 4L, 4420L, 4313L, 4205.673828125D}
+    );
+
+    TestHelper.assertExpectedObjects(
+        expectedResults, mergeRunner.run(builder.limit(100).build(), context), "predicate"
+    );
+
     builder.limit(Integer.MAX_VALUE)
            .setAggregatorSpecs(
                Arrays.asList(
                    QueryRunnerTestHelper.rowsCount,
-                   new DoubleSumAggregatorFactory("idx", null, "index / 2 + indexMin")
+                   new DoubleSumAggregatorFactory("idx", null, "index / 2 + indexMin", null)
                )
            );
 
@@ -3116,7 +3145,7 @@ public class GroupByQueryRunnerTest
     subquery = subquery.withAggregatorSpecs(
         Arrays.asList(
             QueryRunnerTestHelper.rowsCount,
-            new LongSumAggregatorFactory("idx", null, "-index + 100"),
+            new LongSumAggregatorFactory("idx", null, "-index + 100", null),
             new LongSumAggregatorFactory("indexMaxPlusTen", "indexMaxPlusTen")
         )
     );

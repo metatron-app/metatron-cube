@@ -19,6 +19,8 @@
 
 package io.druid.query.aggregation;
 
+import com.google.common.base.Predicate;
+import com.google.common.base.Predicates;
 import com.google.common.primitives.Longs;
 import io.druid.segment.LongColumnSelector;
 
@@ -37,27 +39,36 @@ public class LongSumAggregator implements Aggregator
     }
   };
 
-  static long combineValues(Object lhs, Object rhs) {
+  static long combineValues(Object lhs, Object rhs)
+  {
     return ((Number) lhs).longValue() + ((Number) rhs).longValue();
   }
 
   private final LongColumnSelector selector;
   private final String name;
+  private final Predicate predicate;
 
   private long sum;
 
-  public LongSumAggregator(String name, LongColumnSelector selector)
+  public LongSumAggregator(String name, LongColumnSelector selector, Predicate predicate)
   {
     this.name = name;
     this.selector = selector;
-
+    this.predicate = predicate;
     this.sum = 0;
+  }
+
+  public LongSumAggregator(String name, LongColumnSelector selector)
+  {
+    this(name, selector, Predicates.alwaysTrue());
   }
 
   @Override
   public void aggregate()
   {
-    sum += selector.get();
+    if (predicate.apply(null)) {
+      sum += selector.get();
+    }
   }
 
   @Override

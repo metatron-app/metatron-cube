@@ -1612,7 +1612,7 @@ public class TopNQueryRunnerTest
     query = query.withAggregatorSpecs(
         Arrays.asList(
             QueryRunnerTestHelper.rowsCount,
-            new DoubleSumAggregatorFactory("index", null, "-index + 100")
+            new DoubleSumAggregatorFactory("index", null, "-index + 100", null)
         )
     );
 

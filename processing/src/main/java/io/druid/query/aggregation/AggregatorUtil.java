@@ -19,13 +19,16 @@
 
 package io.druid.query.aggregation;
 
+import com.google.common.base.Predicate;
+import com.google.common.base.Predicates;
 import com.google.common.base.Supplier;
 import com.google.common.collect.Lists;
 import com.metamx.common.Pair;
+import io.druid.common.utils.StringUtils;
 import io.druid.segment.ColumnSelectorFactory;
+import io.druid.segment.ExprEvalColumnSelector;
 import io.druid.segment.FloatColumnSelector;
 import io.druid.segment.LongColumnSelector;
-import io.druid.segment.ExprEvalColumnSelector;
 import io.druid.segment.ObjectColumnSelector;
 
 import java.util.HashSet;
@@ -91,7 +94,8 @@ public class AggregatorUtil
     return new Pair(condensedAggs, condensedPostAggs);
   }
 
-  public static Supplier<Object> asSupplier(final FloatColumnSelector selector) {
+  public static Supplier<Object> asSupplier(final FloatColumnSelector selector)
+  {
     return new Supplier<Object>()
     {
       @Override
@@ -114,7 +118,8 @@ public class AggregatorUtil
     return wrapAsFloatSelector(metricFactory.makeMathExpressionSelector(fieldExpression));
   }
 
-  public static Supplier<Object> asSupplier(final LongColumnSelector selector) {
+  public static Supplier<Object> asSupplier(final LongColumnSelector selector)
+  {
     return new Supplier<Object>()
     {
       @Override
@@ -161,7 +166,7 @@ public class AggregatorUtil
     };
   }
 
-public static ObjectColumnSelector wrapAsObjectSelector(final Class type, final ExprEvalColumnSelector selector)
+  public static ObjectColumnSelector wrapAsObjectSelector(final Class type, final ExprEvalColumnSelector selector)
   {
     return new ObjectColumnSelector()
     {
@@ -177,4 +182,21 @@ public static ObjectColumnSelector wrapAsObjectSelector(final Class type, final 
         return selector.get().value();
       }
     };
-  }}
+  }
+
+  public static Predicate toPredicate(String expression, ColumnSelectorFactory metricFactory)
+  {
+    if (StringUtils.isNullOrEmpty(expression)) {
+      return Predicates.alwaysTrue();
+    }
+    final ExprEvalColumnSelector selector = metricFactory.makeMathExpressionSelector(expression);
+    return new Predicate()
+    {
+      @Override
+      public boolean apply(Object input)
+      {
+        return selector.get().asBoolean();
+      }
+    };
+  }
+}
