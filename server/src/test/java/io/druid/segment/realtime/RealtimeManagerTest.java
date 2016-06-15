@@ -189,6 +189,7 @@ public class RealtimeManagerTest
     );
     RealtimeTuningConfig tuningConfig = new RealtimeTuningConfig(
         1,
+        null,
         new Period("P1Y"),
         null,
         null,
@@ -244,6 +245,7 @@ public class RealtimeManagerTest
 
     tuningConfig_0 = new RealtimeTuningConfig(
         1,
+        null,
         new Period("P1Y"),
         null,
         null,
@@ -261,6 +263,7 @@ public class RealtimeManagerTest
 
     tuningConfig_1 = new RealtimeTuningConfig(
         1,
+        null,
         new Period("P1Y"),
         null,
         null,

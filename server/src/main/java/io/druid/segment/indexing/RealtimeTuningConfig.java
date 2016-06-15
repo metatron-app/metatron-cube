@@ -40,6 +40,7 @@ import java.io.File;
 public class RealtimeTuningConfig implements TuningConfig, AppenderatorConfig
 {
   private static final int defaultMaxRowsInMemory = 75000;
+  private static final int defaultMaxOccupationInMemory = 64 << 20;
   private static final Period defaultIntermediatePersistPeriod = new Period("PT10M");
   private static final Period defaultWindowPeriod = new Period("PT10M");
   private static final VersioningPolicy defaultVersioningPolicy = new IntervalStartVersioningPolicy();
@@ -61,6 +62,7 @@ public class RealtimeTuningConfig implements TuningConfig, AppenderatorConfig
   {
     return new RealtimeTuningConfig(
         defaultMaxRowsInMemory,
+        defaultMaxOccupationInMemory,
         defaultIntermediatePersistPeriod,
         defaultWindowPeriod,
         basePersistDirectory == null ? createNewBasePersistDirectory() : basePersistDirectory,
@@ -78,6 +80,7 @@ public class RealtimeTuningConfig implements TuningConfig, AppenderatorConfig
   }
 
   private final int maxRowsInMemory;
+  private final int maxOccupationInMemory;
   private final Period intermediatePersistPeriod;
   private final Period windowPeriod;
   private final File basePersistDirectory;
@@ -95,6 +98,7 @@ public class RealtimeTuningConfig implements TuningConfig, AppenderatorConfig
   @JsonCreator
   public RealtimeTuningConfig(
       @JsonProperty("maxRowsInMemory") Integer maxRowsInMemory,
+      @JsonProperty("maxOccupationInMemory") Integer maxOccupationInMemory,
       @JsonProperty("intermediatePersistPeriod") Period intermediatePersistPeriod,
       @JsonProperty("windowPeriod") Period windowPeriod,
       @JsonProperty("basePersistDirectory") File basePersistDirectory,
@@ -111,6 +115,7 @@ public class RealtimeTuningConfig implements TuningConfig, AppenderatorConfig
   )
   {
     this.maxRowsInMemory = maxRowsInMemory == null ? defaultMaxRowsInMemory : maxRowsInMemory;
+    this.maxOccupationInMemory = maxOccupationInMemory == null ? defaultMaxOccupationInMemory : maxOccupationInMemory;
     this.intermediatePersistPeriod = intermediatePersistPeriod == null
                                      ? defaultIntermediatePersistPeriod
                                      : intermediatePersistPeriod;
@@ -134,12 +139,19 @@ public class RealtimeTuningConfig implements TuningConfig, AppenderatorConfig
                                    ? defaultHandoffConditionTimeout
                                    : handoffConditionTimeout;
     Preconditions.checkArgument(this.handoffConditionTimeout >= 0, "handoffConditionTimeout must be >= 0");
+    Preconditions.checkArgument(this.maxRowsInMemory > 0, "maxRowsInMemory must be > 0");
   }
 
   @JsonProperty
   public int getMaxRowsInMemory()
   {
     return maxRowsInMemory;
+  }
+
+  @JsonProperty
+  public int getMaxOccupationInMemory()
+  {
+    return maxOccupationInMemory;
   }
 
   @JsonProperty
@@ -224,6 +236,7 @@ public class RealtimeTuningConfig implements TuningConfig, AppenderatorConfig
   {
     return new RealtimeTuningConfig(
         maxRowsInMemory,
+        maxOccupationInMemory,
         intermediatePersistPeriod,
         windowPeriod,
         basePersistDirectory,
@@ -244,6 +257,7 @@ public class RealtimeTuningConfig implements TuningConfig, AppenderatorConfig
   {
     return new RealtimeTuningConfig(
         maxRowsInMemory,
+        maxOccupationInMemory,
         intermediatePersistPeriod,
         windowPeriod,
         dir,

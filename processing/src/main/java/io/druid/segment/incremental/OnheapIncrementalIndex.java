@@ -132,9 +132,9 @@ public class OnheapIncrementalIndex extends IncrementalIndex<Aggregator>
   }
 
   @Override
-  protected DimDim makeDimDim(String dimension, Object lock)
+  protected DimDim makeDimDim(String dimension, SizeEstimator estimator, Object lock)
   {
-    return new OnHeapDimDim(lock);
+    return new OnHeapDimDim(estimator, lock);
   }
 
   @Override
@@ -326,12 +326,17 @@ public class OnheapIncrementalIndex extends IncrementalIndex<Aggregator>
     private T minValue = null;
     private T maxValue = null;
 
+    private int estimatedSize;
+
     private final List<T> idToValue = Lists.newArrayList();
     private final Object lock;
 
-    public OnHeapDimDim(Object lock)
+    private final SizeEstimator<T> estimator;
+
+    public OnHeapDimDim(SizeEstimator<T> estimator, Object lock)
     {
       this.lock = lock;
+      this.estimator = estimator;
     }
 
     public int getId(T value)
@@ -377,6 +382,7 @@ public class OnheapIncrementalIndex extends IncrementalIndex<Aggregator>
           minValue = minValue == null || minValue.compareTo(value) > 0 ? value : minValue;
           maxValue = maxValue == null || maxValue.compareTo(value) < 0 ? value : maxValue;
         }
+        estimatedSize += estimator.estimate(value);
         return index;
       }
     }
@@ -391,6 +397,12 @@ public class OnheapIncrementalIndex extends IncrementalIndex<Aggregator>
     public T getMaxValue()
     {
       return maxValue;
+    }
+
+    @Override
+    public int estimatedSize()
+    {
+      return estimatedSize;
     }
 
     public OnHeapDimLookup sort()

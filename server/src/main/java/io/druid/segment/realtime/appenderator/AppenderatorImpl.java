@@ -514,9 +514,9 @@ public class AppenderatorImpl implements Appenderator
 
     final Map<SegmentIdentifier, Integer> commitHydrants = Maps.newHashMap();
     final List<Pair<FireHydrant, SegmentIdentifier>> indexesToPersist = Lists.newArrayList();
-    final Set<SegmentIdentifier> identifiers = sinks.keySet();
-    for (SegmentIdentifier identifier : identifiers) {
-      final Sink sink = sinks.get(identifier);
+    for (Map.Entry<SegmentIdentifier, Sink> entry : sinks.entrySet()) {
+      final Sink sink = entry.getValue();
+      final SegmentIdentifier identifier = entry.getKey();
       final List<FireHydrant> hydrants = Lists.newArrayList(sink);
       commitHydrants.put(identifier, hydrants.size());
 
@@ -679,6 +679,10 @@ public class AppenderatorImpl implements Appenderator
       return null;
     }
 
+    if (sink.isWritable()) {
+      throw new ISE("WTF?! Expected sink to be no longer writable before mergeAndPush. Segment[%s].", identifier);
+    }
+
     // Use a descriptor file to indicate that pushing has completed.
     final File persistDir = computePersistDir(identifier);
     final File mergedTarget = new File(persistDir, "merged");
@@ -686,10 +690,6 @@ public class AppenderatorImpl implements Appenderator
 
     // Sanity checks
     for (FireHydrant hydrant : sink) {
-      if (sink.isWritable()) {
-        throw new ISE("WTF?! Expected sink to be no longer writable before mergeAndPush. Segment[%s].", identifier);
-      }
-
       synchronized (hydrant) {
         if (!hydrant.hasSwapped()) {
           throw new ISE("WTF?! Expected sink to be fully persisted before mergeAndPush. Segment[%s].", identifier);

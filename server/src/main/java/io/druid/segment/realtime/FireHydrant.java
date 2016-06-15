@@ -34,9 +34,9 @@ import java.io.IOException;
 public class FireHydrant
 {
   private final int count;
-  private volatile IncrementalIndex index;
-  private volatile ReferenceCountingSegment adapter;
-  private Object swapLock = new Object();
+  private IncrementalIndex index;
+  private ReferenceCountingSegment adapter;
+  private final Object swapLock = new Object();
 
   public FireHydrant(
       IncrementalIndex index,
@@ -59,14 +59,36 @@ public class FireHydrant
     this.count = count;
   }
 
+  public int rowCount() {
+    synchronized (swapLock) {
+      return index == null ? 0 : index.size();
+    }
+  }
+
+  public int estimatedOccupation() {
+    synchronized (swapLock) {
+      return index == null ? 0 : index.estimatedOccupation();
+    }
+  }
+
+  public boolean canAppendRow() {
+    synchronized (swapLock) {
+      return index != null && index.canAppendRow();
+    }
+  }
+
   public IncrementalIndex getIndex()
   {
-    return index;
+    synchronized (swapLock) {
+      return index;
+    }
   }
 
   public Segment getSegment()
   {
-    return adapter;
+    synchronized (swapLock) {
+      return adapter;
+    }
   }
 
   public int getCount()
@@ -76,7 +98,9 @@ public class FireHydrant
 
   public boolean hasSwapped()
   {
-    return index == null;
+    synchronized (swapLock) {
+      return index == null;
+    }
   }
 
   public void swapSegment(Segment adapter)

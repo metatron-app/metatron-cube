@@ -189,6 +189,7 @@ public class RealtimePlumberSchoolTest
         null,
         null,
         null,
+        null,
         new IntervalStartVersioningPolicy(),
         rejectionPolicy,
         null,

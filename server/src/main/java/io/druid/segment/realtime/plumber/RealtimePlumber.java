@@ -106,6 +106,7 @@ public class RealtimePlumber implements Plumber
 {
   private static final EmittingLogger log = new EmittingLogger(RealtimePlumber.class);
   private static final int WARN_DELAY = 1000;
+  private static final int MAX_ROW_EXCEED_CHECK_COUNT = 100000;
 
   private final DataSchema schema;
   private final RealtimeTuningConfig config;
@@ -128,6 +129,8 @@ public class RealtimePlumber implements Plumber
   private final CacheConfig cacheConfig;
   private final ObjectMapper objectMapper;
 
+  private final int maxRowExceedCheckCount;
+
   private volatile long nextFlush = 0;
   private volatile boolean shuttingDown = false;
   private volatile boolean stopped = false;
@@ -142,6 +145,7 @@ public class RealtimePlumber implements Plumber
   private static final String COMMIT_METADATA_TIMESTAMP_KEY = "%commitMetadataTimestamp%";
   private static final String SKIP_INCREMENTAL_SEGMENT = "skipIncrementalSegment";
 
+  private int counter;
 
   public RealtimePlumber(
       DataSchema schema,
@@ -177,6 +181,7 @@ public class RealtimePlumber implements Plumber
     this.cache = cache;
     this.cacheConfig = cacheConfig;
     this.objectMapper = objectMapper;
+    this.maxRowExceedCheckCount = Math.min(config.getMaxRowsInMemory() >> 2, MAX_ROW_EXCEED_CHECK_COUNT);
 
     if (!cache.isLocal()) {
       log.error("Configured cache is not local, caching will not be enabled");
@@ -233,7 +238,32 @@ public class RealtimePlumber implements Plumber
       persist(committerSupplier.get());
     }
 
+    if (maxRowExceedCheckCount > 0 && ++counter % maxRowExceedCheckCount == 0) {
+      if (rowCountInMemory() > config.getMaxRowsInMemory() ||
+          occupationInMemory() > config.getMaxOccupationInMemory()) {
+        persistOldest(committerSupplier.get());
+      }
+    }
+
     return numRows;
+  }
+
+  private int rowCountInMemory()
+  {
+    int size = 0;
+    for (Sink aSink : sinks.values()) {
+      size += aSink.rowCountInMemory();
+    }
+    return size;
+  }
+
+  private int occupationInMemory()
+  {
+    int size = 0;
+    for (Sink aSink : sinks.values()) {
+      size += aSink.occupationInMemory();
+    }
+    return size;
   }
 
   private Sink getSink(long timestamp)
@@ -399,11 +429,35 @@ public class RealtimePlumber implements Plumber
   {
     final List<Pair<FireHydrant, Interval>> indexesToPersist = Lists.newArrayList();
     for (Sink sink : sinks.values()) {
-      if (sink.swappable()) {
-        indexesToPersist.add(Pair.of(sink.swap(), sink.getInterval()));
+      FireHydrant hydrant = sink.swap();
+      if (hydrant != null) {
+        indexesToPersist.add(Pair.of(hydrant, sink.getInterval()));
       }
     }
+    persist(committer, indexesToPersist);
+  }
 
+  public void persistOldest(final Committer committer)
+  {
+    Sink oldestSink = null;
+    long oldestAccessTime = -1;
+    for (Sink sink : sinks.values()) {
+      if (sink.swappable()) {
+        long lastAccessTime = sink.getLastAccessTime();
+        if (oldestAccessTime < 0 || lastAccessTime < oldestAccessTime) {
+          oldestAccessTime = lastAccessTime;
+          oldestSink = sink;
+        }
+      }
+    }
+    FireHydrant hydrant = oldestSink == null ? null : oldestSink.swap();
+    if (hydrant != null) {
+      persist(committer, Arrays.asList(Pair.of(hydrant, oldestSink.getInterval())));
+    }
+  }
+
+  private void persist(final Committer committer, final List<Pair<FireHydrant, Interval>> indexesToPersist)
+  {
     log.info("Submitting persist runnable for dataSource[%s]", schema.getDataSource());
 
     final Stopwatch runExecStopwatch = Stopwatch.createStarted();
