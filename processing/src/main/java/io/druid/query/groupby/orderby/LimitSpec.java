@@ -22,8 +22,11 @@ package io.druid.query.groupby.orderby;
 import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.google.common.base.Function;
+import com.google.common.collect.Lists;
 import com.metamx.common.guava.Sequence;
+import com.metamx.common.guava.Sequences;
 import io.druid.data.input.Row;
+import io.druid.query.Cacheable;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.PostAggregator;
 import io.druid.query.dimension.DimensionSpec;
@@ -36,8 +39,10 @@ import java.util.List;
 @JsonSubTypes(value = {
     @JsonSubTypes.Type(name = "default", value = DefaultLimitSpec.class)
 })
-public interface LimitSpec
+public interface LimitSpec extends Cacheable
 {
+  public List<WindowingSpec> getWindowingSpecs();
+
   public Function<Sequence<Row>, Sequence<Row>> build(
       List<DimensionSpec> dimensions,
       List<AggregatorFactory> aggs,
@@ -46,5 +51,21 @@ public interface LimitSpec
 
   public LimitSpec merge(LimitSpec other);
 
-  public byte[] getCacheKey();
+  Function<Sequence<Row>, List<Row>> SEQUENCE_TO_LIST = new Function<Sequence<Row>, List<Row>>()
+  {
+    @Override
+    public List<Row> apply(Sequence<Row> input)
+    {
+      return Sequences.toList(input, Lists.<Row>newArrayList());
+    }
+  };
+
+  Function<List<Row>, Sequence<Row>> LIST_TO_SEQUENCE = new Function<List<Row>, Sequence<Row>>()
+  {
+    @Override
+    public Sequence<Row> apply(List<Row> input)
+    {
+      return Sequences.simple(input);
+    }
+  };
 }

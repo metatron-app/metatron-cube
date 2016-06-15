@@ -20,7 +20,8 @@
 package io.druid.query;
 
 import com.google.common.collect.Lists;
-import io.druid.query.aggregation.AggregatorFactory;
+import io.druid.common.utils.StringUtils;
+import io.druid.query.filter.DimFilterCacheHelper;
 
 import java.nio.ByteBuffer;
 import java.util.List;
@@ -29,13 +30,17 @@ import java.util.List;
  */
 public class QueryCacheHelper
 {
-  public static byte[] computeAggregatorBytes(List<AggregatorFactory> aggregatorSpecs)
+  public static byte[] computeAggregatorBytes(List<? extends Cacheable> aggregatorSpecs)
   {
+    if (aggregatorSpecs == null || aggregatorSpecs.isEmpty()) {
+      return new byte[0];
+    }
+
     List<byte[]> cacheKeySet = Lists.newArrayListWithCapacity(aggregatorSpecs.size());
 
     int totalSize = 0;
-    for (AggregatorFactory spec : aggregatorSpecs) {
-      final byte[] cacheKey = spec.getCacheKey();
+    for (Cacheable spec : aggregatorSpecs) {
+      final byte[] cacheKey = computeCacheBytes(spec);
       cacheKeySet.add(cacheKey);
       totalSize += cacheKey.length;
     }
@@ -47,4 +52,29 @@ public class QueryCacheHelper
     return retVal.array();
   }
 
+  public static byte[] computeCacheBytes(Cacheable cacheable)
+  {
+    return cacheable == null ? new byte[0] : cacheable.getCacheKey();
+  }
+
+  public static byte[] computeCacheBytes(List<String> strings)
+  {
+    if (strings == null || strings.isEmpty()) {
+      return new byte[0];
+    }
+    int length = 0;
+    byte[][] cache = new byte[strings.size()][];
+    for (int i = 0; i < cache.length; i++) {
+      cache[i] = StringUtils.toUtf8WithNullToEmpty(strings.get(i));
+      length += cache[i].length;
+    }
+    ByteBuffer buffer = ByteBuffer.allocate(length + cache.length - 1);
+    for (int i = 0; i < cache.length; i++) {
+      if (buffer.position() > 0) {
+        buffer.put(DimFilterCacheHelper.STRING_SEPARATOR);
+      }
+      buffer.put(cache[i]);
+    }
+    return buffer.array();
+  }
 }

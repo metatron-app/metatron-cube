@@ -29,6 +29,7 @@ import com.metamx.common.IAE;
 import com.metamx.common.ISE;
 import com.metamx.common.StringUtils;
 
+import io.druid.query.Cacheable;
 import io.druid.query.ordering.StringComparators;
 import io.druid.query.ordering.StringComparators.StringComparator;
 
@@ -40,7 +41,7 @@ import java.util.Map;
 
 /**
  */
-public class OrderByColumnSpec
+public class OrderByColumnSpec implements Cacheable
 {
   public static enum Direction
   {
@@ -49,6 +50,15 @@ public class OrderByColumnSpec
   }
 
   public static final StringComparator DEFAULT_DIMENSION_ORDER = StringComparators.LEXICOGRAPHIC;
+
+  public static final Function<OrderByColumnSpec, String> GET_DIMENSION = new Function<OrderByColumnSpec, String>()
+  {
+    @Override
+    public String apply(OrderByColumnSpec input)
+    {
+      return input.getDimension();
+    }
+  };
 
   /**
    * Maintain a map of the enum values so that we can just do a lookup and get a null if it doesn't exist instead

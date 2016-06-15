@@ -6,6 +6,7 @@ expr : ('-'|'!') expr                                 # unaryOpExpr
      | expr ('+'|'-') expr                            # addSubExpr
      | expr ('<'|'<='|'>'|'>='|'=='|'!=') expr        # logicalOpExpr
      | expr ('&&'|'||') expr                          # logicalAndOrExpr
+     | expr '=' expr                                  # assignExpr
      | '(' expr ')'                                   # nestedExpr
      | IDENTIFIER '(' fnArgs? ')'                     # functionExpr
      | IDENTIFIER                                     # identifierExpr
@@ -42,3 +43,4 @@ EQ : '==' ;
 NEQ : '!=' ;
 AND : '&&' ;
 OR : '||' ;
+ASSIGN : '=' ;

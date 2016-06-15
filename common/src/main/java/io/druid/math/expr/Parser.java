@@ -23,10 +23,10 @@ package io.druid.math.expr;
 import com.google.common.base.Supplier;
 import com.google.common.base.Suppliers;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import com.metamx.common.logger.Logger;
-import com.google.common.collect.Lists;
 import io.druid.math.expr.antlr.ExprLexer;
 import io.druid.math.expr.antlr.ExprParser;
 import org.antlr.v4.runtime.ANTLRInputStream;
@@ -41,15 +41,15 @@ import java.util.Set;
 
 public class Parser
 {
-  static final Logger log = new Logger(Parser.class);
-  static final Map<String, Supplier<Function>> func;
+  private static final Logger log = new Logger(Parser.class);
+  private static final Map<String, Supplier<Function>> func;
 
   static {
     Map<String, Supplier<Function>> functionMap = Maps.newHashMap();
     for (Class clazz : Function.class.getClasses()) {
       if (!Modifier.isAbstract(clazz.getModifiers()) && Function.class.isAssignableFrom(clazz)) {
         try {
-          Function function = (Function)clazz.newInstance();
+          Function function = (Function) clazz.newInstance();
           String name = function.name().toLowerCase();
           Supplier<Function> supplier = function instanceof Function.Factory ? (Function.Factory) function
                                                                              : Suppliers.ofInstance(function);
@@ -65,15 +65,25 @@ public class Parser
 
   public static Expr parse(String in)
   {
+    return parse(in, func);
+  }
+
+  public static Expr parse(String in, Map<String, Supplier<Function>> func)
+  {
+    ParseTree parseTree = parseTree(in);
+    ParseTreeWalker walker = new ParseTreeWalker();
+    ExprListenerImpl listener = new ExprListenerImpl(parseTree, func);
+    walker.walk(listener, parseTree);
+    return listener.getAST();
+  }
+
+  public static ParseTree parseTree(String in)
+  {
     ExprLexer lexer = new ExprLexer(new ANTLRInputStream(in));
     CommonTokenStream tokens = new CommonTokenStream(lexer);
     ExprParser parser = new ExprParser(tokens);
     parser.setBuildParseTree(true);
-    ParseTree parseTree = parser.expr();
-    ParseTreeWalker walker = new ParseTreeWalker();
-    ExprListenerImpl listener = new ExprListenerImpl(parseTree);
-    walker.walk(listener, parseTree);
-    return listener.getAST();
+    return parser.expr();
   }
 
   public static List<String> findRequiredBindings(String in)
@@ -83,24 +93,24 @@ public class Parser
 
   public static List<String> findRequiredBindings(Expr parsed)
   {
-    return Lists.newArrayList(findRecursive(parsed, Sets.<String>newLinkedHashSet()));
+    return Lists.newArrayList(findBindingsRecursive(parsed, Sets.<String>newLinkedHashSet()));
   }
 
-  private static Set<String> findRecursive(Expr expr, Set<String> found)
+  private static Set<String> findBindingsRecursive(Expr expr, Set<String> found)
   {
     if (expr instanceof IdentifierExpr) {
       found.add(expr.toString());
     } else if (expr instanceof BinaryOpExprBase) {
       BinaryOpExprBase binary = (BinaryOpExprBase) expr;
-      findRecursive(binary.left, found);
-      findRecursive(binary.right, found);
+      findBindingsRecursive(binary.left, found);
+      findBindingsRecursive(binary.right, found);
     } else if (expr instanceof UnaryMinusExpr) {
-      findRecursive(((UnaryMinusExpr) expr).expr, found);
+      findBindingsRecursive(((UnaryMinusExpr) expr).expr, found);
     } else if (expr instanceof UnaryNotExpr) {
-      findRecursive(((UnaryNotExpr) expr).expr, found);
+      findBindingsRecursive(((UnaryNotExpr) expr).expr, found);
     } else if (expr instanceof FunctionExpr) {
       for (Expr child : ((FunctionExpr) expr).args) {
-        findRecursive(child, found);
+        findBindingsRecursive(child, found);
       }
     }
     return found;
@@ -136,5 +146,27 @@ public class Parser
         return supplier == null ? null : supplier.get();
       }
     };
+  }
+
+  public static void reset(Expr expr)
+  {
+    if (expr instanceof BinaryOpExprBase) {
+      BinaryOpExprBase binary = (BinaryOpExprBase) expr;
+      reset(binary.left);
+      reset(binary.right);
+    } else if (expr instanceof UnaryMinusExpr) {
+      reset(((UnaryMinusExpr) expr).expr);
+    } else if (expr instanceof UnaryNotExpr) {
+      reset(((UnaryNotExpr) expr).expr);
+    } else if (expr instanceof FunctionExpr) {
+      FunctionExpr functionExpr = (FunctionExpr) expr;
+      if (functionExpr.function instanceof Function.PartitionFunction) {
+        ((Function.PartitionFunction)functionExpr.function).reset();
+      } else {
+        for (Expr child : functionExpr.args) {
+          reset(child);
+        }
+      }
+    }
   }
 }

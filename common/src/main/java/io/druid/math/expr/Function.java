@@ -24,6 +24,7 @@ import com.google.common.base.Strings;
 import com.google.common.base.Supplier;
 import com.google.common.collect.Sets;
 import io.druid.math.expr.Expr.NumericBinding;
+import io.druid.math.expr.Expr.WindowContext;
 import org.apache.commons.lang.StringUtils;
 import org.joda.time.DateTime;
 import org.joda.time.Days;
@@ -33,14 +34,16 @@ import org.mozilla.javascript.ScriptableObject;
 import java.text.DateFormat;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
+import java.util.Arrays;
 import java.util.Date;
 import java.util.Formatter;
 import java.util.List;
+import java.util.Objects;
 import java.util.Set;
 
 /**
  */
-interface Function
+public interface Function
 {
   String name();
 
@@ -1129,7 +1132,7 @@ interface Function
       }
       String input = args.get(0).eval(bindings).asString();
       String splitter = args.get(1).eval(bindings).asString();
-      int index = (int)args.get(2).eval(bindings).longValue();
+      int index = (int) args.get(2).eval(bindings).longValue();
 
       String[] split = input.split(splitter);
       return ExprEval.of(index >= split.length ? null : split[index]);
@@ -1213,7 +1216,7 @@ interface Function
         throw new RuntimeException("function 'right' needs 2 arguments");
       }
       String input = args.get(0).eval(bindings).asString();
-      int index = (int)args.get(1).eval(bindings).longValue();
+      int index = (int) args.get(1).eval(bindings).longValue();
 
       return ExprEval.of(
           Strings.isNullOrEmpty(input) || input.length() < index
@@ -1238,8 +1241,8 @@ interface Function
         throw new RuntimeException("function 'mid' needs 3 arguments");
       }
       String input = args.get(0).eval(bindings).asString();
-      int start = (int)args.get(1).eval(bindings).longValue();
-      int end = (int)args.get(2).eval(bindings).longValue();
+      int start = (int) args.get(1).eval(bindings).longValue();
+      int end = (int) args.get(2).eval(bindings).longValue();
 
       return ExprEval.of(Strings.isNullOrEmpty(input) ? input : input.substring(start, end));
     }
@@ -1339,6 +1342,854 @@ interface Function
     public Function get()
     {
       return new InFunc();
+    }
+  }
+
+  abstract class PartitionFunction implements Function, Factory
+  {
+    protected String fieldName;
+    protected ExprType fieldType;
+    protected Object[] parameters;
+
+    @Override
+    public ExprEval apply(List<Expr> args, NumericBinding bindings)
+    {
+      if (!(bindings instanceof WindowContext)) {
+        throw new IllegalStateException("function '" + name() + "' needs window context");
+      }
+      WindowContext context = (WindowContext) bindings;
+      if (fieldName == null) {
+        initialize(args, context);
+      }
+      return ExprEval.bestEffortOf(invoke(context), fieldType);
+    }
+
+    protected final void initialize(List<Expr> args, WindowContext context)
+    {
+      if (args.size() > 0) {
+        fieldName = Evals.getIdentifier(args.get(0));   // todo can be expression
+        fieldType = context.type(fieldName);
+        parameters = Evals.getConstants(args.subList(1, args.size()));
+      } else {
+        fieldName = "$$$";
+        parameters = new Object[0];
+      }
+      initialize(context, parameters);
+    }
+
+    protected final void assertNumeric(ExprType type)
+    {
+      if (type != ExprType.LONG && type != ExprType.DOUBLE) {
+        throw new IllegalArgumentException("unsupported type " + type);
+      }
+    }
+
+    protected void initialize(WindowContext context, Object[] parameters) { }
+
+    protected abstract Object invoke(WindowContext context);
+
+    protected void reset() { }
+  }
+
+  abstract class WindowSupport extends PartitionFunction
+  {
+    protected int[] window;
+
+    @Override
+    protected void initialize(WindowContext context, Object[] parameters)
+    {
+      if (parameters.length >= 2) {
+        window = new int[]{Integer.MIN_VALUE, 0};
+        if (!"?".equals(parameters[parameters.length - 2])) {
+          window[0] = ((Number) parameters[parameters.length - 2]).intValue();
+        }
+        if (!"?".equals(parameters[parameters.length - 1])) {
+          window[1] = ((Number) parameters[parameters.length - 1]).intValue();
+        }
+      }
+    }
+
+    protected final int sizeOfWindow()
+    {
+      return window == null ? -1 : Math.abs(window[0] - window[1]) + 1;
+    }
+
+    protected final Object invoke(WindowContext context)
+    {
+      if (window != null) {
+        reset();
+        for (Object object : context.iterator(window[0], window[1], fieldName)) {
+          invoke(object);
+        }
+      } else {
+        invoke(context.get(fieldName));
+      }
+      return current();
+    }
+
+    protected abstract void invoke(Object current);
+
+    protected abstract Object current();
+  }
+
+  class Prev extends PartitionFunction
+  {
+    @Override
+    public String name()
+    {
+      return "$prev";
+    }
+
+    @Override
+    protected Object invoke(WindowContext context)
+    {
+      return context.get(context.index() - 1, fieldName);
+    }
+
+    @Override
+    public Function get()
+    {
+      return new Prev();
+    }
+  }
+
+  class Next extends PartitionFunction
+  {
+    @Override
+    public String name()
+    {
+      return "$next";
+    }
+
+    @Override
+    protected Object invoke(WindowContext context)
+    {
+      return context.get(context.index() + 1, fieldName);
+    }
+
+    @Override
+    public Function get()
+    {
+      return new Next();
+    }
+  }
+
+  class PartitionLast extends PartitionFunction
+  {
+    @Override
+    public String name()
+    {
+      return "$last";
+    }
+
+    @Override
+    protected Object invoke(WindowContext context)
+    {
+      return context.get(context.size() - 1, fieldName);
+    }
+
+    @Override
+    public Function get()
+    {
+      return new PartitionLast();
+    }
+  }
+
+  class PartitionFirst extends PartitionFunction
+  {
+    @Override
+    public String name()
+    {
+      return "$first";
+    }
+
+    @Override
+    protected Object invoke(WindowContext context)
+    {
+      return context.get(0, fieldName);
+    }
+
+    @Override
+    public Function get()
+    {
+      return new PartitionFirst();
+    }
+  }
+
+  class PartitionNth extends PartitionFunction
+  {
+    private int nth;
+
+    @Override
+    public String name()
+    {
+      return "$nth";
+    }
+
+    @Override
+    protected final void initialize(WindowContext context, Object[] parameters)
+    {
+      if (parameters.length != 1 || !(parameters[0] instanceof Long)) {
+        throw new RuntimeException("function 'nth' needs 1 index argument");
+      }
+      nth = ((Number) parameters[0]).intValue();
+      if (nth < 0) {
+        throw new IllegalArgumentException("nth should not be negative");
+      }
+    }
+
+    @Override
+    protected Object invoke(WindowContext context)
+    {
+      return context.get(nth, fieldName);
+    }
+
+    @Override
+    public Function get()
+    {
+      return new PartitionNth();
+    }
+  }
+
+  class Lag extends PartitionFunction implements Factory
+  {
+    private int delta;
+
+    @Override
+    public String name()
+    {
+      return "$lag";
+    }
+
+    @Override
+    protected final void initialize(WindowContext context, Object[] parameters)
+    {
+      if (parameters.length != 1 || !(parameters[0] instanceof Long)) {
+        throw new IllegalArgumentException("function 'lag' needs 1 index argument");
+      }
+      delta = ((Number) parameters[0]).intValue();
+      if (delta <= 0) {
+        throw new IllegalArgumentException("delta should be positive integer");
+      }
+    }
+
+    @Override
+    protected Object invoke(WindowContext context)
+    {
+      return context.get(context.index() - delta, fieldName);
+    }
+
+    @Override
+    public Function get()
+    {
+      return new Lag();
+    }
+  }
+
+  class Lead extends PartitionFunction implements Factory
+  {
+    private int delta;
+
+    @Override
+    public String name()
+    {
+      return "$lead";
+    }
+
+    @Override
+    protected final void initialize(WindowContext context, Object[] parameters)
+    {
+      if (parameters.length != 1 || !(parameters[0] instanceof Long)) {
+        throw new IllegalArgumentException("function 'lead' needs 1 index argument");
+      }
+      delta = ((Number) parameters[0]).intValue();
+      if (delta <= 0) {
+        throw new IllegalArgumentException("delta should be positive integer");
+      }
+    }
+
+    @Override
+    protected Object invoke(WindowContext context)
+    {
+      return context.get(context.index() + delta, fieldName);
+    }
+
+    @Override
+    public Function get()
+    {
+      return new Lead();
+    }
+  }
+
+  class RunningDelta extends PartitionFunction
+  {
+    private long longPrev;
+    private double doublePrev;
+
+    @Override
+    public String name()
+    {
+      return "$delta";
+    }
+
+    @Override
+    protected Object invoke(WindowContext context)
+    {
+      Object current = context.get(fieldName);
+      if (context.index() == 0) {
+        switch (fieldType) {
+          case LONG:
+            longPrev = ((Number) current).longValue();
+            return 0L;
+          case DOUBLE:
+            doublePrev = ((Number) current).doubleValue();
+            return 0D;
+          default:
+            throw new IllegalArgumentException("unsupported type " + fieldType);
+        }
+      }
+      switch (fieldType) {
+        case LONG:
+          long currentLong = ((Number) current).longValue();
+          long deltaLong = currentLong - longPrev;
+          longPrev = currentLong;
+          return deltaLong;
+        case DOUBLE:
+          double currentDouble = ((Number) current).doubleValue();
+          double deltaDouble = currentDouble - doublePrev;
+          doublePrev = currentDouble;
+          return deltaDouble;
+        default:
+          throw new IllegalArgumentException("unsupported type " + fieldType);
+      }
+    }
+
+    @Override
+    protected void reset()
+    {
+      longPrev = 0;
+      doublePrev = 0;
+    }
+
+    @Override
+    public Function get()
+    {
+      return new RunningDelta();
+    }
+  }
+
+  class RunningSum extends WindowSupport implements Factory
+  {
+    private long longSum;
+    private double doubleSum;
+
+    @Override
+    public String name()
+    {
+      return "$sum";
+    }
+
+    @Override
+    protected void invoke(Object current)
+    {
+      switch (fieldType) {
+        case LONG:
+          longSum += ((Number) current).longValue();
+          break;
+        case DOUBLE:
+          doubleSum += ((Number) current).doubleValue();
+          break;
+        default:
+          throw new IllegalArgumentException("unsupported type " + fieldType);
+      }
+    }
+
+    @Override
+    protected Object current()
+    {
+      if (fieldType == ExprType.LONG) {
+        return longSum;
+      } else {
+        return doubleSum;
+      }
+    }
+
+    @Override
+    protected void reset()
+    {
+      longSum = 0;
+      doubleSum = 0;
+    }
+
+    @Override
+    public Function get()
+    {
+      return new RunningSum();
+    }
+  }
+
+  class RunningMin extends WindowSupport implements Factory
+  {
+    private Comparable prev;
+
+    @Override
+    public String name()
+    {
+      return "$min";
+    }
+
+    @Override
+    protected void invoke(Object current)
+    {
+      Comparable comparable = (Comparable) current;
+      if (prev == null || (comparable != null && comparable.compareTo(prev) < 0)) {
+        prev = comparable;
+      }
+    }
+
+    @Override
+    protected Object current()
+    {
+      return prev;
+    }
+
+    @Override
+    protected void reset()
+    {
+      prev = null;
+    }
+
+    @Override
+    public Function get()
+    {
+      return new RunningMin();
+    }
+  }
+
+  class RunningMax extends WindowSupport implements Factory
+  {
+    private Comparable prev;
+
+    @Override
+    public String name()
+    {
+      return "$max";
+    }
+
+    @Override
+    protected void invoke(Object current)
+    {
+      Comparable comparable = (Comparable) current;
+      if (prev == null || (comparable != null && comparable.compareTo(prev) > 0)) {
+        prev = comparable;
+      }
+    }
+
+    @Override
+    protected Object current()
+    {
+      return prev;
+    }
+
+    @Override
+    protected void reset()
+    {
+      prev = null;
+    }
+
+    @Override
+    public Function get()
+    {
+      return new RunningMin();
+    }
+  }
+
+  class RowNum extends PartitionFunction implements Factory
+  {
+    @Override
+    public String name()
+    {
+      return "$row_num";
+    }
+
+    @Override
+    protected Object invoke(WindowContext context)
+    {
+      return context.index() + 1L;
+    }
+
+    @Override
+    public Function get()
+    {
+      return new RowNum();
+    }
+  }
+
+  class Rank extends PartitionFunction implements Factory
+  {
+    private long prevRank;
+    private Object prev;
+
+    @Override
+    public String name()
+    {
+      return "$rank";
+    }
+
+    @Override
+    protected Object invoke(WindowContext context)
+    {
+      Object current = context.get(fieldName);
+      if (context.index() == 0 || !Objects.equals(prev, current)) {
+        prev = current;
+        prevRank = context.index() + 1;
+      }
+      return prevRank;
+    }
+
+    @Override
+    protected void reset()
+    {
+      prevRank = 0L;
+      prev = null;
+    }
+
+    @Override
+    public Function get()
+    {
+      return new Rank();
+    }
+  }
+
+  class DenseRank extends PartitionFunction implements Factory
+  {
+    private long prevRank;
+    private Object prev;
+
+    @Override
+    public String name()
+    {
+      return "$dense_rank";
+    }
+
+    @Override
+    protected Object invoke(WindowContext context)
+    {
+      Object current = context.get(fieldName);
+      if (context.index() == 0 || !Objects.equals(prev, current)) {
+        prev = current;
+        prevRank++;
+      }
+      return prevRank;
+    }
+
+    @Override
+    protected void reset()
+    {
+      prevRank = 0L;
+      prev = null;
+    }
+
+    @Override
+    public Function get()
+    {
+      return new DenseRank();
+    }
+  }
+
+  class RunningMean extends RunningSum
+  {
+    private int count;
+
+    @Override
+    public String name()
+    {
+      return "$mean";
+    }
+
+    @Override
+    protected void invoke(Object current)
+    {
+      super.invoke(current);
+      count++;
+    }
+
+    @Override
+    protected Object current()
+    {
+      return ((Number) super.current()).doubleValue() / count;
+    }
+
+    public void reset()
+    {
+      super.reset();
+      count = 0;
+    }
+
+    @Override
+    public Function get()
+    {
+      return new RunningMean();
+    }
+  }
+
+  class RunningVariance extends WindowSupport
+  {
+    long count; // number of elements
+    double sum; // sum of elements
+    double nvariance; // sum[x-avg^2] (this is actually n times of the variance)
+
+    @Override
+    public String name()
+    {
+      return "$variance";
+    }
+
+    @Override
+    protected void invoke(Object current)
+    {
+      double v = ((Number) current).doubleValue();
+      count++;
+      sum += v;
+      if (count > 1) {
+        double t = count * v - sum;
+        nvariance += (t * t) / ((double) count * (count - 1));
+      }
+    }
+
+    @Override
+    protected Double current()
+    {
+      return count == 1 ? 0d : nvariance / (count - 1);
+    }
+
+    public void reset()
+    {
+      count = 0;
+      sum = 0;
+      nvariance = 0;
+    }
+
+    @Override
+    public Function get()
+    {
+      return new RunningVariance();
+    }
+  }
+
+  class RunningStandardDeviation extends RunningVariance
+  {
+    @Override
+    public String name()
+    {
+      return "$stddev";
+    }
+
+    @Override
+    protected Double current()
+    {
+      return Math.sqrt(super.current());
+    }
+
+    @Override
+    public Function get()
+    {
+      return new RunningStandardDeviation();
+    }
+  }
+
+  class RunningVariancePop extends RunningVariance
+  {
+    @Override
+    public String name()
+    {
+      return "$variancePop";
+    }
+
+    @Override
+    protected Double current()
+    {
+      return count == 1 ? 0d : nvariance / count;
+    }
+
+    @Override
+    public Function get()
+    {
+      return new RunningVariancePop();
+    }
+  }
+
+  class RunningStandardDeviationPop extends RunningVariance
+  {
+    @Override
+    public String name()
+    {
+      return "$stddevPop";
+    }
+
+    @Override
+    protected Double current()
+    {
+      return Math.sqrt(super.current());
+    }
+
+    @Override
+    public Function get()
+    {
+      return new RunningStandardDeviationPop();
+    }
+  }
+
+  class RunningPercentile extends WindowSupport implements Factory
+  {
+    private float percentile;
+
+    private int size;
+    private long[] longs;
+    private double[] doubles;
+
+    @Override
+    public String name()
+    {
+      return "$percentile";
+    }
+
+    @Override
+    protected void initialize(WindowContext context, Object[] parameters)
+    {
+      super.initialize(context, parameters);
+      percentile = ((Number) parameters[0]).floatValue();
+      assertNumeric(fieldType);
+
+      int limit = window == null ? context.size() : sizeOfWindow();
+      if (fieldType == ExprType.LONG) {
+        longs = new long[limit];
+      } else {
+        doubles = new double[limit];
+      }
+    }
+
+    @Override
+    protected void invoke(Object current)
+    {
+      if (window == null) {
+        if (fieldType == ExprType.LONG) {
+          long longValue = ((Number) current).longValue();
+          int index = Arrays.binarySearch(longs, 0, size, longValue);
+          if (index < 0) {
+            index = -index - 1;
+          }
+          System.arraycopy(longs, index, longs, index + 1, size - index);
+          longs[index] = longValue;
+        } else {
+          double doubleValue = ((Number) current).doubleValue();
+          int index = Arrays.binarySearch(doubles, 0, size, doubleValue);
+          if (index < 0) {
+            index = -index - 1;
+          }
+          System.arraycopy(doubles, index, doubles, index + 1, size - index);
+          doubles[index] = doubleValue;
+        }
+      } else {
+        if (fieldType == ExprType.LONG) {
+          longs[size] = ((Number) current).longValue();
+        } else {
+          doubles[size] = ((Number) current).doubleValue();
+        }
+      }
+      size++;
+    }
+
+    @Override
+    protected Object current()
+    {
+      if (window != null) {
+        if (fieldType == ExprType.LONG) {
+          Arrays.sort(longs, 0, size);
+        } else {
+          Arrays.sort(doubles, 0, size);
+        }
+      }
+      int index = (int) (size * percentile);
+      if (fieldType == ExprType.LONG) {
+        return longs[index];
+      } else {
+        return doubles[index];
+      }
+    }
+
+    @Override
+    public void reset()
+    {
+      size = 0;
+    }
+
+    @Override
+    public Function get()
+    {
+      return new RunningPercentile();
+    }
+  }
+
+  class PartitionSize extends PartitionFunction implements Factory
+  {
+    @Override
+    public String name()
+    {
+      return "$size";
+    }
+
+    @Override
+    protected Object invoke(WindowContext context)
+    {
+      return (long) context.size();
+    }
+
+    @Override
+    public Function get()
+    {
+      return new PartitionSize();
+    }
+  }
+
+  class PartitionEval implements Function
+  {
+    @Override
+    public String name()
+    {
+      return "$assign";
+    }
+
+    @Override
+    public ExprEval apply(List<Expr> args, NumericBinding bindings)
+    {
+      if (args.isEmpty()) {
+        throw new IllegalArgumentException(name() + " should have at least output field name");
+      }
+      StringBuilder builder = new StringBuilder();
+      builder.append(args.get(0).eval(bindings).stringValue());
+      for (int i = 1; i < args.size(); i++) {
+        builder.append(':').append(args.get(i).eval(bindings).longValue());
+      }
+      return ExprEval.of(builder.toString());
+    }
+  }
+
+  class AssignFirst implements Function
+  {
+    @Override
+    public String name()
+    {
+      return "$assignFirst";
+    }
+
+    @Override
+    public ExprEval apply(List<Expr> args, NumericBinding bindings)
+    {
+      if (args.size() != 1) {
+        throw new IllegalArgumentException(name() + " should have one argument (output field name)");
+      }
+      return ExprEval.of(args.get(0).eval(bindings).stringValue() + ":0");
     }
   }
 }

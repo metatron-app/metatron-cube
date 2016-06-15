@@ -38,6 +38,19 @@ public class ExprEval extends Pair<Object, ExprType>
     return ExprEval.of(val == null ? null : String.valueOf(val), ExprType.STRING);
   }
 
+  public static ExprEval bestEffortOf(Object val, ExprType type)
+  {
+    if (val instanceof Number) {
+      if (val instanceof Byte || val instanceof Short || val instanceof Integer || val instanceof Long) {
+        return ExprEval.of(val, ExprType.LONG);
+      }
+      if (val instanceof Float || val instanceof Double) {
+        return ExprEval.of(val, ExprType.DOUBLE);
+      }
+    }
+    return new ExprEval(val, type != null ? type : ExprType.STRING);
+  }
+
   public static ExprEval of(Object value, ExprType type)
   {
     return new ExprEval(value, type);
@@ -78,7 +91,8 @@ public class ExprEval extends Pair<Object, ExprType>
     return rhs;
   }
 
-  public boolean isNull() {
+  public boolean isNull()
+  {
     return lhs == null || rhs == ExprType.STRING && stringValue().isEmpty();
   }
 

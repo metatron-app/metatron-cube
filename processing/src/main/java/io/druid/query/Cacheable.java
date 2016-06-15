@@ -17,32 +17,11 @@
  * under the License.
  */
 
-package io.druid.math.expr;
+package io.druid.query;
 
 /**
  */
-public enum ExprType
+public interface Cacheable
 {
-  DOUBLE, LONG, STRING;
-
-  public static ExprType bestEffortOf(String name)
-  {
-    if (name == null) {
-      return STRING;
-    }
-    switch (name.toUpperCase()) {
-      case "FLOAT":
-      case "DOUBLE":
-        return DOUBLE;
-      case "BYTE":
-      case "SHORT":
-      case "INT":
-      case "INTEGER":
-      case "LONG":
-      case "BIGINT":
-        return LONG;
-      default:
-        return STRING;
-    }
-  }
+  byte[] getCacheKey();
 }

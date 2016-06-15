@@ -21,12 +21,17 @@ package io.druid.cli;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
 import com.google.inject.Binder;
 import com.google.inject.Inject;
 import com.google.inject.Injector;
 import com.google.inject.Key;
 import com.google.inject.Module;
 import com.metamx.common.guava.Sequence;
+import com.metamx.common.guava.Sequences;
+import com.metamx.common.guava.Yielder;
+import com.metamx.common.guava.YieldingAccumulator;
 import com.metamx.common.lifecycle.Lifecycle;
 import com.metamx.common.logger.Logger;
 import io.druid.client.BrokerSegmentWatcherConfig;
@@ -183,6 +188,33 @@ public class EmbeddedBroker extends ServerRunnable
     public void close() throws IOException
     {
       lifecycle.stop();
+    }
+  }
+
+  public static void main(String[] args) throws Exception
+  {
+    try (EmbeddedResource e = create()) {
+      Sequence seq = e.runQuery(null, Maps.<String, Object>newHashMap());
+      List list = Sequences.toList(seq, Lists.newArrayList());
+
+      Yielder yielder = seq.toYielder(
+          null,
+          new YieldingAccumulator()
+          {
+            @Override
+            public Object accumulate(Object accumulated, Object in)
+            {
+              yield();
+              return in;
+            }
+          }
+      );
+
+      while (!yielder.isDone()) {
+        final Object o = yielder.get();
+        System.out.println("[EmbeddedBroker/main] " + o);
+        yielder = yielder.next(null);
+      }
     }
   }
 }

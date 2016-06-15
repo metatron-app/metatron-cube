@@ -32,7 +32,9 @@ import io.druid.query.QueryRunner;
 import io.druid.query.QueryRunnerFactory;
 import io.druid.query.QueryToolChest;
 import io.druid.segment.column.Column;
+import org.apache.commons.lang.ArrayUtils;
 import org.joda.time.DateTime;
+import org.junit.Assert;
 
 import java.util.Arrays;
 import java.util.List;
@@ -76,8 +78,6 @@ public class GroupByQueryRunnerTestHelper
   public static List<Row> createExpectedRows(String[] columnNames, Object[]... values)
   {
     int timeIndex = Arrays.asList(columnNames).indexOf(Column.TIME_COLUMN_NAME);
-    Preconditions.checkArgument(timeIndex >= 0);
-
     List<Row> expected = Lists.newArrayList();
     for (Object[] value : values) {
       Preconditions.checkArgument(value.length == columnNames.length);
@@ -87,9 +87,31 @@ public class GroupByQueryRunnerTestHelper
           theVals.put(columnNames[i], value[i]);
         }
       }
-      expected.add(new MapBasedRow(new DateTime(value[timeIndex]), theVals));
+      DateTime timestamp = timeIndex < 0 ? new DateTime(0) : new DateTime(value[timeIndex]);
+      expected.add(new MapBasedRow(timestamp, theVals));
     }
     return expected;
   }
 
+  public static void validate(String[] columnNames, List<Row> expected, Iterable<Row> resultIterable)
+  {
+    List<Row> result = Lists.newArrayList(resultIterable);
+    int max = Math.min(expected.size(), result.size());
+    for (int i = 0; i < max; i++) {
+      Row e = expected.get(i);
+      Row r = result.get(i);
+      if (ArrayUtils.indexOf(columnNames, "__time") >= 0) {
+        Assert.assertEquals(e.getTimestamp(), r.getTimestamp());
+      }
+      for (String columnName : columnNames) {
+        Assert.assertEquals(e.getRaw(columnName), r.getRaw(columnName));
+      }
+    }
+    if (expected.size() > result.size()) {
+      Assert.fail("need more");
+    }
+    if (expected.size() < result.size()) {
+      Assert.fail("need less");
+    }
+  }
 }

@@ -35,6 +35,17 @@ public interface Expr
   {
     Object get(String name);
   }
+
+  interface WindowContext extends NumericBinding
+  {
+    ExprType type(String name);
+    Object get(String name);
+    Object get(int index, String name);
+    Iterable<Object> iterator(String name);
+    Iterable<Object> iterator(int startRel, int endRel, String name);
+    int size();
+    int index();
+  }
 }
 
 class LongExpr implements Expr
@@ -125,13 +136,39 @@ class IdentifierExpr implements Expr
   }
 }
 
+class AssignExpr implements Expr
+{
+  final Expr assignee;
+  final Expr assigned;
+
+  public AssignExpr(Expr assignee, Expr assigned)
+  {
+    this.assignee = assignee;
+    this.assigned = assigned;
+  }
+
+  @Override
+  public String toString()
+  {
+    return "(" + assignee + " = " + assigned + ")";
+  }
+
+  @Override
+  public ExprEval eval(NumericBinding bindings)
+  {
+    throw new IllegalStateException("cannot evaluated directly");
+  }
+}
+
 class FunctionExpr implements Expr
 {
+  final Function function;
   final String name;
   final List<Expr> args;
 
-  public FunctionExpr(String name, List<Expr> args)
+  public FunctionExpr(Function function, String name, List<Expr> args)
   {
+    this.function = function;
     this.name = name;
     this.args = args;
   }
@@ -145,7 +182,7 @@ class FunctionExpr implements Expr
   @Override
   public ExprEval eval(NumericBinding bindings)
   {
-    return Parser.func.get(name.toLowerCase()).get().apply(args, bindings);
+    return function.apply(args, bindings);
   }
 }
 

@@ -46,7 +46,7 @@ public abstract class DimensionSchema
 
   // main druid and druid-api should really use the same ValueType enum.
   // merge them when druid-api is merged back into the main repo
-  public enum ValueType
+  public static enum ValueType
   {
     FLOAT,
     LONG,

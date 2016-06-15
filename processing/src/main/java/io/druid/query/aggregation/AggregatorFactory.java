@@ -20,6 +20,7 @@
 package io.druid.query.aggregation;
 
 import com.metamx.common.logger.Logger;
+import io.druid.query.Cacheable;
 import io.druid.segment.ColumnSelectorFactory;
 
 import java.util.Comparator;
@@ -37,7 +38,7 @@ import java.util.Map;
  * provided to the Aggregator through the MetricSelector object, so whatever creates that object gets to choose how
  * the data is actually stored and accessed.
  */
-public abstract class AggregatorFactory
+public abstract class AggregatorFactory implements Cacheable
 {
   private static final Logger log = new Logger(AggregatorFactory.class);
 

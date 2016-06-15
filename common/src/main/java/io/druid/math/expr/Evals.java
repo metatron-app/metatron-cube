@@ -19,14 +19,13 @@
 
 package io.druid.math.expr;
 
-import com.google.common.base.Function;
-import com.google.common.base.Strings;
-import io.druid.data.input.impl.DimensionSchema;
+import com.metamx.common.Pair;
 import org.apache.commons.lang.StringUtils;
 import org.joda.time.DateTime;
 import org.joda.time.format.DateTimeFormat;
 import org.joda.time.format.DateTimeFormatter;
 
+import java.util.List;
 import java.util.Objects;
 
 /**
@@ -69,12 +68,54 @@ public class Evals
     return arg.eval(null).stringValue();
   }
 
+  static String getIdentifier(Expr arg)
+  {
+    if (!(arg instanceof IdentifierExpr)) {
+      throw new RuntimeException(arg + " is not identifier");
+    }
+    return arg.toString();
+  }
+
   static long getConstantLong(Expr arg)
   {
-    if (!(arg instanceof LongExpr)) {
-      throw new RuntimeException(arg + " is not constant long");
+    if (arg instanceof UnaryMinusExpr) {
+      UnaryMinusExpr minusExpr = (UnaryMinusExpr) arg;
+      if (minusExpr.expr instanceof LongExpr) {
+        return arg.eval(null).longValue();
+      }
     }
-    return arg.eval(null).longValue();
+    if (arg instanceof LongExpr) {
+      return arg.eval(null).longValue();
+    }
+    throw new RuntimeException(arg + " is not a constant long");
+  }
+
+  static Object getConstant(Expr arg)
+  {
+    if (arg instanceof StringExpr) {
+      return arg.eval(null).stringValue();
+    } else if (arg instanceof LongExpr) {
+      return arg.eval(null).longValue();
+    } else if (arg instanceof DoubleExpr) {
+      return arg.eval(null).doubleValue();
+    } else if (arg instanceof UnaryMinusExpr) {
+      UnaryMinusExpr minusExpr = (UnaryMinusExpr)arg;
+      if (minusExpr.expr instanceof LongExpr) {
+        return -minusExpr.expr.eval(null).longValue();
+      } else if (minusExpr.expr instanceof LongExpr) {
+        return -minusExpr.expr.eval(null).doubleValue();
+      }
+    }
+    throw new RuntimeException(arg + " is not a constant");
+  }
+
+  static Object[] getConstants(List<Expr> args)
+  {
+    Object[] constants = new Object[args.size()];
+    for (int i = 0; i < constants.length; i++) {
+      constants[i] = getConstant(args.get(i));
+    }
+    return constants;
   }
 
   public static boolean asBoolean(Number x)
@@ -88,43 +129,6 @@ public class Evals
     }
   }
 
-  public static com.google.common.base.Function<Comparable, Number> asNumberFunc(DimensionSchema.ValueType type)
-  {
-    switch (type) {
-      case FLOAT:
-        return new Function<Comparable, Number>()
-        {
-          @Override
-          public Number apply(Comparable input)
-          {
-            return input == null ? 0F : (Float) input;
-          }
-        };
-      case LONG:
-        return new Function<Comparable, Number>()
-        {
-          @Override
-          public Number apply(Comparable input)
-          {
-            return input == null ? 0L : (Long) input;
-          }
-        };
-      case STRING:
-        return new Function<Comparable, Number>()
-        {
-          @Override
-          public Number apply(Comparable input)
-          {
-            String string = (String) input;
-            return Strings.isNullOrEmpty(string)
-                   ? 0L
-                   : StringUtils.isNumeric(string) ? Long.valueOf(string) : Double.valueOf(string);
-          }
-        };
-    }
-    throw new UnsupportedOperationException("Unsupported type " + type);
-  }
-
   static DateTime toDateTime(ExprEval arg)
   {
     switch (arg.type()) {
@@ -134,5 +138,27 @@ public class Evals
       default:
         return new DateTime(arg.longValue());
     }
+  }
+
+  public static Pair<String, Expr> splitAssign(String expression)
+  {
+    Expr expr = Parser.parse(expression);
+    if (!(expr instanceof AssignExpr)) {
+      List<String> required = Parser.findRequiredBindings(expr);
+      if (required.size() != 1) {
+        throw new RuntimeException("cannot resolve output column " + expression);
+      }
+      return Pair.of(required.get(0), expr);
+    }
+    AssignExpr assign = (AssignExpr) expr;
+    Expr.NumericBinding bindings = new Expr.NumericBinding()
+    {
+      @Override
+      public Object get(String name)
+      {
+        return name;
+      }
+    };
+    return Pair.of(assign.assignee.eval(bindings).stringValue(), assign.assigned);
   }
 }

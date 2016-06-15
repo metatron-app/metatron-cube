@@ -19,6 +19,7 @@
 
 package io.druid.math.expr;
 
+import com.google.common.base.Supplier;
 import io.druid.math.expr.antlr.ExprBaseListener;
 import io.druid.math.expr.antlr.ExprParser;
 import org.antlr.v4.runtime.tree.ParseTree;
@@ -37,10 +38,12 @@ public class ExprListenerImpl extends ExprBaseListener
 {
   private final Map<ParseTree, Object> nodes;
   private final ParseTree rootNodeKey;
+  private final Map<String, Supplier<Function>> functions;
 
-  ExprListenerImpl(ParseTree rootNodeKey)
+  ExprListenerImpl(ParseTree rootNodeKey, Map<String, Supplier<Function>> functions)
   {
     this.rootNodeKey = rootNodeKey;
+    this.functions = functions;
     this.nodes = new HashMap<>();
   }
 
@@ -285,14 +288,15 @@ public class ExprListenerImpl extends ExprBaseListener
   public void exitFunctionExpr(ExprParser.FunctionExprContext ctx)
   {
     String fnName = ctx.getChild(0).getText();
-    if (!Parser.func.containsKey(fnName)) {
+    Supplier<Function> function = functions.get(fnName.toLowerCase());
+    if (function == null) {
       throw new RuntimeException("function " + fnName + " is not defined.");
     }
 
     List<Expr> args = ctx.getChildCount() > 3 ? (List<Expr>) nodes.get(ctx.getChild(2)) : Collections.<Expr>emptyList();
     nodes.put(
         ctx,
-        new FunctionExpr(fnName, args)
+        new FunctionExpr(function.get(), fnName, args)
     );
   }
 
@@ -322,5 +326,13 @@ public class ExprListenerImpl extends ExprBaseListener
     }
 
     nodes.put(ctx, args);
+  }
+
+  @Override
+  public void exitAssignExpr(ExprParser.AssignExprContext ctx)
+  {
+    nodes.put(
+        ctx, new AssignExpr((Expr) nodes.get(ctx.getChild(0)), (Expr) nodes.get(ctx.getChild(2)))
+    );
   }
 }
