@@ -1,0 +1,7 @@
+[
+  {
+    "type": "docColAgg",
+    "name": "pty_country",
+    "fieldName": "pty_country"
+  }
+]

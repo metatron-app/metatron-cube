@@ -1,0 +1,7 @@
+[
+  {
+    "type": "rangeAgg",
+    "name": "country_range",
+    "fieldName": "pty_country"
+  }
+]

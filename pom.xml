@@ -101,9 +101,14 @@
         <module>extensions-contrib/graphite-emitter</module>
         <module>extensions-contrib/kafka-eight-simpleConsumer</module>
         <module>extensions-contrib/rabbitmq</module>
+        <module>extensions-contrib/median</module>
+        <module>extensions-contrib/doccol</module>
+        <module>extensions-contrib/jdbc-firehose</module>
         <module>extensions-contrib/distinctcount</module>
         <module>extensions-contrib/parquet-extensions</module>
         <module>extensions-contrib/statsd-emitter</module>
+        <module>extensions-contrib/range</module>
+        <module>extensions-contrib/area</module>
 
         <!-- distribution packaging -->
         <module>distribution</module>

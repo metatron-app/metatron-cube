@@ -1,0 +1,23 @@
+{
+  "queryType": "groupBy",
+  "dataSource": "test_datasource",
+  "granularity": "ALL",
+  "dimensions": ["product"],
+  "aggregations": [
+    {
+      "type": "areaAgg",
+      "name": "area_agg",
+      "fieldName": "country_area"
+    }
+  ],
+  "postAggregations": [
+    {
+      "type": "areaPost",
+      "name": "area",
+      "fieldName": "area_agg"
+    }
+  ],
+  "intervals": [
+    "2014-10-19T00:00:00.000Z/2014-11-02T00:00:00.000Z"
+  ]
+}

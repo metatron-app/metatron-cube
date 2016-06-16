@@ -1,0 +1,7 @@
+[
+  {
+    "type": "areaAgg",
+    "name": "country_area",
+    "fieldName": "pty_country"
+  }
+]
