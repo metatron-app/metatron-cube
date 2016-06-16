@@ -19,8 +19,6 @@
 
 package io.druid.query.ordering;
 
-import java.util.Comparator;
-
 import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.fasterxml.jackson.annotation.JsonTypeInfo.As;
@@ -29,6 +27,10 @@ import com.google.common.primitives.Ints;
 import com.google.common.primitives.UnsignedBytes;
 import com.metamx.common.IAE;
 import com.metamx.common.StringUtils;
+import org.joda.time.DateTimeConstants;
+
+import java.util.Comparator;
+import java.util.Objects;
 
 
 public class StringComparators
@@ -37,23 +39,59 @@ public class StringComparators
   public static final String ALPHANUMERIC_NAME = "alphanumeric";
   public static final String INTEGER_NAME = "integer";
   public static final String FLOATING_POINT_NAME = "floatingpoint";
+  public static final String DAY_OF_WEEK_NAME = "dayofweek";
   
   public static final LexicographicComparator LEXICOGRAPHIC = new LexicographicComparator();
   public static final AlphanumericComparator ALPHANUMERIC = new AlphanumericComparator();
   public static final IntegerComparator INTEGER = new IntegerComparator();
   public static final FloatingPointComparator FLOATING_POINT = new FloatingPointComparator();
+  public static final DayOfWeekComparator DAY_OF_WEEK = new DayOfWeekComparator();
     
   @JsonTypeInfo(use=Id.NAME, include=As.PROPERTY, property="type", defaultImpl = LexicographicComparator.class)
   @JsonSubTypes(value = {
       @JsonSubTypes.Type(name = StringComparators.LEXICOGRAPHIC_NAME, value = LexicographicComparator.class),
       @JsonSubTypes.Type(name = StringComparators.ALPHANUMERIC_NAME, value = AlphanumericComparator.class),
       @JsonSubTypes.Type(name = StringComparators.INTEGER_NAME, value = IntegerComparator.class),
-      @JsonSubTypes.Type(name = StringComparators.FLOATING_POINT_NAME, value = FloatingPointComparator.class)
+      @JsonSubTypes.Type(name = StringComparators.FLOATING_POINT_NAME, value = FloatingPointComparator.class),
+      @JsonSubTypes.Type(name = StringComparators.DAY_OF_WEEK_NAME, value = DayOfWeekComparator.class)
   })
   public static interface StringComparator extends Comparator<String>
   {
   }
-  
+
+  public static abstract class AbstractStringComparator implements Comparator<String>
+  {
+    @Override
+    public final int compare(String s, String s2)
+    {
+      if (Objects.equals(s, s2)) {
+        return 0;
+      }
+      // null first
+      if (s == null) {
+        return -1;
+      }
+      if (s2 == null) {
+        return 1;
+      }
+      return _compare(s, s2);
+    }
+
+    @Override
+    public boolean equals(Object o)
+    {
+      if (this == o) {
+        return true;
+      }
+      if (o == null || getClass() != o.getClass()) {
+        return false;
+      }
+      return true;
+    }
+
+    public abstract int _compare(String s, String s2);
+  }
+
   public static class LexicographicComparator implements StringComparator
   {
     @Override
@@ -300,10 +338,10 @@ public class StringComparators
     }
   }
 
-  public static class IntegerComparator implements StringComparator
+  public static class IntegerComparator extends AbstractStringComparator implements StringComparator
   {
     @Override
-    public int compare(String s, String s2)
+    public final int _compare(String s, String s2)
     {
       // Avoid conversion to bytes for equal references
       if(s == s2){
@@ -321,29 +359,16 @@ public class StringComparators
     }
 
     @Override
-    public boolean equals(Object o)
-    {
-      if (this == o) {
-        return true;
-      }
-      if (o == null || getClass() != o.getClass()) {
-        return false;
-      }
-
-      return true;
-    }
-
-    @Override
     public String toString()
     {
       return StringComparators.INTEGER_NAME;
     }
   }
 
-  public static class FloatingPointComparator implements StringComparator
+  public static class FloatingPointComparator extends AbstractStringComparator implements StringComparator
   {
     @Override
-    public int compare(String s, String s2)
+    public final int _compare(String s, String s2)
     {
       // Avoid conversion to bytes for equal references
       if(s == s2){
@@ -361,22 +386,38 @@ public class StringComparators
     }
 
     @Override
-    public boolean equals(Object o)
+    public String toString()
     {
-      if (this == o) {
-        return true;
-      }
-      if (o == null || getClass() != o.getClass()) {
-        return false;
-      }
+      return StringComparators.FLOATING_POINT_NAME;
+    }
+  }
 
-      return true;
+  public static class DayOfWeekComparator extends AbstractStringComparator implements StringComparator
+  {
+    @Override
+    public int _compare(String s1, String s2)
+    {
+      return Ints.compare(toCode(s1), toCode(s2));
+    }
+
+    private int toCode(String s)
+    {
+      switch (s.toUpperCase()) {
+        case "MONDAY": return DateTimeConstants.MONDAY;
+        case "TUESDAY": return DateTimeConstants.TUESDAY;
+        case "WEDNESDAY": return DateTimeConstants.WEDNESDAY;
+        case "THURSDAY": return DateTimeConstants.THURSDAY;
+        case "FRIDAY": return DateTimeConstants.FRIDAY;
+        case "SATURDAY": return DateTimeConstants.SATURDAY;
+        case "SUNDAY": return DateTimeConstants.SUNDAY;
+        default: return DateTimeConstants.SUNDAY + 1;
+      }
     }
 
     @Override
     public String toString()
     {
-      return StringComparators.FLOATING_POINT_NAME;
+      return StringComparators.DAY_OF_WEEK_NAME;
     }
   }
 
@@ -391,6 +432,8 @@ public class StringComparators
         return INTEGER;
       case StringComparators.FLOATING_POINT_NAME:
         return FLOATING_POINT;
+      case StringComparators.DAY_OF_WEEK_NAME:
+        return DAY_OF_WEEK;
       default:
         throw new IAE("Unknown string comparator[%s]", type);
     }
