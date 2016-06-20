@@ -41,6 +41,7 @@ import io.druid.data.input.impl.*;
 import io.druid.guice.GuiceInjectors;
 import io.druid.initialization.Initialization;
 import io.druid.jackson.DefaultObjectMapper;
+import io.druid.metadata.MetadataStorageConnectorConfig;
 import io.druid.metadata.TestDerbyConnector;
 import org.apache.commons.lang.StringUtils;
 import org.junit.*;
@@ -81,7 +82,7 @@ public class JDBCFirehoseFactoryTest
 
   private final Closer closer = Closer.create();
   private final ListeningExecutorService setupTeardownService =
-      MoreExecutors.listeningDecorator(Execs.multiThreaded(2, "JDBCExtractionNamespaceTeardown--%s"));
+      MoreExecutors.listeningDecorator(Execs.multiThreaded(2, "JDBCFirehoseFactoryTeardown--%s"));
   private Handle handleRef = null;
 
   @Before
@@ -250,7 +251,7 @@ public class JDBCFirehoseFactoryTest
     dbColumns.add(tsName);
     dbColumns.addAll(columns);
     JDBCFirehoseFactory factory = new JDBCFirehoseFactory(
-        derbyConnectorRule.getMetadataConnectorConfig(),
+        toJDBCConnectorConfig(derbyConnectorRule.getMetadataConnectorConfig()),
         tableName,
         null,
         null,
@@ -296,7 +297,7 @@ public class JDBCFirehoseFactoryTest
     String complexJoin = String.format("(select %s from %s A join %s B on A.COL1 = B.J1) x",
         StringUtils.join(dbColumns, ','), tableName, joinTable);
     JDBCFirehoseFactory factory = new JDBCFirehoseFactory(
-        derbyConnectorRule.getMetadataConnectorConfig(),
+        toJDBCConnectorConfig(derbyConnectorRule.getMetadataConnectorConfig()),
         complexJoin,
         null,
         null,
@@ -349,7 +350,7 @@ public class JDBCFirehoseFactoryTest
     dbColumns.addAll(newCols);
     String query = "select * from " + tableName;
     JDBCFirehoseFactory factory = new JDBCFirehoseFactory(
-        derbyConnectorRule.getMetadataConnectorConfig(),
+        toJDBCConnectorConfig(derbyConnectorRule.getMetadataConnectorConfig()),
         null,
         query,
         null,
@@ -402,7 +403,7 @@ public class JDBCFirehoseFactoryTest
     dbColumns.addAll(newCols);
     String query = String.format("select * from %s A join %s B on A.COL1 = B.J1", tableName, joinTable);
     JDBCFirehoseFactory factory = new JDBCFirehoseFactory(
-        derbyConnectorRule.getMetadataConnectorConfig(),
+        toJDBCConnectorConfig(derbyConnectorRule.getMetadataConnectorConfig()),
         null,
         query,
         null,
@@ -445,7 +446,7 @@ public class JDBCFirehoseFactoryTest
     dbColumns.add(tsName);
     dbColumns.addAll(columns);
     JDBCFirehoseFactory factory = new JDBCFirehoseFactory(
-        derbyConnectorRule.getMetadataConnectorConfig(),
+        toJDBCConnectorConfig(derbyConnectorRule.getMetadataConnectorConfig()),
         tableName,
         null,
         null,
@@ -464,7 +465,7 @@ public class JDBCFirehoseFactoryTest
   @Test
   public void testExplicitJson() throws IOException
   {
-    String json = String.format("{\"type\":\"jdbc\", \"connectorConfig\":{\"createTables\":true,\"connectURI\":\"jdbc:mysql://localhost:3306/druid\",\"user\":\"druid\",\"password\":\"diurd\"}, \"table\": \"%s\", \"columns\": [\"key\",\"value\"]}",
+    String json = String.format("{\"type\":\"jdbc\", \"connectorConfig\":{\"connectURI\":\"jdbc:mysql://localhost:3306/druid\",\"user\":\"druid\",\"password\":\"diurd\"}, \"table\": \"%s\", \"columns\": [\"key\",\"value\"]}",
         tableName);
     JDBCFirehoseFactory factory = (JDBCFirehoseFactory)mapper.readValue(
         json,
@@ -480,7 +481,7 @@ public class JDBCFirehoseFactoryTest
   public void testExplicitJson2() throws IOException
   {
     String query = "select * from test";
-    String json = String.format("{\"type\":\"jdbc\", \"connectorConfig\":{\"createTables\":true,\"connectURI\":\"jdbc:mysql://localhost:3306/druid\",\"user\":\"druid\",\"password\":\"diurd\"}, \"query\": \"%s\", \"columns\": [\"key\",\"value\"]}",
+    String json = String.format("{\"type\":\"jdbc\", \"connectorConfig\":{\"connectURI\":\"jdbc:mysql://localhost:3306/druid\",\"user\":\"druid\",\"password\":\"diurd\"}, \"query\": \"%s\", \"columns\": [\"key\",\"value\"]}",
         query);
     JDBCFirehoseFactory factory = (JDBCFirehoseFactory)mapper.readValue(
         json,
@@ -573,6 +574,16 @@ public class JDBCFirehoseFactoryTest
     builder.append(")");
 
     return builder.toString();
+  }
+
+  private JDBCConnectorConfig toJDBCConnectorConfig(MetadataStorageConnectorConfig config) {
+    return new JDBCConnectorConfig(
+        config.getHost(),
+        config.getPort(),
+        config.getConnectURI(),
+        config.getUser(),
+        config.getPassword(),
+        null);
   }
 
 }

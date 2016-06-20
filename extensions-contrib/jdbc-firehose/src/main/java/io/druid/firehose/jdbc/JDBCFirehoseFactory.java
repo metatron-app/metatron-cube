@@ -56,7 +56,7 @@ public class JDBCFirehoseFactory implements FirehoseFactory<MapInputRowParser>
   private final float DEFAULT_NULLNUMERIC = 0;
 
   @JsonProperty
-  private final MetadataStorageConnectorConfig connectorConfig;
+  private final JDBCConnectorConfig connectorConfig;
   @JsonProperty
   private final String table;
   @JsonProperty
@@ -73,8 +73,8 @@ public class JDBCFirehoseFactory implements FirehoseFactory<MapInputRowParser>
   @JsonCreator
   public JDBCFirehoseFactory(
       @JsonProperty(value = "connectorConfig", required = true)
-      final MetadataStorageConnectorConfig connectorConfig,
-      @JsonProperty(value = "table", required = false)
+      final JDBCConnectorConfig connectorConfig,
+      @JsonProperty(value = "table", required = true)
       final String table,
       @JsonProperty(value = "query", required = false)
       final String query,
@@ -100,7 +100,7 @@ public class JDBCFirehoseFactory implements FirehoseFactory<MapInputRowParser>
     this.columns = columns;
   }
 
-  public MetadataStorageConnectorConfig getConnectorConfig()
+  public JDBCConnectorConfig getConnectorConfig()
   {
     return connectorConfig;
   }
@@ -148,7 +148,9 @@ public class JDBCFirehoseFactory implements FirehoseFactory<MapInputRowParser>
     dataSource.setUrl(connectorConfig.getConnectURI());
 
     dataSource.setDriverClassLoader(getClass().getClassLoader());
-    dataSource.setDriverClassName("org.apache.hive.jdbc.HiveDriver");
+    if (!StringUtils.isEmpty(connectorConfig.getDriverClass())) {
+      dataSource.setDriverClassName(connectorConfig.getDriverClass());
+    }
 
     final Handle handle = new DBI(dataSource).open();
 

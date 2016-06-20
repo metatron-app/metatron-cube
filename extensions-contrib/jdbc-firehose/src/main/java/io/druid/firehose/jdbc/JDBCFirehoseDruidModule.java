@@ -23,6 +23,7 @@ import com.fasterxml.jackson.databind.jsontype.NamedType;
 import com.fasterxml.jackson.databind.module.SimpleModule;
 import com.google.common.collect.ImmutableList;
 import com.google.inject.Binder;
+import io.druid.guice.JsonConfigProvider;
 import io.druid.initialization.DruidModule;
 
 import java.util.List;
@@ -43,6 +44,6 @@ public class JDBCFirehoseDruidModule implements DruidModule
   @Override
   public void configure(Binder binder)
   {
-
+    JsonConfigProvider.bind(binder, "druid.jdbc.connector", JDBCConnectorConfig.class);
   }
 }
