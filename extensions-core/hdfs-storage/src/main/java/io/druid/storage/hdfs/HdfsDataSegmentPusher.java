@@ -20,16 +20,16 @@
 package io.druid.storage.hdfs;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.common.base.Throwables;
+import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.io.ByteSink;
 import com.google.common.io.ByteSource;
 import com.google.inject.Inject;
 import com.metamx.common.CompressionUtils;
+import com.metamx.common.Pair;
 import com.metamx.common.guava.Accumulator;
 import com.metamx.common.logger.Logger;
 import io.druid.common.utils.PropUtils;
-import io.druid.data.output.Formatter;
 import io.druid.data.output.Formatters;
 import io.druid.query.ResultWriter;
 import io.druid.query.TabularFormat;
@@ -42,6 +42,7 @@ import org.apache.hadoop.fs.FSDataOutputStream;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 
+import java.io.Closeable;
 import java.io.File;
 import java.io.IOException;
 import java.io.OutputStream;
@@ -142,29 +143,15 @@ public class HdfsDataSegmentPusher implements DataSegmentPusher, ResultWriter
     if (!fileSystem.exists(targetDirectory) && !fileSystem.mkdirs(targetDirectory)) {
       throw new IllegalStateException("failed to make target directory");
     }
-    Path dataFile = new Path(targetDirectory, "data");
+    String fileName = context.get("dataFileName");
+    Path dataFile = new Path(targetDirectory, Strings.isNullOrEmpty(fileName) ? "data" : fileName);
 
-    final byte[] newLine = System.lineSeparator().getBytes();
-    final Formatter formatter = Formatters.getFormatter(context, jsonMapper);
-    try (final OutputStream output = fileSystem.create(dataFile)) {
-      result.getSequence().accumulate(
-          null, new Accumulator<Object, Map<String, Object>>()
-          {
-            @Override
-            public Object accumulate(Object accumulated, Map<String, Object> in)
-            {
-              try {
-                output.write(formatter.format(in));
-                output.write(newLine);
-              }
-              catch (Exception e) {
-                throw Throwables.propagate(e);
-              }
-              return null;
-            }
-          }
-      );
+    try (OutputStream output = fileSystem.create(dataFile)) {
+      Pair<Closeable, Accumulator> accumulator = Formatters.toExporter(context, output, jsonMapper);
+      result.getSequence().accumulate(null, accumulator.rhs);
+      accumulator.lhs.close();
     }
+
     Map<String, Object> metaData = result.getMetaData();
     if (metaData != null && !metaData.isEmpty()) {
       Path metaFile = new Path(targetDirectory, ".meta");
