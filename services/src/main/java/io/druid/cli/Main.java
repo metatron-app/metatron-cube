@@ -79,6 +79,7 @@ public class Main
                PullDependencies.class,
                CreateTables.class,
                InsertSegment.class,
+               DumpSegment.class,
                SimpleShell.class
            );
 
