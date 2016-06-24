@@ -22,12 +22,13 @@ package io.druid.query.groupby.having;
 import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import io.druid.data.input.Row;
+import io.druid.query.Cacheable;
 
 /**
  * A "having" clause that filters aggregated/dimension value. This is similar to SQL's "having"
  * clause.
  */
-@JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
+@JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type", defaultImpl = ExpressionHavingSpec.class)
 @JsonSubTypes(value = {
     @JsonSubTypes.Type(name = "and", value = AndHavingSpec.class),
     @JsonSubTypes.Type(name = "or", value = OrHavingSpec.class),
@@ -36,9 +37,10 @@ import io.druid.data.input.Row;
     @JsonSubTypes.Type(name = "lessThan", value = LessThanHavingSpec.class),
     @JsonSubTypes.Type(name = "equalTo", value = EqualToHavingSpec.class),
     @JsonSubTypes.Type(name = "dimSelector", value = DimensionSelectorHavingSpec.class),
-    @JsonSubTypes.Type(name = "always", value = AlwaysHavingSpec.class)
+    @JsonSubTypes.Type(name = "always", value = AlwaysHavingSpec.class),
+    @JsonSubTypes.Type(name = "expression", value = ExpressionHavingSpec.class)
 })
-public interface HavingSpec
+public interface HavingSpec extends Cacheable
 {
   // Atoms for easy combination, but for now they are mostly useful
   // for testing.
@@ -53,6 +55,4 @@ public interface HavingSpec
    * @return true if the given row satisfies the having spec. False otherwise.
    */
   public boolean eval(Row row);
-
-  public byte[] getCacheKey();
 }

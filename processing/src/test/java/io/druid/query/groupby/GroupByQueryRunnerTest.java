@@ -87,6 +87,7 @@ import io.druid.query.filter.RegexDimFilter;
 import io.druid.query.filter.SearchQueryDimFilter;
 import io.druid.query.filter.SelectorDimFilter;
 import io.druid.query.groupby.having.EqualToHavingSpec;
+import io.druid.query.groupby.having.ExpressionHavingSpec;
 import io.druid.query.groupby.having.GreaterThanHavingSpec;
 import io.druid.query.groupby.having.HavingSpec;
 import io.druid.query.groupby.having.OrHavingSpec;
@@ -2043,6 +2044,16 @@ public class GroupByQueryRunnerTest
 
     Iterable<Row> results = GroupByQueryRunnerTestHelper.runQuery(factory, runner, query);
     TestHelper.assertExpectedObjects(expectedResults, results, "order-limit");
+
+    query = query.withHavingSpec(
+        new ExpressionHavingSpec(
+            QueryRunnerTestHelper.hyperUniqueFinalizingPostAggMetric + "> 8"
+        )
+    );
+    TestHelper.assertExpectedObjects(
+        expectedResults,
+        GroupByQueryRunnerTestHelper.runQuery(factory, runner, query), "order-limit"
+    );
   }
 
   @Test
@@ -2447,10 +2458,16 @@ public class GroupByQueryRunnerTest
             )
         );
 
-    final GroupByQuery fullQuery = builder.build();
     TestHelper.assertExpectedObjects(
         expectedResults,
-        GroupByQueryRunnerTestHelper.runQuery(factory, runner, fullQuery),
+        GroupByQueryRunnerTestHelper.runQuery(factory, runner, builder.build()),
+        ""
+    );
+
+    builder.setHavingSpec(new ExpressionHavingSpec(QueryRunnerTestHelper.addRowsIndexConstantMetric + "> 1000"));
+    TestHelper.assertExpectedObjects(
+        expectedResults,
+        GroupByQueryRunnerTestHelper.runQuery(factory, runner, builder.build()),
         ""
     );
   }
@@ -2490,6 +2507,13 @@ public class GroupByQueryRunnerTest
     TestHelper.assertExpectedObjects(
         expectedResults,
         GroupByQueryRunnerTestHelper.runQuery(factory, runner, fullQuery),
+        ""
+    );
+
+    builder.setHavingSpec(new ExpressionHavingSpec("rows > 2 || idx == 217"));
+    TestHelper.assertExpectedObjects(
+        expectedResults,
+        GroupByQueryRunnerTestHelper.runQuery(factory, runner, builder.build()),
         ""
     );
   }
@@ -2669,7 +2693,7 @@ public class GroupByQueryRunnerTest
         Arrays.<PostAggregator>asList(
             new MathPostAggregator("rows_times_10", "rows * 10.0")
         )
-    );
+    ).withHavingSpec(new ExpressionHavingSpec("rows_times_10 > 20 || idx == 217"));
 
     TestHelper.assertExpectedObjects(
         expectedResults,
@@ -4050,6 +4074,11 @@ public class GroupByQueryRunnerTest
 
     // Subqueries are handled by the ToolChest
     Iterable<Row> results = GroupByQueryRunnerTestHelper.runQuery(factory, runner, query);
+    TestHelper.assertExpectedObjects(expectedResults, results, "");
+
+    results = GroupByQueryRunnerTestHelper.runQuery(
+        factory, runner, query.withHavingSpec(new ExpressionHavingSpec("idx_subpostagg < 3800.0"))
+    );
     TestHelper.assertExpectedObjects(expectedResults, results, "");
   }
 

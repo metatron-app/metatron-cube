@@ -363,6 +363,23 @@ public class GroupByQuery extends BaseQuery<Row>
     );
   }
 
+  public GroupByQuery withHavingSpec(final HavingSpec havingSpec)
+  {
+    return new GroupByQuery(
+        getDataSource(),
+        getQuerySegmentSpec(),
+        getDimFilter(),
+        getGranularity(),
+        getDimensions(),
+        getVirtualColumns(),
+        getAggregatorSpecs(),
+        getPostAggregatorSpecs(),
+        havingSpec,
+        limitSpec,
+        getContext()
+    );
+  }
+
   public GroupByQuery withPostAggregatorSpecs(final List<PostAggregator> postAggregatorSpecs)
   {
     return new GroupByQuery(
