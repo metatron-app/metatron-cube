@@ -50,6 +50,7 @@ import io.druid.query.groupby.orderby.NoopLimitSpec;
 import io.druid.query.groupby.orderby.OrderByColumnSpec;
 import io.druid.query.spec.LegacySegmentSpec;
 import io.druid.query.spec.QuerySegmentSpec;
+import io.druid.segment.VirtualColumn;
 import org.joda.time.Interval;
 
 import java.util.List;
@@ -69,6 +70,7 @@ public class GroupByQuery extends BaseQuery<Row>
   private final DimFilter dimFilter;
   private final QueryGranularity granularity;
   private final List<DimensionSpec> dimensions;
+  private final List<VirtualColumn> virtualColumns;
   private final List<AggregatorFactory> aggregatorSpecs;
   private final List<PostAggregator> postAggregatorSpecs;
 
@@ -81,6 +83,7 @@ public class GroupByQuery extends BaseQuery<Row>
       @JsonProperty("filter") DimFilter dimFilter,
       @JsonProperty("granularity") QueryGranularity granularity,
       @JsonProperty("dimensions") List<DimensionSpec> dimensions,
+      @JsonProperty("virtualColumns") List<VirtualColumn> virtualColumns,
       @JsonProperty("aggregations") List<AggregatorFactory> aggregatorSpecs,
       @JsonProperty("postAggregations") List<PostAggregator> postAggregatorSpecs,
       @JsonProperty("having") HavingSpec havingSpec,
@@ -95,6 +98,7 @@ public class GroupByQuery extends BaseQuery<Row>
     for (DimensionSpec spec : this.dimensions) {
       Preconditions.checkArgument(spec != null, "dimensions has null DimensionSpec");
     }
+    this.virtualColumns = virtualColumns;
     this.aggregatorSpecs = aggregatorSpecs;
     this.postAggregatorSpecs = postAggregatorSpecs == null ? ImmutableList.<PostAggregator>of() : postAggregatorSpecs;
     this.havingSpec = havingSpec;
@@ -144,6 +148,7 @@ public class GroupByQuery extends BaseQuery<Row>
       DimFilter dimFilter,
       QueryGranularity granularity,
       List<DimensionSpec> dimensions,
+      List<VirtualColumn> virtualColumns,
       List<AggregatorFactory> aggregatorSpecs,
       List<PostAggregator> postAggregatorSpecs,
       HavingSpec havingSpec,
@@ -157,6 +162,7 @@ public class GroupByQuery extends BaseQuery<Row>
     this.dimFilter = dimFilter;
     this.granularity = granularity;
     this.dimensions = dimensions;
+    this.virtualColumns = virtualColumns;
     this.aggregatorSpecs = aggregatorSpecs;
     this.postAggregatorSpecs = postAggregatorSpecs;
     this.havingSpec = havingSpec;
@@ -180,6 +186,12 @@ public class GroupByQuery extends BaseQuery<Row>
   public List<DimensionSpec> getDimensions()
   {
     return dimensions;
+  }
+
+  @JsonProperty
+  public List<VirtualColumn> getVirtualColumns()
+  {
+    return virtualColumns;
   }
 
   @JsonProperty("aggregations")
@@ -232,6 +244,7 @@ public class GroupByQuery extends BaseQuery<Row>
         dimFilter,
         granularity,
         dimensions,
+        virtualColumns,
         aggregatorSpecs,
         postAggregatorSpecs,
         havingSpec,
@@ -250,6 +263,7 @@ public class GroupByQuery extends BaseQuery<Row>
         dimFilter,
         granularity,
         dimensions,
+        virtualColumns,
         aggregatorSpecs,
         postAggregatorSpecs,
         havingSpec,
@@ -267,6 +281,7 @@ public class GroupByQuery extends BaseQuery<Row>
         dimFilter,
         getGranularity(),
         getDimensions(),
+        getVirtualColumns(),
         getAggregatorSpecs(),
         getPostAggregatorSpecs(),
         getHavingSpec(),
@@ -285,6 +300,7 @@ public class GroupByQuery extends BaseQuery<Row>
         dimFilter,
         granularity,
         dimensions,
+        virtualColumns,
         aggregatorSpecs,
         postAggregatorSpecs,
         havingSpec,
@@ -302,6 +318,7 @@ public class GroupByQuery extends BaseQuery<Row>
         getDimFilter(),
         getGranularity(),
         dimensionSpecs,
+        getVirtualColumns(),
         getAggregatorSpecs(),
         getPostAggregatorSpecs(),
         getHavingSpec(),
@@ -319,6 +336,7 @@ public class GroupByQuery extends BaseQuery<Row>
         getDimFilter(),
         getGranularity(),
         getDimensions(),
+        getVirtualColumns(),
         getAggregatorSpecs(),
         getPostAggregatorSpecs(),
         getHavingSpec(),
@@ -335,6 +353,7 @@ public class GroupByQuery extends BaseQuery<Row>
         getDimFilter(),
         getGranularity(),
         getDimensions(),
+        getVirtualColumns(),
         aggregatorSpecs,
         getPostAggregatorSpecs(),
         getHavingSpec(),
@@ -352,6 +371,7 @@ public class GroupByQuery extends BaseQuery<Row>
         getDimFilter(),
         getGranularity(),
         getDimensions(),
+        getVirtualColumns(),
         getAggregatorSpecs(),
         postAggregatorSpecs,
         getHavingSpec(),
@@ -368,6 +388,7 @@ public class GroupByQuery extends BaseQuery<Row>
     private DimFilter dimFilter;
     private QueryGranularity granularity;
     private List<DimensionSpec> dimensions;
+    private List<VirtualColumn> virtualColumns;
     private List<AggregatorFactory> aggregatorSpecs;
     private List<PostAggregator> postAggregatorSpecs;
     private HavingSpec havingSpec;
@@ -390,6 +411,7 @@ public class GroupByQuery extends BaseQuery<Row>
       dimFilter = query.getDimFilter();
       granularity = query.getGranularity();
       dimensions = query.getDimensions();
+      virtualColumns = query.getVirtualColumns();
       aggregatorSpecs = query.getAggregatorSpecs();
       postAggregatorSpecs = query.getPostAggregatorSpecs();
       havingSpec = query.getHavingSpec();
@@ -404,6 +426,7 @@ public class GroupByQuery extends BaseQuery<Row>
       dimFilter = builder.dimFilter;
       granularity = builder.granularity;
       dimensions = builder.dimensions;
+      virtualColumns = builder.virtualColumns;
       aggregatorSpecs = builder.aggregatorSpecs;
       postAggregatorSpecs = builder.postAggregatorSpecs;
       havingSpec = builder.havingSpec;
@@ -544,6 +567,12 @@ public class GroupByQuery extends BaseQuery<Row>
       return this;
     }
 
+    public Builder setVirtualColumns(List<VirtualColumn> virtualColumns)
+    {
+      this.virtualColumns = virtualColumns;
+      return this;
+    }
+
     public Builder addAggregator(AggregatorFactory aggregator)
     {
       if (aggregatorSpecs == null) {
@@ -620,6 +649,7 @@ public class GroupByQuery extends BaseQuery<Row>
           dimFilter,
           granularity,
           dimensions,
+          virtualColumns,
           aggregatorSpecs,
           postAggregatorSpecs,
           havingSpec,
@@ -639,6 +669,7 @@ public class GroupByQuery extends BaseQuery<Row>
            ", dimFilter=" + dimFilter +
            ", granularity=" + granularity +
            ", dimensions=" + dimensions +
+           ", virtualColumns=" + virtualColumns +
            ", aggregatorSpecs=" + aggregatorSpecs +
            ", postAggregatorSpecs=" + postAggregatorSpecs +
            ", havingSpec=" + havingSpec +
@@ -669,6 +700,9 @@ public class GroupByQuery extends BaseQuery<Row>
     if (dimensions != null ? !dimensions.equals(that.dimensions) : that.dimensions != null) {
       return false;
     }
+    if (virtualColumns != null ? !virtualColumns.equals(that.virtualColumns) : that.virtualColumns != null) {
+      return false;
+    }
     if (granularity != null ? !granularity.equals(that.granularity) : that.granularity != null) {
       return false;
     }
@@ -696,6 +730,7 @@ public class GroupByQuery extends BaseQuery<Row>
     result = 31 * result + (dimFilter != null ? dimFilter.hashCode() : 0);
     result = 31 * result + (granularity != null ? granularity.hashCode() : 0);
     result = 31 * result + (dimensions != null ? dimensions.hashCode() : 0);
+    result = 31 * result + (virtualColumns != null ? virtualColumns.hashCode() : 0);
     result = 31 * result + (aggregatorSpecs != null ? aggregatorSpecs.hashCode() : 0);
     result = 31 * result + (postAggregatorSpecs != null ? postAggregatorSpecs.hashCode() : 0);
     result = 31 * result + (limitFn != null ? limitFn.hashCode() : 0);

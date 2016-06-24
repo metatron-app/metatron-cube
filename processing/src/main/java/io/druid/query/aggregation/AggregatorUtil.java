@@ -26,6 +26,7 @@ import io.druid.segment.ColumnSelectorFactory;
 import io.druid.segment.FloatColumnSelector;
 import io.druid.segment.LongColumnSelector;
 import io.druid.segment.ExprEvalColumnSelector;
+import io.druid.segment.ObjectColumnSelector;
 
 import java.util.HashSet;
 import java.util.LinkedList;
@@ -110,15 +111,7 @@ public class AggregatorUtil
     if (fieldName != null) {
       return metricFactory.makeFloatColumnSelector(fieldName);
     }
-    final ExprEvalColumnSelector numeric = metricFactory.makeMathExpressionSelector(fieldExpression);
-    return new FloatColumnSelector()
-    {
-      @Override
-      public float get()
-      {
-        return numeric.get().floatValue();
-      }
-    };
+    return wrapAsFloatSelector(metricFactory.makeMathExpressionSelector(fieldExpression));
   }
 
   public static Supplier<Object> asSupplier(final LongColumnSelector selector) {
@@ -141,14 +134,47 @@ public class AggregatorUtil
     if (fieldName != null) {
       return metricFactory.makeLongColumnSelector(fieldName);
     }
-    final ExprEvalColumnSelector numeric = metricFactory.makeMathExpressionSelector(fieldExpression);
+    return wrapAsLongSelector(metricFactory.makeMathExpressionSelector(fieldExpression));
+  }
+
+  public static FloatColumnSelector wrapAsFloatSelector(final ExprEvalColumnSelector selector)
+  {
+    return new FloatColumnSelector()
+    {
+      @Override
+      public float get()
+      {
+        return selector.get().floatValue();
+      }
+    };
+  }
+
+  public static LongColumnSelector wrapAsLongSelector(final ExprEvalColumnSelector selector)
+  {
     return new LongColumnSelector()
     {
       @Override
       public long get()
       {
-        return numeric.get().longValue();
+        return selector.get().longValue();
       }
     };
   }
-}
+
+public static ObjectColumnSelector wrapAsObjectSelector(final Class type, final ExprEvalColumnSelector selector)
+  {
+    return new ObjectColumnSelector()
+    {
+      @Override
+      public Class classOfObject()
+      {
+        return type;
+      }
+
+      @Override
+      public Object get()
+      {
+        return selector.get().value();
+      }
+    };
+  }}

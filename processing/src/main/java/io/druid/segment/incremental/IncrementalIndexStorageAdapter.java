@@ -27,7 +27,6 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
-import com.google.common.collect.Sets;
 import com.google.common.primitives.Ints;
 import com.metamx.common.guava.Sequence;
 import com.metamx.common.guava.Sequences;
@@ -73,7 +72,6 @@ import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.concurrent.ConcurrentNavigableMap;
 
 /**
@@ -360,6 +358,10 @@ public class IncrementalIndexStorageAdapter implements StorageAdapter
 
                 final IncrementalIndex.DimensionDesc dimensionDesc = index.getDimension(dimension);
                 if (dimensionDesc == null) {
+                  VirtualColumn virtualColumn = virtualColumns.getVirtualColumn(dimension);
+                  if (virtualColumn != null) {
+                    return virtualColumn.asDimension(dimension, this);
+                  }
                   return NULL_DIMENSION_SELECTOR;
                 }
 
@@ -463,6 +465,10 @@ public class IncrementalIndexStorageAdapter implements StorageAdapter
               {
                 final Integer metricIndexInt = index.getMetricIndex(columnName);
                 if (metricIndexInt == null) {
+                  VirtualColumn virtualColumn = virtualColumns.getVirtualColumn(columnName);
+                  if (virtualColumn != null) {
+                    return virtualColumn.asFloatMetric(columnName, this);
+                  }
                   return new FloatColumnSelector()
                   {
                     @Override
@@ -499,6 +505,10 @@ public class IncrementalIndexStorageAdapter implements StorageAdapter
                 }
                 final Integer metricIndexInt = index.getMetricIndex(columnName);
                 if (metricIndexInt == null) {
+                  VirtualColumn virtualColumn = virtualColumns.getVirtualColumn(columnName);
+                  if (virtualColumn != null) {
+                    return virtualColumn.asLongMetric(columnName, this);
+                  }
                   return new LongColumnSelector()
                   {
                     @Override
@@ -572,7 +582,7 @@ public class IncrementalIndexStorageAdapter implements StorageAdapter
                 if (dimensionDesc == null) {
                   VirtualColumn virtualColumn = virtualColumns.getVirtualColumn(column);
                   if (virtualColumn != null) {
-                    return virtualColumn.init(column, this);
+                    return virtualColumn.asMetric(column, this);
                   }
                   return null;
                 }
@@ -621,19 +631,9 @@ public class IncrementalIndexStorageAdapter implements StorageAdapter
               public ExprEvalColumnSelector makeMathExpressionSelector(String expression)
               {
                 final Expr parsed = Parser.parse(expression);
-
-                final Set<String> required = Sets.newHashSet(Parser.findRequiredBindings(parsed));
-                final Map<String, Supplier<Object>> values = Maps.newHashMapWithExpectedSize(required.size());
-
-                for (String columnName : index.getMetricNames()) {
-                  if (required.contains(columnName)) {
-                    values.put(columnName, makeObjectColumnSelector(columnName));
-                  }
-                }
-                for (String columnName : index.getDimensionNames()) {
-                  if (required.contains(columnName)) {
-                    values.put(columnName, makeObjectColumnSelector(columnName));
-                  }
+                final Map<String, Supplier<Object>> values = Maps.newHashMap();
+                for (String columnName : Parser.findRequiredBindings(parsed)) {
+                  values.put(columnName, makeObjectColumnSelector(columnName));
                 }
                 final Expr.NumericBinding binding = Parser.withSuppliers(values);
                 return new ExprEvalColumnSelector()

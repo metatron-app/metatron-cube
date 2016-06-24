@@ -98,7 +98,7 @@ public class GroupByQueryEngine
     final Sequence<Cursor> cursors = storageAdapter.makeCursors(
         Filters.toFilter(query.getDimFilter()),
         intervals.get(0),
-        VirtualColumns.EMPTY,
+        VirtualColumns.valueOf(query.getVirtualColumns()),
         query.getGranularity(),
         false
     );
@@ -185,7 +185,7 @@ public class GroupByQueryEngine
         final IndexedInts row = dimSelector.getRow();
         if (row == null || row.size() == 0) {
           ByteBuffer newKey = key.duplicate();
-          newKey.putInt(dimSelector.getValueCardinality());
+          newKey.putInt(-1);
           unaggregatedBuffers = updateValues(newKey, dims.subList(1, dims.size()));
         } else {
           for (Integer dimValue : row) {
@@ -465,7 +465,7 @@ public class GroupByQueryEngine
                   for (int i = 0; i < dimensions.size(); ++i) {
                     final DimensionSelector dimSelector = dimensions.get(i);
                     final int dimVal = keyBuffer.getInt();
-                    if (dimSelector.getValueCardinality() != dimVal) {
+                    if (dimVal >= 0) {
                       theEvent.put(dimNames.get(i), dimSelector.lookupName(dimVal));
                     }
                   }

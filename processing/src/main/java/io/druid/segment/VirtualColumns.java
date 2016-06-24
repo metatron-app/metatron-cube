@@ -20,8 +20,13 @@
 package io.druid.segment;
 
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Iterators;
+import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+import io.druid.segment.data.IndexedInts;
 
+import java.io.IOException;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
@@ -33,7 +38,8 @@ public class VirtualColumns
       ImmutableMap.<String, VirtualColumn>of()
   );
 
-  public static VirtualColumns valueOf(List<VirtualColumn> virtualColumns) {
+  public static VirtualColumns valueOf(List<VirtualColumn> virtualColumns)
+  {
     if (virtualColumns == null || virtualColumns.isEmpty()) {
       return EMPTY;
     }
@@ -42,6 +48,82 @@ public class VirtualColumns
       map.put(vc.getOutputName(), vc);
     }
     return new VirtualColumns(map);
+  }
+
+  public static DimensionSelector toDimensionSelector(final ObjectColumnSelector selector)
+  {
+    if (selector == null) {
+      return new NullDimensionSelector();
+    }
+
+    return new DimensionSelector()
+    {
+      private int counter;
+      private final Map<String, Integer> valToId = Maps.newHashMap();
+      private final List<String> idToVal = Lists.newArrayList();
+
+      @Override
+      public IndexedInts getRow()
+      {
+        Object selected = selector.get();
+        String value = selected == null ? null : String.valueOf(selected);
+        Integer index = valToId.get(value);
+        if (index == null) {
+          valToId.put(value, index = counter++);
+          idToVal.add(value);
+        }
+        final int result = index;
+        return new IndexedInts()
+        {
+          @Override
+          public int size()
+          {
+            return 1;
+          }
+
+          @Override
+          public int get(int index)
+          {
+            return result;
+          }
+
+          @Override
+          public void fill(int index, int[] toFill)
+          {
+            throw new UnsupportedOperationException("fill");
+          }
+
+          @Override
+          public void close() throws IOException
+          {
+          }
+
+          @Override
+          public Iterator<Integer> iterator()
+          {
+            return Iterators.singletonIterator(result);
+          }
+        };
+      }
+
+      @Override
+      public int getValueCardinality()
+      {
+        throw new UnsupportedOperationException();
+      }
+
+      @Override
+      public String lookupName(int id)
+      {
+        return idToVal.get(id);
+      }
+
+      @Override
+      public int lookupId(String name)
+      {
+        return valToId.get(name);
+      }
+    };
   }
 
   private final Map<String, VirtualColumn> virtualColumns;

@@ -33,7 +33,13 @@ public interface VirtualColumn
 {
   String getOutputName();
 
-  ObjectColumnSelector init(String dimension, ColumnSelectorFactory factory);
+  ObjectColumnSelector asMetric(String dimension, ColumnSelectorFactory factory);
+
+  FloatColumnSelector asFloatMetric(String dimension, ColumnSelectorFactory factory);
+
+  LongColumnSelector asLongMetric(String dimension, ColumnSelectorFactory factory);
+
+  DimensionSelector asDimension(String dimension, ColumnSelectorFactory factory);
 
   byte[] getCacheKey();
 }

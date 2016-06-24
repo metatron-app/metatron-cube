@@ -35,6 +35,9 @@ import java.util.Map;
  */
 public class MapVirtualColumn implements VirtualColumn
 {
+  private static final String MAP_KEY = "__key";
+  private static final String MAP_VALUE = "__value";
+
   private static final byte VC_TYPE_ID = 0x00;
 
   private final String outputName;
@@ -58,7 +61,7 @@ public class MapVirtualColumn implements VirtualColumn
   }
 
   @Override
-  public ObjectColumnSelector init(String dimension, ColumnSelectorFactory factory)
+  public ObjectColumnSelector asMetric(String dimension, ColumnSelectorFactory factory)
   {
     final DimensionSelector keySelector = factory.makeDimensionSelector(DefaultDimensionSpec.of(keyDimension));
     final DimensionSelector valueSelector = factory.makeDimensionSelector(DefaultDimensionSpec.of(valueDimension));
@@ -121,6 +124,35 @@ public class MapVirtualColumn implements VirtualColumn
         return null;
       }
     };
+  }
+
+  @Override
+  public FloatColumnSelector asFloatMetric(String dimension, ColumnSelectorFactory factory)
+  {
+    throw new UnsupportedOperationException("asFloatMetric");
+  }
+
+  @Override
+  public LongColumnSelector asLongMetric(String dimension, ColumnSelectorFactory factory)
+  {
+    throw new UnsupportedOperationException("asLongMetric");
+  }
+
+  @Override
+  public DimensionSelector asDimension(String dimension, ColumnSelectorFactory factory)
+  {
+    int index = dimension.indexOf('.');
+    if (index < 0) {
+      throw new IllegalArgumentException(dimension + " cannot be used as dimension");
+    }
+    String target = dimension.substring(index + 1);
+    if (MAP_KEY.equals(target)) {
+      return factory.makeDimensionSelector(DefaultDimensionSpec.of(keyDimension));
+    }
+    if (MAP_VALUE.equals(target)) {
+      return factory.makeDimensionSelector(DefaultDimensionSpec.of(valueDimension));
+    }
+    return VirtualColumns.toDimensionSelector(asMetric(dimension, factory));
   }
 
   @Override

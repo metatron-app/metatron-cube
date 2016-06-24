@@ -711,13 +711,15 @@ interface Function
     {
       String castTo = y.stringValue();
       if ("string".equals(castTo)) {
-        return ExprEval.of(x.value() == null ? null : String.valueOf(x.value()));
+        return x.type() == ExprType.STRING ? x : ExprEval.of(x.value() == null ? null : String.valueOf(x.value()));
       }
       if ("long".equals(castTo)) {
-        return ExprEval.of(x.type() == ExprType.STRING ? Long.valueOf(x.stringValue()) : x.longValue());
+        return x.type() == ExprType.LONG ? x :
+               ExprEval.of(x.type() == ExprType.STRING ? Long.valueOf(x.stringValue()) : x.longValue());
       }
       if ("double".equals(castTo)) {
-        return ExprEval.of(x.type() == ExprType.STRING ? Double.valueOf(x.stringValue()) : x.doubleValue());
+        return x.type() == ExprType.DOUBLE ? x :
+               ExprEval.of(x.type() == ExprType.STRING ? Double.valueOf(x.stringValue()) : x.doubleValue());
       }
       throw new IllegalArgumentException("invalid type " + castTo);
     }

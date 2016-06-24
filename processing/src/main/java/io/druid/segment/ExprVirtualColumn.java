@@ -23,6 +23,7 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;
 import com.metamx.common.StringUtils;
+import io.druid.query.aggregation.AggregatorUtil;
 import io.druid.query.filter.DimFilterCacheHelper;
 
 import java.nio.ByteBuffer;
@@ -51,24 +52,27 @@ public class ExprVirtualColumn implements VirtualColumn
   }
 
   @Override
-  public ObjectColumnSelector init(String dimension, ColumnSelectorFactory factory)
+  public ObjectColumnSelector asMetric(String dimension, ColumnSelectorFactory factory)
   {
-    final ExprEvalColumnSelector selector = factory.makeMathExpressionSelector(expression);
-    return new ObjectColumnSelector()
-    {
+    return AggregatorUtil.wrapAsObjectSelector(Object.class, factory.makeMathExpressionSelector(expression));
+  }
 
-      @Override
-      public Class classOfObject()
-      {
-        return Object.class;
-      }
+  @Override
+  public FloatColumnSelector asFloatMetric(String dimension, ColumnSelectorFactory factory)
+  {
+    return AggregatorUtil.wrapAsFloatSelector(factory.makeMathExpressionSelector(expression));
+  }
 
-      @Override
-      public Object get()
-      {
-        return selector.get().value();
-      }
-    };
+  @Override
+  public LongColumnSelector asLongMetric(String dimension, ColumnSelectorFactory factory)
+  {
+    return AggregatorUtil.wrapAsLongSelector(factory.makeMathExpressionSelector(expression));
+  }
+
+  @Override
+  public DimensionSelector asDimension(String dimension, ColumnSelectorFactory factory)
+  {
+    return VirtualColumns.toDimensionSelector(asMetric(dimension, factory));
   }
 
   @Override

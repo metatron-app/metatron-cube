@@ -67,22 +67,22 @@ public class ExprEval extends Pair<Object, ExprType>
 
   public int intValue()
   {
-    return ((Number) lhs).intValue();
+    return lhs == null ? 0 : ((Number) lhs).intValue();
   }
 
   public long longValue()
   {
-    return ((Number) lhs).longValue();
+    return lhs == null ? 0L : ((Number) lhs).longValue();
   }
 
   public float floatValue()
   {
-    return ((Number) lhs).floatValue();
+    return lhs == null ? 0F : ((Number) lhs).floatValue();
   }
 
   public double doubleValue()
   {
-    return ((Number) lhs).doubleValue();
+    return lhs == null ? 0D : ((Number) lhs).doubleValue();
   }
 
   public Number numberValue()

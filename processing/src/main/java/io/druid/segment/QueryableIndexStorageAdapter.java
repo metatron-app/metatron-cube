@@ -58,7 +58,6 @@ import java.io.Closeable;
 import java.io.IOException;
 import java.util.Iterator;
 import java.util.Map;
-import java.util.Set;
 
 /**
  */
@@ -419,17 +418,21 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
                       final String dimension = dimensionSpec.getDimension();
                       final ExtractionFn extractionFn = dimensionSpec.getExtractionFn();
 
-                      final Column columnDesc = index.getColumn(dimension);
-                      if (columnDesc == null) {
-                        return NULL_DIMENSION_SELECTOR;
-                      }
-
                       if (dimension.equals(Column.TIME_COLUMN_NAME)) {
                         return new SingleScanTimeDimSelector(
                             makeLongColumnSelector(dimension),
                             extractionFn,
                             descending
                         );
+                      }
+
+                      final Column columnDesc = index.getColumn(dimension);
+                      if (columnDesc == null) {
+                        VirtualColumn virtualColumn = virtualColumns.getVirtualColumn(dimension);
+                        if (virtualColumn != null) {
+                          return virtualColumn.asDimension(dimension, this);
+                        }
+                        return NULL_DIMENSION_SELECTOR;
                       }
 
                       DictionaryEncodedColumn cachedColumn = dictionaryColumnCache.get(dimension);
@@ -551,6 +554,10 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
                       GenericColumn cachedMetricVals = genericColumnCache.get(columnName);
 
                       if (cachedMetricVals == null) {
+                        VirtualColumn vc = virtualColumns.getVirtualColumn(columnName);
+                        if (vc != null) {
+                          return vc.asFloatMetric(columnName, this);
+                        }
                         Column holder = index.getColumn(columnName);
                         if (holder != null && (holder.getCapabilities().getType() == ValueType.FLOAT
                                                || holder.getCapabilities().getType() == ValueType.LONG)) {
@@ -587,6 +594,10 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
                       GenericColumn cachedMetricVals = genericColumnCache.get(columnName);
 
                       if (cachedMetricVals == null) {
+                        VirtualColumn vc = virtualColumns.getVirtualColumn(columnName);
+                        if (vc != null) {
+                          return vc.asLongMetric(columnName, this);
+                        }
                         Column holder = index.getColumn(columnName);
                         if (holder != null && (holder.getCapabilities().getType() == ValueType.LONG
                                                || holder.getCapabilities().getType() == ValueType.FLOAT)) {
@@ -629,7 +640,7 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
                       if (holder == null) {
                         VirtualColumn vc = virtualColumns.getVirtualColumn(column);
                         if (vc != null) {
-                          objectColumnCache.put(column, cachedColumnVals = vc.init(column, this));
+                          objectColumnCache.put(column, cachedColumnVals = vc.asMetric(column, this));
                           return cachedColumnVals;
                         }
                         return null;
@@ -800,13 +811,9 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
                     public ExprEvalColumnSelector makeMathExpressionSelector(String expression)
                     {
                       final Expr parsed = Parser.parse(expression);
-                      final Set<String> required = Sets.newHashSet(Parser.findRequiredBindings(parsed));
-
-                      final Map<String, Supplier<Object>> values = Maps.newHashMapWithExpectedSize(required.size());
-                      for (String columnName : index.getColumnNames()) {
-                        if (required.contains(columnName)) {
-                          values.put(columnName, makeObjectColumnSelector(columnName));
-                        }
+                      final Map<String, Supplier<Object>> values = Maps.newHashMap();
+                      for (String columnName : Parser.findRequiredBindings(parsed)) {
+                        values.put(columnName, makeObjectColumnSelector(columnName));
                       }
                       final Expr.NumericBinding binding = Parser.withSuppliers(values);
                       return new ExprEvalColumnSelector() {
