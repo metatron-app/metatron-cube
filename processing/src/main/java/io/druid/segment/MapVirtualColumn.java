@@ -133,6 +133,12 @@ public class MapVirtualColumn implements VirtualColumn
   }
 
   @Override
+  public DoubleColumnSelector asDoubleMetric(String dimension, ColumnSelectorFactory factory)
+  {
+    throw new UnsupportedOperationException("asDoubleMetric");
+  }
+
+  @Override
   public LongColumnSelector asLongMetric(String dimension, ColumnSelectorFactory factory)
   {
     throw new UnsupportedOperationException("asLongMetric");

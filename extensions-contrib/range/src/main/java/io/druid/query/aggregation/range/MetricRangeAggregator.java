@@ -78,4 +78,10 @@ public class MetricRangeAggregator implements Aggregator
   {
     return (long)metricRange.getRange();
   }
+
+  @Override
+  public double getDouble()
+  {
+    return metricRange.getRange();
+  }
 }

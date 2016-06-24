@@ -87,4 +87,10 @@ public class DocumentsColumnAggregator implements Aggregator
   public long getLong() {
     throw new UnsupportedOperationException("DocumentsColumnAggregator does not support getLong()");
   }
+
+  @Override
+  public double getDouble()
+  {
+    throw new UnsupportedOperationException("DocumentsColumnAggregator does not support getDouble()");
+  }
 }

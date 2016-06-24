@@ -32,9 +32,9 @@ import io.druid.data.input.impl.StringInputRowParser;
 import io.druid.data.input.impl.TimestampSpec;
 import io.druid.granularity.QueryGranularities;
 import io.druid.query.aggregation.AggregatorFactory;
-import io.druid.query.aggregation.DoubleMaxAggregatorFactory;
-import io.druid.query.aggregation.DoubleMinAggregatorFactory;
-import io.druid.query.aggregation.DoubleSumAggregatorFactory;
+import io.druid.query.aggregation.FloatMaxAggregatorFactory;
+import io.druid.query.aggregation.FloatMinAggregatorFactory;
+import io.druid.query.aggregation.FloatSumAggregatorFactory;
 import io.druid.query.aggregation.hyperloglog.HyperUniquesAggregatorFactory;
 import io.druid.query.aggregation.hyperloglog.HyperUniquesSerde;
 import io.druid.segment.incremental.IncrementalIndex;
@@ -79,9 +79,9 @@ public class TestIndex
   private static final Logger log = new Logger(TestIndex.class);
   private static final Interval DATA_INTERVAL = new Interval("2011-01-12T00:00:00.000Z/2011-05-01T00:00:00.000Z");
   public static final AggregatorFactory[] METRIC_AGGS = new AggregatorFactory[]{
-      new DoubleSumAggregatorFactory(METRICS[0], METRICS[0]),
-      new DoubleMinAggregatorFactory(METRICS[1], METRICS[0]),
-      new DoubleMaxAggregatorFactory(METRICS[2], null, "index + 10"),
+      new FloatSumAggregatorFactory(METRICS[0], METRICS[0]),
+      new FloatMinAggregatorFactory(METRICS[1], METRICS[0]),
+      new FloatMaxAggregatorFactory(METRICS[2], null, "index + 10"),
       new HyperUniquesAggregatorFactory("quality_uniques", "quality")
   };
   private static final IndexSpec indexSpec = new IndexSpec();
@@ -152,6 +152,16 @@ public class TestIndex
         INDEX_MERGER.persist(top, DATA_INTERVAL, topFile, indexSpec);
         INDEX_MERGER.persist(bottom, DATA_INTERVAL, bottomFile, indexSpec);
 
+//        QueryableIndexIndexableAdapter q1 = new QueryableIndexIndexableAdapter(INDEX_IO.loadIndex(topFile));
+//        for (Rowboat row : q1.getRows()) {
+//          System.out.println("q1" + row);
+//        }
+//        System.out.println();
+//        QueryableIndexIndexableAdapter q2 = new QueryableIndexIndexableAdapter(INDEX_IO.loadIndex(bottomFile));
+//        for (Rowboat row : q2.getRows()) {
+//          System.out.println("q2" + row);
+//        }
+//        System.out.println();
         mergedRealtime = INDEX_IO.loadIndex(
             INDEX_MERGER.mergeQueryableIndex(
                 Arrays.asList(INDEX_IO.loadIndex(topFile), INDEX_IO.loadIndex(bottomFile)),

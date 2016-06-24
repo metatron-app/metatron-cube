@@ -20,13 +20,13 @@
 package io.druid.query.aggregation.range;
 
 import io.druid.query.aggregation.DoubleSumAggregator;
-import io.druid.query.aggregation.TestFloatColumnSelector;
+import io.druid.query.aggregation.TestDoubleColumnSelector;
 import org.junit.Assert;
 import org.junit.Test;
 
 public class RangeAggregatorTest
 {
-  private void aggregate(TestFloatColumnSelector selector, RangeAggregator agg)
+  private void aggregate(TestDoubleColumnSelector selector, RangeAggregator agg)
   {
     agg.aggregate();
     selector.increment();
@@ -35,72 +35,72 @@ public class RangeAggregatorTest
   @Test
   public void testNormal()
   {
-    final float[] values = {0.1f, 0.2f, 0.3f, 0.4f, 0.5f, 0.6f, 0.7f, 0.8f, 0.9f, 1.0f};
-    final TestFloatColumnSelector selector = new TestFloatColumnSelector(values);
+    final double[] values = {0.1f, 0.2f, 0.3f, 0.4f, 0.5f, 0.6f, 0.7f, 0.8f, 0.9f, 1.0f};
+    final TestDoubleColumnSelector selector = new TestDoubleColumnSelector(values);
 
     RangeAggregator rangeAggregator = new RangeAggregator(new DoubleSumAggregator("test", selector), 1, 3);
 
     aggregate(selector, rangeAggregator);
-    Assert.assertEquals(0.1f, rangeAggregator.getFloat(), 0.00001);
+    Assert.assertEquals(0.1d, rangeAggregator.getDouble(), 0.00001);
     aggregate(selector, rangeAggregator);
-    Assert.assertEquals(0.2f, rangeAggregator.getFloat(), 0.00001);
+    Assert.assertEquals(0.2d, rangeAggregator.getDouble(), 0.00001);
     aggregate(selector, rangeAggregator);
-    Assert.assertEquals(0.5f, rangeAggregator.getFloat(), 0.00001);
+    Assert.assertEquals(0.5d, rangeAggregator.getDouble(), 0.00001);
     aggregate(selector, rangeAggregator);
-    Assert.assertEquals(0.9f, rangeAggregator.getFloat(), 0.00001);
+    Assert.assertEquals(0.9d, rangeAggregator.getDouble(), 0.00001);
     aggregate(selector, rangeAggregator);
-    Assert.assertEquals(0.9f, rangeAggregator.getFloat(), 0.00001);
+    Assert.assertEquals(0.9d, rangeAggregator.getDouble(), 0.00001);
     aggregate(selector, rangeAggregator);
-    Assert.assertEquals(0.9f, rangeAggregator.getFloat(), 0.00001);
+    Assert.assertEquals(0.9d, rangeAggregator.getDouble(), 0.00001);
     aggregate(selector, rangeAggregator);
-    Assert.assertEquals(0.9f, rangeAggregator.getFloat(), 0.00001);
+    Assert.assertEquals(0.9d, rangeAggregator.getDouble(), 0.00001);
   }
 
   @Test
   public void testSmall()
   {
-    final float[] values = {0.1f, 0.2f, 0.3f, 0.4f, 0.5f, 0.6f, 0.7f, 0.8f, 0.9f, 1.0f};
-    final TestFloatColumnSelector selector = new TestFloatColumnSelector(values);
+    final double[] values = {0.1f, 0.2f, 0.3f, 0.4f, 0.5f, 0.6f, 0.7f, 0.8f, 0.9f, 1.0f};
+    final TestDoubleColumnSelector selector = new TestDoubleColumnSelector(values);
 
     RangeAggregator rangeAggregator = new RangeAggregator(new DoubleSumAggregator("test", selector), 5, 3);
 
     aggregate(selector, rangeAggregator);
-    Assert.assertEquals(0.1f, rangeAggregator.getFloat(), 0.00001);
+    Assert.assertEquals(0.1d, rangeAggregator.getDouble(), 0.00001);
     aggregate(selector, rangeAggregator);
-    Assert.assertEquals(0.3f, rangeAggregator.getFloat(), 0.00001);
+    Assert.assertEquals(0.3d, rangeAggregator.getDouble(), 0.00001);
     aggregate(selector, rangeAggregator);
-    Assert.assertEquals(0.6f, rangeAggregator.getFloat(), 0.00001);
+    Assert.assertEquals(0.6d, rangeAggregator.getDouble(), 0.00001);
     aggregate(selector, rangeAggregator);
-    Assert.assertEquals(1.0f, rangeAggregator.getFloat(), 0.00001);
+    Assert.assertEquals(1.0d, rangeAggregator.getDouble(), 0.00001);
     aggregate(selector, rangeAggregator);
-    Assert.assertEquals(1.5f, rangeAggregator.getFloat(), 0.00001);
+    Assert.assertEquals(1.5d, rangeAggregator.getDouble(), 0.00001);
     aggregate(selector, rangeAggregator);
-    Assert.assertEquals(0.6f, rangeAggregator.getFloat(), 0.00001);
+    Assert.assertEquals(0.6d, rangeAggregator.getDouble(), 0.00001);
     aggregate(selector, rangeAggregator);
-    Assert.assertEquals(1.3f, rangeAggregator.getFloat(), 0.00001);
+    Assert.assertEquals(1.3d, rangeAggregator.getDouble(), 0.00001);
   }
 
   @Test
   public void testExceed()
   {
-    final float[] values = {0.1f, 0.2f, 0.3f, 0.4f, 0.5f, 0.6f, 0.7f, 0.8f, 0.9f, 1.0f};
-    final TestFloatColumnSelector selector = new TestFloatColumnSelector(values);
+    final double[] values = {0.1f, 0.2f, 0.3f, 0.4f, 0.5f, 0.6f, 0.7f, 0.8f, 0.9f, 1.0f};
+    final TestDoubleColumnSelector selector = new TestDoubleColumnSelector(values);
 
     RangeAggregator rangeAggregator = new RangeAggregator(new DoubleSumAggregator("test", selector), 0, 1);
 
     aggregate(selector, rangeAggregator);
-    Assert.assertEquals(0.1f, rangeAggregator.getFloat(), 0.00001);
+    Assert.assertEquals(0.1d, rangeAggregator.getDouble(), 0.00001);
     aggregate(selector, rangeAggregator);
-    Assert.assertEquals(0.1f, rangeAggregator.getFloat(), 0.00001);
+    Assert.assertEquals(0.1d, rangeAggregator.getDouble(), 0.00001);
     aggregate(selector, rangeAggregator);
-    Assert.assertEquals(0.1f, rangeAggregator.getFloat(), 0.00001);
+    Assert.assertEquals(0.1d, rangeAggregator.getDouble(), 0.00001);
     aggregate(selector, rangeAggregator);
-    Assert.assertEquals(0.1f, rangeAggregator.getFloat(), 0.00001);
+    Assert.assertEquals(0.1d, rangeAggregator.getDouble(), 0.00001);
     aggregate(selector, rangeAggregator);
-    Assert.assertEquals(0.1f, rangeAggregator.getFloat(), 0.00001);
+    Assert.assertEquals(0.1d, rangeAggregator.getDouble(), 0.00001);
     aggregate(selector, rangeAggregator);
-    Assert.assertEquals(0.1f, rangeAggregator.getFloat(), 0.00001);
+    Assert.assertEquals(0.1d, rangeAggregator.getDouble(), 0.00001);
     aggregate(selector, rangeAggregator);
-    Assert.assertEquals(0.1f, rangeAggregator.getFloat(), 0.00001);
+    Assert.assertEquals(0.1d, rangeAggregator.getDouble(), 0.00001);
   }
 }

@@ -61,4 +61,10 @@ public class DruidTDigestCombiningAggregator implements Aggregator
   public long getLong() {
     throw new UnsupportedOperationException("DruidTDigestCombiningAggregator does not support getLong()");
   }
+
+  @Override
+  public double getDouble()
+  {
+    throw new UnsupportedOperationException("DruidTDigestCombiningAggregator does not support getDouble()");
+  }
 }

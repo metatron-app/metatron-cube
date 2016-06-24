@@ -103,4 +103,10 @@ public class RangeAggregator implements Aggregator
   {
     return delegate.getLong();
   }
+
+  @Override
+  public double getDouble()
+  {
+    return delegate.getDouble();
+  }
 }

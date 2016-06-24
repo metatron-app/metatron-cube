@@ -7,7 +7,8 @@ import java.nio.ByteBuffer;
 import java.util.HashMap;
 import java.util.Map;
 
-public class DocumentsColumnBufferAggregator implements BufferAggregator
+public class
+    DocumentsColumnBufferAggregator implements BufferAggregator
 {
   private final ObjectColumnSelector selector;
   private final boolean compress;
@@ -52,6 +53,12 @@ public class DocumentsColumnBufferAggregator implements BufferAggregator
   @Override
   public float getFloat(ByteBuffer buf, int position) {
     throw new UnsupportedOperationException("DocumentColumnBufferAggregator does not support getFloat()");
+  }
+
+  @Override
+  public double getDouble(ByteBuffer buf, int position)
+  {
+    throw new UnsupportedOperationException("DocumentColumnBufferAggregator does not support getDouble()");
   }
 
   @Override

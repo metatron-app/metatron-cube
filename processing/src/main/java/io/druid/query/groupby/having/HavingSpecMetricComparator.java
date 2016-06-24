@@ -19,7 +19,6 @@
 
 package io.druid.query.groupby.having;
 
-import com.google.common.primitives.Floats;
 import com.google.common.primitives.Longs;
 import io.druid.data.input.Row;
 
@@ -36,7 +35,7 @@ class HavingSpecMetricComparator
     Object metricValueObj = row.getRaw(aggregationName);
     if (metricValueObj != null) {
       if (metricValueObj instanceof Long) {
-        long l = ((Long) metricValueObj).longValue();
+        long l = (Long) metricValueObj;
         return Longs.compare(l, value.longValue());
       } else if (metricValueObj instanceof String) {
         String metricValueStr = (String) metricValueObj;
@@ -47,7 +46,7 @@ class HavingSpecMetricComparator
       }
     }
 
-    float f = row.getFloatMetric(aggregationName);
-    return Floats.compare(f, value.floatValue());
+    double f = row.getFloatMetric(aggregationName);
+    return Double.compare(f, value.doubleValue());
   }
 }

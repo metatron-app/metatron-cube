@@ -91,7 +91,7 @@ public class VarianceGroupByQueryTest
         .add("2011-04-01", "business", 0d, 0d)
         .add("2011-04-01", "entertainment", 0d, 0d)
         .add("2011-04-01", "health", 0d, 0d)
-        .add("2011-04-01", "mezzanine", 737.0179286322613d, 543195.4271253889d)
+        .add("2011-04-01", "mezzanine", 737.0179489234968d, 543195.4570353981d)
         .add("2011-04-01", "news", 0d, 0d)
         .add("2011-04-01", "premium", 726.6322593583996d, 527994.4403402924d)
         .add("2011-04-01", "technology", 0d, 0d)
@@ -101,7 +101,7 @@ public class VarianceGroupByQueryTest
         .add("2011-04-02", "business", 0d, 0d)
         .add("2011-04-02", "entertainment", 0d, 0d)
         .add("2011-04-02", "health", 0d, 0d)
-        .add("2011-04-02", "mezzanine", 611.3420766546617d, 373739.13468843425d)
+        .add("2011-04-02", "mezzanine", 611.3420602779607d, 373739.11466490175d)
         .add("2011-04-02", "news", 0d, 0d)
         .add("2011-04-02", "premium", 621.3898134843073d, 386125.30030206224d)
         .add("2011-04-02", "technology", 0d, 0d)
@@ -141,7 +141,7 @@ public class VarianceGroupByQueryTest
         .add("2011-04-01", "business", 1L, 118L, 0d, 0d)
         .add("2011-04-01", "entertainment", 1L, 158L, 0d, 0d)
         .add("2011-04-01", "health", 1L, 120L, 0d, 0d)
-        .add("2011-04-01", "mezzanine", 3L, 2870L, 737.0179286322613d, 543195.4271253889d)
+        .add("2011-04-01", "mezzanine", 3L, 2870L, 737.0179489234968d, 543195.4570353981d)
         .add("2011-04-01", "news", 1L, 121L, 0d, 0d)
         .add("2011-04-01", "premium", 3L, 2900L, 726.6322593583996d, 527994.4403402924d)
         .add("2011-04-01", "technology", 1L, 78L, 0d, 0d)
@@ -151,7 +151,7 @@ public class VarianceGroupByQueryTest
         .add("2011-04-02", "business", 1L, 112L, 0d, 0d)
         .add("2011-04-02", "entertainment", 1L, 166L, 0d, 0d)
         .add("2011-04-02", "health", 1L, 113L, 0d, 0d)
-        .add("2011-04-02", "mezzanine", 3L, 2447L, 611.3420766546617d, 373739.13468843425d)
+        .add("2011-04-02", "mezzanine", 3L, 2447L, 611.3420602779607d, 373739.11466490175d)
         .add("2011-04-02", "news", 1L, 114L, 0d, 0d)
         .add("2011-04-02", "premium", 3L, 2505L, 621.3898134843073d, 386125.30030206224d)
         .add("2011-04-02", "technology", 1L, 97L, 0d, 0d)
@@ -171,7 +171,7 @@ public class VarianceGroupByQueryTest
 
     List<Row> expectedResults = expect
         .add("2011-04-01", "automotive", 2L, 269L, 299.0009819048282, 17.29164485827847)
-        .add("2011-04-01", "mezzanine", 6L, 4420L, 254083.76447001836, 504.06722217380724)
+        .add("2011-04-01", "mezzanine", 6L, 4420L, 254083.7557309596, 504.0672135052622)
         .add("2011-04-01", "premium", 6L, 4416L, 252279.2020389339, 502.27403082275106)
         .build();
 

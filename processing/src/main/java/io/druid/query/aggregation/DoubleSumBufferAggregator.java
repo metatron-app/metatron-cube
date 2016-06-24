@@ -21,7 +21,7 @@ package io.druid.query.aggregation;
 
 import com.google.common.base.Predicate;
 import com.google.common.base.Predicates;
-import io.druid.segment.FloatColumnSelector;
+import io.druid.segment.DoubleColumnSelector;
 
 import java.nio.ByteBuffer;
 
@@ -29,16 +29,16 @@ import java.nio.ByteBuffer;
  */
 public class DoubleSumBufferAggregator implements BufferAggregator
 {
-  private final FloatColumnSelector selector;
+  private final DoubleColumnSelector selector;
   private final Predicate predicate;
 
-  public DoubleSumBufferAggregator(FloatColumnSelector selector, Predicate predicate)
+  public DoubleSumBufferAggregator(DoubleColumnSelector selector, Predicate predicate)
   {
     this.selector = selector;
     this.predicate = predicate;
   }
 
-  public DoubleSumBufferAggregator(FloatColumnSelector selector)
+  public DoubleSumBufferAggregator(DoubleColumnSelector selector)
   {
     this(selector, Predicates.alwaysTrue());
   }
@@ -53,7 +53,7 @@ public class DoubleSumBufferAggregator implements BufferAggregator
   public void aggregate(ByteBuffer buf, int position)
   {
     if (predicate.apply(null)) {
-      buf.putDouble(position, buf.getDouble(position) + (double) selector.get());
+      buf.putDouble(position, buf.getDouble(position) + selector.get());
     }
   }
 
@@ -69,6 +69,11 @@ public class DoubleSumBufferAggregator implements BufferAggregator
     return (float) buf.getDouble(position);
   }
 
+  @Override
+  public double getDouble(ByteBuffer buf, int position)
+  {
+    return buf.getDouble(position);
+  }
 
   @Override
   public long getLong(ByteBuffer buf, int position)

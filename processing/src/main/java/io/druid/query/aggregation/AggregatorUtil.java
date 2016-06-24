@@ -27,6 +27,7 @@ import com.metamx.common.Pair;
 import io.druid.common.utils.StringUtils;
 import io.druid.segment.ColumnSelectorFactory;
 import io.druid.segment.ExprEvalColumnSelector;
+import io.druid.segment.DoubleColumnSelector;
 import io.druid.segment.FloatColumnSelector;
 import io.druid.segment.LongColumnSelector;
 import io.druid.segment.ObjectColumnSelector;
@@ -106,6 +107,18 @@ public class AggregatorUtil
     };
   }
 
+  public static Supplier<Object> asSupplier(final DoubleColumnSelector selector)
+  {
+    return new Supplier<Object>()
+    {
+      @Override
+      public Number get()
+      {
+        return selector.get();
+      }
+    };
+  }
+
   public static FloatColumnSelector getFloatColumnSelector(
       ColumnSelectorFactory metricFactory,
       String fieldName,
@@ -116,6 +129,26 @@ public class AggregatorUtil
       return metricFactory.makeFloatColumnSelector(fieldName);
     }
     return wrapAsFloatSelector(metricFactory.makeMathExpressionSelector(fieldExpression));
+  }
+
+  public static DoubleColumnSelector getDoubleColumnSelector(
+      ColumnSelectorFactory metricFactory,
+      String fieldName,
+      String fieldExpression
+  )
+  {
+    if (fieldName != null) {
+      return metricFactory.makeDoubleColumnSelector(fieldName);
+    }
+    final ExprEvalColumnSelector numeric = metricFactory.makeMathExpressionSelector(fieldExpression);
+    return new DoubleColumnSelector()
+    {
+      @Override
+      public double get()
+      {
+        return numeric.get().doubleValue();
+      }
+    };
   }
 
   public static Supplier<Object> asSupplier(final LongColumnSelector selector)
@@ -140,6 +173,18 @@ public class AggregatorUtil
       return metricFactory.makeLongColumnSelector(fieldName);
     }
     return wrapAsLongSelector(metricFactory.makeMathExpressionSelector(fieldExpression));
+  }
+
+  public static DoubleColumnSelector wrapAsDoubleSelector(final ExprEvalColumnSelector selector)
+  {
+    return new DoubleColumnSelector()
+    {
+      @Override
+      public double get()
+      {
+        return selector.get().doubleValue();
+      }
+    };
   }
 
   public static FloatColumnSelector wrapAsFloatSelector(final ExprEvalColumnSelector selector)

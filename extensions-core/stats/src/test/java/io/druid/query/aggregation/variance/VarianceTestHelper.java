@@ -60,7 +60,7 @@ public class VarianceTestHelper extends QueryRunnerTestHelper
 
   public static final List<AggregatorFactory> commonPlusVarAggregators = Arrays.asList(
       rowsCount,
-      indexDoubleSum,
+      indexFloatSum,
       qualityUniques,
       indexVarianceAggr
   );

@@ -58,10 +58,10 @@ import io.druid.common.guava.FileOutputSupplier;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.common.utils.JodaUtils;
 import io.druid.common.utils.SerializerUtils;
+import io.druid.data.ValueType;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.segment.column.ColumnCapabilities;
 import io.druid.segment.column.ColumnCapabilitiesImpl;
-import io.druid.segment.column.ValueType;
 import io.druid.segment.data.BitmapSerdeFactory;
 import io.druid.segment.data.ByteBufferWriter;
 import io.druid.segment.data.CompressedLongsSupplierSerializer;
@@ -785,6 +785,9 @@ public class IndexMerger
             break;
           case FLOAT:
             metWriters.add(new FloatMetricColumnSerializer(metric, v8OutDir, ioPeon));
+            break;
+          case DOUBLE:
+            metWriters.add(new DoubleMetricColumnSerializer(metric, v8OutDir, ioPeon));
             break;
           case COMPLEX:
             final String typeName = metricTypeNames.get(metric);

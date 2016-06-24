@@ -28,7 +28,7 @@ import com.google.common.primitives.Doubles;
 import io.druid.common.utils.StringUtils;
 import io.druid.math.expr.Parser;
 import io.druid.segment.ColumnSelectorFactory;
-import io.druid.segment.FloatColumnSelector;
+import io.druid.segment.DoubleColumnSelector;
 
 import java.nio.ByteBuffer;
 import java.util.Arrays;
@@ -78,7 +78,7 @@ public class DoubleSumAggregatorFactory extends AggregatorFactory
   {
     return new DoubleSumAggregator(
         name,
-        getFloatColumnSelector(metricFactory),
+        getDoubleColumnSelector(metricFactory),
         AggregatorUtil.toPredicate(predicate, metricFactory)
     );
   }
@@ -87,14 +87,14 @@ public class DoubleSumAggregatorFactory extends AggregatorFactory
   public BufferAggregator factorizeBuffered(ColumnSelectorFactory metricFactory)
   {
     return new DoubleSumBufferAggregator(
-        getFloatColumnSelector(metricFactory),
+        getDoubleColumnSelector(metricFactory),
         AggregatorUtil.toPredicate(predicate, metricFactory)
     );
   }
 
-  private FloatColumnSelector getFloatColumnSelector(ColumnSelectorFactory metricFactory)
+  private DoubleColumnSelector getDoubleColumnSelector(ColumnSelectorFactory metricFactory)
   {
-    return AggregatorUtil.getFloatColumnSelector(metricFactory, fieldName, fieldExpression);
+    return AggregatorUtil.getDoubleColumnSelector(metricFactory, fieldName, fieldExpression);
   }
 
   @Override
@@ -208,7 +208,7 @@ public class DoubleSumAggregatorFactory extends AggregatorFactory
   @Override
   public String getTypeName()
   {
-    return "float";
+    return "double";
   }
 
   @Override

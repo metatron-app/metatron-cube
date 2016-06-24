@@ -26,6 +26,7 @@ import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.fasterxml.jackson.annotation.JsonValue;
 import com.google.common.base.Preconditions;
+import io.druid.data.ValueType;
 
 /**
  */
@@ -46,26 +47,6 @@ public abstract class DimensionSchema
 
   // main druid and druid-api should really use the same ValueType enum.
   // merge them when druid-api is merged back into the main repo
-  public static enum ValueType
-  {
-    FLOAT,
-    LONG,
-    STRING,
-    COMPLEX;
-
-    @JsonValue
-    @Override
-    public String toString()
-    {
-      return this.name().toUpperCase();
-    }
-
-    @JsonCreator
-    public static ValueType fromString(String name)
-    {
-      return valueOf(name.toUpperCase());
-    }
-  }
 
   public static enum MultiValueHandling
   {

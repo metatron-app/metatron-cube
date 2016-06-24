@@ -30,6 +30,7 @@ import com.google.common.collect.Sets;
 import com.metamx.common.guava.CloseQuietly;
 import com.metamx.common.guava.Sequence;
 import com.metamx.common.guava.Sequences;
+import io.druid.data.ValueType;
 import io.druid.granularity.QueryGranularity;
 import io.druid.math.expr.Expr;
 import io.druid.math.expr.ExprEval;
@@ -45,7 +46,6 @@ import io.druid.segment.column.ColumnCapabilities;
 import io.druid.segment.column.ComplexColumn;
 import io.druid.segment.column.DictionaryEncodedColumn;
 import io.druid.segment.column.GenericColumn;
-import io.druid.segment.column.ValueType;
 import io.druid.segment.data.Indexed;
 import io.druid.segment.data.IndexedInts;
 import io.druid.segment.data.Offset;
@@ -559,8 +559,7 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
                           return vc.asFloatMetric(columnName, this);
                         }
                         Column holder = index.getColumn(columnName);
-                        if (holder != null && (holder.getCapabilities().getType() == ValueType.FLOAT
-                                               || holder.getCapabilities().getType() == ValueType.LONG)) {
+                        if (holder != null && ValueType.isNumeric(holder.getCapabilities().getType())) {
                           cachedMetricVals = holder.getGenericColumn();
                           genericColumnCache.put(columnName, cachedMetricVals);
                         }
@@ -589,6 +588,45 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
                     }
 
                     @Override
+                    public DoubleColumnSelector makeDoubleColumnSelector(String columnName)
+                    {
+                      GenericColumn cachedMetricVals = genericColumnCache.get(columnName);
+
+                      if (cachedMetricVals == null) {
+                        VirtualColumn vc = virtualColumns.getVirtualColumn(columnName);
+                        if (vc != null) {
+                          return vc.asDoubleMetric(columnName, this);
+                        }
+                        Column holder = index.getColumn(columnName);
+                        if (holder != null && ValueType.isNumeric(holder.getCapabilities().getType())) {
+                          cachedMetricVals = holder.getGenericColumn();
+                          genericColumnCache.put(columnName, cachedMetricVals);
+                        }
+                      }
+
+                      if (cachedMetricVals == null) {
+                        return new DoubleColumnSelector()
+                        {
+                          @Override
+                          public double get()
+                          {
+                            return 0.0d;
+                          }
+                        };
+                      }
+
+                      final GenericColumn metricVals = cachedMetricVals;
+                      return new DoubleColumnSelector()
+                      {
+                        @Override
+                        public double get()
+                        {
+                          return metricVals.getDoubleSingleValueRow(cursorOffset.getOffset());
+                        }
+                      };
+                    }
+
+                    @Override
                     public LongColumnSelector makeLongColumnSelector(String columnName)
                     {
                       GenericColumn cachedMetricVals = genericColumnCache.get(columnName);
@@ -599,8 +637,7 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
                           return vc.asLongMetric(columnName, this);
                         }
                         Column holder = index.getColumn(columnName);
-                        if (holder != null && (holder.getCapabilities().getType() == ValueType.LONG
-                                               || holder.getCapabilities().getType() == ValueType.FLOAT)) {
+                        if (holder != null && ValueType.isNumeric(holder.getCapabilities().getType())) {
                           cachedMetricVals = holder.getGenericColumn();
                           genericColumnCache.put(columnName, cachedMetricVals);
                         }
@@ -776,6 +813,27 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
                             public Long get()
                             {
                               return columnVals.getLongSingleValueRow(cursorOffset.getOffset());
+                            }
+                          };
+                        } else if (type == ValueType.DOUBLE) {
+                          cachedColumnVals = new ObjectColumnSelector.WithBaggage<Double>()
+                          {
+                            @Override
+                            public void close() throws IOException
+                            {
+                              columnVals.close();
+                            }
+
+                            @Override
+                            public Class classOfObject()
+                            {
+                              return Double.TYPE;
+                            }
+
+                            @Override
+                            public Double get()
+                            {
+                              return columnVals.getDoubleSingleValueRow(cursorOffset.getOffset());
                             }
                           };
                         } else if (type == ValueType.STRING) {

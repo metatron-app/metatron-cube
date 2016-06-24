@@ -69,7 +69,7 @@ public class VarianceAggregatorFactory extends AggregatorFactory
     this.fieldName = fieldName;
     this.estimator = estimator;
     this.isVariancePop = VarianceAggregatorCollector.isVariancePop(estimator);
-    this.inputType = inputType == null ? "float" : inputType;
+    this.inputType = inputType == null ? "double" : inputType;
   }
 
   public VarianceAggregatorFactory(String name, String fieldName)
@@ -102,6 +102,11 @@ public class VarianceAggregatorFactory extends AggregatorFactory
           name,
           metricFactory.makeFloatColumnSelector(fieldName)
       );
+    } else if ("double".equalsIgnoreCase(inputType)) {
+      return new VarianceAggregator.DoubleVarianceAggregator(
+          name,
+          metricFactory.makeDoubleColumnSelector(fieldName)
+      );
     } else if ("long".equalsIgnoreCase(inputType)) {
       return new VarianceAggregator.LongVarianceAggregator(
           name,
@@ -114,7 +119,7 @@ public class VarianceAggregatorFactory extends AggregatorFactory
       );
     }
     throw new IAE(
-        "Incompatible type for metric[%s], expected a float, long or variance, got a %s", fieldName, inputType
+        "Incompatible type for metric[%s], expected a float, double, long or variance, got a %s", fieldName, inputType
     );
   }
 
@@ -130,6 +135,11 @@ public class VarianceAggregatorFactory extends AggregatorFactory
           name,
           metricFactory.makeFloatColumnSelector(fieldName)
       );
+    } else if ("double".equalsIgnoreCase(inputType)) {
+      return new VarianceBufferAggregator.DoubleVarianceAggregator(
+          name,
+          metricFactory.makeDoubleColumnSelector(fieldName)
+      );
     } else if ("long".equalsIgnoreCase(inputType)) {
       return new VarianceBufferAggregator.LongVarianceAggregator(
           name,
@@ -142,7 +152,7 @@ public class VarianceAggregatorFactory extends AggregatorFactory
       );
     }
     throw new IAE(
-        "Incompatible type for metric[%s], expected a float, long or variance, got a %s", fieldName, inputType
+        "Incompatible type for metric[%s], expected a float, double, long or variance, got a %s", fieldName, inputType
     );
   }
 

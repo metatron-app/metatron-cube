@@ -64,6 +64,12 @@ public class ExprVirtualColumn implements VirtualColumn
   }
 
   @Override
+  public DoubleColumnSelector asDoubleMetric(String dimension, ColumnSelectorFactory factory)
+  {
+    return AggregatorUtil.wrapAsDoubleSelector(factory.makeMathExpressionSelector(expression));
+  }
+
+  @Override
   public LongColumnSelector asLongMetric(String dimension, ColumnSelectorFactory factory)
   {
     return AggregatorUtil.wrapAsLongSelector(factory.makeMathExpressionSelector(expression));

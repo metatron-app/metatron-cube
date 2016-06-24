@@ -37,6 +37,8 @@ public interface VirtualColumn
 
   FloatColumnSelector asFloatMetric(String dimension, ColumnSelectorFactory factory);
 
+  DoubleColumnSelector asDoubleMetric(String dimension, ColumnSelectorFactory factory);
+
   LongColumnSelector asLongMetric(String dimension, ColumnSelectorFactory factory);
 
   DimensionSelector asDimension(String dimension, ColumnSelectorFactory factory);

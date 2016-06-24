@@ -84,8 +84,8 @@ public class VarianceTimeseriesQueryTest
                     "index", 6626.151596069336,
                     "addRowsIndexConstant", 6640.151596069336,
                     "uniques", VarianceTestHelper.UNIQUES_9,
-                    "index_var", descending ? 368885.6897238851 : 368885.689155086,
-                    "index_stddev", descending ? 607.3596049490657 : 607.35960448081
+                    "index_var", descending ? 368885.6915300076 : 368885.6915300076,
+                    "index_stddev", descending ? 607.3596064359298 : 607.3596064359298
                 )
             )
         ),
@@ -97,8 +97,8 @@ public class VarianceTimeseriesQueryTest
                     "index", 5833.2095947265625,
                     "addRowsIndexConstant", 5847.2095947265625,
                     "uniques", VarianceTestHelper.UNIQUES_9,
-                    "index_var", descending ? 259061.6037088883 : 259061.60216419376,
-                    "index_stddev", descending ? 508.9809463122252 : 508.98094479478675
+                    "index_var", descending ? 259061.6030548405 : 259061.60305484047,
+                    "index_stddev", descending ? 508.9809456697181 : 508.98094566971804
                 )
             )
         )

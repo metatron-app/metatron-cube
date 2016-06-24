@@ -67,6 +67,12 @@ public class DruidTDigestAggregator implements Aggregator
   }
 
   @Override
+  public double getDouble()
+  {
+    throw new UnsupportedOperationException("DruidTDigestAggregator does not support getDouble()");
+  }
+
+  @Override
   public String getName()
   {
     return name;

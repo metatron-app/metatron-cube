@@ -30,6 +30,7 @@ import com.metamx.common.guava.Accumulator;
 import com.metamx.common.guava.Sequence;
 import com.metamx.common.logger.Logger;
 import io.druid.common.utils.StringUtils;
+import io.druid.data.ValueType;
 import io.druid.granularity.QueryGranularities;
 import io.druid.query.dimension.DefaultDimensionSpec;
 import io.druid.query.metadata.metadata.ColumnAnalysis;
@@ -45,7 +46,6 @@ import io.druid.segment.column.Column;
 import io.druid.segment.column.ColumnCapabilities;
 import io.druid.segment.column.ColumnCapabilitiesImpl;
 import io.druid.segment.column.ComplexColumn;
-import io.druid.segment.column.ValueType;
 import io.druid.segment.data.IndexedInts;
 import io.druid.segment.serde.ComplexMetricSerde;
 import io.druid.segment.serde.ComplexMetrics;
@@ -69,6 +69,8 @@ public class SegmentAnalyzer
    * This is based on assuming 6 units of precision, one decimal point and a single value left of the decimal
    */
   private static final int NUM_BYTES_IN_TEXT_FLOAT = 8;
+
+  private static final int NUM_BYTES_IN_TEXT_DOUBLE = 12;
 
   private final EnumSet<SegmentMetadataQuery.AnalysisType> analysisTypes;
 
@@ -112,6 +114,9 @@ public class SegmentAnalyzer
           break;
         case FLOAT:
           analysis = analyzeNumericColumn(capabilities, length, NUM_BYTES_IN_TEXT_FLOAT);
+          break;
+        case DOUBLE:
+          analysis = analyzeNumericColumn(capabilities, length, NUM_BYTES_IN_TEXT_DOUBLE);
           break;
         case STRING:
           if (index != null) {

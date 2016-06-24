@@ -36,6 +36,7 @@ import com.metamx.common.IAE;
 import com.metamx.common.ISE;
 import com.metamx.common.parsers.ParseException;
 import io.druid.common.utils.StringUtils;
+import io.druid.data.ValueType;
 import io.druid.data.input.InputRow;
 import io.druid.data.input.MapBasedRow;
 import io.druid.data.input.Row;
@@ -52,6 +53,7 @@ import io.druid.query.dimension.DimensionSpec;
 import io.druid.query.extraction.ExtractionFn;
 import io.druid.segment.ColumnSelectorFactory;
 import io.druid.segment.DimensionSelector;
+import io.druid.segment.DoubleColumnSelector;
 import io.druid.segment.FloatColumnSelector;
 import io.druid.segment.LongColumnSelector;
 import io.druid.segment.Metadata;
@@ -60,7 +62,6 @@ import io.druid.segment.ObjectColumnSelector;
 import io.druid.segment.column.Column;
 import io.druid.segment.column.ColumnCapabilities;
 import io.druid.segment.column.ColumnCapabilitiesImpl;
-import io.druid.segment.column.ValueType;
 import io.druid.segment.data.IndexedInts;
 import io.druid.segment.serde.ComplexMetricExtractor;
 import io.druid.segment.serde.ComplexMetricSerde;
@@ -95,12 +96,12 @@ public abstract class IncrementalIndex<AggregatorType> implements Iterable<Row>,
   // Also used to convert between the duplicate ValueType enums in DimensionSchema (druid-api) and main druid.
   private static final Map<Object, ValueType> TYPE_MAP = ImmutableMap.<Object, ValueType>builder()
       .put(Long.class, ValueType.LONG)
-      .put(Double.class, ValueType.FLOAT)
       .put(Float.class, ValueType.FLOAT)
+      .put(Double.class, ValueType.DOUBLE)
+      .put(Long.TYPE, ValueType.LONG)
+      .put(Float.TYPE, ValueType.FLOAT)
+      .put(Double.TYPE, ValueType.DOUBLE)
       .put(String.class, ValueType.STRING)
-      .put(DimensionSchema.ValueType.LONG, ValueType.LONG)
-      .put(DimensionSchema.ValueType.FLOAT, ValueType.FLOAT)
-      .put(DimensionSchema.ValueType.STRING, ValueType.STRING)
       .build();
 
   private static final Function<Object, String> STRING_TRANSFORMER = new Function<Object, String>()
@@ -160,9 +161,34 @@ public abstract class IncrementalIndex<AggregatorType> implements Iterable<Row>,
     }
   };
 
+  private static final Function<Object, Double> DOUBLE_TRANSFORMER = new Function<Object, Double>()
+  {
+    @Override
+    public Double apply(final Object o)
+    {
+      if (o == null) {
+        return null;
+      }
+      if (o instanceof String) {
+        String s = (String) o;
+        try {
+          return s.isEmpty() ? null : Double.valueOf(s);
+        }
+        catch (NumberFormatException nfe) {
+          throw new ParseException(nfe, "Unable to parse value[%s] as float in column: ", o);
+        }
+      }
+      if (o instanceof Number) {
+        return ((Number) o).doubleValue();
+      }
+      return null;
+    }
+  };
+
   private static final Map<ValueType, Function> VALUE_TRANSFORMS = ImmutableMap.<ValueType, Function>builder()
       .put(ValueType.LONG, LONG_TRANSFORMER)
       .put(ValueType.FLOAT, FLOAT_TRANSFORMER)
+      .put(ValueType.DOUBLE, DOUBLE_TRANSFORMER)
       .put(ValueType.STRING, STRING_TRANSFORMER)
       .build();
 
@@ -211,32 +237,40 @@ public abstract class IncrementalIndex<AggregatorType> implements Iterable<Row>,
       }
 
       @Override
+      public DoubleColumnSelector makeDoubleColumnSelector(final String columnName)
+      {
+        return new DoubleColumnSelector()
+        {
+          @Override
+          public double get()
+          {
+            return in.get().getDoubleMetric(columnName);
+          }
+        };
+      }
+
+      @Override
       public ObjectColumnSelector makeObjectColumnSelector(final String column)
       {
         final String typeName = agg.getTypeName();
+        final ValueType type = ValueType.of(typeName);
 
-        final ObjectColumnSelector<Object> rawColumnSelector = new ObjectColumnSelector<Object>()
-        {
-          @Override
-          public Class classOfObject()
+        if (type != ValueType.COMPLEX || !deserializeComplexMetrics) {
+          return new ObjectColumnSelector<Object>()
           {
-            return Object.class;
-          }
+            @Override
+            public Class classOfObject()
+            {
+              return type.classOfObject();
+            }
 
-          @Override
-          public Object get()
-          {
-            return in.get().getRaw(column);
-          }
-        };
-
-        if (!deserializeComplexMetrics) {
-          return rawColumnSelector;
+            @Override
+            public Object get()
+            {
+              return in.get().getRaw(column);
+            }
+          };
         } else {
-          if (typeName.equals("float")) {
-            return rawColumnSelector;
-          }
-
           final ComplexMetricSerde serde = ComplexMetrics.getSerdeForType(typeName);
           if (serde == null) {
             throw new ISE("Don't know how to handle type[%s]", typeName);
@@ -459,7 +493,7 @@ public abstract class IncrementalIndex<AggregatorType> implements Iterable<Row>,
 
     for (DimensionSchema dimSchema : dimensionsSpec.getDimensions()) {
       ColumnCapabilitiesImpl capabilities = new ColumnCapabilitiesImpl();
-      ValueType type = TYPE_MAP.get(dimSchema.getValueType());
+      ValueType type = dimSchema.getValueType();
       capabilities.setType(type);
       if (dimSchema.getTypeName().equals(DimensionSchema.SPATIAL_TYPE_NAME)) {
         capabilities.setHasSpatialIndexes(true);
@@ -489,6 +523,9 @@ public abstract class IncrementalIndex<AggregatorType> implements Iterable<Row>,
         break;
       case FLOAT:
         newDimDim = makeDimDim(dimension, SizeEstimator.FLOAT, getDimensionDescs());
+        break;
+      case DOUBLE:
+        newDimDim = makeDimDim(dimension, SizeEstimator.DOUBLE, getDimensionDescs());
         break;
       case STRING:
         newDimDim = new NullValueConverterDimDim(makeDimDim(dimension, SizeEstimator.STRING, getDimensionDescs()));
@@ -531,6 +568,8 @@ public abstract class IncrementalIndex<AggregatorType> implements Iterable<Row>,
   protected abstract Object getAggVal(AggregatorType agg, int rowOffset, int aggPosition);
 
   protected abstract float getMetricFloatValue(int rowOffset, int aggOffset);
+
+  protected abstract double getMetricDoubleValue(int rowOffset, int aggOffset);
 
   protected abstract long getMetricLongValue(int rowOffset, int aggOffset);
 
@@ -834,6 +873,8 @@ public abstract class IncrementalIndex<AggregatorType> implements Iterable<Row>,
         return ComplexMetrics.getSerdeForType(metricDesc.getType()).getObjectStrategy().getClazz();
       case FLOAT:
         return Float.TYPE;
+      case DOUBLE:
+        return Double.TYPE;
       case LONG:
         return Long.TYPE;
       case STRING:
@@ -1112,6 +1153,8 @@ public abstract class IncrementalIndex<AggregatorType> implements Iterable<Row>,
       this.capabilities = new ColumnCapabilitiesImpl();
       if (type.equalsIgnoreCase("float")) {
         capabilities.setType(ValueType.FLOAT);
+      } else if (type.equalsIgnoreCase("double")) {
+        capabilities.setType(ValueType.DOUBLE);
       } else if (type.equalsIgnoreCase("long")) {
         capabilities.setType(ValueType.LONG);
       } else {
@@ -1157,7 +1200,15 @@ public abstract class IncrementalIndex<AggregatorType> implements Iterable<Row>,
       @Override
       public int estimate(Float object)
       {
-        return object == null ? 0 : 4;
+        return object == null ? 0 : Float.BYTES;
+      }
+    };
+    SizeEstimator<Double> DOUBLE = new SizeEstimator<Double>()
+    {
+      @Override
+      public int estimate(Double object)
+      {
+        return object == null ? 0 : Double.BYTES;
       }
     };
     SizeEstimator<Long> LONG = new SizeEstimator<Long>()
@@ -1165,7 +1216,7 @@ public abstract class IncrementalIndex<AggregatorType> implements Iterable<Row>,
       @Override
       public int estimate(Long object)
       {
-        return object == null ? 0 : 8;
+        return object == null ? 0 : Long.BYTES;
       }
     };
   }

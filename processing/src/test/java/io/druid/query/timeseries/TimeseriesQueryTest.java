@@ -61,7 +61,7 @@ public class TimeseriesQueryTest
         .aggregators(
             Arrays.asList(
                 QueryRunnerTestHelper.rowsCount,
-                QueryRunnerTestHelper.indexDoubleSum
+                QueryRunnerTestHelper.indexFloatSum
             )
         )
         .postAggregators(Arrays.<PostAggregator>asList(QueryRunnerTestHelper.addRowsIndexConstant))

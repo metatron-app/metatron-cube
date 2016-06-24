@@ -23,7 +23,6 @@ import com.google.caliper.Runner;
 import com.google.caliper.SimpleBenchmark;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
-import io.druid.js.JavaScriptConfig;
 import io.druid.segment.ObjectColumnSelector;
 
 import java.util.Map;
@@ -38,7 +37,7 @@ public class JavaScriptAggregatorBenchmark extends SimpleBenchmark
     scriptDoubleSum.put("fnCombine", "function combine(a,b) { return a + b }");
   }
 
-  private static void aggregate(TestFloatColumnSelector selector, Aggregator agg)
+  private static void aggregate(TestDoubleColumnSelector selector, Aggregator agg)
   {
     agg.aggregate();
     selector.increment();
@@ -46,7 +45,7 @@ public class JavaScriptAggregatorBenchmark extends SimpleBenchmark
 
   private JavaScriptAggregator jsAggregator;
   private DoubleSumAggregator doubleAgg;
-  final LoopingFloatColumnSelector selector = new LoopingFloatColumnSelector(new float[]{42.12f, 9f});
+  final LoopingDoubleColumnSelector selector = new LoopingDoubleColumnSelector(new double[]{42.12f, 9f});
 
   @Override
   protected void setUp() throws Exception
@@ -89,21 +88,21 @@ public class JavaScriptAggregatorBenchmark extends SimpleBenchmark
     Runner.main(JavaScriptAggregatorBenchmark.class, args);
   }
 
-  protected static class LoopingFloatColumnSelector extends TestFloatColumnSelector
+  protected static class LoopingDoubleColumnSelector extends TestDoubleColumnSelector
   {
-    private final float[] floats;
+    private final double[] doubles;
     private long index = 0;
 
-    public LoopingFloatColumnSelector(float[] floats)
+    public LoopingDoubleColumnSelector(double[] doubles)
     {
-      super(floats);
-      this.floats = floats;
+      super(doubles);
+      this.doubles = doubles;
     }
 
     @Override
-    public float get()
+    public double get()
     {
-      return floats[(int) (index % floats.length)];
+      return doubles[(int) (index % doubles.length)];
     }
 
     public void increment()

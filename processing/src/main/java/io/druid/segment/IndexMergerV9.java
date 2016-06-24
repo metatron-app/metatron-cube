@@ -43,12 +43,12 @@ import com.metamx.common.io.smoosh.SmooshedWriter;
 import com.metamx.common.logger.Logger;
 import io.druid.collections.CombiningIterable;
 import io.druid.common.utils.JodaUtils;
+import io.druid.data.ValueType;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.segment.column.Column;
 import io.druid.segment.column.ColumnCapabilities;
 import io.druid.segment.column.ColumnCapabilitiesImpl;
 import io.druid.segment.column.ColumnDescriptor;
-import io.druid.segment.column.ValueType;
 import io.druid.segment.data.BitmapSerdeFactory;
 import io.druid.segment.data.ByteBufferWriter;
 import io.druid.segment.data.CompressedObjectStrategy;
@@ -68,6 +68,7 @@ import io.druid.segment.serde.ComplexColumnSerializer;
 import io.druid.segment.serde.ComplexMetricSerde;
 import io.druid.segment.serde.ComplexMetrics;
 import io.druid.segment.serde.DictionaryEncodedColumnPartSerde;
+import io.druid.segment.serde.DoubleGenericColumnPartSerde;
 import io.druid.segment.serde.FloatGenericColumnPartSerde;
 import io.druid.segment.serde.LongGenericColumnPartSerde;
 import org.apache.commons.io.FileUtils;
@@ -436,6 +437,15 @@ public class IndexMergerV9 extends IndexMerger
                                          .build()
           );
           break;
+        case DOUBLE:
+          builder.setValueType(ValueType.DOUBLE);
+          builder.addSerde(
+              DoubleGenericColumnPartSerde.serializerBuilder()
+                                         .withByteOrder(IndexIO.BYTE_ORDER)
+                                         .withDelegate((DoubleColumnSerializer) writer)
+                                         .build()
+          );
+          break;
         case COMPLEX:
           final String typeName = metricTypeNames.get(metric);
           builder.setValueType(ValueType.COMPLEX);
@@ -752,6 +762,9 @@ public class IndexMergerV9 extends IndexMerger
           break;
         case FLOAT:
           writer = FloatColumnSerializer.create(ioPeon, metric, metCompression);
+          break;
+        case DOUBLE:
+          writer = DoubleColumnSerializer.create(ioPeon, metric, metCompression);
           break;
         case COMPLEX:
           final String typeName = metricTypeNames.get(metric);

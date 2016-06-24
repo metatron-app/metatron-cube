@@ -30,7 +30,7 @@ import com.google.common.collect.Maps;
 import com.google.common.primitives.Ints;
 import com.metamx.common.guava.Sequence;
 import com.metamx.common.guava.Sequences;
-import io.druid.data.input.impl.DimensionSchema;
+import io.druid.data.ValueType;
 import io.druid.granularity.QueryGranularity;
 import io.druid.math.expr.Expr;
 import io.druid.math.expr.ExprEval;
@@ -45,6 +45,7 @@ import io.druid.query.filter.ValueMatcherFactory;
 import io.druid.segment.Capabilities;
 import io.druid.segment.Cursor;
 import io.druid.segment.DimensionSelector;
+import io.druid.segment.DoubleColumnSelector;
 import io.druid.segment.ExprEvalColumnSelector;
 import io.druid.segment.FloatColumnSelector;
 import io.druid.segment.LongColumnSelector;
@@ -57,7 +58,6 @@ import io.druid.segment.VirtualColumn;
 import io.druid.segment.VirtualColumns;
 import io.druid.segment.column.Column;
 import io.druid.segment.column.ColumnCapabilities;
-import io.druid.segment.column.ValueType;
 import io.druid.segment.data.Indexed;
 import io.druid.segment.data.IndexedInts;
 import io.druid.segment.data.ListIndexed;
@@ -491,6 +491,36 @@ public class IncrementalIndexStorageAdapter implements StorageAdapter
               }
 
               @Override
+              public DoubleColumnSelector makeDoubleColumnSelector(String columnName)
+              {
+                final Integer metricIndexInt = index.getMetricIndex(columnName);
+                if (metricIndexInt == null) {
+                  VirtualColumn virtualColumn = virtualColumns.getVirtualColumn(columnName);
+                  if (virtualColumn != null) {
+                    return virtualColumn.asDoubleMetric(columnName, this);
+                  }
+                  return new DoubleColumnSelector()
+                  {
+                    @Override
+                    public double get()
+                    {
+                      return 0.0d;
+                    }
+                  };
+                }
+
+                final int metricIndex = metricIndexInt;
+                return new DoubleColumnSelector()
+                {
+                  @Override
+                  public double get()
+                  {
+                    return index.getMetricDoubleValue(currEntry.getValue(), metricIndex);
+                  }
+                };
+              }
+
+              @Override
               public LongColumnSelector makeLongColumnSelector(String columnName)
               {
                 if (columnName.equals(Column.TIME_COLUMN_NAME)) {
@@ -790,7 +820,7 @@ public class IncrementalIndexStorageAdapter implements StorageAdapter
           }
           final int dimIndex = dimensionDesc.getIndex();
           final IncrementalIndex.DimDim dimDim = dimensionDesc.getValues();
-          final DimensionSchema.ValueType type = dimensionDesc.getCapabilities().getType().asDimensionType();
+          final ValueType type = dimensionDesc.getCapabilities().getType();
           final Supplier<Object> supplier = new Supplier<Object>()
           {
             @Override
@@ -817,6 +847,16 @@ public class IncrementalIndexStorageAdapter implements StorageAdapter
               public float get()
               {
                 return index.getMetricFloatValue(holder.getValue(), metricIndex);
+              }
+            };
+            values.put(column, AggregatorUtil.asSupplier(selector));
+          } else if (ValueType.DOUBLE == type) {
+            final DoubleColumnSelector selector = new DoubleColumnSelector()
+            {
+              @Override
+              public double get()
+              {
+                return index.getMetricDoubleValue(holder.getValue(), metricIndex);
               }
             };
             values.put(column, AggregatorUtil.asSupplier(selector));

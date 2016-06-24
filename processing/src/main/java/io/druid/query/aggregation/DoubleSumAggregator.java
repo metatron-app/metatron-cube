@@ -23,7 +23,7 @@ import com.google.common.base.Predicate;
 import com.google.common.base.Predicates;
 import com.google.common.collect.Ordering;
 import com.google.common.primitives.Doubles;
-import io.druid.segment.FloatColumnSelector;
+import io.druid.segment.DoubleColumnSelector;
 
 import java.util.Comparator;
 
@@ -45,13 +45,13 @@ public class DoubleSumAggregator implements Aggregator
     return ((Number) lhs).doubleValue() + ((Number) rhs).doubleValue();
   }
 
-  private final FloatColumnSelector selector;
+  private final DoubleColumnSelector selector;
   private final Predicate predicate;
   private final String name;
 
   private double sum;
 
-  public DoubleSumAggregator(String name, FloatColumnSelector selector, Predicate predicate)
+  public DoubleSumAggregator(String name, DoubleColumnSelector selector, Predicate predicate)
   {
     this.name = name;
     this.selector = selector;
@@ -60,7 +60,7 @@ public class DoubleSumAggregator implements Aggregator
     this.sum = 0;
   }
 
-  public DoubleSumAggregator(String name, FloatColumnSelector selector)
+  public DoubleSumAggregator(String name, DoubleColumnSelector selector)
   {
     this(name, selector, Predicates.alwaysTrue());
   }
@@ -95,6 +95,12 @@ public class DoubleSumAggregator implements Aggregator
   public long getLong()
   {
     return (long) sum;
+  }
+
+  @Override
+  public double getDouble()
+  {
+    return sum;
   }
 
   @Override

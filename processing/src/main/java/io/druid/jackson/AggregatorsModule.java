@@ -29,6 +29,9 @@ import io.druid.query.aggregation.DoubleMaxAggregatorFactory;
 import io.druid.query.aggregation.DoubleMinAggregatorFactory;
 import io.druid.query.aggregation.DoubleSumAggregatorFactory;
 import io.druid.query.aggregation.FilteredAggregatorFactory;
+import io.druid.query.aggregation.FloatMaxAggregatorFactory;
+import io.druid.query.aggregation.FloatMinAggregatorFactory;
+import io.druid.query.aggregation.FloatSumAggregatorFactory;
 import io.druid.query.aggregation.HistogramAggregatorFactory;
 import io.druid.query.aggregation.JavaScriptAggregatorFactory;
 import io.druid.query.aggregation.LongMaxAggregatorFactory;
@@ -69,6 +72,9 @@ public class AggregatorsModule extends SimpleModule
       @JsonSubTypes.Type(name = "doubleSum", value = DoubleSumAggregatorFactory.class),
       @JsonSubTypes.Type(name = "doubleMax", value = DoubleMaxAggregatorFactory.class),
       @JsonSubTypes.Type(name = "doubleMin", value = DoubleMinAggregatorFactory.class),
+      @JsonSubTypes.Type(name = "floatSum", value = FloatSumAggregatorFactory.class),
+      @JsonSubTypes.Type(name = "floatMax", value = FloatMaxAggregatorFactory.class),
+      @JsonSubTypes.Type(name = "floatMin", value = FloatMinAggregatorFactory.class),
       @JsonSubTypes.Type(name = "longMax", value = LongMaxAggregatorFactory.class),
       @JsonSubTypes.Type(name = "longMin", value = LongMinAggregatorFactory.class),
       @JsonSubTypes.Type(name = "javascript", value = JavaScriptAggregatorFactory.class),

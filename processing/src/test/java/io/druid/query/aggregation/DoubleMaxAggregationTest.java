@@ -35,9 +35,9 @@ public class DoubleMaxAggregationTest
 {
   private DoubleMaxAggregatorFactory doubleMaxAggFactory;
   private ColumnSelectorFactory colSelectorFactory;
-  private TestFloatColumnSelector selector;
+  private TestDoubleColumnSelector selector;
 
-  private float[] values = {1.1f, 2.7f, 3.5f, 1.3f};
+  private double[] values = {1.1f, 2.7f, 3.5f, 1.3f};
 
   public DoubleMaxAggregationTest() throws Exception
   {
@@ -48,9 +48,9 @@ public class DoubleMaxAggregationTest
   @Before
   public void setup()
   {
-    selector = new TestFloatColumnSelector(values);
+    selector = new TestDoubleColumnSelector(values);
     colSelectorFactory = EasyMock.createMock(ColumnSelectorFactory.class);
-    EasyMock.expect(colSelectorFactory.makeFloatColumnSelector("nilly")).andReturn(selector);
+    EasyMock.expect(colSelectorFactory.makeDoubleColumnSelector("nilly")).andReturn(selector);
     EasyMock.replay(colSelectorFactory);
   }
 
@@ -111,13 +111,13 @@ public class DoubleMaxAggregationTest
     Assert.assertFalse(one.equals(two));
   }
 
-  private void aggregate(TestFloatColumnSelector selector, DoubleMaxAggregator agg)
+  private void aggregate(TestDoubleColumnSelector selector, DoubleMaxAggregator agg)
   {
     agg.aggregate();
     selector.increment();
   }
 
-  private void aggregate(TestFloatColumnSelector selector, DoubleMaxBufferAggregator agg, ByteBuffer buff, int position)
+  private void aggregate(TestDoubleColumnSelector selector, DoubleMaxBufferAggregator agg, ByteBuffer buff, int position)
   {
     agg.aggregate(buff, position);
     selector.increment();

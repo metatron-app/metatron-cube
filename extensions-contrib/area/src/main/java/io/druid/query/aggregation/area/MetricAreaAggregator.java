@@ -76,4 +76,10 @@ public class MetricAreaAggregator implements Aggregator
   {
     return (long) metricArea.getArea();
   }
+
+  @Override
+  public double getDouble()
+  {
+    return (double) metricArea.getArea();
+  }
 }

@@ -28,6 +28,7 @@ public interface ColumnSelectorFactory
 {
   public DimensionSelector makeDimensionSelector(DimensionSpec dimensionSpec);
   public FloatColumnSelector makeFloatColumnSelector(String columnName);
+  public DoubleColumnSelector makeDoubleColumnSelector(String columnName);
   public LongColumnSelector makeLongColumnSelector(String columnName);
   public ObjectColumnSelector makeObjectColumnSelector(String columnName);
   public ExprEvalColumnSelector makeMathExpressionSelector(String expression);

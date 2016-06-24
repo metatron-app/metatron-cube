@@ -54,8 +54,8 @@ import io.druid.query.Result;
 import io.druid.query.TestQueryRunners;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.CountAggregatorFactory;
-import io.druid.query.aggregation.DoubleMaxAggregatorFactory;
-import io.druid.query.aggregation.DoubleSumAggregatorFactory;
+import io.druid.query.aggregation.FloatMaxAggregatorFactory;
+import io.druid.query.aggregation.FloatSumAggregatorFactory;
 import io.druid.query.aggregation.FilteredAggregatorFactory;
 import io.druid.query.aggregation.JavaScriptAggregatorFactory;
 import io.druid.query.aggregation.LongSumAggregatorFactory;
@@ -1606,7 +1606,7 @@ public class GroupByQueryRunnerTest
             new CountAggregatorFactory("rows2", "index > 130"),
             new LongSumAggregatorFactory("idx", "index"),
             new LongSumAggregatorFactory("idx2", "index", null, "index > 110"),
-            new DoubleSumAggregatorFactory("idx3", "index", null, "index > 130")
+            new FloatSumAggregatorFactory("idx3", "index", null, "index > 130")
         )
     );
 
@@ -1631,7 +1631,7 @@ public class GroupByQueryRunnerTest
            .setAggregatorSpecs(
                Arrays.asList(
                    QueryRunnerTestHelper.rowsCount,
-                   new DoubleSumAggregatorFactory("idx", null, "index / 2 + indexMin", null)
+                   new FloatSumAggregatorFactory("idx", null, "index / 2 + indexMin", null)
                )
            );
 
@@ -1705,7 +1705,7 @@ public class GroupByQueryRunnerTest
         .setAggregatorSpecs(
             Arrays.asList(
                 QueryRunnerTestHelper.rowsCount,
-                new DoubleSumAggregatorFactory("idx", "index")
+                new FloatSumAggregatorFactory("idx", "index")
             )
         )
         .addOrderByColumn("idx", "desc")
@@ -2324,7 +2324,7 @@ public class GroupByQueryRunnerTest
         .setAggregatorSpecs(
             Arrays.asList(
                 QueryRunnerTestHelper.rowsCount,
-                new DoubleSumAggregatorFactory("index", "index")
+                new FloatSumAggregatorFactory("index", "index")
             )
         )
         .setGranularity(QueryGranularities.ALL)
@@ -3127,8 +3127,8 @@ public class GroupByQueryRunnerTest
         .setAggregatorSpecs(
             Arrays.<AggregatorFactory>asList(
                 QueryRunnerTestHelper.rowsCount,
-                new DoubleMaxAggregatorFactory("idx", "idx"),
-                new DoubleMaxAggregatorFactory("indexMaxPlusTen", "indexMaxPlusTen")
+                new FloatMaxAggregatorFactory("idx", "idx"),
+                new FloatMaxAggregatorFactory("indexMaxPlusTen", "indexMaxPlusTen")
             )
         )
         .setGranularity(QueryRunnerTestHelper.dayGran)
@@ -3201,10 +3201,10 @@ public class GroupByQueryRunnerTest
         .setQuerySegmentSpec(QueryRunnerTestHelper.firstToThird)
         .setAggregatorSpecs(
             Arrays.<AggregatorFactory>asList(
-                new DoubleMaxAggregatorFactory("idx1", "idx"),
-                new DoubleMaxAggregatorFactory("idx2", "idx"),
-                new DoubleMaxAggregatorFactory("idx3", "post_agg"),
-                new DoubleMaxAggregatorFactory("idx4", "post_agg")
+                new FloatMaxAggregatorFactory("idx1", "idx"),
+                new FloatMaxAggregatorFactory("idx2", "idx"),
+                new FloatMaxAggregatorFactory("idx3", "post_agg"),
+                new FloatMaxAggregatorFactory("idx4", "post_agg")
             )
         )
         .setGranularity(QueryRunnerTestHelper.dayGran)
@@ -3247,7 +3247,7 @@ public class GroupByQueryRunnerTest
         .setQuerySegmentSpec(QueryRunnerTestHelper.firstToThird)
         .setAggregatorSpecs(
             Arrays.<AggregatorFactory>asList(
-                new DoubleMaxAggregatorFactory("idx", "idx")
+                new FloatMaxAggregatorFactory("idx", "idx")
             )
         )
         .setDimFilter(
@@ -3300,7 +3300,7 @@ public class GroupByQueryRunnerTest
         .setQuerySegmentSpec(QueryRunnerTestHelper.secondOnly)
         .setAggregatorSpecs(
             Arrays.<AggregatorFactory>asList(
-                new DoubleMaxAggregatorFactory("idx", "idx")
+                new FloatMaxAggregatorFactory("idx", "idx")
             )
         )
         .setGranularity(QueryRunnerTestHelper.dayGran)
@@ -3337,7 +3337,7 @@ public class GroupByQueryRunnerTest
         .setQuerySegmentSpec(QueryRunnerTestHelper.firstToThird)
         .setAggregatorSpecs(
             Arrays.<AggregatorFactory>asList(
-                new DoubleMaxAggregatorFactory("idx", "idx")
+                new FloatMaxAggregatorFactory("idx", "idx")
             )
         )
         .setGranularity(QueryRunnerTestHelper.dayGran)
@@ -3899,7 +3899,7 @@ public class GroupByQueryRunnerTest
         .setAggregatorSpecs(
             Arrays.asList(
                 QueryRunnerTestHelper.rowsCount,
-                new DoubleSumAggregatorFactory("idx_subagg", "index"),
+                new FloatSumAggregatorFactory("idx_subagg", "index"),
                 new JavaScriptAggregatorFactory(
                     "js_agg",
                     Arrays.asList("index", "market"),
@@ -3952,7 +3952,7 @@ public class GroupByQueryRunnerTest
             Arrays.asList(
                 new LongSumAggregatorFactory("rows", "rows"),
                 new LongSumAggregatorFactory("idx", "idx_subpostagg"),
-                new DoubleSumAggregatorFactory("js_outer_agg", "js_agg")
+                new FloatSumAggregatorFactory("js_outer_agg", "js_agg")
             )
         )
         .setPostAggregatorSpecs(
@@ -4309,7 +4309,7 @@ public class GroupByQueryRunnerTest
         .setAggregatorSpecs(
             Arrays.asList(
                 QueryRunnerTestHelper.rowsCount,
-                QueryRunnerTestHelper.indexDoubleSum
+                QueryRunnerTestHelper.indexFloatSum
             )
         )
         .setPostAggregatorSpecs(Arrays.<PostAggregator>asList(QueryRunnerTestHelper.addRowsIndexConstant))
@@ -4397,7 +4397,7 @@ public class GroupByQueryRunnerTest
         .setAggregatorSpecs(
             Arrays.asList(
                 QueryRunnerTestHelper.rowsCount,
-                QueryRunnerTestHelper.indexDoubleSum
+                QueryRunnerTestHelper.indexFloatSum
             )
         )
         .setPostAggregatorSpecs(Arrays.<PostAggregator>asList(QueryRunnerTestHelper.addRowsIndexConstant))

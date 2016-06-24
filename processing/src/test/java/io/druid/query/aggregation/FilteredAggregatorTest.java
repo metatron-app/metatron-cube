@@ -37,9 +37,10 @@ import io.druid.query.filter.SelectorDimFilter;
 import io.druid.query.search.search.ContainsSearchQuerySpec;
 import io.druid.segment.ColumnSelectorFactory;
 import io.druid.segment.DimensionSelector;
+import io.druid.segment.DoubleColumnSelector;
+import io.druid.segment.ExprEvalColumnSelector;
 import io.druid.segment.FloatColumnSelector;
 import io.druid.segment.LongColumnSelector;
-import io.druid.segment.ExprEvalColumnSelector;
 import io.druid.segment.ObjectColumnSelector;
 import io.druid.segment.data.ArrayBasedIndexedInts;
 import io.druid.segment.data.IndexedInts;
@@ -50,7 +51,7 @@ import java.util.Arrays;
 
 public class FilteredAggregatorTest
 {
-  private void aggregate(TestFloatColumnSelector selector, FilteredAggregator agg)
+  private void aggregate(TestDoubleColumnSelector selector, FilteredAggregator agg)
   {
     agg.aggregate();
     selector.increment();
@@ -59,8 +60,8 @@ public class FilteredAggregatorTest
   @Test
   public void testAggregate()
   {
-    final float[] values = {0.15f, 0.27f};
-    final TestFloatColumnSelector selector = new TestFloatColumnSelector(values);
+    final double[] values = {0.15f, 0.27f};
+    final TestDoubleColumnSelector selector = new TestDoubleColumnSelector(values);
 
     FilteredAggregatorFactory factory = new FilteredAggregatorFactory(
         new DoubleSumAggregatorFactory("billy", "value"),
@@ -73,14 +74,14 @@ public class FilteredAggregatorTest
 
     Assert.assertEquals("billy", agg.getName());
 
-    double expectedFirst = new Float(values[0]).doubleValue();
-    double expectedSecond = new Float(values[1]).doubleValue() + expectedFirst;
+    double expectedFirst = new Double(values[0]).doubleValue();
+    double expectedSecond = new Double(values[1]).doubleValue() + expectedFirst;
     double expectedThird = expectedSecond;
 
     assertValues(agg, selector, expectedFirst, expectedSecond, expectedThird);
   }
 
-  private ColumnSelectorFactory makeColumnSelector(final TestFloatColumnSelector selector){
+  private ColumnSelectorFactory makeColumnSelector(final TestDoubleColumnSelector selector){
 
     return new ColumnSelectorFactory()
     {
@@ -149,13 +150,19 @@ public class FilteredAggregatorTest
       }
 
       @Override
-      public FloatColumnSelector makeFloatColumnSelector(String columnName)
+      public DoubleColumnSelector makeDoubleColumnSelector(String columnName)
       {
         if (columnName.equals("value")) {
           return selector;
         } else {
           throw new UnsupportedOperationException();
         }
+      }
+
+      @Override
+      public FloatColumnSelector makeFloatColumnSelector(String columnName)
+      {
+        throw new UnsupportedOperationException();
       }
 
       @Override
@@ -172,7 +179,7 @@ public class FilteredAggregatorTest
     };
   }
 
-  private void assertValues(FilteredAggregator agg,TestFloatColumnSelector selector, double... expectedVals){
+  private void assertValues(FilteredAggregator agg,TestDoubleColumnSelector selector, double... expectedVals){
     Assert.assertEquals(0.0d, agg.get());
     Assert.assertEquals(0.0d, agg.get());
     Assert.assertEquals(0.0d, agg.get());
@@ -187,8 +194,8 @@ public class FilteredAggregatorTest
   @Test
   public void testAggregateWithNotFilter()
   {
-    final float[] values = {0.15f, 0.27f};
-    final TestFloatColumnSelector selector = new TestFloatColumnSelector(values);
+    final double[] values = {0.15f, 0.27f};
+    final TestDoubleColumnSelector selector = new TestDoubleColumnSelector(values);
 
     FilteredAggregatorFactory factory = new FilteredAggregatorFactory(
         new DoubleSumAggregatorFactory("billy", "value"),
@@ -201,8 +208,8 @@ public class FilteredAggregatorTest
   @Test
   public void testAggregateWithOrFilter()
   {
-    final float[] values = {0.15f, 0.27f, 0.14f};
-    final TestFloatColumnSelector selector = new TestFloatColumnSelector(values);
+    final double[] values = {0.15f, 0.27f, 0.14f};
+    final TestDoubleColumnSelector selector = new TestDoubleColumnSelector(values);
 
     FilteredAggregatorFactory factory = new FilteredAggregatorFactory(
         new DoubleSumAggregatorFactory("billy", "value"),
@@ -215,17 +222,17 @@ public class FilteredAggregatorTest
 
     Assert.assertEquals("billy", agg.getName());
 
-    double expectedFirst = new Float(values[0]).doubleValue();
-    double expectedSecond = new Float(values[1]).doubleValue() + expectedFirst;
-    double expectedThird = expectedSecond + new Float(values[2]).doubleValue();
+    double expectedFirst = new Double(values[0]).doubleValue();
+    double expectedSecond = new Double(values[1]).doubleValue() + expectedFirst;
+    double expectedThird = expectedSecond + new Double(values[2]).doubleValue();
     assertValues(agg, selector, expectedFirst, expectedSecond, expectedThird);
   }
 
   @Test
   public void testAggregateWithAndFilter()
   {
-    final float[] values = {0.15f, 0.27f};
-    final TestFloatColumnSelector selector = new TestFloatColumnSelector(values);
+    final double[] values = {0.15f, 0.27f};
+    final TestDoubleColumnSelector selector = new TestDoubleColumnSelector(values);
 
     FilteredAggregatorFactory factory = new FilteredAggregatorFactory(
         new DoubleSumAggregatorFactory("billy", "value"),
@@ -237,29 +244,29 @@ public class FilteredAggregatorTest
   @Test
   public void testAggregateWithPredicateFilters()
   {
-    final float[] values = {0.15f, 0.27f};
-    TestFloatColumnSelector selector;
+    final double[] values = {0.15f, 0.27f};
+    TestDoubleColumnSelector selector;
     FilteredAggregatorFactory factory;
 
     factory = new FilteredAggregatorFactory(
         new DoubleSumAggregatorFactory("billy", "value"),
         new BoundDimFilter("dim", "a", "a", false, false, true, null)
     );
-    selector = new TestFloatColumnSelector(values);
+    selector = new TestDoubleColumnSelector(values);
     validateFilteredAggs(factory, values, selector);
 
     factory = new FilteredAggregatorFactory(
         new DoubleSumAggregatorFactory("billy", "value"),
         new RegexDimFilter("dim", "a", null)
     );
-    selector = new TestFloatColumnSelector(values);
+    selector = new TestDoubleColumnSelector(values);
     validateFilteredAggs(factory, values, selector);
 
     factory = new FilteredAggregatorFactory(
         new DoubleSumAggregatorFactory("billy", "value"),
         new SearchQueryDimFilter("dim", new ContainsSearchQuerySpec("a", true), null)
     );
-    selector = new TestFloatColumnSelector(values);
+    selector = new TestDoubleColumnSelector(values);
     validateFilteredAggs(factory, values, selector);
 
     String jsFn = "function(x) { return(x === 'a') }";
@@ -267,15 +274,15 @@ public class FilteredAggregatorTest
         new DoubleSumAggregatorFactory("billy", "value"),
         new JavaScriptDimFilter("dim", jsFn, null, JavaScriptConfig.getDefault())
     );
-    selector = new TestFloatColumnSelector(values);
+    selector = new TestDoubleColumnSelector(values);
     validateFilteredAggs(factory, values, selector);
   }
 
   @Test
   public void testAggregateWithExtractionFns()
   {
-    final float[] values = {0.15f, 0.27f};
-    TestFloatColumnSelector selector;
+    final double[] values = {0.15f, 0.27f};
+    TestDoubleColumnSelector selector;
     FilteredAggregatorFactory factory;
 
     String extractionJsFn = "function(str) { return str + 'AARDVARK'; }";
@@ -285,35 +292,35 @@ public class FilteredAggregatorTest
         new DoubleSumAggregatorFactory("billy", "value"),
         new SelectorDimFilter("dim", "aAARDVARK", extractionFn)
     );
-    selector = new TestFloatColumnSelector(values);
+    selector = new TestDoubleColumnSelector(values);
     validateFilteredAggs(factory, values, selector);
 
     factory = new FilteredAggregatorFactory(
         new DoubleSumAggregatorFactory("billy", "value"),
         new InDimFilter("dim", Arrays.asList("NOT-aAARDVARK", "FOOBAR", "aAARDVARK"), extractionFn)
     );
-    selector = new TestFloatColumnSelector(values);
+    selector = new TestDoubleColumnSelector(values);
     validateFilteredAggs(factory, values, selector);
     
     factory = new FilteredAggregatorFactory(
         new DoubleSumAggregatorFactory("billy", "value"),
         new BoundDimFilter("dim", "aAARDVARK", "aAARDVARK", false, false, true, extractionFn)
     );
-    selector = new TestFloatColumnSelector(values);
+    selector = new TestDoubleColumnSelector(values);
     validateFilteredAggs(factory, values, selector);
 
     factory = new FilteredAggregatorFactory(
         new DoubleSumAggregatorFactory("billy", "value"),
         new RegexDimFilter("dim", "aAARDVARK", extractionFn)
     );
-    selector = new TestFloatColumnSelector(values);
+    selector = new TestDoubleColumnSelector(values);
     validateFilteredAggs(factory, values, selector);
 
     factory = new FilteredAggregatorFactory(
         new DoubleSumAggregatorFactory("billy", "value"),
         new SearchQueryDimFilter("dim", new ContainsSearchQuerySpec("aAARDVARK", true), extractionFn)
     );
-    selector = new TestFloatColumnSelector(values);
+    selector = new TestDoubleColumnSelector(values);
     validateFilteredAggs(factory, values, selector);
 
     String jsFn = "function(x) { return(x === 'aAARDVARK') }";
@@ -321,14 +328,14 @@ public class FilteredAggregatorTest
         new DoubleSumAggregatorFactory("billy", "value"),
         new JavaScriptDimFilter("dim", jsFn, extractionFn, JavaScriptConfig.getDefault())
     );
-    selector = new TestFloatColumnSelector(values);
+    selector = new TestDoubleColumnSelector(values);
     validateFilteredAggs(factory, values, selector);
   }
 
   private void validateFilteredAggs(
       FilteredAggregatorFactory factory,
-      float[] values,
-      TestFloatColumnSelector selector
+      double[] values,
+      TestDoubleColumnSelector selector
   )
   {
     FilteredAggregator agg = (FilteredAggregator) factory.factorize(
@@ -337,8 +344,8 @@ public class FilteredAggregatorTest
 
     Assert.assertEquals("billy", agg.getName());
 
-    double expectedFirst = new Float(values[0]).doubleValue();
-    double expectedSecond = new Float(values[1]).doubleValue() + expectedFirst;
+    double expectedFirst = new Double(values[0]).doubleValue();
+    double expectedSecond = new Double(values[1]).doubleValue() + expectedFirst;
     double expectedThird = expectedSecond;
 
     assertValues(agg, selector, expectedFirst, expectedSecond, expectedThird);

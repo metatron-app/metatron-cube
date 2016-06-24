@@ -88,6 +88,12 @@ public class RangeBufferAggregator implements BufferAggregator
   }
 
   @Override
+  public double getDouble(ByteBuffer buf, int position)
+  {
+    return delegate.getDouble(buf, position);
+  }
+
+  @Override
   public long getLong(ByteBuffer buf, int position)
   {
     return delegate.getLong(buf, position);

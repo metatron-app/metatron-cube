@@ -57,6 +57,15 @@ public class MetricAreaBufferAggregator implements BufferAggregator
   }
 
   @Override
+  public double getDouble(ByteBuffer buf, int position)
+  {
+    ByteBuffer mutationBuffer = buf.duplicate();
+    mutationBuffer.position(position);
+
+    return MetricArea.fromBytes(mutationBuffer).getArea();
+  }
+
+  @Override
   public long getLong(ByteBuffer buf, int position)
   {
     ByteBuffer mutationBuffer = buf.duplicate();

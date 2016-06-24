@@ -601,7 +601,7 @@ public class IncrementalIndexTest
     while (iterator.hasNext()) {
       Row row = iterator.next();
       Assert.assertEquals(timestamp + curr, row.getTimestampFromEpoch());
-      Assert.assertEquals(Float.valueOf(threadCount), (Float) row.getFloatMetric("count"));
+      Assert.assertEquals(threadCount, ((Number)row.getFloatMetric("count")).intValue());
       curr++;
     }
     Assert.assertEquals(elementsPerThread, curr);

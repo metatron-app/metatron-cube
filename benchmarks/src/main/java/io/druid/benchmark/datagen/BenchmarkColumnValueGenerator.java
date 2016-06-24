@@ -19,7 +19,7 @@
 
 package io.druid.benchmark.datagen;
 
-import io.druid.segment.column.ValueType;
+import io.druid.data.ValueType;
 import org.apache.commons.math3.distribution.AbstractIntegerDistribution;
 import org.apache.commons.math3.distribution.AbstractRealDistribution;
 import org.apache.commons.math3.distribution.EnumeratedDistribution;

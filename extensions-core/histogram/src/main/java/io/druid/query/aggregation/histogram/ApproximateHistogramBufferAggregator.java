@@ -67,7 +67,7 @@ public class ApproximateHistogramBufferAggregator implements BufferAggregator
     mutationBuffer.position(position);
 
     ApproximateHistogram h0 = new ApproximateHistogram().fromBytesDense(mutationBuffer);
-    h0.offer(selector.get());
+    h0.offer((float)selector.get());
 
     mutationBuffer.position(position);
     h0.toBytesDense(mutationBuffer);
@@ -85,6 +85,12 @@ public class ApproximateHistogramBufferAggregator implements BufferAggregator
   public float getFloat(ByteBuffer buf, int position)
   {
     throw new UnsupportedOperationException("ApproximateHistogramBufferAggregator does not support getFloat()");
+  }
+
+  @Override
+  public double getDouble(ByteBuffer buf, int position)
+  {
+    throw new UnsupportedOperationException("ApproximateHistogramBufferAggregator does not support getDouble()");
   }
 
 
