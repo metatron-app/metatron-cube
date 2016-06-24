@@ -26,8 +26,8 @@ public class MetricRange
 
   public MetricRange reset()
   {
-    max = Double.MAX_VALUE;
-    min = Double.MIN_VALUE;
+    min = Double.MAX_VALUE;
+    max = Double.MIN_VALUE;
 
     return this;
   }

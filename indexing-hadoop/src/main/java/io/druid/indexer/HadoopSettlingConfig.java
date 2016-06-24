@@ -208,6 +208,9 @@ public class HadoopSettlingConfig implements SettlingConfig
           if (aggRange != null) {
             applied[idx] = new RangeAggregatorFactory(org[idx], aggRange.lhs, aggRange.rhs);
             settlingApplied = true;
+          } else if (mean != null) {
+            applied[idx] = new RangeAggregatorFactory(org[idx], mean.lhs, mean.rhs);
+            settlingApplied = true;
           }
         } else if (mean != null) {
           applied[idx] = new RangeAggregatorFactory(org[idx], mean.lhs, mean.rhs);
