@@ -76,7 +76,7 @@ public class VarianceSerde extends ComplexMetricSerde
         List<String> dimValues = inputRow.getDimension(metricName);
         if (dimValues != null && dimValues.size() > 0) {
           for (String dimValue : dimValues) {
-            float value = Float.parseFloat(dimValue);
+            double value = Double.parseDouble(dimValue);
             collector.add(value);
           }
         }

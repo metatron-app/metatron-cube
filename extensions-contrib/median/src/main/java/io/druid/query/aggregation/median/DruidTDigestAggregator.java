@@ -1,6 +1,7 @@
 package io.druid.query.aggregation.median;
 
 import io.druid.query.aggregation.Aggregator;
+import io.druid.segment.DoubleColumnSelector;
 import io.druid.segment.FloatColumnSelector;
 
 import java.util.Comparator;
@@ -20,13 +21,13 @@ public class DruidTDigestAggregator implements Aggregator
   public static final int DEFAULT_COMPRESSION = 10;
 
   private final String name;
-  private final FloatColumnSelector selector;
+  private final DoubleColumnSelector selector;
   private final double compression;
   private DruidTDigest digest;
 
   public DruidTDigestAggregator(
       String name,
-      FloatColumnSelector selector,
+      DoubleColumnSelector selector,
       int compression
   )
   {

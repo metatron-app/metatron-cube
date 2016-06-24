@@ -1,18 +1,18 @@
 package io.druid.query.aggregation.range;
 
 import com.fasterxml.jackson.annotation.JsonValue;
-import com.google.common.primitives.Floats;
+import com.google.common.primitives.Doubles;
 
 import java.nio.ByteBuffer;
 
 public class MetricRange
 {
-  private float min;
-  private float max;
+  private double min;
+  private double max;
 
   public MetricRange(
-      float min,
-      float max
+      double min,
+      double max
   )
   {
     this.min = min;
@@ -21,21 +21,21 @@ public class MetricRange
 
   public MetricRange()
   {
-    this(Float.MAX_VALUE, Float.MIN_VALUE);
+    this(Double.MAX_VALUE, Double.MIN_VALUE);
   }
 
   public MetricRange reset()
   {
-    max = Float.MAX_VALUE;
-    min = Float.MIN_VALUE;
+    max = Double.MAX_VALUE;
+    min = Double.MIN_VALUE;
 
     return this;
   }
 
   public MetricRange add(Object o)
   {
-    if (o instanceof Float) {
-      return add((float)o);
+    if (o instanceof Double) {
+      return add((double)o);
     } else if (o instanceof MetricRange) {
       return add((MetricRange)o);
     }
@@ -43,7 +43,7 @@ public class MetricRange
     return this;
   }
 
-  public MetricRange add(float value)
+  public MetricRange add(double value)
   {
     if (min > value) {
       min = value;
@@ -67,9 +67,9 @@ public class MetricRange
     return this;
   }
 
-  public float getRange()
+  public double getRange()
   {
-    if (min == Float.MAX_VALUE) {
+    if (min == Double.MAX_VALUE) {
       return 0;
     }
     return max - min;
@@ -78,21 +78,21 @@ public class MetricRange
   @JsonValue
   public byte[] toBytes()
   {
-    return ByteBuffer.allocate(Floats.BYTES * 2)
-        .putFloat(min)
-        .putFloat(max)
+    return ByteBuffer.allocate(Doubles.BYTES * 2)
+        .putDouble(min)
+        .putDouble(max)
         .array();
   }
 
   public void fill(ByteBuffer buffer)
   {
-    buffer.putFloat(min);
-    buffer.putFloat(max);
+    buffer.putDouble(min);
+    buffer.putDouble(max);
   }
 
   public static MetricRange fromBytes(ByteBuffer buffer)
   {
-    return new MetricRange(buffer.getFloat(), buffer.getFloat());
+    return new MetricRange(buffer.getDouble(), buffer.getDouble());
   }
 
   public static MetricRange fromBytes(byte[] bytes)

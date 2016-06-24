@@ -14,7 +14,7 @@ public class MetricRangeAggregator implements Aggregator
       MetricRange mr1 = (MetricRange)o1;
       MetricRange mr2 = (MetricRange)o2;
 
-      return Floats.compare(mr1.getRange(), mr2.getRange());
+      return Double.compare(mr1.getRange(), mr2.getRange());
     }
   };
 
@@ -58,7 +58,7 @@ public class MetricRangeAggregator implements Aggregator
   @Override
   public float getFloat()
   {
-    return metricRange.getRange();
+    return (float)metricRange.getRange();
   }
 
   @Override

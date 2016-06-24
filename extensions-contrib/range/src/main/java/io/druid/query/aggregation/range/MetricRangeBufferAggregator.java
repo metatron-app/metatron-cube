@@ -21,8 +21,8 @@ public class MetricRangeBufferAggregator implements BufferAggregator
   {
     ByteBuffer mutationBuffer = buf.duplicate();
     mutationBuffer.position(position);
-    mutationBuffer.putFloat(Float.MAX_VALUE);
-    mutationBuffer.putFloat(Float.MIN_VALUE);
+    mutationBuffer.putDouble(Double.MAX_VALUE);
+    mutationBuffer.putDouble(Double.MIN_VALUE);
   }
 
   @Override
@@ -30,7 +30,7 @@ public class MetricRangeBufferAggregator implements BufferAggregator
   {
     ByteBuffer mutationBuffer = buf.duplicate();
     mutationBuffer.position(position);
-    MetricRange metricRange = new MetricRange(mutationBuffer.getFloat(), mutationBuffer.getFloat());
+    MetricRange metricRange = new MetricRange(mutationBuffer.getDouble(), mutationBuffer.getDouble());
     metricRange.add(selector.get());
 
     mutationBuffer.position(position);
@@ -52,7 +52,7 @@ public class MetricRangeBufferAggregator implements BufferAggregator
     ByteBuffer mutationBuffer = buf.duplicate();
     mutationBuffer.position(position);
 
-    return MetricRange.fromBytes(mutationBuffer).getRange();
+    return (float)MetricRange.fromBytes(mutationBuffer).getRange();
   }
 
   @Override

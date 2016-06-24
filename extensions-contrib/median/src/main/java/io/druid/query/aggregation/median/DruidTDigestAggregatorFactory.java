@@ -41,7 +41,7 @@ public class DruidTDigestAggregatorFactory extends AggregatorFactory{
   public Aggregator factorize(ColumnSelectorFactory metricFactory) {
     return new DruidTDigestAggregator(
         name,
-        metricFactory.makeFloatColumnSelector(fieldName),
+        metricFactory.makeDoubleColumnSelector(fieldName),
         compression
         );
   }
@@ -49,7 +49,7 @@ public class DruidTDigestAggregatorFactory extends AggregatorFactory{
   @Override
   public BufferAggregator factorizeBuffered(ColumnSelectorFactory metricFactory) {
     return new DruidTDigestBufferAggregator(
-        metricFactory.makeFloatColumnSelector(fieldName),
+        metricFactory.makeDoubleColumnSelector(fieldName),
         compression
     );
   }

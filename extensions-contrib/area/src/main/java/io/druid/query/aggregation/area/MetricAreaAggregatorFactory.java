@@ -149,7 +149,7 @@ public class MetricAreaAggregatorFactory extends AggregatorFactory
   @Override
   public int getMaxIntermediateSize()
   {
-    return Doubles.BYTES + Ints.BYTES + Floats.BYTES;
+    return Doubles.BYTES + Ints.BYTES + Doubles.BYTES;
   }
 
   @Override

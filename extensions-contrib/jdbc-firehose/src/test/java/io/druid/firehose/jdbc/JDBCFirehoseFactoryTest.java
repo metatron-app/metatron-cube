@@ -20,6 +20,7 @@
 package io.druid.firehose.jdbc;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.base.Function;
 import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
@@ -45,6 +46,7 @@ import org.apache.commons.lang.StringUtils;
 import org.junit.*;
 import org.skife.jdbi.v2.Handle;
 
+import javax.annotation.Nullable;
 import java.io.Closeable;
 import java.io.IOException;
 import java.util.Arrays;
@@ -67,7 +69,7 @@ public class JDBCFirehoseFactoryTest
   private static final List<Object[]> data = ImmutableList.of(
       new Object[] {"foo", "bar", "1.1"},
       new Object[] {"bad", "bar", "1.9"},
-      new Object[] {"fuu", "baz", "3.1"},
+      new Object[] {"fuu", "baz", null},
       new Object[] {"poo", "bar", "5.9"}
       );
   private static final String joinTable = "JDBCFSJoin";
@@ -250,6 +252,10 @@ public class JDBCFirehoseFactoryTest
     JDBCFirehoseFactory factory = new JDBCFirehoseFactory(
         derbyConnectorRule.getMetadataConnectorConfig(),
         tableName,
+        null,
+        null,
+        null,
+        null,
         dbColumns
     );
 
@@ -292,6 +298,10 @@ public class JDBCFirehoseFactoryTest
     JDBCFirehoseFactory factory = new JDBCFirehoseFactory(
         derbyConnectorRule.getMetadataConnectorConfig(),
         complexJoin,
+        null,
+        null,
+        null,
+        null,
         null
     );
 
@@ -324,6 +334,112 @@ public class JDBCFirehoseFactoryTest
   }
 
   @Test
+  public void testSimpleQuery() throws IOException
+  {
+    List<String> dbColumns = Lists.newArrayListWithCapacity(columns.size() + 1);
+    String newTs = "ts";
+    dbColumns.add(newTs);
+    List<String> newCols = Lists.transform(columns, new Function<String, String>() {
+      @Nullable
+      @Override
+      public String apply(@Nullable String input) {
+        return input + "Mod";
+      }
+    });
+    dbColumns.addAll(newCols);
+    String query = "select * from " + tableName;
+    JDBCFirehoseFactory factory = new JDBCFirehoseFactory(
+        derbyConnectorRule.getMetadataConnectorConfig(),
+        null,
+        query,
+        null,
+        null,
+        null,
+        dbColumns
+    );
+
+    MapInputRowParser parser = new MapInputRowParser(
+        new JSONParseSpec(
+            new TimestampSpec(
+                newTs,
+                "YYYY-MM-DD HH:mm:ss.s",
+                null
+            ),
+            new DimensionsSpec(
+                DimensionsSpec.getDefaultSchemas(newCols),
+                null,
+                null
+            ),
+            null,
+            null
+        )
+    );
+    Firehose firehose = factory.connect(parser);
+
+    List<InputRow> rows = Lists.newLinkedList();
+
+    while(firehose.hasMore())
+    {
+      rows.add(firehose.nextRow());
+    }
+
+    Assert.assertEquals(4, rows.size());
+  }
+
+  @Test
+  public void testComplexQuery() throws IOException
+  {
+    List<String> dbColumns = Lists.newArrayListWithCapacity(columns.size() + 1);
+    String newTs = "ts";
+    dbColumns.add(newTs);
+    List<String> newCols = Lists.transform(columns, new Function<String, String>() {
+      @Nullable
+      @Override
+      public String apply(@Nullable String input) {
+        return input + "Mod";
+      }
+    });
+    dbColumns.addAll(newCols);
+    String query = String.format("select * from %s A join %s B on A.COL1 = B.J1", tableName, joinTable);
+    JDBCFirehoseFactory factory = new JDBCFirehoseFactory(
+        derbyConnectorRule.getMetadataConnectorConfig(),
+        null,
+        query,
+        null,
+        null,
+        null,
+        dbColumns
+    );
+
+    MapInputRowParser parser = new MapInputRowParser(
+        new JSONParseSpec(
+            new TimestampSpec(
+                newTs,
+                "YYYY-MM-DD HH:mm:ss.s",
+                null
+            ),
+            new DimensionsSpec(
+                DimensionsSpec.getDefaultSchemas(newCols),
+                null,
+                null
+            ),
+            null,
+            null
+        )
+    );
+    Firehose firehose = factory.connect(parser);
+
+    List<InputRow> rows = Lists.newLinkedList();
+
+    while(firehose.hasMore())
+    {
+      rows.add(firehose.nextRow());
+    }
+
+    Assert.assertEquals(2, rows.size());
+  }
+
+  @Test
   public void testSerde() throws Exception{
     List<String> dbColumns = Lists.newArrayListWithCapacity(columns.size() + 1);
     dbColumns.add(tsName);
@@ -331,6 +447,10 @@ public class JDBCFirehoseFactoryTest
     JDBCFirehoseFactory factory = new JDBCFirehoseFactory(
         derbyConnectorRule.getMetadataConnectorConfig(),
         tableName,
+        null,
+        null,
+        null,
+        null,
         null
     );
 
@@ -352,6 +472,22 @@ public class JDBCFirehoseFactoryTest
     );
 
     Assert.assertEquals(tableName, factory.getTable());
+    List<String> expected = ImmutableList.of("key", "value");
+    Assert.assertEquals(expected, factory.getColumns());
+  }
+
+  @Test
+  public void testExplicitJson2() throws IOException
+  {
+    String query = "select * from test";
+    String json = String.format("{\"type\":\"jdbc\", \"connectorConfig\":{\"createTables\":true,\"connectURI\":\"jdbc:mysql://localhost:3306/druid\",\"user\":\"druid\",\"password\":\"diurd\"}, \"query\": \"%s\", \"columns\": [\"key\",\"value\"]}",
+        query);
+    JDBCFirehoseFactory factory = (JDBCFirehoseFactory)mapper.readValue(
+        json,
+        FirehoseFactory.class
+    );
+
+    Assert.assertEquals(query, factory.getQuery());
     List<String> expected = ImmutableList.of("key", "value");
     Assert.assertEquals(expected, factory.getColumns());
   }
@@ -402,6 +538,8 @@ public class JDBCFirehoseFactoryTest
     {
       builder.append(", ");
       if (value instanceof Float) {
+        builder.append(value);
+      } else if (value == null) {
         builder.append(value);
       } else {
         builder.append("'").append(value).append("'");

@@ -15,9 +15,9 @@ public class MetricAreaTest
   {
     MetricArea metricArea = new MetricArea();
 
-    float[] data = {0.1f, 0.8f, 0.3f, 0.6f, 0.5f, 0.2f, 0.1f, 0.7f};
+    double[] data = {0.1, 0.8, 0.3, 0.6, 0.5, 0.2, 0.1, 0.7};
 
-    for (float val : data)
+    for (double val : data)
     {
       metricArea.add(val);
     }

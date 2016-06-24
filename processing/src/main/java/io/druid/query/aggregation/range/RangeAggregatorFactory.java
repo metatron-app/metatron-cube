@@ -58,7 +58,8 @@ public class RangeAggregatorFactory extends AggregatorFactory
   {
     this.delegateFactory = Preconditions.checkNotNull(delegateFactory);
     this.rangeStart = Preconditions.checkNotNull(offset);
-    this.rangeCount = Preconditions.checkNotNull(size);
+    Preconditions.checkNotNull(size);
+    this.rangeCount = (size == -1) ? Integer.MAX_VALUE : size;
   }
 
   @JsonProperty

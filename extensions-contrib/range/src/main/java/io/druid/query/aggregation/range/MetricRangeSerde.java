@@ -75,7 +75,7 @@ public class MetricRangeSerde extends ComplexMetricSerde
         if (rawValue instanceof MetricRange) {
           return (MetricRange) rawValue;
         } else {
-          return new MetricRange().add(inputRow.getFloatMetric(metricName));
+          return new MetricRange().add(inputRow.getDoubleMetric(metricName));
         }
       }
     };

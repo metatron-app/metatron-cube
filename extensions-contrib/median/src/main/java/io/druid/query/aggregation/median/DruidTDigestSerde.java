@@ -58,7 +58,7 @@ public class DruidTDigestSerde extends ComplexMetricSerde
             DruidTDigest digest = new DruidTDigest(DruidTDigestAggregator.DEFAULT_COMPRESSION);
 
             while (values.hasNext()) {
-              float value = Float.parseFloat(values.next());
+              double value = Double.parseDouble(values.next());
               digest.add(value);
             }
             return digest;

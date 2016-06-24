@@ -2,7 +2,7 @@ package io.druid.query.aggregation.range;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.google.common.primitives.Floats;
+import com.google.common.primitives.Doubles;
 import io.druid.common.utils.StringUtils;
 import io.druid.query.aggregation.Aggregator;
 import io.druid.query.aggregation.AggregatorFactory;
@@ -147,7 +147,7 @@ public class MetricRangeAggregatorFactory extends AggregatorFactory
   @Override
   public int getMaxIntermediateSize()
   {
-    return Floats.BYTES * 2;
+    return Doubles.BYTES * 2;
   }
 
   @Override
