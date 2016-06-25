@@ -144,9 +144,9 @@ public class VarianceAggregatorTest
   @Test
   public void testEqualsAndHashCode() throws Exception
   {
-    VarianceAggregatorFactory one = new VarianceAggregatorFactory("name1", "fieldName1", null);
-    VarianceAggregatorFactory oneMore = new VarianceAggregatorFactory("name1", "fieldName1", null);
-    VarianceAggregatorFactory two = new VarianceAggregatorFactory("name2", "fieldName2", null);
+    VarianceAggregatorFactory one = new VarianceAggregatorFactory("name1", "fieldName1");
+    VarianceAggregatorFactory oneMore = new VarianceAggregatorFactory("name1", "fieldName1");
+    VarianceAggregatorFactory two = new VarianceAggregatorFactory("name2", "fieldName2");
 
     Assert.assertEquals(one.hashCode(), oneMore.hashCode());
 

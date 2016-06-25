@@ -47,8 +47,7 @@ public class VarianceTestHelper extends QueryRunnerTestHelper
 
   public static final VarianceAggregatorFactory indexVarianceAggr = new VarianceAggregatorFactory(
       indexVarianceMetric,
-      indexMetric,
-      null
+      indexMetric
   );
 
   public static final String stddevOfIndexMetric = "index_stddev";
