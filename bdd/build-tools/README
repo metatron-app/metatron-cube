@@ -1,0 +1,10 @@
+* requirements
+  python 2.7 or higher (not python 3)
+   - in centos6, install python27 using wget and make altinstall as follows
+     https://github.com/h2oai/h2o-2/wiki/Installing-python-2.7-on-centos-6.3.-Follow-this-sequence-exactly-for-centos-machine-only
+   - if you encounter "InsecurePlatformWarning" in rest call,
+     https://urllib3.readthedocs.org/en/latest/security.html#insecureplatformwarning
+     pip install --upgrade ndg-httpsclient (yum install -y libffi-devel)
+
+  pip install requests  # for rest api
+  pip install gitpython # for git control

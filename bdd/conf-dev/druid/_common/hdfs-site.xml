@@ -1,0 +1,121 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?xml-stylesheet type="text/xsl" href="configuration.xsl"?>
+<!--
+  Licensed under the Apache License, Version 2.0 (the "License");
+  you may not use this file except in compliance with the License.
+  You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+  Unless required by applicable law or agreed to in writing, software
+  distributed under the License is distributed on an "AS IS" BASIS,
+  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+  See the License for the specific language governing permissions and
+  limitations under the License. See accompanying LICENSE file.
+-->
+
+<!-- Put site-specific property overrides in this file. -->
+
+<configuration>
+<property>
+  <name>dfs.namenode.logging.level</name>
+  <value>warn</value>
+  <description>
+    The logging level for dfs namenode. Other values are "dir" (trace
+    namespace mutations), "block" (trace block under/over replications
+    and block creations/deletions), or "all".
+  </description>
+</property>
+
+<property>
+  <name>dfs.replication</name>
+  <value>3</value>
+</property>
+
+<property>
+  <name>dfs.name.dir</name>
+  <value>/data1/name</value>
+</property>
+
+<property>
+  <name>dfs.namenode.checkpoint.dir</name>
+  <value>/data1/namesecondary</value>
+</property>
+
+<property>
+  <name>dfs.data.dir</name>
+  <value>/data1/hdfs,/data2/hdfs,/data3/hdfs,/data4/hdfs,/data5/hdfs,/data6/hdfs,/data7/hdfs,/data8/hdfs,/data9/hdfs,/data10/hdfs</value>
+</property>
+
+<property>
+  <name>dfs.namenode.edits.dir</name>
+  <value>${dfs.namenode.name.dir}</value>
+  <description>Determines where on the local filesystem the DFS name node
+      should store the transaction (edits) file. If this is a comma-delimited list
+      of directories then the transaction file is replicated in all of the
+      directories, for redundancy. Default value is same as dfs.namenode.name.dir
+  </description>
+</property>
+
+<property>
+  <name>dfs.blocksize</name>
+  <value>128m</value>
+  <description>
+      The default block size for new files, in bytes.
+      You can use the following suffix (case insensitive):
+      k(kilo), m(mega), g(giga), t(tera), p(peta), e(exa) to specify the size (such as 128k, 512m, 1g, etc.),
+      Or provide complete size in bytes (such as 134217728 for 128 MB).
+  </description>
+</property>
+
+<property>
+  <name>dfs.support.append</name>
+  <value>true</value>
+  <description>
+    Does HDFS allow appends to files?
+  </description>
+</property>  
+
+<property>
+  <name>dfs.permissions.enabled</name>
+  <value>false</value>
+  <description>
+    If "true", enable permission checking in HDFS.
+    If "false", permission checking is turned off,
+    but all other behavior is unchanged.
+    Switching from one parameter value to the other does not change the mode,
+    owner or group of files or directories.
+  </description>
+</property>
+<property>
+    <name>dfs.client.read.shortcircuit</name>
+    <value>true</value>
+</property>
+
+<property>
+    <name>dfs.domain.socket.path</name>
+    <value>/var/run/hadoop/dn._PORT</value>
+</property>
+<property>
+    <name>dfs.client.file-block-storage-locations.timeout</name>
+    <value>10000</value>
+</property>
+<property>
+    <name>dfs.block.local-path-access.user</name>
+    <value>hadoop</value>
+</property>
+<property>
+    <name>dfs.datanode.hdfs-blocks-metadata.enabled</name>
+    <value>true</value>
+</property>
+<property>
+    <name>dfs.datanode.balance.bandwidthPerSec</name>
+    <value>20971520</value>
+</property>
+
+<property>
+    <name>dfs.webhdfs.enable</name>
+    <value>true</value>
+</property>
+
+</configuration>
