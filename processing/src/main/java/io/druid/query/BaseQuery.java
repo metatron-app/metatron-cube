@@ -22,6 +22,7 @@ package io.druid.query;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Iterables;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Ordering;
 import com.metamx.common.ISE;
@@ -37,6 +38,21 @@ import java.util.Map;
  */
 public abstract class BaseQuery<T extends Comparable<T>> implements Query<T>
 {
+  public static <T> Query<T> getFirstQueryWithValidation(List<Query<T>> queries)
+  {
+    if (queries == null || queries.isEmpty()) {
+      Preconditions.checkArgument(false, "should have at least one sub query in union");
+    }
+    Preconditions.checkArgument(!Iterables.contains(queries, null), "should not contain null query in union");
+    Query<T> first = queries.get(0);
+    for (int i = 1; i < queries.size(); i++) {
+      if (first.getType().equals(queries.get(i).getType())) {
+        throw new IllegalArgumentException("sub queries in union should not be mixed");
+      }
+    }
+    return first;
+  }
+
   public static <T> int getContextPriority(Query<T> query, int defaultValue)
   {
     return parseInt(query, "priority", defaultValue);
@@ -120,6 +136,11 @@ public abstract class BaseQuery<T extends Comparable<T>> implements Query<T>
     this.descending = descending;
   }
 
+  BaseQuery(Query source, boolean descending, Map<String, Object> context)
+  {
+    this(source.getDataSource(), source.getQuerySegmentSpec(), descending, context);
+  }
+
   @JsonProperty
   @Override
   public DataSource getDataSource()
@@ -135,6 +156,7 @@ public abstract class BaseQuery<T extends Comparable<T>> implements Query<T>
   }
 
   @JsonProperty("intervals")
+  @Override
   public QuerySegmentSpec getQuerySegmentSpec()
   {
     return querySegmentSpec;
