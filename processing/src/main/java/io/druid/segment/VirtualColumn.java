@@ -19,14 +19,20 @@
 
 package io.druid.segment;
 
-import java.io.Closeable;
+import com.fasterxml.jackson.annotation.JsonSubTypes;
+import com.fasterxml.jackson.annotation.JsonTypeInfo;
 
-public interface ObjectColumnSelector<T>
+/**
+ */
+@JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
+@JsonSubTypes(value = {
+    @JsonSubTypes.Type(name = "map", value = MapVirtualColumn.class)
+})
+public interface VirtualColumn
 {
-  public Class<T> classOfObject();
-  public T get();
+  String getOutputName();
 
-  interface WithBaggage<T> extends ObjectColumnSelector<T>, Closeable
-  {
-  }
+  ObjectColumnSelector init(String dimension, ColumnSelectorFactory factory);
+
+  byte[] getCacheKey();
 }
