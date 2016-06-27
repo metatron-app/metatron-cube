@@ -19,6 +19,7 @@
 
 package io.druid.query.aggregation.histogram;
 
+import com.google.common.base.Throwables;
 import com.google.common.collect.Ordering;
 import io.druid.data.input.InputRow;
 import io.druid.segment.column.ColumnBuilder;
@@ -34,11 +35,11 @@ import java.util.List;
 
 public class ApproximateHistogramFoldingSerde extends ComplexMetricSerde
 {
-  private static Ordering<ApproximateHistogram> comparator = new Ordering<ApproximateHistogram>()
+  static final Ordering<ApproximateHistogramHolder> comparator = new Ordering<ApproximateHistogramHolder>()
   {
     @Override
     public int compare(
-        ApproximateHistogram arg1, ApproximateHistogram arg2
+        ApproximateHistogramHolder arg1, ApproximateHistogramHolder arg2
     )
     {
       return ApproximateHistogramAggregator.COMPARATOR.compare(arg1, arg2);
@@ -49,6 +50,11 @@ public class ApproximateHistogramFoldingSerde extends ComplexMetricSerde
   public String getTypeName()
   {
     return "approximateHistogram";
+  }
+
+  public Class<? extends ApproximateHistogramHolder> getClazz()
+  {
+    return ApproximateHistogram.class;
   }
 
   @Override
@@ -100,24 +106,29 @@ public class ApproximateHistogramFoldingSerde extends ComplexMetricSerde
 
   public ObjectStrategy getObjectStrategy()
   {
-    return new ObjectStrategy<ApproximateHistogram>()
+    return new ObjectStrategy<ApproximateHistogramHolder>()
     {
       @Override
-      public Class<? extends ApproximateHistogram> getClazz()
+      public Class<? extends ApproximateHistogramHolder> getClazz()
       {
-        return ApproximateHistogram.class;
+        return ApproximateHistogramFoldingSerde.this.getClazz();
       }
 
       @Override
-      public ApproximateHistogram fromByteBuffer(ByteBuffer buffer, int numBytes)
+      public ApproximateHistogramHolder fromByteBuffer(ByteBuffer buffer, int numBytes)
       {
         final ByteBuffer readOnlyBuffer = buffer.asReadOnlyBuffer();
         readOnlyBuffer.limit(readOnlyBuffer.position() + numBytes);
-        return ApproximateHistogram.fromBytes(readOnlyBuffer);
+        try {
+          return getClazz().newInstance().fromBytes(readOnlyBuffer);
+        }
+        catch (Exception e) {
+          throw Throwables.propagate(e);
+        }
       }
 
       @Override
-      public byte[] toBytes(ApproximateHistogram h)
+      public byte[] toBytes(ApproximateHistogramHolder h)
       {
         if (h == null) {
           return new byte[]{};
@@ -126,7 +137,7 @@ public class ApproximateHistogramFoldingSerde extends ComplexMetricSerde
       }
 
       @Override
-      public int compare(ApproximateHistogram o1, ApproximateHistogram o2)
+      public int compare(ApproximateHistogramHolder o1, ApproximateHistogramHolder o2)
       {
         return comparator.compare(o1, o2);
       }
