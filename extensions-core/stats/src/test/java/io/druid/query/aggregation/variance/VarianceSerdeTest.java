@@ -17,31 +17,30 @@
  * under the License.
  */
 
-package io.druid.segment.column;
+package io.druid.query.aggregation.variance;
 
-import com.metamx.common.logger.Logger;
+import io.druid.segment.data.ObjectStrategy;
+import org.junit.Assert;
+import org.junit.Test;
 
-/**
-*/
-public enum ValueType
+import java.nio.ByteBuffer;
+import java.util.Random;
+
+public class VarianceSerdeTest
 {
-  FLOAT,
-  LONG,
-  STRING,
-  COMPLEX;
+  @Test
+  public void testSerde()
+  {
+    Random r = new Random();
+    VarianceAggregatorCollector holder = new VarianceAggregatorCollector();
+    ObjectStrategy strategy = new VarianceSerde().getObjectStrategy();
+    Assert.assertEquals(VarianceAggregatorCollector.class, strategy.getClazz());
 
-  private static final Logger log = new Logger(ValueType.class);
-
-  public static ValueType of(String valueType) {
-    if (valueType == null) {
-      return null;
-    }
-    try {
-      return ValueType.valueOf(valueType.toUpperCase());
-    }
-    catch (IllegalArgumentException e) {
-      log.debug("Unsupported type string " + valueType + ".. regarding it as COMPLEX type");
-      return COMPLEX;
+    for (int i = 0; i < 100; i++) {
+      byte[] array = strategy.toBytes(holder);
+      Assert.assertArrayEquals(array, holder.toByteArray());
+      Assert.assertEquals(holder, strategy.fromByteBuffer(ByteBuffer.wrap(array), array.length));
+      holder.add(r.nextFloat());
     }
   }
 }
