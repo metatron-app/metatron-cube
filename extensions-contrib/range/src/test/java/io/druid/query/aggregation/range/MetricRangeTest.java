@@ -29,6 +29,42 @@ public class MetricRangeTest
   }
 
   @Test
+  public void testSimple2()
+  {
+    MetricRange mr = new MetricRange();
+
+    double tmp = Double.parseDouble("1.4633397138E9");
+
+    double[] data = {1.4633397138E9, 1.4633397138E9,1.4633397138E9,1.4633397138E9,1.4633397138E9,1.4633397138E9,1.4633397138E9,1.4633397138E9,1.4633397138E9,1.4633397138E9,1.4633397138E9,1.4633397138E9,1.4633397138E9,1.4633397138E9,1.4633397138E9,1.4633397138E9,1.4633397138E9,1.4633397138E9,1.4633397138E9,1.4633397138E9};
+
+    for (double val : data)
+    {
+      mr.add(val);
+    }
+
+    MetricRange expected = new MetricRange(1463339713.8, 1463339713.8);
+
+    Assert.assertEquals(expected, mr);
+    Assert.assertEquals(0, mr.getRange(), 0.001);
+  }
+
+  @Test
+  public void testSimple3()
+  {
+    MetricRange mr = new MetricRange();
+
+    double[] data = {-2, -2, -2, -2};
+
+    for (double val: data) {
+      mr.add(val);
+    }
+
+    MetricRange expected = new MetricRange(-2, -2);
+
+    Assert.assertEquals(expected, mr);
+  }
+
+  @Test
   public void testAdd()
   {
     MetricRange mr1 = new MetricRange(0, 10);

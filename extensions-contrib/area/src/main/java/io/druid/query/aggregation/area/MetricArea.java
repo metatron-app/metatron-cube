@@ -12,6 +12,7 @@ public class MetricArea
   // protected for test purpose
   protected double sum;
   protected double min;
+  volatile double c;
   protected int count;
 
   public MetricArea(
@@ -23,18 +24,20 @@ public class MetricArea
     this.sum = sum;
     this.count = count;
     this.min = min;
+    this.c = 0;
   }
 
   public MetricArea()
   {
-    this(0, 0, Double.MAX_VALUE);
+    this(0, 0, Double.POSITIVE_INFINITY);
   }
 
   public MetricArea reset()
   {
     this.sum = 0;
     this.count = 0;
-    this.min = Double.MAX_VALUE;
+    this.c = 0;
+    this.min = Double.POSITIVE_INFINITY;
 
     return this;
   }
@@ -57,10 +60,18 @@ public class MetricArea
       min = value;
     }
 
-    sum += value;
+    sum = correctedAdd(sum, value);
     count++;
 
     return this;
+  }
+
+  private double correctedAdd(double sum, double value)
+  {
+    double cValue = value - c;
+    double t = sum + cValue;
+    c = (t - sum) - cValue;
+    return t;
   }
 
   public MetricArea add(MetricArea other)
@@ -70,7 +81,7 @@ public class MetricArea
       min = other.min;
     }
 
-    sum += other.sum;
+    sum = correctedAdd(sum, other.sum);
     count += other.count;
 
     return this;

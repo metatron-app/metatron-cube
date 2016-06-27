@@ -21,13 +21,13 @@ public class MetricRange
 
   public MetricRange()
   {
-    this(Double.MAX_VALUE, Double.MIN_VALUE);
+    this(Double.POSITIVE_INFINITY, Double.NEGATIVE_INFINITY);
   }
 
   public MetricRange reset()
   {
-    min = Double.MAX_VALUE;
-    max = Double.MIN_VALUE;
+    min = Double.POSITIVE_INFINITY;
+    max = Double.NEGATIVE_INFINITY;
 
     return this;
   }
@@ -69,7 +69,7 @@ public class MetricRange
 
   public double getRange()
   {
-    if (min == Double.MAX_VALUE) {
+    if (min == Double.POSITIVE_INFINITY) {
       return 0;
     }
     return max - min;

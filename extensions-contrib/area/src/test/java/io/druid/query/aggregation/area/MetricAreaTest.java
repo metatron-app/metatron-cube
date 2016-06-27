@@ -29,6 +29,20 @@ public class MetricAreaTest
   }
 
   @Test
+  public void testSimple2()
+  {
+    MetricArea metricArea = new MetricArea();
+
+    double[] data = {1.4633397138E9, 1.4633397138E9,1.4633397138E9,1.4633397138E9,1.4633397138E9,1.4633397138E9,1.4633397138E9,1.4633397138E9,1.4633397138E9,1.4633397138E9,1.4633397138E9,1.4633397138E9,1.4633397138E9,1.4633397138E9,1.4633397138E9,1.4633397138E9,1.4633397138E9,1.4633397138E9,1.4633397138E9,1.4633397138E9};
+
+    for (double val: data) {
+      metricArea.add(val);
+    }
+
+    Assert.assertEquals(0, metricArea.getArea(), 0.001);
+  }
+
+  @Test
   public void testAdd()
   {
     MetricArea ma1 = new MetricArea(20, 10, 1);
