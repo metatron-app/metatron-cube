@@ -424,7 +424,7 @@ public abstract class IncrementalIndex<AggregatorType> implements Iterable<Row>,
       if (dimSchema.getTypeName().equals(DimensionSchema.SPATIAL_TYPE_NAME)) {
         capabilities.setHasSpatialIndexes(true);
       } else {
-        addNewDimension(dimSchema.getName(), capabilities);
+        addNewDimension(dimSchema.getName(), capabilities, dimSchema.getMultiValueHandling());
       }
       columnCapabilities.put(dimSchema.getName(), capabilities);
     }
@@ -620,13 +620,13 @@ public abstract class IncrementalIndex<AggregatorType> implements Iterable<Row>,
         }
 
         if (desc == null) {
-          desc = addNewDimension(dimension, capabilities);
+          desc = addNewDimension(dimension, capabilities, null);
 
           if (overflow == null) {
             overflow = Lists.newArrayList();
             overflowTypes = Lists.newArrayList();
           }
-          overflow.add(getDimVals(desc.getValues(), dimensionValues));
+          overflow.add(getDimVals(desc, dimensionValues));
           overflowTypes.add(valType);
         } else if (desc.getIndex() > dims.length || dims[desc.getIndex()] != null) {
           /*
@@ -640,7 +640,7 @@ public abstract class IncrementalIndex<AggregatorType> implements Iterable<Row>,
            */
           throw new ISE("Dimension[%s] occurred more than once in InputRow", dimension);
         } else {
-          dims[desc.getIndex()] = getDimVals(desc.getValues(), dimensionValues);
+          dims[desc.getIndex()] = getDimVals(desc, dimensionValues);
         }
       }
     }
@@ -694,8 +694,9 @@ public abstract class IncrementalIndex<AggregatorType> implements Iterable<Row>,
     }
   }
 
-  private int[] getDimVals(final DimDim dimLookup, final List<Comparable> dimValues)
+  private int[] getDimVals(final DimensionDesc dimDesc, final List<Comparable> dimValues)
   {
+    final DimDim dimLookup = dimDesc.getValues();
     if (dimValues.size() == 0) {
       // NULL VALUE
       dimLookup.add(null);
@@ -709,16 +710,29 @@ public abstract class IncrementalIndex<AggregatorType> implements Iterable<Row>,
       return new int[]{dimLookup.add(dimVal)};
     }
 
-    Comparable[] dimArray = dimValues.toArray(new Comparable[dimValues.size()]);
-    Arrays.sort(dimArray, ordering);
+    final DimensionSchema.MultiValueHandling multiValueHandling = dimDesc.getMultiValueHandling();
+
+    final Comparable[] dimArray = dimValues.toArray(new Comparable[dimValues.size()]);
+    if (multiValueHandling != DimensionSchema.MultiValueHandling.ARRAY) {
+      Arrays.sort(dimArray, ordering);
+    }
 
     final int[] retVal = new int[dimArray.length];
 
+    int prevId = -1;
+    int pos = 0;
     for (int i = 0; i < dimArray.length; i++) {
-      retVal[i] = dimLookup.add(dimArray[i]);
+      if (multiValueHandling != DimensionSchema.MultiValueHandling.SET) {
+        retVal[pos++] = dimLookup.add(dimArray[i]);
+        continue;
+      }
+      int index = dimLookup.add(dimArray[i]);
+      if (index != prevId) {
+        prevId = retVal[pos++] = index;
+      }
     }
 
-    return retVal;
+    return pos == retVal.length ? retVal : Arrays.copyOf(retVal, pos);
   }
 
   public AggregatorType[] getAggs()
@@ -802,16 +816,21 @@ public abstract class IncrementalIndex<AggregatorType> implements Iterable<Row>,
           ColumnCapabilitiesImpl capabilities = new ColumnCapabilitiesImpl();
           capabilities.setType(ValueType.STRING);
           columnCapabilities.put(dim, capabilities);
-          addNewDimension(dim, capabilities);
+          addNewDimension(dim, capabilities, null);
         }
       }
     }
   }
 
   @GuardedBy("dimensionDescs")
-  private DimensionDesc addNewDimension(String dim, ColumnCapabilitiesImpl capabilities)
+  private DimensionDesc addNewDimension(
+      String dim,
+      ColumnCapabilitiesImpl capabilities,
+      DimensionSchema.MultiValueHandling multiValueHandling
+  )
   {
-    DimensionDesc desc = new DimensionDesc(dimensionDescs.size(), dim, newDimDim(dim, capabilities.getType()), capabilities);
+    DimDim values = newDimDim(dim, capabilities.getType());
+    DimensionDesc desc = new DimensionDesc(dimensionDescs.size(), dim, values, capabilities, multiValueHandling);
     if (dimValues.size() != desc.getIndex()) {
       throw new ISE("dimensionDescs and dimValues for [%s] is out of sync!!", dim);
     }
@@ -961,13 +980,21 @@ public abstract class IncrementalIndex<AggregatorType> implements Iterable<Row>,
     private final String name;
     private final DimDim values;
     private final ColumnCapabilitiesImpl capabilities;
+    private final DimensionSchema.MultiValueHandling multiValueHandling;
 
-    public DimensionDesc(int index, String name, DimDim values, ColumnCapabilitiesImpl capabilities)
+    public DimensionDesc(int index,
+                         String name,
+                         DimDim values,
+                         ColumnCapabilitiesImpl capabilities,
+                         DimensionSchema.MultiValueHandling multiValueHandling
+    )
     {
       this.index = index;
       this.name = name;
       this.values = values;
       this.capabilities = capabilities;
+      this.multiValueHandling =
+          multiValueHandling == null ? DimensionSchema.MultiValueHandling.SORTED_ARRAY : multiValueHandling;
     }
 
     public int getIndex()
@@ -988,6 +1015,11 @@ public abstract class IncrementalIndex<AggregatorType> implements Iterable<Row>,
     public ColumnCapabilitiesImpl getCapabilities()
     {
       return capabilities;
+    }
+
+    public DimensionSchema.MultiValueHandling getMultiValueHandling()
+    {
+      return multiValueHandling;
     }
   }
 

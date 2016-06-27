@@ -372,8 +372,10 @@ public class OnheapIncrementalIndex extends IncrementalIndex<Aggregator>
         final int index = size();
         valueToId.put(value, index);
         idToValue.add(value);
-        minValue = minValue == null || minValue.compareTo(value) > 0 ? value : minValue;
-        maxValue = maxValue == null || maxValue.compareTo(value) < 0 ? value : maxValue;
+        if (value != null) {
+          minValue = minValue == null || minValue.compareTo(value) > 0 ? value : minValue;
+          maxValue = maxValue == null || maxValue.compareTo(value) < 0 ? value : maxValue;
+        }
         return index;
       }
     }
