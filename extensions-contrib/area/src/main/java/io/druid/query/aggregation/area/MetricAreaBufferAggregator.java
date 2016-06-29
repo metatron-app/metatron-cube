@@ -23,7 +23,7 @@ public class MetricAreaBufferAggregator implements BufferAggregator
     mutationBuffer.position(position);
     mutationBuffer.putDouble(0);
     mutationBuffer.putInt(0);
-    mutationBuffer.putDouble(Double.MAX_VALUE);
+    mutationBuffer.putDouble(Double.POSITIVE_INFINITY);
   }
 
   @Override

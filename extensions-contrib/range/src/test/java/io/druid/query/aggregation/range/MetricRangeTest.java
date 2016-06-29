@@ -65,6 +65,48 @@ public class MetricRangeTest
   }
 
   @Test
+  public void testNegative()
+  {
+    MetricRange mr = new MetricRange();
+
+    double[] data = {-0.47498724,
+        -1.5028697,
+        -1.4999698,
+        -1.4999698,
+        -1.4999698,
+        -1.4999698,
+        -1.4999698,
+        -1.4999698,
+        -1.4999698,
+        -1.4999698,
+        -1.4999698,
+        -1.4999698,
+        -1.4999698,
+        -1.4999698,
+        -1.4999698,
+        -1.4999698,
+        -1.4999698,
+        -1.4999698,
+        -1.4999698,
+        -1.4999698,
+    };
+
+    for (double val: data) {
+      mr.add(val);
+    }
+
+    MetricRange expected = new MetricRange(-1.5028697, -0.47498724);
+    MetricRange mr2 = new MetricRange();
+    mr2.add(mr);
+    MetricRange mr3 = new MetricRange();
+    mr.add(mr3);
+    double range = mr2.getRange();
+
+    Assert.assertEquals(expected, mr);
+
+  }
+
+  @Test
   public void testAdd()
   {
     MetricRange mr1 = new MetricRange(0, 10);

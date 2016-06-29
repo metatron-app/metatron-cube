@@ -21,8 +21,8 @@ public class MetricRangeBufferAggregator implements BufferAggregator
   {
     ByteBuffer mutationBuffer = buf.duplicate();
     mutationBuffer.position(position);
-    mutationBuffer.putDouble(Double.MAX_VALUE);
-    mutationBuffer.putDouble(Double.MIN_VALUE);
+    mutationBuffer.putDouble(Double.POSITIVE_INFINITY);
+    mutationBuffer.putDouble(Double.NEGATIVE_INFINITY);
   }
 
   @Override
