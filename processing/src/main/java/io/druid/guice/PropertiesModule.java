@@ -26,6 +26,7 @@ import com.google.inject.Binder;
 import com.google.inject.Module;
 import com.metamx.common.guava.CloseQuietly;
 import com.metamx.common.logger.Logger;
+import io.druid.data.input.impl.TimestampSpec;
 
 import java.io.BufferedInputStream;
 import java.io.File;
@@ -93,5 +94,6 @@ public class PropertiesModule implements Module
     }
 
     binder.bind(Properties.class).toInstance(props);
+    binder.requestStaticInjection(TimestampSpec.class);
   }
 }
