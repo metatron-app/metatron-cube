@@ -269,6 +269,8 @@ public class IndexGeneratorJobSettlingTest
                 String.format("select %s from %s where %s", StringUtils.join(columns, ","), targetTable, condition),
                 staticColumns,
                 regexColumns,
+                "eqp_param_name",
+                "eqp_param_value",
                 aggTypeColumn,
                 offsetColumn,
                 sizeColumn,

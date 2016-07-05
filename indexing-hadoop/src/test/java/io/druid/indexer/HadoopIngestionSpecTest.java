@@ -362,7 +362,9 @@ public class HadoopIngestionSpecTest
             "      \"regexColumns\" : [ \"eqp_recipe_id\", \"eqp_step_id\", \"lot_code\" ],\n" +
             "      \"typeColumn\" : \"sum_type_cd\",\n" +
             "      \"offsetColumn\" : \"count_settling\",\n" +
-            "      \"sizeColumn\" : \"count_activation\"\n" +
+            "      \"sizeColumn\" : \"count_activation\",\n" +
+            "      \"paramNameColumn\" : \"eqp_param_name\",\n" +
+            "      \"paramValueColumn\" : \"eqp_param_value\"\n" +
             "    }\n" +
             "  },\n" +
             "  \"context\" : {\n" +

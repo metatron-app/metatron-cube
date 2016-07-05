@@ -70,12 +70,13 @@ public class HadoopSettlingConfigTest
         query,
         staticColumns,
         regexColumns,
+        "eqp_param_name",
+        "eqp_param_value",
         aggTypeColumn,
         offsetColumn,
         sizeColumn,
         settlingYNColumn
     );
-    settlingConfig.setUp();
   }
 
   @Test
@@ -83,24 +84,27 @@ public class HadoopSettlingConfigTest
   {
     AggregatorFactory[] origin = new AggregatorFactory[1];
     origin[0] = new DoubleSumAggregatorFactory("src", "target");
-    AggregatorFactory[] ranged = new AggregatorFactory[1];
     // match
+    SettlingConfig.Settler settler = settlingConfig.setUp(origin);
+
     InputRow inputRow = new MapBasedInputRow(
         System.currentTimeMillis(),
         ListUtils.union(staticColumns, regexColumns),
         ImmutableMap.<String, Object>of(
             "module_name", "ETO410_PM5",
-            "eqp_param_name", "VPP_UPPER",
+            "eqp_param_name", Arrays.asList("VPP_UPPER", "VPP_LOWER"),
             "eqp_recipe_id", "AGTHMQ",
             "eqp_step_id", "1",
             "lot_code", "123"
         )
     );
-    settlingConfig.applySettling(inputRow, origin, ranged);
-    Assert.assertTrue(ranged[0] instanceof RangeAggregatorFactory);
-    RangeAggregatorFactory rangeAggregatorFactory = (RangeAggregatorFactory)ranged[0];
-    Assert.assertTrue(rangeAggregatorFactory.getRangeStart() == 3);
-    Assert.assertTrue(rangeAggregatorFactory.getRangeCount() == 24);
+    AggregatorFactory[][] applied = settler.applySettling(inputRow);
+    Assert.assertEquals(2, applied.length);
+    Assert.assertTrue(applied[0][0] instanceof RangeAggregatorFactory);
+    Assert.assertArrayEquals(origin, applied[1]);
+    RangeAggregatorFactory rangeAggregatorFactory = (RangeAggregatorFactory)applied[0][0];
+    Assert.assertEquals(3, rangeAggregatorFactory.getRangeStart().intValue());
+    Assert.assertEquals(24, rangeAggregatorFactory.getRangeCount().intValue());
 
     // regex mismatch case
     inputRow = new MapBasedInputRow(
@@ -108,14 +112,15 @@ public class HadoopSettlingConfigTest
         ListUtils.union(staticColumns, regexColumns),
         ImmutableMap.<String, Object>of(
             "module_name", "ETO410_PM5",
-            "eqp_param_name", "VPP_UPPER",
+            "eqp_param_name", Arrays.asList("VPP_UPPER", "VPP_LOWER"),
             "eqp_recipe_id", "xxx",
             "eqp_step_id", "1",
             "lot_code", "123"
         )
     );
-    settlingConfig.applySettling(inputRow, origin, ranged);
-    Assert.assertArrayEquals(origin, ranged);
+    applied = settler.applySettling(inputRow);
+    Assert.assertArrayEquals(origin, applied[0]);
+    Assert.assertArrayEquals(origin, applied[1]);
 
     // no matching settling keys
     inputRow = new MapBasedInputRow(
@@ -123,13 +128,14 @@ public class HadoopSettlingConfigTest
         ListUtils.union(staticColumns, regexColumns),
         ImmutableMap.<String, Object>of(
             "module_name", "ETO410_PM8",
-            "eqp_param_name", "VPP_UPPER",
+            "eqp_param_name", Arrays.asList("VPP_UPPER", "VPP_LOWER"),
             "eqp_recipe_id", "xxx",
             "eqp_step_id", "1",
             "lot_code", "123"
         )
     );
-    settlingConfig.applySettling(inputRow, origin, ranged);
-    Assert.assertArrayEquals(origin, ranged);
+    applied = settler.applySettling(inputRow);
+    Assert.assertArrayEquals(origin, applied[0]);
+    Assert.assertArrayEquals(origin, applied[1]);
   }
 }

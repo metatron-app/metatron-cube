@@ -19,22 +19,26 @@
 
 package io.druid.indexer;
 
+import java.util.Arrays;
 import java.util.regex.Pattern;
 
 public class HadoopSettlingMatcher
 {
-  private Pattern[] patterns;
+  private final Object[] input;
+  private final Pattern[] patterns;
 
   public HadoopSettlingMatcher(
+      Object[] input,
       Pattern[] patterns
   )
   {
+    this.input = input;
     this.patterns = patterns;
   }
 
   public boolean matches(String[] dimValues)
   {
-    for (int idx =0; idx < patterns.length; idx++) {
+    for (int idx = 0; idx < patterns.length; idx++) {
       Pattern pattern = patterns[idx];
       if (dimValues[idx] != null) {
         if (!pattern.matcher(dimValues[idx]).matches()) {
@@ -49,18 +53,18 @@ public class HadoopSettlingMatcher
   @Override
   public boolean equals(Object o)
   {
-    if (o instanceof HadoopSettlingMatcher) {
-      HadoopSettlingMatcher that = (HadoopSettlingMatcher)o;
+    return Arrays.equals(input, ((HadoopSettlingMatcher) o).input);
+  }
 
-      for (int idx = 0; idx < patterns.length; idx++) {
-        if (patterns[idx] != that.patterns[idx]) {
-          return false;
-        }
-      }
+  @Override
+  public int hashCode()
+  {
+    return Arrays.hashCode(input);
+  }
 
-      return true;
-    }
-
-    return false;
+  @Override
+  public String toString()
+  {
+    return Arrays.toString(input);
   }
 }

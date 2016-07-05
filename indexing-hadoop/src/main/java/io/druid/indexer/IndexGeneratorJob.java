@@ -80,6 +80,7 @@ import java.util.Arrays;
 import java.util.Iterator;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ExecutionException;
@@ -248,7 +249,9 @@ public class IndexGeneratorJob implements Jobby
     final int boundary = hardLimit < 0 ? tuningConfig.getRowFlushBoundary() : hardLimit;
     OnheapIncrementalIndex newIndex = new OnheapIncrementalIndex(
         indexSchema,
+        true,
         !tuningConfig.isIgnoreInvalidRows(),
+        false,
         boundary
     );
 
@@ -263,7 +266,7 @@ public class IndexGeneratorJob implements Jobby
   {
     private static final HashFunction hashFunction = Hashing.murmur3_128();
 
-    private List<String> dimensions;
+    private List<String> partitionDimensions;
     private InputRowSerde serde;
 
     private Counter keyLength;
@@ -275,8 +278,15 @@ public class IndexGeneratorJob implements Jobby
     {
       super.setup(context);
 
-      dimensions = config.extractExportColumns();
-      serde = new InputRowSerde(config.getSchema().getDataSchema().getAggregators(), dimensions);
+      List<String> exportDimensions = config.extractForwardingColumns();
+
+      partitionDimensions = Lists.newArrayList(exportDimensions);
+      SettlingConfig settlingConfig = config.getSchema().getSettlingConfig();
+      if (settlingConfig != null) {
+        partitionDimensions.remove(settlingConfig.getParamNameColumn());
+        partitionDimensions.remove(settlingConfig.getParamValueColumn());
+      }
+      serde = new InputRowSerde(config.getSchema().getDataSchema().getAggregators(), exportDimensions);
 
       keyLength = context.getCounter("navis", "mapper-key-length");
       valLength = context.getCounter("navis", "mapper-value-length");
@@ -298,8 +308,9 @@ public class IndexGeneratorJob implements Jobby
 
       final long timestampFromEpoch = inputRow.getTimestampFromEpoch();
       final long truncatedTimestamp = granularitySpec.getQueryGranularity().truncate(timestampFromEpoch);
-      final byte[] hashedDimensions = Rows.toGroupHash(hashFunction.newHasher(), truncatedTimestamp, inputRow)
-                                          .asBytes();
+      final byte[] hashedDimensions = Rows.toGroupHash(
+          hashFunction.newHasher(), truncatedTimestamp, inputRow, partitionDimensions
+      ).asBytes();
 
       // type SegmentInputRow serves as a marker that these InputRow instances have already been combined
       // and they contain the columns as they show up in the segment after ingestion, not what you would see in raw
@@ -339,7 +350,7 @@ public class IndexGeneratorJob implements Jobby
     {
       config = HadoopDruidIndexerConfig.fromConfiguration(context.getConfiguration());
 
-      dimensions = config.extractExportColumns();
+      dimensions = config.extractForwardingColumns();
       aggregators = config.getSchema().getDataSchema().getAggregators();
       combiningAggs = new AggregatorFactory[aggregators.length];
       for (int i = 0; i < aggregators.length; ++i) {
@@ -501,13 +512,16 @@ public class IndexGeneratorJob implements Jobby
   {
     protected HadoopDruidIndexerConfig config;
     protected SettlingConfig settlingConfig;
+    private String nameField;
+    private String valueField;
+    private SettlingConfig.Settler settler;
     private List<String> metricNames = Lists.newArrayList();
-    private List<String> dimensions;
     private AggregatorFactory[] aggregators;
     private AggregatorFactory[] rangedAggs;
 
     private InputRowSerde serde;
     private Counter flushedIndex;
+    private Counter groupCount;
 
     protected ProgressIndicator makeProgressIndicator(final Context context)
     {
@@ -530,6 +544,7 @@ public class IndexGeneratorJob implements Jobby
     ) throws IOException
     {
       flushedIndex.increment(1);
+      log.info("flushing.. " + index.size() + " --> " + index.getMinTime() + " ~ " + index.getMaxTime());
       if (config.isBuildV9Directly()) {
         return HadoopDruidIndexerConfig.INDEX_MERGER_V9.persist(
             index, interval, file, config.getIndexSpec(), progressIndicator
@@ -564,20 +579,23 @@ public class IndexGeneratorJob implements Jobby
         throws IOException, InterruptedException
     {
       config = HadoopDruidIndexerConfig.fromConfiguration(context.getConfiguration());
-      settlingConfig = config.getSchema().getSettlingConfig();
-      if (settlingConfig != null) {
-        settlingConfig.setUp();
-      }
-      dimensions = config.extractExportColumns();
       aggregators = config.getSchema().getDataSchema().getAggregators();
+      serde = new InputRowSerde(aggregators, config.extractForwardingColumns(), config.extractFinalDimensions());
+
       rangedAggs = new AggregatorFactory[aggregators.length];
       for (int i = 0; i < aggregators.length; ++i) {
         metricNames.add(aggregators[i].getName());
         rangedAggs[i] = aggregators[i];
       }
-      serde = new InputRowSerde(aggregators, dimensions);
 
+      settlingConfig = config.getSchema().getSettlingConfig();
+      if (settlingConfig != null) {
+        settler = settlingConfig.setUp(rangedAggs);
+        nameField = settlingConfig.getParamNameColumn();
+        valueField = settlingConfig.getParamValueColumn();
+      }
       flushedIndex = context.getCounter("navis", "index-flush-count");
+      groupCount = context.getCounter("navis", "group-count");
     }
 
     @Override
@@ -588,7 +606,6 @@ public class IndexGeneratorJob implements Jobby
       SortableBytes keyBytes = SortableBytes.fromBytesWritable(key);
       Bucket bucket = Bucket.fromGroupKey(keyBytes.getGroupKey()).lhs;
 
-      final boolean mutable = settlingConfig != null;
       final Interval interval = config.getGranularitySpec().bucketInterval(bucket.time).get();
       final int limit = config.getSchema().getTuningConfig().getRowFlushBoundary();
 
@@ -648,18 +665,21 @@ public class IndexGeneratorJob implements Jobby
         byte[] prev = null;
 
         int numRows = 0;
-        boolean settlingApplied = false;
+        AggregatorFactory[][] settlingApplied = null;
         for (final BytesWritable bw : values) {
           context.progress();
 
-          final InputRow inputRow = index.formatRow(serde.deserialize(bw.getBytes(), mutable));
+          final InputRow inputRow = index.formatRow(serde.deserialize(bw.getBytes()));
 
           byte[] bytes = key.getBytes();
           boolean flush = !index.canAppendRow();
           if (prev == null || WritableComparator.compareBytes(prev, 0, prev.length, bytes, 0, prev.length) != 0) {
             prev = Arrays.copyOfRange(bytes, 0, lengthSkipLastTS);
-            settlingApplied = setupSettling(inputRow);
+            if (settler != null) {
+              settlingApplied = settler.applySettling(inputRow);
+            }
             flush |= numRows >= limit;
+            groupCount.increment(1);
           }
           if (flush) {
             allDimensionNames.addAll(index.getDimensionOrder());
@@ -805,24 +825,59 @@ public class IndexGeneratorJob implements Jobby
       }
     }
 
-    private boolean setupSettling(InputRow row) throws IndexSizeExceededException
+    private int add(IncrementalIndex index, InputRow row, AggregatorFactory[][] settlingApplied)
+        throws IndexSizeExceededException
     {
-      if (settlingConfig != null) {
-        // adjust aggregator factory
-        return settlingConfig.applySettling(row, aggregators, rangedAggs);
+      if (settlingApplied != null) {
+        int ret = 0;
+        MapBasedInputRow mapBasedInputRow = (MapBasedInputRow) row;
+        Map<String, Object> event = mapBasedInputRow.getEvent();
+
+        final List names = (List) row.getRaw(nameField);
+        final List values = (List) row.getRaw(valueField);
+        for (int i = 0; i < settlingApplied.length; i++) {
+          Object value = values.get(i);
+          if (value != null && isNumeric(value)) {
+            event.put(nameField, names.get(i));
+            event.put(valueField, value);
+            System.arraycopy(settlingApplied[i], 0, rangedAggs, 0, rangedAggs.length);
+            ret = index.add(row);
+          }
+        }
+        return ret;
+      } else {
+        return index.add(row);
       }
+    }
+  }
+
+  private static boolean isNumeric(Object value)
+  {
+    if (value instanceof Number) {
+      return true;
+    }
+    String stringVal = String.valueOf(value);
+    char first = stringVal.charAt(0);
+    if (first != '+' && first != '-' && !Character.isDigit(first)) {
       return false;
     }
-
-    private int add(IncrementalIndex index, InputRow row, boolean settlingApplied) throws IndexSizeExceededException
-    {
-      if (settlingConfig != null) {
-        MapBasedInputRow mapBasedInputRow = (MapBasedInputRow) row;
-        mapBasedInputRow.getDimensions().add(settlingConfig.getSettlingYN());
-        mapBasedInputRow.getEvent().put(settlingConfig.getSettlingYN(), settlingApplied ? "Y" : "N");
+    boolean metDot = false;
+    boolean metExp = false;
+    for (int i = 1; i < stringVal.length(); i++) {
+      char aChar = stringVal.charAt(i);
+      if (!Character.isDigit(aChar)) {
+        if (!metDot && aChar == '.') {
+          metExp = true;
+          continue;
+        }
+        if (!metExp && ((aChar == 'e' || aChar == 'E'))) {
+          metExp = true;
+          continue;
+        }
+        return false;
       }
-      return index.add(row);
     }
+    return true;
   }
 
   public static class IndexGeneratorOutputFormat extends TextOutputFormat

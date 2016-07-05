@@ -43,21 +43,35 @@ public class InputRowSerde
 {
   private static final Logger log = new Logger(InputRowSerde.class);
 
-  private final List<String> dimensions;
+  private final List<String> forwardingDimensions;
+  private final List<String> deserializedDimensions;
   private final List<String> auxColumns;
 
-  public InputRowSerde(AggregatorFactory[] aggregatorFactories, List<String> dimensions)
+  public InputRowSerde(AggregatorFactory[] aggregatorFactories, List<String> exportDimensions)
   {
-    this.dimensions = dimensions;
+    this(aggregatorFactories, exportDimensions, Lists.newArrayList(exportDimensions));
+  }
+
+  public InputRowSerde(
+      AggregatorFactory[] aggregatorFactories,
+      List<String> forwardingDimensions,
+      List<String> deserializedDimensions
+  )
+  {
+    this.forwardingDimensions = forwardingDimensions;
     this.auxColumns = Lists.newArrayList();
     for (AggregatorFactory factory : aggregatorFactories) {
       for (String required : factory.requiredFields()) {
-        if (!dimensions.contains(required) && !auxColumns.contains(required)) {
+        if (!forwardingDimensions.contains(required) && !auxColumns.contains(required)) {
           auxColumns.add(required);
         }
       }
     }
-    log.info("serde with dimensions " + dimensions + " and aux columns " + auxColumns);
+    this.deserializedDimensions = deserializedDimensions;
+    log.info("serde with forwarding dimensions " + forwardingDimensions + " and aux columns " + auxColumns);
+    if (!deserializedDimensions.equals(forwardingDimensions)) {
+      log.info("deserialized rows will use " + deserializedDimensions + " as dimension names");
+    }
   }
 
   public byte[] serialize(final InputRow row)
@@ -69,7 +83,7 @@ public class InputRowSerde
       out.writeLong(row.getTimestampFromEpoch());
 
       //writing all dimensions
-      for (String dim : dimensions) {
+      for (String dim : forwardingDimensions) {
         Object dimValue = row.getRaw(dim);
         if (dimValue == null) {
           out.writeByte(0);
@@ -132,8 +146,8 @@ public class InputRowSerde
       //Read timestamp
       long timestamp = in.readLong();
       //Read dimensions
-      final Map<String, Object> event = Maps.newHashMapWithExpectedSize(dimensions.size() + auxColumns.size());
-      for (String dimension : dimensions) {
+      final Map<String, Object> event = Maps.newHashMapWithExpectedSize(forwardingDimensions.size() + auxColumns.size());
+      for (String dimension : forwardingDimensions) {
         int count = WritableUtils.readVInt(in);
         if (count == 1) {
           event.put(dimension, readString(in));
@@ -173,7 +187,7 @@ public class InputRowSerde
         }
       }
 
-      final List<String> rowDimensions = mutable ? Lists.newArrayList(dimensions) : dimensions;
+      final List<String> rowDimensions = mutable ? Lists.newArrayList(deserializedDimensions) : deserializedDimensions;
       return new MapBasedInputRow(timestamp, rowDimensions, event);
     }
     catch (IOException ex) {

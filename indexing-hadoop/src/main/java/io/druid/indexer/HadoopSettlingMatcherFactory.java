@@ -47,7 +47,7 @@ public class HadoopSettlingMatcherFactory
       patterns[idx] = pattern;
     }
 
-    return new HadoopSettlingMatcher(patterns);
+    return new HadoopSettlingMatcher(patternStrings, patterns);
   }
 
   private Pattern convertToReqexp(String regex)
@@ -63,4 +63,8 @@ public class HadoopSettlingMatcherFactory
     );
   }
 
+  public void clear()
+  {
+    patternMap.clear();
+  }
 }

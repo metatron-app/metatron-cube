@@ -186,8 +186,7 @@ public class HadoopDruidIndexerConfig
   @SuppressWarnings("unchecked")
   public static HadoopDruidIndexerConfig fromDistributedFileSystem(String path)
   {
-    try
-    {
+    try {
       Path pt = new Path(path);
       FileSystem fs = pt.getFileSystem(new Configuration());
       Reader reader = new InputStreamReader(fs.open(pt));
@@ -369,8 +368,11 @@ public class HadoopDruidIndexerConfig
    * Job instance should have Configuration set (by calling {@link #addJobProperties(Job)}
    * or via injected system properties) before this method is called.  The {@link PathSpec} may
    * create objects which depend on the values of these configurations.
+   *
    * @param job
+   *
    * @return
+   *
    * @throws IOException
    */
   public Job addInputPaths(Job job) throws IOException
@@ -575,7 +577,34 @@ public class HadoopDruidIndexerConfig
     Preconditions.checkNotNull(schema.getTuningConfig().getVersion(), "version");
   }
 
-  public List<String> extractExportColumns()
+  public List<String> extractForwardingColumns()
+  {
+    List<String> dimensions = extractCommonDimensions();
+    SettlingConfig settlingConfig = schema.getSettlingConfig();
+    if (settlingConfig != null) {
+      if (!dimensions.contains(settlingConfig.getParamNameColumn())) {
+        dimensions.add(settlingConfig.getParamNameColumn());
+      }
+      if (!dimensions.contains(settlingConfig.getParamValueColumn())) {
+        dimensions.add(settlingConfig.getParamValueColumn());
+      }
+    }
+    return dimensions;
+  }
+
+  public List<String> extractFinalDimensions()
+  {
+    List<String> dimensions = extractCommonDimensions();
+    SettlingConfig settlingConfig = schema.getSettlingConfig();
+    if (settlingConfig != null) {
+      if (!dimensions.contains(settlingConfig.getParamNameColumn())) {
+        dimensions.add(settlingConfig.getParamNameColumn());
+      }
+    }
+    return dimensions;
+  }
+
+  private List<String> extractCommonDimensions()
   {
     ParseSpec parseSpec = getParser().getParseSpec();
     List<String> dimensions = Lists.newArrayList(parseSpec.getDimensionsSpec().getDimensionNames());

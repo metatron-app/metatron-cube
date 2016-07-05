@@ -447,6 +447,9 @@ public abstract class IncrementalIndex<AggregatorType> implements Iterable<Row>,
     }
   };
 
+  private long minTimeMillis = Long.MAX_VALUE;
+  private long maxTimeMillis = Long.MIN_VALUE;
+
   /**
    * Setting deserializeComplexMetrics to false is necessary for intermediate aggregation such as groupBy that
    * should not deserialize input columns using ComplexMetricSerde for aggregators that return complex metrics.
@@ -667,7 +670,9 @@ public abstract class IncrementalIndex<AggregatorType> implements Iterable<Row>,
   TimeAndDims toTimeAndDims(InputRow row) throws IndexSizeExceededException
   {
     row = formatRow(row);
-    if (row.getTimestampFromEpoch() < minTimestamp) {
+
+    final long timestampFromEpoch = row.getTimestampFromEpoch();
+    if (timestampFromEpoch < minTimestamp) {
       throw new IAE("Cannot add row[%s] because it is below the minTimestamp[%s]", row, new DateTime(minTimestamp));
     }
 
@@ -739,7 +744,10 @@ public abstract class IncrementalIndex<AggregatorType> implements Iterable<Row>,
       dims = newDims;
     }
 
-    long truncated = gran.truncate(row.getTimestampFromEpoch());
+    minTimeMillis = Math.min(minTimeMillis, timestampFromEpoch);
+    maxTimeMillis = Math.max(maxTimeMillis, timestampFromEpoch);
+
+    long truncated = gran.truncate(timestampFromEpoch);
     return new TimeAndDims(Math.max(truncated, minTimestamp), dims);
   }
 
@@ -771,20 +779,12 @@ public abstract class IncrementalIndex<AggregatorType> implements Iterable<Row>,
 
   private long getMinTimeMillis()
   {
-    if (sortFacts) {
-      return ((ConcurrentNavigableMap<TimeAndDims, Integer>) getFacts()).firstKey().getTimestamp();
-    } else {
-      throw new UnsupportedOperationException("can't get minTime from unsorted facts data.");
-    }
+    return minTimeMillis == Long.MAX_VALUE ? -1 : minTimeMillis;
   }
 
   private long getMaxTimeMillis()
   {
-    if (sortFacts) {
-      return ((ConcurrentNavigableMap<TimeAndDims, Integer>) getFacts()).lastKey().getTimestamp();
-    } else {
-      throw new UnsupportedOperationException("can't get maxTime from unsorted facts data.");
-    }
+    return maxTimeMillis == Long.MIN_VALUE ? -1 : maxTimeMillis;
   }
 
   private int[] getDimVals(final DimensionDesc dimDesc, final List<Comparable> dimValues)

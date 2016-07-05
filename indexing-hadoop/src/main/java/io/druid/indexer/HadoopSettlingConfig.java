@@ -23,15 +23,14 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Maps;
-import com.metamx.common.Pair;
 import io.druid.data.input.InputRow;
 import io.druid.metadata.MetadataStorageConnectorConfig;
-import io.druid.query.aggregation.*;
+import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.range.RangeAggregatorFactory;
-import org.apache.commons.collections.keyvalue.MultiKey;
 import org.skife.jdbi.v2.DBI;
 import org.skife.jdbi.v2.Handle;
 
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 
@@ -41,50 +40,39 @@ public class HadoopSettlingConfig implements SettlingConfig
   final private String query;
   final private List<String> constColumns;
   final private List<String> regexColumns;
+  final private String paramNameColumn;
+  final private String paramValueColumn;
   final private String aggTypeColumn;
   final private String offsetColumn;
   final private String sizeColumn;
   final private String settlingYN;
 
-  private Map<MultiKey, Map<HadoopSettlingMatcher, Map<String, Pair<Integer, Integer>>>> settlingMap;
-  private boolean getSource = false;
-  private String[] dimValues;
-  private String[] regexValues;
-  private HadoopSettlingMatcherFactory matcherFactory;
   protected String DEFAULT_SETTLING_YN = "settling";
 
   @JsonCreator
   public HadoopSettlingConfig(
-    @JsonProperty(value = "connectorConfig", required = true)
-    final MetadataStorageConnectorConfig connectorConfig,
-    @JsonProperty(value = "query", required = true)
-    final String query,
-    @JsonProperty(value = "constColumns", required = true)
-    final List<String> constColumns,
-    @JsonProperty(value = "regexColumns", required = true)
-    final List<String> regexColumns,
-    @JsonProperty(value = "typeColumn", required = true)
-    final String aggTypeColumn,
-    @JsonProperty(value = "offsetColumn", required = true)
-    final String offset,
-    @JsonProperty(value = "sizeColumn", required = true)
-    final String size,
-    @JsonProperty(value = "settlingYNColumn")
-    final String settlingYN
+      @JsonProperty(value = "connectorConfig", required = true) final MetadataStorageConnectorConfig connectorConfig,
+      @JsonProperty(value = "query", required = true) final String query,
+      @JsonProperty(value = "constColumns", required = true) final List<String> constColumns,
+      @JsonProperty(value = "regexColumns", required = true) final List<String> regexColumns,
+      @JsonProperty(value = "paramNameColumn", required = true) final String paramNameColumn,
+      @JsonProperty(value = "paramValueColumn", required = true) final String paramValueColumn,
+      @JsonProperty(value = "typeColumn", required = true) final String aggTypeColumn,
+      @JsonProperty(value = "offsetColumn", required = true) final String offset,
+      @JsonProperty(value = "sizeColumn", required = true) final String size,
+      @JsonProperty(value = "settlingYNColumn") final String settlingYN
   )
   {
     this.config = Preconditions.checkNotNull(connectorConfig);
     this.query = Preconditions.checkNotNull(query);
     this.constColumns = Preconditions.checkNotNull(constColumns);
     this.regexColumns = Preconditions.checkNotNull(regexColumns);
+    this.paramNameColumn = Preconditions.checkNotNull(paramNameColumn);
+    this.paramValueColumn = Preconditions.checkNotNull(paramValueColumn);
     this.aggTypeColumn = Preconditions.checkNotNull(aggTypeColumn);
     this.offsetColumn = Preconditions.checkNotNull(offset);
     this.sizeColumn = Preconditions.checkNotNull(size);
     this.settlingYN = settlingYN == null ? DEFAULT_SETTLING_YN : settlingYN;
-    settlingMap = Maps.newHashMap();
-    dimValues = new String[constColumns.size()];
-    regexValues = new String[regexColumns.size()];
-    matcherFactory = new HadoopSettlingMatcherFactory();
   }
 
   @JsonProperty("connectorConfig")
@@ -109,6 +97,20 @@ public class HadoopSettlingConfig implements SettlingConfig
   public List<String> getRegexColumns()
   {
     return regexColumns;
+  }
+
+  @Override
+  @JsonProperty("paramNameColumn")
+  public String getParamNameColumn()
+  {
+    return paramNameColumn;
+  }
+
+  @Override
+  @JsonProperty("paramValueColumn")
+  public String getParamValueColumn()
+  {
+    return paramValueColumn;
   }
 
   @JsonProperty("typeColumn")
@@ -136,10 +138,73 @@ public class HadoopSettlingConfig implements SettlingConfig
   }
 
   @Override
-  public void setUp()
+  public Settler setUp(AggregatorFactory[] org)
   {
-    if (!getSource) {
+    return new HadoopSettler(this, org);
+  }
+
+  private static class ObjectArray
+  {
+    private final Object[] array;
+
+    private ObjectArray(Object[] array)
+    {
+      this.array = array;
+    }
+
+    @Override
+    public boolean equals(Object o)
+    {
+      return Arrays.equals(array, ((ObjectArray) o).array);
+    }
+
+    @Override
+    public int hashCode()
+    {
+      return Arrays.hashCode(array);
+    }
+
+    @Override
+    public String toString()
+    {
+      return Arrays.toString(array);
+    }
+  }
+
+  private static class HadoopSettler implements Settler
+  {
+    private final List<String> constColumns;
+    private final List<String> regexColumns;
+    private final String paramNameColumn;
+    private final Map<ObjectArray, Map<HadoopSettlingMatcher, int[][]>> settlingMap;
+    private final Object[] dimValues;
+    private final String[] regexValues;
+
+    private final int paramIndex;
+    private final AggregatorFactory[] org;
+    private final int[] codes;
+
+    public HadoopSettler(HadoopSettlingConfig settlingConfig, AggregatorFactory[] org)
+    {
+      this.constColumns = settlingConfig.constColumns;
+      this.regexColumns = settlingConfig.regexColumns;
+      this.paramNameColumn = settlingConfig.paramNameColumn;
+      this.settlingMap = Maps.newHashMap();
+
+      this.org = org;
+      this.codes = CODE.getAggCode(org);
+      this.paramIndex = constColumns.indexOf(paramNameColumn);
+      if (paramIndex < 0) {
+        throw new IllegalArgumentException("paramNameColumn should be included in constColumns");
+      }
+
+      dimValues = new Object[constColumns.size()];
+      regexValues = new String[regexColumns.size()];
+
+      HadoopSettlingMatcherFactory matcherFactory = new HadoopSettlingMatcherFactory();
+
       // connect through the given connector
+      MetadataStorageConnectorConfig config = settlingConfig.config;
       final Handle handle = new DBI(
           config.getConnectURI(),
           config.getUser(),
@@ -147,142 +212,158 @@ public class HadoopSettlingConfig implements SettlingConfig
       ).open();
 
       // fill the Map
-      List<Map<String, Object>> results = handle.select(query);
-      String[] keys = new String[constColumns.size()];
-      String[] regexKeys = new String[regexColumns.size()];
-      for (Map<String, Object> row: results)
-      {
+      List<Map<String, Object>> results = handle.select(settlingConfig.query);
+      for (Map<String, Object> row : results) {
+        Object[] keys = new Object[constColumns.size()];
         int idx = 0;
-        for (String column: constColumns)
-        {
-          keys[idx++] = (String)row.get(column);
+        for (String column : constColumns) {
+          keys[idx++] = row.get(column);
         }
-        MultiKey key = new MultiKey(keys);
-        Map<HadoopSettlingMatcher, Map<String, Pair<Integer, Integer>>> settlingMatcherMap = settlingMap.get(key);
+        ObjectArray key = new ObjectArray(keys);
+        Map<HadoopSettlingMatcher, int[][]> settlingMatcherMap = settlingMap.get(key);
         if (settlingMatcherMap == null) {
           settlingMatcherMap = Maps.newHashMap();
           settlingMap.put(key, settlingMatcherMap);
         }
 
+        String[] regexKeys = new String[regexColumns.size()];
         idx = 0;
-        for (String column: regexColumns)
-        {
-          regexKeys[idx++] = (String)row.get(column);
+        for (String column : regexColumns) {
+          regexKeys[idx++] = (String) row.get(column);
         }
         HadoopSettlingMatcher settlingMatcher = matcherFactory.getSettlingMatcher(regexKeys);
-        Map<String, Pair<Integer, Integer>> map = settlingMatcherMap.get(settlingMatcher);
-        if (map == null) {
-          map = Maps.newHashMap();
-          settlingMatcherMap.put(settlingMatcher, map);
+        int[][] settlings = settlingMatcherMap.get(settlingMatcher);
+        if (settlings == null) {
+          settlingMatcherMap.put(settlingMatcher, settlings = new int[CODE.values().length][2]);
         }
-
-        String type = (String)row.get(aggTypeColumn);
-        Pair<Integer, Integer> value =
-            new Pair<>((int)Float.parseFloat((String)row.get(offsetColumn)), (int)Float.parseFloat((String)row.get(sizeColumn)));
-        map.put(type, value);
+        String typeName = (String) row.get(settlingConfig.aggTypeColumn);
+        CODE type = CODE.fromString(typeName);
+        if (type != null) {
+          String settling = (String) row.get(settlingConfig.offsetColumn);
+          String activation = (String) row.get(settlingConfig.sizeColumn);
+          settlings[type.ordinal()][0] = (int) Float.parseFloat(settling);
+          settlings[type.ordinal()][1] = (int) Float.parseFloat(activation);
+        }
       }
 
       handle.close();
-
-      getSource = true;
+      matcherFactory.clear();
     }
-  }
 
-  @Override
-  public boolean applySettling(InputRow row, AggregatorFactory[] org, AggregatorFactory[] applied)
-  {
-    Preconditions.checkArgument(getSource, "setUp() should be called before the applySettling()");
-
-    Map<String, Pair<Integer, Integer>> mapForRow = getValueMap(row);
-    boolean settlingApplied = false;
-
-    if (mapForRow != null)
+    @Override
+    public AggregatorFactory[][] applySettling(InputRow row)
     {
-      // special treat for mean aggregator settling values
-      Pair<Integer, Integer> mean = mapForRow.get("ME");
-      for (int idx = 0; idx < org.length; idx++)
-      {
-        String type = getAggCode(org[idx]);
-        if (type != null) {
-          Pair<Integer, Integer> aggRange = mapForRow.get(type);
-          if (aggRange != null) {
-            applied[idx] = new RangeAggregatorFactory(org[idx], aggRange.lhs, aggRange.rhs);
-            settlingApplied = true;
-          } else if (mean != null) {
-            applied[idx] = new RangeAggregatorFactory(org[idx], mean.lhs, mean.rhs);
-            settlingApplied = true;
+      int[][][] settlings = getValueMap(row);
+
+      if (settlings != null) {
+        AggregatorFactory[][] applied = new AggregatorFactory[settlings.length][];
+        for (int i = 0; i < applied.length; i++) {
+          applied[i] = new AggregatorFactory[codes.length];
+          if (settlings[i] == null) {
+            System.arraycopy(org, 0, applied[i], 0, org.length);
+            continue;
           }
-        } else if (mean != null) {
-          applied[idx] = new RangeAggregatorFactory(org[idx], mean.lhs, mean.rhs);
-          settlingApplied = true;
-        } else {
-          applied[idx] = org[idx];
+          int[][] settling = settlings[i];  // settling for param
+          for (int idx = 0; idx < codes.length; idx++) {
+            int code = codes[idx];
+            if (settling[code] != null) {
+              applied[i][idx] = new RangeAggregatorFactory(org[idx], settling[code][0], settling[code][1]);
+            } else {
+              applied[i][idx] = org[idx];
+            }
+          }
         }
+        return applied;
       }
-    } else {
-      for (int idx = 0; idx < org.length; idx++)
-      {
-        applied[idx] = org[idx];
-      }
+
+      return null;
     }
 
-    return settlingApplied;
-  }
-
-  private String getAggCode(AggregatorFactory aggregatorFactory)
-  {
-    String className = aggregatorFactory.getClass().getSimpleName();
-
-    switch(className)
+    private int[][][] getValueMap(InputRow row)
     {
-      case "DoubleMinAggregatorFactory":
-      case "LongMinAggregatorFactory":
-        return "MI";
-      case "DoubleMaxAggregatorFactory":
-      case "LongMaxAggregatorFactory":
-        return "MA";
-      case "ApproximateHistogramFoldingAggregatorFactory":
-      case "DruidTDigestAggregatorFactory":
-        return "MD";
-      case "MetricRangeAggregatorFactory":
-        return "RA";
-      case "MetricAreaAggregatorFactory":
-        return "AR";
-      case "VarianceAggregatorFactory":
-        return "ST";
-    }
-
-    return null;
-  }
-
-  private Map<String, Pair<Integer, Integer>> getValueMap(InputRow row)
-  {
-    int index = 0;
-    for (String column: constColumns) {
-      // it assumes that dimension value is not array
-      List<String> constDims = row.getDimension(column);
-      dimValues[index++] = (constDims.size() == 0) ? null : constDims.get(0);
-    }
-    MultiKey key = new MultiKey(dimValues, false);
-    Map<HadoopSettlingMatcher, Map<String, Pair<Integer, Integer>>> matcherMap = settlingMap.get(key);
-
-    if (matcherMap != null)
-    {
-      index = 0;
-      for (String column: regexColumns) {
+      List<String> dimensions = row.getDimension(paramNameColumn);
+      int index = 0;
+      for (int i = 0; i < constColumns.size(); i++) {
         // it assumes that dimension value is not array
-        List<String> regexDims = row.getDimension(column);
-        regexValues[index++] = (regexDims.size() == 0) ? null: regexDims.get(0);
+        if (index != paramIndex) {
+          dimValues[index] = row.getRaw(constColumns.get(i));
+        }
+        index++;
+      }
+      for (int i = 0; i < regexColumns.size(); i++) {
+        // it assumes that dimension value is not array
+        Object regexDims = row.getRaw(regexColumns.get(i));
+        regexValues[i] = regexDims == null ? null : String.valueOf(regexDims);
       }
 
-      for (Map.Entry<HadoopSettlingMatcher, Map<String, Pair<Integer, Integer>>> matcher: matcherMap.entrySet())
-      {
-        if (matcher.getKey().matches(regexValues)) {
-          return matcher.getValue();
+      int[][][] result = new int[dimensions.size()][][];
+      for (int i = 0; i < result.length; i++) {
+        dimValues[paramIndex] = dimensions.get(i);
+        Map<HadoopSettlingMatcher, int[][]> matcherMap = settlingMap.get(new ObjectArray(dimValues));
+        if (matcherMap != null) {
+          for (Map.Entry<HadoopSettlingMatcher, int[][]> matcher : matcherMap.entrySet()) {
+            if (matcher.getKey().matches(regexValues)) {
+              result[i] = matcher.getValue();
+              break;
+            }
+          }
         }
       }
+      return result;
+    }
+  }
+
+  // ignore NULL CO IN MF S1 SL
+  private static enum CODE
+  {
+    ME, MI, MA, MD, RA, AR, ST;
+
+    private static CODE fromString(String name)
+    {
+      try {
+        if (name != null) {
+          return CODE.valueOf(name.toUpperCase());
+        }
+      }
+      catch (IllegalArgumentException e) {
+      }
+      return null;
     }
 
-    return null;
+    private static int[] getAggCode(AggregatorFactory[] aggregatorFactory)
+    {
+      int[] codes = new int[aggregatorFactory.length];
+      for (int i = 0; i < codes.length; i++) {
+        String className = aggregatorFactory.getClass().getSimpleName();
+
+        switch (className) {
+          case "DoubleMinAggregatorFactory":
+          case "LongMinAggregatorFactory":
+            codes[i] = MI.ordinal();
+            continue;
+          case "DoubleMaxAggregatorFactory":
+          case "LongMaxAggregatorFactory":
+            codes[i] = MA.ordinal();
+            continue;
+          case "ApproximateHistogramAggregatorFactory":
+          case "ApproximateHistogramFoldingAggregatorFactory":
+          case "DruidTDigestAggregatorFactory":
+            codes[i] = MD.ordinal();
+            continue;
+          case "MetricRangeAggregatorFactory":
+            codes[i] = RA.ordinal();
+            continue;
+          case "MetricAreaAggregatorFactory":
+            codes[i] = AR.ordinal();
+            continue;
+          case "VarianceAggregatorFactory":
+            codes[i] = ST.ordinal();
+            continue;
+          default:
+            codes[i] = ME.ordinal();
+        }
+      }
+      return codes;
+    }
   }
 }

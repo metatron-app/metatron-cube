@@ -109,18 +109,18 @@ public class PartitionPathSpec implements PathSpec
         : ImmutableList.of(basePath);
     Preconditions.checkArgument(indexingPaths.toString().contains(basePath.toString()));
 
-    FileSystem fs = basePath.getFileSystem(job.getConfiguration());
     Set<String> paths = Sets.newTreeSet();
 
     if (getPartitionColumns() != null) {
       for (Path indexingPath: indexingPaths) {
+        String pathString = indexingPath.toUri().getPath();
         log.info("Checking the directory recursively if it has the same name as the given partition column");
         int indexingStartColumnIndex = 0;
 
         // skip some partition columns for partial indexing of partitions
-        if (basePath.toString().length() != indexingPath.toString().length())
+        if (basePath.toString().length() != pathString.length())
         {
-          String targetToFindSkipColumns = indexingPath.toString().substring(basePath.toString().length() + 1);
+          String targetToFindSkipColumns = pathString.substring(basePath.toString().length() + 1);
           String[] skipColumnValues = targetToFindSkipColumns.split(Path.SEPARATOR);
           Preconditions.checkArgument(skipColumnValues.length <= partitionColumns.size(),
               "partition columns should include all the columns specified in indexingPaths");
@@ -135,6 +135,7 @@ public class PartitionPathSpec implements PathSpec
           }
         }
 
+        FileSystem fs = indexingPath.getFileSystem(job.getConfiguration());
         // scan all the sub-directories under indexingPaths and add them to input path
         if (indexingStartColumnIndex == partitionColumns.size())
         {
@@ -155,7 +156,7 @@ public class PartitionPathSpec implements PathSpec
     } else {
       log.info("Automatically find the partition columns from directory names");
       for (Path indexingPath: indexingPaths) {
-        autoAddPath(paths, fs, indexingPath);
+        autoAddPath(paths, indexingPath.getFileSystem(job.getConfiguration()), indexingPath);
       }
     }
 
@@ -168,7 +169,7 @@ public class PartitionPathSpec implements PathSpec
   public Map<String, String> getPartitionValues(Path path)
   {
     String dirPath = path.getParent().toUri().getPath();
-    Preconditions.checkArgument(dirPath.startsWith(basePath));
+    Preconditions.checkArgument(dirPath.startsWith(basePath), dirPath + " should start with " + basePath);
     if (dirPath.length() == basePath.length())
     {
       return ImmutableMap.of();

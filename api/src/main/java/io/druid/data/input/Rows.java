@@ -72,10 +72,10 @@ public class Rows
     );
   }
 
-  public static HashCode toGroupHash(Hasher hasher, long timeStamp, InputRow inputRow)
+  public static HashCode toGroupHash(Hasher hasher, long timeStamp, InputRow inputRow, List<String> partitionDimensions)
   {
     hasher.putLong(timeStamp);
-    for (final String dim : inputRow.getDimensions()) {
+    for (final String dim : partitionDimensions) {
       Object value = inputRow.getRaw(dim);
       if (value != null) {
         hasher.putBytes(StringUtils.toUtf8(String.valueOf(value)));

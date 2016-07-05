@@ -107,7 +107,7 @@ public class IndexGeneratorCombinerTest
     EasyMock.expect(context.getConfiguration()).andReturn(hadoopConfig);
     EasyMock.replay(context);
 
-    dimensions = config.extractExportColumns();
+    dimensions = config.extractForwardingColumns();
     aggregators = config.getSchema().getDataSchema().getAggregators();
 
     combiner = new IndexGeneratorJob.IndexGeneratorCombiner();
