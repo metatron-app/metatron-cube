@@ -19,6 +19,7 @@
 
 package io.druid.query.aggregation.hyperloglog;
 
+import com.google.common.base.Predicate;
 import io.druid.query.aggregation.BufferAggregator;
 import io.druid.segment.ObjectColumnSelector;
 
@@ -29,12 +30,15 @@ import java.nio.ByteBuffer;
 public class HyperUniquesBufferAggregator implements BufferAggregator
 {
   private static final byte[] EMPTY_BYTES = HyperLogLogCollector.makeEmptyVersionedByteArray();
+  private final Predicate predicate;
   private final ObjectColumnSelector selector;
 
   public HyperUniquesBufferAggregator(
+      Predicate predicate,
       ObjectColumnSelector selector
   )
   {
+    this.predicate = predicate;
     this.selector = selector;
   }
 
@@ -49,18 +53,20 @@ public class HyperUniquesBufferAggregator implements BufferAggregator
   @Override
   public void aggregate(ByteBuffer buf, int position)
   {
-    HyperLogLogCollector collector = (HyperLogLogCollector) selector.get();
+    if (predicate.apply(null)) {
+      HyperLogLogCollector collector = (HyperLogLogCollector) selector.get();
 
-    if (collector == null) {
-      return;
+      if (collector == null) {
+        return;
+      }
+
+      HyperLogLogCollector.makeCollector(
+          (ByteBuffer) buf.duplicate().position(position).limit(
+              position
+              + HyperLogLogCollector.getLatestNumBytesForDenseStorage()
+          )
+      ).fold(collector);
     }
-
-    HyperLogLogCollector.makeCollector(
-        (ByteBuffer) buf.duplicate().position(position).limit(
-            position
-            + HyperLogLogCollector.getLatestNumBytesForDenseStorage()
-        )
-    ).fold(collector);
   }
 
   @Override

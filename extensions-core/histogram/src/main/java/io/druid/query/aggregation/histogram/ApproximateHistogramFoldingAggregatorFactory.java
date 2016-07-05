@@ -25,14 +25,16 @@ import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.primitives.Floats;
 import com.google.common.primitives.Ints;
 import com.metamx.common.IAE;
-import com.metamx.common.StringUtils;
+import io.druid.common.utils.StringUtils;
 import io.druid.query.aggregation.Aggregator;
 import io.druid.query.aggregation.AggregatorFactory;
+import io.druid.query.aggregation.AggregatorUtil;
 import io.druid.query.aggregation.BufferAggregator;
 import io.druid.segment.ColumnSelectorFactory;
 import io.druid.segment.ObjectColumnSelector;
 
 import java.nio.ByteBuffer;
+import java.util.Objects;
 
 @JsonTypeName("approxHistogramFold")
 public class ApproximateHistogramFoldingAggregatorFactory extends ApproximateHistogramAggregatorFactory
@@ -47,10 +49,11 @@ public class ApproximateHistogramFoldingAggregatorFactory extends ApproximateHis
       @JsonProperty("numBuckets") Integer numBuckets,
       @JsonProperty("lowerLimit") Float lowerLimit,
       @JsonProperty("upperLimit") Float upperLimit,
-      @JsonProperty("compact") boolean compact
+      @JsonProperty("compact") boolean compact,
+      @JsonProperty("predicate") String predicate
   )
   {
-    super(name, fieldName, resolution, numBuckets, lowerLimit, upperLimit, compact);
+    super(name, fieldName, resolution, numBuckets, lowerLimit, upperLimit, compact, predicate);
   }
 
   @Override
@@ -84,7 +87,8 @@ public class ApproximateHistogramFoldingAggregatorFactory extends ApproximateHis
           selector,
           resolution,
           lowerLimit,
-          upperLimit
+          upperLimit,
+          AggregatorUtil.toPredicate(predicate, metricFactory)
       );
     }
 
@@ -121,7 +125,10 @@ public class ApproximateHistogramFoldingAggregatorFactory extends ApproximateHis
 
     final Class cls = selector.classOfObject();
     if (cls.equals(Object.class) || ApproximateHistogram.class.isAssignableFrom(cls)) {
-      return new ApproximateHistogramFoldingBufferAggregator(selector, resolution, lowerLimit, upperLimit);
+      return new ApproximateHistogramFoldingBufferAggregator(
+          selector, resolution, lowerLimit, upperLimit,
+          AggregatorUtil.toPredicate(predicate, metricFactory)
+      );
     }
 
     throw new IAE(
@@ -141,7 +148,8 @@ public class ApproximateHistogramFoldingAggregatorFactory extends ApproximateHis
         numBuckets,
         lowerLimit,
         upperLimit,
-        compact
+        compact,
+        predicate
     );
   }
 
@@ -149,9 +157,11 @@ public class ApproximateHistogramFoldingAggregatorFactory extends ApproximateHis
   public byte[] getCacheKey()
   {
     byte[] fieldNameBytes = StringUtils.toUtf8(fieldName);
-    return ByteBuffer.allocate(1 + fieldNameBytes.length + Ints.BYTES * 2 + Floats.BYTES * 2)
+    byte[] predicateBytes = StringUtils.toUtf8WithNullToEmpty(predicate);
+    return ByteBuffer.allocate(1 + fieldNameBytes.length + predicateBytes.length + Ints.BYTES * 2 + Floats.BYTES * 2)
                      .put(CACHE_TYPE_ID)
                      .put(fieldNameBytes)
+                     .put(predicateBytes)
                      .putInt(resolution)
                      .putInt(numBuckets)
                      .putFloat(lowerLimit)
@@ -189,6 +199,9 @@ public class ApproximateHistogramFoldingAggregatorFactory extends ApproximateHis
     if (name != null ? !name.equals(that.name) : that.name != null) {
       return false;
     }
+    if (!Objects.equals(predicate, that.predicate)) {
+      return false;
+    }
 
     return true;
   }
@@ -202,6 +215,7 @@ public class ApproximateHistogramFoldingAggregatorFactory extends ApproximateHis
     result = 31 * result + numBuckets;
     result = 31 * result + (lowerLimit != +0.0f ? Float.floatToIntBits(lowerLimit) : 0);
     result = 31 * result + (upperLimit != +0.0f ? Float.floatToIntBits(upperLimit) : 0);
+    result = 31 * result + Objects.hashCode(predicate);
     return result;
   }
 
@@ -211,6 +225,7 @@ public class ApproximateHistogramFoldingAggregatorFactory extends ApproximateHis
     return "ApproximateHistogramFoldingAggregatorFactory{" +
            "name='" + name + '\'' +
            ", fieldName='" + fieldName + '\'' +
+           ", predicate='" + predicate + '\'' +
            ", resolution=" + resolution +
            ", numBuckets=" + numBuckets +
            ", lowerLimit=" + lowerLimit +

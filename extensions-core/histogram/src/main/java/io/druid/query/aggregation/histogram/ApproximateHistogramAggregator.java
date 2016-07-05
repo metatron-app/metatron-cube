@@ -19,6 +19,7 @@
 
 package io.druid.query.aggregation.histogram;
 
+import com.google.common.base.Predicate;
 import com.google.common.primitives.Longs;
 import io.druid.query.aggregation.Aggregator;
 import io.druid.segment.FloatColumnSelector;
@@ -46,6 +47,7 @@ public class ApproximateHistogramAggregator implements Aggregator
   private final int resolution;
   private final float lowerLimit;
   private final float upperLimit;
+  private final Predicate predicate;
 
   private ApproximateHistogram histogram;
 
@@ -54,7 +56,8 @@ public class ApproximateHistogramAggregator implements Aggregator
       FloatColumnSelector selector,
       int resolution,
       float lowerLimit,
-      float upperLimit
+      float upperLimit,
+      Predicate predicate
   )
   {
     this.name = name;
@@ -62,13 +65,16 @@ public class ApproximateHistogramAggregator implements Aggregator
     this.resolution = resolution;
     this.lowerLimit = lowerLimit;
     this.upperLimit = upperLimit;
+    this.predicate = predicate;
     this.histogram = new ApproximateHistogram(resolution, lowerLimit, upperLimit);
   }
 
   @Override
   public void aggregate()
   {
-    histogram.offer((float)selector.get());
+    if (predicate.apply(null)) {
+      histogram.offer((float) selector.get());
+    }
   }
 
   @Override

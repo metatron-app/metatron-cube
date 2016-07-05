@@ -21,12 +21,15 @@ package io.druid.query.aggregation.hyperloglog;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.google.common.collect.Lists;
 import com.google.common.collect.Ordering;
 import com.metamx.common.IAE;
-import com.metamx.common.StringUtils;
+import io.druid.common.utils.StringUtils;
+import io.druid.math.expr.Parser;
 import io.druid.query.aggregation.Aggregator;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.AggregatorFactoryNotMergeableException;
+import io.druid.query.aggregation.AggregatorUtil;
 import io.druid.query.aggregation.Aggregators;
 import io.druid.query.aggregation.BufferAggregator;
 import io.druid.segment.ColumnSelectorFactory;
@@ -37,6 +40,7 @@ import java.nio.ByteBuffer;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Objects;
 
 /**
  */
@@ -54,16 +58,24 @@ public class HyperUniquesAggregatorFactory extends AggregatorFactory
   private static final byte CACHE_TYPE_ID = 0x5;
 
   private final String name;
-  private final String fieldName;
 
+  private final String fieldName;
+  private final String predicate;
   @JsonCreator
   public HyperUniquesAggregatorFactory(
       @JsonProperty("name") String name,
-      @JsonProperty("fieldName") String fieldName
+      @JsonProperty("fieldName") String fieldName,
+      @JsonProperty("predicate") String predicate
   )
   {
     this.name = name;
     this.fieldName = fieldName;
+    this.predicate = predicate;
+  }
+
+  public HyperUniquesAggregatorFactory(String name, String fieldName)
+  {
+    this(name, fieldName, null);
   }
 
   @Override
@@ -77,7 +89,7 @@ public class HyperUniquesAggregatorFactory extends AggregatorFactory
 
     final Class classOfObject = selector.classOfObject();
     if (classOfObject.equals(Object.class) || HyperLogLogCollector.class.isAssignableFrom(classOfObject)) {
-      return new HyperUniquesAggregator(name, selector);
+      return new HyperUniquesAggregator(name, AggregatorUtil.toPredicate(predicate, metricFactory), selector);
     }
 
     throw new IAE(
@@ -96,7 +108,7 @@ public class HyperUniquesAggregatorFactory extends AggregatorFactory
 
     final Class classOfObject = selector.classOfObject();
     if (classOfObject.equals(Object.class) || HyperLogLogCollector.class.isAssignableFrom(classOfObject)) {
-      return new HyperUniquesBufferAggregator(selector);
+      return new HyperUniquesBufferAggregator(AggregatorUtil.toPredicate(predicate, metricFactory), selector);
     }
 
     throw new IAE(
@@ -141,7 +153,7 @@ public class HyperUniquesAggregatorFactory extends AggregatorFactory
   @Override
   public List<AggregatorFactory> getRequiredColumns()
   {
-    return Arrays.<AggregatorFactory>asList(new HyperUniquesAggregatorFactory(fieldName, fieldName));
+    return Arrays.<AggregatorFactory>asList(new HyperUniquesAggregatorFactory(fieldName, fieldName, predicate));
   }
 
   @Override
@@ -173,10 +185,21 @@ public class HyperUniquesAggregatorFactory extends AggregatorFactory
     return name;
   }
 
+  @JsonProperty
+  public String getPredicate()
+  {
+    return predicate;
+  }
+
   @Override
   public List<String> requiredFields()
   {
-    return Arrays.asList(fieldName);
+    List<String> required = Lists.newArrayList();
+    required.add(fieldName);
+    if (predicate != null) {
+      required.addAll(Parser.findRequiredBindings(predicate));
+    }
+    return required;
   }
 
   @JsonProperty
@@ -189,8 +212,12 @@ public class HyperUniquesAggregatorFactory extends AggregatorFactory
   public byte[] getCacheKey()
   {
     byte[] fieldNameBytes = StringUtils.toUtf8(fieldName);
-
-    return ByteBuffer.allocate(1 + fieldNameBytes.length).put(CACHE_TYPE_ID).put(fieldNameBytes).array();
+    byte[] predicateBytes = StringUtils.toUtf8WithNullToEmpty(predicate);
+    return ByteBuffer.allocate(1 + fieldNameBytes.length + predicateBytes.length)
+                     .put(CACHE_TYPE_ID)
+                     .put(fieldNameBytes)
+                     .put(predicateBytes)
+                     .array();
   }
 
   @Override
@@ -217,6 +244,7 @@ public class HyperUniquesAggregatorFactory extends AggregatorFactory
     return "HyperUniquesAggregatorFactory{" +
            "name='" + name + '\'' +
            ", fieldName='" + fieldName + '\'' +
+           ", predicate='" + predicate + '\'' +
            '}';
   }
 
@@ -230,6 +258,7 @@ public class HyperUniquesAggregatorFactory extends AggregatorFactory
 
     if (!fieldName.equals(that.fieldName)) return false;
     if (!name.equals(that.name)) return false;
+    if (!Objects.equals(predicate, that.predicate)) return false;
 
     return true;
   }
@@ -239,6 +268,7 @@ public class HyperUniquesAggregatorFactory extends AggregatorFactory
   {
     int result = name.hashCode();
     result = 31 * result + fieldName.hashCode();
+    result = 31 * result + Objects.hashCode(predicate);
     return result;
   }
 }

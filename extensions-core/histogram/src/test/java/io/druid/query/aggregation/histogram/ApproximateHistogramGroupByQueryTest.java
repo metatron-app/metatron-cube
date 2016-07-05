@@ -219,6 +219,44 @@ public class ApproximateHistogramGroupByQueryTest
 
     Iterable<Row> results = GroupByQueryRunnerTestHelper.runQuery(factory, runner, query);
     TestHelper.assertExpectedObjects(expectedResults, results, "approx-histo");
+
+    query = query.withAggregatorSpecs(
+        Arrays.asList(
+            QueryRunnerTestHelper.rowsCount,
+            new ApproximateHistogramAggregatorFactory(
+                "apphisto",
+                "index",
+                10,
+                5,
+                Float.NEGATIVE_INFINITY,
+                Float.POSITIVE_INFINITY,
+                false,
+                "index > 1000"
+            )
+        )
+    );
+
+    expectedResults = GroupByQueryRunnerTestHelper.createExpectedRows(
+        new String[]{"__time", "marketalias", "rows", "quantile", "apphisto"},
+        new Object[]{
+            "1970-01-01T00:00:00.000Z", "upfront", 186L, 1191.5431f,
+            new Histogram(
+                new float[]{
+                    783.9022827148438f,
+                    1001.134033203125f,
+                    1218.36572265625f,
+                    1435.597412109375f,
+                    1652.8291015625f,
+                    1870.06103515625f
+                },
+                new double[]{
+                    0.0, 38.380859375, 26.00772476196289, 11.247715950012207, 7.363699913024902
+                }
+            )
+        }
+    );
+    results = GroupByQueryRunnerTestHelper.runQuery(factory, runner, query);
+    TestHelper.assertExpectedObjects(expectedResults, results, "approx-histo");
   }
 
   @Test(expected = IllegalArgumentException.class)

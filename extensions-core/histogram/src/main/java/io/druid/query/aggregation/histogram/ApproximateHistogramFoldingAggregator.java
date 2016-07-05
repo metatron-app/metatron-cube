@@ -20,6 +20,7 @@
 package io.druid.query.aggregation.histogram;
 
 
+import com.google.common.base.Predicate;
 import io.druid.query.aggregation.Aggregator;
 import io.druid.segment.ObjectColumnSelector;
 
@@ -35,12 +36,15 @@ public class ApproximateHistogramFoldingAggregator implements Aggregator
   private float[] tmpBufferP;
   private long[] tmpBufferB;
 
+  private final Predicate predicate;
+
   public ApproximateHistogramFoldingAggregator(
       String name,
       ObjectColumnSelector<ApproximateHistogram> selector,
       int resolution,
       float lowerLimit,
-      float upperLimit
+      float upperLimit,
+      Predicate predicate
   )
   {
     this.name = name;
@@ -48,6 +52,7 @@ public class ApproximateHistogramFoldingAggregator implements Aggregator
     this.resolution = resolution;
     this.lowerLimit = lowerLimit;
     this.upperLimit = upperLimit;
+    this.predicate = predicate;
     this.histogram = new ApproximateHistogram(resolution, lowerLimit, upperLimit);
 
     tmpBufferP = new float[resolution];
@@ -57,15 +62,17 @@ public class ApproximateHistogramFoldingAggregator implements Aggregator
   @Override
   public void aggregate()
   {
-    ApproximateHistogram h = selector.get();
-    if (h == null) {
-      return;
-    }
+    if (predicate.apply(null)) {
+      ApproximateHistogram h = selector.get();
+      if (h == null) {
+        return;
+      }
 
-    if (h.binCount() + histogram.binCount() <= tmpBufferB.length) {
-      histogram.foldFast(h, tmpBufferP, tmpBufferB);
-    } else {
-      histogram.foldFast(h);
+      if (h.binCount() + histogram.binCount() <= tmpBufferB.length) {
+        histogram.foldFast(h, tmpBufferP, tmpBufferB);
+      } else {
+        histogram.foldFast(h);
+      }
     }
   }
 

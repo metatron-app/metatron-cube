@@ -19,6 +19,7 @@
 
 package io.druid.query.aggregation.histogram;
 
+import com.google.common.base.Predicate;
 import io.druid.query.aggregation.BufferAggregator;
 import io.druid.segment.FloatColumnSelector;
 
@@ -30,13 +31,21 @@ public class ApproximateHistogramBufferAggregator implements BufferAggregator
   private final int resolution;
   private final float lowerLimit;
   private final float upperLimit;
+  private final Predicate predicate;
 
-  public ApproximateHistogramBufferAggregator(FloatColumnSelector selector, int resolution, float lowerLimit, float upperLimit)
+  public ApproximateHistogramBufferAggregator(
+      FloatColumnSelector selector,
+      int resolution,
+      float lowerLimit,
+      float upperLimit,
+      Predicate predicate
+  )
   {
     this.selector = selector;
     this.resolution = resolution;
     this.lowerLimit = lowerLimit;
     this.upperLimit = upperLimit;
+    this.predicate = predicate;
   }
 
   @Override
@@ -63,14 +72,16 @@ public class ApproximateHistogramBufferAggregator implements BufferAggregator
   @Override
   public void aggregate(ByteBuffer buf, int position)
   {
-    ByteBuffer mutationBuffer = buf.duplicate();
-    mutationBuffer.position(position);
+    if (predicate.apply(null)) {
+      ByteBuffer mutationBuffer = buf.duplicate();
+      mutationBuffer.position(position);
 
-    ApproximateHistogram h0 = new ApproximateHistogram().fromBytesDense(mutationBuffer);
-    h0.offer((float)selector.get());
+      ApproximateHistogram h0 = new ApproximateHistogram().fromBytesDense(mutationBuffer);
+      h0.offer((float) selector.get());
 
-    mutationBuffer.position(position);
-    h0.toBytesDense(mutationBuffer);
+      mutationBuffer.position(position);
+      h0.toBytesDense(mutationBuffer);
+    }
   }
 
   @Override

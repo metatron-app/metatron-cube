@@ -19,6 +19,7 @@
 
 package io.druid.query.aggregation.hyperloglog;
 
+import com.google.common.base.Predicate;
 import io.druid.query.aggregation.Aggregator;
 import io.druid.segment.ObjectColumnSelector;
 
@@ -27,16 +28,19 @@ import io.druid.segment.ObjectColumnSelector;
 public class HyperUniquesAggregator implements Aggregator
 {
   private final String name;
+  private final Predicate predicate;
   private final ObjectColumnSelector selector;
 
   private HyperLogLogCollector collector;
 
   public HyperUniquesAggregator(
       String name,
+      Predicate predicate,
       ObjectColumnSelector selector
   )
   {
     this.name = name;
+    this.predicate = predicate;
     this.selector = selector;
 
     this.collector = HyperLogLogCollector.makeLatestCollector();
@@ -45,7 +49,9 @@ public class HyperUniquesAggregator implements Aggregator
   @Override
   public void aggregate()
   {
-    collector.fold((HyperLogLogCollector) selector.get());
+    if (predicate.apply(null)) {
+      collector.fold((HyperLogLogCollector) selector.get());
+    }
   }
 
   @Override
@@ -82,12 +88,6 @@ public class HyperUniquesAggregator implements Aggregator
   public String getName()
   {
     return name;
-  }
-
-  @Override
-  public Aggregator clone()
-  {
-    return new HyperUniquesAggregator(name, selector);
   }
 
   @Override

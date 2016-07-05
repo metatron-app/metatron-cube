@@ -26,10 +26,11 @@ import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.base.Preconditions;
 import com.google.common.primitives.Floats;
 import com.google.common.primitives.Ints;
-import com.metamx.common.StringUtils;
+import io.druid.common.utils.StringUtils;
 import io.druid.query.aggregation.Aggregator;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.AggregatorFactoryNotMergeableException;
+import io.druid.query.aggregation.AggregatorUtil;
 import io.druid.query.aggregation.BufferAggregator;
 import io.druid.segment.ColumnSelectorFactory;
 import org.apache.commons.codec.binary.Base64;
@@ -54,6 +55,7 @@ public class ApproximateHistogramAggregatorFactory extends AggregatorFactory
   protected final float upperLimit;
 
   protected final boolean compact;
+  protected final String predicate;
 
   @JsonCreator
   public ApproximateHistogramAggregatorFactory(
@@ -63,7 +65,8 @@ public class ApproximateHistogramAggregatorFactory extends AggregatorFactory
       @JsonProperty("numBuckets") Integer numBuckets,
       @JsonProperty("lowerLimit") Float lowerLimit,
       @JsonProperty("upperLimit") Float upperLimit,
-      @JsonProperty("compact") boolean compact
+      @JsonProperty("compact") boolean compact,
+      @JsonProperty("predicate") String predicate
 
   )
   {
@@ -74,10 +77,24 @@ public class ApproximateHistogramAggregatorFactory extends AggregatorFactory
     this.lowerLimit = lowerLimit == null ? Float.NEGATIVE_INFINITY : lowerLimit;
     this.upperLimit = upperLimit == null ? Float.POSITIVE_INFINITY : upperLimit;
     this.compact = compact;
+    this.predicate = predicate;
 
     Preconditions.checkArgument(this.resolution > 0, "resolution must be greater than 1");
     Preconditions.checkArgument(this.numBuckets > 0, "numBuckets must be greater than 1");
     Preconditions.checkArgument(this.upperLimit > this.lowerLimit, "upperLimit must be greater than lowerLimit");
+  }
+
+  public ApproximateHistogramAggregatorFactory(
+      String name,
+      String fieldName,
+      int resolution,
+      int numBuckets,
+      float lowerLimit,
+      float upperLimit,
+      boolean compact
+  )
+  {
+    this(name, fieldName, resolution, numBuckets, lowerLimit, upperLimit, compact, null);
   }
 
   @Override
@@ -88,7 +105,8 @@ public class ApproximateHistogramAggregatorFactory extends AggregatorFactory
         metricFactory.makeFloatColumnSelector(fieldName),
         resolution,
         lowerLimit,
-        upperLimit
+        upperLimit,
+        AggregatorUtil.toPredicate(predicate, metricFactory)
     );
   }
 
@@ -99,7 +117,8 @@ public class ApproximateHistogramAggregatorFactory extends AggregatorFactory
         metricFactory.makeFloatColumnSelector(fieldName),
         resolution,
         lowerLimit,
-        upperLimit
+        upperLimit,
+        AggregatorUtil.toPredicate(predicate, metricFactory)
     );
   }
 
@@ -118,7 +137,16 @@ public class ApproximateHistogramAggregatorFactory extends AggregatorFactory
   @Override
   public AggregatorFactory getCombiningFactory()
   {
-    return new ApproximateHistogramFoldingAggregatorFactory(name, name, resolution, numBuckets, lowerLimit, upperLimit, compact);
+    return new ApproximateHistogramFoldingAggregatorFactory(
+        name,
+        name,
+        resolution,
+        numBuckets,
+        lowerLimit,
+        upperLimit,
+        compact,
+        null
+    );
   }
 
   @Override
@@ -134,7 +162,8 @@ public class ApproximateHistogramAggregatorFactory extends AggregatorFactory
           numBuckets,
           Math.min(lowerLimit, castedOther.lowerLimit),
           Math.max(upperLimit, castedOther.upperLimit),
-          compact
+          compact,
+          null
       );
 
     } else {
@@ -153,7 +182,8 @@ public class ApproximateHistogramAggregatorFactory extends AggregatorFactory
             numBuckets,
             lowerLimit,
             upperLimit,
-            compact
+            compact,
+            predicate
         )
     );
   }
@@ -233,10 +263,12 @@ public class ApproximateHistogramAggregatorFactory extends AggregatorFactory
   public byte[] getCacheKey()
   {
     byte[] fieldNameBytes = StringUtils.toUtf8(fieldName);
-    return ByteBuffer.allocate(2 + fieldNameBytes.length + Ints.BYTES * 2 + Floats.BYTES * 2)
+    byte[] predicateBytes = StringUtils.toUtf8WithNullToEmpty(predicate);
+    return ByteBuffer.allocate(2 + fieldNameBytes.length + Ints.BYTES * 2 + Floats.BYTES * 2 + predicateBytes.length)
                      .put(CACHE_TYPE_ID)
                      .put(compact ? (byte) 1 : 0)
                      .put(fieldNameBytes)
+                     .put(predicateBytes)
                      .putInt(resolution)
                      .putInt(numBuckets)
                      .putFloat(lowerLimit)

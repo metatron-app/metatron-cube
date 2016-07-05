@@ -26,10 +26,12 @@ import com.google.common.base.Joiner;
 import com.google.common.base.Predicates;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
-import com.metamx.common.StringUtils;
+import io.druid.common.utils.StringUtils;
+import io.druid.math.expr.Parser;
 import io.druid.query.aggregation.Aggregator;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.AggregatorFactoryNotMergeableException;
+import io.druid.query.aggregation.AggregatorUtil;
 import io.druid.query.aggregation.Aggregators;
 import io.druid.query.aggregation.BufferAggregator;
 import io.druid.query.aggregation.hyperloglog.HyperLogLogCollector;
@@ -43,6 +45,7 @@ import javax.annotation.Nullable;
 import java.nio.ByteBuffer;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Objects;
 
 public class CardinalityAggregatorFactory extends AggregatorFactory
 {
@@ -58,6 +61,7 @@ public class CardinalityAggregatorFactory extends AggregatorFactory
   private static final byte CACHE_TYPE_ID = (byte) 0x8;
 
   private final String name;
+  private final String predicate;
   private final List<String> fieldNames;
   private final boolean byRow;
 
@@ -65,12 +69,19 @@ public class CardinalityAggregatorFactory extends AggregatorFactory
   public CardinalityAggregatorFactory(
       @JsonProperty("name") String name,
       @JsonProperty("fieldNames") final List<String> fieldNames,
+      @JsonProperty("predicate") final String predicate,
       @JsonProperty("byRow") final boolean byRow
   )
   {
     this.name = name;
+    this.predicate = predicate;
     this.fieldNames = fieldNames;
     this.byRow = byRow;
+  }
+
+  public CardinalityAggregatorFactory(String name, List<String> fieldNames, boolean byRow)
+  {
+    this(name, fieldNames, null, byRow);
   }
 
   @Override
@@ -82,7 +93,7 @@ public class CardinalityAggregatorFactory extends AggregatorFactory
       return Aggregators.noopAggregator();
     }
 
-    return new CardinalityAggregator(name, selectors, byRow);
+    return new CardinalityAggregator(name, AggregatorUtil.toPredicate(predicate, columnFactory), selectors, byRow);
   }
 
 
@@ -95,7 +106,7 @@ public class CardinalityAggregatorFactory extends AggregatorFactory
       return Aggregators.noopBufferAggregator();
     }
 
-    return new CardinalityBufferAggregator(selectors, byRow);
+    return new CardinalityBufferAggregator(selectors, AggregatorUtil.toPredicate(predicate, columnFactory), byRow);
   }
 
   private List<DimensionSelector> makeDimensionSelectors(final ColumnSelectorFactory columnFactory)
@@ -145,7 +156,7 @@ public class CardinalityAggregatorFactory extends AggregatorFactory
   @Override
   public AggregatorFactory getCombiningFactory()
   {
-    return new HyperUniquesAggregatorFactory(name, name);
+    return new HyperUniquesAggregatorFactory(name, name, null);
   }
 
   @Override
@@ -164,7 +175,7 @@ public class CardinalityAggregatorFactory extends AggregatorFactory
           @Override
           public AggregatorFactory apply(String input)
           {
-            return new CardinalityAggregatorFactory(input, fieldNames, byRow);
+            return new CardinalityAggregatorFactory(input, fieldNames, predicate, byRow);
           }
         }
     );
@@ -199,10 +210,20 @@ public class CardinalityAggregatorFactory extends AggregatorFactory
     return name;
   }
 
+  @JsonProperty
+  public String getPredicate()
+  {
+    return predicate;
+  }
+
   @Override
   public List<String> requiredFields()
   {
-    return fieldNames;
+    List<String> required = Lists.newArrayList(fieldNames);
+    if (predicate != null) {
+      required.addAll(Parser.findRequiredBindings(predicate));
+    }
+    return required;
   }
 
   @JsonProperty
@@ -221,11 +242,13 @@ public class CardinalityAggregatorFactory extends AggregatorFactory
   public byte[] getCacheKey()
   {
     byte[] fieldNameBytes = StringUtils.toUtf8(Joiner.on("\u0001").join(fieldNames));
+    byte[] predicateBytes = StringUtils.toUtf8WithNullToEmpty(predicate);
 
-    return ByteBuffer.allocate(2 + fieldNameBytes.length)
+    return ByteBuffer.allocate(2 + fieldNameBytes.length + predicateBytes.length)
                      .put(CACHE_TYPE_ID)
                      .put(fieldNameBytes)
-                     .put((byte)(byRow ? 1 : 0))
+                     .put(predicateBytes)
+                     .put((byte) (byRow ? 1 : 0))
                      .array();
   }
 
@@ -268,6 +291,9 @@ public class CardinalityAggregatorFactory extends AggregatorFactory
     if (name != null ? !name.equals(that.name) : that.name != null) {
       return false;
     }
+    if (!Objects.equals(predicate, that.predicate)) {
+      return false;
+    }
 
     return true;
   }
@@ -277,6 +303,7 @@ public class CardinalityAggregatorFactory extends AggregatorFactory
   {
     int result = name != null ? name.hashCode() : 0;
     result = 31 * result + (fieldNames != null ? fieldNames.hashCode() : 0);
+    result = 31 * result + Objects.hashCode(predicate);
     result = 31 * result + (byRow ? 1 : 0);
     return result;
   }
@@ -287,6 +314,7 @@ public class CardinalityAggregatorFactory extends AggregatorFactory
     return "CardinalityAggregatorFactory{" +
            "name='" + name + '\'' +
            ", fieldNames='" + fieldNames + '\'' +
+           ", predicate='" + predicate + '\'' +
            '}';
   }
 }

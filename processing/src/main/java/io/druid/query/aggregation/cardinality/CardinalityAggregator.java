@@ -19,6 +19,8 @@
 
 package io.druid.query.aggregation.cardinality;
 
+import com.google.common.base.Predicate;
+import com.google.common.base.Predicates;
 import com.google.common.hash.HashFunction;
 import com.google.common.hash.Hasher;
 import com.google.common.hash.Hashing;
@@ -35,6 +37,7 @@ public class CardinalityAggregator implements Aggregator
   private static final String NULL_STRING = "\u0000";
 
   private final String name;
+  private final Predicate predicate;
   private final List<DimensionSelector> selectorList;
   private final boolean byRow;
 
@@ -88,23 +91,32 @@ public class CardinalityAggregator implements Aggregator
 
   public CardinalityAggregator(
       String name,
+      Predicate predicate,
       List<DimensionSelector> selectorList,
       boolean byRow
   )
   {
     this.name = name;
+    this.predicate = predicate;
     this.selectorList = selectorList;
     this.collector = HyperLogLogCollector.makeLatestCollector();
     this.byRow = byRow;
   }
 
+  public CardinalityAggregator(String name, List<DimensionSelector> selectorList, boolean byRow)
+  {
+    this(name, Predicates.alwaysTrue(), selectorList, byRow);
+  }
+
   @Override
   public void aggregate()
   {
-    if (byRow) {
-      hashRow(selectorList, collector);
-    } else {
-      hashValues(selectorList, collector);
+    if (predicate.apply(null)) {
+      if (byRow) {
+        hashRow(selectorList, collector);
+      } else {
+        hashValues(selectorList, collector);
+      }
     }
   }
 
@@ -147,7 +159,7 @@ public class CardinalityAggregator implements Aggregator
   @Override
   public Aggregator clone()
   {
-    return new CardinalityAggregator(name, selectorList, byRow);
+    return new CardinalityAggregator(name, predicate, selectorList, byRow);
   }
 
   @Override

@@ -19,6 +19,7 @@
 
 package io.druid.query.aggregation.histogram;
 
+import com.google.common.base.Predicates;
 import io.druid.query.aggregation.TestFloatColumnSelector;
 import org.junit.Assert;
 import org.junit.Test;
@@ -45,7 +46,8 @@ public class ApproximateHistogramPostAggregatorTest
     ApproximateHistogram ah = buildHistogram(10, VALUES);
     final TestFloatColumnSelector selector = new TestFloatColumnSelector(VALUES);
 
-    ApproximateHistogramAggregator agg = new ApproximateHistogramAggregator("price", selector, 10, Float.NEGATIVE_INFINITY, Float.POSITIVE_INFINITY);
+    ApproximateHistogramAggregator agg = new ApproximateHistogramAggregator(
+        "price", selector, 10, Float.NEGATIVE_INFINITY, Float.POSITIVE_INFINITY, Predicates.alwaysTrue());
     for (int i = 0; i < VALUES.length; i++) {
       agg.aggregate();
       selector.increment();

@@ -19,6 +19,7 @@
 
 package io.druid.query.aggregation.histogram;
 
+import com.google.common.base.Predicates;
 import io.druid.query.aggregation.BufferAggregator;
 import io.druid.query.aggregation.TestFloatColumnSelector;
 import org.junit.Assert;
@@ -46,7 +47,8 @@ public class ApproximateHistogramAggregatorTest
     ApproximateHistogramAggregatorFactory factory = new ApproximateHistogramAggregatorFactory(
         "billy", "billy", resolution, numBuckets, Float.NEGATIVE_INFINITY, Float.POSITIVE_INFINITY, false
     );
-    ApproximateHistogramBufferAggregator agg = new ApproximateHistogramBufferAggregator(selector, resolution, Float.NEGATIVE_INFINITY, Float.POSITIVE_INFINITY);
+    ApproximateHistogramBufferAggregator agg = new ApproximateHistogramBufferAggregator(
+        selector, resolution, Float.NEGATIVE_INFINITY, Float.POSITIVE_INFINITY, Predicates.alwaysTrue());
 
     ByteBuffer buf = ByteBuffer.allocate(factory.getMaxIntermediateSize());
     int position = 0;

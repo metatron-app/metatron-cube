@@ -22,9 +22,10 @@ package io.druid.query.aggregation.distinctcount;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;
+import com.google.common.collect.Lists;
 import com.google.common.primitives.Longs;
-import com.metamx.common.StringUtils;
-import com.metamx.common.logger.Logger;
+import io.druid.common.utils.StringUtils;
+import io.druid.math.expr.Parser;
 import io.druid.query.aggregation.Aggregator;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.AggregatorUtil;
@@ -41,18 +42,19 @@ import java.util.List;
 
 public class DistinctCountAggregatorFactory extends AggregatorFactory
 {
-  private static final Logger log = new Logger(DistinctCountAggregatorFactory.class);
   private static final byte CACHE_TYPE_ID = 20;
   private static final BitMapFactory DEFAULT_BITMAP_FACTORY = new RoaringBitMapFactory();
 
   private final String name;
   private final String fieldName;
+  private final String predicate;
   private final BitMapFactory bitMapFactory;
 
   @JsonCreator
   public DistinctCountAggregatorFactory(
       @JsonProperty("name") String name,
       @JsonProperty("fieldName") String fieldName,
+      @JsonProperty("predicate") String predicate,
       @JsonProperty("bitmapFactory") BitMapFactory bitMapFactory
   )
   {
@@ -60,7 +62,13 @@ public class DistinctCountAggregatorFactory extends AggregatorFactory
     Preconditions.checkNotNull(fieldName);
     this.name = name;
     this.fieldName = fieldName;
+    this.predicate = predicate;
     this.bitMapFactory = bitMapFactory == null ? DEFAULT_BITMAP_FACTORY : bitMapFactory;
+  }
+
+  public DistinctCountAggregatorFactory(String name, String fieldName, BitMapFactory bitMapFactory)
+  {
+    this(name, fieldName, null, bitMapFactory);
   }
 
   @Override
@@ -73,7 +81,8 @@ public class DistinctCountAggregatorFactory extends AggregatorFactory
       return new DistinctCountAggregator(
           name,
           selector,
-          bitMapFactory.makeEmptyMutableBitmap()
+          bitMapFactory.makeEmptyMutableBitmap(),
+          AggregatorUtil.toPredicate(predicate, columnFactory)
       );
     }
   }
@@ -85,7 +94,9 @@ public class DistinctCountAggregatorFactory extends AggregatorFactory
     if (selector == null) {
       return new EmptyDistinctCountBufferAggregator();
     } else {
-      return new DistinctCountBufferAggregator(makeDimensionSelector(columnFactory));
+      return new DistinctCountBufferAggregator(
+          makeDimensionSelector(columnFactory), AggregatorUtil.toPredicate(predicate, columnFactory)
+      );
     }
   }
 
@@ -131,7 +142,7 @@ public class DistinctCountAggregatorFactory extends AggregatorFactory
   @Override
   public List<AggregatorFactory> getRequiredColumns()
   {
-    return Arrays.<AggregatorFactory>asList(new DistinctCountAggregatorFactory(fieldName, fieldName, bitMapFactory));
+    return Arrays.<AggregatorFactory>asList(new DistinctCountAggregatorFactory(fieldName, fieldName, predicate, bitMapFactory));
   }
 
   @Override
@@ -165,10 +176,21 @@ public class DistinctCountAggregatorFactory extends AggregatorFactory
     return name;
   }
 
+  @JsonProperty
+  public String getPredicate()
+  {
+    return predicate;
+  }
+
   @Override
   public List<String> requiredFields()
   {
-    return Arrays.asList(fieldName);
+    List<String> required = Lists.newArrayList();
+    required.add(fieldName);
+    if (predicate != null) {
+      required.addAll(Parser.findRequiredBindings(predicate));
+    }
+    return required;
   }
 
   @Override

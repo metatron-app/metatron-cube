@@ -19,6 +19,7 @@
 
 package io.druid.query.aggregation.histogram;
 
+import com.google.common.base.Predicate;
 import io.druid.query.aggregation.BufferAggregator;
 import io.druid.segment.ObjectColumnSelector;
 
@@ -30,6 +31,7 @@ public class ApproximateHistogramFoldingBufferAggregator implements BufferAggreg
   private final int resolution;
   private final float upperLimit;
   private final float lowerLimit;
+  private final Predicate predicate;
 
   private float[] tmpBufferP;
   private long[] tmpBufferB;
@@ -38,13 +40,15 @@ public class ApproximateHistogramFoldingBufferAggregator implements BufferAggreg
       ObjectColumnSelector<ApproximateHistogram> selector,
       int resolution,
       float lowerLimit,
-      float upperLimit
+      float upperLimit,
+      Predicate predicate
   )
   {
     this.selector = selector;
     this.resolution = resolution;
     this.lowerLimit = lowerLimit;
     this.upperLimit = upperLimit;
+    this.predicate = predicate;
 
     tmpBufferP = new float[resolution];
     tmpBufferB = new long[resolution];
@@ -53,12 +57,14 @@ public class ApproximateHistogramFoldingBufferAggregator implements BufferAggreg
   @Override
   public void init(ByteBuffer buf, int position)
   {
-    ApproximateHistogram h = new ApproximateHistogram(resolution, lowerLimit, upperLimit);
+    if (predicate.apply(null)) {
+      ApproximateHistogram h = new ApproximateHistogram(resolution, lowerLimit, upperLimit);
 
-    ByteBuffer mutationBuffer = buf.duplicate();
-    mutationBuffer.position(position);
-    // use dense storage for aggregation
-    h.toBytesDense(mutationBuffer);
+      ByteBuffer mutationBuffer = buf.duplicate();
+      mutationBuffer.position(position);
+      // use dense storage for aggregation
+      h.toBytesDense(mutationBuffer);
+    }
   }
 
   @Override
