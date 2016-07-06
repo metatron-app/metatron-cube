@@ -22,7 +22,10 @@ package io.druid.data.input;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSortedSet;
 import com.google.common.collect.Maps;
+import com.google.common.hash.HashCode;
+import com.google.common.hash.Hasher;
 import com.metamx.common.ISE;
+import com.metamx.common.StringUtils;
 
 import java.util.List;
 import java.util.Map;
@@ -67,5 +70,17 @@ public class Rows
         timeStamp,
         dims
     );
+  }
+
+  public static HashCode toGroupHash(Hasher hasher, long timeStamp, InputRow inputRow)
+  {
+    hasher.putLong(timeStamp);
+    for (final String dim : inputRow.getDimensions()) {
+      Object value = inputRow.getRaw(dim);
+      if (value != null) {
+        hasher.putBytes(StringUtils.toUtf8(String.valueOf(value)));
+      }
+    }
+    return hasher.hash();
   }
 }

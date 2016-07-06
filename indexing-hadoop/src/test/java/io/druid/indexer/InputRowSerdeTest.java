@@ -27,7 +27,6 @@ import io.druid.jackson.AggregatorsModule;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.DoubleSumAggregatorFactory;
 import io.druid.query.aggregation.LongSumAggregatorFactory;
-import io.druid.query.aggregation.hyperloglog.HyperLogLogCollector;
 import io.druid.query.aggregation.hyperloglog.HyperUniquesAggregatorFactory;
 import org.junit.Assert;
 import org.junit.Test;
@@ -75,8 +74,10 @@ public class InputRowSerdeTest
         new HyperUniquesAggregatorFactory("m3out", "m3")
     };
 
-    byte[] data = InputRowSerde.toBytes(in, aggregatorFactories);
-    InputRow out = InputRowSerde.fromBytes(data, aggregatorFactories);
+    InputRowSerde serde = new InputRowSerde(aggregatorFactories, dims);
+
+    byte[] data = serde.serialize(in);
+    InputRow out = serde.deserialize(data);
 
     Assert.assertEquals(timestamp, out.getTimestampFromEpoch());
     Assert.assertEquals(dims, out.getDimensions());
@@ -85,8 +86,8 @@ public class InputRowSerdeTest
     Assert.assertEquals(ImmutableList.of("d2v1", "d2v2"), out.getDimension("d2"));
 
     Assert.assertEquals(0.0f, out.getFloatMetric("agg_non_existing"), 0.00001);
-    Assert.assertEquals(5.0f, out.getFloatMetric("m1out"), 0.00001);
-    Assert.assertEquals(100L, out.getLongMetric("m2out"));
-    Assert.assertEquals(1, ((HyperLogLogCollector)out.getRaw("m3out")).estimateCardinality(), 0.001);
+    Assert.assertEquals(5.0f, out.getFloatMetric("m1"), 0.00001);
+    Assert.assertEquals(100L, out.getLongMetric("m2"));
+    Assert.assertEquals("m3v", out.getRaw("m3"));
   }
 }

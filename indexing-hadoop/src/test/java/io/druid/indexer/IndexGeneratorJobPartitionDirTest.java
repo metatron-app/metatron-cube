@@ -284,7 +284,7 @@ public class IndexGeneratorJobPartitionDirTest
         Assert.assertEquals(Integer.valueOf(9), dataSegment.getBinaryVersion());
 
         Assert.assertEquals(dataSourceName, dataSegment.getDataSource());
-        Assert.assertTrue(dataSegment.getDimensions().size() == 3);
+        Assert.assertEquals(3, dataSegment.getDimensions().size());
         String[] dimensions = dataSegment.getDimensions().toArray(new String[dataSegment.getDimensions().size()]);
         Arrays.sort(dimensions);
         Assert.assertEquals("host", dimensions[0]);

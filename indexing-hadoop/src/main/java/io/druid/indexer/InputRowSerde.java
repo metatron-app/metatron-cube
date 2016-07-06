@@ -20,23 +20,16 @@
 package io.druid.indexer;
 
 import com.google.common.base.Charsets;
-import com.google.common.base.Supplier;
 import com.google.common.base.Throwables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+import com.google.common.io.ByteArrayDataInput;
 import com.google.common.io.ByteArrayDataOutput;
 import com.google.common.io.ByteStreams;
-import com.metamx.common.IAE;
 import com.metamx.common.logger.Logger;
 import io.druid.data.input.InputRow;
 import io.druid.data.input.MapBasedInputRow;
-import io.druid.query.aggregation.Aggregator;
 import io.druid.query.aggregation.AggregatorFactory;
-import io.druid.segment.incremental.IncrementalIndex;
-import io.druid.segment.serde.ComplexMetricSerde;
-import io.druid.segment.serde.ComplexMetrics;
-import org.apache.hadoop.io.ArrayWritable;
-import org.apache.hadoop.io.Text;
 import org.apache.hadoop.io.WritableUtils;
 
 import java.io.DataInput;
@@ -50,80 +43,149 @@ public class InputRowSerde
 {
   private static final Logger log = new Logger(InputRowSerde.class);
 
-  public static final byte[] toBytes(final InputRow row, AggregatorFactory[] aggs)
-  {
-    try {
-      ByteArrayDataOutput out = ByteStreams.newDataOutput();
+  private final List<String> dimensions;
+  private final List<String> auxColumns;
 
+  public InputRowSerde(AggregatorFactory[] aggregatorFactories, List<String> dimensions)
+  {
+    this.dimensions = dimensions;
+    this.auxColumns = Lists.newArrayList();
+    for (AggregatorFactory factory : aggregatorFactories) {
+      for (String required : factory.requiredFields()) {
+        if (!dimensions.contains(required) && !auxColumns.contains(required)) {
+          auxColumns.add(required);
+        }
+      }
+    }
+    log.info("serde with dimensions " + dimensions + " and aux columns " + auxColumns);
+  }
+
+  public byte[] serialize(final InputRow row)
+  {
+    final ByteArrayDataOutput out = ByteStreams.newDataOutput(256);
+
+    try {
       //write timestamp
       out.writeLong(row.getTimestampFromEpoch());
 
       //writing all dimensions
-      List<String> dimList = row.getDimensions();
-
-      WritableUtils.writeVInt(out, dimList.size());
-      if (dimList != null) {
-        for (String dim : dimList) {
-          List<String> dimValues = row.getDimension(dim);
-          writeString(dim, out);
-          writeStringArray(dimValues, out);
-        }
-      }
-
-      //writing all metrics
-      Supplier<InputRow> supplier = new Supplier<InputRow>()
-      {
-        @Override
-        public InputRow get()
-        {
-          return row;
-        }
-      };
-      WritableUtils.writeVInt(out, aggs.length);
-      for (AggregatorFactory aggFactory : aggs) {
-        String k = aggFactory.getName();
-        writeString(k, out);
-
-        Aggregator agg = aggFactory.factorize(
-            IncrementalIndex.makeColumnSelectorFactory(
-                aggFactory,
-                supplier,
-                true
-            )
-        );
-        agg.aggregate();
-
-        String t = aggFactory.getTypeName();
-
-        if (t.equals("float")) {
-          out.writeFloat(agg.getFloat());
-        } else if (t.equals("double")) {
-          out.writeDouble(agg.getDouble());
-        } else if (t.equals("long")) {
-          WritableUtils.writeVLong(out, agg.getLong());
+      for (String dim : dimensions) {
+        Object dimValue = row.getRaw(dim);
+        if (dimValue == null) {
+          out.writeByte(0);
+        } else if (dimValue instanceof List) {
+          writeStringArray((List) dimValue, out);
         } else {
-          //its a complex metric
-          Object val = agg.get();
-          ComplexMetricSerde serde = getComplexMetricSerde(t);
-          writeBytes(serde.toBytes(val), out);
+          out.writeByte(1);
+          writeString(String.valueOf(dimValue), out);
+        }
+      }
+      for (String aux : auxColumns) {
+        Object dimValue = row.getRaw(aux);
+        if (dimValue == null) {
+          out.writeByte(0);
+        } else if (dimValue instanceof Number) {
+          if (dimValue instanceof Float) {
+            out.writeByte(1);
+            out.writeFloat((Float) dimValue);
+          } else if (dimValue instanceof Double) {
+            out.writeByte(2);
+            out.writeDouble((Double) dimValue);
+          } else if (dimValue instanceof Byte) {
+            out.writeByte(3);
+            out.writeByte((Byte) dimValue);
+          } else if (dimValue instanceof Short) {
+            out.writeByte(4);
+            out.writeShort((Short) dimValue);
+          } else if (dimValue instanceof Integer) {
+            out.writeByte(5);
+            out.writeInt((Integer) dimValue);
+          } else if (dimValue instanceof Long) {
+            out.writeByte(6);
+            out.writeLong((Long) dimValue);
+          } else {
+            out.writeByte(7);
+            writeString(String.valueOf(dimValue), out);
+          }
+        } else {
+          out.writeByte(7);
+          writeString(String.valueOf(dimValue), out);
+        }
+      }
+    }
+    catch (Exception e) {
+      throw Throwables.propagate(e);
+    }
+    return out.toByteArray();
+  }
+
+  public MapBasedInputRow deserialize(final byte[] input)
+  {
+    return deserialize(input, false);
+  }
+
+  public MapBasedInputRow deserialize(final byte[] input, final boolean mutable)
+  {
+    final ByteArrayDataInput in = ByteStreams.newDataInput(input);
+
+    try {
+      //Read timestamp
+      long timestamp = in.readLong();
+      //Read dimensions
+      final Map<String, Object> event = Maps.newHashMapWithExpectedSize(dimensions.size() + auxColumns.size());
+      for (String dimension : dimensions) {
+        int count = WritableUtils.readVInt(in);
+        if (count == 1) {
+          event.put(dimension, readString(in));
+        } else if (count > 1) {
+          List<String> values = Lists.newArrayListWithCapacity(count);
+          for (int j = 0; j < count; j++) {
+            values.add(readString(in));
+          }
+          event.put(dimension, values);
         }
       }
 
-      return out.toByteArray();
-    } catch(IOException ex) {
+      //Read metrics
+      for (String aux : auxColumns) {
+        switch (WritableUtils.readVInt(in)) {
+          case 1:
+            event.put(aux, in.readFloat());
+            break;
+          case 2:
+            event.put(aux, in.readDouble());
+            break;
+          case 3:
+            event.put(aux, in.readByte());
+            break;
+          case 4:
+            event.put(aux, in.readShort());
+            break;
+          case 5:
+            event.put(aux, in.readInt());
+            break;
+          case 6:
+            event.put(aux, in.readLong());
+            break;
+          case 7:
+            event.put(aux, readString(in));
+            break;
+        }
+      }
+
+      final List<String> rowDimensions = mutable ? Lists.newArrayList(dimensions) : dimensions;
+      return new MapBasedInputRow(timestamp, rowDimensions, event);
+    }
+    catch (IOException ex) {
       throw Throwables.propagate(ex);
     }
   }
 
-  private static void writeBytes(byte[] value, ByteArrayDataOutput out) throws IOException
-  {
-    WritableUtils.writeVInt(out, value.length);
-    out.write(value, 0, value.length);
-  }
-
   private static void writeString(String value, ByteArrayDataOutput out) throws IOException
   {
-    writeBytes(value.getBytes(Charsets.UTF_8), out);
+    byte[] bytes = value.getBytes(Charsets.UTF_8);
+    WritableUtils.writeVInt(out, bytes.length);
+    out.write(bytes, 0, bytes.length);
   }
 
   private static void writeStringArray(List<String> values, ByteArrayDataOutput out) throws IOException
@@ -140,115 +202,8 @@ public class InputRowSerde
 
   private static String readString(DataInput in) throws IOException
   {
-    byte[] result = readBytes(in);
+    byte[] result = new byte[WritableUtils.readVInt(in)];
+    in.readFully(result, 0, result.length);
     return new String(result, Charsets.UTF_8);
-  }
-
-  private static byte[] readBytes(DataInput in) throws IOException
-  {
-    int size = WritableUtils.readVInt(in);
-    byte[] result = new byte[size];
-    in.readFully(result, 0, size);
-    return result;
-  }
-
-  private static List<String> readStringArray(DataInput in) throws IOException
-  {
-    int count = WritableUtils.readVInt(in);
-    if (count == 0) {
-      return null;
-    }
-    List<String> values = Lists.newArrayListWithCapacity(count);
-    for (int i = 0; i < count; i++) {
-      values.add(readString(in));
-    }
-    return values;
-  }
-
-  public static final InputRow fromBytes(byte[] data, AggregatorFactory[] aggs)
-  {
-    try {
-      DataInput in = ByteStreams.newDataInput(data);
-
-      //Read timestamp
-      long timestamp = in.readLong();
-
-      Map<String, Object> event = Maps.newHashMap();
-
-      //Read dimensions
-      List<String> dimensions = Lists.newArrayList();
-      int dimNum = WritableUtils.readVInt(in);
-      for (int i = 0; i < dimNum; i++) {
-        String dimension = readString(in);
-        dimensions.add(dimension);
-        List<String> dimensionValues = readStringArray(in);
-        if (dimensionValues == null) {
-          continue;
-        }
-        if (dimensionValues.size() == 1) {
-          event.put(dimension, dimensionValues.get(0));
-        } else {
-          event.put(dimension, dimensionValues);
-        }
-      }
-
-      //Read metrics
-      int metricSize = WritableUtils.readVInt(in);
-      for (int i = 0; i < metricSize; i++) {
-        String metric = readString(in);
-        String type = getType(metric, aggs, i);
-        if (type.equals("float")) {
-          event.put(metric, in.readFloat());
-        } else if (type.equals("double")) {
-          event.put(metric, in.readDouble());
-        } else if (type.equals("long")) {
-          event.put(metric, WritableUtils.readVLong(in));
-        } else {
-          ComplexMetricSerde serde = getComplexMetricSerde(type);
-          byte[] value = readBytes(in);
-          event.put(metric, serde.fromBytes(value, 0, value.length));
-        }
-      }
-
-      return new MapBasedInputRow(timestamp, dimensions, event);
-    } catch(IOException ex) {
-      throw Throwables.propagate(ex);
-    }
-  }
-
-  private static String getType(String metric, AggregatorFactory[] aggs, int i)
-  {
-    if (aggs[i].getName().equals(metric)) {
-      return aggs[i].getTypeName();
-    }
-    log.warn("Aggs disordered, fall backs to loop.");
-    for (AggregatorFactory agg : aggs) {
-      if (agg.getName().equals(metric)) {
-        return agg.getTypeName();
-      }
-    }
-    return null;
-  }
-
-  private static ComplexMetricSerde getComplexMetricSerde(String type)
-  {
-    ComplexMetricSerde serde = ComplexMetrics.getSerdeForType(type);
-    if (serde == null) {
-      throw new IAE("Unknown type[%s]", type);
-    }
-    return serde;
-  }
-}
-
-class StringArrayWritable extends ArrayWritable
-{
-  public StringArrayWritable()
-  {
-    super(Text.class);
-  }
-
-  public StringArrayWritable(Text[] strs)
-  {
-    super(Text.class, strs);
   }
 }

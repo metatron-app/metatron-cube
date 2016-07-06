@@ -53,6 +53,7 @@ import java.util.Map;
  */
 public class IndexGeneratorCombinerTest
 {
+  private List<String> dimensions;
   private AggregatorFactory[] aggregators;
   private IndexGeneratorJob.IndexGeneratorCombiner combiner;
 
@@ -106,6 +107,7 @@ public class IndexGeneratorCombinerTest
     EasyMock.expect(context.getConfiguration()).andReturn(hadoopConfig);
     EasyMock.replay(context);
 
+    dimensions = config.extractExportColumns();
     aggregators = config.getSchema().getDataSchema().getAggregators();
 
     combiner = new IndexGeneratorJob.IndexGeneratorCombiner();
@@ -158,9 +160,10 @@ public class IndexGeneratorCombinerTest
             "visited", 5
         )
     );
+    InputRowSerde serde = new InputRowSerde(aggregators, dimensions);
     List<BytesWritable> rows = Lists.newArrayList(
-        new BytesWritable(InputRowSerde.toBytes(row1, aggregators)),
-        new BytesWritable(InputRowSerde.toBytes(row2, aggregators))
+        new BytesWritable(serde.serialize(row1)),
+        new BytesWritable(serde.serialize(row2))
     );
 
     Reducer.Context context = EasyMock.createNiceMock(Reducer.Context.class);
@@ -177,8 +180,8 @@ public class IndexGeneratorCombinerTest
 
     Assert.assertTrue(captureKey.getValue() == key);
 
-    InputRow capturedRow = InputRowSerde.fromBytes(captureVal.getValue().getBytes(), aggregators);
-    Assert.assertEquals(15, capturedRow.getLongMetric("visited_sum"));
-    Assert.assertEquals(2.0, (Double)HyperUniquesAggregatorFactory.estimateCardinality(capturedRow.getRaw("unique_hosts")), 0.001);
+    InputRow capturedRow = serde.deserialize(captureVal.getValue().getBytes());
+    Assert.assertEquals(15, capturedRow.getLongMetric("visited"));
+    Assert.assertEquals(2.0, capturedRow.getRaw("host"));
   }
 }

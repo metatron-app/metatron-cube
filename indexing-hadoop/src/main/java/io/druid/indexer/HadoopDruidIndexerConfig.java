@@ -42,11 +42,13 @@ import com.metamx.common.logger.Logger;
 import io.druid.common.utils.JodaUtils;
 import io.druid.data.input.InputRow;
 import io.druid.data.input.impl.InputRowParser;
+import io.druid.data.input.impl.ParseSpec;
 import io.druid.granularity.QueryGranularity;
 import io.druid.guice.GuiceInjectors;
 import io.druid.guice.JsonConfigProvider;
 import io.druid.guice.annotations.Self;
 import io.druid.indexer.partitions.PartitionsSpec;
+import io.druid.indexer.path.PartitionPathSpec;
 import io.druid.indexer.path.PathSpec;
 import io.druid.initialization.Initialization;
 import io.druid.segment.IndexIO;
@@ -571,5 +573,20 @@ public class HadoopDruidIndexerConfig
     Preconditions.checkNotNull(schema.getTuningConfig().getWorkingPath(), "workingPath");
     Preconditions.checkNotNull(schema.getIOConfig().getSegmentOutputPath(), "segmentOutputPath");
     Preconditions.checkNotNull(schema.getTuningConfig().getVersion(), "version");
+  }
+
+  public List<String> extractExportColumns()
+  {
+    ParseSpec parseSpec = getParser().getParseSpec();
+    List<String> dimensions = Lists.newArrayList(parseSpec.getDimensionsSpec().getDimensionNames());
+    if (pathSpec instanceof PartitionPathSpec) {
+      PartitionPathSpec partitionPathSpec = (PartitionPathSpec) pathSpec;
+      for (String partitionColumn : partitionPathSpec.getPartitionColumns()) {
+        if (!dimensions.contains(partitionColumn)) {
+          dimensions.add(partitionColumn);
+        }
+      }
+    }
+    return dimensions;
   }
 }

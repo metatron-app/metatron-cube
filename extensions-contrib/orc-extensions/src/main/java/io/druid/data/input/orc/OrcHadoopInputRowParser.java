@@ -26,13 +26,22 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import io.druid.data.input.InputRow;
 import io.druid.data.input.MapBasedInputRow;
+import io.druid.data.input.impl.DimensionSchema;
+import io.druid.data.input.impl.DimensionsSpec;
 import io.druid.data.input.impl.InputRowParser;
 import io.druid.data.input.impl.ParseSpec;
+import io.druid.data.input.impl.StringDimensionSchema;
+import io.druid.data.input.impl.TimeAndDimsParseSpec;
 import io.druid.data.input.impl.TimestampSpec;
 import org.apache.commons.lang.StringUtils;
 import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.FileStatus;
+import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.hive.ql.io.orc.OrcFile;
+import org.apache.hadoop.hive.ql.io.orc.OrcNewInputFormat;
 import org.apache.hadoop.hive.ql.io.orc.OrcSerde;
 import org.apache.hadoop.hive.ql.io.orc.OrcStruct;
+import org.apache.hadoop.hive.ql.io.orc.Reader;
 import org.apache.hadoop.hive.serde2.SerDeException;
 import org.apache.hadoop.hive.serde2.objectinspector.ListObjectInspector;
 import org.apache.hadoop.hive.serde2.objectinspector.ObjectInspector;
@@ -42,10 +51,17 @@ import org.apache.hadoop.hive.serde2.objectinspector.StructObjectInspector;
 import org.apache.hadoop.hive.serde2.typeinfo.StructTypeInfo;
 import org.apache.hadoop.hive.serde2.typeinfo.TypeInfo;
 import org.apache.hadoop.hive.serde2.typeinfo.TypeInfoUtils;
+import org.apache.hadoop.mapreduce.InputFormat;
+import org.apache.hadoop.mapreduce.RecordReader;
+import org.apache.hadoop.mapreduce.TaskAttemptContext;
+import org.apache.hadoop.mapreduce.TaskAttemptID;
+import org.apache.hadoop.mapreduce.lib.input.FileSplit;
+import org.apache.hadoop.mapreduce.task.TaskAttemptContextImpl;
+import org.apache.hadoop.util.ReflectionUtils;
 import org.joda.time.DateTime;
 
 import javax.annotation.Nullable;
-import java.lang.reflect.Array;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
@@ -198,5 +214,61 @@ public class OrcHadoopInputRowParser implements InputRowParser<OrcStruct>
     ));
 
     return table;
+  }
+
+  public static void main(String[] args) throws Exception
+  {
+    if (args.length != 2) {
+      throw new IllegalArgumentException(Arrays.toString(args));
+    }
+    Path path = new Path(args[0]);
+    Configuration conf = new Configuration();
+    Reader r = OrcFile.createReader(path, OrcFile.readerOptions(conf));
+    int index = args[1].indexOf('=');
+    TimestampSpec timeSpec = new TimestampSpec(
+        args[1].substring(0, index).trim(),
+        args[1].substring(index).trim(),
+        null
+    );
+    StructTypeInfo typeInfo = (StructTypeInfo) TypeInfoUtils.getTypeInfoFromTypeString(
+        r.getObjectInspector().getTypeName()
+    );
+
+    List<String> names = typeInfo.getAllStructFieldNames();
+    List<DimensionSchema> dimensions = Lists.transform(
+        names, new Function<String, DimensionSchema>()
+        {
+          @Override
+          public DimensionSchema apply(String input)
+          {
+            return new StringDimensionSchema(input);
+          }
+        }
+    );
+    ParseSpec spec = new TimeAndDimsParseSpec(timeSpec, new DimensionsSpec(dimensions, null, null));
+
+    OrcHadoopInputRowParser parser = new OrcHadoopInputRowParser(spec, args[2]);
+
+    FileStatus status = path.getFileSystem(conf).getFileStatus(path);
+    FileSplit split = new FileSplit(path, 0, status.getLen(), null);
+
+    InputFormat inputFormat = ReflectionUtils.newInstance(OrcNewInputFormat.class, conf);
+
+    TaskAttemptContext context = new TaskAttemptContextImpl(conf, new TaskAttemptID());
+
+    RecordReader reader = inputFormat.createRecordReader(split, context);
+    while (reader.nextKeyValue()) {
+      OrcStruct data = (OrcStruct) reader.getCurrentValue();
+      MapBasedInputRow row = (MapBasedInputRow)parser.parse(data);
+      StringBuilder builder = new StringBuilder();
+      for (String dim : row.getDimensions()) {
+        if (builder.length() > 0) {
+          builder.append(", ");
+        }
+        builder.append(row.getRaw(dim));
+      }
+      System.out.println(builder.toString());
+    }
+    reader.close();
   }
 }
