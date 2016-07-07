@@ -65,7 +65,7 @@ public class HadoopSettlingConfigTest
     MetadataStorageConnectorConfig connectorConfig =
         jsonMapper.readValue(hiveConnectorMeta, MetadataStorageConnectorConfig.class);
     String query = String.format("select %s from %s where %s", StringUtils.join(columns, ","), targetTable, condition);
-    settlingConfig = new HadoopSettlingConfig(
+    settlingConfig = new HadoopJDBCSettlingConfig(
         connectorConfig,
         query,
         staticColumns,

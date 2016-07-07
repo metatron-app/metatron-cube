@@ -109,39 +109,39 @@ public class IndexGeneratorJobSettlingTest
   private final Interval interval = new Interval("2014-10-22T00:00:00Z/P1D");
   private final Object[][][] shardInfoForEachSegment = new Integer[][][]{{{0, 1}}};
   private final List<String> data = ImmutableList.of(
-      "2014102200,ETO410_PM3,VPP_UPPER,1,AGTHM,ABC,1",
-      "2014102200,ETO410_PM6,VPP_UPPER,1,AGTHM,ABC,1",
-      "2014102200,ETO410_PM7,VPP_UPPER,1,AGTHM,ABC,1",
-      "2014102201,ETO410_PM3,VPP_UPPER,1,AGTHM,ABC,2",
-      "2014102201,ETO410_PM6,VPP_UPPER,1,AGTHM,ABC,2",
-      "2014102201,ETO410_PM7,VPP_UPPER,1,AGTHM,ABC,2",
-      "2014102202,ETO410_PM3,VPP_UPPER,1,AGTHM,ABC,3",
-      "2014102202,ETO410_PM6,VPP_UPPER,1,AGTHM,ABC,3",
-      "2014102202,ETO410_PM7,VPP_UPPER,1,AGTHM,ABC,3",
-      "2014102203,ETO410_PM3,VPP_UPPER,1,AGTHM,ABC,4",
-      "2014102203,ETO410_PM6,VPP_UPPER,1,AGTHM,ABC,4",
-      "2014102203,ETO410_PM7,VPP_UPPER,1,AGTHM,ABC,4",
-      "2014102204,ETO410_PM3,VPP_UPPER,1,AGTHM,ABC,5",
-      "2014102204,ETO410_PM6,VPP_UPPER,1,AGTHM,ABC,5",
-      "2014102204,ETO410_PM7,VPP_UPPER,1,AGTHM,ABC,5",
-      "2014102205,ETO410_PM3,VPP_UPPER,1,AGTHM,ABC,6",
-      "2014102205,ETO410_PM6,VPP_UPPER,1,AGTHM,ABC,6",
-      "2014102205,ETO410_PM7,VPP_UPPER,1,AGTHM,ABC,6",
-      "2014102206,ETO410_PM3,VPP_UPPER,1,AGTHM,ABC,7",
-      "2014102206,ETO410_PM6,VPP_UPPER,1,AGTHM,ABC,7",
-      "2014102206,ETO410_PM7,VPP_UPPER,1,AGTHM,ABC,7",
-      "2014102207,ETO410_PM3,VPP_UPPER,1,AGTHM,ABC,8",
-      "2014102207,ETO410_PM6,VPP_UPPER,1,AGTHM,ABC,8",
-      "2014102207,ETO410_PM7,VPP_UPPER,1,AGTHM,ABC,8",
-      "2014102208,ETO410_PM3,VPP_UPPER,1,AGTHM,ABC,9",
-      "2014102208,ETO410_PM6,VPP_UPPER,1,AGTHM,ABC,9",
-      "2014102208,ETO410_PM7,VPP_UPPER,1,AGTHM,ABC,9",
-      "2014102209,ETO410_PM3,VPP_UPPER,1,AGTHM,ABC,10",
-      "2014102209,ETO410_PM6,VPP_UPPER,1,AGTHM,ABC,10",
-      "2014102209,ETO410_PM7,VPP_UPPER,1,AGTHM,ABC,10",
-      "2014102210,ETO410_PM3,VPP_UPPER,1,AGTHM,ABC,11",
-      "2014102210,ETO410_PM6,VPP_UPPER,1,AGTHM,ABC,11",
-      "2014102210,ETO410_PM7,VPP_UPPER,1,AGTHM,ABC,11"
+      "2014102200,TWS401_2,Spray_DIW_flow,1,AGTHM,ABC,1",
+      "2014102200,TWS401_7,Spray_DIW_flow,1,AGTHM,ABC,1",
+      "2014102200,TWS401_9,Spray_DIW_flow,1,AGTHM,ABC,1",
+      "2014102201,TWS401_2,Spray_DIW_flow,1,AGTHM,ABC,2",
+      "2014102201,TWS401_7,Spray_DIW_flow,1,AGTHM,ABC,2",
+      "2014102201,TWS401_9,Spray_DIW_flow,1,AGTHM,ABC,2",
+      "2014102202,TWS401_2,Spray_DIW_flow,1,AGTHM,ABC,3",
+      "2014102202,TWS401_7,Spray_DIW_flow,1,AGTHM,ABC,3",
+      "2014102202,TWS401_9,Spray_DIW_flow,1,AGTHM,ABC,3",
+      "2014102203,TWS401_2,Spray_DIW_flow,1,AGTHM,ABC,4",
+      "2014102203,TWS401_7,Spray_DIW_flow,1,AGTHM,ABC,4",
+      "2014102203,TWS401_9,Spray_DIW_flow,1,AGTHM,ABC,4",
+      "2014102204,TWS401_2,Spray_DIW_flow,1,AGTHM,ABC,5",
+      "2014102204,TWS401_7,Spray_DIW_flow,1,AGTHM,ABC,5",
+      "2014102204,TWS401_9,Spray_DIW_flow,1,AGTHM,ABC,5",
+      "2014102205,TWS401_2,Spray_DIW_flow,1,AGTHM,ABC,6",
+      "2014102205,TWS401_7,Spray_DIW_flow,1,AGTHM,ABC,6",
+      "2014102205,TWS401_9,Spray_DIW_flow,1,AGTHM,ABC,6",
+      "2014102206,TWS401_2,Spray_DIW_flow,1,AGTHM,ABC,7",
+      "2014102206,TWS401_7,Spray_DIW_flow,1,AGTHM,ABC,7",
+      "2014102206,TWS401_9,Spray_DIW_flow,1,AGTHM,ABC,7",
+      "2014102207,TWS401_2,Spray_DIW_flow,1,AGTHM,ABC,8",
+      "2014102207,TWS401_7,Spray_DIW_flow,1,AGTHM,ABC,8",
+      "2014102207,TWS401_9,Spray_DIW_flow,1,AGTHM,ABC,8",
+      "2014102208,TWS401_2,Spray_DIW_flow,1,AGTHM,ABC,9",
+      "2014102208,TWS401_7,Spray_DIW_flow,1,AGTHM,ABC,9",
+      "2014102208,TWS401_9,Spray_DIW_flow,1,AGTHM,ABC,9",
+      "2014102209,TWS401_2,Spray_DIW_flow,1,AGTHM,ABC,10",
+      "2014102209,TWS401_7,Spray_DIW_flow,1,AGTHM,ABC,10",
+      "2014102209,TWS401_9,Spray_DIW_flow,1,AGTHM,ABC,10",
+      "2014102210,TWS401_2,Spray_DIW_flow,1,AGTHM,ABC,11",
+      "2014102210,TWS401_7,Spray_DIW_flow,1,AGTHM,ABC,11",
+      "2014102210,TWS401_9,Spray_DIW_flow,1,AGTHM,ABC,11"
   );
   private final String inputFormatName = null;
   private final InputRowParser inputRowParser = new HadoopyStringInputRowParser(
@@ -264,13 +264,13 @@ public class IndexGeneratorJobSettlingTest
                 null
             ),
             null,
-            new HadoopSettlingConfig(
+            new HadoopJDBCSettlingConfig(
                 mapper.readValue(hiveConnectorMeta, MetadataStorageConnectorConfig.class),
                 String.format("select %s from %s where %s", StringUtils.join(columns, ","), targetTable, condition),
                 staticColumns,
                 regexColumns,
                 "eqp_param_name",
-                "eqp_param_value",
+                "visited_num",
                 aggTypeColumn,
                 offsetColumn,
                 sizeColumn,
@@ -389,10 +389,6 @@ public class IndexGeneratorJobSettlingTest
 
         int count60 = 0;
         int count66 = 0;
-        int countY = 0;
-        int countN = 0;
-        Indexed<String> settling = adapter.getDimValueLookup(settlingYNColumnName);
-        int settlingIndex = adapter.getDimensionNames().indexOf(settlingYNColumnName);
         for (Rowboat row : adapter.getRows())
         {
           Long sum = (Long)row.getMetrics()[0];
@@ -401,24 +397,10 @@ public class IndexGeneratorJobSettlingTest
           } else if (sum == 66) {
             count66++;
           }
-
-          // check settling dimension generation
-          switch(settling.get(row.getDims()[settlingIndex][0]))
-          {
-            case "Y":
-              countY++;
-              break;
-            case "N":
-              countN++;
-              break;
-          }
         }
 
-        Assert.assertTrue(count60 == 1);
-        Assert.assertTrue(count66 == 2);
-
-        Assert.assertTrue(countY == 1);
-        Assert.assertTrue(countN == 2);
+        Assert.assertTrue(count60 == 2);
+        Assert.assertTrue(count66 == 1);
       }
     }
   }

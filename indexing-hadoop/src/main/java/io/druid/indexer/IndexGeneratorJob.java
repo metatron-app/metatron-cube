@@ -590,7 +590,7 @@ public class IndexGeneratorJob implements Jobby
 
       settlingConfig = config.getSchema().getSettlingConfig();
       if (settlingConfig != null) {
-        settler = settlingConfig.setUp(rangedAggs);
+        settler = settlingConfig.setUp(aggregators);
         nameField = settlingConfig.getParamNameColumn();
         valueField = settlingConfig.getParamValueColumn();
       }
@@ -833,8 +833,11 @@ public class IndexGeneratorJob implements Jobby
         MapBasedInputRow mapBasedInputRow = (MapBasedInputRow) row;
         Map<String, Object> event = mapBasedInputRow.getEvent();
 
-        final List names = (List) row.getRaw(nameField);
-        final List values = (List) row.getRaw(valueField);
+        Object rawNameField = row.getRaw(nameField);
+        Object rawValueField = row.getRaw(valueField);
+
+        final List names = rawNameField instanceof List ? (List) rawNameField : Lists.newArrayList(rawNameField);
+        final List values = rawValueField instanceof List ? (List) rawValueField : Lists.newArrayList(rawValueField);
         for (int i = 0; i < settlingApplied.length; i++) {
           Object value = toNumeric(values.get(i));
           if (value != null) {

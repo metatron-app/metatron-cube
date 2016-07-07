@@ -34,10 +34,8 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 
-public class HadoopSettlingConfig implements SettlingConfig
+public abstract class HadoopSettlingConfig implements SettlingConfig
 {
-  final private MetadataStorageConnectorConfig config;
-  final private String query;
   final private List<String> constColumns;
   final private List<String> regexColumns;
   final private String paramNameColumn;
@@ -49,22 +47,17 @@ public class HadoopSettlingConfig implements SettlingConfig
 
   protected String DEFAULT_SETTLING_YN = "settling";
 
-  @JsonCreator
   public HadoopSettlingConfig(
-      @JsonProperty(value = "connectorConfig", required = true) final MetadataStorageConnectorConfig connectorConfig,
-      @JsonProperty(value = "query", required = true) final String query,
-      @JsonProperty(value = "constColumns", required = true) final List<String> constColumns,
-      @JsonProperty(value = "regexColumns", required = true) final List<String> regexColumns,
-      @JsonProperty(value = "paramNameColumn", required = true) final String paramNameColumn,
-      @JsonProperty(value = "paramValueColumn", required = true) final String paramValueColumn,
-      @JsonProperty(value = "typeColumn", required = true) final String aggTypeColumn,
-      @JsonProperty(value = "offsetColumn", required = true) final String offset,
-      @JsonProperty(value = "sizeColumn", required = true) final String size,
-      @JsonProperty(value = "settlingYNColumn") final String settlingYN
+      final List<String> constColumns,
+      final List<String> regexColumns,
+      final String paramNameColumn,
+      final String paramValueColumn,
+      final String aggTypeColumn,
+      final String offset,
+      final String size,
+      final String settlingYN
   )
   {
-    this.config = Preconditions.checkNotNull(connectorConfig);
-    this.query = Preconditions.checkNotNull(query);
     this.constColumns = Preconditions.checkNotNull(constColumns);
     this.regexColumns = Preconditions.checkNotNull(regexColumns);
     this.paramNameColumn = Preconditions.checkNotNull(paramNameColumn);
@@ -73,18 +66,6 @@ public class HadoopSettlingConfig implements SettlingConfig
     this.offsetColumn = Preconditions.checkNotNull(offset);
     this.sizeColumn = Preconditions.checkNotNull(size);
     this.settlingYN = settlingYN == null ? DEFAULT_SETTLING_YN : settlingYN;
-  }
-
-  @JsonProperty("connectorConfig")
-  public MetadataStorageConnectorConfig getConfig()
-  {
-    return config;
-  }
-
-  @JsonProperty("query")
-  public String getQuery()
-  {
-    return query;
   }
 
   @JsonProperty("constColumns")
@@ -137,10 +118,9 @@ public class HadoopSettlingConfig implements SettlingConfig
     return settlingYN;
   }
 
-  @Override
-  public Settler setUp(AggregatorFactory[] org)
+  public Settler setUp(AggregatorFactory[] org, List<Map<String, Object>> resultMap)
   {
-    return new HadoopSettler(this, org);
+    return new HadoopSettler(this, org, resultMap);
   }
 
   private static class ObjectArray
@@ -184,7 +164,7 @@ public class HadoopSettlingConfig implements SettlingConfig
     private final AggregatorFactory[] org;
     private final int[] codes;
 
-    public HadoopSettler(HadoopSettlingConfig settlingConfig, AggregatorFactory[] org)
+    public HadoopSettler(HadoopSettlingConfig settlingConfig, AggregatorFactory[] org, List<Map<String, Object>> maps)
     {
       this.constColumns = settlingConfig.constColumns;
       this.regexColumns = settlingConfig.regexColumns;
@@ -203,17 +183,7 @@ public class HadoopSettlingConfig implements SettlingConfig
 
       HadoopSettlingMatcherFactory matcherFactory = new HadoopSettlingMatcherFactory();
 
-      // connect through the given connector
-      MetadataStorageConnectorConfig config = settlingConfig.config;
-      final Handle handle = new DBI(
-          config.getConnectURI(),
-          config.getUser(),
-          config.getPassword()
-      ).open();
-
-      // fill the Map
-      List<Map<String, Object>> results = handle.select(settlingConfig.query);
-      for (Map<String, Object> row : results) {
+      for (Map<String, Object> row : maps) {
         Object[] keys = new Object[constColumns.size()];
         int idx = 0;
         for (String column : constColumns) {
@@ -246,7 +216,6 @@ public class HadoopSettlingConfig implements SettlingConfig
         }
       }
 
-      handle.close();
       matcherFactory.clear();
     }
 
