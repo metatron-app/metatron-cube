@@ -836,8 +836,8 @@ public class IndexGeneratorJob implements Jobby
         final List names = (List) row.getRaw(nameField);
         final List values = (List) row.getRaw(valueField);
         for (int i = 0; i < settlingApplied.length; i++) {
-          Object value = values.get(i);
-          if (value != null && isNumeric(value)) {
+          Object value = toNumeric(values.get(i));
+          if (value != null) {
             event.put(nameField, names.get(i));
             event.put(valueField, value);
             System.arraycopy(settlingApplied[i], 0, rangedAggs, 0, rangedAggs.length);
@@ -851,15 +851,18 @@ public class IndexGeneratorJob implements Jobby
     }
   }
 
-  private static boolean isNumeric(Object value)
+  private static Object toNumeric(Object value)
   {
-    if (value instanceof Number) {
-      return true;
+    if (value == null || value instanceof Number) {
+      return value;
     }
     String stringVal = String.valueOf(value);
+    if (stringVal.equals("NaN")) {
+      return value;
+    }
     char first = stringVal.charAt(0);
     if (first != '+' && first != '-' && !Character.isDigit(first)) {
-      return false;
+      return null;
     }
     boolean metDot = false;
     boolean metExp = false;
@@ -874,10 +877,10 @@ public class IndexGeneratorJob implements Jobby
           metExp = true;
           continue;
         }
-        return false;
+        return null;
       }
     }
-    return true;
+    return value;
   }
 
   public static class IndexGeneratorOutputFormat extends TextOutputFormat
