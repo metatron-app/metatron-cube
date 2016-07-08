@@ -26,7 +26,8 @@ import io.druid.query.aggregation.AggregatorFactory;
 
 @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
 @JsonSubTypes(value = {
-    @JsonSubTypes.Type(name = "jdbc", value = HadoopJDBCSettlingConfig.class)
+    @JsonSubTypes.Type(name = "jdbc", value = HadoopJDBCSettlingConfig.class),
+    @JsonSubTypes.Type(name = "uri", value = HadoopURISettlingConfig.class)
 })
 public interface SettlingConfig {
   // setUp() should be called once before applySettling() calls

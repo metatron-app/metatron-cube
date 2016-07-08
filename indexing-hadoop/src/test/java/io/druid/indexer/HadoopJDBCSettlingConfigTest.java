@@ -19,6 +19,7 @@
 
 package io.druid.indexer;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.ImmutableMap;
 import io.druid.data.input.InputRow;
@@ -38,7 +39,7 @@ import java.io.IOException;
 import java.util.Arrays;
 import java.util.List;
 
-public class HadoopSettlingConfigTest
+public class HadoopJDBCSettlingConfigTest
 {
   private static final ObjectMapper jsonMapper = new DefaultObjectMapper();
 
@@ -80,7 +81,7 @@ public class HadoopSettlingConfigTest
   }
 
   @Test
-  public void testHiveConnection()
+  public void testHiveConnection() throws JsonProcessingException
   {
     AggregatorFactory[] origin = new AggregatorFactory[1];
     origin[0] = new DoubleSumAggregatorFactory("src", "target");
@@ -91,8 +92,8 @@ public class HadoopSettlingConfigTest
         System.currentTimeMillis(),
         ListUtils.union(staticColumns, regexColumns),
         ImmutableMap.<String, Object>of(
-            "module_name", "ETO410_PM5",
-            "eqp_param_name", Arrays.asList("VPP_UPPER", "VPP_LOWER"),
+            "module_name", "TWS401_2",
+            "eqp_param_name", Arrays.asList("Spray_DIW_flow", "VPP_LOWER"),
             "eqp_recipe_id", "AGTHMQ",
             "eqp_step_id", "1",
             "lot_code", "123"
@@ -104,7 +105,7 @@ public class HadoopSettlingConfigTest
     Assert.assertArrayEquals(origin, applied[1]);
     RangeAggregatorFactory rangeAggregatorFactory = (RangeAggregatorFactory)applied[0][0];
     Assert.assertEquals(3, rangeAggregatorFactory.getRangeStart().intValue());
-    Assert.assertEquals(24, rangeAggregatorFactory.getRangeCount().intValue());
+    Assert.assertEquals(12, rangeAggregatorFactory.getRangeCount().intValue());
 
     // regex mismatch case
     inputRow = new MapBasedInputRow(
