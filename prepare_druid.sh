@@ -40,6 +40,10 @@ echo "copy orc extension"
 mkdir -p ${target_dir}/${druid_release}/extensions/druid-orc-extensions
 cp ./extensions-contrib/orc-extensions/target/druid-orc-extensions-0.9.1-SNAPSHOT.jar ${target_dir}/${druid_release}/extensions/druid-orc-extensions/
 
+echo "copy t-digest extensions"
+mkdir -p ${target_dir}/${druid_release}/extensions/t-digest-median
+cp extensions-contrib/median/target/druid-median-0.9.1-SNAPSHOT.jar ${target_dir}/${druid_release}/extensions/t-digest-median
+
 cd ${target_dir}
 echo "copy mysql metadata module"
 tar xvzf mysql-metadata-storage-0.9.1-SNAPSHOT.tar.gz
