@@ -882,6 +882,9 @@ public class IndexGeneratorJob implements Jobby
         }
         if (!metExp && aChar == 'E') {
           metExp = true;
+          if (i < stringVal.length() - 1 && stringVal.charAt(i + 1) == '-') {
+            i++;
+          }
           continue;
         }
         return null;
