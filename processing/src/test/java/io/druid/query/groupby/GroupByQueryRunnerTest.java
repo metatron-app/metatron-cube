@@ -1959,6 +1959,9 @@ public class GroupByQueryRunnerTest
                 new HyperUniqueFinalizingPostAggregator(
                     QueryRunnerTestHelper.hyperUniqueFinalizingPostAggMetric,
                     QueryRunnerTestHelper.uniqueMetric
+                ),
+                new MathPostAggregator(
+                    "auto_finalized", QueryRunnerTestHelper.uniqueMetric + " + 100"
                 )
             )
         )
@@ -1972,7 +1975,9 @@ public class GroupByQueryRunnerTest
             QueryRunnerTestHelper.uniqueMetric,
             QueryRunnerTestHelper.UNIQUES_9,
             QueryRunnerTestHelper.hyperUniqueFinalizingPostAggMetric,
-            QueryRunnerTestHelper.UNIQUES_9
+            QueryRunnerTestHelper.UNIQUES_9,
+            "auto_finalized",
+            QueryRunnerTestHelper.UNIQUES_9 + 100
         )
     );
 

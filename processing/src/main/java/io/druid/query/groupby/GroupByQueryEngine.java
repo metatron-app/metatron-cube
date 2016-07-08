@@ -43,6 +43,7 @@ import io.druid.guice.annotations.Global;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.BufferAggregator;
 import io.druid.query.aggregation.PostAggregator;
+import io.druid.query.aggregation.PostAggregators;
 import io.druid.query.dimension.DimensionSpec;
 import io.druid.segment.Cursor;
 import io.druid.segment.DimensionSelector;
@@ -448,6 +449,11 @@ public class GroupByQueryEngine
         );
       }
 
+      final List<PostAggregator> postAggregators = PostAggregators.decorate(
+          query.getPostAggregatorSpecs(),
+          aggregatorSpecs
+      );
+
       delegate = FunctionalIterator
           .create(rowUpdater.getPositions().entrySet().iterator())
           .transform(
@@ -476,7 +482,7 @@ public class GroupByQueryEngine
                     position += increments[i];
                   }
 
-                  for (PostAggregator postAggregator : query.getPostAggregatorSpecs()) {
+                  for (PostAggregator postAggregator : postAggregators) {
                     theEvent.put(postAggregator.getName(), postAggregator.compute(theEvent));
                   }
 

@@ -43,6 +43,7 @@ import io.druid.query.ResultMergeQueryRunner;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.MetricManipulationFn;
 import io.druid.query.aggregation.PostAggregator;
+import io.druid.query.aggregation.PostAggregators;
 import io.druid.query.filter.DimFilter;
 import org.joda.time.DateTime;
 
@@ -251,6 +252,11 @@ public class TimeseriesQueryQueryToolChest extends QueryToolChest<Result<Timeser
       final TimeseriesQuery query, final MetricManipulationFn fn, final boolean calculatePostAggs
   )
   {
+    final List<PostAggregator> postAggregators = PostAggregators.decorate(
+        query.getPostAggregatorSpecs(),
+        query.getAggregatorSpecs()
+    );
+
     return new Function<Result<TimeseriesResultValue>, Result<TimeseriesResultValue>>()
     {
       @Override
@@ -263,7 +269,7 @@ public class TimeseriesQueryQueryToolChest extends QueryToolChest<Result<Timeser
           for (AggregatorFactory agg : query.getAggregatorSpecs()) {
             values.put(agg.getName(), holder.getMetric(agg.getName()));
           }
-          for (PostAggregator postAgg : query.getPostAggregatorSpecs()) {
+          for (PostAggregator postAgg : postAggregators) {
             values.put(postAgg.getName(), postAgg.compute(values));
           }
         }

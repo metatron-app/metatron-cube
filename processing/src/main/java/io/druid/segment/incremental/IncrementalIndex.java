@@ -49,6 +49,7 @@ import io.druid.math.expr.ExprEval;
 import io.druid.math.expr.Parser;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.PostAggregator;
+import io.druid.query.aggregation.PostAggregators;
 import io.druid.query.dimension.DimensionSpec;
 import io.druid.query.extraction.ExtractionFn;
 import io.druid.segment.ColumnSelectorFactory;
@@ -1021,6 +1022,7 @@ public abstract class IncrementalIndex<AggregatorType> implements Iterable<Row>,
           facts = getFacts();
         }
 
+        final List<PostAggregator> postAggregators = PostAggregators.decorate(postAggs, metrics);
         return Iterators.transform(
             facts.entrySet().iterator(),
             new Function<Map.Entry<TimeAndDims, Integer>, Row>()
@@ -1070,10 +1072,8 @@ public abstract class IncrementalIndex<AggregatorType> implements Iterable<Row>,
                   theVals.put(metrics[i].getName(), getAggVal(aggs[i], rowOffset, i));
                 }
 
-                if (postAggs != null) {
-                  for (PostAggregator postAgg : postAggs) {
-                    theVals.put(postAgg.getName(), postAgg.compute(theVals));
-                  }
+                for (PostAggregator postAgg : postAggregators) {
+                  theVals.put(postAgg.getName(), postAgg.compute(theVals));
                 }
 
                 return new MapBasedRow(timeAndDims.getTimestamp(), theVals);

@@ -27,6 +27,7 @@ import io.druid.query.Result;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.AggregatorUtil;
 import io.druid.query.aggregation.PostAggregator;
+import io.druid.query.aggregation.PostAggregators;
 import io.druid.query.dimension.DimensionSpec;
 import org.joda.time.DateTime;
 
@@ -88,7 +89,10 @@ public class TopNNumericResultBuilder implements TopNResultBuilder
     this.metricName = metricName;
     this.aggFactoryNames = TopNQueryQueryToolChest.extractFactoryName(aggFactories);
 
-    this.postAggs = AggregatorUtil.pruneDependentPostAgg(postAggs, this.metricName);
+    this.postAggs = PostAggregators.decorate(
+        AggregatorUtil.pruneDependentPostAgg(postAggs, metricName),
+        aggFactories);
+
     this.threshold = threshold;
     this.metricComparator = comparator;
     this.dimValComparator = new Comparator<DimValHolder>()

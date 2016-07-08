@@ -26,6 +26,7 @@ import io.druid.query.Result;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.AggregatorUtil;
 import io.druid.query.aggregation.PostAggregator;
+import io.druid.query.aggregation.PostAggregators;
 import io.druid.query.dimension.DimensionSpec;
 import org.joda.time.DateTime;
 
@@ -65,9 +66,12 @@ public class TopNBinaryFn implements BinaryFn<Result<TopNResultValue>, Result<To
     this.threshold = threshold;
     this.aggregations = aggregatorSpecs;
 
-    this.postAggregations = AggregatorUtil.pruneDependentPostAgg(
-        postAggregatorSpecs,
-        topNMetricSpec.getMetricName(dimSpec)
+    this.postAggregations = PostAggregators.decorate(
+        AggregatorUtil.pruneDependentPostAgg(
+            postAggregatorSpecs,
+            topNMetricSpec.getMetricName(dimSpec)
+        ),
+        aggregations
     );
 
     this.dimension = dimSpec.getOutputName();

@@ -49,6 +49,7 @@ import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.AggregatorUtil;
 import io.druid.query.aggregation.MetricManipulationFn;
 import io.druid.query.aggregation.PostAggregator;
+import io.druid.query.aggregation.PostAggregators;
 import io.druid.query.dimension.DefaultDimensionSpec;
 import io.druid.query.dimension.DimensionSpec;
 import io.druid.query.filter.DimFilter;
@@ -169,7 +170,10 @@ public class TopNQueryQueryToolChest extends QueryToolChest<Result<TopNResultVal
     return new Function<Result<TopNResultValue>, Result<TopNResultValue>>()
     {
       private String dimension = query.getDimensionSpec().getOutputName();
-      private final List<PostAggregator> prunedAggs = prunePostAggregators(query);
+      private final List<PostAggregator> prunedAggs = PostAggregators.decorate(
+          prunePostAggregators(query),
+          query.getAggregatorSpecs()
+      );
       private final AggregatorFactory[] aggregatorFactories = query.getAggregatorSpecs()
                                                                    .toArray(new AggregatorFactory[0]);
       private final String[] aggFactoryNames = extractFactoryName(query.getAggregatorSpecs());
@@ -232,7 +236,9 @@ public class TopNQueryQueryToolChest extends QueryToolChest<Result<TopNResultVal
       private final AggregatorFactory[] aggregatorFactories = query.getAggregatorSpecs()
                                                                    .toArray(new AggregatorFactory[0]);
       private final String[] aggFactoryNames = extractFactoryName(query.getAggregatorSpecs());
-      private final PostAggregator[] postAggregators = query.getPostAggregatorSpecs().toArray(new PostAggregator[0]);
+      private final PostAggregator[] postAggregators = PostAggregators.decorate(
+          query.getPostAggregatorSpecs(), aggregatorFactories
+      ).toArray(new PostAggregator[0]);
 
       @Override
       public Result<TopNResultValue> apply(Result<TopNResultValue> result)
@@ -297,10 +303,13 @@ public class TopNQueryQueryToolChest extends QueryToolChest<Result<TopNResultVal
     return new CacheStrategy<Result<TopNResultValue>, Object, TopNQuery>()
     {
       private final List<AggregatorFactory> aggs = Lists.newArrayList(query.getAggregatorSpecs());
-      private final List<PostAggregator> postAggs = AggregatorUtil.pruneDependentPostAgg(
-          query.getPostAggregatorSpecs(),
-          query.getTopNMetricSpec()
-               .getMetricName(query.getDimensionSpec())
+      private final List<PostAggregator> postAggs = PostAggregators.decorate(
+          AggregatorUtil.pruneDependentPostAgg(
+              query.getPostAggregatorSpecs(),
+              query.getTopNMetricSpec()
+                   .getMetricName(query.getDimensionSpec())
+          ),
+          query.getAggregatorSpecs()
       );
 
       @Override

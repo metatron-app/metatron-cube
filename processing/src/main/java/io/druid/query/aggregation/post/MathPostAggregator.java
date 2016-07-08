@@ -24,8 +24,9 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Sets;
 import io.druid.math.expr.Expr;
-import io.druid.math.expr.ExprEval;
 import io.druid.math.expr.Parser;
+import io.druid.query.aggregation.AggregatorFactory;
+import io.druid.query.aggregation.DecoratingPostAggregator;
 import io.druid.query.aggregation.PostAggregator;
 
 import java.util.Comparator;
@@ -36,7 +37,7 @@ import java.util.Set;
 
 /**
  */
-public class MathPostAggregator implements PostAggregator
+public class MathPostAggregator implements DecoratingPostAggregator
 {
   private static final Comparator<Number> DEFAULT_COMPARATOR = new Comparator<Number>()
   {
@@ -58,12 +59,9 @@ public class MathPostAggregator implements PostAggregator
   private final Expr parsed;
   private final List<String> dependentFields;
 
-  public MathPostAggregator(
-      String name,
-      String fnName
-  )
+  public MathPostAggregator(String name, String expression)
   {
-    this(name, fnName, null);
+    this(name, expression, null);
   }
 
   @JsonCreator
@@ -129,6 +127,35 @@ public class MathPostAggregator implements PostAggregator
            ", expression='" + expression + '\'' +
            ", ordering=" + ordering +
            '}';
+  }
+
+  @Override
+  public PostAggregator decorate(final Map<String, AggregatorFactory> aggregators)
+  {
+    if (aggregators == null || aggregators.isEmpty() || dependentFields.isEmpty()) {
+      return this;
+    }
+    return new MathPostAggregator(name, expression, ordering)
+    {
+      @Override
+      public Object compute(final Map<String, Object> values)
+      {
+        Expr.NumericBinding binding = new Expr.NumericBinding()
+        {
+          @Override
+          public Object get(final String name)
+          {
+            final Object value = values.get(name);
+            if (value == null && !values.containsKey(name)) {
+              throw new RuntimeException("No binding found for " + name);
+            }
+            AggregatorFactory factory = aggregators.get(name);
+            return factory == null ? value : factory.finalizeComputation(value);
+          }
+        };
+        return parsed.eval(binding).value();
+      }
+    };
   }
 
   public static enum Ordering implements Comparator<Number>
