@@ -863,20 +863,24 @@ public class IndexGeneratorJob implements Jobby
     if (stringVal.equals("NaN")) {
       return value;
     }
-    char first = stringVal.charAt(0);
-    if (first != '+' && first != '-' && !Character.isDigit(first)) {
-      return null;
+    int i = 0;
+    char first = stringVal.charAt(i);
+    if (!Character.isDigit(first)) {
+      if (first != '+' && first != '-') {
+        return null;
+      }
+      i++;
     }
     boolean metDot = false;
     boolean metExp = false;
-    for (int i = 1; i < stringVal.length(); i++) {
+    for (; i < stringVal.length(); i++) {
       char aChar = stringVal.charAt(i);
       if (!Character.isDigit(aChar)) {
         if (!metDot && aChar == '.') {
-          metExp = true;
+          metDot = true;
           continue;
         }
-        if (!metExp && ((aChar == 'e' || aChar == 'E'))) {
+        if (!metExp && aChar == 'E') {
           metExp = true;
           continue;
         }
