@@ -49,7 +49,7 @@ public class HadoopURISettlingConfigTest
   private Injector injector;
   private ObjectMapper jsonMapper;
 
-  private HadoopURISettlingConfig settlingConfig;
+  private SettlingConfig settlingConfig;
 
   private List<String> staticColumns = Arrays.asList("module_name", "eqp_param_name");
   private List<String> regexColumns = Arrays.asList("eqp_recipe_id", "eqp_step_id", "lot_code");
@@ -76,7 +76,7 @@ public class HadoopURISettlingConfigTest
     );
     jsonMapper = injector.getInstance(ObjectMapper.class);
 
-    settlingConfig = jsonMapper.readValue(configString, HadoopURISettlingConfig.class);
+    settlingConfig = jsonMapper.readValue(configString, SettlingConfig.class);
   }
 
   @Test
