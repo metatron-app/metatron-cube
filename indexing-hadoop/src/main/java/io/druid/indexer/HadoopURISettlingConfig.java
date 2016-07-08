@@ -22,11 +22,8 @@ package io.druid.indexer;
 import com.fasterxml.jackson.annotation.JacksonInject;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.google.api.client.util.Lists;
-import com.google.common.base.Charsets;
 import com.google.common.base.Optional;
-import com.google.common.io.ByteSource;
-import com.google.common.io.LineProcessor;
+import com.google.common.collect.Lists;
 import com.metamx.common.CompressionUtils;
 import com.metamx.common.IAE;
 import com.metamx.common.parsers.CSVParser;
@@ -36,8 +33,10 @@ import io.druid.data.SearchableVersionedDataFinder;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.segment.loading.URIDataPuller;
 
+import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.net.URI;
 import java.util.List;
 import java.util.Map;
@@ -112,53 +111,29 @@ public class HadoopURISettlingConfig extends HadoopSettlingConfig
     }
     final URIDataPuller puller = (URIDataPuller) pullerRaw;
     final String uriPath = uri.getPath();
-    final ByteSource source;
+    final InputStream source;
 
-    if (CompressionUtils.isGz(uriPath)) {
-      source = new ByteSource()
-      {
-        @Override
-        public InputStream openStream() throws IOException
-        {
-          return CompressionUtils.gzipInputStream(puller.getInputStream(uri));
-        }
-      };
-    } else {
-      source = new ByteSource()
-      {
-        @Override
-        public InputStream openStream() throws IOException
-        {
-          return puller.getInputStream(uri);
-        }
-      };
-    }
+    List<Map<String, Object>> maps = Lists.newArrayList();
 
-    List<Map<String, Object>> mapList = null;
     try {
-      mapList = source.asCharSource(Charsets.UTF_8).readLines(
-          new LineProcessor<List<Map<String, Object>>>() {
-            private List<Map<String, Object>> maps = Lists.newArrayList();
+      if (CompressionUtils.isGz(uriPath)) {
+        source = CompressionUtils.gzipInputStream(puller.getInputStream(uri));
+      } else {
+        source = puller.getInputStream(uri);
+      }
 
-            @Override
-            public boolean processLine(String line) throws IOException
-            {
-              maps.add(parser.parse(line));
-              return true;
-            }
+      BufferedReader reader = new BufferedReader(new InputStreamReader(source));
 
-            @Override
-            public List<Map<String, Object>> getResult()
-            {
-              return maps;
-            }
-          }
-      );
+      String line;
+      while ((line = reader.readLine()) != null) {
+        maps.add(parser.parse(line));
+      }
+
     } catch (IOException e) {
       e.printStackTrace();
     }
 
-    return super.setUp(org, mapList);
+    return super.setUp(org, maps);
   }
 
   private Parser<String, Object> getParser()
