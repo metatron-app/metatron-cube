@@ -26,6 +26,7 @@ import com.google.inject.Binder;
 import io.druid.initialization.DruidModule;
 import io.druid.query.aggregation.variance.StandardDeviationPostAggregator;
 import io.druid.query.aggregation.variance.VarianceAggregatorFactory;
+import io.druid.query.aggregation.variance.VarianceFoldingAggregatorFactory;
 import io.druid.query.aggregation.variance.VarianceSerde;
 import io.druid.segment.serde.ComplexMetrics;
 
@@ -41,6 +42,7 @@ public class DruidStatsModule implements DruidModule
     return ImmutableList.of(
         new SimpleModule().registerSubtypes(
             VarianceAggregatorFactory.class,
+            VarianceFoldingAggregatorFactory.class,
             StandardDeviationPostAggregator.class
         )
     );

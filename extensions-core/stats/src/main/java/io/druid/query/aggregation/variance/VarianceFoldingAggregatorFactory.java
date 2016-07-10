@@ -20,6 +20,7 @@
 package io.druid.query.aggregation.variance;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.annotation.JsonTypeName;
 import io.druid.query.aggregation.Aggregator;
 import io.druid.query.aggregation.Aggregators;
 import io.druid.query.aggregation.BufferAggregator;
@@ -28,6 +29,7 @@ import io.druid.segment.ObjectColumnSelector;
 
 /**
  */
+@JsonTypeName("varianceFold")
 public class VarianceFoldingAggregatorFactory extends VarianceAggregatorFactory
 {
   public VarianceFoldingAggregatorFactory(

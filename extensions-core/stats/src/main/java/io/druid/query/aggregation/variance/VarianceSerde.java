@@ -35,16 +35,8 @@ import java.util.List;
  */
 public class VarianceSerde extends ComplexMetricSerde
 {
-  private static final Ordering<VarianceAggregatorCollector> comparator = new Ordering<VarianceAggregatorCollector>()
-  {
-    @Override
-    public int compare(
-        VarianceAggregatorCollector arg1, VarianceAggregatorCollector arg2
-    )
-    {
-      return arg1.toByteBuffer().compareTo(arg2.toByteBuffer());
-    }
-  }.nullsFirst();
+  private static final Ordering<VarianceAggregatorCollector> comparator =
+      Ordering.from(VarianceAggregatorCollector.COMPARATOR).nullsFirst();
 
   @Override
   public String getTypeName()
