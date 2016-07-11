@@ -597,10 +597,39 @@ class BinNeqExpr extends BinaryNumericOpExprBase
   }
 }
 
-class BinAndExpr extends BinaryNumericOpExprBase
+class BinAndExpr extends BinaryOpExprBase
 {
-
   BinAndExpr(String op, Expr left, Expr right)
+  {
+    super(op, left, right);
+  }
+
+  @Override
+  public ExprEval eval(NumericBinding bindings)
+  {
+    ExprEval leftVal = left.eval(bindings);
+    return leftVal.asBoolean() ? right.eval(bindings) : leftVal;
+  }
+}
+
+class BinOrExpr extends BinaryOpExprBase
+{
+  BinOrExpr(String op, Expr left, Expr right)
+  {
+    super(op, left, right);
+  }
+
+  @Override
+  public ExprEval eval(NumericBinding bindings)
+  {
+    ExprEval leftVal = left.eval(bindings);
+    return leftVal.asBoolean() ? leftVal : right.eval(bindings);
+  }
+}
+
+class BinAndExpr2 extends BinaryNumericOpExprBase
+{
+  BinAndExpr2(String op, Expr left, Expr right)
   {
     super(op, left, right);
   }
@@ -617,10 +646,9 @@ class BinAndExpr extends BinaryNumericOpExprBase
   }
 }
 
-class BinOrExpr extends BinaryNumericOpExprBase
+class BinOrExpr2 extends BinaryNumericOpExprBase
 {
-
-  BinOrExpr(String op, Expr left, Expr right)
+  BinOrExpr2(String op, Expr left, Expr right)
   {
     super(op, left, right);
   }
