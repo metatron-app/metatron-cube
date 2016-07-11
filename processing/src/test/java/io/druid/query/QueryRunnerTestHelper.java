@@ -319,6 +319,18 @@ public class QueryRunnerTestHelper
     };
   }
 
+  public static <T, QueryType extends Query<T>> List<Object[]> makeQueryRunnersWithName(
+      QueryRunnerFactory<T, QueryType> factory
+  )
+      throws IOException
+  {
+    List runners = makeQueryRunners(factory);
+    return Arrays.asList(
+        new Object[] {runners.get(0), "incremental"},
+        new Object[] {runners.get(1), "mmaped"},
+        new Object[] {runners.get(2), "merged"});
+  }
+
   public static <T, QueryType extends Query<T>> List<QueryRunner<T>> makeQueryRunners(
       QueryRunnerFactory<T, QueryType> factory
   )
@@ -328,8 +340,8 @@ public class QueryRunnerTestHelper
     final QueryableIndex mMappedTestIndex = TestIndex.getMMappedTestIndex();
     final QueryableIndex mergedRealtimeIndex = TestIndex.mergedRealtimeIndex();
     return ImmutableList.of(
-//        makeQueryRunner(factory, new IncrementalIndexSegment(rtIndex, segmentId)),
-//        makeQueryRunner(factory, new QueryableIndexSegment(segmentId, mMappedTestIndex)),
+        makeQueryRunner(factory, new IncrementalIndexSegment(rtIndex, segmentId)),
+        makeQueryRunner(factory, new QueryableIndexSegment(segmentId, mMappedTestIndex)),
         makeQueryRunner(factory, new QueryableIndexSegment(segmentId, mergedRealtimeIndex))
     );
   }
