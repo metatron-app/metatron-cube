@@ -859,10 +859,7 @@ public class IndexGeneratorJob implements Jobby
     if (value == null || value instanceof Number) {
       return value;
     }
-    String stringVal = String.valueOf(value);
-    if (stringVal.equals("NaN")) {
-      return value;
-    }
+    final String stringVal = String.valueOf(value);
     int i = 0;
     char first = stringVal.charAt(i);
     if (!Character.isDigit(first)) {
@@ -890,7 +887,10 @@ public class IndexGeneratorJob implements Jobby
         return null;
       }
     }
-    return value;
+    if (metDot || metExp) {
+      return Double.valueOf(stringVal);
+    }
+    return Long.valueOf(stringVal);
   }
 
   public static class IndexGeneratorOutputFormat extends TextOutputFormat
