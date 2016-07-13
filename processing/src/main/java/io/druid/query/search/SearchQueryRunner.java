@@ -29,7 +29,6 @@ import com.metamx.collections.bitmap.BitmapFactory;
 import com.metamx.collections.bitmap.ImmutableBitmap;
 import com.metamx.common.ISE;
 import com.metamx.common.guava.Accumulator;
-import com.metamx.common.guava.FunctionalIterable;
 import com.metamx.common.guava.Sequence;
 import com.metamx.common.guava.Sequences;
 import com.metamx.emitter.EmittingLogger;
@@ -116,6 +115,7 @@ public class SearchQueryRunner implements QueryRunner<Result<SearchResultValue>>
           continue;
         }
 
+        final String outputName = dimension.getOutputName();
         final BitmapIndex bitmapIndex = column.getBitmapIndex();
         ExtractionFn extractionFn = dimension.getExtractionFn();
         if (extractionFn == null) {
@@ -131,9 +131,10 @@ public class SearchQueryRunner implements QueryRunner<Result<SearchResultValue>>
             if (baseFilter != null) {
               bitmap = bitmapFactory.intersection(Arrays.asList(baseFilter, bitmap));
             }
-            if (bitmap.size() > 0) {
-              MutableInt counter = new MutableInt(bitmap.size());
-              MutableInt prev = retVal.put(new SearchHit(dimension.getOutputName(), dimVal), counter);
+            int size = bitmap.size();
+            if (size > 0) {
+              MutableInt counter = new MutableInt(size);
+              MutableInt prev = retVal.put(new SearchHit(outputName, dimVal), counter);
               if (prev != null) {
                 counter.add(prev.intValue());
               }
@@ -236,7 +237,7 @@ public class SearchQueryRunner implements QueryRunner<Result<SearchResultValue>>
         }
     );
     if (limit > 0) {
-      source = new FunctionalIterable<SearchHit>(source).limit(limit);
+      source = Iterables.limit(source, limit);
     }
     return Sequences.simple(
         ImmutableList.of(

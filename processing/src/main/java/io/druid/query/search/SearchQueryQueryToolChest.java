@@ -55,6 +55,8 @@ import org.joda.time.DateTime;
 import javax.annotation.Nullable;
 import java.nio.ByteBuffer;
 import java.util.Collection;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 
@@ -123,6 +125,25 @@ public class SearchQueryQueryToolChest extends QueryToolChest<Result<SearchResul
   )
   {
     return Functions.identity();
+  }
+
+  @Override
+  public Function<Result<SearchResultValue>, Result<SearchResultValue>> makePostComputeManipulatorFn(
+      SearchQuery query, MetricManipulationFn fn)
+  {
+    final Comparator<SearchHit> mergeComparator = query.getSort().getMergeComparator();
+    if (mergeComparator == null) {
+      return Functions.identity();
+    }
+    return new Function<Result<SearchResultValue>, Result<SearchResultValue>>()
+    {
+      @Override
+      public Result<SearchResultValue> apply(Result<SearchResultValue> input)
+      {
+        Collections.sort(input.getValue().getValue(), mergeComparator);
+        return input;
+      }
+    };
   }
 
   @Override

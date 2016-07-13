@@ -19,48 +19,41 @@
 
 package io.druid.query.search.search;
 
-import com.fasterxml.jackson.annotation.JsonCreator;
-import com.fasterxml.jackson.annotation.JsonProperty;
-
 import java.util.Comparator;
 
 /**
  */
-public class LexicographicSearchSortSpec extends MergeSortSpec
+abstract class MergeSortSpec implements SearchSortSpec
 {
-  @JsonCreator
-  public LexicographicSearchSortSpec(
-      @JsonProperty("mergeOrdering") GenericSearchSortSpec mergeOrdering
-  )
-  {
-    super(mergeOrdering);
-  }
+  private final GenericSearchSortSpec ordering;
+  private final Comparator<SearchHit> mergeComparator;
 
-  public LexicographicSearchSortSpec()
+  public MergeSortSpec(GenericSearchSortSpec ordering)
   {
-    this(null);
+    this.ordering = ordering;
+    this.mergeComparator = ordering == null ? null : ordering.getComparator();
   }
 
   @Override
-  public Comparator<SearchHit> getComparator()
+  public Comparator<SearchHit> getMergeComparator()
   {
-    return new Comparator<SearchHit>()
-    {
-      @Override
-      public int compare(SearchHit searchHit, SearchHit searchHit1)
-      {
-        int retVal = searchHit.getValue().compareTo(searchHit1.getValue());
-        if (retVal == 0) {
-          retVal = searchHit.getDimension().compareTo(searchHit1.getDimension());
-        }
-        return retVal;
-      }
-    };
+    return mergeComparator;
+  }
+
+  @Override
+  public byte[] getCacheKey()
+  {
+    return toString().getBytes();
+  }
+
+  @Override
+  public boolean equals(Object other) {
+    return toString().equals(other.toString());
   }
 
   @Override
   public String toString()
   {
-    return "lexicographicSort" + super.toString();
+    return ordering == null ? "" : "(" + ordering.toString() + ")";
   }
 }

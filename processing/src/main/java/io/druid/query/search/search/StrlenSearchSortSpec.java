@@ -19,22 +19,34 @@
 
 package io.druid.query.search.search;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.primitives.Ints;
 
 import java.util.Comparator;
 
 /**
  */
-public class StrlenSearchSortSpec implements SearchSortSpec
+public class StrlenSearchSortSpec extends MergeSortSpec
 {
+  @JsonCreator
+  public StrlenSearchSortSpec(
+      @JsonProperty("mergeOrdering") GenericSearchSortSpec mergeOrdering
+  )
+  {
+    super(mergeOrdering);
+  }
+
   public StrlenSearchSortSpec()
   {
+    this(null);
   }
 
   @Override
   public Comparator<SearchHit> getComparator()
   {
-    return new Comparator<SearchHit>() {
+    return new Comparator<SearchHit>()
+    {
       @Override
       public int compare(SearchHit s, SearchHit s1)
       {
@@ -53,13 +65,8 @@ public class StrlenSearchSortSpec implements SearchSortSpec
   }
 
   @Override
-  public byte[] getCacheKey()
-  {
-    return toString().getBytes();
-  }
-
   public String toString()
   {
-    return "stringLengthSort";
+    return "stringLengthSort" + super.toString();
   }
 }

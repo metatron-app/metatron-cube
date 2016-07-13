@@ -36,5 +36,7 @@ public interface SearchSortSpec
 {
   Comparator<SearchHit> getComparator();
 
+  Comparator<SearchHit> getMergeComparator();
+
   byte[] getCacheKey();
 }

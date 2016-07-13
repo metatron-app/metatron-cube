@@ -19,9 +19,9 @@
 
 package io.druid.query.search;
 
-import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
+import com.google.common.primitives.Ints;
 import com.metamx.common.guava.Sequence;
 import com.metamx.common.guava.Sequences;
 import com.metamx.common.logger.Logger;
@@ -36,9 +36,10 @@ import io.druid.query.extraction.MapLookupExtractor;
 import io.druid.query.filter.AndDimFilter;
 import io.druid.query.filter.DimFilter;
 import io.druid.query.filter.ExtractionDimFilter;
-import io.druid.query.filter.RegexDimFilter;
 import io.druid.query.filter.SelectorDimFilter;
 import io.druid.query.search.search.FragmentSearchQuerySpec;
+import io.druid.query.search.search.GenericSearchSortSpec;
+import io.druid.query.search.search.LexicographicSearchSortSpec;
 import io.druid.query.search.search.SearchHit;
 import io.druid.query.search.search.SearchQuery;
 import io.druid.query.search.search.SearchQueryConfig;
@@ -54,6 +55,8 @@ import org.junit.runners.Parameterized;
 
 import java.io.IOException;
 import java.util.Arrays;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 
@@ -292,7 +295,7 @@ public class SearchQueryRunnerTest
     expectedHits.add(new SearchHit(QueryRunnerTestHelper.qualityDimension, "entertainment", 93));
     expectedHits.add(new SearchHit(QueryRunnerTestHelper.marketDimension, "total_market", 186));
 
-    checkSearchQuery(
+    Druids.SearchQueryBuilder builder =
         Druids.newSearchQueryBuilder()
               .dataSource(QueryRunnerTestHelper.dataSource)
               .granularity(QueryRunnerTestHelper.allGran)
@@ -303,10 +306,31 @@ public class SearchQueryRunnerTest
                   )
               )
               .intervals(QueryRunnerTestHelper.fullOnInterval)
-              .query("a")
-              .build(),
-        expectedHits
+              .query("a");
+
+    checkSearchQuery(builder.build(), expectedHits);
+
+    Collections.sort(
+        expectedHits, new Comparator<SearchHit>()
+        {
+          @Override
+          public int compare(SearchHit o1, SearchHit o2)
+          {
+            int compare = -Ints.compare(o1.getCount(), o2.getCount());
+            if (compare == 0) {
+              compare = o1.getDimension().compareTo(o2.getDimension());
+            }
+            return compare;
+          }
+        }
     );
+
+    builder.sortSpec(
+        new LexicographicSearchSortSpec(new GenericSearchSortSpec(Arrays.asList("$count", "$dimension")))
+    );
+
+    // acts on merge
+    checkSearchQueryWithOrder(builder.build(), decoratedRunner, expectedHits);
   }
 
   @Test
@@ -587,6 +611,20 @@ public class SearchQueryRunnerTest
     }
     if (!copy.isEmpty()) {
       fail(expectedResults, results, "Some expected results are not shown: " + copy);
+    }
+  }
+
+  private void checkSearchQueryWithOrder(Query searchQuery, QueryRunner runner, List<SearchHit> expectedResults)
+  {
+    List<Result<SearchResultValue>> results = Sequences.toList(
+        runner.run(searchQuery, ImmutableMap.of()),
+        Lists.<Result<SearchResultValue>>newArrayList()
+    );
+    Assert.assertEquals(1, results.size());
+    SearchResultValue result = results.get(0).getValue();
+    Assert.assertEquals(result.getValue().size(), expectedResults.size());
+    for (int i = 0; i < results.size(); i++) {
+      Assert.assertEquals(result.getValue().get(i), expectedResults.get(i));
     }
   }
 
