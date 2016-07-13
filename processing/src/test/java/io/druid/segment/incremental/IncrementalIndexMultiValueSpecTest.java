@@ -44,9 +44,9 @@ public class IncrementalIndexMultiValueSpecTest
   {
     DimensionsSpec dimensionsSpec = new DimensionsSpec(
         Arrays.<DimensionSchema>asList(
-            new StringDimensionSchema("string1", DimensionSchema.MultiValueHandling.ARRAY),
-            new StringDimensionSchema("string2", DimensionSchema.MultiValueHandling.SORTED_ARRAY),
-            new StringDimensionSchema("string3", DimensionSchema.MultiValueHandling.SET),
+            new StringDimensionSchema("string1", DimensionSchema.MultiValueHandling.ARRAY, -1),
+            new StringDimensionSchema("string2", DimensionSchema.MultiValueHandling.SORTED_ARRAY, -1),
+            new StringDimensionSchema("string3", DimensionSchema.MultiValueHandling.SET, -1),
             new FloatDimensionSchema("float1", DimensionSchema.MultiValueHandling.ARRAY),
             new FloatDimensionSchema("float2", DimensionSchema.MultiValueHandling.SORTED_ARRAY),
             new FloatDimensionSchema("float3", DimensionSchema.MultiValueHandling.SET),

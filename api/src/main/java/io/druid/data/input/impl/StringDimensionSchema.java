@@ -22,28 +22,65 @@ package io.druid.data.input.impl;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.google.common.collect.Maps;
 import io.druid.data.ValueType;
+
+import java.util.Map;
 
 public class StringDimensionSchema extends DimensionSchema
 {
   @JsonCreator
-  public static StringDimensionSchema create(String name)
-  {
-    return new StringDimensionSchema(name);
+  public static StringDimensionSchema create(String name) {
+    int index = name.indexOf('?');
+    int compareCacheEntry = -1;
+    MultiValueHandling multiValueHandling = null;
+    if (index > 0) {
+      Map<String, String> parsed = parse(name.substring(index + 1));
+      String cache = parsed.get("cache");
+      try {
+        compareCacheEntry = cache == null ? -1 : Integer.parseInt(cache);
+      }
+      catch (NumberFormatException e) {
+        // ignore
+      }
+      String multiValue = parsed.get("multivalue");
+      try {
+        multiValueHandling = multiValue == null ? null : MultiValueHandling.valueOf(multiValue.toUpperCase());
+      }
+      catch (NumberFormatException e) {
+        // ignore
+      }
+      name = name.substring(0, index);
+    }
+    return new StringDimensionSchema(name, multiValueHandling, compareCacheEntry);
   }
+
+  private static Map<String, String> parse(String args)
+  {
+    Map<String, String> parsed = Maps.newHashMap();
+    for (String split : args.split("&")) {
+      int index = split.indexOf('=');
+      parsed.put(split.substring(0, index).trim().toLowerCase(), split.substring(index + 1).trim());
+    }
+    return parsed;
+  }
+
+  private final int compareCacheEntry;
 
   @JsonCreator
   public StringDimensionSchema(
       @JsonProperty("name") String name,
-      @JsonProperty("multiValueHandling") MultiValueHandling multiValueHandling
+      @JsonProperty("multiValueHandling") MultiValueHandling multiValueHandling,
+      @JsonProperty("compareCacheEntry") int compareCacheEntry
   )
   {
     super(name, multiValueHandling);
+    this.compareCacheEntry = compareCacheEntry;
   }
 
   public StringDimensionSchema(String name)
   {
-    this(name, null);
+    this(name, null, -1);
   }
 
   @Override
@@ -57,5 +94,11 @@ public class StringDimensionSchema extends DimensionSchema
   public ValueType getValueType()
   {
     return ValueType.STRING;
+  }
+
+  @JsonProperty
+  public int getCompareCacheEntry()
+  {
+    return compareCacheEntry;
   }
 }

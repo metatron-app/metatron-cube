@@ -412,6 +412,19 @@ public class OnheapIncrementalIndex extends IncrementalIndex<Aggregator>
       return estimatedSize;
     }
 
+    @Override
+    public final int compare(int lhsIdx, int rhsIdx)
+    {
+      final Comparable lhsVal = getValue(lhsIdx);
+      final Comparable rhsVal = getValue(rhsIdx);
+      if (lhsVal != null && rhsVal != null) {
+        return lhsVal.compareTo(rhsVal);
+      } else if (lhsVal == null ^ rhsVal == null) {
+        return lhsVal == null ? -1 : 1;
+      }
+      return 0;
+    }
+
     public OnHeapDimLookup sort()
     {
       synchronized (lock) {
