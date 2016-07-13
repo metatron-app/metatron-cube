@@ -1800,7 +1800,7 @@ public interface Function
     @Override
     public Function get()
     {
-      return new RunningMin();
+      return new RunningMax();
     }
   }
 
@@ -2019,7 +2019,7 @@ public interface Function
     }
   }
 
-  class RunningStandardDeviationPop extends RunningVariance
+  class RunningStandardDeviationPop extends RunningVariancePop
   {
     @Override
     public String name()
