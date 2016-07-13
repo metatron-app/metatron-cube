@@ -1,3 +1,5 @@
+conf-quickstart
+prepare_druid_local.sh
 dist
 target
 *.iml
