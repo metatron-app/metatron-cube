@@ -28,7 +28,7 @@ import javax.validation.constraints.Min;
 public class SearchQueryConfig
 {
   @JsonProperty
-  @Min(1)
+  @Min(-1)
   private int maxSearchLimit = 1000;
 
   public int getMaxSearchLimit()

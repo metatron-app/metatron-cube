@@ -289,14 +289,15 @@ public class SearchQueryQueryToolChest extends QueryToolChest<Result<SearchResul
       }
 
       final SearchQuery query = (SearchQuery) input;
-      if (query.getLimit() < config.getMaxSearchLimit()) {
+      final int maxSearchLimit = config.getMaxSearchLimit();
+      if (maxSearchLimit < 0 || (query.getLimit() > 0 && query.getLimit() < maxSearchLimit)) {
         return runner.run(query, responseContext);
       }
 
       final boolean isBySegment = BaseQuery.getContextBySegment(query, false);
 
       return Sequences.map(
-          runner.run(query.withLimit(config.getMaxSearchLimit()), responseContext),
+          runner.run(query.withLimit(maxSearchLimit), responseContext),
           new Function<Result<SearchResultValue>, Result<SearchResultValue>>()
           {
             @Override
@@ -321,7 +322,7 @@ public class SearchQueryQueryToolChest extends QueryToolChest<Result<SearchResul
                                         Lists.newArrayList(
                                             Iterables.limit(
                                                 input.getValue(),
-                                                query.getLimit()
+                                                maxSearchLimit
                                             )
                                         )
                                     )
@@ -339,7 +340,7 @@ public class SearchQueryQueryToolChest extends QueryToolChest<Result<SearchResul
                   input.getTimestamp(),
                   new SearchResultValue(
                       Lists.<SearchHit>newArrayList(
-                          Iterables.limit(input.getValue(), query.getLimit())
+                          Iterables.limit(input.getValue(), maxSearchLimit)
                       )
                   )
               );

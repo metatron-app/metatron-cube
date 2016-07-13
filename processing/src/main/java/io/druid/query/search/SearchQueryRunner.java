@@ -137,7 +137,7 @@ public class SearchQueryRunner implements QueryRunner<Result<SearchResultValue>>
               if (prev != null) {
                 counter.add(prev.intValue());
               }
-              if (retVal.size() >= limit) {
+              if (limit > 0 && retVal.size() >= limit) {
                 return makeReturnResult(limit, retVal);
               }
             }
@@ -176,7 +176,7 @@ public class SearchQueryRunner implements QueryRunner<Result<SearchResultValue>>
           @Override
           public TreeMap<SearchHit, MutableInt> accumulate(TreeMap<SearchHit, MutableInt> set, Cursor cursor)
           {
-            if (set.size() >= limit) {
+            if (limit > 0 && set.size() >= limit) {
               return set;
             }
 
@@ -202,7 +202,7 @@ public class SearchQueryRunner implements QueryRunner<Result<SearchResultValue>>
                       if (prev != null) {
                         counter.add(prev.intValue());
                       }
-                      if (set.size() >= limit) {
+                      if (limit > 0 && set.size() >= limit) {
                         return set;
                       }
                     }
@@ -235,13 +235,14 @@ public class SearchQueryRunner implements QueryRunner<Result<SearchResultValue>>
           }
         }
     );
+    if (limit > 0) {
+      source = new FunctionalIterable<SearchHit>(source).limit(limit);
+    }
     return Sequences.simple(
         ImmutableList.of(
             new Result<SearchResultValue>(
                 segment.getDataInterval().getStart(),
-                new SearchResultValue(
-                    Lists.newArrayList(new FunctionalIterable<SearchHit>(source).limit(limit))
-                )
+                new SearchResultValue(Lists.newArrayList(source))
             )
         )
     );
