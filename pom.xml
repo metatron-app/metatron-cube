@@ -112,6 +112,7 @@
         <module>extensions-contrib/range</module>
         <module>extensions-contrib/area</module>
         <module>extensions-contrib/orc-extensions</module>
+        <module>extensions-contrib/uri-firehose</module>
 
         <!-- distribution packaging -->
         <module>distribution</module>
