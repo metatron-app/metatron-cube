@@ -23,6 +23,14 @@ public class DruidTDigest {
     this.digest = digest;
   }
 
+  public void add(Object o) {
+    if (o instanceof Number) {
+      add(((Number)o).doubleValue());
+    } else if (o instanceof DruidTDigest) {
+      add((DruidTDigest)o);
+    }
+  }
+
   public void add(double x)
   {
     digest.add(x);
@@ -167,6 +175,7 @@ public class DruidTDigest {
     {
       buf.putInt(TDigest.VERBOSE_ENCODING);
       buf.putDouble(compression());
+      buf.putInt(0);
     } else {
       digest.asBytes(buf);
     }

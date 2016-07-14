@@ -1,11 +1,8 @@
 package io.druid.query.aggregation.median;
 
 import com.google.common.primitives.Doubles;
-import com.google.common.primitives.Floats;
-import io.druid.query.aggregation.Aggregator;
-import io.druid.query.aggregation.BufferAggregator;
-import io.druid.query.aggregation.TestDoubleColumnSelector;
-import io.druid.query.aggregation.TestFloatColumnSelector;
+import io.druid.query.aggregation.*;
+import org.apache.commons.lang.ArrayUtils;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -13,13 +10,13 @@ import java.nio.ByteBuffer;
 
 public class DruidTDigestAggregatorTest {
 
-  private void aggregate(TestDoubleColumnSelector selector, Aggregator aggregator)
+  private void aggregate(TestObjectColumnSelector selector, Aggregator aggregator)
   {
     aggregator.aggregate();
     selector.increment();
   }
 
-  private void aggregateBuffer(TestDoubleColumnSelector selector, BufferAggregator aggregator, ByteBuffer buf, int position)
+  private void aggregateBuffer(TestObjectColumnSelector selector, BufferAggregator aggregator, ByteBuffer buf, int position)
   {
     aggregator.aggregate(buf, position);
     selector.increment();
@@ -28,9 +25,9 @@ public class DruidTDigestAggregatorTest {
   @Test
   public void testDruidTDigest()
   {
-    final double[] values = {1, 1000, 1000, 1000};
+    final Double[] values = {1d, 1000d, 1000d, 1000d};
 
-    final TestDoubleColumnSelector selector = new TestDoubleColumnSelector(values);
+    final TestObjectColumnSelector selector = new TestObjectColumnSelector(values);
 
     DruidTDigestAggregator aggregator = new DruidTDigestAggregator("test", selector, 10);
 
@@ -48,7 +45,7 @@ public class DruidTDigestAggregatorTest {
     Assert.assertEquals("quartile value does not match", 1.0, quartile, 0);
 
     double[] quartiles = digest.quantiles(new double[] {0.25, 0.5, 0.75, 1});
-    final double[] expected = values;
+    final double[] expected = ArrayUtils.toPrimitive(values);
 
     Assert.assertArrayEquals("quartile values do not match", expected, quartiles, 0);
   }
@@ -56,10 +53,10 @@ public class DruidTDigestAggregatorTest {
   @Test
   public void testBufferAggregate() throws Exception
   {
-    final double[] values = {23, 19, 10, 16, 36, 2, 9, 32, 30, 45};
+    final Double[] values = {23d, 19d, 10d, 16d, 36d, 2d, 9d, 32d, 30d, 45d};
     final int compression = 10;
 
-    final TestDoubleColumnSelector selector = new TestDoubleColumnSelector(values);
+    final TestObjectColumnSelector selector = new TestObjectColumnSelector((Object[])values);
 
     DruidTDigestAggregatorFactory factory = new DruidTDigestAggregatorFactory(
         "billy", "billy", compression

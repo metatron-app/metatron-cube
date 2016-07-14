@@ -1,6 +1,8 @@
 package io.druid.query.aggregation.area;
 
 import com.google.common.collect.Ordering;
+import com.google.common.primitives.Doubles;
+import com.google.common.primitives.Ints;
 import io.druid.data.input.InputRow;
 import io.druid.segment.column.ColumnBuilder;
 import io.druid.segment.data.GenericIndexed;

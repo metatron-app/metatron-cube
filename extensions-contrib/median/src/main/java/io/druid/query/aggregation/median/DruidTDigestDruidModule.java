@@ -14,7 +14,6 @@ public class DruidTDigestDruidModule implements DruidModule{
   public List<? extends Module> getJacksonModules() {
     return ImmutableList.of(
       new SimpleModule().registerSubtypes(
-          DruidTDigestCombiningAggregatorFactory.class,
           DruidTDigestAggregatorFactory.class,
           DruidTDigestMedianPostAggregator.class,
           DruidTDigestQuantilePostAggregator.class,

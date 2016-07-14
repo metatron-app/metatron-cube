@@ -39,7 +39,7 @@ public class MetricAreaAggregationTest
         readFileFromClasspathAsString("simple_test_data_record_parser.json"),
         readFileFromClasspathAsString("simple_test_data_aggregators.json"),
         0,
-        QueryGranularities.DAY,
+        QueryGranularities.NONE,
         100,
         readFileFromClasspathAsString("simple_test_data_group_by_query.json")
     );

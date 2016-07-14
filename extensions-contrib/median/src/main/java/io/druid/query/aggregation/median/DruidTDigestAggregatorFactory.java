@@ -6,6 +6,7 @@ import com.google.common.base.Preconditions;
 import com.google.common.primitives.Ints;
 import io.druid.query.aggregation.Aggregator;
 import io.druid.query.aggregation.AggregatorFactory;
+import io.druid.query.aggregation.AggregatorFactoryNotMergeableException;
 import io.druid.query.aggregation.BufferAggregator;
 import io.druid.segment.ColumnSelectorFactory;
 import org.apache.commons.codec.binary.Base64;
@@ -41,7 +42,7 @@ public class DruidTDigestAggregatorFactory extends AggregatorFactory{
   public Aggregator factorize(ColumnSelectorFactory metricFactory) {
     return new DruidTDigestAggregator(
         name,
-        metricFactory.makeDoubleColumnSelector(fieldName),
+        metricFactory.makeObjectColumnSelector(fieldName),
         compression
         );
   }
@@ -49,7 +50,7 @@ public class DruidTDigestAggregatorFactory extends AggregatorFactory{
   @Override
   public BufferAggregator factorizeBuffered(ColumnSelectorFactory metricFactory) {
     return new DruidTDigestBufferAggregator(
-        metricFactory.makeDoubleColumnSelector(fieldName),
+        metricFactory.makeObjectColumnSelector(fieldName),
         compression
     );
   }
@@ -60,14 +61,28 @@ public class DruidTDigestAggregatorFactory extends AggregatorFactory{
   }
 
   @Override
-  public Object combine(Object lhs, Object rhs) {
-    ((DruidTDigest)lhs).add((DruidTDigest)rhs);
+  public Object combine(Object lhs, Object rhs)
+  {
+    ((DruidTDigest)lhs).add(rhs);
     return lhs;
   }
 
   @Override
-  public AggregatorFactory getCombiningFactory() {
-    return new DruidTDigestCombiningAggregatorFactory(name, name, compression);
+  public AggregatorFactory getCombiningFactory()
+  {
+    return new DruidTDigestAggregatorFactory(name, name, compression);
+  }
+
+  @Override
+  public AggregatorFactory getMergingFactory(AggregatorFactory other) throws AggregatorFactoryNotMergeableException
+  {
+    if(other.getName().equals(getName()) && other instanceof DruidTDigestAggregatorFactory) {
+      return new DruidTDigestAggregatorFactory(
+          name, name, compression
+      );
+    } else {
+      throw new AggregatorFactoryNotMergeableException(this, other);
+    }
   }
 
   @Override
@@ -84,18 +99,12 @@ public class DruidTDigestAggregatorFactory extends AggregatorFactory{
   @Override
   public Object deserialize(Object object) {
     if (object instanceof byte[]) {
-      final DruidTDigest digest = DruidTDigest.fromBytes(ByteBuffer.wrap((byte[]) object));
-
-      return digest;
+      return DruidTDigest.fromBytes(ByteBuffer.wrap((byte[]) object));
     } else if (object instanceof ByteBuffer) {
-      final DruidTDigest digest = DruidTDigest.fromBytes((ByteBuffer) object);
-
-      return digest;
+      return DruidTDigest.fromBytes((ByteBuffer) object);
     } else if (object instanceof String) {
       byte[] bytes = Base64.decodeBase64(StringUtils.getBytesUtf8((String) object));
-      final DruidTDigest digest = DruidTDigest.fromBytes(ByteBuffer.wrap(bytes));
-
-      return digest;
+      return DruidTDigest.fromBytes(ByteBuffer.wrap(bytes));
     } else {
       return object;
     }

@@ -31,26 +31,16 @@ public class DruidTDigestAggregationTest
   @Test
   public void testIngestWithNullsIgnoredAndQuery() throws Exception
   {
-    MapBasedRow row = ingestAndQuery(true);
+    MapBasedRow row = ingestAndQuery();
     Assert.assertEquals(99.596909, row.getFloatMetric("index_median"), 0.0001);
     Assert.assertEquals(135.109191, row.getFloatMetric("index_quantile"), 0.0001);
     double[] expected = new double[] {92.782760, 94.469747, 99.596909, 106.793700};
     Assert.assertArrayEquals(expected, (double[])row.getRaw("index_quantiles"), 0.0001);
   }
 
-  @Test
-  public void testIngestWithNullsToZeroAndQuery() throws Exception
+  private MapBasedRow ingestAndQuery() throws Exception
   {
-    MapBasedRow row = ingestAndQuery(false);
-    Assert.assertEquals(0.0, row.getFloatMetric("index_median"), 0.0001);
-    Assert.assertEquals(135.109191, row.getFloatMetric("index_quantile"), 0.0001);
-    double[] expected = new double[] {0.0, 0.0, 0.0, 99.596909};
-    Assert.assertArrayEquals(expected, (double[])row.getRaw("index_quantiles"), 0.0001);
-  }
-
-  private MapBasedRow ingestAndQuery(boolean ignoreNulls) throws Exception
-  {
-    String ingestionAgg = ignoreNulls ? "digestQuantileCombineAgg" : "digestQuantileAgg";
+    String ingestionAgg = "digestQuantileAgg";
 
     String metricSpec = "[{"
         + "\"type\": \"" + ingestionAgg + "\","
@@ -81,7 +71,7 @@ public class DruidTDigestAggregationTest
         + "\"granularity\": \"ALL\","
         + "\"dimensions\": [],"
         + "\"aggregations\": ["
-        + "  { \"type\": \"digestQuantileCombineAgg\", \"name\": \"index_ah\", \"fieldName\": \"index_ah\" }"
+        + "  { \"type\": \"digestQuantileAgg\", \"name\": \"index_ah\", \"fieldName\": \"index_ah\" }"
         + "],"
         + "\"postAggregations\": ["
         + "  { \"type\": \"digestMedian\", \"name\": \"index_median\", \"fieldName\": \"index_ah\"},"

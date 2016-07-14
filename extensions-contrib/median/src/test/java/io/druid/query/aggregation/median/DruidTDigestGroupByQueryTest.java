@@ -234,6 +234,6 @@ public class DruidTDigestGroupByQueryTest
     );
 
     Iterable<Row> results = GroupByQueryRunnerTestHelper.runQuery(factory, runner, query);
-    TestHelper.assertExpectedObjects(expectedResults, results, "approx-histo");
+    TestHelper.assertExpectedObjects(expectedResults, results, "T Digest median");
   }
 }

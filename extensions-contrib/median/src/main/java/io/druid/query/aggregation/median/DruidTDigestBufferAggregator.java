@@ -3,16 +3,17 @@ package io.druid.query.aggregation.median;
 import io.druid.query.aggregation.BufferAggregator;
 import io.druid.segment.DoubleColumnSelector;
 import io.druid.segment.FloatColumnSelector;
+import io.druid.segment.ObjectColumnSelector;
 
 import java.nio.ByteBuffer;
 
 public class DruidTDigestBufferAggregator implements BufferAggregator {
 
-  private final DoubleColumnSelector selector;
+  private final ObjectColumnSelector selector;
   private final double compression;
 
   public DruidTDigestBufferAggregator(
-      DoubleColumnSelector selector,
+      ObjectColumnSelector selector,
       int compression
   )
   {
