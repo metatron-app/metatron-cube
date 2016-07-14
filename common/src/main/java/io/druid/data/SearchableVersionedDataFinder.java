@@ -20,6 +20,7 @@
 package io.druid.data;
 
 import javax.annotation.Nullable;
+import java.util.List;
 import java.util.regex.Pattern;
 
 /**
@@ -44,6 +45,15 @@ public interface SearchableVersionedDataFinder<DataDescriptor>
    */
   DataDescriptor getLatestVersion(DataDescriptor descriptorBase, @Nullable final Pattern pattern);
 
+  /**
+   * Get's list of DataDescriptors to the all data quantums starting with descriptorBase and matching based on pattern
+   *
+   * @param descriptorBase The base unit of describing the data.
+   * @param pattern        A pattern which must match in order for a DataDescriptor to be considered.
+   *
+   * @return A list of DataDescriptors which match pattern, are children of descriptorBase.
+   */
+  List<DataDescriptor> getAllVersions(DataDescriptor descriptorBase, @Nullable final Pattern pattern);
   /**
    * @return The class of the descriptor for the data
    */

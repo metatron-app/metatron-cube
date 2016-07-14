@@ -40,18 +40,23 @@ import java.io.InputStreamReader;
 import java.net.URI;
 import java.util.List;
 import java.util.Map;
+import java.util.regex.Pattern;
 
 public class HadoopURISettlingConfig extends HadoopSettlingConfig
 {
   final URI uri;
+  final String pattern;
   final String format;
   final List<String> columns;
   final Parser<String, Object> parser;
   final Map<String, SearchableVersionedDataFinder> pullers;
 
+  private final Pattern compiledPattern;
+
   @JsonCreator
   public HadoopURISettlingConfig(
       @JsonProperty(value = "uri", required = true) final URI uri,
+      @JsonProperty(value = "pattern", required = false) final String pattern,
       @JsonProperty(value = "format", required = true) final String format,
       @JsonProperty(value = "columns", required = true) final List<String> columns,
       @JsonProperty(value = "constColumns", required = true) final List<String> constColumns,
@@ -67,6 +72,8 @@ public class HadoopURISettlingConfig extends HadoopSettlingConfig
   {
     super(constColumns, regexColumns, paramNameColumn, paramValueColumn, aggTypeColumn, offset, size, settlingYN);
     this.uri = uri;
+    this.pattern = pattern;
+    this.compiledPattern = (pattern == null) ? null : Pattern.compile(pattern);
     this.format = format;
     this.columns = columns;
     this.parser = getParser();
@@ -77,6 +84,12 @@ public class HadoopURISettlingConfig extends HadoopSettlingConfig
   public URI getUri()
   {
     return uri;
+  }
+
+  @JsonProperty
+  public String getPattern()
+  {
+    return pattern;
   }
 
   @JsonProperty
@@ -110,27 +123,31 @@ public class HadoopURISettlingConfig extends HadoopSettlingConfig
       );
     }
     final URIDataPuller puller = (URIDataPuller) pullerRaw;
-    final String uriPath = uri.getPath();
-    final InputStream source;
+    final List<URI> uriList = pullerRaw.getAllVersions(uri, compiledPattern);
 
     List<Map<String, Object>> maps = Lists.newArrayList();
 
-    try {
-      if (CompressionUtils.isGz(uriPath)) {
-        source = CompressionUtils.gzipInputStream(puller.getInputStream(uri));
-      } else {
-        source = puller.getInputStream(uri);
+    for (URI fileURI: uriList) {
+      final String uriPath = fileURI.getPath();
+      final InputStream source;
+
+      try {
+        if (CompressionUtils.isGz(uriPath)) {
+          source = CompressionUtils.gzipInputStream(puller.getInputStream(fileURI));
+        } else {
+          source = puller.getInputStream(fileURI);
+        }
+
+        BufferedReader reader = new BufferedReader(new InputStreamReader(source));
+
+        String line;
+        while ((line = reader.readLine()) != null) {
+          maps.add(parser.parse(line));
+        }
+
+      } catch (IOException e) {
+        e.printStackTrace();
       }
-
-      BufferedReader reader = new BufferedReader(new InputStreamReader(source));
-
-      String line;
-      while ((line = reader.readLine()) != null) {
-        maps.add(parser.parse(line));
-      }
-
-    } catch (IOException e) {
-      e.printStackTrace();
     }
 
     return super.setUp(org, maps);

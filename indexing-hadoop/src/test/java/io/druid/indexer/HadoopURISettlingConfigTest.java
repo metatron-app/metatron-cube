@@ -53,7 +53,7 @@ public class HadoopURISettlingConfigTest
 
   private List<String> staticColumns = Arrays.asList("module_name", "eqp_param_name");
   private List<String> regexColumns = Arrays.asList("eqp_recipe_id", "eqp_step_id", "lot_code");
-  String configString = "{\"type\":\"uri\",\"uri\":\"file:/Users/ktpark/result.txt\",\"format\":\"tsv\",\"columns\":[\"module_name\",\"eqp_param_name\",\"eqp_recipe_id\",\"eqp_step_id\",\"lot_code\",\"sum_type_cd\",\"count_settling\",\"count_activation\"],\"constColumns\":[\"module_name\",\"eqp_param_name\"],\"regexColumns\":[\"eqp_recipe_id\",\"eqp_step_id\",\"lot_code\"],\"paramNameColumn\":\"eqp_param_name\",\"paramValueColumn\":\"eqp_param_value\",\"typeColumn\":\"sum_type_cd\",\"offsetColumn\":\"count_settling\",\"sizeColumn\":\"count_activation\",\"settlingYNColumn\":\"settling\"}";
+  String configString = "{\"type\":\"uri\",\"uri\":\"file:/Users/ktpark/sandbox/settling2\",\"format\":\"tsv\",\"columns\":[\"module_name\",\"eqp_param_name\",\"eqp_recipe_id\",\"eqp_step_id\",\"lot_code\",\"sum_type_cd\",\"count_settling\",\"count_activation\"],\"constColumns\":[\"module_name\",\"eqp_param_name\"],\"regexColumns\":[\"eqp_recipe_id\",\"eqp_step_id\",\"lot_code\"],\"paramNameColumn\":\"eqp_param_name\",\"paramValueColumn\":\"eqp_param_value\",\"typeColumn\":\"sum_type_cd\",\"offsetColumn\":\"count_settling\",\"sizeColumn\":\"count_activation\",\"settlingYNColumn\":\"settling\"}";
 
   @Before
   public void setUp() throws IOException

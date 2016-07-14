@@ -20,6 +20,7 @@
 package io.druid.storage.s3;
 
 import com.google.common.base.Throwables;
+import com.google.common.collect.Lists;
 import com.google.inject.Inject;
 import com.metamx.common.RetryUtils;
 import io.druid.data.SearchableVersionedDataFinder;
@@ -27,7 +28,9 @@ import org.jets3t.service.impl.rest.httpclient.RestS3Service;
 import org.jets3t.service.model.S3Object;
 
 import javax.annotation.Nullable;
+import java.io.IOException;
 import java.net.URI;
+import java.util.List;
 import java.util.concurrent.Callable;
 import java.util.regex.Pattern;
 
@@ -87,6 +90,43 @@ public class S3TimestampVersionedDataFinder extends S3DataSegmentPuller implemen
                 }
               }
               return latest;
+            }
+          },
+          shouldRetryPredicate(),
+          DEFAULT_RETRY_COUNT
+      );
+    }
+    catch (Exception e) {
+      throw Throwables.propagate(e);
+    }
+  }
+
+  @Override
+  public List<URI> getAllVersions(final URI uri, final @Nullable Pattern pattern)
+  {
+    try {
+      return RetryUtils.retry(
+          new Callable<List<URI>>()
+          {
+            @Override
+            public List<URI> call() throws Exception
+            {
+              final S3Coords coords = new S3Coords(checkURI(uri));
+              final List<URI> uriList = Lists.newArrayList();
+              S3Object[] objects = s3Client.listObjects(coords.bucket, coords.path, "/");
+              if (objects != null) {
+                for (S3Object storageObject : objects) {
+                  storageObject.closeDataInputStream();
+                  String keyString = storageObject.getKey().substring(coords.path.length());
+                  if (keyString.startsWith("/")) {
+                    keyString = keyString.substring(1);
+                  }
+                  if (pattern == null || pattern.matcher(keyString).matches()) {
+                    uriList.add(new URI(String.format("s3://%s/%s", storageObject.getBucketName(), storageObject.getKey())));
+                  }
+                }
+              }
+              return uriList;
             }
           },
           shouldRetryPredicate(),

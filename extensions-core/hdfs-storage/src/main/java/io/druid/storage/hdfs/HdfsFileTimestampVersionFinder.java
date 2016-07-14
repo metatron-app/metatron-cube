@@ -20,6 +20,8 @@
 package io.druid.storage.hdfs;
 
 import com.google.common.base.Throwables;
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Lists;
 import com.google.inject.Inject;
 import com.metamx.common.RetryUtils;
 import io.druid.data.SearchableVersionedDataFinder;
@@ -32,6 +34,7 @@ import org.apache.hadoop.fs.PathFilter;
 import javax.annotation.Nullable;
 import java.io.IOException;
 import java.net.URI;
+import java.util.List;
 import java.util.concurrent.Callable;
 import java.util.regex.Pattern;
 
@@ -73,6 +76,33 @@ public class HdfsFileTimestampVersionFinder extends HdfsDataSegmentPuller implem
     return mostRecentURI;
   }
 
+  private List<URI> filteredFiles(final Path path, final Pattern pattern) throws IOException
+  {
+    final PathFilter filter = new PathFilter()
+    {
+      @Override
+      public boolean accept(Path path)
+      {
+        return pattern == null || pattern.matcher(path.getName()).matches();
+      }
+    };
+    List<URI> uriList = Lists.newArrayList();
+    final FileSystem fs = path.getFileSystem(config);
+    if (fs.isFile(path)) {
+      if(filter.accept(path)) {
+        uriList.add(path.toUri());
+      }
+    } else if (fs.isDirectory(path)){
+      for (FileStatus status : fs.listStatus(path, filter)) {
+        if (status.isFile()) {
+          uriList.add(status.getPath().toUri());
+        }
+      }
+    }
+
+    return uriList;
+  }
+
   /**
    * Returns the latest modified file at the uri of interest.
    *
@@ -97,6 +127,33 @@ public class HdfsFileTimestampVersionFinder extends HdfsDataSegmentPuller implem
                 return null;
               }
               return mostRecentInDir(fs.isDirectory(path) ? path : path.getParent(), pattern);
+            }
+          },
+          shouldRetryPredicate(),
+          DEFAULT_RETRY_COUNT
+      );
+    }
+    catch (Exception e) {
+      throw Throwables.propagate(e);
+    }
+  }
+
+  @Override
+  public List<URI> getAllVersions(final URI uri, final @Nullable Pattern pattern)
+  {
+    final Path path = new Path(uri);
+    try {
+      return RetryUtils.retry(
+          new Callable<List<URI>>()
+          {
+            @Override
+            public List<URI> call() throws Exception
+            {
+              final FileSystem fs = path.getFileSystem(config);
+              if (!fs.exists(path)) {
+                return ImmutableList.of();
+              }
+              return filteredFiles(path, pattern);
             }
           },
           shouldRetryPredicate(),

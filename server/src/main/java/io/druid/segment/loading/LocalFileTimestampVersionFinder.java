@@ -20,6 +20,7 @@
 package io.druid.segment.loading;
 
 import com.google.common.base.Throwables;
+import com.google.common.collect.Lists;
 import com.metamx.common.RetryUtils;
 import io.druid.data.SearchableVersionedDataFinder;
 
@@ -30,6 +31,7 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.net.URI;
 import java.nio.file.Path;
+import java.util.List;
 import java.util.concurrent.Callable;
 import java.util.regex.Pattern;
 
@@ -65,6 +67,29 @@ public class LocalFileTimestampVersionFinder extends LocalDataSegmentPuller
     }
     return latest;
   }
+  private List<URI> filteredFiles(final Path path, final Pattern pattern) throws IOException
+  {
+    FileFilter fileFilter = new FileFilter() {
+      @Override
+      public boolean accept(File pathname) {
+        return pathname.exists()
+            && pathname.isFile()
+            && (pattern == null || pattern.matcher(pathname.getName()).matches());
+      }
+    };
+    List<URI> uriList = Lists.newArrayList();
+    if (path.toFile().isFile()) {
+      if (fileFilter.accept(path.toFile())) {
+        uriList.add(path.toUri());
+      }
+    } else if (path.toFile().isDirectory()){
+      for (File file: path.toFile().listFiles(fileFilter)) {
+        uriList.add(file.toURI());
+      }
+    }
+
+    return uriList;
+  }
 
   /**
    * Matches based on a pattern in the file name. Returns the file with the latest timestamp.
@@ -89,6 +114,32 @@ public class LocalFileTimestampVersionFinder extends LocalDataSegmentPuller
                   file.isDirectory() ? file.toPath() : file.getParentFile().toPath(),
                   pattern
               );
+            }
+          },
+          shouldRetryPredicate(),
+          DEFAULT_RETRY_COUNT
+      );
+    }
+    catch (Exception e) {
+      if (e instanceof FileNotFoundException) {
+        return null;
+      }
+      throw Throwables.propagate(e);
+    }
+  }
+
+  @Override
+  public List<URI> getAllVersions(URI uri, @Nullable final Pattern pattern)
+  {
+    final File file = new File(uri);
+    try {
+      return RetryUtils.retry(
+          new Callable<List<URI>>()
+          {
+            @Override
+            public List<URI> call() throws Exception
+            {
+              return filteredFiles(file.toPath(), pattern);
             }
           },
           shouldRetryPredicate(),
