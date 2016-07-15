@@ -303,7 +303,7 @@ public abstract class HadoopSettlingConfig implements SettlingConfig
     {
       int[] codes = new int[aggregatorFactory.length];
       for (int i = 0; i < codes.length; i++) {
-        String className = aggregatorFactory.getClass().getSimpleName();
+        String className = aggregatorFactory[i].getClass().getSimpleName();
 
         switch (className) {
           case "DoubleMinAggregatorFactory":

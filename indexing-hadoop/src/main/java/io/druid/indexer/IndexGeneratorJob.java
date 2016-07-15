@@ -860,6 +860,9 @@ public class IndexGeneratorJob implements Jobby
       return value;
     }
     final String stringVal = String.valueOf(value);
+    if (stringVal.isEmpty()) {
+      return null;
+    }
     int i = 0;
     char first = stringVal.charAt(i);
     if (!Character.isDigit(first)) {
@@ -881,6 +884,9 @@ public class IndexGeneratorJob implements Jobby
           metExp = true;
           if (i < stringVal.length() - 1 && stringVal.charAt(i + 1) == '-') {
             i++;
+          }
+          if (i == stringVal.length() - 1) {
+            return null;
           }
           continue;
         }
