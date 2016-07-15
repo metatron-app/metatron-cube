@@ -859,6 +859,11 @@ public class IndexGeneratorJob implements Jobby
     if (value == null || value instanceof Number) {
       return value;
     }
+
+    if (value.equals("NaN")) {
+      return Double.valueOf(0);
+    }
+
     final String stringVal = String.valueOf(value);
     if (stringVal.isEmpty()) {
       return null;
