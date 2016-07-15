@@ -204,13 +204,14 @@ public abstract class HadoopSettlingConfig implements SettlingConfig
         HadoopSettlingMatcher settlingMatcher = matcherFactory.getSettlingMatcher(regexKeys);
         int[][] settlings = settlingMatcherMap.get(settlingMatcher);
         if (settlings == null) {
-          settlingMatcherMap.put(settlingMatcher, settlings = new int[CODE.values().length][2]);
+          settlingMatcherMap.put(settlingMatcher, settlings = new int[CODE.values().length][]);
         }
         String typeName = (String) row.get(settlingConfig.aggTypeColumn);
         CODE type = CODE.fromString(typeName);
         if (type != null) {
           String settling = (String) row.get(settlingConfig.offsetColumn);
           String activation = (String) row.get(settlingConfig.sizeColumn);
+          settlings[type.ordinal()] = new int[2];
           settlings[type.ordinal()][0] = (int) Float.parseFloat(settling);
           settlings[type.ordinal()][1] = (int) Float.parseFloat(activation);
         }
@@ -237,6 +238,8 @@ public abstract class HadoopSettlingConfig implements SettlingConfig
             int code = codes[idx];
             if (settling[code] != null) {
               applied[i][idx] = new RangeAggregatorFactory(org[idx], settling[code][0], settling[code][1]);
+            } else if (code != CODE.ME.ordinal() && settling[0] != null) {
+              applied[i][idx] = new RangeAggregatorFactory(org[idx], settling[CODE.ME.ordinal()][0], settling[CODE.ME.ordinal()][1]);
             } else {
               applied[i][idx] = org[idx];
             }

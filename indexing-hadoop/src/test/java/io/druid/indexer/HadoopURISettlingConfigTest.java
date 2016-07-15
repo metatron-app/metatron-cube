@@ -31,6 +31,7 @@ import io.druid.data.input.MapBasedInputRow;
 import io.druid.guice.GuiceInjectors;
 import io.druid.initialization.Initialization;
 import io.druid.query.aggregation.AggregatorFactory;
+import io.druid.query.aggregation.DoubleMaxAggregatorFactory;
 import io.druid.query.aggregation.DoubleSumAggregatorFactory;
 import io.druid.query.aggregation.range.RangeAggregatorFactory;
 import org.apache.commons.collections.ListUtils;
@@ -82,8 +83,9 @@ public class HadoopURISettlingConfigTest
   @Test
   public void testSettling() throws IOException, URISyntaxException
   {
-    AggregatorFactory[] origin = new AggregatorFactory[1];
+    AggregatorFactory[] origin = new AggregatorFactory[2];
     origin[0] = new DoubleSumAggregatorFactory("src", "target");
+    origin[1] = new DoubleMaxAggregatorFactory("src", "target");
     // match
     SettlingConfig.Settler settler = settlingConfig.setUp(origin);
 
@@ -100,9 +102,9 @@ public class HadoopURISettlingConfigTest
     );
     AggregatorFactory[][] applied = settler.applySettling(inputRow);
     Assert.assertEquals(2, applied.length);
-    Assert.assertTrue(applied[0][0] instanceof RangeAggregatorFactory);
+    Assert.assertTrue(applied[0][1] instanceof RangeAggregatorFactory);
     Assert.assertArrayEquals(origin, applied[1]);
-    RangeAggregatorFactory rangeAggregatorFactory = (RangeAggregatorFactory)applied[0][0];
+    RangeAggregatorFactory rangeAggregatorFactory = (RangeAggregatorFactory)applied[0][1];
     Assert.assertEquals(3, rangeAggregatorFactory.getRangeStart().intValue());
     Assert.assertEquals(12, rangeAggregatorFactory.getRangeCount().intValue());
 
