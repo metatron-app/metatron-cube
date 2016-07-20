@@ -220,4 +220,10 @@ public class BrokerQueryResource extends QueryResource
         uri.getFragment()
     );
   }
+
+  @Override
+  protected Query prepareQuery(Query query)
+  {
+    return warehouse.getToolChest(query).rewriteQuery(query, texasRanger);
+  }
 }

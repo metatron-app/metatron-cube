@@ -205,6 +205,7 @@ public class QueryResource
           throw new ISE("WTF?! Security is enabled but no authorization info found in the request");
         }
       }
+      query = prepareQuery(query);
 
       final Map<String, Object> responseContext = new MapMaker().makeMap();
       final Sequence res = query.run(texasRanger, responseContext);
@@ -377,6 +378,11 @@ public class QueryResource
     finally {
       Thread.currentThread().setName(currThreadName);
     }
+  }
+
+  protected Query prepareQuery(Query query)
+  {
+    return query;
   }
 
   protected class RequestContext

@@ -176,6 +176,11 @@ public abstract class QueryToolChest<ResultType, QueryType extends Query<ResultT
     return segments;
   }
 
+  public QueryType rewriteQuery(QueryType query, QuerySegmentWalker walker)
+  {
+    return query;
+  }
+
   /**
    * converts result to tabular format to be stored file system.
    * currently, only select and group-by query supports this.

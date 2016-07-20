@@ -175,7 +175,7 @@ public class SelectQuery extends BaseQuery<Result<SelectResultValue>>
   }
 
   @Override
-  public Query<Result<SelectResultValue>> withDataSource(DataSource dataSource)
+  public SelectQuery withDataSource(DataSource dataSource)
   {
     return new SelectQuery(
         dataSource,

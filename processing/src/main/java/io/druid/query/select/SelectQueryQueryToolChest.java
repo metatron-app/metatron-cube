@@ -42,23 +42,29 @@ import io.druid.query.IntervalChunkingQueryRunnerDecorator;
 import io.druid.query.Query;
 import io.druid.query.QueryCacheHelper;
 import io.druid.query.QueryRunner;
+import io.druid.query.QuerySegmentWalker;
 import io.druid.query.QueryToolChest;
 import io.druid.query.Result;
 import io.druid.query.ResultGranularTimestampComparator;
 import io.druid.query.ResultMergeQueryRunner;
+import io.druid.query.TableDataSource;
 import io.druid.query.TabularFormat;
+import io.druid.query.UnionDataSource;
 import io.druid.query.aggregation.MetricManipulationFn;
 import io.druid.query.dimension.DimensionSpec;
 import io.druid.query.filter.DimFilter;
-import io.druid.timeline.DataSegmentUtils;
+import io.druid.query.spec.MultipleIntervalSegmentSpec;
 import io.druid.segment.VirtualColumn;
+import io.druid.timeline.DataSegmentUtils;
 import io.druid.timeline.LogicalSegment;
+import org.apache.commons.lang.mutable.MutableInt;
 import org.joda.time.DateTime;
 import org.joda.time.Interval;
 
 import java.nio.ByteBuffer;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -82,15 +88,26 @@ public class SelectQueryQueryToolChest extends QueryToolChest<Result<SelectResul
   private final ObjectMapper jsonMapper;
 
   private final IntervalChunkingQueryRunnerDecorator intervalChunkingQueryRunnerDecorator;
+  private final QuerySegmentWalker segmentWalker;
 
   @Inject
+  public SelectQueryQueryToolChest(
+      ObjectMapper jsonMapper,
+      IntervalChunkingQueryRunnerDecorator intervalChunkingQueryRunnerDecorator,
+      QuerySegmentWalker segmentWalker
+  )
+  {
+    this.jsonMapper = jsonMapper;
+    this.intervalChunkingQueryRunnerDecorator = intervalChunkingQueryRunnerDecorator;
+    this.segmentWalker = segmentWalker;
+  }
+
   public SelectQueryQueryToolChest(
       ObjectMapper jsonMapper,
       IntervalChunkingQueryRunnerDecorator intervalChunkingQueryRunnerDecorator
   )
   {
-    this.jsonMapper = jsonMapper;
-    this.intervalChunkingQueryRunnerDecorator = intervalChunkingQueryRunnerDecorator;
+    this(jsonMapper, intervalChunkingQueryRunnerDecorator, null);
   }
 
   @Override
@@ -370,6 +387,92 @@ public class SelectQueryQueryToolChest extends QueryToolChest<Result<SelectResul
       }
     }
     return queryIntervals;
+  }
+
+  @Override
+  public SelectQuery rewriteQuery(SelectQuery query, QuerySegmentWalker walker)
+  {
+    if (!query.getPagingSpec().getPagingIdentifiers().isEmpty()) {
+      // todo
+      return query;
+    }
+
+    int threshold = query.getPagingSpec().getThreshold();
+    List<String> dataSourceNames = query.getDataSource().getNames();
+    Map<String, Object> context = Maps.newHashMap();
+    List<Interval> intervals = query.getQuerySegmentSpec().getIntervals();
+    SelectMetaQuery metaQuery = new SelectMetaQuery(
+        query.getDataSource(), query.getQuerySegmentSpec(),
+        query.getDimensionsFilter(), query.getGranularity(), context
+    );
+    List<Result<SelectMetaResultValue>> results =
+        Sequences.toList(
+            segmentWalker.getQueryRunnerForIntervals(metaQuery, intervals).run(metaQuery, context),
+            Lists.<Result<SelectMetaResultValue>>newArrayList()
+        );
+
+    Comparator<Interval> comparator = query.isDescending() ? Comparators.intervalsByEndThenStart()
+                                                           : Comparators.intervalsByStartThenEnd();
+    Map<String, Map<Interval, MutableInt>> mapping = Maps.newHashMap();
+    for (Result<SelectMetaResultValue> result : results) {
+      for (Map.Entry<String, Integer> entry : result.getValue().getPerSegmentCounts().entrySet()) {
+        String identifier = entry.getKey();
+        MutableInt value = new MutableInt(entry.getValue());
+        String dataSource = findDataSource(dataSourceNames, identifier);
+        Map<Interval, MutableInt> counts = mapping.get(dataSource);
+        if (counts == null) {
+          mapping.put(dataSource, counts = Maps.newTreeMap(comparator));
+        }
+        Interval interval = DataSegmentUtils.INTERVAL_EXTRACTOR(dataSource).apply(identifier);
+        MutableInt prev = counts.put(interval, value);
+        if (prev != null) {
+          value.add(prev.intValue());
+        }
+      }
+    }
+    List<String> targetDataSources = Lists.newArrayList();
+    List<Interval> targetIntervals = Lists.newArrayList();
+    for (String dataSource : dataSourceNames) {
+      Map<Interval, MutableInt> counts = mapping.get(dataSource);
+      if (counts == null) {
+        continue;
+      }
+      targetDataSources.add(dataSource);
+      boolean singleDatasource = targetDataSources.size() == 1;
+      for (Map.Entry<Interval, MutableInt> entry : counts.entrySet()) {
+        if (singleDatasource) {
+          targetIntervals.add(entry.getKey());
+        }
+        threshold -= entry.getValue().intValue();
+        if (singleDatasource && threshold < 0) {
+          break;
+        }
+      }
+      if (threshold < 0) {
+        break;
+      }
+    }
+    if (targetDataSources.size() == 1) {
+      return query.withDataSource(new TableDataSource(targetDataSources.get(0)))
+                  .withQuerySegmentSpec(new MultipleIntervalSegmentSpec(targetIntervals));
+    }
+    return query.withDataSource(new UnionDataSource(TableDataSource.of(targetDataSources)));
+  }
+
+  private String findDataSource(List<String> dataSourceNames, String identifier)
+  {
+    String candidate = null;
+    for (String dataSourceName : dataSourceNames) {
+      if (identifier.startsWith(dataSourceName + "_")) {
+        if (candidate == null || candidate.length() < dataSourceName.length()) {
+          candidate = dataSourceName;
+        }
+      }
+    }
+    if (candidate == null) {
+      throw new IllegalStateException("invalid identifier " + identifier);
+    }
+    return candidate;
   }
 
   @Override

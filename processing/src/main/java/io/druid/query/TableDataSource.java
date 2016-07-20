@@ -21,13 +21,30 @@ package io.druid.query;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
+import com.google.common.base.Function;
+import com.google.common.collect.Lists;
 
+import javax.annotation.Nullable;
 import java.util.Arrays;
 import java.util.List;
 
 @JsonTypeName("table")
 public class TableDataSource implements DataSource
 {
+  public static List<TableDataSource> of(List<String> dataSources)
+  {
+    return Lists.transform(
+        dataSources, new Function<String, TableDataSource>()
+        {
+          @Override
+          public TableDataSource apply(String input)
+          {
+            return new TableDataSource(input);
+          }
+        }
+    );
+  }
+
   @JsonProperty
   private final String name;
 
