@@ -25,6 +25,7 @@ import com.google.inject.Binder;
 import com.google.inject.Guice;
 import com.google.inject.Injector;
 import com.google.inject.Module;
+import io.druid.jackson.FunctionInitializer;
 import io.druid.jackson.JacksonModule;
 
 import java.util.Arrays;

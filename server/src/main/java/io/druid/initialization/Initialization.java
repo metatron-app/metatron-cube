@@ -60,6 +60,7 @@ import io.druid.guice.annotations.Json;
 import io.druid.guice.annotations.Smile;
 import io.druid.guice.http.HttpClientModule;
 import io.druid.guice.security.DruidAuthModule;
+import io.druid.jackson.FunctionInitializer;
 import io.druid.metadata.storage.derby.DerbyMetadataStorageDruidModule;
 import io.druid.server.initialization.EmitterModule;
 import io.druid.server.initialization.jetty.JettyServerModule;
@@ -378,7 +379,12 @@ public class Initialization
       extensionModules.addModule(module);
     }
 
-    return Guice.createInjector(Modules.override(intermediateModules).with(extensionModules.getModules()));
+    return Guice.createInjector(
+        Modules.combine(
+            Modules.override(intermediateModules).with(extensionModules.getModules()),
+            new FunctionInitializer()
+        )
+    );
   }
 
   private static class ModuleList

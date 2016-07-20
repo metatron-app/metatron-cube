@@ -19,10 +19,8 @@
 
 package io.druid.math.expr;
 
-
 import com.google.common.base.Supplier;
 import com.google.common.base.Suppliers;
-import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
@@ -42,30 +40,39 @@ import java.util.Set;
 public class Parser
 {
   private static final Logger log = new Logger(Parser.class);
-  private static final Map<String, Supplier<Function>> func;
+  private static final Map<String, Supplier<Function>> functions = Maps.newHashMap();
 
   static {
-    Map<String, Supplier<Function>> functionMap = Maps.newHashMap();
-    for (Class clazz : Function.class.getClasses()) {
+    register(BuiltinFunctions.class);
+  }
+
+  public static void register(Class parent)
+  {
+    for (Class clazz : parent.getClasses()) {
       if (!Modifier.isAbstract(clazz.getModifiers()) && Function.class.isAssignableFrom(clazz)) {
         try {
           Function function = (Function) clazz.newInstance();
           String name = function.name().toLowerCase();
+          if (functions.containsKey(name)) {
+            throw new IllegalArgumentException("function '" + name + "' should not be overridden");
+          }
           Supplier<Function> supplier = function instanceof Function.Factory ? (Function.Factory) function
                                                                              : Suppliers.ofInstance(function);
-          functionMap.put(name, supplier);
+          functions.put(name, supplier);
+          if (parent != BuiltinFunctions.class) {
+            log.info("user defined function '" + name + "' is registered with class " + clazz.getName());
+          }
         }
         catch (Exception e) {
-          log.info("failed to instantiate " + clazz.getName() + ".. ignoring", e);
+          log.info(e, "failed to instantiate " + clazz.getName() + ".. ignoring");
         }
       }
     }
-    func = ImmutableMap.copyOf(functionMap);
   }
 
   public static Expr parse(String in)
   {
-    return parse(in, func);
+    return parse(in, functions);
   }
 
   public static Expr parse(String in, Map<String, Supplier<Function>> func)
@@ -160,8 +167,8 @@ public class Parser
       reset(((UnaryNotExpr) expr).expr);
     } else if (expr instanceof FunctionExpr) {
       FunctionExpr functionExpr = (FunctionExpr) expr;
-      if (functionExpr.function instanceof Function.PartitionFunction) {
-        ((Function.PartitionFunction)functionExpr.function).reset();
+      if (functionExpr.function instanceof BuiltinFunctions.PartitionFunction) {
+        ((BuiltinFunctions.PartitionFunction)functionExpr.function).reset();
       } else {
         for (Expr child : functionExpr.args) {
           reset(child);

@@ -19,24 +19,8 @@
 
 package io.druid.math.expr;
 
-import com.google.common.base.Supplier;
-import io.druid.math.expr.Expr.NumericBinding;
-
-import java.util.List;
-
 /**
  */
-public interface Function
+public interface FunctionLibrary
 {
-  String name();
-
-  ExprEval apply(List<Expr> args, NumericBinding bindings);
-
-  interface Factory extends Supplier<Function>
-  {
-  }
-
-  interface Library
-  {
-  }
 }
