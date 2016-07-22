@@ -19,58 +19,45 @@
 
 package io.druid.query.aggregation.histogram;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.google.common.collect.Sets;
-import io.druid.query.aggregation.PostAggregator;
+import com.fasterxml.jackson.annotation.JsonTypeName;
 
 import java.util.Comparator;
 import java.util.Map;
-import java.util.Set;
 
-public abstract class ApproximateHistogramPostAggregator implements PostAggregator
+/**
+ */
+@JsonTypeName("median")
+public class MedianPostAggregator extends ApproximateHistogramPostAggregator
 {
-  private static final Comparator COMPARATOR = ApproximateHistogramAggregator.COMPARATOR;
-
-  private final String name;
-  private final String fieldName;
-
-  public ApproximateHistogramPostAggregator(
-      String name,
-      String fieldName
+  @JsonCreator
+  public MedianPostAggregator(
+      @JsonProperty("name") String name,
+      @JsonProperty("fieldName") String fieldName
   )
   {
-    this.name = name;
-    this.fieldName = fieldName;
+    super(name, fieldName);
   }
 
   @Override
-  public Set<String> getDependentFields()
+  public Object compute(Map<String, Object> values)
   {
-    return Sets.newHashSet(fieldName);
+    return ((ApproximateHistogramHolder) values.get(this.getFieldName())).getMedian();
   }
 
   @Override
   public Comparator getComparator()
   {
-    return COMPARATOR;
+    return QuantilePostAggregator.COMPARATOR;
   }
 
   @Override
-  public abstract Object compute(Map<String, Object> values);
-
-  @Override
-  @JsonProperty
-  public String getName()
+  public String toString()
   {
-    return name;
+    return "MedianPostAggregator{" +
+           ", name='" + getName() + '\'' +
+           ", fieldName='" + getFieldName() + '\'' +
+           '}';
   }
-
-  @JsonProperty
-  public String getFieldName()
-  {
-    return fieldName;
-  }
-
-  @Override
-  public abstract String toString();
 }
