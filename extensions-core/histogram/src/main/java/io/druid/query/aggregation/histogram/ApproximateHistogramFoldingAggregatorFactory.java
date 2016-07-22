@@ -64,18 +64,18 @@ public class ApproximateHistogramFoldingAggregatorFactory extends ApproximateHis
     if (selector == null) {
       // gracefully handle undefined metrics
 
-      selector = new ObjectColumnSelector<ApproximateHistogram>()
+      selector = new ObjectColumnSelector()
       {
         @Override
-        public Class<ApproximateHistogram> classOfObject()
+        public Class<? extends ApproximateHistogramHolder> classOfObject()
         {
-          return ApproximateHistogram.class;
+          return compact ? ApproximateCompactHistogram.class : ApproximateHistogram.class;
         }
 
         @Override
-        public ApproximateHistogram get()
+        public ApproximateHistogramHolder get()
         {
-          return new ApproximateHistogram(0);
+          return compact ? new ApproximateCompactHistogram(0) : new ApproximateHistogram(0);
         }
       };
     }
@@ -88,6 +88,7 @@ public class ApproximateHistogramFoldingAggregatorFactory extends ApproximateHis
           resolution,
           lowerLimit,
           upperLimit,
+          compact,
           AggregatorUtil.toPredicate(predicate, metricFactory)
       );
     }
@@ -124,7 +125,7 @@ public class ApproximateHistogramFoldingAggregatorFactory extends ApproximateHis
     }
 
     final Class cls = selector.classOfObject();
-    if (cls.equals(Object.class) || ApproximateHistogram.class.isAssignableFrom(cls)) {
+    if (cls.equals(Object.class) || ApproximateHistogramHolder.class.isAssignableFrom(cls)) {
       return new ApproximateHistogramFoldingBufferAggregator(
           selector, resolution, lowerLimit, upperLimit,
           AggregatorUtil.toPredicate(predicate, metricFactory)

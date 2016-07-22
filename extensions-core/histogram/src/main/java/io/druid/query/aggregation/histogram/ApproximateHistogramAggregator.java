@@ -47,9 +47,10 @@ public class ApproximateHistogramAggregator implements Aggregator
   private final int resolution;
   private final float lowerLimit;
   private final float upperLimit;
+  private final boolean compact;
   private final Predicate predicate;
 
-  private ApproximateHistogram histogram;
+  private ApproximateHistogramHolder histogram;
 
   public ApproximateHistogramAggregator(
       String name,
@@ -57,6 +58,7 @@ public class ApproximateHistogramAggregator implements Aggregator
       int resolution,
       float lowerLimit,
       float upperLimit,
+      boolean compact,
       Predicate predicate
   )
   {
@@ -65,8 +67,9 @@ public class ApproximateHistogramAggregator implements Aggregator
     this.resolution = resolution;
     this.lowerLimit = lowerLimit;
     this.upperLimit = upperLimit;
+    this.compact = compact;
     this.predicate = predicate;
-    this.histogram = new ApproximateHistogram(resolution, lowerLimit, upperLimit);
+    reset();
   }
 
   @Override
@@ -80,7 +83,8 @@ public class ApproximateHistogramAggregator implements Aggregator
   @Override
   public void reset()
   {
-    this.histogram = new ApproximateHistogram(resolution, lowerLimit, upperLimit);
+    this.histogram = compact ? new ApproximateCompactHistogram(resolution, lowerLimit, upperLimit)
+                             : new ApproximateHistogram(resolution, lowerLimit, upperLimit);
   }
 
   @Override

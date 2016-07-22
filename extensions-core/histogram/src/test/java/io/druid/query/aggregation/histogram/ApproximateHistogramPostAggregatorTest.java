@@ -47,7 +47,7 @@ public class ApproximateHistogramPostAggregatorTest
     final TestFloatColumnSelector selector = new TestFloatColumnSelector(VALUES);
 
     ApproximateHistogramAggregator agg = new ApproximateHistogramAggregator(
-        "price", selector, 10, Float.NEGATIVE_INFINITY, Float.POSITIVE_INFINITY, Predicates.alwaysTrue());
+        "price", selector, 10, Float.NEGATIVE_INFINITY, Float.POSITIVE_INFINITY, false, Predicates.alwaysTrue());
     for (int i = 0; i < VALUES.length; i++) {
       agg.aggregate();
       selector.increment();

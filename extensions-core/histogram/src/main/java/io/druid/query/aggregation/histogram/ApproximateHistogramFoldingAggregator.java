@@ -27,23 +27,25 @@ import io.druid.segment.ObjectColumnSelector;
 public class ApproximateHistogramFoldingAggregator implements Aggregator
 {
   private final String name;
-  private final ObjectColumnSelector<ApproximateHistogram> selector;
+  private final ObjectColumnSelector<ApproximateHistogramHolder> selector;
   private final int resolution;
   private final float lowerLimit;
   private final float upperLimit;
 
-  private ApproximateHistogram histogram;
+  private ApproximateHistogramHolder histogram;
   private float[] tmpBufferP;
   private long[] tmpBufferB;
 
+  private final boolean compact;
   private final Predicate predicate;
 
   public ApproximateHistogramFoldingAggregator(
       String name,
-      ObjectColumnSelector<ApproximateHistogram> selector,
+      ObjectColumnSelector<ApproximateHistogramHolder> selector,
       int resolution,
       float lowerLimit,
       float upperLimit,
+      boolean compact,
       Predicate predicate
   )
   {
@@ -53,7 +55,8 @@ public class ApproximateHistogramFoldingAggregator implements Aggregator
     this.lowerLimit = lowerLimit;
     this.upperLimit = upperLimit;
     this.predicate = predicate;
-    this.histogram = new ApproximateHistogram(resolution, lowerLimit, upperLimit);
+    this.compact = compact;
+    reset();
 
     tmpBufferP = new float[resolution];
     tmpBufferB = new long[resolution];
@@ -63,7 +66,7 @@ public class ApproximateHistogramFoldingAggregator implements Aggregator
   public void aggregate()
   {
     if (predicate.apply(null)) {
-      ApproximateHistogram h = selector.get();
+      ApproximateHistogramHolder h = selector.get();
       if (h == null) {
         return;
       }
@@ -79,7 +82,8 @@ public class ApproximateHistogramFoldingAggregator implements Aggregator
   @Override
   public void reset()
   {
-    this.histogram = new ApproximateHistogram(resolution, lowerLimit, upperLimit);
+    this.histogram = compact ? new ApproximateCompactHistogram(resolution, lowerLimit, upperLimit)
+                             : new ApproximateHistogram(resolution, lowerLimit, upperLimit);
   }
 
   @Override
