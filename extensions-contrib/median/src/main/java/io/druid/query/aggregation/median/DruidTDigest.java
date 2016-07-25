@@ -185,7 +185,7 @@ public class DruidTDigest {
   public byte[] toBytes()
   {
     ByteBuffer byteBuffer = ByteBuffer.allocate(digest.byteSize());
-    asBytes(byteBuffer);
+    asSmallBytes(byteBuffer);
     byteBuffer.position(0);
     byte[] bytes = new byte[byteBuffer.remaining()];
     byteBuffer.get(bytes);
@@ -193,13 +193,68 @@ public class DruidTDigest {
     return bytes;
   }
 
+  // asSmallBytes() and fromBytes() are modified to store the first mean as double (not float)
+  // to avoid lose of precision
   public void asSmallBytes(ByteBuffer buf)
   {
-    digest.asSmallBytes(buf);
+    buf.putInt(TDigest.SMALL_ENCODING);
+    buf.putDouble(compression());
+    buf.putInt(digest.centroidCount());
+    if (size() > 0)
+    {
+      double x = 0;
+      boolean first = true;
+      for (TDigest.Group group : digest.centroids()) {
+        double delta = group.mean() - x;
+        x = group.mean();
+        if (first) {
+          buf.putDouble(delta);
+          first = false;
+        } else {
+          buf.putFloat((float) delta);
+        }
+      }
+
+      for (TDigest.Group group : digest.centroids()) {
+        int n = group.count();
+        TDigest.encode(buf, n);
+      }
+    }
   }
 
   public static DruidTDigest fromBytes(ByteBuffer buf) {
-    TDigest digest = TDigest.fromBytes(buf);
+    int encoding = buf.getInt();
+    double compression = buf.getDouble();
+    TDigest digest = new TDigest(compression);
+    int num = buf.getInt();
+    if (num > 0) {
+      if (encoding == TDigest.VERBOSE_ENCODING) {
+        double[] means = new double[num];
+        for (int i = 0; i < num; i++) {
+          means[i] = buf.getDouble();
+        }
+        for (int i = 0; i < num; i++) {
+          digest.add(means[i], buf.getInt());
+        }
+      } else if (encoding == TDigest.SMALL_ENCODING) {
+        double[] means = new double[num];
+        double x = buf.getDouble();
+        means[0] = x;
+        for (int i = 1; i < num; i++) {
+          double delta = buf.getFloat();
+          x += delta;
+          means[i] = x;
+        }
+
+        for (int i = 0; i < num; i++) {
+          int z = TDigest.decode(buf);
+          digest.add(means[i], z);
+        }
+      } else {
+        throw new IllegalStateException("Invalid format for serialized histogram");
+      }
+    }
+
     return new DruidTDigest(digest);
   }
 }
