@@ -31,6 +31,7 @@ import org.joda.time.DateTime;
 import org.joda.time.format.DateTimeFormat;
 import org.joda.time.format.DateTimeFormatter;
 
+import java.sql.Timestamp;
 import java.util.Arrays;
 import java.util.Map;
 import java.util.Properties;
@@ -209,16 +210,31 @@ public class TimestampSpec
   public DateTime extractTimestamp(Map<String, Object> input)
   {
     final Object o = input.get(timestampColumn);
+    return parseDateTime(o);
+  }
+
+  public DateTime parseDateTime(Object input)
+  {
     DateTime extracted = null;
-    if (o != null) {
-      if (o.equals(parseCtx.lastTimeObject)) {
+    if (input != null) {
+      if (input.equals(parseCtx.lastTimeObject)) {
         extracted = parseCtx.lastDateTime;
       } else {
-        parseCtx.lastTimeObject = o;
-        parseCtx.lastDateTime = extracted = timestampConverter.apply(o);
+        parseCtx.lastTimeObject = input;
+        parseCtx.lastDateTime = extracted = timestampConverter.apply(input);
       }
     }
     return extracted == null ? missingValue : extracted;
+  }
+
+  public Timestamp parseTimestamp(Object input)
+  {
+    DateTime dateTime = parseDateTime(input);
+    if (dateTime != null) {
+      return new Timestamp(dateTime.getMillis());
+    }
+
+    return null;
   }
 
   @Override

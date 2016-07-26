@@ -23,21 +23,7 @@ import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.fasterxml.jackson.databind.module.SimpleModule;
 import com.google.common.hash.Hashing;
-import io.druid.query.aggregation.AggregatorFactory;
-import io.druid.query.aggregation.CountAggregatorFactory;
-import io.druid.query.aggregation.DoubleMaxAggregatorFactory;
-import io.druid.query.aggregation.DoubleMinAggregatorFactory;
-import io.druid.query.aggregation.DoubleSumAggregatorFactory;
-import io.druid.query.aggregation.FilteredAggregatorFactory;
-import io.druid.query.aggregation.FloatMaxAggregatorFactory;
-import io.druid.query.aggregation.FloatMinAggregatorFactory;
-import io.druid.query.aggregation.FloatSumAggregatorFactory;
-import io.druid.query.aggregation.HistogramAggregatorFactory;
-import io.druid.query.aggregation.JavaScriptAggregatorFactory;
-import io.druid.query.aggregation.LongMaxAggregatorFactory;
-import io.druid.query.aggregation.LongMinAggregatorFactory;
-import io.druid.query.aggregation.LongSumAggregatorFactory;
-import io.druid.query.aggregation.PostAggregator;
+import io.druid.query.aggregation.*;
 import io.druid.query.aggregation.cardinality.CardinalityAggregatorFactory;
 import io.druid.query.aggregation.hyperloglog.HyperUniqueFinalizingPostAggregator;
 import io.druid.query.aggregation.hyperloglog.HyperUniquesAggregatorFactory;
@@ -77,6 +63,7 @@ public class AggregatorsModule extends SimpleModule
       @JsonSubTypes.Type(name = "floatMin", value = FloatMinAggregatorFactory.class),
       @JsonSubTypes.Type(name = "longMax", value = LongMaxAggregatorFactory.class),
       @JsonSubTypes.Type(name = "longMin", value = LongMinAggregatorFactory.class),
+      @JsonSubTypes.Type(name = "timeMax", value = TimestampMaxAggregatorFactory.class),
       @JsonSubTypes.Type(name = "javascript", value = JavaScriptAggregatorFactory.class),
       @JsonSubTypes.Type(name = "histogram", value = HistogramAggregatorFactory.class),
       @JsonSubTypes.Type(name = "hyperUnique", value = HyperUniquesAggregatorFactory.class),
