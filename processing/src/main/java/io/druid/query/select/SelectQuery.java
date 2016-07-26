@@ -49,6 +49,7 @@ public class SelectQuery extends BaseQuery<Result<SelectResultValue>>
   private final List<VirtualColumn> virtualColumns;
   private final PagingSpec pagingSpec;
   private final String concatString;
+  private final List<String> outputColumns;
 
   @JsonCreator
   public SelectQuery(
@@ -62,6 +63,7 @@ public class SelectQuery extends BaseQuery<Result<SelectResultValue>>
       @JsonProperty("virtualColumns") List<VirtualColumn> virtualColumns,
       @JsonProperty("pagingSpec") PagingSpec pagingSpec,
       @JsonProperty("concatString") String concatString,
+      @JsonProperty("outputColumns") List<String> outputColumns,
       @JsonProperty("context") Map<String, Object> context
   )
   {
@@ -71,6 +73,7 @@ public class SelectQuery extends BaseQuery<Result<SelectResultValue>>
     this.dimensions = dimensions;
     this.virtualColumns = virtualColumns;
     this.metrics = metrics;
+    this.outputColumns = outputColumns;
     this.pagingSpec = pagingSpec;
     this.concatString = concatString;
 
@@ -142,6 +145,12 @@ public class SelectQuery extends BaseQuery<Result<SelectResultValue>>
     return virtualColumns;
   }
 
+  @JsonProperty
+  public List<String> getOutputColumns()
+  {
+    return outputColumns;
+  }
+
   public PagingOffset getPagingOffset(String identifier)
   {
     return pagingSpec.getOffset(identifier, isDescending());
@@ -160,6 +169,7 @@ public class SelectQuery extends BaseQuery<Result<SelectResultValue>>
         virtualColumns,
         pagingSpec,
         concatString,
+        outputColumns,
         getContext()
     );
   }
@@ -178,6 +188,7 @@ public class SelectQuery extends BaseQuery<Result<SelectResultValue>>
         virtualColumns,
         pagingSpec,
         concatString,
+        outputColumns,
         getContext()
     );
   }
@@ -195,6 +206,7 @@ public class SelectQuery extends BaseQuery<Result<SelectResultValue>>
         virtualColumns,
         pagingSpec,
         concatString,
+        outputColumns,
         computeOverridenContext(contextOverrides)
     );
   }
@@ -212,6 +224,7 @@ public class SelectQuery extends BaseQuery<Result<SelectResultValue>>
         virtualColumns,
         pagingSpec,
         concatString,
+        outputColumns,
         getContext()
     );
   }
@@ -229,6 +242,7 @@ public class SelectQuery extends BaseQuery<Result<SelectResultValue>>
         virtualColumns,
         pagingSpec,
         concatString,
+        outputColumns,
         getContext()
     );
   }
@@ -246,6 +260,7 @@ public class SelectQuery extends BaseQuery<Result<SelectResultValue>>
         virtualColumns,
         pagingSpec,
         concatString,
+        outputColumns,
         getContext()
     );
   }
@@ -264,6 +279,7 @@ public class SelectQuery extends BaseQuery<Result<SelectResultValue>>
            ", virtualColumns=" + virtualColumns +
            ", pagingSpec=" + pagingSpec +
            ", concatString=" + concatString +
+           ", outputColumns=" + outputColumns +
         '}';
   }
 
@@ -283,6 +299,7 @@ public class SelectQuery extends BaseQuery<Result<SelectResultValue>>
     if (!Objects.equals(virtualColumns, that.virtualColumns)) return false;
     if (!Objects.equals(pagingSpec, that.pagingSpec)) return false;
     if (!Objects.equals(concatString, that.concatString)) return false;
+    if (!Objects.equals(outputColumns, that.outputColumns)) return false;
 
     return true;
   }
@@ -298,6 +315,7 @@ public class SelectQuery extends BaseQuery<Result<SelectResultValue>>
     result = 31 * result + (virtualColumns != null ? virtualColumns.hashCode() : 0);
     result = 31 * result + (pagingSpec != null ? pagingSpec.hashCode() : 0);
     result = 31 * result + (concatString != null ? concatString.hashCode() : 0);
+    result = 31 * result + (outputColumns != null ? outputColumns.hashCode() : 0);
     return result;
   }
 }

@@ -75,6 +75,7 @@ public class TopNQueryQueryToolChestTest
                 QueryGranularities.ALL,
                 ImmutableList.<AggregatorFactory>of(new CountAggregatorFactory("metric1")),
                 null,
+                null,
                 null
             )
         );

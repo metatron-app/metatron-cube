@@ -40,6 +40,7 @@ import io.druid.query.CacheStrategy;
 import io.druid.query.DruidMetrics;
 import io.druid.query.IntervalChunkingQueryRunnerDecorator;
 import io.druid.query.Query;
+import io.druid.query.QueryCacheHelper;
 import io.druid.query.QueryRunner;
 import io.druid.query.QueryToolChest;
 import io.druid.query.Result;
@@ -195,6 +196,7 @@ public class SelectQueryQueryToolChest extends QueryToolChest<Result<SelectResul
           virtualColumnsBytesSize += virtualColumnsBytes[index].length;
           ++index;
         }
+        final byte[] outputColumnsBytes = QueryCacheHelper.computeCacheBytes(query.getOutputColumns());
 
         final ByteBuffer queryCacheKey = ByteBuffer
             .allocate(
@@ -205,11 +207,13 @@ public class SelectQueryQueryToolChest extends QueryToolChest<Result<SelectResul
                 + dimensionsBytesSize
                 + metricBytesSize
                 + virtualColumnsBytesSize
+                + outputColumnsBytes.length
             )
             .put(SELECT_QUERY)
             .put(granularityBytes)
             .put(filterBytes)
-            .put(query.getPagingSpec().getCacheKey());
+            .put(query.getPagingSpec().getCacheKey())
+            .put(outputColumnsBytes);
 
         for (byte[] dimensionsByte : dimensionsBytes) {
           queryCacheKey.put(dimensionsByte);
@@ -302,7 +306,8 @@ public class SelectQueryQueryToolChest extends QueryToolChest<Result<SelectResul
             }
             return runner.run(selectQuery, responseContext);
           }
-        }, this);
+        }, this
+    );
   }
 
   @Override
@@ -407,6 +412,47 @@ public class SelectQueryQueryToolChest extends QueryToolChest<Result<SelectResul
       public Map<String, Object> getMetaData()
       {
         return pagingSpec;
+      }
+    };
+  }
+
+  @Override
+  public QueryRunner<Result<SelectResultValue>> finalQueryDecoration(final QueryRunner<Result<SelectResultValue>> runner)
+  {
+    return new QueryRunner<Result<SelectResultValue>>()
+    {
+      @Override
+      public Sequence<Result<SelectResultValue>> run(
+          Query<Result<SelectResultValue>> query, Map<String, Object> responseContext
+      )
+      {
+        final List<String> outputColumns = ((SelectQuery)query).getOutputColumns();
+        final Sequence<Result<SelectResultValue>> result = runner.run(query, responseContext);
+        if (outputColumns != null) {
+          return Sequences.map(
+              result, new Function<Result<SelectResultValue>, Result<SelectResultValue>>()
+              {
+                @Override
+                public Result<SelectResultValue> apply(Result<SelectResultValue> input)
+                {
+                  DateTime timestamp = input.getTimestamp();
+                  SelectResultValue value = input.getValue();
+                  List<EventHolder> processed = Lists.newArrayListWithExpectedSize(value.getEvents().size());
+                  for (EventHolder holder : value.getEvents()) {
+                    Map<String, Object> original = holder.getEvent();
+                    Map<String, Object> retained = Maps.newHashMapWithExpectedSize(outputColumns.size());
+                    for (String retain : outputColumns) {
+                      retained.put(retain, original.get(retain));
+                    }
+                    processed.add(new EventHolder(holder.getSegmentId(), holder.getOffset(), retained));
+                  }
+                  return new Result(timestamp, new SelectResultValue(value.getPagingIdentifiers(), processed));
+                }
+              }
+          );
+        } else {
+          return result;
+        }
       }
     };
   }

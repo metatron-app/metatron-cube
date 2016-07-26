@@ -44,17 +44,22 @@ import java.util.Map;
  */
 public class GroupByQueryRunnerTestHelper
 {
-  public static <T> Iterable<T> runQuery(QueryRunnerFactory factory, QueryRunner runner, Query<T> query)
+  public static <T> Iterable<T> runQuery(QueryRunnerFactory factory, QueryRunner<T> runner, Query<T> query)
   {
 
-    QueryToolChest toolChest = factory.getToolchest();
-    QueryRunner<T> theRunner = new FinalizeResultsQueryRunner<>(
-        toolChest.mergeResults(toolChest.preMergeQueryDecoration(runner)),
-        toolChest
-    );
+    QueryRunner<T> theRunner = toMergeRunner(factory, runner);
 
     Sequence<T> queryResult = theRunner.run(query, Maps.<String, Object>newHashMap());
     return Sequences.toList(queryResult, Lists.<T>newArrayList());
+  }
+
+  public static <T> QueryRunner<T> toMergeRunner(QueryRunnerFactory factory, QueryRunner<T> runner)
+  {
+    QueryToolChest toolChest = factory.getToolchest();
+    return new FinalizeResultsQueryRunner<>(
+        toolChest.mergeResults(toolChest.preMergeQueryDecoration(runner)),
+        toolChest
+    );
   }
 
   public static Row createExpectedRow(final String timestamp, Object... vals)
@@ -64,7 +69,7 @@ public class GroupByQueryRunnerTestHelper
 
   public static Row createExpectedRow(final DateTime timestamp, Object... vals)
   {
-    Preconditions.checkArgument(vals.length % 2 == 0);
+    Preconditions.checkArgument(vals.length % 2 == 0, "invalid row " + Arrays.toString(vals));
 
     Map<String, Object> theVals = Maps.newHashMap();
     for (int i = 0; i < vals.length; i += 2) {

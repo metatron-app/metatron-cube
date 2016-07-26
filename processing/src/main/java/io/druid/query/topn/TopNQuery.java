@@ -54,6 +54,7 @@ public class TopNQuery extends BaseQuery<Result<TopNResultValue>>
   private final QueryGranularity granularity;
   private final List<AggregatorFactory> aggregatorSpecs;
   private final List<PostAggregator> postAggregatorSpecs;
+  private final List<String> outputColumns;
 
   @JsonCreator
   public TopNQuery(
@@ -67,6 +68,7 @@ public class TopNQuery extends BaseQuery<Result<TopNResultValue>>
       @JsonProperty("granularity") QueryGranularity granularity,
       @JsonProperty("aggregations") List<AggregatorFactory> aggregatorSpecs,
       @JsonProperty("postAggregations") List<PostAggregator> postAggregatorSpecs,
+      @JsonProperty("outputColumns") List<String> outputColumns,
       @JsonProperty("context") Map<String, Object> context
   )
   {
@@ -80,6 +82,7 @@ public class TopNQuery extends BaseQuery<Result<TopNResultValue>>
     this.granularity = granularity;
     this.aggregatorSpecs = aggregatorSpecs;
     this.postAggregatorSpecs = postAggregatorSpecs == null ? ImmutableList.<PostAggregator>of() : postAggregatorSpecs;
+    this.outputColumns = outputColumns;
 
     Preconditions.checkNotNull(dimensionSpec, "dimensionSpec can't be null");
     Preconditions.checkNotNull(topNMetricSpec, "must specify a metric");
@@ -150,6 +153,12 @@ public class TopNQuery extends BaseQuery<Result<TopNResultValue>>
     return postAggregatorSpecs;
   }
 
+  @JsonProperty("outputColumns")
+  public List<String> getOutputColumns()
+  {
+    return outputColumns;
+  }
+
   public void initTopNAlgorithmSelector(TopNAlgorithmSelector selector)
   {
     if (dimensionSpec.getExtractionFn() != null) {
@@ -171,6 +180,7 @@ public class TopNQuery extends BaseQuery<Result<TopNResultValue>>
         granularity,
         aggregatorSpecs,
         postAggregatorSpecs,
+        outputColumns,
         getContext()
     );
   }
@@ -188,6 +198,7 @@ public class TopNQuery extends BaseQuery<Result<TopNResultValue>>
         granularity,
         aggregatorSpecs,
         postAggregatorSpecs,
+        outputColumns,
         getContext()
     );
   }
@@ -205,6 +216,7 @@ public class TopNQuery extends BaseQuery<Result<TopNResultValue>>
         granularity,
         aggregatorSpecs,
         postAggregatorSpecs,
+        outputColumns,
         getContext()
     );
   }
@@ -222,6 +234,7 @@ public class TopNQuery extends BaseQuery<Result<TopNResultValue>>
         granularity,
         aggregatorSpecs,
         postAggregatorSpecs,
+        outputColumns,
         getContext()
     );
   }
@@ -240,6 +253,7 @@ public class TopNQuery extends BaseQuery<Result<TopNResultValue>>
         granularity,
         aggregatorSpecs,
         postAggregatorSpecs,
+        outputColumns,
         getContext()
     );
   }
@@ -257,6 +271,7 @@ public class TopNQuery extends BaseQuery<Result<TopNResultValue>>
         granularity,
         aggregatorSpecs,
         postAggregatorSpecs,
+        outputColumns,
         getContext()
     );
   }
@@ -274,6 +289,7 @@ public class TopNQuery extends BaseQuery<Result<TopNResultValue>>
         granularity,
         aggregatorSpecs,
         postAggregatorSpecs,
+        outputColumns,
         computeOverridenContext(contextOverrides)
     );
   }
@@ -291,6 +307,25 @@ public class TopNQuery extends BaseQuery<Result<TopNResultValue>>
         granularity,
         aggregatorSpecs,
         postAggregatorSpecs,
+        outputColumns,
+        getContext()
+    );
+  }
+
+  public TopNQuery withOutputColumns(List<String> outputColumns)
+  {
+    return new TopNQuery(
+        getDataSource(),
+        getVirtualColumns(),
+        getDimensionSpec(),
+        getTopNMetricSpec(),
+        getThreshold(),
+        getQuerySegmentSpec(),
+        getDimensionsFilter(),
+        getGranularity(),
+        getAggregatorSpecs(),
+        getPostAggregatorSpecs(),
+        outputColumns,
         getContext()
     );
   }
@@ -309,6 +344,7 @@ public class TopNQuery extends BaseQuery<Result<TopNResultValue>>
            ", granularity='" + granularity + '\'' +
            ", aggregatorSpecs=" + aggregatorSpecs +
            ", postAggregatorSpecs=" + postAggregatorSpecs +
+           ", outputColumns=" + outputColumns +
            '}';
   }
 
@@ -332,11 +368,11 @@ public class TopNQuery extends BaseQuery<Result<TopNResultValue>>
       return false;
     if (topNMetricSpec != null ? !topNMetricSpec.equals(topNQuery.topNMetricSpec) : topNQuery.topNMetricSpec != null)
       return false;
-
     if (!Objects.equals(virtualColumns, topNQuery.virtualColumns)) {
       return false;
     }
-
+    if (outputColumns != null ? !outputColumns.equals(topNQuery.outputColumns) : topNQuery.outputColumns != null)
+      return false;
     return true;
   }
 
@@ -352,6 +388,7 @@ public class TopNQuery extends BaseQuery<Result<TopNResultValue>>
     result = 31 * result + (aggregatorSpecs != null ? aggregatorSpecs.hashCode() : 0);
     result = 31 * result + (postAggregatorSpecs != null ? postAggregatorSpecs.hashCode() : 0);
     result = 31 * result + (virtualColumns != null ? virtualColumns.hashCode() : 0);
+    result = 31 * result + (outputColumns != null ? outputColumns.hashCode() : 0);
     return result;
   }
 }
