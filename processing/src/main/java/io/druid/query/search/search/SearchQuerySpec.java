@@ -30,7 +30,7 @@ import com.fasterxml.jackson.annotation.JsonTypeInfo;
     @JsonSubTypes.Type(name = "insensitive_contains", value = InsensitiveContainsSearchQuerySpec.class),
     @JsonSubTypes.Type(name = "fragment", value = FragmentSearchQuerySpec.class),
     @JsonSubTypes.Type(name = "regex", value = RegexSearchQuerySpec.class),
-    @JsonSubTypes.Type(name = "all", value = SearchQuerySpec.class)
+    @JsonSubTypes.Type(name = "all", value = SearchQuerySpec.TakeAll.class)
 })
 public interface SearchQuerySpec
 {
@@ -49,7 +49,7 @@ public interface SearchQuerySpec
     @Override
     public byte[] getCacheKey()
     {
-      return new byte[]{0x04};
+      return new byte[]{0x7f};
     }
   }
 }
