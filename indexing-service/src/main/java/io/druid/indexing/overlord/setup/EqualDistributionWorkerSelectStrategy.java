@@ -25,10 +25,11 @@ import com.google.common.collect.Sets;
 import com.google.common.primitives.Ints;
 import io.druid.indexing.common.task.Task;
 import io.druid.indexing.overlord.ImmutableWorkerInfo;
-import io.druid.indexing.overlord.config.RemoteTaskRunnerConfig;
+import io.druid.indexing.overlord.TaskRunnerUtils;
 import io.druid.indexing.overlord.config.WorkerTaskRunnerConfig;
 
 import java.util.Comparator;
+import java.util.List;
 import java.util.TreeSet;
 
 /**
@@ -64,13 +65,19 @@ public class EqualDistributionWorkerSelectStrategy implements WorkerSelectStrate
     );
     sortedWorkers.addAll(zkWorkers.values());
     final String minWorkerVer = config.getMinWorkerVersion();
+    final List<String> preferred = TaskRunnerUtils.getPreferredLocations(task);
 
+    ImmutableWorkerInfo worker = null;
     for (ImmutableWorkerInfo zkWorker : sortedWorkers) {
       if (zkWorker.canRunTask(task) && zkWorker.isValidVersion(minWorkerVer)) {
-        return Optional.of(zkWorker);
+        if (!preferred.isEmpty() && preferred.contains(zkWorker.getWorker().getHost())) {
+          return Optional.of(zkWorker);
+        } else if (worker == null) {
+          worker = zkWorker;
+        }
       }
     }
 
-    return Optional.absent();
+    return Optional.fromNullable(worker);
   }
 }

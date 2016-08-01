@@ -28,6 +28,7 @@ import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Predicate;
 import com.google.common.base.Stopwatch;
+import com.google.common.base.Strings;
 import com.google.common.base.Supplier;
 import com.google.common.base.Throwables;
 import com.google.common.collect.Collections2;
@@ -91,6 +92,7 @@ import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
@@ -702,6 +704,8 @@ public class RemoteTaskRunner implements WorkerTaskRunner, TaskLogStreamer
         strategy = workerConfig.getSelectStrategy();
       }
 
+      final String host = Objects.toString(task.getContextValue(Task.RUNNER_DEDICATED_HOST), null);
+
       ZkWorker assignedWorker = null;
       Optional<ImmutableWorkerInfo> immutableZkWorker = null;
       try {
@@ -716,7 +720,8 @@ public class RemoteTaskRunner implements WorkerTaskRunner, TaskLogStreamer
                           public boolean apply(Map.Entry<String, ZkWorker> input)
                           {
                             return !lazyWorkers.containsKey(input.getKey()) &&
-                                   !workersWithUnacknowledgedTask.containsKey(input.getKey());
+                                   !workersWithUnacknowledgedTask.containsKey(input.getKey()) &&
+                                   (Strings.isNullOrEmpty(host) || host.equals(input.getValue().getWorker().getHost()));
                           }
                         }
                     ),

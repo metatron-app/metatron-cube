@@ -19,11 +19,17 @@
 
 package io.druid.indexing.overlord;
 
+import com.google.common.base.Strings;
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Lists;
 import com.metamx.common.Pair;
 import com.metamx.emitter.EmittingLogger;
 import io.druid.indexing.common.TaskLocation;
 import io.druid.indexing.common.TaskStatus;
+import io.druid.indexing.common.task.Task;
 
+import java.util.List;
+import java.util.Objects;
 import java.util.concurrent.Executor;
 
 public class TaskRunnerUtils
@@ -88,5 +94,20 @@ public class TaskRunnerUtils
            .emit();
       }
     }
+  }
+
+  public static List<String> getPreferredLocations(Task task) {
+    String hosts = Objects.toString(task.getContextValue(Task.RUNNER_PREFERRED_HOSTS), null);
+    if (!Strings.isNullOrEmpty(hosts)) {
+      if (hosts.startsWith("[") && hosts.endsWith("]")) {
+        hosts = hosts.substring(1, hosts.length() - 2);
+      }
+      List<String> preferred = Lists.newArrayList();
+      for (String host : hosts.split(",")) {
+        preferred.add(host.trim());
+      }
+      return preferred;
+    }
+    return ImmutableList.of();
   }
 }
