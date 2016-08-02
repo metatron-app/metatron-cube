@@ -33,7 +33,7 @@ import java.util.Objects;
  */
 public class ExprVirtualColumn implements VirtualColumn
 {
-  private static final byte VC_TYPE_ID = 0x00;
+  private static final byte VC_TYPE_ID = 0x01;
 
   private final String outputName;
   private final String expression;

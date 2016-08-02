@@ -36,6 +36,7 @@ import io.druid.segment.FloatColumnSelector;
 import io.druid.segment.LongColumnSelector;
 import io.druid.segment.ExprEvalColumnSelector;
 import io.druid.segment.ObjectColumnSelector;
+import io.druid.segment.column.ColumnCapabilities;
 
 import java.util.List;
 import java.util.Map;
@@ -571,6 +572,12 @@ public class OnheapIncrementalIndex extends IncrementalIndex<Aggregator>
     public ExprEvalColumnSelector makeMathExpressionSelector(String expression)
     {
       return delegate.makeMathExpressionSelector(expression);
+    }
+
+    @Override
+    public ColumnCapabilities getColumnCapabilities(String columnName)
+    {
+      return delegate.getColumnCapabilities(columnName);
     }
   }
 

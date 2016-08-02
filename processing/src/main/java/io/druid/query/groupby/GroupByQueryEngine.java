@@ -45,8 +45,10 @@ import io.druid.query.aggregation.BufferAggregator;
 import io.druid.query.aggregation.PostAggregator;
 import io.druid.query.aggregation.PostAggregators;
 import io.druid.query.dimension.DimensionSpec;
+import io.druid.segment.ColumnSelectorFactory;
 import io.druid.segment.Cursor;
 import io.druid.segment.DimensionSelector;
+import io.druid.segment.KeyIndexedVirtualColumn.IndexProvidingSelector;
 import io.druid.segment.StorageAdapter;
 import io.druid.segment.VirtualColumns;
 import io.druid.segment.data.IndexedInts;
@@ -380,6 +382,7 @@ public class GroupByQueryEngine
       dimensions = Lists.newArrayListWithExpectedSize(dimensionSpecs.size());
       dimNames = Lists.newArrayListWithExpectedSize(dimensionSpecs.size());
 
+      IndexProvidingSelector provider = null;
       for (int i = 0; i < dimensionSpecs.size(); ++i) {
         final DimensionSpec dimSpec = dimensionSpecs.get(i);
         final DimensionSelector selector = cursor.makeDimensionSelector(dimSpec);
@@ -387,7 +390,15 @@ public class GroupByQueryEngine
           dimensions.add(selector);
           dimNames.add(dimSpec.getOutputName());
         }
+        if (selector instanceof IndexProvidingSelector) {
+          if (provider != null) {
+            throw new IllegalArgumentException("currently only one index provider is supported");
+          }
+          provider = (IndexProvidingSelector) selector;
+        }
       }
+
+      ColumnSelectorFactory factory = provider != null ? provider.wrapFactory(cursor) : cursor;
 
       aggregatorSpecs = query.getAggregatorSpecs();
       aggregators = new BufferAggregator[aggregatorSpecs.size()];
@@ -395,7 +406,7 @@ public class GroupByQueryEngine
       sizesRequired = new int[aggregatorSpecs.size()];
       for (int i = 0; i < aggregatorSpecs.size(); ++i) {
         AggregatorFactory aggregatorSpec = aggregatorSpecs.get(i);
-        aggregators[i] = aggregatorSpec.factorizeBuffered(cursor);
+        aggregators[i] = aggregatorSpec.factorizeBuffered(factory);
         metricNames[i] = aggregatorSpec.getName();
         sizesRequired[i] = aggregatorSpec.getMaxIntermediateSize();
       }

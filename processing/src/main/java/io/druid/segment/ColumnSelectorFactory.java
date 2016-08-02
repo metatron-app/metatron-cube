@@ -20,6 +20,7 @@
 package io.druid.segment;
 
 import io.druid.query.dimension.DimensionSpec;
+import io.druid.segment.column.ColumnCapabilities;
 
 /**
  * Factory class for MetricSelectors
@@ -32,4 +33,5 @@ public interface ColumnSelectorFactory
   public LongColumnSelector makeLongColumnSelector(String columnName);
   public ObjectColumnSelector makeObjectColumnSelector(String columnName);
   public ExprEvalColumnSelector makeMathExpressionSelector(String expression);
+  public ColumnCapabilities getColumnCapabilities(String columnName);
 }

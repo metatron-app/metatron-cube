@@ -675,6 +675,12 @@ public class IncrementalIndexStorageAdapter implements StorageAdapter
                   }
                 };
               }
+
+              @Override
+              public ColumnCapabilities getColumnCapabilities(String columnName)
+              {
+                return index.getCapabilities(columnName);
+              }
             };
           }
         }

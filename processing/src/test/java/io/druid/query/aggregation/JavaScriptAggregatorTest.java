@@ -31,6 +31,7 @@ import io.druid.segment.FloatColumnSelector;
 import io.druid.segment.LongColumnSelector;
 import io.druid.segment.ExprEvalColumnSelector;
 import io.druid.segment.ObjectColumnSelector;
+import io.druid.segment.column.ColumnCapabilities;
 import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
@@ -80,6 +81,12 @@ public class JavaScriptAggregatorTest
 
     @Override
     public ExprEvalColumnSelector makeMathExpressionSelector(String expression)
+    {
+      return null;
+    }
+
+    @Override
+    public ColumnCapabilities getColumnCapabilities(String columnName)
     {
       return null;
     }

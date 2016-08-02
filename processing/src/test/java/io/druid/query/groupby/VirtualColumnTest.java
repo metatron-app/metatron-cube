@@ -42,11 +42,14 @@ import io.druid.query.QueryRunnerTestHelper;
 import io.druid.query.TestQueryRunners;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.CountAggregatorFactory;
+import io.druid.query.aggregation.LongMaxAggregatorFactory;
+import io.druid.query.aggregation.LongMinAggregatorFactory;
 import io.druid.query.aggregation.LongSumAggregatorFactory;
 import io.druid.query.aggregation.cardinality.CardinalityAggregatorFactory;
 import io.druid.query.dimension.DefaultDimensionSpec;
 import io.druid.segment.ExprVirtualColumn;
 import io.druid.segment.IncrementalIndexSegment;
+import io.druid.segment.KeyIndexedVirtualColumn;
 import io.druid.segment.MapVirtualColumn;
 import io.druid.segment.QueryableIndex;
 import io.druid.segment.QueryableIndexSegment;
@@ -260,6 +263,36 @@ public class VirtualColumnTest
         )
         .setVirtualColumns(virtualColumns)
         .build();
+    checkSelectQuery(query, expectedResults);
+  }
+
+  @Test
+  public void testIndexProvider() throws Exception
+  {
+    GroupByQuery.Builder builder = testBuilder();
+
+    List<Row> expectedResults = GroupByQueryRunnerTestHelper.createExpectedRows(
+        new String[]{"__time", "indexed", "sumOf", "minOf", "maxOf"},
+        new Object[]{"2011-01-12T00:00:00.000Z", "key1", 613L, 1L, 400L},
+        new Object[]{"2011-01-12T00:00:00.000Z", "key2", 1229L, 4L, 500L},
+        new Object[]{"2011-01-12T00:00:00.000Z", "key3", 947L, 8L, 600L}
+    );
+
+    List<VirtualColumn> virtualColumns = Arrays.<VirtualColumn>asList(
+        new KeyIndexedVirtualColumn("keys", Arrays.asList("values"), "indexed")
+    );
+    GroupByQuery query = builder
+        .setDimensions(DefaultDimensionSpec.toSpec("indexed"))
+        .setAggregatorSpecs(
+            Arrays.<AggregatorFactory>asList(
+                new LongSumAggregatorFactory("sumOf", "values"),
+                new LongMinAggregatorFactory("minOf", "values"),
+                new LongMaxAggregatorFactory("maxOf", "values")
+            )
+        )
+        .setVirtualColumns(virtualColumns)
+        .build();
+
     checkSelectQuery(query, expectedResults);
   }
 

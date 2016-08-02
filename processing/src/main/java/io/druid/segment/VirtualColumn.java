@@ -27,7 +27,8 @@ import com.fasterxml.jackson.annotation.JsonTypeInfo;
 @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
 @JsonSubTypes(value = {
     @JsonSubTypes.Type(name = "map", value = MapVirtualColumn.class),
-    @JsonSubTypes.Type(name = "expr", value = ExprVirtualColumn.class)
+    @JsonSubTypes.Type(name = "expr", value = ExprVirtualColumn.class),
+    @JsonSubTypes.Type(name = "index", value = KeyIndexedVirtualColumn.class)
 })
 public interface VirtualColumn
 {

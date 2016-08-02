@@ -129,19 +129,55 @@ public class MapVirtualColumn implements VirtualColumn
   @Override
   public FloatColumnSelector asFloatMetric(String dimension, ColumnSelectorFactory factory)
   {
-    throw new UnsupportedOperationException("asFloatMetric");
+    final ObjectColumnSelector selector = asMetric(dimension, factory);
+    if (selector.classOfObject() != String.class) {
+      throw new UnsupportedOperationException("asFloatMetric");
+    }
+    return new FloatColumnSelector()
+    {
+      @Override
+      public float get()
+      {
+        String v = (String) selector.get();
+        return v == null ? 0 : Float.valueOf(v);
+      }
+    };
   }
 
   @Override
   public DoubleColumnSelector asDoubleMetric(String dimension, ColumnSelectorFactory factory)
   {
-    throw new UnsupportedOperationException("asDoubleMetric");
+    final ObjectColumnSelector selector = asMetric(dimension, factory);
+    if (selector.classOfObject() != String.class) {
+      throw new UnsupportedOperationException("asDoubleMetric");
+    }
+    return new DoubleColumnSelector()
+    {
+      @Override
+      public double get()
+      {
+        String v = (String) selector.get();
+        return v == null ? 0 : Double.valueOf(v);
+      }
+    };
   }
 
   @Override
   public LongColumnSelector asLongMetric(String dimension, ColumnSelectorFactory factory)
   {
-    throw new UnsupportedOperationException("asLongMetric");
+    final ObjectColumnSelector selector = asMetric(dimension, factory);
+    if (selector.classOfObject() != String.class) {
+      throw new UnsupportedOperationException("asLongMetric");
+    }
+    return new LongColumnSelector()
+    {
+      @Override
+      public long get()
+      {
+        String v = (String) selector.get();
+        return v == null ? 0 : Long.valueOf(v);
+      }
+    };
   }
 
   @Override
@@ -158,7 +194,11 @@ public class MapVirtualColumn implements VirtualColumn
     if (MAP_VALUE.equals(target)) {
       return factory.makeDimensionSelector(DefaultDimensionSpec.of(valueDimension));
     }
-    return VirtualColumns.toDimensionSelector(asMetric(dimension, factory));
+    ObjectColumnSelector selector = asMetric(dimension, factory);
+    if (selector.classOfObject() != String.class) {
+      throw new UnsupportedOperationException("asDimension");
+    }
+    return VirtualColumns.toDimensionSelector(selector);
   }
 
   @Override
