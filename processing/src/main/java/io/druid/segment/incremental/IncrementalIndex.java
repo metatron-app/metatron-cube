@@ -754,10 +754,11 @@ public abstract class IncrementalIndex<AggregatorType> implements Iterable<Row>,
       dims = newDims;
     }
 
-    minTimeMillis = Math.min(minTimeMillis, timestampFromEpoch);
-    maxTimeMillis = Math.max(maxTimeMillis, timestampFromEpoch);
+    final long truncated = gran.truncate(timestampFromEpoch);
 
-    long truncated = gran.truncate(timestampFromEpoch);
+    minTimeMillis = Math.min(minTimeMillis, truncated);
+    maxTimeMillis = Math.max(maxTimeMillis, truncated);
+
     return new TimeAndDims(Math.max(truncated, minTimestamp), dims);
   }
 
@@ -789,7 +790,7 @@ public abstract class IncrementalIndex<AggregatorType> implements Iterable<Row>,
 
   private long getMinTimeMillis()
   {
-    return minTimeMillis == Long.MAX_VALUE ? -1 : minTimeMillis;
+    return minTimeMillis == Long.MAX_VALUE ? -1 : Math.max(minTimestamp, minTimeMillis);
   }
 
   private long getMaxTimeMillis()
