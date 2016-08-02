@@ -40,15 +40,18 @@ public class ArbitraryGranularitySpec implements GranularitySpec
 {
   private final TreeSet<Interval> intervals;
   private final QueryGranularity queryGranularity;
+  private final Boolean rollup;
 
   @JsonCreator
   public ArbitraryGranularitySpec(
       @JsonProperty("queryGranularity") QueryGranularity queryGranularity,
+      @JsonProperty("rollup") Boolean rollup,
       @JsonProperty("intervals") List<Interval> inputIntervals
   )
   {
     this.queryGranularity = queryGranularity;
     this.intervals = Sets.newTreeSet(JodaUtils.intervalsByStartThenEnd());
+    this.rollup = rollup == null ? Boolean.TRUE : rollup;
 
     if (inputIntervals == null) {
       inputIntervals = Lists.newArrayList();
@@ -79,6 +82,14 @@ public class ArbitraryGranularitySpec implements GranularitySpec
     }
   }
 
+  public ArbitraryGranularitySpec(
+      QueryGranularity queryGranularity,
+      List<Interval> inputIntervals
+  )
+  {
+    this(queryGranularity, true, inputIntervals);
+  }
+
   @Override
   @JsonProperty("intervals")
   public Optional<SortedSet<Interval>> bucketIntervals()
@@ -106,6 +117,13 @@ public class ArbitraryGranularitySpec implements GranularitySpec
   }
 
   @Override
+  @JsonProperty("rollup")
+  public boolean isRollup()
+  {
+    return rollup;
+  }
+
+  @Override
   @JsonProperty("queryGranularity")
   public QueryGranularity getQueryGranularity()
   {
@@ -127,6 +145,9 @@ public class ArbitraryGranularitySpec implements GranularitySpec
     if (!intervals.equals(that.intervals)) {
       return false;
     }
+    if (!rollup.equals(that.rollup)) {
+      return false;
+    }
     return !(queryGranularity != null
              ? !queryGranularity.equals(that.queryGranularity)
              : that.queryGranularity != null);
@@ -137,6 +158,7 @@ public class ArbitraryGranularitySpec implements GranularitySpec
   public int hashCode()
   {
     int result = intervals.hashCode();
+    result = 31 * result + rollup.hashCode();
     result = 31 * result + (queryGranularity != null ? queryGranularity.hashCode() : 0);
     return result;
   }

@@ -303,6 +303,7 @@ public class ReduceMergeIndexGeneratorJob implements HadoopDruidIndexerJob.Index
           .withDimensionsSpec(config.getSchema().getDataSchema().getParser())
           .withQueryGranularity(config.getSchema().getDataSchema().getGranularitySpec().getQueryGranularity())
           .withMetrics(aggregators)
+          .withRollup(config.getSchema().getDataSchema().getGranularitySpec().isRollup())
           .build();
 
       return new OnheapIncrementalIndex(
@@ -310,7 +311,6 @@ public class ReduceMergeIndexGeneratorJob implements HadoopDruidIndexerJob.Index
           true,
           !tuningConfig.isIgnoreInvalidRows(),
           !tuningConfig.isAssumeTimeSorted(),
-          tuningConfig.isRollup(),
           maxRowCount
       );
     }
@@ -565,7 +565,6 @@ public class ReduceMergeIndexGeneratorJob implements HadoopDruidIndexerJob.Index
           }
           mergedBase = merger.mergeQueryableIndexAndClose(
               indexes,
-              tuningConfig.isRollup(),
               aggregators,
               new File(baseFlushFile, singleShard ? "single" : "shard-" + i),
               config.getIndexSpec(),

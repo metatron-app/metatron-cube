@@ -40,6 +40,7 @@ public class SegmentAnalysis implements Comparable<SegmentAnalysis>
   private final long ingestedNumRows;
   private final Map<String, AggregatorFactory> aggregators;
   private final QueryGranularity queryGranularity;
+  private final Boolean rollup;
 
   @JsonCreator
   public SegmentAnalysis(
@@ -51,7 +52,8 @@ public class SegmentAnalysis implements Comparable<SegmentAnalysis>
       @JsonProperty("numRows") long numRows,
       @JsonProperty("ingestedNumRows") long ingestedNumRows,
       @JsonProperty("aggregators") Map<String, AggregatorFactory> aggregators,
-      @JsonProperty("queryGranularity") QueryGranularity queryGranularity
+      @JsonProperty("queryGranularity") QueryGranularity queryGranularity,
+      @JsonProperty("rollup") Boolean rollup
   )
   {
     this.id = id;
@@ -63,6 +65,7 @@ public class SegmentAnalysis implements Comparable<SegmentAnalysis>
     this.ingestedNumRows = ingestedNumRows;
     this.aggregators = aggregators;
     this.queryGranularity = queryGranularity;
+    this.rollup = rollup;
   }
 
   public SegmentAnalysis(
@@ -75,7 +78,7 @@ public class SegmentAnalysis implements Comparable<SegmentAnalysis>
       QueryGranularity queryGranularity
   )
   {
-    this(id, interval, columns, size, 0L, numRows, -1L, aggregators, queryGranularity);
+    this(id, interval, columns, size, 0L, numRows, -1L, aggregators, queryGranularity, null);
   }
 
   public SegmentAnalysis(List<Interval> interval)
@@ -132,6 +135,12 @@ public class SegmentAnalysis implements Comparable<SegmentAnalysis>
   }
 
   @JsonProperty
+  public Boolean isRollup()
+  {
+    return rollup;
+  }
+
+  @JsonProperty
   public Map<String, AggregatorFactory> getAggregators()
   {
     return aggregators;
@@ -148,7 +157,8 @@ public class SegmentAnalysis implements Comparable<SegmentAnalysis>
         numRows,
         ingestedNumRows,
         aggregators,
-        queryGranularity
+        queryGranularity,
+        rollup
     );
   }
 
@@ -165,6 +175,7 @@ public class SegmentAnalysis implements Comparable<SegmentAnalysis>
            ", ingestedNumRows=" + ingestedNumRows +
            ", aggregators=" + aggregators +
            ", queryGranularity=" + queryGranularity +
+           ", rollup=" + rollup +
            '}';
   }
 
@@ -185,6 +196,7 @@ public class SegmentAnalysis implements Comparable<SegmentAnalysis>
            serializedSize == that.serializedSize &&
            numRows == that.numRows &&
            ingestedNumRows == that.ingestedNumRows &&
+           rollup == that.rollup &&
            Objects.equals(id, that.id) &&
            Objects.equals(interval, that.interval) &&
            Objects.equals(columns, that.columns) &&
@@ -208,7 +220,8 @@ public class SegmentAnalysis implements Comparable<SegmentAnalysis>
         numRows,
         ingestedNumRows,
         aggregators,
-        queryGranularity
+        queryGranularity,
+        rollup
     );
   }
 

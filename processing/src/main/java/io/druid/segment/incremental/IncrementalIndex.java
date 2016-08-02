@@ -21,6 +21,7 @@ package io.druid.segment.incremental;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Function;
+import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import com.google.common.base.Supplier;
 import com.google.common.collect.ImmutableList;
@@ -434,6 +435,7 @@ public abstract class IncrementalIndex<AggregatorType> implements Iterable<Row>,
   private final boolean reportParseExceptions;
   private final boolean sortFacts;
   private final boolean rollup;
+  private final boolean groupBy;
   private final Metadata metadata;
 
   private final Map<String, MetricDesc> metricDescs;
@@ -477,8 +479,7 @@ public abstract class IncrementalIndex<AggregatorType> implements Iterable<Row>,
       final IncrementalIndexSchema incrementalIndexSchema,
       final boolean deserializeComplexMetrics,
       final boolean reportParseExceptions,
-      final boolean sortFacts,
-      final boolean rollup
+      final boolean sortFacts
   )
   {
     this.minTimestamp = incrementalIndexSchema.getMinTimestamp();
@@ -488,7 +489,8 @@ public abstract class IncrementalIndex<AggregatorType> implements Iterable<Row>,
     this.deserializeComplexMetrics = deserializeComplexMetrics;
     this.reportParseExceptions = reportParseExceptions;
     this.sortFacts = sortFacts;
-    this.rollup = rollup;
+    this.rollup = incrementalIndexSchema.isRollup();
+    this.groupBy = incrementalIndexSchema.isGroupBy();
 
     this.metadata = new Metadata()
         .setAggregators(getCombiningAggregators(metrics))
@@ -816,6 +818,7 @@ public abstract class IncrementalIndex<AggregatorType> implements Iterable<Row>,
   // fast track for group-by query
   public void initialize(List<String> dimensions)
   {
+    Preconditions.checkArgument(groupBy, "this is only for group-by");
     for (String dimension : dimensions) {
       addNewDimension(dimension, ColumnCapabilitiesImpl.of(ValueType.STRING), MultiValueHandling.ARRAY, -1);
     }
@@ -823,6 +826,7 @@ public abstract class IncrementalIndex<AggregatorType> implements Iterable<Row>,
 
   public int add(Row row)
   {
+    Preconditions.checkArgument(groupBy, "this is only for group-by");
     try {
       return addTimeAndDims(row, toTimeAndDims(row));
     }
@@ -1084,7 +1088,7 @@ public abstract class IncrementalIndex<AggregatorType> implements Iterable<Row>,
 
   public Metadata getMetadata()
   {
-    return metadata.setIngestedNumRow(ingestedNumRows);
+    return metadata.setIngestedNumRow(ingestedNumRows).setRollup(rollup);
   }
 
   private static AggregatorFactory[] getCombiningAggregators(AggregatorFactory[] aggregators)

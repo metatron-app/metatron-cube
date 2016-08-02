@@ -21,30 +21,48 @@ package io.druid.segment.incremental;
 
 import io.druid.data.input.impl.DimensionsSpec;
 import io.druid.data.input.impl.InputRowParser;
-import io.druid.granularity.QueryGranularity;
 import io.druid.granularity.QueryGranularities;
+import io.druid.granularity.QueryGranularity;
 import io.druid.query.aggregation.AggregatorFactory;
 
 /**
  */
 public class IncrementalIndexSchema
 {
+  public static final int ROLLUP = 0;
+  public static final int NO_ROLLUP = 1;
+  public static final int GROUP_BY = 2;
+
   private final long minTimestamp;
   private final QueryGranularity gran;
   private final DimensionsSpec dimensionsSpec;
   private final AggregatorFactory[] metrics;
+  private final int mode;
 
   public IncrementalIndexSchema(
       long minTimestamp,
       QueryGranularity gran,
       DimensionsSpec dimensionsSpec,
-      AggregatorFactory[] metrics
+      AggregatorFactory[] metrics,
+      int mode
   )
   {
     this.minTimestamp = minTimestamp;
     this.gran = gran;
     this.dimensionsSpec = dimensionsSpec;
     this.metrics = metrics;
+    this.mode = mode;
+  }
+
+  public IncrementalIndexSchema(
+      long minTimestamp,
+      QueryGranularity gran,
+      DimensionsSpec dimensionsSpec,
+      AggregatorFactory[] metrics,
+      boolean rollup
+  )
+  {
+    this(minTimestamp, gran, dimensionsSpec, metrics, rollup ? ROLLUP : NO_ROLLUP);
   }
 
   public long getMinTimestamp()
@@ -67,12 +85,23 @@ public class IncrementalIndexSchema
     return metrics;
   }
 
+  public boolean isRollup()
+  {
+    return mode == ROLLUP || mode == GROUP_BY;
+  }
+
+  public boolean isGroupBy()
+  {
+    return mode == GROUP_BY;
+  }
+
   public static class Builder
   {
     private long minTimestamp;
     private QueryGranularity gran;
     private DimensionsSpec dimensionsSpec;
     private AggregatorFactory[] metrics;
+    private int mode;
 
     public Builder()
     {
@@ -80,6 +109,7 @@ public class IncrementalIndexSchema
       this.gran = QueryGranularities.NONE;
       this.dimensionsSpec = new DimensionsSpec(null, null, null);
       this.metrics = new AggregatorFactory[]{};
+      this.mode = ROLLUP;
     }
 
     public Builder withMinTimestamp(long minTimestamp)
@@ -119,11 +149,21 @@ public class IncrementalIndexSchema
       return this;
     }
 
+    public Builder withRollup(boolean rollup)
+    {
+      this.mode = rollup ? ROLLUP : NO_ROLLUP;
+      return this;
+    }
+
+    public Builder withGroupBy()
+    {
+      this.mode = GROUP_BY;
+      return this;
+    }
+
     public IncrementalIndexSchema build()
     {
-      return new IncrementalIndexSchema(
-          minTimestamp, gran, dimensionsSpec, metrics
-      );
+      return new IncrementalIndexSchema(minTimestamp, gran, dimensionsSpec, metrics, mode);
     }
   }
 }

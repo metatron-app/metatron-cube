@@ -47,9 +47,11 @@ import io.druid.query.metadata.metadata.ListColumnIncluderator;
 import io.druid.query.metadata.metadata.SegmentAnalysis;
 import io.druid.query.metadata.metadata.SegmentMetadataQuery;
 import io.druid.segment.IncrementalIndexSegment;
+import io.druid.segment.QueryableIndex;
 import io.druid.segment.QueryableIndexSegment;
 import io.druid.segment.TestHelper;
 import io.druid.segment.TestIndex;
+import io.druid.segment.incremental.IncrementalIndex;
 import io.druid.timeline.LogicalSegment;
 import org.joda.time.Interval;
 import org.junit.Assert;
@@ -77,26 +79,30 @@ public class SegmentMetadataQueryTest
   @SuppressWarnings("unchecked")
   public static QueryRunner makeMMappedQueryRunner(
       String segmentId,
+      boolean rollup,
       QueryRunnerFactory factory
   )
   {
+    QueryableIndex index = rollup ? TestIndex.getMMappedTestIndex() : TestIndex.getNoRollupMMappedTestIndex();
     return QueryRunnerTestHelper.makeQueryRunner(
         factory,
         segmentId,
-        new QueryableIndexSegment(segmentId, TestIndex.getMMappedTestIndex())
+        new QueryableIndexSegment(segmentId, index)
     );
   }
 
   @SuppressWarnings("unchecked")
   public static QueryRunner makeIncrementalIndexQueryRunner(
       String segmentId,
+      boolean rollup,
       QueryRunnerFactory factory
   )
   {
+    IncrementalIndex index = rollup ? TestIndex.getIncrementalTestIndex() : TestIndex.getNoRollupIncrementalTestIndex();
     return QueryRunnerTestHelper.makeQueryRunner(
         factory,
         segmentId,
-        new IncrementalIndexSegment(TestIndex.getIncrementalTestIndex(), segmentId)
+        new IncrementalIndexSegment(index, segmentId)
     );
   }
 
@@ -104,35 +110,42 @@ public class SegmentMetadataQueryTest
   private final QueryRunner runner2;
   private final boolean mmap1;
   private final boolean mmap2;
+  private final boolean rollup1;
+  private final boolean rollup2;
   private final boolean differentIds;
   private final SegmentMetadataQuery testQuery;
   private final SegmentAnalysis expectedSegmentAnalysis1;
   private final SegmentAnalysis expectedSegmentAnalysis2;
 
-  @Parameterized.Parameters(name = "mmap1 = {0}, mmap2 = {1}, differentIds = {2}")
+  @Parameterized.Parameters(name = "mmap1 = {0}, mmap2 = {1}, rollup1 = {2}, rollup2 = {3}, differentIds = {4}")
   public static Collection<Object[]> constructorFeeder()
   {
     return ImmutableList.of(
-        new Object[]{true, true, false},
-        new Object[]{true, false, false},
-        new Object[]{false, true, false},
-        new Object[]{false, false, false},
-        new Object[]{false, false, true}
+        new Object[]{true, true, true, true, false},
+        new Object[]{true, false, true, false, false},
+        new Object[]{false, true, true, false, false},
+        new Object[]{false, false, false, false, false},
+        new Object[]{false, false, true, true, false},
+        new Object[]{false, false, false, true, true}
     );
   }
 
   public SegmentMetadataQueryTest(
       boolean mmap1,
       boolean mmap2,
+      boolean rollup1,
+      boolean rollup2,
       boolean differentIds
   )
   {
     final String id1 = differentIds ? "testSegment1" : "testSegment";
     final String id2 = differentIds ? "testSegment2" : "testSegment";
-    this.runner1 = mmap1 ? makeMMappedQueryRunner(id1, FACTORY) : makeIncrementalIndexQueryRunner(id1, FACTORY);
-    this.runner2 = mmap2 ? makeMMappedQueryRunner(id2, FACTORY) : makeIncrementalIndexQueryRunner(id2, FACTORY);
+    this.runner1 = mmap1 ? makeMMappedQueryRunner(id1, rollup1, FACTORY) : makeIncrementalIndexQueryRunner(id1, rollup1, FACTORY);
+    this.runner2 = mmap2 ? makeMMappedQueryRunner(id2, rollup2, FACTORY) : makeIncrementalIndexQueryRunner(id2, rollup2, FACTORY);
     this.mmap1 = mmap1;
     this.mmap2 = mmap2;
+    this.rollup1 = rollup1;
+    this.rollup2 = rollup2;
     this.differentIds = differentIds;
     testQuery = Druids.newSegmentMetadataQueryBuilder()
                       .dataSource("testing")
@@ -244,6 +257,76 @@ public class SegmentMetadataQueryTest
     );
 
     Assert.assertEquals(Arrays.asList(expectedSegmentAnalysis1.withIngestedNumRows(1209)), results);
+  }
+
+  @Test
+  public void testSegmentMetadataQueryWithRollupMerge()
+  {
+    SegmentAnalysis mergedSegmentAnalysis = new SegmentAnalysis(
+        differentIds ? "merged" : "testSegment",
+        null,
+        ImmutableMap.of(
+            "placement",
+            new ColumnAnalysis(
+                ValueType.STRING.toString(),
+                false,
+                0,
+                0,
+                null,
+                null,
+                null
+            ),
+            "placementish",
+            new ColumnAnalysis(
+                ValueType.STRING.toString(),
+                true,
+                0,
+                0,
+                null,
+                null,
+                null
+            )
+        ),
+        0,
+        0,
+        expectedSegmentAnalysis1.getNumRows() + expectedSegmentAnalysis2.getNumRows(),
+        -1L,
+        null,
+        null,
+        rollup1 != rollup2 ? null : rollup1
+    );
+
+    QueryToolChest toolChest = FACTORY.getToolchest();
+
+    ExecutorService exec = Executors.newCachedThreadPool();
+    QueryRunner myRunner = new FinalizeResultsQueryRunner<>(
+        toolChest.mergeResults(
+            FACTORY.mergeRunners(
+                MoreExecutors.sameThreadExecutor(),
+                Lists.<QueryRunner<SegmentAnalysis>>newArrayList(
+                    toolChest.preMergeQueryDecoration(runner1),
+                    toolChest.preMergeQueryDecoration(runner2)
+                )
+            )
+        ),
+        toolChest
+    );
+
+    TestHelper.assertExpectedObjects(
+        ImmutableList.of(mergedSegmentAnalysis),
+        myRunner.run(
+            Druids.newSegmentMetadataQueryBuilder()
+                  .dataSource("testing")
+                  .intervals("2013/2014")
+                  .toInclude(new ListColumnIncluderator(Arrays.asList("placement", "placementish")))
+                  .analysisTypes(SegmentMetadataQuery.AnalysisType.ROLLUP)
+                  .merge(true)
+                  .build(),
+            Maps.newHashMap()
+        ),
+        "failed SegmentMetadata merging query"
+    );
+    exec.shutdownNow();
   }
 
   @Test

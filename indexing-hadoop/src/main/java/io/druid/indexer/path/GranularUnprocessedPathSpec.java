@@ -113,6 +113,7 @@ public class GranularUnprocessedPathSpec extends GranularityPathSpec
         new UniformGranularitySpec(
             segmentGranularity,
             config.getGranularitySpec().getQueryGranularity(),
+            config.getGranularitySpec().isRollup(),
             Lists.newArrayList(bucketsToRun)
         )
     );

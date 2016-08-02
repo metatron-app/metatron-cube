@@ -75,11 +75,10 @@ public class OnheapIncrementalIndex extends IncrementalIndex<Aggregator>
       boolean deserializeComplexMetrics,
       boolean reportParseExceptions,
       boolean sortFacts,
-      boolean rollup,
       int maxRowCount
   )
   {
-    super(incrementalIndexSchema, deserializeComplexMetrics, reportParseExceptions, sortFacts, rollup);
+    super(incrementalIndexSchema, deserializeComplexMetrics, reportParseExceptions, sortFacts);
     this.maxRowCount = maxRowCount;
 
     if (sortFacts) {
@@ -98,24 +97,6 @@ public class OnheapIncrementalIndex extends IncrementalIndex<Aggregator>
   }
 
   public OnheapIncrementalIndex(
-      IncrementalIndexSchema incrementalIndexSchema,
-      boolean deserializeComplexMetrics,
-      boolean reportParseExceptions,
-      boolean sortFacts,
-      int maxRowCount
-  )
-  {
-    this(
-        incrementalIndexSchema,
-        deserializeComplexMetrics,
-        reportParseExceptions,
-        sortFacts,
-        true,
-        maxRowCount
-    );
-  }
-
-  public OnheapIncrementalIndex(
       long minTimestamp,
       QueryGranularity gran,
       final AggregatorFactory[] metrics,
@@ -130,11 +111,11 @@ public class OnheapIncrementalIndex extends IncrementalIndex<Aggregator>
         new IncrementalIndexSchema.Builder().withMinTimestamp(minTimestamp)
                                             .withQueryGranularity(gran)
                                             .withMetrics(metrics)
+                                            .withRollup(rollup)
                                             .build(),
         deserializeComplexMetrics,
         reportParseExceptions,
         sortFacts,
-        rollup,
         maxRowCount
     );
   }
@@ -160,11 +141,11 @@ public class OnheapIncrementalIndex extends IncrementalIndex<Aggregator>
         new IncrementalIndexSchema.Builder().withMinTimestamp(minTimestamp)
                                             .withQueryGranularity(gran)
                                             .withMetrics(metrics)
+                                            .withRollup(rollup)
                                             .build(),
         true,
         true,
         true,
-        rollup,
         maxRowCount
     );
   }
@@ -175,7 +156,7 @@ public class OnheapIncrementalIndex extends IncrementalIndex<Aggregator>
       int maxRowCount
   )
   {
-    this(incrementalIndexSchema, true, reportParseExceptions, true, true, maxRowCount);
+    this(incrementalIndexSchema, true, reportParseExceptions, true, maxRowCount);
   }
 
   @Override

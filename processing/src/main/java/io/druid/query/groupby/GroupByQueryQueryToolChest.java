@@ -346,14 +346,14 @@ public class GroupByQueryQueryToolChest extends QueryToolChest<Row, GroupByQuery
     );
   }
 
-  private IncrementalIndex makeIncrementalIndex(GroupByQuery query, Sequence<Row> rows, boolean forQuery)
+  private IncrementalIndex makeIncrementalIndex(GroupByQuery query, Sequence<Row> rows, boolean sortFacts)
   {
     final GroupByQueryConfig config = configSupplier.get();
     Pair<IncrementalIndex, Accumulator<IncrementalIndex, Row>> indexAccumulatorPair = GroupByQueryHelper.createIndexAccumulatorPair(
         query,
         config,
         bufferPool,
-        forQuery
+        sortFacts
     );
 
     return rows.accumulate(indexAccumulatorPair.lhs, indexAccumulatorPair.rhs);

@@ -250,6 +250,7 @@ public class Sink implements Iterable<FireHydrant>
         .withQueryGranularity(schema.getGranularitySpec().getQueryGranularity())
         .withDimensionsSpec(schema.getParser())
         .withMetrics(schema.getAggregators())
+        .withRollup(schema.getGranularitySpec().isRollup())
         .build();
 
     final FireHydrant old;

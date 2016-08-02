@@ -351,6 +351,13 @@ public class SegmentMetadataQueryQueryToolChest extends QueryToolChest<SegmentAn
     if (arg1.getIngestedNumRows() >= 0 && arg2.getIngestedNumRows() >= 0) {
       ingestedNumRows = arg1.getIngestedNumRows() + arg2.getIngestedNumRows();
     }
+    final Boolean rollup;
+
+    if (arg1.isRollup() != null && arg2.isRollup() != null && arg1.isRollup().equals(arg2.isRollup())) {
+      rollup = arg1.isRollup();
+    } else {
+      rollup = null;
+    }
 
     return new SegmentAnalysis(
         mergedId,
@@ -361,7 +368,8 @@ public class SegmentMetadataQueryQueryToolChest extends QueryToolChest<SegmentAn
         arg1.getNumRows() + arg2.getNumRows(),
         ingestedNumRows,
         aggregators.isEmpty() ? null : aggregators,
-        queryGranularity
+        queryGranularity,
+        rollup
     );
   }
 
@@ -377,7 +385,8 @@ public class SegmentMetadataQueryQueryToolChest extends QueryToolChest<SegmentAn
         analysis.getNumRows(),
         analysis.getIngestedNumRows(),
         analysis.getAggregators(),
-        analysis.getQueryGranularity()
+        analysis.getQueryGranularity(),
+        analysis.isRollup()
     );
   }
 }

@@ -90,7 +90,6 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.ExecutorService;
 
 /**
  * This class provides general utility to test any druid aggregation implementation given raw data,
@@ -399,7 +398,7 @@ public class AggregationTestHelper
         for (File file : toMerge) {
           indexes.add(indexIO.loadIndex(file));
         }
-        indexMerger.mergeQueryableIndex(indexes, metrics, outDir, new IndexSpec());
+        indexMerger.mergeQueryableIndex(indexes, true, metrics, outDir, new IndexSpec());
 
         for (QueryableIndex qi : indexes) {
           qi.close();

@@ -255,6 +255,74 @@ public class SegmentMetadataQueryQueryToolChestTest
     );
   }
 
+  @Test
+  public void testMergeRollup()
+  {
+    final SegmentAnalysis analysis1 = new SegmentAnalysis(
+        "id",
+        null,
+        Maps.<String, ColumnAnalysis>newHashMap(),
+        0,
+        0,
+        null,
+        null
+    );
+    final SegmentAnalysis analysis2 = new SegmentAnalysis(
+        "id",
+        null,
+        Maps.<String, ColumnAnalysis>newHashMap(),
+        0,
+        0,
+        0,
+        0,
+        null,
+        null,
+        false
+    );
+    final SegmentAnalysis analysis3 = new SegmentAnalysis(
+        "id",
+        null,
+        Maps.<String, ColumnAnalysis>newHashMap(),
+        0,
+        0,
+        0,
+        0,
+        null,
+        null,
+        false
+    );
+    final SegmentAnalysis analysis4 = new SegmentAnalysis(
+        "id",
+        null,
+        Maps.<String, ColumnAnalysis>newHashMap(),
+        0,
+        0,
+        0,
+        0,
+        null,
+        null,
+        true
+    );
+    final SegmentAnalysis analysis5 = new SegmentAnalysis(
+        "id",
+        null,
+        Maps.<String, ColumnAnalysis>newHashMap(),
+        0,
+        0,
+        0,
+        0,
+        null,
+        null,
+        true
+    );
+
+    Assert.assertNull(mergeStrict(analysis1, analysis2).isRollup());
+    Assert.assertNull(mergeStrict(analysis1, analysis4).isRollup());
+    Assert.assertNull(mergeStrict(analysis2, analysis4).isRollup());
+    Assert.assertFalse(mergeStrict(analysis2, analysis3).isRollup());
+    Assert.assertTrue(mergeStrict(analysis4, analysis5).isRollup());
+  }
+
   private static SegmentAnalysis mergeStrict(SegmentAnalysis analysis1, SegmentAnalysis analysis2)
   {
     return SegmentMetadataQueryQueryToolChest.finalizeAnalysis(

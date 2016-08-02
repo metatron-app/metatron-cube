@@ -89,6 +89,8 @@ public class SelectMetaQueryRunnerTest
   @Test
   public void testBasic()
   {
+    List<String> dimensions = name.equals("rtIndex") || name.equals("noRollupRtIndex") ? dimensions1 : dimensions2;
+
     SelectMetaQuery query = new SelectMetaQuery(
         new TableDataSource(QueryRunnerTestHelper.dataSource),
         new MultipleIntervalSegmentSpec(Arrays.asList(new Interval("2011-01-12/2011-01-14"))),
@@ -107,7 +109,7 @@ public class SelectMetaQueryRunnerTest
     Result<SelectMetaResultValue> r = results.get(0);
     Assert.assertEquals(new DateTime(2011, 1, 12, 0, 0), r.getTimestamp());
     Assert.assertEquals(ImmutableMap.of("testSegment", 26), r.getValue().getPerSegmentCounts());
-    Assert.assertEquals(name.equals("incremental") ? dimensions1 : dimensions2, r.getValue().getDimensions());
+    Assert.assertEquals(dimensions, r.getValue().getDimensions());
     Assert.assertEquals(Sets.newHashSet(metrics), Sets.newHashSet(r.getValue().getMetrics()));
     Assert.assertEquals(26, r.getValue().getTotalCount());
     Assert.assertEquals(182, r.getValue().getEstimatedSize());
@@ -121,7 +123,7 @@ public class SelectMetaQueryRunnerTest
     r = results.get(0);
     Assert.assertEquals(r.getTimestamp(), new DateTime(2011, 1, 12, 0, 0));
     Assert.assertEquals(ImmutableMap.of("testSegment", 8), r.getValue().getPerSegmentCounts());
-    Assert.assertEquals(name.equals("incremental") ? dimensions1 : dimensions2, r.getValue().getDimensions());
+    Assert.assertEquals(dimensions, r.getValue().getDimensions());
     Assert.assertEquals(Sets.newHashSet(metrics), Sets.newHashSet(r.getValue().getMetrics()));
     Assert.assertEquals(8, r.getValue().getTotalCount());
     Assert.assertEquals(56, r.getValue().getEstimatedSize());
@@ -135,7 +137,7 @@ public class SelectMetaQueryRunnerTest
     r = results.get(0);
     Assert.assertEquals(r.getTimestamp(), new DateTime(2011, 1, 12, 0, 0));
     Assert.assertEquals(ImmutableMap.of("testSegment", 4), r.getValue().getPerSegmentCounts());
-    Assert.assertEquals(name.equals("incremental") ? dimensions1 : dimensions2, r.getValue().getDimensions());
+    Assert.assertEquals(dimensions, r.getValue().getDimensions());
     Assert.assertEquals(Sets.newHashSet(metrics), Sets.newHashSet(r.getValue().getMetrics()));
     Assert.assertEquals(4, r.getValue().getTotalCount());
     Assert.assertEquals(28, r.getValue().getEstimatedSize());
@@ -143,7 +145,7 @@ public class SelectMetaQueryRunnerTest
     r = results.get(1);
     Assert.assertEquals(r.getTimestamp(), new DateTime(2011, 1, 13, 0, 0));
     Assert.assertEquals(ImmutableMap.of("testSegment", 4), r.getValue().getPerSegmentCounts());
-    Assert.assertEquals(name.equals("incremental") ? dimensions1 : dimensions2, r.getValue().getDimensions());
+    Assert.assertEquals(dimensions, r.getValue().getDimensions());
     Assert.assertEquals(Sets.newHashSet(metrics), Sets.newHashSet(r.getValue().getMetrics()));
     Assert.assertEquals(4, r.getValue().getTotalCount());
     Assert.assertEquals(28, r.getValue().getEstimatedSize());

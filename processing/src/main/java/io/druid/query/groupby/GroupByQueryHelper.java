@@ -30,6 +30,7 @@ import io.druid.granularity.QueryGranularity;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.dimension.DimensionSpec;
 import io.druid.segment.incremental.IncrementalIndex;
+import io.druid.segment.incremental.IncrementalIndexSchema;
 import io.druid.segment.incremental.OffheapIncrementalIndex;
 import io.druid.segment.incremental.OnheapIncrementalIndex;
 
@@ -47,7 +48,7 @@ public class GroupByQueryHelper
       final GroupByQuery query,
       final GroupByQueryConfig config,
       StupidPool<ByteBuffer> bufferPool,
-      final boolean forQuery
+      final boolean sortFacts
   )
   {
     final QueryGranularity gran = query.getGranularity();
@@ -74,35 +75,25 @@ public class GroupByQueryHelper
           }
         }
     );
-    final IncrementalIndex index;
 
+    // use granularity truncated min timestamp since incoming truncated timestamps may precede timeStart
+    IncrementalIndexSchema schema = new IncrementalIndexSchema.Builder()
+        .withMinTimestamp(Long.MIN_VALUE)
+        .withQueryGranularity(gran)
+        .withMetrics(aggs.toArray(new AggregatorFactory[aggs.size()]))
+        .withGroupBy()
+        .build();
+
+    int maxRowCount = Math.min(
+        query.getContextValue(CTX_KEY_MAX_RESULTS, config.getMaxResults()),
+        config.getMaxResults()
+    );
+
+    final IncrementalIndex index;
     if (query.getContextValue("useOffheap", false)) {
-      index = new OffheapIncrementalIndex(
-          // use granularity truncated min timestamp
-          // since incoming truncated timestamps may precede timeStart
-          Long.MIN_VALUE,
-          gran,
-          aggs.toArray(new AggregatorFactory[aggs.size()]),
-          false,
-          true,
-          forQuery,
-          true,
-          Math.min(query.getContextValue(CTX_KEY_MAX_RESULTS, config.getMaxResults()), config.getMaxResults()),
-          bufferPool
-      );
+      index = new OffheapIncrementalIndex(schema, false, true, sortFacts, maxRowCount, bufferPool);
     } else {
-      index = new OnheapIncrementalIndex(
-          // use granularity truncated min timestamp
-          // since incoming truncated timestamps may precede timeStart
-          Long.MIN_VALUE,
-          gran,
-          aggs.toArray(new AggregatorFactory[aggs.size()]),
-          false,
-          true,
-          forQuery,
-          true,
-          Math.min(query.getContextValue(CTX_KEY_MAX_RESULTS, config.getMaxResults()), config.getMaxResults())
-      );
+      index = new OnheapIncrementalIndex(schema, false, true, sortFacts, maxRowCount);
     }
 
     index.initialize(dimensions);

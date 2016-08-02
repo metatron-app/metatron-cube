@@ -67,6 +67,7 @@ public class MetadataTest
     metadata.setAggregators(aggregators);
     metadata.setQueryGranularity(QueryGranularities.ALL);
     metadata.setIngestedNumRow(100L);
+    metadata.setRollup(Boolean.FALSE);
 
     serdeTest(metadata);
   }
@@ -102,12 +103,14 @@ public class MetadataTest
     m1.setAggregators(aggs);
     m1.setQueryGranularity(QueryGranularities.ALL);
     m1.setIngestedNumRow(100L);
+    m1.setRollup(Boolean.FALSE);
 
     Metadata m2 = new Metadata();
     m2.put("k", "v");
     m2.setAggregators(aggs);
     m2.setQueryGranularity(QueryGranularities.ALL);
     m2.setIngestedNumRow(200L);
+    m2.setRollup(Boolean.FALSE);
 
     Metadata merged = new Metadata();
     merged.put("k", "v");
@@ -116,6 +119,7 @@ public class MetadataTest
             new LongMaxAggregatorFactory("n", "n")
         }
     );
+    merged.setRollup(Boolean.FALSE);
     merged.setQueryGranularity(QueryGranularities.ALL);
     merged.setIngestedNumRow(300L);
 
@@ -129,6 +133,7 @@ public class MetadataTest
 
     merged.setAggregators(null);
     merged.setQueryGranularity(null);
+    merged.setRollup(null);
     Assert.assertEquals(merged, Metadata.merge(metadataToBeMerged, null));
 
     //merge check with client explicitly providing merged aggregators
@@ -143,6 +148,7 @@ public class MetadataTest
     );
 
     merged.setQueryGranularity(QueryGranularities.ALL);
+    m1.setRollup(Boolean.TRUE);
     Assert.assertEquals(
         merged,
         Metadata.merge(ImmutableList.of(m1, m2), explicitAggs)

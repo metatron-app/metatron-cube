@@ -59,7 +59,8 @@ public class SegmentMetadataQuery extends BaseQuery<SegmentAnalysis>
     MINMAX,
     QUERYGRANULARITY,
     INGESTED_NUMROW,
-    SERIALIZED_SIZE;
+    SERIALIZED_SIZE,
+    ROLLUP;
 
     @JsonValue
     @Override
@@ -191,6 +192,11 @@ public class SegmentMetadataQuery extends BaseQuery<SegmentAnalysis>
   public boolean hasQueryGranularity()
   {
     return analysisTypes.contains(AnalysisType.QUERYGRANULARITY);
+  }
+
+  public boolean hasRollup()
+  {
+    return analysisTypes.contains(AnalysisType.ROLLUP);
   }
 
   public boolean hasMinMax()

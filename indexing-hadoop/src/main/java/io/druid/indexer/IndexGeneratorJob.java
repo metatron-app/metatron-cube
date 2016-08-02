@@ -250,6 +250,7 @@ public class IndexGeneratorJob implements HadoopDruidIndexerJob.IndexingStatsPro
         .withDimensionsSpec(config.getSchema().getDataSchema().getParser())
         .withQueryGranularity(config.getSchema().getDataSchema().getGranularitySpec().getQueryGranularity())
         .withMetrics(aggs)
+        .withRollup(config.getSchema().getDataSchema().getGranularitySpec().isRollup())
         .build();
 
     final int boundary = hardLimit < 0 ? tuningConfig.getRowFlushBoundary() : hardLimit;
@@ -258,7 +259,6 @@ public class IndexGeneratorJob implements HadoopDruidIndexerJob.IndexingStatsPro
         true,
         !tuningConfig.isIgnoreInvalidRows(),
         !tuningConfig.isAssumeTimeSorted(),
-        tuningConfig.isRollup(),
         boundary
     );
 
@@ -569,19 +569,19 @@ public class IndexGeneratorJob implements HadoopDruidIndexerJob.IndexingStatsPro
 
     protected File mergeQueryableIndex(
         final List<QueryableIndex> indexes,
-        final boolean isRollup,
         final AggregatorFactory[] aggs,
         final File file,
         ProgressIndicator progressIndicator
     ) throws IOException
     {
+      boolean rollup = config.getSchema().getDataSchema().getGranularitySpec().isRollup();
       if (config.isBuildV9Directly()) {
         return HadoopDruidIndexerConfig.INDEX_MERGER_V9.mergeQueryableIndexAndClose(
-            indexes, isRollup, aggs, file, config.getIndexSpec(), progressIndicator
+            indexes, rollup, aggs, file, config.getIndexSpec(), progressIndicator
         );
       } else {
         return HadoopDruidIndexerConfig.INDEX_MERGER.mergeQueryableIndexAndClose(
-            indexes, isRollup, aggs, file, config.getIndexSpec(), progressIndicator
+            indexes, rollup, aggs, file, config.getIndexSpec(), progressIndicator
         );
       }
     }
@@ -790,7 +790,7 @@ public class IndexGeneratorJob implements HadoopDruidIndexerJob.IndexingStatsPro
             indexes.add(HadoopDruidIndexerConfig.INDEX_IO.loadIndex(file));
           }
           mergedBase = mergeQueryableIndex(
-              indexes, tuningConfig.isRollup(), aggregators, new File(baseFlushFile, "merged"), progressIndicator
+              indexes, aggregators, new File(baseFlushFile, "merged"), progressIndicator
           );
         }
         final FileSystem outputFS = new Path(config.getSchema().getIOConfig().getSegmentOutputPath())

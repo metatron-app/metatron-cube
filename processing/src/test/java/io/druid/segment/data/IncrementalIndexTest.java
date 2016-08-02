@@ -176,6 +176,38 @@ public class IncrementalIndexTest
                     );
                   }
                 }
+            },
+            {
+                new IndexCreator()
+                {
+                  @Override
+                  public IncrementalIndex createIndex(AggregatorFactory[] factories)
+                  {
+                    return IncrementalIndexTest.createNoRollupIndex(factories);
+                  }
+                }
+            },
+            {
+                new IndexCreator()
+                {
+                  @Override
+                  public IncrementalIndex createIndex(AggregatorFactory[] factories)
+                  {
+                    return new OffheapIncrementalIndex(
+                        0L, QueryGranularities.NONE, false, factories, 1000000,
+                        new StupidPool<ByteBuffer>(
+                            new Supplier<ByteBuffer>()
+                            {
+                              @Override
+                              public ByteBuffer get()
+                              {
+                                return ByteBuffer.allocate(256 * 1024);
+                              }
+                            }
+                        )
+                    );
+                  }
+                }
             }
 
         }

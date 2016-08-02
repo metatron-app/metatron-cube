@@ -48,6 +48,9 @@ public class Metadata
   @JsonProperty
   private Long ingestedNumRows;
 
+  @JsonProperty
+  private Boolean rollup;
+
   public Metadata()
   {
     container = new ConcurrentHashMap<>();
@@ -72,6 +75,17 @@ public class Metadata
   public Metadata setQueryGranularity(QueryGranularity queryGranularity)
   {
     this.queryGranularity = queryGranularity;
+    return this;
+  }
+
+  public Boolean isRollup()
+  {
+    return rollup;
+  }
+
+  public Metadata setRollup(Boolean rollup)
+  {
+    this.rollup = rollup;
     return this;
   }
 
@@ -126,6 +140,7 @@ public class Metadata
                                                    : null;
 
     List<QueryGranularity> gransToMerge = new ArrayList<>();
+    List<Boolean> rollupToMerge = new ArrayList<>();
 
     Long ingestedNumRows = 0L;
     for (Metadata metadata : toBeMerged) {
@@ -143,12 +158,17 @@ public class Metadata
         } else {
           ingestedNumRows += metadata.ingestedNumRows;
         }
+
+        if (rollupToMerge != null) {
+          rollupToMerge.add(metadata.isRollup());
+        }
         mergedContainer.putAll(metadata.container);
       } else {
         //if metadata and hence aggregators and queryGranularity for some segment being merged are unknown then
         //final merged segment should not have same in metadata
         aggregatorsToMerge = null;
         gransToMerge = null;
+        rollupToMerge = null;
       }
     }
 
@@ -170,6 +190,23 @@ public class Metadata
       result.setIngestedNumRow(ingestedNumRows);
     }
 
+    Boolean rollup = null;
+    if (rollupToMerge != null && !rollupToMerge.isEmpty()) {
+      rollup = rollupToMerge.get(0);
+      for (Boolean r : rollupToMerge) {
+        if (r == null) {
+          rollup = null;
+          break;
+        } else if (!r.equals(rollup)) {
+          rollup = null;
+          break;
+        } else {
+          rollup = r;
+        }
+      }
+    }
+
+    result.setRollup(rollup);
     result.container.putAll(mergedContainer);
     return result;
 
@@ -194,9 +231,12 @@ public class Metadata
     if (!Arrays.equals(aggregators, metadata.aggregators)) {
       return false;
     }
-    return !(queryGranularity != null
-             ? !queryGranularity.equals(metadata.queryGranularity)
-             : metadata.queryGranularity != null);
+    if (rollup != null ? !rollup.equals(metadata.rollup) : metadata.rollup != null) {
+      return false;
+    }
+    return queryGranularity != null
+           ? queryGranularity.equals(metadata.queryGranularity)
+           : metadata.queryGranularity == null;
 
   }
 
@@ -206,6 +246,7 @@ public class Metadata
     int result = container.hashCode();
     result = 31 * result + (aggregators != null ? Arrays.hashCode(aggregators) : 0);
     result = 31 * result + (queryGranularity != null ? queryGranularity.hashCode() : 0);
+    result = 31 * result + (rollup != null ? rollup.hashCode() : 0);
     return result;
   }
 
@@ -217,6 +258,7 @@ public class Metadata
            "container=" + container +
            ", aggregators=" + Arrays.toString(aggregators) +
            ", queryGranularity=" + queryGranularity +
+           ", rollup=" + rollup +
            '}';
   }
 }
