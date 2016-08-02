@@ -26,15 +26,16 @@ import com.google.common.io.CharSource;
 import com.google.common.io.LineProcessor;
 import com.google.common.io.Resources;
 import com.metamx.common.logger.Logger;
+import io.druid.data.ValueType;
 import io.druid.data.input.impl.DelimitedParseSpec;
 import io.druid.data.input.impl.DimensionsSpec;
 import io.druid.data.input.impl.StringInputRowParser;
 import io.druid.data.input.impl.TimestampSpec;
 import io.druid.granularity.QueryGranularities;
 import io.druid.query.aggregation.AggregatorFactory;
-import io.druid.query.aggregation.FloatMaxAggregatorFactory;
-import io.druid.query.aggregation.FloatMinAggregatorFactory;
-import io.druid.query.aggregation.FloatSumAggregatorFactory;
+import io.druid.query.aggregation.DoubleMaxAggregatorFactory;
+import io.druid.query.aggregation.GenericMinAggregatorFactory;
+import io.druid.query.aggregation.GenericSumAggregatorFactory;
 import io.druid.query.aggregation.hyperloglog.HyperUniquesAggregatorFactory;
 import io.druid.query.aggregation.hyperloglog.HyperUniquesSerde;
 import io.druid.segment.incremental.IncrementalIndex;
@@ -79,9 +80,9 @@ public class TestIndex
   private static final Logger log = new Logger(TestIndex.class);
   private static final Interval DATA_INTERVAL = new Interval("2011-01-12T00:00:00.000Z/2011-05-01T00:00:00.000Z");
   public static final AggregatorFactory[] METRIC_AGGS = new AggregatorFactory[]{
-      new FloatSumAggregatorFactory(METRICS[0], METRICS[0]),
-      new FloatMinAggregatorFactory(METRICS[1], METRICS[0]),
-      new FloatMaxAggregatorFactory(METRICS[2], null, "index + 10"),
+      new GenericSumAggregatorFactory(METRICS[0], METRICS[0], ValueType.FLOAT),
+      new GenericMinAggregatorFactory(METRICS[1], METRICS[0], ValueType.FLOAT),
+      new DoubleMaxAggregatorFactory(METRICS[2], null, "index + 10"),
       new HyperUniquesAggregatorFactory("quality_uniques", "quality")
   };
   private static final IndexSpec indexSpec = new IndexSpec();

@@ -24,12 +24,13 @@ import com.google.common.base.Predicates;
 import com.google.common.collect.Ordering;
 import com.google.common.primitives.Doubles;
 import io.druid.segment.DoubleColumnSelector;
+import io.druid.segment.FloatColumnSelector;
 
 import java.util.Comparator;
 
 /**
  */
-public class DoubleSumAggregator implements Aggregator
+public abstract class DoubleSumAggregator implements Aggregator
 {
   static final Comparator COMPARATOR = new Ordering()
   {
@@ -45,32 +46,21 @@ public class DoubleSumAggregator implements Aggregator
     return ((Number) lhs).doubleValue() + ((Number) rhs).doubleValue();
   }
 
-  private final DoubleColumnSelector selector;
-  private final Predicate predicate;
-  private final String name;
+  final Predicate predicate;
+  final String name;
 
-  private double sum;
+  double sum;
 
-  public DoubleSumAggregator(String name, DoubleColumnSelector selector, Predicate predicate)
+  public DoubleSumAggregator(String name, Predicate predicate)
   {
     this.name = name;
-    this.selector = selector;
-    this.predicate = predicate;
-
+    this.predicate = predicate == null ? Predicates.alwaysTrue() : predicate;
     this.sum = 0;
   }
 
-  public DoubleSumAggregator(String name, DoubleColumnSelector selector)
+  public DoubleSumAggregator(String name)
   {
-    this(name, selector, Predicates.alwaysTrue());
-  }
-
-  @Override
-  public void aggregate()
-  {
-    if (predicate.apply(null)) {
-      sum += selector.get();
-    }
+    this(name, null);
   }
 
   @Override
@@ -110,14 +100,54 @@ public class DoubleSumAggregator implements Aggregator
   }
 
   @Override
-  public Aggregator clone()
-  {
-    return new DoubleSumAggregator(name, selector, predicate);
-  }
-
-  @Override
   public void close()
   {
     // no resources to cleanup
+  }
+
+  public static class FloatInput extends DoubleSumAggregator
+  {
+    private final FloatColumnSelector selector;
+
+    public FloatInput(String name, FloatColumnSelector selector, Predicate predicate)
+    {
+      super(name, predicate);
+      this.selector = selector;
+    }
+
+    @Override
+    public void aggregate()
+    {
+      sum += selector.get();
+    }
+
+    @Override
+    public Aggregator clone()
+    {
+      return new FloatInput(name, selector, predicate);
+    }
+  }
+
+  public static class DoubleInput extends DoubleSumAggregator
+  {
+    private final DoubleColumnSelector selector;
+
+    public DoubleInput(String name, DoubleColumnSelector selector, Predicate predicate)
+    {
+      super(name, predicate);
+      this.selector = selector;
+    }
+
+    @Override
+    public void aggregate()
+    {
+      sum += selector.get();
+    }
+
+    @Override
+    public Aggregator clone()
+    {
+      return new DoubleInput(name, selector, predicate);
+    }
   }
 }

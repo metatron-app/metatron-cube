@@ -133,7 +133,7 @@ public class AggregatorUtilTest
     );
     // verify aggregators
     Assert.assertEquals(
-        Lists.newArrayList(QueryRunnerTestHelper.rowsCount, QueryRunnerTestHelper.indexFloatSum),
+        Lists.newArrayList(QueryRunnerTestHelper.rowsCount, QueryRunnerTestHelper.indexDoubleSum),
         aggregatorsPair.lhs
     );
     Assert.assertEquals(

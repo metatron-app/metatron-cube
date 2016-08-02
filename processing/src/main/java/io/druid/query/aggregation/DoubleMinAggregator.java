@@ -20,12 +20,13 @@
 package io.druid.query.aggregation;
 
 import io.druid.segment.DoubleColumnSelector;
+import io.druid.segment.FloatColumnSelector;
 
 import java.util.Comparator;
 
 /**
  */
-public class DoubleMinAggregator implements Aggregator
+public abstract class DoubleMinAggregator implements Aggregator
 {
   static final Comparator COMPARATOR = DoubleSumAggregator.COMPARATOR;
 
@@ -34,23 +35,14 @@ public class DoubleMinAggregator implements Aggregator
     return Math.min(((Number) lhs).doubleValue(), ((Number) rhs).doubleValue());
   }
 
-  private final DoubleColumnSelector selector;
-  private final String name;
+  final String name;
 
-  private double min;
+  double min;
 
-  public DoubleMinAggregator(String name, DoubleColumnSelector selector)
+  public DoubleMinAggregator(String name)
   {
     this.name = name;
-    this.selector = selector;
-
     reset();
-  }
-
-  @Override
-  public void aggregate()
-  {
-    min = Math.min(min, selector.get());
   }
 
   @Override
@@ -90,14 +82,54 @@ public class DoubleMinAggregator implements Aggregator
   }
 
   @Override
-  public Aggregator clone()
-  {
-    return new DoubleMinAggregator(name, selector);
-  }
-
-  @Override
   public void close()
   {
     // no resources to cleanup
+  }
+
+  public static class FloatInput extends DoubleMinAggregator
+  {
+    private final FloatColumnSelector selector;
+
+    public FloatInput(String name, FloatColumnSelector selector)
+    {
+      super(name);
+      this.selector = selector;
+    }
+
+    @Override
+    public void aggregate()
+    {
+      min = Math.min(min, selector.get());
+    }
+
+    @Override
+    public Aggregator clone()
+    {
+      return new FloatInput(name, selector);
+    }
+  }
+
+  public static class DoubleInput extends DoubleMinAggregator
+  {
+    private final DoubleColumnSelector selector;
+
+    public DoubleInput(String name, DoubleColumnSelector selector)
+    {
+      super(name);
+      this.selector = selector;
+    }
+
+    @Override
+    public void aggregate()
+    {
+      min = Math.min(min, selector.get());
+    }
+
+    @Override
+    public Aggregator clone()
+    {
+      return new DoubleInput(name, selector);
+    }
   }
 }

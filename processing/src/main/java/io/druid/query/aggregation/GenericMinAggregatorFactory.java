@@ -23,11 +23,9 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;
 import com.google.common.primitives.Doubles;
-import com.google.common.primitives.Floats;
-import io.druid.common.utils.StringUtils;
-import io.druid.math.expr.Parser;
+import com.metamx.common.StringUtils;
+import io.druid.data.ValueType;
 import io.druid.segment.ColumnSelectorFactory;
-import io.druid.segment.FloatColumnSelector;
 
 import java.nio.ByteBuffer;
 import java.util.Arrays;
@@ -37,70 +35,76 @@ import java.util.Objects;
 
 /**
  */
-public class FloatMinAggregatorFactory extends AggregatorFactory
+public class GenericMinAggregatorFactory extends AggregatorFactory
 {
-  private static final byte CACHE_TYPE_ID = 0x4;
+  private static final byte CACHE_TYPE_ID = 0x3;
 
-  private final String name;
   private final String fieldName;
-  private final String fieldExpression;
+  private final String name;
+  private final ValueType inputType;
+  private final Comparator comparator;
 
   @JsonCreator
-  public FloatMinAggregatorFactory(
+  public GenericMinAggregatorFactory(
       @JsonProperty("name") String name,
-      @JsonProperty("fieldName") final String fieldName,
-      @JsonProperty("fieldExpression") String fieldExpression
+      @JsonProperty("fieldName") String fieldName,
+      @JsonProperty("inputType") ValueType inputType
   )
   {
     Preconditions.checkNotNull(name, "Must have a valid, non-null aggregator name");
-    Preconditions.checkArgument(
-        fieldName == null ^ fieldExpression == null,
-        "Must have a valid, non-null fieldName or fieldExpression"
-    );
+    Preconditions.checkNotNull(fieldName, "Must have a valid, non-null fieldName");
+    Preconditions.checkArgument(inputType == null || ValueType.isNumeric(inputType));
 
     this.name = name;
     this.fieldName = fieldName;
-    this.fieldExpression = fieldExpression;
-  }
-
-  public FloatMinAggregatorFactory(String name, String fieldName)
-  {
-    this(name, fieldName, null);
+    this.inputType = inputType == null ? ValueType.DOUBLE : inputType;
+    this.comparator = inputType.comparator();
   }
 
   @Override
   public Aggregator factorize(ColumnSelectorFactory metricFactory)
   {
-    return new FloatMinAggregator(name, getFloatColumnSelector(metricFactory));
+    switch (inputType) {
+      case FLOAT:
+        return new DoubleMinAggregator.FloatInput(name, metricFactory.makeFloatColumnSelector(fieldName));
+      case DOUBLE:
+        return new DoubleMinAggregator.DoubleInput(name, metricFactory.makeDoubleColumnSelector(fieldName));
+      case LONG:
+        return new LongMinAggregator(name, metricFactory.makeLongColumnSelector(fieldName));
+    }
+    throw new IllegalStateException();
   }
 
   @Override
   public BufferAggregator factorizeBuffered(ColumnSelectorFactory metricFactory)
   {
-    return new FloatMinBufferAggregator(getFloatColumnSelector(metricFactory));
-  }
-
-  private FloatColumnSelector getFloatColumnSelector(ColumnSelectorFactory metricFactory)
-  {
-    return AggregatorUtil.getFloatColumnSelector(metricFactory, fieldName, fieldExpression);
+    switch (inputType) {
+      case FLOAT:
+        return new DoubleMinBufferAggregator.FloatInput(metricFactory.makeFloatColumnSelector(fieldName));
+      case DOUBLE:
+        return new DoubleMinBufferAggregator.DoubleInput(metricFactory.makeDoubleColumnSelector(fieldName));
+      case LONG:
+        return new LongMinBufferAggregator(metricFactory.makeLongColumnSelector(fieldName));
+    }
+    throw new IllegalStateException();
   }
 
   @Override
   public Comparator getComparator()
   {
-    return DoubleMinAggregator.COMPARATOR;
+    return comparator;
   }
 
   @Override
   public Object combine(Object lhs, Object rhs)
   {
-    return DoubleMinAggregator.combineValues(lhs, rhs);
+    return comparator.compare(lhs, rhs) < 0 ? lhs : rhs;
   }
 
   @Override
   public AggregatorFactory getCombiningFactory()
   {
-    return new FloatMinAggregatorFactory(name, name, null);
+    return new GenericMinAggregatorFactory(name, name, ValueType.DOUBLE);
   }
 
   @Override
@@ -116,7 +120,7 @@ public class FloatMinAggregatorFactory extends AggregatorFactory
   @Override
   public List<AggregatorFactory> getRequiredColumns()
   {
-    return Arrays.<AggregatorFactory>asList(new FloatMinAggregatorFactory(fieldName, fieldName, fieldExpression));
+    return Arrays.<AggregatorFactory>asList(new GenericMinAggregatorFactory(fieldName, fieldName, inputType));
   }
 
   @Override
@@ -141,12 +145,6 @@ public class FloatMinAggregatorFactory extends AggregatorFactory
     return fieldName;
   }
 
-  @JsonProperty
-  public String getFieldExpression()
-  {
-    return fieldExpression;
-  }
-
   @Override
   @JsonProperty
   public String getName()
@@ -154,26 +152,35 @@ public class FloatMinAggregatorFactory extends AggregatorFactory
     return name;
   }
 
+  @JsonProperty
+  public String getInputType()
+  {
+    return inputType.toString();
+  }
+
   @Override
   public List<String> requiredFields()
   {
-    return fieldName != null ? Arrays.asList(fieldName) : Parser.findRequiredBindings(fieldExpression);
+    return Arrays.asList(fieldName);
   }
 
   @Override
   public byte[] getCacheKey()
   {
-    byte[] fieldNameBytes = StringUtils.toUtf8WithNullToEmpty(fieldName);
-    byte[] fieldExpressionBytes = StringUtils.toUtf8WithNullToEmpty(fieldExpression);
+    byte[] fieldNameBytes = StringUtils.toUtf8(fieldName);
+    byte[] inputTypeBytes = StringUtils.toUtf8(inputType.name());
 
-    return ByteBuffer.allocate(1 + fieldNameBytes.length + fieldExpressionBytes.length)
-                     .put(CACHE_TYPE_ID).put(fieldNameBytes).put(fieldExpressionBytes).array();
+    return ByteBuffer.allocate(1 + fieldNameBytes.length + inputTypeBytes.length)
+                     .put(CACHE_TYPE_ID)
+                     .put(fieldNameBytes)
+                     .put(inputTypeBytes)
+                     .array();
   }
 
   @Override
   public String getTypeName()
   {
-    return "float";
+    return inputType.name().toLowerCase();
   }
 
   @Override
@@ -191,9 +198,9 @@ public class FloatMinAggregatorFactory extends AggregatorFactory
   @Override
   public String toString()
   {
-    return "FloatMinAggregatorFactory{" +
+    return "DoubleMinAggregatorFactory{" +
            "fieldName='" + fieldName + '\'' +
-           ", fieldExpression='" + fieldExpression + '\'' +
+           "inputType='" + inputType + '\'' +
            ", name='" + name + '\'' +
            '}';
   }
@@ -201,19 +208,15 @@ public class FloatMinAggregatorFactory extends AggregatorFactory
   @Override
   public boolean equals(Object o)
   {
-    if (this == o) {
-      return true;
-    }
-    if (o == null || getClass() != o.getClass()) {
-      return false;
-    }
+    if (this == o) return true;
+    if (o == null || getClass() != o.getClass()) return false;
 
-    FloatMinAggregatorFactory that = (FloatMinAggregatorFactory) o;
+    GenericMinAggregatorFactory that = (GenericMinAggregatorFactory) o;
 
     if (!Objects.equals(fieldName, that.fieldName)) {
       return false;
     }
-    if (!Objects.equals(fieldExpression, that.fieldExpression)) {
+    if (!Objects.equals(inputType, that.inputType)) {
       return false;
     }
     if (!Objects.equals(name, that.name)) {
@@ -226,9 +229,6 @@ public class FloatMinAggregatorFactory extends AggregatorFactory
   @Override
   public int hashCode()
   {
-    int result = fieldName != null ? fieldName.hashCode() : 0;
-    result = 31 * result + (fieldExpression != null ? fieldExpression.hashCode() : 0);
-    result = 31 * result + (name != null ? name.hashCode() : 0);
-    return result;
+    return Objects.hash(fieldName, inputType, name);
   }
 }

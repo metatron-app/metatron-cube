@@ -25,10 +25,10 @@ import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import com.google.common.primitives.Doubles;
-import io.druid.common.utils.StringUtils;
+import com.metamx.common.StringUtils;
+import io.druid.data.ValueType;
 import io.druid.math.expr.Parser;
 import io.druid.segment.ColumnSelectorFactory;
-import io.druid.segment.FloatColumnSelector;
 
 import java.nio.ByteBuffer;
 import java.util.Arrays;
@@ -39,21 +39,23 @@ import java.util.Set;
 
 /**
  */
-public class FloatSumAggregatorFactory extends AggregatorFactory
+public class GenericSumAggregatorFactory extends AggregatorFactory
 {
-  private static final byte CACHE_TYPE_ID = 0x2;
+  private static final byte CACHE_TYPE_ID = 0x3;
 
-  private final String name;
   private final String fieldName;
+  private final String name;
   private final String fieldExpression;
   private final String predicate;
+  private final ValueType inputType;
 
   @JsonCreator
-  public FloatSumAggregatorFactory(
+  public GenericSumAggregatorFactory(
       @JsonProperty("name") String name,
       @JsonProperty("fieldName") String fieldName,
       @JsonProperty("fieldExpression") String fieldExpression,
-      @JsonProperty("predicate") String predicate
+      @JsonProperty("predicate") String predicate,
+      @JsonProperty("inputType") ValueType inputType
   )
   {
     Preconditions.checkNotNull(name, "Must have a valid, non-null aggregator name");
@@ -66,53 +68,112 @@ public class FloatSumAggregatorFactory extends AggregatorFactory
     this.fieldName = fieldName;
     this.fieldExpression = fieldExpression;
     this.predicate = predicate;
+    this.inputType = inputType == null ? ValueType.DOUBLE : inputType;
+    Preconditions.checkArgument(ValueType.isNumeric(inputType));
   }
 
-  public FloatSumAggregatorFactory(String name, String fieldName)
+  public GenericSumAggregatorFactory(String name, String fieldName, ValueType inputType)
   {
-    this(name, fieldName, null, null);
+    this(name, fieldName, null, null, inputType);
   }
 
   @Override
   public Aggregator factorize(ColumnSelectorFactory metricFactory)
   {
-    return new FloatSumAggregator(
-        name,
-        getFloatColumnSelector(metricFactory),
-        AggregatorUtil.toPredicate(predicate, metricFactory)
-    );
+    switch (inputType) {
+      case FLOAT:
+        return new DoubleSumAggregator.FloatInput(
+            name,
+            AggregatorUtil.getFloatColumnSelector(
+                metricFactory,
+                fieldName,
+                fieldExpression
+            ),
+            AggregatorUtil.toPredicate(predicate, metricFactory)
+        );
+      case DOUBLE:
+        return new DoubleSumAggregator.DoubleInput(
+            name,
+            AggregatorUtil.getDoubleColumnSelector(
+                metricFactory,
+                fieldName,
+                fieldExpression
+            ),
+            AggregatorUtil.toPredicate(predicate, metricFactory)
+        );
+      case LONG:
+        return new LongSumAggregator(
+            name,
+            AggregatorUtil.getLongColumnSelector(
+                metricFactory,
+                fieldName,
+                fieldExpression
+            ),
+            AggregatorUtil.toPredicate(predicate, metricFactory)
+        );
+    }
+    throw new IllegalStateException();
   }
 
   @Override
   public BufferAggregator factorizeBuffered(ColumnSelectorFactory metricFactory)
   {
-    return new FloatSumBufferAggregator(
-        getFloatColumnSelector(metricFactory),
-        AggregatorUtil.toPredicate(predicate, metricFactory)
-    );
-  }
-
-  private FloatColumnSelector getFloatColumnSelector(ColumnSelectorFactory metricFactory)
-  {
-    return AggregatorUtil.getFloatColumnSelector(metricFactory, fieldName, fieldExpression);
+    switch (inputType) {
+      case FLOAT:
+        return new DoubleSumBufferAggregator.FloatInput(
+            AggregatorUtil.getFloatColumnSelector(
+                metricFactory,
+                fieldName,
+                fieldExpression
+            ),
+            AggregatorUtil.toPredicate(predicate, metricFactory)
+        );
+      case DOUBLE:
+        return new DoubleSumBufferAggregator.DoubleInput(
+            AggregatorUtil.getDoubleColumnSelector(
+                metricFactory,
+                fieldName,
+                fieldExpression
+            ),
+            AggregatorUtil.toPredicate(predicate, metricFactory)
+        );
+      case LONG:
+        return new LongSumBufferAggregator(
+            AggregatorUtil.getLongColumnSelector(
+                metricFactory,
+                fieldName,
+                fieldExpression
+            ),
+            AggregatorUtil.toPredicate(predicate, metricFactory)
+        );
+    }
+    throw new IllegalStateException();
   }
 
   @Override
   public Comparator getComparator()
   {
-    return DoubleSumAggregator.COMPARATOR;
+    return inputType.comparator();
   }
 
   @Override
   public Object combine(Object lhs, Object rhs)
   {
-    return DoubleSumAggregator.combineValues(lhs, rhs);
+    switch (inputType) {
+      case FLOAT:
+        return ((Number) lhs).floatValue() + ((Number) rhs).floatValue();
+      case DOUBLE:
+        return ((Number) lhs).doubleValue() + ((Number) rhs).doubleValue();
+      case LONG:
+        return ((Number) lhs).longValue() + ((Number) rhs).longValue();
+    }
+    throw new IllegalStateException();
   }
 
   @Override
   public AggregatorFactory getCombiningFactory()
   {
-    return new FloatSumAggregatorFactory(name, name);
+    return new GenericSumAggregatorFactory(name, name, inputType);
   }
 
   @Override
@@ -128,14 +189,7 @@ public class FloatSumAggregatorFactory extends AggregatorFactory
   @Override
   public List<AggregatorFactory> getRequiredColumns()
   {
-    return Arrays.<AggregatorFactory>asList(
-        new FloatSumAggregatorFactory(
-            fieldName,
-            fieldName,
-            fieldExpression,
-            predicate
-        )
-    );
+    return Arrays.<AggregatorFactory>asList(new GenericSumAggregatorFactory(fieldName, fieldName, inputType));
   }
 
   @Override
@@ -160,18 +214,6 @@ public class FloatSumAggregatorFactory extends AggregatorFactory
     return fieldName;
   }
 
-  @JsonProperty
-  public String getFieldExpression()
-  {
-    return fieldExpression;
-  }
-
-  @JsonProperty
-  public String getPredicate()
-  {
-    return predicate;
-  }
-
   @Override
   @JsonProperty
   public String getName()
@@ -179,10 +221,16 @@ public class FloatSumAggregatorFactory extends AggregatorFactory
     return name;
   }
 
+  @JsonProperty
+  public String getInputType()
+  {
+    return inputType.toString();
+  }
+
   @Override
   public List<String> requiredFields()
   {
-    Set<String> required = Sets.newHashSet();
+    Set<String> required = Sets.newLinkedHashSet();
     if (fieldName != null) {
       required.add(fieldName);
     } else {
@@ -197,18 +245,20 @@ public class FloatSumAggregatorFactory extends AggregatorFactory
   @Override
   public byte[] getCacheKey()
   {
-    byte[] fieldNameBytes = StringUtils.toUtf8WithNullToEmpty(fieldName);
-    byte[] fieldExpressionBytes = StringUtils.toUtf8WithNullToEmpty(fieldExpression);
-    byte[] predicateBytes = StringUtils.toUtf8WithNullToEmpty(predicate);
+    byte[] fieldNameBytes = StringUtils.toUtf8(fieldName);
+    byte[] inputTypeBytes = StringUtils.toUtf8(inputType.name());
 
-    return ByteBuffer.allocate(1 + fieldNameBytes.length + fieldExpressionBytes.length + predicateBytes.length)
-                     .put(CACHE_TYPE_ID).put(fieldNameBytes).put(fieldExpressionBytes).put(predicateBytes).array();
+    return ByteBuffer.allocate(1 + fieldNameBytes.length + inputTypeBytes.length)
+                     .put(CACHE_TYPE_ID)
+                     .put(fieldNameBytes)
+                     .put(inputTypeBytes)
+                     .array();
   }
 
   @Override
   public String getTypeName()
   {
-    return "float";
+    return inputType.name().toLowerCase();
   }
 
   @Override
@@ -220,16 +270,15 @@ public class FloatSumAggregatorFactory extends AggregatorFactory
   @Override
   public Object getAggregatorStartValue()
   {
-    return 0;
+    return 0D;
   }
 
   @Override
   public String toString()
   {
-    return "FloatSumAggregatorFactory{" +
+    return "DoubleSumAggregatorFactory{" +
            "fieldName='" + fieldName + '\'' +
-           ", fieldExpression='" + fieldExpression + '\'' +
-           ", predicate='" + predicate + '\'' +
+           "inputType='" + inputType + '\'' +
            ", name='" + name + '\'' +
            '}';
   }
@@ -244,15 +293,12 @@ public class FloatSumAggregatorFactory extends AggregatorFactory
       return false;
     }
 
-    FloatSumAggregatorFactory that = (FloatSumAggregatorFactory) o;
+    GenericSumAggregatorFactory that = (GenericSumAggregatorFactory) o;
 
     if (!Objects.equals(fieldName, that.fieldName)) {
       return false;
     }
-    if (!Objects.equals(fieldExpression, that.fieldExpression)) {
-      return false;
-    }
-    if (!Objects.equals(predicate, that.predicate)) {
+    if (!Objects.equals(inputType, that.inputType)) {
       return false;
     }
     if (!Objects.equals(name, that.name)) {
@@ -265,10 +311,6 @@ public class FloatSumAggregatorFactory extends AggregatorFactory
   @Override
   public int hashCode()
   {
-    int result = fieldName != null ? fieldName.hashCode() : 0;
-    result = 31 * result + (fieldExpression != null ? fieldExpression.hashCode() : 0);
-    result = 31 * result + (predicate != null ? predicate.hashCode() : 0);
-    result = 31 * result + (name != null ? name.hashCode() : 0);
-    return result;
+    return Objects.hash(fieldName, inputType, name);
   }
 }

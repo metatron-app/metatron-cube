@@ -20,30 +20,18 @@
 package io.druid.query.aggregation;
 
 import io.druid.segment.DoubleColumnSelector;
+import io.druid.segment.FloatColumnSelector;
 
 import java.nio.ByteBuffer;
 
 /**
  */
-public class DoubleMaxBufferAggregator implements BufferAggregator
+public abstract class DoubleMaxBufferAggregator implements BufferAggregator
 {
-  private final DoubleColumnSelector selector;
-
-  public DoubleMaxBufferAggregator(DoubleColumnSelector selector)
-  {
-    this.selector = selector;
-  }
-
   @Override
   public void init(ByteBuffer buf, int position)
   {
     buf.putDouble(position, Double.NEGATIVE_INFINITY);
-  }
-
-  @Override
-  public void aggregate(ByteBuffer buf, int position)
-  {
-    buf.putDouble(position, Math.max(buf.getDouble(position), (double) selector.get()));
   }
 
   @Override
@@ -74,5 +62,37 @@ public class DoubleMaxBufferAggregator implements BufferAggregator
   public void close()
   {
     // no resources to cleanup
+  }
+
+  public static class FloatInput extends DoubleMaxBufferAggregator
+  {
+    private final FloatColumnSelector selector;
+
+    public FloatInput(FloatColumnSelector selector)
+    {
+      this.selector = selector;
+    }
+
+    @Override
+    public void aggregate(ByteBuffer buf, int position)
+    {
+      buf.putDouble(position, Math.max(buf.getDouble(position), (double) selector.get()));
+    }
+  }
+
+  public static class DoubleInput extends DoubleMaxBufferAggregator
+  {
+    private final DoubleColumnSelector selector;
+
+    public DoubleInput(DoubleColumnSelector selector)
+    {
+      this.selector = selector;
+    }
+
+    @Override
+    public void aggregate(ByteBuffer buf, int position)
+    {
+      buf.putDouble(position, Math.max(buf.getDouble(position), selector.get()));
+    }
   }
 }

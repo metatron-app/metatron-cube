@@ -26,25 +26,12 @@ import java.nio.ByteBuffer;
 
 /**
  */
-public class DoubleMinBufferAggregator implements BufferAggregator
+public abstract class DoubleMinBufferAggregator implements BufferAggregator
 {
-  private final DoubleColumnSelector selector;
-
-  public DoubleMinBufferAggregator(DoubleColumnSelector selector)
-  {
-    this.selector = selector;
-  }
-
   @Override
   public void init(ByteBuffer buf, int position)
   {
     buf.putDouble(position, Double.POSITIVE_INFINITY);
-  }
-
-  @Override
-  public void aggregate(ByteBuffer buf, int position)
-  {
-    buf.putDouble(position, Math.min(buf.getDouble(position), (double) selector.get()));
   }
 
   @Override
@@ -68,12 +55,44 @@ public class DoubleMinBufferAggregator implements BufferAggregator
   @Override
   public long getLong(ByteBuffer buf, int position)
   {
-    return  (long) buf.getDouble(position);
+    return (long) buf.getDouble(position);
   }
 
   @Override
   public void close()
   {
     // no resources to cleanup
+  }
+
+  public static class FloatInput extends DoubleMinBufferAggregator
+  {
+    private final FloatColumnSelector selector;
+
+    public FloatInput(FloatColumnSelector selector)
+    {
+      this.selector = selector;
+    }
+
+    @Override
+    public void aggregate(ByteBuffer buf, int position)
+    {
+      buf.putDouble(position, Math.min(buf.getDouble(position), (double) selector.get()));
+    }
+  }
+
+  public static class DoubleInput extends DoubleMinBufferAggregator
+  {
+    private final DoubleColumnSelector selector;
+
+    public DoubleInput(DoubleColumnSelector selector)
+    {
+      this.selector = selector;
+    }
+
+    @Override
+    public void aggregate(ByteBuffer buf, int position)
+    {
+      buf.putDouble(position, Math.min(buf.getDouble(position), selector.get()));
+    }
   }
 }

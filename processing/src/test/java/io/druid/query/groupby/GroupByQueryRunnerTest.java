@@ -54,8 +54,8 @@ import io.druid.query.Result;
 import io.druid.query.TestQueryRunners;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.CountAggregatorFactory;
-import io.druid.query.aggregation.FloatMaxAggregatorFactory;
-import io.druid.query.aggregation.FloatSumAggregatorFactory;
+import io.druid.query.aggregation.DoubleMaxAggregatorFactory;
+import io.druid.query.aggregation.DoubleSumAggregatorFactory;
 import io.druid.query.aggregation.FilteredAggregatorFactory;
 import io.druid.query.aggregation.JavaScriptAggregatorFactory;
 import io.druid.query.aggregation.LongSumAggregatorFactory;
@@ -1607,7 +1607,7 @@ public class GroupByQueryRunnerTest
             new CountAggregatorFactory("rows2", "index > 130"),
             new LongSumAggregatorFactory("idx", "index"),
             new LongSumAggregatorFactory("idx2", "index", null, "index > 110"),
-            new FloatSumAggregatorFactory("idx3", "index", null, "index > 130")
+            new DoubleSumAggregatorFactory("idx3", "index", null, "index > 130")
         )
     );
 
@@ -1632,7 +1632,7 @@ public class GroupByQueryRunnerTest
            .setAggregatorSpecs(
                Arrays.asList(
                    QueryRunnerTestHelper.rowsCount,
-                   new FloatSumAggregatorFactory("idx", null, "index / 2 + indexMin", null)
+                   new DoubleSumAggregatorFactory("idx", null, "index / 2 + indexMin", null)
                )
            );
 
@@ -1706,7 +1706,7 @@ public class GroupByQueryRunnerTest
         .setAggregatorSpecs(
             Arrays.asList(
                 QueryRunnerTestHelper.rowsCount,
-                new FloatSumAggregatorFactory("idx", "index")
+                new DoubleSumAggregatorFactory("idx", "index")
             )
         )
         .addOrderByColumn("idx", "desc")
@@ -2340,7 +2340,7 @@ public class GroupByQueryRunnerTest
         .setAggregatorSpecs(
             Arrays.asList(
                 QueryRunnerTestHelper.rowsCount,
-                new FloatSumAggregatorFactory("index", "index")
+                new DoubleSumAggregatorFactory("index", "index")
             )
         )
         .setGranularity(QueryGranularities.ALL)
@@ -3156,8 +3156,8 @@ public class GroupByQueryRunnerTest
         .setAggregatorSpecs(
             Arrays.<AggregatorFactory>asList(
                 QueryRunnerTestHelper.rowsCount,
-                new FloatMaxAggregatorFactory("idx", "idx"),
-                new FloatMaxAggregatorFactory("indexMaxPlusTen", "indexMaxPlusTen")
+                new DoubleMaxAggregatorFactory("idx", "idx"),
+                new DoubleMaxAggregatorFactory("indexMaxPlusTen", "indexMaxPlusTen")
             )
         )
         .setGranularity(QueryRunnerTestHelper.dayGran)
@@ -3230,10 +3230,10 @@ public class GroupByQueryRunnerTest
         .setQuerySegmentSpec(QueryRunnerTestHelper.firstToThird)
         .setAggregatorSpecs(
             Arrays.<AggregatorFactory>asList(
-                new FloatMaxAggregatorFactory("idx1", "idx"),
-                new FloatMaxAggregatorFactory("idx2", "idx"),
-                new FloatMaxAggregatorFactory("idx3", "post_agg"),
-                new FloatMaxAggregatorFactory("idx4", "post_agg")
+                new DoubleMaxAggregatorFactory("idx1", "idx"),
+                new DoubleMaxAggregatorFactory("idx2", "idx"),
+                new DoubleMaxAggregatorFactory("idx3", "post_agg"),
+                new DoubleMaxAggregatorFactory("idx4", "post_agg")
             )
         )
         .setGranularity(QueryRunnerTestHelper.dayGran)
@@ -3276,7 +3276,7 @@ public class GroupByQueryRunnerTest
         .setQuerySegmentSpec(QueryRunnerTestHelper.firstToThird)
         .setAggregatorSpecs(
             Arrays.<AggregatorFactory>asList(
-                new FloatMaxAggregatorFactory("idx", "idx")
+                new DoubleMaxAggregatorFactory("idx", "idx")
             )
         )
         .setDimFilter(
@@ -3329,7 +3329,7 @@ public class GroupByQueryRunnerTest
         .setQuerySegmentSpec(QueryRunnerTestHelper.secondOnly)
         .setAggregatorSpecs(
             Arrays.<AggregatorFactory>asList(
-                new FloatMaxAggregatorFactory("idx", "idx")
+                new DoubleMaxAggregatorFactory("idx", "idx")
             )
         )
         .setGranularity(QueryRunnerTestHelper.dayGran)
@@ -3366,7 +3366,7 @@ public class GroupByQueryRunnerTest
         .setQuerySegmentSpec(QueryRunnerTestHelper.firstToThird)
         .setAggregatorSpecs(
             Arrays.<AggregatorFactory>asList(
-                new FloatMaxAggregatorFactory("idx", "idx")
+                new DoubleMaxAggregatorFactory("idx", "idx")
             )
         )
         .setGranularity(QueryRunnerTestHelper.dayGran)
@@ -3928,7 +3928,7 @@ public class GroupByQueryRunnerTest
         .setAggregatorSpecs(
             Arrays.asList(
                 QueryRunnerTestHelper.rowsCount,
-                new FloatSumAggregatorFactory("idx_subagg", "index"),
+                new DoubleSumAggregatorFactory("idx_subagg", "index"),
                 new JavaScriptAggregatorFactory(
                     "js_agg",
                     Arrays.asList("index", "market"),
@@ -3981,7 +3981,7 @@ public class GroupByQueryRunnerTest
             Arrays.asList(
                 new LongSumAggregatorFactory("rows", "rows"),
                 new LongSumAggregatorFactory("idx", "idx_subpostagg"),
-                new FloatSumAggregatorFactory("js_outer_agg", "js_agg")
+                new DoubleSumAggregatorFactory("js_outer_agg", "js_agg")
             )
         )
         .setPostAggregatorSpecs(
@@ -4343,7 +4343,7 @@ public class GroupByQueryRunnerTest
         .setAggregatorSpecs(
             Arrays.asList(
                 QueryRunnerTestHelper.rowsCount,
-                QueryRunnerTestHelper.indexFloatSum
+                QueryRunnerTestHelper.indexDoubleSum
             )
         )
         .setPostAggregatorSpecs(Arrays.<PostAggregator>asList(QueryRunnerTestHelper.addRowsIndexConstant))
@@ -4431,7 +4431,7 @@ public class GroupByQueryRunnerTest
         .setAggregatorSpecs(
             Arrays.asList(
                 QueryRunnerTestHelper.rowsCount,
-                QueryRunnerTestHelper.indexFloatSum
+                QueryRunnerTestHelper.indexDoubleSum
             )
         )
         .setPostAggregatorSpecs(Arrays.<PostAggregator>asList(QueryRunnerTestHelper.addRowsIndexConstant))
@@ -4800,26 +4800,26 @@ public class GroupByQueryRunnerTest
     expectedResults = GroupByQueryRunnerTestHelper.createExpectedRows(
         columnNames,
         array("Friday", 8.23184485883755E7, 9072.95148165003, 0.0, 0.0),
-        array("Friday", 6.6798956652896374E7, 8173.062868527097, 2067598.606401816, 2033.5184318819518),
-        array("Friday", 5.118463227752918E7, 7154.343595154567, 5.4878965725583665E7, 9072.95148165003),
+        array("Friday", 6.6798956652896374E7, 8173.062868527097, 2067598.606401816, 1437.9146728515625),
+        array("Friday", 5.118463227752918E7, 7154.343595154567, 5.4878965725583665E7, 7408.033863690396),
         array("Monday", 6.9699684350707E7, 8348.633681669533, 0.0, 0.0),
-        array("Monday", 8.121628016621359E7, 9012.007554713522, 2029475.0041728616, 2014.6836000587593),
-        array("Monday", 5.127456043179982E7, 7160.625701138122, 5.464851405255904E7, 9053.881547647869),
+        array("Monday", 8.121628016621359E7, 9012.007554713522, 2029475.0041728616, 1424.596435546875),
+        array("Monday", 5.127456043179982E7, 7160.625701138122, 5.464851405255904E7, 7392.463327779114),
         array("Saturday", 7.166847475145732E7, 8465.723522030312, 0.0, 0.0),
-        array("Saturday", 7.639395500419313E7, 8740.363551031109, 2433818.9990673214, 2206.2724215596413),
-        array("Saturday", 4.846446084613509E7, 6961.642108449349, 5.771177921575277E7, 9304.17480616251),
+        array("Saturday", 7.639395500419313E7, 8740.363551031109, 2433818.9990673214, 1560.0701904296875),
+        array("Saturday", 4.846446084613509E7, 6961.642108449349, 5.771177921575277E7, 7596.826917585577),
         array("Sunday", 5.949881278610817E7, 7713.5473542403415, 0.0, 0.0),
-        array("Sunday", 7.729272157966447E7, 8791.627925456381, 5093737.9509154, 3191.7825586701233),
-        array("Sunday", 5.3287450041427605E7, 7299.825343213877, 4.3671819620105565E7, 8093.6845398222895),
+        array("Sunday", 7.729272157966447E7, 8791.627925456381, 5093737.9509154, 2256.9310913085938),
+        array("Sunday", 5.3287450041427605E7, 7299.825343213877, 4.3671819620105565E7, 6608.465753872495),
         array("Thursday", 7.151765629584774E7, 8456.811236858, 0.0, 0.0),
-        array("Thursday", 8.136008163725007E7, 9019.98235238019, 3607413.244314585, 2686.0429052100358),
-        array("Thursday", 4.95463678640273E7, 7038.918089026701, 6.060218100265652E7, 9534.320715393666),
+        array("Thursday", 8.136008163725007E7, 9019.98235238019, 3607413.244314585, 1899.3191528320312),
+        array("Thursday", 4.95463678640273E7, 7038.918089026701, 6.060218100265652E7, 7784.740265587318),
         array("Tuesday", 6.5575344089929044E7, 8097.860463723059, 0.0, 0.0),
-        array("Tuesday", 8.171276429409897E7, 9039.511286242137, 1833718.8172903992, 1915.0555173625642),
-        array("Tuesday", 5.8082056421731636E7, 7621.158469795234, 5.204555855819271E7, 8835.628887481018),
+        array("Tuesday", 8.171276429409897E7, 9039.511286242137, 1833718.8172903992, 1354.1487426757812),
+        array("Tuesday", 5.8082056421731636E7, 7621.158469795234, 5.204555855819271E7, 7214.260776974499),
         array("Wednesday", 7.966594384238192E7, 8925.578067687376, 0.0, 0.0),
-        array("Wednesday", 1.0041590247200173E8, 10020.773546588194, 3549008.9320471287, 2664.2105517571727),
-        array("Wednesday", 9.538118348239581E7, 9766.329068918158, 6.358745565493054E7, 9766.329068918158)
+        array("Wednesday", 1.0041590247200173E8, 10020.773546588194, 3549008.9320471287, 1883.88134765625),
+        array("Wednesday", 9.538118348239581E7, 9766.329068918158, 6.358745565493054E7, 7974.174292986738)
     );
 
     results = GroupByQueryRunnerTestHelper.runQuery(factory, mergeRunner, builder.build());

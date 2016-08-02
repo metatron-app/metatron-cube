@@ -352,7 +352,7 @@ public class JavaScriptAggregatorTest
         )
     );
 
-    DoubleSumAggregator doubleAgg = new DoubleSumAggregator("billy", selector);
+    DoubleSumAggregator doubleAgg = new DoubleSumAggregator.DoubleInput("billy", selector, null);
 
     // warmup
     int i = 0;

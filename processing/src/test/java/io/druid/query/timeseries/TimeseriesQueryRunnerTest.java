@@ -33,8 +33,8 @@ import io.druid.query.QueryRunnerTestHelper;
 import io.druid.query.Result;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.CountAggregatorFactory;
-import io.druid.query.aggregation.FloatMaxAggregatorFactory;
-import io.druid.query.aggregation.FloatMinAggregatorFactory;
+import io.druid.query.aggregation.DoubleMaxAggregatorFactory;
+import io.druid.query.aggregation.DoubleMinAggregatorFactory;
 import io.druid.query.aggregation.FilteredAggregatorFactory;
 import io.druid.query.aggregation.LongSumAggregatorFactory;
 import io.druid.query.aggregation.PostAggregator;
@@ -121,7 +121,7 @@ public class TimeseriesQueryRunnerTest
                                   .aggregators(
                                       Arrays.asList(
                                           QueryRunnerTestHelper.rowsCount,
-                                          QueryRunnerTestHelper.indexFloatSum,
+                                          QueryRunnerTestHelper.indexDoubleSum,
                                           QueryRunnerTestHelper.qualityUniques
                                       )
                                   )
@@ -192,8 +192,8 @@ public class TimeseriesQueryRunnerTest
                                   .intervals(QueryRunnerTestHelper.fullOnInterval)
                                   .aggregators(
                                       Arrays.asList(
-                                          new FloatMaxAggregatorFactory("maxIndex", "index"),
-                                          new FloatMinAggregatorFactory("minIndex", "index")
+                                          new DoubleMaxAggregatorFactory("maxIndex", "index"),
+                                          new DoubleMinAggregatorFactory("minIndex", "index")
                                       )
                                   )
                                   .descending(descending)
@@ -1623,7 +1623,7 @@ public class TimeseriesQueryRunnerTest
                                   .intervals(QueryRunnerTestHelper.firstToThird)
                                   .aggregators(
                                       ImmutableList.of(
-                                          QueryRunnerTestHelper.indexFloatSum,
+                                          QueryRunnerTestHelper.indexDoubleSum,
                                           QueryRunnerTestHelper.jsIndexSumIfPlacementishA,
                                           QueryRunnerTestHelper.jsPlacementishCount
                                       )
@@ -1665,7 +1665,7 @@ public class TimeseriesQueryRunnerTest
                                   .intervals(QueryRunnerTestHelper.firstToThird)
                                   .aggregators(
                                       ImmutableList.of(
-                                          QueryRunnerTestHelper.indexFloatSum,
+                                          QueryRunnerTestHelper.indexDoubleSum,
                                           QueryRunnerTestHelper.jsIndexSumIfPlacementishA,
                                           QueryRunnerTestHelper.jsPlacementishCount
                                       )

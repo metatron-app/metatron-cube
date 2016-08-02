@@ -20,41 +20,26 @@
 package io.druid.query.aggregation;
 
 import com.google.common.base.Predicate;
-import com.google.common.base.Predicates;
 import io.druid.segment.DoubleColumnSelector;
+import io.druid.segment.FloatColumnSelector;
 
 import java.nio.ByteBuffer;
 
 /**
  */
-public class DoubleSumBufferAggregator implements BufferAggregator
+public abstract class DoubleSumBufferAggregator implements BufferAggregator
 {
-  private final DoubleColumnSelector selector;
-  private final Predicate predicate;
+  final Predicate predicate;
 
-  public DoubleSumBufferAggregator(DoubleColumnSelector selector, Predicate predicate)
+  public DoubleSumBufferAggregator(Predicate predicate)
   {
-    this.selector = selector;
     this.predicate = predicate;
-  }
-
-  public DoubleSumBufferAggregator(DoubleColumnSelector selector)
-  {
-    this(selector, Predicates.alwaysTrue());
   }
 
   @Override
   public void init(ByteBuffer buf, int position)
   {
     buf.putDouble(position, 0.0d);
-  }
-
-  @Override
-  public void aggregate(ByteBuffer buf, int position)
-  {
-    if (predicate.apply(null)) {
-      buf.putDouble(position, buf.getDouble(position) + selector.get());
-    }
   }
 
   @Override
@@ -85,5 +70,43 @@ public class DoubleSumBufferAggregator implements BufferAggregator
   public void close()
   {
     // no resources to cleanup
+  }
+
+  public static class FloatInput extends DoubleSumBufferAggregator
+  {
+    private final FloatColumnSelector selector;
+
+    public FloatInput(FloatColumnSelector selector, Predicate predicate)
+    {
+      super(predicate);
+      this.selector = selector;
+    }
+
+    @Override
+    public void aggregate(ByteBuffer buf, int position)
+    {
+      if (predicate.apply(null)) {
+        buf.putDouble(position, buf.getDouble(position) + selector.get());
+      }
+    }
+  }
+
+  public static class DoubleInput extends DoubleSumBufferAggregator
+  {
+    private final DoubleColumnSelector selector;
+
+    public DoubleInput(DoubleColumnSelector selector, Predicate predicate)
+    {
+      super(predicate);
+      this.selector = selector;
+    }
+
+    @Override
+    public void aggregate(ByteBuffer buf, int position)
+    {
+      if (predicate.apply(null)) {
+        buf.putDouble(position, buf.getDouble(position) + selector.get());
+      }
+    }
   }
 }

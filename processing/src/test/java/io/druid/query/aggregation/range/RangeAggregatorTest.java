@@ -38,7 +38,7 @@ public class RangeAggregatorTest
     final double[] values = {0.1f, 0.2f, 0.3f, 0.4f, 0.5f, 0.6f, 0.7f, 0.8f, 0.9f, 1.0f};
     final TestDoubleColumnSelector selector = new TestDoubleColumnSelector(values);
 
-    RangeAggregator rangeAggregator = new RangeAggregator(new DoubleSumAggregator("test", selector), 1, 3);
+    RangeAggregator rangeAggregator = new RangeAggregator(new DoubleSumAggregator.DoubleInput("test", selector, null), 1, 3);
 
     aggregate(selector, rangeAggregator);
     Assert.assertEquals(0.1d, rangeAggregator.getDouble(), 0.00001);
@@ -62,7 +62,7 @@ public class RangeAggregatorTest
     final double[] values = {0.1f, 0.2f, 0.3f, 0.4f, 0.5f, 0.6f, 0.7f, 0.8f, 0.9f, 1.0f};
     final TestDoubleColumnSelector selector = new TestDoubleColumnSelector(values);
 
-    RangeAggregator rangeAggregator = new RangeAggregator(new DoubleSumAggregator("test", selector), 5, 3);
+    RangeAggregator rangeAggregator = new RangeAggregator(new DoubleSumAggregator.DoubleInput("test", selector, null), 5, 3);
 
     aggregate(selector, rangeAggregator);
     Assert.assertEquals(0.1d, rangeAggregator.getDouble(), 0.00001);
@@ -86,7 +86,7 @@ public class RangeAggregatorTest
     final double[] values = {0.1f, 0.2f, 0.3f, 0.4f, 0.5f, 0.6f, 0.7f, 0.8f, 0.9f, 1.0f};
     final TestDoubleColumnSelector selector = new TestDoubleColumnSelector(values);
 
-    RangeAggregator rangeAggregator = new RangeAggregator(new DoubleSumAggregator("test", selector), 0, 1);
+    RangeAggregator rangeAggregator = new RangeAggregator(new DoubleSumAggregator.DoubleInput("test", selector, null), 0, 1);
 
     aggregate(selector, rangeAggregator);
     Assert.assertEquals(0.1d, rangeAggregator.getDouble(), 0.00001);
