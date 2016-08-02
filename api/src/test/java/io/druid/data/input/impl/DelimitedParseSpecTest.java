@@ -25,7 +25,6 @@ import io.druid.TestObjectMapper;
 import org.junit.Assert;
 import org.junit.Test;
 
-import javax.validation.constraints.Null;
 import java.io.IOException;
 import java.util.Arrays;
 
@@ -41,7 +40,8 @@ public class DelimitedParseSpecTest
         new DimensionsSpec(DimensionsSpec.getDefaultSchemas(Arrays.asList("abc")), null, null),
         "\u0001",
         "\u0002",
-        Arrays.asList("abc")
+        Arrays.asList("abc"),
+        Arrays.asList("x", "y", "z")
     );
     final DelimitedParseSpec serde = jsonMapper.readValue(
         jsonMapper.writeValueAsString(spec),
@@ -54,6 +54,7 @@ public class DelimitedParseSpecTest
     Assert.assertEquals("\u0001", serde.getDelimiter());
     Assert.assertEquals("\u0002", serde.getListDelimiter());
     Assert.assertEquals(Arrays.asList("abc"), serde.getDimensionsSpec().getDimensionNames());
+    Assert.assertEquals(Arrays.asList("x", "y", "z"), serde.getListColumns());
   }
 
   @Test(expected = IllegalArgumentException.class)
