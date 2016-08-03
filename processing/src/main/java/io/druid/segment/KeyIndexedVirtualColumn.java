@@ -22,6 +22,10 @@ package io.druid.segment;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;
+import com.google.common.base.Strings;
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Iterables;
+import com.google.common.collect.Sets;
 import com.metamx.common.StringUtils;
 import io.druid.query.QueryCacheHelper;
 import io.druid.query.dimension.DefaultDimensionSpec;
@@ -34,6 +38,8 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Objects;
+import java.util.Set;
 
 /**
  */
@@ -44,49 +50,80 @@ public class KeyIndexedVirtualColumn implements VirtualColumn
   private final String outputName;
   private final String keyDimension;
   private final List<String> valueDimensions;
+  private final List<String> valueMetrics;
 
+  private final Set<String> values;
   private final IndexHolder indexProvider;
 
   @JsonCreator
   public KeyIndexedVirtualColumn(
       @JsonProperty("keyDimension") String keyDimension,
       @JsonProperty("valueDimensions") List<String> valueDimensions,
+      @JsonProperty("valueMetrics") List<String> valueMetrics,
       @JsonProperty("outputName") String outputName
   )
   {
     Preconditions.checkArgument(keyDimension != null, "key dimension should not be null");
-    Preconditions.checkArgument(
-        valueDimensions != null && !valueDimensions.isEmpty(),
-        "value dimensions should not be null or empty"
-    );
-    Preconditions.checkArgument(outputName != null, "output name should not be null");
-
     this.keyDimension = keyDimension;
-    this.valueDimensions = valueDimensions;
-    this.outputName = outputName;
+    this.valueDimensions = valueDimensions == null ? ImmutableList.<String>of() : valueDimensions;
+    this.valueMetrics = valueMetrics == null ? ImmutableList.<String>of() : valueMetrics;
+    Preconditions.checkArgument(
+        !this.valueDimensions.isEmpty() || !this.valueMetrics.isEmpty(),
+        "target column should not be empty"
+    );
+    this.outputName = Preconditions.checkNotNull(outputName, "output name should not be null");
+    this.values = Sets.newHashSet(Iterables.concat(this.valueDimensions, this.valueMetrics));
     this.indexProvider = new IndexHolder();
   }
 
   @Override
-  public ObjectColumnSelector asMetric(String dimension, ColumnSelectorFactory factory)
+  public ObjectColumnSelector asMetric(String column, ColumnSelectorFactory factory)
   {
-    final DimensionSelector selector = factory.makeDimensionSelector(DefaultDimensionSpec.of(dimension));
+    if (valueDimensions.contains(column)) {
+      final DimensionSelector selector = factory.makeDimensionSelector(DefaultDimensionSpec.of(column));
 
-    return new ObjectColumnSelector<String>()
+      return new ObjectColumnSelector<String>()
+      {
+        @Override
+        public Class classOfObject()
+        {
+          return String.class;
+        }
+
+        @Override
+        public String get()
+        {
+          if (indexProvider.index >= 0) {
+            final IndexedInts values = selector.getRow();
+            if (values != null && indexProvider.index < values.size()) {
+              return selector.lookupName(values.get(indexProvider.index));
+            }
+          }
+          return null;
+        }
+      };
+    }
+
+    final ObjectColumnSelector selector = factory.makeObjectColumnSelector(column);
+    if (selector.classOfObject() != List.class) {
+      throw new IllegalArgumentException("target column '" + column + "' should be array type");
+    }
+
+    return new ObjectColumnSelector<Object>()
     {
       @Override
       public Class classOfObject()
       {
-        return String.class;
+        return Object.class;
       }
 
       @Override
-      public String get()
+      public Object get()
       {
         if (indexProvider.index >= 0) {
-          final IndexedInts values = selector.getRow();
+          final List values = (List) selector.get();
           if (values != null && indexProvider.index < values.size()) {
-            return selector.lookupName(values.get(indexProvider.index));
+            return values.get(indexProvider.index);
           }
         }
         return null;
@@ -95,49 +132,69 @@ public class KeyIndexedVirtualColumn implements VirtualColumn
   }
 
   @Override
-  public FloatColumnSelector asFloatMetric(String dimension, ColumnSelectorFactory factory)
+  public FloatColumnSelector asFloatMetric(String column, ColumnSelectorFactory factory)
   {
-    final ObjectColumnSelector selector = asMetric(dimension, factory);
-
+    final ObjectColumnSelector selector = asMetric(column, factory);
     return new FloatColumnSelector()
     {
       @Override
       public float get()
       {
-        String v = (String) selector.get();
-        return v == null ? 0 : Float.valueOf(v);
+        Object v = selector.get();
+        if (v == null) {
+          return 0;
+        }
+        if (v instanceof Number) {
+          return ((Number) v).floatValue();
+        }
+        String string = Objects.toString(v);
+        return Strings.isNullOrEmpty(string) ? 0 : Float.valueOf(string);
       }
     };
   }
 
   @Override
-  public DoubleColumnSelector asDoubleMetric(String dimension, ColumnSelectorFactory factory)
+  public DoubleColumnSelector asDoubleMetric(String column, ColumnSelectorFactory factory)
   {
-    final ObjectColumnSelector selector = asMetric(dimension, factory);
+    final ObjectColumnSelector selector = asMetric(column, factory);
 
     return new DoubleColumnSelector()
     {
       @Override
       public double get()
       {
-        String v = (String) selector.get();
-        return v == null ? 0 : Double.valueOf(v);
+        Object v = selector.get();
+        if (v == null) {
+          return 0;
+        }
+        if (v instanceof Number) {
+          return ((Number) v).doubleValue();
+        }
+        String string = Objects.toString(v);
+        return Strings.isNullOrEmpty(string) ? 0 : Double.valueOf(string);
       }
     };
   }
 
   @Override
-  public LongColumnSelector asLongMetric(String dimension, ColumnSelectorFactory factory)
+  public LongColumnSelector asLongMetric(String column, ColumnSelectorFactory factory)
   {
-    final ObjectColumnSelector selector = asMetric(dimension, factory);
+    final ObjectColumnSelector selector = asMetric(column, factory);
 
     return new LongColumnSelector()
     {
       @Override
       public long get()
       {
-        String v = (String) selector.get();
-        return v == null ? 0 : Long.valueOf(v);
+        Object v = selector.get();
+        if (v == null) {
+          return 0;
+        }
+        if (v instanceof Number) {
+          return ((Number) v).longValue();
+        }
+        String string = Objects.toString(v);
+        return Strings.isNullOrEmpty(string) ? 0 : Long.valueOf(string);
       }
     };
   }
@@ -156,7 +213,7 @@ public class KeyIndexedVirtualColumn implements VirtualColumn
           @Override
           public DimensionSelector makeDimensionSelector(DimensionSpec dimensionSpec)
           {
-            if (valueDimensions.contains(dimensionSpec.getDimension())) {
+            if (values.contains(dimensionSpec.getDimension())) {
               throw new UnsupportedOperationException("makeDimensionSelector");
             }
             return factory.makeDimensionSelector(dimensionSpec);
@@ -165,29 +222,29 @@ public class KeyIndexedVirtualColumn implements VirtualColumn
           @Override
           public FloatColumnSelector makeFloatColumnSelector(String columnName)
           {
-            return valueDimensions.contains(columnName) ? asFloatMetric(columnName, factory)
-                                                        : factory.makeFloatColumnSelector(columnName);
+            return values.contains(columnName) ? asFloatMetric(columnName, factory)
+                                               : factory.makeFloatColumnSelector(columnName);
           }
 
           @Override
           public DoubleColumnSelector makeDoubleColumnSelector(String columnName)
           {
-            return valueDimensions.contains(columnName) ? asDoubleMetric(columnName, factory)
-                                                        : factory.makeDoubleColumnSelector(columnName);
+            return values.contains(columnName) ? asDoubleMetric(columnName, factory)
+                                               : factory.makeDoubleColumnSelector(columnName);
           }
 
           @Override
           public LongColumnSelector makeLongColumnSelector(String columnName)
           {
-            return valueDimensions.contains(columnName) ? asLongMetric(columnName, factory)
-                                                        : factory.makeLongColumnSelector(columnName);
+            return values.contains(columnName) ? asLongMetric(columnName, factory)
+                                               : factory.makeLongColumnSelector(columnName);
           }
 
           @Override
           public ObjectColumnSelector makeObjectColumnSelector(String columnName)
           {
-            return valueDimensions.contains(columnName) ? asMetric(columnName, factory)
-                                                        : factory.makeObjectColumnSelector(columnName);
+            return values.contains(columnName) ? asMetric(columnName, factory)
+                                               : factory.makeObjectColumnSelector(columnName);
           }
 
           @Override
@@ -201,7 +258,7 @@ public class KeyIndexedVirtualColumn implements VirtualColumn
           public ColumnCapabilities getColumnCapabilities(String columnName)
           {
             // todo
-            if (valueDimensions.contains(columnName)) {
+            if (values.contains(columnName)) {
               throw new UnsupportedOperationException("getColumnCapabilities");
             }
             return factory.getColumnCapabilities(columnName);
@@ -295,13 +352,15 @@ public class KeyIndexedVirtualColumn implements VirtualColumn
   public byte[] getCacheKey()
   {
     byte[] key = StringUtils.toUtf8(keyDimension);
-    byte[] value = QueryCacheHelper.computeCacheBytes(valueDimensions);
+    byte[] valueDims = QueryCacheHelper.computeCacheBytes(valueDimensions);
+    byte[] valueMets = QueryCacheHelper.computeCacheBytes(valueMetrics);
     byte[] output = StringUtils.toUtf8(outputName);
 
-    return ByteBuffer.allocate(3 + key.length + value.length + output.length)
+    return ByteBuffer.allocate(4 + key.length + valueDims.length + valueMets.length + output.length)
                      .put(VC_TYPE_ID)
                      .put(key).put(DimFilterCacheHelper.STRING_SEPARATOR)
-                     .put(value).put(DimFilterCacheHelper.STRING_SEPARATOR)
+                     .put(valueDims).put(DimFilterCacheHelper.STRING_SEPARATOR)
+                     .put(valueMets).put(DimFilterCacheHelper.STRING_SEPARATOR)
                      .put(output)
                      .array();
   }
@@ -316,6 +375,12 @@ public class KeyIndexedVirtualColumn implements VirtualColumn
   public List<String> getValueDimensions()
   {
     return valueDimensions;
+  }
+
+  @JsonProperty
+  public List<String> getValueMetrics()
+  {
+    return valueMetrics;
   }
 
   @JsonProperty
@@ -342,6 +407,9 @@ public class KeyIndexedVirtualColumn implements VirtualColumn
     if (!valueDimensions.equals(that.valueDimensions)) {
       return false;
     }
+    if (!valueMetrics.equals(that.valueMetrics)) {
+      return false;
+    }
     if (!outputName.equals(that.outputName)) {
       return false;
     }
@@ -354,6 +422,7 @@ public class KeyIndexedVirtualColumn implements VirtualColumn
   {
     int result = keyDimension.hashCode();
     result = 31 * result + valueDimensions.hashCode();
+    result = 31 * result + valueMetrics.hashCode();
     result = 31 * result + outputName.hashCode();
     return result;
   }
@@ -364,6 +433,7 @@ public class KeyIndexedVirtualColumn implements VirtualColumn
     return "MapVirtualColumn{" +
            "keyDimension='" + keyDimension + '\'' +
            ", valueDimensions='" + valueDimensions + '\'' +
+           ", valueMetrics='" + valueMetrics + '\'' +
            ", outputName='" + outputName + '\'' +
            '}';
   }

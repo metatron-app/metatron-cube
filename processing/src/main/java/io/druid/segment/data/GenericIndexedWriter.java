@@ -61,6 +61,7 @@ public class GenericIndexedWriter<T> implements Closeable
     this.ioPeon = ioPeon;
     this.filenameBase = filenameBase;
     this.strategy = strategy;
+    this.objectsSorted = !(strategy instanceof ObjectStrategy.NotComparable);
   }
 
   public void open() throws IOException

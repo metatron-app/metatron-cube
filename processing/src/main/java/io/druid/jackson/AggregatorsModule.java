@@ -23,8 +23,12 @@ import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.fasterxml.jackson.databind.module.SimpleModule;
 import com.google.common.hash.Hashing;
+import io.druid.data.ValueType;
 import io.druid.query.aggregation.AggregatorFactory;
+import io.druid.query.aggregation.ArrayAggregatorFactory;
+import io.druid.query.aggregation.ArrayMetricSerde;
 import io.druid.query.aggregation.CountAggregatorFactory;
+import io.druid.query.aggregation.DimensionArrayAggregatorFactory;
 import io.druid.query.aggregation.DoubleMaxAggregatorFactory;
 import io.druid.query.aggregation.DoubleMinAggregatorFactory;
 import io.druid.query.aggregation.DoubleSumAggregatorFactory;
@@ -61,6 +65,13 @@ public class AggregatorsModule extends SimpleModule
     if (ComplexMetrics.getSerdeForType("hyperUnique") == null) {
       ComplexMetrics.registerSerde("hyperUnique", new HyperUniquesSerde(Hashing.murmur3_128()));
     }
+    if (ComplexMetrics.getSerdeForType("array") == null) {
+      ComplexMetrics.registerSerde("array", new ArrayMetricSerde("array", ValueType.FLOAT, null));
+      ComplexMetrics.registerSerde("array.float", new ArrayMetricSerde("array.float", ValueType.FLOAT, null));
+      ComplexMetrics.registerSerde("array.double", new ArrayMetricSerde("array.double", ValueType.DOUBLE, null));
+      ComplexMetrics.registerSerde("array.long", new ArrayMetricSerde("array.long", ValueType.LONG, null));
+      ComplexMetrics.registerSerde("array.string", new ArrayMetricSerde("array.string", ValueType.STRING, null));
+    }
 
     setMixInAnnotation(AggregatorFactory.class, AggregatorFactoryMixin.class);
     setMixInAnnotation(PostAggregator.class, PostAggregatorMixin.class);
@@ -83,7 +94,9 @@ public class AggregatorsModule extends SimpleModule
       @JsonSubTypes.Type(name = "histogram", value = HistogramAggregatorFactory.class),
       @JsonSubTypes.Type(name = "hyperUnique", value = HyperUniquesAggregatorFactory.class),
       @JsonSubTypes.Type(name = "cardinality", value = CardinalityAggregatorFactory.class),
-      @JsonSubTypes.Type(name = "filtered", value = FilteredAggregatorFactory.class)
+      @JsonSubTypes.Type(name = "filtered", value = FilteredAggregatorFactory.class),
+      @JsonSubTypes.Type(name = "dimArray", value = DimensionArrayAggregatorFactory.class),
+      @JsonSubTypes.Type(name = "array", value = ArrayAggregatorFactory.class)
   })
   public static interface AggregatorFactoryMixin
   {

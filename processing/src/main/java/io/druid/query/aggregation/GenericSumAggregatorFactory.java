@@ -63,13 +63,13 @@ public class GenericSumAggregatorFactory extends AggregatorFactory
         fieldName == null ^ fieldExpression == null,
         "Must have a valid, non-null fieldName or fieldExpression"
     );
+    Preconditions.checkArgument(inputType == null || ValueType.isNumeric(inputType));
 
     this.name = name;
     this.fieldName = fieldName;
     this.fieldExpression = fieldExpression;
     this.predicate = predicate;
     this.inputType = inputType == null ? ValueType.DOUBLE : inputType;
-    Preconditions.checkArgument(ValueType.isNumeric(inputType));
   }
 
   public GenericSumAggregatorFactory(String name, String fieldName, ValueType inputType)

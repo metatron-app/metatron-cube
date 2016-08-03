@@ -21,6 +21,8 @@ package io.druid.segment.serde;
 
 import com.google.common.collect.Maps;
 import com.metamx.common.ISE;
+import io.druid.data.ValueType;
+import io.druid.query.aggregation.ArrayMetricSerde;
 
 import java.util.Map;
 
@@ -41,5 +43,9 @@ public class ComplexMetrics
       throw new ISE("Serializer for type[%s] already exists.", type);
     }
     complexSerializers.put(type, serde);
+    if (!type.startsWith("array")) {
+      type = "array." + type;
+      complexSerializers.put(type, new ArrayMetricSerde(type, ValueType.COMPLEX, serde));
+    }
   }
 }

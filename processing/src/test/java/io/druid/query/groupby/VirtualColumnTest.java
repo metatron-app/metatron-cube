@@ -41,7 +41,9 @@ import io.druid.query.QueryRunner;
 import io.druid.query.QueryRunnerTestHelper;
 import io.druid.query.TestQueryRunners;
 import io.druid.query.aggregation.AggregatorFactory;
+import io.druid.query.aggregation.ArrayAggregatorFactory;
 import io.druid.query.aggregation.CountAggregatorFactory;
+import io.druid.query.aggregation.DimensionArrayAggregatorFactory;
 import io.druid.query.aggregation.LongMaxAggregatorFactory;
 import io.druid.query.aggregation.LongMinAggregatorFactory;
 import io.druid.query.aggregation.LongSumAggregatorFactory;
@@ -117,6 +119,11 @@ public class VirtualColumnTest
     final IncrementalIndexSchema schema = new IncrementalIndexSchema.Builder()
         .withMinTimestamp(new DateTime("2011-01-12T00:00:00.000Z").getMillis())
         .withQueryGranularity(QueryGranularities.NONE)
+        .withMetrics(
+            new AggregatorFactory[]{
+                new ArrayAggregatorFactory("array", new LongSumAggregatorFactory("array", "array"), -1),
+            }
+        )
         .build();
     final IncrementalIndex index = new OnheapIncrementalIndex(schema, true, 10000);
 
@@ -127,18 +134,18 @@ public class VirtualColumnTest
                 DimensionsSpec.getDefaultSchemas(Arrays.asList("dim", "keys", "values", "value")), null, null),
             "\t",
             ",",
-            Arrays.asList("ts", "dim", "keys", "values", "value")
+            Arrays.asList("ts", "dim", "keys", "values", "value", "array")
         )
         , "utf8"
     );
 
     CharSource input = CharSource.wrap(
-        "2011-01-12T00:00:00.000Z\ta\tkey1,key2,key3\t100,200,300\t100\n" +
-        "2011-01-12T00:00:00.000Z\tc\tkey1,key2\t100,500,900\t200\n" +
-        "2011-01-12T00:00:00.000Z\ta\tkey1,key2,key3\t400,500,600\t300\n" +
-        "2011-01-12T00:00:00.000Z\t\tkey1,key2,key3\t10,20,30\t400\n" +
-        "2011-01-12T00:00:00.000Z\tc\tkey1,key2,key3\t1,5,9\t500\n" +
-        "2011-01-12T00:00:00.000Z\t\tkey1,key2,key3\t2,4,8\t600\n"
+        "2011-01-12T00:00:00.000Z\ta\tkey1,key2,key3\t100,200,300\t100\t100,200,300\n" +
+        "2011-01-12T00:00:00.000Z\tc\tkey1,key2\t100,500,900\t200\t100,500,900\n" +
+        "2011-01-12T00:00:00.000Z\ta\tkey1,key2,key3\t400,500,600\t300\t400,500,600\n" +
+        "2011-01-12T00:00:00.000Z\t\tkey1,key2,key3\t10,20,30\t400\t10,20,30\n" +
+        "2011-01-12T00:00:00.000Z\tc\tkey1,key2,key3\t1,5,9\t500\t1,5,9\n" +
+        "2011-01-12T00:00:00.000Z\t\tkey1,key2,key3\t2,4,8\t600\t2,4,8\n"
     );
 
     IncrementalIndex index1 = TestIndex.loadIncrementalIndex(index, input, parser);
@@ -217,8 +224,11 @@ public class VirtualColumnTest
     GroupByQuery.Builder builder = testBuilder();
 
     List<Row> expectedResults = GroupByQueryRunnerTestHelper.createExpectedRows(
-        new String[]{"__time", "sum_of_key1", "sum_of_key2", "count"},
-        new Object[]{"2011-01-12T00:00:00.000Z", 2100L, 2100L, 6L}
+        new String[]{"__time", "sum_of_key1", "sum_of_key2", "count", "sum_array", "min_array", "max_array"},
+        new Object[]{
+            "2011-01-12T00:00:00.000Z", 2100L, 2100L, 6L,
+            Arrays.asList(613L, 1229L, 1847L), Arrays.asList(1L, 4L, 8L), Arrays.asList(400L, 500L, 900L)
+        }
     );
 
     List<VirtualColumn> virtualColumns = Arrays.<VirtualColumn>asList(
@@ -230,7 +240,10 @@ public class VirtualColumnTest
             Arrays.asList(
                 new LongSumAggregatorFactory("sum_of_key1", "val_long"),
                 new LongSumAggregatorFactory("sum_of_key2", null, "cast(value, 'long')", null),
-                new CountAggregatorFactory("count")
+                new CountAggregatorFactory("count"),
+                new DimensionArrayAggregatorFactory("values", new LongSumAggregatorFactory("sum_array", "values"), -1),
+                new DimensionArrayAggregatorFactory("values", new LongMinAggregatorFactory("min_array", "values"), -1),
+                new DimensionArrayAggregatorFactory("values", new LongMaxAggregatorFactory("max_array", "values"), -1)
             )
         )
         .setVirtualColumns(virtualColumns)
@@ -279,7 +292,7 @@ public class VirtualColumnTest
     );
 
     List<VirtualColumn> virtualColumns = Arrays.<VirtualColumn>asList(
-        new KeyIndexedVirtualColumn("keys", Arrays.asList("values"), "indexed")
+        new KeyIndexedVirtualColumn("keys", Arrays.asList("values"), null, "indexed")
     );
     GroupByQuery query = builder
         .setDimensions(DefaultDimensionSpec.toSpec("indexed"))
@@ -288,6 +301,24 @@ public class VirtualColumnTest
                 new LongSumAggregatorFactory("sumOf", "values"),
                 new LongMinAggregatorFactory("minOf", "values"),
                 new LongMaxAggregatorFactory("maxOf", "values")
+            )
+        )
+        .setVirtualColumns(virtualColumns)
+        .build();
+
+    checkSelectQuery(query, expectedResults);
+
+    // same query on array metric
+    virtualColumns = Arrays.<VirtualColumn>asList(
+        new KeyIndexedVirtualColumn("keys", null, Arrays.asList("array"), "indexed")
+    );
+    query = builder
+        .setDimensions(DefaultDimensionSpec.toSpec("indexed"))
+        .setAggregatorSpecs(
+            Arrays.<AggregatorFactory>asList(
+                new LongSumAggregatorFactory("sumOf", "array"),
+                new LongMinAggregatorFactory("minOf", "array"),
+                new LongMaxAggregatorFactory("maxOf", "array")
             )
         )
         .setVirtualColumns(virtualColumns)

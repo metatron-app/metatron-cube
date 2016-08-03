@@ -38,4 +38,8 @@ public interface ObjectStrategy<T> extends Comparator<T>
    */
   public T fromByteBuffer(ByteBuffer buffer, int numBytes);
   public byte[] toBytes(T val);
+
+  interface NotComparable<T> extends ObjectStrategy<T>
+  {
+  }
 }

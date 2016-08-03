@@ -113,7 +113,7 @@ public enum ValueType
   @JsonCreator
   public static ValueType fromString(String name)
   {
-    return valueOf(name.toUpperCase());
+    return name == null ? null : valueOf(name.toUpperCase());
   }
 
   public static ValueType of(String name)
