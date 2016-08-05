@@ -72,6 +72,7 @@ public class InputRowSerde
     if (!deserializedDimensions.equals(forwardingDimensions)) {
       log.info("deserialized rows will use " + deserializedDimensions + " as dimension names");
     }
+    log.info("forwardingDimensions: " + forwardingDimensions + ", auxColumns: " + auxColumns);
   }
 
   public byte[] serialize(final InputRow row)
@@ -96,34 +97,15 @@ public class InputRowSerde
       }
       for (String aux : auxColumns) {
         Object dimValue = row.getRaw(aux);
-        if (dimValue == null) {
-          out.writeByte(0);
-        } else if (dimValue instanceof Number) {
-          if (dimValue instanceof Float) {
-            out.writeByte(1);
-            out.writeFloat((Float) dimValue);
-          } else if (dimValue instanceof Double) {
-            out.writeByte(2);
-            out.writeDouble((Double) dimValue);
-          } else if (dimValue instanceof Byte) {
-            out.writeByte(3);
-            out.writeByte((Byte) dimValue);
-          } else if (dimValue instanceof Short) {
-            out.writeByte(4);
-            out.writeShort((Short) dimValue);
-          } else if (dimValue instanceof Integer) {
-            out.writeByte(5);
-            out.writeInt((Integer) dimValue);
-          } else if (dimValue instanceof Long) {
-            out.writeByte(6);
-            out.writeLong((Long) dimValue);
-          } else {
-            out.writeByte(7);
-            writeString(String.valueOf(dimValue), out);
+        if (dimValue instanceof List) {
+          List list = (List)dimValue;
+          out.writeByte(8);
+          WritableUtils.writeVInt(out, list.size());
+          for (Object o : list) {
+            writeObject(out, o);
           }
         } else {
-          out.writeByte(7);
-          writeString(String.valueOf(dimValue), out);
+          writeObject(out, dimValue);
         }
       }
     }
@@ -131,6 +113,39 @@ public class InputRowSerde
       throw Throwables.propagate(e);
     }
     return out.toByteArray();
+  }
+
+  private void writeObject(ByteArrayDataOutput out, Object dimValue) throws IOException
+  {
+    if (dimValue == null) {
+      out.writeByte(0);
+    } else if (dimValue instanceof Number) {
+      if (dimValue instanceof Float) {
+        out.writeByte(1);
+        out.writeFloat((Float) dimValue);
+      } else if (dimValue instanceof Double) {
+        out.writeByte(2);
+        out.writeDouble((Double) dimValue);
+      } else if (dimValue instanceof Byte) {
+        out.writeByte(3);
+        out.writeByte((Byte) dimValue);
+      } else if (dimValue instanceof Short) {
+        out.writeByte(4);
+        out.writeShort((Short) dimValue);
+      } else if (dimValue instanceof Integer) {
+        out.writeByte(5);
+        out.writeInt((Integer) dimValue);
+      } else if (dimValue instanceof Long) {
+        out.writeByte(6);
+        out.writeLong((Long) dimValue);
+      } else {
+        out.writeByte(7);
+        writeString(String.valueOf(dimValue), out);
+      }
+    } else {
+      out.writeByte(7);
+      writeString(String.valueOf(dimValue), out);
+    }
   }
 
   public MapBasedInputRow deserialize(final byte[] input)
@@ -162,28 +177,16 @@ public class InputRowSerde
 
       //Read metrics
       for (String aux : auxColumns) {
-        switch (WritableUtils.readVInt(in)) {
-          case 1:
-            event.put(aux, in.readFloat());
-            break;
-          case 2:
-            event.put(aux, in.readDouble());
-            break;
-          case 3:
-            event.put(aux, in.readByte());
-            break;
-          case 4:
-            event.put(aux, in.readShort());
-            break;
-          case 5:
-            event.put(aux, in.readInt());
-            break;
-          case 6:
-            event.put(aux, in.readLong());
-            break;
-          case 7:
-            event.put(aux, readString(in));
-            break;
+        int code = in.readByte();
+        if (code == 8) {
+          int size = WritableUtils.readVInt(in);
+          List list = Lists.newArrayListWithCapacity(size);
+          for (int i = 0; i < size; i++) {
+            list.add(readObject(in));
+          }
+          event.put(aux, list);
+        } else {
+          event.put(aux, readObject(in, code));
         }
       }
 
@@ -192,6 +195,35 @@ public class InputRowSerde
     }
     catch (IOException ex) {
       throw Throwables.propagate(ex);
+    }
+  }
+
+  private Object readObject(ByteArrayDataInput in) throws IOException
+  {
+    return readObject(in, in.readByte());
+  }
+
+  private Object readObject(ByteArrayDataInput in, int code) throws IOException
+  {
+    switch (code) {
+      case 0:
+        return null;
+      case 1:
+        return in.readFloat();
+      case 2:
+        return in.readDouble();
+      case 3:
+        return in.readByte();
+      case 4:
+        return in.readShort();
+      case 5:
+        return in.readInt();
+      case 6:
+        return in.readLong();
+      case 7:
+        return readString(in);
+      default:
+        throw new IllegalStateException("invalid code " + code);
     }
   }
 

@@ -84,6 +84,8 @@ public class KeyIndexedVirtualColumn implements VirtualColumn
 
       return new ObjectColumnSelector<String>()
       {
+        private transient IndexedInts values;
+
         @Override
         public Class classOfObject()
         {
@@ -93,24 +95,26 @@ public class KeyIndexedVirtualColumn implements VirtualColumn
         @Override
         public String get()
         {
-          if (indexProvider.index >= 0) {
-            final IndexedInts values = selector.getRow();
-            if (values != null && indexProvider.index < values.size()) {
-              return selector.lookupName(values.get(indexProvider.index));
-            }
+          if (indexProvider.index == 0) {
+            values = selector.getRow();
+          }
+          if (values != null && indexProvider.index < values.size()) {
+            return selector.lookupName(values.get(indexProvider.index));
           }
           return null;
         }
       };
     }
 
-    final ObjectColumnSelector selector = factory.makeObjectColumnSelector(column);
+    final ObjectColumnSelector<List> selector = factory.makeObjectColumnSelector(column);
     if (selector.classOfObject() != List.class) {
       throw new IllegalArgumentException("target column '" + column + "' should be array type");
     }
 
     return new ObjectColumnSelector<Object>()
     {
+      private transient List values;
+
       @Override
       public Class classOfObject()
       {
@@ -120,11 +124,11 @@ public class KeyIndexedVirtualColumn implements VirtualColumn
       @Override
       public Object get()
       {
-        if (indexProvider.index >= 0) {
-          final List values = (List) selector.get();
-          if (values != null && indexProvider.index < values.size()) {
-            return values.get(indexProvider.index);
-          }
+        if (indexProvider.index == 0) {
+          values = selector.get();
+        }
+        if (values != null && indexProvider.index < values.size()) {
+          return values.get(indexProvider.index);
         }
         return null;
       }
