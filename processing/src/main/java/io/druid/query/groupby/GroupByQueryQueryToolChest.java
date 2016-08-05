@@ -22,6 +22,7 @@ package io.druid.query.groupby;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Function;
+import com.google.common.base.Functions;
 import com.google.common.base.Predicate;
 import com.google.common.base.Supplier;
 import com.google.common.collect.Collections2;
@@ -60,6 +61,7 @@ import io.druid.query.SubqueryQueryRunner;
 import io.druid.query.TabularFormat;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.MetricManipulationFn;
+import io.druid.query.aggregation.MetricManipulatorFns;
 import io.druid.query.aggregation.PostAggregator;
 import io.druid.query.dimension.DefaultDimensionSpec;
 import io.druid.query.dimension.DimensionSpec;
@@ -343,20 +345,24 @@ public class GroupByQueryQueryToolChest extends QueryToolChest<Row, GroupByQuery
       final MetricManipulationFn fn
   )
   {
+    if (fn == MetricManipulatorFns.identity()) {
+      return Functions.identity();
+    }
     return new Function<Row, Row>()
     {
       @Override
       public Row apply(Row input)
       {
-        if (input instanceof MapBasedRow) {
-          final MapBasedRow inputRow = (MapBasedRow) input;
-          final Map<String, Object> values = Maps.newHashMap(inputRow.getEvent());
-          for (AggregatorFactory agg : query.getAggregatorSpecs()) {
-            values.put(agg.getName(), fn.manipulate(agg, inputRow.getEvent().get(agg.getName())));
-          }
-          return new MapBasedRow(inputRow.getTimestamp(), values);
+        Map<String, Object> event = ((MapBasedRow) input).getEvent();
+        boolean updateInplace = MapBasedRow.supportInplaceUpdate(event);
+        if (!updateInplace) {
+          event = Maps.newLinkedHashMap(event);
         }
-        return input;
+        for (AggregatorFactory agg : query.getAggregatorSpecs()) {
+          final String name = agg.getName();
+          event.put(name, fn.manipulate(agg, event.get(name)));
+        }
+        return updateInplace ? input : new MapBasedRow(input.getTimestamp(), event);
       }
     };
   }
@@ -395,6 +401,7 @@ public class GroupByQueryQueryToolChest extends QueryToolChest<Row, GroupByQuery
       }
     }
 
+    // cannot inplace update (see GroupByQueryRunnerTest#testBySegmentResultsWithAllFiltersWithExtractionFns)
     return new Function<Row, Row>()
     {
       @Nullable
