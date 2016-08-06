@@ -84,6 +84,9 @@ public class GroupByMergedQueryRunner<T> implements QueryRunner<T>
   public Sequence<T> run(final Query<T> queryParam, final Map<String, Object> responseContext)
   {
     final GroupByQuery query = (GroupByQuery) queryParam;
+    if (Iterables.size(queryables) == 1) {
+      return Iterables.getOnlyElement(queryables).run(queryParam, responseContext);
+    }
 
     final boolean isSingleThreaded = query.getContextValue(
         CTX_KEY_IS_SINGLE_THREADED,

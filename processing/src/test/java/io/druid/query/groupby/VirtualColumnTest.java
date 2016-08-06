@@ -163,8 +163,11 @@ public class VirtualColumnTest
               @Override
               public QueryRunner apply(QueryRunner input)
               {
+                // ordering is applied in toolChest.mergeResults
                 return new FinalizeResultsQueryRunner(
-                    factory.mergeRunners(executorService, Arrays.<QueryRunner<Row>>asList(input)),
+                    toolChest.mergeResults(
+                        factory.mergeRunners(executorService, Arrays.<QueryRunner<Row>>asList(input))
+                    ),
                     toolChest
                 );
               }
