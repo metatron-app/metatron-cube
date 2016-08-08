@@ -29,7 +29,7 @@ public class IndexedIntsIterator implements Iterator<Integer>
   private final IndexedInts baseInts;
   private final int size;
 
-  int currIndex = 0;
+  protected int currIndex = 0;
 
   public IndexedIntsIterator(
       IndexedInts baseInts

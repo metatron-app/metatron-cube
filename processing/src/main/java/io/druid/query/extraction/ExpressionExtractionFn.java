@@ -25,6 +25,7 @@ import com.google.common.base.Preconditions;
 import com.google.common.base.Supplier;
 import com.google.common.collect.ImmutableMap;
 import com.metamx.common.StringUtils;
+import io.druid.common.guava.DSuppliers;
 import io.druid.math.expr.Expr;
 import io.druid.math.expr.Parser;
 
@@ -40,7 +41,7 @@ public class ExpressionExtractionFn implements ExtractionFn
   private final String expression;
 
   private final Expr parsed;
-  private final HandOver supplier;
+  private final DSuppliers.HandOver supplier;
   private final Expr.NumericBinding bindings;
 
   @JsonCreator
@@ -54,7 +55,7 @@ public class ExpressionExtractionFn implements ExtractionFn
       throw new IllegalArgumentException("cannot handle multiple dimensions " + binding);
     }
     parsed = exprs;
-    supplier = new HandOver();
+    supplier = new DSuppliers.HandOver();
     if (!binding.isEmpty()) {
       bindings = Parser.withSuppliers(ImmutableMap.<String, Supplier<Object>>of(binding.get(0), supplier));
     } else {
@@ -73,7 +74,7 @@ public class ExpressionExtractionFn implements ExtractionFn
   @Override
   public String apply(Object value)
   {
-    supplier.value = value;
+    supplier.set(value);
     return parsed.eval(bindings).asString();
   }
 
@@ -105,16 +106,5 @@ public class ExpressionExtractionFn implements ExtractionFn
                      .put((byte) 0XFF)
                      .put(expressionBytes)
                      .array();
-  }
-
-  private static class HandOver implements Supplier<Object>
-  {
-    private Object value;
-
-    @Override
-    public Object get()
-    {
-      return value;
-    }
   }
 }

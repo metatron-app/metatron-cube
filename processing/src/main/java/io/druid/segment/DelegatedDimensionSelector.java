@@ -17,41 +17,40 @@
  * under the License.
  */
 
-package io.druid.common.guava;
+package io.druid.segment;
 
-import com.google.common.base.Supplier;
-
-import java.util.concurrent.atomic.AtomicReference;
+import io.druid.segment.data.IndexedInts;
 
 /**
  */
-public class DSuppliers
+public class DelegatedDimensionSelector implements DimensionSelector
 {
-  public static <T> Supplier<T> of(final AtomicReference<T> ref)
+  protected final DimensionSelector delegate;
+
+  public DelegatedDimensionSelector(DimensionSelector delegate) {
+    this.delegate = delegate;}
+
+  @Override
+  public IndexedInts getRow()
   {
-    return new Supplier<T>()
-    {
-      @Override
-      public T get()
-      {
-        return ref.get();
-      }
-    };
+    return delegate.getRow();
   }
 
-  public static class HandOver<T> implements Supplier<T>
+  @Override
+  public int getValueCardinality()
   {
-    private transient volatile T object;
+    return delegate.getValueCardinality();
+  }
 
-    @Override
-    public T get()
-    {
-      return object;
-    }
+  @Override
+  public String lookupName(int id)
+  {
+    return delegate.lookupName(id);
+  }
 
-    public void set(T object)
-    {
-      this.object = object;
-    }
+  @Override
+  public int lookupId(String name)
+  {
+    return delegate.lookupId(name);
   }
 }

@@ -27,12 +27,17 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Sets;
 import com.metamx.common.StringUtils;
+import io.druid.common.guava.DSuppliers;
 import io.druid.query.QueryCacheHelper;
 import io.druid.query.dimension.DefaultDimensionSpec;
 import io.druid.query.dimension.DimensionSpec;
+import io.druid.query.filter.DimFilter;
 import io.druid.query.filter.DimFilterCacheHelper;
+import io.druid.query.filter.ValueMatcher;
 import io.druid.segment.column.ColumnCapabilities;
+import io.druid.segment.data.EmptyIndexedInts;
 import io.druid.segment.data.IndexedInts;
+import io.druid.segment.filter.Filters;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -49,22 +54,25 @@ public class KeyIndexedVirtualColumn implements VirtualColumn
 
   private final String outputName;
   private final String keyDimension;
+  private final DimFilter keyFilter;
   private final List<String> valueDimensions;
   private final List<String> valueMetrics;
 
   private final Set<String> values;
-  private final IndexHolder indexProvider;
+  private final IndexHolder indexer;
 
   @JsonCreator
   public KeyIndexedVirtualColumn(
       @JsonProperty("keyDimension") String keyDimension,
       @JsonProperty("valueDimensions") List<String> valueDimensions,
       @JsonProperty("valueMetrics") List<String> valueMetrics,
+      @JsonProperty("keyFilter") DimFilter keyFilter,
       @JsonProperty("outputName") String outputName
   )
   {
     Preconditions.checkArgument(keyDimension != null, "key dimension should not be null");
     this.keyDimension = keyDimension;
+    this.keyFilter = keyFilter;
     this.valueDimensions = valueDimensions == null ? ImmutableList.<String>of() : valueDimensions;
     this.valueMetrics = valueMetrics == null ? ImmutableList.<String>of() : valueMetrics;
     Preconditions.checkArgument(
@@ -73,7 +81,7 @@ public class KeyIndexedVirtualColumn implements VirtualColumn
     );
     this.outputName = Preconditions.checkNotNull(outputName, "output name should not be null");
     this.values = Sets.newHashSet(Iterables.concat(this.valueDimensions, this.valueMetrics));
-    this.indexProvider = new IndexHolder();
+    this.indexer = new IndexHolder();
   }
 
   @Override
@@ -95,13 +103,10 @@ public class KeyIndexedVirtualColumn implements VirtualColumn
         @Override
         public String get()
         {
-          if (indexProvider.index == 0) {
+          if (indexer.index == 0) {
             values = selector.getRow();
           }
-          if (values != null && indexProvider.index < values.size()) {
-            return selector.lookupName(values.get(indexProvider.index));
-          }
-          return null;
+          return values == null ? null : selector.lookupName(values.get(indexer.index()));
         }
       };
     }
@@ -124,13 +129,10 @@ public class KeyIndexedVirtualColumn implements VirtualColumn
       @Override
       public Object get()
       {
-        if (indexProvider.index == 0) {
+        if (indexer.index == 0) {
           values = selector.get();
         }
-        if (values != null && indexProvider.index < values.size()) {
-          return values.get(indexProvider.index);
-        }
-        return null;
+        return values == null ? null : values.get(indexer.index());
       }
     };
   }
@@ -204,9 +206,13 @@ public class KeyIndexedVirtualColumn implements VirtualColumn
   }
 
   @Override
-  public DimensionSelector asDimension(final String dimension, ColumnSelectorFactory factory)
+  public DimensionSelector asDimension(final String dimension, final ColumnSelectorFactory factory)
   {
-    final DimensionSelector selector = factory.makeDimensionSelector(DefaultDimensionSpec.of(keyDimension));
+    if (!dimension.equals(outputName)) {
+      throw new IllegalStateException("Only can be called as a group-by dimension");
+    }
+    final DimensionSelector selector = toFilteredSelector(factory);
+
     return new IndexProvidingSelector()
     {
       @Override
@@ -285,7 +291,7 @@ public class KeyIndexedVirtualColumn implements VirtualColumn
           @Override
           public int get(int index)
           {
-            indexProvider.index = index;
+            indexer.index = index;
             return row.get(index);
           }
 
@@ -318,7 +324,7 @@ public class KeyIndexedVirtualColumn implements VirtualColumn
               @Override
               public Integer next()
               {
-                indexProvider.index = index++;
+                indexer.index = index++;
                 return iterator.next();
               }
 
@@ -352,19 +358,127 @@ public class KeyIndexedVirtualColumn implements VirtualColumn
     };
   }
 
+  private DimensionSelector toFilteredSelector(ColumnSelectorFactory factory)
+  {
+    final DimensionSelector selector = factory.makeDimensionSelector(DefaultDimensionSpec.of(keyDimension));
+    if (keyFilter == null) {
+      return selector;
+    }
+    final DSuppliers.HandOver<Object> handOver = new DSuppliers.HandOver<>();
+    final ValueMatcher keyMatcher = Filters.toFilter(keyFilter).makeMatcher(
+        new ColumnSelectorFactories.Delegated(factory)
+        {
+          public ObjectColumnSelector makeObjectColumnSelector(String columnName)
+          {
+            return new ObjectColumnSelector()
+            {
+              @Override
+              public Class classOfObject()
+              {
+                return String.class;
+              }
+
+              @Override
+              public Object get()
+              {
+                return handOver.get();
+              }
+            };
+          }
+        }
+    );
+    return new DelegatedDimensionSelector(selector)
+    {
+      @Override
+      public IndexedInts getRow()
+      {
+        final IndexedInts indexed = selector.getRow();
+        final int[] mapping = indexer.mapping(indexed.size());
+
+        int virtual = 0;
+        for (int real = 0; real < indexed.size(); real++) {
+          handOver.set(selector.lookupName(indexed.get(real)));
+          if (keyMatcher.matches()) {
+            mapping[virtual++] = real;
+          }
+        }
+        if (virtual == 0) {
+          return EmptyIndexedInts.EMPTY_INDEXED_INTS;
+        }
+        final int size = virtual;
+
+        return new IndexedInts()
+        {
+          @Override
+          public int size()
+          {
+            return size;
+          }
+
+          @Override
+          public int get(int index)
+          {
+            return indexed.get(mapping[index]);
+          }
+
+          @Override
+          public void fill(int index, int[] toFill)
+          {
+            throw new UnsupportedOperationException("fill");
+          }
+
+          @Override
+          public void close() throws IOException
+          {
+            indexed.close();
+          }
+
+          @Override
+          public Iterator<Integer> iterator()
+          {
+            return new Iterator<Integer>()
+            {
+              private int index;
+
+              @Override
+              public boolean hasNext()
+              {
+                return index < size;
+              }
+
+              @Override
+              public Integer next()
+              {
+                return indexed.get(mapping[index++]);
+              }
+
+              @Override
+              public void remove()
+              {
+                throw new UnsupportedOperationException("remove");
+              }
+            };
+          }
+        };
+      }
+    };
+  }
+
   @Override
   public byte[] getCacheKey()
   {
     byte[] key = StringUtils.toUtf8(keyDimension);
     byte[] valueDims = QueryCacheHelper.computeCacheBytes(valueDimensions);
     byte[] valueMets = QueryCacheHelper.computeCacheBytes(valueMetrics);
+    byte[] keyFilters = keyFilter == null ? new byte[0] : keyFilter.getCacheKey();
     byte[] output = StringUtils.toUtf8(outputName);
 
-    return ByteBuffer.allocate(4 + key.length + valueDims.length + valueMets.length + output.length)
+    return ByteBuffer.allocate(5 + key.length + valueDims.length + valueMets.length + keyFilters.length + output.length)
                      .put(VC_TYPE_ID)
                      .put(key).put(DimFilterCacheHelper.STRING_SEPARATOR)
                      .put(valueDims).put(DimFilterCacheHelper.STRING_SEPARATOR)
                      .put(valueMets).put(DimFilterCacheHelper.STRING_SEPARATOR)
+                     .put(keyFilters).put(DimFilterCacheHelper.STRING_SEPARATOR)
                      .put(output)
                      .array();
   }
@@ -391,6 +505,12 @@ public class KeyIndexedVirtualColumn implements VirtualColumn
   public String getOutputName()
   {
     return outputName;
+  }
+
+  @JsonProperty
+  public DimFilter getKeyFilter()
+  {
+    return keyFilter;
   }
 
   @Override
@@ -449,6 +569,20 @@ public class KeyIndexedVirtualColumn implements VirtualColumn
 
   private static class IndexHolder
   {
-    int index = -1;
+    volatile int index;
+    volatile int[] mapping;
+
+    int index()
+    {
+      return mapping == null ? index : mapping[index];
+    }
+
+    int[] mapping(int size)
+    {
+      if (mapping == null || mapping.length < size) {
+        return mapping = new int[size];
+      }
+      return mapping;
+    }
   }
 }

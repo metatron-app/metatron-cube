@@ -59,4 +59,16 @@ public class ArrayBasedIndexedInts implements IndexedInts
   {
 
   }
+
+  public static int[] toIntArray(IndexedInts indexed)
+  {
+    if (indexed instanceof ArrayBasedIndexedInts) {
+      return ((ArrayBasedIndexedInts) indexed).expansion;
+    }
+    int[] array = new int[indexed.size()];
+    for (int i = 0; i < array.length; i++) {
+      array[i] = indexed.get(i);
+    }
+    return array;
+  }
 }

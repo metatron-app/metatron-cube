@@ -49,6 +49,7 @@ import io.druid.query.aggregation.LongMinAggregatorFactory;
 import io.druid.query.aggregation.LongSumAggregatorFactory;
 import io.druid.query.aggregation.cardinality.CardinalityAggregatorFactory;
 import io.druid.query.dimension.DefaultDimensionSpec;
+import io.druid.query.filter.InDimFilter;
 import io.druid.segment.ExprVirtualColumn;
 import io.druid.segment.IncrementalIndexSegment;
 import io.druid.segment.KeyIndexedVirtualColumn;
@@ -295,7 +296,7 @@ public class VirtualColumnTest
     );
 
     List<VirtualColumn> virtualColumns = Arrays.<VirtualColumn>asList(
-        new KeyIndexedVirtualColumn("keys", Arrays.asList("values"), null, "indexed")
+        new KeyIndexedVirtualColumn("keys", Arrays.asList("values"), null, null, "indexed")
     );
     GroupByQuery query = builder
         .setDimensions(DefaultDimensionSpec.toSpec("indexed"))
@@ -313,7 +314,59 @@ public class VirtualColumnTest
 
     // same query on array metric
     virtualColumns = Arrays.<VirtualColumn>asList(
-        new KeyIndexedVirtualColumn("keys", null, Arrays.asList("array"), "indexed")
+        new KeyIndexedVirtualColumn("keys", null, Arrays.asList("array"), null, "indexed")
+    );
+    query = builder
+        .setDimensions(DefaultDimensionSpec.toSpec("indexed"))
+        .setAggregatorSpecs(
+            Arrays.<AggregatorFactory>asList(
+                new LongSumAggregatorFactory("sumOf", "array"),
+                new LongMinAggregatorFactory("minOf", "array"),
+                new LongMaxAggregatorFactory("maxOf", "array")
+            )
+        )
+        .setVirtualColumns(virtualColumns)
+        .build();
+
+    checkSelectQuery(query, expectedResults);
+
+    // with filter
+    expectedResults = GroupByQueryRunnerTestHelper.createExpectedRows(
+        new String[]{"__time", "indexed", "sumOf", "minOf", "maxOf"},
+        new Object[]{"2011-01-12T00:00:00.000Z", "key1", 613L, 1L, 400L},
+        new Object[]{"2011-01-12T00:00:00.000Z", "key3", 947L, 8L, 600L}
+    );
+
+    virtualColumns = Arrays.<VirtualColumn>asList(
+        new KeyIndexedVirtualColumn(
+            "keys",
+            Arrays.asList("values"),
+            null,
+            new InDimFilter("values", Arrays.asList("key1", "key3"), null),
+            "indexed"
+        )
+    );
+    query = builder
+        .setDimensions(DefaultDimensionSpec.toSpec("indexed"))
+        .setAggregatorSpecs(
+            Arrays.<AggregatorFactory>asList(
+                new LongSumAggregatorFactory("sumOf", "values"),
+                new LongMinAggregatorFactory("minOf", "values"),
+                new LongMaxAggregatorFactory("maxOf", "values")
+            )
+        )
+        .setVirtualColumns(virtualColumns)
+        .build();
+
+    checkSelectQuery(query, expectedResults);
+    virtualColumns = Arrays.<VirtualColumn>asList(
+        new KeyIndexedVirtualColumn(
+            "keys",
+            null,
+            Arrays.asList("array"),
+            new InDimFilter("indexed", Arrays.asList("key1", "key3"), null),
+            "indexed"
+        )
     );
     query = builder
         .setDimensions(DefaultDimensionSpec.toSpec("indexed"))
