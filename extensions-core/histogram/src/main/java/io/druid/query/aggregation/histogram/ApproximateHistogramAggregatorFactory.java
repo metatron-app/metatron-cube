@@ -55,7 +55,7 @@ public class ApproximateHistogramAggregatorFactory extends AggregatorFactory
   protected final float upperLimit;
 
   protected final boolean compact;
-  protected final boolean base64;
+  protected final boolean base64;   // use this only when input is base64 encoded ApproximateHistogramHolder instance
   protected final String predicate;
 
   @JsonCreator

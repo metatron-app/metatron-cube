@@ -19,11 +19,12 @@
 
 package io.druid.query.aggregation.histogram;
 
-import com.google.common.base.Throwables;
-import io.druid.segment.data.ObjectStrategy;
+import io.druid.data.input.InputRow;
+import io.druid.segment.serde.ComplexMetricExtractor;
 import org.apache.commons.codec.binary.Base64;
 
 import java.nio.ByteBuffer;
+import java.util.Arrays;
 
 public class ApproximateHistogramBase64FoldingSerde extends ApproximateHistogramFoldingSerde
 {
@@ -33,43 +34,44 @@ public class ApproximateHistogramBase64FoldingSerde extends ApproximateHistogram
     return "approximateBase64Histogram";
   }
 
-  public ObjectStrategy getObjectStrategy()
+  @Override
+  public ComplexMetricExtractor getExtractor()
   {
-    return new ObjectStrategy<ApproximateHistogramHolder>()
+    return new ComplexMetricExtractor()
     {
       @Override
-      public Class<? extends ApproximateHistogramHolder> getClazz()
+      public Class<ApproximateHistogram> extractedClass()
       {
-        return ApproximateHistogramBase64FoldingSerde.this.getClazz();
+        return ApproximateHistogram.class;
       }
 
       @Override
-      public ApproximateHistogramHolder fromByteBuffer(ByteBuffer buffer, int numBytes)
+      public ApproximateHistogram extractValue(InputRow inputRow, String metricName)
       {
-        int readSize = Math.min(buffer.remaining(), numBytes);
-        final byte[] bufferForRead = new byte[readSize];
-        buffer.get(bufferForRead, 0, readSize);
-        try {
-          return getClazz().newInstance().fromBytes(Base64.decodeBase64(bufferForRead));
-        }
-        catch (Exception e) {
-          throw Throwables.propagate(e);
-        }
-      }
+        Object rawValue = inputRow.getRaw(metricName);
 
-      @Override
-      public byte[] toBytes(ApproximateHistogramHolder h)
-      {
-        if (h == null) {
-          return new byte[]{};
+        if (rawValue == null || rawValue instanceof ApproximateHistogram) {
+          return (ApproximateHistogram) rawValue;
         }
-        return Base64.encodeBase64(h.toBytes());
-      }
-
-      @Override
-      public int compare(ApproximateHistogramHolder o1, ApproximateHistogramHolder o2)
-      {
-        return comparator.compare(o1, o2);
+        ApproximateHistogram histogram = new ApproximateHistogram();
+        if (rawValue instanceof String) {
+          histogram.fromBytes(Base64.decodeBase64((String) rawValue));
+        } else if (rawValue instanceof byte[]) {
+          histogram.fromBytes(Base64.decodeBase64((byte[]) rawValue));
+        } else if (rawValue instanceof ByteBuffer) {
+          ByteBuffer buffer = (ByteBuffer)rawValue;
+          byte[] array;
+          if (buffer.hasArray()) {
+            array = Arrays.copyOfRange(buffer.array(), buffer.position(), buffer.limit());
+          } else {
+            array = new byte[buffer.remaining()];
+            buffer.get(array);
+          }
+          histogram.fromBytes(Base64.decodeBase64(array));
+        } else {
+          throw new IllegalArgumentException("Not supported type " + rawValue.getClass());
+        }
+        return histogram;
       }
     };
   }

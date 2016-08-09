@@ -24,6 +24,7 @@ import com.google.common.collect.Lists;
 import com.google.common.io.ByteArrayDataOutput;
 import com.google.common.io.ByteStreams;
 import io.druid.data.ValueType;
+import io.druid.data.input.AbstractInputRow;
 import io.druid.data.input.InputRow;
 import io.druid.segment.column.ColumnBuilder;
 import io.druid.segment.data.GenericIndexed;
@@ -45,6 +46,8 @@ public class ArrayMetricSerde extends ComplexMetricSerde
   private final String typeName;
   private final ValueType type;
   private final ComplexMetricSerde serde;
+
+  private final ComplexMetricExtractor extractor;
   private final ObjectStrategy strategy;
 
   public ArrayMetricSerde(String typeName, ValueType type, ComplexMetricSerde serde)
@@ -52,6 +55,7 @@ public class ArrayMetricSerde extends ComplexMetricSerde
     this.typeName = typeName;
     this.type = type;
     this.serde = serde;
+    this.extractor = serde == null ? null : serde.getExtractor();
     this.strategy = serde == null ? null : serde.getObjectStrategy();
   }
 
@@ -71,6 +75,8 @@ public class ArrayMetricSerde extends ComplexMetricSerde
   {
     return new ComplexMetricExtractor()
     {
+      private final AbstractInputRow.Dummy dummy = new AbstractInputRow.Dummy();
+
       @Override
       public Class<?> extractedClass()
       {
@@ -80,19 +86,35 @@ public class ArrayMetricSerde extends ComplexMetricSerde
       @Override
       public Object extractValue(InputRow inputRow, String metricName)
       {
-        Object value = inputRow.getRaw(metricName);
+        Object raw = inputRow.getRaw(metricName);
+        return raw == null ? null : extractElement(toList(raw));
+      }
+
+      private List toList(Object value)
+      {
         if (value instanceof List) {
-          return value;
+          return (List) value;
         }
         if (value != null && value.getClass().isArray()) {
           final int length = Array.getLength(value);
-          List<Object> list = Lists.newArrayListWithExpectedSize(length);
+          final List list = Lists.newArrayListWithCapacity(length);
           for (int i = 0; i < length; i++) {
             list.add(Array.get(value, i));
           }
           return list;
         }
         return Arrays.asList(value);
+      }
+
+      private List extractElement(List list)
+      {
+        if (extractor != null) {
+          for (int i = 0; i < list.size(); i++) {
+            dummy.setObject(list.get(i));
+            list.set(i, extractor.extractValue(dummy, "dummy"));
+          }
+        }
+        return list;
       }
     };
   }
@@ -122,7 +144,7 @@ public class ArrayMetricSerde extends ComplexMetricSerde
       public Object fromByteBuffer(ByteBuffer buffer, int numBytes)
       {
         int size = buffer.getShort();
-        List<Object> value = Lists.newArrayListWithExpectedSize(size);
+        List<Object> value = Lists.newArrayListWithCapacity(size);
         switch (type) {
           case FLOAT:
             for (int i = 0; i < size; i++) {
