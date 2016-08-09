@@ -33,8 +33,10 @@ import io.druid.query.filter.InDimFilter;
 import io.druid.query.filter.SelectorDimFilter;
 import io.druid.query.spec.LegacySegmentSpec;
 import io.druid.query.spec.QuerySegmentSpec;
+import io.druid.segment.VirtualColumn;
 import org.joda.time.Interval;
 
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 
@@ -63,6 +65,7 @@ public class TopNQueryBuilder
 {
   private DataSource dataSource;
   private DimensionSpec dimensionSpec;
+  private List<VirtualColumn> virtualColumns;
   private TopNMetricSpec topNMetricSpec;
   private int threshold;
   private QuerySegmentSpec querySegmentSpec;
@@ -89,6 +92,11 @@ public class TopNQueryBuilder
   public DataSource getDataSource()
   {
     return dataSource;
+  }
+
+  public List<VirtualColumn> getVirtualColumns()
+  {
+    return virtualColumns;
   }
 
   public DimensionSpec getDimensionSpec()
@@ -140,6 +148,7 @@ public class TopNQueryBuilder
   {
     return new TopNQuery(
         dataSource,
+        virtualColumns,
         dimensionSpec,
         topNMetricSpec,
         threshold,
@@ -156,6 +165,7 @@ public class TopNQueryBuilder
   {
     return new TopNQueryBuilder()
         .dataSource(query.getDataSource().toString())
+        .virtualColumns(query.getVirtualColumns())
         .dimension(query.getDimensionSpec())
         .metric(query.getTopNMetricSpec())
         .threshold(query.getThreshold())
@@ -171,6 +181,7 @@ public class TopNQueryBuilder
   {
     return new TopNQueryBuilder()
         .dataSource(builder.dataSource)
+        .virtualColumns(builder.virtualColumns)
         .dimension(builder.dimensionSpec)
         .metric(builder.topNMetricSpec)
         .threshold(builder.threshold)
@@ -202,6 +213,18 @@ public class TopNQueryBuilder
   public TopNQueryBuilder dimension(String d, String outputName)
   {
     return dimension(new DefaultDimensionSpec(d, outputName));
+  }
+
+  public TopNQueryBuilder virtualColumn(VirtualColumn virtualColumn)
+  {
+    this.virtualColumns = Arrays.asList(virtualColumn);
+    return this;
+  }
+
+  public TopNQueryBuilder virtualColumns(List<VirtualColumn> virtualColumns)
+  {
+    this.virtualColumns = virtualColumns;
+    return this;
   }
 
   public TopNQueryBuilder dimension(DimensionSpec d)

@@ -19,6 +19,7 @@
 
 package io.druid.query.topn;
 
+import io.druid.segment.ColumnSelectorFactory;
 import io.druid.segment.Cursor;
 import io.druid.segment.DimensionSelector;
 
@@ -28,6 +29,7 @@ public class TopNParams
 {
   private final DimensionSelector dimSelector;
   private final Cursor cursor;
+  private final ColumnSelectorFactory factory;
   private final int cardinality;
   private final int numValuesPerPass;
 
@@ -42,6 +44,7 @@ public class TopNParams
     this.cursor = cursor;
     this.cardinality = cardinality;
     this.numValuesPerPass = numValuesPerPass;
+    this.factory = BaseTopNAlgorithm.wrap(cursor, dimSelector);
   }
 
   public DimensionSelector getDimSelector()
@@ -52,6 +55,11 @@ public class TopNParams
   public Cursor getCursor()
   {
     return cursor;
+  }
+
+  public ColumnSelectorFactory getFactory()
+  {
+    return factory;
   }
 
   public int getCardinality()

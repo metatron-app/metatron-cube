@@ -315,6 +315,7 @@ public class TopNQueryQueryToolChest extends QueryToolChest<Result<TopNResultVal
       @Override
       public byte[] computeCacheKey(TopNQuery query)
       {
+        final byte[] vcBytes = QueryCacheHelper.computeAggregatorBytes(query.getVirtualColumns());
         final byte[] dimensionSpecBytes = query.getDimensionSpec().getCacheKey();
         final byte[] metricSpecBytes = query.getTopNMetricSpec().getCacheKey();
 
@@ -325,10 +326,11 @@ public class TopNQueryQueryToolChest extends QueryToolChest<Result<TopNResultVal
 
         return ByteBuffer
             .allocate(
-                1 + dimensionSpecBytes.length + metricSpecBytes.length + 4 +
+                1 + vcBytes.length + dimensionSpecBytes.length + metricSpecBytes.length + 4 +
                 granularityBytes.length + filterBytes.length + aggregatorBytes.length
             )
             .put(TOPN_QUERY)
+            .put(vcBytes)
             .put(dimensionSpecBytes)
             .put(metricSpecBytes)
             .put(Ints.toByteArray(query.getThreshold()))

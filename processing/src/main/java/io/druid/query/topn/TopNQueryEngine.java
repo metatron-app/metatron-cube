@@ -72,10 +72,11 @@ public class TopNQueryEngine
     Preconditions.checkArgument(
         queryIntervals.size() == 1, "Can only handle a single interval, got[%s]", queryIntervals
     );
+    VirtualColumns virtualColumns = VirtualColumns.valueOf(query.getVirtualColumns());
 
     return Sequences.filter(
         Sequences.map(
-            adapter.makeCursors(filter, queryIntervals.get(0), VirtualColumns.EMPTY, granularity, query.isDescending()),
+            adapter.makeCursors(filter, queryIntervals.get(0), virtualColumns, granularity, query.isDescending()),
             new Function<Cursor, Result<TopNResultValue>>()
             {
               @Override

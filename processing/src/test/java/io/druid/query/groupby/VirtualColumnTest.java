@@ -76,6 +76,7 @@ import java.util.concurrent.ExecutorService;
 import static io.druid.query.QueryRunnerTestHelper.dataSource;
 import static io.druid.query.QueryRunnerTestHelper.dayGran;
 import static io.druid.query.QueryRunnerTestHelper.fullOnInterval;
+import static io.druid.query.QueryRunnerTestHelper.makeQueryRunnerWithMerge;
 import static io.druid.query.QueryRunnerTestHelper.makeSegmentQueryRunner;
 import static io.druid.query.QueryRunnerTestHelper.transformToConstructionFeeder;
 
@@ -117,6 +118,19 @@ public class VirtualColumnTest
         TestQueryRunners.pool
     );
 
+    IncrementalIndex index1 = createArrayIncrementalIndex();
+    QueryableIndex index2 = TestIndex.persistRealtimeAndLoadMMapped(index1);
+
+    final ExecutorService executor = MoreExecutors.sameThreadExecutor();
+    final List<QueryRunner<Row>> runners = Arrays.asList(
+        makeQueryRunnerWithMerge(factory, executor, "index1", new IncrementalIndexSegment(index1, "index1")),
+        makeQueryRunnerWithMerge(factory, executor, "index2", new QueryableIndexSegment("index2", index2))
+    );
+    return transformToConstructionFeeder(runners);
+  }
+
+  public static IncrementalIndex createArrayIncrementalIndex() throws IOException
+  {
     final IncrementalIndexSchema schema = new IncrementalIndexSchema.Builder()
         .withMinTimestamp(new DateTime("2011-01-12T00:00:00.000Z").getMillis())
         .withQueryGranularity(QueryGranularities.NONE)
@@ -149,32 +163,7 @@ public class VirtualColumnTest
         "2011-01-12T00:00:00.000Z\t\tkey1,key2,key3\t2,4,8\t600\t2,4,8\n"
     );
 
-    IncrementalIndex index1 = TestIndex.loadIncrementalIndex(index, input, parser);
-    QueryableIndex index2 = TestIndex.persistRealtimeAndLoadMMapped(index1);
-
-    final ExecutorService executorService = MoreExecutors.sameThreadExecutor();
-    final List<QueryRunner<Row>> runners = Arrays.asList(
-        makeSegmentQueryRunner(factory, "index1", new IncrementalIndexSegment(index1, "index1")),
-        makeSegmentQueryRunner(factory, "index2", new QueryableIndexSegment("index2", index2))
-    );
-    return transformToConstructionFeeder(
-        Lists.transform(
-            runners, new Function<QueryRunner, QueryRunner>()
-            {
-              @Override
-              public QueryRunner apply(QueryRunner input)
-              {
-                // ordering is applied in toolChest.mergeResults
-                return new FinalizeResultsQueryRunner(
-                    toolChest.mergeResults(
-                        factory.mergeRunners(executorService, Arrays.<QueryRunner<Row>>asList(input))
-                    ),
-                    toolChest
-                );
-              }
-            }
-        )
-    );
+    return TestIndex.loadIncrementalIndex(index, input, parser);
   }
 
   private final QueryRunner runner;
@@ -333,7 +322,7 @@ public class VirtualColumnTest
     // with filter
     expectedResults = GroupByQueryRunnerTestHelper.createExpectedRows(
         new String[]{"__time", "indexed", "sumOf", "minOf", "maxOf"},
-        new Object[]{"2011-01-12T00:00:00.000Z", "key1", 613L, 1L, 400L},
+        new Object[]{"2011-01-12T00:00:00.000Z", "key2", 1229L, 4L, 500L},
         new Object[]{"2011-01-12T00:00:00.000Z", "key3", 947L, 8L, 600L}
     );
 
@@ -342,7 +331,7 @@ public class VirtualColumnTest
             "keys",
             Arrays.asList("values"),
             null,
-            new InDimFilter("values", Arrays.asList("key1", "key3"), null),
+            new InDimFilter("indexed", Arrays.asList("key2", "key3"), null),
             "indexed"
         )
     );
@@ -364,7 +353,7 @@ public class VirtualColumnTest
             "keys",
             null,
             Arrays.asList("array"),
-            new InDimFilter("indexed", Arrays.asList("key1", "key3"), null),
+            new InDimFilter("indexed", Arrays.asList("key2", "key3"), null),
             "indexed"
         )
     );

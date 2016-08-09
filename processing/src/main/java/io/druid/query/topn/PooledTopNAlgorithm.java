@@ -158,7 +158,7 @@ public class PooledTopNAlgorithm
   @Override
   protected BufferAggregator[] makeDimValAggregateStore(PooledTopNParams params)
   {
-    return makeBufferAggregators(params.getCursor(), query.getAggregatorSpecs());
+    return makeBufferAggregators(params.getFactory(), query.getAggregatorSpecs());
   }
   /**
    * Use aggressive loop unrolling to aggregate the data

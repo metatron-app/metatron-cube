@@ -92,6 +92,7 @@ public class KeyIndexedVirtualColumn implements VirtualColumn
 
       return new ObjectColumnSelector<String>()
       {
+        private transient int version;
         private transient IndexedInts values;
 
         @Override
@@ -103,8 +104,9 @@ public class KeyIndexedVirtualColumn implements VirtualColumn
         @Override
         public String get()
         {
-          if (indexer.index == 0) {
+          if (indexer.version != version) {
             values = selector.getRow();
+            version = indexer.version;
           }
           return values == null ? null : selector.lookupName(values.get(indexer.index()));
         }
@@ -118,6 +120,7 @@ public class KeyIndexedVirtualColumn implements VirtualColumn
 
     return new ObjectColumnSelector<Object>()
     {
+      private transient int version;
       private transient List values;
 
       @Override
@@ -129,8 +132,9 @@ public class KeyIndexedVirtualColumn implements VirtualColumn
       @Override
       public Object get()
       {
-        if (indexer.index == 0) {
+        if (indexer.version != version) {
           values = selector.get();
+          version = indexer.version;
         }
         return values == null ? null : values.get(indexer.index());
       }
@@ -209,7 +213,7 @@ public class KeyIndexedVirtualColumn implements VirtualColumn
   public DimensionSelector asDimension(final String dimension, final ColumnSelectorFactory factory)
   {
     if (!dimension.equals(outputName)) {
-      throw new IllegalStateException("Only can be called as a group-by dimension");
+      throw new IllegalStateException("Only can be called as a group-by/top-N dimension");
     }
     final DimensionSelector selector = toFilteredSelector(factory);
 
@@ -279,6 +283,7 @@ public class KeyIndexedVirtualColumn implements VirtualColumn
       @Override
       public IndexedInts getRow()
       {
+        indexer.version++;
         final IndexedInts row = selector.getRow();
         return new IndexedInts()
         {
@@ -313,7 +318,7 @@ public class KeyIndexedVirtualColumn implements VirtualColumn
             final Iterator<Integer> iterator = row.iterator();
             return new Iterator<Integer>()
             {
-              int index = 0;
+              private int index = 0;
 
               @Override
               public boolean hasNext()
@@ -370,6 +375,9 @@ public class KeyIndexedVirtualColumn implements VirtualColumn
         {
           public ObjectColumnSelector makeObjectColumnSelector(String columnName)
           {
+            if (!columnName.equals(outputName)) {
+              throw new UnsupportedOperationException("cannot reference column '" + columnName + "' in current context");
+            }
             return new ObjectColumnSelector()
             {
               @Override
@@ -418,7 +426,7 @@ public class KeyIndexedVirtualColumn implements VirtualColumn
           @Override
           public int get(int index)
           {
-            return indexed.get(mapping[index]);
+            return index < size ? indexed.get(mapping[index]) : -1;
           }
 
           @Override
@@ -569,8 +577,9 @@ public class KeyIndexedVirtualColumn implements VirtualColumn
 
   private static class IndexHolder
   {
-    volatile int index;
-    volatile int[] mapping;
+    private volatile int version;
+    private volatile int index;
+    private volatile int[] mapping;
 
     int index()
     {

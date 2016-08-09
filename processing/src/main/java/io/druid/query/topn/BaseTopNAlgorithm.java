@@ -24,8 +24,9 @@ import io.druid.query.aggregation.Aggregator;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.BufferAggregator;
 import io.druid.segment.Capabilities;
-import io.druid.segment.Cursor;
+import io.druid.segment.ColumnSelectorFactory;
 import io.druid.segment.DimensionSelector;
+import io.druid.segment.KeyIndexedVirtualColumn.IndexProvidingSelector;
 
 import java.util.Arrays;
 import java.util.Comparator;
@@ -36,7 +37,15 @@ import java.util.List;
 public abstract class BaseTopNAlgorithm<DimValSelector, DimValAggregateStore, Parameters extends TopNParams>
     implements TopNAlgorithm<DimValSelector, Parameters>
 {
-  protected static Aggregator[] makeAggregators(Cursor cursor, List<AggregatorFactory> aggregatorSpecs)
+  protected static ColumnSelectorFactory wrap(ColumnSelectorFactory factory, DimensionSelector selector)
+  {
+    if (selector instanceof IndexProvidingSelector) {
+      return ((IndexProvidingSelector) selector).wrapFactory(factory);
+    }
+    return factory;
+  }
+
+  protected static Aggregator[] makeAggregators(ColumnSelectorFactory cursor, List<AggregatorFactory> aggregatorSpecs)
   {
     Aggregator[] aggregators = new Aggregator[aggregatorSpecs.size()];
     int aggregatorIndex = 0;
@@ -47,7 +56,10 @@ public abstract class BaseTopNAlgorithm<DimValSelector, DimValAggregateStore, Pa
     return aggregators;
   }
 
-  protected static BufferAggregator[] makeBufferAggregators(Cursor cursor, List<AggregatorFactory> aggregatorSpecs)
+  protected static BufferAggregator[] makeBufferAggregators(
+      ColumnSelectorFactory cursor,
+      List<AggregatorFactory> aggregatorSpecs
+  )
   {
     BufferAggregator[] aggregators = new BufferAggregator[aggregatorSpecs.size()];
     int aggregatorIndex = 0;

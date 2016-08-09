@@ -66,6 +66,7 @@ import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ExecutorService;
 
 /**
  */
@@ -450,6 +451,24 @@ public class QueryRunnerTestHelper
     return new FinalizeResultsQueryRunner<T>(
         makeSegmentQueryRunner(factory, segmentId, adapter),
         (QueryToolChest<T, Query<T>>)factory.getToolchest()
+    );
+  }
+
+  public static <T, QueryType extends Query<T>> QueryRunner<T> makeQueryRunnerWithMerge(
+      QueryRunnerFactory<T, QueryType> factory,
+      ExecutorService executorService,
+      String segmentId,
+      Segment adapter
+  )
+  {
+    final QueryToolChest<T, Query<T>> toolChest = (QueryToolChest<T, Query<T>>) factory.getToolchest();
+    return new FinalizeResultsQueryRunner<T>(
+        toolChest.mergeResults(
+            factory.mergeRunners(
+                executorService, Arrays.asList(makeSegmentQueryRunner(factory, segmentId, adapter))
+            )
+        ),
+        toolChest
     );
   }
 

@@ -22,6 +22,7 @@ package io.druid.query.topn;
 import com.google.common.collect.Maps;
 import io.druid.query.aggregation.Aggregator;
 import io.druid.segment.Capabilities;
+import io.druid.segment.ColumnSelectorFactory;
 import io.druid.segment.Cursor;
 import io.druid.segment.DimensionSelector;
 
@@ -75,13 +76,14 @@ public class TimeExtractionTopNAlgorithm extends BaseTopNAlgorithm<int[], Map<St
   {
     final Cursor cursor = params.getCursor();
     final DimensionSelector dimSelector = params.getDimSelector();
+    final ColumnSelectorFactory factory = params.getFactory();
 
     while (!cursor.isDone()) {
       final String key = dimSelector.lookupName(dimSelector.getRow().get(0));
 
       Aggregator[] theAggregators = aggregatesStore.get(key);
       if (theAggregators == null) {
-        theAggregators = makeAggregators(cursor, query.getAggregatorSpecs());
+        theAggregators = makeAggregators(factory, query.getAggregatorSpecs());
         aggregatesStore.put(key, theAggregators);
       }
 

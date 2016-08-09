@@ -26,6 +26,7 @@ import com.google.common.collect.Maps;
 import io.druid.segment.data.IndexedInts;
 
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -37,6 +38,11 @@ public class VirtualColumns
   public static final VirtualColumns EMPTY = new VirtualColumns(
       ImmutableMap.<String, VirtualColumn>of()
   );
+
+  public static VirtualColumns valueOf(VirtualColumn virtualColumn)
+  {
+    return virtualColumn == null ? EMPTY : valueOf(Arrays.asList(virtualColumn));
+  }
 
   public static VirtualColumns valueOf(List<VirtualColumn> virtualColumns)
   {

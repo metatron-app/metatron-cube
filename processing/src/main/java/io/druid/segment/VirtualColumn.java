@@ -21,6 +21,7 @@ package io.druid.segment;
 
 import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
+import io.druid.query.Cacheable;
 
 /**
  */
@@ -30,7 +31,7 @@ import com.fasterxml.jackson.annotation.JsonTypeInfo;
     @JsonSubTypes.Type(name = "expr", value = ExprVirtualColumn.class),
     @JsonSubTypes.Type(name = "index", value = KeyIndexedVirtualColumn.class)
 })
-public interface VirtualColumn
+public interface VirtualColumn extends Cacheable
 {
   String getOutputName();
 
@@ -43,6 +44,4 @@ public interface VirtualColumn
   LongColumnSelector asLongMetric(String dimension, ColumnSelectorFactory factory);
 
   DimensionSelector asDimension(String dimension, ColumnSelectorFactory factory);
-
-  byte[] getCacheKey();
 }

@@ -34,9 +34,11 @@ import io.druid.query.aggregation.PostAggregator;
 import io.druid.query.dimension.DimensionSpec;
 import io.druid.query.filter.DimFilter;
 import io.druid.query.spec.QuerySegmentSpec;
+import io.druid.segment.VirtualColumn;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
 /**
  */
@@ -45,6 +47,7 @@ public class TopNQuery extends BaseQuery<Result<TopNResultValue>>
   public static final String TOPN = "topN";
 
   private final DimensionSpec dimensionSpec;
+  private final List<VirtualColumn> virtualColumns;
   private final TopNMetricSpec topNMetricSpec;
   private final int threshold;
   private final DimFilter dimFilter;
@@ -55,6 +58,7 @@ public class TopNQuery extends BaseQuery<Result<TopNResultValue>>
   @JsonCreator
   public TopNQuery(
       @JsonProperty("dataSource") DataSource dataSource,
+      @JsonProperty("virtualColumns") List<VirtualColumn> virtualColumns,
       @JsonProperty("dimension") DimensionSpec dimensionSpec,
       @JsonProperty("metric") TopNMetricSpec topNMetricSpec,
       @JsonProperty("threshold") int threshold,
@@ -68,6 +72,7 @@ public class TopNQuery extends BaseQuery<Result<TopNResultValue>>
   {
     super(dataSource, querySegmentSpec, false, context);
     this.dimensionSpec = dimensionSpec;
+    this.virtualColumns = virtualColumns;
     this.topNMetricSpec = topNMetricSpec;
     this.threshold = threshold;
 
@@ -95,6 +100,12 @@ public class TopNQuery extends BaseQuery<Result<TopNResultValue>>
   public String getType()
   {
     return TOPN;
+  }
+
+  @JsonProperty("virtualColumns")
+  public List<VirtualColumn> getVirtualColumns()
+  {
+    return virtualColumns;
   }
 
   @JsonProperty("dimension")
@@ -151,6 +162,7 @@ public class TopNQuery extends BaseQuery<Result<TopNResultValue>>
   {
     return new TopNQuery(
         getDataSource(),
+        virtualColumns,
         dimensionSpec,
         topNMetricSpec,
         threshold,
@@ -167,6 +179,7 @@ public class TopNQuery extends BaseQuery<Result<TopNResultValue>>
   {
     return new TopNQuery(
         getDataSource(),
+        virtualColumns,
         spec,
         topNMetricSpec,
         threshold,
@@ -183,6 +196,7 @@ public class TopNQuery extends BaseQuery<Result<TopNResultValue>>
   {
     return new TopNQuery(
         getDataSource(),
+        virtualColumns,
         getDimensionSpec(),
         topNMetricSpec,
         threshold,
@@ -199,6 +213,7 @@ public class TopNQuery extends BaseQuery<Result<TopNResultValue>>
   {
     return new TopNQuery(
         getDataSource(),
+        virtualColumns,
         getDimensionSpec(),
         topNMetricSpec,
         threshold,
@@ -216,6 +231,7 @@ public class TopNQuery extends BaseQuery<Result<TopNResultValue>>
   {
     return new TopNQuery(
         dataSource,
+        virtualColumns,
         dimensionSpec,
         topNMetricSpec,
         threshold,
@@ -232,6 +248,7 @@ public class TopNQuery extends BaseQuery<Result<TopNResultValue>>
   {
     return new TopNQuery(
         getDataSource(),
+        virtualColumns,
         dimensionSpec,
         topNMetricSpec,
         threshold,
@@ -248,6 +265,7 @@ public class TopNQuery extends BaseQuery<Result<TopNResultValue>>
   {
     return new TopNQuery(
         getDataSource(),
+        virtualColumns,
         dimensionSpec,
         topNMetricSpec,
         threshold,
@@ -264,6 +282,7 @@ public class TopNQuery extends BaseQuery<Result<TopNResultValue>>
   {
     return new TopNQuery(
         getDataSource(),
+        virtualColumns,
         getDimensionSpec(),
         topNMetricSpec,
         threshold,
@@ -282,6 +301,7 @@ public class TopNQuery extends BaseQuery<Result<TopNResultValue>>
     return "TopNQuery{" +
            "dataSource='" + getDataSource() + '\'' +
            ", dimensionSpec=" + dimensionSpec +
+           ", virtualColumns=" + virtualColumns +
            ", topNMetricSpec=" + topNMetricSpec +
            ", threshold=" + threshold +
            ", querySegmentSpec=" + getQuerySegmentSpec() +
@@ -313,6 +333,10 @@ public class TopNQuery extends BaseQuery<Result<TopNResultValue>>
     if (topNMetricSpec != null ? !topNMetricSpec.equals(topNQuery.topNMetricSpec) : topNQuery.topNMetricSpec != null)
       return false;
 
+    if (!Objects.equals(virtualColumns, topNQuery.virtualColumns)) {
+      return false;
+    }
+
     return true;
   }
 
@@ -327,6 +351,7 @@ public class TopNQuery extends BaseQuery<Result<TopNResultValue>>
     result = 31 * result + (granularity != null ? granularity.hashCode() : 0);
     result = 31 * result + (aggregatorSpecs != null ? aggregatorSpecs.hashCode() : 0);
     result = 31 * result + (postAggregatorSpecs != null ? postAggregatorSpecs.hashCode() : 0);
+    result = 31 * result + (virtualColumns != null ? virtualColumns.hashCode() : 0);
     return result;
   }
 }

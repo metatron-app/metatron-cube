@@ -22,6 +22,7 @@ package io.druid.query.topn;
 import com.google.common.collect.Maps;
 import io.druid.query.aggregation.Aggregator;
 import io.druid.segment.Capabilities;
+import io.druid.segment.ColumnSelectorFactory;
 import io.druid.segment.Cursor;
 import io.druid.segment.DimensionSelector;
 import io.druid.segment.data.IndexedInts;
@@ -96,6 +97,7 @@ public class DimExtractionTopNAlgorithm extends BaseTopNAlgorithm<Aggregator[][]
   {
     final Cursor cursor = params.getCursor();
     final DimensionSelector dimSelector = params.getDimSelector();
+    final ColumnSelectorFactory factory = params.getFactory();
 
     while (!cursor.isDone()) {
       final IndexedInts dimValues = dimSelector.getRow();
@@ -108,7 +110,7 @@ public class DimExtractionTopNAlgorithm extends BaseTopNAlgorithm<Aggregator[][]
           final String key = dimSelector.lookupName(dimIndex);
           theAggregators = aggregatesStore.get(key);
           if (theAggregators == null) {
-            theAggregators = makeAggregators(cursor, query.getAggregatorSpecs());
+            theAggregators = makeAggregators(factory, query.getAggregatorSpecs());
             aggregatesStore.put(key, theAggregators);
           }
           rowSelector[dimIndex] = theAggregators;

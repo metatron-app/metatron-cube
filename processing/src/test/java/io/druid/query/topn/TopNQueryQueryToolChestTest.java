@@ -60,6 +60,7 @@ public class TopNQueryQueryToolChestTest
         new TopNQueryQueryToolChest(null, null).getCacheStrategy(
             new TopNQuery(
                 new TableDataSource("dummy"),
+                null,
                 new DefaultDimensionSpec("test", "test"),
                 new NumericTopNMetricSpec("metric1"),
                 3,
