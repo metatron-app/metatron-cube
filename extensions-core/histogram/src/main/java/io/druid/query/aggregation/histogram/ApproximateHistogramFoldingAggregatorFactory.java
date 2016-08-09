@@ -49,11 +49,12 @@ public class ApproximateHistogramFoldingAggregatorFactory extends ApproximateHis
       @JsonProperty("numBuckets") Integer numBuckets,
       @JsonProperty("lowerLimit") Float lowerLimit,
       @JsonProperty("upperLimit") Float upperLimit,
-      @JsonProperty("compact") boolean compact,
+      @JsonProperty("compact") Boolean compact,
+      @JsonProperty("base64") Boolean base64,
       @JsonProperty("predicate") String predicate
   )
   {
-    super(name, fieldName, resolution, numBuckets, lowerLimit, upperLimit, compact, predicate);
+    super(name, fieldName, resolution, numBuckets, lowerLimit, upperLimit, compact, base64, predicate);
   }
 
   @Override
@@ -81,7 +82,8 @@ public class ApproximateHistogramFoldingAggregatorFactory extends ApproximateHis
     }
 
     final Class cls = selector.classOfObject();
-    if (cls.equals(Object.class) || ApproximateHistogram.class.isAssignableFrom(cls)) {
+    if (cls.equals(Object.class) || ApproximateHistogram.class.isAssignableFrom(cls)
+        || ApproximateCompactHistogram.class.isAssignableFrom(cls)) {
       return new ApproximateHistogramFoldingAggregator(
           name,
           selector,
@@ -150,6 +152,7 @@ public class ApproximateHistogramFoldingAggregatorFactory extends ApproximateHis
         lowerLimit,
         upperLimit,
         compact,
+        base64,
         predicate
     );
   }
@@ -180,7 +183,7 @@ public class ApproximateHistogramFoldingAggregatorFactory extends ApproximateHis
       return false;
     }
 
-    ApproximateHistogramAggregatorFactory that = (ApproximateHistogramAggregatorFactory) o;
+    ApproximateHistogramFoldingAggregatorFactory that = (ApproximateHistogramFoldingAggregatorFactory) o;
 
     if (Float.compare(that.lowerLimit, lowerLimit) != 0) {
       return false;

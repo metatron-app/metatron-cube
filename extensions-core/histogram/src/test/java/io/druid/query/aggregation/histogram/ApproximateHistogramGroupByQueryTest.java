@@ -231,6 +231,7 @@ public class ApproximateHistogramGroupByQueryTest
                 Float.NEGATIVE_INFINITY,
                 Float.POSITIVE_INFINITY,
                 false,
+                false,
                 "index > 1000"
             )
         )

@@ -55,6 +55,7 @@ public class ApproximateHistogramAggregatorFactory extends AggregatorFactory
   protected final float upperLimit;
 
   protected final boolean compact;
+  protected final boolean base64;
   protected final String predicate;
 
   @JsonCreator
@@ -65,7 +66,8 @@ public class ApproximateHistogramAggregatorFactory extends AggregatorFactory
       @JsonProperty("numBuckets") Integer numBuckets,
       @JsonProperty("lowerLimit") Float lowerLimit,
       @JsonProperty("upperLimit") Float upperLimit,
-      @JsonProperty("compact") boolean compact,
+      @JsonProperty("compact") Boolean compact,
+      @JsonProperty("base64") Boolean base64,
       @JsonProperty("predicate") String predicate
 
   )
@@ -76,7 +78,8 @@ public class ApproximateHistogramAggregatorFactory extends AggregatorFactory
     this.numBuckets = numBuckets == null ? ApproximateHistogram.DEFAULT_BUCKET_SIZE : numBuckets;
     this.lowerLimit = lowerLimit == null ? Float.NEGATIVE_INFINITY : lowerLimit;
     this.upperLimit = upperLimit == null ? Float.POSITIVE_INFINITY : upperLimit;
-    this.compact = compact;
+    this.compact = compact == null ? false: compact;
+    this.base64 = base64 == null ? false: base64;
     this.predicate = predicate;
 
     Preconditions.checkArgument(this.resolution > 0, "resolution must be greater than 1");
@@ -94,7 +97,7 @@ public class ApproximateHistogramAggregatorFactory extends AggregatorFactory
       boolean compact
   )
   {
-    this(name, fieldName, resolution, numBuckets, lowerLimit, upperLimit, compact, null);
+    this(name, fieldName, resolution, numBuckets, lowerLimit, upperLimit, compact, null, null);
   }
 
   @Override
@@ -146,6 +149,7 @@ public class ApproximateHistogramAggregatorFactory extends AggregatorFactory
         lowerLimit,
         upperLimit,
         compact,
+        base64,
         null
     );
   }
@@ -164,6 +168,7 @@ public class ApproximateHistogramAggregatorFactory extends AggregatorFactory
           Math.min(lowerLimit, castedOther.lowerLimit),
           Math.max(upperLimit, castedOther.upperLimit),
           compact,
+          base64,
           null
       );
 
@@ -184,6 +189,7 @@ public class ApproximateHistogramAggregatorFactory extends AggregatorFactory
             lowerLimit,
             upperLimit,
             compact,
+            base64,
             predicate
         )
     );
@@ -260,6 +266,12 @@ public class ApproximateHistogramAggregatorFactory extends AggregatorFactory
     return compact;
   }
 
+  @JsonProperty
+  public boolean isBase64()
+  {
+    return base64;
+  }
+
   @Override
   public List<String> requiredFields()
   {
@@ -271,9 +283,10 @@ public class ApproximateHistogramAggregatorFactory extends AggregatorFactory
   {
     byte[] fieldNameBytes = StringUtils.toUtf8(fieldName);
     byte[] predicateBytes = StringUtils.toUtf8WithNullToEmpty(predicate);
-    return ByteBuffer.allocate(2 + fieldNameBytes.length + Ints.BYTES * 2 + Floats.BYTES * 2 + predicateBytes.length)
+    return ByteBuffer.allocate(3 + fieldNameBytes.length + Ints.BYTES * 2 + Floats.BYTES * 2 + predicateBytes.length)
                      .put(CACHE_TYPE_ID)
                      .put(compact ? (byte) 1 : 0)
+                     .put(base64 ? (byte) 1 : 0)
                      .put(fieldNameBytes)
                      .put(predicateBytes)
                      .putInt(resolution)
@@ -285,7 +298,10 @@ public class ApproximateHistogramAggregatorFactory extends AggregatorFactory
   @Override
   public String getTypeName()
   {
-    return compact ? "approximateCompactHistogram" : "approximateHistogram";
+    return compact ?
+                      base64 ? "approximateBase64CompactHistogram" : "approximateCompactHistogram"
+                   :
+                      base64 ? "approximateBase64Histogram" : "approximateHistogram";
   }
 
   @Override
@@ -319,6 +335,9 @@ public class ApproximateHistogramAggregatorFactory extends AggregatorFactory
     if (compact != that.compact) {
       return false;
     }
+    if (base64 != that.base64) {
+      return false;
+    }
     if (Float.compare(that.lowerLimit, lowerLimit) != 0) {
       return false;
     }
@@ -346,6 +365,7 @@ public class ApproximateHistogramAggregatorFactory extends AggregatorFactory
   {
     int result = name != null ? name.hashCode() : 0;
     result = 31 * result + (compact ? 1 : 0);
+    result = 31 * result + (base64 ? 1 : 0);
     result = 31 * result + (fieldName != null ? fieldName.hashCode() : 0);
     result = 31 * result + resolution;
     result = 31 * result + numBuckets;
