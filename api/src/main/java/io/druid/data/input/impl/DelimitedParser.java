@@ -19,13 +19,12 @@ package io.druid.data.input.impl;
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Splitter;
-import com.google.common.collect.Iterables;
+import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import com.metamx.common.parsers.ParseException;
 import com.metamx.common.parsers.Parser;
-import com.metamx.common.parsers.ParserUtils;
 import com.metamx.common.parsers.Parsers;
 
 import java.util.Iterator;
@@ -90,7 +89,7 @@ public class DelimitedParser implements Parser<String, Object>
   @Override
   public void setFieldNames(final Iterable<String> fieldNames)
   {
-    throw new UnsupportedOperationException("getFieldNames");
+    throw new UnsupportedOperationException("setFieldNames");
   }
 
   public void setFieldNames(String header)
@@ -109,23 +108,21 @@ public class DelimitedParser implements Parser<String, Object>
     Map<String, Object> row = Maps.newLinkedHashMap();
     try {
       Iterator<String> fields = splitter.split(input).iterator();
-      for (int i = 0; i < columns.size(); i++) {
+      for (int i = 0; i < columns.size() && fields.hasNext(); i++) {
         String key = columns.get(i);
-        if (!fields.hasNext()) {
-          row.put(key, "");
-        } else {
-          String value = fields.next();
-          if ((listColumns == null || listColumns.contains(key)) && value.contains(listDelimiter)) {
-            row.put(
-                key, Lists.newArrayList(
-                    Iterables.transform(
-                        listSplitter.split(value), ParserUtils.nullEmptyStringFunction
-                    )
-                )
-            );
-          } else {
-            row.put(key, value);
+        String value = fields.next();
+        if (Strings.isNullOrEmpty(value)) {
+          row.put(key, null);
+          continue;
+        }
+        if ((listColumns == null || listColumns.contains(key)) && value.contains(listDelimiter)) {
+          List<String> elements = Lists.newArrayList();
+          for (String element : listSplitter.split(value)) {
+            elements.add(Strings.isNullOrEmpty(element) ? null : element);
           }
+          row.put(key, elements);
+        } else {
+          row.put(key, value);
         }
       }
       return row;

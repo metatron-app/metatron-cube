@@ -57,7 +57,7 @@ public class DelimitedParserTest
     Map jsonMap = delimitedParser.parse(body);
     Assert.assertEquals(
         "jsonMap",
-        ImmutableMap.of("x", "hello", "y", "world", "z", "foo", "w", ""),
+        ImmutableMap.of("x", "hello", "y", "world", "z", "foo"),
         jsonMap
     );
   }
