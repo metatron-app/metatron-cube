@@ -60,8 +60,10 @@ public class ArrayAggregatorFactory extends AbstractArrayAggregatorFactory
       public void aggregate()
       {
         List value = selector.get();
-        for (Aggregator aggregator : getAggregators(value.size())) {
-          aggregator.aggregate();
+        if (value != null && !value.isEmpty()) {
+          for (Aggregator aggregator : getAggregators(value.size())) {
+            aggregator.aggregate();
+          }
         }
       }
 
@@ -76,7 +78,7 @@ public class ArrayAggregatorFactory extends AbstractArrayAggregatorFactory
       @Override
       public Object get()
       {
-        List<Object> result = Lists.newArrayListWithExpectedSize(aggregators.size());
+        List<Object> result = Lists.newArrayListWithCapacity(aggregators.size());
         for (Aggregator aggregator : aggregators) {
           result.add(aggregator.get());
         }
@@ -119,8 +121,7 @@ public class ArrayAggregatorFactory extends AbstractArrayAggregatorFactory
       {
         final int min = Math.min(limit, size);
         for (int i = aggregators.size(); i < min; i++) {
-          Aggregator factorize = delegate.factorize(new ArrayColumnSelectorFactory(i, selector, elementClass));
-          aggregators.add(factorize);
+          aggregators.add(delegate.factorize(new ArrayColumnSelectorFactory(i, selector, elementClass)));
         }
         return aggregators;
       }
@@ -151,16 +152,18 @@ public class ArrayAggregatorFactory extends AbstractArrayAggregatorFactory
       public void aggregate(ByteBuffer buf, int position)
       {
         List value = selector.get();
-        for (BufferAggregator aggregator : getAggregators(buf, position, value.size())) {
-          aggregator.aggregate(buf, position);
-          position += delegate.getMaxIntermediateSize();
+        if (value != null && !value.isEmpty()) {
+          for (BufferAggregator aggregator : getAggregators(buf, position, value.size())) {
+            aggregator.aggregate(buf, position);
+            position += delegate.getMaxIntermediateSize();
+          }
         }
       }
 
       @Override
       public Object get(ByteBuffer buf, int position)
       {
-        List<Object> result = Lists.newArrayListWithExpectedSize(aggregators.size());
+        List<Object> result = Lists.newArrayListWithCapacity(aggregators.size());
         for (BufferAggregator aggregator : aggregators) {
           result.add(aggregator.get(buf, position));
           position += delegate.getMaxIntermediateSize();
