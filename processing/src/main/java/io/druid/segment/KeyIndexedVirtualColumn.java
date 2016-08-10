@@ -108,7 +108,8 @@ public class KeyIndexedVirtualColumn implements VirtualColumn
             values = selector.getRow();
             version = indexer.version;
           }
-          return values == null ? null : selector.lookupName(values.get(indexer.index()));
+          int index = indexer.index();
+          return values == null || index >= values.size() ? null : selector.lookupName(values.get(index));
         }
       };
     }
@@ -136,7 +137,8 @@ public class KeyIndexedVirtualColumn implements VirtualColumn
           values = selector.get();
           version = indexer.version;
         }
-        return values == null ? null : values.get(indexer.index());
+        int index = indexer.index();
+        return values == null || index >= values.size() ? null : values.get(index);
       }
     };
   }
