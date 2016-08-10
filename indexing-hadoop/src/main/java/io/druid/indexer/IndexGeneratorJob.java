@@ -544,7 +544,11 @@ public class IndexGeneratorJob implements Jobby
     ) throws IOException
     {
       flushedIndex.increment(1);
-      log.info("flushing.. " + index.size() + " --> " + index.getMinTime() + " ~ " + index.getMaxTime());
+      log.info(
+          "flushing index.. %,d rows with estimated size %,d bytes (%s ~ %s)",
+          index.size(), index.estimatedOccupation(), index.getMinTime(), index.getMaxTime()
+      );
+
       if (config.isBuildV9Directly()) {
         return HadoopDruidIndexerConfig.INDEX_MERGER_V9.persist(
             index, interval, file, config.getIndexSpec(), progressIndicator
@@ -607,7 +611,9 @@ public class IndexGeneratorJob implements Jobby
       Bucket bucket = Bucket.fromGroupKey(keyBytes.getGroupKey()).lhs;
 
       final Interval interval = config.getGranularitySpec().bucketInterval(bucket.time).get();
-      final int limit = config.getSchema().getTuningConfig().getRowFlushBoundary();
+      final HadoopTuningConfig tuningConfig = config.getSchema().getTuningConfig();
+      final int limit = tuningConfig.getRowFlushBoundary();
+      final int occupation = tuningConfig.getMaxOccupationInMemory();
 
       ListeningExecutorService persistExecutor = null;
       List<ListenableFuture<?>> persistFutures = Lists.newArrayList();
@@ -631,7 +637,7 @@ public class IndexGeneratorJob implements Jobby
 
         Set<String> allDimensionNames = Sets.newLinkedHashSet();
         final ProgressIndicator progressIndicator = makeProgressIndicator(context);
-        int numBackgroundPersistThreads = config.getSchema().getTuningConfig().getNumBackgroundPersistThreads();
+        int numBackgroundPersistThreads = tuningConfig.getNumBackgroundPersistThreads();
         if (numBackgroundPersistThreads > 0) {
           final BlockingQueue<Runnable> queue = new SynchronousQueue<>();
           ExecutorService executorService = new ThreadPoolExecutor(
@@ -665,6 +671,7 @@ public class IndexGeneratorJob implements Jobby
         byte[] prev = null;
 
         int numRows = 0;
+        int nextLogging = 1000;
         AggregatorFactory[][] settlingApplied = null;
         for (final BytesWritable bw : values) {
           context.progress();
@@ -678,7 +685,7 @@ public class IndexGeneratorJob implements Jobby
             if (settler != null) {
               settlingApplied = settler.applySettling(inputRow);
             }
-            flush |= numRows >= limit;
+            flush |= numRows >= limit || (occupation > 0 && index.estimatedOccupation() > occupation);
             groupCount.increment(1);
           }
           if (flush) {
@@ -732,7 +739,10 @@ public class IndexGeneratorJob implements Jobby
             ++indexCount;
           }
           numRows = add(index, inputRow, settlingApplied);
-          ++lineCount;
+          if (++lineCount % nextLogging == 0) {
+            log.info("processing %,d lines..", lineCount);
+            nextLogging = Math.min(nextLogging * 10, 1000000);
+          };
         }
 
         allDimensionNames.addAll(index.getDimensionOrder());
@@ -771,7 +781,7 @@ public class IndexGeneratorJob implements Jobby
         final DataSegment segmentTemplate = new DataSegment(
             config.getDataSource(),
             interval,
-            config.getSchema().getTuningConfig().getVersion(),
+            tuningConfig.getVersion(),
             null,
             ImmutableList.copyOf(allDimensionNames),
             metricNames,

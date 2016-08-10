@@ -22,6 +22,7 @@ package io.druid.segment.incremental;
 import com.google.common.base.Supplier;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+import com.google.common.primitives.Ints;
 import com.metamx.common.logger.Logger;
 import com.metamx.common.parsers.ParseException;
 import io.druid.data.input.InputRow;
@@ -381,6 +382,7 @@ public class OnheapIncrementalIndex extends IncrementalIndex<Aggregator>
       synchronized (lock) {
         Integer prev = valueToId.get(value);
         if (prev != null) {
+          estimatedSize += Ints.BYTES;
           return prev;
         }
         final int index = size();
@@ -390,7 +392,7 @@ public class OnheapIncrementalIndex extends IncrementalIndex<Aggregator>
           minValue = minValue == null || minValue.compareTo(value) > 0 ? value : minValue;
           maxValue = maxValue == null || maxValue.compareTo(value) < 0 ? value : maxValue;
         }
-        estimatedSize += estimator.estimate(value);
+        estimatedSize += estimator.estimate(value) + Ints.BYTES;
         return index;
       }
     }

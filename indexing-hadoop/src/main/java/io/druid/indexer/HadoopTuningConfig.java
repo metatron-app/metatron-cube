@@ -55,6 +55,7 @@ public class HadoopTuningConfig implements TuningConfig
         DEFAULT_SHARD_SPECS,
         DEFAULT_INDEX_SPEC,
         DEFAULT_ROW_FLUSH_BOUNDARY,
+        -1,
         false,
         true,
         false,
@@ -74,6 +75,7 @@ public class HadoopTuningConfig implements TuningConfig
   private final Map<DateTime, List<HadoopyShardSpec>> shardSpecs;
   private final IndexSpec indexSpec;
   private final int rowFlushBoundary;
+  private final int maxOccupationInMemory;
   private final boolean leaveIntermediate;
   private final Boolean cleanupOnFailure;
   private final boolean overwriteFiles;
@@ -92,6 +94,7 @@ public class HadoopTuningConfig implements TuningConfig
       final @JsonProperty("shardSpecs") Map<DateTime, List<HadoopyShardSpec>> shardSpecs,
       final @JsonProperty("indexSpec") IndexSpec indexSpec,
       final @JsonProperty("maxRowsInMemory") Integer maxRowsInMemory,
+      final @JsonProperty("maxOccupationInMemory") Integer maxOccupationInMemory,
       final @JsonProperty("leaveIntermediate") boolean leaveIntermediate,
       final @JsonProperty("cleanupOnFailure") Boolean cleanupOnFailure,
       final @JsonProperty("overwriteFiles") boolean overwriteFiles,
@@ -111,6 +114,7 @@ public class HadoopTuningConfig implements TuningConfig
     this.shardSpecs = shardSpecs == null ? DEFAULT_SHARD_SPECS : shardSpecs;
     this.indexSpec = indexSpec == null ? DEFAULT_INDEX_SPEC : indexSpec;
     this.rowFlushBoundary = maxRowsInMemory == null ? maxRowsInMemoryCOMPAT == null ?  DEFAULT_ROW_FLUSH_BOUNDARY : maxRowsInMemoryCOMPAT : maxRowsInMemory;
+    this.maxOccupationInMemory = maxOccupationInMemory == null ? -1 : maxOccupationInMemory;
     this.leaveIntermediate = leaveIntermediate;
     this.cleanupOnFailure = cleanupOnFailure == null ? true : cleanupOnFailure;
     this.overwriteFiles = overwriteFiles;
@@ -119,10 +123,50 @@ public class HadoopTuningConfig implements TuningConfig
                           ? ImmutableMap.<String, String>of()
                           : ImmutableMap.copyOf(jobProperties));
     this.combineText = combineText;
-    this.useCombiner = useCombiner == null ? DEFAULT_USE_COMBINER : useCombiner.booleanValue();
+    this.useCombiner = useCombiner == null ? DEFAULT_USE_COMBINER : useCombiner;
     this.buildV9Directly = buildV9Directly == null ? DEFAULT_BUILD_V9_DIRECTLY : buildV9Directly;
     this.numBackgroundPersistThreads = numBackgroundPersistThreads == null ? DEFAULT_NUM_BACKGROUND_PERSIST_THREADS : numBackgroundPersistThreads;
     Preconditions.checkArgument(this.numBackgroundPersistThreads >= 0, "Not support persistBackgroundCount < 0");
+  }
+
+  public HadoopTuningConfig(
+      String workingPath,
+      String version,
+      PartitionsSpec partitionsSpec,
+      Map<DateTime, List<HadoopyShardSpec>> shardSpecs,
+      IndexSpec indexSpec,
+      Integer maxRowsInMemory,
+      boolean leaveIntermediate,
+      Boolean cleanupOnFailure,
+      boolean overwriteFiles,
+      boolean ignoreInvalidRows,
+      Map<String, String> jobProperties,
+      boolean combineText,
+      Boolean useCombiner,
+      Integer maxRowsInMemoryCOMPAT,
+      Boolean buildV9Directly,
+      Integer numBackgroundPersistThreads
+  )
+  {
+    this(
+        workingPath,
+        version,
+        partitionsSpec,
+        shardSpecs,
+        indexSpec,
+        maxRowsInMemory,
+        null,
+        leaveIntermediate,
+        cleanupOnFailure,
+        overwriteFiles,
+        ignoreInvalidRows,
+        jobProperties,
+        combineText,
+        useCombiner,
+        maxRowsInMemoryCOMPAT,
+        buildV9Directly,
+        numBackgroundPersistThreads
+    );
   }
 
   @JsonProperty
@@ -159,6 +203,12 @@ public class HadoopTuningConfig implements TuningConfig
   public int getRowFlushBoundary()
   {
     return rowFlushBoundary;
+  }
+
+  @JsonProperty("maxOccupationInMemory")
+  public int getMaxOccupationInMemory()
+  {
+    return maxOccupationInMemory;
   }
 
   @JsonProperty
@@ -223,6 +273,7 @@ public class HadoopTuningConfig implements TuningConfig
         shardSpecs,
         indexSpec,
         rowFlushBoundary,
+        maxOccupationInMemory,
         leaveIntermediate,
         cleanupOnFailure,
         overwriteFiles,
@@ -245,6 +296,7 @@ public class HadoopTuningConfig implements TuningConfig
         shardSpecs,
         indexSpec,
         rowFlushBoundary,
+        maxOccupationInMemory,
         leaveIntermediate,
         cleanupOnFailure,
         overwriteFiles,
@@ -267,6 +319,7 @@ public class HadoopTuningConfig implements TuningConfig
         specs,
         indexSpec,
         rowFlushBoundary,
+        maxOccupationInMemory,
         leaveIntermediate,
         cleanupOnFailure,
         overwriteFiles,

@@ -1209,7 +1209,7 @@ public abstract class IncrementalIndex<AggregatorType> implements Iterable<Row>,
       @Override
       public int estimate(String object)
       {
-        return object == null ? 0 : StringUtils.estimatedBinaryLengthAsUTF8(object);
+        return Strings.isNullOrEmpty(object) ? 0 : StringUtils.estimatedBinaryLengthAsUTF8(object);
       }
     };
     SizeEstimator<Float> FLOAT = new SizeEstimator<Float>()
