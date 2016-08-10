@@ -79,6 +79,64 @@ public class Aggregators
     };
   }
 
+  public static class DelegatedAggregator implements Aggregator
+  {
+    private final Aggregator delegate;
+
+    public DelegatedAggregator(Aggregator delegate)
+    {
+      this.delegate = delegate;
+    }
+
+    @Override
+    public void aggregate()
+    {
+      delegate.aggregate();
+    }
+
+    @Override
+    public void reset()
+    {
+      delegate.reset();
+    }
+
+    @Override
+    public Object get()
+    {
+      return delegate.get();
+    }
+
+    @Override
+    public float getFloat()
+    {
+      return delegate.getFloat();
+    }
+
+    @Override
+    public String getName()
+    {
+      return delegate.getName();
+    }
+
+    @Override
+    public void close()
+    {
+      delegate.close();
+    }
+
+    @Override
+    public long getLong()
+    {
+      return delegate.getLong();
+    }
+
+    @Override
+    public double getDouble()
+    {
+      return delegate.getDouble();
+    }
+  }
+
   public static BufferAggregator noopBufferAggregator()
   {
     return new BufferAggregator()
@@ -126,5 +184,57 @@ public class Aggregators
 
       }
     };
+  }
+
+  public static class DelegatedBufferAggregator implements BufferAggregator
+  {
+    private final BufferAggregator delegate;
+
+    public DelegatedBufferAggregator(BufferAggregator delegate)
+    {
+      this.delegate = delegate;
+    }
+
+    @Override
+    public void init(ByteBuffer buf, int position)
+    {
+      delegate.init(buf, position);
+    }
+
+    @Override
+    public void aggregate(ByteBuffer buf, int position)
+    {
+      delegate.aggregate(buf, position);
+    }
+
+    @Override
+    public Object get(ByteBuffer buf, int position)
+    {
+      return delegate.get(buf, position);
+    }
+
+    @Override
+    public float getFloat(ByteBuffer buf, int position)
+    {
+      return delegate.getFloat(buf, position);
+    }
+
+    @Override
+    public double getDouble(ByteBuffer buf, int position)
+    {
+      return delegate.getDouble(buf, position);
+    }
+
+    @Override
+    public long getLong(ByteBuffer buf, int position)
+    {
+      return delegate.getLong(buf, position);
+    }
+
+    @Override
+    public void close()
+    {
+      delegate.close();
+    }
   }
 }

@@ -20,7 +20,6 @@
 package io.druid.query.groupby;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.common.base.Function;
 import com.google.common.base.Supplier;
 import com.google.common.base.Suppliers;
 import com.google.common.collect.ImmutableMap;
@@ -36,7 +35,6 @@ import io.druid.data.input.impl.StringInputRowParser;
 import io.druid.data.input.impl.TimestampSpec;
 import io.druid.granularity.QueryGranularities;
 import io.druid.jackson.DefaultObjectMapper;
-import io.druid.query.FinalizeResultsQueryRunner;
 import io.druid.query.QueryRunner;
 import io.druid.query.QueryRunnerTestHelper;
 import io.druid.query.TestQueryRunners;
@@ -44,6 +42,9 @@ import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.ArrayAggregatorFactory;
 import io.druid.query.aggregation.CountAggregatorFactory;
 import io.druid.query.aggregation.DimensionArrayAggregatorFactory;
+import io.druid.query.aggregation.GenericMaxAggregatorFactory;
+import io.druid.query.aggregation.GenericMinAggregatorFactory;
+import io.druid.query.aggregation.GenericSumAggregatorFactory;
 import io.druid.query.aggregation.LongMaxAggregatorFactory;
 import io.druid.query.aggregation.LongMinAggregatorFactory;
 import io.druid.query.aggregation.LongSumAggregatorFactory;
@@ -77,7 +78,6 @@ import static io.druid.query.QueryRunnerTestHelper.dataSource;
 import static io.druid.query.QueryRunnerTestHelper.dayGran;
 import static io.druid.query.QueryRunnerTestHelper.fullOnInterval;
 import static io.druid.query.QueryRunnerTestHelper.makeQueryRunnerWithMerge;
-import static io.druid.query.QueryRunnerTestHelper.makeSegmentQueryRunner;
 import static io.druid.query.QueryRunnerTestHelper.transformToConstructionFeeder;
 
 /**
@@ -240,6 +240,36 @@ public class VirtualColumnTest
             )
         )
         .setVirtualColumns(virtualColumns)
+        .build();
+    checkSelectQuery(query, expectedResults);
+  }
+
+  @Test
+  public void testArrayMetricAggregator() throws Exception
+  {
+    GroupByQuery.Builder builder = testBuilder();
+
+    List<VirtualColumn> virtualColumns = Arrays.<VirtualColumn>asList(
+        new ExprVirtualColumn("nvl(dim, 'x')", "dim_nvl")
+    );
+
+    List<Row> expectedResults = GroupByQueryRunnerTestHelper.createExpectedRows(
+        new String[]{"__time", "dim_nvl", "sum_of_array", "min_of_array", "max_of_array"},
+        new Object[]{ "2011-01-12T00:00:00.000Z", "a", 2100L, 100L, 600L},
+        new Object[]{ "2011-01-12T00:00:00.000Z", "c", 1515L, 1L, 900L},
+        new Object[]{ "2011-01-12T00:00:00.000Z", "x", 74L, 2L, 30L}
+    );
+
+    GroupByQuery query = builder
+        .setVirtualColumns(virtualColumns)
+        .setDimensions(DefaultDimensionSpec.toSpec("dim_nvl"))
+        .setAggregatorSpecs(
+            Arrays.<AggregatorFactory>asList(
+                new GenericSumAggregatorFactory("sum_of_array", "array", "array.long"),
+                new GenericMinAggregatorFactory("min_of_array", "array", "array.long"),
+                new GenericMaxAggregatorFactory("max_of_array", "array", "array.long")
+            )
+        )
         .build();
     checkSelectQuery(query, expectedResults);
   }

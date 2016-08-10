@@ -40,7 +40,6 @@ public abstract class AbstractArrayAggregatorFactory extends AggregatorFactory
 {
   static final Logger logger = new Logger(AbstractArrayAggregatorFactory.class);
 
-  static final byte CACHE_TYPE_ID = 0x7F;
   static final int DEFAULT_LIMIT = 8;   // should be < 65536
 
   final String column;
@@ -166,12 +165,14 @@ public abstract class AbstractArrayAggregatorFactory extends AggregatorFactory
     byte[] columnBytes = StringUtils.toUtf8(column);
     byte[] cacheKey = delegate.getCacheKey();
     return ByteBuffer.allocate(1 + columnBytes.length + cacheKey.length + Ints.BYTES)
-                     .put(CACHE_TYPE_ID)
+                     .put(cacheTypeID())
                      .put(columnBytes)
                      .put(cacheKey)
                      .putInt(limit)
                      .array();
   }
+
+  protected abstract byte cacheTypeID();
 
   @Override
   public String getTypeName()

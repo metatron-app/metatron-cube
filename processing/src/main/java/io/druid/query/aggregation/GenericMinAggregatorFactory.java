@@ -21,50 +21,29 @@ package io.druid.query.aggregation;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.google.common.base.Preconditions;
-import com.google.common.primitives.Doubles;
-import com.metamx.common.StringUtils;
 import io.druid.data.ValueType;
 import io.druid.segment.ColumnSelectorFactory;
 
-import java.nio.ByteBuffer;
-import java.util.Arrays;
-import java.util.Comparator;
-import java.util.List;
-import java.util.Objects;
-
 /**
  */
-public class GenericMinAggregatorFactory extends AggregatorFactory
+public class GenericMinAggregatorFactory extends GenericAggregatorFactory
 {
-  private static final byte CACHE_TYPE_ID = 0x3;
-
-  private final String fieldName;
-  private final String name;
-  private final ValueType inputType;
-  private final Comparator comparator;
+  private static final byte CACHE_TYPE_ID = 0x0B;
 
   @JsonCreator
   public GenericMinAggregatorFactory(
       @JsonProperty("name") String name,
       @JsonProperty("fieldName") String fieldName,
-      @JsonProperty("inputType") ValueType inputType
+      @JsonProperty("inputType") String inputType
   )
   {
-    Preconditions.checkNotNull(name, "Must have a valid, non-null aggregator name");
-    Preconditions.checkNotNull(fieldName, "Must have a valid, non-null fieldName");
-    Preconditions.checkArgument(inputType == null || ValueType.isNumeric(inputType));
-
-    this.name = name;
-    this.fieldName = fieldName;
-    this.inputType = inputType == null ? ValueType.DOUBLE : inputType;
-    this.comparator = inputType.comparator();
+    super(name, fieldName, inputType);
   }
 
   @Override
-  public Aggregator factorize(ColumnSelectorFactory metricFactory)
+  protected final Aggregator factorize(ColumnSelectorFactory metricFactory, ValueType valueType)
   {
-    switch (inputType) {
+    switch (valueType) {
       case FLOAT:
         return new DoubleMinAggregator.FloatInput(name, metricFactory.makeFloatColumnSelector(fieldName));
       case DOUBLE:
@@ -76,9 +55,9 @@ public class GenericMinAggregatorFactory extends AggregatorFactory
   }
 
   @Override
-  public BufferAggregator factorizeBuffered(ColumnSelectorFactory metricFactory)
+  protected final BufferAggregator factorizeBuffered(ColumnSelectorFactory metricFactory, ValueType valueType)
   {
-    switch (inputType) {
+    switch (valueType) {
       case FLOAT:
         return new DoubleMinBufferAggregator.FloatInput(metricFactory.makeFloatColumnSelector(fieldName));
       case DOUBLE:
@@ -90,145 +69,26 @@ public class GenericMinAggregatorFactory extends AggregatorFactory
   }
 
   @Override
-  public Comparator getComparator()
+  protected final AggregatorFactory withValue(String name, String fieldName, String inputType)
   {
-    return comparator;
+    return new GenericMinAggregatorFactory(name, fieldName, inputType);
   }
 
   @Override
-  public Object combine(Object lhs, Object rhs)
+  protected final byte cacheTypeID()
   {
-    return comparator.compare(lhs, rhs) < 0 ? lhs : rhs;
+    return CACHE_TYPE_ID;
   }
 
   @Override
-  public AggregatorFactory getCombiningFactory()
-  {
-    return new GenericMinAggregatorFactory(name, name, ValueType.DOUBLE);
-  }
-
-  @Override
-  public AggregatorFactory getMergingFactory(AggregatorFactory other) throws AggregatorFactoryNotMergeableException
-  {
-    if (other.getName().equals(this.getName()) && this.getClass() == other.getClass()) {
-      return getCombiningFactory();
-    } else {
-      throw new AggregatorFactoryNotMergeableException(this, other);
-    }
-  }
-
-  @Override
-  public List<AggregatorFactory> getRequiredColumns()
-  {
-    return Arrays.<AggregatorFactory>asList(new GenericMinAggregatorFactory(fieldName, fieldName, inputType));
-  }
-
-  @Override
-  public Object deserialize(Object object)
-  {
-    // handle "NaN" / "Infinity" values serialized as strings in JSON
-    if (object instanceof String) {
-      return Double.parseDouble((String) object);
-    }
-    return object;
-  }
-
-  @Override
-  public Object finalizeComputation(Object object)
-  {
-    return object;
-  }
-
-  @JsonProperty
-  public String getFieldName()
-  {
-    return fieldName;
-  }
-
-  @Override
-  @JsonProperty
-  public String getName()
-  {
-    return name;
-  }
-
-  @JsonProperty
-  public String getInputType()
-  {
-    return inputType.toString();
-  }
-
-  @Override
-  public List<String> requiredFields()
-  {
-    return Arrays.asList(fieldName);
-  }
-
-  @Override
-  public byte[] getCacheKey()
-  {
-    byte[] fieldNameBytes = StringUtils.toUtf8(fieldName);
-    byte[] inputTypeBytes = StringUtils.toUtf8(inputType.name());
-
-    return ByteBuffer.allocate(1 + fieldNameBytes.length + inputTypeBytes.length)
-                     .put(CACHE_TYPE_ID)
-                     .put(fieldNameBytes)
-                     .put(inputTypeBytes)
-                     .array();
-  }
-
-  @Override
-  public String getTypeName()
-  {
-    return inputType.name().toLowerCase();
-  }
-
-  @Override
-  public int getMaxIntermediateSize()
-  {
-    return Doubles.BYTES;
-  }
-
-  @Override
-  public Object getAggregatorStartValue()
+  public final Object getAggregatorStartValue()
   {
     return Double.POSITIVE_INFINITY;
   }
 
   @Override
-  public String toString()
+  public final Object combine(Object lhs, Object rhs)
   {
-    return "DoubleMinAggregatorFactory{" +
-           "fieldName='" + fieldName + '\'' +
-           "inputType='" + inputType + '\'' +
-           ", name='" + name + '\'' +
-           '}';
-  }
-
-  @Override
-  public boolean equals(Object o)
-  {
-    if (this == o) return true;
-    if (o == null || getClass() != o.getClass()) return false;
-
-    GenericMinAggregatorFactory that = (GenericMinAggregatorFactory) o;
-
-    if (!Objects.equals(fieldName, that.fieldName)) {
-      return false;
-    }
-    if (!Objects.equals(inputType, that.inputType)) {
-      return false;
-    }
-    if (!Objects.equals(name, that.name)) {
-      return false;
-    }
-
-    return true;
-  }
-
-  @Override
-  public int hashCode()
-  {
-    return Objects.hash(fieldName, inputType, name);
+    return comparator.compare(lhs, rhs) < 0 ? lhs : rhs;
   }
 }

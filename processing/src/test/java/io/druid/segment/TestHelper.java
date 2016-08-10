@@ -19,6 +19,8 @@
 
 package io.druid.segment;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.core.util.DefaultPrettyPrinter;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.Lists;
 import com.metamx.common.guava.Sequence;
@@ -80,6 +82,16 @@ public class TestHelper
 
   public static ObjectMapper getObjectMapper() {
     return JSON_MAPPER;
+  }
+
+  public static String printObjectPretty(Object object)
+  {
+    try {
+      return JSON_MAPPER.writer(new DefaultPrettyPrinter()).writeValueAsString(object);
+    }
+    catch (JsonProcessingException e) {
+      throw new RuntimeException(e);
+    }
   }
 
   public static <T> Iterable<T> revert(Iterable<T> input) {

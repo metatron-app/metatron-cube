@@ -44,6 +44,8 @@ import java.util.List;
  */
 public class DimensionArrayAggregatorFactory extends AbstractArrayAggregatorFactory
 {
+  private static final byte CACHE_TYPE_ID = 0x7E;
+
   public DimensionArrayAggregatorFactory(
       @JsonProperty("dimension") String dimension,
       @JsonProperty("aggregator") AggregatorFactory delegate,
@@ -51,6 +53,12 @@ public class DimensionArrayAggregatorFactory extends AbstractArrayAggregatorFact
   )
   {
     super(dimension, delegate, limit);
+  }
+
+  @Override
+  protected byte cacheTypeID()
+  {
+    return CACHE_TYPE_ID;
   }
 
   @Override

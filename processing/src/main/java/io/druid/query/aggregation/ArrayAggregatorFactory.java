@@ -21,15 +21,9 @@ package io.druid.query.aggregation;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.collect.Lists;
-import io.druid.query.dimension.DimensionSpec;
+import io.druid.segment.ColumnSelectorFactories;
 import io.druid.segment.ColumnSelectorFactory;
-import io.druid.segment.DimensionSelector;
-import io.druid.segment.DoubleColumnSelector;
-import io.druid.segment.ExprEvalColumnSelector;
-import io.druid.segment.FloatColumnSelector;
-import io.druid.segment.LongColumnSelector;
 import io.druid.segment.ObjectColumnSelector;
-import io.druid.segment.column.ColumnCapabilities;
 
 import java.nio.ByteBuffer;
 import java.util.List;
@@ -38,6 +32,8 @@ import java.util.List;
  */
 public class ArrayAggregatorFactory extends AbstractArrayAggregatorFactory
 {
+  private static final byte CACHE_TYPE_ID = 0x7F;
+
   public ArrayAggregatorFactory(
       @JsonProperty("column") String column,
       @JsonProperty("aggregator") AggregatorFactory delegate,
@@ -45,6 +41,12 @@ public class ArrayAggregatorFactory extends AbstractArrayAggregatorFactory
   )
   {
     super(column, delegate, limit);
+  }
+
+  @Override
+  protected byte cacheTypeID()
+  {
+    return CACHE_TYPE_ID;
   }
 
   @Override
@@ -121,7 +123,7 @@ public class ArrayAggregatorFactory extends AbstractArrayAggregatorFactory
       {
         final int min = Math.min(limit, size);
         for (int i = aggregators.size(); i < min; i++) {
-          aggregators.add(delegate.factorize(new ArrayColumnSelectorFactory(i, selector, elementClass)));
+          aggregators.add(delegate.factorize(new ColumnSelectorFactories.FixedArrayIndexed(i, selector, elementClass)));
         }
         return aggregators;
       }
@@ -201,8 +203,9 @@ public class ArrayAggregatorFactory extends AbstractArrayAggregatorFactory
       {
         final int min = Math.min(limit, size);
         for (int i = aggregators.size(); i < min; i++) {
-          ArrayColumnSelectorFactory factory = new ArrayColumnSelectorFactory(i, selector, elementClass);
-          BufferAggregator factorize = delegate.factorizeBuffered(factory);
+          BufferAggregator factorize = delegate.factorizeBuffered(
+              new ColumnSelectorFactories.FixedArrayIndexed(i, selector, elementClass)
+          );
           factorize.init(buf, position);
           position += delegate.getMaxIntermediateSize();
           aggregators.add(factorize);
@@ -212,119 +215,4 @@ public class ArrayAggregatorFactory extends AbstractArrayAggregatorFactory
     };
   }
 
-  private static final class ArrayColumnSelectorFactory implements ColumnSelectorFactory {
-
-    private final int index;
-    private final ObjectColumnSelector selector;
-    private final Class elementClass;
-
-    private ArrayColumnSelectorFactory(int index, ObjectColumnSelector selector, Class elementClass)
-    {
-      this.index = index;
-      this.selector = selector;
-      this.elementClass = elementClass;
-    }
-
-    @Override
-    public DimensionSelector makeDimensionSelector(DimensionSpec dimensionSpec)
-    {
-      throw new UnsupportedOperationException("makeDimensionSelector");
-    }
-
-    private Object getObject() {
-      List value = (List) selector.get();
-      return value == null ? value : value.get(index);
-    }
-
-    @Override
-    public FloatColumnSelector makeFloatColumnSelector(String columnName)
-    {
-      return new FloatColumnSelector()
-      {
-        @Override
-        public float get()
-        {
-          Object value = getObject();
-          if (value == null) {
-            return 0.0f;
-          }
-          if (value instanceof Number) {
-            return ((Number)value).floatValue();
-          }
-          return Float.valueOf(String.valueOf(value));
-        }
-      };
-    }
-
-    @Override
-    public DoubleColumnSelector makeDoubleColumnSelector(String columnName)
-    {
-      return new DoubleColumnSelector()
-      {
-        @Override
-        public double get()
-        {
-          Object value = getObject();
-          if (value == null) {
-            return 0.0d;
-          }
-          if (value instanceof Number) {
-            return ((Number)value).doubleValue();
-          }
-          return Double.valueOf(String.valueOf(value));
-        }
-      };
-    }
-
-    @Override
-    public LongColumnSelector makeLongColumnSelector(String columnName)
-    {
-      return new LongColumnSelector()
-      {
-        @Override
-        public long get()
-        {
-          Object value = getObject();
-          if (value == null) {
-            return 0L;
-          }
-          if (value instanceof Number) {
-            return ((Number)value).longValue();
-          }
-          return Long.valueOf(String.valueOf(value));
-        }
-      };
-    }
-
-    @Override
-    public ObjectColumnSelector makeObjectColumnSelector(String columnName)
-    {
-      return new ObjectColumnSelector()
-      {
-        @Override
-        public Class classOfObject()
-        {
-          return elementClass;
-        }
-
-        @Override
-        public Object get()
-        {
-          return getObject();
-        }
-      };
-    }
-
-    @Override
-    public ExprEvalColumnSelector makeMathExpressionSelector(String expression)
-    {
-      throw new UnsupportedOperationException("makeMathExpressionSelector");
-    }
-
-    @Override
-    public ColumnCapabilities getColumnCapabilities(String columnName)
-    {
-      throw new UnsupportedOperationException("getColumnCapabilities");
-    }
-  }
 }
