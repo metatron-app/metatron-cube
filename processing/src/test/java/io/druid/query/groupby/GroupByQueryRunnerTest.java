@@ -4533,6 +4533,51 @@ public class GroupByQueryRunnerTest
         new DefaultLimitSpec(
             null, null,
             Arrays.asList(
+                new WindowingSpec(
+                    dayOfWeek, dayPlusMarket, "delta_week = $delta(rows)", "sum_week = $sum(rows)"
+                ),
+                new WindowingSpec(
+                    null, null, "delta_all = $delta(rows)", "sum_all = $sum(rows)"
+                ),
+                new WindowingSpec(
+                    null, Arrays.asList(new OrderByColumnSpec("sum_all", OrderByColumnSpec.Direction.DESCENDING)))
+            )
+        )
+    );
+
+    columnNames = new String[]{"__time", "dayOfWeek", "rows", "delta_week", "sum_week", "delta_all", "sum_all"};
+    expectedResults = GroupByQueryRunnerTestHelper.createExpectedRows(
+        columnNames,
+        array("1970-01-01T00:00:00.000Z", "Wednesday", 126L, 98L, 182L, 98L, 1209L),
+        array("1970-01-01T00:00:00.000Z", "Wednesday", 28L, 0L, 56L, 0L, 1083L),
+        array("1970-01-01T00:00:00.000Z", "Wednesday", 28L, 0L, 28L, -89L, 1055L),
+        array("1970-01-01T00:00:00.000Z", "Tuesday", 117L, 91L, 169L, 91L, 1027L),
+        array("1970-01-01T00:00:00.000Z", "Tuesday", 26L, 0L, 52L, 0L, 910L),
+        array("1970-01-01T00:00:00.000Z", "Tuesday", 26L, 0L, 26L, -100L, 884L),
+        array("1970-01-01T00:00:00.000Z", "Thursday", 126L, 98L, 182L, 98L, 858L),
+        array("1970-01-01T00:00:00.000Z", "Thursday", 28L, 0L, 56L, 0L, 732L),
+        array("1970-01-01T00:00:00.000Z", "Thursday", 28L, 0L, 28L, -89L, 704L),
+        array("1970-01-01T00:00:00.000Z", "Sunday", 117L, 91L, 169L, 91L, 676L),
+        array("1970-01-01T00:00:00.000Z", "Sunday", 26L, 0L, 52L, 0L, 559L),
+        array("1970-01-01T00:00:00.000Z", "Sunday", 26L, 0L, 26L, -91L, 533L),
+        array("1970-01-01T00:00:00.000Z", "Saturday", 117L, 91L, 169L, 91L, 507L),
+        array("1970-01-01T00:00:00.000Z", "Saturday", 26L, 0L, 52L, 0L, 390L),
+        array("1970-01-01T00:00:00.000Z", "Saturday", 26L, 0L, 26L, -91L, 364L),
+        array("1970-01-01T00:00:00.000Z", "Monday", 117L, 91L, 169L, 91L, 338L),
+        array("1970-01-01T00:00:00.000Z", "Monday", 26L, 0L, 52L, 0L, 221L),
+        array("1970-01-01T00:00:00.000Z", "Monday", 26L, 0L, 26L, -91L, 195L),
+        array("1970-01-01T00:00:00.000Z", "Friday", 117L, 91L, 169L, 91L, 169L),
+        array("1970-01-01T00:00:00.000Z", "Friday", 26L, 0L, 52L, 0L, 52L),
+        array("1970-01-01T00:00:00.000Z", "Friday", 26L, 0L, 26L, 0L, 26L)
+    );
+
+    results = GroupByQueryRunnerTestHelper.runQuery(factory, mergeRunner, builder.build());
+    GroupByQueryRunnerTestHelper.validate(columnNames, expectedResults, results);
+
+    builder.setLimitSpec(
+        new DefaultLimitSpec(
+            null, null,
+            Arrays.asList(
                 new WindowingSpec(null, dayPlusMarket, "min_all = $min(index)"),
                 new WindowingSpec(dayOfWeek, Arrays.asList(marketDsc), "min_week = $min(index)")
             )

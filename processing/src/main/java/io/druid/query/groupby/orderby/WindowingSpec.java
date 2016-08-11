@@ -22,7 +22,6 @@ package io.druid.query.groupby.orderby;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Function;
-import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
@@ -63,7 +62,7 @@ public class WindowingSpec implements Cacheable
   {
     this.partitionColumns = partitionColumns == null ? ImmutableList.<String>of() : partitionColumns;
     this.sortingColumns = sortingColumns == null ? ImmutableList.<OrderByColumnSpec>of() : sortingColumns;
-    this.expressions = Preconditions.checkNotNull(expressions, "expression cannot be null");
+    this.expressions = expressions == null ? ImmutableList.<String>of() : expressions;
   }
 
   public WindowingSpec(
@@ -195,6 +194,9 @@ public class WindowingSpec implements Cacheable
     if (!partitionColumns.equals(that.partitionColumns)) {
       return false;
     }
+    if (!sortingColumns.equals(that.sortingColumns)) {
+      return false;
+    }
     if (!expressions.equals(that.expressions)) {
       return false;
     }
@@ -205,6 +207,7 @@ public class WindowingSpec implements Cacheable
   public int hashCode()
   {
     int result = partitionColumns.hashCode();
+    result = 31 * result + sortingColumns.hashCode();
     result = 31 * result + expressions.hashCode();
     return result;
   }
@@ -214,6 +217,7 @@ public class WindowingSpec implements Cacheable
   {
     return "WindowingSpec{" +
            "partitionColumns=" + partitionColumns +
+           ", sortingColumns='" + sortingColumns + '\'' +
            ", expressions='" + expressions + '\'' +
            '}';
   }

@@ -20,12 +20,10 @@
 package io.druid.query.groupby.orderby;
 
 import com.google.common.base.Function;
-import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Ordering;
 import com.google.common.primitives.Longs;
-import com.metamx.common.ISE;
 import io.druid.data.input.MapBasedRow;
 import io.druid.data.input.Row;
 import io.druid.query.aggregation.AggregatorFactory;
@@ -44,7 +42,7 @@ import java.util.Map;
  */
 public class WindowingProcessor implements Function<List<Row>, List<Row>>
 {
-  private Map<Ordering<Row>, List<PartitionDefinition>> partitionMaps;
+  private final List<PartitionDefinition> partitions = Lists.newArrayList();
 
   public WindowingProcessor(
       List<WindowingSpec> windowingSpecs,
@@ -53,27 +51,12 @@ public class WindowingProcessor implements Function<List<Row>, List<Row>>
       List<PostAggregator> postAggregators
   )
   {
-    Map<List<OrderByColumnSpec>, List<WindowingSpec>> windowingMaps =
-        Maps.<List<OrderByColumnSpec>, List<WindowingSpec>>newLinkedHashMap();
     for (WindowingSpec windowingSpec : windowingSpecs) {
-      List<OrderByColumnSpec> partColumns = toPartitionKey(windowingSpec);
-      List<WindowingSpec> sameSpecs = windowingMaps.get(partColumns);
-      if (sameSpecs == null) {
-        windowingMaps.put(ImmutableList.copyOf(partColumns), sameSpecs = Lists.newArrayList());
-      }
-      sameSpecs.add(windowingSpec);
-    }
-    partitionMaps = Maps.newLinkedHashMap();
-    for (Map.Entry<List<OrderByColumnSpec>, List<WindowingSpec>> entry : windowingMaps.entrySet()) {
-      List<OrderByColumnSpec> orderingSpecs = entry.getKey();
-      Ordering<Row> ordering = makeComparator(orderingSpecs, dimensionSpecs, factories, postAggregators);
-      List<PartitionDefinition> partitions = Lists.newArrayList();
-      for (WindowingSpec spec : entry.getValue()) {
-        String[] partColumns = spec.getPartitionColumns().toArray(new String[0]);
-        PartitionEvaluator evaluators = spec.toEvaluator(factories, postAggregators);
-        partitions.add(new PartitionDefinition(partColumns, evaluators));
-      }
-      partitionMaps.put(ordering, partitions);
+      List<OrderByColumnSpec> partitionColumns = toPartitionKey(windowingSpec);
+      Ordering<Row> ordering = makeComparator(partitionColumns, dimensionSpecs, factories, postAggregators);
+      String[] partColumns = windowingSpec.getPartitionColumns().toArray(new String[0]);
+      PartitionEvaluator evaluators = windowingSpec.toEvaluator(factories, postAggregators);
+      partitions.add(new PartitionDefinition(partColumns, ordering, evaluators));
     }
   }
 
@@ -103,11 +86,8 @@ public class WindowingProcessor implements Function<List<Row>, List<Row>>
 
   public List<Row> apply(List<Row> input)
   {
-    for (Map.Entry<Ordering<Row>, List<PartitionDefinition>> entry : partitionMaps.entrySet()) {
-      Collections.sort(input, entry.getKey());
-      for (PartitionDefinition partition : entry.getValue()) {
-        partition.process(input);
-      }
+    for (PartitionDefinition partition : partitions) {
+      partition.process(input);
     }
     return input;
   }
@@ -115,20 +95,24 @@ public class WindowingProcessor implements Function<List<Row>, List<Row>>
   private static class PartitionDefinition
   {
     private final String[] partColumns;
+    private final Ordering<Row> ordering;
     private final PartitionEvaluator evaluator;
 
     private final Object[] currPartKeys;
     private Object[] prevPartKeys;
 
-    public PartitionDefinition(String[] partColumns, PartitionEvaluator evaluator)
+    public PartitionDefinition(String[] partColumns, Ordering<Row> ordering, PartitionEvaluator evaluator)
     {
       this.partColumns = partColumns;
+      this.ordering = ordering;
       this.evaluator = evaluator;
       this.currPartKeys = new Object[partColumns.length];
     }
 
     private void process(final List<Row> input)
     {
+      Collections.sort(input, ordering);
+
       int prev = 0;
       Map<Object[], int[]> partitions = Maps.newLinkedHashMap();
       if (partColumns.length > 0) {
@@ -186,18 +170,15 @@ public class WindowingProcessor implements Function<List<Row>, List<Row>>
 
     for (OrderByColumnSpec columnSpec : orderingSpecs) {
       String columnName = columnSpec.getDimension();
-      Ordering<Row> nextOrdering = null;
-
+      Ordering<Row> nextOrdering;
       if (postAggregatorsMap.containsKey(columnName)) {
         nextOrdering = metricOrdering(columnName, postAggregatorsMap.get(columnName).getComparator());
       } else if (aggregatorsMap.containsKey(columnName)) {
         nextOrdering = metricOrdering(columnName, aggregatorsMap.get(columnName).getComparator());
       } else if (dimensionsMap.containsKey(columnName)) {
         nextOrdering = dimensionOrdering(columnName, columnSpec.getDimensionComparator());
-      }
-
-      if (nextOrdering == null) {
-        throw new ISE("Unknown column in order clause[%s]", columnSpec);
+      } else {
+        nextOrdering = metricOrdering(columnName);  // last resort.. assume it's assigned by expression
       }
 
       switch (columnSpec.getDirection()) {
@@ -220,6 +201,20 @@ public class WindowingProcessor implements Function<List<Row>, List<Row>>
       public int compare(Row left, Row right)
       {
         return comparator.compare(left.getRaw(column), right.getRaw(column));
+      }
+    };
+  }
+
+  private static Ordering<Row> metricOrdering(final String column)
+  {
+    return new Ordering<Row>()
+    {
+      @Override
+      public int compare(Row left, Row right)
+      {
+        Comparable l = (Comparable) left.getRaw(column);
+        Comparable r = (Comparable) right.getRaw(column);
+        return l.compareTo(r);
       }
     };
   }
