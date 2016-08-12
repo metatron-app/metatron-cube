@@ -65,7 +65,7 @@ public class DimensionArrayAggregatorFactory extends AbstractArrayAggregatorFact
   public Aggregator factorize(ColumnSelectorFactory metricFactory)
   {
     final DimensionSelector selector = metricFactory.makeDimensionSelector(DefaultDimensionSpec.of(column));
-    return new Aggregator()
+    return new Aggregators.MutableSizedAggregator()
     {
       private final List<Aggregator> aggregators = Lists.newArrayList();
 
@@ -134,6 +134,7 @@ public class DimensionArrayAggregatorFactory extends AbstractArrayAggregatorFact
         final int min = Math.min(limit, size);
         for (int i = aggregators.size(); i < min; i++) {
           aggregators.add(delegate.factorize(new DimensionArrayColumnSelectorFactory(i, selector)));
+          increment(delegate.getMaxIntermediateSize());
         }
         return aggregators;
       }

@@ -613,7 +613,7 @@ public class IndexGeneratorJob implements Jobby
       final Interval interval = config.getGranularitySpec().bucketInterval(bucket.time).get();
       final HadoopTuningConfig tuningConfig = config.getSchema().getTuningConfig();
       final int limit = tuningConfig.getRowFlushBoundary();
-      final int occupation = tuningConfig.getMaxOccupationInMemory();
+      final int maxOccupation = tuningConfig.getMaxOccupationInMemory();
 
       ListeningExecutorService persistExecutor = null;
       List<ListenableFuture<?>> persistFutures = Lists.newArrayList();
@@ -685,8 +685,11 @@ public class IndexGeneratorJob implements Jobby
             if (settler != null) {
               settlingApplied = settler.applySettling(inputRow);
             }
-            flush |= numRows >= limit || (occupation > 0 && index.estimatedOccupation() > occupation);
+            flush |= numRows >= limit;
             groupCount.increment(1);
+            if (!flush && groupCount.getValue() % 2000 == 0 && index.estimatedOccupation() > maxOccupation) {
+              flush = true;
+            }
           }
           if (flush) {
             allDimensionNames.addAll(index.getDimensionOrder());

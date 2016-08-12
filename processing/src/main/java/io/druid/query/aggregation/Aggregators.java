@@ -20,6 +20,7 @@
 package io.druid.query.aggregation;
 
 import java.nio.ByteBuffer;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  */
@@ -235,6 +236,26 @@ public class Aggregators
     public void close()
     {
       delegate.close();
+    }
+  }
+
+  public static abstract class MutableSizedAggregator implements Aggregator
+  {
+    private int delta;
+
+    public synchronized int sizeDelta()
+    {
+      try {
+        return delta;
+      }
+      finally {
+        delta = 0;
+      }
+    }
+
+    public synchronized void increment(int size)
+    {
+      delta += size;
     }
   }
 }

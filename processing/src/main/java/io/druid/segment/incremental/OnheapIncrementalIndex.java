@@ -27,8 +27,10 @@ import com.metamx.common.logger.Logger;
 import com.metamx.common.parsers.ParseException;
 import io.druid.data.input.InputRow;
 import io.druid.granularity.QueryGranularity;
+import io.druid.query.aggregation.AbstractArrayAggregatorFactory;
 import io.druid.query.aggregation.Aggregator;
 import io.druid.query.aggregation.AggregatorFactory;
+import io.druid.query.aggregation.Aggregators;
 import io.druid.query.dimension.DimensionSpec;
 import io.druid.segment.ColumnSelectorFactory;
 import io.druid.segment.DimensionSelector;
@@ -59,6 +61,7 @@ public class OnheapIncrementalIndex extends IncrementalIndex<Aggregator>
   private volatile Map<String, ColumnSelectorFactory> selectors;
 
   private String outOfRowsReason = null;
+  private final int[] arrayAggregatorIndices;
 
   public OnheapIncrementalIndex(
       IncrementalIndexSchema incrementalIndexSchema,
@@ -76,6 +79,14 @@ public class OnheapIncrementalIndex extends IncrementalIndex<Aggregator>
     } else {
       this.facts = new ConcurrentHashMap<>();
     }
+    List<Integer> arrayAggregatorIndices = Lists.newArrayList();
+    final AggregatorFactory[] metrics = getMetricAggs();
+    for (int i = 0; i < metrics.length; i++) {
+      if (metrics[i] instanceof AbstractArrayAggregatorFactory) {
+        arrayAggregatorIndices.add(i);
+      }
+    }
+    this.arrayAggregatorIndices = Ints.toArray(arrayAggregatorIndices);
   }
 
   public OnheapIncrementalIndex(
@@ -270,6 +281,20 @@ public class OnheapIncrementalIndex extends IncrementalIndex<Aggregator>
       outOfRowsReason = String.format("Maximum number of rows [%d] reached", maxRowCount);
     }
     return canAdd;
+  }
+
+  @Override
+  public int estimatedOccupation()
+  {
+    int estimation = super.estimatedOccupation();
+    if (arrayAggregatorIndices.length > 0) {
+      for (Aggregator[] array : aggregators.values()) {
+        for (int index : arrayAggregatorIndices) {
+          estimation += ((Aggregators.MutableSizedAggregator)array[index]).sizeDelta();
+        }
+      }
+    }
+    return estimation;
   }
 
   @Override

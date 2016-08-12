@@ -54,7 +54,7 @@ public class ArrayAggregatorFactory extends AbstractArrayAggregatorFactory
   {
     final ObjectColumnSelector<List> selector = metricFactory.makeObjectColumnSelector(column);
 
-    return new Aggregator()
+    return new Aggregators.MutableSizedAggregator()
     {
       private final List<Aggregator> aggregators = Lists.newArrayList();
 
@@ -124,6 +124,7 @@ public class ArrayAggregatorFactory extends AbstractArrayAggregatorFactory
         final int min = Math.min(limit, size);
         for (int i = aggregators.size(); i < min; i++) {
           aggregators.add(delegate.factorize(new ColumnSelectorFactories.FixedArrayIndexed(i, selector, elementClass)));
+          increment(delegate.getMaxIntermediateSize());
         }
         return aggregators;
       }

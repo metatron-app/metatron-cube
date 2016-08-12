@@ -48,6 +48,7 @@ import io.druid.granularity.QueryGranularity;
 import io.druid.math.expr.Expr;
 import io.druid.math.expr.ExprEval;
 import io.druid.math.expr.Parser;
+import io.druid.query.aggregation.AbstractArrayAggregatorFactory;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.PostAggregator;
 import io.druid.query.aggregation.PostAggregators;
@@ -523,8 +524,10 @@ public abstract class IncrementalIndex<AggregatorType> implements Iterable<Row>,
       this.rowTransformers.add(new SpatialDimensionRowTransformer(spatialDimensions));
     }
     int length = 0;
-    for (AggregatorFactory factory : metrics) {
-      length += factory.getMaxIntermediateSize();
+    for (int i = 0; i < metrics.length; i++) {
+      if (!(metrics[i] instanceof AbstractArrayAggregatorFactory)) {
+        length += metrics[i].getMaxIntermediateSize();
+      }
     }
     this.maxLengthForAggregators = length;
   }

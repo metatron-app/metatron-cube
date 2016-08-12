@@ -141,11 +141,6 @@ public class ColumnSelectorFactories
       return selector;
     }
 
-    public Class getElementClass()
-    {
-      return elementClass;
-    }
-
     @Override
     public DimensionSelector makeDimensionSelector(DimensionSpec dimensionSpec)
     {
