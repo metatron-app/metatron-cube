@@ -26,7 +26,6 @@ import com.google.common.collect.Lists;
 import com.google.common.primitives.Ints;
 import com.metamx.common.StringUtils;
 import com.metamx.common.logger.Logger;
-import io.druid.segment.data.ObjectStrategy;
 import io.druid.segment.serde.ComplexMetricSerde;
 import io.druid.segment.serde.ComplexMetrics;
 
@@ -46,7 +45,6 @@ public abstract class AbstractArrayAggregatorFactory extends AggregatorFactory
   final AggregatorFactory delegate;
   final int limit;
 
-  final ObjectStrategy strategy;
   final Class elementClass;
 
   public AbstractArrayAggregatorFactory(String column, AggregatorFactory delegate, int limit)
@@ -55,8 +53,7 @@ public abstract class AbstractArrayAggregatorFactory extends AggregatorFactory
     this.column = column == null ? Iterables.getOnlyElement(delegate.requiredFields()) : column;
     this.limit = limit <= 0 ? DEFAULT_LIMIT : limit;
     ComplexMetricSerde serde = ComplexMetrics.getSerdeForType(getTypeName());
-    this.strategy = serde.getObjectStrategy();
-    this.elementClass = ((ArrayMetricSerde)serde).getElementObjectClass();
+    this.elementClass = serde != null ? ((ArrayMetricSerde)serde).getElementObjectClass() : Object.class;
   }
 
   @JsonProperty("column")

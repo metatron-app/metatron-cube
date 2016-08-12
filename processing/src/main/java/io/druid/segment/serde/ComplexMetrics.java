@@ -21,6 +21,7 @@ package io.druid.segment.serde;
 
 import com.google.common.collect.Maps;
 import com.metamx.common.ISE;
+import com.metamx.common.logger.Logger;
 import io.druid.data.ValueType;
 import io.druid.query.aggregation.ArrayMetricSerde;
 
@@ -30,6 +31,7 @@ import java.util.Map;
  */
 public class ComplexMetrics
 {
+  private static final Logger log = new Logger(ComplexMetrics.class);
   private static final Map<String, ComplexMetricSerde> complexSerializers = Maps.newHashMap();
 
   public static ComplexMetricSerde getSerdeForType(String type)
@@ -47,5 +49,6 @@ public class ComplexMetrics
       type = "array." + type;
       complexSerializers.put(type, new ArrayMetricSerde(type, ValueType.COMPLEX, serde));
     }
+    log.info("serde for type " + type + " is registered with class " + serde.getClass());
   }
 }
