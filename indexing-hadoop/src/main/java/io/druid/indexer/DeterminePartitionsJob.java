@@ -139,7 +139,7 @@ public class DeterminePartitionsJob implements Jobby
         groupByJob.setOutputFormatClass(SequenceFileOutputFormat.class);
         JobHelper.setupClasspath(
             JobHelper.distributedClassPath(config.getWorkingPath()),
-            JobHelper.distributedClassPath(config.makeIntermediatePath()),
+            JobHelper.distributedClassPath(new Path(config.makeIntermediatePath(), "groupBy")),
             groupByJob
         );
 
@@ -193,7 +193,7 @@ public class DeterminePartitionsJob implements Jobby
       dimSelectionJob.setNumReduceTasks(config.getGranularitySpec().bucketIntervals().get().size());
       JobHelper.setupClasspath(
           JobHelper.distributedClassPath(config.getWorkingPath()),
-          JobHelper.distributedClassPath(config.makeIntermediatePath()),
+          JobHelper.distributedClassPath(new Path(config.makeIntermediatePath(), "dimSelection")),
           dimSelectionJob
       );
 

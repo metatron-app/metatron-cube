@@ -105,9 +105,8 @@ public class DetermineHashedPartitionsJob implements Jobby
       }
       JobHelper.setupClasspath(
           JobHelper.distributedClassPath(config.getWorkingPath()),
-          JobHelper.distributedClassPath(config.makeIntermediatePath()),
-          groupByJob
-      );
+          JobHelper.distributedClassPath(new Path(config.makeIntermediatePath(), "groupBy")),
+          groupByJob);
 
       config.addInputPaths(groupByJob);
       config.intoConfiguration(groupByJob);
