@@ -78,7 +78,7 @@ public class VarianceAggregatorCollector
     final VarianceAggregatorCollector holder1 = (VarianceAggregatorCollector) lhs;
     final VarianceAggregatorCollector holder2 = (VarianceAggregatorCollector) rhs;
 
-    if (holder2.count == 0) {
+    if (holder2 == null || holder2.count == 0) {
       return holder1;
     }
     if (holder1.count == 0) {

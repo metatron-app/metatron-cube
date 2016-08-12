@@ -501,10 +501,10 @@ public class ApproximateHistogramHolder
 
   public ApproximateHistogramHolder fold(ApproximateHistogramHolder h)
   {
-    return fold(h, null, null, null);
+    return h == null ? this : fold(h, null, null, null);
   }
 
-  public ApproximateHistogramHolder fold(
+  private ApproximateHistogramHolder fold(
       ApproximateHistogramHolder h,
       float[] mergedPositions,
       long[] mergedBins,
@@ -520,7 +520,7 @@ public class ApproximateHistogramHolder
 
   public ApproximateHistogramHolder foldFast(ApproximateHistogramHolder h)
   {
-    return foldFast(h, null, null);
+    return h == null ? this : foldFast(h, null, null);
   }
 
   /**
@@ -532,7 +532,9 @@ public class ApproximateHistogramHolder
    */
   public ApproximateHistogramHolder foldFast(ApproximateHistogramHolder h, float[] mergedPositions, long[] mergedBins)
   {
-    if (size == 0) {
+    if (h == null) {
+      return this;
+    } else if (size == 0) {
       return copy(h);
     } else {
       return foldRule(h, mergedPositions, mergedBins);
