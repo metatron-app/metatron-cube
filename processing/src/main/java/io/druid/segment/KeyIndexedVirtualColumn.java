@@ -25,9 +25,9 @@ import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
+import com.google.common.collect.Iterators;
 import com.google.common.collect.Sets;
 import com.metamx.common.StringUtils;
-import io.druid.common.guava.DSuppliers;
 import io.druid.query.QueryCacheHelper;
 import io.druid.query.dimension.DefaultDimensionSpec;
 import io.druid.query.dimension.DimensionSpec;
@@ -371,7 +371,7 @@ public class KeyIndexedVirtualColumn implements VirtualColumn
     if (keyFilter == null) {
       return selector;
     }
-    final DSuppliers.HandOver<Object> handOver = new DSuppliers.HandOver<>();
+    final IteratingIndexedInts iterator = new IteratingIndexedInts(selector);
     final ValueMatcher keyMatcher = Filters.toFilter(keyFilter).makeMatcher(
         new ColumnSelectorFactories.Delegated(factory)
         {
@@ -380,18 +380,18 @@ public class KeyIndexedVirtualColumn implements VirtualColumn
             if (!columnName.equals(outputName)) {
               throw new UnsupportedOperationException("cannot reference column '" + columnName + "' in current context");
             }
-            return new ObjectColumnSelector()
+            return new ObjectColumnSelector<IndexedInts.WithLookup>()
             {
               @Override
               public Class classOfObject()
               {
-                return String.class;
+                return IndexedInts.WithLookup.class;
               }
 
               @Override
-              public Object get()
+              public IndexedInts.WithLookup get()
               {
-                return handOver.get();
+                return iterator;
               }
             };
           }
@@ -402,14 +402,13 @@ public class KeyIndexedVirtualColumn implements VirtualColumn
       @Override
       public IndexedInts getRow()
       {
-        final IndexedInts indexed = selector.getRow();
+        final IndexedInts indexed = iterator.next();;
         final int[] mapping = indexer.mapping(indexed.size());
 
         int virtual = 0;
-        for (int real = 0; real < indexed.size(); real++) {
-          handOver.set(selector.lookupName(indexed.get(real)));
+        for (; iterator.index < indexed.size(); iterator.index++) {
           if (keyMatcher.matches()) {
-            mapping[virtual++] = real;
+            mapping[virtual++] = iterator.index;
           }
         }
         if (virtual == 0) {
@@ -594,6 +593,65 @@ public class KeyIndexedVirtualColumn implements VirtualColumn
         return mapping = new int[size];
       }
       return mapping;
+    }
+  }
+
+  private static class IteratingIndexedInts implements IndexedInts.WithLookup {
+
+    private int index;
+    private IndexedInts indexedInts;
+    private final DimensionSelector selector;
+
+    private IteratingIndexedInts(DimensionSelector selector)
+    {
+      this.selector = selector;
+    }
+
+    private IndexedInts next()
+    {
+      index = 0;
+      return indexedInts = selector.getRow();
+    }
+
+    @Override
+    public int lookupId(String name)
+    {
+      return selector.lookupId(name);
+    }
+
+    @Override
+    public String lookupName(int id)
+    {
+      return selector.lookupName(id);
+    }
+
+    @Override
+    public int size()
+    {
+      return 1;
+    }
+
+    @Override
+    public int get(int dummy)
+    {
+      return indexedInts.get(index);
+    }
+
+    @Override
+    public void fill(int index, int[] toFill)
+    {
+      throw new UnsupportedOperationException("fill");
+    }
+
+    @Override
+    public void close() throws IOException
+    {
+    }
+
+    @Override
+    public Iterator<Integer> iterator()
+    {
+      return Iterators.singletonIterator(get(0));
     }
   }
 }

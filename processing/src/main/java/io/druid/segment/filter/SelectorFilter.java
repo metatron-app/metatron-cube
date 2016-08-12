@@ -26,6 +26,7 @@ import io.druid.query.filter.ValueMatcher;
 import io.druid.query.filter.ValueMatcherFactory;
 import io.druid.segment.ColumnSelectorFactory;
 import io.druid.segment.ObjectColumnSelector;
+import io.druid.segment.data.IndexedInts;
 
 /**
  */
@@ -58,7 +59,40 @@ public class SelectorFilter extends Filter.WithDictionary
   @Override
   public ValueMatcher makeMatcher(ColumnSelectorFactory columnSelectorFactory)
   {
-    final ObjectColumnSelector selector = Filters.getStringSelector(columnSelectorFactory, dimension);
+    final ObjectColumnSelector selector = columnSelectorFactory.makeObjectColumnSelector(dimension);
+    if (selector.classOfObject() == IndexedInts.WithLookup.class) {
+      return new ValueMatcher()
+      {
+        private boolean init;
+        private int finding = -1;
+
+        @Override
+        public boolean matches()
+        {
+          IndexedInts.WithLookup indexed = (IndexedInts.WithLookup) selector.get();
+          final int size = indexed.size();
+          if (size == 0) {
+            return false;
+          }
+          if (!init) {
+            finding = indexed.lookupId(value);
+            init = true;
+          }
+          if (size == 1) {
+            return finding == indexed.get(0);
+          }
+          for (Integer id : indexed) {
+            if (finding == id) {
+              return true;
+            }
+          }
+          return false;
+        }
+      };
+    }
+    if (selector.classOfObject() != String.class) {
+      throw new UnsupportedOperationException("unsupported type " + selector.classOfObject());
+    }
     return new ValueMatcher()
     {
       @Override

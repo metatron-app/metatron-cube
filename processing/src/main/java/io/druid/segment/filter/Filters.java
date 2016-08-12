@@ -33,6 +33,7 @@ import io.druid.segment.ColumnSelectorFactory;
 import io.druid.segment.ObjectColumnSelector;
 import io.druid.segment.column.BitmapIndex;
 import io.druid.segment.data.Indexed;
+import io.druid.segment.data.IndexedInts;
 
 import java.util.ArrayList;
 import java.util.Iterator;
@@ -82,10 +83,42 @@ public class Filters
   public static ObjectColumnSelector getStringSelector(ColumnSelectorFactory factory, String column)
   {
     ObjectColumnSelector selector = factory.makeObjectColumnSelector(column);
-    if (selector.classOfObject() != String.class) {
-      throw new UnsupportedOperationException("unsupported type " + selector.classOfObject());
+    if (selector.classOfObject() == String.class) {
+      return selector;
     }
-    return selector;
+    if (selector.classOfObject() == IndexedInts.WithLookup.class) {
+      return Filters.asStringArraySelector(selector);
+    }
+    throw new UnsupportedOperationException("unsupported type " + selector.classOfObject());
+  }
+
+  public static ObjectColumnSelector asStringArraySelector(final ObjectColumnSelector<IndexedInts.WithLookup> selector)
+  {
+    return new ObjectColumnSelector() {
+
+      @Override
+      public Class classOfObject()
+      {
+        return Object.class;
+      }
+
+      @Override
+      public Object get()
+      {
+        IndexedInts.WithLookup indexed = selector.get();
+        if (indexed.size() == 0) {
+          return null;
+        } else if (indexed.size() == 1) {
+          return indexed.lookupName(indexed.get(0));
+        } else {
+          String[] array = new String[indexed.size()];
+          for (int i = 0; i < array.length; i++) {
+            array[i] = indexed.lookupName(indexed.get(i));
+          }
+          return array;
+        }
+      }
+    };
   }
 
   /**

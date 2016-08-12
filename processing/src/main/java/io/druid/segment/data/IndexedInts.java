@@ -29,4 +29,11 @@ public interface IndexedInts extends Iterable<Integer>, Closeable
   int size();
   int get(int index);
   void fill(int index, int[] toFill);
+
+  interface WithLookup extends IndexedInts
+  {
+    int lookupId(String name);
+
+    String lookupName(int id);
+  }
 }

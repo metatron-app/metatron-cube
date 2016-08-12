@@ -23,6 +23,7 @@ import com.google.common.base.Function;
 import com.google.common.base.Predicate;
 import com.google.common.base.Strings;
 import com.google.common.collect.Iterables;
+import com.google.common.collect.Sets;
 import com.metamx.collections.bitmap.ImmutableBitmap;
 import io.druid.query.extraction.ExtractionFn;
 import io.druid.query.filter.BitmapIndexSelector;
@@ -31,7 +32,10 @@ import io.druid.query.filter.ValueMatcher;
 import io.druid.query.filter.ValueMatcherFactory;
 import io.druid.segment.ColumnSelectorFactory;
 import io.druid.segment.ObjectColumnSelector;
+import io.druid.segment.data.IndexedInts;
 
+import java.lang.reflect.Array;
+import java.util.Objects;
 import java.util.Set;
 
 /**
@@ -85,14 +89,72 @@ public class InFilter extends Filter.WithDictionary
   @Override
   public ValueMatcher makeMatcher(ColumnSelectorFactory columnSelectorFactory)
   {
-    final Predicate<String> predicate = toPredicate();
-    final ObjectColumnSelector selector = Filters.getStringSelector(columnSelectorFactory, dimension);
+    ObjectColumnSelector selector = columnSelectorFactory.makeObjectColumnSelector(dimension);
+    if (selector.classOfObject() == IndexedInts.WithLookup.class) {
+      if (extractionFn == null) {
+        final ObjectColumnSelector<IndexedInts.WithLookup> indexedSelector = selector;
+        return new ValueMatcher()
+        {
+          private final Set<Integer> find = Sets.newHashSet();
+          @Override
+          public boolean matches()
+          {
+            final IndexedInts.WithLookup indexed = indexedSelector.get();
+            final int size = indexed.size();
+            if (size == 0) {
+              return false;
+            }
+            if (find.isEmpty()) {
+              for (String value : values) {
+                find.add(indexed.lookupId(value));
+              }
+            }
+            if (size == 1) {
+              return find.contains(indexed.get(0));
+            }
+            for (Integer id : indexed) {
+              if (find.contains(id)) {
+                return true;
+              }
+            }
+            return false;
+          }
+        };
+      }
+      selector = Filters.asStringArraySelector(selector);
+    }
+
+    if (selector.classOfObject() == String.class) {
+      final ObjectColumnSelector<String> stringSelector = selector;
+      return new ValueMatcher()
+      {
+        final Predicate<String> predicate = toPredicate();
+        @Override
+        public boolean matches()
+        {
+          return predicate.apply(stringSelector.get());
+        }
+      };
+    }
+
+    final ObjectColumnSelector arraySelector = selector;
     return new ValueMatcher()
     {
+      final Predicate<String> predicate = toPredicate();
       @Override
       public boolean matches()
       {
-        return predicate.apply((String)selector.get());
+        Object object = arraySelector.get();
+        if (object == null || !object.getClass().isArray()) {
+          return predicate.apply(Objects.toString(object, null));
+        }
+        int length = Array.getLength(object);
+        for (int i = 0; i < length; i++) {
+          if (predicate.apply(Objects.toString(Array.get(object, i), null))) {
+            return true;
+          }
+        }
+        return false;
       }
     };
   }
