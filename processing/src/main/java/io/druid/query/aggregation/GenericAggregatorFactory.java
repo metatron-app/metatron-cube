@@ -50,7 +50,7 @@ public abstract class GenericAggregatorFactory extends AggregatorFactory
   protected final String predicate;
   protected final String inputType;
 
-  protected final boolean array;
+  protected final boolean arrayInput;
   protected final ValueType valueType;
   protected final Comparator comparator;
 
@@ -73,10 +73,10 @@ public abstract class GenericAggregatorFactory extends AggregatorFactory
     this.predicate = predicate;
     this.inputType = inputType == null ? ValueType.DOUBLE.name() : inputType;
     if (inputType.startsWith("array.")) {
-      array = true;
+      arrayInput = true;
       valueType = ValueType.of(inputType.substring(6));
     } else {
-      array = false;
+      arrayInput = false;
       valueType = ValueType.of(inputType);
     }
     Preconditions.checkArgument(ValueType.isNumeric(valueType));
@@ -91,7 +91,7 @@ public abstract class GenericAggregatorFactory extends AggregatorFactory
   @Override
   public Aggregator factorize(ColumnSelectorFactory metricFactory)
   {
-    if (!array) {
+    if (!arrayInput) {
       return factorize(metricFactory, valueType);
     }
     final ObjectColumnSelector<List> selector = metricFactory.makeObjectColumnSelector(fieldName);
@@ -114,7 +114,7 @@ public abstract class GenericAggregatorFactory extends AggregatorFactory
   @Override
   public BufferAggregator factorizeBuffered(ColumnSelectorFactory metricFactory)
   {
-    if (!array) {
+    if (!arrayInput) {
       return factorizeBuffered(metricFactory, valueType);
     }
     final ObjectColumnSelector<List> selector = metricFactory.makeObjectColumnSelector(fieldName);
@@ -167,7 +167,7 @@ public abstract class GenericAggregatorFactory extends AggregatorFactory
   @Override
   public List<AggregatorFactory> getRequiredColumns()
   {
-    return Arrays.<AggregatorFactory>asList(withValue(fieldName, fieldName, inputType));
+    return Arrays.<AggregatorFactory>asList(withValue(fieldName, fieldName, valueType.toString()));
   }
 
   @Override
@@ -236,17 +236,20 @@ public abstract class GenericAggregatorFactory extends AggregatorFactory
   @Override
   public byte[] getCacheKey()
   {
+    byte[] nameBytes = StringUtils.toUtf8WithNullToEmpty(name);
     byte[] fieldNameBytes = StringUtils.toUtf8WithNullToEmpty(fieldName);
     byte[] fieldExpressionBytes = StringUtils.toUtf8WithNullToEmpty(fieldExpression);
     byte[] predicateBytes = StringUtils.toUtf8WithNullToEmpty(predicate);
     byte[] inputTypeBytes = StringUtils.toUtf8WithNullToEmpty(inputType);
 
-    int length = 1 + fieldNameBytes.length
+    int length = 1 + nameBytes.length
+                   + fieldNameBytes.length
                    + fieldExpressionBytes.length
                    + predicateBytes.length
                    + inputTypeBytes.length;
     return ByteBuffer.allocate(length)
                      .put(cacheTypeID())
+                     .put(nameBytes)
                      .put(fieldNameBytes)
                      .put(fieldExpressionBytes)
                      .put(predicateBytes)

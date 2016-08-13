@@ -19,6 +19,8 @@
 
 package io.druid.query.aggregation;
 
+import com.google.common.base.Predicate;
+import com.google.common.base.Predicates;
 import io.druid.segment.LongColumnSelector;
 
 import java.util.Comparator;
@@ -35,22 +37,31 @@ public class LongMinAggregator implements Aggregator
   }
 
   private final LongColumnSelector selector;
+  private final Predicate predicate;
   private final String name;
 
   private long min;
 
-  public LongMinAggregator(String name, LongColumnSelector selector)
+  public LongMinAggregator(String name, LongColumnSelector selector, Predicate predicate)
   {
     this.name = name;
     this.selector = selector;
+    this.predicate = predicate == null ? Predicates.alwaysTrue() : predicate;
 
     reset();
+  }
+
+  public LongMinAggregator(String name, LongColumnSelector selector)
+  {
+    this(name, selector, null);
   }
 
   @Override
   public void aggregate()
   {
-    min = Math.min(min, selector.get());
+    if (predicate.apply(null)) {
+      min = Math.min(min, selector.get());
+    }
   }
 
   @Override
@@ -92,7 +103,7 @@ public class LongMinAggregator implements Aggregator
   @Override
   public Aggregator clone()
   {
-    return new LongMinAggregator(name, selector);
+    return new LongMinAggregator(name, selector, predicate);
   }
 
   @Override

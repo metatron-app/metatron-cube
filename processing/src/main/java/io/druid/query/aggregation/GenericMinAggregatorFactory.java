@@ -34,10 +34,17 @@ public class GenericMinAggregatorFactory extends GenericAggregatorFactory
   public GenericMinAggregatorFactory(
       @JsonProperty("name") String name,
       @JsonProperty("fieldName") String fieldName,
+      @JsonProperty("fieldExpression") String fieldExpression,
+      @JsonProperty("predicate") String predicate,
       @JsonProperty("inputType") String inputType
   )
   {
-    super(name, fieldName, inputType);
+    super(name, fieldName, fieldExpression, predicate, inputType);
+  }
+
+  public GenericMinAggregatorFactory(String name, String fieldName, String inputType)
+  {
+    this(name, fieldName, null, null, inputType);
   }
 
   @Override
@@ -45,11 +52,35 @@ public class GenericMinAggregatorFactory extends GenericAggregatorFactory
   {
     switch (valueType) {
       case FLOAT:
-        return new DoubleMinAggregator.FloatInput(name, metricFactory.makeFloatColumnSelector(fieldName));
+        return new DoubleMinAggregator.FloatInput(
+            name,
+            AggregatorUtil.getFloatColumnSelector(
+                metricFactory,
+                fieldName,
+                fieldExpression
+            ),
+            AggregatorUtil.toPredicate(predicate, metricFactory)
+        );
       case DOUBLE:
-        return new DoubleMinAggregator.DoubleInput(name, metricFactory.makeDoubleColumnSelector(fieldName));
+        return new DoubleMinAggregator.DoubleInput(
+            name,
+            AggregatorUtil.getDoubleColumnSelector(
+                metricFactory,
+                fieldName,
+                fieldExpression
+            ),
+            AggregatorUtil.toPredicate(predicate, metricFactory)
+        );
       case LONG:
-        return new LongMinAggregator(name, metricFactory.makeLongColumnSelector(fieldName));
+        return new LongMinAggregator(
+            name,
+            AggregatorUtil.getLongColumnSelector(
+                metricFactory,
+                fieldName,
+                fieldExpression
+            ),
+            AggregatorUtil.toPredicate(predicate, metricFactory)
+        );
     }
     throw new IllegalStateException();
   }
@@ -59,11 +90,32 @@ public class GenericMinAggregatorFactory extends GenericAggregatorFactory
   {
     switch (valueType) {
       case FLOAT:
-        return new DoubleMinBufferAggregator.FloatInput(metricFactory.makeFloatColumnSelector(fieldName));
+        return new DoubleMinBufferAggregator.FloatInput(
+            AggregatorUtil.getFloatColumnSelector(
+                metricFactory,
+                fieldName,
+                fieldExpression
+            ),
+            AggregatorUtil.toPredicate(predicate, metricFactory)
+        );
       case DOUBLE:
-        return new DoubleMinBufferAggregator.DoubleInput(metricFactory.makeDoubleColumnSelector(fieldName));
+        return new DoubleMinBufferAggregator.DoubleInput(
+            AggregatorUtil.getDoubleColumnSelector(
+                metricFactory,
+                fieldName,
+                fieldExpression
+            ),
+            AggregatorUtil.toPredicate(predicate, metricFactory)
+        );
       case LONG:
-        return new LongMinBufferAggregator(metricFactory.makeLongColumnSelector(fieldName));
+        return new LongMinBufferAggregator(
+            AggregatorUtil.getLongColumnSelector(
+                metricFactory,
+                fieldName,
+                fieldExpression
+            ),
+            AggregatorUtil.toPredicate(predicate, metricFactory)
+        );
     }
     throw new IllegalStateException();
   }

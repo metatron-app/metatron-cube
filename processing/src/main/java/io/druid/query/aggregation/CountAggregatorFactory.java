@@ -29,6 +29,7 @@ import io.druid.segment.ColumnSelectorFactory;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Objects;
 
 /**
  */
@@ -151,7 +152,7 @@ public class CountAggregatorFactory extends AggregatorFactory
   {
     return "CountAggregatorFactory{" +
            "name='" + name + '\'' +
-           "name='" + name + '\'' +
+           "predicate='" + predicate + '\'' +
            '}';
   }
 
@@ -167,7 +168,10 @@ public class CountAggregatorFactory extends AggregatorFactory
 
     CountAggregatorFactory that = (CountAggregatorFactory) o;
 
-    if (name != null ? !name.equals(that.name) : that.name != null) {
+    if (!(Objects.equals(name, that.name))) {
+      return false;
+    }
+    if (!(Objects.equals(predicate, that.predicate))) {
       return false;
     }
 
@@ -177,6 +181,6 @@ public class CountAggregatorFactory extends AggregatorFactory
   @Override
   public int hashCode()
   {
-    return name != null ? name.hashCode() : 0;
+    return Objects.hash(name, predicate);
   }
 }

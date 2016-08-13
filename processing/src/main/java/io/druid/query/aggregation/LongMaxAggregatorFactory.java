@@ -69,13 +69,13 @@ public class LongMaxAggregatorFactory extends AggregatorFactory
   @Override
   public Aggregator factorize(ColumnSelectorFactory metricFactory)
   {
-    return new LongMaxAggregator(name, getLongColumnSelector(metricFactory));
+    return new LongMaxAggregator(name, getLongColumnSelector(metricFactory), null);
   }
 
   @Override
   public BufferAggregator factorizeBuffered(ColumnSelectorFactory metricFactory)
   {
-    return new LongMaxBufferAggregator(getLongColumnSelector(metricFactory));
+    return new LongMaxBufferAggregator(getLongColumnSelector(metricFactory), null);
   }
 
   private LongColumnSelector getLongColumnSelector(ColumnSelectorFactory metricFactory)

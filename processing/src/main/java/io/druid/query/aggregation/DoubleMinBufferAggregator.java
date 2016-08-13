@@ -19,6 +19,8 @@
 
 package io.druid.query.aggregation;
 
+import com.google.common.base.Predicate;
+import com.google.common.base.Predicates;
 import io.druid.segment.DoubleColumnSelector;
 import io.druid.segment.FloatColumnSelector;
 
@@ -67,32 +69,40 @@ public abstract class DoubleMinBufferAggregator implements BufferAggregator
   public static class FloatInput extends DoubleMinBufferAggregator
   {
     private final FloatColumnSelector selector;
+    private final Predicate predicate;
 
-    public FloatInput(FloatColumnSelector selector)
+    public FloatInput(FloatColumnSelector selector, Predicate predicate)
     {
       this.selector = selector;
+      this.predicate = predicate == null ? Predicates.alwaysTrue() : predicate;
     }
 
     @Override
     public void aggregate(ByteBuffer buf, int position)
     {
-      buf.putDouble(position, Math.min(buf.getDouble(position), (double) selector.get()));
+      if (predicate.apply(null)) {
+        buf.putDouble(position, Math.min(buf.getDouble(position), (double) selector.get()));
+      }
     }
   }
 
   public static class DoubleInput extends DoubleMinBufferAggregator
   {
     private final DoubleColumnSelector selector;
+    private final Predicate predicate;
 
-    public DoubleInput(DoubleColumnSelector selector)
+    public DoubleInput(DoubleColumnSelector selector, Predicate predicate)
     {
       this.selector = selector;
+      this.predicate = predicate == null ? Predicates.alwaysTrue() : predicate;
     }
 
     @Override
     public void aggregate(ByteBuffer buf, int position)
     {
-      buf.putDouble(position, Math.min(buf.getDouble(position), selector.get()));
+      if (predicate.apply(null)) {
+        buf.putDouble(position, Math.min(buf.getDouble(position), selector.get()));
+      }
     }
   }
 }

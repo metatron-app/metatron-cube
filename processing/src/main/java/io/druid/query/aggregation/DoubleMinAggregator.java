@@ -19,6 +19,8 @@
 
 package io.druid.query.aggregation;
 
+import com.google.common.base.Predicate;
+import com.google.common.base.Predicates;
 import io.druid.segment.DoubleColumnSelector;
 import io.druid.segment.FloatColumnSelector;
 
@@ -36,12 +38,14 @@ public abstract class DoubleMinAggregator implements Aggregator
   }
 
   final String name;
+  final Predicate predicate;
 
   double min;
 
-  public DoubleMinAggregator(String name)
+  public DoubleMinAggregator(String name, Predicate predicate)
   {
     this.name = name;
+    this.predicate = predicate == null ? Predicates.alwaysTrue() : predicate;
     reset();
   }
 
@@ -91,22 +95,24 @@ public abstract class DoubleMinAggregator implements Aggregator
   {
     private final FloatColumnSelector selector;
 
-    public FloatInput(String name, FloatColumnSelector selector)
+    public FloatInput(String name, FloatColumnSelector selector, Predicate predicate)
     {
-      super(name);
+      super(name, predicate);
       this.selector = selector;
     }
 
     @Override
     public void aggregate()
     {
-      min = Math.min(min, selector.get());
+      if (predicate.apply(null)) {
+        min = Math.min(min, selector.get());
+      }
     }
 
     @Override
     public Aggregator clone()
     {
-      return new FloatInput(name, selector);
+      return new FloatInput(name, selector, predicate);
     }
   }
 
@@ -114,22 +120,24 @@ public abstract class DoubleMinAggregator implements Aggregator
   {
     private final DoubleColumnSelector selector;
 
-    public DoubleInput(String name, DoubleColumnSelector selector)
+    public DoubleInput(String name, DoubleColumnSelector selector, Predicate predicate)
     {
-      super(name);
+      super(name, predicate);
       this.selector = selector;
     }
 
     @Override
     public void aggregate()
     {
-      min = Math.min(min, selector.get());
+      if (predicate.apply(null)) {
+        min = Math.min(min, selector.get());
+      }
     }
 
     @Override
     public Aggregator clone()
     {
-      return new DoubleInput(name, selector);
+      return new DoubleInput(name, selector, predicate);
     }
   }
 }
