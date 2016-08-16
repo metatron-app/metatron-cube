@@ -33,6 +33,7 @@ import io.druid.query.aggregation.BufferAggregator;
 import io.druid.query.aggregation.LongSumAggregatorFactory;
 import io.druid.query.dimension.DefaultDimensionSpec;
 import io.druid.segment.ColumnSelectorFactory;
+import io.druid.segment.ColumnSelectors;
 import io.druid.segment.DimensionSelector;
 
 import java.nio.ByteBuffer;
@@ -82,7 +83,7 @@ public class DistinctCountAggregatorFactory extends AggregatorFactory
           name,
           selector,
           bitMapFactory.makeEmptyMutableBitmap(),
-          AggregatorUtil.toPredicate(predicate, columnFactory)
+          ColumnSelectors.toPredicate(predicate, columnFactory)
       );
     }
   }
@@ -95,7 +96,7 @@ public class DistinctCountAggregatorFactory extends AggregatorFactory
       return new EmptyDistinctCountBufferAggregator();
     } else {
       return new DistinctCountBufferAggregator(
-          makeDimensionSelector(columnFactory), AggregatorUtil.toPredicate(predicate, columnFactory)
+          makeDimensionSelector(columnFactory), ColumnSelectors.toPredicate(predicate, columnFactory)
       );
     }
   }

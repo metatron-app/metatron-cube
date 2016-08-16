@@ -25,6 +25,7 @@ import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import com.google.common.primitives.Longs;
 import io.druid.segment.ColumnSelectorFactory;
+import io.druid.segment.ColumnSelectors;
 
 import java.util.Arrays;
 import java.util.Comparator;
@@ -59,13 +60,13 @@ public class CountAggregatorFactory extends AggregatorFactory
   @Override
   public Aggregator factorize(ColumnSelectorFactory metricFactory)
   {
-    return new CountAggregator(name, AggregatorUtil.toPredicate(predicate, metricFactory));
+    return new CountAggregator(name, ColumnSelectors.toPredicate(predicate, metricFactory));
   }
 
   @Override
   public BufferAggregator factorizeBuffered(ColumnSelectorFactory metricFactory)
   {
-    return new CountBufferAggregator(AggregatorUtil.toPredicate(predicate, metricFactory));
+    return new CountBufferAggregator(ColumnSelectors.toPredicate(predicate, metricFactory));
   }
 
   @Override

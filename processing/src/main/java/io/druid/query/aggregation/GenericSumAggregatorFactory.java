@@ -23,6 +23,7 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.druid.data.ValueType;
 import io.druid.segment.ColumnSelectorFactory;
+import io.druid.segment.ColumnSelectors;
 
 /**
  */
@@ -53,32 +54,32 @@ public class GenericSumAggregatorFactory extends GenericAggregatorFactory
       case FLOAT:
         return new DoubleSumAggregator.FloatInput(
             name,
-            AggregatorUtil.getFloatColumnSelector(
+            ColumnSelectors.getFloatColumnSelector(
                 metricFactory,
                 fieldName,
                 fieldExpression
             ),
-            AggregatorUtil.toPredicate(predicate, metricFactory)
+            ColumnSelectors.toPredicate(predicate, metricFactory)
         );
       case DOUBLE:
         return new DoubleSumAggregator.DoubleInput(
             name,
-            AggregatorUtil.getDoubleColumnSelector(
+            ColumnSelectors.getDoubleColumnSelector(
                 metricFactory,
                 fieldName,
                 fieldExpression
             ),
-            AggregatorUtil.toPredicate(predicate, metricFactory)
+            ColumnSelectors.toPredicate(predicate, metricFactory)
         );
       case LONG:
         return new LongSumAggregator(
             name,
-            AggregatorUtil.getLongColumnSelector(
+            ColumnSelectors.getLongColumnSelector(
                 metricFactory,
                 fieldName,
                 fieldExpression
             ),
-            AggregatorUtil.toPredicate(predicate, metricFactory)
+            ColumnSelectors.toPredicate(predicate, metricFactory)
         );
       default:
         throw new IllegalArgumentException();
@@ -90,30 +91,30 @@ public class GenericSumAggregatorFactory extends GenericAggregatorFactory
     switch (valueType) {
       case FLOAT:
         return new DoubleSumBufferAggregator.FloatInput(
-            AggregatorUtil.getFloatColumnSelector(
+            ColumnSelectors.getFloatColumnSelector(
                 metricFactory,
                 fieldName,
                 fieldExpression
             ),
-            AggregatorUtil.toPredicate(predicate, metricFactory)
+            ColumnSelectors.toPredicate(predicate, metricFactory)
         );
       case DOUBLE:
         return new DoubleSumBufferAggregator.DoubleInput(
-            AggregatorUtil.getDoubleColumnSelector(
+            ColumnSelectors.getDoubleColumnSelector(
                 metricFactory,
                 fieldName,
                 fieldExpression
             ),
-            AggregatorUtil.toPredicate(predicate, metricFactory)
+            ColumnSelectors.toPredicate(predicate, metricFactory)
         );
       case LONG:
         return new LongSumBufferAggregator(
-            AggregatorUtil.getLongColumnSelector(
+            ColumnSelectors.getLongColumnSelector(
                 metricFactory,
                 fieldName,
                 fieldExpression
             ),
-            AggregatorUtil.toPredicate(predicate, metricFactory)
+            ColumnSelectors.toPredicate(predicate, metricFactory)
         );
     }
     throw new IllegalStateException();

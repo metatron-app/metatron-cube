@@ -22,7 +22,6 @@ package io.druid.segment;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;
-import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Iterators;
@@ -43,7 +42,6 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.Iterator;
 import java.util.List;
-import java.util.Objects;
 import java.util.Set;
 
 /**
@@ -146,69 +144,19 @@ public class KeyIndexedVirtualColumn implements VirtualColumn
   @Override
   public FloatColumnSelector asFloatMetric(String column, ColumnSelectorFactory factory)
   {
-    final ObjectColumnSelector selector = asMetric(column, factory);
-    return new FloatColumnSelector()
-    {
-      @Override
-      public float get()
-      {
-        Object v = selector.get();
-        if (v == null) {
-          return 0;
-        }
-        if (v instanceof Number) {
-          return ((Number) v).floatValue();
-        }
-        String string = Objects.toString(v);
-        return Strings.isNullOrEmpty(string) ? 0 : Float.valueOf(string);
-      }
-    };
+    return ColumnSelectors.asFloat(asMetric(column, factory));
   }
 
   @Override
   public DoubleColumnSelector asDoubleMetric(String column, ColumnSelectorFactory factory)
   {
-    final ObjectColumnSelector selector = asMetric(column, factory);
-
-    return new DoubleColumnSelector()
-    {
-      @Override
-      public double get()
-      {
-        Object v = selector.get();
-        if (v == null) {
-          return 0;
-        }
-        if (v instanceof Number) {
-          return ((Number) v).doubleValue();
-        }
-        String string = Objects.toString(v);
-        return Strings.isNullOrEmpty(string) ? 0 : Double.valueOf(string);
-      }
-    };
+    return ColumnSelectors.asDouble(asMetric(column, factory));
   }
 
   @Override
   public LongColumnSelector asLongMetric(String column, ColumnSelectorFactory factory)
   {
-    final ObjectColumnSelector selector = asMetric(column, factory);
-
-    return new LongColumnSelector()
-    {
-      @Override
-      public long get()
-      {
-        Object v = selector.get();
-        if (v == null) {
-          return 0;
-        }
-        if (v instanceof Number) {
-          return ((Number) v).longValue();
-        }
-        String string = Objects.toString(v);
-        return Strings.isNullOrEmpty(string) ? 0 : Long.valueOf(string);
-      }
-    };
+    return ColumnSelectors.asLong(asMetric(column, factory));
   }
 
   @Override

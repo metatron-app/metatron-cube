@@ -28,6 +28,7 @@ import com.google.common.primitives.Doubles;
 import io.druid.common.utils.StringUtils;
 import io.druid.math.expr.Parser;
 import io.druid.segment.ColumnSelectorFactory;
+import io.druid.segment.ColumnSelectors;
 import io.druid.segment.FloatColumnSelector;
 
 import java.nio.ByteBuffer;
@@ -79,7 +80,7 @@ public class DoubleSumAggregatorFactory extends AggregatorFactory
     return new DoubleSumAggregator.FloatInput(
         name,
         getFloatColumnSelector(metricFactory),
-        AggregatorUtil.toPredicate(predicate, metricFactory)
+        ColumnSelectors.toPredicate(predicate, metricFactory)
     );
   }
 
@@ -88,13 +89,13 @@ public class DoubleSumAggregatorFactory extends AggregatorFactory
   {
     return new DoubleSumBufferAggregator.FloatInput(
         getFloatColumnSelector(metricFactory),
-        AggregatorUtil.toPredicate(predicate, metricFactory)
+        ColumnSelectors.toPredicate(predicate, metricFactory)
     );
   }
 
   private FloatColumnSelector getFloatColumnSelector(ColumnSelectorFactory metricFactory)
   {
-    return AggregatorUtil.getFloatColumnSelector(metricFactory, fieldName, fieldExpression);
+    return ColumnSelectors.getFloatColumnSelector(metricFactory, fieldName, fieldExpression);
   }
 
   @Override

@@ -160,7 +160,7 @@ public class MapVirtualColumnTest
         )
     );
     List<VirtualColumn> virtualColumns = Arrays.<VirtualColumn>asList(
-        new MapVirtualColumn("keys", "values", "params"),
+        new MapVirtualColumn("keys", "values", null, "params"),
         new ExprVirtualColumn("nvl(dim, 'null')", "dim_nvl")
     );
     SelectQuery selectQuery = builder.dimensions(Arrays.asList("dim"))

@@ -36,13 +36,13 @@ import io.druid.math.expr.Expr;
 import io.druid.math.expr.ExprEval;
 import io.druid.math.expr.Parser;
 import io.druid.query.QueryInterruptedException;
-import io.druid.query.aggregation.AggregatorUtil;
 import io.druid.query.dimension.DimensionSpec;
 import io.druid.query.extraction.ExtractionFn;
 import io.druid.query.filter.Filter;
 import io.druid.query.filter.ValueMatcher;
 import io.druid.query.filter.ValueMatcherFactory;
 import io.druid.segment.Capabilities;
+import io.druid.segment.ColumnSelectors;
 import io.druid.segment.Cursor;
 import io.druid.segment.DimensionSelector;
 import io.druid.segment.DoubleColumnSelector;
@@ -855,7 +855,7 @@ public class IncrementalIndexStorageAdapter implements StorageAdapter
                 return index.getMetricFloatValue(holder.getValue(), metricIndex);
               }
             };
-            values.put(column, AggregatorUtil.asSupplier(selector));
+            values.put(column, ColumnSelectors.asSupplier(selector));
           } else if (ValueType.DOUBLE == type) {
             final DoubleColumnSelector selector = new DoubleColumnSelector()
             {
@@ -865,7 +865,7 @@ public class IncrementalIndexStorageAdapter implements StorageAdapter
                 return index.getMetricDoubleValue(holder.getValue(), metricIndex);
               }
             };
-            values.put(column, AggregatorUtil.asSupplier(selector));
+            values.put(column, ColumnSelectors.asSupplier(selector));
           } else if (ValueType.LONG == type) {
             final LongColumnSelector selector = new LongColumnSelector()
             {
@@ -875,7 +875,7 @@ public class IncrementalIndexStorageAdapter implements StorageAdapter
                 return index.getMetricLongValue(holder.getValue(), metricIndex);
               }
             };
-            values.put(column, AggregatorUtil.asSupplier(selector));
+            values.put(column, ColumnSelectors.asSupplier(selector));
           } else {
             throw new UnsupportedOperationException("Unsupported type " + type);
           }

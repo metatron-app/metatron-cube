@@ -29,10 +29,10 @@ import io.druid.math.expr.Parser;
 import io.druid.query.aggregation.Aggregator;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.AggregatorFactoryNotMergeableException;
-import io.druid.query.aggregation.AggregatorUtil;
 import io.druid.query.aggregation.Aggregators;
 import io.druid.query.aggregation.BufferAggregator;
 import io.druid.segment.ColumnSelectorFactory;
+import io.druid.segment.ColumnSelectors;
 import io.druid.segment.ObjectColumnSelector;
 import org.apache.commons.codec.binary.Base64;
 
@@ -89,7 +89,7 @@ public class HyperUniquesAggregatorFactory extends AggregatorFactory
 
     final Class classOfObject = selector.classOfObject();
     if (classOfObject.equals(Object.class) || HyperLogLogCollector.class.isAssignableFrom(classOfObject)) {
-      return new HyperUniquesAggregator(name, AggregatorUtil.toPredicate(predicate, metricFactory), selector);
+      return new HyperUniquesAggregator(name, ColumnSelectors.toPredicate(predicate, metricFactory), selector);
     }
 
     throw new IAE(
@@ -108,7 +108,7 @@ public class HyperUniquesAggregatorFactory extends AggregatorFactory
 
     final Class classOfObject = selector.classOfObject();
     if (classOfObject.equals(Object.class) || HyperLogLogCollector.class.isAssignableFrom(classOfObject)) {
-      return new HyperUniquesBufferAggregator(AggregatorUtil.toPredicate(predicate, metricFactory), selector);
+      return new HyperUniquesBufferAggregator(ColumnSelectors.toPredicate(predicate, metricFactory), selector);
     }
 
     throw new IAE(

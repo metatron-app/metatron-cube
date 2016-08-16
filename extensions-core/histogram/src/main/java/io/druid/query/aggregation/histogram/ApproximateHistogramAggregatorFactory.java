@@ -30,9 +30,9 @@ import io.druid.common.utils.StringUtils;
 import io.druid.query.aggregation.Aggregator;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.AggregatorFactoryNotMergeableException;
-import io.druid.query.aggregation.AggregatorUtil;
 import io.druid.query.aggregation.BufferAggregator;
 import io.druid.segment.ColumnSelectorFactory;
+import io.druid.segment.ColumnSelectors;
 import org.apache.commons.codec.binary.Base64;
 
 import java.nio.ByteBuffer;
@@ -110,7 +110,7 @@ public class ApproximateHistogramAggregatorFactory extends AggregatorFactory
         lowerLimit,
         upperLimit,
         compact,
-        AggregatorUtil.toPredicate(predicate, metricFactory)
+        ColumnSelectors.toPredicate(predicate, metricFactory)
     );
   }
 
@@ -122,7 +122,7 @@ public class ApproximateHistogramAggregatorFactory extends AggregatorFactory
         resolution,
         lowerLimit,
         upperLimit,
-        AggregatorUtil.toPredicate(predicate, metricFactory)
+        ColumnSelectors.toPredicate(predicate, metricFactory)
     );
   }
 

@@ -28,9 +28,9 @@ import com.metamx.common.IAE;
 import io.druid.common.utils.StringUtils;
 import io.druid.query.aggregation.Aggregator;
 import io.druid.query.aggregation.AggregatorFactory;
-import io.druid.query.aggregation.AggregatorUtil;
 import io.druid.query.aggregation.BufferAggregator;
 import io.druid.segment.ColumnSelectorFactory;
+import io.druid.segment.ColumnSelectors;
 import io.druid.segment.ObjectColumnSelector;
 
 import java.nio.ByteBuffer;
@@ -91,7 +91,7 @@ public class ApproximateHistogramFoldingAggregatorFactory extends ApproximateHis
           lowerLimit,
           upperLimit,
           compact,
-          AggregatorUtil.toPredicate(predicate, metricFactory)
+          ColumnSelectors.toPredicate(predicate, metricFactory)
       );
     }
 
@@ -130,7 +130,7 @@ public class ApproximateHistogramFoldingAggregatorFactory extends ApproximateHis
     if (cls.equals(Object.class) || ApproximateHistogramHolder.class.isAssignableFrom(cls)) {
       return new ApproximateHistogramFoldingBufferAggregator(
           selector, resolution, lowerLimit, upperLimit,
-          AggregatorUtil.toPredicate(predicate, metricFactory)
+          ColumnSelectors.toPredicate(predicate, metricFactory)
       );
     }
 

@@ -194,7 +194,7 @@ public class VirtualColumnTest
     );
 
     List<VirtualColumn> virtualColumns = Arrays.<VirtualColumn>asList(
-        new MapVirtualColumn("keys", "values", "params"),
+        new MapVirtualColumn("keys", "values", null, "params"),
         new ExprVirtualColumn("nvl(dim, 'null')", "dim_nvl")
     );
     GroupByQuery query = builder
@@ -202,6 +202,24 @@ public class VirtualColumnTest
         .setAggregatorSpecs(
             Arrays.asList(
                 new LongSumAggregatorFactory("sum_of_key1", null, "cast(params.key1, 'long')", null),
+                new CountAggregatorFactory("count")
+            )
+        )
+        .setVirtualColumns(virtualColumns)
+        .addOrderByColumn("dim_nvl")
+        .build();
+    checkSelectQuery(query, expectedResults);
+
+
+    virtualColumns = Arrays.<VirtualColumn>asList(
+        new MapVirtualColumn("keys", null, "array", "params"),
+        new ExprVirtualColumn("nvl(dim, 'null')", "dim_nvl")
+    );
+    query = builder
+        .setDimensions(DefaultDimensionSpec.toSpec("dim_nvl"))
+        .setAggregatorSpecs(
+            Arrays.asList(
+                new LongSumAggregatorFactory("sum_of_key1", "params.key1"),
                 new CountAggregatorFactory("count")
             )
         )

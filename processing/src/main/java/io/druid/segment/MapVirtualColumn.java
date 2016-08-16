@@ -23,13 +23,15 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Maps;
-import com.metamx.common.StringUtils;
+import io.druid.common.utils.StringUtils;
 import io.druid.query.dimension.DefaultDimensionSpec;
 import io.druid.query.filter.DimFilterCacheHelper;
 import io.druid.segment.data.IndexedInts;
 
 import java.nio.ByteBuffer;
+import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
 /**
  */
@@ -43,30 +45,115 @@ public class MapVirtualColumn implements VirtualColumn
   private final String outputName;
   private final String keyDimension;
   private final String valueDimension;
+  private final String valueMetric;
 
   @JsonCreator
   public MapVirtualColumn(
       @JsonProperty("keyDimension") String keyDimension,
       @JsonProperty("valueDimension") String valueDimension,
+      @JsonProperty("valueMetric") String valueMetric,
       @JsonProperty("outputName") String outputName
   )
   {
     Preconditions.checkArgument(keyDimension != null, "key dimension should not be null");
-    Preconditions.checkArgument(valueDimension != null, "value dimension should not be null");
+    Preconditions.checkArgument(
+        valueDimension == null ^ valueMetric == null,
+        "Must have a valid, non-null valueDimension or valueMetric"
+    );
     Preconditions.checkArgument(outputName != null, "output name should not be null");
 
     this.keyDimension = keyDimension;
     this.valueDimension = valueDimension;
+    this.valueMetric = valueMetric;
     this.outputName = outputName;
   }
 
   @Override
-  public ObjectColumnSelector asMetric(String dimension, ColumnSelectorFactory factory)
+  public ObjectColumnSelector asMetric(String column, ColumnSelectorFactory factory)
   {
     final DimensionSelector keySelector = factory.makeDimensionSelector(DefaultDimensionSpec.of(keyDimension));
-    final DimensionSelector valueSelector = factory.makeDimensionSelector(DefaultDimensionSpec.of(valueDimension));
+    if (valueDimension != null) {
+      final DimensionSelector valueSelector = factory.makeDimensionSelector(DefaultDimensionSpec.of(valueDimension));
 
-    int index = dimension.indexOf('.');
+      int index = column.indexOf('.');
+      if (index < 0) {
+        return new ObjectColumnSelector<Map>()
+        {
+          @Override
+          public Class classOfObject()
+          {
+            return Map.class;
+          }
+
+          @Override
+          public Map get()
+          {
+            final IndexedInts keyIndices = keySelector.getRow();
+            final IndexedInts valueIndices = valueSelector.getRow();
+            if (keyIndices == null || valueIndices == null) {
+              return null;
+            }
+            final int limit = Math.min(keyIndices.size(), valueIndices.size());
+            final Map<String, String> map = Maps.newHashMapWithExpectedSize(limit);
+            for (int i = 0; i < limit; i++) {
+              map.put(
+                  keySelector.lookupName(keyIndices.get(i)),
+                  valueSelector.lookupName(valueIndices.get(i))
+              );
+            }
+            return map;
+          }
+        };
+      }
+
+      final int keyId = keySelector.lookupId(column.substring(index + 1));
+      if (keyId < 0) {
+        return new ObjectColumnSelector()
+        {
+          @Override
+          public Class classOfObject()
+          {
+            return String.class;
+          }
+
+          @Override
+          public Object get()
+          {
+            return null;
+          }
+        };
+      }
+
+      return new ObjectColumnSelector<String>()
+      {
+        @Override
+        public Class classOfObject()
+        {
+          return String.class;
+        }
+
+        @Override
+        public String get()
+        {
+          final IndexedInts keyIndices = keySelector.getRow();
+          final IndexedInts valueIndices = valueSelector.getRow();
+          if (keyIndices == null || valueIndices == null) {
+            return null;
+          }
+          final int limit = Math.min(keyIndices.size(), valueIndices.size());
+          for (int i = 0; i < limit; i++) {
+            if (keyIndices.get(i) == keyId) {
+              return valueSelector.lookupName(valueIndices.get(i));
+            }
+          }
+          return null;
+        }
+      };
+    }
+
+    final ObjectColumnSelector<List> valueSelector = factory.makeObjectColumnSelector(valueMetric);
+
+    int index = column.indexOf('.');
     if (index < 0) {
       return new ObjectColumnSelector<Map>()
       {
@@ -80,45 +167,58 @@ public class MapVirtualColumn implements VirtualColumn
         public Map get()
         {
           final IndexedInts keyIndices = keySelector.getRow();
-          final IndexedInts valueIndices = valueSelector.getRow();
-          if (keyIndices == null || valueIndices == null) {
+          final List values = valueSelector.get();
+          if (keyIndices == null || values == null) {
             return null;
           }
-          final int limit = Math.min(keyIndices.size(), valueIndices.size());
-          final Map<String, String> map = Maps.newHashMapWithExpectedSize(limit);
+          final int limit = Math.min(keyIndices.size(), values.size());
+          final Map<String, Object> map = Maps.newHashMapWithExpectedSize(limit);
           for (int i = 0; i < limit; i++) {
-            map.put(
-                keySelector.lookupName(keyIndices.get(i)),
-                valueSelector.lookupName(valueIndices.get(i))
-            );
+            map.put(keySelector.lookupName(keyIndices.get(i)), values.get(i));
           }
           return map;
         }
       };
     }
 
-    final int keyId = keySelector.lookupId(dimension.substring(index + 1));
+    final int keyId = keySelector.lookupId(column.substring(index + 1));
+    if (keyId < 0) {
+      return new ObjectColumnSelector()
+      {
+        @Override
+        public Class classOfObject()
+        {
+          return String.class;
+        }
 
-    return new ObjectColumnSelector<String>()
+        @Override
+        public Object get()
+        {
+          return null;
+        }
+      };
+    }
+
+    return new ObjectColumnSelector<Object>()
     {
       @Override
       public Class classOfObject()
       {
-        return String.class;
+        return Object.class;
       }
 
       @Override
-      public String get()
+      public Object get()
       {
         final IndexedInts keyIndices = keySelector.getRow();
-        final IndexedInts valueIndices = valueSelector.getRow();
-        if (keyIndices == null || valueIndices == null) {
+        final List values = valueSelector.get();
+        if (keyIndices == null || values == null) {
           return null;
         }
-        final int limit = Math.min(keyIndices.size(), valueIndices.size());
+        final int limit = Math.min(keyIndices.size(), values.size());
         for (int i = 0; i < limit; i++) {
           if (keyIndices.get(i) == keyId) {
-            return valueSelector.lookupName(valueIndices.get(i));
+            return values.get(i);
           }
         }
         return null;
@@ -130,54 +230,30 @@ public class MapVirtualColumn implements VirtualColumn
   public FloatColumnSelector asFloatMetric(String dimension, ColumnSelectorFactory factory)
   {
     final ObjectColumnSelector selector = asMetric(dimension, factory);
-    if (selector.classOfObject() != String.class) {
+    if (selector.classOfObject() == Map.class) {
       throw new UnsupportedOperationException("asFloatMetric");
     }
-    return new FloatColumnSelector()
-    {
-      @Override
-      public float get()
-      {
-        String v = (String) selector.get();
-        return v == null ? 0 : Float.valueOf(v);
-      }
-    };
+    return ColumnSelectors.asFloat(selector);
   }
 
   @Override
   public DoubleColumnSelector asDoubleMetric(String dimension, ColumnSelectorFactory factory)
   {
     final ObjectColumnSelector selector = asMetric(dimension, factory);
-    if (selector.classOfObject() != String.class) {
+    if (selector.classOfObject() == Map.class) {
       throw new UnsupportedOperationException("asDoubleMetric");
     }
-    return new DoubleColumnSelector()
-    {
-      @Override
-      public double get()
-      {
-        String v = (String) selector.get();
-        return v == null ? 0 : Double.valueOf(v);
-      }
-    };
+    return ColumnSelectors.asDouble(selector);
   }
 
   @Override
   public LongColumnSelector asLongMetric(String dimension, ColumnSelectorFactory factory)
   {
     final ObjectColumnSelector selector = asMetric(dimension, factory);
-    if (selector.classOfObject() != String.class) {
+    if (selector.classOfObject() == Map.class) {
       throw new UnsupportedOperationException("asLongMetric");
     }
-    return new LongColumnSelector()
-    {
-      @Override
-      public long get()
-      {
-        String v = (String) selector.get();
-        return v == null ? 0 : Long.valueOf(v);
-      }
-    };
+    return ColumnSelectors.asLong(selector);
   }
 
   @Override
@@ -205,13 +281,15 @@ public class MapVirtualColumn implements VirtualColumn
   public byte[] getCacheKey()
   {
     byte[] key = StringUtils.toUtf8(keyDimension);
-    byte[] value = StringUtils.toUtf8(valueDimension);
+    byte[] valueDim = StringUtils.toUtf8WithNullToEmpty(valueDimension);
+    byte[] valueMet = StringUtils.toUtf8WithNullToEmpty(valueMetric);
     byte[] output = StringUtils.toUtf8(outputName);
 
-    return ByteBuffer.allocate(3 + key.length + value.length + output.length)
+    return ByteBuffer.allocate(4 + key.length + valueDim.length + valueMet.length + output.length)
                      .put(VC_TYPE_ID)
                      .put(key).put(DimFilterCacheHelper.STRING_SEPARATOR)
-                     .put(value).put(DimFilterCacheHelper.STRING_SEPARATOR)
+                     .put(valueDim).put(DimFilterCacheHelper.STRING_SEPARATOR)
+                     .put(valueMet).put(DimFilterCacheHelper.STRING_SEPARATOR)
                      .put(output)
                      .array();
   }
@@ -226,6 +304,12 @@ public class MapVirtualColumn implements VirtualColumn
   public String getValueDimension()
   {
     return valueDimension;
+  }
+
+  @JsonProperty
+  public String getValueMetric()
+  {
+    return valueMetric;
   }
 
   @JsonProperty
@@ -249,7 +333,10 @@ public class MapVirtualColumn implements VirtualColumn
     if (!keyDimension.equals(that.keyDimension)) {
       return false;
     }
-    if (!valueDimension.equals(that.valueDimension)) {
+    if (!Objects.equals(valueDimension, that.valueDimension)) {
+      return false;
+    }
+    if (!Objects.equals(valueMetric, that.valueMetric)) {
       return false;
     }
     if (!outputName.equals(that.outputName)) {
@@ -263,7 +350,8 @@ public class MapVirtualColumn implements VirtualColumn
   public int hashCode()
   {
     int result = keyDimension.hashCode();
-    result = 31 * result + valueDimension.hashCode();
+    result = 31 * result + Objects.hashCode(valueDimension);
+    result = 31 * result + Objects.hashCode(valueMetric);
     result = 31 * result + outputName.hashCode();
     return result;
   }
@@ -274,6 +362,7 @@ public class MapVirtualColumn implements VirtualColumn
     return "MapVirtualColumn{" +
            "keyDimension='" + keyDimension + '\'' +
            ", valueDimension='" + valueDimension + '\'' +
+           ", valueMetric='" + valueMetric + '\'' +
            ", outputName='" + outputName + '\'' +
            '}';
   }

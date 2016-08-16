@@ -31,13 +31,13 @@ import io.druid.math.expr.Parser;
 import io.druid.query.aggregation.Aggregator;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.AggregatorFactoryNotMergeableException;
-import io.druid.query.aggregation.AggregatorUtil;
 import io.druid.query.aggregation.Aggregators;
 import io.druid.query.aggregation.BufferAggregator;
 import io.druid.query.aggregation.hyperloglog.HyperLogLogCollector;
 import io.druid.query.aggregation.hyperloglog.HyperUniquesAggregatorFactory;
 import io.druid.query.dimension.DefaultDimensionSpec;
 import io.druid.segment.ColumnSelectorFactory;
+import io.druid.segment.ColumnSelectors;
 import io.druid.segment.DimensionSelector;
 import org.apache.commons.codec.binary.Base64;
 
@@ -93,7 +93,7 @@ public class CardinalityAggregatorFactory extends AggregatorFactory
       return Aggregators.noopAggregator();
     }
 
-    return new CardinalityAggregator(name, AggregatorUtil.toPredicate(predicate, columnFactory), selectors, byRow);
+    return new CardinalityAggregator(name, ColumnSelectors.toPredicate(predicate, columnFactory), selectors, byRow);
   }
 
 
@@ -106,7 +106,7 @@ public class CardinalityAggregatorFactory extends AggregatorFactory
       return Aggregators.noopBufferAggregator();
     }
 
-    return new CardinalityBufferAggregator(selectors, AggregatorUtil.toPredicate(predicate, columnFactory), byRow);
+    return new CardinalityBufferAggregator(selectors, ColumnSelectors.toPredicate(predicate, columnFactory), byRow);
   }
 
   private List<DimensionSelector> makeDimensionSelectors(final ColumnSelectorFactory columnFactory)

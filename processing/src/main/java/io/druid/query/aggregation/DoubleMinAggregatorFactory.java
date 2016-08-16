@@ -26,6 +26,7 @@ import com.google.common.primitives.Doubles;
 import io.druid.common.utils.StringUtils;
 import io.druid.math.expr.Parser;
 import io.druid.segment.ColumnSelectorFactory;
+import io.druid.segment.ColumnSelectors;
 import io.druid.segment.FloatColumnSelector;
 
 import java.nio.ByteBuffer;
@@ -81,7 +82,7 @@ public class DoubleMinAggregatorFactory extends AggregatorFactory
 
   private FloatColumnSelector getFloatColumnSelector(ColumnSelectorFactory metricFactory)
   {
-    return AggregatorUtil.getFloatColumnSelector(metricFactory, fieldName, fieldExpression);
+    return ColumnSelectors.getFloatColumnSelector(metricFactory, fieldName, fieldExpression);
   }
 
   @Override

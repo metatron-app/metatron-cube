@@ -28,6 +28,7 @@ import com.google.common.primitives.Longs;
 import io.druid.common.utils.StringUtils;
 import io.druid.math.expr.Parser;
 import io.druid.segment.ColumnSelectorFactory;
+import io.druid.segment.ColumnSelectors;
 import io.druid.segment.LongColumnSelector;
 
 import java.nio.ByteBuffer;
@@ -78,7 +79,7 @@ public class LongSumAggregatorFactory extends AggregatorFactory
     return new LongSumAggregator(
         name,
         getLongColumnSelector(metricFactory),
-        AggregatorUtil.toPredicate(predicate, metricFactory)
+        ColumnSelectors.toPredicate(predicate, metricFactory)
     );
   }
 
@@ -87,13 +88,13 @@ public class LongSumAggregatorFactory extends AggregatorFactory
   {
     return new LongSumBufferAggregator(
         getLongColumnSelector(metricFactory),
-        AggregatorUtil.toPredicate(predicate, metricFactory)
+        ColumnSelectors.toPredicate(predicate, metricFactory)
     );
   }
 
   private LongColumnSelector getLongColumnSelector(ColumnSelectorFactory metricFactory)
   {
-    return AggregatorUtil.getLongColumnSelector(metricFactory, fieldName, fieldExpression);
+    return ColumnSelectors.getLongColumnSelector(metricFactory, fieldName, fieldExpression);
   }
 
   @Override

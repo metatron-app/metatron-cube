@@ -23,6 +23,7 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.druid.data.ValueType;
 import io.druid.segment.ColumnSelectorFactory;
+import io.druid.segment.ColumnSelectors;
 
 /**
  */
@@ -54,32 +55,32 @@ public class GenericMaxAggregatorFactory extends GenericAggregatorFactory
       case FLOAT:
         return new DoubleMaxAggregator.FloatInput(
             name,
-            AggregatorUtil.getFloatColumnSelector(
+            ColumnSelectors.getFloatColumnSelector(
                 metricFactory,
                 fieldName,
                 fieldExpression
             ),
-            AggregatorUtil.toPredicate(predicate, metricFactory)
+            ColumnSelectors.toPredicate(predicate, metricFactory)
         );
       case DOUBLE:
         return new DoubleMaxAggregator.DoubleInput(
             name,
-            AggregatorUtil.getDoubleColumnSelector(
+            ColumnSelectors.getDoubleColumnSelector(
                 metricFactory,
                 fieldName,
                 fieldExpression
             ),
-            AggregatorUtil.toPredicate(predicate, metricFactory)
+            ColumnSelectors.toPredicate(predicate, metricFactory)
         );
       case LONG:
         return new LongMaxAggregator(
             name,
-            AggregatorUtil.getLongColumnSelector(
+            ColumnSelectors.getLongColumnSelector(
                 metricFactory,
                 fieldName,
                 fieldExpression
             ),
-            AggregatorUtil.toPredicate(predicate, metricFactory)
+            ColumnSelectors.toPredicate(predicate, metricFactory)
         );
     }
     throw new IllegalStateException();
@@ -91,30 +92,30 @@ public class GenericMaxAggregatorFactory extends GenericAggregatorFactory
     switch (valueType) {
       case FLOAT:
         return new DoubleMaxBufferAggregator.FloatInput(
-            AggregatorUtil.getFloatColumnSelector(
+            ColumnSelectors.getFloatColumnSelector(
                 metricFactory,
                 fieldName,
                 fieldExpression
             ),
-            AggregatorUtil.toPredicate(predicate, metricFactory)
+            ColumnSelectors.toPredicate(predicate, metricFactory)
         );
       case DOUBLE:
         return new DoubleMaxBufferAggregator.DoubleInput(
-            AggregatorUtil.getDoubleColumnSelector(
+            ColumnSelectors.getDoubleColumnSelector(
                 metricFactory,
                 fieldName,
                 fieldExpression
             ),
-            AggregatorUtil.toPredicate(predicate, metricFactory)
+            ColumnSelectors.toPredicate(predicate, metricFactory)
         );
       case LONG:
         return new LongMaxBufferAggregator(
-            AggregatorUtil.getLongColumnSelector(
+            ColumnSelectors.getLongColumnSelector(
                 metricFactory,
                 fieldName,
                 fieldExpression
             ),
-            AggregatorUtil.toPredicate(predicate, metricFactory)
+            ColumnSelectors.toPredicate(predicate, metricFactory)
         );
     }
     throw new IllegalStateException();
