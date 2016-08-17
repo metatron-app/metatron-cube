@@ -51,6 +51,7 @@ public class VarianceAggregatorFactory extends AggregatorFactory
   protected final String name;
   protected final String estimator;
   private final String inputType;
+  private final Boolean combined;
 
   protected final boolean isVariancePop;
 
@@ -59,7 +60,8 @@ public class VarianceAggregatorFactory extends AggregatorFactory
       @JsonProperty("name") String name,
       @JsonProperty("fieldName") String fieldName,
       @JsonProperty("estimator") String estimator,
-      @JsonProperty("inputType") String inputType
+      @JsonProperty("inputType") String inputType,
+      @JsonProperty("combined") Boolean combined
   )
   {
     Preconditions.checkNotNull(name, "Must have a valid, non-null aggregator name");
@@ -70,17 +72,18 @@ public class VarianceAggregatorFactory extends AggregatorFactory
     this.estimator = estimator;
     this.isVariancePop = VarianceAggregatorCollector.isVariancePop(estimator);
     this.inputType = inputType == null ? "double" : inputType;
+    this.combined = combined == null ? false: combined;
   }
 
   public VarianceAggregatorFactory(String name, String fieldName)
   {
-    this(name, fieldName, null, null);
+    this(name, fieldName, null, null, null);
   }
 
   @Override
   public String getTypeName()
   {
-    return "variance";
+    return combined ? "varianceCombined" : "variance";
   }
 
   @Override
@@ -165,7 +168,7 @@ public class VarianceAggregatorFactory extends AggregatorFactory
   @Override
   public List<AggregatorFactory> getRequiredColumns()
   {
-    return Arrays.<AggregatorFactory>asList(new VarianceAggregatorFactory(fieldName, fieldName, estimator, inputType));
+    return Arrays.<AggregatorFactory>asList(new VarianceAggregatorFactory(fieldName, fieldName, estimator, inputType, combined));
   }
 
   @Override
@@ -240,6 +243,12 @@ public class VarianceAggregatorFactory extends AggregatorFactory
   public String getInputType()
   {
     return inputType;
+  }
+
+  @JsonProperty
+  public Boolean getCombined()
+  {
+    return combined;
   }
 
   @Override

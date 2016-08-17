@@ -38,7 +38,7 @@ public class VarianceFoldingAggregatorFactory extends VarianceAggregatorFactory
       @JsonProperty("estimator") String estimator
   )
   {
-    super(name, fieldName, estimator, null);
+    super(name, fieldName, estimator, null, null);
   }
 
   @Override
