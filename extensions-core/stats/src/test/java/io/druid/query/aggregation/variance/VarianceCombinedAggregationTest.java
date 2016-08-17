@@ -39,10 +39,9 @@ public class VarianceCombinedAggregationTest
   private MapBasedRow ingestAndQuery() throws Exception
   {
     String metricSpec = "[{"
-        + "\"type\": \"variance\","
+        + "\"type\": \"varianceFold\","
         + "\"name\": \"var\","
         + "\"fieldName\": \"var_combined\","
-        + "\"inputType\": \"variance\","
         + "\"combined\": true"
         + "}]";
 

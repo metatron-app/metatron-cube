@@ -35,10 +35,11 @@ public class VarianceFoldingAggregatorFactory extends VarianceAggregatorFactory
   public VarianceFoldingAggregatorFactory(
       @JsonProperty("name") String name,
       @JsonProperty("fieldName") String fieldName,
-      @JsonProperty("estimator") String estimator
+      @JsonProperty("estimator") String estimator,
+      @JsonProperty("combined") Boolean combined
   )
   {
-    super(name, fieldName, estimator, null, null);
+    super(name, fieldName, estimator, null, combined);
   }
 
   @Override

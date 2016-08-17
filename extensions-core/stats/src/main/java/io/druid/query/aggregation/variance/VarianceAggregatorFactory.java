@@ -162,7 +162,7 @@ public class VarianceAggregatorFactory extends AggregatorFactory
   @Override
   public AggregatorFactory getCombiningFactory()
   {
-    return new VarianceFoldingAggregatorFactory(name, name, estimator);
+    return new VarianceFoldingAggregatorFactory(name, name, estimator, combined);
   }
 
   @Override
