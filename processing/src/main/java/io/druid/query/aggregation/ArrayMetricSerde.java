@@ -93,6 +93,9 @@ public class ArrayMetricSerde extends ComplexMetricSerde
       private List toList(Object value)
       {
         if (value instanceof List) {
+          if (extractor != null) {  // the content of the list would be probably modified
+            return Lists.newArrayList((List) value);
+          }
           return (List) value;
         }
         if (value != null && value.getClass().isArray()) {
