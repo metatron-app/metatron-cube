@@ -178,6 +178,12 @@ public abstract class AbstractArrayAggregatorFactory extends AggregatorFactory
   }
 
   @Override
+  public String getInputTypeName()
+  {
+    return "array." + delegate.getInputTypeName();
+  }
+
+  @Override
   public int getMaxIntermediateSize()
   {
     return delegate.getMaxIntermediateSize() * limit;

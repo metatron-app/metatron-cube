@@ -139,6 +139,12 @@ public class RangeAggregatorFactory extends AggregatorFactory
   }
 
   @Override
+  public String getInputTypeName()
+  {
+    return delegateFactory.getInputTypeName();
+  }
+
+  @Override
   public List<String> requiredFields()
   {
     return delegateFactory.requiredFields();
