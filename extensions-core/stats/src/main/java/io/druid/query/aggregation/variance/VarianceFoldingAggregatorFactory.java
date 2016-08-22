@@ -35,11 +35,10 @@ public class VarianceFoldingAggregatorFactory extends VarianceAggregatorFactory
   public VarianceFoldingAggregatorFactory(
       @JsonProperty("name") String name,
       @JsonProperty("fieldName") String fieldName,
-      @JsonProperty("estimator") String estimator,
-      @JsonProperty("combined") Boolean combined
+      @JsonProperty("estimator") String estimator
   )
   {
-    super(name, fieldName, estimator, null, combined);
+    super(name, fieldName, estimator, "variance");
   }
 
   @Override
@@ -49,10 +48,7 @@ public class VarianceFoldingAggregatorFactory extends VarianceAggregatorFactory
     if (selector == null) {
       return Aggregators.noopAggregator();
     }
-    return new VarianceAggregator.ObjectVarianceAggregator(
-        name,
-        metricFactory.makeObjectColumnSelector(fieldName)
-    );
+    return new VarianceAggregator.ObjectVarianceAggregator(name, selector);
   }
 
   @Override
@@ -62,9 +58,6 @@ public class VarianceFoldingAggregatorFactory extends VarianceAggregatorFactory
     if (selector == null) {
       return Aggregators.noopBufferAggregator();
     }
-    return new VarianceBufferAggregator.ObjectVarianceAggregator(
-        name,
-        metricFactory.makeObjectColumnSelector(fieldName)
-    );
+    return new VarianceBufferAggregator.ObjectVarianceAggregator(name, selector);
   }
 }

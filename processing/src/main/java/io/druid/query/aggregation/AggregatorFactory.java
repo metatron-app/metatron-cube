@@ -117,6 +117,12 @@ public abstract class AggregatorFactory implements Cacheable
 
   public abstract String getTypeName();
 
+  // this is type for ingestion, which can be different from typeName (which is output type from serde)
+  public String getInputTypeName()
+  {
+    return getTypeName();
+  }
+
   /**
    * Returns the maximum size that this aggregator will require in bytes for intermediate storage of results.
    *
