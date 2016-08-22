@@ -70,13 +70,13 @@ public class LongMinAggregatorFactory extends AggregatorFactory
   @Override
   public Aggregator factorize(ColumnSelectorFactory metricFactory)
   {
-    return new LongMinAggregator(name, getLongColumnSelector(metricFactory), null);
+    return LongMinAggregator.create(getLongColumnSelector(metricFactory), null);
   }
 
   @Override
   public BufferAggregator factorizeBuffered(ColumnSelectorFactory metricFactory)
   {
-    return new LongMinBufferAggregator(getLongColumnSelector(metricFactory), null);
+    return LongMinBufferAggregator.create(getLongColumnSelector(metricFactory), null);
   }
 
   private LongColumnSelector getLongColumnSelector(ColumnSelectorFactory metricFactory)

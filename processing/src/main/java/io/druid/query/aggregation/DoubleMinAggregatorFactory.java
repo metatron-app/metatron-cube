@@ -71,13 +71,13 @@ public class DoubleMinAggregatorFactory extends AggregatorFactory
   @Override
   public Aggregator factorize(ColumnSelectorFactory metricFactory)
   {
-    return new DoubleMinAggregator.FloatInput(name, getFloatColumnSelector(metricFactory), null);
+    return DoubleMinAggregator.create(getFloatColumnSelector(metricFactory), null);
   }
 
   @Override
   public BufferAggregator factorizeBuffered(ColumnSelectorFactory metricFactory)
   {
-    return new DoubleMinBufferAggregator.FloatInput(getFloatColumnSelector(metricFactory), null);
+    return DoubleMinBufferAggregator.create(getFloatColumnSelector(metricFactory), null);
   }
 
   private FloatColumnSelector getFloatColumnSelector(ColumnSelectorFactory metricFactory)

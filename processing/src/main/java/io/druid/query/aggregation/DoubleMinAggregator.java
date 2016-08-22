@@ -37,17 +37,7 @@ public abstract class DoubleMinAggregator implements Aggregator
     return Math.min(((Number) lhs).doubleValue(), ((Number) rhs).doubleValue());
   }
 
-  final String name;
-  final Predicate predicate;
-
-  double min;
-
-  public DoubleMinAggregator(String name, Predicate predicate)
-  {
-    this.name = name;
-    this.predicate = predicate == null ? Predicates.alwaysTrue() : predicate;
-    reset();
-  }
+  double min = Double.POSITIVE_INFINITY;
 
   @Override
   public void reset()
@@ -82,7 +72,7 @@ public abstract class DoubleMinAggregator implements Aggregator
   @Override
   public String getName()
   {
-    return this.name;
+    return null;
   }
 
   @Override
@@ -91,53 +81,53 @@ public abstract class DoubleMinAggregator implements Aggregator
     // no resources to cleanup
   }
 
-  public static class FloatInput extends DoubleMinAggregator
+  public static DoubleMinAggregator create(final FloatColumnSelector selector, final Predicate predicate)
   {
-    private final FloatColumnSelector selector;
-
-    public FloatInput(String name, FloatColumnSelector selector, Predicate predicate)
-    {
-      super(name, predicate);
-      this.selector = selector;
-    }
-
-    @Override
-    public void aggregate()
-    {
-      if (predicate.apply(null)) {
-        min = Math.min(min, selector.get());
-      }
-    }
-
-    @Override
-    public Aggregator clone()
-    {
-      return new FloatInput(name, selector, predicate);
+    if (predicate == null || predicate == Predicates.alwaysTrue()) {
+      return new DoubleMinAggregator()
+      {
+        @Override
+        public final void aggregate()
+        {
+          min = Math.min(min, selector.get());
+        }
+      };
+    } else {
+      return new DoubleMinAggregator()
+      {
+        @Override
+        public final void aggregate()
+        {
+          if (predicate.apply(null)) {
+            min = Math.min(min, selector.get());
+          }
+        }
+      };
     }
   }
 
-  public static class DoubleInput extends DoubleMinAggregator
+  public static DoubleMinAggregator create(final DoubleColumnSelector selector, final Predicate predicate)
   {
-    private final DoubleColumnSelector selector;
-
-    public DoubleInput(String name, DoubleColumnSelector selector, Predicate predicate)
-    {
-      super(name, predicate);
-      this.selector = selector;
-    }
-
-    @Override
-    public void aggregate()
-    {
-      if (predicate.apply(null)) {
-        min = Math.min(min, selector.get());
-      }
-    }
-
-    @Override
-    public Aggregator clone()
-    {
-      return new DoubleInput(name, selector, predicate);
+    if (predicate == null || predicate == Predicates.alwaysTrue()) {
+      return new DoubleMinAggregator()
+      {
+        @Override
+        public final void aggregate()
+        {
+          min = Math.min(min, selector.get());
+        }
+      };
+    } else {
+      return new DoubleMinAggregator()
+      {
+        @Override
+        public final void aggregate()
+        {
+          if (predicate.apply(null)) {
+            min = Math.min(min, selector.get());
+          }
+        }
+      };
     }
   }
 }

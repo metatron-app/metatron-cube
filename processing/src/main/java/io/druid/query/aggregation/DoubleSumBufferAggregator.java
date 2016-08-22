@@ -20,6 +20,7 @@
 package io.druid.query.aggregation;
 
 import com.google.common.base.Predicate;
+import com.google.common.base.Predicates;
 import io.druid.segment.DoubleColumnSelector;
 import io.druid.segment.FloatColumnSelector;
 
@@ -29,13 +30,6 @@ import java.nio.ByteBuffer;
  */
 public abstract class DoubleSumBufferAggregator implements BufferAggregator
 {
-  final Predicate predicate;
-
-  public DoubleSumBufferAggregator(Predicate predicate)
-  {
-    this.predicate = predicate;
-  }
-
   @Override
   public void init(ByteBuffer buf, int position)
   {
@@ -72,41 +66,53 @@ public abstract class DoubleSumBufferAggregator implements BufferAggregator
     // no resources to cleanup
   }
 
-  public static class FloatInput extends DoubleSumBufferAggregator
+  public static DoubleSumBufferAggregator create(final FloatColumnSelector selector, final Predicate predicate)
   {
-    private final FloatColumnSelector selector;
-
-    public FloatInput(FloatColumnSelector selector, Predicate predicate)
-    {
-      super(predicate);
-      this.selector = selector;
-    }
-
-    @Override
-    public void aggregate(ByteBuffer buf, int position)
-    {
-      if (predicate.apply(null)) {
-        buf.putDouble(position, buf.getDouble(position) + selector.get());
-      }
+    if (predicate == null || predicate == Predicates.alwaysTrue()) {
+      return new DoubleSumBufferAggregator()
+      {
+        @Override
+        public final void aggregate(ByteBuffer buf, int position)
+        {
+          buf.putDouble(position, buf.getDouble(position) + selector.get());
+        }
+      };
+    } else {
+      return new DoubleSumBufferAggregator()
+      {
+        @Override
+        public final void aggregate(ByteBuffer buf, int position)
+        {
+          if (predicate.apply(null)) {
+            buf.putDouble(position, buf.getDouble(position) + selector.get());
+          }
+        }
+      };
     }
   }
 
-  public static class DoubleInput extends DoubleSumBufferAggregator
+  public static DoubleSumBufferAggregator create(final DoubleColumnSelector selector, final Predicate predicate)
   {
-    private final DoubleColumnSelector selector;
-
-    public DoubleInput(DoubleColumnSelector selector, Predicate predicate)
-    {
-      super(predicate);
-      this.selector = selector;
-    }
-
-    @Override
-    public void aggregate(ByteBuffer buf, int position)
-    {
-      if (predicate.apply(null)) {
-        buf.putDouble(position, buf.getDouble(position) + selector.get());
-      }
+    if (predicate == null || predicate == Predicates.alwaysTrue()) {
+      return new DoubleSumBufferAggregator()
+      {
+        @Override
+        public final void aggregate(ByteBuffer buf, int position)
+        {
+          buf.putDouble(position, buf.getDouble(position) + selector.get());
+        }
+      };
+    } else {
+      return new DoubleSumBufferAggregator()
+      {
+        @Override
+        public final void aggregate(ByteBuffer buf, int position)
+        {
+          if (predicate.apply(null)) {
+            buf.putDouble(position, buf.getDouble(position) + selector.get());
+          }
+        }
+      };
     }
   }
 }

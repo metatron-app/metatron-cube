@@ -27,29 +27,37 @@ import java.nio.ByteBuffer;
 
 /**
  */
-public class LongMinBufferAggregator implements BufferAggregator
+public abstract class LongMinBufferAggregator implements BufferAggregator
 {
-  private final LongColumnSelector selector;
-  private final Predicate predicate;
-
-  public LongMinBufferAggregator(LongColumnSelector selector, Predicate predicate)
+  public static LongMinBufferAggregator create(final LongColumnSelector selector, final Predicate predicate)
   {
-    this.selector = selector;
-    this.predicate = predicate == null ? Predicates.alwaysTrue() : predicate;
+    if (predicate == null || predicate == Predicates.alwaysTrue()) {
+      return new LongMinBufferAggregator()
+      {
+        @Override
+        public final void aggregate(ByteBuffer buf, int position)
+        {
+          buf.putLong(position, Math.min(buf.getLong(position), selector.get()));
+        }
+      };
+    } else {
+      return new LongMinBufferAggregator()
+      {
+        @Override
+        public final void aggregate(ByteBuffer buf, int position)
+        {
+          if (predicate.apply(null)) {
+            buf.putLong(position, Math.min(buf.getLong(position), selector.get()));
+          }
+        }
+      };
+    }
   }
 
   @Override
   public void init(ByteBuffer buf, int position)
   {
     buf.putLong(position, Long.MAX_VALUE);
-  }
-
-  @Override
-  public void aggregate(ByteBuffer buf, int position)
-  {
-    if (predicate.apply(null)) {
-      buf.putLong(position, Math.min(buf.getLong(position), selector.get()));
-    }
   }
 
   @Override

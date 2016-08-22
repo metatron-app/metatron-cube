@@ -27,7 +27,7 @@ import java.util.Comparator;
 
 /**
  */
-public class LongMaxAggregator implements Aggregator
+public abstract class LongMaxAggregator implements Aggregator
 {
   static final Comparator COMPARATOR = LongSumAggregator.COMPARATOR;
 
@@ -36,26 +36,30 @@ public class LongMaxAggregator implements Aggregator
     return Math.max(((Number) lhs).longValue(), ((Number) rhs).longValue());
   }
 
-  private final LongColumnSelector selector;
-  private final Predicate predicate;
-  private final String name;
+  long max = Long.MIN_VALUE;
 
-  private long max;
-
-  public LongMaxAggregator(String name, LongColumnSelector selector, Predicate predicate)
+  public static LongMaxAggregator create(final LongColumnSelector selector, final Predicate predicate)
   {
-    this.name = name;
-    this.selector = selector;
-    this.predicate = predicate == null ? Predicates.alwaysTrue() : predicate;
-
-    reset();
-  }
-
-  @Override
-  public void aggregate()
-  {
-    if (predicate.apply(null)) {
-      max = Math.max(max, selector.get());
+    if (predicate == null || predicate == Predicates.alwaysTrue()) {
+      return new LongMaxAggregator()
+      {
+        @Override
+        public final void aggregate()
+        {
+          max = Math.max(max, selector.get());
+        }
+      };
+    } else {
+      return new LongMaxAggregator()
+      {
+        @Override
+        public final void aggregate()
+        {
+          if (predicate.apply(null)) {
+            max = Math.max(max, selector.get());
+          }
+        }
+      };
     }
   }
 
@@ -92,13 +96,7 @@ public class LongMaxAggregator implements Aggregator
   @Override
   public String getName()
   {
-    return this.name;
-  }
-
-  @Override
-  public Aggregator clone()
-  {
-    return new LongMaxAggregator(name, selector, predicate);
+    return null;
   }
 
   @Override

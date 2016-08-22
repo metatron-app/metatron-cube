@@ -76,8 +76,7 @@ public class LongSumAggregatorFactory extends AggregatorFactory
   @Override
   public Aggregator factorize(ColumnSelectorFactory metricFactory)
   {
-    return new LongSumAggregator(
-        name,
+    return LongSumAggregator.create(
         getLongColumnSelector(metricFactory),
         ColumnSelectors.toPredicate(predicate, metricFactory)
     );
@@ -86,7 +85,7 @@ public class LongSumAggregatorFactory extends AggregatorFactory
   @Override
   public BufferAggregator factorizeBuffered(ColumnSelectorFactory metricFactory)
   {
-    return new LongSumBufferAggregator(
+    return LongSumBufferAggregator.create(
         getLongColumnSelector(metricFactory),
         ColumnSelectors.toPredicate(predicate, metricFactory)
     );

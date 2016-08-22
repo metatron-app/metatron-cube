@@ -52,8 +52,7 @@ public class GenericSumAggregatorFactory extends GenericAggregatorFactory
   {
     switch (valueType) {
       case FLOAT:
-        return new DoubleSumAggregator.FloatInput(
-            name,
+        return DoubleSumAggregator.create(
             ColumnSelectors.getFloatColumnSelector(
                 metricFactory,
                 fieldName,
@@ -62,8 +61,7 @@ public class GenericSumAggregatorFactory extends GenericAggregatorFactory
             ColumnSelectors.toPredicate(predicate, metricFactory)
         );
       case DOUBLE:
-        return new DoubleSumAggregator.DoubleInput(
-            name,
+        return DoubleSumAggregator.create(
             ColumnSelectors.getDoubleColumnSelector(
                 metricFactory,
                 fieldName,
@@ -72,8 +70,7 @@ public class GenericSumAggregatorFactory extends GenericAggregatorFactory
             ColumnSelectors.toPredicate(predicate, metricFactory)
         );
       case LONG:
-        return new LongSumAggregator(
-            name,
+        return LongSumAggregator.create(
             ColumnSelectors.getLongColumnSelector(
                 metricFactory,
                 fieldName,
@@ -90,7 +87,7 @@ public class GenericSumAggregatorFactory extends GenericAggregatorFactory
   {
     switch (valueType) {
       case FLOAT:
-        return new DoubleSumBufferAggregator.FloatInput(
+        return DoubleSumBufferAggregator.create(
             ColumnSelectors.getFloatColumnSelector(
                 metricFactory,
                 fieldName,
@@ -99,7 +96,7 @@ public class GenericSumAggregatorFactory extends GenericAggregatorFactory
             ColumnSelectors.toPredicate(predicate, metricFactory)
         );
       case DOUBLE:
-        return new DoubleSumBufferAggregator.DoubleInput(
+        return DoubleSumBufferAggregator.create(
             ColumnSelectors.getDoubleColumnSelector(
                 metricFactory,
                 fieldName,
@@ -108,7 +105,7 @@ public class GenericSumAggregatorFactory extends GenericAggregatorFactory
             ColumnSelectors.toPredicate(predicate, metricFactory)
         );
       case LONG:
-        return new LongSumBufferAggregator(
+        return LongSumBufferAggregator.create(
             ColumnSelectors.getLongColumnSelector(
                 metricFactory,
                 fieldName,

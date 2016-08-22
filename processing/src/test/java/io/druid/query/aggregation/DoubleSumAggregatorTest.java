@@ -39,9 +39,7 @@ public class DoubleSumAggregatorTest
   {
     final float[] values = {0.15f, 0.27f};
     final TestFloatColumnSelector selector = new TestFloatColumnSelector(values);
-    DoubleSumAggregator agg = new DoubleSumAggregator.FloatInput("billy", selector, null);
-
-    Assert.assertEquals("billy", agg.getName());
+    DoubleSumAggregator agg = DoubleSumAggregator.create(selector, null);
 
     double expectedFirst = new Double(values[0]).doubleValue();
     double expectedSecond = new Double(values[1]).doubleValue() + expectedFirst;
@@ -63,9 +61,7 @@ public class DoubleSumAggregatorTest
   public void testComparator()
   {
     final TestFloatColumnSelector selector = new TestFloatColumnSelector(new float[]{0.15f, 0.27f});
-    DoubleSumAggregator agg = new DoubleSumAggregator.FloatInput("billy", selector, null);
-
-    Assert.assertEquals("billy", agg.getName());
+    DoubleSumAggregator agg = DoubleSumAggregator.create(selector, null);
 
     Object first = agg.get();
     agg.aggregate();

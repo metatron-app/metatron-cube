@@ -66,43 +66,53 @@ public abstract class DoubleMinBufferAggregator implements BufferAggregator
     // no resources to cleanup
   }
 
-  public static class FloatInput extends DoubleMinBufferAggregator
+  public static DoubleMinBufferAggregator create(final FloatColumnSelector selector, final Predicate predicate)
   {
-    private final FloatColumnSelector selector;
-    private final Predicate predicate;
-
-    public FloatInput(FloatColumnSelector selector, Predicate predicate)
-    {
-      this.selector = selector;
-      this.predicate = predicate == null ? Predicates.alwaysTrue() : predicate;
-    }
-
-    @Override
-    public void aggregate(ByteBuffer buf, int position)
-    {
-      if (predicate.apply(null)) {
-        buf.putDouble(position, Math.min(buf.getDouble(position), (double) selector.get()));
-      }
+    if (predicate == null || predicate == Predicates.alwaysTrue()) {
+      return new DoubleMinBufferAggregator()
+      {
+        @Override
+        public final void aggregate(ByteBuffer buf, int position)
+        {
+          buf.putDouble(position, Math.min(buf.getDouble(position), (double) selector.get()));
+        }
+      };
+    } else {
+      return new DoubleMinBufferAggregator()
+      {
+        @Override
+        public final void aggregate(ByteBuffer buf, int position)
+        {
+          if (predicate.apply(null)) {
+            buf.putDouble(position, Math.min(buf.getDouble(position), (double) selector.get()));
+          }
+        }
+      };
     }
   }
 
-  public static class DoubleInput extends DoubleMinBufferAggregator
+  public static DoubleMinBufferAggregator create(final DoubleColumnSelector selector, final Predicate predicate)
   {
-    private final DoubleColumnSelector selector;
-    private final Predicate predicate;
-
-    public DoubleInput(DoubleColumnSelector selector, Predicate predicate)
-    {
-      this.selector = selector;
-      this.predicate = predicate == null ? Predicates.alwaysTrue() : predicate;
-    }
-
-    @Override
-    public void aggregate(ByteBuffer buf, int position)
-    {
-      if (predicate.apply(null)) {
-        buf.putDouble(position, Math.min(buf.getDouble(position), selector.get()));
-      }
+    if (predicate == null || predicate == Predicates.alwaysTrue()) {
+      return new DoubleMinBufferAggregator()
+      {
+        @Override
+        public final void aggregate(ByteBuffer buf, int position)
+        {
+          buf.putDouble(position, Math.min(buf.getDouble(position), selector.get()));
+        }
+      };
+    } else {
+      return new DoubleMinBufferAggregator()
+      {
+        @Override
+        public final void aggregate(ByteBuffer buf, int position)
+        {
+          if (predicate.apply(null)) {
+            buf.putDouble(position, Math.min(buf.getDouble(position), selector.get()));
+          }
+        }
+      };
     }
   }
 }

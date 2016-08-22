@@ -27,34 +27,37 @@ import java.nio.ByteBuffer;
 
 /**
  */
-public class LongSumBufferAggregator implements BufferAggregator
+public abstract class LongSumBufferAggregator implements BufferAggregator
 {
-  private final LongColumnSelector selector;
-  private final Predicate predicate;
-
-  public LongSumBufferAggregator(LongColumnSelector selector, Predicate predicate)
+  public static LongSumBufferAggregator create(final LongColumnSelector selector, final Predicate predicate)
   {
-    this.selector = selector;
-    this.predicate = predicate;
-  }
-
-  public LongSumBufferAggregator(LongColumnSelector selector)
-  {
-    this(selector, Predicates.alwaysTrue());
+    if (predicate == null || predicate == Predicates.alwaysTrue()) {
+      return new LongSumBufferAggregator()
+      {
+        @Override
+        public final void aggregate(ByteBuffer buf, int position)
+        {
+          buf.putLong(position, buf.getLong(position) + selector.get());
+        }
+      };
+    } else {
+      return new LongSumBufferAggregator()
+      {
+        @Override
+        public final void aggregate(ByteBuffer buf, int position)
+        {
+          if (predicate.apply(null)) {
+            buf.putLong(position, buf.getLong(position) + selector.get());
+          }
+        }
+      };
+    }
   }
 
   @Override
   public void init(ByteBuffer buf, int position)
   {
     buf.putLong(position, 0L);
-  }
-
-  @Override
-  public void aggregate(ByteBuffer buf, int position)
-  {
-    if (predicate.apply(null)) {
-      buf.putLong(position, buf.getLong(position) + selector.get());
-    }
   }
 
   @Override

@@ -46,22 +46,7 @@ public abstract class DoubleSumAggregator implements Aggregator
     return ((Number) lhs).doubleValue() + ((Number) rhs).doubleValue();
   }
 
-  final Predicate predicate;
-  final String name;
-
-  double sum;
-
-  public DoubleSumAggregator(String name, Predicate predicate)
-  {
-    this.name = name;
-    this.predicate = predicate == null ? Predicates.alwaysTrue() : predicate;
-    this.sum = 0;
-  }
-
-  public DoubleSumAggregator(String name)
-  {
-    this(name, null);
-  }
+  double sum = 0;
 
   @Override
   public void reset()
@@ -96,7 +81,7 @@ public abstract class DoubleSumAggregator implements Aggregator
   @Override
   public String getName()
   {
-    return this.name;
+    return null;
   }
 
   @Override
@@ -105,49 +90,53 @@ public abstract class DoubleSumAggregator implements Aggregator
     // no resources to cleanup
   }
 
-  public static class FloatInput extends DoubleSumAggregator
+  public static DoubleSumAggregator create(final FloatColumnSelector selector, final Predicate predicate)
   {
-    private final FloatColumnSelector selector;
-
-    public FloatInput(String name, FloatColumnSelector selector, Predicate predicate)
-    {
-      super(name, predicate);
-      this.selector = selector;
-    }
-
-    @Override
-    public void aggregate()
-    {
-      sum += selector.get();
-    }
-
-    @Override
-    public Aggregator clone()
-    {
-      return new FloatInput(name, selector, predicate);
+    if (predicate == null || predicate == Predicates.alwaysTrue()) {
+      return new DoubleSumAggregator()
+      {
+        @Override
+        public final void aggregate()
+        {
+          sum += selector.get();
+        }
+      };
+    } else {
+      return new DoubleSumAggregator()
+      {
+        @Override
+        public final void aggregate()
+        {
+          if (predicate.apply(null)) {
+            sum += selector.get();
+          }
+        }
+      };
     }
   }
 
-  public static class DoubleInput extends DoubleSumAggregator
+  public static DoubleSumAggregator create(final DoubleColumnSelector selector, final Predicate predicate)
   {
-    private final DoubleColumnSelector selector;
-
-    public DoubleInput(String name, DoubleColumnSelector selector, Predicate predicate)
-    {
-      super(name, predicate);
-      this.selector = selector;
-    }
-
-    @Override
-    public void aggregate()
-    {
-      sum += selector.get();
-    }
-
-    @Override
-    public Aggregator clone()
-    {
-      return new DoubleInput(name, selector, predicate);
+    if (predicate == null || predicate == Predicates.alwaysTrue()) {
+      return new DoubleSumAggregator()
+      {
+        @Override
+        public final void aggregate()
+        {
+          sum += selector.get();
+        }
+      };
+    } else {
+      return new DoubleSumAggregator()
+      {
+        @Override
+        public final void aggregate()
+        {
+          if (predicate.apply(null)) {
+            sum += selector.get();
+          }
+        }
+      };
     }
   }
 }

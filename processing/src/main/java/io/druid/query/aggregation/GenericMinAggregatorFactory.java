@@ -53,8 +53,7 @@ public class GenericMinAggregatorFactory extends GenericAggregatorFactory
   {
     switch (valueType) {
       case FLOAT:
-        return new DoubleMinAggregator.FloatInput(
-            name,
+        return DoubleMinAggregator.create(
             ColumnSelectors.getFloatColumnSelector(
                 metricFactory,
                 fieldName,
@@ -63,8 +62,7 @@ public class GenericMinAggregatorFactory extends GenericAggregatorFactory
             ColumnSelectors.toPredicate(predicate, metricFactory)
         );
       case DOUBLE:
-        return new DoubleMinAggregator.DoubleInput(
-            name,
+        return DoubleMinAggregator.create(
             ColumnSelectors.getDoubleColumnSelector(
                 metricFactory,
                 fieldName,
@@ -73,8 +71,7 @@ public class GenericMinAggregatorFactory extends GenericAggregatorFactory
             ColumnSelectors.toPredicate(predicate, metricFactory)
         );
       case LONG:
-        return new LongMinAggregator(
-            name,
+        return LongMinAggregator.create(
             ColumnSelectors.getLongColumnSelector(
                 metricFactory,
                 fieldName,
@@ -91,7 +88,7 @@ public class GenericMinAggregatorFactory extends GenericAggregatorFactory
   {
     switch (valueType) {
       case FLOAT:
-        return new DoubleMinBufferAggregator.FloatInput(
+        return DoubleMinBufferAggregator.create(
             ColumnSelectors.getFloatColumnSelector(
                 metricFactory,
                 fieldName,
@@ -100,7 +97,7 @@ public class GenericMinAggregatorFactory extends GenericAggregatorFactory
             ColumnSelectors.toPredicate(predicate, metricFactory)
         );
       case DOUBLE:
-        return new DoubleMinBufferAggregator.DoubleInput(
+        return DoubleMinBufferAggregator.create(
             ColumnSelectors.getDoubleColumnSelector(
                 metricFactory,
                 fieldName,
@@ -109,7 +106,7 @@ public class GenericMinAggregatorFactory extends GenericAggregatorFactory
             ColumnSelectors.toPredicate(predicate, metricFactory)
         );
       case LONG:
-        return new LongMinBufferAggregator(
+        return LongMinBufferAggregator.create(
             ColumnSelectors.getLongColumnSelector(
                 metricFactory,
                 fieldName,

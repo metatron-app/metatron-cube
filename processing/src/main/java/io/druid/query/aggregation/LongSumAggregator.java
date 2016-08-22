@@ -28,7 +28,7 @@ import java.util.Comparator;
 
 /**
  */
-public class LongSumAggregator implements Aggregator
+public abstract class LongSumAggregator implements Aggregator
 {
   static final Comparator COMPARATOR = new Comparator()
   {
@@ -44,30 +44,30 @@ public class LongSumAggregator implements Aggregator
     return ((Number) lhs).longValue() + ((Number) rhs).longValue();
   }
 
-  private final LongColumnSelector selector;
-  private final String name;
-  private final Predicate predicate;
+  long sum = 0;
 
-  private long sum;
-
-  public LongSumAggregator(String name, LongColumnSelector selector, Predicate predicate)
+  public static LongSumAggregator create(final LongColumnSelector selector, final Predicate predicate)
   {
-    this.name = name;
-    this.selector = selector;
-    this.predicate = predicate;
-    this.sum = 0;
-  }
-
-  public LongSumAggregator(String name, LongColumnSelector selector)
-  {
-    this(name, selector, Predicates.alwaysTrue());
-  }
-
-  @Override
-  public void aggregate()
-  {
-    if (predicate.apply(null)) {
-      sum += selector.get();
+    if (predicate == null || predicate == Predicates.alwaysTrue()) {
+      return new LongSumAggregator()
+      {
+        @Override
+        public final void aggregate()
+        {
+          sum += selector.get();
+        }
+      };
+    } else {
+      return new LongSumAggregator()
+      {
+        @Override
+        public final void aggregate()
+        {
+          if (predicate.apply(null)) {
+            sum += selector.get();
+          }
+        }
+      };
     }
   }
 
@@ -104,13 +104,7 @@ public class LongSumAggregator implements Aggregator
   @Override
   public String getName()
   {
-    return name;
-  }
-
-  @Override
-  public Aggregator clone()
-  {
-    return new LongSumAggregator(name, selector);
+    return null;
   }
 
   @Override

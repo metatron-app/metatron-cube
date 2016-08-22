@@ -37,17 +37,7 @@ public abstract class DoubleMaxAggregator implements Aggregator
     return Math.max(((Number) lhs).doubleValue(), ((Number) rhs).doubleValue());
   }
 
-  final String name;
-  final Predicate predicate;
-
-  double max;
-
-  public DoubleMaxAggregator(String name, Predicate predicate)
-  {
-    this.name = name;
-    this.predicate = predicate == null ? Predicates.alwaysTrue() : predicate;
-    reset();
-  }
+  double max = Double.NEGATIVE_INFINITY;
 
   @Override
   public void reset()
@@ -82,7 +72,7 @@ public abstract class DoubleMaxAggregator implements Aggregator
   @Override
   public String getName()
   {
-    return this.name;
+    return null;
   }
 
   @Override
@@ -91,53 +81,53 @@ public abstract class DoubleMaxAggregator implements Aggregator
     // no resources to cleanup
   }
 
-  public static class FloatInput extends DoubleMaxAggregator
+  public static DoubleMaxAggregator create(final FloatColumnSelector selector, final Predicate predicate)
   {
-    private final FloatColumnSelector selector;
-
-    public FloatInput(String name, FloatColumnSelector selector, Predicate predicate)
-    {
-      super(name, predicate);
-      this.selector = selector;
-    }
-
-    @Override
-    public void aggregate()
-    {
-      if (predicate.apply(null)) {
-        max = Math.max(max, selector.get());
-      }
-    }
-
-    @Override
-    public Aggregator clone()
-    {
-      return new FloatInput(name, selector, predicate);
+    if (predicate == null || predicate == Predicates.alwaysTrue()) {
+      return new DoubleMaxAggregator()
+      {
+        @Override
+        public final void aggregate()
+        {
+          max = Math.max(max, selector.get());
+        }
+      };
+    } else {
+      return new DoubleMaxAggregator()
+      {
+        @Override
+        public final void aggregate()
+        {
+          if (predicate.apply(null)) {
+            max = Math.max(max, selector.get());
+          }
+        }
+      };
     }
   }
 
-  public static class DoubleInput extends DoubleMaxAggregator
+  public static DoubleMaxAggregator create(final DoubleColumnSelector selector, final Predicate predicate)
   {
-    private final DoubleColumnSelector selector;
-
-    public DoubleInput(String name, DoubleColumnSelector selector, Predicate predicate)
-    {
-      super(name, predicate);
-      this.selector = selector;
-    }
-
-    @Override
-    public void aggregate()
-    {
-      if (predicate.apply(null)) {
-        max = Math.max(max, selector.get());
-      }
-    }
-
-    @Override
-    public Aggregator clone()
-    {
-      return new DoubleInput(name, selector, predicate);
+    if (predicate == null || predicate == Predicates.alwaysTrue()) {
+      return new DoubleMaxAggregator()
+      {
+        @Override
+        public final void aggregate()
+        {
+          max = Math.max(max, selector.get());
+        }
+      };
+    } else {
+      return new DoubleMaxAggregator()
+      {
+        @Override
+        public final void aggregate()
+        {
+          if (predicate.apply(null)) {
+            max = Math.max(max, selector.get());
+          }
+        }
+      };
     }
   }
 }

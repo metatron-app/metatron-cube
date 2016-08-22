@@ -60,7 +60,8 @@ public class TimeseriesQueryEngine
           @Override
           public Result<TimeseriesResultValue> apply(Cursor cursor)
           {
-            Aggregator[] aggregators = QueryRunnerHelper.makeAggregators(cursor, aggregatorSpecs);
+            final String[] aggregatorNames = QueryRunnerHelper.makeAggregatorNames(aggregatorSpecs);
+            final Aggregator[] aggregators = QueryRunnerHelper.makeAggregators(cursor, aggregatorSpecs);
 
             if (skipEmptyBuckets && cursor.isDone()) {
               return null;
@@ -76,8 +77,8 @@ public class TimeseriesQueryEngine
 
               TimeseriesResultBuilder bob = new TimeseriesResultBuilder(cursor.getTime());
 
-              for (Aggregator aggregator : aggregators) {
-                bob.addMetric(aggregator);
+              for (int i = 0; i < aggregators.length; i++) {
+                bob.addMetric(aggregatorNames[i], aggregators[i]);
               }
 
               Result<TimeseriesResultValue> retVal = bob.build();
