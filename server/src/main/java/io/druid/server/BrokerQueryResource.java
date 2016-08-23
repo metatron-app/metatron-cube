@@ -66,6 +66,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -192,9 +193,9 @@ public class BrokerQueryResource extends QueryResource
         return Sequences.empty();
       }
       TabularFormat result = warehouse.getToolChest(query).toTabularFormat(res);
-      writer.write(uri, result, BaseQuery.getResultForwardContext(query));
+      Map<String, Object> info = writer.write(uri, result, BaseQuery.getResultForwardContext(query));
 
-      return Sequences.empty();
+      return Sequences.simple(Arrays.asList(info));
     }
 
     return super.toDispatchSequence(query, res);
