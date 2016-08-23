@@ -23,6 +23,7 @@ import io.druid.data.input.InputRow;
 import io.druid.segment.serde.ComplexMetricExtractor;
 
 import java.util.List;
+import java.util.regex.Pattern;
 
 public class VarianceCombinedSerde extends VarianceSerde
 {
@@ -31,6 +32,8 @@ public class VarianceCombinedSerde extends VarianceSerde
   {
     return new ComplexMetricExtractor()
     {
+      private final Pattern pattern = Pattern.compile(",");
+
       @Override
       public Class<VarianceAggregatorCollector> extractedClass()
       {
@@ -46,7 +49,7 @@ public class VarianceCombinedSerde extends VarianceSerde
           return (VarianceAggregatorCollector) rawValue;
         } else if (rawValue instanceof String) {
           String strValue = (String)rawValue;
-          String[] params = strValue.split(",");
+          String[] params = pattern.split(strValue);
           if (params.length == 3) {
             double nvar = Double.parseDouble(params[0].trim());
             long count = Long.parseLong(params[1].trim());
