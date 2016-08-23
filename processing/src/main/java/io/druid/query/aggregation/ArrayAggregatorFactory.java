@@ -216,4 +216,9 @@ public class ArrayAggregatorFactory extends AbstractArrayAggregatorFactory
     };
   }
 
+  @Override
+  public AggregatorFactory getCombiningFactory()
+  {
+    return new ArrayAggregatorFactory(delegate.getName(), delegate, limit);
+  }
 }

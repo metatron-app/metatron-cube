@@ -113,12 +113,6 @@ public abstract class AbstractArrayAggregatorFactory extends AggregatorFactory
   }
 
   @Override
-  public AggregatorFactory getCombiningFactory()
-  {
-    return new ArrayAggregatorFactory(delegate.getName(), delegate, limit);
-  }
-
-  @Override
   public List<AggregatorFactory> getRequiredColumns()
   {
     return delegate.getRequiredColumns();

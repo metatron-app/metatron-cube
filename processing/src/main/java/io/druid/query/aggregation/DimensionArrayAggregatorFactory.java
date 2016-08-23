@@ -362,4 +362,10 @@ public class DimensionArrayAggregatorFactory extends AbstractArrayAggregatorFact
       throw new UnsupportedOperationException("getColumnCapabilities");
     }
   }
+
+  @Override
+  public AggregatorFactory getCombiningFactory()
+  {
+    return new DimensionArrayAggregatorFactory(delegate.getName(), delegate, limit);
+  }
 }
