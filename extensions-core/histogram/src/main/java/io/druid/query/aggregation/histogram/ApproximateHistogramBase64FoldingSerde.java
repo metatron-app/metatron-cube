@@ -39,6 +39,8 @@ public class ApproximateHistogramBase64FoldingSerde extends ApproximateHistogram
   {
     return new ComplexMetricExtractor()
     {
+      private final Base64 base64 = new Base64();
+
       @Override
       public Class<ApproximateHistogram> extractedClass()
       {
@@ -55,9 +57,9 @@ public class ApproximateHistogramBase64FoldingSerde extends ApproximateHistogram
         }
         ApproximateHistogram histogram = new ApproximateHistogram();
         if (rawValue instanceof String) {
-          histogram.fromBytes(Base64.decodeBase64((String) rawValue));
+          histogram.fromBytes(base64.decode((String) rawValue));
         } else if (rawValue instanceof byte[]) {
-          histogram.fromBytes(Base64.decodeBase64((byte[]) rawValue));
+          histogram.fromBytes(base64.decode((byte[]) rawValue));
         } else if (rawValue instanceof ByteBuffer) {
           ByteBuffer buffer = (ByteBuffer)rawValue;
           byte[] array;
@@ -67,7 +69,7 @@ public class ApproximateHistogramBase64FoldingSerde extends ApproximateHistogram
             array = new byte[buffer.remaining()];
             buffer.get(array);
           }
-          histogram.fromBytes(Base64.decodeBase64(array));
+          histogram.fromBytes(base64.decode(array));
         } else {
           throw new IllegalArgumentException("Not supported type " + rawValue.getClass());
         }

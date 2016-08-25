@@ -23,7 +23,6 @@ import io.druid.data.input.InputRow;
 import io.druid.segment.serde.ComplexMetricExtractor;
 
 import java.util.List;
-import java.util.regex.Pattern;
 
 public class VarianceCombinedSerde extends VarianceSerde
 {
@@ -32,8 +31,6 @@ public class VarianceCombinedSerde extends VarianceSerde
   {
     return new ComplexMetricExtractor()
     {
-      private final Pattern pattern = Pattern.compile(",");
-
       @Override
       public Class<VarianceAggregatorCollector> extractedClass()
       {
@@ -48,13 +45,9 @@ public class VarianceCombinedSerde extends VarianceSerde
         if (rawValue instanceof VarianceAggregatorCollector) {
           return (VarianceAggregatorCollector) rawValue;
         } else if (rawValue instanceof String) {
-          String strValue = (String)rawValue;
-          String[] params = pattern.split(strValue);
-          if (params.length == 3) {
-            double nvar = Double.parseDouble(params[0].trim());
-            long count = Long.parseLong(params[1].trim());
-            double sum = Double.parseDouble(params[2].trim());
-            return new VarianceAggregatorCollector(count, sum, nvar);
+          VarianceAggregatorCollector variance = toVariance((String) rawValue);
+          if (variance != null) {
+            return variance;
           }
         }
         VarianceAggregatorCollector collector = new VarianceAggregatorCollector();
@@ -69,5 +62,19 @@ public class VarianceCombinedSerde extends VarianceSerde
         return collector;
       }
     };
+  }
+
+  // lessen cost of input.split(",")
+  private VarianceAggregatorCollector toVariance(String input)
+  {
+    final int index1 = input.indexOf(',');
+    final int index2 = input.indexOf(',', index1 + 1);
+    if (index1 < 0 || index2 < 0) {
+      return null;
+    }
+    double nvar = Double.parseDouble(input.substring(0, index1).trim());
+    long count = Long.parseLong(input.substring(index1 + 1, index2).trim());
+    double sum = Double.parseDouble(input.substring(index2 + 1).trim());
+    return new VarianceAggregatorCollector(count, sum, nvar);
   }
 }
