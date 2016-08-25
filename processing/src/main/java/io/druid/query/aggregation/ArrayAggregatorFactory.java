@@ -21,6 +21,7 @@ package io.druid.query.aggregation;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.collect.Lists;
+import io.druid.common.guava.DSuppliers;
 import io.druid.segment.ColumnSelectorFactories;
 import io.druid.segment.ColumnSelectorFactory;
 import io.druid.segment.ObjectColumnSelector;
@@ -54,6 +55,22 @@ public class ArrayAggregatorFactory extends AbstractArrayAggregatorFactory
   {
     final ObjectColumnSelector<List> selector = metricFactory.makeObjectColumnSelector(column);
 
+    final DSuppliers.HandOver<List> holder = new DSuppliers.HandOver<>();
+    final ObjectColumnSelector<List> memoized = new ObjectColumnSelector<List>()
+    {
+      @Override
+      public Class classOfObject()
+      {
+        return selector.classOfObject();
+      }
+
+      @Override
+      public List get()
+      {
+        return holder.get();
+      }
+    };
+
     return new Aggregators.MutableSizedAggregator()
     {
       private final List<Aggregator> aggregators = Lists.newArrayList();
@@ -61,8 +78,9 @@ public class ArrayAggregatorFactory extends AbstractArrayAggregatorFactory
       @Override
       public void aggregate()
       {
-        List value = selector.get();
+        final List value = selector.get();
         if (value != null && !value.isEmpty()) {
+          holder.set(value);
           for (Aggregator aggregator : getAggregators(value.size())) {
             aggregator.aggregate();
           }
@@ -123,7 +141,7 @@ public class ArrayAggregatorFactory extends AbstractArrayAggregatorFactory
       {
         final int min = Math.min(limit, size);
         for (int i = aggregators.size(); i < min; i++) {
-          aggregators.add(delegate.factorize(new ColumnSelectorFactories.FixedArrayIndexed(i, selector, elementClass)));
+          aggregators.add(delegate.factorize(new ColumnSelectorFactories.FixedArrayIndexed(i, memoized, elementClass)));
           increment(delegate.getMaxIntermediateSize());
         }
         return aggregators;
@@ -135,6 +153,22 @@ public class ArrayAggregatorFactory extends AbstractArrayAggregatorFactory
   public BufferAggregator factorizeBuffered(ColumnSelectorFactory metricFactory)
   {
     final ObjectColumnSelector<List> selector = metricFactory.makeObjectColumnSelector(column);
+
+    final DSuppliers.HandOver<List> holder = new DSuppliers.HandOver<>();
+    final ObjectColumnSelector<List> memoized = new ObjectColumnSelector<List>()
+    {
+      @Override
+      public Class classOfObject()
+      {
+        return selector.classOfObject();
+      }
+
+      @Override
+      public List get()
+      {
+        return holder.get();
+      }
+    };
 
     return new BufferAggregator()
     {
@@ -154,8 +188,9 @@ public class ArrayAggregatorFactory extends AbstractArrayAggregatorFactory
       @Override
       public void aggregate(ByteBuffer buf, int position)
       {
-        List value = selector.get();
+        final List value = selector.get();
         if (value != null && !value.isEmpty()) {
+          holder.set(value);
           for (BufferAggregator aggregator : getAggregators(buf, position, value.size())) {
             aggregator.aggregate(buf, position);
             position += delegate.getMaxIntermediateSize();
@@ -205,7 +240,7 @@ public class ArrayAggregatorFactory extends AbstractArrayAggregatorFactory
         final int min = Math.min(limit, size);
         for (int i = aggregators.size(); i < min; i++) {
           BufferAggregator factorize = delegate.factorizeBuffered(
-              new ColumnSelectorFactories.FixedArrayIndexed(i, selector, elementClass)
+              new ColumnSelectorFactories.FixedArrayIndexed(i, memoized, elementClass)
           );
           factorize.init(buf, position);
           position += delegate.getMaxIntermediateSize();
