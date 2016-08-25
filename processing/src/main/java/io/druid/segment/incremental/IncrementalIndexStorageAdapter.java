@@ -30,6 +30,7 @@ import com.google.common.collect.Maps;
 import com.google.common.primitives.Ints;
 import com.metamx.common.guava.Sequence;
 import com.metamx.common.guava.Sequences;
+import io.druid.cache.Cache;
 import io.druid.data.ValueType;
 import io.druid.granularity.QueryGranularity;
 import io.druid.math.expr.Expr;
@@ -38,7 +39,7 @@ import io.druid.math.expr.Parser;
 import io.druid.query.QueryInterruptedException;
 import io.druid.query.dimension.DimensionSpec;
 import io.druid.query.extraction.ExtractionFn;
-import io.druid.query.filter.Filter;
+import io.druid.query.filter.DimFilter;
 import io.druid.query.filter.ValueMatcher;
 import io.druid.query.filter.ValueMatcherFactory;
 import io.druid.segment.Capabilities;
@@ -185,10 +186,11 @@ public class IncrementalIndexStorageAdapter implements StorageAdapter
 
   @Override
   public Sequence<Cursor> makeCursors(
-      final Filter filter,
+      final DimFilter filter,
       final Interval interval,
       final VirtualColumns virtualColumns,
       final QueryGranularity gran,
+      final Cache cache,
       final boolean descending
   )
   {
@@ -695,11 +697,11 @@ public class IncrementalIndexStorageAdapter implements StorageAdapter
     return value == null;
   }
 
-  private ValueMatcher makeFilterMatcher(final Filter filter, final EntryHolder holder)
+  private ValueMatcher makeFilterMatcher(final DimFilter filter, final EntryHolder holder)
   {
     return filter == null
            ? BooleanValueMatcher.TRUE
-           : filter.makeMatcher(new EntryHolderValueMatcherFactory(holder));
+           : filter.toFilter().makeMatcher(new EntryHolderValueMatcherFactory(holder));
   }
 
   private static class EntryHolder

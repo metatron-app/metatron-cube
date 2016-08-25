@@ -30,6 +30,7 @@ import com.metamx.common.logger.Logger;
 import io.druid.benchmark.datagen.BenchmarkDataGenerator;
 import io.druid.benchmark.datagen.BenchmarkSchemaInfo;
 import io.druid.benchmark.datagen.BenchmarkSchemas;
+import io.druid.client.cache.MapCache;
 import io.druid.concurrent.Execs;
 import io.druid.data.input.InputRow;
 import io.druid.data.input.impl.DimensionsSpec;
@@ -106,6 +107,9 @@ public class TimeseriesBenchmark
 
   @Param({"basic.A"})
   private String schemaAndQuery;
+
+  @Param({"false"})
+  private boolean useFilterCache;
 
   private static final Logger log = new Logger(TimeseriesBenchmark.class);
   private static final int RNG_SEED = 9999;
@@ -235,7 +239,8 @@ public class TimeseriesBenchmark
             QueryBenchmarkUtil.NoopIntervalChunkingQueryRunnerDecorator()
         ),
         new TimeseriesQueryEngine(),
-        QueryBenchmarkUtil.NOOP_QUERYWATCHER
+        QueryBenchmarkUtil.NOOP_QUERYWATCHER,
+        useFilterCache ? MapCache.create(64 << 10) : null
     );
   }
 

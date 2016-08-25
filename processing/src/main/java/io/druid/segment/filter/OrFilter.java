@@ -21,6 +21,7 @@ package io.druid.segment.filter;
 
 import com.google.common.collect.Lists;
 import com.metamx.collections.bitmap.ImmutableBitmap;
+import io.druid.math.expr.Expression;
 import io.druid.query.filter.BitmapIndexSelector;
 import io.druid.query.filter.Filter;
 import io.druid.query.filter.ValueMatcher;
@@ -32,7 +33,7 @@ import java.util.List;
 
 /**
  */
-public class OrFilter extends Filter.WithDictionary implements Filter.Relational
+public class OrFilter extends Filter.WithDictionary implements Expression.OrExpression
 {
   public static Filter of(Filter... filters)
   {

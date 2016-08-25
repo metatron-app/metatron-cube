@@ -24,6 +24,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Joiner;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
+import io.druid.math.expr.Expression.AndExpression;
 import io.druid.query.Druids;
 import io.druid.segment.filter.AndFilter;
 import io.druid.segment.filter.Filters;
@@ -32,7 +33,7 @@ import java.util.List;
 
 /**
  */
-public class AndDimFilter implements DimFilter
+public class AndDimFilter implements DimFilter, AndExpression
 {
   public static DimFilter of(DimFilter... filters)
   {
@@ -76,6 +77,12 @@ public class AndDimFilter implements DimFilter
   public Filter toFilter()
   {
     return new AndFilter(Filters.toFilters(fields));
+  }
+
+  @Override
+  public List<DimFilter> getChildren()
+  {
+    return fields;
   }
 
   @Override

@@ -127,7 +127,7 @@ public class IncrementalIndexReadBenchmark
   public void read(Blackhole blackhole) throws Exception
   {
     IncrementalIndexStorageAdapter sa = new IncrementalIndexStorageAdapter(incIndex);
-    Sequence<Cursor> cursors = sa.makeCursors(null, schemaInfo.getDataInterval(), null, QueryGranularities.ALL, false);
+    Sequence<Cursor> cursors = sa.makeCursors(null, schemaInfo.getDataInterval(), null, QueryGranularities.ALL, null, false);
     Cursor cursor = Sequences.toList(Sequences.limit(cursors, 1), Lists.<Cursor>newArrayList()).get(0);
 
     List<DimensionSelector> selectors = new ArrayList<>();

@@ -41,7 +41,6 @@ import io.druid.segment.ObjectColumnSelector;
 import io.druid.segment.VirtualColumns;
 import io.druid.segment.column.Column;
 import io.druid.segment.data.IndexedInts;
-import io.druid.segment.filter.Filters;
 import io.druid.utils.Runnables;
 import org.joda.time.DateTime;
 
@@ -74,11 +73,11 @@ public class IngestSegmentFirehose implements Firehose
                 return Sequences.concat(
                     Sequences.map(
                         adapter.getAdapter().makeCursors(
-                            Filters.toFilter(dimFilter),
+                            dimFilter,
                             adapter.getInterval(),
                             VirtualColumns.EMPTY,
                             granularity,
-                            false
+                            null, false
                         ), new Function<Cursor, Sequence<InputRow>>()
                         {
                           @Nullable

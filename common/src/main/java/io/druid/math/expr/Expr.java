@@ -22,12 +22,13 @@ package io.druid.math.expr;
 import com.google.common.base.Strings;
 import com.google.common.math.LongMath;
 
+import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
 
 /**
  */
-public interface Expr
+public interface Expr extends Expression
 {
   ExprEval eval(NumericBinding bindings);
 
@@ -215,7 +216,7 @@ class UnaryMinusExpr implements Expr
   }
 }
 
-class UnaryNotExpr implements Expr
+class UnaryNotExpr implements Expr, Expression.NotExpression
 {
   final Expr expr;
 
@@ -241,6 +242,12 @@ class UnaryNotExpr implements Expr
   public String toString()
   {
     return "!" + expr.toString();
+  }
+
+  @Override
+  public Expr getChild()
+  {
+    return expr;
   }
 }
 
@@ -597,7 +604,7 @@ class BinNeqExpr extends BinaryNumericOpExprBase
   }
 }
 
-class BinAndExpr extends BinaryOpExprBase
+class BinAndExpr extends BinaryOpExprBase implements Expression.AndExpression
 {
   BinAndExpr(String op, Expr left, Expr right)
   {
@@ -610,9 +617,15 @@ class BinAndExpr extends BinaryOpExprBase
     ExprEval leftVal = left.eval(bindings);
     return leftVal.asBoolean() ? right.eval(bindings) : leftVal;
   }
+
+  @Override
+  public List<Expr> getChildren()
+  {
+    return Arrays.asList(left, right);
+  }
 }
 
-class BinOrExpr extends BinaryOpExprBase
+class BinOrExpr extends BinaryOpExprBase implements Expression.OrExpression
 {
   BinOrExpr(String op, Expr left, Expr right)
   {
@@ -625,9 +638,15 @@ class BinOrExpr extends BinaryOpExprBase
     ExprEval leftVal = left.eval(bindings);
     return leftVal.asBoolean() ? leftVal : right.eval(bindings);
   }
+
+  @Override
+  public List<Expr> getChildren()
+  {
+    return Arrays.asList(left, right);
+  }
 }
 
-class BinAndExpr2 extends BinaryNumericOpExprBase
+class BinAndExpr2 extends BinaryNumericOpExprBase implements Expression.AndExpression
 {
   BinAndExpr2(String op, Expr left, Expr right)
   {
@@ -644,9 +663,15 @@ class BinAndExpr2 extends BinaryNumericOpExprBase
   {
     return left > 0 && right > 0 ? 1.0d : 0.0d;
   }
+
+  @Override
+  public List<Expr> getChildren()
+  {
+    return Arrays.asList(left, right);
+  }
 }
 
-class BinOrExpr2 extends BinaryNumericOpExprBase
+class BinOrExpr2 extends BinaryNumericOpExprBase implements Expression.OrExpression
 {
   BinOrExpr2(String op, Expr left, Expr right)
   {
@@ -663,5 +688,11 @@ class BinOrExpr2 extends BinaryNumericOpExprBase
   protected double evalDouble(double left, double right)
   {
     return left > 0 || right > 0 ? 1.0d : 0.0d;
+  }
+
+  @Override
+  public List<Expr> getChildren()
+  {
+    return Arrays.asList(left, right);
   }
 }

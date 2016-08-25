@@ -27,9 +27,11 @@ import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
+import com.metamx.collections.bitmap.ImmutableBitmap;
 import com.metamx.common.guava.CloseQuietly;
 import com.metamx.common.guava.Sequence;
 import com.metamx.common.guava.Sequences;
+import io.druid.cache.Cache;
 import io.druid.data.ValueType;
 import io.druid.granularity.QueryGranularity;
 import io.druid.math.expr.Expr;
@@ -38,6 +40,7 @@ import io.druid.math.expr.Parser;
 import io.druid.query.QueryInterruptedException;
 import io.druid.query.dimension.DimensionSpec;
 import io.druid.query.extraction.ExtractionFn;
+import io.druid.query.filter.DimFilter;
 import io.druid.query.filter.Filter;
 import io.druid.query.filter.ValueMatcher;
 import io.druid.segment.column.BitmapIndex;
@@ -56,6 +59,7 @@ import org.joda.time.Interval;
 
 import java.io.Closeable;
 import java.io.IOException;
+import java.nio.ByteBuffer;
 import java.util.Iterator;
 import java.util.Map;
 
@@ -66,18 +70,23 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
   private static final NullDimensionSelector NULL_DIMENSION_SELECTOR = new NullDimensionSelector();
 
   private final QueryableIndex index;
+  private final String segmentId;
 
-  public QueryableIndexStorageAdapter(
-      QueryableIndex index
-  )
+  public QueryableIndexStorageAdapter(QueryableIndex index, String segmentId)
   {
     this.index = index;
+    this.segmentId = segmentId;
+  }
+
+  public QueryableIndexStorageAdapter(QueryableIndex index)
+  {
+    this(index, null);
   }
 
   @Override
   public String getSegmentIdentifier()
   {
-    throw new UnsupportedOperationException();
+    return segmentId;
   }
 
   @Override
@@ -198,10 +207,11 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
 
   @Override
   public Sequence<Cursor> makeCursors(
-      Filter filter,
+      DimFilter filter,
       Interval interval,
       VirtualColumns virtualColumns,
       QueryGranularity gran,
+      Cache cache,
       boolean descending
   )
   {
@@ -225,10 +235,10 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
       actualInterval = actualInterval.withEnd(dataInterval.getEnd());
     }
 
-    final Filter[] filters = Filters.partitionWithBitmapSupport(filter);
+    final DimFilter[] filters = Filters.partitionWithBitmapSupport(filter);
 
-    final Filter bitmapFilter = filters == null ? null : filters[0];
-    final Filter valuesFilter = filters == null ? null : filters[1];
+    final DimFilter bitmapFilter = filters == null ? null : filters[0];
+    final DimFilter valuesFilter = filters == null ? null : filters[1];
 
     final Offset offset;
     if (bitmapFilter == null) {
@@ -238,8 +248,26 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
           index.getBitmapFactoryForDimensions(),
           index
       );
-
-      offset = new BitmapOffset(selector.getBitmapFactory(), bitmapFilter.getBitmapIndex(selector), descending);
+      Cache.NamedKey key = null;
+        ImmutableBitmap bitmapIndex = null;
+        if (cache != null && segmentId != null) {
+          key = new Cache.NamedKey(segmentId, bitmapFilter.getCacheKey());
+          byte[] cached = cache.get(key);
+          if (cached != null) {
+            bitmapIndex = selector.getBitmapFactory().mapImmutableBitmap(ByteBuffer.wrap(cached));
+          }
+        }
+        if (bitmapIndex == null) {
+          bitmapIndex = bitmapFilter.toFilter().getBitmapIndex(selector);
+          if (key != null) {
+            cache.put(key, bitmapIndex.toBytes());
+          }
+        }
+        offset = new BitmapOffset(
+            selector.getBitmapFactory(),
+            bitmapIndex,
+            descending
+        );
     }
 
     return Sequences.filter(
@@ -249,7 +277,7 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
             virtualColumns,
             gran,
             offset,
-            valuesFilter,
+            valuesFilter == null ? null : valuesFilter.toFilter(),
             minDataTimestamp,
             maxDataTimestamp,
             descending

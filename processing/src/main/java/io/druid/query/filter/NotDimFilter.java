@@ -22,6 +22,7 @@ package io.druid.query.filter;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;
+import io.druid.math.expr.Expression.NotExpression;
 import io.druid.query.Druids;
 import io.druid.segment.filter.NotFilter;
 
@@ -29,7 +30,7 @@ import java.nio.ByteBuffer;
 
 /**
  */
-public class NotDimFilter implements DimFilter
+public class NotDimFilter implements DimFilter, NotExpression
 {
   final private DimFilter field;
 
@@ -66,6 +67,12 @@ public class NotDimFilter implements DimFilter
   public Filter toFilter()
   {
     return new NotFilter(field.toFilter());
+  }
+
+  @Override
+  public DimFilter getChild()
+  {
+    return field;
   }
 
   @Override

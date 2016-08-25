@@ -26,6 +26,8 @@ import com.google.inject.Inject;
 import com.metamx.common.ISE;
 import com.metamx.common.guava.Sequence;
 import com.metamx.common.logger.Logger;
+import io.druid.cache.BitmapCache;
+import io.druid.cache.Cache;
 import io.druid.collections.StupidPool;
 import io.druid.data.input.Row;
 import io.druid.guice.annotations.Global;
@@ -53,6 +55,10 @@ public class GroupByQueryRunnerFactory implements QueryRunnerFactory<Row, GroupB
   private final GroupByQueryQueryToolChest toolChest;
   private final StupidPool<ByteBuffer> computationBufferPool;
 
+  @BitmapCache
+  @Inject(optional = true)
+  private Cache cache;
+
   @Inject
   public GroupByQueryRunnerFactory(
       GroupByQueryEngine engine,
@@ -62,17 +68,30 @@ public class GroupByQueryRunnerFactory implements QueryRunnerFactory<Row, GroupB
       @Global StupidPool<ByteBuffer> computationBufferPool
   )
   {
+    this(engine, queryWatcher, config, toolChest, computationBufferPool, null);
+  }
+
+  public GroupByQueryRunnerFactory(
+      GroupByQueryEngine engine,
+      QueryWatcher queryWatcher,
+      Supplier<GroupByQueryConfig> config,
+      GroupByQueryQueryToolChest toolChest,
+      @Global StupidPool<ByteBuffer> computationBufferPool,
+      Cache cache
+  )
+  {
     this.engine = engine;
     this.queryWatcher = queryWatcher;
     this.config = config;
     this.toolChest = toolChest;
     this.computationBufferPool = computationBufferPool;
+    this.cache = cache;
   }
 
   @Override
   public QueryRunner<Row> createRunner(final Segment segment)
   {
-    return new GroupByQueryRunner(segment, engine);
+    return new GroupByQueryRunner(segment, engine, cache);
   }
 
   @Override
@@ -93,11 +112,13 @@ public class GroupByQueryRunnerFactory implements QueryRunnerFactory<Row, GroupB
   {
     private final StorageAdapter adapter;
     private final GroupByQueryEngine engine;
+    private final Cache cache;
 
-    public GroupByQueryRunner(Segment segment, final GroupByQueryEngine engine)
+    public GroupByQueryRunner(Segment segment, GroupByQueryEngine engine, Cache cache)
     {
       this.adapter = segment.asStorageAdapter();
       this.engine = engine;
+      this.cache = cache;
     }
 
     @Override
@@ -107,7 +128,7 @@ public class GroupByQueryRunnerFactory implements QueryRunnerFactory<Row, GroupB
         throw new ISE("Got a [%s] which isn't a %s", input.getClass(), GroupByQuery.class);
       }
 
-      return engine.process((GroupByQuery) input, adapter);
+      return engine.process((GroupByQuery) input, adapter, cache);
     }
   }
 }

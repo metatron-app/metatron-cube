@@ -20,14 +20,17 @@
 package io.druid.query.filter;
 
 import com.metamx.collections.bitmap.ImmutableBitmap;
+import io.druid.math.expr.Expression;
 import io.druid.segment.ColumnSelectorFactory;
-import io.druid.segment.filter.Filters;
+import io.druid.segment.filter.AndFilter;
+import io.druid.segment.filter.NotFilter;
+import io.druid.segment.filter.OrFilter;
 
 import java.util.List;
 
 /**
  */
-public interface Filter
+public interface Filter extends Expression
 {
   ValueMatcher makeMatcher(ValueMatcherFactory factory);
 
@@ -62,9 +65,25 @@ public interface Filter
     }
   }
 
-  // marker for and/or/not
-  interface Relational extends Filter
+  // factory
+  class Factory implements Expression.Factory<Filter>
   {
-    List<Filter> getChildren();
+    @Override
+    public Filter or(List<Filter> children)
+    {
+      return new OrFilter(children);
+    }
+
+    @Override
+    public Filter and(List<Filter> children)
+    {
+      return new AndFilter(children);
+    }
+
+    @Override
+    public Filter not(Filter expression)
+    {
+      return new NotFilter(expression);
+    }
   }
 }

@@ -22,6 +22,8 @@ package io.druid.query.timeseries;
 import com.google.inject.Inject;
 import com.metamx.common.ISE;
 import com.metamx.common.guava.Sequence;
+import io.druid.cache.BitmapCache;
+import io.druid.cache.Cache;
 import io.druid.query.ChainedExecutionQueryRunner;
 import io.druid.query.Query;
 import io.druid.query.QueryRunner;
@@ -44,22 +46,35 @@ public class TimeseriesQueryRunnerFactory
   private final TimeseriesQueryEngine engine;
   private final QueryWatcher queryWatcher;
 
+  @BitmapCache
+  @Inject(optional = true)
+  private Cache cache;
+
   @Inject
   public TimeseriesQueryRunnerFactory(
       TimeseriesQueryQueryToolChest toolChest,
       TimeseriesQueryEngine engine,
-      QueryWatcher queryWatcher
+      QueryWatcher queryWatcher) {
+    this(toolChest, engine, queryWatcher, null);
+  }
+
+  public TimeseriesQueryRunnerFactory(
+      TimeseriesQueryQueryToolChest toolChest,
+      TimeseriesQueryEngine engine,
+      QueryWatcher queryWatcher,
+      Cache cache
   )
   {
     this.toolChest = toolChest;
     this.engine = engine;
     this.queryWatcher = queryWatcher;
+    this.cache = cache;
   }
 
   @Override
   public QueryRunner<Result<TimeseriesResultValue>> createRunner(final Segment segment)
   {
-    return new TimeseriesQueryRunner(engine, segment.asStorageAdapter());
+    return new TimeseriesQueryRunner(engine, segment.asStorageAdapter(), cache);
   }
 
   @Override
@@ -82,11 +97,13 @@ public class TimeseriesQueryRunnerFactory
   {
     private final TimeseriesQueryEngine engine;
     private final StorageAdapter adapter;
+    private final Cache cache;
 
-    private TimeseriesQueryRunner(TimeseriesQueryEngine engine, StorageAdapter adapter)
+    private TimeseriesQueryRunner(TimeseriesQueryEngine engine, StorageAdapter adapter, Cache cache)
     {
       this.engine = engine;
       this.adapter = adapter;
+      this.cache = cache;
     }
 
     @Override
@@ -99,7 +116,7 @@ public class TimeseriesQueryRunnerFactory
         throw new ISE("Got a [%s] which isn't a %s", input.getClass(), TimeseriesQuery.class);
       }
 
-      return engine.process((TimeseriesQuery) input, adapter);
+      return engine.process((TimeseriesQuery) input, adapter, cache);
     }
   }
 }

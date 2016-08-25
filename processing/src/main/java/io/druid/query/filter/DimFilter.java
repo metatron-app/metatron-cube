@@ -21,6 +21,9 @@ package io.druid.query.filter;
 
 import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
+import io.druid.math.expr.Expression;
+
+import java.util.List;
 
 /**
  */
@@ -40,7 +43,7 @@ import com.fasterxml.jackson.annotation.JsonTypeInfo;
     @JsonSubTypes.Type(name="math", value=MathExprFilter.class)
 
 })
-public interface DimFilter
+public interface DimFilter extends Expression
 {
   public byte[] getCacheKey();
 
@@ -57,4 +60,25 @@ public interface DimFilter
    * @return a Filter that implements this DimFilter, or null if this DimFilter is a no-op.
    */
   public Filter toFilter();
+
+  class Factory implements Expression.Factory<DimFilter>
+  {
+    @Override
+    public DimFilter or(List<DimFilter> children)
+    {
+      return new OrDimFilter(children);
+    }
+
+    @Override
+    public DimFilter and(List<DimFilter> children)
+    {
+      return new AndDimFilter(children);
+    }
+
+    @Override
+    public DimFilter not(DimFilter expression)
+    {
+      return new NotDimFilter(expression);
+    }
+  }
 }

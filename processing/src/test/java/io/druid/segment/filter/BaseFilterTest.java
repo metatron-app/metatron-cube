@@ -35,7 +35,6 @@ import io.druid.query.aggregation.CountAggregatorFactory;
 import io.druid.query.aggregation.FilteredAggregatorFactory;
 import io.druid.query.dimension.DefaultDimensionSpec;
 import io.druid.query.filter.DimFilter;
-import io.druid.query.filter.Filter;
 import io.druid.segment.Cursor;
 import io.druid.segment.DimensionSelector;
 import io.druid.segment.IndexBuilder;
@@ -261,13 +260,14 @@ public abstract class BaseFilterTest
     return optimize ? dimFilter.optimize() : dimFilter;
   }
 
-  private Sequence<Cursor> makeCursorSequence(final Filter filter)
+  protected Sequence<Cursor> makeCursorSequence(final DimFilter filter)
   {
     final Sequence<Cursor> cursors = adapter.makeCursors(
         filter,
         new Interval(JodaUtils.MIN_INSTANT, JodaUtils.MAX_INSTANT),
         VirtualColumns.EMPTY,
         QueryGranularities.ALL,
+        null,
         false
     );
 
@@ -279,7 +279,7 @@ public abstract class BaseFilterTest
    */
   protected List<String> selectColumnValuesMatchingFilter(final DimFilter filter, final String selectColumn)
   {
-    final Sequence<Cursor> cursors = makeCursorSequence(Filters.toFilter(maybeOptimize(filter)));
+    final Sequence<Cursor> cursors = makeCursorSequence(maybeOptimize(filter));
     Sequence<List<String>> seq = Sequences.map(
         cursors,
         new Function<Cursor, List<String>>()
@@ -309,7 +309,7 @@ public abstract class BaseFilterTest
 
   protected long selectCountUsingFilteredAggregator(final DimFilter filter)
   {
-    final Sequence<Cursor> cursors = makeCursorSequence(Filters.toFilter(maybeOptimize(filter)));
+    final Sequence<Cursor> cursors = makeCursorSequence(maybeOptimize(filter));
     Sequence<Aggregator> aggSeq = Sequences.map(
         cursors,
         new Function<Cursor, Aggregator>()

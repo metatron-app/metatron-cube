@@ -27,12 +27,13 @@ import com.google.common.collect.Lists;
 import io.druid.query.Druids;
 import io.druid.segment.filter.Filters;
 import io.druid.segment.filter.OrFilter;
+import io.druid.math.expr.Expression.OrExpression;
 
 import java.util.List;
 
 /**
  */
-public class OrDimFilter implements DimFilter
+public class OrDimFilter implements DimFilter, OrExpression
 {
   public static DimFilter of(DimFilter... filters)
   {
@@ -76,6 +77,12 @@ public class OrDimFilter implements DimFilter
   public Filter toFilter()
   {
     return new OrFilter(Filters.toFilters(fields));
+  }
+
+  @Override
+  public List<DimFilter> getChildren()
+  {
+    return fields;
   }
 
   @Override

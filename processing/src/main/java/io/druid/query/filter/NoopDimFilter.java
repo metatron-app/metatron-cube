@@ -19,6 +19,10 @@
 
 package io.druid.query.filter;
 
+import com.metamx.collections.bitmap.ImmutableBitmap;
+import io.druid.segment.ColumnSelectorFactory;
+import io.druid.segment.filter.BooleanValueMatcher;
+
 import java.nio.ByteBuffer;
 
 /**
@@ -40,6 +44,31 @@ public class NoopDimFilter implements DimFilter
   @Override
   public Filter toFilter()
   {
-    return null;
+    return new Filter()
+    {
+      @Override
+      public ImmutableBitmap getBitmapIndex(BitmapIndexSelector selector)
+      {
+        throw new UnsupportedOperationException("getBitmapIndex");
+      }
+
+      @Override
+      public ValueMatcher makeMatcher(ColumnSelectorFactory columnSelectorFactory)
+      {
+        return new BooleanValueMatcher(true);
+      }
+
+      @Override
+      public ValueMatcher makeMatcher(ValueMatcherFactory factory)
+      {
+        return new BooleanValueMatcher(true);
+      }
+
+      @Override
+      public boolean supportsBitmap()
+      {
+        return false;
+      }
+    };
   }
 }

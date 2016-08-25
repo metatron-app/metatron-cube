@@ -260,6 +260,7 @@ public class SegmentAnalyzer
               new Interval(start, end),
               VirtualColumns.EMPTY,
               QueryGranularities.ALL,
+              null,
               false
           );
 

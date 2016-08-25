@@ -20,6 +20,8 @@
 package io.druid.segment.filter;
 
 import com.metamx.collections.bitmap.ImmutableBitmap;
+import io.druid.math.expr.Expression;
+import io.druid.math.expr.Expression.NotExpression;
 import io.druid.query.filter.BitmapIndexSelector;
 import io.druid.query.filter.Filter;
 import io.druid.query.filter.ValueMatcher;
@@ -31,7 +33,7 @@ import java.util.List;
 
 /**
  */
-public class NotFilter extends Filter.WithDictionary implements Filter.Relational
+public class NotFilter extends Filter.WithDictionary implements Expression.NotExpression
 {
   public static Filter of(Filter filter)
   {
@@ -98,14 +100,14 @@ public class NotFilter extends Filter.WithDictionary implements Filter.Relationa
   }
 
   @Override
-  public List<Filter> getChildren()
-  {
-    return Arrays.asList(baseFilter);
-  }
-
-  @Override
   public String toString()
   {
     return "NOT " + baseFilter;
+  }
+
+  @Override
+  public Filter getChild()
+  {
+    return baseFilter;
   }
 }

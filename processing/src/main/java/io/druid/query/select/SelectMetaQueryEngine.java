@@ -27,12 +27,10 @@ import com.metamx.common.ISE;
 import com.metamx.common.guava.Sequence;
 import io.druid.query.QueryRunnerHelper;
 import io.druid.query.Result;
-import io.druid.query.filter.Filter;
 import io.druid.segment.Cursor;
 import io.druid.segment.Segment;
 import io.druid.segment.StorageAdapter;
 import io.druid.segment.VirtualColumns;
-import io.druid.segment.filter.Filters;
 import org.joda.time.Interval;
 
 import java.util.List;
@@ -55,7 +53,6 @@ public class SelectMetaQueryEngine
     Preconditions.checkArgument(intervals.size() == 1, "Can only handle a single interval, got[%s]", intervals);
 
     final String identifier = segment.getIdentifier();
-    final Filter filter = Filters.toFilter(query.getDimensionsFilter());
 
     StorageAdapter storageAdapter = segment.asStorageAdapter();
     final List<String> dimensions = Lists.newArrayList(storageAdapter.getAvailableDimensions());
@@ -65,7 +62,8 @@ public class SelectMetaQueryEngine
         adapter,
         intervals,
         VirtualColumns.EMPTY,
-        filter,
+        query.getDimensionsFilter(),
+        null,
         query.isDescending(),
         query.getGranularity(),
         new Function<Cursor, Result<SelectMetaResultValue>>()
