@@ -32,6 +32,7 @@ import io.druid.common.utils.JodaUtils;
 import io.druid.common.utils.StringUtils;
 import io.druid.guice.LocalDataStorageDruidModule;
 import io.druid.guice.annotations.Json;
+import io.druid.guice.annotations.Self;
 import io.druid.guice.annotations.Smile;
 import io.druid.query.BaseQuery;
 import io.druid.query.DataSource;
@@ -76,6 +77,7 @@ import java.util.Map;
 @Path("/druid/v2/")
 public class BrokerQueryResource extends QueryResource
 {
+  private final DruidNode node;
   private final TimelineServerView brokerServerView;
   private final QueryToolChestWarehouse warehouse;
   private final Map<String, ResultWriter> writerMap;
@@ -85,6 +87,7 @@ public class BrokerQueryResource extends QueryResource
       ServerConfig config,
       @Json ObjectMapper jsonMapper,
       @Smile ObjectMapper smileMapper,
+      @Self DruidNode node,
       QuerySegmentWalker texasRanger,
       QueryToolChestWarehouse warehouse,
       ServiceEmitter emitter,
@@ -96,6 +99,7 @@ public class BrokerQueryResource extends QueryResource
   )
   {
     super(config, jsonMapper, smileMapper, texasRanger, emitter, requestLogger, queryManager, authConfig);
+    this.node = node;
     this.brokerServerView = brokerServerView;
     this.warehouse = warehouse;
     this.writerMap = writerMap;
@@ -180,16 +184,20 @@ public class BrokerQueryResource extends QueryResource
       URI uri;
       try {
         uri = new URI(forwardURL);
+        String scheme = uri.getScheme() == null ? LocalDataStorageDruidModule.FILE_SCHEME : uri.getScheme();
+        if (scheme.equals(LocalDataStorageDruidModule.FILE_SCHEME) ||
+            scheme.equals(LocalDataStorageDruidModule.SCHEME)) {
+          uri = rewriteURI(uri, LocalDataStorageDruidModule.FILE_SCHEME);
+        }
       }
       catch (URISyntaxException e) {
         log.warn("Invalid uri `" + forwardURL + "`", e);
         return Sequences.empty();
       }
-      String scheme = uri.getScheme() == null ? LocalDataStorageDruidModule.SCHEME : uri.getScheme();
 
-      ResultWriter writer = writerMap.get(scheme);
+      ResultWriter writer = writerMap.get(uri.getScheme());
       if (writer == null) {
-        log.warn("Unsupported scheme `" + scheme + "`");
+        log.warn("Unsupported scheme `" + uri.getScheme() + "`");
         return Sequences.empty();
       }
       TabularFormat result = warehouse.getToolChest(query).toTabularFormat(res);
@@ -199,5 +207,18 @@ public class BrokerQueryResource extends QueryResource
     }
 
     return super.toDispatchSequence(query, res);
+  }
+
+  private URI rewriteURI(URI uri, String scheme) throws URISyntaxException
+  {
+    return new URI(
+        scheme,
+        uri.getUserInfo(),
+        node.getHost(),
+        node.getPort(),
+        uri.getPath(),
+        uri.getQuery(),
+        uri.getFragment()
+    );
   }
 }
