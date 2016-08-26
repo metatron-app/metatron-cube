@@ -177,6 +177,9 @@ public abstract class VarianceBufferAggregator implements BufferAggregator
     public void aggregate(ByteBuffer buf, int position)
     {
       VarianceAggregatorCollector holder2 = (VarianceAggregatorCollector) selector.get();
+      if (holder2 == null || holder2.count == 0) {
+        return;
+      }
 
       long count = buf.getLong(position + COUNT_OFFSET);
       if (count == 0) {
