@@ -290,7 +290,7 @@ public class OnheapIncrementalIndex extends IncrementalIndex<Aggregator>
     if (arrayAggregatorIndices.length > 0) {
       for (Aggregator[] array : aggregators.values()) {
         for (int index : arrayAggregatorIndices) {
-          estimation += ((Aggregators.MutableSizedAggregator)array[index]).sizeDelta();
+          estimation += ((Aggregators.MutableSizedAggregator)array[index]).currentSize();
         }
       }
     }

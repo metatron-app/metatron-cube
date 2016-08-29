@@ -185,4 +185,9 @@ public abstract class AggregatorFactory implements Cacheable
            ? null
            : mergedAggregators.values().toArray(new AggregatorFactory[mergedAggregators.size()]);
   }
+
+  // this factory returns MutableSizedAggregator for ingestion
+  public static interface MutableSized
+  {
+  }
 }

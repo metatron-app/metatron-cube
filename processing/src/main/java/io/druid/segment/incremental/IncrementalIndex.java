@@ -48,7 +48,6 @@ import io.druid.granularity.QueryGranularity;
 import io.druid.math.expr.Expr;
 import io.druid.math.expr.ExprEval;
 import io.druid.math.expr.Parser;
-import io.druid.query.aggregation.AbstractArrayAggregatorFactory;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.PostAggregator;
 import io.druid.query.aggregation.PostAggregators;
@@ -57,10 +56,10 @@ import io.druid.query.extraction.ExtractionFn;
 import io.druid.segment.ColumnSelectorFactory;
 import io.druid.segment.DimensionSelector;
 import io.druid.segment.DoubleColumnSelector;
+import io.druid.segment.ExprEvalColumnSelector;
 import io.druid.segment.FloatColumnSelector;
 import io.druid.segment.LongColumnSelector;
 import io.druid.segment.Metadata;
-import io.druid.segment.ExprEvalColumnSelector;
 import io.druid.segment.ObjectColumnSelector;
 import io.druid.segment.column.Column;
 import io.druid.segment.column.ColumnCapabilities;
@@ -525,7 +524,7 @@ public abstract class IncrementalIndex<AggregatorType> implements Iterable<Row>,
     }
     int length = 0;
     for (int i = 0; i < metrics.length; i++) {
-      if (!(metrics[i] instanceof AbstractArrayAggregatorFactory)) {
+      if (!(metrics[i] instanceof AggregatorFactory.MutableSized)) {
         length += metrics[i].getMaxIntermediateSize();
       }
     }

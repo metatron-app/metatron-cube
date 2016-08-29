@@ -31,7 +31,7 @@ import java.util.List;
 
 /**
  */
-public class ArrayAggregatorFactory extends AbstractArrayAggregatorFactory
+public class ArrayAggregatorFactory extends AbstractArrayAggregatorFactory implements AggregatorFactory.MutableSized
 {
   private static final byte CACHE_TYPE_ID = 0x7F;
 
