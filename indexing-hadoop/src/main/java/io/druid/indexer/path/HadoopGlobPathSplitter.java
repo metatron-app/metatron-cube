@@ -21,6 +21,7 @@ package io.druid.indexer.path;
 
 import com.google.common.base.Functions;
 import com.google.common.collect.Iterables;
+import com.google.common.collect.Lists;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -34,9 +35,9 @@ public class HadoopGlobPathSplitter
    * e.g. splitGlob("/a,/b") -> ["/a","/b"]
    * splitGlob("/a/{c,d}") -> ["/a/c", "/a/d"]
    */
-  public static Iterable<String> splitGlob(String path)
+  public static List<String> splitGlob(String path)
   {
-    return Iterables.transform(splitGlob(new CharStream(path)), Functions.toStringFunction());
+    return Lists.transform(splitGlob(new CharStream(path)), Functions.toStringFunction());
   }
 
   private static List<StringBuilder> splitGlob(CharStream path)
