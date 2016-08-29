@@ -67,6 +67,7 @@ import io.druid.query.dimension.DefaultDimensionSpec;
 import io.druid.query.dimension.DimensionSpec;
 import io.druid.query.extraction.ExtractionFn;
 import io.druid.query.filter.DimFilter;
+import io.druid.query.select.EventHolder;
 import io.druid.query.spec.MultipleIntervalSegmentSpec;
 import io.druid.segment.incremental.IncrementalIndex;
 import io.druid.segment.incremental.IncrementalIndexStorageAdapter;
@@ -656,9 +657,14 @@ public class GroupByQueryQueryToolChest extends QueryToolChest<Row, GroupByQuery
             sequence, new Function<Row, Map<String, Object>>()
             {
               @Override
-              public Map<String, Object> apply(@Nullable Row input)
+              public Map<String, Object> apply(Row input)
               {
-                return ((MapBasedRow) input).getEvent();
+                Map<String, Object> event = ((MapBasedRow) input).getEvent();
+                if (!MapBasedRow.supportInplaceUpdate(event)) {
+                  event = Maps.newLinkedHashMap(event);
+                }
+                event.put(EventHolder.timestampKey, input.getTimestamp());
+                return event;
               }
             }
         );
