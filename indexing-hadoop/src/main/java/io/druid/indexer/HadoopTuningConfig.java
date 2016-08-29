@@ -55,7 +55,7 @@ public class HadoopTuningConfig implements TuningConfig
         DEFAULT_SHARD_SPECS,
         DEFAULT_INDEX_SPEC,
         DEFAULT_ROW_FLUSH_BOUNDARY,
-        -1,
+        -1L,
         false,
         true,
         false,
@@ -75,7 +75,7 @@ public class HadoopTuningConfig implements TuningConfig
   private final Map<DateTime, List<HadoopyShardSpec>> shardSpecs;
   private final IndexSpec indexSpec;
   private final int rowFlushBoundary;
-  private final int maxOccupationInMemory;
+  private final long maxOccupationInMemory;
   private final boolean leaveIntermediate;
   private final Boolean cleanupOnFailure;
   private final boolean overwriteFiles;
@@ -94,7 +94,7 @@ public class HadoopTuningConfig implements TuningConfig
       final @JsonProperty("shardSpecs") Map<DateTime, List<HadoopyShardSpec>> shardSpecs,
       final @JsonProperty("indexSpec") IndexSpec indexSpec,
       final @JsonProperty("maxRowsInMemory") Integer maxRowsInMemory,
-      final @JsonProperty("maxOccupationInMemory") Integer maxOccupationInMemory,
+      final @JsonProperty("maxOccupationInMemory") Long maxOccupationInMemory,
       final @JsonProperty("leaveIntermediate") boolean leaveIntermediate,
       final @JsonProperty("cleanupOnFailure") Boolean cleanupOnFailure,
       final @JsonProperty("overwriteFiles") boolean overwriteFiles,
@@ -206,7 +206,7 @@ public class HadoopTuningConfig implements TuningConfig
   }
 
   @JsonProperty("maxOccupationInMemory")
-  public int getMaxOccupationInMemory()
+  public long getMaxOccupationInMemory()
   {
     return maxOccupationInMemory;
   }

@@ -787,9 +787,9 @@ public abstract class IncrementalIndex<AggregatorType> implements Iterable<Row>,
     return numEntries.get();
   }
 
-  public int estimatedOccupation()
+  public long estimatedOccupation()
   {
-    int occupation = maxLengthForAggregators * getFacts().size();
+    long occupation = maxLengthForAggregators * getFacts().size();
     for (DimensionDesc dimensionDesc : dimensionDescs.values()) {
       occupation += dimensionDesc.getValues().estimatedSize();
     }

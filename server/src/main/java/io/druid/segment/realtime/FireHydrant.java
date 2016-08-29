@@ -65,7 +65,7 @@ public class FireHydrant
     }
   }
 
-  public int estimatedOccupation() {
+  public long estimatedOccupation() {
     synchronized (swapLock) {
       return index == null ? 0 : index.estimatedOccupation();
     }

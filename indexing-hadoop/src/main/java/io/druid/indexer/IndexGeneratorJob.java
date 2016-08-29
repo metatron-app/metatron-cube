@@ -613,7 +613,7 @@ public class IndexGeneratorJob implements Jobby
       final Interval interval = config.getGranularitySpec().bucketInterval(bucket.time).get();
       final HadoopTuningConfig tuningConfig = config.getSchema().getTuningConfig();
       final int limit = tuningConfig.getRowFlushBoundary();
-      final int maxOccupation = tuningConfig.getMaxOccupationInMemory();
+      final long maxOccupation = tuningConfig.getMaxOccupationInMemory();
       final int occupationCheckInterval = 2000;
 
       ListeningExecutorService persistExecutor = null;
@@ -689,7 +689,7 @@ public class IndexGeneratorJob implements Jobby
             flush |= numRows >= limit;
             groupCount.increment(1);
             if (groupCount.getValue() % occupationCheckInterval == 0) {
-              int estimation = index.estimatedOccupation();
+              long estimation = index.estimatedOccupation();
               log.info("... %,d rows in index with estimated size %,d bytes", index.size(), estimation);
               if (!flush && maxOccupation > 0 && estimation >= maxOccupation) {
                 log.info("flushing index because estimated size is bigger than %,d", maxOccupation);

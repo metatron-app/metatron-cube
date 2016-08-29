@@ -40,7 +40,7 @@ import java.io.File;
 public class RealtimeTuningConfig implements TuningConfig, AppenderatorConfig
 {
   private static final int defaultMaxRowsInMemory = 75000;
-  private static final int defaultMaxOccupationInMemory = 64 << 20;
+  private static final long defaultMaxOccupationInMemory = 64 << 20;
   private static final Period defaultIntermediatePersistPeriod = new Period("PT10M");
   private static final Period defaultWindowPeriod = new Period("PT10M");
   private static final VersioningPolicy defaultVersioningPolicy = new IntervalStartVersioningPolicy();
@@ -80,7 +80,7 @@ public class RealtimeTuningConfig implements TuningConfig, AppenderatorConfig
   }
 
   private final int maxRowsInMemory;
-  private final int maxOccupationInMemory;
+  private final long maxOccupationInMemory;
   private final Period intermediatePersistPeriod;
   private final Period windowPeriod;
   private final File basePersistDirectory;
@@ -98,7 +98,7 @@ public class RealtimeTuningConfig implements TuningConfig, AppenderatorConfig
   @JsonCreator
   public RealtimeTuningConfig(
       @JsonProperty("maxRowsInMemory") Integer maxRowsInMemory,
-      @JsonProperty("maxOccupationInMemory") Integer maxOccupationInMemory,
+      @JsonProperty("maxOccupationInMemory") Long maxOccupationInMemory,
       @JsonProperty("intermediatePersistPeriod") Period intermediatePersistPeriod,
       @JsonProperty("windowPeriod") Period windowPeriod,
       @JsonProperty("basePersistDirectory") File basePersistDirectory,
@@ -149,7 +149,7 @@ public class RealtimeTuningConfig implements TuningConfig, AppenderatorConfig
   }
 
   @JsonProperty
-  public int getMaxOccupationInMemory()
+  public long getMaxOccupationInMemory()
   {
     return maxOccupationInMemory;
   }

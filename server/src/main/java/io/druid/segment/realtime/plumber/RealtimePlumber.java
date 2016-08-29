@@ -257,9 +257,9 @@ public class RealtimePlumber implements Plumber
     return size;
   }
 
-  private int occupationInMemory()
+  private long occupationInMemory()
   {
-    int size = 0;
+    long size = 0;
     for (Sink aSink : sinks.values()) {
       size += aSink.occupationInMemory();
     }

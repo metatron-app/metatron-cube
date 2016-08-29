@@ -174,7 +174,7 @@ public class Sink implements Iterable<FireHydrant>
     }
   }
 
-  public int occupationInMemory()
+  public long occupationInMemory()
   {
     synchronized (hydrantLock) {
       return currHydrant.estimatedOccupation();

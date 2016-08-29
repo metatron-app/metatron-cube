@@ -284,9 +284,9 @@ public class OnheapIncrementalIndex extends IncrementalIndex<Aggregator>
   }
 
   @Override
-  public int estimatedOccupation()
+  public long estimatedOccupation()
   {
-    int estimation = super.estimatedOccupation();
+    long estimation = super.estimatedOccupation();
     if (arrayAggregatorIndices.length > 0) {
       for (Aggregator[] array : aggregators.values()) {
         for (int index : arrayAggregatorIndices) {
