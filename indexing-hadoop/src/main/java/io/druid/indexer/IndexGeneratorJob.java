@@ -545,8 +545,8 @@ public class IndexGeneratorJob implements Jobby
     {
       flushedIndex.increment(1);
       log.info(
-          "flushing index.. %,d rows with estimated size %,d bytes (%s ~ %s)",
-          index.size(), index.estimatedOccupation(), index.getMinTime(), index.getMaxTime()
+          "flushing index.. %,d rows with estimated size %,d bytes (%s)",
+          index.size(), index.estimatedOccupation(), interval
       );
 
       if (config.isBuildV9Directly()) {

@@ -34,6 +34,7 @@ import com.google.common.primitives.Ints;
 import com.google.common.primitives.Longs;
 import com.metamx.common.IAE;
 import com.metamx.common.ISE;
+import com.metamx.common.logger.Logger;
 import com.metamx.common.parsers.ParseException;
 import io.druid.common.utils.StringUtils;
 import io.druid.data.ValueType;
@@ -92,6 +93,8 @@ import java.util.concurrent.atomic.AtomicInteger;
  */
 public abstract class IncrementalIndex<AggregatorType> implements Iterable<Row>, Closeable
 {
+  static final Logger log = new Logger(IncrementalIndex.class);
+
   private volatile DateTime maxIngestedEventTime;
 
   // Used to discover ValueType based on the class of values in a row
@@ -762,12 +765,12 @@ public abstract class IncrementalIndex<AggregatorType> implements Iterable<Row>,
       dims = newDims;
     }
 
-    final long truncated = gran.truncate(timestampFromEpoch);
+    final long truncated = Math.max(gran.truncate(timestampFromEpoch), minTimestamp);
 
     minTimeMillis = Math.min(minTimeMillis, truncated);
     maxTimeMillis = Math.max(maxTimeMillis, truncated);
 
-    return new TimeAndDims(Math.max(truncated, minTimestamp), dims);
+    return new TimeAndDims(truncated, dims);
   }
 
   private synchronized void updateMaxIngestedTime(DateTime eventTime)
