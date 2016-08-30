@@ -138,6 +138,16 @@ public abstract class AggregatorFactory implements Cacheable
   public abstract Object getAggregatorStartValue();
 
   /**
+   * This AggregatorFactory returns EstimableAggregator which provides more closer estimation of memory usage in ingestion
+   *
+   * @return
+   */
+  public boolean providesEstimation()
+  {
+    return false;
+  }
+
+  /**
    * Merges the list of AggregatorFactory[] (presumable from metadata of some segments being merged) and
    * returns merged AggregatorFactory[] (for the metadata for merged segment).
    * Null is returned if it is not possible to do the merging for any of the following reason.
@@ -184,10 +194,5 @@ public abstract class AggregatorFactory implements Cacheable
     return mergedAggregators == null
            ? null
            : mergedAggregators.values().toArray(new AggregatorFactory[mergedAggregators.size()]);
-  }
-
-  // this factory returns MutableSizedAggregator for ingestion
-  public static interface MutableSized
-  {
   }
 }

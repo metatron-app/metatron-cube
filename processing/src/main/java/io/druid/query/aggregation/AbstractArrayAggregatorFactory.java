@@ -189,4 +189,9 @@ public abstract class AbstractArrayAggregatorFactory extends AggregatorFactory
     return Lists.newArrayList();
   }
 
+  @Override
+  public boolean providesEstimation()
+  {
+    return true;
+  }
 }

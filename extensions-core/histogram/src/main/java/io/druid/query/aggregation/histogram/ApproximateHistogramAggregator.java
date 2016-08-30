@@ -21,12 +21,12 @@ package io.druid.query.aggregation.histogram;
 
 import com.google.common.base.Predicate;
 import com.google.common.primitives.Longs;
-import io.druid.query.aggregation.Aggregator;
+import io.druid.query.aggregation.Aggregators;
 import io.druid.segment.FloatColumnSelector;
 
 import java.util.Comparator;
 
-public class ApproximateHistogramAggregator implements Aggregator
+public class ApproximateHistogramAggregator implements Aggregators.EstimableAggregator
 {
   public static final Comparator COMPARATOR = new Comparator()
   {
@@ -121,5 +121,11 @@ public class ApproximateHistogramAggregator implements Aggregator
   public void close()
   {
     // no resources to cleanup
+  }
+
+  @Override
+  public int estimateOccupation()
+  {
+    return histogram.estimateOccupation();
   }
 }

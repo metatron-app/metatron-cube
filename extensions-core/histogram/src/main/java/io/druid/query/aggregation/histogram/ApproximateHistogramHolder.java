@@ -30,7 +30,7 @@ import java.util.Arrays;
 
 /**
  */
-public class ApproximateHistogramHolder
+public abstract class ApproximateHistogramHolder
 {
   public static final int DEFAULT_HISTOGRAM_SIZE = 50;
   public static final int DEFAULT_BUCKET_SIZE = 7;
@@ -38,8 +38,8 @@ public class ApproximateHistogramHolder
   // max size of the histogram (number of bincount/position pairs)
   int size;
 
-  public float[] positions;
-  public long[] bins;
+  float[] positions;
+  long[] bins;
 
   // used bincount
   int binCount;
@@ -95,8 +95,8 @@ public class ApproximateHistogramHolder
   {
     this(
         size,                    //size
-        new float[size],         //positions
-        new long[size],          //bins
+        new float[1],         //positions
+        new long[1],          //bins
         0,                       //binCount
         Float.POSITIVE_INFINITY, //min
         Float.NEGATIVE_INFINITY, //max
@@ -110,8 +110,8 @@ public class ApproximateHistogramHolder
   {
     this(
         size,                    //size
-        new float[size],         //positions
-        new long[size],          //bins
+        new float[1],         //positions
+        new long[1],          //bins
         0,                       //binCount
         Float.POSITIVE_INFINITY, //min
         Float.NEGATIVE_INFINITY, //max
@@ -121,7 +121,7 @@ public class ApproximateHistogramHolder
     );
   }
 
-  public ApproximateHistogramHolder(int binCount, float[] positions, long[] bins, float min, float max)
+  ApproximateHistogramHolder(int binCount, float[] positions, long[] bins, float min, float max)
   {
     this(
         positions.length,        //size
@@ -136,7 +136,7 @@ public class ApproximateHistogramHolder
     );
   }
 
-  public ApproximateHistogramHolder(int size, int binCount, float[] positions, long[] bins, float min, float max)
+  ApproximateHistogramHolder(int size, int binCount, float[] positions, long[] bins, float min, float max)
   {
     this(
         size,        //size
@@ -470,6 +470,8 @@ public class ApproximateHistogramHolder
    */
   protected void shiftRight(int start, int end)
   {
+    assertHolder(end + 1);
+
     float prevVal = positions[start];
     long prevCnt = bins[start];
 
@@ -482,6 +484,14 @@ public class ApproximateHistogramHolder
 
       prevVal = tmpVal;
       prevCnt = tmpCnt;
+    }
+  }
+
+  private void assertHolder(int length)
+  {
+    if (positions.length < length) {
+      positions = Arrays.copyOf(positions, length);
+      bins = Arrays.copyOf(bins, length);
     }
   }
 
@@ -668,6 +678,8 @@ public class ApproximateHistogramHolder
       mergedPositions = new float[this.size];
       mergedBins = new long[this.size];
     }
+
+    assertHolder(this.binCount + h.binCount);
 
     int mergedBinCount;
     if (this.binCount + h.binCount <= this.size) {
@@ -1389,6 +1401,11 @@ public class ApproximateHistogramHolder
     }
 
     return toHistogram(Floats.toArray(breaks));
+  }
+
+  public int estimateOccupation()
+  {
+    return Ints.BYTES * 2 + Floats.BYTES * positions.length + Longs.BYTES * bins.length + Floats.BYTES * 2;
   }
 
   public int getDenseStorageSize()

@@ -21,10 +21,10 @@ package io.druid.query.aggregation.histogram;
 
 
 import com.google.common.base.Predicate;
-import io.druid.query.aggregation.Aggregator;
+import io.druid.query.aggregation.Aggregators;
 import io.druid.segment.ObjectColumnSelector;
 
-public class ApproximateHistogramFoldingAggregator implements Aggregator
+public class ApproximateHistogramFoldingAggregator implements Aggregators.EstimableAggregator
 {
   private final String name;
   private final ObjectColumnSelector<ApproximateHistogramHolder> selector;
@@ -120,5 +120,11 @@ public class ApproximateHistogramFoldingAggregator implements Aggregator
   public void close()
   {
     // no resources to cleanup
+  }
+
+  @Override
+  public int estimateOccupation()
+  {
+    return histogram.estimateOccupation();
   }
 }

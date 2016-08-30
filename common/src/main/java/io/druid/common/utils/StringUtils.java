@@ -56,4 +56,30 @@ public class StringUtils extends com.metamx.common.StringUtils
   {
     return value == null || value.isEmpty();
   }
+
+  public static long parseKMGT(String value)
+  {
+    value = value.replaceAll(",", "").replaceAll("_", "");
+    int index = 0;
+    for (char x : value.toCharArray()) {
+      if (!Character.isDigit(x)) {
+        long longValue = Long.parseLong(value.substring(0, index));
+        String remain = value.substring(index + 1).trim().toLowerCase();
+        if (remain.startsWith("k")) {
+          longValue <<= 10;
+        } if (remain.startsWith("m")) {
+          longValue <<= 20;
+        } if (remain.startsWith("g")) {
+          longValue <<= 30;
+        } if (remain.startsWith("t")) {
+          longValue <<= 40;
+        } else if (!remain.isEmpty()) {
+          throw new IllegalArgumentException("Invalid unit " + remain);
+        }
+        return longValue;
+      }
+      index++;
+    }
+    return Long.parseLong(value.substring(0, index));
+  }
 }

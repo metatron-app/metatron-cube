@@ -20,6 +20,7 @@
 package io.druid.query.aggregation.histogram;
 
 import com.fasterxml.jackson.annotation.JsonValue;
+import com.google.common.annotations.VisibleForTesting;
 import io.druid.segment.VLongUtils;
 
 import java.nio.ByteBuffer;
@@ -65,12 +66,14 @@ public class ApproximateCompactHistogram extends ApproximateHistogramHolder
     super(size, lowerLimit, upperLimit);
   }
 
-  public ApproximateCompactHistogram(int binCount, float[] positions, long[] bins, float min, float max)
+  @VisibleForTesting
+  ApproximateCompactHistogram(int binCount, float[] positions, long[] bins, float min, float max)
   {
     super(binCount, positions, bins, min, max);
   }
 
-  public ApproximateCompactHistogram(int size, int binCount, float[] positions, long[] bins, float min, float max)
+  @VisibleForTesting
+  ApproximateCompactHistogram(int size, int binCount, float[] positions, long[] bins, float min, float max)
   {
     super(size, binCount, positions, bins, min, max);
   }

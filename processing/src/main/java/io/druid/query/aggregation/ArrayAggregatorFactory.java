@@ -22,7 +22,7 @@ package io.druid.query.aggregation;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.collect.Lists;
 import io.druid.common.guava.DSuppliers;
-import io.druid.segment.ColumnSelectorFactories;
+import io.druid.segment.ColumnSelectorFactories.FixedArrayIndexed;
 import io.druid.segment.ColumnSelectorFactory;
 import io.druid.segment.ObjectColumnSelector;
 
@@ -31,7 +31,7 @@ import java.util.List;
 
 /**
  */
-public class ArrayAggregatorFactory extends AbstractArrayAggregatorFactory implements AggregatorFactory.MutableSized
+public class ArrayAggregatorFactory extends AbstractArrayAggregatorFactory
 {
   private static final byte CACHE_TYPE_ID = 0x7F;
 
@@ -71,9 +71,16 @@ public class ArrayAggregatorFactory extends AbstractArrayAggregatorFactory imple
       }
     };
 
-    return new Aggregators.MutableSizedAggregator()
+    return new Aggregators.EstimableAggregator()
     {
+      private int estimated;
       private final List<Aggregator> aggregators = Lists.newArrayList();
+
+      @Override
+      public int estimateOccupation()
+      {
+        return estimated;
+      }
 
       @Override
       public void aggregate()
@@ -141,8 +148,13 @@ public class ArrayAggregatorFactory extends AbstractArrayAggregatorFactory imple
       {
         final int min = Math.min(limit, size);
         for (int i = aggregators.size(); i < min; i++) {
-          aggregators.add(delegate.factorize(new ColumnSelectorFactories.FixedArrayIndexed(i, memoized, elementClass)));
-          increment(delegate.getMaxIntermediateSize());
+          Aggregator factorize = delegate.factorize(new FixedArrayIndexed(i, memoized, elementClass));
+          if (factorize instanceof Aggregators.EstimableAggregator) {
+            estimated += ((Aggregators.EstimableAggregator)factorize).estimateOccupation();
+          } else {
+            estimated += delegate.getMaxIntermediateSize();
+          }
+          aggregators.add(factorize);
         }
         return aggregators;
       }
@@ -239,9 +251,7 @@ public class ArrayAggregatorFactory extends AbstractArrayAggregatorFactory imple
       {
         final int min = Math.min(limit, size);
         for (int i = aggregators.size(); i < min; i++) {
-          BufferAggregator factorize = delegate.factorizeBuffered(
-              new ColumnSelectorFactories.FixedArrayIndexed(i, memoized, elementClass)
-          );
+          BufferAggregator factorize = delegate.factorizeBuffered(new FixedArrayIndexed(i, memoized, elementClass));
           factorize.init(buf, position);
           position += delegate.getMaxIntermediateSize();
           aggregators.add(factorize);

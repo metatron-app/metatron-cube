@@ -75,7 +75,7 @@ public class ApproximateHistogramBase64AggregationTest
         + "\"type\": \"" + ingestionAgg + "\","
         + "\"name\": \"index_ah\","
         + "\"fieldName\": \"index\","
-        + "\"base64\": true"
+        + "\"base64\": false"
         + "}]";
 
     String parseSpec = "{"

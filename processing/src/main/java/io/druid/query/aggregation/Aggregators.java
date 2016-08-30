@@ -238,18 +238,8 @@ public class Aggregators
     }
   }
 
-  public static abstract class MutableSizedAggregator implements Aggregator
+  public static interface EstimableAggregator extends Aggregator
   {
-    private int delta;
-
-    public synchronized int currentSize()
-    {
-      return delta;
-    }
-
-    public synchronized void increment(int size)
-    {
-      delta += size;
-    }
+    int estimateOccupation();
   }
 }

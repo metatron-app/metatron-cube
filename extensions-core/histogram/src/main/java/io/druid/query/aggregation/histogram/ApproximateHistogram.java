@@ -65,14 +65,10 @@ public class ApproximateHistogram extends ApproximateHistogramHolder
     super(size, lowerLimit, upperLimit);
   }
 
-  public ApproximateHistogram(int binCount, float[] positions, long[] bins, float min, float max)
+  @VisibleForTesting
+  ApproximateHistogram(int binCount, float[] positions, long[] bins, float min, float max)
   {
     super(binCount, positions, bins, min, max);
-  }
-
-  public ApproximateHistogram(int size, int binCount, float[] positions, long[] bins, float min, float max)
-  {
-    super(size, binCount, positions, bins, min, max);
   }
 
   @Override
@@ -289,8 +285,8 @@ public class ApproximateHistogram extends ApproximateHistogramHolder
     int size = buf.getInt();
     int binCount = -1 * buf.getInt();
 
-    float[] positions = new float[size];
-    long[] bins = new long[size];
+    float[] positions = new float[binCount];
+    long[] bins = new long[binCount];
 
     for (int i = 0; i < binCount; ++i) {
       positions[i] = buf.getFloat();
