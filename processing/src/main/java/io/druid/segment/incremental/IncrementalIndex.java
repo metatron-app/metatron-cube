@@ -50,7 +50,6 @@ import io.druid.math.expr.Expr;
 import io.druid.math.expr.ExprEval;
 import io.druid.math.expr.Parser;
 import io.druid.query.aggregation.AggregatorFactory;
-import io.druid.query.aggregation.Aggregators;
 import io.druid.query.aggregation.PostAggregator;
 import io.druid.query.aggregation.PostAggregators;
 import io.druid.query.dimension.DimensionSpec;
@@ -531,6 +530,7 @@ public abstract class IncrementalIndex<AggregatorType> implements Iterable<Row>,
       if (!(metrics[i].providesEstimation())) {
         length += metrics[i].getMaxIntermediateSize();
       }
+      length += 64;
     }
     this.maxLengthForAggregators = length;
   }
@@ -793,9 +793,11 @@ public abstract class IncrementalIndex<AggregatorType> implements Iterable<Row>,
 
   public long estimatedOccupation()
   {
-    long occupation = maxLengthForAggregators * getFacts().size();
+    final int size = size();
+    long occupation = maxLengthForAggregators * size;
     for (DimensionDesc dimensionDesc : dimensionDescs.values()) {
       occupation += dimensionDesc.getValues().estimatedSize();
+      occupation += 80 * size;
     }
     return occupation;
   }

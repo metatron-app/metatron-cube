@@ -1405,7 +1405,11 @@ public abstract class ApproximateHistogramHolder
 
   public int estimateOccupation()
   {
-    return Ints.BYTES * 2 + Floats.BYTES * positions.length + Longs.BYTES * bins.length + Floats.BYTES * 2;
+    return Ints.BYTES * 2
+           + Floats.BYTES * positions.length
+           + Longs.BYTES * bins.length
+           + Floats.BYTES * 4
+           + Longs.BYTES;
   }
 
   public int getDenseStorageSize()

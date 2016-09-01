@@ -73,7 +73,7 @@ public class ArrayAggregatorFactory extends AbstractArrayAggregatorFactory
 
     return new Aggregators.EstimableAggregator()
     {
-      private int estimated;
+      private int estimated = 128;
       private final List<Aggregator> aggregators = Lists.newArrayList();
 
       @Override
@@ -154,6 +154,7 @@ public class ArrayAggregatorFactory extends AbstractArrayAggregatorFactory
           } else {
             estimated += delegate.getMaxIntermediateSize();
           }
+          estimated += 32;
           aggregators.add(factorize);
         }
         return aggregators;
