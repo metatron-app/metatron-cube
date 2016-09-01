@@ -94,7 +94,7 @@ import java.util.concurrent.TimeoutException;
 
 /**
  */
-public class IndexGeneratorJob implements Jobby
+public class IndexGeneratorJob implements HadoopDruidIndexerJob.IndexingStatsProvider
 {
   private static final Logger log = new Logger(IndexGeneratorJob.class);
 

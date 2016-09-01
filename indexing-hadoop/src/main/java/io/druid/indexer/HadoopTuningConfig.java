@@ -63,6 +63,7 @@ public class HadoopTuningConfig implements TuningConfig
         null,
         false,
         false,
+        false,
         null,
         DEFAULT_BUILD_V9_DIRECTLY,
         DEFAULT_NUM_BACKGROUND_PERSIST_THREADS
@@ -81,6 +82,7 @@ public class HadoopTuningConfig implements TuningConfig
   private final boolean overwriteFiles;
   private final boolean ignoreInvalidRows;
   private final Map<String, String> jobProperties;
+  private final boolean mapOnly;
   private final boolean combineText;
   private final boolean useCombiner;
   private final Boolean buildV9Directly;
@@ -100,6 +102,7 @@ public class HadoopTuningConfig implements TuningConfig
       final @JsonProperty("overwriteFiles") boolean overwriteFiles,
       final @JsonProperty("ignoreInvalidRows") boolean ignoreInvalidRows,
       final @JsonProperty("jobProperties") Map<String, String> jobProperties,
+      final @JsonProperty("mapOnly") boolean mapOnly,
       final @JsonProperty("combineText") boolean combineText,
       final @JsonProperty("useCombiner") Boolean useCombiner,
       // See https://github.com/druid-io/druid/pull/1922
@@ -122,6 +125,7 @@ public class HadoopTuningConfig implements TuningConfig
     this.jobProperties = (jobProperties == null
                           ? ImmutableMap.<String, String>of()
                           : ImmutableMap.copyOf(jobProperties));
+    this.mapOnly = mapOnly;
     this.combineText = combineText;
     this.useCombiner = useCombiner == null ? DEFAULT_USE_COMBINER : useCombiner;
     this.buildV9Directly = buildV9Directly == null ? DEFAULT_BUILD_V9_DIRECTLY : buildV9Directly;
@@ -161,6 +165,7 @@ public class HadoopTuningConfig implements TuningConfig
         overwriteFiles,
         ignoreInvalidRows,
         jobProperties,
+        false,
         combineText,
         useCombiner,
         maxRowsInMemoryCOMPAT,
@@ -242,6 +247,12 @@ public class HadoopTuningConfig implements TuningConfig
   }
 
   @JsonProperty
+  public boolean isMapOnly()
+  {
+    return mapOnly;
+  }
+
+  @JsonProperty
   public boolean isCombineText()
   {
     return combineText;
@@ -279,6 +290,7 @@ public class HadoopTuningConfig implements TuningConfig
         overwriteFiles,
         ignoreInvalidRows,
         jobProperties,
+        mapOnly,
         combineText,
         useCombiner,
         null,
@@ -302,6 +314,7 @@ public class HadoopTuningConfig implements TuningConfig
         overwriteFiles,
         ignoreInvalidRows,
         jobProperties,
+        mapOnly,
         combineText,
         useCombiner,
         null,
@@ -325,6 +338,7 @@ public class HadoopTuningConfig implements TuningConfig
         overwriteFiles,
         ignoreInvalidRows,
         jobProperties,
+        mapOnly,
         combineText,
         useCombiner,
         null,

@@ -393,11 +393,7 @@ public class HadoopDruidIndexerConfig
    */
   public Optional<Bucket> getBucket(InputRow inputRow)
   {
-    final Optional<Interval> timeBucket = schema.getDataSchema().getGranularitySpec().bucketInterval(
-        new DateTime(
-            inputRow.getTimestampFromEpoch()
-        )
-    );
+    final Optional<Interval> timeBucket = getTargetInterval(inputRow);
     if (!timeBucket.isPresent()) {
       return Optional.absent();
     }
@@ -417,6 +413,13 @@ public class HadoopDruidIndexerConfig
         )
     );
 
+  }
+
+  public Optional<Interval> getTargetInterval(InputRow inputRow)
+  {
+    return schema.getDataSchema().getGranularitySpec().bucketInterval(
+        new DateTime(inputRow.getTimestampFromEpoch())
+    );
   }
 
   public Optional<Set<Interval>> getSegmentGranularIntervals()

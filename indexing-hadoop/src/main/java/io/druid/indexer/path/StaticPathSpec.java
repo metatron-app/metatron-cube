@@ -21,12 +21,14 @@ package io.druid.indexer.path;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Sets;
 import com.metamx.common.logger.Logger;
 import io.druid.indexer.HadoopDruidIndexerConfig;
+import io.druid.indexer.hadoop.CombinePerPathInputFormat;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.mapreduce.InputFormat;
@@ -45,15 +47,24 @@ public class StaticPathSpec implements PathSpec
 
   private final String paths;
   private final Class<? extends InputFormat> inputFormat;
+  private final boolean combinePerPath;
 
   @JsonCreator
   public StaticPathSpec(
       @JsonProperty("paths") String paths,
+      @JsonProperty("combinePerPath") boolean combinePerPath,
       @JsonProperty("inputFormat") Class<? extends InputFormat> inputFormat
   )
   {
-    this.paths = paths;
+    this.paths = Preconditions.checkNotNull(paths);
+    this.combinePerPath = combinePerPath;
     this.inputFormat = inputFormat;
+    Preconditions.checkArgument(!combinePerPath || inputFormat == null || inputFormat == TextInputFormat.class);
+  }
+
+  public StaticPathSpec(String paths, Class<? extends InputFormat> inputFormat)
+  {
+    this(paths, false, inputFormat);
   }
 
   @Override
@@ -62,6 +73,9 @@ public class StaticPathSpec implements PathSpec
     log.info("Adding paths[%s]", paths);
 
     addToMultipleInputs(config, job, paths, inputFormat);
+    if (combinePerPath) {
+      job.setInputFormatClass(CombinePerPathInputFormat.class);
+    }
 
     return job;
   }
@@ -76,6 +90,12 @@ public class StaticPathSpec implements PathSpec
   public String getPaths()
   {
     return paths;
+  }
+
+  @JsonProperty
+  public boolean isCombinePerPath()
+  {
+    return combinePerPath;
   }
 
   public static void addToMultipleInputs(
@@ -158,6 +178,9 @@ public class StaticPathSpec implements PathSpec
     if (paths != null ? !paths.equals(that.paths) : that.paths != null) {
       return false;
     }
+    if (combinePerPath != that.combinePerPath) {
+      return false;
+    }
     return !(inputFormat != null ? !inputFormat.equals(that.inputFormat) : that.inputFormat != null);
 
   }
@@ -166,6 +189,7 @@ public class StaticPathSpec implements PathSpec
   public int hashCode()
   {
     int result = paths != null ? paths.hashCode() : 0;
+    result = 31 * result + (combinePerPath ? 1 : 0);
     result = 31 * result + (inputFormat != null ? inputFormat.hashCode() : 0);
     return result;
   }

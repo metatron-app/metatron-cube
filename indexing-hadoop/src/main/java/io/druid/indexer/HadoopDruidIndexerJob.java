@@ -34,7 +34,7 @@ public class HadoopDruidIndexerJob implements Jobby
   private static final Logger log = new Logger(HadoopDruidIndexerJob.class);
   private final HadoopDruidIndexerConfig config;
   private final MetadataStorageUpdaterJob metadataStorageUpdaterJob;
-  private IndexGeneratorJob indexJob;
+  private IndexingStatsProvider indexJob;
   private volatile List<DataSegment> publishedSegments = null;
 
   @Inject
@@ -67,7 +67,11 @@ public class HadoopDruidIndexerJob implements Jobby
     List<Jobby> jobs = Lists.newArrayList();
     JobHelper.ensurePaths(config);
 
-    indexJob = new IndexGeneratorJob(config);
+    if (config.getSchema().getTuningConfig().isMapOnly()) {
+      indexJob = new MapOnlyIndexGeneratorJob(config);
+    } else {
+      indexJob = new IndexGeneratorJob(config);
+    }
     jobs.add(indexJob);
 
     if (metadataStorageUpdaterJob != null) {
@@ -106,5 +110,10 @@ public class HadoopDruidIndexerJob implements Jobby
   public IndexGeneratorJob.IndexGeneratorStats getIndexJobStats()
   {
     return indexJob.getJobStats();
+  }
+
+  public static interface IndexingStatsProvider extends Jobby
+  {
+    IndexGeneratorJob.IndexGeneratorStats getJobStats();
   }
 }
