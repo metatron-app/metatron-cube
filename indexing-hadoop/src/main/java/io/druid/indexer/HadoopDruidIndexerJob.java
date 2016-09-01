@@ -67,10 +67,15 @@ public class HadoopDruidIndexerJob implements Jobby
     List<Jobby> jobs = Lists.newArrayList();
     JobHelper.ensurePaths(config);
 
-    if (config.getSchema().getTuningConfig().isMapOnly()) {
-      indexJob = new MapOnlyIndexGeneratorJob(config);
-    } else {
-      indexJob = new IndexGeneratorJob(config);
+    switch (config.getSchema().getTuningConfig().getIngestionMode()) {
+      case MAP_ONLY:
+        indexJob = new MapOnlyIndexGeneratorJob(config);
+        break;
+      case REDUCE_MERGE:
+        indexJob = new ReduceMergeIndexGeneratorJob(config);
+        break;
+      default:
+        indexJob = new IndexGeneratorJob(config);
     }
     jobs.add(indexJob);
 

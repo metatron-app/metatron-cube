@@ -62,7 +62,7 @@ public class HadoopTuningConfig implements TuningConfig
         false,
         false,
         null,
-        false,
+        null,
         false,
         false,
         null,
@@ -84,7 +84,7 @@ public class HadoopTuningConfig implements TuningConfig
   private final boolean overwriteFiles;
   private final boolean ignoreInvalidRows;
   private final Map<String, String> jobProperties;
-  private final boolean mapOnly;
+  private final IngestionMode ingestionMode;
   private final boolean combineText;
   private final boolean useCombiner;
   private final Boolean buildV9Directly;
@@ -105,7 +105,7 @@ public class HadoopTuningConfig implements TuningConfig
       final @JsonProperty("overwriteFiles") boolean overwriteFiles,
       final @JsonProperty("ignoreInvalidRows") boolean ignoreInvalidRows,
       final @JsonProperty("jobProperties") Map<String, String> jobProperties,
-      final @JsonProperty("mapOnly") boolean mapOnly,
+      final @JsonProperty("ingestionMode") IngestionMode ingestionMode,
       final @JsonProperty("combineText") boolean combineText,
       final @JsonProperty("useCombiner") Boolean useCombiner,
       // See https://github.com/druid-io/druid/pull/1922
@@ -129,7 +129,7 @@ public class HadoopTuningConfig implements TuningConfig
     this.jobProperties = (jobProperties == null
                           ? ImmutableMap.<String, String>of()
                           : ImmutableMap.copyOf(jobProperties));
-    this.mapOnly = mapOnly;
+    this.ingestionMode = ingestionMode == null ? IngestionMode.MAPRED : ingestionMode;
     this.combineText = combineText;
     this.useCombiner = useCombiner == null ? DEFAULT_USE_COMBINER : useCombiner;
     this.buildV9Directly = buildV9Directly == null ? DEFAULT_BUILD_V9_DIRECTLY : buildV9Directly;
@@ -170,7 +170,7 @@ public class HadoopTuningConfig implements TuningConfig
         overwriteFiles,
         ignoreInvalidRows,
         jobProperties,
-        false,
+        null,
         combineText,
         useCombiner,
         maxRowsInMemoryCOMPAT,
@@ -258,9 +258,9 @@ public class HadoopTuningConfig implements TuningConfig
   }
 
   @JsonProperty
-  public boolean isMapOnly()
+  public IngestionMode getIngestionMode()
   {
-    return mapOnly;
+    return ingestionMode;
   }
 
   @JsonProperty
@@ -302,7 +302,7 @@ public class HadoopTuningConfig implements TuningConfig
         overwriteFiles,
         ignoreInvalidRows,
         jobProperties,
-        mapOnly,
+        ingestionMode,
         combineText,
         useCombiner,
         null,
@@ -327,7 +327,7 @@ public class HadoopTuningConfig implements TuningConfig
         overwriteFiles,
         ignoreInvalidRows,
         jobProperties,
-        mapOnly,
+        ingestionMode,
         combineText,
         useCombiner,
         null,
@@ -352,7 +352,7 @@ public class HadoopTuningConfig implements TuningConfig
         overwriteFiles,
         ignoreInvalidRows,
         jobProperties,
-        mapOnly,
+        ingestionMode,
         combineText,
         useCombiner,
         null,

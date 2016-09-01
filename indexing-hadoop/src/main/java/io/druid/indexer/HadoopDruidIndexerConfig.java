@@ -525,6 +525,16 @@ public class HadoopDruidIndexerConfig
     );
   }
 
+  public Path makeShuffleDir()
+  {
+    return new Path(makeIntermediatePath(), "shuffle");
+  }
+
+  public Path makeShufflingDir(String path)
+  {
+    return new Path(makeShuffleDir(), path);
+  }
+
   public Path makeDescriptorInfoDir()
   {
     return new Path(makeIntermediatePath(), "segmentDescriptorInfo");
