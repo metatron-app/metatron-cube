@@ -131,9 +131,11 @@ public class MapOnlyIndexGeneratorJob implements HadoopDruidIndexerJob.IndexingS
     private Counter outOfRangeRows;
 
     private long maxOccupation;
+    private long maxShardLength;
 
-    private int occupationCheckInterval = 2000;
+    private FileSystem outputFS;
     private File baseFlushFile;
+    private int occupationCheckInterval = 2000;
 
     private Set<File> toMerge = Sets.newTreeSet();
     private Set<String> allDimensionNames = Sets.newLinkedHashSet();
@@ -177,11 +179,16 @@ public class MapOnlyIndexGeneratorJob implements HadoopDruidIndexerJob.IndexingS
       outOfRangeRows = context.getCounter("navis", "out-of-range-rows");
 
       maxOccupation = tuningConfig.getMaxOccupationInMemory();
+      maxShardLength = tuningConfig.getMaxShardLength();
       occupationCheckInterval = 2000;
 
       merger = config.isBuildV9Directly()
                ? HadoopDruidIndexerConfig.INDEX_MERGER_V9
                : HadoopDruidIndexerConfig.INDEX_MERGER;
+
+      // this is per datasource
+      outputFS = new Path(config.getSchema().getIOConfig().getSegmentOutputPath())
+          .getFileSystem(context.getConfiguration());
 
       baseFlushFile = File.createTempFile("base", "flush");
       baseFlushFile.delete();
@@ -240,7 +247,7 @@ public class MapOnlyIndexGeneratorJob implements HadoopDruidIndexerJob.IndexingS
         );
         runningTotalLineCount = lineCount;
 
-        final File file = new File(baseFlushFile, String.format("index%,05d", toMerge.size()));
+        final File file = new File(baseFlushFile, String.format("index-%,05d", toMerge.size()));
         toMerge.add(file);
 
         context.progress();
@@ -263,35 +270,83 @@ public class MapOnlyIndexGeneratorJob implements HadoopDruidIndexerJob.IndexingS
       if (index != null) {
         allDimensionNames.addAll(index.getDimensionOrder());
       }
-
       log.info("%,d lines completed.", lineCount);
 
-      final List<QueryableIndex> indexes = Lists.newArrayListWithCapacity(toMerge.size());
-      final File mergedBase = new File(baseFlushFile, "merged");
-
-      if (toMerge.size() == 0) {
+      if (toMerge.isEmpty()) {
         if (index == null || index.isEmpty()) {
           throw new IAE("If you try to persist empty indexes you are going to have a bad time");
         }
+        File mergedBase = new File(baseFlushFile, "merged");
         persist(index, interval, mergedBase, progressIndicator);
+        toMerge.add(mergedBase);
       } else {
         if (!index.isEmpty()) {
-          final File finalFile = new File(baseFlushFile, "final");
+          File finalFile = new File(baseFlushFile, "final");
           persist(index, interval, finalFile, progressIndicator);
           toMerge.add(finalFile);
         }
-        for (File file : toMerge) {
-          indexes.add(HadoopDruidIndexerConfig.INDEX_IO.loadIndex(file));
-        }
-        merger.mergeQueryableIndex(
-            indexes,
-            aggregators,
-            mergedBase, config.getIndexSpec(),
-            progressIndicator
-        );
       }
-      final FileSystem outputFS = new Path(config.getSchema().getIOConfig().getSegmentOutputPath())
-          .getFileSystem(context.getConfiguration());
+      if (toMerge.size() == 1) {
+        writeShard(toMerge.iterator().next(), new NoneShardSpec(), context);
+      } else {
+        List<List<File>> groups = groupToShards(toMerge, maxShardLength);
+
+        final boolean singleShard = groups.size() == 1;
+
+        for (int i = 0; i < groups.size(); i++) {
+          List<File> shard = groups.get(i);
+          File mergedBase;
+          if (shard.size() == 1) {
+            mergedBase = shard.get(0);
+          } else {
+            final List<QueryableIndex> indexes = Lists.newArrayListWithCapacity(shard.size());
+            for (File file : shard) {
+              indexes.add(HadoopDruidIndexerConfig.INDEX_IO.loadIndex(file));
+            }
+            mergedBase = merger.mergeQueryableIndex(
+                indexes,
+                aggregators,
+                new File(baseFlushFile, singleShard ? "single" : "shard-" + i),
+                config.getIndexSpec(),
+                progressIndicator
+            );
+          }
+          ShardSpec shardSpec = singleShard ? new NoneShardSpec() : new NumberedShardSpec(i, groups.size());
+          writeShard(mergedBase, shardSpec, context);
+        }
+      }
+      for (File file : toMerge) {
+        FileUtils.deleteDirectory(file);
+      }
+      toMerge.clear();
+    }
+
+    private List<List<File>> groupToShards(Set<File> toMerge, long limit)
+    {
+      List<List<File>> groups = Lists.newArrayList();
+      List<File> group = Lists.newArrayList();
+      long current = 0;
+      for (File file : toMerge) {
+        long length = FileUtils.sizeOfDirectory(file);
+        log.info("file [%s] : %,d bytes", file, length);
+        if (!group.isEmpty() && current + length > limit) {
+          log.info("group-%d : %s", groups.size(), group);
+          groups.add(group);
+          group = Lists.newArrayList();
+          current = 0;
+        }
+        group.add(file);
+        current += length;
+      }
+      if (!group.isEmpty()) {
+        log.info("group-%d : %s", groups.size(), group);
+        groups.add(group);
+      }
+      return groups;
+    }
+
+    private void writeShard(File directory, ShardSpec shardSpec, Context context) throws IOException
+    {
       final DataSegment segmentTemplate = new DataSegment(
           config.getDataSource(),
           interval,
@@ -299,21 +354,25 @@ public class MapOnlyIndexGeneratorJob implements HadoopDruidIndexerJob.IndexingS
           null,
           ImmutableList.copyOf(allDimensionNames),
           metricNames,
-          new NoneShardSpec(),
+          shardSpec,
           -1,
           -1
       );
+
+      final Path segmentBasePath = JobHelper.makeSegmentOutputPath(
+          new Path(config.getSchema().getIOConfig().getSegmentOutputPath()),
+          outputFS,
+          segmentTemplate
+      );
+
+      log.info("Zipping shard [%s] to path [%s]", shardSpec, segmentBasePath);
       final DataSegment segment = JobHelper.serializeOutIndex(
           segmentTemplate,
           context.getConfiguration(),
           context,
           context.getTaskAttemptID(),
-          mergedBase,
-          JobHelper.makeSegmentOutputPath(
-              new Path(config.getSchema().getIOConfig().getSegmentOutputPath()),
-              outputFS,
-              segmentTemplate
-          )
+          directory,
+          segmentBasePath
       );
 
       Path descriptorPath = config.makeDescriptorInfoPath(segment);
@@ -331,9 +390,6 @@ public class MapOnlyIndexGeneratorJob implements HadoopDruidIndexerJob.IndexingS
           descriptorPath,
           context
       );
-      for (File file : toMerge) {
-        FileUtils.deleteDirectory(file);
-      }
     }
 
     private IncrementalIndex makeIncrementalIndex()

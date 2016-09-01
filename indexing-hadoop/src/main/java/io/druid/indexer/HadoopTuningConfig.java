@@ -55,7 +55,8 @@ public class HadoopTuningConfig implements TuningConfig
         DEFAULT_SHARD_SPECS,
         DEFAULT_INDEX_SPEC,
         DEFAULT_ROW_FLUSH_BOUNDARY,
-        -1L,
+        null,
+        null,
         false,
         true,
         false,
@@ -77,6 +78,7 @@ public class HadoopTuningConfig implements TuningConfig
   private final IndexSpec indexSpec;
   private final int rowFlushBoundary;
   private final long maxOccupationInMemory;
+  private final long maxShardLength;
   private final boolean leaveIntermediate;
   private final Boolean cleanupOnFailure;
   private final boolean overwriteFiles;
@@ -97,6 +99,7 @@ public class HadoopTuningConfig implements TuningConfig
       final @JsonProperty("indexSpec") IndexSpec indexSpec,
       final @JsonProperty("maxRowsInMemory") Integer maxRowsInMemory,
       final @JsonProperty("maxOccupationInMemory") Long maxOccupationInMemory,
+      final @JsonProperty("maxShardLength") Long maxShardLength,
       final @JsonProperty("leaveIntermediate") boolean leaveIntermediate,
       final @JsonProperty("cleanupOnFailure") Boolean cleanupOnFailure,
       final @JsonProperty("overwriteFiles") boolean overwriteFiles,
@@ -118,6 +121,7 @@ public class HadoopTuningConfig implements TuningConfig
     this.indexSpec = indexSpec == null ? DEFAULT_INDEX_SPEC : indexSpec;
     this.rowFlushBoundary = maxRowsInMemory == null ? maxRowsInMemoryCOMPAT == null ?  DEFAULT_ROW_FLUSH_BOUNDARY : maxRowsInMemoryCOMPAT : maxRowsInMemory;
     this.maxOccupationInMemory = maxOccupationInMemory == null ? -1 : maxOccupationInMemory;
+    this.maxShardLength = maxShardLength == null ? 2 << 30L : maxShardLength;
     this.leaveIntermediate = leaveIntermediate;
     this.cleanupOnFailure = cleanupOnFailure == null ? true : cleanupOnFailure;
     this.overwriteFiles = overwriteFiles;
@@ -159,6 +163,7 @@ public class HadoopTuningConfig implements TuningConfig
         shardSpecs,
         indexSpec,
         maxRowsInMemory,
+        null,
         null,
         leaveIntermediate,
         cleanupOnFailure,
@@ -214,6 +219,12 @@ public class HadoopTuningConfig implements TuningConfig
   public long getMaxOccupationInMemory()
   {
     return maxOccupationInMemory;
+  }
+
+  @JsonProperty("maxShardLength")
+  public long getMaxShardLength()
+  {
+    return maxShardLength;
   }
 
   @JsonProperty
@@ -285,6 +296,7 @@ public class HadoopTuningConfig implements TuningConfig
         indexSpec,
         rowFlushBoundary,
         maxOccupationInMemory,
+        maxShardLength,
         leaveIntermediate,
         cleanupOnFailure,
         overwriteFiles,
@@ -309,6 +321,7 @@ public class HadoopTuningConfig implements TuningConfig
         indexSpec,
         rowFlushBoundary,
         maxOccupationInMemory,
+        maxShardLength,
         leaveIntermediate,
         cleanupOnFailure,
         overwriteFiles,
@@ -333,6 +346,7 @@ public class HadoopTuningConfig implements TuningConfig
         indexSpec,
         rowFlushBoundary,
         maxOccupationInMemory,
+        maxShardLength,
         leaveIntermediate,
         cleanupOnFailure,
         overwriteFiles,
