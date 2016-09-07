@@ -81,6 +81,12 @@ public class ExprVirtualColumn implements VirtualColumn
   }
 
   @Override
+  public VirtualColumn duplicate()
+  {
+    return new ExprVirtualColumn(expression, outputName);
+  }
+
+  @Override
   public byte[] getCacheKey()
   {
     byte[] expr = StringUtils.toUtf8(expression);

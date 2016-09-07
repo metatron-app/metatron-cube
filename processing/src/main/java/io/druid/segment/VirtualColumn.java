@@ -44,4 +44,6 @@ public interface VirtualColumn extends Cacheable
   LongColumnSelector asLongMetric(String dimension, ColumnSelectorFactory factory);
 
   DimensionSelector asDimension(String dimension, ColumnSelectorFactory factory);
+
+  VirtualColumn duplicate();
 }

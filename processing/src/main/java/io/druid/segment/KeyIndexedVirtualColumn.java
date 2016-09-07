@@ -313,6 +313,12 @@ public class KeyIndexedVirtualColumn implements VirtualColumn
     };
   }
 
+  @Override
+  public VirtualColumn duplicate()
+  {
+    return new KeyIndexedVirtualColumn(keyDimension, valueDimensions, valueMetrics, keyFilter, outputName);
+  }
+
   private DimensionSelector toFilteredSelector(ColumnSelectorFactory factory)
   {
     final DimensionSelector selector = factory.makeDimensionSelector(DefaultDimensionSpec.of(keyDimension));
@@ -377,7 +383,7 @@ public class KeyIndexedVirtualColumn implements VirtualColumn
           @Override
           public int get(int index)
           {
-            return index < size ? indexed.get(mapping[index]) : -1;
+            return index < size && mapping[index] >= 0 ? indexed.get(mapping[index]) : -1;
           }
 
           @Override

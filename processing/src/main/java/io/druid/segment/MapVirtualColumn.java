@@ -278,6 +278,12 @@ public class MapVirtualColumn implements VirtualColumn
   }
 
   @Override
+  public VirtualColumn duplicate()
+  {
+    return new MapVirtualColumn(keyDimension, valueDimension, valueMetric, outputName);
+  }
+
+  @Override
   public byte[] getCacheKey()
   {
     byte[] key = StringUtils.toUtf8(keyDimension);

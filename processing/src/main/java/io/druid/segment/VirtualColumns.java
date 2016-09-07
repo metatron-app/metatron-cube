@@ -49,9 +49,9 @@ public class VirtualColumns
     if (virtualColumns == null || virtualColumns.isEmpty()) {
       return EMPTY;
     }
-    Map<String, VirtualColumn> map = Maps.newHashMap();
+    Map<String, VirtualColumn> map = Maps.newHashMapWithExpectedSize(virtualColumns.size());
     for (VirtualColumn vc : virtualColumns) {
-      map.put(vc.getOutputName(), vc);
+      map.put(vc.getOutputName(), vc.duplicate());
     }
     return new VirtualColumns(map);
   }
