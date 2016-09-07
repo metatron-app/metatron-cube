@@ -65,7 +65,6 @@ import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.NoSuchElementException;
 
 /**
  */
@@ -201,8 +200,8 @@ public class GroupByQueryEngine
         final DimensionSelector dimSelector = dims.get(index);
         final IndexedInts row = dimSelector.getRow();
         if (row == null || row.size() == 0) {
-          key[index] = -1;
-          unaggregatedBuffers = updateValues(key, index + 1, dims);
+          // warn: changed semantic.. (we added null and proceeded before)
+          return null;
         } else if (row.size() == 1) {
           key[index] = row.get(0);
           unaggregatedBuffers = updateValues(key, index + 1, dims);
@@ -370,18 +369,12 @@ public class GroupByQueryEngine
     @Override
     public boolean hasNext()
     {
-      return delegate.hasNext() || !cursor.isDone();
-    }
-
-    @Override
-    public Row next()
-    {
       if (delegate.hasNext()) {
-        return delegate.next();
+        return true;
       }
 
       if (unprocessedKeys == null && cursor.isDone()) {
-        throw new NoSuchElementException();
+        return false;
       }
 
       final PositionMaintainer positionMaintainer = new PositionMaintainer(0, sizesRequired, metricsBuffer.remaining());
@@ -393,8 +386,10 @@ public class GroupByQueryEngine
             throw new ISE("Not enough memory to process the request.");
           }
         }
+        unprocessedKeys = null;
         cursor.advance();
       }
+
       while (!cursor.isDone() && rowUpdater.getNumRows() < maxIntermediateRows) {
         int[] key = new int[dimensions.size()];
 
@@ -455,7 +450,14 @@ public class GroupByQueryEngine
               }
           );
 
+      return delegate.hasNext();
+    }
+
+    @Override
+    public Row next()
+    {
       return delegate.next();
+
     }
 
     @Override

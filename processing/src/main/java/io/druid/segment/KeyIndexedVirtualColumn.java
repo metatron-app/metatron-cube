@@ -107,7 +107,7 @@ public class KeyIndexedVirtualColumn implements VirtualColumn
             version = indexer.version;
           }
           int index = indexer.index();
-          return values == null || index >= values.size() ? null : selector.lookupName(values.get(index));
+          return values == null || index < 0 || index >= values.size() ? null : selector.lookupName(values.get(index));
         }
       };
     }
@@ -136,7 +136,7 @@ public class KeyIndexedVirtualColumn implements VirtualColumn
           version = indexer.version;
         }
         int index = indexer.index();
-        return values == null || index >= values.size() ? null : values.get(index);
+        return values == null || index < 0 || index >= values.size() ? null : values.get(index);
       }
     };
   }
@@ -323,6 +323,7 @@ public class KeyIndexedVirtualColumn implements VirtualColumn
     final ValueMatcher keyMatcher = Filters.toFilter(keyFilter).makeMatcher(
         new ColumnSelectorFactories.Delegated(factory)
         {
+          @Override
           public ObjectColumnSelector makeObjectColumnSelector(String columnName)
           {
             if (!columnName.equals(outputName)) {
@@ -350,11 +351,12 @@ public class KeyIndexedVirtualColumn implements VirtualColumn
       @Override
       public IndexedInts getRow()
       {
-        final IndexedInts indexed = iterator.next();;
-        final int[] mapping = indexer.mapping(indexed.size());
+        final IndexedInts indexed = iterator.next();
+        final int limit = indexed.size();
+        final int[] mapping = indexer.mapping(limit);
 
         int virtual = 0;
-        for (; iterator.index < indexed.size(); iterator.index++) {
+        for (; iterator.index < limit; iterator.index++) {
           if (keyMatcher.matches()) {
             mapping[virtual++] = iterator.index;
           }
@@ -538,8 +540,9 @@ public class KeyIndexedVirtualColumn implements VirtualColumn
     int[] mapping(int size)
     {
       if (mapping == null || mapping.length < size) {
-        return mapping = new int[size];
+        mapping = new int[size];
       }
+      mapping[0] = -1;
       return mapping;
     }
   }

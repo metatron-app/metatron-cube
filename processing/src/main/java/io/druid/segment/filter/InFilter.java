@@ -95,6 +95,7 @@ public class InFilter extends Filter.WithDictionary
         final ObjectColumnSelector<IndexedInts.WithLookup> indexedSelector = selector;
         return new ValueMatcher()
         {
+          private boolean ready;
           private final Set<Integer> find = Sets.newHashSet();
           @Override
           public boolean matches()
@@ -104,10 +105,14 @@ public class InFilter extends Filter.WithDictionary
             if (size == 0) {
               return false;
             }
-            if (find.isEmpty()) {
+            if (!ready) {
               for (String value : values) {
-                find.add(indexed.lookupId(value));
+                int id = indexed.lookupId(value);
+                if (id >= 0) {
+                  find.add(id);
+                }
               }
+              ready = true;
             }
             if (size == 1) {
               return find.contains(indexed.get(0));

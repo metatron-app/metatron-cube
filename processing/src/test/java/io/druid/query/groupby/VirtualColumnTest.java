@@ -396,12 +396,64 @@ public class VirtualColumnTest
         .build();
 
     checkSelectQuery(query, expectedResults);
+
     virtualColumns = Arrays.<VirtualColumn>asList(
         new KeyIndexedVirtualColumn(
             "keys",
             null,
             Arrays.asList("array"),
             new InDimFilter("indexed", Arrays.asList("key2", "key3"), null),
+            "indexed"
+        )
+    );
+    query = builder
+        .setDimensions(DefaultDimensionSpec.toSpec("indexed"))
+        .setAggregatorSpecs(
+            Arrays.<AggregatorFactory>asList(
+                new LongSumAggregatorFactory("sumOf", "array"),
+                new LongMinAggregatorFactory("minOf", "array"),
+                new LongMaxAggregatorFactory("maxOf", "array")
+            )
+        )
+        .setVirtualColumns(virtualColumns)
+        .build();
+
+    checkSelectQuery(query, expectedResults);
+
+    // with null filter
+    expectedResults = GroupByQueryRunnerTestHelper.createExpectedRows(
+        new String[]{"__time", "indexed", "sumOf", "minOf", "maxOf"}
+    );
+
+    virtualColumns = Arrays.<VirtualColumn>asList(
+        new KeyIndexedVirtualColumn(
+            "keys",
+            Arrays.asList("values"),
+            null,
+            new InDimFilter("indexed", Arrays.asList("not", "existing"), null),
+            "indexed"
+        )
+    );
+    query = builder
+        .setDimensions(DefaultDimensionSpec.toSpec("indexed"))
+        .setAggregatorSpecs(
+            Arrays.<AggregatorFactory>asList(
+                new LongSumAggregatorFactory("sumOf", "values"),
+                new LongMinAggregatorFactory("minOf", "values"),
+                new LongMaxAggregatorFactory("maxOf", "values")
+            )
+        )
+        .setVirtualColumns(virtualColumns)
+        .build();
+
+    checkSelectQuery(query, expectedResults);
+
+    virtualColumns = Arrays.<VirtualColumn>asList(
+        new KeyIndexedVirtualColumn(
+            "keys",
+            null,
+            Arrays.asList("array"),
+            new InDimFilter("indexed", Arrays.asList("not", "existing"), null),
             "indexed"
         )
     );
