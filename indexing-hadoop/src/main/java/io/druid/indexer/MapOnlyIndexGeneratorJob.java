@@ -303,7 +303,7 @@ public class MapOnlyIndexGeneratorJob implements HadoopDruidIndexerJob.IndexingS
             for (File file : shard) {
               indexes.add(HadoopDruidIndexerConfig.INDEX_IO.loadIndex(file));
             }
-            mergedBase = merger.mergeQueryableIndex(
+            mergedBase = merger.mergeQueryableIndexAndClose(
                 indexes,
                 aggregators,
                 new File(baseFlushFile, singleShard ? "single" : "shard-" + i),

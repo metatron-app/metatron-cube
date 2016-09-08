@@ -568,11 +568,11 @@ public class IndexGeneratorJob implements HadoopDruidIndexerJob.IndexingStatsPro
     ) throws IOException
     {
       if (config.isBuildV9Directly()) {
-        return HadoopDruidIndexerConfig.INDEX_MERGER_V9.mergeQueryableIndex(
+        return HadoopDruidIndexerConfig.INDEX_MERGER_V9.mergeQueryableIndexAndClose(
             indexes, aggs, file, config.getIndexSpec(), progressIndicator
         );
       } else {
-        return HadoopDruidIndexerConfig.INDEX_MERGER.mergeQueryableIndex(
+        return HadoopDruidIndexerConfig.INDEX_MERGER.mergeQueryableIndexAndClose(
             indexes, aggs, file, config.getIndexSpec(), progressIndicator
         );
       }

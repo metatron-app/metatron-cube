@@ -428,7 +428,7 @@ public class ReduceMergeIndexGeneratorJob implements HadoopDruidIndexerJob.Index
             dimensions.addAll(Lists.newArrayList(index.getAvailableDimensions()));
             indexes.add(index);
           }
-          mergedBase = merger.mergeQueryableIndex(
+          mergedBase = merger.mergeQueryableIndexAndClose(
               indexes,
               aggregators,
               new File(baseFlushFile, singleShard ? "single" : "shard-" + i),

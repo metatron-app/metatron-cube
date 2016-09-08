@@ -34,6 +34,7 @@ import com.google.common.collect.Ordering;
 import com.google.common.collect.PeekingIterator;
 import com.google.common.collect.Sets;
 import com.google.common.io.ByteStreams;
+import com.google.common.io.Closeables;
 import com.google.common.io.Closer;
 import com.google.common.io.Files;
 import com.google.common.io.OutputSupplier;
@@ -248,6 +249,24 @@ public class IndexMerger
         indexSpec,
         progress
     );
+  }
+
+  public File mergeQueryableIndexAndClose(
+      List<QueryableIndex> indexes,
+      final AggregatorFactory[] metricAggs,
+      File outDir,
+      IndexSpec indexSpec,
+      ProgressIndicator progress
+  ) throws IOException
+  {
+    try {
+      return mergeQueryableIndex(indexes, metricAggs, outDir, indexSpec, progress);
+    }
+    finally {
+      for (QueryableIndex index : indexes) {
+        Closeables.close(index, true);
+      }
+    }
   }
 
   public File merge(
