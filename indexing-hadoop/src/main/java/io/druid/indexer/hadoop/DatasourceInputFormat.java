@@ -197,12 +197,12 @@ public class DatasourceInputFormat extends InputFormat<NullWritable, InputRow>
         locations = Iterables.concat(locations, Arrays.asList(split.getLocations()));
       }
     }
-    return getFrequentLocations(locations);
+    // use default replication factor, if possible
+    return getFrequentLocations(locations, 3);
   }
 
-  private static String[] getFrequentLocations(Iterable<String> hosts)
+  public static String[] getFrequentLocations(Iterable<String> hosts, int topN)
   {
-
     final CountingMap<String> counter = new CountingMap<>();
     for (String location : hosts) {
       counter.add(location, 1);
@@ -227,9 +227,8 @@ public class DatasourceInputFormat extends InputFormat<NullWritable, InputRow>
       sorted.add(Pair.of(entry.getValue().get(), entry.getKey()));
     }
 
-    // use default replication factor, if possible
-    final List<String> locations = Lists.newArrayListWithCapacity(3);
-    for (Pair<Long, String> frequent : Iterables.limit(sorted, 3)) {
+    final List<String> locations = Lists.newArrayListWithCapacity(Math.min(sorted.size(), topN));
+    for (Pair<Long, String> frequent : Iterables.limit(sorted, topN)) {
       locations.add(frequent.rhs);
     }
     return locations.toArray(new String[locations.size()]);

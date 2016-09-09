@@ -294,9 +294,11 @@ public class IndexerSQLMetadataStorageCoordinator implements IndexerMetadataStor
     }
 
     final String dataSource = segments.iterator().next().getDataSource();
-    for (DataSegment segment : segments) {
-      if (!dataSource.equals(segment.getDataSource())) {
-        throw new IllegalArgumentException("segments must all be from the same dataSource");
+    if (startMetadata != null) {
+      for (DataSegment segment : segments) {
+        if (!dataSource.equals(segment.getDataSource())) {
+          throw new IllegalArgumentException("segments must all be from the same dataSource when using metadata");
+        }
       }
     }
 

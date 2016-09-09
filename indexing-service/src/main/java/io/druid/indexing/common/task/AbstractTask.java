@@ -155,7 +155,7 @@ public abstract class AbstractTask implements Task
     return Objects.toStringHelper(this)
                   .add("id", id)
                   .add("type", getType())
-                  .add("dataSource", dataSource)
+                  .add("dataSource", getDataSource())
                   .toString();
   }
 

@@ -33,6 +33,7 @@ import java.io.IOException;
     @JsonSubTypes.Type(name="granular_unprocessed", value=GranularUnprocessedPathSpec.class),
     @JsonSubTypes.Type(name="granularity", value=GranularityPathSpec.class),
     @JsonSubTypes.Type(name="static", value=StaticPathSpec.class),
+    @JsonSubTypes.Type(name="hynix", value=HynixPathSpec.class),
     @JsonSubTypes.Type(name="dataSource", value=DatasourcePathSpec.class),
     @JsonSubTypes.Type(name="multi", value=MultiplePathSpec.class),
     @JsonSubTypes.Type(name="partition", value=PartitionPathSpec.class)

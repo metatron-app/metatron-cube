@@ -199,8 +199,7 @@ public class HadoopIndexTask extends HadoopTask
       version = lock.getVersion();
     } else {
       Iterable<TaskLock> locks = getTaskLocks(toolbox);
-      final TaskLock myLock = Iterables.getOnlyElement(locks);
-      version = myLock.getVersion();
+      version = Iterables.getFirst(locks, null).getVersion();
     }
 
     log.info("Setting version to: %s", version);

@@ -161,6 +161,11 @@ public class DataSchema
     return granularitySpec;
   }
 
+  public DataSchema withDataSource(String dataSource)
+  {
+    return new DataSchema(dataSource, parser, aggregators, granularitySpec, jsonMapper);
+  }
+
   public DataSchema withGranularitySpec(GranularitySpec granularitySpec)
   {
     return new DataSchema(dataSource, parser, aggregators, granularitySpec, jsonMapper);

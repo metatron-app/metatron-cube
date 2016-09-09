@@ -26,6 +26,7 @@ import com.google.common.collect.Sets;
 import com.metamx.common.CompressionUtils;
 import com.metamx.common.logger.Logger;
 import io.druid.data.input.InputRow;
+import io.druid.indexer.path.HynixCombineInputFormat;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.segment.BaseProgressIndicator;
 import io.druid.segment.IndexMerger;
@@ -44,7 +45,6 @@ import org.apache.hadoop.fs.FSDataOutputStream;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.BytesWritable;
-import org.apache.hadoop.io.LongWritable;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapreduce.Counter;
 import org.apache.hadoop.mapreduce.Job;
@@ -56,6 +56,7 @@ import org.joda.time.Interval;
 import java.io.File;
 import java.io.IOException;
 import java.util.List;
+import java.util.Objects;
 import java.util.Set;
 
 /**
@@ -65,7 +66,7 @@ public class ReduceMergeIndexGeneratorJob implements HadoopDruidIndexerJob.Index
   private static final Logger log = new Logger(ReduceMergeIndexGeneratorJob.class);
 
   private final HadoopDruidIndexerConfig config;
-  private IndexGeneratorJob.IndexGeneratorStats jobStats;
+  private final IndexGeneratorJob.IndexGeneratorStats jobStats;
 
   public ReduceMergeIndexGeneratorJob(HadoopDruidIndexerConfig config)
   {
@@ -115,7 +116,7 @@ public class ReduceMergeIndexGeneratorJob implements HadoopDruidIndexerJob.Index
       }
       job.setNumReduceTasks(numReducers);
 
-      job.setOutputKeyClass(LongWritable.class);
+      job.setOutputKeyClass(Text.class);
       job.setOutputValueClass(Text.class);
       job.setOutputFormatClass(IndexGeneratorJob.IndexGeneratorOutputFormat.class);
       FileOutputFormat.setOutputPath(job, config.makeIntermediatePath());
@@ -146,7 +147,7 @@ public class ReduceMergeIndexGeneratorJob implements HadoopDruidIndexerJob.Index
     }
   }
 
-  public static class ReducerMergingMapper extends HadoopDruidIndexerMapper<LongWritable, Text>
+  public static class ReducerMergingMapper extends HadoopDruidIndexerMapper<Text, Text>
   {
     private HadoopTuningConfig tuningConfig;
 
@@ -166,6 +167,7 @@ public class ReduceMergeIndexGeneratorJob implements HadoopDruidIndexerJob.Index
     private ProgressIndicator progressIndicator;
 
     private int indexCount;
+    private String currentDataSource;
     private Interval interval;
     private IncrementalIndex index;
 
@@ -240,26 +242,28 @@ public class ReduceMergeIndexGeneratorJob implements HadoopDruidIndexerJob.Index
     protected void innerMap(InputRow row, Object value, Context context)
         throws IOException, InterruptedException
     {
-      if (interval != null && !interval.contains(row.getTimestampFromEpoch())) {
+      String dataSource = HynixCombineInputFormat.CURRENT_DATASOURCE.get();
+      if (interval != null &&
+          (!Objects.equals(currentDataSource, dataSource) || !interval.contains(row.getTimestampFromEpoch()))) {
         persist(context);
       }
-      if (index == null) {
-        interval = getConfig().getTargetInterval(row).get();
-        index = makeIncrementalIndex();
-      }
-
-      boolean flush = !index.canAppendRow();
-
-      if (lineCount > 0 && lineCount % occupationCheckInterval == 0) {
-        long estimation = index.estimatedOccupation();
-        log.info("... %,d rows in index with estimated size %,d bytes", index.size(), estimation);
-        if (!flush && maxOccupation > 0 && estimation >= maxOccupation) {
-          log.info("flushing index because estimated size is bigger than %,d", maxOccupation);
-          flush = true;
+      if (index != null) {
+        boolean flush = !index.canAppendRow();
+        if (lineCount > 0 && lineCount % occupationCheckInterval == 0) {
+          long estimation = index.estimatedOccupation();
+          log.info("... %,d rows in index with estimated size %,d bytes", index.size(), estimation);
+          if (!flush && maxOccupation > 0 && estimation >= maxOccupation) {
+            log.info("flushing index because estimated size is bigger than %,d", maxOccupation);
+            flush = true;
+          }
+        }
+        if (flush) {
+          persist(context);
         }
       }
-      if (flush) {
-        persist(context);
+      if (index == null) {
+        currentDataSource = dataSource;
+        interval = getConfig().getTargetInterval(row).get();
         index = makeIncrementalIndex();
       }
       index.add(row);
@@ -312,6 +316,7 @@ public class ReduceMergeIndexGeneratorJob implements HadoopDruidIndexerJob.Index
 
       File localFile = merger.persist(index, interval, nextFile(), config.getIndexSpec(), progressIndicator);
 
+      final String dataSource = currentDataSource != null ? currentDataSource : config.getDataSource();
       final Path outFile = new Path(shufflingPath, localFile.getName() + ".zip");
       shufflingFS.mkdirs(outFile.getParent());
 
@@ -321,7 +326,7 @@ public class ReduceMergeIndexGeneratorJob implements HadoopDruidIndexerJob.Index
         size = CompressionUtils.zip(localFile, out);
       }
       log.info("Compressed into [%,d] bytes", size);
-      LongWritable key = new LongWritable(index.getInterval().getStartMillis());
+      Text key = new Text(dataSource + ":" + index.getInterval().getStartMillis());
       context.write(key, new Text(outFile.toString()));
 
       FileUtils.deleteDirectory(localFile);
@@ -337,7 +342,7 @@ public class ReduceMergeIndexGeneratorJob implements HadoopDruidIndexerJob.Index
     }
   }
 
-  public static class ReducerMergingReducer extends Reducer<LongWritable, Text, BytesWritable, Text>
+  public static class ReducerMergingReducer extends Reducer<Text, Text, BytesWritable, Text>
   {
     private HadoopDruidIndexerConfig config;
     private HadoopTuningConfig tuningConfig;
@@ -402,13 +407,19 @@ public class ReduceMergeIndexGeneratorJob implements HadoopDruidIndexerJob.Index
     }
 
     @Override
-    protected void reduce(LongWritable key, Iterable<Text> values, Context context)
+    protected void reduce(Text key, Iterable<Text> values, Context context)
         throws IOException, InterruptedException
     {
-      final Interval interval = config.getGranularitySpec().bucketInterval(new DateTime(key.get())).get();
-      List<String> files = Lists.newArrayList(Iterables.transform(values, Functions.toStringFunction()));
+      String[] split = key.toString().split(":");
 
-      List<List<File>> groups = groupToShards(files, maxShardLength);
+      final String dataSource = split[0];
+      final DateTime time = new DateTime(Long.valueOf(split[1]));
+      final Interval interval = config.getGranularitySpec().bucketInterval(time).get();
+
+      final List<List<File>> groups = groupToShards(
+          Lists.newArrayList(Iterables.transform(values, Functions.toStringFunction())),
+          maxShardLength
+      );
 
       final boolean singleShard = groups.size() == 1;
 
@@ -437,7 +448,7 @@ public class ReduceMergeIndexGeneratorJob implements HadoopDruidIndexerJob.Index
           );
         }
         ShardSpec shardSpec = singleShard ? new NoneShardSpec() : new NumberedShardSpec(i, groups.size());
-        writeShard(mergedBase, interval, Lists.newArrayList(dimensions), shardSpec, context);
+        writeShard(dataSource, mergedBase, interval, Lists.newArrayList(dimensions), shardSpec, context);
       }
     }
 
@@ -477,6 +488,7 @@ public class ReduceMergeIndexGeneratorJob implements HadoopDruidIndexerJob.Index
     }
 
     private void writeShard(
+        String dataSource,
         File directory,
         Interval interval,
         List<String> dimensions,
@@ -505,7 +517,7 @@ public class ReduceMergeIndexGeneratorJob implements HadoopDruidIndexerJob.Index
 
       log.info("Zipping shard [%s] to path [%s]", shardSpec, segmentBasePath);
       final DataSegment segment = JobHelper.serializeOutIndex(
-          segmentTemplate,
+          withDataSource(segmentTemplate, dataSource),
           context.getConfiguration(),
           context,
           context.getTaskAttemptID(),
@@ -528,6 +540,11 @@ public class ReduceMergeIndexGeneratorJob implements HadoopDruidIndexerJob.Index
           descriptorPath,
           context
       );
+    }
+
+    private DataSegment withDataSource(DataSegment segment, String dataSource)
+    {
+      return DataSegment.builder(segment).dataSource(dataSource).build();
     }
   }
 }
