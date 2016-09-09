@@ -375,13 +375,13 @@ public class JobHelper
               log.error(exception, "Exception in retry loop");
               throw exception;
             }
-            return -1;
+            return outputFS.getFileStatus(tmpPath).getLen();
           }
         },
         RetryPolicies.exponentialBackoffRetry(NUM_RETRIES, SECONDS_BETWEEN_RETRIES, TimeUnit.SECONDS)
     );
-    zipPusher.push();
-    log.info("Zipped %,d bytes to [%s]", size.get(), tmpPath.toUri());
+    long length = zipPusher.push();
+    log.info("Zipped %,d bytes to %,d bytes into path [%s]", size.get(), length, tmpPath.toUri());
 
     final Path finalIndexZipFilePath = new Path(segmentBasePath, "index.zip");
     final URI indexOutURI = finalIndexZipFilePath.toUri();
