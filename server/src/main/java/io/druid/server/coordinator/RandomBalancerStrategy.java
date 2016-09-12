@@ -19,6 +19,9 @@
 
 package io.druid.server.coordinator;
 
+import com.google.common.base.Predicate;
+import com.google.common.collect.Iterables;
+import com.google.common.collect.Lists;
 import io.druid.timeline.DataSegment;
 
 import java.util.List;
@@ -30,30 +33,50 @@ public class RandomBalancerStrategy implements BalancerStrategy
 
   @Override
   public ServerHolder findNewSegmentHomeReplicator(
-      DataSegment proposalSegment, List<ServerHolder> serverHolders
+      final DataSegment proposalSegment, List<ServerHolder> serverHolders
   )
   {
-    if (serverHolders.size()==1)
+    return chooseBestServer(proposalSegment, serverHolders, false);
+  }
+
+  @Override
+  public ServerHolder findNewSegmentHomeBalancer(
+      final DataSegment proposalSegment, List<ServerHolder> serverHolders
+  )
+  {
+    return chooseBestServer(proposalSegment, serverHolders, true);
+  }
+
+  private ServerHolder chooseBestServer(
+      final DataSegment proposalSegment,
+      List<ServerHolder> serverHolders,
+      final boolean includeCurrentServer
+  )
+  {
+    final long proposalSegmentSize = proposalSegment.getSize();
+    serverHolders = Lists.newArrayList(
+        Iterables.filter(
+            serverHolders, new Predicate<ServerHolder>()
+            {
+              @Override
+              public boolean apply(ServerHolder holder)
+              {
+                return holder.getAvailableSize() > proposalSegmentSize &&
+                       !holder.isLoadingSegment(proposalSegment) &&
+                       (includeCurrentServer || !holder.isServingSegment(proposalSegment));
+              }
+            }
+        )
+    );
+
+    if (serverHolders.isEmpty())
     {
       return null;
     }
     else
     {
-      ServerHolder holder = serverHolders.get(new Random().nextInt(serverHolders.size()));
-      while (holder.isServingSegment(proposalSegment))
-      {
-        holder = serverHolders.get(new Random().nextInt(serverHolders.size()));
-      }
-      return holder;
+      return serverHolders.get(new Random().nextInt(serverHolders.size()));
     }
-  }
-
-  @Override
-  public ServerHolder findNewSegmentHomeBalancer(
-      DataSegment proposalSegment, List<ServerHolder> serverHolders
-  )
-  {
-    return null;  //To change body of implemented methods use File | Settings | File Templates.
   }
 
   @Override
