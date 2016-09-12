@@ -96,11 +96,12 @@ public class ReduceMergeIndexGeneratorJob implements HadoopDruidIndexerJob.Index
 
   public boolean run()
   {
+    Configuration conf = new Configuration();
+    String dataSource = conf.get("hynix.index.original.datasource", config.getDataSource());
     try {
       Job job = Job.getInstance(
-          new Configuration(),
-          String.format("%s-index-generator-reducer-merge-%s", config.getDataSource(), config.getIntervals())
-      );
+          conf,
+          String.format("%s-index-generator-reducer-merge-%s", dataSource, config.getIntervals().get()));
 
       job.getConfiguration().set("io.sort.record.percent", "0.23");
 
@@ -498,7 +499,7 @@ public class ReduceMergeIndexGeneratorJob implements HadoopDruidIndexerJob.Index
         throws IOException
     {
       final DataSegment segmentTemplate = new DataSegment(
-          config.getDataSource(),
+          dataSource,
           interval,
           tuningConfig.getVersion(),
           null,
@@ -509,15 +510,16 @@ public class ReduceMergeIndexGeneratorJob implements HadoopDruidIndexerJob.Index
           -1
       );
 
+      Path basePath = new Path(config.getSchema().getIOConfig().getSegmentOutputPath());
       final Path segmentBasePath = JobHelper.makeSegmentOutputPath(
-          new Path(config.getSchema().getIOConfig().getSegmentOutputPath()),
+          basePath,
           outputFS,
           segmentTemplate
       );
 
       log.info("Zipping shard [%s] to path [%s]", shardSpec, segmentBasePath);
       final DataSegment segment = JobHelper.serializeOutIndex(
-          withDataSource(segmentTemplate, dataSource),
+          segmentTemplate,
           context.getConfiguration(),
           context,
           context.getTaskAttemptID(),
@@ -540,11 +542,6 @@ public class ReduceMergeIndexGeneratorJob implements HadoopDruidIndexerJob.Index
           descriptorPath,
           context
       );
-    }
-
-    private DataSegment withDataSource(DataSegment segment, String dataSource)
-    {
-      return DataSegment.builder(segment).dataSource(dataSource).build();
     }
   }
 }

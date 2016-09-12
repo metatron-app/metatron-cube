@@ -56,6 +56,11 @@ public class HadoopIndexTask extends HadoopTask
 {
   private static final Logger log = new Logger(HadoopIndexTask.class);
 
+  static String createNewId(String prefix, HadoopIngestionSpec spec)
+  {
+    return String.format("%s_%s_%s", prefix, getTheDataSource(spec), new DateTime());
+  }
+
   private static String getTheDataSource(HadoopIngestionSpec spec)
   {
     return spec.getDataSchema().getDataSource();
@@ -92,7 +97,7 @@ public class HadoopIndexTask extends HadoopTask
   )
   {
     super(
-        id != null ? id : String.format("index_hadoop_%s_%s", getTheDataSource(spec), new DateTime()),
+        id != null ? id : createNewId("index_hadoop", spec),
         getTheDataSource(spec),
         hadoopDependencyCoordinates == null
         ? (hadoopCoordinates == null ? null : ImmutableList.of(hadoopCoordinates))

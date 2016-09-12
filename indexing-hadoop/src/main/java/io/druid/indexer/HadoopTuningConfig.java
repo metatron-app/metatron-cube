@@ -360,4 +360,29 @@ public class HadoopTuningConfig implements TuningConfig
         numBackgroundPersistThreads
     );
   }
+
+  public HadoopTuningConfig withJobProperty(Map<String, String> jobProperties)
+  {
+    return new HadoopTuningConfig(
+        workingPath,
+        version,
+        partitionsSpec,
+        shardSpecs,
+        indexSpec,
+        rowFlushBoundary,
+        maxOccupationInMemory,
+        maxShardLength,
+        leaveIntermediate,
+        cleanupOnFailure,
+        overwriteFiles,
+        ignoreInvalidRows,
+        jobProperties,
+        ingestionMode,
+        combineText,
+        useCombiner,
+        null,
+        buildV9Directly,
+        numBackgroundPersistThreads
+    );
+  }
 }
