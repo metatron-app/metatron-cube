@@ -249,25 +249,25 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
           index
       );
       Cache.NamedKey key = null;
-        ImmutableBitmap bitmapIndex = null;
-        if (cache != null && segmentId != null) {
-          key = new Cache.NamedKey(segmentId, bitmapFilter.getCacheKey());
-          byte[] cached = cache.get(key);
-          if (cached != null) {
-            bitmapIndex = selector.getBitmapFactory().mapImmutableBitmap(ByteBuffer.wrap(cached));
-          }
+      ImmutableBitmap bitmapIndex = null;
+      if (cache != null && segmentId != null) {
+        key = new Cache.NamedKey(segmentId, bitmapFilter.getCacheKey());
+        byte[] cached = cache.get(key);
+        if (cached != null) {
+          bitmapIndex = selector.getBitmapFactory().mapImmutableBitmap(ByteBuffer.wrap(cached));
         }
-        if (bitmapIndex == null) {
-          bitmapIndex = bitmapFilter.toFilter().getBitmapIndex(selector);
-          if (key != null) {
-            cache.put(key, bitmapIndex.toBytes());
-          }
+      }
+      if (bitmapIndex == null) {
+        bitmapIndex = bitmapFilter.toFilter().getBitmapIndex(selector);
+        if (key != null) {
+          cache.put(key, bitmapIndex.toBytes());
         }
-        offset = new BitmapOffset(
-            selector.getBitmapFactory(),
-            bitmapIndex,
-            descending
-        );
+      }
+      offset = new BitmapOffset(
+          selector.getBitmapFactory(),
+          bitmapIndex,
+          descending
+      );
     }
 
     return Sequences.filter(
