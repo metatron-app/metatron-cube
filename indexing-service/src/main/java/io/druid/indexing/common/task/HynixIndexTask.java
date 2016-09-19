@@ -1,14 +1,13 @@
 package io.druid.indexing.common.task;
 
 import com.fasterxml.jackson.annotation.JacksonInject;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
 import io.druid.indexer.HadoopIngestionSpec;
 import io.druid.indexer.HadoopTuningConfig;
 import io.druid.indexer.IngestionMode;
-import io.druid.segment.indexing.DataSchema;
 import org.apache.commons.lang.StringUtils;
 
 import java.util.List;
@@ -19,12 +18,15 @@ import java.util.Objects;
  */
 public class HynixIndexTask extends HadoopIndexTask
 {
-  public static final String HYNIX_DATASOURCE = "hynix.index.original.datasource";
-
-  private static HadoopIngestionSpec rewrite(HadoopIngestionSpec spec)
+  private String extractRequiredLockName(HadoopIngestionSpec spec)
   {
     Map<String, Object> pathSpec = spec.getIOConfig().getPathSpec();
     if ("hynix".equals(pathSpec.get("type"))) {
+      // simple validation
+      HadoopTuningConfig tuningConfig = spec.getTuningConfig();
+      if (tuningConfig.getIngestionMode() != IngestionMode.REDUCE_MERGE) {
+        throw new IllegalArgumentException("hynix type input spec only can be used with REDUCE_MERGE mode");
+      }
       List<String> dataSources = Lists.newArrayList();
       for (Map elementSpec : (List<Map>) pathSpec.get("elements")) {
         String dataSourceName = Objects.toString(elementSpec.get("dataSource"), null);
@@ -33,26 +35,13 @@ public class HynixIndexTask extends HadoopIndexTask
         }
         dataSources.add(dataSourceName);
       }
-      String dataSourceList = StringUtils.join(dataSources, ';');
-
-      // simple validation
-      HadoopTuningConfig tuningConfig = spec.getTuningConfig();
-      if (tuningConfig.getIngestionMode() != IngestionMode.REDUCE_MERGE) {
-        throw new IllegalArgumentException("hynix type input spec only can be used with REDUCE_MERGE mode");
-      }
-      // keep this to be used as job name
-      DataSchema dataSchema = spec.getDataSchema();
-      HadoopIngestionSpec ingestionSpec = spec.withDataSchema(dataSchema.withDataSource(dataSourceList));
-      if (!tuningConfig.getJobProperties().containsKey(HYNIX_DATASOURCE)) {
-        Map<String, String> jobProperties = Maps.<String, String>newHashMap(tuningConfig.getJobProperties());
-        jobProperties.put(HYNIX_DATASOURCE, dataSchema.getDataSource());
-        ingestionSpec = ingestionSpec.withTuningConfig(tuningConfig.withJobProperty(jobProperties));
-      }
-
-      return ingestionSpec;
+      return StringUtils.join(dataSources, ';');
     }
-    return spec;
+    return spec.getDataSchema().getDataSource();
   }
+
+  @JsonIgnore
+  private final String requiredLockName;
 
   public HynixIndexTask(
       @JsonProperty("id") String id,
@@ -66,12 +55,25 @@ public class HynixIndexTask extends HadoopIndexTask
   {
     super(
         id == null ? createNewId("index_hynix", spec) : id,
-        rewrite(spec),
+        spec,
         hadoopCoordinates,
         hadoopDependencyCoordinates,
         classpathPrefix,
         jsonMapper,
         context
     );
+    this.requiredLockName = extractRequiredLockName(spec);
+  }
+
+  @Override
+  public String getType()
+  {
+    return "index_hynix";
+  }
+
+  @Override
+  public String getRequiredLockName()
+  {
+    return requiredLockName;
   }
 }

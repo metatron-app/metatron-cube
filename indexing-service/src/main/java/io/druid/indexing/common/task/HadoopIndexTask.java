@@ -120,7 +120,7 @@ public class HadoopIndexTask extends HadoopTask
     );
 
     this.classpathPrefix = classpathPrefix;
-    this.jsonMapper = Preconditions.checkNotNull(jsonMapper, "null ObjectMappper");
+    this.jsonMapper = Preconditions.checkNotNull(jsonMapper, "null ObjectMapper");
   }
 
   @Override

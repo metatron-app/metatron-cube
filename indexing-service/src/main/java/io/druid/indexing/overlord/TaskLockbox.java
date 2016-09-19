@@ -227,7 +227,7 @@ public class TaskLockbox
         interval.getStartMillis() == JodaUtils.MAX_INSTANT || interval.toDurationMillis() > 0, "interval empty"
     );
 
-    String[] dataSources = StringUtils.split(task.getDataSource(), ';');
+    String[] dataSources = StringUtils.split(task.getRequiredLockName(), ';');
     Preconditions.checkArgument(dataSources.length != 0);
     Preconditions.checkArgument(!preferredVersion.isPresent() || dataSources.length == 1);
 
@@ -310,10 +310,9 @@ public class TaskLockbox
       if (targets.size() == 1) {
         lockInterval = targets.get(0).getTaskLock().getInterval();
       }
-      return Optional.of(new TaskLock(task.getGroupId(), task.getDataSource(), lockInterval, version));
+      return Optional.of(new TaskLock(task.getGroupId(), task.getRequiredLockName(), lockInterval, version));
     }
     finally {
-      log.info(running.toString());
       giant.unlock();
     }
   }
@@ -398,7 +397,7 @@ public class TaskLockbox
    */
   public void unlock(final Task task, final Interval interval)
   {
-    String[] dataSources = StringUtils.split(task.getDataSource(), ';');
+    String[] dataSources = StringUtils.split(task.getRequiredLockName(), ';');
     giant.lock();
     try {
       for (String dataSource : dataSources) {
@@ -483,7 +482,7 @@ public class TaskLockbox
    */
   private List<TaskLockPosse> findLockPossesForTask(final Task task)
   {
-    String[] dataSources = StringUtils.split(task.getDataSource(), ';');
+    String[] dataSources = StringUtils.split(task.getRequiredLockName(), ';');
     giant.lock();
 
     try {

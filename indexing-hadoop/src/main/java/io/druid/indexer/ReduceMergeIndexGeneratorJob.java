@@ -97,11 +97,10 @@ public class ReduceMergeIndexGeneratorJob implements HadoopDruidIndexerJob.Index
   public boolean run()
   {
     Configuration conf = new Configuration();
-    String dataSource = conf.get("hynix.index.original.datasource", config.getDataSource());
     try {
       Job job = Job.getInstance(
           conf,
-          String.format("%s-index-generator-reducer-merge-%s", dataSource, config.getIntervals().get()));
+          String.format("%s-index-generator-reducer-merge-%s", config.getDataSource(), config.getIntervals().get()));
 
       job.getConfiguration().set("io.sort.record.percent", "0.23");
 

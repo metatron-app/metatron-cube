@@ -125,6 +125,12 @@ public abstract class AbstractTask implements Task
   }
 
   @Override
+  public String getRequiredLockName()
+  {
+    return getDataSource();
+  }
+
+  @Override
   public <T> QueryRunner<T> getQueryRunner(Query<T> query)
   {
     return null;
