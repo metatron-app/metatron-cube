@@ -113,6 +113,22 @@ public class KeyIndexedVirtualColumn implements VirtualColumn
     }
 
     final ObjectColumnSelector<List> selector = factory.makeObjectColumnSelector(column);
+    if (selector == null) {
+      return new ObjectColumnSelector()
+      {
+        @Override
+        public Class classOfObject()
+        {
+          return Object.class;
+        }
+
+        @Override
+        public Object get()
+        {
+          return null;
+        }
+      };
+    }
     if (selector.classOfObject() != List.class) {
       throw new IllegalArgumentException("target column '" + column + "' should be array type");
     }
