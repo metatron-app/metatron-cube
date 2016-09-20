@@ -69,4 +69,16 @@ public class TopNAlgorithmSelector
   {
     return aggregateTopNMetricFirst;
   }
+
+  @Override
+  public String toString()
+  {
+    return "TopNAlgorithmSelector{" +
+           "cardinality=" + cardinality +
+           ", numBytesPerRecord=" + numBytesPerRecord +
+           ", hasExtractionFn=" + hasExtractionFn +
+           ", aggregateAllMetrics=" + aggregateAllMetrics +
+           ", aggregateTopNMetricFirst=" + aggregateTopNMetricFirst +
+           '}';
+  }
 }
