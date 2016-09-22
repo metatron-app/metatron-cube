@@ -719,9 +719,12 @@ public class RemoteTaskRunner implements WorkerTaskRunner, TaskLogStreamer
                           @Override
                           public boolean apply(Map.Entry<String, ZkWorker> input)
                           {
+                            final Worker worker = input.getValue().getWorker();
                             return !lazyWorkers.containsKey(input.getKey()) &&
                                    !workersWithUnacknowledgedTask.containsKey(input.getKey()) &&
-                                   (Strings.isNullOrEmpty(host) || host.equals(input.getValue().getWorker().getHost()));
+                                   (Strings.isNullOrEmpty(host) ||
+                                    host.equals(worker.getHost()) ||
+                                    host.equals(worker.getServerName()));
                           }
                         }
                     ),

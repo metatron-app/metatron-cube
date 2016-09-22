@@ -70,6 +70,12 @@ public class Worker
     return version;
   }
 
+  public String getServerName()
+  {
+    int index = host.indexOf(':');
+    return index >= 0 ? host.substring(0, index) : host;
+  }
+
   @Override
   public String toString()
   {
