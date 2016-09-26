@@ -276,4 +276,22 @@ public class EvalTest
       }
     }
   }
+
+  @Test
+  public void testLike()
+  {
+    Expr.NumericBinding bindings = Parser.withMap(ImmutableMap.<String, Object>of());
+    Assert.assertTrue(Parser.parse("like ('navis', '%s')").eval(bindings).asBoolean());
+    Assert.assertTrue(Parser.parse("like ('navis', 'n%v_%')").eval(bindings).asBoolean());
+    Assert.assertTrue(Parser.parse("like ('navis', '%v__')").eval(bindings).asBoolean());
+    Assert.assertTrue(Parser.parse("like ('navis', '%vi%')").eval(bindings).asBoolean());
+    Assert.assertTrue(Parser.parse("like ('navis', '__vi_')").eval(bindings).asBoolean());
+    Assert.assertTrue(Parser.parse("like ('navis', 'n%s')").eval(bindings).asBoolean());
+    Assert.assertTrue(Parser.parse("like ('navis', '_a%i_')").eval(bindings).asBoolean());
+
+    Assert.assertFalse(Parser.parse("like ('nabis', 'n%v_')").eval(bindings).asBoolean());
+    Assert.assertFalse(Parser.parse("like ('nabis', '%v__%')").eval(bindings).asBoolean());
+    Assert.assertFalse(Parser.parse("like ('nabis', '%vi%')").eval(bindings).asBoolean());
+    Assert.assertFalse(Parser.parse("like ('nabis', '__vi_')").eval(bindings).asBoolean());
+  }
 }

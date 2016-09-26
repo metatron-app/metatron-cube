@@ -105,7 +105,7 @@ public class Evals
       UnaryMinusExpr minusExpr = (UnaryMinusExpr)arg;
       if (minusExpr.expr instanceof LongExpr) {
         return -minusExpr.expr.eval(null).longValue();
-      } else if (minusExpr.expr instanceof LongExpr) {
+      } else if (minusExpr.expr instanceof DoubleExpr) {
         return -minusExpr.expr.eval(null).doubleValue();
       }
     }

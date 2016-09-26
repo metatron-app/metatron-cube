@@ -23,6 +23,7 @@ import com.fasterxml.jackson.databind.util.ISO8601DateFormat;
 import com.google.common.base.Strings;
 import com.google.common.base.Supplier;
 import com.google.common.collect.Sets;
+import com.metamx.common.Pair;
 import io.druid.math.expr.Expr.NumericBinding;
 import io.druid.math.expr.Expr.WindowContext;
 import org.apache.commons.lang.StringUtils;
@@ -131,6 +132,37 @@ public interface Function
     protected ExprEval eval(double x, double y)
     {
       return eval((long) x, (long) y);
+    }
+  }
+
+  class Like implements Function, Factory
+  {
+    private Pair<RegexUtils.PatternType, Object> matcher;
+
+    @Override
+    public String name()
+    {
+      return "like";
+    }
+
+    @Override
+    public ExprEval apply(List<Expr> args, NumericBinding bindings)
+    {
+      if (matcher == null) {
+        if (args.size() != 2) {
+          throw new RuntimeException("function '" + name() + "' needs 2 arguments");
+        }
+        Expr expr2 = args.get(1);
+        matcher = RegexUtils.parse(Evals.getConstantString(expr2));
+      }
+      ExprEval eval = args.get(0).eval(bindings);
+      return ExprEval.of(RegexUtils.evaluate(eval.asString(), matcher.lhs, matcher.rhs));
+    }
+
+    @Override
+    public Function get()
+    {
+      return new Like();
     }
   }
 
