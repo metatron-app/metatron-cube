@@ -23,6 +23,7 @@ import com.fasterxml.jackson.databind.util.ISO8601DateFormat;
 import com.google.common.base.Strings;
 import com.google.common.base.Supplier;
 import com.google.common.collect.Sets;
+import com.google.common.primitives.Ints;
 import com.metamx.common.Pair;
 import io.druid.math.expr.Expr.NumericBinding;
 import io.druid.math.expr.Expr.WindowContext;
@@ -41,6 +42,8 @@ import java.util.Formatter;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  */
@@ -163,6 +166,46 @@ public interface Function
     public Function get()
     {
       return new Like();
+    }
+  }
+
+  class Regex implements Function, Factory
+  {
+    private Matcher matcher;
+    private int index = -1;
+
+    @Override
+    public String name()
+    {
+      return "regex";
+    }
+
+    @Override
+    public ExprEval apply(List<Expr> args, NumericBinding bindings)
+    {
+      if (matcher == null) {
+        if (args.size() != 2 && args.size() != 3) {
+          throw new RuntimeException("function '" + name() + "' needs 2 or 3 arguments");
+        }
+        Expr expr2 = args.get(1);
+        matcher = Pattern.compile(Evals.getConstantString(expr2)).matcher("");
+        if (args.size() == 3) {
+          Expr expr3 = args.get(2);
+          index = Ints.checkedCast(Evals.getConstantLong(expr3));
+        }
+      }
+      ExprEval eval = args.get(0).eval(bindings);
+      Matcher m = matcher.reset(eval.asString());
+      if (index < 0) {
+        return ExprEval.of(m.matches());
+      }
+      return ExprEval.of(m.matches() ? matcher.group(index) : null);
+    }
+
+    @Override
+    public Function get()
+    {
+      return new Regex();
     }
   }
 
