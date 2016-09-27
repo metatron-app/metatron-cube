@@ -316,4 +316,11 @@ public class EvalTest
     Assert.assertEquals("is", Parser.parse("regex ('navis', '(.*)v(..)', 2)").eval(bindings).asString());
     Assert.assertEquals("navis", Parser.parse("regex ('navis', '.*vi.*', 0)").eval(bindings).asString());
   }
+
+  @Test
+  public void testRFunc()
+  {
+    Expr.NumericBinding bindings = Parser.withMap(ImmutableMap.<String, Object>of("a", 30, "b", 3));
+    Assert.assertEquals(33, Parser.parse("r('function(a, b) { a + b }', a, b)").eval(bindings).longValue());
+  }
 }

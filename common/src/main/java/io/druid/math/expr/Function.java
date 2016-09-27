@@ -32,6 +32,8 @@ import org.joda.time.DateTime;
 import org.joda.time.Days;
 import org.mozilla.javascript.Context;
 import org.mozilla.javascript.ScriptableObject;
+import org.rosuda.JRI.REXP;
+import org.rosuda.JRI.Rengine;
 
 import java.text.DateFormat;
 import java.text.ParseException;
@@ -206,6 +208,74 @@ public interface Function
     public Function get()
     {
       return new Regex();
+    }
+  }
+
+  class RFunc implements Function, Factory
+  {
+    private Rengine r;
+    private final StringBuilder query = new StringBuilder();
+
+    @Override
+    public String name()
+    {
+      return "r";
+    }
+
+    @Override
+    public ExprEval apply(List<Expr> args, NumericBinding bindings)
+    {
+      if (r == null) {
+        if (args.isEmpty()) {
+          throw new RuntimeException("function '" + name() + "' should have at least one argument");
+        }
+        Rengine re = new Rengine(new String[]{"--vanilla"}, false, null);
+        if (!re.waitForR()) {
+          throw new RuntimeException("failed to initialize R engine");
+        }
+        re.eval("x <- " + Evals.getConstantString(args.get(0)));
+        r = re;
+      }
+      query.setLength(0);
+      query.append("x(");
+      for (int i = 1; i < args.size(); i++) {
+        final String symbol = "p" + i;
+        if (i > 1) {
+          query.append(", ");
+        }
+        query.append(symbol);
+        final ExprEval eval = args.get(i).eval(bindings);
+        switch (eval.type()) {
+          case DOUBLE:
+            r.assign(symbol, new double[]{eval.doubleValue()});
+            break;
+          case LONG:
+            r.assign(symbol, new int[]{Ints.checkedCast(eval.longValue())});
+            break;
+          case STRING:
+            r.assign(symbol, eval.stringValue());
+            break;
+        }
+      }
+      final REXP expr = r.eval(query.append(')').toString());
+      switch (expr.getType()) {
+        case REXP.XT_DOUBLE:
+        case REXP.XT_ARRAY_DOUBLE:
+          return ExprEval.of(expr.asDouble());
+        case REXP.XT_INT:
+        case REXP.XT_ARRAY_INT:
+          return ExprEval.of(expr.asInt());
+        case REXP.XT_STR:
+          return ExprEval.of(expr.asString());
+        default:
+          return ExprEval.bestEffortOf(expr.getContent());
+      }
+    }
+
+    @Override
+    public Function get()
+    {
+      return new RFunc();
     }
   }
 
