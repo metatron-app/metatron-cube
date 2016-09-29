@@ -78,6 +78,11 @@ public abstract class BaseQuery<T extends Comparable<T>> implements Query<T>
     return PropUtils.parseBoolean(query.getContext(), "finalize", defaultValue);
   }
 
+  public static <T> boolean rewriteQuery(Query<T> query, boolean defaultValue)
+  {
+    return PropUtils.parseBoolean(query.getContext(), QueryContextKeys.REWRITE_QUERY, defaultValue);
+  }
+
   public static <T> int getContextUncoveredIntervalsLimit(Query<T> query, int defaultValue)
   {
     return PropUtils.parseInt(query.getContext(), "uncoveredIntervalsLimit", defaultValue);

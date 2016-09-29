@@ -188,6 +188,8 @@ public class QueryResource
         log.debug("Got query [%s]", query);
       }
 
+      query = prepareQuery(query);
+
       if (authConfig.isEnabled()) {
         // This is an experimental feature, see - https://github.com/druid-io/druid/pull/2424
         AuthorizationInfo authorizationInfo = (AuthorizationInfo) req.getAttribute(AuthConfig.DRUID_AUTH_TOKEN);
@@ -205,7 +207,6 @@ public class QueryResource
           throw new ISE("WTF?! Security is enabled but no authorization info found in the request");
         }
       }
-      query = prepareQuery(query);
 
       final Map<String, Object> responseContext = new MapMaker().makeMap();
       final Sequence res = query.run(texasRanger, responseContext);

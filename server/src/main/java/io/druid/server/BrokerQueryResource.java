@@ -27,6 +27,7 @@ import com.metamx.common.guava.Sequence;
 import com.metamx.common.guava.Sequences;
 import com.metamx.emitter.service.ServiceEmitter;
 import io.druid.client.TimelineServerView;
+import io.druid.client.coordinator.CoordinatorClient;
 import io.druid.client.selector.ServerSelector;
 import io.druid.common.utils.JodaUtils;
 import io.druid.common.utils.StringUtils;
@@ -38,12 +39,15 @@ import io.druid.query.BaseQuery;
 import io.druid.query.DataSource;
 import io.druid.query.LocatedSegmentDescriptor;
 import io.druid.query.Query;
+import io.druid.query.QueryDataSource;
 import io.druid.query.QuerySegmentWalker;
 import io.druid.query.QueryToolChestWarehouse;
+import io.druid.query.RegexDataSource;
 import io.druid.query.ResultWriter;
 import io.druid.query.SegmentDescriptor;
 import io.druid.query.TableDataSource;
 import io.druid.query.TabularFormat;
+import io.druid.query.UnionDataSource;
 import io.druid.server.coordination.DruidServerMetadata;
 import io.druid.server.initialization.ServerConfig;
 import io.druid.server.log.RequestLogger;
@@ -78,6 +82,7 @@ import java.util.Map;
 public class BrokerQueryResource extends QueryResource
 {
   private final DruidNode node;
+  private final CoordinatorClient coordinator;
   private final TimelineServerView brokerServerView;
   private final QueryToolChestWarehouse warehouse;
   private final Map<String, ResultWriter> writerMap;
@@ -95,11 +100,13 @@ public class BrokerQueryResource extends QueryResource
       QueryManager queryManager,
       AuthConfig authConfig,
       Map<String, ResultWriter> writerMap,
+      CoordinatorClient coordinator,
       TimelineServerView brokerServerView
   )
   {
     super(config, jsonMapper, smileMapper, texasRanger, emitter, requestLogger, queryManager, authConfig);
     this.node = node;
+    this.coordinator = coordinator;
     this.brokerServerView = brokerServerView;
     this.warehouse = warehouse;
     this.writerMap = writerMap;
@@ -224,6 +231,27 @@ public class BrokerQueryResource extends QueryResource
   @Override
   protected Query prepareQuery(Query query)
   {
-    return warehouse.getToolChest(query).rewriteQuery(query, texasRanger);
+    query = rewriteDataSources(query);
+    if (BaseQuery.rewriteQuery(query, false)) {
+      query = warehouse.getToolChest(query).rewriteQuery(query, texasRanger);
+    }
+    return query;
+  }
+
+  private Query rewriteDataSources(Query query)
+  {
+    DataSource dataSource = query.getDataSource();
+    if (dataSource instanceof RegexDataSource) {
+      List<String> exploded = coordinator.findDatasources(dataSource.getNames());
+      if (exploded.size() == 1) {
+        query = query.withDataSource(new TableDataSource(exploded.get(0)));
+      } else {
+        query = query.withDataSource(new UnionDataSource(TableDataSource.of(exploded)));
+      }
+    } else if (dataSource instanceof QueryDataSource) {
+      Query subQuery = rewriteDataSources(((QueryDataSource) query).getQuery());
+      query = query.withDataSource(new QueryDataSource(subQuery));
+    }
+    return query;
   }
 }

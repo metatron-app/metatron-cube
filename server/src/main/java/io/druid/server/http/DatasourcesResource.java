@@ -116,18 +116,24 @@ public class DatasourcesResource
                                              ) :
                                              InventoryViewUtils.getDataSources(serverInventoryView);
     if (!Strings.isNullOrEmpty(regex)) {
-      final Matcher matcher = Pattern.compile(regex).matcher("");
-      datasources = Sets.filter(
-          datasources,
-          new Predicate<DruidDataSource>()
-          {
-            @Override
-            public boolean apply(DruidDataSource input)
-            {
-              return matcher.reset(input.getName()).matches();
-            }
-          }
-      );
+      Set<DruidDataSource> filtered = Sets.newLinkedHashSet();
+      for (String part : regex.split(",")) {
+        final Matcher matcher = Pattern.compile(part.trim()).matcher("");
+        filtered.addAll(
+            Sets.filter(
+                datasources,
+                new Predicate<DruidDataSource>()
+                {
+                  @Override
+                  public boolean apply(DruidDataSource input)
+                  {
+                    return matcher.reset(input.getName()).matches();
+                  }
+                }
+            )
+        );
+      }
+      datasources = filtered;
     }
 
     if (full != null) {

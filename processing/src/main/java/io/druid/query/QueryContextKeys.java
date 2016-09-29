@@ -24,4 +24,5 @@ public class QueryContextKeys
   public static final String PRIORITY = "priority";
   public static final String TIMEOUT = "timeout";
   public static final String CHUNK_PERIOD = "chunkPeriod";
+  public static final String REWRITE_QUERY = "rewriteQuery";
 }
