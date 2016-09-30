@@ -34,7 +34,6 @@ import com.metamx.common.Pair;
 import com.metamx.common.concurrent.ScheduledExecutorFactory;
 import com.metamx.common.concurrent.ScheduledExecutors;
 import com.metamx.common.guava.CloseQuietly;
-import com.metamx.common.guava.Comparators;
 import com.metamx.common.guava.FunctionalIterable;
 import com.metamx.common.lifecycle.LifecycleStart;
 import com.metamx.common.lifecycle.LifecycleStop;
@@ -48,6 +47,7 @@ import io.druid.client.ServerInventoryView;
 import io.druid.client.indexing.IndexingServiceClient;
 import io.druid.collections.CountingMap;
 import io.druid.common.config.JacksonConfigManager;
+import io.druid.common.utils.JodaUtils;
 import io.druid.concurrent.Execs;
 import io.druid.curator.discovery.ServiceAnnouncer;
 import io.druid.guice.ManageLifecycle;
@@ -94,7 +94,7 @@ public class DruidCoordinator
 {
   public static final String COORDINATOR_OWNER_NODE = "_COORDINATOR";
 
-  public static Comparator<DataSegment> SEGMENT_COMPARATOR = Ordering.from(Comparators.intervalsByEndThenStart())
+  public static Comparator<DataSegment> SEGMENT_COMPARATOR = Ordering.from(JodaUtils.intervalsByEndThenStart())
                                                                      .onResultOf(
                                                                          new Function<DataSegment, Interval>()
                                                                          {
@@ -797,9 +797,9 @@ public class DruidCoordinator
                 }
               },
               new DruidCoordinatorRuleRunner(DruidCoordinator.this),
-              new DruidCoordinatorCleanupUnneeded(DruidCoordinator.this),
-              new DruidCoordinatorCleanupOvershadowed(DruidCoordinator.this),
-              new DruidCoordinatorBalancer(DruidCoordinator.this),
+              new DruidCoordinatorCleanupUnneeded(config.getCoordinatorLazyTicks()),
+              new DruidCoordinatorCleanupOvershadowed(DruidCoordinator.this, config.getCoordinatorLazyTicks()),
+              new DruidCoordinatorBalancer(DruidCoordinator.this, config.getCoordinatorLazyTicks()),
               new DruidCoordinatorLogger()
           ),
           startingLeaderCounter

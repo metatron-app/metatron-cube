@@ -22,8 +22,8 @@ package io.druid.timeline;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
-import com.metamx.common.guava.Comparators;
 import com.metamx.common.logger.Logger;
+import io.druid.common.utils.JodaUtils;
 import io.druid.timeline.partition.ImmutablePartitionHolder;
 import io.druid.timeline.partition.PartitionChunk;
 import io.druid.timeline.partition.PartitionHolder;
@@ -64,10 +64,10 @@ public class VersionedIntervalTimeline<VersionType, ObjectType> implements Timel
   private final ReentrantReadWriteLock lock = new ReentrantReadWriteLock(true);
 
   final NavigableMap<Interval, TimelineEntry> completePartitionsTimeline = new TreeMap<Interval, TimelineEntry>(
-      Comparators.intervalsByStartThenEnd()
+      JodaUtils.intervalsByStartThenEnd()
   );
   final NavigableMap<Interval, TimelineEntry> incompletePartitionsTimeline = new TreeMap<Interval, TimelineEntry>(
-      Comparators.intervalsByStartThenEnd()
+      JodaUtils.intervalsByStartThenEnd()
   );
   private final Map<Interval, TreeMap<VersionType, TimelineEntry>> allTimelineEntries = Maps.newHashMap();
 

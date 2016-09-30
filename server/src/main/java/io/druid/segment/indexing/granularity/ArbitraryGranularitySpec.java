@@ -27,7 +27,6 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.PeekingIterator;
 import com.google.common.collect.Sets;
 import com.metamx.common.Granularity;
-import com.metamx.common.guava.Comparators;
 import io.druid.common.utils.JodaUtils;
 import io.druid.granularity.QueryGranularity;
 import org.joda.time.DateTime;
@@ -49,7 +48,7 @@ public class ArbitraryGranularitySpec implements GranularitySpec
   )
   {
     this.queryGranularity = queryGranularity;
-    this.intervals = Sets.newTreeSet(Comparators.intervalsByStartThenEnd());
+    this.intervals = Sets.newTreeSet(JodaUtils.intervalsByStartThenEnd());
 
     if (inputIntervals == null) {
       inputIntervals = Lists.newArrayList();

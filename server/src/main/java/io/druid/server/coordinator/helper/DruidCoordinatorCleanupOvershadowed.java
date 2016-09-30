@@ -39,15 +39,28 @@ import java.util.Map;
 public class DruidCoordinatorCleanupOvershadowed implements DruidCoordinatorHelper
 {
   private final DruidCoordinator coordinator;
+  private final int cleanupLazyTicks;
+  private int currentTick;
+
+  public DruidCoordinatorCleanupOvershadowed(DruidCoordinator coordinator, int cleanupLazyTicks)
+  {
+    this.coordinator = coordinator;
+    this.cleanupLazyTicks = cleanupLazyTicks;
+  }
 
   public DruidCoordinatorCleanupOvershadowed(DruidCoordinator coordinator)
   {
-    this.coordinator = coordinator;
+    this(coordinator, 1);
   }
 
   @Override
   public DruidCoordinatorRuntimeParams run(DruidCoordinatorRuntimeParams params)
   {
+    if (++currentTick < cleanupLazyTicks) {
+      return params;
+    }
+    currentTick = 0;
+
     CoordinatorStats stats = new CoordinatorStats();
 
     // Delete segments that are old

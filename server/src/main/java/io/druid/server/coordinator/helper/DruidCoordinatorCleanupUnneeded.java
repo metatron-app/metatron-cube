@@ -25,7 +25,6 @@ import io.druid.client.ImmutableDruidDataSource;
 import io.druid.client.ImmutableDruidServer;
 import io.druid.server.coordinator.CoordinatorStats;
 import io.druid.server.coordinator.DruidCluster;
-import io.druid.server.coordinator.DruidCoordinator;
 import io.druid.server.coordinator.DruidCoordinatorRuntimeParams;
 import io.druid.server.coordinator.LoadPeonCallback;
 import io.druid.server.coordinator.LoadQueuePeon;
@@ -40,18 +39,22 @@ public class DruidCoordinatorCleanupUnneeded implements DruidCoordinatorHelper
 {
   private static final Logger log = new Logger(DruidCoordinatorCleanupUnneeded.class);
 
-  private final DruidCoordinator coordinator;
+  private final int cleanupLazyTicks;
+  private int currentTick;
 
-  public DruidCoordinatorCleanupUnneeded(
-      DruidCoordinator coordinator
-  )
+  public DruidCoordinatorCleanupUnneeded(int cleanupLazyTicks)
   {
-    this.coordinator = coordinator;
+    this.cleanupLazyTicks = cleanupLazyTicks;
   }
 
   @Override
   public DruidCoordinatorRuntimeParams run(DruidCoordinatorRuntimeParams params)
   {
+    if (++currentTick < cleanupLazyTicks) {
+      return params;
+    }
+    currentTick = 0;
+
     CoordinatorStats stats = new CoordinatorStats();
     Set<DataSegment> availableSegments = params.getAvailableSegments();
     DruidCluster cluster = params.getDruidCluster();

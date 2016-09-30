@@ -40,6 +40,7 @@ import io.druid.client.DruidServer;
 import io.druid.client.ImmutableSegmentLoadInfo;
 import io.druid.client.SegmentLoadInfo;
 import io.druid.client.indexing.IndexingServiceClient;
+import io.druid.common.utils.JodaUtils;
 import io.druid.metadata.MetadataSegmentManager;
 import io.druid.query.TableDataSource;
 import io.druid.server.http.security.DatasourceResourceFilter;
@@ -311,7 +312,7 @@ public class DatasourcesResource
       return Response.noContent().build();
     }
 
-    final Comparator<Interval> comparator = Comparators.inverse(Comparators.intervalsByStartThenEnd());
+    final Comparator<Interval> comparator = Comparators.inverse(JodaUtils.intervalsByStartThenEnd());
 
     if (full != null) {
       final Map<Interval, Map<String, Object>> retVal = Maps.newTreeMap(comparator);
@@ -374,7 +375,7 @@ public class DatasourcesResource
       return Response.noContent().build();
     }
 
-    final Comparator<Interval> comparator = Comparators.inverse(Comparators.intervalsByStartThenEnd());
+    final Comparator<Interval> comparator = Comparators.inverse(JodaUtils.intervalsByStartThenEnd());
     if (full != null) {
       final Map<Interval, Map<String, Object>> retVal = Maps.newTreeMap(comparator);
       for (DataSegment dataSegment : dataSource.getSegments()) {

@@ -25,6 +25,7 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import com.metamx.common.Granularity;
 import com.metamx.common.guava.Comparators;
+import io.druid.common.utils.JodaUtils;
 import io.druid.indexer.HadoopDruidIndexerConfig;
 import io.druid.indexer.hadoop.FSSpideringIterator;
 import io.druid.segment.indexing.granularity.UniformGranularitySpec;
@@ -86,7 +87,7 @@ public class GranularUnprocessedPathSpec extends GranularityPathSpec
       inputModifiedTimes.put(key, currVal == null ? mTime : Math.max(currVal, mTime));
     }
 
-    Set<Interval> bucketsToRun = Sets.newTreeSet(Comparators.intervals());
+    Set<Interval> bucketsToRun = Sets.newTreeSet(JodaUtils.intervalsByStartThenEnd());
     for (Map.Entry<DateTime, Long> entry : inputModifiedTimes.entrySet()) {
       DateTime timeBucket = entry.getKey();
       long mTime = entry.getValue();

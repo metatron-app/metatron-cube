@@ -23,11 +23,13 @@ import com.google.common.base.Predicate;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
+import com.google.common.primitives.Longs;
 import com.metamx.common.guava.Comparators;
 import org.joda.time.DateTime;
 import org.joda.time.Interval;
 
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.Iterator;
 import java.util.TreeSet;
 
@@ -39,11 +41,57 @@ public class JodaUtils
   public static final long MAX_INSTANT = Long.MAX_VALUE / 2;
   public static final long MIN_INSTANT = Long.MIN_VALUE / 2;
 
+  private static final Comparator<Interval> INTERVAL_BY_START_THEN_END = new Comparator<Interval>()
+  {
+    private final Comparator<Interval> comparator = Comparators.intervalsByStartThenEnd();
+
+    @Override
+    public int compare(Interval lhs, Interval rhs)
+    {
+      if (lhs.getChronology().equals(rhs.getChronology())) {
+        int compare = Longs.compare(lhs.getStartMillis(), rhs.getStartMillis());
+        if (compare == 0) {
+          return Longs.compare(lhs.getEndMillis(), rhs.getEndMillis());
+        }
+        return compare;
+      }
+      return comparator.compare(lhs, rhs);
+    }
+  };
+
+  private static final Comparator<Interval> INTERVAL_BY_END_THEN_START = new Comparator<Interval>()
+  {
+    private final Comparator<Interval> comparator = Comparators.intervalsByEndThenStart();
+
+    @Override
+    public int compare(Interval lhs, Interval rhs)
+    {
+      if (lhs.getChronology().equals(rhs.getChronology())) {
+        int compare = Longs.compare(lhs.getEndMillis(), rhs.getEndMillis());
+        if (compare == 0) {
+          return Longs.compare(lhs.getStartMillis(), rhs.getStartMillis());
+        }
+        return compare;
+      }
+      return comparator.compare(lhs, rhs);
+    }
+  };
+
+  public static Comparator<Interval> intervalsByStartThenEnd()
+  {
+    return INTERVAL_BY_START_THEN_END;
+  }
+
+  public static Comparator<Interval> intervalsByEndThenStart()
+  {
+    return INTERVAL_BY_END_THEN_START;
+  }
+
   public static ArrayList<Interval> condenseIntervals(Iterable<Interval> intervals)
   {
     ArrayList<Interval> retVal = Lists.newArrayList();
 
-    TreeSet<Interval> sortedIntervals = Sets.newTreeSet(Comparators.intervalsByStartThenEnd());
+    TreeSet<Interval> sortedIntervals = Sets.newTreeSet(JodaUtils.intervalsByStartThenEnd());
     for (Interval interval : intervals) {
       sortedIntervals.add(interval);
     }

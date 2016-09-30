@@ -279,7 +279,7 @@ public class TaskLockbox
         if (posseMap == null) {
           running.put(
               dataSource,
-              posseMap = new TreeMap<Interval, TaskLockPosse>(Comparators.intervalsByStartThenEnd())
+              posseMap = new TreeMap<Interval, TaskLockPosse>(JodaUtils.intervalsByStartThenEnd())
           );
         }
         TaskLockPosse locked = new TaskLockPosse(new TaskLock(task.getGroupId(), dataSource, interval, version));

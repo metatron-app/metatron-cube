@@ -35,6 +35,7 @@ import com.metamx.common.guava.Sequence;
 import com.metamx.common.guava.Sequences;
 import com.metamx.common.guava.nary.BinaryFn;
 import com.metamx.emitter.service.ServiceMetricEvent;
+import io.druid.common.utils.JodaUtils;
 import io.druid.granularity.QueryGranularity;
 import io.druid.query.CacheStrategy;
 import io.druid.query.DruidMetrics;
@@ -345,8 +346,8 @@ public class SelectQueryQueryToolChest extends QueryToolChest<Result<SelectResul
         Iterables.transform(paging.keySet(), DataSegmentUtils.INTERVAL_EXTRACTOR(dataSource))
     );
     Collections.sort(
-        intervals, query.isDescending() ? Comparators.intervalsByEndThenStart()
-                                        : Comparators.intervalsByStartThenEnd()
+        intervals, query.isDescending() ? JodaUtils.intervalsByEndThenStart()
+                                        : JodaUtils.intervalsByStartThenEnd()
     );
 
     TreeMap<Long, Long> granularThresholds = Maps.newTreeMap();
@@ -411,8 +412,8 @@ public class SelectQueryQueryToolChest extends QueryToolChest<Result<SelectResul
             Lists.<Result<SelectMetaResultValue>>newArrayList()
         );
 
-    Comparator<Interval> comparator = query.isDescending() ? Comparators.intervalsByEndThenStart()
-                                                           : Comparators.intervalsByStartThenEnd();
+    Comparator<Interval> comparator = query.isDescending() ? JodaUtils.intervalsByEndThenStart()
+                                                           : JodaUtils.intervalsByStartThenEnd();
     Map<String, Map<Interval, MutableInt>> mapping = Maps.newHashMap();
     for (Result<SelectMetaResultValue> result : results) {
       for (Map.Entry<String, Integer> entry : result.getValue().getPerSegmentCounts().entrySet()) {

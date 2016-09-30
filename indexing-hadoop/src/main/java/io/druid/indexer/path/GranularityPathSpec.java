@@ -23,8 +23,8 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Optional;
 import com.google.common.collect.Sets;
 import com.metamx.common.Granularity;
-import com.metamx.common.guava.Comparators;
 import com.metamx.common.logger.Logger;
+import io.druid.common.utils.JodaUtils;
 import io.druid.indexer.HadoopDruidIndexerConfig;
 import io.druid.indexer.hadoop.FSSpideringIterator;
 import org.apache.hadoop.fs.FileStatus;
@@ -111,7 +111,7 @@ public class GranularityPathSpec implements PathSpec
   @Override
   public Job addInputPaths(HadoopDruidIndexerConfig config, Job job) throws IOException
   {
-    final Set<Interval> intervals = Sets.newTreeSet(Comparators.intervals());
+    final Set<Interval> intervals = Sets.newTreeSet(JodaUtils.intervalsByStartThenEnd());
     Optional<Set<Interval>> optionalIntervals = config.getSegmentGranularIntervals();
     if (optionalIntervals.isPresent()) {
       for (Interval segmentInterval : optionalIntervals.get()) {
