@@ -430,9 +430,12 @@ public class DruidCoordinator
 
   public Set<DataSegment> getOrderedAvailableDataSegments()
   {
-    Set<DataSegment> availableSegments = Sets.newTreeSet(SEGMENT_COMPARATOR);
+    return makeOrdered(getAvailableDataSegments());
+  }
 
-    Iterable<DataSegment> dataSegments = getAvailableDataSegments();
+  public Set<DataSegment> makeOrdered(Iterable<DataSegment> dataSegments)
+  {
+    Set<DataSegment> availableSegments = Sets.newTreeSet(SEGMENT_COMPARATOR);
 
     for (DataSegment dataSegment : dataSegments) {
       if (dataSegment.getSize() < 0) {
@@ -796,7 +799,7 @@ public class DruidCoordinator
                                .build();
                 }
               },
-              new DruidCoordinatorRuleRunner(DruidCoordinator.this),
+              new DruidCoordinatorRuleRunner(DruidCoordinator.this, config.getCoordinatorLazyTicks()),
               new DruidCoordinatorCleanupUnneeded(config.getCoordinatorLazyTicks()),
               new DruidCoordinatorCleanupOvershadowed(DruidCoordinator.this, config.getCoordinatorLazyTicks()),
               new DruidCoordinatorBalancer(DruidCoordinator.this, config.getCoordinatorLazyTicks()),
