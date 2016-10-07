@@ -72,21 +72,6 @@ public class ReduceMergeIndexGeneratorJob implements HadoopDruidIndexerJob.Index
   {
     this.config = config;
     this.jobStats = new IndexGeneratorJob.IndexGeneratorStats();
-
-    for (List<HadoopyShardSpec> shardSpecs : config.getSchema().getTuningConfig().getShardSpecs().values()) {
-      for (HadoopyShardSpec shardSpec : shardSpecs) {
-        ShardSpec spec = shardSpec.getActualSpec();
-        if (spec instanceof NoneShardSpec) {
-          continue;
-        }
-        if (spec instanceof NumberedShardSpec
-            && ((NumberedShardSpec) spec).getPartitions() == 1
-            && spec.getPartitionNum() == 0) {
-          continue;
-        }
-        throw new IllegalArgumentException("cannot handle shard spec " + shardSpec);
-      }
-    }
   }
 
   public IndexGeneratorJob.IndexGeneratorStats getJobStats()

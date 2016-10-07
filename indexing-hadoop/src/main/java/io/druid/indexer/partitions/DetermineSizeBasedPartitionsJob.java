@@ -68,10 +68,9 @@ public class DetermineSizeBasedPartitionsJob implements Jobby
     long targetSize = config.getTargetPartitionSize();
 
     Optional<Set<Interval>> intervals = config.getSegmentGranularIntervals();
-    if (!intervals.isPresent() || intervals.get().size() != 1) {
-      throw new IllegalArgumentException("Invalid interval.. only single granular interval is allowed");
+    if (!intervals.isPresent() || intervals.get().isEmpty()) {
+      throw new IllegalArgumentException("Empty interval..");
     }
-    Interval interval = intervals.get().iterator().next();
     try {
       final Job job = Job.getInstance(
           new Configuration(),
@@ -99,11 +98,11 @@ public class DetermineSizeBasedPartitionsJob implements Jobby
       }
       Map<DateTime, List<HadoopyShardSpec>> shardSpecs = Maps.newTreeMap(DateTimeComparator.getInstance());
 
-      DateTime bucket = interval.getStart();
+      for (Interval interval : intervals.get()) {
 
-      final int numberOfShards = (int) Math.ceil((double) total / targetSize);
+        final int numberOfShards = (int) Math.ceil((double) total / targetSize);
 
-      log.info(
+        log.info(
             "Creating [%,d] shards from total length [%,d] with target size [%,d] for interval [%s]",
             numberOfShards,
             total,
@@ -111,24 +110,26 @@ public class DetermineSizeBasedPartitionsJob implements Jobby
             interval
         );
 
-      List<HadoopyShardSpec> actualSpecs = Lists.newArrayListWithCapacity(numberOfShards);
-      if (numberOfShards == 1) {
-        actualSpecs.add(new HadoopyShardSpec(new NoneShardSpec(), 0));
-      } else {
-        int shardCount = 0;
-        for (int i = 0; i < numberOfShards; ++i) {
-          HadoopyShardSpec shardSpec = new HadoopyShardSpec(
-              new HashBasedNumberedShardSpec(i, numberOfShards, null, HadoopDruidIndexerConfig.JSON_MAPPER),
-              shardCount++
-          );
-          log.info("DateTime[%s], partition[%d], spec[%s]", bucket, i, shardSpec);
-          actualSpecs.add(shardSpec);
+        List<HadoopyShardSpec> actualSpecs = Lists.newArrayListWithCapacity(numberOfShards);
+        if (numberOfShards == 1) {
+          actualSpecs.add(new HadoopyShardSpec(new NoneShardSpec(), 0));
+          log.info("DateTime[%s], partition[%d], spec[%s]", interval, 0, actualSpecs.get(0));
+        } else {
+          int shardCount = 0;
+          for (int i = 0; i < numberOfShards; ++i) {
+            HadoopyShardSpec shardSpec = new HadoopyShardSpec(
+                new HashBasedNumberedShardSpec(i, numberOfShards, null, HadoopDruidIndexerConfig.JSON_MAPPER),
+                shardCount++
+            );
+            log.info("DateTime[%s], partition[%d], spec[%s]", interval, i, shardSpec);
+            actualSpecs.add(shardSpec);
+          }
         }
+        shardSpecs.put(interval.getStart(), actualSpecs);
       }
-      shardSpecs.put(bucket, actualSpecs);
 
       config.setShardSpecs(shardSpecs);
-      log.info("DetermineHashedPartitionsJob took %d millis", (System.currentTimeMillis() - startTime));
+      log.info("DetermineSizeBasedPartitionsJob took %d millis", (System.currentTimeMillis() - startTime));
 
       return true;
     }

@@ -22,6 +22,7 @@ package io.druid.indexer.path;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;
+import com.google.common.collect.Lists;
 import io.druid.indexer.HadoopDruidIndexerConfig;
 import org.apache.hadoop.mapreduce.InputFormat;
 import org.apache.hadoop.mapreduce.Job;
@@ -78,17 +79,23 @@ public class HynixPathSpec implements PathSpec
   @Override
   public Job addInputPaths(HadoopDruidIndexerConfig config, Job job) throws IOException
   {
+    List<String> paths = Lists.newArrayList();
     StringBuilder builder = new StringBuilder();
     for (HynixPathSpecElement element : elements) {
       if (builder.length() > 0) {
         builder.append(',');
       }
+      paths.addAll(HadoopGlobPathSplitter.splitGlob(element.getPaths()));
       builder.append(element.getDataSource()).append(';').append(element.getPaths());
     }
     job.getConfiguration().set(PATH_SPECS, builder.toString());
     job.getConfiguration().setBoolean(COMBINE_PER_PATH, combineElement);
     job.getConfiguration().setClass(INPUT_FORMAT, inputFormat, InputFormat.class);
 
+    // used for sized partition spec
+    StaticPathSpec.addInputPath(job, paths, HynixCombineInputFormat.class);
+
+    // should overwrite
     job.setInputFormatClass(HynixCombineInputFormat.class);
 
     return job;

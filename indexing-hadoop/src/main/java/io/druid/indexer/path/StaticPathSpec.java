@@ -144,7 +144,7 @@ public class StaticPathSpec implements PathSpec
   }
 
   // copied from MultipleInputs.addInputPath with slight modifications
-  private static void addInputPath(Job job, Iterable<String> pathStrings, Class<? extends InputFormat> inputFormatClass)
+  public static void addInputPath(Job job, Iterable<String> pathStrings, Class<? extends InputFormat> inputFormatClass)
   {
     Configuration conf = job.getConfiguration();
     StringBuilder inputFormats = new StringBuilder(Strings.nullToEmpty(conf.get(MultipleInputs.DIR_FORMATS)));
