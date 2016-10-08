@@ -37,23 +37,22 @@ public class HynixPathSpec implements PathSpec
 {
   public static final String PATH_SPECS = "hynix.input.path.specs";
   public static final String INPUT_FORMAT = "hynix.input.path.specs.format";
-  public static final String COMBINE_PER_PATH = "hynix.input.path.specs.combine";
-  public static final String CURRENT_DATASOURCE = "hynix.input.path.specs.current.datasource";
+  public static final String SPLIT_SIZE = "hynix.input.path.specs.split.size";
 
   private final List<HynixPathSpecElement> elements;
   private final Class<? extends InputFormat> inputFormat;
-  private final boolean combineElement;
+  private final int splitSize;
 
   @JsonCreator
   public HynixPathSpec(
       @JsonProperty("elements") List<HynixPathSpecElement> elements,
-      @JsonProperty("combineElement") boolean combineElement,
-      @JsonProperty("inputFormat") Class<? extends InputFormat> inputFormat
+      @JsonProperty("inputFormat") Class<? extends InputFormat> inputFormat,
+      @JsonProperty("splitSize") int splitSize
   )
   {
     this.elements = Preconditions.checkNotNull(elements);
-    this.combineElement = combineElement;
     this.inputFormat = inputFormat == null ? TextInputFormat.class : inputFormat;
+    this.splitSize = splitSize;
     Preconditions.checkArgument(!elements.isEmpty());
   }
 
@@ -71,9 +70,9 @@ public class HynixPathSpec implements PathSpec
   }
 
   @JsonProperty
-  public boolean isCombineElement()
+  public int getSplitSize()
   {
-    return combineElement;
+    return splitSize;
   }
 
   @Override
@@ -89,8 +88,8 @@ public class HynixPathSpec implements PathSpec
       builder.append(element.getDataSource()).append(';').append(element.getPaths());
     }
     job.getConfiguration().set(PATH_SPECS, builder.toString());
-    job.getConfiguration().setBoolean(COMBINE_PER_PATH, combineElement);
     job.getConfiguration().setClass(INPUT_FORMAT, inputFormat, InputFormat.class);
+    job.getConfiguration().setInt(SPLIT_SIZE, splitSize);
 
     // used for sized partition spec
     StaticPathSpec.addInputPath(job, paths, HynixCombineInputFormat.class);
@@ -113,9 +112,6 @@ public class HynixPathSpec implements PathSpec
 
     HynixPathSpec that = (HynixPathSpec) o;
 
-    if (combineElement != that.combineElement) {
-      return false;
-    }
     if (!inputFormat.equals(that.inputFormat)) {
       return false;
     }
@@ -131,7 +127,6 @@ public class HynixPathSpec implements PathSpec
   {
     int result = elements.hashCode();
     result = 31 * result + inputFormat.hashCode();
-    result = 31 * result + (combineElement ? 1 : 0);
     return result;
   }
 
@@ -141,7 +136,7 @@ public class HynixPathSpec implements PathSpec
     return "HynixPathSpec{" +
            "elements=" + elements +
            ", inputFormat=" + inputFormat +
-           ", combinePerPath=" + combineElement +
+           ", splitSize=" + splitSize +
            '}';
   }
 }

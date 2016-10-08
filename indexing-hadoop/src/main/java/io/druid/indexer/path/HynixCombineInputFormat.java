@@ -19,9 +19,10 @@
 
 package io.druid.indexer.path;
 
-import com.google.common.base.Function;
-import com.google.common.collect.Iterables;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
+import com.metamx.common.logger.Logger;
 import io.druid.indexer.hadoop.DatasourceInputFormat;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
@@ -42,12 +43,15 @@ import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
 import java.util.Arrays;
+import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 
 /**
  */
 public class HynixCombineInputFormat extends FileInputFormat
 {
+  private static final Logger log = new Logger(HynixCombineInputFormat.class);
   public static final ThreadLocal<String> CURRENT_DATASOURCE = new ThreadLocal<>();
 
   @Override
@@ -60,40 +64,59 @@ public class HynixCombineInputFormat extends FileInputFormat
   public List<InputSplit> getSplits(JobContext context) throws IOException
   {
     Configuration conf = context.getConfiguration();
-    boolean combine = conf.getBoolean(HynixPathSpec.COMBINE_PER_PATH, false);
+
+    // splitSize < 0 : no combine, splitSize == 0 : combine per elements
+    final int splitSize = conf.getInt(HynixPathSpec.SPLIT_SIZE, 0);
 
     List<InputSplit> result = Lists.newArrayList();
 
     Job cloned = new Job(conf);
+    int currentSize = 0;
+    Map<String, List<FileSplit>> combined = Maps.newHashMap();
     for (String specString : conf.get(HynixPathSpec.PATH_SPECS).split(",")) {
       String[] spec = specString.split(";");
+      String dataSource = spec[0];
       FileInputFormat.setInputPaths(cloned, StringUtils.join(",", HadoopGlobPathSplitter.splitGlob(spec[1])));
       List<FileSplit> splits = super.getSplits(cloned);
-      if (combine) {
-        result.add(new HynixSplit(spec[0], splits));
-      } else {
-        for (FileSplit split : splits) {
-          result.add(new HynixSplit(spec[0], Arrays.asList(split)));
+      if (splitSize == 0) {
+        result.add(new HynixSplit(ImmutableMap.of(dataSource, splits)));
+        continue;
+      }
+      for (FileSplit split : splits) {
+        List<FileSplit> splitList = combined.get(dataSource);
+        if (splitList == null) {
+          combined.put(dataSource, splitList = Lists.newArrayList());
+        }
+        splitList.add(split);
+        currentSize += split.getLength();
+        if (currentSize > splitSize) {
+          result.add(new HynixSplit(combined));
+          combined = Maps.newHashMap();
+          currentSize = 0;
         }
       }
     }
+    if (!combined.isEmpty()) {
+      result.add(new HynixSplit(combined));
+    }
 
+    for (int i = 0; i < result.size(); i++) {
+      log.info("Split-[%04d] : [%s]", i, ((HynixSplit)result.get(i)).splits);
+    }
     return result;
   }
 
   public static class HynixSplit extends InputSplit implements Writable
   {
-    private String dataSource;
-    private List<FileSplit> splits;
+    private final Map<String, List<FileSplit>> splits;
 
     public HynixSplit()
     {
-      splits = Lists.newArrayList();
+      splits = Maps.newHashMap();
     }
 
-    public HynixSplit(String dataSource, List<FileSplit> splits)
+    public HynixSplit(Map<String, List<FileSplit>> splits)
     {
-      this.dataSource = dataSource;
       this.splits = splits;
     }
 
@@ -101,8 +124,10 @@ public class HynixCombineInputFormat extends FileInputFormat
     public long getLength() throws IOException, InterruptedException
     {
       long length = 0;
-      for (InputSplit split : splits) {
-        length += split.getLength();
+      for (List<FileSplit> splitList : splits.values()) {
+        for (FileSplit split : splitList) {
+          length += split.getLength();
+        }
       }
       return length;
     }
@@ -110,46 +135,42 @@ public class HynixCombineInputFormat extends FileInputFormat
     @Override
     public String[] getLocations() throws IOException, InterruptedException
     {
-      return DatasourceInputFormat.getFrequentLocations(
-          Iterables.concat(
-              Iterables.transform(
-                  splits, new Function<FileSplit, Iterable<String>>()
-                  {
-                    @Override
-                    public Iterable<String> apply(FileSplit input)
-                    {
-                      try {
-                        return Arrays.asList(input.getLocations());
-                      }
-                      catch (IOException e) {
-                        throw new UnsupportedOperationException(e);
-                      }
-                    }
-                  }
-              )
-          ), 3
-      );
+      List<String> hosts = Lists.newArrayList();
+      for (List<FileSplit> splitList : splits.values()) {
+        for (FileSplit split : splitList) {
+          hosts.addAll(Arrays.asList(split.getLocations()));
+        }
+      }
+      return DatasourceInputFormat.getFrequentLocations(hosts, 3);
     }
 
     @Override
     public void write(DataOutput out) throws IOException
     {
-      out.writeUTF(dataSource);
       out.writeInt(splits.size());
-      for (FileSplit split : splits) {
-        split.write(out);
+      for (Map.Entry<String, List<FileSplit>> entry : splits.entrySet()) {
+        out.writeUTF(entry.getKey());
+        out.writeInt(entry.getValue().size());
+        for (FileSplit split : entry.getValue()) {
+          split.write(out);
+        }
       }
     }
 
     @Override
     public void readFields(DataInput in) throws IOException
     {
-      dataSource = in.readUTF();
-      int length = in.readInt();
-      for (int i = 0; i < length; i++) {
-        FileSplit split = new FileSplit();
-        split.readFields(in);
-        splits.add(split);
+      int dataSourceLength = in.readInt();
+      for (int i = 0; i < dataSourceLength; i++) {
+        String dataSource = in.readUTF();
+        int splitLength = in.readInt();
+        List<FileSplit> splitList = Lists.newArrayListWithCapacity(splitLength);
+        for (int j = 0; j < splitLength; j++) {
+          FileSplit split = new FileSplit();
+          split.readFields(in);
+          splitList.add(split);
+        }
+        splits.put(dataSource, splitList);
       }
     }
   }
@@ -169,8 +190,8 @@ public class HynixCombineInputFormat extends FileInputFormat
     return new RecordReader()
     {
       private int index;
-      private final String dataSource = hynixSplit.dataSource;
-      private final List<FileSplit> splits = hynixSplit.splits;
+      private final Iterator<Map.Entry<String, List<FileSplit>>> iterator = hynixSplit.splits.entrySet().iterator();
+      private List<FileSplit> splits;
 
       private RecordReader reader;
       private long progress;
@@ -179,14 +200,12 @@ public class HynixCombineInputFormat extends FileInputFormat
       @Override
       public void initialize(InputSplit split, TaskAttemptContext context) throws IOException, InterruptedException
       {
-        context.getConfiguration().set(HynixPathSpec.CURRENT_DATASOURCE, dataSource);
         totalLength = split.getLength();
       }
 
       @Override
       public boolean nextKeyValue() throws IOException, InterruptedException
       {
-        CURRENT_DATASOURCE.set(dataSource);
         while (reader == null || !reader.nextKeyValue()) {
           if (!initNextRecordReader()) {
             return false;
@@ -202,8 +221,14 @@ public class HynixCombineInputFormat extends FileInputFormat
           reader.close();
           reader = null;
         }
-        if (index == splits.size()) {
-          return false;
+        if (splits == null || index == splits.size()) {
+          if (!iterator.hasNext()) {
+            return false;
+          }
+          Map.Entry<String, List<FileSplit>> next = iterator.next();
+          CURRENT_DATASOURCE.set(next.getKey());
+          splits = next.getValue();
+          index = 0;
         }
         FileSplit split = splits.get(index++);
         reader = format.createRecordReader(split, context);

@@ -143,6 +143,7 @@ public class ReduceMergeIndexGeneratorJob implements HadoopDruidIndexerJob.Index
     private Counter flushedIndex;
 
     private long maxOccupation;
+    private int maxRowCount;
     private int occupationCheckInterval = 2000;
 
     private File baseFlushFile;
@@ -193,6 +194,7 @@ public class ReduceMergeIndexGeneratorJob implements HadoopDruidIndexerJob.Index
       flushedIndex = context.getCounter("navis", "index-flush-count");
 
       maxOccupation = tuningConfig.getMaxOccupationInMemory();
+      maxRowCount = tuningConfig.getRowFlushBoundary();
       occupationCheckInterval = 2000;
 
       merger = config.isBuildV9Directly()
@@ -237,8 +239,10 @@ public class ReduceMergeIndexGeneratorJob implements HadoopDruidIndexerJob.Index
         if (lineCount > 0 && lineCount % occupationCheckInterval == 0) {
           long estimation = index.estimatedOccupation();
           log.info("... %,d rows in index with estimated size %,d bytes", index.size(), estimation);
-          if (!flush && maxOccupation > 0 && estimation >= maxOccupation) {
-            log.info("flushing index because estimated size is bigger than %,d", maxOccupation);
+          if (flush) {
+            log.info("Flushing index because row count in index exceeding maxRowsInMemory %,d", maxRowCount);
+          } else if (maxOccupation > 0 && estimation >= maxOccupation) {
+            log.info("Flushing index because estimated size is bigger than %,d", maxOccupation);
             flush = true;
           }
         }
@@ -250,6 +254,9 @@ public class ReduceMergeIndexGeneratorJob implements HadoopDruidIndexerJob.Index
         currentDataSource = dataSource;
         interval = getConfig().getTargetInterval(row).get();
         index = makeIncrementalIndex();
+        lineCount = 0;
+        nextLogging = 1;
+        log.info("Starting new index %s [%s]", currentDataSource, interval);
       }
       index.add(row);
 
@@ -287,7 +294,7 @@ public class ReduceMergeIndexGeneratorJob implements HadoopDruidIndexerJob.Index
           true,
           !tuningConfig.isIgnoreInvalidRows(),
           false,
-          tuningConfig.getRowFlushBoundary()
+          maxRowCount
       );
     }
 
@@ -401,6 +408,7 @@ public class ReduceMergeIndexGeneratorJob implements HadoopDruidIndexerJob.Index
       final DateTime time = new DateTime(Long.valueOf(split[1]));
       final Interval interval = config.getGranularitySpec().bucketInterval(time).get();
 
+      log.info("Starting merge on %s [%s]", dataSource, interval);
       final List<List<File>> groups = groupToShards(
           Lists.newArrayList(Iterables.transform(values, Functions.toStringFunction())),
           maxShardLength
