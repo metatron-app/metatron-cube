@@ -23,6 +23,7 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
+import io.druid.common.utils.StringUtils;
 import io.druid.indexer.HadoopDruidIndexerConfig;
 import io.druid.indexer.Jobby;
 import io.druid.indexer.path.HynixPathSpec;
@@ -37,10 +38,10 @@ public class FileSizeBasedPartitionsSpec extends AbstractPartitionsSpec
 {
   @JsonCreator
   public FileSizeBasedPartitionsSpec(
-      @JsonProperty("targetPartitionSize") @Nullable Long targetPartitionSize
+      @JsonProperty("targetPartitionSize") @Nullable String targetPartitionSize
   )
   {
-    super(targetPartitionSize, null, null, null);
+    super(StringUtils.parseKMGT(targetPartitionSize, DEFAULT_TARGET_PARTITION_SIZE), null, null, null);
   }
 
 

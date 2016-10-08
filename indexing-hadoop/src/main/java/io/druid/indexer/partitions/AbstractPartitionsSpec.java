@@ -25,8 +25,8 @@ import com.google.common.base.Preconditions;
 
 public abstract class AbstractPartitionsSpec implements PartitionsSpec
 {
-  private static final double DEFAULT_OVERSIZE_THRESHOLD = 1.5;
-  private static final long DEFAULT_TARGET_PARTITION_SIZE = -1;
+  static final double DEFAULT_OVERSIZE_THRESHOLD = 1.5;
+  static final long DEFAULT_TARGET_PARTITION_SIZE = -1;
 
   private final long targetPartitionSize;
   private final long maxPartitionSize;

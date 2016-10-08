@@ -23,6 +23,8 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
+import com.google.common.primitives.Ints;
+import io.druid.common.utils.StringUtils;
 import io.druid.indexer.HadoopDruidIndexerConfig;
 import org.apache.hadoop.mapreduce.InputFormat;
 import org.apache.hadoop.mapreduce.Job;
@@ -35,6 +37,8 @@ import java.util.List;
  */
 public class HynixPathSpec implements PathSpec
 {
+  private static final int DEFAULT_SPLIT_SIZE = 0;
+
   public static final String PATH_SPECS = "hynix.input.path.specs";
   public static final String INPUT_FORMAT = "hynix.input.path.specs.format";
   public static final String SPLIT_SIZE = "hynix.input.path.specs.split.size";
@@ -47,12 +51,12 @@ public class HynixPathSpec implements PathSpec
   public HynixPathSpec(
       @JsonProperty("elements") List<HynixPathSpecElement> elements,
       @JsonProperty("inputFormat") Class<? extends InputFormat> inputFormat,
-      @JsonProperty("splitSize") int splitSize
+      @JsonProperty("splitSize") String splitSize
   )
   {
     this.elements = Preconditions.checkNotNull(elements);
     this.inputFormat = inputFormat == null ? TextInputFormat.class : inputFormat;
-    this.splitSize = splitSize;
+    this.splitSize = Ints.checkedCast(StringUtils.parseKMGT(splitSize, DEFAULT_SPLIT_SIZE));
     Preconditions.checkArgument(!elements.isEmpty());
   }
 

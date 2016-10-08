@@ -67,6 +67,7 @@ public class HynixCombineInputFormat extends FileInputFormat
 
     // splitSize < 0 : no combine, splitSize == 0 : combine per elements
     final int splitSize = conf.getInt(HynixPathSpec.SPLIT_SIZE, 0);
+    log.info("Start splitting on target size %,d", splitSize);
 
     List<InputSplit> result = Lists.newArrayList();
 
