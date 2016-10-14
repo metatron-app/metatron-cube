@@ -422,13 +422,10 @@ public class QueryResource
 
     Response gotError(Exception e) throws IOException
     {
-      return Response.serverError().type(contentType).entity(
-          getOutputWriter().writeValueAsBytes(
-              ImmutableMap.of(
-                  "error", e.getMessage() == null ? "null exception" : e.getMessage()
-              )
-          )
-      ).build();
+      return Response.serverError()
+                     .type(contentType)
+                     .entity(getOutputWriter().writeValueAsBytes(QueryInterruptedException.wrapIfNeeded(e)))
+                     .build();
     }
   }
 
