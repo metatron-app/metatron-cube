@@ -21,7 +21,8 @@ package io.druid.query.extraction;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;
-import com.metamx.common.StringUtils;
+import io.druid.common.utils.StringUtils;
+import io.druid.query.aggregation.AggregatorUtil;
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
 import org.joda.time.format.DateTimeFormat;
@@ -78,10 +79,16 @@ public class TimeFormatExtractionFn implements ExtractionFn
   @Override
   public byte[] getCacheKey()
   {
-    byte[] exprBytes = StringUtils.toUtf8(pattern + "\u0001" + tz.getID() + "\u0001" + locale.toLanguageTag());
-    return ByteBuffer.allocate(1 + exprBytes.length)
+    byte[] patternBytes = StringUtils.toUtf8(pattern);
+    byte[] timeZoneBytes = StringUtils.toUtf8((tz == null ? DateTimeZone.UTC : tz).getID());
+    byte[] localeBytes = StringUtils.toUtf8WithNullToEmpty(getLocale());
+    return ByteBuffer.allocate(3 + patternBytes.length + timeZoneBytes.length + localeBytes.length)
                      .put(ExtractionCacheHelper.CACHE_TYPE_ID_TIME_FORMAT)
-                     .put(exprBytes)
+                     .put(patternBytes)
+                     .put(AggregatorUtil.STRING_SEPARATOR)
+                     .put(timeZoneBytes)
+                     .put(AggregatorUtil.STRING_SEPARATOR)
+                     .put(localeBytes)
                      .array();
   }
 
