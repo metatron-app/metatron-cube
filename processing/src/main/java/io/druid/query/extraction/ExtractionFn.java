@@ -123,4 +123,9 @@ public interface ExtractionFn
   {
     MANY_TO_ONE, ONE_TO_ONE
   }
+
+  public static interface Stateful extends ExtractionFn
+  {
+    public ExtractionFn init();
+  }
 }

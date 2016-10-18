@@ -38,7 +38,7 @@ public class TimeFormatExtractionFnTest
       new DateTime("2015-12-21T23:00:00Z").getMillis()
   };
 
-  @Test(expected = IllegalArgumentException.class)
+  @Test(expected = NullPointerException.class)
   public void testIAEForNullPattern() throws Exception
   {
     new TimeFormatExtractionFn(null, null, null);
@@ -75,7 +75,7 @@ public class TimeFormatExtractionFnTest
   @Test
   public void testTimeZoneExtraction() throws Exception
   {
-    TimeFormatExtractionFn fn = new TimeFormatExtractionFn("'In Berlin ist es schon 'EEEE", DateTimeZone.forID("Europe/Berlin"), "de");
+    TimeFormatExtractionFn fn = new TimeFormatExtractionFn("'In Berlin ist es schon 'EEEE", "Europe/Berlin", "de");
     Assert.assertEquals("In Berlin ist es schon Freitag",    fn.apply(timestamps[0]));
     Assert.assertEquals("In Berlin ist es schon Samstag",    fn.apply(timestamps[1]));
     Assert.assertEquals("In Berlin ist es schon Mittwoch",   fn.apply(timestamps[2]));
@@ -83,10 +83,10 @@ public class TimeFormatExtractionFnTest
     Assert.assertEquals("In Berlin ist es schon Sonntag",    fn.apply(timestamps[4]));
     Assert.assertEquals("In Berlin ist es schon Dienstag",   fn.apply(timestamps[5]));
 
-    testSerde(fn, "'In Berlin ist es schon 'EEEE", DateTimeZone.forID("Europe/Berlin"), "de");
+    testSerde(fn, "'In Berlin ist es schon 'EEEE", "Europe/Berlin", "de");
   }
 
-  public void testSerde(TimeFormatExtractionFn fn, String format, DateTimeZone tz, String locale) throws Exception {
+  public void testSerde(TimeFormatExtractionFn fn, String format, String tz, String locale) throws Exception {
     final ObjectMapper objectMapper = new DefaultObjectMapper();
     final  String json = objectMapper.writeValueAsString(fn);
     TimeFormatExtractionFn deserialized = objectMapper.readValue(json, TimeFormatExtractionFn.class);

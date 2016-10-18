@@ -80,7 +80,7 @@ public class ExtractionDimensionSpec implements DimensionSpec
   @JsonProperty
   public ExtractionFn getExtractionFn()
   {
-    return extractionFn;
+    return extractionFn instanceof ExtractionFn.Stateful ? ((ExtractionFn.Stateful) extractionFn).init() : extractionFn;
   }
 
   @Override

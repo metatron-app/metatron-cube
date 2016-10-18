@@ -21,43 +21,40 @@ package io.druid.query.extraction;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;
+import com.ibm.icu.text.SimpleDateFormat;
+import com.ibm.icu.util.TimeZone;
 import io.druid.common.utils.StringUtils;
 import io.druid.query.aggregation.AggregatorUtil;
 import org.joda.time.DateTime;
-import org.joda.time.DateTimeZone;
-import org.joda.time.format.DateTimeFormat;
-import org.joda.time.format.DateTimeFormatter;
 
 import java.nio.ByteBuffer;
 import java.util.Locale;
+import java.util.Objects;
 
 public class TimeFormatExtractionFn implements ExtractionFn
 {
-  private final DateTimeZone tz;
+  private final TimeZone tz;
   private final String pattern;
   private final Locale locale;
-  private final DateTimeFormatter formatter;
+  private final SimpleDateFormat formatter;
 
   public TimeFormatExtractionFn(
       @JsonProperty("format") String pattern,
-      @JsonProperty("timeZone") DateTimeZone tz,
+      @JsonProperty("timeZone") String tzString,
       @JsonProperty("locale") String localeString
   )
   {
-    Preconditions.checkArgument(pattern != null, "format cannot be null");
-
-    this.pattern = pattern;
-    this.tz = tz;
+    this.pattern = Preconditions.checkNotNull(pattern, "format cannot be null");
+    this.tz = tzString == null ? null : TimeZone.getTimeZone(tzString);
     this.locale = localeString == null ? null : Locale.forLanguageTag(localeString);
-    this.formatter = DateTimeFormat.forPattern(pattern)
-                                   .withZone(tz == null ? DateTimeZone.UTC : tz)
-                                   .withLocale(locale);
+    this.formatter = locale == null ? new SimpleDateFormat(pattern) : new SimpleDateFormat(pattern, locale);
+    this.formatter.setTimeZone(tz == null ? TimeZone.getTimeZone("UTC") : tz);
   }
 
   @JsonProperty
-  public DateTimeZone getTimeZone()
+  public String getTimeZone()
   {
-    return tz;
+    return tz == null ? null : tz.getID();
   }
 
   @JsonProperty
@@ -69,18 +66,14 @@ public class TimeFormatExtractionFn implements ExtractionFn
   @JsonProperty
   public String getLocale()
   {
-    if (locale != null) {
-      return locale.toLanguageTag();
-    } else {
-      return null;
-    }
+    return locale == null ? null : locale.toLanguageTag();
   }
 
   @Override
   public byte[] getCacheKey()
   {
     byte[] patternBytes = StringUtils.toUtf8(pattern);
-    byte[] timeZoneBytes = StringUtils.toUtf8((tz == null ? DateTimeZone.UTC : tz).getID());
+    byte[] timeZoneBytes = StringUtils.toUtf8WithNullToEmpty(getTimeZone());
     byte[] localeBytes = StringUtils.toUtf8WithNullToEmpty(getLocale());
     return ByteBuffer.allocate(3 + patternBytes.length + timeZoneBytes.length + localeBytes.length)
                      .put(ExtractionCacheHelper.CACHE_TYPE_ID_TIME_FORMAT)
@@ -95,13 +88,13 @@ public class TimeFormatExtractionFn implements ExtractionFn
   @Override
   public String apply(long value)
   {
-    return formatter.print(value);
+    return formatter.format(value);
   }
 
   @Override
   public String apply(Object value)
   {
-    return formatter.print(new DateTime(value));
+    return formatter.format(new DateTime(value).getMillis());
   }
 
   @Override
@@ -134,13 +127,13 @@ public class TimeFormatExtractionFn implements ExtractionFn
 
     TimeFormatExtractionFn that = (TimeFormatExtractionFn) o;
 
-    if (locale != null ? !locale.equals(that.locale) : that.locale != null) {
+    if (!Objects.equals(getLocale(), that.getLocale())) {
+      return false;
+    }
+    if (!Objects.equals(getTimeZone(), that.getTimeZone())) {
       return false;
     }
     if (!pattern.equals(that.pattern)) {
-      return false;
-    }
-    if (tz != null ? !tz.equals(that.tz) : that.tz != null) {
       return false;
     }
 
@@ -150,9 +143,6 @@ public class TimeFormatExtractionFn implements ExtractionFn
   @Override
   public int hashCode()
   {
-    int result = tz != null ? tz.hashCode() : 0;
-    result = 31 * result + pattern.hashCode();
-    result = 31 * result + (locale != null ? locale.hashCode() : 0);
-    return result;
+    return Objects.hash(getLocale(), getTimeZone(), pattern);
   }
 }
