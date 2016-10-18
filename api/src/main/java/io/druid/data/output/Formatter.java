@@ -119,7 +119,7 @@ public interface Formatter extends Closeable
     public void write(Map<String, Object> datum) throws IOException
     {
       if (!firstLine) {
-        output.write(NEXT_LINE);
+        output.write(withWrapping ? NEXT_LINE : NEW_LINE);
       }
       // jsonMapper.writeValue(output, datum) closes stream
       output.write(jsonMapper.writeValueAsBytes(datum));
