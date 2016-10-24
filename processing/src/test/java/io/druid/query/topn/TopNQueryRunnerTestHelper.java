@@ -34,7 +34,7 @@ public class TopNQueryRunnerTestHelper
 {
   public static Result<TopNResultValue> createExpectedRows(String date, String[] columnNames, Iterable<Object[]> values)
   {
-    List<Map> expected = Lists.newArrayList();
+    List<Map<String, Object>> expected = Lists.newArrayList();
     for (Object[] value : values) {
       Preconditions.checkArgument(value.length == columnNames.length);
       Map<String, Object> theVals = Maps.newHashMapWithExpectedSize(value.length);
@@ -43,6 +43,6 @@ public class TopNQueryRunnerTestHelper
       }
       expected.add(theVals);
     }
-    return new Result<TopNResultValue>(new DateTime(date), new TopNResultValue(expected));
+    return new Result<>(new DateTime(date), new TopNResultValue(expected));
   }
 }

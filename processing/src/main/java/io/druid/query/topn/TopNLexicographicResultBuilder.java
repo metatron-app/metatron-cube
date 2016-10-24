@@ -128,15 +128,15 @@ public class TopNLexicographicResultBuilder implements TopNResultBuilder
   }
 
   @Override
-  public TopNResultBuilder addEntry(DimensionAndMetricValueExtractor dimensionAndMetricValueExtractor)
+  public TopNResultBuilder addEntry(Map<String, Object> event)
   {
-    Object dimensionValueObj = dimensionAndMetricValueExtractor.getDimensionValue(dimSpec.getOutputName());
+    Object dimensionValueObj = event.get(dimSpec.getOutputName());
     String dimensionValue = dimensionValueObj == null ? null : dimensionValueObj.toString();
 
     if (shouldAdd(dimensionValue)) {
       pQueue.add(
           new DimValHolder.Builder().withDimName(dimensionValue)
-                                    .withMetricValues(dimensionAndMetricValueExtractor.getBaseObject())
+                                    .withMetricValues(event)
                                     .build()
       );
       if (pQueue.size() > threshold) {
@@ -169,14 +169,14 @@ public class TopNLexicographicResultBuilder implements TopNResultBuilder
         }
 
     );
-    return new Result(
+    return new Result<>(
         timestamp, new TopNResultValue(
         Lists.transform(
             Arrays.asList(holderValueArray),
-            new Function<DimValHolder, Object>()
+            new Function<DimValHolder, Map<String, Object>>()
             {
               @Override
-              public Object apply(DimValHolder dimValHolder)
+              public Map<String, Object> apply(DimValHolder dimValHolder)
               {
                 return dimValHolder.getMetricValues();
               }

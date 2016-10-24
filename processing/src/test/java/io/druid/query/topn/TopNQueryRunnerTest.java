@@ -3234,7 +3234,7 @@ public class TopNQueryRunnerTest
         new Result<>(
             new DateTime("2011-04-01T00:00:00.000Z"),
             new TopNResultValue(
-                Arrays.asList(
+                Arrays.<Map<String, Object>>asList(
                     ImmutableMap.<String, Object>of(
                         "partial_null_column", "value",
                         "rows", 4L,
@@ -3264,7 +3264,7 @@ public class TopNQueryRunnerTest
         new Result<>(
             new DateTime("2011-04-02T00:00:00.000Z"),
             new TopNResultValue(
-                Arrays.asList(
+                Arrays.<Map<String, Object>>asList(
                     ImmutableMap.<String, Object>of(
                         "market", "spot",
                         "rows", 9L

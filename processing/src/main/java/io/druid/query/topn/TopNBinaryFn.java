@@ -88,17 +88,17 @@ public class TopNBinaryFn implements BinaryFn<Result<TopNResultValue>, Result<To
       return merger.getResult(arg1, comparator);
     }
 
-    Map<String, DimensionAndMetricValueExtractor> retVals = new LinkedHashMap<>();
+    Map<String, Map<String, Object>> retVals = new LinkedHashMap<>();
 
     TopNResultValue arg1Vals = arg1.getValue();
     TopNResultValue arg2Vals = arg2.getValue();
 
-    for (DimensionAndMetricValueExtractor arg1Val : arg1Vals) {
-      retVals.put(arg1Val.getStringDimensionValue(dimension), arg1Val);
+    for (Map<String, Object> arg1Val : arg1Vals) {
+      retVals.put((String)arg1Val.get(dimension), arg1Val);
     }
-    for (DimensionAndMetricValueExtractor arg2Val : arg2Vals) {
-      final String dimensionValue = arg2Val.getStringDimensionValue(dimension);
-      DimensionAndMetricValueExtractor arg1Val = retVals.get(dimensionValue);
+    for (Map<String, Object> arg2Val : arg2Vals) {
+      final String dimensionValue = (String)arg2Val.get(dimension);
+      Map<String, Object> arg1Val = retVals.get(dimensionValue);
 
       if (arg1Val != null) {
         // size of map = aggregator + topNDim + postAgg (If sorting is done on post agg field)
@@ -107,14 +107,14 @@ public class TopNBinaryFn implements BinaryFn<Result<TopNResultValue>, Result<To
         retVal.put(dimension, dimensionValue);
         for (AggregatorFactory factory : aggregations) {
           final String metricName = factory.getName();
-          retVal.put(metricName, factory.combine(arg1Val.getMetric(metricName), arg2Val.getMetric(metricName)));
+          retVal.put(metricName, factory.combine(arg1Val.get(metricName), arg2Val.get(metricName)));
         }
 
         for (PostAggregator pf : postAggregations) {
           retVal.put(pf.getName(), pf.compute(retVal));
         }
 
-        retVals.put(dimensionValue, new DimensionAndMetricValueExtractor(retVal));
+        retVals.put(dimensionValue, retVal);
       } else {
         retVals.put(dimensionValue, arg2Val);
       }
@@ -135,7 +135,7 @@ public class TopNBinaryFn implements BinaryFn<Result<TopNResultValue>, Result<To
         aggregations,
         postAggregations
     );
-    for (DimensionAndMetricValueExtractor extractor : retVals.values()) {
+    for (Map<String, Object> extractor : retVals.values()) {
       bob.addEntry(extractor);
     }
     return bob.build();

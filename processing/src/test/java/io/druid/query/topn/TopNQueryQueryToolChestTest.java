@@ -84,7 +84,7 @@ public class TopNQueryQueryToolChestTest
         // test timestamps that result in integer size millis
         new DateTime(123L),
         new TopNResultValue(
-            Arrays.asList(
+            Arrays.<Map<String, Object>>asList(
                 ImmutableMap.<String, Object>of(
                     "test", "val1",
                     "metric1", 2

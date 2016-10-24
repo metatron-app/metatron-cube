@@ -22,6 +22,7 @@ package io.druid.query.topn;
 import io.druid.query.Result;
 
 import java.util.Iterator;
+import java.util.Map;
 
 /**
  */
@@ -33,9 +34,7 @@ public interface TopNResultBuilder
       Object[] metricVals
   );
 
-  public TopNResultBuilder addEntry(
-      DimensionAndMetricValueExtractor dimensionAndMetricValueExtractor
-  );
+  public TopNResultBuilder addEntry(Map<String, Object> event);
 
   public Iterator<DimValHolder> getTopNIterator();
 

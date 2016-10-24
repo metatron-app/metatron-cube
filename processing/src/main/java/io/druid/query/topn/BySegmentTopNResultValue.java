@@ -27,6 +27,7 @@ import io.druid.query.Result;
 import org.joda.time.Interval;
 
 import java.util.List;
+import java.util.Map;
 
 /**
  */
@@ -52,7 +53,7 @@ public class BySegmentTopNResultValue extends TopNResultValue implements BySegme
 
   @Override
   @JsonValue(false)
-  public List<DimensionAndMetricValueExtractor> getValue()
+  public List<Map<String, Object>> getValue()
   {
     throw new UnsupportedOperationException();
   }

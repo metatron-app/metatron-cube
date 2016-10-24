@@ -898,7 +898,7 @@ public class SchemalessTestFull
         new Result<>(
             new DateTime("2011-01-12T00:00:00.000Z"),
             new TopNResultValue(
-                Arrays.<SearchHit>asList()
+                Arrays.<Map<String, Object>>asList()
             )
         )
     );

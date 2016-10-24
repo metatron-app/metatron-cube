@@ -47,7 +47,6 @@ import io.druid.query.timeboundary.TimeBoundaryQuery;
 import io.druid.query.timeboundary.TimeBoundaryResultValue;
 import io.druid.query.timeseries.TimeseriesQuery;
 import io.druid.query.timeseries.TimeseriesResultValue;
-import io.druid.query.topn.DimensionAndMetricValueExtractor;
 import io.druid.query.topn.TopNQuery;
 import io.druid.query.topn.TopNQueryBuilder;
 import io.druid.query.topn.TopNResultValue;
@@ -63,6 +62,7 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  */
@@ -200,40 +200,36 @@ public class SchemalessTestSimple
         new Result<TopNResultValue>(
             new DateTime("2011-01-12T00:00:00.000Z"),
             new TopNResultValue(
-                Arrays.<DimensionAndMetricValueExtractor>asList(
-                    new DimensionAndMetricValueExtractor(
-                        ImmutableMap.<String, Object>builder()
-                                    .put("market", "spot")
-                                    .put("rows", 4L)
-                                    .put("index", 400.0D)
-                                    .put("addRowsIndexConstant", 405.0D)
-                                    .put("uniques", 1.0002442201269182D)
-                                    .put("maxIndex", 100.0)
-                                    .put("minIndex", 100.0)
-                                    .build()
-                    ),
-                    new DimensionAndMetricValueExtractor(
-                        ImmutableMap.<String, Object>builder()
-                                    .put("market", "")
-                                    .put("rows", 2L)
-                                    .put("index", 200.0D)
-                                    .put("addRowsIndexConstant", 203.0D)
-                                    .put("uniques", 0.0)
-                                    .put("maxIndex", 100.0D)
-                                    .put("minIndex", 100.0D)
-                                    .build()
-                    ),
-                    new DimensionAndMetricValueExtractor(
-                        ImmutableMap.<String, Object>builder()
-                                    .put("market", "total_market")
-                                    .put("rows", 2L)
-                                    .put("index", 200.0D)
-                                    .put("addRowsIndexConstant", 203.0D)
-                                    .put("uniques", 1.0002442201269182D)
-                                    .put("maxIndex", 100.0D)
-                                    .put("minIndex", 100.0D)
-                                    .build()
-                    )
+                Arrays.<Map<String, Object>>asList(
+                    ImmutableMap.<String, Object>builder()
+                                .put("market", "spot")
+                                .put("rows", 4L)
+                                .put("index", 400.0D)
+                                .put("addRowsIndexConstant", 405.0D)
+                                .put("uniques", 1.0002442201269182D)
+                                .put("maxIndex", 100.0)
+                                .put("minIndex", 100.0)
+                                .build()
+                    ,
+                    ImmutableMap.<String, Object>builder()
+                                .put("market", "")
+                                .put("rows", 2L)
+                                .put("index", 200.0D)
+                                .put("addRowsIndexConstant", 203.0D)
+                                .put("uniques", 0.0)
+                                .put("maxIndex", 100.0D)
+                                .put("minIndex", 100.0D)
+                                .build()
+                    ,
+                    ImmutableMap.<String, Object>builder()
+                                .put("market", "total_market")
+                                .put("rows", 2L)
+                                .put("index", 200.0D)
+                                .put("addRowsIndexConstant", 203.0D)
+                                .put("uniques", 1.0002442201269182D)
+                                .put("maxIndex", 100.0D)
+                                .put("minIndex", 100.0D)
+                                .build()
                 )
             )
         )

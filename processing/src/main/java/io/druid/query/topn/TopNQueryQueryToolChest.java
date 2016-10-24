@@ -184,10 +184,10 @@ public class TopNQueryQueryToolChest extends QueryToolChest<Result<TopNResultVal
         List<Map<String, Object>> serializedValues = Lists.newArrayList(
             Iterables.transform(
                 result.getValue(),
-                new Function<DimensionAndMetricValueExtractor, Map<String, Object>>()
+                new Function<Map<String, Object>, Map<String, Object>>()
                 {
                   @Override
-                  public Map<String, Object> apply(DimensionAndMetricValueExtractor input)
+                  public Map<String, Object> apply(Map<String, Object> input)
                   {
                     final Map<String, Object> values = Maps.newHashMapWithExpectedSize(
                         aggregatorFactories.length
@@ -197,19 +197,19 @@ public class TopNQueryQueryToolChest extends QueryToolChest<Result<TopNResultVal
 
                     for (int i = 0; i < aggregatorFactories.length; ++i) {
                       final String aggName = aggFactoryNames[i];
-                      values.put(aggName, fn.manipulate(aggregatorFactories[i], input.getMetric(aggName)));
+                      values.put(aggName, fn.manipulate(aggregatorFactories[i], input.get(aggName)));
                     }
 
                     for (PostAggregator postAgg : prunedAggs) {
                       final String name = postAgg.getName();
-                      Object calculatedPostAgg = input.getMetric(name);
+                      Object calculatedPostAgg = input.get(name);
                       if (calculatedPostAgg != null) {
                         values.put(name, calculatedPostAgg);
                       } else {
                         values.put(name, postAgg.compute(values));
                       }
                     }
-                    values.put(dimension, input.getDimensionValue(dimension));
+                    values.put(dimension, input.get(dimension));
 
                     return values;
                   }
@@ -246,10 +246,10 @@ public class TopNQueryQueryToolChest extends QueryToolChest<Result<TopNResultVal
         List<Map<String, Object>> serializedValues = Lists.newArrayList(
             Iterables.transform(
                 result.getValue(),
-                new Function<DimensionAndMetricValueExtractor, Map<String, Object>>()
+                new Function<Map<String, Object>, Map<String, Object>>()
                 {
                   @Override
-                  public Map<String, Object> apply(DimensionAndMetricValueExtractor input)
+                  public Map<String, Object> apply(Map<String, Object> input)
                   {
                     final Map<String, Object> values = Maps.newHashMapWithExpectedSize(
                         aggregatorFactories.length
@@ -259,11 +259,11 @@ public class TopNQueryQueryToolChest extends QueryToolChest<Result<TopNResultVal
 
                     for (int i = 0; i < aggFactoryNames.length; ++i) {
                       final String name = aggFactoryNames[i];
-                      values.put(name, input.getMetric(name));
+                      values.put(name, input.get(name));
                     }
 
                     for (PostAggregator postAgg : postAggregators) {
-                      Object calculatedPostAgg = input.getMetric(postAgg.getName());
+                      Object calculatedPostAgg = input.get(postAgg.getName());
                       if (calculatedPostAgg != null) {
                         values.put(postAgg.getName(), calculatedPostAgg);
                       } else {
@@ -272,10 +272,10 @@ public class TopNQueryQueryToolChest extends QueryToolChest<Result<TopNResultVal
                     }
                     for (int i = 0; i < aggFactoryNames.length; ++i) {
                       final String name = aggFactoryNames[i];
-                      values.put(name, fn.manipulate(aggregatorFactories[i], input.getMetric(name)));
+                      values.put(name, fn.manipulate(aggregatorFactories[i], input.get(name)));
                     }
 
-                    values.put(dimension, input.getDimensionValue(dimension));
+                    values.put(dimension, input.get(dimension));
 
                     return values;
                   }
@@ -358,16 +358,16 @@ public class TopNQueryQueryToolChest extends QueryToolChest<Result<TopNResultVal
           @Override
           public Object apply(final Result<TopNResultValue> input)
           {
-            List<DimensionAndMetricValueExtractor> results = Lists.newArrayList(input.getValue());
+            List<Map<String, Object>> results = Lists.newArrayList(input.getValue());
             final List<Object> retVal = Lists.newArrayListWithCapacity(results.size() + 1);
 
             // make sure to preserve timezone information when caching results
             retVal.add(input.getTimestamp().getMillis());
-            for (DimensionAndMetricValueExtractor result : results) {
+            for (Map<String, Object> result : results) {
               List<Object> vals = Lists.newArrayListWithCapacity(aggFactoryNames.length + 2);
-              vals.add(result.getDimensionValue(query.getDimensionSpec().getOutputName()));
+              vals.add(result.get(query.getDimensionSpec().getOutputName()));
               for (String aggName : aggFactoryNames) {
-                vals.add(result.getMetric(aggName));
+                vals.add(result.get(aggName));
               }
               retVal.add(vals);
             }
@@ -489,17 +489,14 @@ public class TopNQueryQueryToolChest extends QueryToolChest<Result<TopNResultVal
                       new TopNResultValue(
                           Lists.transform(
                               resultValue.getValue(),
-                              new Function<DimensionAndMetricValueExtractor, DimensionAndMetricValueExtractor>()
+                              new Function<Map<String, Object>, Map<String, Object>>()
                               {
                                 @Override
-                                public DimensionAndMetricValueExtractor apply(
-                                    DimensionAndMetricValueExtractor input
-                                )
+                                public Map<String, Object> apply(Map<String, Object> input)
                                 {
                                   String dimOutputName = topNQuery.getDimensionSpec().getOutputName();
-                                  Object dimValue = input.getDimensionValue(dimOutputName);
-                                  Map<String, Object> map = input.getBaseObject();
-                                  map.put(
+                                  Object dimValue = input.get(dimOutputName);
+                                  input.put(
                                       dimOutputName,
                                       topNQuery.getDimensionSpec().getExtractionFn().apply(dimValue)
                                   );
@@ -573,7 +570,7 @@ public class TopNQueryQueryToolChest extends QueryToolChest<Result<TopNResultVal
                                 return new Result<>(
                                     input.getTimestamp(),
                                     new TopNResultValue(
-                                        Lists.<Object>newArrayList(
+                                        Lists.newArrayList(
                                             Iterables.limit(
                                                 input.getValue(),
                                                 query.getThreshold()
@@ -593,7 +590,7 @@ public class TopNQueryQueryToolChest extends QueryToolChest<Result<TopNResultVal
               return new Result<>(
                   input.getTimestamp(),
                   new TopNResultValue(
-                      Lists.<Object>newArrayList(
+                      Lists.newArrayList(
                           Iterables.limit(
                               input.getValue(),
                               query.getThreshold()
@@ -627,17 +624,16 @@ public class TopNQueryQueryToolChest extends QueryToolChest<Result<TopNResultVal
                 public Result<TopNResultValue> apply(Result<TopNResultValue> input)
                 {
                   DateTime timestamp = input.getTimestamp();
-                  List<DimensionAndMetricValueExtractor> values = input.getValue().getValue();
-                  List<DimensionAndMetricValueExtractor> processed = Lists.newArrayListWithExpectedSize(values.size());
-                  for (DimensionAndMetricValueExtractor holder : values) {
-                    Map<String, Object> original = holder.getBaseObject();
+                  List<Map<String, Object>> values = input.getValue().getValue();
+                  List<Map<String, Object>> processed = Lists.newArrayListWithExpectedSize(values.size());
+                  for (Map<String, Object> holder : values) {
                     Map<String, Object> retained = Maps.newHashMapWithExpectedSize(outputColumns.size());
                     for (String retain : outputColumns) {
-                      retained.put(retain, original.get(retain));
+                      retained.put(retain, holder.get(retain));
                     }
-                    processed.add(new DimensionAndMetricValueExtractor(retained));
+                    processed.add(retained);
                   }
-                  return new Result(timestamp, new TopNResultValue(processed));
+                  return new Result<>(timestamp, new TopNResultValue(processed));
                 }
               }
           );

@@ -32,42 +32,26 @@ import java.util.Map;
 
 /**
  */
-public class TopNResultValue implements Iterable<DimensionAndMetricValueExtractor>
+public class TopNResultValue implements Iterable<Map<String, Object>>
 {
-  private final List<DimensionAndMetricValueExtractor> value;
+  private final List<Map<String, Object>> value;
 
   @JsonCreator
   public TopNResultValue(
-      List<?> value
+      List<Map<String, Object>> value
   )
   {
-    this.value = (value == null) ? Lists.<DimensionAndMetricValueExtractor>newArrayList() : Lists.transform(
-        value,
-        new Function<Object, DimensionAndMetricValueExtractor>()
-        {
-          @Override
-          public DimensionAndMetricValueExtractor apply(@Nullable Object input)
-          {
-            if (input instanceof Map) {
-              return new DimensionAndMetricValueExtractor((Map) input);
-            } else if (input instanceof DimensionAndMetricValueExtractor) {
-              return (DimensionAndMetricValueExtractor) input;
-            } else {
-              throw new IAE("Unknown type for input[%s]", input.getClass());
-            }
-          }
-        }
-    );
+    this.value = value;
   }
 
   @JsonValue
-  public List<DimensionAndMetricValueExtractor> getValue()
+  public List<Map<String, Object>> getValue()
   {
     return value;
   }
 
   @Override
-  public Iterator<DimensionAndMetricValueExtractor> iterator()
+  public Iterator<Map<String, Object>> iterator()
   {
     return value.iterator();
   }

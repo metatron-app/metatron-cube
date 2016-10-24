@@ -193,15 +193,15 @@ public class TopNNumericResultBuilder implements TopNResultBuilder
   }
 
   @Override
-  public TopNResultBuilder addEntry(DimensionAndMetricValueExtractor dimensionAndMetricValueExtractor)
+  public TopNResultBuilder addEntry(Map<String, Object> event)
   {
-    final Object dimValue = dimensionAndMetricValueExtractor.getDimensionValue(metricName);
+    final Object dimValue = event.get(metricName);
 
     if (shouldAdd(dimValue)) {
       final DimValHolder valHolder = new DimValHolder.Builder()
           .withTopNMetricVal(dimValue)
-          .withDimName(dimensionAndMetricValueExtractor.getStringDimensionValue(dimSpec.getOutputName()))
-          .withMetricValues(dimensionAndMetricValueExtractor.getBaseObject())
+          .withDimName((String)event.get(dimSpec.getOutputName()))
+          .withMetricValues(event)
           .build();
       pQueue.add(valHolder);
     }
