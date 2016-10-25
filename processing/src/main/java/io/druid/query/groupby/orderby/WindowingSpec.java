@@ -44,6 +44,7 @@ import java.nio.ByteBuffer;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
 /**
  */
@@ -52,17 +53,20 @@ public class WindowingSpec implements Cacheable
   private final List<String> partitionColumns;
   private final List<OrderByColumnSpec> sortingColumns;
   private final List<String> expressions;
+  private final FlattenSpec flattener;
 
   @JsonCreator
   public WindowingSpec(
       @JsonProperty("partitionColumns") List<String> partitionColumns,
       @JsonProperty("sortingColumns") List<OrderByColumnSpec> sortingColumns,
-      @JsonProperty("expressions") List<String> expressions
+      @JsonProperty("expressions") List<String> expressions,
+      @JsonProperty("flattener") FlattenSpec flattener
   )
   {
     this.partitionColumns = partitionColumns == null ? ImmutableList.<String>of() : partitionColumns;
     this.sortingColumns = sortingColumns == null ? ImmutableList.<OrderByColumnSpec>of() : sortingColumns;
     this.expressions = expressions == null ? ImmutableList.<String>of() : expressions;
+    this.flattener = flattener;
   }
 
   public WindowingSpec(
@@ -71,7 +75,7 @@ public class WindowingSpec implements Cacheable
       String... expressions
   )
   {
-    this(partitionColumns, sortingColumns, Arrays.asList(expressions));
+    this(partitionColumns, sortingColumns, Arrays.asList(expressions), null);
   }
 
   @JsonProperty
@@ -90,6 +94,12 @@ public class WindowingSpec implements Cacheable
   public List<String> getExpressions()
   {
     return expressions;
+  }
+
+  @JsonProperty
+  public FlattenSpec getFlattener()
+  {
+    return flattener;
   }
 
   public PartitionEvaluator toEvaluator(
@@ -111,10 +121,10 @@ public class WindowingSpec implements Cacheable
       assigns.add(Evals.splitAssign(expression));
     }
 
-    return new PartitionEvaluator()
+    PartitionEvaluator evaluator = assigns.isEmpty() ? new DummyPartitionEvaluator() : new PartitionEvaluator()
     {
       @Override
-      public void evaluate(Object[] partitionKey, final List<Row> partition)
+      public List<Row> evaluate(Object[] partitionKey, final List<Row> partition)
       {
         WindowContext context = new WindowContext(partition, expectedTypes);
         for (Pair<String, Expr> assign : assigns) {
@@ -129,14 +139,17 @@ public class WindowingSpec implements Cacheable
           }
           Parser.reset(assign.rhs);
         }
+        return partition;
       }
     };
+    return flattener == null ? evaluator
+                             : chain(evaluator, flattener.toEvaluator(partitionColumns, sortingColumns));
   }
 
   private int[] toEvalWindow(final String[] split, final int limit)
   {
     if (split.length == 1) {
-      return new int[] {0, limit};
+      return new int[]{0, limit};
     }
     int index = Integer.valueOf(split[1]);
     if (index < 0) {
@@ -165,10 +178,12 @@ public class WindowingSpec implements Cacheable
     byte[] partitionColumnsBytes = QueryCacheHelper.computeCacheBytes(partitionColumns);
     byte[] sortingColumnsBytes = QueryCacheHelper.computeAggregatorBytes(sortingColumns);
     byte[] expressionsBytes = QueryCacheHelper.computeCacheBytes(expressions);
+    byte[] flattenerBytes = QueryCacheHelper.computeCacheBytes(flattener);
 
-    int length = 2 + partitionColumnsBytes.length
+    int length = 3 + partitionColumnsBytes.length
                  + sortingColumnsBytes.length
-                 + expressionsBytes.length;
+                 + expressionsBytes.length
+                 + flattenerBytes.length;
 
     return ByteBuffer.allocate(length)
                      .put(partitionColumnsBytes)
@@ -176,6 +191,8 @@ public class WindowingSpec implements Cacheable
                      .put(sortingColumnsBytes)
                      .put(DimFilterCacheHelper.STRING_SEPARATOR)
                      .put(expressionsBytes)
+                     .put(DimFilterCacheHelper.STRING_SEPARATOR)
+                     .put(flattenerBytes)
                      .array();
   }
 
@@ -200,6 +217,9 @@ public class WindowingSpec implements Cacheable
     if (!expressions.equals(that.expressions)) {
       return false;
     }
+    if (!Objects.equals(flattener, that.flattener)) {
+      return false;
+    }
     return true;
   }
 
@@ -209,6 +229,7 @@ public class WindowingSpec implements Cacheable
     int result = partitionColumns.hashCode();
     result = 31 * result + sortingColumns.hashCode();
     result = 31 * result + expressions.hashCode();
+    result = 31 * result + (flattener == null ? 0 : flattener.hashCode());
     return result;
   }
 
@@ -217,14 +238,39 @@ public class WindowingSpec implements Cacheable
   {
     return "WindowingSpec{" +
            "partitionColumns=" + partitionColumns +
-           ", sortingColumns='" + sortingColumns + '\'' +
-           ", expressions='" + expressions + '\'' +
+           ", sortingColumns=" + sortingColumns +
+           ", expressions=" + expressions +
+           ", flattener='" + flattener +
            '}';
   }
 
   public static interface PartitionEvaluator
   {
-    void evaluate(Object[] partitionKey, List<Row> partition);
+    List<Row> evaluate(Object[] partitionKey, List<Row> partition);
+  }
+
+  private static class DummyPartitionEvaluator implements PartitionEvaluator
+  {
+    @Override
+    public List<Row> evaluate(Object[] partitionKey, List<Row> partition)
+    {
+      return partition;
+    }
+  }
+
+  private PartitionEvaluator chain(final PartitionEvaluator... evaluators)
+  {
+    return new PartitionEvaluator()
+    {
+      @Override
+      public List<Row> evaluate(Object[] partitionKey, List<Row> partition)
+      {
+        for (PartitionEvaluator evaluator : evaluators) {
+          partition = evaluator.evaluate(partitionKey, partition);
+        }
+        return partition;
+      }
+    };
   }
 
   private static class WindowContext implements Expr.WindowContext

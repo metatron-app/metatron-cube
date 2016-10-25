@@ -30,6 +30,7 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+import com.google.common.collect.ObjectArrays;
 import com.google.common.collect.Ordering;
 import com.metamx.common.ISE;
 import com.metamx.common.guava.Sequence;
@@ -92,6 +93,7 @@ import io.druid.query.groupby.having.GreaterThanHavingSpec;
 import io.druid.query.groupby.having.HavingSpec;
 import io.druid.query.groupby.having.OrHavingSpec;
 import io.druid.query.groupby.orderby.DefaultLimitSpec;
+import io.druid.query.groupby.orderby.FlattenSpec;
 import io.druid.query.groupby.orderby.LimitSpec;
 import io.druid.query.groupby.orderby.OrderByColumnSpec;
 import io.druid.query.groupby.orderby.WindowingSpec;
@@ -101,6 +103,7 @@ import io.druid.query.search.search.ContainsSearchQuerySpec;
 import io.druid.query.spec.MultipleIntervalSegmentSpec;
 import io.druid.segment.TestHelper;
 import io.druid.segment.column.Column;
+import org.apache.commons.lang.ArrayUtils;
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
 import org.joda.time.Interval;
@@ -4643,6 +4646,75 @@ public class GroupByQueryRunnerTest
     results = GroupByQueryRunnerTestHelper.runQuery(factory, mergeRunner, builder.build());
     GroupByQueryRunnerTestHelper.validate(columnNames, expectedResults, results);
 
+    columnNames = new String[]{"dayOfWeek", "market", "index", "min_week", "min_all"};
+
+    builder.setLimitSpec(
+        new DefaultLimitSpec(
+            null, null,
+            Arrays.asList(
+                new WindowingSpec(null, dayPlusMarket, "min_all = $min(index)"),
+                new WindowingSpec(
+                    dayOfWeek, Arrays.asList(marketDsc), Arrays.asList("min_week = $min(index)"),
+                    new FlattenSpec(
+                        FlattenSpec.Flattener.ARRAY, Arrays.asList(columnNames), null,
+                        Arrays.asList("min_all[upfront]=min_all.market[upfront]",
+                                      "min_week[spot]=min_week.market[spot]")
+                    )
+                )
+            )
+        )
+    );
+
+    columnNames = ObjectArrays.concat(columnNames, new String[] {"min_all[upfront]", "min_week[spot]"}, String.class);
+    expectedResults = GroupByQueryRunnerTestHelper.createExpectedRows(
+        columnNames,
+        array("Friday",
+              Arrays.asList("upfront", "total_market", "spot"),
+              Arrays.asList(27297.8623046875, 30173.691650390625, 13219.574157714844),
+              Arrays.asList(27297.8623046875, 27297.8623046875, 13219.574157714844),
+              Arrays.asList(27297.8623046875, 27297.8623046875, 13219.574157714844),
+              27297.8623046875, 13219.574157714844),
+        array("Monday",
+              Arrays.asList("upfront", "total_market", "spot"),
+              Arrays.asList(27619.58447265625, 30468.77734375, 13557.738830566406),
+              Arrays.asList(27619.58447265625, 27619.58447265625, 13557.738830566406),
+              Arrays.asList(13219.574157714844, 13219.574157714844, 13219.574157714844),
+              13219.574157714844, 13557.738830566406),
+        array("Saturday",
+              Arrays.asList("upfront", "total_market", "spot"),
+              Arrays.asList(27820.83154296875, 30940.971923828125, 13493.751281738281),
+              Arrays.asList(27820.83154296875, 27820.83154296875, 13493.751281738281),
+              Arrays.asList(13219.574157714844, 13219.574157714844, 13219.574157714844),
+              13219.574157714844, 13493.751281738281),
+        array("Sunday",
+              Arrays.asList("upfront", "total_market", "spot"),
+              Arrays.asList(24791.223876953125, 29305.086059570312, 13585.541015625),
+              Arrays.asList(24791.223876953125, 24791.223876953125, 13585.541015625),
+              Arrays.asList(13219.574157714844, 13219.574157714844, 13219.574157714844),
+              13219.574157714844, 13585.541015625),
+        array("Thursday",
+              Arrays.asList("upfront", "total_market", "spot"),
+              Arrays.asList(28562.748901367188, 32361.38720703125, 14279.127197265625),
+              Arrays.asList(28562.748901367188, 28562.748901367188, 14279.127197265625),
+              Arrays.asList(13219.574157714844, 13219.574157714844, 13219.574157714844),
+              13219.574157714844, 14279.127197265625),
+        array("Tuesday",
+              Arrays.asList("upfront", "total_market", "spot"),
+              Arrays.asList(26968.280639648438, 29676.578125, 13199.471435546875),
+              Arrays.asList(26968.280639648438, 26968.280639648438, 13199.471435546875),
+              Arrays.asList(13219.574157714844, 13219.574157714844, 13199.471435546875),
+              13219.574157714844, 13199.471435546875),
+        array("Wednesday",
+              Arrays.asList("upfront", "total_market", "spot"),
+              Arrays.asList(28985.5751953125, 32753.337890625, 14271.368591308594),
+              Arrays.asList(28985.5751953125, 28985.5751953125, 14271.368591308594),
+              Arrays.asList(13199.471435546875, 13199.471435546875, 13199.471435546875),
+              13199.471435546875, 14271.368591308594)
+    );
+
+    results = GroupByQueryRunnerTestHelper.runQuery(factory, mergeRunner, builder.build());
+    GroupByQueryRunnerTestHelper.validate(columnNames, expectedResults, results);
+
     builder.setLimitSpec(
         new DefaultLimitSpec(
             null, null,
@@ -4991,6 +5063,115 @@ public class GroupByQueryRunnerTest
 
     results = GroupByQueryRunnerTestHelper.runQuery(factory, mergeRunner, builder.build());
     GroupByQueryRunnerTestHelper.validate(columnNames, expectedResults, results);
+
+    builder.setLimitSpec(
+        new DefaultLimitSpec(
+            null, null,
+            Arrays.asList(
+                new WindowingSpec(
+                    null, dayPlusRows,
+                    "p5_all = $percentile(index, 0.5)", "$assign(p5_all_first_two, 0, 2) = $last(p5_all)"
+                ),
+                new WindowingSpec(
+                    dayOfWeek, Arrays.asList(rowsAsc),
+                    Arrays.asList("p5_week = $percentile(index, 0.5)", "$assign(p5_week_last, -1) = $last(p5_week)"),
+                    new FlattenSpec(FlattenSpec.Flattener.ARRAY, Arrays.asList(columnNames))
+                )
+            )
+        )
+    );
+
+    expectedResults = GroupByQueryRunnerTestHelper.createExpectedRows(
+        columnNames,
+        array("Friday",
+              Arrays.asList(30173.691650390625, 30173.691650390625, 27297.8623046875),
+              Arrays.asList(27619.58447265625, 27619.58447265625, null),
+              Arrays.asList(30173.691650390625, 30173.691650390625, 27297.8623046875),
+              Arrays.asList(null, null, 27297.8623046875)),
+        array("Monday",
+              Arrays.asList(30173.691650390625, 27619.58447265625, 27619.58447265625),
+              Arrays.asList(null, null, null),
+              Arrays.asList(30468.77734375, 30468.77734375, 27619.58447265625),
+              Arrays.asList(null, null, 27619.58447265625)),
+        array("Saturday",
+              Arrays.asList(27619.58447265625, 27820.83154296875, 27619.58447265625),
+              Arrays.asList(null, null, null),
+              Arrays.asList(30940.971923828125, 30940.971923828125, 27820.83154296875),
+              Arrays.asList(null, null, 27820.83154296875)),
+        array("Sunday",
+              Arrays.asList(27820.83154296875, 27619.58447265625, 27619.58447265625),
+              Arrays.asList(null, null, null),
+              Arrays.asList(29305.086059570312, 29305.086059570312, 24791.223876953125),
+              Arrays.asList(null, null, 24791.223876953125)),
+        array("Thursday",
+              Arrays.asList(27619.58447265625, 27820.83154296875, 27619.58447265625),
+              Arrays.asList(null, null, null),
+              Arrays.asList(32361.38720703125, 32361.38720703125, 28562.748901367188),
+              Arrays.asList(null, null, 28562.748901367188)),
+        array("Tuesday",
+              Arrays.asList(27820.83154296875, 27619.58447265625, 27619.58447265625),
+              Arrays.asList(null, null, null),
+              Arrays.asList(29676.578125, 29676.578125, 26968.280639648438),
+              Arrays.asList(null, null, 26968.280639648438)),
+        array("Wednesday",
+              Arrays.asList(27619.58447265625, 27820.83154296875, 27619.58447265625),
+              Arrays.asList(null, null, null),
+              Arrays.asList(32753.337890625, 32753.337890625, 28985.5751953125),
+              Arrays.asList(null, null, 28985.5751953125))
+    );
+
+    results = GroupByQueryRunnerTestHelper.runQuery(factory, mergeRunner, builder.build());
+    GroupByQueryRunnerTestHelper.validate(columnNames, expectedResults, results);
+
+    builder.setLimitSpec(
+        new DefaultLimitSpec(
+            null, null,
+            Arrays.asList(
+                new WindowingSpec(
+                    null, dayPlusRows,
+                    "p5_all = $percentile(index, 0.5)", "$assign(p5_all_first_two, 0, 2) = $last(p5_all)"
+                ),
+                new WindowingSpec(
+                    dayOfWeek, Arrays.asList(rowsAsc),
+                    Arrays.asList("p5_week = $percentile(index, 0.5)", "$assign(p5_week_last, -1) = $last(p5_week)"),
+                    new FlattenSpec(FlattenSpec.Flattener.EXPLODE, Arrays.asList(columnNames))
+                )
+            )
+        )
+    );
+
+    columnNames = new String[]{"dayOfWeek",
+                               "p5_all.0", "p5_all_first_two.0", "p5_week.0", "p5_week_last.0",
+                               "p5_all.1", "p5_all_first_two.1", "p5_week.1", "p5_week_last.1",
+                               "p5_all.2", "p5_all_first_two.2", "p5_week.2", "p5_week_last.2"};
+
+    expectedResults = GroupByQueryRunnerTestHelper.createExpectedRows(
+        columnNames,
+        array("Friday", 30173.691650390625, 27619.58447265625, 30173.691650390625, null,
+                        30173.691650390625, 27619.58447265625, 30173.691650390625, null,
+                        27297.8623046875, null, 27297.8623046875, 27297.8623046875),
+        array("Monday", 30173.691650390625, null, 30468.77734375, null,
+                        27619.58447265625, null, 30468.77734375, null,
+                        27619.58447265625, null, 27619.58447265625, 27619.58447265625),
+        array("Saturday", 27619.58447265625, null, 30940.971923828125, null,
+                          27820.83154296875, null, 30940.971923828125, null,
+                          27619.58447265625, null, 27820.83154296875, 27820.83154296875),
+        array("Sunday", 27820.83154296875, null, 29305.086059570312, null,
+                        27619.58447265625, null, 29305.086059570312, null,
+                        27619.58447265625, null, 24791.223876953125, 24791.223876953125),
+        array("Thursday", 27619.58447265625, null, 32361.38720703125, null,
+                          27820.83154296875, null, 32361.38720703125, null,
+                          27619.58447265625, null, 28562.748901367188, 28562.748901367188),
+        array("Tuesday", 27820.83154296875, null, 29676.578125, null,
+                         27619.58447265625, null, 29676.578125, null,
+                         27619.58447265625, null, 26968.280639648438, 26968.280639648438),
+        array("Wednesday", 27619.58447265625, null, 32753.337890625, null,
+                           27820.83154296875, null, 32753.337890625, null,
+                           27619.58447265625, null, 28985.5751953125, 28985.5751953125)
+    );
+
+    results = GroupByQueryRunnerTestHelper.runQuery(factory, mergeRunner, builder.build());
+    GroupByQueryRunnerTestHelper.validate(columnNames, expectedResults, results);
   }
 
   private Object[] array(Object... objects)
@@ -5025,8 +5206,23 @@ public class GroupByQueryRunnerTest
           b.append('"').append(o).append('"');
         } else if (o instanceof Long) {
           b.append(o).append('L');
-        } else {
-          b.append(o);
+        } else if (o instanceof List) {
+          b.append("Arrays.asList(");
+          List l = (List)o;
+          for (int i = 0; i < l.size(); i++) {
+            if (i > 0) {
+              b.append(", ");
+            }
+            Object e = l.get(i);
+            if (e instanceof String) {
+              b.append('"').append(e).append('"');
+            } else if (e instanceof Long) {
+              b.append(e).append('L');
+            } else {
+              b.append(e);
+            }
+          }
+          b.append(')');
         }
       }
       System.out.println("array(" + b + "),");

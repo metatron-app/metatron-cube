@@ -87,7 +87,7 @@ public class WindowingProcessor implements Function<List<Row>, List<Row>>
   public List<Row> apply(List<Row> input)
   {
     for (PartitionDefinition partition : partitions) {
-      partition.process(input);
+      input = partition.process(input);
     }
     return input;
   }
@@ -109,7 +109,7 @@ public class WindowingProcessor implements Function<List<Row>, List<Row>>
       this.currPartKeys = new Object[partColumns.length];
     }
 
-    private void process(final List<Row> input)
+    private List<Row> process(final List<Row> input)
     {
       Collections.sort(input, ordering);
 
@@ -132,10 +132,19 @@ public class WindowingProcessor implements Function<List<Row>, List<Row>>
       }
       partitions.put(prevPartKeys, new int[]{prev, input.size()});
 
+      List<Row> rewritten = null;
       for (Map.Entry<Object[], int[]> entry : partitions.entrySet()) {
-        int[] partition = entry.getValue();
-        evaluator.evaluate(entry.getKey(), input.subList(partition[0], partition[1]));
+        int[] index = entry.getValue();
+        List<Row> partition = input.subList(index[0], index[1]);
+        List<Row> result = evaluator.evaluate(entry.getKey(), partition);
+        if (rewritten != null || result != partition) {
+          if (rewritten == null) {
+            rewritten = index[0] > 0 ? Lists.newArrayList(input.subList(0, index[0] - 1)) : Lists.<Row>newArrayList();
+          }
+          rewritten.addAll(result);
+        }
       }
+      return rewritten != null ? rewritten : input;
     }
   }
 
