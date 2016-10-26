@@ -34,7 +34,7 @@ public interface TopNResultBuilder
       Object[] metricVals
   );
 
-  public TopNResultBuilder addEntry(Map<String, Object> event);
+  public Result<TopNResultValue> toResult(Map<String, Map<String, Object>> events);
 
   public Iterator<DimValHolder> getTopNIterator();
 

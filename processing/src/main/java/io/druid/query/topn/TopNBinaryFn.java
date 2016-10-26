@@ -19,6 +19,7 @@
 
 package io.druid.query.topn;
 
+import com.google.common.collect.Maps;
 import com.metamx.common.guava.nary.BinaryFn;
 import io.druid.granularity.AllGranularity;
 import io.druid.granularity.QueryGranularity;
@@ -88,7 +89,7 @@ public class TopNBinaryFn implements BinaryFn<Result<TopNResultValue>, Result<To
       return merger.getResult(arg1, comparator);
     }
 
-    Map<String, Map<String, Object>> retVals = new LinkedHashMap<>();
+    Map<String, Map<String, Object>> retVals = Maps.newLinkedHashMap();
 
     TopNResultValue arg1Vals = arg1.getValue();
     TopNResultValue arg2Vals = arg2.getValue();
@@ -135,9 +136,6 @@ public class TopNBinaryFn implements BinaryFn<Result<TopNResultValue>, Result<To
         aggregations,
         postAggregations
     );
-    for (Map<String, Object> extractor : retVals.values()) {
-      bob.addEntry(extractor);
-    }
-    return bob.build();
+    return bob.toResult(retVals);
   }
 }
