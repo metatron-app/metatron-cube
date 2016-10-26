@@ -22,6 +22,7 @@ package io.druid.math.expr;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Sets;
 import org.junit.Assert;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import java.util.HashMap;
@@ -318,6 +319,7 @@ public class EvalTest
   }
 
   @Test
+  @Ignore("needs native library and R_HOME env")
   public void testRFunc()
   {
     Expr.NumericBinding bindings = Parser.withMap(ImmutableMap.<String, Object>of("a", 30, "b", 3));

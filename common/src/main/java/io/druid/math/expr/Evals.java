@@ -121,15 +121,20 @@ public class Evals
     return constants;
   }
 
-  public static boolean asBoolean(Number x)
+  static ExprEval castTo(ExprEval eval, ExprType castTo)
   {
-    if (x == null) {
-      return false;
-    } else if (x instanceof Long) {
-      return x.longValue() > 0;
-    } else {
-      return x.doubleValue() > 0;
+    if (eval.type() == castTo) {
+      return eval;
     }
+    switch (castTo) {
+      case DOUBLE:
+        return ExprEval.of(eval.asDouble());
+      case LONG:
+        return ExprEval.of(eval.asLong());
+      case STRING:
+        return ExprEval.of(eval.asString());
+    }
+    throw new IllegalArgumentException("not supported type " + castTo);
   }
 
   public static com.google.common.base.Function<Comparable, Number> asNumberFunc(ValueType type)

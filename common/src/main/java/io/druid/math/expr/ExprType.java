@@ -19,6 +19,8 @@
 
 package io.druid.math.expr;
 
+import com.google.common.base.Strings;
+
 /**
  */
 public enum ExprType
@@ -27,7 +29,7 @@ public enum ExprType
 
   public static ExprType bestEffortOf(String name)
   {
-    if (name == null) {
+    if (Strings.isNullOrEmpty(name)) {
       return STRING;
     }
     switch (name.toUpperCase()) {

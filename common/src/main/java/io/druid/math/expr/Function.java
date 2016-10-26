@@ -864,8 +864,10 @@ public interface Function
     }
   }
 
-  class CastFunc extends DoubleParam
+  class CastFunc implements Function, Factory
   {
+    private ExprType castTo;
+
     @Override
     public String name()
     {
@@ -873,28 +875,30 @@ public interface Function
     }
 
     @Override
-    protected ExprEval eval(ExprEval x, ExprEval y)
+    public ExprEval apply(List<Expr> args, NumericBinding bindings)
     {
-      String castTo = y.stringValue();
-      if ("string".equals(castTo)) {
-        return x.type() == ExprType.STRING ? x : ExprEval.of(x.value() == null ? null : String.valueOf(x.value()));
+      if (args.size() != 2) {
+        throw new RuntimeException("function '" + name() + "' needs 2 argument");
       }
-      if ("long".equals(castTo)) {
-        return x.type() == ExprType.LONG ? x :
-               ExprEval.of(x.type() == ExprType.STRING ? Long.valueOf(x.stringValue()) : x.longValue());
+      if (castTo == null) {
+        castTo = ExprType.bestEffortOf(Evals.getConstantString(args.get(1)));
       }
-      if ("double".equals(castTo)) {
-        return x.type() == ExprType.DOUBLE ? x :
-               ExprEval.of(x.type() == ExprType.STRING ? Double.valueOf(x.stringValue()) : x.doubleValue());
-      }
-      throw new IllegalArgumentException("invalid type " + castTo);
+      return Evals.castTo(args.get(0).eval(bindings), castTo);
+    }
+
+    @Override
+    public Function get()
+    {
+      return new CastFunc();
     }
   }
 
-  class TimestampFromEpochFunc implements Function
+  class TimestampFromEpochFunc implements Function, Factory
   {
     // yyyy-MM-ddThh:mm:ss[.sss][Z|[+-]hh:mm]
     private static final DateFormat ISO8601 = new ISO8601DateFormat();  // thread-safe
+
+    private DateFormat formatter;
 
     @Override
     public String name()
@@ -908,19 +912,18 @@ public interface Function
       if (args.isEmpty()) {
         throw new RuntimeException("function 'timestampFromEpoch' needs at least 1 argument");
       }
+      if (formatter == null) {
+        if (args.size() > 1) {
+          formatter = new SimpleDateFormat(Evals.getConstantString(args.get(1)).trim());
+        } else {
+          formatter = ISO8601;
+        }
+      }
       ExprEval value = args.get(0).eval(bindings);
       if (value.type() != ExprType.STRING) {
         throw new IllegalArgumentException("first argument should be string type but got " + value.type() + " type");
       }
 
-      DateFormat formatter = ISO8601;
-      if (args.size() > 1) {
-        ExprEval format = args.get(1).eval(bindings);
-        if (format.type() != ExprType.STRING) {
-          throw new IllegalArgumentException("first argument should be string type but got " + format.type() + " type");
-        }
-        formatter = new SimpleDateFormat(format.stringValue());
-      }
       Date date;
       try {
         date = formatter.parse(value.stringValue());
@@ -934,6 +937,12 @@ public interface Function
     protected ExprEval toValue(Date date)
     {
       return ExprEval.of(date.getTime(), ExprType.LONG);
+    }
+
+    @Override
+    public Function get()
+    {
+      return new TimestampFromEpochFunc();
     }
   }
 
