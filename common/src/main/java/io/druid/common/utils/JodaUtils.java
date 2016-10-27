@@ -27,6 +27,9 @@ import com.google.common.primitives.Longs;
 import com.metamx.common.guava.Comparators;
 import org.joda.time.DateTime;
 import org.joda.time.Interval;
+import org.joda.time.format.DateTimeFormat;
+import org.joda.time.format.DateTimeFormatter;
+import org.joda.time.format.DateTimeFormatterBuilder;
 
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -127,8 +130,8 @@ public class JodaUtils
       endDates.add(interval.getEnd());
     }
 
-    DateTime minStart = minDateTime(startDates.toArray(new DateTime[]{}));
-    DateTime maxEnd = maxDateTime(endDates.toArray(new DateTime[]{}));
+    DateTime minStart = minDateTime(startDates.toArray(new DateTime[startDates.size()]));
+    DateTime maxEnd = maxDateTime(endDates.toArray(new DateTime[endDates.size()]));
 
     if (minStart == null || maxEnd == null) {
       throw new IllegalArgumentException("Empty list of intervals");
@@ -189,5 +192,36 @@ public class JodaUtils
         }
         return max;
     }
+  }
+
+  public static DateTimeFormatter toTimeFormatter(String formatString)
+  {
+    DateTimeFormatterBuilder b = new DateTimeFormatterBuilder();
+    int prev = 0;
+    boolean escape = false;
+    for (int i = 0; i < formatString.length(); i++) {
+      char c = formatString.charAt(i);
+      if (c == '\'') {
+        escape = !escape;
+      }
+      if (escape) {
+        continue;
+      }
+      if (c == '[') {
+        if (i > prev) {
+          b.append(DateTimeFormat.forPattern(formatString.substring(prev, i)));
+          prev = i + 1;
+        }
+      } else if (c == ']') {
+        if (i > prev) {
+          b.appendOptional(DateTimeFormat.forPattern(formatString.substring(prev, i)).getParser());
+          prev = i + 1;
+        }
+      }
+    }
+    if (prev < formatString.length()) {
+      b.append(DateTimeFormat.forPattern(formatString.substring(prev, formatString.length())));
+    }
+    return b.toFormatter();
   }
 }

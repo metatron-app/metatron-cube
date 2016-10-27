@@ -23,19 +23,20 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;
 import com.ibm.icu.text.SimpleDateFormat;
+import io.druid.common.utils.JodaUtils;
 import io.druid.common.utils.StringUtils;
 import io.druid.query.aggregation.AggregatorUtil;
+import org.joda.time.DateTime;
+import org.joda.time.format.DateTimeFormatter;
 
 import java.nio.ByteBuffer;
-import java.text.ParseException;
-import java.util.Date;
 
 /**
  */
 public class TimeDimExtractionFn extends DimExtractionFn implements ExtractionFn.Stateful
 {
   private final String timeFormat;
-  private final SimpleDateFormat timeFormatter;
+  private final DateTimeFormatter timeFormatter;
   private final String resultFormat;
   private final SimpleDateFormat resultFormatter;
 
@@ -49,8 +50,7 @@ public class TimeDimExtractionFn extends DimExtractionFn implements ExtractionFn
     Preconditions.checkNotNull(resultFormat, "resultFormat must not be null");
 
     this.timeFormat = timeFormat;
-    this.timeFormatter = new SimpleDateFormat(timeFormat);
-    this.timeFormatter.setLenient(true);
+    this.timeFormatter = JodaUtils.toTimeFormatter(timeFormat);
 
     this.resultFormat = resultFormat;
     this.resultFormatter = new SimpleDateFormat(resultFormat);
@@ -72,14 +72,14 @@ public class TimeDimExtractionFn extends DimExtractionFn implements ExtractionFn
   @Override
   public String apply(String dimValue)
   {
-    Date date;
+    DateTime date;
     try {
-      date = timeFormatter.parse(dimValue);
+      date = DateTime.parse(dimValue, timeFormatter);
     }
-    catch (ParseException e) {
+    catch (IllegalArgumentException e) {
       return dimValue;
     }
-    return resultFormatter.format(date);
+    return resultFormatter.format(date.getMillis());
   }
 
   @JsonProperty("timeFormat")

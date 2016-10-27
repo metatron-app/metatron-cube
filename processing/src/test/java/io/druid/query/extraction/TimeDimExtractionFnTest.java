@@ -20,11 +20,13 @@
 package io.druid.query.extraction;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import io.druid.jackson.DefaultObjectMapper;
 import org.junit.Assert;
 import org.junit.Test;
 
+import java.util.List;
 import java.util.Set;
 
 /**
@@ -71,6 +73,22 @@ public class TimeDimExtractionFnTest
     Assert.assertTrue(quarters.contains("Q1/2012"));
     Assert.assertTrue(quarters.contains("Q2/2012"));
     Assert.assertTrue(quarters.contains("Q4/2012"));
+  }
+
+  @Test
+  public void testOptionalExtraction()
+  {
+    List<String> results = Lists.newArrayList();
+    ExtractionFn extractionFn = new TimeDimExtractionFn("MM/dd/yyyy[ HH:mm:ss]", "QQQ/yyyy MM/dd HH:mm:ss");
+
+    for (String dim : new String[] {"01/12/2016", "06/24/2014", "08/30/2016 22:17:12", "12/03/2015 01:59:00"}) {
+      results.add(extractionFn.apply(dim));
+    }
+
+    Assert.assertEquals("Q1/2016 01/12 00:00:00", results.get(0));
+    Assert.assertEquals("Q2/2014 06/24 00:00:00", results.get(1));
+    Assert.assertEquals("Q3/2016 08/30 22:17:12", results.get(2));
+    Assert.assertEquals("Q4/2015 12/03 01:59:00", results.get(3));
   }
 
   @Test
