@@ -93,6 +93,7 @@ public class SearchQueryRunner implements QueryRunner<Result<SearchResultValue>>
     final SearchQuerySpec searchQuerySpec = query.getQuery();
     final int limit = query.getLimit();
     final boolean descending = query.isDescending();
+    final boolean valueOnly = query.getContextBoolean("valueOnly", false);
 
     // Closing this will cause segfaults in unit tests.
     final QueryableIndex index = segment.asQueryableIndex();
@@ -142,6 +143,13 @@ public class SearchQueryRunner implements QueryRunner<Result<SearchResultValue>>
           for (int i = 0; i < bitmapIndex.getCardinality(); ++i) {
             String dimVal = Strings.nullToEmpty(extractionFn.apply(bitmapIndex.getValue(i)));
             if (!searchQuerySpec.accept(dimVal)) {
+              continue;
+            }
+            if (valueOnly) {
+              retVal.put(new SearchHit(outputName, dimVal), null);
+              if (limit > 0 && retVal.size() >= limit) {
+                return makeReturnResult(limit, retVal);
+              }
               continue;
             }
             ImmutableBitmap bitmap = bitmapIndex.getBitmap(i);
@@ -249,7 +257,8 @@ public class SearchQueryRunner implements QueryRunner<Result<SearchResultValue>>
           public SearchHit apply(Map.Entry<SearchHit, MutableInt> input)
           {
             SearchHit hit = input.getKey();
-            return new SearchHit(hit.getDimension(), hit.getValue(), input.getValue().intValue());
+            MutableInt value = input.getValue();
+            return new SearchHit(hit.getDimension(), hit.getValue(), value == null ? null : value.intValue());
           }
         }
     );
@@ -258,7 +267,7 @@ public class SearchQueryRunner implements QueryRunner<Result<SearchResultValue>>
     }
     return Sequences.simple(
         ImmutableList.of(
-            new Result<SearchResultValue>(
+            new Result<>(
                 segment.getDataInterval().getStart(),
                 new SearchResultValue(Lists.newArrayList(source))
             )
