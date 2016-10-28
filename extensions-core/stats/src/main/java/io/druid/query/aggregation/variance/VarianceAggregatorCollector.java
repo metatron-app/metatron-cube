@@ -75,6 +75,17 @@ public class VarianceAggregatorCollector
 
   static Object combineValues(Object lhs, Object rhs)
   {
+    if (lhs != null && !(lhs instanceof VarianceAggregatorCollector)) {
+      if (rhs instanceof VarianceAggregatorCollector) {
+        return rhs;
+      }
+      return new VarianceAggregatorCollector().add(lhs instanceof Number ? ((Number)lhs).doubleValue() : 0D);
+    }
+    if (rhs != null && !(rhs instanceof VarianceAggregatorCollector)) {
+      return lhs != null ? lhs :
+             new VarianceAggregatorCollector().add(rhs instanceof Number ? ((Number) rhs).doubleValue() : 0D);
+    }
+
     final VarianceAggregatorCollector holder1 = (VarianceAggregatorCollector) lhs;
     final VarianceAggregatorCollector holder2 = (VarianceAggregatorCollector) rhs;
 
@@ -163,7 +174,7 @@ public class VarianceAggregatorCollector
   {
     if (count == 0) {
       // in SQL standard, we should return null for zero elements. But druid there should not be such a case
-      throw new IllegalStateException("should not be empty holder");
+      return Double.NaN;
     } else if (count == 1) {
       return 0d;
     } else {

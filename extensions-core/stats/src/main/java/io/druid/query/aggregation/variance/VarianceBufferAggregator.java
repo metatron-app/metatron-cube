@@ -176,8 +176,12 @@ public abstract class VarianceBufferAggregator implements BufferAggregator
     @Override
     public void aggregate(ByteBuffer buf, int position)
     {
-      VarianceAggregatorCollector holder2 = (VarianceAggregatorCollector) selector.get();
-      if (holder2 == null || holder2.count == 0) {
+      Object input = selector.get();
+      if (input == null || !(input instanceof VarianceAggregatorFactory)) {
+        return;
+      }
+      VarianceAggregatorCollector holder2 = (VarianceAggregatorCollector) input;
+      if (holder2.count == 0) {
         return;
       }
 
