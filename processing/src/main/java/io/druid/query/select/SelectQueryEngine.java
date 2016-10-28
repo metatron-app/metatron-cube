@@ -128,7 +128,7 @@ public class SelectQueryEngine
             int lastOffset = offset.startOffset();
             for (; !cursor.isDone() && offset.hasNext(); cursor.advance(), offset.next()) {
               final Map<String, Object> theEvent = Maps.newLinkedHashMap();
-              theEvent.put(EventHolder.timestampKey, new DateTime(timestampColumnSelector.get()));
+              theEvent.put(EventHolder.timestampKey, timestampColumnSelector.get());
 
               for (Map.Entry<String, DimensionSelector> dimSelector : dimSelectors.entrySet()) {
                 final String dim = dimSelector.getKey();

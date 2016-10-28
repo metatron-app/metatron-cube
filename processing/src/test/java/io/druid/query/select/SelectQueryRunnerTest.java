@@ -248,7 +248,7 @@ public class SelectQueryRunnerTest
                         QueryRunnerTestHelper.segmentId,
                         0,
                         new ImmutableMap.Builder<String, Object>()
-                            .put(EventHolder.timestampKey, new DateTime("2011-01-12T00:00:00.000Z"))
+                            .put(EventHolder.timestampKey, new DateTime("2011-01-12T00:00:00.000Z").getMillis())
                             .put("mar", "spot")
                             .put("qual", "automotive0")
                             .put("place", "preferred")
@@ -259,7 +259,7 @@ public class SelectQueryRunnerTest
                         QueryRunnerTestHelper.segmentId,
                         1,
                         new ImmutableMap.Builder<String, Object>()
-                            .put(EventHolder.timestampKey, new DateTime("2011-01-12T00:00:00.000Z"))
+                            .put(EventHolder.timestampKey, new DateTime("2011-01-12T00:00:00.000Z").getMillis())
                             .put("mar", "spot")
                             .put("qual", "business0")
                             .put("place", "preferred")
@@ -270,7 +270,7 @@ public class SelectQueryRunnerTest
                         QueryRunnerTestHelper.segmentId,
                         2,
                         new ImmutableMap.Builder<String, Object>()
-                            .put(EventHolder.timestampKey, new DateTime("2011-01-12T00:00:00.000Z"))
+                            .put(EventHolder.timestampKey, new DateTime("2011-01-12T00:00:00.000Z").getMillis())
                             .put("mar", "spot")
                             .put("qual", "entertainment0")
                             .put("place", "preferred")
@@ -292,7 +292,7 @@ public class SelectQueryRunnerTest
                         QueryRunnerTestHelper.segmentId,
                         -1,
                         new ImmutableMap.Builder<String, Object>()
-                            .put(EventHolder.timestampKey, new DateTime("2011-04-15T00:00:00.000Z"))
+                            .put(EventHolder.timestampKey, new DateTime("2011-04-15T00:00:00.000Z").getMillis())
                             .put("mar", "upfront")
                             .put("qual", "premium0")
                             .put("place", "preferred")
@@ -303,7 +303,7 @@ public class SelectQueryRunnerTest
                         QueryRunnerTestHelper.segmentId,
                         -2,
                         new ImmutableMap.Builder<String, Object>()
-                            .put(EventHolder.timestampKey, new DateTime("2011-04-15T00:00:00.000Z"))
+                            .put(EventHolder.timestampKey, new DateTime("2011-04-15T00:00:00.000Z").getMillis())
                             .put("mar", "upfront")
                             .put("qual", "mezzanine0")
                             .put("place", "preferred")
@@ -314,7 +314,7 @@ public class SelectQueryRunnerTest
                         QueryRunnerTestHelper.segmentId,
                         -3,
                         new ImmutableMap.Builder<String, Object>()
-                            .put(EventHolder.timestampKey, new DateTime("2011-04-15T00:00:00.000Z"))
+                            .put(EventHolder.timestampKey, new DateTime("2011-04-15T00:00:00.000Z").getMillis())
                             .put("mar", "total_market")
                             .put("qual", "premium0")
                             .put("place", "preferred")
@@ -394,7 +394,7 @@ public class SelectQueryRunnerTest
                         QueryRunnerTestHelper.segmentId,
                         0,
                         new ImmutableMap.Builder<String, Object>()
-                            .put(EventHolder.timestampKey, new DateTime("2011-01-12T00:00:00.000Z"))
+                            .put(EventHolder.timestampKey, new DateTime("2011-01-12T00:00:00.000Z").getMillis())
                             .put("market", "spot")
                             .put("expr", "automotive+automotive")
                             .build()
@@ -403,7 +403,7 @@ public class SelectQueryRunnerTest
                         QueryRunnerTestHelper.segmentId,
                         1,
                         new ImmutableMap.Builder<String, Object>()
-                            .put(EventHolder.timestampKey, new DateTime("2011-01-12T00:00:00.000Z"))
+                            .put(EventHolder.timestampKey, new DateTime("2011-01-12T00:00:00.000Z").getMillis())
                             .put("market", "spot")
                             .put("expr", "business+business")
                             .build()
@@ -412,7 +412,7 @@ public class SelectQueryRunnerTest
                         QueryRunnerTestHelper.segmentId,
                         2,
                         new ImmutableMap.Builder<String, Object>()
-                            .put(EventHolder.timestampKey, new DateTime("2011-01-12T00:00:00.000Z"))
+                            .put(EventHolder.timestampKey, new DateTime("2011-01-12T00:00:00.000Z").getMillis())
                             .put("market", "spot")
                             .put("expr", "entertainment+entertainment")
                             .build()
@@ -431,7 +431,7 @@ public class SelectQueryRunnerTest
                         QueryRunnerTestHelper.segmentId,
                         -1,
                         new ImmutableMap.Builder<String, Object>()
-                            .put(EventHolder.timestampKey, new DateTime("2011-04-15T00:00:00.000Z"))
+                            .put(EventHolder.timestampKey, new DateTime("2011-04-15T00:00:00.000Z").getMillis())
                             .put("market", "upfront")
                             .put("expr", "premium+premium")
                             .build()
@@ -440,7 +440,7 @@ public class SelectQueryRunnerTest
                         QueryRunnerTestHelper.segmentId,
                         -2,
                         new ImmutableMap.Builder<String, Object>()
-                            .put(EventHolder.timestampKey, new DateTime("2011-04-15T00:00:00.000Z"))
+                            .put(EventHolder.timestampKey, new DateTime("2011-04-15T00:00:00.000Z").getMillis())
                             .put("market", "upfront")
                             .put("expr", "mezzanine+mezzanine")
                             .build()
@@ -449,7 +449,7 @@ public class SelectQueryRunnerTest
                         QueryRunnerTestHelper.segmentId,
                         -3,
                         new ImmutableMap.Builder<String, Object>()
-                            .put(EventHolder.timestampKey, new DateTime("2011-04-15T00:00:00.000Z"))
+                            .put(EventHolder.timestampKey, new DateTime("2011-04-15T00:00:00.000Z").getMillis())
                             .put("market", "total_market")
                             .put("expr", "premium+premium")
                             .build()
@@ -722,7 +722,7 @@ public class SelectQueryRunnerTest
                         event.put(
                             specs[0],
                             specs.length == 1 || specs[1].equals("STRING") ? values[i] :
-                            specs[1].equals("TIME") ? new DateTime(values[i]) :
+                            specs[1].equals("TIME") ? new DateTime(values[i]).getMillis() :
                             specs[1].equals("FLOAT") ? Float.valueOf(values[i]) :
                             specs[1].equals("DOUBLE") ? Double.valueOf(values[i]) :
                             specs[1].equals("LONG") ? Long.valueOf(values[i]) :

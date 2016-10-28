@@ -42,7 +42,7 @@ public class SelectResultValueBuilder
     @Override
     public int compare(EventHolder o1, EventHolder o2)
     {
-      int retVal = Longs.compare(o1.getTimestamp().getMillis(), o2.getTimestamp().getMillis());
+      int retVal = Longs.compare(o1.getTimestamp(), o2.getTimestamp());
 
       if (retVal == 0) {
         retVal = o1.getSegmentId().compareTo(o2.getSegmentId());

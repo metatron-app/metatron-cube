@@ -49,13 +49,15 @@ public class EventHolder
     this.event = event;
   }
 
-  public DateTime getTimestamp()
+  public long getTimestamp()
   {
     Object retVal = event.get(timestampKey);
-    if (retVal instanceof String) {
-      return new DateTime(retVal);
+    if (retVal instanceof Long) {
+      return (Long)retVal;
+    } else if (retVal instanceof String) {
+      return new DateTime(retVal).getMillis();
     } else if (retVal instanceof DateTime) {
-      return (DateTime) retVal;
+      return ((DateTime) retVal).getMillis();
     } else {
       throw new ISE("Do not understand format [%s]", retVal.getClass());
     }
