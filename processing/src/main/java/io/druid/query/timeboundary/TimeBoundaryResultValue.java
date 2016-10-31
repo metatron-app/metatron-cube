@@ -23,6 +23,7 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonValue;
 import com.metamx.common.IAE;
 import org.joda.time.DateTime;
+import org.joda.time.DateTimeZone;
 
 import java.util.Map;
 
@@ -107,6 +108,15 @@ public class TimeBoundaryResultValue
       return (DateTime) val;
     } else if (val instanceof String) {
       return new DateTime(val);
+    } else if (val instanceof Map) {
+      Map dateTime = (Map)val;
+      DateTimeZone timeZone = DateTimeZone.UTC;
+      Long millis = (Long) dateTime.get("m");
+      String zone = (String) dateTime.get("z");
+      if (zone != null) {
+        timeZone = DateTimeZone.forID(zone);
+      }
+      return new DateTime(millis, timeZone);
     } else {
       throw new IAE("Cannot get time from type[%s]", val.getClass());
     }

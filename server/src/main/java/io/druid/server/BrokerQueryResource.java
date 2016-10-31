@@ -35,6 +35,7 @@ import io.druid.guice.LocalDataStorageDruidModule;
 import io.druid.guice.annotations.Json;
 import io.druid.guice.annotations.Self;
 import io.druid.guice.annotations.Smile;
+import io.druid.jackson.JodaStuff;
 import io.druid.query.BaseQuery;
 import io.druid.query.DataSource;
 import io.druid.query.LocatedSegmentDescriptor;
@@ -104,7 +105,16 @@ public class BrokerQueryResource extends QueryResource
       TimelineServerView brokerServerView
   )
   {
-    super(config, jsonMapper, smileMapper, texasRanger, emitter, requestLogger, queryManager, authConfig);
+    super(
+        config,
+        JodaStuff.overrideForClient(jsonMapper),
+        JodaStuff.overrideForClient(smileMapper),
+        texasRanger,
+        emitter,
+        requestLogger,
+        queryManager,
+        authConfig
+    );
     this.node = node;
     this.coordinator = coordinator;
     this.brokerServerView = brokerServerView;

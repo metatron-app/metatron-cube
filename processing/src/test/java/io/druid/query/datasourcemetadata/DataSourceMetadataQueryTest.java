@@ -29,6 +29,7 @@ import com.metamx.common.guava.Sequences;
 import io.druid.data.input.MapBasedInputRow;
 import io.druid.granularity.QueryGranularities;
 import io.druid.jackson.DefaultObjectMapper;
+import io.druid.jackson.JodaStuff;
 import io.druid.query.Druids;
 import io.druid.query.Query;
 import io.druid.query.QueryRunner;
@@ -222,12 +223,12 @@ public class DataSourceMetadataQueryTest
   public void testResultSerialization()
   {
     final DataSourceMetadataResultValue resultValue = new DataSourceMetadataResultValue(new DateTime("2000-01-01T00Z"));
-    final Map<String, Object> resultValueMap = new DefaultObjectMapper().convertValue(
-        resultValue,
-        new TypeReference<Map<String, Object>>()
-        {
-        }
-    );
+    final Map<String, Object> resultValueMap = JodaStuff.overrideForClient(new DefaultObjectMapper()).convertValue(
+      resultValue,
+      new TypeReference<Map<String, Object>>()
+      {
+      }
+  );
     Assert.assertEquals(
         ImmutableMap.<String, Object>of("maxIngestedEventTime", "2000-01-01T00:00:00.000Z"),
         resultValueMap

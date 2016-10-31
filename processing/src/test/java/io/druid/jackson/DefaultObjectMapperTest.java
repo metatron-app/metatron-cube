@@ -28,7 +28,7 @@ import org.junit.Test;
  */
 public class DefaultObjectMapperTest
 {
-  ObjectMapper mapper = new DefaultObjectMapper();
+  ObjectMapper mapper = JodaStuff.overrideForClient(new DefaultObjectMapper());
 
   @Test
   public void testDateTime() throws Exception
