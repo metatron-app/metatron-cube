@@ -173,6 +173,8 @@ public class EvalTest
     Assert.assertEquals(0L, evalLong("case (x + 10, 0, 2, 1, 3)", bindings));
     // not-exists (explicit)
     Assert.assertEquals(100L, evalLong("case (x + 10, 0, 2, 1, 3, 100)", bindings));
+
+    Assert.assertEquals(-86410000L, evalLong("recent('1D 10s')", bindings));
   }
 
   @Test
