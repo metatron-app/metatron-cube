@@ -1,0 +1,16 @@
+{
+  "queryType" : "topN",
+  "dataSource" : "wikiticker-2",
+  "intervals" : ["2015-09-12/2015-09-13"],
+  "granularity" : "all",
+  "dimension" : "page",
+  "metric" : "edits",
+  "threshold" : 10000000,
+  "aggregations" : [
+    {
+      "type" : "longSum",
+      "name" : "edits",
+      "fieldName" : "count"
+    }
+  ]
+}

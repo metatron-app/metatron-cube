@@ -1,0 +1,92 @@
+{
+  "type" : "index_hadoop",
+  "spec" : {
+    "ioConfig" : {
+      "type" : "hadoop",
+      "inputSpec" : {
+        "type" : "static",
+        "paths" : "quickstart/wikiticker-2015-09-12-sampled.json"
+      }
+    },
+    "dataSchema" : {
+      "dataSource" : "wikiticker-2",
+      "granularitySpec" : {
+        "type" : "uniform",
+        "segmentGranularity" : "day",
+        "queryGranularity" : "none",
+        "intervals" : ["2015-09-12/2015-09-13"]
+      },
+      "parser" : {
+        "type" : "string",
+        "parseSpec" : {
+          "format" : "json",
+          "dimensionsSpec" : {
+            "dimensions" : [
+              "channel",
+              "cityName",
+              "comment",
+              "countryIsoCode",
+              "countryName",
+              "isAnonymous",
+              "isMinor",
+              "isNew",
+              "isRobot",
+              "isUnpatrolled",
+              "metroCode",
+              "namespace",
+              "page",
+              "regionIsoCode",
+              "regionName",
+              "user"
+            ]
+          },
+          "timestampSpec" : {
+            "format" : "auto",
+            "column" : "time"
+          }
+        }
+      },
+      "metricsSpec" : [
+        {
+          "name" : "count",
+          "type" : "count"
+        },
+        {
+          "name" : "added",
+          "type" : "longSum",
+          "fieldName" : "added"
+        },
+        {
+          "name" : "deleted",
+          "type" : "longSum",
+          "fieldName" : "deleted"
+        },
+        {
+          "name" : "delta",
+          "type" : "longSum",
+          "fieldName" : "delta"
+        },
+        {
+          "name" : "user_unique",
+          "type" : "hyperUnique",
+          "fieldName" : "user"
+        }
+      ]
+    },
+    "tuningConfig" : {
+      "type" : "hadoop",
+      "partitionsSpec" : {
+        "type" : "hashed",
+        "targetPartitionSize" : 5000000
+      },
+      "jobProperties" : {
+        "mapreduce.map.java.opts" : "-server -Xmx1024m -Duser.timezone=UTC -Dfile.encoding=UTF-8 -XX:+PrintGCDetails -XX:+PrintGCTimeStamps",
+        "mapreduce.reduce.java.opts" : "-server -Xmx1024m -Duser.timezone=UTC -Dfile.encoding=UTF-8 -XX:+PrintGCDetails -XX:+PrintGCTimeStamps",
+        "mapreduce.reduce.memory.mb" : "1400"
+      }
+    }
+  },
+  "context" : {
+    "druid.indexer.runner.javaOpts" : "-server -XX:MaxPermSize=512m -Xmx4g -Xms4g -Xdebug -Xrunjdwp:transport=dt_socket,address=127.0.0.1:0,server=y,suspend=n"
+  }
+}
