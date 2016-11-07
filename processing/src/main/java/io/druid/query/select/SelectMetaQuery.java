@@ -86,7 +86,7 @@ public class SelectMetaQuery extends BaseQuery<Result<SelectMetaResultValue>>
         getQuerySegmentSpec(),
         getDimensionsFilter(),
         getGranularity(),
-        contextOverride
+        computeOverridenContext(contextOverride)
     );
   }
 
