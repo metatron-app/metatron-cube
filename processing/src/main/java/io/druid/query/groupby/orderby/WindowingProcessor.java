@@ -107,6 +107,9 @@ public class WindowingProcessor implements Function<List<Row>, List<Row>>
       this.ordering = ordering;
       this.evaluator = evaluator;
       this.currPartKeys = new Object[partColumns.length];
+      if (partColumns.length == 0) {
+        prevPartKeys = new Object[0];
+      }
     }
 
     private List<Row> process(final List<Row> input)
