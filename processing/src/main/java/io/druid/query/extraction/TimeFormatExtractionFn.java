@@ -31,7 +31,7 @@ import java.nio.ByteBuffer;
 import java.util.Locale;
 import java.util.Objects;
 
-public class TimeFormatExtractionFn implements ExtractionFn
+public class TimeFormatExtractionFn implements ExtractionFn.Stateful
 {
   private final TimeZone tz;
   private final String pattern;
@@ -44,9 +44,17 @@ public class TimeFormatExtractionFn implements ExtractionFn
       @JsonProperty("locale") String localeString
   )
   {
+    this(
+        pattern,
+        tzString == null ? null : TimeZone.getTimeZone(tzString),
+        localeString == null ? null : Locale.forLanguageTag(localeString)
+    );
+  }
+
+  private TimeFormatExtractionFn(String pattern, TimeZone tz, Locale locale) {
     this.pattern = Preconditions.checkNotNull(pattern, "format cannot be null");
-    this.tz = tzString == null ? null : TimeZone.getTimeZone(tzString);
-    this.locale = localeString == null ? null : Locale.forLanguageTag(localeString);
+    this.tz = tz;
+    this.locale = locale;
     this.formatter = locale == null ? new SimpleDateFormat(pattern) : new SimpleDateFormat(pattern, locale);
     this.formatter.setTimeZone(tz == null ? TimeZone.getTimeZone("UTC") : tz);
   }
@@ -83,6 +91,12 @@ public class TimeFormatExtractionFn implements ExtractionFn
                      .put(AggregatorUtil.STRING_SEPARATOR)
                      .put(localeBytes)
                      .array();
+  }
+
+  @Override
+  public ExtractionFn init()
+  {
+    return new TimeFormatExtractionFn(pattern, tz, locale);
   }
 
   @Override
@@ -144,5 +158,15 @@ public class TimeFormatExtractionFn implements ExtractionFn
   public int hashCode()
   {
     return Objects.hash(getLocale(), getTimeZone(), pattern);
+  }
+
+  @Override
+  public String toString()
+  {
+    return "TimeFormatExtractionFn{" +
+           "tz=" + tz +
+           ", pattern='" + pattern + '\'' +
+           ", locale=" + locale +
+           '}';
   }
 }
