@@ -80,6 +80,7 @@ public class Main
                CreateTables.class,
                InsertSegment.class,
                DumpSegment.class,
+               ResetCluster.class,
                SimpleShell.class
            );
 

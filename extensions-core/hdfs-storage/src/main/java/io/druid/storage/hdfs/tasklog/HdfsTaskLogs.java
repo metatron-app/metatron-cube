@@ -114,6 +114,15 @@ public class HdfsTaskLogs implements TaskLogs
   {
     return path1 + (path1.endsWith(Path.SEPARATOR) ? "" : Path.SEPARATOR) + path2;
   }
+
+  @Override
+  public void killAll() throws IOException
+  {
+    log.info("Deleting all task logs from hdfs dir [%s].", config.getDirectory());
+    Path taskLogDir = new Path(config.getDirectory());
+    FileSystem fs = taskLogDir.getFileSystem(hadoopConfig);
+    fs.delete(taskLogDir, true);
+  }
 }
 
 

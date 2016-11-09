@@ -231,6 +231,12 @@ public class IngestSegmentFirehoseFactoryTest
           {
 
           }
+
+          @Override
+          public void killAll() throws IOException
+          {
+            throw new UnsupportedOperationException("not implemented");
+          }
         },
         new DataSegmentMover()
         {
