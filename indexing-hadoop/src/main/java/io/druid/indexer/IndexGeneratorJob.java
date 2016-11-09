@@ -109,11 +109,17 @@ public class IndexGeneratorJob implements HadoopDruidIndexerJob.IndexingStatsPro
 
     try {
       FileSystem fs = descriptorInfoDir.getFileSystem(conf);
-
-      for (FileStatus status : fs.listStatus(descriptorInfoDir)) {
-        final DataSegment segment = jsonMapper.readValue(fs.open(status.getPath()), DataSegment.class);
-        publishedSegmentsBuilder.add(segment);
-        log.info("Adding segment %s to the list of published segments", segment.getIdentifier());
+      if (!fs.exists(descriptorInfoDir)) {
+        log.warn(
+            "Cannot find descriptor directory [%s].. possible when any index was not created (invalid input path?)",
+            descriptorInfoDir
+        );
+      } else {
+        for (FileStatus status : fs.listStatus(descriptorInfoDir)) {
+          final DataSegment segment = jsonMapper.readValue(fs.open(status.getPath()), DataSegment.class);
+          publishedSegmentsBuilder.add(segment);
+          log.info("Adding segment %s to the list of published segments", segment.getIdentifier());
+        }
       }
     }
     catch (FileNotFoundException e) {
