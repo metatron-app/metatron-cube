@@ -123,6 +123,7 @@ public class QueryResourceTest
   {
     EasyMock.expect(testServletRequest.getContentType()).andReturn(MediaType.APPLICATION_JSON).anyTimes();
     EasyMock.expect(testServletRequest.getRemoteAddr()).andReturn("localhost").anyTimes();
+    EasyMock.expect(testServletRequest.getHeader(QueryResource.DRUID_INTERNAL_HEADER)).andReturn(null).anyTimes();
     queryManager = new QueryManager();
     queryResource = new QueryResource(
         serverConfig,

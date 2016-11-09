@@ -35,7 +35,6 @@ import io.druid.guice.LocalDataStorageDruidModule;
 import io.druid.guice.annotations.Json;
 import io.druid.guice.annotations.Self;
 import io.druid.guice.annotations.Smile;
-import io.druid.jackson.JodaStuff;
 import io.druid.query.BaseQuery;
 import io.druid.query.DataSource;
 import io.druid.query.LocatedSegmentDescriptor;
@@ -105,16 +104,7 @@ public class BrokerQueryResource extends QueryResource
       TimelineServerView brokerServerView
   )
   {
-    super(
-        config,
-        JodaStuff.overrideForClient(jsonMapper),
-        JodaStuff.overrideForClient(smileMapper),
-        texasRanger,
-        emitter,
-        requestLogger,
-        queryManager,
-        authConfig
-    );
+    super(config, jsonMapper, smileMapper, texasRanger, emitter, requestLogger, queryManager, authConfig);
     this.node = node;
     this.coordinator = coordinator;
     this.brokerServerView = brokerServerView;
@@ -133,7 +123,7 @@ public class BrokerQueryResource extends QueryResource
       @Context final HttpServletRequest req // used only to get request content-type and remote address
   ) throws IOException
   {
-    final RequestContext context = new RequestContext(req.getContentType(), pretty != null);
+    final RequestContext context = new RequestContext(req, pretty != null);
     try {
       Query<?> query = context.getInputMapper().readValue(in, Query.class);
       return context.ok(getTargetLocations(query.getDataSource(), query.getIntervals()));
@@ -153,7 +143,7 @@ public class BrokerQueryResource extends QueryResource
       @Context final HttpServletRequest req
   ) throws IOException
   {
-    final RequestContext context = new RequestContext(req.getContentType(), pretty != null);
+    final RequestContext context = new RequestContext(req, pretty != null);
     List<Interval> intervalList = Lists.newArrayList();
     for (String interval : intervals.split(",")) {
       intervalList.add(Interval.parse(interval.trim()));
@@ -193,7 +183,7 @@ public class BrokerQueryResource extends QueryResource
     return located;
   }
 
-  @Override
+  @Override @SuppressWarnings("unchecked")
   protected Sequence toDispatchSequence(Query query, Sequence res) throws IOException
   {
     String forwardURL = BaseQuery.getResultForwardURL(query);
@@ -238,7 +228,7 @@ public class BrokerQueryResource extends QueryResource
     );
   }
 
-  @Override
+  @Override @SuppressWarnings("unchecked")
   protected Query prepareQuery(Query query)
   {
     query = rewriteDataSources(query);

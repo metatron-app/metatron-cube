@@ -31,7 +31,6 @@ import com.fasterxml.jackson.databind.SerializerProvider;
 import com.fasterxml.jackson.databind.deser.std.StdDeserializer;
 import com.fasterxml.jackson.databind.module.SimpleModule;
 import com.fasterxml.jackson.databind.module.SimpleSerializers;
-import com.fasterxml.jackson.databind.ser.Serializers;
 import com.fasterxml.jackson.databind.ser.std.StdSerializer;
 import com.fasterxml.jackson.databind.ser.std.ToStringSerializer;
 import com.fasterxml.jackson.datatype.joda.deser.DurationDeserializer;
@@ -41,7 +40,6 @@ import org.joda.time.DateTimeZone;
 import org.joda.time.Duration;
 import org.joda.time.Interval;
 import org.joda.time.Period;
-import org.joda.time.chrono.ISOChronology;
 import org.joda.time.format.ISODateTimeFormat;
 
 import java.io.IOException;
@@ -50,11 +48,11 @@ import java.io.IOException;
  */
 public class JodaStuff
 {
-  public static ObjectMapper overrideForClient(ObjectMapper mapper)
+  public static ObjectMapper overrideForInternal(ObjectMapper mapper)
   {
     ObjectMapper client = mapper.copy();
     SimpleSerializers serializers = new SimpleSerializers();
-    serializers.addSerializer(DateTime.class, ToStringSerializer.instance);
+    serializers.addSerializer(DateTime.class, new DateTimeSerializer());
     return client.setSerializerFactory(mapper.getSerializerFactory().withAdditionalSerializers(serializers));
   }
 
@@ -63,7 +61,7 @@ public class JodaStuff
   {
     module.addKeyDeserializer(DateTime.class, new DateTimeKeyDeserializer());
     module.addDeserializer(DateTime.class, new DateTimeDeserializer());
-    module.addSerializer(DateTime.class, new DateTimeSerializer());
+    module.addSerializer(DateTime.class, ToStringSerializer.instance);
     module.addDeserializer(Interval.class, new JodaStuff.IntervalDeserializer());
     module.addSerializer(Interval.class, ToStringSerializer.instance);
     JsonDeserializer<?> periodDeserializer = new PeriodDeserializer();

@@ -37,6 +37,7 @@ import com.metamx.emitter.EmittingLogger;
 import com.metamx.emitter.service.ServiceEmitter;
 import io.druid.guice.annotations.Json;
 import io.druid.guice.annotations.Smile;
+import io.druid.jackson.JodaStuff;
 import io.druid.query.DruidMetrics;
 import io.druid.query.Query;
 import io.druid.query.QueryContextKeys;
@@ -82,6 +83,8 @@ public class QueryResource
   protected static final String APPLICATION_SMILE = "application/smile";
 
   protected static final int RESPONSE_CTX_HEADER_LEN_LIMIT = 7 * 1024;
+
+  public static final String DRUID_INTERNAL_HEADER = "Druid-Internal";
 
   protected final ServerConfig config;
   protected final ObjectMapper jsonMapper;
@@ -161,7 +164,7 @@ public class QueryResource
     Query query = null;
     String queryId = null;
 
-    final RequestContext context = new RequestContext(req.getContentType(), pretty != null);
+    final RequestContext context = new RequestContext(req, pretty != null);
     final String contentType = context.getContentType();
     final ObjectWriter jsonWriter = context.getOutputWriter();
 
@@ -390,13 +393,16 @@ public class QueryResource
   {
     final boolean isSmile;
     final boolean isPretty;
+    final boolean isInternal;
     final String contentType;
 
-    RequestContext(String requestType, boolean pretty)
+    RequestContext(HttpServletRequest request, boolean pretty)
     {
+      String requestType = request.getContentType();
       isSmile = SmileMediaTypes.APPLICATION_JACKSON_SMILE.equals(requestType)
                 || APPLICATION_SMILE.equals(requestType);
       isPretty = pretty;
+      isInternal = Boolean.valueOf(request.getHeader(DRUID_INTERNAL_HEADER));
       contentType = isSmile ? SmileMediaTypes.APPLICATION_JACKSON_SMILE : MediaType.APPLICATION_JSON;
     }
 
@@ -412,7 +418,11 @@ public class QueryResource
 
     ObjectWriter getOutputWriter()
     {
-      return isPretty ? getInputMapper().writerWithDefaultPrettyPrinter() : getInputMapper().writer();
+      ObjectMapper mapper = getInputMapper();
+      if (isInternal) {
+        mapper = JodaStuff.overrideForInternal(mapper);
+      }
+      return isPretty ? mapper.writerWithDefaultPrettyPrinter() : mapper.writer();
     }
 
     Response ok(Object object) throws IOException

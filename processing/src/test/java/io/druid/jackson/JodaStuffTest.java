@@ -35,16 +35,16 @@ public class JodaStuffTest extends TestCase
     ObjectMapper mapper = new DefaultObjectMapper();
     DateTime dateTime = new DateTime(10000000, DateTimeZone.forID("+09"));
     String serialized = mapper.writeValueAsString(dateTime);
-    Assert.assertEquals("{\"m\":10000000,\"z\":\"+09:00\"}", serialized);
+    Assert.assertEquals("\"1970-01-01T11:46:40.000+09:00\"", serialized);
     DateTime deserialized = mapper.readValue(serialized, DateTime.class);
     Assert.assertEquals(dateTime, deserialized);
 
     DateTime before = ISODateTimeFormat.dateTimeParser().withOffsetParsed().parseDateTime(dateTime.toString());
     Assert.assertEquals(before, deserialized);
 
-    ObjectMapper client = JodaStuff.overrideForClient(mapper);
+    ObjectMapper client = JodaStuff.overrideForInternal(mapper);
     serialized = client.writeValueAsString(dateTime);
-    Assert.assertEquals("\"1970-01-01T11:46:40.000+09:00\"", serialized);
+    Assert.assertEquals("{\"m\":10000000,\"z\":\"+09:00\"}", serialized);
     deserialized = client.readValue(serialized, DateTime.class);
     Assert.assertEquals(dateTime, deserialized);
   }
