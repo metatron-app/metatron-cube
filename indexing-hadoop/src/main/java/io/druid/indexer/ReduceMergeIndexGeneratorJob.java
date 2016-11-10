@@ -55,6 +55,8 @@ import org.joda.time.Interval;
 
 import java.io.File;
 import java.io.IOException;
+import java.lang.management.ManagementFactory;
+import java.lang.management.MemoryMXBean;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
@@ -150,6 +152,7 @@ public class ReduceMergeIndexGeneratorJob implements HadoopDruidIndexerJob.Index
     private Path shufflingPath;
     private FileSystem shufflingFS;
 
+    private MemoryMXBean memoryMXBean;
     private ProgressIndicator progressIndicator;
 
     private int indexCount;
@@ -222,6 +225,7 @@ public class ReduceMergeIndexGeneratorJob implements HadoopDruidIndexerJob.Index
         }
       };
 
+      memoryMXBean = ManagementFactory.getMemoryMXBean();
       startTime = System.currentTimeMillis();
     }
 
@@ -247,6 +251,7 @@ public class ReduceMergeIndexGeneratorJob implements HadoopDruidIndexerJob.Index
           }
         }
         if (flush) {
+          log.info("Heap memory usage from mbean %s", memoryMXBean.getHeapMemoryUsage());
           persist(context);
         }
       }
@@ -302,10 +307,11 @@ public class ReduceMergeIndexGeneratorJob implements HadoopDruidIndexerJob.Index
     {
       context.progress();
       log.info(
-          "flushing index.. %,d rows with estimated size %,d bytes (%s) in %,d msec",
-          index.size(), index.estimatedOccupation(), interval, System.currentTimeMillis() - startTime
+          "flushing index of %s (%s).. %,d rows with estimated size %,d bytes accumulated during %,d msec",
+          currentDataSource, interval, index.size(), index.estimatedOccupation(), System.currentTimeMillis() - startTime
       );
 
+      long prev = System.currentTimeMillis();
       File localFile = merger.persist(index, interval, nextFile(), config.getIndexSpec(), progressIndicator);
 
       final String dataSource = currentDataSource != null ? currentDataSource : config.getDataSource();
@@ -317,7 +323,7 @@ public class ReduceMergeIndexGeneratorJob implements HadoopDruidIndexerJob.Index
       try (FSDataOutputStream out = shufflingFS.create(outFile)) {
         size = CompressionUtils.zip(localFile, out);
       }
-      log.info("Compressed into [%,d] bytes", size);
+      log.info("Compressed into [%,d] bytes.. total persist time %,d msec", size, System.currentTimeMillis() - prev);
       Text key = new Text(dataSource + ":" + index.getInterval().getStartMillis());
       context.write(key, new Text(outFile.toString()));
 
@@ -406,13 +412,12 @@ public class ReduceMergeIndexGeneratorJob implements HadoopDruidIndexerJob.Index
 
       final String dataSource = split[0];
       final DateTime time = new DateTime(Long.valueOf(split[1]));
-      final Interval interval = config.getGranularitySpec().bucketInterval(time).get();
 
-      log.info("Starting merge on %s [%s]", dataSource, interval);
-      final List<List<File>> groups = groupToShards(
-          Lists.newArrayList(Iterables.transform(values, Functions.toStringFunction())),
-          maxShardLength
-      );
+      final Interval interval = config.getGranularitySpec().bucketInterval(time).get();
+      final List<String> files = Lists.newArrayList(Iterables.transform(values, Functions.toStringFunction()));
+      final List<List<File>> groups = groupToShards(files, maxShardLength);
+
+      log.info("Merging %d segments of %s [%s] into %d shards", files.size(), dataSource, interval, groups.size());
 
       final boolean singleShard = groups.size() == 1;
 
@@ -527,7 +532,7 @@ public class ReduceMergeIndexGeneratorJob implements HadoopDruidIndexerJob.Index
           ), descriptorPath
       );
 
-      log.info("Writing descriptor to path[%s]", descriptorPath);
+      log.info("Writing descriptor to path [%s]", descriptorPath);
       JobHelper.writeSegmentDescriptor(
           config.makeDescriptorInfoDir().getFileSystem(context.getConfiguration()),
           segment,

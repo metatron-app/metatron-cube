@@ -36,6 +36,7 @@ import io.druid.indexer.path.PartitionPathSpec;
 import io.druid.segment.indexing.granularity.GranularitySpec;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.Text;
+import org.apache.hadoop.mapreduce.Counter;
 import org.apache.hadoop.mapreduce.InputSplit;
 import org.apache.hadoop.mapreduce.Mapper;
 import org.apache.hadoop.mapreduce.lib.input.FileSplit;
@@ -58,6 +59,11 @@ public abstract class HadoopDruidIndexerMapper<KEYOUT, VALUEOUT> extends Mapper<
   private Set<String> partitionDims = null;
 
   private Function<InputRow, Iterable<InputRow>> generator;
+  private Counter indexedRows;
+  private Counter oobRows;
+  private Counter errRows;
+
+  private boolean oobLogged;
 
   @Override
   protected void setup(Context context)
@@ -149,6 +155,10 @@ public abstract class HadoopDruidIndexerMapper<KEYOUT, VALUEOUT> extends Mapper<
         partitionDims = partitionDimValues.keySet();
       }
     }
+
+    indexedRows = context.getCounter("navis", "indexed-row-num");
+    oobRows = context.getCounter("navis", "oob-row-num");
+    errRows = context.getCounter("navis", "err-row-num");
   }
 
   private boolean isNumeric(String str)
@@ -188,8 +198,15 @@ public abstract class HadoopDruidIndexerMapper<KEYOUT, VALUEOUT> extends Mapper<
       if (!granularitySpec.bucketIntervals().isPresent()
           || granularitySpec.bucketInterval(new DateTime(inputRow.getTimestampFromEpoch()))
                             .isPresent()) {
+        indexedRows.increment(1);
         for (InputRow row : generator.apply(inputRow)) {
           innerMap(row, value, context);
+        }
+      } else {
+        oobRows.increment(1);
+        if (!oobLogged) {
+          log.info("Out of bound row [%s]. will be ignored in next", inputRow);
+          oobLogged = true;
         }
       }
     }
@@ -204,6 +221,7 @@ public abstract class HadoopDruidIndexerMapper<KEYOUT, VALUEOUT> extends Mapper<
                                           : mergePartitionDimValues(parseInputRow(value, parser));
     }
     catch (Exception e) {
+      errRows.increment(1);
       if (config.isIgnoreInvalidRows()) {
         log.debug(e, "Ignoring invalid row [%s] due to parsing error", value.toString());
         context.getCounter(HadoopDruidIndexerConfig.IndexJobCounters.INVALID_ROW_COUNTER).increment(1);
