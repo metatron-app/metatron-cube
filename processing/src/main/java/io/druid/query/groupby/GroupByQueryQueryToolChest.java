@@ -646,7 +646,7 @@ public class GroupByQueryQueryToolChest extends QueryToolChest<Row, GroupByQuery
   }
 
   @Override
-  public TabularFormat toTabularFormat(final Sequence<Row> sequence)
+  public TabularFormat toTabularFormat(final Sequence<Row> sequence, final String timestampColumn)
   {
     return new TabularFormat()
     {
@@ -660,10 +660,12 @@ public class GroupByQueryQueryToolChest extends QueryToolChest<Row, GroupByQuery
               public Map<String, Object> apply(Row input)
               {
                 Map<String, Object> event = ((MapBasedRow) input).getEvent();
-                if (!MapBasedRow.supportInplaceUpdate(event)) {
-                  event = Maps.newLinkedHashMap(event);
+                if (timestampColumn != null) {
+                  if (!MapBasedRow.supportInplaceUpdate(event)) {
+                    event = Maps.newLinkedHashMap(event);
+                  }
+                  event.put(timestampColumn, input.getTimestamp());
                 }
-                event.put(EventHolder.timestampKey, input.getTimestamp());
                 return event;
               }
             }

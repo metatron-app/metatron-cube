@@ -188,7 +188,7 @@ public abstract class QueryToolChest<ResultType, QueryType extends Query<ResultT
    * @param sequence
    * @return
    */
-  public TabularFormat toTabularFormat(Sequence<ResultType> sequence)
+  public TabularFormat toTabularFormat(Sequence<ResultType> sequence, String timestampColumn)
   {
     throw new UnsupportedOperationException("toTabularFormat");
   }

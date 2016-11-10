@@ -30,12 +30,12 @@ import com.google.common.collect.Ordering;
 import com.google.common.collect.Sets;
 import com.google.inject.Inject;
 import com.metamx.common.StringUtils;
-import com.metamx.common.guava.Comparators;
 import com.metamx.common.guava.Sequence;
 import com.metamx.common.guava.Sequences;
 import com.metamx.common.guava.nary.BinaryFn;
 import com.metamx.emitter.service.ServiceMetricEvent;
 import io.druid.common.utils.JodaUtils;
+import io.druid.data.input.MapBasedRow;
 import io.druid.granularity.QueryGranularity;
 import io.druid.query.CacheStrategy;
 import io.druid.query.DruidMetrics;
@@ -477,7 +477,7 @@ public class SelectQueryQueryToolChest extends QueryToolChest<Result<SelectResul
   }
 
   @Override
-  public TabularFormat toTabularFormat(final Sequence<Result<SelectResultValue>> sequence)
+  public TabularFormat toTabularFormat(final Sequence<Result<SelectResultValue>> sequence, final String timestampColumn)
   {
     return new TabularFormat()
     {
@@ -501,7 +501,14 @@ public class SelectQueryQueryToolChest extends QueryToolChest<Result<SelectResul
                               @Override
                               public Map<String, Object> apply(EventHolder input)
                               {
-                                return input.getEvent();
+                                Map<String, Object> event = input.getEvent();
+                                if (timestampColumn != null) {
+                                  if (!MapBasedRow.supportInplaceUpdate(event)) {
+                                    event = Maps.newLinkedHashMap(event);
+                                  }
+                                  event.put(timestampColumn, input.getTimestamp());
+                                }
+                                return event;
                               }
                             }
                         )

@@ -202,11 +202,13 @@ public class Formatters
   public static Formatter toBasicFormatter(ByteSink output, Map<String, Object> context, ObjectMapper jsonMapper)
       throws IOException
   {
+    String[] columns = parseStrings(context.get("columns"));
     String formatString = Objects.toString(context.get("format"), null);
     if (isNullOrEmpty(formatString) || formatString.equalsIgnoreCase("json")) {
       boolean wrapAsList = parseBoolean(context.get("wrapAsList"), false);
-      return new Formatter.JsonFormatter(output.openBufferedStream(), jsonMapper, wrapAsList);
+      return new Formatter.JsonFormatter(output.openBufferedStream(), jsonMapper, columns, wrapAsList);
     }
+
     String separator;
     if (formatString.equalsIgnoreCase("csv")) {
       separator = ",";
@@ -215,10 +217,9 @@ public class Formatters
     } else {
       log.warn("Invalid format " + formatString + ".. using json formatter instead");
       boolean wrapAsList = parseBoolean(context.get("wrapAsList"), false);
-      return new Formatter.JsonFormatter(output.openBufferedStream(), jsonMapper, wrapAsList);
+      return new Formatter.JsonFormatter(output.openBufferedStream(), jsonMapper, columns, wrapAsList);
     }
     String nullValue = Objects.toString(context.get("nullValue"), null);
-    String[] columns = parseStrings(context.get("columns"));
 
     return new Formatter.XSVFormatter(output.openBufferedStream(), separator, nullValue, columns);
   }

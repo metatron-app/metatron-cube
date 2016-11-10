@@ -30,6 +30,7 @@ import io.druid.client.TimelineServerView;
 import io.druid.client.coordinator.CoordinatorClient;
 import io.druid.client.selector.ServerSelector;
 import io.druid.common.utils.JodaUtils;
+import io.druid.common.utils.PropUtils;
 import io.druid.common.utils.StringUtils;
 import io.druid.guice.LocalDataStorageDruidModule;
 import io.druid.guice.annotations.Json;
@@ -206,8 +207,12 @@ public class BrokerQueryResource extends QueryResource
         log.warn("Unsupported scheme `" + uri.getScheme() + "`");
         return Sequences.empty();
       }
-      TabularFormat result = warehouse.getToolChest(query).toTabularFormat(res);
-      Map<String, Object> info = writer.write(uri, result, BaseQuery.getResultForwardContext(query));
+      Map forwardContext = BaseQuery.getResultForwardContext(query);
+
+      String timestampColumn = PropUtils.parseString(forwardContext, "timestampColumn", null);
+
+      TabularFormat result = warehouse.getToolChest(query).toTabularFormat(res, timestampColumn);
+      Map<String, Object> info = writer.write(uri, result, forwardContext);
 
       return Sequences.simple(Arrays.asList(info));
     }

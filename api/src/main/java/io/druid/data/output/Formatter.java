@@ -20,6 +20,7 @@
 package io.druid.data.output;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.collect.Maps;
 
 import java.io.Closeable;
 import java.io.IOException;
@@ -99,14 +100,17 @@ public interface Formatter extends Closeable
     private static final byte[] TAIL = ("]" + System.lineSeparator()).getBytes();
 
     private final ObjectMapper jsonMapper;
+    private final String[] columns;
     private final boolean withWrapping;
 
     private final OutputStream output;
     private boolean firstLine;
 
-    public JsonFormatter(OutputStream output, ObjectMapper jsonMapper, boolean withWrapping) throws IOException
+    public JsonFormatter(OutputStream output, ObjectMapper jsonMapper, String[] columns, boolean withWrapping)
+        throws IOException
     {
       this.jsonMapper = jsonMapper;
+      this.columns = columns;
       this.withWrapping = withWrapping;
       this.output = output;
       if (withWrapping) {
@@ -122,6 +126,13 @@ public interface Formatter extends Closeable
         output.write(withWrapping ? NEXT_LINE : NEW_LINE);
       }
       // jsonMapper.writeValue(output, datum) closes stream
+      if (columns != null && columns.length != 0) {
+        Map<String, Object> retained = Maps.newLinkedHashMap();
+        for (String column : columns) {
+          retained.put(column, datum.get(column));
+        }
+        datum = retained;
+      }
       output.write(jsonMapper.writeValueAsBytes(datum));
       firstLine = false;
     }
