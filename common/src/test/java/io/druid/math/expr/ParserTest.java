@@ -34,6 +34,15 @@ public class ParserTest
     Assert.assertEquals(expected, actual);
   }
 
+    @Test
+  public void testUnicode()
+  {
+    Assert.assertEquals("한글", Parser.parse("한글").toString());
+    Assert.assertEquals("한글", Parser.parse("\"한글\"").toString());
+    Assert.assertEquals("한글.나비스", Parser.parse("한글.나비스").toString());
+    Assert.assertEquals("한글.나비스", Parser.parse("\"한글.나비스\"").toString());
+  }
+
   @Test
   public void testSimpleUnaryOps1()
   {

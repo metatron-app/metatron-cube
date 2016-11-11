@@ -19,7 +19,7 @@ expr : ('-'|'!') expr                                 # unaryOpExpr
 fnArgs : expr (',' expr)*                             # functionArgs
        ;
 
-IDENTIFIER : [_$a-zA-Z][._$a-zA-Z0-9\[\]]* | '"' [_$a-zA-Z][._$a-zA-Z0-9\[\]\(\)]* '"';
+IDENTIFIER : [_$a-zA-Z\uAC00-\uD7AF][._$a-zA-Z0-9\[\]\uAC00-\uD7AF]* | '"' [_$a-zA-Z\uAC00-\uD7AF][._$a-zA-Z0-9\[\]\(\)\uAC00-\uD7AF]* '"';
 LONG : [0-9]+ ;
 DOUBLE : [0-9]+ '.' [0-9]* ;
 WS : [ \t\r\n]+ -> skip ;
