@@ -113,6 +113,7 @@
         <module>extensions-contrib/area</module>
         <module>extensions-contrib/orc-extensions</module>
         <module>extensions-contrib/uri-firehose</module>
+        <module>extensions-contrib/oauth</module>
 
         <!-- distribution packaging -->
         <module>distribution</module>
