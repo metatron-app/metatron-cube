@@ -255,7 +255,16 @@ public class CachingClusteredClient<T> implements QueryRunner<T>
       // Pull cached segments from cache and remove from set of segments to query
       final Map<Cache.NamedKey, byte[]> cachedValues;
       if (useCache) {
+        long start = System.currentTimeMillis();
         cachedValues = cache.getBulk(Iterables.limit(cacheKeys.values(), cacheConfig.getCacheBulkMergeLimit()));
+        int total = 0;
+        for (byte[] value : cachedValues.values()) {
+          total += value.length;
+        }
+        log.info(
+            "Requested %,d segments and returned %,d segments (%,d bytes) from cache, took %,d msec",
+            cacheKeys.size(), cachedValues.size(), total, System.currentTimeMillis() - start
+        );
       } else {
         cachedValues = ImmutableMap.of();
       }
@@ -330,14 +339,16 @@ public class CachingClusteredClient<T> implements QueryRunner<T>
               Sequence<Object> cachedSequence = new BaseSequence<>(
                   new BaseSequence.IteratorMaker<Object, Iterator<Object>>()
                   {
+                    private long cumulative;
+
                     @Override
                     public Iterator<Object> make()
                     {
+                      if (cachedResult.length == 0) {
+                        return Iterators.emptyIterator();
+                      }
+                      long prev = System.currentTimeMillis();
                       try {
-                        if (cachedResult.length == 0) {
-                          return Iterators.emptyIterator();
-                        }
-
                         return objectMapper.readValues(
                             objectMapper.getFactory().createParser(cachedResult),
                             cacheObjectClazz
@@ -346,11 +357,17 @@ public class CachingClusteredClient<T> implements QueryRunner<T>
                       catch (IOException e) {
                         throw Throwables.propagate(e);
                       }
+                      finally {
+                        cumulative += (System.currentTimeMillis() - prev);
+                      }
                     }
 
                     @Override
                     public void cleanup(Iterator<Object> iterFromMake)
                     {
+                      log.info(
+                          "Deserialized rows from %,d cached segments, took %,d msec", cachedResults.size(), cumulative
+                      );
                     }
                   }
               );
