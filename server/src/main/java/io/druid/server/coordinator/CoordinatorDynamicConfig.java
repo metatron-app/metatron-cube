@@ -33,6 +33,7 @@ public class CoordinatorDynamicConfig
   private final long millisToWaitBeforeDeleting;
   private final long mergeBytesLimit;
   private final int mergeSegmentsLimit;
+  private final int mergeTaskLimit;
   private final int maxSegmentsToMove;
   private final int replicantLifetime;
   private final int replicationThrottleLimit;
@@ -45,6 +46,7 @@ public class CoordinatorDynamicConfig
       @JsonProperty("millisToWaitBeforeDeleting") long millisToWaitBeforeDeleting,
       @JsonProperty("mergeBytesLimit") long mergeBytesLimit,
       @JsonProperty("mergeSegmentsLimit") int mergeSegmentsLimit,
+      @JsonProperty("mergeTaskLimit") int mergeTaskLimit,
       @JsonProperty("maxSegmentsToMove") int maxSegmentsToMove,
       @JsonProperty("replicantLifetime") int replicantLifetime,
       @JsonProperty("replicationThrottleLimit") int replicationThrottleLimit,
@@ -61,6 +63,7 @@ public class CoordinatorDynamicConfig
     this.millisToWaitBeforeDeleting = millisToWaitBeforeDeleting;
     this.mergeSegmentsLimit = mergeSegmentsLimit;
     this.mergeBytesLimit = mergeBytesLimit;
+    this.mergeTaskLimit = mergeTaskLimit;
     this.replicantLifetime = replicantLifetime;
     this.replicationThrottleLimit = replicationThrottleLimit;
     this.emitBalancingStats = emitBalancingStats;
@@ -107,6 +110,12 @@ public class CoordinatorDynamicConfig
   }
 
   @JsonProperty
+  public int getMergeTaskLimit()
+  {
+    return mergeTaskLimit;
+  }
+
+  @JsonProperty
   public int getMaxSegmentsToMove()
   {
     return maxSegmentsToMove;
@@ -143,6 +152,7 @@ public class CoordinatorDynamicConfig
            "millisToWaitBeforeDeleting=" + millisToWaitBeforeDeleting +
            ", mergeBytesLimit=" + mergeBytesLimit +
            ", mergeSegmentsLimit=" + mergeSegmentsLimit +
+           ", mergeTaskLimit=" + mergeTaskLimit +
            ", maxSegmentsToMove=" + maxSegmentsToMove +
            ", replicantLifetime=" + replicantLifetime +
            ", replicationThrottleLimit=" + replicationThrottleLimit +
@@ -173,6 +183,9 @@ public class CoordinatorDynamicConfig
     if (mergeSegmentsLimit != that.mergeSegmentsLimit) {
       return false;
     }
+    if (mergeTaskLimit != that.mergeTaskLimit) {
+      return false;
+    }
     if (maxSegmentsToMove != that.maxSegmentsToMove) {
       return false;
     }
@@ -200,6 +213,7 @@ public class CoordinatorDynamicConfig
     int result = (int) (millisToWaitBeforeDeleting ^ (millisToWaitBeforeDeleting >>> 32));
     result = 31 * result + (int) (mergeBytesLimit ^ (mergeBytesLimit >>> 32));
     result = 31 * result + mergeSegmentsLimit;
+    result = 31 * result + mergeTaskLimit;
     result = 31 * result + maxSegmentsToMove;
     result = 31 * result + replicantLifetime;
     result = 31 * result + replicationThrottleLimit;
@@ -215,6 +229,7 @@ public class CoordinatorDynamicConfig
     private long mergeBytesLimit;
     private int mergeSegmentsLimit;
     private int maxSegmentsToMove;
+    private int mergeTaskLimit;
     private int replicantLifetime;
     private int replicationThrottleLimit;
     private boolean emitBalancingStats;
@@ -267,6 +282,12 @@ public class CoordinatorDynamicConfig
       return this;
     }
 
+    public Builder withMergeTaskLimit(int mergeTaskLimit)
+    {
+      this.mergeTaskLimit = mergeTaskLimit;
+      return this;
+    }
+
     public Builder withMaxSegmentsToMove(int maxSegmentsToMove)
     {
       this.maxSegmentsToMove = maxSegmentsToMove;
@@ -303,6 +324,7 @@ public class CoordinatorDynamicConfig
           millisToWaitBeforeDeleting,
           mergeBytesLimit,
           mergeSegmentsLimit,
+          mergeTaskLimit,
           maxSegmentsToMove,
           replicantLifetime,
           replicationThrottleLimit,

@@ -19,19 +19,25 @@
 
 package io.druid.client.indexing;
 
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.base.Charsets;
 import com.google.common.base.Throwables;
 import com.google.inject.Inject;
 import com.metamx.common.IAE;
 import com.metamx.common.ISE;
+import com.metamx.common.Pair;
 import com.metamx.http.client.HttpClient;
 import com.metamx.http.client.Request;
 import com.metamx.http.client.response.InputStreamResponseHandler;
+import com.metamx.http.client.response.StatusResponseHandler;
+import com.metamx.http.client.response.StatusResponseHolder;
 import io.druid.client.selector.Server;
 import io.druid.curator.discovery.ServerDiscoverySelector;
 import io.druid.guice.annotations.Global;
 import io.druid.timeline.DataSegment;
 import org.jboss.netty.handler.codec.http.HttpMethod;
+import org.jboss.netty.handler.codec.http.HttpResponseStatus;
 import org.joda.time.Interval;
 
 import javax.ws.rs.core.MediaType;
@@ -40,10 +46,11 @@ import java.net.URI;
 import java.net.URL;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 
 public class IndexingServiceClient
 {
-  private static final InputStreamResponseHandler RESPONSE_HANDLER = new InputStreamResponseHandler();
+  private static final StatusResponseHandler RESPONSE_HANDLER = new StatusResponseHandler(Charsets.UTF_8);
 
   private final HttpClient client;
   private final ObjectMapper jsonMapper;
@@ -61,11 +68,11 @@ public class IndexingServiceClient
     this.selector = selector;
   }
 
-  public void mergeSegments(List<DataSegment> segments)
+  public Pair<String, String> mergeSegments(List<DataSegment> segments)
   {
     final Iterator<DataSegment> segmentsIter = segments.iterator();
     if (!segmentsIter.hasNext()) {
-      return;
+      return null;
     }
 
     final String dataSource = segmentsIter.next().getDataSource();
@@ -76,7 +83,7 @@ public class IndexingServiceClient
       }
     }
 
-    runQuery(new ClientAppendQuery(dataSource, segments));
+    return runQuery(new ClientAppendQuery(dataSource, segments));
   }
 
   public void killSegments(String dataSource, Interval interval)
@@ -94,16 +101,39 @@ public class IndexingServiceClient
     runQuery(new ClientConversionQuery(dataSource, interval));
   }
 
-  private InputStream runQuery(Object queryObject)
+  private Pair<String, String> runQuery(Object queryObject)
   {
+    String baseUrl = baseUrl();
     try {
-      return client.go(
+      StatusResponseHolder response = client.go(
           new Request(
               HttpMethod.POST,
-              new URL(String.format("%s/task", baseUrl()))
+              new URL(String.format("%s/task", baseUrl))
           ).setContent(MediaType.APPLICATION_JSON, jsonMapper.writeValueAsBytes(queryObject)),
           RESPONSE_HANDLER
       ).get();
+      if (response.getStatus().equals(HttpResponseStatus.OK)) {
+        return Pair.of(
+            jsonMapper.<Map<String, String>>readValue(
+                response.getContent(), new TypeReference<Map<String, String>>()
+                {
+                }
+            ).get("task"), baseUrl);
+      }
+      return null;
+    }
+    catch (Exception e) {
+      throw Throwables.propagate(e);
+    }
+  }
+
+  public boolean isFinished(String taskId, String baseUrl)
+  {
+    try {
+      URL url = new URL(String.format("%s/task/%s", baseUrl, taskId));
+      Request request = new Request(HttpMethod.POST, url);
+      StatusResponseHolder response = client.go(request, RESPONSE_HANDLER).get();
+      return response.getStatus().equals(HttpResponseStatus.NOT_FOUND);
     }
     catch (Exception e) {
       throw Throwables.propagate(e);

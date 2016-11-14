@@ -61,6 +61,8 @@ public class DruidCoordinatorSegmentMerger extends DruidCoordinatorHelper.WithLa
   private final IndexingServiceClient indexingServiceClient;
   private final AtomicReference<DatasourceWhitelist> whiteListRef;
 
+  private final Map<String, String> pendingTasks = Maps.newLinkedHashMap();
+
   @Inject
   public DruidCoordinatorSegmentMerger(
       IndexingServiceClient indexingServiceClient,
@@ -76,6 +78,20 @@ public class DruidCoordinatorSegmentMerger extends DruidCoordinatorHelper.WithLa
   @Override
   public DruidCoordinatorRuntimeParams run(DruidCoordinatorRuntimeParams params)
   {
+    final int mergeTaskLimit = params.getCoordinatorDynamicConfig().getMergeTaskLimit();
+    final List<String> finishedTasks = Lists.newArrayList();
+    for (Map.Entry<String, String> entry : pendingTasks.entrySet()) {
+      if (indexingServiceClient.isFinished(entry.getKey(), entry.getValue())) {
+        finishedTasks.add(entry.getKey());
+      }
+    }
+    for (String finishedTask : finishedTasks) {
+      pendingTasks.remove(finishedTask);
+    }
+    if (mergeTaskLimit > 0 && pendingTasks.size() >= mergeTaskLimit) {
+      return params;
+    }
+
     DatasourceWhitelist whitelist = whiteListRef.get();
 
     CoordinatorStats stats = new CoordinatorStats();
@@ -97,6 +113,7 @@ public class DruidCoordinatorSegmentMerger extends DruidCoordinatorHelper.WithLa
       }
     }
 
+    FIN:
     // Find segments to merge
     for (final Map.Entry<String, VersionedIntervalTimeline<String, DataSegment>> entry : dataSources.entrySet()) {
       // Get serviced segments from the timeline
@@ -114,7 +131,10 @@ public class DruidCoordinatorSegmentMerger extends DruidCoordinatorHelper.WithLa
           i -= segmentsToMerge.backtrack(params.getCoordinatorDynamicConfig().getMergeBytesLimit());
 
           if (segmentsToMerge.getSegmentCount() > 1) {
-            stats.addToGlobalStat("mergedCount", mergeSegments(segmentsToMerge, entry.getKey()));
+            if (!mergeSegments(stats, segmentsToMerge, entry.getKey()) ||
+                mergeTaskLimit > 0 && pendingTasks.size() >= mergeTaskLimit) {
+              break FIN;
+            }
           }
 
           if (segmentsToMerge.getSegmentCount() == 0) {
@@ -129,7 +149,10 @@ public class DruidCoordinatorSegmentMerger extends DruidCoordinatorHelper.WithLa
       // Finish any timelineObjects to merge that may have not hit threshold
       segmentsToMerge.backtrack(params.getCoordinatorDynamicConfig().getMergeBytesLimit());
       if (segmentsToMerge.getSegmentCount() > 1) {
-        stats.addToGlobalStat("mergedCount", mergeSegments(segmentsToMerge, entry.getKey()));
+        if (!mergeSegments(stats, segmentsToMerge, entry.getKey()) ||
+            mergeTaskLimit > 0 && pendingTasks.size() >= mergeTaskLimit) {
+          break;
+        }
       }
     }
 
@@ -151,7 +174,7 @@ public class DruidCoordinatorSegmentMerger extends DruidCoordinatorHelper.WithLa
    *
    * @return number of segments merged
    */
-  private int mergeSegments(SegmentsToMerge segmentsToMerge, String dataSource)
+  private boolean mergeSegments(CoordinatorStats stats, SegmentsToMerge segmentsToMerge, String dataSource)
   {
     final List<DataSegment> segments = segmentsToMerge.getSegments();
     final List<String> segmentNames = Lists.transform(
@@ -169,7 +192,12 @@ public class DruidCoordinatorSegmentMerger extends DruidCoordinatorHelper.WithLa
     log.info("[%s] Found %d segments to merge %s", dataSource, segments.size(), segmentNames);
 
     try {
-      indexingServiceClient.mergeSegments(segments);
+      Pair<String, String> taskInfo = indexingServiceClient.mergeSegments(segments);
+      if (taskInfo != null) {
+        pendingTasks.put(taskInfo.lhs, taskInfo.rhs);
+        stats.addToGlobalStat("mergedCount", segments.size());
+        return true;
+      }
     }
     catch (Exception e) {
       log.error(
@@ -179,8 +207,7 @@ public class DruidCoordinatorSegmentMerger extends DruidCoordinatorHelper.WithLa
           segmentNames
       );
     }
-
-    return segments.size();
+    return false;
   }
 
   private static class SegmentsToMerge

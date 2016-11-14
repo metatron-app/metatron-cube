@@ -22,6 +22,7 @@ package io.druid.server.coordinator;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Lists;
+import com.metamx.common.Pair;
 import com.metamx.emitter.service.ServiceEmitter;
 import io.druid.client.indexing.IndexingServiceClient;
 import io.druid.common.config.JacksonConfigManager;
@@ -458,9 +459,10 @@ public class DruidCoordinatorSegmentMergerTest
     final IndexingServiceClient indexingServiceClient = new IndexingServiceClient(null, null, null)
     {
       @Override
-      public void mergeSegments(List<DataSegment> segmentsToMerge)
+      public Pair<String, String> mergeSegments(List<DataSegment> segmentsToMerge)
       {
         retVal.add(segmentsToMerge);
+        return null;
       }
     };
 
