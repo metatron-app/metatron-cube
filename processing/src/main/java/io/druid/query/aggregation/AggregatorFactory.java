@@ -82,6 +82,16 @@ public abstract class AggregatorFactory implements Cacheable
     throw new UnsupportedOperationException(String.format("[%s] does not implement getMergingFactory(..)", this.getClass().getName()));
   }
 
+  @SuppressWarnings("unchecked")
+  protected <T extends AggregatorFactory> T checkMergeable(AggregatorFactory other)
+      throws AggregatorFactoryNotMergeableException
+  {
+    if (other.getName().equals(this.getName()) && this.getClass() == other.getClass()) {
+      throw new AggregatorFactoryNotMergeableException(this, other);
+    }
+    return (T)other;
+  }
+
   /**
    * Gets a list of all columns that this AggregatorFactory will scan
    *

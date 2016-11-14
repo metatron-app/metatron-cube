@@ -39,6 +39,7 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Objects;
 
 /**
  */
@@ -380,5 +381,19 @@ public class DimensionArrayAggregatorFactory extends AbstractArrayAggregatorFact
   public AggregatorFactory getCombiningFactory()
   {
     return new DimensionArrayAggregatorFactory(delegate.getName(), delegate, limit);
+  }
+
+  @Override
+  public AggregatorFactory getMergingFactory(AggregatorFactory other) throws AggregatorFactoryNotMergeableException
+  {
+    DimensionArrayAggregatorFactory array = checkMergeable(other);
+    if (!Objects.equals(column, array.column)) {
+      throw new AggregatorFactoryNotMergeableException(this, other);
+    }
+    return new DimensionArrayAggregatorFactory(
+        column,
+        delegate.getMergingFactory(array.delegate),
+        Math.max(limit, array.limit)
+    );
   }
 }

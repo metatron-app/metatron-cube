@@ -28,6 +28,7 @@ import io.druid.segment.ObjectColumnSelector;
 
 import java.nio.ByteBuffer;
 import java.util.List;
+import java.util.Objects;
 
 /**
  */
@@ -266,5 +267,15 @@ public class ArrayAggregatorFactory extends AbstractArrayAggregatorFactory
   public AggregatorFactory getCombiningFactory()
   {
     return new ArrayAggregatorFactory(delegate.getName(), delegate, limit);
+  }
+
+  @Override
+  public AggregatorFactory getMergingFactory(AggregatorFactory other) throws AggregatorFactoryNotMergeableException
+  {
+    ArrayAggregatorFactory array = checkMergeable(other);
+    if (!Objects.equals(column, array.column)) {
+      throw new AggregatorFactoryNotMergeableException(this, other);
+    }
+    return new ArrayAggregatorFactory(column, delegate.getMergingFactory(array.delegate), Math.max(limit, array.limit));
   }
 }

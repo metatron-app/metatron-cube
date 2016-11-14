@@ -38,6 +38,7 @@ import java.nio.ByteBuffer;
 import java.util.BitSet;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Objects;
 
 public class FilteredAggregatorFactory extends AggregatorFactory
 {
@@ -96,6 +97,16 @@ public class FilteredAggregatorFactory extends AggregatorFactory
   public AggregatorFactory getCombiningFactory()
   {
     return delegate.getCombiningFactory();
+  }
+
+  @Override
+  public AggregatorFactory getMergingFactory(AggregatorFactory other) throws AggregatorFactoryNotMergeableException
+  {
+    FilteredAggregatorFactory filtered = checkMergeable(other);
+    if (!Objects.equals(filter, filtered.filter)) {
+      throw new AggregatorFactoryNotMergeableException(this, other);
+    }
+    return new FilteredAggregatorFactory(delegate.getMergingFactory(filtered.delegate), filter);
   }
 
   @Override
