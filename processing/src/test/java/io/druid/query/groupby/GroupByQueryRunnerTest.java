@@ -4646,6 +4646,86 @@ public class GroupByQueryRunnerTest
     results = GroupByQueryRunnerTestHelper.runQuery(factory, mergeRunner, builder.build());
     GroupByQueryRunnerTestHelper.validate(columnNames, expectedResults, results);
 
+    // don't know what the fuck is irr
+    builder.setLimitSpec(
+        new DefaultLimitSpec(
+            null, null,
+            Arrays.asList(
+                new WindowingSpec(null, dayPlusMarket, "irr_all = $irr(index)"),
+                new WindowingSpec(dayOfWeek, Arrays.asList(marketDsc), "irr_week = $irr(index)")
+            )
+        )
+    );
+
+    columnNames = new String[]{"dayOfWeek", "market", "index", "irr_all", "irr_week"};
+    expectedResults = GroupByQueryRunnerTestHelper.createExpectedRows(
+        columnNames,
+        array("Friday", "upfront", 27297.8623046875, null, null),
+        array("Friday", "total_market", 30173.691650390625, null, null),
+        array("Friday", "spot", 13219.574157714844, null, Double.NaN),
+        array("Monday", "upfront", 27619.58447265625, null, null),
+        array("Monday", "total_market", 30468.77734375, null, null),
+        array("Monday", "spot", 13557.738830566406, null, Double.NaN),
+        array("Saturday", "upfront", 27820.83154296875, null, null),
+        array("Saturday", "total_market", 30940.971923828125, null, null),
+        array("Saturday", "spot", 13493.751281738281, null, Double.NaN),
+        array("Sunday", "upfront", 24791.223876953125, null, null),
+        array("Sunday", "total_market", 29305.086059570312, null, null),
+        array("Sunday", "spot", 13585.541015625, null, Double.NaN),
+        array("Thursday", "upfront", 28562.748901367188, null, null),
+        array("Thursday", "total_market", 32361.38720703125, null, null),
+        array("Thursday", "spot", 14279.127197265625, null, Double.NaN),
+        array("Tuesday", "upfront", 26968.280639648438, null, null),
+        array("Tuesday", "total_market", 29676.578125, null, null),
+        array("Tuesday", "spot", 13199.471435546875, null, Double.NaN),
+        array("Wednesday", "upfront", 28985.5751953125, null, null),
+        array("Wednesday", "total_market", 32753.337890625, null, null),
+        array("Wednesday", "spot", 14271.368591308594, Double.NaN, Double.NaN)
+    );
+
+    results = GroupByQueryRunnerTestHelper.runQuery(factory, mergeRunner, builder.build());
+    GroupByQueryRunnerTestHelper.validate(columnNames, expectedResults, results);
+
+    // don't know what the fuck is npv
+    builder.setLimitSpec(
+        new DefaultLimitSpec(
+            null, null,
+            Arrays.asList(
+                new WindowingSpec(null, dayPlusMarket, "npv_all = $npv(index, 0.1)"),
+                new WindowingSpec(dayOfWeek, Arrays.asList(marketDsc), "npv_week = $npv(index, 0.1)")
+            )
+        )
+    );
+
+    columnNames = new String[]{"dayOfWeek", "market", "index", "npv_all", "npv_week"};
+    expectedResults = GroupByQueryRunnerTestHelper.createExpectedRows(
+        columnNames,
+        array("Friday", "upfront", 27297.8623046875, null, null),
+        array("Friday", "total_market", 30173.691650390625, null, null),
+        array("Friday", "spot", 13219.574157714844, null, 59685.2354333707),
+        array("Monday", "upfront", 27619.58447265625, null, null),
+        array("Monday", "total_market", 30468.77734375, null, null),
+        array("Monday", "spot", 13557.738830566406, null, 60475.65072923024),
+        array("Saturday", "upfront", 27820.83154296875, null, null),
+        array("Saturday", "total_market", 30940.971923828125, null, null),
+        array("Saturday", "spot", 13493.751281738281, null, 61000.77127343455),
+        array("Sunday", "upfront", 24791.223876953125, null, null),
+        array("Sunday", "total_market", 29305.086059570312, null, null),
+        array("Sunday", "spot", 13585.541015625, null, 56963.573683144714),
+        array("Thursday", "upfront", 28562.748901367188, null, null),
+        array("Thursday", "total_market", 32361.38720703125, null, null),
+        array("Thursday", "spot", 14279.127197265625, null, 63439.20307712568),
+        array("Tuesday", "upfront", 26968.280639648438, null, null),
+        array("Tuesday", "total_market", 29676.578125, null, null),
+        array("Tuesday", "spot", 13199.471435546875, null, 58959.67464088766),
+        array("Wednesday", "upfront", 28985.5751953125, null, null),
+        array("Wednesday", "total_market", 32753.337890625, null, null),
+        array("Wednesday", "spot", 14271.368591308594, 209577.55676702075, 64141.68764637431)
+    );
+
+    results = GroupByQueryRunnerTestHelper.runQuery(factory, mergeRunner, builder.build());
+    GroupByQueryRunnerTestHelper.validate(columnNames, expectedResults, results);
+
     columnNames = new String[]{"dayOfWeek", "market", "index", "min_week", "min_all"};
 
     builder.setLimitSpec(
@@ -5223,6 +5303,8 @@ public class GroupByQueryRunnerTest
             }
           }
           b.append(')');
+        } else {
+          b.append(o);
         }
       }
       System.out.println("array(" + b + "),");

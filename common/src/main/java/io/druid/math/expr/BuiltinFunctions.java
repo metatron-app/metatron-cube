@@ -1637,13 +1637,6 @@ public interface BuiltinFunctions extends Function.Library
       initialize(context, parameters);
     }
 
-    protected final void assertNumeric(ExprType type)
-    {
-      if (type != ExprType.LONG && type != ExprType.DOUBLE) {
-        throw new IllegalArgumentException("unsupported type " + type);
-      }
-    }
-
     protected void initialize(WindowContext context, Object[] parameters) { }
 
     protected abstract Object invoke(WindowContext context);
@@ -2318,8 +2311,8 @@ public interface BuiltinFunctions extends Function.Library
     protected void initialize(WindowContext context, Object[] parameters)
     {
       super.initialize(context, parameters);
+      Evals.assertNumeric(fieldType);
       percentile = ((Number) parameters[0]).floatValue();
-      assertNumeric(fieldType);
 
       int limit = window == null ? context.size() : sizeOfWindow();
       if (fieldType == ExprType.LONG) {

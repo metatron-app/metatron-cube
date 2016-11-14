@@ -269,7 +269,8 @@ public class EvalTest
       mapping.put("x", i);
       Expr.NumericBinding bindings = Parser.withMap(mapping);
       String eval = Parser.parse(
-          "javascript('x', 'if (x < 10) return \"X\"; else if (x < 20) return \"Y\"; else return \"Z\";')").eval(bindings).stringValue();
+          "javascript('x', 'if (x < 10) return \"X\"; else if (x < 20) return \"Y\"; else return \"Z\";')"
+      ).eval(bindings).stringValue();
       if (i < 10) {
         Assert.assertEquals("X", eval);
       } else if (i < 20) {
@@ -326,5 +327,17 @@ public class EvalTest
   {
     Expr.NumericBinding bindings = Parser.withMap(ImmutableMap.<String, Object>of("a", 30, "b", 3));
     Assert.assertEquals(33, Parser.parse("r('function(a, b) { a + b }', a, b)").eval(bindings).longValue());
+  }
+
+  @Test
+  public void testExcel()
+  {
+    Expr.NumericBinding bindings = Parser.withMap(
+        ImmutableMap.<String, Object>of("r", 0.5d, "n", 0.1d, "y", 3.5d, "p", -2.5d)
+    );
+    // don't know what the fuck is this
+    Assert.assertEquals(2.168962048d, Parser.parse("fv (r, n, y, p, 'true')").eval(bindings).asDouble(), 0.00001);
+    Assert.assertEquals(1.983438510d, Parser.parse("pv (r, n, y, p, 'true')").eval(bindings).asDouble(), 0.00001);
+    Assert.assertEquals(-9.22213780d, Parser.parse("pmt(r, n, y, p, 'true')").eval(bindings).asDouble(), 0.00001);
   }
 }

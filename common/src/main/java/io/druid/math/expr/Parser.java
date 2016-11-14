@@ -44,6 +44,7 @@ public class Parser
 
   static {
     register(BuiltinFunctions.class);
+    register(ExcelFunctions.class);
   }
 
   public static void register(Class parent)

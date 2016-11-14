@@ -63,6 +63,13 @@ public class Evals
     return left.type() == ExprType.STRING && right.type() == ExprType.STRING;
   }
 
+  static void assertNumeric(ExprType type)
+  {
+    if (type != ExprType.LONG && type != ExprType.DOUBLE) {
+      throw new IllegalArgumentException("unsupported type " + type);
+    }
+  }
+
   static String getConstantString(Expr arg)
   {
     if (!(arg instanceof StringExpr)) {

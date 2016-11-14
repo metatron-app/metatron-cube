@@ -159,6 +159,11 @@ public class ExprEval extends Pair<Object, ExprType>
     return isNull() ? 0L : lhs instanceof Number ? ((Number) lhs).longValue() : Long.valueOf(asString());
   }
 
+  public int asInt()
+  {
+    return isNull() ? 0 : lhs instanceof Number ? ((Number) lhs).intValue() : Integer.valueOf(asString());
+  }
+
   public ExprEval defaultValue()
   {
     switch (rhs) {
