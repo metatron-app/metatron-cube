@@ -43,7 +43,7 @@ import java.util.concurrent.ConcurrentHashMap;
 
 /**
  */
-public class DruidCoordinatorBalancer implements DruidCoordinatorHelper
+public class DruidCoordinatorBalancer extends DruidCoordinatorHelper.WithLazyTicks
 {
   public static final Comparator<ServerHolder> percentUsedComparator = Comparators.inverse(
       new Comparator<ServerHolder>()
@@ -58,15 +58,13 @@ public class DruidCoordinatorBalancer implements DruidCoordinatorHelper
   protected static final EmittingLogger log = new EmittingLogger(DruidCoordinatorBalancer.class);
 
   protected final DruidCoordinator coordinator;
-  protected final int balancerLazyTicks;
-  protected int currentTick;
 
   protected final Map<String, ConcurrentHashMap<String, BalancerSegmentHolder>> currentlyMovingSegments = Maps.newHashMap();
 
   public DruidCoordinatorBalancer(DruidCoordinator coordinator, int balancerLazyTicks)
   {
+    super(balancerLazyTicks);
     this.coordinator = coordinator;
-    this.balancerLazyTicks = balancerLazyTicks;
   }
 
   protected void reduceLifetimes(String tier)
@@ -85,10 +83,6 @@ public class DruidCoordinatorBalancer implements DruidCoordinatorHelper
   @Override
   public DruidCoordinatorRuntimeParams run(DruidCoordinatorRuntimeParams params)
   {
-    if (++currentTick < balancerLazyTicks) {
-      return params;
-    }
-    currentTick = 0;
     final CoordinatorStats stats = new CoordinatorStats();
     final DateTime referenceTimestamp = params.getBalancerReferenceTimestamp();
     final BalancerStrategy strategy = params.getBalancerStrategyFactory().createBalancerStrategy(referenceTimestamp);

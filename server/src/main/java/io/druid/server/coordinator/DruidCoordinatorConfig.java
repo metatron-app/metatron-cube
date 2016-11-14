@@ -84,4 +84,49 @@ public abstract class DruidCoordinatorConfig
   {
     return null;
   }
+
+  public static class WithDefault extends DruidCoordinatorConfig {
+
+    @Override
+    public Duration getCoordinatorStartDelay()
+    {
+      return new Duration("PT300s");
+    }
+
+    @Override
+    public Duration getCoordinatorPeriod()
+    {
+      return new Duration("PT60s");
+    }
+
+    @Override
+    public int getCoordinatorLazyTicks()
+    {
+      return 1;
+    }
+
+    @Override
+    public Duration getCoordinatorIndexingPeriod()
+    {
+      return new Duration("PT1800s");
+    }
+
+    @Override
+    public Duration getCoordinatorKillPeriod()
+    {
+      return new Duration("P1D");
+    }
+
+    @Override
+    public Duration getCoordinatorKillDurationToRetain()
+    {
+      return new Duration("PT-1s");
+    }
+
+    @Override
+    public int getCoordinatorKillMaxSegments()
+    {
+      return 0;
+    }
+  }
 }

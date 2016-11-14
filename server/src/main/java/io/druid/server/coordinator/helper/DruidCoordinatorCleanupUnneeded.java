@@ -35,26 +35,18 @@ import java.util.Set;
 
 /**
  */
-public class DruidCoordinatorCleanupUnneeded implements DruidCoordinatorHelper
+public class DruidCoordinatorCleanupUnneeded extends DruidCoordinatorHelper.WithLazyTicks
 {
   private static final Logger log = new Logger(DruidCoordinatorCleanupUnneeded.class);
 
-  private final int cleanupLazyTicks;
-  private int currentTick;
-
   public DruidCoordinatorCleanupUnneeded(int cleanupLazyTicks)
   {
-    this.cleanupLazyTicks = cleanupLazyTicks;
+    super(cleanupLazyTicks);
   }
 
   @Override
   public DruidCoordinatorRuntimeParams run(DruidCoordinatorRuntimeParams params)
   {
-    if (++currentTick < cleanupLazyTicks) {
-      return params;
-    }
-    currentTick = 0;
-
     CoordinatorStats stats = new CoordinatorStats();
     Set<DataSegment> availableSegments = params.getAvailableSegments();
     DruidCluster cluster = params.getDruidCluster();

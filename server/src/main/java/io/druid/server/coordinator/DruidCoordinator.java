@@ -704,7 +704,10 @@ public class DruidCoordinator
           for (DruidCoordinatorHelper helper : helpers) {
             // Don't read state and run state in the same helper otherwise racy conditions may exist
             if (leader && startingLeaderCounter == leaderCounter) {
-              params = helper.run(params);
+              if (!(helper instanceof DruidCoordinatorHelper.WithLazyTicks) ||
+                  ((DruidCoordinatorHelper.WithLazyTicks)helper).isTurn()) {
+                params = helper.run(params);
+              }
             }
           }
         }

@@ -38,6 +38,7 @@ import io.druid.client.indexing.IndexingServiceClient;
 import io.druid.common.config.JacksonConfigManager;
 import io.druid.server.coordinator.CoordinatorStats;
 import io.druid.server.coordinator.DatasourceWhitelist;
+import io.druid.server.coordinator.DruidCoordinatorConfig;
 import io.druid.server.coordinator.DruidCoordinatorRuntimeParams;
 import io.druid.timeline.DataSegment;
 import io.druid.timeline.TimelineObjectHolder;
@@ -53,7 +54,7 @@ import java.util.concurrent.atomic.AtomicReference;
 
 /**
  */
-public class DruidCoordinatorSegmentMerger implements DruidCoordinatorHelper
+public class DruidCoordinatorSegmentMerger extends DruidCoordinatorHelper.WithLazyTicks
 {
   private static final Logger log = new Logger(DruidCoordinatorSegmentMerger.class);
 
@@ -63,9 +64,11 @@ public class DruidCoordinatorSegmentMerger implements DruidCoordinatorHelper
   @Inject
   public DruidCoordinatorSegmentMerger(
       IndexingServiceClient indexingServiceClient,
-      JacksonConfigManager configManager
+      JacksonConfigManager configManager,
+      DruidCoordinatorConfig config
   )
   {
+    super(config.getCoordinatorLazyTicks());
     this.indexingServiceClient = indexingServiceClient;
     this.whiteListRef = configManager.watch(DatasourceWhitelist.CONFIG_KEY, DatasourceWhitelist.class);
   }

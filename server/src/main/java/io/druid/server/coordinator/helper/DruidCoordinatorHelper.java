@@ -33,4 +33,24 @@ public interface DruidCoordinatorHelper
    * @return same as input or a modified value to be used by next helper.
    */
   DruidCoordinatorRuntimeParams run(DruidCoordinatorRuntimeParams params);
+
+  abstract class WithLazyTicks implements DruidCoordinatorHelper
+  {
+    private final int ruleLazyTicks;
+    private int currentTick;
+
+    protected WithLazyTicks(int ruleLazyTicks)
+    {
+      this.ruleLazyTicks = ruleLazyTicks;
+    }
+
+    public boolean isTurn()
+    {
+      if (++currentTick < ruleLazyTicks) {
+        return false;
+      }
+      currentTick = 0;
+      return true;
+    }
+  }
 }

@@ -36,16 +36,14 @@ import io.druid.timeline.VersionedIntervalTimeline;
 
 import java.util.Map;
 
-public class DruidCoordinatorCleanupOvershadowed implements DruidCoordinatorHelper
+public class DruidCoordinatorCleanupOvershadowed extends DruidCoordinatorHelper.WithLazyTicks
 {
   private final DruidCoordinator coordinator;
-  private final int cleanupLazyTicks;
-  private int currentTick;
 
   public DruidCoordinatorCleanupOvershadowed(DruidCoordinator coordinator, int cleanupLazyTicks)
   {
+    super(cleanupLazyTicks);
     this.coordinator = coordinator;
-    this.cleanupLazyTicks = cleanupLazyTicks;
   }
 
   public DruidCoordinatorCleanupOvershadowed(DruidCoordinator coordinator)
@@ -56,11 +54,6 @@ public class DruidCoordinatorCleanupOvershadowed implements DruidCoordinatorHelp
   @Override
   public DruidCoordinatorRuntimeParams run(DruidCoordinatorRuntimeParams params)
   {
-    if (++currentTick < cleanupLazyTicks) {
-      return params;
-    }
-    currentTick = 0;
-
     CoordinatorStats stats = new CoordinatorStats();
 
     // Delete segments that are old

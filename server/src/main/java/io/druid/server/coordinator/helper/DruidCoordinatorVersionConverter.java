@@ -25,12 +25,13 @@ import io.druid.client.indexing.IndexingServiceClient;
 import io.druid.common.config.JacksonConfigManager;
 import io.druid.segment.IndexIO;
 import io.druid.server.coordinator.DatasourceWhitelist;
+import io.druid.server.coordinator.DruidCoordinatorConfig;
 import io.druid.server.coordinator.DruidCoordinatorRuntimeParams;
 import io.druid.timeline.DataSegment;
 
 import java.util.concurrent.atomic.AtomicReference;
 
-public class DruidCoordinatorVersionConverter implements DruidCoordinatorHelper
+public class DruidCoordinatorVersionConverter extends DruidCoordinatorHelper.WithLazyTicks
 {
   private static final EmittingLogger log = new EmittingLogger(DruidCoordinatorVersionConverter.class);
 
@@ -40,9 +41,11 @@ public class DruidCoordinatorVersionConverter implements DruidCoordinatorHelper
   @Inject
   public DruidCoordinatorVersionConverter(
       IndexingServiceClient indexingServiceClient,
-      JacksonConfigManager configManager
+      JacksonConfigManager configManager,
+      DruidCoordinatorConfig config
   )
   {
+    super(config.getCoordinatorLazyTicks());
     this.indexingServiceClient = indexingServiceClient;
     this.whitelistRef = configManager.watch(DatasourceWhitelist.CONFIG_KEY, DatasourceWhitelist.class);
   }

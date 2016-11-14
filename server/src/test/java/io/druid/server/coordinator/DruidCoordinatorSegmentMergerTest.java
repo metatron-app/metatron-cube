@@ -466,7 +466,8 @@ public class DruidCoordinatorSegmentMergerTest
 
     final DruidCoordinatorSegmentMerger merger = new DruidCoordinatorSegmentMerger(
         indexingServiceClient,
-        configManager
+        configManager,
+        new DruidCoordinatorConfig.WithDefault()
     );
     final DruidCoordinatorRuntimeParams params =
         DruidCoordinatorRuntimeParams.newBuilder()
