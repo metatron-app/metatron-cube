@@ -761,7 +761,12 @@ public class DruidCoordinator
                       log.debug("  %s", druidServer);
                       log.debug("    -- DataSources");
                       for (ImmutableDruidDataSource druidDataSource : druidServer.getDataSources()) {
-                        log.debug("    %s", druidDataSource);
+                        log.debug(
+                            "    %s : properties=%s, %,d segments",
+                            druidDataSource.getName(),
+                            druidDataSource.getProperties(),
+                            druidDataSource.getSegments().size()
+                        );
                       }
                     }
                   }
