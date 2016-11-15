@@ -164,9 +164,9 @@ public class TimeFormatExtractionFn implements ExtractionFn.Stateful
   public String toString()
   {
     return "TimeFormatExtractionFn{" +
-           "tz=" + tz +
-           ", pattern='" + pattern + '\'' +
-           ", locale=" + locale +
+           "tz=" + getTimeZone() +
+           ", pattern='" + getFormat() + '\'' +
+           ", locale=" + getLocale() +
            '}';
   }
 }
