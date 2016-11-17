@@ -26,6 +26,7 @@ import com.google.common.collect.Sets;
 import com.google.common.primitives.Longs;
 import com.metamx.common.guava.Comparators;
 import org.joda.time.DateTime;
+import org.joda.time.DateTimeZone;
 import org.joda.time.Interval;
 import org.joda.time.format.DateTimeFormat;
 import org.joda.time.format.DateTimeFormatter;
@@ -34,6 +35,7 @@ import org.joda.time.format.DateTimeFormatterBuilder;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.Iterator;
+import java.util.Locale;
 import java.util.TreeSet;
 
 /**
@@ -196,6 +198,11 @@ public class JodaUtils
 
   public static DateTimeFormatter toTimeFormatter(String formatString)
   {
+    return toTimeFormatter(formatString, null, null);
+  }
+
+  public static DateTimeFormatter toTimeFormatter(String formatString, String locale, String timeZone)
+  {
     DateTimeFormatterBuilder b = new DateTimeFormatterBuilder();
     int prev = 0;
     boolean escape = false;
@@ -222,6 +229,13 @@ public class JodaUtils
     if (prev < formatString.length()) {
       b.append(DateTimeFormat.forPattern(formatString.substring(prev, formatString.length())));
     }
-    return b.toFormatter();
+    DateTimeFormatter formatter = b.toFormatter();
+    if (locale != null) {
+      formatter = formatter.withLocale(new Locale(locale));
+    }
+    if (timeZone != null) {
+      formatter = formatter.withZone(DateTimeZone.forID(timeZone));
+    }
+    return formatter;
   }
 }

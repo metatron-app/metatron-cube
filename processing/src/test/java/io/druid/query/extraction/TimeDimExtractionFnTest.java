@@ -22,11 +22,14 @@ package io.druid.query.extraction;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
+import io.druid.common.utils.JodaUtils;
 import io.druid.jackson.DefaultObjectMapper;
+import org.joda.time.format.DateTimeFormatter;
 import org.junit.Assert;
 import org.junit.Test;
 
 import java.util.List;
+import java.util.Locale;
 import java.util.Set;
 
 /**
@@ -89,6 +92,24 @@ public class TimeDimExtractionFnTest
     Assert.assertEquals("Q2/2014 06/24 00:00:00", results.get(1));
     Assert.assertEquals("Q3/2016 08/30 22:17:12", results.get(2));
     Assert.assertEquals("Q4/2015 12/03 01:59:00", results.get(3));
+  }
+
+  @Test
+  public void testWithLocaleZoneExtraction()
+  {
+    long time = 1479345099662L;
+    String korean = Locale.KOREA.getLanguage();
+    String us = Locale.US.getLanguage();
+    DateTimeFormatter formatter = JodaUtils.toTimeFormatter("yyyy-MM-dd a hh:mm:ss.SSSZZ", korean, "+0900");
+    String dateString = formatter.print(time);
+    Assert.assertEquals("2016-11-17 오전 10:11:39.662+09:00", dateString);
+
+    ExtractionFn extractionFn = new TimeDimExtractionFn(
+        "yyyy-MM-dd a hh:mm:ss.SSSZZ", korean, "+0900",
+        "yyyy-MM-dd a hh:mm:ss.SSSZZ", us, "PST");
+    extractionFn.getCacheKey();
+
+    Assert.assertEquals("2016-11-16 PM 05:11:39.662-0800", extractionFn.apply(dateString));
   }
 
   @Test
