@@ -47,6 +47,13 @@ public class EvalTest
     return ret.doubleValue();
   }
 
+  private String evalString(String x, Expr.NumericBinding bindings)
+  {
+    ExprEval ret = Parser.parse(x).eval(bindings);
+    Assert.assertEquals(ExprType.STRING, ret.type());
+    return ret.stringValue();
+  }
+
   @Test
   public void testDoubleEval()
   {
@@ -175,6 +182,20 @@ public class EvalTest
     Assert.assertEquals(100L, evalLong("case (x + 10, 0, 2, 1, 3, 100)", bindings));
 
     Assert.assertEquals(-86410000L, evalLong("recent('1D 10s')", bindings));
+
+    // extract
+    Assert.assertEquals(
+        "11-16-2016 PM 05:11:39.662-0800", evalString(
+            "time_extract("
+            + "'2016-11-17 오전 10:11:39.662+0900', "
+            + "format='yyyy-MM-dd a hh:mm:ss.SSSZZ', "
+            + "locale='ko', "
+            + "out.format='MM-dd-yyyy a hh:mm:ss.SSSZZ', "
+            + "out.locale='us', "
+            + "out.timezone='PST'"
+            + ")", bindings
+        )
+    );
   }
 
   @Test

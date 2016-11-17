@@ -21,6 +21,8 @@ package io.druid.math.expr;
 
 import com.fasterxml.jackson.databind.util.ISO8601DateFormat;
 import com.google.common.base.Strings;
+import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import com.google.common.primitives.Ints;
 import com.metamx.common.Pair;
@@ -42,8 +44,11 @@ import java.util.Arrays;
 import java.util.Date;
 import java.util.Formatter;
 import java.util.List;
+import java.util.Locale;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.TimeZone;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -97,6 +102,35 @@ public interface BuiltinFunctions extends Function.Library
     }
 
     protected abstract ExprEval eval(ExprEval x, ExprEval y, ExprEval z);
+  }
+
+  abstract class NamedParams implements Function
+  {
+    @Override
+    public ExprEval apply(List<Expr> args, NumericBinding bindings)
+    {
+      List<Expr> prefix = Lists.newArrayList();
+      int i = 0;
+      for (; i < args.size(); i++) {
+        Expr expr = args.get(i);
+        if (expr instanceof AssignExpr) {
+          break;
+        }
+        prefix.add(args.get(i));
+      }
+      Map<String, Expr> params = Maps.newHashMapWithExpectedSize(args.size() - i);
+      for (; i < args.size(); i++) {
+        Expr expr = args.get(i);
+        if (!(expr instanceof AssignExpr)) {
+          throw new RuntimeException("function '" + name() + "' requires named parameters");
+        }
+        AssignExpr assign = (AssignExpr)expr;
+        params.put(Evals.getIdentifier(assign.assignee), assign.assigned);
+      }
+      return eval(prefix, params, bindings);
+    }
+
+    protected abstract ExprEval eval(List<Expr> exprs, Map<String, Expr> params, NumericBinding bindings);
   }
 
   abstract class SingleParamMath extends SingleParam
@@ -928,10 +962,10 @@ public interface BuiltinFunctions extends Function.Library
     }
   }
 
-  class TimestampFromEpochFunc implements Function, Factory
+  class TimestampFromEpochFunc extends NamedParams implements Factory
   {
     // yyyy-MM-ddThh:mm:ss[.sss][Z|[+-]hh:mm]
-    private static final DateFormat ISO8601 = new ISO8601DateFormat();  // thread-safe
+    static final DateFormat ISO8601 = new ISO8601DateFormat();  // thread-safe
 
     private DateFormat formatter;
 
@@ -942,17 +976,13 @@ public interface BuiltinFunctions extends Function.Library
     }
 
     @Override
-    public ExprEval apply(List<Expr> args, NumericBinding bindings)
+    protected ExprEval eval(List<Expr> args, Map<String, Expr> params, NumericBinding bindings)
     {
       if (args.isEmpty()) {
-        throw new RuntimeException("function '" + name() + " needs at least 1 argument");
+        throw new RuntimeException("function '" + name() + " needs at least 1 generic argument");
       }
       if (formatter == null) {
-        if (args.size() > 1) {
-          formatter = new SimpleDateFormat(Evals.getConstantString(args.get(1)).trim());
-        } else {
-          formatter = ISO8601;
-        }
+        initialize(args, params, bindings);
       }
       ExprEval value = args.get(0).eval(bindings);
       if (value.type() != ExprType.STRING) {
@@ -964,9 +994,29 @@ public interface BuiltinFunctions extends Function.Library
         date = formatter.parse(value.stringValue());
       }
       catch (ParseException e) {
-        throw new IllegalArgumentException("invalid value " + value.stringValue());
+        throw new IllegalArgumentException("invalid value " + value.stringValue() + " in " + e.getErrorOffset(), e);
       }
       return toValue(date);
+    }
+
+    protected void initialize(List<Expr> args, Map<String, Expr> params, NumericBinding bindings)
+    {
+      String format = args.size() > 1 ?
+                      Evals.getConstantString(args.get(1)).trim() :
+                      Evals.evalOptionalString(params.get("format"), bindings);
+      String language = args.size() > 2 ?
+                        Evals.getConstantString(args.get(2)).trim() :
+                        Evals.evalOptionalString(params.get("locale"), bindings);
+      String timezone = args.size() > 3 ?
+                        Evals.getConstantString(args.get(3)).trim() :
+                        Evals.evalOptionalString(params.get("timezone"), bindings);
+
+      formatter = format == null ? ISO8601 : language == null ?
+                                             new SimpleDateFormat(format) :
+                                             new SimpleDateFormat(format, Locale.forLanguageTag(language));
+      if (timezone != null) {
+        formatter.setTimeZone(TimeZone.getTimeZone(timezone));
+      }
     }
 
     protected ExprEval toValue(Date date)
@@ -993,6 +1043,51 @@ public interface BuiltinFunctions extends Function.Library
     protected final ExprEval toValue(Date date)
     {
       return ExprEval.of(date.getTime() / 1000, ExprType.LONG);
+    }
+
+    @Override
+    public Function get()
+    {
+      return new UnixTimestampFunc();
+    }
+  }
+
+  class TimeExtractFunc extends TimestampFromEpochFunc
+  {
+    private DateFormat outputFormat;
+
+    @Override
+    public String name()
+    {
+      return "time_extract";
+    }
+
+    @Override
+    protected void initialize(List<Expr> args, Map<String, Expr> params, NumericBinding bindings)
+    {
+      super.initialize(args, params, bindings);
+      String format = Evals.evalOptionalString(params.get("out.format"), bindings);
+      String language = Evals.evalOptionalString(params.get("out.locale"), bindings);
+      String timezone = Evals.evalOptionalString(params.get("out.timezone"), bindings);
+
+      outputFormat = format == null ? ISO8601 : language == null ?
+                                                new SimpleDateFormat(format) :
+                                                new SimpleDateFormat(format, Locale.forLanguageTag(language));
+      if (timezone != null) {
+        outputFormat.setTimeZone(TimeZone.getTimeZone(timezone));
+      }
+    }
+
+    @Override
+    protected final ExprEval toValue(Date date)
+    {
+      return ExprEval.of(outputFormat.format(date));
+    }
+
+    @Override
+    public Function get()
+    {
+      return new TimeExtractFunc();
     }
   }
 

@@ -70,6 +70,11 @@ public class Evals
     }
   }
 
+  static String evalOptionalString(Expr arg, Expr.NumericBinding binding)
+  {
+    return arg == null ? null : arg.eval(binding).asString();
+  }
+
   static String getConstantString(Expr arg)
   {
     if (!(arg instanceof StringExpr)) {
