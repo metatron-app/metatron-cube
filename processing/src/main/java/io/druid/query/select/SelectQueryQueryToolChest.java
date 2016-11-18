@@ -33,6 +33,7 @@ import com.metamx.common.StringUtils;
 import com.metamx.common.guava.Sequence;
 import com.metamx.common.guava.Sequences;
 import com.metamx.common.guava.nary.BinaryFn;
+import com.metamx.common.logger.Logger;
 import com.metamx.emitter.service.ServiceMetricEvent;
 import io.druid.common.utils.JodaUtils;
 import io.druid.data.input.MapBasedRow;
@@ -85,6 +86,8 @@ public class SelectQueryQueryToolChest extends QueryToolChest<Result<SelectResul
       new TypeReference<Result<SelectResultValue>>()
       {
       };
+
+  private static final Logger logger = new Logger(SelectMetaQueryToolChest.class);
 
   private final ObjectMapper jsonMapper;
 
@@ -393,12 +396,13 @@ public class SelectQueryQueryToolChest extends QueryToolChest<Result<SelectResul
   @Override
   public SelectQuery rewriteQuery(SelectQuery query, QuerySegmentWalker walker)
   {
-    if (!query.getPagingSpec().getPagingIdentifiers().isEmpty()) {
+    PagingSpec pagingSpec = query.getPagingSpec();
+    if (!pagingSpec.getPagingIdentifiers().isEmpty() || pagingSpec.getThreshold() == 0) {
       // todo
       return query;
     }
 
-    int threshold = query.getPagingSpec().getThreshold();
+    int threshold = pagingSpec.getThreshold();
     List<String> dataSourceNames = query.getDataSource().getNames();
     Map<String, Object> context = Maps.newHashMap();
     List<Interval> intervals = query.getQuerySegmentSpec().getIntervals();
@@ -414,9 +418,11 @@ public class SelectQueryQueryToolChest extends QueryToolChest<Result<SelectResul
 
     Comparator<Interval> comparator = query.isDescending() ? JodaUtils.intervalsByEndThenStart()
                                                            : JodaUtils.intervalsByStartThenEnd();
+    int totalSegments = 0;
     Map<String, Map<Interval, MutableInt>> mapping = Maps.newHashMap();
     for (Result<SelectMetaResultValue> result : results) {
-      for (Map.Entry<String, Integer> entry : result.getValue().getPerSegmentCounts().entrySet()) {
+      Map<String, Integer> perSegmentCounts = new TreeMap<>(result.getValue().getPerSegmentCounts());
+      for (Map.Entry<String, Integer> entry : perSegmentCounts.entrySet()) {
         String identifier = entry.getKey();
         MutableInt value = new MutableInt(entry.getValue());
         String dataSource = findDataSource(dataSourceNames, identifier);
@@ -430,6 +436,7 @@ public class SelectQueryQueryToolChest extends QueryToolChest<Result<SelectResul
           value.add(prev.intValue());
         }
       }
+      totalSegments += perSegmentCounts.size();
     }
     List<String> targetDataSources = Lists.newArrayList();
     List<Interval> targetIntervals = Lists.newArrayList();
@@ -454,9 +461,11 @@ public class SelectQueryQueryToolChest extends QueryToolChest<Result<SelectResul
       }
     }
     if (targetDataSources.size() == 1) {
+      logger.info("Filtered %d segment interval into %d", totalSegments, targetIntervals.size());
       return query.withDataSource(new TableDataSource(targetDataSources.get(0)))
                   .withQuerySegmentSpec(new MultipleIntervalSegmentSpec(targetIntervals));
     }
+    logger.info("Filtered %d dataSource into %d", mapping.size(), targetDataSources.size());
     return query.withDataSource(new UnionDataSource(TableDataSource.of(targetDataSources)));
   }
 

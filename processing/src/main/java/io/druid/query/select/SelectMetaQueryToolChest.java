@@ -85,7 +85,7 @@ public class SelectMetaQueryToolChest extends QueryToolChest<Result<SelectMetaRe
               return arg1;
             }
             DateTime timestamp = arg1.getTimestamp();
-            if (gran instanceof AllGranularity) {
+            if (!(gran instanceof AllGranularity)) {
               timestamp = gran.toDateTime(gran.truncate(timestamp.getMillis()));
             }
             SelectMetaResultValue value1 = arg1.getValue();
