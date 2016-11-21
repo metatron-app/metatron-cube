@@ -257,7 +257,7 @@ public class IndexGeneratorJob implements HadoopDruidIndexerJob.IndexingStatsPro
         indexSchema,
         true,
         !tuningConfig.isIgnoreInvalidRows(),
-        false,
+        !tuningConfig.isAssumeTimeSorted(),
         boundary
     );
 
