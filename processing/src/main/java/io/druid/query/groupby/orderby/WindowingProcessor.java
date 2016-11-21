@@ -86,8 +86,10 @@ public class WindowingProcessor implements Function<List<Row>, List<Row>>
 
   public List<Row> apply(List<Row> input)
   {
-    for (PartitionDefinition partition : partitions) {
-      input = partition.process(input);
+    if (input.size() > 0) {
+      for (PartitionDefinition partition : partitions) {
+        input = partition.process(input);
+      }
     }
     return input;
   }
