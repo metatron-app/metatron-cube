@@ -67,11 +67,12 @@ public abstract class GenericAggregatorFactory extends AggregatorFactory
         fieldName == null ^ fieldExpression == null,
         "Must have a valid, non-null fieldName or fieldExpression"
     );
+    inputType = inputType == null ? ValueType.DOUBLE.name() : inputType;
     this.name = name;
     this.fieldName = fieldName;
     this.fieldExpression = fieldExpression;
     this.predicate = predicate;
-    this.inputType = inputType == null ? ValueType.DOUBLE.name() : inputType;
+    this.inputType = inputType;
     if (inputType.startsWith("array.")) {
       arrayInput = true;
       valueType = ValueType.of(inputType.substring(6));
@@ -79,8 +80,7 @@ public abstract class GenericAggregatorFactory extends AggregatorFactory
       arrayInput = false;
       valueType = ValueType.of(inputType);
     }
-    Preconditions.checkArgument(ValueType.isNumeric(valueType));
-    comparator = valueType.comparator();
+    comparator = valueType == ValueType.COMPLEX ? null : valueType.comparator();
   }
 
   public GenericAggregatorFactory(String name, String fieldName, String inputType)
@@ -94,6 +94,7 @@ public abstract class GenericAggregatorFactory extends AggregatorFactory
     if (!arrayInput) {
       return factorize(metricFactory, valueType);
     }
+    @SuppressWarnings("unchecked")
     final ObjectColumnSelector<List> selector = metricFactory.makeObjectColumnSelector(fieldName);
     final VariableArrayIndexed factory = new VariableArrayIndexed(selector, valueType.classOfObject());
 
@@ -117,6 +118,7 @@ public abstract class GenericAggregatorFactory extends AggregatorFactory
     if (!arrayInput) {
       return factorizeBuffered(metricFactory, valueType);
     }
+    @SuppressWarnings("unchecked")
     final ObjectColumnSelector<List> selector = metricFactory.makeObjectColumnSelector(fieldName);
     final VariableArrayIndexed factory = new VariableArrayIndexed(selector, valueType.classOfObject());
 
@@ -151,7 +153,7 @@ public abstract class GenericAggregatorFactory extends AggregatorFactory
   @Override
   public AggregatorFactory getCombiningFactory()
   {
-    return withValue(name, name, valueType.toString());
+    return withValue(name, name, getTypeName());
   }
 
   @Override
@@ -167,7 +169,7 @@ public abstract class GenericAggregatorFactory extends AggregatorFactory
   @Override
   public List<AggregatorFactory> getRequiredColumns()
   {
-    return Arrays.<AggregatorFactory>asList(withValue(fieldName, fieldName, valueType.toString()));
+    return Arrays.<AggregatorFactory>asList(withValue(fieldName, fieldName, getTypeName()));
   }
 
   @Override
@@ -260,7 +262,7 @@ public abstract class GenericAggregatorFactory extends AggregatorFactory
   @Override
   public String getTypeName()
   {
-    return inputType;
+    return arrayInput ? inputType.substring(6) : inputType;
   }
 
   @Override

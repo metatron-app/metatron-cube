@@ -171,6 +171,18 @@ public class ColumnSelectors
     return wrapAsLongSelector(metricFactory.makeMathExpressionSelector(fieldExpression));
   }
 
+  public static ObjectColumnSelector getObjectColumnSelector(
+      ColumnSelectorFactory metricFactory,
+      String fieldName,
+      String fieldExpression
+  )
+  {
+    if (fieldName != null) {
+      return metricFactory.makeObjectColumnSelector(fieldName);
+    }
+    return wrapAsObjectSelector(Object.class, metricFactory.makeMathExpressionSelector(fieldExpression));
+  }
+
   public static DoubleColumnSelector wrapAsDoubleSelector(final ExprEvalColumnSelector selector)
   {
     return new DoubleColumnSelector()

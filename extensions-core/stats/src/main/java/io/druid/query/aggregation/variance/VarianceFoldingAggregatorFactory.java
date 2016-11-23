@@ -21,11 +21,6 @@ package io.druid.query.aggregation.variance;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
-import io.druid.query.aggregation.Aggregator;
-import io.druid.query.aggregation.Aggregators;
-import io.druid.query.aggregation.BufferAggregator;
-import io.druid.segment.ColumnSelectorFactory;
-import io.druid.segment.ObjectColumnSelector;
 
 /**
  */
@@ -35,29 +30,11 @@ public class VarianceFoldingAggregatorFactory extends VarianceAggregatorFactory
   public VarianceFoldingAggregatorFactory(
       @JsonProperty("name") String name,
       @JsonProperty("fieldName") String fieldName,
+      @JsonProperty("fieldExpression") String fieldExpression,
+      @JsonProperty("predicate") String predicate,
       @JsonProperty("estimator") String estimator
   )
   {
-    super(name, fieldName, estimator, "variance");
-  }
-
-  @Override
-  public Aggregator factorize(ColumnSelectorFactory metricFactory)
-  {
-    ObjectColumnSelector selector = metricFactory.makeObjectColumnSelector(fieldName);
-    if (selector == null) {
-      return Aggregators.noopAggregator();
-    }
-    return new VarianceAggregator.ObjectVarianceAggregator(name, selector);
-  }
-
-  @Override
-  public BufferAggregator factorizeBuffered(ColumnSelectorFactory metricFactory)
-  {
-    ObjectColumnSelector selector = metricFactory.makeObjectColumnSelector(fieldName);
-    if (selector == null) {
-      return Aggregators.noopBufferAggregator();
-    }
-    return new VarianceBufferAggregator.ObjectVarianceAggregator(name, selector);
+    super(name, fieldName, fieldExpression, predicate, estimator, "variance");
   }
 }

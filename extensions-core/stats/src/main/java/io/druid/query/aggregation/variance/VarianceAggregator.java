@@ -19,7 +19,10 @@
 
 package io.druid.query.aggregation.variance;
 
+import com.google.common.base.Predicate;
+import com.google.common.base.Predicates;
 import io.druid.query.aggregation.Aggregator;
+import io.druid.query.aggregation.Aggregators;
 import io.druid.segment.DoubleColumnSelector;
 import io.druid.segment.FloatColumnSelector;
 import io.druid.segment.LongColumnSelector;
@@ -79,71 +82,82 @@ public abstract class VarianceAggregator implements Aggregator
     throw new UnsupportedOperationException("VarianceAggregator does not support getLong()");
   }
 
-  public static final class FloatVarianceAggregator extends VarianceAggregator
+  public static Aggregator create(String name, final FloatColumnSelector selector, final Predicate<?> predicate)
   {
-    private final FloatColumnSelector selector;
-
-    public FloatVarianceAggregator(String name, FloatColumnSelector selector)
-    {
-      super(name);
-      this.selector = selector;
+    if (selector == null) {
+      return Aggregators.noopAggregator();
     }
-
-    @Override
-    public void aggregate()
-    {
-      holder.add(selector.get());
+    if (predicate == null || predicate == Predicates.alwaysTrue()) {
+      return new VarianceAggregator(name)
+      {
+        @Override
+        public void aggregate()
+        {
+          holder.add(selector.get());
+        }
+      };
+    } else {
+      return new VarianceAggregator(name)
+      {
+        @Override
+        public void aggregate()
+        {
+          if (predicate.apply(null)) {
+            holder.add(selector.get());
+          }
+        }
+      };
     }
   }
 
-  public static final class DoubleVarianceAggregator extends VarianceAggregator
+  public static Aggregator create(String name, final DoubleColumnSelector selector, final Predicate<?> predicate)
   {
-    private final DoubleColumnSelector selector;
-
-    public DoubleVarianceAggregator(String name, DoubleColumnSelector selector)
-    {
-      super(name);
-      this.selector = selector;
+    if (selector == null) {
+      return Aggregators.noopAggregator();
     }
-
-    @Override
-    public void aggregate()
+    return new VarianceAggregator(name)
     {
-      holder.add(selector.get());
-    }
+      @Override
+      public void aggregate()
+      {
+        if (predicate.apply(null)) {
+          holder.add(selector.get());
+        }
+      }
+    };
   }
 
-  public static final class LongVarianceAggregator extends VarianceAggregator
+  public static Aggregator create(String name, final LongColumnSelector selector, final Predicate<?> predicate)
   {
-    private final LongColumnSelector selector;
-
-    public LongVarianceAggregator(String name, LongColumnSelector selector)
-    {
-      super(name);
-      this.selector = selector;
+    if (selector == null) {
+      return Aggregators.noopAggregator();
     }
-
-    @Override
-    public void aggregate()
+    return new VarianceAggregator(name)
     {
-      holder.add(selector.get());
-    }
+      @Override
+      public void aggregate()
+      {
+        if (predicate.apply(null)) {
+          holder.add(selector.get());
+        }
+      }
+    };
   }
 
-  public static final class ObjectVarianceAggregator extends VarianceAggregator
+  public static Aggregator create(String name, final ObjectColumnSelector selector, final Predicate<?> predicate)
   {
-    private final ObjectColumnSelector selector;
-
-    public ObjectVarianceAggregator(String name, ObjectColumnSelector selector)
-    {
-      super(name);
-      this.selector = selector;
+    if (selector == null) {
+      return Aggregators.noopAggregator();
     }
-
-    @Override
-    public void aggregate()
+    return new VarianceAggregator(name)
     {
-      VarianceAggregatorCollector.combineValues(holder, selector.get());
-    }
+      @Override
+      public void aggregate()
+      {
+        if (predicate.apply(null)) {
+          VarianceAggregatorCollector.combineValues(holder, selector.get());
+        }
+      }
+    };
   }
 }

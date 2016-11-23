@@ -166,13 +166,13 @@ public class VarianceGroupByQueryTest
   public void testPostAggHavingSpec()
   {
     VarianceTestHelper.RowBuilder expect = new VarianceTestHelper.RowBuilder(
-        new String[]{"alias", "rows", "index", "index_var", "index_stddev"}
+        new String[]{"alias", "rows", "index", "index_var", "index_stddev", "index_div2_var"}
     );
 
     List<Row> expectedResults = expect
-        .add("2011-04-01", "automotive", 2L, 269L, 299.0009819048282, 17.29164485827847)
-        .add("2011-04-01", "mezzanine", 6L, 4420L, 254083.7557309596, 504.0672135052622)
-        .add("2011-04-01", "premium", 6L, 4416L, 252279.2020389339, 502.27403082275106)
+        .add("2011-04-01", "automotive", 2L, 269L, 299.0009819048282, 17.29164485827847, 74.75024547620706)
+        .add("2011-04-01", "mezzanine", 6L, 4420L, 254083.7557309596, 504.0672135052622, 63520.9389327399)
+        .add("2011-04-01", "premium", 6L, 4416L, 252279.2020389339, 502.27403082275106, 63069.800509733475)
         .build();
 
     GroupByQuery query = GroupByQuery
@@ -184,7 +184,8 @@ public class VarianceGroupByQueryTest
             Arrays.asList(
                 VarianceTestHelper.rowsCount,
                 VarianceTestHelper.indexLongSum,
-                VarianceTestHelper.indexVarianceAggr
+                VarianceTestHelper.indexVarianceAggr,
+                VarianceTestHelper.indexDiv2VarianceAggr
             )
         )
         .setPostAggregatorSpecs(ImmutableList.<PostAggregator>of(VarianceTestHelper.stddevOfIndexPostAggr))
@@ -212,8 +213,8 @@ public class VarianceGroupByQueryTest
     );
 
     expectedResults = expect
-        .add("2011-04-01", "automotive", 2L, 269L, 299.0009819048282, 17.29164485827847)
-        .add("2011-04-01", "premium", 6L, 4416L, 252279.2020389339, 502.27403082275106)
+        .add("2011-04-01", "automotive", 2L, 269L, 299.0009819048282, 17.29164485827847, 74.75024547620706)
+        .add("2011-04-01", "premium", 6L, 4416L, 252279.2020389339, 502.27403082275106, 63069.800509733475)
         .build();
 
     results = GroupByQueryRunnerTestHelper.runQuery(factory, runner, query);

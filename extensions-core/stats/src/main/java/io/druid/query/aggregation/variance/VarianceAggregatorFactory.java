@@ -22,59 +22,49 @@ package io.druid.query.aggregation.variance;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
-import com.google.common.base.Preconditions;
 import com.metamx.common.IAE;
 import com.metamx.common.StringUtils;
+import io.druid.data.ValueType;
 import io.druid.query.aggregation.Aggregator;
 import io.druid.query.aggregation.AggregatorFactory;
-import io.druid.query.aggregation.AggregatorFactoryNotMergeableException;
-import io.druid.query.aggregation.Aggregators;
 import io.druid.query.aggregation.BufferAggregator;
+import io.druid.query.aggregation.GenericAggregatorFactory;
 import io.druid.segment.ColumnSelectorFactory;
-import io.druid.segment.ObjectColumnSelector;
+import io.druid.segment.ColumnSelectors;
 import org.apache.commons.codec.binary.Base64;
 
 import java.nio.ByteBuffer;
-import java.util.Arrays;
 import java.util.Comparator;
-import java.util.List;
 import java.util.Objects;
 
 /**
  */
 @JsonTypeName("variance")
-public class VarianceAggregatorFactory extends AggregatorFactory
+public class VarianceAggregatorFactory extends GenericAggregatorFactory
 {
   protected static final byte CACHE_TYPE_ID = 16;
 
-  protected final String fieldName;
-  protected final String name;
   protected final String estimator;
-  private final String inputType;
-
   protected final boolean isVariancePop;
 
   @JsonCreator
   public VarianceAggregatorFactory(
       @JsonProperty("name") String name,
       @JsonProperty("fieldName") String fieldName,
+      @JsonProperty("fieldExpression") String fieldExpression,
+      @JsonProperty("predicate") String predicate,
       @JsonProperty("estimator") String estimator,
       @JsonProperty("inputType") String inputType
   )
   {
-    Preconditions.checkNotNull(name, "Must have a valid, non-null aggregator name");
-    Preconditions.checkNotNull(fieldName, "Must have a valid, non-null fieldName");
-
-    this.name = name;
-    this.fieldName = fieldName;
+    super(name, fieldName, fieldExpression, predicate, inputType);
     this.estimator = estimator;
     this.isVariancePop = VarianceAggregatorCollector.isVariancePop(estimator);
-    this.inputType = inputType == null ? "double" : inputType;
   }
 
   public VarianceAggregatorFactory(String name, String fieldName)
   {
-    this(name, fieldName, null, null);
+    this(name, fieldName, null, null, null, null);
   }
 
   @Override
@@ -96,60 +86,51 @@ public class VarianceAggregatorFactory extends AggregatorFactory
   }
 
   @Override
-  public Aggregator factorize(ColumnSelectorFactory metricFactory)
+  protected Aggregator factorize(ColumnSelectorFactory metricFactory, ValueType valueType)
   {
-    ObjectColumnSelector selector = metricFactory.makeObjectColumnSelector(fieldName);
-    if (selector == null) {
-      return Aggregators.noopAggregator();
-    }
-
-    if ("float".equalsIgnoreCase(inputType)) {
-      return new VarianceAggregator.FloatVarianceAggregator(
-          name,
-          metricFactory.makeFloatColumnSelector(fieldName)
-      );
-    } else if ("double".equalsIgnoreCase(inputType)) {
-      return new VarianceAggregator.DoubleVarianceAggregator(
-          name,
-          metricFactory.makeDoubleColumnSelector(fieldName)
-      );
-    } else if ("long".equalsIgnoreCase(inputType)) {
-      return new VarianceAggregator.LongVarianceAggregator(
-          name,
-          metricFactory.makeLongColumnSelector(fieldName)
-      );
-    } else if ("variance".equalsIgnoreCase(inputType) || "varianceCombined".equalsIgnoreCase(inputType)) {
-      return new VarianceAggregator.ObjectVarianceAggregator(name, selector);
-    }
-    throw new IAE(
-        "Incompatible type for metric[%s], expected a float, double, long or variance, got a %s", fieldName, inputType
-    );
-  }
-
-  @Override
-  public BufferAggregator factorizeBuffered(ColumnSelectorFactory metricFactory)
-  {
-    ObjectColumnSelector selector = metricFactory.makeObjectColumnSelector(fieldName);
-    if (selector == null) {
-      return Aggregators.noopBufferAggregator();
-    }
-    if ("float".equalsIgnoreCase(inputType)) {
-      return new VarianceBufferAggregator.FloatVarianceAggregator(
-          name,
-          metricFactory.makeFloatColumnSelector(fieldName)
-      );
-    } else if ("double".equalsIgnoreCase(inputType)) {
-      return new VarianceBufferAggregator.DoubleVarianceAggregator(
-          name,
-          metricFactory.makeDoubleColumnSelector(fieldName)
-      );
-    } else if ("long".equalsIgnoreCase(inputType)) {
-      return new VarianceBufferAggregator.LongVarianceAggregator(
-          name,
-          metricFactory.makeLongColumnSelector(fieldName)
-      );
-    } else if ("variance".equalsIgnoreCase(inputType) || "varianceCombined".equalsIgnoreCase(inputType)) {
-      return new VarianceBufferAggregator.ObjectVarianceAggregator(name, selector);
+    switch (valueType) {
+      case FLOAT:
+        return VarianceAggregator.create(
+            name,
+            ColumnSelectors.getFloatColumnSelector(
+                metricFactory,
+                fieldName,
+                fieldExpression
+            ),
+            ColumnSelectors.toPredicate(predicate, metricFactory)
+        );
+      case DOUBLE:
+        return VarianceAggregator.create(
+            name,
+            ColumnSelectors.getDoubleColumnSelector(
+                metricFactory,
+                fieldName,
+                fieldExpression
+            ),
+            ColumnSelectors.toPredicate(predicate, metricFactory)
+        );
+      case LONG:
+        return VarianceAggregator.create(
+            name,
+            ColumnSelectors.getLongColumnSelector(
+                metricFactory,
+                fieldName,
+                fieldExpression
+            ),
+            ColumnSelectors.toPredicate(predicate, metricFactory)
+        );
+      case COMPLEX:
+        if ("variance".equalsIgnoreCase(inputType) || "varianceCombined".equalsIgnoreCase(inputType)) {
+          return VarianceAggregator.create(
+              name,
+              ColumnSelectors.getObjectColumnSelector(
+                  metricFactory,
+                  fieldName,
+                  fieldExpression
+              ),
+              ColumnSelectors.toPredicate(predicate, metricFactory)
+          );
+        }
     }
     throw new IAE(
         "Incompatible type for metric[%s], expected a float, double, long or variance, got a %s", fieldName, inputType
@@ -157,25 +138,67 @@ public class VarianceAggregatorFactory extends AggregatorFactory
   }
 
   @Override
-  public AggregatorFactory getCombiningFactory()
+  protected BufferAggregator factorizeBuffered(ColumnSelectorFactory metricFactory, ValueType valueType)
   {
-    return new VarianceFoldingAggregatorFactory(name, name, estimator);
-  }
-
-  @Override
-  public List<AggregatorFactory> getRequiredColumns()
-  {
-    return Arrays.<AggregatorFactory>asList(new VarianceAggregatorFactory(fieldName, fieldName, estimator, inputType));
-  }
-
-  @Override
-  public AggregatorFactory getMergingFactory(AggregatorFactory other) throws AggregatorFactoryNotMergeableException
-  {
-    if (Objects.equals(getName(), other.getName()) && this.getClass() == other.getClass()) {
-      return getCombiningFactory();
-    } else {
-      throw new AggregatorFactoryNotMergeableException(this, other);
+    switch (valueType) {
+      case FLOAT:
+        return VarianceBufferAggregator.create(
+            name,
+            ColumnSelectors.getFloatColumnSelector(
+                metricFactory,
+                fieldName,
+                fieldExpression
+            ),
+            ColumnSelectors.toPredicate(predicate, metricFactory)
+        );
+      case DOUBLE:
+        return VarianceBufferAggregator.create(
+            name,
+            ColumnSelectors.getDoubleColumnSelector(
+                metricFactory,
+                fieldName,
+                fieldExpression
+            ),
+            ColumnSelectors.toPredicate(predicate, metricFactory)
+        );
+      case LONG:
+        return VarianceBufferAggregator.create(
+            name,
+            ColumnSelectors.getLongColumnSelector(
+                metricFactory,
+                fieldName,
+                fieldExpression
+            ),
+            ColumnSelectors.toPredicate(predicate, metricFactory)
+        );
+      case COMPLEX:
+        if ("variance".equalsIgnoreCase(inputType) || "varianceCombined".equalsIgnoreCase(inputType)) {
+          return VarianceBufferAggregator.create(
+              name,
+              ColumnSelectors.getObjectColumnSelector(
+                  metricFactory,
+                  fieldName,
+                  fieldExpression
+              ),
+              ColumnSelectors.toPredicate(predicate, metricFactory)
+          );
+        }
     }
+    throw new IAE(
+        "Incompatible type for metric[%s], expected a float, double, long or variance, got a %s", fieldName, inputType
+    );
+  }
+
+  @Override
+  protected AggregatorFactory withValue(String name, String fieldName, String inputType)
+  {
+    return new VarianceAggregatorFactory(name, fieldName, null, null, estimator, inputType);
+  }
+
+  @Override
+  protected byte cacheTypeID()
+  {
+    return CACHE_TYPE_ID;
   }
 
   @Override
@@ -218,47 +241,18 @@ public class VarianceAggregatorFactory extends AggregatorFactory
   }
 
   @JsonProperty
-  public String getFieldName()
-  {
-    return fieldName;
-  }
-
-  @Override
-  @JsonProperty
-  public String getName()
-  {
-    return name;
-  }
-
-  @JsonProperty
   public String getEstimator()
   {
     return estimator;
   }
 
-  @JsonProperty
-  public String getInputType()
-  {
-    return inputType;
-  }
-
-  @Override
-  public List<String> requiredFields()
-  {
-    return Arrays.asList(fieldName);
-  }
-
   @Override
   public byte[] getCacheKey()
   {
-    byte[] fieldNameBytes = StringUtils.toUtf8(fieldName);
-    byte[] inputTypeBytes = StringUtils.toUtf8(inputType);
-    return ByteBuffer.allocate(2 + fieldNameBytes.length + 1 + inputTypeBytes.length)
-                     .put(CACHE_TYPE_ID)
+    byte[] superKey = super.getCacheKey();
+    return ByteBuffer.allocate(superKey.length + 1)
+                     .put(superKey)
                      .put(isVariancePop ? (byte) 1 : 0)
-                     .put(fieldNameBytes)
-                     .put((byte) 0xFF)
-                     .put(inputTypeBytes)
                      .array();
   }
 
@@ -266,9 +260,11 @@ public class VarianceAggregatorFactory extends AggregatorFactory
   public String toString()
   {
     return getClass().getSimpleName() + "{" +
-           "fieldName='" + fieldName + '\'' +
-           ", name='" + name + '\'' +
-           ", isVariancePop='" + isVariancePop + '\'' +
+           "name='" + name + '\'' +
+           ", fieldName='" + fieldName + '\'' +
+           ", fieldExpression='" + fieldExpression + '\'' +
+           ", predicate='" + predicate + '\'' +
+           ", estimator='" + estimator + '\'' +
            ", inputType='" + inputType + '\'' +
            '}';
   }
@@ -276,38 +272,18 @@ public class VarianceAggregatorFactory extends AggregatorFactory
   @Override
   public boolean equals(Object o)
   {
-    if (this == o) {
-      return true;
-    }
-    if (o == null || getClass() != o.getClass()) {
+    if (!super.equals(o)) {
       return false;
     }
-
     VarianceAggregatorFactory that = (VarianceAggregatorFactory) o;
-
-    if (!Objects.equals(fieldName, that.fieldName)) {
-      return false;
-    }
-    if (!Objects.equals(name, that.name)) {
-      return false;
-    }
-    if (!Objects.equals(isVariancePop, that.isVariancePop)) {
-      return false;
-    }
-    if (!Objects.equals(inputType, that.inputType)) {
-      return false;
-    }
-
-    return true;
+    return Objects.equals(isVariancePop, that.isVariancePop);
   }
 
   @Override
   public int hashCode()
   {
-    int result = fieldName.hashCode();
-    result = 31 * result + Objects.hashCode(name);
+    int result = super.hashCode();
     result = 31 * result + Objects.hashCode(isVariancePop);
-    result = 31 * result + Objects.hashCode(inputType);
     return result;
   }
 }

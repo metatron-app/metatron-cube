@@ -19,8 +19,10 @@
 
 package io.druid.query.aggregation.variance;
 
+import com.google.common.base.Predicates;
 import com.google.common.collect.Lists;
 import com.metamx.common.Pair;
+import io.druid.query.aggregation.BufferAggregator;
 import io.druid.segment.FloatColumnSelector;
 import io.druid.segment.ObjectColumnSelector;
 import org.junit.Assert;
@@ -107,13 +109,13 @@ public class VarianceAggregatorCollectorTest
 
       for (int mergeOn : new int[] {2, 3, 5, 9}) {
         List<VarianceAggregatorCollector> holders1 = Lists.newArrayListWithCapacity(mergeOn);
-        List<Pair<VarianceBufferAggregator, ByteBuffer>> holders2 = Lists.newArrayListWithCapacity(mergeOn);
+        List<Pair<BufferAggregator, ByteBuffer>> holders2 = Lists.newArrayListWithCapacity(mergeOn);
 
         FloatHandOver valueHandOver = new FloatHandOver();
         for (int i = 0; i < mergeOn; i++) {
           holders1.add(new VarianceAggregatorCollector());
-          holders2.add(Pair.<VarianceBufferAggregator, ByteBuffer>of(
-                           new VarianceBufferAggregator.FloatVarianceAggregator("XX", valueHandOver),
+          holders2.add(Pair.<BufferAggregator, ByteBuffer>of(
+                           VarianceBufferAggregator.create("XX", valueHandOver, Predicates.alwaysTrue()),
                            ByteBuffer.allocate(VarianceAggregatorCollector.getMaxIntermediateSize())
                        ));
         }
@@ -129,7 +131,7 @@ public class VarianceAggregatorCollectorTest
         }
         ObjectHandOver collectHandOver = new ObjectHandOver();
         ByteBuffer buffer = ByteBuffer.allocate(VarianceAggregatorCollector.getMaxIntermediateSize());
-        VarianceBufferAggregator.ObjectVarianceAggregator merger = new VarianceBufferAggregator.ObjectVarianceAggregator("xxx", collectHandOver);
+        BufferAggregator merger = VarianceBufferAggregator.create("xxx", collectHandOver, Predicates.alwaysTrue());
         for (int i = 0; i < mergeOn; i++) {
           collectHandOver.v = holders2.get(i).lhs.get(holders2.get(i).rhs, 0);
           merger.aggregate(buffer, 0);
