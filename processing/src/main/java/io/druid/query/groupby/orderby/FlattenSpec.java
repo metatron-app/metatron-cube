@@ -24,8 +24,10 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonValue;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+import com.google.common.collect.Sets;
 import com.google.common.primitives.Ints;
 import com.metamx.common.Pair;
 import io.druid.common.utils.StringUtils;
@@ -44,34 +46,66 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 
 /**
  */
 public class FlattenSpec implements Cacheable
 {
+  public static FlattenSpec array(List<String> columns, String separator)
+  {
+    return new FlattenSpec(Flattener.ARRAY, columns, null, null, separator, null);
+  }
+
+  public static FlattenSpec array(
+      List<String> pivotColumns,
+      List<String> prefixColumns,
+      List<String> columns,
+      String separator
+  )
+  {
+    return new FlattenSpec(Flattener.ARRAY, columns, pivotColumns, prefixColumns, separator, null);
+  }
+
+  public static FlattenSpec explode(List<String> columns, String separator)
+  {
+    return new FlattenSpec(Flattener.EXPLODE, columns, null, null, separator, null);
+  }
+
+  public static FlattenSpec explode(
+      List<String> pivotColumns,
+      List<String> prefixColumns,
+      List<String> columns,
+      String separator
+  )
+  {
+    return new FlattenSpec(Flattener.EXPLODE, columns, pivotColumns, prefixColumns, separator, null);
+  }
+
   private final Flattener type;
   private final List<String> columns;
-  private final String suffixColumn;
+  private final List<String> pivotColumns;
+  private final List<String> prefixColumns;
+  private final String separator;
   private final List<String> expressions;
 
   @JsonCreator
   public FlattenSpec(
       @JsonProperty("type") Flattener type,
       @JsonProperty("columns") List<String> columns,
-      @JsonProperty("suffixColumn") String suffixColumn,
+      @JsonProperty("pivotColumns") List<String> pivotColumns,
+      @JsonProperty("prefixColumns") List<String> prefixColumns,
+      @JsonProperty("separator") String separator,
       @JsonProperty("expressions") List<String> expressions
   )
   {
     this.type = type;
     this.columns = columns;
-    this.suffixColumn = suffixColumn;
+    this.pivotColumns = pivotColumns;
+    this.separator = separator;
+    this.prefixColumns = prefixColumns;
     this.expressions = expressions == null ? ImmutableList.<String>of() : expressions;
     Preconditions.checkArgument(columns != null && !columns.isEmpty(), "'columns' should not be null or empty");
-  }
-
-  public FlattenSpec(Flattener type, List<String> columns)
-  {
-    this(type, columns, null, null);
   }
 
   @JsonProperty
@@ -87,25 +121,58 @@ public class FlattenSpec implements Cacheable
   }
 
   @JsonProperty
-  public String getSuffixColumn()
+  public List<String> getPivotColumns()
   {
-    return suffixColumn;
+    return pivotColumns;
+  }
+
+  @JsonProperty
+  public List<String> getPrefixColumns()
+  {
+    return prefixColumns;
+  }
+
+  @JsonProperty
+  public String getSeparator()
+  {
+    return separator;
+  }
+
+  @JsonProperty
+  public List<String> getExpressions()
+  {
+    return expressions;
   }
 
   public byte[] getCacheKey()
   {
     byte[] typeBytes = StringUtils.toUtf8WithNullToEmpty(getType());
     byte[] columnsBytes = QueryCacheHelper.computeCacheBytes(columns);
-    byte[] suffixColumnBytes = StringUtils.toUtf8WithNullToEmpty(suffixColumn);
+    byte[] pivotColumnsBytes = QueryCacheHelper.computeCacheBytes(pivotColumns);
+    byte[] prefixColumnsBytes = QueryCacheHelper.computeCacheBytes(prefixColumns);
+    byte[] separatorBytes = StringUtils.toUtf8WithNullToEmpty(separator);
+    byte[] expressionsBytes = QueryCacheHelper.computeCacheBytes(expressions);
 
-    int length = 3 + typeBytes.length + columnsBytes.length + suffixColumnBytes.length;
+    int length = 5
+                 + typeBytes.length
+                 + columnsBytes.length
+                 + pivotColumnsBytes.length
+                 + prefixColumnsBytes.length
+                 + separatorBytes.length
+                 + expressionsBytes.length;
 
     return ByteBuffer.allocate(length)
                      .put(typeBytes)
                      .put(DimFilterCacheHelper.STRING_SEPARATOR)
                      .put(columnsBytes)
                      .put(DimFilterCacheHelper.STRING_SEPARATOR)
-                     .put(suffixColumnBytes)
+                     .put(pivotColumnsBytes)
+                     .put(DimFilterCacheHelper.STRING_SEPARATOR)
+                     .put(prefixColumnsBytes)
+                     .put(DimFilterCacheHelper.STRING_SEPARATOR)
+                     .put(separatorBytes)
+                     .put(DimFilterCacheHelper.STRING_SEPARATOR)
+                     .put(expressionsBytes)
                      .array();
   }
 
@@ -125,7 +192,16 @@ public class FlattenSpec implements Cacheable
     if (!columns.equals(that.columns)) {
       return false;
     }
-    if (!Objects.equals(suffixColumn, that.suffixColumn)) {
+    if (!Objects.equals(pivotColumns, that.pivotColumns)) {
+      return false;
+    }
+    if (!Objects.equals(separator, that.separator)) {
+      return false;
+    }
+    if (!Objects.equals(prefixColumns, that.prefixColumns)) {
+      return false;
+    }
+    if (!Objects.equals(expressions, that.expressions)) {
       return false;
     }
     return true;
@@ -134,11 +210,25 @@ public class FlattenSpec implements Cacheable
   @Override
   public int hashCode()
   {
-    int result = super.hashCode();
-    result = 31 * result + type.hashCode();
-    result = 31 * result + columns.hashCode();
-    result = 31 * result + Objects.hashCode(suffixColumn);
-    return result;
+    return Objects.hash(type, columns, pivotColumns, prefixColumns, separator, expressions);
+  }
+
+  @Override
+  public String toString()
+  {
+    return "FlattenSpec{" +
+           "type='" + type + '\'' +
+           ", columns=" + columns +
+           ", pivotColumns=" + pivotColumns +
+           ", prefixColumns=" + prefixColumns +
+           ", separator=" + separator +
+           ", expressions=" + expressions +
+           '}';
+  }
+
+  public FlattenSpec withExpression(String... expressions)
+  {
+    return new FlattenSpec(type, columns, pivotColumns, prefixColumns, separator, Arrays.asList(expressions));
   }
 
   public PartitionEvaluator toEvaluator(List<String> partitionColumns, List<OrderByColumnSpec> sortingColumns)
@@ -146,20 +236,13 @@ public class FlattenSpec implements Cacheable
     return type.toEvaluator(partitionColumns, sortingColumns, this);
   }
 
-  @Override
-  public String toString()
+  private int[] toIndex(List<String> partitionColumns)
   {
-    return "FlattenSpec{" +
-           ", type='" + type + '\'' +
-           ", columns=" + columns +
-           ", suffixColumn='" + suffixColumn + '\'' +
-           '}';
-  }
-
-  private int[] toIndex(List<String> partitionColumns) {
-    List<Integer> evaluateTable = Lists.newArrayList();
-    for (String column : columns) {
-      evaluateTable.add(partitionColumns.indexOf(column));
+    List<Integer> evaluateTable = Lists.newArrayListWithCapacity(columns.size());
+    for (int i = 0; i < columns.size(); i++) {
+      if (partitionColumns.indexOf(columns.get(i)) < 0) {
+        evaluateTable.add(i);
+      }
     }
     return Ints.toArray(evaluateTable);
   }
@@ -171,9 +254,11 @@ public class FlattenSpec implements Cacheable
       public PartitionEvaluator toEvaluator(
           final List<String> partitionColumns,
           final List<OrderByColumnSpec> sortingColumns,
-          final FlattenSpec spec)
+          final FlattenSpec spec
+      )
       {
         final int[] index = spec.toIndex(partitionColumns);
+        final boolean prefixed = spec.prefixColumns != null && !spec.prefixColumns.isEmpty();
         return new PartitionEvaluator()
         {
           @Override
@@ -186,12 +271,19 @@ public class FlattenSpec implements Cacheable
             }
             for (int i = 0; i < partition.size(); i++) {
               Row row = partition.get(i);
-              String postFix = spec.suffixColumn == null ? "." + i : "." + row.getRaw(spec.suffixColumn);
-              for (int j = 0; j < index.length; j++) {
-                if (index[j] < 0) {
-                  final String column = spec.columns.get(j);
-                  flatten.put(column + postFix, row.getRaw(column));
+              String prefix;
+              if (prefixed) {
+                StringBuilder b = new StringBuilder();
+                for (String prefixColumn : spec.prefixColumns) {
+                  b.append(row.getRaw(prefixColumn)).append(spec.separator);
                 }
+                prefix = b.toString();
+              } else {
+                prefix = i + spec.separator;
+              }
+              for (int ci : index) {
+                final String column = spec.columns.get(ci);
+                flatten.put(prefix + column, row.getRaw(column));
               }
               if (dateTime == null) {
                 dateTime = row.getTimestamp();
@@ -207,12 +299,85 @@ public class FlattenSpec implements Cacheable
       public PartitionEvaluator toEvaluator(
           final List<String> partitionColumns,
           final List<OrderByColumnSpec> sortingColumns,
-          final FlattenSpec spec)
+          final FlattenSpec spec
+      )
       {
         final int[] index = spec.toIndex(partitionColumns);
         final List<Pair<String, Expr>> assigns = Lists.newArrayList();
         for (String expression : spec.expressions) {
           assigns.add(Evals.splitAssign(expression));
+        }
+        final String separator = spec.separator == null ? "-" : spec.separator;
+        final boolean pivotRow = spec.pivotColumns != null && !spec.pivotColumns.isEmpty();
+
+        final List<String> pivotColumns;
+        if (pivotRow && spec.prefixColumns != null && !spec.prefixColumns.isEmpty()) {
+          pivotColumns = Lists.newArrayList(spec.pivotColumns);
+          pivotColumns.removeAll(spec.prefixColumns);
+        } else {
+          pivotColumns = spec.pivotColumns;
+        }
+        final StringBuilder b = new StringBuilder();
+
+        if (pivotRow && spec.prefixColumns != null && !spec.prefixColumns.isEmpty()) {
+          return new PartitionEvaluator()
+          {
+
+            @Override
+            @SuppressWarnings("unchecked")
+            public List<Row> evaluate(Object[] partitionKey, List<Row> partition)
+            {
+              final Map<ObjectArray, List[]> prefixed = Maps.newHashMap();
+              final Set rows = Sets.newLinkedHashSet();
+              final DateTime dateTime = partition.get(0).getTimestamp();
+              for (Row row : partition) {
+                ObjectArray key = new ObjectArray(new Object[spec.prefixColumns.size()]);
+                for (int i = 0; i < key.length(); i++) {
+                  key.array[i] = row.getRaw(spec.prefixColumns.get(i));
+                }
+                List[] array = prefixed.get(key);
+                if (array == null) {
+                  prefixed.put(key, array = new List[index.length]);
+                  for (int i = 0; i < index.length; i++) {
+                    array[i] = Lists.newArrayListWithCapacity(partition.size());
+                  }
+                }
+                for (int i = 0; i < index.length; i++) {
+                  array[i].add(row.getRaw(spec.columns.get(index[i])));
+                }
+                for (String pivotColumn : pivotColumns) {
+                  if (b.length() > 0) {
+                    b.append(separator);
+                  }
+                  b.append(row.getRaw(pivotColumn));
+                }
+                String pivot = b.toString();
+                if (!rows.contains(pivot)) {
+                  rows.add(pivot);
+                }
+                b.setLength(0);
+              }
+              Map<String, Object> flatten = Maps.newLinkedHashMap();
+              for (int i = 0; i < partitionKey.length; i++) {
+                flatten.put(partitionColumns.get(i), partitionKey[i]);
+              }
+              for (Map.Entry<ObjectArray, List[]> entry : prefixed.entrySet()) {
+                ObjectArray prefix = entry.getKey();
+                List[] array = entry.getValue();
+                for (int i = 0; i < index.length; i++) {
+                  flatten.put(prefix.concat(spec.separator, spec.columns.get(index[i])), array[i]);
+                }
+              }
+              if (!assigns.isEmpty()) {
+                Expr.NumericBinding binding = withMap(flatten);
+                for (Pair<String, Expr> assign : assigns) {
+                  flatten.put(assign.lhs, assign.rhs.eval(binding).value());
+                }
+              }
+              Map<String, Object> event = ImmutableMap.of("rows", Lists.newArrayList(rows), "columns", flatten);
+              return Arrays.<Row>asList(new MapBasedRow(dateTime, event));
+            }
+          };
         }
         return new PartitionEvaluator()
         {
@@ -222,19 +387,23 @@ public class FlattenSpec implements Cacheable
           {
             final List[] array = new List[index.length];
             for (int i = 0; i < index.length; i++) {
-              if (index[i] < 0) {
-                array[i] = Lists.newArrayListWithCapacity(partition.size());
-              }
+              array[i] = Lists.newArrayListWithCapacity(partition.size());
             }
-            DateTime dateTime = null;
+            final List rows = pivotRow ? Lists.newArrayListWithCapacity(partition.size()) : null;
+            final DateTime dateTime = partition.get(0).getTimestamp();
             for (Row row : partition) {
               for (int i = 0; i < index.length; i++) {
-                if (index[i] < 0) {
-                  array[i].add(row.getRaw(spec.columns.get(i)));
-                }
+                array[i].add(row.getRaw(spec.columns.get(index[i])));
               }
-              if (dateTime == null) {
-                dateTime = row.getTimestamp();
+              if (pivotRow) {
+                for (String pivotColumn : pivotColumns) {
+                  if (b.length() > 0) {
+                    b.append(separator);
+                  }
+                  b.append(row.getRaw(pivotColumn));
+                }
+                rows.add(b.toString());
+                b.setLength(0);
               }
             }
             Map<String, Object> flatten = Maps.newLinkedHashMap();
@@ -242,15 +411,16 @@ public class FlattenSpec implements Cacheable
               flatten.put(partitionColumns.get(i), partitionKey[i]);
             }
             for (int i = 0; i < index.length; i++) {
-              if (index[i] < 0) {
-                flatten.put(spec.columns.get(i), array[i]);
-              }
+              flatten.put(spec.columns.get(index[i]), array[i]);
             }
             if (!assigns.isEmpty()) {
               Expr.NumericBinding binding = withMap(flatten);
               for (Pair<String, Expr> assign : assigns) {
                 flatten.put(assign.lhs, assign.rhs.eval(binding).value());
               }
+            }
+            if (pivotRow) {
+              flatten = ImmutableMap.of("rows", rows, "columns", flatten);
             }
             return Arrays.<Row>asList(new MapBasedRow(dateTime, flatten));
           }
@@ -268,7 +438,7 @@ public class FlattenSpec implements Cacheable
     @JsonCreator
     public static Flattener fromString(String name)
     {
-      return name == null ? EXPLODE : valueOf(name.toUpperCase());
+      return name == null ? ARRAY : valueOf(name.toUpperCase());
     }
 
     public abstract PartitionEvaluator toEvaluator(
@@ -314,11 +484,56 @@ public class FlattenSpec implements Cacheable
             throw new RuntimeException("Key column should be list type " + source.substring(0, nameIndex));
           }
           String keyValue = source.substring(nameIndex + 1, source.length() - 1);
-          keyIndex = ((List)keys).indexOf(keyValue);
+          keyIndex = ((List) keys).indexOf(keyValue);
           cache.put(source, keyIndex);
         }
-        return keyIndex < 0 ? null : ((List)values).get(keyIndex);
+        return keyIndex < 0 ? null : ((List) values).get(keyIndex);
       }
     };
+  }
+
+  private static class ObjectArray
+  {
+    private final Object[] array;
+
+    private ObjectArray(Object[] array)
+    {
+      this.array = array;
+    }
+
+    public int length()
+    {
+      return array.length;
+    }
+
+    public String concat(String delimiter, String postfix)
+    {
+      StringBuilder b = new StringBuilder();
+      for (Object element : array) {
+        if (b.length() > 0) {
+          b.append(delimiter);
+        }
+        b.append(element);
+      }
+      return b.append(delimiter).append(postfix).toString();
+    }
+
+    @Override
+    public boolean equals(Object o)
+    {
+      return o instanceof ObjectArray && Arrays.equals(array, ((ObjectArray) o).array);
+    }
+
+    @Override
+    public int hashCode()
+    {
+      return Arrays.hashCode(array);
+    }
+
+    @Override
+    public String toString()
+    {
+      return Arrays.toString(array);
+    }
   }
 }
