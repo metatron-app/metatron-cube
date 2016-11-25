@@ -21,10 +21,13 @@ package io.druid.math.expr;
 
 import com.fasterxml.jackson.databind.util.ISO8601DateFormat;
 import com.google.common.base.Strings;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
+import com.google.common.primitives.Doubles;
 import com.google.common.primitives.Ints;
+import com.google.common.primitives.Longs;
 import com.metamx.common.Pair;
 import io.druid.math.expr.Expr.NumericBinding;
 import io.druid.math.expr.Expr.WindowContext;
@@ -2480,6 +2483,132 @@ public interface BuiltinFunctions extends Function.Library
     public Function get()
     {
       return new RunningPercentile();
+    }
+  }
+
+  class Histogram extends PartitionFunction implements Factory
+  {
+    private int binCount = -1;
+
+    private double from = Double.MAX_VALUE;
+    private double step = Double.MAX_VALUE;
+
+    private long[] longs;
+    private double[] doubles;
+
+    @Override
+    public String name()
+    {
+      return "$histogram";
+    }
+
+    @Override
+    protected void initialize(WindowContext context, Object[] parameters)
+    {
+      super.initialize(context, parameters);
+      if (parameters.length == 0) {
+        throw new IllegalArgumentException(name() + " should have at least one argument (binCount)");
+      }
+      binCount = ((Number)parameters[0]).intValue();
+
+      if (parameters.length > 1) {
+        from = ((Number)parameters[1]).doubleValue();
+      }
+      if (parameters.length > 2) {
+        step = ((Number)parameters[2]).doubleValue();
+      }
+
+      if (fieldType == ExprType.LONG) {
+        longs = new long[context.size()];
+      } else if (fieldType == ExprType.DOUBLE) {
+        doubles = new double[context.size()];
+      } else {
+        throw new IllegalArgumentException("unsupported type " + fieldType);
+      }
+    }
+
+    @Override
+    protected Object invoke(WindowContext context)
+    {
+      Object current = context.get(fieldName);
+      if (fieldType == ExprType.LONG) {
+        longs[context.index()] = ((Number) current).longValue();
+      } else {
+        doubles[context.index()] = ((Number) current).doubleValue();
+      }
+      if (context.index() < context.size() - 1) {
+        return null;
+      }
+      if (fieldType == ExprType.LONG) {
+        Arrays.sort(longs);
+      } else {
+        Arrays.sort(doubles);
+      }
+      if (fieldType == ExprType.LONG) {
+        Arrays.sort(longs);
+
+        long min = longs[0];
+        long max = longs[longs.length - 1];
+
+        double start = from == Double.MAX_VALUE ? min : from;
+        double delta = step == Double.MAX_VALUE ? (max - start) / binCount : step;
+
+        long[] breaks = new long[binCount + 1];
+        int[] counts = new int[binCount];
+        for (int i = 0; i < breaks.length; i++) {
+          breaks[i] = (long)(start + (delta * i));
+        }
+        for (long longVal : longs) {
+          if (longVal < min) {
+            continue;
+          }
+          if (longVal > max) {
+            break;
+          }
+          int index = Arrays.binarySearch(breaks, longVal);
+          if (index < 0) {
+            index = -index - 1;
+          }
+          // inclusive for max
+          counts[index == counts.length  ? index - 1 : index]++;
+        }
+        return ImmutableMap.of("min", min, "max", max, "breaks", Longs.asList(breaks), "counts", Ints.asList(counts));
+      } else {
+        Arrays.sort(doubles);
+
+        double min = doubles[0];
+        double max = doubles[doubles.length - 1];
+
+        double start = from == Double.MAX_VALUE ? min : from;
+        double delta = step == Double.MAX_VALUE ? (max - start) / binCount : step;
+
+        double[] breaks = new double[binCount + 1];
+        int[] counts = new int[binCount];
+        for (int i = 0; i < breaks.length; i++) {
+          breaks[i] = start + (delta * i);
+        }
+        for (double doubleVal : doubles) {
+          if (doubleVal < breaks[0]) {
+            continue;
+          }
+          if (doubleVal > breaks[binCount]) {
+            break;
+          }
+          int index = Arrays.binarySearch(breaks, doubleVal);
+          if (index < 0) {
+            counts[-index - 2]++;
+          } else {
+            counts[index == counts.length ? index - 1 : index]++;
+          }
+        }
+        return ImmutableMap.of("min", min, "max", max, "breaks", Doubles.asList(breaks), "counts", Ints.asList(counts));
+      }
+    }
+
+    @Override
+    public Function get()
+    {
+      return new Histogram();
     }
   }
 

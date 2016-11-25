@@ -93,16 +93,20 @@ public class Evals
 
   static long getConstantLong(Expr arg)
   {
-    if (arg instanceof UnaryMinusExpr) {
-      UnaryMinusExpr minusExpr = (UnaryMinusExpr) arg;
-      if (minusExpr.expr instanceof LongExpr) {
-        return arg.eval(null).longValue();
-      }
+    Object constant = getConstant(arg);
+    if (!(constant instanceof Long)) {
+      throw new RuntimeException(arg + " is not a constant long");
     }
-    if (arg instanceof LongExpr) {
-      return arg.eval(null).longValue();
+    return (Long) constant;
+  }
+
+  static Number getConstantNumber(Expr arg)
+  {
+    Object constant = getConstant(arg);
+    if (!(constant instanceof Number)) {
+      throw new RuntimeException(arg + " is not a constant number");
     }
-    throw new RuntimeException(arg + " is not a constant long");
+    return (Number) constant;
   }
 
   static Object getConstant(Expr arg)

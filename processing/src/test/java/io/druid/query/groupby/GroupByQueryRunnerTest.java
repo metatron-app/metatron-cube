@@ -31,6 +31,8 @@ import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Ordering;
+import com.google.common.primitives.Doubles;
+import com.google.common.primitives.Ints;
 import com.metamx.common.ISE;
 import com.metamx.common.guava.Sequence;
 import com.metamx.common.guava.Sequences;
@@ -5337,6 +5339,94 @@ public class GroupByQueryRunnerTest
         array("Wednesday", 27619.58447265625, null, 32753.337890625, null,
                            27820.83154296875, null, 32753.337890625, null,
                            27619.58447265625, null, 28985.5751953125, 28985.5751953125)
+    );
+
+    results = GroupByQueryRunnerTestHelper.runQuery(factory, mergeRunner, builder.build());
+    GroupByQueryRunnerTestHelper.validate(columnNames, expectedResults, results);
+
+    builder.setLimitSpec(
+        new DefaultLimitSpec(
+            null, null,
+            Arrays.asList(
+                new WindowingSpec( null, dayPlusRows, "index_bin = $histogram(index, 3)")
+            )
+        )
+    );
+
+    columnNames = new String[]{"index", "index_bin"};
+
+    expectedResults = GroupByQueryRunnerTestHelper.createExpectedRows(
+        columnNames,
+        array(30173.691650390625, null),
+        array(27297.8623046875, null),
+        array(13219.574157714844, null),
+        array(30468.77734375, null),
+        array(27619.58447265625, null),
+        array(13557.738830566406, null),
+        array(30940.971923828125, null),
+        array(27820.83154296875, null),
+        array(13493.751281738281, null),
+        array(29305.086059570312, null),
+        array(24791.223876953125, null),
+        array(13585.541015625, null),
+        array(32361.38720703125, null),
+        array(28562.748901367188, null),
+        array(14279.127197265625, null),
+        array(29676.578125, null),
+        array(26968.280639648438, null),
+        array(13199.471435546875, null),
+        array(32753.337890625, null),
+        array(28985.5751953125, null),
+        array(14271.368591308594, ImmutableMap.of(
+                  "min", 13199.471435546875,
+                  "max", 32753.337890625,
+                  "breaks", Doubles.asList(13199.471435546875, 19717.426920572918, 26235.38240559896, 32753.337890625),
+                  "counts", Ints.asList(7, 1, 13))
+        )
+    );
+
+    results = GroupByQueryRunnerTestHelper.runQuery(factory, mergeRunner, builder.build());
+    GroupByQueryRunnerTestHelper.validate(columnNames, expectedResults, results);
+
+    builder.setLimitSpec(
+        new DefaultLimitSpec(
+            null, null,
+            Arrays.asList(
+                new WindowingSpec( null, dayPlusRows, "index_bin = $histogram(index, 8, 26000, 1000)")
+            )
+        )
+    );
+
+    columnNames = new String[]{"index", "index_bin"};
+
+    expectedResults = GroupByQueryRunnerTestHelper.createExpectedRows(
+        columnNames,
+        array(30173.691650390625, null),
+        array(27297.8623046875, null),
+        array(13219.574157714844, null),
+        array(30468.77734375, null),
+        array(27619.58447265625, null),
+        array(13557.738830566406, null),
+        array(30940.971923828125, null),
+        array(27820.83154296875, null),
+        array(13493.751281738281, null),
+        array(29305.086059570312, null),
+        array(24791.223876953125, null),
+        array(13585.541015625, null),
+        array(32361.38720703125, null),
+        array(28562.748901367188, null),
+        array(14279.127197265625, null),
+        array(29676.578125, null),
+        array(26968.280639648438, null),
+        array(13199.471435546875, null),
+        array(32753.337890625, null),
+        array(28985.5751953125, null),
+        array(14271.368591308594, ImmutableMap.of(
+                  "min", 13199.471435546875,
+                  "max", 32753.337890625,
+                  "breaks", Doubles.asList(26000, 27000, 28000, 29000, 30000, 31000, 32000, 33000, 34000),
+                  "counts", Ints.asList(1, 3, 2, 2, 3, 0, 2, 0))
+        )
     );
 
     results = GroupByQueryRunnerTestHelper.runQuery(factory, mergeRunner, builder.build());
