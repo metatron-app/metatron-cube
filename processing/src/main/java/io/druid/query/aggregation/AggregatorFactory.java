@@ -87,9 +87,9 @@ public abstract class AggregatorFactory implements Cacheable
       throws AggregatorFactoryNotMergeableException
   {
     if (other.getName().equals(this.getName()) && this.getClass() == other.getClass()) {
-      throw new AggregatorFactoryNotMergeableException(this, other);
+      return (T)other;
     }
-    return (T)other;
+    throw new AggregatorFactoryNotMergeableException(this, other);
   }
 
   /**
