@@ -347,7 +347,7 @@ public class EvalTest
   public void testRFunc()
   {
     Expr.NumericBinding bindings = Parser.withMap(ImmutableMap.<String, Object>of("a", 30, "b", 3));
-    Assert.assertEquals(33, Parser.parse("r('function(a, b) { a + b }', a, b)").eval(bindings).longValue());
+    Assert.assertEquals(33, Parser.parse("r('func <- function(a, b) { a + b }', 'func', a, b)").eval(bindings).longValue());
   }
 
   @Test

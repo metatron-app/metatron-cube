@@ -283,6 +283,7 @@ public interface BuiltinFunctions extends Function.Library
   class RFunc implements Function, Factory
   {
     private Rengine r;
+    private String function;
     private final StringBuilder query = new StringBuilder();
 
     @Override
@@ -295,21 +296,24 @@ public interface BuiltinFunctions extends Function.Library
     public ExprEval apply(List<Expr> args, NumericBinding bindings)
     {
       if (r == null) {
-        if (args.isEmpty()) {
-          throw new RuntimeException("function '" + name() + "' should have at least one argument");
+        if (args.size() < 2) {
+          throw new RuntimeException("function '" + name() + "' should have at least two argument");
         }
         Rengine re = new Rengine(new String[]{"--vanilla"}, false, null);
         if (!re.waitForR()) {
           throw new RuntimeException("failed to initialize R engine");
         }
-        re.eval("x <- " + Evals.getConstantString(args.get(0)));
+        re.eval(Evals.getConstantString(args.get(0)));
         r = re;
+        if (args.get(1) instanceof StringExpr) {
+          function = Evals.getConstantString(args.get(1));
+        }
       }
       query.setLength(0);
-      query.append("x(");
-      for (int i = 1; i < args.size(); i++) {
+      query.append(function != null ? function : args.get(1).eval(bindings).asString()).append('(');
+      for (int i = 2; i < args.size(); i++) {
         final String symbol = "p" + i;
-        if (i > 1) {
+        if (i > 2) {
           query.append(", ");
         }
         query.append(symbol);
