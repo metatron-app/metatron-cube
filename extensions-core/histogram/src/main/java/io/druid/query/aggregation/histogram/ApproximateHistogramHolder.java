@@ -679,7 +679,7 @@ public abstract class ApproximateHistogramHolder
       mergedBins = new long[this.size];
     }
 
-    assertHolder(this.binCount + h.binCount);
+    assertHolder(Math.min(this.binCount + h.binCount, this.size));
 
     int mergedBinCount;
     if (this.binCount + h.binCount <= this.size) {

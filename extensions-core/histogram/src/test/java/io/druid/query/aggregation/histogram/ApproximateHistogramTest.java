@@ -596,4 +596,36 @@ public class ApproximateHistogramTest
         1e-9f
     );
   }
+
+  @Test
+  public void testFoldFastHistogramToVerifyResoultionIntact()
+  {
+    float[] h1Positions = new float[]{0.0f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f, 8.0f, 9.0f, 10.0f, 11.0f, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+    long[] h1Bins = new long[]{31, 2, 2, 2, 2, 2, 2, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+    ApproximateHistogram h1 = new ApproximateHistogram(50,
+                                                       h1Positions,
+                                                       h1Bins,
+                                                       48,
+                                                       0.0f,
+                                                       11.0f,
+                                                       48,
+                                                       Float.NEGATIVE_INFINITY,
+                                                       Float.POSITIVE_INFINITY);
+    long expectedH1Size = h1.size;
+
+    float[] h2Positions = new float[]{676.309f, 677.722f, 681.059f, 683.489f, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+    long[] h2Bins = new long[]{1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+    ApproximateHistogram h2 = new ApproximateHistogram(50,
+                                                       h2Positions,
+                                                       h2Bins,
+                                                       4,
+                                                       676.309f,
+                                                       683.489f,
+                                                       4,
+                                                       Float.NEGATIVE_INFINITY,
+                                                       Float.POSITIVE_INFINITY);
+
+    h1.foldFast(h2);
+    Assert.assertEquals(expectedH1Size, h1.size);
+  }
 }
