@@ -25,6 +25,8 @@ import com.google.common.collect.Maps;
 import java.io.Closeable;
 import java.io.IOException;
 import java.io.OutputStream;
+import java.util.Arrays;
+import java.util.Collection;
 import java.util.Map;
 
 /**
@@ -40,27 +42,34 @@ public interface Formatter extends Closeable
     private final String separator;
     private final String nullValue;
     private final String[] dimensions;
-
-    private final StringBuilder builder = new StringBuilder();
+    private final boolean header;
 
     private final OutputStream output;
 
+    private final StringBuilder builder = new StringBuilder();
+    private boolean firstLine;
+
     public XSVFormatter(OutputStream output, String separator)
     {
-      this(output, separator, null, null);
+      this(output, separator, null, null, false);
     }
 
-    public XSVFormatter(OutputStream output, String separator, String nullValue, String[] dimensions)
+    public XSVFormatter(OutputStream output, String separator, String nullValue, String[] dimensions, boolean header)
     {
       this.separator = separator == null ? "," : separator;
       this.nullValue = nullValue == null ? "NULL" : nullValue;
       this.dimensions = dimensions;
       this.output = output;
+      this.header = header;
+      firstLine = true;
     }
 
     @Override
     public void write(Map<String, Object> datum) throws IOException
     {
+      if (firstLine && header) {
+        writeHeader(dimensions == null ? datum.keySet() : Arrays.asList(dimensions));
+      }
       builder.setLength(0);
 
       if (dimensions == null) {
@@ -82,7 +91,20 @@ public interface Formatter extends Closeable
       if (builder.length() > 0) {
         builder.append(NEW_LINE);
         output.write(builder.toString().getBytes());
+        firstLine = false;
       }
+    }
+
+    private void writeHeader(Collection<String> dimensions) throws IOException
+    {
+      for (String dimension : dimensions) {
+        if (builder.length() > 0) {
+          builder.append(separator);
+        }
+        builder.append(dimension);
+      }
+      builder.append(NEW_LINE);
+      output.write(builder.toString().getBytes());
     }
 
     @Override

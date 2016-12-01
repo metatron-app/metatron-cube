@@ -219,9 +219,10 @@ public class Formatters
       boolean wrapAsList = parseBoolean(context.get("wrapAsList"), false);
       return new Formatter.JsonFormatter(output.openBufferedStream(), jsonMapper, columns, wrapAsList);
     }
+    boolean header = parseBoolean(context.get("withHeader"), false);
     String nullValue = Objects.toString(context.get("nullValue"), null);
 
-    return new Formatter.XSVFormatter(output.openBufferedStream(), separator, nullValue, columns);
+    return new Formatter.XSVFormatter(output.openBufferedStream(), separator, nullValue, columns, header);
   }
 
   private static boolean isNullOrEmpty(String string)
