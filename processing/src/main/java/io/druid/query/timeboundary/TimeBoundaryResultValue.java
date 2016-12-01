@@ -98,7 +98,7 @@ public class TimeBoundaryResultValue
            '}';
   }
 
-  private DateTime getDateTimeValue(Object val)
+  public static DateTime getDateTimeValue(Object val)
   {
     if (val == null) {
       return null;
@@ -111,12 +111,15 @@ public class TimeBoundaryResultValue
     } else if (val instanceof Map) {
       Map dateTime = (Map)val;
       DateTimeZone timeZone = DateTimeZone.UTC;
-      Long millis = (Long) dateTime.get("m");
+      Number millis = (Number) dateTime.get("m");
+      if (millis == null) {
+        throw new IAE("Cannot get time from dateTime map [%s]", dateTime);
+      }
       String zone = (String) dateTime.get("z");
       if (zone != null) {
         timeZone = DateTimeZone.forID(zone);
       }
-      return new DateTime(millis, timeZone);
+      return new DateTime(millis.longValue(), timeZone);
     } else {
       throw new IAE("Cannot get time from type[%s]", val.getClass());
     }

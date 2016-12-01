@@ -20,6 +20,7 @@
 package io.druid.jackson;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.druid.query.timeboundary.TimeBoundaryResultValue;
 import junit.framework.TestCase;
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
@@ -27,6 +28,7 @@ import org.joda.time.format.ISODateTimeFormat;
 import org.junit.Assert;
 
 import java.io.IOException;
+import java.util.Map;
 
 public class JodaStuffTest extends TestCase
 {
@@ -47,6 +49,7 @@ public class JodaStuffTest extends TestCase
     Assert.assertEquals("{\"m\":10000000,\"z\":\"+09:00\"}", serialized);
     deserialized = client.readValue(serialized, DateTime.class);
     Assert.assertEquals(dateTime, deserialized);
+    Assert.assertEquals(dateTime, TimeBoundaryResultValue.getDateTimeValue(client.readValue(serialized, Map.class)));
   }
 
   public void testUTC() throws IOException
