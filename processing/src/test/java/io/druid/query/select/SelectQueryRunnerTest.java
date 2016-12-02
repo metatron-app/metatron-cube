@@ -207,7 +207,7 @@ public class SelectQueryRunnerTest
   @Test
   public void testFullOnSelectWithDimensionSpec()
   {
-    Map<String, String> map = new HashMap<>();
+    Map<Object, String> map = new HashMap<>();
     map.put("automotive", "automotive0");
     map.put("business", "business0");
     map.put("entertainment", "entertainment0");
@@ -559,7 +559,7 @@ public class SelectQueryRunnerTest
   @Test
   public void testSelectWithFilterLookupExtractionFn () {
 
-    Map<String, String> extractionMap = new HashMap<>();
+    Map<Object, String> extractionMap = new HashMap<>();
     extractionMap.put("total_market","replaced");
     MapLookupExtractor mapLookupExtractor = new MapLookupExtractor(extractionMap, false);
     LookupExtractionFn lookupExtractionFn = new LookupExtractionFn(mapLookupExtractor, false, null, true, true);

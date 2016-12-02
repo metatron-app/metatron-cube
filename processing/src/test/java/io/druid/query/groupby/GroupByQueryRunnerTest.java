@@ -453,7 +453,7 @@ public class GroupByQueryRunnerTest
   @Test
   public void testGroupByWithRebucketRename()
   {
-    Map<String, String> map = new HashMap<>();
+    Map<Object, String> map = new HashMap<>();
     map.put("automotive", "automotive0");
     map.put("business", "business0");
     map.put("entertainment", "entertainment0");
@@ -532,7 +532,7 @@ public class GroupByQueryRunnerTest
   @Test
   public void testGroupByWithSimpleRenameRetainMissingNonInjective()
   {
-    Map<String, String> map = new HashMap<>();
+    Map<Object, String> map = new HashMap<>();
     map.put("automotive", "automotive0");
     map.put("business", "business0");
     map.put("entertainment", "entertainment0");
@@ -611,7 +611,7 @@ public class GroupByQueryRunnerTest
   @Test
   public void testGroupByWithSimpleRenameRetainMissing()
   {
-    Map<String, String> map = new HashMap<>();
+    Map<Object, String> map = new HashMap<>();
     map.put("automotive", "automotive0");
     map.put("business", "business0");
     map.put("entertainment", "entertainment0");
@@ -690,7 +690,7 @@ public class GroupByQueryRunnerTest
   @Test
   public void testGroupByWithSimpleRenameAndMissingString()
   {
-    Map<String, String> map = new HashMap<>();
+    Map<Object, String> map = new HashMap<>();
     map.put("automotive", "automotive0");
     map.put("business", "business0");
     map.put("entertainment", "entertainment0");
@@ -768,7 +768,7 @@ public class GroupByQueryRunnerTest
   @Test
   public void testGroupByWithSimpleRename()
   {
-    Map<String, String> map = new HashMap<>();
+    Map<Object, String> map = new HashMap<>();
     map.put("automotive", "automotive0");
     map.put("business", "business0");
     map.put("entertainment", "entertainment0");
@@ -1077,33 +1077,33 @@ public class GroupByQueryRunnerTest
     DateTimeZone tz = DateTimeZone.forID("America/Los_Angeles");
 
     GroupByQuery query = GroupByQuery.builder()
-                                     .setDataSource(QueryRunnerTestHelper.dataSource)
-                                     .setInterval("2011-03-31T00:00:00-07:00/2011-04-02T00:00:00-07:00")
-                                     .setDimensions(
-                                         Lists.newArrayList(
-                                             (DimensionSpec) new DefaultDimensionSpec(
-                                                 "quality",
-                                                 "alias"
-                                             )
-                                         )
-                                     )
-                                     .setAggregatorSpecs(
-                                         Arrays.asList(
-                                             QueryRunnerTestHelper.rowsCount,
-                                             new LongSumAggregatorFactory(
-                                                 "idx",
-                                                 "index"
-                                             )
-                                         )
-                                     )
-                                     .setGranularity(
-                                         new PeriodGranularity(
-                                             new Period("P1D"),
-                                             null,
-                                             tz
-                                         )
-                                     )
-                                     .build();
+        .setDataSource(QueryRunnerTestHelper.dataSource)
+        .setInterval("2011-03-31T00:00:00-07:00/2011-04-02T00:00:00-07:00")
+        .setDimensions(
+            Lists.newArrayList(
+                (DimensionSpec) new DefaultDimensionSpec(
+                    "quality",
+                    "alias"
+                )
+            )
+        )
+        .setAggregatorSpecs(
+            Arrays.asList(
+                QueryRunnerTestHelper.rowsCount,
+                new LongSumAggregatorFactory(
+                    "idx",
+                    "index"
+                )
+            )
+        )
+        .setGranularity(
+            new PeriodGranularity(
+                new Period("P1D"),
+                null,
+                tz
+            )
+        )
+        .build();
 
     List<Row> expectedResults = Arrays.asList(
         GroupByQueryRunnerTestHelper.createExpectedRow(
@@ -1499,7 +1499,7 @@ public class GroupByQueryRunnerTest
         new DefaultLimitSpec(OrderByColumnSpec.ascending("rows", "idx"), null),
         new DefaultLimitSpec(OrderByColumnSpec.descending("idx"), null),
         new DefaultLimitSpec(OrderByColumnSpec.descending("rows", "idx"), null),
-        };
+    };
 
     final Comparator<Row> idxComparator =
         new Comparator<Row>()
@@ -1662,12 +1662,12 @@ public class GroupByQueryRunnerTest
     );
 
     builder.limit(Integer.MAX_VALUE)
-           .setAggregatorSpecs(
-               Arrays.asList(
-                   QueryRunnerTestHelper.rowsCount,
-                   new DoubleSumAggregatorFactory("idx", null, "index / 2 + indexMin", null)
-               )
-           );
+        .setAggregatorSpecs(
+            Arrays.asList(
+                QueryRunnerTestHelper.rowsCount,
+                new DoubleSumAggregatorFactory("idx", null, "index / 2 + indexMin", null)
+            )
+        );
 
     expectedResults = GroupByQueryRunnerTestHelper.createExpectedRows(
         new String[]{"__time", "alias", "rows", "idx"},
@@ -2171,7 +2171,7 @@ public class GroupByQueryRunnerTest
   @Test
   public void testGroupByWithAlphaNumericDimensionOrder()
   {
-    Map<String, String> map = new HashMap<>();
+    Map<Object, String> map = new HashMap<>();
     map.put("automotive", "health105");
     map.put("business", "health20");
     map.put("entertainment", "travel47");
@@ -3130,7 +3130,7 @@ public class GroupByQueryRunnerTest
                 "alias",
                 new RegexDimExtractionFn("(a).*", true, "a")
             )
-                       )
+            )
         )
         .setAggregatorSpecs(
             Arrays.<AggregatorFactory>asList(
@@ -3274,10 +3274,10 @@ public class GroupByQueryRunnerTest
 
     List<Row> expectedResults = Arrays.asList(
         GroupByQueryRunnerTestHelper.createExpectedRow("2011-04-01", "idx1", 2900.0, "idx2", 2900.0,
-                                                       "idx3", 5800.0, "idx4", 5800.0
+            "idx3", 5800.0, "idx4", 5800.0
         ),
         GroupByQueryRunnerTestHelper.createExpectedRow("2011-04-02", "idx1", 2505.0, "idx2", 2505.0,
-                                                       "idx3", 5010.0, "idx4", 5010.0
+            "idx3", 5010.0, "idx4", 5010.0
         )
     );
 
@@ -4840,10 +4840,10 @@ public class GroupByQueryRunnerTest
                 new WindowingSpec(
                     dayOfWeek, Arrays.asList(marketDsc), Arrays.asList("min_week = $min(index)"),
                     FlattenSpec.array(Arrays.asList("market", "index", "min_week", "min_all"), null)
-                               .withExpression(
-                                   "min_all[upfront]=min_all.market[upfront]",
-                                   "min_week[spot]=min_week.market[spot]"
-                               )
+                        .withExpression(
+                            "min_all[upfront]=min_all.market[upfront]",
+                            "min_week[spot]=min_week.market[spot]"
+                        )
                 )
             )
         )
@@ -4853,47 +4853,47 @@ public class GroupByQueryRunnerTest
     expectedResults = GroupByQueryRunnerTestHelper.createExpectedRows(
         columnNames,
         array("Friday",
-              Arrays.asList("upfront", "total_market", "spot"),
-              Arrays.asList(27297.8623046875, 30173.691650390625, 13219.574157714844),
-              Arrays.asList(27297.8623046875, 27297.8623046875, 13219.574157714844),
-              Arrays.asList(27297.8623046875, 27297.8623046875, 13219.574157714844),
-              27297.8623046875, 13219.574157714844),
+            Arrays.asList("upfront", "total_market", "spot"),
+            Arrays.asList(27297.8623046875, 30173.691650390625, 13219.574157714844),
+            Arrays.asList(27297.8623046875, 27297.8623046875, 13219.574157714844),
+            Arrays.asList(27297.8623046875, 27297.8623046875, 13219.574157714844),
+            27297.8623046875, 13219.574157714844),
         array("Monday",
-              Arrays.asList("upfront", "total_market", "spot"),
-              Arrays.asList(27619.58447265625, 30468.77734375, 13557.738830566406),
-              Arrays.asList(27619.58447265625, 27619.58447265625, 13557.738830566406),
-              Arrays.asList(13219.574157714844, 13219.574157714844, 13219.574157714844),
-              13219.574157714844, 13557.738830566406),
+            Arrays.asList("upfront", "total_market", "spot"),
+            Arrays.asList(27619.58447265625, 30468.77734375, 13557.738830566406),
+            Arrays.asList(27619.58447265625, 27619.58447265625, 13557.738830566406),
+            Arrays.asList(13219.574157714844, 13219.574157714844, 13219.574157714844),
+            13219.574157714844, 13557.738830566406),
         array("Saturday",
-              Arrays.asList("upfront", "total_market", "spot"),
-              Arrays.asList(27820.83154296875, 30940.971923828125, 13493.751281738281),
-              Arrays.asList(27820.83154296875, 27820.83154296875, 13493.751281738281),
-              Arrays.asList(13219.574157714844, 13219.574157714844, 13219.574157714844),
-              13219.574157714844, 13493.751281738281),
+            Arrays.asList("upfront", "total_market", "spot"),
+            Arrays.asList(27820.83154296875, 30940.971923828125, 13493.751281738281),
+            Arrays.asList(27820.83154296875, 27820.83154296875, 13493.751281738281),
+            Arrays.asList(13219.574157714844, 13219.574157714844, 13219.574157714844),
+            13219.574157714844, 13493.751281738281),
         array("Sunday",
-              Arrays.asList("upfront", "total_market", "spot"),
-              Arrays.asList(24791.223876953125, 29305.086059570312, 13585.541015625),
-              Arrays.asList(24791.223876953125, 24791.223876953125, 13585.541015625),
-              Arrays.asList(13219.574157714844, 13219.574157714844, 13219.574157714844),
-              13219.574157714844, 13585.541015625),
+            Arrays.asList("upfront", "total_market", "spot"),
+            Arrays.asList(24791.223876953125, 29305.086059570312, 13585.541015625),
+            Arrays.asList(24791.223876953125, 24791.223876953125, 13585.541015625),
+            Arrays.asList(13219.574157714844, 13219.574157714844, 13219.574157714844),
+            13219.574157714844, 13585.541015625),
         array("Thursday",
-              Arrays.asList("upfront", "total_market", "spot"),
-              Arrays.asList(28562.748901367188, 32361.38720703125, 14279.127197265625),
-              Arrays.asList(28562.748901367188, 28562.748901367188, 14279.127197265625),
-              Arrays.asList(13219.574157714844, 13219.574157714844, 13219.574157714844),
-              13219.574157714844, 14279.127197265625),
+            Arrays.asList("upfront", "total_market", "spot"),
+            Arrays.asList(28562.748901367188, 32361.38720703125, 14279.127197265625),
+            Arrays.asList(28562.748901367188, 28562.748901367188, 14279.127197265625),
+            Arrays.asList(13219.574157714844, 13219.574157714844, 13219.574157714844),
+            13219.574157714844, 14279.127197265625),
         array("Tuesday",
-              Arrays.asList("upfront", "total_market", "spot"),
-              Arrays.asList(26968.280639648438, 29676.578125, 13199.471435546875),
-              Arrays.asList(26968.280639648438, 26968.280639648438, 13199.471435546875),
-              Arrays.asList(13219.574157714844, 13219.574157714844, 13199.471435546875),
-              13219.574157714844, 13199.471435546875),
+            Arrays.asList("upfront", "total_market", "spot"),
+            Arrays.asList(26968.280639648438, 29676.578125, 13199.471435546875),
+            Arrays.asList(26968.280639648438, 26968.280639648438, 13199.471435546875),
+            Arrays.asList(13219.574157714844, 13219.574157714844, 13199.471435546875),
+            13219.574157714844, 13199.471435546875),
         array("Wednesday",
-              Arrays.asList("upfront", "total_market", "spot"),
-              Arrays.asList(28985.5751953125, 32753.337890625, 14271.368591308594),
-              Arrays.asList(28985.5751953125, 28985.5751953125, 14271.368591308594),
-              Arrays.asList(13199.471435546875, 13199.471435546875, 13199.471435546875),
-              13199.471435546875, 14271.368591308594)
+            Arrays.asList("upfront", "total_market", "spot"),
+            Arrays.asList(28985.5751953125, 32753.337890625, 14271.368591308594),
+            Arrays.asList(28985.5751953125, 28985.5751953125, 14271.368591308594),
+            Arrays.asList(13199.471435546875, 13199.471435546875, 13199.471435546875),
+            13199.471435546875, 14271.368591308594)
     );
 
     results = GroupByQueryRunnerTestHelper.runQuery(factory, mergeRunner, builder.build());
@@ -4918,31 +4918,31 @@ public class GroupByQueryRunnerTest
     expectedResults = GroupByQueryRunnerTestHelper.createExpectedRows(
         columnNames,
         array(
-              Arrays.asList("Friday-upfront", "Friday-total_market", "Friday-spot",
-                            "Monday-upfront", "Monday-total_market", "Monday-spot",
-                            "Saturday-upfront", "Saturday-total_market", "Saturday-spot",
-                            "Sunday-upfront", "Sunday-total_market", "Sunday-spot",
-                            "Thursday-upfront", "Thursday-total_market", "Thursday-spot",
-                            "Tuesday-upfront", "Tuesday-total_market", "Tuesday-spot",
-                            "Wednesday-upfront", "Wednesday-total_market", "Wednesday-spot"),
-              ImmutableMap.of(
-                  "index",
-                  Arrays.asList(27297.8623046875, 30173.691650390625, 13219.574157714844,
-                                27619.58447265625, 30468.77734375, 13557.738830566406,
-                                27820.83154296875, 30940.971923828125, 13493.751281738281,
-                                24791.223876953125, 29305.086059570312, 13585.541015625,
-                                28562.748901367188, 32361.38720703125, 14279.127197265625,
-                                26968.280639648438, 29676.578125, 13199.471435546875,
-                                28985.5751953125, 32753.337890625, 14271.368591308594),
-                  "min_all",
-                  Arrays.asList(27297.8623046875, 27297.8623046875, 13219.574157714844,
-                                13219.574157714844, 13219.574157714844, 13219.574157714844,
-                                13219.574157714844, 13219.574157714844, 13219.574157714844,
-                                13219.574157714844, 13219.574157714844, 13219.574157714844,
-                                13219.574157714844, 13219.574157714844, 13219.574157714844,
-                                13219.574157714844, 13219.574157714844, 13199.471435546875,
-                                13199.471435546875, 13199.471435546875, 13199.471435546875)
-              )
+            Arrays.asList("Friday-upfront", "Friday-total_market", "Friday-spot",
+                "Monday-upfront", "Monday-total_market", "Monday-spot",
+                "Saturday-upfront", "Saturday-total_market", "Saturday-spot",
+                "Sunday-upfront", "Sunday-total_market", "Sunday-spot",
+                "Thursday-upfront", "Thursday-total_market", "Thursday-spot",
+                "Tuesday-upfront", "Tuesday-total_market", "Tuesday-spot",
+                "Wednesday-upfront", "Wednesday-total_market", "Wednesday-spot"),
+            ImmutableMap.of(
+                "index",
+                Arrays.asList(27297.8623046875, 30173.691650390625, 13219.574157714844,
+                    27619.58447265625, 30468.77734375, 13557.738830566406,
+                    27820.83154296875, 30940.971923828125, 13493.751281738281,
+                    24791.223876953125, 29305.086059570312, 13585.541015625,
+                    28562.748901367188, 32361.38720703125, 14279.127197265625,
+                    26968.280639648438, 29676.578125, 13199.471435546875,
+                    28985.5751953125, 32753.337890625, 14271.368591308594),
+                "min_all",
+                Arrays.asList(27297.8623046875, 27297.8623046875, 13219.574157714844,
+                    13219.574157714844, 13219.574157714844, 13219.574157714844,
+                    13219.574157714844, 13219.574157714844, 13219.574157714844,
+                    13219.574157714844, 13219.574157714844, 13219.574157714844,
+                    13219.574157714844, 13219.574157714844, 13219.574157714844,
+                    13219.574157714844, 13219.574157714844, 13199.471435546875,
+                    13199.471435546875, 13199.471435546875, 13199.471435546875)
+            )
         )
     );
 
@@ -4973,22 +4973,22 @@ public class GroupByQueryRunnerTest
             ImmutableMap.builder().put(
                 "upfront-index",
                 Arrays.asList(27297.8623046875, 27619.58447265625, 27820.83154296875, 24791.223876953125,
-                              28562.748901367188, 26968.280639648438, 28985.5751953125)).put(
+                    28562.748901367188, 26968.280639648438, 28985.5751953125)).put(
                 "upfront-min_all",
                 Arrays.asList(27297.8623046875, 13219.574157714844, 13219.574157714844, 13219.574157714844,
-                              13219.574157714844, 13219.574157714844, 13199.471435546875)).put(
+                    13219.574157714844, 13219.574157714844, 13199.471435546875)).put(
                 "spot-index",
                 Arrays.asList(13219.574157714844, 13557.738830566406, 13493.751281738281, 13585.541015625,
-                              14279.127197265625, 13199.471435546875, 14271.368591308594)).put(
+                    14279.127197265625, 13199.471435546875, 14271.368591308594)).put(
                 "spot-min_all",
                 Arrays.asList(13219.574157714844, 13219.574157714844, 13219.574157714844, 13219.574157714844,
-                              13219.574157714844, 13199.471435546875, 13199.471435546875)).put(
+                    13219.574157714844, 13199.471435546875, 13199.471435546875)).put(
                 "total_market-index",
                 Arrays.asList(30173.691650390625, 30468.77734375, 30940.971923828125,
-                              29305.086059570312, 32361.38720703125, 29676.578125, 32753.337890625)).put(
+                    29305.086059570312, 32361.38720703125, 29676.578125, 32753.337890625)).put(
                 "total_market-min_all",
                 Arrays.asList(27297.8623046875, 13219.574157714844, 13219.574157714844, 13219.574157714844,
-                              13219.574157714844, 13219.574157714844, 13199.471435546875)).build())
+                    13219.574157714844, 13219.574157714844, 13199.471435546875)).build())
     );
 
     results = GroupByQueryRunnerTestHelper.runQuery(factory, mergeRunner, builder.build());
@@ -5405,40 +5405,40 @@ public class GroupByQueryRunnerTest
     expectedResults = GroupByQueryRunnerTestHelper.createExpectedRows(
         columnNames,
         array("Friday",
-              Arrays.asList(30173.691650390625, 30173.691650390625, 27297.8623046875),
-              Arrays.asList(27619.58447265625, 27619.58447265625, null),
-              Arrays.asList(30173.691650390625, 30173.691650390625, 27297.8623046875),
-              Arrays.asList(null, null, 27297.8623046875)),
+            Arrays.asList(30173.691650390625, 30173.691650390625, 27297.8623046875),
+            Arrays.asList(27619.58447265625, 27619.58447265625, null),
+            Arrays.asList(30173.691650390625, 30173.691650390625, 27297.8623046875),
+            Arrays.asList(null, null, 27297.8623046875)),
         array("Monday",
-              Arrays.asList(30173.691650390625, 27619.58447265625, 27619.58447265625),
-              Arrays.asList(null, null, null),
-              Arrays.asList(30468.77734375, 30468.77734375, 27619.58447265625),
-              Arrays.asList(null, null, 27619.58447265625)),
+            Arrays.asList(30173.691650390625, 27619.58447265625, 27619.58447265625),
+            Arrays.asList(null, null, null),
+            Arrays.asList(30468.77734375, 30468.77734375, 27619.58447265625),
+            Arrays.asList(null, null, 27619.58447265625)),
         array("Saturday",
-              Arrays.asList(27619.58447265625, 27820.83154296875, 27619.58447265625),
-              Arrays.asList(null, null, null),
-              Arrays.asList(30940.971923828125, 30940.971923828125, 27820.83154296875),
-              Arrays.asList(null, null, 27820.83154296875)),
+            Arrays.asList(27619.58447265625, 27820.83154296875, 27619.58447265625),
+            Arrays.asList(null, null, null),
+            Arrays.asList(30940.971923828125, 30940.971923828125, 27820.83154296875),
+            Arrays.asList(null, null, 27820.83154296875)),
         array("Sunday",
-              Arrays.asList(27820.83154296875, 27619.58447265625, 27619.58447265625),
-              Arrays.asList(null, null, null),
-              Arrays.asList(29305.086059570312, 29305.086059570312, 24791.223876953125),
-              Arrays.asList(null, null, 24791.223876953125)),
+            Arrays.asList(27820.83154296875, 27619.58447265625, 27619.58447265625),
+            Arrays.asList(null, null, null),
+            Arrays.asList(29305.086059570312, 29305.086059570312, 24791.223876953125),
+            Arrays.asList(null, null, 24791.223876953125)),
         array("Thursday",
-              Arrays.asList(27619.58447265625, 27820.83154296875, 27619.58447265625),
-              Arrays.asList(null, null, null),
-              Arrays.asList(32361.38720703125, 32361.38720703125, 28562.748901367188),
-              Arrays.asList(null, null, 28562.748901367188)),
+            Arrays.asList(27619.58447265625, 27820.83154296875, 27619.58447265625),
+            Arrays.asList(null, null, null),
+            Arrays.asList(32361.38720703125, 32361.38720703125, 28562.748901367188),
+            Arrays.asList(null, null, 28562.748901367188)),
         array("Tuesday",
-              Arrays.asList(27820.83154296875, 27619.58447265625, 27619.58447265625),
-              Arrays.asList(null, null, null),
-              Arrays.asList(29676.578125, 29676.578125, 26968.280639648438),
-              Arrays.asList(null, null, 26968.280639648438)),
+            Arrays.asList(27820.83154296875, 27619.58447265625, 27619.58447265625),
+            Arrays.asList(null, null, null),
+            Arrays.asList(29676.578125, 29676.578125, 26968.280639648438),
+            Arrays.asList(null, null, 26968.280639648438)),
         array("Wednesday",
-              Arrays.asList(27619.58447265625, 27820.83154296875, 27619.58447265625),
-              Arrays.asList(null, null, null),
-              Arrays.asList(32753.337890625, 32753.337890625, 28985.5751953125),
-              Arrays.asList(null, null, 28985.5751953125))
+            Arrays.asList(27619.58447265625, 27820.83154296875, 27619.58447265625),
+            Arrays.asList(null, null, null),
+            Arrays.asList(32753.337890625, 32753.337890625, 28985.5751953125),
+            Arrays.asList(null, null, 28985.5751953125))
     );
 
     results = GroupByQueryRunnerTestHelper.runQuery(factory, mergeRunner, builder.build());
@@ -5462,33 +5462,33 @@ public class GroupByQueryRunnerTest
     );
 
     columnNames = new String[]{"dayOfWeek",
-                               "0.p5_all", "0.p5_all_first_two", "0.p5_week", "0.p5_week_last",
-                               "1.p5_all", "1.p5_all_first_two", "1.p5_week", "1.p5_week_last",
-                               "2.p5_all", "2.p5_all_first_two", "2.p5_week", "2.p5_week_last"};
+        "0.p5_all", "0.p5_all_first_two", "0.p5_week", "0.p5_week_last",
+        "1.p5_all", "1.p5_all_first_two", "1.p5_week", "1.p5_week_last",
+        "2.p5_all", "2.p5_all_first_two", "2.p5_week", "2.p5_week_last"};
 
     expectedResults = GroupByQueryRunnerTestHelper.createExpectedRows(
         columnNames,
         array("Friday", 30173.691650390625, 27619.58447265625, 30173.691650390625, null,
-                        30173.691650390625, 27619.58447265625, 30173.691650390625, null,
-                        27297.8623046875, null, 27297.8623046875, 27297.8623046875),
+            30173.691650390625, 27619.58447265625, 30173.691650390625, null,
+            27297.8623046875, null, 27297.8623046875, 27297.8623046875),
         array("Monday", 30173.691650390625, null, 30468.77734375, null,
-                        27619.58447265625, null, 30468.77734375, null,
-                        27619.58447265625, null, 27619.58447265625, 27619.58447265625),
+            27619.58447265625, null, 30468.77734375, null,
+            27619.58447265625, null, 27619.58447265625, 27619.58447265625),
         array("Saturday", 27619.58447265625, null, 30940.971923828125, null,
-                          27820.83154296875, null, 30940.971923828125, null,
-                          27619.58447265625, null, 27820.83154296875, 27820.83154296875),
+            27820.83154296875, null, 30940.971923828125, null,
+            27619.58447265625, null, 27820.83154296875, 27820.83154296875),
         array("Sunday", 27820.83154296875, null, 29305.086059570312, null,
-                        27619.58447265625, null, 29305.086059570312, null,
-                        27619.58447265625, null, 24791.223876953125, 24791.223876953125),
+            27619.58447265625, null, 29305.086059570312, null,
+            27619.58447265625, null, 24791.223876953125, 24791.223876953125),
         array("Thursday", 27619.58447265625, null, 32361.38720703125, null,
-                          27820.83154296875, null, 32361.38720703125, null,
-                          27619.58447265625, null, 28562.748901367188, 28562.748901367188),
+            27820.83154296875, null, 32361.38720703125, null,
+            27619.58447265625, null, 28562.748901367188, 28562.748901367188),
         array("Tuesday", 27820.83154296875, null, 29676.578125, null,
-                         27619.58447265625, null, 29676.578125, null,
-                         27619.58447265625, null, 26968.280639648438, 26968.280639648438),
+            27619.58447265625, null, 29676.578125, null,
+            27619.58447265625, null, 26968.280639648438, 26968.280639648438),
         array("Wednesday", 27619.58447265625, null, 32753.337890625, null,
-                           27820.83154296875, null, 32753.337890625, null,
-                           27619.58447265625, null, 28985.5751953125, 28985.5751953125)
+            27820.83154296875, null, 32753.337890625, null,
+            27619.58447265625, null, 28985.5751953125, 28985.5751953125)
     );
 
     results = GroupByQueryRunnerTestHelper.runQuery(factory, mergeRunner, builder.build());
@@ -5528,10 +5528,10 @@ public class GroupByQueryRunnerTest
         array(32753.337890625, null),
         array(28985.5751953125, null),
         array(14271.368591308594, ImmutableMap.of(
-                  "min", 13199.471435546875,
-                  "max", 32753.337890625,
-                  "breaks", Doubles.asList(13199.471435546875, 19717.426920572918, 26235.38240559896, 32753.337890625),
-                  "counts", Ints.asList(7, 1, 13))
+            "min", 13199.471435546875,
+            "max", 32753.337890625,
+            "breaks", Doubles.asList(13199.471435546875, 19717.426920572918, 26235.38240559896, 32753.337890625),
+            "counts", Ints.asList(7, 1, 13))
         )
     );
 
@@ -5572,10 +5572,10 @@ public class GroupByQueryRunnerTest
         array(32753.337890625, null),
         array(28985.5751953125, null),
         array(14271.368591308594, ImmutableMap.of(
-                  "min", 13199.471435546875,
-                  "max", 32753.337890625,
-                  "breaks", Doubles.asList(26000, 27000, 28000, 29000, 30000, 31000, 32000, 33000, 34000),
-                  "counts", Ints.asList(1, 3, 2, 2, 3, 0, 2, 0))
+            "min", 13199.471435546875,
+            "max", 32753.337890625,
+            "breaks", Doubles.asList(26000, 27000, 28000, 29000, 30000, 31000, 32000, 33000, 34000),
+            "counts", Ints.asList(1, 3, 2, 2, 3, 0, 2, 0))
         )
     );
 
@@ -5738,7 +5738,7 @@ public class GroupByQueryRunnerTest
                     "alias",
                     new LookupExtractionFn(
                         new MapLookupExtractor(
-                            ImmutableMap.of(
+                            ImmutableMap.<Object, String>of(
                                 "mezzanine",
                                 "mezzanine0"
                             ),
@@ -5813,7 +5813,7 @@ public class GroupByQueryRunnerTest
                     "alias",
                     new LookupExtractionFn(
                         new MapLookupExtractor(
-                            ImmutableMap.of(
+                            ImmutableMap.<Object, String>of(
                                 "mezzanine",
                                 "mezzanine0"
                             ),
@@ -5858,7 +5858,7 @@ public class GroupByQueryRunnerTest
   @Test
   public void testGroupByWithExtractionDimFilter()
   {
-    Map<String, String> extractionMap = new HashMap<>();
+    Map<Object, String> extractionMap = new HashMap<>();
     extractionMap.put("automotive", "automotiveAndBusinessAndNewsAndMezzanine");
     extractionMap.put("business", "automotiveAndBusinessAndNewsAndMezzanine");
     extractionMap.put("mezzanine", "automotiveAndBusinessAndNewsAndMezzanine");
@@ -5877,24 +5877,24 @@ public class GroupByQueryRunnerTest
     );
 
     GroupByQuery query = GroupByQuery.builder().setDataSource(QueryRunnerTestHelper.dataSource)
-                                     .setQuerySegmentSpec(QueryRunnerTestHelper.firstToThird)
-                                     .setDimensions(
-                                         Lists.<DimensionSpec>newArrayList(
-                                             new DefaultDimensionSpec(
-                                                 "quality",
-                                                 "alias"
-                                             )
-                                         )
-                                     )
-                                     .setAggregatorSpecs(
-                                         Arrays.asList(
-                                             QueryRunnerTestHelper.rowsCount,
-                                             new LongSumAggregatorFactory("idx", "index")
-                                         )
-                                     )
-                                     .setGranularity(QueryRunnerTestHelper.dayGran)
-                                     .setDimFilter(Druids.newOrDimFilterBuilder().fields(dimFilters).build())
-                                     .build();
+        .setQuerySegmentSpec(QueryRunnerTestHelper.firstToThird)
+        .setDimensions(
+            Lists.<DimensionSpec>newArrayList(
+                new DefaultDimensionSpec(
+                    "quality",
+                    "alias"
+                )
+            )
+        )
+        .setAggregatorSpecs(
+            Arrays.asList(
+                QueryRunnerTestHelper.rowsCount,
+                new LongSumAggregatorFactory("idx", "index")
+            )
+        )
+        .setGranularity(QueryRunnerTestHelper.dayGran)
+        .setDimFilter(Druids.newOrDimFilterBuilder().fields(dimFilters).build())
+        .build();
     List<Row> expectedResults = Arrays.asList(
         GroupByQueryRunnerTestHelper.createExpectedRow("2011-04-01", "alias", "automotive", "rows", 1L, "idx", 135L),
         GroupByQueryRunnerTestHelper.createExpectedRow("2011-04-01", "alias", "business", "rows", 1L, "idx", 118L),
@@ -5925,7 +5925,7 @@ public class GroupByQueryRunnerTest
   @Test
   public void testGroupByWithExtractionDimFilterCaseMappingValueIsNullOrEmpty()
   {
-    Map<String, String> extractionMap = new HashMap<>();
+    Map<Object, String> extractionMap = new HashMap<>();
     extractionMap.put("automotive", "automotive0");
     extractionMap.put("business", "business0");
     extractionMap.put("entertainment", "entertainment0");
@@ -5939,24 +5939,24 @@ public class GroupByQueryRunnerTest
     MapLookupExtractor mapLookupExtractor = new MapLookupExtractor(extractionMap, false);
     LookupExtractionFn lookupExtractionFn = new LookupExtractionFn(mapLookupExtractor, false, null, true, false);
     GroupByQuery query = GroupByQuery.builder().setDataSource(QueryRunnerTestHelper.dataSource)
-                                     .setQuerySegmentSpec(QueryRunnerTestHelper.firstToThird)
-                                     .setDimensions(
-                                         Lists.<DimensionSpec>newArrayList(
-                                             new DefaultDimensionSpec(
-                                                 "quality",
-                                                 "alias"
-                                             )
-                                         )
-                                     )
-                                     .setAggregatorSpecs(
-                                         Arrays.asList(
-                                             QueryRunnerTestHelper.rowsCount,
-                                             new LongSumAggregatorFactory("idx", "index")
-                                         )
-                                     )
-                                     .setGranularity(QueryRunnerTestHelper.dayGran)
-                                     .setDimFilter(new ExtractionDimFilter("quality", "", lookupExtractionFn, null))
-                                     .build();
+        .setQuerySegmentSpec(QueryRunnerTestHelper.firstToThird)
+        .setDimensions(
+            Lists.<DimensionSpec>newArrayList(
+                new DefaultDimensionSpec(
+                    "quality",
+                    "alias"
+                )
+            )
+        )
+        .setAggregatorSpecs(
+            Arrays.asList(
+                QueryRunnerTestHelper.rowsCount,
+                new LongSumAggregatorFactory("idx", "index")
+            )
+        )
+        .setGranularity(QueryRunnerTestHelper.dayGran)
+        .setDimFilter(new ExtractionDimFilter("quality", "", lookupExtractionFn, null))
+        .build();
     List<Row> expectedResults = Arrays.asList(
         GroupByQueryRunnerTestHelper.createExpectedRow("2011-04-01", "alias", "mezzanine", "rows", 3L, "idx", 2870L),
         GroupByQueryRunnerTestHelper.createExpectedRow("2011-04-01", "alias", "news", "rows", 1L, "idx", 121L),
@@ -5971,35 +5971,35 @@ public class GroupByQueryRunnerTest
   @Test
   public void testGroupByWithExtractionDimFilterWhenSearchValueNotInTheMap()
   {
-    Map<String, String> extractionMap = new HashMap<>();
+    Map<Object, String> extractionMap = new HashMap<>();
     MapLookupExtractor mapLookupExtractor = new MapLookupExtractor(extractionMap, false);
     LookupExtractionFn lookupExtractionFn = new LookupExtractionFn(mapLookupExtractor, false, null, true, false);
 
     GroupByQuery query = GroupByQuery.builder().setDataSource(QueryRunnerTestHelper.dataSource)
-                                     .setQuerySegmentSpec(QueryRunnerTestHelper.firstToThird)
-                                     .setDimensions(
-                                         Lists.<DimensionSpec>newArrayList(
-                                             new DefaultDimensionSpec(
-                                                 "quality",
-                                                 "alias"
-                                             )
-                                         )
-                                     )
-                                     .setAggregatorSpecs(
-                                         Arrays.asList(
-                                             QueryRunnerTestHelper.rowsCount,
-                                             new LongSumAggregatorFactory("idx", "index")
-                                         )
-                                     )
-                                     .setGranularity(QueryRunnerTestHelper.dayGran)
-                                     .setDimFilter(
-                                         new ExtractionDimFilter(
-                                             "quality",
-                                             "NOT_THERE",
-                                             lookupExtractionFn,
-                                             null
-                                         )
-                                     ).build();
+        .setQuerySegmentSpec(QueryRunnerTestHelper.firstToThird)
+        .setDimensions(
+            Lists.<DimensionSpec>newArrayList(
+                new DefaultDimensionSpec(
+                    "quality",
+                    "alias"
+                )
+            )
+        )
+        .setAggregatorSpecs(
+            Arrays.asList(
+                QueryRunnerTestHelper.rowsCount,
+                new LongSumAggregatorFactory("idx", "index")
+            )
+        )
+        .setGranularity(QueryRunnerTestHelper.dayGran)
+        .setDimFilter(
+            new ExtractionDimFilter(
+                "quality",
+                "NOT_THERE",
+                lookupExtractionFn,
+                null
+            )
+        ).build();
     List<Row> expectedResults = Arrays.asList();
 
     Iterable<Row> results = GroupByQueryRunnerTestHelper.runQuery(factory, runner, query);
@@ -6010,37 +6010,37 @@ public class GroupByQueryRunnerTest
   @Test
   public void testGroupByWithExtractionDimFilterKeyisNull()
   {
-    Map<String, String> extractionMap = new HashMap<>();
+    Map<Object, String> extractionMap = new HashMap<>();
     extractionMap.put("", "NULLorEMPTY");
 
     MapLookupExtractor mapLookupExtractor = new MapLookupExtractor(extractionMap, false);
     LookupExtractionFn lookupExtractionFn = new LookupExtractionFn(mapLookupExtractor, false, null, true, false);
 
     GroupByQuery query = GroupByQuery.builder().setDataSource(QueryRunnerTestHelper.dataSource)
-                                     .setQuerySegmentSpec(QueryRunnerTestHelper.firstToThird)
-                                     .setDimensions(
-                                         Lists.<DimensionSpec>newArrayList(
-                                             new DefaultDimensionSpec(
-                                                 "null_column",
-                                                 "alias"
-                                             )
-                                         )
-                                     )
-                                     .setAggregatorSpecs(
-                                         Arrays.asList(
-                                             QueryRunnerTestHelper.rowsCount,
-                                             new LongSumAggregatorFactory("idx", "index")
-                                         )
-                                     )
-                                     .setGranularity(QueryRunnerTestHelper.dayGran)
-                                     .setDimFilter(
-                                         new ExtractionDimFilter(
-                                             "null_column",
-                                             "NULLorEMPTY",
-                                             lookupExtractionFn,
-                                             null
-                                         )
-                                     ).build();
+        .setQuerySegmentSpec(QueryRunnerTestHelper.firstToThird)
+        .setDimensions(
+            Lists.<DimensionSpec>newArrayList(
+                new DefaultDimensionSpec(
+                    "null_column",
+                    "alias"
+                )
+            )
+        )
+        .setAggregatorSpecs(
+            Arrays.asList(
+                QueryRunnerTestHelper.rowsCount,
+                new LongSumAggregatorFactory("idx", "index")
+            )
+        )
+        .setGranularity(QueryRunnerTestHelper.dayGran)
+        .setDimFilter(
+            new ExtractionDimFilter(
+                "null_column",
+                "NULLorEMPTY",
+                lookupExtractionFn,
+                null
+            )
+        ).build();
     List<Row> expectedResults = Arrays
         .asList(
             GroupByQueryRunnerTestHelper.createExpectedRow("2011-04-01", "alias", null, "rows", 13L, "idx", 6619L),
@@ -6054,7 +6054,7 @@ public class GroupByQueryRunnerTest
   @Test
   public void testGroupByWithAggregatorFilterAndExtractionFunction()
   {
-    Map<String, String> extractionMap = new HashMap<>();
+    Map<Object, String> extractionMap = new HashMap<>();
     extractionMap.put("automotive", "automotive0");
     extractionMap.put("business", "business0");
     extractionMap.put("entertainment", "entertainment0");
@@ -6069,28 +6069,28 @@ public class GroupByQueryRunnerTest
     LookupExtractionFn lookupExtractionFn = new LookupExtractionFn(mapLookupExtractor, false, "missing", true, false);
     DimFilter filter = new ExtractionDimFilter("quality", "mezzanineANDnews", lookupExtractionFn, null);
     GroupByQuery query = GroupByQuery.builder().setDataSource(QueryRunnerTestHelper.dataSource)
-                                     .setQuerySegmentSpec(QueryRunnerTestHelper.firstToThird)
-                                     .setDimensions(
-                                         Lists.<DimensionSpec>newArrayList(
-                                             new DefaultDimensionSpec(
-                                                 "quality",
-                                                 "alias"
-                                             )
-                                         )
-                                     )
-                                     .setAggregatorSpecs(
-                                         Arrays.asList(
-                                             new FilteredAggregatorFactory(QueryRunnerTestHelper.rowsCount, filter),
-                                             (AggregatorFactory) new FilteredAggregatorFactory(
-                                                 new LongSumAggregatorFactory(
-                                                     "idx",
-                                                     "index"
-                                                 ), filter
-                                             )
-                                         )
-                                     )
-                                     .setGranularity(QueryRunnerTestHelper.dayGran)
-                                     .build();
+        .setQuerySegmentSpec(QueryRunnerTestHelper.firstToThird)
+        .setDimensions(
+            Lists.<DimensionSpec>newArrayList(
+                new DefaultDimensionSpec(
+                    "quality",
+                    "alias"
+                )
+            )
+        )
+        .setAggregatorSpecs(
+            Arrays.asList(
+                new FilteredAggregatorFactory(QueryRunnerTestHelper.rowsCount, filter),
+                (AggregatorFactory) new FilteredAggregatorFactory(
+                    new LongSumAggregatorFactory(
+                        "idx",
+                        "index"
+                    ), filter
+                )
+            )
+        )
+        .setGranularity(QueryRunnerTestHelper.dayGran)
+        .build();
     List<Row> expectedResults = Arrays.asList(
         GroupByQueryRunnerTestHelper.createExpectedRow("2011-04-01", "alias", "automotive", "rows", 0L, "idx", 0L),
         GroupByQueryRunnerTestHelper.createExpectedRow("2011-04-01", "alias", "business", "rows", 0L, "idx", 0L),
@@ -6121,31 +6121,31 @@ public class GroupByQueryRunnerTest
   @Test
   public void testGroupByWithExtractionDimFilterOptimazitionManyToOne()
   {
-    Map<String, String> extractionMap = new HashMap<>();
+    Map<Object, String> extractionMap = new HashMap<>();
     extractionMap.put("mezzanine", "newsANDmezzanine");
     extractionMap.put("news", "newsANDmezzanine");
 
     MapLookupExtractor mapLookupExtractor = new MapLookupExtractor(extractionMap, false);
     LookupExtractionFn lookupExtractionFn = new LookupExtractionFn(mapLookupExtractor, false, null, true, true);
     GroupByQuery query = GroupByQuery.builder().setDataSource(QueryRunnerTestHelper.dataSource)
-                                     .setQuerySegmentSpec(QueryRunnerTestHelper.firstToThird)
-                                     .setDimensions(Lists.<DimensionSpec>newArrayList(new DefaultDimensionSpec(
-                                         "quality",
-                                         "alias"
-                                     )))
-                                     .setAggregatorSpecs(
-                                         Arrays.asList(
-                                             QueryRunnerTestHelper.rowsCount,
-                                             new LongSumAggregatorFactory("idx", "index")
-                                         ))
-                                     .setGranularity(QueryRunnerTestHelper.dayGran)
-                                     .setDimFilter(new ExtractionDimFilter(
-                                         "quality",
-                                         "newsANDmezzanine",
-                                         lookupExtractionFn,
-                                         null
-                                     ))
-                                     .build();
+        .setQuerySegmentSpec(QueryRunnerTestHelper.firstToThird)
+        .setDimensions(Lists.<DimensionSpec>newArrayList(new DefaultDimensionSpec(
+            "quality",
+            "alias"
+        )))
+        .setAggregatorSpecs(
+            Arrays.asList(
+                QueryRunnerTestHelper.rowsCount,
+                new LongSumAggregatorFactory("idx", "index")
+            ))
+        .setGranularity(QueryRunnerTestHelper.dayGran)
+        .setDimFilter(new ExtractionDimFilter(
+            "quality",
+            "newsANDmezzanine",
+            lookupExtractionFn,
+            null
+        ))
+        .build();
     List<Row> expectedResults = Arrays.asList(
         GroupByQueryRunnerTestHelper.createExpectedRow("2011-04-01", "alias", "mezzanine", "rows", 3L, "idx", 2870L),
         GroupByQueryRunnerTestHelper.createExpectedRow("2011-04-01", "alias", "news", "rows", 1L, "idx", 121L),
@@ -6161,30 +6161,30 @@ public class GroupByQueryRunnerTest
   @Test
   public void testGroupByWithExtractionDimFilterNullDims()
   {
-    Map<String, String> extractionMap = new HashMap<>();
+    Map<Object, String> extractionMap = new HashMap<>();
     extractionMap.put("", "EMPTY");
 
     MapLookupExtractor mapLookupExtractor = new MapLookupExtractor(extractionMap, false);
     LookupExtractionFn lookupExtractionFn = new LookupExtractionFn(mapLookupExtractor, false, null, true, true);
 
     GroupByQuery query = GroupByQuery.builder().setDataSource(QueryRunnerTestHelper.dataSource)
-                                     .setQuerySegmentSpec(QueryRunnerTestHelper.firstToThird)
-                                     .setDimensions(Lists.<DimensionSpec>newArrayList(new DefaultDimensionSpec(
-                                         "null_column",
-                                         "alias"
-                                     )))
-                                     .setAggregatorSpecs(
-                                         Arrays.asList(
-                                             QueryRunnerTestHelper.rowsCount,
-                                             new LongSumAggregatorFactory("idx", "index")
-                                         ))
-                                     .setGranularity(QueryRunnerTestHelper.dayGran)
-                                     .setDimFilter(new ExtractionDimFilter(
-                                         "null_column",
-                                         "EMPTY",
-                                         lookupExtractionFn,
-                                         null
-                                     )).build();
+        .setQuerySegmentSpec(QueryRunnerTestHelper.firstToThird)
+        .setDimensions(Lists.<DimensionSpec>newArrayList(new DefaultDimensionSpec(
+            "null_column",
+            "alias"
+        )))
+        .setAggregatorSpecs(
+            Arrays.asList(
+                QueryRunnerTestHelper.rowsCount,
+                new LongSumAggregatorFactory("idx", "index")
+            ))
+        .setGranularity(QueryRunnerTestHelper.dayGran)
+        .setDimFilter(new ExtractionDimFilter(
+            "null_column",
+            "EMPTY",
+            lookupExtractionFn,
+            null
+        )).build();
     List<Row> expectedResults = Arrays
         .asList(
             GroupByQueryRunnerTestHelper.createExpectedRow("2011-04-01", "alias", null, "rows", 13L, "idx", 6619L),
@@ -6285,7 +6285,7 @@ public class GroupByQueryRunnerTest
   @Test
   public void testGroupByWithAllFiltersOnNullDimsWithExtractionFns()
   {
-    Map<String, String> extractionMap = new HashMap<>();
+    Map<Object, String> extractionMap = new HashMap<>();
     extractionMap.put("", "EMPTY");
     extractionMap.put(null, "EMPTY");
 
@@ -6307,18 +6307,18 @@ public class GroupByQueryRunnerTest
     DimFilter superFilter = new AndDimFilter(superFilterList);
 
     GroupByQuery query = GroupByQuery.builder().setDataSource(QueryRunnerTestHelper.dataSource)
-                                     .setQuerySegmentSpec(QueryRunnerTestHelper.firstToThird)
-                                     .setDimensions(Lists.<DimensionSpec>newArrayList(new DefaultDimensionSpec(
-                                         "null_column",
-                                         "alias"
-                                     )))
-                                     .setAggregatorSpecs(
-                                         Arrays.asList(
-                                             QueryRunnerTestHelper.rowsCount,
-                                             new LongSumAggregatorFactory("idx", "index")
-                                         ))
-                                     .setGranularity(QueryRunnerTestHelper.dayGran)
-                                     .setDimFilter(superFilter).build();
+        .setQuerySegmentSpec(QueryRunnerTestHelper.firstToThird)
+        .setDimensions(Lists.<DimensionSpec>newArrayList(new DefaultDimensionSpec(
+            "null_column",
+            "alias"
+        )))
+        .setAggregatorSpecs(
+            Arrays.asList(
+                QueryRunnerTestHelper.rowsCount,
+                new LongSumAggregatorFactory("idx", "index")
+            ))
+        .setGranularity(QueryRunnerTestHelper.dayGran)
+        .setDimFilter(superFilter).build();
 
     List<Row> expectedResults = Arrays
         .asList(

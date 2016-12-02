@@ -29,6 +29,7 @@ import io.druid.common.config.JacksonConfigManager;
 import io.druid.server.coordinator.helper.DruidCoordinatorSegmentMerger;
 import io.druid.timeline.DataSegment;
 import io.druid.timeline.partition.LinearShardSpec;
+import org.apache.commons.lang.StringUtils;
 import org.easymock.EasyMock;
 import org.joda.time.Interval;
 import org.junit.Assert;
@@ -462,7 +463,7 @@ public class DruidCoordinatorSegmentMergerTest
       public Pair<String, String> mergeSegments(List<DataSegment> segmentsToMerge)
       {
         retVal.add(segmentsToMerge);
-        return null;
+        return new Pair<>(segmentsToMerge.get(0).toString(), "xxx");
       }
     };
 

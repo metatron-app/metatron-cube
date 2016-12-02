@@ -253,7 +253,7 @@ public class LookupReferencesManagerTest
   @Test
   public void testBootstrapFromFile() throws IOException
   {
-    LookupExtractorFactory lookupExtractorFactory = new MapLookupExtractorFactory(ImmutableMap.<String, String>of("key", "value"), true);
+    LookupExtractorFactory lookupExtractorFactory = new MapLookupExtractorFactory(ImmutableMap.<Object, String>of("key", "value"), true);
     lookupReferencesManager.put("testMockForBootstrap",lookupExtractorFactory);
     lookupReferencesManager.stop();
     lookupReferencesManager.start();

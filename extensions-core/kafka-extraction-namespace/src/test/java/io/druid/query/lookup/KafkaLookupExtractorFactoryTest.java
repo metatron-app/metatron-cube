@@ -105,7 +105,7 @@ public class KafkaLookupExtractorFactoryTest
         TOPIC,
         DEFAULT_PROPERTIES
     );
-    factory.getMapRef().set(ImmutableMap.<String, String>of());
+    factory.getMapRef().set(ImmutableMap.<Object, String>of());
     final AtomicLong events = factory.getDoubleEventCount();
 
     final LookupExtractor extractor = factory.get();
@@ -132,7 +132,7 @@ public class KafkaLookupExtractorFactoryTest
         TOPIC,
         DEFAULT_PROPERTIES
     );
-    factory.getMapRef().set(ImmutableMap.<String, String>of());
+    factory.getMapRef().set(ImmutableMap.<Object, String>of());
     final AtomicLong events = factory.getDoubleEventCount();
 
     final List<byte[]> byteArrays = new ArrayList<>(n);
@@ -158,7 +158,7 @@ public class KafkaLookupExtractorFactoryTest
         TOPIC,
         DEFAULT_PROPERTIES
     );
-    factory.getMapRef().set(ImmutableMap.<String, String>of());
+    factory.getMapRef().set(ImmutableMap.<Object, String>of());
 
     final LookupExtractor extractor = factory.get();
 
@@ -176,13 +176,13 @@ public class KafkaLookupExtractorFactoryTest
         TOPIC,
         DEFAULT_PROPERTIES
     );
-    factory1.getMapRef().set(ImmutableMap.<String, String>of());
+    factory1.getMapRef().set(ImmutableMap.<Object, String>of());
     final KafkaLookupExtractorFactory factory2 = new KafkaLookupExtractorFactory(
         cacheManager,
         TOPIC + "b",
         DEFAULT_PROPERTIES
     );
-    factory2.getMapRef().set(ImmutableMap.<String, String>of());
+    factory2.getMapRef().set(ImmutableMap.<Object, String>of());
 
     Assert.assertFalse(Arrays.equals(factory1.get().getCacheKey(), factory2.get().getCacheKey()));
   }
@@ -195,7 +195,7 @@ public class KafkaLookupExtractorFactoryTest
         TOPIC,
         DEFAULT_PROPERTIES
     );
-    Assert.assertTrue(factory.replaces(new MapLookupExtractorFactory(ImmutableMap.<String, String>of(), false)));
+    Assert.assertTrue(factory.replaces(new MapLookupExtractorFactory(ImmutableMap.<Object, String>of(), false)));
     Assert.assertFalse(factory.replaces(factory));
     Assert.assertFalse(factory.replaces(new KafkaLookupExtractorFactory(
         cacheManager,
@@ -265,7 +265,7 @@ public class KafkaLookupExtractorFactoryTest
     EasyMock.expect(kafkaStream.iterator()).andReturn(consumerIterator).anyTimes();
     EasyMock.expect(consumerIterator.hasNext()).andReturn(false).anyTimes();
     EasyMock.expect(cacheManager.getCacheMap(EasyMock.anyString()))
-            .andReturn(new ConcurrentHashMap<String, String>())
+            .andReturn(new ConcurrentHashMap<Object, String>())
             .once();
     EasyMock.expect(cacheManager.delete(EasyMock.anyString())).andReturn(true).once();
     consumerConnector.shutdown();
@@ -296,7 +296,7 @@ public class KafkaLookupExtractorFactoryTest
   public void testStartFailsFromTimeout() throws Exception
   {
     EasyMock.expect(cacheManager.getCacheMap(EasyMock.anyString()))
-            .andReturn(new ConcurrentHashMap<String, String>())
+            .andReturn(new ConcurrentHashMap<Object, String>())
             .once();
     EasyMock.expect(cacheManager.delete(EasyMock.anyString())).andReturn(true).once();
     EasyMock.replay(cacheManager);
@@ -343,7 +343,7 @@ public class KafkaLookupExtractorFactoryTest
     EasyMock.expect(kafkaStream.iterator()).andReturn(consumerIterator).anyTimes();
     EasyMock.expect(consumerIterator.hasNext()).andReturn(false).anyTimes();
     EasyMock.expect(cacheManager.getCacheMap(EasyMock.anyString()))
-            .andReturn(new ConcurrentHashMap<String, String>())
+            .andReturn(new ConcurrentHashMap<Object, String>())
             .once();
     EasyMock.expect(cacheManager.delete(EasyMock.anyString())).andReturn(false).once();
 
@@ -382,7 +382,7 @@ public class KafkaLookupExtractorFactoryTest
     EasyMock.expect(kafkaStream.iterator()).andReturn(consumerIterator).anyTimes();
     EasyMock.expect(consumerIterator.hasNext()).andReturn(false).anyTimes();
     EasyMock.expect(cacheManager.getCacheMap(EasyMock.anyString()))
-            .andReturn(new ConcurrentHashMap<String, String>())
+            .andReturn(new ConcurrentHashMap<Object, String>())
             .once();
     EasyMock.expect(cacheManager.delete(EasyMock.anyString())).andReturn(true).once();
     consumerConnector.shutdown();
@@ -422,7 +422,7 @@ public class KafkaLookupExtractorFactoryTest
     EasyMock.expect(kafkaStream.iterator()).andReturn(consumerIterator).anyTimes();
     EasyMock.expect(consumerIterator.hasNext()).andReturn(false).anyTimes();
     EasyMock.expect(cacheManager.getCacheMap(EasyMock.anyString()))
-            .andReturn(new ConcurrentHashMap<String, String>())
+            .andReturn(new ConcurrentHashMap<Object, String>())
             .once();
     EasyMock.expect(cacheManager.delete(EasyMock.anyString())).andReturn(true).once();
     consumerConnector.shutdown();

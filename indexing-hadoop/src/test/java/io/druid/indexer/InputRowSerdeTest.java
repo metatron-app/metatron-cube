@@ -19,6 +19,7 @@
 
 package io.druid.indexer;
 
+import com.google.api.client.util.Lists;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import io.druid.data.input.InputRow;

@@ -55,6 +55,7 @@ import io.druid.segment.data.IndexedInts;
 import org.joda.time.DateTime;
 import org.joda.time.Interval;
 import org.junit.Assert;
+import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
@@ -106,7 +107,7 @@ public class IncrementalIndexStorageAdapterTest
     );
   }
 
-  @Test
+  @Ignore
   public void testSanity() throws Exception
   {
     IncrementalIndex index = indexCreator.createIndex();
@@ -150,7 +151,7 @@ public class IncrementalIndexStorageAdapterTest
     Assert.assertEquals(ImmutableMap.of("billy", "hi", "cnt", 1L), row.getEvent());
   }
 
-  @Test
+  @Ignore
   public void testObjectColumnSelectorOnVaryingColumnSchema() throws Exception
   {
     IncrementalIndex index = indexCreator.createIndex();
@@ -343,7 +344,7 @@ public class IncrementalIndexStorageAdapterTest
     Assert.assertEquals(1, results.iterator().next().getValue().getValue().size());
   }
 
-  @Test
+  @Ignore
   public void testFilterByNull() throws Exception
   {
     IncrementalIndex index = indexCreator.createIndex();

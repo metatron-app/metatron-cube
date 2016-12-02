@@ -98,6 +98,12 @@ public class ExpressionExtractionFn implements ExtractionFn
   }
 
   @Override
+  public int arity()
+  {
+    return 1;
+  }
+
+  @Override
   public byte[] getCacheKey()
   {
     byte[] expressionBytes = StringUtils.toUtf8(expression);

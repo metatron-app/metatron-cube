@@ -156,7 +156,7 @@ public class OffHeapNamespaceExtractionCacheManager extends NamespaceExtractionC
   }
 
   @Override
-  public ConcurrentMap<String, String> getCacheMap(String namespaceOrCacheKey)
+  public ConcurrentMap<Object, String> getCacheMap(String namespaceOrCacheKey)
   {
     final Lock lock = nsLocks.get(namespaceOrCacheKey);
     lock.lock();

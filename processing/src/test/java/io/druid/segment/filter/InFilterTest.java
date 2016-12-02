@@ -256,7 +256,7 @@ public class InFilterTest extends BaseFilterTest
 
   @Test
   public void testMatchWithLookupExtractionFn() {
-    final Map<String, String> stringMap = ImmutableMap.of(
+    final Map<Object, String> stringMap = ImmutableMap.<Object, String>of(
         "a", "HELLO",
         "10", "HELLO",
         "def", "HELLO",
@@ -275,7 +275,7 @@ public class InFilterTest extends BaseFilterTest
     assertFilterMatches(toInFilterWithFn("dim2", lookupFn, "HELLO", "BYE", "UNKNOWN"),
             ImmutableList.of("a", "b", "c", "d", "e", "f"));
 
-    final Map<String, String> stringMap2 = ImmutableMap.of(
+    final Map<Object, String> stringMap2 = ImmutableMap.<Object, String>of(
             "a", "e"
     );
     LookupExtractor mapExtractor2 = new MapLookupExtractor(stringMap2, false);
@@ -284,7 +284,7 @@ public class InFilterTest extends BaseFilterTest
     assertFilterMatches(toInFilterWithFn("dim0", lookupFn2, null, "e"), ImmutableList.of("a", "e"));
     assertFilterMatches(toInFilterWithFn("dim0", lookupFn2, "a"), ImmutableList.<String>of());
 
-    final Map<String, String> stringMap3 = ImmutableMap.of(
+    final Map<Object, String> stringMap3 = ImmutableMap.<Object, String>of(
             "c", "500",
             "100", "e"
     );

@@ -57,7 +57,7 @@ public class JodaStuffTest extends TestCase
     DefaultObjectMapper mapper = new DefaultObjectMapper();
     DateTime dateTime = new DateTime(10000000, DateTimeZone.forID("+00"));
     String serialized = mapper.writeValueAsString(dateTime);
-    Assert.assertEquals("{\"m\":10000000}", serialized);
+    Assert.assertEquals("\"1970-01-01T02:46:40.000Z\"", serialized);
     DateTime deserialized = mapper.readValue(serialized, DateTime.class);
     Assert.assertEquals(dateTime, deserialized);
 

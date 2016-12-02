@@ -600,7 +600,7 @@ public class RealtimeIndexTaskTest
     expectedException.expectCause(CoreMatchers.<Throwable>instanceOf(ParseException.class));
     expectedException.expectCause(
         ThrowableMessageMatcher.hasMessage(
-            CoreMatchers.containsString("Encountered parse error for aggregator[met1]")
+            CoreMatchers.containsString("Encountered parse error for aggregator")
         )
     );
     expectedException.expect(

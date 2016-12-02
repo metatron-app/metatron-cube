@@ -75,6 +75,7 @@ public class LookupModule implements DruidModule
   {
     return ImmutableList.<Module>of(
         new SimpleModule("DruidLookupModule").registerSubtypes(MapLookupExtractorFactory.class)
+        .registerSubtypes(MultiKeyMapLookupExtractorFactory.class)
     );
   }
 
