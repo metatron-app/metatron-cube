@@ -4793,6 +4793,7 @@ public class GroupByQueryRunnerTest
     results = GroupByQueryRunnerTestHelper.runQuery(factory, mergeRunner, builder.build());
     GroupByQueryRunnerTestHelper.validate(columnNames, expectedResults, results);
 
+    // unstack, {d, m} + {}
     builder.setLimitSpec(
         new DefaultLimitSpec(
             null, null,
@@ -4842,6 +4843,7 @@ public class GroupByQueryRunnerTest
     results = GroupByQueryRunnerTestHelper.runQuery(factory, mergeRunner, builder.build());
     GroupByQueryRunnerTestHelper.validate(columnNames, expectedResults, results);
 
+    // unstack, {d} + {m}
     builder.setLimitSpec(
         new DefaultLimitSpec(
             null, null,
@@ -4849,7 +4851,7 @@ public class GroupByQueryRunnerTest
                 new WindowingSpec(
                     null, dayPlusMarket, Arrays.asList("min_all = $min(index)"),
                     FlattenSpec.array(
-                        Arrays.asList("dayOfWeek", "market"), Arrays.asList("market"),
+                        Arrays.asList("dayOfWeek"), Arrays.asList("market"),
                         Arrays.asList("index", "min_all"),
                         "-"
                     )
@@ -4881,6 +4883,48 @@ public class GroupByQueryRunnerTest
                 "total_market-min_all",
                 Arrays.asList(27297.8623046875, 13219.574157714844, 13219.574157714844, 13219.574157714844,
                               13219.574157714844, 13219.574157714844, 13199.471435546875)).build())
+    );
+
+    results = GroupByQueryRunnerTestHelper.runQuery(factory, mergeRunner, builder.build());
+    GroupByQueryRunnerTestHelper.validate(columnNames, expectedResults, results);
+
+    // unstack, {m} + {d}
+    builder.setLimitSpec(
+        new DefaultLimitSpec(
+            null, null,
+            Arrays.asList(
+                new WindowingSpec(
+                    null, dayPlusMarket, Arrays.asList("min_all = $min(index)"),
+                    FlattenSpec.array(
+                        Arrays.asList("market"), Arrays.asList("dayOfWeek"),
+                        Arrays.asList("index", "min_all"),
+                        "-"
+                    )
+                )
+            )
+        )
+    );
+
+    columnNames = new String[] {"rows", "columns"};
+    expectedResults = GroupByQueryRunnerTestHelper.createExpectedRows(columnNames,
+        array(
+            Arrays.asList("upfront", "total_market", "spot"),
+            ImmutableMap.builder().put(
+                "Friday-index", list(27297.8623046875, 30173.691650390625, 13219.574157714844)).put(
+                "Friday-min_all", list(27297.8623046875, 27297.8623046875, 13219.574157714844)).put(
+                "Wednesday-index", list(28985.5751953125, 32753.337890625, 14271.368591308594)).put(
+                "Wednesday-min_all", list(13199.471435546875, 13199.471435546875, 13199.471435546875)).put(
+                "Thursday-index", list(28562.748901367188, 32361.38720703125, 14279.127197265625)).put(
+                "Thursday-min_all", list(13219.574157714844, 13219.574157714844, 13219.574157714844)).put(
+                "Sunday-index", list(24791.223876953125, 29305.086059570312, 13585.541015625)).put(
+                "Sunday-min_all", list(13219.574157714844, 13219.574157714844, 13219.574157714844)).put(
+                "Monday-index", list(27619.58447265625, 30468.77734375, 13557.738830566406)).put(
+                "Monday-min_all", list(13219.574157714844, 13219.574157714844, 13219.574157714844)).put(
+                "Tuesday-index", list(26968.280639648438, 29676.578125, 13199.471435546875)).put(
+                "Tuesday-min_all", list(13219.574157714844, 13219.574157714844, 13199.471435546875)).put(
+                "Saturday-index", list(27820.83154296875, 30940.971923828125, 13493.751281738281)).put(
+                "Saturday-min_all", list(13219.574157714844, 13219.574157714844, 13219.574157714844)).build()
+        )
     );
 
     results = GroupByQueryRunnerTestHelper.runQuery(factory, mergeRunner, builder.build());
@@ -5305,7 +5349,7 @@ public class GroupByQueryRunnerTest
                 new WindowingSpec(
                     dayOfWeek, Arrays.asList(rowsAsc),
                     Arrays.asList("p5_week = $percentile(index, 0.5)", "$assign(p5_week_last, -1) = $last(p5_week)"),
-                    FlattenSpec.explode(Arrays.asList(columnNames), ".")
+                    FlattenSpec.expand(Arrays.asList(columnNames), ".")
                 )
             )
         )
@@ -5433,9 +5477,14 @@ public class GroupByQueryRunnerTest
     GroupByQueryRunnerTestHelper.validate(columnNames, expectedResults, results);
   }
 
-  private Object[] array(Object... objects)
+  private <T> T[] array(T... objects)
   {
     return objects;
+  }
+
+  private <T> List<T> list(T... objects)
+  {
+    return Arrays.asList(objects);
   }
 
   public void printJson(Object object)

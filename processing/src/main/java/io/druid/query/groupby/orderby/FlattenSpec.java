@@ -28,7 +28,6 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
-import com.google.common.primitives.Ints;
 import com.metamx.common.Pair;
 import io.druid.common.utils.StringUtils;
 import io.druid.data.input.MapBasedRow;
@@ -67,19 +66,19 @@ public class FlattenSpec implements Cacheable
     return new FlattenSpec(Flattener.ARRAY, columns, pivotColumns, prefixColumns, separator, null);
   }
 
-  public static FlattenSpec explode(List<String> columns, String separator)
+  public static FlattenSpec expand(List<String> columns, String separator)
   {
-    return new FlattenSpec(Flattener.EXPLODE, columns, null, null, separator, null);
+    return new FlattenSpec(Flattener.EXPAND, columns, null, null, separator, null);
   }
 
-  public static FlattenSpec explode(
+  public static FlattenSpec expand(
       List<String> pivotColumns,
       List<String> prefixColumns,
       List<String> columns,
       String separator
   )
   {
-    return new FlattenSpec(Flattener.EXPLODE, columns, pivotColumns, prefixColumns, separator, null);
+    return new FlattenSpec(Flattener.EXPAND, columns, pivotColumns, prefixColumns, separator, null);
   }
 
   private final Flattener type;
@@ -236,20 +235,16 @@ public class FlattenSpec implements Cacheable
     return type.toEvaluator(partitionColumns, sortingColumns, this);
   }
 
-  private int[] toIndex(List<String> partitionColumns)
+  private String[] getColumnsExcept(List<String> partitionColumns)
   {
-    List<Integer> evaluateTable = Lists.newArrayListWithCapacity(columns.size());
-    for (int i = 0; i < columns.size(); i++) {
-      if (partitionColumns.indexOf(columns.get(i)) < 0) {
-        evaluateTable.add(i);
-      }
-    }
-    return Ints.toArray(evaluateTable);
+    List<String> excluded = Lists.newArrayList(columns);
+    excluded.removeAll(partitionColumns);
+    return excluded.toArray(new String[excluded.size()]);
   }
 
   public static enum Flattener
   {
-    EXPLODE {
+    EXPAND {
       @Override
       public PartitionEvaluator toEvaluator(
           final List<String> partitionColumns,
@@ -257,7 +252,7 @@ public class FlattenSpec implements Cacheable
           final FlattenSpec spec
       )
       {
-        final int[] index = spec.toIndex(partitionColumns);
+        final String[] columns = spec.getColumnsExcept(partitionColumns);
         final boolean prefixed = spec.prefixColumns != null && !spec.prefixColumns.isEmpty();
         return new PartitionEvaluator()
         {
@@ -281,8 +276,7 @@ public class FlattenSpec implements Cacheable
               } else {
                 prefix = i + spec.separator;
               }
-              for (int ci : index) {
-                final String column = spec.columns.get(ci);
+              for (String column : columns) {
                 flatten.put(prefix + column, row.getRaw(column));
               }
               if (dateTime == null) {
@@ -302,7 +296,7 @@ public class FlattenSpec implements Cacheable
           final FlattenSpec spec
       )
       {
-        final int[] index = spec.toIndex(partitionColumns);
+        final String[] columns = spec.getColumnsExcept(partitionColumns);
         final List<Pair<String, Expr>> assigns = Lists.newArrayList();
         for (String expression : spec.expressions) {
           assigns.add(Evals.splitAssign(expression));
@@ -337,13 +331,13 @@ public class FlattenSpec implements Cacheable
                 }
                 List[] array = prefixed.get(key);
                 if (array == null) {
-                  prefixed.put(key, array = new List[index.length]);
-                  for (int i = 0; i < index.length; i++) {
+                  prefixed.put(key, array = new List[columns.length]);
+                  for (int i = 0; i < columns.length; i++) {
                     array[i] = Lists.newArrayListWithCapacity(partition.size());
                   }
                 }
-                for (int i = 0; i < index.length; i++) {
-                  array[i].add(row.getRaw(spec.columns.get(index[i])));
+                for (int i = 0; i < columns.length; i++) {
+                  array[i].add(row.getRaw(columns[i]));
                 }
                 for (String pivotColumn : pivotColumns) {
                   if (b.length() > 0) {
@@ -364,8 +358,8 @@ public class FlattenSpec implements Cacheable
               for (Map.Entry<ObjectArray, List[]> entry : prefixed.entrySet()) {
                 ObjectArray prefix = entry.getKey();
                 List[] array = entry.getValue();
-                for (int i = 0; i < index.length; i++) {
-                  flatten.put(prefix.concat(spec.separator, spec.columns.get(index[i])), array[i]);
+                for (int i = 0; i < columns.length; i++) {
+                  flatten.put(prefix.concat(spec.separator, columns[i]), array[i]);
                 }
               }
               if (!assigns.isEmpty()) {
@@ -385,15 +379,15 @@ public class FlattenSpec implements Cacheable
           @SuppressWarnings("unchecked")
           public List<Row> evaluate(Object[] partitionKey, List<Row> partition)
           {
-            final List[] array = new List[index.length];
-            for (int i = 0; i < index.length; i++) {
+            final List[] array = new List[columns.length];
+            for (int i = 0; i < columns.length; i++) {
               array[i] = Lists.newArrayListWithCapacity(partition.size());
             }
             final List rows = pivotRow ? Lists.newArrayListWithCapacity(partition.size()) : null;
             final DateTime dateTime = partition.get(0).getTimestamp();
             for (Row row : partition) {
-              for (int i = 0; i < index.length; i++) {
-                array[i].add(row.getRaw(spec.columns.get(index[i])));
+              for (int i = 0; i < columns.length; i++) {
+                array[i].add(row.getRaw(columns[i]));
               }
               if (pivotRow) {
                 for (String pivotColumn : pivotColumns) {
@@ -410,8 +404,8 @@ public class FlattenSpec implements Cacheable
             for (int i = 0; i < partitionKey.length; i++) {
               flatten.put(partitionColumns.get(i), partitionKey[i]);
             }
-            for (int i = 0; i < index.length; i++) {
-              flatten.put(spec.columns.get(index[i]), array[i]);
+            for (int i = 0; i < columns.length; i++) {
+              flatten.put(columns[i], array[i]);
             }
             if (!assigns.isEmpty()) {
               Expr.NumericBinding binding = withMap(flatten);
