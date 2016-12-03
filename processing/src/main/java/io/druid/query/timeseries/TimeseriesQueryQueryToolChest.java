@@ -21,6 +21,7 @@ package io.druid.query.timeseries;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.google.common.base.Function;
+import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Ordering;
@@ -32,6 +33,7 @@ import com.metamx.emitter.service.ServiceMetricEvent;
 import io.druid.granularity.QueryGranularity;
 import io.druid.query.CacheStrategy;
 import io.druid.query.DruidMetrics;
+import io.druid.query.LateralViewSpec;
 import io.druid.query.IntervalChunkingQueryRunnerDecorator;
 import io.druid.query.Query;
 import io.druid.query.QueryCacheHelper;
@@ -141,6 +143,7 @@ public class TimeseriesQueryQueryToolChest extends QueryToolChest<Result<Timeser
         final byte descending = query.isDescending() ? (byte) 1 : 0;
         final byte skipEmptyBuckets = query.isSkipEmptyBuckets() ? (byte) 1 : 0;
         final byte[] outputColumnsBytes = QueryCacheHelper.computeCacheBytes(query.getOutputColumns());
+        final byte[] explodeSpecBytes = QueryCacheHelper.computeCacheBytes(query.getLateralView());
 
         return ByteBuffer
             .allocate(
@@ -149,6 +152,7 @@ public class TimeseriesQueryQueryToolChest extends QueryToolChest<Result<Timeser
                 + filterBytes.length
                 + aggregatorBytes.length
                 + outputColumnsBytes.length
+                + explodeSpecBytes.length
             )
             .put(TIMESERIES_QUERY)
             .put(descending)
@@ -157,6 +161,7 @@ public class TimeseriesQueryQueryToolChest extends QueryToolChest<Result<Timeser
             .put(filterBytes)
             .put(aggregatorBytes)
             .put(outputColumnsBytes)
+            .put(explodeSpecBytes)
             .array();
       }
 
@@ -271,7 +276,7 @@ public class TimeseriesQueryQueryToolChest extends QueryToolChest<Result<Timeser
       public Result<TimeseriesResultValue> apply(Result<TimeseriesResultValue> result)
       {
         final TimeseriesResultValue holder = result.getValue();
-        final Map<String, Object> values = Maps.newHashMap(holder.getBaseObject());
+        final Map<String, Object> values = Maps.newLinkedHashMap(holder.getBaseObject());
         if (calculatePostAggs) {
           // put non finalized aggregators for calculating dependent post Aggregators
           for (AggregatorFactory agg : query.getAggregatorSpecs()) {
@@ -304,10 +309,11 @@ public class TimeseriesQueryQueryToolChest extends QueryToolChest<Result<Timeser
       )
       {
         final List<String> outputColumns = ((TimeseriesQuery)query).getOutputColumns();
-        final Sequence<Result<TimeseriesResultValue>> input = runner.run(query, responseContext);
+        final LateralViewSpec lateralViewSpec = ((TimeseriesQuery)query).getLateralView();
+        final Sequence<Result<TimeseriesResultValue>> result;
         if (outputColumns != null) {
-          return Sequences.map(
-              input, new Function<Result<TimeseriesResultValue>, Result<TimeseriesResultValue>>()
+          result = Sequences.map(
+              runner.run(query, responseContext), new Function<Result<TimeseriesResultValue>, Result<TimeseriesResultValue>>()
               {
                 @Override
                 public Result<TimeseriesResultValue> apply(Result<TimeseriesResultValue> input)
@@ -319,14 +325,48 @@ public class TimeseriesQueryQueryToolChest extends QueryToolChest<Result<Timeser
                   for (String retain : outputColumns) {
                     retained.put(retain, original.get(retain));
                   }
-                  return new Result(timestamp, new TimeseriesResultValue(retained));
+                  return new Result<>(timestamp, new TimeseriesResultValue(retained));
                 }
               }
           );
         } else {
-          return input;
+          result = runner.run(query, responseContext);
         }
+        return lateralViewSpec != null ? toLateralView(result, lateralViewSpec) : result;
       }
     };
+  }
+
+  Sequence<Result<TimeseriesResultValue>> toLateralView(
+      Sequence<Result<TimeseriesResultValue>> result, final LateralViewSpec lateralViewSpec
+  )
+  {
+    return Sequences.concat(
+        Sequences.map(
+            result, new Function<Result<TimeseriesResultValue>, Sequence<Result<TimeseriesResultValue>>>()
+            {
+              @Override
+              @SuppressWarnings("unchecked")
+              public Sequence<Result<TimeseriesResultValue>> apply(Result<TimeseriesResultValue> input)
+              {
+                final DateTime timestamp = input.getTimestamp();
+                final Map<String, Object> event = input.getValue().getBaseObject();
+                return Sequences.simple(
+                    Iterables.transform(
+                        lateralViewSpec.apply(event),
+                        new Function<Map<String, Object>, Result<TimeseriesResultValue>>()
+                        {
+                          @Override
+                          public Result<TimeseriesResultValue> apply(Map<String, Object> input)
+                          {
+                            return new Result(timestamp, new TimeseriesResultValue(input));
+                          }
+                        }
+                    )
+                );
+              }
+            }
+        )
+    );
   }
 }

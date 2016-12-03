@@ -335,6 +335,7 @@ public class Druids
     private List<AggregatorFactory> aggregatorSpecs;
     private List<PostAggregator> postAggregatorSpecs;
     private List<String> outputColumns;
+    private LateralViewSpec lateralViewSpec;
     private Map<String, Object> context;
 
     private boolean descending;
@@ -361,6 +362,7 @@ public class Druids
           aggregatorSpecs,
           postAggregatorSpecs,
           outputColumns,
+          lateralViewSpec,
           context
       );
     }
@@ -376,6 +378,7 @@ public class Druids
           .aggregators(query.getAggregatorSpecs())
           .postAggregators(query.getPostAggregatorSpecs())
           .outputColumns(query.getOutputColumns())
+          .explodeSpec(query.getLateralView())
           .context(query.getContext());
     }
 
@@ -389,6 +392,8 @@ public class Druids
           .granularity(builder.granularity)
           .aggregators(builder.aggregatorSpecs)
           .postAggregators(builder.postAggregatorSpecs)
+          .outputColumns(builder.outputColumns)
+          .explodeSpec(builder.lateralViewSpec)
           .context(builder.context);
     }
 
@@ -513,6 +518,12 @@ public class Druids
     public TimeseriesQueryBuilder outputColumns(List<String> o)
     {
       outputColumns = o;
+      return this;
+    }
+
+    public TimeseriesQueryBuilder explodeSpec(LateralViewSpec e)
+    {
+      lateralViewSpec = e;
       return this;
     }
 
@@ -1094,6 +1105,7 @@ public class Druids
     private List<VirtualColumn> virtualColumns;
     private PagingSpec pagingSpec;
     private String concatString;
+    private LateralViewSpec lateralViewSpec;
     private List<String> outputColumns;
 
     public SelectQueryBuilder()
@@ -1122,7 +1134,7 @@ public class Druids
           virtualColumns,
           pagingSpec,
           concatString,
-          outputColumns,
+          outputColumns, lateralViewSpec,
           context
       );
     }
@@ -1139,6 +1151,7 @@ public class Druids
           .metrics(builder.metrics)
           .virtualColumns(builder.virtualColumns)
           .pagingSpec(builder.pagingSpec)
+          .explodeSpec(builder.lateralViewSpec)
           .outputColumns(builder.outputColumns)
           .context(builder.context);
     }
@@ -1248,6 +1261,12 @@ public class Druids
     public SelectQueryBuilder concatString(String c)
     {
       concatString = c;
+      return this;
+    }
+
+    public SelectQueryBuilder explodeSpec(LateralViewSpec e)
+    {
+      lateralViewSpec = e;
       return this;
     }
 

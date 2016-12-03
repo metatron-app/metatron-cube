@@ -41,6 +41,7 @@ import io.druid.granularity.QueryGranularity;
 import io.druid.query.CacheStrategy;
 import io.druid.query.DruidMetrics;
 import io.druid.query.IntervalChunkingQueryRunnerDecorator;
+import io.druid.query.LateralViewSpec;
 import io.druid.query.Query;
 import io.druid.query.QueryCacheHelper;
 import io.druid.query.QueryRunner;
@@ -218,6 +219,7 @@ public class SelectQueryQueryToolChest extends QueryToolChest<Result<SelectResul
           ++index;
         }
         final byte[] outputColumnsBytes = QueryCacheHelper.computeCacheBytes(query.getOutputColumns());
+        final byte[] explodeSpecBytes = QueryCacheHelper.computeCacheBytes(query.getLateralView());
 
         final ByteBuffer queryCacheKey = ByteBuffer
             .allocate(
@@ -229,12 +231,14 @@ public class SelectQueryQueryToolChest extends QueryToolChest<Result<SelectResul
                 + metricBytesSize
                 + virtualColumnsBytesSize
                 + outputColumnsBytes.length
+                + explodeSpecBytes.length
             )
             .put(SELECT_QUERY)
             .put(granularityBytes)
             .put(filterBytes)
             .put(query.getPagingSpec().getCacheKey())
-            .put(outputColumnsBytes);
+            .put(outputColumnsBytes)
+            .put(explodeSpecBytes);
 
         for (byte[] dimensionsByte : dimensionsBytes) {
           queryCacheKey.put(dimensionsByte);
@@ -546,19 +550,22 @@ public class SelectQueryQueryToolChest extends QueryToolChest<Result<SelectResul
           Query<Result<SelectResultValue>> query, Map<String, Object> responseContext
       )
       {
-        final List<String> outputColumns = ((SelectQuery)query).getOutputColumns();
-        final Sequence<Result<SelectResultValue>> result = runner.run(query, responseContext);
+        final Sequence<Result<SelectResultValue>> result;
+        final List<String> outputColumns = ((SelectQuery) query).getOutputColumns();
+        final LateralViewSpec lateralViewSpec = ((SelectQuery) query).getLateralView();
         if (outputColumns != null) {
-          return Sequences.map(
-              result, new Function<Result<SelectResultValue>, Result<SelectResultValue>>()
+          result = Sequences.map(
+              runner.run(query, responseContext),
+              new Function<Result<SelectResultValue>, Result<SelectResultValue>>()
               {
                 @Override
                 public Result<SelectResultValue> apply(Result<SelectResultValue> input)
                 {
-                  DateTime timestamp = input.getTimestamp();
-                  SelectResultValue value = input.getValue();
-                  List<EventHolder> processed = Lists.newArrayListWithExpectedSize(value.getEvents().size());
-                  for (EventHolder holder : value.getEvents()) {
+                  final DateTime timestamp = input.getTimestamp();
+                  final SelectResultValue value = input.getValue();
+                  final List<EventHolder> events = value.getEvents();
+                  final List<EventHolder> processed = Lists.newArrayListWithExpectedSize(events.size());
+                  for (EventHolder holder : events) {
                     Map<String, Object> original = holder.getEvent();
                     Map<String, Object> retained = Maps.newHashMapWithExpectedSize(outputColumns.size());
                     for (String retain : outputColumns) {
@@ -566,14 +573,62 @@ public class SelectQueryQueryToolChest extends QueryToolChest<Result<SelectResul
                     }
                     processed.add(new EventHolder(holder.getSegmentId(), holder.getOffset(), retained));
                   }
-                  return new Result(timestamp, new SelectResultValue(value.getPagingIdentifiers(), processed));
+                  return new Result<>(timestamp, new SelectResultValue(value.getPagingIdentifiers(), processed));
                 }
               }
           );
         } else {
-          return result;
+          result = runner.run(query, responseContext);
         }
+        return lateralViewSpec != null ? toLateralView(result, lateralViewSpec) : result;
       }
     };
+  }
+
+  Sequence<Result<SelectResultValue>> toLateralView(
+      Sequence<Result<SelectResultValue>> result, final LateralViewSpec lateralViewSpec
+  )
+  {
+    return Sequences.map(
+        result, new Function<Result<SelectResultValue>, Result<SelectResultValue>>()
+        {
+          @Override
+          @SuppressWarnings("unchecked")
+          public Result<SelectResultValue> apply(Result<SelectResultValue> input)
+          {
+            final DateTime timestamp = input.getTimestamp();
+            final SelectResultValue value = input.getValue();
+
+            Iterable<EventHolder> transform = Iterables.concat(
+                Iterables.transform(
+                    value.getEvents(), new Function<EventHolder, Iterable<EventHolder>>()
+                    {
+                      @Override
+                      public Iterable<EventHolder> apply(final EventHolder input)
+                      {
+                        final String segmentId = input.getSegmentId();
+                        final int offset = input.getOffset();
+                        return Iterables.transform(
+                            lateralViewSpec.apply(input.getEvent()),
+                            new Function<Map<String, Object>, EventHolder>()
+                            {
+                              @Override
+                              public EventHolder apply(Map<String, Object> event)
+                              {
+                                return new EventHolder(segmentId, offset, event);
+                              }
+                            }
+                        );
+                      }
+                    }
+                )
+            );
+            return new Result(
+                timestamp,
+                new SelectResultValue(value.getPagingIdentifiers(), Lists.newArrayList(transform))
+            );
+          }
+        }
+    );
   }
 }

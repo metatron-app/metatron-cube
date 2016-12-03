@@ -73,6 +73,11 @@ public class LongSumAggregatorFactory extends AggregatorFactory
     this(name, fieldName, null, null);
   }
 
+  public LongSumAggregatorFactory(String fieldName)
+  {
+    this(fieldName, fieldName, null, null);
+  }
+
   @Override
   public Aggregator factorize(ColumnSelectorFactory metricFactory)
   {

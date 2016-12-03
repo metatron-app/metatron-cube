@@ -30,6 +30,7 @@ import io.druid.query.Query;
 import io.druid.query.Result;
 import io.druid.query.dimension.DimensionSpec;
 import io.druid.query.filter.DimFilter;
+import io.druid.query.LateralViewSpec;
 import io.druid.query.spec.QuerySegmentSpec;
 import io.druid.segment.VirtualColumn;
 
@@ -50,6 +51,7 @@ public class SelectQuery extends BaseQuery<Result<SelectResultValue>>
   private final PagingSpec pagingSpec;
   private final String concatString;
   private final List<String> outputColumns;
+  private final LateralViewSpec lateralView;
 
   @JsonCreator
   public SelectQuery(
@@ -64,6 +66,7 @@ public class SelectQuery extends BaseQuery<Result<SelectResultValue>>
       @JsonProperty("pagingSpec") PagingSpec pagingSpec,
       @JsonProperty("concatString") String concatString,
       @JsonProperty("outputColumns") List<String> outputColumns,
+      @JsonProperty("lateralView") LateralViewSpec lateralView,
       @JsonProperty("context") Map<String, Object> context
   )
   {
@@ -73,6 +76,7 @@ public class SelectQuery extends BaseQuery<Result<SelectResultValue>>
     this.dimensions = dimensions;
     this.virtualColumns = virtualColumns;
     this.metrics = metrics;
+    this.lateralView = lateralView;
     this.outputColumns = outputColumns;
     this.pagingSpec = pagingSpec;
     this.concatString = concatString;
@@ -151,6 +155,12 @@ public class SelectQuery extends BaseQuery<Result<SelectResultValue>>
     return outputColumns;
   }
 
+  @JsonProperty
+  public LateralViewSpec getLateralView()
+  {
+    return lateralView;
+  }
+
   public PagingOffset getPagingOffset(String identifier)
   {
     return pagingSpec.getOffset(identifier, isDescending());
@@ -170,6 +180,7 @@ public class SelectQuery extends BaseQuery<Result<SelectResultValue>>
         pagingSpec,
         concatString,
         outputColumns,
+        lateralView,
         getContext()
     );
   }
@@ -189,6 +200,7 @@ public class SelectQuery extends BaseQuery<Result<SelectResultValue>>
         pagingSpec,
         concatString,
         outputColumns,
+        lateralView,
         getContext()
     );
   }
@@ -207,6 +219,7 @@ public class SelectQuery extends BaseQuery<Result<SelectResultValue>>
         pagingSpec,
         concatString,
         outputColumns,
+        lateralView,
         computeOverridenContext(contextOverrides)
     );
   }
@@ -225,6 +238,7 @@ public class SelectQuery extends BaseQuery<Result<SelectResultValue>>
         pagingSpec,
         concatString,
         outputColumns,
+        lateralView,
         getContext()
     );
   }
@@ -243,6 +257,7 @@ public class SelectQuery extends BaseQuery<Result<SelectResultValue>>
         pagingSpec,
         concatString,
         outputColumns,
+        lateralView,
         getContext()
     );
   }
@@ -261,6 +276,7 @@ public class SelectQuery extends BaseQuery<Result<SelectResultValue>>
         pagingSpec,
         concatString,
         outputColumns,
+        lateralView,
         getContext()
     );
   }
@@ -280,7 +296,8 @@ public class SelectQuery extends BaseQuery<Result<SelectResultValue>>
            ", pagingSpec=" + pagingSpec +
            ", concatString=" + concatString +
            ", outputColumns=" + outputColumns +
-        '}';
+           ", lateralView=" + lateralView +
+           '}';
   }
 
   @Override
@@ -300,6 +317,7 @@ public class SelectQuery extends BaseQuery<Result<SelectResultValue>>
     if (!Objects.equals(pagingSpec, that.pagingSpec)) return false;
     if (!Objects.equals(concatString, that.concatString)) return false;
     if (!Objects.equals(outputColumns, that.outputColumns)) return false;
+    if (!Objects.equals(lateralView, that.lateralView)) return false;
 
     return true;
   }
@@ -316,6 +334,7 @@ public class SelectQuery extends BaseQuery<Result<SelectResultValue>>
     result = 31 * result + (pagingSpec != null ? pagingSpec.hashCode() : 0);
     result = 31 * result + (concatString != null ? concatString.hashCode() : 0);
     result = 31 * result + (outputColumns != null ? outputColumns.hashCode() : 0);
+    result = 31 * result + (lateralView != null ? lateralView.hashCode() : 0);
     return result;
   }
 }

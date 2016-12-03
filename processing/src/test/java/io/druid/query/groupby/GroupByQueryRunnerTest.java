@@ -5477,17 +5477,17 @@ public class GroupByQueryRunnerTest
     GroupByQueryRunnerTestHelper.validate(columnNames, expectedResults, results);
   }
 
-  private <T> T[] array(T... objects)
+  private Object[] array(Object... objects)
   {
     return objects;
   }
 
-  private <T> List<T> list(T... objects)
+  private List list(Object... objects)
   {
     return Arrays.asList(objects);
   }
 
-  public void printJson(Object object)
+  public static void printJson(Object object)
   {
     try {
       System.out.println(TestHelper.getObjectMapper().writer(new DefaultPrettyPrinter()).writeValueAsString(object));
@@ -5497,7 +5497,7 @@ public class GroupByQueryRunnerTest
     }
   }
 
-  public void printToExpected(String[] columnNames, Iterable<Row> results)
+  public static void printToExpected(String[] columnNames, Iterable<Row> results)
   {
     for (Row x: results) {
       StringBuilder b = new StringBuilder();

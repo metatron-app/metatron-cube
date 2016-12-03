@@ -78,6 +78,7 @@ public class TimeseriesQueryQueryToolChestTest
                 ImmutableList.<AggregatorFactory>of(new CountAggregatorFactory("metric1")),
                 null,
                 null,
+                null,
                 null
             )
         );

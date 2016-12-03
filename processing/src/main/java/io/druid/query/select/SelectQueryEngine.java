@@ -109,13 +109,13 @@ public class SelectQueryEngine
 
             final LongColumnSelector timestampColumnSelector = cursor.makeLongColumnSelector(Column.TIME_COLUMN_NAME);
 
-            final Map<String, DimensionSelector> dimSelectors = Maps.newHashMap();
+            final Map<String, DimensionSelector> dimSelectors = Maps.newLinkedHashMap();
             for (DimensionSpec dim : dims) {
               final DimensionSelector dimSelector = cursor.makeDimensionSelector(dim);
               dimSelectors.put(dim.getOutputName(), dimSelector);
             }
 
-            final Map<String, ObjectColumnSelector> metSelectors = Maps.newHashMap();
+            final Map<String, ObjectColumnSelector> metSelectors = Maps.newLinkedHashMap();
             for (String metric : metrics) {
               final ObjectColumnSelector metricSelector = cursor.makeObjectColumnSelector(metric);
               metSelectors.put(metric, metricSelector);

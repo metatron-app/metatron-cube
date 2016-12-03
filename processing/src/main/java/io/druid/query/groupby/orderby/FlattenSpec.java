@@ -38,6 +38,7 @@ import io.druid.query.Cacheable;
 import io.druid.query.QueryCacheHelper;
 import io.druid.query.filter.DimFilterCacheHelper;
 import io.druid.query.groupby.orderby.WindowingSpec.PartitionEvaluator;
+import io.druid.segment.ObjectArray;
 import org.joda.time.DateTime;
 
 import java.nio.ByteBuffer;
@@ -327,7 +328,7 @@ public class FlattenSpec implements Cacheable
               for (Row row : partition) {
                 ObjectArray key = new ObjectArray(new Object[spec.prefixColumns.size()]);
                 for (int i = 0; i < key.length(); i++) {
-                  key.array[i] = row.getRaw(spec.prefixColumns.get(i));
+                  key.array()[i] = row.getRaw(spec.prefixColumns.get(i));
                 }
                 List[] array = prefixed.get(key);
                 if (array == null) {
@@ -484,50 +485,5 @@ public class FlattenSpec implements Cacheable
         return keyIndex < 0 ? null : ((List) values).get(keyIndex);
       }
     };
-  }
-
-  private static class ObjectArray
-  {
-    private final Object[] array;
-
-    private ObjectArray(Object[] array)
-    {
-      this.array = array;
-    }
-
-    public int length()
-    {
-      return array.length;
-    }
-
-    public String concat(String delimiter, String postfix)
-    {
-      StringBuilder b = new StringBuilder();
-      for (Object element : array) {
-        if (b.length() > 0) {
-          b.append(delimiter);
-        }
-        b.append(element);
-      }
-      return b.append(delimiter).append(postfix).toString();
-    }
-
-    @Override
-    public boolean equals(Object o)
-    {
-      return o instanceof ObjectArray && Arrays.equals(array, ((ObjectArray) o).array);
-    }
-
-    @Override
-    public int hashCode()
-    {
-      return Arrays.hashCode(array);
-    }
-
-    @Override
-    public String toString()
-    {
-      return Arrays.toString(array);
-    }
   }
 }

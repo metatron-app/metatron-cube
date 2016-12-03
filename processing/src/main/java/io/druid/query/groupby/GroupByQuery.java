@@ -43,6 +43,7 @@ import io.druid.query.aggregation.PostAggregator;
 import io.druid.query.dimension.DefaultDimensionSpec;
 import io.druid.query.dimension.DimensionSpec;
 import io.druid.query.filter.DimFilter;
+import io.druid.query.LateralViewSpec;
 import io.druid.query.groupby.having.HavingSpec;
 import io.druid.query.groupby.orderby.DefaultLimitSpec;
 import io.druid.query.groupby.orderby.LimitSpec;
@@ -67,6 +68,7 @@ public class GroupByQuery extends BaseQuery<Row>
 
   private final LimitSpec limitSpec;
   private final HavingSpec havingSpec;
+  private final LateralViewSpec lateralView;
   private final DimFilter dimFilter;
   private final QueryGranularity granularity;
   private final List<DimensionSpec> dimensions;
@@ -90,6 +92,7 @@ public class GroupByQuery extends BaseQuery<Row>
       @JsonProperty("having") HavingSpec havingSpec,
       @JsonProperty("limitSpec") LimitSpec limitSpec,
       @JsonProperty("outputColumns") List<String> outputColumns,
+      @JsonProperty("lateralView") LateralViewSpec lateralView,
       @JsonProperty("context") Map<String, Object> context
   )
   {
@@ -104,6 +107,7 @@ public class GroupByQuery extends BaseQuery<Row>
     this.aggregatorSpecs = aggregatorSpecs;
     this.postAggregatorSpecs = postAggregatorSpecs == null ? ImmutableList.<PostAggregator>of() : postAggregatorSpecs;
     this.havingSpec = havingSpec;
+    this.lateralView = lateralView;
     this.limitSpec = (limitSpec == null) ? new NoopLimitSpec() : limitSpec;
     this.outputColumns = outputColumns;
 
@@ -155,6 +159,7 @@ public class GroupByQuery extends BaseQuery<Row>
       List<AggregatorFactory> aggregatorSpecs,
       List<PostAggregator> postAggregatorSpecs,
       HavingSpec havingSpec,
+      LateralViewSpec lateralView,
       LimitSpec orderBySpec,
       Function<Sequence<Row>, Sequence<Row>> limitFn,
       List<String> outputColumns,
@@ -170,6 +175,7 @@ public class GroupByQuery extends BaseQuery<Row>
     this.aggregatorSpecs = aggregatorSpecs;
     this.postAggregatorSpecs = postAggregatorSpecs;
     this.havingSpec = havingSpec;
+    this.lateralView = lateralView;
     this.limitSpec = orderBySpec;
     this.limitFn = limitFn;
     this.outputColumns = outputColumns;
@@ -229,6 +235,12 @@ public class GroupByQuery extends BaseQuery<Row>
     return outputColumns;
   }
 
+  @JsonProperty
+  public LateralViewSpec getLateralView()
+  {
+    return lateralView;
+  }
+
   @Override
   public boolean hasFilters()
   {
@@ -259,6 +271,7 @@ public class GroupByQuery extends BaseQuery<Row>
         aggregatorSpecs,
         postAggregatorSpecs,
         havingSpec,
+        lateralView,
         limitSpec,
         limitFn,
         outputColumns,
@@ -279,6 +292,7 @@ public class GroupByQuery extends BaseQuery<Row>
         aggregatorSpecs,
         postAggregatorSpecs,
         havingSpec,
+        lateralView,
         limitSpec,
         limitFn,
         outputColumns,
@@ -298,6 +312,7 @@ public class GroupByQuery extends BaseQuery<Row>
         getAggregatorSpecs(),
         getPostAggregatorSpecs(),
         getHavingSpec(),
+        getLateralView(),
         getLimitSpec(),
         limitFn,
         getOutputColumns(),
@@ -318,6 +333,7 @@ public class GroupByQuery extends BaseQuery<Row>
         aggregatorSpecs,
         postAggregatorSpecs,
         havingSpec,
+        lateralView,
         limitSpec,
         limitFn,
         outputColumns,
@@ -337,6 +353,7 @@ public class GroupByQuery extends BaseQuery<Row>
         getAggregatorSpecs(),
         getPostAggregatorSpecs(),
         getHavingSpec(),
+        getLateralView(),
         getLimitSpec(),
         limitFn,
         getOutputColumns(),
@@ -358,6 +375,7 @@ public class GroupByQuery extends BaseQuery<Row>
         getHavingSpec(),
         limitSpec,
         getOutputColumns(),
+        getLateralView(),
         getContext()
     );
   }
@@ -376,6 +394,7 @@ public class GroupByQuery extends BaseQuery<Row>
         getHavingSpec(),
         getLimitSpec(),
         outputColumns,
+        getLateralView(),
         getContext()
     );
   }
@@ -392,6 +411,7 @@ public class GroupByQuery extends BaseQuery<Row>
         aggregatorSpecs,
         getPostAggregatorSpecs(),
         getHavingSpec(),
+        getLateralView(),
         getLimitSpec(),
         limitFn,
         getOutputColumns(),
@@ -411,8 +431,9 @@ public class GroupByQuery extends BaseQuery<Row>
         getAggregatorSpecs(),
         getPostAggregatorSpecs(),
         havingSpec,
-        limitSpec,
+        getLimitSpec(),
         getOutputColumns(),
+        getLateralView(),
         getContext()
     );
   }
@@ -429,6 +450,7 @@ public class GroupByQuery extends BaseQuery<Row>
         getAggregatorSpecs(),
         postAggregatorSpecs,
         getHavingSpec(),
+        getLateralView(),
         getLimitSpec(),
         limitFn,
         getOutputColumns(),
@@ -448,6 +470,7 @@ public class GroupByQuery extends BaseQuery<Row>
     private List<PostAggregator> postAggregatorSpecs;
     private List<String> outputColumns;
     private HavingSpec havingSpec;
+    private LateralViewSpec lateralViewSpec;
 
     private Map<String, Object> context;
 
@@ -678,7 +701,12 @@ public class GroupByQuery extends BaseQuery<Row>
     public Builder setHavingSpec(HavingSpec havingSpec)
     {
       this.havingSpec = havingSpec;
+      return this;
+    }
 
+    public Builder setLateralViewSpec(LateralViewSpec lateralViewSpec)
+    {
+      this.lateralViewSpec = lateralViewSpec;
       return this;
     }
 
@@ -719,6 +747,7 @@ public class GroupByQuery extends BaseQuery<Row>
           havingSpec,
           theLimitSpec,
           outputColumns,
+          lateralViewSpec,
           context
       );
     }
@@ -739,6 +768,7 @@ public class GroupByQuery extends BaseQuery<Row>
            ", postAggregatorSpecs=" + postAggregatorSpecs +
            ", havingSpec=" + havingSpec +
            ", outputColumns=" + outputColumns +
+           ", explodeSpec=" + lateralView +
            '}';
   }
 
@@ -775,6 +805,9 @@ public class GroupByQuery extends BaseQuery<Row>
     if (havingSpec != null ? !havingSpec.equals(that.havingSpec) : that.havingSpec != null) {
       return false;
     }
+    if (lateralView != null ? !lateralView.equals(that.lateralView) : that.lateralView != null) {
+      return false;
+    }
     if (limitSpec != null ? !limitSpec.equals(that.limitSpec) : that.limitSpec != null) {
       return false;
     }
@@ -796,6 +829,7 @@ public class GroupByQuery extends BaseQuery<Row>
     int result = super.hashCode();
     result = 31 * result + (limitSpec != null ? limitSpec.hashCode() : 0);
     result = 31 * result + (havingSpec != null ? havingSpec.hashCode() : 0);
+    result = 31 * result + (lateralView != null ? lateralView.hashCode() : 0);
     result = 31 * result + (dimFilter != null ? dimFilter.hashCode() : 0);
     result = 31 * result + (granularity != null ? granularity.hashCode() : 0);
     result = 31 * result + (dimensions != null ? dimensions.hashCode() : 0);

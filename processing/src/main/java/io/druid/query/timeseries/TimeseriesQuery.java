@@ -32,6 +32,7 @@ import io.druid.query.Result;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.PostAggregator;
 import io.druid.query.filter.DimFilter;
+import io.druid.query.LateralViewSpec;
 import io.druid.query.spec.QuerySegmentSpec;
 
 import java.util.List;
@@ -47,6 +48,7 @@ public class TimeseriesQuery extends BaseQuery<Result<TimeseriesResultValue>>
   private final List<AggregatorFactory> aggregatorSpecs;
   private final List<PostAggregator> postAggregatorSpecs;
   private final List<String> outputColumns;
+  private final LateralViewSpec lateralView;
 
   @JsonCreator
   public TimeseriesQuery(
@@ -58,6 +60,7 @@ public class TimeseriesQuery extends BaseQuery<Result<TimeseriesResultValue>>
       @JsonProperty("aggregations") List<AggregatorFactory> aggregatorSpecs,
       @JsonProperty("postAggregations") List<PostAggregator> postAggregatorSpecs,
       @JsonProperty("outputColumns") List<String> outputColumns,
+      @JsonProperty("lateralView") LateralViewSpec lateralView,
       @JsonProperty("context") Map<String, Object> context
   )
   {
@@ -67,6 +70,7 @@ public class TimeseriesQuery extends BaseQuery<Result<TimeseriesResultValue>>
     this.aggregatorSpecs = aggregatorSpecs;
     this.postAggregatorSpecs = postAggregatorSpecs == null ? ImmutableList.<PostAggregator>of() : postAggregatorSpecs;
     this.outputColumns = outputColumns;
+    this.lateralView = lateralView;
 
     Queries.verifyAggregations(this.aggregatorSpecs, this.postAggregatorSpecs);
   }
@@ -113,6 +117,12 @@ public class TimeseriesQuery extends BaseQuery<Result<TimeseriesResultValue>>
     return outputColumns;
   }
 
+  @JsonProperty("lateralView")
+  public LateralViewSpec getLateralView()
+  {
+    return lateralView;
+  }
+
   public boolean isSkipEmptyBuckets()
   {
     return getContextBoolean("skipEmptyBuckets", false);
@@ -129,6 +139,7 @@ public class TimeseriesQuery extends BaseQuery<Result<TimeseriesResultValue>>
         aggregatorSpecs,
         postAggregatorSpecs,
         outputColumns,
+        lateralView,
         getContext()
     );
   }
@@ -145,6 +156,7 @@ public class TimeseriesQuery extends BaseQuery<Result<TimeseriesResultValue>>
         aggregatorSpecs,
         postAggregatorSpecs,
         outputColumns,
+        lateralView,
         getContext()
     );
   }
@@ -160,6 +172,7 @@ public class TimeseriesQuery extends BaseQuery<Result<TimeseriesResultValue>>
         aggregatorSpecs,
         postAggregatorSpecs,
         outputColumns,
+        lateralView,
         computeOverridenContext(contextOverrides)
     );
   }
@@ -175,6 +188,7 @@ public class TimeseriesQuery extends BaseQuery<Result<TimeseriesResultValue>>
         aggregatorSpecs,
         postAggregatorSpecs,
         outputColumns,
+        lateralView,
         getContext()
     );
   }
@@ -190,6 +204,7 @@ public class TimeseriesQuery extends BaseQuery<Result<TimeseriesResultValue>>
         aggregatorSpecs,
         postAggregatorSpecs,
         outputColumns,
+        lateralView,
         getContext()
     );
   }
@@ -206,6 +221,7 @@ public class TimeseriesQuery extends BaseQuery<Result<TimeseriesResultValue>>
         ", aggregatorSpecs=" + aggregatorSpecs +
         ", postAggregatorSpecs=" + postAggregatorSpecs +
         ", outputColumns=" + outputColumns +
+        ", lateralView=" + lateralView +
         ", context=" + getContext() +
         '}';
   }
@@ -227,6 +243,8 @@ public class TimeseriesQuery extends BaseQuery<Result<TimeseriesResultValue>>
       return false;
     if (outputColumns != null ? !outputColumns.equals(that.outputColumns) : that.outputColumns != null)
       return false;
+    if (lateralView != null ? !lateralView.equals(that.lateralView) : that.lateralView != null)
+      return false;
 
     return true;
   }
@@ -240,6 +258,7 @@ public class TimeseriesQuery extends BaseQuery<Result<TimeseriesResultValue>>
     result = 31 * result + (aggregatorSpecs != null ? aggregatorSpecs.hashCode() : 0);
     result = 31 * result + (postAggregatorSpecs != null ? postAggregatorSpecs.hashCode() : 0);
     result = 31 * result + (outputColumns != null ? outputColumns.hashCode() : 0);
+    result = 31 * result + (lateralView != null ? lateralView.hashCode() : 0);
     return result;
   }
 }

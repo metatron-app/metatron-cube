@@ -67,7 +67,7 @@ import io.druid.query.dimension.DefaultDimensionSpec;
 import io.druid.query.dimension.DimensionSpec;
 import io.druid.query.extraction.ExtractionFn;
 import io.druid.query.filter.DimFilter;
-import io.druid.query.select.EventHolder;
+import io.druid.query.LateralViewSpec;
 import io.druid.query.spec.MultipleIntervalSegmentSpec;
 import io.druid.segment.incremental.IncrementalIndex;
 import io.druid.segment.incremental.IncrementalIndexStorageAdapter;
@@ -276,8 +276,7 @@ public class GroupByQueryQueryToolChest extends QueryToolChest<Row, GroupByQuery
                   ImmutableList.<PostAggregator>of(),
                   // Don't do "having" clause until the end of this method.
                   null,
-                  null,
-                  null,
+                  null, null, null,
                   query.getContext()
               ).withOverriddenContext(
                   ImmutableMap.<String, Object>of(
@@ -507,6 +506,7 @@ public class GroupByQueryQueryToolChest extends QueryToolChest<Row, GroupByQuery
         }
         final byte[] vcBytes = QueryCacheHelper.computeAggregatorBytes(query.getVirtualColumns());
         final byte[] havingBytes = query.getHavingSpec() == null ? new byte[]{} : query.getHavingSpec().getCacheKey();
+        final byte[] explodeBytes = QueryCacheHelper.computeCacheBytes(query.getLateralView());
         final byte[] limitBytes = query.getLimitSpec().getCacheKey();
         final byte[] outputColumnsBytes = QueryCacheHelper.computeCacheBytes(query.getOutputColumns());
 
@@ -519,6 +519,7 @@ public class GroupByQueryQueryToolChest extends QueryToolChest<Row, GroupByQuery
                 + dimensionsBytesSize
                 + vcBytes.length
                 + havingBytes.length
+                + explodeBytes.length
                 + limitBytes.length
                 + outputColumnsBytes.length
             )
@@ -535,6 +536,7 @@ public class GroupByQueryQueryToolChest extends QueryToolChest<Row, GroupByQuery
         return buffer
             .put(vcBytes)
             .put(havingBytes)
+            .put(explodeBytes)
             .put(limitBytes)
             .put(outputColumnsBytes)
             .array();
@@ -690,11 +692,12 @@ public class GroupByQueryQueryToolChest extends QueryToolChest<Row, GroupByQuery
           Query<Row> query, Map<String, Object> responseContext
       )
       {
+        final Sequence<Row> result;
         final List<String> outputColumns = ((GroupByQuery)query).getOutputColumns();
-        final Sequence<Row> result = runner.run(query, responseContext);
+        final LateralViewSpec lateralViewSpec = ((GroupByQuery) query).getLateralView();
         if (outputColumns != null) {
-          return Sequences.map(
-              result, new Function<Row, Row>()
+          result = Sequences.map(
+              runner.run(query, responseContext), new Function<Row, Row>()
               {
                 @Override
                 public Row apply(Row input)
@@ -709,9 +712,41 @@ public class GroupByQueryQueryToolChest extends QueryToolChest<Row, GroupByQuery
               }
           );
         } else {
-          return result;
+          result = runner.run(query, responseContext);
         }
+        return lateralViewSpec != null ? toLateralView(result, lateralViewSpec) : result;
       }
     };
+  }
+
+  Sequence<Row> toLateralView(Sequence<Row> result, final LateralViewSpec lateralViewSpec)
+  {
+    return Sequences.concat(
+        Sequences.map(
+            result, new Function<Row, Sequence<Row>>()
+            {
+              @Override
+              @SuppressWarnings("unchecked")
+              public Sequence<Row> apply(Row input)
+              {
+                final DateTime timestamp = input.getTimestamp();
+                final Map<String, Object> event = ((MapBasedRow) input).getEvent();
+                return Sequences.simple(
+                    Iterables.transform(
+                        lateralViewSpec.apply(event),
+                        new Function<Map<String, Object>, Row>()
+                        {
+                          @Override
+                          public Row apply(Map<String, Object> input)
+                          {
+                            return new MapBasedRow(timestamp, input);
+                          }
+                        }
+                    )
+                );
+              }
+            }
+        )
+    );
   }
 }
