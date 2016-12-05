@@ -26,7 +26,7 @@ import io.druid.query.aggregation.BufferAggregator;
 import io.druid.segment.Capabilities;
 import io.druid.segment.ColumnSelectorFactory;
 import io.druid.segment.DimensionSelector;
-import io.druid.segment.KeyIndexedVirtualColumn.IndexProvidingSelector;
+import io.druid.segment.IndexProvidingSelector;
 
 import java.util.Arrays;
 import java.util.Comparator;

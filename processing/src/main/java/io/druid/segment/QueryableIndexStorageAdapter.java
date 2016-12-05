@@ -432,6 +432,12 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
                     }
 
                     @Override
+                    public Iterable<String> getColumnNames()
+                    {
+                      return index.getColumnNames();
+                    }
+
+                    @Override
                     public DimensionSelector makeDimensionSelector(
                         DimensionSpec dimensionSpec
                     )

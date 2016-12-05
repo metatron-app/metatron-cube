@@ -338,6 +338,12 @@ public abstract class IncrementalIndex<AggregatorType> implements Iterable<Row>,
       }
 
       @Override
+      public Iterable<String> getColumnNames()
+      {
+        return null;
+      }
+
+      @Override
       public DimensionSelector makeDimensionSelector(
           DimensionSpec dimensionSpec
       )

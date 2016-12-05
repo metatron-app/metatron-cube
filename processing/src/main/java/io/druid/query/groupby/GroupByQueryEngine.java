@@ -50,7 +50,7 @@ import io.druid.query.filter.DimFilter;
 import io.druid.segment.ColumnSelectorFactory;
 import io.druid.segment.Cursor;
 import io.druid.segment.DimensionSelector;
-import io.druid.segment.KeyIndexedVirtualColumn.IndexProvidingSelector;
+import io.druid.segment.IndexProvidingSelector;
 import io.druid.segment.StorageAdapter;
 import io.druid.segment.VirtualColumns;
 import io.druid.segment.data.IndexedInts;

@@ -23,6 +23,10 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+import io.druid.math.expr.Parser;
+import io.druid.query.dimension.DimensionSpec;
+import io.druid.segment.column.ColumnCapabilities;
+import io.druid.segment.data.ArrayBasedIndexedInts;
 import io.druid.segment.data.IndexedInts;
 
 import java.io.IOException;
@@ -30,6 +34,7 @@ import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  */
@@ -130,6 +135,143 @@ public class VirtualColumns
         return valToId.get(name);
       }
     };
+  }
+
+  public static DimensionSelector toFixedDimensionSelector(List<String> values)
+  {
+    final int[] index = new int[values.size()];
+    final Map<String, Integer> valToId = Maps.newHashMap();
+    final List<String> idToVal = Lists.newArrayList();
+    for (int i = 0; i < index.length; i++) {
+      String value = values.get(i);
+      Integer id = valToId.get(value);
+      if (id == null) {
+        valToId.put(value, id = idToVal.size());
+        idToVal.add(value);
+      }
+      index[i] = id;
+    }
+    final int cardinality = idToVal.size();
+    final IndexedInts indexedInts = new ArrayBasedIndexedInts(index);
+
+    return new DimensionSelector() {
+
+      @Override
+      public IndexedInts getRow()
+      {
+        return indexedInts;
+      }
+
+      @Override
+      public int getValueCardinality()
+      {
+        return cardinality;
+      }
+
+      @Override
+      public String lookupName(int id)
+      {
+        return id >= 0 && id < cardinality ? idToVal.get(id) : null;
+      }
+
+      @Override
+      public int lookupId(String name)
+      {
+        return valToId.get(name);
+      }
+    };
+  }
+
+  public static class VirtualColumnAsColumnSelectorFactory implements ColumnSelectorFactory
+  {
+    private final VirtualColumn virtualColumn;
+    private final ColumnSelectorFactory factory;
+    private final String dimensionColumn;
+    private final Set<String> metricColumns;
+
+    public VirtualColumnAsColumnSelectorFactory(
+        VirtualColumn virtualColumn,
+        ColumnSelectorFactory factory,
+        String dimensionColumn,
+        Set<String> metricColumns
+    )
+    {
+      this.virtualColumn = virtualColumn;
+      this.factory = factory;
+      this.dimensionColumn = dimensionColumn;
+      this.metricColumns = metricColumns;
+    }
+
+    @Override
+    public Iterable<String> getColumnNames()
+    {
+      return factory.getColumnNames();
+    }
+
+    @Override
+    public DimensionSelector makeDimensionSelector(DimensionSpec dimensionSpec)
+    {
+      if (dimensionColumn.equals(dimensionSpec.getDimension())) {
+        return virtualColumn.asDimension(dimensionSpec.getDimension(), factory);
+      }
+      return factory.makeDimensionSelector(dimensionSpec);
+    }
+
+    @Override
+    public FloatColumnSelector makeFloatColumnSelector(String columnName)
+    {
+      if (metricColumns.contains(columnName)) {
+        return virtualColumn.asFloatMetric(columnName, factory);
+      }
+      return factory.makeFloatColumnSelector(columnName);
+    }
+
+    @Override
+    public DoubleColumnSelector makeDoubleColumnSelector(String columnName)
+    {
+      if (metricColumns.contains(columnName)) {
+        return virtualColumn.asDoubleMetric(columnName, factory);
+      }
+      return factory.makeDoubleColumnSelector(columnName);
+    }
+
+    @Override
+    public LongColumnSelector makeLongColumnSelector(String columnName)
+    {
+      if (metricColumns.contains(columnName)) {
+        return virtualColumn.asLongMetric(columnName, factory);
+      }
+      return factory.makeLongColumnSelector(columnName);
+    }
+
+    @Override
+    public ObjectColumnSelector makeObjectColumnSelector(String columnName)
+    {
+      if (metricColumns.contains(columnName)) {
+        return virtualColumn.asMetric(columnName, factory);
+      }
+      return factory.makeObjectColumnSelector(columnName);
+    }
+
+    @Override
+    public ExprEvalColumnSelector makeMathExpressionSelector(String expression)
+    {
+      for (String required : Parser.findRequiredBindings(expression)) {
+        if (metricColumns.contains(required)) {
+          throw new UnsupportedOperationException("makeMathExpressionSelector");
+        }
+      }
+      return factory.makeMathExpressionSelector(expression);
+    }
+
+    @Override
+    public ColumnCapabilities getColumnCapabilities(String columnName)
+    {
+      if (metricColumns.contains(columnName)) {
+        throw new UnsupportedOperationException("getColumnCapabilities");
+      }
+      return factory.getColumnCapabilities(columnName);
+    }
   }
 
   private final Map<String, VirtualColumn> virtualColumns;

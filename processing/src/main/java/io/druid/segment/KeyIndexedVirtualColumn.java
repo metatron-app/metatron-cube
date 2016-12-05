@@ -29,11 +29,9 @@ import com.google.common.collect.Sets;
 import com.metamx.common.StringUtils;
 import io.druid.query.QueryCacheHelper;
 import io.druid.query.dimension.DefaultDimensionSpec;
-import io.druid.query.dimension.DimensionSpec;
 import io.druid.query.filter.DimFilter;
 import io.druid.query.filter.DimFilterCacheHelper;
 import io.druid.query.filter.ValueMatcher;
-import io.druid.segment.column.ColumnCapabilities;
 import io.druid.segment.data.EmptyIndexedInts;
 import io.druid.segment.data.IndexedInts;
 import io.druid.segment.filter.Filters;
@@ -42,6 +40,7 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Objects;
 import java.util.Set;
 
 /**
@@ -56,8 +55,8 @@ public class KeyIndexedVirtualColumn implements VirtualColumn
   private final List<String> valueDimensions;
   private final List<String> valueMetrics;
 
-  private final Set<String> values;
-  private final IndexHolder indexer;
+  private final Set<String> valueColumns;
+  private final KeyIndexedHolder indexer;
 
   @JsonCreator
   public KeyIndexedVirtualColumn(
@@ -78,8 +77,8 @@ public class KeyIndexedVirtualColumn implements VirtualColumn
         "target column should not be empty"
     );
     this.outputName = Preconditions.checkNotNull(outputName, "output name should not be null");
-    this.values = Sets.newHashSet(Iterables.concat(this.valueDimensions, this.valueMetrics));
-    this.indexer = new IndexHolder();
+    this.valueColumns = Sets.newHashSet(Iterables.concat(this.valueDimensions, this.valueMetrics));
+    this.indexer = new KeyIndexedHolder();
   }
 
   @Override
@@ -94,7 +93,7 @@ public class KeyIndexedVirtualColumn implements VirtualColumn
         private transient IndexedInts values;
 
         @Override
-        public Class classOfObject()
+        public Class<String> classOfObject()
         {
           return String.class;
         }
@@ -106,18 +105,42 @@ public class KeyIndexedVirtualColumn implements VirtualColumn
             values = selector.getRow();
             version = indexer.version;
           }
-          int index = indexer.index();
+          final int index = indexer.index();
           return values == null || index < 0 || index >= values.size() ? null : selector.lookupName(values.get(index));
         }
       };
     }
 
-    final ObjectColumnSelector<List> selector = factory.makeObjectColumnSelector(column);
-    if (selector == null) {
-      return new ObjectColumnSelector()
+    if (valueMetrics.contains(column)) {
+      @SuppressWarnings("unchecked")
+      final ObjectColumnSelector<List> selector = factory.makeObjectColumnSelector(column);
+      if (selector == null) {
+        return new ObjectColumnSelector()
+        {
+          @Override
+          public Class classOfObject()
+          {
+            return Object.class;
+          }
+
+          @Override
+          public Object get()
+          {
+            return null;
+          }
+        };
+      }
+      if (selector.classOfObject() != List.class) {
+        throw new IllegalArgumentException("target column '" + column + "' should be array type");
+      }
+
+      return new ObjectColumnSelector<Object>()
       {
+        private transient int version;
+        private transient List values;
+
         @Override
-        public Class classOfObject()
+        public Class<Object> classOfObject()
         {
           return Object.class;
         }
@@ -125,36 +148,16 @@ public class KeyIndexedVirtualColumn implements VirtualColumn
         @Override
         public Object get()
         {
-          return null;
+          if (indexer.version != version) {
+            values = selector.get();
+            version = indexer.version;
+          }
+          final int index = indexer.index();
+          return values == null || index < 0 || index >= values.size() ? null : values.get(index);
         }
       };
     }
-    if (selector.classOfObject() != List.class) {
-      throw new IllegalArgumentException("target column '" + column + "' should be array type");
-    }
-
-    return new ObjectColumnSelector<Object>()
-    {
-      private transient int version;
-      private transient List values;
-
-      @Override
-      public Class classOfObject()
-      {
-        return Object.class;
-      }
-
-      @Override
-      public Object get()
-      {
-        if (indexer.version != version) {
-          values = selector.get();
-          version = indexer.version;
-        }
-        int index = indexer.index();
-        return values == null || index < 0 || index >= values.size() ? null : values.get(index);
-      }
-    };
+    return factory.makeObjectColumnSelector(column);
   }
 
   @Override
@@ -183,148 +186,20 @@ public class KeyIndexedVirtualColumn implements VirtualColumn
     }
     final DimensionSelector selector = toFilteredSelector(factory);
 
-    return new IndexProvidingSelector()
+    return new IndexProvidingSelector.Delegated(selector)
     {
       @Override
-      public ColumnSelectorFactory wrapFactory(final ColumnSelectorFactory factory)
+      public final IndexedInts getRow()
       {
-        return new ColumnSelectorFactory()
-        {
-          @Override
-          public DimensionSelector makeDimensionSelector(DimensionSpec dimensionSpec)
-          {
-            if (values.contains(dimensionSpec.getDimension())) {
-              throw new UnsupportedOperationException("makeDimensionSelector");
-            }
-            return factory.makeDimensionSelector(dimensionSpec);
-          }
-
-          @Override
-          public FloatColumnSelector makeFloatColumnSelector(String columnName)
-          {
-            return values.contains(columnName) ? asFloatMetric(columnName, factory)
-                                               : factory.makeFloatColumnSelector(columnName);
-          }
-
-          @Override
-          public DoubleColumnSelector makeDoubleColumnSelector(String columnName)
-          {
-            return values.contains(columnName) ? asDoubleMetric(columnName, factory)
-                                               : factory.makeDoubleColumnSelector(columnName);
-          }
-
-          @Override
-          public LongColumnSelector makeLongColumnSelector(String columnName)
-          {
-            return values.contains(columnName) ? asLongMetric(columnName, factory)
-                                               : factory.makeLongColumnSelector(columnName);
-          }
-
-          @Override
-          public ObjectColumnSelector makeObjectColumnSelector(String columnName)
-          {
-            return values.contains(columnName) ? asMetric(columnName, factory)
-                                               : factory.makeObjectColumnSelector(columnName);
-          }
-
-          @Override
-          public ExprEvalColumnSelector makeMathExpressionSelector(String expression)
-          {
-            // todo
-            throw new UnsupportedOperationException("makeMathExpressionSelector");
-          }
-
-          @Override
-          public ColumnCapabilities getColumnCapabilities(String columnName)
-          {
-            // todo
-            if (values.contains(columnName)) {
-              throw new UnsupportedOperationException("getColumnCapabilities");
-            }
-            return factory.getColumnCapabilities(columnName);
-          }
-        };
+        return indexer.indexed(super.getRow());
       }
 
       @Override
-      public IndexedInts getRow()
+      public final ColumnSelectorFactory wrapFactory(final ColumnSelectorFactory factory)
       {
-        indexer.version++;
-        final IndexedInts row = selector.getRow();
-        return new IndexedInts()
-        {
-          @Override
-          public int size()
-          {
-            return row.size();
-          }
-
-          @Override
-          public int get(int index)
-          {
-            indexer.index = index;
-            return row.get(index);
-          }
-
-          @Override
-          public void fill(int index, int[] toFill)
-          {
-            throw new UnsupportedOperationException("fill");
-          }
-
-          @Override
-          public void close() throws IOException
-          {
-            row.close();
-          }
-
-          @Override
-          public Iterator<Integer> iterator()
-          {
-            final Iterator<Integer> iterator = row.iterator();
-            return new Iterator<Integer>()
-            {
-              private int index = 0;
-
-              @Override
-              public boolean hasNext()
-              {
-                return iterator.hasNext();
-              }
-
-              @Override
-              public Integer next()
-              {
-                indexer.index = index++;
-                return iterator.next();
-              }
-
-              @Override
-              public void remove()
-              {
-                iterator.remove();
-              }
-            };
-          }
-        };
-      }
-
-      @Override
-      public int getValueCardinality()
-      {
-        return selector.getValueCardinality();
-      }
-
-      @Override
-      public String lookupName(int id)
-      {
-        return selector.lookupName(id);
-      }
-
-      @Override
-      public int lookupId(String name)
-      {
-        return selector.lookupId(name);
+        return new VirtualColumns.VirtualColumnAsColumnSelectorFactory(
+            KeyIndexedVirtualColumn.this, factory, outputName, valueColumns
+        );
       }
     };
   }
@@ -354,7 +229,7 @@ public class KeyIndexedVirtualColumn implements VirtualColumn
             return new ObjectColumnSelector<IndexedInts.WithLookup>()
             {
               @Override
-              public Class classOfObject()
+              public Class<IndexedInts.WithLookup> classOfObject()
               {
                 return IndexedInts.WithLookup.class;
               }
@@ -518,6 +393,9 @@ public class KeyIndexedVirtualColumn implements VirtualColumn
     if (!outputName.equals(that.outputName)) {
       return false;
     }
+    if (!Objects.equals(keyFilter, that.keyFilter)) {
+      return false;
+    }
 
     return true;
   }
@@ -535,38 +413,13 @@ public class KeyIndexedVirtualColumn implements VirtualColumn
   @Override
   public String toString()
   {
-    return "MapVirtualColumn{" +
+    return "KeyIndexedVirtualColumn{" +
            "keyDimension='" + keyDimension + '\'' +
-           ", valueDimensions='" + valueDimensions + '\'' +
-           ", valueMetrics='" + valueMetrics + '\'' +
+           ", keyFilter=" + keyFilter +
+           ", valueDimensions=" + valueDimensions +
+           ", valueMetrics=" + valueMetrics +
            ", outputName='" + outputName + '\'' +
            '}';
-  }
-
-  public static interface IndexProvidingSelector extends DimensionSelector
-  {
-    ColumnSelectorFactory wrapFactory(ColumnSelectorFactory factory);
-  }
-
-  private static class IndexHolder
-  {
-    private volatile int version;
-    private volatile int index;
-    private volatile int[] mapping;
-
-    int index()
-    {
-      return mapping == null ? index : mapping[index];
-    }
-
-    int[] mapping(int size)
-    {
-      if (mapping == null || mapping.length < size) {
-        mapping = new int[size];
-      }
-      mapping[0] = -1;
-      return mapping;
-    }
   }
 
   private static class IteratingIndexedInts implements IndexedInts.WithLookup {
@@ -625,6 +478,26 @@ public class KeyIndexedVirtualColumn implements VirtualColumn
     public Iterator<Integer> iterator()
     {
       return Iterators.singletonIterator(get(0));
+    }
+  }
+
+  private static class KeyIndexedHolder extends IndexProvidingSelector.IndexHolder
+  {
+    private volatile int[] mapping;
+
+    @Override
+    final int index()
+    {
+      return mapping == null ? index : mapping[index];
+    }
+
+    final int[] mapping(int size)
+    {
+      if (mapping == null || mapping.length < size) {
+        mapping = new int[size];
+      }
+      mapping[0] = -1;
+      return mapping;
     }
   }
 }

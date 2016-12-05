@@ -29,7 +29,8 @@ import io.druid.query.Cacheable;
 @JsonSubTypes(value = {
     @JsonSubTypes.Type(name = "map", value = MapVirtualColumn.class),
     @JsonSubTypes.Type(name = "expr", value = ExprVirtualColumn.class),
-    @JsonSubTypes.Type(name = "index", value = KeyIndexedVirtualColumn.class)
+    @JsonSubTypes.Type(name = "index", value = KeyIndexedVirtualColumn.class),
+    @JsonSubTypes.Type(name = "lateral", value = LateralViewVirtualColumn.class)
 })
 public interface VirtualColumn extends Cacheable
 {

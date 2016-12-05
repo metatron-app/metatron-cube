@@ -27,9 +27,9 @@ import io.druid.query.dimension.DimensionSpec;
 import io.druid.segment.ColumnSelectorFactory;
 import io.druid.segment.DimensionSelector;
 import io.druid.segment.DoubleColumnSelector;
+import io.druid.segment.ExprEvalColumnSelector;
 import io.druid.segment.FloatColumnSelector;
 import io.druid.segment.LongColumnSelector;
-import io.druid.segment.ExprEvalColumnSelector;
 import io.druid.segment.ObjectColumnSelector;
 import io.druid.segment.column.ColumnCapabilities;
 import org.junit.Assert;
@@ -49,6 +49,12 @@ public class JavaScriptAggregatorTest
 
   final ColumnSelectorFactory DUMMY_COLUMN_SELECTOR_FACTORY = new ColumnSelectorFactory()
   {
+    @Override
+    public Iterable<String> getColumnNames()
+    {
+      return null;
+    }
+
     @Override
     public DimensionSelector makeDimensionSelector(DimensionSpec dimensionSpec)
     {

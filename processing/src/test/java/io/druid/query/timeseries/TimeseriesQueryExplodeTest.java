@@ -58,7 +58,7 @@ import static io.druid.query.QueryRunnerTestHelper.transformToConstructionFeeder
 /**
  */
 @RunWith(Parameterized.class)
-public class TimeseriesExplodeTest
+public class TimeseriesQueryExplodeTest
 {
   private static final String[] V_0401 = {
       "2011-04-01T00:00:00.000Z	x1	10	50	90	130	170	210	250",
@@ -126,7 +126,7 @@ public class TimeseriesExplodeTest
 
   private final QueryRunner<Result<TimeseriesResultValue>> runner;
 
-  public TimeseriesExplodeTest(QueryRunner<Result<TimeseriesResultValue>> runner)
+  public TimeseriesQueryExplodeTest(QueryRunner<Result<TimeseriesResultValue>> runner)
   {
     this.runner = runner;
   }

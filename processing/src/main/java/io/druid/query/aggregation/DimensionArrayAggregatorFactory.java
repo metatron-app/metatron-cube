@@ -375,6 +375,12 @@ public class DimensionArrayAggregatorFactory extends AbstractArrayAggregatorFact
     {
       throw new UnsupportedOperationException("getColumnCapabilities");
     }
+
+    @Override
+    public Iterable<String> getColumnNames()
+    {
+      throw new UnsupportedOperationException("getColumnNames");
+    }
   }
 
   @Override

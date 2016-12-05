@@ -27,6 +27,7 @@ import io.druid.segment.column.ColumnCapabilities;
  */
 public interface ColumnSelectorFactory
 {
+  public Iterable<String> getColumnNames();
   public DimensionSelector makeDimensionSelector(DimensionSpec dimensionSpec);
   public FloatColumnSelector makeFloatColumnSelector(String columnName);
   public DoubleColumnSelector makeDoubleColumnSelector(String columnName);

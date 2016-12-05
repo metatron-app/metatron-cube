@@ -54,6 +54,7 @@ import io.druid.query.filter.InDimFilter;
 import io.druid.segment.ExprVirtualColumn;
 import io.druid.segment.IncrementalIndexSegment;
 import io.druid.segment.KeyIndexedVirtualColumn;
+import io.druid.segment.LateralViewVirtualColumn;
 import io.druid.segment.MapVirtualColumn;
 import io.druid.segment.QueryableIndex;
 import io.druid.segment.QueryableIndexSegment;
@@ -137,6 +138,9 @@ public class VirtualColumnTest
         .withMetrics(
             new AggregatorFactory[]{
                 new ArrayAggregatorFactory("array", new LongSumAggregatorFactory("array", "array"), -1),
+                new LongSumAggregatorFactory("m1"),
+                new LongSumAggregatorFactory("m2"),
+                new LongSumAggregatorFactory("m3")
             }
         )
         .build();
@@ -146,29 +150,30 @@ public class VirtualColumnTest
         new DelimitedParseSpec(
             new TimestampSpec("ts", "iso", null),
             new DimensionsSpec(
-                DimensionsSpec.getDefaultSchemas(Arrays.asList("dim", "keys", "values", "value")), null, null),
+                DimensionsSpec.getDefaultSchemas(Arrays.asList("dim", "keys", "values", "value")), null, null
+            ),
             "\t",
             ",",
-            Arrays.asList("ts", "dim", "keys", "values", "value", "array")
+            Arrays.asList("ts", "dim", "keys", "values", "value", "array", "m1", "m2", "m3")
         )
         , "utf8"
     );
 
     CharSource input = CharSource.wrap(
-        "2011-01-12T00:00:00.000Z\ta\tkey1,key2,key3\t100,200,300\t100\t100,200,300\n" +
-        "2011-01-12T00:00:00.000Z\tc\tkey1,key2\t100,500,900\t200\t100,500,900\n" +
-        "2011-01-12T00:00:00.000Z\ta\tkey1,key2,key3\t400,500,600\t300\t400,500,600\n" +
-        "2011-01-12T00:00:00.000Z\t\tkey1,key2,key3\t10,20,30\t400\t10,20,30\n" +
-        "2011-01-12T00:00:00.000Z\tc\tkey1,key2,key3\t1,5,9\t500\t1,5,9\n" +
-        "2011-01-12T00:00:00.000Z\t\tkey1,key2,key3\t2,4,8\t600\t2,4,8\n"
+        "2011-01-12T00:00:00.000Z\ta\tkey1,key2,key3\t100,200,300\t100\t100,200,300\t100\t200\t300\n" +
+        "2011-01-12T00:00:00.000Z\tc\tkey1,key2\t100,500,900\t200\t100,500,900\t100\t500\t900\n" +
+        "2011-01-12T00:00:00.000Z\ta\tkey1,key2,key3\t400,500,600\t300\t400,500,600\t400\t500\t600\n" +
+        "2011-01-12T00:00:00.000Z\t\tkey1,key2,key3\t10,20,30\t400\t10,20,30\t10\t20\t30\n" +
+        "2011-01-12T00:00:00.000Z\tc\tkey1,key2,key3\t1,5,9\t500\t1,5,9\t1\t5\t9\n" +
+        "2011-01-12T00:00:00.000Z\t\tkey1,key2,key3\t2,4,8\t600\t2,4,8\t2\t4\t8\n"
     );
 
     return TestIndex.loadIncrementalIndex(index, input, parser);
   }
 
-  private final QueryRunner runner;
+  private final QueryRunner<Row> runner;
 
-  public VirtualColumnTest(QueryRunner runner)
+  public VirtualColumnTest(QueryRunner<Row> runner)
   {
     this.runner = runner;
   }
@@ -208,7 +213,7 @@ public class VirtualColumnTest
         .setVirtualColumns(virtualColumns)
         .addOrderByColumn("dim_nvl")
         .build();
-    checkSelectQuery(query, expectedResults);
+    checkQueryResult(query, expectedResults);
 
 
     virtualColumns = Arrays.<VirtualColumn>asList(
@@ -226,7 +231,7 @@ public class VirtualColumnTest
         .setVirtualColumns(virtualColumns)
         .addOrderByColumn("dim_nvl")
         .build();
-    checkSelectQuery(query, expectedResults);
+    checkQueryResult(query, expectedResults);
   }
 
   @Test
@@ -259,7 +264,7 @@ public class VirtualColumnTest
         )
         .setVirtualColumns(virtualColumns)
         .build();
-    checkSelectQuery(query, expectedResults);
+    checkQueryResult(query, expectedResults);
   }
 
   @Test
@@ -273,9 +278,9 @@ public class VirtualColumnTest
 
     List<Row> expectedResults = GroupByQueryRunnerTestHelper.createExpectedRows(
         new String[]{"__time", "dim_nvl", "sum_of_array", "min_of_array", "max_of_array"},
-        new Object[]{ "2011-01-12T00:00:00.000Z", "a", 2100L, 100L, 600L},
-        new Object[]{ "2011-01-12T00:00:00.000Z", "c", 1515L, 1L, 900L},
-        new Object[]{ "2011-01-12T00:00:00.000Z", "x", 74L, 2L, 30L}
+        new Object[]{"2011-01-12T00:00:00.000Z", "a", 2100L, 100L, 600L},
+        new Object[]{"2011-01-12T00:00:00.000Z", "c", 1515L, 1L, 900L},
+        new Object[]{"2011-01-12T00:00:00.000Z", "x", 74L, 2L, 30L}
     );
 
     GroupByQuery query = builder
@@ -289,7 +294,7 @@ public class VirtualColumnTest
             )
         )
         .build();
-    checkSelectQuery(query, expectedResults);
+    checkQueryResult(query, expectedResults);
   }
 
   @Test
@@ -317,7 +322,7 @@ public class VirtualColumnTest
         )
         .setVirtualColumns(virtualColumns)
         .build();
-    checkSelectQuery(query, expectedResults);
+    checkQueryResult(query, expectedResults);
   }
 
   @Test
@@ -347,7 +352,7 @@ public class VirtualColumnTest
         .setVirtualColumns(virtualColumns)
         .build();
 
-    checkSelectQuery(query, expectedResults);
+    checkQueryResult(query, expectedResults);
 
     // same query on array metric
     virtualColumns = Arrays.<VirtualColumn>asList(
@@ -365,7 +370,7 @@ public class VirtualColumnTest
         .setVirtualColumns(virtualColumns)
         .build();
 
-    checkSelectQuery(query, expectedResults);
+    checkQueryResult(query, expectedResults);
 
     // with filter
     expectedResults = GroupByQueryRunnerTestHelper.createExpectedRows(
@@ -395,7 +400,7 @@ public class VirtualColumnTest
         .setVirtualColumns(virtualColumns)
         .build();
 
-    checkSelectQuery(query, expectedResults);
+    checkQueryResult(query, expectedResults);
 
     virtualColumns = Arrays.<VirtualColumn>asList(
         new KeyIndexedVirtualColumn(
@@ -418,7 +423,7 @@ public class VirtualColumnTest
         .setVirtualColumns(virtualColumns)
         .build();
 
-    checkSelectQuery(query, expectedResults);
+    checkQueryResult(query, expectedResults);
 
     // with null filter
     expectedResults = GroupByQueryRunnerTestHelper.createExpectedRows(
@@ -446,7 +451,7 @@ public class VirtualColumnTest
         .setVirtualColumns(virtualColumns)
         .build();
 
-    checkSelectQuery(query, expectedResults);
+    checkQueryResult(query, expectedResults);
 
     virtualColumns = Arrays.<VirtualColumn>asList(
         new KeyIndexedVirtualColumn(
@@ -469,13 +474,43 @@ public class VirtualColumnTest
         .setVirtualColumns(virtualColumns)
         .build();
 
-    checkSelectQuery(query, expectedResults);
+    checkQueryResult(query, expectedResults);
   }
 
-  private void checkSelectQuery(GroupByQuery query, List<Row> expected) throws Exception
+  @Test
+  public void testLateralView() throws Exception
+  {
+    GroupByQuery.Builder builder = testBuilder();
+
+    List<Row> expectedResults = GroupByQueryRunnerTestHelper.createExpectedRows(
+        new String[]{"__time", "LV", "sumOf", "minOf", "maxOf"},
+        new Object[]{"2011-01-12T00:00:00.000Z", "m1", 613L,  1L, 400L},  // 100:100:400:10:1:2
+        new Object[]{"2011-01-12T00:00:00.000Z", "m2", 1229L, 4L, 500L},  // 200:500:500:20:5:4
+        new Object[]{"2011-01-12T00:00:00.000Z", "m3", 1847L, 8L, 900L}   // 300:900:600:30:9:8
+    );
+
+    List<VirtualColumn> virtualColumns = Arrays.<VirtualColumn>asList(
+        new LateralViewVirtualColumn("LV", "M", null, Arrays.asList("m1", "m2", "m3"))
+    );
+    GroupByQuery query = builder
+        .setDimensions(DefaultDimensionSpec.toSpec("LV"))
+        .setAggregatorSpecs(
+            Arrays.<AggregatorFactory>asList(
+                new LongSumAggregatorFactory("sumOf", "M"),
+                new LongMinAggregatorFactory("minOf", "M"),
+                new LongMaxAggregatorFactory("maxOf", "M")
+            )
+        )
+        .setVirtualColumns(virtualColumns)
+        .build();
+
+    checkQueryResult(query, expectedResults);
+  }
+
+  private void checkQueryResult(GroupByQuery query, List<Row> expected) throws Exception
   {
     List<Row> results = Sequences.toList(
-        runner.run(query, ImmutableMap.of()),
+        runner.run(query, ImmutableMap.<String, Object>of()),
         Lists.<Row>newArrayList()
     );
     TestHelper.assertExpectedObjects(expected, results, "");

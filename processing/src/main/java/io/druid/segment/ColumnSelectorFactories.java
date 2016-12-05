@@ -31,6 +31,12 @@ public class ColumnSelectorFactories
   public static class NotSupports implements ColumnSelectorFactory
   {
     @Override
+    public Iterable<String> getColumnNames()
+    {
+      throw new UnsupportedOperationException("getColumnNames");
+    }
+
+    @Override
     public DimensionSelector makeDimensionSelector(DimensionSpec dimensionSpec)
     {
       throw new UnsupportedOperationException("makeDimensionSelector");
@@ -123,6 +129,12 @@ public class ColumnSelectorFactories
     {
       return delegate.getColumnCapabilities(columnName);
     }
+
+    @Override
+    public Iterable<String> getColumnNames()
+    {
+      return delegate.getColumnNames();
+    }
   }
 
   public static abstract class ArrayIndexed implements ColumnSelectorFactory
@@ -151,6 +163,12 @@ public class ColumnSelectorFactories
     public ExprEvalColumnSelector makeMathExpressionSelector(String expression)
     {
       throw new UnsupportedOperationException("makeMathExpressionSelector");
+    }
+
+    @Override
+    public Iterable<String> getColumnNames()
+    {
+      throw new UnsupportedOperationException("getColumnNames");
     }
 
     @Override

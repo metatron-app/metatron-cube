@@ -24,6 +24,7 @@ import com.google.common.base.Predicate;
 import com.google.common.base.Strings;
 import com.google.common.base.Supplier;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Iterables;
 import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
@@ -337,6 +338,12 @@ public class IncrementalIndexStorageAdapter implements StorageAdapter
                 }
 
                 done = !foundMatched && (cursorMap.size() == 0 || !baseIter.hasNext());
+              }
+
+              @Override
+              public Iterable<String> getColumnNames()
+              {
+                return Iterables.concat(index.getDimensionNames(), index.getMetricNames());
               }
 
               @Override

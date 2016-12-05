@@ -38,9 +38,9 @@ import io.druid.query.search.search.ContainsSearchQuerySpec;
 import io.druid.segment.ColumnSelectorFactory;
 import io.druid.segment.DimensionSelector;
 import io.druid.segment.DoubleColumnSelector;
+import io.druid.segment.ExprEvalColumnSelector;
 import io.druid.segment.FloatColumnSelector;
 import io.druid.segment.LongColumnSelector;
-import io.druid.segment.ExprEvalColumnSelector;
 import io.druid.segment.ObjectColumnSelector;
 import io.druid.segment.column.ColumnCapabilities;
 import io.druid.segment.data.ArrayBasedIndexedInts;
@@ -85,10 +85,15 @@ public class FilteredAggregatorTest
     return new ColumnSelectorFactory()
     {
       @Override
+      public Iterable<String> getColumnNames()
+      {
+        return Arrays.asList("dim");
+      }
+
+      @Override
       public DimensionSelector makeDimensionSelector(DimensionSpec dimensionSpec)
       {
         final String dimensionName = dimensionSpec.getDimension();
-        final ExtractionFn extractionFn = dimensionSpec.getExtractionFn();
 
         if (dimensionName.equals("dim")) {
           return dimensionSpec.decorate(

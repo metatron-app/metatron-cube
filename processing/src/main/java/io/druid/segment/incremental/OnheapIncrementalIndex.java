@@ -526,6 +526,12 @@ public class OnheapIncrementalIndex extends IncrementalIndex<Aggregator>
     }
 
     @Override
+    public Iterable<String> getColumnNames()
+    {
+      return delegate.getColumnNames();
+    }
+
+    @Override
     public DimensionSelector makeDimensionSelector(DimensionSpec dimensionSpec)
     {
       return delegate.makeDimensionSelector(dimensionSpec);
