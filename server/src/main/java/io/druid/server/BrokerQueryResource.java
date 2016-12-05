@@ -211,7 +211,9 @@ public class BrokerQueryResource extends QueryResource
 
       String timestampColumn = PropUtils.parseString(forwardContext, "timestampColumn", null);
 
-      TabularFormat result = warehouse.getToolChest(query).toTabularFormat(res, timestampColumn);
+      // union-all does not have toolchest. delegate it to inner query
+      final Query representative = BaseQuery.getRepresentative(query);
+      TabularFormat result = warehouse.getToolChest(representative).toTabularFormat(res, timestampColumn);
       Map<String, Object> info = writer.write(uri, result, forwardContext);
 
       return Sequences.simple(Arrays.asList(info));

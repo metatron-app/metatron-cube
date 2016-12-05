@@ -38,11 +38,12 @@ import java.util.Map;
  */
 public abstract class BaseQuery<T extends Comparable<T>> implements Query<T>
 {
-  public static <T> Query<T> getFirstQueryWithValidation(List<Query<T>> queries)
+  public static <T> Query<T> getFirstQueryWithValidation(Query<T> query, List<Query<T>> queries)
   {
     if (queries == null || queries.isEmpty()) {
-      Preconditions.checkArgument(false, "should have at least one sub query in union");
+      return Preconditions.checkNotNull(query);
     }
+    Preconditions.checkArgument(query == null);
     Preconditions.checkArgument(!Iterables.contains(queries, null), "should not contain null query in union");
     Query<T> first = queries.get(0);
     for (int i = 1; i < queries.size(); i++) {
@@ -51,6 +52,12 @@ public abstract class BaseQuery<T extends Comparable<T>> implements Query<T>
       }
     }
     return first;
+  }
+
+  @SuppressWarnings("unchecked")
+  public static Query getRepresentative(Query query)
+  {
+    return query instanceof UnionAllQuery ? ((UnionAllQuery) query).getQuery() : query;
   }
 
   public static <T> int getContextPriority(Query<T> query, int defaultValue)

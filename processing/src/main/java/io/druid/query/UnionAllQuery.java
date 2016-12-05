@@ -21,7 +21,6 @@ package io.druid.query;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.google.common.base.Preconditions;
 import io.druid.query.spec.QuerySegmentSpec;
 
 import java.util.List;
@@ -29,36 +28,36 @@ import java.util.Map;
 
 /**
  */
-public class UnionAllQuery<T> extends BaseQuery<Result<T>>
+public class UnionAllQuery<T extends Comparable<T>> extends BaseQuery<T>
 {
+  private final Query<T> query;
   private final List<Query<T>> queries;
   private final boolean sortOnUnion;
 
   @JsonCreator
   public UnionAllQuery(
+      @JsonProperty("query") Query<T> query,
       @JsonProperty("queries") List<Query<T>> queries,
       @JsonProperty("sortOnUnion") boolean sortOnUnion,
       @JsonProperty("context") Map<String, Object> context
   )
   {
-    super(getFirstQueryWithValidation(queries), false, context);
+    super(getFirstQueryWithValidation(query, queries), false, context);
+    this.query = getFirstQueryWithValidation(query, queries);
     this.queries = queries;
     this.sortOnUnion = sortOnUnion;
-
-    String prevQueryType = null;
-    for (Query query : queries) {
-      String queryType = query.getType();
-      if (prevQueryType != null && !prevQueryType.equals(queryType)) {
-        Preconditions.checkArgument(false, "The type of embedded queries should be all the same");
-      }
-      prevQueryType = queryType;
-    }
   }
 
   @JsonProperty
   public List<Query<T>> getQueries()
   {
     return queries;
+  }
+
+  @JsonProperty
+  public Query<T> getQuery()
+  {
+    return query;
   }
 
   @JsonProperty
@@ -80,20 +79,69 @@ public class UnionAllQuery<T> extends BaseQuery<Result<T>>
   }
 
   @Override
-  public Query<Result<T>> withOverriddenContext(Map<String, Object> contextOverride)
+  @SuppressWarnings("unchecked")
+  public Query<T> withOverriddenContext(Map<String, Object> contextOverride)
   {
-    return new UnionAllQuery(queries, sortOnUnion, contextOverride);
+    return new UnionAllQuery(query, queries, sortOnUnion, computeOverridenContext(contextOverride));
   }
 
   @Override
-  public Query<Result<T>> withQuerySegmentSpec(QuerySegmentSpec spec)
+  public Query<T> withQuerySegmentSpec(QuerySegmentSpec spec)
   {
     throw new IllegalStateException();
   }
 
   @Override
-  public Query<Result<T>> withDataSource(DataSource dataSource)
+  public Query<T> withDataSource(DataSource dataSource)
   {
     throw new IllegalStateException();
+  }
+
+  @Override
+  public boolean equals(Object o)
+  {
+    if (this == o) {
+      return true;
+    }
+    if (o == null || getClass() != o.getClass()) {
+      return false;
+    }
+    if (!super.equals(o)) {
+      return false;
+    }
+
+    UnionAllQuery that = (UnionAllQuery) o;
+
+    if (sortOnUnion != that.sortOnUnion) {
+      return false;
+    }
+    if (queries != null ? !queries.equals(that.queries) : that.queries != null) {
+      return false;
+    }
+    if (query != null ? !query.equals(that.query) : that.query != null) {
+      return false;
+    }
+
+    return true;
+  }
+
+  @Override
+  public int hashCode()
+  {
+    int result = super.hashCode();
+    result = 31 * result + (query != null ? query.hashCode() : 0);
+    result = 31 * result + (queries != null ? queries.hashCode() : 0);
+    result = 31 * result + (sortOnUnion ? 1 : 0);
+    return result;
+  }
+
+  @Override
+  public String toString()
+  {
+    return "UnionAllQuery{" +
+           "query=" + query +
+           ", queries=" + queries +
+           ", sortOnUnion=" + sortOnUnion +
+           '}';
   }
 }
