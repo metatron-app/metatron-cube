@@ -19,7 +19,6 @@
 
 package io.druid.indexing.common.actions;
 
-import com.google.common.base.Preconditions;
 import com.google.common.base.Predicate;
 import com.google.common.collect.Iterables;
 import com.google.inject.Inject;
@@ -72,13 +71,15 @@ public class TaskActionToolbox
       final Set<DataSegment> segments
   )
   {
-    if (!taskLockCoversSegments(task, segments)) {
-      throw new ISE("Segments not covered by locks for task: %s", task.getId());
+    List<TaskLock> taskLocks = getTaskLockbox().findLocksForTask(task);
+    DataSegment segment = taskLockCoversSegments(taskLocks, segments);
+    if (segment != null) {
+      throw new ISE("Segment %s is not covered by locks %s for task: %s", segment, taskLocks, task.getId());
     }
   }
 
-  public boolean taskLockCoversSegments(
-      final Task task,
+  private DataSegment taskLockCoversSegments(
+      final List<TaskLock> taskLocks,
       final Set<DataSegment> segments
   )
   {
@@ -88,7 +89,6 @@ public class TaskActionToolbox
     // NOTE: it and before we perform the segment insert, but, that should be OK since the worst that happens is we
     // NOTE: insert some segments from the task but not others.
 
-    final List<TaskLock> taskLocks = getTaskLockbox().findLocksForTask(task);
     for (final DataSegment segment : segments) {
       final boolean ok = Iterables.any(
           taskLocks, new Predicate<TaskLock>()
@@ -104,10 +104,10 @@ public class TaskActionToolbox
       );
 
       if (!ok) {
-        return false;
+        return segment;
       }
     }
 
-    return true;
+    return null;
   }
 }
