@@ -23,12 +23,15 @@ import io.druid.segment.data.IndexedInts;
 
 import java.io.IOException;
 import java.util.Iterator;
+import java.util.Set;
 
 /**
  */
 public interface IndexProvidingSelector extends DimensionSelector
 {
   ColumnSelectorFactory wrapFactory(ColumnSelectorFactory factory);
+
+  Set<String> targetColumns();
 
   abstract class Delegated extends DelegatedDimensionSelector implements IndexProvidingSelector
   {

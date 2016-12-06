@@ -201,6 +201,12 @@ public class KeyIndexedVirtualColumn implements VirtualColumn
             KeyIndexedVirtualColumn.this, factory, outputName, valueColumns
         );
       }
+
+      @Override
+      public Set<String> targetColumns()
+      {
+        return valueColumns;
+      }
     };
   }
 

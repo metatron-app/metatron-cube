@@ -19,8 +19,15 @@
 
 package io.druid.segment;
 
+import com.google.common.base.Supplier;
+import com.google.common.collect.Maps;
+import io.druid.math.expr.Expr;
+import io.druid.math.expr.ExprEval;
+import io.druid.math.expr.Parser;
 import io.druid.query.dimension.DimensionSpec;
 import io.druid.segment.column.ColumnCapabilities;
+
+import java.util.Map;
 
 /**
  * Factory class for MetricSelectors
@@ -35,4 +42,35 @@ public interface ColumnSelectorFactory
   public ObjectColumnSelector makeObjectColumnSelector(String columnName);
   public ExprEvalColumnSelector makeMathExpressionSelector(String expression);
   public ColumnCapabilities getColumnCapabilities(String columnName);
+
+  abstract class ExprSupport implements ColumnSelectorFactory
+  {
+    @Override
+    @SuppressWarnings("unchecked")
+    public ExprEvalColumnSelector makeMathExpressionSelector(String expression)
+    {
+      final Expr parsed = Parser.parse(expression);
+      final Map<String, Supplier<Object>> values = Maps.newHashMap();
+      for (String columnName : Parser.findRequiredBindings(parsed)) {
+        values.put(columnName, makeObjectColumnSelector(columnName));
+      }
+      final Expr.NumericBinding binding = Parser.withSuppliers(values);
+      return new ExprEvalColumnSelector()
+      {
+        @Override
+        public ExprEval get()
+        {
+          return parsed.eval(binding);
+        }
+      };
+    }
+  }
+
+  abstract class ExprUnSupport implements ColumnSelectorFactory
+  {
+    public ExprEvalColumnSelector makeMathExpressionSelector(String expression)
+    {
+      throw new UnsupportedOperationException("makeMathExpressionSelector");
+    }
+  }
 }

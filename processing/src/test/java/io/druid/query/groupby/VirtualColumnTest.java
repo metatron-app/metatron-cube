@@ -163,9 +163,9 @@ public class VirtualColumnTest
         "2011-01-12T00:00:00.000Z\ta\tkey1,key2,key3\t100,200,300\t100\t100,200,300\t100\t200\t300\n" +
         "2011-01-12T00:00:00.000Z\tc\tkey1,key2\t100,500,900\t200\t100,500,900\t100\t500\t900\n" +
         "2011-01-12T00:00:00.000Z\ta\tkey1,key2,key3\t400,500,600\t300\t400,500,600\t400\t500\t600\n" +
-        "2011-01-12T00:00:00.000Z\t\tkey1,key2,key3\t10,20,30\t400\t10,20,30\t10\t20\t30\n" +
-        "2011-01-12T00:00:00.000Z\tc\tkey1,key2,key3\t1,5,9\t500\t1,5,9\t1\t5\t9\n" +
-        "2011-01-12T00:00:00.000Z\t\tkey1,key2,key3\t2,4,8\t600\t2,4,8\t2\t4\t8\n"
+        "2011-01-12T01:00:00.000Z\t\tkey1,key2,key3\t10,20,30\t400\t10,20,30\t10\t20\t30\n" +
+        "2011-01-12T01:00:00.000Z\tc\tkey1,key2,key3\t1,5,9\t500\t1,5,9\t1\t5\t9\n" +
+        "2011-01-12T01:00:00.000Z\t\tkey1,key2,key3\t2,4,8\t600\t2,4,8\t2\t4\t8\n"
     );
 
     return TestIndex.loadIncrementalIndex(index, input, parser);
@@ -328,13 +328,20 @@ public class VirtualColumnTest
   @Test
   public void testIndexProvider() throws Exception
   {
+    // key1 key2 key3
+    // 100  200  300
+    // 400  500  600
+    // 100  500 (900)
+    //  10   20   30
+    //   2    4    8
+    //   1    5    9
     GroupByQuery.Builder builder = testBuilder();
 
     List<Row> expectedResults = GroupByQueryRunnerTestHelper.createExpectedRows(
         new String[]{"__time", "indexed", "sumOf", "minOf", "maxOf"},
-        new Object[]{"2011-01-12T00:00:00.000Z", "key1", 613L, 1L, 400L},
+        new Object[]{"2011-01-12T00:00:00.000Z", "key1",  613L, 1L, 400L},
         new Object[]{"2011-01-12T00:00:00.000Z", "key2", 1229L, 4L, 500L},
-        new Object[]{"2011-01-12T00:00:00.000Z", "key3", 947L, 8L, 600L}
+        new Object[]{"2011-01-12T00:00:00.000Z", "key3",  947L, 8L, 600L}
     );
 
     List<VirtualColumn> virtualColumns = Arrays.<VirtualColumn>asList(
@@ -368,6 +375,34 @@ public class VirtualColumnTest
             )
         )
         .setVirtualColumns(virtualColumns)
+        .build();
+
+    checkQueryResult(query, expectedResults);
+
+    // expression
+    expectedResults = GroupByQueryRunnerTestHelper.createExpectedRows(
+        new String[]{"__time", "indexed", "sumOf", "minOf", "maxOf"},
+        new Object[]{"2011-01-12T00:00:00.000Z", "key1", 1226L,  6L, 1000L}, //  613+613(m1), 2+4(m2), 400+600(m3)
+        new Object[]{"2011-01-12T00:00:00.000Z", "key2", 1842L,  8L, 1400L}, // 1229+613(m1), 4+4(m2), 500+900(m3)
+        new Object[]{"2011-01-12T00:00:00.000Z", "key3", 1460L, 12L, 1200L}  //  947+513(m1), 8+4(m2), 600+600(m3)
+    );
+
+    // very confusing..
+    //  k1  k2  k3     sum(+m1)        min(+m2)        max(+m3)
+    // 100 200 300   200 300  400   300  400  500    400  500  600
+    // 400 500 600   800 900 1000   900 1000 1100   1000 1100 1200
+    // 100 500       200 600        600 1000        1000 1400
+    //  10  20  30    20  30   40    30   40   50     40   50   60
+    //   2   4   8     4   6   10     6    8   12     10   12   16
+    //   1   5   9     2   6   10     6   10   14     10   14   18
+    query = builder
+        .setAggregatorSpecs(
+            Arrays.<AggregatorFactory>asList(
+                new LongSumAggregatorFactory("sumOf", null, "array + m1", null),
+                new LongMinAggregatorFactory("minOf", null, "array + m2"),
+                new LongMaxAggregatorFactory("maxOf", null, "array + m3")
+            )
+        )
         .build();
 
     checkQueryResult(query, expectedResults);
@@ -480,14 +515,14 @@ public class VirtualColumnTest
   @Test
   public void testLateralView() throws Exception
   {
+    //  m1  m2  m3
+    // 100 200 300
+    // 400 500 600
+    // 100 500 900
+    //  10  20  30
+    //   2   4   8
+    //   1   5   9
     GroupByQuery.Builder builder = testBuilder();
-
-    List<Row> expectedResults = GroupByQueryRunnerTestHelper.createExpectedRows(
-        new String[]{"__time", "LV", "sumOf", "minOf", "maxOf"},
-        new Object[]{"2011-01-12T00:00:00.000Z", "m1", 613L,  1L, 400L},  // 100:100:400:10:1:2
-        new Object[]{"2011-01-12T00:00:00.000Z", "m2", 1229L, 4L, 500L},  // 200:500:500:20:5:4
-        new Object[]{"2011-01-12T00:00:00.000Z", "m3", 1847L, 8L, 900L}   // 300:900:600:30:9:8
-    );
 
     List<VirtualColumn> virtualColumns = Arrays.<VirtualColumn>asList(
         new LateralViewVirtualColumn("LV", "M", null, Arrays.asList("m1", "m2", "m3"))
@@ -503,6 +538,48 @@ public class VirtualColumnTest
         )
         .setVirtualColumns(virtualColumns)
         .build();
+
+    List<Row> expectedResults = GroupByQueryRunnerTestHelper.createExpectedRows(
+        new String[]{"__time", "LV", "sumOf", "minOf", "maxOf"},
+        new Object[]{"2011-01-12T00:00:00.000Z", "m1",  613L, 1L, 400L},  // 100:100:400:10:1:2
+        new Object[]{"2011-01-12T00:00:00.000Z", "m2", 1229L, 4L, 500L},  // 200:500:500:20:5:4
+        new Object[]{"2011-01-12T00:00:00.000Z", "m3", 1847L, 8L, 900L}   // 300:900:600:30:9:8
+    );
+
+    checkQueryResult(query, expectedResults);
+
+    // hour
+    query = builder.setGranularity(QueryGranularities.HOUR).build();
+
+    expectedResults = GroupByQueryRunnerTestHelper.createExpectedRows(
+        new String[]{"__time", "LV", "sumOf", "minOf", "maxOf"},
+        new Object[]{"2011-01-12T00:00:00.000Z", "m1",  600L, 100L, 400L},  // 100:100:400
+        new Object[]{"2011-01-12T00:00:00.000Z", "m2", 1200L, 200L, 500L},  // 200:500:500
+        new Object[]{"2011-01-12T00:00:00.000Z", "m3", 1800L, 300L, 900L},  // 300:900:600
+        new Object[]{"2011-01-12T01:00:00.000Z", "m1",   13L,   1L,  10L},  // 10:1:2
+        new Object[]{"2011-01-12T01:00:00.000Z", "m2",   29L,   4L,  20L},  // 20:5:4
+        new Object[]{"2011-01-12T01:00:00.000Z", "m3",   47L,   8L,  30L}   // 30:9:8
+    );
+
+    checkQueryResult(query, expectedResults);
+
+    // expression
+    query = builder
+        .setGranularity(QueryGranularities.DAY)
+        .setAggregatorSpecs(
+            Arrays.<AggregatorFactory>asList(
+                new LongSumAggregatorFactory("sumOf", null, "if(M >= 100, M, M * 2)", null),
+                new LongMinAggregatorFactory("minOf", null, "if(M >= 100, M, M * 2)"),
+                new LongMaxAggregatorFactory("maxOf", null, "if(M >= 100, M, M * 2)")
+            )
+        ).build();
+
+    expectedResults = GroupByQueryRunnerTestHelper.createExpectedRows(
+        new String[]{"__time", "LV", "sumOf", "minOf", "maxOf"},
+        new Object[]{"2011-01-12T00:00:00.000Z", "m1", 626L,   2L, 400L},  // 100:100:400:10:1:2
+        new Object[]{"2011-01-12T00:00:00.000Z", "m2", 1258L,  8L, 500L},  // 200:500:500:20:5:4
+        new Object[]{"2011-01-12T00:00:00.000Z", "m3", 1894L, 16L, 900L}   // 300:900:600:30:9:8
+    );
 
     checkQueryResult(query, expectedResults);
   }

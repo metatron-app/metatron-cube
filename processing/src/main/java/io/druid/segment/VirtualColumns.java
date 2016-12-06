@@ -19,11 +19,11 @@
 
 package io.druid.segment;
 
+import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
-import io.druid.math.expr.Parser;
 import io.druid.query.dimension.DimensionSpec;
 import io.druid.segment.column.ColumnCapabilities;
 import io.druid.segment.data.ArrayBasedIndexedInts;
@@ -154,7 +154,8 @@ public class VirtualColumns
     final int cardinality = idToVal.size();
     final IndexedInts indexedInts = new ArrayBasedIndexedInts(index);
 
-    return new DimensionSelector() {
+    return new DimensionSelector()
+    {
 
       @Override
       public IndexedInts getRow()
@@ -182,7 +183,85 @@ public class VirtualColumns
     };
   }
 
-  public static class VirtualColumnAsColumnSelectorFactory implements ColumnSelectorFactory
+  public static ColumnSelectorFactory wrap(List<IndexProvidingSelector> selectors, final ColumnSelectorFactory factory)
+  {
+    if (selectors.isEmpty()) {
+      return factory;
+    }
+    final Map<String, ColumnSelectorFactory> delegate = Maps.newHashMap();
+    for (IndexProvidingSelector selector : selectors) {
+      ColumnSelectorFactory wrapped = selector.wrapFactory(factory);
+      for (String targetColumn : selector.targetColumns()) {
+        Preconditions.checkArgument(delegate.put(targetColumn, wrapped) == null);
+      }
+    }
+    return new ColumnSelectorFactory.ExprSupport()
+    {
+      @Override
+      public Iterable<String> getColumnNames()
+      {
+        return factory.getColumnNames();
+      }
+
+      @Override
+      public DimensionSelector makeDimensionSelector(DimensionSpec dimensionSpec)
+      {
+        return factory.makeDimensionSelector(dimensionSpec);
+      }
+
+      @Override
+      public FloatColumnSelector makeFloatColumnSelector(String columnName)
+      {
+        ColumnSelectorFactory wrapped = delegate.get(columnName);
+        if (wrapped != null) {
+          return wrapped.makeFloatColumnSelector(columnName);
+        }
+        return factory.makeFloatColumnSelector(columnName);
+      }
+
+      @Override
+      public DoubleColumnSelector makeDoubleColumnSelector(String columnName)
+      {
+        ColumnSelectorFactory wrapped = delegate.get(columnName);
+        if (wrapped != null) {
+          return wrapped.makeDoubleColumnSelector(columnName);
+        }
+        return factory.makeDoubleColumnSelector(columnName);
+      }
+
+      @Override
+      public LongColumnSelector makeLongColumnSelector(String columnName)
+      {
+        ColumnSelectorFactory wrapped = delegate.get(columnName);
+        if (wrapped != null) {
+          return wrapped.makeLongColumnSelector(columnName);
+        }
+        return factory.makeLongColumnSelector(columnName);
+      }
+
+      @Override
+      public ObjectColumnSelector makeObjectColumnSelector(String columnName)
+      {
+        ColumnSelectorFactory wrapped = delegate.get(columnName);
+        if (wrapped != null) {
+          return wrapped.makeObjectColumnSelector(columnName);
+        }
+        return factory.makeObjectColumnSelector(columnName);
+      }
+
+      @Override
+      public ColumnCapabilities getColumnCapabilities(String columnName)
+      {
+        ColumnSelectorFactory wrapped = delegate.get(columnName);
+        if (wrapped != null) {
+          return wrapped.getColumnCapabilities(columnName);
+        }
+        return factory.getColumnCapabilities(columnName);
+      }
+    };
+  }
+
+  public static class VirtualColumnAsColumnSelectorFactory extends ColumnSelectorFactory.ExprUnSupport
   {
     private final VirtualColumn virtualColumn;
     private final ColumnSelectorFactory factory;
@@ -251,17 +330,6 @@ public class VirtualColumns
         return virtualColumn.asMetric(columnName, factory);
       }
       return factory.makeObjectColumnSelector(columnName);
-    }
-
-    @Override
-    public ExprEvalColumnSelector makeMathExpressionSelector(String expression)
-    {
-      for (String required : Parser.findRequiredBindings(expression)) {
-        if (metricColumns.contains(required)) {
-          throw new UnsupportedOperationException("makeMathExpressionSelector");
-        }
-      }
-      return factory.makeMathExpressionSelector(expression);
     }
 
     @Override

@@ -377,7 +377,7 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
                                             maxDataTimestamp < timeEnd
                                         );
 
-                  return new Cursor()
+                  return new Cursor.ExprSupport()
                   {
                     private final Offset initOffset = offset.clone();
                     private final DateTime myBucket = gran.toDateTime(input);
@@ -897,24 +897,6 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
                         objectColumnCache.put(column, cachedColumnVals);
                       }
                       return cachedColumnVals;
-                    }
-
-                    @Override
-                    public ExprEvalColumnSelector makeMathExpressionSelector(String expression)
-                    {
-                      final Expr parsed = Parser.parse(expression);
-                      final Map<String, Supplier<Object>> values = Maps.newHashMap();
-                      for (String columnName : Parser.findRequiredBindings(parsed)) {
-                        values.put(columnName, makeObjectColumnSelector(columnName));
-                      }
-                      final Expr.NumericBinding binding = Parser.withSuppliers(values);
-                      return new ExprEvalColumnSelector() {
-                        @Override
-                        public ExprEval get()
-                        {
-                          return parsed.eval(binding);
-                        }
-                      };
                     }
 
                     @Override

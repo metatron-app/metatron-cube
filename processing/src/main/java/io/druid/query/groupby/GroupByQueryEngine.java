@@ -25,6 +25,7 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+import com.google.common.collect.Sets;
 import com.google.common.primitives.Ints;
 import com.google.inject.Inject;
 import com.metamx.common.IAE;
@@ -65,6 +66,7 @@ import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  */
@@ -336,23 +338,25 @@ public class GroupByQueryEngine
       dimensions = Lists.newArrayListWithExpectedSize(dimensionSpecs.size());
       dimNames = Lists.newArrayListWithExpectedSize(dimensionSpecs.size());
 
-      IndexProvidingSelector provider = null;
-      for (int i = 0; i < dimensionSpecs.size(); ++i) {
-        final DimensionSpec dimSpec = dimensionSpecs.get(i);
-        final DimensionSelector selector = cursor.makeDimensionSelector(dimSpec);
+      List<IndexProvidingSelector> providers = Lists.newArrayList();
+      Set<String> indexedColumns = Sets.newHashSet();
+      for (final DimensionSpec dimensionDesc : dimensionSpecs) {
+        final DimensionSelector selector = cursor.makeDimensionSelector(dimensionDesc);
         if (selector != null) {
           dimensions.add(selector);
-          dimNames.add(dimSpec.getOutputName());
+          dimNames.add(dimensionDesc.getOutputName());
         }
         if (selector instanceof IndexProvidingSelector) {
-          if (provider != null) {
-            throw new IllegalArgumentException("currently only one index provider is supported");
+          IndexProvidingSelector provider = (IndexProvidingSelector) selector;
+          if (indexedColumns.removeAll(provider.targetColumns())) {
+            throw new IllegalArgumentException("Found conflicts between index providers");
           }
-          provider = (IndexProvidingSelector) selector;
+          indexedColumns.addAll(provider.targetColumns());
+          providers.add(provider);
         }
       }
 
-      ColumnSelectorFactory factory = provider != null ? provider.wrapFactory(cursor) : cursor;
+      ColumnSelectorFactory factory = VirtualColumns.wrap(providers, cursor);
 
       aggregatorSpecs = query.getAggregatorSpecs();
       aggregators = new BufferAggregator[aggregatorSpecs.size()];

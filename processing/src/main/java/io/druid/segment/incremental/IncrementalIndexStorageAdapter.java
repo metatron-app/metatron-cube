@@ -35,7 +35,6 @@ import io.druid.cache.Cache;
 import io.druid.data.ValueType;
 import io.druid.granularity.QueryGranularity;
 import io.druid.math.expr.Expr;
-import io.druid.math.expr.ExprEval;
 import io.druid.math.expr.Parser;
 import io.druid.query.QueryInterruptedException;
 import io.druid.query.dimension.DimensionSpec;
@@ -48,7 +47,6 @@ import io.druid.segment.ColumnSelectors;
 import io.druid.segment.Cursor;
 import io.druid.segment.DimensionSelector;
 import io.druid.segment.DoubleColumnSelector;
-import io.druid.segment.ExprEvalColumnSelector;
 import io.druid.segment.FloatColumnSelector;
 import io.druid.segment.LongColumnSelector;
 import io.druid.segment.Metadata;
@@ -240,7 +238,7 @@ public class IncrementalIndexStorageAdapter implements StorageAdapter
           {
             final long timeStart = Math.max(input, actualInterval.getStartMillis());
 
-            return new Cursor()
+            return new Cursor.ExprSupport()
             {
               private Iterator<Map.Entry<IncrementalIndex.TimeAndDims, Integer>> baseIter;
               private ConcurrentNavigableMap<IncrementalIndex.TimeAndDims, Integer> cursorMap;
@@ -632,7 +630,7 @@ public class IncrementalIndexStorageAdapter implements StorageAdapter
                 return new ObjectColumnSelector<Object>()
                 {
                   @Override
-                  public Class classOfObject()
+                  public Class<Object> classOfObject()
                   {
                     return Object.class;
                   }
@@ -662,25 +660,6 @@ public class IncrementalIndexStorageAdapter implements StorageAdapter
                       dimVals[i] = dimDim.getValue(dimIdx[i]);
                     }
                     return dimVals;
-                  }
-                };
-              }
-
-              @Override
-              public ExprEvalColumnSelector makeMathExpressionSelector(String expression)
-              {
-                final Expr parsed = Parser.parse(expression);
-                final Map<String, Supplier<Object>> values = Maps.newHashMap();
-                for (String columnName : Parser.findRequiredBindings(parsed)) {
-                  values.put(columnName, makeObjectColumnSelector(columnName));
-                }
-                final Expr.NumericBinding binding = Parser.withSuppliers(values);
-                return new ExprEvalColumnSelector()
-                {
-                  @Override
-                  public ExprEval get()
-                  {
-                    return parsed.eval(binding);
                   }
                 };
               }

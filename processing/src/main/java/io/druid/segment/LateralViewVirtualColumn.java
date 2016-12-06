@@ -3,6 +3,7 @@ package io.druid.segment;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;
+import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import com.metamx.common.StringUtils;
@@ -45,6 +46,7 @@ public class LateralViewVirtualColumn implements VirtualColumn
     this.metricName = metricName;
     this.excludes = excludes;
     this.values = values;
+
     this.valueSet = values != null && !values.isEmpty() ? Sets.newHashSet(values) : null;
     Set<String> excludeSet = Sets.newHashSet();
     if (excludes != null) {
@@ -149,6 +151,7 @@ public class LateralViewVirtualColumn implements VirtualColumn
     }
     indexer.columnNames.set(targetColumns);
 
+    final Set<String> metricColumns = ImmutableSet.of(metricName);
     final DimensionSelector selector = VirtualColumns.toFixedDimensionSelector(targetColumns);
 
     return new IndexProvidingSelector.Delegated(selector)
@@ -163,8 +166,14 @@ public class LateralViewVirtualColumn implements VirtualColumn
       public final ColumnSelectorFactory wrapFactory(final ColumnSelectorFactory factory)
       {
         return new VirtualColumns.VirtualColumnAsColumnSelectorFactory(
-            LateralViewVirtualColumn.this, factory, outputName, Sets.newHashSet(metricName)
+            LateralViewVirtualColumn.this, factory, outputName, metricColumns
         );
+      }
+
+      @Override
+      public Set<String> targetColumns()
+      {
+        return metricColumns;
       }
     };
   }
@@ -174,7 +183,6 @@ public class LateralViewVirtualColumn implements VirtualColumn
   {
     return new LateralViewVirtualColumn(outputName, metricName, excludes, values);
   }
-
 
   @Override
   public byte[] getCacheKey()
@@ -191,6 +199,55 @@ public class LateralViewVirtualColumn implements VirtualColumn
                      .put(excludesBytes).put(DimFilterCacheHelper.STRING_SEPARATOR)
                      .put(valuesBytes)
                      .array();
+  }
+
+  @Override
+  public boolean equals(Object o)
+  {
+    if (this == o) {
+      return true;
+    }
+    if (o == null || getClass() != o.getClass()) {
+      return false;
+    }
+
+    LateralViewVirtualColumn that = (LateralViewVirtualColumn) o;
+
+    if (!outputName.equals(that.outputName)) {
+      return false;
+    }
+    if (!metricName.equals(that.metricName)) {
+      return false;
+    }
+    if (excludes != null ? !excludes.equals(that.excludes) : that.excludes != null) {
+      return false;
+    }
+    if (values != null ? !values.equals(that.values) : that.values != null) {
+      return false;
+    }
+
+    return true;
+  }
+
+  @Override
+  public int hashCode()
+  {
+    int result = outputName.hashCode();
+    result = 31 * result + metricName.hashCode();
+    result = 31 * result + (excludes != null ? excludes.hashCode() : 0);
+    result = 31 * result + (values != null ? values.hashCode() : 0);
+    return result;
+  }
+
+  @Override
+  public String toString()
+  {
+    return "LateralViewVirtualColumn{" +
+           "outputName='" + outputName + '\'' +
+           ", metricName='" + metricName + '\'' +
+           ", excludes=" + excludes +
+           ", values=" + values +
+           '}';
   }
 
   private static class LVIndexHolder extends IndexProvidingSelector.IndexHolder
