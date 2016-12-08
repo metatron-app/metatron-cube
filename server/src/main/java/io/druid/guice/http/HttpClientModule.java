@@ -107,7 +107,9 @@ public class HttpClientModule implements Module
       final HttpClientConfig.Builder builder = HttpClientConfig
           .builder()
           .withNumConnections(config.getNumConnections())
-          .withReadTimeout(config.getReadTimeout());
+          .withReadTimeout(config.getReadTimeout())
+          .withWorkerCount(config.getNumMaxThreads())
+          .withCompressionCodec(HttpClientConfig.CompressionCodec.valueOf(config.getCompressionCodec().toUpperCase()));
 
       if (getSslContextBinding() != null) {
         builder.withSslContext(getSslContextBinding().getProvider().get());
