@@ -19,39 +19,32 @@
 
 package io.druid.metadata;
 
-import com.fasterxml.jackson.annotation.JacksonInject;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.metamx.common.lifecycle.Lifecycle;
+import com.fasterxml.jackson.annotation.JsonProperty;
+import org.joda.time.Duration;
 
-import javax.validation.constraints.NotNull;
-
-/**
- */
-public class SQLMetadataSegmentPublisherProvider implements MetadataSegmentPublisherProvider
+public class MetadataSegmentPublisherConfig
 {
-  @JacksonInject
-  @NotNull
-  private SQLMetadataConnector connector = null;
+  @JsonProperty
+  private String url = null;
 
-  @JacksonInject
-  @NotNull
-  private MetadataStorageTablesConfig config = null;
+  @JsonProperty
+  private Duration readTimeout = new Duration(10_000);
 
-  @JacksonInject
-  @NotNull
-  private MetadataSegmentPublisherConfig publish = null;
+  @JsonProperty
+  private int numConnection = 1;
 
-  @JacksonInject
-  @NotNull
-  private Lifecycle lifecycle = null;
-
-  @JacksonInject
-  @NotNull
-  private ObjectMapper jsonMapper = null;
-
-  @Override
-  public MetadataSegmentPublisher get()
+  public String getUrl()
   {
-    return new SQLMetadataSegmentPublisher(jsonMapper, config, publish, connector, lifecycle);
+    return url;
+  }
+
+  public int getNumConnection()
+  {
+    return numConnection;
+  }
+
+  public Duration getReadTimeout()
+  {
+    return readTimeout;
   }
 }

@@ -23,16 +23,26 @@ package io.druid.metadata;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Charsets;
 import com.google.inject.Inject;
+import com.metamx.common.lifecycle.Lifecycle;
 import com.metamx.common.logger.Logger;
+import com.metamx.http.client.HttpClient;
+import com.metamx.http.client.HttpClientConfig;
+import com.metamx.http.client.HttpClientInit;
+import com.metamx.http.client.Request;
+import com.metamx.http.client.response.StatusResponseHandler;
 import io.druid.timeline.DataSegment;
 import io.druid.timeline.partition.NoneShardSpec;
+import org.jboss.netty.handler.codec.http.HttpMethod;
 import org.joda.time.DateTime;
 import org.skife.jdbi.v2.DBI;
 import org.skife.jdbi.v2.Handle;
 import org.skife.jdbi.v2.tweak.HandleCallback;
 
 import java.io.IOException;
+import java.net.MalformedURLException;
+import java.net.URL;
 import java.util.List;
 import java.util.Map;
 
@@ -45,11 +55,16 @@ public class SQLMetadataSegmentPublisher implements MetadataSegmentPublisher
   private final SQLMetadataConnector connector;
   private final String statement;
 
+  private final HttpClient client;
+  private final Request request;
+
   @Inject
   public SQLMetadataSegmentPublisher(
       ObjectMapper jsonMapper,
       MetadataStorageTablesConfig config,
-      SQLMetadataConnector connector
+      MetadataSegmentPublisherConfig publish,
+      SQLMetadataConnector connector,
+      Lifecycle lifecycle
   )
   {
     this.jsonMapper = jsonMapper;
@@ -60,6 +75,39 @@ public class SQLMetadataSegmentPublisher implements MetadataSegmentPublisher
         + "VALUES (:id, :dataSource, :created_date, :start, :end, :partitioned, :version, :used, :payload)",
         config.getSegmentsTable()
     );
+    URL postURL = publish == null ? null : toURL(publish.getUrl());
+    if (postURL != null) {
+      HttpClientConfig configure = HttpClientConfig.builder()
+                                                   .withReadTimeout(publish.getReadTimeout())
+                                                   .withNumConnections(publish.getNumConnection())
+                                                   .build();
+      client = HttpClientInit.createClient(configure, lifecycle);
+      request = new Request(HttpMethod.POST, postURL);
+      log.info("published segments will be posted to %s with timeout %s", postURL, configure.getReadTimeout());
+    } else {
+      client = null;
+      request = null;
+    }
+  }
+
+  public SQLMetadataSegmentPublisher(
+      ObjectMapper jsonMapper,
+      MetadataStorageTablesConfig config,
+      SQLMetadataConnector connector
+  )
+  {
+    this(jsonMapper, config, null, connector, null);
+  }
+
+  private URL toURL(String url)
+  {
+    try {
+      return url == null ? null : new URL(url);
+    }
+    catch (MalformedURLException e) {
+      log.warn(e, "invalid post url %s", url);
+      return null;
+    }
   }
 
   @Override
@@ -139,6 +187,17 @@ public class SQLMetadataSegmentPublisher implements MetadataSegmentPublisher
     catch (Exception e) {
       log.error(e, "Exception inserting into DB");
       throw new RuntimeException(e);
+    }
+    if (client != null) {
+      try {
+        client.go(
+            request.setContent("application/json", payload),
+            new StatusResponseHandler(Charsets.UTF_8)
+        ).get();
+      }
+      catch (Exception e) {
+        log.warn(e, "failed to post published segment");
+      }
     }
   }
 }
