@@ -24,6 +24,7 @@ import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import com.metamx.common.CompressionUtils;
+import com.metamx.common.Pair;
 import com.metamx.common.logger.Logger;
 import io.druid.data.input.InputRow;
 import io.druid.indexer.path.HynixCombineInputFormat;
@@ -34,6 +35,7 @@ import io.druid.segment.ProgressIndicator;
 import io.druid.segment.QueryableIndex;
 import io.druid.segment.incremental.IncrementalIndex;
 import io.druid.segment.incremental.IncrementalIndexSchema;
+import io.druid.segment.incremental.IndexSizeExceededException;
 import io.druid.segment.incremental.OnheapIncrementalIndex;
 import io.druid.timeline.DataSegment;
 import io.druid.timeline.partition.NoneShardSpec;
@@ -66,6 +68,8 @@ import java.util.Set;
 public class ReduceMergeIndexGeneratorJob implements HadoopDruidIndexerJob.IndexingStatsProvider
 {
   private static final Logger log = new Logger(ReduceMergeIndexGeneratorJob.class);
+  private static final int INCREMENTAL_INDEX_OVERHEAD = 64 << 10;
+  private static final int MAX_LOG_INTERVAL = 10_0000;
 
   private final HadoopDruidIndexerConfig config;
   private final IndexGeneratorJob.IndexGeneratorStats jobStats;
@@ -87,7 +91,8 @@ public class ReduceMergeIndexGeneratorJob implements HadoopDruidIndexerJob.Index
     try {
       Job job = Job.getInstance(
           conf,
-          String.format("%s-index-generator-reducer-merge-%s", config.getDataSource(), config.getIntervals().get()));
+          String.format("%s-index-generator-reducer-merge-%s", config.getDataSource(), config.getIntervals().get())
+      );
 
       job.getConfiguration().set("io.sort.record.percent", "0.23");
 
@@ -146,7 +151,7 @@ public class ReduceMergeIndexGeneratorJob implements HadoopDruidIndexerJob.Index
 
     private long maxOccupation;
     private int maxRowCount;
-    private int occupationCheckInterval = 2000;
+    private int occupationCheckInterval = 5000;
 
     private File baseFlushFile;
     private Path shufflingPath;
@@ -156,14 +161,11 @@ public class ReduceMergeIndexGeneratorJob implements HadoopDruidIndexerJob.Index
     private ProgressIndicator progressIndicator;
 
     private int indexCount;
-    private String currentDataSource;
-    private Interval interval;
-    private IncrementalIndex index;
+    private List<IntervalIndex> indices = Lists.newLinkedList();
 
+    private String currentDataSource;
     private int nextLogging = 1;
     private int lineCount;
-
-    private long startTime;
 
     @Override
     public void run(Context context) throws IOException, InterruptedException
@@ -190,8 +192,8 @@ public class ReduceMergeIndexGeneratorJob implements HadoopDruidIndexerJob.Index
       tuningConfig = config.getSchema().getTuningConfig();
 
       aggregators = config.getSchema().getDataSchema().getAggregators();
-      for (int i = 0; i < aggregators.length; ++i) {
-        metricNames.add(aggregators[i].getName());
+      for (AggregatorFactory aggregator : aggregators) {
+        metricNames.add(aggregator.getName());
       }
 
       flushedIndex = context.getCounter("navis", "index-flush-count");
@@ -226,23 +228,26 @@ public class ReduceMergeIndexGeneratorJob implements HadoopDruidIndexerJob.Index
       };
 
       memoryMXBean = ManagementFactory.getMemoryMXBean();
-      startTime = System.currentTimeMillis();
     }
 
     @Override
     protected void innerMap(InputRow row, Object value, Context context)
         throws IOException, InterruptedException
     {
-      String dataSource = HynixCombineInputFormat.CURRENT_DATASOURCE.get();
-      if (interval != null &&
-          (!Objects.equals(currentDataSource, dataSource) || !interval.contains(row.getTimestampFromEpoch()))) {
-        persist(context);
+      // not null only with HynixCombineInputFormat
+      final String dataSource = HynixCombineInputFormat.CURRENT_DATASOURCE.get();
+      if (!indices.isEmpty() && !Objects.equals(currentDataSource, dataSource)) {
+        persistAll(context);
       }
-      if (index != null) {
+
+      IntervalIndex target = findIndex(row.getTimestampFromEpoch());
+      if (target != null) {
+        final IncrementalIndex index = target.index();
         boolean flush = !index.canAppendRow();
         if (lineCount > 0 && lineCount % occupationCheckInterval == 0) {
-          long estimation = index.estimatedOccupation();
-          log.info("... %,d rows in index with estimated size %,d bytes", index.size(), estimation);
+          int rows = totalRows();
+          long estimation = totalEstimation();
+          log.info("... %,d rows in %d indices with estimated size %,d bytes", rows, indices.size(), estimation);
           if (flush) {
             log.info("Flushing index because row count in index exceeding maxRowsInMemory %,d", maxRowCount);
           } else if (maxOccupation > 0 && estimation >= maxOccupation) {
@@ -252,22 +257,24 @@ public class ReduceMergeIndexGeneratorJob implements HadoopDruidIndexerJob.Index
         }
         if (flush) {
           log.info("Heap memory usage from mbean %s", memoryMXBean.getHeapMemoryUsage());
-          persist(context);
+          target = persistOneIndex(context, target);
         }
       }
-      if (index == null) {
+      if (target == null) {
         currentDataSource = dataSource;
-        interval = getConfig().getTargetInterval(row).get();
-        index = makeIncrementalIndex();
-        lineCount = 0;
+        String currentDataSource = currentDataSource();
+        Interval interval = getConfig().getTargetInterval(row).get();
+        IncrementalIndex index = makeIncrementalIndex(interval);
+        target = new IntervalIndex(currentDataSource, interval, index);
+        indices.add(target);
         nextLogging = 1;
         log.info("Starting new index %s [%s]", currentDataSource, interval);
       }
-      index.add(row);
+      target.addRow(row);
 
       if (++lineCount % nextLogging == 0) {
         log.info("processing %,d lines..", lineCount);
-        nextLogging = Math.min(nextLogging * 10, 100000);
+        nextLogging = Math.min(nextLogging * 10, MAX_LOG_INTERVAL);
       }
     }
 
@@ -276,16 +283,14 @@ public class ReduceMergeIndexGeneratorJob implements HadoopDruidIndexerJob.Index
     {
       super.cleanup(context);
       try {
-        if (index != null && !index.isEmpty()) {
-          persist(context);
-        }
+        persistAll(context);
       }
       finally {
         FileUtils.deleteDirectory(baseFlushFile);
       }
     }
 
-    private IncrementalIndex makeIncrementalIndex()
+    private IncrementalIndex makeIncrementalIndex(Interval interval)
     {
       final IncrementalIndexSchema indexSchema = new IncrementalIndexSchema.Builder()
           .withMinTimestamp(interval.getStartMillis())
@@ -303,18 +308,103 @@ public class ReduceMergeIndexGeneratorJob implements HadoopDruidIndexerJob.Index
       );
     }
 
-    private void persist(Context context) throws IOException, InterruptedException
+    private IntervalIndex findIndex(long timestamp)
     {
-      context.progress();
+      for (IntervalIndex entry : indices) {
+        if (entry.lhs.contains(timestamp)) {
+          return entry;
+        }
+      }
+      return null;
+    }
+
+    private int totalRows()
+    {
+      int total = 0;
+      for (IntervalIndex entry : indices) {
+        total += entry.index().size();
+      }
+      return total;
+    }
+
+    private long totalEstimation()
+    {
+      long total = 0;
+      for (IntervalIndex entry : indices) {
+        total += entry.index().estimatedOccupation();
+        total += INCREMENTAL_INDEX_OVERHEAD;
+      }
+      return total;
+    }
+
+    private void persistAll(Context context) throws IOException, InterruptedException
+    {
+      for (IntervalIndex entry : indices) {
+        persist(context, entry);
+      }
+      indices.clear();
+    }
+
+    private IntervalIndex persistOneIndex(Context context, IntervalIndex current)
+        throws IOException, InterruptedException
+    {
+      IntervalIndex found = selectTarget(current);
+      persist(context, found);
+      return found != current ? current : null;
+    }
+
+    private IntervalIndex selectTarget(IntervalIndex current)
+    {
+      long leastAccessTime = -1;
+      IntervalIndex found = null;
+      for (IntervalIndex entry : indices) {
+        if (entry == current) {
+          continue;
+        }
+        if (found == null || entry.lastAccessTime < leastAccessTime) {
+          leastAccessTime = entry.lastAccessTime;
+          found = entry;
+        }
+      }
+      if (System.currentTimeMillis() - leastAccessTime < 30 * 1000) {
+        int maxRows = -1;
+        for (IntervalIndex entry : indices) {
+          if (entry == current) {
+            continue;
+          }
+          int size = entry.index().size();
+          if (maxRows < 0 || size > maxRows) {
+            maxRows = size;
+            found = entry;
+          }
+        }
+      }
+      IntervalIndex target = found == null ? current : found;
+      int rows = target.index().size();
       log.info(
-          "flushing index of %s (%s).. %,d rows with estimated size %,d bytes accumulated during %,d msec",
-          currentDataSource, interval, index.size(), index.estimatedOccupation(), System.currentTimeMillis() - startTime
+          "Flushing index of %s (%s) which has %d rows and was accessed %,d msec before",
+          target.dataSource, target.interval(), rows, System.currentTimeMillis() - target.lastAccessTime
+      );
+      indices.remove(target);
+      return target;
+    }
+
+    private void persist(Context context, IntervalIndex entry)
+        throws IOException, InterruptedException
+    {
+      Interval interval = entry.interval();
+      IncrementalIndex index = entry.index();
+      context.progress();
+
+      final String dataSource = currentDataSource();
+      log.info(
+          "Flushing index of %s (%s).. %,d rows with estimated size %,d bytes accumulated during %,d msec",
+          dataSource, interval, index.size(), index.estimatedOccupation(), entry.elapsed()
       );
 
       long prev = System.currentTimeMillis();
       File localFile = merger.persist(index, interval, nextFile(), config.getIndexSpec(), progressIndicator);
 
-      final String dataSource = currentDataSource != null ? currentDataSource : config.getDataSource();
       final Path outFile = new Path(shufflingPath, localFile.getName() + ".zip");
       shufflingFS.mkdirs(outFile.getParent());
 
@@ -330,13 +420,42 @@ public class ReduceMergeIndexGeneratorJob implements HadoopDruidIndexerJob.Index
       FileUtils.deleteDirectory(localFile);
 
       flushedIndex.increment(1);
-      startTime = System.currentTimeMillis();
-      index = null;
     }
 
     private File nextFile()
     {
       return new File(baseFlushFile, String.format("index-%,05d", indexCount++));
+    }
+
+    private String currentDataSource()
+    {
+      return currentDataSource != null ? currentDataSource : config.getDataSource();
+    }
+  }
+
+  private static class IntervalIndex extends Pair<Interval, IncrementalIndex>
+  {
+    private final String dataSource;
+    private final long startTime = System.currentTimeMillis();
+
+    private long lastAccessTime = -1;
+
+    public IntervalIndex(String dataSource, Interval lhs, IncrementalIndex rhs)
+    {
+      super(lhs, rhs);
+      this.dataSource = dataSource;
+    }
+
+    private Interval interval() { return lhs;}
+
+    private IncrementalIndex index() { return rhs;}
+
+    private long elapsed() { return System.currentTimeMillis() - startTime;}
+
+    private void addRow(InputRow row) throws IndexSizeExceededException
+    {
+      rhs.add(row);
+      lastAccessTime = System.currentTimeMillis();
     }
   }
 
@@ -371,8 +490,8 @@ public class ReduceMergeIndexGeneratorJob implements HadoopDruidIndexerJob.Index
       tuningConfig = config.getSchema().getTuningConfig();
 
       aggregators = config.getSchema().getDataSchema().getAggregators();
-      for (int i = 0; i < aggregators.length; ++i) {
-        metricNames.add(aggregators[i].getName());
+      for (AggregatorFactory aggregator : aggregators) {
+        metricNames.add(aggregator.getName());
       }
 
       maxShardLength = tuningConfig.getMaxShardLength();
