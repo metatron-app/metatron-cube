@@ -26,8 +26,11 @@ import com.google.common.collect.Lists;
 import com.google.common.io.Files;
 import com.metamx.common.guava.Sequence;
 import com.metamx.common.guava.Sequences;
+import com.yahoo.sketches.Family;
+import com.yahoo.sketches.theta.SetOperation;
 import com.yahoo.sketches.theta.Sketch;
 import com.yahoo.sketches.theta.Sketches;
+import com.yahoo.sketches.theta.Union;
 import io.druid.data.input.MapBasedRow;
 import io.druid.data.input.Row;
 import io.druid.granularity.QueryGranularities;
@@ -434,5 +437,35 @@ public class SketchAggregationTest
         new File(SketchAggregationTest.class.getClassLoader().getResource(fileName).getFile()),
         Charset.forName("UTF-8")
     ).read();
+  }
+
+  public static void main(String[] args)
+  {
+    int size = 4;
+
+    Union union1 = (Union) SetOperation.builder().build(size, Family.UNION);
+    union1.update("automotive");
+    union1.update("automotive");
+    union1.update("business");
+    union1.update("entertainment");
+    union1.update("health");
+    union1.update("mezzanine");
+    union1.update("news");
+    Sketch sketch1 = union1.getResult();
+
+    Union union2 = (Union) SetOperation.builder().build(size, Family.UNION);
+    union2.update("automotive");
+    union2.update("business");
+    union2.update("entertainment");
+    union2.update("health");
+    Sketch sketch2 = union2.getResult();
+
+    Sketch union = SketchOperations.sketchSetOperation(SketchOperations.Func.UNION, size, sketch1, sketch2);
+    Sketch intersect = SketchOperations.sketchSetOperation(SketchOperations.Func.INTERSECT, size, sketch1, sketch2);
+    Sketch not = SketchOperations.sketchSetOperation(SketchOperations.Func.NOT, size, sketch1, sketch2);
+
+    System.out.println("[SketchAggregationTest/main] " + union.getEstimate());
+    System.out.println("[SketchAggregationTest/main] " + intersect.getEstimate());
+    System.out.println("[SketchAggregationTest/main] " + not.getEstimate());
   }
 }

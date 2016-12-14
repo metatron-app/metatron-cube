@@ -29,4 +29,9 @@ import com.fasterxml.jackson.annotation.JsonTypeInfo;
 public interface PostProcessingOperator<T>
 {
   public QueryRunner<T> postProcess(QueryRunner<T> baseQueryRunner);
+
+  public interface UnionSupport<T> extends PostProcessingOperator<T>
+  {
+    public QueryRunner<T> postProcess(UnionAllQueryRunner<T> baseQueryRunner);
+  }
 }

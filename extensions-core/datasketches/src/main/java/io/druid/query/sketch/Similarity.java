@@ -17,19 +17,46 @@
  * under the License.
  */
 
-package io.druid.guice;
+package io.druid.query.sketch;
 
-import com.google.inject.Binder;
-import com.google.inject.TypeLiteral;
-import com.google.inject.multibindings.Multibinder;
-import io.druid.server.DruidNode;
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonProperty;
 
 /**
  */
-public class DruidBinders extends QueryToolBinders
+public class Similarity
 {
-  public static Multibinder<KeyHolder<DruidNode>> discoveryAnnouncementBinder(Binder binder)
+  private final String from;
+  private final String to;
+  private final double similarity;
+
+  @JsonCreator
+  public Similarity(
+      @JsonProperty("from") String from,
+      @JsonProperty("to") String to,
+      @JsonProperty("similarity") double similarity
+  )
   {
-    return Multibinder.newSetBinder(binder, new TypeLiteral<KeyHolder<DruidNode>>(){});
+    this.from = from;
+    this.to = to;
+    this.similarity = similarity;
+  }
+
+  @JsonProperty
+  public String getFrom()
+  {
+    return from;
+  }
+
+  @JsonProperty
+  public String getTo()
+  {
+    return to;
+  }
+
+  @JsonProperty
+  public double getSimilarity()
+  {
+    return similarity;
   }
 }

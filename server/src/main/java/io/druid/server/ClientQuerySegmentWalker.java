@@ -25,6 +25,7 @@ import com.google.common.base.Function;
 import com.google.common.base.Supplier;
 import com.google.common.collect.Lists;
 import com.google.inject.Inject;
+import com.metamx.common.Pair;
 import com.metamx.common.guava.LazySequence;
 import com.metamx.common.guava.MergeSequence;
 import com.metamx.common.guava.Sequence;
@@ -43,6 +44,7 @@ import io.druid.query.RetryQueryRunnerConfig;
 import io.druid.query.SegmentDescriptor;
 import io.druid.query.TableDataSource;
 import io.druid.query.UnionAllQuery;
+import io.druid.query.UnionAllQueryRunner;
 import org.joda.time.Interval;
 
 import java.util.List;
@@ -95,12 +97,7 @@ public class ClientQuerySegmentWalker implements QuerySegmentWalker
     if (query instanceof UnionAllQuery) {
       runner = getUnionQueryRunner((UnionAllQuery) query);
     } else {
-      final PostProcessingOperator<T> postProcessing = objectMapper.convertValue(
-          query.<String>getContextValue("postProcessing"),
-          new TypeReference<PostProcessingOperator<T>>()
-          {
-          }
-      );
+      final PostProcessingOperator<T> postProcessing = getPostProcessingOperator(query);
       FluentQueryRunnerBuilder<T> builder = new FluentQueryRunnerBuilder<>(toolChest);
       runner = builder.create(new RetryQueryRunner<>(baseClient, toolChest, retryConfig, objectMapper))
                       .applyPreMergeDecoration()
@@ -116,79 +113,109 @@ public class ClientQuerySegmentWalker implements QuerySegmentWalker
   {
     final String queryId = union.getId();
     final boolean sortOnUnion = union.isSortOnUnion();
+    final PostProcessingOperator<T> postProcessing = getPostProcessingOperator(union);
+
     final List<Query<T>> targets = union.getQueries();
+
+    final UnionAllQueryRunner<T> baseRunner;
     if (targets != null) {
-      return new QueryRunner<T>()
+      baseRunner = new UnionAllQueryRunner<T>()
       {
         @Override
-        public Sequence<T> run(Query<T> query, final Map<String, Object> responseContext)
+        public Sequence<Pair<Query<T>, Sequence<T>>> run(Query<T> query, final Map<String, Object> responseContext)
         {
-          final Sequence<Sequence<T>> sequences = Sequences.simple(
+          return Sequences.simple(
               Lists.transform(
                   targets,
-                  new Function<Query<T>, Sequence<T>>()
+                  new Function<Query<T>, Pair<Query<T>, Sequence<T>>>()
                   {
                     @Override
-                    public Sequence<T> apply(final Query<T> query)
+                    public Pair<Query<T>, Sequence<T>> apply(final Query<T> query)
                     {
-                      return new LazySequence<T>(
-                          new Supplier<Sequence<T>>()
-                          {
-                            @Override
-                            public Sequence<T> get()
-                            {
-                              final Query<T> element = query.withId(queryId);
-                              return makeRunner(element).run(element, responseContext);
-                            }
-                          }
+                      final Query<T> runner = query.withId(queryId);
+                      return Pair.<Query<T>, Sequence<T>>of(
+                          runner, new LazySequence<T>(
+                              new Supplier<Sequence<T>>()
+                              {
+                                @Override
+                                public Sequence<T> get()
+                                {
+                                  return makeRunner(runner).run(runner, responseContext);
+                                }
+                              }
+                          )
+                      );
+                    }
+                  }
+              )
+          );
+        }
+      };
+    } else {
+      final Query<T> target = union.getQuery().withId(queryId);
+      baseRunner = new UnionAllQueryRunner<T>()
+      {
+        @Override
+        public Sequence<Pair<Query<T>, Sequence<T>>> run(final Query<T> query, final Map<String, Object> responseContext)
+        {
+          return Sequences.simple(
+              Lists.transform(
+                  target.getDataSource().getNames(),
+                  new Function<String, Pair<Query<T>, Sequence<T>>>()
+                  {
+                    @Override
+                    public Pair<Query<T>, Sequence<T>> apply(final String dataSource)
+                    {
+                      final Query<T> runner = target.withDataSource(new TableDataSource(dataSource));
+                      return Pair.<Query<T>, Sequence<T>>of(
+                          runner, new LazySequence<T>(
+                              new Supplier<Sequence<T>>()
+                              {
+                                @Override
+                                public Sequence<T> get()
+                                {
+                                  return makeRunner(runner).run(runner, responseContext);
+                                }
+                              }
+                          )
                       );
                     }
                   }
               )
           );
 
-          if (sortOnUnion) {
-            return new MergeSequence<T>(query.getResultOrdering(), sequences);
-          }
-          return Sequences.concat(sequences);
         }
       };
     }
-    final Query<T> target = union.getQuery().withId(queryId);
-    return new QueryRunner<T>()
-      {
-        @Override
-        public Sequence<T> run(final Query<T> query, final Map<String, Object> responseContext)
-        {
-          final Sequence<Sequence<T>> sequences = Sequences.simple(
-              Lists.transform(
-                  target.getDataSource().getNames(),
-                  new Function<String, Sequence<T>>()
-                  {
-                    @Override
-                    public Sequence<T> apply(final String dataSource)
-                    {
-                      final Query<T> runner = target.withDataSource(new TableDataSource(dataSource));
-                      return new LazySequence<T>(
-                          new Supplier<Sequence<T>>()
-                          {
-                            @Override
-                            public Sequence<T> get()
-                            {
-                              return makeRunner(runner).run(runner, responseContext);
-                            }
-                          }
-                      );
-                    }
-                  }
-              )
-          );
 
-          if (sortOnUnion) {
-            return new MergeSequence<T>(query.getResultOrdering(), sequences);
-          }
-          return Sequences.concat(sequences);
+    if (postProcessing instanceof PostProcessingOperator.UnionSupport) {
+      return ((PostProcessingOperator.UnionSupport<T>) postProcessing).postProcess(baseRunner);
+    }
+
+    QueryRunner<T> merged = new QueryRunner<T>()
+    {
+      @Override
+      public Sequence<T> run(Query<T> query, Map<String, Object> responseContext)
+      {
+        Sequence<Sequence<T>> sequences = Sequences.map(
+            baseRunner.run(query, responseContext), Pair.<Query<T>, Sequence<T>>rhsFn()
+        );
+        if (sortOnUnion) {
+          return new MergeSequence<T>(query.getResultOrdering(), sequences);
         }
-      };
+        return Sequences.concat(sequences);
+      }
+    };
+    return postProcessing == null ? merged : postProcessing.postProcess(merged);
+  }
+
+  private <T> PostProcessingOperator<T> getPostProcessingOperator(Query<T> query)
+  {
+    return objectMapper.convertValue(
+        query.<String>getContextValue("postProcessing"),
+        new TypeReference<PostProcessingOperator<T>>()
+        {
+        }
+    );
   }
 }
