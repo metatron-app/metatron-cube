@@ -48,6 +48,7 @@ import io.druid.query.ResultWriter;
 import io.druid.query.SegmentDescriptor;
 import io.druid.query.TableDataSource;
 import io.druid.query.TabularFormat;
+import io.druid.query.UnionAllQuery;
 import io.druid.query.UnionDataSource;
 import io.druid.server.coordination.DruidServerMetadata;
 import io.druid.server.initialization.ServerConfig;
@@ -247,6 +248,17 @@ public class BrokerQueryResource extends QueryResource
 
   private Query rewriteDataSources(Query query)
   {
+    if (query instanceof UnionAllQuery) {
+      UnionAllQuery<?> union = (UnionAllQuery)query;
+      if (union.getQueries() != null) {
+        List<Query> rewritten = Lists.newArrayList();
+        for (Query element : union.getQueries()) {
+          rewritten.add(rewriteDataSources(element));
+        }
+        return union.withQueries(rewritten);
+      }
+      return union.withQuery(rewriteDataSources(union.getQuery()));
+    }
     DataSource dataSource = query.getDataSource();
     if (dataSource instanceof RegexDataSource) {
       List<String> exploded = coordinator.findDatasources(dataSource.getNames());

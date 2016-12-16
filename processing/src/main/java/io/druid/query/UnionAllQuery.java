@@ -82,7 +82,10 @@ public class UnionAllQuery<T extends Comparable<T>> extends BaseQuery<T>
   @SuppressWarnings("unchecked")
   public Query<T> withOverriddenContext(Map<String, Object> contextOverride)
   {
-    return new UnionAllQuery(query, queries, sortOnUnion, computeOverridenContext(contextOverride));
+    if (queries == null) {
+      return new UnionAllQuery(query, null, sortOnUnion, computeOverridenContext(contextOverride));
+    }
+    return new UnionAllQuery(null, queries, sortOnUnion, computeOverridenContext(contextOverride));
   }
 
   @Override
@@ -95,6 +98,18 @@ public class UnionAllQuery<T extends Comparable<T>> extends BaseQuery<T>
   public Query<T> withDataSource(DataSource dataSource)
   {
     throw new IllegalStateException();
+  }
+
+  @SuppressWarnings("unchecked")
+  public Query<T> withQueries(List<Query> queries)
+  {
+    return new UnionAllQuery(null, queries, sortOnUnion, getContext());
+  }
+
+  @SuppressWarnings("unchecked")
+  public Query<T> withQuery(Query query)
+  {
+    return new UnionAllQuery(query, null, sortOnUnion, getContext());
   }
 
   @Override
