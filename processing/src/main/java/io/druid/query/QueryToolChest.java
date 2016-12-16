@@ -27,6 +27,7 @@ import io.druid.query.aggregation.MetricManipulationFn;
 import io.druid.timeline.LogicalSegment;
 
 import java.util.List;
+import java.util.Map;
 
 /**
  * The broker-side (also used by server in some cases) API for a specific Query type.  This API is still undergoing

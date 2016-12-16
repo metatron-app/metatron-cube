@@ -19,20 +19,38 @@
 
 package io.druid.query;
 
-import com.fasterxml.jackson.annotation.JsonSubTypes;
-import com.fasterxml.jackson.annotation.JsonTypeInfo;
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonValue;
 
-@JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
-@JsonSubTypes(value = {
-    @JsonSubTypes.Type(name = "timewarp", value = TimewarpOperator.class),
-    @JsonSubTypes.Type(name = "join", value = JoinPostProcessor.class)
-})
-public interface PostProcessingOperator<T>
+/**
+ */
+public enum JoinType
 {
-  public QueryRunner<T> postProcess(QueryRunner<T> baseQueryRunner);
+  INNER, LO, RO;
 
-  public interface UnionSupport<T> extends PostProcessingOperator<T>
+  @JsonValue
+  public String getName()
   {
-    public QueryRunner<T> postProcess(UnionAllQueryRunner<T> baseQueryRunner);
+    return name();
+  }
+
+  @JsonCreator
+  public static JoinType fromString(String name)
+  {
+    if (name == null) {
+      return null;
+    }
+    name = name.toUpperCase();
+    try {
+      return valueOf(name);
+    }
+    catch (IllegalArgumentException e) {
+      if (name.contains("LEFT")) {
+        return LO;
+      } else if (name.contains("RIGHT")) {
+        return RO;
+      }
+      throw e;
+    }
   }
 }

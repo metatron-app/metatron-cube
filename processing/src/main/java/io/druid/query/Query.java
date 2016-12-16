@@ -50,7 +50,8 @@ import java.util.Map;
     @JsonSubTypes.Type(name = Query.SELECT_META, value = SelectMetaQuery.class),
     @JsonSubTypes.Type(name = Query.TOPN, value = TopNQuery.class),
     @JsonSubTypes.Type(name = Query.DATASOURCE_METADATA, value = DataSourceMetadataQuery.class),
-    @JsonSubTypes.Type(name = Query.UNION_ALL, value = UnionAllQuery.class)
+    @JsonSubTypes.Type(name = Query.UNION_ALL, value = UnionAllQuery.class),
+    @JsonSubTypes.Type(name = Query.JOIN, value = JoinQuery.class)
 })
 public interface Query<T>
 {
@@ -64,6 +65,7 @@ public interface Query<T>
   String TOPN = "topN";
   String DATASOURCE_METADATA = "dataSourceMetadata";
   String UNION_ALL = "unionAll";
+  String JOIN = "join";
 
   DataSource getDataSource();
 

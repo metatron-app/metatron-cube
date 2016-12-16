@@ -38,6 +38,7 @@ import io.druid.guice.annotations.Self;
 import io.druid.guice.annotations.Smile;
 import io.druid.query.BaseQuery;
 import io.druid.query.DataSource;
+import io.druid.query.JoinQuery;
 import io.druid.query.LocatedSegmentDescriptor;
 import io.druid.query.Query;
 import io.druid.query.QueryDataSource;
@@ -186,7 +187,7 @@ public class BrokerQueryResource extends QueryResource
   }
 
   @Override @SuppressWarnings("unchecked")
-  protected Sequence toDispatchSequence(Query query, Sequence res) throws IOException
+  protected Sequence toDispatchSequence(Query query, final Sequence res) throws IOException
   {
     String forwardURL = BaseQuery.getResultForwardURL(query);
     if (forwardURL != null && !StringUtils.isNullOrEmpty(forwardURL)) {
@@ -212,9 +213,22 @@ public class BrokerQueryResource extends QueryResource
 
       String timestampColumn = PropUtils.parseString(forwardContext, "timestampColumn", null);
 
-      // union-all does not have toolchest. delegate it to inner query
-      final Query representative = BaseQuery.getRepresentative(query);
-      TabularFormat result = warehouse.getToolChest(representative).toTabularFormat(res, timestampColumn);
+      TabularFormat result;
+      if (query instanceof JoinQuery.Delegate) {
+        // already converted to tabular format
+        result = new TabularFormat()
+        {
+          @Override
+          public Sequence<Map<String, Object>> getSequence() { return res; }
+
+          @Override
+          public Map<String, Object> getMetaData() { return null; }
+        };
+      } else {
+        // union-all does not have toolchest. delegate it to inner query
+        final Query representative = BaseQuery.getRepresentative(query);
+        result = warehouse.getToolChest(representative).toTabularFormat(res, timestampColumn);
+      }
       Map<String, Object> info = writer.write(uri, result, forwardContext);
 
       return Sequences.simple(Arrays.asList(info));
@@ -239,6 +253,10 @@ public class BrokerQueryResource extends QueryResource
   @Override @SuppressWarnings("unchecked")
   protected Query prepareQuery(Query query)
   {
+    if (query instanceof JoinQuery) {
+      query = ((JoinQuery)query).rewriteQuery();
+      log.info("Join query is rewritten to " + query);
+    }
     query = rewriteDataSources(query);
     if (BaseQuery.rewriteQuery(query, false)) {
       query = warehouse.getToolChest(query).rewriteQuery(query, texasRanger);

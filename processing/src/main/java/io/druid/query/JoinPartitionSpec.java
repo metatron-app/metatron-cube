@@ -19,20 +19,36 @@
 
 package io.druid.query;
 
-import com.fasterxml.jackson.annotation.JsonSubTypes;
-import com.fasterxml.jackson.annotation.JsonTypeInfo;
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonProperty;
+import com.google.common.base.Preconditions;
 
-@JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
-@JsonSubTypes(value = {
-    @JsonSubTypes.Type(name = "timewarp", value = TimewarpOperator.class),
-    @JsonSubTypes.Type(name = "join", value = JoinPostProcessor.class)
-})
-public interface PostProcessingOperator<T>
+/**
+ */
+public class JoinPartitionSpec
 {
-  public QueryRunner<T> postProcess(QueryRunner<T> baseQueryRunner);
+  private final String column;
+  private final int count;
 
-  public interface UnionSupport<T> extends PostProcessingOperator<T>
+  @JsonCreator
+  public JoinPartitionSpec(
+      @JsonProperty("column") String column,
+      @JsonProperty("count") int count
+  )
   {
-    public QueryRunner<T> postProcess(UnionAllQueryRunner<T> baseQueryRunner);
+    this.column = Preconditions.checkNotNull(column);
+    this.count = count;
+  }
+
+  @JsonProperty
+  public String getColumn()
+  {
+    return column;
+  }
+
+  @JsonProperty
+  public int getCount()
+  {
+    return count;
   }
 }

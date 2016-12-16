@@ -101,13 +101,13 @@ public class UnionAllQuery<T extends Comparable<T>> extends BaseQuery<T>
   }
 
   @SuppressWarnings("unchecked")
-  public Query<T> withQueries(List<Query> queries)
+  public Query withQueries(List<Query> queries)
   {
     return new UnionAllQuery(null, queries, sortOnUnion, getContext());
   }
 
   @SuppressWarnings("unchecked")
-  public Query<T> withQuery(Query query)
+  public Query withQuery(Query query)
   {
     return new UnionAllQuery(query, null, sortOnUnion, getContext());
   }
