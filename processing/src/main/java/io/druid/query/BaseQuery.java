@@ -47,7 +47,7 @@ public abstract class BaseQuery<T extends Comparable<T>> implements Query<T>
     Preconditions.checkArgument(!Iterables.contains(queries, null), "should not contain null query in union");
     Query<T> first = queries.get(0);
     for (int i = 1; i < queries.size(); i++) {
-      if (first.getType().equals(queries.get(i).getType())) {
+      if (!first.getType().equals(queries.get(i).getType())) {
         throw new IllegalArgumentException("sub queries in union should not be mixed");
       }
     }
