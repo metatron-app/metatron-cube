@@ -26,6 +26,7 @@ import com.google.inject.Key;
 import com.google.inject.Module;
 import com.google.inject.TypeLiteral;
 import com.google.inject.multibindings.MapBinder;
+import com.google.inject.multibindings.Multibinder;
 import com.google.inject.name.Names;
 import com.google.inject.servlet.DelegatedGuiceFilter;
 import com.google.inject.util.Providers;
@@ -67,6 +68,9 @@ import io.druid.indexing.overlord.autoscaling.ResourceManagementStrategy;
 import io.druid.indexing.overlord.autoscaling.SimpleWorkerResourceManagementConfig;
 import io.druid.indexing.overlord.autoscaling.SimpleWorkerResourceManagementStrategy;
 import io.druid.indexing.overlord.config.TaskQueueConfig;
+import io.druid.indexing.overlord.helpers.OverlordHelper;
+import io.druid.indexing.overlord.helpers.TaskLogAutoCleaner;
+import io.druid.indexing.overlord.helpers.TaskLogAutoCleanerConfig;
 import io.druid.indexing.overlord.http.OverlordRedirectInfo;
 import io.druid.indexing.overlord.http.OverlordResource;
 import io.druid.indexing.overlord.setup.WorkerBehaviorConfig;
@@ -150,6 +154,7 @@ public class CliOverlord extends ServerRunnable
             configureTaskStorage(binder);
             configureAutoscale(binder);
             configureRunners(binder);
+            configureOverlordHelpers(binder);
 
             binder.bind(AuditManager.class)
                   .toProvider(AuditManagerProvider.class)
@@ -232,6 +237,14 @@ public class CliOverlord extends ServerRunnable
             biddy.addBinding("simple").to(SimpleWorkerResourceManagementStrategy.class);
             biddy.addBinding("pendingTaskBased").to(PendingTaskBasedWorkerResourceManagementStrategy.class);
 
+          }
+
+          private void configureOverlordHelpers(Binder binder)
+          {
+            JsonConfigProvider.bind(binder, "druid.indexer.logs.kill", TaskLogAutoCleanerConfig.class);
+            Multibinder.newSetBinder(binder, OverlordHelper.class)
+                       .addBinding()
+                       .to(TaskLogAutoCleaner.class);
           }
         },
         new IndexingServiceFirehoseModule(),
