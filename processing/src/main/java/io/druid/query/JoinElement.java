@@ -31,16 +31,16 @@ import java.util.List;
 public class JoinElement
 {
   private final DataSource dataSource;
-  private final List<String> joinColumns;
+  private final List<String> joinExpressions;
 
   @JsonCreator
   public JoinElement(
       @JsonProperty("dataSource") DataSource dataSource,
-      @JsonProperty("joinColumns") List<String> joinColumns
+      @JsonProperty("joinExpressions") List<String> joinExpressions
   )
   {
     this.dataSource = dataSource;
-    this.joinColumns = joinColumns;
+    this.joinExpressions = joinExpressions;
   }
 
   @JsonProperty
@@ -50,9 +50,9 @@ public class JoinElement
   }
 
   @JsonProperty
-  public List<String> getJoinColumns()
+  public List<String> getJoinExpressions()
   {
-    return joinColumns;
+    return joinExpressions;
   }
 
   public boolean hasFilter()
@@ -78,7 +78,7 @@ public class JoinElement
   {
     return "JoinElement{" +
            "dataSource=" + dataSource +
-           ", joinColumns=" + joinColumns +
+           ", joinExpressions=" + joinExpressions +
            '}';
   }
 }

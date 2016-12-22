@@ -84,7 +84,7 @@ public class JoinQuery<T extends Comparable<T>> extends BaseQuery<T>
     JoinElement lhs = elements.get(0);
     JoinElement rhs = elements.get(1);
 
-    Preconditions.checkArgument(lhs.getJoinColumns().size() == rhs.getJoinColumns().size());
+    Preconditions.checkArgument(lhs.getJoinExpressions().size() == rhs.getJoinExpressions().size());
     return elements;
   }
 
@@ -145,9 +145,9 @@ public class JoinQuery<T extends Comparable<T>> extends BaseQuery<T>
                     .put("type", "join")
                     .put("joinType", joinType.name())
                     .put("leftAliases", lhs.getDataSource().getNames())
-                    .put("leftJoinColumns", lhs.getJoinColumns())
+                    .put("leftJoinExpressions", lhs.getJoinExpressions())
                     .put("rightAliases", rhs.getDataSource().getNames())
-                    .put("rightJoinColumns", rhs.getJoinColumns())
+                    .put("rightJoinExpressions", rhs.getJoinExpressions())
                     .build()
     );
     QuerySegmentSpec segmentSpec = getQuerySegmentSpec();

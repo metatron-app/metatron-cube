@@ -83,9 +83,14 @@ public class Evals
     return arg.eval(null).stringValue();
   }
 
-  static String getIdentifier(Expr arg)
+  public static boolean isIdentifier(Expr arg)
   {
-    if (!(arg instanceof IdentifierExpr)) {
+    return arg instanceof IdentifierExpr;
+  }
+
+  public static String getIdentifier(Expr arg)
+  {
+    if (!isIdentifier(arg)) {
       throw new RuntimeException(arg + " is not identifier");
     }
     return arg.toString();

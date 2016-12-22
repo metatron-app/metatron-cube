@@ -35,9 +35,11 @@ import com.metamx.common.guava.Sequence;
 import com.metamx.common.guava.Sequences;
 import com.metamx.common.logger.Logger;
 import io.druid.guice.annotations.Processing;
+import io.druid.math.expr.Evals;
+import io.druid.math.expr.Expr;
+import io.druid.math.expr.Parser;
 
-import java.util.Collections;
-import java.util.Comparator;
+import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -63,9 +65,9 @@ public class JoinPostProcessor implements PostProcessingOperator.UnionSupport
   public JoinPostProcessor(
       @JsonProperty("joinType") JoinType joinType,
       @JsonProperty("leftAliases") List<String> leftAliases,
-      @JsonProperty("leftJoinColumns") List<String> leftJoinColumns,
+      @JsonProperty("leftJoinExpressions") List<String> leftJoinColumns,
       @JsonProperty("rightAliases") List<String> rightAliases,
-      @JsonProperty("rightJoinColumns") List<String> rightJoinColumns,
+      @JsonProperty("rightJoinExpressions") List<String> rightJoinColumns,
       @JacksonInject QueryToolChestWarehouse warehouse,
       @JacksonInject @Processing ExecutorService exec
   )
@@ -150,14 +152,14 @@ public class JoinPostProcessor implements PostProcessingOperator.UnionSupport
 
   @VisibleForTesting
   Iterable<Map<String, Object>> join(
-      final List<Map<String, Object>> leftRows,
-      final List<Map<String, Object>> rightRows,
+      List<Map<String, Object>> leftRows,
+      List<Map<String, Object>> rightRows,
       final JoinType type
   )
   {
     log.info("Starting joining left %d rows, right %d rows", leftRows.size(), rightRows.size());
-    Collections.sort(leftRows, dimensionOrdering(leftJoinColumns));
-    Collections.sort(rightRows, dimensionOrdering(rightJoinColumns));
+    final JoiningRow[] lefts = sort(leftRows, leftJoinColumns);
+    final JoiningRow[] rights = sort(rightRows, rightJoinColumns);
 
     final int sizeL = leftRows.size();
     final int sizeR = rightRows.size();
@@ -278,9 +280,9 @@ public class JoinPostProcessor implements PostProcessingOperator.UnionSupport
             return iterator.next();
           }
 
-          private String readL(int i) {return (String) leftRows.get(indexL).get(leftJoinColumns[i]);}
+          private String readL(int i) {return lefts[indexL].joinKeys[i];}
 
-          private String readR(int i) {return (String) rightRows.get(indexR).get(rightJoinColumns[i]);}
+          private String readR(int i) {return rights[indexR].joinKeys[i];}
 
           private int nextL()
           {
@@ -312,20 +314,20 @@ public class JoinPostProcessor implements PostProcessingOperator.UnionSupport
 
           private Iterator<Map<String, Object>> leftOnly(final int ls, final int le)
           {
-            return leftRows.subList(ls, le).iterator();
+            return toIterator(lefts, ls, le);
           }
 
           private Iterator<Map<String, Object>> rightOnly(final int rs, final int re)
           {
-            return rightRows.subList(rs, re).iterator();
+            return toIterator(rights, rs, re);
           }
 
           private Iterator<Map<String, Object>> product(final int ls, final int le, final int rs, final int re)
           {
             if (le - ls == 1 && re - rs == 1) {
               Map<String, Object> joined = Maps.newLinkedHashMap();
-              joined.putAll(leftRows.get(ls));
-              joined.putAll(rightRows.get(rs));
+              joined.putAll(lefts[ls].source);
+              joined.putAll(rights[rs].source);
               return Iterators.singletonIterator(joined);
             }
             return new Iterator<Map<String, Object>>()
@@ -347,8 +349,8 @@ public class JoinPostProcessor implements PostProcessingOperator.UnionSupport
                   li++;
                   ri = rs;
                 }
-                joined.putAll(leftRows.get(li));
-                joined.putAll(rightRows.get(ri++));
+                joined.putAll(lefts[li].source);
+                joined.putAll(rights[ri++].source);
                 return joined;
               }
             };
@@ -369,28 +371,89 @@ public class JoinPostProcessor implements PostProcessingOperator.UnionSupport
     };
   }
 
-  static final int LEFT_IS_GREATER = 1;
-  static final int RIGHT_IS_GREATER = -1;
-
-  private static Comparator<Map<String, Object>> dimensionOrdering(final String[] dimensions)
+  private Iterator<Map<String, Object>> toIterator(final JoiningRow[] rows, final int start, final int end)
   {
-    return new Comparator<Map<String, Object>>()
+    return new Iterator<Map<String, Object>>()
     {
+      int index = start;
+
       @Override
-      public int compare(Map<String, Object> o1, Map<String, Object> o2)
+      public boolean hasNext()
       {
-        for (String dimension : dimensions) {
-          final String d1 = (String) o1.get(dimension);
-          final String d2 = (String) o2.get(dimension);
-          int compare = JoinPostProcessor.compare(d1, d2);
-          if (compare != 0) {
-            return compare;
-          }
-        }
-        return 0;
+        return index < end;
+      }
+
+      @Override
+      public Map<String, Object> next()
+      {
+        return rows[index++].source;
       }
     };
   }
+
+  private JoiningRow[] sort(List<Map<String, Object>> rows, String[] expressions)
+  {
+    String[] simple = new String[expressions.length];
+    Expr[] complex = new Expr[expressions.length];
+    boolean hasComplex = false;
+    for (int i = 0; i < expressions.length; i++) {
+      Expr expr = Parser.parse(expressions[i]);
+      if (Evals.isIdentifier(expr)) {
+        simple[i] = Evals.getIdentifier(expr);
+      } else {
+        complex[i] = expr;
+        hasComplex = true;
+      }
+    }
+    JoiningRow[] sorted = new JoiningRow[rows.size()];
+    for (int i = 0; i < sorted.length; i++) {
+      Map<String, Object> row = rows.get(i);
+      String[] joinKey = new String[simple.length];
+      for (int j = 0; j < simple.length; j++) {
+        if (simple[j] != null) {
+          joinKey[j] = (String) row.get(simple[j]);
+        }
+      }
+      if (hasComplex) {
+        Expr.NumericBinding binding = Parser.withMap(row);
+        for (int j = 0; j < complex.length; j++) {
+          if (complex[j] != null) {
+            joinKey[j] = complex[j].eval(binding).asString();
+          }
+        }
+      }
+      sorted[i] = new JoiningRow(joinKey, row);
+    }
+    Arrays.sort(sorted);
+    return sorted;
+  }
+
+  private static class JoiningRow implements Comparable<JoiningRow>
+  {
+    final Map<String, Object> source;
+    final String[] joinKeys;
+
+    private JoiningRow(String[] joinKeys, Map<String, Object> source)
+    {
+      this.joinKeys = joinKeys;
+      this.source = source;
+    }
+
+    @Override
+    public int compareTo(JoiningRow o)
+    {
+      for (int i = 0; i < joinKeys.length; i++) {
+        int compare = JoinPostProcessor.compare(joinKeys[i], o.joinKeys[i]);
+        if (compare != 0) {
+          return compare;
+        }
+      }
+      return 0;
+    }
+  }
+
+  static final int LEFT_IS_GREATER = 1;
+  static final int RIGHT_IS_GREATER = -1;
 
   private static int compare(String d1, String d2)
   {
