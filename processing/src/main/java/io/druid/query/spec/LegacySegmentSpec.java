@@ -23,6 +23,8 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.google.common.base.Function;
 import com.google.common.collect.Lists;
 import com.metamx.common.IAE;
+import io.druid.math.expr.ExprEval;
+import io.druid.math.expr.ExprType;
 import io.druid.math.expr.Parser;
 import org.joda.time.Interval;
 
@@ -65,10 +67,10 @@ public class LegacySegmentSpec extends MultipleIntervalSegmentSpec
       );
     }
     catch (IllegalArgumentException iae) {
+      // last try
       if (intervals instanceof String) {
-        long longValue = Parser.parse((String)intervals).eval(null).asLong();
-        long now = System.currentTimeMillis();
-        return Arrays.asList(longValue > 0 ? new Interval(now, now + longValue) : new Interval(now + longValue, now));
+        Interval interval = (Interval)Parser.parse((String) intervals).eval(null).value();
+        return Arrays.asList(interval);
       }
       throw iae;
     }

@@ -21,6 +21,7 @@ package io.druid.math.expr;
 
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Sets;
+import org.joda.time.Interval;
 import org.junit.Assert;
 import org.junit.Ignore;
 import org.junit.Test;
@@ -52,6 +53,13 @@ public class EvalTest
     ExprEval ret = Parser.parse(x).eval(bindings);
     Assert.assertEquals(ExprType.STRING, ret.type());
     return ret.stringValue();
+  }
+
+  private Object eval(String x, Expr.NumericBinding bindings)
+  {
+    ExprEval ret = Parser.parse(x).eval(bindings);
+    Assert.assertEquals(ExprType.STRING, ret.type());
+    return ret.value();
   }
 
   @Test
@@ -181,7 +189,15 @@ public class EvalTest
     // not-exists (explicit)
     Assert.assertEquals(100L, evalLong("case (x + 10, 0, 2, 1, 3, 100)", bindings));
 
-    Assert.assertEquals(-86410000L, evalLong("recent('1D 10s')", bindings));
+    Interval eval = (Interval)eval("recent('1D 10s')", bindings);
+    long now = System.currentTimeMillis();
+    Assert.assertEquals(now - 86410000L, eval.getStartMillis(), 1000);
+    Assert.assertEquals(now, eval.getEndMillis(), 1000);
+
+    eval = (Interval)eval("recent('7D 10s', '5D 1s')", bindings);
+    now = System.currentTimeMillis();
+    Assert.assertEquals(now - (86400000L * 7) + 10000, eval.getStartMillis(), 1000);
+    Assert.assertEquals(now - (86400000L * 5) + 1000, eval.getEndMillis(), 1000);
 
     // extract
     Assert.assertEquals(

@@ -196,6 +196,51 @@ public class JodaUtils
     }
   }
 
+  public static long toDuration(String string)
+  {
+    DateTime duration = new DateTime(0);
+    int prev = 0;
+    char[] chars = string.toCharArray();
+    for (int i = 0; i < chars.length; i++) {
+      if (!Character.isDigit(chars[i])) {
+        int value = Integer.parseInt(string.substring(prev, i));
+        switch (chars[i]) {
+          case 'y':
+          case 'Y':
+            duration = duration.plusYears(value);
+            break;
+          case 'M':
+            duration = duration.plusMonths(value);
+            break;
+          case 'w':
+          case 'W':
+            duration = duration.plusWeeks(value);
+            break;
+          case 'd':
+          case 'D':
+            duration = duration.plusDays(value);
+            break;
+          case 'h':
+          case 'H':
+            duration = duration.plusHours(value);
+            break;
+          case 'm':
+            duration = duration.plusMinutes(value);
+            break;
+          case 's':
+            duration = duration.plusSeconds(value);
+            break;
+          default:
+            throw new IllegalArgumentException("Not supported time unit " + chars[i]);
+        }
+        for (i++; i < chars.length && !Character.isDigit(chars[i]); i++) {
+        }
+        prev = i;
+      }
+    }
+    return duration.getMillis();
+  }
+
   public static DateTimeFormatter toTimeFormatter(String formatString)
   {
     return toTimeFormatter(formatString, null, null);

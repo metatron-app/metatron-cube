@@ -47,6 +47,7 @@ public class DefaultObjectMapper extends ObjectMapper
     registerModule(new GuavaModule());
     registerModule(new QueryGranularityModule());
     registerModule(new AggregatorsModule());
+    registerModule(new FunctionModule());
     registerModule(new SegmentsModule());
 
     configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);

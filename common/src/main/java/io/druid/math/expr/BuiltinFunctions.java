@@ -20,6 +20,7 @@
 package io.druid.math.expr;
 
 import com.fasterxml.jackson.databind.util.ISO8601DateFormat;
+import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
@@ -29,12 +30,14 @@ import com.google.common.primitives.Doubles;
 import com.google.common.primitives.Ints;
 import com.google.common.primitives.Longs;
 import com.metamx.common.Pair;
+import io.druid.common.utils.JodaUtils;
 import io.druid.math.expr.Expr.NumericBinding;
 import io.druid.math.expr.Expr.WindowContext;
 import io.druid.math.expr.Function.Factory;
 import org.apache.commons.lang.StringUtils;
 import org.joda.time.DateTime;
 import org.joda.time.Days;
+import org.joda.time.Interval;
 import org.mozilla.javascript.Context;
 import org.mozilla.javascript.ScriptableObject;
 import org.rosuda.JRI.REXP;
@@ -1651,7 +1654,7 @@ public interface BuiltinFunctions extends Function.Library
     }
   }
 
-  class Recent extends SingleParam {
+  class Recent implements Function {
 
     @Override
     public String name()
@@ -1660,50 +1663,24 @@ public interface BuiltinFunctions extends Function.Library
     }
 
     @Override
-    protected ExprEval eval(ExprEval param)
+    public ExprEval apply(List<Expr> args, NumericBinding bindings)
     {
-      DateTime duration = new DateTime(0);
-      final String string = param.asString();
-      int prev = 0;
-      char[] chars = string.toCharArray();
-      for (int i = 0; i < chars.length; i++) {
-        if (!Character.isDigit(chars[i])) {
-          int value = Integer.parseInt(string.substring(prev, i));
-          switch (chars[i]) {
-            case 'y':
-            case 'Y':
-              duration = duration.plusYears(value);
-              break;
-            case 'M':
-              duration = duration.plusMonths(value);
-              break;
-            case 'w':
-            case 'W':
-              duration = duration.plusWeeks(value);
-              break;
-            case 'd':
-            case 'D':
-              duration = duration.plusDays(value);
-              break;
-            case 'h':
-            case 'H':
-              duration = duration.plusHours(value);
-              break;
-            case 'm':
-              duration = duration.plusMinutes(value);
-              break;
-            case 's':
-              duration = duration.plusSeconds(value);
-              break;
-            default:
-              throw new IllegalArgumentException("Not supported time unit " + chars[i]);
-          }
-          for (i++; i < chars.length && !Character.isDigit(chars[i]); i++) {
-          }
-          prev = i;
-        }
+      if (args.size() != 1 && args.size() != 2) {
+        throw new IllegalArgumentException("function '" + name() + "' needs one or two arguments");
       }
-      return ExprEval.of(-duration.getMillis());
+      return ExprEval.of(toInterval(args, bindings), ExprType.STRING);
+    }
+
+    protected Interval toInterval(List<Expr> args, NumericBinding bindings)
+    {
+      long now = System.currentTimeMillis();
+      long start = -JodaUtils.toDuration(args.get(0).eval(bindings).asString());
+      long end = 0;
+      if (args.size() == 2) {
+        end = -JodaUtils.toDuration(args.get(1).eval(bindings).asString());
+      }
+      Preconditions.checkArgument(start < end);
+      return new Interval(now + start, now + end);
     }
   }
 
