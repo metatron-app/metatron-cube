@@ -23,18 +23,19 @@ import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonSerializer;
 import com.fasterxml.jackson.databind.SerializerProvider;
-import com.yahoo.memory.Memory;
+import com.yahoo.sketches.ArrayOfStringsSerDe;
+import com.yahoo.sketches.quantiles.ItemsSketch;
+import com.yahoo.sketches.theta.Sketch;
 
 import java.io.IOException;
 
-/**
- */
-public class MemoryJsonSerializer extends JsonSerializer<Memory>
+public class ItemsSketchJsonSerializer extends JsonSerializer<ItemsSketch>
 {
   @Override
-  public void serialize(Memory mem, JsonGenerator jgen, SerializerProvider provider)
-      throws IOException, JsonProcessingException
+  @SuppressWarnings("unchecked")
+  public void serialize(ItemsSketch sketch, JsonGenerator jgen, SerializerProvider provider)
+      throws IOException
   {
-    jgen.writeBinary(SketchOperations.deserializeFromMemory(mem).toByteArray());
+    jgen.writeBinary(sketch.toByteArray(new ArrayOfStringsSerDe()));
   }
 }

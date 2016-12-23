@@ -19,18 +19,12 @@
 
 package io.druid.query.sketch;
 
-import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.metamx.common.ISE;
 import com.metamx.common.guava.Accumulator;
 import com.metamx.common.guava.Sequence;
 import com.metamx.common.guava.Sequences;
-import com.metamx.emitter.EmittingLogger;
-import com.yahoo.sketches.Family;
-import com.yahoo.sketches.theta.SetOperation;
-import com.yahoo.sketches.theta.Sketch;
-import com.yahoo.sketches.theta.Union;
 import io.druid.granularity.QueryGranularities;
 import io.druid.query.Query;
 import io.druid.query.QueryRunner;
@@ -55,7 +49,6 @@ import java.util.Map;
  */
 public class SketchQueryRunner implements QueryRunner<Result<Map<String, Object>>>
 {
-  private static final EmittingLogger log = new EmittingLogger(SketchQueryRunner.class);
   private final Segment segment;
 
   public SketchQueryRunner(Segment segment)
@@ -77,23 +70,16 @@ public class SketchQueryRunner implements QueryRunner<Result<Map<String, Object>
     final List<String> dimensions = query.getDimensions();
     final List<String> dimensionExclusions = query.getDimensionExclusions();
     final int nomEntries = query.getNomEntries();
+    final SketchHandler handler = query.getSketchOp().handler();
+
+    final List<String> dimsToSearch = toTargetDimensions(segment, dimensions, dimensionExclusions);
 
     // Closing this will cause segfaults in unit tests.
     final QueryableIndex index = segment.asQueryableIndex();
 
-    DateTime start = segment.getDataInterval().getStart();
+    final Map<String, Object> sketches;
     if (index != null) {
-      List<String> dimsToSearch;
-      if (dimensions == null || dimensions.isEmpty()) {
-        dimsToSearch = Lists.newArrayList(index.getAvailableDimensions());
-      } else {
-        dimsToSearch = dimensions;
-      }
-      if (dimensionExclusions != null && !dimensionExclusions.isEmpty()) {
-        dimsToSearch.removeAll(dimensionExclusions);
-      }
-
-      Map<String, Object> sketches = Maps.newHashMap();
+      sketches = Maps.newLinkedHashMap();
       for (String dimension : dimsToSearch) {
         final Column column = index.getColumn(dimension);
         if (column == null) {
@@ -101,80 +87,86 @@ public class SketchQueryRunner implements QueryRunner<Result<Map<String, Object>
         }
         final BitmapIndex bitmapIndex = column.getBitmapIndex();
         if (bitmapIndex != null) {
-          final Union union = (Union) SetOperation.builder().build(nomEntries, Family.UNION);
-          final int cardinality = bitmapIndex.getCardinality();
-          for (int i = 0; i < cardinality; ++i) {
-            union.update(Strings.nullToEmpty(bitmapIndex.getValue(i)));
-          }
-          sketches.put(dimension, union.getResult());
+          sketches.put(dimension, handler.calculate(nomEntries, bitmapIndex));
         }
       }
+    } else {
 
-      return Sequences.simple(Arrays.asList(new Result<Map<String, Object>>(start, sketches)));
-    }
+      final StorageAdapter adapter = segment.asStorageAdapter();
+      final Sequence<Cursor> cursors = adapter.makeCursors(
+          null, segment.getDataInterval(), VirtualColumns.EMPTY, QueryGranularities.ALL, null, false
+      );
 
-    final StorageAdapter adapter = segment.asStorageAdapter();
-
-    if (adapter == null) {
-      log.makeAlert("WTF!? Unable to process search query on segment.")
-         .addData("segment", segment.getIdentifier())
-         .addData("query", query).emit();
-      throw new ISE(
-          "Null storage adapter found. Probably trying to issue a query against a segment being memory unmapped."
+      sketches = cursors.accumulate(
+          Maps.<String, Object>newLinkedHashMap(),
+          createAccumulator(dimsToSearch, nomEntries, handler)
       );
     }
-
-    final List<String> dimsToSearch;
-    if (dimensions == null || dimensions.isEmpty()) {
-      dimsToSearch = Lists.newArrayList(adapter.getAvailableDimensions());
-    } else {
-      dimsToSearch = dimensions;
+    for (Map.Entry<String, Object> entry : sketches.entrySet()) {
+      entry.setValue(handler.toSketch(entry.getValue()));
     }
 
-    final Sequence<Cursor> cursors = adapter.makeCursors(
-        null, segment.getDataInterval(), VirtualColumns.EMPTY, QueryGranularities.ALL, null, false
-    );
-
-    final Map<String, Object> sketches = cursors.accumulate(
-        Maps.<String, Object>newHashMapWithExpectedSize(dimsToSearch.size()),
-        new Accumulator<Map<String, Object>, Cursor>()
-        {
-          @Override
-          public Map<String, Object> accumulate(Map<String, Object> prev, Cursor cursor)
-          {
-            final List<DimensionSelector> dimSelectors = Lists.newArrayList();
-            final List<Union> sketches = Lists.newArrayList();
-            for (String dimension : dimsToSearch) {
-              dimSelectors.add(cursor.makeDimensionSelector(DefaultDimensionSpec.of(dimension)));
-              sketches.add((Union) SetOperation.builder().build(nomEntries, Family.UNION));
-            }
-
-            while (!cursor.isDone()) {
-              for (int i = 0; i < dimsToSearch.size(); i++) {
-                final DimensionSelector selector = dimSelectors.get(i);
-                if (selector != null) {
-                  final IndexedInts vals = selector.getRow();
-                  for (int j = 0; j < vals.size(); ++j) {
-                    sketches.get(i).update(selector.lookupName(vals.get(j)));
-                  }
-                }
-              }
-              cursor.advance();
-            }
-            for (int i = 0; i < dimsToSearch.size(); i++) {
-              String dimension = dimsToSearch.get(i);
-              Union sketch = sketches.get(i);
-              Sketch prevSketch = (Sketch) prev.get(dimension);
-              if (prevSketch != null) {
-                sketch.update(prevSketch);
-              }
-              prev.put(dimension, sketch.getResult());
-            }
-            return prev;
-          }
-        }
-    );
-
+    DateTime start = segment.getDataInterval().getStart();
     return Sequences.simple(Arrays.asList(new Result<Map<String, Object>>(start, sketches)));
+  }
+
+  private List<String> toTargetDimensions(Segment segment, List<String> dimensionList, List<String> excludeList)
+  {
+    List<String> dimsToSearch;
+    if (dimensionList == null || dimensionList.isEmpty()) {
+      final QueryableIndex indexed = segment.asQueryableIndex();
+      final StorageAdapter adapter = segment.asStorageAdapter();
+      dimsToSearch = Lists.newArrayList(
+          indexed != null
+          ? indexed.getAvailableDimensions()
+          : adapter.getAvailableDimensions()
+      );
+    } else {
+      dimsToSearch = dimensionList;
+    }
+    if (excludeList != null && !excludeList.isEmpty()) {
+      dimsToSearch.removeAll(excludeList);
+    }
+    return dimsToSearch;
+  }
+
+  private Accumulator<Map<String, Object>, Cursor> createAccumulator(
+      final List<String> dimsToSearch,
+      final int nomEntries,
+      final SketchHandler handler
+  )
+  {
+    return new Accumulator<Map<String, Object>, Cursor>()
+    {
+      @Override
+      public Map<String, Object> accumulate(Map<String, Object> prev, Cursor cursor)
+      {
+        final List<DimensionSelector> dimSelectors = Lists.newArrayList();
+        final List<Object> sketches = Lists.newArrayList();
+        for (String dimension : dimsToSearch) {
+          dimSelectors.add(cursor.makeDimensionSelector(DefaultDimensionSpec.of(dimension)));
+          Object union = prev.get(dimension);
+          if (union == null) {
+            prev.put(dimension, union = handler.newUnion(nomEntries));
+          }
+          sketches.add(union);
+        }
+
+        while (!cursor.isDone()) {
+          for (int i = 0; i < dimsToSearch.size(); i++) {
+            final Object o = sketches.get(i);
+            final DimensionSelector selector = dimSelectors.get(i);
+            if (selector != null) {
+              final IndexedInts vals = selector.getRow();
+              for (int j = 0; j < vals.size(); ++j) {
+                handler.updateWithValue(o, selector.lookupName(vals.get(j)));
+              }
+            }
+          }
+          cursor.advance();
+        }
+        return prev;
+      }
+    };
   }
 }

@@ -24,7 +24,8 @@ import com.fasterxml.jackson.databind.jsontype.NamedType;
 import com.fasterxml.jackson.databind.module.SimpleModule;
 import com.google.inject.Binder;
 import com.google.inject.multibindings.MapBinder;
-import com.yahoo.sketches.memory.Memory;
+import com.yahoo.memory.Memory;
+import com.yahoo.sketches.quantiles.ItemsSketch;
 import com.yahoo.sketches.theta.Sketch;
 import io.druid.guice.LazySingleton;
 import io.druid.guice.QueryToolBinders;
@@ -32,10 +33,12 @@ import io.druid.initialization.DruidModule;
 import io.druid.query.Query;
 import io.druid.query.QueryRunnerFactory;
 import io.druid.query.QueryToolChest;
+import io.druid.query.sketch.SketchQuantilesProcessor;
 import io.druid.query.sketch.SimilarityProcessingOperator;
 import io.druid.query.sketch.SketchQuery;
 import io.druid.query.sketch.SketchQueryQueryToolChest;
 import io.druid.query.sketch.SketchQueryRunnerFactory;
+import io.druid.query.sketch.SketchThetaProcessor;
 import io.druid.segment.serde.ComplexMetrics;
 
 import java.util.Arrays;
@@ -90,11 +93,17 @@ public class SketchModule implements DruidModule
             )
             .registerSubtypes(SketchQuery.class)
             .registerSubtypes(SimilarityProcessingOperator.class)
+            .registerSubtypes(SketchThetaProcessor.class)
+            .registerSubtypes(SketchQuantilesProcessor.class)
             .addSerializer(
                 Sketch.class, new SketchJsonSerializer()
             )
             .addSerializer(
-                Memory.class, new MemoryJsonSerializer())
+                ItemsSketch.class, new ItemsSketchJsonSerializer()
+            )
+            .addSerializer(
+                Memory.class, new MemoryJsonSerializer()
+            )
     );
   }
 }

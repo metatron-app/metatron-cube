@@ -21,9 +21,7 @@ package io.druid.query.sketch;
 
 import com.google.common.collect.Maps;
 import com.metamx.common.guava.nary.BinaryFn;
-import com.yahoo.sketches.theta.Sketch;
 import io.druid.query.Result;
-import io.druid.query.aggregation.datasketches.theta.SketchOperations;
 
 import java.util.Map;
 
@@ -33,10 +31,12 @@ public class SketchBinaryFn
     implements BinaryFn<Result<Map<String, Object>>, Result<Map<String, Object>>, Result<Map<String, Object>>>
 {
   private final int nomEntries;
+  private final SketchHandler handler;
 
-  public SketchBinaryFn(int nomEntries)
+  public SketchBinaryFn(int nomEntries, SketchHandler handler)
   {
     this.nomEntries = nomEntries;
+    this.handler = handler;
   }
 
   @Override
@@ -52,10 +52,10 @@ public class SketchBinaryFn
 
     final Map<String, Object> merged = Maps.newHashMap();
     for (Map.Entry<String, Object> entry : value1.entrySet()) {
-      Sketch sketch = (Sketch) entry.getValue();
-      Sketch merging = (Sketch) value2.get(entry.getKey());
+      Object sketch = entry.getValue();
+      Object merging = value2.get(entry.getKey());
       if (merging != null) {
-        sketch = SketchOperations.sketchSetOperation(SketchOperations.Func.UNION, nomEntries, sketch, merging);
+        sketch = merge(sketch, merging);
       }
       merged.put(entry.getKey(), sketch);
     }
@@ -67,4 +67,11 @@ public class SketchBinaryFn
     return new Result<>(arg1.getTimestamp(), merged);
   }
 
+  private Object merge(Object object1, Object object2)
+  {
+    Object union = handler.newUnion(nomEntries);
+    handler.updateWithSketch(union, object1);
+    handler.updateWithSketch(union, object2);
+    return handler.toSketch(union);
+  }
 }

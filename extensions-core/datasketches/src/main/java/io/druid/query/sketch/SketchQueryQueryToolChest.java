@@ -22,11 +22,11 @@ package io.druid.query.sketch;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.google.common.base.Function;
 import com.google.common.base.Functions;
-import com.google.common.collect.Maps;
 import com.google.common.collect.Ordering;
 import com.google.inject.Inject;
 import com.metamx.common.guava.nary.BinaryFn;
 import com.metamx.emitter.service.ServiceMetricEvent;
+import com.yahoo.memory.NativeMemory;
 import io.druid.granularity.QueryGranularities;
 import io.druid.query.CacheStrategy;
 import io.druid.query.DruidMetrics;
@@ -81,8 +81,8 @@ public class SketchQueryQueryToolChest extends QueryToolChest<Result<Map<String,
       protected BinaryFn<Result<Map<String, Object>>, Result<Map<String, Object>>, Result<Map<String, Object>>>
       createMergeFn(Query<Result<Map<String, Object>>> input)
       {
-        final int nomEntries = ((SketchQuery) input).getNomEntries();
-        return new SketchBinaryFn(nomEntries);
+        final SketchQuery sketch = (SketchQuery) input;
+        return new SketchBinaryFn(sketch.getNomEntries(), sketch.getSketchOp().handler());
       }
     };
   }
@@ -95,21 +95,27 @@ public class SketchQueryQueryToolChest extends QueryToolChest<Result<Map<String,
 
   @Override
   public Function<Result<Map<String, Object>>, Result<Map<String, Object>>> makePreComputeManipulatorFn(
-      SketchQuery query, MetricManipulationFn fn
+      final SketchQuery query, MetricManipulationFn fn
   )
   {
-    // fn is for aggregators.. we don't need that
+    // fn is for aggregators.. we don't need to apply it
     return new Function<Result<Map<String, Object>>, Result<Map<String, Object>>>()
     {
       @Override
       public Result<Map<String, Object>> apply(Result<Map<String, Object>> input)
       {
         Map<String, Object> sketches = input.getValue();
-        Map<String, Object> deserialized = Maps.newHashMapWithExpectedSize(sketches.size());
         for (Map.Entry<String, Object> entry : sketches.entrySet()) {
-          deserialized.put(entry.getKey(), SketchOperations.deserialize(entry.getValue()));
+          NativeMemory memory = new NativeMemory((byte[]) entry.getValue());
+          Object deserialize;
+          if (query.getSketchOp() == SketchOp.THETA) {
+            deserialize = SketchOperations.deserializeFromMemory(memory);
+          } else {
+            deserialize = SketchOperations.deserializeQuantileFromMemory(memory);
+          }
+          entry.setValue(deserialize);
         }
-        return new Result<>(input.getTimestamp(), deserialized);
+        return input;
       }
     };
   }

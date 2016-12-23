@@ -22,10 +22,8 @@ package io.druid.query.sketch;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
-import com.google.common.base.Preconditions;
 import io.druid.query.BaseQuery;
 import io.druid.query.DataSource;
-import io.druid.query.Query;
 import io.druid.query.Result;
 import io.druid.query.spec.QuerySegmentSpec;
 
@@ -43,6 +41,7 @@ public class SketchQuery extends BaseQuery<Result<Map<String, Object>>>
   private final List<String> dimensions;
   private final List<String> dimensionExclusions;
   private final int nomEntries;
+  private final SketchOp sketchOp;
 
   @JsonCreator
   public SketchQuery(
@@ -51,12 +50,14 @@ public class SketchQuery extends BaseQuery<Result<Map<String, Object>>>
       @JsonProperty("dimensions") List<String> dimensions,
       @JsonProperty("dimensionExclusions") List<String> dimensionExclusions,
       @JsonProperty("nomEntries") Integer nomEntries,
+      @JsonProperty("sketchOp") SketchOp sketchOp,
       @JsonProperty("context") Map<String, Object> context
   )
   {
     super(dataSource, querySegmentSpec, false, context);
     this.dimensions = dimensions;
     this.dimensionExclusions = dimensionExclusions;
+    this.sketchOp = sketchOp == null ? SketchOp.THETA : sketchOp;
     this.nomEntries = nomEntries == null ? DEFAULT_NOM_ENTRIES : nomEntries;
   }
 
@@ -69,7 +70,7 @@ public class SketchQuery extends BaseQuery<Result<Map<String, Object>>>
   @Override
   public String getType()
   {
-    return Query.SEARCH;
+    return "sketch";
   }
 
   @Override
@@ -81,6 +82,7 @@ public class SketchQuery extends BaseQuery<Result<Map<String, Object>>>
         dimensions,
         dimensionExclusions,
         nomEntries,
+        sketchOp,
         getContext()
     );
   }
@@ -94,6 +96,7 @@ public class SketchQuery extends BaseQuery<Result<Map<String, Object>>>
         dimensions,
         dimensionExclusions,
         nomEntries,
+        sketchOp,
         getContext()
     );
   }
@@ -107,6 +110,7 @@ public class SketchQuery extends BaseQuery<Result<Map<String, Object>>>
         dimensions,
         dimensionExclusions,
         nomEntries,
+        sketchOp,
         computeOverridenContext(contextOverrides)
     );
   }
@@ -129,11 +133,18 @@ public class SketchQuery extends BaseQuery<Result<Map<String, Object>>>
     return nomEntries;
   }
 
+  @JsonProperty
+  public SketchOp getSketchOp()
+  {
+    return sketchOp;
+  }
+
   @Override
   public String toString()
   {
     return "SketchQuery{" +
         "dataSource='" + getDataSource() + '\'' +
+        ", sketchOp=" + sketchOp +
         ", dimensions=" + dimensions +
         ", dimensionExclusions=" + dimensionExclusions +
         ", nomEntries=" + nomEntries +
@@ -155,7 +166,7 @@ public class SketchQuery extends BaseQuery<Result<Map<String, Object>>>
     if (!Objects.equals(dimensionExclusions, that.dimensionExclusions)) {
       return false;
     }
-    return nomEntries == that.nomEntries;
+    return sketchOp == that.sketchOp && nomEntries == that.nomEntries;
   }
 
   @Override
@@ -164,6 +175,7 @@ public class SketchQuery extends BaseQuery<Result<Map<String, Object>>>
     int result = super.hashCode();
     result = 31 * result + Objects.hashCode(dimensions);
     result = 31 * result + Objects.hashCode(dimensionExclusions);
+    result = 31 * result + sketchOp.ordinal();
     result = 31 * result + nomEntries;
     return result;
   }

@@ -25,10 +25,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.metamx.common.guava.Sequences;
-import com.yahoo.sketches.Family;
-import com.yahoo.sketches.theta.SetOperation;
-import com.yahoo.sketches.theta.Sketch;
-import com.yahoo.sketches.theta.Union;
+import com.yahoo.sketches.quantiles.ItemsSketch;
 import io.druid.query.QueryRunner;
 import io.druid.query.QueryRunnerTestHelper;
 import io.druid.query.Result;
@@ -50,7 +47,7 @@ import java.util.Map;
 /**
  */
 @RunWith(Parameterized.class)
-public class SketchQueryRunnerTest
+public class QuantilesSketchQueryRunnerTest
 {
   private static final SketchQueryQueryToolChest toolChest = new SketchQueryQueryToolChest(
       QueryRunnerTestHelper.NoopIntervalChunkingQueryRunnerDecorator()
@@ -72,7 +69,7 @@ public class SketchQueryRunnerTest
   private final QueryRunner<Result<Map<String, Object>>> runner;
 
   @SuppressWarnings("unchecked")
-  public SketchQueryRunnerTest(
+  public QuantilesSketchQueryRunnerTest(
       QueryRunner runner
   )
   {
@@ -82,42 +79,43 @@ public class SketchQueryRunnerTest
   @Test
   public void testSketchResultSerDe() throws Exception
   {
+    SketchHandler handler = SketchOp.QUANTILE.handler();
     ObjectMapper mapper = TestHelper.JSON_MAPPER;
     for (Module module : new SketchModule().getJacksonModules()) {
       mapper = mapper.registerModule(module);
     }
     int nomEntries = 16;
-    Union union1 = (Union) SetOperation.builder().build(nomEntries, Family.UNION);
-    union1.update("automotive");
-    union1.update("business");
-    union1.update("entertainment");
-    union1.update("health");
-    union1.update("mezzanine");
-    union1.update("news");
-    Sketch sketch1 = union1.getResult(true, null);
-    Union union2 = (Union) SetOperation.builder().build(nomEntries, Family.UNION);
-    union2.update("automotive1");
-    union2.update("automotive2");
-    union2.update("automotive3");
-    union2.update("business1");
-    union2.update("business2");
-    union2.update("business3");
-    union2.update("entertainment1");
-    union2.update("entertainment2");
-    union2.update("entertainment3");
-    union2.update("health1");
-    union2.update("health2");
-    union2.update("health3");
-    union2.update("mezzanine1");
-    union2.update("mezzanine2");
-    union2.update("mezzanine3");
-    union2.update("news1");
-    union2.update("news2");
-    union2.update("news3");
-    union2.update("premium1");
-    union2.update("premium2");
-    union2.update("premium3");
-    Sketch sketch2 = union2.getResult(true, null);
+    Object union1 = handler.newUnion(nomEntries);
+    handler.updateWithValue(union1, "automotive");
+    handler.updateWithValue(union1, "business");
+    handler.updateWithValue(union1, "entertainment");
+    handler.updateWithValue(union1, "health");
+    handler.updateWithValue(union1, "mezzanine");
+    handler.updateWithValue(union1, "news");
+    ItemsSketch sketch1 = (ItemsSketch) handler.toSketch(union1);
+    Object union2 = handler.newUnion(nomEntries);
+    handler.updateWithValue(union2, "automotive1");
+    handler.updateWithValue(union2, "automotive2");
+    handler.updateWithValue(union2, "automotive3");
+    handler.updateWithValue(union2, "business1");
+    handler.updateWithValue(union2, "business2");
+    handler.updateWithValue(union2, "business3");
+    handler.updateWithValue(union2, "entertainment1");
+    handler.updateWithValue(union2, "entertainment2");
+    handler.updateWithValue(union2, "entertainment3");
+    handler.updateWithValue(union2, "health1");
+    handler.updateWithValue(union2, "health2");
+    handler.updateWithValue(union2, "health3");
+    handler.updateWithValue(union2, "mezzanine1");
+    handler.updateWithValue(union2, "mezzanine2");
+    handler.updateWithValue(union2, "mezzanine3");
+    handler.updateWithValue(union2, "news1");
+    handler.updateWithValue(union2, "news2");
+    handler.updateWithValue(union2, "news3");
+    handler.updateWithValue(union2, "premium1");
+    handler.updateWithValue(union2, "premium2");
+    handler.updateWithValue(union2, "premium3");
+    ItemsSketch sketch2 = (ItemsSketch) handler.toSketch(union2);
 
     Map<String, Object> sketches = ImmutableMap.<String, Object>of("quality1", sketch1, "quality2", sketch2);
     Result<Map<String, Object>> result = new Result<>(new DateTime("2016-12-14T16:08:00"), sketches);
@@ -126,8 +124,8 @@ public class SketchQueryRunnerTest
     Assert.assertEquals(
         "{\"timestamp\":\"2016-12-14T16:08:00.000Z\","
         + "\"result\":{"
-        + "\"quality1\":\"AgMDAAAazJMGAAAAAACAPwKobNnmhVcIRjb8GcPp4QosSoEtTHTHELg4+/gHt6lvG9qOWCPXz3UtwWAW4Pebew==\","
-        + "\"quality2\":\"AwMDAAAazJMQAAAAAACAP9b33ETElj9iJamXpuMfvwZELjTL3JWJEG/31isLqBQS+UTkQnu0wSPfbj6za7/1JAbAyn8cTkMmevQWEYNNzSrz7fgK+wwuK7lGzxKorcQ3i4l4XrfKujlQQMiQkLixP1xsYb8rqeNCGmbo70PGAEXTqJyjf4Z4TxdkRE2hslxSbc0dsIVOylg=\"}}",
+        + "\"quality1\":\"AgMICBAAAAAGAAAAAAAAAAoAAABhdXRvbW90aXZlBAAAAG5ld3MKAAAAYXV0b21vdGl2ZQgAAABidXNpbmVzcw0AAABlbnRlcnRhaW5tZW50BgAAAGhlYWx0aAkAAABtZXp6YW5pbmUEAAAAbmV3cw==\","
+        + "\"quality2\":\"AgMICBAAAAAVAAAAAAAAAAsAAABhdXRvbW90aXZlMQgAAABwcmVtaXVtMwsAAABhdXRvbW90aXZlMQsAAABhdXRvbW90aXZlMgsAAABhdXRvbW90aXZlMwkAAABidXNpbmVzczEJAAAAYnVzaW5lc3MyCQAAAGJ1c2luZXNzMw4AAABlbnRlcnRhaW5tZW50MQ4AAABlbnRlcnRhaW5tZW50Mg4AAABlbnRlcnRhaW5tZW50MwcAAABoZWFsdGgxBwAAAGhlYWx0aDIHAAAAaGVhbHRoMwoAAABtZXp6YW5pbmUxCgAAAG1lenphbmluZTIKAAAAbWV6emFuaW5lMwUAAABuZXdzMQUAAABuZXdzMgUAAABuZXdzMwgAAABwcmVtaXVtMQgAAABwcmVtaXVtMggAAABwcmVtaXVtMw==\"}}",
         serialized
     );
     Result<Map<String, Object>> deserialized = mapper.readValue(
@@ -136,32 +134,35 @@ public class SketchQueryRunnerTest
         {
         }
     );
-    assertEqual(sketch1, SketchOperations.deserialize(deserialized.getValue().get("quality1")));
-    assertEqual(sketch2, SketchOperations.deserialize(deserialized.getValue().get("quality2")));
+    assertEqual(sketch1, SketchOperations.deserializeQuantile(deserialized.getValue().get("quality1")));
+    assertEqual(sketch2, SketchOperations.deserializeQuantile(deserialized.getValue().get("quality2")));
   }
 
   @Test
   public void testSketchMergeFunction() throws Exception
   {
+    SketchHandler handler = SketchOp.QUANTILE.handler();
     int nomEntries = 16;
-    Union union1 = (Union) SetOperation.builder().build(nomEntries, Family.UNION);
-    union1.update("automotive");
-    union1.update("business");
-    union1.update("entertainment");
-    union1.update("health");
-    union1.update("mezzanine");
-    union1.update("news");
-    Sketch sketch1 = union1.getResult(true, null);
-    Assert.assertEquals(6, sketch1.getEstimate(), 0.001);
-    Union union2 = (Union) SetOperation.builder().build(nomEntries, Family.UNION);
-    union2.update("automotive");
-    union2.update("health");
-    union2.update("premium");
-    Sketch sketch2 = union2.getResult(true, null);
-    Assert.assertEquals(3, sketch2.getEstimate(), 0.001);
+    Object union1 = handler.newUnion(nomEntries);
+    handler.updateWithValue(union1, "automotive");
+    handler.updateWithValue(union1, "business");
+    handler.updateWithValue(union1, "entertainment");
+    handler.updateWithValue(union1, "health");
+    handler.updateWithValue(union1, "mezzanine");
+    handler.updateWithValue(union1, "news");
+    ItemsSketch sketch1 = (ItemsSketch) handler.toSketch(union1);
+    Assert.assertEquals("health", sketch1.getQuantile(0.5f));
+    Object union2 = handler.newUnion(nomEntries);
+    handler.updateWithValue(union2, "premium");
+    handler.updateWithValue(union2, "premium");
+    handler.updateWithValue(union2, "premium");
+    handler.updateWithValue(union2, "mezzanine");
+    handler.updateWithValue(union2, "mezzanine");
+    ItemsSketch sketch2 = (ItemsSketch) handler.toSketch(union2);
+    Assert.assertEquals("premium", sketch2.getQuantile(0.5f));
 
     Result<Map<String, Object>> merged =
-        new SketchBinaryFn(nomEntries).apply(
+        new SketchBinaryFn(nomEntries, handler).apply(
             new Result<Map<String, Object>>(
                 new DateTime(0),
                     ImmutableMap.<String, Object>of("quality", sketch1)
@@ -172,8 +173,8 @@ public class SketchQueryRunnerTest
             )
         );
 
-    Sketch sketch = (Sketch) merged.getValue().get("quality");
-    Assert.assertEquals(7, sketch.getEstimate(), 0.001);
+    ItemsSketch sketch = (ItemsSketch) merged.getValue().get("quality");
+    Assert.assertEquals("mezzanine", sketch.getQuantile(0.5f));
   }
 
   @Test
@@ -182,7 +183,7 @@ public class SketchQueryRunnerTest
     SketchQuery query = new SketchQuery(
         new TableDataSource(QueryRunnerTestHelper.dataSource),
         QueryRunnerTestHelper.fullOnInterval,
-        Arrays.asList("market", "quality"), null, 16, null
+        Arrays.asList("market", "quality"), null, 16, SketchOp.QUANTILE, null
     );
 
     List<Result<Map<String, Object>>> result = Sequences.toList(
@@ -191,12 +192,14 @@ public class SketchQueryRunnerTest
     );
     Assert.assertEquals(1, result.size());
     Map<String, Object> values = result.get(0).getValue();
-    Assert.assertEquals(3, ((Sketch) values.get("market")).getEstimate(), 0.001);
-    Assert.assertEquals(9, ((Sketch) values.get("quality")).getEstimate(), 0.001);
+    ItemsSketch sketch1 = (ItemsSketch) values.get("market");
+    ItemsSketch sketch2 = (ItemsSketch) values.get("quality");
+    Assert.assertEquals("spot", sketch1.getQuantile(0.5d));
+    Assert.assertEquals("mezzanine", sketch2.getQuantile(0.5d));
   }
 
-  private void assertEqual(Sketch expected, Sketch result)
+  private void assertEqual(ItemsSketch expected, ItemsSketch result)
   {
-    Assert.assertEquals(expected.toString(false, true, 8, true), result.toString(false, true, 8, true));
+    Assert.assertEquals(expected.toString(true, true), result.toString(true, true));
   }
 }

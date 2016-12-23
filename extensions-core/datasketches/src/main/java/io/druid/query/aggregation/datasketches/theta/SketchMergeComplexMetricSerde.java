@@ -19,7 +19,7 @@
 
 package io.druid.query.aggregation.datasketches.theta;
 
-import com.yahoo.sketches.memory.Memory;
+import com.yahoo.memory.Memory;
 import com.yahoo.sketches.theta.Sketch;
 import io.druid.data.input.InputRow;
 import io.druid.segment.column.ColumnBuilder;

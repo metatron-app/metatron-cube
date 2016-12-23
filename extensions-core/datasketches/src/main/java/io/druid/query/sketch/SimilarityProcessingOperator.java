@@ -30,6 +30,7 @@ import com.metamx.common.Pair;
 import com.metamx.common.guava.Accumulator;
 import com.metamx.common.guava.Sequence;
 import com.metamx.common.guava.Sequences;
+import com.metamx.common.logger.Logger;
 import com.yahoo.sketches.theta.Sketch;
 import io.druid.query.BaseQuery;
 import io.druid.query.PostProcessingOperator;
@@ -52,6 +53,8 @@ import static io.druid.query.aggregation.datasketches.theta.SketchOperations.Fun
 @JsonTypeName("similarity")
 public class SimilarityProcessingOperator implements PostProcessingOperator.UnionSupport
 {
+  private static final Logger LOG = new Logger(SimilarityProcessingOperator.class);
+
   private final float threshold;
   private final Set<String> dataSourceSet;
 
@@ -85,7 +88,9 @@ public class SimilarityProcessingOperator implements PostProcessingOperator.Unio
       public Sequence run(Query query, Map responseContext)
       {
         final Query representative = BaseQuery.getRepresentative(query);
-        if (!(representative instanceof SketchQuery)) {
+        if (!(representative instanceof SketchQuery) ||
+            ((SketchQuery) representative).getSketchOp() != SketchOp.THETA) {
+          LOG.info("query should be 'sketch' type with 'theta' operation");
           return baseRunner.run(query, responseContext);
         }
         final int nomEntries = ((SketchQuery) representative).getNomEntries();
