@@ -36,9 +36,11 @@ import io.druid.query.QueryToolChest;
 import io.druid.query.Result;
 import io.druid.query.ResultGranularTimestampComparator;
 import io.druid.query.ResultMergeQueryRunner;
+import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.MetricManipulationFn;
 import org.joda.time.DateTime;
 
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 
@@ -104,12 +106,18 @@ public class SelectMetaQueryToolChest extends QueryToolChest<Result<SelectMetaRe
             }
             List<String> metrics = Lists.newArrayList(value1.getMetrics());
             for (String metric : value2.getMetrics()) {
-              if (!dimensions.contains(metric)) {
-                dimensions.add(metric);
+              if (!metrics.contains(metric)) {
+                metrics.add(metric);
               }
             }
+            AggregatorFactory[] aggregators = AggregatorFactory.mergeAggregators(
+                Arrays.asList(value1.getAggregators(), value1.getAggregators())
+            );
             long estimatedSize = value1.getEstimatedSize() + value2.getEstimatedSize();
-            return new Result<>(timestamp, new SelectMetaResultValue(dimensions, metrics, merged, estimatedSize));
+            return new Result<>(
+                timestamp,
+                new SelectMetaResultValue(dimensions, metrics, aggregators, merged, estimatedSize)
+            );
           }
         };
       }

@@ -21,7 +21,9 @@ package io.druid.query.select;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import io.druid.query.aggregation.AggregatorFactory;
 
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -33,6 +35,7 @@ public class SelectMetaResultValue
   private final Map<String, Integer> perSegmentCounts;
   private final List<String> dimensions;
   private final List<String> metrics;
+  private final AggregatorFactory[] aggregators;
   private final int totalCount;
   private final long estimatedSize;
 
@@ -40,12 +43,14 @@ public class SelectMetaResultValue
   public SelectMetaResultValue(
       @JsonProperty("dimensions") List<String> dimensions,
       @JsonProperty("metrics") List<String> metrics,
+      @JsonProperty("aggregators") AggregatorFactory[] aggregators,
       @JsonProperty("perSegmentCounts") Map<String, Integer> perSegmentCounts,
       @JsonProperty("estimatedSize") long estimatedSize
   )
   {
     this.dimensions = dimensions;
     this.metrics = metrics;
+    this.aggregators = aggregators;
     this.perSegmentCounts = perSegmentCounts;
     int total = 0;
     for (Integer segmentCount : perSegmentCounts.values()) {
@@ -65,6 +70,12 @@ public class SelectMetaResultValue
   public List<String> getMetrics()
   {
     return metrics;
+  }
+
+  @JsonProperty
+  public AggregatorFactory[] getAggregators()
+  {
+    return aggregators;
   }
 
   @JsonProperty
@@ -124,6 +135,7 @@ public class SelectMetaResultValue
     return "SelectMetaResultValue{" +
            "dimensions=" + dimensions +
            ", metrics=" + metrics +
+           ", aggregators=" + Arrays.toString(aggregators) +
            ", perSegmentCounts=" + perSegmentCounts +
            ", totalCount=" + totalCount +
            ", estimatedSize=" + estimatedSize +

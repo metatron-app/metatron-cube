@@ -32,7 +32,9 @@ import io.druid.granularity.QueryGranularities;
 import io.druid.granularity.QueryGranularity;
 import io.druid.query.QueryRunnerHelper;
 import io.druid.query.Result;
+import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.segment.Cursor;
+import io.druid.segment.Metadata;
 import io.druid.segment.Segment;
 import io.druid.segment.StorageAdapter;
 import io.druid.segment.VirtualColumns;
@@ -64,8 +66,15 @@ public class SelectMetaQueryEngine
     final String identifier = segment.getIdentifier();
 
     StorageAdapter storageAdapter = segment.asStorageAdapter();
+    Metadata metadata = storageAdapter.getMetadata();
     final List<String> dimensions = Lists.newArrayList(storageAdapter.getAvailableDimensions());
     final List<String> metrics = Lists.newArrayList(storageAdapter.getAvailableMetrics());
+    final AggregatorFactory[] aggregators;
+    if (metadata != null && metadata.getAggregators() != null) {
+      aggregators = metadata.getAggregators();
+    } else {
+      aggregators = null;
+    }
 
     final float averageSize = calculateAverageSize(query, adapter);
 
@@ -79,7 +88,7 @@ public class SelectMetaQueryEngine
               new Result<>(
                   granularity.toDateTime(interval.getStartMillis()),
                   new SelectMetaResultValue(
-                      dimensions, metrics, ImmutableMap.of(identifier, row), (long) (row * averageSize)
+                      dimensions, metrics, aggregators, ImmutableMap.of(identifier, row), (long) (row * averageSize)
                   )
               )
           )
@@ -105,7 +114,7 @@ public class SelectMetaQueryEngine
             }
             return new Result<>(
                 cursor.getTime(),
-                new SelectMetaResultValue(dimensions, metrics, ImmutableMap.of(identifier, i), (long) (i * averageSize))
+                new SelectMetaResultValue(dimensions, metrics, aggregators, ImmutableMap.of(identifier, i), (long) (i * averageSize))
             );
           }
         }
