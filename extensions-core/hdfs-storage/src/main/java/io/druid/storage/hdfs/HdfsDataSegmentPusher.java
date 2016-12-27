@@ -148,8 +148,10 @@ public class HdfsDataSegmentPusher implements DataSegmentPusher, ResultWriter
     if (!fileSystem.exists(targetDirectory) && !fileSystem.mkdirs(targetDirectory)) {
       throw new IllegalStateException("failed to make target directory");
     }
-    String fileName = PropUtils.parseString(context, "dataFileName", null);
-    Path dataFile = new Path(targetDirectory, Strings.isNullOrEmpty(fileName) ? "data" : fileName);
+    String dataFileName = PropUtils.parseString(context, "dataFileName", null);
+    String metaFileName = PropUtils.parseString(context, "metaFileName", null);
+    Path dataFile = new Path(targetDirectory, Strings.isNullOrEmpty(dataFileName) ? "data" : dataFileName);
+    Path metaFile = new Path(targetDirectory, Strings.isNullOrEmpty(metaFileName) ? ".meta" : metaFileName);
 
     Map<String, Object> info = Maps.newHashMap();
     try (CountingAccumulator accumulator = toExporter(context, jsonMapper, fileSystem, dataFile)) {
@@ -160,14 +162,15 @@ public class HdfsDataSegmentPusher implements DataSegmentPusher, ResultWriter
     Path dataLocation = new Path(parent, dataFile.getName());
     info.put("data", ImmutableMap.of(dataLocation.toString(), fileSystem.getFileStatus(dataFile).getLen()));
 
-    Map<String, Object> metaData = result.getMetaData();
-    if (metaData != null && !metaData.isEmpty()) {
-      Path metaFile = new Path(targetDirectory, ".meta");
-      try (OutputStream output = fileSystem.create(metaFile)) {
-        jsonMapper.writeValue(output, metaData);
+    if (!PropUtils.parseBoolean(context, "skipMetaFile", false)) {
+      Map<String, Object> metaData = result.getMetaData();
+      if (metaData != null && !metaData.isEmpty()) {
+        try (OutputStream output = fileSystem.create(metaFile)) {
+          jsonMapper.writeValue(output, metaData);
+        }
+        Path metaLocation = new Path(parent, metaFile.getName());
+        info.put("meta", ImmutableMap.of(metaLocation.toString(), fileSystem.getFileStatus(metaFile).getLen()));
       }
-      Path metaLocation = new Path(parent, metaFile.getName());
-      info.put("meta", ImmutableMap.of(metaLocation.toString(), fileSystem.getFileStatus(metaFile).getLen()));
     }
     return info;
   }

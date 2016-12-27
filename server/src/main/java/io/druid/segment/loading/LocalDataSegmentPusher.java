@@ -138,8 +138,10 @@ public class LocalDataSegmentPusher implements DataSegmentPusher, ResultWriter
     if (!targetDirectory.exists() && !targetDirectory.mkdirs()) {
       throw new IllegalStateException("failed to make target directory");
     }
-    String fileName = PropUtils.parseString(context, "dataFileName", null);
-    File dataFile = new File(targetDirectory, Strings.isNullOrEmpty(fileName) ? "data" : fileName);
+    String dataFileName = PropUtils.parseString(context, "dataFileName", null);
+    String metaFileName = PropUtils.parseString(context, "metaFileName", null);
+    File dataFile = new File(targetDirectory, Strings.isNullOrEmpty(dataFileName) ? "data" : dataFileName);
+    File metaFile = new File(targetDirectory, Strings.isNullOrEmpty(metaFileName) ? ".meta" : metaFileName);
 
     Map<String, Object> info = Maps.newHashMap();
     try (CountingAccumulator accumulator = toExporter(context, jsonMapper, dataFile)) {
@@ -149,13 +151,14 @@ public class LocalDataSegmentPusher implements DataSegmentPusher, ResultWriter
     }
     info.put("data", ImmutableMap.of(rewrite(location, dataFile.getAbsolutePath()), dataFile.length()));
 
-    Map<String, Object> metaData = result.getMetaData();
-    if (metaData != null && !metaData.isEmpty()) {
-      File metaFile = new File(targetDirectory, ".meta");
-      try (OutputStream output = new FileOutputStream(metaFile)) {
-        jsonMapper.writeValue(output, metaData);
+    if (!PropUtils.parseBoolean(context, "skipMetaFile", false)) {
+      Map<String, Object> metaData = result.getMetaData();
+      if (metaData != null && !metaData.isEmpty()) {
+        try (OutputStream output = new FileOutputStream(metaFile)) {
+          jsonMapper.writeValue(output, metaData);
+        }
+        info.put("meta", ImmutableMap.of(rewrite(location, metaFile.getAbsolutePath()), metaFile.length()));
       }
-      info.put("meta", ImmutableMap.of(rewrite(location, metaFile.getAbsolutePath()), metaFile.length()));
     }
     return info;
   }
