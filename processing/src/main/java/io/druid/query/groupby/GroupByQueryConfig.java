@@ -34,6 +34,9 @@ public class GroupByQueryConfig
   @JsonProperty
   private int maxResults = 500000;
 
+  @JsonProperty
+  private boolean sortOnTime = true;
+
   public boolean isSingleThreaded()
   {
     return singleThreaded;
@@ -62,5 +65,15 @@ public class GroupByQueryConfig
   public void setMaxResults(int maxResults)
   {
     this.maxResults = maxResults;
+  }
+
+  public boolean isSortOnTime()
+  {
+    return sortOnTime;
+  }
+
+  public void setSortOnTime(boolean sortOnTime)
+  {
+    this.sortOnTime = sortOnTime;
   }
 }

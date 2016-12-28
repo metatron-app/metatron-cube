@@ -64,7 +64,10 @@ public class NoopLimitSpec implements LimitSpec
 
   @Override
   public Function<Sequence<Row>, Sequence<Row>> build(
-      List<DimensionSpec> dimensions, List<AggregatorFactory> aggs, List<PostAggregator> postAggs
+      List<DimensionSpec> dimensions,
+      List<AggregatorFactory> aggs,
+      List<PostAggregator> postAggs,
+      boolean sortOnTimeForLimit
   )
   {
     if (windowingSpecs == null || windowingSpecs.isEmpty()) {

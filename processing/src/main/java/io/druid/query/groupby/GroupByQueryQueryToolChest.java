@@ -257,7 +257,7 @@ public class GroupByQueryQueryToolChest extends QueryToolChest<Row, GroupByQuery
       innerQueryResultIndex.close();
 
       return new ResourceClosingSequence<>(
-          outerQuery.applyLimit(postAggregate(query, outerQueryResultIndex)),
+          outerQuery.applyLimit(postAggregate(query, outerQueryResultIndex), configSupplier.get()),
           outerQueryResultIndex
       );
 
@@ -292,7 +292,7 @@ public class GroupByQueryQueryToolChest extends QueryToolChest<Row, GroupByQuery
               , context
           )
       );
-      return new ResourceClosingSequence<>(query.applyLimit(postAggregate(query, index)), index);
+      return new ResourceClosingSequence<>(query.applyLimit(postAggregate(query, index), configSupplier.get()), index);
     }
   }
 

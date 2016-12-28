@@ -61,6 +61,8 @@ import java.util.Map;
  */
 public class GroupByQuery extends BaseQuery<Row>
 {
+  public static final String SORT_ON_TIME = "groupby.sort.on.time";
+
   public static Builder builder()
   {
     return new Builder();
@@ -76,8 +78,6 @@ public class GroupByQuery extends BaseQuery<Row>
   private final List<AggregatorFactory> aggregatorSpecs;
   private final List<PostAggregator> postAggregatorSpecs;
   private final List<String> outputColumns;
-
-  private final Function<Sequence<Row>, Sequence<Row>> limitFn;
 
   @JsonCreator
   public GroupByQuery(
@@ -104,7 +104,7 @@ public class GroupByQuery extends BaseQuery<Row>
       Preconditions.checkArgument(spec != null, "dimensions has null DimensionSpec");
     }
     this.virtualColumns = virtualColumns;
-    this.aggregatorSpecs = aggregatorSpecs;
+    this.aggregatorSpecs = aggregatorSpecs == null ? ImmutableList.<AggregatorFactory>of() : aggregatorSpecs;
     this.postAggregatorSpecs = postAggregatorSpecs == null ? ImmutableList.<PostAggregator>of() : postAggregatorSpecs;
     this.havingSpec = havingSpec;
     this.lateralView = lateralView;
@@ -114,71 +114,6 @@ public class GroupByQuery extends BaseQuery<Row>
     Preconditions.checkNotNull(this.granularity, "Must specify a granularity");
     Preconditions.checkNotNull(this.aggregatorSpecs, "Must specify at least one aggregator");
     Queries.verifyAggregations(this.aggregatorSpecs, this.postAggregatorSpecs);
-
-    Function<Sequence<Row>, Sequence<Row>> postProcFn =
-        this.limitSpec.build(this.dimensions, this.aggregatorSpecs, this.postAggregatorSpecs);
-
-    if (havingSpec != null) {
-      postProcFn = Functions.compose(
-          postProcFn,
-          new Function<Sequence<Row>, Sequence<Row>>()
-          {
-            @Override
-            public Sequence<Row> apply(Sequence<Row> input)
-            {
-              return Sequences.filter(
-                  input,
-                  new Predicate<Row>()
-                  {
-                    @Override
-                    public boolean apply(Row input)
-                    {
-                      return GroupByQuery.this.havingSpec.eval(input);
-                    }
-                  }
-              );
-            }
-          }
-      );
-    }
-
-    limitFn = postProcFn;
-  }
-
-  /**
-   * A private constructor that avoids all of the various state checks.  Used by the with*() methods where the checks
-   * have already passed in order for the object to exist.
-   */
-  private GroupByQuery(
-      DataSource dataSource,
-      QuerySegmentSpec querySegmentSpec,
-      DimFilter dimFilter,
-      QueryGranularity granularity,
-      List<DimensionSpec> dimensions,
-      List<VirtualColumn> virtualColumns,
-      List<AggregatorFactory> aggregatorSpecs,
-      List<PostAggregator> postAggregatorSpecs,
-      HavingSpec havingSpec,
-      LateralViewSpec lateralView,
-      LimitSpec orderBySpec,
-      Function<Sequence<Row>, Sequence<Row>> limitFn,
-      List<String> outputColumns,
-      Map<String, Object> context
-  )
-  {
-    super(dataSource, querySegmentSpec, false, context);
-
-    this.dimFilter = dimFilter;
-    this.granularity = granularity;
-    this.dimensions = dimensions;
-    this.virtualColumns = virtualColumns;
-    this.aggregatorSpecs = aggregatorSpecs;
-    this.postAggregatorSpecs = postAggregatorSpecs;
-    this.havingSpec = havingSpec;
-    this.lateralView = lateralView;
-    this.limitSpec = orderBySpec;
-    this.limitFn = limitFn;
-    this.outputColumns = outputColumns;
   }
 
   @JsonProperty("filter")
@@ -253,9 +188,38 @@ public class GroupByQuery extends BaseQuery<Row>
     return GROUP_BY;
   }
 
-  public Sequence<Row> applyLimit(Sequence<Row> results)
+  public Sequence<Row> applyLimit(Sequence<Row> results, GroupByQueryConfig config)
   {
-    return limitFn.apply(results);
+    boolean sortOnTimeForLimit = getContextBoolean(SORT_ON_TIME, config.isSortOnTime());
+
+    Function<Sequence<Row>, Sequence<Row>> postProcFn =
+        limitSpec.build(dimensions, aggregatorSpecs, postAggregatorSpecs, sortOnTimeForLimit);
+
+    if (havingSpec != null) {
+      postProcFn = Functions.compose(
+          postProcFn,
+          new Function<Sequence<Row>, Sequence<Row>>()
+          {
+            @Override
+            public Sequence<Row> apply(Sequence<Row> input)
+            {
+              return Sequences.filter(
+                  input,
+                  new Predicate<Row>()
+                  {
+                    @Override
+                    public boolean apply(Row input)
+                    {
+                      return havingSpec.eval(input);
+                    }
+                  }
+              );
+            }
+          }
+      );
+    }
+
+    return postProcFn.apply(results);
   }
 
   @Override
@@ -271,10 +235,9 @@ public class GroupByQuery extends BaseQuery<Row>
         aggregatorSpecs,
         postAggregatorSpecs,
         havingSpec,
-        lateralView,
         limitSpec,
-        limitFn,
         outputColumns,
+        lateralView,
         computeOverridenContext(contextOverride)
     );
   }
@@ -292,10 +255,9 @@ public class GroupByQuery extends BaseQuery<Row>
         aggregatorSpecs,
         postAggregatorSpecs,
         havingSpec,
-        lateralView,
         limitSpec,
-        limitFn,
         outputColumns,
+        lateralView,
         getContext()
     );
   }
@@ -312,10 +274,9 @@ public class GroupByQuery extends BaseQuery<Row>
         getAggregatorSpecs(),
         getPostAggregatorSpecs(),
         getHavingSpec(),
-        getLateralView(),
         getLimitSpec(),
-        limitFn,
         getOutputColumns(),
+        getLateralView(),
         getContext()
     );
   }
@@ -333,10 +294,9 @@ public class GroupByQuery extends BaseQuery<Row>
         aggregatorSpecs,
         postAggregatorSpecs,
         havingSpec,
-        lateralView,
         limitSpec,
-        limitFn,
         outputColumns,
+        lateralView,
         getContext()
     );
   }
@@ -353,10 +313,9 @@ public class GroupByQuery extends BaseQuery<Row>
         getAggregatorSpecs(),
         getPostAggregatorSpecs(),
         getHavingSpec(),
-        getLateralView(),
         getLimitSpec(),
-        limitFn,
         getOutputColumns(),
+        getLateralView(),
         getContext()
     );
   }
@@ -411,10 +370,9 @@ public class GroupByQuery extends BaseQuery<Row>
         aggregatorSpecs,
         getPostAggregatorSpecs(),
         getHavingSpec(),
-        getLateralView(),
         getLimitSpec(),
-        limitFn,
         getOutputColumns(),
+        getLateralView(),
         getContext()
     );
   }
@@ -450,10 +408,9 @@ public class GroupByQuery extends BaseQuery<Row>
         getAggregatorSpecs(),
         postAggregatorSpecs,
         getHavingSpec(),
-        getLateralView(),
         getLimitSpec(),
-        limitFn,
         getOutputColumns(),
+        getLateralView(),
         getContext()
     );
   }

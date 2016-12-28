@@ -4562,6 +4562,112 @@ public class GroupByQueryRunnerTest
     results = GroupByQueryRunnerTestHelper.runQuery(factory, mergeRunner, builder.build());
     GroupByQueryRunnerTestHelper.validate(columnNames, expectedResults, results);
 
+    builder.setGranularity(QueryGranularities.MONTH);
+    builder.setLimitSpec(
+        new DefaultLimitSpec(
+            null, null,
+            Arrays.asList(
+                new WindowingSpec(
+                    dayOfWeek, dayPlusMarket, "delta_week = $delta(rows)", "sum_week = $sum(rows)"
+                ),
+                new WindowingSpec(
+                    null, null, "delta_all = $delta(rows)", "sum_all = $sum(rows)"
+                )
+            )
+        )
+    );
+
+    expectedResults = GroupByQueryRunnerTestHelper.createExpectedRows(
+        columnNames,
+        array("2011-01-01T00:00:00.000Z", "Friday", 4L, 0L, 4L, 0L, 4L),
+        array("2011-02-01T00:00:00.000Z", "Friday", 8L, 4L, 12L, 4L, 12L),
+        array("2011-03-01T00:00:00.000Z", "Friday", 8L, 0L, 20L, 0L, 20L),
+        array("2011-04-01T00:00:00.000Z", "Friday", 6L, -2L, 26L, -2L, 26L),
+        array("2011-01-01T00:00:00.000Z", "Friday", 4L, -2L, 30L, -2L, 30L),
+        array("2011-02-01T00:00:00.000Z", "Friday", 8L, 4L, 38L, 4L, 38L),
+        array("2011-03-01T00:00:00.000Z", "Friday", 8L, 0L, 46L, 0L, 46L),
+        array("2011-04-01T00:00:00.000Z", "Friday", 6L, -2L, 52L, -2L, 52L),
+        array("2011-01-01T00:00:00.000Z", "Friday", 18L, 12L, 70L, 12L, 70L),
+        array("2011-02-01T00:00:00.000Z", "Friday", 36L, 18L, 106L, 18L, 106L),
+        array("2011-03-01T00:00:00.000Z", "Friday", 36L, 0L, 142L, 0L, 142L),
+        array("2011-04-01T00:00:00.000Z", "Friday", 27L, -9L, 169L, -9L, 169L),
+        array("2011-01-01T00:00:00.000Z", "Monday", 6L, 0L, 6L, -21L, 175L),
+        array("2011-02-01T00:00:00.000Z", "Monday", 8L, 2L, 14L, 2L, 183L),
+        array("2011-03-01T00:00:00.000Z", "Monday", 8L, 0L, 22L, 0L, 191L),
+        array("2011-04-01T00:00:00.000Z", "Monday", 4L, -4L, 26L, -4L, 195L),
+        array("2011-01-01T00:00:00.000Z", "Monday", 6L, 2L, 32L, 2L, 201L),
+        array("2011-02-01T00:00:00.000Z", "Monday", 8L, 2L, 40L, 2L, 209L),
+        array("2011-03-01T00:00:00.000Z", "Monday", 8L, 0L, 48L, 0L, 217L),
+        array("2011-04-01T00:00:00.000Z", "Monday", 4L, -4L, 52L, -4L, 221L),
+        array("2011-01-01T00:00:00.000Z", "Monday", 27L, 23L, 79L, 23L, 248L),
+        array("2011-02-01T00:00:00.000Z", "Monday", 36L, 9L, 115L, 9L, 284L),
+        array("2011-03-01T00:00:00.000Z", "Monday", 36L, 0L, 151L, 0L, 320L),
+        array("2011-04-01T00:00:00.000Z", "Monday", 18L, -18L, 169L, -18L, 338L),
+        array("2011-01-01T00:00:00.000Z", "Saturday", 6L, 0L, 6L, -12L, 344L),
+        array("2011-02-01T00:00:00.000Z", "Saturday", 8L, 2L, 14L, 2L, 352L),
+        array("2011-03-01T00:00:00.000Z", "Saturday", 8L, 0L, 22L, 0L, 360L),
+        array("2011-04-01T00:00:00.000Z", "Saturday", 4L, -4L, 26L, -4L, 364L),
+        array("2011-01-01T00:00:00.000Z", "Saturday", 6L, 2L, 32L, 2L, 370L),
+        array("2011-02-01T00:00:00.000Z", "Saturday", 8L, 2L, 40L, 2L, 378L),
+        array("2011-03-01T00:00:00.000Z", "Saturday", 8L, 0L, 48L, 0L, 386L),
+        array("2011-04-01T00:00:00.000Z", "Saturday", 4L, -4L, 52L, -4L, 390L),
+        array("2011-01-01T00:00:00.000Z", "Saturday", 27L, 23L, 79L, 23L, 417L),
+        array("2011-02-01T00:00:00.000Z", "Saturday", 36L, 9L, 115L, 9L, 453L),
+        array("2011-03-01T00:00:00.000Z", "Saturday", 36L, 0L, 151L, 0L, 489L),
+        array("2011-04-01T00:00:00.000Z", "Saturday", 18L, -18L, 169L, -18L, 507L),
+        array("2011-01-01T00:00:00.000Z", "Sunday", 6L, 0L, 6L, -12L, 513L),
+        array("2011-02-01T00:00:00.000Z", "Sunday", 8L, 2L, 14L, 2L, 521L),
+        array("2011-03-01T00:00:00.000Z", "Sunday", 8L, 0L, 22L, 0L, 529L),
+        array("2011-04-01T00:00:00.000Z", "Sunday", 4L, -4L, 26L, -4L, 533L),
+        array("2011-01-01T00:00:00.000Z", "Sunday", 6L, 2L, 32L, 2L, 539L),
+        array("2011-02-01T00:00:00.000Z", "Sunday", 8L, 2L, 40L, 2L, 547L),
+        array("2011-03-01T00:00:00.000Z", "Sunday", 8L, 0L, 48L, 0L, 555L),
+        array("2011-04-01T00:00:00.000Z", "Sunday", 4L, -4L, 52L, -4L, 559L),
+        array("2011-01-01T00:00:00.000Z", "Sunday", 27L, 23L, 79L, 23L, 586L),
+        array("2011-02-01T00:00:00.000Z", "Sunday", 36L, 9L, 115L, 9L, 622L),
+        array("2011-03-01T00:00:00.000Z", "Sunday", 36L, 0L, 151L, 0L, 658L),
+        array("2011-04-01T00:00:00.000Z", "Sunday", 18L, -18L, 169L, -18L, 676L),
+        array("2011-01-01T00:00:00.000Z", "Thursday", 6L, 0L, 6L, -12L, 682L),
+        array("2011-02-01T00:00:00.000Z", "Thursday", 8L, 2L, 14L, 2L, 690L),
+        array("2011-03-01T00:00:00.000Z", "Thursday", 10L, 2L, 24L, 2L, 700L),
+        array("2011-04-01T00:00:00.000Z", "Thursday", 4L, -6L, 28L, -6L, 704L),
+        array("2011-01-01T00:00:00.000Z", "Thursday", 6L, 2L, 34L, 2L, 710L),
+        array("2011-02-01T00:00:00.000Z", "Thursday", 8L, 2L, 42L, 2L, 718L),
+        array("2011-03-01T00:00:00.000Z", "Thursday", 10L, 2L, 52L, 2L, 728L),
+        array("2011-04-01T00:00:00.000Z", "Thursday", 4L, -6L, 56L, -6L, 732L),
+        array("2011-01-01T00:00:00.000Z", "Thursday", 27L, 23L, 83L, 23L, 759L),
+        array("2011-02-01T00:00:00.000Z", "Thursday", 36L, 9L, 119L, 9L, 795L),
+        array("2011-03-01T00:00:00.000Z", "Thursday", 45L, 9L, 164L, 9L, 840L),
+        array("2011-04-01T00:00:00.000Z", "Thursday", 18L, -27L, 182L, -27L, 858L),
+        array("2011-01-01T00:00:00.000Z", "Tuesday", 4L, 0L, 4L, -14L, 862L),
+        array("2011-02-01T00:00:00.000Z", "Tuesday", 8L, 4L, 12L, 4L, 870L),
+        array("2011-03-01T00:00:00.000Z", "Tuesday", 10L, 2L, 22L, 2L, 880L),
+        array("2011-04-01T00:00:00.000Z", "Tuesday", 4L, -6L, 26L, -6L, 884L),
+        array("2011-01-01T00:00:00.000Z", "Tuesday", 4L, 0L, 30L, 0L, 888L),
+        array("2011-02-01T00:00:00.000Z", "Tuesday", 8L, 4L, 38L, 4L, 896L),
+        array("2011-03-01T00:00:00.000Z", "Tuesday", 10L, 2L, 48L, 2L, 906L),
+        array("2011-04-01T00:00:00.000Z", "Tuesday", 4L, -6L, 52L, -6L, 910L),
+        array("2011-01-01T00:00:00.000Z", "Tuesday", 18L, 14L, 70L, 14L, 928L),
+        array("2011-02-01T00:00:00.000Z", "Tuesday", 36L, 18L, 106L, 18L, 964L),
+        array("2011-03-01T00:00:00.000Z", "Tuesday", 45L, 9L, 151L, 9L, 1009L),
+        array("2011-04-01T00:00:00.000Z", "Tuesday", 18L, -27L, 169L, -27L, 1027L),
+        array("2011-01-01T00:00:00.000Z", "Wednesday", 6L, 0L, 6L, -12L, 1033L),
+        array("2011-02-01T00:00:00.000Z", "Wednesday", 8L, 2L, 14L, 2L, 1041L),
+        array("2011-03-01T00:00:00.000Z", "Wednesday", 10L, 2L, 24L, 2L, 1051L),
+        array("2011-04-01T00:00:00.000Z", "Wednesday", 4L, -6L, 28L, -6L, 1055L),
+        array("2011-01-01T00:00:00.000Z", "Wednesday", 6L, 2L, 34L, 2L, 1061L),
+        array("2011-02-01T00:00:00.000Z", "Wednesday", 8L, 2L, 42L, 2L, 1069L),
+        array("2011-03-01T00:00:00.000Z", "Wednesday", 10L, 2L, 52L, 2L, 1079L),
+        array("2011-04-01T00:00:00.000Z", "Wednesday", 4L, -6L, 56L, -6L, 1083L),
+        array("2011-01-01T00:00:00.000Z", "Wednesday", 27L, 23L, 83L, 23L, 1110L),
+        array("2011-02-01T00:00:00.000Z", "Wednesday", 36L, 9L, 119L, 9L, 1146L),
+        array("2011-03-01T00:00:00.000Z", "Wednesday", 45L, 9L, 164L, 9L, 1191L),
+        array("2011-04-01T00:00:00.000Z", "Wednesday", 18L, -27L, 182L, -27L, 1209L)
+    );
+    results = GroupByQueryRunnerTestHelper.runQuery(factory, mergeRunner, builder.build());
+    GroupByQueryRunnerTestHelper.validate(columnNames, expectedResults, results);
+
+    builder.setGranularity(QueryGranularities.ALL);
     builder.setLimitSpec(
         new DefaultLimitSpec(
             null, null,

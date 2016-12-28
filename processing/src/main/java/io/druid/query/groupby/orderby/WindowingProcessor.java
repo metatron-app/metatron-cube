@@ -52,12 +52,22 @@ public class WindowingProcessor implements Function<List<Row>, List<Row>>
   )
   {
     for (WindowingSpec windowingSpec : windowingSpecs) {
-      List<OrderByColumnSpec> partitionColumns = toPartitionKey(windowingSpec);
-      Ordering<Row> ordering = makeComparator(partitionColumns, dimensionSpecs, factories, postAggregators);
+      List<OrderByColumnSpec> orderingSpecs = toPartitionKey(windowingSpec);
+      Ordering<Row> ordering = makeComparator(orderingSpecs, dimensionSpecs, factories, postAggregators, false);
       String[] partColumns = windowingSpec.getPartitionColumns().toArray(new String[0]);
       PartitionEvaluator evaluators = windowingSpec.toEvaluator(factories, postAggregators);
-      partitions.add(new PartitionDefinition(partColumns, ordering, evaluators));
+      partitions.add(new PartitionDefinition(partColumns, orderingSpecs, ordering, evaluators));
     }
+  }
+
+  public List<OrderByColumnSpec> resultOrdering()
+  {
+    for (int i = partitions.size() - 1; i >= 0; i--) {
+      if (partitions.get(i).ordering != null) {
+        return partitions.get(i).orderingSpecs;
+      }
+    }
+    return null;
   }
 
   private List<OrderByColumnSpec> toPartitionKey(WindowingSpec spec)
@@ -97,15 +107,22 @@ public class WindowingProcessor implements Function<List<Row>, List<Row>>
   private static class PartitionDefinition
   {
     private final String[] partColumns;
+    private final List<OrderByColumnSpec> orderingSpecs;
     private final Ordering<Row> ordering;
     private final PartitionEvaluator evaluator;
 
     private final Object[] currPartKeys;
     private Object[] prevPartKeys;
 
-    public PartitionDefinition(String[] partColumns, Ordering<Row> ordering, PartitionEvaluator evaluator)
+    public PartitionDefinition(
+        String[] partColumns,
+        List<OrderByColumnSpec> orderingSpecs,
+        Ordering<Row> ordering,
+        PartitionEvaluator evaluator
+    )
     {
       this.partColumns = partColumns;
+      this.orderingSpecs = orderingSpecs;
       this.ordering = ordering;
       this.evaluator = evaluator;
       this.currPartKeys = new Object[partColumns.length];
@@ -116,7 +133,9 @@ public class WindowingProcessor implements Function<List<Row>, List<Row>>
 
     private List<Row> process(final List<Row> input)
     {
-      Collections.sort(input, ordering);
+      if (ordering != null) {
+        Collections.sort(input, ordering);
+      }
 
       int prev = 0;
       Map<Object[], int[]> partitions = Maps.newLinkedHashMap();
@@ -155,17 +174,20 @@ public class WindowingProcessor implements Function<List<Row>, List<Row>>
 
   public static Ordering<Row> makeComparator(
       List<OrderByColumnSpec> orderingSpecs,
-      List<DimensionSpec> dimensions, List<AggregatorFactory> aggs, List<PostAggregator> postAggs
+      List<DimensionSpec> dimensions,
+      List<AggregatorFactory> aggs,
+      List<PostAggregator> postAggs,
+      boolean prependTimeOrdering
   )
   {
-    Ordering<Row> ordering = new Ordering<Row>()
+    Ordering<Row> ordering = prependTimeOrdering ? new Ordering<Row>()
     {
       @Override
       public int compare(Row left, Row right)
       {
         return Longs.compare(left.getTimestampFromEpoch(), right.getTimestampFromEpoch());
       }
-    };
+    } : null;
 
     Map<String, DimensionSpec> dimensionsMap = Maps.newHashMap();
     for (DimensionSpec spec : dimensions) {
@@ -200,7 +222,7 @@ public class WindowingProcessor implements Function<List<Row>, List<Row>>
           nextOrdering = nextOrdering.reverse();
       }
 
-      ordering = ordering.compound(nextOrdering);
+      ordering = ordering == null ? nextOrdering : ordering.compound(nextOrdering);
     }
 
     return ordering;
@@ -210,8 +232,8 @@ public class WindowingProcessor implements Function<List<Row>, List<Row>>
   {
     return new Ordering<Row>()
     {
-      @SuppressWarnings("unchecked")
       @Override
+      @SuppressWarnings("unchecked")
       public int compare(Row left, Row right)
       {
         return comparator.compare(left.getRaw(column), right.getRaw(column));
@@ -224,6 +246,7 @@ public class WindowingProcessor implements Function<List<Row>, List<Row>>
     return new Ordering<Row>()
     {
       @Override
+      @SuppressWarnings("unchecked")
       public int compare(Row left, Row right)
       {
         Comparable l = (Comparable) left.getRaw(column);

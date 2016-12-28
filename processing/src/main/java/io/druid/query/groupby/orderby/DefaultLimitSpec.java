@@ -90,21 +90,24 @@ public class DefaultLimitSpec implements LimitSpec
 
   @Override
   public Function<Sequence<Row>, Sequence<Row>> build(
-      List<DimensionSpec> dimensions, List<AggregatorFactory> aggs, List<PostAggregator> postAggs
+      List<DimensionSpec> dimensions,
+      List<AggregatorFactory> aggs,
+      List<PostAggregator> postAggs,
+      boolean sortOnTimeForLimit
   )
   {
     if (columns.isEmpty() && windowingSpecs.isEmpty()) {
       return new LimitingFn(limit);
     }
 
+    boolean skipSortForLimit = columns.isEmpty();
     Function<Sequence<Row>, List<Row>> processed = SEQUENCE_TO_LIST;
     if (!windowingSpecs.isEmpty()) {
-      processed = Functions.compose(
-          new WindowingProcessor(windowingSpecs, dimensions, aggs, postAggs),
-          processed
-      );
+      WindowingProcessor processor = new WindowingProcessor(windowingSpecs, dimensions, aggs, postAggs);
+      skipSortForLimit |= !sortOnTimeForLimit && columns.equals(processor.resultOrdering());
+      processed = Functions.compose(processor, processed);
     }
-    if (columns.isEmpty()) {
+    if (skipSortForLimit) {
       Function<List<Row>, List<Row>> limiter = new Function<List<Row>, List<Row>>()
       {
         @Override
@@ -117,7 +120,7 @@ public class DefaultLimitSpec implements LimitSpec
     }
 
     // Materialize the Comparator first for fast-fail error checking.
-    Ordering<Row> ordering = WindowingProcessor.makeComparator(columns, dimensions, aggs, postAggs);
+    Ordering<Row> ordering = WindowingProcessor.makeComparator(columns, dimensions, aggs, postAggs, sortOnTimeForLimit);
     return Functions.compose(new SortingFn(ordering, limit), processed);
   }
 

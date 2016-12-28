@@ -110,7 +110,8 @@ public class DefaultLimitSpecTest
     Function<Sequence<Row>, Sequence<Row>> limitFn = limitSpec.build(
         ImmutableList.<DimensionSpec>of(),
         ImmutableList.<AggregatorFactory>of(),
-        ImmutableList.<PostAggregator>of()
+        ImmutableList.<PostAggregator>of(),
+        true
     );
 
     Assert.assertEquals(
@@ -138,7 +139,8 @@ public class DefaultLimitSpecTest
         ),
         ImmutableList.<PostAggregator>of(
             new ConstantPostAggregator("k3", 1L)
-        )
+        ),
+        true
     );
     Assert.assertEquals(
         ImmutableList.of(testRowsList.get(1), testRowsList.get(2)),
@@ -155,7 +157,8 @@ public class DefaultLimitSpecTest
         ),
         ImmutableList.<PostAggregator>of(
             new ConstantPostAggregator("k3", 1L)
-        )
+        ),
+        true
     );
     Assert.assertEquals(
         ImmutableList.of(testRowsList.get(0), testRowsList.get(1)),
@@ -178,7 +181,8 @@ public class DefaultLimitSpecTest
                     new ConstantPostAggregator("x", 1),
                     new ConstantPostAggregator("y", 1))
             )
-        )
+        ),
+        true
     );
     Assert.assertEquals(
         ImmutableList.of(testRowsList.get(0), testRowsList.get(1)),
@@ -188,7 +192,8 @@ public class DefaultLimitSpecTest
     limitFn = limitSpec.build(
         ImmutableList.<DimensionSpec>of(new DefaultDimensionSpec("k1", "k1")),
         ImmutableList.<AggregatorFactory>of(new LongSumAggregatorFactory("k2", "k2")),
-        ImmutableList.<PostAggregator>of(new MathPostAggregator("k1", "1 + 1"))
+        ImmutableList.<PostAggregator>of(new MathPostAggregator("k1", "1 + 1")),
+        true
     );
     Assert.assertEquals(
         ImmutableList.of(testRowsList.get(0), testRowsList.get(1)),

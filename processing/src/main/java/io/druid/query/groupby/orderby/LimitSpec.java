@@ -46,7 +46,8 @@ public interface LimitSpec extends Cacheable
   public Function<Sequence<Row>, Sequence<Row>> build(
       List<DimensionSpec> dimensions,
       List<AggregatorFactory> aggs,
-      List<PostAggregator> postAggs
+      List<PostAggregator> postAggs,
+      boolean sortOnTimeForLimit
   );
 
   public LimitSpec merge(LimitSpec other);
