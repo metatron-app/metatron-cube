@@ -329,6 +329,8 @@ public class BrokerServerViewTest extends CuratorTestBase
     };
 
     brokerServerView = new BrokerServerView(
+        null,
+        null,
         EasyMock.createMock(QueryToolChestWarehouse.class),
         EasyMock.createMock(QueryWatcher.class),
         getSmileMapper(),

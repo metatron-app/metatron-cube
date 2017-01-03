@@ -19,10 +19,7 @@
 
 package io.druid.timeline.partition;
 
-import com.google.common.collect.Ordering;
-import io.druid.common.guava.GuavaUtils;
-
-import java.util.Comparator;
+import com.google.common.primitives.Ints;
 
 /**
  */
@@ -95,7 +92,7 @@ public class IntegerPartitionChunk<T> implements PartitionChunk<T>
   {
     if (chunk instanceof IntegerPartitionChunk) {
       IntegerPartitionChunk<T> intChunk = (IntegerPartitionChunk<T>) chunk;
-      return GuavaUtils.nullFirstNatural().compare(chunkNumber, intChunk.chunkNumber);
+      return Ints.compare(chunkNumber, intChunk.chunkNumber);
     } else {
       throw new IllegalArgumentException("Cannot compare against something that is not an IntegerPartitionChunk.");
     }

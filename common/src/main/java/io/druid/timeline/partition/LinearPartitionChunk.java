@@ -19,7 +19,7 @@
 
 package io.druid.timeline.partition;
 
-import io.druid.common.guava.GuavaUtils;
+import com.google.common.primitives.Ints;
 
 public class LinearPartitionChunk <T> implements PartitionChunk<T>
 {
@@ -76,8 +76,7 @@ public class LinearPartitionChunk <T> implements PartitionChunk<T>
   {
     if (chunk instanceof LinearPartitionChunk) {
       LinearPartitionChunk<T> linearChunk = (LinearPartitionChunk<T>) chunk;
-
-      return GuavaUtils.nullFirstNatural().compare(chunkNumber, linearChunk.chunkNumber);
+      return Ints.compare(chunkNumber, linearChunk.chunkNumber);
     }
     throw new IllegalArgumentException("Cannot compare against something that is not a LinearPartitionChunk.");
   }

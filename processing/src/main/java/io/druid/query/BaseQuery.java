@@ -166,6 +166,24 @@ public abstract class BaseQuery<T extends Comparable<T>> implements Query<T>
     return BaseQuery.allColumnsForEmpty(this, false);
   }
 
+  public boolean needsSchemaResolution()
+  {
+    if (dataSource instanceof ViewDataSource) {
+      return true;
+    }
+    if (this instanceof DimensionSupport) {
+      if (((DimensionSupport) this).getDimensions().isEmpty() && allDimensionsForEmpty()) {
+        return true;
+      }
+    }
+    if (this instanceof ViewSupport) {
+      if (((ViewSupport) this).getMetrics().isEmpty() && allMetricsForEmpty()) {
+        return true;
+      }
+    }
+    return false;
+  }
+
   @Override
   public Sequence<T> run(QuerySegmentWalker walker, Map<String, Object> context)
   {

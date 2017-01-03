@@ -140,6 +140,8 @@ public interface Query<T> extends QueryContextKeys
 
     DimensionSupport<T> withVirtualColumns(List<VirtualColumn> virtualColumns);
 
+    boolean needsSchemaResolution();
+
     boolean allDimensionsForEmpty();
   }
 

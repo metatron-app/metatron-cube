@@ -426,8 +426,9 @@ public abstract class IncrementalIndex<AggregatorType> implements Iterable<Row>,
     };
   }
 
+  protected final QueryGranularity gran;
+
   private final long minTimestamp;
-  private final QueryGranularity gran;
   private final List<Function<InputRow, InputRow>> rowTransformers;
   private final AggregatorFactory[] metrics;
   private final AggregatorType[] aggs;
@@ -893,12 +894,12 @@ public abstract class IncrementalIndex<AggregatorType> implements Iterable<Row>,
     return occupation;
   }
 
-  private long getMinTimeMillis()
+  protected long getMinTimeMillis()
   {
     return minTimeMillis == Long.MAX_VALUE ? -1 : Math.max(minTimestamp, minTimeMillis);
   }
 
-  private long getMaxTimeMillis()
+  protected long getMaxTimeMillis()
   {
     return maxTimeMillis == Long.MIN_VALUE ? -1 : maxTimeMillis;
   }

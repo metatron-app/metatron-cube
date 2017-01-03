@@ -57,6 +57,7 @@ import io.druid.query.QuerySegmentWalker;
 import io.druid.query.QueryToolChestWarehouse;
 import io.druid.query.ResultWriter;
 import io.druid.query.TabularFormat;
+import io.druid.segment.IndexMergerV9;
 import io.druid.segment.incremental.IncrementalIndexSchema;
 import io.druid.server.initialization.ServerConfig;
 import io.druid.server.log.RequestLogger;
@@ -115,6 +116,7 @@ public class QueryResource
   protected final DruidNode node;
   protected final QueryToolChestWarehouse warehouse;
   protected final Map<String, ResultWriter> writerMap;
+  protected final IndexMergerV9 merger;
 
   @Inject
   public QueryResource(
@@ -128,6 +130,7 @@ public class QueryResource
       AuthConfig authConfig,
       @Self DruidNode node,
       QueryToolChestWarehouse warehouse,
+      IndexMergerV9 merger,
       Map<String, ResultWriter> writerMap
   )
   {
@@ -140,6 +143,7 @@ public class QueryResource
     this.authConfig = authConfig;
     this.node = node;
     this.warehouse = warehouse;
+    this.merger = merger;
     this.writerMap = writerMap;
     this.texasRanger = new QuerySegmentWalker.Wrapper(texasRanger)
     {
@@ -491,7 +495,7 @@ public class QueryResource
   }
 
   @SuppressWarnings("unchecked")
-  private <T> QueryRunner wrapForward(final Query<T> query, final QueryRunner<T> baseRunner) throws Exception
+  protected <T> QueryRunner wrapForward(final Query<T> query, final QueryRunner<T> baseRunner) throws Exception
   {
     final URI uri = getForwardURI(query);
     if (uri == null) {
@@ -506,16 +510,21 @@ public class QueryResource
     }
     final Map<String, Object> forwardContext = BaseQuery.getResultForwardContext(query);
 
-    String format = Formatters.getFormat(forwardContext, "json");
+    String format = Formatters.getFormat(forwardContext);
     if ("index".equals(format)) {
       String indexSchema = Objects.toString(forwardContext.get("schema"), null);
       if (Strings.isNullOrEmpty(indexSchema)) {
         IncrementalIndexSchema schema = Queries.relaySchema(query, texasRanger.getDelegate());
-        log.info("Extracted index schema %s", schema);
+        log.info(
+            "Resolved index schema.. dimensions: %s, metrics: %s",
+            schema.getDimensionsSpec().getDimensionNames(),
+            Arrays.toString(schema.getMetrics())
+        );
         forwardContext.put(
             "schema",
             jsonMapper.convertValue(schema, new TypeReference<Map<String, Object>>() { })
         );
+        log.info("%s", jsonMapper.convertValue(schema, new TypeReference<Map<String, Object>>() { }));
       }
     }
 
@@ -537,8 +546,7 @@ public class QueryResource
               ImmutableMap.of(Query.FORWARD_URL, "", Query.FORWARD_CONTEXT, "")
           );
           TabularFormat result = toTabularFormat(queryToRun, responseContext);
-          Map<String, Object> info = writer.write(rewritten, result, forwardContext);
-          return Sequences.simple(Arrays.asList(info));
+          return wrapForwardResult(forwardContext, writer.write(rewritten, result, forwardContext));
         }
         catch (Exception e) {
           throw Throwables.propagate(e);
@@ -589,5 +597,11 @@ public class QueryResource
         uri.getQuery(),
         uri.getFragment()
     );
+  }
+
+  protected Sequence wrapForwardResult(Map<String, Object> forwardContext, Map<String, Object> result)
+      throws IOException
+  {
+    return Sequences.simple(Arrays.asList(result));
   }
 }

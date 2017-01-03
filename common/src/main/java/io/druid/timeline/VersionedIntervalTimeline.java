@@ -19,6 +19,7 @@
 
 package io.druid.timeline;
 
+import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
@@ -78,6 +79,20 @@ public class VersionedIntervalTimeline<VersionType, ObjectType> implements Timel
   )
   {
     this.versionComparator = versionComparator;
+  }
+
+  public List<PartitionChunk<ObjectType>> clear()
+  {
+    List<PartitionChunk<ObjectType>> chunks = Lists.newArrayList();
+    for (TreeMap<VersionType, TimelineEntry> map : allTimelineEntries.values()) {
+      for (TimelineEntry entry : map.values()) {
+        Iterables.addAll(chunks, entry.getPartitionHolder());
+      }
+    }
+    incompletePartitionsTimeline.clear();
+    completePartitionsTimeline.clear();
+    allTimelineEntries.clear();
+    return chunks;
   }
 
   public void add(final Interval interval, VersionType version, PartitionChunk<ObjectType> object)

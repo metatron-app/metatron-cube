@@ -19,6 +19,7 @@
 
 package io.druid.server;
 
+import com.google.common.base.Preconditions;
 import com.google.common.base.Predicate;
 import com.google.common.collect.Collections2;
 import com.google.common.collect.ImmutableMap;
@@ -30,10 +31,10 @@ import com.google.inject.Inject;
 import com.metamx.common.Pair;
 import com.metamx.common.logger.Logger;
 import com.sun.jersey.spi.container.ResourceFilters;
+import io.druid.client.BrokerServerView;
 import io.druid.client.DruidDataSource;
 import io.druid.client.DruidServer;
 import io.druid.client.FilteredServerInventoryView;
-import io.druid.client.InventoryView;
 import io.druid.client.TimelineServerView;
 import io.druid.client.selector.ServerSelector;
 import io.druid.query.TableDataSource;
@@ -53,6 +54,7 @@ import org.joda.time.DateTime;
 import org.joda.time.Interval;
 
 import javax.servlet.http.HttpServletRequest;
+import javax.ws.rs.DELETE;
 import javax.ws.rs.GET;
 import javax.ws.rs.Path;
 import javax.ws.rs.PathParam;
@@ -60,6 +62,8 @@ import javax.ws.rs.Produces;
 import javax.ws.rs.QueryParam;
 import javax.ws.rs.core.Context;
 import javax.ws.rs.core.MediaType;
+import javax.ws.rs.core.Response;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -117,33 +121,38 @@ public class ClientInfoResource
   @Produces(MediaType.APPLICATION_JSON)
   public Iterable<String> getDataSources(@Context final HttpServletRequest request)
   {
+    Set<String> dataSources = getSegmentsForDatasources().keySet();
     if (authConfig.isEnabled()) {
       // This is an experimental feature, see - https://github.com/druid-io/druid/pull/2424
-      final Map<Pair<Resource, Action>, Access> resourceAccessMap = new HashMap<>();
-      final AuthorizationInfo authorizationInfo = (AuthorizationInfo) request.getAttribute(AuthConfig.DRUID_AUTH_TOKEN);
-      return Collections2.filter(
-          getSegmentsForDatasources().keySet(),
-          new Predicate<String>()
-          {
-            @Override
-            public boolean apply(String input)
-            {
-              Resource resource = new Resource(input, ResourceType.DATASOURCE);
-              Action action = Action.READ;
-              Pair<Resource, Action> key = new Pair<>(resource, action);
-              if (resourceAccessMap.containsKey(key)) {
-                return resourceAccessMap.get(key).isAllowed();
-              } else {
-                Access access = authorizationInfo.isAuthorized(key.lhs, key.rhs);
-                resourceAccessMap.put(key, access);
-                return access.isAllowed();
-              }
-            }
-          }
-      );
-    } else {
-      return getSegmentsForDatasources().keySet();
+      return filterDataSources(request, dataSources);
     }
+    return dataSources;
+  }
+
+  private Iterable<String> filterDataSources(
+      final HttpServletRequest request,
+      final Collection<String> dataSources
+  )
+  {
+    final Map<Pair<Resource, Action>, Access> resourceAccessMap = new HashMap<>();
+    final AuthorizationInfo authorizationInfo = (AuthorizationInfo) request.getAttribute(AuthConfig.DRUID_AUTH_TOKEN);
+    return Collections2.filter(
+        dataSources,
+        new Predicate<String>()
+        {
+          @Override
+          public boolean apply(String input)
+          {
+            Resource resource = new Resource(input, ResourceType.DATASOURCE);
+            Pair<Resource, Action> key = new Pair<>(resource, Action.READ);
+            Access access = resourceAccessMap.get(key);
+            if (access == null) {
+              resourceAccessMap.put(key, access = authorizationInfo.isAuthorized(key.lhs, key.rhs));
+            }
+            return access.isAllowed();
+          }
+        }
+    );
   }
 
   @GET
@@ -176,7 +185,7 @@ public class ClientInfoResource
         theInterval
     ) : null;
     if (serversLookup == null || Iterables.isEmpty(serversLookup)) {
-      return Collections.EMPTY_MAP;
+      return Collections.emptyMap();
     }
     Map<Interval, Object> servedIntervals = new TreeMap<>(
         new Comparator<Interval>()
@@ -300,10 +309,46 @@ public class ClientInfoResource
     return metrics;
   }
 
+  @DELETE
+  @Path("/local/{dataSource}")
+  @Produces(MediaType.APPLICATION_JSON)
+  public Response dropLocalDataSource(@PathParam("dataSource") String dataSource, @Context final HttpServletRequest req)
+  {
+    log.debug("Received drop local dataSource [%s]", dataSource);
+    if (authConfig.isEnabled()) {
+      // This is an experimental feature, see - https://github.com/druid-io/druid/pull/2424
+      final AuthorizationInfo authorizationInfo = (AuthorizationInfo) req.getAttribute(AuthConfig.DRUID_AUTH_TOKEN);
+      Preconditions.checkNotNull(
+          authorizationInfo,
+          "Security is enabled but no authorization info found in the request"
+      );
+      Access authResult = authorizationInfo.isAuthorized(
+          new Resource(dataSource, ResourceType.DATASOURCE), Action.WRITE
+      );
+      if (!authResult.isAllowed()) {
+        return Response.status(Response.Status.FORBIDDEN).header("Access-Check-Result", authResult).build();
+      }
+    }
+    if (((BrokerServerView) timelineServerView).dropLocalDataSource(dataSource)) {
+      return Response.ok().build();
+    }
+    return Response.noContent().build();
+  }
+
+  @GET
+  @Path("/local")
+  @Produces(MediaType.APPLICATION_JSON)
+  public List<String> getLocalDataSources(@Context HttpServletRequest request)
+  {
+    List<String> dataSources = ((BrokerServerView) timelineServerView).getLocalDataSources();
+    if (authConfig.isEnabled()) {
+      return Lists.newArrayList(filterDataSources(request, dataSources));
+    }
+    return dataSources;
+  }
+
   protected DateTime getCurrentTime()
   {
     return new DateTime();
   }
-
-
 }

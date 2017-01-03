@@ -55,12 +55,16 @@ public class ReferenceCountingSegment implements Segment
 
   public int getNumReferences()
   {
-    return numReferences;
+    synchronized (lock) {
+      return numReferences;
+    }
   }
 
   public boolean isClosed()
   {
-    return isClosed;
+    synchronized (lock) {
+      return isClosed;
+    }
   }
 
   @Override
@@ -131,7 +135,6 @@ public class ReferenceCountingSegment implements Segment
 
         decrement();
       } else {
-        log.info("Closing %s", baseSegment.getIdentifier());
         innerClose();
       }
     }

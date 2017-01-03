@@ -125,7 +125,7 @@ public class Queries
       final Query.ViewSupport<?> selectQuery = (Query.ViewSupport) subQuery;
       List<String> dimensions = DimensionSpecs.toOutputNames(selectQuery.getDimensions());
       List<String> metrics = selectQuery.getMetrics();
-      if (selectQuery.getDataSource() instanceof ViewDataSource) {
+      if (selectQuery.needsSchemaResolution()) {
         Schema schema = resolveSchemaFromView(subQuery, segmentWalker);
         return builder.withDimensions(schema.getDimensionNames())
                       .withMetrics(AggregatorFactory.toRelay(schema.metricAndTypes()))

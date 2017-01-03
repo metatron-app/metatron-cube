@@ -144,6 +144,7 @@ public class QueryResourceTest
         new AuthConfig(),
         node,
         warehouse,
+        null,
         Maps.<String, ResultWriter>newHashMap()
     );
   }
@@ -220,6 +221,7 @@ public class QueryResourceTest
         new AuthConfig(true),
         node,
         warehouse,
+        null,
         Maps.<String, ResultWriter>newHashMap()
     );
 
@@ -288,6 +290,7 @@ public class QueryResourceTest
         new AuthConfig(true),
         node,
         warehouse,
+        null,
         Maps.<String, ResultWriter>newHashMap()
     );
 
@@ -387,6 +390,7 @@ public class QueryResourceTest
         new AuthConfig(true),
         node,
         warehouse,
+        null,
         Maps.<String, ResultWriter>newHashMap()
     );
 

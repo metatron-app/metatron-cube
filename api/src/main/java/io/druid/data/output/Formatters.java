@@ -29,7 +29,6 @@ import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.io.ByteSink;
 import com.google.common.io.CountingOutputStream;
-import com.metamx.common.logger.Logger;
 import org.apache.poi.ss.SpreadsheetVersion;
 import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.ss.usermodel.Row;
@@ -48,11 +47,9 @@ import java.util.Objects;
  */
 public class Formatters
 {
-  private static final Logger log = new Logger(Formatter.class);
-
-  public static String getFormat(Map<String, Object> context, String defaultFormat)
+  public static String getFormat(Map<String, Object> context)
   {
-    String format = Objects.toString(context.get("format"), defaultFormat);
+    String format = Objects.toString(context.get("format"), "json");
     return Preconditions.checkNotNull(format, "format is null").toLowerCase();
   }
 
@@ -62,7 +59,7 @@ public class Formatters
       ByteSink output
   ) throws IOException
   {
-    if ("excel".equals(getFormat(context, "json"))) {
+    if ("excel".equals(getFormat(context))) {
       return toExcelExporter(output, context);
     } else {
       return wrapToExporter(toBasicFormatter(output, context, jsonMapper));
@@ -271,7 +268,7 @@ public class Formatters
       throws IOException
   {
     String[] columns = parseStrings(context.get("columns"));
-    String format = Formatters.getFormat(context, "json");
+    String format = Formatters.getFormat(context);
     if (format.equalsIgnoreCase("json")) {
       boolean wrapAsList = parseBoolean(context.get("wrapAsList"), false);
       return new Formatter.JsonFormatter(output, jsonMapper, columns, wrapAsList);
@@ -283,9 +280,7 @@ public class Formatters
     } else if (format.equalsIgnoreCase("tsv")) {
       separator = "\t";
     } else {
-      log.warn("Unsupported format " + format + ".. using json formatter instead");
-      boolean wrapAsList = parseBoolean(context.get("wrapAsList"), false);
-      return new Formatter.JsonFormatter(output, jsonMapper, columns, wrapAsList);
+      throw new IllegalArgumentException("Unsupported format " + format);
     }
     boolean header = parseBoolean(context.get("withHeader"), false);
     String nullValue = Objects.toString(context.get("nullValue"), null);

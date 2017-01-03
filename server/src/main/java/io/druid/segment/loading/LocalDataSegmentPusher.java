@@ -125,7 +125,7 @@ public class LocalDataSegmentPusher implements DataSegmentPusher, ResultWriter
   public Map<String, Object> write(URI location, TabularFormat result, Map<String, Object> context)
       throws IOException
   {
-    log.info("Writing to " + location + " with context " + context);
+    log.info("Result will be forwarded to " + location + " with context " + context);
     File targetDirectory = new File(location.getPath());
     boolean cleanup = PropUtils.parseBoolean(context, "cleanup", false);
     if (cleanup) {

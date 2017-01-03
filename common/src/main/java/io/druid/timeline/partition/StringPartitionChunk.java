@@ -19,7 +19,7 @@
 
 package io.druid.timeline.partition;
 
-import io.druid.common.guava.GuavaUtils;
+import com.google.common.primitives.Ints;
 
 /**
  */
@@ -90,8 +90,7 @@ public class StringPartitionChunk<T> implements PartitionChunk<T>
   {
     if (chunk instanceof StringPartitionChunk) {
       StringPartitionChunk<T> stringChunk = (StringPartitionChunk<T>) chunk;
-
-      return GuavaUtils.nullFirstNatural().compare(chunkNumber, stringChunk.chunkNumber);
+      return Ints.compare(chunkNumber, stringChunk.chunkNumber);
     }
     throw new IllegalArgumentException("Cannot compare against something that is not a StringPartitionChunk.");
   }

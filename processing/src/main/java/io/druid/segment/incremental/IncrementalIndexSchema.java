@@ -55,7 +55,7 @@ public class IncrementalIndexSchema
     this.minTimestamp = minTimestamp;
     this.gran = gran == null ? QueryGranularities.NONE : gran;
     this.dimensionsSpec = dimensionsSpec;
-    this.metrics = metrics;
+    this.metrics = metrics == null ? new AggregatorFactory[0] : metrics;
     this.rollup = rollup;
     this.fixedSchema = fixedSchema;
   }

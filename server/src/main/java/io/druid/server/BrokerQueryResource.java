@@ -25,11 +25,16 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.inject.Inject;
+import com.metamx.common.guava.Sequence;
+import com.metamx.common.guava.Sequences;
 import com.metamx.emitter.service.ServiceEmitter;
+import io.druid.client.BrokerServerView;
 import io.druid.client.TimelineServerView;
 import io.druid.client.coordinator.CoordinatorClient;
 import io.druid.client.selector.ServerSelector;
 import io.druid.common.utils.JodaUtils;
+import io.druid.common.utils.PropUtils;
+import io.druid.data.output.Formatters;
 import io.druid.guice.annotations.Json;
 import io.druid.guice.annotations.Self;
 import io.druid.guice.annotations.Smile;
@@ -49,10 +54,12 @@ import io.druid.query.UnionDataSource;
 import io.druid.query.select.SelectForwardQuery;
 import io.druid.query.select.SelectQuery;
 import io.druid.query.select.StreamQuery;
+import io.druid.segment.IndexMergerV9;
 import io.druid.server.coordination.DruidServerMetadata;
 import io.druid.server.initialization.ServerConfig;
 import io.druid.server.log.RequestLogger;
 import io.druid.server.security.AuthConfig;
+import io.druid.timeline.DataSegment;
 import io.druid.timeline.TimelineLookup;
 import io.druid.timeline.TimelineObjectHolder;
 import io.druid.timeline.partition.PartitionChunk;
@@ -68,9 +75,11 @@ import javax.ws.rs.QueryParam;
 import javax.ws.rs.core.Context;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URI;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -97,6 +106,7 @@ public class BrokerQueryResource extends QueryResource
       TimelineServerView brokerServerView,
       @Self DruidNode node,
       QueryToolChestWarehouse warehouse,
+      IndexMergerV9 merger,
       Map<String, ResultWriter> writerMap
   )
   {
@@ -111,6 +121,7 @@ public class BrokerQueryResource extends QueryResource
         authConfig,
         node,
         warehouse,
+        merger,
         writerMap
     );
     this.coordinator = coordinator;
@@ -255,5 +266,21 @@ public class BrokerQueryResource extends QueryResource
       query = query.withDataSource(new QueryDataSource(subQuery));
     }
     return query;
+  }
+
+  @Override
+  @SuppressWarnings("unchecked")
+  protected Sequence wrapForwardResult(Map<String, Object> forwardContext, Map<String, Object> result)
+      throws IOException
+  {
+    String format = Formatters.getFormat(forwardContext);
+    if ("index".equals(format) && PropUtils.parseBoolean(forwardContext, "registerTable", false)) {
+      Map<String, Object> dataMeta = (Map<String, Object>) result.get("data");
+      URI location = (URI) dataMeta.get("location");
+      DataSegment segment = (DataSegment) dataMeta.get("segment");
+      BrokerServerView serverView = (BrokerServerView) brokerServerView;
+      serverView.addedLocalSegment(segment, merger.getIndexIO().loadIndex(new File(location.getPath())));
+    }
+    return Sequences.simple(Arrays.asList(result));
   }
 }

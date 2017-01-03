@@ -162,7 +162,7 @@ public class HdfsDataSegmentPusher implements DataSegmentPusher, ResultWriter
   public Map<String, Object> write(URI location, TabularFormat result, Map<String, Object> context)
       throws IOException
   {
-    log.info("Writing to " + location + " with context " + context);
+    log.info("Result will be forwarded to " + location + " with context " + context);
     Path parent = new Path(location);
     Path targetDirectory = parent;
     if (location.getScheme().equals(ResultWriter.FILE_SCHEME)) {
@@ -185,7 +185,8 @@ public class HdfsDataSegmentPusher implements DataSegmentPusher, ResultWriter
       throw new IllegalStateException("failed to make target directory");
     }
     Map<String, Object> info = Maps.newLinkedHashMap();
-    CountingAccumulator exporter = toExporter(parent, context, fileSystem, targetDirectory);
+    String format = Formatters.getFormat(context);
+    CountingAccumulator exporter = toExporter(format, parent, context, fileSystem, targetDirectory);
     try {
       result.getSequence().accumulate(null, exporter.init());
     }
@@ -193,7 +194,7 @@ public class HdfsDataSegmentPusher implements DataSegmentPusher, ResultWriter
       info.putAll(exporter.close());
     }
 
-    if (!PropUtils.parseBoolean(context, "skipMetaFile", false)) {
+    if (format.equals("index") || !PropUtils.parseBoolean(context, "skipMetaFile", false)) {
       Map<String, Object> metaData = result.getMetaData();
       if (metaData != null && !metaData.isEmpty()) {
         Path metaFile = new Path(targetDirectory, PropUtils.parseString(context, "metaFileName", ".meta"));
@@ -226,6 +227,7 @@ public class HdfsDataSegmentPusher implements DataSegmentPusher, ResultWriter
   }
 
   private CountingAccumulator toExporter(
+      final String format,
       final Path parent,
       final Map<String, Object> context,
       final FileSystem fs,
@@ -233,10 +235,9 @@ public class HdfsDataSegmentPusher implements DataSegmentPusher, ResultWriter
   )
       throws IOException
   {
-    String format = Formatters.getFormat(context, "json");
     if ("index".equals(format)) {
       final String timestampColumn = PropUtils.parseString(context, "timestampColumn", EventHolder.timestampKey);
-      final String dataSource = PropUtils.parseString(context, "dataSource", "$temporary_" + new DateTime());
+      final String dataSource = PropUtils.parseString(context, "dataSource", "___temporary_" + new DateTime());
       final long maxOccupation = PropUtils.parseLong(context, "maxOccupation", 256 << 20);
       final int maxRowCount = PropUtils.parseInt(context, "maxRowCount", 500000);
       final IncrementalIndexSchema schema = Preconditions.checkNotNull(
@@ -245,6 +246,10 @@ public class HdfsDataSegmentPusher implements DataSegmentPusher, ResultWriter
       );
       final List<String> dimensions = schema.getDimensionsSpec().getDimensionNames();
       final List<String> metrics = schema.getMetricNames();
+
+      final Path finalPath = new Path(targetDirectory, dataSource);
+      fs.mkdirs(finalPath);
+
       final File temp = File.createTempFile("forward", "index");
       temp.delete();
       temp.mkdirs();
@@ -330,12 +335,12 @@ public class HdfsDataSegmentPusher implements DataSegmentPusher, ResultWriter
 
           for (File file : Preconditions.checkNotNull(mergedBase.listFiles())) {
             if (file.isFile() && !file.isHidden()) {
-              fs.copyFromLocalFile(true, new Path("file://" + file.getAbsolutePath()), targetDirectory);
+              fs.copyFromLocalFile(true, new Path("file://" + file.getAbsolutePath()), finalPath);
             }
           }
           FileUtils.deleteDirectory(mergedBase);
 
-          Map<String, Object> loadSpec = toLoadSpec(targetDirectory.toUri());
+          Map<String, Object> loadSpec = toLoadSpec(finalPath.toUri());
           DataSegment segment = new DataSegment(
               dataSource,
               interval,
@@ -353,8 +358,10 @@ public class HdfsDataSegmentPusher implements DataSegmentPusher, ResultWriter
           metaData.put("rowCount", rowCount);
           metaData.put(
               "data", ImmutableMap.of(
-                  parent.toString(), length,
-                  "segment", jsonMapper.writeValueAsString(segment)
+                  "location", new Path(parent, dataSource).toUri(),
+                  "length", length,
+                  "dataSource", dataSource,
+                  "segment", segment
               )
           );
 
