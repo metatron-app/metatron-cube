@@ -75,8 +75,8 @@ public class JoinPostProcessorTest
   {
     JoinPostProcessor processor = new JoinPostProcessor(
         JoinType.INNER,
-        Arrays.asList("ds1"), Arrays.asList("a", "b"),
-        Arrays.asList("ds2"), Arrays.asList("c", "d"),
+        "ds1", Arrays.asList("a", "b"),
+        "ds2", Arrays.asList("c", "d"),
         warehouse,
         Executors.newSingleThreadExecutor()
     );

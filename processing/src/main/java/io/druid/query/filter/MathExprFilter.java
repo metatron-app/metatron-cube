@@ -23,10 +23,13 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;
 import com.metamx.common.StringUtils;
+import io.druid.math.expr.Evals;
+import io.druid.math.expr.Parser;
 import io.druid.segment.ColumnSelectorFactory;
 import io.druid.segment.ExprEvalColumnSelector;
 
 import java.nio.ByteBuffer;
+import java.util.Set;
 
 /**
  */
@@ -65,6 +68,12 @@ public class MathExprFilter implements DimFilter
   }
 
   @Override
+  public void addDependent(Set<String> handler)
+  {
+    handler.addAll(Parser.findRequiredBindings(expression));
+  }
+
+  @Override
   public Filter toFilter()
   {
     return new Filter.WithoutDictionary()
@@ -72,7 +81,7 @@ public class MathExprFilter implements DimFilter
       @Override
       public ValueMatcher makeMatcher(ValueMatcherFactory factory)
       {
-        return factory.makeValueMatcher(expression);
+        return factory.makeExpressionMatcher(expression, Evals.PREDICATE);
       }
 
       @Override

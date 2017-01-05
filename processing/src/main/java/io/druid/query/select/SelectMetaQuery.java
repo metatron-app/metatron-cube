@@ -25,6 +25,7 @@ import com.fasterxml.jackson.annotation.JsonTypeName;
 import io.druid.granularity.QueryGranularity;
 import io.druid.query.BaseQuery;
 import io.druid.query.DataSource;
+import io.druid.query.Query;
 import io.druid.query.Result;
 import io.druid.query.filter.DimFilter;
 import io.druid.query.spec.QuerySegmentSpec;
@@ -37,6 +38,7 @@ import java.util.Objects;
  */
 @JsonTypeName("selectMeta")
 public class SelectMetaQuery extends BaseQuery<Result<SelectMetaResultValue>>
+  implements Query.DimFilterSupport<Result<SelectMetaResultValue>>
 {
   private final DimFilter dimFilter;
   private final QueryGranularity granularity;
@@ -66,6 +68,12 @@ public class SelectMetaQuery extends BaseQuery<Result<SelectMetaResultValue>>
 
   @JsonProperty("filter")
   public DimFilter getDimensionsFilter()
+  {
+    return dimFilter;
+  }
+
+  @Override
+  public DimFilter getDimFilter()
   {
     return dimFilter;
   }

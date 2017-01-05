@@ -128,6 +128,12 @@ public class InDimFilter implements DimFilter
     return inFilter;
   }
 
+  @Override
+  public void addDependent(Set<String> handler)
+  {
+    handler.add(dimension);
+  }
+
   private InDimFilter optimizeLookup() {
     if (extractionFn instanceof LookupExtractionFn
         && ((LookupExtractionFn) extractionFn).isOptimize()) {

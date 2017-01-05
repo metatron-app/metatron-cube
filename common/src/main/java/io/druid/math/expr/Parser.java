@@ -19,12 +19,14 @@
 
 package io.druid.math.expr;
 
+import com.google.common.base.Strings;
 import com.google.common.base.Supplier;
 import com.google.common.base.Suppliers;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import com.metamx.common.logger.Logger;
+import io.druid.common.guava.DSuppliers;
 import io.druid.math.expr.antlr.ExprLexer;
 import io.druid.math.expr.antlr.ExprParser;
 import org.antlr.v4.runtime.ANTLRInputStream;
@@ -152,6 +154,29 @@ public class Parser
           throw new RuntimeException("No binding found for " + name);
         }
         return supplier == null ? null : supplier.get();
+      }
+    };
+  }
+
+  public static com.google.common.base.Function<String, String> asStringFunction(final Expr expr)
+  {
+    final DSuppliers.HandOver<String> supplier = new DSuppliers.HandOver<>();
+    return new com.google.common.base.Function<String, String>()
+    {
+      private final Expr.NumericBinding bindings = new Expr.NumericBinding()
+      {
+        @Override
+        public String get(String name)
+        {
+          return supplier.get();
+        }
+      };
+
+      @Override
+      public String apply(String s)
+      {
+        supplier.set(Strings.nullToEmpty(s));
+        return expr.eval(bindings).asString();
       }
     };
   }

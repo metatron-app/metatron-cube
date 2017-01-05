@@ -15,7 +15,17 @@ public enum SketchQuantilesOp
       if (parameter instanceof double[]) {
         return sketch.getQuantiles((double[])parameter);
       } else if (parameter instanceof Integer) {
-        return sketch.getQuantiles((Integer)parameter);
+        int intParam = (Integer) parameter;
+        if (intParam > 0) {
+          return sketch.getQuantiles(intParam); // even spaced
+        }
+        int limitNum = -intParam;
+        double[] quantiles = new double[(int)(sketch.getN() / limitNum) + 1];
+        for (int i = 1; i < quantiles.length - 1; i++) {
+          quantiles[i] = (double)limitNum * i / sketch.getN();
+        }
+        quantiles[quantiles.length - 1] = 1;
+        return sketch.getQuantiles(quantiles);
       }
       throw new IllegalArgumentException("Not supported parameter " + parameter + "(" + parameter.getClass() + ")");
     }

@@ -23,6 +23,7 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.base.Preconditions;
+import io.druid.granularity.QueryGranularities;
 import io.druid.granularity.QueryGranularity;
 import io.druid.query.BaseQuery;
 import io.druid.query.DataSource;
@@ -42,6 +43,7 @@ import java.util.Objects;
  */
 @JsonTypeName("select")
 public class SelectQuery extends BaseQuery<Result<SelectResultValue>>
+    implements Query.DimFilterSupport<Result<SelectResultValue>>
 {
   private final DimFilter dimFilter;
   private final QueryGranularity granularity;
@@ -72,27 +74,29 @@ public class SelectQuery extends BaseQuery<Result<SelectResultValue>>
   {
     super(dataSource, querySegmentSpec, descending, context);
     this.dimFilter = dimFilter;
-    this.granularity = granularity;
+    this.granularity = granularity == null ? QueryGranularities.ALL : granularity;
     this.dimensions = dimensions;
     this.virtualColumns = virtualColumns;
     this.metrics = metrics;
     this.lateralView = lateralView;
     this.outputColumns = outputColumns;
-    this.pagingSpec = pagingSpec;
+    this.pagingSpec = pagingSpec == null ? PagingSpec.GET_ALL : pagingSpec;
     this.concatString = concatString;
 
-    Preconditions.checkNotNull(pagingSpec, "must specify a pagingSpec");
     Preconditions.checkArgument(checkPagingSpec(pagingSpec, descending), "invalid pagingSpec");
   }
 
   private boolean checkPagingSpec(PagingSpec pagingSpec, boolean descending)
   {
+    if (pagingSpec == null) {
+      return true;
+    }
     for (Integer value : pagingSpec.getPagingIdentifiers().values()) {
       if (descending ^ (value < 0)) {
         return false;
       }
     }
-    return pagingSpec.getThreshold() >= 0;
+    return true;
   }
 
   @Override
@@ -109,6 +113,12 @@ public class SelectQuery extends BaseQuery<Result<SelectResultValue>>
 
   @JsonProperty("filter")
   public DimFilter getDimensionsFilter()
+  {
+    return dimFilter;
+  }
+
+  @Override
+  public DimFilter getDimFilter()
   {
     return dimFilter;
   }
@@ -243,6 +253,7 @@ public class SelectQuery extends BaseQuery<Result<SelectResultValue>>
     );
   }
 
+  @Override
   public SelectQuery withDimFilter(DimFilter dimFilter)
   {
     return new SelectQuery(
@@ -284,20 +295,38 @@ public class SelectQuery extends BaseQuery<Result<SelectResultValue>>
   @Override
   public String toString()
   {
-    return "SelectQuery{" +
-           "dataSource='" + getDataSource() + '\'' +
-           ", querySegmentSpec=" + getQuerySegmentSpec() +
-           ", descending=" + isDescending() +
-           ", dimFilter=" + dimFilter +
-           ", granularity=" + granularity +
-           ", dimensions=" + dimensions +
-           ", metrics=" + metrics +
-           ", virtualColumns=" + virtualColumns +
-           ", pagingSpec=" + pagingSpec +
-           ", concatString=" + concatString +
-           ", outputColumns=" + outputColumns +
-           ", lateralView=" + lateralView +
-           '}';
+    StringBuilder builder = new StringBuilder(64)
+        .append("SelectQuery{")
+        .append("dataSource='").append(getDataSource()).append('\'')
+        .append(", querySegmentSpec=").append(getQuerySegmentSpec())
+        .append(", descending=").append(isDescending())
+        .append(", granularity=").append(granularity);
+
+    if (dimFilter != null) {
+      builder.append(", dimFilter=").append(dimFilter);
+    }
+    if (dimensions != null) {
+      builder.append(", dimensions=").append(dimensions);
+    }
+    if (metrics != null) {
+      builder.append(", metrics=").append(metrics);
+    }
+    if (virtualColumns != null) {
+      builder.append(", virtualColumns=").append(virtualColumns);
+    }
+    if (pagingSpec != null && !pagingSpec.equals(PagingSpec.GET_ALL)) {
+      builder.append(", pagingSpec=").append(pagingSpec);
+    }
+    if (concatString != null) {
+      builder.append(", concatString=").append(concatString);
+    }
+    if (outputColumns != null) {
+      builder.append(", outputColumns=").append(outputColumns);
+    }
+    if (lateralView != null) {
+      builder.append(", lateralView=").append(lateralView);
+    }
+    return builder.append('}').toString();
   }
 
   @Override

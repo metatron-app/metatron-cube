@@ -20,6 +20,7 @@
 package io.druid.query.filter;
 
 import com.google.common.base.Predicate;
+import io.druid.math.expr.ExprEval;
 
 /**
  */
@@ -27,5 +28,5 @@ public interface ValueMatcherFactory
 {
   public ValueMatcher makeValueMatcher(String dimension, Comparable value);
   public ValueMatcher makeValueMatcher(String dimension, Predicate predicate);
-  public ValueMatcher makeValueMatcher(String expression);
+  public ValueMatcher makeExpressionMatcher(String expression, Predicate<ExprEval> predicate);
 }

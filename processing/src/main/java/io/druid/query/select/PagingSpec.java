@@ -32,6 +32,8 @@ import java.util.Map;
  */
 public class PagingSpec
 {
+  public static final PagingSpec GET_ALL = newSpec(-1);
+
   public static PagingSpec newSpec(int threshold)
   {
     return new PagingSpec(null, threshold);

@@ -23,12 +23,12 @@ import com.fasterxml.jackson.annotation.JacksonInject;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
-import com.google.common.collect.Sets;
 import com.metamx.common.Pair;
 import com.metamx.common.guava.Accumulator;
 import com.metamx.common.guava.Sequence;
@@ -43,7 +43,6 @@ import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
 
@@ -54,8 +53,8 @@ public class JoinPostProcessor implements PostProcessingOperator.UnionSupport
   private static final Logger log = new Logger(JoinPostProcessor.class);
 
   private final JoinType joinType;
-  private final Set<String> leftAliases;
-  private final Set<String> rightAliases;
+  private final String leftAlias;
+  private final String rightAlias;
   private final String[] leftJoinColumns;
   private final String[] rightJoinColumns;
   private final QueryToolChestWarehouse warehouse;
@@ -64,17 +63,17 @@ public class JoinPostProcessor implements PostProcessingOperator.UnionSupport
   @JsonCreator
   public JoinPostProcessor(
       @JsonProperty("joinType") JoinType joinType,
-      @JsonProperty("leftAliases") List<String> leftAliases,
+      @JsonProperty("leftAlias") String leftAlias,
       @JsonProperty("leftJoinExpressions") List<String> leftJoinColumns,
-      @JsonProperty("rightAliases") List<String> rightAliases,
+      @JsonProperty("rightAlias") String rightAlias,
       @JsonProperty("rightJoinExpressions") List<String> rightJoinColumns,
       @JacksonInject QueryToolChestWarehouse warehouse,
       @JacksonInject @Processing ExecutorService exec
   )
   {
     this.joinType = joinType == null ? JoinType.INNER : joinType;
-    this.leftAliases = Sets.newHashSet(leftAliases);
-    this.rightAliases = Sets.newHashSet(rightAliases);
+    this.leftAlias = Preconditions.checkNotNull(leftAlias);
+    this.rightAlias = Preconditions.checkNotNull(rightAlias);
     this.leftJoinColumns = leftJoinColumns.toArray(new String[leftJoinColumns.size()]);
     this.rightJoinColumns = rightJoinColumns.toArray(new String[rightJoinColumns.size()]);
     this.warehouse = warehouse;
@@ -110,14 +109,15 @@ public class JoinPostProcessor implements PostProcessingOperator.UnionSupport
                 Query element = in.lhs;
                 Sequence sequence = in.rhs;
                 String dataSource = Iterables.getOnlyElement(element.getDataSource().getNames());
-                if (leftAliases.contains(dataSource)) {
+                if (leftAlias.equals(dataSource)) {
                   TabularFormat tabular = warehouse.getToolChest(element).toTabularFormat(sequence, null);
                   leftSequences.add(tabular.getSequence());
-                } else if (rightAliases.contains(dataSource)) {
+                } else if (rightAlias.equals(dataSource)) {
                   TabularFormat tabular = warehouse.getToolChest(element).toTabularFormat(sequence, null);
                   rightSequences.add(tabular.getSequence());
                 } else {
-                  throw new IllegalStateException("Invalid dataSource " + dataSource);
+                  throw new IllegalStateException("Invalid dataSource " + dataSource +
+                                                  ".. should be one of " + Arrays.asList(leftAlias, rightAlias));
                 }
                 return null;
               }

@@ -42,6 +42,7 @@ import java.util.Map;
  */
 @JsonTypeName("timeseries")
 public class TimeseriesQuery extends BaseQuery<Result<TimeseriesResultValue>>
+  implements Query.DimFilterSupport<Result<TimeseriesResultValue>>
 {
   private final DimFilter dimFilter;
   private final QueryGranularity granularity;
@@ -93,6 +94,12 @@ public class TimeseriesQuery extends BaseQuery<Result<TimeseriesResultValue>>
     return dimFilter;
   }
 
+  @Override
+  public DimFilter getDimFilter()
+  {
+    return dimFilter;
+  }
+
   @JsonProperty
   public QueryGranularity getGranularity()
   {
@@ -128,6 +135,7 @@ public class TimeseriesQuery extends BaseQuery<Result<TimeseriesResultValue>>
     return getContextBoolean("skipEmptyBuckets", false);
   }
 
+  @Override
   public TimeseriesQuery withQuerySegmentSpec(QuerySegmentSpec querySegmentSpec)
   {
     return new TimeseriesQuery(
@@ -161,6 +169,7 @@ public class TimeseriesQuery extends BaseQuery<Result<TimeseriesResultValue>>
     );
   }
 
+  @Override
   public TimeseriesQuery withOverriddenContext(Map<String, Object> contextOverrides)
   {
     return new TimeseriesQuery(
@@ -177,6 +186,7 @@ public class TimeseriesQuery extends BaseQuery<Result<TimeseriesResultValue>>
     );
   }
 
+  @Override
   public TimeseriesQuery withDimFilter(DimFilter dimFilter)
   {
     return new TimeseriesQuery(

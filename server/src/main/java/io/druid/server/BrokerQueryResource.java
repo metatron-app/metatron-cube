@@ -214,7 +214,9 @@ public class BrokerQueryResource extends QueryResource
       String timestampColumn = PropUtils.parseString(forwardContext, "timestampColumn", null);
 
       TabularFormat result;
-      if (query instanceof JoinQuery.Delegate) {
+      // union-all does not have toolchest. delegate it to inner query
+      final Query representative = BaseQuery.getRepresentative(query);
+      if (representative instanceof JoinQuery.JoinDelegate) {
         // already converted to tabular format
         result = new TabularFormat()
         {
@@ -225,8 +227,6 @@ public class BrokerQueryResource extends QueryResource
           public Map<String, Object> getMetaData() { return null; }
         };
       } else {
-        // union-all does not have toolchest. delegate it to inner query
-        final Query representative = BaseQuery.getRepresentative(query);
         result = warehouse.getToolChest(representative).toTabularFormat(res, timestampColumn);
       }
       Map<String, Object> info = writer.write(uri, result, forwardContext);
@@ -254,7 +254,7 @@ public class BrokerQueryResource extends QueryResource
   protected Query prepareQuery(Query query)
   {
     if (query instanceof JoinQuery) {
-      query = ((JoinQuery)query).rewriteQuery();
+      query = ((JoinQuery)query).rewriteQuery(texasRanger, jsonMapper);
       log.info("Join query is rewritten to " + query);
     }
     query = rewriteDataSources(query);

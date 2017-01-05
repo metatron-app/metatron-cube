@@ -21,6 +21,8 @@ package io.druid.query;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import io.druid.query.filter.AndDimFilter;
+import io.druid.query.filter.DimFilter;
 import io.druid.query.select.PagingSpec;
 import io.druid.query.spec.QuerySegmentSpec;
 
@@ -60,16 +62,46 @@ public class JoinElement
     return dataSource instanceof QueryDataSource && ((QueryDataSource) dataSource).getQuery().hasFilters();
   }
 
-  public Query toQuery(QuerySegmentSpec segmentSpec)
+  public DimFilter getFilter()
   {
     if (dataSource instanceof QueryDataSource) {
-      return (((QueryDataSource) dataSource).getQuery());
+      Query query = ((QueryDataSource) dataSource).getQuery();
+      if (query instanceof Query.DimFilterSupport) {
+        return ((Query.DimFilterSupport) query).getDimFilter();
+      }
+    }
+    return null;
+  }
+
+  public JoinElement withDataSource(DataSource dataSource)
+  {
+    return new JoinElement(dataSource, joinExpressions);
+  }
+
+  public Query toQuery(QuerySegmentSpec segmentSpec)
+  {
+    return toQuery(segmentSpec, null);
+  }
+
+  public Query toQuery(QuerySegmentSpec segmentSpec, DimFilter filter)
+  {
+    if (dataSource instanceof QueryDataSource) {
+      Query query = ((QueryDataSource) dataSource).getQuery();
+      query = query.withQuerySegmentSpec(segmentSpec);
+      if (filter != null && query instanceof Query.DimFilterSupport) {
+        Query.DimFilterSupport filterSupport = (Query.DimFilterSupport) query;
+        if (filterSupport.getDimFilter() != null) {
+          filter = AndDimFilter.of(filterSupport.getDimFilter(), filter);
+        }
+        query = filterSupport.withDimFilter(filter);
+      }
+      return query;
     }
     // should be replaced with streaming query
     return new Druids.SelectQueryBuilder()
         .dataSource(dataSource)
         .intervals(segmentSpec)
-        .pagingSpec(PagingSpec.newSpec(Integer.MAX_VALUE))
+        .filters(filter)
         .build();
   }
 

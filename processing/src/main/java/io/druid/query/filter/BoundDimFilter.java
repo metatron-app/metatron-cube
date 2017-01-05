@@ -22,13 +22,15 @@ package io.druid.query.filter;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;
-import com.metamx.common.StringUtils;
+import io.druid.common.utils.StringUtils;
+import io.druid.math.expr.Parser;
 import io.druid.query.extraction.ExtractionFn;
 import io.druid.segment.filter.BoundFilter;
 
 import java.nio.ByteBuffer;
+import java.util.Set;
 
-public class BoundDimFilter implements DimFilter
+public class BoundDimFilter implements DimFilter.ExpressionSupport
 {
   private final String dimension;
   private final String upper;
@@ -57,10 +59,44 @@ public class BoundDimFilter implements DimFilter
     this.upperStrict = (upperStrict == null) ? false : upperStrict;
     this.alphaNumeric = (alphaNumeric == null) ? false : alphaNumeric;
     this.extractionFn = extractionFn;
+    Preconditions.checkArgument(
+        Parser.findRequiredBindings(dimension).size() == 1, "expression should contain only one dimension"
+    );
+  }
+
+  public static BoundDimFilter between(String dimension, String lower, String upper)
+  {
+    return new BoundDimFilter(dimension, lower, upper, false, true, false, null);
+  }
+
+  public static BoundDimFilter gt(String dimension, String lower)
+  {
+    return new BoundDimFilter(dimension, lower, null, true, false, false, null);
+  }
+
+  public static BoundDimFilter gte(String dimension, String lower)
+  {
+    return new BoundDimFilter(dimension, lower, null, false, false, false, null);
+  }
+
+  public static BoundDimFilter lt(String dimension, String upper)
+  {
+    return new BoundDimFilter(dimension, null, upper, false, true, false, null);
+  }
+
+  public static BoundDimFilter lte(String dimension, String upper)
+  {
+    return new BoundDimFilter(dimension, null, upper, false, false, false, null);
   }
 
   @JsonProperty
   public String getDimension()
+  {
+    return dimension;
+  }
+
+  @Override
+  public String getExpression()
   {
     return dimension;
   }
@@ -115,8 +151,8 @@ public class BoundDimFilter implements DimFilter
   public byte[] getCacheKey()
   {
     byte[] dimensionBytes = StringUtils.toUtf8(this.getDimension());
-    byte[] lowerBytes = this.getLower() == null ? new byte[0] : StringUtils.toUtf8(this.getLower());
-    byte[] upperBytes = this.getUpper() == null ? new byte[0] : StringUtils.toUtf8(this.getUpper());
+    byte[] lowerBytes = StringUtils.toUtf8WithNullToEmpty(getLower());
+    byte[] upperBytes = StringUtils.toUtf8WithNullToEmpty(getUpper());
     byte boundType = 0x1;
     if (this.getLower() == null) {
       boundType = 0x2;
@@ -124,9 +160,9 @@ public class BoundDimFilter implements DimFilter
       boundType = 0x3;
     }
 
-    byte lowerStrictByte = (this.isLowerStrict() == false) ? 0x0 : (byte) 1;
-    byte upperStrictByte = (this.isUpperStrict() == false) ? 0x0 : (byte) 1;
-    byte AlphaNumericByte = (this.isAlphaNumeric() == false) ? 0x0 : (byte) 1;
+    byte lowerStrictByte = !isLowerStrict() ? 0x0 : (byte) 1;
+    byte upperStrictByte = !isUpperStrict() ? 0x0 : (byte) 1;
+    byte AlphaNumericByte = !isAlphaNumeric() ? 0x0 : (byte) 1;
 
     byte[] extractionFnBytes = extractionFn == null ? new byte[0] : extractionFn.getCacheKey();
 
@@ -160,21 +196,43 @@ public class BoundDimFilter implements DimFilter
   }
 
   @Override
+  public void addDependent(Set<String> handler)
+  {
+    handler.add(dimension);
+  }
+
+  @Override
   public Filter toFilter()
   {
     return new BoundFilter(this);
   }
 
+  @Override
   public String toString()
   {
-    return "BoundDimFilter{" +
-           "dimension='" + dimension + '\'' +
-           ", upper='" + upper + '\'' +
-           ", lower='" + lower + '\'' +
-           ", lowerStrict=" + lowerStrict +
-           ", upperStrict=" + upperStrict +
-           ", alphaNumeric=" + alphaNumeric +
-           '}';
+    return "BoundDimFilter{" + toExpression() + "}";
+  }
+
+  private String toExpression()
+  {
+    StringBuilder builder = new StringBuilder();
+    if (lower != null) {
+      builder.append(lower).append(lowerStrict ? " < " : " <= ");
+    }
+    if (extractionFn != null) {
+      builder.append(extractionFn.getClass().getSimpleName()).append('(');
+    }
+    if (alphaNumeric) {
+      builder.append('@');
+    }
+    builder.append(dimension);
+    if (extractionFn != null) {
+      builder.append(')');
+    }
+    if (upper != null) {
+      builder.append(upperStrict ? " < " : " <= ").append(upper);
+    }
+    return builder.toString();
   }
 
   @Override

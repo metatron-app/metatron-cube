@@ -19,18 +19,23 @@
 
 package io.druid.query;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Sets;
+import com.metamx.common.logger.Logger;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.PostAggregator;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 /**
  */
 public class Queries
 {
+  private static final Logger LOG = new Logger(Queries.class);
+
   public static void verifyAggregations(
       List<AggregatorFactory> aggFactories,
       List<PostAggregator> postAggs
@@ -58,5 +63,16 @@ public class Queries
         Preconditions.checkArgument(combinedAggNames.add(postAgg.getName()), "[%s] already defined", postAgg.getName());
       }
     }
+  }
+
+  public static Query toQuery(Map<String, Object> object, ObjectMapper jsonMapper)
+  {
+    try {
+      return jsonMapper.convertValue(object, Query.class);
+    }
+    catch (Exception ex) {
+      LOG.warn(ex, "Failed to convert to query");
+    }
+    return null;
   }
 }

@@ -24,14 +24,18 @@ import com.google.common.base.Preconditions;
 import com.google.common.base.Predicate;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
+import com.google.common.collect.Sets;
 import com.metamx.collections.bitmap.ImmutableBitmap;
 import com.metamx.common.guava.FunctionalIterable;
+import io.druid.math.expr.Evals;
 import io.druid.math.expr.Expressions;
+import io.druid.math.expr.Parser;
 import io.druid.query.filter.AndDimFilter;
 import io.druid.query.filter.BitmapIndexSelector;
 import io.druid.query.filter.DimFilter;
 import io.druid.query.filter.Filter;
 import io.druid.segment.ColumnSelectorFactory;
+import io.druid.segment.ExprEvalColumnSelector;
 import io.druid.segment.ObjectColumnSelector;
 import io.druid.segment.column.BitmapIndex;
 import io.druid.segment.data.Indexed;
@@ -39,6 +43,7 @@ import io.druid.segment.data.IndexedInts;
 
 import java.util.Iterator;
 import java.util.List;
+import java.util.Set;
 
 /**
  */
@@ -78,11 +83,28 @@ public class Filters
    */
   public static Filter toFilter(DimFilter dimFilter)
   {
-    return dimFilter == null ? null : dimFilter.toFilter();
+    return dimFilter == null ? null : dimFilter.optimize().toFilter();
   }
 
   public static ObjectColumnSelector getStringSelector(ColumnSelectorFactory factory, String column)
   {
+    if (!Evals.isIdentifier(Parser.parse(column))) {
+      final ExprEvalColumnSelector selector = factory.makeMathExpressionSelector(column);
+      return new ObjectColumnSelector()
+      {
+        @Override
+        public Class classOfObject()
+        {
+          return String.class;
+        }
+
+        @Override
+        public String get()
+        {
+          return selector.get().asString();
+        }
+      };
+    }
     ObjectColumnSelector selector = factory.makeObjectColumnSelector(column);
     if (selector.classOfObject() == String.class) {
       return selector;
@@ -175,7 +197,8 @@ public class Filters
               @Override
               public ImmutableBitmap next()
               {
-                while (currIndex < bitmapIndex.getCardinality() && !predicate.apply(dimValues.get(currIndex))) {
+                while (currIndex < bitmapIndex.getCardinality() &&
+                       !predicate.apply(dimValues.get(currIndex))) {
                   currIndex++;
                 }
 
@@ -213,6 +236,13 @@ public class Filters
           }
         }
     );
+  }
+
+  public static Set<String> getDependents(DimFilter filter)
+  {
+    Set<String> handler = Sets.newHashSet();
+    filter.addDependent(handler);
+    return handler;
   }
 
   private static DimFilter[] partitionFilterWith(DimFilter current, Predicate<DimFilter> predicate)

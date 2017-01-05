@@ -23,6 +23,9 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Predicate;
 import com.google.common.base.Strings;
+import io.druid.math.expr.Evals;
+import io.druid.math.expr.ExprEval;
+import io.druid.math.expr.Parser;
 import io.druid.query.dimension.DefaultDimensionSpec;
 import io.druid.query.filter.DimFilter;
 import io.druid.query.filter.ValueMatcher;
@@ -275,8 +278,20 @@ public class FilteredAggregatorFactory extends AggregatorFactory
     }
 
     @Override
+    @SuppressWarnings("unchecked")
     public ValueMatcher makeValueMatcher(final String dimension, final Predicate predicate)
     {
+      if (!Evals.isIdentifier(Parser.parse(dimension))) {
+        final ExprEvalColumnSelector selector = columnSelectorFactory.makeMathExpressionSelector(dimension);
+        return new ValueMatcher()
+        {
+          @Override
+          public boolean matches()
+          {
+            return predicate.apply(selector.get().value());
+          }
+        };
+      }
       final DimensionSelector selector = columnSelectorFactory.makeDimensionSelector(
           new DefaultDimensionSpec(dimension, dimension)
       );
@@ -319,7 +334,7 @@ public class FilteredAggregatorFactory extends AggregatorFactory
     }
 
     @Override
-    public ValueMatcher makeValueMatcher(String expression)
+    public ValueMatcher makeExpressionMatcher(String expression, final Predicate<ExprEval> predicate)
     {
       final ExprEvalColumnSelector selector = columnSelectorFactory.makeMathExpressionSelector(expression);
       return new ValueMatcher()
@@ -327,7 +342,7 @@ public class FilteredAggregatorFactory extends AggregatorFactory
         @Override
         public boolean matches()
         {
-          return selector.get().asBoolean();
+          return predicate.apply(selector.get());
         }
       };
     }

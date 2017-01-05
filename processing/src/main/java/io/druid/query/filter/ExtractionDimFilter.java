@@ -26,6 +26,7 @@ import com.metamx.common.StringUtils;
 import io.druid.query.extraction.ExtractionFn;
 
 import java.nio.ByteBuffer;
+import java.util.Set;
 
 /**
  * This class is deprecated, use SelectorDimFilter instead: {@link io.druid.query.filter.SelectorDimFilter}
@@ -95,6 +96,12 @@ public class ExtractionDimFilter implements DimFilter
   public DimFilter optimize()
   {
     return new SelectorDimFilter(dimension, value, extractionFn).optimize();
+  }
+
+  @Override
+  public void addDependent(Set<String> handler)
+  {
+    handler.add(dimension);
   }
 
   @Override

@@ -26,14 +26,19 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.metamx.common.guava.Sequences;
 import com.yahoo.sketches.quantiles.ItemsSketch;
+import com.yahoo.sketches.theta.Sketch;
+import io.druid.query.Query;
 import io.druid.query.QueryRunner;
 import io.druid.query.QueryRunnerTestHelper;
 import io.druid.query.Result;
 import io.druid.query.TableDataSource;
 import io.druid.query.aggregation.datasketches.theta.SketchModule;
 import io.druid.query.aggregation.datasketches.theta.SketchOperations;
+import io.druid.query.filter.AndDimFilter;
+import io.druid.query.filter.BoundDimFilter;
 import io.druid.segment.TestHelper;
 import org.joda.time.DateTime;
+import org.joda.time.Interval;
 import org.junit.Assert;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -136,6 +141,27 @@ public class QuantilesSketchQueryRunnerTest
     );
     assertEqual(sketch1, SketchOperations.deserializeQuantile(deserialized.getValue().get("quality1")));
     assertEqual(sketch2, SketchOperations.deserializeQuantile(deserialized.getValue().get("quality2")));
+
+    Map<String, Object> object = ImmutableMap.<String, Object>builder()
+                .put("queryType", "sketch")
+                .put("dataSource", "ds")
+                .put("intervals", new Interval("2000-01-01/2010-01-01"))
+                .put("dimensions", Arrays.asList("partCol"))
+                .put("sketchOp", "QUANTILE")
+                .put(
+                    "context",
+                    ImmutableMap.of(
+                        "postProcessing",
+                        ImmutableMap.of(
+                            "type", "sketch.quantiles",
+                            "op", "QUANTILES",
+                            "evenSpaced", 10
+                        )
+                    )
+                )
+                .build();
+
+    System.out.println(mapper.convertValue(object, Query.class));
   }
 
   @Test
@@ -183,7 +209,7 @@ public class QuantilesSketchQueryRunnerTest
     SketchQuery query = new SketchQuery(
         new TableDataSource(QueryRunnerTestHelper.dataSource),
         QueryRunnerTestHelper.fullOnInterval,
-        Arrays.asList("market", "quality"), null, 16, SketchOp.QUANTILE, null
+        Arrays.asList("market", "quality"), null, null, 16, SketchOp.QUANTILE, null
     );
 
     List<Result<Map<String, Object>>> result = Sequences.toList(
@@ -198,8 +224,36 @@ public class QuantilesSketchQueryRunnerTest
     Assert.assertEquals("mezzanine", sketch2.getQuantile(0.5d));
   }
 
+    @Test
+  public void testSketchQueryWithFilter() throws Exception
+  {
+    SketchQuery query = new SketchQuery(
+        new TableDataSource(QueryRunnerTestHelper.dataSource),
+        QueryRunnerTestHelper.fullOnInterval,
+        Arrays.asList("market", "quality"), null,
+        AndDimFilter.of(
+            BoundDimFilter.gt("market", "spot"),
+            BoundDimFilter.lte("quality", "premium")
+        )
+        , 16, SketchOp.QUANTILE, null
+        );
+
+    List<Result<Map<String, Object>>> result = Sequences.toList(
+        runner.run(query, null),
+        Lists.<Result<Map<String, Object>>>newArrayList()
+    );
+    Assert.assertEquals(1, result.size());
+    Map<String, Object> values = result.get(0).getValue();
+    ItemsSketch sketch1 = (ItemsSketch) values.get("market");
+    ItemsSketch sketch2 = (ItemsSketch) values.get("quality");
+    Assert.assertEquals("total_market", sketch1.getQuantile(0.3d));
+    Assert.assertEquals("upfront", sketch1.getQuantile(0.8d));
+    Assert.assertEquals("mezzanine", sketch2.getQuantile(0.5d));
+  }
+
   private void assertEqual(ItemsSketch expected, ItemsSketch result)
   {
+    System.out.println(expected.toString(true, true));
     Assert.assertEquals(expected.toString(true, true), result.toString(true, true));
   }
 }

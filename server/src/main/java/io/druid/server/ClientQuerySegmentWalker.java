@@ -188,25 +188,37 @@ public class ClientQuerySegmentWalker implements QuerySegmentWalker
       };
     }
 
+    final QueryRunner<T> runner;
     if (postProcessing instanceof PostProcessingOperator.UnionSupport) {
-      return ((PostProcessingOperator.UnionSupport<T>) postProcessing).postProcess(baseRunner);
-    }
-
-    QueryRunner<T> merged = new QueryRunner<T>()
-    {
-      @Override
-      public Sequence<T> run(Query<T> query, Map<String, Object> responseContext)
+      runner = ((PostProcessingOperator.UnionSupport<T>) postProcessing).postProcess(baseRunner);
+    } else {
+      QueryRunner<T> merged = new QueryRunner<T>()
       {
-        Sequence<Sequence<T>> sequences = Sequences.map(
-            baseRunner.run(query, responseContext), Pair.<Query<T>, Sequence<T>>rhsFn()
-        );
-        if (sortOnUnion) {
-          return new MergeSequence<T>(query.getResultOrdering(), sequences);
+        @Override
+        public Sequence<T> run(Query<T> query, Map<String, Object> responseContext)
+        {
+          Sequence<Sequence<T>> sequences = Sequences.map(
+              baseRunner.run(query, responseContext), Pair.<Query<T>, Sequence<T>>rhsFn()
+          );
+          if (sortOnUnion) {
+            return new MergeSequence<T>(query.getResultOrdering(), sequences);
+          }
+          return Sequences.concat(sequences);
         }
-        return Sequences.concat(sequences);
-      }
-    };
-    return postProcessing == null ? merged : postProcessing.postProcess(merged);
+      };
+      runner = postProcessing == null ? merged : postProcessing.postProcess(merged);
+    }
+    if (union.getLimit() > 0) {
+      return new QueryRunner<T>()
+      {
+        @Override
+        public Sequence<T> run(Query<T> query, Map<String, Object> responseContext)
+        {
+          return Sequences.limit(query.run(runner, responseContext), union.getLimit());
+        }
+      };
+    }
+    return runner;
   }
 
   private <T> PostProcessingOperator<T> getPostProcessingOperator(Query<T> query)

@@ -50,12 +50,15 @@ public class SketchQuantilesProcessor implements PostProcessingOperator
       @JsonProperty("op") SketchQuantilesOp op,
       @JsonProperty("fractions") Map<String, double[]> fractions,
       @JsonProperty("evenSpaced") Integer evenSpaced,
+      @JsonProperty("evenCounted") Integer evenCounted,
       @JsonProperty("splitPoints") Map<String, String[]> splitPoints
   )
   {
     this.op = op == null ? SketchQuantilesOp.QUANTILES : op;
     if (op == null || op == SketchQuantilesOp.QUANTILES) {
-      parameter = fractions != null ? fractions : evenSpaced == null ? 11 : evenSpaced;
+      parameter = fractions != null ? fractions :
+                  evenSpaced != null && evenSpaced > 0 ? evenSpaced :
+                  evenCounted != null && evenCounted > 0 ? -evenCounted : 11;
     } else {
       parameter = splitPoints;
     }

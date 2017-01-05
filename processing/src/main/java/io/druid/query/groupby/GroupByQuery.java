@@ -59,7 +59,7 @@ import java.util.Map;
 
 /**
  */
-public class GroupByQuery extends BaseQuery<Row>
+public class GroupByQuery extends BaseQuery<Row> implements Query.DimFilterSupport<Row>
 {
   public static final String SORT_ON_TIME = "groupby.sort.on.time";
 
@@ -116,6 +116,7 @@ public class GroupByQuery extends BaseQuery<Row>
     Queries.verifyAggregations(this.aggregatorSpecs, this.postAggregatorSpecs);
   }
 
+  @Override
   @JsonProperty("filter")
   public DimFilter getDimFilter()
   {
@@ -262,6 +263,7 @@ public class GroupByQuery extends BaseQuery<Row>
     );
   }
 
+  @Override
   public GroupByQuery withDimFilter(final DimFilter dimFilter)
   {
     return new GroupByQuery(

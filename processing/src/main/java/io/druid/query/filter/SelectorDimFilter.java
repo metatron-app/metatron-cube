@@ -32,6 +32,7 @@ import io.druid.segment.filter.SelectorFilter;
 
 import java.nio.ByteBuffer;
 import java.util.Objects;
+import java.util.Set;
 
 /**
  */
@@ -76,6 +77,12 @@ public class SelectorDimFilter implements DimFilter
   public DimFilter optimize()
   {
     return new InDimFilter(dimension, ImmutableList.of(value), extractionFn).optimize();
+  }
+
+  @Override
+  public void addDependent(Set<String> handler)
+  {
+    handler.add(dimension);
   }
 
   @Override

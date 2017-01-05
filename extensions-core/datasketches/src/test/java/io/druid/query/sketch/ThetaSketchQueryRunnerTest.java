@@ -35,6 +35,8 @@ import io.druid.query.Result;
 import io.druid.query.TableDataSource;
 import io.druid.query.aggregation.datasketches.theta.SketchModule;
 import io.druid.query.aggregation.datasketches.theta.SketchOperations;
+import io.druid.query.filter.AndDimFilter;
+import io.druid.query.filter.BoundDimFilter;
 import io.druid.segment.TestHelper;
 import org.joda.time.DateTime;
 import org.junit.Assert;
@@ -183,7 +185,7 @@ public class ThetaSketchQueryRunnerTest
     SketchQuery query = new SketchQuery(
         new TableDataSource(QueryRunnerTestHelper.dataSource),
         QueryRunnerTestHelper.fullOnInterval,
-        Arrays.asList("market", "quality"), null, 16, null, null
+        Arrays.asList("market", "quality"), null, null, 16, null, null
     );
 
     List<Result<Map<String, Object>>> result = Sequences.toList(
@@ -194,6 +196,29 @@ public class ThetaSketchQueryRunnerTest
     Map<String, Object> values = result.get(0).getValue();
     Assert.assertEquals(3, ((Sketch) values.get("market")).getEstimate(), 0.001);
     Assert.assertEquals(9, ((Sketch) values.get("quality")).getEstimate(), 0.001);
+  }
+
+  @Test
+  public void testSketchQueryWithFilter() throws Exception
+  {
+    SketchQuery query = new SketchQuery(
+        new TableDataSource(QueryRunnerTestHelper.dataSource),
+        QueryRunnerTestHelper.fullOnInterval,
+        Arrays.asList("market", "quality"), null,
+        AndDimFilter.of(
+            BoundDimFilter.between("market", "spot", "upfront"),
+            BoundDimFilter.between("quality", "health", "premium"))
+        , 16, null, null
+        );
+
+    List<Result<Map<String, Object>>> result = Sequences.toList(
+        runner.run(query, null),
+        Lists.<Result<Map<String, Object>>>newArrayList()
+    );
+    Assert.assertEquals(1, result.size());
+    Map<String, Object> values = result.get(0).getValue();
+    Assert.assertEquals(2, ((Sketch) values.get("market")).getEstimate(), 0.001);
+    Assert.assertEquals(3, ((Sketch) values.get("quality")).getEstimate(), 0.001);
   }
 
   private void assertEqual(Sketch expected, Sketch result)

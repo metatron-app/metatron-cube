@@ -26,6 +26,7 @@ import com.metamx.common.StringUtils;
 import io.druid.segment.filter.SpatialFilter;
 
 import java.nio.ByteBuffer;
+import java.util.Set;
 
 /**
  */
@@ -65,6 +66,12 @@ public class SpatialDimFilter implements DimFilter
   public DimFilter optimize()
   {
     return this;
+  }
+
+  @Override
+  public void addDependent(Set<String> handler)
+  {
+    handler.add(dimension);
   }
 
   @JsonProperty

@@ -53,7 +53,7 @@ public abstract class PagingOffset
 
   public final boolean hasNext()
   {
-    return counter < threshold;
+    return threshold < 0 || counter < threshold;
   }
 
   public final void next()

@@ -24,6 +24,7 @@ import io.druid.segment.ColumnSelectorFactory;
 import io.druid.segment.filter.BooleanValueMatcher;
 
 import java.nio.ByteBuffer;
+import java.util.Set;
 
 /**
  */
@@ -39,6 +40,11 @@ public class NoopDimFilter implements DimFilter
   public DimFilter optimize()
   {
     return this;
+  }
+
+  @Override
+  public void addDependent(Set<String> handler)
+  {
   }
 
   @Override

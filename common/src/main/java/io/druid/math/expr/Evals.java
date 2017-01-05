@@ -20,6 +20,7 @@
 package io.druid.math.expr;
 
 import com.google.common.base.Function;
+import com.google.common.base.Predicate;
 import com.google.common.base.Strings;
 import com.metamx.common.Pair;
 import io.druid.data.ValueType;
@@ -36,6 +37,45 @@ import java.util.Objects;
 public class Evals
 {
   static final DateTimeFormatter defaultFormat = DateTimeFormat.forPattern("yyyy-MM-dd HH:mm:ss");
+
+  public static final Predicate<ExprEval> PREDICATE = new Predicate<ExprEval>()
+  {
+    @Override
+    public boolean apply(ExprEval input)
+    {
+      return input.asBoolean();
+    }
+  };
+
+  public static final com.google.common.base.Function<ExprEval, String> AS_STRING =
+      new com.google.common.base.Function<ExprEval, String>()
+      {
+        @Override
+        public String apply(ExprEval input)
+        {
+          return input.asString();
+        }
+      };
+
+  public static final com.google.common.base.Function<ExprEval, Double> AS_DOUBLE =
+      new com.google.common.base.Function<ExprEval, Double>()
+      {
+        @Override
+        public Double apply(ExprEval input)
+        {
+          return input.asDouble();
+        }
+      };
+
+  public static final com.google.common.base.Function<ExprEval, Long> AS_LONG =
+      new com.google.common.base.Function<ExprEval, Long>()
+      {
+        @Override
+        public Long apply(ExprEval input)
+        {
+          return input.asLong();
+        }
+      };
 
   static boolean eq(ExprEval leftVal, ExprEval rightVal)
   {

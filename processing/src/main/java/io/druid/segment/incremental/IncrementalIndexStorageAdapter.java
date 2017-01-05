@@ -37,7 +37,9 @@ import com.metamx.common.guava.Sequences;
 import io.druid.cache.Cache;
 import io.druid.data.ValueType;
 import io.druid.granularity.QueryGranularity;
+import io.druid.math.expr.Evals;
 import io.druid.math.expr.Expr;
+import io.druid.math.expr.ExprEval;
 import io.druid.math.expr.Parser;
 import io.druid.query.QueryInterruptedException;
 import io.druid.query.dimension.DimensionSpec;
@@ -800,8 +802,21 @@ public class IncrementalIndexStorageAdapter implements StorageAdapter
     }
 
     @Override
+    @SuppressWarnings("unchecked")
     public ValueMatcher makeValueMatcher(String dimension, final Predicate predicate)
     {
+      if (!Evals.isIdentifier(Parser.parse(dimension))) {
+        final Expr parsed = Parser.parse(dimension);
+        final Expr.NumericBinding binding = indexToBinding(parsed);
+        return new ValueMatcher()
+        {
+          @Override
+          public boolean matches()
+          {
+            return predicate.apply(parsed.eval(binding));
+          }
+        };
+      }
       IncrementalIndex.DimensionDesc dimensionDesc = index.getDimension(dimension);
       if (dimensionDesc == null) {
         return new BooleanValueMatcher(predicate.apply(null));
@@ -830,10 +845,22 @@ public class IncrementalIndexStorageAdapter implements StorageAdapter
     }
 
     @Override
-    public ValueMatcher makeValueMatcher(String expression)
+    public ValueMatcher makeExpressionMatcher(String expression, final Predicate<ExprEval> predicate)
     {
       final Expr parsed = Parser.parse(expression);
 
+      final Expr.NumericBinding binding = indexToBinding(parsed);
+      return new ValueMatcher() {
+        @Override
+        public boolean matches()
+        {
+          return predicate.apply(parsed.eval(binding));
+        }
+      };
+    }
+
+    private Expr.NumericBinding indexToBinding(Expr parsed)
+    {
       final Map<String, Supplier<Object>> values = Maps.newHashMap();
       for (String column : Parser.findRequiredBindings(parsed)) {
         IncrementalIndex.DimensionDesc dimensionDesc = index.getDimension(column);
@@ -899,14 +926,7 @@ public class IncrementalIndexStorageAdapter implements StorageAdapter
         }
       }
 
-      final Expr.NumericBinding binding = Parser.withSuppliers(values);
-      return new ValueMatcher() {
-        @Override
-        public boolean matches()
-        {
-          return parsed.eval(binding).asBoolean();
-        }
-      };
+      return Parser.withSuppliers(values);
     }
   }
 

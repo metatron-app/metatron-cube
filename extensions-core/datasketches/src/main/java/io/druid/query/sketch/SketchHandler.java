@@ -19,8 +19,9 @@
 
 package io.druid.query.sketch;
 
-import com.google.common.base.Strings;
+import com.google.common.base.Function;
 import com.google.common.collect.Ordering;
+import com.metamx.collections.bitmap.ImmutableBitmap;
 import com.yahoo.sketches.Family;
 import com.yahoo.sketches.quantiles.ItemsSketch;
 import com.yahoo.sketches.quantiles.ItemsUnion;
@@ -28,13 +29,29 @@ import com.yahoo.sketches.theta.CompactSketch;
 import com.yahoo.sketches.theta.SetOperation;
 import com.yahoo.sketches.theta.Sketch;
 import com.yahoo.sketches.theta.Union;
+import io.druid.query.filter.BitmapIndexSelector;
 import io.druid.segment.column.BitmapIndex;
+
+import java.util.Arrays;
+import java.util.List;
 
 /**
  */
 public interface SketchHandler
 {
-  Object calculate(int nomEntries, BitmapIndex bitmapIndex);
+  Object calculate(
+      int nomEntries,
+      BitmapIndex bitmapIndex,
+      Function<String, String> function
+  );
+
+  Object calculate(
+      int nomEntries,
+      BitmapIndex bitmapIndex,
+      Function<String, String> function,
+      ImmutableBitmap filter,
+      BitmapIndexSelector selector
+  );
 
   Object newUnion(int nomEntries);
 
@@ -47,12 +64,33 @@ public interface SketchHandler
   public static class Theta implements SketchHandler
   {
     @Override
-    public CompactSketch calculate(int nomEntries, BitmapIndex bitmapIndex)
+    public CompactSketch calculate(int nomEntries, BitmapIndex bitmapIndex, Function<String, String> function)
     {
       final Union union = newUnion(nomEntries);
       final int cardinality = bitmapIndex.getCardinality();
       for (int i = 0; i < cardinality; ++i) {
-        union.update(Strings.nullToEmpty(bitmapIndex.getValue(i)));
+        union.update(function.apply(bitmapIndex.getValue(i)));
+      }
+      return union.getResult();
+    }
+
+    @Override
+    public Object calculate(
+        int nomEntries,
+        BitmapIndex bitmapIndex,
+        Function<String, String> function,
+        ImmutableBitmap filter,
+        BitmapIndexSelector selector
+    )
+    {
+      final Union union = newUnion(nomEntries);
+      final int cardinality = bitmapIndex.getCardinality();
+      for (int i = 0; i < cardinality; ++i) {
+        List<ImmutableBitmap> intersecting = Arrays.asList(bitmapIndex.getBitmap(i), filter);
+        ImmutableBitmap bitmap = selector.getBitmapFactory().intersection(intersecting);
+        if (bitmap.size() > 0) {
+          union.update(function.apply(bitmapIndex.getValue(i)));
+        }
       }
       return union.getResult();
     }
@@ -88,12 +126,12 @@ public interface SketchHandler
   public static class Quantile implements SketchHandler
   {
     @Override
-    public Object calculate(int nomEntries, BitmapIndex bitmapIndex)
+    public Object calculate(int nomEntries, BitmapIndex bitmapIndex, Function<String, String> function)
     {
       final ItemsSketch<String> histogram = ItemsSketch.getInstance(nomEntries, Ordering.natural());
       final int cardinality = bitmapIndex.getCardinality();
       for (int i = 0; i < cardinality; ++i) {
-        final String value = Strings.nullToEmpty(bitmapIndex.getValue(i));
+        final String value = function.apply(bitmapIndex.getValue(i));
         for (int j = bitmapIndex.getBitmap(i).size(); j >= 0; j--) {
           histogram.update(value);
         }
@@ -102,9 +140,33 @@ public interface SketchHandler
     }
 
     @Override
-    public ItemsUnion newUnion(int nomEntries)
+    public Object calculate(
+        int nomEntries,
+        BitmapIndex bitmapIndex,
+        Function<String, String> function,
+        ImmutableBitmap filter,
+        BitmapIndexSelector selector
+    )
     {
-      return ItemsUnion.getInstance(nomEntries, Ordering.natural());
+      final ItemsSketch<String> histogram = ItemsSketch.getInstance(nomEntries, Ordering.natural());
+      final int cardinality = bitmapIndex.getCardinality();
+      for (int i = 0; i < cardinality; ++i) {
+        final List<ImmutableBitmap> intersecting = Arrays.asList(bitmapIndex.getBitmap(i), filter);
+        final ImmutableBitmap bitmap = selector.getBitmapFactory().intersection(intersecting);
+        if (bitmap.size() > 0) {
+          final String value = function.apply(bitmapIndex.getValue(i));
+          for (int j = bitmap.size(); j >= 0; j--) {
+            histogram.update(value);
+          }
+        }
+      }
+      return histogram;
+    }
+
+    @Override
+    public ItemsUnion<String> newUnion(int nomEntries)
+    {
+      return ItemsUnion.<String>getInstance(nomEntries, Ordering.natural());
     }
 
     @Override

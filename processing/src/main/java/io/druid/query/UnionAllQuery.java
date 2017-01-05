@@ -33,12 +33,14 @@ public class UnionAllQuery<T extends Comparable<T>> extends BaseQuery<T>
   private final Query<T> query;
   private final List<Query<T>> queries;
   private final boolean sortOnUnion;
+  private final int limit;
 
   @JsonCreator
   public UnionAllQuery(
       @JsonProperty("query") Query<T> query,
       @JsonProperty("queries") List<Query<T>> queries,
       @JsonProperty("sortOnUnion") boolean sortOnUnion,
+      @JsonProperty("limit") int limit,
       @JsonProperty("context") Map<String, Object> context
   )
   {
@@ -46,6 +48,7 @@ public class UnionAllQuery<T extends Comparable<T>> extends BaseQuery<T>
     this.query = getFirstQueryWithValidation(query, queries);
     this.queries = queries;
     this.sortOnUnion = sortOnUnion;
+    this.limit = limit;
   }
 
   @JsonProperty
@@ -66,6 +69,12 @@ public class UnionAllQuery<T extends Comparable<T>> extends BaseQuery<T>
     return sortOnUnion;
   }
 
+  @JsonProperty
+  public int getLimit()
+  {
+    return limit;
+  }
+
   @Override
   public boolean hasFilters()
   {
@@ -83,9 +92,9 @@ public class UnionAllQuery<T extends Comparable<T>> extends BaseQuery<T>
   public Query<T> withOverriddenContext(Map<String, Object> contextOverride)
   {
     if (queries == null) {
-      return new UnionAllQuery(query, null, sortOnUnion, computeOverridenContext(contextOverride));
+      return new UnionAllQuery(query, null, sortOnUnion, limit, computeOverridenContext(contextOverride));
     }
-    return new UnionAllQuery(null, queries, sortOnUnion, computeOverridenContext(contextOverride));
+    return new UnionAllQuery(null, queries, sortOnUnion, limit, computeOverridenContext(contextOverride));
   }
 
   @Override
@@ -103,13 +112,13 @@ public class UnionAllQuery<T extends Comparable<T>> extends BaseQuery<T>
   @SuppressWarnings("unchecked")
   public Query withQueries(List<Query> queries)
   {
-    return new UnionAllQuery(null, queries, sortOnUnion, getContext());
+    return new UnionAllQuery(null, queries, sortOnUnion, limit, getContext());
   }
 
   @SuppressWarnings("unchecked")
   public Query withQuery(Query query)
   {
-    return new UnionAllQuery(query, null, sortOnUnion, getContext());
+    return new UnionAllQuery(query, null, sortOnUnion, limit, getContext());
   }
 
   @Override
@@ -136,6 +145,9 @@ public class UnionAllQuery<T extends Comparable<T>> extends BaseQuery<T>
     if (query != null ? !query.equals(that.query) : that.query != null) {
       return false;
     }
+    if (limit != that.limit) {
+      return false;
+    }
 
     return true;
   }
@@ -147,6 +159,7 @@ public class UnionAllQuery<T extends Comparable<T>> extends BaseQuery<T>
     result = 31 * result + (query != null ? query.hashCode() : 0);
     result = 31 * result + (queries != null ? queries.hashCode() : 0);
     result = 31 * result + (sortOnUnion ? 1 : 0);
+    result = 31 * result + limit;
     return result;
   }
 
@@ -157,6 +170,7 @@ public class UnionAllQuery<T extends Comparable<T>> extends BaseQuery<T>
            "query=" + query +
            ", queries=" + queries +
            ", sortOnUnion=" + sortOnUnion +
+           ", limit=" + limit +
            '}';
   }
 }

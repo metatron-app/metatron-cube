@@ -34,6 +34,7 @@ import org.mozilla.javascript.Function;
 import org.mozilla.javascript.ScriptableObject;
 
 import java.nio.ByteBuffer;
+import java.util.Set;
 
 public class JavaScriptDimFilter implements DimFilter
 {
@@ -105,6 +106,12 @@ public class JavaScriptDimFilter implements DimFilter
   public DimFilter optimize()
   {
     return this;
+  }
+
+  @Override
+  public void addDependent(Set<String> handler)
+  {
+    handler.add(dimension);
   }
 
   @Override

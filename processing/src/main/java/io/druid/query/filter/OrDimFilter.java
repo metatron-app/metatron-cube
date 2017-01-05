@@ -30,6 +30,7 @@ import io.druid.segment.filter.OrFilter;
 import io.druid.math.expr.Expression.OrExpression;
 
 import java.util.List;
+import java.util.Set;
 
 /**
  */
@@ -71,6 +72,14 @@ public class OrDimFilter implements DimFilter, OrExpression
   {
     List<DimFilter> elements = DimFilters.optimize(fields);
     return elements.size() == 1 ? elements.get(0) : Druids.newOrDimFilterBuilder().fields(elements).build();
+  }
+
+  @Override
+  public void addDependent(Set<String> handler)
+  {
+    for (DimFilter filter : fields) {
+      filter.addDependent(handler);
+    }
   }
 
   @Override

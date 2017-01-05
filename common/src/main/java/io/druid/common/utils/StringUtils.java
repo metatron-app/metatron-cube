@@ -19,10 +19,22 @@
 
 package io.druid.common.utils;
 
+import com.google.common.base.Function;
+import com.google.common.base.Strings;
+
 /**
  */
 public class StringUtils extends com.metamx.common.StringUtils
 {
+  public static final Function<String, String> NULL_TO_EMPTY = new Function<String, String>()
+  {
+    @Override
+    public String apply(String s)
+    {
+      return Strings.nullToEmpty(s);
+    }
+  };
+
   private static final byte[] EMPTY_BYTES = new byte[0];
 
   // should be used only for estimation

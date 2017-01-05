@@ -27,6 +27,7 @@ import io.druid.query.search.search.SearchQuerySpec;
 import io.druid.segment.filter.SearchQueryFilter;
 
 import java.nio.ByteBuffer;
+import java.util.Set;
 
 /**
  */
@@ -89,6 +90,12 @@ public class SearchQueryDimFilter implements DimFilter
   public DimFilter optimize()
   {
     return this;
+  }
+
+  @Override
+  public void addDependent(Set<String> handler)
+  {
+    handler.add(dimension);
   }
 
   @Override
