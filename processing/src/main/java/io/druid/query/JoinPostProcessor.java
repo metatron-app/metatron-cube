@@ -40,6 +40,7 @@ import io.druid.math.expr.Expr;
 import io.druid.math.expr.Parser;
 
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -123,8 +124,8 @@ public class JoinPostProcessor implements PostProcessingOperator.UnionSupport
               }
             }
         );
-        final Future<List<Map<String, Object>>> leftRowsFuture = toList(leftSequences);
-        final Future<List<Map<String, Object>>> rightRowsFuture = toList(rightSequences);
+        final Future<JoiningRow[]> leftRowsFuture = toList(leftSequences, leftJoinColumns);
+        final Future<JoiningRow[]> rightRowsFuture = toList(rightSequences, rightJoinColumns);
 
         try {
           return Sequences.simple(join(leftRowsFuture.get(), rightRowsFuture.get(), joinType));
@@ -136,15 +137,17 @@ public class JoinPostProcessor implements PostProcessingOperator.UnionSupport
     };
   }
 
-  private Future<List<Map<String, Object>>> toList(final List<Sequence<Map<String, Object>>> sequences)
+  private Future<JoiningRow[]> toList(final List<Sequence<Map<String, Object>>> sequences, final String[] joinColumns)
   {
     return exec.submit(
-        new AbstractPrioritizedCallable<List<Map<String, Object>>>(0)
+        new AbstractPrioritizedCallable<JoiningRow[]>(0)
         {
           @Override
-          public List<Map<String, Object>> call()
+          public JoiningRow[] call()
           {
-            return Sequences.toList(Sequences.concat(sequences), Lists.<Map<String, Object>>newArrayList());
+            Sequence<Map<String, Object>> sequence = Sequences.concat(sequences);
+            List<Map<String, Object>> rows = Sequences.toList(sequence, Lists.<Map<String, Object>>newArrayList());
+            return sort(rows, joinColumns);
           }
         }
     );
@@ -154,15 +157,21 @@ public class JoinPostProcessor implements PostProcessingOperator.UnionSupport
   Iterable<Map<String, Object>> join(
       List<Map<String, Object>> leftRows,
       List<Map<String, Object>> rightRows,
-      final JoinType type
+      JoinType type
   )
   {
-    log.info("Starting joining left %d rows, right %d rows", leftRows.size(), rightRows.size());
-    final JoiningRow[] lefts = sort(leftRows, leftJoinColumns);
-    final JoiningRow[] rights = sort(rightRows, rightJoinColumns);
+    return join(sort(leftRows, leftJoinColumns), sort(rightRows, rightJoinColumns), type);
+  }
 
-    final int sizeL = leftRows.size();
-    final int sizeR = rightRows.size();
+  private Iterable<Map<String, Object>> join(final JoiningRow[] lefts, final JoiningRow[] rights, final JoinType type)
+  {
+    if (lefts.length == 0 && rights.length == 0) {
+      return Collections.emptyList();
+    }
+    log.info("Starting joining left %d rows, right %d rows", lefts.length, rights.length);
+
+    final int sizeL = lefts.length;
+    final int sizeR = rights.length;
     return new Iterable<Map<String, Object>>()
     {
       @Override
@@ -178,11 +187,15 @@ public class JoinPostProcessor implements PostProcessingOperator.UnionSupport
           private final String[] peekR = new String[rightJoinColumns.length];
 
           {
-            for (int i = 0; i < peekL.length; i++) {
-              peekL[i] = readL(i);
+            if (sizeL > 0) {
+              for (int i = 0; i < peekL.length; i++) {
+                peekL[i] = readL(i);
+              }
             }
-            for (int i = 0; i < peekR.length; i++) {
-              peekR[i] = readR(i);
+            if (sizeR > 0) {
+              for (int i = 0; i < peekR.length; i++) {
+                peekR[i] = readR(i);
+              }
             }
           }
 
