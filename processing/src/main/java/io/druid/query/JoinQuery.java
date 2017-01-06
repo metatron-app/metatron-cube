@@ -27,6 +27,7 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+import com.google.common.collect.Sets;
 import com.metamx.common.Pair;
 import com.metamx.common.guava.Sequences;
 import com.metamx.common.logger.Logger;
@@ -39,6 +40,7 @@ import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  */
@@ -74,12 +76,19 @@ public class JoinQuery<T extends Comparable<T>> extends BaseQuery<T>
     this.limit = limit;
     this.leftAlias = Iterables.getOnlyElement(elements.get(0).getDataSource().getNames());
     this.rightAlias = Iterables.getOnlyElement(elements.get(1).getDataSource().getNames());
+    Preconditions.checkArgument(
+        numPartition > 0 || scannerLen > 0, "one of 'numPartition' or 'scannerLen' should be configured"
+    );
   }
 
+  // dummy datasource for authorization
   private static DataSource validateDataSource(List<JoinElement> elements)
   {
     Preconditions.checkArgument(elements.size() == 2, "For now");
-    return elements.get(0).getDataSource();
+    Set<String> names = Sets.newLinkedHashSet();
+    names.addAll(elements.get(0).getDataSource().getNames());
+    names.addAll(elements.get(1).getDataSource().getNames());
+    return UnionDataSource.of(names);
   }
 
   private static QuerySegmentSpec validateSegmentSpec(List<JoinElement> elements, QuerySegmentSpec segmentSpec)

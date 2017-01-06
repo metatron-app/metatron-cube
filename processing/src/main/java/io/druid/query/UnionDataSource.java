@@ -31,6 +31,24 @@ import java.util.List;
 
 public class UnionDataSource implements DataSource
 {
+  public static UnionDataSource of(Iterable<String> names)
+  {
+    return new UnionDataSource(
+        Lists.newArrayList(
+            Iterables.transform(
+                names, new Function<String, TableDataSource>()
+                {
+                  @Override
+                  public TableDataSource apply(String input)
+                  {
+                    return new TableDataSource(input);
+                  }
+                }
+            )
+        )
+    );
+  }
+
   @JsonProperty
   private final List<TableDataSource> dataSources;
 

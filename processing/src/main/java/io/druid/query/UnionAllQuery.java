@@ -21,15 +21,32 @@ package io.druid.query;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.google.common.base.Preconditions;
+import com.google.common.collect.Iterables;
+import com.google.common.collect.Sets;
 import io.druid.query.spec.QuerySegmentSpec;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  */
 public class UnionAllQuery<T extends Comparable<T>> extends BaseQuery<T>
 {
+  // dummy datasource for authorization
+  private static <T> DataSource unionDataSource(Query<T> query, List<Query<T>> queries)
+  {
+    if (queries == null || queries.isEmpty()) {
+      return Preconditions.checkNotNull(query).getDataSource();
+    }
+    Set<String> names = Sets.newLinkedHashSet();
+    for (Query q : queries) {
+      names.addAll(q.getDataSource().getNames());
+    }
+    return UnionDataSource.of(names);
+  }
+
   private final Query<T> query;
   private final List<Query<T>> queries;
   private final boolean sortOnUnion;
@@ -44,11 +61,27 @@ public class UnionAllQuery<T extends Comparable<T>> extends BaseQuery<T>
       @JsonProperty("context") Map<String, Object> context
   )
   {
-    super(getFirstQueryWithValidation(query, queries), false, context);
-    this.query = getFirstQueryWithValidation(query, queries);
+    super(unionDataSource(query, queries), null, false, context);
+    this.query = query;
     this.queries = queries;
     this.sortOnUnion = sortOnUnion;
     this.limit = limit;
+  }
+
+  public Query getRepresentative()
+  {
+    if (queries == null || queries.isEmpty()) {
+      return Preconditions.checkNotNull(query);
+    }
+    Preconditions.checkArgument(query == null);
+    Preconditions.checkArgument(!Iterables.contains(queries, null), "should not contain null query in union");
+    Query<T> first = queries.get(0);
+    for (int i = 1; i < queries.size(); i++) {
+      if (!first.getType().equals(queries.get(i).getType())) {
+        throw new IllegalArgumentException("sub queries in union should not be mixed");
+      }
+    }
+    return first;
   }
 
   @JsonProperty
@@ -173,4 +206,5 @@ public class UnionAllQuery<T extends Comparable<T>> extends BaseQuery<T>
            ", limit=" + limit +
            '}';
   }
+
 }

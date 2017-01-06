@@ -22,15 +22,16 @@ package io.druid.query;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.Iterables;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Ordering;
 import com.metamx.common.guava.Sequence;
 import io.druid.common.utils.PropUtils;
+import io.druid.query.spec.MultipleIntervalSegmentSpec;
 import io.druid.query.spec.QuerySegmentSpec;
 import org.joda.time.Duration;
 import org.joda.time.Interval;
 
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 
@@ -38,26 +39,12 @@ import java.util.Map;
  */
 public abstract class BaseQuery<T extends Comparable<T>> implements Query<T>
 {
-  public static <T> Query<T> getFirstQueryWithValidation(Query<T> query, List<Query<T>> queries)
-  {
-    if (queries == null || queries.isEmpty()) {
-      return Preconditions.checkNotNull(query);
-    }
-    Preconditions.checkArgument(query == null);
-    Preconditions.checkArgument(!Iterables.contains(queries, null), "should not contain null query in union");
-    Query<T> first = queries.get(0);
-    for (int i = 1; i < queries.size(); i++) {
-      if (!first.getType().equals(queries.get(i).getType())) {
-        throw new IllegalArgumentException("sub queries in union should not be mixed");
-      }
-    }
-    return first;
-  }
+  private static final QuerySegmentSpec EMPTY = new MultipleIntervalSegmentSpec(Arrays.<Interval>asList());
 
   @SuppressWarnings("unchecked")
   public static Query getRepresentative(Query query)
   {
-    return query instanceof UnionAllQuery ? ((UnionAllQuery) query).getQuery() : query;
+    return query instanceof UnionAllQuery ? ((UnionAllQuery) query).getRepresentative() : query;
   }
 
   public static <T> int getContextPriority(Query<T> query, int defaultValue)
@@ -120,17 +107,11 @@ public abstract class BaseQuery<T extends Comparable<T>> implements Query<T>
   )
   {
     Preconditions.checkNotNull(dataSource, "dataSource can't be null");
-    Preconditions.checkNotNull(querySegmentSpec, "querySegmentSpec can't be null");
 
     this.dataSource = dataSource;
-    this.context = context;
-    this.querySegmentSpec = querySegmentSpec;
+    this.querySegmentSpec = querySegmentSpec == null ? EMPTY : querySegmentSpec;
     this.descending = descending;
-  }
-
-  BaseQuery(Query source, boolean descending, Map<String, Object> context)
-  {
-    this(source.getDataSource(), source.getQuerySegmentSpec(), descending, context);
+    this.context = context;
   }
 
   @JsonProperty
