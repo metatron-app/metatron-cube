@@ -24,9 +24,12 @@ import com.google.common.base.Preconditions;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+import com.google.common.collect.Sets;
 import com.metamx.common.ISE;
 import com.metamx.common.guava.Sequence;
 import io.druid.cache.Cache;
+import io.druid.query.DataSource;
+import io.druid.query.JoinDataSource;
 import io.druid.query.QueryRunnerHelper;
 import io.druid.query.Result;
 import io.druid.query.dimension.DefaultDimensionSpec;
@@ -41,14 +44,13 @@ import io.druid.segment.StorageAdapter;
 import io.druid.segment.VirtualColumns;
 import io.druid.segment.column.Column;
 import io.druid.segment.data.IndexedInts;
-import io.druid.segment.filter.Filters;
-import org.apache.commons.lang.StringUtils;
 import io.druid.timeline.DataSegmentUtils;
-import org.joda.time.DateTime;
+import org.apache.commons.lang.StringUtils;
 import org.joda.time.Interval;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  */
@@ -65,18 +67,26 @@ public class SelectQueryEngine
     }
 
     // at the point where this code is called, only one datasource should exist.
-    String dataSource = Iterables.getOnlyElement(query.getDataSource().getNames());
+    DataSource ds = query.getDataSource();
+    String dataSource = Iterables.getOnlyElement(ds.getNames());
+    Set<String> retainers = null;
+    if (ds instanceof JoinDataSource) {
+      List<String> columns = ((JoinDataSource) ds).getColumns();
+      if (columns != null && !columns.isEmpty()) {
+        retainers = Sets.newHashSet(columns);
+      }
+    }
 
-    final Iterable<DimensionSpec> dims;
+    final List<DimensionSpec> dims;
     if (query.getDimensions() == null || query.getDimensions().isEmpty()) {
-      dims = DefaultDimensionSpec.toSpec(adapter.getAvailableDimensions());
+      dims = DefaultDimensionSpec.toSpec(retain(adapter.getAvailableDimensions(), retainers));
     } else {
       dims = query.getDimensions();
     }
 
-    final Iterable<String> metrics;
+    final List<String> metrics;
     if (query.getMetrics() == null || query.getMetrics().isEmpty()) {
-      metrics = adapter.getAvailableMetrics();
+      metrics = retain(adapter.getAvailableMetrics(), retainers);
     } else {
       metrics = query.getMetrics();
     }
@@ -182,5 +192,14 @@ public class SelectQueryEngine
           }
         }
     );
+  }
+
+  private List<String> retain(Iterable<String> name, Set<String> retainer)
+  {
+    List<String> retaining = Lists.newArrayList(name);
+    if (retainer != null) {
+      retaining.retainAll(retainer);
+    }
+    return retaining;
   }
 }

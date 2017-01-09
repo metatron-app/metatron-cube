@@ -46,7 +46,7 @@ public class TableDataSource implements DataSource
   }
 
   @JsonProperty
-  private final String name;
+  protected final String name;
 
   @JsonCreator
   public TableDataSource(@JsonProperty("name") String name)
@@ -55,7 +55,8 @@ public class TableDataSource implements DataSource
   }
 
   @JsonProperty
-  public String getName(){
+  public String getName()
+  {
     return name;
   }
 

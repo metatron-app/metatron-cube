@@ -21,12 +21,17 @@ package io.druid.query;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.google.common.base.Preconditions;
+import com.google.common.collect.Lists;
+import com.google.common.collect.Sets;
+import io.druid.math.expr.Parser;
 import io.druid.query.filter.AndDimFilter;
 import io.druid.query.filter.DimFilter;
-import io.druid.query.select.PagingSpec;
 import io.druid.query.spec.QuerySegmentSpec;
+import io.druid.segment.filter.Filters;
 
 import java.util.List;
+import java.util.Set;
 
 /**
  */
@@ -41,8 +46,8 @@ public class JoinElement
       @JsonProperty("joinExpressions") List<String> joinExpressions
   )
   {
-    this.dataSource = dataSource;
-    this.joinExpressions = joinExpressions;
+    this.dataSource = Preconditions.checkNotNull(dataSource);
+    this.joinExpressions = Preconditions.checkNotNull(joinExpressions);
   }
 
   @JsonProperty
@@ -97,9 +102,29 @@ public class JoinElement
       }
       return query;
     }
+    DataSource ds = dataSource;
+    if (dataSource instanceof JoinDataSource) {
+      JoinDataSource joinDS = (JoinDataSource) dataSource;
+      List<String> columns = joinDS.getColumns();
+      if (columns != null && !columns.isEmpty()) {
+        Set<String> retainer = Sets.newLinkedHashSet();
+        for (String expression : joinExpressions) {
+          retainer.addAll(Parser.findRequiredBindings(expression));
+        }
+        if (filter != null) {
+          retainer.addAll(Filters.getDependents(filter));
+        }
+        retainer.addAll(columns);
+        ds = joinDS.withColumns(Lists.newArrayList(retainer));
+      }
+      if (joinDS.getFilter() != null) {
+        filter = filter == null ? joinDS.getFilter() : AndDimFilter.of(filter, joinDS.getFilter());
+        ds = joinDS.withFilter(null);
+      }
+    }
     // should be replaced with streaming query
     return new Druids.SelectQueryBuilder()
-        .dataSource(dataSource)
+        .dataSource(ds)
         .intervals(segmentSpec)
         .filters(filter)
         .build();
