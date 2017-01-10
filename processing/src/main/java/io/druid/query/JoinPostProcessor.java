@@ -29,6 +29,7 @@ import com.google.common.collect.Iterables;
 import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+import com.google.common.util.concurrent.MoreExecutors;
 import com.metamx.common.Pair;
 import com.metamx.common.guava.Accumulator;
 import com.metamx.common.guava.Sequence;
@@ -124,8 +125,10 @@ public class JoinPostProcessor implements PostProcessingOperator.UnionSupport
               }
             }
         );
-        final Future<JoiningRow[]> leftRowsFuture = toList(leftSequences, leftJoinColumns);
-        final Future<JoiningRow[]> rightRowsFuture = toList(rightSequences, rightJoinColumns);
+        final Future<JoiningRow[]> leftRowsFuture = toList(leftSequences, leftJoinColumns, exec);
+        final Future<JoiningRow[]> rightRowsFuture = toList(
+            rightSequences, rightJoinColumns, MoreExecutors.sameThreadExecutor()
+        );
 
         try {
           return Sequences.simple(join(leftRowsFuture.get(), rightRowsFuture.get(), joinType));
@@ -137,9 +140,13 @@ public class JoinPostProcessor implements PostProcessingOperator.UnionSupport
     };
   }
 
-  private Future<JoiningRow[]> toList(final List<Sequence<Map<String, Object>>> sequences, final String[] joinColumns)
+  private Future<JoiningRow[]> toList(
+      final List<Sequence<Map<String, Object>>> sequences,
+      final String[] joinColumns,
+      final ExecutorService executor
+  )
   {
-    return exec.submit(
+    return executor.submit(
         new AbstractPrioritizedCallable<JoiningRow[]>(0)
         {
           @Override

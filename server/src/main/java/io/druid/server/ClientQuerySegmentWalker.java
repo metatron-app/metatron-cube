@@ -28,10 +28,17 @@ import com.google.inject.Inject;
 import com.metamx.common.Pair;
 import com.metamx.common.guava.LazySequence;
 import com.metamx.common.guava.MergeSequence;
+import com.metamx.common.guava.ResourceClosingSequence;
 import com.metamx.common.guava.Sequence;
 import com.metamx.common.guava.Sequences;
 import com.metamx.emitter.service.ServiceEmitter;
 import io.druid.client.CachingClusteredClient;
+import io.druid.common.guava.FutureSequence;
+import io.druid.common.guava.GuavaUtils;
+import io.druid.concurrent.Execs;
+import io.druid.guice.annotations.Processing;
+import io.druid.query.AbstractPrioritizedCallable;
+import io.druid.query.BaseQuery;
 import io.druid.query.FluentQueryRunnerBuilder;
 import io.druid.query.PostProcessingOperator;
 import io.druid.query.Query;
@@ -47,8 +54,13 @@ import io.druid.query.UnionAllQuery;
 import io.druid.query.UnionAllQueryRunner;
 import org.joda.time.Interval;
 
+import java.io.Closeable;
+import java.io.IOException;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Future;
 
 /**
  */
@@ -59,6 +71,7 @@ public class ClientQuerySegmentWalker implements QuerySegmentWalker
   private final QueryToolChestWarehouse warehouse;
   private final RetryQueryRunnerConfig retryConfig;
   private final ObjectMapper objectMapper;
+  private final ExecutorService exec;
 
   @Inject
   public ClientQuerySegmentWalker(
@@ -66,7 +79,8 @@ public class ClientQuerySegmentWalker implements QuerySegmentWalker
       CachingClusteredClient baseClient,
       QueryToolChestWarehouse warehouse,
       RetryQueryRunnerConfig retryConfig,
-      ObjectMapper objectMapper
+      ObjectMapper objectMapper,
+      @Processing ExecutorService exec
   )
   {
     this.emitter = emitter;
@@ -74,6 +88,7 @@ public class ClientQuerySegmentWalker implements QuerySegmentWalker
     this.warehouse = warehouse;
     this.retryConfig = retryConfig;
     this.objectMapper = objectMapper;
+    this.exec = exec;
   }
 
   @Override
@@ -115,32 +130,31 @@ public class ClientQuerySegmentWalker implements QuerySegmentWalker
     final boolean sortOnUnion = union.isSortOnUnion();
     final PostProcessingOperator<T> postProcessing = getPostProcessingOperator(union);
 
-    final List<Query<T>> targets = union.getQueries();
-
+    final List<Query<T>> ready = toTargetQueries(union, queryId);
     final UnionAllQueryRunner<T> baseRunner;
-    if (targets != null) {
-      baseRunner = new UnionAllQueryRunner<T>()
+    if (union.getParallelism() < 1) {
+     // executed when element of sequence is accessed
+     baseRunner = new UnionAllQueryRunner<T>()
       {
         @Override
         public Sequence<Pair<Query<T>, Sequence<T>>> run(Query<T> query, final Map<String, Object> responseContext)
         {
           return Sequences.simple(
               Lists.transform(
-                  targets,
+                  ready,
                   new Function<Query<T>, Pair<Query<T>, Sequence<T>>>()
                   {
                     @Override
                     public Pair<Query<T>, Sequence<T>> apply(final Query<T> query)
                     {
-                      final Query<T> runner = query.withId(queryId);
                       return Pair.<Query<T>, Sequence<T>>of(
-                          runner, new LazySequence<T>(
+                          query, new LazySequence<T>(
                               new Supplier<Sequence<T>>()
                               {
                                 @Override
                                 public Sequence<T> get()
                                 {
-                                  return makeRunner(runner).run(runner, responseContext);
+                                  return makeRunner(query).run(query, responseContext);
                                 }
                               }
                           )
@@ -152,38 +166,58 @@ public class ClientQuerySegmentWalker implements QuerySegmentWalker
         }
       };
     } else {
-      final Query<T> target = union.getQuery().withId(queryId);
+      // executing now
       baseRunner = new UnionAllQueryRunner<T>()
       {
+        final int priority = BaseQuery.getContextPriority(union, 0);
         @Override
         public Sequence<Pair<Query<T>, Sequence<T>>> run(final Query<T> query, final Map<String, Object> responseContext)
         {
-          return Sequences.simple(
-              Lists.transform(
-                  target.getDataSource().getNames(),
-                  new Function<String, Pair<Query<T>, Sequence<T>>>()
+          final Execs.Semaphore semaphore = new Execs.Semaphore(Math.max(union.getParallelism(), union.getQueue()));
+          final List<Future<Sequence<T>>> futures = Execs.execute(
+              exec, Lists.transform(
+                  ready, new Function<Query<T>, Callable<Sequence<T>>>()
                   {
                     @Override
-                    public Pair<Query<T>, Sequence<T>> apply(final String dataSource)
+                    public Callable<Sequence<T>> apply(final Query<T> query)
                     {
-                      final Query<T> runner = target.withDataSource(new TableDataSource(dataSource));
-                      return Pair.<Query<T>, Sequence<T>>of(
-                          runner, new LazySequence<T>(
-                              new Supplier<Sequence<T>>()
-                              {
-                                @Override
-                                public Sequence<T> get()
-                                {
-                                  return makeRunner(runner).run(runner, responseContext);
-                                }
-                              }
-                          )
-                      );
+                      return new AbstractPrioritizedCallable<Sequence<T>>(priority)
+                      {
+                        @Override
+                        public Sequence<T> call() throws Exception
+                        {
+                          Sequence<T> sequence = makeRunner(query).run(query, responseContext);
+                          return new ResourceClosingSequence<T>(sequence, semaphore);
+                        }
+
+                        @Override
+                        public String toString()
+                        {
+                          return query.toString();
+                        }
+                      };
                     }
                   }
-              )
+              ), semaphore, union.getParallelism(), priority
           );
-
+          Sequence<Pair<Query<T>, Sequence<T>>> sequence = Sequences.simple(
+              GuavaUtils.zip(ready, Lists.transform(futures, FutureSequence.<T>toSequence()))
+          );
+          return new ResourceClosingSequence<Pair<Query<T>, Sequence<T>>>(
+              sequence,
+              new Closeable()
+              {
+                @Override
+                public void close() throws IOException
+                {
+                  for (Future<Sequence<T>> future : futures) {
+                    future.cancel(true);
+                  }
+                  futures.clear();
+                  semaphore.destroy();
+                }
+              }
+          );
         }
       };
     }
@@ -219,6 +253,36 @@ public class ClientQuerySegmentWalker implements QuerySegmentWalker
       };
     }
     return runner;
+  }
+
+  private <T extends Comparable<T>> List<Query<T>> toTargetQueries(UnionAllQuery<T> union, final String queryId)
+  {
+    final List<Query<T>> ready;
+    if (union.getQueries() != null) {
+      ready = Lists.transform(
+          union.getQueries(), new Function<Query<T>, Query<T>>()
+          {
+            @Override
+            public Query<T> apply(Query<T> query)
+            {
+              return query.withId(queryId);
+            }
+          }
+      );
+    } else {
+      final Query<T> target = union.getQuery().withId(queryId);
+      ready = Lists.transform(
+          target.getDataSource().getNames(), new Function<String, Query<T>>()
+          {
+            @Override
+            public Query<T> apply(String dataSource)
+            {
+              return target.withDataSource(new TableDataSource(dataSource));
+            }
+          }
+      );
+    }
+    return ready;
   }
 
   private <T> PostProcessingOperator<T> getPostProcessingOperator(Query<T> query)

@@ -53,6 +53,8 @@ public class PartitionedGroupByQuery extends GroupByQuery implements Query.Rewri
   private final int limit;
   private final int numPartition;
   private final int scannerLen;
+  private final int parallelism;
+  private final int queue;
 
   public PartitionedGroupByQuery(
       @JsonProperty("dataSource") DataSource dataSource,
@@ -68,6 +70,8 @@ public class PartitionedGroupByQuery extends GroupByQuery implements Query.Rewri
       @JsonProperty("outputColumns") List<String> outputColumns,
       @JsonProperty("numPartition") int numPartition,
       @JsonProperty("scannerLen") int scannerLen,
+      @JsonProperty("parallelism") int parallelism,
+      @JsonProperty("queue") int queue,
       @JsonProperty("context") Map<String, Object> context
   )
   {
@@ -97,6 +101,8 @@ public class PartitionedGroupByQuery extends GroupByQuery implements Query.Rewri
     this.limit = limit;
     this.numPartition = numPartition;
     this.scannerLen = scannerLen;
+    this.parallelism = parallelism;
+    this.queue = queue;
   }
 
   @JsonProperty
@@ -138,7 +144,7 @@ public class PartitionedGroupByQuery extends GroupByQuery implements Query.Rewri
     for (DimFilter filter : QueryUtils.toFilters(expression, partitions)) {
       queries.add(asGroupByQuery(filter));
     }
-    return new UnionAllQuery(null, queries, false, limit, getContext());
+    return new UnionAllQuery(null, queries, false, limit, parallelism, queue, getContext());
   }
 
   private GroupByQuery asGroupByQuery(DimFilter filter)
@@ -185,6 +191,8 @@ public class PartitionedGroupByQuery extends GroupByQuery implements Query.Rewri
         getOutputColumns(),
         numPartition,
         scannerLen,
+        parallelism,
+        queue,
         computeOverridenContext(contextOverride)
     );
   }

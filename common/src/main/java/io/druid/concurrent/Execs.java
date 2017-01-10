@@ -19,14 +19,27 @@
 
 package io.druid.concurrent;
 
+import com.google.common.base.Function;
+import com.google.common.collect.Iterables;
+import com.google.common.collect.Lists;
+import com.google.common.util.concurrent.AbstractFuture;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
+import com.metamx.common.logger.Logger;
+import io.druid.common.guava.GuavaUtils;
 
 import javax.annotation.Nullable;
 import javax.validation.constraints.NotNull;
+import java.io.Closeable;
+import java.io.IOException;
+import java.util.List;
+import java.util.Queue;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.RejectedExecutionHandler;
 import java.util.concurrent.ScheduledExecutorService;
@@ -39,6 +52,7 @@ import java.util.concurrent.TimeUnit;
  */
 public class Execs
 {
+  private static Logger log = new Logger(Execs.class);
 
   public static ExecutorService singleThreaded(@NotNull String nameFormat)
   {
@@ -125,5 +139,111 @@ public class Execs
           }
         }
     );
+  }
+
+  public static class Semaphore implements Closeable
+  {
+    private final java.util.concurrent.Semaphore semaphore;
+
+    public Semaphore(int parallelism)
+    {
+      this.semaphore = new java.util.concurrent.Semaphore(parallelism);
+    }
+
+    public void acquire() throws InterruptedException
+    {
+      semaphore.acquire();
+    }
+
+    @Override
+    public void close() throws IOException
+    {
+      semaphore.release();
+    }
+
+    public void destroy()
+    {
+      semaphore.release(semaphore.getQueueLength());
+    }
+  }
+
+  public static <V> List<Future<V>> execute(
+      final ExecutorService executor,
+      final List<Callable<V>> works,
+      final Semaphore semaphore,
+      final int parallelism,
+      final int priority
+  )
+  {
+    log.debug("Executing with parallelism : %d, semaphore : %d", parallelism, semaphore.semaphore.availablePermits());
+    // must be materialized first
+    final List<WaitingFuture<V>> futures = Lists.newArrayList(Iterables.transform(works, WaitingFuture.<V>toWaiter()));
+    final Queue<WaitingFuture<V>> queue = new LinkedBlockingQueue<WaitingFuture<V>>(futures);
+    for (int i = 0; i < parallelism; i++) {
+      executor.submit(
+          new PrioritizedRunnable()
+          {
+            @Override
+            public int getPriority()
+            {
+              return priority;
+            }
+
+            @Override
+            public void run()
+            {
+              for (WaitingFuture<V> work = queue.poll(); work != null; work = queue.poll()) {
+                try {
+                  semaphore.acquire();
+                }
+                catch (InterruptedException e) {
+                  work.setException(e);
+                  break;
+                }
+                if (work.isCancelled() || !work.execute()) {
+                  break;
+                }
+              }
+            }
+          }
+      );
+    }
+    return GuavaUtils.cast(futures);
+  }
+
+  private static class WaitingFuture<V> extends AbstractFuture<V>
+  {
+    private final Callable<V> callable;
+
+    private WaitingFuture(Callable<V> callable) {this.callable = callable;}
+
+    public boolean execute()
+    {
+      try {
+        return set(callable.call());
+      }
+      catch (Exception e) {
+        setException(e);
+      }
+      return false;
+    }
+
+    @Override
+    public boolean setException(Throwable throwable)
+    {
+      return super.setException(throwable);
+    }
+
+    private static <V> Function<Callable<V>, WaitingFuture<V>> toWaiter()
+    {
+      return new Function<Callable<V>, WaitingFuture<V>>()
+      {
+        @Override
+        public WaitingFuture<V> apply(Callable<V> input)
+        {
+          return new WaitingFuture<V>(input);
+        }
+      };
+    }
   }
 }

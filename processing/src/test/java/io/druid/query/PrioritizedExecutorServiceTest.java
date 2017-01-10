@@ -24,6 +24,8 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.metamx.common.lifecycle.Lifecycle;
+import io.druid.concurrent.PrioritizedCallable;
+import io.druid.concurrent.PrioritizedRunnable;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Assume;

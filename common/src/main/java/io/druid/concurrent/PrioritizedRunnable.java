@@ -17,11 +17,9 @@
  * under the License.
  */
 
-package io.druid.query;
+package io.druid.concurrent;
 
-import java.util.concurrent.Callable;
-
-public interface PrioritizedCallable<V> extends Callable<V>
+public interface PrioritizedRunnable extends Runnable
 {
   int getPriority();
 }

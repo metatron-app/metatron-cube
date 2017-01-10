@@ -51,6 +51,8 @@ public class UnionAllQuery<T extends Comparable<T>> extends BaseQuery<T>
   private final List<Query<T>> queries;
   private final boolean sortOnUnion;
   private final int limit;
+  private final int parallelism;
+  private final int queue;
 
   @JsonCreator
   public UnionAllQuery(
@@ -58,6 +60,8 @@ public class UnionAllQuery<T extends Comparable<T>> extends BaseQuery<T>
       @JsonProperty("queries") List<Query<T>> queries,
       @JsonProperty("sortOnUnion") boolean sortOnUnion,
       @JsonProperty("limit") int limit,
+      @JsonProperty("parallelism") int parallelism,
+      @JsonProperty("queue") int queue,
       @JsonProperty("context") Map<String, Object> context
   )
   {
@@ -66,6 +70,8 @@ public class UnionAllQuery<T extends Comparable<T>> extends BaseQuery<T>
     this.queries = queries;
     this.sortOnUnion = sortOnUnion;
     this.limit = limit;
+    this.parallelism = parallelism;
+    this.queue = queue;
   }
 
   public Query getRepresentative()
@@ -108,6 +114,18 @@ public class UnionAllQuery<T extends Comparable<T>> extends BaseQuery<T>
     return limit;
   }
 
+  @JsonProperty
+  public int getParallelism()
+  {
+    return parallelism;
+  }
+
+  @JsonProperty
+  public int getQueue()
+  {
+    return queue;
+  }
+
   @Override
   public boolean hasFilters()
   {
@@ -124,10 +142,11 @@ public class UnionAllQuery<T extends Comparable<T>> extends BaseQuery<T>
   @SuppressWarnings("unchecked")
   public Query<T> withOverriddenContext(Map<String, Object> contextOverride)
   {
+    Map<String, Object> context = computeOverridenContext(contextOverride);
     if (queries == null) {
-      return new UnionAllQuery(query, null, sortOnUnion, limit, computeOverridenContext(contextOverride));
+      return new UnionAllQuery(query, null, sortOnUnion, limit, parallelism, queue, context);
     }
-    return new UnionAllQuery(null, queries, sortOnUnion, limit, computeOverridenContext(contextOverride));
+    return new UnionAllQuery(null, queries, sortOnUnion, limit, parallelism, queue, context);
   }
 
   @Override
@@ -145,13 +164,13 @@ public class UnionAllQuery<T extends Comparable<T>> extends BaseQuery<T>
   @SuppressWarnings("unchecked")
   public Query withQueries(List<Query> queries)
   {
-    return new UnionAllQuery(null, queries, sortOnUnion, limit, getContext());
+    return new UnionAllQuery(null, queries, sortOnUnion, limit, parallelism, queue, getContext());
   }
 
   @SuppressWarnings("unchecked")
   public Query withQuery(Query query)
   {
-    return new UnionAllQuery(query, null, sortOnUnion, limit, getContext());
+    return new UnionAllQuery(query, null, sortOnUnion, limit, parallelism, queue, getContext());
   }
 
   @Override
@@ -181,6 +200,12 @@ public class UnionAllQuery<T extends Comparable<T>> extends BaseQuery<T>
     if (limit != that.limit) {
       return false;
     }
+    if (parallelism != that.parallelism) {
+      return false;
+    }
+    if (queue != that.queue) {
+      return false;
+    }
 
     return true;
   }
@@ -193,6 +218,8 @@ public class UnionAllQuery<T extends Comparable<T>> extends BaseQuery<T>
     result = 31 * result + (queries != null ? queries.hashCode() : 0);
     result = 31 * result + (sortOnUnion ? 1 : 0);
     result = 31 * result + limit;
+    result = 31 * result + parallelism;
+    result = 31 * result + queue;
     return result;
   }
 
@@ -203,6 +230,8 @@ public class UnionAllQuery<T extends Comparable<T>> extends BaseQuery<T>
            "query=" + query +
            ", queries=" + queries +
            ", sortOnUnion=" + sortOnUnion +
+           ", limit=" + limit +
+           ", parallelism=" + parallelism +
            ", limit=" + limit +
            '}';
   }

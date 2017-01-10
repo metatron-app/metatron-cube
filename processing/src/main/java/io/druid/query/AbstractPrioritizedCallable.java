@@ -19,6 +19,8 @@
 
 package io.druid.query;
 
+import io.druid.concurrent.PrioritizedCallable;
+
 public abstract class AbstractPrioritizedCallable<V> implements PrioritizedCallable<V>
 {
   private final int priority;

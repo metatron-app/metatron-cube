@@ -48,6 +48,8 @@ public class JoinQuery<T extends Comparable<T>> extends BaseQuery<T> implements 
   private final int numPartition;
   private final int scannerLen;
   private final int limit;
+  private final int parallelism;
+  private final int queue;
 
   private final String leftAlias;
   private final String rightAlias;
@@ -60,6 +62,8 @@ public class JoinQuery<T extends Comparable<T>> extends BaseQuery<T> implements 
       @JsonProperty("numPartition") int numPartition,
       @JsonProperty("scannerLen") int scannerLen,
       @JsonProperty("limit") int limit,
+      @JsonProperty("parallelism") int parallelism,
+      @JsonProperty("queue") int queue,
       @JsonProperty("context") Map<String, Object> context
   )
   {
@@ -69,6 +73,8 @@ public class JoinQuery<T extends Comparable<T>> extends BaseQuery<T> implements 
     this.numPartition = numPartition == 0 && scannerLen == 0 ? 1 : numPartition;
     this.scannerLen = scannerLen;
     this.limit = limit;
+    this.parallelism = parallelism;   // warn : can take "(n-way + 1) x parallelism" threads
+    this.queue = queue;
     this.leftAlias = Iterables.getOnlyElement(elements.get(0).getDataSource().getNames());
     this.rightAlias = Iterables.getOnlyElement(elements.get(1).getDataSource().getNames());
     Preconditions.checkArgument(
@@ -163,6 +169,18 @@ public class JoinQuery<T extends Comparable<T>> extends BaseQuery<T> implements 
     return limit;
   }
 
+  @JsonProperty
+  public int getParallelism()
+  {
+    return parallelism;
+  }
+
+  @JsonProperty
+  public int getQueue()
+  {
+    return queue;
+  }
+
   @Override
   public boolean hasFilters()
   {
@@ -184,8 +202,17 @@ public class JoinQuery<T extends Comparable<T>> extends BaseQuery<T> implements 
   @SuppressWarnings("unchecked")
   public Query<T> withOverriddenContext(Map<String, Object> contextOverride)
   {
-    Map<String, Object> overridden = computeOverridenContext(contextOverride);
-    return new JoinQuery(joinType, elements, getQuerySegmentSpec(), numPartition, scannerLen, limit, overridden);
+    return new JoinQuery(
+        joinType,
+        elements,
+        getQuerySegmentSpec(),
+        numPartition,
+        scannerLen,
+        limit,
+        parallelism,
+        queue,
+        computeOverridenContext(contextOverride)
+    );
   }
 
   @Override
@@ -226,14 +253,16 @@ public class JoinQuery<T extends Comparable<T>> extends BaseQuery<T> implements 
 
     QuerySegmentSpec segmentSpec = getQuerySegmentSpec();
     if (partitions == null || partitions.size() == 1) {
-      return new JoinDelegate(Arrays.asList(lhs.toQuery(segmentSpec), rhs.toQuery(segmentSpec)), limit, joinContext);
+      Query left = lhs.toQuery(segmentSpec);
+      Query right = rhs.toQuery(segmentSpec);
+      return new JoinDelegate(Arrays.asList(left, right), limit, parallelism, queue, joinContext);
     }
     List<Query> queries = Lists.newArrayList();
     for (Pair<DimFilter, DimFilter> filters : partitions) {
       List<Query> list = Arrays.asList(lhs.toQuery(segmentSpec, filters.lhs), rhs.toQuery(segmentSpec, filters.rhs));
-      queries.add(new JoinDelegate(list, -1, joinContext));
+      queries.add(new JoinDelegate(list, -1, 0, 0, joinContext));
     }
-    return new JoinDelegate(queries, limit, context);
+    return new UnionAllQuery(null, queries, false, limit, parallelism, queue, context);
   }
 
   private JoinPartitionSpec partition(QuerySegmentWalker segmentWalker, ObjectMapper jsonMapper)
@@ -337,15 +366,15 @@ public class JoinQuery<T extends Comparable<T>> extends BaseQuery<T> implements 
   @SuppressWarnings("unchecked")
   public static class JoinDelegate extends UnionAllQuery
   {
-    public JoinDelegate(List<Query> list, int limit, Map<String, Object> context)
+    public JoinDelegate(List<Query> list, int limit, int parallelism, int queue, Map<String, Object> context)
     {
-      super(null, list, false, limit, context);
+      super(null, list, false, limit, parallelism, queue, context);
     }
 
     @Override
     public Query withQueries(List queries)
     {
-      return new JoinDelegate(queries, getLimit(), getContext());
+      return new JoinDelegate(queries, getLimit(), getParallelism(), getQueue(), getContext());
     }
 
     @Override
@@ -355,11 +384,19 @@ public class JoinQuery<T extends Comparable<T>> extends BaseQuery<T> implements 
     }
 
     @Override
+    public Query withOverriddenContext(Map contextOverride)
+    {
+      Map<String, Object> context = computeOverridenContext(contextOverride);
+      return new JoinDelegate(getQueries(), getLimit(), getParallelism(), getQueue(), context);
+    }
+
+    @Override
     public String toString()
     {
       return "JoinDelegate{" +
              "queries=" + getQueries() +
              ", limit=" + getLimit() +
+             ", join=" + getContextValue("postProcessing") +
              '}';
     }
   }
