@@ -253,9 +253,9 @@ public class BrokerQueryResource extends QueryResource
   @Override @SuppressWarnings("unchecked")
   protected Query prepareQuery(Query query)
   {
-    if (query instanceof JoinQuery) {
-      query = ((JoinQuery)query).rewriteQuery(texasRanger, jsonMapper);
-      log.info("Join query is rewritten to " + query);
+    if (query instanceof Query.RewritingQuery) {
+      query = ((Query.RewritingQuery)query).rewriteQuery(texasRanger, jsonMapper);
+      log.info("Base query is rewritten to " + query);
     }
     query = rewriteDataSources(query);
     if (BaseQuery.rewriteQuery(query, false)) {

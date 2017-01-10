@@ -21,11 +21,13 @@ package io.druid.query;
 
 import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.Ordering;
 import com.metamx.common.guava.Sequence;
 import io.druid.query.datasourcemetadata.DataSourceMetadataQuery;
 import io.druid.query.filter.DimFilter;
 import io.druid.query.groupby.GroupByQuery;
+import io.druid.query.groupby.PartitionedGroupByQuery;
 import io.druid.query.metadata.metadata.SegmentMetadataQuery;
 import io.druid.query.search.search.SearchQuery;
 import io.druid.query.select.SelectMetaQuery;
@@ -52,7 +54,8 @@ import java.util.Map;
     @JsonSubTypes.Type(name = Query.TOPN, value = TopNQuery.class),
     @JsonSubTypes.Type(name = Query.DATASOURCE_METADATA, value = DataSourceMetadataQuery.class),
     @JsonSubTypes.Type(name = Query.UNION_ALL, value = UnionAllQuery.class),
-    @JsonSubTypes.Type(name = Query.JOIN, value = JoinQuery.class)
+    @JsonSubTypes.Type(name = Query.JOIN, value = JoinQuery.class),
+    @JsonSubTypes.Type(name = Query.GROUP_BY_PARTITIONED, value = PartitionedGroupByQuery.class)
 })
 public interface Query<T>
 {
@@ -60,6 +63,7 @@ public interface Query<T>
   String SEARCH = "search";
   String TIME_BOUNDARY = "timeBoundary";
   String GROUP_BY = "groupBy";
+  String GROUP_BY_PARTITIONED = "groupBy.partitioned";
   String SEGMENT_METADATA = "segmentMetadata";
   String SELECT = "select";
   String SELECT_META = "selectMeta";
@@ -111,5 +115,10 @@ public interface Query<T>
     DimFilter getDimFilter();
 
     DimFilterSupport<T> withDimFilter(DimFilter filter);
+  }
+
+  interface RewritingQuery<T> extends Query<T>
+  {
+    Query rewriteQuery(QuerySegmentWalker segmentWalker, ObjectMapper jsonMapper);
   }
 }

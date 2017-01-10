@@ -29,10 +29,7 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import com.metamx.common.Pair;
-import com.metamx.common.guava.Sequences;
-import com.metamx.common.logger.Logger;
 import io.druid.math.expr.Parser;
-import io.druid.query.filter.BoundDimFilter;
 import io.druid.query.filter.DimFilter;
 import io.druid.query.spec.QuerySegmentSpec;
 
@@ -44,10 +41,8 @@ import java.util.Set;
 
 /**
  */
-public class JoinQuery<T extends Comparable<T>> extends BaseQuery<T>
+public class JoinQuery<T extends Comparable<T>> extends BaseQuery<T> implements Query.RewritingQuery<T>
 {
-  private static final Logger log = new Logger(JoinQuery.class);
-
   private final JoinType joinType;
   private final List<JoinElement> elements;
   private final int numPartition;
@@ -205,6 +200,7 @@ public class JoinQuery<T extends Comparable<T>> extends BaseQuery<T>
     throw new IllegalStateException();
   }
 
+  @Override
   @SuppressWarnings("unchecked")
   public Query rewriteQuery(QuerySegmentWalker segmentWalker, ObjectMapper jsonMapper)
   {
@@ -229,7 +225,7 @@ public class JoinQuery<T extends Comparable<T>> extends BaseQuery<T>
     Map<String, Object> joinContext = computeOverridenContext(joinProcessor);
 
     QuerySegmentSpec segmentSpec = getQuerySegmentSpec();
-    if (partitions == null) {
+    if (partitions == null || partitions.size() == 1) {
       return new JoinDelegate(Arrays.asList(lhs.toQuery(segmentSpec), rhs.toQuery(segmentSpec)), limit, joinContext);
     }
     List<Query> queries = Lists.newArrayList();
@@ -271,51 +267,14 @@ public class JoinQuery<T extends Comparable<T>> extends BaseQuery<T>
       String expression
   )
   {
-    // default.. regard skewed
-    Object postProc = ImmutableMap.<String, Object>of(
-        "type", "sketch.quantiles",
-        "op", "QUANTILES",
-        "evenSpaced", numPartition > 0 ? numPartition + 1 : -1,
-        "evenCounted", scannerLen > 0 ? scannerLen : -1
+    return QueryUtils.runSketchQuery(
+        segmentWalker,
+        jsonMapper, getQuerySegmentSpec(), filter,
+        table,
+        expression,
+        numPartition,
+        scannerLen
     );
-
-    Query.DimFilterSupport query = (DimFilterSupport) Queries.toQuery(
-        ImmutableMap.<String, Object>builder()
-                    .put("queryType", "sketch")
-                    .put("dataSource", table)
-                    .put("intervals", getQuerySegmentSpec())
-                    .put("dimensions", Arrays.asList(expression))
-                    .put("sketchOp", "QUANTILE")
-                    .put("context", ImmutableMap.of("postProcessing", postProc))
-                    .build(), jsonMapper);
-
-    if (query == null) {
-      return null;
-    }
-    if (filter != null) {
-      query = query.withDimFilter(filter);
-    }
-    log.info("Running sketch query on join partition key %s.%s", table, expression);
-    log.debug("Running.. %s", query);
-
-    @SuppressWarnings("unchecked")
-    final List<Result<Map<String, Object>>> res = Sequences.toList(
-        query.run(segmentWalker, Maps.newHashMap()), Lists.<Result<Map<String, Object>>>newArrayList()
-    );
-    if (!res.isEmpty()) {
-      String prev = null;
-      String[] splits = (String[])res.get(0).getValue().get(expression);
-      log.info("Partition keys.. %s", Arrays.toString(splits));
-      List<String> partitions = Lists.newArrayList();
-      for (String split : splits) {
-        if (prev == null || !prev.equals(split)) {
-          partitions.add(split);
-        }
-        prev = split;
-      }
-      return partitions;
-    }
-    return null;
   }
 
   @Override
@@ -352,33 +311,26 @@ public class JoinQuery<T extends Comparable<T>> extends BaseQuery<T>
     {
       return new Iterator<Pair<DimFilter, DimFilter>>()
       {
-        private int index = 1;
+        private final Iterator<DimFilter> left = QueryUtils.toFilters(leftExpression, partitions).iterator();
+        private final Iterator<DimFilter> right = QueryUtils.toFilters(rightExpression, partitions).iterator();
 
         @Override
         public boolean hasNext()
         {
-          return index < partitions.size();
+          return left.hasNext();
         }
 
         @Override
         public Pair<DimFilter, DimFilter> next()
         {
-          DimFilter left;
-          DimFilter right;
-          if (index == 1) {
-            left = BoundDimFilter.lt(leftExpression, partitions.get(index));
-            right = BoundDimFilter.lt(rightExpression, partitions.get(index));
-          } else if (index == partitions.size() - 1) {
-            left = BoundDimFilter.gte(leftExpression, partitions.get(index - 1));
-            right = BoundDimFilter.gte(rightExpression, partitions.get(index - 1));
-          } else {
-            left = BoundDimFilter.between(leftExpression, partitions.get(index - 1), partitions.get(index));
-            right = BoundDimFilter.between(rightExpression, partitions.get(index - 1), partitions.get(index));
-          }
-          index++;
-          return Pair.of(left, right);
+          return Pair.of(left.next(), right.next());
         }
       };
+    }
+
+    public int size()
+    {
+      return partitions.size();
     }
   }
 
