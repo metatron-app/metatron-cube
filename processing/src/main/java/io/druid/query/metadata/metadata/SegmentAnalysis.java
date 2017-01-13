@@ -78,6 +78,11 @@ public class SegmentAnalysis implements Comparable<SegmentAnalysis>
     this(id, interval, columns, size, 0L, numRows, -1L, aggregators, queryGranularity);
   }
 
+  public SegmentAnalysis(List<Interval> interval)
+  {
+    this("merged", interval, null, -1, -1, null, null);
+  }
+
   @JsonProperty
   public String getId()
   {

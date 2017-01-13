@@ -20,16 +20,24 @@
 package io.druid.query;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+import com.metamx.common.guava.Sequence;
 import com.metamx.common.guava.Sequences;
 import com.metamx.common.logger.Logger;
 import io.druid.query.filter.BoundDimFilter;
 import io.druid.query.filter.DimFilter;
+import io.druid.query.metadata.metadata.ColumnIncluderator;
+import io.druid.query.metadata.metadata.NoneColumnIncluderator;
+import io.druid.query.metadata.metadata.SegmentAnalysis;
+import io.druid.query.metadata.metadata.SegmentMetadataQuery;
 import io.druid.query.spec.QuerySegmentSpec;
+import org.joda.time.Interval;
 
 import java.util.Arrays;
+import java.util.EnumSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -97,6 +105,26 @@ public class QueryUtils
       return partitions;
     }
     return null;
+  }
+
+  public static List<Interval> analyzeInterval(QuerySegmentWalker segmentWalker, Query query)
+  {
+    SegmentMetadataQuery metaQuery = new SegmentMetadataQuery(
+        query.getDataSource(),
+        query.getQuerySegmentSpec(),
+        new NoneColumnIncluderator(),
+        false,
+        null,
+        EnumSet.of(SegmentMetadataQuery.AnalysisType.INTERVAL),
+        false,
+        false
+    );
+    @SuppressWarnings("unchecked")
+    final List<SegmentAnalysis> res = Sequences.toList(
+        metaQuery.run(segmentWalker, Maps.<String, Object>newHashMap()), Lists.<SegmentAnalysis>newArrayList()
+    );
+    Preconditions.checkArgument(res.size() == 1);
+    return res.get(0).getIntervals();
   }
 
   public static Iterable<DimFilter> toFilters(final String expression, final List<String> partitions)

@@ -57,9 +57,12 @@ public abstract class QueryGranularity
   {
     SECOND(1000),
     MINUTE(60 * 1000),
-    FIFTEEN_MINUTE(15 * 60 * 1000),
-    THIRTY_MINUTE(30 * 60 * 1000),
+    FIVE_MINUTE(5 * 60 * 1000), _5M(5 * 60 * 1000),
+    FIFTEEN_MINUTE(15 * 60 * 1000), _15M(15 * 60 * 1000),
+    THIRTY_MINUTE(30 * 60 * 1000), _30M(30 * 60 * 1000),
     HOUR(3600 * 1000),
+    SIX_HOUR(6 * 3600 * 1000), _6H(6 * 3600 * 1000),
+    TWELVE_HOUR(12 * 3600 * 1000), _12H(12 * 3600 * 1000),
     DAY(24 * 3600 * 1000);
 
     private final long millis;
@@ -70,7 +73,11 @@ public abstract class QueryGranularity
   private static long convertValue(Object o)
   {
     if (o instanceof String) {
-      return MillisIn.valueOf(((String) o).toUpperCase()).millis;
+      String string = (String) o;
+      if (string.length() > 0 && Character.isDigit(string.charAt(0))) {
+        string = "_" + string;
+      }
+      return MillisIn.valueOf(string.toUpperCase()).millis;
     } else if (o instanceof ReadableDuration) {
       return ((ReadableDuration) o).getMillis();
     } else if (o instanceof Number) {

@@ -47,6 +47,7 @@ import io.druid.cache.Cache;
 import io.druid.client.cache.CacheConfig;
 import io.druid.client.selector.QueryableDruidServer;
 import io.druid.client.selector.ServerSelector;
+import io.druid.common.utils.JodaUtils;
 import io.druid.concurrent.Execs;
 import io.druid.guice.annotations.BackgroundCaching;
 import io.druid.guice.annotations.Smile;
@@ -60,6 +61,8 @@ import io.druid.query.QueryToolChestWarehouse;
 import io.druid.query.Result;
 import io.druid.query.SegmentDescriptor;
 import io.druid.query.aggregation.MetricManipulatorFns;
+import io.druid.query.metadata.metadata.SegmentAnalysis;
+import io.druid.query.metadata.metadata.SegmentMetadataQuery;
 import io.druid.query.spec.MultipleSpecificSegmentSpec;
 import io.druid.server.coordination.DruidServerMetadata;
 import io.druid.timeline.DataSegment;
@@ -68,8 +71,10 @@ import io.druid.timeline.TimelineObjectHolder;
 import io.druid.timeline.partition.PartitionChunk;
 import org.joda.time.Interval;
 
+import javax.annotation.Nullable;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -218,6 +223,31 @@ public class CachingClusteredClient<T> implements QueryRunner<T>
     // Let tool chest filter out unneeded segments
     final List<TimelineObjectHolder<String, ServerSelector>> filteredServersLookup =
         toolChest.filterSegments(query, serversLookup);
+
+    // minor quick-path
+    if (query instanceof SegmentMetadataQuery && ((SegmentMetadataQuery) query).analyzingOnlyInterval()) {
+      @SuppressWarnings("unchecked")
+      Sequence<T> sequence = (Sequence<T>) Sequences.simple(
+          Arrays.asList(
+              new SegmentAnalysis(
+                  JodaUtils.condenseIntervals(
+                      Iterables.transform(
+                          filteredServersLookup,
+                          new Function<TimelineObjectHolder<String, ServerSelector>, Interval>()
+                          {
+                            @Override
+                            public Interval apply(TimelineObjectHolder<String, ServerSelector> input)
+                            {
+                              return input.getInterval();
+                            }
+                          }
+                      )
+                  )
+              )
+          )
+      );
+      return sequence;
+    }
 
     for (TimelineObjectHolder<String, ServerSelector> holder : filteredServersLookup) {
       for (PartitionChunk<ServerSelector> chunk : holder.getObject()) {

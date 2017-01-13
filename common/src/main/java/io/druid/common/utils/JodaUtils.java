@@ -156,6 +156,23 @@ public class JodaUtils
 
   }
 
+  public static Interval trim(Interval i, Iterable<Interval> intervals)
+  {
+    if (!overlaps(i, intervals)) {
+      return null;
+    }
+    Interval current = i;
+    for (Interval interval : intervals) {
+      if (interval.overlaps(current)) {
+        current = new Interval(
+            Math.max(current.getStartMillis(), interval.getStartMillis()),
+            Math.min(current.getEndMillis(), interval.getEndMillis())
+        );
+      }
+    }
+    return current.getStartMillis() == current.getEndMillis() ? null : current;
+  }
+
   public static DateTime minDateTime(DateTime... times)
   {
     if (times == null) {

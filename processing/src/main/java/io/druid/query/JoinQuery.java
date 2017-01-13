@@ -298,7 +298,9 @@ public class JoinQuery<T extends Comparable<T>> extends BaseQuery<T> implements 
   {
     return QueryUtils.runSketchQuery(
         segmentWalker,
-        jsonMapper, getQuerySegmentSpec(), filter,
+        jsonMapper,
+        getQuerySegmentSpec(),
+        filter,
         table,
         expression,
         numPartition,

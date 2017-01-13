@@ -24,7 +24,10 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
+import com.google.common.math.IntMath;
+import io.druid.common.utils.JodaUtils;
 import io.druid.data.input.Row;
+import io.druid.granularity.QueryGranularities;
 import io.druid.granularity.QueryGranularity;
 import io.druid.query.DataSource;
 import io.druid.query.Query;
@@ -40,9 +43,13 @@ import io.druid.query.filter.AndDimFilter;
 import io.druid.query.filter.DimFilter;
 import io.druid.query.groupby.having.HavingSpec;
 import io.druid.query.groupby.orderby.DefaultLimitSpec;
+import io.druid.query.spec.MultipleIntervalSegmentSpec;
 import io.druid.query.spec.QuerySegmentSpec;
 import io.druid.segment.VirtualColumn;
+import org.joda.time.Interval;
 
+import java.math.RoundingMode;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 
@@ -98,6 +105,10 @@ public class PartitionedGroupByQuery extends GroupByQuery implements Query.Rewri
     Preconditions.checkArgument(
         numPartition > 0 || scannerLen > 0, "one of 'numPartition' or 'scannerLen' should be configured"
     );
+    Preconditions.checkArgument(
+        getGranularity() == QueryGranularities.ALL || numPartition > 0,
+        "if 'granularity' is not 'ALL', only 'numPartition' can be applicable"
+    );
     this.limit = limit;
     this.numPartition = numPartition;
     this.scannerLen = scannerLen;
@@ -127,6 +138,51 @@ public class PartitionedGroupByQuery extends GroupByQuery implements Query.Rewri
   @SuppressWarnings("unchecked")
   public Query rewriteQuery(QuerySegmentWalker segmentWalker, ObjectMapper jsonMapper)
   {
+    if (numPartition == 1) {
+      return asGroupByQuery(null, null);
+    }
+    QueryGranularity granularity = getGranularity();
+    if (granularity == QueryGranularities.ALL) {
+      return splitOnDimension(null, numPartition, segmentWalker, jsonMapper);
+    }
+    // split first on time.. only possible to use numPartition
+    Preconditions.checkArgument(numPartition > 1);
+
+    // get real interval.. executed in local (see CCC)
+    List<Interval> analyzed = QueryUtils.analyzeInterval(segmentWalker, this);
+    List<Interval> splits = Lists.newArrayList();
+    for (Interval interval : getQuerySegmentSpec().getIntervals()) {
+      Interval trimmed = JodaUtils.trim(interval, analyzed);
+      if (trimmed != null) {
+        Iterables.addAll(splits, QueryGranularities.split(trimmed, granularity));
+      }
+    }
+    List<Query> queries = Lists.newArrayList();
+    if (splits.size() < numPartition / 2) {
+      // split more on dimension
+      int numSubPartition = numPartition / splits.size();
+      for (Interval interval : splits) {
+        queries.add(splitOnDimension(Arrays.asList(interval), numSubPartition, segmentWalker, jsonMapper));
+      }
+    } else {
+      // just split on time
+      RoundingMode mode = splits.size() < numPartition ? RoundingMode.FLOOR : RoundingMode.CEILING;
+      int partitionSize = IntMath.divide(splits.size(), numPartition, mode);
+      for (List<Interval> partition : Lists.partition(splits, partitionSize)) {
+        queries.add(asGroupByQuery(partition, null));
+      }
+    }
+    return new UnionAllQuery(null, queries, false, limit, parallelism, queue, getContext());
+  }
+
+  @SuppressWarnings("unchecked")
+  private Query splitOnDimension(
+      List<Interval> intervals,
+      int numPartition,
+      QuerySegmentWalker segmentWalker,
+      ObjectMapper jsonMapper
+  )
+  {
     String table = Iterables.getOnlyElement(getDataSource().getNames());
     DimensionSpec dimensionSpec = getDimensions().get(0);
     String expression = dimensionSpec.getDimension();
@@ -138,21 +194,21 @@ public class PartitionedGroupByQuery extends GroupByQuery implements Query.Rewri
         table, expression, numPartition, scannerLen
     );
     if (partitions == null || partitions.size() == 1) {
-      return asGroupByQuery(null);
+      return asGroupByQuery(intervals, null);
     }
     List<Query> queries = Lists.newArrayList();
     for (DimFilter filter : QueryUtils.toFilters(expression, partitions)) {
-      queries.add(asGroupByQuery(filter));
+      queries.add(asGroupByQuery(intervals, filter));
     }
     return new UnionAllQuery(null, queries, false, limit, parallelism, queue, getContext());
   }
 
-  private GroupByQuery asGroupByQuery(DimFilter filter)
+  private GroupByQuery asGroupByQuery(List<Interval> interval, DimFilter filter)
   {
     DimFilter current = getDimFilter();
     return new GroupByQuery(
         getDataSource(),
-        getQuerySegmentSpec(),
+        interval == null ? getQuerySegmentSpec() : new MultipleIntervalSegmentSpec(interval),
         filter == null ? current : current != null ? AndDimFilter.of(current, filter) : filter,
         getGranularity(),
         getDimensions(),

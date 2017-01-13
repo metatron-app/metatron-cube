@@ -174,11 +174,15 @@ public class SegmentMetadataQuery extends BaseQuery<SegmentAnalysis>
     return lenientAggregatorMerge;
   }
 
+  public boolean analyzingOnlyInterval()
+  {
+    return analysisTypes.size() == 1 && analysisTypes.contains(AnalysisType.INTERVAL);
+  }
+
   public boolean analyzingInterval()
   {
     return analysisTypes.contains(AnalysisType.INTERVAL);
   }
-
   public boolean hasAggregators()
   {
     return analysisTypes.contains(AnalysisType.AGGREGATORS);

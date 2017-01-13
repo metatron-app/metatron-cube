@@ -20,9 +20,12 @@
 package io.druid.granularity;
 
 import com.google.common.collect.ImmutableMap;
+import org.joda.time.Interval;
 import org.joda.time.Period;
 
+import java.util.Iterator;
 import java.util.Map;
+import java.util.NoSuchElementException;
 
 public class QueryGranularities
 {
@@ -42,4 +45,43 @@ public class QueryGranularities
   public static final QueryGranularity MONTH = QueryGranularity.fromString("MONTH");
   public static final QueryGranularity QUARTER = QueryGranularity.fromString("QUARTER");
   public static final QueryGranularity YEAR = QueryGranularity.fromString("YEAR");
+
+  public static Iterable<Interval> split(final Interval interval, final QueryGranularity granularity)
+  {
+    return new Iterable<Interval>()
+    {
+      @Override
+      public Iterator<Interval> iterator()
+      {
+        return new Iterator<Interval>()
+        {
+          long curr = granularity.truncate(interval.getStartMillis());
+
+          @Override
+          public boolean hasNext()
+          {
+            return curr < interval.getEndMillis();
+          }
+
+          @Override
+          public Interval next()
+          {
+            if (!hasNext()) {
+              throw new NoSuchElementException();
+            }
+            return new Interval(
+                Math.max(interval.getStartMillis(), curr),
+                Math.min(interval.getEndMillis(), curr = granularity.next(curr))
+            );
+          }
+
+          @Override
+          public void remove()
+          {
+            throw new UnsupportedOperationException();
+          }
+        };
+      }
+    };
+  }
 }
