@@ -194,8 +194,9 @@ public class HdfsDataSegmentPusher implements DataSegmentPusher, ResultWriter
       throws IOException
   {
     String format = Objects.toString(context.get("format"), null);
-    if (format.equals("orc")) {
-      return Formatters.wrapToExporter(new OrcFormatter(dataFile, Objects.toString(context.get("schema"), null)));
+    if ("orc".equals(format)) {
+      String schema = Objects.toString(context.get("schema"), null);
+      return Formatters.wrapToExporter(new OrcFormatter(dataFile, mapper, schema));
     }
     return Formatters.toBasicExporter(context, mapper, new HdfsOutputStreamSupplier(fs, dataFile));
   }

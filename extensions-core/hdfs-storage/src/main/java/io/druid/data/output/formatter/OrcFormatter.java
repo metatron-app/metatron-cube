@@ -19,6 +19,8 @@
 
 package io.druid.data.output.formatter;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.Lists;
 import com.metamx.common.StringUtils;
 import com.metamx.common.logger.Logger;
@@ -47,14 +49,16 @@ public class OrcFormatter implements Formatter
 {
   private static final Logger log = new Logger(OrcFormatter.class);
 
+  private final ObjectMapper mapper;
   private final List<String> columnNames;
   private final List<TypeDescription> columnTypes;
 
   private final Writer writer;
   private final VectorizedRowBatch batch;
 
-  public OrcFormatter(Path path, String typeString) throws IOException
+  public OrcFormatter(Path path, ObjectMapper mapper, String typeString) throws IOException
   {
+    this.mapper = mapper;
     columnNames = Lists.newArrayList();
     StringBuilder builder = new StringBuilder();
     builder.append("struct<");
@@ -103,6 +107,7 @@ public class OrcFormatter implements Formatter
   }
 
   private void setColumn(int rowId, Object object, ColumnVector vector, TypeDescription column)
+      throws JsonProcessingException
   {
     if (object == null) {
       vector.isNull[rowId] = true;
@@ -122,6 +127,10 @@ public class OrcFormatter implements Formatter
         break;
       case STRING:
         ((BytesColumnVector) vector).setVal(rowId, StringUtils.toUtf8(object.toString()));
+        break;
+      case BINARY:
+        byte[] b = object instanceof byte[] ? (byte[])object : mapper.writeValueAsBytes(object);
+        ((BytesColumnVector) vector).setVal(rowId, b, 1, b.length - 1);
         break;
       case LIST:
         ListColumnVector list = (ListColumnVector) vector;

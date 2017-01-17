@@ -271,7 +271,7 @@ public class Formatters
     boolean header = parseBoolean(context.get("withHeader"), false);
     String nullValue = Objects.toString(context.get("nullValue"), null);
 
-    return new Formatter.XSVFormatter(output.openBufferedStream(), separator, nullValue, columns, header);
+    return new Formatter.XSVFormatter(output.openBufferedStream(), jsonMapper, separator, nullValue, columns, header);
   }
 
   private static boolean isNullOrEmpty(String string)

@@ -19,6 +19,7 @@
 
 package io.druid.data.output;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.Maps;
 
@@ -41,25 +42,29 @@ public interface Formatter extends Closeable
   {
     private final String separator;
     private final String nullValue;
-    private final String[] dimensions;
+    private final String[] columns;
     private final boolean header;
 
     private final OutputStream output;
+    private final ObjectMapper mapper;
 
     private final StringBuilder builder = new StringBuilder();
     private boolean firstLine;
 
-    public XSVFormatter(OutputStream output, String separator)
-    {
-      this(output, separator, null, null, false);
-    }
-
-    public XSVFormatter(OutputStream output, String separator, String nullValue, String[] dimensions, boolean header)
+    public XSVFormatter(
+        OutputStream output,
+        ObjectMapper mapper,
+        String separator,
+        String nullValue,
+        String[] columns,
+        boolean header
+    )
     {
       this.separator = separator == null ? "," : separator;
       this.nullValue = nullValue == null ? "NULL" : nullValue;
-      this.dimensions = dimensions;
+      this.columns = columns;
       this.output = output;
+      this.mapper = mapper;
       this.header = header;
       firstLine = true;
     }
@@ -68,30 +73,44 @@ public interface Formatter extends Closeable
     public void write(Map<String, Object> datum) throws IOException
     {
       if (firstLine && header) {
-        writeHeader(dimensions == null ? datum.keySet() : Arrays.asList(dimensions));
+        writeHeader(columns == null ? datum.keySet() : Arrays.asList(columns));
       }
       builder.setLength(0);
 
-      if (dimensions == null) {
+      if (columns == null) {
+        boolean first = true;
         for (Object value : datum.values()) {
-          if (builder.length() > 0) {
-            builder.append(separator);
-          }
-          builder.append(value == null ? nullValue : String.valueOf(value));
+          appendObject(value, first);
+          first = false;
         }
       } else {
-        for (String dimension : dimensions) {
-          Object value = datum.get(dimension);
-          if (builder.length() > 0) {
-            builder.append(separator);
-          }
-          builder.append(value == null ? nullValue : String.valueOf(value));
+        boolean first = true;
+        for (String dimension : columns) {
+          appendObject(datum.get(dimension), first);
+          first = false;
         }
       }
       if (builder.length() > 0) {
         builder.append(NEW_LINE);
         output.write(builder.toString().getBytes());
         firstLine = false;
+      }
+    }
+
+    private void appendObject(Object value, boolean first) throws JsonProcessingException
+    {
+      if (!first) {
+        builder.append(separator);
+      }
+      if (value == null) {
+        builder.append(nullValue);
+      } else if (value instanceof String) {
+        builder.append((String)value);
+      } else if (value instanceof Number) {
+        builder.append(String.valueOf(value));
+      } else {
+        final String str = mapper.writeValueAsString(value);
+        builder.append(str.substring(1, str.length() - 1));   // strip quotation
       }
     }
 
