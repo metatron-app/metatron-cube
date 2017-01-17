@@ -1182,6 +1182,7 @@ public class TaskLifecycleTest
         taskId,
         new TaskResource(taskId, 1),
         fireDepartment,
+        null,
         null
     );
   }

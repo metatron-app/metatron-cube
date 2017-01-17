@@ -19,7 +19,6 @@
 
 package io.druid.server;
 
-import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Function;
 import com.google.common.base.Supplier;
@@ -41,6 +40,7 @@ import io.druid.query.AbstractPrioritizedCallable;
 import io.druid.query.BaseQuery;
 import io.druid.query.FluentQueryRunnerBuilder;
 import io.druid.query.PostProcessingOperator;
+import io.druid.query.PostProcessingOperators;
 import io.druid.query.Query;
 import io.druid.query.QueryRunner;
 import io.druid.query.QuerySegmentWalker;
@@ -110,9 +110,9 @@ public class ClientQuerySegmentWalker implements QuerySegmentWalker
 
     QueryRunner<T> runner;
     if (query instanceof UnionAllQuery) {
-      runner = getUnionQueryRunner((UnionAllQuery) query);
+      runner = getUnionQueryRunner((UnionAllQuery) query, objectMapper);
     } else {
-      final PostProcessingOperator<T> postProcessing = getPostProcessingOperator(query);
+      final PostProcessingOperator<T> postProcessing = PostProcessingOperators.load(query, objectMapper);
       FluentQueryRunnerBuilder<T> builder = new FluentQueryRunnerBuilder<>(toolChest);
       runner = builder.create(new RetryQueryRunner<>(baseClient, toolChest, retryConfig, objectMapper))
                       .applyPreMergeDecoration()
@@ -124,11 +124,14 @@ public class ClientQuerySegmentWalker implements QuerySegmentWalker
     return runner;
   }
 
-  private <T extends Comparable<T>> QueryRunner<T> getUnionQueryRunner(final UnionAllQuery<T> union)
+  private <T extends Comparable<T>> QueryRunner<T> getUnionQueryRunner(
+      final UnionAllQuery<T> union,
+      final ObjectMapper mapper
+  )
   {
     final String queryId = union.getId();
     final boolean sortOnUnion = union.isSortOnUnion();
-    final PostProcessingOperator<T> postProcessing = getPostProcessingOperator(union);
+    final PostProcessingOperator<T> postProcessing = PostProcessingOperators.load(union, mapper);
 
     final List<Query<T>> ready = toTargetQueries(union, queryId);
     final UnionAllQueryRunner<T> baseRunner;
@@ -283,15 +286,5 @@ public class ClientQuerySegmentWalker implements QuerySegmentWalker
       );
     }
     return ready;
-  }
-
-  private <T> PostProcessingOperator<T> getPostProcessingOperator(Query<T> query)
-  {
-    return objectMapper.convertValue(
-        query.<String>getContextValue("postProcessing"),
-        new TypeReference<PostProcessingOperator<T>>()
-        {
-        }
-    );
   }
 }

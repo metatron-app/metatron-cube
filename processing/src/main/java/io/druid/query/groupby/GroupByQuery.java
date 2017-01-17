@@ -34,6 +34,7 @@ import io.druid.data.input.Row;
 import io.druid.granularity.QueryGranularity;
 import io.druid.query.BaseQuery;
 import io.druid.query.DataSource;
+import io.druid.query.LateralViewSpec;
 import io.druid.query.Queries;
 import io.druid.query.Query;
 import io.druid.query.QueryDataSource;
@@ -43,7 +44,6 @@ import io.druid.query.aggregation.PostAggregator;
 import io.druid.query.dimension.DefaultDimensionSpec;
 import io.druid.query.dimension.DimensionSpec;
 import io.druid.query.filter.DimFilter;
-import io.druid.query.LateralViewSpec;
 import io.druid.query.groupby.having.HavingSpec;
 import io.druid.query.groupby.orderby.DefaultLimitSpec;
 import io.druid.query.groupby.orderby.LimitSpec;
@@ -728,6 +728,7 @@ public class GroupByQuery extends BaseQuery<Row> implements Query.DimFilterSuppo
            ", havingSpec=" + havingSpec +
            ", outputColumns=" + outputColumns +
            ", explodeSpec=" + lateralView +
+           toString(POST_PROCESSING, FORWARD_URL, FORWARD_CONTEXT) +
            '}';
   }
 

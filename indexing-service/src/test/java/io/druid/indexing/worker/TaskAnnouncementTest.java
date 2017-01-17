@@ -75,6 +75,7 @@ public class TaskAnnouncementTest
             ),
             null
         ),
+        null,
         null
     );
     final TaskStatus status = TaskStatus.running(task.getId());

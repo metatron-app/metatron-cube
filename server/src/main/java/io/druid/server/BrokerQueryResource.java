@@ -21,24 +21,20 @@ package io.druid.server;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.jaxrs.smile.SmileMediaTypes;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
 import com.google.inject.Inject;
-import com.metamx.common.guava.Sequence;
-import com.metamx.common.guava.Sequences;
 import com.metamx.emitter.service.ServiceEmitter;
 import io.druid.client.TimelineServerView;
 import io.druid.client.coordinator.CoordinatorClient;
 import io.druid.client.selector.ServerSelector;
 import io.druid.common.utils.JodaUtils;
-import io.druid.common.utils.PropUtils;
-import io.druid.common.utils.StringUtils;
-import io.druid.guice.LocalDataStorageDruidModule;
 import io.druid.guice.annotations.Json;
 import io.druid.guice.annotations.Self;
 import io.druid.guice.annotations.Smile;
 import io.druid.query.BaseQuery;
 import io.druid.query.DataSource;
-import io.druid.query.JoinQuery;
 import io.druid.query.LocatedSegmentDescriptor;
 import io.druid.query.Query;
 import io.druid.query.QueryDataSource;
@@ -48,9 +44,10 @@ import io.druid.query.RegexDataSource;
 import io.druid.query.ResultWriter;
 import io.druid.query.SegmentDescriptor;
 import io.druid.query.TableDataSource;
-import io.druid.query.TabularFormat;
 import io.druid.query.UnionAllQuery;
 import io.druid.query.UnionDataSource;
+import io.druid.query.select.SelectForwardQuery;
+import io.druid.query.select.SelectQuery;
 import io.druid.server.coordination.DruidServerMetadata;
 import io.druid.server.initialization.ServerConfig;
 import io.druid.server.log.RequestLogger;
@@ -73,8 +70,6 @@ import javax.ws.rs.core.Response;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URI;
-import java.net.URISyntaxException;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -84,36 +79,41 @@ import java.util.Map;
 @Path("/druid/v2/")
 public class BrokerQueryResource extends QueryResource
 {
-  private final DruidNode node;
   private final CoordinatorClient coordinator;
   private final TimelineServerView brokerServerView;
-  private final QueryToolChestWarehouse warehouse;
-  private final Map<String, ResultWriter> writerMap;
 
   @Inject
   public BrokerQueryResource(
       ServerConfig config,
       @Json ObjectMapper jsonMapper,
       @Smile ObjectMapper smileMapper,
-      @Self DruidNode node,
       QuerySegmentWalker texasRanger,
-      QueryToolChestWarehouse warehouse,
       ServiceEmitter emitter,
       RequestLogger requestLogger,
       QueryManager queryManager,
       AuthConfig authConfig,
-      Map<String, ResultWriter> writerMap,
       CoordinatorClient coordinator,
-      TimelineServerView brokerServerView
+      TimelineServerView brokerServerView,
+      @Self DruidNode node,
+      QueryToolChestWarehouse warehouse,
+      Map<String, ResultWriter> writerMap
   )
   {
-    super(config, jsonMapper, smileMapper, texasRanger, emitter, requestLogger, queryManager, authConfig);
-    this.node = node;
+    super(
+        config,
+        jsonMapper,
+        smileMapper,
+        texasRanger,
+        emitter,
+        requestLogger,
+        queryManager,
+        authConfig,
+        node,
+        warehouse,
+        writerMap
+    );
     this.coordinator = coordinator;
     this.brokerServerView = brokerServerView;
-    this.warehouse = warehouse;
-    this.writerMap = writerMap;
-    log.info("Supporting writer schemes.. " + writerMap.keySet());
   }
 
   @POST
@@ -186,80 +186,44 @@ public class BrokerQueryResource extends QueryResource
     return located;
   }
 
-  @Override @SuppressWarnings("unchecked")
-  protected Sequence toDispatchSequence(Query query, final Sequence res) throws IOException
+  @Override
+  @SuppressWarnings("unchecked")
+  protected Query prepareQuery(Query query) throws Exception
   {
-    String forwardURL = BaseQuery.getResultForwardURL(query);
-    if (forwardURL != null && !StringUtils.isNullOrEmpty(forwardURL)) {
-      URI uri;
-      try {
-        uri = new URI(forwardURL);
-        String scheme = uri.getScheme() == null ? ResultWriter.FILE_SCHEME : uri.getScheme();
-        if (scheme.equals(ResultWriter.FILE_SCHEME) || scheme.equals(LocalDataStorageDruidModule.SCHEME)) {
-          uri = rewriteURI(uri, scheme, node);
-        }
-      }
-      catch (URISyntaxException e) {
-        log.warn("Invalid uri `" + forwardURL + "`", e);
-        return Sequences.empty();
-      }
-
-      ResultWriter writer = writerMap.get(uri.getScheme());
-      if (writer == null) {
-        log.warn("Unsupported scheme `" + uri.getScheme() + "`");
-        return Sequences.empty();
-      }
-      Map forwardContext = BaseQuery.getResultForwardContext(query);
-
-      String timestampColumn = PropUtils.parseString(forwardContext, "timestampColumn", null);
-
-      TabularFormat result;
-      // union-all does not have toolchest. delegate it to inner query
-      final Query representative = BaseQuery.getRepresentative(query);
-      if (representative instanceof JoinQuery.JoinDelegate) {
-        // already converted to tabular format
-        result = new TabularFormat()
-        {
-          @Override
-          public Sequence<Map<String, Object>> getSequence() { return res; }
-
-          @Override
-          public Map<String, Object> getMetaData() { return null; }
-        };
-      } else {
-        result = warehouse.getToolChest(representative).toTabularFormat(res, timestampColumn);
-      }
-      Map<String, Object> info = writer.write(uri, result, forwardContext);
-
-      return Sequences.simple(Arrays.asList(info));
-    }
-
-    return super.toDispatchSequence(query, res);
-  }
-
-  private URI rewriteURI(URI uri, String scheme, DruidNode node) throws URISyntaxException
-  {
-    return new URI(
-        scheme,
-        uri.getUserInfo(),
-        node.getHost(),
-        node.getPort(),
-        uri.getPath(),
-        uri.getQuery(),
-        uri.getFragment()
-    );
-  }
-
-  @Override @SuppressWarnings("unchecked")
-  protected Query prepareQuery(Query query)
-  {
-    if (query instanceof Query.RewritingQuery) {
-      query = ((Query.RewritingQuery)query).rewriteQuery(texasRanger, jsonMapper);
-      log.info("Base query is rewritten to " + query);
-    }
+    query = super.prepareQuery(query);
     query = rewriteDataSources(query);
-    if (BaseQuery.rewriteQuery(query, false)) {
-      query = warehouse.getToolChest(query).rewriteQuery(query, texasRanger);
+    if (BaseQuery.optimizeQuery(query, false)) {
+      query = warehouse.getToolChest(query).optimizeQuery(query, texasRanger);
+    }
+    if (BaseQuery.isParallelForwarding(query)) {
+      // todo support partitioned group-by or join queries
+      if (!(query instanceof SelectQuery)) {
+        throw new IllegalArgumentException("parallel forwarding is supported only for select query, for now");
+      }
+      if (BaseQuery.getContextBySegment(query, false)) {
+        throw new IllegalArgumentException("parallel forwarding cannot be used with 'bySegment'");
+      }
+      URI uri = new URI(BaseQuery.getResultForwardURL(query));
+      if (!"hdfs".equals(uri.getScheme())) {
+        throw new IllegalArgumentException("parallel forwarding is supported only for hdfs, for now");
+      }
+      // make a copy
+      Map<String, Object> context = Maps.newHashMap(query.getContext());
+
+      Map<String, Object> forwardContext = BaseQuery.getResultForwardContext(query);
+      forwardContext.put(Query.FORWARD_PARALLEL, false);
+      forwardContext.put(Query.FORWARD_PREFIX_LOCATION, true);
+
+      query = query.withOverriddenContext(
+          ImmutableMap.of(
+              Query.FINALIZE, true,
+              Query.FORWARD_CONTEXT, forwardContext
+          )
+      );
+      // disable forwarding for self
+      context.remove(Query.FORWARD_URL);
+      context.remove(Query.FORWARD_CONTEXT);
+      query = new SelectForwardQuery((SelectQuery) query, context);
     }
     return query;
   }

@@ -471,6 +471,7 @@ public class KafkaSupervisorTest extends EasyMockSupport
                                           new RealtimeIOConfig(null, null, null),
                                           null
                                       ),
+                                      null,
                                       null
     );
 

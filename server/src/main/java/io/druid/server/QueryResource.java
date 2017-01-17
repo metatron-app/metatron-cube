@@ -23,11 +23,13 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.ObjectWriter;
 import com.fasterxml.jackson.jaxrs.smile.SmileMediaTypes;
 import com.google.common.base.Preconditions;
+import com.google.common.base.Strings;
 import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.MapMaker;
 import com.google.common.io.CountingOutputStream;
 import com.google.inject.Inject;
+import com.metamx.common.IAE;
 import com.metamx.common.ISE;
 import com.metamx.common.guava.Sequence;
 import com.metamx.common.guava.Sequences;
@@ -35,14 +37,23 @@ import com.metamx.common.guava.Yielder;
 import com.metamx.common.guava.YieldingAccumulator;
 import com.metamx.emitter.EmittingLogger;
 import com.metamx.emitter.service.ServiceEmitter;
+import io.druid.common.utils.PropUtils;
+import io.druid.guice.LocalDataStorageDruidModule;
 import io.druid.guice.annotations.Json;
+import io.druid.guice.annotations.Self;
 import io.druid.guice.annotations.Smile;
 import io.druid.jackson.JodaStuff;
+import io.druid.query.BaseQuery;
 import io.druid.query.DruidMetrics;
+import io.druid.query.JoinQuery;
 import io.druid.query.Query;
 import io.druid.query.QueryContextKeys;
 import io.druid.query.QueryInterruptedException;
+import io.druid.query.QueryRunner;
 import io.druid.query.QuerySegmentWalker;
+import io.druid.query.QueryToolChestWarehouse;
+import io.druid.query.ResultWriter;
+import io.druid.query.TabularFormat;
 import io.druid.server.initialization.ServerConfig;
 import io.druid.server.log.RequestLogger;
 import io.druid.server.security.Access;
@@ -69,6 +80,9 @@ import javax.ws.rs.core.StreamingOutput;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.net.URI;
+import java.net.URISyntaxException;
+import java.util.Arrays;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
@@ -95,26 +109,44 @@ public class QueryResource
   protected final QueryManager queryManager;
   protected final AuthConfig authConfig;
 
+  protected final DruidNode node;
+  protected final QueryToolChestWarehouse warehouse;
+  protected final Map<String, ResultWriter> writerMap;
+
   @Inject
   public QueryResource(
       ServerConfig config,
       @Json ObjectMapper jsonMapper,
       @Smile ObjectMapper smileMapper,
-      QuerySegmentWalker texasRanger,
+      final QuerySegmentWalker texasRanger,
       ServiceEmitter emitter,
       RequestLogger requestLogger,
       QueryManager queryManager,
-      AuthConfig authConfig
+      AuthConfig authConfig,
+      @Self DruidNode node,
+      QueryToolChestWarehouse warehouse,
+      Map<String, ResultWriter> writerMap
   )
   {
     this.config = config;
     this.jsonMapper = jsonMapper;
     this.smileMapper = smileMapper;
-    this.texasRanger = texasRanger;
     this.emitter = emitter;
     this.requestLogger = requestLogger;
     this.queryManager = queryManager;
     this.authConfig = authConfig;
+    this.node = node;
+    this.warehouse = warehouse;
+    this.writerMap = writerMap;
+    this.texasRanger = new QuerySegmentWalker.Wrapper(texasRanger)
+    {
+      @Override
+      @SuppressWarnings("unchecked")
+      protected <T> QueryRunner<T> wrap(Query<T> query, QueryRunner<T> runner) throws Exception
+      {
+        return wrapForward(query, runner);
+      }
+    };
   }
 
   @DELETE
@@ -211,10 +243,9 @@ public class QueryResource
         }
       }
 
+      // concurrent hashmap
       final Map<String, Object> responseContext = new MapMaker().makeMap();
-      final Sequence res = query.run(texasRanger, responseContext);
-
-      final Sequence results = toDispatchSequence(query, res);
+      final Sequence results = query.run(texasRanger, responseContext);
 
       final Yielder yielder = results.toYielder(
           null,
@@ -384,8 +415,12 @@ public class QueryResource
     }
   }
 
-  protected Query prepareQuery(Query query)
+  protected Query prepareQuery(Query query) throws Exception
   {
+    if (query instanceof Query.RewritingQuery) {
+      query = ((Query.RewritingQuery) query).rewriteQuery(texasRanger, jsonMapper);
+      log.info("Base query is rewritten to " + query);
+    }
     return query;
   }
 
@@ -434,13 +469,101 @@ public class QueryResource
     {
       return Response.serverError()
                      .type(contentType)
-                     .entity(getOutputWriter().writeValueAsBytes(QueryInterruptedException.wrapIfNeeded(e)))
+                     .entity(
+                         getOutputWriter().writeValueAsBytes(
+                             QueryInterruptedException.wrapIfNeeded(e, node.getHostAndPort())
+                         )
+                     )
                      .build();
     }
   }
 
-  protected Sequence toDispatchSequence(Query query, Sequence res) throws IOException
+  @SuppressWarnings("unchecked")
+  private <T> QueryRunner wrapForward(final Query<T> query, final QueryRunner<T> baseRunner) throws Exception
   {
-    return res == null ? Sequences.empty() : res;
+    final URI uri = getForwardURI(query);
+    if (uri == null) {
+      return baseRunner;
+    }
+    final String scheme = uri.getScheme() == null ? ResultWriter.FILE_SCHEME : uri.getScheme();
+
+    final ResultWriter writer = writerMap.get(uri.getScheme());
+    if (writer == null) {
+      log.warn("Unsupported scheme '" + uri.getScheme() + "'");
+      throw new IAE("Unsupported scheme '%s'", uri.getScheme());
+    }
+
+    final Map<String, Object> forwardContext = BaseQuery.getResultForwardContext(query);
+
+    return new QueryRunner()
+    {
+      @Override
+      public Sequence run(Query query, Map responseContext)
+      {
+        URI rewritten = uri;
+        try {
+          if (PropUtils.parseBoolean(forwardContext, Query.FORWARD_PREFIX_LOCATION)) {
+            rewritten = rewriteURI(uri, scheme, null, uri.getPath() + "/" + node.toPathName());
+          }
+          if (scheme.equals(ResultWriter.FILE_SCHEME) || scheme.equals(LocalDataStorageDruidModule.SCHEME)) {
+            rewritten = rewriteURI(uri, scheme, node, null);
+          }
+          // remove forward context for historical, etc.
+          Query queryToRun = query.withOverriddenContext(
+              ImmutableMap.of(Query.FORWARD_URL, "", Query.FORWARD_CONTEXT, "")
+          );
+          TabularFormat result = toTabularFormat(queryToRun, responseContext);
+          Map<String, Object> info = writer.write(rewritten, result, forwardContext);
+          return Sequences.simple(Arrays.asList(info));
+        }
+        catch (Exception e) {
+          throw Throwables.propagate(e);
+        }
+      }
+
+      private TabularFormat toTabularFormat(final Query query, final Map responseContext)
+      {
+        // union-all does not have toolchest. delegate it to inner query
+        Query representative = BaseQuery.getRepresentative(query);
+        if (representative instanceof JoinQuery.JoinDelegate) {
+          // already converted to tabular format
+          return new TabularFormat()
+          {
+            @Override
+            public Sequence getSequence() { return baseRunner.run(query, responseContext); }
+
+            @Override
+            public Map<String, Object> getMetaData() { return null; }
+          };
+        }
+        String timestampColumn = PropUtils.parseString(forwardContext, Query.FORWARD_TIMESTAMP_COLUMN);
+        return warehouse.getToolChest(representative).toTabularFormat(
+            baseRunner.run(query, responseContext),
+            timestampColumn
+        );
+      }
+    };
+  }
+
+  private static URI getForwardURI(Query query) throws URISyntaxException
+  {
+    String forwardURL = BaseQuery.getResultForwardURL(query);
+    if (!Strings.isNullOrEmpty(forwardURL)) {
+      return new URI(forwardURL);
+    }
+    return null;
+  }
+
+  private static URI rewriteURI(URI uri, String scheme, DruidNode node, String path) throws URISyntaxException
+  {
+    return new URI(
+        scheme,
+        uri.getUserInfo(),
+        node == null ? uri.getHost() : node.getHost(),
+        node == null ? uri.getPort() : node.getPort(),
+        path == null ? uri.getPath() : path,
+        uri.getQuery(),
+        uri.getFragment()
+    );
   }
 }

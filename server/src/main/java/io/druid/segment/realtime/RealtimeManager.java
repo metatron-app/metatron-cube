@@ -20,6 +20,7 @@
 package io.druid.segment.realtime;
 
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Function;
 import com.google.common.base.Supplier;
 import com.google.common.base.Throwables;
@@ -66,6 +67,7 @@ public class RealtimeManager implements QuerySegmentWalker
 
   private final List<FireDepartment> fireDepartments;
   private final QueryRunnerFactoryConglomerate conglomerate;
+  private final ObjectMapper objectMapper;
 
   /**
    * key=data source name,value=mappings of partition number to FireChief
@@ -75,11 +77,13 @@ public class RealtimeManager implements QuerySegmentWalker
   @Inject
   public RealtimeManager(
       List<FireDepartment> fireDepartments,
-      QueryRunnerFactoryConglomerate conglomerate
+      QueryRunnerFactoryConglomerate conglomerate,
+      ObjectMapper objectMapper
   )
   {
     this.fireDepartments = fireDepartments;
     this.conglomerate = conglomerate;
+    this.objectMapper = objectMapper;
 
     this.chiefs = Maps.newHashMap();
   }
@@ -87,11 +91,13 @@ public class RealtimeManager implements QuerySegmentWalker
   RealtimeManager(
       List<FireDepartment> fireDepartments,
       QueryRunnerFactoryConglomerate conglomerate,
+      ObjectMapper objectMapper,
       Map<String, Map<Integer, FireChief>> chiefs
   )
   {
     this.fireDepartments = fireDepartments;
     this.conglomerate = conglomerate;
+    this.objectMapper = objectMapper;
     this.chiefs = chiefs;
   }
 
@@ -101,7 +107,7 @@ public class RealtimeManager implements QuerySegmentWalker
     for (final FireDepartment fireDepartment : fireDepartments) {
       final DataSchema schema = fireDepartment.getDataSchema();
 
-      final FireChief chief = new FireChief(fireDepartment, conglomerate);
+      final FireChief chief = new FireChief(fireDepartment, conglomerate, objectMapper);
       Map<Integer, FireChief> partitionChiefs = chiefs.get(schema.getDataSource());
       if (partitionChiefs == null) {
         partitionChiefs = new HashMap<>();
@@ -209,16 +215,18 @@ public class RealtimeManager implements QuerySegmentWalker
     private final FireDepartmentMetrics metrics;
     private final RealtimeTuningConfig config;
     private final QueryRunnerFactoryConglomerate conglomerate;
+    private final ObjectMapper mapper;
 
     private volatile Firehose firehose = null;
     private volatile FirehoseV2 firehoseV2 = null;
     private volatile Plumber plumber = null;
     private volatile boolean normalExit = true;
 
-    public FireChief(FireDepartment fireDepartment, QueryRunnerFactoryConglomerate conglomerate)
+    public FireChief(FireDepartment fireDepartment, QueryRunnerFactoryConglomerate conglomerate, ObjectMapper mapper)
     {
       this.fireDepartment = fireDepartment;
       this.conglomerate = conglomerate;
+      this.mapper = mapper;
       this.config = fireDepartment.getTuningConfig();
       this.metrics = fireDepartment.getMetrics();
     }
@@ -384,7 +392,7 @@ public class RealtimeManager implements QuerySegmentWalker
       QueryRunnerFactory<T, Query<T>> factory = conglomerate.findFactory(query);
       QueryToolChest<T, Query<T>> toolChest = factory.getToolchest();
 
-      return new FinalizeResultsQueryRunner<T>(plumber.getQueryRunner(query), toolChest);
+      return FinalizeResultsQueryRunner.finalize(plumber.getQueryRunner(query), toolChest, mapper);
     }
 
     public void close() throws IOException

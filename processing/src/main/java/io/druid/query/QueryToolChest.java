@@ -177,7 +177,7 @@ public abstract class QueryToolChest<ResultType, QueryType extends Query<ResultT
     return segments;
   }
 
-  public QueryType rewriteQuery(QueryType query, QuerySegmentWalker walker)
+  public QueryType optimizeQuery(QueryType query, QuerySegmentWalker walker)
   {
     return query;
   }

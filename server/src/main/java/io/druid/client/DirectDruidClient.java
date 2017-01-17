@@ -133,6 +133,11 @@ public class DirectDruidClient<T> implements QueryRunner<T>
     return openConnections.get();
   }
 
+  public ObjectMapper getObjectMapper()
+  {
+    return objectMapper;
+  }
+
   @Override
   public Sequence<T> run(final Query<T> query, final Map<String, Object> context)
   {

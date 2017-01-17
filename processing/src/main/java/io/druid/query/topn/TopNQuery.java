@@ -345,6 +345,7 @@ public class TopNQuery extends BaseQuery<Result<TopNResultValue>>
            ", aggregatorSpecs=" + aggregatorSpecs +
            ", postAggregatorSpecs=" + postAggregatorSpecs +
            ", outputColumns=" + outputColumns +
+           toString(POST_PROCESSING, FORWARD_URL, FORWARD_CONTEXT) +
            '}';
   }
 

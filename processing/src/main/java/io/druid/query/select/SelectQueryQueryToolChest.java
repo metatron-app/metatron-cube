@@ -93,26 +93,15 @@ public class SelectQueryQueryToolChest extends QueryToolChest<Result<SelectResul
   private final ObjectMapper jsonMapper;
 
   private final IntervalChunkingQueryRunnerDecorator intervalChunkingQueryRunnerDecorator;
-  private final QuerySegmentWalker segmentWalker;
 
   @Inject
-  public SelectQueryQueryToolChest(
-      ObjectMapper jsonMapper,
-      IntervalChunkingQueryRunnerDecorator intervalChunkingQueryRunnerDecorator,
-      QuerySegmentWalker segmentWalker
-  )
-  {
-    this.jsonMapper = jsonMapper;
-    this.intervalChunkingQueryRunnerDecorator = intervalChunkingQueryRunnerDecorator;
-    this.segmentWalker = segmentWalker;
-  }
-
   public SelectQueryQueryToolChest(
       ObjectMapper jsonMapper,
       IntervalChunkingQueryRunnerDecorator intervalChunkingQueryRunnerDecorator
   )
   {
-    this(jsonMapper, intervalChunkingQueryRunnerDecorator, null);
+    this.jsonMapper = jsonMapper;
+    this.intervalChunkingQueryRunnerDecorator = intervalChunkingQueryRunnerDecorator;
   }
 
   @Override
@@ -398,7 +387,7 @@ public class SelectQueryQueryToolChest extends QueryToolChest<Result<SelectResul
   }
 
   @Override
-  public SelectQuery rewriteQuery(SelectQuery query, QuerySegmentWalker walker)
+  public SelectQuery optimizeQuery(SelectQuery query, QuerySegmentWalker walker)
   {
     PagingSpec pagingSpec = query.getPagingSpec();
     if (!pagingSpec.getPagingIdentifiers().isEmpty() || pagingSpec.getThreshold() == 0) {
@@ -416,7 +405,7 @@ public class SelectQueryQueryToolChest extends QueryToolChest<Result<SelectResul
     );
     List<Result<SelectMetaResultValue>> results =
         Sequences.toList(
-            segmentWalker.getQueryRunnerForIntervals(metaQuery, intervals).run(metaQuery, context),
+            walker.getQueryRunnerForIntervals(metaQuery, intervals).run(metaQuery, context),
             Lists.<Result<SelectMetaResultValue>>newArrayList()
         );
 

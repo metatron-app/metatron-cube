@@ -64,6 +64,11 @@ public class PropUtils
     }
   }
 
+  public static String parseString(Map<String, ?> context, String key)
+  {
+    return parseString(context, key, null);
+  }
+
   public static String parseString(Map<String, ?> context, String key, String defaultValue)
   {
     if (context == null) {
@@ -92,6 +97,11 @@ public class PropUtils
     } else {
       throw new ISE("Unknown type [%s]", val.getClass());
     }
+  }
+
+  public static boolean parseBoolean(Map<String, ?> context, String key)
+  {
+    return parseBoolean(context, key, false);
   }
 
   public static boolean parseBoolean(Map<String, ?> context, String key, boolean defaultValue)

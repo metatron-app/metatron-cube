@@ -19,10 +19,26 @@
 
 package io.druid.query;
 
-public class QueryContextKeys
+public interface QueryContextKeys
 {
+  // internal
   public static final String PRIORITY = "priority";
   public static final String TIMEOUT = "timeout";
   public static final String CHUNK_PERIOD = "chunkPeriod";
-  public static final String REWRITE_QUERY = "rewriteQuery";
+  public static final String FINALIZE = "finalize";
+  public static final String BY_SEGMENT = "bySegment";
+
+  // CacheConfig
+  public static final String USE_CACHE = "useCache";
+  public static final String POPULATE_CACHE = "populateCache";
+
+  public static final String OPTIMIZE_QUERY = "optimizeQuery";
+  public static final String POST_PROCESSING = "postProcessing";
+  public static final String FORWARD_URL = "forwardURL";
+  public static final String FORWARD_CONTEXT = "forwardContext";
+
+  // forward context
+  public static final String FORWARD_TIMESTAMP_COLUMN = "timestampColumn";
+  public static final String FORWARD_PARALLEL = "parallel";
+  public static final String FORWARD_PREFIX_LOCATION = "wrapWithLocation";
 }

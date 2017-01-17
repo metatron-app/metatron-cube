@@ -67,7 +67,9 @@ import io.druid.indexing.overlord.ThreadPoolTaskRunner;
 import io.druid.indexing.worker.executor.ExecutorLifecycle;
 import io.druid.indexing.worker.executor.ExecutorLifecycleConfig;
 import io.druid.metadata.IndexerSQLMetadataStorageCoordinator;
+import io.druid.query.MapQueryToolChestWarehouse;
 import io.druid.query.QuerySegmentWalker;
+import io.druid.query.QueryToolChestWarehouse;
 import io.druid.query.lookup.LookupModule;
 import io.druid.segment.loading.DataSegmentArchiver;
 import io.druid.segment.loading.DataSegmentKiller;
@@ -132,6 +134,8 @@ public class CliPeon extends GuiceRunnable
           {
             binder.bindConstant().annotatedWith(Names.named("serviceName")).to("druid/peon");
             binder.bindConstant().annotatedWith(Names.named("servicePort")).to(-1);
+
+            binder.bind(QueryToolChestWarehouse.class).to(MapQueryToolChestWarehouse.class);
 
             PolyBind.createChoice(
                 binder,

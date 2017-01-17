@@ -144,6 +144,21 @@ public class DruidNode
     }
   }
 
+  // hdfs compatible path name
+  public String toPathName()
+  {
+    HostAndPort hostAndPort;
+    if (port < 0) {
+      hostAndPort = HostAndPort.fromString(host);
+    } else {
+      hostAndPort = HostAndPort.fromParts(host, port);
+    }
+    if (hostAndPort.hasPort()) {
+      return hostAndPort.getHostText() + "_" + hostAndPort.getPort();
+    }
+    return hostAndPort.getHostText();
+  }
+
   public static String getDefaultHost() {
     try {
       return InetAddress.getLocalHost().getCanonicalHostName();

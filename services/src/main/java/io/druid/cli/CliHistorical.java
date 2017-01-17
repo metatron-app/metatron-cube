@@ -34,7 +34,9 @@ import io.druid.guice.LazySingleton;
 import io.druid.guice.LifecycleModule;
 import io.druid.guice.ManageLifecycle;
 import io.druid.guice.NodeTypeConfig;
+import io.druid.query.MapQueryToolChestWarehouse;
 import io.druid.query.QuerySegmentWalker;
+import io.druid.query.QueryToolChestWarehouse;
 import io.druid.query.lookup.LookupModule;
 import io.druid.server.QueryResource;
 import io.druid.server.coordination.ServerManager;
@@ -72,6 +74,8 @@ public class CliHistorical extends ServerRunnable
           {
             binder.bindConstant().annotatedWith(Names.named("serviceName")).to("druid/historical");
             binder.bindConstant().annotatedWith(Names.named("servicePort")).to(8083);
+
+            binder.bind(QueryToolChestWarehouse.class).to(MapQueryToolChestWarehouse.class);
 
             // register Server before binding ZkCoordinator to ensure HTTP endpoints are available immediately
             LifecycleModule.register(binder, Server.class);

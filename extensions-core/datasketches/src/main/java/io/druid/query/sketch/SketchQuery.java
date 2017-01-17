@@ -189,7 +189,7 @@ public class SketchQuery extends BaseQuery<Result<Map<String, Object>>>
         ", dimensionExclusions=" + dimensionExclusions +
         ", filter=" + filter +
         ", nomEntries=" + nomEntries +
-        (getContextValue("postProcessing") != null ? ", postProcessing=" + getContextValue("postProcessing") : "") +
+        toString(POST_PROCESSING, FORWARD_URL, FORWARD_CONTEXT) +
         '}';
   }
 

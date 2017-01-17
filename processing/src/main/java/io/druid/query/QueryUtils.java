@@ -24,12 +24,10 @@ import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
-import com.metamx.common.guava.Sequence;
 import com.metamx.common.guava.Sequences;
 import com.metamx.common.logger.Logger;
 import io.druid.query.filter.BoundDimFilter;
 import io.druid.query.filter.DimFilter;
-import io.druid.query.metadata.metadata.ColumnIncluderator;
 import io.druid.query.metadata.metadata.NoneColumnIncluderator;
 import io.druid.query.metadata.metadata.SegmentAnalysis;
 import io.druid.query.metadata.metadata.SegmentMetadataQuery;
@@ -74,7 +72,7 @@ public class QueryUtils
                     .put("intervals", segmentSpec)
                     .put("dimensions", Arrays.asList(expression))
                     .put("sketchOp", "QUANTILE")
-                    .put("context", ImmutableMap.of("postProcessing", postProc))
+                    .put("context", ImmutableMap.of(QueryContextKeys.POST_PROCESSING, postProc))
                     .build(), jsonMapper
     );
 

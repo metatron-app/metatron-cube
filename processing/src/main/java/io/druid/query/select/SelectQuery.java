@@ -27,11 +27,11 @@ import io.druid.granularity.QueryGranularities;
 import io.druid.granularity.QueryGranularity;
 import io.druid.query.BaseQuery;
 import io.druid.query.DataSource;
+import io.druid.query.LateralViewSpec;
 import io.druid.query.Query;
 import io.druid.query.Result;
 import io.druid.query.dimension.DimensionSpec;
 import io.druid.query.filter.DimFilter;
-import io.druid.query.LateralViewSpec;
 import io.druid.query.spec.QuerySegmentSpec;
 import io.druid.segment.VirtualColumn;
 
@@ -305,13 +305,13 @@ public class SelectQuery extends BaseQuery<Result<SelectResultValue>>
     if (dimFilter != null) {
       builder.append(", dimFilter=").append(dimFilter);
     }
-    if (dimensions != null) {
+    if (dimensions != null && !dimensions.isEmpty()) {
       builder.append(", dimensions=").append(dimensions);
     }
-    if (metrics != null) {
+    if (metrics != null && !metrics.isEmpty()) {
       builder.append(", metrics=").append(metrics);
     }
-    if (virtualColumns != null) {
+    if (virtualColumns != null && !virtualColumns.isEmpty()) {
       builder.append(", virtualColumns=").append(virtualColumns);
     }
     if (pagingSpec != null && !pagingSpec.equals(PagingSpec.GET_ALL)) {
@@ -326,6 +326,7 @@ public class SelectQuery extends BaseQuery<Result<SelectResultValue>>
     if (lateralView != null) {
       builder.append(", lateralView=").append(lateralView);
     }
+    builder.append(toString(FINALIZE, POST_PROCESSING, FORWARD_URL, FORWARD_CONTEXT));
     return builder.append('}').toString();
   }
 

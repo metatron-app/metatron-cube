@@ -54,6 +54,7 @@ import io.druid.query.DruidMetrics;
 import io.druid.query.IntervalChunkingQueryRunnerDecorator;
 import io.druid.query.Query;
 import io.druid.query.QueryCacheHelper;
+import io.druid.query.QueryContextKeys;
 import io.druid.query.QueryDataSource;
 import io.druid.query.QueryRunner;
 import io.druid.query.QueryToolChest;
@@ -280,7 +281,7 @@ public class GroupByQueryQueryToolChest extends QueryToolChest<Row, GroupByQuery
                   query.getContext()
               ).withOverriddenContext(
                   ImmutableMap.<String, Object>of(
-                      "finalize", false,
+                      QueryContextKeys.FINALIZE, false,
                       //setting sort to false avoids unnecessary sorting while merging results. we only need to sort
                       //in the end when returning results to user.
                       GroupByQueryHelper.CTX_KEY_SORT_RESULTS, false,

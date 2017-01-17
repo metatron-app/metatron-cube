@@ -19,6 +19,7 @@
 
 package io.druid.query;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Function;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
@@ -34,6 +35,31 @@ import java.util.Map;
  */
 public class FinalizeResultsQueryRunner<T> implements QueryRunner<T>
 {
+  public static <T> QueryRunner<T> finalize(
+      final QueryRunner<T> baseRunner,
+      final QueryToolChest<T, Query<T>> toolChest,
+      final ObjectMapper objectMapper
+  )
+  {
+    final QueryRunner<T> finalized = new FinalizeResultsQueryRunner<T>(baseRunner, toolChest);
+    return new QueryRunner<T>()
+    {
+      @Override
+      public Sequence<T> run(Query<T> query, Map<String, Object> responseContext)
+      {
+        QueryRunner<T> baseRunner = finalized;
+        if (BaseQuery.getContextBySegment(query, false)) {
+          PostProcessingOperator<T> processor = PostProcessingOperators.load(query, objectMapper);
+          if (processor != null) {
+            baseRunner = processor.postProcess(baseRunner);
+          }
+          baseRunner = toolChest.finalQueryDecoration(baseRunner);
+        }
+        return baseRunner.run(query, responseContext);
+      }
+    };
+  }
+
   private final QueryRunner<T> baseRunner;
   private final QueryToolChest<T, Query<T>> toolChest;
 
@@ -49,6 +75,9 @@ public class FinalizeResultsQueryRunner<T> implements QueryRunner<T>
   @Override
   public Sequence<T> run(final Query<T> query, Map<String, Object> responseContext)
   {
+    if (query instanceof DelegateQuery) {
+      return baseRunner.run(query, responseContext);
+    }
     final boolean isBySegment = BaseQuery.getContextBySegment(query, false);
     final boolean shouldFinalize = BaseQuery.getContextFinalize(query, true);
 
@@ -57,9 +86,8 @@ public class FinalizeResultsQueryRunner<T> implements QueryRunner<T>
     final MetricManipulationFn metricManipulationFn;
 
     if (shouldFinalize) {
-      queryToRun = query.withOverriddenContext(ImmutableMap.<String, Object>of("finalize", false));
+      queryToRun = query.withOverriddenContext(ImmutableMap.<String, Object>of(QueryContextKeys.FINALIZE, false));
       metricManipulationFn = MetricManipulatorFns.finalizing();
-
     } else {
       queryToRun = query;
       metricManipulationFn = MetricManipulatorFns.identity();

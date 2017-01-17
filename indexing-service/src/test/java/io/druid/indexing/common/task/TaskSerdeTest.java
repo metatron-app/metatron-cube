@@ -341,6 +341,7 @@ public class TaskSerdeTest
                 null
             )
         ),
+        null,
         null
     );
 

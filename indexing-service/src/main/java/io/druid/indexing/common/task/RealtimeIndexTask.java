@@ -19,9 +19,11 @@
 
 package io.druid.indexing.common.task;
 
+import com.fasterxml.jackson.annotation.JacksonInject;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Supplier;
 import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
@@ -118,6 +120,9 @@ public class RealtimeIndexTask extends AbstractTask
   private final FireDepartment spec;
 
   @JsonIgnore
+  private final ObjectMapper jsonMapper;
+
+  @JsonIgnore
   private volatile Plumber plumber = null;
 
   @JsonIgnore
@@ -146,6 +151,7 @@ public class RealtimeIndexTask extends AbstractTask
       @JsonProperty("id") String id,
       @JsonProperty("resource") TaskResource taskResource,
       @JsonProperty("spec") FireDepartment fireDepartment,
+      @JacksonInject ObjectMapper jsonMapper,
       @JsonProperty("context") Map<String, Object> context
   )
   {
@@ -156,6 +162,7 @@ public class RealtimeIndexTask extends AbstractTask
         makeDatasource(fireDepartment),
         context
     );
+    this.jsonMapper = jsonMapper;
     this.spec = fireDepartment;
   }
 
@@ -178,7 +185,7 @@ public class RealtimeIndexTask extends AbstractTask
       QueryRunnerFactory<T, Query<T>> factory = queryRunnerFactoryConglomerate.findFactory(query);
       QueryToolChest<T, Query<T>> toolChest = factory.getToolchest();
 
-      return new FinalizeResultsQueryRunner<T>(plumber.getQueryRunner(query), toolChest);
+      return FinalizeResultsQueryRunner.finalize(plumber.getQueryRunner(query), toolChest, jsonMapper);
     } else {
       return null;
     }

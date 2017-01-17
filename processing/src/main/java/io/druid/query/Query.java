@@ -30,6 +30,7 @@ import io.druid.query.groupby.GroupByQuery;
 import io.druid.query.groupby.PartitionedGroupByQuery;
 import io.druid.query.metadata.metadata.SegmentMetadataQuery;
 import io.druid.query.search.search.SearchQuery;
+import io.druid.query.select.SelectForwardQuery;
 import io.druid.query.select.SelectMetaQuery;
 import io.druid.query.select.SelectQuery;
 import io.druid.query.spec.QuerySegmentSpec;
@@ -55,9 +56,10 @@ import java.util.Map;
     @JsonSubTypes.Type(name = Query.DATASOURCE_METADATA, value = DataSourceMetadataQuery.class),
     @JsonSubTypes.Type(name = Query.UNION_ALL, value = UnionAllQuery.class),
     @JsonSubTypes.Type(name = Query.JOIN, value = JoinQuery.class),
-    @JsonSubTypes.Type(name = Query.GROUP_BY_PARTITIONED, value = PartitionedGroupByQuery.class)
+    @JsonSubTypes.Type(name = Query.GROUP_BY_PARTITIONED, value = PartitionedGroupByQuery.class),
+    @JsonSubTypes.Type(name = Query.SELECT_DELEGATE, value = SelectForwardQuery.class),
 })
-public interface Query<T>
+public interface Query<T> extends QueryContextKeys
 {
   String TIMESERIES = "timeseries";
   String SEARCH = "search";
@@ -67,6 +69,7 @@ public interface Query<T>
   String SEGMENT_METADATA = "segmentMetadata";
   String SELECT = "select";
   String SELECT_META = "selectMeta";
+  String SELECT_DELEGATE = "select.delegate";
   String TOPN = "topN";
   String DATASOURCE_METADATA = "dataSourceMetadata";
   String UNION_ALL = "unionAll";

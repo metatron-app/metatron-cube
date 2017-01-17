@@ -28,8 +28,8 @@ import java.util.List;
 
 public class CacheConfig
 {
-  public static final String USE_CACHE = "useCache";
-  public static final String POPULATE_CACHE = "populateCache";
+  public static final String USE_CACHE = Query.USE_CACHE;
+  public static final String POPULATE_CACHE = Query.POPULATE_CACHE;
 
   @JsonProperty
   private boolean useCache = false;

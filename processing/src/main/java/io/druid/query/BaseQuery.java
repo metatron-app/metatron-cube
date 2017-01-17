@@ -21,9 +21,11 @@ package io.druid.query;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;
+import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Ordering;
+import com.metamx.common.StringUtils;
 import com.metamx.common.guava.Sequence;
 import io.druid.common.utils.PropUtils;
 import io.druid.query.spec.MultipleIntervalSegmentSpec;
@@ -34,6 +36,7 @@ import org.joda.time.Interval;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
 /**
  */
@@ -49,12 +52,12 @@ public abstract class BaseQuery<T extends Comparable<T>> implements Query<T>
 
   public static <T> int getContextPriority(Query<T> query, int defaultValue)
   {
-    return PropUtils.parseInt(query.getContext(), "priority", defaultValue);
+    return PropUtils.parseInt(query.getContext(), PRIORITY, defaultValue);
   }
 
   public static <T> boolean getContextBySegment(Query<T> query, boolean defaultValue)
   {
-    return PropUtils.parseBoolean(query.getContext(), "bySegment", defaultValue);
+    return PropUtils.parseBoolean(query.getContext(), BY_SEGMENT, defaultValue);
   }
 
   public static <T> boolean getContextPopulateCache(Query<T> query, boolean defaultValue)
@@ -69,12 +72,12 @@ public abstract class BaseQuery<T extends Comparable<T>> implements Query<T>
 
   public static <T> boolean getContextFinalize(Query<T> query, boolean defaultValue)
   {
-    return PropUtils.parseBoolean(query.getContext(), "finalize", defaultValue);
+    return PropUtils.parseBoolean(query.getContext(), FINALIZE, defaultValue);
   }
 
-  public static <T> boolean rewriteQuery(Query<T> query, boolean defaultValue)
+  public static <T> boolean optimizeQuery(Query<T> query, boolean defaultValue)
   {
-    return PropUtils.parseBoolean(query.getContext(), QueryContextKeys.REWRITE_QUERY, defaultValue);
+    return PropUtils.parseBoolean(query.getContext(), OPTIMIZE_QUERY, defaultValue);
   }
 
   public static <T> int getContextUncoveredIntervalsLimit(Query<T> query, int defaultValue)
@@ -84,12 +87,18 @@ public abstract class BaseQuery<T extends Comparable<T>> implements Query<T>
 
   public static <T> String getResultForwardURL(Query<T> query)
   {
-    return query.getContextValue("forwardURL");
+    return query.getContextValue(FORWARD_URL);
   }
 
   public static <T> Map<String, Object> getResultForwardContext(Query<T> query)
   {
-    return query.getContextValue("forwardContext");
+    return query.getContextValue(FORWARD_CONTEXT);
+  }
+
+  public static <T> boolean isParallelForwarding(Query<T> query)
+  {
+    return !Strings.isNullOrEmpty(getResultForwardURL(query)) &&
+           PropUtils.parseBoolean(getResultForwardContext(query), FORWARD_PARALLEL, false);
   }
 
   public static final String QUERYID = "queryId";
@@ -192,6 +201,24 @@ public abstract class BaseQuery<T extends Comparable<T>> implements Query<T>
   public boolean getContextBoolean(String key, boolean defaultValue)
   {
     return PropUtils.parseBoolean(getContext(), key, defaultValue);
+  }
+
+  protected String toString(String key)
+  {
+    Object value = Objects.toString(context.get(key), null);
+    return value == null ? "" : StringUtils.safeFormat(", %s=%s", key, value);
+  }
+
+  protected String toString(String... keys)
+  {
+    StringBuilder builder = new StringBuilder();
+    for (String key : keys) {
+      String value = toString(key);
+      if (!Strings.isNullOrEmpty(value)) {
+        builder.append(value);
+      }
+    }
+    return builder.toString();
   }
 
   protected Map<String, Object> computeOverridenContext(Map<String, Object> overrides)

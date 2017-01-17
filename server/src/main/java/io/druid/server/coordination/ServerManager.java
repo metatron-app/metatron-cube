@@ -30,8 +30,8 @@ import com.metamx.common.guava.FunctionalIterable;
 import com.metamx.emitter.EmittingLogger;
 import com.metamx.emitter.service.ServiceEmitter;
 import com.metamx.emitter.service.ServiceMetricEvent;
-import io.druid.client.CachingQueryRunner;
 import io.druid.cache.Cache;
+import io.druid.client.CachingQueryRunner;
 import io.druid.client.cache.CacheConfig;
 import io.druid.collections.CountingMap;
 import io.druid.guice.annotations.BackgroundCaching;
@@ -323,9 +323,8 @@ public class ServerManager implements QuerySegmentWalker
         );
 
     return CPUTimeMetricQueryRunner.safeBuild(
-        new FinalizeResultsQueryRunner<T>(
-            toolChest.mergeResults(factory.mergeRunners(exec, queryRunners)),
-            toolChest
+        FinalizeResultsQueryRunner.finalize(
+            toolChest.mergeResults(factory.mergeRunners(exec, queryRunners)), toolChest, objectMapper
         ),
         builderFn,
         emitter,
@@ -397,9 +396,8 @@ public class ServerManager implements QuerySegmentWalker
         );
 
     return CPUTimeMetricQueryRunner.safeBuild(
-        new FinalizeResultsQueryRunner<>(
-            toolChest.mergeResults(factory.mergeRunners(exec, queryRunners)),
-            toolChest
+        FinalizeResultsQueryRunner.finalize(
+            toolChest.mergeResults(factory.mergeRunners(exec, queryRunners)), toolChest, objectMapper
         ),
         builderFn,
         emitter,

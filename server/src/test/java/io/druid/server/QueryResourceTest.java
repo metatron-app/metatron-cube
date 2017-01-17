@@ -21,6 +21,7 @@ package io.druid.server;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Throwables;
+import com.google.common.collect.Maps;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.MoreExecutors;
 import com.metamx.common.guava.Sequence;
@@ -28,9 +29,13 @@ import com.metamx.common.guava.Sequences;
 import com.metamx.emitter.service.ServiceEmitter;
 import io.druid.concurrent.Execs;
 import io.druid.jackson.DefaultObjectMapper;
+import io.druid.query.MapQueryToolChestWarehouse;
 import io.druid.query.Query;
 import io.druid.query.QueryRunner;
 import io.druid.query.QuerySegmentWalker;
+import io.druid.query.QueryToolChest;
+import io.druid.query.QueryToolChestWarehouse;
+import io.druid.query.ResultWriter;
 import io.druid.query.SegmentDescriptor;
 import io.druid.server.initialization.ServerConfig;
 import io.druid.server.log.NoopRequestLogger;
@@ -107,6 +112,10 @@ public class QueryResourceTest
     }
   };
 
+  private static final DruidNode node = new DruidNode("dummy", "dummy", 0);
+  private static final QueryToolChestWarehouse warehouse = new MapQueryToolChestWarehouse(
+      Maps.<Class<? extends Query>, QueryToolChest>newHashMap()
+  );
   private static final ServiceEmitter noopServiceEmitter = new NoopServiceEmitter();
 
   private QueryResource queryResource;
@@ -133,7 +142,10 @@ public class QueryResourceTest
         new NoopServiceEmitter(),
         new NoopRequestLogger(),
         queryManager,
-        new AuthConfig()
+        new AuthConfig(),
+        node,
+        warehouse,
+        Maps.<String, ResultWriter>newHashMap()
     );
   }
 
@@ -206,7 +218,10 @@ public class QueryResourceTest
         new NoopServiceEmitter(),
         new NoopRequestLogger(),
         queryManager,
-        new AuthConfig(true)
+        new AuthConfig(true),
+        node,
+        warehouse,
+        Maps.<String, ResultWriter>newHashMap()
     );
 
     Response response = queryResource.doPost(
@@ -271,7 +286,10 @@ public class QueryResourceTest
         new NoopServiceEmitter(),
         new NoopRequestLogger(),
         queryManager,
-        new AuthConfig(true)
+        new AuthConfig(true),
+        node,
+        warehouse,
+        Maps.<String, ResultWriter>newHashMap()
     );
 
     final String queryString = "{\"queryType\":\"timeBoundary\", \"dataSource\":\"allow\","
@@ -367,7 +385,10 @@ public class QueryResourceTest
         new NoopServiceEmitter(),
         new NoopRequestLogger(),
         queryManager,
-        new AuthConfig(true)
+        new AuthConfig(true),
+        node,
+        warehouse,
+        Maps.<String, ResultWriter>newHashMap()
     );
 
     final String queryString = "{\"queryType\":\"timeBoundary\", \"dataSource\":\"allow\","

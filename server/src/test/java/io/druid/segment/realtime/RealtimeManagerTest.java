@@ -221,6 +221,7 @@ public class RealtimeManagerTest
                 tuningConfig
             )
         ),
+        null,
         null
     );
     plumber2 = new TestPlumber(new Sink(
@@ -240,6 +241,7 @@ public class RealtimeManagerTest
                 tuningConfig
             )
         ),
+        null,
         null
     );
 
@@ -301,7 +303,7 @@ public class RealtimeManagerTest
 
     chiefStartedLatch = new CountDownLatch(2);
 
-    RealtimeManager.FireChief fireChief_0 = new RealtimeManager.FireChief(department_0, conglomerate)
+    RealtimeManager.FireChief fireChief_0 = new RealtimeManager.FireChief(department_0, conglomerate, TestHelper.JSON_MAPPER)
     {
       @Override
       public void run()
@@ -311,7 +313,7 @@ public class RealtimeManagerTest
       }
     };
 
-    RealtimeManager.FireChief fireChief_1 = new RealtimeManager.FireChief(department_1, conglomerate)
+    RealtimeManager.FireChief fireChief_1 = new RealtimeManager.FireChief(department_1, conglomerate, TestHelper.JSON_MAPPER)
     {
       @Override
       public void run()
@@ -325,6 +327,7 @@ public class RealtimeManagerTest
     realtimeManager3 = new RealtimeManager(
         Arrays.asList(department_0, department_1),
         conglomerate,
+        TestHelper.JSON_MAPPER,
         ImmutableMap.<String, Map<Integer, RealtimeManager.FireChief>>of(
             "testing",
             ImmutableMap.of(

@@ -238,7 +238,7 @@ public class JoinQuery<T extends Comparable<T>> extends BaseQuery<T> implements 
     Map<String, Object> joinProcessor = Maps.newHashMap();
 
     joinProcessor.put(
-        "postProcessing",
+        QueryContextKeys.POST_PROCESSING,
         ImmutableMap.builder()
                     .put("type", "join")
                     .put("joinType", joinType.name())
@@ -398,7 +398,7 @@ public class JoinQuery<T extends Comparable<T>> extends BaseQuery<T> implements 
       return "JoinDelegate{" +
              "queries=" + getQueries() +
              ", limit=" + getLimit() +
-             ", join=" + getContextValue("postProcessing") +
+             ", join=" + getContextValue(QueryContextKeys.POST_PROCESSING) +
              '}';
     }
   }

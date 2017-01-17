@@ -71,7 +71,6 @@ import io.druid.timeline.TimelineObjectHolder;
 import io.druid.timeline.partition.PartitionChunk;
 import org.joda.time.Interval;
 
-import javax.annotation.Nullable;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -152,12 +151,12 @@ public class CachingClusteredClient<T> implements QueryRunner<T>
     final ImmutableMap.Builder<String, Object> contextBuilder = new ImmutableMap.Builder<>();
 
     final int priority = BaseQuery.getContextPriority(query, 0);
-    contextBuilder.put("priority", priority);
+    contextBuilder.put(Query.PRIORITY, priority);
 
     if (populateCache) {
       // prevent down-stream nodes from caching results as well if we are populating the cache
-      contextBuilder.put(CacheConfig.POPULATE_CACHE, false);
-      contextBuilder.put("bySegment", true);
+      contextBuilder.put(Query.POPULATE_CACHE, false);
+      contextBuilder.put(Query.BY_SEGMENT, true);
     }
 
     TimelineLookup<String, ServerSelector> timeline = serverView.getTimeline(query.getDataSource());

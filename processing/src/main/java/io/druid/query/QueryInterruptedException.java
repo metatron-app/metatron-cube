@@ -143,8 +143,10 @@ public class QueryInterruptedException extends RuntimeException
     }
   }
 
-  public static QueryInterruptedException wrapIfNeeded(Throwable e)
+  public static QueryInterruptedException wrapIfNeeded(Throwable e, String hostPort)
   {
-    return e instanceof QueryInterruptedException ? (QueryInterruptedException) e : new QueryInterruptedException(e);
+    return e instanceof QueryInterruptedException
+           ? (QueryInterruptedException) e
+           : new QueryInterruptedException(e, hostPort);
   }
 }

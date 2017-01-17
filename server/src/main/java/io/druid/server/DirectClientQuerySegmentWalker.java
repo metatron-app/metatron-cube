@@ -56,8 +56,9 @@ public class DirectClientQuerySegmentWalker implements QuerySegmentWalker
     return makeRunner(query);
   }
 
-  private <T> FinalizeResultsQueryRunner<T> makeRunner(final Query<T> query)
+  @SuppressWarnings("unchecked")
+  private <T> QueryRunner<T> makeRunner(final Query<T> query)
   {
-    return new FinalizeResultsQueryRunner<T>(baseClient, warehouse.getToolChest(query));
+    return FinalizeResultsQueryRunner.finalize(baseClient, warehouse.getToolChest(query), baseClient.getObjectMapper());
   }
 }
