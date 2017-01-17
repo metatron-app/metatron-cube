@@ -80,6 +80,11 @@ public abstract class BaseQuery<T extends Comparable<T>> implements Query<T>
     return PropUtils.parseBoolean(query.getContext(), OPTIMIZE_QUERY, defaultValue);
   }
 
+  public static <T> boolean allColumnsForEmpty(Query<T> query)
+  {
+    return PropUtils.parseBoolean(query.getContext(), ALL_COLUMNS_FOR_EMPTY, true);
+  }
+
   public static <T> int getContextUncoveredIntervalsLimit(Query<T> query, int defaultValue)
   {
     return PropUtils.parseInt(query.getContext(), "uncoveredIntervalsLimit", defaultValue);
@@ -205,7 +210,7 @@ public abstract class BaseQuery<T extends Comparable<T>> implements Query<T>
 
   protected String toString(String key)
   {
-    Object value = Objects.toString(context.get(key), null);
+    Object value = Objects.toString(getContextValue(key), null);
     return value == null ? "" : StringUtils.safeFormat(", %s=%s", key, value);
   }
 

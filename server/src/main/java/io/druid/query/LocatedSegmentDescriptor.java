@@ -92,6 +92,11 @@ public class LocatedSegmentDescriptor
     return locations;
   }
 
+  public SegmentDescriptor toSegmentDescriptor()
+  {
+    return new SegmentDescriptor(interval, version, partitionNumber);
+  }
+
   @Override
   public boolean equals(Object o)
   {

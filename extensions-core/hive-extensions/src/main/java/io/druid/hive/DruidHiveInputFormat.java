@@ -26,7 +26,7 @@ import com.google.common.collect.Range;
 import io.druid.indexer.hadoop.QueryBasedInputFormat;
 import io.druid.query.filter.AndDimFilter;
 import io.druid.query.filter.DimFilter;
-import io.druid.segment.column.Column;
+import io.druid.query.select.EventHolder;
 import org.apache.commons.lang.StringUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
@@ -45,6 +45,7 @@ import org.apache.hadoop.mapred.RecordReader;
 import org.apache.hadoop.mapred.RecordWriter;
 import org.apache.hadoop.mapred.Reporter;
 import org.apache.hadoop.util.Progressable;
+import org.joda.time.Interval;
 
 import java.io.DataInput;
 import java.io.DataOutput;
@@ -78,10 +79,8 @@ public class DruidHiveInputFormat extends QueryBasedInputFormat implements HiveO
   @Override
   public RecordReader getRecordReader(InputSplit split, JobConf job, Reporter reporter) throws IOException
   {
-    DruidRecordReader reader = new DruidRecordReader();
     job.set(CONF_DRUID_COLUMNS, job.get(CONF_SELECT_COLUMNS));
-    reader.initialize(((InputSplitWrapper) split).druidSplit, job);
-    return reader;
+    return super.getRecordReader(((InputSplitWrapper) split).druidSplit, job, reporter);
   }
 
   @Override
@@ -89,29 +88,31 @@ public class DruidHiveInputFormat extends QueryBasedInputFormat implements HiveO
       throws IOException
   {
     ExprNodeGenericFuncDesc exprDesc = ExpressionConverter.deserializeExprDesc(configuration);
-    if (exprDesc == null) {
-      throw new IllegalArgumentException("has no predicate");
-    }
-    String timeColumn = configuration.get(CONF_DRUID_TIME_COLUMN_NAME, Column.TIME_COLUMN_NAME);
+    String timeColumn = configuration.get(CONF_DRUID_TIME_COLUMN_NAME, EventHolder.timestampKey);
     logger.info("Using timestamp column " + timeColumn);
 
     Map<String, TypeInfo> types = ExpressionConverter.getColumnTypes(configuration, timeColumn);
     Map<String, List<Range>> converted = ExpressionConverter.getRanges(exprDesc, types);
     List<Range> timeRanges = converted.remove(timeColumn);
     if (timeRanges == null || timeRanges.isEmpty()) {
-      throw new IllegalArgumentException("failed to extract intervals from predicate");
+      logger.warn("failed to extract intervals from predicate.. regarded as %s", DEFAULT_INTERVAL);
+    } else {
+      List<Interval> intervals = ExpressionConverter.toInterval(timeRanges);
+      configuration.set(
+          CONF_DRUID_INTERVALS,
+          StringUtils.join( Lists.transform(intervals, Functions.toStringFunction()), ',')
+      );
     }
-    configuration.set(
-        CONF_DRUID_INTERVALS,
-        StringUtils.join(Lists.transform(ExpressionConverter.toInterval(timeRanges), Functions.toStringFunction()), ",")
-    );
+
+    final boolean uppercase = configuration.getBoolean(CONF_DRUID_COLUMNS_UPPERCASE, false);
 
     List<DimFilter> filters = Lists.newArrayList();
     for (Map.Entry<String, List<Range>> entry : converted.entrySet()) {
       TypeInfo typeInfo = types.get(entry.getKey());
       if (typeInfo.getCategory() == ObjectInspector.Category.PRIMITIVE &&
           ((PrimitiveTypeInfo) typeInfo).getPrimitiveCategory() == PrimitiveObjectInspector.PrimitiveCategory.STRING) {
-        DimFilter filter = ExpressionConverter.toFilter(entry.getKey(), entry.getValue());
+        String dimension = uppercase ? entry.getKey().toUpperCase() : entry.getKey();
+        DimFilter filter = ExpressionConverter.toFilter(dimension, entry.getValue());
         if (filter != null) {
           filters.add(filter);
         }
@@ -151,9 +152,11 @@ public class DruidHiveInputFormat extends QueryBasedInputFormat implements HiveO
 
   public static class InputSplitWrapper extends FileSplit
   {
-    private DruidInputSplit druidSplit;
+    private final DruidInputSplit druidSplit;
 
-    public InputSplitWrapper() {}
+    public InputSplitWrapper() {
+      this.druidSplit = new DruidInputSplit();
+    }
 
     public InputSplitWrapper(Path path, DruidInputSplit druidSplit)
     {
@@ -172,8 +175,7 @@ public class DruidHiveInputFormat extends QueryBasedInputFormat implements HiveO
     public void readFields(DataInput in) throws IOException
     {
       super.readFields(in);
-      this.druidSplit = new DruidInputSplit();
-      this.druidSplit.readFields(in);
+      druidSplit.readFields(in);
     }
   }
 }

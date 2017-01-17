@@ -22,6 +22,7 @@ package io.druid.query;
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Predicates;
+import com.google.common.collect.Iterables;
 import com.metamx.common.guava.ResourceClosingSequence;
 import com.metamx.common.guava.Sequence;
 import com.metamx.common.guava.Sequences;
@@ -82,20 +83,35 @@ public class QueryRunnerHelper
         queryIntervals.size() == 1, "Can only handle a single interval, got[%s]", queryIntervals
     );
 
+    Interval interval = Iterables.getOnlyElement(queryIntervals);
+    return makeCursorBasedQuery(adapter, interval, virtualColumns, filter, cache, descending, granularity, mapFn);
+  }
+
+  public static <T> Sequence<T> makeCursorBasedQuery(
+      final StorageAdapter adapter,
+      Interval interval,
+      VirtualColumns virtualColumns,
+      DimFilter filter,
+      Cache cache,
+      boolean descending,
+      QueryGranularity granularity,
+      final Function<Cursor, T> mapFn
+  )
+  {
     return Sequences.filter(
         Sequences.map(
-            adapter.makeCursors(filter, queryIntervals.get(0), virtualColumns, granularity, cache, descending),
-            new Function<Cursor, Result<T>>()
+            adapter.makeCursors(filter, interval, virtualColumns, granularity, cache, descending),
+            new Function<Cursor, T>()
             {
               @Override
-              public Result<T> apply(Cursor input)
+              public T apply(Cursor input)
               {
                 log.debug("Running over cursor[%s]", adapter.getInterval(), input.getTime());
                 return mapFn.apply(input);
               }
             }
         ),
-        Predicates.<Result<T>>notNull()
+        Predicates.<T>notNull()
     );
   }
 

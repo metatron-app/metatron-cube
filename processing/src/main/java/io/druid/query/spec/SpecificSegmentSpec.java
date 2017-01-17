@@ -19,6 +19,8 @@
 
 package io.druid.query.spec;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import io.druid.query.Query;
 import io.druid.query.QueryRunner;
 import io.druid.query.QuerySegmentWalker;
@@ -29,14 +31,14 @@ import java.util.Arrays;
 import java.util.List;
 
 /**
-*/
+ */
 public class SpecificSegmentSpec implements QuerySegmentSpec
 {
   private final SegmentDescriptor descriptor;
 
-  public SpecificSegmentSpec(
-      SegmentDescriptor descriptor
-  ) {
+  @JsonCreator
+  public SpecificSegmentSpec(@JsonProperty("segment") SegmentDescriptor descriptor)
+  {
     this.descriptor = descriptor;
   }
 
@@ -52,17 +54,27 @@ public class SpecificSegmentSpec implements QuerySegmentSpec
     return walker.getQueryRunnerForSegments(query, Arrays.asList(descriptor));
   }
 
-  public SegmentDescriptor getDescriptor() { return descriptor; }
+  @JsonProperty("segment")
+  public SegmentDescriptor getDescriptor()
+  {
+    return descriptor;
+  }
 
   @Override
   public boolean equals(Object o)
   {
-    if (this == o) return true;
-    if (o == null || getClass() != o.getClass()) return false;
+    if (this == o) {
+      return true;
+    }
+    if (o == null || getClass() != o.getClass()) {
+      return false;
+    }
 
     SpecificSegmentSpec that = (SpecificSegmentSpec) o;
 
-    if (descriptor != null ? !descriptor.equals(that.descriptor) : that.descriptor != null) return false;
+    if (descriptor != null ? !descriptor.equals(that.descriptor) : that.descriptor != null) {
+      return false;
+    }
 
     return true;
   }
@@ -71,5 +83,13 @@ public class SpecificSegmentSpec implements QuerySegmentSpec
   public int hashCode()
   {
     return descriptor != null ? descriptor.hashCode() : 0;
+  }
+
+  @Override
+  public String toString()
+  {
+    return "SpecificSegmentSpec{" +
+           "descriptor=" + descriptor +
+           '}';
   }
 }

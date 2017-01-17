@@ -61,7 +61,7 @@ public class DruidHiveSerDe extends AbstractSerDe
 
     String timeColumn = properties.getProperty(
         QueryBasedInputFormat.CONF_DRUID_TIME_COLUMN_NAME,
-        Column.TIME_COLUMN_NAME
+        EventHolder.timestampKey
     );
 
     converters = Lists.newArrayListWithExpectedSize(columnNames.size());

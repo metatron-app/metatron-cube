@@ -42,6 +42,8 @@ import io.druid.query.select.SelectMetaQuery;
 import io.druid.query.select.SelectMetaQueryToolChest;
 import io.druid.query.select.SelectQuery;
 import io.druid.query.select.SelectQueryQueryToolChest;
+import io.druid.query.select.StreamQuery;
+import io.druid.query.select.StreamQueryToolChest;
 import io.druid.query.timeboundary.TimeBoundaryQuery;
 import io.druid.query.timeboundary.TimeBoundaryQueryQueryToolChest;
 import io.druid.query.timeseries.TimeseriesQuery;
@@ -65,6 +67,7 @@ public class QueryToolChestModule implements Module
                   .put(GroupByQuery.class, GroupByQueryQueryToolChest.class)
                   .put(SelectMetaQuery.class, SelectMetaQueryToolChest.class)
                   .put(SelectQuery.class, SelectQueryQueryToolChest.class)
+                  .put(StreamQuery.class, StreamQueryToolChest.class)
                   .put(SelectForwardQuery.class, SelectForwardQueryToolChest.class)
                   .put(TopNQuery.class, TopNQueryQueryToolChest.class)
                   .put(DataSourceMetadataQuery.class, DataSourceQueryQueryToolChest.class)

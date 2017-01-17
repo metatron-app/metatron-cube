@@ -20,6 +20,8 @@
 package io.druid.jackson;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.druid.query.select.EventHolder;
+import io.druid.query.select.StreamQueryRow;
 import io.druid.query.timeboundary.TimeBoundaryResultValue;
 import junit.framework.TestCase;
 import org.joda.time.DateTime;
@@ -63,5 +65,18 @@ public class JodaStuffTest extends TestCase
 
     DateTime before = ISODateTimeFormat.dateTimeParser().withOffsetParsed().parseDateTime(dateTime.toString());
     Assert.assertEquals(before, deserialized);
+  }
+
+  public void testStreamQueryResult() throws IOException
+  {
+    DefaultObjectMapper mapper = new DefaultObjectMapper();
+    StreamQueryRow result = new StreamQueryRow();
+    result.put(EventHolder.timestampKey, 1484695907442L);
+    result.put("dim1", "value1");
+    result.put("dim2", "value2");
+    String serialized = mapper.writeValueAsString(result);
+    Assert.assertEquals("{\"timestamp\":1484695907442,\"dim1\":\"value1\",\"dim2\":\"value2\"}", serialized);
+    StreamQueryRow deserialized = mapper.readValue(serialized, StreamQueryRow.class);
+    Assert.assertEquals(result, deserialized);
   }
 }

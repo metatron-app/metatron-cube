@@ -21,6 +21,7 @@ package io.druid.query.select;
 
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
@@ -28,12 +29,15 @@ import com.google.common.collect.Sets;
 import com.metamx.common.ISE;
 import com.metamx.common.guava.Sequence;
 import io.druid.cache.Cache;
+import io.druid.common.guava.GuavaUtils;
+import io.druid.query.BaseQuery;
 import io.druid.query.DataSource;
-import io.druid.query.JoinDataSource;
+import io.druid.query.ViewDataSource;
 import io.druid.query.QueryRunnerHelper;
 import io.druid.query.Result;
 import io.druid.query.dimension.DefaultDimensionSpec;
 import io.druid.query.dimension.DimensionSpec;
+import io.druid.query.filter.AndDimFilter;
 import io.druid.query.filter.DimFilter;
 import io.druid.segment.Cursor;
 import io.druid.segment.DimensionSelector;
@@ -69,24 +73,38 @@ public class SelectQueryEngine
     // at the point where this code is called, only one datasource should exist.
     DataSource ds = query.getDataSource();
     String dataSource = Iterables.getOnlyElement(ds.getNames());
+    DimFilter filter = query.getDimensionsFilter();
+
     Set<String> retainers = null;
-    if (ds instanceof JoinDataSource) {
-      List<String> columns = ((JoinDataSource) ds).getColumns();
-      if (columns != null && !columns.isEmpty()) {
-        retainers = Sets.newHashSet(columns);
+    if (ds instanceof ViewDataSource) {
+      List<String> viewColumns = ((ViewDataSource) ds).getColumns();
+      if (viewColumns != null && !viewColumns.isEmpty()) {
+        retainers = Sets.newHashSet(viewColumns);
+      }
+      DimFilter viewFilter = ((ViewDataSource) ds).getFilter();
+      if (viewFilter != null) {
+        filter = filter == null ? viewFilter : AndDimFilter.of(filter, viewFilter);
       }
     }
 
     final List<DimensionSpec> dims;
     if (query.getDimensions() == null || query.getDimensions().isEmpty()) {
-      dims = DefaultDimensionSpec.toSpec(retain(adapter.getAvailableDimensions(), retainers));
+      if (retainers != null || BaseQuery.allColumnsForEmpty(query)) {
+        dims = DefaultDimensionSpec.toSpec(GuavaUtils.retain(adapter.getAvailableDimensions(), retainers));
+      } else {
+        dims = ImmutableList.of();
+      }
     } else {
       dims = query.getDimensions();
     }
 
     final List<String> metrics;
     if (query.getMetrics() == null || query.getMetrics().isEmpty()) {
-      metrics = retain(adapter.getAvailableMetrics(), retainers);
+      if (retainers != null || BaseQuery.allColumnsForEmpty(query)) {
+        metrics = GuavaUtils.retain(adapter.getAvailableMetrics(), retainers);
+      } else {
+        metrics = ImmutableList.of();
+      }
     } else {
       metrics = query.getMetrics();
     }
@@ -95,8 +113,6 @@ public class SelectQueryEngine
 
     // should be rewritten with given interval
     final String segmentId = DataSegmentUtils.withInterval(dataSource, segment.getIdentifier(), intervals.get(0));
-
-    final DimFilter filter = query.getDimensionsFilter();
 
     return QueryRunnerHelper.makeCursorBasedQuery(
         adapter,
@@ -192,14 +208,5 @@ public class SelectQueryEngine
           }
         }
     );
-  }
-
-  private List<String> retain(Iterable<String> name, Set<String> retainer)
-  {
-    List<String> retaining = Lists.newArrayList(name);
-    if (retainer != null) {
-      retaining.retainAll(retainer);
-    }
-    return retaining;
   }
 }

@@ -20,13 +20,17 @@
 package io.druid.indexer.hadoop;
 
 import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.JavaType;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.dataformat.smile.SmileFactory;
+import com.fasterxml.jackson.dataformat.smile.SmileGenerator;
+import com.fasterxml.jackson.jaxrs.smile.SmileMediaTypes;
 import com.google.common.base.Charsets;
 import com.google.common.base.Function;
-import com.google.common.base.Functions;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import com.google.common.base.Throwables;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
@@ -42,15 +46,25 @@ import com.metamx.http.client.HttpClient;
 import com.metamx.http.client.HttpClientConfig;
 import com.metamx.http.client.HttpClientInit;
 import com.metamx.http.client.Request;
+import com.metamx.http.client.io.AppendableByteArrayInputStream;
+import com.metamx.http.client.response.ClientResponse;
+import com.metamx.http.client.response.HttpResponseHandler;
+import com.metamx.http.client.response.InputStreamResponseHandler;
 import com.metamx.http.client.response.StatusResponseHandler;
 import com.metamx.http.client.response.StatusResponseHolder;
+import io.druid.client.JsonParserIterator;
+import io.druid.client.StreamHandler;
+import io.druid.client.StreamHandlerFactory;
 import io.druid.collections.CountingMap;
 import io.druid.granularity.QueryGranularities;
 import io.druid.jackson.DefaultObjectMapper;
 import io.druid.jackson.DruidDefaultSerializersModule;
+import io.druid.query.BaseQuery;
 import io.druid.query.Druids;
 import io.druid.query.LocatedSegmentDescriptor;
+import io.druid.query.Query;
 import io.druid.query.Result;
+import io.druid.query.SegmentDescriptor;
 import io.druid.query.dimension.DefaultDimensionSpec;
 import io.druid.query.dimension.DimensionSpec;
 import io.druid.query.filter.DimFilter;
@@ -58,10 +72,12 @@ import io.druid.query.select.EventHolder;
 import io.druid.query.select.PagingSpec;
 import io.druid.query.select.SelectQuery;
 import io.druid.query.select.SelectResultValue;
-import io.druid.query.spec.MultipleIntervalSegmentSpec;
-import io.druid.segment.column.Column;
+import io.druid.query.select.StreamQuery;
+import io.druid.query.spec.MultipleSpecificSegmentSpec;
+import io.druid.query.spec.SpecificSegmentSpec;
 import io.druid.server.DruidNode;
 import io.druid.server.coordination.DruidServerMetadata;
+import org.apache.commons.io.IOUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.io.NullWritable;
 import org.apache.hadoop.mapred.JobConf;
@@ -73,14 +89,14 @@ import org.apache.hadoop.mapreduce.RecordReader;
 import org.apache.hadoop.mapreduce.TaskAttemptContext;
 import org.jboss.netty.handler.codec.http.HttpHeaders;
 import org.jboss.netty.handler.codec.http.HttpMethod;
-import org.jboss.netty.handler.codec.http.HttpResponseStatus;
+import org.jboss.netty.handler.codec.http.HttpResponse;
 import org.joda.time.Interval;
 
-import javax.ws.rs.core.MediaType;
 import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
-import java.io.Reader;
+import java.io.InputStream;
+import java.io.InterruptedIOException;
 import java.net.URL;
 import java.net.URLEncoder;
 import java.util.ArrayList;
@@ -91,6 +107,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.TreeSet;
+import java.util.UUID;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicLong;
@@ -104,14 +121,21 @@ public class QueryBasedInputFormat extends InputFormat<NullWritable, MapWritable
   public static final String CONF_DRUID_DATASOURCE = "druid.datasource";
   public static final String CONF_DRUID_INTERVALS = "druid.intervals";
   public static final String CONF_DRUID_COLUMNS = "druid.columns";
+  public static final String CONF_DRUID_COLUMNS_UPPERCASE = "druid.columns.uppercase";
   public static final String CONF_DRUID_FILTERS = "druid.filters";
   public static final String CONF_DRUID_TIME_COLUMN_NAME = "druid.time.column.name";
 
-  public static final String CONF_MAX_SPLIT_SIZE = "druid.max.split.size";
-  public static final String CONF_SELECT_THRESHOLD = "druid.select.threshold";
+  public static final String CONF_DRUID_MAX_SPLIT_SIZE = "druid.max.split.size";
 
-  public static final int DEFAULT_SELECT_THRESHOLD = 10000;
-  public static final int DEFAULT_MAX_SPLIT_SIZE = -1;  // split per segment
+  public static final String CONF_DRUID_USE_STREAM = "druid.use.stream";
+  public static final String CONF_DRUID_SELECT_THRESHOLD = "druid.select.threshold";
+  public static final String CONF_DRUID_STREAM_THRESHOLD = "druid.stream.threshold";
+
+  public static final int DEFAULT_SELECT_THRESHOLD = 10000;   // page num
+  public static final int DEFAULT_STREAM_THRESHOLD = 10;      // chunk num
+  public static final int DEFAULT_MAX_SPLIT_SIZE = -1;        // -1 : split per segment
+
+  public static final String DEFAULT_INTERVAL = "0000-01-01/3000-01-01";
 
   protected Configuration configure(Configuration configuration, ObjectMapper mapper) throws IOException
   {
@@ -139,7 +163,7 @@ public class QueryBasedInputFormat extends InputFormat<NullWritable, MapWritable
 
     String brokerAddress = Preconditions.checkNotNull(conf.get(CONF_DRUID_BROKER_ADDRESS), "Missing broker address");
     String dataSource = Preconditions.checkNotNull(conf.get(CONF_DRUID_DATASOURCE), "Missing datasource name");
-    String intervals = Preconditions.checkNotNull(conf.get(CONF_DRUID_INTERVALS), "Missing interval");
+    String intervals = conf.get(CONF_DRUID_INTERVALS, DEFAULT_INTERVAL);
     String filters = conf.get(CONF_DRUID_FILTERS);
 
     String requestURL =
@@ -181,7 +205,7 @@ public class QueryBasedInputFormat extends InputFormat<NullWritable, MapWritable
 
     logger.info("segments to read [%s]", segments);
 
-    long maxSize = conf.getLong(CONF_MAX_SPLIT_SIZE, DEFAULT_MAX_SPLIT_SIZE);
+    long maxSize = conf.getLong(CONF_DRUID_MAX_SPLIT_SIZE, DEFAULT_MAX_SPLIT_SIZE);
 
     if (maxSize > 0) {
       Collections.shuffle(segments);
@@ -219,11 +243,12 @@ public class QueryBasedInputFormat extends InputFormat<NullWritable, MapWritable
   }
 
   @Override
+  @SuppressWarnings("unchecked")
   public org.apache.hadoop.mapred.RecordReader getRecordReader(
       org.apache.hadoop.mapred.InputSplit split, JobConf job, Reporter reporter
   ) throws IOException
   {
-    DruidRecordReader reader = new DruidRecordReader();
+    DruidRecordReader<?, ?> reader = DruidRecordReader.create(job);
     reader.initialize((DruidInputSplit) split, job);
     return reader;
   }
@@ -234,18 +259,20 @@ public class QueryBasedInputFormat extends InputFormat<NullWritable, MapWritable
       TaskAttemptContext context
   ) throws IOException, InterruptedException
   {
-    return new DruidRecordReader();
+    DruidRecordReader<?, ?> reader = DruidRecordReader.create(context.getConfiguration());
+    reader.initialize((DruidInputSplit) split, context.getConfiguration());
+    return reader;
   }
 
-  private DruidInputSplit toSplit(String dataSource, String filters, List<LocatedSegmentDescriptor> segments)
+  private DruidInputSplit toSplit(String dataSource, String filters, List<LocatedSegmentDescriptor> locatedSegments)
   {
     long size = 0;
-    List<Interval> intervals = Lists.newArrayList();
-    for (LocatedSegmentDescriptor segment : segments) {
+    List<SegmentDescriptor> intervals = Lists.newArrayList();
+    for (LocatedSegmentDescriptor segment : locatedSegments) {
       size += segment.getSize();
-      intervals.add(segment.getInterval());
+      intervals.add(segment.toSegmentDescriptor());
     }
-    String[] locations = getFrequentLocations(segments);
+    String[] locations = getFrequentLocations(locatedSegments);
     return new DruidInputSplit(dataSource, intervals, filters, locations, size);
   }
 
@@ -298,7 +325,7 @@ public class QueryBasedInputFormat extends InputFormat<NullWritable, MapWritable
   {
     private String dataSource;
     private String filters;
-    private List<Interval> intervals;
+    private List<SegmentDescriptor> segments;
     private String[] locations;
     private long length;
 
@@ -309,14 +336,14 @@ public class QueryBasedInputFormat extends InputFormat<NullWritable, MapWritable
 
     public DruidInputSplit(
         String dataSource,
-        List<Interval> intervals,
+        List<SegmentDescriptor> segments,
         String filters,
         String[] locations,
         long length
     )
     {
       this.dataSource = dataSource;
-      this.intervals = intervals;
+      this.segments = segments;
       this.filters = filters;
       this.locations = locations;
       this.length = length;
@@ -344,18 +371,20 @@ public class QueryBasedInputFormat extends InputFormat<NullWritable, MapWritable
       return filters;
     }
 
-    public List<Interval> getIntervals()
+    public List<SegmentDescriptor> getSegments()
     {
-      return intervals;
+      return segments;
     }
 
     @Override
     public void write(DataOutput out) throws IOException
     {
       out.writeUTF(dataSource);
-      out.writeInt(intervals.size());
-      for (String interval : Lists.transform(intervals, Functions.toStringFunction())) {
-        out.writeUTF(interval);
+      out.writeInt(segments.size());
+      for (SegmentDescriptor segment : segments) {
+        out.writeUTF(segment.getInterval().toString());
+        out.writeUTF(segment.getVersion());
+        out.writeInt(segment.getPartitionNumber());
       }
       out.writeUTF(Strings.nullToEmpty(filters));
       out.writeInt(locations.length);
@@ -369,9 +398,9 @@ public class QueryBasedInputFormat extends InputFormat<NullWritable, MapWritable
     public void readFields(DataInput in) throws IOException
     {
       dataSource = in.readUTF();
-      intervals = Lists.newArrayList();
+      segments = Lists.newArrayList();
       for (int i = in.readInt(); i > 0; i--) {
-        intervals.add(new Interval(in.readUTF()));
+        segments.add(new SegmentDescriptor(new Interval(in.readUTF()), in.readUTF(), in.readInt()));
       }
       filters = in.readUTF();
       locations = new String[in.readInt()];
@@ -386,28 +415,32 @@ public class QueryBasedInputFormat extends InputFormat<NullWritable, MapWritable
     {
       return "DruidInputSplit{" +
              "dataSource=" + dataSource +
-             ", intervals=" + intervals +
+             ", segments=" + segments +
              ", filters=" + filters +
              ", locations=" + Arrays.toString(locations) +
              '}';
     }
   }
 
-  public static class DruidRecordReader extends RecordReader<NullWritable, MapWritable>
+  public static abstract class DruidRecordReader<F, T> extends RecordReader<NullWritable, MapWritable>
       implements org.apache.hadoop.mapred.RecordReader<NullWritable, MapWritable>
   {
-    private final Lifecycle lifecycle = new Lifecycle();
+    public static DruidRecordReader<?, ?> create(Configuration configuration)
+    {
+      if (configuration.getBoolean(CONF_DRUID_USE_STREAM, true)) {
+        return new DruidRecordReader.WithStreaming();
+      }
+      return new DruidRecordReader.WithPaging();
+    }
 
-    private int threshold;
-    private ObjectMapper mapper;
-    private HttpClient client;
-    private Druids.SelectQueryBuilder builder;
-    private Request request;
+    final Lifecycle lifecycle = new Lifecycle();
 
-    private int intervalIndex;
-    private List<Interval> intervals;
-    private Iterator<EventHolder> events = Iterators.emptyIterator();
-    private Map<String, Integer> paging = null;
+    ObjectMapper mapper;
+    HttpClient client;
+    Request request;
+
+    String timeColumn;
+    Druids.SelectQueryBuilder builder;
 
     @Override
     public void initialize(InputSplit split, TaskAttemptContext context) throws IOException
@@ -441,25 +474,31 @@ public class QueryBasedInputFormat extends InputFormat<NullWritable, MapWritable
         }
       }
 
-      intervals = split.getIntervals();
-
       client = HttpClientInit.createClient(HttpClientConfig.builder().build(), lifecycle);
 
-      mapper = new DefaultObjectMapper();
-      threshold = configuration.getInt(CONF_SELECT_THRESHOLD, DEFAULT_SELECT_THRESHOLD);
+      SmileFactory smileFactory = new SmileFactory();
+      smileFactory.configure(SmileGenerator.Feature.ENCODE_BINARY_AS_7BIT, false);
+      smileFactory.delegateToTextual(true);
+
+      mapper = new DefaultObjectMapper(smileFactory);
 
       builder = new Druids.SelectQueryBuilder()
           .dataSource(split.getDataSource())
-          .granularity(QueryGranularities.ALL);
+          .granularity(QueryGranularities.ALL)
+          .context(ImmutableMap.<String, Object>of(BaseQuery.ALL_COLUMNS_FOR_EMPTY, false));
 
-      final String timeColumn = configuration.get(CONF_DRUID_TIME_COLUMN_NAME, Column.TIME_COLUMN_NAME);
+      timeColumn = configuration.get(CONF_DRUID_TIME_COLUMN_NAME, EventHolder.timestampKey);
 
+      final boolean uppercase = configuration.getBoolean(CONF_DRUID_COLUMNS_UPPERCASE, false);
       List<DimensionSpec> dimensionSpecs = Lists.newArrayList();
       for (String column : configuration.get(CONF_DRUID_COLUMNS).split(",")) {
         column = column.trim();
         if (!column.equals(timeColumn)) {
           // use EventHolder.timestampKey for time
-          dimensionSpecs.add(new DefaultDimensionSpec(column, column));
+          dimensionSpecs.add(
+              // hive takes lower-cased identifiers only
+              new DefaultDimensionSpec(uppercase ? column.toUpperCase() : column, column.toLowerCase())
+          );
         }
       }
 
@@ -483,66 +522,19 @@ public class QueryBasedInputFormat extends InputFormat<NullWritable, MapWritable
       catch (Exception e) {
         throw new IOException(e);
       }
-
-      future = submitQuery(true);
     }
 
-    private transient Future<SelectResultValue> future;
-    private transient StatusResponseHandler handler = new StatusResponseHandler(Charsets.UTF_8);
+    Iterator<Map<String, Object>> events = Iterators.emptyIterator();
 
-    private void nextPage() throws IOException, InterruptedException
+    protected final ListenableFuture<F> submitQuery(Query query, HttpResponseHandler<?, F> handler) throws IOException
     {
-      SelectResultValue response = retrieveResult();
-      if (response != null && !response.getEvents().isEmpty()) {
-        events = response.iterator();
-        paging = response.getPagingIdentifiers();
-      } else {
-        events = Iterators.emptyIterator();
-      }
-      future = submitQuery(!events.hasNext());
-    }
-
-    private SelectResultValue retrieveResult() throws InterruptedException, IOException
-    {
-      long start = System.currentTimeMillis();
-      SelectResultValue response;
-      try {
-        response = future.get();
-      }
-      catch (ExecutionException e) {
-        throw new IOException(e.getCause());
-      }
-      finally {
-        logger.info("Waited on future in %d msec", System.currentTimeMillis() - start);
-      }
-      return response;
-    }
-
-    private Future<SelectResultValue> submitQuery(boolean nextInterval) throws IOException
-    {
-      if (nextInterval && intervalIndex >= intervals.size()) {
-        return null;
-      }
-      if (nextInterval) {
-        builder.intervals(new MultipleIntervalSegmentSpec(Arrays.asList(intervals.get(intervalIndex++))));
-        builder.pagingSpec(new PagingSpec(null, threshold, true));
-      } else {
-        builder.pagingSpec(new PagingSpec(paging, threshold, true));
-      }
-      SelectQuery query = builder.build();
-      logger.info("Submitting.. " + query.getPagingSpec());
-
+      logger.info("Submitting.. %s", query);
       long start = System.currentTimeMillis();
       try {
-        return wrapWithParse(
-            client.go(
-                request.setContent(mapper.writeValueAsBytes(query))
-                       .setHeader(
-                           HttpHeaders.Names.CONTENT_TYPE,
-                           MediaType.APPLICATION_JSON
-                       ),
-                handler
-            )
+        return client.go(
+            request.setContent(mapper.writeValueAsBytes(query))
+                   .setHeader(HttpHeaders.Names.CONTENT_TYPE, SmileMediaTypes.APPLICATION_JACKSON_SMILE),
+            handler
         );
       }
       finally {
@@ -550,56 +542,21 @@ public class QueryBasedInputFormat extends InputFormat<NullWritable, MapWritable
       }
     }
 
-    private Future<SelectResultValue> wrapWithParse(ListenableFuture<StatusResponseHolder> holder)
+    protected final T retrieveResult(Future<T> future) throws IOException
     {
-      return Futures.transform(
-          holder,
-          new Function<StatusResponseHolder, SelectResultValue>()
-          {
-            @Override
-            public SelectResultValue apply(StatusResponseHolder input)
-            {
-              HttpResponseStatus status = input.getStatus();
-              if (!status.equals(HttpResponseStatus.OK)) {
-                throw new RuntimeException(input.getContent());
-              }
-              logger.info("Parsing %d bytes datum", input.getBuilder().length());
-
-              long start = System.currentTimeMillis();
-              List<Result<SelectResultValue>> value = parse(new BuilderReader(input.getBuilder()));
-              if (value.isEmpty()) {
-                return null;
-              }
-              SelectResultValue result = value.get(0).getValue();
-              logger.info("Parsed %d rows in %d msec", result.getEvents().size(), System.currentTimeMillis() - start);
-              return result;
-            }
-          }
-      );
-    }
-
-    private List<Result<SelectResultValue>> parse(Reader content)
-    {
+      long start = System.currentTimeMillis();
       try {
-        return mapper.readValue(
-            content,
-            new TypeReference<List<Result<SelectResultValue>>>()
-            {
-            }
-        );
+        return future.get();
       }
-      catch (Exception e) {
-        throw Throwables.propagate(e);
+      catch (ExecutionException e) {
+        throw new IOException(e.getCause());
       }
-    }
-
-    @Override
-    public boolean nextKeyValue() throws IOException, InterruptedException
-    {
-      while (future != null && !events.hasNext()) {
-        nextPage();
+      catch (InterruptedException e) {
+        throw new InterruptedIOException(e.toString());
       }
-      return events.hasNext();
+      finally {
+        logger.info("Waited on future in %d msec", System.currentTimeMillis() - start);
+      }
     }
 
     @Override
@@ -611,18 +568,7 @@ public class QueryBasedInputFormat extends InputFormat<NullWritable, MapWritable
     @Override
     public MapWritable getCurrentValue() throws IOException, InterruptedException
     {
-      try {
-        return new MapWritable(events.next().getEvent());
-      }
-      finally {
-        events.remove();
-      }
-    }
-
-    @Override
-    public float getProgress() throws IOException
-    {
-      return intervalIndex / intervals.size();
+      return new MapWritable(events.next());
     }
 
     @Override
@@ -642,13 +588,8 @@ public class QueryBasedInputFormat extends InputFormat<NullWritable, MapWritable
     {
       try {
         if (nextKeyValue()) {
-          try {
-            value.setValue(events.next().getEvent());
-            return true;
-          }
-          finally {
-            events.remove();
-          }
+          value.setValue(events.next());
+          return true;
         }
       }
       catch (InterruptedException e) {
@@ -664,9 +605,164 @@ public class QueryBasedInputFormat extends InputFormat<NullWritable, MapWritable
     }
 
     @Override
+    public float getProgress() throws IOException
+    {
+      return 0;
+    }
+
+    @Override
     public void close() throws IOException
     {
       lifecycle.stop();
+    }
+
+    public static class WithPaging extends DruidRecordReader<InputStream, SelectResultValue>
+    {
+      private int segmentIndex;
+      private List<SegmentDescriptor> segments;
+
+      private Future<SelectResultValue> future;
+      private Map<String, Integer> paging = null;
+      private int threshold;
+      private JavaType type;
+
+      @Override
+      public void initialize(DruidInputSplit split, Configuration configuration) throws IOException
+      {
+        super.initialize(split, configuration);
+        this.threshold = configuration.getInt(CONF_DRUID_SELECT_THRESHOLD, DEFAULT_SELECT_THRESHOLD);
+        this.segments = split.getSegments();
+        this.type = mapper.getTypeFactory().constructType(
+            new TypeReference<List<Result<SelectResultValue>>>()
+            {
+            }
+        );
+        this.future = submitQuery(true);
+      }
+
+      private void nextPage() throws IOException
+      {
+        SelectResultValue response = retrieveResult(future);
+        if (response != null && !response.getEvents().isEmpty()) {
+          events = Iterators.transform(response.iterator(), EventHolder.EVENT_EXT);
+          paging = response.getPagingIdentifiers();
+        } else {
+          events = Iterators.emptyIterator();
+        }
+        future = submitQuery(!events.hasNext());
+      }
+
+      @Override
+      public boolean nextKeyValue() throws IOException, InterruptedException
+      {
+        while (future != null && !events.hasNext()) {
+          nextPage();
+        }
+        return events.hasNext();
+      }
+
+      @Override
+      public float getProgress() throws IOException
+      {
+        return segmentIndex / segments.size();
+      }
+
+      // make it blocking
+      final InputStreamResponseHandler handler = new InputStreamResponseHandler()
+      {
+        @Override
+        public ClientResponse<AppendableByteArrayInputStream> handleResponse(HttpResponse response)
+        {
+          return ClientResponse.unfinished(super.handleResponse(response).getObj());
+        }
+      };
+
+      private Future<SelectResultValue> submitQuery(boolean nextSegment) throws IOException
+      {
+        if (nextSegment && segmentIndex >= segments.size()) {
+          return null;
+        }
+        if (nextSegment) {
+          builder.intervals(new SpecificSegmentSpec(segments.get(segmentIndex++)));
+          builder.pagingSpec(new PagingSpec(null, threshold, true));
+        } else {
+          builder.pagingSpec(new PagingSpec(paging, threshold, true));
+        }
+        SelectQuery query = builder.build();
+        return Futures.transform(
+            submitQuery(query, handler),
+            new Function<InputStream, SelectResultValue>()
+            {
+              @Override
+              public SelectResultValue apply(InputStream input)
+              {
+                long start = System.currentTimeMillis();
+                List<Result<SelectResultValue>> value = parse(input);
+                if (value.isEmpty()) {
+                  return null;
+                }
+                SelectResultValue result = value.get(0).getValue();
+                logger.info("Parsed %d rows in %d msec", result.getEvents().size(), System.currentTimeMillis() - start);
+                return result;
+              }
+            }
+        );
+      }
+
+      private List<Result<SelectResultValue>> parse(InputStream content)
+      {
+        try {
+          return mapper.readValue(content, type);
+        }
+        catch (Exception e) {
+          throw Throwables.propagate(e);
+        }
+      }
+    }
+
+    public static class WithStreaming extends DruidRecordReader<InputStream, Iterator<Map<String, Object>>>
+    {
+      private StreamHandler streamHandler;
+
+      @Override
+      public void initialize(DruidInputSplit split, Configuration configuration) throws IOException
+      {
+        super.initialize(split, configuration);
+        Map<String, Object> tabularProcessor = ImmutableMap.<String, Object>of(
+            BaseQuery.QUERYID, UUID.randomUUID().toString(),
+            BaseQuery.POST_PROCESSING, ImmutableMap.of("type", "tabular", "timestampColumn", timeColumn)
+        );
+        StreamQuery query = builder.intervals(new MultipleSpecificSegmentSpec(split.getSegments()))
+                                   .addContext(tabularProcessor)
+                                   .streaming();
+        int threshold = configuration.getInt(CONF_DRUID_STREAM_THRESHOLD, DEFAULT_STREAM_THRESHOLD);
+        streamHandler = new StreamHandlerFactory(logger).create(
+            query.getId(), request.getUrl(), threshold
+        );
+        events = new JsonParserIterator<Map<String, Object>>(
+            mapper,
+            mapper.getTypeFactory().constructType(
+                new TypeReference<Map<String, Object>>()
+                {
+                }
+            ),
+            submitQuery(query, streamHandler),
+            request.getUrl()
+        );
+      }
+
+      @Override
+      public boolean nextKeyValue() throws IOException, InterruptedException
+      {
+        return events.hasNext();
+      }
+
+      @Override
+      public void close() throws IOException
+      {
+        IOUtils.closeQuietly(streamHandler);
+        super.close();
+      }
     }
   }
 }

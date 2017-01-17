@@ -17,23 +17,19 @@
  * under the License.
  */
 
-package io.druid.query;
+package io.druid.query.select;
 
-import com.fasterxml.jackson.annotation.JsonSubTypes;
-import com.fasterxml.jackson.annotation.JsonTypeInfo;
+import com.google.common.primitives.Longs;
 
-@JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
-@JsonSubTypes(value = {
-    @JsonSubTypes.Type(name = "timewarp", value = TimewarpOperator.class),
-    @JsonSubTypes.Type(name = "join", value = JoinPostProcessor.class),
-    @JsonSubTypes.Type(name = "tabular", value = TabularPostProcessor.class)
-})
-public interface PostProcessingOperator<T>
+import java.util.LinkedHashMap;
+
+/**
+ */
+public class StreamQueryRow extends LinkedHashMap<String, Object> implements Comparable<StreamQueryRow>
 {
-  public QueryRunner<T> postProcess(QueryRunner<T> baseQueryRunner);
-
-  public interface UnionSupport<T> extends PostProcessingOperator<T>
+  @Override
+  public int compareTo(StreamQueryRow o)
   {
-    public QueryRunner<T> postProcess(UnionAllQueryRunner<T> baseQueryRunner);
+    return Longs.compare((Long)get(EventHolder.timestampKey), (Long)o.get(EventHolder.timestampKey));
   }
 }

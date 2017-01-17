@@ -59,7 +59,6 @@ import org.joda.time.Interval;
 import java.sql.Date;
 import java.sql.Timestamp;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -161,6 +160,9 @@ public class ExpressionConverter
 
   static Map<String, List<Range>> getRanges(ExprNodeGenericFuncDesc filterExpr, Map<String, TypeInfo> types)
   {
+    if (filterExpr == null) {
+      return Maps.newHashMap();
+    }
     logger.info("Start analyzing predicate " + filterExpr.getExprString());
     SearchArgument searchArgument = ConvertAstToSearchArg.create(filterExpr);
     ExpressionTree root = searchArgument.getExpression();

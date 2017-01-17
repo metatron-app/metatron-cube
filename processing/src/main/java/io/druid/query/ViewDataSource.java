@@ -27,9 +27,8 @@ import io.druid.query.filter.DimFilter;
 import java.util.List;
 import java.util.Objects;
 
-// only for join query
 @JsonTypeName("join")
-public class JoinDataSource extends TableDataSource
+public class ViewDataSource extends TableDataSource
 {
   @JsonProperty
   private final List<String> columns;
@@ -38,7 +37,7 @@ public class JoinDataSource extends TableDataSource
   private final DimFilter filter;
 
   @JsonCreator
-  public JoinDataSource(
+  public ViewDataSource(
       @JsonProperty("name") String name,
       @JsonProperty("columns") List<String> columns,
       @JsonProperty("filter") DimFilter filter
@@ -63,22 +62,22 @@ public class JoinDataSource extends TableDataSource
 
   public DataSource withColumns(List<String> columns)
   {
-    return new JoinDataSource(name, columns, filter);
+    return new ViewDataSource(name, columns, filter);
   }
 
   public DataSource withFilter(DimFilter filter)
   {
-    return new JoinDataSource(name, columns, filter);
+    return new ViewDataSource(name, columns, filter);
   }
 
   @Override
   public boolean equals(Object o)
   {
-    if (!(o instanceof JoinDataSource) || !super.equals(o)) {
+    if (!(o instanceof ViewDataSource) || !super.equals(o)) {
       return false;
     }
 
-    JoinDataSource that = (JoinDataSource) o;
+    ViewDataSource that = (ViewDataSource) o;
 
     if (!Objects.equals(columns, that.columns)) {
       return false;

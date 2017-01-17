@@ -17,23 +17,22 @@
  * under the License.
  */
 
-package io.druid.query;
+package io.druid.client;
 
-import com.fasterxml.jackson.annotation.JsonSubTypes;
-import com.fasterxml.jackson.annotation.JsonTypeInfo;
+import com.metamx.http.client.response.HttpResponseHandler;
+import org.jboss.netty.handler.codec.http.HttpHeaders;
 
-@JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
-@JsonSubTypes(value = {
-    @JsonSubTypes.Type(name = "timewarp", value = TimewarpOperator.class),
-    @JsonSubTypes.Type(name = "join", value = JoinPostProcessor.class),
-    @JsonSubTypes.Type(name = "tabular", value = TabularPostProcessor.class)
-})
-public interface PostProcessingOperator<T>
+import java.io.Closeable;
+import java.io.IOException;
+import java.io.InputStream;
+
+/**
+ */
+public interface StreamHandler extends HttpResponseHandler<InputStream, InputStream>, Closeable
 {
-  public QueryRunner<T> postProcess(QueryRunner<T> baseQueryRunner);
+  void handleHeader(HttpHeaders headers) throws IOException;
 
-  public interface UnionSupport<T> extends PostProcessingOperator<T>
-  {
-    public QueryRunner<T> postProcess(UnionAllQueryRunner<T> baseQueryRunner);
-  }
+  void response(long requestStartTime, long responseStartTime);
+
+  void finished(long requestStartTime, long stopTime, long byteCount);
 }

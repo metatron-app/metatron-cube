@@ -24,6 +24,7 @@ import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
 import io.druid.granularity.QueryGranularities;
 import io.druid.granularity.QueryGranularity;
 import io.druid.query.aggregation.AggregatorFactory;
@@ -49,6 +50,7 @@ import io.druid.query.search.search.SearchQuerySpec;
 import io.druid.query.search.search.SearchSortSpec;
 import io.druid.query.select.PagingSpec;
 import io.druid.query.select.SelectQuery;
+import io.druid.query.select.StreamQuery;
 import io.druid.query.spec.LegacySegmentSpec;
 import io.druid.query.spec.QuerySegmentSpec;
 import io.druid.query.timeboundary.TimeBoundaryQuery;
@@ -1121,6 +1123,23 @@ public class Druids
       concatString = null;
     }
 
+
+    public StreamQuery streaming()
+    {
+      Preconditions.checkArgument(pagingSpec == null || pagingSpec.equals(PagingSpec.GET_ALL));
+      return new StreamQuery(
+          dataSource,
+          querySegmentSpec,
+          dimFilter,
+          granularity,
+          dimensions,
+          metrics,
+          virtualColumns,
+          concatString,
+          context
+      );
+    }
+
     public SelectQuery build()
     {
       return new SelectQuery(
@@ -1134,7 +1153,8 @@ public class Druids
           virtualColumns,
           pagingSpec,
           concatString,
-          outputColumns, lateralViewSpec,
+          outputColumns,
+          lateralViewSpec,
           context
       );
     }
@@ -1195,6 +1215,17 @@ public class Druids
     public SelectQueryBuilder context(Map<String, Object> c)
     {
       context = c;
+      return this;
+    }
+
+    public SelectQueryBuilder addContext(Map<String, Object> c)
+    {
+      if (context == null) {
+        context = c;
+      } else {
+        context = Maps.newHashMap(context);
+        context.putAll(c);
+      }
       return this;
     }
 

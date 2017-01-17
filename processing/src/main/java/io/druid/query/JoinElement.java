@@ -103,8 +103,8 @@ public class JoinElement
       return query;
     }
     DataSource ds = dataSource;
-    if (dataSource instanceof JoinDataSource) {
-      JoinDataSource joinDS = (JoinDataSource) dataSource;
+    if (dataSource instanceof ViewDataSource) {
+      ViewDataSource joinDS = (ViewDataSource) dataSource;
       List<String> columns = joinDS.getColumns();
       if (columns != null && !columns.isEmpty()) {
         Set<String> retainer = Sets.newLinkedHashSet();

@@ -21,6 +21,7 @@ package io.druid.query.select;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.google.common.base.Function;
 import com.google.common.collect.Maps;
 import com.metamx.common.ISE;
 import org.joda.time.DateTime;
@@ -31,6 +32,16 @@ import java.util.Map;
  */
 public class EventHolder
 {
+  public static final Function<EventHolder, Map<String, Object>> EVENT_EXT =
+      new Function<EventHolder, Map<String, Object>>()
+      {
+        @Override
+        public Map<String, Object> apply(EventHolder input)
+        {
+          return input.getEvent();
+        }
+      };
+
   public static final String timestampKey = "timestamp";
 
   private final String segmentId;
