@@ -122,12 +122,11 @@ public class JoinElement
         ds = joinDS.withFilter(null);
       }
     }
-    // should be replaced with streaming query
     return new Druids.SelectQueryBuilder()
         .dataSource(ds)
         .intervals(segmentSpec)
         .filters(filter)
-        .build();
+        .streaming();
   }
 
   @Override
