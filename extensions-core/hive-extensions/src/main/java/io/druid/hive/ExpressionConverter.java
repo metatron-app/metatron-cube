@@ -35,6 +35,7 @@ import io.druid.query.filter.DimFilter;
 import io.druid.query.filter.InDimFilter;
 import io.druid.query.filter.OrDimFilter;
 import io.druid.query.filter.SelectorDimFilter;
+import org.apache.commons.codec.binary.Base64;
 import org.apache.commons.lang.StringUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hive.common.type.HiveDecimal;
@@ -224,9 +225,9 @@ public class ExpressionConverter
         converted.add(current.lhs);
         continue;
       }
-      ExprNodeConstantDesc constant = (ExprNodeConstantDesc)child;
+      ExprNodeConstantDesc constant = (ExprNodeConstantDesc) child;
       Object value = ObjectInspectorConverters.getConverter(
-          PrimitiveObjectInspectorFactory.getPrimitiveJavaObjectInspector((PrimitiveTypeInfo)constant.getTypeInfo()),
+          PrimitiveObjectInspectorFactory.getPrimitiveJavaObjectInspector((PrimitiveTypeInfo) constant.getTypeInfo()),
           PrimitiveObjectInspectorFactory.getPrimitiveJavaObjectInspector(current.rhs)
       ).convert(constant.getValue());
       converted.add(new ExprNodeConstantDesc(current.rhs, value));
@@ -628,6 +629,15 @@ public class ExpressionConverter
             return toTimestamp(input);
           }
         };
+      case BINARY:
+        return new Function<Object, Object>()
+        {
+          @Override
+          public Object apply(Object input)
+          {
+            return toBinary(input);
+          }
+        };
       default:
         throw new UnsupportedOperationException("Not supported type " + type);
     }
@@ -905,5 +915,19 @@ public class ExpressionConverter
   {
     Long longVal = toLong(literal);
     return longVal == null ? null : HiveDecimal.create(longVal);
+  }
+
+  private static byte[] toBinary(Object literal)
+  {
+    if (literal == null) {
+      return null;
+    }
+    if (literal instanceof byte[]) {
+      return (byte[]) literal;
+    }
+    if (literal instanceof String) {
+      return Base64.decodeBase64(io.druid.common.utils.StringUtils.toUtf8((String) literal));
+    }
+    return null;
   }
 }

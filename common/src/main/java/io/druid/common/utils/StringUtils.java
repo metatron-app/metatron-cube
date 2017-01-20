@@ -35,6 +35,24 @@ public class StringUtils extends com.metamx.common.StringUtils
     }
   };
 
+  public static final Function<String, String> TO_UPPER = new Function<String, String>()
+  {
+    @Override
+    public String apply(String s)
+    {
+      return s.toUpperCase();
+    }
+  };
+
+  public static final Function<String, String> TO_LOWER = new Function<String, String>()
+  {
+    @Override
+    public String apply(String s)
+    {
+      return s.toLowerCase();
+    }
+  };
+
   private static final byte[] EMPTY_BYTES = new byte[0];
 
   // should be used only for estimation

@@ -39,7 +39,6 @@ import com.google.common.net.HostAndPort;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.metamx.common.Pair;
-import com.metamx.common.StringUtils;
 import com.metamx.common.lifecycle.Lifecycle;
 import com.metamx.common.logger.Logger;
 import com.metamx.http.client.HttpClient;
@@ -56,6 +55,7 @@ import io.druid.client.JsonParserIterator;
 import io.druid.client.StreamHandler;
 import io.druid.client.StreamHandlerFactory;
 import io.druid.collections.CountingMap;
+import io.druid.common.utils.StringUtils;
 import io.druid.granularity.QueryGranularities;
 import io.druid.jackson.DefaultObjectMapper;
 import io.druid.jackson.DruidDefaultSerializersModule;
@@ -65,8 +65,7 @@ import io.druid.query.LocatedSegmentDescriptor;
 import io.druid.query.Query;
 import io.druid.query.Result;
 import io.druid.query.SegmentDescriptor;
-import io.druid.query.dimension.DefaultDimensionSpec;
-import io.druid.query.dimension.DimensionSpec;
+import io.druid.query.ViewDataSource;
 import io.druid.query.filter.DimFilter;
 import io.druid.query.select.EventHolder;
 import io.druid.query.select.PagingSpec;
@@ -484,32 +483,23 @@ public class QueryBasedInputFormat extends InputFormat<NullWritable, MapWritable
 
       mapper = new DefaultObjectMapper(smileFactory);
 
+      List<String> columns = Arrays.asList(configuration.get(CONF_DRUID_COLUMNS).split(","));
+      if (configuration.getBoolean(CONF_DRUID_COLUMNS_UPPERCASE, false)) {
+        columns = Lists.newArrayList(Lists.transform(columns, StringUtils.TO_UPPER));
+      }
+      ViewDataSource dataSource = new ViewDataSource(split.getDataSource(), columns, null, true);
+
+      String filters = split.getFilters();
+      if (filters != null && !filters.isEmpty()) {
+        dataSource = dataSource.withFilter(mapper.readValue(filters, DimFilter.class));
+      }
+
       builder = new Druids.SelectQueryBuilder()
-          .dataSource(split.getDataSource())
+          .dataSource(dataSource)
           .granularity(QueryGranularities.ALL)
           .context(ImmutableMap.<String, Object>of(BaseQuery.ALL_COLUMNS_FOR_EMPTY, false));
 
       timeColumn = configuration.get(CONF_DRUID_TIME_COLUMN_NAME, EventHolder.timestampKey);
-
-      final boolean uppercase = configuration.getBoolean(CONF_DRUID_COLUMNS_UPPERCASE, false);
-      List<DimensionSpec> dimensionSpecs = Lists.newArrayList();
-      for (String column : configuration.get(CONF_DRUID_COLUMNS).split(",")) {
-        column = column.trim();
-        if (!column.equals(timeColumn)) {
-          // use EventHolder.timestampKey for time
-          dimensionSpecs.add(
-              // hive takes lower-cased identifiers only
-              new DefaultDimensionSpec(uppercase ? column.toUpperCase() : column, column.toLowerCase())
-          );
-        }
-      }
-
-      builder.dimensionSpecs(dimensionSpecs);
-
-      String filters = split.getFilters();
-      if (filters != null && !filters.isEmpty()) {
-        builder.filters(mapper.readValue(filters, DimFilter.class));
-      }
 
       request = new Request(
           HttpMethod.POST,

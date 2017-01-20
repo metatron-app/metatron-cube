@@ -25,6 +25,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.Ordering;
 import com.metamx.common.guava.Sequence;
 import io.druid.query.datasourcemetadata.DataSourceMetadataQuery;
+import io.druid.query.dimension.DimensionSpec;
 import io.druid.query.filter.DimFilter;
 import io.druid.query.groupby.GroupByQuery;
 import io.druid.query.groupby.PartitionedGroupByQuery;
@@ -121,6 +122,19 @@ public interface Query<T> extends QueryContextKeys
     DimFilter getDimFilter();
 
     DimFilterSupport<T> withDimFilter(DimFilter filter);
+  }
+
+  interface ViewSupport<T> extends DimFilterSupport<T>
+  {
+    List<DimensionSpec> getDimensions();
+
+    List<String> getMetrics();
+
+    ViewSupport<T> withDimensions(List<DimensionSpec> dimensions);
+
+    ViewSupport<T> withMetrics(List<String> metrics);
+
+    ViewSupport<T> withDimFilter(DimFilter filter);
   }
 
   interface RewritingQuery<T> extends Query<T>

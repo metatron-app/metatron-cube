@@ -22,6 +22,7 @@ package io.druid.query.select;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
+import com.google.common.collect.ImmutableList;
 import io.druid.granularity.QueryGranularities;
 import io.druid.granularity.QueryGranularity;
 import io.druid.query.BaseQuery;
@@ -39,7 +40,8 @@ import java.util.Objects;
 /**
  */
 @JsonTypeName(Query.SELECT_STREAM)
-public class StreamQuery extends BaseQuery<StreamQueryRow> implements Query.DimFilterSupport<StreamQueryRow>
+public class StreamQuery extends BaseQuery<StreamQueryRow>
+    implements Query.ViewSupport<StreamQueryRow>
 {
   private final DimFilter dimFilter;
   private final QueryGranularity granularity;
@@ -64,16 +66,16 @@ public class StreamQuery extends BaseQuery<StreamQueryRow> implements Query.DimF
     super(dataSource, querySegmentSpec, false, context);
     this.dimFilter = dimFilter;
     this.granularity = granularity == null ? QueryGranularities.ALL : granularity;
-    this.dimensions = dimensions;
+    this.dimensions = dimensions == null ? ImmutableList.<DimensionSpec>of() : dimensions;
+    this.metrics = metrics == null ? ImmutableList.<String>of() : metrics;
     this.virtualColumns = virtualColumns;
-    this.metrics = metrics;
     this.concatString = concatString;
   }
 
   @Override
   public boolean hasFilters()
   {
-    return dimFilter != null;
+    return dimFilter != null || ViewSupportHelper.hasFilter(getDataSource());
   }
 
   @Override
@@ -172,6 +174,36 @@ public class StreamQuery extends BaseQuery<StreamQueryRow> implements Query.DimF
 
   @Override
   public StreamQuery withDimFilter(DimFilter dimFilter)
+  {
+    return new StreamQuery(
+        getDataSource(),
+        getQuerySegmentSpec(),
+        dimFilter,
+        granularity,
+        dimensions,
+        metrics,
+        virtualColumns,
+        concatString,
+        getContext()
+    );
+  }
+
+  public StreamQuery withDimensions(List<DimensionSpec> dimensions)
+  {
+    return new StreamQuery(
+        getDataSource(),
+        getQuerySegmentSpec(),
+        dimFilter,
+        granularity,
+        dimensions,
+        metrics,
+        virtualColumns,
+        concatString,
+        getContext()
+    );
+  }
+
+  public StreamQuery withMetrics(List<String> metrics)
   {
     return new StreamQuery(
         getDataSource(),

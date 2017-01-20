@@ -1176,6 +1176,23 @@ public class Druids
           .context(builder.context);
     }
 
+    public static SelectQueryBuilder copy(SelectQuery query)
+    {
+      return new SelectQueryBuilder()
+          .dataSource(query.getDataSource())
+          .intervals(query.getIntervals())
+          .descending(query.isDescending())
+          .filters(query.getDimFilter())
+          .granularity(query.getGranularity())
+          .dimensionSpecs(query.getDimensions())
+          .metrics(query.getMetrics())
+          .virtualColumns(query.getVirtualColumns())
+          .pagingSpec(query.getPagingSpec())
+          .explodeSpec(query.getLateralView())
+          .outputColumns(query.getOutputColumns())
+          .context(query.getContext());
+    }
+
     public SelectQueryBuilder dataSource(String ds)
     {
       dataSource = new TableDataSource(ds);

@@ -21,24 +21,15 @@ package io.druid.query.select;
 
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
-import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
-import com.google.common.collect.Sets;
 import com.metamx.common.ISE;
 import com.metamx.common.guava.Sequence;
 import com.metamx.common.guava.Sequences;
 import io.druid.cache.Cache;
-import io.druid.common.guava.GuavaUtils;
-import io.druid.query.BaseQuery;
-import io.druid.query.DataSource;
-import io.druid.query.ViewDataSource;
 import io.druid.query.QueryRunnerHelper;
-import io.druid.query.dimension.DefaultDimensionSpec;
 import io.druid.query.dimension.DimensionSpec;
-import io.druid.query.filter.AndDimFilter;
-import io.druid.query.filter.DimFilter;
 import io.druid.segment.Cursor;
 import io.druid.segment.DimensionSelector;
 import io.druid.segment.LongColumnSelector;
@@ -54,13 +45,12 @@ import org.joda.time.Interval;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 
 /**
  */
 public class StreamQueryEngine
 {
-  public Sequence<StreamQueryRow> process(final StreamQuery query, final Segment segment, final Cache cache)
+  public Sequence<StreamQueryRow> process(final StreamQuery baseQuery, final Segment segment, final Cache cache)
   {
     final StorageAdapter adapter = segment.asStorageAdapter();
 
@@ -70,42 +60,7 @@ public class StreamQueryEngine
       );
     }
 
-    DataSource ds = query.getDataSource();
-    DimFilter filter = query.getDimensionsFilter();
-
-    Set<String> retainers = null;
-    if (ds instanceof ViewDataSource) {
-      List<String> viewColumns = ((ViewDataSource) ds).getColumns();
-      if (viewColumns != null && !viewColumns.isEmpty()) {
-        retainers = Sets.newHashSet(viewColumns);
-      }
-      DimFilter viewFilter = ((ViewDataSource) ds).getFilter();
-      if (viewFilter != null) {
-        filter = filter == null ? viewFilter : AndDimFilter.of(filter, viewFilter);
-      }
-    }
-
-    final List<DimensionSpec> dims;
-    if (query.getDimensions() == null || query.getDimensions().isEmpty()) {
-      if (retainers != null || BaseQuery.allColumnsForEmpty(query)) {
-        dims = DefaultDimensionSpec.toSpec(GuavaUtils.retain(adapter.getAvailableDimensions(), retainers));
-      } else {
-        dims = ImmutableList.of();
-      }
-    } else {
-      dims = query.getDimensions();
-    }
-
-    final List<String> metrics;
-    if (query.getMetrics() == null || query.getMetrics().isEmpty()) {
-      if (retainers != null || BaseQuery.allColumnsForEmpty(query)) {
-        metrics = GuavaUtils.retain(adapter.getAvailableMetrics(), retainers);
-      } else {
-        metrics = ImmutableList.of();
-      }
-    } else {
-      metrics = query.getMetrics();
-    }
+    final StreamQuery query = (StreamQuery) ViewSupportHelper.rewrite(baseQuery, adapter);
     List<Interval> intervals = query.getQuerySegmentSpec().getIntervals();
     Preconditions.checkArgument(intervals.size() == 1, "Can only handle a single interval, got[%s]", intervals);
 
@@ -114,7 +69,7 @@ public class StreamQueryEngine
             adapter,
             Iterables.getOnlyElement(intervals),
             VirtualColumns.valueOf(query.getVirtualColumns()),
-            filter,
+            query.getDimensionsFilter(),
             cache,
             query.isDescending(),
             query.getGranularity(),
@@ -126,13 +81,13 @@ public class StreamQueryEngine
                 final LongColumnSelector timestampColumnSelector = cursor.makeLongColumnSelector(Column.TIME_COLUMN_NAME);
 
                 final Map<String, DimensionSelector> dimSelectors = Maps.newLinkedHashMap();
-                for (DimensionSpec dim : dims) {
+                for (DimensionSpec dim : query.getDimensions()) {
                   final DimensionSelector dimSelector = cursor.makeDimensionSelector(dim);
                   dimSelectors.put(dim.getOutputName(), dimSelector);
                 }
 
                 final Map<String, ObjectColumnSelector> metSelectors = Maps.newLinkedHashMap();
-                for (String metric : metrics) {
+                for (String metric : query.getMetrics()) {
                   final ObjectColumnSelector metricSelector = cursor.makeObjectColumnSelector(metric);
                   metSelectors.put(metric, metricSelector);
                 }

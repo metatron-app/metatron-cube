@@ -115,12 +115,13 @@ public class JoinElement
           retainer.addAll(Filters.getDependents(filter));
         }
         retainer.addAll(columns);
-        ds = joinDS.withColumns(Lists.newArrayList(retainer));
+        joinDS = joinDS.withColumns(Lists.newArrayList(retainer));
       }
       if (joinDS.getFilter() != null) {
         filter = filter == null ? joinDS.getFilter() : AndDimFilter.of(filter, joinDS.getFilter());
-        ds = joinDS.withFilter(null);
+        joinDS = joinDS.withFilter(null);
       }
+      ds = joinDS;
     }
     return new Druids.SelectQueryBuilder()
         .dataSource(ds)

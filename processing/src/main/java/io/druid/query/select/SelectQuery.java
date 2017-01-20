@@ -23,6 +23,7 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.base.Preconditions;
+import com.google.common.collect.ImmutableList;
 import io.druid.granularity.QueryGranularities;
 import io.druid.granularity.QueryGranularity;
 import io.druid.query.BaseQuery;
@@ -43,7 +44,7 @@ import java.util.Objects;
  */
 @JsonTypeName("select")
 public class SelectQuery extends BaseQuery<Result<SelectResultValue>>
-    implements Query.DimFilterSupport<Result<SelectResultValue>>
+    implements Query.ViewSupport<Result<SelectResultValue>>
 {
   private final DimFilter dimFilter;
   private final QueryGranularity granularity;
@@ -75,9 +76,9 @@ public class SelectQuery extends BaseQuery<Result<SelectResultValue>>
     super(dataSource, querySegmentSpec, descending, context);
     this.dimFilter = dimFilter;
     this.granularity = granularity == null ? QueryGranularities.ALL : granularity;
-    this.dimensions = dimensions;
+    this.dimensions = dimensions == null ? ImmutableList.<DimensionSpec>of() : dimensions;
+    this.metrics = metrics == null ? ImmutableList.<String>of() : metrics;
     this.virtualColumns = virtualColumns;
-    this.metrics = metrics;
     this.lateralView = lateralView;
     this.outputColumns = outputColumns;
     this.pagingSpec = pagingSpec == null ? PagingSpec.GET_ALL : pagingSpec;
@@ -102,7 +103,7 @@ public class SelectQuery extends BaseQuery<Result<SelectResultValue>>
   @Override
   public boolean hasFilters()
   {
-    return dimFilter != null;
+    return dimFilter != null || ViewSupportHelper.hasFilter(getDataSource());
   }
 
   @Override
@@ -255,6 +256,46 @@ public class SelectQuery extends BaseQuery<Result<SelectResultValue>>
 
   @Override
   public SelectQuery withDimFilter(DimFilter dimFilter)
+  {
+    return new SelectQuery(
+        getDataSource(),
+        getQuerySegmentSpec(),
+        isDescending(),
+        dimFilter,
+        granularity,
+        dimensions,
+        metrics,
+        virtualColumns,
+        pagingSpec,
+        concatString,
+        outputColumns,
+        lateralView,
+        getContext()
+    );
+  }
+
+  @Override
+  public SelectQuery withDimensions(List<DimensionSpec> dimensions)
+  {
+    return new SelectQuery(
+        getDataSource(),
+        getQuerySegmentSpec(),
+        isDescending(),
+        dimFilter,
+        granularity,
+        dimensions,
+        metrics,
+        virtualColumns,
+        pagingSpec,
+        concatString,
+        outputColumns,
+        lateralView,
+        getContext()
+    );
+  }
+
+  @Override
+  public SelectQuery withMetrics(List<String> metrics)
   {
     return new SelectQuery(
         getDataSource(),

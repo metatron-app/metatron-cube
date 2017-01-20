@@ -27,7 +27,7 @@ import io.druid.query.filter.DimFilter;
 import java.util.List;
 import java.util.Objects;
 
-@JsonTypeName("join")
+@JsonTypeName("view")
 public class ViewDataSource extends TableDataSource
 {
   @JsonProperty
@@ -36,16 +36,21 @@ public class ViewDataSource extends TableDataSource
   @JsonProperty
   private final DimFilter filter;
 
+  @JsonProperty
+  private final boolean lowerCasedOutput; // for hive integration
+
   @JsonCreator
   public ViewDataSource(
       @JsonProperty("name") String name,
       @JsonProperty("columns") List<String> columns,
-      @JsonProperty("filter") DimFilter filter
+      @JsonProperty("filter") DimFilter filter,
+      @JsonProperty("lowerCasedOutput") boolean lowerCasedOutput
   )
   {
     super(Preconditions.checkNotNull(name));
     this.columns = columns;
     this.filter = filter;
+    this.lowerCasedOutput = lowerCasedOutput;
   }
 
   @JsonProperty
@@ -60,14 +65,20 @@ public class ViewDataSource extends TableDataSource
     return filter;
   }
 
-  public DataSource withColumns(List<String> columns)
+  @JsonProperty
+  public boolean isLowerCasedOutput()
   {
-    return new ViewDataSource(name, columns, filter);
+    return lowerCasedOutput;
   }
 
-  public DataSource withFilter(DimFilter filter)
+  public ViewDataSource withColumns(List<String> columns)
   {
-    return new ViewDataSource(name, columns, filter);
+    return new ViewDataSource(name, columns, filter, lowerCasedOutput);
+  }
+
+  public ViewDataSource withFilter(DimFilter filter)
+  {
+    return new ViewDataSource(name, columns, filter, lowerCasedOutput);
   }
 
   @Override

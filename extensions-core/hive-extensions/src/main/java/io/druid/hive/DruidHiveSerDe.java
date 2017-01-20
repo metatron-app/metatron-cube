@@ -25,7 +25,6 @@ import com.google.common.collect.Lists;
 import io.druid.indexer.hadoop.MapWritable;
 import io.druid.indexer.hadoop.QueryBasedInputFormat;
 import io.druid.query.select.EventHolder;
-import io.druid.segment.column.Column;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hive.serde2.AbstractSerDe;
 import org.apache.hadoop.hive.serde2.SerDeException;
@@ -148,12 +147,13 @@ public class DruidHiveSerDe extends AbstractSerDe
     return inspector;
   }
 
-  private static final Function<Object, Object> TIME_EXTRACTOR = new Function<Object, Object>()
+  private static final Function<Object, Long> TIME_EXTRACTOR = new Function<Object, Long>()
   {
     @Override
-    public Object apply(Object input)
+    public Long apply(Object input)
     {
-      return input instanceof DateTime ? ((DateTime)input).getMillis() : new DateTime(input).getMillis();
+      return input instanceof Number ? ((Number)input).longValue() :
+             input instanceof DateTime ? ((DateTime)input).getMillis() : new DateTime(input).getMillis();
     }
   };
 

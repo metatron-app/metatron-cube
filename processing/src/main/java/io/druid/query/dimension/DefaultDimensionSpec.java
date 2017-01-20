@@ -48,6 +48,11 @@ public class DefaultDimensionSpec implements DimensionSpec
 
   public static List<DimensionSpec> toSpec(Iterable<String> dimensionNames)
   {
+    return toSpec(dimensionNames, false);
+  }
+
+  public static List<DimensionSpec> toSpec(final Iterable<String> dimensionNames, final boolean lowerCasedOutput)
+  {
     return Lists.newArrayList(
         Iterables.transform(
             dimensionNames, new Function<String, DimensionSpec>()
@@ -55,7 +60,7 @@ public class DefaultDimensionSpec implements DimensionSpec
               @Override
               public DimensionSpec apply(String input)
               {
-                return new DefaultDimensionSpec(input, input);
+                return new DefaultDimensionSpec(input, lowerCasedOutput ? input.toLowerCase() : input);
               }
             }
         )

@@ -48,7 +48,7 @@ import java.util.Set;
  */
 public class SelectMetaQueryEngine
 {
-  public Sequence<Result<SelectMetaResultValue>> process(final SelectMetaQuery query, final Segment segment)
+  public Sequence<Result<SelectMetaResultValue>> process(final SelectMetaQuery baseQuery, final Segment segment)
   {
     final StorageAdapter adapter = segment.asStorageAdapter();
 
@@ -58,6 +58,7 @@ public class SelectMetaQueryEngine
       );
     }
 
+    final SelectMetaQuery query = (SelectMetaQuery) ViewSupportHelper.rewrite(baseQuery, adapter);
     final List<Interval> intervals = query.getQuerySegmentSpec().getIntervals();
     Preconditions.checkArgument(intervals.size() == 1, "Can only handle a single interval, got[%s]", intervals);
 
