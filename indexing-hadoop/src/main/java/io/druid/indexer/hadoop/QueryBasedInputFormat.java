@@ -126,6 +126,7 @@ public class QueryBasedInputFormat extends InputFormat<NullWritable, MapWritable
   public static final String CONF_DRUID_TIME_COLUMN_NAME = "druid.time.column.name";
 
   public static final String CONF_DRUID_MAX_SPLIT_SIZE = "druid.max.split.size";
+  public static final String CONF_DRUID_REVERT_CAST = "druid.revert.cast";  // apply cast on const, instead of column
 
   public static final String CONF_DRUID_USE_STREAM = "druid.use.stream";
   public static final String CONF_DRUID_SELECT_THRESHOLD = "druid.select.threshold";
@@ -200,7 +201,8 @@ public class QueryBasedInputFormat extends InputFormat<NullWritable, MapWritable
         }
     );
     if (segments == null || segments.size() == 0) {
-      throw new IllegalStateException("No segments found to read");
+      logger.info("No segments found to read");
+      return new DruidInputSplit[0];
     }
 
     logger.info("segments to read [%s]", segments);
@@ -584,7 +586,7 @@ public class QueryBasedInputFormat extends InputFormat<NullWritable, MapWritable
     }
 
     @Override
-    public boolean next(NullWritable key, MapWritable value) throws IOException
+    public final boolean next(NullWritable key, MapWritable value) throws IOException
     {
       try {
         if (nextKeyValue()) {

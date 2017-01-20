@@ -67,9 +67,9 @@ public class DruidHiveStorageHandler extends DefaultStorageHandler implements In
   {
     TableScanDesc desc = ts.getConf();
     Table table = desc.getTableMetadata();
-    logger.info("Estimating size of " + table.getDbName() + "." + table.getTableName());
+    logger.info("Estimating size of %s.%s", table.getDbName(), table.getTableName());
 
-    if (desc.getFilterExpr() == null || table.getDataLocation() == null) {
+    if (table.getDataLocation() == null) {
       return new InputEstimator.Estimation(1, Integer.MAX_VALUE);
     }
 
@@ -77,7 +77,9 @@ public class DruidHiveStorageHandler extends DefaultStorageHandler implements In
     for (Map.Entry<String, String> entry : table.getParameters().entrySet()) {
       dummy.set(entry.getKey(), entry.getValue());
     }
-    dummy.set(TableScanDesc.FILTER_EXPR_CONF_STR, SerializationUtilities.serializeExpression(desc.getFilterExpr()));
+    if (desc.getFilterExpr() != null) {
+      dummy.set(TableScanDesc.FILTER_EXPR_CONF_STR, SerializationUtilities.serializeExpression(desc.getFilterExpr()));
+    }
     dummy.set(FileInputFormat.INPUT_DIR, table.getDataLocation().toString());
 
     DruidHiveInputFormat formatter = new DruidHiveInputFormat();
@@ -86,11 +88,11 @@ public class DruidHiveStorageHandler extends DefaultStorageHandler implements In
       for (InputSplit split : formatter.getSplits(dummy, -1)) {
         totalLength += ((FileSplit) split).getLength();
       }
-      logger.info("Estimated size " + totalLength + " bytes");
+      logger.info("Estimated size %d bytes", totalLength);
       return new InputEstimator.Estimation(1, totalLength);
     }
     catch (IOException e) {
-      logger.warn(e, "Failed to estimate size of " + table.getDbName() + "." + table.getTableName());
+      logger.warn(e, "Failed to estimate size of %s.%s", table.getDbName(), table.getTableName());
     }
     return new InputEstimator.Estimation(1, Integer.MAX_VALUE);
   }

@@ -21,6 +21,7 @@ package io.druid.hive;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Functions;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Range;
@@ -31,7 +32,10 @@ import org.apache.hadoop.hive.ql.plan.ExprNodeColumnDesc;
 import org.apache.hadoop.hive.ql.plan.ExprNodeConstantDesc;
 import org.apache.hadoop.hive.ql.plan.ExprNodeDesc;
 import org.apache.hadoop.hive.ql.plan.ExprNodeGenericFuncDesc;
+import org.apache.hadoop.hive.ql.udf.UDFToDouble;
+import org.apache.hadoop.hive.ql.udf.UDFToString;
 import org.apache.hadoop.hive.ql.udf.generic.GenericUDFBetween;
+import org.apache.hadoop.hive.ql.udf.generic.GenericUDFBridge;
 import org.apache.hadoop.hive.ql.udf.generic.GenericUDFIn;
 import org.apache.hadoop.hive.ql.udf.generic.GenericUDFOPAnd;
 import org.apache.hadoop.hive.ql.udf.generic.GenericUDFOPGreaterThan;
@@ -39,7 +43,6 @@ import org.apache.hadoop.hive.ql.udf.generic.GenericUDFOPLessThan;
 import org.apache.hadoop.hive.ql.udf.generic.GenericUDFOPNotEqual;
 import org.apache.hadoop.hive.ql.udf.generic.GenericUDFOPOr;
 import org.apache.hadoop.hive.serde2.objectinspector.primitive.PrimitiveObjectInspectorFactory;
-import org.apache.hadoop.hive.serde2.typeinfo.PrimitiveTypeInfo;
 import org.apache.hadoop.hive.serde2.typeinfo.TypeInfo;
 import org.apache.hadoop.hive.serde2.typeinfo.TypeInfoFactory;
 import org.joda.time.DateTime;
@@ -56,6 +59,9 @@ public class ExpressionConverterTest
 {
   private final ObjectMapper mapper = new DefaultObjectMapper();
 
+  static final ExprNodeColumnDesc longTime = new ExprNodeColumnDesc(Long.class, "__time", "some_table", false);
+  static final ExprNodeColumnDesc timestampTime = new ExprNodeColumnDesc(Timestamp.class, "__time", "some_table", false);
+
   @Test
   public void test() throws Exception
   {
@@ -64,14 +70,11 @@ public class ExpressionConverterTest
     types.put("col1", TypeInfoFactory.stringTypeInfo);
     types.put("col2", TypeInfoFactory.stringTypeInfo);
 
-    ExprNodeColumnDesc longTime = new ExprNodeColumnDesc(Long.class, "__time", "some_table", false);
-    ExprNodeColumnDesc timestampTime = new ExprNodeColumnDesc(Timestamp.class, "__time", "some_table", false);
-
     ExprNodeColumnDesc someColumn1 = new ExprNodeColumnDesc(String.class, "col1", "some_table", false);
     ExprNodeColumnDesc someColumn2 = new ExprNodeColumnDesc(String.class, "col2", "some_table", false);
 
     // cannot do this
-//    ExprNodeGenericFuncDesc timeCastToDouble = new ExprNodeGenericFuncDesc(
+//    ExprNodeGenericFunzcDesc timeCastToDouble = new ExprNodeGenericFuncDesc(
 //        PrimitiveObjectInspectorFactory.javaLongObjectInspector,
 //        new GenericUDFBridge("double", false, UDFToDouble.class.getName()), Arrays.<ExprNodeDesc>asList(longTime)
 //    );
@@ -303,5 +306,57 @@ public class ExpressionConverterTest
           )
       );
     }
+  }
+
+  @Test
+  public void test2() throws Exception
+  {
+    ExprNodeGenericFuncDesc longTimeToDouble = new ExprNodeGenericFuncDesc(
+        PrimitiveObjectInspectorFactory.javaDoubleObjectInspector,
+        new GenericUDFBridge("double", false, UDFToDouble.class.getName()), Arrays.<ExprNodeDesc>asList(longTime)
+    );
+    ExprNodeGenericFuncDesc gt = new ExprNodeGenericFuncDesc(
+        PrimitiveObjectInspectorFactory.javaBooleanObjectInspector,
+        new GenericUDFOPGreaterThan(),
+        Arrays.<ExprNodeDesc>asList(
+            longTimeToDouble,
+            new ExprNodeConstantDesc(
+                TypeInfoFactory.longTypeInfo, new DateTime(2010, 1, 1, 0, 0).getMillis()
+            )
+        )
+    );
+    // double(__time) > 1262304000000 --> __time > timestamp(1262304000000)
+    validate(
+        gt,
+        ImmutableMap.<String, TypeInfo>of("__time", TypeInfoFactory.longTypeInfo),
+        Arrays.asList("(1262304000000‥+∞)"),
+        Arrays.asList("2010-01-01T00:00:00.001Z/146140482-04-24T15:36:27.903Z")
+    );
+  }
+
+  @Test
+  public void test3() throws Exception
+  {
+    ExprNodeGenericFuncDesc timeToString = new ExprNodeGenericFuncDesc(
+        PrimitiveObjectInspectorFactory.javaStringObjectInspector,
+        new GenericUDFBridge("string", false, UDFToString.class.getName()), Arrays.<ExprNodeDesc>asList(timestampTime)
+    );
+    ExprNodeGenericFuncDesc gt = new ExprNodeGenericFuncDesc(
+        PrimitiveObjectInspectorFactory.javaBooleanObjectInspector,
+        new GenericUDFOPGreaterThan(),
+        Arrays.<ExprNodeDesc>asList(
+            timeToString,
+            new ExprNodeConstantDesc(
+                TypeInfoFactory.stringTypeInfo, "2010-1-1 00:00:00"
+            )
+        )
+    );
+    // string(__time) > "2010-1-1 00:00:00" --> __time > timestamp("2010-1-1 00:00:00")
+    validate(
+        gt,
+        ImmutableMap.<String, TypeInfo>of("__time", TypeInfoFactory.longTypeInfo),
+        Arrays.asList("(1262304000000‥+∞)"),
+        Arrays.asList("2010-01-01T00:00:00.001Z/146140482-04-24T15:36:27.903Z")
+    );
   }
 }

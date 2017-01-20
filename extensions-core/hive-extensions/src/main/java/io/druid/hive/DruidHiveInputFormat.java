@@ -89,13 +89,15 @@ public class DruidHiveInputFormat extends QueryBasedInputFormat implements HiveO
   {
     ExprNodeGenericFuncDesc exprDesc = ExpressionConverter.deserializeExprDesc(configuration);
     String timeColumn = configuration.get(CONF_DRUID_TIME_COLUMN_NAME, EventHolder.timestampKey);
-    logger.info("Using timestamp column " + timeColumn);
+    logger.info("Using timestamp column %s", timeColumn);
+
+    boolean revertCast = configuration.getBoolean(CONF_DRUID_REVERT_CAST, true);
 
     Map<String, TypeInfo> types = ExpressionConverter.getColumnTypes(configuration, timeColumn);
-    Map<String, List<Range>> converted = ExpressionConverter.getRanges(exprDesc, types);
+    Map<String, List<Range>> converted = ExpressionConverter.getRanges(exprDesc, types, revertCast);
     List<Range> timeRanges = converted.remove(timeColumn);
     if (timeRanges == null || timeRanges.isEmpty()) {
-      logger.warn("failed to extract intervals from predicate.. regarded as %s", DEFAULT_INTERVAL);
+      logger.warn("Failed to extract intervals from predicate.. regarded as %s", DEFAULT_INTERVAL);
     } else {
       List<Interval> intervals = ExpressionConverter.toInterval(timeRanges);
       configuration.set(

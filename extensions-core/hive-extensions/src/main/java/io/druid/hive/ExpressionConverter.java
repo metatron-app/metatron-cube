@@ -27,6 +27,7 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Range;
 import com.google.common.collect.Sets;
+import com.metamx.common.Pair;
 import com.metamx.common.logger.Logger;
 import io.druid.common.utils.JodaUtils;
 import io.druid.query.filter.BoundDimFilter;
@@ -43,14 +44,48 @@ import org.apache.hadoop.hive.ql.io.sarg.ConvertAstToSearchArg;
 import org.apache.hadoop.hive.ql.io.sarg.ExpressionTree;
 import org.apache.hadoop.hive.ql.io.sarg.PredicateLeaf;
 import org.apache.hadoop.hive.ql.io.sarg.SearchArgument;
+import org.apache.hadoop.hive.ql.plan.ExprNodeColumnDesc;
+import org.apache.hadoop.hive.ql.plan.ExprNodeConstantDesc;
+import org.apache.hadoop.hive.ql.plan.ExprNodeDesc;
 import org.apache.hadoop.hive.ql.plan.ExprNodeGenericFuncDesc;
 import org.apache.hadoop.hive.ql.plan.TableScanDesc;
+import org.apache.hadoop.hive.ql.udf.UDFToBoolean;
+import org.apache.hadoop.hive.ql.udf.UDFToByte;
+import org.apache.hadoop.hive.ql.udf.UDFToDouble;
+import org.apache.hadoop.hive.ql.udf.UDFToFloat;
+import org.apache.hadoop.hive.ql.udf.UDFToInteger;
+import org.apache.hadoop.hive.ql.udf.UDFToLong;
+import org.apache.hadoop.hive.ql.udf.UDFToShort;
+import org.apache.hadoop.hive.ql.udf.UDFToString;
+import org.apache.hadoop.hive.ql.udf.generic.GenericUDF;
+import org.apache.hadoop.hive.ql.udf.generic.GenericUDFBetween;
+import org.apache.hadoop.hive.ql.udf.generic.GenericUDFBridge;
+import org.apache.hadoop.hive.ql.udf.generic.GenericUDFIn;
+import org.apache.hadoop.hive.ql.udf.generic.GenericUDFOPAnd;
+import org.apache.hadoop.hive.ql.udf.generic.GenericUDFOPEqual;
+import org.apache.hadoop.hive.ql.udf.generic.GenericUDFOPEqualNS;
+import org.apache.hadoop.hive.ql.udf.generic.GenericUDFOPEqualOrGreaterThan;
+import org.apache.hadoop.hive.ql.udf.generic.GenericUDFOPEqualOrLessThan;
+import org.apache.hadoop.hive.ql.udf.generic.GenericUDFOPGreaterThan;
+import org.apache.hadoop.hive.ql.udf.generic.GenericUDFOPLessThan;
+import org.apache.hadoop.hive.ql.udf.generic.GenericUDFOPNot;
+import org.apache.hadoop.hive.ql.udf.generic.GenericUDFOPNotEqual;
+import org.apache.hadoop.hive.ql.udf.generic.GenericUDFOPOr;
+import org.apache.hadoop.hive.ql.udf.generic.GenericUDFTimestamp;
+import org.apache.hadoop.hive.ql.udf.generic.GenericUDFToBinary;
+import org.apache.hadoop.hive.ql.udf.generic.GenericUDFToChar;
+import org.apache.hadoop.hive.ql.udf.generic.GenericUDFToDate;
+import org.apache.hadoop.hive.ql.udf.generic.GenericUDFToDecimal;
+import org.apache.hadoop.hive.ql.udf.generic.GenericUDFToVarchar;
 import org.apache.hadoop.hive.serde.serdeConstants;
 import org.apache.hadoop.hive.serde2.ColumnProjectionUtils;
 import org.apache.hadoop.hive.serde2.objectinspector.ObjectInspector;
+import org.apache.hadoop.hive.serde2.objectinspector.ObjectInspectorConverters;
 import org.apache.hadoop.hive.serde2.objectinspector.PrimitiveObjectInspector;
+import org.apache.hadoop.hive.serde2.objectinspector.primitive.PrimitiveObjectInspectorFactory;
 import org.apache.hadoop.hive.serde2.typeinfo.PrimitiveTypeInfo;
 import org.apache.hadoop.hive.serde2.typeinfo.TypeInfo;
+import org.apache.hadoop.hive.serde2.typeinfo.TypeInfoFactory;
 import org.apache.hadoop.hive.serde2.typeinfo.TypeInfoUtils;
 import org.apache.hadoop.hive.serde2.typeinfo.VarcharTypeInfo;
 import org.apache.parquet.Strings;
@@ -158,12 +193,157 @@ public class ExpressionConverter
     return typeMap;
   }
 
+  private static ExprNodeDesc rewriteIfNeeded(ExprNodeGenericFuncDesc expr)
+  {
+    List<ExprNodeDesc> children = expr.getChildren();
+    int result = -1;
+    Pair<ExprNodeColumnDesc, PrimitiveTypeInfo> current = null;
+    for (int i = 0; i < children.size(); i++) {
+      ExprNodeDesc child = children.get(i);
+      Pair<ExprNodeColumnDesc, PrimitiveTypeInfo> extracted = extractColumn(child);
+      if (extracted == null || extracted.rhs == null) {
+        if (!(child instanceof ExprNodeConstantDesc) ||
+            !(child.getTypeInfo() instanceof PrimitiveTypeInfo)) {
+          return expr;
+        }
+        continue;
+      }
+      if (current != null) {
+        return expr;
+      }
+      current = extracted;
+      result = i;
+    }
+    if (current == null) {
+      return expr;
+    }
+    List<ExprNodeDesc> converted = Lists.newArrayList();
+    for (int i = 0; i < children.size(); i++) {
+      ExprNodeDesc child = children.get(i);
+      if (i == result) {
+        converted.add(current.lhs);
+        continue;
+      }
+      ExprNodeConstantDesc constant = (ExprNodeConstantDesc)child;
+      Object value = ObjectInspectorConverters.getConverter(
+          PrimitiveObjectInspectorFactory.getPrimitiveJavaObjectInspector((PrimitiveTypeInfo)constant.getTypeInfo()),
+          PrimitiveObjectInspectorFactory.getPrimitiveJavaObjectInspector(current.rhs)
+      ).convert(constant.getValue());
+      converted.add(new ExprNodeConstantDesc(current.rhs, value));
+    }
+    return new ExprNodeGenericFuncDesc(expr.getTypeInfo(), expr.getGenericUDF(), expr.getFuncText(), converted);
+  }
+
+  private static Pair<ExprNodeColumnDesc, PrimitiveTypeInfo> extractColumn(ExprNodeDesc expr)
+  {
+    if (expr instanceof ExprNodeColumnDesc) {
+      return Pair.of((ExprNodeColumnDesc) expr, null);
+    }
+    if (expr instanceof ExprNodeGenericFuncDesc) {
+      ExprNodeGenericFuncDesc func = (ExprNodeGenericFuncDesc) expr;
+      PrimitiveTypeInfo typeInfo = getCastType(func.getGenericUDF());
+      if (typeInfo != null) {
+        ExprNodeDesc child = Iterables.getOnlyElement(func.getChildren());
+        if (child instanceof ExprNodeColumnDesc) {
+          return Pair.of((ExprNodeColumnDesc) child, typeInfo);
+        }
+      }
+    }
+    return null;
+  }
+
+  private static PrimitiveTypeInfo getCastType(GenericUDF genericUDF)
+  {
+    Class udfClass = (genericUDF instanceof GenericUDFBridge) ?
+                     ((GenericUDFBridge) genericUDF).getUdfClass() : genericUDF.getClass();
+    if (udfClass == UDFToBoolean.class) {
+      return TypeInfoFactory.booleanTypeInfo;
+    } else if (udfClass == UDFToByte.class) {
+      return TypeInfoFactory.byteTypeInfo;
+    } else if (udfClass == UDFToDouble.class) {
+      return TypeInfoFactory.doubleTypeInfo;
+    } else if (udfClass == UDFToFloat.class) {
+      return TypeInfoFactory.floatTypeInfo;
+    } else if (udfClass == UDFToInteger.class) {
+      return TypeInfoFactory.intTypeInfo;
+    } else if (udfClass == UDFToLong.class) {
+      return TypeInfoFactory.longTypeInfo;
+    } else if (udfClass == UDFToShort.class) {
+      return TypeInfoFactory.shortTypeInfo;
+    } else if (udfClass == UDFToString.class) {
+      return TypeInfoFactory.stringTypeInfo;
+    } else if (udfClass == GenericUDFToVarchar.class) {
+      return TypeInfoFactory.varcharTypeInfo;
+    } else if (udfClass == GenericUDFToChar.class) {
+      return TypeInfoFactory.charTypeInfo;
+    } else if (udfClass == GenericUDFTimestamp.class) {
+      return TypeInfoFactory.timestampTypeInfo;
+    } else if (udfClass == GenericUDFToBinary.class) {
+      return TypeInfoFactory.binaryTypeInfo;
+    } else if (udfClass == GenericUDFToDate.class) {
+      return TypeInfoFactory.dateTypeInfo;
+    } else if (udfClass == GenericUDFToDecimal.class) {
+      return TypeInfoFactory.decimalTypeInfo;
+    }
+    return null;
+  }
+
+  private static ExprNodeDesc revertCast(ExprNodeDesc expr)
+  {
+    if (expr instanceof ExprNodeGenericFuncDesc) {
+      ExprNodeGenericFuncDesc funcDesc = (ExprNodeGenericFuncDesc) expr;
+      Class<?> op = funcDesc.getGenericUDF().getClass();
+
+      if (op == GenericUDFOPOr.class ||
+          op == GenericUDFOPAnd.class ||
+          op == GenericUDFOPNot.class ||
+          op == GenericUDFOPEqual.class ||
+          op == GenericUDFOPNotEqual.class ||
+          op == GenericUDFOPEqualNS.class ||
+          op == GenericUDFOPGreaterThan.class ||
+          op == GenericUDFOPEqualOrGreaterThan.class ||
+          op == GenericUDFOPLessThan.class ||
+          op == GenericUDFOPEqualOrLessThan.class ||
+          op == GenericUDFIn.class ||
+          op == GenericUDFBetween.class) {
+        return rewriteIfNeeded(funcDesc);
+      }
+      List<ExprNodeDesc> children = Lists.newArrayList();
+      for (ExprNodeDesc child : expr.getChildren()) {
+        children.add(revertCast(child));
+      }
+      return new ExprNodeGenericFuncDesc(
+          funcDesc.getTypeInfo(),
+          funcDesc.getGenericUDF(),
+          funcDesc.getFuncText(),
+          children
+      );
+    }
+    return expr;
+  }
+
   static Map<String, List<Range>> getRanges(ExprNodeGenericFuncDesc filterExpr, Map<String, TypeInfo> types)
+  {
+    return getRanges(filterExpr, types, true);
+  }
+
+  static Map<String, List<Range>> getRanges(
+      ExprNodeGenericFuncDesc filterExpr,
+      Map<String, TypeInfo> types,
+      boolean revertCast
+  )
   {
     if (filterExpr == null) {
       return Maps.newHashMap();
     }
-    logger.info("Start analyzing predicate " + filterExpr.getExprString());
+    logger.info("Start analyzing predicate %s", filterExpr.getExprString());
+    if (revertCast) {
+      ExprNodeGenericFuncDesc expression = (ExprNodeGenericFuncDesc) revertCast(filterExpr);
+      if (filterExpr != expression) {
+        logger.info("Rewritten predicate %s", expression.getExprString());
+        filterExpr = expression;
+      }
+    }
     SearchArgument searchArgument = ConvertAstToSearchArg.create(filterExpr);
     ExpressionTree root = searchArgument.getExpression();
 
@@ -216,7 +396,7 @@ public class ExpressionConverter
 
     Map<String, List<Range>> rangesMap = Maps.transformValues(rangeMap, Ranges.COMPACT);
     for (Map.Entry<String, List<Range>> entry : rangesMap.entrySet()) {
-      logger.info(">> " + entry);
+      logger.info(">> %s", entry);
     }
     return rangesMap;
   }
@@ -518,13 +698,13 @@ public class ExpressionConverter
       return null;
     }
     if (literal instanceof Date) {
-      return (Date)literal;
-    }
-    if (literal instanceof java.util.Date) {
-      return new Date(((java.util.Date)literal).getTime());
+      return (Date) literal;
     }
     if (literal instanceof Timestamp) {
       return new Date(((Timestamp) literal).getTime());
+    }
+    if (literal instanceof java.util.Date) {
+      return new Date(((java.util.Date) literal).getTime());
     }
     if (literal instanceof Number) {
       return new Date(((Number) literal).longValue());
