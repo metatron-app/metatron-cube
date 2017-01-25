@@ -19,8 +19,8 @@
 
 package io.druid.segment.data;
 
-import com.google.common.collect.Ordering;
 import com.google.common.primitives.Doubles;
+import io.druid.common.guava.GuavaUtils;
 
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
@@ -54,7 +54,7 @@ public class CompressedDoubleBufferObjectStrategy extends FixedSizeCompressedObj
           @Override
           public int compare(DoubleBuffer lhs, DoubleBuffer rhs)
           {
-            return Ordering.natural().nullsFirst().compare(lhs, rhs);
+            return GuavaUtils.nullFirstNatural().compare(lhs, rhs);
           }
 
           @Override

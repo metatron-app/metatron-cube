@@ -19,9 +19,9 @@
 
 package io.druid.segment.data;
 
-import com.google.common.collect.Ordering;
 import com.google.common.primitives.Ints;
 import io.druid.collections.IntList;
+import io.druid.common.guava.GuavaUtils;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -120,7 +120,7 @@ public class IntBufferIndexedInts implements IndexedInts, Comparable<IntBufferIn
     @Override
     public int compare(IntBufferIndexedInts o1, IntBufferIndexedInts o2)
     {
-      return Ordering.natural().nullsFirst().compare(o1, o2);
+      return GuavaUtils.nullFirstNatural().compare(o1, o2);
     }
   }
 

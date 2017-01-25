@@ -24,6 +24,7 @@ import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
+import com.google.common.collect.Ordering;
 import com.google.common.io.CharStreams;
 import com.google.common.io.InputSupplier;
 import com.metamx.common.Pair;
@@ -36,6 +37,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.util.Arrays;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Set;
 import java.util.zip.GZIPInputStream;
@@ -44,6 +46,14 @@ import java.util.zip.GZIPInputStream;
  */
 public class GuavaUtils
 {
+  private static final Comparator NULL_FIRST_NATURAL = Ordering.natural().nullsFirst();
+
+  @SuppressWarnings("unchecked")
+  public static <T> Comparator<T> nullFirstNatural()
+  {
+    return NULL_FIRST_NATURAL;
+  }
+
   public static Function<String, String> formatFunction(final String formatString)
   {
     return new Function<String, String>()

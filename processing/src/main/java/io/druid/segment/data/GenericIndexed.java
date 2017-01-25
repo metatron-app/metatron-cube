@@ -19,10 +19,10 @@
 
 package io.druid.segment.data;
 
-import com.google.common.collect.Ordering;
 import com.google.common.primitives.Ints;
 import com.metamx.common.IAE;
 import com.metamx.common.guava.CloseQuietly;
+import io.druid.common.guava.GuavaUtils;
 
 import java.io.ByteArrayOutputStream;
 import java.io.Closeable;
@@ -354,7 +354,7 @@ public class GenericIndexed<T> implements Indexed<T>
     @Override
     public int compare(String o1, String o2)
     {
-      return Ordering.natural().nullsFirst().compare(o1, o2);
+      return GuavaUtils.nullFirstNatural().compare(o1, o2);
     }
   };
 }
