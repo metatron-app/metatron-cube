@@ -36,29 +36,32 @@ import java.util.Map;
 @SuppressWarnings("unchecked")
 public class SelectForwardQuery extends BaseQuery implements DelegateQuery
 {
-  @JsonProperty("selectQuery")
-  private final SelectQuery selectQuery;
+  @JsonProperty("query")
+  private final Query query;
 
   public SelectForwardQuery(
-      @JsonProperty("selectQuery") SelectQuery selectQuery,
+      @JsonProperty("query") Query query,
       @JsonProperty("context") Map<String, Object> context
   )
   {
     super(
-        selectQuery.getDataSource(),
-        selectQuery.getQuerySegmentSpec(),
-        selectQuery.isDescending(),
+        query.getDataSource(),
+        query.getQuerySegmentSpec(),
+        query.isDescending(),
         context
     );
-    int threshold = selectQuery.getPagingSpec().getThreshold();
-    Preconditions.checkArgument(threshold < 0 || threshold == Integer.MAX_VALUE, "cannot use threshold");
-    this.selectQuery = selectQuery;
+    if (query instanceof SelectQuery) {
+      SelectQuery select = (SelectQuery) query;
+      int threshold = select.getPagingSpec().getThreshold();
+      Preconditions.checkArgument(threshold < 0 || threshold == Integer.MAX_VALUE, "cannot use threshold");
+    }
+    this.query = query;
   }
 
   @Override
   public boolean hasFilters()
   {
-    return selectQuery.hasFilters();
+    return query.hasFilters();
   }
 
   @Override
@@ -70,32 +73,32 @@ public class SelectForwardQuery extends BaseQuery implements DelegateQuery
   @Override
   public Query withQuerySegmentSpec(QuerySegmentSpec spec)
   {
-    return new SelectForwardQuery(selectQuery.withQuerySegmentSpec(spec), getContext());
+    return new SelectForwardQuery(query.withQuerySegmentSpec(spec), getContext());
   }
 
   @Override
   public Query withDataSource(DataSource dataSource)
   {
-    return new SelectForwardQuery(selectQuery.withDataSource(dataSource), getContext());
+    return new SelectForwardQuery(query.withDataSource(dataSource), getContext());
   }
 
   @Override
   public Query withOverriddenContext(Map contextOverride)
   {
-    return new SelectForwardQuery(selectQuery.withOverriddenContext(contextOverride), getContext());
+    return new SelectForwardQuery(query.withOverriddenContext(contextOverride), getContext());
   }
 
   @Override
   public Query rewriteQuery(QuerySegmentWalker segmentWalker, ObjectMapper jsonMapper)
   {
-    return selectQuery;
+    return query;
   }
 
   @Override
   public String toString()
   {
     return "SelectDelegateQuery{" +
-           "forwarding=" + selectQuery +
+           "forwarding=" + query +
            toString(FINALIZE, POST_PROCESSING, FORWARD_URL, FORWARD_CONTEXT) +
            '}';
   }

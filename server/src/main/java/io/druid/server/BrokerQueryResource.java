@@ -48,6 +48,7 @@ import io.druid.query.UnionAllQuery;
 import io.druid.query.UnionDataSource;
 import io.druid.query.select.SelectForwardQuery;
 import io.druid.query.select.SelectQuery;
+import io.druid.query.select.StreamQuery;
 import io.druid.server.coordination.DruidServerMetadata;
 import io.druid.server.initialization.ServerConfig;
 import io.druid.server.log.RequestLogger;
@@ -197,8 +198,8 @@ public class BrokerQueryResource extends QueryResource
     }
     if (BaseQuery.isParallelForwarding(query)) {
       // todo support partitioned group-by or join queries
-      if (!(query instanceof SelectQuery)) {
-        throw new IllegalArgumentException("parallel forwarding is supported only for select query, for now");
+      if (!(query instanceof SelectQuery || query instanceof StreamQuery)) {
+        throw new IllegalArgumentException("parallel forwarding is supported only for select/stream query, for now");
       }
       if (BaseQuery.getContextBySegment(query, false)) {
         throw new IllegalArgumentException("parallel forwarding cannot be used with 'bySegment'");
@@ -223,7 +224,7 @@ public class BrokerQueryResource extends QueryResource
       // disable forwarding for self
       context.remove(Query.FORWARD_URL);
       context.remove(Query.FORWARD_CONTEXT);
-      query = new SelectForwardQuery((SelectQuery) query, context);
+      query = new SelectForwardQuery(query, context);
     }
     return query;
   }
