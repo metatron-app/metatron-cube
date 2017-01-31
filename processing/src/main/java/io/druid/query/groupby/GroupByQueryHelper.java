@@ -43,20 +43,16 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 public class GroupByQueryHelper
 {
   private static final String CTX_KEY_MAX_RESULTS = "maxResults";
-  public final static String CTX_KEY_SORT_RESULTS = "sortResults";
+  public static final String CTX_KEY_FUDGE_TIMESTAMP = "fudgeTimestamp";
 
   public static <T> Pair<IncrementalIndex, Accumulator<IncrementalIndex, T>> createIndexAccumulatorPair(
       final GroupByQuery query,
       final GroupByQueryConfig config,
-      StupidPool<ByteBuffer> bufferPool
+      StupidPool<ByteBuffer> bufferPool,
+      final boolean forQuery
   )
   {
     final QueryGranularity gran = query.getGranularity();
-    final long timeStart = query.getIntervals().get(0).getStartMillis();
-
-    // use gran.iterable instead of gran.truncate so that
-    // AllGranularity returns timeStart instead of Long.MIN_VALUE
-    final long granTimeStart = gran.iterable(timeStart, timeStart + 1).iterator().next();
 
     final List<AggregatorFactory> aggs = Lists.transform(
         query.getAggregatorSpecs(),
@@ -82,18 +78,16 @@ public class GroupByQueryHelper
     );
     final IncrementalIndex index;
 
-    final boolean sortResults = query.getContextValue(CTX_KEY_SORT_RESULTS, true);
-
     if (query.getContextValue("useOffheap", false)) {
       index = new OffheapIncrementalIndex(
           // use granularity truncated min timestamp
           // since incoming truncated timestamps may precede timeStart
-          granTimeStart,
+          Long.MIN_VALUE,
           gran,
           aggs.toArray(new AggregatorFactory[aggs.size()]),
           false,
           true,
-          sortResults,
+          forQuery,
           Math.min(query.getContextValue(CTX_KEY_MAX_RESULTS, config.getMaxResults()), config.getMaxResults()),
           bufferPool
       );
@@ -101,12 +95,12 @@ public class GroupByQueryHelper
       index = new OnheapIncrementalIndex(
           // use granularity truncated min timestamp
           // since incoming truncated timestamps may precede timeStart
-          granTimeStart,
+          Long.MIN_VALUE,
           gran,
           aggs.toArray(new AggregatorFactory[aggs.size()]),
           false,
           true,
-          sortResults,
+          forQuery,
           Math.min(query.getContextValue(CTX_KEY_MAX_RESULTS, config.getMaxResults()), config.getMaxResults())
       );
     }

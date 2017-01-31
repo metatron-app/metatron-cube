@@ -27,9 +27,12 @@ import com.google.common.base.Preconditions;
 import com.google.common.base.Predicate;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
+import com.google.common.collect.Ordering;
+import com.google.common.primitives.Longs;
 import com.metamx.common.ISE;
 import com.metamx.common.guava.Sequence;
 import com.metamx.common.guava.Sequences;
+import io.druid.common.guava.GuavaUtils;
 import io.druid.data.input.Row;
 import io.druid.granularity.QueryGranularity;
 import io.druid.query.BaseQuery;
@@ -54,6 +57,7 @@ import io.druid.query.spec.QuerySegmentSpec;
 import io.druid.segment.VirtualColumn;
 import org.joda.time.Interval;
 
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 
@@ -799,5 +803,75 @@ public class GroupByQuery extends BaseQuery<Row> implements Query.DimFilterSuppo
     result = 31 * result + (limitSpec != null ? limitSpec.hashCode() : 0);
     result = 31 * result + (outputColumns != null ? outputColumns.hashCode() : 0);
     return result;
+  }
+
+  @Override
+  public Ordering getResultOrdering()
+  {
+    final Comparator naturalNullsFirst = Ordering.natural().nullsFirst();
+    final Ordering<Row> rowOrdering = getRowOrdering(false);
+
+    return Ordering.from(
+        new Comparator<Object>()
+        {
+          @Override
+          public int compare(Object lhs, Object rhs)
+          {
+            if (lhs instanceof Row) {
+              return rowOrdering.compare((Row) lhs, (Row) rhs);
+            } else {
+              // Probably bySegment queries
+              return naturalNullsFirst.compare(lhs, rhs);
+            }
+          }
+        }
+    );
+  }
+
+  public Ordering<Row> getRowOrdering(final boolean granular)
+  {
+    final Comparator<Object> naturalNullsFirst = GuavaUtils.nullFirstNatural();
+    final String[] outputNames = new String[dimensions.size()];
+    for (int i = 0; i < outputNames.length; i++) {
+      outputNames[i] = dimensions.get(i).getOutputName();
+    }
+    return Ordering.from(
+        new Comparator<Row>()
+        {
+          @Override
+          public int compare(Row lhs, Row rhs)
+          {
+            final int timeCompare;
+
+            if (granular) {
+              timeCompare = Longs.compare(
+                  granularity.truncate(lhs.getTimestampFromEpoch()),
+                  granularity.truncate(rhs.getTimestampFromEpoch())
+              );
+            } else {
+              timeCompare = Longs.compare(
+                  lhs.getTimestampFromEpoch(),
+                  rhs.getTimestampFromEpoch()
+              );
+            }
+
+            if (timeCompare != 0) {
+              return timeCompare;
+            }
+
+            for (String outputName : outputNames) {
+              final int dimCompare = naturalNullsFirst.compare(
+                  lhs.getRaw(outputName),
+                  rhs.getRaw(outputName)
+              );
+              if (dimCompare != 0) {
+                return dimCompare;
+              }
+            }
+
+            return 0;
+          }
+        }
+    );
   }
 }

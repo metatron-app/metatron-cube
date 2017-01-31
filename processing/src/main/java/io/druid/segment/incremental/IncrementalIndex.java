@@ -693,7 +693,7 @@ public abstract class IncrementalIndex<AggregatorType> implements Iterable<Row>,
     row = formatRow(row);
 
     final long timestampFromEpoch = row.getTimestampFromEpoch();
-    if (timestampFromEpoch < minTimestamp) {
+    if (minTimestamp != Long.MIN_VALUE && timestampFromEpoch < minTimestamp) {
       throw new IAE("Cannot add row[%s] because it is below the minTimestamp[%s]", row, new DateTime(minTimestamp));
     }
 
@@ -765,7 +765,10 @@ public abstract class IncrementalIndex<AggregatorType> implements Iterable<Row>,
       dims = newDims;
     }
 
-    final long truncated = Math.max(gran.truncate(timestampFromEpoch), minTimestamp);
+    long truncated = timestampFromEpoch;
+    if (minTimestamp != Long.MIN_VALUE) {
+      truncated = Math.max(gran.truncate(timestampFromEpoch), minTimestamp);
+    }
 
     minTimeMillis = Math.min(minTimeMillis, truncated);
     maxTimeMillis = Math.max(maxTimeMillis, truncated);
@@ -1024,10 +1027,17 @@ public abstract class IncrementalIndex<AggregatorType> implements Iterable<Row>,
     return combiningAggregators;
   }
 
-  @Override
   public Iterator<Row> iterator()
   {
-    return iterableWithPostAggregations(null, false).iterator();
+    return iterable(false).iterator();
+  }
+
+  public Iterable<Row> iterable(boolean sorted)
+  {
+    if (sorted && !sortFacts) {
+      throw new IllegalStateException("Cannot make sorted iterable");
+    }
+    return iterableWithPostAggregations(null, false);
   }
 
   public Iterable<Row> iterableWithPostAggregations(final List<PostAggregator> postAggs, final boolean descending)
@@ -1037,73 +1047,76 @@ public abstract class IncrementalIndex<AggregatorType> implements Iterable<Row>,
       @Override
       public Iterator<Row> iterator()
       {
-        final List<DimensionDesc> dimensions = getDimensions();
-
-        Map<TimeAndDims, Integer> facts = null;
+        Map<TimeAndDims, Integer> facts = getFacts();
         if (descending && sortFacts) {
-          facts = ((ConcurrentNavigableMap<TimeAndDims, Integer>) getFacts()).descendingMap();
-        } else {
-          facts = getFacts();
+          facts = ((ConcurrentNavigableMap<TimeAndDims, Integer>) facts).descendingMap();
         }
 
-        final List<PostAggregator> postAggregators = PostAggregators.decorate(postAggs, metrics);
         return Iterators.transform(
             facts.entrySet().iterator(),
-            new Function<Map.Entry<TimeAndDims, Integer>, Row>()
-            {
-              @Override
-              public Row apply(final Map.Entry<TimeAndDims, Integer> input)
-              {
-                final TimeAndDims timeAndDims = input.getKey();
-                final int rowOffset = input.getValue();
-
-                int[][] theDims = timeAndDims.getDims(); //TODO: remove dictionary encoding for numerics later
-
-                Map<String, Object> theVals = Maps.newLinkedHashMap();
-                for (int i = 0; i < theDims.length; ++i) {
-                  int[] dim = theDims[i];
-                  DimensionDesc dimensionDesc = dimensions.get(i);
-                  if (dimensionDesc == null) {
-                    continue;
-                  }
-                  ValueType type = dimensionDesc.getCapabilities().getType();
-                  String dimensionName = dimensionDesc.getName();
-                  if (dim == null || dim.length == 0) {
-                    theVals.put(dimensionName, null);
-                    continue;
-                  }
-                  if (dim.length == 1) {
-                    Comparable val = dimensionDesc.getValues().getValue(dim[0]);
-                    if (type == ValueType.STRING) {
-                      val = Strings.nullToEmpty((String) val);
-                    }
-                    theVals.put(dimensionName, val);
-                  } else {
-                    Comparable[] dimVals = new Comparable[dim.length];
-                    for (int j = 0; j < dimVals.length; j++) {
-                      Comparable val = dimensionDesc.getValues().getValue(dim[j]);
-                      if (type == ValueType.STRING) {
-                        val = Strings.nullToEmpty((String) val);
-                      }
-                      dimVals[j] = val;
-                    }
-                    theVals.put(dimensionName, dimVals);
-                  }
-                }
-
-                AggregatorType[] aggs = getAggsForRow(rowOffset);
-                for (int i = 0; i < aggs.length; ++i) {
-                  theVals.put(metrics[i].getName(), getAggVal(aggs[i], rowOffset, i));
-                }
-
-                for (PostAggregator postAgg : postAggregators) {
-                  theVals.put(postAgg.getName(), postAgg.compute(theVals));
-                }
-
-                return new MapBasedRow(timeAndDims.getTimestamp(), theVals);
-              }
-            }
+            rowFunction(PostAggregators.decorate(postAggs, metrics))
         );
+      }
+    };
+  }
+
+  protected final Function<Map.Entry<TimeAndDims, Integer>, Row> rowFunction(
+      final List<PostAggregator> postAggregators
+  )
+  {
+    final List<DimensionDesc> dimensions = getDimensions();
+    return new Function<Map.Entry<TimeAndDims, Integer>, Row>()
+    {
+      @Override
+      public Row apply(final Map.Entry<TimeAndDims, Integer> input)
+      {
+        final TimeAndDims timeAndDims = input.getKey();
+        final int rowOffset = input.getValue();
+
+        int[][] theDims = timeAndDims.getDims(); //TODO: remove dictionary encoding for numerics later
+
+        Map<String, Object> theVals = Maps.newLinkedHashMap();
+        for (int i = 0; i < theDims.length; ++i) {
+          int[] dim = theDims[i];
+          DimensionDesc dimensionDesc = dimensions.get(i);
+          if (dimensionDesc == null) {
+            continue;
+          }
+          ValueType type = dimensionDesc.getCapabilities().getType();
+          String dimensionName = dimensionDesc.getName();
+          if (dim == null || dim.length == 0) {
+            theVals.put(dimensionName, null);
+            continue;
+          }
+          if (dim.length == 1) {
+            Comparable val = dimensionDesc.getValues().getValue(dim[0]);
+            if (type == ValueType.STRING) {
+              val = Strings.nullToEmpty((String) val);
+            }
+            theVals.put(dimensionName, val);
+          } else {
+            Comparable[] dimVals = new Comparable[dim.length];
+            for (int j = 0; j < dimVals.length; j++) {
+              Comparable val = dimensionDesc.getValues().getValue(dim[j]);
+              if (type == ValueType.STRING) {
+                val = Strings.nullToEmpty((String) val);
+              }
+              dimVals[j] = val;
+            }
+            theVals.put(dimensionName, dimVals);
+          }
+        }
+
+        AggregatorType[] aggs = getAggsForRow(rowOffset);
+        for (int i = 0; i < aggs.length; ++i) {
+          theVals.put(metrics[i].getName(), getAggVal(aggs[i], rowOffset, i));
+        }
+
+        for (PostAggregator postAgg : postAggregators) {
+          theVals.put(postAgg.getName(), postAgg.compute(theVals));
+        }
+
+        return new MapBasedRow(timeAndDims.getTimestamp(), theVals);
       }
     };
   }

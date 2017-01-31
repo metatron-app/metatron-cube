@@ -84,9 +84,6 @@ public class GroupByMergedQueryRunner<T> implements QueryRunner<T>
   public Sequence<T> run(final Query<T> queryParam, final Map<String, Object> responseContext)
   {
     final GroupByQuery query = (GroupByQuery) queryParam;
-    if (Iterables.size(queryables) == 1) {
-      return Iterables.getOnlyElement(queryables).run(queryParam, responseContext);
-    }
 
     final boolean isSingleThreaded = query.getContextValue(
         CTX_KEY_IS_SINGLE_THREADED,
@@ -96,7 +93,8 @@ public class GroupByMergedQueryRunner<T> implements QueryRunner<T>
     final Pair<IncrementalIndex, Accumulator<IncrementalIndex, T>> indexAccumulatorPair = GroupByQueryHelper.createIndexAccumulatorPair(
         query,
         configSupplier.get(),
-        bufferPool
+        bufferPool,
+        false
     );
     final Pair<Queue, Accumulator<Queue, T>> bySegmentAccumulatorPair = GroupByQueryHelper.createBySegmentAccumulatorPair();
     final boolean bySegment = BaseQuery.getContextBySegment(query, false);
@@ -164,8 +162,8 @@ public class GroupByMergedQueryRunner<T> implements QueryRunner<T>
 
     return new ResourceClosingSequence<T>(
         Sequences.simple(
-            Iterables.transform(
-                indexAccumulatorPair.lhs.iterableWithPostAggregations(null, query.isDescending()),
+            Iterables.<Row, T>transform(
+                indexAccumulatorPair.lhs.iterable(true),
                 new Function<Row, T>()
                 {
                   @Override

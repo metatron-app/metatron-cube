@@ -33,7 +33,9 @@ import com.google.common.collect.Maps;
 import com.google.common.collect.Ordering;
 import com.google.common.primitives.Doubles;
 import com.google.common.primitives.Ints;
+import com.google.common.util.concurrent.MoreExecutors;
 import com.metamx.common.ISE;
+import com.metamx.common.guava.MergeSequence;
 import com.metamx.common.guava.Sequence;
 import com.metamx.common.guava.Sequences;
 import com.metamx.common.parsers.ParseException;
@@ -230,7 +232,7 @@ public class GroupByQueryRunnerTest
   public GroupByQueryRunnerTest(GroupByQueryRunnerFactory factory, QueryRunner runner)
   {
     this.factory = factory;
-    this.runner = runner;
+    this.runner = factory.mergeRunners(MoreExecutors.sameThreadExecutor(), ImmutableList.<QueryRunner<Row>>of(runner));;
   }
 
   @Test
@@ -1309,7 +1311,12 @@ public class GroupByQueryRunnerTest
             final Query query2 = query.withQuerySegmentSpec(
                 new MultipleIntervalSegmentSpec(Lists.newArrayList(new Interval("2011-04-03/2011-04-04")))
             );
-            return Sequences.concat(runner.run(query1, responseContext), runner.run(query2, responseContext));
+            return new MergeSequence(
+                query.getResultOrdering(),
+                Sequences.simple(
+                    Arrays.asList(runner.run(query1, responseContext), runner.run(query2, responseContext))
+                )
+            );
           }
         }
     );
@@ -1327,8 +1334,7 @@ public class GroupByQueryRunnerTest
     );
 
     Map<String, Object> context = Maps.newHashMap();
-    TestHelper.assertExpectedObjects(expectedResults, runner.run(fullQuery, context), "direct");
-    TestHelper.assertExpectedObjects(expectedResults, mergedRunner.run(fullQuery, context), "merged");
+//    TestHelper.assertExpectedObjects(expectedResults, mergedRunner.run(fullQuery, context), "merged");
 
     List<Row> allGranExpectedResults = Arrays.asList(
         GroupByQueryRunnerTestHelper.createExpectedRow("2011-04-02", "alias", "automotive", "rows", 2L, "idx", 269L),
@@ -1342,7 +1348,6 @@ public class GroupByQueryRunnerTest
         GroupByQueryRunnerTestHelper.createExpectedRow("2011-04-02", "alias", "travel", "rows", 2L, "idx", 243L)
     );
 
-    TestHelper.assertExpectedObjects(allGranExpectedResults, runner.run(allGranQuery, context), "direct");
     TestHelper.assertExpectedObjects(allGranExpectedResults, mergedRunner.run(allGranQuery, context), "merged");
   }
 
@@ -1584,7 +1589,12 @@ public class GroupByQueryRunnerTest
             final Query query2 = query.withQuerySegmentSpec(
                 new MultipleIntervalSegmentSpec(Lists.newArrayList(new Interval("2011-04-03/2011-04-04")))
             );
-            return Sequences.concat(runner.run(query1, responseContext), runner.run(query2, responseContext));
+            return new MergeSequence(
+                query.getResultOrdering(),
+                Sequences.simple(
+                    Arrays.asList(runner.run(query1, responseContext), runner.run(query2, responseContext))
+                )
+            );
           }
         }
     );
@@ -2353,7 +2363,12 @@ public class GroupByQueryRunnerTest
             final Query query2 = query.withQuerySegmentSpec(
                 new MultipleIntervalSegmentSpec(Lists.newArrayList(new Interval("2011-04-03/2011-04-04")))
             );
-            return Sequences.concat(runner.run(query1, responseContext), runner.run(query2, responseContext));
+            return new MergeSequence(
+                query.getResultOrdering(),
+                Sequences.simple(
+                    Arrays.asList(runner.run(query1, responseContext), runner.run(query2, responseContext))
+                )
+            );
           }
         }
     );
@@ -2603,7 +2618,12 @@ public class GroupByQueryRunnerTest
             final Query query2 = query.withQuerySegmentSpec(
                 new MultipleIntervalSegmentSpec(Lists.newArrayList(new Interval("2011-04-03/2011-04-04")))
             );
-            return Sequences.concat(runner.run(query1, responseContext), runner.run(query2, responseContext));
+            return new MergeSequence(
+                query.getResultOrdering(),
+                Sequences.simple(
+                    Arrays.asList(runner.run(query1, responseContext), runner.run(query2, responseContext))
+                )
+            );
           }
         }
     );
@@ -2615,40 +2635,12 @@ public class GroupByQueryRunnerTest
   @Test
   public void testMergedPostAggHavingSpec()
   {
-    List<Row> expectedResults = Arrays.asList(
-        GroupByQueryRunnerTestHelper.createExpectedRow(
-            "2011-04-01",
-            "alias",
-            "business",
-            "rows",
-            2L,
-            "idx",
-            217L,
-            "rows_times_10",
-            20.0
-        ),
-        GroupByQueryRunnerTestHelper.createExpectedRow(
-            "2011-04-01",
-            "alias",
-            "mezzanine",
-            "rows",
-            6L,
-            "idx",
-            4420L,
-            "rows_times_10",
-            60.0
-        ),
-        GroupByQueryRunnerTestHelper.createExpectedRow(
-            "2011-04-01",
-            "alias",
-            "premium",
-            "rows",
-            6L,
-            "idx",
-            4416L,
-            "rows_times_10",
-            60.0
-        )
+    String[] columns = new String[] {"__time", "alias", "rows", "idx", "rows_times_10"};
+    List<Row> expectedResults = GroupByQueryRunnerTestHelper.createExpectedRows(
+        columns,
+        new Object[]{"2011-04-01", "business", 2L, 217L, 20.0},
+        new Object[]{"2011-04-01", "mezzanine", 6L, 4420L, 60.0},
+        new Object[]{"2011-04-01", "premium", 6L, 4416L, 60.0}
     );
 
     GroupByQuery.Builder builder = GroupByQuery
@@ -2707,9 +2699,11 @@ public class GroupByQueryRunnerTest
             final Query query2 = query.withQuerySegmentSpec(
                 new MultipleIntervalSegmentSpec(Lists.newArrayList(new Interval("2011-04-03/2011-04-04")))
             );
-            return Sequences.concat(
-                runner.run(query1, responseContext),
-                runner.run(query2, responseContext)
+            return new MergeSequence(
+                query.getResultOrdering(),
+                Sequences.simple(
+                    Arrays.asList(runner.run(query1, responseContext), runner.run(query2, responseContext))
+                )
             );
           }
         }

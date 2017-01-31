@@ -77,6 +77,7 @@ import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.NavigableMap;
 import java.util.concurrent.ConcurrentNavigableMap;
 
 /**
@@ -272,7 +273,7 @@ public class IncrementalIndexStorageAdapter implements StorageAdapter
             return new Cursor.ExprSupport()
             {
               private Iterator<Map.Entry<IncrementalIndex.TimeAndDims, Integer>> baseIter;
-              private ConcurrentNavigableMap<IncrementalIndex.TimeAndDims, Integer> cursorMap;
+              private NavigableMap<IncrementalIndex.TimeAndDims, Integer> cursorMap;
               final DateTime time;
               int numAdvanced = -1;
               boolean done;

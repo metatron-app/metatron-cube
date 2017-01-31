@@ -20,29 +20,36 @@
 package io.druid.segment.incremental;
 
 import com.google.common.base.Supplier;
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.primitives.Ints;
 import com.metamx.common.logger.Logger;
 import com.metamx.common.parsers.ParseException;
 import io.druid.data.input.InputRow;
+import io.druid.data.input.Row;
 import io.druid.granularity.QueryGranularity;
 import io.druid.query.aggregation.AbstractArrayAggregatorFactory;
 import io.druid.query.aggregation.Aggregator;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.Aggregators;
+import io.druid.query.aggregation.PostAggregator;
 import io.druid.query.dimension.DimensionSpec;
 import io.druid.segment.ColumnSelectorFactory;
 import io.druid.segment.DimensionSelector;
 import io.druid.segment.DoubleColumnSelector;
+import io.druid.segment.ExprEvalColumnSelector;
 import io.druid.segment.FloatColumnSelector;
 import io.druid.segment.LongColumnSelector;
-import io.druid.segment.ExprEvalColumnSelector;
 import io.druid.segment.ObjectColumnSelector;
 import io.druid.segment.column.ColumnCapabilities;
 
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
+import java.util.SortedMap;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ConcurrentSkipListMap;
@@ -143,6 +150,29 @@ public class OnheapIncrementalIndex extends IncrementalIndex<Aggregator>
   public ConcurrentMap<TimeAndDims, Integer> getFacts()
   {
     return facts;
+  }
+
+  @Override
+  public Iterable<Row> iterable(boolean sortFacts)
+  {
+    if (sortFacts && !(facts instanceof SortedMap)) {
+      final Comparator<TimeAndDims> comparator = dimsComparator();
+      List<Map.Entry<TimeAndDims, Integer>> list = Lists.newArrayList(facts.entrySet());
+      Collections.sort(
+          list, new Comparator<Map.Entry<TimeAndDims, Integer>>()
+          {
+            @Override
+            public int compare(
+                Map.Entry<TimeAndDims, Integer> o1, Map.Entry<TimeAndDims, Integer> o2
+            )
+            {
+              return comparator.compare(o1.getKey(), o2.getKey());
+            }
+          }
+      );
+      return Iterables.transform(list, rowFunction(ImmutableList.<PostAggregator>of()));
+    }
+    return super.iterable(sortFacts);
   }
 
   @Override

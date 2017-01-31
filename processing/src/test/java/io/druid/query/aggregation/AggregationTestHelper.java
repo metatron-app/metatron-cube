@@ -35,6 +35,7 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.io.Closeables;
 import com.google.common.util.concurrent.ListenableFuture;
+import com.google.common.util.concurrent.MoreExecutors;
 import com.metamx.common.IAE;
 import com.metamx.common.guava.CloseQuietly;
 import com.metamx.common.guava.Sequence;
@@ -89,6 +90,7 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ExecutorService;
 
 /**
  * This class provides general utility to test any druid aggregation implementation given raw data,
@@ -454,8 +456,8 @@ public class AggregationTestHelper
         toolChest.postMergeQueryDecoration(
             toolChest.mergeResults(
                 toolChest.preMergeQueryDecoration(
-                    new ConcatQueryRunner(
-                        Sequences.simple(
+                        factory.mergeRunners(
+                            MoreExecutors.sameThreadExecutor(),
                             Lists.transform(
                                 segments,
                                 new Function<Segment, QueryRunner>()
@@ -476,7 +478,6 @@ public class AggregationTestHelper
                                     }
                                   }
                                 }
-                            )
                         )
                     )
                 )

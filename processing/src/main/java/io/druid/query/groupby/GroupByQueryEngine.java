@@ -20,6 +20,7 @@
 package io.druid.query.groupby;
 
 import com.google.common.base.Function;
+import com.google.common.base.Strings;
 import com.google.common.base.Supplier;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterators;
@@ -41,6 +42,8 @@ import io.druid.collections.ResourceHolder;
 import io.druid.collections.StupidPool;
 import io.druid.data.input.MapBasedRow;
 import io.druid.data.input.Row;
+import io.druid.granularity.QueryGranularities;
+import io.druid.granularity.QueryGranularity;
 import io.druid.guice.annotations.Global;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.BufferAggregator;
@@ -72,6 +75,28 @@ import java.util.Set;
  */
 public class GroupByQueryEngine
 {
+  /**
+   * If "query" has a single universal timestamp, return it. Otherwise return null. This is useful
+   * for keeping timestamps in sync across partial queries that may have different intervals.
+   *
+   * @param query the query
+   *
+   * @return universal timestamp, or null
+   */
+  public static Long getUniversalTimestamp(final GroupByQuery query)
+  {
+    final QueryGranularity gran = query.getGranularity();
+    final String timestampStringFromContext = query.getContextValue(GroupByQueryHelper.CTX_KEY_FUDGE_TIMESTAMP);
+
+    if (!Strings.isNullOrEmpty(timestampStringFromContext)) {
+      return Long.parseLong(timestampStringFromContext);
+    } else if (QueryGranularities.ALL.equals(gran)) {
+      return query.getIntervals().get(0).getStartMillis();
+    } else {
+      return null;
+    }
+  }
+
   private static final String CTX_KEY_MAX_INTERMEDIATE_ROWS = "maxIntermediateRows";
 
   private final Supplier<GroupByQueryConfig> config;
@@ -312,6 +337,7 @@ public class GroupByQueryEngine
     private final String[] metricNames;
     private final int[] sizesRequired;
 
+    private final DateTime fixedTimeForAllGranularity;
     private List<int[]> unprocessedKeys;
     private Iterator<Row> delegate;
 
@@ -331,6 +357,10 @@ public class GroupByQueryEngine
               config.getMaxIntermediateRows()
           ), config.getMaxIntermediateRows()
       );
+      String fudgeTimestampString = query.getContextValue(GroupByQueryHelper.CTX_KEY_FUDGE_TIMESTAMP);
+      fixedTimeForAllGranularity = Strings.isNullOrEmpty(fudgeTimestampString)
+                                   ? null
+                                   : new DateTime(Long.parseLong(fudgeTimestampString));
 
       unprocessedKeys = null;
       delegate = Iterators.emptyIterator();
@@ -422,7 +452,8 @@ public class GroupByQueryEngine
           .transform(
               new Function<Map.Entry<int[], Integer>, Row>()
               {
-                private final DateTime timestamp = cursor.getTime();
+                private final DateTime timestamp =
+                    fixedTimeForAllGranularity != null ? fixedTimeForAllGranularity : cursor.getTime();
                 private final int[] increments = positionMaintainer.getIncrements();
 
                 @Override
