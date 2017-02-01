@@ -4436,6 +4436,9 @@ public class GroupByQueryRunnerTest
 
     OrderByColumnSpec dayOfWeekAsc = new OrderByColumnSpec("dayOfWeek", OrderByColumnSpec.Direction.ASCENDING);
     OrderByColumnSpec marketDsc = new OrderByColumnSpec("market", OrderByColumnSpec.Direction.DESCENDING);
+    OrderByColumnSpec indexDsc = new OrderByColumnSpec(
+        "index", OrderByColumnSpec.Direction.DESCENDING, new StringComparators.FloatingPointComparator()
+    );
     OrderByColumnSpec rowsAsc = new OrderByColumnSpec("rows", OrderByColumnSpec.Direction.ASCENDING);
     List<OrderByColumnSpec> dayPlusMarket = Arrays.asList(dayOfWeekAsc, marketDsc);
     List<OrderByColumnSpec> dayPlusRows = Arrays.asList(dayOfWeekAsc, rowsAsc);
@@ -4834,10 +4837,10 @@ public class GroupByQueryRunnerTest
                 new WindowingSpec(
                     dayOfWeek, Arrays.asList(marketDsc), Arrays.asList("min_week = $min(index)"),
                     FlattenSpec.array(Arrays.asList("market", "index", "min_week", "min_all"), null)
-                        .withExpression(
-                            "min_all[upfront]=min_all.market[upfront]",
-                            "min_week[spot]=min_week.market[spot]"
-                        )
+                               .withExpression(
+                                   "min_all[upfront]=min_all[market.upfront]",
+                                   "min_week[spot]=min_week[market.spot]"
+                               )
                 )
             )
         )
@@ -4891,6 +4894,74 @@ public class GroupByQueryRunnerTest
     );
 
     results = GroupByQueryRunnerTestHelper.runQuery(factory, mergeRunner, builder.build());
+    GroupByQueryRunnerTestHelper.validate(columnNames, expectedResults, results);
+
+    // order by on partition sum.. NMC requirement
+    // changed identifier spec to accept index. use '_' for minus instead of '-'
+    builder.setLimitSpec(
+        new DefaultLimitSpec(
+            Arrays.asList(
+                new OrderByColumnSpec(
+                    "sum_week_last",
+                    OrderByColumnSpec.Direction.DESCENDING,
+                    new StringComparators.FloatingPointComparator()
+                )
+            ),
+            null,
+            Arrays.asList(
+                new WindowingSpec(
+                    dayOfWeek, Arrays.asList(indexDsc), Arrays.asList("sum_week = $sum(index)"),
+                    FlattenSpec.array(Arrays.asList("market", "index", "sum_week"), null)
+                               .withExpression(
+                                   "sum_week_first=sum_week[0]", "sum_week_last=sum_week[_1]"
+                               )
+                )
+            )
+        )
+    );
+
+    columnNames = new String[] {"dayOfWeek", "market", "index", "sum_week", "sum_week_first", "sum_week_last"};
+    expectedResults = GroupByQueryRunnerTestHelper.createExpectedRows(
+        columnNames,
+        array("Wednesday",
+              Arrays.asList("total_market", "upfront", "spot"),
+              Arrays.asList(32753.337890625, 28985.5751953125, 14271.368591308594),
+              Arrays.asList(32753.337890625, 61738.9130859375, 76010.2816772461),
+              32753.337890625, 76010.2816772461),
+        array("Thursday",
+              Arrays.asList("total_market", "upfront", "spot"),
+              Arrays.asList(32361.38720703125, 28562.748901367188, 14279.127197265625),
+              Arrays.asList(32361.38720703125, 60924.13610839844, 75203.26330566406),
+              32361.38720703125, 75203.26330566406),
+        array("Saturday",
+              Arrays.asList("total_market", "upfront", "spot"),
+              Arrays.asList(30940.971923828125, 27820.83154296875, 13493.751281738281),
+              Arrays.asList(30940.971923828125, 58761.803466796875, 72255.55474853516),
+              30940.971923828125, 72255.55474853516),
+        array("Monday",
+              Arrays.asList("total_market", "upfront", "spot"),
+              Arrays.asList(30468.77734375, 27619.58447265625, 13557.738830566406),
+              Arrays.asList(30468.77734375, 58088.36181640625, 71646.10064697266),
+              30468.77734375, 71646.10064697266),
+        array("Friday",
+              Arrays.asList("total_market", "upfront", "spot"),
+              Arrays.asList(30173.691650390625, 27297.8623046875, 13219.574157714844),
+              Arrays.asList(30173.691650390625, 57471.553955078125, 70691.12811279297),
+              30173.691650390625, 70691.12811279297),
+        array("Tuesday",
+              Arrays.asList("total_market", "upfront", "spot"),
+              Arrays.asList(29676.578125, 26968.280639648438, 13199.471435546875),
+              Arrays.asList(29676.578125, 56644.85876464844, 69844.33020019531),
+              29676.578125, 69844.33020019531),
+        array("Sunday",
+              Arrays.asList("total_market", "upfront", "spot"),
+              Arrays.asList(29305.086059570312, 24791.223876953125, 13585.541015625),
+              Arrays.asList(29305.086059570312, 54096.30993652344, 67681.85095214844),
+              29305.086059570312, 67681.85095214844)
+    );
+
+    results = GroupByQueryRunnerTestHelper.runQuery(factory, mergeRunner, builder.build());
+    printJson(builder.build());
     GroupByQueryRunnerTestHelper.validate(columnNames, expectedResults, results);
 
     // unstack, {d, m} + {}

@@ -23,11 +23,11 @@ import java.util.Arrays;
 
 /**
  */
-public class ObjectArray
+public class ObjectArray<T>
 {
-  private final Object[] array;
+  final T[] array;
 
-  public ObjectArray(Object[] array)
+  public ObjectArray(T[] array)
   {
     this.array = array;
   }
@@ -70,5 +70,28 @@ public class ObjectArray
   public String toString()
   {
     return Arrays.toString(array);
+  }
+
+  public static class Comparable<T extends java.lang.Comparable<T>> extends ObjectArray<T>
+      implements java.lang.Comparable<Comparable<T>>
+  {
+
+    public Comparable(T[] array)
+    {
+      super(array);
+    }
+
+    @Override
+    public int compareTo(Comparable<T> o)
+    {
+      T[] other = o.array;
+      for (int i = 0; i < array.length; i++) {
+        final int compare = array[i].compareTo(other[i]);
+        if (compare != 0) {
+          return compare;
+        }
+      }
+      return 0;
+    }
   }
 }

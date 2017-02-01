@@ -24,6 +24,7 @@ import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.fasterxml.jackson.annotation.JsonTypeInfo.As;
 import com.fasterxml.jackson.annotation.JsonTypeInfo.Id;
 import com.google.common.primitives.Ints;
+import com.google.common.primitives.Longs;
 import com.google.common.primitives.UnsignedBytes;
 import com.metamx.common.IAE;
 import com.metamx.common.StringUtils;
@@ -382,7 +383,22 @@ public class StringComparators
         return 1;
       }
 
-      return Double.compare(Double.valueOf(s), Double.valueOf(s2));
+      // try quick path
+      Long l1 = s.indexOf('.') < 0 ? Longs.tryParse(s) : null;
+      Long l2 = s2.indexOf('.') < 0 ? Longs.tryParse(s2) : null;
+
+      if (l1 != null) {
+        if (l2 != null) {
+          return Longs.compare(l1, l2);
+        } else {
+          return Double.compare(l1, Double.valueOf(s2));
+        }
+      }
+      if (l2 != null) {
+        return Double.compare(Double.valueOf(s), l2);
+      } else {
+        return Double.compare(Double.valueOf(s), Double.valueOf(s2));
+      }
     }
 
     @Override

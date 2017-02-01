@@ -452,12 +452,13 @@ public class FlattenSpec implements Cacheable
       @Override
       public Object get(String name)
       {
+        // takes target[column.value] or target[index], use '_' instead of '-' for negative index (backward)
         Object value = bindings.get(name);
         if (value != null || bindings.containsKey(name)) {
           return value;
         }
-        int index = name.lastIndexOf('.');
-        if (index < 0) {
+        int index = name.indexOf('[');
+        if (index < 0 || name.charAt(name.length() - 1) != ']') {
           throw new RuntimeException("No binding found for " + name);
         }
         Object values = bindings.get(name.substring(0, index));
@@ -467,22 +468,28 @@ public class FlattenSpec implements Cacheable
         if (!(values instanceof List)) {
           throw new RuntimeException("Value column should be list type " + name.substring(0, index));
         }
-        String source = name.substring(index + 1);
-        Integer keyIndex = cache.get(source);
-        if (keyIndex == null) {
-          int nameIndex = source.indexOf('[');
-          if (nameIndex < 0 || source.charAt(source.length() - 1) != ']') {
-            throw new RuntimeException("Invalid source format " + source);
+        String source = name.substring(index + 1, name.length() - 1);
+        Integer indexExpr = cache.get(source);
+        if (indexExpr == null) {
+          int nameIndex = source.indexOf('.');
+          if (nameIndex < 0) {
+            boolean minus = source.charAt(0) == '_';  // cannot use '-' in identifier
+            indexExpr = minus ? -Integer.valueOf(source.substring(1)) : Integer.valueOf(source);
+          } else {
+            Object keys = bindings.get(source.substring(0, nameIndex));
+            if (!(keys instanceof List)) {
+              throw new RuntimeException("Key column should be list type " + source.substring(0, nameIndex));
+            }
+            indexExpr = ((List) keys).indexOf(source.substring(nameIndex + 1));
+            if (indexExpr < 0) {
+              indexExpr = Integer.MAX_VALUE;
+            }
           }
-          Object keys = bindings.get(source.substring(0, nameIndex));
-          if (!(keys instanceof List)) {
-            throw new RuntimeException("Key column should be list type " + source.substring(0, nameIndex));
-          }
-          String keyValue = source.substring(nameIndex + 1, source.length() - 1);
-          keyIndex = ((List) keys).indexOf(keyValue);
-          cache.put(source, keyIndex);
+          cache.put(source, indexExpr);
         }
-        return keyIndex < 0 ? null : ((List) values).get(keyIndex);
+        List target = (List) values;
+        int keyIndex = indexExpr < 0 ? target.size() + indexExpr : indexExpr;
+        return keyIndex >= 0 && keyIndex < target.size() ? target.get(keyIndex) : null;
       }
     };
   }

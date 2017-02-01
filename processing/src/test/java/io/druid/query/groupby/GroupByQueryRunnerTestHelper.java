@@ -86,7 +86,7 @@ public class GroupByQueryRunnerTestHelper
     List<Row> expected = Lists.newArrayList();
     for (Object[] value : values) {
       Preconditions.checkArgument(value.length == columnNames.length);
-      Map<String, Object> theVals = Maps.newHashMapWithExpectedSize(value.length);
+      Map<String, Object> theVals = Maps.newLinkedHashMap();
       for (int i = 0; i < columnNames.length; i++) {
         if (i != timeIndex && value[i] != null) {
           theVals.put(columnNames[i], value[i]);
