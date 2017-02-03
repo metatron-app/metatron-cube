@@ -4,7 +4,7 @@ import com.fasterxml.jackson.annotation.JacksonInject;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.common.collect.Lists;
+import com.google.common.collect.Sets;
 import io.druid.indexer.HadoopIngestionSpec;
 import io.druid.indexer.HadoopTuningConfig;
 import io.druid.indexer.IngestionMode;
@@ -13,6 +13,7 @@ import org.apache.commons.lang.StringUtils;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 
 /**
  */
@@ -27,13 +28,16 @@ public class HynixIndexTask extends HadoopIndexTask
       if (tuningConfig.getIngestionMode() != IngestionMode.REDUCE_MERGE) {
         throw new IllegalArgumentException("hynix type input spec only can be used with REDUCE_MERGE mode");
       }
-      List<String> dataSources = Lists.newArrayList();
+      String defaultDataSource = (String) pathSpec.get("dataSource");
+      Set<String> dataSources = Sets.newLinkedHashSet();
       for (Map elementSpec : (List<Map>) pathSpec.get("elements")) {
-        String dataSourceName = Objects.toString(elementSpec.get("dataSource"), null);
+        String dataSourceName = Objects.toString(elementSpec.get("dataSource"), defaultDataSource);
         if (dataSourceName == null || dataSourceName.indexOf(';') >= 0) {
           throw new IllegalArgumentException("Datasource name should not be empty or contain ';'");
         }
-        dataSources.add(dataSourceName);
+        if (!dataSources.contains(dataSourceName)) {
+          dataSources.add(dataSourceName);
+        }
       }
       return StringUtils.join(dataSources, ';');
     }

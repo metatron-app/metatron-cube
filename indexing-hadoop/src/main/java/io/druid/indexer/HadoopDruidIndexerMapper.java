@@ -21,10 +21,10 @@ package io.druid.indexer;
 
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
+import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
 import com.metamx.common.Pair;
 import com.metamx.common.RE;
 import com.metamx.common.logger.Logger;
@@ -32,21 +32,17 @@ import io.druid.data.input.InputRow;
 import io.druid.data.input.MapBasedInputRow;
 import io.druid.data.input.impl.InputRowParser;
 import io.druid.data.input.impl.StringInputRowParser;
-import io.druid.indexer.path.PartitionPathSpec;
+import io.druid.indexer.hadoop.HadoopAwareParser;
+import io.druid.indexer.path.HynixCombineInputFormat;
 import io.druid.segment.indexing.granularity.GranularitySpec;
-import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapreduce.Counter;
-import org.apache.hadoop.mapreduce.InputSplit;
 import org.apache.hadoop.mapreduce.Mapper;
-import org.apache.hadoop.mapreduce.lib.input.FileSplit;
 import org.joda.time.DateTime;
 
 import java.io.IOException;
-import java.lang.reflect.Method;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 
 public abstract class HadoopDruidIndexerMapper<KEYOUT, VALUEOUT> extends Mapper<Object, Object, KEYOUT, VALUEOUT>
 {
@@ -55,8 +51,6 @@ public abstract class HadoopDruidIndexerMapper<KEYOUT, VALUEOUT> extends Mapper<
   protected HadoopDruidIndexerConfig config;
   private InputRowParser parser;
   protected GranularitySpec granularitySpec;
-  private Map<String, String> partitionDimValues = null;
-  private Set<String> partitionDims = null;
 
   private Function<InputRow, Iterable<InputRow>> generator;
   private Counter indexedRows;
@@ -126,39 +120,22 @@ public abstract class HadoopDruidIndexerMapper<KEYOUT, VALUEOUT> extends Mapper<
         }
       };
     }
-    if (config.getPathSpec() instanceof PartitionPathSpec) {
-      PartitionPathSpec partitionPathSpec = (PartitionPathSpec)config.getPathSpec();
-
-      InputSplit split = context.getInputSplit();
-      Class<? extends InputSplit> splitClass = split.getClass();
-
-      FileSplit fileSplit = null;
-      // to handle TaggedInputSplit case when MultipleInputs are used
-      if (splitClass.equals(FileSplit.class)) {
-        fileSplit = (FileSplit) split;
-      } else if (splitClass.getName().equals("org.apache.hadoop.mapreduce.lib.input.TaggedInputSplit")) {
-        try {
-          Method getInputSplitMethod = splitClass
-              .getDeclaredMethod("getInputSplit");
-          getInputSplitMethod.setAccessible(true);
-          fileSplit = (FileSplit) getInputSplitMethod.invoke(split);
-        } catch (Exception e) {
-          throw new IOException(e);
-        }
-      }
-
-      Path filePath = fileSplit.getPath();
-      partitionDimValues = partitionPathSpec.getPartitionValues(filePath);
-      if (partitionDimValues.size() == 0) {
-        partitionDimValues = null;
-      } else {
-        partitionDims = partitionDimValues.keySet();
-      }
-    }
 
     indexedRows = context.getCounter("navis", "indexed-row-num");
     oobRows = context.getCounter("navis", "oob-row-num");
     errRows = context.getCounter("navis", "err-row-num");
+
+    setupHadoopAwareParser(parser, context);
+  }
+
+  private void setupHadoopAwareParser(InputRowParser parser, Context context) throws IOException
+  {
+    if (parser instanceof HadoopAwareParser) {
+      ((HadoopAwareParser) parser).setup(context);
+    }
+    if (parser instanceof InputRowParser.Delegated) {
+      setupHadoopAwareParser(((InputRowParser.Delegated) parser).getDelegate(), context);
+    }
   }
 
   private boolean isNumeric(String str)
@@ -215,10 +192,10 @@ public abstract class HadoopDruidIndexerMapper<KEYOUT, VALUEOUT> extends Mapper<
     }
   }
 
-  private InputRow parseRow(Object value, Context context) {
+  private InputRow parseRow(Object value, Context context)
+  {
     try {
-      return (partitionDimValues == null) ? parseInputRow(value, parser)
-                                          : mergePartitionDimValues(parseInputRow(value, parser));
+      return parseInputRow(value);
     }
     catch (Exception e) {
       errRows.increment(1);
@@ -226,61 +203,36 @@ public abstract class HadoopDruidIndexerMapper<KEYOUT, VALUEOUT> extends Mapper<
         log.debug(e, "Ignoring invalid row [%s] due to parsing error", value.toString());
         context.getCounter(HadoopDruidIndexerConfig.IndexJobCounters.INVALID_ROW_COUNTER).increment(1);
         return null; // we're ignoring this invalid row
-      } else {
-        throw e;
       }
+      throw Throwables.propagate(e);
     }
   }
 
-  public final static InputRow parseInputRow(Object value, InputRowParser parser)
+  private InputRow parseInputRow(Object value) throws IOException
   {
-    if (parser instanceof StringInputRowParser && value instanceof Text) {
+    InputRow inputRow = parseInputRow(value, parser);
+    Map<String, String> partition = HynixCombineInputFormat.CURRENT_PARTITION.get();
+    if (partition != null && !partition.isEmpty()) {
+      ((MapBasedInputRow) inputRow).getEvent().putAll(partition);
+    }
+    return inputRow;
+  }
+
+  @SuppressWarnings("unchecked")
+  private InputRow parseInputRow(Object value, InputRowParser parser) throws IOException
+  {
+    if (value instanceof InputRow) {
+      return (InputRow) value;
+    } else if (parser instanceof StringInputRowParser && value instanceof Text) {
       //Note: This is to ensure backward compatibility with 0.7.0 and before
       //HadoopyStringInputRowParser can handle this and this special case is not needed
       //except for backward compatibility
-      return ((StringInputRowParser) parser).parse(value.toString());
-    } else if (value instanceof InputRow) {
-      return (InputRow) value;
-    } else {
-      return parser.parse(value);
+      return parser.parse(value.toString());
     }
+    return parser.parse(value);
   }
 
-  private List<String> mergedDimensions = null;
-
-  private InputRow mergePartitionDimValues(InputRow inputRow)
-  {
-    InputRow merged = inputRow;
-
-    // only for raw data case
-    if (inputRow instanceof MapBasedInputRow) {
-      MapBasedInputRow mapBasedInputRow = (MapBasedInputRow)inputRow;
-
-      if (mergedDimensions == null) {
-        List<String> orgDimensions = mapBasedInputRow.getDimensions();
-        mergedDimensions = Lists.newArrayListWithCapacity(orgDimensions.size() + partitionDims.size());
-        mergedDimensions.addAll(orgDimensions);
-        for (String partitionDimension : partitionDims) {
-          if (!mergedDimensions.contains(partitionDimension)) {
-            mergedDimensions.add(partitionDimension);
-          }
-        }
-      }
-
-      Map<String, Object> eventMap = Maps.newHashMap(mapBasedInputRow.getEvent());
-      eventMap.putAll(partitionDimValues);
-
-      merged = new MapBasedInputRow(
-          mapBasedInputRow.getTimestamp(),
-          mergedDimensions,
-          eventMap
-      );
-    }
-
-    return merged;
-  }
-
-  abstract protected void innerMap(InputRow inputRow, Object value, Context context)
+  protected abstract void innerMap(InputRow inputRow, Object value, Context context)
       throws IOException, InterruptedException;
 
 }

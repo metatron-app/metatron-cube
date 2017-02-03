@@ -22,6 +22,7 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
+import com.google.common.base.Throwables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import io.druid.data.input.InputRow;
@@ -33,6 +34,8 @@ import io.druid.data.input.impl.ParseSpec;
 import io.druid.data.input.impl.StringDimensionSchema;
 import io.druid.data.input.impl.TimeAndDimsParseSpec;
 import io.druid.data.input.impl.TimestampSpec;
+import io.druid.indexer.hadoop.HadoopAwareParser;
+import io.druid.indexer.path.HynixCombineInputFormat;
 import org.apache.commons.lang.StringUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
@@ -52,6 +55,8 @@ import org.apache.hadoop.hive.serde2.typeinfo.StructTypeInfo;
 import org.apache.hadoop.hive.serde2.typeinfo.TypeInfo;
 import org.apache.hadoop.hive.serde2.typeinfo.TypeInfoUtils;
 import org.apache.hadoop.mapreduce.InputFormat;
+import org.apache.hadoop.mapreduce.InputSplit;
+import org.apache.hadoop.mapreduce.Mapper.Context;
 import org.apache.hadoop.mapreduce.RecordReader;
 import org.apache.hadoop.mapreduce.TaskAttemptContext;
 import org.apache.hadoop.mapreduce.TaskAttemptID;
@@ -61,77 +66,130 @@ import org.apache.hadoop.util.ReflectionUtils;
 import org.joda.time.DateTime;
 
 import javax.annotation.Nullable;
+import java.io.IOException;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Properties;
 
-public class OrcHadoopInputRowParser implements InputRowParser<OrcStruct>
+public class OrcHadoopInputRowParser implements HadoopAwareParser<OrcStruct>
 {
   private final ParseSpec parseSpec;
-  private String typeString;
+  private final String typeString;
   private final List<String> dimensions;
-  private StructObjectInspector oip;
-  private final OrcSerde serde;
+  private final TimestampSpec timestampSpec;
+
+  private final StructObjectInspector staticInspector;
+
+  private Context context;
+  private Path currentPath;
+  private StructObjectInspector dynamicInspector;
 
   @JsonCreator
   public OrcHadoopInputRowParser(
       @JsonProperty("parseSpec") ParseSpec parseSpec,
-      @JsonProperty("typeString") String typeString
+      @JsonProperty("typeString") String typeString,
+      @JsonProperty("schema") String schema
   )
   {
     this.parseSpec = parseSpec;
-    this.typeString = typeString;
+    this.typeString = getTypeString(typeString, schema);
     this.dimensions = parseSpec.getDimensionsSpec().getDimensionNames();
-    this.serde = new OrcSerde();
-    initialize();
+    this.timestampSpec = parseSpec.getTimestampSpec();
+    this.staticInspector = initStaticInspector();
+  }
+
+  private String getTypeString(String typeString, String schema)
+  {
+    return typeString != null ? typeString : schema != null ? typeStringFromSchema(schema) : null;
+  }
+
+  @Override
+  public void setup(Context context) throws IOException
+  {
+    this.context = context;
   }
 
   @Override
   public InputRow parse(OrcStruct input)
   {
-    Map<String, Object> map = Maps.newHashMap();
+    StructObjectInspector oip = Preconditions.checkNotNull(
+        getObjectInspector(),
+        "user should specify typeString or schema"
+    );
+
     List<? extends StructField> fields = oip.getAllStructFieldRefs();
-    for (StructField field: fields)
-    {
+    final Map<String, Object> map = Maps.newHashMapWithExpectedSize(fields.size());
+    for (StructField field : fields) {
       ObjectInspector objectInspector = field.getFieldObjectInspector();
-      switch(objectInspector.getCategory()) {
+      switch (objectInspector.getCategory()) {
         case PRIMITIVE:
-          PrimitiveObjectInspector primitiveObjectInspector = (PrimitiveObjectInspector)objectInspector;
-          map.put(field.getFieldName(),
-              primitiveObjectInspector.getPrimitiveJavaObject(oip.getStructFieldData(input, field)));
+          PrimitiveObjectInspector primitiveObjectInspector = (PrimitiveObjectInspector) objectInspector;
+          map.put(
+              field.getFieldName(),
+              primitiveObjectInspector.getPrimitiveJavaObject(oip.getStructFieldData(input, field))
+          );
           break;
         case LIST:  // array case - only 1-depth array supported yet
-          ListObjectInspector listObjectInspector = (ListObjectInspector)objectInspector;
-          map.put(field.getFieldName(),
-              getListObject(listObjectInspector, oip.getStructFieldData(input, field)));
+          ListObjectInspector listObjectInspector = (ListObjectInspector) objectInspector;
+          map.put(
+              field.getFieldName(),
+              getListObject(listObjectInspector, oip.getStructFieldData(input, field))
+          );
           break;
         default:
           break;
       }
     }
 
-    TimestampSpec timestampSpec = parseSpec.getTimestampSpec();
-    DateTime dateTime = timestampSpec.extractTimestamp(map);
-
-    return new MapBasedInputRow(dateTime, dimensions, map);
+    DateTime timestamp = timestampSpec.extractTimestamp(map);
+    return new MapBasedInputRow(timestamp, dimensions, map);
   }
 
-  private void initialize()
+  private StructObjectInspector getObjectInspector()
   {
-    if (typeString == null)
-    {
-      typeString = typeStringFromParseSpec(parseSpec);
+    if (staticInspector != null) {
+      return staticInspector;
     }
+    InputSplit split = context.getInputSplit();
+    Path path;
+    if (split instanceof HynixCombineInputFormat.HynixSplit) {
+      path = HynixCombineInputFormat.CURRENT_PATH.get();
+    } else if (split instanceof FileSplit) {
+      path = ((FileSplit)split).getPath();
+    } else {
+      throw new IllegalArgumentException("Cannot access path in split " + split);  
+    }
+    if (currentPath == null || !Objects.equals(currentPath, path)) {
+      try {
+        Reader reader = OrcFile.createReader(path, OrcFile.readerOptions(context.getConfiguration()));
+        dynamicInspector = (StructObjectInspector) reader.getObjectInspector();
+      }
+      catch (Exception e) {
+        throw Throwables.propagate(e);
+      }
+      currentPath = path;
+    }
+    return dynamicInspector;
+  }
+
+  // optional type string
+  private StructObjectInspector initStaticInspector()
+  {
+    String typeString = getTypeString();
+    if (typeString == null) {
+      return null;
+    }
+    OrcSerde serde = new OrcSerde();
     TypeInfo typeInfo = TypeInfoUtils.getTypeInfoFromTypeString(typeString);
-    Preconditions.checkArgument(typeInfo instanceof StructTypeInfo,
-        String.format("typeString should be struct type but not [%s]", typeString));
-    Properties table = getTablePropertiesFromStructTypeInfo((StructTypeInfo)typeInfo);
+    Properties table = getTablePropertiesFromStructTypeInfo((StructTypeInfo) typeInfo);
     serde.initialize(new Configuration(), table);
     try {
-      oip = (StructObjectInspector) serde.getObjectInspector();
-    } catch (SerDeException e) {
-      e.printStackTrace();
+      return (StructObjectInspector) serde.getObjectInspector();
+    }
+    catch (SerDeException e) {
+      throw Throwables.propagate(e);
     }
   }
 
@@ -175,24 +233,27 @@ public class OrcHadoopInputRowParser implements InputRowParser<OrcStruct>
   @Override
   public InputRowParser withParseSpec(ParseSpec parseSpec)
   {
-    return new OrcHadoopInputRowParser(parseSpec, typeString);
+    return new OrcHadoopInputRowParser(parseSpec, typeString, null);
   }
 
   public InputRowParser withTypeString(String typeString)
   {
-    return new OrcHadoopInputRowParser(parseSpec, typeString);
+    return new OrcHadoopInputRowParser(parseSpec, typeString, null);
   }
 
-  public static String typeStringFromParseSpec(ParseSpec parseSpec)
+  private String typeStringFromSchema(String schema)
   {
     StringBuilder builder = new StringBuilder("struct<");
-    builder.append(parseSpec.getTimestampSpec()).append(":string");
-    if (parseSpec.getDimensionsSpec().getDimensionNames().size() > 0)
-    {
-      builder.append(",");
-      builder.append(StringUtils.join(parseSpec.getDimensionsSpec().getDimensionNames(), ":string,")).append(":string");
+    for (String element : schema.split(",")) {
+      if (builder.length() > 7) {
+        builder.append(',');
+      }
+      builder.append(element);
+      if (!element.contains(":")) {
+        builder.append(":string");
+      }
     }
-    builder.append(">");
+    builder.append('>');
 
     return builder.toString();
   }
@@ -204,9 +265,8 @@ public class OrcHadoopInputRowParser implements InputRowParser<OrcStruct>
     table.setProperty("columns.types", StringUtils.join(
         Lists.transform(structTypeInfo.getAllStructFieldTypeInfos(),
             new Function<TypeInfo, String>() {
-              @Nullable
               @Override
-              public String apply(@Nullable TypeInfo typeInfo) {
+              public String apply(TypeInfo typeInfo) {
                 return typeInfo.getTypeName();
               }
             }),
@@ -247,7 +307,7 @@ public class OrcHadoopInputRowParser implements InputRowParser<OrcStruct>
     );
     ParseSpec spec = new TimeAndDimsParseSpec(timeSpec, new DimensionsSpec(dimensions, null, null));
 
-    OrcHadoopInputRowParser parser = new OrcHadoopInputRowParser(spec, args[2]);
+    OrcHadoopInputRowParser parser = new OrcHadoopInputRowParser(spec, args[2], null);
 
     FileStatus status = path.getFileSystem(conf).getFileStatus(path);
     FileSplit split = new FileSplit(path, 0, status.getLen(), null);
@@ -256,19 +316,19 @@ public class OrcHadoopInputRowParser implements InputRowParser<OrcStruct>
 
     TaskAttemptContext context = new TaskAttemptContextImpl(conf, new TaskAttemptID());
 
-    RecordReader reader = inputFormat.createRecordReader(split, context);
-    while (reader.nextKeyValue()) {
-      OrcStruct data = (OrcStruct) reader.getCurrentValue();
-      MapBasedInputRow row = (MapBasedInputRow)parser.parse(data);
-      StringBuilder builder = new StringBuilder();
-      for (String dim : row.getDimensions()) {
-        if (builder.length() > 0) {
-          builder.append(", ");
+    try (RecordReader reader = inputFormat.createRecordReader(split, context)) {
+      while (reader.nextKeyValue()) {
+        OrcStruct data = (OrcStruct) reader.getCurrentValue();
+        MapBasedInputRow row = (MapBasedInputRow) parser.parse(data);
+        StringBuilder builder = new StringBuilder();
+        for (String dim : row.getDimensions()) {
+          if (builder.length() > 0) {
+            builder.append(", ");
+          }
+          builder.append(row.getRaw(dim));
         }
-        builder.append(row.getRaw(dim));
+        System.out.println(builder.toString());
       }
-      System.out.println(builder.toString());
     }
-    reader.close();
   }
 }

@@ -38,6 +38,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+@Deprecated
 public class PartitionPathSpec implements PathSpec
 {
   private static final Logger log = new Logger(PartitionPathSpec.class);

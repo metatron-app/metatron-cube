@@ -53,6 +53,8 @@ public class HynixCombineInputFormat extends FileInputFormat
 {
   private static final Logger log = new Logger(HynixCombineInputFormat.class);
   public static final ThreadLocal<String> CURRENT_DATASOURCE = new ThreadLocal<>();
+  public static final ThreadLocal<Path> CURRENT_PATH = new ThreadLocal<>();
+  public static final ThreadLocal<Map<String, String>> CURRENT_PARTITION = new ThreadLocal<>();
 
   @Override
   protected boolean isSplitable(JobContext context, Path file)
@@ -69,30 +71,39 @@ public class HynixCombineInputFormat extends FileInputFormat
     final int splitSize = conf.getInt(HynixPathSpec.SPLIT_SIZE, 0);
     log.info("Start splitting on target size %,d", splitSize);
 
-    List<InputSplit> result = Lists.newArrayList();
-
-    Job cloned = new Job(conf);
-    int currentSize = 0;
-    Map<String, List<FileSplit>> combined = Maps.newHashMap();
+    Map<String, List<String>> dsPathMap = Maps.newLinkedHashMap();
     for (String specString : conf.get(HynixPathSpec.PATH_SPECS).split(",")) {
       String[] spec = specString.split(";");
-      String dataSource = spec[0];
-      FileInputFormat.setInputPaths(cloned, StringUtils.join(",", HadoopGlobPathSplitter.splitGlob(spec[1])));
+      List<String> paths = dsPathMap.get(spec[0]);
+      if (paths == null) {
+        dsPathMap.put(spec[0], paths = Lists.newArrayList());
+      }
+      paths.add(spec[1]);
+    }
+    Job cloned = Job.getInstance(conf);
+
+    List<InputSplit> result = Lists.newArrayList();
+
+    int currentSize = 0;
+    Map<String, List<FileSplit>> combined = Maps.newHashMap();
+    for (Map.Entry<String, List<String>> entry : dsPathMap.entrySet()) {
+      String dataSource = entry.getKey();
+      FileInputFormat.setInputPaths(cloned, StringUtils.join(",", entry.getValue()));
       List<FileSplit> splits = super.getSplits(cloned);
       if (splitSize == 0) {
         result.add(new HynixSplit(ImmutableMap.of(dataSource, splits)));
         continue;
       }
+      List<FileSplit> splitList = combined.get(dataSource);
+      if (splitList == null) {
+        combined.put(dataSource, splitList = Lists.newArrayList());
+      }
       for (FileSplit split : splits) {
-        List<FileSplit> splitList = combined.get(dataSource);
-        if (splitList == null) {
-          combined.put(dataSource, splitList = Lists.newArrayList());
-        }
         splitList.add(split);
         currentSize += split.getLength();
         if (currentSize > splitSize) {
-          result.add(new HynixSplit(combined));
-          combined = Maps.newHashMap();
+          result.add(new HynixSplit(ImmutableMap.copyOf(combined)));
+          combined.clear();
           currentSize = 0;
         }
       }
@@ -109,6 +120,7 @@ public class HynixCombineInputFormat extends FileInputFormat
 
   public static class HynixSplit extends InputSplit implements Writable
   {
+    // datasource --> splits
     private final Map<String, List<FileSplit>> splits;
 
     public HynixSplit()
@@ -188,6 +200,8 @@ public class HynixCombineInputFormat extends FileInputFormat
     final InputFormat format = ReflectionUtils.newInstance(
         conf.getClass(HynixPathSpec.INPUT_FORMAT, TextInputFormat.class, InputFormat.class), conf
     );
+    final boolean extractPartition = conf.getBoolean(HynixPathSpec.EXTRACT_PARTITION, false);
+
     return new RecordReader()
     {
       private int index;
@@ -232,6 +246,11 @@ public class HynixCombineInputFormat extends FileInputFormat
           index = 0;
         }
         FileSplit split = splits.get(index++);
+
+        CURRENT_PATH.set(split.getPath());
+        if (extractPartition) {
+          CURRENT_PARTITION.set(extractPartition(split.getPath()));
+        }
         reader = format.createRecordReader(split, context);
         reader.initialize(split, context);
         return true;
@@ -268,5 +287,21 @@ public class HynixCombineInputFormat extends FileInputFormat
         }
       }
     };
+  }
+
+  private Map<String, String> extractPartition(Path path)
+  {
+    Map<String, String> partition = Maps.newLinkedHashMap();
+    for (; path != null; path = path.getParent()) {
+      String pathName = path.getName();
+      int index = pathName.indexOf('=');
+      if (index < 0 && !partition.isEmpty()) {
+        return partition;
+      }
+      if (index > 0) {
+        partition.put(pathName.substring(0, index), pathName.substring(index + 1));
+      }
+    }
+    return partition;
   }
 }

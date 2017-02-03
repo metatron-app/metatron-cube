@@ -127,8 +127,14 @@ public class DataSchema
 
     final List<RowEvaluator<InputRow>> evaluators = Evaluation.toEvaluators(evaluations);
     final List<RowEvaluator<Boolean>> validators = Validation.toEvaluators(validations);
-    return new InputRowParser()
+    return new InputRowParser.Delegated()
     {
+      @Override
+      public InputRowParser getDelegate()
+      {
+        return parser;
+      }
+
       @Override
       public InputRow parse(Object input)
       {

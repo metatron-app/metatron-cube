@@ -21,17 +21,21 @@ package io.druid.indexer.path;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 import com.google.common.primitives.Ints;
 import io.druid.common.utils.StringUtils;
 import io.druid.indexer.HadoopDruidIndexerConfig;
+import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.mapreduce.InputFormat;
 import org.apache.hadoop.mapreduce.Job;
+import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
 import org.apache.hadoop.mapreduce.lib.input.TextInputFormat;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.Objects;
 
 /**
  */
@@ -43,23 +47,52 @@ public class HynixPathSpec implements PathSpec
   public static final String INPUT_FORMAT = "hynix.input.path.specs.format";
   public static final String SPLIT_SIZE = "hynix.input.path.specs.split.size";
 
+  public static final String FIND_RECURSIVE = FileInputFormat.INPUT_DIR_RECURSIVE;
+  public static final String EXTRACT_PARTITION = "hynix.input.path.extract.partition";
+
+  private final String basePath;  // optional absolute path (paths in elements are regarded as relative to this)
+
   private final List<HynixPathSpecElement> elements;
   private final Class<? extends InputFormat> inputFormat;
   private final int splitSize;
+  private final boolean findRecursive;
+  private final boolean extractPartition;
 
   @JsonCreator
   public HynixPathSpec(
+      @JsonProperty("basePath") String basePath,
       @JsonProperty("elements") List<HynixPathSpecElement> elements,
       @JsonProperty("inputFormat") Class<? extends InputFormat> inputFormat,
-      @JsonProperty("splitSize") String splitSize
+      @JsonProperty("splitSize") String splitSize,
+      @JsonProperty("findRecursive") boolean findRecursive,
+      @JsonProperty("extractPartition") boolean extractPartition
   )
   {
+    this.basePath = basePath;
     this.elements = Preconditions.checkNotNull(elements);
     this.inputFormat = inputFormat == null ? TextInputFormat.class : inputFormat;
     this.splitSize = Ints.checkedCast(StringUtils.parseKMGT(splitSize, DEFAULT_SPLIT_SIZE));
+    this.findRecursive = findRecursive;
+    this.extractPartition = extractPartition;
+
     Preconditions.checkArgument(!elements.isEmpty());
+    Preconditions.checkArgument(basePath == null || new Path(basePath).isAbsolute());
+    for (HynixPathSpecElement element : elements) {
+      for (String path : HadoopGlobPathSplitter.splitGlob(element.getPaths())) {
+        if (basePath == null) {
+          Preconditions.checkArgument(new Path(path).isAbsolute());
+        } else {
+          Preconditions.checkArgument(!new Path(path).isAbsolute());
+        }
+      }
+    }
   }
 
+  @JsonProperty
+  public String getBasePath()
+  {
+    return basePath;
+  }
 
   @JsonProperty
   public List<HynixPathSpecElement> getElements()
@@ -79,26 +112,44 @@ public class HynixPathSpec implements PathSpec
     return splitSize;
   }
 
+  @JsonProperty
+  public boolean isExtractPartition()
+  {
+    return extractPartition;
+  }
+
   @Override
   public Job addInputPaths(HadoopDruidIndexerConfig config, Job job) throws IOException
   {
+    String schemaDataSource = config.getDataSource();
     List<String> paths = Lists.newArrayList();
     StringBuilder builder = new StringBuilder();
     for (HynixPathSpecElement element : elements) {
-      if (builder.length() > 0) {
-        builder.append(',');
+      String dataSource = Optional.fromNullable(element.getDataSource()).or(schemaDataSource);
+      for (String path : HadoopGlobPathSplitter.splitGlob(element.getPaths())) {
+        if (builder.length() > 0) {
+          builder.append(',');
+        }
+        if (basePath != null) {
+          path = basePath + "/" + path;
+        }
+        builder.append(dataSource).append(';').append(path);
+        paths.add(path);
       }
-      paths.addAll(HadoopGlobPathSplitter.splitGlob(element.getPaths()));
-      builder.append(element.getDataSource()).append(';').append(element.getPaths());
     }
+    // ds1;path1,ds1;path2,ds2;path3
     job.getConfiguration().set(PATH_SPECS, builder.toString());
     job.getConfiguration().setClass(INPUT_FORMAT, inputFormat, InputFormat.class);
     job.getConfiguration().setInt(SPLIT_SIZE, splitSize);
 
+    job.getConfiguration().setBoolean(FIND_RECURSIVE, findRecursive);
+    job.getConfiguration().setBoolean(EXTRACT_PARTITION, extractPartition);
+
     // used for sized partition spec
+    // path1;format1,path2;format2
     StaticPathSpec.addInputPath(job, paths, HynixCombineInputFormat.class);
 
-    // should overwrite
+    // should overwrite (DelegatingInputFormat is set in MultipleInputs.addInputPath)
     job.setInputFormatClass(HynixCombineInputFormat.class);
 
     return job;
@@ -116,10 +167,22 @@ public class HynixPathSpec implements PathSpec
 
     HynixPathSpec that = (HynixPathSpec) o;
 
-    if (!inputFormat.equals(that.inputFormat)) {
+    if (!Objects.equals(basePath, that.basePath)) {
       return false;
     }
     if (!elements.equals(that.elements)) {
+      return false;
+    }
+    if (!inputFormat.equals(that.inputFormat)) {
+      return false;
+    }
+    if (splitSize != that.splitSize) {
+      return false;
+    }
+    if (findRecursive != that.findRecursive) {
+      return false;
+    }
+    if (extractPartition != that.extractPartition) {
       return false;
     }
 
@@ -129,18 +192,19 @@ public class HynixPathSpec implements PathSpec
   @Override
   public int hashCode()
   {
-    int result = elements.hashCode();
-    result = 31 * result + inputFormat.hashCode();
-    return result;
+    return Objects.hash(basePath, elements, inputFormat, splitSize, findRecursive, extractPartition);
   }
 
   @Override
   public String toString()
   {
     return "HynixPathSpec{" +
-           "elements=" + elements +
+           "basePath=" + basePath +
+           ", elements=" + elements +
            ", inputFormat=" + inputFormat +
            ", splitSize=" + splitSize +
+           ", findRecursive=" + findRecursive +
+           ", extractPartition=" + extractPartition +
            '}';
   }
 }

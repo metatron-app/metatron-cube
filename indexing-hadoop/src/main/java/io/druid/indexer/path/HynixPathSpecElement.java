@@ -47,7 +47,7 @@ public class HynixPathSpecElement
   )
   {
     this.paths = Preconditions.checkNotNull(path, "path should not be null");
-    this.dataSource = Preconditions.checkNotNull(dataSource, "dataSource should not be null");
+    this.dataSource = dataSource;
     this.inputFormat = inputFormat;
     this.interval = interval;
   }

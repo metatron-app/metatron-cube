@@ -116,7 +116,7 @@ public class PartitionPathSpecTest
         new HadoopTuningConfig(null, null, null, null, null, null, false, false, false, false, null, false, false, null, null, null)
     );
 
-    partitionPathSpec.setPartitionColumns(TEST_STRING_PARTITION_COLS);
+    partitionPathSpec.setPartitionColumns(ImmutableList.of("test1", "test2"));
     partitionPathSpec.setInputFormat(org.apache.hadoop.mapreduce.lib.input.TextInputFormat.class);
 
     Job job = Job.getInstance();
@@ -235,7 +235,7 @@ public class PartitionPathSpecTest
         new HadoopTuningConfig(null, null, null, null, null, null, false, false, false, false, null, false, false, null, null, null)
     );
 
-    partitionPathSpec.setPartitionColumns(TEST_STRING_SINGLE_PARTITON_COLS);
+    partitionPathSpec.setPartitionColumns(ImmutableList.of("test2"));
     partitionPathSpec.setInputFormat(org.apache.hadoop.mapreduce.lib.input.TextInputFormat.class);
 
     Job job = Job.getInstance();

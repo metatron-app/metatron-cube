@@ -35,4 +35,9 @@ public interface InputRowParser<T>
   public ParseSpec getParseSpec();
 
   public InputRowParser withParseSpec(ParseSpec parseSpec) ;
+
+  interface Delegated<T> extends InputRowParser<T>
+  {
+    InputRowParser<T> getDelegate();
+  }
 }

@@ -160,6 +160,8 @@ public class ReduceMergeIndexGeneratorJob implements HadoopDruidIndexerJob.Index
     private MemoryMXBean memoryMXBean;
     private ProgressIndicator progressIndicator;
 
+    private boolean dynamicDataSource;
+
     private int indexCount;
     private List<IntervalIndex> indices = Lists.newLinkedList();
 
@@ -195,12 +197,15 @@ public class ReduceMergeIndexGeneratorJob implements HadoopDruidIndexerJob.Index
       for (AggregatorFactory aggregator : aggregators) {
         metricNames.add(aggregator.getName());
       }
+      dynamicDataSource = config.getSchema().getIOConfig().getPathSpec().get("type").equals("hynix");
+      if (!dynamicDataSource) {
+        currentDataSource = config.getSchema().getDataSchema().getDataSource();
+      }
 
       flushedIndex = context.getCounter("navis", "index-flush-count");
 
       maxOccupation = tuningConfig.getMaxOccupationInMemory();
       maxRowCount = tuningConfig.getRowFlushBoundary();
-      occupationCheckInterval = 2000;
 
       merger = config.isBuildV9Directly()
                ? HadoopDruidIndexerConfig.INDEX_MERGER_V9
@@ -235,7 +240,7 @@ public class ReduceMergeIndexGeneratorJob implements HadoopDruidIndexerJob.Index
         throws IOException, InterruptedException
     {
       // not null only with HynixCombineInputFormat
-      final String dataSource = HynixCombineInputFormat.CURRENT_DATASOURCE.get();
+      final String dataSource = dynamicDataSource ? HynixCombineInputFormat.CURRENT_DATASOURCE.get() :currentDataSource;
       if (!indices.isEmpty() && !Objects.equals(currentDataSource, dataSource)) {
         persistAll(context);
       }
@@ -251,7 +256,7 @@ public class ReduceMergeIndexGeneratorJob implements HadoopDruidIndexerJob.Index
           if (flush) {
             log.info("Flushing index because row count in index exceeding maxRowsInMemory %,d", maxRowCount);
           } else if (maxOccupation > 0 && estimation >= maxOccupation) {
-            log.info("Flushing index because estimated size is bigger than %,d", maxOccupation);
+            log.info("Flushing index because estimated occupation is bigger than maxOccupation %,d B", maxOccupation);
             flush = true;
           }
         }
@@ -564,7 +569,7 @@ public class ReduceMergeIndexGeneratorJob implements HadoopDruidIndexerJob.Index
               progressIndicator
           );
         }
-        ShardSpec shardSpec = singleShard ? new NoneShardSpec() : new NumberedShardSpec(i, groups.size());
+        ShardSpec shardSpec = singleShard ? NoneShardSpec.instance() : new NumberedShardSpec(i, groups.size());
         writeShard(dataSource, mergedBase, interval, Lists.newArrayList(dimensions), shardSpec, context);
       }
     }
