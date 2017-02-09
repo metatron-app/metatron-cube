@@ -118,11 +118,16 @@ public enum ValueType
 
   public static ValueType of(String name)
   {
+    return of(name, COMPLEX);
+  }
+
+  public static ValueType of(String name, ValueType defaultType)
+  {
     try {
-      return name == null ? COMPLEX : fromString(name);
+      return name == null ? defaultType : fromString(name);
     }
     catch (IllegalArgumentException e) {
-      return COMPLEX;
+      return defaultType;
     }
   }
 

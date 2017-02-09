@@ -153,6 +153,22 @@ public class Evals
     throw new IllegalArgumentException("not supported type " + castTo);
   }
 
+  public static Object castTo(ExprEval eval, ValueType castTo)
+  {
+    switch (castTo) {
+      case FLOAT:
+        return eval.asFloat();
+      case DOUBLE:
+        return eval.asDouble();
+      case LONG:
+        return eval.asLong();
+      case STRING:
+        return eval.asString();
+      default:
+        throw new IllegalArgumentException("not supported type " + castTo);
+    }
+  }
+
   public static com.google.common.base.Function<Comparable, Number> asNumberFunc(ValueType type)
   {
     switch (type) {

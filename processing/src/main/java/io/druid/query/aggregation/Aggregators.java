@@ -242,4 +242,8 @@ public class Aggregators
   {
     int estimateOccupation();
   }
+
+  public static abstract class AbstractEstimableAggregator extends Aggregator.Abstract implements EstimableAggregator
+  {
+  }
 }

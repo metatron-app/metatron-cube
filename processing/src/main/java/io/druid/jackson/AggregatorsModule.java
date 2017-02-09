@@ -24,6 +24,7 @@ import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.fasterxml.jackson.databind.module.SimpleModule;
 import com.google.common.hash.Hashing;
 import io.druid.data.ValueType;
+import io.druid.query.aggregation.ListAggregatorFactory;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.ArrayAggregatorFactory;
 import io.druid.query.aggregation.ArrayMetricSerde;
@@ -38,6 +39,7 @@ import io.druid.query.aggregation.GenericMinAggregatorFactory;
 import io.druid.query.aggregation.GenericSumAggregatorFactory;
 import io.druid.query.aggregation.HistogramAggregatorFactory;
 import io.druid.query.aggregation.JavaScriptAggregatorFactory;
+import io.druid.query.aggregation.ListFoldingAggregatorFactory;
 import io.druid.query.aggregation.LongMaxAggregatorFactory;
 import io.druid.query.aggregation.LongMinAggregatorFactory;
 import io.druid.query.aggregation.LongSumAggregatorFactory;
@@ -79,22 +81,24 @@ public class AggregatorsModule extends SimpleModule
 
   @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
   @JsonSubTypes(value = {
-      @JsonSubTypes.Type(name = "max", value = GenericMaxAggregatorFactory.class),
-      @JsonSubTypes.Type(name = "min", value = GenericMinAggregatorFactory.class),
-      @JsonSubTypes.Type(name = "sum", value = GenericSumAggregatorFactory.class),
       @JsonSubTypes.Type(name = "count", value = CountAggregatorFactory.class),
       @JsonSubTypes.Type(name = "longSum", value = LongSumAggregatorFactory.class),
       @JsonSubTypes.Type(name = "doubleSum", value = DoubleSumAggregatorFactory.class),
       @JsonSubTypes.Type(name = "doubleMax", value = DoubleMaxAggregatorFactory.class),
       @JsonSubTypes.Type(name = "doubleMin", value = DoubleMinAggregatorFactory.class),
-      @JsonSubTypes.Type(name = "longMax", value = LongMaxAggregatorFactory.class),
-      @JsonSubTypes.Type(name = "longMin", value = LongMinAggregatorFactory.class),
-      @JsonSubTypes.Type(name = "timeMax", value = TimestampMaxAggregatorFactory.class),
       @JsonSubTypes.Type(name = "javascript", value = JavaScriptAggregatorFactory.class),
       @JsonSubTypes.Type(name = "histogram", value = HistogramAggregatorFactory.class),
       @JsonSubTypes.Type(name = "hyperUnique", value = HyperUniquesAggregatorFactory.class),
       @JsonSubTypes.Type(name = "cardinality", value = CardinalityAggregatorFactory.class),
       @JsonSubTypes.Type(name = "filtered", value = FilteredAggregatorFactory.class),
+      @JsonSubTypes.Type(name = "longMax", value = LongMaxAggregatorFactory.class),
+      @JsonSubTypes.Type(name = "longMin", value = LongMinAggregatorFactory.class),
+      @JsonSubTypes.Type(name = "timeMax", value = TimestampMaxAggregatorFactory.class),
+      @JsonSubTypes.Type(name = "sum", value = GenericSumAggregatorFactory.class),
+      @JsonSubTypes.Type(name = "min", value = GenericMinAggregatorFactory.class),
+      @JsonSubTypes.Type(name = "max", value = GenericMaxAggregatorFactory.class),
+      @JsonSubTypes.Type(name = "list", value = ListAggregatorFactory.class),
+      @JsonSubTypes.Type(name = "listFold", value = ListFoldingAggregatorFactory.class),
       @JsonSubTypes.Type(name = "dimArray", value = DimensionArrayAggregatorFactory.class),
       @JsonSubTypes.Type(name = "array", value = ArrayAggregatorFactory.class)
   })

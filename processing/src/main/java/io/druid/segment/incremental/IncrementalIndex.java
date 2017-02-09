@@ -29,7 +29,6 @@ import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Ordering;
-import com.google.common.collect.Sets;
 import com.google.common.primitives.Ints;
 import com.google.common.primitives.Longs;
 import com.metamx.common.IAE;
@@ -46,9 +45,6 @@ import io.druid.data.input.impl.DimensionsSpec;
 import io.druid.data.input.impl.SpatialDimensionSchema;
 import io.druid.data.input.impl.StringDimensionSchema;
 import io.druid.granularity.QueryGranularity;
-import io.druid.math.expr.Expr;
-import io.druid.math.expr.ExprEval;
-import io.druid.math.expr.Parser;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.PostAggregator;
 import io.druid.query.aggregation.PostAggregators;
@@ -57,7 +53,6 @@ import io.druid.query.extraction.ExtractionFn;
 import io.druid.segment.ColumnSelectorFactory;
 import io.druid.segment.DimensionSelector;
 import io.druid.segment.DoubleColumnSelector;
-import io.druid.segment.ExprEvalColumnSelector;
 import io.druid.segment.FloatColumnSelector;
 import io.druid.segment.LongColumnSelector;
 import io.druid.segment.Metadata;
@@ -83,7 +78,6 @@ import java.util.Comparator;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ConcurrentNavigableMap;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -203,7 +197,7 @@ public abstract class IncrementalIndex<AggregatorType> implements Iterable<Row>,
       final boolean deserializeComplexMetrics
   )
   {
-    return new ColumnSelectorFactory()
+    return new ColumnSelectorFactory.ExprSupport()
     {
       @Override
       public LongColumnSelector makeLongColumnSelector(final String columnName)
@@ -257,11 +251,29 @@ public abstract class IncrementalIndex<AggregatorType> implements Iterable<Row>,
       @Override
       public ObjectColumnSelector makeObjectColumnSelector(final String column)
       {
+        if (Column.TIME_COLUMN_NAME.equals(column)) {
+          return new ObjectColumnSelector()
+          {
+            @Override
+            public Class classOfObject()
+            {
+              return ValueType.LONG.classOfObject();
+            }
+
+            @Override
+            public Object get()
+            {
+              return in.get().getTimestampFromEpoch();
+            }
+          };
+        }
+
         final String typeName = agg.getInputTypeName();
         final ValueType type = ValueType.of(typeName);
 
         if (type != ValueType.COMPLEX || !deserializeComplexMetrics) {
-          return new ObjectColumnSelector<Object>()
+          final boolean dimension = type == ValueType.COMPLEX && typeName.equals("array.string");
+          return new ObjectColumnSelector()
           {
             @Override
             public Class classOfObject()
@@ -272,6 +284,17 @@ public abstract class IncrementalIndex<AggregatorType> implements Iterable<Row>,
             @Override
             public Object get()
             {
+              switch (type) {
+                case FLOAT:
+                  return in.get().getFloatMetric(column);
+                case LONG:
+                  return in.get().getLongMetric(column);
+                case DOUBLE:
+                  return in.get().getDoubleMetric(column);
+              }
+              if (dimension) {
+                return in.get().getDimension(column);
+              }
               return in.get().getRaw(column);
             }
           };
@@ -297,38 +320,6 @@ public abstract class IncrementalIndex<AggregatorType> implements Iterable<Row>,
             }
           };
         }
-      }
-
-      @Override
-      public ExprEvalColumnSelector makeMathExpressionSelector(String expression)
-      {
-        final Expr parsed = Parser.parse(expression);
-
-        final Set<String> required = Sets.newHashSet(Parser.findRequiredBindings(parsed));
-        final Map<String, Supplier<Object>> values = Maps.newHashMapWithExpectedSize(required.size());
-
-        for (final String columnName : required) {
-          values.put(
-              columnName, new Supplier<Object>()
-              {
-                @Override
-                public Object get()
-                {
-                  return in.get().getFloatMetric(columnName);
-                }
-              }
-          );
-        }
-        final Expr.NumericBinding binding = Parser.withSuppliers(values);
-
-        return new ExprEvalColumnSelector()
-        {
-          @Override
-          public ExprEval get()
-          {
-            return parsed.eval(binding);
-          }
-        };
       }
 
       @Override

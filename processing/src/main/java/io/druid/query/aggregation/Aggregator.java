@@ -43,4 +43,41 @@ public interface Aggregator {
 
   long getLong();
   double getDouble();
+
+  abstract class Abstract implements Aggregator
+  {
+    @Override
+    public void reset()
+    {
+    }
+
+    @Override
+    public Object get()
+    {
+      throw new UnsupportedOperationException("get");
+    }
+
+    @Override
+    public float getFloat()
+    {
+      throw new UnsupportedOperationException("getFloat");
+    }
+
+    @Override
+    public long getLong()
+    {
+      throw new UnsupportedOperationException("getLong");
+    }
+
+    @Override
+    public double getDouble()
+    {
+      throw new UnsupportedOperationException("getDouble");
+    }
+
+    @Override
+    public void close()
+    {
+    }
+  }
 }

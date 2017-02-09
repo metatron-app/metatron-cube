@@ -17,50 +17,30 @@
  * under the License.
  */
 
-package io.druid.math.expr;
+package io.druid.query.aggregation;
 
-import com.google.common.base.Strings;
-import io.druid.data.ValueType;
+import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.annotation.JsonTypeName;
 
 /**
  */
-public enum ExprType
+@JsonTypeName("listFold")
+public class ListFoldingAggregatorFactory extends ListAggregatorFactory
 {
-  DOUBLE, LONG, STRING;
-
-  public static ExprType bestEffortOf(String name)
+  public ListFoldingAggregatorFactory(
+      @JsonProperty("name") String name,
+      @JsonProperty("fieldName") String fieldName,
+      @JsonProperty("inputType") String inputType,
+      @JsonProperty("limit") int limit,
+      @JsonProperty("dedup") boolean dedup
+  )
   {
-    if (Strings.isNullOrEmpty(name)) {
-      return STRING;
-    }
-    switch (name.toUpperCase()) {
-      case "FLOAT":
-      case "DOUBLE":
-        return DOUBLE;
-      case "BYTE":
-      case "SHORT":
-      case "INT":
-      case "INTEGER":
-      case "LONG":
-      case "BIGINT":
-        return LONG;
-      default:
-        return STRING;
-    }
-  }
-
-  public static ExprType typeOf(ValueType type)
-  {
-    switch (type) {
-      case LONG:
-        return LONG;
-      case FLOAT:
-      case DOUBLE:
-        return DOUBLE;
-      case STRING:
-      case COMPLEX:
-      default:
-        return STRING;
-    }
+    super(
+        name == null ? fieldName : name,
+        fieldName == null ? name : fieldName,
+        inputType == null ? "array.string" : inputType.startsWith("array.") ? inputType : "array." + inputType,
+        limit,
+        dedup
+    );
   }
 }

@@ -150,7 +150,7 @@ public class TimestampMaxAggregationTest
         "  {\n" +
         "    \"type\": \"timeMax\",\n" +
         "    \"name\": \"tmax\",\n" +
-        "    \"fieldName\": \"timestamp\"\n" +
+        "    \"fieldName\": \"__time\"\n" +
         "  }\n" +
         "]";
     String groupBy = "{\n" +

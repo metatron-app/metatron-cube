@@ -112,4 +112,41 @@ public interface BufferAggregator
    * Release any resources used by the aggregator
    */
   void close();
+
+  abstract class Abstract implements BufferAggregator
+  {
+    @Override
+    public void init(ByteBuffer buf, int position)
+    {
+    }
+
+    @Override
+    public Object get(ByteBuffer buf, int position)
+    {
+      throw new UnsupportedOperationException("get");
+    }
+
+    @Override
+    public float getFloat(ByteBuffer buf, int position)
+    {
+      throw new UnsupportedOperationException("getFloat");
+    }
+
+    @Override
+    public double getDouble(ByteBuffer buf, int position)
+    {
+      throw new UnsupportedOperationException("getDouble");
+    }
+
+    @Override
+    public long getLong(ByteBuffer buf, int position)
+    {
+      throw new UnsupportedOperationException("getLong");
+    }
+
+    @Override
+    public void close()
+    {
+    }
+  }
 }

@@ -702,6 +702,24 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
                     @Override
                     public ObjectColumnSelector makeObjectColumnSelector(String column)
                     {
+                      if (Column.TIME_COLUMN_NAME.equals(column)) {
+                        final LongColumnSelector selector = makeLongColumnSelector(column);
+                        return new ObjectColumnSelector()
+                        {
+                          @Override
+                          public Class classOfObject()
+                          {
+                            return ValueType.LONG.classOfObject();
+                          }
+
+                          @Override
+                          public Object get()
+                          {
+                            return selector.get();
+                          }
+                        };
+                      }
+
                       ObjectColumnSelector cachedColumnVals = objectColumnCache.get(column);
                       if (cachedColumnVals != null) {
                         return cachedColumnVals;

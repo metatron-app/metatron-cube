@@ -149,6 +149,11 @@ public class ExprEval extends Pair<Object, ExprType>
     return false;
   }
 
+  public float asFloat()
+  {
+    return isNull() ? 0F : lhs instanceof Number ? ((Number) lhs).floatValue() : Float.valueOf(asString());
+  }
+
   public double asDouble()
   {
     return isNull() ? 0D : lhs instanceof Number ? ((Number) lhs).doubleValue() : Double.valueOf(asString());
@@ -176,5 +181,4 @@ public class ExprEval extends Pair<Object, ExprType>
     }
     return ExprEval.of(null);
   }
-
 }
