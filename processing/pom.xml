@@ -89,12 +89,6 @@
             <version>3.2.1</version>
         </dependency>
 
-        <dependency>
-            <groupId>org.apache.poi</groupId>
-            <artifactId>poi-ooxml</artifactId>
-            <version>3.14</version>
-        </dependency>
-
         <!-- Tests -->
         <dependency>
             <groupId>junit</groupId>

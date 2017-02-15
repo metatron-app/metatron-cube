@@ -21,9 +21,12 @@ package io.druid.common.guava;
 
 import com.google.common.base.Charsets;
 import com.google.common.base.Function;
+import com.google.common.base.Preconditions;
 import com.google.common.collect.Iterables;
+import com.google.common.collect.Lists;
 import com.google.common.io.CharStreams;
 import com.google.common.io.InputSupplier;
+import com.metamx.common.Pair;
 
 import javax.annotation.Nullable;
 import java.io.BufferedReader;
@@ -34,6 +37,7 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Set;
 import java.util.zip.GZIPInputStream;
 
 /**
@@ -94,5 +98,34 @@ public class GuavaUtils
         );
       }
     };
+  }
+
+  @SuppressWarnings("unchecked")
+  public static <X, Y> List<Y> cast(List<X> input)
+  {
+    List<Y> casted = Lists.<Y>newArrayListWithCapacity(input.size());
+    for (X x : input) {
+      casted.add((Y) x);
+    }
+    return casted;
+  }
+
+  public static <A, B> List<Pair<A, B>> zip(List<A> as, List<B> bs)
+  {
+    Preconditions.checkArgument(as.size() == bs.size());
+    List<Pair<A, B>> result = Lists.newArrayListWithCapacity(as.size());
+    for (int i = 0; i < as.size(); i++) {
+      result.add(Pair.of(as.get(i), bs.get(i)));
+    }
+    return result;
+  }
+
+  public static List<String> retain(Iterable<String> name, Set<String> retainer)
+  {
+    List<String> retaining = Lists.newArrayList(name);
+    if (retainer != null) {
+      retaining.retainAll(retainer);
+    }
+    return retaining;
   }
 }

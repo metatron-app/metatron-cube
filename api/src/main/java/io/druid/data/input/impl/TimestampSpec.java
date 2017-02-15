@@ -74,10 +74,23 @@ public class TimestampSpec
   {
     this.timestampColumn = (timestampColumn == null) ? DEFAULT_COLUMN : timestampColumn;
     this.timestampFormat = format == null ? DEFAULT_FORMAT : format;
-    this.timestampConverter = createObjectTimestampParser(timestampFormat);
+    this.timestampConverter = createTimestampParser(timestampFormat);
     this.missingValue = missingValue == null
                         ? DEFAULT_MISSING_VALUE
                         : missingValue;
+  }
+
+  private Function<Object, DateTime> createTimestampParser(String format)
+  {
+    final Function<Object, DateTime> delegate = createObjectTimestampParser(format);
+    return new Function<Object, DateTime>()
+    {
+      @Override
+      public DateTime apply(Object input)
+      {
+        return input instanceof DateTime ? ((DateTime)input) : delegate.apply(input);
+      }
+    };
   }
 
   private Function<Object, DateTime> createObjectTimestampParser(String format)
@@ -209,7 +222,12 @@ public class TimestampSpec
 
   public DateTime extractTimestamp(Map<String, Object> input)
   {
-    final Object o = input.get(timestampColumn);
+    return extractTimestamp(input, false);
+  }
+
+  public DateTime extractTimestamp(Map<String, Object> input, boolean remove)
+  {
+    final Object o = remove ? input.remove(timestampColumn) : input.get(timestampColumn);
     return parseDateTime(o);
   }
 

@@ -73,10 +73,10 @@ public class DataSchema
     this.dataSource = Preconditions.checkNotNull(dataSource, "dataSource cannot be null. Please provide a dataSource.");
     this.parser = parser;
 
-    if (aggregators.length == 0) {
+    if (aggregators == null || aggregators.length == 0) {
       log.warn("No metricsSpec has been specified. Are you sure this is what you want?");
     }
-    this.aggregators = aggregators;
+    this.aggregators = aggregators == null ? new AggregatorFactory[0] : aggregators;
 
     if (granularitySpec == null) {
       log.warn("No granularitySpec has been specified. Using UniformGranularitySpec as default.");
