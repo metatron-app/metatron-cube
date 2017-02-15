@@ -22,6 +22,7 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.druid.data.input.avro.AvroBytesDecoder;
 import io.druid.data.input.avro.GenericRecordAsMap;
+import io.druid.data.input.impl.InputRowParser;
 import io.druid.data.input.impl.ParseSpec;
 import io.druid.data.input.impl.TimestampSpec;
 import org.apache.avro.generic.GenericRecord;
@@ -30,7 +31,7 @@ import org.joda.time.DateTime;
 import java.nio.ByteBuffer;
 import java.util.List;
 
-public class AvroStreamInputRowParser implements ByteBufferInputRowParser
+public class AvroStreamInputRowParser implements InputRowParser<ByteBuffer>
 {
   private final ParseSpec parseSpec;
   private final List<String> dimensions;
@@ -77,7 +78,7 @@ public class AvroStreamInputRowParser implements ByteBufferInputRowParser
   }
 
   @Override
-  public ByteBufferInputRowParser withParseSpec(ParseSpec parseSpec)
+  public InputRowParser withParseSpec(ParseSpec parseSpec)
   {
     return new AvroStreamInputRowParser(
         parseSpec,

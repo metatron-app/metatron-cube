@@ -33,13 +33,13 @@ import java.util.Iterator;
 public class FileIteratingFirehose implements Firehose
 {
   private final Iterator<LineIterator> lineIterators;
-  private final StringInputRowParser parser;
+  private final InputRowParser parser;
 
   private LineIterator lineIterator = null;
 
   public FileIteratingFirehose(
       Iterator<LineIterator> lineIterators,
-      StringInputRowParser parser
+      InputRowParser parser
   )
   {
     this.lineIterators = lineIterators;

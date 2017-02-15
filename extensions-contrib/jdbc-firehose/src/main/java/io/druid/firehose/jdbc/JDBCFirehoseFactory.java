@@ -30,13 +30,16 @@ import io.druid.data.input.Firehose;
 import io.druid.data.input.FirehoseFactory;
 import io.druid.data.input.InputRow;
 import io.druid.data.input.impl.DimensionSchema;
-import io.druid.data.input.impl.MapInputRowParser;
+import io.druid.data.input.impl.InputRowParser;
 import io.druid.data.input.impl.ParseSpec;
-import io.druid.metadata.MetadataStorageConnectorConfig;
 import org.apache.commons.dbcp2.BasicDataSource;
 import org.apache.commons.lang.StringUtils;
 import org.codehaus.plexus.util.CollectionUtils;
-import org.skife.jdbi.v2.*;
+import org.skife.jdbi.v2.DBI;
+import org.skife.jdbi.v2.Handle;
+import org.skife.jdbi.v2.Query;
+import org.skife.jdbi.v2.ResultIterator;
+import org.skife.jdbi.v2.StatementContext;
 import org.skife.jdbi.v2.tweak.ResultSetMapper;
 
 import javax.annotation.Nullable;
@@ -47,9 +50,16 @@ import java.sql.SQLException;
 import java.util.List;
 import java.util.Map;
 
-import static java.sql.Types.*;
+import static java.sql.Types.BIGINT;
+import static java.sql.Types.DECIMAL;
+import static java.sql.Types.DOUBLE;
+import static java.sql.Types.FLOAT;
+import static java.sql.Types.INTEGER;
+import static java.sql.Types.NUMERIC;
+import static java.sql.Types.SMALLINT;
+import static java.sql.Types.TINYINT;
 
-public class JDBCFirehoseFactory implements FirehoseFactory<MapInputRowParser>
+public class JDBCFirehoseFactory implements FirehoseFactory
 {
   private static final EmittingLogger log = new EmittingLogger(JDBCFirehoseFactory.class);
   private final String DEFAULT_NULLSTRING = "";
@@ -136,7 +146,7 @@ public class JDBCFirehoseFactory implements FirehoseFactory<MapInputRowParser>
   }
 
   @Override
-  public Firehose connect(final MapInputRowParser parser) throws IOException, ParseException, IllegalArgumentException
+  public Firehose connect(final InputRowParser parser) throws IOException, ParseException, IllegalArgumentException
   {
     if (columns != null) {
       verifyParserSpec(parser.getParseSpec(), columns);

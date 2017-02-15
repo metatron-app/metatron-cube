@@ -38,7 +38,7 @@ import io.druid.concurrent.Execs;
 import io.druid.data.input.Firehose;
 import io.druid.data.input.FirehoseFactory;
 import io.druid.data.input.InputRow;
-import io.druid.data.input.impl.MapInputRowParser;
+import io.druid.data.input.impl.InputRowParser;
 import io.druid.guice.annotations.Json;
 import io.druid.guice.annotations.Smile;
 import io.druid.server.metrics.EventReceiverFirehoseMetric;
@@ -57,7 +57,6 @@ import javax.ws.rs.core.Response;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.Collection;
-import java.util.Date;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
@@ -71,7 +70,7 @@ import java.util.concurrent.atomic.AtomicLong;
  * Builds firehoses that accept events through the {@link io.druid.segment.realtime.firehose.EventReceiver} interface. Can also register these
  * firehoses with an {@link io.druid.segment.realtime.firehose.ServiceAnnouncingChatHandlerProvider}.
  */
-public class EventReceiverFirehoseFactory implements FirehoseFactory<MapInputRowParser>
+public class EventReceiverFirehoseFactory implements FirehoseFactory
 {
   private static final EmittingLogger log = new EmittingLogger(EventReceiverFirehoseFactory.class);
   private static final int DEFAULT_BUFFER_SIZE = 100000;
@@ -104,7 +103,7 @@ public class EventReceiverFirehoseFactory implements FirehoseFactory<MapInputRow
   }
 
   @Override
-  public Firehose connect(MapInputRowParser firehoseParser) throws IOException
+  public Firehose connect(InputRowParser firehoseParser) throws IOException
   {
     log.info("Connecting firehose: %s", serviceName);
     final EventReceiverFirehose firehose = new EventReceiverFirehose(firehoseParser);
@@ -140,7 +139,7 @@ public class EventReceiverFirehoseFactory implements FirehoseFactory<MapInputRow
   {
     private final ScheduledExecutorService exec;
     private final BlockingQueue<InputRow> buffer;
-    private final MapInputRowParser parser;
+    private final InputRowParser parser;
 
     private final Object readLock = new Object();
 
@@ -148,7 +147,7 @@ public class EventReceiverFirehoseFactory implements FirehoseFactory<MapInputRow
     private volatile boolean closed = false;
     private final AtomicLong bytesReceived = new AtomicLong(0);
 
-    public EventReceiverFirehose(MapInputRowParser parser)
+    public EventReceiverFirehose(InputRowParser parser)
     {
       this.buffer = new ArrayBlockingQueue<>(bufferSize);
       this.parser = parser;

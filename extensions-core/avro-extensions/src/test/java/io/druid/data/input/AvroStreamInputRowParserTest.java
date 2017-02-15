@@ -29,6 +29,7 @@ import com.google.common.collect.Maps;
 import io.druid.data.input.avro.AvroExtensionsModule;
 import io.druid.data.input.avro.SchemaRepoBasedAvroBytesDecoder;
 import io.druid.data.input.impl.DimensionsSpec;
+import io.druid.data.input.impl.InputRowParser;
 import io.druid.data.input.impl.TimeAndDimsParseSpec;
 import io.druid.data.input.impl.TimestampSpec;
 import io.druid.data.input.schemarepo.Avro1124RESTRepositoryClientWrapper;
@@ -134,9 +135,9 @@ public class AvroStreamInputRowParserTest
         PARSE_SPEC,
         new SchemaRepoBasedAvroBytesDecoder<String, Integer>(new Avro1124SubjectAndIdConverter(TOPIC), repository)
     );
-    ByteBufferInputRowParser parser2 = jsonMapper.readValue(
+    InputRowParser parser2 = jsonMapper.readValue(
         jsonMapper.writeValueAsString(parser),
-        ByteBufferInputRowParser.class
+        InputRowParser.class
     );
 
     assertEquals(parser, parser2);
@@ -151,9 +152,9 @@ public class AvroStreamInputRowParserTest
         PARSE_SPEC,
         new SchemaRepoBasedAvroBytesDecoder<String, Integer>(new Avro1124SubjectAndIdConverter(TOPIC), repository)
     );
-    ByteBufferInputRowParser parser2 = jsonMapper.readValue(
+    InputRowParser parser2 = jsonMapper.readValue(
         jsonMapper.writeValueAsString(parser),
-        ByteBufferInputRowParser.class
+        InputRowParser.class
     );
     repository = ((SchemaRepoBasedAvroBytesDecoder) ((AvroStreamInputRowParser) parser2).getAvroBytesDecoder()).getSchemaRepository();
 

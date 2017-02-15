@@ -57,11 +57,6 @@ public class JavaScriptParseSpec extends ParseSpec
   }
 
   @Override
-  public void verify(List<String> usedCols)
-  {
-  }
-
-  @Override
   public Parser<String, Object> makeParser()
   {
     if (config.isDisabled()) {

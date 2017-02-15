@@ -58,7 +58,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-public class IngestSegmentFirehoseFactory implements FirehoseFactory<InputRowParser>
+public class IngestSegmentFirehoseFactory implements FirehoseFactory
 {
   private static final EmittingLogger log = new EmittingLogger(IngestSegmentFirehoseFactory.class);
   private final String dataSource;

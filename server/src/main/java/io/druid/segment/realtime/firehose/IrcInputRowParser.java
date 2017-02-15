@@ -62,7 +62,7 @@ import org.joda.time.DateTime;
  * }</pre>
  */
 @JsonTypeName("irc")
-public class IrcInputRowParser implements InputRowParser<Pair<DateTime, ChannelPrivMsg>>
+public class IrcInputRowParser implements InputRowParser
 {
   private final ParseSpec parseSpec;
   private final IrcDecoder decoder;
@@ -84,8 +84,10 @@ public class IrcInputRowParser implements InputRowParser<Pair<DateTime, ChannelP
   }
 
   @Override
-  public InputRow parse(Pair<DateTime, ChannelPrivMsg> msg)
+  public InputRow parse(Object raw)
   {
+    @SuppressWarnings("unchecked")
+    Pair<DateTime, ChannelPrivMsg> msg = (Pair<DateTime, ChannelPrivMsg>)raw;
     return decoder.decodeMessage(msg.lhs, msg.rhs.getChannelName(), msg.rhs.getText());
   }
 

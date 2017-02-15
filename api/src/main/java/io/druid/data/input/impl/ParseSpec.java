@@ -22,8 +22,6 @@ import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.metamx.common.parsers.Parser;
 
-import java.util.List;
-
 /**
  */
 @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "format", defaultImpl = DelimitedParseSpec.class)
@@ -58,11 +56,6 @@ public abstract class ParseSpec
   public DimensionsSpec getDimensionsSpec()
   {
     return dimensionsSpec;
-  }
-
-  public void verify(List<String> usedCols)
-  {
-    // do nothing
   }
 
   public Parser<String, Object> makeParser()

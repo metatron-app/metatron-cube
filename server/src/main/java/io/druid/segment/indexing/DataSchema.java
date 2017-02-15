@@ -24,18 +24,22 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Sets;
 import com.metamx.common.IAE;
 import com.metamx.common.logger.Logger;
+import io.druid.data.input.InputRow;
 import io.druid.data.input.impl.DimensionsSpec;
 import io.druid.data.input.impl.InputRowParser;
+import io.druid.data.input.impl.ParseSpec;
 import io.druid.data.input.impl.TimestampSpec;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.segment.indexing.granularity.GranularitySpec;
 import io.druid.segment.indexing.granularity.UniformGranularitySpec;
 
 import java.util.Arrays;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
@@ -50,6 +54,8 @@ public class DataSchema
   private final AggregatorFactory[] aggregators;
   private final GranularitySpec granularitySpec;
 
+  private final List<Evaluation> evaluations;
+  private final List<Validation> validations;
   private final ObjectMapper jsonMapper;
 
   @JsonCreator
@@ -58,6 +64,8 @@ public class DataSchema
       @JsonProperty("parser") Map<String, Object> parser,
       @JsonProperty("metricsSpec") AggregatorFactory[] aggregators,
       @JsonProperty("granularitySpec") GranularitySpec granularitySpec,
+      @JsonProperty("evaluations") List<Evaluation> evaluations,
+      @JsonProperty("validations") List<Validation> validations,
       @JacksonInject ObjectMapper jsonMapper
   )
   {
@@ -76,6 +84,20 @@ public class DataSchema
     } else {
       this.granularitySpec = granularitySpec;
     }
+    this.evaluations = evaluations;
+    this.validations = validations;
+  }
+
+  @VisibleForTesting
+  public DataSchema(
+      String dataSource,
+      Map<String, Object> parser,
+      AggregatorFactory[] aggregators,
+      GranularitySpec granularitySpec,
+      ObjectMapper jsonMapper
+  )
+  {
+    this(dataSource, parser, aggregators, granularitySpec, null, null, jsonMapper);
   }
 
   @JsonProperty
@@ -98,6 +120,49 @@ public class DataSchema
       return null;
     }
 
+    final InputRowParser parser = createInputRowParser();
+    if ((evaluations == null || evaluations.isEmpty()) && (validations == null || validations.isEmpty())) {
+      return parser;
+    }
+
+    final List<RowEvaluator<InputRow>> evaluators = Evaluation.toEvaluators(evaluations);
+    final List<RowEvaluator<Boolean>> validators = Validation.toEvaluators(validations);
+    return new InputRowParser()
+    {
+      @Override
+      public InputRow parse(Object input)
+      {
+        InputRow inputRow = parser.parse(input);
+        if (inputRow == null) {
+          return null;
+        }
+        for (RowEvaluator<InputRow> evaluator : evaluators) {
+          inputRow = evaluator.evaluate(inputRow);
+        }
+        for (RowEvaluator<Boolean> validator : validators) {
+          if (!validator.evaluate(inputRow)) {
+            return null;
+          }
+        }
+        return inputRow;
+      }
+
+      @Override
+      public ParseSpec getParseSpec()
+      {
+        return parser.getParseSpec();
+      }
+
+      @Override
+      public InputRowParser withParseSpec(ParseSpec parseSpec)
+      {
+        throw new UnsupportedOperationException("withParseSpec");
+      }
+    };
+  }
+
+  private InputRowParser createInputRowParser()
+  {
     final InputRowParser inputRowParser = jsonMapper.convertValue(this.parser, InputRowParser.class);
 
     final Set<String> dimensionExclusions = Sets.newHashSet();
@@ -113,7 +178,7 @@ public class DataSchema
       // exclude timestamp from dimensions by default, unless explicitly included in the list of dimensions
       if (timestampSpec != null) {
         final String timestampColumn = timestampSpec.getTimestampColumn();
-        if (!(dimensionsSpec.hasCustomDimensions() && dimensionsSpec.getDimensions().contains(timestampColumn))) {
+        if (!(dimensionsSpec.hasCustomDimensions() && dimensionsSpec.getDimensionNames().contains(timestampColumn))) {
           dimensionExclusions.add(timestampColumn);
         }
       }
@@ -155,6 +220,18 @@ public class DataSchema
     return aggregators;
   }
 
+  @JsonProperty("evaluations")
+  public List<Evaluation> getEvaluations()
+  {
+    return evaluations;
+  }
+
+  @JsonProperty("validations")
+  public List<Validation> getValidations()
+  {
+    return validations;
+  }
+
   @JsonProperty
   public GranularitySpec getGranularitySpec()
   {
@@ -163,12 +240,12 @@ public class DataSchema
 
   public DataSchema withDataSource(String dataSource)
   {
-    return new DataSchema(dataSource, parser, aggregators, granularitySpec, jsonMapper);
+    return new DataSchema(dataSource, parser, aggregators, granularitySpec, evaluations, validations, jsonMapper);
   }
 
   public DataSchema withGranularitySpec(GranularitySpec granularitySpec)
   {
-    return new DataSchema(dataSource, parser, aggregators, granularitySpec, jsonMapper);
+    return new DataSchema(dataSource, parser, aggregators, granularitySpec, evaluations, validations, jsonMapper);
   }
 
   @Override
@@ -178,6 +255,8 @@ public class DataSchema
            "dataSource='" + dataSource + '\'' +
            ", parser=" + parser +
            ", aggregators=" + Arrays.toString(aggregators) +
+           ", evaluations=" + evaluations +
+           ", validations=" + validations +
            ", granularitySpec=" + granularitySpec +
            '}';
   }

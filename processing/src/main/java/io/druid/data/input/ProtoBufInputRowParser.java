@@ -29,6 +29,7 @@ import com.google.protobuf.Descriptors;
 import com.google.protobuf.DynamicMessage;
 import com.google.protobuf.InvalidProtocolBufferException;
 import com.metamx.common.logger.Logger;
+import io.druid.data.input.impl.InputRowParser;
 import io.druid.data.input.impl.MapInputRowParser;
 import io.druid.data.input.impl.ParseSpec;
 
@@ -41,7 +42,7 @@ import static com.google.protobuf.Descriptors.Descriptor;
 import static com.google.protobuf.Descriptors.FileDescriptor;
 
 @JsonTypeName("protobuf")
-public class ProtoBufInputRowParser implements ByteBufferInputRowParser
+public class ProtoBufInputRowParser implements InputRowParser<ByteBuffer>
 {
   private static final Logger log = new Logger(ProtoBufInputRowParser.class);
 
@@ -67,7 +68,7 @@ public class ProtoBufInputRowParser implements ByteBufferInputRowParser
   }
 
   @Override
-  public ProtoBufInputRowParser withParseSpec(ParseSpec parseSpec)
+  public InputRowParser withParseSpec(ParseSpec parseSpec)
   {
     return new ProtoBufInputRowParser(parseSpec, descriptorFileInClasspath);
   }

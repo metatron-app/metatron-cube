@@ -37,8 +37,8 @@ import java.io.IOException;
  * invalid configuration is preferred over returning null.
  */
 @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
-public interface FirehoseFactoryV2<T extends InputRowParser>
+public interface FirehoseFactoryV2
 {
-  public FirehoseV2 connect(T parser, Object lastCommit) throws IOException, ParseException;
+  public FirehoseV2 connect(InputRowParser parser, Object lastCommit) throws IOException, ParseException;
 
 }

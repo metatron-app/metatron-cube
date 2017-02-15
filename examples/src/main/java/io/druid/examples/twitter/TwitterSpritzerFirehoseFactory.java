@@ -83,7 +83,7 @@ import static java.lang.Thread.sleep;
  * @author pbaclace
  */
 @JsonTypeName("twitzer")
-public class TwitterSpritzerFirehoseFactory implements FirehoseFactory<InputRowParser>
+public class TwitterSpritzerFirehoseFactory implements FirehoseFactory
 {
   private static final Logger log = new Logger(TwitterSpritzerFirehoseFactory.class);
   private static final Pattern sourcePattern = Pattern.compile("<a[^>]*>(.*?)</a>", Pattern.CASE_INSENSITIVE);

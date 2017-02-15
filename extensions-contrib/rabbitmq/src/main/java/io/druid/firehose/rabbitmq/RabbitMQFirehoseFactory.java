@@ -31,10 +31,10 @@ import com.rabbitmq.client.Envelope;
 import com.rabbitmq.client.QueueingConsumer.Delivery;
 import com.rabbitmq.client.ShutdownListener;
 import com.rabbitmq.client.ShutdownSignalException;
-import io.druid.data.input.ByteBufferInputRowParser;
 import io.druid.data.input.Firehose;
 import io.druid.data.input.FirehoseFactory;
 import io.druid.data.input.InputRow;
+import io.druid.data.input.impl.InputRowParser;
 import net.jodah.lyra.ConnectionOptions;
 import net.jodah.lyra.Connections;
 import net.jodah.lyra.config.Config;
@@ -99,7 +99,7 @@ import java.util.concurrent.LinkedBlockingQueue;
  * For more information on RabbitMQ high availability please see:
  * <a href="http://www.rabbitmq.com/ha.html">http://www.rabbitmq.com/ha.html</a>.
  */
-public class RabbitMQFirehoseFactory implements FirehoseFactory<ByteBufferInputRowParser>
+public class RabbitMQFirehoseFactory implements FirehoseFactory
 {
   private static final Logger log = new Logger(RabbitMQFirehoseFactory.class);
 
@@ -134,7 +134,7 @@ public class RabbitMQFirehoseFactory implements FirehoseFactory<ByteBufferInputR
   }
 
   @Override
-  public Firehose connect(final ByteBufferInputRowParser firehoseParser) throws IOException
+  public Firehose connect(final InputRowParser firehoseParser) throws IOException
   {
     ConnectionOptions lyraOptions = new ConnectionOptions(this.connectionFactory);
     Config lyraConfig = new Config()

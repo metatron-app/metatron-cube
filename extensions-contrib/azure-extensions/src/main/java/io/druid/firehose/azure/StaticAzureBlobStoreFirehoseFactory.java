@@ -32,7 +32,7 @@ import com.metamx.common.logger.Logger;
 import io.druid.data.input.Firehose;
 import io.druid.data.input.FirehoseFactory;
 import io.druid.data.input.impl.FileIteratingFirehose;
-import io.druid.data.input.impl.StringInputRowParser;
+import io.druid.data.input.impl.InputRowParser;
 import io.druid.storage.azure.AzureByteSource;
 import io.druid.storage.azure.AzureStorage;
 import org.apache.commons.io.IOUtils;
@@ -49,7 +49,8 @@ import java.util.List;
 /**
  * This class is heavily inspired by the StaticS3FirehoseFactory class in the io.druid.firehose.s3 package
  */
-public class StaticAzureBlobStoreFirehoseFactory implements FirehoseFactory<StringInputRowParser> {
+public class StaticAzureBlobStoreFirehoseFactory implements FirehoseFactory
+{
   private static final Logger log = new Logger(StaticAzureBlobStoreFirehoseFactory.class);
 
   private final AzureStorage azureStorage;
@@ -70,7 +71,7 @@ public class StaticAzureBlobStoreFirehoseFactory implements FirehoseFactory<Stri
   }
 
   @Override
-  public Firehose connect(StringInputRowParser stringInputRowParser) throws IOException {
+  public Firehose connect(InputRowParser stringInputRowParser) throws IOException {
     Preconditions.checkNotNull(azureStorage, "null azureStorage");
 
     final LinkedList<AzureBlob> objectQueue = Lists.newLinkedList(blobs);

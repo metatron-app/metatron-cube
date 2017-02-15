@@ -29,7 +29,7 @@ import com.metamx.emitter.EmittingLogger;
 import io.druid.data.input.Firehose;
 import io.druid.data.input.FirehoseFactory;
 import io.druid.data.input.impl.FileIteratingFirehose;
-import io.druid.data.input.impl.StringInputRowParser;
+import io.druid.data.input.impl.InputRowParser;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.LineIterator;
 import org.apache.commons.io.filefilter.TrueFileFilter;
@@ -43,20 +43,20 @@ import java.util.LinkedList;
 
 /**
  */
-public class LocalFirehoseFactory implements FirehoseFactory<StringInputRowParser>
+public class LocalFirehoseFactory implements FirehoseFactory
 {
   private static final EmittingLogger log = new EmittingLogger(LocalFirehoseFactory.class);
 
   private final File baseDir;
   private final String filter;
-  private final StringInputRowParser parser;
+  private final InputRowParser parser;
 
   @JsonCreator
   public LocalFirehoseFactory(
       @JsonProperty("baseDir") File baseDir,
       @JsonProperty("filter") String filter,
       // Backwards compatible
-      @JsonProperty("parser") StringInputRowParser parser
+      @JsonProperty("parser") InputRowParser parser
   )
   {
     this.baseDir = baseDir;
@@ -77,13 +77,13 @@ public class LocalFirehoseFactory implements FirehoseFactory<StringInputRowParse
   }
 
   @JsonProperty
-  public StringInputRowParser getParser()
+  public InputRowParser getParser()
   {
     return parser;
   }
 
   @Override
-  public Firehose connect(StringInputRowParser firehoseParser) throws IOException
+  public Firehose connect(InputRowParser firehoseParser) throws IOException
   {
     if (baseDir == null) {
       throw new IAE("baseDir is null");
@@ -96,7 +96,7 @@ public class LocalFirehoseFactory implements FirehoseFactory<StringInputRowParse
         TrueFileFilter.INSTANCE
     );
 
-    if (foundFiles == null || foundFiles.isEmpty()) {
+    if (foundFiles.isEmpty()) {
       throw new ISE("Found no files to ingest! Check your schema.");
     }
     log.info ("Found files: " + foundFiles);

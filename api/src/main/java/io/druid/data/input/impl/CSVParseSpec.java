@@ -22,7 +22,6 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.metamx.common.parsers.CSVParser;
-import com.metamx.common.parsers.ParseException;
 import com.metamx.common.parsers.Parser;
 
 import java.util.List;
@@ -51,8 +50,6 @@ public class CSVParseSpec extends ParseSpec
     }
 
     this.columns = columns;
-
-    verify(dimensionsSpec.getDimensionNames());
   }
 
   @JsonProperty
@@ -65,14 +62,6 @@ public class CSVParseSpec extends ParseSpec
   public List<String> getColumns()
   {
     return columns;
-  }
-
-  @Override
-  public void verify(List<String> usedCols)
-  {
-    for (String columnName : usedCols) {
-      Preconditions.checkArgument(columns.contains(columnName), "column[%s] not in columns.", columnName);
-    }
   }
 
   @Override

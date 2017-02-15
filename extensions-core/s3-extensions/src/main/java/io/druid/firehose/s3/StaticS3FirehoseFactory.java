@@ -32,7 +32,7 @@ import com.metamx.common.logger.Logger;
 import io.druid.data.input.Firehose;
 import io.druid.data.input.FirehoseFactory;
 import io.druid.data.input.impl.FileIteratingFirehose;
-import io.druid.data.input.impl.StringInputRowParser;
+import io.druid.data.input.impl.InputRowParser;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.io.LineIterator;
 import org.jets3t.service.impl.rest.httpclient.RestS3Service;
@@ -51,7 +51,7 @@ import java.util.List;
 /**
  * Builds firehoses that read from a predefined list of S3 objects and then dry up.
  */
-public class StaticS3FirehoseFactory implements FirehoseFactory<StringInputRowParser>
+public class StaticS3FirehoseFactory implements FirehoseFactory
 {
   private static final Logger log = new Logger(StaticS3FirehoseFactory.class);
 
@@ -79,7 +79,7 @@ public class StaticS3FirehoseFactory implements FirehoseFactory<StringInputRowPa
   }
 
   @Override
-  public Firehose connect(StringInputRowParser firehoseParser) throws IOException
+  public Firehose connect(InputRowParser firehoseParser) throws IOException
   {
     Preconditions.checkNotNull(s3Client, "null s3Client");
 

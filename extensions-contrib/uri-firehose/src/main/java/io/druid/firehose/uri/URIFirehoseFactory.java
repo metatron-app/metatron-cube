@@ -37,7 +37,7 @@ import io.druid.data.SearchableVersionedDataFinder;
 import io.druid.data.input.Firehose;
 import io.druid.data.input.FirehoseFactory;
 import io.druid.data.input.impl.FileIteratingFirehose;
-import io.druid.data.input.impl.StringInputRowParser;
+import io.druid.data.input.impl.InputRowParser;
 import io.druid.segment.loading.URIDataPuller;
 import org.apache.commons.io.LineIterator;
 
@@ -55,7 +55,7 @@ import java.util.Map;
 import java.util.concurrent.Callable;
 import java.util.regex.Pattern;
 
-public class URIFirehoseFactory implements FirehoseFactory<StringInputRowParser>
+public class URIFirehoseFactory implements FirehoseFactory
 {
   private static final EmittingLogger log = new EmittingLogger(URIFirehoseFactory.class);
 
@@ -93,7 +93,7 @@ public class URIFirehoseFactory implements FirehoseFactory<StringInputRowParser>
   }
 
   @Override
-  public Firehose connect(StringInputRowParser parser) throws IOException, ParseException
+  public Firehose connect(InputRowParser parser) throws IOException, ParseException
   {
     log.info("Connecting to %s", uri);
 

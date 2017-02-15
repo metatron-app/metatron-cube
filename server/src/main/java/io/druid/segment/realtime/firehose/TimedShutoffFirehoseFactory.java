@@ -36,7 +36,7 @@ import java.util.concurrent.TimeUnit;
 /**
  * Creates firehoses that shut off at a particular time. Useful for limiting the lifespan of a realtime job.
  */
-public class TimedShutoffFirehoseFactory implements FirehoseFactory<InputRowParser>
+public class TimedShutoffFirehoseFactory implements FirehoseFactory
 {
   private static final EmittingLogger log = new EmittingLogger(FirehoseFactory.class);
   private final FirehoseFactory delegateFactory;

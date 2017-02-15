@@ -26,7 +26,7 @@ import io.druid.data.input.impl.InputRowParser;
 import java.io.IOException;
 
 @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
-public interface FirehoseFactory<T extends InputRowParser>
+public interface FirehoseFactory
 {
   /**
    * Initialization method that connects up the fire hose.  If this method returns successfully it should be safe to
@@ -36,6 +36,6 @@ public interface FirehoseFactory<T extends InputRowParser>
    * value will throw a surprising NPE.   Throwing IOException on connection failure or runtime exception on
    * invalid configuration is preferred over returning null.
    */
-  public Firehose connect(T parser) throws IOException, ParseException;
+  public Firehose connect(InputRowParser parser) throws IOException, ParseException;
 
 }

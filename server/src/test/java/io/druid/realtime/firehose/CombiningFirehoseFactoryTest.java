@@ -121,7 +121,7 @@ public class CombiningFirehoseFactoryTest
     };
   }
 
-  public static class ListFirehoseFactory implements FirehoseFactory<InputRowParser>
+  public static class ListFirehoseFactory implements FirehoseFactory
   {
     private final List<InputRow> rows;
 

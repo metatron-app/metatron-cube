@@ -25,11 +25,11 @@ import com.google.common.base.Preconditions;
 import com.google.common.collect.Maps;
 import com.google.common.io.Closeables;
 import com.metamx.emitter.EmittingLogger;
-import io.druid.data.input.ByteBufferInputRowParser;
 import io.druid.data.input.Committer;
 import io.druid.data.input.FirehoseFactoryV2;
 import io.druid.data.input.FirehoseV2;
 import io.druid.data.input.InputRow;
+import io.druid.data.input.impl.InputRowParser;
 import io.druid.firehose.kafka.KafkaSimpleConsumer.BytesMessageWithOffset;
 
 import java.io.Closeable;
@@ -42,7 +42,7 @@ import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 public class KafkaEightSimpleConsumerFirehoseFactory implements
-    FirehoseFactoryV2<ByteBufferInputRowParser>
+    FirehoseFactoryV2
 {
   private static final EmittingLogger log = new EmittingLogger(
       KafkaEightSimpleConsumerFirehoseFactory.class
@@ -143,7 +143,7 @@ public class KafkaEightSimpleConsumerFirehoseFactory implements
   }
 
   @Override
-  public FirehoseV2 connect(final ByteBufferInputRowParser firehoseParser, Object lastCommit) throws IOException
+  public FirehoseV2 connect(final InputRowParser firehoseParser, Object lastCommit) throws IOException
   {
     final Map<Integer, Long> lastOffsets = loadOffsetFromPreviousMetaData(lastCommit);
 

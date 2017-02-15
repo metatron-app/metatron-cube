@@ -75,6 +75,7 @@ public abstract class DimensionSchema
   {
     this.name = Preconditions.checkNotNull(name, "Dimension name cannot be null.");
     this.multiValueHandling = multiValueHandling == null ? MultiValueHandling.ARRAY : multiValueHandling;
+    Preconditions.checkArgument(!name.contains(","), "Column name should not contain comma");
   }
 
   @JsonProperty

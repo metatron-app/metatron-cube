@@ -62,11 +62,6 @@ public class JSONParseSpec extends ParseSpec
   }
 
   @Override
-  public void verify(List<String> usedCols)
-  {
-  }
-
-  @Override
   public Parser<String, Object> makeParser()
   {
     return new JSONPathParser(

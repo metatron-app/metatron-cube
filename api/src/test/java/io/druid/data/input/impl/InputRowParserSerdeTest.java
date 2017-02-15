@@ -25,7 +25,6 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import io.druid.TestObjectMapper;
-import io.druid.data.input.ByteBufferInputRowParser;
 import io.druid.data.input.InputRow;
 import junit.framework.Assert;
 import org.joda.time.DateTime;
@@ -51,9 +50,9 @@ public class InputRowParserSerdeTest
             null
         )
     );
-    final ByteBufferInputRowParser parser2 = jsonMapper.readValue(
+    final InputRowParser parser2 = jsonMapper.readValue(
         jsonMapper.writeValueAsBytes(parser),
-        ByteBufferInputRowParser.class
+        InputRowParser.class
     );
     final InputRow parsed = parser2.parse(
         ByteBuffer.wrap(
@@ -162,9 +161,9 @@ public class InputRowParserSerdeTest
         charset.name()
     );
 
-    final ByteBufferInputRowParser parser2 = jsonMapper.readValue(
+    final InputRowParser parser2 = jsonMapper.readValue(
         jsonMapper.writeValueAsBytes(parser),
-        ByteBufferInputRowParser.class
+        InputRowParser.class
     );
 
     final InputRow parsed = parser2.parse(

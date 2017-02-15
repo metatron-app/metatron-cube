@@ -33,7 +33,7 @@ import com.metamx.common.parsers.ParseException;
 import io.druid.data.input.Firehose;
 import io.druid.data.input.FirehoseFactory;
 import io.druid.data.input.impl.FileIteratingFirehose;
-import io.druid.data.input.impl.StringInputRowParser;
+import io.druid.data.input.impl.InputRowParser;
 import io.druid.storage.cloudfiles.CloudFilesByteSource;
 import io.druid.storage.cloudfiles.CloudFilesObjectApiProxy;
 import org.apache.commons.io.IOUtils;
@@ -48,7 +48,7 @@ import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 
-public class StaticCloudFilesFirehoseFactory implements FirehoseFactory<StringInputRowParser>
+public class StaticCloudFilesFirehoseFactory implements FirehoseFactory
 {
   private static final Logger log = new Logger(StaticCloudFilesFirehoseFactory.class);
 
@@ -72,7 +72,7 @@ public class StaticCloudFilesFirehoseFactory implements FirehoseFactory<StringIn
   }
 
   @Override
-  public Firehose connect(StringInputRowParser stringInputRowParser) throws IOException, ParseException
+  public Firehose connect(InputRowParser stringInputRowParser) throws IOException, ParseException
   {
     Preconditions.checkNotNull(cloudFilesApi, "null cloudFilesApi");
 

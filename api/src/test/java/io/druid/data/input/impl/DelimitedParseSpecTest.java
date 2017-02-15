@@ -23,6 +23,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.Lists;
 import io.druid.TestObjectMapper;
 import org.junit.Assert;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import java.io.IOException;
@@ -58,6 +59,7 @@ public class DelimitedParseSpecTest
   }
 
   @Test(expected = IllegalArgumentException.class)
+  @Ignore("evaluation can make new columns")
   public void testColumnMissing() throws Exception
   {
     final ParseSpec spec = new DelimitedParseSpec(

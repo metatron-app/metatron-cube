@@ -44,11 +44,6 @@ public class JSONLowercaseParseSpec extends ParseSpec
   }
 
   @Override
-  public void verify(List<String> usedCols)
-  {
-  }
-
-  @Override
   public Parser<String, Object> makeParser()
   {
     return new JSONToLowerParser(objectMapper, null, null);

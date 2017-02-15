@@ -35,6 +35,7 @@ import com.metamx.common.logger.Logger;
 import io.druid.data.input.Firehose;
 import io.druid.data.input.FirehoseFactory;
 import io.druid.data.input.InputRow;
+import io.druid.data.input.impl.InputRowParser;
 import org.joda.time.DateTime;
 
 import java.io.IOException;
@@ -59,7 +60,7 @@ import java.util.concurrent.TimeUnit;
  * );
  * }</pre>
  */
-public class IrcFirehoseFactory implements FirehoseFactory<IrcInputRowParser>
+public class IrcFirehoseFactory implements FirehoseFactory
 {
   private static final Logger log = new Logger(IrcFirehoseFactory.class);
 
@@ -99,7 +100,7 @@ public class IrcFirehoseFactory implements FirehoseFactory<IrcInputRowParser>
   }
 
   @Override
-  public Firehose connect(final IrcInputRowParser firehoseParser) throws IOException
+  public Firehose connect(final InputRowParser firehoseParser) throws IOException
   {
     final IRCApi irc = new IRCApiImpl(false);
     final LinkedBlockingQueue<Pair<DateTime, ChannelPrivMsg>> queue = new LinkedBlockingQueue<Pair<DateTime, ChannelPrivMsg>>();

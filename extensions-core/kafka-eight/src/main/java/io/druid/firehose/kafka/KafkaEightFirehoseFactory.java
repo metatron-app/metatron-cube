@@ -25,10 +25,10 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Sets;
 import com.metamx.common.logger.Logger;
-import io.druid.data.input.ByteBufferInputRowParser;
 import io.druid.data.input.Firehose;
 import io.druid.data.input.FirehoseFactory;
 import io.druid.data.input.InputRow;
+import io.druid.data.input.impl.InputRowParser;
 import kafka.consumer.Consumer;
 import kafka.consumer.ConsumerConfig;
 import kafka.consumer.ConsumerIterator;
@@ -45,7 +45,7 @@ import java.util.Set;
 
 /**
  */
-public class KafkaEightFirehoseFactory implements FirehoseFactory<ByteBufferInputRowParser>
+public class KafkaEightFirehoseFactory implements FirehoseFactory
 {
   private static final Logger log = new Logger(KafkaEightFirehoseFactory.class);
 
@@ -67,13 +67,13 @@ public class KafkaEightFirehoseFactory implements FirehoseFactory<ByteBufferInpu
   }
 
   @Override
-  public Firehose connect(final ByteBufferInputRowParser firehoseParser) throws IOException
+  public Firehose connect(final InputRowParser firehoseParser) throws IOException
   {
     Set<String> newDimExclus = Sets.union(
         firehoseParser.getParseSpec().getDimensionsSpec().getDimensionExclusions(),
         Sets.newHashSet("feed")
     );
-    final ByteBufferInputRowParser theParser = firehoseParser.withParseSpec(
+    final InputRowParser theParser = firehoseParser.withParseSpec(
         firehoseParser.getParseSpec()
                       .withDimensionsSpec(
                           firehoseParser.getParseSpec()

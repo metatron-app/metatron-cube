@@ -36,7 +36,7 @@ import java.util.List;
 /**
  * Creates firehose that combines data from different Firehoses. Useful for ingesting data from multiple sources.
  */
-public class CombiningFirehoseFactory implements FirehoseFactory<InputRowParser>
+public class CombiningFirehoseFactory implements FirehoseFactory
 {
   private static final EmittingLogger log = new EmittingLogger(CombiningFirehoseFactory.class);
 

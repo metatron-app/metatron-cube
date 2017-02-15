@@ -22,7 +22,6 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Charsets;
 import com.metamx.common.parsers.ParseException;
 import com.metamx.common.parsers.Parser;
-import io.druid.data.input.ByteBufferInputRowParser;
 import io.druid.data.input.InputRow;
 
 import java.nio.ByteBuffer;
@@ -34,7 +33,7 @@ import java.util.Map;
 
 /**
  */
-public class StringInputRowParser implements ByteBufferInputRowParser
+public class StringInputRowParser implements InputRowParser
 {
   private static final Charset DEFAULT_CHARSET = Charsets.UTF_8;
 
@@ -69,9 +68,14 @@ public class StringInputRowParser implements ByteBufferInputRowParser
   }
 
   @Override
-  public InputRow parse(ByteBuffer input)
+  public InputRow parse(Object input)
   {
-    return parseMap(buildStringKeyMap(input));
+    if (input instanceof String) {
+      return parseMap(parseString((String)input));
+    } else if (input instanceof ByteBuffer) {
+      return parseMap(buildStringKeyMap((ByteBuffer)input));
+    }
+    throw new IllegalArgumentException("invalid type value " + input);
   }
 
   @JsonProperty
@@ -88,7 +92,7 @@ public class StringInputRowParser implements ByteBufferInputRowParser
   }
 
   @Override
-  public StringInputRowParser withParseSpec(ParseSpec parseSpec)
+  public InputRowParser withParseSpec(ParseSpec parseSpec)
   {
     return new StringInputRowParser(parseSpec, getEncoding());
   }
@@ -124,11 +128,6 @@ public class StringInputRowParser implements ByteBufferInputRowParser
   private Map<String, Object> parseString(String inputString)
   {
     return parser.parse(inputString);
-  }
-
-  public InputRow parse(String input)
-  {
-    return parseMap(parseString(input));
   }
 
   private InputRow parseMap(Map<String, Object> theMap)

@@ -1101,6 +1101,25 @@ public interface BuiltinFunctions extends Function.Library
     }
   }
 
+  class IsNullFunc implements Function
+  {
+    @Override
+    public String name()
+    {
+      return "isnull";
+    }
+
+    @Override
+    public ExprEval apply(List<Expr> args, NumericBinding bindings)
+    {
+      if (args.size() != 1) {
+        throw new RuntimeException("function 'is_null' needs 1 argument");
+      }
+      ExprEval eval = args.get(0).eval(bindings);
+      return ExprEval.of(eval.isNull());
+    }
+  }
+
   class NvlFunc implements Function
   {
     @Override
@@ -1120,6 +1139,15 @@ public interface BuiltinFunctions extends Function.Library
         return args.get(1).eval(bindings);
       }
       return eval;
+    }
+  }
+
+  class Coalesce extends NvlFunc
+  {
+    @Override
+    public String name()
+    {
+      return "coalesce";
     }
   }
 

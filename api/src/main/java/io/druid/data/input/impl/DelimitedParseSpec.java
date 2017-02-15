@@ -54,8 +54,6 @@ public class DelimitedParseSpec extends ParseSpec
     for (String column : this.columns) {
       Preconditions.checkArgument(!column.contains(","), "Column[%s] has a comma, it cannot", column);
     }
-
-    verify(dimensionsSpec.getDimensionNames());
   }
 
   public DelimitedParseSpec(
@@ -94,14 +92,6 @@ public class DelimitedParseSpec extends ParseSpec
   }
 
   @Override
-  public void verify(List<String> usedCols)
-  {
-    for (String columnName : usedCols) {
-      Preconditions.checkArgument(columns.contains(columnName), "column[%s] not in columns.", columnName);
-    }
-  }
-
-  @Override
   public Parser<String, Object> makeParser()
   {
     return new DelimitedParser(
@@ -137,10 +127,5 @@ public class DelimitedParseSpec extends ParseSpec
   public ParseSpec withColumns(List<String> cols)
   {
     return new DelimitedParseSpec(getTimestampSpec(), getDimensionsSpec(), delimiter, listDelimiter, cols, listColumns);
-  }
-
-  public static void main(String[] args)
-  {
-    System.out.println("[DelimitedParseSpec/main] " + "aaa".indexOf(null));
   }
 }
