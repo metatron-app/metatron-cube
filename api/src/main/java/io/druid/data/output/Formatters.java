@@ -27,10 +27,10 @@ import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.io.ByteSink;
 import com.metamx.common.logger.Logger;
-import org.apache.poi.hssf.usermodel.HSSFWorkbook;
 import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.ss.usermodel.Row;
-import org.apache.poi.ss.usermodel.Sheet;
+import org.apache.poi.xssf.streaming.SXSSFSheet;
+import org.apache.poi.xssf.streaming.SXSSFWorkbook;
 
 import java.io.IOException;
 import java.io.OutputStream;
@@ -59,15 +59,16 @@ public class Formatters
     }
   }
 
+  private static final int DEFAULT_FLUSH_INTERVAL = 1000;
+
   public static CountingAccumulator toExcelExporter(final ByteSink sink, final Map<String, Object> context)
       throws IOException
   {
     final String[] dimensions = parseStrings(context.get("columns"));
-    final HSSFWorkbook wb = new HSSFWorkbook();
-    final Sheet sheet = wb.createSheet();
+    final int flushInterval = parseInt(context.get("flushInterval"), DEFAULT_FLUSH_INTERVAL);
 
     if (dimensions != null) {
-      return new CountingAccumulator()
+      return new ExcelAccumulator(sink)
       {
         private int rowNum;
 
@@ -104,19 +105,14 @@ public class Formatters
               c.setCellValue(String.valueOf(o));
             }
           }
-          return null;
-        }
-
-        @Override
-        public void close() throws IOException
-        {
-          try (OutputStream output = sink.openBufferedStream()) {
-            wb.write(output);
+          if (rowNum % flushInterval == 0) {
+            flush();
           }
+          return null;
         }
       };
     }
-    return new CountingAccumulator()
+    return new ExcelAccumulator(sink)
     {
       private int rowNum;
 
@@ -148,17 +144,48 @@ public class Formatters
             c.setCellValue(String.valueOf(o));
           }
         }
+        if (rowNum % flushInterval == 0) {
+          flush();
+        }
         return null;
       }
+    };
+  }
 
-      @Override
-      public void close() throws IOException
-      {
+  private static abstract class ExcelAccumulator implements CountingAccumulator
+  {
+    final ByteSink sink;
+    final SXSSFWorkbook wb = new SXSSFWorkbook(-1);
+    final SXSSFSheet sheet = wb.createSheet();
+
+    protected ExcelAccumulator(ByteSink sink)
+    {
+      this.sink = sink;
+    }
+
+    protected void flush()
+    {
+      try {
+        sheet.flushRows();
+      }
+      catch (Exception e) {
+        throw Throwables.propagate(e);
+      }
+    }
+
+    @Override
+    public void close() throws IOException
+    {
+      try {
         try (OutputStream output = sink.openBufferedStream()) {
           wb.write(output);
         }
       }
-    };
+      finally {
+        wb.dispose();
+        wb.close();
+      }
+    }
   }
 
   public static CountingAccumulator wrapToExporter(final Formatter formatter)
@@ -233,13 +260,19 @@ public class Formatters
   private static boolean parseBoolean(Object input, boolean defaultValue)
   {
     return input == null ? defaultValue :
-           input instanceof Boolean ? (Boolean)input : Boolean.valueOf(String.valueOf(input));
+           input instanceof Boolean ? (Boolean) input : Boolean.valueOf(String.valueOf(input));
+  }
+
+  private static int parseInt(Object input, int defaultValue)
+  {
+    return input == null ? defaultValue :
+           input instanceof Number ? ((Number) input).intValue() : Integer.valueOf(String.valueOf(input));
   }
 
   private static String[] parseStrings(Object input)
   {
     if (input instanceof List) {
-      List<String> stringList = Lists.transform((List)input, Functions.toStringFunction());
+      List<String> stringList = Lists.transform((List<?>) input, Functions.toStringFunction());
       return stringList.toArray(new String[stringList.size()]);
     }
     String stringVal = Objects.toString(input, null);
