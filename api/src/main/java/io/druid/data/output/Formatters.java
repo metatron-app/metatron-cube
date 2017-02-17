@@ -27,6 +27,7 @@ import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.io.ByteSink;
 import com.metamx.common.logger.Logger;
+import org.apache.poi.ss.SpreadsheetVersion;
 import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.xssf.streaming.SXSSFSheet;
@@ -68,20 +69,13 @@ public class Formatters
     final int flushInterval = parseInt(context.get("flushInterval"), DEFAULT_FLUSH_INTERVAL);
 
     if (dimensions != null) {
-      return new ExcelAccumulator(sink)
+      return new ExcelAccumulator(sink, flushInterval)
       {
-        private int rowNum;
-
         @Override
-        public int count()
+        public void nextSheet()
         {
-          return rowNum - 1;
-        }
-
-        @Override
-        public void init() throws IOException
-        {
-          Row r = sheet.createRow(rowNum++);
+          super.nextSheet();
+          Row r = nextRow(true);
           for (int i = 0; i < dimensions.length; i++) {
             Cell c = r.createCell(i);
             c.setCellValue(dimensions[i]);
@@ -91,10 +85,13 @@ public class Formatters
         @Override
         public Void accumulate(Void accumulated, Map<String, Object> in)
         {
-          Row r = sheet.createRow(rowNum++);
+          Row r = nextRow(false);
           for (int i = 0; i < dimensions.length; i++) {
-            Cell c = r.createCell(i);
             Object o = in.get(dimensions[i]);
+            if (o == null) {
+              continue;
+            }
+            Cell c = r.createCell(i);
             if (o instanceof Number) {
               c.setCellValue(((Number) o).doubleValue());
             } else if (o instanceof String) {
@@ -105,32 +102,17 @@ public class Formatters
               c.setCellValue(String.valueOf(o));
             }
           }
-          if (rowNum % flushInterval == 0) {
-            flush();
-          }
+          flushIfNeeded();
           return null;
         }
       };
     }
-    return new ExcelAccumulator(sink)
+    return new ExcelAccumulator(sink, flushInterval)
     {
-      private int rowNum;
-
-      @Override
-      public int count()
-      {
-        return rowNum;
-      }
-
-      @Override
-      public void init() throws IOException
-      {
-      }
-
       @Override
       public Void accumulate(Void accumulated, Map<String, Object> in)
       {
-        Row r = sheet.createRow(rowNum++);
+        Row r = nextRow(false);
         int i = 0;
         for (Object o : in.values()) {
           Cell c = r.createCell(i++);
@@ -144,9 +126,7 @@ public class Formatters
             c.setCellValue(String.valueOf(o));
           }
         }
-        if (rowNum % flushInterval == 0) {
-          flush();
-        }
+        flushIfNeeded();
         return null;
       }
     };
@@ -154,13 +134,32 @@ public class Formatters
 
   private static abstract class ExcelAccumulator implements CountingAccumulator
   {
-    final ByteSink sink;
-    final SXSSFWorkbook wb = new SXSSFWorkbook(-1);
-    final SXSSFSheet sheet = wb.createSheet();
+    private static final int MAX_ROW_INDEX = SpreadsheetVersion.EXCEL2007.getLastRowIndex();
 
-    protected ExcelAccumulator(ByteSink sink)
+    private final ByteSink sink;
+    private final int flushInterval;
+    private final SXSSFWorkbook wb = new SXSSFWorkbook(-1);
+
+    private SXSSFSheet sheet;
+    private int rowNumInSheet;
+    private int rowNum;
+
+    protected ExcelAccumulator(ByteSink sink, int flushInterval)
     {
       this.sink = sink;
+      this.flushInterval = flushInterval;
+    }
+
+    protected Row nextRow(boolean header)
+    {
+      if (sheet == null || rowNumInSheet >= MAX_ROW_INDEX) {
+        nextSheet();
+      }
+      Row r = sheet.createRow(rowNumInSheet++);
+      if (!header) {
+        rowNum++;
+      }
+      return r;
     }
 
     protected void flush()
@@ -171,6 +170,29 @@ public class Formatters
       catch (Exception e) {
         throw Throwables.propagate(e);
       }
+    }
+
+    protected void flushIfNeeded()
+    {
+      if (rowNumInSheet % flushInterval == 0) {
+        flush();
+      }
+    }
+
+    protected void nextSheet()
+    {
+      sheet = wb.createSheet();
+      rowNumInSheet = 0;
+    }
+
+    @Override
+    public int count()
+    {
+      return rowNum;
+    }
+
+    @Override
+    public void init() {
     }
 
     @Override
