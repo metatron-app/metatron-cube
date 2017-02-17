@@ -19,25 +19,16 @@
 
 package io.druid.query.groupby.having;
 
-import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.google.common.primitives.Bytes;
-import com.metamx.common.StringUtils;
 import io.druid.data.input.Row;
 
-import java.nio.ByteBuffer;
-import java.util.Arrays;
-
 /**
- * The "&gt;" operator in a "having" clause. This is similar to SQL's "having aggregation &gt; value",
- * except that an aggregation in SQL is an expression instead of an aggregation name as in Druid.
  */
-public class GreaterThanHavingSpec extends CompareHavingSpec
+public class LessThanOrEQHavingSpec extends CompareHavingSpec
 {
-  private static final byte CACHE_KEY = 0x4;
+  private static final byte CACHE_KEY = 0x0b;
 
-  @JsonCreator
-  public GreaterThanHavingSpec(
+  public LessThanOrEQHavingSpec(
       @JsonProperty("aggregation") String aggName,
       @JsonProperty("value") Number value
   )
@@ -54,6 +45,6 @@ public class GreaterThanHavingSpec extends CompareHavingSpec
   @Override
   public boolean eval(Row row)
   {
-    return HavingSpecMetricComparator.compare(row, aggregationName, value) > 0;
+    return HavingSpecMetricComparator.compare(row, aggregationName, value) <= 0;
   }
 }

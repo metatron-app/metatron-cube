@@ -2534,7 +2534,7 @@ public class GroupByQueryRunnerTest
         .setGranularity(new PeriodGranularity(new Period("P1M"), null, null))
         .setHavingSpec(
             new OrHavingSpec(
-                ImmutableList.of(
+                ImmutableList.<HavingSpec>of(
                     new GreaterThanHavingSpec("rows", 2L),
                     new EqualToHavingSpec("idx", 217L)
                 )
@@ -2579,7 +2579,7 @@ public class GroupByQueryRunnerTest
         .setGranularity(new PeriodGranularity(new Period("P1M"), null, null))
         .setHavingSpec(
             new OrHavingSpec(
-                ImmutableList.of(
+                ImmutableList.<HavingSpec>of(
                     new GreaterThanHavingSpec("rows", 2L),
                     new EqualToHavingSpec("idx", 217L)
                 )
@@ -2683,7 +2683,7 @@ public class GroupByQueryRunnerTest
         .setGranularity(new PeriodGranularity(new Period("P1M"), null, null))
         .setHavingSpec(
             new OrHavingSpec(
-                ImmutableList.of(
+                ImmutableList.<HavingSpec>of(
                     new GreaterThanHavingSpec("rows_times_10", 20L),
                     new EqualToHavingSpec("idx", 217L)
                 )

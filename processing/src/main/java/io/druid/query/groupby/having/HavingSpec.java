@@ -30,15 +30,18 @@ import io.druid.query.Cacheable;
  */
 @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type", defaultImpl = ExpressionHavingSpec.class)
 @JsonSubTypes(value = {
+    @JsonSubTypes.Type(name = "always", value = AlwaysHavingSpec.class),
+    @JsonSubTypes.Type(name = "never", value = NeverHavingSpec.class),
     @JsonSubTypes.Type(name = "and", value = AndHavingSpec.class),
-    @JsonSubTypes.Type(name = "or", value = OrHavingSpec.class),
-    @JsonSubTypes.Type(name = "not", value = NotHavingSpec.class),
+    @JsonSubTypes.Type(name = "equalTo", value = EqualToHavingSpec.class),
     @JsonSubTypes.Type(name = "greaterThan", value = GreaterThanHavingSpec.class),
     @JsonSubTypes.Type(name = "lessThan", value = LessThanHavingSpec.class),
-    @JsonSubTypes.Type(name = "equalTo", value = EqualToHavingSpec.class),
+    @JsonSubTypes.Type(name = "not", value = NotHavingSpec.class),
+    @JsonSubTypes.Type(name = "or", value = OrHavingSpec.class),
     @JsonSubTypes.Type(name = "dimSelector", value = DimensionSelectorHavingSpec.class),
-    @JsonSubTypes.Type(name = "always", value = AlwaysHavingSpec.class),
-    @JsonSubTypes.Type(name = "expression", value = ExpressionHavingSpec.class)
+    @JsonSubTypes.Type(name = "expression", value = ExpressionHavingSpec.class),
+    @JsonSubTypes.Type(name = "greaterThanOrEqualTo", value = GreaterThanOrEQHavingSpec.class),
+    @JsonSubTypes.Type(name = "lessThanOrEqualTo", value = LessThanOrEQHavingSpec.class)
 })
 public interface HavingSpec extends Cacheable
 {
