@@ -31,9 +31,9 @@ import org.joda.time.DateTime;
 import org.joda.time.format.DateTimeFormat;
 import org.joda.time.format.DateTimeFormatter;
 
-import java.sql.Timestamp;
 import java.util.Arrays;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Properties;
 
 /**
@@ -57,6 +57,7 @@ public class TimestampSpec
   private final Function<Object, DateTime> timestampConverter;
   // this value should never be set for production data
   private final DateTime missingValue;
+  private final DateTime invalidValue;
 
   // remember last value parsed
   private final ParseCtx parseCtx = new ParseCtx();
@@ -69,15 +70,42 @@ public class TimestampSpec
       @JsonProperty("column") String timestampColumn,
       @JsonProperty("format") String format,
       // this value should never be set for production data
-      @JsonProperty("missingValue") DateTime missingValue
+      @JsonProperty("missingValue") DateTime missingValue,
+      @JsonProperty("invalidValue") DateTime invalidValue
   )
   {
     this.timestampColumn = (timestampColumn == null) ? DEFAULT_COLUMN : timestampColumn;
     this.timestampFormat = format == null ? DEFAULT_FORMAT : format;
-    this.timestampConverter = createTimestampParser(timestampFormat);
     this.missingValue = missingValue == null
                         ? DEFAULT_MISSING_VALUE
                         : missingValue;
+    this.invalidValue = invalidValue;
+    this.timestampConverter = createTimestampParser(timestampFormat);
+  }
+
+  public TimestampSpec(String timestampColumn, String format, DateTime missingValue)
+  {
+    this(timestampColumn, format, missingValue, null);
+  }
+
+  private <T> Function<T, DateTime> wrapInvalidHandling(final Function<T, DateTime> converter)
+  {
+    if (invalidValue == null) {
+      return converter;
+    }
+    return new Function<T, DateTime>()
+    {
+      @Override
+      public DateTime apply(T input)
+      {
+        try {
+          return converter.apply(input);
+        }
+        catch (Exception e) {
+          return invalidValue;
+        }
+      }
+    };
   }
 
   private Function<Object, DateTime> createTimestampParser(String format)
@@ -96,7 +124,7 @@ public class TimestampSpec
   private Function<Object, DateTime> createObjectTimestampParser(String format)
   {
     if (!"adaptive".equalsIgnoreCase(format)) {
-      return TimestampParser.createObjectTimestampParser(format);
+      return wrapInvalidHandling(TimestampParser.createObjectTimestampParser(format));
     }
     final Function<String, Function<String, DateTime>> supplier = new Function<String, Function<String, DateTime>>()
     {
@@ -114,7 +142,9 @@ public class TimestampSpec
         }
       }
     };
-    final Function<Number, DateTime> numericFunc = TimestampParser.createNumericTimestampParser(timestampFormat);
+    final Function<Number, DateTime> numericFunc = wrapInvalidHandling(
+        TimestampParser.createNumericTimestampParser(timestampFormat)
+    );
     return new Function<Object, DateTime>()
     {
       private Function<String, DateTime> stringFunc;
@@ -126,7 +156,7 @@ public class TimestampSpec
         }
         String string = String.valueOf(input);
         if (stringFunc == null) {
-          stringFunc = supplier.apply(string);
+          stringFunc = wrapInvalidHandling(supplier.apply(string));
         }
         return stringFunc.apply(string);
       }
@@ -220,6 +250,12 @@ public class TimestampSpec
     return missingValue;
   }
 
+  @JsonProperty("invalidValue")
+  public DateTime getInvalidValue()
+  {
+    return invalidValue;
+  }
+
   public DateTime extractTimestamp(Map<String, Object> input)
   {
     return extractTimestamp(input, false);
@@ -245,16 +281,6 @@ public class TimestampSpec
     return extracted == null ? missingValue : extracted;
   }
 
-  public Timestamp parseTimestamp(Object input)
-  {
-    DateTime dateTime = parseDateTime(input);
-    if (dateTime != null) {
-      return new Timestamp(dateTime.getMillis());
-    }
-
-    return null;
-  }
-
   @Override
   public boolean equals(Object o)
   {
@@ -273,8 +299,13 @@ public class TimestampSpec
     if (!timestampFormat.equals(that.timestampFormat)) {
       return false;
     }
-    return !(missingValue != null ? !missingValue.equals(that.missingValue) : that.missingValue != null);
-
+    if (!Objects.equals(missingValue, that.missingValue)) {
+      return false;
+    }
+    if (!Objects.equals(invalidValue, that.invalidValue)) {
+      return false;
+    }
+    return true;
   }
 
   @Override
@@ -283,6 +314,7 @@ public class TimestampSpec
     int result = timestampColumn.hashCode();
     result = 31 * result + timestampFormat.hashCode();
     result = 31 * result + (missingValue != null ? missingValue.hashCode() : 0);
+    result = 31 * result + (invalidValue != null ? invalidValue.hashCode() : 0);
     return result;
   }
 

@@ -67,4 +67,20 @@ public class TimestampSpecTest
       Assert.assertEquals(expectedDateTime, dateTime);
     }
   }
+
+  @Test
+  public void testInvalidOrMissingTimestamp() throws Exception
+  {
+    DateTime missing = new DateTime(9998);
+    DateTime invalid = new DateTime(9999);
+    TimestampSpec spec = new TimestampSpec("TIMEstamp", "yyyy-MM-dd", missing, invalid);
+    Assert.assertEquals(
+        invalid,
+        spec.extractTimestamp(ImmutableMap.<String, Object>of("TIMEstamp", "2014-03"))
+    );
+    Assert.assertEquals(
+        missing,
+        spec.extractTimestamp(ImmutableMap.<String, Object>of())
+    );
+  }
 }
