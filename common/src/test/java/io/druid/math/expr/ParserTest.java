@@ -29,18 +29,28 @@ public class ParserTest
   @Test
   public void testSimple()
   {
-    String actual = Parser.parse("1").toString();
-    String expected = "1";
-    Assert.assertEquals(expected, actual);
+    Assert.assertEquals("1", Parser.parse("1").toString());
+    Assert.assertTrue(Parser.parse("concat(x)") instanceof FunctionExpr);
+    Assert.assertTrue(Parser.parse("\"xx-yy(x)\"") instanceof IdentifierExpr);
   }
 
-    @Test
+  @Test
   public void testUnicode()
   {
+    Assert.assertTrue(Parser.parse("한글") instanceof IdentifierExpr);
     Assert.assertEquals("한글", Parser.parse("한글").toString());
+
+    Assert.assertTrue(Parser.parse("\"한글\"") instanceof IdentifierExpr);
     Assert.assertEquals("한글", Parser.parse("\"한글\"").toString());
+
+    Assert.assertTrue(Parser.parse("한글.나비스")  instanceof IdentifierExpr);
     Assert.assertEquals("한글.나비스", Parser.parse("한글.나비스").toString());
+
+    Assert.assertTrue(Parser.parse("\"한글.나비스\"")  instanceof IdentifierExpr);
     Assert.assertEquals("한글.나비스", Parser.parse("\"한글.나비스\"").toString());
+
+    Assert.assertTrue(Parser.parse("'한글.나비스'")  instanceof StringExpr);
+    Assert.assertEquals("한글.나비스", Parser.parse("'한글.나비스'").toString());
   }
 
   @Test
