@@ -1074,6 +1074,33 @@ public interface BuiltinFunctions extends Function.Library
     }
   }
 
+  class TimestampValidateFunc extends TimestampFromEpochFunc
+  {
+    @Override
+    public String name()
+    {
+      return "timestamp_validate";
+    }
+
+    @Override
+    protected final ExprEval eval(List<Expr> args, Map<String, Expr> params, NumericBinding bindings)
+    {
+      try {
+        super.eval(args, params, bindings);
+      }
+      catch (Exception e) {
+        return ExprEval.of(false);
+      }
+      return ExprEval.of(true);
+    }
+
+    @Override
+    public Function get()
+    {
+      return new TimestampValidateFunc();
+    }
+  }
+
   class TimeExtractFunc extends TimestampFromEpochFunc
   {
     private DateFormat outputFormat;
