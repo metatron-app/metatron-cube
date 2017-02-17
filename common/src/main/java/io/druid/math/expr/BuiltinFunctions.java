@@ -110,8 +110,10 @@ public interface BuiltinFunctions extends Function.Library
     protected abstract ExprEval eval(ExprEval x, ExprEval y, ExprEval z);
   }
 
-  abstract class NamedParams implements Function
+  abstract class NamedParams implements Function, Factory
   {
+    private Map<String, Expr> constantNamedParam; // cache
+
     @Override
     public ExprEval apply(List<Expr> args, NumericBinding bindings)
     {
@@ -124,14 +126,24 @@ public interface BuiltinFunctions extends Function.Library
         }
         prefix.add(args.get(i));
       }
-      Map<String, Expr> params = Maps.newHashMapWithExpectedSize(args.size() - i);
-      for (; i < args.size(); i++) {
-        Expr expr = args.get(i);
-        if (!(expr instanceof AssignExpr)) {
-          throw new RuntimeException("function '" + name() + "' requires named parameters");
+      Map<String, Expr> params;
+      if (constantNamedParam != null) {
+        params = constantNamedParam;
+      } else {
+        params = Maps.newHashMapWithExpectedSize(args.size() - i);
+        boolean allConstants = true;
+        for (; i < args.size(); i++) {
+          Expr expr = args.get(i);
+          if (!(expr instanceof AssignExpr)) {
+            throw new RuntimeException("function '" + name() + "' requires named parameters");
+          }
+          AssignExpr assign = (AssignExpr) expr;
+          params.put(Evals.getIdentifier(assign.assignee), assign.assigned);
+          allConstants &= Evals.isConstant(assign.assigned);
         }
-        AssignExpr assign = (AssignExpr)expr;
-        params.put(Evals.getIdentifier(assign.assignee), assign.assigned);
+        if (allConstants) {
+          constantNamedParam = params;
+        }
       }
       return eval(prefix, params, bindings);
     }
@@ -972,7 +984,7 @@ public interface BuiltinFunctions extends Function.Library
     }
   }
 
-  class TimestampFromEpochFunc extends NamedParams implements Factory
+  class TimestampFromEpochFunc extends NamedParams
   {
     // yyyy-MM-ddThh:mm:ss[.sss][Z|[+-]hh:mm]
     static final DateFormat ISO8601 = new ISO8601DateFormat();  // thread-safe

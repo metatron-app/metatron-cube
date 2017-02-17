@@ -49,7 +49,11 @@ public interface Expr extends Expression
   }
 }
 
-class LongExpr implements Expr
+interface Constant extends Expr
+{
+}
+
+class LongExpr implements Constant
 {
   private final long value;
 
@@ -71,7 +75,7 @@ class LongExpr implements Expr
   }
 }
 
-class StringExpr implements Expr
+class StringExpr implements Constant
 {
   private final String value;
 
@@ -93,7 +97,7 @@ class StringExpr implements Expr
   }
 }
 
-class DoubleExpr implements Expr
+class DoubleExpr implements Constant
 {
   private final double value;
 

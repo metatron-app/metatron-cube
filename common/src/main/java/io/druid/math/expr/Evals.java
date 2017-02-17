@@ -128,6 +128,16 @@ public class Evals
     throw new RuntimeException(arg + " is not a constant");
   }
 
+  static boolean isConstant(Expr arg)
+  {
+    if (arg instanceof Constant) {
+      return true;
+    } else if (arg instanceof UnaryMinusExpr) {
+      return ((UnaryMinusExpr)arg).expr instanceof Constant;
+    }
+    return false;
+  }
+
   static Object[] getConstants(List<Expr> args)
   {
     Object[] constants = new Object[args.size()];
