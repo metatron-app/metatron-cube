@@ -347,12 +347,18 @@ public class SegmentMetadataQueryQueryToolChest extends QueryToolChest<SegmentAn
       mergedId = "merged";
     }
 
+    long ingestedNumRows = -1;
+    if (arg1.getIngestedNumRows() >= 0 && arg2.getIngestedNumRows() >= 0) {
+      ingestedNumRows = arg1.getIngestedNumRows() + arg2.getIngestedNumRows();
+    }
+
     return new SegmentAnalysis(
         mergedId,
         newIntervals,
         columns,
         arg1.getSize() + arg2.getSize(),
         arg1.getNumRows() + arg2.getNumRows(),
+        ingestedNumRows,
         aggregators.isEmpty() ? null : aggregators,
         queryGranularity
     );
@@ -367,6 +373,7 @@ public class SegmentMetadataQueryQueryToolChest extends QueryToolChest<SegmentAn
         analysis.getColumns(),
         analysis.getSize(),
         analysis.getNumRows(),
+        analysis.getIngestedNumRows(),
         analysis.getAggregators(),
         analysis.getQueryGranularity()
     );

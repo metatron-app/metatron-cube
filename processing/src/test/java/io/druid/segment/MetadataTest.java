@@ -31,6 +31,7 @@ import org.junit.Assert;
 import org.junit.Test;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 /**
@@ -40,8 +41,6 @@ public class MetadataTest
   @Test
   public void testSerde() throws Exception
   {
-    ObjectMapper jsonMapper = new DefaultObjectMapper();
-
     Metadata metadata = new Metadata();
     metadata.put("k", "v");
 
@@ -52,6 +51,29 @@ public class MetadataTest
     metadata.setAggregators(aggregators);
     metadata.setQueryGranularity(QueryGranularities.ALL);
 
+    serdeTest(metadata);
+  }
+
+  @Test
+  public void testSerde2() throws Exception
+  {
+    Metadata metadata = new Metadata();
+    metadata.put("k", "v");
+
+    AggregatorFactory[] aggregators = new AggregatorFactory[]
+        {
+            new LongSumAggregatorFactory("out", "in")
+        };
+    metadata.setAggregators(aggregators);
+    metadata.setQueryGranularity(QueryGranularities.ALL);
+    metadata.setIngestedNumRow(100L);
+
+    serdeTest(metadata);
+  }
+
+  private void serdeTest(Metadata metadata) throws Exception
+  {
+    ObjectMapper jsonMapper = new DefaultObjectMapper();
     Metadata other = jsonMapper.readValue(
         jsonMapper.writeValueAsString(metadata),
         Metadata.class
@@ -79,11 +101,13 @@ public class MetadataTest
     m1.put("k", "v");
     m1.setAggregators(aggs);
     m1.setQueryGranularity(QueryGranularities.ALL);
+    m1.setIngestedNumRow(100L);
 
     Metadata m2 = new Metadata();
     m2.put("k", "v");
     m2.setAggregators(aggs);
     m2.setQueryGranularity(QueryGranularities.ALL);
+    m2.setIngestedNumRow(200L);
 
     Metadata merged = new Metadata();
     merged.put("k", "v");
@@ -93,6 +117,8 @@ public class MetadataTest
         }
     );
     merged.setQueryGranularity(QueryGranularities.ALL);
+    merged.setIngestedNumRow(300L);
+
     Assert.assertEquals(merged, Metadata.merge(ImmutableList.of(m1, m2), null));
 
     //merge check with one metadata being null
@@ -121,5 +147,29 @@ public class MetadataTest
         merged,
         Metadata.merge(ImmutableList.of(m1, m2), explicitAggs)
     );
+  }
+
+  @Test
+  public void testMergeIngestedNumRows()
+  {
+    Metadata m1 = new Metadata();
+    Metadata m2 = new Metadata();
+    Assert.assertEquals(-1L, Metadata.merge(Arrays.asList(m1, m2), null).getIngestedNumRows());
+
+    m1 = new Metadata();
+    m1.setIngestedNumRow(100L);
+    m2 = new Metadata();
+    Assert.assertEquals(-1L, Metadata.merge(Arrays.asList(m1, m2), null).getIngestedNumRows());
+
+    m1 = new Metadata();
+    m2 = new Metadata();
+    m2.setIngestedNumRow(100L);
+    Assert.assertEquals(-1L, Metadata.merge(Arrays.asList(m1, m2), null).getIngestedNumRows());
+
+    m1 = new Metadata();
+    m1.setIngestedNumRow(100L);
+    m2 = new Metadata();
+    m2.setIngestedNumRow(200L);
+    Assert.assertEquals(300L, Metadata.merge(Arrays.asList(m1, m2), null).getIngestedNumRows());
   }
 }

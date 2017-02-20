@@ -455,6 +455,7 @@ public abstract class IncrementalIndex<AggregatorType> implements Iterable<Row>,
     }
   };
 
+  private int ingestedNumRows;
   private long minTimeMillis = Long.MAX_VALUE;
   private long maxTimeMillis = Long.MIN_VALUE;
 
@@ -681,6 +682,7 @@ public abstract class IncrementalIndex<AggregatorType> implements Iterable<Row>,
         in,
         rowSupplier
     );
+    ingestedNumRows++;
     updateMaxIngestedTime(row.getTimestamp());
     return rv;
   }
@@ -1010,7 +1012,7 @@ public abstract class IncrementalIndex<AggregatorType> implements Iterable<Row>,
 
   public Metadata getMetadata()
   {
-    return metadata;
+    return metadata.setIngestedNumRow(ingestedNumRows);
   }
 
   private static AggregatorFactory[] getCombiningAggregators(AggregatorFactory[] aggregators)
@@ -1109,6 +1111,11 @@ public abstract class IncrementalIndex<AggregatorType> implements Iterable<Row>,
   public DateTime getMaxIngestedEventTime()
   {
     return maxIngestedEventTime;
+  }
+
+  public int ingestedRows()
+  {
+    return ingestedNumRows;
   }
 
   public static final class DimensionDesc

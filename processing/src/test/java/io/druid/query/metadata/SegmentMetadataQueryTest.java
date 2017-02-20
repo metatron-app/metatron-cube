@@ -237,6 +237,13 @@ public class SegmentMetadataQueryTest
     );
 
     Assert.assertEquals(Arrays.asList(expectedSegmentAnalysis1), results);
+
+    results = Sequences.toList(
+        runner1.run(testQuery.withMoreAnalysis(SegmentMetadataQuery.AnalysisType.INGESTED_NUMROW), Maps.newHashMap()),
+        Lists.<SegmentAnalysis>newArrayList()
+    );
+
+    Assert.assertEquals(Arrays.asList(expectedSegmentAnalysis1.withIngestedNumRows(1209)), results);
   }
 
   @Test
@@ -289,16 +296,29 @@ public class SegmentMetadataQueryTest
         toolChest
     );
 
+    SegmentMetadataQuery query =
+        Druids.newSegmentMetadataQueryBuilder()
+              .dataSource("testing")
+              .intervals("2013/2014")
+              .toInclude(new ListColumnIncluderator(Arrays.asList("placement", "placementish")))
+              .analysisTypes(SegmentMetadataQuery.AnalysisType.CARDINALITY)
+              .merge(true)
+              .build();
+
     TestHelper.assertExpectedObjects(
         ImmutableList.of(mergedSegmentAnalysis),
         myRunner.run(
-            Druids.newSegmentMetadataQueryBuilder()
-                  .dataSource("testing")
-                  .intervals("2013/2014")
-                  .toInclude(new ListColumnIncluderator(Arrays.asList("placement", "placementish")))
-                  .analysisTypes(SegmentMetadataQuery.AnalysisType.CARDINALITY)
-                  .merge(true)
-                  .build(),
+            query,
+            Maps.newHashMap()
+        ),
+        "failed SegmentMetadata merging query"
+    );
+
+    mergedSegmentAnalysis = mergedSegmentAnalysis.withIngestedNumRows(1209 * 2);
+    TestHelper.assertExpectedObjects(
+        ImmutableList.of(mergedSegmentAnalysis),
+        myRunner.run(
+            query.withMoreAnalysis(SegmentMetadataQuery.AnalysisType.INGESTED_NUMROW),
             Maps.newHashMap()
         ),
         "failed SegmentMetadata merging query"

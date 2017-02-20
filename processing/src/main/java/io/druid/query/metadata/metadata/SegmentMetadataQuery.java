@@ -24,6 +24,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonValue;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
+import com.google.common.collect.Sets;
 import io.druid.common.utils.JodaUtils;
 import io.druid.query.BaseQuery;
 import io.druid.query.DataSource;
@@ -39,6 +40,7 @@ import java.util.EnumSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 
 public class SegmentMetadataQuery extends BaseQuery<SegmentAnalysis>
 {
@@ -55,7 +57,8 @@ public class SegmentMetadataQuery extends BaseQuery<SegmentAnalysis>
     INTERVAL,
     AGGREGATORS,
     MINMAX,
-    QUERYGRANULARITY;
+    QUERYGRANULARITY,
+    INGESTED_NUMROW;
 
     @JsonValue
     @Override
@@ -190,6 +193,11 @@ public class SegmentMetadataQuery extends BaseQuery<SegmentAnalysis>
     return analysisTypes.contains(AnalysisType.MINMAX);
   }
 
+  public boolean hasIngestedNumRows()
+  {
+    return analysisTypes.contains(AnalysisType.INGESTED_NUMROW);
+  }
+
   public byte[] getAnalysisTypesCacheKey()
   {
     int size = 1;
@@ -264,6 +272,23 @@ public class SegmentMetadataQuery extends BaseQuery<SegmentAnalysis>
         merge,
         getContext(),
         analysisTypes,
+        usingDefaultInterval,
+        lenientAggregatorMerge
+    );
+  }
+
+  public Query<SegmentAnalysis> withMoreAnalysis(AnalysisType... moreAnalysis)
+  {
+    Set<AnalysisType> current = Sets.newHashSet(analysisTypes);
+    current.addAll(Arrays.asList(moreAnalysis));
+    EnumSet<AnalysisType> added = EnumSet.copyOf(current);
+    return new SegmentMetadataQuery(
+        getDataSource(),
+        getQuerySegmentSpec(),
+        toInclude,
+        merge,
+        getContext(),
+        added,
         usingDefaultInterval,
         lenientAggregatorMerge
     );

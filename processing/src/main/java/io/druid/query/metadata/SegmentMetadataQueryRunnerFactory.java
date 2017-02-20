@@ -136,6 +136,13 @@ public class SegmentMetadataQueryRunnerFactory implements QueryRunnerFactory<Seg
         } else {
           queryGranularity = null;
         }
+        long ingestedNumRows = -1;
+        if (query.hasIngestedNumRows()) {
+          if (metadata == null) {
+            metadata = segment.asStorageAdapter().getMetadata();
+          }
+          ingestedNumRows = metadata.getIngestedNumRows();
+        }
 
         return Sequences.simple(
             Arrays.asList(
@@ -145,6 +152,7 @@ public class SegmentMetadataQueryRunnerFactory implements QueryRunnerFactory<Seg
                     columns,
                     totalSize,
                     numRows,
+                    ingestedNumRows,
                     aggregators,
                     queryGranularity
                 )

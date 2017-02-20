@@ -45,6 +45,9 @@ public class Metadata
   @JsonProperty
   private QueryGranularity queryGranularity;
 
+  @JsonProperty
+  private Long ingestedNumRows;
+
   public Metadata()
   {
     container = new ConcurrentHashMap<>();
@@ -93,6 +96,17 @@ public class Metadata
     return this;
   }
 
+  public long getIngestedNumRows()
+  {
+    return ingestedNumRows == null ? -1 : ingestedNumRows;
+  }
+
+  public Metadata setIngestedNumRow(long ingestedNumRows)
+  {
+    this.ingestedNumRows = ingestedNumRows;
+    return this;
+  }
+
   // arbitrary key-value pairs from the metadata just follow the semantics of last one wins if same
   // key exists in multiple input Metadata containers
   // for others e.g. Aggregators, appropriate merging is done
@@ -113,6 +127,7 @@ public class Metadata
 
     List<QueryGranularity> gransToMerge = new ArrayList<>();
 
+    Long ingestedNumRows = 0L;
     for (Metadata metadata : toBeMerged) {
       if (metadata != null) {
         foundSomeMetadata = true;
@@ -122,6 +137,11 @@ public class Metadata
 
         if (gransToMerge != null) {
           gransToMerge.add(metadata.getQueryGranularity());
+        }
+        if (ingestedNumRows == null || metadata.ingestedNumRows == null) {
+          ingestedNumRows = null;
+        } else {
+          ingestedNumRows += metadata.ingestedNumRows;
         }
         mergedContainer.putAll(metadata.container);
       } else {
@@ -145,6 +165,9 @@ public class Metadata
 
     if (gransToMerge != null) {
       result.setQueryGranularity(QueryGranularity.mergeQueryGranularities(gransToMerge));
+    }
+    if (ingestedNumRows != null) {
+      result.setIngestedNumRow(ingestedNumRows);
     }
 
     result.container.putAll(mergedContainer);
