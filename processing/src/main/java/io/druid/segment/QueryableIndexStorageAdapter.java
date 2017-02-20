@@ -131,6 +131,13 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
   }
 
   @Override
+  public long getSerializedSize(String columnName)
+  {
+    Column column = index.getColumn(columnName);
+    return column == null ? 0L : column.getSerializedSize();
+  }
+
+  @Override
   public DateTime getMinTime()
   {
     GenericColumn column = null;

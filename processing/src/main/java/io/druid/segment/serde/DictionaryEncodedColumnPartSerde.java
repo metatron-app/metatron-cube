@@ -27,6 +27,8 @@ import com.metamx.collections.bitmap.ImmutableBitmap;
 import com.metamx.collections.spatial.ImmutableRTree;
 import com.metamx.common.IAE;
 import io.druid.data.ValueType;
+import io.druid.segment.ColumnPartProvider;
+import io.druid.segment.ColumnPartProviders;
 import io.druid.segment.CompressedVSizeIndexedSupplier;
 import io.druid.segment.CompressedVSizeIndexedV3Supplier;
 import io.druid.segment.column.ColumnBuilder;
@@ -437,11 +439,11 @@ public class DictionaryEncodedColumnPartSerde implements ColumnPartSerde
         final GenericIndexed<String> rDictionary = GenericIndexed.read(buffer, GenericIndexed.STRING_STRATEGY);
         builder.setType(ValueType.STRING);
 
-        final WritableSupplier<IndexedInts> rSingleValuedColumn;
-        final WritableSupplier<IndexedMultivalue<IndexedInts>> rMultiValuedColumn;
+        final ColumnPartProvider<IndexedInts> rSingleValuedColumn;
+        final ColumnPartProvider<IndexedMultivalue<IndexedInts>> rMultiValuedColumn;
 
         if (hasMultipleValues) {
-          rMultiValuedColumn = readMultiValuedColum(rVersion, buffer, rFlags);
+          rMultiValuedColumn = readMultiValuedColumn(rVersion, buffer, rFlags);
           rSingleValuedColumn = null;
         } else {
           rSingleValuedColumn = readSingleValuedColumn(rVersion, buffer);
@@ -479,24 +481,24 @@ public class DictionaryEncodedColumnPartSerde implements ColumnPartSerde
       }
 
 
-      private WritableSupplier<IndexedInts> readSingleValuedColumn(VERSION version, ByteBuffer buffer)
+      private ColumnPartProvider<IndexedInts> readSingleValuedColumn(VERSION version, ByteBuffer buffer)
       {
         switch (version) {
           case UNCOMPRESSED_SINGLE_VALUE:
-            return VSizeIndexedInts.readFromByteBuffer(buffer).asWritableSupplier();
+            return ColumnPartProviders.ofInstance(VSizeIndexedInts.readFromByteBuffer(buffer));
           case COMPRESSED:
             return CompressedVSizeIntsIndexedSupplier.fromByteBuffer(buffer, byteOrder);
         }
         throw new IAE("Unsupported single-value version[%s]", version);
       }
 
-      private WritableSupplier<IndexedMultivalue<IndexedInts>> readMultiValuedColum(
+      private ColumnPartProvider<IndexedMultivalue<IndexedInts>> readMultiValuedColumn(
           VERSION version, ByteBuffer buffer, int flags
       )
       {
         switch (version) {
           case UNCOMPRESSED_MULTI_VALUE:
-            return VSizeIndexed.readFromByteBuffer(buffer).asWritableSupplier();
+            return ColumnPartProviders.ofInstance(VSizeIndexed.readFromByteBuffer(buffer));
           case COMPRESSED:
             if (Feature.MULTI_VALUE.isSet(flags)) {
               return CompressedVSizeIndexedSupplier.fromByteBuffer(buffer, byteOrder);

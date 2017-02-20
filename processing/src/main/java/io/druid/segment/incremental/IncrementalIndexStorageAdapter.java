@@ -178,6 +178,12 @@ public class IncrementalIndexStorageAdapter implements StorageAdapter
   }
 
   @Override
+  public long getSerializedSize(String column)
+  {
+    return 0L;
+  }
+
+  @Override
   public DateTime getMaxIngestedEventTime()
   {
     return index.getMaxIngestedEventTime();

@@ -19,29 +19,29 @@
 
 package io.druid.segment.column;
 
-import com.google.common.base.Supplier;
 import com.metamx.common.guava.CloseQuietly;
+import io.druid.segment.ColumnPartProvider;
 
 /**
  */
 class SimpleColumn implements Column
 {
   private final ColumnCapabilities capabilities;
-  private final Supplier<DictionaryEncodedColumn> dictionaryEncodedColumn;
-  private final Supplier<RunLengthColumn> runLengthColumn;
-  private final Supplier<GenericColumn> genericColumn;
-  private final Supplier<ComplexColumn> complexColumn;
-  private final Supplier<BitmapIndex> bitmapIndex;
-  private final Supplier<SpatialIndex> spatialIndex;
+  private final ColumnPartProvider<DictionaryEncodedColumn> dictionaryEncodedColumn;
+  private final ColumnPartProvider<RunLengthColumn> runLengthColumn;
+  private final ColumnPartProvider<GenericColumn> genericColumn;
+  private final ColumnPartProvider<ComplexColumn> complexColumn;
+  private final ColumnPartProvider<BitmapIndex> bitmapIndex;
+  private final ColumnPartProvider<SpatialIndex> spatialIndex;
 
   SimpleColumn(
       ColumnCapabilities capabilities,
-      Supplier<DictionaryEncodedColumn> dictionaryEncodedColumn,
-      Supplier<RunLengthColumn> runLengthColumn,
-      Supplier<GenericColumn> genericColumn,
-      Supplier<ComplexColumn> complexColumn,
-      Supplier<BitmapIndex> bitmapIndex,
-      Supplier<SpatialIndex> spatialIndex
+      ColumnPartProvider<DictionaryEncodedColumn> dictionaryEncodedColumn,
+      ColumnPartProvider<RunLengthColumn> runLengthColumn,
+      ColumnPartProvider<GenericColumn> genericColumn,
+      ColumnPartProvider<ComplexColumn> complexColumn,
+      ColumnPartProvider<BitmapIndex> bitmapIndex,
+      ColumnPartProvider<SpatialIndex> spatialIndex
   )
   {
     this.capabilities = capabilities;
@@ -70,6 +70,31 @@ class SimpleColumn implements Column
     finally {
       CloseQuietly.close(column);
     }
+  }
+
+  @Override
+  public long getSerializedSize()
+  {
+    long serialized = 0L;
+    if (dictionaryEncodedColumn != null) {
+      serialized += dictionaryEncodedColumn.getSerializedSize();
+    }
+    if (runLengthColumn != null) {
+      serialized += runLengthColumn.getSerializedSize();
+    }
+    if (genericColumn != null) {
+      serialized += genericColumn.getSerializedSize();
+    }
+    if (complexColumn != null) {
+      serialized += complexColumn.getSerializedSize();
+    }
+    if (bitmapIndex != null) {
+      serialized += bitmapIndex.getSerializedSize();
+    }
+    if (spatialIndex != null) {
+      serialized += spatialIndex.getSerializedSize();
+    }
+    return serialized;
   }
 
   @Override

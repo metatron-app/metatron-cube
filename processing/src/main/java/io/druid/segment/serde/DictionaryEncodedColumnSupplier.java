@@ -19,7 +19,7 @@
 
 package io.druid.segment.serde;
 
-import com.google.common.base.Supplier;
+import io.druid.segment.ColumnPartProvider;
 import io.druid.segment.column.DictionaryEncodedColumn;
 import io.druid.segment.column.SimpleDictionaryEncodedColumn;
 import io.druid.segment.data.CachingIndexed;
@@ -29,17 +29,17 @@ import io.druid.segment.data.IndexedMultivalue;
 
 /**
 */
-public class DictionaryEncodedColumnSupplier implements Supplier<DictionaryEncodedColumn>
+public class DictionaryEncodedColumnSupplier implements ColumnPartProvider<DictionaryEncodedColumn>
 {
   private final GenericIndexed<String> dictionary;
-  private final Supplier<IndexedInts> singleValuedColumn;
-  private final Supplier<IndexedMultivalue<IndexedInts>> multiValuedColumn;
+  private final ColumnPartProvider<IndexedInts> singleValuedColumn;
+  private final ColumnPartProvider<IndexedMultivalue<IndexedInts>> multiValuedColumn;
   private final int lookupCacheSize;
 
   public DictionaryEncodedColumnSupplier(
       GenericIndexed<String> dictionary,
-      Supplier<IndexedInts> singleValuedColumn,
-      Supplier<IndexedMultivalue<IndexedInts>> multiValuedColumn,
+      ColumnPartProvider<IndexedInts> singleValuedColumn,
+      ColumnPartProvider<IndexedMultivalue<IndexedInts>> multiValuedColumn,
       int lookupCacheSize
   )
   {
@@ -57,5 +57,12 @@ public class DictionaryEncodedColumnSupplier implements Supplier<DictionaryEncod
         multiValuedColumn != null ? multiValuedColumn.get() : null,
         new CachingIndexed<>(dictionary, lookupCacheSize)
     );
+  }
+
+  @Override
+  public long getSerializedSize()
+  {
+    return dictionary.getSerializedSize() +
+           (singleValuedColumn != null ? singleValuedColumn.getSerializedSize() : multiValuedColumn.getSerializedSize());
   }
 }

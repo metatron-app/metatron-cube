@@ -17,46 +17,42 @@
  * under the License.
  */
 
-package io.druid.segment.column;
+package io.druid.segment;
 
-import io.druid.data.ValueType;
-import io.druid.segment.data.CompressedLongsIndexedSupplier;
+import io.druid.segment.data.VSizeIndexed;
+import io.druid.segment.data.VSizeIndexedInts;
 
 /**
  */
-public class LongColumn extends AbstractColumn
+public class ColumnPartProviders
 {
-  private static final ColumnCapabilitiesImpl CAPABILITIES = new ColumnCapabilitiesImpl()
-      .setType(ValueType.LONG);
-
-  private final CompressedLongsIndexedSupplier column;
-
-  public LongColumn(CompressedLongsIndexedSupplier column)
+  @SuppressWarnings("unchecked")
+  public static <T> ColumnPartProvider<T> ofInstance(final VSizeIndexedInts instance)
   {
-    this.column = column;
+    return ofInstance((T) instance, instance.getSerializedSize());
   }
 
-  @Override
-  public ColumnCapabilities getCapabilities()
+  @SuppressWarnings("unchecked")
+  public static <T> ColumnPartProvider<T> ofInstance(final VSizeIndexed instance)
   {
-    return CAPABILITIES;
+    return ofInstance((T) instance, instance.getSerializedSize());
   }
 
-  @Override
-  public int getLength()
+  public static <T> ColumnPartProvider<T> ofInstance(final T instance, final long length)
   {
-    return column.size();
-  }
+    return new ColumnPartProvider<T>()
+    {
+      @Override
+      public long getSerializedSize()
+      {
+        return length;
+      }
 
-  @Override
-  public long getSerializedSize()
-  {
-    return column.getSerializedSize();
-  }
-
-  @Override
-  public GenericColumn getGenericColumn()
-  {
-    return new IndexedLongsGenericColumn(column.get());
+      @Override
+      public T get()
+      {
+        return instance;
+      }
+    };
   }
 }

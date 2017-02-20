@@ -33,12 +33,13 @@ public class ColumnAnalysis
 
   public static ColumnAnalysis error(String reason)
   {
-    return new ColumnAnalysis("STRING", false, -1, null, null, null, ERROR_PREFIX + reason);
+    return new ColumnAnalysis("STRING", false, -1, -1, null, null, null, ERROR_PREFIX + reason);
   }
 
   private final String type;
   private final boolean hasMultipleValues;
   private final long size;
+  private final long serializedSize;
   private final Integer cardinality;
   private final Comparable minValue;
   private final Comparable maxValue;
@@ -49,6 +50,7 @@ public class ColumnAnalysis
       @JsonProperty("type") String type,
       @JsonProperty("hasMultipleValues") boolean hasMultipleValues,
       @JsonProperty("size") long size,
+      @JsonProperty("serializedSize") long serializedSize,
       @JsonProperty("cardinality") Integer cardinality,
       @JsonProperty("minValue") Comparable minValue,
       @JsonProperty("maxValue") Comparable maxValue,
@@ -58,10 +60,24 @@ public class ColumnAnalysis
     this.type = type;
     this.hasMultipleValues = hasMultipleValues;
     this.size = size;
+    this.serializedSize = serializedSize;
     this.cardinality = cardinality;
     this.minValue = minValue;
     this.maxValue = maxValue;
     this.errorMessage = errorMessage;
+  }
+
+  public ColumnAnalysis(
+      String type,
+      boolean hasMultipleValues,
+      long size,
+      Integer cardinality,
+      Comparable minValue,
+      Comparable maxValue,
+      String errorMessage
+  )
+  {
+    this(type, hasMultipleValues, size, 0L, cardinality, minValue, maxValue, errorMessage);
   }
 
   @JsonProperty
@@ -80,6 +96,12 @@ public class ColumnAnalysis
   public long getSize()
   {
     return size;
+  }
+
+  @JsonProperty
+  public long getSerializedSize()
+  {
+    return serializedSize;
   }
 
   @JsonProperty
@@ -144,7 +166,16 @@ public class ColumnAnalysis
     Comparable newMin = choose(minValue, rhs.minValue, false);
     Comparable newMax = choose(maxValue, rhs.maxValue, true);
 
-    return new ColumnAnalysis(type, multipleValues, size + rhs.getSize(), cardinality, newMin, newMax, null);
+    return new ColumnAnalysis(
+        type,
+        multipleValues,
+        size + rhs.getSize(),
+        serializedSize + rhs.getSerializedSize(),
+        cardinality,
+        newMin,
+        newMax,
+        null
+    );
   }
 
   private <T extends Comparable> T choose(T obj1, T obj2, boolean max)
@@ -166,6 +197,7 @@ public class ColumnAnalysis
            "type='" + type + '\'' +
            ", hasMultipleValues=" + hasMultipleValues +
            ", size=" + size +
+           ", serializedSize=" + serializedSize +
            ", cardinality=" + cardinality +
            ", minValue=" + minValue +
            ", maxValue=" + maxValue +
@@ -185,6 +217,7 @@ public class ColumnAnalysis
     ColumnAnalysis that = (ColumnAnalysis) o;
     return hasMultipleValues == that.hasMultipleValues &&
            size == that.size &&
+           serializedSize == that.serializedSize &&
            Objects.equals(type, that.type) &&
            Objects.equals(cardinality, that.cardinality) &&
            Objects.equals(minValue, that.minValue) &&
@@ -195,6 +228,6 @@ public class ColumnAnalysis
   @Override
   public int hashCode()
   {
-    return Objects.hash(type, hasMultipleValues, size, cardinality, minValue, maxValue, errorMessage);
+    return Objects.hash(type, hasMultipleValues, size, serializedSize, cardinality, minValue, maxValue, errorMessage);
   }
 }

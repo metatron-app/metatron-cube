@@ -27,6 +27,7 @@ public interface Column
   public ColumnCapabilities getCapabilities();
 
   public int getLength();
+  public long getSerializedSize();
   public DictionaryEncodedColumn getDictionaryEncoding();
   public RunLengthColumn getRunLengthColumn();
   public GenericColumn getGenericColumn();

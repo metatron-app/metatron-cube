@@ -51,7 +51,6 @@ import io.druid.segment.serde.ComplexMetricSerde;
 import io.druid.segment.serde.ComplexMetrics;
 import org.joda.time.Interval;
 
-import javax.annotation.Nullable;
 import java.util.EnumSet;
 import java.util.Map;
 import java.util.Set;
@@ -92,8 +91,6 @@ public class SegmentAnalyzer
     final QueryableIndex index = segment.asQueryableIndex();
     final StorageAdapter storageAdapter = segment.asStorageAdapter();
 
-    // get length and column names from storageAdapter
-    final int length = storageAdapter.getNumRows();
     final Set<String> columnNames = Sets.newHashSet();
     Iterables.addAll(columnNames, storageAdapter.getAvailableDimensions());
     Iterables.addAll(columnNames, storageAdapter.getAvailableMetrics());
@@ -110,23 +107,23 @@ public class SegmentAnalyzer
       final ValueType type = capabilities.getType();
       switch (type) {
         case LONG:
-          analysis = analyzeNumericColumn(capabilities, length, Longs.BYTES);
+          analysis = analyzeNumericColumn(columnName, capabilities, storageAdapter, Longs.BYTES);
           break;
         case FLOAT:
-          analysis = analyzeNumericColumn(capabilities, length, NUM_BYTES_IN_TEXT_FLOAT);
+          analysis = analyzeNumericColumn(columnName, capabilities, storageAdapter, NUM_BYTES_IN_TEXT_FLOAT);
           break;
         case DOUBLE:
-          analysis = analyzeNumericColumn(capabilities, length, NUM_BYTES_IN_TEXT_DOUBLE);
+          analysis = analyzeNumericColumn(columnName, capabilities, storageAdapter, NUM_BYTES_IN_TEXT_DOUBLE);
           break;
         case STRING:
           if (index != null) {
-            analysis = analyzeStringColumn(capabilities, column);
+            analysis = analyzeStringColumn(columnName, capabilities, storageAdapter, column);
           } else {
-            analysis = analyzeStringColumn(capabilities, storageAdapter, columnName);
+            analysis = analyzeStringColumn(columnName, capabilities, storageAdapter);
           }
           break;
         case COMPLEX:
-          analysis = analyzeComplexColumn(capabilities, column, storageAdapter.getColumnTypeName(columnName));
+          analysis = analyzeComplexColumn(columnName, capabilities, storageAdapter, column);
           break;
         default:
           log.warn("Unknown column type[%s].", type);
@@ -143,7 +140,7 @@ public class SegmentAnalyzer
     }
     columns.put(
         Column.TIME_COLUMN_NAME,
-        analyzeNumericColumn(timeCapabilities, length, NUM_BYTES_IN_TIMESTAMP)
+        analyzeNumericColumn(Column.TIME_COLUMN_NAME, timeCapabilities, storageAdapter, NUM_BYTES_IN_TIMESTAMP)
     );
 
     return columns;
@@ -152,6 +149,11 @@ public class SegmentAnalyzer
   public boolean analyzingSize()
   {
     return analysisTypes.contains(SegmentMetadataQuery.AnalysisType.SIZE);
+  }
+
+  public boolean analyzingSerializedSize()
+  {
+    return analysisTypes.contains(SegmentMetadataQuery.AnalysisType.SERIALIZED_SIZE);
   }
 
   public boolean analyzingCardinality()
@@ -165,25 +167,30 @@ public class SegmentAnalyzer
   }
 
   private ColumnAnalysis analyzeNumericColumn(
+      final String columnName,
       final ColumnCapabilities capabilities,
-      final int length,
-      final int sizePerRow
+      final StorageAdapter storageAdapter,
+      final long sizePerRow
   )
   {
     long size = 0;
-
     if (analyzingSize()) {
       if (capabilities.hasMultipleValues()) {
         return ColumnAnalysis.error("multi_value");
       }
+      size = storageAdapter.getNumRows() * sizePerRow;
+    }
 
-      size = ((long) length) * sizePerRow;
+    long serializedSize = 0;
+    if (analyzingSerializedSize()) {
+      serializedSize = storageAdapter.getSerializedSize(columnName);
     }
 
     return new ColumnAnalysis(
         capabilities.getType().name(),
         capabilities.hasMultipleValues(),
         size,
+        serializedSize,
         null,
         null,
         null,
@@ -192,11 +199,14 @@ public class SegmentAnalyzer
   }
 
   private ColumnAnalysis analyzeStringColumn(
+      final String columnName,
       final ColumnCapabilities capabilities,
+      final StorageAdapter storageAdapter,
       final Column column
   )
   {
     long size = 0;
+    long serializedSize = 0;
 
     Comparable min = null;
     Comparable max = null;
@@ -217,6 +227,9 @@ public class SegmentAnalyzer
         }
       }
     }
+    if (analyzingSerializedSize()) {
+      serializedSize = storageAdapter.getSerializedSize(columnName);
+    }
 
     if (analyzingMinMax() && cardinality > 0) {
       min = Strings.nullToEmpty(bitmapIndex.getValue(0));
@@ -227,6 +240,7 @@ public class SegmentAnalyzer
         capabilities.getType().name(),
         capabilities.hasMultipleValues(),
         size,
+        serializedSize,
         analyzingCardinality() ? cardinality : 0,
         min,
         max,
@@ -235,13 +249,14 @@ public class SegmentAnalyzer
   }
 
   private ColumnAnalysis analyzeStringColumn(
+      final String columnName,
       final ColumnCapabilities capabilities,
-      final StorageAdapter storageAdapter,
-      final String columnName
+      final StorageAdapter storageAdapter
   )
   {
     int cardinality = 0;
     long size = 0;
+    long serializedSize = 0;
 
     Comparable min = null;
     Comparable max = null;
@@ -297,6 +312,9 @@ public class SegmentAnalyzer
           }
       );
     }
+    if (analyzingSerializedSize()) {
+      serializedSize = storageAdapter.getSerializedSize(columnName);
+    }
 
     if (analyzingMinMax()) {
       min = storageAdapter.getMinValue(columnName);
@@ -307,6 +325,7 @@ public class SegmentAnalyzer
         capabilities.getType().name(),
         capabilities.hasMultipleValues(),
         size,
+        serializedSize,
         cardinality,
         min,
         max,
@@ -315,15 +334,21 @@ public class SegmentAnalyzer
   }
 
   private ColumnAnalysis analyzeComplexColumn(
-      @Nullable final ColumnCapabilities capabilities,
-      @Nullable final Column column,
-      final String typeName
+      final String columnName,
+      final ColumnCapabilities capabilities,
+      final StorageAdapter storageAdapter,
+      final Column column
   )
   {
     final ComplexColumn complexColumn = column != null ? column.getComplexColumn() : null;
     final boolean hasMultipleValues = capabilities != null && capabilities.hasMultipleValues();
+    final String typeName = storageAdapter.getColumnTypeName(columnName);
     long size = 0;
+    long serializedSize = 0;
 
+    if (analyzingSerializedSize()) {
+      serializedSize = storageAdapter.getSerializedSize(columnName);
+    }
     if (analyzingSize() && complexColumn != null) {
       final ComplexMetricSerde serde = ComplexMetrics.getSerdeForType(typeName);
       if (serde == null) {
@@ -332,7 +357,7 @@ public class SegmentAnalyzer
 
       final Function<Object, Long> inputSizeFn = serde.inputSizeFn();
       if (inputSizeFn == null) {
-        return new ColumnAnalysis(typeName, hasMultipleValues, 0, null, null, null, null);
+        return new ColumnAnalysis(typeName, hasMultipleValues, 0, serializedSize, null, null, null, null);
       }
 
       final int length = column.getLength();
@@ -345,6 +370,7 @@ public class SegmentAnalyzer
         typeName,
         hasMultipleValues,
         size,
+        serializedSize,
         null,
         null,
         null,

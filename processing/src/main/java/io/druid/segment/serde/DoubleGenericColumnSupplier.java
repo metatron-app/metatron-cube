@@ -19,7 +19,7 @@
 
 package io.druid.segment.serde;
 
-import com.google.common.base.Supplier;
+import io.druid.segment.ColumnPartProvider;
 import io.druid.segment.column.GenericColumn;
 import io.druid.segment.column.IndexedDoublesGenericColumn;
 import io.druid.segment.data.CompressedDoublesIndexedSupplier;
@@ -28,7 +28,7 @@ import java.nio.ByteOrder;
 
 /**
 */
-public class DoubleGenericColumnSupplier implements Supplier<GenericColumn>
+public class DoubleGenericColumnSupplier implements ColumnPartProvider<GenericColumn>
 {
   private final CompressedDoublesIndexedSupplier column;
   private final ByteOrder byteOrder;
@@ -45,5 +45,11 @@ public class DoubleGenericColumnSupplier implements Supplier<GenericColumn>
   public GenericColumn get()
   {
     return new IndexedDoublesGenericColumn(column.get());
+  }
+
+  @Override
+  public long getSerializedSize()
+  {
+    return column.getSerializedSize();
   }
 }

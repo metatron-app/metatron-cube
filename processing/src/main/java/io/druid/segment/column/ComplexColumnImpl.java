@@ -20,7 +20,7 @@
 package io.druid.segment.column;
 
 import io.druid.data.ValueType;
-import io.druid.segment.data.Indexed;
+import io.druid.segment.data.GenericIndexed;
 
 /**
  */
@@ -29,10 +29,10 @@ public class ComplexColumnImpl extends AbstractColumn
   private static final ColumnCapabilitiesImpl CAPABILITIES = new ColumnCapabilitiesImpl()
       .setType(ValueType.COMPLEX);
 
-  private final Indexed column;
+  private final GenericIndexed column;
   private final String typeName;
 
-  public ComplexColumnImpl(String typeName, Indexed column)
+  public ComplexColumnImpl(String typeName, GenericIndexed column)
   {
     this.column = column;
     this.typeName = typeName;
@@ -48,6 +48,12 @@ public class ComplexColumnImpl extends AbstractColumn
   public int getLength()
   {
     return column.size();
+  }
+
+  @Override
+  public long getSerializedSize()
+  {
+    return column.getSerializedSize();
   }
 
   @Override

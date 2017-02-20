@@ -90,6 +90,7 @@ public class SegmentMetadataQueryRunnerFactory implements QueryRunnerFactory<Seg
         final Map<String, ColumnAnalysis> analyzedColumns = analyzer.analyze(segment);
         final long numRows = analyzer.numRows(segment);
         long totalSize = 0;
+        long totalSerializedSize = 0;
 
         if (analyzer.analyzingSize()) {
           // Initialize with the size of the whitespace, 1 byte per
@@ -105,6 +106,8 @@ public class SegmentMetadataQueryRunnerFactory implements QueryRunnerFactory<Seg
           if (!column.isError()) {
             totalSize += column.getSize();
           }
+          totalSerializedSize += column.getSerializedSize();
+
           if (includerator.include(columnName)) {
             columns.put(columnName, column);
           }
@@ -151,6 +154,7 @@ public class SegmentMetadataQueryRunnerFactory implements QueryRunnerFactory<Seg
                     retIntervals,
                     columns,
                     totalSize,
+                    totalSerializedSize,
                     numRows,
                     ingestedNumRows,
                     aggregators,

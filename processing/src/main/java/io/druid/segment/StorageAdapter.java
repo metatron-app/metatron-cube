@@ -55,6 +55,7 @@ public interface StorageAdapter extends CursorFactory
    * @return type name
    */
   public String getColumnTypeName(String column);
+  public long getSerializedSize(String column);
   public int getNumRows();
   public DateTime getMaxIngestedEventTime();
   public Metadata getMetadata();

@@ -19,13 +19,12 @@
 
 package io.druid.segment.data;
 
-import com.google.common.base.Supplier;
+import io.druid.segment.ColumnPartProvider;
 
 import java.io.IOException;
 import java.nio.channels.WritableByteChannel;
 
-public interface WritableSupplier<T> extends Supplier<T>
+public interface WritableSupplier<T> extends ColumnPartProvider<T>
 {
-  long getSerializedSize();
   void writeToChannel(WritableByteChannel channel) throws IOException;
 }

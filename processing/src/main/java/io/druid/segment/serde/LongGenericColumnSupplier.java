@@ -19,14 +19,14 @@
 
 package io.druid.segment.serde;
 
-import com.google.common.base.Supplier;
+import io.druid.segment.ColumnPartProvider;
 import io.druid.segment.column.GenericColumn;
 import io.druid.segment.column.IndexedLongsGenericColumn;
 import io.druid.segment.data.CompressedLongsIndexedSupplier;
 
 /**
 */
-public class LongGenericColumnSupplier implements Supplier<GenericColumn>
+public class LongGenericColumnSupplier implements ColumnPartProvider<GenericColumn>
 {
   private final CompressedLongsIndexedSupplier column;
 
@@ -40,5 +40,11 @@ public class LongGenericColumnSupplier implements Supplier<GenericColumn>
   public GenericColumn get()
   {
     return new IndexedLongsGenericColumn(column.get());
+  }
+
+  @Override
+  public long getSerializedSize()
+  {
+    return column.getSerializedSize();
   }
 }

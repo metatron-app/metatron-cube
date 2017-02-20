@@ -58,7 +58,8 @@ public class SegmentMetadataQuery extends BaseQuery<SegmentAnalysis>
     AGGREGATORS,
     MINMAX,
     QUERYGRANULARITY,
-    INGESTED_NUMROW;
+    INGESTED_NUMROW,
+    SERIALIZED_SIZE;
 
     @JsonValue
     @Override
@@ -196,6 +197,11 @@ public class SegmentMetadataQuery extends BaseQuery<SegmentAnalysis>
   public boolean hasIngestedNumRows()
   {
     return analysisTypes.contains(AnalysisType.INGESTED_NUMROW);
+  }
+
+  public boolean hasSerializedSize()
+  {
+    return analysisTypes.contains(AnalysisType.SERIALIZED_SIZE);
   }
 
   public byte[] getAnalysisTypesCacheKey()

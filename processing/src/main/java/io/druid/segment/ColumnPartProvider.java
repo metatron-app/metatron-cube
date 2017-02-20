@@ -17,36 +17,13 @@
  * under the License.
  */
 
-package io.druid.segment.serde;
+package io.druid.segment;
 
-import io.druid.segment.ColumnPartProvider;
-import io.druid.segment.column.ComplexColumn;
-import io.druid.segment.column.IndexedComplexColumn;
-import io.druid.segment.data.GenericIndexed;
+import com.google.common.base.Supplier;
 
 /**
-*/
-public class ComplexColumnPartSupplier implements ColumnPartProvider<ComplexColumn>
+ */
+public interface ColumnPartProvider<T> extends Supplier<T>
 {
-  private final GenericIndexed complexType;
-  private final String typeName;
-
-  public ComplexColumnPartSupplier(
-      final String typeName, final GenericIndexed complexType
-  ) {
-    this.complexType = complexType;
-    this.typeName = typeName;
-  }
-
-  @Override
-  public ComplexColumn get()
-  {
-    return new IndexedComplexColumn(typeName, complexType);
-  }
-
-  @Override
-  public long getSerializedSize()
-  {
-    return complexType.getSerializedSize();
-  }
+  long getSerializedSize();
 }

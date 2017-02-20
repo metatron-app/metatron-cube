@@ -35,6 +35,7 @@ public class SegmentAnalysis implements Comparable<SegmentAnalysis>
   private final List<Interval> interval;
   private final Map<String, ColumnAnalysis> columns;
   private final long size;
+  private final long serializedSize;
   private final long numRows;
   private final long ingestedNumRows;
   private final Map<String, AggregatorFactory> aggregators;
@@ -46,6 +47,7 @@ public class SegmentAnalysis implements Comparable<SegmentAnalysis>
       @JsonProperty("intervals") List<Interval> interval,
       @JsonProperty("columns") Map<String, ColumnAnalysis> columns,
       @JsonProperty("size") long size,
+      @JsonProperty("serializedSize") long serializedSize,
       @JsonProperty("numRows") long numRows,
       @JsonProperty("ingestedNumRows") long ingestedNumRows,
       @JsonProperty("aggregators") Map<String, AggregatorFactory> aggregators,
@@ -56,6 +58,7 @@ public class SegmentAnalysis implements Comparable<SegmentAnalysis>
     this.interval = interval;
     this.columns = columns;
     this.size = size;
+    this.serializedSize = serializedSize;
     this.numRows = numRows;
     this.ingestedNumRows = ingestedNumRows;
     this.aggregators = aggregators;
@@ -72,7 +75,7 @@ public class SegmentAnalysis implements Comparable<SegmentAnalysis>
       QueryGranularity queryGranularity
   )
   {
-    this(id, interval, columns, size, numRows, -1L, aggregators, queryGranularity);
+    this(id, interval, columns, size, 0L, numRows, -1L, aggregators, queryGranularity);
   }
 
   @JsonProperty
@@ -97,6 +100,12 @@ public class SegmentAnalysis implements Comparable<SegmentAnalysis>
   public long getSize()
   {
     return size;
+  }
+
+  @JsonProperty
+  public long getSerializedSize()
+  {
+    return serializedSize;
   }
 
   @JsonProperty
@@ -125,7 +134,17 @@ public class SegmentAnalysis implements Comparable<SegmentAnalysis>
 
   public SegmentAnalysis withIngestedNumRows(long ingestedNumRows)
   {
-    return new SegmentAnalysis(id, interval, columns, size, numRows, ingestedNumRows, aggregators, queryGranularity);
+    return new SegmentAnalysis(
+        id,
+        interval,
+        columns,
+        size,
+        serializedSize,
+        numRows,
+        ingestedNumRows,
+        aggregators,
+        queryGranularity
+    );
   }
 
   @Override
@@ -136,6 +155,7 @@ public class SegmentAnalysis implements Comparable<SegmentAnalysis>
            ", interval=" + interval +
            ", columns=" + columns +
            ", size=" + size +
+           ", serializedSize=" + serializedSize +
            ", numRows=" + numRows +
            ", ingestedNumRows=" + ingestedNumRows +
            ", aggregators=" + aggregators +
@@ -157,6 +177,7 @@ public class SegmentAnalysis implements Comparable<SegmentAnalysis>
     }
     SegmentAnalysis that = (SegmentAnalysis) o;
     return size == that.size &&
+           serializedSize == that.serializedSize &&
            numRows == that.numRows &&
            ingestedNumRows == that.ingestedNumRows &&
            Objects.equals(id, that.id) &&
@@ -173,7 +194,17 @@ public class SegmentAnalysis implements Comparable<SegmentAnalysis>
   @Override
   public int hashCode()
   {
-    return Objects.hash(id, interval, columns, size, numRows, ingestedNumRows, aggregators, queryGranularity);
+    return Objects.hash(
+        id,
+        interval,
+        columns,
+        size,
+        serializedSize,
+        numRows,
+        ingestedNumRows,
+        aggregators,
+        queryGranularity
+    );
   }
 
   @Override

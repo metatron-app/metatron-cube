@@ -49,6 +49,12 @@ public class FloatColumn extends AbstractColumn
   }
 
   @Override
+  public long getSerializedSize()
+  {
+    return column.getSerializedSize();
+  }
+
+  @Override
   public GenericColumn getGenericColumn()
   {
     return new IndexedFloatsGenericColumn(column.get());

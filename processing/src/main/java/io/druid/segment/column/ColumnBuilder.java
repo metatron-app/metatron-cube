@@ -20,8 +20,8 @@
 package io.druid.segment.column;
 
 import com.google.common.base.Preconditions;
-import com.google.common.base.Supplier;
 import io.druid.data.ValueType;
+import io.druid.segment.ColumnPartProvider;
 
 /**
  */
@@ -30,12 +30,12 @@ public class ColumnBuilder
   private ValueType type = null;
   private boolean hasMultipleValues = false;
 
-  private Supplier<DictionaryEncodedColumn> dictionaryEncodedColumn = null;
-  private Supplier<RunLengthColumn> runLengthColumn = null;
-  private Supplier<GenericColumn> genericColumn = null;
-  private Supplier<ComplexColumn> complexColumn = null;
-  private Supplier<BitmapIndex> bitmapIndex = null;
-  private Supplier<SpatialIndex> spatialIndex = null;
+  private ColumnPartProvider<DictionaryEncodedColumn> dictionaryEncodedColumn = null;
+  private ColumnPartProvider<RunLengthColumn> runLengthColumn = null;
+  private ColumnPartProvider<GenericColumn> genericColumn = null;
+  private ColumnPartProvider<ComplexColumn> complexColumn = null;
+  private ColumnPartProvider<BitmapIndex> bitmapIndex = null;
+  private ColumnPartProvider<SpatialIndex> spatialIndex = null;
 
   public ColumnBuilder setType(ValueType type)
   {
@@ -49,37 +49,37 @@ public class ColumnBuilder
     return this;
   }
 
-  public ColumnBuilder setDictionaryEncodedColumn(Supplier<DictionaryEncodedColumn> dictionaryEncodedColumn)
+  public ColumnBuilder setDictionaryEncodedColumn(ColumnPartProvider<DictionaryEncodedColumn> dictionaryEncodedColumn)
   {
     this.dictionaryEncodedColumn = dictionaryEncodedColumn;
     return this;
   }
 
-  public ColumnBuilder setRunLengthColumn(Supplier<RunLengthColumn> runLengthColumn)
+  public ColumnBuilder setRunLengthColumn(ColumnPartProvider<RunLengthColumn> runLengthColumn)
   {
     this.runLengthColumn = runLengthColumn;
     return this;
   }
 
-  public ColumnBuilder setGenericColumn(Supplier<GenericColumn> genericColumn)
+  public ColumnBuilder setGenericColumn(ColumnPartProvider<GenericColumn> genericColumn)
   {
     this.genericColumn = genericColumn;
     return this;
   }
 
-  public ColumnBuilder setComplexColumn(Supplier<ComplexColumn> complexColumn)
+  public ColumnBuilder setComplexColumn(ColumnPartProvider<ComplexColumn> complexColumn)
   {
     this.complexColumn = complexColumn;
     return this;
   }
 
-  public ColumnBuilder setBitmapIndex(Supplier<BitmapIndex> bitmapIndex)
+  public ColumnBuilder setBitmapIndex(ColumnPartProvider<BitmapIndex> bitmapIndex)
   {
     this.bitmapIndex = bitmapIndex;
     return this;
   }
 
-  public ColumnBuilder setSpatialIndex(Supplier<SpatialIndex> spatialIndex)
+  public ColumnBuilder setSpatialIndex(ColumnPartProvider<SpatialIndex> spatialIndex)
   {
     this.spatialIndex = spatialIndex;
     return this;

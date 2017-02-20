@@ -24,7 +24,6 @@ import com.fasterxml.jackson.databind.JsonMappingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Predicate;
-import com.google.common.base.Suppliers;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
@@ -924,6 +923,7 @@ public class IndexIO
       Map<String, Column> columns = Maps.newHashMap();
 
       for (String dimension : index.getAvailableDimensions()) {
+        VSizeIndexed column = index.getDimColumn(dimension);
         ColumnBuilder builder = new ColumnBuilder()
             .setType(ValueType.STRING)
             .setHasMultipleValues(true)
@@ -931,9 +931,7 @@ public class IndexIO
                 new DictionaryEncodedColumnSupplier(
                     index.getDimValueLookup(dimension),
                     null,
-                    Suppliers.<IndexedMultivalue<IndexedInts>>ofInstance(
-                        index.getDimColumn(dimension)
-                    ),
+                    ColumnPartProviders.<IndexedMultivalue<IndexedInts>>ofInstance(column, column.getSerializedSize()),
                     columnConfig.columnCacheSizeBytes()
                 )
             )

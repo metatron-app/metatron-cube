@@ -18,13 +18,14 @@
  */
 package io.druid.segment.serde;
 
-import com.google.common.base.Supplier;
+import com.google.common.primitives.Ints;
 import com.metamx.collections.spatial.ImmutableRTree;
+import io.druid.segment.ColumnPartProvider;
 import io.druid.segment.column.SpatialIndex;
 
 /**
  */
-public class SpatialIndexColumnPartSupplier implements Supplier<SpatialIndex>
+public class SpatialIndexColumnPartSupplier implements ColumnPartProvider<SpatialIndex>
 {
   private final ImmutableRTree indexedTree;
 
@@ -46,5 +47,11 @@ public class SpatialIndexColumnPartSupplier implements Supplier<SpatialIndex>
         return indexedTree;
       }
     };
+  }
+
+  @Override
+  public long getSerializedSize()
+  {
+    return indexedTree.size() + Ints.BYTES;
   }
 }

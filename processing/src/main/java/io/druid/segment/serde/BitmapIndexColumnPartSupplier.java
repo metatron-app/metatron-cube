@@ -19,15 +19,15 @@
 
 package io.druid.segment.serde;
 
-import com.google.common.base.Supplier;
 import com.metamx.collections.bitmap.BitmapFactory;
 import com.metamx.collections.bitmap.ImmutableBitmap;
+import io.druid.segment.ColumnPartProvider;
 import io.druid.segment.column.BitmapIndex;
 import io.druid.segment.data.GenericIndexed;
 
 /**
  */
-public class BitmapIndexColumnPartSupplier implements Supplier<BitmapIndex>
+public class BitmapIndexColumnPartSupplier implements ColumnPartProvider<BitmapIndex>
 {
   private final BitmapFactory bitmapFactory;
   private final GenericIndexed<ImmutableBitmap> bitmaps;
@@ -91,5 +91,11 @@ public class BitmapIndexColumnPartSupplier implements Supplier<BitmapIndex>
         return bitmap == null ? bitmapFactory.makeEmptyImmutableBitmap() : bitmap;
       }
     };
+  }
+
+  @Override
+  public long getSerializedSize()
+  {
+    return bitmaps.getSerializedSize() + dictionary.getSerializedSize();
   }
 }

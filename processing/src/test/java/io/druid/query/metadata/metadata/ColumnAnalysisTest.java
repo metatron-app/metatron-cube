@@ -90,15 +90,7 @@ public class ColumnAnalysisTest
     assertSerDe(analysis1);
     assertSerDe(analysis2);
 
-    final ColumnAnalysis expected = new ColumnAnalysis(
-        "STRING",
-        false,
-        -1L,
-        null,
-        null,
-        null,
-        "error:cannot_merge_diff_types"
-    );
+    final ColumnAnalysis expected = ColumnAnalysis.error("cannot_merge_diff_types");
     ColumnAnalysis fold1 = analysis1.fold(analysis2);
     ColumnAnalysis fold2 = analysis2.fold(analysis1);
     Assert.assertEquals(expected, fold1);
@@ -117,7 +109,7 @@ public class ColumnAnalysisTest
     assertSerDe(analysis1);
     assertSerDe(analysis2);
 
-    final ColumnAnalysis expected = new ColumnAnalysis("STRING", false, -1L, null, null, null, "error:foo");
+    final ColumnAnalysis expected = ColumnAnalysis.error("foo");
     ColumnAnalysis fold1 = analysis1.fold(analysis2);
     ColumnAnalysis fold2 = analysis2.fold(analysis1);
     Assert.assertEquals(expected, fold1);
@@ -136,7 +128,7 @@ public class ColumnAnalysisTest
     assertSerDe(analysis1);
     assertSerDe(analysis2);
 
-    final ColumnAnalysis expected = new ColumnAnalysis("STRING", false, -1L, null, null, null, "error:foo");
+    final ColumnAnalysis expected = ColumnAnalysis.error("foo");
     ColumnAnalysis fold1 = analysis1.fold(analysis2);
     ColumnAnalysis fold2 = analysis2.fold(analysis1);
     Assert.assertEquals(expected, fold1);
@@ -155,7 +147,7 @@ public class ColumnAnalysisTest
     assertSerDe(analysis1);
     assertSerDe(analysis2);
 
-    final ColumnAnalysis expected = new ColumnAnalysis("STRING", false, -1L, null, null, null, "error:multiple_errors");
+    final ColumnAnalysis expected = ColumnAnalysis.error("multiple_errors");
     ColumnAnalysis fold1 = analysis1.fold(analysis2);
     ColumnAnalysis fold2 = analysis2.fold(analysis1);
     Assert.assertEquals(expected, fold1);
