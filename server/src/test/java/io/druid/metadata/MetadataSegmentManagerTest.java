@@ -86,6 +86,7 @@ public class MetadataSegmentManagerTest
         jsonMapper,
         Suppliers.ofInstance(new MetadataSegmentManagerConfig()),
         derbyConnectorRule.metadataTablesConfigSupplier(),
+        derbyConnectorRule.getMetaDataCoordinator(),
         connector
     );
 

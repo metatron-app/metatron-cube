@@ -19,6 +19,7 @@
 
 package io.druid.math.expr;
 
+import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import com.google.common.base.Supplier;
 import com.google.common.base.Suppliers;
@@ -86,6 +87,18 @@ public class Parser
     ExprListenerImpl listener = new ExprListenerImpl(parseTree, func);
     walker.walk(listener, parseTree);
     return listener.getAST();
+  }
+
+  public static Expr parseWith(String in, Function.Factory... moreFunctions)
+  {
+    Map<String, Supplier<Function>> custom = Maps.newHashMap(functions);
+    for (Function.Factory factory : moreFunctions) {
+      Preconditions.checkArgument(
+          custom.put(factory.name().toLowerCase(), factory) == null,
+          "cannot override existing function %s", factory.name()
+      );
+    }
+    return parse(in, custom);
   }
 
   public static ParseTree parseTree(String in)
@@ -195,7 +208,7 @@ public class Parser
     } else if (expr instanceof FunctionExpr) {
       FunctionExpr functionExpr = (FunctionExpr) expr;
       if (functionExpr.function instanceof BuiltinFunctions.PartitionFunction) {
-        ((BuiltinFunctions.PartitionFunction)functionExpr.function).reset();
+        ((BuiltinFunctions.PartitionFunction) functionExpr.function).reset();
       } else {
         for (Expr child : functionExpr.args) {
           reset(child);

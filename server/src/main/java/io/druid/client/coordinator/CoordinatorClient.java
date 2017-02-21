@@ -87,6 +87,15 @@ public class CoordinatorClient
     );
   }
 
+  public <T> T fetchTableDesc(String dataSource, String extractType, TypeReference<T> resultType)
+  {
+    return execute(
+        HttpMethod.GET,
+        String.format("/datasources/%s/desc/%s", dataSource, extractType),
+        resultType
+    );
+  }
+
   private <T> T execute(HttpMethod method, String resource, TypeReference<T> resultType)
   {
     try {

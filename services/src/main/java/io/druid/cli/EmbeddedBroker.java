@@ -40,6 +40,7 @@ import io.druid.client.CachingClusteredClient;
 import io.druid.client.TimelineServerView;
 import io.druid.client.cache.CacheConfig;
 import io.druid.client.cache.CacheMonitor;
+import io.druid.client.coordinator.CoordinatorClient;
 import io.druid.client.selector.CustomTierSelectorStrategyConfig;
 import io.druid.client.selector.ServerSelectorStrategy;
 import io.druid.client.selector.TierSelectorStrategy;
@@ -50,12 +51,14 @@ import io.druid.guice.JsonConfigProvider;
 import io.druid.guice.LazySingleton;
 import io.druid.guice.LifecycleModule;
 import io.druid.guice.annotations.Self;
+import io.druid.metadata.DescLookupProvider;
 import io.druid.query.MapQueryToolChestWarehouse;
 import io.druid.query.Query;
 import io.druid.query.QueryContextKeys;
 import io.druid.query.QuerySegmentWalker;
 import io.druid.query.QueryToolChestWarehouse;
 import io.druid.query.RetryQueryRunnerConfig;
+import io.druid.query.lookup.RemoteLookupProvider;
 import io.druid.server.ClientQuerySegmentWalker;
 import io.druid.server.DruidNode;
 import io.druid.server.QueryManager;
@@ -98,10 +101,12 @@ public class EmbeddedBroker extends ServerRunnable
             );
 
             binder.bind(QueryToolChestWarehouse.class).to(MapQueryToolChestWarehouse.class);
+            binder.bind(DescLookupProvider.class).to(RemoteLookupProvider.class);
 
             binder.bind(CachingClusteredClient.class).in(LazySingleton.class);
             binder.bind(BrokerServerView.class).in(LazySingleton.class);
             binder.bind(TimelineServerView.class).to(BrokerServerView.class).in(LazySingleton.class);
+            binder.bind(CoordinatorClient.class).in(LazySingleton.class);
 
             JsonConfigProvider.bind(binder, "druid.broker.cache", CacheConfig.class);
             binder.install(new CacheModule());

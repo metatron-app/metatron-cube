@@ -31,6 +31,7 @@ public class SQLMetadataSegmentManagerProvider implements MetadataSegmentManager
   private final ObjectMapper jsonMapper;
   private final Supplier<MetadataSegmentManagerConfig> config;
   private final Supplier<MetadataStorageTablesConfig> storageConfig;
+  private final IndexerSQLMetadataStorageCoordinator metaCoordinator;
   private final SQLMetadataConnector connector;
   private final Lifecycle lifecycle;
 
@@ -39,6 +40,7 @@ public class SQLMetadataSegmentManagerProvider implements MetadataSegmentManager
       ObjectMapper jsonMapper,
       Supplier<MetadataSegmentManagerConfig> config,
       Supplier<MetadataStorageTablesConfig> storageConfig,
+      IndexerSQLMetadataStorageCoordinator metaCoordinator,
       SQLMetadataConnector connector,
       Lifecycle lifecycle
   )
@@ -46,6 +48,7 @@ public class SQLMetadataSegmentManagerProvider implements MetadataSegmentManager
     this.jsonMapper = jsonMapper;
     this.config = config;
     this.storageConfig = storageConfig;
+    this.metaCoordinator = metaCoordinator;
     this.connector = connector;
     this.lifecycle = lifecycle;
   }
@@ -74,6 +77,7 @@ public class SQLMetadataSegmentManagerProvider implements MetadataSegmentManager
         jsonMapper,
         config,
         storageConfig,
+        metaCoordinator,
         connector
     );
   }

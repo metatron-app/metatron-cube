@@ -27,6 +27,7 @@ import com.metamx.common.logger.Logger;
 import io.airlift.airline.Command;
 import io.druid.client.cache.CacheConfig;
 import io.druid.client.cache.CacheMonitor;
+import io.druid.client.coordinator.CoordinatorClient;
 import io.druid.guice.CacheModule;
 import io.druid.guice.Jerseys;
 import io.druid.guice.JsonConfigProvider;
@@ -34,10 +35,12 @@ import io.druid.guice.LazySingleton;
 import io.druid.guice.LifecycleModule;
 import io.druid.guice.ManageLifecycle;
 import io.druid.guice.NodeTypeConfig;
+import io.druid.metadata.DescLookupProvider;
 import io.druid.query.MapQueryToolChestWarehouse;
 import io.druid.query.QuerySegmentWalker;
 import io.druid.query.QueryToolChestWarehouse;
 import io.druid.query.lookup.LookupModule;
+import io.druid.query.lookup.RemoteLookupProvider;
 import io.druid.server.QueryResource;
 import io.druid.server.coordination.ServerManager;
 import io.druid.server.coordination.ZkCoordinator;
@@ -76,12 +79,14 @@ public class CliHistorical extends ServerRunnable
             binder.bindConstant().annotatedWith(Names.named("servicePort")).to(8083);
 
             binder.bind(QueryToolChestWarehouse.class).to(MapQueryToolChestWarehouse.class);
+            binder.bind(DescLookupProvider.class).to(RemoteLookupProvider.class);
 
             // register Server before binding ZkCoordinator to ensure HTTP endpoints are available immediately
             LifecycleModule.register(binder, Server.class);
             binder.bind(ServerManager.class).in(LazySingleton.class);
             binder.bind(ZkCoordinator.class).in(ManageLifecycle.class);
             binder.bind(QuerySegmentWalker.class).to(ServerManager.class).in(LazySingleton.class);
+            binder.bind(CoordinatorClient.class).in(LazySingleton.class);
 
             binder.bind(NodeTypeConfig.class).toInstance(new NodeTypeConfig("historical"));
             binder.bind(JettyServerInitializer.class).to(QueryJettyServerInitializer.class).in(LazySingleton.class);

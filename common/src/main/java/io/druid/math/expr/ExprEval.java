@@ -31,6 +31,9 @@ public class ExprEval extends Pair<Object, ExprType>
 {
   public static ExprEval bestEffortOf(Object val)
   {
+    if (val instanceof ExprEval) {
+      return (ExprEval) val;
+    }
     if (val instanceof Number) {
       if (val instanceof Byte || val instanceof Short || val instanceof Integer || val instanceof Long) {
         return ExprEval.of(val, ExprType.LONG);
@@ -47,6 +50,9 @@ public class ExprEval extends Pair<Object, ExprType>
 
   public static ExprEval bestEffortOf(Object val, ExprType type)
   {
+    if (val instanceof ExprEval) {
+      return (ExprEval) val;
+    }
     if (val instanceof Number) {
       if (val instanceof Byte || val instanceof Short || val instanceof Integer || val instanceof Long) {
         return ExprEval.of(val, ExprType.LONG);
@@ -63,6 +69,9 @@ public class ExprEval extends Pair<Object, ExprType>
 
   public static ExprEval of(Object value, ExprType type)
   {
+    if (value instanceof ExprEval) {
+      return (ExprEval) value;
+    }
     return new ExprEval(value, type);
   }
 

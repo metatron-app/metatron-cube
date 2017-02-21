@@ -17,27 +17,17 @@
  * under the License.
  */
 
-package io.druid.query;
+package io.druid.metadata;
 
-import com.fasterxml.jackson.annotation.JsonSubTypes;
-import com.fasterxml.jackson.annotation.JsonTypeInfo;
+import io.druid.math.expr.Function;
 
-@JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
-@JsonSubTypes(value = {
-    @JsonSubTypes.Type(name = "timewarp", value = TimewarpOperator.class),
-    @JsonSubTypes.Type(name = "join", value = JoinPostProcessor.class),
-    @JsonSubTypes.Type(name = "tabular", value = TabularPostProcessor.class)
-})
-public interface PostProcessingOperator<T>
+import java.util.concurrent.Future;
+
+/**
+ */
+public interface DescLookupProvider
 {
-  public QueryRunner<T> postProcess(QueryRunner<T> baseQueryRunner);
+  Function.Factory init(String dataSource, DescExtractor type);
 
-  public interface UnionSupport<T> extends PostProcessingOperator<T>
-  {
-    public QueryRunner<T> postProcess(UnionAllQueryRunner<T> baseQueryRunner);
-  }
-
-  public interface TabularOutput<T> extends PostProcessingOperator<T>
-  {
-  }
+  Future<Function.Factory> prepare(String dataSource, DescExtractor type);
 }

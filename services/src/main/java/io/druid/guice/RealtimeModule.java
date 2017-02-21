@@ -27,10 +27,12 @@ import com.google.inject.multibindings.MapBinder;
 import io.druid.cli.QueryJettyServerInitializer;
 import io.druid.client.cache.CacheConfig;
 import io.druid.client.coordinator.CoordinatorClient;
+import io.druid.metadata.DescLookupProvider;
 import io.druid.metadata.MetadataSegmentPublisher;
 import io.druid.query.MapQueryToolChestWarehouse;
 import io.druid.query.QuerySegmentWalker;
 import io.druid.query.QueryToolChestWarehouse;
+import io.druid.query.lookup.RemoteLookupProvider;
 import io.druid.segment.realtime.FireDepartment;
 import io.druid.segment.realtime.NoopSegmentPublisher;
 import io.druid.segment.realtime.RealtimeManager;
@@ -56,6 +58,7 @@ public class RealtimeModule implements Module
   public void configure(Binder binder)
   {
     binder.bind(QueryToolChestWarehouse.class).to(MapQueryToolChestWarehouse.class);
+    binder.bind(DescLookupProvider.class).to(RemoteLookupProvider.class);
 
     PolyBind.createChoiceWithDefault(
         binder,

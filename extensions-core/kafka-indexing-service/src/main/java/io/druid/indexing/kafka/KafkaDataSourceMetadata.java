@@ -23,21 +23,30 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.collect.Maps;
 import com.metamx.common.IAE;
+import io.druid.indexing.overlord.BaseDataSourceMetadata;
 import io.druid.indexing.overlord.DataSourceMetadata;
+import io.druid.metadata.TableDesc;
 
 import java.util.Map;
 import java.util.Objects;
 
-public class KafkaDataSourceMetadata implements DataSourceMetadata
+public class KafkaDataSourceMetadata extends BaseDataSourceMetadata
 {
   private final KafkaPartitions kafkaPartitions;
 
   @JsonCreator
   public KafkaDataSourceMetadata(
-      @JsonProperty("partitions") KafkaPartitions kafkaPartitions
+      @JsonProperty("partitions") KafkaPartitions kafkaPartitions,
+      @JsonProperty("tableDesc") TableDesc tableDesc
   )
   {
+    super(tableDesc);
     this.kafkaPartitions = kafkaPartitions;
+  }
+
+  public KafkaDataSourceMetadata(KafkaPartitions kafkaPartitions)
+  {
+    this(kafkaPartitions, null);
   }
 
   @JsonProperty("partitions")
@@ -47,19 +56,16 @@ public class KafkaDataSourceMetadata implements DataSourceMetadata
   }
 
   @Override
-  public boolean isValidStart()
-  {
-    return true;
-  }
-
-  @Override
   public boolean matches(DataSourceMetadata other)
   {
     if (getClass() != other.getClass()) {
       return false;
     }
 
-    return plus(other).equals(other.plus(this));
+    return Objects.equals(
+        ((KafkaDataSourceMetadata) this.plus(other)).kafkaPartitions,
+        ((KafkaDataSourceMetadata) other.plus(this)).kafkaPartitions
+    );
   }
 
   @Override
@@ -72,6 +78,7 @@ public class KafkaDataSourceMetadata implements DataSourceMetadata
           other.getClass().getCanonicalName()
       );
     }
+    final TableDesc merged = updateProperty(other.getTableDesc());
 
     final KafkaDataSourceMetadata that = (KafkaDataSourceMetadata) other;
 
@@ -87,10 +94,10 @@ public class KafkaDataSourceMetadata implements DataSourceMetadata
         newMap.put(entry.getKey(), entry.getValue());
       }
 
-      return new KafkaDataSourceMetadata(new KafkaPartitions(kafkaPartitions.getTopic(), newMap));
+      return new KafkaDataSourceMetadata(new KafkaPartitions(kafkaPartitions.getTopic(), newMap), merged);
     } else {
       // Different topic, prefer "other".
-      return other;
+      return new KafkaDataSourceMetadata(that.getKafkaPartitions(), merged);
     }
   }
 
@@ -104,13 +111,13 @@ public class KafkaDataSourceMetadata implements DataSourceMetadata
       return false;
     }
     KafkaDataSourceMetadata that = (KafkaDataSourceMetadata) o;
-    return Objects.equals(kafkaPartitions, that.kafkaPartitions);
+    return super.equals(o) && Objects.equals(kafkaPartitions, that.kafkaPartitions);
   }
 
   @Override
   public int hashCode()
   {
-    return Objects.hash(kafkaPartitions);
+    return Objects.hash(super.hashCode(), kafkaPartitions);
   }
 
   @Override
@@ -118,6 +125,7 @@ public class KafkaDataSourceMetadata implements DataSourceMetadata
   {
     return "KafkaDataSourceMetadata{" +
            "kafkaPartitions=" + kafkaPartitions +
+           "tableDesc=" + getTableDesc() +
            '}';
   }
 }

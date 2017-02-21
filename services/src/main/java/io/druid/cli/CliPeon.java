@@ -66,11 +66,13 @@ import io.druid.indexing.overlord.TaskStorage;
 import io.druid.indexing.overlord.ThreadPoolTaskRunner;
 import io.druid.indexing.worker.executor.ExecutorLifecycle;
 import io.druid.indexing.worker.executor.ExecutorLifecycleConfig;
+import io.druid.metadata.DescLookupProvider;
 import io.druid.metadata.IndexerSQLMetadataStorageCoordinator;
 import io.druid.query.MapQueryToolChestWarehouse;
 import io.druid.query.QuerySegmentWalker;
 import io.druid.query.QueryToolChestWarehouse;
 import io.druid.query.lookup.LookupModule;
+import io.druid.query.lookup.RemoteLookupProvider;
 import io.druid.segment.loading.DataSegmentArchiver;
 import io.druid.segment.loading.DataSegmentKiller;
 import io.druid.segment.loading.DataSegmentMover;
@@ -136,6 +138,7 @@ public class CliPeon extends GuiceRunnable
             binder.bindConstant().annotatedWith(Names.named("servicePort")).to(-1);
 
             binder.bind(QueryToolChestWarehouse.class).to(MapQueryToolChestWarehouse.class);
+            binder.bind(DescLookupProvider.class).to(RemoteLookupProvider.class);
 
             PolyBind.createChoice(
                 binder,

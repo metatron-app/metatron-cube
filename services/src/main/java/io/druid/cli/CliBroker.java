@@ -40,11 +40,13 @@ import io.druid.guice.Jerseys;
 import io.druid.guice.JsonConfigProvider;
 import io.druid.guice.LazySingleton;
 import io.druid.guice.LifecycleModule;
+import io.druid.metadata.DescLookupProvider;
 import io.druid.query.MapQueryToolChestWarehouse;
 import io.druid.query.QuerySegmentWalker;
 import io.druid.query.QueryToolChestWarehouse;
 import io.druid.query.RetryQueryRunnerConfig;
 import io.druid.query.lookup.LookupModule;
+import io.druid.query.lookup.RemoteLookupProvider;
 import io.druid.server.BrokerQueryResource;
 import io.druid.server.ClientInfoResource;
 import io.druid.server.ClientQuerySegmentWalker;
@@ -87,6 +89,7 @@ public class CliBroker extends ServerRunnable
             binder.bindConstant().annotatedWith(Names.named("servicePort")).to(8082);
 
             binder.bind(QueryToolChestWarehouse.class).to(MapQueryToolChestWarehouse.class);
+            binder.bind(DescLookupProvider.class).to(RemoteLookupProvider.class);
 
             binder.bind(CachingClusteredClient.class).in(LazySingleton.class);
             binder.bind(BrokerServerView.class).in(LazySingleton.class);

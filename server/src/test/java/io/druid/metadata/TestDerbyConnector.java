@@ -22,6 +22,7 @@ package io.druid.metadata;
 import com.google.common.base.Supplier;
 import com.google.common.base.Suppliers;
 import io.druid.metadata.storage.derby.DerbyConnector;
+import io.druid.segment.TestHelper;
 import org.junit.Assert;
 import org.junit.rules.ExternalResource;
 import org.skife.jdbi.v2.DBI;
@@ -77,6 +78,7 @@ public class TestDerbyConnector extends DerbyConnector
   public static class DerbyConnectorRule extends ExternalResource
   {
     private TestDerbyConnector connector;
+    private IndexerSQLMetadataStorageCoordinator metaCoordinator;
     private final Supplier<MetadataStorageTablesConfig> dbTables;
     private final MetadataStorageConnectorConfig connectorConfig;
 
@@ -112,6 +114,7 @@ public class TestDerbyConnector extends DerbyConnector
     {
       connector = new TestDerbyConnector(Suppliers.ofInstance(connectorConfig), dbTables);
       connector.getDBI().open().close(); // create db
+      metaCoordinator = new IndexerSQLMetadataStorageCoordinator(TestHelper.JSON_MAPPER, dbTables.get(), connector);
     }
 
     @Override
@@ -123,6 +126,11 @@ public class TestDerbyConnector extends DerbyConnector
     public TestDerbyConnector getConnector()
     {
       return connector;
+    }
+
+    public IndexerSQLMetadataStorageCoordinator getMetaDataCoordinator()
+    {
+      return metaCoordinator;
     }
 
     public MetadataStorageConnectorConfig getMetadataConnectorConfig()

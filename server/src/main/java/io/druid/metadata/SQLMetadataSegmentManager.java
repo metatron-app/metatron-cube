@@ -38,6 +38,7 @@ import com.metamx.emitter.EmittingLogger;
 import io.druid.client.DruidDataSource;
 import io.druid.concurrent.Execs;
 import io.druid.guice.ManageLifecycle;
+import io.druid.indexing.overlord.DataSourceMetadata;
 import io.druid.timeline.DataSegment;
 import io.druid.timeline.TimelineObjectHolder;
 import io.druid.timeline.VersionedIntervalTimeline;
@@ -54,7 +55,6 @@ import org.skife.jdbi.v2.IDBI;
 import org.skife.jdbi.v2.StatementContext;
 import org.skife.jdbi.v2.TransactionCallback;
 import org.skife.jdbi.v2.TransactionStatus;
-import org.skife.jdbi.v2.exceptions.TransactionFailedException;
 import org.skife.jdbi.v2.tweak.HandleCallback;
 import org.skife.jdbi.v2.tweak.ResultSetMapper;
 import org.skife.jdbi.v2.util.ByteArrayMapper;
@@ -86,6 +86,7 @@ public class SQLMetadataSegmentManager implements MetadataSegmentManager
   private final Supplier<MetadataSegmentManagerConfig> config;
   private final Supplier<MetadataStorageTablesConfig> dbTables;
   private final AtomicReference<ConcurrentHashMap<String, DruidDataSource>> dataSources;
+  private final IndexerSQLMetadataStorageCoordinator metaDataCoordinator;
   private final SQLMetadataConnector connector;
 
   private volatile ListeningScheduledExecutorService exec = null;
@@ -98,6 +99,7 @@ public class SQLMetadataSegmentManager implements MetadataSegmentManager
       ObjectMapper jsonMapper,
       Supplier<MetadataSegmentManagerConfig> config,
       Supplier<MetadataStorageTablesConfig> dbTables,
+      IndexerSQLMetadataStorageCoordinator metaDataCoordinator,
       SQLMetadataConnector connector
   )
   {
@@ -107,6 +109,7 @@ public class SQLMetadataSegmentManager implements MetadataSegmentManager
     this.dataSources = new AtomicReference<>(
         new ConcurrentHashMap<String, DruidDataSource>()
     );
+    this.metaDataCoordinator = metaDataCoordinator;
     this.connector = connector;
   }
 
@@ -404,6 +407,13 @@ public class SQLMetadataSegmentManager implements MetadataSegmentManager
   public boolean isStarted()
   {
     return started;
+  }
+
+  @Override
+  public TableDesc getDataSourceDesc(String ds)
+  {
+    DataSourceMetadata metadata = metaDataCoordinator.getDataSourceMetadata(ds);
+    return metadata == null ? null : metadata.getTableDesc();
   }
 
   @Override

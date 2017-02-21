@@ -21,6 +21,7 @@ package io.druid.indexing.overlord;
 
 import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
+import io.druid.metadata.TableDesc;
 
 import java.util.Set;
 
@@ -32,9 +33,10 @@ import java.util.Set;
  * Two metadata instances can be added together, and any conflicts are resolved in favor of the right-hand side.
  * This means metadata can be partitioned.
  */
-@JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
+@JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type", defaultImpl = BaseDataSourceMetadata.class)
 @JsonSubTypes(value = {
-    @JsonSubTypes.Type(name = "object", value = ObjectMetadata.class)
+    @JsonSubTypes.Type(name = "object", value = ObjectMetadata.class),
+    @JsonSubTypes.Type(name = "basic", value = BaseDataSourceMetadata.class)
 })
 public interface DataSourceMetadata
 {
@@ -71,4 +73,6 @@ public interface DataSourceMetadata
    * @return merged copy
    */
   DataSourceMetadata plus(DataSourceMetadata other);
+
+  TableDesc getTableDesc();
 }

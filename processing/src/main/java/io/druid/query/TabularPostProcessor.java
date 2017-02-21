@@ -28,7 +28,7 @@ import java.util.Map;
 
 /**
  */
-public class TabularPostProcessor implements PostProcessingOperator
+public class TabularPostProcessor implements PostProcessingOperator.TabularOutput
 {
   private final String timestampColumn;
   private final QueryToolChestWarehouse warehouse;

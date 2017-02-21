@@ -19,25 +19,48 @@
 
 package io.druid.math.expr;
 
-import com.google.common.base.Supplier;
-import io.druid.math.expr.Expr.NumericBinding;
-
 import java.util.List;
 
 /**
  */
-public interface Function
+public class Functions
 {
-  String name();
-
-  ExprEval apply(List<Expr> args, NumericBinding bindings);
-
-  interface Factory extends Supplier<Function>
+  // always returns null
+  public static Function.Factory NOT_FOUND(final String name)
   {
-    String name();
+    return CONSTANT(null, name);
   }
 
-  interface Library
+  // always returns value
+  public static Function.Factory CONSTANT(final Object value, final String name)
   {
+    final ExprEval expr = ExprEval.bestEffortOf(value);
+    return new Function.Factory()
+    {
+      @Override
+      public String name()
+      {
+        return name;
+      }
+
+      @Override
+      public Function get()
+      {
+        return new Function()
+        {
+          @Override
+          public String name()
+          {
+            return name;
+          }
+
+          @Override
+          public ExprEval apply(List<Expr> args, Expr.NumericBinding bindings)
+          {
+            return expr;
+          }
+        };
+      }
+    };
   }
 }

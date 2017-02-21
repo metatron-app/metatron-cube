@@ -94,6 +94,16 @@ public interface IndexerMetadataStorageCoordinator
   ) throws IOException;
 
   /**
+   * Add or update existing datasource metadata.
+   * <p/>
+   * @param dataSource        dataSource for which to update metadata
+   * @param metaData          metadata to which would be updated
+   *                          
+   * @return success or not
+   */
+  boolean updateDataSourceMetadata(String dataSource, DataSourceMetadata metaData);
+
+  /**
    * Attempts to insert a set of segments to the metadata storage. Returns the set of segments actually added (segments
    * with identifiers already in the metadata storage will not be added).
    * <p/>

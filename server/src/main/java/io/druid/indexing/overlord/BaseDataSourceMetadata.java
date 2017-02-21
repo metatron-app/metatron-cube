@@ -25,55 +25,58 @@ import io.druid.metadata.TableDesc;
 
 import java.util.Objects;
 
-public final class ObjectMetadata extends BaseDataSourceMetadata
+/**
+ */
+public class BaseDataSourceMetadata implements DataSourceMetadata
 {
-  private final Object theObject;
+  private final TableDesc tableDesc;
 
   @JsonCreator
-  public ObjectMetadata(
-      @JsonProperty("object") Object theObject,
-      @JsonProperty("tableDesc") TableDesc tableDesc
-  )
+  public BaseDataSourceMetadata(@JsonProperty("tableDesc") TableDesc tableDesc)
   {
-    super(tableDesc);
-    this.theObject = theObject;
+    this.tableDesc = tableDesc;
   }
 
-  public ObjectMetadata(Object theObject)
+  @JsonProperty
+  public TableDesc getTableDesc()
   {
-    this(theObject, null);
-  }
-
-  @JsonProperty("object")
-  public Object getObject()
-  {
-    return theObject;
+    return tableDesc;
   }
 
   @Override
   public boolean isValidStart()
   {
-    return theObject == null;
+    return true;
   }
 
   @Override
   public boolean matches(DataSourceMetadata other)
   {
-    return other instanceof ObjectMetadata && Objects.equals(theObject, ((ObjectMetadata)other).theObject);
+    return true;
   }
 
   @Override
   public DataSourceMetadata plus(DataSourceMetadata other)
   {
-    return new ObjectMetadata(((ObjectMetadata)other).theObject, updateProperty(other.getTableDesc()));
+    return new BaseDataSourceMetadata(updateProperty(other.getTableDesc()));
+  }
+
+  protected final TableDesc updateProperty(TableDesc other)
+  {
+    if (tableDesc == null) {
+      return other;
+    }
+    if (other == null) {
+      return tableDesc;
+    }
+    return tableDesc.update(other);
   }
 
   @Override
   public boolean equals(Object o)
   {
-    if (o instanceof ObjectMetadata) {
-      final Object other = ((ObjectMetadata) o).getObject();
-      return super.equals(o) && Objects.equals(theObject, other);
+    if (o instanceof DataSourceMetadata) {
+      return Objects.equals(tableDesc, ((DataSourceMetadata) o).getTableDesc());
     } else {
       return false;
     }
@@ -82,15 +85,14 @@ public final class ObjectMetadata extends BaseDataSourceMetadata
   @Override
   public int hashCode()
   {
-    return Objects.hash(super.hashCode(), theObject);
+    return Objects.hash(tableDesc);
   }
 
   @Override
   public String toString()
   {
-    return "ObjectMetadata{" +
-           "theObject=" + theObject +
-           "tableDesc=" + getTableDesc() +
+    return "BaseDataSourceMetadata{" +
+           "tableDesc=" + tableDesc +
            '}';
   }
 }

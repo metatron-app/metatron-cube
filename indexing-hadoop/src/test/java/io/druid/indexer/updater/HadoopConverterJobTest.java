@@ -44,6 +44,7 @@ import io.druid.indexer.HadoopTuningConfig;
 import io.druid.indexer.JobHelper;
 import io.druid.indexer.Jobby;
 import io.druid.indexer.SQLMetadataStorageUpdaterJobHandler;
+import io.druid.metadata.IndexerSQLMetadataStorageCoordinator;
 import io.druid.metadata.MetadataSegmentManagerConfig;
 import io.druid.metadata.MetadataStorageConnectorConfig;
 import io.druid.metadata.MetadataStorageTablesConfig;
@@ -101,6 +102,7 @@ public class HadoopConverterJobTest
 
   private Supplier<MetadataStorageTablesConfig> metadataStorageTablesConfigSupplier;
   private DerbyConnector connector;
+  private IndexerSQLMetadataStorageCoordinator metadataCoordinator;
 
   private final Interval interval = Interval.parse("2011-01-01T00:00:00.000Z/2011-05-01T00:00:00.000Z");
 
@@ -209,6 +211,7 @@ public class HadoopConverterJobTest
     );
     metadataStorageTablesConfigSupplier = derbyConnectorRule.metadataTablesConfigSupplier();
     connector = derbyConnectorRule.getConnector();
+    metadataCoordinator = derbyConnectorRule.getMetaDataCoordinator();
 
     try {
       connector.getDBI().withHandle(
@@ -274,6 +277,7 @@ public class HadoopConverterJobTest
           }
         },
         metadataStorageTablesConfigSupplier,
+        metadataCoordinator,
         connector
     );
 
@@ -377,6 +381,7 @@ public class HadoopConverterJobTest
           }
         },
         metadataStorageTablesConfigSupplier,
+        metadataCoordinator,
         connector
     );
 

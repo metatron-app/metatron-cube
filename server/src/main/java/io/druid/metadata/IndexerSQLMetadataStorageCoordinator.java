@@ -571,6 +571,28 @@ public class IndexerSQLMetadataStorageCoordinator implements IndexerMetadataStor
     );
   }
 
+  @Override
+  public boolean updateDataSourceMetadata(final String dataSource, final DataSourceMetadata metaData)
+  {
+    return connector.retryTransaction(
+        new TransactionCallback<Boolean>()
+        {
+          @Override
+          public Boolean inTransaction(final Handle handle, final TransactionStatus transactionStatus) throws Exception
+          {
+            return updateDataSourceMetadataWithHandle(
+                handle,
+                dataSource,
+                metaData,
+                metaData
+            );
+          }
+        },
+        3,
+        SQLMetadataConnector.DEFAULT_MAX_TRIES
+    );
+  }
+
   /**
    * Attempts to insert a single segment to the database. If the segment already exists, will do nothing; although,
    * this checking is imperfect and callers must be prepared to retry their entire transaction on exceptions.
@@ -600,7 +622,7 @@ public class IndexerSQLMetadataStorageCoordinator implements IndexerMetadataStor
             .bind("created_date", new DateTime().toString())
             .bind("start", segment.getInterval().getStart().toString())
             .bind("end", segment.getInterval().getEnd().toString())
-            .bind("partitioned", (segment.getShardSpec() instanceof NoneShardSpec) ? false : true)
+            .bind("partitioned", !(segment.getShardSpec() instanceof NoneShardSpec))
             .bind("version", segment.getVersion())
             .bind("used", true)
             .bind("payload", jsonMapper.writeValueAsBytes(segment))

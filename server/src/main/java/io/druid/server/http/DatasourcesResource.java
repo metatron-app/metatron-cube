@@ -20,6 +20,7 @@
 package io.druid.server.http;
 
 import com.google.common.base.Function;
+import com.google.common.base.Preconditions;
 import com.google.common.base.Predicate;
 import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableMap;
@@ -43,6 +44,9 @@ import io.druid.client.indexing.IndexingServiceClient;
 import io.druid.common.utils.JodaUtils;
 import io.druid.metadata.MetadataSegmentManager;
 import io.druid.query.TableDataSource;
+import io.druid.metadata.ColumnDesc;
+import io.druid.metadata.TableDesc;
+import io.druid.metadata.DescExtractor;
 import io.druid.server.http.security.DatasourceResourceFilter;
 import io.druid.server.security.AuthConfig;
 import io.druid.server.security.AuthorizationInfo;
@@ -194,6 +198,50 @@ public class DatasourcesResource
     }
 
     return Response.ok(getSimpleDatasource(dataSourceName)).build();
+  }
+
+  @GET
+  @Path("/{dataSourceName}/desc/{descType}")
+  @Produces(MediaType.APPLICATION_JSON)
+  @ResourceFilters(DatasourceResourceFilter.class)
+  public Response getTheDataSourceDesc(
+      @PathParam("dataSourceName") String dataSourceName,
+      @PathParam("descType") String descType,
+      @QueryParam("column") String columnName,
+      @QueryParam("value") String columnValue)
+  {
+    log.info("getTheDataSourceDesc(%s, %s, %s)", dataSourceName, descType, columnName);
+    TableDesc desc = databaseSegmentManager.getDataSourceDesc(dataSourceName);
+    if (desc == null) {
+      return Response.noContent().build();
+    }
+    DescExtractor type = DescExtractor.fromString(descType);
+    switch (type) {
+      case DS_COMMENT:
+        return Response.ok(desc.getComment()).build();
+      case DS_PROPS:
+        return Response.ok(desc.getProperties()).build();
+      case COLUMN_PROPS:
+        Preconditions.checkArgument(columnName != null, "column name is missing");
+        ColumnDesc entity = desc.getColumnDescs().get(columnName);
+        if (entity == null) {
+          return Response.noContent().build();
+        }
+        return Response.ok(entity.getProperties()).build();
+      case COLUMNS_COMMENTS:
+        Map<String, String> columns = Maps.newLinkedHashMap();
+        for (Map.Entry<String, ColumnDesc> entry : desc.getColumnDescs().entrySet()) {
+          columns.put(entry.getKey(), entry.getValue().getComment());
+        }
+        return Response.ok(columns).build();
+      case VALUES_COMMENTS:
+        Map<String, Map<String, String>> values = Maps.newLinkedHashMap();
+        for (Map.Entry<String, ColumnDesc> entry : desc.getColumnDescs().entrySet()) {
+          values.put(entry.getKey(), entry.getValue().getValueComments());
+        }
+        return Response.ok(values).build();
+    }
+    return Response.noContent().build();
   }
 
   @POST

@@ -44,6 +44,8 @@ public interface MetadataSegmentManager
 
   boolean isStarted();
 
+  TableDesc getDataSourceDesc(String ds);
+
   DruidDataSource getInventoryValue(String key);
 
   Collection<DruidDataSource> getInventory();

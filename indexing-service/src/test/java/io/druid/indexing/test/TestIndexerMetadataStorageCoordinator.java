@@ -109,6 +109,12 @@ public class TestIndexerMetadataStorageCoordinator implements IndexerMetadataSto
   }
 
   @Override
+  public boolean updateDataSourceMetadata(String dataSource, DataSourceMetadata metaData)
+  {
+    throw new UnsupportedOperationException();
+  }
+
+  @Override
   public void deleteSegments(Set<DataSegment> segments)
   {
     nuked.addAll(segments);
