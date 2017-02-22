@@ -20,10 +20,13 @@
 package io.druid.data.input.impl;
 
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Maps;
 import org.joda.time.DateTime;
 import org.joda.time.format.ISODateTimeFormat;
 import org.junit.Assert;
 import org.junit.Test;
+
+import java.util.Map;
 
 public class TimestampSpecTest
 {
@@ -73,14 +76,13 @@ public class TimestampSpecTest
   {
     DateTime missing = new DateTime(9998);
     DateTime invalid = new DateTime(9999);
-    TimestampSpec spec = new TimestampSpec("TIMEstamp", "yyyy-MM-dd", missing, invalid);
-    Assert.assertEquals(
-        invalid,
-        spec.extractTimestamp(ImmutableMap.<String, Object>of("TIMEstamp", "2014-03"))
-    );
-    Assert.assertEquals(
-        missing,
-        spec.extractTimestamp(ImmutableMap.<String, Object>of())
-    );
+    TimestampSpec spec = new TimestampSpec("TIMEstamp", "yyyy-MM-dd", missing, invalid, true, false);
+    Map<String, Object> invalidRow = Maps.newHashMap(ImmutableMap.<String, Object>of("TIMEstamp", "2014-03"));
+    Map<String, Object> missingRow = Maps.newHashMap();
+    Assert.assertEquals(invalid, spec.extractTimestamp(invalidRow));
+    Assert.assertEquals(missing, spec.extractTimestamp(missingRow));
+
+    Assert.assertEquals(invalid.toString(), invalidRow.get("TIMEstamp"));
+    Assert.assertEquals(missing.toString(), missingRow.get("TIMEstamp"));
   }
 }

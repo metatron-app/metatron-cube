@@ -59,6 +59,12 @@ public class TimestampSpec
   private final DateTime missingValue;
   private final DateTime invalidValue;
 
+  private final String missingValueString;
+  private final String invalidValueString;
+
+  private final boolean removeTimestampColumn;
+  private final boolean replaceWrongColumn;
+
   // remember last value parsed
   private final ParseCtx parseCtx = new ParseCtx();
 
@@ -71,7 +77,9 @@ public class TimestampSpec
       @JsonProperty("format") String format,
       // this value should never be set for production data
       @JsonProperty("missingValue") DateTime missingValue,
-      @JsonProperty("invalidValue") DateTime invalidValue
+      @JsonProperty("invalidValue") DateTime invalidValue,
+      @JsonProperty("replaceWrongColumn") boolean replaceWrongColumn,
+      @JsonProperty("removeTimestampColumn") boolean removeTimestampColumn
   )
   {
     this.timestampColumn = (timestampColumn == null) ? DEFAULT_COLUMN : timestampColumn;
@@ -80,12 +88,16 @@ public class TimestampSpec
                         ? DEFAULT_MISSING_VALUE
                         : missingValue;
     this.invalidValue = invalidValue;
+    this.missingValueString = this.missingValue == null ? null : this.missingValue.toString();
+    this.invalidValueString = this.invalidValue == null ? null : this.invalidValue.toString();
+    this.replaceWrongColumn = replaceWrongColumn && (missingValueString != null || invalidValueString != null);
+    this.removeTimestampColumn = removeTimestampColumn;
     this.timestampConverter = createTimestampParser(timestampFormat);
   }
 
   public TimestampSpec(String timestampColumn, String format, DateTime missingValue)
   {
-    this(timestampColumn, format, missingValue, null);
+    this(timestampColumn, format, missingValue, null, false, false);
   }
 
   private <T> Function<T, DateTime> wrapInvalidHandling(final Function<T, DateTime> converter)
@@ -258,13 +270,21 @@ public class TimestampSpec
 
   public DateTime extractTimestamp(Map<String, Object> input)
   {
-    return extractTimestamp(input, false);
+    return extractTimestamp(input, removeTimestampColumn);
   }
 
-  public DateTime extractTimestamp(Map<String, Object> input, boolean remove)
+  public DateTime extractTimestamp(final Map<String, Object> input, final boolean remove)
   {
     final Object o = remove ? input.remove(timestampColumn) : input.get(timestampColumn);
-    return parseDateTime(o);
+    final DateTime extracted = parseDateTime(o);
+    if (replaceWrongColumn && !remove) {
+      if (extracted == invalidValue) {
+        input.put(timestampColumn, invalidValueString);
+      } else {
+        input.put(timestampColumn, missingValueString);
+      }
+    }
+    return extracted;
   }
 
   public DateTime parseDateTime(Object input)
