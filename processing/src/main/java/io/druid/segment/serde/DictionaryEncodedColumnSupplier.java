@@ -29,7 +29,7 @@ import io.druid.segment.data.IndexedMultivalue;
 
 /**
 */
-public class DictionaryEncodedColumnSupplier implements ColumnPartProvider<DictionaryEncodedColumn>
+public class DictionaryEncodedColumnSupplier implements ColumnPartProvider.DictionarySupport
 {
   private final GenericIndexed<String> dictionary;
   private final ColumnPartProvider<IndexedInts> singleValuedColumn;
@@ -60,9 +60,21 @@ public class DictionaryEncodedColumnSupplier implements ColumnPartProvider<Dicti
   }
 
   @Override
+  public int size()
+  {
+    return singleValuedColumn != null ? singleValuedColumn.size() : multiValuedColumn.size();
+  }
+
+  @Override
   public long getSerializedSize()
   {
     return dictionary.getSerializedSize() +
            (singleValuedColumn != null ? singleValuedColumn.getSerializedSize() : multiValuedColumn.getSerializedSize());
+  }
+
+  @Override
+  public GenericIndexed<String> getDictionary()
+  {
+    return dictionary;
   }
 }

@@ -23,6 +23,7 @@ import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
+import com.google.common.collect.Sets;
 import com.metamx.common.ISE;
 import com.metamx.common.guava.Sequence;
 import io.druid.query.QueryRunnerHelper;
@@ -34,6 +35,7 @@ import io.druid.segment.VirtualColumns;
 import org.joda.time.Interval;
 
 import java.util.List;
+import java.util.Set;
 
 /**
  */
@@ -58,6 +60,8 @@ public class SelectMetaQueryEngine
     final List<String> dimensions = Lists.newArrayList(storageAdapter.getAvailableDimensions());
     final List<String> metrics = Lists.newArrayList(storageAdapter.getAvailableMetrics());
 
+    final float averageSize = calculateAverageSize(query, adapter);
+
     return QueryRunnerHelper.makeCursorBasedQuery(
         adapter,
         intervals,
@@ -75,12 +79,29 @@ public class SelectMetaQueryEngine
             for (; !cursor.isDone(); cursor.advance()) {
               i++;
             }
-            return new Result(
+            return new Result<>(
                 cursor.getTime(),
-                new SelectMetaResultValue(dimensions, metrics, ImmutableMap.of(identifier, i))
+                new SelectMetaResultValue(dimensions, metrics, ImmutableMap.of(identifier, i), (long) (i * averageSize))
             );
           }
         }
     );
+  }
+
+  private float calculateAverageSize(SelectMetaQuery query, StorageAdapter adapter)
+  {
+    float averageSize = 0;
+    final Set<String> retain = query.getColumns() == null ? null : Sets.newHashSet(query.getColumns());
+    for (String dimension : adapter.getAvailableDimensions()) {
+      if (retain == null || retain.contains(dimension)) {
+        averageSize += adapter.getAverageSize(dimension);
+      }
+    }
+    for (String metric : adapter.getAvailableMetrics()) {
+      if (retain == null || retain.contains(metric)) {
+        averageSize += adapter.getAverageSize(metric);
+      }
+    }
+    return averageSize;
   }
 }

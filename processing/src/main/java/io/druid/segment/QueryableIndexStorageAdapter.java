@@ -138,6 +138,13 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
   }
 
   @Override
+  public float getAverageSize(String columnName)
+  {
+    Column column = index.getColumn(columnName);
+    return column == null ? 0L : column.getAverageSize();
+  }
+
+  @Override
   public DateTime getMinTime()
   {
     GenericColumn column = null;

@@ -94,6 +94,12 @@ public class BitmapIndexColumnPartSupplier implements ColumnPartProvider<BitmapI
   }
 
   @Override
+  public int size()
+  {
+    return bitmaps.size();
+  }
+
+  @Override
   public long getSerializedSize()
   {
     return bitmaps.getSerializedSize() + dictionary.getSerializedSize();

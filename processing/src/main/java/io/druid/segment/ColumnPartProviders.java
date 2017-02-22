@@ -29,19 +29,25 @@ public class ColumnPartProviders
   @SuppressWarnings("unchecked")
   public static <T> ColumnPartProvider<T> ofInstance(final VSizeIndexedInts instance)
   {
-    return ofInstance((T) instance, instance.getSerializedSize());
+    return ofInstance((T) instance, instance.getSerializedSize(), instance.size());
   }
 
   @SuppressWarnings("unchecked")
   public static <T> ColumnPartProvider<T> ofInstance(final VSizeIndexed instance)
   {
-    return ofInstance((T) instance, instance.getSerializedSize());
+    return ofInstance((T) instance, instance.getSerializedSize(), instance.size());
   }
 
-  public static <T> ColumnPartProvider<T> ofInstance(final T instance, final long length)
+  public static <T> ColumnPartProvider<T> ofInstance(final T instance, final long length, final int count)
   {
     return new ColumnPartProvider<T>()
     {
+      @Override
+      public int size()
+      {
+        return count;
+      }
+
       @Override
       public long getSerializedSize()
       {

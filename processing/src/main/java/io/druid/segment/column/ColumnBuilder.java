@@ -30,7 +30,7 @@ public class ColumnBuilder
   private ValueType type = null;
   private boolean hasMultipleValues = false;
 
-  private ColumnPartProvider<DictionaryEncodedColumn> dictionaryEncodedColumn = null;
+  private ColumnPartProvider.DictionarySupport dictionaryEncodedColumn = null;
   private ColumnPartProvider<RunLengthColumn> runLengthColumn = null;
   private ColumnPartProvider<GenericColumn> genericColumn = null;
   private ColumnPartProvider<ComplexColumn> complexColumn = null;
@@ -49,7 +49,7 @@ public class ColumnBuilder
     return this;
   }
 
-  public ColumnBuilder setDictionaryEncodedColumn(ColumnPartProvider<DictionaryEncodedColumn> dictionaryEncodedColumn)
+  public ColumnBuilder setDictionaryEncodedColumn(ColumnPartProvider.DictionarySupport dictionaryEncodedColumn)
   {
     this.dictionaryEncodedColumn = dictionaryEncodedColumn;
     return this;

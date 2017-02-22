@@ -19,6 +19,7 @@
 
 package io.druid.segment.column;
 
+import com.google.common.primitives.Doubles;
 import io.druid.data.ValueType;
 import io.druid.segment.data.CompressedDoublesIndexedSupplier;
 
@@ -52,6 +53,12 @@ public class DoubleColumn extends AbstractColumn
   public long getSerializedSize()
   {
     return column.getSerializedSize();
+  }
+
+  @Override
+  public float getAverageSize()
+  {
+    return Doubles.BYTES;
   }
 
   @Override

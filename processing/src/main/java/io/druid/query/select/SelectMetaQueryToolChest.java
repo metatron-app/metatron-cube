@@ -90,7 +90,8 @@ public class SelectMetaQueryToolChest extends QueryToolChest<Result<SelectMetaRe
             }
             SelectMetaResultValue value1 = arg1.getValue();
             SelectMetaResultValue value2 = arg2.getValue();
-            Map<String, Integer> merged = Maps.newHashMap(value1.getPerSegmentCounts());
+            Map<String, Integer> merged = Maps.newTreeMap();
+            merged.putAll(value1.getPerSegmentCounts());
             for (Map.Entry<String, Integer> entry : value2.getPerSegmentCounts().entrySet()) {
               Integer prev = merged.get(entry.getKey());
               merged.put(entry.getKey(), prev == null ? entry.getValue() : prev + entry.getValue());
@@ -107,7 +108,8 @@ public class SelectMetaQueryToolChest extends QueryToolChest<Result<SelectMetaRe
                 dimensions.add(metric);
               }
             }
-            return new Result<>(timestamp, new SelectMetaResultValue(dimensions, metrics, merged));
+            long estimatedSize = value1.getEstimatedSize() + value2.getEstimatedSize();
+            return new Result<>(timestamp, new SelectMetaResultValue(dimensions, metrics, merged, estimatedSize));
           }
         };
       }

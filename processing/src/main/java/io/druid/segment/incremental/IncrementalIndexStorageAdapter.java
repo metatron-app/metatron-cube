@@ -28,7 +28,10 @@ import com.google.common.collect.Iterables;
 import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+import com.google.common.primitives.Doubles;
+import com.google.common.primitives.Floats;
 import com.google.common.primitives.Ints;
+import com.google.common.primitives.Longs;
 import com.metamx.common.guava.Sequence;
 import com.metamx.common.guava.Sequences;
 import io.druid.cache.Cache;
@@ -181,6 +184,26 @@ public class IncrementalIndexStorageAdapter implements StorageAdapter
   public long getSerializedSize(String column)
   {
     return 0L;
+  }
+
+  @Override
+  public float getAverageSize(String column)
+  {
+    IncrementalIndex.DimensionDesc dimDesc = index.getDimension(column);
+    if (dimDesc != null) {
+      IncrementalIndex.DimDim values = dimDesc.getValues();
+      return (values.estimatedSize() - Ints.BYTES * index.ingestedRows()) / values.size();
+    }
+    IncrementalIndex.MetricDesc metricDesc = index.getMetricDesc(column);
+    if (metricDesc != null) {
+      switch (metricDesc.getCapabilities().getType()) {
+        case FLOAT: return Floats.BYTES;
+        case LONG: return Longs.BYTES;
+        case DOUBLE: return Doubles.BYTES;
+        // ?
+      }
+    }
+    return 0;
   }
 
   @Override

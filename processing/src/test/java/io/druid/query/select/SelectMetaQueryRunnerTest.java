@@ -65,7 +65,7 @@ public class SelectMetaQueryRunnerTest
 
   private static final List<String> metrics = Arrays.asList("index", "indexMin", "indexMaxPlusTen", "quality_uniques");
 
-  @Parameterized.Parameters
+  @Parameterized.Parameters(name = "{1}")
   public static Iterable<Object[]> constructorFeeder() throws IOException
   {
     return QueryRunnerTestHelper.makeQueryRunnersWithName(
@@ -94,6 +94,7 @@ public class SelectMetaQueryRunnerTest
         new MultipleIntervalSegmentSpec(Arrays.asList(new Interval("2011-01-12/2011-01-14"))),
         null,
         QueryRunnerTestHelper.allGran,
+        Arrays.asList("market"),
         Maps.<String, Object>newHashMap()
     );
 
@@ -108,6 +109,8 @@ public class SelectMetaQueryRunnerTest
     Assert.assertEquals(ImmutableMap.of("testSegment", 26), r.getValue().getPerSegmentCounts());
     Assert.assertEquals(name.equals("incremental") ? dimensions1 : dimensions2, r.getValue().getDimensions());
     Assert.assertEquals(Sets.newHashSet(metrics), Sets.newHashSet(r.getValue().getMetrics()));
+    Assert.assertEquals(26, r.getValue().getTotalCount());
+    Assert.assertEquals(182, r.getValue().getEstimatedSize());
 
     query = query.withDimFilter(new InDimFilter("quality", Arrays.asList("mezzanine", "health"), null));
     results = Sequences.toList(
@@ -120,6 +123,8 @@ public class SelectMetaQueryRunnerTest
     Assert.assertEquals(ImmutableMap.of("testSegment", 8), r.getValue().getPerSegmentCounts());
     Assert.assertEquals(name.equals("incremental") ? dimensions1 : dimensions2, r.getValue().getDimensions());
     Assert.assertEquals(Sets.newHashSet(metrics), Sets.newHashSet(r.getValue().getMetrics()));
+    Assert.assertEquals(8, r.getValue().getTotalCount());
+    Assert.assertEquals(56, r.getValue().getEstimatedSize());
 
     query = query.withQueryGranularity(QueryGranularities.DAY);
     results = Sequences.toList(
@@ -132,10 +137,15 @@ public class SelectMetaQueryRunnerTest
     Assert.assertEquals(ImmutableMap.of("testSegment", 4), r.getValue().getPerSegmentCounts());
     Assert.assertEquals(name.equals("incremental") ? dimensions1 : dimensions2, r.getValue().getDimensions());
     Assert.assertEquals(Sets.newHashSet(metrics), Sets.newHashSet(r.getValue().getMetrics()));
+    Assert.assertEquals(4, r.getValue().getTotalCount());
+    Assert.assertEquals(28, r.getValue().getEstimatedSize());
+
     r = results.get(1);
     Assert.assertEquals(r.getTimestamp(), new DateTime(2011, 1, 13, 0, 0));
     Assert.assertEquals(ImmutableMap.of("testSegment", 4), r.getValue().getPerSegmentCounts());
     Assert.assertEquals(name.equals("incremental") ? dimensions1 : dimensions2, r.getValue().getDimensions());
     Assert.assertEquals(Sets.newHashSet(metrics), Sets.newHashSet(r.getValue().getMetrics()));
+    Assert.assertEquals(4, r.getValue().getTotalCount());
+    Assert.assertEquals(28, r.getValue().getEstimatedSize());
   }
 }

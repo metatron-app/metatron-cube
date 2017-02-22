@@ -931,7 +931,9 @@ public class IndexIO
                 new DictionaryEncodedColumnSupplier(
                     index.getDimValueLookup(dimension),
                     null,
-                    ColumnPartProviders.<IndexedMultivalue<IndexedInts>>ofInstance(column, column.getSerializedSize()),
+                    ColumnPartProviders.<IndexedMultivalue<IndexedInts>>ofInstance(
+                        column, column.getSerializedSize(), column.size()
+                    ),
                     columnConfig.columnCacheSizeBytes()
                 )
             )

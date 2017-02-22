@@ -201,6 +201,12 @@ public class VSizeIndexed implements IndexedMultivalue<IndexedInts>
     }
 
     @Override
+    public int size()
+    {
+      return delegate.size();
+    }
+
+    @Override
     public long getSerializedSize()
     {
       return delegate.getSerializedSize();

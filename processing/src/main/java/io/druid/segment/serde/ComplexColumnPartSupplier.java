@@ -45,6 +45,12 @@ public class ComplexColumnPartSupplier implements ColumnPartProvider<ComplexColu
   }
 
   @Override
+  public int size()
+  {
+    return complexType.size();
+  }
+
+  @Override
   public long getSerializedSize()
   {
     return complexType.getSerializedSize();

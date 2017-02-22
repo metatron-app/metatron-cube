@@ -147,6 +147,11 @@ public class GenericIndexed<T> implements Indexed<T>
     return bufferIndexed.iterator();
   }
 
+  public int totalLengthOfWords()
+  {
+    return theBuffer.getInt(indexOffset + (size - 1) * 4) - size * 4;
+  }
+
   private final ByteBuffer theBuffer;
   private final ObjectStrategy<T> strategy;
   private final boolean allowReverseLookup;

@@ -63,6 +63,12 @@ public class CompressedVSizeIndexedSupplier implements WritableSupplier<IndexedM
     this.valueSupplier = valueSupplier;
   }
 
+  @Override
+  public int size()
+  {
+    return offsetSupplier.size();
+  }
+
   public long getSerializedSize()
   {
     return 1 + offsetSupplier.getSerializedSize() + valueSupplier.getSerializedSize();

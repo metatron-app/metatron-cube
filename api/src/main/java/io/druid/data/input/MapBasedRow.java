@@ -27,6 +27,7 @@ import org.joda.time.DateTime;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.TreeMap;
 
 /**
  */
@@ -34,7 +35,8 @@ public class MapBasedRow extends AbstractRow
 {
   public static boolean supportInplaceUpdate(Map event)
   {
-    return event instanceof HashMap || event instanceof LinkedHashMap;
+    Class<? extends Map> clazz = event.getClass();
+    return clazz == HashMap.class || clazz == LinkedHashMap.class || clazz == TreeMap.class;
   }
 
   private static final Logger log = new Logger(MapBasedRow.class);

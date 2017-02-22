@@ -412,7 +412,7 @@ public class SelectQueryQueryToolChest extends QueryToolChest<Result<SelectResul
     List<Interval> intervals = query.getQuerySegmentSpec().getIntervals();
     SelectMetaQuery metaQuery = new SelectMetaQuery(
         query.getDataSource(), query.getQuerySegmentSpec(),
-        query.getDimensionsFilter(), query.getGranularity(), context
+        query.getDimensionsFilter(), query.getGranularity(), Collections.<String>emptyList(), context
     );
     List<Result<SelectMetaResultValue>> results =
         Sequences.toList(

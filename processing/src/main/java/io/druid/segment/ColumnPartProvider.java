@@ -20,10 +20,18 @@
 package io.druid.segment;
 
 import com.google.common.base.Supplier;
+import io.druid.segment.column.DictionaryEncodedColumn;
+import io.druid.segment.data.GenericIndexed;
 
 /**
  */
 public interface ColumnPartProvider<T> extends Supplier<T>
 {
+  int size();
   long getSerializedSize();
+
+  interface DictionarySupport extends ColumnPartProvider<DictionaryEncodedColumn>
+  {
+    GenericIndexed<String> getDictionary();
+  }
 }

@@ -21,13 +21,14 @@ package io.druid.segment.column;
 
 import com.metamx.common.guava.CloseQuietly;
 import io.druid.segment.ColumnPartProvider;
+import io.druid.segment.data.GenericIndexed;
 
 /**
  */
 class SimpleColumn implements Column
 {
   private final ColumnCapabilities capabilities;
-  private final ColumnPartProvider<DictionaryEncodedColumn> dictionaryEncodedColumn;
+  private final ColumnPartProvider.DictionarySupport dictionaryEncodedColumn;
   private final ColumnPartProvider<RunLengthColumn> runLengthColumn;
   private final ColumnPartProvider<GenericColumn> genericColumn;
   private final ColumnPartProvider<ComplexColumn> complexColumn;
@@ -36,7 +37,7 @@ class SimpleColumn implements Column
 
   SimpleColumn(
       ColumnCapabilities capabilities,
-      ColumnPartProvider<DictionaryEncodedColumn> dictionaryEncodedColumn,
+      ColumnPartProvider.DictionarySupport dictionaryEncodedColumn,
       ColumnPartProvider<RunLengthColumn> runLengthColumn,
       ColumnPartProvider<GenericColumn> genericColumn,
       ColumnPartProvider<ComplexColumn> complexColumn,
@@ -95,6 +96,31 @@ class SimpleColumn implements Column
       serialized += spatialIndex.getSerializedSize();
     }
     return serialized;
+  }
+
+  @Override
+  public float getAverageSize()
+  {
+    if (dictionaryEncodedColumn != null) {
+      final GenericIndexed<String> dictionary = dictionaryEncodedColumn.getDictionary();
+      return dictionary.totalLengthOfWords() / dictionary.size();
+    }
+    if (runLengthColumn != null) {
+      return runLengthColumn.getSerializedSize() / runLengthColumn.size();
+    }
+    if (genericColumn != null) {
+      return genericColumn.getSerializedSize() / genericColumn.size();
+    }
+    if (complexColumn != null) {
+      return complexColumn.getSerializedSize() / complexColumn.size();
+    }
+    if (bitmapIndex != null) {
+      return bitmapIndex.getSerializedSize() / bitmapIndex.size();
+    }
+    if (spatialIndex != null) {
+      return spatialIndex.getSerializedSize() / spatialIndex.size();
+    }
+    return 0;
   }
 
   @Override

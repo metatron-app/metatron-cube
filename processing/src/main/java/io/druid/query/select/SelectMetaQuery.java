@@ -29,6 +29,7 @@ import io.druid.query.Result;
 import io.druid.query.filter.DimFilter;
 import io.druid.query.spec.QuerySegmentSpec;
 
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
@@ -39,6 +40,7 @@ public class SelectMetaQuery extends BaseQuery<Result<SelectMetaResultValue>>
 {
   private final DimFilter dimFilter;
   private final QueryGranularity granularity;
+  private final List<String> columns;
 
   @JsonCreator
   public SelectMetaQuery(
@@ -46,12 +48,20 @@ public class SelectMetaQuery extends BaseQuery<Result<SelectMetaResultValue>>
       @JsonProperty("intervals") QuerySegmentSpec querySegmentSpec,
       @JsonProperty("filter") DimFilter dimFilter,
       @JsonProperty("granularity") QueryGranularity granularity,
+      @JsonProperty("columns") List<String> columns,
       @JsonProperty("context") Map<String, Object> context
   )
   {
     super(dataSource, querySegmentSpec, false, context);
+    this.columns = columns;
     this.dimFilter = dimFilter;
     this.granularity = granularity;
+  }
+
+  @JsonProperty
+  public List<String> getColumns()
+  {
+    return columns;
   }
 
   @JsonProperty("filter")
@@ -86,6 +96,7 @@ public class SelectMetaQuery extends BaseQuery<Result<SelectMetaResultValue>>
         getQuerySegmentSpec(),
         getDimensionsFilter(),
         getGranularity(),
+        getColumns(),
         computeOverridenContext(contextOverride)
     );
   }
@@ -93,7 +104,14 @@ public class SelectMetaQuery extends BaseQuery<Result<SelectMetaResultValue>>
   @Override
   public SelectMetaQuery withQuerySegmentSpec(QuerySegmentSpec spec)
   {
-    return new SelectMetaQuery(getDataSource(), spec, getDimensionsFilter(), getGranularity(), getContext());
+    return new SelectMetaQuery(
+        getDataSource(),
+        spec,
+        getDimensionsFilter(),
+        getGranularity(),
+        getColumns(),
+        getContext()
+    );
   }
 
   @Override
@@ -104,6 +122,7 @@ public class SelectMetaQuery extends BaseQuery<Result<SelectMetaResultValue>>
         getQuerySegmentSpec(),
         getDimensionsFilter(),
         getGranularity(),
+        getColumns(),
         getContext()
     );
   }
@@ -115,6 +134,7 @@ public class SelectMetaQuery extends BaseQuery<Result<SelectMetaResultValue>>
         getQuerySegmentSpec(),
         filter,
         getGranularity(),
+        getColumns(),
         getContext()
     );
   }
@@ -126,6 +146,7 @@ public class SelectMetaQuery extends BaseQuery<Result<SelectMetaResultValue>>
         getQuerySegmentSpec(),
         getDimensionsFilter(),
         granularity,
+        getColumns(),
         getContext()
     );
   }
@@ -139,6 +160,7 @@ public class SelectMetaQuery extends BaseQuery<Result<SelectMetaResultValue>>
            ", descending=" + isDescending() +
            ", dimFilter=" + dimFilter +
            ", granularity=" + granularity +
+           ", columns=" + columns +
            '}';
   }
 
@@ -163,6 +185,9 @@ public class SelectMetaQuery extends BaseQuery<Result<SelectMetaResultValue>>
     if (!Objects.equals(granularity, that.granularity)) {
       return false;
     }
+    if (!Objects.equals(columns, that.columns)) {
+      return false;
+    }
     return true;
   }
 
@@ -172,6 +197,7 @@ public class SelectMetaQuery extends BaseQuery<Result<SelectMetaResultValue>>
     int result = super.hashCode();
     result = 31 * result + (dimFilter != null ? dimFilter.hashCode() : 0);
     result = 31 * result + (granularity != null ? granularity.hashCode() : 0);
+    result = 31 * result + (columns != null ? columns.hashCode() : 0);
     return result;
   }
 }

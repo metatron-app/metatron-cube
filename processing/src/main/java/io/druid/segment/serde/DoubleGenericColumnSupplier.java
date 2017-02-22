@@ -48,6 +48,12 @@ public class DoubleGenericColumnSupplier implements ColumnPartProvider<GenericCo
   }
 
   @Override
+  public int size()
+  {
+    return column.size();
+  }
+
+  @Override
   public long getSerializedSize()
   {
     return column.getSerializedSize();

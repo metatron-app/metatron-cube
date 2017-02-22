@@ -28,6 +28,7 @@ public interface Column
 
   public int getLength();
   public long getSerializedSize();
+  public float getAverageSize();
   public DictionaryEncodedColumn getDictionaryEncoding();
   public RunLengthColumn getRunLengthColumn();
   public GenericColumn getGenericColumn();

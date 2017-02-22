@@ -48,6 +48,12 @@ public class FloatGenericColumnSupplier implements ColumnPartProvider<GenericCol
   }
 
   @Override
+  public int size()
+  {
+    return column.size();
+  }
+
+  @Override
   public long getSerializedSize()
   {
     return column.getSerializedSize();

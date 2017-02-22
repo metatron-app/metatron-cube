@@ -50,6 +50,12 @@ public class SpatialIndexColumnPartSupplier implements ColumnPartProvider<Spatia
   }
 
   @Override
+  public int size()
+  {
+    return indexedTree.size();
+  }
+
+  @Override
   public long getSerializedSize()
   {
     return indexedTree.size() + Ints.BYTES;

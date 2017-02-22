@@ -234,6 +234,12 @@ public class VSizeIndexedInts implements IndexedInts, Comparable<VSizeIndexedInt
     }
 
     @Override
+    public int size()
+    {
+      return delegate.size();
+    }
+
+    @Override
     public long getSerializedSize()
     {
       return delegate.getSerializedSize();

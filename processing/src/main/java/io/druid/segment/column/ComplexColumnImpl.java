@@ -57,6 +57,12 @@ public class ComplexColumnImpl extends AbstractColumn
   }
 
   @Override
+  public float getAverageSize()
+  {
+    return column.getSerializedSize() / column.size();
+  }
+
+  @Override
   public ComplexColumn getComplexColumn()
   {
     return new IndexedComplexColumn(typeName, column);
