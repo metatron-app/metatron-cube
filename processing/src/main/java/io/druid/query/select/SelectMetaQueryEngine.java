@@ -22,10 +22,14 @@ package io.druid.query.select;
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import com.metamx.common.ISE;
+import com.metamx.common.guava.BaseSequence;
 import com.metamx.common.guava.Sequence;
+import io.druid.granularity.QueryGranularities;
+import io.druid.granularity.QueryGranularity;
 import io.druid.query.QueryRunnerHelper;
 import io.druid.query.Result;
 import io.druid.segment.Cursor;
@@ -34,6 +38,7 @@ import io.druid.segment.StorageAdapter;
 import io.druid.segment.VirtualColumns;
 import org.joda.time.Interval;
 
+import java.util.Arrays;
 import java.util.List;
 import java.util.Set;
 
@@ -54,6 +59,8 @@ public class SelectMetaQueryEngine
     final List<Interval> intervals = query.getQuerySegmentSpec().getIntervals();
     Preconditions.checkArgument(intervals.size() == 1, "Can only handle a single interval, got[%s]", intervals);
 
+    final Interval interval = Iterables.getOnlyElement(intervals);
+    final QueryGranularity granularity = query.getGranularity();
     final String identifier = segment.getIdentifier();
 
     StorageAdapter storageAdapter = segment.asStorageAdapter();
@@ -62,6 +69,23 @@ public class SelectMetaQueryEngine
 
     final float averageSize = calculateAverageSize(query, adapter);
 
+    // minor optimization.. todo: we can do this even with filters set
+    if (query.getDimensionsFilter() == null &&
+        QueryGranularities.ALL.equals(granularity) &&
+        interval.equals(segment.getDataInterval())) {
+      int row = storageAdapter.getNumRows();
+      return BaseSequence.simple(
+          Arrays.asList(
+              new Result<>(
+                  granularity.toDateTime(interval.getStartMillis()),
+                  new SelectMetaResultValue(
+                      dimensions, metrics, ImmutableMap.of(identifier, row), (long) (row * averageSize)
+                  )
+              )
+          )
+      );
+    }
+
     return QueryRunnerHelper.makeCursorBasedQuery(
         adapter,
         intervals,
@@ -69,7 +93,7 @@ public class SelectMetaQueryEngine
         query.getDimensionsFilter(),
         null,
         query.isDescending(),
-        query.getGranularity(),
+        granularity,
         new Function<Cursor, Result<SelectMetaResultValue>>()
         {
           @Override
