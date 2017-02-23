@@ -131,6 +131,12 @@ public class DefaultLimitSpec implements LimitSpec
   }
 
   @Override
+  public LimitSpec withLimit(int limit)
+  {
+    return new DefaultLimitSpec(columns, limit, windowingSpecs);
+  }
+
+  @Override
   public String toString()
   {
     return "DefaultLimitSpec{" +

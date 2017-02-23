@@ -42,7 +42,8 @@ import io.druid.query.dimension.ExpressionDimensionSpec;
 import io.druid.query.filter.AndDimFilter;
 import io.druid.query.filter.DimFilter;
 import io.druid.query.groupby.having.HavingSpec;
-import io.druid.query.groupby.orderby.DefaultLimitSpec;
+import io.druid.query.groupby.orderby.LimitSpec;
+import io.druid.query.groupby.orderby.WindowingSpec;
 import io.druid.query.spec.MultipleIntervalSegmentSpec;
 import io.druid.query.spec.QuerySegmentSpec;
 import io.druid.segment.VirtualColumn;
@@ -73,7 +74,7 @@ public class PartitionedGroupByQuery extends GroupByQuery implements Query.Rewri
       @JsonProperty("aggregations") List<AggregatorFactory> aggregatorSpecs,
       @JsonProperty("postAggregations") List<PostAggregator> postAggregatorSpecs,
       @JsonProperty("having") HavingSpec havingSpec,
-      @JsonProperty("limit") int limit,
+      @JsonProperty("limitSpec") LimitSpec limitSpec,
       @JsonProperty("outputColumns") List<String> outputColumns,
       @JsonProperty("numPartition") int numPartition,
       @JsonProperty("scannerLen") int scannerLen,
@@ -92,7 +93,7 @@ public class PartitionedGroupByQuery extends GroupByQuery implements Query.Rewri
         aggregatorSpecs,
         postAggregatorSpecs,
         havingSpec,
-        limit > 0 ? new DefaultLimitSpec(null, limit, null) : null,
+        limitSpec == null ? null : limitSpec.withLimit(Integer.MAX_VALUE),
         outputColumns,
         null,
         context
@@ -109,11 +110,20 @@ public class PartitionedGroupByQuery extends GroupByQuery implements Query.Rewri
         getGranularity() == QueryGranularities.ALL || numPartition > 0,
         "if 'granularity' is not 'ALL', only 'numPartition' can be applicable"
     );
-    this.limit = limit;
+    this.limit = limitSpec == null ? Integer.MAX_VALUE : limitSpec.getLimit();
     this.numPartition = numPartition;
     this.scannerLen = scannerLen;
     this.parallelism = parallelism;
     this.queue = queue;
+    if (numPartition != 1 && limitSpec != null && limitSpec.getWindowingSpecs() != null) {
+      String partitioned = getDimensions().get(0).getDimension();
+      for (WindowingSpec spec : limitSpec.getWindowingSpecs()) {
+        List<String> partitionColumns = spec.getPartitionColumns();
+        Preconditions.checkArgument(
+            partitionColumns == null || partitionColumns.isEmpty() || partitioned.equals(partitionColumns.get(0))
+        );
+      }
+    }
   }
 
   @JsonProperty
@@ -243,7 +253,7 @@ public class PartitionedGroupByQuery extends GroupByQuery implements Query.Rewri
         getAggregatorSpecs(),
         getPostAggregatorSpecs(),
         getHavingSpec(),
-        limit,
+        getLimitSpec(),
         getOutputColumns(),
         numPartition,
         scannerLen,

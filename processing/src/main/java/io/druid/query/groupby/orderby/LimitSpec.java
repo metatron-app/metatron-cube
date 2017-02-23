@@ -41,6 +41,8 @@ import java.util.List;
 })
 public interface LimitSpec extends Cacheable
 {
+  public int getLimit();
+
   public List<WindowingSpec> getWindowingSpecs();
 
   public Function<Sequence<Row>, Sequence<Row>> build(
@@ -51,6 +53,8 @@ public interface LimitSpec extends Cacheable
   );
 
   public LimitSpec merge(LimitSpec other);
+
+  public LimitSpec withLimit(int limit);
 
   Function<Sequence<Row>, List<Row>> SEQUENCE_TO_LIST = new Function<Sequence<Row>, List<Row>>()
   {

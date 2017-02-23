@@ -232,7 +232,7 @@ public class UnionAllQuery<T extends Comparable<T>> extends BaseQuery<T>
            ", sortOnUnion=" + sortOnUnion +
            ", limit=" + limit +
            ", parallelism=" + parallelism +
-           ", limit=" + limit +
+           ", queue=" + queue +
            '}';
   }
 

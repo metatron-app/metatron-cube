@@ -56,6 +56,12 @@ public class NoopLimitSpec implements LimitSpec
   }
 
   @Override
+  public int getLimit()
+  {
+    return Integer.MAX_VALUE;
+  }
+
+  @Override
   @JsonProperty
   public List<WindowingSpec> getWindowingSpecs()
   {
@@ -87,6 +93,12 @@ public class NoopLimitSpec implements LimitSpec
   public LimitSpec merge(LimitSpec other)
   {
     return this;
+  }
+
+  @Override
+  public LimitSpec withLimit(int limit)
+  {
+    return new NoopLimitSpec(windowingSpecs);
   }
 
   @Override
