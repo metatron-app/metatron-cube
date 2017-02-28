@@ -40,6 +40,7 @@ import io.druid.segment.ObjectColumnSelector;
 import java.nio.ByteBuffer;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
@@ -56,6 +57,7 @@ public class ListAggregatorFactory extends AggregatorFactory
   private final String inputType;
   private final int limit;
   private final boolean dedup;
+  private final boolean sort;
 
   @JsonIgnore
   private final ValueType valueType;
@@ -68,7 +70,8 @@ public class ListAggregatorFactory extends AggregatorFactory
       @JsonProperty("expression") String expression,
       @JsonProperty("inputType") String inputType,
       @JsonProperty("limit") int limit,
-      @JsonProperty("dedup") boolean dedup
+      @JsonProperty("dedup") boolean dedup,
+      @JsonProperty("sort") boolean sort
   )
   {
     this.name = Preconditions.checkNotNull(name, "Must have a valid, non-null aggregator name");
@@ -76,6 +79,7 @@ public class ListAggregatorFactory extends AggregatorFactory
     this.inputType = Preconditions.checkNotNull(inputType);
     this.limit = limit;
     this.dedup = dedup;
+    this.sort = sort;
     if (inputType.startsWith("array.")) {
       arrayInput = true;
       valueType = ValueType.of(inputType.substring(6));
@@ -89,6 +93,15 @@ public class ListAggregatorFactory extends AggregatorFactory
   private Collection<Object> createCollection()
   {
     return dedup ? Sets.newLinkedHashSet() : Lists.newArrayList();
+  }
+
+  private Object finalizeCollection(Collection collection)
+  {
+    List finalized = dedup ? Lists.newArrayList(collection) : (List) collection;
+    if (sort) {
+      Collections.sort(finalized);
+    }
+    return finalized;
   }
 
   @Override
@@ -129,7 +142,7 @@ public class ListAggregatorFactory extends AggregatorFactory
         @Override
         public Object get()
         {
-          return dedup ? Lists.newArrayList(list) : list;
+          return finalizeCollection(list);
         }
       };
     }
@@ -166,7 +179,7 @@ public class ListAggregatorFactory extends AggregatorFactory
       @Override
       public Object get()
       {
-        return dedup ? Lists.newArrayList(list) : list;
+        return finalizeCollection(list);
       }
     };
   }
@@ -229,7 +242,7 @@ public class ListAggregatorFactory extends AggregatorFactory
         public Object get(ByteBuffer buf, int position)
         {
           Collection<Object> collection = lists.get(buf.getInt(position));
-          return dedup ? Lists.newArrayList(collection) : collection;
+          return finalizeCollection(collection);
         }
       };
     }
@@ -259,7 +272,7 @@ public class ListAggregatorFactory extends AggregatorFactory
       public Object get(ByteBuffer buf, int position)
       {
         Collection<Object> collection = lists.get(buf.getInt(position));
-        return dedup ? Lists.newArrayList(collection) : collection;
+        return finalizeCollection(collection);
       }
     };
   }
@@ -288,7 +301,7 @@ public class ListAggregatorFactory extends AggregatorFactory
   public AggregatorFactory getCombiningFactory()
   {
     // takes array as input
-    return new ListAggregatorFactory(name, name, arrayInput ? inputType : "array." + inputType, limit, dedup);
+    return new ListAggregatorFactory(name, name, arrayInput ? inputType : "array." + inputType, limit, dedup, sort);
   }
 
   @Override
@@ -303,7 +316,7 @@ public class ListAggregatorFactory extends AggregatorFactory
   @Override
   public List<AggregatorFactory> getRequiredColumns()
   {
-    return Arrays.<AggregatorFactory>asList(new ListAggregatorFactory(name, expression, inputType, limit, dedup));
+    return Arrays.<AggregatorFactory>asList(new ListAggregatorFactory(name, expression, inputType, limit, dedup, sort));
   }
 
   @Override
@@ -349,6 +362,12 @@ public class ListAggregatorFactory extends AggregatorFactory
     return dedup;
   }
 
+  @JsonProperty
+  public boolean isSort()
+  {
+    return sort;
+  }
+
   @Override
   public List<String> requiredFields()
   {
@@ -366,7 +385,7 @@ public class ListAggregatorFactory extends AggregatorFactory
                  + nameBytes.length
                  + expressionBytes.length
                  + inputTypeBytes.length
-                 + 5;
+                 + 6;
 
     return ByteBuffer.allocate(length)
                      .put(CACHE_TYPE_ID)
@@ -374,7 +393,8 @@ public class ListAggregatorFactory extends AggregatorFactory
                      .put(expressionBytes)
                      .put(inputTypeBytes)
                      .putInt(limit)
-                     .put(dedup ? (byte) 0x00 : (byte) 0x01)
+                     .put(dedup ? (byte) 0x01 : (byte) 0x00)
+                     .put(sort ? (byte) 0x01 : (byte) 0x00)
                      .array();
   }
 
@@ -417,6 +437,7 @@ public class ListAggregatorFactory extends AggregatorFactory
            "inputType='" + inputType + '\'' +
            "limit=" + limit +
            "dedup=" + dedup +
+           "sort=" + sort +
            '}';
   }
 
@@ -447,12 +468,15 @@ public class ListAggregatorFactory extends AggregatorFactory
     if (dedup != that.dedup) {
       return false;
     }
+    if (sort != that.sort) {
+      return false;
+    }
     return true;
   }
 
   @Override
   public int hashCode()
   {
-    return Objects.hash(name, expression, inputType, limit, dedup);
+    return Objects.hash(name, expression, inputType, limit, dedup, sort);
   }
 }

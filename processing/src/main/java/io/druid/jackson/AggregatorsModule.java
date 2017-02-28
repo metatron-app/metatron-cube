@@ -24,6 +24,7 @@ import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.fasterxml.jackson.databind.module.SimpleModule;
 import com.google.common.hash.Hashing;
 import io.druid.data.ValueType;
+import io.druid.query.aggregation.CollectionCountPostAggregator;
 import io.druid.query.aggregation.ListAggregatorFactory;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.ArrayAggregatorFactory;
@@ -44,6 +45,7 @@ import io.druid.query.aggregation.LongMaxAggregatorFactory;
 import io.druid.query.aggregation.LongMinAggregatorFactory;
 import io.druid.query.aggregation.LongSumAggregatorFactory;
 import io.druid.query.aggregation.PostAggregator;
+import io.druid.query.aggregation.SetAggregatorFactory;
 import io.druid.query.aggregation.TimestampMaxAggregatorFactory;
 import io.druid.query.aggregation.cardinality.CardinalityAggregatorFactory;
 import io.druid.query.aggregation.hyperloglog.HyperUniqueFinalizingPostAggregator;
@@ -99,6 +101,7 @@ public class AggregatorsModule extends SimpleModule
       @JsonSubTypes.Type(name = "max", value = GenericMaxAggregatorFactory.class),
       @JsonSubTypes.Type(name = "list", value = ListAggregatorFactory.class),
       @JsonSubTypes.Type(name = "listFold", value = ListFoldingAggregatorFactory.class),
+      @JsonSubTypes.Type(name = "set", value = SetAggregatorFactory.class),
       @JsonSubTypes.Type(name = "dimArray", value = DimensionArrayAggregatorFactory.class),
       @JsonSubTypes.Type(name = "array", value = ArrayAggregatorFactory.class)
   })
@@ -113,7 +116,8 @@ public class AggregatorsModule extends SimpleModule
       @JsonSubTypes.Type(name = "fieldAccess", value = FieldAccessPostAggregator.class),
       @JsonSubTypes.Type(name = "constant", value = ConstantPostAggregator.class),
       @JsonSubTypes.Type(name = "javascript", value = JavaScriptPostAggregator.class),
-      @JsonSubTypes.Type(name = "hyperUniqueCardinality", value = HyperUniqueFinalizingPostAggregator.class)
+      @JsonSubTypes.Type(name = "hyperUniqueCardinality", value = HyperUniqueFinalizingPostAggregator.class),
+      @JsonSubTypes.Type(name = "count", value = CollectionCountPostAggregator.class)
   })
   public static interface PostAggregatorMixin
   {
