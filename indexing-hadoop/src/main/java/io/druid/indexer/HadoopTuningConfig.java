@@ -62,6 +62,7 @@ public class HadoopTuningConfig implements TuningConfig
         false,
         false,
         false,
+        true,
         null,
         null,
         false,
@@ -85,6 +86,7 @@ public class HadoopTuningConfig implements TuningConfig
   private final boolean overwriteFiles;
   private final boolean ignoreInvalidRows;
   private final boolean assumeTimeSorted;
+  private final boolean rollup;
   private final Map<String, String> jobProperties;
   private final IngestionMode ingestionMode;
   private final boolean combineText;
@@ -107,6 +109,7 @@ public class HadoopTuningConfig implements TuningConfig
       final @JsonProperty("overwriteFiles") boolean overwriteFiles,
       final @JsonProperty("ignoreInvalidRows") boolean ignoreInvalidRows,
       final @JsonProperty("assumeTimeSorted") boolean assumeTimeSorted,
+      final @JsonProperty("rollup") boolean rollup,
       final @JsonProperty("jobProperties") Map<String, String> jobProperties,
       final @JsonProperty("ingestionMode") IngestionMode ingestionMode,
       final @JsonProperty("combineText") boolean combineText,
@@ -130,6 +133,7 @@ public class HadoopTuningConfig implements TuningConfig
     this.overwriteFiles = overwriteFiles;
     this.ignoreInvalidRows = ignoreInvalidRows;
     this.assumeTimeSorted = assumeTimeSorted;
+    this.rollup = rollup;
     this.jobProperties = (jobProperties == null
                           ? ImmutableMap.<String, String>of()
                           : ImmutableMap.copyOf(jobProperties));
@@ -174,6 +178,7 @@ public class HadoopTuningConfig implements TuningConfig
         overwriteFiles,
         ignoreInvalidRows,
         false,
+        true,
         jobProperties,
         null,
         combineText,
@@ -263,6 +268,12 @@ public class HadoopTuningConfig implements TuningConfig
   }
 
   @JsonProperty
+  public boolean isRollup()
+  {
+    return rollup;
+  }
+
+  @JsonProperty
   public Map<String, String> getJobProperties()
   {
     return jobProperties;
@@ -313,6 +324,7 @@ public class HadoopTuningConfig implements TuningConfig
         overwriteFiles,
         ignoreInvalidRows,
         assumeTimeSorted,
+        rollup,
         jobProperties,
         ingestionMode,
         combineText,
@@ -339,6 +351,7 @@ public class HadoopTuningConfig implements TuningConfig
         overwriteFiles,
         ignoreInvalidRows,
         assumeTimeSorted,
+        rollup,
         jobProperties,
         ingestionMode,
         combineText,
@@ -365,6 +378,7 @@ public class HadoopTuningConfig implements TuningConfig
         overwriteFiles,
         ignoreInvalidRows,
         assumeTimeSorted,
+        rollup,
         jobProperties,
         ingestionMode,
         combineText,

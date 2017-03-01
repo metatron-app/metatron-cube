@@ -76,11 +76,12 @@ public class OffheapIncrementalIndex extends IncrementalIndex<BufferAggregator>
       boolean deserializeComplexMetrics,
       boolean reportParseExceptions,
       boolean sortFacts,
+      boolean rollup,
       int maxRowCount,
       StupidPool<ByteBuffer> bufferPool
   )
   {
-    super(incrementalIndexSchema, deserializeComplexMetrics, reportParseExceptions, sortFacts);
+    super(incrementalIndexSchema, deserializeComplexMetrics, reportParseExceptions, sortFacts, rollup);
     this.maxRowCount = maxRowCount;
     this.bufferPool = bufferPool;
 
@@ -111,6 +112,7 @@ public class OffheapIncrementalIndex extends IncrementalIndex<BufferAggregator>
       boolean deserializeComplexMetrics,
       boolean reportParseExceptions,
       boolean sortFacts,
+      boolean rollup,
       int maxRowCount,
       StupidPool<ByteBuffer> bufferPool
   )
@@ -123,6 +125,7 @@ public class OffheapIncrementalIndex extends IncrementalIndex<BufferAggregator>
         deserializeComplexMetrics,
         reportParseExceptions,
         sortFacts,
+        rollup,
         maxRowCount,
         bufferPool
     );
@@ -131,6 +134,31 @@ public class OffheapIncrementalIndex extends IncrementalIndex<BufferAggregator>
   public OffheapIncrementalIndex(
       long minTimestamp,
       QueryGranularity gran,
+      final AggregatorFactory[] metrics,
+      boolean deserializeComplexMetrics,
+      boolean reportParseExceptions,
+      boolean sortFacts,
+      int maxRowCount,
+      StupidPool<ByteBuffer> bufferPool
+  )
+  {
+    this(
+        minTimestamp,
+        gran,
+        metrics,
+        deserializeComplexMetrics,
+        reportParseExceptions,
+        sortFacts,
+        true,
+        maxRowCount,
+        bufferPool
+    );
+  }
+
+  public OffheapIncrementalIndex(
+      long minTimestamp,
+      QueryGranularity gran,
+      boolean rollup,
       final AggregatorFactory[] metrics,
       int maxRowCount,
       StupidPool<ByteBuffer> bufferPool
@@ -141,6 +169,7 @@ public class OffheapIncrementalIndex extends IncrementalIndex<BufferAggregator>
                                             .withQueryGranularity(gran)
                                             .withMetrics(metrics)
                                             .build(),
+        rollup,
         true,
         true,
         true,

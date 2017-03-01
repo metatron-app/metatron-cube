@@ -19,6 +19,7 @@
 
 package io.druid.segment.incremental;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Supplier;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
@@ -74,10 +75,11 @@ public class OnheapIncrementalIndex extends IncrementalIndex<Aggregator>
       boolean deserializeComplexMetrics,
       boolean reportParseExceptions,
       boolean sortFacts,
+      boolean rollup,
       int maxRowCount
   )
   {
-    super(incrementalIndexSchema, deserializeComplexMetrics, reportParseExceptions, sortFacts);
+    super(incrementalIndexSchema, deserializeComplexMetrics, reportParseExceptions, sortFacts, rollup);
     this.maxRowCount = maxRowCount;
 
     if (sortFacts) {
@@ -96,12 +98,31 @@ public class OnheapIncrementalIndex extends IncrementalIndex<Aggregator>
   }
 
   public OnheapIncrementalIndex(
+      IncrementalIndexSchema incrementalIndexSchema,
+      boolean deserializeComplexMetrics,
+      boolean reportParseExceptions,
+      boolean sortFacts,
+      int maxRowCount
+  )
+  {
+    this(
+        incrementalIndexSchema,
+        deserializeComplexMetrics,
+        reportParseExceptions,
+        sortFacts,
+        true,
+        maxRowCount
+    );
+  }
+
+  public OnheapIncrementalIndex(
       long minTimestamp,
       QueryGranularity gran,
       final AggregatorFactory[] metrics,
       boolean deserializeComplexMetrics,
       boolean reportParseExceptions,
       boolean sortFacts,
+      boolean rollup,
       int maxRowCount
   )
   {
@@ -113,13 +134,24 @@ public class OnheapIncrementalIndex extends IncrementalIndex<Aggregator>
         deserializeComplexMetrics,
         reportParseExceptions,
         sortFacts,
+        rollup,
         maxRowCount
     );
   }
 
+  @VisibleForTesting
+  public OnheapIncrementalIndex(
+      long minTimestamp, QueryGranularity gran, final AggregatorFactory[] metrics, int maxRowCount
+  )
+  {
+    this(minTimestamp, gran, true, metrics, maxRowCount);
+  }
+
+  @VisibleForTesting
   public OnheapIncrementalIndex(
       long minTimestamp,
       QueryGranularity gran,
+      boolean rollup,
       final AggregatorFactory[] metrics,
       int maxRowCount
   )
@@ -132,6 +164,7 @@ public class OnheapIncrementalIndex extends IncrementalIndex<Aggregator>
         true,
         true,
         true,
+        rollup,
         maxRowCount
     );
   }
@@ -142,7 +175,7 @@ public class OnheapIncrementalIndex extends IncrementalIndex<Aggregator>
       int maxRowCount
   )
   {
-    this(incrementalIndexSchema, true, reportParseExceptions, true, maxRowCount);
+    this(incrementalIndexSchema, true, reportParseExceptions, true, true, maxRowCount);
   }
 
   @Override
@@ -152,9 +185,9 @@ public class OnheapIncrementalIndex extends IncrementalIndex<Aggregator>
   }
 
   @Override
-  public Iterable<Row> iterable(boolean sortFacts)
+  public Iterable<Row> iterable(boolean asSorted)
   {
-    if (sortFacts && !(facts instanceof SortedMap)) {
+    if (asSorted && !(facts instanceof SortedMap)) {
       final long start = System.currentTimeMillis();
       final Comparator<TimeAndDims> comparator = dimsComparator();
       List<Map.Entry<TimeAndDims, Integer>> list = Lists.newArrayList(facts.entrySet());
@@ -173,7 +206,7 @@ public class OnheapIncrementalIndex extends IncrementalIndex<Aggregator>
       log.info("Sorting %d rows.. %,d msec", facts.size(), (System.currentTimeMillis() - start));
       return Iterables.transform(list, rowFunction(ImmutableList.<PostAggregator>of()));
     }
-    return super.iterable(sortFacts);
+    return super.iterable(asSorted);
   }
 
   @Override
@@ -471,8 +504,8 @@ public class OnheapIncrementalIndex extends IncrementalIndex<Aggregator>
     @Override
     public final int compare(int lhsIdx, int rhsIdx)
     {
-      final Comparable lhsVal = getValue(lhsIdx);
-      final Comparable rhsVal = getValue(rhsIdx);
+      final T lhsVal = getValue(lhsIdx);
+      final T rhsVal = getValue(rhsIdx);
       if (lhsVal != null && rhsVal != null) {
         return lhsVal.compareTo(rhsVal);
       } else if (lhsVal == null ^ rhsVal == null) {
@@ -481,7 +514,7 @@ public class OnheapIncrementalIndex extends IncrementalIndex<Aggregator>
       return 0;
     }
 
-    public OnHeapDimLookup sort()
+    public OnHeapDimLookup<T> sort()
     {
       synchronized (valueToId) {
         return new OnHeapDimLookup(idToValue, size());

@@ -104,7 +104,7 @@ public class IncrementalIndexTest
                 @Override
                 public IncrementalIndex createIndex()
                 {
-                  return new OnheapIncrementalIndex(schema, false, true, sortFacts, 1000);
+                  return new OnheapIncrementalIndex(schema, false, true, true, sortFacts, 1000);
                 }
               }
           }
@@ -117,7 +117,7 @@ public class IncrementalIndexTest
                 public IncrementalIndex createIndex()
                 {
                   return new OffheapIncrementalIndex(
-                      schema, true, true, sortFacts, 1000000, new StupidPool<ByteBuffer>(
+                      schema, true, true, sortFacts, true, 1000000, new StupidPool<ByteBuffer>(
                       new Supplier<ByteBuffer>()
                       {
                         @Override
@@ -233,6 +233,6 @@ public class IncrementalIndexTest
     index.add(row);
     index.add(row);
 
-    Assert.assertEquals(1, index.size());
+    Assert.assertEquals(index.isRollup() ? 1 : 3, index.size());
   }
 }

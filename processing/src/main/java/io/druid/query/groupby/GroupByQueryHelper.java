@@ -86,6 +86,7 @@ public class GroupByQueryHelper
           false,
           true,
           forQuery,
+          true,
           Math.min(query.getContextValue(CTX_KEY_MAX_RESULTS, config.getMaxResults()), config.getMaxResults()),
           bufferPool
       );
@@ -99,6 +100,7 @@ public class GroupByQueryHelper
           false,
           true,
           forQuery,
+          true,
           Math.min(query.getContextValue(CTX_KEY_MAX_RESULTS, config.getMaxResults()), config.getMaxResults())
       );
     }

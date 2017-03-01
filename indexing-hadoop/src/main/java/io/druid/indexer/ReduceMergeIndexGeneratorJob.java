@@ -310,6 +310,7 @@ public class ReduceMergeIndexGeneratorJob implements HadoopDruidIndexerJob.Index
           true,
           !tuningConfig.isIgnoreInvalidRows(),
           !tuningConfig.isAssumeTimeSorted(),
+          tuningConfig.isRollup(),
           maxRowCount
       );
     }
@@ -564,6 +565,7 @@ public class ReduceMergeIndexGeneratorJob implements HadoopDruidIndexerJob.Index
           }
           mergedBase = merger.mergeQueryableIndexAndClose(
               indexes,
+              tuningConfig.isRollup(),
               aggregators,
               new File(baseFlushFile, singleShard ? "single" : "shard-" + i),
               config.getIndexSpec(),

@@ -39,6 +39,7 @@ import com.google.common.io.Closer;
 import com.google.common.io.Files;
 import com.google.common.io.OutputSupplier;
 import com.google.common.primitives.Ints;
+import com.google.common.primitives.Longs;
 import com.google.inject.Inject;
 import com.metamx.collections.bitmap.BitmapFactory;
 import com.metamx.collections.bitmap.ImmutableBitmap;
@@ -201,6 +202,7 @@ public class IndexMerger
                 indexSpec.getBitmapSerdeFactory().getBitmapFactory()
             )
         ),
+        index.isRollup(),
         index.getMetricAggs(),
         outDir,
         indexSpec,
@@ -215,11 +217,23 @@ public class IndexMerger
       IndexSpec indexSpec
   ) throws IOException
   {
-    return mergeQueryableIndex(indexes, metricAggs, outDir, indexSpec, new BaseProgressIndicator());
+    return mergeQueryableIndex(indexes, true, metricAggs, outDir, indexSpec);
   }
 
   public File mergeQueryableIndex(
       List<QueryableIndex> indexes,
+      final boolean rollup,
+      final AggregatorFactory[] metricAggs,
+      File outDir,
+      IndexSpec indexSpec
+  ) throws IOException
+  {
+    return mergeQueryableIndex(indexes, rollup, metricAggs, outDir, indexSpec, new BaseProgressIndicator());
+  }
+
+  public File mergeQueryableIndex(
+      List<QueryableIndex> indexes,
+      final boolean rollup,
       final AggregatorFactory[] metricAggs,
       File outDir,
       IndexSpec indexSpec,
@@ -244,6 +258,7 @@ public class IndexMerger
     );
     return merge(
         indexAdapteres,
+        rollup,
         metricAggs,
         outDir,
         indexSpec,
@@ -259,8 +274,20 @@ public class IndexMerger
       ProgressIndicator progress
   ) throws IOException
   {
+    return mergeQueryableIndexAndClose(indexes, true, metricAggs, outDir, indexSpec, progress);
+  }
+
+  public File mergeQueryableIndexAndClose(
+      List<QueryableIndex> indexes,
+      final boolean rollup,
+      final AggregatorFactory[] metricAggs,
+      File outDir,
+      IndexSpec indexSpec,
+      ProgressIndicator progress
+  ) throws IOException
+  {
     try {
-      return mergeQueryableIndex(indexes, metricAggs, outDir, indexSpec, progress);
+      return mergeQueryableIndex(indexes, rollup, metricAggs, outDir, indexSpec, progress);
     }
     finally {
       for (QueryableIndex index : indexes) {
@@ -276,7 +303,18 @@ public class IndexMerger
       IndexSpec indexSpec
   ) throws IOException
   {
-    return merge(indexes, metricAggs, outDir, indexSpec, new BaseProgressIndicator());
+    return merge(indexes, true, metricAggs, outDir, indexSpec, new BaseProgressIndicator());
+  }
+
+  public File merge(
+      List<IndexableAdapter> indexes,
+      final boolean rollup,
+      final AggregatorFactory[] metricAggs,
+      File outDir,
+      IndexSpec indexSpec
+  ) throws IOException
+  {
+    return merge(indexes, rollup, metricAggs, outDir, indexSpec, new BaseProgressIndicator());
   }
 
   private static List<String> getLexicographicMergedDimensions(List<IndexableAdapter> indexes)
@@ -347,6 +385,7 @@ public class IndexMerger
 
   public File merge(
       List<IndexableAdapter> indexes,
+      final boolean rollup,
       final AggregatorFactory[] metricAggs,
       File outDir,
       IndexSpec indexSpec,
@@ -428,14 +467,28 @@ public class IndexMerger
           @Nullable ArrayList<Iterable<Rowboat>> boats
       )
       {
-        return CombiningIterable.create(
-            new MergeIterable<Rowboat>(
-                Ordering.<Rowboat>natural().nullsFirst(),
-                boats
-            ),
-            Ordering.<Rowboat>natural().nullsFirst(),
-            new RowboatMergeFunction(sortedMetricAggs)
-        );
+        if (rollup) {
+          return CombiningIterable.create(
+              new MergeIterable<Rowboat>(
+                  Ordering.<Rowboat>natural().nullsFirst(),
+                  boats
+              ),
+              Ordering.<Rowboat>natural().nullsFirst(),
+              new RowboatMergeFunction(sortedMetricAggs)
+          );
+        } else {
+          return new MergeIterable<Rowboat>(
+              new Ordering<Rowboat>()
+              {
+                @Override
+                public int compare(Rowboat left, Rowboat right)
+                {
+                  return Longs.compare(left.getTimestamp(), right.getTimestamp());
+                }
+              }.nullsFirst(),
+              boats
+          );
+        }
       }
     };
 

@@ -103,6 +103,7 @@ public class MultiValuedDimensionTest
         true,
         true,
         true,
+        true,
         5000
     );
 

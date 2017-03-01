@@ -305,6 +305,7 @@ public class MapOnlyIndexGeneratorJob implements HadoopDruidIndexerJob.IndexingS
             }
             mergedBase = merger.mergeQueryableIndexAndClose(
                 indexes,
+                tuningConfig.isRollup(),
                 aggregators,
                 new File(baseFlushFile, singleShard ? "single" : "shard-" + i),
                 config.getIndexSpec(),
@@ -406,6 +407,7 @@ public class MapOnlyIndexGeneratorJob implements HadoopDruidIndexerJob.IndexingS
           true,
           !tuningConfig.isIgnoreInvalidRows(),
           !tuningConfig.isAssumeTimeSorted(),
+          tuningConfig.isRollup(),
           tuningConfig.getRowFlushBoundary()
       );
 

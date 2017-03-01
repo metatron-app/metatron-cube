@@ -19,9 +19,14 @@
 
 package io.druid.segment.incremental;
 
+import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Iterables;
+import io.druid.data.input.MapBasedInputRow;
+import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.segment.IndexSpec;
 import io.druid.segment.IndexableAdapter;
 import io.druid.segment.Rowboat;
+import io.druid.segment.TestHelper;
 import io.druid.segment.data.CompressedObjectStrategy;
 import io.druid.segment.data.ConciseBitmapSerdeFactory;
 import io.druid.segment.data.IncrementalIndexTest;
@@ -30,7 +35,9 @@ import io.druid.segment.data.IndexedInts;
 import org.junit.Assert;
 import org.junit.Test;
 
+import java.io.File;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 public class IncrementalIndexAdapterTest
@@ -104,5 +111,35 @@ public class IncrementalIndexAdapterTest
     Assert.assertEquals(0, boatList.get(0).getRowNum());
     Assert.assertEquals(1, boatList.get(1).getRowNum());
 
+  }
+
+  @Test
+  public void testGetRowsIterableWithNoRollup() throws Exception
+  {
+    final long timestamp1 = System.currentTimeMillis();
+    final long timestamp2 = timestamp1 + 100;
+    IncrementalIndex index = IncrementalIndexTest.createNoRollupIndex(new AggregatorFactory[0]);
+
+    List<String> dimensions = Arrays.asList("dim1");
+    index.add(new MapBasedInputRow(timestamp1, dimensions, ImmutableMap.<String, Object>of("dim1", "a")));
+    index.add(new MapBasedInputRow(timestamp1, dimensions, ImmutableMap.<String, Object>of("dim1", "a")));
+    index.add(new MapBasedInputRow(timestamp2, dimensions, ImmutableMap.<String, Object>of("dim1", "a")));
+    index.add(new MapBasedInputRow(timestamp2, dimensions, ImmutableMap.<String, Object>of("dim1", "b")));
+    index.add(new MapBasedInputRow(timestamp2, dimensions, ImmutableMap.<String, Object>of("dim1", "b")));
+
+    Assert.assertEquals(5, index.size());
+    final IndexableAdapter incrementalAdapter = new IncrementalIndexAdapter(
+        index.getInterval(),
+        index,
+        INDEX_SPEC.getBitmapSerdeFactory()
+                  .getBitmapFactory()
+    );
+
+    Iterable<Rowboat> boats = incrementalAdapter.getRows();
+    Assert.assertEquals(5, Iterables.size(boats));
+    File tempFile = File.createTempFile("asd", "asd");
+    tempFile.delete();
+    tempFile.mkdirs();
+    TestHelper.getTestIndexMergerV9().persist(index, tempFile, INDEX_SPEC);
   }
 }

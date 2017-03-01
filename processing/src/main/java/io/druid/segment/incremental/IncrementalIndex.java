@@ -83,6 +83,7 @@ import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ConcurrentNavigableMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 
 /**
  */
@@ -432,6 +433,7 @@ public abstract class IncrementalIndex<AggregatorType> implements Iterable<Row>,
   private final boolean deserializeComplexMetrics;
   private final boolean reportParseExceptions;
   private final boolean sortFacts;
+  private final boolean rollup;
   private final Metadata metadata;
 
   private final Map<String, MetricDesc> metricDescs;
@@ -460,6 +462,7 @@ public abstract class IncrementalIndex<AggregatorType> implements Iterable<Row>,
   private long minTimeMillis = Long.MAX_VALUE;
   private long maxTimeMillis = Long.MIN_VALUE;
 
+  private AtomicLong indexer = new AtomicLong();
   /**
    * Setting deserializeComplexMetrics to false is necessary for intermediate aggregation such as groupBy that
    * should not deserialize input columns using ComplexMetricSerde for aggregators that return complex metrics.
@@ -474,7 +477,8 @@ public abstract class IncrementalIndex<AggregatorType> implements Iterable<Row>,
       final IncrementalIndexSchema incrementalIndexSchema,
       final boolean deserializeComplexMetrics,
       final boolean reportParseExceptions,
-      final boolean sortFacts
+      final boolean sortFacts,
+      final boolean rollup
   )
   {
     this.minTimestamp = incrementalIndexSchema.getMinTimestamp();
@@ -484,6 +488,7 @@ public abstract class IncrementalIndex<AggregatorType> implements Iterable<Row>,
     this.deserializeComplexMetrics = deserializeComplexMetrics;
     this.reportParseExceptions = reportParseExceptions;
     this.sortFacts = sortFacts;
+    this.rollup = rollup;
 
     this.metadata = new Metadata()
         .setAggregators(getCombiningAggregators(metrics))
@@ -770,7 +775,7 @@ public abstract class IncrementalIndex<AggregatorType> implements Iterable<Row>,
       dims = newDims;
     }
 
-    return new TimeAndDims(toIndexingTime(timestampFromEpoch), dims);
+    return createTimeAndDims(toIndexingTime(timestampFromEpoch), dims);
   }
 
   private long toIndexingTime(long timestampFromEpoch)
@@ -783,6 +788,22 @@ public abstract class IncrementalIndex<AggregatorType> implements Iterable<Row>,
     minTimeMillis = Math.min(minTimeMillis, truncated);
     maxTimeMillis = Math.max(maxTimeMillis, truncated);
     return truncated;
+  }
+
+  private TimeAndDims createTimeAndDims(long timestamp, int[][] dims)
+  {
+    if (rollup) {
+      return new Rollup(timestamp, dims);
+    }
+    return new NoRollup(timestamp, dims, indexer.getAndIncrement());
+  }
+
+  public TimeAndDims createRangeTimeAndDims(long timestamp)
+  {
+    if (rollup) {
+      return new Rollup(timestamp, new int[][]{});
+    }
+    return new NoRollup(timestamp, new int[][]{}, 0);
   }
 
   private synchronized void updateMaxIngestedTime(DateTime eventTime)
@@ -817,7 +838,7 @@ public abstract class IncrementalIndex<AggregatorType> implements Iterable<Row>,
       DimensionDesc dimDesc = entry.getValue();
       dims[dimDesc.index] = getDimVal(dimDesc, STRING_TRANSFORMER.apply(row.getRaw(entry.getKey())));
     }
-    return new TimeAndDims(toIndexingTime(row.getTimestampFromEpoch()), dims);
+    return createTimeAndDims(toIndexingTime(row.getTimestampFromEpoch()), dims);
   }
 
   public boolean isEmpty()
@@ -1080,9 +1101,9 @@ public abstract class IncrementalIndex<AggregatorType> implements Iterable<Row>,
     return iterable(false).iterator();
   }
 
-  public Iterable<Row> iterable(boolean sorted)
+  public Iterable<Row> iterable(boolean asSorted)
   {
-    if (sorted && !sortFacts) {
+    if (asSorted && !sortFacts) {
       throw new IllegalStateException("Cannot make sorted iterable");
     }
     return iterableWithPostAggregations(null, false);
@@ -1177,6 +1198,11 @@ public abstract class IncrementalIndex<AggregatorType> implements Iterable<Row>,
   public int ingestedRows()
   {
     return ingestedNumRows;
+  }
+
+  public boolean isRollup()
+  {
+    return rollup;
   }
 
   public static final class DimensionDesc
@@ -1522,10 +1548,10 @@ public abstract class IncrementalIndex<AggregatorType> implements Iterable<Row>,
     }
   }
 
-  static final class TimeAndDims
+  public static abstract class TimeAndDims
   {
-    private final long timestamp;
-    private final int[][] dims;
+    final long timestamp;
+    final int[][] dims;
 
     TimeAndDims(
         long timestamp,
@@ -1545,11 +1571,19 @@ public abstract class IncrementalIndex<AggregatorType> implements Iterable<Row>,
     {
       return dims;
     }
+  }
+
+  public static final class Rollup extends TimeAndDims {
+
+    Rollup(long timestamp, int[][] dims)
+    {
+      super(timestamp, dims);
+    }
 
     @Override
     public String toString()
     {
-      return "TimeAndDims{" +
+      return "Rollup{" +
              "timestamp=" + new DateTime(timestamp) +
              ", dims=" + Lists.transform(
           Arrays.asList(dims), new Function<int[], Object>()
@@ -1596,16 +1630,78 @@ public abstract class IncrementalIndex<AggregatorType> implements Iterable<Row>,
     public int hashCode()
     {
       int hash = (int) timestamp;
-      for (int i = 0; i < dims.length; i++) {
-        hash = 31 * hash + Arrays.hashCode(dims[i]);
+      for (int[] dim : dims) {
+        hash = 31 * hash + Arrays.hashCode(dim);
       }
       return hash;
     }
   }
 
+  public static final class NoRollup extends TimeAndDims {
+
+    private final long indexer;
+
+    NoRollup(long timestamp, int[][] dims, long indexer)
+    {
+      super(timestamp, dims);
+      this.indexer = indexer;
+    }
+
+    @Override
+    public String toString()
+    {
+      return "NoRollup{" +
+             "timestamp=" + new DateTime(timestamp) +
+             ", indexer=" + indexer + "}";
+    }
+
+    @Override
+    public boolean equals(Object o)
+    {
+      if (this == o) {
+        return true;
+      }
+      if (o == null || getClass() != o.getClass()) {
+        return false;
+      }
+
+      NoRollup that = (NoRollup) o;
+
+      if (timestamp != that.timestamp) {
+        return false;
+      }
+      if (indexer != that.indexer) {
+        return false;
+      }
+      return true;
+    }
+
+    @Override
+    public int hashCode()
+    {
+      return Longs.hashCode(timestamp) * 31 + Longs.hashCode(indexer);
+    }
+  }
+
   protected final Comparator<TimeAndDims> dimsComparator()
   {
-    return new TimeAndDimsComp(dimValues);
+    if (rollup) {
+      return new TimeAndDimsComp(dimValues);
+    }
+    return new Comparator<TimeAndDims>()
+    {
+      @Override
+      public int compare(TimeAndDims o1, TimeAndDims o2)
+      {
+        NoRollup nr1 = (NoRollup)o1;
+        NoRollup nr2 = (NoRollup)o2;
+        int compare = Longs.compare(nr1.timestamp, nr2.timestamp);
+        if (compare == 0) {
+          compare = Longs.compare(nr1.indexer, nr2.indexer);
+        }
+        return compare;
+      }
+    };
   }
 
   @VisibleForTesting

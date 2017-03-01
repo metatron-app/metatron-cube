@@ -280,11 +280,8 @@ public class IncrementalIndexStorageAdapter implements StorageAdapter
 
               {
                 cursorMap = index.getSubMap(
-                    new IncrementalIndex.TimeAndDims(timeStart, new int[][]{}),
-                    new IncrementalIndex.TimeAndDims(
-                        Math.min(actualInterval.getEndMillis(), gran.next(input)),
-                        new int[][]{}
-                    )
+                    index.createRangeTimeAndDims(timeStart),
+                    index.createRangeTimeAndDims(Math.min(actualInterval.getEndMillis(), gran.next(input)))
                 );
                 if (descending) {
                   cursorMap = cursorMap.descendingMap();
