@@ -67,6 +67,7 @@ import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.MetricManipulationFn;
 import io.druid.query.aggregation.MetricManipulatorFns;
 import io.druid.query.aggregation.PostAggregator;
+import io.druid.query.aggregation.PostAggregators;
 import io.druid.query.dimension.DefaultDimensionSpec;
 import io.druid.query.dimension.DimensionSpec;
 import io.druid.query.extraction.ExtractionFn;
@@ -269,6 +270,11 @@ public class GroupByQueryQueryToolChest extends QueryToolChest<Row, GroupByQuery
         }
       };
 
+      final List<PostAggregator> postAggregators = PostAggregators.decorate(
+          query.getPostAggregatorSpecs(),
+          query.getAggregatorSpecs()
+      );
+
       return query.applyLimit(
           Sequences.map(
               mergingQueryRunner.run(
@@ -311,7 +317,7 @@ public class GroupByQueryQueryToolChest extends QueryToolChest<Row, GroupByQuery
 
                   final Map<String, Object> newMap = Maps.newLinkedHashMap(((MapBasedRow) row).getEvent());
 
-                  for (PostAggregator postAggregator : query.getPostAggregatorSpecs()) {
+                  for (PostAggregator postAggregator : postAggregators) {
                     newMap.put(postAggregator.getName(), postAggregator.compute(newMap));
                   }
 
