@@ -46,6 +46,7 @@ public class Parser
 
   static {
     register(BuiltinFunctions.class);
+    register(DateTimeFunctions.class);
     register(ExcelFunctions.class);
   }
 

@@ -21,6 +21,8 @@ package io.druid.math.expr;
 
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Sets;
+import org.joda.time.DateTime;
+import org.joda.time.DateTimeZone;
 import org.joda.time.Interval;
 import org.junit.Assert;
 import org.junit.Ignore;
@@ -53,6 +55,13 @@ public class EvalTest
     ExprEval ret = Parser.parse(x).eval(bindings);
     Assert.assertEquals(ExprType.STRING, ret.type());
     return ret.stringValue();
+  }
+
+  private DateTime evalDateTime(String x, Expr.NumericBinding bindings)
+  {
+    ExprEval ret = Parser.parse(x).eval(bindings);
+    Assert.assertEquals(ExprType.DATETIME, ret.type());
+    return ret.asDateTime();
   }
 
   private Object eval(String x, Expr.NumericBinding bindings)
@@ -196,8 +205,8 @@ public class EvalTest
 
     eval = (Interval)eval("recent('7D 10s', '5D 1s')", bindings);
     now = System.currentTimeMillis();
-    Assert.assertEquals(now - (86400000L * 7) + 10000, eval.getStartMillis(), 1000);
-    Assert.assertEquals(now - (86400000L * 5) + 1000, eval.getEndMillis(), 1000);
+    Assert.assertEquals(now - (86400000L * 7) - 10000, eval.getStartMillis(), 1000);
+    Assert.assertEquals(now - (86400000L * 5) - 1000, eval.getEndMillis(), 1000);
 
     // extract
     Assert.assertEquals(
@@ -211,6 +220,57 @@ public class EvalTest
             + "out.timezone='PST'"
             + ")", bindings
         )
+    );
+  }
+
+  @Test
+  public void testTimes()
+  {
+    DateTimeZone home = DateTimeZone.forID("Asia/Seoul");
+    DateTime time = new DateTime("2016-03-04T22:25:00", home);
+
+    Expr.NumericBinding bindings = Parser.withMap(ImmutableMap.of("x", time));
+    Assert.assertEquals(4, evalLong("dayofmonth(x)", bindings));
+    Assert.assertEquals(64, evalLong("dayofyear(x)", bindings));
+    Assert.assertEquals(22, evalLong("hour(x)", bindings));
+    Assert.assertEquals(3, evalLong("month(x)", bindings));
+    Assert.assertEquals(2016, evalLong("year(x)", bindings));
+    Assert.assertEquals("March", evalString("monthname(x)", bindings));
+    Assert.assertEquals("Friday", evalString("dayname(x)", bindings));  // ????
+    Assert.assertEquals(new DateTime("2016-03-31T22:25:00", home), evalDateTime("last_day(x)", bindings));
+    Assert.assertEquals(new DateTime("2016-03-08T01:25:00", home), evalDateTime("add_time(x, '3D 3H')", bindings));
+    Assert.assertEquals(new DateTime("2016-03-03T19:22:00", home), evalDateTime("sub_time(x, '1D 3H 3m')", bindings));
+
+    bindings = Parser.withMap(ImmutableMap.of("x", time.getMillis()));
+
+    // iso time
+    Assert.assertEquals(4, evalLong("dayofmonth(x)", bindings));
+    Assert.assertEquals(64, evalLong("dayofyear(x)", bindings));
+    Assert.assertEquals(22 - 9, evalLong("hour(x)", bindings));
+    Assert.assertEquals(3, evalLong("month(x)", bindings));
+    Assert.assertEquals(2016, evalLong("year(x)", bindings));
+    Assert.assertEquals("March", evalString("monthname(x)", bindings));
+    Assert.assertEquals("Friday", evalString("dayname(x)", bindings));
+    Assert.assertEquals(new DateTime("2016-03-31T13:25:00"), evalDateTime("last_day(x)", bindings));
+    Assert.assertEquals(new DateTime("2016-03-07T16:25:00"), evalDateTime("add_time(x, '3D 3H')", bindings));
+    Assert.assertEquals(new DateTime("2016-03-03T10:22:00"), evalDateTime("sub_time(x, '1D 3H 3m')", bindings));
+
+    // asia/seoul
+    Assert.assertEquals(4, evalLong("dayofmonth(x, 'Asia/Seoul')", bindings));
+    Assert.assertEquals(64, evalLong("dayofyear(x, 'Asia/Seoul')", bindings));
+    Assert.assertEquals(22, evalLong("hour(x, 'Asia/Seoul')", bindings));
+    Assert.assertEquals(3, evalLong("month(x, 'Asia/Seoul')", bindings));
+    Assert.assertEquals(2016, evalLong("year(x, 'Asia/Seoul')", bindings));
+    Assert.assertEquals("March", evalString("monthname(x, 'Asia/Seoul')", bindings));
+    Assert.assertEquals("Friday", evalString("dayname(x, 'Asia/Seoul')", bindings));
+    Assert.assertEquals(
+        new DateTime("2016-03-31T22:25:00", home), evalDateTime("last_day(x, 'Asia/Seoul')", bindings)
+    );
+    Assert.assertEquals(
+        new DateTime("2016-03-08T01:25:00", home), evalDateTime("add_time(x, '3D 3H', 'Asia/Seoul')", bindings)
+    );
+    Assert.assertEquals(
+        new DateTime("2016-03-03T19:22:00", home), evalDateTime("sub_time(x, '1D 3H 3m', 'Asia/Seoul')", bindings)
     );
   }
 

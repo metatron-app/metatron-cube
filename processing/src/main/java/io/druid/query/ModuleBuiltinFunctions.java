@@ -20,7 +20,7 @@
 package io.druid.query;
 
 import io.druid.granularity.QueryGranularity;
-import io.druid.math.expr.BuiltinFunctions;
+import io.druid.math.expr.DateTimeFunctions;
 import io.druid.math.expr.Expr;
 import io.druid.math.expr.ExprEval;
 import io.druid.math.expr.ExprType;
@@ -33,7 +33,7 @@ import java.util.List;
  */
 public class ModuleBuiltinFunctions implements Function.Library
 {
-  class TruncatedRecent extends BuiltinFunctions.Recent implements Function.Factory
+  class TruncatedRecent extends DateTimeFunctions.Recent implements Function.Factory
   {
 
     private QueryGranularity granularity;

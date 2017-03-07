@@ -28,6 +28,7 @@ import com.metamx.common.guava.Comparators;
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
 import org.joda.time.Interval;
+import org.joda.time.Period;
 import org.joda.time.format.DateTimeFormat;
 import org.joda.time.format.DateTimeFormatter;
 import org.joda.time.format.DateTimeFormatterBuilder;
@@ -213,9 +214,9 @@ public class JodaUtils
     }
   }
 
-  public static long toDuration(String string)
+  public static Period toPeriod(String string)
   {
-    DateTime duration = new DateTime(0);
+    Period period = new Period();
     int prev = 0;
     char[] chars = string.toCharArray();
     for (int i = 0; i < chars.length; i++) {
@@ -224,28 +225,28 @@ public class JodaUtils
         switch (chars[i]) {
           case 'y':
           case 'Y':
-            duration = duration.plusYears(value);
+            period = period.plusYears(value);
             break;
           case 'M':
-            duration = duration.plusMonths(value);
+            period = period.plusMonths(value);
             break;
           case 'w':
           case 'W':
-            duration = duration.plusWeeks(value);
+            period = period.plusWeeks(value);
             break;
           case 'd':
           case 'D':
-            duration = duration.plusDays(value);
+            period = period.plusDays(value);
             break;
           case 'h':
           case 'H':
-            duration = duration.plusHours(value);
+            period = period.plusHours(value);
             break;
           case 'm':
-            duration = duration.plusMinutes(value);
+            period = period.plusMinutes(value);
             break;
           case 's':
-            duration = duration.plusSeconds(value);
+            period = period.plusSeconds(value);
             break;
           default:
             throw new IllegalArgumentException("Not supported time unit " + chars[i]);
@@ -255,7 +256,7 @@ public class JodaUtils
         prev = i;
       }
     }
-    return duration.getMillis();
+    return period;
   }
 
   public static DateTimeFormatter toTimeFormatter(String formatString)

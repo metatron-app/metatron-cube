@@ -23,10 +23,11 @@ import com.google.common.base.Function;
 import com.google.common.base.Predicate;
 import com.google.common.base.Strings;
 import com.metamx.common.Pair;
+import io.druid.common.utils.JodaUtils;
 import io.druid.data.ValueType;
 import org.apache.commons.lang.StringUtils;
 import org.joda.time.DateTime;
-import org.joda.time.format.DateTimeFormat;
+import org.joda.time.DateTimeZone;
 import org.joda.time.format.DateTimeFormatter;
 
 import java.util.List;
@@ -36,7 +37,7 @@ import java.util.Objects;
  */
 public class Evals
 {
-  static final DateTimeFormatter defaultFormat = DateTimeFormat.forPattern("yyyy-MM-dd HH:mm:ss");
+  static final DateTimeFormatter defaultFormat = JodaUtils.toTimeFormatter("yyyy-MM-dd HH:mm:ss[.SSSSSS]");
 
   public static final Predicate<ExprEval> PREDICATE = new Predicate<ExprEval>()
   {
@@ -173,6 +174,11 @@ public class Evals
     throw new RuntimeException(arg + " is not a constant");
   }
 
+  static boolean isConstantString(Expr arg)
+  {
+    return arg instanceof StringExpr;
+  }
+
   static boolean isConstant(Expr arg)
   {
     if (arg instanceof Constant) {
@@ -204,6 +210,8 @@ public class Evals
         return ExprEval.of(eval.asLong());
       case STRING:
         return ExprEval.of(eval.asString());
+      case DATETIME:
+        return ExprEval.of(eval.asDateTime());
     }
     throw new IllegalArgumentException("not supported type " + castTo);
   }
@@ -270,14 +278,24 @@ public class Evals
     throw new UnsupportedOperationException("Unsupported type " + type);
   }
 
-  static DateTime toDateTime(ExprEval arg)
+  static DateTime toDateTime(ExprEval arg, String timeZone)
   {
     switch (arg.type()) {
+      case DATETIME:
+        return arg.asDateTime();
+      case LONG:
+        return new DateTime(arg.asLong(), DateTimeZone.forID(timeZone));
       case STRING:
-        String string = arg.stringValue();
-        return StringUtils.isNumeric(string) ? new DateTime(Long.valueOf(string)) : defaultFormat.parseDateTime(string);
+        final String string = arg.stringValue();
+        if (StringUtils.isNumeric(string)) {
+          return new DateTime(Long.valueOf(string), DateTimeZone.forID(timeZone));
+        } else {
+          return timeZone == null
+                 ? defaultFormat.parseDateTime(string)
+                 : defaultFormat.withZone(DateTimeZone.forID(timeZone)).parseDateTime(string);
+        }
       default:
-        return new DateTime(arg.longValue());
+        return new DateTime(arg.longValue(), DateTimeZone.forID(timeZone));
     }
   }
 

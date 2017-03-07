@@ -26,7 +26,24 @@ import io.druid.data.ValueType;
  */
 public enum ExprType
 {
-  DOUBLE, LONG, STRING;
+  DOUBLE {
+    @Override
+    public boolean isNumeric() { return true; }
+  },
+  LONG {
+    @Override
+    public boolean isNumeric() { return true; }
+  },
+  DATETIME {
+    @Override
+    public boolean isNumeric() { return false; }
+  },
+  STRING {
+    @Override
+    public boolean isNumeric() { return false; }
+  };
+
+  public abstract boolean isNumeric();
 
   public static ExprType bestEffortOf(String name)
   {
@@ -44,6 +61,8 @@ public enum ExprType
       case "LONG":
       case "BIGINT":
         return LONG;
+      case "DATETIME":
+        return DATETIME;
       default:
         return STRING;
     }

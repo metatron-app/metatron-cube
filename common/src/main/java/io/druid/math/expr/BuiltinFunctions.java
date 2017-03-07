@@ -19,8 +19,6 @@
 
 package io.druid.math.expr;
 
-import com.fasterxml.jackson.databind.util.ISO8601DateFormat;
-import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
@@ -30,31 +28,23 @@ import com.google.common.primitives.Doubles;
 import com.google.common.primitives.Ints;
 import com.google.common.primitives.Longs;
 import com.metamx.common.Pair;
-import io.druid.common.utils.JodaUtils;
 import io.druid.math.expr.Expr.NumericBinding;
 import io.druid.math.expr.Expr.WindowContext;
 import io.druid.math.expr.Function.Factory;
 import org.apache.commons.lang.StringUtils;
 import org.joda.time.DateTime;
 import org.joda.time.Days;
-import org.joda.time.Interval;
 import org.mozilla.javascript.Context;
 import org.mozilla.javascript.ScriptableObject;
 import org.rosuda.JRI.REXP;
 import org.rosuda.JRI.Rengine;
 
-import java.text.DateFormat;
-import java.text.ParseException;
-import java.text.SimpleDateFormat;
 import java.util.Arrays;
-import java.util.Date;
 import java.util.Formatter;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
-import java.util.TimeZone;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -117,20 +107,20 @@ public interface BuiltinFunctions extends Function.Library
     @Override
     public ExprEval apply(List<Expr> args, NumericBinding bindings)
     {
-      List<Expr> prefix = Lists.newArrayList();
+      List<Expr> param = Lists.newArrayList();
       int i = 0;
       for (; i < args.size(); i++) {
         Expr expr = args.get(i);
         if (expr instanceof AssignExpr) {
           break;
         }
-        prefix.add(args.get(i));
+        param.add(args.get(i));
       }
-      Map<String, Expr> params;
+      Map<String, Expr> namedParam;
       if (constantNamedParam != null) {
-        params = constantNamedParam;
+        namedParam = constantNamedParam;
       } else {
-        params = Maps.newHashMapWithExpectedSize(args.size() - i);
+        namedParam = Maps.newHashMapWithExpectedSize(args.size() - i);
         boolean allConstants = true;
         for (; i < args.size(); i++) {
           Expr expr = args.get(i);
@@ -138,14 +128,14 @@ public interface BuiltinFunctions extends Function.Library
             throw new RuntimeException("function '" + name() + "' requires named parameters");
           }
           AssignExpr assign = (AssignExpr) expr;
-          params.put(Evals.getIdentifier(assign.assignee), assign.assigned);
+          namedParam.put(Evals.getIdentifier(assign.assignee), assign.assigned);
           allConstants &= Evals.isConstant(assign.assigned);
         }
         if (allConstants) {
-          constantNamedParam = params;
+          constantNamedParam = namedParam;
         }
       }
-      return eval(prefix, params, bindings);
+      return eval(param, namedParam, bindings);
     }
 
     protected abstract ExprEval eval(List<Expr> exprs, Map<String, Expr> params, NumericBinding bindings);
@@ -180,14 +170,14 @@ public interface BuiltinFunctions extends Function.Library
     @Override
     protected ExprEval eval(ExprEval x, ExprEval y)
     {
-      if (x.type() == ExprType.STRING && y.type() == ExprType.STRING) {
-        return ExprEval.of(null, ExprType.STRING);
+      if (x.type().isNumeric() || y.type().isNumeric()) {
+        if (x.type() == ExprType.LONG && y.type() == ExprType.LONG) {
+          return eval(x.longValue(), y.longValue());
+        } else {
+          return eval(x.doubleValue(), y.doubleValue());
+        }
       }
-      if (x.type() == ExprType.LONG && y.type() == ExprType.LONG) {
-        return eval(x.longValue(), y.longValue());
-      } else {
-        return eval(x.doubleValue(), y.doubleValue());
-      }
+      return ExprEval.of(null, ExprType.STRING);
     }
 
     protected ExprEval eval(long x, long y)
@@ -206,14 +196,14 @@ public interface BuiltinFunctions extends Function.Library
     @Override
     protected ExprEval eval(ExprEval x, ExprEval y, ExprEval z)
     {
-      if (x.type() == ExprType.STRING && y.type() == ExprType.STRING && z.type() == ExprType.STRING) {
-        return ExprEval.of(null, ExprType.STRING);
+      if (x.type().isNumeric() || y.type().isNumeric() || z.type().isNumeric()) {
+        if (x.type() == ExprType.LONG && y.type() == ExprType.LONG && z.type() == ExprType.LONG) {
+          return eval(x.longValue(), y.longValue(), z.longValue());
+        } else {
+          return eval(x.doubleValue(), y.doubleValue(), z.doubleValue());
+        }
       }
-      if (x.type() == ExprType.LONG && y.type() == ExprType.LONG && z.type() == ExprType.LONG) {
-        return eval(x.longValue(), y.longValue(), z.longValue());
-      } else {
-        return eval(x.doubleValue(), y.doubleValue(), z.doubleValue());
-      }
+      return ExprEval.of(null, ExprType.STRING);
     }
 
     protected ExprEval eval(long x, long y, long z)
@@ -984,161 +974,6 @@ public interface BuiltinFunctions extends Function.Library
     }
   }
 
-  class TimestampFromEpochFunc extends NamedParams
-  {
-    // yyyy-MM-ddThh:mm:ss[.sss][Z|[+-]hh:mm]
-    static final DateFormat ISO8601 = new ISO8601DateFormat();  // thread-safe
-
-    private DateFormat formatter;
-
-    @Override
-    public String name()
-    {
-      return "timestamp";
-    }
-
-    @Override
-    protected ExprEval eval(List<Expr> args, Map<String, Expr> params, NumericBinding bindings)
-    {
-      if (args.isEmpty()) {
-        throw new RuntimeException("function '" + name() + " needs at least 1 generic argument");
-      }
-      if (formatter == null) {
-        initialize(args, params, bindings);
-      }
-      ExprEval value = args.get(0).eval(bindings);
-      if (value.type() != ExprType.STRING) {
-        throw new IllegalArgumentException("first argument should be string type but got " + value.type() + " type");
-      }
-
-      Date date;
-      try {
-        date = formatter.parse(value.stringValue());
-      }
-      catch (ParseException e) {
-        throw new IllegalArgumentException("invalid value " + value.stringValue() + " in " + e.getErrorOffset(), e);
-      }
-      return toValue(date);
-    }
-
-    protected void initialize(List<Expr> args, Map<String, Expr> params, NumericBinding bindings)
-    {
-      String format = args.size() > 1 ?
-                      Evals.getConstantString(args.get(1)).trim() :
-                      Evals.evalOptionalString(params.get("format"), bindings);
-      String language = args.size() > 2 ?
-                        Evals.getConstantString(args.get(2)).trim() :
-                        Evals.evalOptionalString(params.get("locale"), bindings);
-      String timezone = args.size() > 3 ?
-                        Evals.getConstantString(args.get(3)).trim() :
-                        Evals.evalOptionalString(params.get("timezone"), bindings);
-
-      formatter = format == null ? ISO8601 : language == null ?
-                                             new SimpleDateFormat(format) :
-                                             new SimpleDateFormat(format, Locale.forLanguageTag(language));
-      if (timezone != null) {
-        formatter.setTimeZone(TimeZone.getTimeZone(timezone));
-      }
-    }
-
-    protected ExprEval toValue(Date date)
-    {
-      return ExprEval.of(date.getTime(), ExprType.LONG);
-    }
-
-    @Override
-    public Function get()
-    {
-      return new TimestampFromEpochFunc();
-    }
-  }
-
-  class UnixTimestampFunc extends TimestampFromEpochFunc
-  {
-    @Override
-    public String name()
-    {
-      return "unix_timestamp";
-    }
-
-    @Override
-    protected final ExprEval toValue(Date date)
-    {
-      return ExprEval.of(date.getTime() / 1000, ExprType.LONG);
-    }
-
-    @Override
-    public Function get()
-    {
-      return new UnixTimestampFunc();
-    }
-  }
-
-  class TimestampValidateFunc extends TimestampFromEpochFunc
-  {
-    @Override
-    public String name()
-    {
-      return "timestamp_validate";
-    }
-
-    @Override
-    protected final ExprEval eval(List<Expr> args, Map<String, Expr> params, NumericBinding bindings)
-    {
-      try {
-        super.eval(args, params, bindings);
-      }
-      catch (Exception e) {
-        return ExprEval.of(false);
-      }
-      return ExprEval.of(true);
-    }
-
-    @Override
-    public Function get()
-    {
-      return new TimestampValidateFunc();
-    }
-  }
-
-  class TimeExtractFunc extends TimestampFromEpochFunc
-  {
-    private DateFormat outputFormat;
-
-    @Override
-    public String name()
-    {
-      return "time_extract";
-    }
-
-    @Override
-    protected void initialize(List<Expr> args, Map<String, Expr> params, NumericBinding bindings)
-    {
-      super.initialize(args, params, bindings);
-      String format = Evals.evalOptionalString(params.get("out.format"), bindings);
-      String language = Evals.evalOptionalString(params.get("out.locale"), bindings);
-      String timezone = Evals.evalOptionalString(params.get("out.timezone"), bindings);
-
-      outputFormat = format == null ? ISO8601 : language == null ?
-                                                new SimpleDateFormat(format) :
-                                                new SimpleDateFormat(format, Locale.forLanguageTag(language));
-      if (timezone != null) {
-        outputFormat.setTimeZone(TimeZone.getTimeZone(timezone));
-      }
-    }
-
-    @Override
-    protected final ExprEval toValue(Date date)
-    {
-      return ExprEval.of(outputFormat.format(date));
-    }
-
-    @Override
-    public Function get()
-    {
-      return new TimeExtractFunc();
-    }
-  }
 
   class IsNullFunc implements Function
   {
@@ -1204,8 +1039,8 @@ public interface BuiltinFunctions extends Function.Library
       if (args.size() < 2) {
         throw new RuntimeException("function 'datediff' need at least 2 arguments");
       }
-      DateTime t1 = Evals.toDateTime(args.get(0).eval(bindings));
-      DateTime t2 = Evals.toDateTime(args.get(1).eval(bindings));
+      DateTime t1 = Evals.toDateTime(args.get(0).eval(bindings), null);
+      DateTime t2 = Evals.toDateTime(args.get(1).eval(bindings), null);
       return ExprEval.of(Days.daysBetween(t1.withTimeAtStartOfDay(), t2.withTimeAtStartOfDay()).getDays());
     }
   }
@@ -1718,36 +1553,6 @@ public interface BuiltinFunctions extends Function.Library
     public ExprEval apply(List<Expr> args, NumericBinding bindings)
     {
       return ExprEval.of(System.currentTimeMillis());
-    }
-  }
-
-  class Recent implements Function {
-
-    @Override
-    public String name()
-    {
-      return "recent";
-    }
-
-    @Override
-    public ExprEval apply(List<Expr> args, NumericBinding bindings)
-    {
-      if (args.size() != 1 && args.size() != 2) {
-        throw new IllegalArgumentException("function '" + name() + "' needs one or two arguments");
-      }
-      return ExprEval.of(toInterval(args, bindings), ExprType.STRING);
-    }
-
-    protected Interval toInterval(List<Expr> args, NumericBinding bindings)
-    {
-      long now = System.currentTimeMillis();
-      long start = -JodaUtils.toDuration(args.get(0).eval(bindings).asString());
-      long end = 0;
-      if (args.size() == 2) {
-        end = -JodaUtils.toDuration(args.get(1).eval(bindings).asString());
-      }
-      Preconditions.checkArgument(start < end);
-      return new Interval(now + start, now + end);
     }
   }
 

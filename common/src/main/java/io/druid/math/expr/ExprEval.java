@@ -19,7 +19,11 @@
 
 package io.druid.math.expr;
 
+import com.google.common.primitives.Ints;
 import com.metamx.common.Pair;
+import org.joda.time.DateTime;
+
+import java.util.Objects;
 
 /**
  */
@@ -35,6 +39,9 @@ public class ExprEval extends Pair<Object, ExprType>
         return ExprEval.of(val, ExprType.DOUBLE);
       }
     }
+    if (val instanceof DateTime) {
+      return ExprEval.of((DateTime)val);
+    }
     return ExprEval.of(val == null ? null : String.valueOf(val), ExprType.STRING);
   }
 
@@ -47,6 +54,9 @@ public class ExprEval extends Pair<Object, ExprType>
       if (val instanceof Float || val instanceof Double) {
         return ExprEval.of(val, ExprType.DOUBLE);
       }
+    }
+    if (val instanceof DateTime) {
+      return ExprEval.of((DateTime)val);
     }
     return new ExprEval(val, type != null ? type : ExprType.STRING);
   }
@@ -64,6 +74,11 @@ public class ExprEval extends Pair<Object, ExprType>
   public static ExprEval of(double longValue)
   {
     return of(longValue, ExprType.DOUBLE);
+  }
+
+  public static ExprEval of(DateTime dateTimeValue)
+  {
+    return of(dateTimeValue, ExprType.DATETIME);
   }
 
   public static ExprEval of(String stringValue)
@@ -131,9 +146,19 @@ public class ExprEval extends Pair<Object, ExprType>
     return (String) lhs;
   }
 
+  public DateTime dateTimeValue()
+  {
+    return (DateTime) lhs;
+  }
+
   public String asString()
   {
-    return lhs == null || rhs == ExprType.STRING ? stringValue() : String.valueOf(lhs);
+    return Objects.toString(lhs, null);
+  }
+
+  public DateTime asDateTime()
+  {
+    return Evals.toDateTime(this, null);
   }
 
   public boolean asBoolean()
@@ -144,29 +169,67 @@ public class ExprEval extends Pair<Object, ExprType>
       case LONG:
         return longValue() > 0;
       case STRING:
-        return Boolean.valueOf(stringValue());
+        return !isNull() && Boolean.valueOf(stringValue());
+      case DATETIME:
+        // ?
     }
     return false;
   }
 
   public float asFloat()
   {
-    return isNull() ? 0F : lhs instanceof Number ? ((Number) lhs).floatValue() : Float.valueOf(asString());
+    switch (rhs) {
+      case DOUBLE:
+      case LONG:
+        return floatValue();
+      case STRING:
+        return isNull() ? 0F : Float.valueOf(asString());
+      case DATETIME:
+        return isNull() ? 0F : asDateTime().getMillis();
+    }
+    return 0F;
   }
 
   public double asDouble()
   {
-    return isNull() ? 0D : lhs instanceof Number ? ((Number) lhs).doubleValue() : Double.valueOf(asString());
+    switch (rhs) {
+      case DOUBLE:
+      case LONG:
+        return doubleValue();
+      case STRING:
+        return isNull() ? 0D : Double.valueOf(asString());
+      case DATETIME:
+        return isNull() ? 0D : asDateTime().getMillis();
+    }
+    return 0D;
   }
 
   public long asLong()
   {
-    return isNull() ? 0L : lhs instanceof Number ? ((Number) lhs).longValue() : Long.valueOf(asString());
+    switch (rhs) {
+      case DOUBLE:
+      case LONG:
+        return longValue();
+      case STRING:
+        return isNull() ? 0L : Long.valueOf(asString());
+      case DATETIME:
+        return isNull() ? 0L : asDateTime().getMillis();
+    }
+    return 0L;
   }
 
   public int asInt()
   {
-    return isNull() ? 0 : lhs instanceof Number ? ((Number) lhs).intValue() : Integer.valueOf(asString());
+    switch (rhs) {
+      case DOUBLE:
+      case LONG:
+        return intValue();
+      case STRING:
+        return isNull() ? 0 : Integer.valueOf(asString());
+      case DATETIME:
+        return isNull() ? 0 : Ints.checkedCast(asDateTime().getMillis());
+    }
+    return 0;
   }
 
   public ExprEval defaultValue()
@@ -177,8 +240,10 @@ public class ExprEval extends Pair<Object, ExprType>
       case LONG:
         return ExprEval.of(0L);
       case STRING:
-        return ExprEval.of(null);
+        return ExprEval.of((String)null);
+      case DATETIME:
+        return ExprEval.of((DateTime)null);
     }
-    return ExprEval.of(null);
+    return ExprEval.of((String)null);
   }
 }
