@@ -22,6 +22,7 @@ package io.druid.math.expr;
 import com.fasterxml.jackson.databind.util.ISO8601DateFormat;
 import io.druid.common.utils.JodaUtils;
 import org.joda.time.DateTime;
+import org.joda.time.DateTimeZone;
 import org.joda.time.Interval;
 import org.joda.time.Period;
 
@@ -296,7 +297,7 @@ public interface DateTimeFunctions extends Function.Library
     // yyyy-MM-ddThh:mm:ss[.sss][Z|[+-]hh:mm]
     static final DateFormat ISO8601 = new ISO8601DateFormat();  // thread-safe
 
-    private DateFormat formatter;
+    DateFormat formatter;
 
     @Override
     public String name()
@@ -378,6 +379,27 @@ public interface DateTimeFunctions extends Function.Library
     public Function get()
     {
       return new UnixTimestampFunc();
+    }
+  }
+
+  class DateTimeFunc extends TimestampFromEpochFunc
+  {
+    @Override
+    public String name()
+    {
+      return "datetime";
+    }
+
+    @Override
+    protected final ExprEval toValue(Date date)
+    {
+      return ExprEval.of(new DateTime(date.getTime(), DateTimeZone.forTimeZone(formatter.getTimeZone())));
+    }
+
+    @Override
+    public Function get()
+    {
+      return new DateTimeFunc();
     }
   }
 

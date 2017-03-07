@@ -188,6 +188,10 @@ public class EvalTest
     );
 
     Assert.assertEquals(1271023381000L, evalLong("timestamp('2010-04-12T07:03:01+09:00')", bindings));
+    Assert.assertEquals(
+        new DateTime("2010-04-12T07:03:01+09:00"),
+        evalDateTime("dateTime('2010-04-12T07:03:01+09:00')", bindings)
+    );
 
 
     // exists
