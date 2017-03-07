@@ -61,15 +61,17 @@ public class Formatters
   }
 
   private static final int DEFAULT_FLUSH_INTERVAL = 1000;
+  private static final int DEFAULT_MAX_ROWS_PER_SHEET = 0;  // MAX
 
   public static CountingAccumulator toExcelExporter(final ByteSink sink, final Map<String, Object> context)
       throws IOException
   {
     final String[] dimensions = parseStrings(context.get("columns"));
     final int flushInterval = parseInt(context.get("flushInterval"), DEFAULT_FLUSH_INTERVAL);
+    final int maxRowsPerSheet = parseInt(context.get("maxRowsPerSheet"), DEFAULT_MAX_ROWS_PER_SHEET);
 
     if (dimensions != null) {
-      return new ExcelAccumulator(sink, flushInterval)
+      return new ExcelAccumulator(sink, flushInterval, maxRowsPerSheet)
       {
         @Override
         public void nextSheet()
@@ -107,7 +109,7 @@ public class Formatters
         }
       };
     }
-    return new ExcelAccumulator(sink, flushInterval)
+    return new ExcelAccumulator(sink, flushInterval, maxRowsPerSheet)
     {
       @Override
       public Void accumulate(Void accumulated, Map<String, Object> in)
@@ -138,21 +140,23 @@ public class Formatters
 
     private final ByteSink sink;
     private final int flushInterval;
+    private final int maxRowsPerSheet;
     private final SXSSFWorkbook wb = new SXSSFWorkbook(-1);
 
     private SXSSFSheet sheet;
     private int rowNumInSheet;
     private int rowNum;
 
-    protected ExcelAccumulator(ByteSink sink, int flushInterval)
+    protected ExcelAccumulator(ByteSink sink, int flushInterval, int maxRowsPerSheet)
     {
       this.sink = sink;
       this.flushInterval = flushInterval;
+      this.maxRowsPerSheet = maxRowsPerSheet > 0 ? Math.min(maxRowsPerSheet, MAX_ROW_INDEX) : MAX_ROW_INDEX;
     }
 
     protected Row nextRow(boolean header)
     {
-      if (sheet == null || rowNumInSheet >= MAX_ROW_INDEX) {
+      if (sheet == null || rowNumInSheet >= maxRowsPerSheet) {
         nextSheet();
       }
       Row r = sheet.createRow(rowNumInSheet++);
