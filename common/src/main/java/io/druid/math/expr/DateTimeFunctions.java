@@ -20,11 +20,20 @@
 package io.druid.math.expr;
 
 import com.fasterxml.jackson.databind.util.ISO8601DateFormat;
+import com.google.common.primitives.Ints;
 import io.druid.common.utils.JodaUtils;
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
+import org.joda.time.Days;
+import org.joda.time.Duration;
+import org.joda.time.Hours;
 import org.joda.time.Interval;
+import org.joda.time.Minutes;
+import org.joda.time.Months;
 import org.joda.time.Period;
+import org.joda.time.Seconds;
+import org.joda.time.Weeks;
+import org.joda.time.Years;
 
 import java.text.DateFormat;
 import java.text.ParseException;
@@ -123,6 +132,67 @@ public interface DateTimeFunctions extends Function.Library
       DateTime base = Evals.toDateTime(args.get(0).eval(bindings), timeZone);
       Period period = JodaUtils.toPeriod(Evals.getConstantString(args.get(1)));
       return ExprEval.of(base.minus(period));
+    }
+  }
+
+  static enum Unit
+  {
+    MILLIS, SECOND, MINUTE, HOUR, DAY, WEEK, MONTH, YEAR
+  }
+
+  // whole time based
+  class DiffTime implements Function, Function.Factory
+  {
+    private Unit unit;
+
+    @Override
+    public String name()
+    {
+      return "difftime";
+    }
+
+    @Override
+    public ExprEval apply(List<Expr> args, Expr.NumericBinding bindings)
+    {
+      if (args.size() != 3 && args.size() != 4) {
+        throw new IllegalArgumentException("function '" + name() + "' needs three or four arguments");
+      }
+      if (unit == null) {
+        Expr param = args.get(0);
+        if (Evals.isConstantString(param)) {
+          unit = Unit.valueOf(Evals.getConstantString(param).toUpperCase());
+        } else {
+          unit = Unit.values()[Ints.checkedCast(Evals.getConstantLong(param))];
+        }
+      }
+
+      String timeZone = args.size() == 4 ? Evals.getConstantString(args.get(3)) : null;
+      DateTime time1 = Evals.toDateTime(args.get(1).eval(bindings), timeZone);
+      DateTime time2 = Evals.toDateTime(args.get(2).eval(bindings), timeZone);
+
+      switch (unit) {
+        case SECOND:
+          return ExprEval.of(Seconds.secondsBetween(time1, time2).getSeconds());
+        case MINUTE:
+          return ExprEval.of(Minutes.minutesBetween(time1, time2).getMinutes());
+        case HOUR:
+          return ExprEval.of(Hours.hoursBetween(time1, time2).getHours());
+        case DAY:
+          return ExprEval.of(Days.daysBetween(time1, time2).getDays());
+        case WEEK:
+          return ExprEval.of(Weeks.weeksBetween(time1, time2).getWeeks());
+        case MONTH:
+          return ExprEval.of(Months.monthsBetween(time1, time2).getMonths());
+        case YEAR:
+          return ExprEval.of(Years.yearsBetween(time1, time2).getYears());
+      }
+      return ExprEval.of(new Duration(time1, time2).getMillis());
+    }
+
+    @Override
+    public Function get()
+    {
+      return new DiffTime();
     }
   }
 

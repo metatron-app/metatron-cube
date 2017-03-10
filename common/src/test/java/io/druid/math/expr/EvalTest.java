@@ -279,6 +279,52 @@ public class EvalTest
   }
 
   @Test
+  public void testDiffTimes()
+  {
+    DateTimeZone home = DateTimeZone.forID("Asia/Seoul");
+    DateTime time1 = new DateTime("2016-03-04T22:25:00", home);
+    DateTime time2 = new DateTime("2016-03-04T23:35:00", home);
+    DateTime time3 = new DateTime("2016-03-05T01:15:00", home);
+    DateTime time4 = new DateTime("2016-03-12T18:47:00", home);
+    DateTime time5 = new DateTime("2016-04-01T00:12:00", home);
+    DateTime time6 = new DateTime("2016-07-14T03:15:00", home);
+    DateTime time7 = new DateTime("2017-02-09T02:53:00", home);
+    DateTime time8 = new DateTime("2032-09-09T22:11:00", home);
+
+    Expr.NumericBinding bindings = Parser.withMap(
+        ImmutableMap.<String, Object>builder()
+                    .put("t1", time1.getMillis())
+                    .put("t2", time2.getMillis())
+                    .put("t3", time3.getMillis())
+                    .put("t4", time4.getMillis())
+                    .put("t5", time5.getMillis())
+                    .put("t6", time6.getMillis())
+                    .put("t7", time7.getMillis())
+                    .put("t8", time8.getMillis()).build());
+
+    Assert.assertEquals(70, evalLong("difftime('MINUTE', t1, t2)", bindings));
+    Assert.assertEquals(170, evalLong("difftime('MINUTE', t1, t3)", bindings));
+
+    Assert.assertEquals(1, evalLong("difftime('HOUR', t1, t2)", bindings));
+    Assert.assertEquals(2, evalLong("difftime('HOUR', t1, t3)", bindings));
+
+    Assert.assertEquals(0, evalLong("difftime('DAY', t1, t3)", bindings));
+    Assert.assertEquals(7, evalLong("difftime('DAY', t1, t4)", bindings));
+    Assert.assertEquals(27, evalLong("difftime('DAY', t1, t5)", bindings));
+
+    Assert.assertEquals(0, evalLong("difftime('WEEK', t1, t3)", bindings));
+    Assert.assertEquals(1, evalLong("difftime('WEEK', t1, t4)", bindings));
+    Assert.assertEquals(3, evalLong("difftime('WEEK', t1, t5)", bindings));
+
+    Assert.assertEquals(0, evalLong("difftime('MONTH', t1, t5)", bindings));
+    Assert.assertEquals(4, evalLong("difftime('MONTH', t1, t6)", bindings));
+    Assert.assertEquals(11, evalLong("difftime('MONTH', t1, t7)", bindings));
+
+    Assert.assertEquals(0, evalLong("difftime('YEAR', t1, t7)", bindings));
+    Assert.assertEquals(16, evalLong("difftime('YEAR', t1, t8)", bindings));
+  }
+
+  @Test
   public void testFormat()
   {
     Expr.NumericBinding bindings = Parser.withMap(ImmutableMap.of("x", 1, "y", "ss"));
