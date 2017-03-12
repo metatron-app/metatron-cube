@@ -155,6 +155,7 @@ public class OnheapIncrementalIndex extends IncrementalIndex<Aggregator>
   public Iterable<Row> iterable(boolean sortFacts)
   {
     if (sortFacts && !(facts instanceof SortedMap)) {
+      final long start = System.currentTimeMillis();
       final Comparator<TimeAndDims> comparator = dimsComparator();
       List<Map.Entry<TimeAndDims, Integer>> list = Lists.newArrayList(facts.entrySet());
       Collections.sort(
@@ -169,6 +170,7 @@ public class OnheapIncrementalIndex extends IncrementalIndex<Aggregator>
             }
           }
       );
+      log.info("Sorting %d rows.. %,d msec", facts.size(), (System.currentTimeMillis() - start));
       return Iterables.transform(list, rowFunction(ImmutableList.<PostAggregator>of()));
     }
     return super.iterable(sortFacts);

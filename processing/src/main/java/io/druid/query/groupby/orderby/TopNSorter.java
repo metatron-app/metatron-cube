@@ -22,6 +22,8 @@ package io.druid.query.groupby.orderby;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.MinMaxPriorityQueue;
 import com.google.common.collect.Ordering;
+import com.metamx.common.guava.Accumulator;
+import com.metamx.common.guava.Sequence;
 
 /**
  * A utility class that sorts a list of comparable items in the given order, and keeps only the
@@ -53,6 +55,28 @@ public class TopNSorter<T>
     }
 
     MinMaxPriorityQueue<T> queue = MinMaxPriorityQueue.orderedBy(ordering).maximumSize(n).create(items);
+
+    return new OrderedPriorityQueueItems<T>(queue);
+  }
+
+  public Iterable<T> toTopN(Sequence<T> items, int n)
+  {
+    if(n <= 0) {
+      return ImmutableList.of();
+    }
+
+    final MinMaxPriorityQueue<T> queue = MinMaxPriorityQueue.orderedBy(ordering).maximumSize(n).create();
+    items.accumulate(
+        queue, new Accumulator<MinMaxPriorityQueue<T>, T>()
+        {
+          @Override
+          public MinMaxPriorityQueue<T> accumulate(MinMaxPriorityQueue<T> accumulated, T in)
+          {
+            accumulated.offer(in);
+            return accumulated;
+          }
+        }
+    );
 
     return new OrderedPriorityQueueItems<T>(queue);
   }

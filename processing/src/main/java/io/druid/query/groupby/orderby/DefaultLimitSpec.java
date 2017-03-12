@@ -99,14 +99,13 @@ public class DefaultLimitSpec implements LimitSpec
     if (columns.isEmpty() && windowingSpecs.isEmpty()) {
       return new LimitingFn(limit);
     }
-
-    boolean skipSortForLimit = columns.isEmpty();
-    Function<Sequence<Row>, List<Row>> processed = SEQUENCE_TO_LIST;
-    if (!windowingSpecs.isEmpty()) {
-      WindowingProcessor processor = new WindowingProcessor(windowingSpecs, dimensions, aggs, postAggs);
-      skipSortForLimit |= !sortOnTimeForLimit && columns.equals(processor.resultOrdering());
-      processed = Functions.compose(processor, processed);
+    if (windowingSpecs.isEmpty()) {
+      Ordering<Row> ordering = WindowingProcessor.makeComparator(columns, dimensions, aggs, postAggs, sortOnTimeForLimit);
+      return new SortingFn(ordering, limit);
     }
+    WindowingProcessor processor = new WindowingProcessor(windowingSpecs, dimensions, aggs, postAggs);
+    boolean skipSortForLimit = columns.isEmpty() || !sortOnTimeForLimit && columns.equals(processor.resultOrdering());
+    Function<Sequence<Row>, List<Row>> processed = Functions.compose(processor, SEQUENCE_TO_LIST);
     if (skipSortForLimit) {
       Function<List<Row>, List<Row>> limiter = new Function<List<Row>, List<Row>>()
       {
@@ -121,7 +120,7 @@ public class DefaultLimitSpec implements LimitSpec
 
     // Materialize the Comparator first for fast-fail error checking.
     Ordering<Row> ordering = WindowingProcessor.makeComparator(columns, dimensions, aggs, postAggs, sortOnTimeForLimit);
-    return Functions.compose(new SortingFn(ordering, limit), processed);
+    return Functions.compose(new ListSortingFn(ordering, limit), processed);
   }
 
   @Override
@@ -162,14 +161,30 @@ public class DefaultLimitSpec implements LimitSpec
     }
   }
 
+  private static class SortingFn implements Function<Sequence<Row>, Sequence<Row>>
+  {
+    private final TopNSorter<Row> sorter;
+    private final int limit;
 
-  private static class SortingFn implements Function<List<Row>, Sequence<Row>>
+    public SortingFn(Ordering<Row> ordering, int limit) {
+      this.limit = limit;
+      this.sorter = new TopNSorter<>(ordering);
+    }
+
+    @Override
+    public Sequence<Row> apply(Sequence<Row> input)
+    {
+      return Sequences.simple(sorter.toTopN(input, limit));
+    }
+  }
+
+  private static class ListSortingFn implements Function<List<Row>, Sequence<Row>>
   {
     private final TopNSorter<Row> sorter;
     private final Ordering<Row> ordering;
     private final int limit;
 
-    public SortingFn(Ordering<Row> ordering, int limit) {
+    public ListSortingFn(Ordering<Row> ordering, int limit) {
       this.ordering = ordering;
       this.limit = limit;
       this.sorter = new TopNSorter<>(ordering);
