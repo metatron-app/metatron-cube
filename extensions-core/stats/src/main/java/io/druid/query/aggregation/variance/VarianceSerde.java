@@ -20,7 +20,7 @@
 package io.druid.query.aggregation.variance;
 
 import com.google.common.collect.Ordering;
-import io.druid.data.input.InputRow;
+import io.druid.data.input.Row;
 import io.druid.segment.column.ColumnBuilder;
 import io.druid.segment.data.GenericIndexed;
 import io.druid.segment.data.ObjectStrategy;
@@ -56,7 +56,7 @@ public class VarianceSerde extends ComplexMetricSerde
       }
 
       @Override
-      public VarianceAggregatorCollector extractValue(InputRow inputRow, String metricName)
+      public VarianceAggregatorCollector extractValue(Row inputRow, String metricName)
       {
         Object rawValue = inputRow.getRaw(metricName);
 

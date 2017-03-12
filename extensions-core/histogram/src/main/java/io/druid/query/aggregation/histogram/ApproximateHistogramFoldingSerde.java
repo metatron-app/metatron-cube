@@ -21,7 +21,7 @@ package io.druid.query.aggregation.histogram;
 
 import com.google.common.base.Throwables;
 import com.google.common.collect.Ordering;
-import io.druid.data.input.InputRow;
+import io.druid.data.input.Row;
 import io.druid.segment.column.ColumnBuilder;
 import io.druid.segment.data.GenericIndexed;
 import io.druid.segment.data.ObjectStrategy;
@@ -69,7 +69,7 @@ public class ApproximateHistogramFoldingSerde extends ComplexMetricSerde
       }
 
       @Override
-      public ApproximateHistogram extractValue(InputRow inputRow, String metricName)
+      public ApproximateHistogram extractValue(Row inputRow, String metricName)
       {
         Object rawValue = inputRow.getRaw(metricName);
 

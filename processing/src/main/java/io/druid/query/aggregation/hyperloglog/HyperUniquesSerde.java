@@ -22,7 +22,7 @@ package io.druid.query.aggregation.hyperloglog;
 import com.google.common.collect.Ordering;
 import com.google.common.hash.HashFunction;
 import com.metamx.common.StringUtils;
-import io.druid.data.input.InputRow;
+import io.druid.data.input.Row;
 import io.druid.segment.column.ColumnBuilder;
 import io.druid.segment.data.GenericIndexed;
 import io.druid.segment.data.ObjectStrategy;
@@ -75,7 +75,7 @@ public class HyperUniquesSerde extends ComplexMetricSerde
       }
 
       @Override
-      public HyperLogLogCollector extractValue(InputRow inputRow, String metricName)
+      public HyperLogLogCollector extractValue(Row inputRow, String metricName)
       {
         Object rawValue = inputRow.getRaw(metricName);
 

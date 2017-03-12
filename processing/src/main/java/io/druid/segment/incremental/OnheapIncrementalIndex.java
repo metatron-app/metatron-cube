@@ -27,7 +27,6 @@ import com.google.common.collect.Maps;
 import com.google.common.primitives.Ints;
 import com.metamx.common.logger.Logger;
 import com.metamx.common.parsers.ParseException;
-import io.druid.data.input.InputRow;
 import io.druid.data.input.Row;
 import io.druid.granularity.QueryGranularity;
 import io.druid.query.aggregation.AbstractArrayAggregatorFactory;
@@ -183,7 +182,7 @@ public class OnheapIncrementalIndex extends IncrementalIndex<Aggregator>
 
   @Override
   protected Aggregator[] initAggs(
-      AggregatorFactory[] metrics, Supplier<InputRow> rowSupplier, boolean deserializeComplexMetrics
+      AggregatorFactory[] metrics, Supplier<Row> rowSupplier, boolean deserializeComplexMetrics
   )
   {
     selectors = Maps.newHashMap();
@@ -202,11 +201,11 @@ public class OnheapIncrementalIndex extends IncrementalIndex<Aggregator>
       AggregatorFactory[] metrics,
       boolean deserializeComplexMetrics,
       boolean reportParseExceptions,
-      InputRow row,
+      Row row,
       AtomicInteger numEntries,
       TimeAndDims key,
-      ThreadLocal<InputRow> rowContainer,
-      Supplier<InputRow> rowSupplier
+      ThreadLocal<Row> rowContainer,
+      Supplier<Row> rowSupplier
   ) throws IndexSizeExceededException
   {
     final Integer priorIndex = facts.get(key);
@@ -247,8 +246,8 @@ public class OnheapIncrementalIndex extends IncrementalIndex<Aggregator>
   private void factorizeAggs(
       AggregatorFactory[] metrics,
       Aggregator[] aggs,
-      ThreadLocal<InputRow> rowContainer,
-      InputRow row
+      ThreadLocal<Row> rowContainer,
+      Row row
   )
   {
     rowContainer.set(row);
@@ -261,8 +260,8 @@ public class OnheapIncrementalIndex extends IncrementalIndex<Aggregator>
 
   private void doAggregate(
       Aggregator[] aggs,
-      ThreadLocal<InputRow> rowContainer,
-      InputRow row,
+      ThreadLocal<Row> rowContainer,
+      Row row,
       boolean reportParseExceptions
   )
   {

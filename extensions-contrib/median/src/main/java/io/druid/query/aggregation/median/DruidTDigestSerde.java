@@ -1,7 +1,7 @@
 package io.druid.query.aggregation.median;
 
 import com.google.common.collect.Ordering;
-import io.druid.data.input.InputRow;
+import io.druid.data.input.Row;
 import io.druid.segment.column.ColumnBuilder;
 import io.druid.segment.data.GenericIndexed;
 import io.druid.segment.data.ObjectStrategy;
@@ -44,7 +44,7 @@ public class DruidTDigestSerde extends ComplexMetricSerde
       }
 
       @Override
-      public DruidTDigest extractValue(InputRow inputRow, String metricName)
+      public DruidTDigest extractValue(Row inputRow, String metricName)
       {
         Object rawValue = inputRow.getRaw(metricName);
 

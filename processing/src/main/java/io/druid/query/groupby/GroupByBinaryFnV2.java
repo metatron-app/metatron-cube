@@ -26,18 +26,32 @@ import io.druid.data.input.Row;
 import io.druid.granularity.AllGranularity;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.dimension.DimensionSpec;
-import io.druid.query.groupby.GroupByQuery;
 import org.joda.time.DateTime;
 
+import java.util.List;
 import java.util.Map;
 
 public class GroupByBinaryFnV2 implements BinaryFn<Row, Row, Row>
 {
   private final GroupByQuery query;
+  private final boolean allGranularity;
+  private final String[] dimensionNames;
+  private final AggregatorFactory[] aggregatorFactories;
 
   public GroupByBinaryFnV2(GroupByQuery query)
   {
     this.query = query;
+    this.allGranularity = query.getGranularity() instanceof AllGranularity;
+    List<DimensionSpec> dimensions = query.getDimensions();
+    this.dimensionNames = new String[dimensions.size()];
+    for (int i = 0; i < dimensionNames.length; i++) {
+      dimensionNames[i] = dimensions.get(i).getOutputName();
+    }
+    List<AggregatorFactory> aggregatorSpecs = query.getAggregatorSpecs();
+    this.aggregatorFactories = new AggregatorFactory[aggregatorSpecs.size()];
+    for (int i = 0; i < aggregatorFactories.length; i++) {
+      aggregatorFactories[i] = aggregatorSpecs.get(i);
+    }
   }
 
   @Override
@@ -50,24 +64,18 @@ public class GroupByBinaryFnV2 implements BinaryFn<Row, Row, Row>
     }
 
     final Map<String, Object> newMap = Maps.newHashMapWithExpectedSize(
-        query.getDimensions().size()
-        + query.getAggregatorSpecs().size()
+        dimensionNames.length + aggregatorFactories.length
     );
 
     // Add dimensions
-    for (DimensionSpec dimension : query.getDimensions()) {
-      newMap.put(dimension.getOutputName(), arg1.getRaw(dimension.getOutputName()));
+    for (String dimensionName : dimensionNames) {
+      newMap.put(dimensionName, arg1.getRaw(dimensionName));
     }
 
     // Add aggregations
-    for (AggregatorFactory aggregatorFactory : query.getAggregatorSpecs()) {
-      newMap.put(
-          aggregatorFactory.getName(),
-          aggregatorFactory.combine(
-              arg1.getRaw(aggregatorFactory.getName()),
-              arg2.getRaw(aggregatorFactory.getName())
-          )
-      );
+    for (AggregatorFactory aggregatorFactory : aggregatorFactories) {
+      final String name = aggregatorFactory.getName();
+      newMap.put(name, aggregatorFactory.combine(arg1.getRaw(name), arg2.getRaw(name)));
     }
 
     return new MapBasedRow(adjustTimestamp(arg1), newMap);
@@ -75,7 +83,7 @@ public class GroupByBinaryFnV2 implements BinaryFn<Row, Row, Row>
 
   private DateTime adjustTimestamp(final Row row)
   {
-    if (query.getGranularity() instanceof AllGranularity) {
+    if (allGranularity) {
       return row.getTimestamp();
     } else {
       return query.getGranularity().toDateTime(query.getGranularity().truncate(row.getTimestamp().getMillis()));

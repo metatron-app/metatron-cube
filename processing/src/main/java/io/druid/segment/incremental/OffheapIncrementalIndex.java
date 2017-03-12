@@ -28,7 +28,7 @@ import com.metamx.common.logger.Logger;
 import com.metamx.common.parsers.ParseException;
 import io.druid.collections.ResourceHolder;
 import io.druid.collections.StupidPool;
-import io.druid.data.input.InputRow;
+import io.druid.data.input.Row;
 import io.druid.granularity.QueryGranularity;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.BufferAggregator;
@@ -163,7 +163,7 @@ public class OffheapIncrementalIndex extends IncrementalIndex<BufferAggregator>
 
   @Override
   protected BufferAggregator[] initAggs(
-      AggregatorFactory[] metrics, Supplier<InputRow> rowSupplier, boolean deserializeComplexMetrics
+      AggregatorFactory[] metrics, Supplier<Row> rowSupplier, boolean deserializeComplexMetrics
   )
   {
     selectors = Maps.newHashMap();
@@ -200,11 +200,11 @@ public class OffheapIncrementalIndex extends IncrementalIndex<BufferAggregator>
       AggregatorFactory[] metrics,
       boolean deserializeComplexMetrics,
       boolean reportParseExceptions,
-      InputRow row,
+      Row row,
       AtomicInteger numEntries,
       TimeAndDims key,
-      ThreadLocal<InputRow> rowContainer,
-      Supplier<InputRow> rowSupplier
+      ThreadLocal<Row> rowContainer,
+      Supplier<Row> rowSupplier
   ) throws IndexSizeExceededException
   {
     ByteBuffer aggBuffer;

@@ -1,7 +1,7 @@
 package io.druid.query.aggregation.range;
 
 import com.google.common.collect.Ordering;
-import io.druid.data.input.InputRow;
+import io.druid.data.input.Row;
 import io.druid.segment.column.ColumnBuilder;
 import io.druid.segment.data.GenericIndexed;
 import io.druid.segment.data.ObjectStrategy;
@@ -68,7 +68,7 @@ public class MetricRangeSerde extends ComplexMetricSerde
       }
 
       @Override
-      public MetricRange extractValue(InputRow inputRow, String metricName)
+      public MetricRange extractValue(Row inputRow, String metricName)
       {
         Object rawValue = inputRow.getRaw(metricName);
 

@@ -25,13 +25,11 @@ import com.metamx.common.ISE;
 import com.metamx.common.Pair;
 import com.metamx.common.guava.Accumulator;
 import io.druid.collections.StupidPool;
-import io.druid.data.input.MapBasedInputRow;
-import io.druid.data.input.MapBasedRow;
+import io.druid.data.input.Row;
 import io.druid.granularity.QueryGranularity;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.dimension.DimensionSpec;
 import io.druid.segment.incremental.IncrementalIndex;
-import io.druid.segment.incremental.IndexSizeExceededException;
 import io.druid.segment.incremental.OffheapIncrementalIndex;
 import io.druid.segment.incremental.OnheapIncrementalIndex;
 
@@ -105,30 +103,14 @@ public class GroupByQueryHelper
       );
     }
 
+    index.initialize(dimensions);
+
     Accumulator<IncrementalIndex, T> accumulator = new Accumulator<IncrementalIndex, T>()
     {
       @Override
-      public IncrementalIndex accumulate(IncrementalIndex accumulated, T in)
+      public IncrementalIndex accumulate(final IncrementalIndex accumulated, final T in)
       {
-
-        if (in instanceof MapBasedRow) {
-          try {
-            MapBasedRow row = (MapBasedRow) in;
-            accumulated.add(
-                new MapBasedInputRow(
-                    row.getTimestamp(),
-                    dimensions,
-                    row.getEvent()
-                )
-            );
-          }
-          catch (IndexSizeExceededException e) {
-            throw new ISE(e.getMessage());
-          }
-        } else {
-          throw new ISE("Unable to accumulate something of type [%s]", in.getClass());
-        }
-
+        accumulated.add((Row)in);
         return accumulated;
       }
     };

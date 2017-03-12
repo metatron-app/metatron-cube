@@ -19,7 +19,7 @@
 
 package io.druid.query.aggregation.histogram;
 
-import io.druid.data.input.InputRow;
+import io.druid.data.input.Row;
 import io.druid.segment.serde.ComplexMetricExtractor;
 
 import java.util.Iterator;
@@ -53,7 +53,7 @@ public class ApproximateHistogramCompactFoldingSerde extends ApproximateHistogra
       }
 
       @Override
-      public ApproximateCompactHistogram extractValue(InputRow inputRow, String metricName)
+      public ApproximateCompactHistogram extractValue(Row inputRow, String metricName)
       {
         Object rawValue = inputRow.getRaw(metricName);
 

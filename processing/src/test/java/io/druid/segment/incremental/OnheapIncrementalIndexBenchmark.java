@@ -33,10 +33,10 @@ import com.google.common.util.concurrent.MoreExecutors;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.metamx.common.guava.Sequences;
 import com.metamx.common.parsers.ParseException;
-import io.druid.data.input.InputRow;
 import io.druid.data.input.MapBasedInputRow;
-import io.druid.granularity.QueryGranularity;
+import io.druid.data.input.Row;
 import io.druid.granularity.QueryGranularities;
+import io.druid.granularity.QueryGranularity;
 import io.druid.query.Druids;
 import io.druid.query.FinalizeResultsQueryRunner;
 import io.druid.query.QueryRunner;
@@ -138,11 +138,11 @@ public class OnheapIncrementalIndexBenchmark extends AbstractBenchmark
         AggregatorFactory[] metrics,
         boolean deserializeComplexMetrics,
         boolean reportParseExceptions,
-        InputRow row,
+        Row row,
         AtomicInteger numEntries,
         TimeAndDims key,
-        ThreadLocal<InputRow> rowContainer,
-        Supplier<InputRow> rowSupplier
+        ThreadLocal<Row> rowContainer,
+        Supplier<Row> rowSupplier
     ) throws IndexSizeExceededException
     {
 

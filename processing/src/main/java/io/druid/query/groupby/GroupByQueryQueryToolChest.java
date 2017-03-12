@@ -270,63 +270,59 @@ public class GroupByQueryQueryToolChest extends QueryToolChest<Row, GroupByQuery
         }
       };
 
+      Sequence<Row> mergedSequence = mergingQueryRunner.run(
+          new GroupByQuery(
+              query.getDataSource(),
+              query.getQuerySegmentSpec(),
+              query.getDimFilter(),
+              query.getGranularity(),
+              query.getDimensions(),
+              query.getVirtualColumns(),
+              query.getAggregatorSpecs(),
+              // Don't do post aggs until the end of this method.
+              ImmutableList.<PostAggregator>of(),
+              // Don't do "having" clause until the end of this method.
+              null,
+              null,
+              null,
+              null,
+              query.getContext()
+          ).withOverriddenContext(
+              ImmutableMap.<String, Object>of(
+                  "finalize", false,
+                  GroupByQueryHelper.CTX_KEY_FUDGE_TIMESTAMP,
+                  fudgeTimestamp == null ? "" : String.valueOf(fudgeTimestamp),
+                  GROUP_BY_MERGE_KEY, false
+              )
+          ),
+          context
+      );
+
       final List<PostAggregator> postAggregators = PostAggregators.decorate(
           query.getPostAggregatorSpecs(),
           query.getAggregatorSpecs()
       );
-
-      return query.applyLimit(
-          Sequences.map(
-              mergingQueryRunner.run(
-                  new GroupByQuery(
-                      query.getDataSource(),
-                      query.getQuerySegmentSpec(),
-                      query.getDimFilter(),
-                      query.getGranularity(),
-                      query.getDimensions(),
-                      query.getVirtualColumns(),
-                      query.getAggregatorSpecs(),
-                      // Don't do post aggs until the end of this method.
-                      ImmutableList.<PostAggregator>of(),
-                      // Don't do "having" clause until the end of this method.
-                      null,
-                      null,
-                      null,
-                      null,
-                      query.getContext()
-                  ).withOverriddenContext(
-                      ImmutableMap.<String, Object>of(
-                          "finalize", false,
-                          GroupByQueryHelper.CTX_KEY_FUDGE_TIMESTAMP,
-                          fudgeTimestamp == null ? "" : String.valueOf(fudgeTimestamp),
-                          GROUP_BY_MERGE_KEY, false
-                      )
-                  ),
-                  context
-              ),
-              new Function<Row, Row>()
+      if (!postAggregators.isEmpty()) {
+        mergedSequence = Sequences.map(
+            mergedSequence,
+            new Function<Row, Row>()
+            {
+              @Override
+              public Row apply(final Row row)
               {
-                @Override
-                public Row apply(final Row row)
-                {
-                  // Maybe apply postAggregators.
+                // Maybe apply postAggregators.
+                final Map<String, Object> newMap = Maps.newLinkedHashMap(((MapBasedRow) row).getEvent());
 
-                  if (query.getPostAggregatorSpecs().isEmpty()) {
-                    return row;
-                  }
-
-                  final Map<String, Object> newMap = Maps.newLinkedHashMap(((MapBasedRow) row).getEvent());
-
-                  for (PostAggregator postAggregator : postAggregators) {
-                    newMap.put(postAggregator.getName(), postAggregator.compute(newMap));
-                  }
-
-                  return new MapBasedRow(row.getTimestamp(), newMap);
+                for (PostAggregator postAggregator : postAggregators) {
+                  newMap.put(postAggregator.getName(), postAggregator.compute(newMap));
                 }
+
+                return new MapBasedRow(row.getTimestamp(), newMap);
               }
-          ),
-          configSupplier.get()
-      );
+            }
+        );
+      }
+      return query.applyLimit(mergedSequence, configSupplier.get());
     }
   }
 

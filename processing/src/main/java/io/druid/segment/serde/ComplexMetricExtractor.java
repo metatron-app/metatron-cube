@@ -20,11 +20,12 @@
 package io.druid.segment.serde;
 
 import io.druid.data.input.InputRow;
+import io.druid.data.input.Row;
 
 /**
  */
 public interface ComplexMetricExtractor
 {
   public Class<?> extractedClass();
-  public Object extractValue(InputRow inputRow, String metricName);
+  public Object extractValue(Row inputRow, String metricName);
 }

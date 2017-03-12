@@ -19,7 +19,7 @@
 
 package io.druid.query.aggregation.variance;
 
-import io.druid.data.input.InputRow;
+import io.druid.data.input.Row;
 import io.druid.segment.serde.ComplexMetricExtractor;
 
 import java.util.List;
@@ -38,7 +38,7 @@ public class VarianceCombinedSerde extends VarianceSerde
       }
 
       @Override
-      public VarianceAggregatorCollector extractValue(InputRow inputRow, String metricName)
+      public VarianceAggregatorCollector extractValue(Row inputRow, String metricName)
       {
         Object rawValue = inputRow.getRaw(metricName);
 

@@ -25,7 +25,7 @@ import com.google.common.io.ByteArrayDataOutput;
 import com.google.common.io.ByteStreams;
 import io.druid.data.ValueType;
 import io.druid.data.input.AbstractInputRow;
-import io.druid.data.input.InputRow;
+import io.druid.data.input.Row;
 import io.druid.segment.column.ColumnBuilder;
 import io.druid.segment.data.GenericIndexed;
 import io.druid.segment.data.ObjectStrategy;
@@ -84,7 +84,7 @@ public class ArrayMetricSerde extends ComplexMetricSerde
       }
 
       @Override
-      public Object extractValue(InputRow inputRow, String metricName)
+      public Object extractValue(Row inputRow, String metricName)
       {
         Object raw = inputRow.getRaw(metricName);
         return raw == null ? null : extractElement(toList(raw));

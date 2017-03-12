@@ -41,6 +41,7 @@ import io.druid.data.input.InputRow;
 import io.druid.data.input.MapBasedRow;
 import io.druid.data.input.Row;
 import io.druid.data.input.impl.DimensionSchema;
+import io.druid.data.input.impl.DimensionSchema.MultiValueHandling;
 import io.druid.data.input.impl.DimensionsSpec;
 import io.druid.data.input.impl.SpatialDimensionSchema;
 import io.druid.data.input.impl.StringDimensionSchema;
@@ -193,7 +194,7 @@ public abstract class IncrementalIndex<AggregatorType> implements Iterable<Row>,
 
   public static ColumnSelectorFactory makeColumnSelectorFactory(
       final AggregatorFactory agg,
-      final Supplier<InputRow> in,
+      final Supplier<Row> in,
       final boolean deserializeComplexMetrics
   )
   {
@@ -445,11 +446,11 @@ public abstract class IncrementalIndex<AggregatorType> implements Iterable<Row>,
   private final AtomicInteger numEntries = new AtomicInteger();
 
   // This is modified on add() in a critical section.
-  private final ThreadLocal<InputRow> in = new ThreadLocal<>();
-  private final Supplier<InputRow> rowSupplier = new Supplier<InputRow>()
+  private final ThreadLocal<Row> in = new ThreadLocal<>();
+  private final Supplier<Row> rowSupplier = new Supplier<Row>()
   {
     @Override
-    public InputRow get()
+    public Row get()
     {
       return in.get();
     }
@@ -569,7 +570,7 @@ public abstract class IncrementalIndex<AggregatorType> implements Iterable<Row>,
 
   protected abstract AggregatorType[] initAggs(
       AggregatorFactory[] metrics,
-      Supplier<InputRow> rowSupplier,
+      Supplier<Row> rowSupplier,
       boolean deserializeComplexMetrics
   );
 
@@ -578,11 +579,11 @@ public abstract class IncrementalIndex<AggregatorType> implements Iterable<Row>,
       AggregatorFactory[] metrics,
       boolean deserializeComplexMetrics,
       boolean reportParseExceptions,
-      InputRow row,
+      Row row,
       AtomicInteger numEntries,
       TimeAndDims key,
-      ThreadLocal<InputRow> rowContainer,
-      Supplier<InputRow> rowSupplier
+      ThreadLocal<Row> rowContainer,
+      Supplier<Row> rowSupplier
   ) throws IndexSizeExceededException;
 
   protected abstract AggregatorType[] getAggsForRow(int rowOffset);
@@ -671,7 +672,11 @@ public abstract class IncrementalIndex<AggregatorType> implements Iterable<Row>,
    */
   public int add(InputRow row) throws IndexSizeExceededException
   {
-    TimeAndDims key = toTimeAndDims(row);
+    return addTimeAndDims(row, toTimeAndDims(row));
+  }
+
+  private int addTimeAndDims(Row row, TimeAndDims key) throws IndexSizeExceededException
+  {
     final int rv = addToFacts(
         metrics,
         deserializeComplexMetrics,
@@ -765,6 +770,11 @@ public abstract class IncrementalIndex<AggregatorType> implements Iterable<Row>,
       dims = newDims;
     }
 
+    return new TimeAndDims(toIndexingTime(timestampFromEpoch), dims);
+  }
+
+  private long toIndexingTime(long timestampFromEpoch)
+  {
     long truncated = timestampFromEpoch;
     if (minTimestamp != Long.MIN_VALUE) {
       truncated = Math.max(gran.truncate(timestampFromEpoch), minTimestamp);
@@ -772,8 +782,7 @@ public abstract class IncrementalIndex<AggregatorType> implements Iterable<Row>,
 
     minTimeMillis = Math.min(minTimeMillis, truncated);
     maxTimeMillis = Math.max(maxTimeMillis, truncated);
-
-    return new TimeAndDims(truncated, dims);
+    return truncated;
   }
 
   private synchronized void updateMaxIngestedTime(DateTime eventTime)
@@ -781,6 +790,34 @@ public abstract class IncrementalIndex<AggregatorType> implements Iterable<Row>,
     if (maxIngestedEventTime == null || maxIngestedEventTime.isBefore(eventTime)) {
       maxIngestedEventTime = eventTime;
     }
+  }
+
+  // fast track for group-by query
+  public void initialize(List<String> dimensions)
+  {
+    for (String dimension : dimensions) {
+      addNewDimension(dimension, ColumnCapabilitiesImpl.of(ValueType.STRING), MultiValueHandling.ARRAY, -1);
+    }
+  }
+
+  public int add(Row row)
+  {
+    try {
+      return addTimeAndDims(row, toTimeAndDims(row));
+    }
+    catch (IndexSizeExceededException e) {
+      throw new ISE(e, e.getMessage());
+    }
+  }
+
+  private TimeAndDims toTimeAndDims(Row row)
+  {
+    int[][] dims = new int[dimensionDescs.size()][];
+    for (Map.Entry<String, DimensionDesc> entry : dimensionDescs.entrySet()) {
+      DimensionDesc dimDesc = entry.getValue();
+      dims[dimDesc.index] = getDimVal(dimDesc, STRING_TRANSFORMER.apply(row.getRaw(entry.getKey())));
+    }
+    return new TimeAndDims(toIndexingTime(row.getTimestampFromEpoch()), dims);
   }
 
   public boolean isEmpty()
@@ -814,6 +851,17 @@ public abstract class IncrementalIndex<AggregatorType> implements Iterable<Row>,
     return maxTimeMillis == Long.MIN_VALUE ? -1 : maxTimeMillis;
   }
 
+  @SuppressWarnings("unchecked")
+  private int[] getDimVal(final DimensionDesc dimDesc, final Comparable dimValue)
+  {
+    int index = dimDesc.getValues().add(dimValue);
+    if (dimValue == null) {
+      return null;
+    }
+    return new int[] {index};
+  }
+
+  @SuppressWarnings("unchecked")
   private int[] getDimVals(final DimensionDesc dimDesc, final List<Comparable> dimValues)
   {
     final DimDim dimLookup = dimDesc.getValues();
@@ -830,10 +878,10 @@ public abstract class IncrementalIndex<AggregatorType> implements Iterable<Row>,
       return new int[]{dimLookup.add(dimVal)};
     }
 
-    final DimensionSchema.MultiValueHandling multiValueHandling = dimDesc.getMultiValueHandling();
+    final MultiValueHandling multiValueHandling = dimDesc.getMultiValueHandling();
 
     final Comparable[] dimArray = dimValues.toArray(new Comparable[dimValues.size()]);
-    if (multiValueHandling != DimensionSchema.MultiValueHandling.ARRAY) {
+    if (multiValueHandling != MultiValueHandling.ARRAY) {
       Arrays.sort(dimArray, ordering);
     }
 
@@ -842,7 +890,7 @@ public abstract class IncrementalIndex<AggregatorType> implements Iterable<Row>,
     int prevId = -1;
     int pos = 0;
     for (int i = 0; i < dimArray.length; i++) {
-      if (multiValueHandling != DimensionSchema.MultiValueHandling.SET) {
+      if (multiValueHandling != MultiValueHandling.SET) {
         retVal[pos++] = dimLookup.add(dimArray[i]);
         continue;
       }
@@ -964,7 +1012,7 @@ public abstract class IncrementalIndex<AggregatorType> implements Iterable<Row>,
   private DimensionDesc addNewDimension(
       String dim,
       ColumnCapabilitiesImpl capabilities,
-      DimensionSchema.MultiValueHandling multiValueHandling,
+      MultiValueHandling multiValueHandling,
       int compareCacheEntry
       )
   {
@@ -1137,13 +1185,13 @@ public abstract class IncrementalIndex<AggregatorType> implements Iterable<Row>,
     private final String name;
     private final DimDim values;
     private final ColumnCapabilitiesImpl capabilities;
-    private final DimensionSchema.MultiValueHandling multiValueHandling;
+    private final MultiValueHandling multiValueHandling;
 
     public DimensionDesc(int index,
                          String name,
                          DimDim values,
                          ColumnCapabilitiesImpl capabilities,
-                         DimensionSchema.MultiValueHandling multiValueHandling
+                         MultiValueHandling multiValueHandling
     )
     {
       this.index = index;
@@ -1151,7 +1199,7 @@ public abstract class IncrementalIndex<AggregatorType> implements Iterable<Row>,
       this.values = values;
       this.capabilities = capabilities;
       this.multiValueHandling =
-          multiValueHandling == null ? DimensionSchema.MultiValueHandling.ARRAY : multiValueHandling;
+          multiValueHandling == null ? MultiValueHandling.ARRAY : multiValueHandling;
     }
 
     public int getIndex()
@@ -1174,7 +1222,7 @@ public abstract class IncrementalIndex<AggregatorType> implements Iterable<Row>,
       return capabilities;
     }
 
-    public DimensionSchema.MultiValueHandling getMultiValueHandling()
+    public MultiValueHandling getMultiValueHandling()
     {
       return multiValueHandling;
     }

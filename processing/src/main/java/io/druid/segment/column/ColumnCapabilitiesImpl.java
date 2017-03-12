@@ -27,6 +27,13 @@ import io.druid.data.ValueType;
  */
 public class ColumnCapabilitiesImpl implements ColumnCapabilities
 {
+  public static ColumnCapabilitiesImpl of(ValueType type)
+  {
+    ColumnCapabilitiesImpl capabilities = new ColumnCapabilitiesImpl();
+    capabilities.setType(type);
+    return capabilities;
+  }
+
   private ValueType type = null;
   private boolean dictionaryEncoded = false;
   private boolean runLengthEncoded = false;
