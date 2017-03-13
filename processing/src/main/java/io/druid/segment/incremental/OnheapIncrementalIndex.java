@@ -177,9 +177,9 @@ public class OnheapIncrementalIndex extends IncrementalIndex<Aggregator>
   }
 
   @Override
-  protected DimDim makeDimDim(String dimension, SizeEstimator estimator, Object lock)
+  protected DimDim makeDimDim(String dimension, SizeEstimator estimator)
   {
-    return new OnHeapDimDim(estimator, lock);
+    return new OnHeapDimDim(estimator);
   }
 
   @Override
@@ -394,19 +394,16 @@ public class OnheapIncrementalIndex extends IncrementalIndex<Aggregator>
     private int estimatedSize;
 
     private final List<T> idToValue = Lists.newArrayList();
-    private final Object lock;
-
     private final SizeEstimator<T> estimator;
 
-    public OnHeapDimDim(SizeEstimator<T> estimator, Object lock)
+    public OnHeapDimDim(SizeEstimator<T> estimator)
     {
-      this.lock = lock;
       this.estimator = estimator;
     }
 
     public int getId(T value)
     {
-      synchronized (lock) {
+      synchronized (valueToId) {
         final Integer id = valueToId.get(value);
         return id == null ? -1 : id;
       }
@@ -414,34 +411,34 @@ public class OnheapIncrementalIndex extends IncrementalIndex<Aggregator>
 
     public T getValue(int id)
     {
-      synchronized (lock) {
+      synchronized (valueToId) {
         return idToValue.get(id);
       }
     }
 
     public boolean contains(T value)
     {
-      synchronized (lock) {
+      synchronized (valueToId) {
         return valueToId.containsKey(value);
       }
     }
 
     public int size()
     {
-      synchronized (lock) {
+      synchronized (valueToId) {
         return valueToId.size();
       }
     }
 
     public int add(T value)
     {
-      synchronized (lock) {
+      synchronized (valueToId) {
         Integer prev = valueToId.get(value);
         if (prev != null) {
           estimatedSize += Ints.BYTES;
           return prev;
         }
-        final int index = size();
+        final int index = valueToId.size();
         valueToId.put(value, index);
         idToValue.add(value);
         if (value != null) {
@@ -486,7 +483,7 @@ public class OnheapIncrementalIndex extends IncrementalIndex<Aggregator>
 
     public OnHeapDimLookup sort()
     {
-      synchronized (lock) {
+      synchronized (valueToId) {
         return new OnHeapDimLookup(idToValue, size());
       }
     }

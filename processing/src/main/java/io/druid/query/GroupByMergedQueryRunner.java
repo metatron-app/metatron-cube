@@ -120,14 +120,14 @@ public class GroupByMergedQueryRunner<T> implements QueryRunner<T>
                           public Void call() throws Exception
                           {
                             try {
+                              Sequence<T> sequence = input.run(queryParam, responseContext);
+                              long start = System.currentTimeMillis();
                               if (bySegment) {
-                                input.run(queryParam, responseContext)
-                                     .accumulate(bySegmentAccumulatorPair.lhs, bySegmentAccumulatorPair.rhs);
+                                sequence.accumulate(bySegmentAccumulatorPair.lhs, bySegmentAccumulatorPair.rhs);
                               } else {
-                                input.run(queryParam, responseContext)
-                                     .accumulate(indexAccumulatorPair.lhs, indexAccumulatorPair.rhs);
+                                sequence.accumulate(indexAccumulatorPair.lhs, indexAccumulatorPair.rhs);
                               }
-
+                              log.info("accumulated in %,d msec", (System.currentTimeMillis() - start));
                               return null;
                             }
                             catch (QueryInterruptedException e) {

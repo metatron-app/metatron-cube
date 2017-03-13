@@ -22,7 +22,6 @@ package io.druid.query.groupby;
 import com.google.common.base.Function;
 import com.google.common.base.Strings;
 import com.google.common.base.Supplier;
-import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
@@ -36,6 +35,7 @@ import com.metamx.common.guava.CloseQuietly;
 import com.metamx.common.guava.FunctionalIterator;
 import com.metamx.common.guava.Sequence;
 import com.metamx.common.guava.Sequences;
+import com.metamx.common.logger.Logger;
 import com.metamx.common.parsers.CloseableIterator;
 import io.druid.cache.Cache;
 import io.druid.collections.ResourceHolder;
@@ -75,6 +75,8 @@ import java.util.Set;
  */
 public class GroupByQueryEngine
 {
+  private static final Logger log = new Logger(GroupByQueryEngine.class);
+
   /**
    * If "query" has a single universal timestamp, return it. Otherwise return null. This is useful
    * for keeping timestamps in sync across partial queries that may have different intervals.
@@ -217,15 +219,14 @@ public class GroupByQueryEngine
     private List<int[]> updateValues(
         final int[] key,
         final int index,
-        final List<DimensionSelector> dims
+        final DimensionSelector[] dims
     )
     {
       if (index < key.length) {
         List<int[]> retVal = null;
         List<int[]> unaggregatedBuffers = null;
 
-        final DimensionSelector dimSelector = dims.get(index);
-        final IndexedInts row = dimSelector.getRow();
+        final IndexedInts row = dims[index].getRow();
         if (row == null || row.size() == 0) {
           // warn: changed semantic.. (we added null and proceeded before)
           return null;
@@ -280,7 +281,7 @@ public class GroupByQueryEngine
     private final int increment;
     private final int max;
 
-    private long nextVal;
+    private int nextVal;
 
     public PositionMaintainer(
         int start,
@@ -288,7 +289,7 @@ public class GroupByQueryEngine
         int max
     )
     {
-      this.nextVal = (long) start;
+      this.nextVal = start;
       this.increments = increments;
 
       int theIncrement = 0;
@@ -305,7 +306,7 @@ public class GroupByQueryEngine
       if (nextVal > max) {
         return null;
       } else {
-        int retVal = (int) nextVal;
+        int retVal = nextVal;
         nextVal += increment;
         return retVal;
       }
@@ -329,10 +330,9 @@ public class GroupByQueryEngine
     private final ByteBuffer metricsBuffer;
     private final int maxIntermediateRows;
 
-    private final List<DimensionSpec> dimensionSpecs;
-    private final List<DimensionSelector> dimensions;
-    private final List<String> dimNames;
-    private final List<AggregatorFactory> aggregatorSpecs;
+    private final DimensionSelector[] dimensions;
+    private final String[] dimNames;
+    private final AggregatorFactory[] aggregatorSpecs;
     private final BufferAggregator[] aggregators;
     private final String[] metricNames;
     private final int[] sizesRequired;
@@ -340,6 +340,8 @@ public class GroupByQueryEngine
     private final DateTime fixedTimeForAllGranularity;
     private List<int[]> unprocessedKeys;
     private Iterator<Row> delegate;
+
+    private int counter;
 
     public RowIterator(
         GroupByQuery query,
@@ -364,20 +366,18 @@ public class GroupByQueryEngine
 
       unprocessedKeys = null;
       delegate = Iterators.emptyIterator();
-      dimensionSpecs = query.getDimensions();
-      dimensions = Lists.newArrayListWithExpectedSize(dimensionSpecs.size());
-      dimNames = Lists.newArrayListWithExpectedSize(dimensionSpecs.size());
+      List<DimensionSpec> dimensionSpecs = query.getDimensions();
+      dimensions = new DimensionSelector[dimensionSpecs.size()];
+      dimNames = new String[dimensionSpecs.size()];
 
       List<IndexProvidingSelector> providers = Lists.newArrayList();
       Set<String> indexedColumns = Sets.newHashSet();
-      for (final DimensionSpec dimensionDesc : dimensionSpecs) {
-        final DimensionSelector selector = cursor.makeDimensionSelector(dimensionDesc);
-        if (selector != null) {
-          dimensions.add(selector);
-          dimNames.add(dimensionDesc.getOutputName());
-        }
-        if (selector instanceof IndexProvidingSelector) {
-          IndexProvidingSelector provider = (IndexProvidingSelector) selector;
+      for (int i = 0; i < dimensions.length; i++) {
+        DimensionSpec dimensionSpec = dimensionSpecs.get(i);
+        dimensions[i] = cursor.makeDimensionSelector(dimensionSpec);
+        dimNames[i] = dimensionSpec.getOutputName();
+        if (dimensions[i] instanceof IndexProvidingSelector) {
+          IndexProvidingSelector provider = (IndexProvidingSelector) dimensions[i];
           if (indexedColumns.removeAll(provider.targetColumns())) {
             throw new IllegalArgumentException("Found conflicts between index providers");
           }
@@ -388,12 +388,12 @@ public class GroupByQueryEngine
 
       ColumnSelectorFactory factory = VirtualColumns.wrap(providers, cursor);
 
-      aggregatorSpecs = query.getAggregatorSpecs();
-      aggregators = new BufferAggregator[aggregatorSpecs.size()];
-      metricNames = new String[aggregatorSpecs.size()];
-      sizesRequired = new int[aggregatorSpecs.size()];
-      for (int i = 0; i < aggregatorSpecs.size(); ++i) {
-        AggregatorFactory aggregatorSpec = aggregatorSpecs.get(i);
+      aggregatorSpecs = query.getAggregatorSpecs().toArray(new AggregatorFactory[0]);
+      aggregators = new BufferAggregator[aggregatorSpecs.length];
+      metricNames = new String[aggregatorSpecs.length];
+      sizesRequired = new int[aggregatorSpecs.length];
+      for (int i = 0; i < aggregatorSpecs.length; ++i) {
+        AggregatorFactory aggregatorSpec = aggregatorSpecs[i];
         aggregators[i] = aggregatorSpec.factorizeBuffered(factory);
         metricNames[i] = aggregatorSpec.getName();
         sizesRequired[i] = aggregatorSpec.getMaxIntermediateSize();
@@ -415,7 +415,7 @@ public class GroupByQueryEngine
       final RowUpdater rowUpdater = new RowUpdater(metricsBuffer, aggregators, positionMaintainer);
       if (unprocessedKeys != null) {
         for (int[] key : unprocessedKeys) {
-          final List<int[]> unprocUnproc = rowUpdater.updateValues(key, key.length, ImmutableList.<DimensionSelector>of());
+          final List<int[]> unprocUnproc = rowUpdater.updateValues(key, key.length, new DimensionSelector[0]);
           if (unprocUnproc != null) {
             throw new ISE("Not enough memory to process the request.");
           }
@@ -424,8 +424,9 @@ public class GroupByQueryEngine
         cursor.advance();
       }
 
+      long start = System.currentTimeMillis();
       while (!cursor.isDone() && rowUpdater.getNumRows() < maxIntermediateRows) {
-        int[] key = new int[dimensions.size()];
+        int[] key = new int[dimensions.length];
 
         unprocessedKeys = rowUpdater.updateValues(key, 0, dimensions);
         if (unprocessedKeys != null) {
@@ -434,6 +435,7 @@ public class GroupByQueryEngine
 
         cursor.advance();
       }
+      log.info("%d iteration.. %,d rows in %,d msec", ++counter, rowUpdater.getNumRows(), (System.currentTimeMillis() - start));
 
       if (rowUpdater.getPositions().isEmpty() && unprocessedKeys != null) {
         throw new ISE(
@@ -457,16 +459,17 @@ public class GroupByQueryEngine
                 private final int[] increments = positionMaintainer.getIncrements();
 
                 @Override
-                public Row apply(Map.Entry<int[], Integer> input)
+                public Row apply(final Map.Entry<int[], Integer> input)
                 {
-                  Map<String, Object> theEvent = Maps.newLinkedHashMap();
+                  // changing this will make some tests fail
+                  final Map<String, Object> theEvent = Maps.newLinkedHashMap();
 
-                  int[] keyArray = input.getKey();
-                  for (int i = 0; i < dimensions.size(); ++i) {
-                    final DimensionSelector dimSelector = dimensions.get(i);
+                  final int[] keyArray = input.getKey();
+                  for (int i = 0; i < dimensions.length; ++i) {
+                    final DimensionSelector dimSelector = dimensions[i];
                     final int dimVal = keyArray[i];
                     if (dimVal >= 0) {
-                      theEvent.put(dimNames.get(i), dimSelector.lookupName(dimVal));
+                      theEvent.put(dimNames[i], dimSelector.lookupName(dimVal));
                     }
                   }
 
@@ -492,7 +495,6 @@ public class GroupByQueryEngine
     public Row next()
     {
       return delegate.next();
-
     }
 
     @Override
