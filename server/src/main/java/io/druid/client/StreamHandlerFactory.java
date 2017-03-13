@@ -151,6 +151,13 @@ public class StreamHandlerFactory
                   }
                 }
             )
+            {
+              @Override
+              public void close() throws IOException
+              {
+                queue.clear();  // nothing to close in ChannelBufferInputStream
+              }
+            }
         );
       }
 
