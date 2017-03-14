@@ -19,6 +19,8 @@ package io.druid.data.input.impl;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.annotation.JsonSubTypes;
+import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.google.common.base.Function;
 import com.google.common.base.Functions;
 import com.google.common.base.Strings;
@@ -38,6 +40,10 @@ import java.util.Properties;
 
 /**
  */
+@JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type", defaultImpl = TimestampSpec.class)
+@JsonSubTypes(value = {
+    @JsonSubTypes.Type(name = "default", value = TimestampSpec.class)
+})
 public class TimestampSpec
 {
   private static final Logger log = new Logger(TimestampSpec.class);
@@ -128,7 +134,7 @@ public class TimestampSpec
       @Override
       public DateTime apply(Object input)
       {
-        return input instanceof DateTime ? ((DateTime)input) : delegate.apply(input);
+        return input instanceof DateTime ? ((DateTime) input) : delegate.apply(input);
       }
     };
   }
@@ -160,6 +166,7 @@ public class TimestampSpec
     return new Function<Object, DateTime>()
     {
       private Function<String, DateTime> stringFunc;
+
       @Override
       public DateTime apply(Object input)
       {

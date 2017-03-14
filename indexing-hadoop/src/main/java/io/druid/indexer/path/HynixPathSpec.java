@@ -47,7 +47,8 @@ public class HynixPathSpec implements PathSpec
   private static final int DEFAULT_SPLIT_SIZE = 0;
 
   public static final String PATH_SPECS = "hynix.input.path.specs";
-  public static final String INPUT_FORMAT = "hynix.input.path.specs.format";
+  public static final String INPUT_FORMAT_OLD = "hynix.input.path.specs.format.old";
+  public static final String INPUT_FORMAT_NEW = "hynix.input.path.specs.format.new";
   public static final String SPLIT_SIZE = "hynix.input.path.specs.split.size";
 
   public static final String FIND_RECURSIVE = FileInputFormat.INPUT_DIR_RECURSIVE;
@@ -56,7 +57,7 @@ public class HynixPathSpec implements PathSpec
   private final String basePath;  // optional absolute path (paths in elements are regarded as relative to this)
 
   private final List<HynixPathSpecElement> elements;
-  private final Class<? extends InputFormat> inputFormat;
+  private final Class inputFormat;
   private final int splitSize;
   private final boolean findRecursive;
   private final boolean extractPartition;
@@ -66,7 +67,7 @@ public class HynixPathSpec implements PathSpec
   public HynixPathSpec(
       @JsonProperty("basePath") String basePath,
       @JsonProperty("elements") List<HynixPathSpecElement> elements,
-      @JsonProperty("inputFormat") Class<? extends InputFormat> inputFormat,
+      @JsonProperty("inputFormat") Class inputFormat,
       @JsonProperty("splitSize") String splitSize,
       @JsonProperty("findRecursive") boolean findRecursive,
       @JsonProperty("extractPartition") boolean extractPartition,
@@ -93,6 +94,17 @@ public class HynixPathSpec implements PathSpec
     }
   }
 
+  protected HynixPathSpec(HynixPathSpec pathSpec)
+  {
+    this.basePath = pathSpec.basePath;
+    this.elements = pathSpec.elements;
+    this.inputFormat = pathSpec.inputFormat;
+    this.splitSize = pathSpec.splitSize;
+    this.findRecursive = pathSpec.findRecursive;
+    this.extractPartition = pathSpec.extractPartition;
+    this.properties = pathSpec.properties;
+  }
+
   @JsonProperty
   public String getBasePath()
   {
@@ -106,7 +118,7 @@ public class HynixPathSpec implements PathSpec
   }
 
   @JsonProperty
-  public Class<? extends InputFormat> getInputFormat()
+  public Class getInputFormat()
   {
     return inputFormat;
   }
@@ -140,7 +152,7 @@ public class HynixPathSpec implements PathSpec
         }
         Object value = entry.getValue();
         if (value instanceof String) {
-          job.getConfiguration().set(entry.getKey(), (String)value);
+          job.getConfiguration().set(entry.getKey(), (String) value);
         } else if (value instanceof Integer) {
           job.getConfiguration().setInt(entry.getKey(), (Integer) value);
         } else if (value instanceof Long) {
@@ -177,7 +189,13 @@ public class HynixPathSpec implements PathSpec
     }
     // ds1;path1,ds1;path2,ds2;path3
     job.getConfiguration().set(PATH_SPECS, builder.toString());
-    job.getConfiguration().setClass(INPUT_FORMAT, inputFormat, InputFormat.class);
+    if (InputFormat.class.isAssignableFrom(inputFormat)) {
+      job.getConfiguration().setClass(INPUT_FORMAT_NEW, inputFormat, InputFormat.class);
+    } else if (org.apache.hadoop.mapred.InputFormat.class.isAssignableFrom(inputFormat)) {
+      job.getConfiguration().setClass(INPUT_FORMAT_OLD, inputFormat, org.apache.hadoop.mapred.InputFormat.class);
+    } else {
+      throw new IllegalArgumentException("invalid format " + inputFormat);
+    }
     job.getConfiguration().setInt(SPLIT_SIZE, splitSize);
 
     job.getConfiguration().setBoolean(FIND_RECURSIVE, findRecursive);

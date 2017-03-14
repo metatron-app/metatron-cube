@@ -23,6 +23,7 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.metamx.common.logger.Logger;
+import io.druid.indexer.hadoop.InputFormatWrapper;
 import io.druid.indexer.hadoop.DatasourceInputFormat;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
@@ -197,9 +198,21 @@ public class HynixCombineInputFormat extends FileInputFormat
     final Configuration conf = context.getConfiguration();
 
     final HynixSplit hynixSplit = (HynixSplit) split;
-    final InputFormat format = ReflectionUtils.newInstance(
-        conf.getClass(HynixPathSpec.INPUT_FORMAT, TextInputFormat.class, InputFormat.class), conf
-    );
+    final InputFormat format;
+    if (conf.get(HynixPathSpec.INPUT_FORMAT_NEW) != null) {
+       format = ReflectionUtils.newInstance(
+           conf.getClass(HynixPathSpec.INPUT_FORMAT_NEW, null, InputFormat.class), conf
+       );
+    } else if (conf.get(HynixPathSpec.INPUT_FORMAT_OLD) != null) {
+      format = new InputFormatWrapper(
+          ReflectionUtils.newInstance(
+              conf.getClass(HynixPathSpec.INPUT_FORMAT_OLD, null, org.apache.hadoop.mapred.InputFormat.class), conf
+          )
+      );
+    } else {
+      format = new TextInputFormat();
+    }
+
     final boolean extractPartition = conf.getBoolean(HynixPathSpec.EXTRACT_PARTITION, false);
 
     return new RecordReader()
@@ -242,6 +255,7 @@ public class HynixCombineInputFormat extends FileInputFormat
           }
           Map.Entry<String, List<FileSplit>> next = iterator.next();
           CURRENT_DATASOURCE.set(next.getKey());
+          log.info("Reading for datasource %s", CURRENT_DATASOURCE.get());
           splits = next.getValue();
           index = 0;
         }
@@ -250,7 +264,11 @@ public class HynixCombineInputFormat extends FileInputFormat
         CURRENT_PATH.set(split.getPath());
         if (extractPartition) {
           CURRENT_PARTITION.set(extractPartition(split.getPath()));
+          log.info("Reading from path %s [%s]", CURRENT_PATH.get(), CURRENT_PARTITION.get());
+        } else {
+          log.info("Reading from path %s", CURRENT_PATH.get());
         }
+
         reader = format.createRecordReader(split, context);
         reader.initialize(split, context);
         return true;

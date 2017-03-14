@@ -17,37 +17,26 @@
  * under the License.
  */
 
-package io.druid.indexer;
+package io.druid.hive;
 
 import com.fasterxml.jackson.databind.Module;
 import com.fasterxml.jackson.databind.jsontype.NamedType;
 import com.fasterxml.jackson.databind.module.SimpleModule;
+import com.google.common.collect.ImmutableList;
 import com.google.inject.Binder;
-import io.druid.indexer.hadoop.ExcelInputRowParser;
-import io.druid.indexer.path.HynixTimestampSpec;
 import io.druid.initialization.DruidModule;
 
-import java.util.Arrays;
 import java.util.List;
 
 /**
  */
-public class IndexingHadoopModule implements DruidModule
+public class HiveDruidModule implements DruidModule
 {
   @Override
   public List<? extends Module> getJacksonModules()
   {
-    return Arrays.<Module>asList(
-        new SimpleModule("IndexingHadoopModule")
-            .registerSubtypes(
-                new NamedType(HadoopyStringInputRowParser.class, "hadoopyString")
-            )
-            .registerSubtypes(
-                new NamedType(ExcelInputRowParser.class, "excel")
-            )
-            .registerSubtypes(
-                new NamedType(HynixTimestampSpec.class, "hynix")
-            )
+    return ImmutableList.of(
+        new SimpleModule("HiveDruidModule").registerSubtypes(HivePathSpec.class)
     );
   }
 
