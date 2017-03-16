@@ -22,6 +22,7 @@ package io.druid.query.groupby;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Supplier;
 import com.google.common.base.Suppliers;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.common.io.CharSource;
 import com.metamx.common.guava.Sequences;
@@ -189,6 +190,9 @@ public class GroupByQueryExplodeTest
                 "$",
                 "count"
             )
+        )
+        .setContext(
+            ImmutableMap.<String, Object>of("TEST_AS_SORTED", true)
         );
 
     List<Row> expectedResults;

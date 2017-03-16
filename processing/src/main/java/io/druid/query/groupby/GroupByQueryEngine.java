@@ -26,7 +26,6 @@ import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
-import com.google.common.primitives.Ints;
 import com.google.inject.Inject;
 import com.metamx.common.IAE;
 import com.metamx.common.ISE;
@@ -190,20 +189,22 @@ public class GroupByQueryEngine
     private final ByteBuffer metricValues;
     private final BufferAggregator[] aggregators;
     private final PositionMaintainer positionMaintainer;
-    private final Map<int[], Integer> positions = Maps.newTreeMap(Ints.lexicographicalComparator());
+    private final Map<IntArray, Integer> positions;
 
     private final int[] increments;
 
     public RowUpdater(
         ByteBuffer metricValues,
         BufferAggregator[] aggregators,
-        PositionMaintainer positionMaintainer
+        PositionMaintainer positionMaintainer,
+        int maxIntermediateRows
     )
     {
       this.metricValues = metricValues;
       this.aggregators = aggregators;
       this.positionMaintainer = positionMaintainer;
       this.increments = positionMaintainer.getIncrements();
+      this.positions = Maps.newHashMapWithExpectedSize(maxIntermediateRows);
     }
 
     private int getNumRows()
@@ -211,8 +212,13 @@ public class GroupByQueryEngine
       return positions.size();
     }
 
-    private Map<int[], Integer> getPositions()
+    private Map<IntArray, Integer> getPositions(boolean asSorted)
     {
+      if (asSorted) {
+        Map<IntArray, Integer> sorted = Maps.newTreeMap();
+        sorted.putAll(positions);
+        return sorted;
+      }
       return positions;
     }
 
@@ -223,52 +229,52 @@ public class GroupByQueryEngine
     )
     {
       if (index < key.length) {
-        List<int[]> retVal = null;
-        List<int[]> unaggregatedBuffers = null;
 
         final IndexedInts row = dims[index].getRow();
-        if (row == null || row.size() == 0) {
+        final int size = row.size();
+        if (size == 0) {
           // warn: changed semantic.. (we added null and proceeded before)
           return null;
-        } else if (row.size() == 1) {
+        } else if (size == 1) {
           key[index] = row.get(0);
-          unaggregatedBuffers = updateValues(key, index + 1, dims);
-        } else {
-          for (Integer dimValue : row) {
-            int[] newKey = Arrays.copyOf(key, key.length);
-            newKey[index] = dimValue;
-            unaggregatedBuffers = updateValues(newKey, index + 1, dims);
-          }
+          return updateValues(key, index + 1, dims);
         }
-        if (unaggregatedBuffers != null) {
-          if (retVal == null) {
-            retVal = Lists.newArrayList();
+        List<int[]> retVal = null;
+        for (int i = 0; i < size; i++) {
+          final int[] newKey = Arrays.copyOf(key, key.length);
+          newKey[index] = row.get(i);
+          List<int[]> unaggregatedBuffers = updateValues(newKey, index + 1, dims);
+          if (unaggregatedBuffers != null) {
+            if (retVal == null) {
+              retVal = unaggregatedBuffers;
+            } else {
+              retVal.addAll(unaggregatedBuffers);
+            }
           }
-          retVal.addAll(unaggregatedBuffers);
         }
         return retVal;
       } else {
-        Integer position = positions.get(key);
+        final IntArray wrapper = new IntArray(key);
+        final Integer position = positions.get(wrapper);
 
-        int thePosition;
         if (position == null) {
-          position = positionMaintainer.getNext();
-          if (position == null) {
+          int allocated = positionMaintainer.getNext();
+          if (allocated < 0) {
             return Lists.newArrayList(key);
           }
+          positions.put(wrapper, allocated);
 
-          positions.put(key, position);
-          thePosition = position;
           for (int i = 0; i < aggregators.length; ++i) {
-            aggregators[i].init(metricValues, thePosition);
-            thePosition += increments[i];
+            aggregators[i].init(metricValues, allocated);
+            aggregators[i].aggregate(metricValues, allocated);
+            allocated += increments[i];
           }
-        }
-
-        thePosition = position;
-        for (int i = 0; i < aggregators.length; ++i) {
-          aggregators[i].aggregate(metricValues, thePosition);
-          thePosition += increments[i];
+        } else {
+          int allocated = position;
+          for (int i = 0; i < aggregators.length; ++i) {
+            aggregators[i].aggregate(metricValues, allocated);
+            allocated += increments[i];
+          }
         }
         return null;
       }
@@ -293,18 +299,18 @@ public class GroupByQueryEngine
       this.increments = increments;
 
       int theIncrement = 0;
-      for (int i = 0; i < increments.length; i++) {
-        theIncrement += increments[i];
+      for (int increment : increments) {
+        theIncrement += increment;
       }
-      increment = theIncrement;
+      this.increment = theIncrement;
 
       this.max = max - increment; // Make sure there is enough room for one more increment
     }
 
-    public Integer getNext()
+    public int getNext()
     {
       if (nextVal > max) {
-        return null;
+        return -1;
       } else {
         int retVal = nextVal;
         nextVal += increment;
@@ -325,7 +331,6 @@ public class GroupByQueryEngine
 
   private static class RowIterator implements CloseableIterator<Row>
   {
-    private final GroupByQuery query;
     private final Cursor cursor;
     private final ByteBuffer metricsBuffer;
     private final int maxIntermediateRows;
@@ -337,6 +342,9 @@ public class GroupByQueryEngine
     private final String[] metricNames;
     private final int[] sizesRequired;
 
+    private final List<PostAggregator> postAggregators;
+
+    private final boolean asSorted;
     private final DateTime fixedTimeForAllGranularity;
     private List<int[]> unprocessedKeys;
     private Iterator<Row> delegate;
@@ -344,13 +352,12 @@ public class GroupByQueryEngine
     private int counter;
 
     public RowIterator(
-        GroupByQuery query,
+        final GroupByQuery query,
         final Cursor cursor,
-        ByteBuffer metricsBuffer,
-        GroupByQueryConfig config
+        final ByteBuffer metricsBuffer,
+        final GroupByQueryConfig config
     )
     {
-      this.query = query;
       this.cursor = cursor;
       this.metricsBuffer = metricsBuffer;
       this.maxIntermediateRows = Math.min(
@@ -359,6 +366,7 @@ public class GroupByQueryEngine
               config.getMaxIntermediateRows()
           ), config.getMaxIntermediateRows()
       );
+      this.asSorted = query.getContextBoolean("TEST_AS_SORTED", false);
       String fudgeTimestampString = query.getContextValue(GroupByQueryHelper.CTX_KEY_FUDGE_TIMESTAMP);
       fixedTimeForAllGranularity = Strings.isNullOrEmpty(fudgeTimestampString)
                                    ? null
@@ -398,6 +406,7 @@ public class GroupByQueryEngine
         metricNames[i] = aggregatorSpec.getName();
         sizesRequired[i] = aggregatorSpec.getMaxIntermediateSize();
       }
+      postAggregators = PostAggregators.decorate(query.getPostAggregatorSpecs(), aggregatorSpecs);
     }
 
     @Override
@@ -412,7 +421,7 @@ public class GroupByQueryEngine
       }
 
       final PositionMaintainer positionMaintainer = new PositionMaintainer(0, sizesRequired, metricsBuffer.remaining());
-      final RowUpdater rowUpdater = new RowUpdater(metricsBuffer, aggregators, positionMaintainer);
+      final RowUpdater rowUpdater = new RowUpdater(metricsBuffer, aggregators, positionMaintainer, maxIntermediateRows);
       if (unprocessedKeys != null) {
         for (int[] key : unprocessedKeys) {
           final List<int[]> unprocUnproc = rowUpdater.updateValues(key, key.length, new DimensionSelector[0]);
@@ -428,8 +437,9 @@ public class GroupByQueryEngine
       while (!cursor.isDone() && rowUpdater.getNumRows() < maxIntermediateRows) {
         int[] key = new int[dimensions.length];
 
-        unprocessedKeys = rowUpdater.updateValues(key, 0, dimensions);
+        List<int[]> unprocessedKeys = rowUpdater.updateValues(key, 0, dimensions);
         if (unprocessedKeys != null) {
+          this.unprocessedKeys = unprocessedKeys;
           break;
         }
 
@@ -437,34 +447,29 @@ public class GroupByQueryEngine
       }
       log.info("%d iteration.. %,d rows in %,d msec", ++counter, rowUpdater.getNumRows(), (System.currentTimeMillis() - start));
 
-      if (rowUpdater.getPositions().isEmpty() && unprocessedKeys != null) {
+      if (rowUpdater.getNumRows() == 0 && unprocessedKeys != null) {
         throw new ISE(
             "Not enough memory to process even a single item.  Required [%,d] memory, but only have[%,d]",
             positionMaintainer.getIncrement(), metricsBuffer.remaining()
         );
       }
 
-      final List<PostAggregator> postAggregators = PostAggregators.decorate(
-          query.getPostAggregatorSpecs(),
-          aggregatorSpecs
-      );
-
       delegate = FunctionalIterator
-          .create(rowUpdater.getPositions().entrySet().iterator())
+          .create(rowUpdater.getPositions(asSorted).entrySet().iterator())
           .transform(
-              new Function<Map.Entry<int[], Integer>, Row>()
+              new Function<Map.Entry<IntArray, Integer>, Row>()
               {
                 private final DateTime timestamp =
                     fixedTimeForAllGranularity != null ? fixedTimeForAllGranularity : cursor.getTime();
                 private final int[] increments = positionMaintainer.getIncrements();
 
                 @Override
-                public Row apply(final Map.Entry<int[], Integer> input)
+                public Row apply(final Map.Entry<IntArray, Integer> input)
                 {
                   // changing this will make some tests fail
                   final Map<String, Object> theEvent = Maps.newLinkedHashMap();
 
-                  final int[] keyArray = input.getKey();
+                  final int[] keyArray = input.getKey().array;
                   for (int i = 0; i < dimensions.length; ++i) {
                     final DimensionSelector dimSelector = dimensions[i];
                     final int dimVal = keyArray[i];
@@ -509,6 +514,41 @@ public class GroupByQueryEngine
       for (BufferAggregator agg : aggregators) {
         agg.close();
       }
+    }
+  }
+
+  private static class IntArray implements Comparable<IntArray>
+  {
+    private final int[] array;
+
+    private IntArray(int[] array)
+    {
+      this.array = array;
+    }
+
+    @Override
+    public int hashCode()
+    {
+      return Arrays.hashCode(array);
+    }
+
+    @Override
+    public boolean equals(Object obj)
+    {
+      return Arrays.equals(array, ((IntArray)obj).array);
+    }
+
+    @Override
+    public int compareTo(IntArray o)
+    {
+      final int[] other = o.array;
+      for (int i = 0; i < array.length; i++) {
+        final int compare = Integer.compare(array[i], other[i]);
+        if (compare != 0) {
+          return compare;
+        }
+      }
+      return 0;
     }
   }
 }
