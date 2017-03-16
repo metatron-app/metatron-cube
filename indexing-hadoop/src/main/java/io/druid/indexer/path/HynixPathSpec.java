@@ -147,10 +147,11 @@ public class HynixPathSpec implements PathSpec
     String schemaDataSource = config.getDataSource();
     if (properties != null && !properties.isEmpty()) {
       for (Map.Entry<String, Object> entry : properties.entrySet()) {
-        if (entry.getValue() == null) {
+        Object value = entry.getValue();
+        if (value == null) {
+          job.getConfiguration().unset(entry.getKey());
           continue;
         }
-        Object value = entry.getValue();
         if (value instanceof String) {
           job.getConfiguration().set(entry.getKey(), (String) value);
         } else if (value instanceof Integer) {
