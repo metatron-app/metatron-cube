@@ -722,7 +722,7 @@ public class IndexMergerV9 extends IndexMerger
         }
       }
       if ((++rowCount % 500000) == 0) {
-        log.info("walked 500,000/%d rows in %,d millis.", rowCount, System.currentTimeMillis() - time);
+        log.info("..walked 500,000/%,d rows in %,d millis.", rowCount, System.currentTimeMillis() - time);
         time = System.currentTimeMillis();
       }
     }

@@ -23,9 +23,9 @@ import com.google.common.base.Functions;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
-import com.metamx.common.CompressionUtils;
 import com.metamx.common.Pair;
 import com.metamx.common.logger.Logger;
+import io.druid.common.utils.CompressionUtils;
 import io.druid.data.input.InputRow;
 import io.druid.indexer.path.HynixCombineInputFormat;
 import io.druid.query.aggregation.AggregatorFactory;
@@ -70,6 +70,7 @@ public class ReduceMergeIndexGeneratorJob implements HadoopDruidIndexerJob.Index
   private static final Logger log = new Logger(ReduceMergeIndexGeneratorJob.class);
   private static final int INCREMENTAL_INDEX_OVERHEAD = 64 << 10;
   private static final int MAX_LOG_INTERVAL = 10_0000;
+  private static final int DEFAULT_FS_BUFFER_SIZE = 1 << 18; // 256KB (from JobHelper)
 
   private final HadoopDruidIndexerConfig config;
   private final IndexGeneratorJob.IndexGeneratorStats jobStats;
@@ -413,12 +414,12 @@ public class ReduceMergeIndexGeneratorJob implements HadoopDruidIndexerJob.Index
       final Path outFile = new Path(shufflingPath, localFile.getName() + ".zip");
       shufflingFS.mkdirs(outFile.getParent());
 
-      log.info("Compressing files from [%s] to [%s]", localFile, outFile);
+      log.info("Persisting local index in [%s] to temp storage [%s]", localFile, outFile);
       final long size;
-      try (FSDataOutputStream out = shufflingFS.create(outFile)) {
-        size = CompressionUtils.zip(localFile, out);
+      try (FSDataOutputStream out = shufflingFS.create(outFile, true, DEFAULT_FS_BUFFER_SIZE)) {
+        size = CompressionUtils.store(localFile, out, DEFAULT_FS_BUFFER_SIZE);
       }
-      log.info("Compressed into [%,d] bytes.. total persist time %,d msec", size, System.currentTimeMillis() - prev);
+      log.info("Persisted [%,d] bytes.. elapsed %,d msec", size, System.currentTimeMillis() - prev);
       Text key = new Text(dataSource + ":" + index.getInterval().getStartMillis());
       context.write(key, new Text(outFile.toString()));
 
