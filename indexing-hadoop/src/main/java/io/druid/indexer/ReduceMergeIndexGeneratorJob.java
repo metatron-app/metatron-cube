@@ -420,7 +420,7 @@ public class ReduceMergeIndexGeneratorJob implements HadoopDruidIndexerJob.Index
         size = CompressionUtils.store(localFile, out, DEFAULT_FS_BUFFER_SIZE);
       }
       log.info("Persisted [%,d] bytes.. elapsed %,d msec", size, System.currentTimeMillis() - prev);
-      Text key = new Text(dataSource + ":" + index.getInterval().getStartMillis());
+      Text key = new Text(dataSource + ":" + interval.getStartMillis());
       context.write(key, new Text(outFile.toString()));
 
       FileUtils.deleteDirectory(localFile);
@@ -592,7 +592,7 @@ public class ReduceMergeIndexGeneratorJob implements HadoopDruidIndexerJob.Index
         File local = new File(baseFlushFile, String.format("index-%,05d", indexCount++));
         local.mkdirs();
         log.info("Uncompressing files from [%s] to [%s]", shuffle, local);
-        long length = CompressionUtils.unzip(shufflingFS.open(new Path(shuffle)), local).size();
+        long length = CompressionUtils.unzip(shufflingFS.open(new Path(shuffle)), local, DEFAULT_FS_BUFFER_SIZE);
         log.info("Uncompressed into [%,d] bytes", length);
         if (!group.isEmpty() && current + length > limit) {
           log.info("group-%d : %s", groups.size(), group);

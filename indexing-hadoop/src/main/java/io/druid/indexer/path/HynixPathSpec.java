@@ -24,7 +24,6 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
-import com.google.common.primitives.Ints;
 import com.metamx.common.logger.Logger;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.common.utils.StringUtils;
@@ -58,7 +57,7 @@ public class HynixPathSpec implements PathSpec
 
   private final List<HynixPathSpecElement> elements;
   private final Class inputFormat;
-  private final int splitSize;
+  private final long splitSize;
   private final boolean findRecursive;
   private final boolean extractPartition;
   private final Map<String, Object> properties;
@@ -77,7 +76,7 @@ public class HynixPathSpec implements PathSpec
     this.basePath = basePath;
     this.elements = Preconditions.checkNotNull(elements);
     this.inputFormat = inputFormat == null ? TextInputFormat.class : inputFormat;
-    this.splitSize = Ints.checkedCast(StringUtils.parseKMGT(splitSize, DEFAULT_SPLIT_SIZE));
+    this.splitSize = StringUtils.parseKMGT(splitSize, DEFAULT_SPLIT_SIZE);
     this.findRecursive = findRecursive;
     this.extractPartition = extractPartition;
     this.properties = properties;
@@ -124,7 +123,7 @@ public class HynixPathSpec implements PathSpec
   }
 
   @JsonProperty
-  public int getSplitSize()
+  public long getSplitSize()
   {
     return splitSize;
   }
@@ -197,7 +196,7 @@ public class HynixPathSpec implements PathSpec
     } else {
       throw new IllegalArgumentException("invalid format " + inputFormat);
     }
-    job.getConfiguration().setInt(SPLIT_SIZE, splitSize);
+    job.getConfiguration().setLong(SPLIT_SIZE, splitSize);
 
     job.getConfiguration().setBoolean(FIND_RECURSIVE, findRecursive);
     job.getConfiguration().setBoolean(EXTRACT_PARTITION, extractPartition);

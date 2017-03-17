@@ -23,7 +23,6 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.google.common.base.Predicate;
 import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.Sets;
 import com.google.common.io.ByteStreams;
 import com.google.common.io.Files;
 import com.google.common.io.OutputSupplier;
@@ -58,14 +57,13 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.net.URI;
 import java.net.URISyntaxException;
-import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.concurrent.Callable;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.regex.Pattern;
+import java.util.zip.Deflater;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 import java.util.zip.ZipOutputStream;
@@ -356,6 +354,7 @@ public class JobHelper
     final FileSystem outputFS = FileSystem.get(segmentBasePath.toUri(), configuration);
     final Path tmpPath = new Path(segmentBasePath, String.format("index.zip.%d", taskAttemptID.getId()));
     final AtomicLong size = new AtomicLong(0L);
+
     final DataPusher zipPusher = (DataPusher) RetryProxy.create(
         DataPusher.class, new DataPusher()
         {
@@ -495,8 +494,8 @@ public class JobHelper
   {
     long size = 0L;
     try (ZipOutputStream outputStream = new ZipOutputStream(baseOutputStream)) {
-      List<String> filesToCopy = Arrays.asList(baseDir.list());
-      for (String fileName : filesToCopy) {
+      outputStream.setLevel(Deflater.BEST_SPEED);
+      for (String fileName : baseDir.list()) {
         final File fileToCopy = new File(baseDir, fileName);
         if (java.nio.file.Files.isRegularFile(fileToCopy.toPath())) {
           size += copyFileToZipStream(fileToCopy, outputStream, progressable);
@@ -515,7 +514,8 @@ public class JobHelper
       Progressable progressable
   ) throws IOException
   {
-    createNewZipEntry(zipOutputStream, file);
+    log.info("Creating new ZipEntry[%s] : %,d bytes", file.getName(), file.length());
+    zipOutputStream.putNextEntry(new ZipEntry(file.getName()));
     long numRead = 0;
     try (FileInputStream inputStream = new FileInputStream(file)) {
       byte[] buf = new byte[0x10000];
@@ -532,12 +532,6 @@ public class JobHelper
     zipOutputStream.closeEntry();
     progressable.progress();
     return numRead;
-  }
-
-  private static void createNewZipEntry(ZipOutputStream out, File file) throws IOException
-  {
-    log.info("Creating new ZipEntry[%s]", file.getName());
-    out.putNextEntry(new ZipEntry(file.getName()));
   }
 
   public static Path makeSegmentOutputPath(

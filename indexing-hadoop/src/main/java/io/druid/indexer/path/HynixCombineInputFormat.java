@@ -23,11 +23,14 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.metamx.common.logger.Logger;
-import io.druid.indexer.hadoop.InputFormatWrapper;
 import io.druid.indexer.hadoop.DatasourceInputFormat;
+import io.druid.indexer.hadoop.InputFormatWrapper;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.Writable;
+import org.apache.hadoop.io.compress.CompressionCodec;
+import org.apache.hadoop.io.compress.CompressionCodecFactory;
+import org.apache.hadoop.io.compress.SplittableCompressionCodec;
 import org.apache.hadoop.mapreduce.InputFormat;
 import org.apache.hadoop.mapreduce.InputSplit;
 import org.apache.hadoop.mapreduce.Job;
@@ -57,10 +60,22 @@ public class HynixCombineInputFormat extends FileInputFormat
   public static final ThreadLocal<Path> CURRENT_PATH = new ThreadLocal<>();
   public static final ThreadLocal<Map<String, String>> CURRENT_PARTITION = new ThreadLocal<>();
 
+  private transient Boolean splitable;
+
   @Override
   protected boolean isSplitable(JobContext context, Path file)
   {
-    return false;
+    if (splitable == null) {
+      Class clazz = getInputFormatClass(context.getConfiguration());
+      if (TextInputFormat.class.isAssignableFrom(clazz) ||
+          org.apache.hadoop.mapred.TextInputFormat.class.isAssignableFrom(clazz)) {
+        CompressionCodec codec = new CompressionCodecFactory(context.getConfiguration()).getCodec(file);
+        return splitable = codec == null || codec instanceof SplittableCompressionCodec;
+      } else {
+        splitable = false;
+      }
+    }
+    return splitable;
   }
 
   @Override
@@ -69,7 +84,7 @@ public class HynixCombineInputFormat extends FileInputFormat
     Configuration conf = context.getConfiguration();
 
     // splitSize < 0 : no combine, splitSize == 0 : combine per elements
-    final int splitSize = conf.getInt(HynixPathSpec.SPLIT_SIZE, 0);
+    final long splitSize = conf.getLong(HynixPathSpec.SPLIT_SIZE, 0);
     log.info("Start splitting on target size %,d", splitSize);
 
     Map<String, List<String>> dsPathMap = Maps.newLinkedHashMap();
@@ -85,14 +100,17 @@ public class HynixCombineInputFormat extends FileInputFormat
 
     List<InputSplit> result = Lists.newArrayList();
 
-    int currentSize = 0;
+    long currentSize = 0;
     Map<String, List<FileSplit>> combined = Maps.newHashMap();
     for (Map.Entry<String, List<String>> entry : dsPathMap.entrySet()) {
       String dataSource = entry.getKey();
       FileInputFormat.setInputPaths(cloned, StringUtils.join(",", entry.getValue()));
       List<FileSplit> splits = super.getSplits(cloned);
       if (splitSize == 0) {
-        result.add(new HynixSplit(ImmutableMap.of(dataSource, splits)));
+        Map<String, List<FileSplit>> compact = compact(ImmutableMap.of(dataSource, splits));
+        if (!compact.isEmpty()) {
+          result.add(new HynixSplit(compact));
+        }
         continue;
       }
       List<FileSplit> splitList = combined.get(dataSource);
@@ -103,20 +121,33 @@ public class HynixCombineInputFormat extends FileInputFormat
         splitList.add(split);
         currentSize += split.getLength();
         if (currentSize > splitSize) {
-          result.add(new HynixSplit(ImmutableMap.copyOf(combined)));
+          log.info("..split with size %,d", currentSize);
+          result.add(new HynixSplit(compact(combined)));
           combined.clear();
           currentSize = 0;
+          combined.put(dataSource, splitList = Lists.newArrayList());
         }
       }
     }
-    if (!combined.isEmpty()) {
-      result.add(new HynixSplit(combined));
+    Map<String, List<FileSplit>> compact = compact(combined);
+    if (!compact.isEmpty()) {
+      result.add(new HynixSplit(compact));
     }
-
     for (int i = 0; i < result.size(); i++) {
-      log.info("Split-[%04d] : [%s]", i, ((HynixSplit)result.get(i)).splits);
+      log.info("Split-[%04d] : [%s]", i, ((HynixSplit) result.get(i)).splits);
     }
     return result;
+  }
+
+  private Map<String, List<FileSplit>> compact(Map<String, List<FileSplit>> mapping)
+  {
+    Map<String, List<FileSplit>> compact = Maps.newHashMap();
+    for (Map.Entry<String, List<FileSplit>> entry : mapping.entrySet()) {
+      if (!entry.getValue().isEmpty()) {
+        compact.put(entry.getKey(), entry.getValue());
+      }
+    }
+    return compact;
   }
 
   public static class HynixSplit extends InputSplit implements Writable
@@ -198,20 +229,7 @@ public class HynixCombineInputFormat extends FileInputFormat
     final Configuration conf = context.getConfiguration();
 
     final HynixSplit hynixSplit = (HynixSplit) split;
-    final InputFormat format;
-    if (conf.get(HynixPathSpec.INPUT_FORMAT_NEW) != null) {
-       format = ReflectionUtils.newInstance(
-           conf.getClass(HynixPathSpec.INPUT_FORMAT_NEW, null, InputFormat.class), conf
-       );
-    } else if (conf.get(HynixPathSpec.INPUT_FORMAT_OLD) != null) {
-      format = new InputFormatWrapper(
-          ReflectionUtils.newInstance(
-              conf.getClass(HynixPathSpec.INPUT_FORMAT_OLD, null, org.apache.hadoop.mapred.InputFormat.class), conf
-          )
-      );
-    } else {
-      format = new TextInputFormat();
-    }
+    final InputFormat format = getInputFormat(conf);
 
     final boolean extractPartition = conf.getBoolean(HynixPathSpec.EXTRACT_PARTITION, false);
 
@@ -305,6 +323,29 @@ public class HynixCombineInputFormat extends FileInputFormat
         }
       }
     };
+  }
+
+  private Class getInputFormatClass(Configuration conf)
+  {
+    if (conf.get(HynixPathSpec.INPUT_FORMAT_NEW) != null) {
+      return conf.getClass(HynixPathSpec.INPUT_FORMAT_NEW, null, InputFormat.class);
+    } else if (conf.get(HynixPathSpec.INPUT_FORMAT_OLD) != null) {
+      return conf.getClass(HynixPathSpec.INPUT_FORMAT_OLD, null, org.apache.hadoop.mapred.InputFormat.class);
+    }
+    return TextInputFormat.class;
+  }
+
+  private InputFormat getInputFormat(Configuration conf)
+  {
+    final Class inputFormat = getInputFormatClass(conf);
+    if (InputFormat.class.isAssignableFrom(inputFormat)) {
+      return (InputFormat) ReflectionUtils.newInstance(inputFormat, conf);
+    } else if (org.apache.hadoop.mapred.InputFormat.class.isAssignableFrom(inputFormat)) {
+      return new InputFormatWrapper(
+          (org.apache.hadoop.mapred.InputFormat) ReflectionUtils.newInstance(inputFormat, conf)
+      );
+    }
+    throw new IllegalArgumentException("never");
   }
 
   private Map<String, String> extractPartition(Path path)

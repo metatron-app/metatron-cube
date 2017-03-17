@@ -20,16 +20,19 @@
 package io.druid.common.utils;
 
 import com.google.common.io.ByteStreams;
-import com.google.common.io.Files;
 import com.metamx.common.logger.Logger;
 
 import java.io.BufferedInputStream;
+import java.io.BufferedOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.zip.Deflater;
 import java.util.zip.ZipEntry;
+import java.util.zip.ZipInputStream;
 import java.util.zip.ZipOutputStream;
 
 /**
@@ -63,5 +66,21 @@ public class CompressionUtils extends com.metamx.common.CompressionUtils
     }
 
     return totalSize;
+  }
+
+  public static long unzip(InputStream in, File outDir, int bufferSize) throws IOException
+  {
+    long length = 0;
+    try (final ZipInputStream zipIn = new ZipInputStream(in)) {
+      ZipEntry entry;
+      while ((entry = zipIn.getNextEntry()) != null) {
+        File output = new File(outDir, entry.getName());
+        try (BufferedOutputStream stream = new BufferedOutputStream(new FileOutputStream(output), bufferSize)) {
+          length += ByteStreams.copy(zipIn, stream);
+          zipIn.closeEntry();
+        }
+      }
+    }
+    return length;
   }
 }
