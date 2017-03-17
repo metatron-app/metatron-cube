@@ -20,8 +20,7 @@
 package io.druid.segment.column;
 
 import com.google.common.base.Strings;
-import com.metamx.common.guava.CloseQuietly;
-import io.druid.segment.data.CachingIndexed;
+import io.druid.segment.data.GenericIndexed;
 import io.druid.segment.data.IndexedInts;
 import io.druid.segment.data.IndexedMultivalue;
 
@@ -34,17 +33,17 @@ public class SimpleDictionaryEncodedColumn
 {
   private final IndexedInts column;
   private final IndexedMultivalue<IndexedInts> multiValueColumn;
-  private final CachingIndexed<String> cachedLookups;
+  private final GenericIndexed<String> delegate;
 
   public SimpleDictionaryEncodedColumn(
       IndexedInts singleValueColumn,
       IndexedMultivalue<IndexedInts> multiValueColumn,
-      CachingIndexed<String> cachedLookups
+      GenericIndexed<String> delegate
   )
   {
     this.column = singleValueColumn;
     this.multiValueColumn = multiValueColumn;
-    this.cachedLookups = cachedLookups;
+    this.delegate = delegate;
   }
 
   @Override
@@ -75,31 +74,35 @@ public class SimpleDictionaryEncodedColumn
   public String lookupName(int id)
   {
     //Empty to Null will ensure that null and empty are equivalent for extraction function
-    return Strings.emptyToNull(cachedLookups.get(id));
+    return Strings.emptyToNull(delegate.get(id));
   }
 
   @Override
   public int lookupId(String name)
   {
-    return cachedLookups.indexOf(name);
+    return delegate.indexOf(name);
   }
 
   @Override
   public int getCardinality()
   {
-    return cachedLookups.size();
+    return delegate.size();
   }
 
   @Override
   public void close() throws IOException
   {
-    CloseQuietly.close(cachedLookups);
-
     if(column != null) {
       column.close();
     }
     if(multiValueColumn != null) {
       multiValueColumn.close();
     }
+  }
+
+  @Override
+  public void loadAll()
+  {
+    delegate.loadFully();
   }
 }

@@ -19,6 +19,7 @@
 
 package io.druid.segment.data;
 
+import com.google.common.base.Preconditions;
 import com.google.common.primitives.Ints;
 import com.metamx.common.IAE;
 import com.metamx.common.guava.CloseQuietly;
@@ -27,6 +28,7 @@ import io.druid.common.guava.GuavaUtils;
 import java.io.ByteArrayOutputStream;
 import java.io.Closeable;
 import java.io.IOException;
+import java.lang.reflect.Array;
 import java.nio.ByteBuffer;
 import java.nio.channels.WritableByteChannel;
 import java.util.Arrays;
@@ -124,7 +126,7 @@ public class GenericIndexed<T> implements Indexed<T>
   @Override
   public T get(int index)
   {
-    return bufferIndexed.get(index);
+    return cachedValues[index] != null ? cachedValues[index] : (cachedValues[index] = bufferIndexed.get(index));
   }
 
   /**
@@ -160,6 +162,10 @@ public class GenericIndexed<T> implements Indexed<T>
   private final int valuesOffset;
   private final BufferIndexed bufferIndexed;
 
+  private final T[] cachedValues;
+  private transient volatile boolean loadedAll;
+
+  @SuppressWarnings("unchecked")
   GenericIndexed(
       ByteBuffer buffer,
       ObjectStrategy<T> strategy,
@@ -174,6 +180,22 @@ public class GenericIndexed<T> implements Indexed<T>
     indexOffset = theBuffer.position();
     valuesOffset = theBuffer.position() + (size << 2);
     bufferIndexed = new BufferIndexed();
+    cachedValues = (T[]) Array.newInstance(strategy.getClazz(), size);
+  }
+
+  @SuppressWarnings("unchecked")
+  public void loadFully()
+  {
+    Preconditions.checkArgument(cachedValues.length == size);
+    if (!loadedAll) {
+      final ByteBuffer buffer = theBuffer.asReadOnlyBuffer();
+      for (int i = 0; i < cachedValues.length; i++) {
+        if (cachedValues[i] == null) {
+          cachedValues[i] = bufferIndexed.loadValue(buffer, i);
+        }
+      }
+      loadedAll = true;
+    }
   }
 
   class BufferIndexed implements Indexed<T>
@@ -207,6 +229,11 @@ public class GenericIndexed<T> implements Indexed<T>
         throw new IAE(String.format("Index[%s] >= size[%s]", index, size));
       }
 
+      return loadValue(copyBuffer, index);
+    }
+
+    private T loadValue(final ByteBuffer copyBuffer, final int index)
+    {
       final int startOffset;
       final int endOffset;
 

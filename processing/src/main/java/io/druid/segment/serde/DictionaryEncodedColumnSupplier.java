@@ -22,7 +22,6 @@ package io.druid.segment.serde;
 import io.druid.segment.ColumnPartProvider;
 import io.druid.segment.column.DictionaryEncodedColumn;
 import io.druid.segment.column.SimpleDictionaryEncodedColumn;
-import io.druid.segment.data.CachingIndexed;
 import io.druid.segment.data.GenericIndexed;
 import io.druid.segment.data.IndexedInts;
 import io.druid.segment.data.IndexedMultivalue;
@@ -55,7 +54,7 @@ public class DictionaryEncodedColumnSupplier implements ColumnPartProvider.Dicti
     return new SimpleDictionaryEncodedColumn(
         singleValuedColumn != null ? singleValuedColumn.get() : null,
         multiValuedColumn != null ? multiValuedColumn.get() : null,
-        new CachingIndexed<>(dictionary, lookupCacheSize)
+        dictionary
     );
   }
 

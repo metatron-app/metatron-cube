@@ -69,9 +69,9 @@ public class SketchObjectStrategy implements ObjectStrategy
   }
 
   @Override
-  public Class<? extends Sketch> getClazz()
+  public Class getClazz()
   {
-    return Sketch.class;
+    return Object.class;
   }
 
   @Override
