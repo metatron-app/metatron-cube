@@ -24,6 +24,9 @@ import com.fasterxml.jackson.databind.module.SimpleModule;
 import com.google.common.collect.ImmutableList;
 import com.google.inject.Binder;
 import io.druid.initialization.DruidModule;
+import io.druid.query.aggregation.corr.PearsonAggregatorFactory;
+import io.druid.query.aggregation.corr.PearsonFoldingAggregatorFactory;
+import io.druid.query.aggregation.corr.PearsonSerde;
 import io.druid.query.aggregation.variance.*;
 import io.druid.segment.serde.ComplexMetrics;
 
@@ -40,7 +43,9 @@ public class DruidStatsModule implements DruidModule
         new SimpleModule().registerSubtypes(
             VarianceAggregatorFactory.class,
             VarianceFoldingAggregatorFactory.class,
-            StandardDeviationPostAggregator.class
+            StandardDeviationPostAggregator.class,
+            PearsonAggregatorFactory.class,
+            PearsonFoldingAggregatorFactory.class
         )
     );
   }
@@ -53,6 +58,9 @@ public class DruidStatsModule implements DruidModule
     }
     if (ComplexMetrics.getSerdeForType("varianceCombined") == null) {
       ComplexMetrics.registerSerde("varianceCombined", new VarianceCombinedSerde());
+    }
+    if (ComplexMetrics.getSerdeForType("pearson") == null) {
+      ComplexMetrics.registerSerde("pearson", new PearsonSerde());
     }
   }
 }
