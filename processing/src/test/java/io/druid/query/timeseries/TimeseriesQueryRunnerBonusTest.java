@@ -144,7 +144,7 @@ public class TimeseriesQueryRunnerBonusTest
   )
   {
     return new FinalizeResultsQueryRunner<T>(
-        factory.createRunner(adapter),
+        factory.createRunner(adapter, null),
         factory.getToolchest()
     );
   }

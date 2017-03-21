@@ -1021,7 +1021,8 @@ public class RealtimeManagerTest
                                       return runners.get(input);
                                     }
                                   }
-                              )
+                              ),
+                              null
                           )
                       );
       }

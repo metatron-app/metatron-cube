@@ -34,6 +34,7 @@ import io.druid.segment.Segment;
 import io.druid.segment.StorageAdapter;
 
 import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutorService;
 
@@ -52,14 +53,15 @@ public class DataSourceMetadataQueryRunnerFactory
   }
 
   @Override
-  public QueryRunner<Result<DataSourceMetadataResultValue>> createRunner(final Segment segment)
+  public QueryRunner<Result<DataSourceMetadataResultValue>> createRunner(final Segment segment, Object optimizer)
   {
     return new DataSourceMetadataQueryRunner(segment);
   }
 
   @Override
   public QueryRunner<Result<DataSourceMetadataResultValue>> mergeRunners(
-      ExecutorService queryExecutor, Iterable<QueryRunner<Result<DataSourceMetadataResultValue>>> queryRunners
+      ExecutorService queryExecutor, Iterable<QueryRunner<Result<DataSourceMetadataResultValue>>> queryRunners,
+      Object optimizer
   )
   {
     return new ChainedExecutionQueryRunner<>(
@@ -71,6 +73,12 @@ public class DataSourceMetadataQueryRunnerFactory
   public QueryToolChest<Result<DataSourceMetadataResultValue>, DataSourceMetadataQuery> getToolchest()
   {
     return toolChest;
+  }
+
+  @Override
+  public Object preFactoring(DataSourceMetadataQuery query, List<Segment> segments)
+  {
+    return null;
   }
 
   private static class DataSourceMetadataQueryRunner implements QueryRunner<Result<DataSourceMetadataResultValue>>

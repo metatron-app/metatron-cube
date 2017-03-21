@@ -360,7 +360,7 @@ public class SelectBenchmark
 
     QueryRunner theRunner = toolChest.postMergeQueryDecoration(
         new FinalizeResultsQueryRunner<>(
-            toolChest.mergeResults(factory.mergeRunners(executorService, singleSegmentRunners)),
+            toolChest.mergeResults(factory.mergeRunners(executorService, singleSegmentRunners, null)),
             toolChest
         )
     );

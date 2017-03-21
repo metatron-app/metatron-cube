@@ -335,7 +335,7 @@ public class OnheapIncrementalIndexBenchmark extends AbstractBenchmark
                 public void run()
                 {
                   QueryRunner<Result<TimeseriesResultValue>> runner = new FinalizeResultsQueryRunner<Result<TimeseriesResultValue>>(
-                      factory.createRunner(incrementalIndexSegment),
+                      factory.createRunner(incrementalIndexSegment, null),
                       factory.getToolchest()
                   );
                   TimeseriesQuery query = Druids.newTimeseriesQueryBuilder()
@@ -372,7 +372,7 @@ public class OnheapIncrementalIndexBenchmark extends AbstractBenchmark
     queryExecutor.shutdown();
     indexExecutor.shutdown();
     QueryRunner<Result<TimeseriesResultValue>> runner = new FinalizeResultsQueryRunner<Result<TimeseriesResultValue>>(
-        factory.createRunner(incrementalIndexSegment),
+        factory.createRunner(incrementalIndexSegment, null),
         factory.getToolchest()
     );
     TimeseriesQuery query = Druids.newTimeseriesQueryBuilder()

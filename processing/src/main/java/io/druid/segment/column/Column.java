@@ -19,6 +19,8 @@
 
 package io.druid.segment.column;
 
+import io.druid.segment.data.GenericIndexed;
+
 /**
  */
 public interface Column
@@ -29,6 +31,7 @@ public interface Column
   public int getLength();
   public long getSerializedSize();
   public float getAverageSize();
+  public GenericIndexed<String> getDictionary();
   public DictionaryEncodedColumn getDictionaryEncoding();
   public RunLengthColumn getRunLengthColumn();
   public GenericColumn getGenericColumn();

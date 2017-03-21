@@ -34,6 +34,7 @@ import io.druid.query.QueryRunnerFactory;
 import io.druid.query.QueryToolChest;
 import io.druid.segment.Segment;
 
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutorService;
 
@@ -63,7 +64,7 @@ public class StreamQueryRunnerFactory
   }
 
   @Override
-  public QueryRunner<StreamQueryRow> createRunner(final Segment segment)
+  public QueryRunner<StreamQueryRow> createRunner(final Segment segment, Object optimizer)
   {
     return new QueryRunner<StreamQueryRow>()
     {
@@ -78,7 +79,8 @@ public class StreamQueryRunnerFactory
   @Override
   public QueryRunner<StreamQueryRow> mergeRunners(
       final ExecutorService queryExecutor,
-      final Iterable<QueryRunner<StreamQueryRow>> queryRunners
+      final Iterable<QueryRunner<StreamQueryRow>> queryRunners,
+      Object optimizer
   )
   {
     return new QueryRunner<StreamQueryRow>()
@@ -116,5 +118,11 @@ public class StreamQueryRunnerFactory
   public QueryToolChest<StreamQueryRow, StreamQuery> getToolchest()
   {
     return toolChest;
+  }
+
+  @Override
+  public Object preFactoring(StreamQuery query, List<Segment> segments)
+  {
+    return null;
   }
 }

@@ -35,6 +35,7 @@ import io.druid.segment.StorageAdapter;
 import org.joda.time.DateTime;
 
 import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutorService;
 
@@ -53,14 +54,15 @@ public class TimeBoundaryQueryRunnerFactory
   }
 
   @Override
-  public QueryRunner<Result<TimeBoundaryResultValue>> createRunner(final Segment segment)
+  public QueryRunner<Result<TimeBoundaryResultValue>> createRunner(final Segment segment, Object optimizer)
   {
     return new TimeBoundaryQueryRunner(segment);
   }
 
   @Override
   public QueryRunner<Result<TimeBoundaryResultValue>> mergeRunners(
-      ExecutorService queryExecutor, Iterable<QueryRunner<Result<TimeBoundaryResultValue>>> queryRunners
+      ExecutorService queryExecutor, Iterable<QueryRunner<Result<TimeBoundaryResultValue>>> queryRunners,
+      Object optimizer
   )
   {
     return new ChainedExecutionQueryRunner<>(queryExecutor, queryWatcher, queryRunners);
@@ -70,6 +72,12 @@ public class TimeBoundaryQueryRunnerFactory
   public QueryToolChest<Result<TimeBoundaryResultValue>, TimeBoundaryQuery> getToolchest()
   {
     return toolChest;
+  }
+
+  @Override
+  public Object preFactoring(TimeBoundaryQuery query, List<Segment> segments)
+  {
+    return null;
   }
 
   private static class TimeBoundaryQueryRunner implements QueryRunner<Result<TimeBoundaryResultValue>>

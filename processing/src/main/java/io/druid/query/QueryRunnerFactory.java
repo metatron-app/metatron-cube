@@ -21,6 +21,7 @@ package io.druid.query;
 
 import io.druid.segment.Segment;
 
+import java.util.List;
 import java.util.concurrent.ExecutorService;
 
 /**
@@ -29,6 +30,10 @@ import java.util.concurrent.ExecutorService;
 public interface QueryRunnerFactory<T, QueryType extends Query<T>>
 {
   /**
+   */
+  public Object preFactoring(QueryType query, List<Segment> segments);
+
+  /**
    * Given a specific segment, this method will create a QueryRunner.
    *
    * The QueryRunner, when asked, will generate a Sequence of results based on the given segment.  This
@@ -36,9 +41,10 @@ public interface QueryRunnerFactory<T, QueryType extends Query<T>>
    * is just merging and reduction logic.
    *
    * @param segment The segment to process
+   * @param optimizer optimization object
    * @return A QueryRunner that, when asked, will generate a Sequence of results based on the given segment
    */
-  public QueryRunner<T> createRunner(Segment segment);
+  public QueryRunner<T> createRunner(Segment segment, Object optimizer);
 
   /**
    * Runners generated with createRunner() and combined into an Iterable in (time,shardId) order are passed
@@ -55,9 +61,14 @@ public interface QueryRunnerFactory<T, QueryType extends Query<T>>
    *
    * @param queryExecutor ExecutorService to be used for parallel processing
    * @param queryRunners Individual QueryRunner objects that produce some results
+   * @param optimizer optimization object
    * @return a QueryRunner that, when asked, will use the ExecutorService to run the base QueryRunners
    */
-  public QueryRunner<T> mergeRunners(ExecutorService queryExecutor, Iterable<QueryRunner<T>> queryRunners);
+  public QueryRunner<T> mergeRunners(
+      ExecutorService queryExecutor,
+      Iterable<QueryRunner<T>> queryRunners,
+      Object optimizer
+  );
 
   /**
    * Provides access to the toolchest for this specific query type.

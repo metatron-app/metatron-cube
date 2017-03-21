@@ -552,7 +552,7 @@ public class IndexMergerV9WithSpatialIndexTest
       );
 
       QueryRunner runner = new FinalizeResultsQueryRunner(
-          factory.createRunner(segment),
+          factory.createRunner(segment, null),
           factory.getToolchest()
       );
 
@@ -606,7 +606,7 @@ public class IndexMergerV9WithSpatialIndexTest
       );
 
       QueryRunner runner = new FinalizeResultsQueryRunner(
-          factory.createRunner(segment),
+          factory.createRunner(segment, null),
           factory.getToolchest()
       );
 
@@ -695,7 +695,7 @@ public class IndexMergerV9WithSpatialIndexTest
       );
 
       QueryRunner runner = new FinalizeResultsQueryRunner(
-          factory.createRunner(segment),
+          factory.createRunner(segment, null),
           factory.getToolchest()
       );
 

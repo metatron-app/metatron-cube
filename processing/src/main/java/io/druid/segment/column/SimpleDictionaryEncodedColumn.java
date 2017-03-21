@@ -101,8 +101,8 @@ public class SimpleDictionaryEncodedColumn
   }
 
   @Override
-  public void loadAll()
+  public Iterable<String> loadAll()
   {
-    delegate.loadFully();
+    return delegate.loadFully();
   }
 }

@@ -149,7 +149,7 @@ public class DistinctCountGroupByQueryTest
 
     Iterable<Row> results = GroupByQueryRunnerTestHelper.runQuery(
         factory,
-        factory.createRunner(incrementalIndexSegment),
+        factory.createRunner(incrementalIndexSegment, null),
         query
     );
 

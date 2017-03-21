@@ -494,7 +494,7 @@ public class SpatialFilterBonusTest
       );
 
       QueryRunner runner = new FinalizeResultsQueryRunner(
-          factory.createRunner(segment),
+          factory.createRunner(segment, null),
           factory.getToolchest()
       );
       HashMap<String, Object> context = new HashMap<String, Object>();
@@ -582,7 +582,7 @@ public class SpatialFilterBonusTest
       );
 
       QueryRunner runner = new FinalizeResultsQueryRunner(
-          factory.createRunner(segment),
+          factory.createRunner(segment, null),
           factory.getToolchest()
       );
       HashMap<String, Object> context = new HashMap<String, Object>();
@@ -676,7 +676,7 @@ public class SpatialFilterBonusTest
       );
 
       QueryRunner runner = new FinalizeResultsQueryRunner(
-          factory.createRunner(segment),
+          factory.createRunner(segment, null),
           factory.getToolchest()
       );
       HashMap<String, Object> context = new HashMap<String, Object>();

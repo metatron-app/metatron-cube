@@ -92,7 +92,7 @@ public abstract class IncrementalIndex<AggregatorType> implements Iterable<Row>,
 {
   static final Logger log = new Logger(IncrementalIndex.class);
 
-  private volatile DateTime maxIngestedEventTime;
+  private final AtomicLong maxIngestedEventTime = new AtomicLong(-1);
 
   // Used to discover ValueType based on the class of values in a row
   // Also used to convert between the duplicate ValueType enums in DimensionSchema (druid-api) and main druid.
@@ -569,6 +569,8 @@ public abstract class IncrementalIndex<AggregatorType> implements Iterable<Row>,
   // use newDimDim() to create a DimDim, makeDimDim() provides the subclass-specific implementation
   protected abstract DimDim makeDimDim(String dimension, SizeEstimator estimator);
 
+  protected abstract DimDim makeDimDim(String dimension, Map<String, Integer> dictionary, SizeEstimator estimator);
+
   public abstract ConcurrentMap<TimeAndDims, Integer> getFacts();
 
   public abstract boolean canAppendRow();
@@ -808,10 +810,13 @@ public abstract class IncrementalIndex<AggregatorType> implements Iterable<Row>,
     return new NoRollup(timestamp, new int[][]{}, 0);
   }
 
-  private synchronized void updateMaxIngestedTime(DateTime eventTime)
+  private void updateMaxIngestedTime(DateTime eventTime)
   {
-    if (maxIngestedEventTime == null || maxIngestedEventTime.isBefore(eventTime)) {
-      maxIngestedEventTime = eventTime;
+    final long time = eventTime.getMillis();
+    for (long current = maxIngestedEventTime.get(); time > current; current = maxIngestedEventTime.get()) {
+      if (maxIngestedEventTime.compareAndSet(current, time)) {
+        break;
+      }
     }
   }
 
@@ -821,6 +826,29 @@ public abstract class IncrementalIndex<AggregatorType> implements Iterable<Row>,
     Preconditions.checkArgument(groupBy, "this is only for group-by");
     for (String dimension : dimensions) {
       addNewDimension(dimension, ColumnCapabilitiesImpl.of(ValueType.STRING), MultiValueHandling.ARRAY, -1);
+    }
+  }
+
+  public void initialize(Map<String, Map<String, Integer>> dimensions)
+  {
+    Preconditions.checkArgument(groupBy, "this is only for group-by");
+    for (Map.Entry<String, Map<String, Integer>> entry : dimensions.entrySet()) {
+      String dimension = entry.getKey();
+      Map<String, Integer> dictionary = Maps.newHashMap(entry.getValue());
+      DimDim values = new NullValueConverterDimDim(makeDimDim(dimension, dictionary, SizeEstimator.STRING), -1);
+      DimensionDesc desc = new DimensionDesc(
+          dimensionDescs.size(),
+          dimension,
+          values,
+          ColumnCapabilitiesImpl.of(ValueType.STRING),
+          MultiValueHandling.ARRAY
+      );
+      if (dimValues.size() != desc.getIndex()) {
+        throw new ISE("dimensionDescs and dimValues for [%s] is out of sync!!", dimension);
+      }
+
+      dimensionDescs.put(dimension, desc);
+      dimValues.add(desc.getValues());
     }
   }
 
@@ -1068,7 +1096,8 @@ public abstract class IncrementalIndex<AggregatorType> implements Iterable<Row>,
     return metSpec == null ? null : metSpec.getIndex();
   }
 
-  public MetricDesc getMetricDesc(String metricName) {
+  public MetricDesc getMetricDesc(String metricName)
+  {
     return metricDescs.get(metricName);
   }
 
@@ -1196,7 +1225,7 @@ public abstract class IncrementalIndex<AggregatorType> implements Iterable<Row>,
 
   public DateTime getMaxIngestedEventTime()
   {
-    return maxIngestedEventTime;
+    return maxIngestedEventTime.get() < 0 ? null : new DateTime(maxIngestedEventTime.get());
   }
 
   public int ingestedRows()

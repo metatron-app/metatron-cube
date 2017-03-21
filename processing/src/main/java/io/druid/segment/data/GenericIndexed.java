@@ -184,7 +184,7 @@ public class GenericIndexed<T> implements Indexed<T>
   }
 
   @SuppressWarnings("unchecked")
-  public void loadFully()
+  public Iterable<T> loadFully()
   {
     Preconditions.checkArgument(cachedValues.length == size);
     if (!loadedAll) {
@@ -196,6 +196,7 @@ public class GenericIndexed<T> implements Indexed<T>
       }
       loadedAll = true;
     }
+    return Arrays.asList(cachedValues);
   }
 
   class BufferIndexed implements Indexed<T>

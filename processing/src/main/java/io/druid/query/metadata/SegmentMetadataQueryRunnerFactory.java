@@ -78,7 +78,7 @@ public class SegmentMetadataQueryRunnerFactory implements QueryRunnerFactory<Seg
   }
 
   @Override
-  public QueryRunner<SegmentAnalysis> createRunner(final Segment segment)
+  public QueryRunner<SegmentAnalysis> createRunner(final Segment segment, Object optimizer)
   {
     return new QueryRunner<SegmentAnalysis>()
     {
@@ -182,7 +182,8 @@ public class SegmentMetadataQueryRunnerFactory implements QueryRunnerFactory<Seg
 
   @Override
   public QueryRunner<SegmentAnalysis> mergeRunners(
-      ExecutorService exec, Iterable<QueryRunner<SegmentAnalysis>> queryRunners
+      ExecutorService exec, Iterable<QueryRunner<SegmentAnalysis>> queryRunners,
+      Object optimizer
   )
   {
     final ListeningExecutorService queryExecutor = MoreExecutors.listeningDecorator(exec);
@@ -248,5 +249,11 @@ public class SegmentMetadataQueryRunnerFactory implements QueryRunnerFactory<Seg
   public QueryToolChest<SegmentAnalysis, SegmentMetadataQuery> getToolchest()
   {
     return toolChest;
+  }
+
+  @Override
+  public Object preFactoring(SegmentMetadataQuery query, List<Segment> segments)
+  {
+    return null;
   }
 }

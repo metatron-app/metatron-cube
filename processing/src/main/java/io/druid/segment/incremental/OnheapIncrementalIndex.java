@@ -45,6 +45,7 @@ import io.druid.segment.LongColumnSelector;
 import io.druid.segment.ObjectColumnSelector;
 import io.druid.segment.column.ColumnCapabilities;
 
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
@@ -65,7 +66,7 @@ public class OnheapIncrementalIndex extends IncrementalIndex<Aggregator>
   private final ConcurrentMap<TimeAndDims, Integer> facts;
   private final AtomicInteger indexIncrement = new AtomicInteger(0);
   protected final int maxRowCount;
-  private volatile Map<String, ColumnSelectorFactory> selectors;
+  private ColumnSelectorFactory[] selectors;
 
   private String outOfRowsReason = null;
   private final int[] arrayAggregatorIndices;
@@ -197,16 +198,20 @@ public class OnheapIncrementalIndex extends IncrementalIndex<Aggregator>
   }
 
   @Override
+  protected DimDim makeDimDim(String dimension, Map<String, Integer> dictionary, SizeEstimator estimator)
+  {
+    return new ReadOnlyDimDim(dictionary);
+  }
+
+  @Override
   protected Aggregator[] initAggs(
       AggregatorFactory[] metrics, Supplier<Row> rowSupplier, boolean deserializeComplexMetrics
   )
   {
-    selectors = Maps.newHashMap();
-    for (AggregatorFactory agg : metrics) {
-      selectors.put(
-          agg.getName(),
-          new ObjectCachingColumnSelectorFactory(makeColumnSelectorFactory(agg, rowSupplier, deserializeComplexMetrics))
-      );
+    this.selectors = new ColumnSelectorFactory[metrics.length];
+    for (int i = 0; i < metrics.length; i++) {
+      ColumnSelectorFactory delegate = makeColumnSelectorFactory(metrics[i], rowSupplier, deserializeComplexMetrics);
+      selectors[i] = new ObjectCachingColumnSelectorFactory(delegate);
     }
 
     return new Aggregator[metrics.length];
@@ -269,7 +274,7 @@ public class OnheapIncrementalIndex extends IncrementalIndex<Aggregator>
     rowContainer.set(row);
     for (int i = 0; i < metrics.length; i++) {
       final AggregatorFactory agg = metrics[i];
-      aggs[i] = agg.factorize(selectors.get(agg.getName()));
+      aggs[i] = agg.factorize(selectors[i]);
     }
     rowContainer.set(null);
   }
@@ -285,21 +290,26 @@ public class OnheapIncrementalIndex extends IncrementalIndex<Aggregator>
 
     for (Aggregator agg : aggs) {
       synchronized (agg) {
-        try {
-          agg.aggregate();
-        }
-        catch (ParseException e) {
-          // "aggregate" can throw ParseExceptions if a selector expects something but gets something else.
-          if (reportParseExceptions) {
-            throw new ParseException(e, "Encountered parse error for aggregator[%s]", agg.getName());
-          } else {
-            log.debug(e, "Encountered parse error, skipping aggregator[%s].", agg.getName());
-          }
-        }
+        aggregate(agg, reportParseExceptions);
       }
     }
 
     rowContainer.set(null);
+  }
+
+  private void aggregate(Aggregator agg, boolean reportParseExceptions)
+  {
+    try {
+      agg.aggregate();
+    }
+    catch (ParseException e) {
+      // "aggregate" can throw ParseExceptions if a selector expects something but gets something else.
+      if (reportParseExceptions) {
+        throw new ParseException(e, "Encountered parse error for aggregator[%s]", agg.getName());
+      } else {
+        log.debug(e, "Encountered parse error, skipping aggregator[%s].", agg.getName());
+      }
+    }
   }
 
   protected Aggregator[] concurrentGet(int offset)
@@ -395,11 +405,84 @@ public class OnheapIncrementalIndex extends IncrementalIndex<Aggregator>
     aggregators.clear();
     facts.clear();
     if (selectors != null) {
-      selectors.clear();
+      Arrays.fill(selectors, null);
     }
   }
 
-  static class OnHeapDimDim<T extends Comparable<? super T>> implements DimDim<T>
+  static final class ReadOnlyDimDim implements DimDim<String>
+  {
+    private final Map<String, Integer> valueToId;
+    private final String[] idToValue;
+
+    public ReadOnlyDimDim(Map<String, Integer> dictionary)
+    {
+      valueToId = dictionary;
+      idToValue = new String[dictionary.size()];
+      for (Map.Entry<String, Integer> entry : dictionary.entrySet()) {
+        idToValue[entry.getValue()] = entry.getKey();
+      }
+    }
+
+    public int getId(String value)
+    {
+      return valueToId.get(value);
+    }
+
+    public String getValue(int id)
+    {
+      return idToValue[id];
+    }
+
+    public boolean contains(String value)
+    {
+      return valueToId.containsKey(value);
+    }
+
+    public int size()
+    {
+      return valueToId.size();
+    }
+
+    public int add(String value)
+    {
+      Integer prev = valueToId.get(value);
+      if (prev != null) {
+        return prev;
+      }
+      throw new IllegalStateException("not existing value " + value);
+    }
+
+    @Override
+    public String getMinValue()
+    {
+      throw new UnsupportedOperationException("getMinValue");
+    }
+
+    @Override
+    public String getMaxValue()
+    {
+      throw new UnsupportedOperationException("getMaxValue");
+    }
+
+    @Override
+    public int estimatedSize()
+    {
+      throw new UnsupportedOperationException("estimatedSize");
+    }
+
+    @Override
+    public final int compare(int lhsIdx, int rhsIdx)
+    {
+      return idToValue[lhsIdx].compareTo(idToValue[rhsIdx]);
+    }
+
+    public OnHeapDimLookup<String> sort()
+    {
+      throw new UnsupportedOperationException("sort");
+    }
+  }
+
+  static final class OnHeapDimDim<T extends Comparable<? super T>> implements DimDim<T>
   {
     private final Map<T, Integer> valueToId = Maps.newHashMap();
     private T minValue = null;

@@ -471,7 +471,8 @@ public class QueryRunnerTestHelper
     return new FinalizeResultsQueryRunner<T>(
         toolChest.mergeResults(
             factory.mergeRunners(
-                executorService, Arrays.asList(makeSegmentQueryRunner(factory, segmentId, adapter))
+                executorService, Arrays.asList(makeSegmentQueryRunner(factory, segmentId, adapter)),
+                null
             )
         ),
         toolChest
@@ -486,7 +487,7 @@ public class QueryRunnerTestHelper
   {
     return new BySegmentQueryRunner<T>(
         segmentId, adapter.getDataInterval().getStart(),
-        factory.createRunner(adapter)
+        factory.createRunner(adapter, null)
     );
   }
 
@@ -500,7 +501,7 @@ public class QueryRunnerTestHelper
             new UnionQueryRunner<T>(
                 new BySegmentQueryRunner<T>(
                     segmentId, adapter.getDataInterval().getStart(),
-                    factory.createRunner(adapter)
+                    factory.createRunner(adapter, null)
                 )
             )
         )
@@ -536,7 +537,7 @@ public class QueryRunnerTestHelper
                           )
                       )
                   );
-                  sequences.add(factory.createRunner(segment).run(running, responseContext));
+                  sequences.add(factory.createRunner(segment, null).run(running, responseContext));
                 }
                 return new MergeSequence<>(query.getResultOrdering(), Sequences.simple(sequences));
               }

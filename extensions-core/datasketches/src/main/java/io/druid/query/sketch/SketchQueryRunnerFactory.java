@@ -28,6 +28,7 @@ import io.druid.query.QueryWatcher;
 import io.druid.query.Result;
 import io.druid.segment.Segment;
 
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutorService;
 
@@ -49,14 +50,15 @@ public class SketchQueryRunnerFactory implements QueryRunnerFactory<Result<Map<S
   }
 
   @Override
-  public QueryRunner<Result<Map<String, Object>>> createRunner(final Segment segment)
+  public QueryRunner<Result<Map<String, Object>>> createRunner(final Segment segment, Object optimizer)
   {
     return new SketchQueryRunner(segment);
   }
 
   @Override
   public QueryRunner<Result<Map<String, Object>>> mergeRunners(
-      ExecutorService queryExecutor, Iterable<QueryRunner<Result<Map<String, Object>>>> queryRunners
+      ExecutorService queryExecutor, Iterable<QueryRunner<Result<Map<String, Object>>>> queryRunners,
+      Object optimizer
   )
   {
     return new ChainedExecutionQueryRunner<Result<Map<String, Object>>>(
@@ -68,5 +70,11 @@ public class SketchQueryRunnerFactory implements QueryRunnerFactory<Result<Map<S
   public QueryToolChest<Result<Map<String, Object>>, SketchQuery> getToolchest()
   {
     return toolChest;
+  }
+
+  @Override
+  public Object preFactoring(SketchQuery query, List<Segment> segments)
+  {
+    return null;
   }
 }

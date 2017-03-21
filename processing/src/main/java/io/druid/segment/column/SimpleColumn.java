@@ -124,6 +124,12 @@ class SimpleColumn implements Column
   }
 
   @Override
+  public GenericIndexed<String> getDictionary()
+  {
+    return dictionaryEncodedColumn.getDictionary();
+  }
+
+  @Override
   public DictionaryEncodedColumn getDictionaryEncoding()
   {
     return dictionaryEncodedColumn == null ? null : dictionaryEncodedColumn.get();

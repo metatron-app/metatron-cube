@@ -267,7 +267,7 @@ public class RealtimePlumberSchoolTest
     Assert.assertNull(plumber.startJob());
 
     final InputRow row = EasyMock.createNiceMock(InputRow.class);
-    EasyMock.expect(row.getTimestampFromEpoch()).andReturn(0L);
+    EasyMock.expect(row.getTimestamp()).andReturn(new DateTime(0L));
     EasyMock.expect(row.getDimensions()).andReturn(new ArrayList<String>());
     EasyMock.replay(row);
 
@@ -313,7 +313,7 @@ public class RealtimePlumberSchoolTest
            );
     plumber.startJob();
     final InputRow row = EasyMock.createNiceMock(InputRow.class);
-    EasyMock.expect(row.getTimestampFromEpoch()).andReturn(0L);
+    EasyMock.expect(row.getTimestamp()).andReturn(new DateTime(0L));
     EasyMock.expect(row.getDimensions()).andReturn(new ArrayList<String>());
     EasyMock.replay(row);
     plumber.add(row, Suppliers.ofInstance(Committers.nil()));

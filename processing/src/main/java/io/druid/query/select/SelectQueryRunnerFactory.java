@@ -33,6 +33,7 @@ import io.druid.query.QueryWatcher;
 import io.druid.query.Result;
 import io.druid.segment.Segment;
 
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutorService;
 
@@ -71,14 +72,16 @@ public class SelectQueryRunnerFactory
   }
 
   @Override
-  public QueryRunner<Result<SelectResultValue>> createRunner(final Segment segment)
+  public QueryRunner<Result<SelectResultValue>> createRunner(final Segment segment, Object optimizer)
   {
     return new SelectQueryRunner(engine, segment, cache);
   }
 
   @Override
   public QueryRunner<Result<SelectResultValue>> mergeRunners(
-      ExecutorService queryExecutor, Iterable<QueryRunner<Result<SelectResultValue>>> queryRunners
+      final ExecutorService queryExecutor,
+      final Iterable<QueryRunner<Result<SelectResultValue>>> queryRunners,
+      final Object optimizer
   )
   {
     return new ChainedExecutionQueryRunner<Result<SelectResultValue>>(
@@ -90,6 +93,12 @@ public class SelectQueryRunnerFactory
   public QueryToolChest<Result<SelectResultValue>, SelectQuery> getToolchest()
   {
     return toolChest;
+  }
+
+  @Override
+  public Object preFactoring(SelectQuery query, List<Segment> segments)
+  {
+    return null;
   }
 
   private static class SelectQueryRunner implements QueryRunner<Result<SelectResultValue>>

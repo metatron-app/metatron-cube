@@ -306,7 +306,8 @@ public class SegmentMetadataQueryTest
                 Lists.<QueryRunner<SegmentAnalysis>>newArrayList(
                     toolChest.preMergeQueryDecoration(runner1),
                     toolChest.preMergeQueryDecoration(runner2)
-                )
+                ),
+                null
             )
         ),
         toolChest
@@ -373,7 +374,8 @@ public class SegmentMetadataQueryTest
                 Lists.<QueryRunner<SegmentAnalysis>>newArrayList(
                     toolChest.preMergeQueryDecoration(runner1),
                     toolChest.preMergeQueryDecoration(runner2)
-                )
+                ),
+                null
             )
         ),
         toolChest
@@ -453,7 +455,8 @@ public class SegmentMetadataQueryTest
                 Lists.<QueryRunner<SegmentAnalysis>>newArrayList(
                     toolChest.preMergeQueryDecoration(runner1),
                     toolChest.preMergeQueryDecoration(runner2)
-                )
+                ),
+                null
             )
         ),
         toolChest
@@ -569,7 +572,8 @@ public class SegmentMetadataQueryTest
                 Lists.<QueryRunner<SegmentAnalysis>>newArrayList(
                     toolChest.preMergeQueryDecoration(runner1),
                     toolChest.preMergeQueryDecoration(runner2)
-                )
+                ),
+                null
             )
         ),
         toolChest
@@ -619,7 +623,8 @@ public class SegmentMetadataQueryTest
                 Lists.<QueryRunner<SegmentAnalysis>>newArrayList(
                     toolChest.preMergeQueryDecoration(runner1),
                     toolChest.preMergeQueryDecoration(runner2)
-                )
+                ),
+                null
             )
         ),
         toolChest
@@ -680,7 +685,8 @@ public class SegmentMetadataQueryTest
                 Lists.<QueryRunner<SegmentAnalysis>>newArrayList(
                     toolChest.preMergeQueryDecoration(runner1),
                     toolChest.preMergeQueryDecoration(runner2)
-                )
+                ),
+                null
             )
         ),
         toolChest
@@ -738,7 +744,8 @@ public class SegmentMetadataQueryTest
                 Lists.<QueryRunner<SegmentAnalysis>>newArrayList(
                     toolChest.preMergeQueryDecoration(runner1),
                     toolChest.preMergeQueryDecoration(runner2)
-                )
+                ),
+                null
             )
         ),
         toolChest
@@ -784,7 +791,8 @@ public class SegmentMetadataQueryTest
                 //Note: It is essential to have atleast 2 query runners merged to reproduce the regression bug described in
                 //https://github.com/druid-io/druid/pull/1172
                 //the bug surfaces only when ordering is used which happens only when you have 2 things to compare
-                Lists.<QueryRunner<SegmentAnalysis>>newArrayList(singleSegmentQueryRunner, singleSegmentQueryRunner)
+                Lists.<QueryRunner<SegmentAnalysis>>newArrayList(singleSegmentQueryRunner, singleSegmentQueryRunner),
+                null
             )
         ),
         toolChest

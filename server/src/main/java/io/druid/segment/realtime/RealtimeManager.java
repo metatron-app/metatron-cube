@@ -174,7 +174,8 @@ public class RealtimeManager implements QuerySegmentWalker
                     return fireChief.getQueryRunner(query);
                   }
                 }
-            )
+            ),
+            null
         )
     );
   }
@@ -204,7 +205,8 @@ public class RealtimeManager implements QuerySegmentWalker
                                   : retVal.getQueryRunner(query.withQuerySegmentSpec(new SpecificSegmentSpec(spec)));
                          }
                        }
-                   )
+                   ),
+                   null
                )
            );
   }

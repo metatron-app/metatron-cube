@@ -67,7 +67,7 @@ public class TestQueryRunners
         QueryRunnerTestHelper.NOOP_QUERYWATCHER
     );
     return new FinalizeResultsQueryRunner<T>(
-        factory.createRunner(adapter),
+        factory.createRunner(adapter, null),
         factory.getToolchest()
     );
   }
@@ -84,7 +84,7 @@ public class TestQueryRunners
     );
 
     return new FinalizeResultsQueryRunner<T>(
-        factory.createRunner(adapter),
+        factory.createRunner(adapter, null),
         factory.getToolchest()
     );
   }
@@ -98,7 +98,7 @@ public class TestQueryRunners
           QueryRunnerTestHelper.NoopIntervalChunkingQueryRunnerDecorator()),
         QueryRunnerTestHelper.NOOP_QUERYWATCHER);
     return new FinalizeResultsQueryRunner<T>(
-        factory.createRunner(adapter),
+        factory.createRunner(adapter, null),
         factory.getToolchest()
     );
   }
@@ -109,7 +109,7 @@ public class TestQueryRunners
   {
     QueryRunnerFactory factory = new TimeBoundaryQueryRunnerFactory(QueryRunnerTestHelper.NOOP_QUERYWATCHER);
     return new FinalizeResultsQueryRunner<T>(
-        factory.createRunner(adapter),
+        factory.createRunner(adapter, null),
         factory.getToolchest()
     );
   }

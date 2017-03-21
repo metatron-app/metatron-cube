@@ -78,9 +78,10 @@ public class GroupByQueryRunnerFactoryTest
     QueryRunner mergedRunner = factory.mergeRunners(
         Executors.newSingleThreadExecutor(),
         ImmutableList.of(
-        factory.createRunner(createSegment()),
-        factory.createRunner(createSegment())
-        )
+        factory.createRunner(createSegment(), null),
+        factory.createRunner(createSegment(), null)
+        ),
+        null
     );
 
     GroupByQuery query = GroupByQuery

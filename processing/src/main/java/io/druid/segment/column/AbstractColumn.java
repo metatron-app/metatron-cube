@@ -19,6 +19,8 @@
 
 package io.druid.segment.column;
 
+import io.druid.segment.data.GenericIndexed;
+
 /**
  */
 public abstract class AbstractColumn implements Column
@@ -49,6 +51,12 @@ public abstract class AbstractColumn implements Column
 
   @Override
   public RunLengthColumn getRunLengthColumn()
+  {
+    throw new UnsupportedOperationException();
+  }
+
+  @Override
+  public GenericIndexed<String> getDictionary()
   {
     throw new UnsupportedOperationException();
   }

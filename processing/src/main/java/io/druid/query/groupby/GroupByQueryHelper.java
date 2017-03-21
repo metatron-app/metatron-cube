@@ -36,6 +36,7 @@ import io.druid.segment.incremental.OnheapIncrementalIndex;
 
 import java.nio.ByteBuffer;
 import java.util.List;
+import java.util.Map;
 import java.util.Queue;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
@@ -47,8 +48,9 @@ public class GroupByQueryHelper
   public static <T> Pair<IncrementalIndex, Accumulator<IncrementalIndex, T>> createIndexAccumulatorPair(
       final GroupByQuery query,
       final GroupByQueryConfig config,
-      StupidPool<ByteBuffer> bufferPool,
-      final boolean sortFacts
+      final StupidPool<ByteBuffer> bufferPool,
+      final boolean sortFacts,
+      final Object optimizer
   )
   {
     final QueryGranularity gran = query.getGranularity();
@@ -61,17 +63,6 @@ public class GroupByQueryHelper
           public AggregatorFactory apply(AggregatorFactory input)
           {
             return input.getCombiningFactory();
-          }
-        }
-    );
-    final List<String> dimensions = Lists.transform(
-        query.getDimensions(),
-        new Function<DimensionSpec, String>()
-        {
-          @Override
-          public String apply(DimensionSpec input)
-          {
-            return input.getOutputName();
           }
         }
     );
@@ -96,7 +87,11 @@ public class GroupByQueryHelper
       index = new OnheapIncrementalIndex(schema, false, true, sortFacts, maxRowCount);
     }
 
-    index.initialize(dimensions);
+    if (optimizer != null) {
+      index.initialize((Map<String, Map<String, Integer>>) optimizer);
+    } else {
+      index.initialize(Lists.transform(query.getDimensions(), DimensionSpec.OUTPUT_NAME));
+    }
 
     Accumulator<IncrementalIndex, T> accumulator = new Accumulator<IncrementalIndex, T>()
     {

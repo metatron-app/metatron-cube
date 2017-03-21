@@ -64,13 +64,15 @@ public class GroupByMergedQueryRunner<T> implements QueryRunner<T>
   private final Supplier<GroupByQueryConfig> configSupplier;
   private final QueryWatcher queryWatcher;
   private final StupidPool<ByteBuffer> bufferPool;
+  private final Object optimizer;
 
   public GroupByMergedQueryRunner(
       ExecutorService exec,
       Supplier<GroupByQueryConfig> configSupplier,
       QueryWatcher queryWatcher,
       StupidPool<ByteBuffer> bufferPool,
-      Iterable<QueryRunner<T>> queryables
+      Iterable<QueryRunner<T>> queryables,
+      Object optimizer
   )
   {
     this.exec = MoreExecutors.listeningDecorator(exec);
@@ -78,6 +80,7 @@ public class GroupByMergedQueryRunner<T> implements QueryRunner<T>
     this.queryables = Iterables.unmodifiableIterable(Iterables.filter(queryables, Predicates.notNull()));
     this.configSupplier = configSupplier;
     this.bufferPool = bufferPool;
+    this.optimizer = optimizer;
   }
 
   @Override
@@ -94,7 +97,8 @@ public class GroupByMergedQueryRunner<T> implements QueryRunner<T>
         query,
         configSupplier.get(),
         bufferPool,
-        false
+        false,
+        optimizer
     );
     final Pair<Queue, Accumulator<Queue, T>> bySegmentAccumulatorPair = GroupByQueryHelper.createBySegmentAccumulatorPair();
     final boolean bySegment = BaseQuery.getContextBySegment(query, false);

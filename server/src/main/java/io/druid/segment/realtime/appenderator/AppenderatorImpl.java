@@ -421,7 +421,7 @@ public class AppenderatorImpl implements Appenderator
                                                 final Pair<Segment, Closeable> segment = hydrant.getAndIncrementSegment();
                                                 try {
                                                   QueryRunner<T> baseRunner = QueryRunnerHelper.makeClosingQueryRunner(
-                                                      factory.createRunner(segment.lhs),
+                                                      factory.createRunner(segment.lhs, null),
                                                       segment.rhs
                                                   );
 
@@ -448,7 +448,8 @@ public class AppenderatorImpl implements Appenderator
                                                 }
                                               }
                                             }
-                                        )
+                                        ),
+                                        null
                                     )
                                 )
                             ).withWaitMeasuredFromNow(),
@@ -456,7 +457,8 @@ public class AppenderatorImpl implements Appenderator
                         );
                       }
                     }
-                )
+                ),
+            null
         )
     );
   }

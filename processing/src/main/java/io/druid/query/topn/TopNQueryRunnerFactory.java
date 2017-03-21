@@ -36,6 +36,7 @@ import io.druid.query.Result;
 import io.druid.segment.Segment;
 
 import java.nio.ByteBuffer;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutorService;
 
@@ -75,7 +76,7 @@ public class TopNQueryRunnerFactory implements QueryRunnerFactory<Result<TopNRes
   }
 
   @Override
-  public QueryRunner<Result<TopNResultValue>> createRunner(final Segment segment)
+  public QueryRunner<Result<TopNResultValue>> createRunner(final Segment segment, Object optimizer)
   {
     final TopNQueryEngine queryEngine = new TopNQueryEngine(computationBufferPool);
     return new QueryRunner<Result<TopNResultValue>>()
@@ -98,7 +99,8 @@ public class TopNQueryRunnerFactory implements QueryRunnerFactory<Result<TopNRes
 
   @Override
   public QueryRunner<Result<TopNResultValue>> mergeRunners(
-      ExecutorService queryExecutor, Iterable<QueryRunner<Result<TopNResultValue>>> queryRunners
+      ExecutorService queryExecutor, Iterable<QueryRunner<Result<TopNResultValue>>> queryRunners,
+      Object optimizer
   )
   {
     return new ChainedExecutionQueryRunner<>(
@@ -110,5 +112,11 @@ public class TopNQueryRunnerFactory implements QueryRunnerFactory<Result<TopNRes
   public QueryToolChest<Result<TopNResultValue>, TopNQuery> getToolchest()
   {
     return toolchest;
+  }
+
+  @Override
+  public Object preFactoring(TopNQuery query, List<Segment> segments)
+  {
+    return null;
   }
 }

@@ -232,7 +232,9 @@ public class GroupByQueryRunnerTest
   public GroupByQueryRunnerTest(GroupByQueryRunnerFactory factory, QueryRunner runner)
   {
     this.factory = factory;
-    this.runner = factory.mergeRunners(MoreExecutors.sameThreadExecutor(), ImmutableList.<QueryRunner<Row>>of(runner));;
+    this.runner = factory.mergeRunners(MoreExecutors.sameThreadExecutor(), ImmutableList.<QueryRunner<Row>>of(runner),
+                                       null
+    );;
   }
 
   @Test
@@ -5758,7 +5760,7 @@ public class GroupByQueryRunnerTest
     ExecutorService exec = Executors.newCachedThreadPool();
     QueryRunner theRunner = toolChest.postMergeQueryDecoration(
         new FinalizeResultsQueryRunner<>(
-            toolChest.mergeResults(factory.mergeRunners(Executors.newCachedThreadPool(), singleSegmentRunners)),
+            toolChest.mergeResults(factory.mergeRunners(Executors.newCachedThreadPool(), singleSegmentRunners, null)),
             toolChest
         )
     );
@@ -5834,7 +5836,7 @@ public class GroupByQueryRunnerTest
     ExecutorService exec = Executors.newCachedThreadPool();
     QueryRunner theRunner = toolChest.postMergeQueryDecoration(
         new FinalizeResultsQueryRunner<>(
-            toolChest.mergeResults(factory.mergeRunners(Executors.newCachedThreadPool(), singleSegmentRunners)),
+            toolChest.mergeResults(factory.mergeRunners(Executors.newCachedThreadPool(), singleSegmentRunners, null)),
             toolChest
         )
     );
@@ -5909,7 +5911,7 @@ public class GroupByQueryRunnerTest
     ExecutorService exec = Executors.newCachedThreadPool();
     QueryRunner theRunner = toolChest.postMergeQueryDecoration(
         new FinalizeResultsQueryRunner<>(
-            toolChest.mergeResults(factory.mergeRunners(Executors.newCachedThreadPool(), singleSegmentRunners)),
+            toolChest.mergeResults(factory.mergeRunners(Executors.newCachedThreadPool(), singleSegmentRunners, null)),
             toolChest
         )
     );
@@ -6338,7 +6340,7 @@ public class GroupByQueryRunnerTest
     ExecutorService exec = Executors.newCachedThreadPool();
     QueryRunner theRunner = toolChest.postMergeQueryDecoration(
         new FinalizeResultsQueryRunner<>(
-            toolChest.mergeResults(factory.mergeRunners(Executors.newCachedThreadPool(), singleSegmentRunners)),
+            toolChest.mergeResults(factory.mergeRunners(Executors.newCachedThreadPool(), singleSegmentRunners, null)),
             toolChest
         )
     );

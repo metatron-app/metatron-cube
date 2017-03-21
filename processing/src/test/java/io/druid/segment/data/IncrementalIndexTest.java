@@ -395,7 +395,7 @@ public class IncrementalIndexTest
         QueryRunnerTestHelper.NOOP_QUERYWATCHER
     );
     final QueryRunner<Result<TimeseriesResultValue>> runner = new FinalizeResultsQueryRunner<Result<TimeseriesResultValue>>(
-        factory.createRunner(incrementalIndexSegment),
+        factory.createRunner(incrementalIndexSegment, null),
         factory.getToolchest()
     );
 
@@ -555,7 +555,7 @@ public class IncrementalIndexTest
                   }
                   while (concurrentlyRan.get() == 0) {
                     QueryRunner<Result<TimeseriesResultValue>> runner = new FinalizeResultsQueryRunner<Result<TimeseriesResultValue>>(
-                        factory.createRunner(incrementalIndexSegment),
+                        factory.createRunner(incrementalIndexSegment, null),
                         factory.getToolchest()
                     );
                     Map<String, Object> context = new HashMap<String, Object>();
@@ -607,7 +607,7 @@ public class IncrementalIndexTest
     queryExecutor.shutdown();
     indexExecutor.shutdown();
     QueryRunner<Result<TimeseriesResultValue>> runner = new FinalizeResultsQueryRunner<Result<TimeseriesResultValue>>(
-        factory.createRunner(incrementalIndexSegment),
+        factory.createRunner(incrementalIndexSegment, null),
         factory.getToolchest()
     );
     TimeseriesQuery query = Druids.newTimeseriesQueryBuilder()

@@ -48,7 +48,6 @@ import io.druid.data.input.impl.InputRowParser;
 import io.druid.data.input.impl.StringInputRowParser;
 import io.druid.granularity.QueryGranularity;
 import io.druid.jackson.DefaultObjectMapper;
-import io.druid.query.ConcatQueryRunner;
 import io.druid.query.FinalizeResultsQueryRunner;
 import io.druid.query.IntervalChunkingQueryRunnerDecorator;
 import io.druid.query.Query;
@@ -469,7 +468,7 @@ public class AggregationTestHelper
                                           mapper,
                                           toolChest,
                                           query,
-                                          factory.createRunner(segment)
+                                          factory.createRunner(segment, null)
                                       );
                                     }
                                     catch (Exception ex) {
@@ -477,8 +476,9 @@ public class AggregationTestHelper
                                     }
                                   }
                                 }
+                        ),
+                            null
                         )
-                    )
                 )
             )
         ),

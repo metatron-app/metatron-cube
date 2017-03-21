@@ -521,7 +521,7 @@ public class ServerManagerTest
     }
 
     @Override
-    public QueryRunner<Result<SearchResultValue>> createRunner(Segment adapter)
+    public QueryRunner<Result<SearchResultValue>> createRunner(Segment adapter, Object optimizer)
     {
       if (!(adapter instanceof ReferenceCountingSegment)) {
         throw new IAE("Expected instance of ReferenceCountingSegment, got %s", adapter.getClass());
@@ -538,7 +538,8 @@ public class ServerManagerTest
 
     @Override
     public QueryRunner<Result<SearchResultValue>> mergeRunners(
-        ExecutorService queryExecutor, Iterable<QueryRunner<Result<SearchResultValue>>> queryRunners
+        ExecutorService queryExecutor, Iterable<QueryRunner<Result<SearchResultValue>>> queryRunners,
+        Object optimizer
     )
     {
       return new ConcatQueryRunner<Result<SearchResultValue>>(Sequences.simple(queryRunners));
@@ -548,6 +549,12 @@ public class ServerManagerTest
     public QueryToolChest<Result<SearchResultValue>, SearchQuery> getToolchest()
     {
       return new NoopQueryToolChest<Result<SearchResultValue>, SearchQuery>();
+    }
+
+    @Override
+    public Object preFactoring(SearchQuery query, List<Segment> segments)
+    {
+      return null;
     }
 
     public List<SegmentForTesting> getAdapters()

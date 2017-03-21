@@ -353,7 +353,8 @@ public class GroupByQueryQueryToolChest extends QueryToolChest<Row, GroupByQuery
         query,
         config,
         bufferPool,
-        sortFacts
+        sortFacts,
+        null
     );
 
     return rows.accumulate(indexAccumulatorPair.lhs, indexAccumulatorPair.rhs);

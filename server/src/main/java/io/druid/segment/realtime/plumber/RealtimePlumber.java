@@ -376,7 +376,7 @@ public class RealtimePlumber implements Plumber
                                             final Pair<Segment, Closeable> segment = input.getAndIncrementSegment();
                                             try {
                                               QueryRunner<T> baseRunner = QueryRunnerHelper.makeClosingQueryRunner(
-                                                  factory.createRunner(segment.lhs),
+                                                  factory.createRunner(segment.lhs, null),
                                                   segment.rhs
                                               );
 
@@ -403,7 +403,8 @@ public class RealtimePlumber implements Plumber
                                             }
                                           }
                                         }
-                                    )
+                                    ),
+                                    null
                                 ),
                                 "query/segmentAndCache/time",
                                 ImmutableMap.of("segment", theSink.getSegment().getIdentifier())
@@ -414,7 +415,8 @@ public class RealtimePlumber implements Plumber
                         );
                       }
                     }
-                )
+                ),
+            null
         )
     );
   }

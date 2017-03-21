@@ -21,11 +21,14 @@ package io.druid.server.coordination;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Function;
+import com.google.common.base.Functions;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
+import com.google.common.collect.Lists;
 import com.google.common.collect.Ordering;
 import com.google.inject.Inject;
 import com.metamx.common.ISE;
+import com.metamx.common.Pair;
 import com.metamx.common.guava.FunctionalIterable;
 import com.metamx.emitter.EmittingLogger;
 import com.metamx.emitter.service.ServiceEmitter;
@@ -70,6 +73,7 @@ import javax.annotation.Nullable;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.atomic.AtomicLong;
@@ -312,6 +316,7 @@ public class ServerManager implements QuerySegmentWalker
                                     holder.getVersion(),
                                     input.getChunkNumber()
                                 ),
+                                null, // todo
                                 builderFn,
                                 cpuTimeAccumulator
                             );
@@ -324,7 +329,11 @@ public class ServerManager implements QuerySegmentWalker
 
     return CPUTimeMetricQueryRunner.safeBuild(
         FinalizeResultsQueryRunner.finalize(
-            toolChest.mergeResults(factory.mergeRunners(exec, queryRunners)), toolChest, objectMapper
+            toolChest.mergeResults(
+                factory.mergeRunners(exec, queryRunners, null)
+            ),
+            toolChest,
+            objectMapper
         ),
         builderFn,
         emitter,
@@ -364,32 +373,68 @@ public class ServerManager implements QuerySegmentWalker
     final Function<Query<T>, ServiceMetricEvent.Builder> builderFn = getBuilderFn(toolChest);
     final AtomicLong cpuTimeAccumulator = new AtomicLong(0L);
 
+    List<Pair<SegmentDescriptor, ReferenceCountingSegment>> segments = Lists.newArrayList(
+        Iterables.transform(
+            specs, new Function<SegmentDescriptor, Pair<SegmentDescriptor, ReferenceCountingSegment>>()
+            {
+              @Override
+              public Pair<SegmentDescriptor, ReferenceCountingSegment> apply(SegmentDescriptor input)
+              {
+                PartitionHolder<ReferenceCountingSegment> entry = timeline.findEntry(
+                    input.getInterval(), input.getVersion()
+                );
+                if (entry != null) {
+                  PartitionChunk<ReferenceCountingSegment> chunk = entry.getChunk(input.getPartitionNumber());
+                  if (chunk != null) {
+                    return Pair.of(input, chunk.getObject());
+                  }
+                }
+                return Pair.of(input, null);
+              }
+            }
+        )
+    );
+    final Object optimizer = factory.preFactoring(query,
+        Lists.newArrayList(
+            Lists.transform(
+                segments,
+                Functions.compose(
+                    new Function<ReferenceCountingSegment, Segment>()
+                    {
+                      @Override
+                      public Segment apply(ReferenceCountingSegment input)
+                      {
+                        return input.getBaseSegment();
+                      }
+                    },
+                    Pair.<SegmentDescriptor, ReferenceCountingSegment>rhsFn()
+                )
+            )
+        )
+    );
+
     FunctionalIterable<QueryRunner<T>> queryRunners = FunctionalIterable
-        .create(specs)
+        .create(segments)
         .transformCat(
-            new Function<SegmentDescriptor, Iterable<QueryRunner<T>>>()
+            new Function<Pair<SegmentDescriptor, ReferenceCountingSegment>, Iterable<QueryRunner<T>>>()
             {
               @Override
               @SuppressWarnings("unchecked")
-              public Iterable<QueryRunner<T>> apply(SegmentDescriptor input)
+              public Iterable<QueryRunner<T>> apply(Pair<SegmentDescriptor, ReferenceCountingSegment> input)
               {
-
-                final PartitionHolder<ReferenceCountingSegment> entry = timeline.findEntry(
-                    input.getInterval(), input.getVersion()
-                );
-
-                if (entry == null) {
-                  return Arrays.<QueryRunner<T>>asList(new ReportTimelineMissingSegmentQueryRunner<T>(input));
+                if (input.rhs == null) {
+                  return Arrays.<QueryRunner<T>>asList(new ReportTimelineMissingSegmentQueryRunner<T>(input.lhs));
                 }
-
-                final PartitionChunk<ReferenceCountingSegment> chunk = entry.getChunk(input.getPartitionNumber());
-                if (chunk == null) {
-                  return Arrays.<QueryRunner<T>>asList(new ReportTimelineMissingSegmentQueryRunner<T>(input));
-                }
-
-                final ReferenceCountingSegment adapter = chunk.getObject();
                 return Arrays.asList(
-                    buildAndDecorateQueryRunner(factory, toolChest, adapter, input, builderFn, cpuTimeAccumulator)
+                    buildAndDecorateQueryRunner(
+                        factory,
+                        toolChest,
+                        input.rhs,
+                        input.lhs,
+                        optimizer,
+                        builderFn,
+                        cpuTimeAccumulator
+                    )
                 );
               }
             }
@@ -397,7 +442,11 @@ public class ServerManager implements QuerySegmentWalker
 
     return CPUTimeMetricQueryRunner.safeBuild(
         FinalizeResultsQueryRunner.finalize(
-            toolChest.mergeResults(factory.mergeRunners(exec, queryRunners)), toolChest, objectMapper
+            toolChest.mergeResults(
+                factory.mergeRunners(exec, queryRunners, optimizer)
+            ),
+            toolChest,
+            objectMapper
         ),
         builderFn,
         emitter,
@@ -411,6 +460,7 @@ public class ServerManager implements QuerySegmentWalker
       final QueryToolChest<T, Query<T>> toolChest,
       final ReferenceCountingSegment adapter,
       final SegmentDescriptor segmentDescriptor,
+      final Object optimizer,
       final Function<Query<T>, ServiceMetricEvent.Builder> builderFn,
       final AtomicLong cpuTimeAccumulator
   )
@@ -440,7 +490,7 @@ public class ServerManager implements QuerySegmentWalker
                                 return toolChest.makeMetricBuilder(input);
                               }
                             },
-                            new ReferenceCountingSegmentQueryRunner<T>(factory, adapter, segmentDescriptor),
+                            new ReferenceCountingSegmentQueryRunner<T>(factory, adapter, segmentDescriptor, optimizer),
                             "query/segment/time",
                             ImmutableMap.of("segment", adapter.getIdentifier())
                         ),

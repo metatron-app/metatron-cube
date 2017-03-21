@@ -35,5 +35,5 @@ public interface DictionaryEncodedColumn extends Closeable
   public int lookupId(String name);
   public int getCardinality();
 
-  public void loadAll();
+  public Iterable<String> loadAll();
 }

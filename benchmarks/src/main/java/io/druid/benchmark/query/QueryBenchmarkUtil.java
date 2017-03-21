@@ -44,7 +44,7 @@ public class QueryBenchmarkUtil
     return new FinalizeResultsQueryRunner<T>(
         new BySegmentQueryRunner<T>(
             segmentId, adapter.getDataInterval().getStart(),
-            factory.createRunner(adapter)
+            factory.createRunner(adapter, null)
         ),
         (QueryToolChest<T, Query<T>>)factory.getToolchest()
     );

@@ -232,7 +232,7 @@ public class SinkQuerySegmentWalker implements QuerySegmentWalker
                                                     final Pair<Segment, Closeable> segment = hydrant.getAndIncrementSegment();
                                                     try {
                                                       QueryRunner<T> baseRunner = QueryRunnerHelper.makeClosingQueryRunner(
-                                                          factory.createRunner(segment.lhs),
+                                                          factory.createRunner(segment.lhs, null),
                                                           segment.rhs
                                                       );
 
@@ -259,7 +259,8 @@ public class SinkQuerySegmentWalker implements QuerySegmentWalker
                                                     }
                                                   }
                                                 }
-                                            )
+                                            ),
+                                            null
                                         )
                                     ),
                                     builderFn,
@@ -270,7 +271,8 @@ public class SinkQuerySegmentWalker implements QuerySegmentWalker
                             );
                           }
                         }
-                    )
+                    ),
+                null
             )
         ),
         builderFn,

@@ -140,6 +140,12 @@ public class OffheapIncrementalIndex extends IncrementalIndex<BufferAggregator>
   }
 
   @Override
+  protected DimDim makeDimDim(String dimension, Map<String, Integer> dictionary, SizeEstimator estimator)
+  {
+    return new OnheapIncrementalIndex.ReadOnlyDimDim(dictionary);
+  }
+
+  @Override
   protected BufferAggregator[] initAggs(
       AggregatorFactory[] metrics, Supplier<Row> rowSupplier, boolean deserializeComplexMetrics
   )

@@ -34,16 +34,19 @@ public class ReferenceCountingSegmentQueryRunner<T> implements QueryRunner<T>
   private final QueryRunnerFactory<T, Query<T>> factory;
   private final ReferenceCountingSegment adapter;
   private final SegmentDescriptor descriptor;
+  private final Object optimizer;
 
   public ReferenceCountingSegmentQueryRunner(
       QueryRunnerFactory<T, Query<T>> factory,
       ReferenceCountingSegment adapter,
-      SegmentDescriptor descriptor
+      SegmentDescriptor descriptor,
+      Object optimizer
   )
   {
     this.factory = factory;
     this.adapter = adapter;
     this.descriptor = descriptor;
+    this.optimizer = optimizer;
   }
 
   @Override
@@ -52,7 +55,7 @@ public class ReferenceCountingSegmentQueryRunner<T> implements QueryRunner<T>
     final Closeable closeable = adapter.increment();
     if (closeable != null) {
       try {
-        final Sequence<T> baseSequence = factory.createRunner(adapter).run(query, responseContext);
+        final Sequence<T> baseSequence = factory.createRunner(adapter, optimizer).run(query, responseContext);
 
         return new ResourceClosingSequence<T>(baseSequence, closeable);
       }

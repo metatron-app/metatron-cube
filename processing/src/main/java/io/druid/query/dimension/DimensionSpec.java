@@ -21,6 +21,7 @@ package io.druid.query.dimension;
 
 import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
+import com.google.common.base.Function;
 import io.druid.query.extraction.ExtractionFn;
 import io.druid.segment.DimensionSelector;
 
@@ -50,4 +51,13 @@ public interface DimensionSpec
   byte[] getCacheKey();
 
   boolean preservesOrdering();
+
+  static Function<DimensionSpec, String> OUTPUT_NAME = new Function<DimensionSpec, String>()
+  {
+    @Override
+    public String apply(DimensionSpec input)
+    {
+      return input.getOutputName();
+    }
+  };
 }

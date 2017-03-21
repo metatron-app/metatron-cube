@@ -34,6 +34,7 @@ import io.druid.query.Result;
 import io.druid.segment.Segment;
 import io.druid.segment.StorageAdapter;
 
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutorService;
 
@@ -72,14 +73,15 @@ public class TimeseriesQueryRunnerFactory
   }
 
   @Override
-  public QueryRunner<Result<TimeseriesResultValue>> createRunner(final Segment segment)
+  public QueryRunner<Result<TimeseriesResultValue>> createRunner(final Segment segment, Object optimizer)
   {
     return new TimeseriesQueryRunner(engine, segment.asStorageAdapter(), cache);
   }
 
   @Override
   public QueryRunner<Result<TimeseriesResultValue>> mergeRunners(
-      ExecutorService queryExecutor, Iterable<QueryRunner<Result<TimeseriesResultValue>>> queryRunners
+      ExecutorService queryExecutor, Iterable<QueryRunner<Result<TimeseriesResultValue>>> queryRunners,
+      Object optimizer
   )
   {
     return new ChainedExecutionQueryRunner<Result<TimeseriesResultValue>>(
@@ -91,6 +93,12 @@ public class TimeseriesQueryRunnerFactory
   public QueryToolChest<Result<TimeseriesResultValue>, TimeseriesQuery> getToolchest()
   {
     return toolChest;
+  }
+
+  @Override
+  public Object preFactoring(TimeseriesQuery query, List<Segment> segments)
+  {
+    return null;
   }
 
   private static class TimeseriesQueryRunner implements QueryRunner<Result<TimeseriesResultValue>>

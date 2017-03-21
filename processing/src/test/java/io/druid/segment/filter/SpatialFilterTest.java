@@ -555,7 +555,7 @@ public class SpatialFilterTest
       );
 
       QueryRunner runner = new FinalizeResultsQueryRunner(
-          factory.createRunner(segment),
+          factory.createRunner(segment, null),
           factory.getToolchest()
       );
 
@@ -608,7 +608,7 @@ public class SpatialFilterTest
       );
 
       QueryRunner runner = new FinalizeResultsQueryRunner(
-          factory.createRunner(segment),
+          factory.createRunner(segment, null),
           factory.getToolchest()
       );
 
@@ -696,7 +696,7 @@ public class SpatialFilterTest
       );
 
       QueryRunner runner = new FinalizeResultsQueryRunner(
-          factory.createRunner(segment),
+          factory.createRunner(segment, null),
           factory.getToolchest()
       );
 
