@@ -120,6 +120,12 @@ public class DruidProcessingModule implements Module
             )
         );
       }
+      log.info(
+          "Starting with max direct memory %,d bytes, %d processor with intermediate buffer %,d bytes",
+          maxDirectMemory,
+          config.getNumThreads(),
+          config.intermediateComputeSizeBytes()
+      );
     }
     catch (UnsupportedOperationException e) {
       log.info(e.getMessage());
