@@ -46,11 +46,13 @@ public class RealtimeTuningConfig implements TuningConfig, AppenderatorConfig
   private static final VersioningPolicy defaultVersioningPolicy = new IntervalStartVersioningPolicy();
   private static final RejectionPolicyFactory defaultRejectionPolicyFactory = new ServerTimeRejectionPolicyFactory();
   private static final int defaultMaxPendingPersists = 0;
-  private static final ShardSpec defaultShardSpec = new NoneShardSpec();
+  private static final ShardSpec defaultShardSpec = NoneShardSpec.instance();
   private static final IndexSpec defaultIndexSpec = new IndexSpec();
   private static final Boolean defaultBuildV9Directly = Boolean.FALSE;
   private static final Boolean defaultReportParseExceptions = Boolean.FALSE;
   private static final long defaultHandoffConditionTimeout = 0;
+
+  private static final Boolean defaultIgnorePreviousSegments = Boolean.FALSE;
 
   private static File createNewBasePersistDirectory()
   {
@@ -75,7 +77,8 @@ public class RealtimeTuningConfig implements TuningConfig, AppenderatorConfig
         0,
         0,
         defaultReportParseExceptions,
-        defaultHandoffConditionTimeout
+        defaultHandoffConditionTimeout,
+        defaultIgnorePreviousSegments
     );
   }
 
@@ -95,6 +98,8 @@ public class RealtimeTuningConfig implements TuningConfig, AppenderatorConfig
   private final boolean reportParseExceptions;
   private final long handoffConditionTimeout;
 
+  private final boolean ignorePreviousSegments;
+
   @JsonCreator
   public RealtimeTuningConfig(
       @JsonProperty("maxRowsInMemory") Integer maxRowsInMemory,
@@ -111,7 +116,8 @@ public class RealtimeTuningConfig implements TuningConfig, AppenderatorConfig
       @JsonProperty("persistThreadPriority") int persistThreadPriority,
       @JsonProperty("mergeThreadPriority") int mergeThreadPriority,
       @JsonProperty("reportParseExceptions") Boolean reportParseExceptions,
-      @JsonProperty("handoffConditionTimeout") Long handoffConditionTimeout
+      @JsonProperty("handoffConditionTimeout") Long handoffConditionTimeout,
+      @JsonProperty("ignorePreviousSegments") boolean ignorePreviousSegments
   )
   {
     this.maxRowsInMemory = maxRowsInMemory == null ? defaultMaxRowsInMemory : maxRowsInMemory;
@@ -140,6 +146,7 @@ public class RealtimeTuningConfig implements TuningConfig, AppenderatorConfig
                                    : handoffConditionTimeout;
     Preconditions.checkArgument(this.handoffConditionTimeout >= 0, "handoffConditionTimeout must be >= 0");
     Preconditions.checkArgument(this.maxRowsInMemory > 0, "maxRowsInMemory must be > 0");
+    this.ignorePreviousSegments = ignorePreviousSegments;
   }
 
   @JsonProperty
@@ -232,6 +239,12 @@ public class RealtimeTuningConfig implements TuningConfig, AppenderatorConfig
     return handoffConditionTimeout;
   }
 
+  @JsonProperty
+  public boolean isIgnorePreviousSegments()
+  {
+    return ignorePreviousSegments;
+  }
+
   public RealtimeTuningConfig withVersioningPolicy(VersioningPolicy policy)
   {
     return new RealtimeTuningConfig(
@@ -249,7 +262,8 @@ public class RealtimeTuningConfig implements TuningConfig, AppenderatorConfig
         persistThreadPriority,
         mergeThreadPriority,
         reportParseExceptions,
-        handoffConditionTimeout
+        handoffConditionTimeout,
+        ignorePreviousSegments
     );
   }
 
@@ -270,7 +284,8 @@ public class RealtimeTuningConfig implements TuningConfig, AppenderatorConfig
         persistThreadPriority,
         mergeThreadPriority,
         reportParseExceptions,
-        handoffConditionTimeout
+        handoffConditionTimeout,
+        ignorePreviousSegments
     );
   }
 }

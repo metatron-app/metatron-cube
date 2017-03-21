@@ -784,6 +784,13 @@ public class RealtimePlumber implements Plumber
       return null;
     }
 
+    if (config.isIgnorePreviousSegments()) {
+      for (File file : files) {
+        FileUtils.deleteQuietly(file);
+      }
+      return null;
+    }
+
     Object metadata = null;
     long latestCommitTime = 0;
     for (File sinkDir : files) {

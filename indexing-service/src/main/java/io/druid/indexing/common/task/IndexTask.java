@@ -145,7 +145,8 @@ public class IndexTask extends AbstractFixedIntervalTask
         0,
         0,
         true,
-        null
+        null,
+        false
     );
   }
 

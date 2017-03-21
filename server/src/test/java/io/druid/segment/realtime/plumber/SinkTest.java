@@ -72,7 +72,8 @@ public class SinkTest
         0,
         0,
         null,
-        null
+        null,
+        false
     );
     final Sink sink = new Sink(
         interval,
