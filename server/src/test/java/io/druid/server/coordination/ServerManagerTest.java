@@ -521,7 +521,7 @@ public class ServerManagerTest
     }
 
     @Override
-    public QueryRunner<Result<SearchResultValue>> createRunner(Segment adapter, Object optimizer)
+    public QueryRunner<Result<SearchResultValue>> createRunner(Segment adapter, Future<Object> optimizer)
     {
       if (!(adapter instanceof ReferenceCountingSegment)) {
         throw new IAE("Expected instance of ReferenceCountingSegment, got %s", adapter.getClass());
@@ -539,7 +539,7 @@ public class ServerManagerTest
     @Override
     public QueryRunner<Result<SearchResultValue>> mergeRunners(
         ExecutorService queryExecutor, Iterable<QueryRunner<Result<SearchResultValue>>> queryRunners,
-        Object optimizer
+        Future<Object> optimizer
     )
     {
       return new ConcatQueryRunner<Result<SearchResultValue>>(Sequences.simple(queryRunners));
@@ -552,7 +552,7 @@ public class ServerManagerTest
     }
 
     @Override
-    public Object preFactoring(SearchQuery query, List<Segment> segments)
+    public Future<Object> preFactoring(SearchQuery query, List<Segment> segments, ExecutorService exec)
     {
       return null;
     }

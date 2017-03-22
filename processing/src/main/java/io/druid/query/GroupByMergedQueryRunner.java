@@ -50,6 +50,7 @@ import java.util.Queue;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
@@ -64,7 +65,7 @@ public class GroupByMergedQueryRunner<T> implements QueryRunner<T>
   private final Supplier<GroupByQueryConfig> configSupplier;
   private final QueryWatcher queryWatcher;
   private final StupidPool<ByteBuffer> bufferPool;
-  private final Object optimizer;
+  private final Future<Object> optimizer;
 
   public GroupByMergedQueryRunner(
       ExecutorService exec,
@@ -72,7 +73,7 @@ public class GroupByMergedQueryRunner<T> implements QueryRunner<T>
       QueryWatcher queryWatcher,
       StupidPool<ByteBuffer> bufferPool,
       Iterable<QueryRunner<T>> queryables,
-      Object optimizer
+      Future<Object> optimizer
   )
   {
     this.exec = MoreExecutors.listeningDecorator(exec);

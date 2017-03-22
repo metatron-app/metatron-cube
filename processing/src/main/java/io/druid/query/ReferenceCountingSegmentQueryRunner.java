@@ -26,6 +26,7 @@ import io.druid.segment.ReferenceCountingSegment;
 
 import java.io.Closeable;
 import java.util.Map;
+import java.util.concurrent.Future;
 
 /**
  */
@@ -34,13 +35,13 @@ public class ReferenceCountingSegmentQueryRunner<T> implements QueryRunner<T>
   private final QueryRunnerFactory<T, Query<T>> factory;
   private final ReferenceCountingSegment adapter;
   private final SegmentDescriptor descriptor;
-  private final Object optimizer;
+  private final Future<Object> optimizer;
 
   public ReferenceCountingSegmentQueryRunner(
       QueryRunnerFactory<T, Query<T>> factory,
       ReferenceCountingSegment adapter,
       SegmentDescriptor descriptor,
-      Object optimizer
+      Future<Object> optimizer
   )
   {
     this.factory = factory;

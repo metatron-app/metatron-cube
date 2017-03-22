@@ -22,6 +22,8 @@ package io.druid.query.groupby;
 import com.google.common.base.Supplier;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+import com.google.common.util.concurrent.Futures;
+import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.ListeningExecutorService;
 import com.google.common.util.concurrent.MoreExecutors;
 import com.google.inject.Inject;
@@ -33,6 +35,7 @@ import io.druid.cache.Cache;
 import io.druid.collections.StupidPool;
 import io.druid.data.input.Row;
 import io.druid.guice.annotations.Global;
+import io.druid.query.AbstractPrioritizedCallable;
 import io.druid.query.GroupByMergedQueryRunner;
 import io.druid.query.Query;
 import io.druid.query.QueryRunner;
@@ -51,6 +54,7 @@ import java.nio.ByteBuffer;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Future;
 import java.util.function.Function;
 
 /**
@@ -101,65 +105,89 @@ public class GroupByQueryRunnerFactory implements QueryRunnerFactory<Row, GroupB
   }
 
   @Override
-  public Object preFactoring(GroupByQuery query, List<Segment> segments)
+  public Future<Object> preFactoring(GroupByQuery query, List<Segment> segments, ExecutorService exec)
   {
     if (segments.size() < PRE_OPTIMIZE_THRESHOLD) {
       return null;
     }
     log.info("Starting optimization with %d segments", segments.size());
-    long start = System.currentTimeMillis();
+    final long start = System.currentTimeMillis();
     final List<String> dimensionNames = Lists.newArrayList();
     for (DimensionSpec dimension : query.getDimensions()) {
       if (!(dimension instanceof DefaultDimensionSpec)) {
         return null;
       }
-      dimensionNames.add(((DefaultDimensionSpec)dimension).getDimension());
+      dimensionNames.add(((DefaultDimensionSpec) dimension).getDimension());
     }
-    List<QueryableIndex> indices = Lists.newArrayList();
+    Map<String, List<GenericIndexed<String>>> columns = Maps.newHashMap();
     for (Segment segment : segments) {
       QueryableIndex index = segment.asQueryableIndex();
       if (index == null) {
         return null;
       }
-      indices.add(index);
-    }
-    final Map<String, Map<String, Integer>> dictionaries = Maps.newLinkedHashMap();
-    for (String dimensionName : dimensionNames) {
-      Map<String, Integer> dictionary = null;
-      for (QueryableIndex index : indices) {
+      for (String dimensionName : dimensionNames) {
         Column column = index.getColumn(dimensionName);
         if (column == null || !column.getCapabilities().isDictionaryEncoded()) {
-          dictionaries.clear();
           return null;
         }
-        GenericIndexed<String> encoded = column.getDictionary();
-        if (dictionary == null) {
-          dictionary = Maps.newHashMapWithExpectedSize(encoded.size() << 1);
+        List<GenericIndexed<String>> dictionaries = columns.get(dimensionName);
+        if (dictionaries == null) {
+          columns.put(dimensionName, dictionaries = Lists.newArrayList());
         }
-        final Map<String, Integer> current = dictionary;
-        final Function<String, Integer> id = new Function<String, Integer>()
-        {
-          @Override
-          public Integer apply(String s)
-          {
-            return current.size();
-          }
-        };
-        for (String word : encoded.loadFully()) {
-          current.computeIfAbsent(word, id);
-        }
-      }
-      if (dictionary != null) {
-        log.info("Dictionary for %s = %d", dimensionName, dictionary.size());
-        dictionaries.put(dimensionName, dictionary);
+        dictionaries.add(column.getDictionary());
       }
     }
-    log.info("Optimization took %,d msec", (System.currentTimeMillis() - start));
-    return dictionaries;
+
+    final ListeningExecutorService executor = MoreExecutors.listeningDecorator(exec);
+
+    final Map<String, Map<String, Integer>> optimizer = Maps.newLinkedHashMap();
+    final List<ListenableFuture<?>> futures = Lists.newArrayList();
+    for (String dimensionName : dimensionNames) {
+      final Map<String, Integer> merged = Maps.newConcurrentMap();
+      final Function<String, Integer> id = new Function<String, Integer>()
+      {
+        @Override
+        public Integer apply(String s)
+        {
+          return merged.size();
+        }
+      };
+      for (final GenericIndexed<String> dictionary : columns.get(dimensionName)) {
+        List<ListenableFuture<Void>> list = Lists.newArrayList();
+        list.add(
+            executor.submit(
+                new AbstractPrioritizedCallable<Void>(0)
+                {
+                  @Override
+                  public Void call()
+                  {
+                    for (String word : dictionary.loadFully()) {
+                      merged.computeIfAbsent(word, id);
+                    }
+                    return null;
+                  }
+                }
+            )
+        );
+        futures.add(Futures.allAsList(list));
+      }
+      optimizer.put(dimensionName, merged);
+    }
+    return Futures.lazyTransform(
+        Futures.allAsList(futures), new com.google.common.base.Function<Object, Object>()
+        {
+          @Override
+          public Map<String, Map<String, Integer>> apply(Object input)
+          {
+            log.info("Optimization took %,d msec", (System.currentTimeMillis() - start));
+            return optimizer;
+          }
+        }
+    );
   }
 
   @Override
-  public QueryRunner<Row> createRunner(final Segment segment, final Object optimizer)
+  public QueryRunner<Row> createRunner(final Segment segment, final Future<Object> optimizer)
   {
     return new GroupByQueryRunner(segment, engine, cache);
   }
@@ -168,7 +196,7 @@ public class GroupByQueryRunnerFactory implements QueryRunnerFactory<Row, GroupB
   public QueryRunner<Row> mergeRunners(
       final ExecutorService exec,
       final Iterable<QueryRunner<Row>> queryRunners,
-      final Object optimizer
+      final Future<Object> optimizer
   )
   {
     // mergeRunners should take ListeningExecutorService at some point

@@ -39,6 +39,7 @@ import java.nio.ByteBuffer;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Future;
 
 /**
  */
@@ -76,7 +77,7 @@ public class TopNQueryRunnerFactory implements QueryRunnerFactory<Result<TopNRes
   }
 
   @Override
-  public QueryRunner<Result<TopNResultValue>> createRunner(final Segment segment, Object optimizer)
+  public QueryRunner<Result<TopNResultValue>> createRunner(final Segment segment, Future<Object> optimizer)
   {
     final TopNQueryEngine queryEngine = new TopNQueryEngine(computationBufferPool);
     return new QueryRunner<Result<TopNResultValue>>()
@@ -100,7 +101,7 @@ public class TopNQueryRunnerFactory implements QueryRunnerFactory<Result<TopNRes
   @Override
   public QueryRunner<Result<TopNResultValue>> mergeRunners(
       ExecutorService queryExecutor, Iterable<QueryRunner<Result<TopNResultValue>>> queryRunners,
-      Object optimizer
+      Future<Object> optimizer
   )
   {
     return new ChainedExecutionQueryRunner<>(
@@ -115,7 +116,7 @@ public class TopNQueryRunnerFactory implements QueryRunnerFactory<Result<TopNRes
   }
 
   @Override
-  public Object preFactoring(TopNQuery query, List<Segment> segments)
+  public Future<Object> preFactoring(TopNQuery query, List<Segment> segments, ExecutorService exec)
   {
     return null;
   }

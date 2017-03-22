@@ -76,6 +76,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicLong;
 
 /**
@@ -394,7 +395,7 @@ public class ServerManager implements QuerySegmentWalker
             }
         )
     );
-    final Object optimizer = factory.preFactoring(query,
+    final Future<Object> optimizer = factory.preFactoring(query,
         Lists.newArrayList(
             Lists.transform(
                 segments,
@@ -410,7 +411,8 @@ public class ServerManager implements QuerySegmentWalker
                     Pair.<SegmentDescriptor, ReferenceCountingSegment>rhsFn()
                 )
             )
-        )
+        ),
+        exec
     );
 
     FunctionalIterable<QueryRunner<T>> queryRunners = FunctionalIterable
@@ -460,7 +462,7 @@ public class ServerManager implements QuerySegmentWalker
       final QueryToolChest<T, Query<T>> toolChest,
       final ReferenceCountingSegment adapter,
       final SegmentDescriptor segmentDescriptor,
-      final Object optimizer,
+      final Future<Object> optimizer,
       final Function<Query<T>, ServiceMetricEvent.Builder> builderFn,
       final AtomicLong cpuTimeAccumulator
   )

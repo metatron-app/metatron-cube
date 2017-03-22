@@ -21,6 +21,7 @@ package io.druid.query.groupby;
 
 import com.google.common.base.Function;
 import com.google.common.collect.Lists;
+import com.google.common.util.concurrent.Futures;
 import com.metamx.common.ISE;
 import com.metamx.common.Pair;
 import com.metamx.common.guava.Accumulator;
@@ -39,6 +40,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Queue;
 import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.Future;
 
 public class GroupByQueryHelper
 {
@@ -50,7 +52,7 @@ public class GroupByQueryHelper
       final GroupByQueryConfig config,
       final StupidPool<ByteBuffer> bufferPool,
       final boolean sortFacts,
-      final Object optimizer
+      final Future<Object> optimizer
   )
   {
     final QueryGranularity gran = query.getGranularity();
@@ -88,7 +90,7 @@ public class GroupByQueryHelper
     }
 
     if (optimizer != null) {
-      index.initialize((Map<String, Map<String, Integer>>) optimizer);
+      index.initialize((Map<String, Map<String, Integer>>) Futures.getUnchecked(optimizer));
     } else {
       index.initialize(Lists.transform(query.getDimensions(), DimensionSpec.OUTPUT_NAME));
     }

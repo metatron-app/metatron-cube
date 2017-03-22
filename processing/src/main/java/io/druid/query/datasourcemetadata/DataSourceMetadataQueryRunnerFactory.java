@@ -37,6 +37,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Future;
 
 /**
  */
@@ -53,7 +54,7 @@ public class DataSourceMetadataQueryRunnerFactory
   }
 
   @Override
-  public QueryRunner<Result<DataSourceMetadataResultValue>> createRunner(final Segment segment, Object optimizer)
+  public QueryRunner<Result<DataSourceMetadataResultValue>> createRunner(final Segment segment, Future<Object> optimizer)
   {
     return new DataSourceMetadataQueryRunner(segment);
   }
@@ -61,7 +62,7 @@ public class DataSourceMetadataQueryRunnerFactory
   @Override
   public QueryRunner<Result<DataSourceMetadataResultValue>> mergeRunners(
       ExecutorService queryExecutor, Iterable<QueryRunner<Result<DataSourceMetadataResultValue>>> queryRunners,
-      Object optimizer
+      Future<Object> optimizer
   )
   {
     return new ChainedExecutionQueryRunner<>(
@@ -76,7 +77,7 @@ public class DataSourceMetadataQueryRunnerFactory
   }
 
   @Override
-  public Object preFactoring(DataSourceMetadataQuery query, List<Segment> segments)
+  public Future<Object> preFactoring(DataSourceMetadataQuery query, List<Segment> segments, ExecutorService exec)
   {
     return null;
   }

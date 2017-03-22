@@ -33,6 +33,7 @@ import io.druid.segment.Segment;
 
 import java.util.List;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Future;
 
 /**
  */
@@ -66,7 +67,7 @@ public class SearchQueryRunnerFactory implements QueryRunnerFactory<Result<Searc
   }
 
   @Override
-  public QueryRunner<Result<SearchResultValue>> createRunner(final Segment segment, Object optimizer)
+  public QueryRunner<Result<SearchResultValue>> createRunner(final Segment segment, Future<Object> optimizer)
   {
     return new SearchQueryRunner(segment, cache);
   }
@@ -74,7 +75,7 @@ public class SearchQueryRunnerFactory implements QueryRunnerFactory<Result<Searc
   @Override
   public QueryRunner<Result<SearchResultValue>> mergeRunners(
       ExecutorService queryExecutor, Iterable<QueryRunner<Result<SearchResultValue>>> queryRunners,
-      Object optimizer
+      Future<Object> optimizer
   )
   {
     return new ChainedExecutionQueryRunner<Result<SearchResultValue>>(
@@ -89,7 +90,7 @@ public class SearchQueryRunnerFactory implements QueryRunnerFactory<Result<Searc
   }
 
   @Override
-  public Object preFactoring(SearchQuery query, List<Segment> segments)
+  public Future<Object> preFactoring(SearchQuery query, List<Segment> segments, ExecutorService exec)
   {
     return null;
   }

@@ -56,6 +56,7 @@ import java.util.Map;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
@@ -78,7 +79,7 @@ public class SegmentMetadataQueryRunnerFactory implements QueryRunnerFactory<Seg
   }
 
   @Override
-  public QueryRunner<SegmentAnalysis> createRunner(final Segment segment, Object optimizer)
+  public QueryRunner<SegmentAnalysis> createRunner(final Segment segment, Future<Object> optimizer)
   {
     return new QueryRunner<SegmentAnalysis>()
     {
@@ -183,7 +184,7 @@ public class SegmentMetadataQueryRunnerFactory implements QueryRunnerFactory<Seg
   @Override
   public QueryRunner<SegmentAnalysis> mergeRunners(
       ExecutorService exec, Iterable<QueryRunner<SegmentAnalysis>> queryRunners,
-      Object optimizer
+      Future<Object> optimizer
   )
   {
     final ListeningExecutorService queryExecutor = MoreExecutors.listeningDecorator(exec);
@@ -252,7 +253,7 @@ public class SegmentMetadataQueryRunnerFactory implements QueryRunnerFactory<Seg
   }
 
   @Override
-  public Object preFactoring(SegmentMetadataQuery query, List<Segment> segments)
+  public Future<Object> preFactoring(SegmentMetadataQuery query, List<Segment> segments, ExecutorService exec)
   {
     return null;
   }

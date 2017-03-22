@@ -33,6 +33,7 @@ import io.druid.segment.Segment;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Future;
 
 /**
  */
@@ -56,7 +57,7 @@ public class SelectMetaQueryRunnerFactory
   }
 
   @Override
-  public QueryRunner<Result<SelectMetaResultValue>> createRunner(final Segment segment, Object optimizer)
+  public QueryRunner<Result<SelectMetaResultValue>> createRunner(final Segment segment, Future<Object> optimizer)
   {
     return new QueryRunner<Result<SelectMetaResultValue>>()
     {
@@ -73,7 +74,7 @@ public class SelectMetaQueryRunnerFactory
   @Override
   public QueryRunner<Result<SelectMetaResultValue>> mergeRunners(
       ExecutorService queryExecutor, Iterable<QueryRunner<Result<SelectMetaResultValue>>> queryRunners,
-      Object optimizer
+      Future<Object> optimizer
   )
   {
     return new ChainedExecutionQueryRunner<Result<SelectMetaResultValue>>(
@@ -88,7 +89,7 @@ public class SelectMetaQueryRunnerFactory
   }
 
   @Override
-  public Object preFactoring(SelectMetaQuery query, List<Segment> segments)
+  public Future<Object> preFactoring(SelectMetaQuery query, List<Segment> segments, ExecutorService exec)
   {
     return null;
   }

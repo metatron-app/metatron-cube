@@ -23,6 +23,7 @@ import io.druid.segment.Segment;
 
 import java.util.List;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Future;
 
 /**
  * An interface that defines the nitty gritty implementation detauls of a Query on a Segment
@@ -31,7 +32,7 @@ public interface QueryRunnerFactory<T, QueryType extends Query<T>>
 {
   /**
    */
-  public Object preFactoring(QueryType query, List<Segment> segments);
+  public Future<Object> preFactoring(QueryType query, List<Segment> segments, ExecutorService exec);
 
   /**
    * Given a specific segment, this method will create a QueryRunner.
@@ -44,7 +45,7 @@ public interface QueryRunnerFactory<T, QueryType extends Query<T>>
    * @param optimizer optimization object
    * @return A QueryRunner that, when asked, will generate a Sequence of results based on the given segment
    */
-  public QueryRunner<T> createRunner(Segment segment, Object optimizer);
+  public QueryRunner<T> createRunner(Segment segment, Future<Object> optimizer);
 
   /**
    * Runners generated with createRunner() and combined into an Iterable in (time,shardId) order are passed
@@ -67,7 +68,7 @@ public interface QueryRunnerFactory<T, QueryType extends Query<T>>
   public QueryRunner<T> mergeRunners(
       ExecutorService queryExecutor,
       Iterable<QueryRunner<T>> queryRunners,
-      Object optimizer
+      Future<Object> optimizer
   );
 
   /**

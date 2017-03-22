@@ -38,6 +38,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Future;
 
 /**
  */
@@ -54,7 +55,7 @@ public class TimeBoundaryQueryRunnerFactory
   }
 
   @Override
-  public QueryRunner<Result<TimeBoundaryResultValue>> createRunner(final Segment segment, Object optimizer)
+  public QueryRunner<Result<TimeBoundaryResultValue>> createRunner(final Segment segment, Future<Object> optimizer)
   {
     return new TimeBoundaryQueryRunner(segment);
   }
@@ -62,7 +63,7 @@ public class TimeBoundaryQueryRunnerFactory
   @Override
   public QueryRunner<Result<TimeBoundaryResultValue>> mergeRunners(
       ExecutorService queryExecutor, Iterable<QueryRunner<Result<TimeBoundaryResultValue>>> queryRunners,
-      Object optimizer
+      Future<Object> optimizer
   )
   {
     return new ChainedExecutionQueryRunner<>(queryExecutor, queryWatcher, queryRunners);
@@ -75,7 +76,7 @@ public class TimeBoundaryQueryRunnerFactory
   }
 
   @Override
-  public Object preFactoring(TimeBoundaryQuery query, List<Segment> segments)
+  public Future<Object> preFactoring(TimeBoundaryQuery query, List<Segment> segments, ExecutorService exec)
   {
     return null;
   }

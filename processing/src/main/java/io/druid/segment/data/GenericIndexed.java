@@ -126,7 +126,8 @@ public class GenericIndexed<T> implements Indexed<T>
   @Override
   public T get(int index)
   {
-    return cachedValues[index] != null ? cachedValues[index] : (cachedValues[index] = bufferIndexed.get(index));
+    final T cachedValue = cachedValues[index];
+    return cachedValues[index] != null ? cachedValue : (cachedValues[index] = bufferIndexed.get(index));
   }
 
   /**
@@ -181,6 +182,11 @@ public class GenericIndexed<T> implements Indexed<T>
     valuesOffset = theBuffer.position() + (size << 2);
     bufferIndexed = new BufferIndexed();
     cachedValues = (T[]) Array.newInstance(strategy.getClazz(), size);
+  }
+
+  public boolean isLoadedAll()
+  {
+    return loadedAll;
   }
 
   @SuppressWarnings("unchecked")
