@@ -27,6 +27,9 @@ import io.druid.initialization.DruidModule;
 import io.druid.query.aggregation.corr.PearsonAggregatorFactory;
 import io.druid.query.aggregation.corr.PearsonFoldingAggregatorFactory;
 import io.druid.query.aggregation.corr.PearsonSerde;
+import io.druid.query.aggregation.covariance.CovarianceAggregatorFactory;
+import io.druid.query.aggregation.covariance.CovarianceFoldingAggregatorFactory;
+import io.druid.query.aggregation.covariance.CovarianceSerde;
 import io.druid.query.aggregation.variance.*;
 import io.druid.segment.serde.ComplexMetrics;
 
@@ -45,7 +48,9 @@ public class DruidStatsModule implements DruidModule
             VarianceFoldingAggregatorFactory.class,
             StandardDeviationPostAggregator.class,
             PearsonAggregatorFactory.class,
-            PearsonFoldingAggregatorFactory.class
+            PearsonFoldingAggregatorFactory.class,
+            CovarianceAggregatorFactory.class,
+            CovarianceFoldingAggregatorFactory.class
         )
     );
   }
@@ -61,6 +66,9 @@ public class DruidStatsModule implements DruidModule
     }
     if (ComplexMetrics.getSerdeForType("pearson") == null) {
       ComplexMetrics.registerSerde("pearson", new PearsonSerde());
+    }
+    if (ComplexMetrics.getSerdeForType("covariance") == null) {
+      ComplexMetrics.registerSerde("covariance", new CovarianceSerde());
     }
   }
 }

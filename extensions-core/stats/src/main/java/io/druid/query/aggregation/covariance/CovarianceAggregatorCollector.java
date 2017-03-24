@@ -17,7 +17,7 @@
  * under the License.
  */
 
-package io.druid.query.aggregation.corr;
+package io.druid.query.aggregation.covariance;
 
 import com.fasterxml.jackson.annotation.JsonValue;
 import com.google.common.annotations.VisibleForTesting;
@@ -29,47 +29,38 @@ import java.util.Comparator;
 
 /**
  *
- * Algorithm used here is copied from apache hive. This is description in GenericUDAFCorrelation
+ * Algorithm used here is copied from apache hive. This is description in GenericUDAFCovariance
  *
- * Compute the Pearson correlation coefficient corr(x, y), using the following
- * stable one-pass method, based on:
- * "Formulas for Robust, One-Pass Parallel Computation of Covariances and
- * Arbitrary-Order Statistical Moments", Philippe Pebay, Sandia Labs
- * and "The Art of Computer Programming, volume 2: Seminumerical Algorithms",
- * Donald Knuth.
+ * Compute the covariance covar_pop(x, y), using the following one-pass method
+ * (ref. "Formulas for Robust, One-Pass Parallel Computation of Covariances and
+ *  Arbitrary-Order Statistical Moments", Philippe Pebay, Sandia Labs):
  *
  *  Incremental:
  *   n : <count>
  *   mx_n = mx_(n-1) + [x_n - mx_(n-1)]/n : <xavg>
  *   my_n = my_(n-1) + [y_n - my_(n-1)]/n : <yavg>
  *   c_n = c_(n-1) + (x_n - mx_(n-1))*(y_n - my_n) : <covariance * n>
- *   vx_n = vx_(n-1) + (x_n - mx_n)(x_n - mx_(n-1)): <variance * n>
- *   vy_n = vy_(n-1) + (y_n - my_n)(y_n - my_(n-1)): <variance * n>
  *
  *  Merge:
- *   c_(A,B) = c_A + c_B + (mx_A - mx_B)*(my_A - my_B)*n_A*n_B/(n_A+n_B)
- *   vx_(A,B) = vx_A + vx_B + (mx_A - mx_B)*(mx_A - mx_B)*n_A*n_B/(n_A+n_B)
- *   vy_(A,B) = vy_A + vy_B + (my_A - my_B)*(my_A - my_B)*n_A*n_B/(n_A+n_B)
+ *   c_X = c_A + c_B + (mx_A - mx_B)*(my_A - my_B)*n_A*n_B/n_X
  *
  */
-class PearsonAggregatorCollector
+class CovarianceAggregatorCollector
 {
-  public static PearsonAggregatorCollector from(ByteBuffer buffer)
+  public static CovarianceAggregatorCollector from(ByteBuffer buffer)
   {
-    return new PearsonAggregatorCollector(
+    return new CovarianceAggregatorCollector(
         buffer.getLong(),
-        buffer.getDouble(),
-        buffer.getDouble(),
         buffer.getDouble(),
         buffer.getDouble(),
         buffer.getDouble()
     );
   }
 
-  public static final Comparator<PearsonAggregatorCollector> COMPARATOR = new Comparator<PearsonAggregatorCollector>()
+  public static final Comparator<CovarianceAggregatorCollector> COMPARATOR = new Comparator<CovarianceAggregatorCollector>()
   {
     @Override
-    public int compare(PearsonAggregatorCollector o1, PearsonAggregatorCollector o2)
+    public int compare(CovarianceAggregatorCollector o1, CovarianceAggregatorCollector o2)
     {
       int compare = Longs.compare(o1.count, o2.count);
       if (compare == 0) {
@@ -77,13 +68,7 @@ class PearsonAggregatorCollector
         if (compare == 0) {
           compare = Doubles.compare(o1.yavg, o2.yavg);
           if (compare == 0) {
-            compare = Doubles.compare(o1.xvar, o2.xvar);
-            if (compare == 0) {
-              compare = Doubles.compare(o1.yvar, o2.yvar);
-              if (compare == 0) {
-                compare = Doubles.compare(o1.covar, o2.covar);
-              }
-            }
+            compare = Doubles.compare(o1.covar, o2.covar);
           }
         }
       }
@@ -91,10 +76,10 @@ class PearsonAggregatorCollector
     }
   };
 
-  static PearsonAggregatorCollector combineValues(Object lhs, Object rhs)
+  static CovarianceAggregatorCollector combineValues(Object lhs, Object rhs)
   {
-    final PearsonAggregatorCollector holder1 = (PearsonAggregatorCollector) lhs;
-    final PearsonAggregatorCollector holder2 = (PearsonAggregatorCollector) rhs;
+    final CovarianceAggregatorCollector holder1 = (CovarianceAggregatorCollector) lhs;
+    final CovarianceAggregatorCollector holder2 = (CovarianceAggregatorCollector) rhs;
 
     if (holder2 == null || holder2.count == 0) {
       return holder1;
@@ -104,8 +89,6 @@ class PearsonAggregatorCollector
       holder1.count = holder2.count;
       holder1.xavg = holder2.xavg;
       holder1.yavg = holder2.yavg;
-      holder1.xvar = holder2.xvar;
-      holder1.yvar = holder2.yvar;
       holder1.covar = holder2.covar;
       return holder1;
     }
@@ -115,8 +98,6 @@ class PearsonAggregatorCollector
     final double yavgA = holder1.yavg;
     final double xavgB = holder2.xavg;
     final double yavgB = holder2.yavg;
-    final double xvarB = holder2.xvar;
-    final double yvarB = holder2.yvar;
     final double covarB = holder2.covar;
 
     final long nA = holder1.count;
@@ -126,8 +107,6 @@ class PearsonAggregatorCollector
     holder1.count = nSum;
     holder1.xavg = (xavgA * nA + xavgB * nB) / nSum;
     holder1.yavg = (yavgA * nA + yavgB * nB) / nSum;
-    holder1.xvar += xvarB + (xavgA - xavgB) * (xavgA - xavgB) * nA * nB / nSum;
-    holder1.yvar += yvarB + (yavgA - yavgB) * (yavgA - yavgB) * nA * nB / nSum;
     holder1.covar += covarB + (xavgA - xavgB) * (yavgA - yavgB) * ((double) (nA * nB) / nSum);
 
     return holder1;
@@ -141,13 +120,11 @@ class PearsonAggregatorCollector
   long count; // number n of elements
   double xavg; // average of x elements
   double yavg; // average of y elements
-  double xvar; // n times the variance of x elements
-  double yvar; // n times the variance of y elements
   double covar; // n times the covariance
 
-  public PearsonAggregatorCollector()
+  public CovarianceAggregatorCollector()
   {
-    this(0, 0, 0, 0, 0, 0);
+    this(0, 0, 0, 0);
   }
 
   public void reset()
@@ -155,43 +132,37 @@ class PearsonAggregatorCollector
     count = 0;
     xavg = 0;
     yavg = 0;
-    xvar = 0;
-    yvar = 0;
     covar = 0;
   }
 
-  public PearsonAggregatorCollector(long count, double xavg, double yavg, double xvar, double yvar, double covar)
+  public CovarianceAggregatorCollector(long count, double xavg, double yavg, double covar)
   {
     this.count = count;
     this.xavg = xavg;
     this.yavg = yavg;
-    this.xvar = xvar;
-    this.yvar = yvar;
     this.covar = covar;
   }
 
-  public PearsonAggregatorCollector add(final double vx, final double vy)
+  public CovarianceAggregatorCollector add(final double vx, final double vy)
   {
     final double deltaX = vx - xavg;
     final double deltaY = vy - yavg;
     count++;
-    xavg += deltaX / count;
-    yavg += deltaY / count;
+    yavg = yavg + deltaY / count;
     if (count > 1) {
-      covar += deltaX * (vy - yavg);
-      xvar += deltaX * (vx - xavg);
-      yvar += deltaY * (vy - yavg);
+      covar += deltaX * deltaY;
     }
+    xavg = xavg + deltaX / count;
     return this;
   }
 
   public double getCorr()
   {
-    if (count < 2) { // SQL standard - return null for zero or one pair
+    if (count == 0) {
       // in SQL standard, we should return null for zero elements. But druid there should not be such a case
       return Double.NaN;
     } else {
-      return covar / java.lang.Math.sqrt(xvar) / java.lang.Math.sqrt(yvar);
+      return covar / count;
     }
   }
 
@@ -208,17 +179,15 @@ class PearsonAggregatorCollector
 
   public ByteBuffer toByteBuffer()
   {
-    return ByteBuffer.allocate(Longs.BYTES + Doubles.BYTES * 5)
+    return ByteBuffer.allocate(Longs.BYTES + Doubles.BYTES * 3)
                      .putLong(count)
                      .putDouble(xavg)
                      .putDouble(yavg)
-                     .putDouble(xvar)
-                     .putDouble(yvar)
                      .putDouble(covar);
   }
 
   @VisibleForTesting
-  boolean equalsWithEpsilon(PearsonAggregatorCollector o, double epsilon)
+  boolean equalsWithEpsilon(CovarianceAggregatorCollector o, double epsilon)
   {
     if (this == o) {
       return true;
@@ -231,12 +200,6 @@ class PearsonAggregatorCollector
       return false;
     }
     if (Math.abs(yavg - o.yavg) > epsilon) {
-      return false;
-    }
-    if (Math.abs(xvar - o.xvar) > epsilon) {
-      return false;
-    }
-    if (Math.abs(yvar - o.yvar) > epsilon) {
       return false;
     }
     if (Math.abs(covar - o.covar) > epsilon) {
@@ -256,7 +219,7 @@ class PearsonAggregatorCollector
       return false;
     }
 
-    PearsonAggregatorCollector that = (PearsonAggregatorCollector) o;
+    CovarianceAggregatorCollector that = (CovarianceAggregatorCollector) o;
 
     if (count != that.count) {
       return false;
@@ -265,12 +228,6 @@ class PearsonAggregatorCollector
       return false;
     }
     if (Double.compare(yavg, that.yavg) != 0) {
-      return false;
-    }
-    if (Double.compare(xvar, that.xvar) != 0) {
-      return false;
-    }
-    if (Double.compare(yvar, that.yvar) != 0) {
       return false;
     }
     if (Double.compare(covar, that.covar) != 0) {
@@ -296,12 +253,10 @@ class PearsonAggregatorCollector
   @Override
   public String toString()
   {
-    return "PearsonHolder{" +
+    return "CovarianceHolder{" +
            "count=" + count +
            ", xavg=" + xavg +
            ", yavg=" + yavg +
-           ", xvar=" + xvar +
-           ", yvar=" + yvar +
            ", covar=" + covar +
            '}';
   }
