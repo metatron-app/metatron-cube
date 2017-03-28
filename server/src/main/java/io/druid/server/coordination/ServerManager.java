@@ -22,12 +22,12 @@ package io.druid.server.coordination;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Function;
 import com.google.common.base.Functions;
+import com.google.common.base.Predicates;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Ordering;
 import com.google.inject.Inject;
-import com.metamx.common.ISE;
 import com.metamx.common.Pair;
 import com.metamx.common.guava.FunctionalIterable;
 import com.metamx.emitter.EmittingLogger;
@@ -254,15 +254,6 @@ public class ServerManager implements QuerySegmentWalker
   @Override
   public <T> QueryRunner<T> getQueryRunnerForIntervals(Query<T> query, Iterable<Interval> intervals)
   {
-    final QueryRunnerFactory<T, Query<T>> factory = conglomerate.findFactory(query);
-    if (factory == null) {
-      throw new ISE("Unknown query type[%s].", query.getClass());
-    }
-
-    final QueryToolChest<T, Query<T>> toolChest = factory.getToolchest();
-    final Function<Query<T>, ServiceMetricEvent.Builder> builderFn = getBuilderFn(toolChest);
-    final AtomicLong cpuTimeAccumulator = new AtomicLong(0L);
-
     DataSource dataSource = query.getDataSource();
     if (!(dataSource instanceof TableDataSource)) {
       throw new UnsupportedOperationException("data source type '" + dataSource.getClass().getName() + "' unsupported");
@@ -275,7 +266,7 @@ public class ServerManager implements QuerySegmentWalker
       return new NoopQueryRunner<T>();
     }
 
-    FunctionalIterable<QueryRunner<T>> queryRunners = FunctionalIterable
+    FunctionalIterable<Pair<SegmentDescriptor, ReferenceCountingSegment>> segments = FunctionalIterable
         .create(intervals)
         .transformCat(
             new Function<Interval, Iterable<TimelineObjectHolder<String, ReferenceCountingSegment>>>()
@@ -288,10 +279,10 @@ public class ServerManager implements QuerySegmentWalker
             }
         )
         .transformCat(
-            new Function<TimelineObjectHolder<String, ReferenceCountingSegment>, Iterable<QueryRunner<T>>>()
+            new Function<TimelineObjectHolder<String, ReferenceCountingSegment>, Iterable<Pair<SegmentDescriptor, ReferenceCountingSegment>>>()
             {
               @Override
-              public Iterable<QueryRunner<T>> apply(
+              public Iterable<Pair<SegmentDescriptor, ReferenceCountingSegment>> apply(
                   @Nullable
                   final TimelineObjectHolder<String, ReferenceCountingSegment> holder
               )
@@ -303,23 +294,17 @@ public class ServerManager implements QuerySegmentWalker
                 return FunctionalIterable
                     .create(holder.getObject())
                     .transform(
-                        new Function<PartitionChunk<ReferenceCountingSegment>, QueryRunner<T>>()
+                        new Function<PartitionChunk<ReferenceCountingSegment>, Pair<SegmentDescriptor, ReferenceCountingSegment>>()
                         {
                           @Override
-                          public QueryRunner<T> apply(PartitionChunk<ReferenceCountingSegment> input)
+                          public Pair<SegmentDescriptor, ReferenceCountingSegment> apply(PartitionChunk<ReferenceCountingSegment> chunk)
                           {
-                            return buildAndDecorateQueryRunner(
-                                factory,
-                                toolChest,
-                                input.getObject(),
+                            return Pair.of(
                                 new SegmentDescriptor(
                                     holder.getInterval(),
                                     holder.getVersion(),
-                                    input.getChunkNumber()
-                                ),
-                                null, // todo
-                                builderFn,
-                                cpuTimeAccumulator
+                                    chunk.getChunkNumber()
+                                ), chunk.getObject()
                             );
                           }
                         }
@@ -328,19 +313,7 @@ public class ServerManager implements QuerySegmentWalker
             }
         );
 
-    return CPUTimeMetricQueryRunner.safeBuild(
-        FinalizeResultsQueryRunner.finalize(
-            toolChest.mergeResults(
-                factory.mergeRunners(exec, queryRunners, null)
-            ),
-            toolChest,
-            objectMapper
-        ),
-        builderFn,
-        emitter,
-        cpuTimeAccumulator,
-        true
-    );
+    return toQueryRunner(query, segments);
   }
 
   private String getDataSourceName(DataSource dataSource)
@@ -351,28 +324,12 @@ public class ServerManager implements QuerySegmentWalker
   @Override
   public <T> QueryRunner<T> getQueryRunnerForSegments(Query<T> query, Iterable<SegmentDescriptor> specs)
   {
-    final QueryRunnerFactory<T, Query<T>> factory = conglomerate.findFactory(query);
-    if (factory == null) {
-      log.makeAlert("Unknown query type, [%s]", query.getClass())
-         .addData("dataSource", query.getDataSource())
-         .emit();
-      return new NoopQueryRunner<T>();
-    }
-
-    final QueryToolChest<T, Query<T>> toolChest = factory.getToolchest();
-
     String dataSourceName = getDataSourceName(query.getDataSource());
 
-    final VersionedIntervalTimeline<String, ReferenceCountingSegment> timeline = dataSources.get(
-        dataSourceName
-    );
-
+    final VersionedIntervalTimeline<String, ReferenceCountingSegment> timeline = dataSources.get(dataSourceName);
     if (timeline == null) {
       return new NoopQueryRunner<T>();
     }
-
-    final Function<Query<T>, ServiceMetricEvent.Builder> builderFn = getBuilderFn(toolChest);
-    final AtomicLong cpuTimeAccumulator = new AtomicLong(0L);
 
     List<Pair<SegmentDescriptor, ReferenceCountingSegment>> segments = Lists.newArrayList(
         Iterables.transform(
@@ -395,25 +352,48 @@ public class ServerManager implements QuerySegmentWalker
             }
         )
     );
+    return toQueryRunner(query, segments);
+  }
+
+  private <T> QueryRunner<T> toQueryRunner(
+      Query<T> query,
+      Iterable<Pair<SegmentDescriptor, ReferenceCountingSegment>> segments
+  )
+  {
+    final QueryRunnerFactory<T, Query<T>> factory = conglomerate.findFactory(query);
+    if (factory == null) {
+      log.makeAlert("Unknown query type, [%s]", query.getClass())
+         .addData("dataSource", query.getDataSource())
+         .emit();
+      return new NoopQueryRunner<T>();
+    }
+
     final Future<Object> optimizer = factory.preFactoring(query,
         Lists.newArrayList(
-            Lists.transform(
-                segments,
-                Functions.compose(
-                    new Function<ReferenceCountingSegment, Segment>()
-                    {
-                      @Override
-                      public Segment apply(ReferenceCountingSegment input)
-                      {
-                        return input.getBaseSegment();
-                      }
-                    },
-                    Pair.<SegmentDescriptor, ReferenceCountingSegment>rhsFn()
-                )
+            Iterables.filter(
+                Iterables.transform(
+                    segments,
+                    Functions.compose(
+                        new Function<ReferenceCountingSegment, Segment>()
+                        {
+                          @Override
+                          public Segment apply(ReferenceCountingSegment input)
+                          {
+                            return input == null ? null : input.getBaseSegment();
+                          }
+                        },
+                        Pair.<SegmentDescriptor, ReferenceCountingSegment>rhsFn()
+                    )
+                ), Predicates.notNull()
             )
         ),
         exec
     );
+
+    final QueryToolChest<T, Query<T>> toolChest = factory.getToolchest();
+
+    final Function<Query<T>, ServiceMetricEvent.Builder> builderFn = getBuilderFn(toolChest);
+    final AtomicLong cpuTimeAccumulator = new AtomicLong(0L);
 
     FunctionalIterable<QueryRunner<T>> queryRunners = FunctionalIterable
         .create(segments)

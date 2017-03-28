@@ -436,7 +436,11 @@ public class DictionaryEncodedColumnPartSerde implements ColumnPartSerde
 
         final boolean hasMultipleValues = Feature.MULTI_VALUE.isSet(rFlags) || Feature.MULTI_VALUE_V3.isSet(rFlags);
 
-        final GenericIndexed<String> rDictionary = GenericIndexed.read(buffer, GenericIndexed.STRING_STRATEGY);
+        final GenericIndexed<String> rDictionary = GenericIndexed.read(
+            buffer,
+            GenericIndexed.STRING_WITH_INTERN_STRATEGY,
+            true
+        );
         builder.setType(ValueType.STRING);
 
         final ColumnPartProvider<IndexedInts> rSingleValuedColumn;

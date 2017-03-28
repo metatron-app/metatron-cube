@@ -19,13 +19,17 @@
 
 package io.druid.query.groupby;
 
+import com.google.common.base.Function;
+import com.google.common.base.Strings;
 import com.google.common.base.Supplier;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+import com.google.common.collect.Sets;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.ListeningExecutorService;
 import com.google.common.util.concurrent.MoreExecutors;
+import com.google.common.util.concurrent.SettableFuture;
 import com.google.inject.Inject;
 import com.metamx.common.ISE;
 import com.metamx.common.guava.Sequence;
@@ -51,11 +55,12 @@ import io.druid.segment.column.Column;
 import io.druid.segment.data.GenericIndexed;
 
 import java.nio.ByteBuffer;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
-import java.util.function.Function;
 
 /**
  */
@@ -110,79 +115,100 @@ public class GroupByQueryRunnerFactory implements QueryRunnerFactory<Row, GroupB
     if (segments.size() < PRE_OPTIMIZE_THRESHOLD) {
       return null;
     }
-    log.info("Starting optimization with %d segments", segments.size());
-    final long start = System.currentTimeMillis();
-    final List<String> dimensionNames = Lists.newArrayList();
     for (DimensionSpec dimension : query.getDimensions()) {
       if (!(dimension instanceof DefaultDimensionSpec)) {
         return null;
       }
-      dimensionNames.add(((DefaultDimensionSpec) dimension).getDimension());
     }
-    Map<String, List<GenericIndexed<String>>> columns = Maps.newHashMap();
+    Map<String, List<GenericIndexed<String>>> columns = Maps.newLinkedHashMap();
     for (Segment segment : segments) {
       QueryableIndex index = segment.asQueryableIndex();
       if (index == null) {
         return null;
       }
-      for (String dimensionName : dimensionNames) {
+      for (DimensionSpec dimension : query.getDimensions()) {
+        String dimensionName = dimension.getDimension();
         Column column = index.getColumn(dimensionName);
         if (column == null || !column.getCapabilities().isDictionaryEncoded()) {
           return null;
         }
-        List<GenericIndexed<String>> dictionaries = columns.get(dimensionName);
+        List<GenericIndexed<String>> dictionaries = columns.get(dimension.getOutputName());
         if (dictionaries == null) {
-          columns.put(dimensionName, dictionaries = Lists.newArrayList());
+          columns.put(dimension.getOutputName(), dictionaries = Lists.newArrayList());
         }
         dictionaries.add(column.getDictionary());
       }
     }
 
+    final long start = System.currentTimeMillis();
+    log.info("Initializing group-by optimizer with target %d segments", segments.size());
+
     final ListeningExecutorService executor = MoreExecutors.listeningDecorator(exec);
 
-    final Map<String, Map<String, Integer>> optimizer = Maps.newLinkedHashMap();
-    final List<ListenableFuture<?>> futures = Lists.newArrayList();
-    for (String dimensionName : dimensionNames) {
-      final Map<String, Integer> merged = Maps.newConcurrentMap();
-      final Function<String, Integer> id = new Function<String, Integer>()
-      {
-        @Override
-        public Integer apply(String s)
-        {
-          return merged.size();
-        }
-      };
-      for (final GenericIndexed<String> dictionary : columns.get(dimensionName)) {
-        List<ListenableFuture<Void>> list = Lists.newArrayList();
-        list.add(
+    final Map<String, Future<String[]>> optimizer = Maps.newLinkedHashMap();
+    for (Map.Entry<String, List<GenericIndexed<String>>> entry : columns.entrySet()) {
+      final String outputName = entry.getKey();
+      final Set<String> merged = Sets.newConcurrentHashSet();
+      final List<ListenableFuture<Integer>> elements = Lists.newArrayList();
+      for (final GenericIndexed<String> dictionary : entry.getValue()) {
+        elements.add(
             executor.submit(
-                new AbstractPrioritizedCallable<Void>(0)
+                new AbstractPrioritizedCallable<Integer>(0)
                 {
                   @Override
-                  public Void call()
+                  public Integer call()
                   {
-                    for (String word : dictionary.loadFully()) {
-                      merged.computeIfAbsent(word, id);
+                    for (String value : dictionary.loadFully()) {
+                      merged.add(Strings.nullToEmpty(value));
                     }
-                    return null;
+                    return dictionary.size();
                   }
                 }
             )
         );
-        futures.add(Futures.allAsList(list));
       }
-      optimizer.put(dimensionName, merged);
-    }
-    return Futures.lazyTransform(
-        Futures.allAsList(futures), new com.google.common.base.Function<Object, Object>()
-        {
-          @Override
-          public Map<String, Map<String, Integer>> apply(Object input)
+      final SettableFuture<String[]> sorted = SettableFuture.create();
+      final ListenableFuture<List<Integer>> future = Futures.allAsList(elements);
+      future.addListener(
+          new Runnable()
           {
-            log.info("Optimization took %,d msec", (System.currentTimeMillis() - start));
-            return optimizer;
-          }
-        }
+            @Override
+            public void run()
+            {
+              int counter = 0;
+              try {
+                for (Integer merging : Futures.getUnchecked(future)) {
+                  counter += merging;
+                }
+                final String[] array = merged.toArray(new String[merged.size()]);
+                Arrays.sort(array);
+                sorted.set(array);
+                log.info(
+                    "Merged %,d words into %,d dictionary in %,d msec",
+                    counter, merged.size(), (System.currentTimeMillis() - start)
+                );
+              }
+              catch (Throwable t) {
+                sorted.setException(t); // propagate exception
+              }
+            }
+          },
+          MoreExecutors.sameThreadExecutor()
+      );
+      optimizer.put(outputName, sorted);
+    }
+
+    return Futures.<Object>immediateFuture(
+        Maps.transformValues(
+            optimizer, new Function<Future<String[]>, String[]>()
+            {
+              @Override
+              public String[] apply(Future<String[]> input)
+              {
+                return Futures.getUnchecked(input);
+              }
+            }
+        )
     );
   }
 

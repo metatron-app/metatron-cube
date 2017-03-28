@@ -20,10 +20,12 @@
 package io.druid.segment.data;
 
 import com.google.common.base.Preconditions;
+import com.google.common.collect.Lists;
 import com.google.common.primitives.Ints;
 import com.metamx.common.IAE;
 import com.metamx.common.guava.CloseQuietly;
 import io.druid.common.guava.GuavaUtils;
+import io.druid.common.utils.StringUtils;
 
 import java.io.ByteArrayOutputStream;
 import java.io.Closeable;
@@ -32,14 +34,16 @@ import java.lang.reflect.Array;
 import java.nio.ByteBuffer;
 import java.nio.channels.WritableByteChannel;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Iterator;
+import java.util.List;
 
 /**
  * A generic, flat storage mechanism.  Use static methods fromArray() or fromIterable() to construct.  If input
  * is sorted, supports binary search index lookups.  If input is not sorted, only supports array-like index lookups.
- *
+ * <p/>
  * V1 Storage Format:
- *
+ * <p/>
  * byte 1: version (0x1)
  * byte 2 == 0x1 =&gt; allowReverseLookup
  * bytes 3-6 =&gt; numBytesUsed
@@ -126,8 +130,7 @@ public class GenericIndexed<T> implements Indexed<T>
   @Override
   public T get(int index)
   {
-    final T cachedValue = cachedValues[index];
-    return cachedValues[index] != null ? cachedValue : (cachedValues[index] = bufferIndexed.get(index));
+    return bufferIndexed.get(index);
   }
 
   /**
@@ -136,6 +139,7 @@ public class GenericIndexed<T> implements Indexed<T>
    * that values-not-found will return some negative number.
    *
    * @param value value to search for
+   *
    * @return index of value, or negative number equal to (-(insertion point) - 1).
    */
   @Override
@@ -163,10 +167,6 @@ public class GenericIndexed<T> implements Indexed<T>
   private final int valuesOffset;
   private final BufferIndexed bufferIndexed;
 
-  private final T[] cachedValues;
-  private transient volatile boolean loadedAll;
-
-  @SuppressWarnings("unchecked")
   GenericIndexed(
       ByteBuffer buffer,
       ObjectStrategy<T> strategy,
@@ -181,28 +181,32 @@ public class GenericIndexed<T> implements Indexed<T>
     indexOffset = theBuffer.position();
     valuesOffset = theBuffer.position() + (size << 2);
     bufferIndexed = new BufferIndexed();
-    cachedValues = (T[]) Array.newInstance(strategy.getClazz(), size);
   }
 
   public boolean isLoadedAll()
   {
-    return loadedAll;
+    return false;
   }
 
   @SuppressWarnings("unchecked")
-  public Iterable<T> loadFully()
+  public Collection<T> loadFully()
   {
-    Preconditions.checkArgument(cachedValues.length == size);
-    if (!loadedAll) {
-      final ByteBuffer buffer = theBuffer.asReadOnlyBuffer();
-      for (int i = 0; i < cachedValues.length; i++) {
-        if (cachedValues[i] == null) {
-          cachedValues[i] = bufferIndexed.loadValue(buffer, i);
-        }
-      }
-      loadedAll = true;
+    final List<T> loaded = Lists.newArrayListWithCapacity(size);
+    final ByteBuffer buffer = bufferAsReadOnly();
+    for (int i = 0; i < size; i++) {
+      loaded.add(loadValue(buffer, i));
     }
-    return Arrays.asList(cachedValues);
+    return loaded;
+  }
+
+  protected final ByteBuffer bufferAsReadOnly()
+  {
+    return theBuffer.asReadOnlyBuffer();
+  }
+
+  protected final T loadValue(ByteBuffer buffer, int i)
+  {
+    return bufferIndexed.loadValue(buffer, i);
   }
 
   class BufferIndexed implements Indexed<T>
@@ -268,9 +272,11 @@ public class GenericIndexed<T> implements Indexed<T>
 
     /**
      * This method makes no guarantees with respect to thread safety
+     *
      * @return the size in bytes of the last value read
      */
-    public int getLastValueSize() {
+    public int getLastValueSize()
+    {
       return lastReadSize;
     }
 
@@ -332,7 +338,8 @@ public class GenericIndexed<T> implements Indexed<T>
   public GenericIndexed<T>.BufferIndexed singleThreaded()
   {
     final ByteBuffer copyBuffer = theBuffer.asReadOnlyBuffer();
-    return new BufferIndexed() {
+    return new BufferIndexed()
+    {
       @Override
       public T get(int index)
       {
@@ -343,6 +350,11 @@ public class GenericIndexed<T> implements Indexed<T>
 
   public static <T> GenericIndexed<T> read(ByteBuffer buffer, ObjectStrategy<T> strategy)
   {
+    return read(buffer, strategy, false);
+  }
+
+  public static <T> GenericIndexed<T> read(ByteBuffer buffer, ObjectStrategy<T> strategy, boolean cached)
+  {
     byte versionFromBuffer = buffer.get();
 
     if (version == versionFromBuffer) {
@@ -352,6 +364,13 @@ public class GenericIndexed<T> implements Indexed<T>
       bufferToUse.limit(bufferToUse.position() + size);
       buffer.position(bufferToUse.limit());
 
+      if (cached) {
+        return new GenericIndexed.Cached<T>(
+            bufferToUse,
+            strategy,
+            allowReverseLookup
+        );
+      }
       return new GenericIndexed<T>(
           bufferToUse,
           strategy,
@@ -373,7 +392,7 @@ public class GenericIndexed<T> implements Indexed<T>
     @Override
     public String fromByteBuffer(final ByteBuffer buffer, final int numBytes)
     {
-      return com.metamx.common.StringUtils.fromUtf8(buffer, numBytes);
+      return StringUtils.fromUtf8(buffer, numBytes);
     }
 
     @Override
@@ -382,7 +401,7 @@ public class GenericIndexed<T> implements Indexed<T>
       if (val == null) {
         return new byte[]{};
       }
-      return com.metamx.common.StringUtils.toUtf8(val);
+      return StringUtils.toUtf8(val);
     }
 
     @Override
@@ -391,4 +410,77 @@ public class GenericIndexed<T> implements Indexed<T>
       return GuavaUtils.nullFirstNatural().compare(o1, o2);
     }
   };
+
+  public static final ObjectStrategy<String> STRING_WITH_INTERN_STRATEGY = new CacheableObjectStrategy<String>()
+  {
+    @Override
+    public Class<? extends String> getClazz()
+    {
+      return String.class;
+    }
+
+    @Override
+    public String fromByteBuffer(final ByteBuffer buffer, final int numBytes)
+    {
+      return StringUtils.fromUtf8(buffer, numBytes).intern();
+    }
+
+    @Override
+    public byte[] toBytes(String val)
+    {
+      if (val == null) {
+        return new byte[]{};
+      }
+      return StringUtils.toUtf8(val);
+    }
+
+    @Override
+    public int compare(String o1, String o2)
+    {
+      return GuavaUtils.nullFirstNatural().compare(o1, o2);
+    }
+  };
+
+  static final class Cached<T> extends GenericIndexed<T>
+  {
+    private final T[] cachedValues;
+    private transient volatile boolean loadedAll;
+
+    @SuppressWarnings("unchecked")
+    Cached(ByteBuffer buffer, ObjectStrategy<T> strategy, boolean allowReverseLookup)
+    {
+      super(buffer, strategy, allowReverseLookup);
+      cachedValues = (T[]) Array.newInstance(strategy.getClazz(), size());
+    }
+
+    @Override
+    public T get(int index)
+    {
+      final T cachedValue = cachedValues[index];
+      return cachedValues[index] != null ? cachedValue : (cachedValues[index] = super.get(index));
+    }
+
+    @Override
+    public boolean isLoadedAll()
+    {
+      return loadedAll;
+    }
+
+    @Override
+    @SuppressWarnings("unchecked")
+    public Collection<T> loadFully()
+    {
+      Preconditions.checkArgument(cachedValues.length == size());
+      if (!loadedAll) {
+        final ByteBuffer buffer = bufferAsReadOnly();
+        for (int i = 0; i < cachedValues.length; i++) {
+          if (cachedValues[i] == null) {
+            cachedValues[i] = loadValue(buffer, i);
+          }
+        }
+        loadedAll = true;
+      }
+      return Arrays.asList(cachedValues);
+    }
+  }
 }

@@ -198,7 +198,7 @@ public class OnheapIncrementalIndex extends IncrementalIndex<Aggregator>
   }
 
   @Override
-  protected DimDim makeDimDim(String dimension, Map<String, Integer> dictionary, SizeEstimator estimator)
+  protected DimDim makeDimDim(String dimension, String[] dictionary, SizeEstimator estimator)
   {
     return new ReadOnlyDimDim(dictionary);
   }
@@ -406,79 +406,6 @@ public class OnheapIncrementalIndex extends IncrementalIndex<Aggregator>
     facts.clear();
     if (selectors != null) {
       Arrays.fill(selectors, null);
-    }
-  }
-
-  static final class ReadOnlyDimDim implements DimDim<String>
-  {
-    private final Map<String, Integer> valueToId;
-    private final String[] idToValue;
-
-    public ReadOnlyDimDim(Map<String, Integer> dictionary)
-    {
-      valueToId = dictionary;
-      idToValue = new String[dictionary.size()];
-      for (Map.Entry<String, Integer> entry : dictionary.entrySet()) {
-        idToValue[entry.getValue()] = entry.getKey();
-      }
-    }
-
-    public int getId(String value)
-    {
-      return valueToId.get(value);
-    }
-
-    public String getValue(int id)
-    {
-      return idToValue[id];
-    }
-
-    public boolean contains(String value)
-    {
-      return valueToId.containsKey(value);
-    }
-
-    public int size()
-    {
-      return valueToId.size();
-    }
-
-    public int add(String value)
-    {
-      Integer prev = valueToId.get(value);
-      if (prev != null) {
-        return prev;
-      }
-      throw new IllegalStateException("not existing value " + value);
-    }
-
-    @Override
-    public String getMinValue()
-    {
-      throw new UnsupportedOperationException("getMinValue");
-    }
-
-    @Override
-    public String getMaxValue()
-    {
-      throw new UnsupportedOperationException("getMaxValue");
-    }
-
-    @Override
-    public int estimatedSize()
-    {
-      throw new UnsupportedOperationException("estimatedSize");
-    }
-
-    @Override
-    public final int compare(int lhsIdx, int rhsIdx)
-    {
-      return idToValue[lhsIdx].compareTo(idToValue[rhsIdx]);
-    }
-
-    public OnHeapDimLookup<String> sort()
-    {
-      throw new UnsupportedOperationException("sort");
     }
   }
 

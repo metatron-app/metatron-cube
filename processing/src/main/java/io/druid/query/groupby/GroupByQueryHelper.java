@@ -90,7 +90,7 @@ public class GroupByQueryHelper
     }
 
     if (optimizer != null) {
-      index.initialize((Map<String, Map<String, Integer>>) Futures.getUnchecked(optimizer));
+      index.initialize((Map<String, String[]>) Futures.getUnchecked(optimizer));
     } else {
       index.initialize(Lists.transform(query.getDimensions(), DimensionSpec.OUTPUT_NAME));
     }

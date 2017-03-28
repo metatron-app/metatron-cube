@@ -569,7 +569,7 @@ public abstract class IncrementalIndex<AggregatorType> implements Iterable<Row>,
   // use newDimDim() to create a DimDim, makeDimDim() provides the subclass-specific implementation
   protected abstract DimDim makeDimDim(String dimension, SizeEstimator estimator);
 
-  protected abstract DimDim makeDimDim(String dimension, Map<String, Integer> dictionary, SizeEstimator estimator);
+  protected abstract DimDim makeDimDim(String dimension, String[] dictionary, SizeEstimator estimator);
 
   public abstract ConcurrentMap<TimeAndDims, Integer> getFacts();
 
@@ -829,13 +829,12 @@ public abstract class IncrementalIndex<AggregatorType> implements Iterable<Row>,
     }
   }
 
-  public void initialize(Map<String, Map<String, Integer>> dimensions)
+  public void initialize(Map<String, String[]> dimensions)
   {
     Preconditions.checkArgument(groupBy, "this is only for group-by");
-    for (Map.Entry<String, Map<String, Integer>> entry : dimensions.entrySet()) {
+    for (Map.Entry<String, String[]> entry : dimensions.entrySet()) {
       String dimension = entry.getKey();
-      Map<String, Integer> dictionary = Maps.newHashMap(entry.getValue());
-      DimDim values = new NullValueConverterDimDim(makeDimDim(dimension, dictionary, SizeEstimator.STRING), -1);
+      DimDim values = new NullValueConverterDimDim(makeDimDim(dimension, entry.getValue(), SizeEstimator.STRING), -1);
       DimensionDesc desc = new DimensionDesc(
           dimensionDescs.size(),
           dimension,
@@ -1718,6 +1717,29 @@ public abstract class IncrementalIndex<AggregatorType> implements Iterable<Row>,
 
   protected final Comparator<TimeAndDims> dimsComparator()
   {
+    if (groupBy && !dimensionDescs.isEmpty() && isAllReadOnly()) {
+      final int length = dimensionDescs.size();
+      return new Comparator<TimeAndDims>()
+      {
+        @Override
+        public int compare(TimeAndDims o1, TimeAndDims o2)
+        {
+          int compare = Longs.compare(o1.timestamp, o2.timestamp);
+          if (compare != 0) {
+            return compare;
+          }
+          final int[][] lhsIdxs = o1.dims;
+          final int[][] rhsIdxs = o2.dims;
+          for (int i = 0; i < length; i++) {
+            compare = Ints.compare(lhsIdxs[i][0], rhsIdxs[i][0]);
+            if (compare != 0) {
+              return compare;
+            }
+          }
+          return 0;
+        }
+      };
+    }
     if (rollup) {
       return new TimeAndDimsComp(dimValues);
     }
@@ -1735,6 +1757,16 @@ public abstract class IncrementalIndex<AggregatorType> implements Iterable<Row>,
         return compare;
       }
     };
+  }
+
+  private boolean isAllReadOnly()
+  {
+    for (DimensionDesc dimensionDesc : dimensionDescs.values()) {
+      if (!(dimensionDesc.getValues() instanceof ReadOnlyDimDim)) {
+        return false;
+      }
+    }
+    return true;
   }
 
   @VisibleForTesting
@@ -1776,7 +1808,11 @@ public abstract class IncrementalIndex<AggregatorType> implements Iterable<Row>,
         while (retVal == 0 && valsIndex < lhsIdxs.length) {
           if (lhsIdxs[valsIndex] != rhsIdxs[valsIndex]) {
             final DimDim dimLookup = dimValues.get(index);
-            retVal = dimLookup.compare(lhsIdxs[valsIndex], rhsIdxs[valsIndex]);
+            if (dimLookup instanceof ReadOnlyDimDim) {
+              retVal = Ints.compare(lhsIdxs[valsIndex], rhsIdxs[valsIndex]);
+            } else {
+              retVal = dimLookup.compare(lhsIdxs[valsIndex], rhsIdxs[valsIndex]);
+            }
           }
           ++valsIndex;
         }
@@ -1788,6 +1824,79 @@ public abstract class IncrementalIndex<AggregatorType> implements Iterable<Row>,
       }
 
       return retVal;
+    }
+  }
+
+  static final class ReadOnlyDimDim implements DimDim<String>
+  {
+    private final Map<String, Integer> valueToId;
+    private final String[] idToValue;
+
+    public ReadOnlyDimDim(String[] dictionary)
+    {
+      idToValue = dictionary;
+      valueToId = Maps.newHashMapWithExpectedSize(dictionary.length);
+      for (int i = 0; i < dictionary.length; i++) {
+        valueToId.put(dictionary[i], i);
+      }
+    }
+
+    public int getId(String value)
+    {
+      return valueToId.get(value);
+    }
+
+    public String getValue(int id)
+    {
+      return idToValue[id];
+    }
+
+    public boolean contains(String value)
+    {
+      return valueToId.containsKey(value);
+    }
+
+    public int size()
+    {
+      return valueToId.size();
+    }
+
+    public int add(String value)
+    {
+      Integer prev = valueToId.get(value);
+      if (prev != null) {
+        return prev;
+      }
+      throw new IllegalStateException("not existing value " + value);
+    }
+
+    @Override
+    public String getMinValue()
+    {
+      throw new UnsupportedOperationException("getMinValue");
+    }
+
+    @Override
+    public String getMaxValue()
+    {
+      throw new UnsupportedOperationException("getMaxValue");
+    }
+
+    @Override
+    public int estimatedSize()
+    {
+      throw new UnsupportedOperationException("estimatedSize");
+    }
+
+    @Override
+    public final int compare(int lhsIdx, int rhsIdx)
+    {
+      return Ints.compare(lhsIdx, rhsIdx);
+    }
+
+    public SortedDimLookup<String> sort()
+    {
+      throw new UnsupportedOperationException("sort");
     }
   }
 }

@@ -140,9 +140,9 @@ public class OffheapIncrementalIndex extends IncrementalIndex<BufferAggregator>
   }
 
   @Override
-  protected DimDim makeDimDim(String dimension, Map<String, Integer> dictionary, SizeEstimator estimator)
+  protected DimDim makeDimDim(String dimension, String[] dictionary, SizeEstimator estimator)
   {
-    return new OnheapIncrementalIndex.ReadOnlyDimDim(dictionary);
+    return new IncrementalIndex.ReadOnlyDimDim(dictionary);
   }
 
   @Override
