@@ -24,15 +24,16 @@ import com.metamx.collections.bitmap.BitmapFactory;
 import com.metamx.collections.bitmap.ImmutableBitmap;
 import com.metamx.collections.spatial.ImmutableRTree;
 import com.metamx.common.guava.CloseQuietly;
-import io.druid.data.ValueType;
 import io.druid.query.filter.BitmapIndexSelector;
 import io.druid.segment.column.BitmapIndex;
 import io.druid.segment.column.Column;
-import io.druid.segment.column.DictionaryEncodedColumn;
 import io.druid.segment.column.GenericColumn;
+import io.druid.segment.data.GenericIndexed;
 import io.druid.segment.data.Indexed;
 import io.druid.segment.data.IndexedIterable;
+import io.druid.segment.data.ListIndexed;
 
+import java.util.Arrays;
 import java.util.Iterator;
 
 /**
@@ -51,6 +52,29 @@ public class ColumnSelectorBitmapIndexSelector implements BitmapIndexSelector
     this.index = index;
   }
 
+  public ColumnSelectorBitmapIndexSelector(
+      final BitmapFactory bitmapFactory,
+      final String name,
+      final Column column
+  )
+  {
+    this.bitmapFactory = bitmapFactory;
+    this.index = new ColumnSelector()
+    {
+      @Override
+      public Indexed<String> getColumnNames()
+      {
+        return new ListIndexed<String>(Arrays.asList(name), String.class);
+      }
+
+      @Override
+      public Column getColumn(String columnName)
+      {
+        return name.equals(columnName) ? column : null;
+      }
+    };
+  }
+
   @Override
   public Indexed<String> getDimensionValues(String dimension)
   {
@@ -58,7 +82,7 @@ public class ColumnSelectorBitmapIndexSelector implements BitmapIndexSelector
     if (columnDesc == null || !columnDesc.getCapabilities().isDictionaryEncoded()) {
       return null;
     }
-    final DictionaryEncodedColumn column = columnDesc.getDictionaryEncoding();
+    final GenericIndexed<String> column = columnDesc.getDictionary();
     return new Indexed<String>()
     {
       @Override
@@ -70,19 +94,19 @@ public class ColumnSelectorBitmapIndexSelector implements BitmapIndexSelector
       @Override
       public int size()
       {
-        return column.getCardinality();
+        return column.size();
       }
 
       @Override
       public String get(int index)
       {
-        return column.lookupName(index);
+        return column.get(index);
       }
 
       @Override
       public int indexOf(String value)
       {
-        return column.lookupId(value);
+        return column.indexOf(value);
       }
 
       @Override

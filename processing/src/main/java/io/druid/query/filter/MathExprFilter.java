@@ -22,11 +22,13 @@ package io.druid.query.filter;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;
+import com.metamx.collections.bitmap.ImmutableBitmap;
 import com.metamx.common.StringUtils;
 import io.druid.math.expr.Evals;
 import io.druid.math.expr.Parser;
 import io.druid.segment.ColumnSelectorFactory;
 import io.druid.segment.ExprEvalColumnSelector;
+import io.druid.segment.filter.Filters;
 
 import java.nio.ByteBuffer;
 import java.util.Set;

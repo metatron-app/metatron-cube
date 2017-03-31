@@ -21,15 +21,11 @@ package io.druid.segment.filter;
 
 import com.metamx.collections.bitmap.ImmutableBitmap;
 import io.druid.math.expr.Expression;
-import io.druid.math.expr.Expression.NotExpression;
 import io.druid.query.filter.BitmapIndexSelector;
 import io.druid.query.filter.Filter;
 import io.druid.query.filter.ValueMatcher;
 import io.druid.query.filter.ValueMatcherFactory;
 import io.druid.segment.ColumnSelectorFactory;
-
-import java.util.Arrays;
-import java.util.List;
 
 /**
  */
@@ -52,6 +48,16 @@ public class NotFilter extends Filter.WithDictionary implements Expression.NotEx
   public Filter getBaseFilter()
   {
     return baseFilter;
+  }
+
+  @Override
+  public ImmutableBitmap getValueBitmap(BitmapIndexSelector selector)
+  {
+    ImmutableBitmap valueMap = baseFilter.getValueBitmap(selector);
+    if (valueMap != null) {
+      return selector.getBitmapFactory().complement(valueMap);
+    }
+    return null;
   }
 
   @Override

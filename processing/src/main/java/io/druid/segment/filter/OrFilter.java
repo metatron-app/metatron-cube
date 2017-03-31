@@ -54,6 +54,26 @@ public class OrFilter extends Filter.WithDictionary implements Expression.OrExpr
   }
 
   @Override
+  public ImmutableBitmap getValueBitmap(BitmapIndexSelector selector)
+  {
+    if (filters.size() == 1) {
+      return filters.get(0).getValueBitmap(selector);
+    }
+    if (filters.size() == 1) {
+      return filters.get(0).getValueBitmap(selector);
+    }
+    List<ImmutableBitmap> bitmaps = Lists.newArrayList();
+    for (Filter filter : filters) {
+      ImmutableBitmap valueBitmap = filter.getValueBitmap(selector);
+      if (valueBitmap == null) {
+        return null;
+      }
+      bitmaps.add(valueBitmap);
+    }
+    return selector.getBitmapFactory().union(bitmaps);
+  }
+
+  @Override
   public ImmutableBitmap getBitmapIndex(BitmapIndexSelector selector)
   {
     if (filters.size() == 1) {

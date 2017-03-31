@@ -47,6 +47,12 @@ public class SpatialFilter extends Filter.WithDictionary
   }
 
   @Override
+  public ImmutableBitmap getValueBitmap(BitmapIndexSelector selector)
+  {
+    return null;
+  }
+
+  @Override
   public ImmutableBitmap getBitmapIndex(final BitmapIndexSelector selector)
   {
     Iterable<ImmutableBitmap> search = selector.getSpatialIndex(dimension).search(bound);

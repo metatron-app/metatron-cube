@@ -25,7 +25,9 @@ import com.google.common.base.Predicate;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
+import com.metamx.collections.bitmap.BitmapFactory;
 import com.metamx.collections.bitmap.ImmutableBitmap;
+import com.metamx.collections.bitmap.MutableBitmap;
 import com.metamx.common.guava.FunctionalIterable;
 import io.druid.math.expr.Evals;
 import io.druid.math.expr.Expressions;
@@ -142,6 +144,32 @@ public class Filters
         }
       }
     };
+  }
+
+  public static ImmutableBitmap matchPredicateValues(
+      final String dimension,
+      final BitmapIndexSelector selector,
+      final Predicate<String> predicate
+  )
+  {
+    Preconditions.checkNotNull(dimension, "dimension");
+    Preconditions.checkNotNull(selector, "selector");
+    Preconditions.checkNotNull(predicate, "predicate");
+
+    // Missing dimension -> match all rows if the predicate matches null; match no rows otherwise
+    final Indexed<String> dimValues = selector.getDimensionValues(dimension);
+    if (dimValues == null || dimValues.size() == 0) {
+      return selector.getBitmapFactory().makeEmptyImmutableBitmap();
+    }
+
+    final BitmapFactory factory = selector.getBitmapFactory();
+    final MutableBitmap bitmap = factory.makeEmptyMutableBitmap();
+    for (int i = 0; i < dimValues.size(); i++) {
+      if (predicate.apply(dimValues.get(i))) {
+        bitmap.add(i);
+      }
+    }
+    return factory.makeImmutableBitmap(bitmap);
   }
 
   /**

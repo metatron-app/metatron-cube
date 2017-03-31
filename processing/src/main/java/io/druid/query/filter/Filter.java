@@ -38,6 +38,9 @@ public interface Filter extends Expression
   boolean supportsBitmap();
 
   // bitmap based filter will be applied whenever it's possible
+  ImmutableBitmap getValueBitmap(BitmapIndexSelector selector);
+
+  // bitmap based filter will be applied whenever it's possible
   ImmutableBitmap getBitmapIndex(BitmapIndexSelector selector);
 
   // used when bitmap filter cannot be applied
@@ -54,7 +57,15 @@ public interface Filter extends Expression
 
   abstract class WithoutDictionary implements Filter
   {
-    public ImmutableBitmap getBitmapIndex(BitmapIndexSelector selector) {
+    @Override
+    public ImmutableBitmap getValueBitmap(final BitmapIndexSelector selector)
+    {
+      return null;
+    }
+
+    @Override
+    public ImmutableBitmap getBitmapIndex(BitmapIndexSelector selector)
+    {
       throw new UnsupportedOperationException("getBitmapIndex");
     }
 

@@ -20,12 +20,14 @@
 package io.druid.segment.filter;
 
 import com.metamx.collections.bitmap.ImmutableBitmap;
+import com.metamx.collections.bitmap.MutableBitmap;
 import io.druid.query.filter.BitmapIndexSelector;
 import io.druid.query.filter.Filter;
 import io.druid.query.filter.ValueMatcher;
 import io.druid.query.filter.ValueMatcherFactory;
 import io.druid.segment.ColumnSelectorFactory;
 import io.druid.segment.ObjectColumnSelector;
+import io.druid.segment.column.BitmapIndex;
 import io.druid.segment.data.IndexedInts;
 
 /**
@@ -42,6 +44,18 @@ public class SelectorFilter extends Filter.WithDictionary
   {
     this.dimension = dimension;
     this.value = value;
+  }
+
+  @Override
+  public ImmutableBitmap getValueBitmap(BitmapIndexSelector selector)
+  {
+    MutableBitmap bitmap = selector.getBitmapFactory().makeEmptyMutableBitmap();
+    BitmapIndex indexed = selector.getBitmapIndex(dimension);
+    int index = indexed.getIndex(value);
+    if (index >= 0) {
+      bitmap.add(index);
+    }
+    return selector.getBitmapFactory().makeImmutableBitmap(bitmap);
   }
 
   @Override

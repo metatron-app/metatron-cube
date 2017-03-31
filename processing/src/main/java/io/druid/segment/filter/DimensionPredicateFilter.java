@@ -61,6 +61,12 @@ public class DimensionPredicateFilter extends Filter.WithDictionary
   }
 
   @Override
+  public ImmutableBitmap getValueBitmap(final BitmapIndexSelector selector)
+  {
+    return Filters.matchPredicateValues(dimension, selector, predicate);
+  }
+
+  @Override
   public ImmutableBitmap getBitmapIndex(final BitmapIndexSelector selector)
   {
     return Filters.matchPredicate(dimension, selector, predicate);

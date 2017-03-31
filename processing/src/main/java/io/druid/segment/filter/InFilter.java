@@ -25,6 +25,7 @@ import com.google.common.base.Strings;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Sets;
 import com.metamx.collections.bitmap.ImmutableBitmap;
+import com.metamx.collections.bitmap.MutableBitmap;
 import io.druid.query.extraction.ExtractionFn;
 import io.druid.query.filter.BitmapIndexSelector;
 import io.druid.query.filter.Filter;
@@ -32,6 +33,7 @@ import io.druid.query.filter.ValueMatcher;
 import io.druid.query.filter.ValueMatcherFactory;
 import io.druid.segment.ColumnSelectorFactory;
 import io.druid.segment.ObjectColumnSelector;
+import io.druid.segment.column.BitmapIndex;
 import io.druid.segment.data.IndexedInts;
 
 import java.lang.reflect.Array;
@@ -51,6 +53,23 @@ public class InFilter extends Filter.WithDictionary
     this.dimension = dimension;
     this.values = values;
     this.extractionFn = extractionFn;
+  }
+
+  @Override
+  public ImmutableBitmap getValueBitmap(BitmapIndexSelector selector)
+  {
+    if (extractionFn == null) {
+      MutableBitmap bitmap = selector.getBitmapFactory().makeEmptyMutableBitmap();
+      BitmapIndex indexed = selector.getBitmapIndex(dimension);
+      for (String value : values) {
+        int index = indexed.getIndex(value);
+        if (index >= 0) {
+          bitmap.add(index);
+        }
+      }
+      return selector.getBitmapFactory().makeImmutableBitmap(bitmap);
+    }
+    return null;
   }
 
   @Override

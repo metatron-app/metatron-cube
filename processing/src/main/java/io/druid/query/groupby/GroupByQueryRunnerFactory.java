@@ -22,6 +22,7 @@ package io.druid.query.groupby;
 import com.google.common.base.Function;
 import com.google.common.base.Strings;
 import com.google.common.base.Supplier;
+import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
@@ -31,6 +32,7 @@ import com.google.common.util.concurrent.ListeningExecutorService;
 import com.google.common.util.concurrent.MoreExecutors;
 import com.google.common.util.concurrent.SettableFuture;
 import com.google.inject.Inject;
+import com.metamx.collections.bitmap.ImmutableBitmap;
 import com.metamx.common.ISE;
 import com.metamx.common.guava.Sequence;
 import com.metamx.common.logger.Logger;
@@ -48,14 +50,21 @@ import io.druid.query.QueryToolChest;
 import io.druid.query.QueryWatcher;
 import io.druid.query.dimension.DefaultDimensionSpec;
 import io.druid.query.dimension.DimensionSpec;
+import io.druid.query.filter.DimFilter;
+import io.druid.query.filter.Filter;
+import io.druid.segment.ColumnSelectorBitmapIndexSelector;
 import io.druid.segment.QueryableIndex;
 import io.druid.segment.Segment;
 import io.druid.segment.StorageAdapter;
 import io.druid.segment.column.Column;
+import io.druid.segment.data.DictionaryLoader;
 import io.druid.segment.data.GenericIndexed;
+import io.druid.segment.filter.Filters;
+import org.roaringbitmap.IntIterator;
 
 import java.nio.ByteBuffer;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -120,7 +129,25 @@ public class GroupByQueryRunnerFactory implements QueryRunnerFactory<Row, GroupB
         return null;
       }
     }
-    Map<String, List<GenericIndexed<String>>> columns = Maps.newLinkedHashMap();
+
+    final long start = System.currentTimeMillis();
+    log.info("Initializing group-by optimizer with target %d segments", segments.size());
+
+    Filter filter = null;
+    String filterDim = null;
+    DimFilter dimFilter = query.getDimFilter();
+    if (dimFilter != null) {
+      filter = Filters.toFilter(dimFilter);
+      if (filter.supportsBitmap()) {
+        Set<String> dependents = Filters.getDependents(dimFilter);
+        if (dependents.size() == 1) {
+          filterDim = Iterables.getOnlyElement(dependents);
+          log.info("Using filtered loader for dimension %s: %s", filterDim, dimFilter);
+        }
+      }
+    }
+
+    final Map<String, List<DictionaryLoader<String>>> columns = Maps.newLinkedHashMap();
     for (Segment segment : segments) {
       QueryableIndex index = segment.asQueryableIndex();
       if (index == null) {
@@ -132,25 +159,60 @@ public class GroupByQueryRunnerFactory implements QueryRunnerFactory<Row, GroupB
         if (column == null || !column.getCapabilities().isDictionaryEncoded()) {
           return null;
         }
-        List<GenericIndexed<String>> dictionaries = columns.get(dimension.getOutputName());
+        List<DictionaryLoader<String>> dictionaries = columns.get(dimension.getOutputName());
         if (dictionaries == null) {
           columns.put(dimension.getOutputName(), dictionaries = Lists.newArrayList());
         }
-        dictionaries.add(column.getDictionary());
+        final GenericIndexed<String> dictionary = column.getDictionary();
+        if (dimensionName.equals(filterDim)) {
+          final ImmutableBitmap bitmap = filter.getValueBitmap(
+              new ColumnSelectorBitmapIndexSelector(index.getBitmapFactoryForDimensions(), dimensionName, column)
+          );
+          if (bitmap == null || bitmap.size() == dictionary.size()) {
+            dictionaries.add(dictionary);
+            continue;
+          }
+          log.debug(
+              "Applied filter on segment %s, reducing dictionary %d to %d",
+              segment.getIdentifier(),
+              dictionary.size(),
+              bitmap.size()
+          );
+          dictionaries.add(
+              new DictionaryLoader<String>() {
+
+                @Override
+                public int size()
+                {
+                  return bitmap.size();
+                }
+
+                @Override
+                public Collection<String> loadFully()
+                {
+                  final IntIterator iterator = bitmap.iterator();
+                  final List<String> values = Lists.newArrayListWithCapacity(bitmap.size());
+                  while (iterator.hasNext()) {
+                    values.add(dictionary.get(iterator.next()));
+                  }
+                  return values;
+                }
+              }
+          );
+        } else {
+          dictionaries.add(dictionary);
+        }
       }
     }
-
-    final long start = System.currentTimeMillis();
-    log.info("Initializing group-by optimizer with target %d segments", segments.size());
 
     final ListeningExecutorService executor = MoreExecutors.listeningDecorator(exec);
 
     final Map<String, Future<String[]>> optimizer = Maps.newLinkedHashMap();
-    for (Map.Entry<String, List<GenericIndexed<String>>> entry : columns.entrySet()) {
+    for (Map.Entry<String, List<DictionaryLoader<String>>> entry : columns.entrySet()) {
       final String outputName = entry.getKey();
       final Set<String> merged = Sets.newConcurrentHashSet();
       final List<ListenableFuture<Integer>> elements = Lists.newArrayList();
-      for (final GenericIndexed<String> dictionary : entry.getValue()) {
+      for (final DictionaryLoader<String> dictionary : entry.getValue()) {
         elements.add(
             executor.submit(
                 new AbstractPrioritizedCallable<Integer>(0)

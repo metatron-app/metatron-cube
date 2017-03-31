@@ -51,7 +51,7 @@ import java.util.List;
  * bytes 10-((numElements * 4) + 10): integers representing *end* offsets of byte serialized values
  * bytes ((numElements * 4) + 10)-(numBytesUsed + 2): 4-byte integer representing length of value, followed by bytes for value
  */
-public class GenericIndexed<T> implements Indexed<T>
+public class GenericIndexed<T> implements Indexed<T>, DictionaryLoader<T>
 {
   private static final byte version = 0x1;
 
@@ -294,7 +294,7 @@ public class GenericIndexed<T> implements Indexed<T>
       while (minIndex <= maxIndex) {
         int currIndex = (minIndex + maxIndex) >>> 1;
 
-        T currValue = get(currIndex);
+        T currValue = GenericIndexed.this.get(currIndex);
         int comparison = strategy.compare(currValue, value);
         if (comparison == 0) {
           return currIndex;

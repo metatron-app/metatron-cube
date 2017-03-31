@@ -22,7 +22,9 @@ package io.druid.segment.filter;
 import com.google.common.base.Predicate;
 import com.google.common.base.Predicates;
 import com.google.common.collect.Iterables;
+import com.metamx.collections.bitmap.BitmapFactory;
 import com.metamx.collections.bitmap.ImmutableBitmap;
+import com.metamx.collections.bitmap.MutableBitmap;
 import io.druid.math.expr.Evals;
 import io.druid.math.expr.Expr;
 import io.druid.math.expr.Parser;
@@ -57,6 +59,31 @@ public class BoundFilter extends Filter.WithDictionary implements Predicate<Stri
   }
 
   @Override
+  public ImmutableBitmap getValueBitmap(BitmapIndexSelector selector)
+  {
+    if (extractionFn != null) {
+      return null;
+    }
+    Expr expr = Parser.parse(boundDimFilter.getExpression());
+    if (!Evals.isIdentifier(expr)) {
+      return null;
+    }
+    BitmapFactory factory = selector.getBitmapFactory();
+    final int[] range = toRange(selector.getBitmapIndex(boundDimFilter.getExpression()));
+    if (range == ALL) {
+      return factory.complement(factory.makeEmptyImmutableBitmap(), selector.getNumRows());
+    }
+    if (range == NONE) {
+      return factory.makeEmptyImmutableBitmap();
+    }
+    final MutableBitmap bitmap = factory.makeEmptyMutableBitmap();
+    for (int i = range[0]; i < range[1]; i++) {
+      bitmap.add(i);
+    }
+    return factory.makeImmutableBitmap(bitmap);
+  }
+
+  @Override
   public ImmutableBitmap getBitmapIndex(final BitmapIndexSelector selector)
   {
     String dimension = boundDimFilter.getExpression();
@@ -77,16 +104,16 @@ public class BoundFilter extends Filter.WithDictionary implements Predicate<Stri
     return toRangeBitmap(selector, dimension);
   }
 
-  private ImmutableBitmap toRangeBitmap(BitmapIndexSelector selector, String dimension)
-  {
-    final BitmapIndex bitmapIndex = selector.getBitmapIndex(dimension);
+  private static final int[] ALL = new int[] {0, Integer.MAX_VALUE};
+  private static final int[] NONE = new int[] {0, 0};
 
+  private int[] toRange(BitmapIndex bitmapIndex)
+  {
     if (bitmapIndex == null || bitmapIndex.getCardinality() == 0) {
       if (apply(null)) {
-        return selector.getBitmapFactory()
-                       .complement(selector.getBitmapFactory().makeEmptyImmutableBitmap(), selector.getNumRows());
+        return ALL;
       } else {
-        return selector.getBitmapFactory().makeEmptyImmutableBitmap();
+        return NONE;
       }
     }
 
@@ -116,8 +143,27 @@ public class BoundFilter extends Filter.WithDictionary implements Predicate<Stri
         endIndex = -(found + 1);
       }
     }
+    return new int[] {startIndex, endIndex};
+  }
 
-    return selector.getBitmapFactory().union(
+  private ImmutableBitmap toRangeBitmap(BitmapIndexSelector selector, String dimension)
+  {
+    final BitmapIndex bitmapIndex = selector.getBitmapIndex(dimension);
+    final int[] range = toRange(bitmapIndex);
+
+    final BitmapFactory factory = selector.getBitmapFactory();
+    if (range == ALL) {
+      return factory.complement(factory.makeEmptyImmutableBitmap(), selector.getNumRows());
+    } else if (range == NONE) {
+      return factory.makeEmptyImmutableBitmap();
+    }
+
+    // search for start, end indexes in the bitmaps; then include all bitmaps between those points
+
+    final int startIndex = range[0];
+    final int endIndex = range[1];
+
+    return factory.union(
         new Iterable<ImmutableBitmap>()
         {
           @Override
