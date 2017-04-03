@@ -276,6 +276,37 @@ public class EvalTest
     Assert.assertEquals(
         new DateTime("2016-03-03T19:22:00", home), evalDateTime("sub_time(x, '1D 3H 3m', 'Asia/Seoul')", bindings)
     );
+    Assert.assertEquals(
+        1479377499662L,
+        evalLong(
+            "timestamp('2016-11-17 10:11:39.662', 'yyyy-MM-dd HH:mm:ss.SSS')",
+            bindings
+        )
+    );
+    Assert.assertEquals(
+        1479406299662L,
+        evalLong(
+            "timestamp('2016-11-17 10:11:39.662', format='yyyy-MM-dd HH:mm:ss.SSS', timezone='America/Los_Angeles')",
+            bindings
+        )
+    );
+    DateTimeZone LA = DateTimeZone.forID("America/Los_Angeles");
+    Assert.assertEquals(
+        new DateTime("2016-11-17T10:11:39.662", LA),
+        evalDateTime(
+            "datetime('2016-11-17 10:11:39.662', format='yyyy-MM-dd HH:mm:ss.SSS', timezone='America/Los_Angeles')",
+            bindings
+        )
+    );
+    DateTimeZone shanghai = DateTimeZone.forID("Asia/Shanghai");
+    Assert.assertEquals(
+        new DateTime("2016-11-18T02:11:39.662", shanghai),
+        evalDateTime(
+            "datetime('2016-11-17 10:11:39.662', format='yyyy-MM-dd HH:mm:ss.SSS', " +
+            "timezone='America/Los_Angeles', out.timezone='Asia/Shanghai')",
+            bindings
+        )
+    );
   }
 
   @Test

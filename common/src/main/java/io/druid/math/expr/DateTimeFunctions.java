@@ -454,16 +454,28 @@ public interface DateTimeFunctions extends Function.Library
 
   class DateTimeFunc extends TimestampFromEpochFunc
   {
+    private DateTimeZone timeZone;
+
     @Override
     public String name()
     {
       return "datetime";
     }
 
+    protected void initialize(List<Expr> args, Map<String, Expr> params, Expr.NumericBinding bindings)
+    {
+      super.initialize(args, params, bindings);
+      String timezone = Evals.evalOptionalString(params.get("out.timezone"), bindings);
+      if (timezone != null) {
+        timeZone = DateTimeZone.forID(timezone);
+      } else {
+        timeZone = DateTimeZone.forTimeZone(formatter.getTimeZone());
+      }
+    }
     @Override
     protected final ExprEval toValue(Date date)
     {
-      return ExprEval.of(new DateTime(date.getTime(), DateTimeZone.forTimeZone(formatter.getTimeZone())));
+      return ExprEval.of(new DateTime(date.getTime(), timeZone));
     }
 
     @Override
