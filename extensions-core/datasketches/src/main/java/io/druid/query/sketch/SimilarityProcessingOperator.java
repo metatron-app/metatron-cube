@@ -69,9 +69,49 @@ public class SimilarityProcessingOperator implements PostProcessingOperator.Unio
   }
 
   @Override
-  public QueryRunner postProcess(QueryRunner baseRunner)
+  public QueryRunner postProcess(final QueryRunner baseRunner)
   {
-    throw new UnsupportedOperationException("should be used with union all query");
+    return new QueryRunner()
+    {
+      @Override
+      @SuppressWarnings("unchecked")
+      public Sequence run(Query query, Map responseContext)
+      {
+        if (!(query instanceof SketchQuery) ||
+            ((SketchQuery) query).getSketchOp() != SketchOp.THETA) {
+          LOG.info("query should be 'sketch' type with 'theta' operation");
+          return baseRunner.run(query, responseContext);
+        }
+        Sequence<Result<Map<String, Object>>> sequences = baseRunner.run(query, responseContext);
+        final int nomEntries = ((SketchQuery) query).getNomEntries();
+        final List<Similarity> similarities = Lists.newArrayList();
+        sequences.accumulate(
+            null, new Accumulator<Object, Result<Map<String,Object>>>()
+            {
+              @Override
+              public Object accumulate(
+                  Object accumulated, Result<Map<String, Object>> element
+              )
+              {
+                final Map<String, Object> result = element.getValue();
+                final Map<String, Sketch> sketchMap = Maps.newHashMapWithExpectedSize(result.size());
+                for (Map.Entry<String, Object> entry : result.entrySet()) {
+                  Sketch sketch = SketchOperations.deserialize(entry.getValue());
+                  for (Map.Entry<String, Sketch> sketches : sketchMap.entrySet()) {
+                    double similarity = getSimilarity(nomEntries, sketch, sketches.getValue());
+                    if (similarity > threshold) {
+                      similarities.add(new Similarity(entry.getKey(), sketches.getKey(), similarity));
+                    }
+                  }
+                  sketchMap.put(entry.getKey(), sketch);
+                }
+                return null;
+              }
+            }
+        );
+        return Sequences.simple(similarities);
+      }
+    };
   }
 
   // ds1.dim1 --> ds2.dim3 : 0.66f
