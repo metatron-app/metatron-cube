@@ -207,12 +207,6 @@ public class PearsonAggregatorFactory extends AggregatorFactory
   }
 
   @Override
-  public List<AggregatorFactory> getRequiredColumns()
-  {
-    return Arrays.<AggregatorFactory>asList(new PearsonFoldingAggregatorFactory(fieldName1, fieldName1, predicate));
-  }
-
-  @Override
   public Object finalizeComputation(Object object)
   {
     return ((PearsonAggregatorCollector) object).getCorr();

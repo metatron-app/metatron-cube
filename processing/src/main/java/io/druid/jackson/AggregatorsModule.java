@@ -45,6 +45,7 @@ import io.druid.query.aggregation.LongMaxAggregatorFactory;
 import io.druid.query.aggregation.LongMinAggregatorFactory;
 import io.druid.query.aggregation.LongSumAggregatorFactory;
 import io.druid.query.aggregation.PostAggregator;
+import io.druid.query.aggregation.RelayAggregatorFactory;
 import io.druid.query.aggregation.SetAggregatorFactory;
 import io.druid.query.aggregation.TimestampMaxAggregatorFactory;
 import io.druid.query.aggregation.cardinality.CardinalityAggregatorFactory;
@@ -56,6 +57,7 @@ import io.druid.query.aggregation.post.ConstantPostAggregator;
 import io.druid.query.aggregation.post.FieldAccessPostAggregator;
 import io.druid.query.aggregation.post.JavaScriptPostAggregator;
 import io.druid.query.aggregation.post.MathPostAggregator;
+import io.druid.segment.serde.ComplexMetricSerde;
 import io.druid.segment.serde.ComplexMetrics;
 
 /**
@@ -66,6 +68,9 @@ public class AggregatorsModule extends SimpleModule
   {
     super("AggregatorFactories");
 
+    if (ComplexMetrics.getSerdeForType("object") == null) {
+      ComplexMetrics.registerSerde("object", new ComplexMetricSerde.Dummy());
+    }
     if (ComplexMetrics.getSerdeForType("hyperUnique") == null) {
       ComplexMetrics.registerSerde("hyperUnique", new HyperUniquesSerde(Hashing.murmur3_128()));
     }
@@ -103,7 +108,8 @@ public class AggregatorsModule extends SimpleModule
       @JsonSubTypes.Type(name = "listFold", value = ListFoldingAggregatorFactory.class),
       @JsonSubTypes.Type(name = "set", value = SetAggregatorFactory.class),
       @JsonSubTypes.Type(name = "dimArray", value = DimensionArrayAggregatorFactory.class),
-      @JsonSubTypes.Type(name = "array", value = ArrayAggregatorFactory.class)
+      @JsonSubTypes.Type(name = "array", value = ArrayAggregatorFactory.class),
+      @JsonSubTypes.Type(name = "relay", value = RelayAggregatorFactory.class)
   })
   public static interface AggregatorFactoryMixin
   {

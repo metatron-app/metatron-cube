@@ -25,7 +25,6 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Joiner;
 import com.google.common.base.Preconditions;
-import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import com.google.common.primitives.Doubles;
 import com.metamx.common.ISE;
@@ -44,7 +43,6 @@ import java.lang.reflect.Array;
 import java.nio.ByteBuffer;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
-import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
@@ -160,24 +158,6 @@ public class JavaScriptAggregatorFactory extends AggregatorFactory
       }
     }
     throw new AggregatorFactoryNotMergeableException(this, other);
-  }
-
-  @Override
-  public List<AggregatorFactory> getRequiredColumns()
-  {
-    return ImmutableList.copyOf(
-        Lists.transform(
-            fieldNames,
-            new com.google.common.base.Function<String, AggregatorFactory>()
-            {
-              @Override
-              public AggregatorFactory apply(String input)
-              {
-                return new JavaScriptAggregatorFactory(input, fieldNames, fnAggregate, fnReset, fnCombine, config);
-              }
-            }
-        )
-    );
   }
 
   @Override

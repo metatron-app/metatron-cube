@@ -92,18 +92,6 @@ public class DocumentsColumnAggregatorFactory extends AggregatorFactory
   }
 
   @Override
-  public List<AggregatorFactory> getRequiredColumns()
-  {
-    return Arrays.<AggregatorFactory>asList(
-        new DocumentsColumnAggregatorFactory(
-            fieldName,
-            fieldName,
-            compress
-        )
-    );
-  }
-
-  @Override
   public Object deserialize(Object object)
   {
     if (object instanceof byte[]) {

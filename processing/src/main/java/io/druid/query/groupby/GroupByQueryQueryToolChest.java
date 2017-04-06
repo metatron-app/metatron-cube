@@ -33,9 +33,7 @@ import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Ordering;
-import com.google.common.collect.Sets;
 import com.google.inject.Inject;
-import com.metamx.common.IAE;
 import com.metamx.common.ISE;
 import com.metamx.common.Pair;
 import com.metamx.common.guava.Accumulator;
@@ -68,6 +66,7 @@ import io.druid.query.aggregation.MetricManipulationFn;
 import io.druid.query.aggregation.MetricManipulatorFns;
 import io.druid.query.aggregation.PostAggregator;
 import io.druid.query.aggregation.PostAggregators;
+import io.druid.query.aggregation.RelayAggregatorFactory;
 import io.druid.query.dimension.DefaultDimensionSpec;
 import io.druid.query.dimension.DimensionSpec;
 import io.druid.query.extraction.ExtractionFn;
@@ -170,40 +169,22 @@ public class GroupByQueryQueryToolChest extends QueryToolChest<Row, GroupByQuery
       }
 
       final Sequence<Row> subqueryResult = mergeGroupByResults(subquery, runner, context);
-      final Set<AggregatorFactory> aggs = Sets.newHashSet();
 
-      // Nested group-bys work by first running the inner query and then materializing the results in an incremental
-      // index which the outer query is then run against. To build the incremental index, we use the fieldNames from
-      // the aggregators for the outer query to define the column names so that the index will match the query. If
-      // there are multiple types of aggregators in the outer query referencing the same fieldName, we will try to build
-      // multiple columns of the same name using different aggregator types and will fail. Here, we permit multiple
-      // aggregators of the same type referencing the same fieldName (and skip creating identical columns for the
-      // subsequent ones) and return an error if the aggregator types are different.
-      for (AggregatorFactory aggregatorFactory : query.getAggregatorSpecs()) {
-        for (final AggregatorFactory transferAgg : aggregatorFactory.getRequiredColumns()) {
-          if (Iterables.any(
-              aggs, new Predicate<AggregatorFactory>()
-              {
-                @Override
-                public boolean apply(AggregatorFactory agg)
-                {
-                  return agg.getName().equals(transferAgg.getName()) && !agg.equals(transferAgg);
-                }
-              }
-          )) {
-            throw new IAE(
-                "Inner aggregator can currently only be referenced by a single type of outer aggregator" +
-                " for '%s'", transferAgg.getName()
-            );
-          }
-
-          aggs.add(transferAgg);
-        }
+      final Map<String, String> schema = Maps.newHashMap();
+      for (AggregatorFactory aggregatorFactory : subquery.getAggregatorSpecs()) {
+        schema.put(aggregatorFactory.getName(), aggregatorFactory.getTypeName());
+      }
+      for (PostAggregator postAggregator : subquery.getPostAggregatorSpecs()) {
+        schema.put(postAggregator.getName(), "object");
       }
 
+      final List<AggregatorFactory> relay = Lists.newArrayList();
+      for (Map.Entry<String, String> entry : schema.entrySet()) {
+        relay.add(new RelayAggregatorFactory(entry.getKey(), entry.getKey(), entry.getValue()));
+      }
       // We need the inner incremental index to have all the columns required by the outer query
       final GroupByQuery innerQuery = new GroupByQuery.Builder(subquery)
-          .setAggregatorSpecs(Lists.newArrayList(aggs))
+          .setAggregatorSpecs(Lists.newArrayList(relay))
           .setInterval(subquery.getIntervals())
           .setPostAggregatorSpecs(Lists.<PostAggregator>newArrayList())
           .build();

@@ -30,7 +30,6 @@ import io.druid.common.utils.StringUtils;
 import io.druid.query.aggregation.Aggregator;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.AggregatorFactoryNotMergeableException;
-import io.druid.query.aggregation.Aggregators;
 import io.druid.query.aggregation.BufferAggregator;
 import io.druid.segment.ColumnSelectorFactory;
 import io.druid.segment.ColumnSelectors;
@@ -176,24 +175,6 @@ public class ApproximateHistogramAggregatorFactory extends AggregatorFactory
     } else {
       throw new AggregatorFactoryNotMergeableException(this, other);
     }
-  }
-
-  @Override
-  public List<AggregatorFactory> getRequiredColumns()
-  {
-    return Arrays.<AggregatorFactory>asList(
-        new ApproximateHistogramAggregatorFactory(
-            fieldName,
-            fieldName,
-            resolution,
-            numBuckets,
-            lowerLimit,
-            upperLimit,
-            compact,
-            base64,
-            predicate
-        )
-    );
   }
 
   @Override

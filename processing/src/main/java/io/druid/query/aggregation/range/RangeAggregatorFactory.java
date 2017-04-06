@@ -30,7 +30,6 @@ import io.druid.query.aggregation.BufferAggregator;
 import io.druid.segment.ColumnSelectorFactory;
 
 import java.nio.ByteBuffer;
-import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
 
@@ -112,12 +111,6 @@ public class RangeAggregatorFactory extends AggregatorFactory
   public AggregatorFactory getCombiningFactory()
   {
     return delegateFactory;
-  }
-
-  @Override
-  public List<AggregatorFactory> getRequiredColumns()
-  {
-    return Arrays.<AggregatorFactory>asList(new RangeAggregatorFactory(delegateFactory, rangeStart, rangeCount));
   }
 
   @Override

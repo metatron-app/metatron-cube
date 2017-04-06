@@ -3,7 +3,6 @@ package io.druid.query.aggregation.area;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.primitives.Doubles;
-import com.google.common.primitives.Floats;
 import com.google.common.primitives.Ints;
 import io.druid.common.utils.StringUtils;
 import io.druid.query.aggregation.Aggregator;
@@ -14,7 +13,6 @@ import io.druid.segment.ColumnSelectorFactory;
 import org.apache.commons.codec.binary.Base64;
 
 import java.nio.ByteBuffer;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
@@ -82,14 +80,6 @@ public class MetricAreaAggregatorFactory extends AggregatorFactory
     } else {
       throw new AggregatorFactoryNotMergeableException(this, other);
     }
-  }
-
-  @Override
-  public List<AggregatorFactory> getRequiredColumns()
-  {
-    return Arrays.<AggregatorFactory>asList(
-        new MetricAreaAggregatorFactory(name, fieldName)
-    );
   }
 
   @Override

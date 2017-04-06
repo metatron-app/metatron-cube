@@ -19,6 +19,9 @@
 
 package io.druid.query.aggregation;
 
+import com.google.common.primitives.Longs;
+import io.druid.segment.ObjectColumnSelector;
+
 import java.nio.ByteBuffer;
 
 /**
@@ -236,6 +239,106 @@ public class Aggregators
     {
       delegate.close();
     }
+  }
+
+  public static Aggregator relayAggregator(final ObjectColumnSelector selector)
+  {
+    return new Aggregator()
+    {
+      private boolean selected;
+      private Object value;
+
+      @Override
+      public void aggregate()
+      {
+        if (selected) {
+          throw new IllegalStateException("cannot aggregate");
+        }
+        value = selector.get();
+        selected = true;
+      }
+
+      @Override
+      public void reset()
+      {
+        selected = false;
+        value = null;
+      }
+
+      @Override
+      public Object get()
+      {
+        return value;
+      }
+
+      @Override
+      public float getFloat()
+      {
+        if (value == null) {
+          return 0;
+        }
+        if (value instanceof Number) {
+          return ((Number)value).floatValue();
+        }
+        if (value instanceof String) {
+          Long longValue = Longs.tryParse((String)value);
+          if (longValue != null) {
+            return longValue.floatValue();
+          }
+          return Float.valueOf((String)value);
+        }
+        throw new IllegalArgumentException("cannot convert " + value.getClass() + " to float");
+      }
+
+      @Override
+      public long getLong()
+      {
+        if (value == null) {
+          return 0;
+        }
+        if (value instanceof Number) {
+          return ((Number)value).longValue();
+        }
+        if (value instanceof String) {
+          Long longValue = Longs.tryParse((String)value);
+          if (longValue != null) {
+            return longValue;
+          }
+          return Long.valueOf((String)value);
+        }
+        throw new IllegalArgumentException("cannot convert " + value.getClass() + " to long");
+      }
+
+      @Override
+      public double getDouble()
+      {
+        if (value == null) {
+          return 0;
+        }
+        if (value instanceof Number) {
+          return ((Number)value).doubleValue();
+        }
+        if (value instanceof String) {
+          Long longValue = Longs.tryParse((String)value);
+          if (longValue != null) {
+            return longValue.doubleValue();
+          }
+          return Double.valueOf((String)value);
+        }
+        throw new IllegalArgumentException("cannot convert " + value.getClass() + " to double");
+      }
+
+      @Override
+      public String getName()
+      {
+        return null;
+      }
+
+      @Override
+      public void close()
+      {
+      }
+    };
   }
 
   public static interface EstimableAggregator extends Aggregator

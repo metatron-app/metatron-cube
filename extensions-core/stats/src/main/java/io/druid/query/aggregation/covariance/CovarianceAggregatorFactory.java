@@ -207,12 +207,6 @@ public class CovarianceAggregatorFactory extends AggregatorFactory
   }
 
   @Override
-  public List<AggregatorFactory> getRequiredColumns()
-  {
-    return Arrays.<AggregatorFactory>asList(new CovarianceFoldingAggregatorFactory(fieldName1, fieldName1, predicate));
-  }
-
-  @Override
   public Object finalizeComputation(Object object)
   {
     return ((CovarianceAggregatorCollector) object).getCorr();

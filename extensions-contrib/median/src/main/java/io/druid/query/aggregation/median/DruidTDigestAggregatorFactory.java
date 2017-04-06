@@ -86,17 +86,6 @@ public class DruidTDigestAggregatorFactory extends AggregatorFactory{
   }
 
   @Override
-  public List<AggregatorFactory> getRequiredColumns() {
-    return Arrays.<AggregatorFactory>asList(
-        new DruidTDigestAggregatorFactory(
-            fieldName,
-            fieldName,
-            compression
-        )
-    );
-  }
-
-  @Override
   public Object deserialize(Object object) {
     if (object instanceof byte[]) {
       return DruidTDigest.fromBytes(ByteBuffer.wrap((byte[]) object));

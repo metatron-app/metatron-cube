@@ -114,12 +114,6 @@ public class DoubleMinAggregatorFactory extends AggregatorFactory
   }
 
   @Override
-  public List<AggregatorFactory> getRequiredColumns()
-  {
-    return Arrays.<AggregatorFactory>asList(new DoubleMinAggregatorFactory(fieldName, fieldName, fieldExpression));
-  }
-
-  @Override
   public Object deserialize(Object object)
   {
     // handle "NaN" / "Infinity" values serialized as strings in JSON

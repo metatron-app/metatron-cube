@@ -37,7 +37,6 @@ import io.druid.segment.ObjectColumnSelector;
 import org.apache.commons.codec.binary.Base64;
 
 import java.nio.ByteBuffer;
-import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
@@ -148,12 +147,6 @@ public class HyperUniquesAggregatorFactory extends AggregatorFactory
     } else {
       throw new AggregatorFactoryNotMergeableException(this, other);
     }
-  }
-
-  @Override
-  public List<AggregatorFactory> getRequiredColumns()
-  {
-    return Arrays.<AggregatorFactory>asList(new HyperUniquesAggregatorFactory(fieldName, fieldName, predicate));
   }
 
   @Override

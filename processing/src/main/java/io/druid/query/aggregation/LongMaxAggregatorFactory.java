@@ -113,12 +113,6 @@ public class LongMaxAggregatorFactory extends AggregatorFactory
   }
 
   @Override
-  public List<AggregatorFactory> getRequiredColumns()
-  {
-    return Arrays.<AggregatorFactory>asList(new LongMaxAggregatorFactory(fieldName, fieldName, fieldExpression));
-  }
-
-  @Override
   public Object deserialize(Object object)
   {
     return object;

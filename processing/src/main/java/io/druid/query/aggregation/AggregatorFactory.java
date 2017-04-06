@@ -93,13 +93,6 @@ public abstract class AggregatorFactory implements Cacheable
   }
 
   /**
-   * Gets a list of all columns that this AggregatorFactory will scan
-   *
-   * @return AggregatorFactories for the columns to scan of the parent AggregatorFactory
-   */
-  public abstract List<AggregatorFactory> getRequiredColumns();
-
-  /**
    * A method that knows how to "deserialize" the object from whatever form it might have been put into
    * in order to transfer via JSON.
    *

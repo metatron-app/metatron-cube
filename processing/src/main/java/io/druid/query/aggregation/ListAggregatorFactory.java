@@ -38,7 +38,6 @@ import io.druid.segment.ExprEvalColumnSelector;
 import io.druid.segment.ObjectColumnSelector;
 
 import java.nio.ByteBuffer;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
@@ -311,12 +310,6 @@ public class ListAggregatorFactory extends AggregatorFactory
       return getCombiningFactory();
     }
     throw new AggregatorFactoryNotMergeableException(this, other);
-  }
-
-  @Override
-  public List<AggregatorFactory> getRequiredColumns()
-  {
-    return Arrays.<AggregatorFactory>asList(new ListAggregatorFactory(name, expression, inputType, limit, dedup, sort));
   }
 
   @Override

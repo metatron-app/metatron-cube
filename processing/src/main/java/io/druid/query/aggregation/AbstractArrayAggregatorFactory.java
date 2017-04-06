@@ -113,12 +113,6 @@ public abstract class AbstractArrayAggregatorFactory extends AggregatorFactory
   }
 
   @Override
-  public List<AggregatorFactory> getRequiredColumns()
-  {
-    return delegate.getRequiredColumns();
-  }
-
-  @Override
   public Object deserialize(Object object)
   {
     List value = (List)object;

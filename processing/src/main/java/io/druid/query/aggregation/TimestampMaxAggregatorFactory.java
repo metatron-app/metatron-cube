@@ -30,7 +30,6 @@ import io.druid.segment.ColumnSelectorFactory;
 import org.joda.time.DateTime;
 
 import java.nio.ByteBuffer;
-import java.sql.Timestamp;
 import java.util.*;
 
 public class TimestampMaxAggregatorFactory extends AggregatorFactory
@@ -101,12 +100,6 @@ public class TimestampMaxAggregatorFactory extends AggregatorFactory
     } else {
       throw new AggregatorFactoryNotMergeableException(this, other);
     }
-  }
-
-  @Override
-  public List<AggregatorFactory> getRequiredColumns()
-  {
-    return Arrays.<AggregatorFactory>asList(new TimestampMaxAggregatorFactory(fieldName, fieldName, timeFormat));
   }
 
   @Override

@@ -32,7 +32,6 @@ import io.druid.segment.ColumnSelectors;
 import io.druid.segment.LongColumnSelector;
 
 import java.nio.ByteBuffer;
-import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
@@ -127,12 +126,6 @@ public class LongSumAggregatorFactory extends AggregatorFactory
     } else {
       throw new AggregatorFactoryNotMergeableException(this, other);
     }
-  }
-
-  @Override
-  public List<AggregatorFactory> getRequiredColumns()
-  {
-    return Arrays.<AggregatorFactory>asList(new LongSumAggregatorFactory(fieldName, fieldName, fieldExpression, predicate));
   }
 
   @Override

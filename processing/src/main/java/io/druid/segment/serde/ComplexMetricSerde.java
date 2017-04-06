@@ -20,6 +20,7 @@
 package io.druid.segment.serde;
 
 import com.google.common.base.Function;
+import io.druid.data.input.Row;
 import io.druid.segment.column.ColumnBuilder;
 import io.druid.segment.data.ObjectStrategy;
 
@@ -82,7 +83,7 @@ public abstract class ComplexMetricSerde
   /**
    * Converts byte[] to intermediate representation of the aggregate.
    *
-   * @param byte array
+   * @param data array
    * @param start offset in the byte array where to start reading
    * @param numBytes number of bytes to read in given array
    * @return intermediate representation of the aggregate
@@ -94,5 +95,70 @@ public abstract class ComplexMetricSerde
       bb.position(start);
     }
     return getObjectStrategy().fromByteBuffer(bb, numBytes);
+  }
+
+  public static class Dummy extends ComplexMetricSerde {
+
+    @Override
+    public String getTypeName()
+    {
+      return "object";
+    }
+
+    @Override
+    public ComplexMetricExtractor getExtractor()
+    {
+      return new ComplexMetricExtractor()
+      {
+        @Override
+        public Class<?> extractedClass()
+        {
+          return Object.class;
+        }
+
+        @Override
+        public Object extractValue(Row inputRow, String metricName)
+        {
+          return inputRow.getRaw(metricName);
+        }
+      };
+    }
+
+    @Override
+    public void deserializeColumn(ByteBuffer buffer, ColumnBuilder builder)
+    {
+      throw new UnsupportedOperationException("deserializeColumn");
+    }
+
+    @Override
+    public ObjectStrategy getObjectStrategy()
+    {
+      return new ObjectStrategy()
+      {
+        @Override
+        public Class getClazz()
+        {
+          return Object.class;
+        }
+
+        @Override
+        public Object fromByteBuffer(ByteBuffer buffer, int numBytes)
+        {
+          throw new UnsupportedOperationException("fromByteBuffer");
+        }
+
+        @Override
+        public byte[] toBytes(Object val)
+        {
+          throw new UnsupportedOperationException("toBytes");
+        }
+
+        @Override
+        public int compare(Object o1, Object o2)
+        {
+          throw new UnsupportedOperationException("compare");
+        }
+      };
+    }
   }
 }

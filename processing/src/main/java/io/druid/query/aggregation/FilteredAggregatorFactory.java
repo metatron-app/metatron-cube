@@ -186,12 +186,6 @@ public class FilteredAggregatorFactory extends AggregatorFactory
   }
 
   @Override
-  public List<AggregatorFactory> getRequiredColumns()
-  {
-    return delegate.getRequiredColumns();
-  }
-
-  @Override
   public String toString()
   {
     return "FilteredAggregatorFactory{" +

@@ -25,10 +25,6 @@ import com.yahoo.sketches.theta.Sketch;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.AggregatorFactoryNotMergeableException;
 
-import java.nio.ByteBuffer;
-import java.util.Collections;
-import java.util.List;
-
 public class SketchMergeAggregatorFactory extends SketchAggregatorFactory
 {
 
@@ -52,21 +48,6 @@ public class SketchMergeAggregatorFactory extends SketchAggregatorFactory
     this.shouldFinalize = (shouldFinalize == null) ? true : shouldFinalize.booleanValue();
     this.isInputThetaSketch = (isInputThetaSketch == null) ? false : isInputThetaSketch.booleanValue();
     this.errorBoundsStdDev = errorBoundsStdDev;
-  }
-
-  @Override
-  public List<AggregatorFactory> getRequiredColumns()
-  {
-    return Collections.<AggregatorFactory>singletonList(
-        new SketchMergeAggregatorFactory(
-            fieldName,
-            fieldName,
-            size,
-            shouldFinalize,
-            isInputThetaSketch,
-            errorBoundsStdDev
-        )
-    );
   }
 
   @Override

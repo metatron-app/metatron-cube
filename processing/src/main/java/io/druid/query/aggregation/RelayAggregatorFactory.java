@@ -21,75 +21,66 @@ package io.druid.query.aggregation;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.google.common.base.Preconditions;
-import com.google.common.collect.ImmutableList;
-import com.google.common.primitives.Longs;
 import io.druid.segment.ColumnSelectorFactory;
-import io.druid.segment.ColumnSelectors;
 
+import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
-import java.util.Objects;
 
 /**
  */
-public class CountAggregatorFactory extends AggregatorFactory
+public class RelayAggregatorFactory extends AggregatorFactory
 {
-  private static final byte[] CACHE_KEY = new byte[]{0x0};
   private final String name;
-  private final String predicate;
+  private final String columnName;
+  private final String typeName;
 
   @JsonCreator
-  public CountAggregatorFactory(
+  public RelayAggregatorFactory(
       @JsonProperty("name") String name,
-      @JsonProperty("predicate") String predicate
+      @JsonProperty("columnName") String columnName,
+      @JsonProperty("typeName") String typeName
   )
   {
-    Preconditions.checkNotNull(name, "Must have a valid, non-null aggregator name");
-
     this.name = name;
-    this.predicate = predicate;
-  }
-
-  public CountAggregatorFactory(String name)
-  {
-    this(name, null);
+    this.columnName = columnName;
+    this.typeName = typeName;
   }
 
   @Override
   public Aggregator factorize(ColumnSelectorFactory metricFactory)
   {
-    return new CountAggregator(name, ColumnSelectors.toPredicate(predicate, metricFactory));
+    return Aggregators.relayAggregator(metricFactory.makeObjectColumnSelector(columnName));
   }
 
   @Override
   public BufferAggregator factorizeBuffered(ColumnSelectorFactory metricFactory)
   {
-    return new CountBufferAggregator(ColumnSelectors.toPredicate(predicate, metricFactory));
+    throw new UnsupportedOperationException("factorizeBuffered");
   }
 
   @Override
   public Comparator getComparator()
   {
-    return CountAggregator.COMPARATOR;
+    throw new UnsupportedOperationException("getComparator");
   }
 
   @Override
   public Object combine(Object lhs, Object rhs)
   {
-    return CountAggregator.combineValues(lhs, rhs);
+    throw new UnsupportedOperationException("combine");
   }
 
   @Override
   public AggregatorFactory getCombiningFactory()
   {
-    return new LongSumAggregatorFactory(name, name);
+    return new RelayAggregatorFactory(name, name, typeName);
   }
 
   @Override
   public Object deserialize(Object object)
   {
-    return object;
+    throw new UnsupportedOperationException("deserialize");
   }
 
   @Override
@@ -106,75 +97,39 @@ public class CountAggregatorFactory extends AggregatorFactory
   }
 
   @JsonProperty
-  public String getPredicate()
+  public String getColumnName()
   {
-    return predicate;
+    return columnName;
+  }
+
+  @Override
+  @JsonProperty
+  public String getTypeName()
+  {
+    return typeName;
   }
 
   @Override
   public List<String> requiredFields()
   {
-    return ImmutableList.of();
+    return Arrays.asList(columnName);
   }
 
   @Override
   public byte[] getCacheKey()
   {
-    return CACHE_KEY;
-  }
-
-  @Override
-  public String getTypeName()
-  {
-    return "long";
+    throw new UnsupportedOperationException("getCacheKey");
   }
 
   @Override
   public int getMaxIntermediateSize()
   {
-    return Longs.BYTES;
+    return 0;
   }
 
   @Override
   public Object getAggregatorStartValue()
   {
-    return 0;
-  }
-
-  @Override
-  public String toString()
-  {
-    return "CountAggregatorFactory{" +
-           "name='" + name + '\'' +
-           "predicate='" + predicate + '\'' +
-           '}';
-  }
-
-  @Override
-  public boolean equals(Object o)
-  {
-    if (this == o) {
-      return true;
-    }
-    if (o == null || getClass() != o.getClass()) {
-      return false;
-    }
-
-    CountAggregatorFactory that = (CountAggregatorFactory) o;
-
-    if (!(Objects.equals(name, that.name))) {
-      return false;
-    }
-    if (!(Objects.equals(predicate, that.predicate))) {
-      return false;
-    }
-
-    return true;
-  }
-
-  @Override
-  public int hashCode()
-  {
-    return Objects.hash(name, predicate);
+    return null;
   }
 }
