@@ -40,6 +40,7 @@ import org.rosuda.JRI.REXP;
 import org.rosuda.JRI.Rengine;
 
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Formatter;
 import java.util.List;
 import java.util.Map;
@@ -214,6 +215,24 @@ public interface BuiltinFunctions extends Function.Library
     protected ExprEval eval(double x, double y, double z)
     {
       return eval((long) x, (long) y, (long) z);
+    }
+  }
+
+  class Size extends SingleParam
+  {
+    @Override
+    public String name()
+    {
+      return "size";
+    }
+
+    @Override
+    protected ExprEval eval(ExprEval param)
+    {
+      if (param.value() instanceof Collection) {
+        return ExprEval.of(((Collection) param.value()).size());
+      }
+      throw new IllegalArgumentException("parameter is not a collection");
     }
   }
 
