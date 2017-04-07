@@ -20,6 +20,7 @@
 package io.druid.query.groupby;
 
 import com.google.common.base.Preconditions;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.metamx.common.guava.Sequence;
@@ -28,6 +29,7 @@ import io.druid.data.input.MapBasedRow;
 import io.druid.data.input.Row;
 import io.druid.query.FinalizeResultsQueryRunner;
 import io.druid.query.Query;
+import io.druid.query.QueryDataSource;
 import io.druid.query.QueryRunner;
 import io.druid.query.QueryRunnerFactory;
 import io.druid.query.QueryToolChest;
@@ -46,20 +48,42 @@ public class GroupByQueryRunnerTestHelper
 {
   public static <T> Iterable<T> runQuery(QueryRunnerFactory factory, QueryRunner<T> runner, Query<T> query)
   {
-
-    QueryRunner<T> theRunner = toMergeRunner(factory, runner);
+    query = query.withOverriddenContext(ImmutableMap.<String, Object>of("TEST_AS_SORTED", true));
+    QueryRunner<T> theRunner = toMergeRunner(factory, runner, query);
 
     Sequence<T> queryResult = theRunner.run(query, Maps.<String, Object>newHashMap());
     return Sequences.toList(queryResult, Lists.<T>newArrayList());
   }
 
-  public static <T> QueryRunner<T> toMergeRunner(QueryRunnerFactory factory, QueryRunner<T> runner)
+  public static <T> QueryRunner<T> toMergeRunner(
+      QueryRunnerFactory<T, Query<T>> factory,
+      QueryRunner<T> runner,
+      Query<T> query
+  )
   {
-    QueryToolChest toolChest = factory.getToolchest();
-    return new FinalizeResultsQueryRunner<>(
-        toolChest.mergeResults(toolChest.preMergeQueryDecoration(runner)),
-        toolChest
-    );
+    return toMergeRunner(factory, runner, query, false);
+  }
+
+  private static <T> QueryRunner<T> toMergeRunner(
+      QueryRunnerFactory<T, Query<T>> factory,
+      QueryRunner<T> runner,
+      Query<T> query,
+      boolean subQuery
+  )
+  {
+    QueryToolChest<T, Query<T>> toolChest = factory.getToolchest();
+
+    QueryRunner<T> baseRunner;
+    if (query.getDataSource() instanceof QueryDataSource) {
+      Query innerQuery = ((QueryDataSource) query.getDataSource()).getQuery().withOverriddenContext(query.getContext());
+      baseRunner = toolChest.handleSubQuery(query, innerQuery, toMergeRunner(factory, runner, innerQuery, true));
+    } else {
+      baseRunner = toolChest.mergeResults(toolChest.preMergeQueryDecoration(runner));
+    }
+    if (!subQuery) {
+      baseRunner = new FinalizeResultsQueryRunner<>(baseRunner, toolChest);
+    }
+    return baseRunner;
   }
 
   public static Row createExpectedRow(final String timestamp, Object... vals)

@@ -49,6 +49,7 @@ import io.druid.query.PostProcessingOperator;
 import io.druid.query.PostProcessingOperators;
 import io.druid.query.Query;
 import io.druid.query.QueryContextKeys;
+import io.druid.query.QueryDataSource;
 import io.druid.query.QueryInterruptedException;
 import io.druid.query.QueryRunner;
 import io.druid.query.QuerySegmentWalker;
@@ -418,11 +419,25 @@ public class QueryResource
 
   protected Query prepareQuery(Query query) throws Exception
   {
+    return rewriteQuery(query);
+  }
+
+  private Query rewriteQuery(final Query query)
+  {
+    Query rewritten = query;
     if (query instanceof Query.RewritingQuery) {
-      query = ((Query.RewritingQuery) query).rewriteQuery(texasRanger, jsonMapper);
-      log.info("Base query is rewritten to " + query);
+      rewritten = ((Query.RewritingQuery) query).rewriteQuery(texasRanger, jsonMapper);
     }
-    return query;
+    if (query.getDataSource() instanceof QueryDataSource) {
+      Query source = ((QueryDataSource) query.getDataSource()).getQuery();
+      if (source instanceof Query.RewritingQuery) {
+        rewritten = rewritten.withDataSource(new QueryDataSource(rewriteQuery(source)));
+      }
+    }
+    if (query != rewritten) {
+      log.info("Base query is rewritten to %s", rewritten);
+    }
+    return rewritten;
   }
 
   protected class RequestContext

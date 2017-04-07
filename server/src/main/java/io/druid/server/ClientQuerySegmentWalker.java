@@ -42,6 +42,7 @@ import io.druid.query.FluentQueryRunnerBuilder;
 import io.druid.query.PostProcessingOperator;
 import io.druid.query.PostProcessingOperators;
 import io.druid.query.Query;
+import io.druid.query.QueryDataSource;
 import io.druid.query.QueryRunner;
 import io.druid.query.QuerySegmentWalker;
 import io.druid.query.QueryToolChest;
@@ -94,34 +95,42 @@ public class ClientQuerySegmentWalker implements QuerySegmentWalker
   @Override
   public <T> QueryRunner<T> getQueryRunnerForIntervals(Query<T> query, Iterable<Interval> intervals)
   {
-    return makeRunner(query);
+    return makeRunner(query, false);
   }
 
   @Override
   public <T> QueryRunner<T> getQueryRunnerForSegments(Query<T> query, Iterable<SegmentDescriptor> specs)
   {
-    return makeRunner(query);
+    return makeRunner(query, false);
   }
 
   @SuppressWarnings("unchecked")
-  private <T> QueryRunner<T> makeRunner(Query<T> query)
+  private <T> QueryRunner<T> makeRunner(Query<T> query, boolean sourceQuery)
   {
     QueryToolChest<T, Query<T>> toolChest = warehouse.getToolChest(query);
 
-    QueryRunner<T> runner;
-    if (query instanceof UnionAllQuery) {
-      runner = getUnionQueryRunner((UnionAllQuery) query, objectMapper);
-    } else {
-      final PostProcessingOperator<T> postProcessing = PostProcessingOperators.load(query, objectMapper);
-      FluentQueryRunnerBuilder<T> builder = new FluentQueryRunnerBuilder<>(toolChest);
-      runner = builder.create(new RetryQueryRunner<>(baseClient, toolChest, retryConfig, objectMapper))
-                      .applyPreMergeDecoration()
-                      .mergeResults()
-                      .applyPostMergeDecoration()
-                      .emitCPUTimeMetric(emitter)
-                      .postProcess(postProcessing);
+    if (query.getDataSource() instanceof QueryDataSource) {
+      Query innerQuery = ((QueryDataSource)query.getDataSource()).getQuery().withOverriddenContext(query.getContext());
+      return toolChest.handleSubQuery(query, innerQuery, makeRunner(innerQuery, true));
     }
-    return runner;
+
+    if (query instanceof UnionAllQuery) {
+      return getUnionQueryRunner((UnionAllQuery) query, objectMapper);
+    }
+
+    FluentQueryRunnerBuilder<T> builder = new FluentQueryRunnerBuilder<>(toolChest);
+    FluentQueryRunnerBuilder.FluentQueryRunner runner = builder.create(
+        new RetryQueryRunner<>(baseClient, toolChest, retryConfig, objectMapper)
+    );
+
+    runner = runner.applyPreMergeDecoration()
+                   .mergeResults()
+                   .applyPostMergeDecoration();
+    if (!sourceQuery) {
+      runner = runner.applyFinalizeResults()
+                     .emitCPUTimeMetric(emitter);
+    }
+    return runner.postProcess(PostProcessingOperators.load(query, objectMapper));
   }
 
   private <T extends Comparable<T>> QueryRunner<T> getUnionQueryRunner(
@@ -136,7 +145,7 @@ public class ClientQuerySegmentWalker implements QuerySegmentWalker
     final List<Query<T>> ready = toTargetQueries(union, queryId);
     final UnionAllQueryRunner<T> baseRunner;
     if (union.getParallelism() < 1) {
-     // executed when element of sequence is accessed
+     // executes when the first element of the sequence is accessed
      baseRunner = new UnionAllQueryRunner<T>()
       {
         @Override
@@ -157,7 +166,7 @@ public class ClientQuerySegmentWalker implements QuerySegmentWalker
                                 @Override
                                 public Sequence<T> get()
                                 {
-                                  return makeRunner(query).run(query, responseContext);
+                                  return makeRunner(query, false).run(query, responseContext);
                                 }
                               }
                           )
@@ -189,7 +198,7 @@ public class ClientQuerySegmentWalker implements QuerySegmentWalker
                         @Override
                         public Sequence<T> call() throws Exception
                         {
-                          Sequence<T> sequence = makeRunner(query).run(query, responseContext);
+                          Sequence<T> sequence = makeRunner(query, false).run(query, responseContext);
                           return new ResourceClosingSequence<T>(sequence, semaphore);
                         }
 

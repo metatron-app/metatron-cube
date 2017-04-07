@@ -193,4 +193,19 @@ public abstract class QueryToolChest<ResultType, QueryType extends Query<ResultT
   {
     throw new UnsupportedOperationException("toTabularFormat");
   }
+
+  /**
+   *
+   * @param query
+   * @param innerQuery
+   * @param innerQueryRunner
+   */
+  public <I> QueryRunner<ResultType> handleSubQuery(
+      QueryType query,
+      Query<I> innerQuery,
+      QueryRunner<I> innerQueryRunner
+  )
+  {
+    throw new UnsupportedOperationException("handleSourceQuery");
+  }
 }

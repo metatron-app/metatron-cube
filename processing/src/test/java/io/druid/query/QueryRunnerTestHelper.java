@@ -506,7 +506,8 @@ public class QueryRunnerTestHelper
             )
         )
         .mergeResults()
-        .applyPostMergeDecoration();
+        .applyPostMergeDecoration()
+        .applyFinalizeResults();
   }
 
   public static <T> QueryRunner<T> makeFilteringQueryRunner(
@@ -545,7 +546,8 @@ public class QueryRunnerTestHelper
         )
         .applyPreMergeDecoration()
         .mergeResults()
-        .applyPostMergeDecoration();
+        .applyPostMergeDecoration()
+        .applyFinalizeResults();
   }
 
   public static IntervalChunkingQueryRunnerDecorator NoopIntervalChunkingQueryRunnerDecorator()

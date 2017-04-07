@@ -251,7 +251,7 @@ public class BrokerQueryResource extends QueryResource
         query = query.withDataSource(new UnionDataSource(TableDataSource.of(exploded)));
       }
     } else if (dataSource instanceof QueryDataSource) {
-      Query subQuery = rewriteDataSources(((QueryDataSource) query).getQuery());
+      Query subQuery = rewriteDataSources(((QueryDataSource) dataSource).getQuery());
       query = query.withDataSource(new QueryDataSource(subQuery));
     }
     return query;

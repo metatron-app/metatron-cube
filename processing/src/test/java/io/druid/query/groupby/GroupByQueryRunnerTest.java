@@ -52,6 +52,7 @@ import io.druid.query.FinalizeResultsQueryRunner;
 import io.druid.query.Query;
 import io.druid.query.QueryDataSource;
 import io.druid.query.QueryRunner;
+import io.druid.query.QueryRunnerFactory;
 import io.druid.query.QueryRunnerTestHelper;
 import io.druid.query.QueryToolChest;
 import io.druid.query.Result;
@@ -137,7 +138,7 @@ import java.util.concurrent.Executors;
 public class GroupByQueryRunnerTest
 {
   private final QueryRunner<Row> runner;
-  private GroupByQueryRunnerFactory factory;
+  private QueryRunnerFactory<Row, Query<Row>> factory;
   private Supplier<GroupByQueryConfig> configSupplier;
 
   @Rule
@@ -229,7 +230,7 @@ public class GroupByQueryRunnerTest
     );
   }
 
-  public GroupByQueryRunnerTest(GroupByQueryRunnerFactory factory, QueryRunner runner)
+  public GroupByQueryRunnerTest(QueryRunnerFactory<Row, Query<Row>> factory, QueryRunner runner)
   {
     this.factory = factory;
     this.runner = factory.mergeRunners(MoreExecutors.sameThreadExecutor(), ImmutableList.<QueryRunner<Row>>of(runner),
@@ -281,7 +282,7 @@ public class GroupByQueryRunnerTest
 
     query = query.withOutputColumns(Arrays.asList("alias", "rows"));
     QueryRunner<Row> decorated = factory.getToolchest().finalQueryDecoration(
-        GroupByQueryRunnerTestHelper.toMergeRunner(factory, runner)
+        GroupByQueryRunnerTestHelper.toMergeRunner(factory, runner, query)
     );
 
     expectedResults = GroupByQueryRunnerTestHelper.createExpectedRows(
@@ -3144,6 +3145,9 @@ public class GroupByQueryRunnerTest
 
     // Subqueries are handled by the ToolChest
     Iterable<Row> results = GroupByQueryRunnerTestHelper.runQuery(factory, runner, query);
+    for (Object x : results) {
+      System.out.println(x);
+    }
     TestHelper.assertExpectedObjects(expectedResults, results, "");
 
     expectedResults = Arrays.asList(

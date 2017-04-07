@@ -124,10 +124,8 @@ public class GroupByQueryRunnerFactory implements QueryRunnerFactory<Row, GroupB
     if (segments.size() < PRE_OPTIMIZE_THRESHOLD) {
       return null;
     }
-    for (DimensionSpec dimension : query.getDimensions()) {
-      if (!(dimension instanceof DefaultDimensionSpec)) {
-        return null;
-      }
+    if (!DefaultDimensionSpec.isAllDefault(query.getDimensions())) {
+      return null;
     }
 
     final long start = System.currentTimeMillis();

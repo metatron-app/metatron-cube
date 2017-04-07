@@ -120,6 +120,19 @@ public class GuavaUtils
     return casted;
   }
 
+  public static <X, Y> Function<X, Y> caster()
+  {
+    return new Function<X, Y>()
+    {
+      @Override
+      @SuppressWarnings("unchecked")
+      public Y apply(X input)
+      {
+        return (Y)input;
+      }
+    };
+  }
+
   public static <A, B> List<Pair<A, B>> zip(List<A> as, List<B> bs)
   {
     Preconditions.checkArgument(as.size() == bs.size());

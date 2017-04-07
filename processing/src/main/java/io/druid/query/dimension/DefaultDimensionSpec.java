@@ -67,6 +67,16 @@ public class DefaultDimensionSpec implements DimensionSpec
     );
   }
 
+  public static boolean isAllDefault(List<DimensionSpec> dimensionSpecs)
+  {
+    for (DimensionSpec dimensionSpec : dimensionSpecs) {
+      if (!(dimensionSpec instanceof DefaultDimensionSpec)) {
+        return false;
+      }
+    }
+    return true;
+  }
+
   private static final byte CACHE_TYPE_ID = 0x0;
   private final String dimension;
   private final String outputName;

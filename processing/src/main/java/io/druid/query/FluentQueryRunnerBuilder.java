@@ -64,14 +64,12 @@ public class FluentQueryRunnerBuilder<T>
 
     public FluentQueryRunner applyPostMergeDecoration()
     {
-      return from(
-          new FinalizeResultsQueryRunner<T>(
-              toolChest.postMergeQueryDecoration(
-                  baseRunner
-              ),
-              toolChest
-          )
-      );
+      return from(toolChest.postMergeQueryDecoration(baseRunner));
+    }
+
+    public FluentQueryRunner applyFinalizeResults()
+    {
+      return from(new FinalizeResultsQueryRunner<T>(baseRunner, toolChest));
     }
 
     public FluentQueryRunner applyPreMergeDecoration()

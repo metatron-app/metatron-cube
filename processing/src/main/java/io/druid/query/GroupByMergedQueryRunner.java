@@ -94,7 +94,7 @@ public class GroupByMergedQueryRunner<T> implements QueryRunner<T>
         configSupplier.get().isSingleThreaded()
     );
 
-    final Pair<IncrementalIndex, Accumulator<IncrementalIndex, T>> indexAccumulatorPair = GroupByQueryHelper.createIndexAccumulatorPair(
+    final IncrementalIndex<?> incrementalIndex = GroupByQueryHelper.createMergeIndex(
         query,
         configSupplier.get(),
         bufferPool,
@@ -130,7 +130,7 @@ public class GroupByMergedQueryRunner<T> implements QueryRunner<T>
                               if (bySegment) {
                                 sequence.accumulate(bySegmentAccumulatorPair.lhs, bySegmentAccumulatorPair.rhs);
                               } else {
-                                sequence.accumulate(indexAccumulatorPair.lhs, indexAccumulatorPair.rhs);
+                                sequence.accumulate(incrementalIndex, GroupByQueryHelper.<T>newIndexAccumulator());
                               }
                               log.info("accumulated in %,d msec", (System.currentTimeMillis() - start));
                               return null;
@@ -147,7 +147,7 @@ public class GroupByMergedQueryRunner<T> implements QueryRunner<T>
                     );
 
                     if (isSingleThreaded) {
-                      waitForFutureCompletion(query, future, indexAccumulatorPair.lhs);
+                      waitForFutureCompletion(query, future, incrementalIndex);
                     }
 
                     return future;
@@ -158,7 +158,7 @@ public class GroupByMergedQueryRunner<T> implements QueryRunner<T>
     );
 
     if (!isSingleThreaded) {
-      waitForFutureCompletion(query, futures, indexAccumulatorPair.lhs);
+      waitForFutureCompletion(query, futures, incrementalIndex);
     }
 
     if (bySegment) {
@@ -168,7 +168,7 @@ public class GroupByMergedQueryRunner<T> implements QueryRunner<T>
     return new ResourceClosingSequence<T>(
         Sequences.simple(
             Iterables.<Row, T>transform(
-                indexAccumulatorPair.lhs.iterable(true),
+                incrementalIndex.iterable(true),
                 new Function<Row, T>()
                 {
                   @Override
@@ -178,7 +178,7 @@ public class GroupByMergedQueryRunner<T> implements QueryRunner<T>
                   }
                 }
             )
-        ), indexAccumulatorPair.lhs
+        ), incrementalIndex
     );
   }
 

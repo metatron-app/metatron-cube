@@ -27,7 +27,8 @@ import com.metamx.common.Pair;
 import com.metamx.common.guava.Accumulator;
 import io.druid.collections.StupidPool;
 import io.druid.data.input.Row;
-import io.druid.granularity.QueryGranularity;
+import io.druid.granularity.QueryGranularities;
+import io.druid.query.Query;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.dimension.DimensionSpec;
 import io.druid.segment.incremental.IncrementalIndex;
@@ -47,7 +48,7 @@ public class GroupByQueryHelper
   private static final String CTX_KEY_MAX_RESULTS = "maxResults";
   public static final String CTX_KEY_FUDGE_TIMESTAMP = "fudgeTimestamp";
 
-  public static <T> Pair<IncrementalIndex, Accumulator<IncrementalIndex, T>> createIndexAccumulatorPair(
+  public static IncrementalIndex createMergeIndex(
       final GroupByQuery query,
       final GroupByQueryConfig config,
       final StupidPool<ByteBuffer> bufferPool,
@@ -55,10 +56,29 @@ public class GroupByQueryHelper
       final Future<Object> optimizer
   )
   {
-    final QueryGranularity gran = query.getGranularity();
-
-    final List<AggregatorFactory> aggs = Lists.transform(
+    return createMergeIndex(
+        query,
+        query.getDimensions(),
         query.getAggregatorSpecs(),
+        config.getMaxResults(),
+        bufferPool,
+        sortFacts,
+        optimizer
+    );
+  }
+
+  public static IncrementalIndex createMergeIndex(
+      final Query<?> query,
+      final List<DimensionSpec> dimensions,
+      final List<AggregatorFactory> aggregators,
+      final int maxResult,
+      final StupidPool<ByteBuffer> bufferPool,
+      final boolean sortFacts,
+      final Future<Object> optimizer
+  )
+  {
+    final List<AggregatorFactory> aggs = Lists.transform(
+        aggregators,
         new Function<AggregatorFactory, AggregatorFactory>()
         {
           @Override
@@ -72,14 +92,14 @@ public class GroupByQueryHelper
     // use granularity truncated min timestamp since incoming truncated timestamps may precede timeStart
     IncrementalIndexSchema schema = new IncrementalIndexSchema.Builder()
         .withMinTimestamp(Long.MIN_VALUE)
-        .withQueryGranularity(gran)
+        .withQueryGranularity(QueryGranularities.ALL)
         .withMetrics(aggs.toArray(new AggregatorFactory[aggs.size()]))
         .withGroupBy()
         .build();
 
     int maxRowCount = Math.min(
-        query.getContextValue(CTX_KEY_MAX_RESULTS, config.getMaxResults()),
-        config.getMaxResults()
+        query.getContextValue(CTX_KEY_MAX_RESULTS, maxResult),
+        maxResult
     );
 
     final IncrementalIndex index;
@@ -91,20 +111,23 @@ public class GroupByQueryHelper
 
     if (optimizer != null) {
       index.initialize((Map<String, String[]>) Futures.getUnchecked(optimizer));
-    } else {
-      index.initialize(Lists.transform(query.getDimensions(), DimensionSpec.OUTPUT_NAME));
+    } else if (dimensions != null) {
+      index.initialize(Lists.transform(dimensions, DimensionSpec.OUTPUT_NAME));
     }
+    return index;
+  }
 
-    Accumulator<IncrementalIndex, T> accumulator = new Accumulator<IncrementalIndex, T>()
+  public static <T> Accumulator<IncrementalIndex, T> newIndexAccumulator()
+  {
+    return new Accumulator<IncrementalIndex, T>()
     {
       @Override
       public IncrementalIndex accumulate(final IncrementalIndex accumulated, final T in)
       {
-        accumulated.add((Row)in);
+        accumulated.add((Row) in);
         return accumulated;
       }
     };
-    return new Pair<>(index, accumulator);
   }
 
   public static <T> Pair<Queue, Accumulator<Queue, T>> createBySegmentAccumulatorPair()

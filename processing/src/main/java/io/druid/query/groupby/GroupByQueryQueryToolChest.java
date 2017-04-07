@@ -32,33 +32,29 @@ import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
-import com.google.common.collect.Ordering;
 import com.google.inject.Inject;
 import com.metamx.common.ISE;
-import com.metamx.common.Pair;
-import com.metamx.common.guava.Accumulator;
 import com.metamx.common.guava.ResourceClosingSequence;
 import com.metamx.common.guava.Sequence;
 import com.metamx.common.guava.Sequences;
-import com.metamx.common.guava.nary.BinaryFn;
 import com.metamx.emitter.service.ServiceMetricEvent;
 import io.druid.collections.StupidPool;
+import io.druid.common.guava.CombiningSequence;
 import io.druid.data.input.MapBasedRow;
 import io.druid.data.input.Row;
 import io.druid.granularity.QueryGranularity;
 import io.druid.guice.annotations.Global;
 import io.druid.query.BaseQuery;
 import io.druid.query.CacheStrategy;
-import io.druid.query.DataSource;
 import io.druid.query.DruidMetrics;
 import io.druid.query.IntervalChunkingQueryRunnerDecorator;
 import io.druid.query.LateralViewSpec;
+import io.druid.query.Queries;
 import io.druid.query.Query;
 import io.druid.query.QueryCacheHelper;
-import io.druid.query.QueryDataSource;
+import io.druid.query.QueryContextKeys;
 import io.druid.query.QueryRunner;
 import io.druid.query.QueryToolChest;
-import io.druid.query.ResultMergeQueryRunner;
 import io.druid.query.SubqueryQueryRunner;
 import io.druid.query.TabularFormat;
 import io.druid.query.aggregation.AggregatorFactory;
@@ -66,7 +62,6 @@ import io.druid.query.aggregation.MetricManipulationFn;
 import io.druid.query.aggregation.MetricManipulatorFns;
 import io.druid.query.aggregation.PostAggregator;
 import io.druid.query.aggregation.PostAggregators;
-import io.druid.query.aggregation.RelayAggregatorFactory;
 import io.druid.query.dimension.DefaultDimensionSpec;
 import io.druid.query.dimension.DimensionSpec;
 import io.druid.query.extraction.ExtractionFn;
@@ -99,7 +94,6 @@ public class GroupByQueryQueryToolChest extends QueryToolChest<Row, GroupByQuery
   private static final TypeReference<Row> TYPE_REFERENCE = new TypeReference<Row>()
   {
   };
-  private static final String GROUP_BY_MERGE_KEY = "groupByMerge";
 
   private final Supplier<GroupByQueryConfig> configSupplier;
 
@@ -137,7 +131,7 @@ public class GroupByQueryQueryToolChest extends QueryToolChest<Row, GroupByQuery
           return runner.run(query, responseContext);
         }
 
-        if (query.getContextBoolean(GROUP_BY_MERGE_KEY, true)) {
+        if (query.getContextBoolean(QueryContextKeys.MERGE_GROUP_BY, true)) {
           return mergeGroupByResults(
               (GroupByQuery) query,
               runner,
@@ -151,160 +145,138 @@ public class GroupByQueryQueryToolChest extends QueryToolChest<Row, GroupByQuery
 
   private Sequence<Row> mergeGroupByResults(
       final GroupByQuery query,
-      QueryRunner<Row> runner,
-      Map<String, Object> context
+      final QueryRunner<Row> runner,
+      final Map<String, Object> context
   )
   {
-    // If there's a subquery, merge subquery results and then apply the aggregator
+    final Long fudgeTimestamp = GroupByQueryEngine.getUniversalTimestamp(query);
+    final GroupByQuery actualQuery = removePostActions(query)
+        .withOverriddenContext(
+            ImmutableMap.<String, Object>of(
+                GroupByQueryHelper.CTX_KEY_FUDGE_TIMESTAMP,
+                fudgeTimestamp == null ? "" : String.valueOf(fudgeTimestamp)
+            )
+        );
+    return postProcessing(query, mergeSequence(actualQuery, runner.run(actualQuery, context)));
+  }
 
-    final DataSource dataSource = query.getDataSource();
+  private GroupByQuery removePostActions(GroupByQuery query)
+  {
+    return new GroupByQuery(
+        query.getDataSource(),
+        query.getQuerySegmentSpec(),
+        query.getDimFilter(),
+        query.getGranularity(),
+        query.getDimensions(),
+        query.getVirtualColumns(),
+        query.getAggregatorSpecs(),
+        // Don't do post aggs until the end of this method.
+        ImmutableList.<PostAggregator>of(),
+        // Don't do "having" clause until the end of this method.
+        null,
+        null,
+        null,
+        null,
+        query.getContext()
+    ).withOverriddenContext(
+        ImmutableMap.<String, Object>of(
+            QueryContextKeys.FINALIZE, false,
+            QueryContextKeys.MERGE_GROUP_BY, false
+        )
+    );
+  }
 
-    if (dataSource instanceof QueryDataSource) {
-      GroupByQuery subquery;
-      try {
-        subquery = (GroupByQuery) ((QueryDataSource) dataSource).getQuery().withOverriddenContext(query.getContext());
-      }
-      catch (ClassCastException e) {
-        throw new UnsupportedOperationException("Subqueries must be of type 'group by'");
-      }
+  private CombiningSequence<Row> mergeSequence(GroupByQuery outerQuery, Sequence<Row> outerSequence)
+  {
+    return CombiningSequence.create(
+        outerSequence,
+        outerQuery.getRowOrdering(true),
+        new GroupByBinaryFnV2(outerQuery)
+    );
+  }
 
-      final Sequence<Row> subqueryResult = mergeGroupByResults(subquery, runner, context);
+  @Override
+  public <I> QueryRunner<Row> handleSubQuery(
+      final GroupByQuery query,
+      final Query<I> subQuery,
+      final QueryRunner<I> subQueryRunner
+  )
+  {
+    final List<DimensionSpec> dimensions = Queries.getRelayDimensions(subQuery);
+    final List<AggregatorFactory> aggregators = Queries.getRelayMetrics(subQuery);
 
-      final Map<String, String> schema = Maps.newHashMap();
-      for (AggregatorFactory aggregatorFactory : subquery.getAggregatorSpecs()) {
-        schema.put(aggregatorFactory.getName(), aggregatorFactory.getTypeName());
-      }
-      for (PostAggregator postAggregator : subquery.getPostAggregatorSpecs()) {
-        schema.put(postAggregator.getName(), "object");
-      }
-
-      final List<AggregatorFactory> relay = Lists.newArrayList();
-      for (Map.Entry<String, String> entry : schema.entrySet()) {
-        relay.add(new RelayAggregatorFactory(entry.getKey(), entry.getKey(), entry.getValue()));
-      }
-      // We need the inner incremental index to have all the columns required by the outer query
-      final GroupByQuery innerQuery = new GroupByQuery.Builder(subquery)
-          .setAggregatorSpecs(Lists.newArrayList(relay))
-          .setInterval(subquery.getIntervals())
-          .setPostAggregatorSpecs(Lists.<PostAggregator>newArrayList())
-          .build();
-
-      final GroupByQuery outerQuery = new GroupByQuery.Builder(query)
-          .setLimitSpec(query.getLimitSpec().merge(subquery.getLimitSpec()))
-          .build();
-
-      final IncrementalIndex innerQueryResultIndex = makeIncrementalIndex(
-          innerQuery,
-          subqueryResult,
-          true
-      );
-
-      //Outer query might have multiple intervals, but they are expected to be non-overlapping and sorted which
-      //is ensured by QuerySegmentSpec.
-      //GroupByQueryEngine can only process one interval at a time, so we need to call it once per interval
-      //and concatenate the results.
-      final IncrementalIndex outerQueryResultIndex = makeIncrementalIndex(
-          outerQuery,
-          Sequences.concat(
-              Sequences.map(
-                  Sequences.simple(outerQuery.getIntervals()),
-                  new Function<Interval, Sequence<Row>>()
-                  {
-                    @Override
-                    public Sequence<Row> apply(Interval interval)
-                    {
-                      return engine.process(
-                          outerQuery.withQuerySegmentSpec(
-                              new MultipleIntervalSegmentSpec(ImmutableList.of(interval))
-                          ),
-                          new IncrementalIndexStorageAdapter(innerQueryResultIndex)
-                      );
-                    }
-                  }
-              )
-          ),
-          true  // technically, it's not needed but tests wants it to be sorted on dimension
-      );
-
-      innerQueryResultIndex.close();
-
-      return new ResourceClosingSequence<>(
-          outerQuery.applyLimit(postAggregate(query, outerQueryResultIndex), configSupplier.get()),
-          outerQueryResultIndex
-      );
-
-    } else {
-      final Long fudgeTimestamp = GroupByQueryEngine.getUniversalTimestamp(query);
-
-      final ResultMergeQueryRunner<Row> mergingQueryRunner = new ResultMergeQueryRunner<Row>(runner)
+    return new QueryRunner<Row>()
+    {
+      @Override
+      public Sequence<Row> run(Query<Row> query, Map<String, Object> responseContext)
       {
-        @Override
-        protected Ordering<Row> makeOrdering(Query<Row> queryParam)
-        {
-          return ((GroupByQuery) queryParam).getRowOrdering(true);
-        }
+        final Sequence<Row> innerSequence = Sequences.map(
+            subQueryRunner.run(subQuery, responseContext), Queries.getRowConverter(subQuery));
+        final IncrementalIndex innerQueryResultIndex = innerSequence.accumulate(
+            makeIncrementalIndex(query, dimensions, aggregators, true),
+            GroupByQueryHelper.<Row>newIndexAccumulator()
+        );
 
-        @Override
-        protected BinaryFn<Row, Row, Row> createMergeFn(Query<Row> queryParam)
-        {
-          return new GroupByBinaryFnV2((GroupByQuery) queryParam);
-        }
-      };
+        final GroupByQuery outerQuery = (GroupByQuery) query;
+        final Sequence<Row> outerSequence = Sequences.concat(
+            Sequences.map(
+                Sequences.simple(outerQuery.getIntervals()),
+                new Function<Interval, Sequence<Row>>()
+                {
+                  @Override
+                  public Sequence<Row> apply(Interval interval)
+                  {
+                    return engine.process(
+                        outerQuery.withQuerySegmentSpec(
+                            new MultipleIntervalSegmentSpec(ImmutableList.of(interval))
+                        ),
+                        new IncrementalIndexStorageAdapter(innerQueryResultIndex)
+                    );
+                  }
+                }
+            )
+        );
+        final IncrementalIndex<?> outerQueryResultIndex =
+            outerSequence.accumulate(
+                makeIncrementalIndex(outerQuery, true),
+                GroupByQueryHelper.<Row>newIndexAccumulator()
+            );
 
-      Sequence<Row> mergedSequence = mergingQueryRunner.run(
-          new GroupByQuery(
-              query.getDataSource(),
-              query.getQuerySegmentSpec(),
-              query.getDimFilter(),
-              query.getGranularity(),
-              query.getDimensions(),
-              query.getVirtualColumns(),
-              query.getAggregatorSpecs(),
-              // Don't do post aggs until the end of this method.
-              ImmutableList.<PostAggregator>of(),
-              // Don't do "having" clause until the end of this method.
-              null,
-              null,
-              null,
-              null,
-              query.getContext()
-          ).withOverriddenContext(
-              ImmutableMap.<String, Object>of(
-                  "finalize", false,
-                  GroupByQueryHelper.CTX_KEY_FUDGE_TIMESTAMP,
-                  fudgeTimestamp == null ? "" : String.valueOf(fudgeTimestamp),
-                  GROUP_BY_MERGE_KEY, false
-              )
-          ),
-          context
-      );
+        innerQueryResultIndex.close();
 
-      final List<PostAggregator> postAggregators = PostAggregators.decorate(
-          query.getPostAggregatorSpecs(),
-          query.getAggregatorSpecs()
-      );
-      if (!postAggregators.isEmpty()) {
-        mergedSequence = Sequences.map(
+        return new ResourceClosingSequence<>(
+            outerQuery.applyLimit(postAggregate(outerQuery, outerQueryResultIndex), configSupplier.get()),
+            outerQueryResultIndex
+        );
+      }
+    };
+  }
+
+  private Sequence<Row> postProcessing(GroupByQuery query, Sequence<Row> mergedSequence)
+  {
+    final QueryGranularity granularity = query.getGranularity();
+    final List<PostAggregator> postAggregators = PostAggregators.decorate(
+        query.getPostAggregatorSpecs(),
+        query.getAggregatorSpecs()
+    );
+    return query.applyLimit(
+        Sequences.map(
             mergedSequence,
             new Function<Row, Row>()
             {
               @Override
               public Row apply(final Row row)
               {
-                // Maybe apply postAggregators.
                 final Map<String, Object> newMap = Maps.newLinkedHashMap(((MapBasedRow) row).getEvent());
 
                 for (PostAggregator postAggregator : postAggregators) {
                   newMap.put(postAggregator.getName(), postAggregator.compute(newMap));
                 }
-
-                return new MapBasedRow(row.getTimestamp(), newMap);
+                return new MapBasedRow(granularity.toDateTime(row.getTimestampFromEpoch()), newMap);
               }
             }
-        );
-      }
-      return query.applyLimit(mergedSequence, configSupplier.get());
-    }
+        ), configSupplier.get()
+    );
   }
 
   private Sequence<Row> postAggregate(final GroupByQuery query, IncrementalIndex<?> index)
@@ -327,18 +299,34 @@ public class GroupByQueryQueryToolChest extends QueryToolChest<Row, GroupByQuery
     );
   }
 
-  private IncrementalIndex makeIncrementalIndex(GroupByQuery query, Sequence<Row> rows, boolean sortFacts)
+  private IncrementalIndex makeIncrementalIndex(
+      Query query,
+      List<DimensionSpec> dimensions,
+      List<AggregatorFactory> aggregators,
+      boolean sortFacts
+  )
   {
-    final GroupByQueryConfig config = configSupplier.get();
-    Pair<IncrementalIndex, Accumulator<IncrementalIndex, Row>> indexAccumulatorPair = GroupByQueryHelper.createIndexAccumulatorPair(
+    return GroupByQueryHelper.createMergeIndex(
         query,
-        config,
+        dimensions,
+        aggregators,
+        configSupplier.get().getMaxResults(),
         bufferPool,
         sortFacts,
         null
     );
+  }
 
-    return rows.accumulate(indexAccumulatorPair.lhs, indexAccumulatorPair.rhs);
+  private IncrementalIndex makeIncrementalIndex(
+      GroupByQuery query, boolean sortFacts)
+  {
+    return GroupByQueryHelper.createMergeIndex(
+        query,
+        configSupplier.get(),
+        bufferPool,
+        sortFacts,
+        null
+    );
   }
 
   @Override
