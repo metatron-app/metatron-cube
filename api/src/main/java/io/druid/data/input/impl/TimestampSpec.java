@@ -23,20 +23,22 @@ import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.google.common.base.Function;
 import com.google.common.base.Functions;
-import com.google.common.base.Strings;
+import com.google.common.collect.ImmutableSet;
 import com.google.common.primitives.Longs;
 import com.google.inject.Inject;
 import com.metamx.common.logger.Logger;
-import com.metamx.common.parsers.ParserUtils;
 import com.metamx.common.parsers.TimestampParser;
 import org.joda.time.DateTime;
+import org.joda.time.DateTimeZone;
 import org.joda.time.format.DateTimeFormat;
 import org.joda.time.format.DateTimeFormatter;
+import org.joda.time.format.ISODateTimeFormat;
 
 import java.util.Arrays;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Properties;
+import java.util.Set;
 
 /**
  */
@@ -67,6 +69,7 @@ public class TimestampSpec
 
   private final String missingValueString;
   private final String invalidValueString;
+  private final DateTimeZone timeZone;
 
   private final boolean removeTimestampColumn;
   private final boolean replaceWrongColumn;
@@ -75,7 +78,7 @@ public class TimestampSpec
   private final ParseCtx parseCtx = new ParseCtx();
 
   @Inject
-  private static Properties properties;
+  static Properties properties;
 
   @JsonCreator
   public TimestampSpec(
@@ -85,7 +88,8 @@ public class TimestampSpec
       @JsonProperty("missingValue") DateTime missingValue,
       @JsonProperty("invalidValue") DateTime invalidValue,
       @JsonProperty("replaceWrongColumn") boolean replaceWrongColumn,
-      @JsonProperty("removeTimestampColumn") boolean removeTimestampColumn
+      @JsonProperty("removeTimestampColumn") boolean removeTimestampColumn,
+      @JsonProperty("timeZone") String timeZone
   )
   {
     this.timestampColumn = (timestampColumn == null) ? DEFAULT_COLUMN : timestampColumn;
@@ -99,11 +103,24 @@ public class TimestampSpec
     this.replaceWrongColumn = replaceWrongColumn && (missingValueString != null || invalidValueString != null);
     this.removeTimestampColumn = removeTimestampColumn;
     this.timestampConverter = createTimestampParser(timestampFormat);
+    this.timeZone = timeZone == null ? null : DateTimeZone.forID(timeZone);
+  }
+
+  public TimestampSpec(
+      String timestampColumn,
+      String format,
+      DateTime missingValue,
+      DateTime invalidValue,
+      boolean replaceWrongColumn,
+      boolean removeTimestampColumn
+  )
+  {
+    this(timestampColumn, format, missingValue, invalidValue, replaceWrongColumn, removeTimestampColumn, null);
   }
 
   public TimestampSpec(String timestampColumn, String format, DateTime missingValue)
   {
-    this(timestampColumn, format, missingValue, null, false, false);
+    this(timestampColumn, format, missingValue, null, false, false, null);
   }
 
   private <T> Function<T, DateTime> wrapInvalidHandling(final Function<T, DateTime> converter)
@@ -139,25 +156,21 @@ public class TimestampSpec
     };
   }
 
-  private Function<Object, DateTime> createObjectTimestampParser(String format)
+  private Function<Object, DateTime> createObjectTimestampParser(final String format)
   {
-    if (!"adaptive".equalsIgnoreCase(format)) {
-      return wrapInvalidHandling(TimestampParser.createObjectTimestampParser(format));
-    }
     final Function<String, Function<String, DateTime>> supplier = new Function<String, Function<String, DateTime>>()
     {
       @Override
       public Function<String, DateTime> apply(String input)
       {
-        String property = properties.getProperty("adaptive.timestamp.format.list");
-        if (property != null && property.startsWith("[") && property.endsWith("]")) {
-          property = property.substring(1, property.length() - 1);
+        String property = format;
+        if (format.equals("adaptive") && properties != null) {
+          property = properties.getProperty("adaptive.timestamp.format.list", "").trim();
+          if (property.startsWith("[") && property.endsWith("]")) {
+            property = property.substring(1, property.length() - 1).trim();
+          }
         }
-        if (!Strings.isNullOrEmpty(property)) {
-          return findFormat(input, property.split(","));
-        } else {
-          return findFormat(input);
-        }
+        return findFormat(stripQuotes(input), property.split(","));
       }
     };
     final Function<Number, DateTime> numericFunc = wrapInvalidHandling(
@@ -182,42 +195,47 @@ public class TimestampSpec
     };
   }
 
-  private Function<String, DateTime> findFormat(String input, String... formats)
+  // removed "iso", which does not support timezone configuration
+  private static final Set<String> BUILT_IN = ImmutableSet.of("auto", "posix", "millis", "nano", "ruby");
+
+  private Function<String, DateTime> findFormat(String input, String... dateFormats)
   {
-    log.info("finding format with candidates.. " + Arrays.toString(formats));
-    String strip = ParserUtils.stripQuotes(input);
-    for (String knownFormat : formats) {
-      final DateTimeFormatter formatter = DateTimeFormat.forPattern(ParserUtils.stripQuotes(knownFormat.trim()));
+    DateTimeFormatter found = null;
+    log.info("finding format with candidates.. " + Arrays.toString(dateFormats));
+    for (String dateFormat : dateFormats) {
+      if (BUILT_IN.contains(dateFormat)) {
+        return TimestampParser.createTimestampParser(dateFormat);
+      }
+      DateTimeFormatter formatter;
       try {
-        DateTime t = formatter.parseDateTime(strip);
-        log.info("applied '" + knownFormat + "' format to " + input + " and acquired " + t);
-        return new Function<String, DateTime>()
-        {
-          @Override
-          public DateTime apply(String input)
-          {
-            return formatter.parseDateTime(ParserUtils.stripQuotes(input));
-          }
-        };
+        formatter = DateTimeFormat.forPattern(stripQuotes(dateFormat));
       }
       catch (Exception e) {
-        // failed.. try next
+        log.info("Invalid format %s", dateFormat);
+        continue;
+      }
+      found = isApplicable(input, formatter);
+      if (found != null) {
+        log.info("using format '%s'", dateFormat);
+        break;
       }
     }
-    try {
-      DateTime t = new DateTime(strip);
-      log.info("applied iso format to " + input + " and acquired " + t);
+    if (found == null) {
+      found = isApplicable(input, ISODateTimeFormat.dateTimeParser());
+      if (found != null) {
+        log.info("using iso format");
+      }
+    }
+    if (found != null) {
+      final DateTimeFormatter formatter = found;
       return new Function<String, DateTime>()
       {
         @Override
         public DateTime apply(String input)
         {
-          return new DateTime(ParserUtils.stripQuotes(input));
+          return formatter.parseDateTime(stripQuotes(input));
         }
       };
-    }
-    catch (Exception e) {
-      // ignore.. not iso
     }
     if (isStringLong(input)) {
       Function<String, DateTime> function =
@@ -231,8 +249,32 @@ public class TimestampSpec
         // ignore.. not timestamp
       }
     }
-    log.info("failed to find appropriate format.");
+    log.info("failed to find appropriate format in list.");
     return TimestampParser.createTimestampParser("auto");
+  }
+
+  private String stripQuotes(String input)
+  {
+    input = input.trim();
+    if (input.length() > 0 && input.charAt(0) == '\"' && input.charAt(input.length() - 1) == '\"') {
+      input = input.substring(1, input.length() - 1).trim();
+    }
+    return input;
+  }
+
+  private DateTimeFormatter isApplicable(String value, DateTimeFormatter formatter)
+  {
+    if (timeZone != null) {
+      formatter = formatter.withZone(timeZone);
+    }
+    try {
+      formatter.parseDateTime(value);
+      return formatter;
+    }
+    catch (Exception e) {
+      // failed.. try next
+    }
+    return null;
   }
 
   private static boolean isStringLong(String input)
@@ -273,6 +315,18 @@ public class TimestampSpec
   public DateTime getInvalidValue()
   {
     return invalidValue;
+  }
+
+  @JsonProperty("replaceWrongColumn")
+  public boolean isReplaceWrongColumn()
+  {
+    return replaceWrongColumn;
+  }
+
+  @JsonProperty("timeZone")
+  public String getTimeZone()
+  {
+    return timeZone == null ? null : timeZone.getID();
   }
 
   public DateTime extractTimestamp(Map<String, Object> input)
@@ -332,6 +386,12 @@ public class TimestampSpec
     if (!Objects.equals(invalidValue, that.invalidValue)) {
       return false;
     }
+    if (!Objects.equals(timeZone, that.timeZone)) {
+      return false;
+    }
+    if (!Objects.equals(replaceWrongColumn, that.replaceWrongColumn)) {
+      return false;
+    }
     return true;
   }
 
@@ -342,11 +402,8 @@ public class TimestampSpec
     result = 31 * result + timestampFormat.hashCode();
     result = 31 * result + (missingValue != null ? missingValue.hashCode() : 0);
     result = 31 * result + (invalidValue != null ? invalidValue.hashCode() : 0);
+    result = 31 * result + (timeZone != null ? timeZone.hashCode() : 0);
+    result = 31 * result + (replaceWrongColumn ? 1 : 0);
     return result;
-  }
-
-  public static void main(String[] args)
-  {
-    System.out.println("[TimestampSpec/main] " + new DateTime("2015-09-12T00:46:58.771Z"));
   }
 }

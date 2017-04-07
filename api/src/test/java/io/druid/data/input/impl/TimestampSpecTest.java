@@ -69,6 +69,13 @@ public class TimestampSpecTest
       DateTime expectedDateTime = ISODateTimeFormat.dateHourMinuteSecond().parseDateTime(date);
       Assert.assertEquals(expectedDateTime, dateTime);
     }
+
+    spec = new TimestampSpec("TIMEstamp", DATE_FORMAT, null, null, false, false, "Asia/Saigon");
+    for (int i = 0; i < dates.length; ++i) {
+      String date = dates[i];
+      DateTime dateTime = spec.extractTimestamp(ImmutableMap.<String, Object>of("TIMEstamp", date));
+      Assert.assertTrue(dateTime.toString().endsWith("+07:00"));
+    }
   }
 
   @Test
@@ -76,8 +83,8 @@ public class TimestampSpecTest
   {
     DateTime missing = new DateTime(9998);
     DateTime invalid = new DateTime(9999);
-    TimestampSpec spec = new TimestampSpec("TIMEstamp", "yyyy-MM-dd", missing, invalid, true, false);
-    Map<String, Object> invalidRow = Maps.newHashMap(ImmutableMap.<String, Object>of("TIMEstamp", "2014-03"));
+    TimestampSpec spec = new TimestampSpec("TIMEstamp", "yyyy-MM-dd", missing, invalid, true, false, null);
+    Map<String, Object> invalidRow = Maps.newHashMap(ImmutableMap.<String, Object>of("TIMEstamp", "2014-03-XY"));
     Map<String, Object> missingRow = Maps.newHashMap();
     Assert.assertEquals(invalid, spec.extractTimestamp(invalidRow));
     Assert.assertEquals(missing, spec.extractTimestamp(missingRow));
