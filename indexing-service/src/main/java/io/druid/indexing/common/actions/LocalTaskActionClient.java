@@ -19,26 +19,33 @@
 
 package io.druid.indexing.common.actions;
 
+import com.google.common.primitives.Longs;
 import com.metamx.common.ISE;
 import com.metamx.emitter.EmittingLogger;
+import com.metamx.emitter.core.Event;
 import io.druid.indexing.common.task.Task;
+import io.druid.indexing.overlord.TaskActions;
 import io.druid.indexing.overlord.TaskStorage;
+import io.druid.server.log.EventForwarder;
 
 import java.io.IOException;
+import java.util.Objects;
 
 public class LocalTaskActionClient implements TaskActionClient
 {
   private final Task task;
   private final TaskStorage storage;
   private final TaskActionToolbox toolbox;
+  private final EventForwarder forwarder;
 
   private static final EmittingLogger log = new EmittingLogger(LocalTaskActionClient.class);
 
-  public LocalTaskActionClient(Task task, TaskStorage storage, TaskActionToolbox toolbox)
+  public LocalTaskActionClient(Task task, TaskStorage storage, TaskActionToolbox toolbox, EventForwarder forwarder)
   {
     this.task = task;
     this.storage = storage;
     this.toolbox = toolbox;
+    this.forwarder = forwarder;
   }
 
   @Override
@@ -60,7 +67,23 @@ public class LocalTaskActionClient implements TaskActionClient
         throw new ISE(e, "Failed to record action [%s] in audit log", actionClass);
       }
     }
+    RetType result = taskAction.perform(task, toolbox);
 
-    return taskAction.perform(task, toolbox);
+    if (forwarder != null) {
+      Event event = TaskActions.toEvent(task, taskAction);
+      if (event != null) {
+        log.info("Emitting.. %s", event.toMap());
+        String postURL = Objects.toString(task.getContextValue("task.action.postURL"), null);
+        Long timeout = null;
+        Object timeoutValue = task.getContextValue("task.action.readTimeout");
+        if (timeoutValue instanceof Long) {
+          timeout = (Long)timeoutValue;
+        } else if (timeoutValue instanceof String) {
+          timeout = Longs.tryParse((String)timeoutValue);
+        }
+        forwarder.forward(postURL, event, timeout);
+      }
+    }
+    return result;
   }
 }
