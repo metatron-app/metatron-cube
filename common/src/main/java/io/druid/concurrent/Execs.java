@@ -23,6 +23,7 @@ import com.google.common.base.Function;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.util.concurrent.AbstractFuture;
+import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.metamx.common.logger.Logger;
 import io.druid.common.guava.GuavaUtils;
@@ -38,7 +39,6 @@ import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.RejectedExecutionHandler;
@@ -150,9 +150,16 @@ public class Execs
       this.semaphore = new java.util.concurrent.Semaphore(parallelism);
     }
 
-    public void acquire() throws InterruptedException
+    public boolean acquire(WaitingFuture future)
     {
-      semaphore.acquire();
+      try {
+        semaphore.acquire();
+      }
+      catch (Exception e) {
+        future.setException(e);
+        return false;
+      }
+      return !future.isCancelled();
     }
 
     @Override
@@ -167,9 +174,9 @@ public class Execs
     }
   }
 
-  public static <V> List<Future<V>> execute(
+  public static <V> List<ListenableFuture<V>> execute(
       final ExecutorService executor,
-      final List<Callable<V>> works,
+      final Iterable<Callable<V>> works,
       final Semaphore semaphore,
       final int parallelism,
       final int priority
@@ -193,14 +200,7 @@ public class Execs
             public void run()
             {
               for (WaitingFuture<V> work = queue.poll(); work != null; work = queue.poll()) {
-                try {
-                  semaphore.acquire();
-                }
-                catch (InterruptedException e) {
-                  work.setException(e);
-                  break;
-                }
-                if (work.isCancelled() || !work.execute()) {
+                if (!semaphore.acquire(work) || !work.execute()) {
                   break;
                 }
               }

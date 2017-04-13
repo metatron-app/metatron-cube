@@ -23,6 +23,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Function;
 import com.google.common.base.Supplier;
 import com.google.common.collect.Lists;
+import com.google.common.util.concurrent.ListenableFuture;
 import com.google.inject.Inject;
 import com.metamx.common.Pair;
 import com.metamx.common.guava.LazySequence;
@@ -186,7 +187,7 @@ public class ClientQuerySegmentWalker implements QuerySegmentWalker
         public Sequence<Pair<Query<T>, Sequence<T>>> run(final Query<T> query, final Map<String, Object> responseContext)
         {
           final Execs.Semaphore semaphore = new Execs.Semaphore(Math.max(union.getParallelism(), union.getQueue()));
-          final List<Future<Sequence<T>>> futures = Execs.execute(
+          final List<ListenableFuture<Sequence<T>>> futures = Execs.execute(
               exec, Lists.transform(
                   ready, new Function<Query<T>, Callable<Sequence<T>>>()
                   {

@@ -208,6 +208,12 @@ public abstract class BaseQuery<T extends Comparable<T>> implements Query<T>
     return PropUtils.parseBoolean(getContext(), key, defaultValue);
   }
 
+  @Override
+  public int getContextInt(String key, int defaultValue)
+  {
+    return PropUtils.parseInt(getContext(), key, defaultValue);
+  }
+
   protected String toString(String key)
   {
     Object value = Objects.toString(getContextValue(key), null);

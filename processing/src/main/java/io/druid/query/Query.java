@@ -103,6 +103,8 @@ public interface Query<T> extends QueryContextKeys
 
   boolean getContextBoolean(String key, boolean defaultValue);
 
+  int getContextInt(String key, int defaultValue);
+
   boolean isDescending();
 
   Ordering<T> getResultOrdering();

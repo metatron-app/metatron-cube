@@ -29,6 +29,8 @@ public interface QueryContextKeys
   public static final String BY_SEGMENT = "bySegment";
   public static final String MERGE_GROUP_BY = "mergeGroupBy";
 
+  public static final String GBY_MERGE_PARALLELISM = "groupByMergeParallelism";
+
   // CacheConfig
   public static final String USE_CACHE = "useCache";
   public static final String POPULATE_CACHE = "populateCache";

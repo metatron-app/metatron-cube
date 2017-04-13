@@ -320,5 +320,10 @@ public class GroupByQueryRunnerFactory implements QueryRunnerFactory<Row, GroupB
 
       return engine.process((GroupByQuery) input, adapter, cache);
     }
+
+    @Override
+    public String toString() {
+      return adapter.toString();
+    }
   }
 }

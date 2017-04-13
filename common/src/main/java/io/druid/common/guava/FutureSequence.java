@@ -18,11 +18,14 @@ package io.druid.common.guava;
 
 import com.google.common.base.Function;
 import com.google.common.base.Throwables;
+import com.google.common.util.concurrent.Futures;
 import com.metamx.common.guava.Accumulator;
+import com.metamx.common.guava.ResourceClosingSequence;
 import com.metamx.common.guava.Sequence;
 import com.metamx.common.guava.Yielder;
 import com.metamx.common.guava.YieldingAccumulator;
 
+import java.io.Closeable;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 
