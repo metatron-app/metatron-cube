@@ -19,8 +19,17 @@
 
 package io.druid.server.log;
 
+import com.fasterxml.jackson.annotation.JacksonInject;
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
+import com.fasterxml.jackson.annotation.JsonTypeName;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.inject.Provider;
+import com.metamx.common.logger.Logger;
+import io.druid.server.RequestLogLine;
+
+import javax.validation.constraints.NotNull;
+import java.io.IOException;
 
 /**
  * A Marker interface for things that can provide a RequestLogger.  This can be combined with jackson polymorphic serde
@@ -29,4 +38,28 @@ import com.google.inject.Provider;
 @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type", defaultImpl = NoopRequestLoggerProvider.class)
 public interface RequestLoggerProvider extends Provider<RequestLogger>
 {
+  @JsonTypeName("log")
+  public static class Logging implements RequestLoggerProvider
+  {
+    private static final Logger log = new Logger(RequestLogger.class);
+
+    @JacksonInject
+    @NotNull
+    private ObjectMapper jsonMapper = null;
+
+    @Override
+    public RequestLogger get()
+    {
+      final ObjectMapper mapper = jsonMapper.setSerializationInclusion(JsonInclude.Include.NON_EMPTY);
+
+      return new RequestLogger()
+      {
+        @Override
+        public void log(RequestLogLine requestLogLine) throws IOException
+        {
+          log.info(requestLogLine.getLine(mapper));
+        }
+      };
+    }
+  }
 }

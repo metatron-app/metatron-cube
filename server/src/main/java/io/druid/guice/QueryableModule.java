@@ -50,7 +50,11 @@ public class QueryableModule implements DruidModule
   {
     return Arrays.<Module>asList(
         new SimpleModule("QueryableModule")
-            .registerSubtypes(EmittingRequestLoggerProvider.class, FileRequestLoggerProvider.class)
+            .registerSubtypes(
+                EmittingRequestLoggerProvider.class,
+                FileRequestLoggerProvider.class,
+                RequestLoggerProvider.Logging.class
+            )
     );
   }
 }

@@ -19,6 +19,7 @@
 
 package io.druid.server.log;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Charsets;
 import com.google.common.base.Throwables;
@@ -54,7 +55,7 @@ public class FileRequestLogger implements RequestLogger
   public FileRequestLogger(ObjectMapper objectMapper, ScheduledExecutorService exec, File baseDir)
   {
     this.exec = exec;
-    this.objectMapper = objectMapper;
+    this.objectMapper = objectMapper.setSerializationInclusion(JsonInclude.Include.NON_EMPTY);
     this.baseDir = baseDir;
   }
 
