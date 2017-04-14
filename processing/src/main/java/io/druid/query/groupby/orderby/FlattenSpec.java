@@ -43,6 +43,7 @@ import org.joda.time.DateTime;
 
 import java.nio.ByteBuffer;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -448,6 +449,12 @@ public class FlattenSpec implements Cacheable
     return new Expr.NumericBinding()
     {
       private final Map<String, Integer> cache = Maps.newHashMap();
+
+      @Override
+      public Collection<String> names()
+      {
+        return bindings.keySet();
+      }
 
       @Override
       public Object get(String name)

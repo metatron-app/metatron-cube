@@ -37,6 +37,7 @@ import io.druid.data.input.impl.SpatialDimensionSchema;
 import org.joda.time.DateTime;
 
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -140,6 +141,12 @@ public class SpatialDimensionRowTransformer implements Function<InputRow, InputR
         catch (ParseException e) {
           throw Throwables.propagate(e);
         }
+      }
+
+      @Override
+      public Collection<String> getColumns()
+      {
+        return spatialLookup.keySet();
       }
 
       @Override

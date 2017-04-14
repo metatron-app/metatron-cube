@@ -23,6 +23,7 @@ import io.druid.data.input.InputRow;
 import io.druid.data.input.Row;
 import org.joda.time.DateTime;
 
+import java.util.Collection;
 import java.util.List;
 
 /**
@@ -85,6 +86,12 @@ public class SegmentInputRow implements InputRow
   public long getLongMetric(String metric)
   {
     return delegate.getLongMetric(metric);
+  }
+
+  @Override
+  public Collection<String> getColumns()
+  {
+    return delegate.getColumns();
   }
 
   @Override

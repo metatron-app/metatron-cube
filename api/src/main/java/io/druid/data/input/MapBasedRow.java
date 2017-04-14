@@ -24,6 +24,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.metamx.common.logger.Logger;
 import org.joda.time.DateTime;
 
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -84,6 +85,12 @@ public class MapBasedRow extends AbstractRow
   public Object getRaw(String dimension)
   {
     return event.get(dimension);
+  }
+
+  @Override
+  public Collection<String> getColumns()
+  {
+    return event.keySet();
   }
 
   @Override

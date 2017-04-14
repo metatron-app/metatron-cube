@@ -71,6 +71,7 @@ import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CountDownLatch;
@@ -615,6 +616,12 @@ public class RealtimePlumberSchoolTest
       }
 
       @Override
+      public Collection<String> getColumns()
+      {
+        return Collections.emptyList();
+      }
+
+      @Override
       public Object getRaw(String dimension)
       {
         return null;
@@ -672,6 +679,12 @@ public class RealtimePlumberSchoolTest
       public long getLongMetric(String metric)
       {
         return 0L;
+      }
+
+      @Override
+      public Collection<String> getColumns()
+      {
+        return dims;
       }
 
       @Override

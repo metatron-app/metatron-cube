@@ -28,6 +28,7 @@ import com.google.common.primitives.Doubles;
 import com.google.common.primitives.Ints;
 import com.google.common.primitives.Longs;
 import com.metamx.common.Pair;
+import com.metamx.common.logger.Logger;
 import io.druid.math.expr.Expr.NumericBinding;
 import io.druid.math.expr.Expr.WindowContext;
 import io.druid.math.expr.Function.Factory;
@@ -36,15 +37,24 @@ import org.joda.time.DateTime;
 import org.joda.time.Days;
 import org.mozilla.javascript.Context;
 import org.mozilla.javascript.ScriptableObject;
+import org.python.core.PyCode;
+import org.python.core.PyFloat;
+import org.python.core.PyInteger;
+import org.python.core.PyLong;
+import org.python.core.PyObject;
+import org.python.core.PyString;
+import org.python.util.PythonInterpreter;
 import org.rosuda.JRI.REXP;
 import org.rosuda.JRI.Rengine;
 
+import java.io.File;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Formatter;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Properties;
 import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -53,6 +63,8 @@ import java.util.regex.Pattern;
  */
 public interface BuiltinFunctions extends Function.Library
 {
+  static final Logger log = new Logger(BuiltinFunctions.class);
+
   abstract class SingleParam implements Function
   {
     @Override
@@ -324,7 +336,7 @@ public interface BuiltinFunctions extends Function.Library
     {
       if (r == null) {
         if (args.size() < 2) {
-          throw new RuntimeException("function '" + name() + "' should have at least two argument");
+          throw new RuntimeException("function '" + name() + "' should have at least two arguments");
         }
         Rengine re = new Rengine(new String[]{"--vanilla"}, false, null);
         if (!re.waitForR()) {
@@ -376,6 +388,113 @@ public interface BuiltinFunctions extends Function.Library
     public Function get()
     {
       return new RFunc();
+    }
+  }
+
+  abstract class AbstractPythonFunc implements Function, Factory
+  {
+    static {
+      Properties prop = new Properties();
+      String pythonHome = System.getProperty("python.home", System.getProperty("user.home") + "/jython2.7.0");
+      if (new File(pythonHome).isDirectory()) {
+        prop.setProperty("python.home", pythonHome);
+        PythonInterpreter.initialize(System.getProperties(), prop, new String[]{});
+      } else {
+        log.info("invalid or absent of python.home in system environment..");
+      }
+    }
+
+    final PythonInterpreter p = new PythonInterpreter();
+
+    final ExprEval toExprEval(PyObject result)
+    {
+      if (result == null) {
+        return ExprEval.of(null, ExprType.STRING);
+      }
+      if (result instanceof PyString) {
+        return ExprEval.of(result.asString(), ExprType.STRING);
+      }
+      if (result instanceof PyFloat) {
+        return ExprEval.of(result.asDouble(), ExprType.DOUBLE);
+      }
+      if (result instanceof PyInteger || result instanceof PyLong) {
+        return ExprEval.of(result.asLong(), ExprType.LONG);
+      }
+      return ExprEval.of(result.asStringOrNull(), ExprType.STRING);
+    }
+  }
+
+  final class PythonFunc extends AbstractPythonFunc
+  {
+    private boolean initialized;
+    private final StringBuilder query = new StringBuilder();
+
+    @Override
+    public String name()
+    {
+      return "py";
+    }
+
+    @Override
+    public ExprEval apply(List<Expr> args, NumericBinding bindings)
+    {
+      if (!initialized) {
+        if (args.isEmpty()) {
+          throw new RuntimeException("function '" + name() + "' should have at least two arguments");
+        }
+        p.exec(Evals.getConstantString(args.get(0)));
+        initialized = true;
+      }
+      query.setLength(0);
+      query.append(args.get(1).eval(bindings).asString()).append('(');
+      for (int i = 2; i < args.size(); i++) {
+        if (i > 2) {
+          query.append(',');
+        }
+        ExprEval param = args.get(i).eval(bindings);
+        query.append(param.isNull() ? "" : param.asString());
+      }
+      query.append(')');
+
+      return toExprEval(p.eval(query.toString()));
+    }
+
+    @Override
+    public Function get()
+    {
+      return new PythonFunc();
+    }
+  }
+
+  final class PythonEvalFunc extends AbstractPythonFunc
+  {
+    private PyCode code;
+
+    @Override
+    public String name()
+    {
+      return "pyEval";
+    }
+
+    @Override
+    public ExprEval apply(List<Expr> args, NumericBinding bindings)
+    {
+      if (code == null) {
+        if (args.isEmpty()) {
+          throw new RuntimeException("function '" + name() + "' should have one argument");
+        }
+        code = p.compile(Evals.getConstantString(args.get(0)));
+      }
+      for (String column : bindings.names()) {
+        p.set(column, bindings.get(column));
+      }
+      return toExprEval(p.eval(code));
+    }
+
+    @Override
+    public Function get()
+    {
+      return new PythonEvalFunc();
     }
   }
 

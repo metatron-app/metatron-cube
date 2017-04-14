@@ -30,6 +30,7 @@ import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
 import org.joda.time.format.DateTimeFormatter;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Objects;
 
@@ -309,9 +310,15 @@ public class Evals
       }
       return Pair.of(required.get(0), expr);
     }
-    AssignExpr assign = (AssignExpr) expr;
+    final AssignExpr assign = (AssignExpr) expr;
     Expr.NumericBinding bindings = new Expr.NumericBinding()
     {
+      @Override
+      public Collection<String> names()
+      {
+        return Parser.findRequiredBindings(assign.assignee);
+      }
+
       @Override
       public Object get(String name)
       {

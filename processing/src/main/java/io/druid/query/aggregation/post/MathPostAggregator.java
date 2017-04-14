@@ -29,6 +29,7 @@ import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.DecoratingPostAggregator;
 import io.druid.query.aggregation.PostAggregator;
 
+import java.util.Collection;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
@@ -142,6 +143,12 @@ public class MathPostAggregator implements DecoratingPostAggregator
       {
         Expr.NumericBinding binding = new Expr.NumericBinding()
         {
+          @Override
+          public Collection<String> names()
+          {
+            return values.keySet();
+          }
+
           @Override
           public Object get(final String name)
           {

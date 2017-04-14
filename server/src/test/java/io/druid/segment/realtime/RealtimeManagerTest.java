@@ -89,6 +89,8 @@ import org.junit.Test;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.Arrays;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -785,6 +787,12 @@ public class RealtimeManagerTest
         public long getLongMetric(String metric)
         {
           return 0L;
+        }
+
+        @Override
+        public Collection<String> getColumns()
+        {
+          return Collections.emptyList();
         }
 
         @Override

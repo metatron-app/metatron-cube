@@ -508,6 +508,22 @@ public class EvalTest
   }
 
   @Test
+  @Ignore("needs jython-2.7.0 to be installed and system property 'python.home' is set")
+  public void testPyFunc()
+  {
+    Expr.NumericBinding bindings = Parser.withMap(ImmutableMap.<String, Object>of("a", 30, "b", 3));
+    Assert.assertEquals(90, Parser.parse("py('def multi(a,b): return a * b', 'multi', a, b)").eval(bindings).longValue());
+  }
+
+  @Test
+  @Ignore("needs jython-2.7.0 to be installed and system property 'python.home' is set")
+  public void testPyEvalFunc()
+  {
+    Expr.NumericBinding bindings = Parser.withMap(ImmutableMap.<String, Object>of("a", 30, "b", 3));
+    Assert.assertEquals(90, Parser.parse("pyEval('a * b')").eval(bindings).longValue());
+  }
+
+  @Test
   public void testExcel()
   {
     Expr.NumericBinding bindings = Parser.withMap(

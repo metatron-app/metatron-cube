@@ -38,6 +38,7 @@ import java.io.IOException;
 import java.net.InetAddress;
 import java.net.URL;
 import java.net.UnknownHostException;
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.regex.Matcher;
@@ -293,6 +294,12 @@ class WikipediaIrcDecoder implements IrcDecoder
       public long getLongMetric(String metric)
       {
         return new Float(metrics.get(metric)).longValue();
+      }
+
+      @Override
+      public Collection<String> getColumns()
+      {
+        return dimensionList;
       }
 
       @Override

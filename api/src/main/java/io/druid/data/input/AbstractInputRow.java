@@ -19,6 +19,8 @@
 
 package io.druid.data.input;
 
+import java.util.Arrays;
+import java.util.Collection;
 import java.util.List;
 
 /**
@@ -44,6 +46,12 @@ public abstract class AbstractInputRow extends AbstractRow implements InputRow
     public Object getRaw(String dimension)
     {
       return object;
+    }
+
+    @Override
+    public Collection<String> getColumns()
+    {
+      return Arrays.asList("dummy");
     }
   }
 }

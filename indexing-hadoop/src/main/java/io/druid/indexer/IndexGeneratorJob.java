@@ -77,6 +77,7 @@ import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Iterator;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -470,6 +471,12 @@ public class IndexGeneratorJob implements HadoopDruidIndexerJob.IndexingStatsPro
         public long getLongMetric(String metric)
         {
           return row.getLongMetric(metric);
+        }
+
+        @Override
+        public Collection<String> getColumns()
+        {
+          return row.getColumns();
         }
 
         @Override

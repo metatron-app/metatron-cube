@@ -23,6 +23,7 @@ import com.google.common.base.Strings;
 import com.google.common.math.LongMath;
 
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.List;
 import java.util.Objects;
 
@@ -34,6 +35,8 @@ public interface Expr extends Expression
 
   interface NumericBinding
   {
+    Collection<String> names();
+
     Object get(String name);
   }
 

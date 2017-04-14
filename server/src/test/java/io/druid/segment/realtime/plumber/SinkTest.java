@@ -38,6 +38,8 @@ import org.joda.time.Period;
 import org.junit.Assert;
 import org.junit.Test;
 
+import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 
 /**
@@ -130,6 +132,12 @@ public class SinkTest
           }
 
           @Override
+          public Collection<String> getColumns()
+          {
+            return Collections.emptyList();
+          }
+
+          @Override
           public Object getRaw(String dimension)
           {
             return null;
@@ -192,6 +200,12 @@ public class SinkTest
           public long getLongMetric(String metric)
           {
             return 0L;
+          }
+
+          @Override
+          public Collection<String> getColumns()
+          {
+            return Collections.emptyList();
           }
 
           @Override

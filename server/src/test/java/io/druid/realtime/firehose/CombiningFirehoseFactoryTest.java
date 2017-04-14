@@ -34,6 +34,7 @@ import org.junit.Test;
 
 import java.io.IOException;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
 
@@ -105,6 +106,12 @@ public class CombiningFirehoseFactoryTest
       public long getLongMetric(String metric)
       {
         return new Float(metricValue).longValue();
+      }
+
+      @Override
+      public Collection<String> getColumns()
+      {
+        return null;
       }
 
       @Override

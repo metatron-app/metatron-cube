@@ -23,6 +23,8 @@ import io.druid.data.input.Row;
 import io.druid.math.expr.Expr;
 import io.druid.segment.column.Column;
 
+import java.util.Collection;
+
 /**
  */
 public class RowBinding<T> implements Expr.NumericBinding
@@ -36,6 +38,12 @@ public class RowBinding<T> implements Expr.NumericBinding
   public RowBinding(String defaultColumn)
   {
     this.defaultColumn = defaultColumn;
+  }
+
+  @Override
+  public Collection<String> names()
+  {
+    return row.getColumns();
   }
 
   @Override

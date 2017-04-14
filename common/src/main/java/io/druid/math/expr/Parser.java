@@ -36,6 +36,7 @@ import org.antlr.v4.runtime.tree.ParseTree;
 import org.antlr.v4.runtime.tree.ParseTreeWalker;
 
 import java.lang.reflect.Modifier;
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -145,6 +146,12 @@ public class Parser
     return new Expr.NumericBinding()
     {
       @Override
+      public Collection<String> names()
+      {
+        return bindings.keySet();
+      }
+
+      @Override
       public Object get(String name)
       {
         Object value = bindings.get(name);
@@ -160,6 +167,12 @@ public class Parser
   {
     return new Expr.NumericBinding()
     {
+      @Override
+      public Collection<String> names()
+      {
+        return bindings.keySet();
+      }
+
       @Override
       public Object get(String name)
       {
@@ -179,6 +192,12 @@ public class Parser
     {
       private final Expr.NumericBinding bindings = new Expr.NumericBinding()
       {
+        @Override
+        public Collection<String> names()
+        {
+          return Parser.findRequiredBindings(expr);
+        }
+
         @Override
         public String get(String name)
         {

@@ -28,6 +28,7 @@ import io.druid.math.expr.Expr;
 import io.druid.math.expr.Parser;
 
 import java.nio.ByteBuffer;
+import java.util.Collection;
 
 /**
  */
@@ -106,6 +107,12 @@ public class ExpressionHavingSpec implements HavingSpec
   private static class RowBinding implements Expr.NumericBinding
   {
     private Row row;
+
+    @Override
+    public Collection<String> names()
+    {
+      return row.getColumns();
+    }
 
     @Override
     public Object get(String name)

@@ -33,6 +33,8 @@ import org.junit.Assert;
 import org.junit.Test;
 
 import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 
 public class HashBasedNumberedShardSpecTest
@@ -249,6 +251,12 @@ public class HashBasedNumberedShardSpecTest
     public long getLongMetric(String s)
     {
       return 0L;
+    }
+
+    @Override
+    public Collection<String> getColumns()
+    {
+      return Collections.emptyList();
     }
 
     @Override

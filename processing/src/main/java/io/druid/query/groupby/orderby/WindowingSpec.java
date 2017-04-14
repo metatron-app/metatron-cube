@@ -42,6 +42,7 @@ import io.druid.query.filter.DimFilterCacheHelper;
 
 import java.nio.ByteBuffer;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -316,6 +317,12 @@ public class WindowingSpec implements Cacheable
         target = partition.subList(Math.max(0, index + startRel), Math.min(length, index + endRel + 1));
       }
       return Iterables.transform(target, accessFunction(name));
+    }
+
+    @Override
+    public Collection<String> names()
+    {
+      return null;
     }
 
     @Override
