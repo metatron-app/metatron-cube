@@ -62,7 +62,7 @@ public class SketchQuantilesProcessor implements PostProcessingOperator
     } else {
       parameter = splitPoints;
     }
-    Preconditions.checkNotNull(parameter);
+    Preconditions.checkArgument(op == SketchQuantilesOp.IQR || parameter != null);
   }
 
   @Override
@@ -88,9 +88,7 @@ public class SketchQuantilesProcessor implements PostProcessingOperator
                 Map<String, Object> result = element.getValue();
                 for (Map.Entry<String, Object> entry : result.entrySet()) {
                   Object param = parameter instanceof Map ? ((Map)parameter).get(entry.getKey()) : parameter;
-                  if (param != null) {
-                    entry.setValue(op.calculate((ItemsSketch) entry.getValue(), param));
-                  }
+                  entry.setValue(op.calculate((ItemsSketch) entry.getValue(), param));
                 }
                 return input;
               }

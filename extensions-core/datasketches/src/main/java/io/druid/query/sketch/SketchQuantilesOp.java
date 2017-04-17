@@ -12,7 +12,9 @@ public enum SketchQuantilesOp
     @Override
     public Object calculate(ItemsSketch sketch, Object parameter)
     {
-      if (parameter instanceof double[]) {
+      if (parameter == null) {
+        return sketch.getQuantiles(DEFAULT_FRACTIONS);
+      } else if (parameter instanceof double[]) {
         return sketch.getQuantiles((double[])parameter);
       } else if (parameter instanceof Integer) {
         int intParam = (Integer) parameter;
@@ -51,6 +53,18 @@ public enum SketchQuantilesOp
       }
       throw new IllegalArgumentException("Not supported parameter " + parameter + "(" + parameter.getClass() + ")");
     }
+  },
+  IQR {
+    @Override
+    @SuppressWarnings("unchecked")
+    public Object calculate(ItemsSketch sketch, Object parameter)
+    {
+      Object[] quantiles = sketch.getQuantiles(new double[] {0.25f, 0.75f});
+      if (quantiles[0] instanceof Number && quantiles[1] instanceof Number) {
+        return ((Number)quantiles[1]).doubleValue() - ((Number)quantiles[0]).doubleValue();
+      }
+      throw new IllegalArgumentException("IQR is possible only for numeric types");
+    }
   };
 
   public abstract Object calculate(ItemsSketch sketch, Object parameter);
@@ -66,4 +80,6 @@ public enum SketchQuantilesOp
   {
     return name == null ? null : valueOf(name.toUpperCase());
   }
+
+  public static final double[] DEFAULT_FRACTIONS = new double[]{0d, 0.25d, 0.50d, 0.75d, 1.0d};
 }
