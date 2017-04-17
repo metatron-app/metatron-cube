@@ -67,6 +67,7 @@ public interface Task
   // task context conf
   final String RUNNER_PREFERRED_HOSTS = "druid.task.runner.preferred.hosts";
   final String RUNNER_DEDICATED_HOST = "druid.task.runner.dedicated.host";
+  final String INDEXER_CHILD_DEDICATED_PORT = "druid.indexer.runner.dedicated.port";
 
   /**
    * Returns ID of this task. Must be unique across all tasks ever created.

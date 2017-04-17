@@ -103,5 +103,14 @@ public class PortFinder
     }
     throw new ISE("All ports are Used..");
   }
+
+  public boolean tryDedicatedPort(int port)
+  {
+    if (!usedPorts.contains(port) && canBind(port)) {
+      usedPorts.add(port);
+      return true;
+    }
+    return false;
+  }
 }
 

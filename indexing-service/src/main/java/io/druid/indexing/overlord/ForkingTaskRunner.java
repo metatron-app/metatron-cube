@@ -229,7 +229,11 @@ public class ForkingTaskRunner implements TaskRunner, TaskLogStreamer
                         final int childPort;
                         final int childChatHandlerPort;
 
-                        if (config.isSeparateIngestionEndpoint()) {
+                        Integer port = (Integer)task.getContextValue(Task.INDEXER_CHILD_DEDICATED_PORT);
+                        if (port != null && portFinder.tryDedicatedPort(port)) {
+                          childPort = port;
+                          childChatHandlerPort = -1;
+                        } else if (config.isSeparateIngestionEndpoint()) {
                           Pair<Integer, Integer> portPair = portFinder.findTwoConsecutiveUnusedPorts();
                           childPort = portPair.lhs;
                           childChatHandlerPort = portPair.rhs;
