@@ -112,7 +112,7 @@ public class GroupByQueryRunnerTestHelper
       Preconditions.checkArgument(value.length == columnNames.length);
       Map<String, Object> theVals = Maps.newLinkedHashMap();
       for (int i = 0; i < columnNames.length; i++) {
-        if (i != timeIndex && value[i] != null) {
+        if (i != timeIndex) {
           theVals.put(columnNames[i], value[i]);
         }
       }

@@ -906,11 +906,7 @@ public abstract class IncrementalIndex<AggregatorType> implements Iterable<Row>,
   @SuppressWarnings("unchecked")
   private int[] getDimVal(final DimensionDesc dimDesc, final Comparable dimValue)
   {
-    int index = dimDesc.getValues().add(dimValue);
-    if (dimValue == null) {
-      return null;
-    }
-    return new int[] {index};
+    return new int[] {dimDesc.getValues().add(dimValue)};
   }
 
   @SuppressWarnings("unchecked")
@@ -1183,26 +1179,17 @@ public abstract class IncrementalIndex<AggregatorType> implements Iterable<Row>,
           if (dimensionDesc == null) {
             continue;
           }
-          ValueType type = dimensionDesc.getCapabilities().getType();
           String dimensionName = dimensionDesc.getName();
           if (dim == null || dim.length == 0) {
             theVals.put(dimensionName, null);
             continue;
           }
           if (dim.length == 1) {
-            Comparable val = dimensionDesc.getValues().getValue(dim[0]);
-            if (type == ValueType.STRING) {
-              val = Strings.nullToEmpty((String) val);
-            }
-            theVals.put(dimensionName, val);
+            theVals.put(dimensionName, dimensionDesc.getValues().getValue(dim[0]));
           } else {
             Comparable[] dimVals = new Comparable[dim.length];
             for (int j = 0; j < dimVals.length; j++) {
-              Comparable val = dimensionDesc.getValues().getValue(dim[j]);
-              if (type == ValueType.STRING) {
-                val = Strings.nullToEmpty((String) val);
-              }
-              dimVals[j] = val;
+              dimVals[j] = dimensionDesc.getValues().getValue(dim[j]);
             }
             theVals.put(dimensionName, dimVals);
           }
