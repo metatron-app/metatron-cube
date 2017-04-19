@@ -20,7 +20,6 @@
 package io.druid.segment.loading;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
 import com.google.common.io.ByteSink;
@@ -138,32 +137,36 @@ public class LocalDataSegmentPusher implements DataSegmentPusher, ResultWriter
     if (!targetDirectory.exists() && !targetDirectory.mkdirs()) {
       throw new IllegalStateException("failed to make target directory");
     }
-    String dataFileName = PropUtils.parseString(context, "dataFileName", null);
-    String metaFileName = PropUtils.parseString(context, "metaFileName", null);
-    File dataFile = new File(targetDirectory, Strings.isNullOrEmpty(dataFileName) ? "data" : dataFileName);
-    File metaFile = new File(targetDirectory, Strings.isNullOrEmpty(metaFileName) ? ".meta" : metaFileName);
+    File dataFile = new File(targetDirectory, PropUtils.parseString(context, "dataFileName", "data"));
 
-    Map<String, Object> info = Maps.newHashMap();
-    try (CountingAccumulator accumulator = toExporter(context, jsonMapper, dataFile)) {
-      accumulator.init();
-      result.getSequence().accumulate(null, accumulator);
-      info.put("numRows", accumulator.count());
+    Map<String, Object> info = Maps.newLinkedHashMap();
+    CountingAccumulator exporter = toExporter(context, jsonMapper, location, dataFile);
+    try {
+      result.getSequence().accumulate(null, exporter.init());
     }
-    info.put("data", ImmutableMap.of(rewrite(location, dataFile.getAbsolutePath()), dataFile.length()));
+    finally {
+      info.putAll(exporter.close());
+    }
 
     if (!PropUtils.parseBoolean(context, "skipMetaFile", false)) {
       Map<String, Object> metaData = result.getMetaData();
       if (metaData != null && !metaData.isEmpty()) {
+        File metaFile = new File(targetDirectory, PropUtils.parseString(context, "metaFileName", ".meta"));
         try (OutputStream output = new FileOutputStream(metaFile)) {
           jsonMapper.writeValue(output, metaData);
         }
-        info.put("meta", ImmutableMap.of(rewrite(location, metaFile.getAbsolutePath()), metaFile.length()));
+        info.put("meta", ImmutableMap.of(rewrite(location, metaFile), metaFile.length()));
       }
     }
     return info;
   }
 
-  CountingAccumulator toExporter(Map<String, Object> context, ObjectMapper mapper, final File dataFile)
+  CountingAccumulator toExporter(
+      Map<String, Object> context,
+      ObjectMapper mapper,
+      final URI location,
+      final File dataFile
+  )
       throws IOException
   {
     return Formatters.toBasicExporter(
@@ -174,11 +177,17 @@ public class LocalDataSegmentPusher implements DataSegmentPusher, ResultWriter
           {
             return new FileOutputStream(dataFile);
           }
+
+          @Override
+          public String toString()
+          {
+            return rewrite(location, dataFile);
+          }
         }
     );
   }
 
-  private String rewrite(URI location, String path)
+  private String rewrite(URI location, File path)
   {
     try {
       return new URI(
@@ -186,13 +195,13 @@ public class LocalDataSegmentPusher implements DataSegmentPusher, ResultWriter
           location.getUserInfo(),
           location.getHost(),
           location.getPort(),
-          path,
+          path.getAbsolutePath(),
           null,
           null
       ).toString();
     }
     catch (URISyntaxException e) {
-      return path;
+      return path.getAbsolutePath();
     }
   }
 }

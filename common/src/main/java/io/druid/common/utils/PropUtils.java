@@ -19,6 +19,7 @@
 
 package io.druid.common.utils;
 
+import com.google.common.primitives.Ints;
 import com.metamx.common.ISE;
 
 import java.util.Map;
@@ -83,6 +84,11 @@ public class PropUtils
 
   public static int parseInt(Map<String, ?> context, String key, int defaultValue)
   {
+    return Ints.checkedCast(parseLong(context, key, defaultValue));
+  }
+
+  public static long parseLong(Map<String, ?> context, String key, long defaultValue)
+  {
     if (context == null) {
       return defaultValue;
     }
@@ -91,9 +97,9 @@ public class PropUtils
       return defaultValue;
     }
     if (val instanceof String) {
-      return Integer.parseInt((String) val);
+      return Long.parseLong((String) val);
     } else if (val instanceof Number) {
-      return ((Number) val).intValue();
+      return ((Number) val).longValue();
     } else {
       throw new ISE("Unknown type [%s]", val.getClass());
     }

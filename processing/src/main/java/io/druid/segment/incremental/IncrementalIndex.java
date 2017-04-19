@@ -36,6 +36,7 @@ import com.metamx.common.IAE;
 import com.metamx.common.ISE;
 import com.metamx.common.logger.Logger;
 import com.metamx.common.parsers.ParseException;
+import io.druid.common.utils.JodaUtils;
 import io.druid.common.utils.StringUtils;
 import io.druid.data.ValueType;
 import io.druid.data.input.InputRow;
@@ -707,7 +708,7 @@ public abstract class IncrementalIndex<AggregatorType> implements Iterable<Row>,
     row = formatRow(row);
 
     final long timestampFromEpoch = row.getTimestampFromEpoch();
-    if (minTimestamp != Long.MIN_VALUE && timestampFromEpoch < minTimestamp) {
+    if (!isTemporary() && timestampFromEpoch < minTimestamp) {
       throw new IAE("Cannot add row[%s] because it is below the minTimestamp[%s]", row, new DateTime(minTimestamp));
     }
 
@@ -784,10 +785,9 @@ public abstract class IncrementalIndex<AggregatorType> implements Iterable<Row>,
 
   private long toIndexingTime(long timestampFromEpoch)
   {
-    long truncated = timestampFromEpoch;
-    if (minTimestamp != Long.MIN_VALUE) {
-      truncated = Math.max(gran.truncate(timestampFromEpoch), minTimestamp);
-    }
+    final long truncated = isTemporary()
+                           ? timestampFromEpoch
+                           : Math.max(gran.truncate(timestampFromEpoch), minTimestamp);
 
     minTimeMillis = Math.min(minTimeMillis, truncated);
     maxTimeMillis = Math.max(maxTimeMillis, truncated);
@@ -823,7 +823,7 @@ public abstract class IncrementalIndex<AggregatorType> implements Iterable<Row>,
   // fast track for group-by query
   public void initialize(List<String> dimensions)
   {
-    Preconditions.checkArgument(fixedSchema, "this is only for group-by");
+    Preconditions.checkArgument(fixedSchema, "this is only for fixed-schema");
     for (String dimension : dimensions) {
       addNewDimension(dimension, ColumnCapabilitiesImpl.of(ValueType.STRING), MultiValueHandling.ARRAY, -1);
     }
@@ -831,7 +831,7 @@ public abstract class IncrementalIndex<AggregatorType> implements Iterable<Row>,
 
   public void initialize(Map<String, String[]> dimensions)
   {
-    Preconditions.checkArgument(fixedSchema, "this is only for group-by");
+    Preconditions.checkArgument(fixedSchema, "this is only for fixed-schema");
     for (Map.Entry<String, String[]> entry : dimensions.entrySet()) {
       String dimension = entry.getKey();
       DimDim values = new NullValueConverterDimDim(makeDimDim(dimension, entry.getValue(), SizeEstimator.STRING), -1);
@@ -853,7 +853,7 @@ public abstract class IncrementalIndex<AggregatorType> implements Iterable<Row>,
 
   public int add(Row row)
   {
-    Preconditions.checkArgument(fixedSchema, "this is only for group-by");
+    Preconditions.checkArgument(fixedSchema, "this is only for fixed-schema");
     try {
       return addTimeAndDims(row, toTimeAndDims(row));
     }
@@ -1008,7 +1008,15 @@ public abstract class IncrementalIndex<AggregatorType> implements Iterable<Row>,
 
   public Interval getInterval()
   {
+    if (isTemporary()) {
+      return new Interval(JodaUtils.MIN_INSTANT, JodaUtils.MAX_INSTANT);
+    }
     return new Interval(minTimestamp, isEmpty() ? minTimestamp : gran.next(getMaxTimeMillis()));
+  }
+
+  public boolean isTemporary()
+  {
+    return minTimestamp == Long.MIN_VALUE;
   }
 
   public DateTime getMinTime()

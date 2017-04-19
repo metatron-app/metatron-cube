@@ -132,6 +132,11 @@ public class IndexMerger
 
   }
 
+  public IndexIO getIndexIO()
+  {
+    return indexIO;
+  }
+
   public File persist(
       final IncrementalIndex index,
       File outDir,

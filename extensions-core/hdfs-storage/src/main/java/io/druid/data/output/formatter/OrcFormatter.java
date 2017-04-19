@@ -21,11 +21,13 @@ package io.druid.data.output.formatter;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.metamx.common.StringUtils;
 import com.metamx.common.logger.Logger;
 import io.druid.data.output.Formatter;
 import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hive.ql.exec.vector.BytesColumnVector;
 import org.apache.hadoop.hive.ql.exec.vector.ColumnVector;
@@ -53,10 +55,14 @@ public class OrcFormatter implements Formatter
   private final List<String> columnNames;
   private final List<TypeDescription> columnTypes;
 
+  private final Path path;
+  private final FileSystem fs;
   private final Writer writer;
   private final VectorizedRowBatch batch;
 
-  public OrcFormatter(Path path, ObjectMapper mapper, String typeString) throws IOException
+  private int counter;
+
+  public OrcFormatter(Path path, FileSystem fs, String typeString, ObjectMapper mapper) throws IOException
   {
     this.mapper = mapper;
     columnNames = Lists.newArrayList();
@@ -90,6 +96,8 @@ public class OrcFormatter implements Formatter
     finally {
       Thread.currentThread().setContextClassLoader(prev);
     }
+    this.path = path;
+    this.fs = fs;
   }
 
   @Override
@@ -104,6 +112,7 @@ public class OrcFormatter implements Formatter
       writer.addRowBatch(batch);
       batch.reset();
     }
+    counter++;
   }
 
   private void setColumn(int rowId, Object object, ColumnVector vector, TypeDescription column)
@@ -167,11 +176,16 @@ public class OrcFormatter implements Formatter
   }
 
   @Override
-  public void close() throws IOException
+  public Map<String, Object> close() throws IOException
   {
     if (batch.size > 0) {
       writer.addRowBatch(batch);
     }
     writer.close();
+    long length = fs.getFileStatus(path).getLen();
+    return ImmutableMap.<String, Object>of(
+        "rowCount", counter,
+        "data", ImmutableMap.of(path.toString(), length)
+    );
   }
 }

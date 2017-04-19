@@ -19,6 +19,7 @@
 
 package io.druid.server;
 
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.ObjectWriter;
 import com.fasterxml.jackson.jaxrs.smile.SmileMediaTypes;
@@ -38,6 +39,7 @@ import com.metamx.common.guava.YieldingAccumulator;
 import com.metamx.emitter.EmittingLogger;
 import com.metamx.emitter.service.ServiceEmitter;
 import io.druid.common.utils.PropUtils;
+import io.druid.data.output.Formatters;
 import io.druid.guice.LocalDataStorageDruidModule;
 import io.druid.guice.annotations.Json;
 import io.druid.guice.annotations.Self;
@@ -45,6 +47,7 @@ import io.druid.guice.annotations.Smile;
 import io.druid.query.BaseQuery;
 import io.druid.query.DruidMetrics;
 import io.druid.query.PostProcessingOperators;
+import io.druid.query.Queries;
 import io.druid.query.Query;
 import io.druid.query.QueryContextKeys;
 import io.druid.query.QueryDataSource;
@@ -54,6 +57,7 @@ import io.druid.query.QuerySegmentWalker;
 import io.druid.query.QueryToolChestWarehouse;
 import io.druid.query.ResultWriter;
 import io.druid.query.TabularFormat;
+import io.druid.segment.incremental.IncrementalIndexSchema;
 import io.druid.server.initialization.ServerConfig;
 import io.druid.server.log.RequestLogger;
 import io.druid.server.security.Access;
@@ -84,6 +88,7 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.Arrays;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
 
@@ -101,7 +106,7 @@ public class QueryResource
   protected final ServerConfig config;
   protected final ObjectMapper jsonMapper;
   protected final ObjectMapper smileMapper;
-  protected final QuerySegmentWalker texasRanger;
+  protected final QuerySegmentWalker.Wrapper texasRanger;
   protected final ServiceEmitter emitter;
   protected final RequestLogger requestLogger;
   protected final QueryManager queryManager;
@@ -499,8 +504,20 @@ public class QueryResource
       log.warn("Unsupported scheme '" + uri.getScheme() + "'");
       throw new IAE("Unsupported scheme '%s'", uri.getScheme());
     }
-
     final Map<String, Object> forwardContext = BaseQuery.getResultForwardContext(query);
+
+    String format = Formatters.getFormat(forwardContext, "json");
+    if ("index".equals(format)) {
+      String indexSchema = Objects.toString(forwardContext.get("schema"), null);
+      if (Strings.isNullOrEmpty(indexSchema)) {
+        IncrementalIndexSchema schema = Queries.relaySchema(query, texasRanger.getDelegate());
+        log.info("Extracted index schema %s", schema);
+        forwardContext.put(
+            "schema",
+            jsonMapper.convertValue(schema, new TypeReference<Map<String, Object>>() { })
+        );
+      }
+    }
 
     return new QueryRunner()
     {

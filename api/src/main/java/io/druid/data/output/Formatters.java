@@ -22,10 +22,13 @@ package io.druid.data.output;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Function;
 import com.google.common.base.Functions;
+import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.io.ByteSink;
+import com.google.common.io.CountingOutputStream;
 import com.metamx.common.logger.Logger;
 import org.apache.poi.ss.SpreadsheetVersion;
 import org.apache.poi.ss.usermodel.Cell;
@@ -47,13 +50,19 @@ public class Formatters
 {
   private static final Logger log = new Logger(Formatter.class);
 
+  public static String getFormat(Map<String, Object> context, String defaultFormat)
+  {
+    String format = Objects.toString(context.get("format"), defaultFormat);
+    return Preconditions.checkNotNull(format, "format is null").toLowerCase();
+  }
+
   public static CountingAccumulator toBasicExporter(
       Map<String, Object> context,
       ObjectMapper jsonMapper,
       ByteSink output
   ) throws IOException
   {
-    if ("excel".equals(Objects.toString(context.get("format"), null))) {
+    if ("excel".equals(getFormat(context, "json"))) {
       return toExcelExporter(output, context);
     } else {
       return wrapToExporter(toBasicFormatter(output, context, jsonMapper));
@@ -85,6 +94,17 @@ public class Formatters
         }
 
         @Override
+        public CountingAccumulator init()
+        {
+          Row r = nextRow(true);
+          for (int i = 0; i < dimensions.length; i++) {
+            Cell c = r.createCell(i);
+            c.setCellValue(dimensions[i]);
+          }
+          return this;
+        }
+
+        @Override
         public Void accumulate(Void accumulated, Map<String, Object> in)
         {
           Row r = nextRow(false);
@@ -93,16 +113,7 @@ public class Formatters
             if (o == null) {
               continue;
             }
-            Cell c = r.createCell(i);
-            if (o instanceof Number) {
-              c.setCellValue(((Number) o).doubleValue());
-            } else if (o instanceof String) {
-              c.setCellValue((String) o);
-            } else if (o instanceof Date) {
-              c.setCellValue((Date) o);
-            } else {
-              c.setCellValue(String.valueOf(o));
-            }
+            addToCell(r.createCell(i), o);
           }
           flushIfNeeded();
           return null;
@@ -117,16 +128,7 @@ public class Formatters
         Row r = nextRow(false);
         int i = 0;
         for (Object o : in.values()) {
-          Cell c = r.createCell(i++);
-          if (o instanceof Number) {
-            c.setCellValue(((Number) o).doubleValue());
-          } else if (o instanceof String) {
-            c.setCellValue((String) o);
-          } else if (o instanceof Date) {
-            c.setCellValue((Date) o);
-          } else {
-            c.setCellValue(String.valueOf(o));
-          }
+          addToCell(r.createCell(i++), o);
         }
         flushIfNeeded();
         return null;
@@ -142,16 +144,18 @@ public class Formatters
     private final int flushInterval;
     private final int maxRowsPerSheet;
     private final SXSSFWorkbook wb = new SXSSFWorkbook(-1);
+    private final CountingOutputStream export;
 
     private SXSSFSheet sheet;
     private int rowNumInSheet;
     private int rowNum;
 
-    protected ExcelAccumulator(ByteSink sink, int flushInterval, int maxRowsPerSheet)
+    protected ExcelAccumulator(ByteSink sink, int flushInterval, int maxRowsPerSheet) throws IOException
     {
       this.sink = sink;
       this.flushInterval = flushInterval;
       this.maxRowsPerSheet = maxRowsPerSheet > 0 ? Math.min(maxRowsPerSheet, MAX_ROW_INDEX) : MAX_ROW_INDEX;
+      this.export = new CountingOutputStream(sink.openBufferedStream());
     }
 
     protected Row nextRow(boolean header)
@@ -164,6 +168,21 @@ public class Formatters
         rowNum++;
       }
       return r;
+    }
+
+    protected void addToCell(Cell c, Object o)
+    {
+      if (o instanceof Number) {
+        c.setCellValue(((Number) o).doubleValue());
+      } else if (o instanceof String) {
+        c.setCellValue((String) o);
+      } else if (o instanceof Date) {
+        c.setCellValue((Date) o);
+      } else if (o instanceof Boolean) {
+        c.setCellValue((Boolean) o);
+      } else {
+        c.setCellValue(String.valueOf(o));
+      }
     }
 
     protected void flush()
@@ -189,18 +208,19 @@ public class Formatters
       rowNumInSheet = 0;
     }
 
-    @Override
     public int count()
     {
       return rowNum;
     }
 
     @Override
-    public void init() {
+    public CountingAccumulator init()
+    {
+      return this;
     }
 
     @Override
-    public void close() throws IOException
+    public Map<String, Object> close() throws IOException
     {
       try {
         try (OutputStream output = sink.openBufferedStream()) {
@@ -211,6 +231,9 @@ public class Formatters
         wb.dispose();
         wb.close();
       }
+      return ImmutableMap.<String, Object>of(
+          "rowCount", count(),
+          "data", ImmutableMap.of(sink.toString(), export.getCount()));
     }
   }
 
@@ -218,17 +241,10 @@ public class Formatters
   {
     return new CountingAccumulator()
     {
-      int counter = 0;
-
       @Override
-      public int count()
+      public CountingAccumulator init() throws IOException
       {
-        return counter;
-      }
-
-      @Override
-      public void init() throws IOException
-      {
+        return this;
       }
 
       @Override
@@ -236,7 +252,6 @@ public class Formatters
       {
         try {
           formatter.write(in);
-          counter++;
         }
         catch (Exception e) {
           throw Throwables.propagate(e);
@@ -245,37 +260,37 @@ public class Formatters
       }
 
       @Override
-      public void close() throws IOException
+      public Map<String, Object> close() throws IOException
       {
-        formatter.close();
+        return formatter.close();
       }
     };
   }
 
-  public static Formatter toBasicFormatter(ByteSink output, Map<String, Object> context, ObjectMapper jsonMapper)
+  private static Formatter toBasicFormatter(ByteSink output, Map<String, Object> context, ObjectMapper jsonMapper)
       throws IOException
   {
     String[] columns = parseStrings(context.get("columns"));
-    String formatString = Objects.toString(context.get("format"), null);
-    if (isNullOrEmpty(formatString) || formatString.equalsIgnoreCase("json")) {
+    String format = Formatters.getFormat(context, "json");
+    if (format.equalsIgnoreCase("json")) {
       boolean wrapAsList = parseBoolean(context.get("wrapAsList"), false);
-      return new Formatter.JsonFormatter(output.openBufferedStream(), jsonMapper, columns, wrapAsList);
+      return new Formatter.JsonFormatter(output, jsonMapper, columns, wrapAsList);
     }
 
     String separator;
-    if (formatString.equalsIgnoreCase("csv")) {
+    if (format.equalsIgnoreCase("csv")) {
       separator = ",";
-    } else if (formatString.equalsIgnoreCase("tsv")) {
+    } else if (format.equalsIgnoreCase("tsv")) {
       separator = "\t";
     } else {
-      log.warn("Invalid format " + formatString + ".. using json formatter instead");
+      log.warn("Unsupported format " + format + ".. using json formatter instead");
       boolean wrapAsList = parseBoolean(context.get("wrapAsList"), false);
-      return new Formatter.JsonFormatter(output.openBufferedStream(), jsonMapper, columns, wrapAsList);
+      return new Formatter.JsonFormatter(output, jsonMapper, columns, wrapAsList);
     }
     boolean header = parseBoolean(context.get("withHeader"), false);
     String nullValue = Objects.toString(context.get("nullValue"), null);
 
-    return new Formatter.XSVFormatter(output.openBufferedStream(), jsonMapper, separator, nullValue, columns, header);
+    return new Formatter.XSVFormatter(output, jsonMapper, separator, nullValue, columns, header);
   }
 
   private static boolean isNullOrEmpty(String string)

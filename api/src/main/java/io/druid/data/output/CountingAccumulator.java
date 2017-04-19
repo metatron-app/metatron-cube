@@ -21,14 +21,14 @@ package io.druid.data.output;
 
 import com.metamx.common.guava.Accumulator;
 
-import java.io.Closeable;
 import java.io.IOException;
 import java.util.Map;
 
 /**
  */
-public interface CountingAccumulator extends Accumulator<Void, Map<String, Object>>, Closeable
+public interface CountingAccumulator extends Accumulator<Void, Map<String, Object>>
 {
-  void init() throws IOException;
-  int count();
+  CountingAccumulator init() throws IOException;
+
+  Map<String, Object> close() throws IOException;
 }

@@ -21,9 +21,11 @@ package io.druid.data.output;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
+import com.google.common.io.ByteSink;
+import com.google.common.io.CountingOutputStream;
 
-import java.io.Closeable;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.util.Arrays;
@@ -32,11 +34,13 @@ import java.util.Map;
 
 /**
  */
-public interface Formatter extends Closeable
+public interface Formatter
 {
   String NEW_LINE = System.lineSeparator();
 
   void write(Map<String, Object> datum) throws IOException;
+
+  Map<String, Object> close() throws IOException;
 
   class XSVFormatter implements Formatter
   {
@@ -45,26 +49,28 @@ public interface Formatter extends Closeable
     private final String[] columns;
     private final boolean header;
 
-    private final OutputStream output;
+    private final ByteSink sink;
     private final ObjectMapper mapper;
+    private final CountingOutputStream output;
 
     private final StringBuilder builder = new StringBuilder();
     private boolean firstLine;
+    private int counter;
 
-    public XSVFormatter(
-        OutputStream output,
-        ObjectMapper mapper,
-        String separator,
-        String nullValue,
-        String[] columns,
-        boolean header
-    )
+    public XSVFormatter(ByteSink sink, ObjectMapper mapper, String separator) throws IOException
+    {
+      this(sink, mapper, separator, null, null, false);
+    }
+
+    public XSVFormatter(ByteSink sink, ObjectMapper mapper, String separator, String nullValue, String[] columns, boolean header)
+        throws IOException
     {
       this.separator = separator == null ? "," : separator;
       this.nullValue = nullValue == null ? "NULL" : nullValue;
       this.columns = columns;
-      this.output = output;
+      this.sink = sink;
       this.mapper = mapper;
+      this.output = new CountingOutputStream(sink.openBufferedStream());
       this.header = header;
       firstLine = true;
     }
@@ -95,6 +101,17 @@ public interface Formatter extends Closeable
         output.write(builder.toString().getBytes());
         firstLine = false;
       }
+      counter++;
+    }
+
+    @Override
+    public Map<String, Object> close() throws IOException
+    {
+      output.close();
+      return ImmutableMap.<String, Object>of(
+          "rowCount", counter,
+          "data", ImmutableMap.of(sink.toString(), output.getCount())
+      );
     }
 
     private void appendObject(Object value, boolean first) throws JsonProcessingException
@@ -125,12 +142,6 @@ public interface Formatter extends Closeable
       builder.append(NEW_LINE);
       output.write(builder.toString().getBytes());
     }
-
-    @Override
-    public void close() throws IOException
-    {
-      output.close();
-    }
   }
 
   class JsonFormatter implements Formatter
@@ -144,16 +155,20 @@ public interface Formatter extends Closeable
     private final String[] columns;
     private final boolean withWrapping;
 
-    private final OutputStream output;
-    private boolean firstLine;
+    private final ByteSink sink;
+    private final CountingOutputStream output;
 
-    public JsonFormatter(OutputStream output, ObjectMapper jsonMapper, String[] columns, boolean withWrapping)
+    private boolean firstLine;
+    private int counter;
+
+    public JsonFormatter(ByteSink sink, ObjectMapper jsonMapper, String[] columns, boolean withWrapping)
         throws IOException
     {
       this.jsonMapper = jsonMapper;
       this.columns = columns;
       this.withWrapping = withWrapping;
-      this.output = output;
+      this.sink = sink;
+      this.output = new CountingOutputStream(sink.openBufferedStream());
       if (withWrapping) {
         output.write(HEAD);
       }
@@ -176,10 +191,11 @@ public interface Formatter extends Closeable
       }
       output.write(jsonMapper.writeValueAsBytes(datum));
       firstLine = false;
+      counter++;
     }
 
     @Override
-    public void close() throws IOException
+    public Map<String, Object> close() throws IOException
     {
       try (OutputStream finishing = output) {
         if (!firstLine) {
@@ -189,6 +205,10 @@ public interface Formatter extends Closeable
           finishing.write(TAIL);
         }
       }
+      return ImmutableMap.<String, Object>of(
+          "rowCount", counter,
+          "data", ImmutableMap.of(sink.toString(), output.getCount())
+      );
     }
   }
 }

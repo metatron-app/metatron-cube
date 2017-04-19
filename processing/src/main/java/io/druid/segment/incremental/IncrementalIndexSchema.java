@@ -19,12 +19,16 @@
 
 package io.druid.segment.incremental;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonProperty;
+import com.google.common.collect.Lists;
 import io.druid.data.input.impl.DimensionsSpec;
 import io.druid.data.input.impl.InputRowParser;
 import io.druid.granularity.QueryGranularities;
 import io.druid.granularity.QueryGranularity;
 import io.druid.query.aggregation.AggregatorFactory;
 
+import java.util.Arrays;
 import java.util.List;
 
 /**
@@ -38,17 +42,18 @@ public class IncrementalIndexSchema
   private final boolean rollup;
   private final boolean fixedSchema;
 
+  @JsonCreator
   public IncrementalIndexSchema(
-      long minTimestamp,
-      QueryGranularity gran,
-      DimensionsSpec dimensionsSpec,
-      AggregatorFactory[] metrics,
-      boolean rollup,
-      boolean fixedSchema
+      @JsonProperty("minTimestamp") long minTimestamp,
+      @JsonProperty("gran") QueryGranularity gran,
+      @JsonProperty("dimensionsSpec") DimensionsSpec dimensionsSpec,
+      @JsonProperty("metrics") AggregatorFactory[] metrics,
+      @JsonProperty("rollup") boolean rollup,
+      @JsonProperty("fixedSchema") boolean fixedSchema
   )
   {
     this.minTimestamp = minTimestamp;
-    this.gran = gran;
+    this.gran = gran == null ? QueryGranularities.NONE : gran;
     this.dimensionsSpec = dimensionsSpec;
     this.metrics = metrics;
     this.rollup = rollup;
@@ -66,34 +71,62 @@ public class IncrementalIndexSchema
     this(minTimestamp, gran, dimensionsSpec, metrics, rollup, false);
   }
 
+  @JsonProperty
   public long getMinTimestamp()
   {
     return minTimestamp;
   }
 
+  @JsonProperty
   public QueryGranularity getGran()
   {
     return gran;
   }
 
+  @JsonProperty
   public DimensionsSpec getDimensionsSpec()
   {
     return dimensionsSpec;
   }
 
+  @JsonProperty
   public AggregatorFactory[] getMetrics()
   {
     return metrics;
   }
 
+  @JsonProperty
   public boolean isRollup()
   {
     return rollup;
   }
 
+  @JsonProperty
   public boolean isFixedSchema()
   {
     return fixedSchema;
+  }
+
+  public List<String> getMetricNames()
+  {
+    List<String> metricNames = Lists.newArrayListWithCapacity(metrics.length);
+    for (AggregatorFactory aggregatorFactory : metrics) {
+      metricNames.add(aggregatorFactory.getName());
+    }
+    return metricNames;
+  }
+
+  @Override
+  public String toString()
+  {
+    return "IncrementalIndexSchema{" +
+           "minTimestamp=" + minTimestamp +
+           ", gran=" + gran +
+           ", dimensionsSpec=" + dimensionsSpec +
+           ", metrics=" + Arrays.toString(metrics) +
+           ", rollup=" + rollup +
+           ", fixedSchema=" + fixedSchema +
+           '}';
   }
 
   public static class Builder

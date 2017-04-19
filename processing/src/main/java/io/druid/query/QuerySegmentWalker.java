@@ -53,6 +53,11 @@ public interface QuerySegmentWalker
 
     public Wrapper(QuerySegmentWalker delegate) {this.delegate = delegate;}
 
+    public QuerySegmentWalker getDelegate()
+    {
+      return delegate;
+    }
+
     @Override
     public <T> QueryRunner<T> getQueryRunnerForIntervals(Query<T> query, Iterable<Interval> intervals)
     {

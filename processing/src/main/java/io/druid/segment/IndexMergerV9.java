@@ -168,7 +168,7 @@ public class IndexMergerV9 extends IndexMerger
         FileUtils.deleteDirectory(v9TmpDir);
       }
     });
-    log.info("Start making v9 index files, outDir:%s", outDir);
+    log.info("Start making v9 index files from %d indices, outDir:%s", adapters.size(), outDir);
     try {
       long startTime = System.currentTimeMillis();
       ByteStreams.write(
@@ -257,6 +257,7 @@ public class IndexMergerV9 extends IndexMerger
       v9Smoosher.close();
       progress.stop();
 
+      log.info("Completed writing index %,d msec", System.currentTimeMillis() - startTime);
       return outDir;
     }
     finally {
