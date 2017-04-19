@@ -49,14 +49,16 @@ public class QueryableIndexSegment extends AbstractSegment
   }
 
   @Override
-  public QueryableIndex asQueryableIndex()
+  public QueryableIndex asQueryableIndex(boolean forQuery)
   {
+    accessed(forQuery);
     return index;
   }
 
   @Override
-  public StorageAdapter asStorageAdapter()
+  public StorageAdapter asStorageAdapter(boolean forQuery)
   {
+    accessed(forQuery);
     return new QueryableIndexStorageAdapter(index, identifier);
   }
 

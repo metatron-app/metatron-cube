@@ -291,6 +291,7 @@ public class SegmentMetadataQueryTest
         0,
         expectedSegmentAnalysis1.getNumRows() + expectedSegmentAnalysis2.getNumRows(),
         -1L,
+        -1L,
         null,
         null,
         rollup1 != rollup2 ? null : rollup1

@@ -60,7 +60,8 @@ public class SegmentMetadataQuery extends BaseQuery<SegmentAnalysis>
     QUERYGRANULARITY,
     INGESTED_NUMROW,
     SERIALIZED_SIZE,
-    ROLLUP;
+    ROLLUP,
+    LAST_ACCESS_TIME;
 
     @JsonValue
     @Override
@@ -212,6 +213,11 @@ public class SegmentMetadataQuery extends BaseQuery<SegmentAnalysis>
   public boolean hasSerializedSize()
   {
     return analysisTypes.contains(AnalysisType.SERIALIZED_SIZE);
+  }
+
+  public boolean hasLastAccessTime()
+  {
+    return analysisTypes.contains(AnalysisType.LAST_ACCESS_TIME);
   }
 
   public byte[] getAnalysisTypesCacheKey()

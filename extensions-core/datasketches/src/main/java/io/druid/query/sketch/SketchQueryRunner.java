@@ -92,7 +92,7 @@ public class SketchQueryRunner implements QueryRunner<Result<Map<String, Object>
         toTargetEntries(segment, dimensions, dimensionExclusions);
 
     // Closing this will cause segfaults in unit tests.
-    final QueryableIndex index = segment.asQueryableIndex();
+    final QueryableIndex index = segment.asQueryableIndex(true);
 
     final Map<String, Object> sketches;
     if (index != null) {
@@ -119,7 +119,7 @@ public class SketchQueryRunner implements QueryRunner<Result<Map<String, Object>
         sketches.put(entry.expression, calculate);
       }
     } else {
-      final StorageAdapter adapter = segment.asStorageAdapter();
+      final StorageAdapter adapter = segment.asStorageAdapter(true);
       final Sequence<Cursor> cursors = adapter.makeCursors(
           filter, segment.getDataInterval(), VirtualColumns.EMPTY, QueryGranularities.ALL, null, false
       );
@@ -164,8 +164,8 @@ public class SketchQueryRunner implements QueryRunner<Result<Map<String, Object>
   {
     List<String> dimsToSearch;
     if (dimensionList == null || dimensionList.isEmpty()) {
-      final QueryableIndex indexed = segment.asQueryableIndex();
-      final StorageAdapter adapter = segment.asStorageAdapter();
+      final QueryableIndex indexed = segment.asQueryableIndex(true);
+      final StorageAdapter adapter = segment.asStorageAdapter(true);
       dimsToSearch = Lists.newArrayList(
           indexed != null
           ? indexed.getAvailableDimensions()

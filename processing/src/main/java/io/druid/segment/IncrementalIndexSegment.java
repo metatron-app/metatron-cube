@@ -55,14 +55,15 @@ public class IncrementalIndexSegment extends AbstractSegment
   }
 
   @Override
-  public QueryableIndex asQueryableIndex()
+  public QueryableIndex asQueryableIndex(boolean forQuery)
   {
     return null;
   }
 
   @Override
-  public StorageAdapter asStorageAdapter()
+  public StorageAdapter asStorageAdapter(boolean forQuery)
   {
+    accessed(forQuery);
     return new IncrementalIndexStorageAdapter(index);
   }
 

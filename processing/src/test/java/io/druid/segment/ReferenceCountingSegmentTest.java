@@ -58,13 +58,13 @@ public class ReferenceCountingSegmentTest
           }
 
           @Override
-          public QueryableIndex asQueryableIndex()
+          public QueryableIndex asQueryableIndex(boolean forQuery)
           {
             return null;
           }
 
           @Override
-          public StorageAdapter asStorageAdapter()
+          public StorageAdapter asStorageAdapter(boolean forQuery)
           {
             return null;
           }

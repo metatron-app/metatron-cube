@@ -16,22 +16,28 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+
 package io.druid.segment;
 
-public abstract class AbstractSegment implements Segment
-{
-  protected volatile long lastAccessTime;
+import io.druid.segment.data.Indexed;
 
-  protected void accessed(boolean forQuery)
+/**
+ */
+public class Segments
+{
+  public static Indexed<String> getAvailableDimensions(Segment segment)
   {
-    if (forQuery) {
-      lastAccessTime = System.currentTimeMillis();
+    if (segment.asQueryableIndex(false) != null) {
+      return segment.asQueryableIndex(false).getAvailableDimensions();
     }
+    return segment.asStorageAdapter(false).getAvailableDimensions();
   }
 
-  @Override
-  public long getLastAccessTime()
+  public static int getNumRows(Segment segment)
   {
-    return lastAccessTime;
+    if (segment.asQueryableIndex(false) != null) {
+      return segment.asQueryableIndex(false).getNumRows();
+    }
+    return segment.asStorageAdapter(false).getNumRows();
   }
 }

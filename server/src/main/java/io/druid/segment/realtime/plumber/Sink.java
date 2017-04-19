@@ -114,7 +114,7 @@ public class Sink implements Iterable<FireHydrant>
         throw new ISE("hydrant[%s] not the right count[%s]", hydrant, i);
       }
       maxCount = hydrant.getCount();
-      numRowsExcludingCurrIndex.addAndGet(hydrant.getSegment().asQueryableIndex().getNumRows());
+      numRowsExcludingCurrIndex.addAndGet(hydrant.getSegment().asQueryableIndex(false).getNumRows());
     }
     this.hydrants.addAll(hydrants);
 
@@ -275,7 +275,7 @@ public class Sink implements Iterable<FireHydrant>
         if (!indexSchema.getDimensionsSpec().hasCustomDimensions()) {
           IncrementalIndex oldIndex = old.getIndex();
           if (oldIndex == null) {
-            QueryableIndex storedIndex = old.getSegment().asQueryableIndex();
+            QueryableIndex storedIndex = old.getSegment().asQueryableIndex(false);
             for (String dim : storedIndex.getAvailableDimensions()) {
               dimOrder.add(dim);
             }

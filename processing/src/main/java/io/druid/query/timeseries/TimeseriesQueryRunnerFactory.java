@@ -76,7 +76,7 @@ public class TimeseriesQueryRunnerFactory
   @Override
   public QueryRunner<Result<TimeseriesResultValue>> createRunner(final Segment segment, Future<Object> optimizer)
   {
-    return new TimeseriesQueryRunner(engine, segment.asStorageAdapter(), cache);
+    return new TimeseriesQueryRunner(engine, segment.asStorageAdapter(true), cache);
   }
 
   @Override

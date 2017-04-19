@@ -52,7 +52,7 @@ public class StreamQueryEngine
 {
   public Sequence<StreamQueryRow> process(final StreamQuery baseQuery, final Segment segment, final Cache cache)
   {
-    final StorageAdapter adapter = segment.asStorageAdapter();
+    final StorageAdapter adapter = segment.asStorageAdapter(true);
 
     if (adapter == null) {
       throw new ISE(

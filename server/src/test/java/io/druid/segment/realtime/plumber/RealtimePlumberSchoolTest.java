@@ -563,7 +563,7 @@ public class RealtimePlumberSchoolTest
 
     for (int i = 0; i < hydrants.size(); i++) {
       hydrant = hydrants.get(i);
-      qindex = hydrant.getSegment().asQueryableIndex();
+      qindex = hydrant.getSegment().asQueryableIndex(false);
       Assert.assertEquals(i, hydrant.getCount());
       Assert.assertEquals(expectedDims.get(i), ImmutableList.copyOf(qindex.getAvailableDimensions()));
     }

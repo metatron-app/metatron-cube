@@ -80,7 +80,7 @@ public class SegmentAnalyzer
 
   public long numRows(Segment segment)
   {
-    return Preconditions.checkNotNull(segment, "segment").asStorageAdapter().getNumRows();
+    return Preconditions.checkNotNull(segment, "segment").asStorageAdapter(false).getNumRows();
   }
 
   public Map<String, ColumnAnalysis> analyze(Segment segment)
@@ -88,8 +88,8 @@ public class SegmentAnalyzer
     Preconditions.checkNotNull(segment, "segment");
 
     // index is null for incremental-index-based segments, but storageAdapter is always available
-    final QueryableIndex index = segment.asQueryableIndex();
-    final StorageAdapter storageAdapter = segment.asStorageAdapter();
+    final QueryableIndex index = segment.asQueryableIndex(false);
+    final StorageAdapter storageAdapter = segment.asStorageAdapter(false);
 
     final Set<String> columnNames = Sets.newHashSet();
     Iterables.addAll(columnNames, storageAdapter.getAvailableDimensions());

@@ -351,6 +351,8 @@ public class SegmentMetadataQueryQueryToolChest extends QueryToolChest<SegmentAn
     if (arg1.getIngestedNumRows() >= 0 && arg2.getIngestedNumRows() >= 0) {
       ingestedNumRows = arg1.getIngestedNumRows() + arg2.getIngestedNumRows();
     }
+    long lastAccessTime = Math.max(arg1.getLastAccessTime(), arg2.getLastAccessTime());
+
     final Boolean rollup;
 
     if (arg1.isRollup() != null && arg2.isRollup() != null && arg1.isRollup().equals(arg2.isRollup())) {
@@ -367,6 +369,7 @@ public class SegmentMetadataQueryQueryToolChest extends QueryToolChest<SegmentAn
         arg1.getSerializedSize() + arg2.getSerializedSize(),
         arg1.getNumRows() + arg2.getNumRows(),
         ingestedNumRows,
+        lastAccessTime,
         aggregators.isEmpty() ? null : aggregators,
         queryGranularity,
         rollup
@@ -384,6 +387,7 @@ public class SegmentMetadataQueryQueryToolChest extends QueryToolChest<SegmentAn
         analysis.getSerializedSize(),
         analysis.getNumRows(),
         analysis.getIngestedNumRows(),
+        analysis.getLastAccessTime(),
         analysis.getAggregators(),
         analysis.getQueryGranularity(),
         analysis.isRollup()

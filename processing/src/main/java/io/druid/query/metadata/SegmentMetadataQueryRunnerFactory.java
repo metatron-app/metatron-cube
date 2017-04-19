@@ -118,7 +118,7 @@ public class SegmentMetadataQueryRunnerFactory implements QueryRunnerFactory<Seg
         final Map<String, AggregatorFactory> aggregators;
         Metadata metadata = null;
         if (query.hasAggregators()) {
-          metadata = segment.asStorageAdapter().getMetadata();
+          metadata = segment.asStorageAdapter(false).getMetadata();
           if (metadata != null && metadata.getAggregators() != null) {
             aggregators = Maps.newHashMap();
             for (AggregatorFactory aggregator : metadata.getAggregators()) {
@@ -134,7 +134,7 @@ public class SegmentMetadataQueryRunnerFactory implements QueryRunnerFactory<Seg
         final QueryGranularity queryGranularity;
         if (query.hasQueryGranularity()) {
           if (metadata == null) {
-            metadata = segment.asStorageAdapter().getMetadata();
+            metadata = segment.asStorageAdapter(false).getMetadata();
           }
           queryGranularity = metadata.getQueryGranularity();
         } else {
@@ -143,15 +143,20 @@ public class SegmentMetadataQueryRunnerFactory implements QueryRunnerFactory<Seg
         long ingestedNumRows = -1;
         if (query.hasIngestedNumRows()) {
           if (metadata == null) {
-            metadata = segment.asStorageAdapter().getMetadata();
+            metadata = segment.asStorageAdapter(false).getMetadata();
           }
           ingestedNumRows = metadata.getIngestedNumRows();
+        }
+
+        long lastAccessTime = -1;
+        if (query.hasLastAccessTime()) {
+          lastAccessTime = segment.getLastAccessTime();
         }
 
         Boolean rollup = null;
         if (query.hasRollup()) {
           if (metadata == null) {
-            metadata = segment.asStorageAdapter().getMetadata();
+            metadata = segment.asStorageAdapter(false).getMetadata();
           }
           rollup = metadata != null ? metadata.isRollup() : null;
           if (rollup == null) {
@@ -171,6 +176,7 @@ public class SegmentMetadataQueryRunnerFactory implements QueryRunnerFactory<Seg
                     totalSerializedSize,
                     numRows,
                     ingestedNumRows,
+                    lastAccessTime,
                     aggregators,
                     queryGranularity,
                     rollup

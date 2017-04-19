@@ -67,13 +67,13 @@ public class CacheTestSegmentLoader implements SegmentLoader
       }
 
       @Override
-      public QueryableIndex asQueryableIndex()
+      public QueryableIndex asQueryableIndex(boolean forQuery)
       {
         throw new UnsupportedOperationException();
       }
 
       @Override
-      public StorageAdapter asStorageAdapter()
+      public StorageAdapter asStorageAdapter(boolean forQuery)
       {
         throw new UnsupportedOperationException();
       }

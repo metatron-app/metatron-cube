@@ -717,7 +717,7 @@ public class AppenderatorImpl implements Appenderator
       List<QueryableIndex> indexes = Lists.newArrayList();
       for (FireHydrant fireHydrant : sink) {
         Segment segment = fireHydrant.getSegment();
-        final QueryableIndex queryableIndex = segment.asQueryableIndex();
+        final QueryableIndex queryableIndex = segment.asQueryableIndex(false);
         log.info("Adding hydrant[%s]", fireHydrant);
         indexes.add(queryableIndex);
       }

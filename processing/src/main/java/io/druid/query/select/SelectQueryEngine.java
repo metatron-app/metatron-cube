@@ -52,7 +52,7 @@ public class SelectQueryEngine
 {
   public Sequence<Result<SelectResultValue>> process(final SelectQuery baseQuery, final Segment segment, final Cache cache)
   {
-    final StorageAdapter adapter = segment.asStorageAdapter();
+    final StorageAdapter adapter = segment.asStorageAdapter(true);
 
     if (adapter == null) {
       throw new ISE(

@@ -38,6 +38,7 @@ public class SegmentAnalysis implements Comparable<SegmentAnalysis>
   private final long serializedSize;
   private final long numRows;
   private final long ingestedNumRows;
+  private final long lastAccessTime;
   private final Map<String, AggregatorFactory> aggregators;
   private final QueryGranularity queryGranularity;
   private final Boolean rollup;
@@ -51,6 +52,7 @@ public class SegmentAnalysis implements Comparable<SegmentAnalysis>
       @JsonProperty("serializedSize") long serializedSize,
       @JsonProperty("numRows") long numRows,
       @JsonProperty("ingestedNumRows") long ingestedNumRows,
+      @JsonProperty("lastAccessTime") long lastAccessTime,
       @JsonProperty("aggregators") Map<String, AggregatorFactory> aggregators,
       @JsonProperty("queryGranularity") QueryGranularity queryGranularity,
       @JsonProperty("rollup") Boolean rollup
@@ -63,6 +65,7 @@ public class SegmentAnalysis implements Comparable<SegmentAnalysis>
     this.serializedSize = serializedSize;
     this.numRows = numRows;
     this.ingestedNumRows = ingestedNumRows;
+    this.lastAccessTime = lastAccessTime;
     this.aggregators = aggregators;
     this.queryGranularity = queryGranularity;
     this.rollup = rollup;
@@ -78,7 +81,7 @@ public class SegmentAnalysis implements Comparable<SegmentAnalysis>
       QueryGranularity queryGranularity
   )
   {
-    this(id, interval, columns, size, 0L, numRows, -1L, aggregators, queryGranularity, null);
+    this(id, interval, columns, size, 0L, numRows, -1L, -1L, aggregators, queryGranularity, null);
   }
 
   public SegmentAnalysis(List<Interval> interval)
@@ -129,6 +132,12 @@ public class SegmentAnalysis implements Comparable<SegmentAnalysis>
   }
 
   @JsonProperty
+  public long getLastAccessTime()
+  {
+    return lastAccessTime;
+  }
+
+  @JsonProperty
   public QueryGranularity getQueryGranularity()
   {
     return queryGranularity;
@@ -156,6 +165,7 @@ public class SegmentAnalysis implements Comparable<SegmentAnalysis>
         serializedSize,
         numRows,
         ingestedNumRows,
+        lastAccessTime,
         aggregators,
         queryGranularity,
         rollup
@@ -173,6 +183,7 @@ public class SegmentAnalysis implements Comparable<SegmentAnalysis>
            ", serializedSize=" + serializedSize +
            ", numRows=" + numRows +
            ", ingestedNumRows=" + ingestedNumRows +
+           ", lastAccessTime=" + lastAccessTime +
            ", aggregators=" + aggregators +
            ", queryGranularity=" + queryGranularity +
            ", rollup=" + rollup +
@@ -197,6 +208,7 @@ public class SegmentAnalysis implements Comparable<SegmentAnalysis>
            numRows == that.numRows &&
            ingestedNumRows == that.ingestedNumRows &&
            rollup == that.rollup &&
+           lastAccessTime == that.lastAccessTime &&
            Objects.equals(id, that.id) &&
            Objects.equals(interval, that.interval) &&
            Objects.equals(columns, that.columns) &&
@@ -218,6 +230,7 @@ public class SegmentAnalysis implements Comparable<SegmentAnalysis>
         size,
         serializedSize,
         numRows,
+        lastAccessTime,
         ingestedNumRows,
         aggregators,
         queryGranularity,

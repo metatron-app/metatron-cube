@@ -275,6 +275,7 @@ public class SegmentMetadataQueryQueryToolChestTest
         0,
         0,
         0,
+        -1L,
         null,
         null,
         false
@@ -287,6 +288,7 @@ public class SegmentMetadataQueryQueryToolChestTest
         0,
         0,
         0,
+        -1L,
         null,
         null,
         false
@@ -299,6 +301,7 @@ public class SegmentMetadataQueryQueryToolChestTest
         0,
         0,
         0,
+        -1L,
         null,
         null,
         true
@@ -311,6 +314,7 @@ public class SegmentMetadataQueryQueryToolChestTest
         0,
         0,
         0,
+        -1L,
         null,
         null,
         true

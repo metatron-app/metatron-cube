@@ -27,7 +27,7 @@ import java.io.Closeable;
 import java.io.IOException;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-public class ReferenceCountingSegment extends AbstractSegment
+public class ReferenceCountingSegment implements Segment
 {
   private static final EmittingLogger log = new EmittingLogger(ReferenceCountingSegment.class);
 
@@ -65,6 +65,12 @@ public class ReferenceCountingSegment extends AbstractSegment
   }
 
   @Override
+  public long getLastAccessTime()
+  {
+    return baseSegment.getLastAccessTime();
+  }
+
+  @Override
   public String getIdentifier()
   {
     synchronized (lock) {
@@ -89,26 +95,26 @@ public class ReferenceCountingSegment extends AbstractSegment
   }
 
   @Override
-  public QueryableIndex asQueryableIndex()
+  public QueryableIndex asQueryableIndex(boolean forQuery)
   {
     synchronized (lock) {
       if (isClosed) {
         return null;
       }
 
-      return baseSegment.asQueryableIndex();
+      return baseSegment.asQueryableIndex(forQuery);
     }
   }
 
   @Override
-  public StorageAdapter asStorageAdapter()
+  public StorageAdapter asStorageAdapter(boolean forQuery)
   {
     synchronized (lock) {
       if (isClosed) {
         return null;
       }
 
-      return baseSegment.asStorageAdapter();
+      return baseSegment.asStorageAdapter(forQuery);
     }
   }
 

@@ -88,7 +88,7 @@ public class DataSourceMetadataQueryRunnerFactory
 
     public DataSourceMetadataQueryRunner(Segment segment)
     {
-      this.adapter = segment.asStorageAdapter();
+      this.adapter = segment.asStorageAdapter(false);
     }
 
     @Override

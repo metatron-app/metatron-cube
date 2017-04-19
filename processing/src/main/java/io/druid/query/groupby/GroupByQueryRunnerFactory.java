@@ -147,7 +147,7 @@ public class GroupByQueryRunnerFactory implements QueryRunnerFactory<Row, GroupB
 
     final Map<String, List<DictionaryLoader<String>>> columns = Maps.newLinkedHashMap();
     for (Segment segment : segments) {
-      QueryableIndex index = segment.asQueryableIndex();
+      QueryableIndex index = segment.asQueryableIndex(true);
       if (index == null) {
         return null;
       }
@@ -306,7 +306,7 @@ public class GroupByQueryRunnerFactory implements QueryRunnerFactory<Row, GroupB
 
     public GroupByQueryRunner(Segment segment, GroupByQueryEngine engine, Cache cache)
     {
-      this.adapter = segment.asStorageAdapter();
+      this.adapter = segment.asStorageAdapter(true);
       this.engine = engine;
       this.cache = cache;
     }

@@ -50,7 +50,7 @@ public class SelectMetaQueryEngine
 {
   public Sequence<Result<SelectMetaResultValue>> process(final SelectMetaQuery baseQuery, final Segment segment)
   {
-    final StorageAdapter adapter = segment.asStorageAdapter();
+    final StorageAdapter adapter = segment.asStorageAdapter(false);
 
     if (adapter == null) {
       throw new ISE(
@@ -66,7 +66,7 @@ public class SelectMetaQueryEngine
     final QueryGranularity granularity = query.getGranularity();
     final String identifier = segment.getIdentifier();
 
-    StorageAdapter storageAdapter = segment.asStorageAdapter();
+    StorageAdapter storageAdapter = segment.asStorageAdapter(false);
     Metadata metadata = storageAdapter.getMetadata();
     final List<String> dimensions = Lists.newArrayList(storageAdapter.getAvailableDimensions());
     final List<String> metrics = Lists.newArrayList(storageAdapter.getAvailableMetrics());

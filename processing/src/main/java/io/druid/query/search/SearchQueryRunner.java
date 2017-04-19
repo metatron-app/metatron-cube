@@ -96,7 +96,7 @@ public class SearchQueryRunner implements QueryRunner<Result<SearchResultValue>>
     final boolean valueOnly = query.getContextBoolean("valueOnly", false);
 
     // Closing this will cause segfaults in unit tests.
-    final QueryableIndex index = segment.asQueryableIndex();
+    final QueryableIndex index = segment.asQueryableIndex(false);
     final String segmentId = segment.getIdentifier();
 
     if (index != null) {
@@ -174,7 +174,7 @@ public class SearchQueryRunner implements QueryRunner<Result<SearchResultValue>>
       return makeReturnResult(limit, retVal);
     }
 
-    final StorageAdapter adapter = segment.asStorageAdapter();
+    final StorageAdapter adapter = segment.asStorageAdapter(false);
 
     if (adapter == null) {
       log.makeAlert("WTF!? Unable to process search query on segment.")

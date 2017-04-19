@@ -87,7 +87,7 @@ public class TimeBoundaryQueryRunnerFactory
 
     public TimeBoundaryQueryRunner(Segment segment)
     {
-      this.adapter = segment.asStorageAdapter();
+      this.adapter = segment.asStorageAdapter(true);
     }
 
     @Override
