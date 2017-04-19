@@ -188,6 +188,7 @@ public class DruidCoordinatorTest extends CuratorTestBase
         },
         druidNode,
         loadManagementPeons,
+        null,
         null
     );
   }

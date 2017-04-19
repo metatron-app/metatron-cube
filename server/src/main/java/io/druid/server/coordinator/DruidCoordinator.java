@@ -130,6 +130,7 @@ public class DruidCoordinator
   private volatile boolean leader = false;
   private volatile SegmentReplicantLookup segmentReplicantLookup = null;
 
+  private final CoordinatorDynamicConfig defaultConfig;
 
   @Inject
   public DruidCoordinator(
@@ -146,7 +147,8 @@ public class DruidCoordinator
       LoadQueueTaskMaster taskMaster,
       ServiceAnnouncer serviceAnnouncer,
       @Self DruidNode self,
-      @CoordinatorIndexingServiceHelper Set<DruidCoordinatorHelper> indexingServiceHelpers
+      @CoordinatorIndexingServiceHelper Set<DruidCoordinatorHelper> indexingServiceHelpers,
+      CoordinatorDynamicConfig defaultConfig
   )
   {
     this(
@@ -164,7 +166,8 @@ public class DruidCoordinator
         serviceAnnouncer,
         self,
         Maps.<String, LoadQueuePeon>newConcurrentMap(),
-        indexingServiceHelpers
+        indexingServiceHelpers,
+        defaultConfig
     );
   }
 
@@ -183,7 +186,8 @@ public class DruidCoordinator
       ServiceAnnouncer serviceAnnouncer,
       DruidNode self,
       ConcurrentMap<String, LoadQueuePeon> loadQueuePeonMap,
-      Set<DruidCoordinatorHelper> indexingServiceHelpers
+      Set<DruidCoordinatorHelper> indexingServiceHelpers,
+      CoordinatorDynamicConfig defaultConfig
   )
   {
     this.config = config;
@@ -205,6 +209,7 @@ public class DruidCoordinator
 
     this.leaderLatch = new AtomicReference<>(null);
     this.loadManagementPeons = loadQueuePeonMap;
+    this.defaultConfig = defaultConfig == null ? new CoordinatorDynamicConfig() : defaultConfig;
   }
 
   public boolean isLeader()
@@ -307,7 +312,7 @@ public class DruidCoordinator
     return configManager.watch(
         CoordinatorDynamicConfig.CONFIG_KEY,
         CoordinatorDynamicConfig.class,
-        new CoordinatorDynamicConfig.Builder().build()
+        defaultConfig
     ).get();
   }
 

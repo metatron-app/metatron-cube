@@ -73,18 +73,41 @@ public class JacksonConfigManager
 
   public <T> boolean set(String key, T val, AuditInfo auditInfo)
   {
+    return set(key, val, auditInfo, true);
+  }
+
+  public <T> boolean set(String key, T val, AuditInfo auditInfo, boolean persist)
+  {
     ConfigSerde configSerde = create(val.getClass(), null);
     // Audit and actual config change are done in separate transactions
     // there can be phantom audits and reOrdering in audit changes as well.
     auditManager.doAudit(
         AuditEntry.builder()
                   .key(key)
-                  .type(key)
+                  .type("config.set")
                   .auditInfo(auditInfo)
                   .payload(configSerde.serializeToString(val))
                   .build()
     );
-    return configManager.set(key, configSerde, val);
+    return configManager.set(key, configSerde, val, persist);
+  }
+
+  public <T> boolean persist(String key, AuditInfo auditInfo)
+  {
+    T current = configManager.peek(key);
+    String payload = null;
+    if (current != null) {
+      payload = create(current.getClass(), null).serializeToString(current);
+    }
+    auditManager.doAudit(
+        AuditEntry.builder()
+                  .key(key)
+                  .type("config.persist")
+                  .auditInfo(auditInfo)
+                  .payload(payload)
+                  .build()
+    );
+    return current != null && configManager.persist(key);
   }
 
   private <T> ConfigSerde<T> create(final Class<? extends T> clazz, final T defaultVal)

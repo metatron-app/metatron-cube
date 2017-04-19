@@ -30,16 +30,40 @@ public class CoordinatorDynamicConfig
 {
   public static final String CONFIG_KEY = "coordinator.config";
 
-  private final long millisToWaitBeforeDeleting;
-  private final long mergeBytesLimit;
-  private final int mergeSegmentsLimit;
-  private final int mergeTaskLimit;
-  private final int maxSegmentsToMove;
-  private final int replicantLifetime;
-  private final int replicationThrottleLimit;
-  private final int balancerComputeThreads;
-  private final boolean emitBalancingStats;
-  private final Set<String> killDataSourceWhitelist;
+  @JsonProperty
+  private long millisToWaitBeforeDeleting = 15 * 60 * 1000L;
+
+  @JsonProperty
+  private long mergeBytesLimit = 524288000L;
+
+  @JsonProperty
+  private int mergeSegmentsLimit = 100;
+
+  @JsonProperty
+  private int mergeTaskLimit = 0; // unlimited
+
+  @JsonProperty
+  private int maxSegmentsToMove = 5;
+
+  @JsonProperty
+  private int replicantLifetime = 15;
+
+  @JsonProperty
+  private int replicationThrottleLimit = 10;
+
+  @JsonProperty
+  private int balancerComputeThreads = 1;
+
+  @JsonProperty
+  private boolean emitBalancingStats;
+
+  @JsonProperty
+  private Set<String> killDataSourceWhitelist;
+
+  public CoordinatorDynamicConfig()
+  {
+    this(15 * 60 * 1000L, 524288000L, 100, 0, 5, 15, 10, 1, false, null);
+  }
 
   @JsonCreator
   public CoordinatorDynamicConfig(

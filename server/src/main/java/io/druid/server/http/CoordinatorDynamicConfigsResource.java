@@ -79,14 +79,31 @@ public class CoordinatorDynamicConfigsResource
   public Response setDynamicConfigs(final CoordinatorDynamicConfig dynamicConfig,
                                     @HeaderParam(AuditManager.X_DRUID_AUTHOR) @DefaultValue("") final String author,
                                     @HeaderParam(AuditManager.X_DRUID_COMMENT) @DefaultValue("") final String comment,
+                                    @QueryParam("persist") Boolean persist,
                                     @Context HttpServletRequest req
   )
   {
     if (!manager.set(
         CoordinatorDynamicConfig.CONFIG_KEY,
         dynamicConfig,
-        new AuditInfo(author, comment, req.getRemoteAddr())
+        new AuditInfo(author, comment, req.getRemoteAddr()),
+        persist == null || persist
     )) {
+      return Response.status(Response.Status.BAD_REQUEST).build();
+    }
+    return Response.ok().build();
+  }
+
+  @POST
+  @Path("/persist")
+  public Response setDynamicConfigs(
+      @HeaderParam(AuditManager.X_DRUID_AUTHOR) @DefaultValue("") final String author,
+      @HeaderParam(AuditManager.X_DRUID_COMMENT) @DefaultValue("") final String comment,
+      @Context HttpServletRequest req
+  )
+  {
+    AuditInfo auditInfo = new AuditInfo(author, comment, req.getRemoteAddr());
+    if (!manager.persist(CoordinatorDynamicConfig.CONFIG_KEY, auditInfo)) {
       return Response.status(Response.Status.BAD_REQUEST).build();
     }
     return Response.ok().build();

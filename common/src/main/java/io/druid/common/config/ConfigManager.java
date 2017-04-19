@@ -127,7 +127,6 @@ public class ConfigManager
             new Callable<ConfigHolder<T>>()
             {
               @Override
-              @SuppressWarnings("unchecked")
               public ConfigHolder<T> call() throws Exception
               {
                 if (!started) {
@@ -165,8 +164,19 @@ public class ConfigManager
     return holder.getReference();
   }
 
+  @SuppressWarnings("unchecked")
+  public <T> T peek(final String key)
+  {
+    final ConfigHolder<T> configHolder = watchedConfigs.get(key);
+    return configHolder == null ? null : configHolder.getReference().get();
+  }
 
   public <T> boolean set(final String key, final ConfigSerde<T> serde, final T obj)
+  {
+    return set(key, serde, obj, true);
+  }
+
+  public <T> boolean set(final String key, final ConfigSerde<T> serde, final T obj, final boolean persist)
   {
     if (obj == null || !started) {
       return false;
@@ -181,7 +191,9 @@ public class ConfigManager
             @Override
             public Boolean call() throws Exception
             {
-              dbConnector.insertOrUpdate(configTable, "name", "payload", key, newBytes);
+              if (persist) {
+                dbConnector.insertOrUpdate(configTable, "name", "payload", key, newBytes);
+              }
 
               final ConfigHolder configHolder = watchedConfigs.get(key);
               if (configHolder != null) {
@@ -197,6 +209,32 @@ public class ConfigManager
       log.warn(e, "Failed to set[%s]", key);
       return false;
     }
+  }
+
+  @SuppressWarnings("unchecked")
+  public <T> boolean persist(final String key)
+  {
+    final ConfigHolder<T> configHolder = watchedConfigs.get(key);
+    if (configHolder == null || !started) {
+      return false;
+    }
+    try {
+      return exec.submit(
+          new Callable<Boolean>()
+          {
+            @Override
+            public Boolean call() throws Exception
+            {
+              dbConnector.insertOrUpdate(configTable, "name", "payload", key, configHolder.rawBytes.get());
+              return true;
+            }
+          }
+      ).get();
+    }
+    catch (Exception e) {
+      log.warn(e, "Failed to persist[%s]", key);
+    }
+    return false;
   }
 
   private static class ConfigHolder<T>

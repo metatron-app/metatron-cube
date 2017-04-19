@@ -66,14 +66,20 @@ public class JsonConfigurator
     this.validator = validator;
   }
 
-  public <T> T configurate(Properties props, String propertyPrefix, Class<T> clazz) throws ProvisionException
+  public <T> T configurate(Properties props, String propertyPrefix, Class<T> clazz)
+      throws ProvisionException
   {
-    verifyClazzIsConfigurable(clazz);
+    return configurate(props, propertyPrefix, clazz, null);
+  }
+
+  public <T> T configurate(Properties props, String propertyPrefix, Class<T> clazz, T defaultValue)
+      throws ProvisionException
+  {
+    Map<String, Object> jsonMap = verifyClazzIsConfigurable(clazz, defaultValue);
 
     // Make it end with a period so we only include properties with sub-object thingies.
     final String propertyBase = propertyPrefix.endsWith(".") ? propertyPrefix : propertyPrefix + ".";
 
-    Map<String, Object> jsonMap = Maps.newHashMap();
     for (String prop : props.stringPropertyNames()) {
       if (prop.startsWith(propertyBase)) {
         final String propValue = props.getProperty(prop);
@@ -164,11 +170,11 @@ public class JsonConfigurator
     return config;
   }
 
-  private <T> void verifyClazzIsConfigurable(Class<T> clazz)
+  private <T> Map<String, Object> verifyClazzIsConfigurable(Class<T> clazz, T defaultValue)
   {
     final List<BeanPropertyDefinition> beanDefs = jsonMapper.getSerializationConfig()
-                                                              .introspect(jsonMapper.constructType(clazz))
-                                                              .findProperties();
+                                                            .introspect(jsonMapper.constructType(clazz))
+                                                            .findProperties();
     for (BeanPropertyDefinition beanDef : beanDefs) {
       final AnnotatedField field = beanDef.getField();
       if (field == null || !field.hasAnnotation(JsonProperty.class)) {
@@ -180,5 +186,16 @@ public class JsonConfigurator
         );
       }
     }
+    Map<String, Object> values = Maps.newHashMap();
+    if (defaultValue != null) {
+      for (BeanPropertyDefinition beanDef : beanDefs) {
+        if (beanDef.hasGetter()) {
+          values.put(beanDef.getName(), beanDef.getGetter().getValue(defaultValue));
+        } else if (beanDef.hasField()) {
+          values.put(beanDef.getName(), beanDef.getField().getValue(defaultValue));
+        }
+      }
+    }
+    return values;
   }
 }
