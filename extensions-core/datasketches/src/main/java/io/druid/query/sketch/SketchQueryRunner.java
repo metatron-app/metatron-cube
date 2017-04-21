@@ -20,7 +20,6 @@
 package io.druid.query.sketch;
 
 import com.google.common.base.Function;
-import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
@@ -58,7 +57,6 @@ import org.joda.time.DateTime;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 
 /**
  */
@@ -85,7 +83,7 @@ public class SketchQueryRunner implements QueryRunner<Result<Map<String, Object>
     final List<String> dimensions = query.getDimensions();
     final List<String> dimensionExclusions = query.getDimensionExclusions();
     final DimFilter filter = query.getFilter();   // ensured bitmap support
-    final int nomEntries = query.getNomEntries();
+    final int sketchParam = query.getSketchParam();
     final SketchHandler handler = query.getSketchOp().handler();
 
     final List<Entry> dimsToSearch =
@@ -98,7 +96,7 @@ public class SketchQueryRunner implements QueryRunner<Result<Map<String, Object>
     if (index != null) {
       final BitmapFactory bitmapFactory = index.getBitmapFactoryForDimensions();
       final ColumnSelectorBitmapIndexSelector selector = new ColumnSelectorBitmapIndexSelector(bitmapFactory, index);
-      final Map<String, ImmutableBitmap> filters = toDependentBitmap(filter, selector);
+      final ImmutableBitmap filterBitmap = toDependentBitmap(filter, selector);
       sketches = Maps.newLinkedHashMap();
       for (Entry entry : dimsToSearch) {
         Column column = index.getColumn(entry.dimension);
@@ -109,12 +107,11 @@ public class SketchQueryRunner implements QueryRunner<Result<Map<String, Object>
         if (bitmapIndex == null) {
           continue;
         }
-        ImmutableBitmap baseFilter = filters.get(entry.dimension);
         Object calculate;
-        if (baseFilter == null) {
-          calculate = handler.calculate(nomEntries, bitmapIndex, entry.function);
+        if (filterBitmap == null) {
+          calculate = handler.calculate(sketchParam, bitmapIndex, entry.function);
         } else {
-          calculate = handler.calculate(nomEntries, bitmapIndex, entry.function, baseFilter, selector);
+          calculate = handler.calculate(sketchParam, bitmapIndex, entry.function, filterBitmap, selector);
         }
         sketches.put(entry.expression, calculate);
       }
@@ -126,7 +123,7 @@ public class SketchQueryRunner implements QueryRunner<Result<Map<String, Object>
 
       sketches = cursors.accumulate(
           Maps.<String, Object>newLinkedHashMap(),
-          createAccumulator(dimsToSearch, nomEntries, handler)
+          createAccumulator(dimsToSearch, sketchParam, handler)
       );
     }
     for (Map.Entry<String, Object> entry : sketches.entrySet()) {
@@ -137,27 +134,20 @@ public class SketchQueryRunner implements QueryRunner<Result<Map<String, Object>
     return Sequences.simple(Arrays.asList(new Result<Map<String, Object>>(start, sketches)));
   }
 
-  private Map<String, ImmutableBitmap> toDependentBitmap(DimFilter current, BitmapIndexSelector selector)
+  private ImmutableBitmap toDependentBitmap(DimFilter current, BitmapIndexSelector selector)
   {
     current = Filters.convertToCNF(current);
     if (current == null) {
-      return ImmutableMap.of();
+      return null;
     }
     if (!(current instanceof AndDimFilter)) {
-      Set<String> dependents = Filters.getDependents(current);
-      if (dependents.size() == 1) {
-        return ImmutableMap.of(Iterables.getOnlyElement(dependents), current.toFilter().getBitmapIndex(selector));
-      }
-      return ImmutableMap.of();
+      return current.toFilter().getBitmapIndex(selector);
     }
-    Map<String, ImmutableBitmap> filters = Maps.newHashMap();
+    List<ImmutableBitmap> filters = Lists.newArrayList();
     for (DimFilter child : ((AndDimFilter) current).getChildren()) {
-      Set<String> dependents = Filters.getDependents(child);
-      if (dependents.size() == 1) {
-        filters.put(Iterables.getOnlyElement(dependents), child.toFilter().getBitmapIndex(selector));
-      }
+      filters.add(child.toFilter().getBitmapIndex(selector));
     }
-    return filters;
+    return selector.getBitmapFactory().intersection(filters);
   }
 
   private List<Entry> toTargetEntries(Segment segment, List<String> dimensionList, List<String> excludeList)

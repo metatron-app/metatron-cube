@@ -40,12 +40,10 @@ import java.util.Objects;
 public class SketchQuery extends BaseQuery<Result<Map<String, Object>>>
   implements Query.DimFilterSupport<Result<Map<String, Object>>>
 {
-  private static final int DEFAULT_NOM_ENTRIES = 16384;
-
   private final List<String> dimensions;
   private final List<String> dimensionExclusions;
   private final DimFilter filter;
-  private final int nomEntries;
+  private final int sketchParam;
   private final SketchOp sketchOp;
 
   @JsonCreator
@@ -55,7 +53,7 @@ public class SketchQuery extends BaseQuery<Result<Map<String, Object>>>
       @JsonProperty("dimensions") List<String> dimensions,
       @JsonProperty("dimensionExclusions") List<String> dimensionExclusions,
       @JsonProperty("filter") DimFilter filter,
-      @JsonProperty("nomEntries") Integer nomEntries,
+      @JsonProperty("sketchParam") Integer sketchParam,
       @JsonProperty("sketchOp") SketchOp sketchOp,
       @JsonProperty("context") Map<String, Object> context
   )
@@ -65,7 +63,7 @@ public class SketchQuery extends BaseQuery<Result<Map<String, Object>>>
     this.dimensionExclusions = dimensionExclusions;
     this.filter = filter;
     this.sketchOp = sketchOp == null ? SketchOp.THETA : sketchOp;
-    this.nomEntries = nomEntries == null ? DEFAULT_NOM_ENTRIES : nomEntries;
+    this.sketchParam = sketchParam == null ? this.sketchOp.defaultParam() : this.sketchOp.normalize(sketchParam);
     if (filter != null) {
       Preconditions.checkArgument(filter.optimize().toFilter().supportsBitmap());
     }
@@ -92,7 +90,7 @@ public class SketchQuery extends BaseQuery<Result<Map<String, Object>>>
         dimensions,
         dimensionExclusions,
         filter,
-        nomEntries,
+        sketchParam,
         sketchOp,
         getContext()
     );
@@ -107,7 +105,7 @@ public class SketchQuery extends BaseQuery<Result<Map<String, Object>>>
         dimensions,
         dimensionExclusions,
         filter,
-        nomEntries,
+        sketchParam,
         sketchOp,
         getContext()
     );
@@ -122,7 +120,7 @@ public class SketchQuery extends BaseQuery<Result<Map<String, Object>>>
         dimensions,
         dimensionExclusions,
         filter,
-        nomEntries,
+        sketchParam,
         sketchOp,
         computeOverridenContext(contextOverrides)
     );
@@ -137,7 +135,7 @@ public class SketchQuery extends BaseQuery<Result<Map<String, Object>>>
         dimensions,
         dimensionExclusions,
         filter,
-        nomEntries,
+        sketchParam,
         sketchOp,
         getContext()
     );
@@ -168,9 +166,9 @@ public class SketchQuery extends BaseQuery<Result<Map<String, Object>>>
   }
 
   @JsonProperty
-  public int getNomEntries()
+  public int getSketchParam()
   {
-    return nomEntries;
+    return sketchParam;
   }
 
   @JsonProperty
@@ -188,7 +186,7 @@ public class SketchQuery extends BaseQuery<Result<Map<String, Object>>>
         ", dimensions=" + dimensions +
         ", dimensionExclusions=" + dimensionExclusions +
         ", filter=" + filter +
-        ", nomEntries=" + nomEntries +
+        ", sketchParam=" + sketchParam +
         toString(POST_PROCESSING, FORWARD_URL, FORWARD_CONTEXT) +
         '}';
   }
@@ -211,7 +209,7 @@ public class SketchQuery extends BaseQuery<Result<Map<String, Object>>>
     if (!Objects.equals(filter, that.filter)) {
       return false;
     }
-    return sketchOp == that.sketchOp && nomEntries == that.nomEntries;
+    return sketchOp == that.sketchOp && sketchParam == that.sketchParam;
   }
 
   @Override
@@ -222,7 +220,7 @@ public class SketchQuery extends BaseQuery<Result<Map<String, Object>>>
     result = 31 * result + Objects.hashCode(dimensionExclusions);
     result = 31 * result + Objects.hashCode(filter);
     result = 31 * result + sketchOp.ordinal();
-    result = 31 * result + nomEntries;
+    result = 31 * result + sketchParam;
     return result;
   }
 }

@@ -23,11 +23,11 @@ import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.databind.JsonSerializer;
 import com.fasterxml.jackson.databind.SerializerProvider;
 import com.yahoo.sketches.ArrayOfStringsSerDe;
-import com.yahoo.sketches.quantiles.ItemsSketch;
+import com.yahoo.sketches.frequencies.ItemsSketch;
 
 import java.io.IOException;
 
-public class ItemsSketchJsonSerializer extends JsonSerializer<ItemsSketch>
+public class FrequencySketchJsonSerializer extends JsonSerializer<ItemsSketch>
 {
   @Override
   @SuppressWarnings("unchecked")

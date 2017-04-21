@@ -26,6 +26,7 @@ import com.google.inject.Binder;
 import com.google.inject.multibindings.MapBinder;
 import com.yahoo.memory.Memory;
 import com.yahoo.sketches.quantiles.ItemsSketch;
+import com.yahoo.sketches.sampling.ReservoirItemsSketch;
 import com.yahoo.sketches.theta.Sketch;
 import io.druid.guice.LazySingleton;
 import io.druid.guice.QueryToolBinders;
@@ -33,11 +34,13 @@ import io.druid.initialization.DruidModule;
 import io.druid.query.Query;
 import io.druid.query.QueryRunnerFactory;
 import io.druid.query.QueryToolChest;
-import io.druid.query.sketch.SketchQuantilesProcessor;
 import io.druid.query.sketch.SimilarityProcessingOperator;
+import io.druid.query.sketch.SketchFrequencyProcessor;
+import io.druid.query.sketch.SketchQuantilesProcessor;
 import io.druid.query.sketch.SketchQuery;
 import io.druid.query.sketch.SketchQueryQueryToolChest;
 import io.druid.query.sketch.SketchQueryRunnerFactory;
+import io.druid.query.sketch.SketchSamplingProcessor;
 import io.druid.query.sketch.SketchThetaProcessor;
 import io.druid.segment.serde.ComplexMetrics;
 
@@ -95,11 +98,19 @@ public class SketchModule implements DruidModule
             .registerSubtypes(SimilarityProcessingOperator.class)
             .registerSubtypes(SketchThetaProcessor.class)
             .registerSubtypes(SketchQuantilesProcessor.class)
+            .registerSubtypes(SketchFrequencyProcessor.class)
+            .registerSubtypes(SketchSamplingProcessor.class)
             .addSerializer(
                 Sketch.class, new SketchJsonSerializer()
             )
             .addSerializer(
                 ItemsSketch.class, new ItemsSketchJsonSerializer()
+            )
+            .addSerializer(
+                com.yahoo.sketches.frequencies.ItemsSketch.class, new FrequencySketchJsonSerializer()
+            )
+            .addSerializer(
+                ReservoirItemsSketch.class, new SamplingSketchJsonSerializer()
             )
             .addSerializer(
                 Memory.class, new MemoryJsonSerializer()

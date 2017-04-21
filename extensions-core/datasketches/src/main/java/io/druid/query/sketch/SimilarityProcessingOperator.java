@@ -83,7 +83,7 @@ public class SimilarityProcessingOperator implements PostProcessingOperator.Unio
           return baseRunner.run(query, responseContext);
         }
         Sequence<Result<Map<String, Object>>> sequences = baseRunner.run(query, responseContext);
-        final int nomEntries = ((SketchQuery) query).getNomEntries();
+        final int nomEntries = ((SketchQuery) query).getSketchParam();
         final List<Similarity> similarities = Lists.newArrayList();
         sequences.accumulate(
             null, new Accumulator<Object, Result<Map<String,Object>>>()
@@ -133,7 +133,7 @@ public class SimilarityProcessingOperator implements PostProcessingOperator.Unio
           LOG.info("query should be 'sketch' type with 'theta' operation");
           return baseRunner.run(query, responseContext);
         }
-        final int nomEntries = ((SketchQuery) representative).getNomEntries();
+        final int nomEntries = ((SketchQuery) representative).getSketchParam();
         final Map<String, Map<String, Sketch>> sketches = Maps.newHashMap();
         final List<Similarity> similarities = Lists.newArrayList();
         Sequence<Pair<Query, Sequence>> sequences = baseRunner.run(query, responseContext);

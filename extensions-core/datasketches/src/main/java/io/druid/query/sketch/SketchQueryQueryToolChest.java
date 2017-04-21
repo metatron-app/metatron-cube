@@ -82,7 +82,7 @@ public class SketchQueryQueryToolChest extends QueryToolChest<Result<Map<String,
       createMergeFn(Query<Result<Map<String, Object>>> input)
       {
         final SketchQuery sketch = (SketchQuery) input;
-        return new SketchBinaryFn(sketch.getNomEntries(), sketch.getSketchOp().handler());
+        return new SketchBinaryFn(sketch.getSketchParam(), sketch.getSketchOp().handler());
       }
     };
   }
@@ -110,8 +110,12 @@ public class SketchQueryQueryToolChest extends QueryToolChest<Result<Map<String,
           Object deserialize;
           if (query.getSketchOp() == SketchOp.THETA) {
             deserialize = SketchOperations.deserializeFromMemory(memory);
-          } else {
+          } else if (query.getSketchOp() == SketchOp.QUANTILE) {
             deserialize = SketchOperations.deserializeQuantileFromMemory(memory);
+          } else if (query.getSketchOp() == SketchOp.FREQUENCY) {
+            deserialize = SketchOperations.deserializeFrequencyFromMemory(memory);
+          } else {
+            deserialize = SketchOperations.deserializeSamplingFromMemory(memory);
           }
           entry.setValue(deserialize);
         }

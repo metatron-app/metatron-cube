@@ -26,6 +26,7 @@ import com.yahoo.memory.NativeMemory;
 import com.yahoo.sketches.ArrayOfStringsSerDe;
 import com.yahoo.sketches.Family;
 import com.yahoo.sketches.quantiles.ItemsSketch;
+import com.yahoo.sketches.sampling.ReservoirItemsSketch;
 import com.yahoo.sketches.theta.AnotB;
 import com.yahoo.sketches.theta.Intersection;
 import com.yahoo.sketches.theta.SetOperation;
@@ -115,6 +116,68 @@ public class SketchOperations
   public static ItemsSketch deserializeQuantileFromMemory(Memory memory)
   {
     return ItemsSketch.getInstance(memory, Ordering.natural(), stringsSerDe);
+  }
+
+  public static com.yahoo.sketches.frequencies.ItemsSketch deserializeFrequency(Object serializedSketch)
+  {
+    if (serializedSketch instanceof String) {
+      return deserializeFrequencyFromBase64EncodedString((String) serializedSketch);
+    } else if (serializedSketch instanceof byte[]) {
+      return deserializeFrequencyFromByteArray((byte[]) serializedSketch);
+    } else if (serializedSketch instanceof com.yahoo.sketches.frequencies.ItemsSketch) {
+      return (com.yahoo.sketches.frequencies.ItemsSketch) serializedSketch;
+    }
+
+    throw new IllegalStateException(
+        "Object is not of a type that can deserialize to sketch: "
+        + serializedSketch.getClass()
+    );
+  }
+
+  public static com.yahoo.sketches.frequencies.ItemsSketch deserializeFrequencyFromBase64EncodedString(String str)
+  {
+    return deserializeFrequencyFromByteArray(Base64.decodeBase64(str.getBytes(Charsets.UTF_8)));
+  }
+
+  public static com.yahoo.sketches.frequencies.ItemsSketch deserializeFrequencyFromByteArray(byte[] data)
+  {
+    return deserializeFrequencyFromMemory(new NativeMemory(data));
+  }
+
+  public static com.yahoo.sketches.frequencies.ItemsSketch deserializeFrequencyFromMemory(Memory memory)
+  {
+    return com.yahoo.sketches.frequencies.ItemsSketch.getInstance(memory, stringsSerDe);
+  }
+
+  public static ReservoirItemsSketch deserializeSampling(Object serializedSketch)
+  {
+    if (serializedSketch instanceof String) {
+      return deserializeSamplingFromBase64EncodedString((String) serializedSketch);
+    } else if (serializedSketch instanceof byte[]) {
+      return deserializeSamplingFromByteArray((byte[]) serializedSketch);
+    } else if (serializedSketch instanceof ReservoirItemsSketch) {
+      return (ReservoirItemsSketch) serializedSketch;
+    }
+
+    throw new IllegalStateException(
+        "Object is not of a type that can deserialize to sketch: "
+        + serializedSketch.getClass()
+    );
+  }
+
+  public static ReservoirItemsSketch deserializeSamplingFromBase64EncodedString(String str)
+  {
+    return deserializeSamplingFromByteArray(Base64.decodeBase64(str.getBytes(Charsets.UTF_8)));
+  }
+
+  public static ReservoirItemsSketch deserializeSamplingFromByteArray(byte[] data)
+  {
+    return deserializeSamplingFromMemory(new NativeMemory(data));
+  }
+
+  public static ReservoirItemsSketch deserializeSamplingFromMemory(Memory memory)
+  {
+    return ReservoirItemsSketch.getInstance(memory, stringsSerDe);
   }
 
   public static Sketch sketchSetOperation(Func func, int sketchSize, Sketch... sketches)
