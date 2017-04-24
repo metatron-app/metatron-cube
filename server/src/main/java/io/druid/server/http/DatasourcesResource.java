@@ -218,7 +218,8 @@ public class DatasourcesResource
     DescExtractor type = DescExtractor.fromString(descType);
     switch (type) {
       case DS_COMMENT:
-        return Response.ok(desc.getComment()).build();
+        // explicitly make json string
+        return Response.ok("\"" + desc.getComment() + "\"").build();
       case DS_PROPS:
         return Response.ok(desc.getProperties()).build();
       case COLUMN_PROPS:

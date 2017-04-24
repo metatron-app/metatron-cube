@@ -52,7 +52,10 @@ case $startStop in
     ;;
 
   (*)
-    echo $usage
-    exit 1
-    ;;
+    case $nodeType in
+      (tools)
+        echo Running tool $1...
+        java -cp conf/druid:lib/* io.druid.cli.Main $nodeType $@
+        ;;
+    esac
 esac

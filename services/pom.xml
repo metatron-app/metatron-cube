@@ -55,6 +55,11 @@
             <groupId>io.airlift</groupId>
             <artifactId>airline</artifactId>
         </dependency>
+        <dependency>
+            <groupId>org.jline</groupId>
+            <artifactId>jline</artifactId>
+            <version>3.2.0</version>
+        </dependency>
 
         <!-- Test Dependencies -->
         <dependency>
