@@ -19,6 +19,7 @@
 
 package io.druid.segment;
 
+import io.druid.segment.data.Indexed;
 import org.joda.time.Interval;
 
 import java.io.Closeable;
@@ -29,6 +30,7 @@ public interface Segment extends Closeable
 {
   public String getIdentifier();
   public Interval getDataInterval();
+  public Indexed<String> getAvailableDimensions(boolean forQuery);
   public QueryableIndex asQueryableIndex(boolean forQuery);
   public StorageAdapter asStorageAdapter(boolean forQuery);
   public long getLastAccessTime();

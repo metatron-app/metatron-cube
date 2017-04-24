@@ -152,15 +152,10 @@ public class SketchQueryRunner implements QueryRunner<Result<Map<String, Object>
 
   private List<Entry> toTargetEntries(Segment segment, List<String> dimensionList, List<String> excludeList)
   {
-    List<String> dimsToSearch;
+    final List<String> existing = Lists.newArrayList(segment.getAvailableDimensions(true));
+    final List<String> dimsToSearch;
     if (dimensionList == null || dimensionList.isEmpty()) {
-      final QueryableIndex indexed = segment.asQueryableIndex(true);
-      final StorageAdapter adapter = segment.asStorageAdapter(true);
-      dimsToSearch = Lists.newArrayList(
-          indexed != null
-          ? indexed.getAvailableDimensions()
-          : adapter.getAvailableDimensions()
-      );
+      dimsToSearch = existing;
     } else {
       dimsToSearch = dimensionList;
     }
@@ -175,7 +170,7 @@ public class SketchQueryRunner implements QueryRunner<Result<Map<String, Object>
               public Entry apply(String expression)
               {
                 Expr expr = Parser.parse(expression);
-                if (Evals.isIdentifier(expr)) {
+                if (existing.contains(expression) || Evals.isIdentifier(expr)) {
                   return new Entry(expression, expression, StringUtils.NULL_TO_EMPTY);
                 }
                 String dimension = Iterables.getOnlyElement(Parser.findRequiredBindings(expr));
