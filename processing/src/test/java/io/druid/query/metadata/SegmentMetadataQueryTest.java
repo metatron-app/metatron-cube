@@ -260,6 +260,37 @@ public class SegmentMetadataQueryTest
   }
 
   @Test
+  @SuppressWarnings("unchecked")
+  public void testNullCount()
+  {
+    Query<SegmentAnalysis> query = testQuery
+        .withColumns(new ListColumnIncluderator(Arrays.asList("partial_null_column")))
+        .withMoreAnalysis(
+            SegmentMetadataQuery.AnalysisType.CARDINALITY,
+            SegmentMetadataQuery.AnalysisType.NULL_COUNT);
+
+    // don't know why null-count is different, whatever..
+    SegmentAnalysis expected = new SegmentAnalysis(
+        expectedSegmentAnalysis1.getId(),
+        ImmutableList.of( new Interval("2011-01-12T00:00:00.000Z/2011-04-15T00:00:00.001Z")),
+        ImmutableMap.of(
+            "partial_null_column",
+            new ColumnAnalysis("STRING", false, mmap1 ? 930 : 920, 0, 2, mmap1 ? 1023 : 1012, "", "value", null)
+        ),
+        mmap1 ? 93744 : 94517,
+        1209,
+        null,
+        null
+    );
+    List<SegmentAnalysis> results = Sequences.toList(
+        runner1.run(query, Maps.newHashMap()),
+        Lists.<SegmentAnalysis>newArrayList()
+    );
+
+    Assert.assertEquals(Arrays.asList(expected), results);
+  }
+
+  @Test
   public void testSegmentMetadataQueryWithRollupMerge()
   {
     SegmentAnalysis mergedSegmentAnalysis = new SegmentAnalysis(
@@ -271,7 +302,7 @@ public class SegmentMetadataQueryTest
                 ValueType.STRING.toString(),
                 false,
                 0,
-                0,
+                null,
                 null,
                 null,
                 null
@@ -281,7 +312,7 @@ public class SegmentMetadataQueryTest
                 ValueType.STRING.toString(),
                 true,
                 0,
-                0,
+                null,
                 null,
                 null,
                 null
@@ -602,7 +633,7 @@ public class SegmentMetadataQueryTest
                 ValueType.STRING.toString(),
                 false,
                 0,
-                0,
+                null,
                 null,
                 null,
                 null
@@ -664,7 +695,7 @@ public class SegmentMetadataQueryTest
                 ValueType.STRING.toString(),
                 false,
                 0,
-                0,
+                null,
                 null,
                 null,
                 null
@@ -723,7 +754,7 @@ public class SegmentMetadataQueryTest
                 ValueType.STRING.toString(),
                 false,
                 0,
-                0,
+                null,
                 null,
                 null,
                 null

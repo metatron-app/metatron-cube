@@ -82,7 +82,7 @@ public class SegmentAnalyzerTest
       if (analyses == null) {
         Assert.assertTrue(dimension, columnAnalysis.getCardinality() > 0);
       } else {
-        Assert.assertEquals(dimension, 0, columnAnalysis.getCardinality().longValue());
+        Assert.assertEquals(dimension, null, columnAnalysis.getCardinality());
         Assert.assertEquals(dimension, 0, columnAnalysis.getSize());
       }
     }
@@ -135,7 +135,7 @@ public class SegmentAnalyzerTest
           Assert.assertTrue(dimension, columnAnalysis.getSize() > 0);
           Assert.assertTrue(dimension, columnAnalysis.getCardinality() > 0);
         } else {
-          Assert.assertEquals(dimension, 0, columnAnalysis.getCardinality().longValue());
+          Assert.assertEquals(dimension, null, columnAnalysis.getCardinality());
           Assert.assertEquals(dimension, 0, columnAnalysis.getSize());
         }
       }

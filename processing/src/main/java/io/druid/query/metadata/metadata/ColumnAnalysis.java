@@ -33,7 +33,7 @@ public class ColumnAnalysis
 
   public static ColumnAnalysis error(String reason)
   {
-    return new ColumnAnalysis("STRING", false, -1, -1, null, null, null, ERROR_PREFIX + reason);
+    return new ColumnAnalysis("STRING", false, -1, -1, null, null, null, null, ERROR_PREFIX + reason);
   }
 
   private final String type;
@@ -41,6 +41,7 @@ public class ColumnAnalysis
   private final long size;
   private final long serializedSize;
   private final Integer cardinality;
+  private final Integer nullCount;
   private final Comparable minValue;
   private final Comparable maxValue;
   private final String errorMessage;
@@ -52,6 +53,7 @@ public class ColumnAnalysis
       @JsonProperty("size") long size,
       @JsonProperty("serializedSize") long serializedSize,
       @JsonProperty("cardinality") Integer cardinality,
+      @JsonProperty("nullCount") Integer nullCount,
       @JsonProperty("minValue") Comparable minValue,
       @JsonProperty("maxValue") Comparable maxValue,
       @JsonProperty("errorMessage") String errorMessage
@@ -64,6 +66,7 @@ public class ColumnAnalysis
     this.cardinality = cardinality;
     this.minValue = minValue;
     this.maxValue = maxValue;
+    this.nullCount = nullCount;
     this.errorMessage = errorMessage;
   }
 
@@ -77,7 +80,7 @@ public class ColumnAnalysis
       String errorMessage
   )
   {
-    this(type, hasMultipleValues, size, 0L, cardinality, minValue, maxValue, errorMessage);
+    this(type, hasMultipleValues, size, 0L, cardinality, null, minValue, maxValue, errorMessage);
   }
 
   @JsonProperty
@@ -108,6 +111,12 @@ public class ColumnAnalysis
   public Integer getCardinality()
   {
     return cardinality;
+  }
+
+  @JsonProperty
+  public Integer getNullCount()
+  {
+    return nullCount;
   }
 
   @JsonTypeInfo(use = JsonTypeInfo.Id.NAME)
@@ -161,6 +170,13 @@ public class ColumnAnalysis
       cardinality = Math.max(cardinality, rhsCardinality);
     }
 
+    Integer nullCount = getNullCount();
+    if (nullCount == null) {
+      nullCount = rhs.nullCount;
+    } else if (rhs.nullCount != null) {
+      nullCount += rhs.nullCount;
+    }
+
     final boolean multipleValues = hasMultipleValues || rhs.isHasMultipleValues();
 
     Comparable newMin = choose(minValue, rhs.minValue, false);
@@ -172,6 +188,7 @@ public class ColumnAnalysis
         size + rhs.getSize(),
         serializedSize + rhs.getSerializedSize(),
         cardinality,
+        nullCount,
         newMin,
         newMax,
         null
@@ -201,6 +218,7 @@ public class ColumnAnalysis
            ", cardinality=" + cardinality +
            ", minValue=" + minValue +
            ", maxValue=" + maxValue +
+           ", nullCount=" + nullCount +
            ", errorMessage='" + errorMessage + '\'' +
            '}';
   }
@@ -220,6 +238,7 @@ public class ColumnAnalysis
            serializedSize == that.serializedSize &&
            Objects.equals(type, that.type) &&
            Objects.equals(cardinality, that.cardinality) &&
+           Objects.equals(nullCount, that.nullCount) &&
            Objects.equals(minValue, that.minValue) &&
            Objects.equals(maxValue, that.maxValue) &&
            Objects.equals(errorMessage, that.errorMessage);
@@ -228,6 +247,16 @@ public class ColumnAnalysis
   @Override
   public int hashCode()
   {
-    return Objects.hash(type, hasMultipleValues, size, serializedSize, cardinality, minValue, maxValue, errorMessage);
+    return Objects.hash(
+        type,
+        hasMultipleValues,
+        size,
+        serializedSize,
+        cardinality,
+        nullCount,
+        minValue,
+        maxValue,
+        errorMessage
+    );
   }
 }

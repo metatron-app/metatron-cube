@@ -57,6 +57,7 @@ public class SegmentMetadataQuery extends BaseQuery<SegmentAnalysis>
     INTERVAL,
     AGGREGATORS,
     MINMAX,
+    NULL_COUNT,
     QUERYGRANULARITY,
     INGESTED_NUMROW,
     SERIALIZED_SIZE,
@@ -241,7 +242,7 @@ public class SegmentMetadataQuery extends BaseQuery<SegmentAnalysis>
 
 
   @Override
-  public Query<SegmentAnalysis> withOverriddenContext(Map<String, Object> contextOverride)
+  public SegmentMetadataQuery withOverriddenContext(Map<String, Object> contextOverride)
   {
     return new SegmentMetadataQuery(
         getDataSource(),
@@ -256,7 +257,7 @@ public class SegmentMetadataQuery extends BaseQuery<SegmentAnalysis>
   }
 
   @Override
-  public Query<SegmentAnalysis> withQuerySegmentSpec(QuerySegmentSpec spec)
+  public SegmentMetadataQuery withQuerySegmentSpec(QuerySegmentSpec spec)
   {
     return new SegmentMetadataQuery(
         getDataSource(),
@@ -271,7 +272,7 @@ public class SegmentMetadataQuery extends BaseQuery<SegmentAnalysis>
   }
 
   @Override
-  public Query<SegmentAnalysis> withDataSource(DataSource dataSource)
+  public SegmentMetadataQuery withDataSource(DataSource dataSource)
   {
     return new SegmentMetadataQuery(
         dataSource,
@@ -285,7 +286,7 @@ public class SegmentMetadataQuery extends BaseQuery<SegmentAnalysis>
     );
   }
 
-  public Query<SegmentAnalysis> withColumns(ColumnIncluderator includerator)
+  public SegmentMetadataQuery withColumns(ColumnIncluderator includerator)
   {
     return new SegmentMetadataQuery(
         getDataSource(),
@@ -299,7 +300,7 @@ public class SegmentMetadataQuery extends BaseQuery<SegmentAnalysis>
     );
   }
 
-  public Query<SegmentAnalysis> withMoreAnalysis(AnalysisType... moreAnalysis)
+  public SegmentMetadataQuery withMoreAnalysis(AnalysisType... moreAnalysis)
   {
     Set<AnalysisType> current = Sets.newHashSet(analysisTypes);
     current.addAll(Arrays.asList(moreAnalysis));

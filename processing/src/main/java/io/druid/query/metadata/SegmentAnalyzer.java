@@ -151,6 +151,11 @@ public class SegmentAnalyzer
     return analysisTypes.contains(SegmentMetadataQuery.AnalysisType.SIZE);
   }
 
+  public boolean analyzingNullCount()
+  {
+    return analysisTypes.contains(SegmentMetadataQuery.AnalysisType.NULL_COUNT);
+  }
+
   public boolean analyzingSerializedSize()
   {
     return analysisTypes.contains(SegmentMetadataQuery.AnalysisType.SERIALIZED_SIZE);
@@ -191,6 +196,7 @@ public class SegmentAnalyzer
         capabilities.hasMultipleValues(),
         size,
         serializedSize,
+        null,
         null,
         null,
         null,
@@ -236,12 +242,21 @@ public class SegmentAnalyzer
       max = Strings.nullToEmpty(bitmapIndex.getValue(cardinality - 1));
     }
 
+    int nullCount = 0;
+    if (analyzingNullCount() && cardinality > 0) {
+      int index = bitmapIndex.getIndex(null);
+      if (index >= 0) {
+        nullCount = bitmapIndex.getBitmap(index).size();
+      }
+    }
+
     return new ColumnAnalysis(
         capabilities.getType().name(),
         capabilities.hasMultipleValues(),
         size,
         serializedSize,
-        analyzingCardinality() ? cardinality : 0,
+        analyzingCardinality() ? cardinality : null,
+        analyzingNullCount() ? nullCount : null,
         min,
         max,
         null
@@ -255,7 +270,6 @@ public class SegmentAnalyzer
   )
   {
     int cardinality = 0;
-    long size = 0;
     long serializedSize = 0;
 
     Comparable min = null;
@@ -265,7 +279,17 @@ public class SegmentAnalyzer
       cardinality = storageAdapter.getDimensionCardinality(columnName);
     }
 
-    if (analyzingSize()) {
+    final boolean analyzingSize = analyzingSize();
+    final boolean analyzeNullCount;
+    if (analyzingNullCount()) {
+      Comparable minValue = storageAdapter.getMinValue(columnName);
+      analyzeNullCount = minValue instanceof String && !((String) minValue).isEmpty() || minValue != null;
+    } else {
+      analyzeNullCount = false;
+    }
+
+    final long[] accumulated = new long[] {0, 0};
+    if (analyzeNullCount || analyzingSize) {
       final long start = storageAdapter.getMinTime().getMillis();
       final long end = storageAdapter.getMaxTime().getMillis();
 
@@ -279,12 +303,12 @@ public class SegmentAnalyzer
               false
           );
 
-      size = cursors.accumulate(
-          0L,
-          new Accumulator<Long, Cursor>()
+      cursors.accumulate(
+          accumulated,
+          new Accumulator<long[], Cursor>()
           {
             @Override
-            public Long accumulate(Long accumulated, Cursor cursor)
+            public long[] accumulate(final long[] accumulated, Cursor cursor)
             {
               DimensionSelector selector = cursor.makeDimensionSelector(
                   new DefaultDimensionSpec(
@@ -295,19 +319,26 @@ public class SegmentAnalyzer
               if (selector == null) {
                 return accumulated;
               }
-              long current = accumulated;
+              final int nullIndex = analyzeNullCount ? selector.lookupId(null) : -1;
+
               while (!cursor.isDone()) {
                 final IndexedInts vals = selector.getRow();
                 for (int i = 0; i < vals.size(); ++i) {
-                  final String dimVal = selector.lookupName(vals.get(i));
-                  if (dimVal != null && !dimVal.isEmpty()) {
-                    current += StringUtils.estimatedBinaryLengthAsUTF8(dimVal);
+                  final int index = vals.get(i);
+                  if (analyzingSize) {
+                    final String dimVal = selector.lookupName(index);
+                    if (dimVal != null && !dimVal.isEmpty()) {
+                      accumulated[0] += StringUtils.estimatedBinaryLengthAsUTF8(dimVal);
+                    }
+                  }
+                  if (nullIndex >= 0 && vals.get(i) == nullIndex) {
+                    accumulated[1]++;
                   }
                 }
                 cursor.advance();
               }
 
-              return current;
+              return accumulated;
             }
           }
       );
@@ -324,9 +355,10 @@ public class SegmentAnalyzer
     return new ColumnAnalysis(
         capabilities.getType().name(),
         capabilities.hasMultipleValues(),
-        size,
+        accumulated[0],
         serializedSize,
-        cardinality,
+        analyzingCardinality() ? cardinality : null,
+        analyzingNullCount() ? (int)accumulated[1] : null,
         min,
         max,
         null
@@ -357,7 +389,7 @@ public class SegmentAnalyzer
 
       final Function<Object, Long> inputSizeFn = serde.inputSizeFn();
       if (inputSizeFn == null) {
-        return new ColumnAnalysis(typeName, hasMultipleValues, 0, serializedSize, null, null, null, null);
+        return new ColumnAnalysis(typeName, hasMultipleValues, 0, serializedSize, null, null, null, null, null);
       }
 
       final int length = column.getLength();
@@ -371,6 +403,7 @@ public class SegmentAnalyzer
         hasMultipleValues,
         size,
         serializedSize,
+        null,
         null,
         null,
         null,
