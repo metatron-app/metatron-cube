@@ -22,6 +22,7 @@ package io.druid.math.expr;
 import com.google.common.primitives.Ints;
 import com.metamx.common.Pair;
 import org.joda.time.DateTime;
+import org.joda.time.DateTimeZone;
 
 import java.util.Objects;
 
@@ -167,7 +168,7 @@ public class ExprEval extends Pair<Object, ExprType>
 
   public DateTime asDateTime()
   {
-    return Evals.toDateTime(this, null);
+    return Evals.toDateTime(this, (DateTimeZone) null);
   }
 
   public boolean asBoolean()
@@ -194,7 +195,7 @@ public class ExprEval extends Pair<Object, ExprType>
       case STRING:
         return isNull() ? 0F : Float.valueOf(asString());
       case DATETIME:
-        return isNull() ? 0F : asDateTime().getMillis();
+        return isNull() ? 0F : dateTimeValue().getMillis();
     }
     return 0F;
   }
@@ -208,7 +209,7 @@ public class ExprEval extends Pair<Object, ExprType>
       case STRING:
         return isNull() ? 0D : Double.valueOf(asString());
       case DATETIME:
-        return isNull() ? 0D : asDateTime().getMillis();
+        return isNull() ? 0D : dateTimeValue().getMillis();
     }
     return 0D;
   }
@@ -222,7 +223,7 @@ public class ExprEval extends Pair<Object, ExprType>
       case STRING:
         return isNull() ? 0L : Long.valueOf(asString());
       case DATETIME:
-        return isNull() ? 0L : asDateTime().getMillis();
+        return isNull() ? 0L : dateTimeValue().getMillis();
     }
     return 0L;
   }
@@ -236,7 +237,7 @@ public class ExprEval extends Pair<Object, ExprType>
       case STRING:
         return isNull() ? 0 : Integer.valueOf(asString());
       case DATETIME:
-        return isNull() ? 0 : Ints.checkedCast(asDateTime().getMillis());
+        return isNull() ? 0 : Ints.checkedCast(dateTimeValue().getMillis());
     }
     return 0;
   }

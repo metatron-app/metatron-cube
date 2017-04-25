@@ -20,6 +20,7 @@
 package io.druid.math.expr;
 
 import com.google.common.base.Supplier;
+import com.google.common.base.Throwables;
 import io.druid.math.expr.Expr.NumericBinding;
 
 import java.util.List;
@@ -35,6 +36,19 @@ public interface Function
   interface Factory extends Supplier<Function>
   {
     String name();
+  }
+
+  abstract class NewInstance implements Factory, Function
+  {
+    public Function get()
+    {
+      try {
+        return getClass().newInstance();
+      }
+      catch (Exception e) {
+        throw Throwables.propagate(e);
+      }
+    }
   }
 
   interface Library

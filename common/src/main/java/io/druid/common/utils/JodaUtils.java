@@ -32,11 +32,13 @@ import org.joda.time.Period;
 import org.joda.time.format.DateTimeFormat;
 import org.joda.time.format.DateTimeFormatter;
 import org.joda.time.format.DateTimeFormatterBuilder;
+import sun.util.calendar.ZoneInfo;
 
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.Iterator;
 import java.util.Locale;
+import java.util.TimeZone;
 import java.util.TreeSet;
 
 /**
@@ -259,6 +261,8 @@ public class JodaUtils
     return period;
   }
 
+  public static final DateTimeFormatter ISO8601 = toTimeFormatter("yyyy-MM-dd'T'HH:mm:ss[.SSS][ZZ]");
+
   public static DateTimeFormatter toTimeFormatter(String formatString)
   {
     return toTimeFormatter(formatString, null, null);
@@ -280,13 +284,13 @@ public class JodaUtils
       if (c == '[') {
         if (i > prev) {
           b.append(DateTimeFormat.forPattern(formatString.substring(prev, i)));
-          prev = i + 1;
         }
+        prev = i + 1;
       } else if (c == ']') {
         if (i > prev) {
           b.appendOptional(DateTimeFormat.forPattern(formatString.substring(prev, i)).getParser());
-          prev = i + 1;
         }
+        prev = i + 1;
       }
     }
     if (prev < formatString.length()) {
@@ -297,8 +301,27 @@ public class JodaUtils
       formatter = formatter.withLocale(new Locale(locale));
     }
     if (timeZone != null) {
-      formatter = formatter.withZone(DateTimeZone.forID(timeZone));
+      formatter = formatter.withZone(toTimeZone(timeZone));
     }
     return formatter;
+  }
+
+  //DateTimeZone.forID cannot handle abbreviations like PST
+  public static DateTimeZone toTimeZone(String timeZone)
+  {
+    if (timeZone == null) {
+      return null;
+    }
+    TimeZone tz = ZoneInfo.getTimeZone(timeZone);
+    if (tz != null) {
+      return DateTimeZone.forTimeZone(tz);
+    }
+    try {
+      return DateTimeZone.forID(timeZone);
+    }
+    catch (IllegalArgumentException e) {
+      // ignore
+    }
+    return DateTimeZone.forTimeZone(TimeZone.getTimeZone(timeZone));
   }
 }

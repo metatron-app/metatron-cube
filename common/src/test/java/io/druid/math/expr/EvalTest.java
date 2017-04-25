@@ -187,12 +187,12 @@ public class EvalTest
         9223372036854775806L, evalLong("if(0, 9223372036854775807, 9223372036854775806)", bindings)
     );
 
+    Assert.assertEquals(1294704000000L, evalLong("timestamp('2011-01-11T00:00:00.000Z')", bindings));
     Assert.assertEquals(1271023381000L, evalLong("timestamp('2010-04-12T07:03:01+09:00')", bindings));
     Assert.assertEquals(
         new DateTime("2010-04-12T07:03:01+09:00"),
         evalDateTime("dateTime('2010-04-12T07:03:01+09:00')", bindings)
     );
-
 
     // exists
     Assert.assertEquals(3L, evalLong("case (x - 1, 9223372036854775807, 2, 9223372036854775806, 3)", bindings));
@@ -212,13 +212,26 @@ public class EvalTest
     Assert.assertEquals(now - (86400000L * 7) - 10000, eval.getStartMillis(), 1000);
     Assert.assertEquals(now - (86400000L * 5) - 1000, eval.getEndMillis(), 1000);
 
-    // extract
+    // format (string to string)
     Assert.assertEquals(
-        "11-16-2016 PM 05:11:39.662-0800", evalString(
-            "time_extract("
+        "11-16-2016 PM 05:11:39.662-08:00", evalString(
+            "time_format("
             + "'2016-11-17 오전 10:11:39.662+0900', "
             + "format='yyyy-MM-dd a hh:mm:ss.SSSZZ', "
             + "locale='ko', "
+            + "out.format='MM-dd-yyyy a hh:mm:ss.SSSZZ', "
+            + "out.locale='us', "
+            + "out.timezone='PST'"
+            + ")", bindings
+        )
+    );
+
+    long time = new DateTime("2016-11-17T10:11:39.662+0900").getMillis();
+    // format (long to string)
+    Assert.assertEquals(
+        "11-16-2016 PM 05:11:39.662-08:00", evalString(
+            "time_format("
+            + time + ", "
             + "out.format='MM-dd-yyyy a hh:mm:ss.SSSZZ', "
             + "out.locale='us', "
             + "out.timezone='PST'"

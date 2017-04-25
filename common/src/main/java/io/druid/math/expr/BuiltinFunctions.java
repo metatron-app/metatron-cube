@@ -34,6 +34,7 @@ import io.druid.math.expr.Expr.WindowContext;
 import io.druid.math.expr.Function.Factory;
 import org.apache.commons.lang.StringUtils;
 import org.joda.time.DateTime;
+import org.joda.time.DateTimeZone;
 import org.joda.time.Days;
 import org.mozilla.javascript.Context;
 import org.mozilla.javascript.ScriptableObject;
@@ -138,7 +139,7 @@ public interface BuiltinFunctions extends Function.Library
         for (; i < args.size(); i++) {
           Expr expr = args.get(i);
           if (!(expr instanceof AssignExpr)) {
-            throw new RuntimeException("function '" + name() + "' requires named parameters");
+            throw new RuntimeException("named parameters should not be mixed with generic param");
           }
           AssignExpr assign = (AssignExpr) expr;
           namedParam.put(Evals.getIdentifier(assign.assignee), assign.assigned);
@@ -1177,8 +1178,8 @@ public interface BuiltinFunctions extends Function.Library
       if (args.size() < 2) {
         throw new RuntimeException("function 'datediff' need at least 2 arguments");
       }
-      DateTime t1 = Evals.toDateTime(args.get(0).eval(bindings), null);
-      DateTime t2 = Evals.toDateTime(args.get(1).eval(bindings), null);
+      DateTime t1 = Evals.toDateTime(args.get(0).eval(bindings), (DateTimeZone)null);
+      DateTime t2 = Evals.toDateTime(args.get(1).eval(bindings), (DateTimeZone)null);
       return ExprEval.of(Days.daysBetween(t1.withTimeAtStartOfDay(), t2.withTimeAtStartOfDay()).getDays());
     }
   }
@@ -2081,6 +2082,7 @@ public interface BuiltinFunctions extends Function.Library
     }
 
     @Override
+    @SuppressWarnings("unchecked")
     protected void invoke(Object current)
     {
       Comparable comparable = (Comparable) current;
@@ -2119,6 +2121,7 @@ public interface BuiltinFunctions extends Function.Library
     }
 
     @Override
+    @SuppressWarnings("unchecked")
     protected void invoke(Object current)
     {
       Comparable comparable = (Comparable) current;

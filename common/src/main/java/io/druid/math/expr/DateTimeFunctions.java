@@ -19,7 +19,6 @@
 
 package io.druid.math.expr;
 
-import com.fasterxml.jackson.databind.util.ISO8601DateFormat;
 import com.google.common.primitives.Ints;
 import io.druid.common.utils.JodaUtils;
 import org.joda.time.DateTime;
@@ -34,15 +33,10 @@ import org.joda.time.Period;
 import org.joda.time.Seconds;
 import org.joda.time.Weeks;
 import org.joda.time.Years;
+import org.joda.time.format.DateTimeFormatter;
 
-import java.text.DateFormat;
-import java.text.ParseException;
-import java.text.SimpleDateFormat;
-import java.util.Date;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
-import java.util.TimeZone;
 
 /**
  */
@@ -93,7 +87,52 @@ public interface DateTimeFunctions extends Function.Library
     }
   }
 
-  class AddTime implements Function
+  abstract class UnaryTimeMath extends Function.NewInstance
+  {
+    boolean initialized;
+    DateTimeZone timeZone;
+
+    @Override
+    public final ExprEval apply(List<Expr> args, Expr.NumericBinding bindings)
+    {
+      if (!initialized) {
+        if (args.size() != 1 && args.size() != 2) {
+          throw new IllegalArgumentException("function '" + name() + "' needs one or two arguments");
+        }
+        timeZone = args.size() == 2 ? JodaUtils.toTimeZone(Evals.getConstantString(args.get(1))) : null;
+        initialized = true;
+      }
+      DateTime time = Evals.toDateTime(args.get(0).eval(bindings), timeZone);
+      return evaluate(time);
+    }
+
+    protected abstract ExprEval evaluate(DateTime time);
+  }
+
+  abstract class BinaryTimeMath extends Function.NewInstance
+  {
+    boolean initialized;
+    DateTimeZone timeZone;
+
+    @Override
+    public ExprEval apply(List<Expr> args, Expr.NumericBinding bindings)
+    {
+      if (!initialized) {
+        if (args.size() != 2 && args.size() != 3) {
+          throw new IllegalArgumentException("function '" + name() + "' needs two or three arguments");
+        }
+        timeZone = args.size() == 3 ? JodaUtils.toTimeZone(Evals.getConstantString(args.get(2))) : null;
+        initialized = true;
+      }
+      DateTime base = Evals.toDateTime(args.get(0).eval(bindings), timeZone);
+      Period period = JodaUtils.toPeriod(Evals.getConstantString(args.get(1)));
+      return evaluate(base, period);
+    }
+
+    protected abstract ExprEval evaluate(DateTime base, Period period);
+  }
+
+  class AddTime extends BinaryTimeMath
   {
     @Override
     public String name()
@@ -102,19 +141,13 @@ public interface DateTimeFunctions extends Function.Library
     }
 
     @Override
-    public ExprEval apply(List<Expr> args, Expr.NumericBinding bindings)
+    protected final ExprEval evaluate(DateTime base, Period period)
     {
-      if (args.size() != 2 && args.size() != 3) {
-        throw new IllegalArgumentException("function '" + name() + "' needs two or three arguments");
-      }
-      String timeZone = args.size() == 3 ? Evals.getConstantString(args.get(2)) : null;
-      DateTime base = Evals.toDateTime(args.get(0).eval(bindings), timeZone);
-      Period period = JodaUtils.toPeriod(Evals.getConstantString(args.get(1)));
       return ExprEval.of(base.plus(period));
     }
   }
 
-  class SubTime implements Function
+  class SubTime extends BinaryTimeMath
   {
     @Override
     public String name()
@@ -123,14 +156,8 @@ public interface DateTimeFunctions extends Function.Library
     }
 
     @Override
-    public ExprEval apply(List<Expr> args, Expr.NumericBinding bindings)
+    protected final ExprEval evaluate(DateTime base, Period period)
     {
-      if (args.size() != 2 && args.size() != 3) {
-        throw new IllegalArgumentException("function '" + name() + "' needs two or three arguments");
-      }
-      String timeZone = args.size() == 3 ? Evals.getConstantString(args.get(2)) : null;
-      DateTime base = Evals.toDateTime(args.get(0).eval(bindings), timeZone);
-      Period period = JodaUtils.toPeriod(Evals.getConstantString(args.get(1)));
       return ExprEval.of(base.minus(period));
     }
   }
@@ -141,9 +168,10 @@ public interface DateTimeFunctions extends Function.Library
   }
 
   // whole time based
-  class DiffTime implements Function, Function.Factory
+  class DiffTime extends Function.NewInstance
   {
     private Unit unit;
+    private DateTimeZone timeZone;
 
     @Override
     public String name()
@@ -154,19 +182,19 @@ public interface DateTimeFunctions extends Function.Library
     @Override
     public ExprEval apply(List<Expr> args, Expr.NumericBinding bindings)
     {
-      if (args.size() != 3 && args.size() != 4) {
-        throw new IllegalArgumentException("function '" + name() + "' needs three or four arguments");
-      }
       if (unit == null) {
+        if (args.size() != 3 && args.size() != 4) {
+          throw new IllegalArgumentException("function '" + name() + "' needs three or four arguments");
+        }
         Expr param = args.get(0);
         if (Evals.isConstantString(param)) {
           unit = Unit.valueOf(Evals.getConstantString(param).toUpperCase());
         } else {
           unit = Unit.values()[Ints.checkedCast(Evals.getConstantLong(param))];
         }
+        timeZone = args.size() == 4 ? JodaUtils.toTimeZone(Evals.getConstantString(args.get(3))) : null;
       }
 
-      String timeZone = args.size() == 4 ? Evals.getConstantString(args.get(3)) : null;
       DateTime time1 = Evals.toDateTime(args.get(1).eval(bindings), timeZone);
       DateTime time2 = Evals.toDateTime(args.get(2).eval(bindings), timeZone);
 
@@ -188,31 +216,9 @@ public interface DateTimeFunctions extends Function.Library
       }
       return ExprEval.of(new Duration(time1, time2).getMillis());
     }
-
-    @Override
-    public Function get()
-    {
-      return new DiffTime();
-    }
   }
 
-  abstract class DateTimeMath implements Function
-  {
-    @Override
-    public final ExprEval apply(List<Expr> args, Expr.NumericBinding bindings)
-    {
-      if (args.size() != 1 && args.size() != 2) {
-        throw new IllegalArgumentException("function '" + name() + "' needs one or two arguments");
-      }
-      String timeZone = args.size() == 2 ? Evals.getConstantString(args.get(1)) : null;
-      DateTime time = Evals.toDateTime(args.get(0).eval(bindings), timeZone);
-      return evaluate(time);
-    }
-
-    protected abstract ExprEval evaluate(DateTime time);
-  }
-
-  class DayName extends DateTimeMath
+  class DayName extends UnaryTimeMath
   {
     @Override
     public String name()
@@ -227,7 +233,7 @@ public interface DateTimeFunctions extends Function.Library
     }
   }
 
-  class DayOfMonth extends DateTimeMath
+  class DayOfMonth extends UnaryTimeMath
   {
     @Override
     public String name()
@@ -242,7 +248,7 @@ public interface DateTimeFunctions extends Function.Library
     }
   }
 
-  class DayOfWeek extends DateTimeMath
+  class DayOfWeek extends UnaryTimeMath
   {
     @Override
     public String name()
@@ -257,7 +263,7 @@ public interface DateTimeFunctions extends Function.Library
     }
   }
 
-  class DayOfYear extends DateTimeMath
+  class DayOfYear extends UnaryTimeMath
   {
     @Override
     public String name()
@@ -272,7 +278,7 @@ public interface DateTimeFunctions extends Function.Library
     }
   }
 
-  class Hour extends DateTimeMath
+  class Hour extends UnaryTimeMath
   {
     @Override
     public String name()
@@ -287,7 +293,7 @@ public interface DateTimeFunctions extends Function.Library
     }
   }
 
-  class Month extends DateTimeMath
+  class Month extends UnaryTimeMath
   {
     @Override
     public String name()
@@ -302,7 +308,7 @@ public interface DateTimeFunctions extends Function.Library
     }
   }
 
-  class MonthName extends DateTimeMath
+  class MonthName extends UnaryTimeMath
   {
     @Override
     public String name()
@@ -317,7 +323,7 @@ public interface DateTimeFunctions extends Function.Library
     }
   }
 
-  class Year extends DateTimeMath
+  class Year extends UnaryTimeMath
   {
     @Override
     public String name()
@@ -332,7 +338,7 @@ public interface DateTimeFunctions extends Function.Library
     }
   }
 
-  class FirstDay extends DateTimeMath
+  class FirstDay extends UnaryTimeMath
   {
     @Override
     public String name()
@@ -347,7 +353,7 @@ public interface DateTimeFunctions extends Function.Library
     }
   }
 
-  class LastDay extends DateTimeMath
+  class LastDay extends UnaryTimeMath
   {
     @Override
     public String name()
@@ -362,18 +368,9 @@ public interface DateTimeFunctions extends Function.Library
     }
   }
 
-  class TimestampFromEpochFunc extends BuiltinFunctions.NamedParams
+  abstract class DateTimeInput extends BuiltinFunctions.NamedParams
   {
-    // yyyy-MM-ddThh:mm:ss[.sss][Z|[+-]hh:mm]
-    static final DateFormat ISO8601 = new ISO8601DateFormat();  // thread-safe
-
-    DateFormat formatter;
-
-    @Override
-    public String name()
-    {
-      return "timestamp";
-    }
+    DateTimeFormatter formatter;
 
     @Override
     protected ExprEval eval(List<Expr> params, Map<String, Expr> namedParams, Expr.NumericBinding bindings)
@@ -385,18 +382,7 @@ public interface DateTimeFunctions extends Function.Library
         initialize(params, namedParams, bindings);
       }
       ExprEval value = params.get(0).eval(bindings);
-      if (value.type() != ExprType.STRING) {
-        throw new IllegalArgumentException("first argument should be string type but got " + value.type() + " type");
-      }
-
-      Date date;
-      try {
-        date = formatter.parse(value.stringValue());
-      }
-      catch (ParseException e) {
-        throw new IllegalArgumentException("invalid value " + value.stringValue() + " in " + e.getErrorOffset(), e);
-      }
-      return toValue(date);
+      return toValue(Evals.toDateTime(value, formatter));
     }
 
     protected void initialize(List<Expr> args, Map<String, Expr> params, Expr.NumericBinding bindings)
@@ -404,24 +390,31 @@ public interface DateTimeFunctions extends Function.Library
       String format = args.size() > 1 ?
                       Evals.getConstantString(args.get(1)).trim() :
                       Evals.evalOptionalString(params.get("format"), bindings);
-      String language = args.size() > 2 ?
-                        Evals.getConstantString(args.get(2)).trim() :
-                        Evals.evalOptionalString(params.get("locale"), bindings);
+      String locale = args.size() > 2 ?
+                      Evals.getConstantString(args.get(2)).trim() :
+                      Evals.evalOptionalString(params.get("locale"), bindings);
       String timezone = args.size() > 3 ?
                         Evals.getConstantString(args.get(3)).trim() :
                         Evals.evalOptionalString(params.get("timezone"), bindings);
 
-      formatter = format == null ? ISO8601 : language == null ?
-                                             new SimpleDateFormat(format) :
-                                             new SimpleDateFormat(format, Locale.forLanguageTag(language));
-      if (timezone != null) {
-        formatter.setTimeZone(TimeZone.getTimeZone(timezone));
-      }
+      formatter = format == null ? JodaUtils.ISO8601 : JodaUtils.toTimeFormatter(format, locale, timezone);
     }
 
-    protected ExprEval toValue(Date date)
+    protected abstract ExprEval toValue(DateTime date);
+  }
+
+  // string/long to long
+  class TimestampFromEpochFunc extends DateTimeInput
+  {
+    @Override
+    public String name()
     {
-      return ExprEval.of(date.getTime(), ExprType.LONG);
+      return "timestamp";
+    }
+
+    protected ExprEval toValue(DateTime date)
+    {
+      return ExprEval.of(date.getMillis(), ExprType.LONG);
     }
 
     @Override
@@ -440,9 +433,9 @@ public interface DateTimeFunctions extends Function.Library
     }
 
     @Override
-    protected final ExprEval toValue(Date date)
+    protected final ExprEval toValue(DateTime date)
     {
-      return ExprEval.of(date.getTime() / 1000, ExprType.LONG);
+      return ExprEval.of(date.getMillis() / 1000, ExprType.LONG);
     }
 
     @Override
@@ -452,7 +445,7 @@ public interface DateTimeFunctions extends Function.Library
     }
   }
 
-  class DateTimeFunc extends TimestampFromEpochFunc
+  class DateTimeFunc extends DateTimeInput
   {
     private DateTimeZone timeZone;
 
@@ -467,15 +460,17 @@ public interface DateTimeFunctions extends Function.Library
       super.initialize(args, params, bindings);
       String timezone = Evals.evalOptionalString(params.get("out.timezone"), bindings);
       if (timezone != null) {
-        timeZone = DateTimeZone.forID(timezone);
-      } else {
-        timeZone = DateTimeZone.forTimeZone(formatter.getTimeZone());
+        DateTimeZone timeZone = JodaUtils.toTimeZone(timezone);
+        if (!timeZone.equals(formatter.getZone())) {
+          this.timeZone = timeZone;
+        }
       }
     }
+
     @Override
-    protected final ExprEval toValue(Date date)
+    protected final ExprEval toValue(DateTime date)
     {
-      return ExprEval.of(new DateTime(date.getTime(), timeZone));
+      return ExprEval.of(timeZone == null ? date : new DateTime(date.getMillis(), timeZone));
     }
 
     @Override
@@ -512,14 +507,15 @@ public interface DateTimeFunctions extends Function.Library
     }
   }
 
-  class TimeExtractFunc extends TimestampFromEpochFunc
+  // string/long to string
+  class TimeFormatFunc extends DateTimeInput
   {
-    private DateFormat outputFormat;
+    private DateTimeFormatter outputFormat;
 
     @Override
     public String name()
     {
-      return "time_extract";
+      return "time_format";
     }
 
     @Override
@@ -527,28 +523,22 @@ public interface DateTimeFunctions extends Function.Library
     {
       super.initialize(args, params, bindings);
       String format = Evals.evalOptionalString(params.get("out.format"), bindings);
-      String language = Evals.evalOptionalString(params.get("out.locale"), bindings);
+      String locale = Evals.evalOptionalString(params.get("out.locale"), bindings);
       String timezone = Evals.evalOptionalString(params.get("out.timezone"), bindings);
 
-      outputFormat = format == null ? ISO8601 : language == null ?
-                                                new SimpleDateFormat(format) :
-                                                new SimpleDateFormat(format, Locale.forLanguageTag(language));
-      if (timezone != null) {
-        outputFormat.setTimeZone(TimeZone.getTimeZone(timezone));
-      }
+      outputFormat = format == null ? JodaUtils.ISO8601 : JodaUtils.toTimeFormatter(format, locale, timezone);
     }
 
     @Override
-    protected final ExprEval toValue(Date date)
+    protected final ExprEval toValue(DateTime date)
     {
-      return ExprEval.of(outputFormat.format(date));
+      return ExprEval.of(outputFormat.print(date));
     }
 
     @Override
     public Function get()
     {
-      return new TimeExtractFunc();
+      return new TimeFormatFunc();
     }
   }
 }
-

@@ -279,24 +279,35 @@ public class Evals
     throw new UnsupportedOperationException("Unsupported type " + type);
   }
 
-  static DateTime toDateTime(ExprEval arg, String timeZone)
+  static DateTime toDateTime(ExprEval arg, DateTimeFormatter formatter)
+  {
+    DateTimeZone timeZone = formatter.getZone();
+    switch (arg.type()) {
+      case DATETIME:
+        return timeZone == null ? arg.dateTimeValue() : arg.dateTimeValue().withZone(timeZone);
+      case STRING:
+        return formatter.parseDateTime(arg.asString());
+      default:
+        return new DateTime(arg.asLong(), timeZone);
+    }
+  }
+
+  static DateTime toDateTime(ExprEval arg, DateTimeZone timeZone)
   {
     switch (arg.type()) {
       case DATETIME:
-        return arg.asDateTime();
-      case LONG:
-        return new DateTime(arg.asLong(), DateTimeZone.forID(timeZone));
+        return timeZone == null ? arg.dateTimeValue() : arg.dateTimeValue().withZone(timeZone);
       case STRING:
         final String string = arg.stringValue();
         if (StringUtils.isNumeric(string)) {
-          return new DateTime(Long.valueOf(string), DateTimeZone.forID(timeZone));
+          return new DateTime(Long.valueOf(string), timeZone);
         } else {
           return timeZone == null
                  ? defaultFormat.parseDateTime(string)
-                 : defaultFormat.withZone(DateTimeZone.forID(timeZone)).parseDateTime(string);
+                 : defaultFormat.withZone(timeZone).parseDateTime(string);
         }
       default:
-        return new DateTime(arg.longValue(), DateTimeZone.forID(timeZone));
+        return new DateTime(arg.asLong(), timeZone);
     }
   }
 
