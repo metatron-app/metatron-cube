@@ -45,6 +45,7 @@ import io.druid.query.QueryToolChest;
 import io.druid.query.Result;
 import io.druid.query.TestQueryRunners;
 import io.druid.query.aggregation.AggregatorFactory;
+import io.druid.query.aggregation.CountAggregatorFactory;
 import io.druid.query.aggregation.DoubleMaxAggregatorFactory;
 import io.druid.query.aggregation.DoubleMinAggregatorFactory;
 import io.druid.query.aggregation.DoubleSumAggregatorFactory;
@@ -67,6 +68,7 @@ import io.druid.query.filter.SelectorDimFilter;
 import io.druid.query.lookup.LookupExtractionFn;
 import io.druid.query.spec.MultipleIntervalSegmentSpec;
 import io.druid.query.timeseries.TimeseriesQuery;
+import io.druid.segment.ExprVirtualColumn;
 import io.druid.segment.TestHelper;
 import io.druid.segment.column.Column;
 import org.joda.time.DateTime;
@@ -642,6 +644,22 @@ public class TopNQueryRunnerTest
         )
     );
     assertExpectedResults(expectedResults, query);
+  }
+
+  @Test(expected=IllegalArgumentException.class)
+  public void testTopNOnVirtual()
+  {
+    // cannot do this, currently.. use group-by query
+    new TopNQueryBuilder()
+        .dataSource(QueryRunnerTestHelper.dataSource)
+        .granularity(QueryRunnerTestHelper.allGran)
+        .virtualColumn(new ExprVirtualColumn("index", "metric"))
+        .dimension("metric")
+        .aggregators(Arrays.<AggregatorFactory>asList(new CountAggregatorFactory("count")))
+        .metric("count")
+        .threshold(4)
+        .intervals(QueryRunnerTestHelper.firstToThird)
+        .build();
   }
 
   @Test

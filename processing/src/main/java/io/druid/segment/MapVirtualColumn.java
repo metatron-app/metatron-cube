@@ -325,6 +325,12 @@ public class MapVirtualColumn implements VirtualColumn
   }
 
   @Override
+  public boolean isIndexed(String dimension)
+  {
+    return false;
+  }
+
+  @Override
   public boolean equals(Object o)
   {
     if (this == o) {

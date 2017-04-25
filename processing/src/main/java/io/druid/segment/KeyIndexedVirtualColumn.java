@@ -369,6 +369,12 @@ public class KeyIndexedVirtualColumn implements VirtualColumn
     return outputName;
   }
 
+  @Override
+  public boolean isIndexed(String dimension)
+  {
+    return dimension.equals(outputName);
+  }
+
   @JsonProperty
   public DimFilter getKeyFilter()
   {

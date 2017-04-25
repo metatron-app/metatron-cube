@@ -35,6 +35,7 @@ import io.druid.query.dimension.DimensionSpec;
 import io.druid.query.filter.DimFilter;
 import io.druid.query.spec.QuerySegmentSpec;
 import io.druid.segment.VirtualColumn;
+import io.druid.segment.VirtualColumns;
 
 import java.util.List;
 import java.util.Map;
@@ -91,6 +92,7 @@ public class TopNQuery extends BaseQuery<Result<TopNResultValue>>
     topNMetricSpec.verifyPreconditions(this.aggregatorSpecs, this.postAggregatorSpecs);
 
     Queries.verifyAggregations(this.aggregatorSpecs, this.postAggregatorSpecs);
+    VirtualColumns.checkDimensionIndexed(virtualColumns, dimensionSpec.getDimension());
   }
 
   @Override

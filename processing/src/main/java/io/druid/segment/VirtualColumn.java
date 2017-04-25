@@ -36,6 +36,8 @@ public interface VirtualColumn extends Cacheable
 {
   String getOutputName();
 
+  boolean isIndexed(String dimension);
+
   ObjectColumnSelector asMetric(String dimension, ColumnSelectorFactory factory);
 
   FloatColumnSelector asFloatMetric(String dimension, ColumnSelectorFactory factory);

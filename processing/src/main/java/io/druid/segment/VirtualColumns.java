@@ -40,6 +40,15 @@ import java.util.Set;
  */
 public class VirtualColumns
 {
+  public static void checkDimensionIndexed(List<VirtualColumn> virtualColumns, String dimension)
+  {
+    if (virtualColumns != null && !virtualColumns.isEmpty()) {
+      for (VirtualColumn vc : virtualColumns) {
+        Preconditions.checkArgument(vc.isIndexed(dimension), "cannot reference virtual column in this context");
+      }
+    }
+  }
+
   public static final VirtualColumns EMPTY = new VirtualColumns(
       ImmutableMap.<String, VirtualColumn>of()
   );
