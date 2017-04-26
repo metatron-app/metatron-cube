@@ -27,6 +27,7 @@ import com.google.inject.Module;
 import com.google.inject.name.Names;
 import com.metamx.common.lifecycle.Lifecycle;
 import com.metamx.common.logger.Logger;
+import io.airlift.airline.Arguments;
 import io.airlift.airline.Command;
 import io.druid.cli.shell.DruidShell;
 
@@ -43,6 +44,9 @@ public class SimpleShell extends GuiceRunnable
   {
     super(log);
   }
+
+  @Arguments(description = "Additional arguments")
+  public List<String> args;
 
   @Override
   protected List<? extends Module> getModules()
@@ -68,7 +72,7 @@ public class SimpleShell extends GuiceRunnable
     final DruidShell shell = injector.getInstance(DruidShell.class);
     final Lifecycle lifeCycle = initLifecycle(injector);
     try {
-      shell.run();
+      shell.run(args);
     }
     catch (Exception e) {
       throw Throwables.propagate(e);

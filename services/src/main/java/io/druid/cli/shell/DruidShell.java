@@ -73,7 +73,7 @@ public class DruidShell
     this.jsonMapper = jsonMapper;
   }
 
-  public void run() throws Exception
+  public void run(List<String> arguments) throws Exception
   {
     final LeaderLatch leaderLatch = new LeaderLatch(
         curator, ZKPaths.makePath(zkPaths.getCoordinatorPath(), DruidCoordinator.COORDINATOR_OWNER_NODE), "dummy"
@@ -87,8 +87,26 @@ public class DruidShell
 
     final URL coordinatorURL = new URL("http://" + leaderLatch.getLeader().getId());
 
-    TerminalBuilder builder = TerminalBuilder.builder();
-    Terminal terminal = builder.build();
+    try (Terminal terminal = TerminalBuilder.builder().build()) {
+      execute(coordinatorURL, terminal, arguments);
+    }
+  }
+
+  private void execute(final URL coordinatorURL, Terminal terminal, List<String> arguments) throws Exception
+  {
+    final String prompt = "> ";
+    final PrintWriter writer = terminal.writer();
+    if (arguments != null && !arguments.isEmpty()) {
+      Cursor cursor = new Cursor(arguments);
+      try {
+        writer.println(prompt + org.apache.commons.lang.StringUtils.join(arguments, " "));
+        handleCommand(coordinatorURL, writer, cursor);
+      }
+      finally {
+        writer.flush();
+      }
+      return;
+    }
 
     DefaultParser parser = new DefaultParser();
 
@@ -269,9 +287,6 @@ public class DruidShell
                                          .parser(parser)
                                          .build();
 
-    final String prompt = "> ";
-
-    PrintWriter writer = terminal.writer();
     while (true) {
       String line = null;
       try {
@@ -303,6 +318,7 @@ public class DruidShell
       catch (Exception e) {
         LOG.info(e, "Failed..");
       }
+      writer.flush();
     }
   }
 
