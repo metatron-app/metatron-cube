@@ -31,6 +31,7 @@ import io.druid.client.InventoryView;
 import io.druid.client.ServerView;
 import io.druid.guice.LazySingleton;
 import io.druid.guice.RealtimeModule;
+import io.druid.jackson.FunctionModule;
 import io.druid.query.lookup.LookupModule;
 import io.druid.segment.loading.DataSegmentPusher;
 import io.druid.server.coordination.DataSegmentAnnouncer;
@@ -81,7 +82,8 @@ public class CliRealtimeExample extends ServerRunnable
           }
         },
         new ChatHandlerServerModule(properties),
-        new LookupModule()
+        new LookupModule(),
+        new FunctionModule()
     );
   }
 

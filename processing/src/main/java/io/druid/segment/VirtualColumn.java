@@ -25,7 +25,7 @@ import io.druid.query.Cacheable;
 
 /**
  */
-@JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
+@JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type", defaultImpl = ExprVirtualColumn.class)
 @JsonSubTypes(value = {
     @JsonSubTypes.Type(name = "map", value = MapVirtualColumn.class),
     @JsonSubTypes.Type(name = "expr", value = ExprVirtualColumn.class),

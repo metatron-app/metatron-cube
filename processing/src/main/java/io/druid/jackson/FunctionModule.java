@@ -19,17 +19,32 @@
 
 package io.druid.jackson;
 
+import com.fasterxml.jackson.databind.Module;
+import com.fasterxml.jackson.databind.jsontype.NamedType;
 import com.fasterxml.jackson.databind.module.SimpleModule;
+import com.google.inject.Binder;
+import io.druid.initialization.DruidModule;
 import io.druid.query.ModuleBuiltinFunctions;
+
+import java.util.Arrays;
+import java.util.List;
 
 /**
  */
-public class FunctionModule extends SimpleModule
+public class FunctionModule implements DruidModule
 {
-  public FunctionModule()
+  @Override
+  public List<? extends Module> getJacksonModules()
   {
-    super("Druid processing module functions");
+    return Arrays.<Module>asList(
+        new SimpleModule("FunctionModule")
+            .registerSubtypes(ModuleBuiltinFunctions.class)
+    );
+  }
 
-    registerSubtypes(ModuleBuiltinFunctions.class);
+  @Override
+  public void configure(Binder binder)
+  {
+    binder.requestStaticInjection(ModuleBuiltinFunctions.class);
   }
 }

@@ -36,6 +36,7 @@ import io.druid.guice.LifecycleModule;
 import io.druid.guice.ManageLifecycle;
 import io.druid.guice.annotations.Self;
 import io.druid.guice.http.JettyHttpClientModule;
+import io.druid.jackson.FunctionModule;
 import io.druid.query.lookup.LookupModule;
 import io.druid.server.initialization.jetty.JettyServerInitializer;
 import io.druid.server.router.CoordinatorRuleManager;
@@ -107,7 +108,8 @@ public class CliRouter extends ServerRunnable
             return factory.createSelector(config.getCoordinatorServiceName());
           }
         },
-        new LookupModule()
+        new LookupModule(),
+        new FunctionModule()
     );
   }
 }

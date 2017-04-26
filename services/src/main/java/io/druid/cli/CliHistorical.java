@@ -35,6 +35,7 @@ import io.druid.guice.LazySingleton;
 import io.druid.guice.LifecycleModule;
 import io.druid.guice.ManageLifecycle;
 import io.druid.guice.NodeTypeConfig;
+import io.druid.jackson.FunctionModule;
 import io.druid.metadata.DescLookupProvider;
 import io.druid.query.MapQueryToolChestWarehouse;
 import io.druid.query.QuerySegmentWalker;
@@ -100,7 +101,8 @@ public class CliHistorical extends ServerRunnable
             MetricsModule.register(binder, CacheMonitor.class);
           }
         },
-        new LookupModule()
+        new LookupModule(),
+        new FunctionModule()
     );
   }
 }

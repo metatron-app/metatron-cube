@@ -30,7 +30,7 @@ import io.druid.math.expr.Function;
  */
 public class GuavaDoubleMath implements Function.Library
 {
-  class Factorial extends SingleParamMath
+  public static class Factorial extends SingleParamMath
   {
     @Override
     public String name()
@@ -45,7 +45,7 @@ public class GuavaDoubleMath implements Function.Library
     }
   }
 
-  class FuzzyCompare extends TripleParamMath
+  public static class FuzzyCompare extends TripleParamMath
   {
     @Override
     public String name()

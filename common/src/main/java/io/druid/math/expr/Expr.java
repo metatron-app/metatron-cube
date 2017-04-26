@@ -304,7 +304,7 @@ abstract class BinaryNumericOpExprBase extends BinaryOpExprBase
 
   protected ExprEval evalString(String left, String right)
   {
-    throw new IllegalArgumentException("unsupported type " + ExprType.STRING);
+    throw new IllegalArgumentException("unsupported type " + ExprType.STRING + " in operation " + op);
   }
 
   protected abstract long evalLong(long left, long right);

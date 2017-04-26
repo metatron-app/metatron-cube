@@ -19,6 +19,7 @@
 
 package io.druid.math.expr;
 
+import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
@@ -116,26 +117,24 @@ public interface BuiltinFunctions extends Function.Library
 
   abstract class NamedParams implements Function, Factory
   {
-    private Map<String, Expr> constantNamedParam; // cache
+    private int namedParamStart = -1;
+    private final Map<String, Expr> namedParam = Maps.newLinkedHashMap();
 
     @Override
     public ExprEval apply(List<Expr> args, NumericBinding bindings)
     {
-      List<Expr> param = Lists.newArrayList();
-      int i = 0;
-      for (; i < args.size(); i++) {
-        Expr expr = args.get(i);
-        if (expr instanceof AssignExpr) {
-          break;
+      if (namedParamStart < 0) {
+        List<Expr> param = Lists.newArrayList();
+        int i = 0;
+        for (; i < args.size(); i++) {
+          Expr expr = args.get(i);
+          if (expr instanceof AssignExpr) {
+            break;
+          }
+          param.add(args.get(i));
         }
-        param.add(args.get(i));
-      }
-      Map<String, Expr> namedParam;
-      if (constantNamedParam != null) {
-        namedParam = constantNamedParam;
-      } else {
-        namedParam = Maps.newHashMapWithExpectedSize(args.size() - i);
-        boolean allConstants = true;
+        namedParamStart = i;
+
         for (; i < args.size(); i++) {
           Expr expr = args.get(i);
           if (!(expr instanceof AssignExpr)) {
@@ -143,13 +142,10 @@ public interface BuiltinFunctions extends Function.Library
           }
           AssignExpr assign = (AssignExpr) expr;
           namedParam.put(Evals.getIdentifier(assign.assignee), assign.assigned);
-          allConstants &= Evals.isConstant(assign.assigned);
-        }
-        if (allConstants) {
-          constantNamedParam = namedParam;
+          Preconditions.checkArgument(Evals.isConstant(assign.assigned), "named params should be constant");
         }
       }
-      return eval(param, namedParam, bindings);
+      return eval(args.subList(0, namedParamStart), namedParam, bindings);
     }
 
     protected abstract ExprEval eval(List<Expr> exprs, Map<String, Expr> params, NumericBinding bindings);

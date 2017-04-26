@@ -22,7 +22,9 @@ package io.druid.segment;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;
+import com.google.common.collect.Iterables;
 import com.metamx.common.StringUtils;
+import io.druid.math.expr.Parser;
 import io.druid.query.filter.DimFilterCacheHelper;
 
 import java.nio.ByteBuffer;
@@ -43,11 +45,9 @@ public class ExprVirtualColumn implements VirtualColumn
       @JsonProperty("outputName") String outputName
   )
   {
-    Preconditions.checkArgument(expression != null, "expression should not be null");
-    Preconditions.checkArgument(outputName != null, "output name should not be null");
-
-    this.expression = expression;
-    this.outputName = outputName;
+    this.expression = Preconditions.checkNotNull(expression, "expression should not be null");
+    this.outputName = outputName == null ? Iterables.getOnlyElement(
+        Parser.findRequiredBindings(expression), "output name should not be null") : outputName;
   }
 
   @Override
@@ -92,7 +92,7 @@ public class ExprVirtualColumn implements VirtualColumn
     byte[] expr = StringUtils.toUtf8(expression);
     byte[] output = StringUtils.toUtf8(outputName);
 
-    return ByteBuffer.allocate(3 + expr.length + output.length)
+    return ByteBuffer.allocate(2 + expr.length + output.length)
                      .put(VC_TYPE_ID)
                      .put(expr).put(DimFilterCacheHelper.STRING_SEPARATOR)
                      .put(output)

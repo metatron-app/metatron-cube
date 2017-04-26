@@ -40,6 +40,7 @@ import io.druid.guice.Jerseys;
 import io.druid.guice.JsonConfigProvider;
 import io.druid.guice.LazySingleton;
 import io.druid.guice.LifecycleModule;
+import io.druid.jackson.FunctionModule;
 import io.druid.metadata.DescLookupProvider;
 import io.druid.query.MapQueryToolChestWarehouse;
 import io.druid.query.QuerySegmentWalker;
@@ -119,7 +120,8 @@ public class CliBroker extends ServerRunnable
             LifecycleModule.register(binder, Server.class);
           }
         },
-        new LookupModule()
+        new LookupModule(),
+        new FunctionModule()
     );
   }
 }

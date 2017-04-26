@@ -47,6 +47,7 @@ public class FunctionInitializer implements Module
   {
     log.info("finding expression functions..");
     for (NamedType subType : resolveSubtypes(mapper, Function.Library.class)) {
+      log.info("loading from library.. %s", subType.getType());
       Parser.register(subType.getType());
     }
   }

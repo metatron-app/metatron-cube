@@ -112,12 +112,17 @@ public class Evals
     }
   }
 
-  static String evalOptionalString(Expr arg, Expr.NumericBinding binding)
+  public static String evalOptionalString(Expr arg, Expr.NumericBinding binding)
   {
     return arg == null ? null : arg.eval(binding).asString();
   }
 
-  static String getConstantString(Expr arg)
+  public static boolean evalOptionalBoolean(Expr arg, Expr.NumericBinding binding, boolean defaultVal)
+  {
+    return arg == null ? defaultVal : arg.eval(binding).asBoolean();
+  }
+
+  public static String getConstantString(Expr arg)
   {
     if (!(arg instanceof StringExpr)) {
       throw new RuntimeException(arg + " is not constant string");
