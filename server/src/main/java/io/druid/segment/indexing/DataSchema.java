@@ -29,6 +29,7 @@ import com.google.common.base.Preconditions;
 import com.google.common.collect.Sets;
 import com.metamx.common.IAE;
 import com.metamx.common.logger.Logger;
+import io.druid.data.ValueType;
 import io.druid.data.input.InputRow;
 import io.druid.data.input.impl.DimensionsSpec;
 import io.druid.data.input.impl.InputRowParser;
@@ -125,8 +126,9 @@ public class DataSchema
       return parser;
     }
 
-    final List<RowEvaluator<InputRow>> evaluators = Evaluation.toEvaluators(evaluations);
-    final List<RowEvaluator<Boolean>> validators = Validation.toEvaluators(validations);
+    final Map<String, ValueType> types = AggregatorFactory.toExpectedInputType(aggregators);
+    final List<RowEvaluator<InputRow>> evaluators = Evaluation.toEvaluators(evaluations, types);
+    final List<RowEvaluator<Boolean>> validators = Validation.toEvaluators(validations, types);
     return new InputRowParser.Delegated()
     {
       @Override

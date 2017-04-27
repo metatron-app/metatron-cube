@@ -25,25 +25,27 @@ import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
+import io.druid.data.ValueType;
 import io.druid.data.input.InputRow;
 import io.druid.math.expr.Expr;
 import io.druid.math.expr.Parser;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 
 /**
  */
 public class Validation
 {
-  public static List<RowEvaluator<Boolean>> toEvaluators(List<Validation> validations)
+  public static List<RowEvaluator<Boolean>> toEvaluators(List<Validation> validations, Map<String, ValueType> types)
   {
     if (validations == null || validations.isEmpty()) {
       return ImmutableList.of();
     }
     List<RowEvaluator<Boolean>> evaluators = Lists.newArrayList();
     for (Validation validation : validations) {
-      evaluators.add(validation.toEvaluator());
+      evaluators.add(validation.toEvaluator(types));
     }
     return evaluators;
   }
@@ -83,11 +85,11 @@ public class Validation
     return exclusions;
   }
 
-  public RowEvaluator<Boolean> toEvaluator()
+  public RowEvaluator<Boolean> toEvaluator(final Map<String, ValueType> types)
   {
     return new RowEvaluator<Boolean>()
     {
-      private final RowBinding<Boolean> bindings = new RowBinding<>(columnName);
+      private final RowBinding<Boolean> bindings = new RowBinding<>(columnName, types);
 
       @Override
       public Boolean evaluate(InputRow inputRow)

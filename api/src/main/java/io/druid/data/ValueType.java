@@ -6,6 +6,7 @@ import com.google.common.collect.Ordering;
 import com.google.common.primitives.Doubles;
 import com.google.common.primitives.Floats;
 import com.google.common.primitives.Longs;
+import io.druid.data.input.Row;
 
 import java.util.Comparator;
 
@@ -32,6 +33,12 @@ public enum ValueType
         }
       };
     }
+
+    @Override
+    public Object get(Row row, String column)
+    {
+      return row.getFloatMetric(column);
+    }
   },
   LONG {
     @Override
@@ -51,6 +58,12 @@ public enum ValueType
           return Longs.compare(o1, o2);
         }
       };
+    }
+
+    @Override
+    public Object get(Row row, String column)
+    {
+      return row.getLongMetric(column);
     }
   },
   DOUBLE {
@@ -72,6 +85,13 @@ public enum ValueType
         }
       };
     }
+
+    @Override
+    public Object get(Row row, String column)
+    {
+      return row.getDoubleMetric(column);
+    }
+
   },
   STRING {
     @Override
@@ -102,6 +122,11 @@ public enum ValueType
   public abstract Class classOfObject();
 
   public abstract Comparator comparator();
+
+  public Object get(Row row, String column)
+  {
+    return row.getRaw(column);
+  }
 
   @JsonValue
   @Override

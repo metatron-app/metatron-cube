@@ -19,7 +19,11 @@
 
 package io.druid.query.aggregation;
 
+import com.google.common.collect.Iterables;
+import com.google.common.collect.Maps;
+import com.google.common.collect.Sets;
 import com.metamx.common.logger.Logger;
+import io.druid.data.ValueType;
 import io.druid.query.Cacheable;
 import io.druid.segment.ColumnSelectorFactory;
 
@@ -27,6 +31,7 @@ import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * Processing related interface
@@ -197,5 +202,17 @@ public abstract class AggregatorFactory implements Cacheable
     return mergedAggregators == null
            ? null
            : mergedAggregators.values().toArray(new AggregatorFactory[mergedAggregators.size()]);
+  }
+
+  public static Map<String, ValueType> toExpectedInputType(AggregatorFactory[] aggregators)
+  {
+    Map<String, ValueType> types = Maps.newHashMap();
+    for (AggregatorFactory factory : aggregators) {
+      Set<String> required = Sets.newHashSet(factory.requiredFields());
+      if (required.size() == 1) {
+        types.put(Iterables.getOnlyElement(required), ValueType.fromString(factory.getInputTypeName()));
+      }
+    }
+    return types;
   }
 }

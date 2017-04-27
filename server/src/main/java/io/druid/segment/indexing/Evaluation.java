@@ -25,26 +25,28 @@ import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
+import io.druid.data.ValueType;
 import io.druid.data.input.InputRow;
 import io.druid.data.input.MapBasedRow;
 import io.druid.math.expr.Expr;
 import io.druid.math.expr.Parser;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 
 /**
  */
 public class Evaluation
 {
-  public static List<RowEvaluator<InputRow>> toEvaluators(List<Evaluation> evaluations)
+  public static List<RowEvaluator<InputRow>> toEvaluators(List<Evaluation> evaluations, Map<String, ValueType> types)
   {
     if (evaluations == null || evaluations.isEmpty()) {
       return ImmutableList.of();
     }
     List<RowEvaluator<InputRow>> evaluators = Lists.newArrayList();
     for (Evaluation evaluation : evaluations) {
-      evaluators.add(evaluation.toEvaluator());
+      evaluators.add(evaluation.toEvaluator(types));
     }
     return evaluators;
   }
@@ -84,11 +86,11 @@ public class Evaluation
     return expressions;
   }
 
-  public RowEvaluator<InputRow> toEvaluator()
+  public RowEvaluator<InputRow> toEvaluator(final Map<String, ValueType> types)
   {
     return new RowEvaluator<InputRow>()
     {
-      private final RowBinding<Object> bindings = new RowBinding<>(outputName);
+      private final RowBinding<Object> bindings = new RowBinding<>(outputName, types);
 
       @Override
       public InputRow evaluate(InputRow inputRow)

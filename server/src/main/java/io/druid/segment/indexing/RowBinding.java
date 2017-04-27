@@ -19,25 +19,29 @@
 
 package io.druid.segment.indexing;
 
+import io.druid.data.ValueType;
 import io.druid.data.input.Row;
 import io.druid.math.expr.Expr;
 import io.druid.segment.column.Column;
 
 import java.util.Collection;
+import java.util.Map;
 
 /**
  */
 public class RowBinding<T> implements Expr.NumericBinding
 {
   private final String defaultColumn;
+  private final Map<String, ValueType> types;
 
   private volatile Row row;
   private volatile boolean evaluated;
   private volatile T tempResult;
 
-  public RowBinding(String defaultColumn)
+  public RowBinding(String defaultColumn, Map<String, ValueType> types)
   {
     this.defaultColumn = defaultColumn;
+    this.types = types;
   }
 
   @Override
@@ -52,7 +56,16 @@ public class RowBinding<T> implements Expr.NumericBinding
     if (Column.TIME_COLUMN_NAME.equals(name)) {
       return row.getTimestampFromEpoch();
     }
-    return "_".equals(name) ? evaluated ? tempResult : row.getDimension(defaultColumn) : row.getRaw(name);
+    if (!name.equals("_")) {
+      return getColumn(name);
+    }
+    return evaluated ? tempResult : getColumn(defaultColumn);
+  }
+
+  private Object getColumn(String name)
+  {
+    ValueType type = types.get(name);
+    return type == null ? row.getRaw(name) : type.get(row, name);
   }
 
   public void reset(Row row)
