@@ -212,7 +212,7 @@ public abstract class HadoopDruidIndexerMapper<KEYOUT, VALUEOUT> extends Mapper<
   {
     InputRow inputRow = parseInputRow(value, parser);
     Map<String, String> partition = HynixCombineInputFormat.CURRENT_PARTITION.get();
-    if (partition != null && !partition.isEmpty()) {
+    if (inputRow != null && partition != null && !partition.isEmpty()) {
       ((MapBasedInputRow) inputRow).getEvent().putAll(partition);
     }
     return inputRow;
