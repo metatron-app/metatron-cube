@@ -34,9 +34,6 @@ import com.metamx.common.guava.Sequences;
 import io.druid.cache.Cache;
 import io.druid.data.ValueType;
 import io.druid.granularity.QueryGranularity;
-import io.druid.math.expr.Expr;
-import io.druid.math.expr.ExprEval;
-import io.druid.math.expr.Parser;
 import io.druid.query.QueryInterruptedException;
 import io.druid.query.dimension.DimensionSpec;
 import io.druid.query.extraction.ExtractionFn;
@@ -249,7 +246,7 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
       actualInterval = actualInterval.withEnd(dataInterval.getEnd());
     }
 
-    final DimFilter[] filters = Filters.partitionWithBitmapSupport(filter);
+    final DimFilter[] filters = Filters.partitionWithBitmapSupport(filter, virtualColumns.getVirtualColumnNames());
 
     final DimFilter bitmapFilter = filters == null ? null : filters[0];
     final DimFilter valuesFilter = filters == null ? null : filters[1];

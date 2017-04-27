@@ -56,6 +56,7 @@ import io.druid.segment.ColumnSelectorBitmapIndexSelector;
 import io.druid.segment.QueryableIndex;
 import io.druid.segment.Segment;
 import io.druid.segment.StorageAdapter;
+import io.druid.segment.VirtualColumns;
 import io.druid.segment.column.Column;
 import io.druid.segment.data.DictionaryLoader;
 import io.druid.segment.data.GenericIndexed;
@@ -127,6 +128,7 @@ public class GroupByQueryRunnerFactory implements QueryRunnerFactory<Row, GroupB
     if (!DefaultDimensionSpec.isAllDefault(query.getDimensions())) {
       return null;
     }
+    final Set<String> vcNames = VirtualColumns.getVirtualColumnNames(query.getVirtualColumns());
 
     final long start = System.currentTimeMillis();
     log.info("Initializing group-by optimizer with target %d segments", segments.size());
@@ -135,6 +137,11 @@ public class GroupByQueryRunnerFactory implements QueryRunnerFactory<Row, GroupB
     String filterDim = null;
     DimFilter dimFilter = query.getDimFilter();
     if (dimFilter != null) {
+      for (String dependent : Filters.getDependents(dimFilter)) {
+        if (vcNames.contains(dependent)) {
+          return null;  // todo
+        }
+      }
       filter = Filters.toFilter(dimFilter);
       if (filter.supportsBitmap()) {
         Set<String> dependents = Filters.getDependents(dimFilter);

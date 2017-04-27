@@ -53,7 +53,7 @@ public class ExprVirtualColumn implements VirtualColumn
   @Override
   public ObjectColumnSelector asMetric(String dimension, ColumnSelectorFactory factory)
   {
-    return ColumnSelectors.wrapAsObjectSelector(Object.class, factory.makeMathExpressionSelector(expression));
+    return ColumnSelectors.wrapAsObjectSelector(factory.makeMathExpressionSelector(expression));
   }
 
   @Override

@@ -23,6 +23,7 @@ import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Predicate;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import com.metamx.collections.bitmap.BitmapFactory;
@@ -45,6 +46,7 @@ import io.druid.segment.data.IndexedInts;
 
 import java.util.Iterator;
 import java.util.List;
+import java.util.Objects;
 import java.util.Set;
 
 /**
@@ -107,14 +109,29 @@ public class Filters
         }
       };
     }
-    ObjectColumnSelector selector = factory.makeObjectColumnSelector(column);
+    final ObjectColumnSelector selector = factory.makeObjectColumnSelector(column);
     if (selector.classOfObject() == String.class) {
       return selector;
     }
     if (selector.classOfObject() == IndexedInts.WithLookup.class) {
       return Filters.asStringArraySelector(selector);
     }
-    throw new UnsupportedOperationException("unsupported type " + selector.classOfObject());
+
+    // toString, whatsoever
+    return new ObjectColumnSelector()
+    {
+      @Override
+      public Class classOfObject()
+      {
+        return String.class;
+      }
+
+      @Override
+      public String get()
+      {
+        return Objects.toString(selector.get(), null);
+      }
+    };
   }
 
   public static ObjectColumnSelector asStringArraySelector(final ObjectColumnSelector<IndexedInts.WithLookup> selector)
@@ -250,6 +267,11 @@ public class Filters
 
   public static DimFilter[] partitionWithBitmapSupport(DimFilter current)
   {
+    return partitionWithBitmapSupport(current, ImmutableSet.<String>of());
+  }
+
+  public static DimFilter[] partitionWithBitmapSupport(DimFilter current, final Set<String> virtualColumns)
+  {
     current = Filters.convertToCNF(current);
     if (current == null) {
       return null;
@@ -260,7 +282,15 @@ public class Filters
           @Override
           public boolean apply(DimFilter input)
           {
-            return input.toFilter().supportsBitmap();
+            if (!input.toFilter().supportsBitmap()) {
+              return false;
+            }
+            for (String dependent : Filters.getDependents(input)) {
+              if (virtualColumns.contains(dependent)) {
+                return false;
+              }
+            }
+            return true;
           }
         }
     );

@@ -104,9 +104,6 @@ public class SelectorFilter extends Filter.WithDictionary
         }
       };
     }
-    if (selector.classOfObject() != String.class) {
-      throw new UnsupportedOperationException("unsupported type " + selector.classOfObject());
-    }
     return new ValueMatcher()
     {
       @Override

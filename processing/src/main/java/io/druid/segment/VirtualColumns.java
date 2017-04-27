@@ -21,9 +21,11 @@ package io.druid.segment;
 
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+import com.google.common.collect.Sets;
 import io.druid.query.dimension.DimensionSpec;
 import io.druid.segment.column.ColumnCapabilities;
 import io.druid.segment.data.ArrayBasedIndexedInts;
@@ -47,6 +49,18 @@ public class VirtualColumns
         Preconditions.checkArgument(vc.isIndexed(dimension), "cannot reference virtual column in this context");
       }
     }
+  }
+
+  public static Set<String> getVirtualColumnNames(List<VirtualColumn> virtualColumns)
+  {
+    if (virtualColumns != null && !virtualColumns.isEmpty()) {
+      Set<String> vcNames = Sets.newHashSet();
+      for (VirtualColumn vc : virtualColumns) {
+        vcNames.add(vc.getOutputName());
+      }
+      return vcNames;
+    }
+    return ImmutableSet.of();
   }
 
   public static final VirtualColumns EMPTY = new VirtualColumns(
@@ -362,5 +376,10 @@ public class VirtualColumns
   {
     int index = dimension.indexOf('.');
     return virtualColumns.get(index < 0 ? dimension : dimension.substring(0, index));
+  }
+
+  public Set<String> getVirtualColumnNames()
+  {
+    return ImmutableSet.copyOf(virtualColumns.keySet());
   }
 }

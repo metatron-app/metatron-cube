@@ -180,7 +180,7 @@ public class ColumnSelectors
     if (fieldName != null) {
       return metricFactory.makeObjectColumnSelector(fieldName);
     }
-    return wrapAsObjectSelector(Object.class, metricFactory.makeMathExpressionSelector(fieldExpression));
+    return wrapAsObjectSelector(metricFactory.makeMathExpressionSelector(fieldExpression));
   }
 
   public static DoubleColumnSelector wrapAsDoubleSelector(final ExprEvalColumnSelector selector)
@@ -219,14 +219,14 @@ public class ColumnSelectors
     };
   }
 
-  public static ObjectColumnSelector wrapAsObjectSelector(final Class type, final ExprEvalColumnSelector selector)
+  public static ObjectColumnSelector wrapAsObjectSelector(final ExprEvalColumnSelector selector)
   {
     return new ObjectColumnSelector()
     {
       @Override
       public Class classOfObject()
       {
-        return type;
+        return Object.class;
       }
 
       @Override
