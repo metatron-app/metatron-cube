@@ -105,8 +105,8 @@
                 <artifactId>javax.servlet</artifactId>
               </exclusion>
               <exclusion>
-                <groupId>org.apache.httpcomponents</groupId>
-                <artifactId>*</artifactId>
+                <groupId>javax.servlet</groupId>
+                <artifactId>servlet-api</artifactId>
               </exclusion>
               <exclusion>
                 <groupId>org.apache.zookeeper</groupId>
@@ -118,8 +118,25 @@
               </exclusion>
               <exclusion>
                 <groupId>org.apache.hadoop</groupId>
-                <artifactId>*</artifactId>
+                <artifactId>hadoop-common</artifactId>
               </exclusion>
+              <exclusion>
+                <groupId>org.apache.hadoop</groupId>
+                <artifactId>hadoop-auth</artifactId>
+              </exclusion>
+              <exclusion>
+                <groupId>org.apache.hadoop</groupId>
+                <artifactId>hadoop-mapreduce-client-core</artifactId>
+              </exclusion>
+              <exclusion>
+                <groupId>org.apache.hadoop</groupId>
+                <artifactId>hadoop-yarn-server-resourcemanager</artifactId>
+              </exclusion>
+              <exclusion>
+                <groupId>co.cask.tephra</groupId>
+                <artifactId>tephra-core</artifactId>
+              </exclusion>
+
             </exclusions>
         </dependency>
         <dependency>
