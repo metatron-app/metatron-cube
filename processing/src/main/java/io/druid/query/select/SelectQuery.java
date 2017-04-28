@@ -100,6 +100,18 @@ public class SelectQuery extends BaseQuery<Result<SelectResultValue>>
     return true;
   }
 
+  public SelectMetaQuery toMetaQuery()
+  {
+    return new SelectMetaQuery(
+        getDataSource(),
+        getQuerySegmentSpec(),
+        getDimFilter(),
+        getGranularity(),
+        ImmutableList.<String>of(),
+        getContext()
+    );
+  }
+
   @Override
   public boolean hasFilters()
   {

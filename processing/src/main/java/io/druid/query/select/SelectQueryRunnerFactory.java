@@ -19,22 +19,31 @@
 
 package io.druid.query.select;
 
+import com.google.common.collect.Lists;
+import com.google.common.collect.Sets;
 import com.google.inject.Inject;
 import com.metamx.common.ISE;
 import com.metamx.common.guava.Sequence;
+import com.metamx.common.guava.Sequences;
+import com.metamx.common.logger.Logger;
 import io.druid.cache.BitmapCache;
 import io.druid.cache.Cache;
 import io.druid.query.ChainedExecutionQueryRunner;
+import io.druid.query.NoopQueryRunner;
 import io.druid.query.Query;
 import io.druid.query.QueryRunner;
 import io.druid.query.QueryRunnerFactory;
 import io.druid.query.QueryToolChest;
 import io.druid.query.QueryWatcher;
 import io.druid.query.Result;
+import io.druid.query.spec.MultipleIntervalSegmentSpec;
 import io.druid.segment.Segment;
+import org.python.google.common.util.concurrent.Futures;
 
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
 
@@ -43,6 +52,8 @@ import java.util.concurrent.Future;
 public class SelectQueryRunnerFactory
     implements QueryRunnerFactory<Result<SelectResultValue>, SelectQuery>
 {
+  private static final Logger LOG = new Logger(SelectQueryRunnerFactory.class);
+
   private final SelectQueryQueryToolChest toolChest;
   private final SelectQueryEngine engine;
   private final QueryWatcher queryWatcher;
@@ -73,9 +84,48 @@ public class SelectQueryRunnerFactory
   }
 
   @Override
+  public Future<Object> preFactoring(SelectQuery query, List<Segment> segments, ExecutorService exec)
+  {
+    PagingSpec pagingSpec = query.getPagingSpec();
+    Map<String, Integer> paging = pagingSpec.getPagingIdentifiers();
+    int threshold = pagingSpec.getThreshold();
+    if (threshold > 0 && (paging == null || paging.isEmpty())) {
+      final SelectMetaQuery baseQuery = query.toMetaQuery();
+      final SelectMetaQueryEngine metaQueryEngine = new SelectMetaQueryEngine();
+
+      final Set<String> targets = Sets.newHashSet();
+      for (Segment segment : query.isDescending() ? Lists.reverse(segments) : segments) {
+        targets.add(segment.getIdentifier());
+        SelectMetaQuery metaQuery = baseQuery.withQuerySegmentSpec(
+            new MultipleIntervalSegmentSpec(Arrays.asList(segment.getDataInterval()))
+        );
+        for (Result<SelectMetaResultValue> result : Sequences.toList(
+            metaQueryEngine.process(metaQuery, segment), Lists.<Result<SelectMetaResultValue>>newArrayList()
+        )) {
+          threshold -= result.getValue().getTotalCount();
+          if (threshold < 0) {
+            LOG.info(
+                "Trimmed %d segments from original target %d segments",
+                (segments.size() - targets.size()),
+                segments.size()
+            );
+            return Futures.<Object>immediateFuture(targets);
+          }
+        }
+      }
+    }
+    return null;
+  }
+
+  @Override
+  @SuppressWarnings("unchecked")
   public QueryRunner<Result<SelectResultValue>> createRunner(final Segment segment, Future<Object> optimizer)
   {
-    return new SelectQueryRunner(engine, segment, cache);
+    if (optimizer == null ||
+        ((Set<String>) Futures.getUnchecked(optimizer)).contains(segment.getIdentifier())) {
+      return new SelectQueryRunner(engine, segment, cache);
+    }
+    return new NoopQueryRunner<Result<SelectResultValue>>();
   }
 
   @Override
@@ -94,12 +144,6 @@ public class SelectQueryRunnerFactory
   public QueryToolChest<Result<SelectResultValue>, SelectQuery> getToolchest()
   {
     return toolChest;
-  }
-
-  @Override
-  public Future<Object> preFactoring(SelectQuery query, List<Segment> segments, ExecutorService exec)
-  {
-    return null;
   }
 
   private static class SelectQueryRunner implements QueryRunner<Result<SelectResultValue>>
