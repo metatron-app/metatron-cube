@@ -192,7 +192,7 @@ public class VirtualColumnTest
     GroupByQuery.Builder builder = testBuilder();
 
     List<Row> expectedResults = GroupByQueryRunnerTestHelper.createExpectedRows(
-        new String[]{"__time", "dim_nvl", "sum_of_key1", "count"},
+        new String[]{"__time", "a.dim_nvl", "sum_of_key1", "count"},
         new Object[]{"2011-01-12T00:00:00.000Z", "a", 500L, 2L},
         new Object[]{"2011-01-12T00:00:00.000Z", "c", 101L, 2L},
         new Object[]{"2011-01-12T00:00:00.000Z", "null", 12L, 2L}
@@ -200,10 +200,10 @@ public class VirtualColumnTest
 
     List<VirtualColumn> virtualColumns = Arrays.<VirtualColumn>asList(
         new MapVirtualColumn("keys", "values", null, "params"),
-        new ExprVirtualColumn("nvl(dim, 'null')", "dim_nvl")
+        new ExprVirtualColumn("nvl(dim, 'null')", "a.dim_nvl")
     );
     GroupByQuery query = builder
-        .setDimensions(DefaultDimensionSpec.toSpec("dim_nvl"))
+        .setDimensions(DefaultDimensionSpec.toSpec("a.dim_nvl"))
         .setAggregatorSpecs(
             Arrays.asList(
                 new LongSumAggregatorFactory("sum_of_key1", null, "cast(params.key1, 'long')", null),
@@ -211,17 +211,17 @@ public class VirtualColumnTest
             )
         )
         .setVirtualColumns(virtualColumns)
-        .addOrderByColumn("dim_nvl")
+        .addOrderByColumn("a.dim_nvl")
         .build();
     checkQueryResult(query, expectedResults);
 
 
     virtualColumns = Arrays.<VirtualColumn>asList(
         new MapVirtualColumn("keys", null, "array", "params"),
-        new ExprVirtualColumn("nvl(dim, 'null')", "dim_nvl")
+        new ExprVirtualColumn("nvl(dim, 'null')", "a.dim_nvl")
     );
     query = builder
-        .setDimensions(DefaultDimensionSpec.toSpec("dim_nvl"))
+        .setDimensions(DefaultDimensionSpec.toSpec("a.dim_nvl"))
         .setAggregatorSpecs(
             Arrays.asList(
                 new LongSumAggregatorFactory("sum_of_key1", "params.key1"),
@@ -229,7 +229,7 @@ public class VirtualColumnTest
             )
         )
         .setVirtualColumns(virtualColumns)
-        .addOrderByColumn("dim_nvl")
+        .addOrderByColumn("a.dim_nvl")
         .build();
     checkQueryResult(query, expectedResults);
   }

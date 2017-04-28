@@ -374,8 +374,15 @@ public class VirtualColumns
 
   public VirtualColumn getVirtualColumn(String dimension)
   {
-    int index = dimension.indexOf('.');
-    return virtualColumns.get(index < 0 ? dimension : dimension.substring(0, index));
+    VirtualColumn vc = virtualColumns.get(dimension);
+    for (int i = dimension.length(); vc == null && i > 0;) {
+      int index = dimension.lastIndexOf('.', i - 1);
+      if (index > 0) {
+        vc = virtualColumns.get(dimension.substring(0, index));
+      }
+      i = index;
+    }
+    return vc;
   }
 
   public Set<String> getVirtualColumnNames()
