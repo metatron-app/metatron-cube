@@ -82,7 +82,7 @@ public class OrcFormatter implements Formatter
     Thread.currentThread().setContextClassLoader(OrcFormatter.class.getClassLoader());
     try {
       Configuration conf = new Configuration();
-      TypeDescription schema = TypeDescription.fromString(schemaString);
+      TypeDescription schema = TypeDescriptions.fromString(schemaString);
       columnTypes = schema.getChildren();
       writer = OrcFile.createWriter(path, OrcFile.writerOptions(conf).setSchema(schema));
       batch = schema.createRowBatch();
