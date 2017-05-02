@@ -20,19 +20,19 @@
 package io.druid.data.input;
 
 import com.google.common.base.Function;
+import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
+import com.google.common.primitives.Longs;
 import com.metamx.common.parsers.ParseException;
 import org.joda.time.DateTime;
 
 import java.util.Collections;
 import java.util.List;
-import java.util.regex.Pattern;
 
 /**
  */
 public abstract class AbstractRow implements Row
 {
-  private static final Pattern LONG_PAT = Pattern.compile("[-|+]?\\d+");
   private static final Function<Object, String> TO_STRING_INCLUDING_NULL = new Function<Object, String>()
   {
     @Override
@@ -55,7 +55,7 @@ public abstract class AbstractRow implements Row
       return ((Number) metricValue).floatValue();
     } else if (metricValue instanceof String) {
       try {
-        return Float.valueOf(((String) metricValue).replace(",", ""));
+        return (float) tryParseDouble((String) metricValue);
       }
       catch (Exception e) {
         throw new ParseException(e, "Unable to parse metrics[%s], value[%s]", metric, metricValue);
@@ -78,7 +78,7 @@ public abstract class AbstractRow implements Row
       return ((Number) metricValue).doubleValue();
     } else if (metricValue instanceof String) {
       try {
-        return Double.valueOf(((String) metricValue).replace(",", ""));
+        return tryParseDouble((String) metricValue);
       }
       catch (Exception e) {
         throw new ParseException(e, "Unable to parse metrics[%s], value[%s]", metric, metricValue);
@@ -101,8 +101,7 @@ public abstract class AbstractRow implements Row
       return ((Number) metricValue).longValue();
     } else if (metricValue instanceof String) {
       try {
-        String s = ((String) metricValue).replace(",", "");
-        return LONG_PAT.matcher(s).matches() ? Long.valueOf(s) : Double.valueOf(s).longValue();
+        return tryParseLong((String) metricValue);
       }
       catch (Exception e) {
         throw new ParseException(e, "Unable to parse metrics[%s], value[%s]", metric, metricValue);
@@ -146,5 +145,91 @@ public abstract class AbstractRow implements Row
   public int compareTo(Row o)
   {
     throw new UnsupportedOperationException("compareTo");
+  }
+
+  // long -> double -> long can make different value
+  public static long tryParseLong(final String value)
+  {
+    if (Strings.isNullOrEmpty(value)) {
+      return 0;
+    }
+    int i = 0;
+    final char first = value.charAt(0);
+    if (first == '+' || first == '-') {
+      i++;
+    }
+    boolean allDigit = true;
+    boolean containsComma = false;
+    for (; i < value.length(); i++) {
+      final char aChar = value.charAt(i);
+      if (aChar == ',') {
+        containsComma = true;
+      } else if (allDigit && !Character.isDigit(aChar)) {
+        allDigit = false;
+      }
+    }
+    final String target = containsComma ? removeCommaAndFirstPlus(value) : removeFirstPlus(value);
+    if (allDigit) {
+      Long longValue = Longs.tryParse(target);
+      if (longValue != null) {
+        return longValue;
+      }
+    }
+    return Double.valueOf(target).longValue();
+  }
+
+  public static float tryParseFloat(final String value)
+  {
+    return (float) tryParseDouble(value);
+  }
+
+  public static double tryParseDouble(final String value)
+  {
+    if (Strings.isNullOrEmpty(value)) {
+      return 0d;
+    }
+    int i = 0;
+    final char first = value.charAt(0);
+    if (first == '+' || first == '-') {
+      i++;
+    }
+    boolean allDigit = true;
+    boolean containsComma = false;
+    for (; i < value.length(); i++) {
+      final char aChar = value.charAt(i);
+      if (aChar == ',') {
+        containsComma = true;
+      } else if (allDigit && !Character.isDigit(aChar)) {
+        allDigit = false;
+      }
+    }
+    final String target = containsComma ? removeCommaAndFirstPlus(value) : removeFirstPlus(value);
+    if (allDigit) {
+      Long longValue = Longs.tryParse(target);
+      if (longValue != null) {
+        return longValue.doubleValue();
+      }
+    }
+    return Double.valueOf(target);
+  }
+
+  private static String removeFirstPlus(final String value)
+  {
+    return value.charAt(0) == '+' ? value.substring(1) : value;
+  }
+
+  private static String removeCommaAndFirstPlus(final String value)
+  {
+    StringBuilder builder = new StringBuilder(value.length());
+    for (int i = 0; i < value.length(); i++) {
+      final char aChar = value.charAt(i);
+      if (i == 0 && aChar == '+') {
+        continue;
+      }
+      if (aChar != ',') {
+        builder.append(aChar);
+      }
+    }
+    return builder.toString();
   }
 }
