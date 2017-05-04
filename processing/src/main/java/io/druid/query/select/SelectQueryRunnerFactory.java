@@ -87,9 +87,8 @@ public class SelectQueryRunnerFactory
   public Future<Object> preFactoring(SelectQuery query, List<Segment> segments, ExecutorService exec)
   {
     PagingSpec pagingSpec = query.getPagingSpec();
-    Map<String, Integer> paging = pagingSpec.getPagingIdentifiers();
     int threshold = pagingSpec.getThreshold();
-    if (threshold > 0 && (paging == null || paging.isEmpty())) {
+    if (threshold > 0) {
       final SelectMetaQuery baseQuery = query.toMetaQuery();
       final SelectMetaQueryEngine metaQueryEngine = new SelectMetaQueryEngine();
 

@@ -114,6 +114,11 @@ public abstract class PagingOffset
     return startOffset < 0 ? new Descending(startOffset, threshold) : new Ascending(startOffset, threshold);
   }
 
+  public static PagingOffset none()
+  {
+    return new Ascending(0, -1);
+  }
+
   @VisibleForTesting
   static int toOffset(int delta, boolean descending)
   {

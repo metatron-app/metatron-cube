@@ -327,6 +327,11 @@ public class SelectQueryQueryToolChest extends QueryToolChest<Result<SelectResul
   @Override
   public <T extends LogicalSegment> List<T> filterSegments(SelectQuery query, List<T> segments)
   {
+    return filterSegmentsOnPagingSpec(query, segments);
+  }
+
+  static <T extends LogicalSegment> List<T> filterSegmentsOnPagingSpec(SelectQuery query, List<T> segments)
+  {
     // at the point where this code is called, only one datasource should exist.
     String dataSource = Iterables.getOnlyElement(query.getDataSource().getNames());
 
@@ -399,10 +404,8 @@ public class SelectQueryQueryToolChest extends QueryToolChest<Result<SelectResul
     List<String> dataSourceNames = query.getDataSource().getNames();
     Map<String, Object> context = Maps.newHashMap();
     List<Interval> intervals = query.getQuerySegmentSpec().getIntervals();
-    SelectMetaQuery metaQuery = new SelectMetaQuery(
-        query.getDataSource(), query.getQuerySegmentSpec(),
-        query.getDimensionsFilter(), query.getGranularity(), Collections.<String>emptyList(), context
-    );
+
+    SelectMetaQuery metaQuery = query.toMetaQuery();
     List<Result<SelectMetaResultValue>> results =
         Sequences.toList(
             walker.getQueryRunnerForIntervals(metaQuery, intervals).run(metaQuery, context),

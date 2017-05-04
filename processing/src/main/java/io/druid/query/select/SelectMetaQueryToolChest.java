@@ -38,6 +38,7 @@ import io.druid.query.ResultGranularTimestampComparator;
 import io.druid.query.ResultMergeQueryRunner;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.MetricManipulationFn;
+import io.druid.timeline.LogicalSegment;
 import org.joda.time.DateTime;
 
 import java.util.Arrays;
@@ -122,6 +123,14 @@ public class SelectMetaQueryToolChest extends QueryToolChest<Result<SelectMetaRe
         };
       }
     };
+  }
+
+
+  @Override
+  public <T extends LogicalSegment> List<T> filterSegments(SelectMetaQuery query, List<T> segments)
+  {
+    // shares same logic
+    return SelectQueryQueryToolChest.filterSegmentsOnPagingSpec(query.toBaseQuery(), segments);
   }
 
   @Override

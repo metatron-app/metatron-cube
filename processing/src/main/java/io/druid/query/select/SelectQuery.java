@@ -100,7 +100,7 @@ public class SelectQuery extends BaseQuery<Result<SelectResultValue>>
     return true;
   }
 
-  public SelectMetaQuery toMetaQuery()
+  SelectMetaQuery toMetaQuery()
   {
     return new SelectMetaQuery(
         getDataSource(),
@@ -108,6 +108,7 @@ public class SelectQuery extends BaseQuery<Result<SelectResultValue>>
         getDimFilter(),
         getGranularity(),
         ImmutableList.<String>of(),
+        getPagingSpec(),
         getContext()
     );
   }

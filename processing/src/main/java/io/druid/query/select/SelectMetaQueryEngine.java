@@ -64,7 +64,7 @@ public class SelectMetaQueryEngine
 
     final Interval interval = Iterables.getOnlyElement(intervals);
     final QueryGranularity granularity = query.getGranularity();
-    final String identifier = segment.getIdentifier();
+    final String segmentId = segment.getIdentifier();
 
     StorageAdapter storageAdapter = segment.asStorageAdapter(false);
     Metadata metadata = storageAdapter.getMetadata();
@@ -77,19 +77,21 @@ public class SelectMetaQueryEngine
       aggregators = null;
     }
 
+    final PagingOffset offset = query.getPagingOffset(segmentId);
     final float averageSize = calculateAverageSize(query, adapter);
 
     // minor optimization.. todo: we can do this even with filters set
     if (query.getDimensionsFilter() == null &&
         QueryGranularities.ALL.equals(granularity) &&
-        interval.equals(segment.getDataInterval())) {
+        interval.equals(segment.getDataInterval()) &&
+        offset.startDelta() == 0) {
       int row = storageAdapter.getNumRows();
       return BaseSequence.simple(
           Arrays.asList(
               new Result<>(
                   granularity.toDateTime(interval.getStartMillis()),
                   new SelectMetaResultValue(
-                      dimensions, metrics, aggregators, ImmutableMap.of(identifier, row), (long) (row * averageSize)
+                      dimensions, metrics, aggregators, ImmutableMap.of(segmentId, row), (long) (row * averageSize)
                   )
               )
           )
@@ -109,13 +111,13 @@ public class SelectMetaQueryEngine
           @Override
           public Result<SelectMetaResultValue> apply(Cursor cursor)
           {
-            int i = 0;
-            for (; !cursor.isDone(); cursor.advance()) {
-              i++;
+            int row = 0;
+            for (cursor.advanceTo(offset.startDelta()); !cursor.isDone(); cursor.advance()) {
+              row++;
             }
             return new Result<>(
                 cursor.getTime(),
-                new SelectMetaResultValue(dimensions, metrics, aggregators, ImmutableMap.of(identifier, i), (long) (i * averageSize))
+                new SelectMetaResultValue(dimensions, metrics, aggregators, ImmutableMap.of(segmentId, row), (long) (row * averageSize))
             );
           }
         }

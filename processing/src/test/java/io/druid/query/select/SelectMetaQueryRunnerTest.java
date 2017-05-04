@@ -97,6 +97,7 @@ public class SelectMetaQueryRunnerTest
         null,
         QueryRunnerTestHelper.allGran,
         Arrays.asList("market"),
+        null,
         Maps.<String, Object>newHashMap()
     );
 
@@ -149,5 +150,71 @@ public class SelectMetaQueryRunnerTest
     Assert.assertEquals(Sets.newHashSet(metrics), Sets.newHashSet(r.getValue().getMetrics()));
     Assert.assertEquals(4, r.getValue().getTotalCount());
     Assert.assertEquals(28, r.getValue().getEstimatedSize());
+  }
+
+  @Test
+  public void testPaging()
+  {
+    List<String> dimensions = name.equals("rtIndex") || name.equals("noRollupRtIndex") ? dimensions1 : dimensions2;
+
+    SelectMetaQuery query = new SelectMetaQuery(
+        new TableDataSource(QueryRunnerTestHelper.dataSource),
+        new MultipleIntervalSegmentSpec(Arrays.asList(new Interval("2011-01-12/2011-01-14"))),
+        null,
+        QueryRunnerTestHelper.allGran,
+        Arrays.asList("market"),
+        new PagingSpec(ImmutableMap.of("testSegment", 3), -1),
+        Maps.<String, Object>newHashMap()
+    );
+
+    List<Result<SelectMetaResultValue>> results = Sequences.toList(
+        runner.run(query, ImmutableMap.of()),
+        Lists.<Result<SelectMetaResultValue>>newArrayList()
+    );
+
+    Assert.assertEquals(1, results.size());
+    Result<SelectMetaResultValue> r = results.get(0);
+    Assert.assertEquals(new DateTime(2011, 1, 12, 0, 0), r.getTimestamp());
+    Assert.assertEquals(ImmutableMap.of("testSegment", 23), r.getValue().getPerSegmentCounts());
+    Assert.assertEquals(dimensions, r.getValue().getDimensions());
+    Assert.assertEquals(Sets.newHashSet(metrics), Sets.newHashSet(r.getValue().getMetrics()));
+    Assert.assertEquals(23, r.getValue().getTotalCount());
+    Assert.assertEquals(161, r.getValue().getEstimatedSize());
+
+    query = query.withDimFilter(new InDimFilter("quality", Arrays.asList("mezzanine", "health"), null));
+    results = Sequences.toList(
+        runner.run(query, ImmutableMap.of()),
+        Lists.<Result<SelectMetaResultValue>>newArrayList()
+    );
+    Assert.assertEquals(1, results.size());
+    r = results.get(0);
+    Assert.assertEquals(r.getTimestamp(), new DateTime(2011, 1, 12, 0, 0));
+    Assert.assertEquals(ImmutableMap.of("testSegment", 5), r.getValue().getPerSegmentCounts());
+    Assert.assertEquals(dimensions, r.getValue().getDimensions());
+    Assert.assertEquals(Sets.newHashSet(metrics), Sets.newHashSet(r.getValue().getMetrics()));
+    Assert.assertEquals(5, r.getValue().getTotalCount());
+    Assert.assertEquals(35, r.getValue().getEstimatedSize());
+
+    query = query.withQueryGranularity(QueryGranularities.DAY);
+    results = Sequences.toList(
+        runner.run(query, ImmutableMap.of()),
+        Lists.<Result<SelectMetaResultValue>>newArrayList()
+    );
+    Assert.assertEquals(2, results.size());
+    r = results.get(0);
+    Assert.assertEquals(r.getTimestamp(), new DateTime(2011, 1, 12, 0, 0));
+    Assert.assertEquals(ImmutableMap.of("testSegment", 1), r.getValue().getPerSegmentCounts());
+    Assert.assertEquals(dimensions, r.getValue().getDimensions());
+    Assert.assertEquals(Sets.newHashSet(metrics), Sets.newHashSet(r.getValue().getMetrics()));
+    Assert.assertEquals(1, r.getValue().getTotalCount());
+    Assert.assertEquals(7, r.getValue().getEstimatedSize());
+
+    r = results.get(1);
+    Assert.assertEquals(r.getTimestamp(), new DateTime(2011, 1, 13, 0, 0));
+    Assert.assertEquals(ImmutableMap.of("testSegment", 1), r.getValue().getPerSegmentCounts());
+    Assert.assertEquals(dimensions, r.getValue().getDimensions());
+    Assert.assertEquals(Sets.newHashSet(metrics), Sets.newHashSet(r.getValue().getMetrics()));
+    Assert.assertEquals(1, r.getValue().getTotalCount());
+    Assert.assertEquals(7, r.getValue().getEstimatedSize());
   }
 }
