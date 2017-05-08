@@ -1,1 +1,11 @@
-nohup java `cat conf/druid/overlord/jvm.config | xargs` -cp conf/druid/_common:conf/druid/overlord:lib/* io.druid.cli.Main server overlord > /data1/druid/var/overlord.out 2>&1 &
+#!/bin/bash -eu
+
+usage="Usage: overlord.sh (start|stop|status)"
+
+if [ $# -lt 1 ]; then
+  echo $usage
+  exit 1
+fi
+
+cd $(dirname $0)/../
+sh ./bin/node.sh overlord $@

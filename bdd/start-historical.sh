@@ -1,1 +1,11 @@
-nohup java `cat conf/druid/historical/jvm.config | xargs` -cp conf/druid/_common:conf/druid/historical:lib/* io.druid.cli.Main server historical > /data1/druid/var/historical.out 2>&1 &
+#!/bin/bash -eu
+
+usage="Usage: historical.sh (start|stop|status)"
+
+if [ $# -lt 1 ]; then
+  echo $usage
+  exit 1
+fi
+
+cd $(dirname $0)/../
+sh ./bin/node.sh historical $@

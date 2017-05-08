@@ -62,6 +62,7 @@
                                 <argument>
                                     -Ddruid.extensions.hadoopDependenciesDir=${project.build.directory}/hadoop-dependencies
                                 </argument>
+                                <argument>-Dhadoop.dist.version=${hadoop.compile.version}</argument>
                                 <argument>io.druid.cli.Main</argument>
                                 <argument>tools</argument>
                                 <argument>pull-deps</argument>
@@ -70,6 +71,8 @@
                                 <argument>${project.parent.version}</argument>
                                 <argument>-l</argument>
                                 <argument>${settings.localRepository}</argument>
+                                <argument>-h</argument>
+                                <argument>org.apache.hadoop:hadoop-client:${hadoop.compile.version}</argument>
                                 <argument>-c</argument>
                                 <argument>io.druid.extensions:druid-avro-extensions</argument>
                                 <argument>-c</argument>
@@ -101,8 +104,6 @@
                                 <argument>-c</argument>
                                 <argument>io.druid.extensions:druid-area</argument>
                                 <argument>-c</argument>
-                                <argument>io.druid.extensions:mysql-metadata-storage</argument>
-                                <argument>-c</argument>
                                 <argument>io.druid.extensions:druid-lookups-cached-global</argument>
                                 <argument>-c</argument>
                                 <argument>io.druid.extensions:druid-s3-extensions</argument>
@@ -114,25 +115,8 @@
                                 <argument>io.druid.extensions:postgresql-metadata-storage</argument>
                                 <argument>-c</argument>
                                 <argument>io.druid.extensions.contrib:druid-orc-extensions</argument>
-                            </arguments>
-                        </configuration>
-                    </execution>
-                    <execution>
-                        <id>mysql-tarball</id>
-                        <phase>package</phase>
-                        <goals>
-                            <goal>exec</goal>
-                        </goals>
-                        <configuration>
-                            <executable>tar</executable>
-                            <arguments>
-                                <argument>-C</argument>
-                                <argument>${project.build.directory}/extensions</argument>
-                                <argument>-czvf</argument>
-                                <argument>
-                                    ${project.build.directory}/mysql-metadata-storage-${project.parent.version}.tar.gz
-                                </argument>
-                                <argument>mysql-metadata-storage</argument>
+                                <argument>-c</argument>
+                                <argument>io.druid.extensions.contrib:druid-kafka-eight-simple-consumer</argument>
                             </arguments>
                         </configuration>
                     </execution>

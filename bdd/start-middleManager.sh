@@ -1,1 +1,11 @@
-nohup java `cat conf/druid/middleManager/jvm.config | xargs` -cp conf/druid/_common:conf/druid/middleManager:lib/* io.druid.cli.Main server middleManager > /data1/druid/var/middleManager.out 2>&1 &
+#!/bin/bash -eu
+
+usage="Usage: middleManager.sh (start|stop|status)"
+
+if [ $# -lt 1 ]; then
+  echo $usage
+  exit 1
+fi
+
+cd $(dirname $0)/../
+sh ./bin/node.sh middleManager $@

@@ -3,7 +3,7 @@
 ## Initializtion script for druid nodes
 ## Runs druid nodes as a daemon and pipes logs to log/ directory
 
-usage="Usage: node.sh nodeType (start|stop)"
+usage="Usage: node.sh nodeType (start|stop|status|tools)"
 
 if [ $# -le 1 ]; then
   echo $usage
@@ -29,7 +29,13 @@ case $startStop in
       fi
     fi
 
-    nohup java `cat conf/druid/$nodeType/jvm.config | xargs` -cp conf/druid:conf/druid/$nodeType:lib/* io.druid.cli.Main server $nodeType > log/$nodeType.log &
+    if [[ -z $1 ]] ; then
+      log='log/$nodeType.log'
+    else
+      log=$1
+    fi
+
+    nohup java `cat conf/druid/$nodeType/jvm.config | xargs` -cp conf/druid:conf/druid/$nodeType:lib/* io.druid.cli.Main server $nodeType > $log 2>&1 &
     nodeType_PID=$!
     echo $nodeType_PID > $pid
     echo "Started $nodeType node ($nodeType_PID)"
@@ -48,6 +54,19 @@ case $startStop in
       rm -f $pid
     else
       echo No $nodeType node to stop
+    fi
+    ;;
+
+  (status)
+    if [ -f $pid ]; then
+      if kill -0 `cat $pid` > /dev/null 2>&1; then
+        echo RUNNING
+        exit 0
+      else
+        echo STOPPED
+      fi
+    else
+      echo STOPPED
     fi
     ;;
 

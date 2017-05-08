@@ -31,6 +31,20 @@
         <relativePath>../../pom.xml</relativePath>
     </parent>
 
+    <profiles>
+        <profile>
+            <id>aether</id>
+            <activation>
+                <property>
+                    <name>hadoop.dist.version</name>
+                </property>
+            </activation>
+            <properties>
+                <hadoop.compile.version>${hadoop.dist.version}</hadoop.compile.version>
+            </properties>
+        </profile>
+    </profiles>
+
     <dependencies>
         <dependency>
             <groupId>io.druid</groupId>
@@ -47,6 +61,7 @@
         <dependency>
             <groupId>org.apache.hadoop</groupId>
             <artifactId>hadoop-client</artifactId>
+            <version>${hadoop.compile.version}</version>
             <scope>compile</scope>
             <exclusions>
               <exclusion>

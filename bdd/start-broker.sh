@@ -1,1 +1,11 @@
-nohup java `cat conf/druid/broker/jvm.config | xargs` -cp conf/druid/_common:conf/druid/broker:lib/* io.druid.cli.Main server broker > /data1/druid/var/broker.out 2>&1 &
+#!/bin/bash -eu
+
+usage="Usage: broker.sh (start|stop|status)"
+
+if [ $# -lt 1 ]; then
+  echo $usage
+  exit 1
+fi
+
+cd $(dirname $0)/../
+sh ./bin/node.sh broker $@
