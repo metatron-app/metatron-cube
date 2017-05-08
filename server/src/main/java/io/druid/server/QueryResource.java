@@ -366,7 +366,7 @@ public class QueryResource
       }
       return context.gotError(e);
     }
-    catch (Exception e) {
+    catch (Throwable e) {
       // Input stream has already been consumed by the json object mapper if query == null
       final String queryString =
           query == null
@@ -481,7 +481,7 @@ public class QueryResource
       return Response.ok(getOutputWriter().writeValueAsString(object), contentType).build();
     }
 
-    Response gotError(Exception e) throws IOException
+    Response gotError(Throwable e) throws IOException
     {
       return Response.serverError()
                      .type(contentType)
