@@ -54,7 +54,7 @@ public class DictionaryEncodedColumnSupplier implements ColumnPartProvider.Dicti
     return new SimpleDictionaryEncodedColumn(
         singleValuedColumn != null ? singleValuedColumn.get() : null,
         multiValuedColumn != null ? multiValuedColumn.get() : null,
-        dictionary
+        dictionary.asSingleThreaded()
     );
   }
 

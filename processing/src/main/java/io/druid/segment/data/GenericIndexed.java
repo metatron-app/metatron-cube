@@ -183,6 +183,47 @@ public class GenericIndexed<T> implements Indexed<T>, DictionaryLoader<T>
     bufferIndexed = new BufferIndexed();
   }
 
+  private GenericIndexed(
+      ByteBuffer buffer,
+      ObjectStrategy<T> strategy,
+      boolean allowReverseLookup,
+      int size,
+      int indexOffset,
+      int valuesOffset,
+      BufferIndexed bufferIndexed
+  )
+  {
+    this.theBuffer = buffer;
+    this.strategy = strategy;
+    this.allowReverseLookup = allowReverseLookup;
+    this.size = size;
+    this.indexOffset = indexOffset;
+    this.valuesOffset = valuesOffset;
+    this.bufferIndexed = bufferIndexed;
+  }
+
+  public GenericIndexed<T> asSingleThreaded()
+  {
+    final ByteBuffer copyBuffer = theBuffer.asReadOnlyBuffer();
+    BufferIndexed bufferIndexed = new BufferIndexed()
+    {
+      @Override
+      public T get(int index)
+      {
+        return _get(copyBuffer, index);
+      }
+    };
+    return new GenericIndexed<>(
+        copyBuffer,
+        strategy,
+        allowReverseLookup,
+        size,
+        indexOffset,
+        valuesOffset,
+        bufferIndexed
+    );
+  }
+
   public boolean isLoadedAll()
   {
     return false;
