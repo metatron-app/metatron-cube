@@ -55,13 +55,15 @@ import io.druid.segment.VirtualColumns;
 import io.druid.segment.column.BitmapIndex;
 import io.druid.segment.column.Column;
 import io.druid.segment.data.IndexedInts;
+import io.druid.segment.filter.Filters;
 import org.apache.commons.lang.mutable.MutableInt;
 
 import java.nio.ByteBuffer;
 import java.util.Arrays;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
-import java.util.TreeMap;
 
 /**
  */
@@ -94,14 +96,15 @@ public class SearchQueryRunner implements QueryRunner<Result<SearchResultValue>>
     final int limit = query.getLimit();
     final boolean descending = query.isDescending();
     final boolean valueOnly = query.getContextBoolean("valueOnly", false);
+    final Comparator<SearchHit> comparator = query.getSort().getComparator();
 
     // Closing this will cause segfaults in unit tests.
     final QueryableIndex index = segment.asQueryableIndex(false);
     final String segmentId = segment.getIdentifier();
 
-    if (index != null) {
-      final TreeMap<SearchHit, MutableInt> retVal = Maps.newTreeMap(query.getSort().getComparator());
+    final VirtualColumns vcs = VirtualColumns.valueOf(query.getVirtualColumns());
 
+    if (index != null) {
       Iterable<DimensionSpec> dimsToSearch;
       if (dimensions == null || dimensions.isEmpty()) {
         dimsToSearch = Iterables.transform(index.getAvailableDimensions(), Druids.DIMENSION_IDENTITY);
@@ -109,69 +112,73 @@ public class SearchQueryRunner implements QueryRunner<Result<SearchResultValue>>
         dimsToSearch = dimensions;
       }
 
-      final BitmapFactory bitmapFactory = index.getBitmapFactoryForDimensions();
-      final ColumnSelectorBitmapIndexSelector selector = new ColumnSelectorBitmapIndexSelector(bitmapFactory, index);
+      if (isSimpleSearch(dimsToSearch, filter, vcs)) {
+        final Map<SearchHit, MutableInt> retVal = Maps.newHashMap();
 
-      Cache.NamedKey key = null;
-      ImmutableBitmap baseFilter = null;
-      if (cache != null && filter != null) {
-        key = new Cache.NamedKey(segmentId, filter.getCacheKey());
-        byte[] cached = cache.get(key);
-        if (cached != null) {
-          baseFilter = selector.getBitmapFactory().mapImmutableBitmap(ByteBuffer.wrap(cached));
-        }
-      }
-      if (baseFilter == null) {
-        baseFilter = filter == null ? null : filter.toFilter().getBitmapIndex(selector);
-        if (key != null) {
-          cache.put(key, baseFilter.toBytes());
-        }
-      }
-      for (DimensionSpec dimension : dimsToSearch) {
-        final Column column = index.getColumn(dimension.getDimension());
-        if (column == null) {
-          continue;
-        }
+        final BitmapFactory bitmapFactory = index.getBitmapFactoryForDimensions();
+        final ColumnSelectorBitmapIndexSelector selector = new ColumnSelectorBitmapIndexSelector(bitmapFactory, index);
 
-        final String outputName = dimension.getOutputName();
-        final BitmapIndex bitmapIndex = column.getBitmapIndex();
-        ExtractionFn extractionFn = dimension.getExtractionFn();
-        if (extractionFn == null) {
-          extractionFn = IdentityExtractionFn.getInstance();
+        Cache.NamedKey key = null;
+        ImmutableBitmap baseFilter = null;
+        if (cache != null && filter != null) {
+          key = new Cache.NamedKey(segmentId, filter.getCacheKey());
+          byte[] cached = cache.get(key);
+          if (cached != null) {
+            baseFilter = selector.getBitmapFactory().mapImmutableBitmap(ByteBuffer.wrap(cached));
+          }
         }
-        if (bitmapIndex != null) {
-          for (int i = 0; i < bitmapIndex.getCardinality(); ++i) {
-            String dimVal = Strings.nullToEmpty(extractionFn.apply(bitmapIndex.getValue(i)));
-            if (!searchQuerySpec.accept(dimVal)) {
-              continue;
-            }
-            if (valueOnly) {
-              retVal.put(new SearchHit(outputName, dimVal), null);
-              if (limit > 0 && retVal.size() >= limit) {
-                return makeReturnResult(limit, retVal);
+        if (baseFilter == null) {
+          baseFilter = filter == null ? null : filter.toFilter().getBitmapIndex(selector);
+          if (key != null) {
+            cache.put(key, baseFilter.toBytes());
+          }
+        }
+        for (DimensionSpec dimension : dimsToSearch) {
+          final Column column = index.getColumn(dimension.getDimension());
+          if (column == null) {
+            continue;
+          }
+
+          final String outputName = dimension.getOutputName();
+          final BitmapIndex bitmapIndex = column.getBitmapIndex();
+          ExtractionFn extractionFn = dimension.getExtractionFn();
+          if (extractionFn == null) {
+            extractionFn = IdentityExtractionFn.getInstance();
+          }
+          if (bitmapIndex != null) {
+            for (int i = 0; i < bitmapIndex.getCardinality(); ++i) {
+              String dimVal = Strings.nullToEmpty(extractionFn.apply(bitmapIndex.getValue(i)));
+              if (!searchQuerySpec.accept(dimVal)) {
+                continue;
               }
-              continue;
-            }
-            ImmutableBitmap bitmap = bitmapIndex.getBitmap(i);
-            if (baseFilter != null) {
-              bitmap = bitmapFactory.intersection(Arrays.asList(baseFilter, bitmap));
-            }
-            int size = bitmap.size();
-            if (size > 0) {
-              MutableInt counter = new MutableInt(size);
-              MutableInt prev = retVal.put(new SearchHit(outputName, dimVal), counter);
-              if (prev != null) {
-                counter.add(prev.intValue());
+              if (valueOnly) {
+                retVal.put(new SearchHit(outputName, dimVal), null);
+                if (limit > 0 && retVal.size() >= limit) {
+                  return makeReturnResult(retVal, comparator, limit);
+                }
+                continue;
               }
-              if (limit > 0 && retVal.size() >= limit) {
-                return makeReturnResult(limit, retVal);
+              ImmutableBitmap bitmap = bitmapIndex.getBitmap(i);
+              if (baseFilter != null) {
+                bitmap = bitmapFactory.intersection(Arrays.asList(baseFilter, bitmap));
+              }
+              int size = bitmap.size();
+              if (size > 0) {
+                MutableInt counter = new MutableInt(size);
+                MutableInt prev = retVal.put(new SearchHit(outputName, dimVal), counter);
+                if (prev != null) {
+                  counter.add(prev.intValue());
+                }
+                if (limit > 0 && retVal.size() >= limit) {
+                  return makeReturnResult(retVal, comparator, limit);
+                }
               }
             }
           }
         }
-      }
 
-      return makeReturnResult(limit, retVal);
+        return makeReturnResult(retVal, comparator, limit);
+      }
     }
 
     final StorageAdapter adapter = segment.asStorageAdapter(false);
@@ -193,14 +200,15 @@ public class SearchQueryRunner implements QueryRunner<Result<SearchResultValue>>
     }
 
     final Sequence<Cursor> cursors = adapter.makeCursors(
-        filter, segment.getDataInterval(), VirtualColumns.EMPTY, QueryGranularities.ALL, null, descending);
+        filter, segment.getDataInterval(), vcs, QueryGranularities.ALL, null, descending
+    );
 
-    final TreeMap<SearchHit, MutableInt> retVal = cursors.accumulate(
-        Maps.<SearchHit, SearchHit, MutableInt>newTreeMap(query.getSort().getComparator()),
-        new Accumulator<TreeMap<SearchHit, MutableInt>, Cursor>()
+    final Map<SearchHit, MutableInt> retVal = cursors.accumulate(
+        Maps.<SearchHit, MutableInt>newHashMap(),
+        new Accumulator<Map<SearchHit, MutableInt>, Cursor>()
         {
           @Override
-          public TreeMap<SearchHit, MutableInt> accumulate(TreeMap<SearchHit, MutableInt> set, Cursor cursor)
+          public Map<SearchHit, MutableInt> accumulate(Map<SearchHit, MutableInt> set, Cursor cursor)
           {
             if (limit > 0 && set.size() >= limit) {
               return set;
@@ -244,26 +252,49 @@ public class SearchQueryRunner implements QueryRunner<Result<SearchResultValue>>
         }
     );
 
-    return makeReturnResult(limit, retVal);
+    return makeReturnResult(retVal, comparator, limit);
+  }
+
+  // DimensionSpec with multiple dimensions or referencing virtual column are handled through cursor only
+  private boolean isSimpleSearch(Iterable<DimensionSpec> dimsToSearch, DimFilter filter, VirtualColumns vcs)
+  {
+    for (DimensionSpec dimensionSpec : dimsToSearch) {
+      if (vcs.getVirtualColumn(dimensionSpec.getDimension()) != null) {
+        return false;
+      }
+    }
+    if (filter != null) {
+      for (String reference : Filters.getDependents(filter)) {
+        if (vcs.getVirtualColumn(reference) != null) {
+          return false;
+        }
+      }
+    }
+    return true;
   }
 
   private Sequence<Result<SearchResultValue>> makeReturnResult(
-      int limit, TreeMap<SearchHit, MutableInt> retVal)
+      Map<SearchHit, MutableInt> retVal, Comparator<SearchHit> comparator, int limit
+  )
   {
-    Iterable<SearchHit> source = Iterables.transform(
-        retVal.entrySet(), new Function<Map.Entry<SearchHit, MutableInt>, SearchHit>()
-        {
-          @Override
-          public SearchHit apply(Map.Entry<SearchHit, MutableInt> input)
-          {
-            SearchHit hit = input.getKey();
-            MutableInt value = input.getValue();
-            return new SearchHit(hit.getDimension(), hit.getValue(), value == null ? null : value.intValue());
-          }
-        }
+    List<SearchHit> source = Lists.newArrayList(
+        Iterables.transform(
+            retVal.entrySet(), new Function<Map.Entry<SearchHit, MutableInt>, SearchHit>()
+            {
+              @Override
+              public SearchHit apply(Map.Entry<SearchHit, MutableInt> input)
+              {
+                SearchHit hit = input.getKey();
+                MutableInt value = input.getValue();
+                return new SearchHit(hit.getDimension(), hit.getValue(), value == null ? null : value.intValue());
+              }
+            }
+        )
     );
-    if (limit > 0) {
-      source = Iterables.limit(source, limit);
+    Collections.sort(source, comparator);
+
+    if (limit > 0 && source.size() > limit) {
+      source = source.subList(0, limit);
     }
     return Sequences.simple(
         ImmutableList.of(

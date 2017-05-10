@@ -32,6 +32,7 @@ import io.druid.query.dimension.DimensionSpec;
 import io.druid.query.filter.DimFilter;
 import io.druid.query.search.SearchResultValue;
 import io.druid.query.spec.QuerySegmentSpec;
+import io.druid.segment.VirtualColumn;
 
 import java.util.List;
 import java.util.Map;
@@ -43,6 +44,7 @@ public class SearchQuery extends BaseQuery<Result<SearchResultValue>>
   private final DimFilter dimFilter;
   private final SearchSortSpec sortSpec;
   private final QueryGranularity granularity;
+  private final List<VirtualColumn> virtualColumns;
   private final List<DimensionSpec> dimensions;
   private final SearchQuerySpec querySpec;
   private final int limit;
@@ -54,6 +56,7 @@ public class SearchQuery extends BaseQuery<Result<SearchResultValue>>
       @JsonProperty("granularity") QueryGranularity granularity,
       @JsonProperty("limit") int limit,
       @JsonProperty("intervals") QuerySegmentSpec querySegmentSpec,
+      @JsonProperty("virtualColumns") List<VirtualColumn> virtualColumns,
       @JsonProperty("searchDimensions") List<DimensionSpec> dimensions,
       @JsonProperty("query") SearchQuerySpec querySpec,
       @JsonProperty("sort") SearchSortSpec sortSpec,
@@ -65,6 +68,7 @@ public class SearchQuery extends BaseQuery<Result<SearchResultValue>>
     this.sortSpec = sortSpec == null ? new LexicographicSearchSortSpec() : sortSpec;
     this.granularity = granularity == null ? QueryGranularities.ALL : granularity;
     this.limit = (limit == 0) ? 1000 : limit;
+    this.virtualColumns = virtualColumns;
     this.dimensions = dimensions;
     this.querySpec = querySpec == null ? new SearchQuerySpec.TakeAll() : querySpec;
 
@@ -92,6 +96,7 @@ public class SearchQuery extends BaseQuery<Result<SearchResultValue>>
         granularity,
         limit,
         spec,
+        virtualColumns,
         dimensions,
         querySpec,
         sortSpec,
@@ -108,6 +113,7 @@ public class SearchQuery extends BaseQuery<Result<SearchResultValue>>
         granularity,
         limit,
         getQuerySegmentSpec(),
+        virtualColumns,
         dimensions,
         querySpec,
         sortSpec,
@@ -124,6 +130,7 @@ public class SearchQuery extends BaseQuery<Result<SearchResultValue>>
         granularity,
         limit,
         getQuerySegmentSpec(),
+        virtualColumns,
         dimensions,
         querySpec,
         sortSpec,
@@ -139,6 +146,7 @@ public class SearchQuery extends BaseQuery<Result<SearchResultValue>>
         granularity,
         limit,
         getQuerySegmentSpec(),
+        virtualColumns,
         dimensions,
         querySpec,
         sortSpec,
@@ -162,6 +170,12 @@ public class SearchQuery extends BaseQuery<Result<SearchResultValue>>
   public int getLimit()
   {
     return limit;
+  }
+
+  @JsonProperty
+  public List<VirtualColumn> getVirtualColumns()
+  {
+    return virtualColumns;
   }
 
   @JsonProperty("searchDimensions")
@@ -190,6 +204,7 @@ public class SearchQuery extends BaseQuery<Result<SearchResultValue>>
         granularity,
         newLimit,
         getQuerySegmentSpec(),
+        virtualColumns,
         dimensions,
         querySpec,
         sortSpec,
@@ -204,6 +219,7 @@ public class SearchQuery extends BaseQuery<Result<SearchResultValue>>
         "dataSource='" + getDataSource() + '\'' +
         ", dimFilter=" + dimFilter +
         ", granularity='" + granularity + '\'' +
+        ", virtualColumns=" + virtualColumns +
         ", dimensions=" + dimensions +
         ", querySpec=" + querySpec +
         ", querySegmentSpec=" + getQuerySegmentSpec() +
@@ -222,6 +238,7 @@ public class SearchQuery extends BaseQuery<Result<SearchResultValue>>
 
     if (limit != that.limit) return false;
     if (dimFilter != null ? !dimFilter.equals(that.dimFilter) : that.dimFilter != null) return false;
+    if (virtualColumns != null ? !virtualColumns.equals(that.virtualColumns) : that.virtualColumns != null) return false;
     if (dimensions != null ? !dimensions.equals(that.dimensions) : that.dimensions != null) return false;
     if (granularity != null ? !granularity.equals(that.granularity) : that.granularity != null) return false;
     if (querySpec != null ? !querySpec.equals(that.querySpec) : that.querySpec != null) return false;
@@ -237,6 +254,7 @@ public class SearchQuery extends BaseQuery<Result<SearchResultValue>>
     result = 31 * result + (dimFilter != null ? dimFilter.hashCode() : 0);
     result = 31 * result + (sortSpec != null ? sortSpec.hashCode() : 0);
     result = 31 * result + (granularity != null ? granularity.hashCode() : 0);
+    result = 31 * result + (virtualColumns != null ? virtualColumns.hashCode() : 0);
     result = 31 * result + (dimensions != null ? dimensions.hashCode() : 0);
     result = 31 * result + (querySpec != null ? querySpec.hashCode() : 0);
     result = 31 * result + limit;

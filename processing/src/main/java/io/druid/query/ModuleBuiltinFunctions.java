@@ -44,7 +44,7 @@ import java.util.Objects;
 public class ModuleBuiltinFunctions implements Function.Library
 {
   @Inject
-  static LookupReferencesManager lookupManager;
+  public static LookupReferencesManager lookupManager;
 
   public static class TruncatedRecent extends DateTimeFunctions.Recent implements Function.Factory
   {

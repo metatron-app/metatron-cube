@@ -113,7 +113,7 @@ public class SearchHit implements Comparable<SearchHit>
     return "Hit{" +
            "dimension='" + dimension + '\'' +
            ", value='" + value + '\'' +
-           (count != null ? ", count='" + count + '\'' : "") +
+           (count != null ? ", count=" + count : "") +
            '}';
   }
 }

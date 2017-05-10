@@ -567,6 +567,7 @@ public class Druids
     private QueryGranularity granularity;
     private int limit;
     private QuerySegmentSpec querySegmentSpec;
+    private List<VirtualColumn> virtualColumns;
     private List<DimensionSpec> dimensions;
     private SearchQuerySpec querySpec;
     private SearchSortSpec sortSpec;
@@ -592,6 +593,7 @@ public class Druids
           granularity,
           limit,
           querySegmentSpec,
+          virtualColumns,
           dimensions,
           querySpec,
           sortSpec,
@@ -688,6 +690,12 @@ public class Druids
     public SearchQueryBuilder intervals(List<Interval> l)
     {
       querySegmentSpec = new LegacySegmentSpec(l);
+      return this;
+    }
+
+    public SearchQueryBuilder virtualColumns(List<VirtualColumn> vcs)
+    {
+      virtualColumns = vcs;
       return this;
     }
 

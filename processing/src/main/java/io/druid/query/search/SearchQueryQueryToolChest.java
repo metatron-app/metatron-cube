@@ -39,6 +39,7 @@ import io.druid.query.CacheStrategy;
 import io.druid.query.DruidMetrics;
 import io.druid.query.IntervalChunkingQueryRunnerDecorator;
 import io.druid.query.Query;
+import io.druid.query.QueryCacheHelper;
 import io.druid.query.QueryRunner;
 import io.druid.query.QueryToolChest;
 import io.druid.query.Result;
@@ -165,6 +166,7 @@ public class SearchQueryQueryToolChest extends QueryToolChest<Result<SearchResul
         final byte[] querySpecBytes = query.getQuery().getCacheKey();
         final byte[] granularityBytes = query.getGranularity().cacheKey();
 
+        final byte[] vcBytes = QueryCacheHelper.computeAggregatorBytes(query.getVirtualColumns());
         final Collection<DimensionSpec> dimensions = query.getDimensions() == null
                                                      ? ImmutableList.<DimensionSpec>of()
                                                      : query.getDimensions();
@@ -183,7 +185,7 @@ public class SearchQueryQueryToolChest extends QueryToolChest<Result<SearchResul
         final ByteBuffer queryCacheKey = ByteBuffer
             .allocate(
                 1 + 4 + granularityBytes.length + filterBytes.length +
-                querySpecBytes.length + dimensionsBytesSize + sortSpecBytes.length
+                querySpecBytes.length + vcBytes.length + dimensionsBytesSize + sortSpecBytes.length
             )
             .put(SEARCH_QUERY)
             .put(Ints.toByteArray(query.getLimit()))
@@ -191,6 +193,7 @@ public class SearchQueryQueryToolChest extends QueryToolChest<Result<SearchResul
             .put(filterBytes)
             .put(querySpecBytes)
             .put(sortSpecBytes)
+            .put(vcBytes)
             ;
 
         for (byte[] bytes : dimensionsBytes) {

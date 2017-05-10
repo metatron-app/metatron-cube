@@ -21,6 +21,7 @@ package io.druid.query.lookup;
 
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Function;
 import com.google.common.base.Strings;
 import com.google.common.collect.Collections2;
@@ -33,6 +34,7 @@ import com.metamx.common.lifecycle.LifecycleStop;
 import com.metamx.common.logger.Logger;
 import io.druid.guice.ManageLifecycle;
 import io.druid.guice.annotations.Json;
+import io.druid.query.extraction.MapLookupExtractor;
 
 import javax.annotation.Nullable;
 import java.util.HashMap;
@@ -133,6 +135,48 @@ public class LookupReferencesManager
       }
       return noPrior;
     }
+  }
+
+  @VisibleForTesting
+  public boolean put(String lookupName, final Map<Object, String> mapping) {
+    final MapLookupExtractor extractor = new MapLookupExtractor(mapping, false);
+    synchronized (lock) {
+      lookupMap.put(
+          lookupName, new LookupExtractorFactory()
+          {
+            @Override
+            public boolean start()
+            {
+              return true;
+            }
+
+            @Override
+            public boolean close()
+            {
+              return true;
+            }
+
+            @Override
+            public boolean replaces(LookupExtractorFactory other)
+            {
+              return true;
+            }
+
+            @Override
+            public LookupIntrospectHandler getIntrospectHandler()
+            {
+              return null;
+            }
+
+            @Override
+            public LookupExtractor get()
+            {
+              return extractor;
+            }
+          }
+      );
+    }
+    return true;
   }
 
   /**
