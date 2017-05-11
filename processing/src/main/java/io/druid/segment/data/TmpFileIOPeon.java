@@ -45,6 +45,7 @@ public class TmpFileIOPeon implements IOPeon
   public TmpFileIOPeon(boolean allowOverwrite)
   {
     this.allowOverwrite = allowOverwrite;
+    new File(System.getProperty("java.io.tmpdir")).mkdirs();
   }
 
   @Override
