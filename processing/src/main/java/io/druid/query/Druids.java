@@ -571,6 +571,7 @@ public class Druids
     private List<DimensionSpec> dimensions;
     private SearchQuerySpec querySpec;
     private SearchSortSpec sortSpec;
+    private boolean valueOnly;
     private Map<String, Object> context;
 
     public SearchQueryBuilder()
@@ -597,6 +598,7 @@ public class Druids
           dimensions,
           querySpec,
           sortSpec,
+          valueOnly,
           context
       );
     }
@@ -672,6 +674,12 @@ public class Druids
     public SearchQueryBuilder limit(int l)
     {
       limit = l;
+      return this;
+    }
+
+    public SearchQueryBuilder valueOnly(boolean v)
+    {
+      valueOnly = v;
       return this;
     }
 

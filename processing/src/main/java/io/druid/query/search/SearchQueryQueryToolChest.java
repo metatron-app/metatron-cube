@@ -109,7 +109,10 @@ public class SearchQueryQueryToolChest extends QueryToolChest<Result<SearchResul
       )
       {
         SearchQuery query = (SearchQuery) input;
-        return new SearchBinaryFn(query.getSort(), query.getGranularity(), query.getLimit());
+        if (query.isValueOnly()) {
+          return new SearchBinaryFn(query.getSort(), query.getGranularity(), query.getLimit());
+        }
+        return new SearchBinaryFn.WithCount(query.getSort(), query.getGranularity(), query.getLimit());
       }
     };
   }
@@ -129,20 +132,32 @@ public class SearchQueryQueryToolChest extends QueryToolChest<Result<SearchResul
   }
 
   @Override
-  public Function<Result<SearchResultValue>, Result<SearchResultValue>> makePostComputeManipulatorFn(
-      SearchQuery query, MetricManipulationFn fn)
+  public QueryRunner<Result<SearchResultValue>> postMergeQueryDecoration(final QueryRunner<Result<SearchResultValue>> runner)
   {
-    final Comparator<SearchHit> mergeComparator = query.getSort().getMergeComparator();
-    if (mergeComparator == null) {
-      return Functions.identity();
-    }
-    return new Function<Result<SearchResultValue>, Result<SearchResultValue>>()
+    return new QueryRunner<Result<SearchResultValue>>()
     {
       @Override
-      public Result<SearchResultValue> apply(Result<SearchResultValue> input)
+      public Sequence<Result<SearchResultValue>> run(
+          Query<Result<SearchResultValue>> input, Map<String, Object> responseContext
+      )
       {
-        Collections.sort(input.getValue().getValue(), mergeComparator);
-        return input;
+        SearchQuery query = (SearchQuery) input;
+        Sequence<Result<SearchResultValue>> sequence = runner.run(query, responseContext);
+        final Comparator<SearchHit> mergeComparator = query.getSort().getResultComparator();
+        if (mergeComparator != null) {
+          return Sequences.map(
+              sequence, new Function<Result<SearchResultValue>, Result<SearchResultValue>>()
+              {
+                @Override
+                public Result<SearchResultValue> apply(Result<SearchResultValue> input)
+                {
+                  Collections.sort(input.getValue().getValue(), mergeComparator);
+                  return input;
+                }
+              }
+          );
+        }
+        return sequence;
       }
     };
   }
@@ -184,11 +199,12 @@ public class SearchQueryQueryToolChest extends QueryToolChest<Result<SearchResul
 
         final ByteBuffer queryCacheKey = ByteBuffer
             .allocate(
-                1 + 4 + granularityBytes.length + filterBytes.length +
+                1 + 4 + 1 + granularityBytes.length + filterBytes.length +
                 querySpecBytes.length + vcBytes.length + dimensionsBytesSize + sortSpecBytes.length
             )
             .put(SEARCH_QUERY)
             .put(Ints.toByteArray(query.getLimit()))
+            .put(query.isValueOnly() ? (byte)0x01 : 0)
             .put(granularityBytes)
             .put(filterBytes)
             .put(querySpecBytes)

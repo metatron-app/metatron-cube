@@ -21,7 +21,6 @@ package io.druid.query.search;
 
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
-import com.google.common.primitives.Ints;
 import com.metamx.common.guava.Sequence;
 import com.metamx.common.guava.Sequences;
 import com.metamx.common.logger.Logger;
@@ -34,17 +33,16 @@ import io.druid.query.QueryRunnerTestHelper;
 import io.druid.query.Result;
 import io.druid.query.dimension.DefaultDimensionSpec;
 import io.druid.query.dimension.ExtractionDimensionSpec;
-import io.druid.query.filter.InDimFilter;
-import io.druid.query.lookup.LookupConfig;
-import io.druid.query.lookup.LookupExtractionFn;
 import io.druid.query.extraction.MapLookupExtractor;
 import io.druid.query.filter.AndDimFilter;
 import io.druid.query.filter.DimFilter;
 import io.druid.query.filter.ExtractionDimFilter;
+import io.druid.query.filter.InDimFilter;
 import io.druid.query.filter.SelectorDimFilter;
+import io.druid.query.lookup.LookupConfig;
+import io.druid.query.lookup.LookupExtractionFn;
 import io.druid.query.lookup.LookupReferencesManager;
 import io.druid.query.search.search.FragmentSearchQuerySpec;
-import io.druid.query.search.search.GenericSearchSortSpec;
 import io.druid.query.search.search.LexicographicSearchSortSpec;
 import io.druid.query.search.search.SearchHit;
 import io.druid.query.search.search.SearchQuery;
@@ -64,8 +62,6 @@ import org.junit.runners.Parameterized;
 
 import java.io.IOException;
 import java.util.Arrays;
-import java.util.Collections;
-import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 
@@ -74,6 +70,10 @@ import java.util.Map;
 @RunWith(Parameterized.class)
 public class SearchQueryRunnerTest
 {
+  static {
+    Parser.register(ModuleBuiltinFunctions.class);
+  }
+
   private static final Logger LOG = new Logger(SearchQueryRunnerTest.class);
   private static final SearchQueryQueryToolChest toolChest = new SearchQueryQueryToolChest(
       new SearchQueryConfig(),
@@ -93,9 +93,10 @@ public class SearchQueryRunnerTest
     );
   }
 
-  private final QueryRunner runner;
-  private final QueryRunner decoratedRunner;
+  private final QueryRunner<Result<SearchResultValue>> runner;
+  private final QueryRunner<Result<SearchResultValue>> decoratedRunner;
 
+  @SuppressWarnings("unchecked")
   public SearchQueryRunnerTest(
       QueryRunner runner
   )
@@ -319,27 +320,106 @@ public class SearchQueryRunnerTest
 
     checkSearchQuery(builder.build(), expectedHits);
 
-    Collections.sort(
-        expectedHits, new Comparator<SearchHit>()
-        {
-          @Override
-          public int compare(SearchHit o1, SearchHit o2)
-          {
-            int compare = -Ints.compare(o1.getCount(), o2.getCount());
-            if (compare == 0) {
-              compare = o1.getDimension().compareTo(o2.getDimension());
-            }
-            return compare;
-          }
-        }
-    );
+    // count:asc, value:desc
+    builder.sortSpec(new LexicographicSearchSortSpec(Arrays.asList("$count", "$value:desc")));
 
-    builder.sortSpec(
-        new LexicographicSearchSortSpec(new GenericSearchSortSpec(Arrays.asList("$count", "$dimension")))
-    );
+    expectedHits.clear();
+    expectedHits.add(new SearchHit(QueryRunnerTestHelper.qualityDimension, "travel", 93));
+    expectedHits.add(new SearchHit(QueryRunnerTestHelper.qualityDimension, "health", 93));
+    expectedHits.add(new SearchHit(QueryRunnerTestHelper.qualityDimension, "entertainment", 93));
+    expectedHits.add(new SearchHit(QueryRunnerTestHelper.qualityDimension, "automotive", 93));
+    expectedHits.add(new SearchHit(QueryRunnerTestHelper.marketDimension, "total_market", 186));
+    expectedHits.add(new SearchHit(QueryRunnerTestHelper.qualityDimension, "mezzanine", 279));
 
-    // acts on merge
     checkSearchQueryWithOrder(builder.build(), decoratedRunner, expectedHits);
+
+    // dimension:desc, count:desc, value:asc
+    builder.sortSpec(new LexicographicSearchSortSpec(Arrays.asList("$dimension:desc", "$count:desc", "$value")));
+
+    expectedHits.clear();
+    expectedHits.add(new SearchHit(QueryRunnerTestHelper.qualityDimension, "mezzanine", 279));
+    expectedHits.add(new SearchHit(QueryRunnerTestHelper.qualityDimension, "automotive", 93));
+    expectedHits.add(new SearchHit(QueryRunnerTestHelper.qualityDimension, "entertainment", 93));
+    expectedHits.add(new SearchHit(QueryRunnerTestHelper.qualityDimension, "health", 93));
+    expectedHits.add(new SearchHit(QueryRunnerTestHelper.qualityDimension, "travel", 93));
+    expectedHits.add(new SearchHit(QueryRunnerTestHelper.marketDimension, "total_market", 186));
+
+    checkSearchQueryWithOrder(builder.build(), decoratedRunner, expectedHits);
+
+    // value only
+    builder.valueOnly(true);
+
+    expectedHits.clear();
+    expectedHits.add(new SearchHit(QueryRunnerTestHelper.qualityDimension, "automotive"));
+    expectedHits.add(new SearchHit(QueryRunnerTestHelper.qualityDimension, "entertainment"));
+    expectedHits.add(new SearchHit(QueryRunnerTestHelper.qualityDimension, "health"));
+    expectedHits.add(new SearchHit(QueryRunnerTestHelper.qualityDimension, "mezzanine"));
+    expectedHits.add(new SearchHit(QueryRunnerTestHelper.qualityDimension, "travel"));
+    expectedHits.add(new SearchHit(QueryRunnerTestHelper.marketDimension, "total_market"));
+
+    checkSearchQueryWithOrder(builder.build(), decoratedRunner, expectedHits);
+  }
+
+  @Test
+  public void testSearchWithResultOrdering()
+  {
+    final Druids.SearchQueryBuilder builder =
+        Druids.newSearchQueryBuilder()
+              .dataSource(QueryRunnerTestHelper.dataSource)
+              .granularity(QueryRunnerTestHelper.allGran)
+              .intervals(QueryRunnerTestHelper.fullOnInterval)
+              .query("a")
+              .sortSpec(new LexicographicSearchSortSpec(Arrays.asList("$count:desc", "$value:desc")))
+              .limit(-1);
+
+    // double the value
+    QueryRunner mergedRunner = toolChest.postMergeQueryDecoration(
+        toolChest.mergeResults(
+            new QueryRunner<Result<SearchResultValue>>()
+            {
+              @Override
+              public Sequence<Result<SearchResultValue>> run(
+                  Query<Result<SearchResultValue>> query, Map<String, Object> responseContext
+              )
+              {
+                final Query<Result<SearchResultValue>> query1 = query.withQuerySegmentSpec(
+                    new MultipleIntervalSegmentSpec(Lists.newArrayList(new Interval("2011-01-12/2011-02-28")))
+                );
+                final Query<Result<SearchResultValue>> query2 = query.withQuerySegmentSpec(
+                    new MultipleIntervalSegmentSpec(Lists.newArrayList(new Interval("2011-03-01/2011-04-15")))
+                );
+                return Sequences.concat(
+                    Arrays.asList(
+                        runner.run(query1, responseContext),
+                        runner.run(query2, responseContext)
+                    )
+                );
+              }
+            }
+        )
+    );
+
+    List<SearchHit> expectedHits = Lists.newLinkedList();
+    expectedHits.add(new SearchHit(QueryRunnerTestHelper.qualityDimension, "mezzanine", 558));
+    expectedHits.add(new SearchHit(QueryRunnerTestHelper.partialNullDimension, "value", 372));
+    expectedHits.add(new SearchHit(QueryRunnerTestHelper.marketDimension, "total_market", 372));
+    expectedHits.add(new SearchHit(QueryRunnerTestHelper.qualityDimension, "travel", 186));
+    expectedHits.add(new SearchHit(QueryRunnerTestHelper.qualityDimension, "health", 186));
+    expectedHits.add(new SearchHit(QueryRunnerTestHelper.qualityDimension, "entertainment", 186));
+    expectedHits.add(new SearchHit(QueryRunnerTestHelper.qualityDimension, "automotive", 186));
+    expectedHits.add(new SearchHit(QueryRunnerTestHelper.placementishDimension, "a", 186));
+
+    checkSearchQueryWithOrder(builder.build(), mergedRunner, expectedHits);
+
+    // limit should not affect count value
+
+    expectedHits.clear();
+    expectedHits.add(new SearchHit(QueryRunnerTestHelper.qualityDimension, "mezzanine", 558));
+    expectedHits.add(new SearchHit(QueryRunnerTestHelper.partialNullDimension, "value", 372));
+    expectedHits.add(new SearchHit(QueryRunnerTestHelper.marketDimension, "total_market", 372));
+    expectedHits.add(new SearchHit(QueryRunnerTestHelper.qualityDimension, "travel", 186));
+
+    checkSearchQueryWithOrder(builder.limit(4).build(), mergedRunner, expectedHits);
   }
 
   @Test
@@ -418,9 +498,8 @@ public class SearchQueryRunnerTest
             "entertainment", "c",
             "health", "d",
             "mezzanine", "e"
-        ));
-
-    Parser.register(ModuleBuiltinFunctions.class);
+        )
+    );
 
     List<SearchHit> expectedHits = Lists.newLinkedList();
     expectedHits.add(new SearchHit("vc", "a", 93));
@@ -677,9 +756,10 @@ public class SearchQueryRunnerTest
     );
     Assert.assertEquals(1, results.size());
     SearchResultValue result = results.get(0).getValue();
-    Assert.assertEquals(result.getValue().size(), expectedResults.size());
-    for (int i = 0; i < results.size(); i++) {
-      Assert.assertEquals(result.getValue().get(i), expectedResults.get(i));
+    System.out.println(result.getValue());
+    Assert.assertEquals(expectedResults.size(), result.getValue().size());
+    for (int i = 0; i < expectedResults.size(); i++) {
+      Assert.assertEquals(expectedResults.get(i), result.getValue().get(i));
     }
   }
 

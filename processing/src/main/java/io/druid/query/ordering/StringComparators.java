@@ -439,7 +439,19 @@ public class StringComparators
 
   public static StringComparator makeComparator(String type)
   {
-    switch (type) {
+    StringComparator comparator = tryMakeComparator(type);
+    if (comparator == null) {
+      throw new IAE("Unknown string comparator[%s]", type);
+    }
+    return comparator;
+  }
+
+  public static StringComparator tryMakeComparator(String type)
+  {
+    if (type == null) {
+      return null;
+    }
+    switch (type.toLowerCase()) {
       case StringComparators.LEXICOGRAPHIC_NAME:
         return LEXICOGRAPHIC;
       case StringComparators.ALPHANUMERIC_NAME:
@@ -451,7 +463,7 @@ public class StringComparators
       case StringComparators.DAY_OF_WEEK_NAME:
         return DAY_OF_WEEK;
       default:
-        throw new IAE("Unknown string comparator[%s]", type);
+        return null;
     }
   }
 }

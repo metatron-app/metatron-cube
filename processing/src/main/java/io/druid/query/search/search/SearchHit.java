@@ -28,6 +28,10 @@ import static com.google.common.base.Preconditions.checkNotNull;
  */
 public class SearchHit implements Comparable<SearchHit>
 {
+  public static final String DIMENSION = "$dimension";
+  public static final String VALUE = "$value";
+  public static final String COUNT = "$count";
+
   private final String dimension;
   private final String value;
   private final Integer count;
@@ -70,9 +74,9 @@ public class SearchHit implements Comparable<SearchHit>
   @Override
   public int compareTo(SearchHit o)
   {
-    int retVal = dimension.compareTo(o.dimension);
+    int retVal = dimension == o.dimension ? 0 : dimension.compareTo(o.dimension);
     if (retVal == 0) {
-      retVal = value.compareTo(o.value);
+      retVal = value == o.value ? 0 : value.compareTo(o.value);
     }
     return retVal;
   }
@@ -89,21 +93,28 @@ public class SearchHit implements Comparable<SearchHit>
 
     SearchHit searchHit = (SearchHit) o;
 
-    if (dimension != null ? !dimension.equals(searchHit.dimension) : searchHit.dimension != null) {
-      return false;
-    }
-    if (value != null ? !value.equals(searchHit.value) : searchHit.value != null) {
-      return false;
-    }
+    return equals(searchHit);
+  }
 
+  public boolean equals(SearchHit searchHit)
+  {
+    if (this == searchHit) {
+      return true;
+    }
+    if (!dimension.equals(searchHit.dimension)) {
+      return false;
+    }
+    if (!value.equals(searchHit.value)) {
+      return false;
+    }
     return true;
   }
 
   @Override
   public int hashCode()
   {
-    int result = dimension != null ? dimension.hashCode() : 0;
-    result = 31 * result + (value != null ? value.hashCode() : 0);
+    int result = dimension.hashCode();
+    result = 31 * result + value.hashCode();
     return result;
   }
 

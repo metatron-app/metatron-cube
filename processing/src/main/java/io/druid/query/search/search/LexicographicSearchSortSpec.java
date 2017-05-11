@@ -21,24 +21,38 @@ package io.druid.query.search.search;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import io.druid.query.QueryCacheHelper;
 
+import java.nio.ByteBuffer;
 import java.util.Comparator;
+import java.util.List;
+import java.util.Objects;
 
 /**
  */
-public class LexicographicSearchSortSpec extends MergeSortSpec
+public class LexicographicSearchSortSpec implements SearchSortSpec
 {
+  private final List<String> ordering;
+  private final SearchHitSort comparator;
+
   @JsonCreator
   public LexicographicSearchSortSpec(
-      @JsonProperty("mergeOrdering") GenericSearchSortSpec mergeOrdering
+      @JsonProperty("ordering") List<String> ordering
   )
   {
-    super(mergeOrdering);
+    this.ordering = ordering;
+    this.comparator = SearchHitSort.valueOf(ordering);
   }
 
   public LexicographicSearchSortSpec()
   {
     this(null);
+  }
+
+  @JsonProperty
+  public List<String> getOrdering()
+  {
+    return ordering;
   }
 
   @Override
@@ -59,8 +73,51 @@ public class LexicographicSearchSortSpec extends MergeSortSpec
   }
 
   @Override
+  public Comparator<SearchHit> getResultComparator()
+  {
+    return comparator == null ? null : comparator.getComparator();
+  }
+
+  @Override
+  public boolean sortOnCount()
+  {
+    return comparator != null && comparator.sortOnCount();
+  }
+
+  @Override
+  public byte[] getCacheKey()
+  {
+    byte[] key = QueryCacheHelper.computeCacheBytes(ordering);
+    return ByteBuffer.allocate(1 + key.length)
+                     .put((byte) 0x00)
+                     .put(key)
+                     .array();
+  }
+
+  @Override
+  public boolean equals(Object o)
+  {
+    if (this == o) {
+      return true;
+    }
+    if (o == null || getClass() != o.getClass()) {
+      return false;
+    }
+    LexicographicSearchSortSpec that = (LexicographicSearchSortSpec) o;
+    return Objects.equals(ordering, that.ordering);
+  }
+
+  @Override
+  public int hashCode()
+  {
+    return Objects.hashCode(ordering);
+  }
+
+  @Override
   public String toString()
   {
-    return "lexicographicSort" + super.toString();
+    return "LexicographicSearchSortSpec{" +
+           "ordering=" + ordering +
+           '}';
   }
 }

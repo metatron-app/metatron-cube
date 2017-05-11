@@ -45,6 +45,7 @@ import io.druid.query.filter.DimFilter;
 import io.druid.query.search.search.SearchHit;
 import io.druid.query.search.search.SearchQuery;
 import io.druid.query.search.search.SearchQuerySpec;
+import io.druid.query.search.search.SearchSortSpec;
 import io.druid.segment.ColumnSelectorBitmapIndexSelector;
 import io.druid.segment.Cursor;
 import io.druid.segment.DimensionSelector;
@@ -95,8 +96,12 @@ public class SearchQueryRunner implements QueryRunner<Result<SearchResultValue>>
     final SearchQuerySpec searchQuerySpec = query.getQuery();
     final int limit = query.getLimit();
     final boolean descending = query.isDescending();
-    final boolean valueOnly = query.getContextBoolean("valueOnly", false);
-    final Comparator<SearchHit> comparator = query.getSort().getComparator();
+    final boolean valueOnly = query.isValueOnly();
+
+    final SearchSortSpec sort = query.getSort();
+    final Comparator<SearchHit> comparator = sort.getComparator();
+    final Comparator<SearchHit> resultComparator = sort.getResultComparator();
+    final boolean needsFullScan = limit < 0 || (!query.isValueOnly() && sort.sortOnCount());
 
     // Closing this will cause segfaults in unit tests.
     final QueryableIndex index = segment.asQueryableIndex(false);
@@ -153,31 +158,28 @@ public class SearchQueryRunner implements QueryRunner<Result<SearchResultValue>>
               }
               if (valueOnly) {
                 retVal.put(new SearchHit(outputName, dimVal), null);
-                if (limit > 0 && retVal.size() >= limit) {
-                  return makeReturnResult(retVal, comparator, limit);
+              } else {
+                ImmutableBitmap bitmap = bitmapIndex.getBitmap(i);
+                if (baseFilter != null) {
+                  bitmap = bitmapFactory.intersection(Arrays.asList(baseFilter, bitmap));
                 }
-                continue;
+                int size = bitmap.size();
+                if (size > 0) {
+                  MutableInt counter = new MutableInt(size);
+                  MutableInt prev = retVal.put(new SearchHit(outputName, dimVal), counter);
+                  if (prev != null) {
+                    counter.add(prev.intValue());
+                  }
+                }
               }
-              ImmutableBitmap bitmap = bitmapIndex.getBitmap(i);
-              if (baseFilter != null) {
-                bitmap = bitmapFactory.intersection(Arrays.asList(baseFilter, bitmap));
-              }
-              int size = bitmap.size();
-              if (size > 0) {
-                MutableInt counter = new MutableInt(size);
-                MutableInt prev = retVal.put(new SearchHit(outputName, dimVal), counter);
-                if (prev != null) {
-                  counter.add(prev.intValue());
-                }
-                if (limit > 0 && retVal.size() >= limit) {
-                  return makeReturnResult(retVal, comparator, limit);
-                }
+              if (!needsFullScan && retVal.size() >= limit) {
+                return makeReturnResult(retVal, comparator, resultComparator, limit);
               }
             }
           }
         }
 
-        return makeReturnResult(retVal, comparator, limit);
+        return makeReturnResult(retVal, comparator, resultComparator, limit);
       }
     }
 
@@ -229,14 +231,18 @@ public class SearchQueryRunner implements QueryRunner<Result<SearchResultValue>>
                 if (selector != null) {
                   final IndexedInts vals = selector.getRow();
                   for (int i = 0; i < vals.size(); ++i) {
-                    final String dimVal = selector.lookupName(vals.get(i));
+                    final String dimVal = Strings.nullToEmpty(selector.lookupName(vals.get(i)));
                     if (searchQuerySpec.accept(dimVal)) {
-                      MutableInt counter = new MutableInt(1);
-                      MutableInt prev = set.put(new SearchHit(entry.getKey(), dimVal), counter);
-                      if (prev != null) {
-                        counter.add(prev.intValue());
+                      if (valueOnly) {
+                        set.put(new SearchHit(entry.getKey(), dimVal), null);
+                      } else {
+                        MutableInt counter = new MutableInt(1);
+                        MutableInt prev = set.put(new SearchHit(entry.getKey(), dimVal), counter);
+                        if (prev != null) {
+                          counter.add(prev.intValue());
+                        }
                       }
-                      if (limit > 0 && set.size() >= limit) {
+                      if (!needsFullScan && set.size() >= limit) {
                         return set;
                       }
                     }
@@ -252,7 +258,7 @@ public class SearchQueryRunner implements QueryRunner<Result<SearchResultValue>>
         }
     );
 
-    return makeReturnResult(retVal, comparator, limit);
+    return makeReturnResult(retVal, comparator, resultComparator, limit);
   }
 
   // DimensionSpec with multiple dimensions or referencing virtual column are handled through cursor only
@@ -274,7 +280,10 @@ public class SearchQueryRunner implements QueryRunner<Result<SearchResultValue>>
   }
 
   private Sequence<Result<SearchResultValue>> makeReturnResult(
-      Map<SearchHit, MutableInt> retVal, Comparator<SearchHit> comparator, int limit
+      Map<SearchHit, MutableInt> retVal,
+      Comparator<SearchHit> comparator,
+      Comparator<SearchHit> resultComparator,
+      int limit
   )
   {
     List<SearchHit> source = Lists.newArrayList(
@@ -291,16 +300,22 @@ public class SearchQueryRunner implements QueryRunner<Result<SearchResultValue>>
             }
         )
     );
-    Collections.sort(source, comparator);
-
-    if (limit > 0 && source.size() > limit) {
+    boolean needLimiting = limit > 0 && source.size() > limit;
+    if (needLimiting && resultComparator != null) {
+      Collections.sort(source, resultComparator);   // select based on result comparator
+      source = source.subList(0, limit);
+      needLimiting = false;
+    }
+    Collections.sort(source, comparator);   // for merge
+    if (needLimiting) {
       source = source.subList(0, limit);
     }
+
     return Sequences.simple(
         ImmutableList.of(
             new Result<>(
                 segment.getDataInterval().getStart(),
-                new SearchResultValue(Lists.newArrayList(source))
+                new SearchResultValue(ImmutableList.copyOf(source))
             )
         )
     );

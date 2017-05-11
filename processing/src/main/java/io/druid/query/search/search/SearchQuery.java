@@ -48,6 +48,7 @@ public class SearchQuery extends BaseQuery<Result<SearchResultValue>>
   private final List<DimensionSpec> dimensions;
   private final SearchQuerySpec querySpec;
   private final int limit;
+  private final boolean valueOnly;
 
   @JsonCreator
   public SearchQuery(
@@ -60,6 +61,7 @@ public class SearchQuery extends BaseQuery<Result<SearchResultValue>>
       @JsonProperty("searchDimensions") List<DimensionSpec> dimensions,
       @JsonProperty("query") SearchQuerySpec querySpec,
       @JsonProperty("sort") SearchSortSpec sortSpec,
+      @JsonProperty("valueOnly") boolean valueOnly,
       @JsonProperty("context") Map<String, Object> context
   )
   {
@@ -70,6 +72,7 @@ public class SearchQuery extends BaseQuery<Result<SearchResultValue>>
     this.limit = (limit == 0) ? 1000 : limit;
     this.virtualColumns = virtualColumns;
     this.dimensions = dimensions;
+    this.valueOnly = valueOnly;
     this.querySpec = querySpec == null ? new SearchQuerySpec.TakeAll() : querySpec;
 
     Preconditions.checkNotNull(querySegmentSpec, "Must specify an interval");
@@ -100,6 +103,7 @@ public class SearchQuery extends BaseQuery<Result<SearchResultValue>>
         dimensions,
         querySpec,
         sortSpec,
+        valueOnly,
         getContext()
     );
   }
@@ -117,6 +121,7 @@ public class SearchQuery extends BaseQuery<Result<SearchResultValue>>
         dimensions,
         querySpec,
         sortSpec,
+        valueOnly,
         getContext()
     );
   }
@@ -134,6 +139,7 @@ public class SearchQuery extends BaseQuery<Result<SearchResultValue>>
         dimensions,
         querySpec,
         sortSpec,
+        valueOnly,
         computeOverridenContext(contextOverrides)
     );
   }
@@ -150,6 +156,7 @@ public class SearchQuery extends BaseQuery<Result<SearchResultValue>>
         dimensions,
         querySpec,
         sortSpec,
+        valueOnly,
         getContext()
     );
   }
@@ -196,6 +203,12 @@ public class SearchQuery extends BaseQuery<Result<SearchResultValue>>
     return sortSpec;
   }
 
+  @JsonProperty("valueOnly")
+  public boolean isValueOnly()
+  {
+    return valueOnly;
+  }
+
   public SearchQuery withLimit(int newLimit)
   {
     return new SearchQuery(
@@ -208,6 +221,7 @@ public class SearchQuery extends BaseQuery<Result<SearchResultValue>>
         dimensions,
         querySpec,
         sortSpec,
+        valueOnly,
         getContext()
     );
   }
@@ -224,6 +238,7 @@ public class SearchQuery extends BaseQuery<Result<SearchResultValue>>
         ", querySpec=" + querySpec +
         ", querySegmentSpec=" + getQuerySegmentSpec() +
         ", limit=" + limit +
+        ", valueOnly=" + valueOnly +
         '}';
   }
 
@@ -237,6 +252,7 @@ public class SearchQuery extends BaseQuery<Result<SearchResultValue>>
     SearchQuery that = (SearchQuery) o;
 
     if (limit != that.limit) return false;
+    if (valueOnly != that.valueOnly) return false;
     if (dimFilter != null ? !dimFilter.equals(that.dimFilter) : that.dimFilter != null) return false;
     if (virtualColumns != null ? !virtualColumns.equals(that.virtualColumns) : that.virtualColumns != null) return false;
     if (dimensions != null ? !dimensions.equals(that.dimensions) : that.dimensions != null) return false;
@@ -258,6 +274,7 @@ public class SearchQuery extends BaseQuery<Result<SearchResultValue>>
     result = 31 * result + (dimensions != null ? dimensions.hashCode() : 0);
     result = 31 * result + (querySpec != null ? querySpec.hashCode() : 0);
     result = 31 * result + limit;
+    result = 31 * result + (valueOnly ? 1 : 0);
     return result;
   }
 }

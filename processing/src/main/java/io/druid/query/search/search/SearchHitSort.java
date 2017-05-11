@@ -19,8 +19,6 @@
 
 package io.druid.query.search.search;
 
-import com.fasterxml.jackson.annotation.JsonCreator;
-import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Ordering;
 import com.google.common.primitives.Ints;
@@ -34,21 +32,21 @@ import java.util.Objects;
 
 /**
  */
-public class GenericSearchSortSpec implements SearchSortSpec
+public class SearchHitSort
 {
-  private final String ordering;
-  private final List<String> orderingSpecs;
-  private final Comparator<SearchHit> comparator;
-
-  @JsonCreator
-  public GenericSearchSortSpec(
-      @JsonProperty("ordering") String ordering,
-      @JsonProperty("orderingSpecs") List<String> orderingSpecs
-  )
+  public static SearchHitSort valueOf(List<String> ordering)
   {
-    if (ordering != null) {
-      final StringComparator stringComp = StringComparators.makeComparator(ordering);
-      this.ordering = ordering;
+    return ordering == null || ordering.isEmpty() ? null : new SearchHitSort(ordering);
+  }
+
+  private final Comparator<SearchHit> comparator;
+  private final boolean referencesCount;
+
+  public SearchHitSort(List<String> ordering)
+  {
+    ordering = Preconditions.checkNotNull(ordering, "'ordering' cannot be null");
+    if (ordering.size() == 1 && !ordering.get(0).startsWith("$")) {
+      final StringComparator stringComp = StringComparators.makeComparator(ordering.get(0));
       this.comparator = new Comparator<SearchHit>()
       {
         @Override
@@ -63,37 +61,27 @@ public class GenericSearchSortSpec implements SearchSortSpec
           return ret;
         }
       };
-      this.orderingSpecs = null;
+      this.referencesCount = false;
     } else {
+      boolean referencesCount = false;
       Ordering<SearchHit> complex = null;
-      for (String spec : Preconditions.checkNotNull(orderingSpecs)) {
+      for (String spec : ordering) {
+        referencesCount |= spec.startsWith(SearchHit.COUNT);
         Comparator<SearchHit> comparator = toSearchHitComparator(spec.split(":"));
         complex = complex == null ? Ordering.from(comparator) : complex.compound(comparator);
       }
-      this.comparator = Preconditions.checkNotNull(complex);
-      this.orderingSpecs = orderingSpecs;
-      this.ordering = null;
+      this.comparator = Preconditions.checkNotNull(complex, "'ordering' is empty or invalid");
+      this.referencesCount = referencesCount;
     }
-  }
-
-  public GenericSearchSortSpec(String ordering)
-  {
-    this(ordering, null);
-  }
-
-  public GenericSearchSortSpec(List<String> orderingSpecs)
-  {
-    this(null, orderingSpecs);
   }
 
   private Comparator<SearchHit> toSearchHitComparator(String[] specs)
   {
+    boolean invert = false;
     Comparator<SearchHit> comparator;
     switch (specs[0]) {
-      case "$value": {
-        final StringComparator stringComp = specs.length == 1
-                                            ? StringComparators.LEXICOGRAPHIC
-                                            : StringComparators.makeComparator(specs[1]);
+      case SearchHit.VALUE: {
+        final StringComparator stringComp = makeBaseComparator(specs);
         comparator = new Comparator<SearchHit>()
         {
           @Override
@@ -104,10 +92,8 @@ public class GenericSearchSortSpec implements SearchSortSpec
         };
         break;
       }
-      case "$dimension": {
-        final StringComparator stringComp = specs.length == 1
-                                            ? StringComparators.LEXICOGRAPHIC
-                                            : StringComparators.makeComparator(specs[1]);
+      case SearchHit.DIMENSION: {
+        final StringComparator stringComp = makeBaseComparator(specs);
         comparator = new Comparator<SearchHit>()
         {
           @Override
@@ -118,7 +104,7 @@ public class GenericSearchSortSpec implements SearchSortSpec
         };
         break;
       }
-      case "$count":
+      case SearchHit.COUNT:
         comparator = new Comparator<SearchHit>()
         {
           @Override
@@ -138,63 +124,35 @@ public class GenericSearchSortSpec implements SearchSortSpec
             return Ints.compare(count1, count2);
           }
         };
-        if (specs.length == 1 || specs[1].equalsIgnoreCase("desc")) {
-          comparator = Comparators.inverse(comparator);
-        }
         break;
       default:
         throw new IllegalArgumentException("invalid target " + specs[0]);
     }
-    return comparator;
+    for (int i = 1; i < specs.length; i++) {
+      invert |= specs[i].equalsIgnoreCase("desc");
+    }
+    return invert ? Comparators.inverse(comparator) : comparator;
   }
 
-  @JsonProperty("ordering")
-  public String getOrdering()
+  private StringComparator makeBaseComparator(String[] specs)
   {
-    return ordering;
+    StringComparator stringComp = null;
+    for (int i = 1; i < specs.length && stringComp == null; i++) {
+      stringComp = StringComparators.tryMakeComparator(specs[i]);
+    }
+    if (stringComp == null) {
+      stringComp = StringComparators.LEXICOGRAPHIC;
+    }
+    return stringComp;
   }
 
-  @JsonProperty("orderingSpecs")
-  public List<String> getOrderingSpecs()
-  {
-    return orderingSpecs;
-  }
-
-  @Override
   public Comparator<SearchHit> getComparator()
   {
     return comparator;
   }
 
-  @Override
-  public Comparator<SearchHit> getMergeComparator()
+  public boolean sortOnCount()
   {
-    return null;
-  }
-
-  @Override
-  public byte[] getCacheKey()
-  {
-    return toString().getBytes();
-  }
-
-  @Override
-  public String toString()
-  {
-    return "generic(" + (ordering != null ? ordering : orderingSpecs) + ")";
-  }
-
-  @Override
-  public boolean equals(Object other)
-  {
-    return other instanceof GenericSearchSortSpec &&
-           Objects.equals(ordering, (((GenericSearchSortSpec) other).ordering)) &&
-           Objects.equals(orderingSpecs, (((GenericSearchSortSpec) other).orderingSpecs));
-  }
-
-  @Override
-  public int hashCode()
-  {
-    return (ordering != null ? ordering : orderingSpecs).hashCode();
+    return referencesCount;
   }
 }

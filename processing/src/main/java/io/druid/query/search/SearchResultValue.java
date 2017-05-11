@@ -52,6 +52,11 @@ public class SearchResultValue implements Iterable<SearchHit>
     return value.iterator();
   }
 
+  public boolean isEmpty()
+  {
+    return value.isEmpty();
+  }
+
   @Override
   public String toString()
   {
