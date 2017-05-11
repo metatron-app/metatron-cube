@@ -44,6 +44,7 @@ import io.druid.metadata.MetadataStorageActionHandlerTypes;
 import io.druid.metadata.MetadataStorageConnector;
 import io.druid.metadata.MetadataStorageTablesConfig;
 import org.joda.time.DateTime;
+import org.joda.time.Duration;
 
 import javax.annotation.Nullable;
 import java.util.List;
@@ -210,9 +211,10 @@ public class MetadataTaskStorage implements TaskStorage
   }
 
   @Override
-  public List<TaskStatus> getRecentlyFinishedTaskStatuses()
+  public List<TaskStatus> getRecentlyFinishedTaskStatuses(String recent)
   {
-    final DateTime start = new DateTime().minus(config.getRecentlyFinishedThreshold());
+    Duration duration = recent == null ? config.getRecentlyFinishedThreshold() : new Duration(recent);
+    final DateTime start = new DateTime().minus(duration);
 
     return ImmutableList.copyOf(
         Iterables.filter(

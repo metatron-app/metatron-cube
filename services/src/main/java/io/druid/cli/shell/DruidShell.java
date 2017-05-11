@@ -14,18 +14,22 @@ import com.metamx.common.ISE;
 import com.metamx.common.logger.Logger;
 import com.metamx.http.client.HttpClient;
 import com.metamx.http.client.Request;
+import com.metamx.http.client.io.AppendableByteArrayInputStream;
+import com.metamx.http.client.response.ClientResponse;
+import com.metamx.http.client.response.InputStreamResponseHandler;
 import com.metamx.http.client.response.StatusResponseHandler;
 import com.metamx.http.client.response.StatusResponseHolder;
 import io.druid.common.utils.StringUtils;
 import io.druid.guice.annotations.Global;
 import io.druid.metadata.DescExtractor;
 import io.druid.server.coordinator.DruidCoordinator;
-import io.druid.server.initialization.ZkPathsConfig;
+import io.druid.server.initialization.IndexerZkConfig;
 import org.apache.curator.framework.CuratorFramework;
 import org.apache.curator.framework.recipes.leader.LeaderLatch;
 import org.apache.curator.framework.recipes.leader.Participant;
 import org.apache.curator.utils.ZKPaths;
 import org.jboss.netty.handler.codec.http.HttpMethod;
+import org.jboss.netty.handler.codec.http.HttpResponse;
 import org.jboss.netty.handler.codec.http.HttpResponseStatus;
 import org.jline.reader.Candidate;
 import org.jline.reader.Completer;
@@ -39,6 +43,9 @@ import org.jline.reader.impl.completer.AggregateCompleter;
 import org.jline.terminal.Terminal;
 import org.jline.terminal.TerminalBuilder;
 
+import java.io.BufferedReader;
+import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.net.URL;
 import java.net.URLEncoder;
@@ -54,14 +61,24 @@ public class DruidShell
   private static final Logger LOG = new Logger(DruidShell.class);
   private static final StatusResponseHandler RESPONSE_HANDLER = new StatusResponseHandler(Charsets.UTF_8);
 
-  private final ZkPathsConfig zkPaths;
+  // make it blocking
+  private static final InputStreamResponseHandler STREAM_HANDLER = new InputStreamResponseHandler()
+  {
+    @Override
+    public ClientResponse<AppendableByteArrayInputStream> handleResponse(HttpResponse response)
+    {
+      return ClientResponse.unfinished(super.handleResponse(response).getObj());
+    }
+  };
+
+  private final IndexerZkConfig zkPaths;
   private final CuratorFramework curator;
   private final HttpClient httpClient;
   private final ObjectMapper jsonMapper;
 
   @Inject
   public DruidShell(
-      ZkPathsConfig zkPaths,
+      IndexerZkConfig zkPaths,
       CuratorFramework curator,
       @Global HttpClient httpClient,
       @JacksonInject ObjectMapper jsonMapper
@@ -75,24 +92,34 @@ public class DruidShell
 
   public void run(List<String> arguments) throws Exception
   {
-    final LeaderLatch leaderLatch = new LeaderLatch(
-        curator, ZKPaths.makePath(zkPaths.getCoordinatorPath(), DruidCoordinator.COORDINATOR_OWNER_NODE), "dummy"
+    final LeaderLatch coordinatorLatch = new LeaderLatch(
+        curator,
+        ZKPaths.makePath(zkPaths.getZkPathsConfig().getCoordinatorPath(), DruidCoordinator.COORDINATOR_OWNER_NODE)
     );
-    LOG.info("Leader : %s", leaderLatch.getLeader());
-    for (Participant participant : leaderLatch.getParticipants()) {
+    LOG.info("Coordinator leader : %s", coordinatorLatch.getLeader());
+    for (Participant participant : coordinatorLatch.getParticipants()) {
       if (!participant.isLeader()) {
-        LOG.info("Participant : %s", participant);
+        LOG.info("Coordinator participant : %s", participant);
+      }
+    }
+    final LeaderLatch indexerLatch = new LeaderLatch(curator, zkPaths.getLeaderLatchPath());
+    LOG.info("Overlord leader : %s", indexerLatch.getLeader());
+    for (Participant participant : indexerLatch.getParticipants()) {
+      if (!participant.isLeader()) {
+        LOG.info("Overlord participant : %s", participant);
       }
     }
 
-    final URL coordinatorURL = new URL("http://" + leaderLatch.getLeader().getId());
+    final URL coordinatorURL = new URL("http://" + coordinatorLatch.getLeader().getId());
+    final URL overlordURL = new URL("http://" + indexerLatch.getLeader().getId());
 
     try (Terminal terminal = TerminalBuilder.builder().build()) {
-      execute(coordinatorURL, terminal, arguments);
+      execute(coordinatorURL, overlordURL, terminal, arguments);
     }
   }
 
-  private void execute(final URL coordinatorURL, Terminal terminal, List<String> arguments) throws Exception
+  private void execute(final URL coordinatorURL, final URL overlordURL, Terminal terminal, List<String> arguments)
+      throws Exception
   {
     final String prompt = "> ";
     final PrintWriter writer = terminal.writer();
@@ -100,7 +127,7 @@ public class DruidShell
       Cursor cursor = new Cursor(arguments);
       try {
         writer.println(prompt + org.apache.commons.lang.StringUtils.join(arguments, " "));
-        handleCommand(coordinatorURL, writer, cursor);
+        handleCommand(coordinatorURL, overlordURL, writer, cursor);
       }
       finally {
         writer.flush();
@@ -132,6 +159,8 @@ public class DruidShell
         "rule",
         "lookups",
         "lookup",
+        "tasks",
+        "task",
         "help",
         "quit",
         "exit"
@@ -225,9 +254,23 @@ public class DruidShell
       }
     };
 
+    Completer taskCompleter = new Completer()
+    {
+      @Override
+      public void complete(LineReader reader, ParsedLine line, List<Candidate> candidates)
+      {
+        String command = line.words().get(0);
+        if (line.wordIndex() == 1 && "task".equals(command)) {
+          candidates.addAll(
+              Lists.transform(execute(overlordURL, "/druid/indexer/v1/tasks", LIST), toCandidate)
+          );
+        }
+      }
+    };
+
     final Candidate full = new Candidate("-full");
     final Candidate simple = new Candidate("-simple");
-    final Set<String> fullOption1 = ImmutableSet.of("servers", "segments", "datasources", "rule");
+    final Set<String> fullOption1 = ImmutableSet.of("servers", "segments", "datasources", "rule", "tasks");
     final Set<String> fullOption2 = ImmutableSet.of("datasource", "rule");
     final Set<String> simpleOption1 = ImmutableSet.of("servers", "datasources", "tiers", "rules");
     final Set<String> simpleOption2 = ImmutableSet.of("server", "datasource", "tier");
@@ -269,6 +312,19 @@ public class DruidShell
         if (line.wordIndex() == 1 && command.equals("lookups")) {
           candidates.add(new Candidate("-discover"));
         }
+        if (line.wordIndex() > 0 && command.equals("tasks")) {
+          if (!commands.contains("-full")) {
+            candidates.add(new Candidate("-completed"));
+          }
+          if (commands.contains("-completed")) {
+            candidates.add(new Candidate("-recent="));
+          }
+        }
+        if (line.wordIndex() == 2 && command.equals("task")) {
+          candidates.add(new Candidate("-status"));
+          candidates.add(new Candidate("-segments"));
+          candidates.add(new Candidate("-log"));
+        }
       }
     };
 
@@ -279,6 +335,7 @@ public class DruidShell
         tierCompleter,
         descTypeCompleter,
         lookupCompleter,
+        taskCompleter,
         optionCompleter
     );
     LineReader reader = LineReaderBuilder.builder()
@@ -310,7 +367,7 @@ public class DruidShell
       }
       Cursor cursor = new Cursor(reader.getParser().parse(line, 0).words());
       try {
-        handleCommand(coordinatorURL, writer, cursor);
+        handleCommand(coordinatorURL, overlordURL, writer, cursor);
       }
       catch (ISE e) {
         LOG.info(e.toString());
@@ -333,7 +390,7 @@ public class DruidShell
 
   private static final String[] PREFIX = new String[]{"  >> ", "    >> ", "      >> "};
 
-  private void handleCommand(URL coordinatorURL, PrintWriter writer, Cursor cursor)
+  private void handleCommand(URL coordinatorURL, URL overlordURL, PrintWriter writer, Cursor cursor)
       throws Exception
   {
     Resource resource = new Resource();
@@ -354,7 +411,7 @@ public class DruidShell
         writer.println("desc <datasource-name> DS_PROPS");
         writer.println("desc <datasource-name> COLUMNS_COMMENTS");
         writer.println("desc <datasource-name> COLUMN_PROPS <column-name>");
-        writer.println("desc <datasource-name> VALUES_COMMENTS");
+        writer.println("desc <datasource-name> VALUES_COMMENTS <value>");
         writer.println("dynamicConf");
         writer.println("tiers [-simple]");
         writer.println("tier <tier-name> [-simple]");
@@ -362,6 +419,8 @@ public class DruidShell
         writer.println("rule <datasource-name> [-full]");
         writer.println("lookups [-discover]");
         writer.println("lookup <tier-name> [lookup-name]");
+        writer.println("tasks [-full] [-completed [-recent=<duration>]]");
+        writer.println("task <task-id> [-status|-segments|-log]");
         return;
       case "loadstatus":
         Map<String, Object> loadStatus = execute(coordinatorURL, "/druid/coordinator/v1/loadstatus", MAP);
@@ -489,10 +548,10 @@ public class DruidShell
             segments = true;
           } else if (current.equals("tiers")) {
             tiers = true;
-          } else if (current.startsWith("interval=")) {
-            interval = current.substring(9).trim();
-          } else if (current.startsWith("segment=")) {
-            segment = current.substring(8).trim();
+          } else if (current.startsWith("-interval=")) {
+            interval = current.substring(10).trim();
+          } else if (current.startsWith("-segment=")) {
+            segment = current.substring(9).trim();
           }
         }
         if ((intervals || interval != null) && (segments || segment != null)) {
@@ -563,16 +622,6 @@ public class DruidShell
           return;
         }
         resource.append(cursor.current());
-        String columnOption = null;
-        String valueOption = null;
-        while (cursor.hasMore()) {
-          String current = cursor.next();
-          if (current.startsWith("column=")) {
-            columnOption = current;
-          } else if (current.startsWith("value=")) {
-            valueOption = current;
-          }
-        }
         switch (extractor) {
           case DS_COMMENT:
             writer.println(PREFIX[0] + execute(coordinatorURL, resource.get(), STRING));
@@ -582,11 +631,11 @@ public class DruidShell
             writer.println(PREFIX[0] + execute(coordinatorURL, resource.get(), MAP));
             return;
           case COLUMN_PROPS:
-            if (columnOption == null) {
+            if (!cursor.hasMore()) {
               writer.println("column value is missing");
               return;
             }
-            resource.appendOption(columnOption);
+            resource.appendOption("column=" + cursor.next());
             writer.println(PREFIX[0] + execute(coordinatorURL, resource.get(), MAP));
             return;
           case VALUES_COMMENTS:
@@ -668,6 +717,71 @@ public class DruidShell
         } else {
           writer.println(PREFIX[0] + execute(coordinatorURL, resource.get(), LIST));
         }
+        return;
+      case "tasks":
+        resource.append("/druid/indexer/v1/tasks");
+        boolean hasFull = false;
+        boolean hasCompleted = false;
+        String recentOption = null;
+        while (cursor.hasMore()) {
+          String current = cursor.next();
+          if (current.equals("-full")) {
+            hasFull = true;
+          } else if (current.equals("-completed")) {
+            hasCompleted = true;
+          } else if (current.startsWith("-recent=")) {
+            recentOption = current;
+          }
+        }
+        if (hasFull) {
+          resource.appendOption("full");
+        }
+        if (hasCompleted || recentOption != null) {
+          resource.appendOption("completed");
+        }
+        if (recentOption != null) {
+          resource.appendOption(recentOption);
+        }
+        if (hasFull) {
+          resource.appendOption(cursor.current());
+          for (Map<String, Object> value : execute(overlordURL, resource.get(), LIST_MAP)) {
+            writer.println(PREFIX[0] + value);
+          }
+        } else {
+          writer.println(PREFIX[0] + execute(overlordURL, resource.get(), LIST));
+        }
+        return;
+      case "task":
+        resource.append("/druid/indexer/v1/task");
+        if (!cursor.hasMore()) {
+          writer.println("needs task id");
+          return;
+        }
+        resource.append(cursor.next());
+        if (cursor.hasMore()) {
+          String next = cursor.next();
+          switch (next) {
+            case "-status":
+              resource.append("status");
+              break;
+            case "-segments":
+              resource.append("segments");
+              for (Map<String, Object> value : execute(overlordURL, resource.get(), LIST_MAP)) {
+                writer.println(PREFIX[0] + value);
+              }
+              return;
+            case "-log":
+              resource.append("log");
+              InputStream stream = stream(overlordURL, resource.get());
+              writer.println(PREFIX[0] + "............... dump");
+              BufferedReader reader = new BufferedReader(new InputStreamReader(stream));
+              for (String line; (line = reader.readLine()) != null;) {
+                writer.println(line);
+              }
+              return;
+          }
+        }
+        writer.println(PREFIX[0] + execute(overlordURL, resource.get(), MAP));
         return;
       default:
         writer.println(PREFIX[0] + "invalid command " + cursor.command());
@@ -793,6 +907,23 @@ public class DruidShell
         );
       }
       return jsonMapper.readValue(response.getContent(), resultType);
+    }
+    catch (Exception e) {
+      throw Throwables.propagate(e);
+    }
+  }
+
+  private InputStream stream(URL baseURL, String resource)
+  {
+    return stream(HttpMethod.GET, baseURL, resource);
+  }
+
+  private InputStream stream(HttpMethod method, URL baseURL, String resource)
+  {
+    try {
+      URL requestURL = new URL(baseURL + resource);
+      Request request = new Request(method, requestURL);
+      return httpClient.go(request, STREAM_HANDLER).get();
     }
     catch (Exception e) {
       throw Throwables.propagate(e);

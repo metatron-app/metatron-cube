@@ -37,6 +37,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Set;
@@ -111,7 +112,7 @@ public class GuavaUtils
   }
 
   @SuppressWarnings("unchecked")
-  public static <X, Y> List<Y> cast(List<X> input)
+  public static <X, Y> List<Y> cast(Collection<X> input)
   {
     List<Y> casted = Lists.<Y>newArrayListWithCapacity(input.size());
     for (X x : input) {

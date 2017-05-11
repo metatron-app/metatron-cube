@@ -129,7 +129,7 @@ public class OverlordResourceTest
   public void testSecuredGetCompleteTasks()
   {
     List<String> tasksIds = ImmutableList.of("id_1", "id_2", "id_3");
-    EasyMock.expect(tsqa.getRecentlyFinishedTaskStatuses()).andReturn(
+    EasyMock.expect(tsqa.getRecentlyFinishedTaskStatuses(null)).andReturn(
         Lists.transform(
             tasksIds,
             new Function<String, TaskStatus>()
@@ -154,7 +154,7 @@ public class OverlordResourceTest
     ).once();
     EasyMock.replay(taskRunner, taskMaster, tsqa, req);
 
-    List<OverlordResource.TaskResponseObject> responseObjects = (List) overlordResource.getCompleteTasks(req)
+    List<OverlordResource.TaskResponseObject> responseObjects = (List) overlordResource.getCompleteTasks(null, req)
                                                                                        .getEntity();
 
     Assert.assertEquals(2, responseObjects.size());

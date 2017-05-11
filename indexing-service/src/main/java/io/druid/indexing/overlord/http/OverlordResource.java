@@ -40,6 +40,7 @@ import com.sun.jersey.spi.container.ResourceFilters;
 import io.druid.audit.AuditInfo;
 import io.druid.audit.AuditManager;
 import io.druid.common.config.JacksonConfigManager;
+import io.druid.common.guava.GuavaUtils;
 import io.druid.common.utils.JodaUtils;
 import io.druid.indexing.common.TaskLocation;
 import io.druid.indexing.common.TaskLock;
@@ -89,6 +90,7 @@ import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import java.io.IOException;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -183,6 +185,138 @@ public class OverlordResource
   public Response getLeader()
   {
     return Response.ok(taskMaster.getLeader()).build();
+  }
+
+  @GET
+  @Path("/tasks")
+  @ResourceFilters(TaskResourceFilter.class)
+  @Produces(MediaType.APPLICATION_JSON)
+  public Response getTasks(
+      @QueryParam("full") String full,
+      @QueryParam("completed") String completed,
+      @QueryParam("recent") String recent,
+      @Context final HttpServletRequest req)
+  {
+    if (completed != null) {
+      List<TaskStatus> finished = taskStorageQueryAdapter.getRecentlyFinishedTaskStatuses(recent);
+      if (full == null) {
+        List<String> ids = Lists.newArrayList();
+        for (TaskStatus status : finished) {
+          ids.add(status.getId());
+        }
+        return Response.ok(ids).build();
+      } else {
+        return Response.ok(finished).build();
+      }
+    }
+    List<String> tasks = Lists.transform(
+        taskStorageQueryAdapter.getActiveTasks(), new Function<Task, String>()
+        {
+          @Override
+          public String apply(Task input)
+          {
+            return input.getId();
+          }
+        }
+    );
+    if (full == null) {
+      return Response.ok(tasks).build();
+    }
+
+    final TaskRunner taskRunner = taskMaster.getTaskRunner().orNull();
+    final Collection<TaskRunnerWorkItem> pending = getTaskWorkItems(taskRunner, Mode.PENDING, req);
+    final Collection<TaskRunnerWorkItem> running = getTaskWorkItems(taskRunner, Mode.RUNNING, req);
+
+    return Response.ok(
+        Lists.transform(
+            tasks, new Function<String, Map<String, Object>>()
+            {
+              @Override
+              public Map<String, Object> apply(final String taskId)
+              {
+                return toTaskDetail(taskId, pending, running);
+              }
+            }
+        )
+    ).build();
+  }
+
+  private Map<String, Object> toTaskDetail(
+      final String taskId,
+      final Collection<TaskRunnerWorkItem> pending,
+      final Collection<TaskRunnerWorkItem> running
+  )
+  {
+    Map<String, Object> result = Maps.newLinkedHashMap();
+    result.put("task", taskId);
+
+    Optional<Task> task = taskStorageQueryAdapter.getTask(taskId);
+    Optional<TaskStatus> status = taskStorageQueryAdapter.getStatus(taskId);
+    if (!task.isPresent() || !status.isPresent()) {
+      result.put("status", "UNKNOWN");
+      return result;
+    }
+    TaskStatus.Status code = status.get().getStatusCode();
+    result.put("status", code.name());
+
+    if (code != TaskStatus.Status.RUNNING) {
+      return result;
+    }
+    Collection<? extends TaskRunnerWorkItem> pendingItems = Collections2.filter(
+        pending, new Predicate<TaskRunnerWorkItem>()
+        {
+          @Override
+          public boolean apply(TaskRunnerWorkItem input)
+          {
+            return taskId.equals(input.getTaskId());
+          }
+        }
+    );
+    Collection<? extends TaskRunnerWorkItem> runningItems = Collections2.filter(
+        running, new Predicate<TaskRunnerWorkItem>()
+        {
+          @Override
+          public boolean apply(TaskRunnerWorkItem input)
+          {
+            return taskId.equals(input.getTaskId());
+          }
+        }
+    );
+    if (pending.isEmpty() && running.isEmpty()) {
+      result.put("statusDetail", "WAITING");
+      return result;
+    }
+    StringBuilder builder = new StringBuilder();
+    String detail = getRunningStatusDetail(taskId, task.get(), "");
+    if (!pending.isEmpty()) {
+      builder.append(String.format("PENDING(%d)", pendingItems.size()));
+    }
+    if (!running.isEmpty()) {
+      if (builder.length() > 0) {
+        builder.append(", ");
+      }
+      builder.append(String.format("RUNNING(%d)", running.size()));
+    }
+    if (!detail.isEmpty()) {
+      builder.append(", ").append(detail);
+    }
+    result.put("statusDetail", builder.toString());
+
+    List<String> locations = Lists.newArrayList();
+    for (TaskRunnerWorkItem item : pendingItems) {
+      TaskLocation location = item.getLocation();
+      if (location != TaskLocation.unknown()) {
+        locations.add(location.getHost() + ":" + location.getPort());
+      }
+    }
+    for (TaskRunnerWorkItem item : runningItems) {
+      TaskLocation location = item.getLocation();
+      if (location != TaskLocation.unknown()) {
+        locations.add(location.getHost() + ":" + location.getPort());
+      }
+    }
+    result.put("locations", locations);
+    return result;
   }
 
   @GET
@@ -451,13 +585,7 @@ public class OverlordResource
           @Override
           public Collection<? extends TaskRunnerWorkItem> apply(TaskRunner taskRunner)
           {
-            if (authConfig.isEnabled()) {
-              // This is an experimental feature, see - https://github.com/druid-io/druid/pull/2424
-              return securedTaskRunnerWorkItem(taskRunner.getPendingTasks(), req);
-            } else {
-              return taskRunner.getPendingTasks();
-            }
-
+            return getTaskWorkItems(taskRunner, Mode.PENDING, req);
           }
         }
     );
@@ -474,21 +602,64 @@ public class OverlordResource
           @Override
           public Collection<? extends TaskRunnerWorkItem> apply(TaskRunner taskRunner)
           {
-            if (authConfig.isEnabled()) {
-              // This is an experimental feature, see - https://github.com/druid-io/druid/pull/2424
-              return securedTaskRunnerWorkItem(taskRunner.getRunningTasks(), req);
-            } else {
-              return taskRunner.getRunningTasks();
-            }
+            return getTaskWorkItems(taskRunner, Mode.RUNNING, req);
           }
         }
     );
   }
 
   @GET
+  @Path("/knownTasks")
+  @Produces(MediaType.APPLICATION_JSON)
+  public Response getAllTasks(@Context final HttpServletRequest req)
+  {
+    return workItemsResponse(
+        new Function<TaskRunner, Collection<? extends TaskRunnerWorkItem>>()
+        {
+          @Override
+          public Collection<? extends TaskRunnerWorkItem> apply(TaskRunner taskRunner)
+          {
+            return getTaskWorkItems(taskRunner, Mode.KNOWN, req);
+          }
+        }
+    );
+  }
+
+  private static enum Mode
+  {
+    RUNNING, PENDING, KNOWN
+  }
+
+  private Collection<TaskRunnerWorkItem> getTaskWorkItems(TaskRunner taskRunner, Mode mode, HttpServletRequest req)
+  {
+    if (taskRunner == null) {
+      return Collections.emptyList();
+    }
+    List<TaskRunnerWorkItem> tasks;
+    switch (mode) {
+      case RUNNING:
+        tasks = GuavaUtils.cast(taskRunner.getRunningTasks());
+        break;
+      case PENDING:
+        tasks = GuavaUtils.cast(taskRunner.getPendingTasks());
+        break;
+      default:
+        tasks = GuavaUtils.cast(taskRunner.getKnownTasks());
+    }
+    if (authConfig.isEnabled()) {
+      // This is an experimental feature, see - https://github.com/druid-io/druid/pull/2424
+      return securedTaskRunnerWorkItem(tasks, req);
+    } else {
+      return tasks;
+    }
+  }
+
+  @GET
   @Path("/completeTasks")
   @Produces(MediaType.APPLICATION_JSON)
-  public Response getCompleteTasks(@Context final HttpServletRequest req)
+  public Response getCompleteTasks(
+      @QueryParam("recent") String recent,
+      @Context final HttpServletRequest req)
   {
     final List<TaskStatus> recentlyFinishedTasks;
     if (authConfig.isEnabled()) {
@@ -497,7 +668,7 @@ public class OverlordResource
       final AuthorizationInfo authorizationInfo = (AuthorizationInfo) req.getAttribute(AuthConfig.DRUID_AUTH_TOKEN);
       recentlyFinishedTasks = ImmutableList.copyOf(
           Iterables.filter(
-              taskStorageQueryAdapter.getRecentlyFinishedTaskStatuses(),
+              taskStorageQueryAdapter.getRecentlyFinishedTaskStatuses(recent),
               new Predicate<TaskStatus>()
               {
                 @Override
@@ -527,7 +698,7 @@ public class OverlordResource
           )
       );
     } else {
-      recentlyFinishedTasks = taskStorageQueryAdapter.getRecentlyFinishedTaskStatuses();
+      recentlyFinishedTasks = taskStorageQueryAdapter.getRecentlyFinishedTaskStatuses(recent);
     }
 
     final List<TaskResponseObject> completeTasks = Lists.transform(
@@ -679,8 +850,8 @@ public class OverlordResource
     }
   }
 
-  private Collection<? extends TaskRunnerWorkItem> securedTaskRunnerWorkItem(
-      Collection<? extends TaskRunnerWorkItem> collectionToFilter,
+  private Collection<TaskRunnerWorkItem> securedTaskRunnerWorkItem(
+      Collection<TaskRunnerWorkItem> collectionToFilter,
       HttpServletRequest req
   )
   {
@@ -770,6 +941,11 @@ public class OverlordResource
     if (isPendingTask(taskId, taskRunner)) {
       return "PENDING";   // in queue
     }
+    return getRunningStatusDetail(taskId, task, "RUNNING");
+  }
+
+  private String getRunningStatusDetail(String taskId, Task task, String defaultValue)
+  {
     if (task instanceof IndexTask || task instanceof RealtimeIndexTask || task instanceof HadoopIndexTask) {
       List<TaskLock> locks = taskStorageQueryAdapter.getLocks(taskId);
       if (locks.isEmpty()) {
@@ -779,7 +955,7 @@ public class OverlordResource
         return "READY";   // ready to get events (RealtimeIndexTask only)
       }
     }
-    return "RUNNING";
+    return defaultValue;
   }
 
   private boolean isPendingTask(String taskId, TaskRunner taskRunner)

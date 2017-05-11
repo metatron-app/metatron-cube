@@ -264,7 +264,7 @@ public class OverlordTest
     waitForTaskStatus(taskId_1, TaskStatus.Status.SUCCESS);
 
     // should return number of tasks which are not in running state
-    response = overlordResource.getCompleteTasks(req);
+    response = overlordResource.getCompleteTasks(null, req);
     Assert.assertEquals(2, (((List) response.getEntity()).size()));
     taskMaster.stop();
     Assert.assertFalse(taskMaster.isLeading());

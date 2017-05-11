@@ -28,6 +28,7 @@ import io.druid.indexing.common.actions.SegmentInsertAction;
 import io.druid.indexing.common.actions.TaskAction;
 import io.druid.indexing.common.task.Task;
 import io.druid.timeline.DataSegment;
+import org.joda.time.Duration;
 
 import java.util.List;
 import java.util.Set;
@@ -50,9 +51,9 @@ public class TaskStorageQueryAdapter
     return storage.getActiveTasks();
   }
 
-  public List<TaskStatus> getRecentlyFinishedTaskStatuses()
+  public List<TaskStatus> getRecentlyFinishedTaskStatuses(String duration)
   {
-    return storage.getRecentlyFinishedTaskStatuses();
+    return storage.getRecentlyFinishedTaskStatuses(duration);
   }
 
   public Optional<Task> getTask(final String taskid)

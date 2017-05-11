@@ -30,6 +30,7 @@ import com.metamx.common.logger.Logger;
 import io.airlift.airline.Arguments;
 import io.airlift.airline.Command;
 import io.druid.cli.shell.DruidShell;
+import io.druid.guice.IndexingServiceModuleHelper;
 
 import java.util.List;
 
@@ -59,6 +60,7 @@ public class SimpleShell extends GuiceRunnable
           {
             binder.bindConstant().annotatedWith(Names.named("serviceName")).to("druid/shell");
             binder.bindConstant().annotatedWith(Names.named("servicePort")).to(0);
+            IndexingServiceModuleHelper.configureTaskRunnerConfigs(binder);
             binder.bind(DruidShell.class);
           }
         }

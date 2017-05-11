@@ -25,6 +25,7 @@ import io.druid.indexing.common.TaskStatus;
 import io.druid.indexing.common.actions.TaskAction;
 import io.druid.indexing.common.task.Task;
 import io.druid.metadata.EntryExistsException;
+import org.joda.time.Duration;
 
 import java.util.List;
 
@@ -115,8 +116,9 @@ public interface TaskStorage
    * standard of "recent" is guaranteed, and in fact, this method is permitted to simply return nothing.
    *
    * @return list of recently finished tasks
+   * @param recent
    */
-  public List<TaskStatus> getRecentlyFinishedTaskStatuses();
+  public List<TaskStatus> getRecentlyFinishedTaskStatuses(String recent);
 
   /**
    * Returns a list of locks for a particular task.

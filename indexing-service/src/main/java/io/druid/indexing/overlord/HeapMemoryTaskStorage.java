@@ -37,6 +37,7 @@ import io.druid.indexing.common.config.TaskStorageConfig;
 import io.druid.indexing.common.task.Task;
 import io.druid.metadata.EntryExistsException;
 import org.joda.time.DateTime;
+import org.joda.time.Duration;
 
 import java.util.List;
 import java.util.Map;
@@ -160,13 +161,15 @@ public class HeapMemoryTaskStorage implements TaskStorage
   }
 
   @Override
-  public List<TaskStatus> getRecentlyFinishedTaskStatuses()
+  public List<TaskStatus> getRecentlyFinishedTaskStatuses(String recent)
   {
+    Duration duration = recent == null ? config.getRecentlyFinishedThreshold() : new Duration(recent);
+    final long start = System.currentTimeMillis() - duration.getMillis();
+    final List<TaskStatus> returns = Lists.newArrayList();
+
     giant.lock();
 
     try {
-      final List<TaskStatus> returns = Lists.newArrayList();
-      final long recent = System.currentTimeMillis() - config.getRecentlyFinishedThreshold().getMillis();
       final Ordering<TaskStuff> createdDateDesc = new Ordering<TaskStuff>()
       {
         @Override
@@ -176,7 +179,7 @@ public class HeapMemoryTaskStorage implements TaskStorage
         }
       }.reverse();
       for(final TaskStuff taskStuff : createdDateDesc.sortedCopy(tasks.values())) {
-        if(taskStuff.getStatus().isComplete() && taskStuff.getCreatedDate().getMillis() > recent) {
+        if(taskStuff.getStatus().isComplete() && taskStuff.getCreatedDate().getMillis() > start) {
           returns.add(taskStuff.getStatus());
         }
       }
