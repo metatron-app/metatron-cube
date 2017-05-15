@@ -34,6 +34,8 @@ import io.druid.initialization.DruidModule;
 import io.druid.query.Query;
 import io.druid.query.QueryRunnerFactory;
 import io.druid.query.QueryToolChest;
+import io.druid.query.sketch.SummaryPostProcessor;
+import io.druid.query.sketch.SummaryQuery;
 import io.druid.query.sketch.SimilarityProcessingOperator;
 import io.druid.query.sketch.SketchFrequencyProcessor;
 import io.druid.query.sketch.SketchQuantilesProcessor;
@@ -95,11 +97,13 @@ public class SketchModule implements DruidModule
                 new NamedType(SketchSetPostAggregator.class, THETA_SKETCH_SET_OP_POST_AGG)
             )
             .registerSubtypes(SketchQuery.class)
+            .registerSubtypes(SummaryQuery.class)
             .registerSubtypes(SimilarityProcessingOperator.class)
             .registerSubtypes(SketchThetaProcessor.class)
             .registerSubtypes(SketchQuantilesProcessor.class)
             .registerSubtypes(SketchFrequencyProcessor.class)
             .registerSubtypes(SketchSamplingProcessor.class)
+            .registerSubtypes(SummaryPostProcessor.class)
             .addSerializer(
                 Sketch.class, new SketchJsonSerializer()
             )

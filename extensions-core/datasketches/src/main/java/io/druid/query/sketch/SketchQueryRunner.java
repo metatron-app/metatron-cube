@@ -41,6 +41,7 @@ import io.druid.query.dimension.DefaultDimensionSpec;
 import io.druid.query.filter.AndDimFilter;
 import io.druid.query.filter.BitmapIndexSelector;
 import io.druid.query.filter.DimFilter;
+import io.druid.query.select.ViewSupportHelper;
 import io.druid.segment.ColumnSelectorBitmapIndexSelector;
 import io.druid.segment.Cursor;
 import io.druid.segment.DimensionSelector;
@@ -78,8 +79,9 @@ public class SketchQueryRunner implements QueryRunner<Result<Map<String, Object>
     if (!(input instanceof SketchQuery)) {
       throw new ISE("Got a [%s] which isn't a %s", input.getClass(), SketchQuery.class);
     }
+    SketchQuery baseQuery = (SketchQuery) input;
+    final SketchQuery query = (SketchQuery) ViewSupportHelper.rewrite(baseQuery, segment.asStorageAdapter(true));
 
-    final SketchQuery query = (SketchQuery) input;
     final List<String> dimensions = query.getDimensions();
     final List<String> dimensionExclusions = query.getDimensionExclusions();
     final DimFilter filter = query.getFilter();   // ensured bitmap support
