@@ -37,7 +37,7 @@ import java.util.Map;
 /**
  */
 @JsonTypeName("sketch.frequency")
-public class SketchFrequencyProcessor implements PostProcessingOperator
+public class SketchFrequencyProcessor extends PostProcessingOperator.Abstract
 {
   private static final Logger LOG = new Logger(SketchFrequencyProcessor.class);
 

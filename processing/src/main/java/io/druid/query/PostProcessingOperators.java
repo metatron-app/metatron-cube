@@ -35,4 +35,10 @@ public class PostProcessingOperators
         }
     );
   }
+
+  public static <T> boolean isTabularOutput(Query<T> query, ObjectMapper mapper)
+  {
+    PostProcessingOperator<T> processor = load(query, mapper);
+    return processor != null && processor.hasTabularOutput();
+  }
 }

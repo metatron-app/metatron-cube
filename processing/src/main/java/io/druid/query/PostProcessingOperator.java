@@ -32,12 +32,24 @@ public interface PostProcessingOperator<T>
 {
   public QueryRunner<T> postProcess(QueryRunner<T> baseQueryRunner);
 
-  public interface UnionSupport<T> extends PostProcessingOperator<T>
+  public boolean supportsUnionProcessing();
+
+  public boolean hasTabularOutput();
+
+  public abstract class UnionSupport<T> implements PostProcessingOperator<T>
   {
-    public QueryRunner<T> postProcess(UnionAllQueryRunner<T> baseQueryRunner);
+    @Override
+    public boolean supportsUnionProcessing() { return true;}
+
+    public abstract QueryRunner<T> postProcess(UnionAllQueryRunner<T> baseQueryRunner);
   }
 
-  public interface TabularOutput<T> extends PostProcessingOperator<T>
+  public abstract class Abstract<T> implements PostProcessingOperator<T>
   {
+    @Override
+    public boolean supportsUnionProcessing() { return false;}
+
+    @Override
+    public boolean hasTabularOutput() { return false; }
   }
 }

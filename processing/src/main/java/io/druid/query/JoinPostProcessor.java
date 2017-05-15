@@ -50,7 +50,7 @@ import java.util.concurrent.Future;
 
 /**
  */
-public class JoinPostProcessor implements PostProcessingOperator.UnionSupport, PostProcessingOperator.TabularOutput
+public class JoinPostProcessor extends PostProcessingOperator.UnionSupport
 {
   private static final Logger log = new Logger(JoinPostProcessor.class);
 
@@ -446,6 +446,12 @@ public class JoinPostProcessor implements PostProcessingOperator.UnionSupport, P
     }
     Arrays.sort(sorted);
     return sorted;
+  }
+
+  @Override
+  public boolean hasTabularOutput()
+  {
+    return true;
   }
 
   private static class JoiningRow implements Comparable<JoiningRow>

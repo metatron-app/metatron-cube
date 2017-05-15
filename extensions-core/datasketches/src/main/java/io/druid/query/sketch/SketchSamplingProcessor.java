@@ -35,7 +35,7 @@ import java.util.Map;
 /**
  */
 @JsonTypeName("sketch.sampling")
-public class SketchSamplingProcessor implements PostProcessingOperator
+public class SketchSamplingProcessor extends PostProcessingOperator.Abstract
 {
   private static final Logger LOG = new Logger(SketchSamplingProcessor.class);
 

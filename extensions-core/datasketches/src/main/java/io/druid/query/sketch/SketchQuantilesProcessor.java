@@ -38,7 +38,7 @@ import java.util.Map;
 /**
  */
 @JsonTypeName("sketch.quantiles")
-public class SketchQuantilesProcessor implements PostProcessingOperator
+public class SketchQuantilesProcessor extends PostProcessingOperator.Abstract
 {
   private static final Logger LOG = new Logger(SketchQuantilesProcessor.class);
 

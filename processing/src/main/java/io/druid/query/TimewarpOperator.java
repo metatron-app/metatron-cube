@@ -42,7 +42,7 @@ import java.util.Map;
  * the query interval to discard data that would be mapped to the future.
  *
  */
-public class TimewarpOperator<T> implements PostProcessingOperator<T>
+public class TimewarpOperator<T> extends PostProcessingOperator.Abstract<T>
 {
   private final Interval dataInterval;
   private final long periodMillis;

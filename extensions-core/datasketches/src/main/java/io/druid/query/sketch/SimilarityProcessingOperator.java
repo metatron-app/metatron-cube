@@ -51,7 +51,7 @@ import static io.druid.query.aggregation.datasketches.theta.SketchOperations.Fun
 /**
  */
 @JsonTypeName("similarity")
-public class SimilarityProcessingOperator implements PostProcessingOperator.UnionSupport
+public class SimilarityProcessingOperator extends PostProcessingOperator.UnionSupport
 {
   private static final Logger LOG = new Logger(SimilarityProcessingOperator.class);
 
@@ -112,6 +112,12 @@ public class SimilarityProcessingOperator implements PostProcessingOperator.Unio
         return Sequences.simple(similarities);
       }
     };
+  }
+
+  @Override
+  public boolean hasTabularOutput()
+  {
+    return false;
   }
 
   // ds1.dim1 --> ds2.dim3 : 0.66f

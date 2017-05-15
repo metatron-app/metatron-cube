@@ -28,7 +28,7 @@ import java.util.Map;
 
 /**
  */
-public class TabularPostProcessor implements PostProcessingOperator.TabularOutput
+public class TabularPostProcessor implements PostProcessingOperator
 {
   private final String timestampColumn;
   private final QueryToolChestWarehouse warehouse;
@@ -57,5 +57,17 @@ public class TabularPostProcessor implements PostProcessingOperator.TabularOutpu
         return toolChest == null ? sequence : toolChest.toTabularFormat(sequence, timestampColumn).getSequence();
       }
     };
+  }
+
+  @Override
+  public boolean supportsUnionProcessing()
+  {
+    return false;
+  }
+
+  @Override
+  public boolean hasTabularOutput()
+  {
+    return true;
   }
 }

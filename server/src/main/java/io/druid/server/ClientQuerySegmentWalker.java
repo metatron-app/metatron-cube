@@ -236,7 +236,7 @@ public class ClientQuerySegmentWalker implements QuerySegmentWalker
     }
 
     final QueryRunner<T> runner;
-    if (postProcessing instanceof PostProcessingOperator.UnionSupport) {
+    if (postProcessing != null && postProcessing.supportsUnionProcessing()) {
       runner = ((PostProcessingOperator.UnionSupport<T>) postProcessing).postProcess(baseRunner);
     } else {
       QueryRunner<T> merged = new QueryRunner<T>()

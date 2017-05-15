@@ -36,7 +36,7 @@ import java.util.Map;
 /**
  */
 @JsonTypeName("sketch.theta")
-public class SketchThetaProcessor implements PostProcessingOperator
+public class SketchThetaProcessor extends PostProcessingOperator.Abstract
 {
   private static final Logger LOG = new Logger(SketchThetaProcessor.class);
 

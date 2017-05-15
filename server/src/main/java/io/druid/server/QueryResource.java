@@ -45,7 +45,6 @@ import io.druid.guice.annotations.Smile;
 import io.druid.jackson.JodaStuff;
 import io.druid.query.BaseQuery;
 import io.druid.query.DruidMetrics;
-import io.druid.query.PostProcessingOperator;
 import io.druid.query.PostProcessingOperators;
 import io.druid.query.Query;
 import io.druid.query.QueryContextKeys;
@@ -541,7 +540,7 @@ public class QueryResource
       {
         // union-all does not have toolchest. delegate it to inner query
         Query representative = BaseQuery.getRepresentative(query);
-        if (PostProcessingOperators.load(query, jsonMapper) instanceof PostProcessingOperator.TabularOutput) {
+        if (PostProcessingOperators.isTabularOutput(query, jsonMapper)) {
           // already converted to tabular format
           return new TabularFormat()
           {

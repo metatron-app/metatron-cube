@@ -26,6 +26,7 @@ import com.google.common.collect.Lists;
 import com.metamx.common.ISE;
 import com.metamx.common.guava.Sequence;
 import com.metamx.common.guava.Sequences;
+import io.druid.common.utils.PropUtils;
 import io.druid.query.aggregation.MetricManipulationFn;
 import io.druid.query.aggregation.MetricManipulatorFns;
 
@@ -48,7 +49,8 @@ public class FinalizeResultsQueryRunner<T> implements QueryRunner<T>
       public Sequence<T> run(Query<T> query, Map<String, Object> responseContext)
       {
         QueryRunner<T> baseRunner = finalized;
-        if (BaseQuery.getContextBySegment(query, false)) {
+        if (PropUtils.parseBoolean(query.getContext(), Query.FORWARD_PREFIX_LOCATION, false)) {
+          // for parallel forwarding..
           PostProcessingOperator<T> processor = PostProcessingOperators.load(query, objectMapper);
           if (processor != null) {
             baseRunner = processor.postProcess(baseRunner);
