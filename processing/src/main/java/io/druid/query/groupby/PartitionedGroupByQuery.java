@@ -274,4 +274,50 @@ public class PartitionedGroupByQuery extends GroupByQuery implements Query.Rewri
   {
     throw new IllegalStateException();
   }
+
+  @Override
+  public PartitionedGroupByQuery withDimensionSpecs(final List<DimensionSpec> dimensionSpecs)
+  {
+    return new PartitionedGroupByQuery(
+        getDataSource(),
+        getQuerySegmentSpec(),
+        getDimFilter(),
+        getGranularity(),
+        dimensionSpecs,
+        getVirtualColumns(),
+        getAggregatorSpecs(),
+        getPostAggregatorSpecs(),
+        getHavingSpec(),
+        getLimitSpec(),
+        getOutputColumns(),
+        numPartition,
+        scannerLen,
+        parallelism,
+        queue,
+        getContext()
+    );
+  }
+
+  @Override
+  public PartitionedGroupByQuery withVirtualColumns(List<VirtualColumn> virtualColumns)
+  {
+    return new PartitionedGroupByQuery(
+        getDataSource(),
+        getQuerySegmentSpec(),
+        getDimFilter(),
+        getGranularity(),
+        getDimensions(),
+        virtualColumns,
+        getAggregatorSpecs(),
+        getPostAggregatorSpecs(),
+        getHavingSpec(),
+        getLimitSpec(),
+        getOutputColumns(),
+        numPartition,
+        scannerLen,
+        parallelism,
+        queue,
+        getContext()
+    );
+  }
 }

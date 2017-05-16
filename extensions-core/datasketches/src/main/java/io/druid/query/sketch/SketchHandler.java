@@ -19,7 +19,6 @@
 
 package io.druid.query.sketch;
 
-import com.google.common.base.Function;
 import com.google.common.collect.Ordering;
 import com.metamx.collections.bitmap.ImmutableBitmap;
 import com.yahoo.sketches.Family;
@@ -31,6 +30,7 @@ import com.yahoo.sketches.theta.CompactSketch;
 import com.yahoo.sketches.theta.SetOperation;
 import com.yahoo.sketches.theta.Sketch;
 import com.yahoo.sketches.theta.Union;
+import io.druid.query.extraction.ExtractionFn;
 import io.druid.query.filter.BitmapIndexSelector;
 import io.druid.segment.column.BitmapIndex;
 
@@ -44,13 +44,13 @@ public interface SketchHandler
   Object calculate(
       int sketchParam,
       BitmapIndex bitmapIndex,
-      Function<String, String> function
+      ExtractionFn function
   );
 
   Object calculate(
       int sketchParam,
       BitmapIndex bitmapIndex,
-      Function<String, String> function,
+      ExtractionFn function,
       ImmutableBitmap filter,
       BitmapIndexSelector selector
   );
@@ -66,7 +66,7 @@ public interface SketchHandler
   public static class Theta implements SketchHandler
   {
     @Override
-    public CompactSketch calculate(int sketchParam, BitmapIndex bitmapIndex, Function<String, String> function)
+    public CompactSketch calculate(int sketchParam, BitmapIndex bitmapIndex, ExtractionFn function)
     {
       final Union union = newUnion(sketchParam);
       final int cardinality = bitmapIndex.getCardinality();
@@ -80,7 +80,7 @@ public interface SketchHandler
     public Object calculate(
         int sketchParam,
         BitmapIndex bitmapIndex,
-        Function<String, String> function,
+        ExtractionFn function,
         ImmutableBitmap filter,
         BitmapIndexSelector selector
     )
@@ -128,7 +128,7 @@ public interface SketchHandler
   public abstract static class CardinalitySensitive<T> implements SketchHandler
   {
     @Override
-    public final T calculate(int sketchParam, BitmapIndex bitmapIndex, Function<String, String> function)
+    public final T calculate(int sketchParam, BitmapIndex bitmapIndex, ExtractionFn function)
     {
       final T histogram = newInstance(sketchParam);
       final int cardinality = bitmapIndex.getCardinality();
@@ -143,7 +143,7 @@ public interface SketchHandler
     public final T calculate(
         int sketchParam,
         BitmapIndex bitmapIndex,
-        Function<String, String> function,
+        ExtractionFn function,
         ImmutableBitmap filter,
         BitmapIndexSelector selector
     )

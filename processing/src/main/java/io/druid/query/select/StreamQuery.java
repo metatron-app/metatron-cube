@@ -188,7 +188,23 @@ public class StreamQuery extends BaseQuery<StreamQueryRow>
     );
   }
 
-  public StreamQuery withDimensions(List<DimensionSpec> dimensions)
+  public StreamQuery withDimensionSpecs(List<DimensionSpec> dimensions)
+  {
+    return new StreamQuery(
+        getDataSource(),
+        getQuerySegmentSpec(),
+        dimFilter,
+        granularity,
+        dimensions,
+        metrics,
+        virtualColumns,
+        concatString,
+        getContext()
+    );
+  }
+
+  @Override
+  public StreamQuery withVirtualColumns(List<VirtualColumn> virtualColumns)
   {
     return new StreamQuery(
         getDataSource(),

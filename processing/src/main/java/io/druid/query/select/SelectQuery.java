@@ -288,7 +288,27 @@ public class SelectQuery extends BaseQuery<Result<SelectResultValue>>
   }
 
   @Override
-  public SelectQuery withDimensions(List<DimensionSpec> dimensions)
+  public SelectQuery withDimensionSpecs(List<DimensionSpec> dimensions)
+  {
+    return new SelectQuery(
+        getDataSource(),
+        getQuerySegmentSpec(),
+        isDescending(),
+        dimFilter,
+        granularity,
+        dimensions,
+        metrics,
+        virtualColumns,
+        pagingSpec,
+        concatString,
+        outputColumns,
+        lateralView,
+        getContext()
+    );
+  }
+
+  @Override
+  public SelectQuery withVirtualColumns(List<VirtualColumn> virtualColumns)
   {
     return new SelectQuery(
         getDataSource(),

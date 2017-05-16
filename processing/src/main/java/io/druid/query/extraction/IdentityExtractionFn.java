@@ -21,9 +21,30 @@ package io.druid.query.extraction;
 
 import com.google.common.base.Strings;
 
+import java.util.Objects;
+
 public class IdentityExtractionFn implements ExtractionFn
 {
-  private static final IdentityExtractionFn instance = new IdentityExtractionFn();
+  private static final IdentityExtractionFn emptyToNull = new IdentityExtractionFn();
+  private static final IdentityExtractionFn nullToEmpty = new IdentityExtractionFn() {
+    @Override
+    public byte[] getCacheKey()
+    {
+      return new byte[]{ExtractionCacheHelper.CACHE_TYPE_ID_NULL_TO_EMPTY};
+    }
+
+    @Override
+    public String apply(Object value)
+    {
+      return Objects.toString(value, "");
+    }
+
+    @Override
+    public String apply(String value)
+    {
+      return Strings.nullToEmpty(value);
+    }
+  };
 
   private IdentityExtractionFn()
   {
@@ -84,8 +105,13 @@ public class IdentityExtractionFn implements ExtractionFn
      return o != null && o instanceof IdentityExtractionFn;
   }
 
-  public static final IdentityExtractionFn getInstance()
+  public static IdentityExtractionFn getInstance()
   {
-    return instance;
+    return emptyToNull;
+  }
+
+  public static IdentityExtractionFn nullToEmpty()
+  {
+    return nullToEmpty;
   }
 }

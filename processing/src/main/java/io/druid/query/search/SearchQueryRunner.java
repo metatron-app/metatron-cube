@@ -34,12 +34,13 @@ import com.metamx.common.guava.Sequences;
 import com.metamx.emitter.EmittingLogger;
 import io.druid.cache.Cache;
 import io.druid.granularity.QueryGranularities;
-import io.druid.query.Druids;
 import io.druid.query.Query;
 import io.druid.query.QueryRunner;
 import io.druid.query.Result;
+import io.druid.query.dimension.DefaultDimensionSpec;
 import io.druid.query.dimension.DimensionSpec;
 import io.druid.query.extraction.ExtractionFn;
+import io.druid.query.extraction.ExtractionFns;
 import io.druid.query.extraction.IdentityExtractionFn;
 import io.druid.query.filter.DimFilter;
 import io.druid.query.search.search.SearchHit;
@@ -56,7 +57,6 @@ import io.druid.segment.VirtualColumns;
 import io.druid.segment.column.BitmapIndex;
 import io.druid.segment.column.Column;
 import io.druid.segment.data.IndexedInts;
-import io.druid.segment.filter.Filters;
 import org.apache.commons.lang.mutable.MutableInt;
 
 import java.nio.ByteBuffer;
@@ -108,79 +108,74 @@ public class SearchQueryRunner implements QueryRunner<Result<SearchResultValue>>
     final String segmentId = segment.getIdentifier();
 
     final VirtualColumns vcs = VirtualColumns.valueOf(query.getVirtualColumns());
+    final Iterable<DimensionSpec> dimensionSpecs;
+    if (dimensions == null || dimensions.isEmpty()) {
+      dimensionSpecs = DefaultDimensionSpec.toSpec(segment.getAvailableDimensions(false));
+    } else {
+      dimensionSpecs = dimensions;
+    }
 
-    if (index != null) {
-      Iterable<DimensionSpec> dimsToSearch;
-      if (dimensions == null || dimensions.isEmpty()) {
-        dimsToSearch = Iterables.transform(index.getAvailableDimensions(), Druids.DIMENSION_IDENTITY);
-      } else {
-        dimsToSearch = dimensions;
+    if (index != null && vcs.supportsBitmap(dimensionSpecs, filter)) {
+      final Map<SearchHit, MutableInt> retVal = Maps.newHashMap();
+
+      final BitmapFactory bitmapFactory = index.getBitmapFactoryForDimensions();
+      final ColumnSelectorBitmapIndexSelector selector = new ColumnSelectorBitmapIndexSelector(bitmapFactory, index);
+
+      Cache.NamedKey key = null;
+      ImmutableBitmap baseFilter = null;
+      if (cache != null && filter != null) {
+        key = new Cache.NamedKey(segmentId, filter.getCacheKey());
+        byte[] cached = cache.get(key);
+        if (cached != null) {
+          baseFilter = selector.getBitmapFactory().mapImmutableBitmap(ByteBuffer.wrap(cached));
+        }
       }
-
-      if (isSimpleSearch(dimsToSearch, filter, vcs)) {
-        final Map<SearchHit, MutableInt> retVal = Maps.newHashMap();
-
-        final BitmapFactory bitmapFactory = index.getBitmapFactoryForDimensions();
-        final ColumnSelectorBitmapIndexSelector selector = new ColumnSelectorBitmapIndexSelector(bitmapFactory, index);
-
-        Cache.NamedKey key = null;
-        ImmutableBitmap baseFilter = null;
-        if (cache != null && filter != null) {
-          key = new Cache.NamedKey(segmentId, filter.getCacheKey());
-          byte[] cached = cache.get(key);
-          if (cached != null) {
-            baseFilter = selector.getBitmapFactory().mapImmutableBitmap(ByteBuffer.wrap(cached));
-          }
+      if (baseFilter == null) {
+        baseFilter = filter == null ? null : filter.toFilter().getBitmapIndex(selector);
+        if (key != null) {
+          cache.put(key, baseFilter.toBytes());
         }
-        if (baseFilter == null) {
-          baseFilter = filter == null ? null : filter.toFilter().getBitmapIndex(selector);
-          if (key != null) {
-            cache.put(key, baseFilter.toBytes());
-          }
+      }
+      for (DimensionSpec dimension : dimensionSpecs) {
+        final Column column = index.getColumn(dimension.getDimension());
+        if (column == null) {
+          continue;
         }
-        for (DimensionSpec dimension : dimsToSearch) {
-          final Column column = index.getColumn(dimension.getDimension());
-          if (column == null) {
-            continue;
-          }
 
-          final String outputName = dimension.getOutputName();
-          final BitmapIndex bitmapIndex = column.getBitmapIndex();
-          ExtractionFn extractionFn = dimension.getExtractionFn();
-          if (extractionFn == null) {
-            extractionFn = IdentityExtractionFn.getInstance();
-          }
-          if (bitmapIndex != null) {
-            for (int i = 0; i < bitmapIndex.getCardinality(); ++i) {
-              String dimVal = Strings.nullToEmpty(extractionFn.apply(bitmapIndex.getValue(i)));
-              if (!searchQuerySpec.accept(dimVal)) {
-                continue;
+        final String outputName = dimension.getOutputName();
+        final BitmapIndex bitmapIndex = column.getBitmapIndex();
+        final ExtractionFn extractionFn = ExtractionFns.getExtractionFn(dimension, IdentityExtractionFn.nullToEmpty());
+
+        if (bitmapIndex != null) {
+          for (int i = 0; i < bitmapIndex.getCardinality(); ++i) {
+            String dimVal = extractionFn.apply(bitmapIndex.getValue(i));
+            if (!searchQuerySpec.accept(dimVal)) {
+              continue;
+            }
+            if (valueOnly) {
+              retVal.put(new SearchHit(outputName, dimVal), null);
+            } else {
+              ImmutableBitmap bitmap = bitmapIndex.getBitmap(i);
+              if (baseFilter != null) {
+                bitmap = bitmapFactory.intersection(Arrays.asList(baseFilter, bitmap));
               }
-              if (valueOnly) {
-                retVal.put(new SearchHit(outputName, dimVal), null);
-              } else {
-                ImmutableBitmap bitmap = bitmapIndex.getBitmap(i);
-                if (baseFilter != null) {
-                  bitmap = bitmapFactory.intersection(Arrays.asList(baseFilter, bitmap));
-                }
-                int size = bitmap.size();
-                if (size > 0) {
-                  MutableInt counter = new MutableInt(size);
-                  MutableInt prev = retVal.put(new SearchHit(outputName, dimVal), counter);
-                  if (prev != null) {
-                    counter.add(prev.intValue());
-                  }
+              int size = bitmap.size();
+              if (size > 0) {
+                MutableInt counter = new MutableInt(size);
+                MutableInt prev = retVal.put(new SearchHit(outputName, dimVal), counter);
+                if (prev != null) {
+                  counter.add(prev.intValue());
                 }
               }
-              if (!needsFullScan && retVal.size() >= limit) {
-                return makeReturnResult(retVal, comparator, resultComparator, limit);
-              }
+            }
+            if (!needsFullScan && retVal.size() >= limit) {
+              return makeReturnResult(retVal, comparator, resultComparator, limit);
             }
           }
         }
-
-        return makeReturnResult(retVal, comparator, resultComparator, limit);
       }
+
+      return makeReturnResult(retVal, comparator, resultComparator, limit);
     }
 
     final StorageAdapter adapter = segment.asStorageAdapter(false);
@@ -192,13 +187,6 @@ public class SearchQueryRunner implements QueryRunner<Result<SearchResultValue>>
       throw new ISE(
           "Null storage adapter found. Probably trying to issue a query against a segment being memory unmapped."
       );
-    }
-
-    final Iterable<DimensionSpec> dimsToSearch;
-    if (dimensions == null || dimensions.isEmpty()) {
-      dimsToSearch = Iterables.transform(adapter.getAvailableDimensions(), Druids.DIMENSION_IDENTITY);
-    } else {
-      dimsToSearch = dimensions;
     }
 
     final Sequence<Cursor> cursors = adapter.makeCursors(
@@ -217,7 +205,7 @@ public class SearchQueryRunner implements QueryRunner<Result<SearchResultValue>>
             }
 
             Map<String, DimensionSelector> dimSelectors = Maps.newHashMap();
-            for (DimensionSpec dim : dimsToSearch) {
+            for (DimensionSpec dim : dimensionSpecs) {
               dimSelectors.put(
                   dim.getOutputName(),
                   cursor.makeDimensionSelector(dim)
@@ -259,24 +247,6 @@ public class SearchQueryRunner implements QueryRunner<Result<SearchResultValue>>
     );
 
     return makeReturnResult(retVal, comparator, resultComparator, limit);
-  }
-
-  // DimensionSpec with multiple dimensions or referencing virtual column are handled through cursor only
-  private boolean isSimpleSearch(Iterable<DimensionSpec> dimsToSearch, DimFilter filter, VirtualColumns vcs)
-  {
-    for (DimensionSpec dimensionSpec : dimsToSearch) {
-      if (vcs.getVirtualColumn(dimensionSpec.getDimension()) != null) {
-        return false;
-      }
-    }
-    if (filter != null) {
-      for (String reference : Filters.getDependents(filter)) {
-        if (vcs.getVirtualColumn(reference) != null) {
-          return false;
-        }
-      }
-    }
-    return true;
   }
 
   private Sequence<Result<SearchResultValue>> makeReturnResult(

@@ -58,17 +58,21 @@ public class ViewSupportHelper
       StorageAdapter adapter
   )
   {
-    if (query instanceof Query.ViewSupport) {
-      Query.ViewSupport<T> viewSupport = (Query.ViewSupport<T>)query;
-      if (viewSupport.getDimensions() == null || viewSupport.getDimensions().isEmpty()) {
+    if (query instanceof Query.DimensionSupport) {
+      Query.DimensionSupport<T> dimensionSupport = (Query.DimensionSupport<T>)query;
+      if (dimensionSupport.getDimensions() == null || dimensionSupport.getDimensions().isEmpty()) {
         if (retainers != null || BaseQuery.allColumnsForEmpty(query)) {
-          viewSupport = viewSupport.withDimensions(
+          dimensionSupport = dimensionSupport.withDimensionSpecs(
               DefaultDimensionSpec.toSpec(
                   GuavaUtils.retain(adapter.getAvailableDimensions(), retainers), lowerCasedOutput
               )
           );
         }
       }
+      query = dimensionSupport;
+    }
+    if (query instanceof Query.ViewSupport) {
+      Query.ViewSupport<T> viewSupport = (Query.ViewSupport<T>)query;
       if (viewSupport.getMetrics() == null || viewSupport.getMetrics().isEmpty()) {
         if (retainers != null || BaseQuery.allColumnsForEmpty(query)) {
           viewSupport = viewSupport.withMetrics(GuavaUtils.retain(adapter.getAvailableMetrics(), retainers));

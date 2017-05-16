@@ -63,7 +63,7 @@ import java.util.Map;
 
 /**
  */
-public class GroupByQuery extends BaseQuery<Row> implements Query.DimFilterSupport<Row>
+public class GroupByQuery extends BaseQuery<Row> implements Query.DimensionSupport<Row>
 {
   public static final String SORT_ON_TIME = "groupby.sort.on.time";
 
@@ -307,6 +307,7 @@ public class GroupByQuery extends BaseQuery<Row> implements Query.DimFilterSuppo
     );
   }
 
+  @Override
   public GroupByQuery withDimensionSpecs(final List<DimensionSpec> dimensionSpecs)
   {
     return new GroupByQuery(
@@ -316,6 +317,26 @@ public class GroupByQuery extends BaseQuery<Row> implements Query.DimFilterSuppo
         getGranularity(),
         dimensionSpecs,
         getVirtualColumns(),
+        getAggregatorSpecs(),
+        getPostAggregatorSpecs(),
+        getHavingSpec(),
+        getLimitSpec(),
+        getOutputColumns(),
+        getLateralView(),
+        getContext()
+    );
+  }
+
+  @Override
+  public GroupByQuery withVirtualColumns(List<VirtualColumn> virtualColumns)
+  {
+    return new GroupByQuery(
+        getDataSource(),
+        getQuerySegmentSpec(),
+        getDimFilter(),
+        getGranularity(),
+        getDimensions(),
+        virtualColumns,
         getAggregatorSpecs(),
         getPostAggregatorSpecs(),
         getHavingSpec(),

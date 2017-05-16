@@ -19,8 +19,6 @@
 
 package io.druid.query.sketch;
 
-import com.google.common.base.Function;
-import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.metamx.collections.bitmap.BitmapFactory;
@@ -29,15 +27,15 @@ import com.metamx.common.ISE;
 import com.metamx.common.guava.Accumulator;
 import com.metamx.common.guava.Sequence;
 import com.metamx.common.guava.Sequences;
-import io.druid.common.utils.StringUtils;
 import io.druid.granularity.QueryGranularities;
-import io.druid.math.expr.Evals;
-import io.druid.math.expr.Expr;
-import io.druid.math.expr.Parser;
 import io.druid.query.Query;
 import io.druid.query.QueryRunner;
 import io.druid.query.Result;
 import io.druid.query.dimension.DefaultDimensionSpec;
+import io.druid.query.dimension.DimensionSpec;
+import io.druid.query.extraction.ExtractionFn;
+import io.druid.query.extraction.ExtractionFns;
+import io.druid.query.extraction.IdentityExtractionFn;
 import io.druid.query.filter.AndDimFilter;
 import io.druid.query.filter.BitmapIndexSelector;
 import io.druid.query.filter.DimFilter;
@@ -82,26 +80,23 @@ public class SketchQueryRunner implements QueryRunner<Result<Map<String, Object>
     SketchQuery baseQuery = (SketchQuery) input;
     final SketchQuery query = (SketchQuery) ViewSupportHelper.rewrite(baseQuery, segment.asStorageAdapter(true));
 
-    final List<String> dimensions = query.getDimensions();
-    final List<String> dimensionExclusions = query.getDimensionExclusions();
+    final List<DimensionSpec> dimensions = toTargetEntries(segment, query.getDimensions());
+    final VirtualColumns vcs = VirtualColumns.valueOf(query.getVirtualColumns());
     final DimFilter filter = query.getFilter();   // ensured bitmap support
     final int sketchParam = query.getSketchParam();
     final SketchHandler handler = query.getSketchOp().handler();
-
-    final List<Entry> dimsToSearch =
-        toTargetEntries(segment, dimensions, dimensionExclusions);
 
     // Closing this will cause segfaults in unit tests.
     final QueryableIndex index = segment.asQueryableIndex(true);
 
     final Map<String, Object> sketches;
-    if (index != null) {
+    if (index != null && vcs.supportsBitmap(dimensions, filter)) {
       final BitmapFactory bitmapFactory = index.getBitmapFactoryForDimensions();
       final ColumnSelectorBitmapIndexSelector selector = new ColumnSelectorBitmapIndexSelector(bitmapFactory, index);
       final ImmutableBitmap filterBitmap = toDependentBitmap(filter, selector);
       sketches = Maps.newLinkedHashMap();
-      for (Entry entry : dimsToSearch) {
-        Column column = index.getColumn(entry.dimension);
+      for (DimensionSpec spec : dimensions) {
+        Column column = index.getColumn(spec.getDimension());
         if (column == null) {
           continue;
         }
@@ -109,23 +104,24 @@ public class SketchQueryRunner implements QueryRunner<Result<Map<String, Object>
         if (bitmapIndex == null) {
           continue;
         }
+        ExtractionFn function = ExtractionFns.getExtractionFn(spec, IdentityExtractionFn.nullToEmpty());
         Object calculate;
         if (filterBitmap == null) {
-          calculate = handler.calculate(sketchParam, bitmapIndex, entry.function);
+          calculate = handler.calculate(sketchParam, bitmapIndex, function);
         } else {
-          calculate = handler.calculate(sketchParam, bitmapIndex, entry.function, filterBitmap, selector);
+          calculate = handler.calculate(sketchParam, bitmapIndex, function, filterBitmap, selector);
         }
-        sketches.put(entry.expression, calculate);
+        sketches.put(spec.getOutputName(), calculate);
       }
     } else {
       final StorageAdapter adapter = segment.asStorageAdapter(true);
       final Sequence<Cursor> cursors = adapter.makeCursors(
-          filter, segment.getDataInterval(), VirtualColumns.EMPTY, QueryGranularities.ALL, null, false
+          filter, segment.getDataInterval(), vcs, QueryGranularities.ALL, null, false
       );
 
       sketches = cursors.accumulate(
           Maps.<String, Object>newLinkedHashMap(),
-          createAccumulator(dimsToSearch, sketchParam, handler)
+          createAccumulator(dimensions, sketchParam, handler)
       );
     }
     for (Map.Entry<String, Object> entry : sketches.entrySet()) {
@@ -152,53 +148,16 @@ public class SketchQueryRunner implements QueryRunner<Result<Map<String, Object>
     return selector.getBitmapFactory().intersection(filters);
   }
 
-  private List<Entry> toTargetEntries(Segment segment, List<String> dimensionList, List<String> excludeList)
+  private List<DimensionSpec> toTargetEntries(Segment segment, List<DimensionSpec> dimensions)
   {
-    final List<String> existing = Lists.newArrayList(segment.getAvailableDimensions(true));
-    final List<String> dimsToSearch;
-    if (dimensionList == null || dimensionList.isEmpty()) {
-      dimsToSearch = existing;
-    } else {
-      dimsToSearch = dimensionList;
+    if (dimensions == null || dimensions.isEmpty()) {
+      return DefaultDimensionSpec.toSpec(Lists.newArrayList(segment.getAvailableDimensions(true)));
     }
-    if (excludeList != null && !excludeList.isEmpty()) {
-      dimsToSearch.removeAll(excludeList);
-    }
-    return Lists.newArrayList(
-        Iterables.transform(
-            dimsToSearch, new Function<String, Entry>()
-            {
-              @Override
-              public Entry apply(String expression)
-              {
-                Expr expr = Parser.parse(expression);
-                if (existing.contains(expression) || Evals.isIdentifier(expr)) {
-                  return new Entry(expression, expression, StringUtils.NULL_TO_EMPTY);
-                }
-                String dimension = Iterables.getOnlyElement(Parser.findRequiredBindings(expr));
-                return new Entry(expression, dimension, Parser.asStringFunction(expr));
-              }
-            }
-        )
-    );
-  }
-
-  private static class Entry
-  {
-    private final String expression;
-    private final String dimension;
-    private final Function<String, String> function;
-
-    private Entry(String expression, String dimension, Function<String, String> function)
-    {
-      this.expression = expression;
-      this.dimension = dimension;
-      this.function = function;
-    }
+    return dimensions;
   }
 
   private Accumulator<Map<String, Object>, Cursor> createAccumulator(
-      final List<Entry> dimsToSearch,
+      final List<DimensionSpec> dimensions,
       final int nomEntries,
       final SketchHandler handler
   )
@@ -210,24 +169,23 @@ public class SketchQueryRunner implements QueryRunner<Result<Map<String, Object>
       {
         final List<DimensionSelector> dimSelectors = Lists.newArrayList();
         final List<Object> sketches = Lists.newArrayList();
-        for (Entry entry : dimsToSearch) {
-          dimSelectors.add(cursor.makeDimensionSelector(DefaultDimensionSpec.of(entry.dimension)));
-          Object union = prev.get(entry.dimension);
+        for (DimensionSpec dimension : dimensions) {
+          dimSelectors.add(cursor.makeDimensionSelector(dimension));
+          Object union = prev.get(dimension.getOutputName());
           if (union == null) {
-            prev.put(entry.expression, union = handler.newUnion(nomEntries));
+            prev.put(dimension.getOutputName(), union = handler.newUnion(nomEntries));
           }
           sketches.add(union);
         }
 
         while (!cursor.isDone()) {
-          for (int i = 0; i < dimsToSearch.size(); i++) {
+          for (int i = 0; i < dimensions.size(); i++) {
             final Object o = sketches.get(i);
             final DimensionSelector selector = dimSelectors.get(i);
-            final Entry entry = dimsToSearch.get(i);
             if (selector != null) {
               final IndexedInts vals = selector.getRow();
               for (int j = 0; j < vals.size(); ++j) {
-                handler.updateWithValue(o, entry.function.apply(selector.lookupName(vals.get(j))));
+                handler.updateWithValue(o, selector.lookupName(vals.get(j)));
               }
             }
           }

@@ -32,8 +32,10 @@ import io.druid.query.QueryContextKeys;
 import io.druid.query.QuerySegmentWalker;
 import io.druid.query.Result;
 import io.druid.query.UnionAllQuery;
+import io.druid.query.dimension.DimensionSpec;
 import io.druid.query.filter.DimFilter;
 import io.druid.query.spec.QuerySegmentSpec;
+import io.druid.segment.VirtualColumn;
 
 import java.util.Arrays;
 import java.util.List;
@@ -44,24 +46,26 @@ import java.util.Map;
 @JsonTypeName("summary")
 public class SummaryQuery extends BaseQuery<Result<Map<String, Object>>>
     implements BaseQuery.RewritingQuery<Result<Map<String, Object>>>,
-    Query.DimFilterSupport<Result<Map<String, Object>>>
+    Query.DimensionSupport<Result<Map<String, Object>>>
 {
   private final DimFilter dimFilter;
-  private final List<String> columns;
+  private final List<DimensionSpec> dimensions;
+  private final List<VirtualColumn> virtualColumns;
 
   @JsonCreator
   public SummaryQuery(
       @JsonProperty("dataSource") DataSource dataSource,
       @JsonProperty("intervals") QuerySegmentSpec querySegmentSpec,
-      @JsonProperty("descending") boolean descending,
+      @JsonProperty("dimensions") List<DimensionSpec> dimensions,
+      @JsonProperty("virtualColumns") List<VirtualColumn> virtualColumns,
       @JsonProperty("filter") DimFilter filter,
-      @JsonProperty("columns") List<String> columns,
       @JsonProperty("context") Map<String, Object> context
   )
   {
-    super(dataSource, querySegmentSpec, descending, context);
+    super(dataSource, querySegmentSpec, false, context);
     this.dimFilter = filter;
-    this.columns = columns;
+    this.dimensions = dimensions;
+    this.virtualColumns = virtualColumns;
   }
 
   @Override
@@ -69,11 +73,11 @@ public class SummaryQuery extends BaseQuery<Result<Map<String, Object>>>
   public Query rewriteQuery(QuerySegmentWalker segmentWalker, ObjectMapper jsonMapper)
   {
     SketchQuery quantile = new SketchQuery(
-        getDataSource(), getQuerySegmentSpec(), getColumns(), null, dimFilter, 4096, SketchOp.QUANTILE,
+        getDataSource(), getQuerySegmentSpec(), dimFilter, dimensions, virtualColumns, 4096, SketchOp.QUANTILE,
         Maps.newHashMap(getContext())
     );
     SketchQuery theta = new SketchQuery(
-        getDataSource(), getQuerySegmentSpec(), getColumns(), null, dimFilter, null, SketchOp.THETA,
+        getDataSource(), getQuerySegmentSpec(), dimFilter, dimensions, virtualColumns, null, SketchOp.THETA,
         Maps.newHashMap(getContext())
     );
     Map<String, Object> postProcessor = ImmutableMap.<String, Object>of(
@@ -103,28 +107,39 @@ public class SummaryQuery extends BaseQuery<Result<Map<String, Object>>>
   }
 
   @JsonProperty
-  public List<String> getColumns()
+  public List<DimensionSpec> getDimensions()
   {
-    return columns;
+    return dimensions;
+  }
+
+  @JsonProperty
+  public List<VirtualColumn> getVirtualColumns()
+  {
+    return virtualColumns;
+  }
+
+  @Override
+  public SummaryQuery withDimensionSpecs(List<DimensionSpec> dimensions)
+  {
+    return new SummaryQuery(getDataSource(), getQuerySegmentSpec(), dimensions, virtualColumns, dimFilter, getContext());
+  }
+
+  @Override
+  public SummaryQuery withVirtualColumns(List<VirtualColumn> virtualColumns)
+  {
+    return new SummaryQuery(getDataSource(), getQuerySegmentSpec(), dimensions, virtualColumns, dimFilter, getContext());
   }
 
   @Override
   public SummaryQuery withQuerySegmentSpec(QuerySegmentSpec spec)
   {
-    return new SummaryQuery(getDataSource(), spec, isDescending(), dimFilter, columns, getContext());
+    return new SummaryQuery(getDataSource(), spec, dimensions, virtualColumns, dimFilter, getContext());
   }
 
   @Override
   public SummaryQuery withDataSource(DataSource dataSource)
   {
-    return new SummaryQuery(
-        dataSource,
-        getQuerySegmentSpec(),
-        isDescending(),
-        dimFilter,
-        columns,
-        getContext()
-    );
+    return new SummaryQuery(dataSource, getQuerySegmentSpec(), dimensions, virtualColumns, dimFilter, getContext());
   }
 
   @Override
@@ -133,9 +148,9 @@ public class SummaryQuery extends BaseQuery<Result<Map<String, Object>>>
     return new SummaryQuery(
         getDataSource(),
         getQuerySegmentSpec(),
-        isDescending(),
+        dimensions,
+        virtualColumns,
         dimFilter,
-        columns,
         computeOverridenContext(contextOverride)
     );
   }
@@ -143,14 +158,7 @@ public class SummaryQuery extends BaseQuery<Result<Map<String, Object>>>
   @Override
   public DimFilterSupport<Result<Map<String, Object>>> withDimFilter(DimFilter filter)
   {
-    return new SummaryQuery(
-        getDataSource(),
-        getQuerySegmentSpec(),
-        isDescending(),
-        filter,
-        columns,
-        getContext()
-    );
+    return new SummaryQuery(getDataSource(), getQuerySegmentSpec(), dimensions, virtualColumns, filter, getContext());
   }
 
   @Override
@@ -164,8 +172,11 @@ public class SummaryQuery extends BaseQuery<Result<Map<String, Object>>>
     if (dimFilter != null) {
       builder.append(", dimFilter=").append(dimFilter);
     }
-    if (columns != null && !columns.isEmpty()) {
-      builder.append(", columns=").append(columns);
+    if (dimensions != null && !dimensions.isEmpty()) {
+      builder.append(", dimensions=").append(dimensions);
+    }
+    if (virtualColumns != null && !virtualColumns.isEmpty()) {
+      builder.append(", virtualColumns=").append(virtualColumns);
     }
     return builder.toString();
   }

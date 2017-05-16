@@ -111,6 +111,8 @@ public class SummaryPostProcessor extends PostProcessingOperator.UnionSupport
           LOG.warn("query should be 'sketch' type");
           return baseRunner.run(query, responseContext);
         }
+        final List<VirtualColumn> virtualColumns = ((SketchQuery) representative).getVirtualColumns();
+
         final List<ListenableFuture<Integer>> futures = Lists.newArrayList();
         final Map<String, Map<String, Object>> results = Maps.newLinkedHashMap();
         Sequence<Pair<Query, Sequence<Result<Map<String, Object>>>>> sequences = baseRunner.run(query, responseContext);
@@ -155,7 +157,7 @@ public class SummaryPostProcessor extends PostProcessingOperator.UnionSupport
                   QueryGranularities.ALL,
                   10,
                   representative.getQuerySegmentSpec(),
-                  null,
+                  virtualColumns,
                   DefaultDimensionSpec.toSpec(dimension),
                   new SearchQuerySpec.TakeAll(),
                   new LexicographicSearchSortSpec(Arrays.asList("$count:desc")),
@@ -196,7 +198,7 @@ public class SummaryPostProcessor extends PostProcessingOperator.UnionSupport
                   outlier,
                   QueryGranularities.ALL,
                   ImmutableList.<DimensionSpec>of(),
-                  ImmutableList.<VirtualColumn>of(),
+                  virtualColumns,
                   ImmutableList.<AggregatorFactory>of(new CountAggregatorFactory("count")),
                   ImmutableList.<PostAggregator>of(),
                   null, null, null, null, null
@@ -231,9 +233,13 @@ public class SummaryPostProcessor extends PostProcessingOperator.UnionSupport
               if (result == null) {
                 results.put(dimension, result = Maps.newLinkedHashMap());
               }
-              result.put("cardinality", sketch.getEstimate());
-              result.put("cardinality(upper95)", sketch.getUpperBound(2));
-              result.put("cardinality(lower95)", sketch.getLowerBound(2));
+              if (sketch.isEstimationMode()) {
+                result.put("cardinality(estimated)", sketch.getEstimate());
+                result.put("cardinality(upper95)", sketch.getUpperBound(2));
+                result.put("cardinality(lower95)", sketch.getLowerBound(2));
+              } else {
+                result.put("cardinality", sketch.getEstimate());
+              }
             }
           }
         }

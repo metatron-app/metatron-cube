@@ -21,6 +21,7 @@ package io.druid.segment.incremental;
 
 import com.google.common.base.Function;
 import com.google.common.base.Predicate;
+import com.google.common.base.Predicates;
 import com.google.common.base.Strings;
 import com.google.common.base.Supplier;
 import com.google.common.collect.ImmutableList;
@@ -52,6 +53,7 @@ import io.druid.segment.ColumnSelectors;
 import io.druid.segment.Cursor;
 import io.druid.segment.DimensionSelector;
 import io.druid.segment.DoubleColumnSelector;
+import io.druid.segment.ExprVirtualColumn;
 import io.druid.segment.FloatColumnSelector;
 import io.druid.segment.LongColumnSelector;
 import io.druid.segment.Metadata;
@@ -78,7 +80,6 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.NavigableMap;
-import java.util.concurrent.ConcurrentNavigableMap;
 
 /**
  */
@@ -262,7 +263,7 @@ public class IncrementalIndexStorageAdapter implements StorageAdapter
           private final ValueMatcher filterMatcher;
 
           {
-            filterMatcher = makeFilterMatcher(filter, currEntry);
+            filterMatcher = makeFilterMatcher(filter, currEntry, virtualColumns);
           }
 
           @Override
@@ -712,11 +713,11 @@ public class IncrementalIndexStorageAdapter implements StorageAdapter
     return value == null;
   }
 
-  private ValueMatcher makeFilterMatcher(final DimFilter filter, final EntryHolder holder)
+  private ValueMatcher makeFilterMatcher(DimFilter filter, EntryHolder holder, VirtualColumns virtualColumns)
   {
     return filter == null
            ? BooleanValueMatcher.TRUE
-           : filter.toFilter().makeMatcher(new EntryHolderValueMatcherFactory(holder));
+           : filter.toFilter().makeMatcher(new EntryHolderValueMatcherFactory(holder, virtualColumns));
   }
 
   private static class EntryHolder
@@ -747,12 +748,15 @@ public class IncrementalIndexStorageAdapter implements StorageAdapter
   private class EntryHolderValueMatcherFactory implements ValueMatcherFactory
   {
     private final EntryHolder holder;
+    private final VirtualColumns virtualColumns;
 
     public EntryHolderValueMatcherFactory(
-        EntryHolder holder
+        EntryHolder holder,
+        VirtualColumns virtualColumns
     )
     {
       this.holder = holder;
+      this.virtualColumns = virtualColumns;
     }
 
     @Override
@@ -760,7 +764,21 @@ public class IncrementalIndexStorageAdapter implements StorageAdapter
     {
       IncrementalIndex.DimensionDesc dimensionDesc = index.getDimension(dimension);
       if (dimensionDesc == null) {
-        return new BooleanValueMatcher(isComparableNullOrEmpty(value));
+        VirtualColumn virtualColumn = virtualColumns.getVirtualColumn(dimension);
+        if (virtualColumn instanceof ExprVirtualColumn) {
+          return makeExpressionMatcher(
+              ((ExprVirtualColumn) virtualColumn).getExpression(),
+              new Predicate<ExprEval>()
+              {
+                @Override
+                public boolean apply(ExprEval input)
+                {
+                  return input.asString().equals(value);
+                }
+              }
+          );
+        }
+        return new BooleanValueMatcher(virtualColumn == null && isComparableNullOrEmpty(value));
       }
       final int dimIndex = dimensionDesc.getIndex();
       final IncrementalIndex.DimDim dimDim = dimensionDesc.getValues();
@@ -817,7 +835,14 @@ public class IncrementalIndexStorageAdapter implements StorageAdapter
       }
       IncrementalIndex.DimensionDesc dimensionDesc = index.getDimension(dimension);
       if (dimensionDesc == null) {
-        return new BooleanValueMatcher(predicate.apply(null));
+        VirtualColumn virtualColumn = virtualColumns.getVirtualColumn(dimension);
+        if (virtualColumn instanceof ExprVirtualColumn) {
+          return makeExpressionMatcher(
+              ((ExprVirtualColumn) virtualColumn).getExpression(),
+              Predicates.compose(predicate, Evals.AS_STRING)
+          );
+        }
+        return new BooleanValueMatcher(virtualColumn == null && predicate.apply(null));
       }
       final int dimIndex = dimensionDesc.getIndex();
       final IncrementalIndex.DimDim dimDim = dimensionDesc.getValues();

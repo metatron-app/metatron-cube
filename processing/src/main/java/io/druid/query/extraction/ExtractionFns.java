@@ -21,6 +21,7 @@ package io.druid.query.extraction;
 
 import com.google.common.base.Function;
 import com.google.common.base.Functions;
+import io.druid.query.dimension.DimensionSpec;
 
 import javax.annotation.Nullable;
 import java.util.Arrays;
@@ -29,6 +30,12 @@ import java.util.Arrays;
  */
 public class ExtractionFns
 {
+  public static ExtractionFn getExtractionFn(DimensionSpec dimensionSpec, ExtractionFn defaultValue)
+  {
+    ExtractionFn extractionFn = dimensionSpec.getExtractionFn();
+    return extractionFn == null ? defaultValue : extractionFn;
+  }
+
   public static Function<String, String> toFunction(final ExtractionFn extractionFn)
   {
     return new Function<String, String>()

@@ -65,12 +65,18 @@ public class QueryUtils
         "evenCounted", evenCounted > 0 ? evenCounted : -1
     );
 
+    // adding ExpressionDimensionSpec directly makes type missed.. I don't know the reason
+    Map<String, String> dimensionSpec = ImmutableMap.of(
+        "type", "expression",
+        "expression", expression,
+        "outputName", expression
+    );
     Query.DimFilterSupport query = (Query.DimFilterSupport) Queries.toQuery(
         ImmutableMap.<String, Object>builder()
                     .put("queryType", "sketch")
                     .put("dataSource", table)
                     .put("intervals", segmentSpec)
-                    .put("dimensions", Arrays.asList(expression))
+                    .put("dimensions", Arrays.asList(dimensionSpec))
                     .put("sketchOp", "QUANTILE")
                     .put("context", ImmutableMap.of(QueryContextKeys.POST_PROCESSING, postProc))
                     .build(), jsonMapper

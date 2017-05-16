@@ -33,9 +33,12 @@ import io.druid.query.Result;
 import io.druid.query.TableDataSource;
 import io.druid.query.aggregation.datasketches.theta.SketchModule;
 import io.druid.query.aggregation.datasketches.theta.SketchOperations;
+import io.druid.query.dimension.DefaultDimensionSpec;
 import io.druid.query.filter.AndDimFilter;
 import io.druid.query.filter.BoundDimFilter;
+import io.druid.segment.ExprVirtualColumn;
 import io.druid.segment.TestHelper;
+import io.druid.segment.VirtualColumn;
 import org.joda.time.DateTime;
 import org.joda.time.Interval;
 import org.junit.Assert;
@@ -208,7 +211,7 @@ public class QuantilesSketchQueryRunnerTest
     SketchQuery query = new SketchQuery(
         new TableDataSource(QueryRunnerTestHelper.dataSource),
         QueryRunnerTestHelper.fullOnInterval,
-        Arrays.asList("market", "quality"), null, null, 16, SketchOp.QUANTILE, null
+        null, DefaultDimensionSpec.toSpec("market", "quality"), null, 16, SketchOp.QUANTILE, null
     );
 
     List<Result<Map<String, Object>>> result = Sequences.toList(
@@ -223,18 +226,17 @@ public class QuantilesSketchQueryRunnerTest
     Assert.assertEquals("mezzanine", sketch2.getQuantile(0.5d));
   }
 
-    @Test
+  @Test
   public void testSketchQueryWithFilter() throws Exception
   {
     SketchQuery query = new SketchQuery(
         new TableDataSource(QueryRunnerTestHelper.dataSource),
         QueryRunnerTestHelper.fullOnInterval,
-        Arrays.asList("market", "quality"), null,
         AndDimFilter.of(
             BoundDimFilter.gt("market", "spot"),
             BoundDimFilter.lte("quality", "premium")
-        )
-        , 16, SketchOp.QUANTILE, null
+        ), DefaultDimensionSpec.toSpec("market", "quality"), null,
+        16, SketchOp.QUANTILE, null
         );
 
     List<Result<Map<String, Object>>> result = Sequences.toList(
@@ -247,6 +249,36 @@ public class QuantilesSketchQueryRunnerTest
     ItemsSketch sketch2 = (ItemsSketch) values.get("quality");
     Assert.assertEquals("total_market", sketch1.getQuantile(0.3d));
     Assert.assertEquals("upfront", sketch1.getQuantile(0.8d));
+    Assert.assertEquals("mezzanine", sketch2.getQuantile(0.4d));
+  }
+
+  @Test
+  public void testSketchQueryWithVirtualColumn() throws Exception
+  {
+    SketchQuery query = new SketchQuery(
+        new TableDataSource(QueryRunnerTestHelper.dataSource),
+        QueryRunnerTestHelper.fullOnInterval,
+        AndDimFilter.of(
+            BoundDimFilter.gt("market_aa", "spot_aa"),
+            BoundDimFilter.lte("quality", "premium")
+        ),
+        DefaultDimensionSpec.toSpec("market_aa", "quality"),
+        Arrays.<VirtualColumn>asList(new ExprVirtualColumn("market + '_aa'", "market_aa")),
+        16,
+        SketchOp.QUANTILE,
+        null
+    );
+
+    List<Result<Map<String, Object>>> result = Sequences.toList(
+        runner.run(query, null),
+        Lists.<Result<Map<String, Object>>>newArrayList()
+    );
+    Assert.assertEquals(1, result.size());
+    Map<String, Object> values = result.get(0).getValue();
+    ItemsSketch sketch1 = (ItemsSketch) values.get("market_aa");
+    ItemsSketch sketch2 = (ItemsSketch) values.get("quality");
+    Assert.assertEquals("total_market_aa", sketch1.getQuantile(0.3d));
+    Assert.assertEquals("upfront_aa", sketch1.getQuantile(0.8d));
     Assert.assertEquals("mezzanine", sketch2.getQuantile(0.4d));
   }
 

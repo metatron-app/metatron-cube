@@ -39,6 +39,7 @@ import io.druid.query.spec.QuerySegmentSpec;
 import io.druid.query.timeboundary.TimeBoundaryQuery;
 import io.druid.query.timeseries.TimeseriesQuery;
 import io.druid.query.topn.TopNQuery;
+import io.druid.segment.VirtualColumn;
 import org.joda.time.Duration;
 import org.joda.time.Interval;
 
@@ -126,13 +127,24 @@ public interface Query<T> extends QueryContextKeys
     DimFilterSupport<T> withDimFilter(DimFilter filter);
   }
 
-  interface ViewSupport<T> extends DimFilterSupport<T>
+  interface DimensionSupport<T> extends DimFilterSupport<T>
+  {
+    List<DimensionSpec> getDimensions();
+
+    List<VirtualColumn> getVirtualColumns();
+
+    DimensionSupport<T> withDimensionSpecs(List<DimensionSpec> dimensions);
+
+    DimensionSupport<T> withVirtualColumns(List<VirtualColumn> virtualColumns);
+  }
+
+  interface ViewSupport<T> extends DimFilterSupport<T>, DimensionSupport<T>
   {
     List<DimensionSpec> getDimensions();
 
     List<String> getMetrics();
 
-    ViewSupport<T> withDimensions(List<DimensionSpec> dimensions);
+    ViewSupport<T> withDimensionSpecs(List<DimensionSpec> dimensions);
 
     ViewSupport<T> withMetrics(List<String> metrics);
 

@@ -42,4 +42,6 @@ public class ExtractionCacheHelper
   public static final byte CACHE_TYPE_ID_EXPRESSION = 0xD;
   public static final byte CACHE_TYPE_ID_MULTILOOKUP = 0xE;
   public static final byte CACHE_TYPE_ID_MULTICONCAT = 0xF;
+
+  public static final byte CACHE_TYPE_ID_NULL_TO_EMPTY = 0x10;
 }

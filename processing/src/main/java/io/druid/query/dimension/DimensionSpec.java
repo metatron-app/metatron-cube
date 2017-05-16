@@ -43,7 +43,6 @@ public interface DimensionSpec
   String getOutputName();
 
   //ExtractionFn can be implemented with decorate(..) fn
-  @Deprecated
   ExtractionFn getExtractionFn();
 
   DimensionSelector decorate(DimensionSelector selector);

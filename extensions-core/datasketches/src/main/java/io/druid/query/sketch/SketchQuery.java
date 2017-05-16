@@ -27,8 +27,10 @@ import io.druid.query.BaseQuery;
 import io.druid.query.DataSource;
 import io.druid.query.Query;
 import io.druid.query.Result;
+import io.druid.query.dimension.DimensionSpec;
 import io.druid.query.filter.DimFilter;
 import io.druid.query.spec.QuerySegmentSpec;
+import io.druid.segment.VirtualColumn;
 
 import java.util.List;
 import java.util.Map;
@@ -38,10 +40,10 @@ import java.util.Objects;
  */
 @JsonTypeName("sketch")
 public class SketchQuery extends BaseQuery<Result<Map<String, Object>>>
-  implements Query.DimFilterSupport<Result<Map<String, Object>>>
+    implements Query.DimensionSupport<Result<Map<String, Object>>>
 {
-  private final List<String> dimensions;
-  private final List<String> dimensionExclusions;
+  private final List<DimensionSpec> dimensions;
+  private final List<VirtualColumn> virtualColumns;
   private final DimFilter filter;
   private final int sketchParam;
   private final SketchOp sketchOp;
@@ -50,9 +52,9 @@ public class SketchQuery extends BaseQuery<Result<Map<String, Object>>>
   public SketchQuery(
       @JsonProperty("dataSource") DataSource dataSource,
       @JsonProperty("intervals") QuerySegmentSpec querySegmentSpec,
-      @JsonProperty("dimensions") List<String> dimensions,
-      @JsonProperty("dimensionExclusions") List<String> dimensionExclusions,
       @JsonProperty("filter") DimFilter filter,
+      @JsonProperty("dimensions") List<DimensionSpec> dimensions,
+      @JsonProperty("virtualColumns") List<VirtualColumn> virtualColumns,
       @JsonProperty("sketchParam") Integer sketchParam,
       @JsonProperty("sketchOp") SketchOp sketchOp,
       @JsonProperty("context") Map<String, Object> context
@@ -60,7 +62,7 @@ public class SketchQuery extends BaseQuery<Result<Map<String, Object>>>
   {
     super(dataSource, querySegmentSpec, false, context);
     this.dimensions = dimensions;
-    this.dimensionExclusions = dimensionExclusions;
+    this.virtualColumns = virtualColumns;
     this.filter = filter;
     this.sketchOp = sketchOp == null ? SketchOp.THETA : sketchOp;
     this.sketchParam = sketchParam == null ? this.sketchOp.defaultParam() : this.sketchOp.normalize(sketchParam);
@@ -87,9 +89,7 @@ public class SketchQuery extends BaseQuery<Result<Map<String, Object>>>
     return new SketchQuery(
         getDataSource(),
         spec,
-        dimensions,
-        dimensionExclusions,
-        filter,
+        filter, dimensions, virtualColumns,
         sketchParam,
         sketchOp,
         getContext()
@@ -102,9 +102,9 @@ public class SketchQuery extends BaseQuery<Result<Map<String, Object>>>
     return new SketchQuery(
         dataSource,
         getQuerySegmentSpec(),
-        dimensions,
-        dimensionExclusions,
         filter,
+        dimensions,
+        virtualColumns,
         sketchParam,
         sketchOp,
         getContext()
@@ -117,9 +117,9 @@ public class SketchQuery extends BaseQuery<Result<Map<String, Object>>>
     return new SketchQuery(
         getDataSource(),
         getQuerySegmentSpec(),
-        dimensions,
-        dimensionExclusions,
         filter,
+        dimensions,
+        virtualColumns,
         sketchParam,
         sketchOp,
         computeOverridenContext(contextOverrides)
@@ -132,9 +132,9 @@ public class SketchQuery extends BaseQuery<Result<Map<String, Object>>>
     return new SketchQuery(
         getDataSource(),
         getQuerySegmentSpec(),
-        dimensions,
-        dimensionExclusions,
         filter,
+        dimensions,
+        virtualColumns,
         sketchParam,
         sketchOp,
         getContext()
@@ -148,15 +148,45 @@ public class SketchQuery extends BaseQuery<Result<Map<String, Object>>>
   }
 
   @JsonProperty
-  public List<String> getDimensions()
+  public List<DimensionSpec> getDimensions()
   {
     return dimensions;
   }
 
   @JsonProperty
-  public List<String> getDimensionExclusions()
+  public List<VirtualColumn> getVirtualColumns()
   {
-    return dimensionExclusions;
+    return virtualColumns;
+  }
+
+  @Override
+  public SketchQuery withDimensionSpecs(List<DimensionSpec> dimensions)
+  {
+    return new SketchQuery(
+        getDataSource(),
+        getQuerySegmentSpec(),
+        filter,
+        dimensions,
+        virtualColumns,
+        sketchParam,
+        sketchOp,
+        getContext()
+    );
+  }
+
+  @Override
+  public SketchQuery withVirtualColumns(List<VirtualColumn> virtualColumns)
+  {
+    return new SketchQuery(
+        getDataSource(),
+        getQuerySegmentSpec(),
+        filter,
+        dimensions,
+        virtualColumns,
+        sketchParam,
+        sketchOp,
+        getContext()
+    );
   }
 
   @JsonProperty
@@ -181,29 +211,35 @@ public class SketchQuery extends BaseQuery<Result<Map<String, Object>>>
   public String toString()
   {
     return "SketchQuery{" +
-        "dataSource='" + getDataSource() + '\'' +
-        ", sketchOp=" + sketchOp +
-        ", dimensions=" + dimensions +
-        ", dimensionExclusions=" + dimensionExclusions +
-        ", filter=" + filter +
-        ", sketchParam=" + sketchParam +
-        toString(POST_PROCESSING, FORWARD_URL, FORWARD_CONTEXT) +
-        '}';
+           "dataSource='" + getDataSource() + '\'' +
+           ", sketchOp=" + sketchOp +
+           ", dimensions=" + dimensions +
+           ", virtualColumns=" + virtualColumns +
+           ", filter=" + filter +
+           ", sketchParam=" + sketchParam +
+           toString(POST_PROCESSING, FORWARD_URL, FORWARD_CONTEXT) +
+           '}';
   }
 
   @Override
   public boolean equals(Object o)
   {
-    if (this == o) return true;
-    if (o == null || getClass() != o.getClass()) return false;
-    if (!super.equals(o)) return false;
+    if (this == o) {
+      return true;
+    }
+    if (o == null || getClass() != o.getClass()) {
+      return false;
+    }
+    if (!super.equals(o)) {
+      return false;
+    }
 
     SketchQuery that = (SketchQuery) o;
 
     if (!Objects.equals(dimensions, that.dimensions)) {
       return false;
     }
-    if (!Objects.equals(dimensionExclusions, that.dimensionExclusions)) {
+    if (!Objects.equals(virtualColumns, that.virtualColumns)) {
       return false;
     }
     if (!Objects.equals(filter, that.filter)) {
@@ -217,7 +253,7 @@ public class SketchQuery extends BaseQuery<Result<Map<String, Object>>>
   {
     int result = super.hashCode();
     result = 31 * result + Objects.hashCode(dimensions);
-    result = 31 * result + Objects.hashCode(dimensionExclusions);
+    result = 31 * result + Objects.hashCode(virtualColumns);
     result = 31 * result + Objects.hashCode(filter);
     result = 31 * result + sketchOp.ordinal();
     result = 31 * result + sketchParam;

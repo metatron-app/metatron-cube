@@ -35,6 +35,7 @@ import io.druid.query.Result;
 import io.druid.query.TableDataSource;
 import io.druid.query.aggregation.datasketches.theta.SketchModule;
 import io.druid.query.aggregation.datasketches.theta.SketchOperations;
+import io.druid.query.dimension.DefaultDimensionSpec;
 import io.druid.query.filter.AndDimFilter;
 import io.druid.query.filter.BoundDimFilter;
 import io.druid.segment.TestHelper;
@@ -45,7 +46,6 @@ import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
 import java.io.IOException;
-import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 
@@ -185,7 +185,7 @@ public class ThetaSketchQueryRunnerTest
     SketchQuery query = new SketchQuery(
         new TableDataSource(QueryRunnerTestHelper.dataSource),
         QueryRunnerTestHelper.fullOnInterval,
-        Arrays.asList("market", "quality"), null, null, 16, null, null
+        null, DefaultDimensionSpec.toSpec("market", "quality"), null, 16, null, null
     );
 
     List<Result<Map<String, Object>>> result = Sequences.toList(
@@ -204,11 +204,11 @@ public class ThetaSketchQueryRunnerTest
     SketchQuery query = new SketchQuery(
         new TableDataSource(QueryRunnerTestHelper.dataSource),
         QueryRunnerTestHelper.fullOnInterval,
-        Arrays.asList("market", "quality"), null,
         AndDimFilter.of(
             BoundDimFilter.between("market", "spot", "upfront"),
-            BoundDimFilter.between("quality", "health", "premium"))
-        , 16, null, null
+            BoundDimFilter.between("quality", "health", "premium")),
+        DefaultDimensionSpec.toSpec("market", "quality"), null,
+        16, null, null
         );
 
     List<Result<Map<String, Object>>> result = Sequences.toList(
