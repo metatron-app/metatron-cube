@@ -261,7 +261,7 @@ public class DatasourcesResourceTest
 
     EasyMock.replay(inventoryView, server);
     DatasourcesResource datasourcesResource = new DatasourcesResource(inventoryView, null, null, new AuthConfig());
-    Response response = datasourcesResource.getTheDataSource("datasource1", "full");
+    Response response = datasourcesResource.getTheDataSource("datasource1", "full", null);
     DruidDataSource result = (DruidDataSource) response.getEntity();
     Assert.assertEquals(200, response.getStatus());
     Assert.assertEquals(dataSource1, result);
@@ -278,7 +278,7 @@ public class DatasourcesResourceTest
 
     EasyMock.replay(inventoryView, server);
     DatasourcesResource datasourcesResource = new DatasourcesResource(inventoryView, null, null, new AuthConfig());
-    Assert.assertEquals(204, datasourcesResource.getTheDataSource("none", null).getStatus());
+    Assert.assertEquals(204, datasourcesResource.getTheDataSource("none", null, null).getStatus());
     EasyMock.verify(inventoryView, server);
   }
 
@@ -300,7 +300,7 @@ public class DatasourcesResourceTest
 
     EasyMock.replay(inventoryView, server);
     DatasourcesResource datasourcesResource = new DatasourcesResource(inventoryView, null, null, new AuthConfig());
-    Response response = datasourcesResource.getTheDataSource("datasource1", null);
+    Response response = datasourcesResource.getTheDataSource("datasource1", null, null);
     Assert.assertEquals(200, response.getStatus());
     Map<String, Map<String, Object>> result = (Map<String, Map<String, Object>>) response.getEntity();
     Assert.assertEquals(1, ((Map) (result.get("tiers").get(null))).get("segmentCount"));
@@ -339,7 +339,7 @@ public class DatasourcesResourceTest
 
     EasyMock.replay(inventoryView, server, server2, server3);
     DatasourcesResource datasourcesResource = new DatasourcesResource(inventoryView, null, null, new AuthConfig());
-    Response response = datasourcesResource.getTheDataSource("datasource1", null);
+    Response response = datasourcesResource.getTheDataSource("datasource1", null, null);
     Assert.assertEquals(200, response.getStatus());
     Map<String, Map<String, Object>> result = (Map<String, Map<String, Object>>) response.getEntity();
     Assert.assertEquals(2, ((Map) (result.get("tiers").get("cold"))).get("segmentCount"));

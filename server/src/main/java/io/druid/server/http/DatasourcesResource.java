@@ -184,9 +184,13 @@ public class DatasourcesResource
   @ResourceFilters(DatasourceResourceFilter.class)
   public Response getTheDataSource(
       @PathParam("dataSourceName") final String dataSourceName,
+      @QueryParam("lastUpdated") final String lastUpdated,
       @QueryParam("full") final String full
   )
   {
+    if (lastUpdated != null) {
+      return getLastUpdatedSegment(dataSourceName);
+    }
     DruidDataSource dataSource = getDataSource(dataSourceName);
 
     if (dataSource == null) {
@@ -198,6 +202,21 @@ public class DatasourcesResource
     }
 
     return Response.ok(getSimpleDatasource(dataSourceName)).build();
+  }
+
+  @GET
+  @Path("/{dataSourceName}/lastUpdate")
+  @Produces(MediaType.APPLICATION_JSON)
+  @ResourceFilters(DatasourceResourceFilter.class)
+  public Response getLastUpdatedSegment(
+      @PathParam("dataSourceName") final String dataSourceName
+  )
+  {
+    Pair<String, DataSegment> lastUpdated = databaseSegmentManager.getLastUpdatedSegment(dataSourceName);
+    if (lastUpdated == null) {
+      return Response.noContent().build();
+    }
+    return Response.ok(ImmutableMap.of("lastUpdate", lastUpdated.lhs, "lastSegment", lastUpdated.rhs)).build();
   }
 
   @GET

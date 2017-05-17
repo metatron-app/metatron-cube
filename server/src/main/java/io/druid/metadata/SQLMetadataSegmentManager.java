@@ -32,6 +32,7 @@ import com.google.common.util.concurrent.ListeningScheduledExecutorService;
 import com.google.common.util.concurrent.MoreExecutors;
 import com.google.inject.Inject;
 import com.metamx.common.MapUtils;
+import com.metamx.common.Pair;
 import com.metamx.common.lifecycle.LifecycleStart;
 import com.metamx.common.lifecycle.LifecycleStop;
 import com.metamx.emitter.EmittingLogger;
@@ -359,6 +360,49 @@ public class SQLMetadataSegmentManager implements MetadataSegmentManager
     }
 
     return true;
+  }
+
+  @Override
+  public Pair<String, DataSegment> getLastUpdatedSegment(final String dataSource)
+  {
+    final String statement = String.format(
+        "SELECT created_date, payload FROM %s WHERE dataSource = :dataSource AND used=true" +
+        " ORDER BY created_date DESC limit 1",
+        getSegmentsTable()
+    );
+    return inReadOnlyTransaction(
+        new TransactionCallback<Pair<String, DataSegment>>()
+        {
+          @Override
+          public Pair<String, DataSegment> inTransaction(Handle handle, TransactionStatus status) throws Exception
+          {
+            return handle
+                .createQuery(statement)
+                .bind("dataSource", dataSource)
+                .map(
+                    new ResultSetMapper<Pair<String, DataSegment>>()
+                    {
+                      @Override
+                      public Pair<String, DataSegment> map(int index, ResultSet r, StatementContext ctx)
+                          throws SQLException
+                      {
+                        try {
+                          return Pair.of(
+                              r.getString("created_date"),
+                              jsonMapper.readValue(r.getBytes("payload"), DataSegment.class)
+                          );
+                        }
+                        catch (IOException e) {
+                          log.makeAlert(e, "Failed to read segment from db.");
+                          return null;
+                        }
+                      }
+                    }
+                )
+                .first();
+          }
+        }
+    );
   }
 
   @Override

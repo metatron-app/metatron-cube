@@ -270,6 +270,7 @@ public class DruidShell
 
     final Candidate full = new Candidate("-full");
     final Candidate simple = new Candidate("-simple");
+    final Candidate lastUpdated = new Candidate("-lastUpdated");
     final Set<String> fullOption1 = ImmutableSet.of("servers", "segments", "datasources", "rule", "tasks");
     final Set<String> fullOption2 = ImmutableSet.of("datasource", "rule");
     final Set<String> simpleOption1 = ImmutableSet.of("servers", "datasources", "tiers", "rules");
@@ -304,6 +305,9 @@ public class DruidShell
                     toCandidate
                 )
             );
+          }
+          if (!commands.contains("-lastUpdated")) {
+            candidates.add(lastUpdated);
           }
         }
         if (line.wordIndex() == 1 && command.equals("datasources")) {
@@ -403,7 +407,7 @@ public class DruidShell
         writer.println("segments <server-name> [-full]");
         writer.println("segment <server-name> <segment-id>");
         writer.println("datasources [-regex=<name-regex>] [-full|-simple]");
-        writer.println("datasource <datasource-name> [-full|-simple]");
+        writer.println("datasource <datasource-name> [-full|-simple|-lastUpdated]");
         writer.println("datasource <datasource-name> -intervals|-interval=<interval> [-full|-simple]");
         writer.println("datasource <datasource-name> -segments|-segment=<segment> [-full]");
         writer.println("datasource <datasource-name> -tiers");
@@ -529,6 +533,7 @@ public class DruidShell
         }
         resource.append(cursor.next());
 
+        boolean lastUpdated = false;
         boolean full = false;
         boolean simple = false;
         boolean intervals = false;
@@ -542,6 +547,8 @@ public class DruidShell
             full = true;
           } else if (current.equals("-simple")) {
             simple = true;
+          } else if (current.equals("-lastUpdated")) {
+            lastUpdated = true;
           } else if (current.equals("-intervals")) {
             intervals = true;
           } else if (current.equals("-segments")) {
@@ -565,6 +572,8 @@ public class DruidShell
             resource.appendOption("-full");
           } else if (simple) {
             resource.appendOption("-simple");
+          } else if (lastUpdated) {
+            resource.appendOption("-lastUpdated");
           }
           writer.println(PREFIX[0] + execute(coordinatorURL, resource.get(), MAP));
         } else if (intervals || interval != null) {
