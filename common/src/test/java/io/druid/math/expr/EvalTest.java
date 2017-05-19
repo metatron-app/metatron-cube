@@ -547,4 +547,13 @@ public class EvalTest
     Assert.assertEquals(1.983438510d, Parser.parse("pv (r, n, y, p, 'true')").eval(bindings).asDouble(), 0.00001);
     Assert.assertEquals(-9.22213780d, Parser.parse("pmt(r, n, y, p, 'true')").eval(bindings).asDouble(), 0.00001);
   }
+
+  @Test
+  public void testIPv4Address()
+  {
+    Expr.NumericBinding bindings = Parser.withMap(ImmutableMap.<String, Object>of());
+    Assert.assertTrue(Parser.parse("ipv4_in('192.168.3.4', '192.168.0.0')").eval(bindings).asBoolean());
+    Assert.assertTrue(Parser.parse("ipv4_in('192.168.3.4', '192.168.0.0', '192.168.128.128')").eval(bindings).asBoolean());
+    Assert.assertFalse(Parser.parse("ipv4_in('192.168.3.4', '192.168.32.0', '192.168.128.128')").eval(bindings).asBoolean());
+  }
 }

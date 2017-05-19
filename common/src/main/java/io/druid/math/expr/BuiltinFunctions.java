@@ -25,9 +25,11 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
+import com.google.common.net.InetAddresses;
 import com.google.common.primitives.Doubles;
 import com.google.common.primitives.Ints;
 import com.google.common.primitives.Longs;
+import com.google.common.primitives.UnsignedBytes;
 import com.metamx.common.Pair;
 import com.metamx.common.logger.Logger;
 import io.druid.math.expr.Expr.NumericBinding;
@@ -1688,6 +1690,60 @@ public interface BuiltinFunctions extends Function.Library
     public ExprEval apply(List<Expr> args, NumericBinding bindings)
     {
       return ExprEval.of(System.currentTimeMillis());
+    }
+  }
+
+  class IPv4In extends Function.NewInstance
+  {
+    byte[] start;
+    byte[] end = Ints.toByteArray(-1);
+
+    @Override
+    public String name()
+    {
+      return "ipv4_in";
+    }
+
+    @Override
+    public ExprEval apply(List<Expr> args, NumericBinding bindings)
+    {
+      if (args.size() < 2) {
+        throw new RuntimeException("function 'ipv4_in' needs at least 2 arguments");
+      }
+      if (start == null) {
+        start = InetAddresses.forString(Evals.getConstantString(args.get(1))).getAddress();
+        Preconditions.checkArgument(start.length == 4);
+        if (args.size() > 2) {
+          end = InetAddresses.forString(Evals.getConstantString(args.get(2))).getAddress();
+          Preconditions.checkArgument(end.length == 4);
+        }
+        for (int i = 0; i < 4; i++) {
+          if (UnsignedBytes.compare(start[i], end[i]) > 0) {
+            throw new IllegalArgumentException();
+          }
+        }
+      }
+      String ipString = args.get(0).eval(bindings).asString();
+      try {
+        return ExprEval.of(evaluate(ipString));
+      }
+      catch (Exception e) {
+        return ExprEval.of(false);
+      }
+    }
+
+    private boolean evaluate(String ipString)
+    {
+      final byte[] address = InetAddresses.forString(ipString).getAddress();
+      if (address.length != 4) {
+        return false;
+      }
+      for (int i = 0; i < 4; i++) {
+        if (UnsignedBytes.compare(address[i], start[i]) < 0 || UnsignedBytes.compare(address[i], end[i]) > 0) {
+          return false;
+        }
+      }
+      return true;
     }
   }
 
