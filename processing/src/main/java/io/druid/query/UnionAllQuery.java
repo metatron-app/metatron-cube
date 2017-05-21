@@ -129,6 +129,14 @@ public class UnionAllQuery<T extends Comparable<T>> extends BaseQuery<T>
   @Override
   public boolean hasFilters()
   {
+    if (query != null) {
+      return query.hasFilters();
+    }
+    for (Query q : queries) {
+      if (q.hasFilters()) {
+        return true;
+      }
+    }
     return false;
   }
 

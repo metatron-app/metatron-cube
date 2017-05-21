@@ -98,7 +98,7 @@ public class TopNQuery extends BaseQuery<Result<TopNResultValue>>
   @Override
   public boolean hasFilters()
   {
-    return dimFilter != null;
+    return dimFilter != null || super.hasFilters();
   }
 
   @Override

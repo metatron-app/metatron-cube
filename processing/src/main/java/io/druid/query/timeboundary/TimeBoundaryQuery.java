@@ -74,12 +74,6 @@ public class TimeBoundaryQuery extends BaseQuery<Result<TimeBoundaryResultValue>
   }
 
   @Override
-  public boolean hasFilters()
-  {
-    return false;
-  }
-
-  @Override
   public String getType()
   {
     return Query.TIME_BOUNDARY;

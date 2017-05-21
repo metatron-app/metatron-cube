@@ -487,7 +487,7 @@ public class QueryBasedInputFormat extends InputFormat<NullWritable, MapWritable
       if (configuration.getBoolean(CONF_DRUID_COLUMNS_UPPERCASE, false)) {
         columns = Lists.newArrayList(Lists.transform(columns, StringUtils.TO_UPPER));
       }
-      ViewDataSource dataSource = new ViewDataSource(split.getDataSource(), columns, null, true);
+      ViewDataSource dataSource = new ViewDataSource(split.getDataSource(), columns, null, null, null, true);
 
       String filters = split.getFilters();
       if (filters != null && !filters.isEmpty()) {

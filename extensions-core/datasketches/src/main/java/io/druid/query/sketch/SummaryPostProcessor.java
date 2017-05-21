@@ -291,7 +291,8 @@ public class SummaryPostProcessor extends PostProcessingOperator.UnionSupport
       ValueType type
   )
   {
-    String isNull = "isnull(" + column + ")";
+    String escaped = "\"" + column + "\"";
+    String isNull = "isnull(" + escaped + ")";
     if (type == ValueType.STRING) {
       return groupBy
           .withAggregatorSpecs(
@@ -307,7 +308,7 @@ public class SummaryPostProcessor extends PostProcessingOperator.UnionSupport
               )
           );
     }
-    String outlier = column + " < " + lower + " || " + column + " >  " + upper;
+    String outlier = escaped + " < " + lower + " || " + escaped + " >  " + upper;
     return groupBy
         .withAggregatorSpecs(
             ImmutableList.<AggregatorFactory>of(

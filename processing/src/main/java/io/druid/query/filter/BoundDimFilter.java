@@ -30,11 +30,13 @@ import io.druid.segment.filter.BoundFilter;
 
 import java.nio.ByteBuffer;
 import java.util.Comparator;
+import java.util.Objects;
 import java.util.Set;
 
 public class BoundDimFilter implements DimFilter.ExpressionSupport
 {
   private final String dimension;
+  private final String expression;
   private final String upper;
   private final String lower;
   private final boolean lowerStrict;
@@ -45,6 +47,7 @@ public class BoundDimFilter implements DimFilter.ExpressionSupport
   @JsonCreator
   public BoundDimFilter(
       @JsonProperty("dimension") String dimension,
+      @JsonProperty("expression") String expression,
       @JsonProperty("lower") String lower,
       @JsonProperty("upper") String upper,
       @JsonProperty("lowerStrict") Boolean lowerStrict,
@@ -54,8 +57,17 @@ public class BoundDimFilter implements DimFilter.ExpressionSupport
       @JsonProperty("extractionFn") ExtractionFn extractionFn
   )
   {
-    this.dimension = Preconditions.checkNotNull(dimension, "dimension can not be null");
-    Preconditions.checkState((lower != null) || (upper != null), "lower and upper can not be null at the same time");
+    Preconditions.checkArgument(
+        dimension == null ^ expression == null,
+        "Must have a valid, non-null dimension or expression"
+    );
+    Preconditions.checkArgument(
+        expression == null ||
+        Parser.findRequiredBindings(expression).size() == 1, "expression should contain only one dimension"
+    );
+    Preconditions.checkState(lower != null || upper != null, "lower and upper can not be null at the same time");
+    this.dimension = dimension;
+    this.expression = expression;
     this.upper = upper;
     this.lower = lower;
     this.lowerStrict = (lowerStrict == null) ? false : lowerStrict;
@@ -64,9 +76,6 @@ public class BoundDimFilter implements DimFilter.ExpressionSupport
                           alphaNumeric != null && alphaNumeric ? StringComparators.ALPHANUMERIC_NAME :
                           StringComparators.LEXICOGRAPHIC_NAME;
     this.extractionFn = extractionFn;
-    Preconditions.checkArgument(
-        Parser.findRequiredBindings(dimension).size() == 1, "expression should contain only one dimension"
-    );
     Preconditions.checkArgument(
         StringComparators.tryMakeComparator(this.comparatorType) != null,
         "invalid comparator type" + this.comparatorType
@@ -83,7 +92,7 @@ public class BoundDimFilter implements DimFilter.ExpressionSupport
       ExtractionFn extractionFn
   )
   {
-    this(dimension, lower, upper, lowerStrict, upperStrict, alphaNumeric, null, extractionFn);
+    this(dimension, null, lower, upper, lowerStrict, upperStrict, alphaNumeric, null, extractionFn);
   }
 
   public static BoundDimFilter between(String dimension, String lower, String upper)
@@ -120,7 +129,7 @@ public class BoundDimFilter implements DimFilter.ExpressionSupport
   @Override
   public String getExpression()
   {
-    return dimension;
+    return expression;
   }
 
   @JsonProperty
@@ -256,7 +265,7 @@ public class BoundDimFilter implements DimFilter.ExpressionSupport
     if (extractionFn != null) {
       builder.append(extractionFn.getClass().getSimpleName()).append('(');
     }
-    builder.append(dimension);
+    builder.append(dimension != null ? dimension : expression);
     if (extractionFn != null) {
       builder.append(')');
     }
@@ -271,7 +280,17 @@ public class BoundDimFilter implements DimFilter.ExpressionSupport
 
   public BoundDimFilter withType(String comparatorType)
   {
-    return new BoundDimFilter(dimension, lower, upper, lowerStrict, upperStrict, null, comparatorType, extractionFn);
+    return new BoundDimFilter(
+        dimension,
+        expression,
+        lower,
+        upper,
+        lowerStrict,
+        upperStrict,
+        null,
+        comparatorType,
+        extractionFn
+    );
   }
 
   @Override
@@ -295,7 +314,10 @@ public class BoundDimFilter implements DimFilter.ExpressionSupport
     if (!comparatorType.equals(that.comparatorType)) {
       return false;
     }
-    if (!getDimension().equals(that.getDimension())) {
+    if (!Objects.equals(dimension, that.dimension)) {
+      return false;
+    }
+    if (!Objects.equals(expression, that.expression)) {
       return false;
     }
     if (getUpper() != null ? !getUpper().equals(that.getUpper()) : that.getUpper() != null) {
@@ -313,7 +335,7 @@ public class BoundDimFilter implements DimFilter.ExpressionSupport
   @Override
   public int hashCode()
   {
-    int result = getDimension().hashCode();
+    int result = Objects.hash(dimension, expression);
     result = 31 * result + (getUpper() != null ? getUpper().hashCode() : 0);
     result = 31 * result + (getLower() != null ? getLower().hashCode() : 0);
     result = 31 * result + (isLowerStrict() ? 1 : 0);

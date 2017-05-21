@@ -22,7 +22,6 @@ package io.druid.query.sketch;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
-import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import io.druid.query.BaseQuery;
 import io.druid.query.DataSource;
@@ -70,15 +69,12 @@ public class SketchQuery extends BaseQuery<Result<Map<String, Object>>>
     this.filter = filter;
     this.sketchOp = sketchOp == null ? SketchOp.THETA : sketchOp;
     this.sketchParam = sketchParam == null ? this.sketchOp.defaultParam() : this.sketchOp.normalize(sketchParam);
-    if (filter != null) {
-      Preconditions.checkArgument(filter.optimize().toFilter().supportsBitmap());
-    }
   }
 
   @Override
   public boolean hasFilters()
   {
-    return filter != null;
+    return filter != null || super.hasFilters();
   }
 
   @Override
@@ -197,18 +193,6 @@ public class SketchQuery extends BaseQuery<Result<Map<String, Object>>>
         sketchOp,
         getContext()
     );
-  }
-
-  @Override
-  public boolean allDimensionsForEmpty()
-  {
-    return BaseQuery.allColumnsForEmpty(this, false);
-  }
-
-  @Override
-  public boolean allMetricsForEmpty()
-  {
-    return BaseQuery.allColumnsForEmpty(this, false);
   }
 
   @Override

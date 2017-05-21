@@ -184,7 +184,7 @@ public class GroupByQuery extends BaseQuery<Row> implements Query.DimensionSuppo
   @Override
   public boolean hasFilters()
   {
-    return dimFilter != null;
+    return dimFilter != null || super.hasFilters();
   }
 
   @Override
@@ -440,12 +440,6 @@ public class GroupByQuery extends BaseQuery<Row> implements Query.DimensionSuppo
         getLateralView(),
         getContext()
     );
-  }
-
-    @Override
-  public boolean allDimensionsForEmpty()
-  {
-    return BaseQuery.allColumnsForEmpty(this, false);
   }
 
   public static class Builder

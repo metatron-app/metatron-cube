@@ -123,7 +123,7 @@ public class SelectMetaQuery extends BaseQuery<Result<SelectMetaResultValue>>
   @Override
   public boolean hasFilters()
   {
-    return dimFilter != null;
+    return dimFilter != null || super.hasFilters();
   }
 
   @Override

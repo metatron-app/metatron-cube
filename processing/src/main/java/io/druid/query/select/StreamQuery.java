@@ -75,7 +75,7 @@ public class StreamQuery extends BaseQuery<StreamQueryRow>
   @Override
   public boolean hasFilters()
   {
-    return dimFilter != null || ViewSupportHelper.hasFilter(getDataSource());
+    return dimFilter != null || super.hasFilters();
   }
 
   @Override

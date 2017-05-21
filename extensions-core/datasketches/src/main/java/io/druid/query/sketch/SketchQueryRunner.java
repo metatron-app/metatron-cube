@@ -84,7 +84,7 @@ public class SketchQueryRunner implements QueryRunner<Result<Map<String, Object>
     final List<DimensionSpec> dimensions = query.getDimensions();
     final List<String> metrics = query.getMetrics();
     final VirtualColumns vcs = VirtualColumns.valueOf(query.getVirtualColumns());
-    final DimFilter filter = query.getFilter();   // ensured bitmap support
+    final DimFilter filter = query.getFilter();
     final int sketchParam = query.getSketchParam();
     final SketchHandler<?> handler = query.getSketchOp().handler();
 

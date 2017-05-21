@@ -60,12 +60,11 @@ public class BoundFilter extends Filter.WithDictionary implements Predicate<Stri
     if (extractionFn != null) {
       return null;
     }
-    Expr expr = Parser.parse(boundDimFilter.getExpression());
-    if (!Evals.isIdentifier(expr)) {
+    if (boundDimFilter.getExpression() != null) {
       return null;
     }
     BitmapFactory factory = selector.getBitmapFactory();
-    final int[] range = toRange(selector.getBitmapIndex(boundDimFilter.getExpression()));
+    final int[] range = toRange(selector.getBitmapIndex(boundDimFilter.getDimension()));
     if (range == ALL) {
       return factory.complement(factory.makeEmptyImmutableBitmap(), selector.getNumRows());
     }
@@ -82,13 +81,14 @@ public class BoundFilter extends Filter.WithDictionary implements Predicate<Stri
   @Override
   public ImmutableBitmap getBitmapIndex(final BitmapIndexSelector selector)
   {
-    String dimension = boundDimFilter.getExpression();
-    final Expr expr = Parser.parse(dimension);
-    final boolean expression = !Evals.isIdentifier(expr);
-    if (expression || !boundDimFilter.isLexicographic() || extractionFn != null) {
-      dimension = expression ? Iterables.getOnlyElement(Parser.findRequiredBindings(expr)) : dimension;
+    String dimension = boundDimFilter.getDimension();
+    String expression = boundDimFilter.getExpression();
+    if (expression != null || !boundDimFilter.isLexicographic() || extractionFn != null) {
+
       Predicate<String> predicate = this;
-      if (expression) {
+      if (expression != null) {
+        Expr expr = Parser.parse(expression);
+        dimension = Iterables.getOnlyElement(Parser.findRequiredBindings(expr));
         predicate = Predicates.compose(predicate, Parser.asStringFunction(expr));
       }
       return Filters.matchPredicate(
@@ -195,8 +195,12 @@ public class BoundFilter extends Filter.WithDictionary implements Predicate<Stri
   @Override
   public ValueMatcher makeMatcher(ColumnSelectorFactory columnSelectorFactory)
   {
-    final String dimension = boundDimFilter.getExpression();
-    final ObjectColumnSelector selector = Filters.getStringSelector(columnSelectorFactory, dimension);
+    final ObjectColumnSelector selector;
+    if (boundDimFilter.getDimension() != null) {
+      selector = Filters.getStringSelector(columnSelectorFactory, boundDimFilter.getDimension());
+    } else {
+      selector = Filters.getExprStringSelector(columnSelectorFactory, boundDimFilter.getExpression());
+    }
     return new ValueMatcher()
     {
       @Override
@@ -210,13 +214,10 @@ public class BoundFilter extends Filter.WithDictionary implements Predicate<Stri
   @Override
   public ValueMatcher makeMatcher(ValueMatcherFactory factory)
   {
-    final String dimension = boundDimFilter.getExpression();
-    final Expr expr = Parser.parse(dimension);
-    final boolean expression = !Evals.isIdentifier(expr);
-    if (expression) {
-      return factory.makeExpressionMatcher(dimension, Predicates.compose(this, Evals.AS_STRING));
+    if (boundDimFilter.getExpression() == null) {
+      return factory.makeValueMatcher(boundDimFilter.getDimension(), this);
     }
-    return factory.makeValueMatcher(dimension, this);
+    return factory.makeExpressionMatcher(boundDimFilter.getExpression(), Predicates.compose(this, Evals.AS_STRING));
   }
 
   public boolean apply(String input)

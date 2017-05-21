@@ -20,8 +20,6 @@
 package io.druid.segment;
 
 import com.metamx.emitter.EmittingLogger;
-
-import io.druid.segment.data.Indexed;
 import org.joda.time.Interval;
 
 import java.io.Closeable;
@@ -92,17 +90,6 @@ public class ReferenceCountingSegment implements Segment
       }
 
       return baseSegment.getDataInterval();
-    }
-  }
-
-  @Override
-  public Indexed<String> getAvailableDimensions(boolean forQuery)
-  {
-    synchronized (lock) {
-      if (isClosed) {
-        return null;
-      }
-      return baseSegment.getAvailableDimensions(forQuery);
     }
   }
 

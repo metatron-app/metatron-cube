@@ -79,7 +79,7 @@ public class TimeseriesQuery extends BaseQuery<Result<TimeseriesResultValue>>
   @Override
   public boolean hasFilters()
   {
-    return dimFilter != null;
+    return dimFilter != null || super.hasFilters();
   }
 
   @Override

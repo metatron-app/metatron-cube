@@ -90,25 +90,27 @@ public class Filters
     return dimFilter == null ? null : dimFilter.optimize().toFilter();
   }
 
+  public static ObjectColumnSelector getExprStringSelector(ColumnSelectorFactory factory, String column)
+  {
+    final ExprEvalColumnSelector selector = factory.makeMathExpressionSelector(column);
+    return new ObjectColumnSelector()
+    {
+      @Override
+      public Class classOfObject()
+      {
+        return String.class;
+      }
+
+      @Override
+      public String get()
+      {
+        return selector.get().asString();
+      }
+    };
+  }
+
   public static ObjectColumnSelector getStringSelector(ColumnSelectorFactory factory, String column)
   {
-    if (!Evals.isIdentifier(Parser.parse(column))) {
-      final ExprEvalColumnSelector selector = factory.makeMathExpressionSelector(column);
-      return new ObjectColumnSelector()
-      {
-        @Override
-        public Class classOfObject()
-        {
-          return String.class;
-        }
-
-        @Override
-        public String get()
-        {
-          return selector.get().asString();
-        }
-      };
-    }
     final ObjectColumnSelector selector = factory.makeObjectColumnSelector(column);
     if (selector.classOfObject() == String.class) {
       return selector;

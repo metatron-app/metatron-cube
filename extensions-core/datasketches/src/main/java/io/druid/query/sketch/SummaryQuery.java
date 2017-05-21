@@ -94,7 +94,7 @@ public class SummaryQuery extends BaseQuery<Result<Map<String, Object>>>
   @Override
   public boolean hasFilters()
   {
-    return dimFilter != null;
+    return dimFilter != null || super.hasFilters();
   }
 
   @Override
@@ -118,12 +118,6 @@ public class SummaryQuery extends BaseQuery<Result<Map<String, Object>>>
   }
 
   @Override
-  public boolean allDimensionsForEmpty()
-  {
-    return BaseQuery.allColumnsForEmpty(this, false);
-  }
-
-  @Override
   @JsonProperty
   public List<VirtualColumn> getVirtualColumns()
   {
@@ -135,12 +129,6 @@ public class SummaryQuery extends BaseQuery<Result<Map<String, Object>>>
   public List<String> getMetrics()
   {
     return metrics;
-  }
-
-  @Override
-  public boolean allMetricsForEmpty()
-  {
-    return BaseQuery.allColumnsForEmpty(this, false);
   }
 
   @Override

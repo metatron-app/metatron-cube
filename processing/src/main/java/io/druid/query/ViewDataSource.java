@@ -22,7 +22,9 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.base.Preconditions;
+import com.google.common.collect.ImmutableList;
 import io.druid.query.filter.DimFilter;
+import io.druid.segment.VirtualColumn;
 
 import java.util.List;
 import java.util.Objects;
@@ -34,6 +36,12 @@ public class ViewDataSource extends TableDataSource
   private final List<String> columns;
 
   @JsonProperty
+  private final List<String> columnExclusions;
+
+  @JsonProperty
+  private final List<VirtualColumn> virtualColumns;
+
+  @JsonProperty
   private final DimFilter filter;
 
   @JsonProperty
@@ -43,12 +51,16 @@ public class ViewDataSource extends TableDataSource
   public ViewDataSource(
       @JsonProperty("name") String name,
       @JsonProperty("columns") List<String> columns,
+      @JsonProperty("columnExclusions") List<String> columnExclusions,
+      @JsonProperty("virtualColumns") List<VirtualColumn> virtualColumns,
       @JsonProperty("filter") DimFilter filter,
       @JsonProperty("lowerCasedOutput") boolean lowerCasedOutput
   )
   {
     super(Preconditions.checkNotNull(name));
-    this.columns = columns;
+    this.columns = columns == null ? ImmutableList.<String>of() : columns;
+    this.columnExclusions = columnExclusions == null ? ImmutableList.<String>of() : columnExclusions;
+    this.virtualColumns = virtualColumns;
     this.filter = filter;
     this.lowerCasedOutput = lowerCasedOutput;
   }
@@ -57,6 +69,18 @@ public class ViewDataSource extends TableDataSource
   public List<String> getColumns()
   {
     return columns;
+  }
+
+  @JsonProperty
+  public List<String> getColumnExclusions()
+  {
+    return columnExclusions;
+  }
+
+  @JsonProperty
+  public List<VirtualColumn> getVirtualColumns()
+  {
+    return virtualColumns;
   }
 
   @JsonProperty
@@ -73,12 +97,12 @@ public class ViewDataSource extends TableDataSource
 
   public ViewDataSource withColumns(List<String> columns)
   {
-    return new ViewDataSource(name, columns, filter, lowerCasedOutput);
+    return new ViewDataSource(name, columns, columnExclusions, virtualColumns, filter, lowerCasedOutput);
   }
 
   public ViewDataSource withFilter(DimFilter filter)
   {
-    return new ViewDataSource(name, columns, filter, lowerCasedOutput);
+    return new ViewDataSource(name, columns, columnExclusions, virtualColumns, filter, lowerCasedOutput);
   }
 
   @Override
@@ -93,6 +117,12 @@ public class ViewDataSource extends TableDataSource
     if (!Objects.equals(columns, that.columns)) {
       return false;
     }
+    if (!Objects.equals(columnExclusions, that.columnExclusions)) {
+      return false;
+    }
+    if (!Objects.equals(virtualColumns, that.virtualColumns)) {
+      return false;
+    }
     if (!Objects.equals(filter, that.filter)) {
       return false;
     }
@@ -102,15 +132,12 @@ public class ViewDataSource extends TableDataSource
   @Override
   public int hashCode()
   {
-    return Objects.hash(name, columns, filter);
+    return Objects.hash(name, columns, columnExclusions, virtualColumns, filter);
   }
 
   @Override
   public String toString()
   {
-    if (columns == null || columns.isEmpty()) {
-      return name;
-    }
-    return name + columns;
+    return name + columns + "-" + columnExclusions + "(" + virtualColumns + ")";
   }
 }

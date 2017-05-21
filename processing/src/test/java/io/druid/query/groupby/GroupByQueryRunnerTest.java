@@ -105,7 +105,9 @@ import io.druid.query.lookup.LookupExtractionFn;
 import io.druid.query.ordering.StringComparators;
 import io.druid.query.search.search.ContainsSearchQuerySpec;
 import io.druid.query.spec.MultipleIntervalSegmentSpec;
+import io.druid.segment.ExprVirtualColumn;
 import io.druid.segment.TestHelper;
+import io.druid.segment.VirtualColumn;
 import io.druid.segment.column.Column;
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
@@ -943,6 +945,45 @@ public class GroupByQueryRunnerTest
     );
 
     Iterable<Row> results = GroupByQueryRunnerTestHelper.runQuery(factory, runner, query);
+    TestHelper.assertExpectedObjects(expectedResults, results, "");
+
+    expectedResults = Arrays.asList(
+        GroupByQueryRunnerTestHelper.createExpectedRow(
+            "2011-04-01", "null", 22L, "not_null", 4L
+        )
+    );
+
+    query = query
+        .withVirtualColumns(
+            Arrays.<VirtualColumn>asList(new ExprVirtualColumn("partial_null_column + ''", "PN"))
+        ).withAggregatorSpecs(
+            Arrays.<AggregatorFactory>asList(
+                new CountAggregatorFactory("not_null", "!isnull(PN)"), new CountAggregatorFactory("null", "isnull(PN)"))
+        );
+
+    results = GroupByQueryRunnerTestHelper.runQuery(factory, runner, query);
+    TestHelper.assertExpectedObjects(expectedResults, results, "");
+
+    expectedResults = Arrays.asList(GroupByQueryRunnerTestHelper.createExpectedRow("2011-04-01", "rows", 4L));
+
+    query = query
+        .withVirtualColumns(Arrays.<VirtualColumn>asList(new ExprVirtualColumn("market + 'AA'", "marketAA")))
+        .withDimFilter(
+            new OrDimFilter(
+                Arrays.<DimFilter>asList(
+                    BoundDimFilter.lt("marketAA", "spotAA"),
+                    BoundDimFilter.gt("marketAA", "total_marketAA")
+                )
+            )
+        )
+        .withAggregatorSpecs(
+            Arrays.<AggregatorFactory>asList(QueryRunnerTestHelper.rowsCount)
+        );
+
+    results = GroupByQueryRunnerTestHelper.runQuery(factory, runner, query);
+    for (Object x : results) {
+      System.out.println(x);
+    }
     TestHelper.assertExpectedObjects(expectedResults, results, "");
   }
 

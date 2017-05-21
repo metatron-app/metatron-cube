@@ -23,9 +23,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Predicate;
 import com.google.common.base.Strings;
-import io.druid.math.expr.Evals;
 import io.druid.math.expr.ExprEval;
-import io.druid.math.expr.Parser;
 import io.druid.query.dimension.DefaultDimensionSpec;
 import io.druid.query.filter.DimFilter;
 import io.druid.query.filter.ValueMatcher;
@@ -206,10 +204,10 @@ public class FilteredAggregatorFactory extends AggregatorFactory
 
     FilteredAggregatorFactory that = (FilteredAggregatorFactory) o;
 
-    if (delegate != null ? !delegate.equals(that.delegate) : that.delegate != null) {
+    if (!delegate.equals(that.delegate)) {
       return false;
     }
-    if (filter != null ? !filter.equals(that.filter) : that.filter != null) {
+    if (!filter.equals(that.filter)) {
       return false;
     }
 
@@ -219,8 +217,8 @@ public class FilteredAggregatorFactory extends AggregatorFactory
   @Override
   public int hashCode()
   {
-    int result = delegate != null ? delegate.hashCode() : 0;
-    result = 31 * result + (filter != null ? filter.hashCode() : 0);
+    int result = delegate.hashCode();
+    result = 31 * result + filter.hashCode();
     return result;
   }
 
@@ -275,17 +273,6 @@ public class FilteredAggregatorFactory extends AggregatorFactory
     @SuppressWarnings("unchecked")
     public ValueMatcher makeValueMatcher(final String dimension, final Predicate predicate)
     {
-      if (!Evals.isIdentifier(Parser.parse(dimension))) {
-        final ExprEvalColumnSelector selector = columnSelectorFactory.makeMathExpressionSelector(dimension);
-        return new ValueMatcher()
-        {
-          @Override
-          public boolean matches()
-          {
-            return predicate.apply(selector.get().value());
-          }
-        };
-      }
       final DimensionSelector selector = columnSelectorFactory.makeDimensionSelector(
           new DefaultDimensionSpec(dimension, dimension)
       );

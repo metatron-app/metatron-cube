@@ -28,6 +28,7 @@ import com.google.common.collect.Ordering;
 import com.metamx.common.StringUtils;
 import com.metamx.common.guava.Sequence;
 import io.druid.common.utils.PropUtils;
+import io.druid.query.select.ViewSupportHelper;
 import io.druid.query.spec.MultipleIntervalSegmentSpec;
 import io.druid.query.spec.QuerySegmentSpec;
 import org.joda.time.Duration;
@@ -147,6 +148,22 @@ public abstract class BaseQuery<T extends Comparable<T>> implements Query<T>
   public QuerySegmentSpec getQuerySegmentSpec()
   {
     return querySegmentSpec;
+  }
+
+  @Override
+  public boolean hasFilters()
+  {
+    return this instanceof DimFilterSupport && ViewSupportHelper.hasFilter(getDataSource());
+  }
+
+  public boolean allDimensionsForEmpty()
+  {
+    return BaseQuery.allColumnsForEmpty(this, false);
+  }
+
+  public boolean allMetricsForEmpty()
+  {
+    return BaseQuery.allColumnsForEmpty(this, false);
   }
 
   @Override

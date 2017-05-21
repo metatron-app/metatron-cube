@@ -821,18 +821,6 @@ public class IncrementalIndexStorageAdapter implements StorageAdapter
     @SuppressWarnings("unchecked")
     public ValueMatcher makeValueMatcher(String dimension, final Predicate predicate)
     {
-      if (!Evals.isIdentifier(Parser.parse(dimension))) {
-        final Expr parsed = Parser.parse(dimension);
-        final Expr.NumericBinding binding = indexToBinding(parsed);
-        return new ValueMatcher()
-        {
-          @Override
-          public boolean matches()
-          {
-            return predicate.apply(parsed.eval(binding));
-          }
-        };
-      }
       IncrementalIndex.DimensionDesc dimensionDesc = index.getDimension(dimension);
       if (dimensionDesc == null) {
         VirtualColumn virtualColumn = virtualColumns.getVirtualColumn(dimension);

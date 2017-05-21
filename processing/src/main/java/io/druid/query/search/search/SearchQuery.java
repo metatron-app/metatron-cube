@@ -22,6 +22,7 @@ package io.druid.query.search.search;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;
+import com.google.common.collect.ImmutableList;
 import io.druid.granularity.QueryGranularity;
 import io.druid.granularity.QueryGranularities;
 import io.druid.query.BaseQuery;
@@ -40,6 +41,7 @@ import java.util.Map;
 /**
  */
 public class SearchQuery extends BaseQuery<Result<SearchResultValue>>
+    implements Query.DimensionSupport<Result<SearchResultValue>>
 {
   private final DimFilter dimFilter;
   private final SearchSortSpec sortSpec;
@@ -71,7 +73,7 @@ public class SearchQuery extends BaseQuery<Result<SearchResultValue>>
     this.granularity = granularity == null ? QueryGranularities.ALL : granularity;
     this.limit = (limit == 0) ? 1000 : limit;
     this.virtualColumns = virtualColumns;
-    this.dimensions = dimensions;
+    this.dimensions = dimensions == null ? ImmutableList.<DimensionSpec>of() : dimensions;
     this.valueOnly = valueOnly;
     this.querySpec = querySpec == null ? new SearchQuerySpec.TakeAll() : querySpec;
 
@@ -81,13 +83,25 @@ public class SearchQuery extends BaseQuery<Result<SearchResultValue>>
   @Override
   public boolean hasFilters()
   {
-    return dimFilter != null;
+    return dimFilter != null || super.hasFilters();
   }
 
   @Override
   public String getType()
   {
     return Query.SEARCH;
+  }
+
+  @Override
+  public DimFilter getDimFilter()
+  {
+    return dimFilter;
+  }
+
+  @Override
+  public boolean allDimensionsForEmpty()
+  {
+    return BaseQuery.allColumnsForEmpty(this, true);
   }
 
   @Override
@@ -183,6 +197,42 @@ public class SearchQuery extends BaseQuery<Result<SearchResultValue>>
   public List<VirtualColumn> getVirtualColumns()
   {
     return virtualColumns;
+  }
+
+  @Override
+  public SearchQuery withDimensionSpecs(List<DimensionSpec> dimensions)
+  {
+    return new SearchQuery(
+        getDataSource(),
+        dimFilter,
+        granularity,
+        limit,
+        getQuerySegmentSpec(),
+        virtualColumns,
+        dimensions,
+        querySpec,
+        sortSpec,
+        valueOnly,
+        getContext()
+    );
+  }
+
+  @Override
+  public SearchQuery withVirtualColumns(List<VirtualColumn> virtualColumns)
+  {
+    return new SearchQuery(
+        getDataSource(),
+        dimFilter,
+        granularity,
+        limit,
+        getQuerySegmentSpec(),
+        virtualColumns,
+        dimensions,
+        querySpec,
+        sortSpec,
+        valueOnly,
+        getContext()
+    );
   }
 
   @JsonProperty("searchDimensions")

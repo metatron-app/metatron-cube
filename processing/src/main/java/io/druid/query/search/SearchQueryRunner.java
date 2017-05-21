@@ -37,7 +37,6 @@ import io.druid.granularity.QueryGranularities;
 import io.druid.query.Query;
 import io.druid.query.QueryRunner;
 import io.druid.query.Result;
-import io.druid.query.dimension.DefaultDimensionSpec;
 import io.druid.query.dimension.DimensionSpec;
 import io.druid.query.extraction.ExtractionFn;
 import io.druid.query.extraction.ExtractionFns;
@@ -47,6 +46,7 @@ import io.druid.query.search.search.SearchHit;
 import io.druid.query.search.search.SearchQuery;
 import io.druid.query.search.search.SearchQuerySpec;
 import io.druid.query.search.search.SearchSortSpec;
+import io.druid.query.select.ViewSupportHelper;
 import io.druid.segment.ColumnSelectorBitmapIndexSelector;
 import io.druid.segment.Cursor;
 import io.druid.segment.DimensionSelector;
@@ -90,7 +90,9 @@ public class SearchQueryRunner implements QueryRunner<Result<SearchResultValue>>
       throw new ISE("Got a [%s] which isn't a %s", input.getClass(), SearchQuery.class);
     }
 
-    final SearchQuery query = (SearchQuery) input;
+    final SearchQuery baseQuery = (SearchQuery) input;
+    final SearchQuery query = (SearchQuery) ViewSupportHelper.rewrite(baseQuery, segment.asStorageAdapter(true));
+
     final DimFilter filter = query.getDimensionsFilter();
     final List<DimensionSpec> dimensions = query.getDimensions();
     final SearchQuerySpec searchQuerySpec = query.getQuery();
@@ -108,14 +110,8 @@ public class SearchQueryRunner implements QueryRunner<Result<SearchResultValue>>
     final String segmentId = segment.getIdentifier();
 
     final VirtualColumns vcs = VirtualColumns.valueOf(query.getVirtualColumns());
-    final Iterable<DimensionSpec> dimensionSpecs;
-    if (dimensions == null || dimensions.isEmpty()) {
-      dimensionSpecs = DefaultDimensionSpec.toSpec(segment.getAvailableDimensions(false));
-    } else {
-      dimensionSpecs = dimensions;
-    }
 
-    if (index != null && vcs.supportsBitmap(dimensionSpecs, filter)) {
+    if (index != null && vcs.supportsBitmap(dimensions, filter)) {
       final Map<SearchHit, MutableInt> retVal = Maps.newHashMap();
 
       final BitmapFactory bitmapFactory = index.getBitmapFactoryForDimensions();
@@ -136,7 +132,7 @@ public class SearchQueryRunner implements QueryRunner<Result<SearchResultValue>>
           cache.put(key, baseFilter.toBytes());
         }
       }
-      for (DimensionSpec dimension : dimensionSpecs) {
+      for (DimensionSpec dimension : dimensions) {
         final Column column = index.getColumn(dimension.getDimension());
         if (column == null) {
           continue;
@@ -205,7 +201,7 @@ public class SearchQueryRunner implements QueryRunner<Result<SearchResultValue>>
             }
 
             Map<String, DimensionSelector> dimSelectors = Maps.newHashMap();
-            for (DimensionSpec dim : dimensionSpecs) {
+            for (DimensionSpec dim : dimensions) {
               dimSelectors.put(
                   dim.getOutputName(),
                   cursor.makeDimensionSelector(dim)

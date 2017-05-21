@@ -50,6 +50,7 @@ import io.druid.query.aggregation.PostAggregator;
 import io.druid.query.aggregation.PostAggregators;
 import io.druid.query.dimension.DimensionSpec;
 import io.druid.query.filter.DimFilter;
+import io.druid.query.select.ViewSupportHelper;
 import io.druid.segment.ColumnSelectorFactory;
 import io.druid.segment.Cursor;
 import io.druid.segment.DimensionSelector;
@@ -118,13 +119,14 @@ public class GroupByQueryEngine
     return process(query, storageAdapter, null);
   }
 
-  public Sequence<Row> process(final GroupByQuery query, final StorageAdapter storageAdapter, final Cache cache)
+  public Sequence<Row> process(final GroupByQuery baseQuery, final StorageAdapter storageAdapter, final Cache cache)
   {
     if (storageAdapter == null) {
       throw new ISE(
-          "Null storage adapter found. Probably trying to issue a query against a segment being memory unmapped."
+          "Null storage adapter found. Probably trying to issue a baseQuery against a segment being memory unmapped."
       );
     }
+    final GroupByQuery query = (GroupByQuery) ViewSupportHelper.rewrite(baseQuery, storageAdapter);
 
     final List<Interval> intervals = query.getQuerySegmentSpec().getIntervals();
     if (intervals.size() != 1) {

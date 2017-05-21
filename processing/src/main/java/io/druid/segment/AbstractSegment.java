@@ -18,8 +18,6 @@
  */
 package io.druid.segment;
 
-import io.druid.segment.data.Indexed;
-
 public abstract class AbstractSegment implements Segment
 {
   protected volatile long lastAccessTime;
@@ -29,16 +27,6 @@ public abstract class AbstractSegment implements Segment
     if (forQuery) {
       lastAccessTime = System.currentTimeMillis();
     }
-  }
-
-  @Override
-  public Indexed<String> getAvailableDimensions(boolean forQuery)
-  {
-    QueryableIndex queryableIndex = asQueryableIndex(forQuery);
-    if (queryableIndex != null) {
-      return queryableIndex.getAvailableDimensions();
-    }
-    return asStorageAdapter(forQuery).getAvailableDimensions();
   }
 
   @Override

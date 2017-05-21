@@ -81,7 +81,9 @@ public class VirtualColumns
     }
     Map<String, VirtualColumn> map = Maps.newHashMapWithExpectedSize(virtualColumns.size());
     for (VirtualColumn vc : virtualColumns) {
-      map.put(vc.getOutputName(), vc.duplicate());
+      if (map.put(vc.getOutputName(), vc.duplicate()) != null) {
+        throw new IllegalArgumentException("duplicated columns in virtualColumns");
+      }
     }
     return new VirtualColumns(map);
   }
@@ -401,6 +403,9 @@ public class VirtualColumns
       }
     }
     if (filter != null) {
+      if (!Filters.toFilter(filter).supportsBitmap()) {
+        return false;
+      }
       for (String reference : Filters.getDependents(filter)) {
         if (getVirtualColumn(reference) != null) {
           return false;

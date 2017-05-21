@@ -40,7 +40,6 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.List;
-import java.util.Set;
 import java.util.zip.GZIPInputStream;
 
 /**
@@ -144,12 +143,41 @@ public class GuavaUtils
     return result;
   }
 
-  public static List<String> retain(Iterable<String> name, Set<String> retainer)
+  public static List<String> retain(Iterable<String> name, Collection<String> retainer)
   {
+    if (name == null) {
+      return Lists.<String>newArrayList();
+    }
     List<String> retaining = Lists.newArrayList(name);
     if (retainer != null) {
       retaining.retainAll(retainer);
     }
     return retaining;
+  }
+
+  public static List<String> exclude(Iterable<String> name, Collection<String> exclusions)
+  {
+    if (name == null) {
+      return Lists.<String>newArrayList();
+    }
+    List<String> retaining = Lists.newArrayList(name);
+    if (exclusions != null) {
+      retaining.removeAll(exclusions);
+    }
+    return retaining;
+  }
+
+  public static <T> List<T> concat(List<T> list1, List<T> list2)
+  {
+    if (list1 == null && list2 == null) {
+      return Lists.newArrayList();
+    }
+    if (list1 == null) {
+      return list2;
+    }
+    if (list2 == null) {
+      return list1;
+    }
+    return Lists.newArrayList(Iterables.concat(list1, list2));
   }
 }

@@ -116,7 +116,7 @@ public class SelectQuery extends BaseQuery<Result<SelectResultValue>>
   @Override
   public boolean hasFilters()
   {
-    return dimFilter != null || ViewSupportHelper.hasFilter(getDataSource());
+    return dimFilter != null || super.hasFilters();
   }
 
   @Override

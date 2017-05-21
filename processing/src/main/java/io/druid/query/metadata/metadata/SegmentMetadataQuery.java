@@ -154,12 +154,6 @@ public class SegmentMetadataQuery extends BaseQuery<SegmentAnalysis>
   }
 
   @Override
-  public boolean hasFilters()
-  {
-    return false;
-  }
-
-  @Override
   public String getType()
   {
     return Query.SEGMENT_METADATA;
