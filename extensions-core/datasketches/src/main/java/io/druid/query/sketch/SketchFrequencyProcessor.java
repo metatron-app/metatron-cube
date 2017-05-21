@@ -64,8 +64,8 @@ public class SketchFrequencyProcessor extends PostProcessingOperator.Abstract
                 Map<String, Object> result = element.getValue();
                 for (Map.Entry<String, Object> entry : result.entrySet()) {
                   Map<String, Object> columns = Maps.newLinkedHashMap();
-                  ItemsSketch sketch = (ItemsSketch) entry.getValue();
-                  for (ItemsSketch.Row row : sketch.getFrequentItems(ErrorType.NO_FALSE_NEGATIVES)) {
+                  TypedSketch<ItemsSketch> sketch = (TypedSketch<ItemsSketch>) entry.getValue();
+                  for (ItemsSketch.Row row : sketch.value().getFrequentItems(ErrorType.NO_FALSE_NEGATIVES)) {
                     columns.put((String) row.getItem(), row.getEstimate());
                   }
                   entry.setValue(columns);

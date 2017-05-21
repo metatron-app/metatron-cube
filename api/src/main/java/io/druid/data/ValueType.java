@@ -7,6 +7,7 @@ import com.google.common.primitives.Doubles;
 import com.google.common.primitives.Floats;
 import com.google.common.primitives.Longs;
 import io.druid.data.input.Row;
+import org.joda.time.DateTime;
 
 import java.util.Comparator;
 
@@ -154,6 +155,23 @@ public enum ValueType
     catch (IllegalArgumentException e) {
       return defaultType;
     }
+  }
+
+  public static ValueType of(Class clazz)
+  {
+    if (clazz == String.class) {
+      return STRING;
+    }
+    if (clazz == Long.TYPE || clazz == Long.class) {
+      return LONG;
+    }
+    if (clazz == Float.TYPE || clazz == Float.class) {
+      return FLOAT;
+    }
+    if (clazz == Double.TYPE || clazz == Double.class) {
+      return DOUBLE;
+    }
+    return COMPLEX;
   }
 
   public static boolean isNumeric(ValueType type)

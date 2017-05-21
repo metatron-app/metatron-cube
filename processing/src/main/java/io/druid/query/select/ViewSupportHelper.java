@@ -21,7 +21,6 @@ package io.druid.query.select;
 
 import com.google.common.collect.Sets;
 import io.druid.common.guava.GuavaUtils;
-import io.druid.query.BaseQuery;
 import io.druid.query.DataSource;
 import io.druid.query.Query;
 import io.druid.query.ViewDataSource;
@@ -61,7 +60,7 @@ public class ViewSupportHelper
     if (query instanceof Query.DimensionSupport) {
       Query.DimensionSupport<T> dimensionSupport = (Query.DimensionSupport<T>)query;
       if (dimensionSupport.getDimensions() == null || dimensionSupport.getDimensions().isEmpty()) {
-        if (retainers != null || BaseQuery.allColumnsForEmpty(query)) {
+        if (retainers != null || dimensionSupport.allDimensionsForEmpty()) {
           dimensionSupport = dimensionSupport.withDimensionSpecs(
               DefaultDimensionSpec.toSpec(
                   GuavaUtils.retain(adapter.getAvailableDimensions(), retainers), lowerCasedOutput
@@ -74,7 +73,7 @@ public class ViewSupportHelper
     if (query instanceof Query.ViewSupport) {
       Query.ViewSupport<T> viewSupport = (Query.ViewSupport<T>)query;
       if (viewSupport.getMetrics() == null || viewSupport.getMetrics().isEmpty()) {
-        if (retainers != null || BaseQuery.allColumnsForEmpty(query)) {
+        if (retainers != null || viewSupport.allMetricsForEmpty()) {
           viewSupport = viewSupport.withMetrics(GuavaUtils.retain(adapter.getAvailableMetrics(), retainers));
         }
       }

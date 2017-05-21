@@ -34,7 +34,6 @@ import io.druid.query.filter.BoundDimFilter;
 import io.druid.query.filter.Filter;
 import io.druid.query.filter.ValueMatcher;
 import io.druid.query.filter.ValueMatcherFactory;
-import io.druid.query.ordering.StringComparators;
 import io.druid.segment.ColumnSelectorFactory;
 import io.druid.segment.ObjectColumnSelector;
 import io.druid.segment.column.BitmapIndex;
@@ -51,9 +50,7 @@ public class BoundFilter extends Filter.WithDictionary implements Predicate<Stri
   public BoundFilter(final BoundDimFilter boundDimFilter)
   {
     this.boundDimFilter = boundDimFilter;
-    this.comparator = boundDimFilter.isAlphaNumeric()
-                      ? StringComparators.ALPHANUMERIC
-                      : StringComparators.LEXICOGRAPHIC;
+    this.comparator = boundDimFilter.getComparator();
     this.extractionFn = boundDimFilter.getExtractionFn();
   }
 
@@ -88,7 +85,7 @@ public class BoundFilter extends Filter.WithDictionary implements Predicate<Stri
     String dimension = boundDimFilter.getExpression();
     final Expr expr = Parser.parse(dimension);
     final boolean expression = !Evals.isIdentifier(expr);
-    if (expression || boundDimFilter.isAlphaNumeric() || extractionFn != null) {
+    if (expression || !boundDimFilter.isLexicographic() || extractionFn != null) {
       dimension = expression ? Iterables.getOnlyElement(Parser.findRequiredBindings(expr)) : dimension;
       Predicate<String> predicate = this;
       if (expression) {

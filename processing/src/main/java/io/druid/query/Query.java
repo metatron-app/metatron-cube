@@ -136,19 +136,17 @@ public interface Query<T> extends QueryContextKeys
     DimensionSupport<T> withDimensionSpecs(List<DimensionSpec> dimensions);
 
     DimensionSupport<T> withVirtualColumns(List<VirtualColumn> virtualColumns);
+
+    boolean allDimensionsForEmpty();
   }
 
   interface ViewSupport<T> extends DimFilterSupport<T>, DimensionSupport<T>
   {
-    List<DimensionSpec> getDimensions();
-
     List<String> getMetrics();
-
-    ViewSupport<T> withDimensionSpecs(List<DimensionSpec> dimensions);
 
     ViewSupport<T> withMetrics(List<String> metrics);
 
-    ViewSupport<T> withDimFilter(DimFilter filter);
+    boolean allMetricsForEmpty();
   }
 
   interface RewritingQuery<T> extends Query<T>

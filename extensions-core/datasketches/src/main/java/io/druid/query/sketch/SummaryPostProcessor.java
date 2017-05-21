@@ -38,6 +38,7 @@ import com.metamx.common.guava.Sequences;
 import com.metamx.common.logger.Logger;
 import com.yahoo.sketches.quantiles.ItemsSketch;
 import com.yahoo.sketches.theta.Sketch;
+import io.druid.data.ValueType;
 import io.druid.data.input.Row;
 import io.druid.granularity.QueryGranularities;
 import io.druid.guice.annotations.Processing;
@@ -51,11 +52,15 @@ import io.druid.query.Result;
 import io.druid.query.UnionAllQueryRunner;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.CountAggregatorFactory;
+import io.druid.query.aggregation.GenericSumAggregatorFactory;
 import io.druid.query.aggregation.PostAggregator;
+import io.druid.query.aggregation.kurtosis.KurtosisAggregatorFactory;
+import io.druid.query.aggregation.post.MathPostAggregator;
+import io.druid.query.aggregation.variance.StandardDeviationPostAggregator;
+import io.druid.query.aggregation.variance.VarianceAggregatorFactory;
 import io.druid.query.dimension.DefaultDimensionSpec;
 import io.druid.query.dimension.DimensionSpec;
 import io.druid.query.filter.BoundDimFilter;
-import io.druid.query.filter.DimFilter;
 import io.druid.query.filter.OrDimFilter;
 import io.druid.query.groupby.GroupByQuery;
 import io.druid.query.search.SearchResultValue;
@@ -65,6 +70,7 @@ import io.druid.query.search.search.SearchQuery;
 import io.druid.query.search.search.SearchQuerySpec;
 import io.druid.segment.VirtualColumn;
 
+import java.lang.reflect.Array;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
@@ -104,7 +110,7 @@ public class SummaryPostProcessor extends PostProcessingOperator.UnionSupport
     {
       @Override
       @SuppressWarnings("unchecked")
-      public Sequence run(Query query, Map responseContext)
+      public Sequence run(final Query query, Map responseContext)
       {
         final Query representative = BaseQuery.getRepresentative(query);
         if (!(representative instanceof SketchQuery)) {
@@ -125,120 +131,134 @@ public class SummaryPostProcessor extends PostProcessingOperator.UnionSupport
           final Map<String, Object> value = values.getValue();
           if (sketchQuery.getSketchOp() == SketchOp.QUANTILE) {
             for (Map.Entry<String, Object> entry : value.entrySet()) {
-              final String dimension = entry.getKey();
-              final ItemsSketch<String> itemsSketch = (ItemsSketch) entry.getValue();
-              Map<String, Object> result = results.get(dimension);
+              final String column = entry.getKey();
+              final TypedSketch<ItemsSketch> sketch = (TypedSketch<ItemsSketch>) entry.getValue();
+              Map<String, Object> result = results.get(column);
               if (result == null) {
-                results.put(dimension, result = Maps.newLinkedHashMap());
+                results.put(column, result = Maps.newLinkedHashMap());
               }
-              String[] quantiles = (String[]) SketchQuantilesOp.QUANTILES.calculate(itemsSketch, 11);
-              Set<String> set = Sets.newTreeSet(Arrays.asList(quantiles));
-              if (set.size() != quantiles.length) {
-                quantiles = set.toArray(new String[set.size()]);
-              }
-              double[] pmf = (double[]) SketchQuantilesOp.PMF.calculate(itemsSketch, quantiles);
-              double[] cdf = (double[]) SketchQuantilesOp.CDF.calculate(itemsSketch, quantiles);
+              final ItemsSketch itemsSketch = sketch.value();
+              Object[] quantiles = (Object[]) SketchQuantilesOp.QUANTILES.calculate(itemsSketch, 11);
               result.put("min", quantiles[0]);
               result.put("max", quantiles[quantiles.length - 1]);
-              result.put("quantiles", quantiles);
+              result.put("median", quantiles[5]);
+
+              Object[] dedup = dedup(quantiles);
+              double[] pmf = (double[]) SketchQuantilesOp.PMF.calculate(itemsSketch, dedup);
+              double[] cdf = (double[]) SketchQuantilesOp.CDF.calculate(itemsSketch, dedup);
+              result.put("quantiles", dedup);
               result.put("pmf", pmf);
               result.put("cdf", cdf);
-              String lower = itemsSketch.getQuantile(0.25f);
-              String upper = itemsSketch.getQuantile(0.75f);
-              result.put("iqr", new String[]{lower, upper});
-              DimFilter outlier = OrDimFilter.of(
-                  new BoundDimFilter(dimension, null, lower, false, true, false, null),
-                  new BoundDimFilter(dimension, upper, null, true, false, false, null)
-              );
 
-              final SearchQuery search = new SearchQuery(
-                  representative.getDataSource(),
-                  null,
-                  QueryGranularities.ALL,
-                  10,
-                  representative.getQuerySegmentSpec(),
-                  virtualColumns,
-                  DefaultDimensionSpec.toSpec(dimension),
-                  new SearchQuerySpec.TakeAll(),
-                  new LexicographicSearchSortSpec(Arrays.asList("$count:desc")),
-                  false,
-                  null
-              );
-              final List<Map> frequentItems = Lists.newArrayList();
-              result.put("frequentItems", frequentItems);
-              futures.add(
-                  exec.submit(
-                      new AbstractPrioritizedCallable<Integer>(0)
-                      {
-                        @Override
-                        public Integer call()
+              Object lower = itemsSketch.getQuantile(0.25f);
+              Object upper = itemsSketch.getQuantile(0.75f);
+              result.put("iqr", new Object[]{lower, upper});
+              result.put("count", itemsSketch.getN());
+
+              if (sketch.type() == ValueType.STRING) {
+                final SearchQuery search = new SearchQuery(
+                    representative.getDataSource(),
+                    null,
+                    QueryGranularities.ALL,
+                    10,
+                    representative.getQuerySegmentSpec(),
+                    virtualColumns,
+                    DefaultDimensionSpec.toSpec(column),
+                    new SearchQuerySpec.TakeAll(),
+                    new LexicographicSearchSortSpec(Arrays.asList("$count:desc")),
+                    false,
+                    null
+                );
+                final List<Map> frequentItems = Lists.newArrayList();
+                result.put("frequentItems", frequentItems);
+                futures.add(
+                    exec.submit(
+                        new AbstractPrioritizedCallable<Integer>(0)
                         {
-                          int counter = 0;
-                          for (Result<SearchResultValue> result : Sequences.toList(
-                              search.run(segmentWalker, Maps.<String, Object>newHashMap()),
-                              Lists.<Result<SearchResultValue>>newArrayList()
-                          )) {
-                            SearchResultValue searchHits = result.getValue();
-                            for (SearchHit searchHit : searchHits.getValue()) {
-                              frequentItems.add(
-                                  ImmutableMap.of("value", searchHit.getValue(), "count", searchHit.getCount())
-                              );
-                              counter++;
+                          @Override
+                          public Integer call()
+                          {
+                            int counter = 0;
+                            for (Result<SearchResultValue> result : Sequences.toList(
+                                search.run(segmentWalker, Maps.<String, Object>newHashMap()),
+                                Lists.<Result<SearchResultValue>>newArrayList()
+                            )) {
+                              SearchResultValue searchHits = result.getValue();
+                              for (SearchHit searchHit : searchHits.getValue()) {
+                                frequentItems.add(
+                                    ImmutableMap.of("value", searchHit.getValue(), "count", searchHit.getCount())
+                                );
+                                counter++;
+                              }
                             }
+                            return counter;
                           }
-                          return counter;
                         }
-                      }
-                  )
-              );
+                    )
+                );
+              }
 
-              final GroupByQuery groupBy = new GroupByQuery(
-                  representative.getDataSource(),
-                  representative.getQuerySegmentSpec(),
-                  outlier,
-                  QueryGranularities.ALL,
-                  ImmutableList.<DimensionSpec>of(),
-                  virtualColumns,
-                  ImmutableList.<AggregatorFactory>of(new CountAggregatorFactory("count")),
-                  ImmutableList.<PostAggregator>of(),
-                  null, null, null, null, null
-              );
+              if (sketch.type() != ValueType.COMPLEX) {
+                GroupByQuery baseQuery = new GroupByQuery(
+                    representative.getDataSource(),
+                    representative.getQuerySegmentSpec(),
+                    null,
+                    QueryGranularities.ALL,
+                    ImmutableList.<DimensionSpec>of(),
+                    virtualColumns,
+                    ImmutableList.<AggregatorFactory>of(new CountAggregatorFactory("count")),
+                    ImmutableList.<PostAggregator>of(),
+                    null, null, null, null, null
+                );
 
-              futures.add(
-                  exec.submit(
-                      new AbstractPrioritizedCallable<Integer>(0)
-                      {
-                        @Override
-                        public Integer call()
+                final GroupByQuery groupBy = configureForType(baseQuery, column, lower, upper, sketch.type());
+
+                futures.add(
+                    exec.submit(
+                        new AbstractPrioritizedCallable<Integer>(0)
                         {
-                          int counter = 0;
-                          for (Row result : Sequences.toList(
-                              groupBy.run(segmentWalker, Maps.<String, Object>newHashMap()),
-                              Lists.<Row>newArrayList()
-                          )) {
-                            counter += result.getLongMetric("count");
+                          @Override
+                          public Integer call()
+                          {
+                            List<Row> rows = Sequences.toList(
+                                groupBy.run(segmentWalker, Maps.<String, Object>newHashMap()),
+                                Lists.<Row>newArrayList()
+                            );
+                            if (rows.isEmpty()) {
+                              return 0;
+                            }
+                            Row row = Iterables.getOnlyElement(rows);
+                            Map<String, Object> stats = results.get(column);
+                            stats.put("outliers", row.getLongMetric("outlier"));
+                            stats.put("missing", row.getLongMetric("missing"));
+                            if (ValueType.isNumeric(sketch.type())) {
+                              stats.put("mean", row.getDoubleMetric("mean"));
+                              stats.put("variance", row.getDoubleMetric("variance"));
+                              stats.put("stddev", row.getDoubleMetric("stddev"));
+                              stats.put("skewness", row.getDoubleMetric("skewness"));
+                            }
+                            return 0;
                           }
-                          results.get(dimension).put("outliers", counter);
-                          return counter;
                         }
-                      }
-                  )
-              );
+                    )
+                );
+              }
             }
           } else if (sketchQuery.getSketchOp() == SketchOp.THETA) {
             for (Map.Entry<String, Object> entry : value.entrySet()) {
               String dimension = entry.getKey();
-              Sketch sketch = (Sketch) entry.getValue();
+              TypedSketch<Sketch> sketch = (TypedSketch<Sketch>) entry.getValue();
               Map<String, Object> result = results.get(dimension);
               if (result == null) {
                 results.put(dimension, result = Maps.newLinkedHashMap());
               }
-              if (sketch.isEstimationMode()) {
-                result.put("cardinality(estimated)", sketch.getEstimate());
-                result.put("cardinality(upper95)", sketch.getUpperBound(2));
-                result.put("cardinality(lower95)", sketch.getLowerBound(2));
+              Sketch thetaSketch = sketch.value();
+              if (thetaSketch.isEstimationMode()) {
+                result.put("cardinality(estimated)", thetaSketch.getEstimate());
+                result.put("cardinality(upper95)", thetaSketch.getUpperBound(2));
+                result.put("cardinality(lower95)", thetaSketch.getLowerBound(2));
               } else {
-                result.put("cardinality", sketch.getEstimate());
+                result.put("cardinality", thetaSketch.getEstimate());
               }
             }
           }
@@ -247,6 +267,64 @@ public class SummaryPostProcessor extends PostProcessingOperator.UnionSupport
         return Sequences.simple(Arrays.asList(results));
       }
     };
+  }
+
+  private Object[] dedup(Object[] quantiles)
+  {
+    Set<Object> set = Sets.newLinkedHashSet();
+    for (Object quantile : quantiles) {
+      if (!set.contains(quantile)) {
+        set.add(quantile);
+      }
+    }
+    if (set.size() != quantiles.length) {
+      quantiles = set.toArray((Object[]) Array.newInstance(quantiles.getClass().getComponentType(), set.size()));
+    }
+    return quantiles;
+  }
+
+  private GroupByQuery configureForType(
+      GroupByQuery groupBy,
+      String column,
+      Object lower,
+      Object upper,
+      ValueType type
+  )
+  {
+    String isNull = "isnull(" + column + ")";
+    if (type == ValueType.STRING) {
+      return groupBy
+          .withAggregatorSpecs(
+              ImmutableList.<AggregatorFactory>of(
+                  new CountAggregatorFactory("outlier"),
+                  new CountAggregatorFactory("missing", isNull)
+              )
+          )
+          .withDimFilter(
+              OrDimFilter.of(
+                  BoundDimFilter.lt(column, (String) lower),
+                  BoundDimFilter.gt(column, (String) upper)
+              )
+          );
+    }
+    String outlier = column + " < " + lower + " || " + column + " >  " + upper;
+    return groupBy
+        .withAggregatorSpecs(
+            ImmutableList.<AggregatorFactory>of(
+                new CountAggregatorFactory("count"),
+                new CountAggregatorFactory("outlier", outlier),
+                new CountAggregatorFactory("missing", isNull),
+                new GenericSumAggregatorFactory("sum", column, null),
+                new VarianceAggregatorFactory("variance", column),
+                new KurtosisAggregatorFactory("skewness", column, null, null)
+            )
+        )
+        .withPostAggregatorSpecs(
+            ImmutableList.<PostAggregator>of(
+                new MathPostAggregator("mean", "sum / count"),
+                new StandardDeviationPostAggregator("stddev", "variance", null)
+            )
+        );
   }
 
   @Override

@@ -46,26 +46,29 @@ import java.util.Map;
 @JsonTypeName("summary")
 public class SummaryQuery extends BaseQuery<Result<Map<String, Object>>>
     implements BaseQuery.RewritingQuery<Result<Map<String, Object>>>,
-    Query.DimensionSupport<Result<Map<String, Object>>>
+    Query.ViewSupport<Result<Map<String, Object>>>
 {
   private final DimFilter dimFilter;
   private final List<DimensionSpec> dimensions;
+  private final List<String> metrics;
   private final List<VirtualColumn> virtualColumns;
 
   @JsonCreator
   public SummaryQuery(
       @JsonProperty("dataSource") DataSource dataSource,
       @JsonProperty("intervals") QuerySegmentSpec querySegmentSpec,
-      @JsonProperty("dimensions") List<DimensionSpec> dimensions,
       @JsonProperty("virtualColumns") List<VirtualColumn> virtualColumns,
+      @JsonProperty("dimensions") List<DimensionSpec> dimensions,
+      @JsonProperty("metrics") List<String> metrics,
       @JsonProperty("filter") DimFilter filter,
       @JsonProperty("context") Map<String, Object> context
   )
   {
     super(dataSource, querySegmentSpec, false, context);
     this.dimFilter = filter;
-    this.dimensions = dimensions;
     this.virtualColumns = virtualColumns;
+    this.dimensions = dimensions;
+    this.metrics = metrics;
   }
 
   @Override
@@ -73,11 +76,11 @@ public class SummaryQuery extends BaseQuery<Result<Map<String, Object>>>
   public Query rewriteQuery(QuerySegmentWalker segmentWalker, ObjectMapper jsonMapper)
   {
     SketchQuery quantile = new SketchQuery(
-        getDataSource(), getQuerySegmentSpec(), dimFilter, dimensions, virtualColumns, 4096, SketchOp.QUANTILE,
+        getDataSource(), getQuerySegmentSpec(), dimFilter, virtualColumns, dimensions, metrics, 4096, SketchOp.QUANTILE,
         Maps.newHashMap(getContext())
     );
     SketchQuery theta = new SketchQuery(
-        getDataSource(), getQuerySegmentSpec(), dimFilter, dimensions, virtualColumns, null, SketchOp.THETA,
+        getDataSource(), getQuerySegmentSpec(), dimFilter, virtualColumns, dimensions, metrics, null, SketchOp.THETA,
         Maps.newHashMap(getContext())
     );
     Map<String, Object> postProcessor = ImmutableMap.<String, Object>of(
@@ -101,17 +104,26 @@ public class SummaryQuery extends BaseQuery<Result<Map<String, Object>>>
   }
 
   @Override
+  @JsonProperty
   public DimFilter getDimFilter()
   {
     return dimFilter;
   }
 
+  @Override
   @JsonProperty
   public List<DimensionSpec> getDimensions()
   {
     return dimensions;
   }
 
+  @Override
+  public boolean allDimensionsForEmpty()
+  {
+    return BaseQuery.allColumnsForEmpty(this, false);
+  }
+
+  @Override
   @JsonProperty
   public List<VirtualColumn> getVirtualColumns()
   {
@@ -119,27 +131,86 @@ public class SummaryQuery extends BaseQuery<Result<Map<String, Object>>>
   }
 
   @Override
+  @JsonProperty
+  public List<String> getMetrics()
+  {
+    return metrics;
+  }
+
+  @Override
+  public boolean allMetricsForEmpty()
+  {
+    return BaseQuery.allColumnsForEmpty(this, false);
+  }
+
+  @Override
   public SummaryQuery withDimensionSpecs(List<DimensionSpec> dimensions)
   {
-    return new SummaryQuery(getDataSource(), getQuerySegmentSpec(), dimensions, virtualColumns, dimFilter, getContext());
+    return new SummaryQuery(
+        getDataSource(),
+        getQuerySegmentSpec(),
+        virtualColumns,
+        dimensions,
+        metrics,
+        dimFilter,
+        getContext()
+    );
+  }
+
+  @Override
+  public ViewSupport<Result<Map<String, Object>>> withMetrics(List<String> metrics)
+  {
+    return new SummaryQuery(
+        getDataSource(),
+        getQuerySegmentSpec(),
+        virtualColumns,
+        dimensions,
+        metrics,
+        dimFilter,
+        getContext()
+    );
   }
 
   @Override
   public SummaryQuery withVirtualColumns(List<VirtualColumn> virtualColumns)
   {
-    return new SummaryQuery(getDataSource(), getQuerySegmentSpec(), dimensions, virtualColumns, dimFilter, getContext());
+    return new SummaryQuery(
+        getDataSource(),
+        getQuerySegmentSpec(),
+        virtualColumns,
+        dimensions,
+        metrics,
+        dimFilter,
+        getContext()
+    );
   }
 
   @Override
   public SummaryQuery withQuerySegmentSpec(QuerySegmentSpec spec)
   {
-    return new SummaryQuery(getDataSource(), spec, dimensions, virtualColumns, dimFilter, getContext());
+    return new SummaryQuery(
+        getDataSource(),
+        spec,
+        virtualColumns,
+        dimensions,
+        metrics,
+        dimFilter,
+        getContext()
+    );
   }
 
   @Override
   public SummaryQuery withDataSource(DataSource dataSource)
   {
-    return new SummaryQuery(dataSource, getQuerySegmentSpec(), dimensions, virtualColumns, dimFilter, getContext());
+    return new SummaryQuery(
+        dataSource,
+        getQuerySegmentSpec(),
+        virtualColumns,
+        dimensions,
+        metrics,
+        dimFilter,
+        getContext()
+    );
   }
 
   @Override
@@ -148,17 +219,26 @@ public class SummaryQuery extends BaseQuery<Result<Map<String, Object>>>
     return new SummaryQuery(
         getDataSource(),
         getQuerySegmentSpec(),
-        dimensions,
         virtualColumns,
+        dimensions,
+        metrics,
         dimFilter,
         computeOverridenContext(contextOverride)
     );
   }
 
   @Override
-  public DimFilterSupport<Result<Map<String, Object>>> withDimFilter(DimFilter filter)
+  public SummaryQuery withDimFilter(DimFilter dimFilter)
   {
-    return new SummaryQuery(getDataSource(), getQuerySegmentSpec(), dimensions, virtualColumns, filter, getContext());
+    return new SummaryQuery(
+        getDataSource(),
+        getQuerySegmentSpec(),
+        virtualColumns,
+        dimensions,
+        metrics,
+        dimFilter,
+        getContext()
+    );
   }
 
   @Override
@@ -172,11 +252,14 @@ public class SummaryQuery extends BaseQuery<Result<Map<String, Object>>>
     if (dimFilter != null) {
       builder.append(", dimFilter=").append(dimFilter);
     }
+    if (virtualColumns != null && !virtualColumns.isEmpty()) {
+      builder.append(", virtualColumns=").append(virtualColumns);
+    }
     if (dimensions != null && !dimensions.isEmpty()) {
       builder.append(", dimensions=").append(dimensions);
     }
-    if (virtualColumns != null && !virtualColumns.isEmpty()) {
-      builder.append(", virtualColumns=").append(virtualColumns);
+    if (metrics != null && !metrics.isEmpty()) {
+      builder.append(", metrics=").append(metrics);
     }
     return builder.toString();
   }

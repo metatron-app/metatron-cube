@@ -26,10 +26,10 @@ import com.yahoo.sketches.quantiles.ItemsSketch;
 import com.yahoo.sketches.quantiles.ItemsUnion;
 import com.yahoo.sketches.sampling.ReservoirItemsSketch;
 import com.yahoo.sketches.sampling.ReservoirItemsUnion;
-import com.yahoo.sketches.theta.CompactSketch;
 import com.yahoo.sketches.theta.SetOperation;
 import com.yahoo.sketches.theta.Sketch;
 import com.yahoo.sketches.theta.Union;
+import io.druid.data.ValueType;
 import io.druid.query.extraction.ExtractionFn;
 import io.druid.query.filter.BitmapIndexSelector;
 import io.druid.segment.column.BitmapIndex;
@@ -39,15 +39,15 @@ import java.util.List;
 
 /**
  */
-public interface SketchHandler
+public interface SketchHandler<U>
 {
-  Object calculate(
+  TypedSketch<U> calculate(
       int sketchParam,
       BitmapIndex bitmapIndex,
       ExtractionFn function
   );
 
-  Object calculate(
+  TypedSketch<U> calculate(
       int sketchParam,
       BitmapIndex bitmapIndex,
       ExtractionFn function,
@@ -55,29 +55,31 @@ public interface SketchHandler
       BitmapIndexSelector selector
   );
 
-  Object newUnion(int sketchParam);
+  boolean supports(ValueType type);
 
-  void updateWithValue(Object union, String value);
+  TypedSketch<U> newUnion(int sketchParam, ValueType type);
 
-  void updateWithSketch(Object union, Object sketch);
+  void updateWithValue(TypedSketch<U> union, Object value);
 
-  Object toSketch(Object input);
+  void updateWithSketch(TypedSketch<U> union, Object sketch);
 
-  public static class Theta implements SketchHandler
+  TypedSketch toSketch(TypedSketch<U> input);
+
+  public static class Theta implements SketchHandler<Union>
   {
     @Override
-    public CompactSketch calculate(int sketchParam, BitmapIndex bitmapIndex, ExtractionFn function)
+    public TypedSketch<Union> calculate(int sketchParam, BitmapIndex bitmapIndex, ExtractionFn function)
     {
-      final Union union = newUnion(sketchParam);
+      final TypedSketch<Union> union = newUnion(sketchParam, ValueType.STRING);
       final int cardinality = bitmapIndex.getCardinality();
       for (int i = 0; i < cardinality; ++i) {
-        union.update(function.apply(bitmapIndex.getValue(i)));
+        union.value().update(function.apply(bitmapIndex.getValue(i)));
       }
-      return union.getResult();
+      return union;
     }
 
     @Override
-    public Object calculate(
+    public TypedSketch<Union> calculate(
         int sketchParam,
         BitmapIndex bitmapIndex,
         ExtractionFn function,
@@ -85,62 +87,87 @@ public interface SketchHandler
         BitmapIndexSelector selector
     )
     {
-      final Union union = newUnion(sketchParam);
+      final TypedSketch<Union> union = newUnion(sketchParam, ValueType.STRING);
       final int cardinality = bitmapIndex.getCardinality();
       for (int i = 0; i < cardinality; ++i) {
         List<ImmutableBitmap> intersecting = Arrays.asList(bitmapIndex.getBitmap(i), filter);
         ImmutableBitmap bitmap = selector.getBitmapFactory().intersection(intersecting);
         if (bitmap.size() > 0) {
-          union.update(function.apply(bitmapIndex.getValue(i)));
+          union.value().update(function.apply(bitmapIndex.getValue(i)));
         }
       }
-      return union.getResult();
+      return union;
     }
 
     @Override
-    public Union newUnion(int sketchParam)
+    public boolean supports(ValueType type)
     {
-      return (Union) SetOperation.builder().build(sketchParam, Family.UNION);
+      return type != ValueType.COMPLEX;
     }
 
     @Override
-    public void updateWithValue(Object union, String value)
+    public TypedSketch<Union> newUnion(int sketchParam, ValueType type)
     {
-      ((Union) union).update(value);
+      return TypedSketch.of(type, (Union) SetOperation.builder().build(sketchParam, Family.UNION));
     }
 
     @Override
-    public void updateWithSketch(Object union, Object sketch)
+    public void updateWithValue(TypedSketch<Union> union, Object value)
     {
-      ((Union) union).update((Sketch) sketch);
-    }
-
-    @Override
-    public Object toSketch(Object input)
-    {
-      if (input instanceof Union) {
-        return ((Union) input).getResult();
+      switch (union.type()) {
+        case STRING:
+          union.value().update((String) value);
+          break;
+        case FLOAT:
+          union.value().update(((Number) value).floatValue());
+          break;
+        case DOUBLE:
+          union.value().update(((Number) value).doubleValue());
+          break;
+        case LONG:
+          union.value().update(((Number) value).longValue());
+          break;
+        default :
+          throw new IllegalArgumentException("not supported type " + union.type());
       }
-      return input;
+    }
+
+    @Override
+    public void updateWithSketch(TypedSketch<Union> union, Object sketch)
+    {
+      union.value().update((Sketch) sketch);
+    }
+
+    @Override
+    public TypedSketch toSketch(TypedSketch<Union> input)
+    {
+      return TypedSketch.of(input.type(), input.value().getResult());
     }
   }
 
-  public abstract static class CardinalitySensitive<T> implements SketchHandler
+  public abstract static class CardinalitySensitive<U> implements SketchHandler<U>
   {
     @Override
-    public final T calculate(int sketchParam, BitmapIndex bitmapIndex, ExtractionFn function)
+    public boolean supports(ValueType type)
     {
-      final T histogram = newInstance(sketchParam);
-      final int cardinality = bitmapIndex.getCardinality();
-      for (int i = 0; i < cardinality; ++i) {
-        final String value = function.apply(bitmapIndex.getValue(i));
-        update(histogram, value, bitmapIndex.getBitmap(i).size());
-      }
-      return histogram;
+//      return type != ValueType.COMPLEX || Comparable.class.isAssignableFrom(type.classOfObject());
+      return type != ValueType.COMPLEX;
     }
 
     @Override
-    public final T calculate(
+    public final TypedSketch<U> calculate(int sketchParam, BitmapIndex bitmapIndex, ExtractionFn function)
+    {
+      final TypedSketch<U> union = newUnion(sketchParam, ValueType.STRING);
+      final int cardinality = bitmapIndex.getCardinality();
+      for (int i = 0; i < cardinality; ++i) {
+        final String value = function.apply(bitmapIndex.getValue(i));
+        update(union, value, bitmapIndex.getBitmap(i).size());
+      }
+      return union;
+    }
+
+    @Override
+    public final TypedSketch<U> calculate(
         int sketchParam,
         BitmapIndex bitmapIndex,
         ExtractionFn function,
@@ -148,157 +175,132 @@ public interface SketchHandler
         BitmapIndexSelector selector
     )
     {
-      final T histogram = newInstance(sketchParam);
+      final TypedSketch<U> union = newUnion(sketchParam, ValueType.STRING);
       final int cardinality = bitmapIndex.getCardinality();
       for (int i = 0; i < cardinality; ++i) {
         final List<ImmutableBitmap> intersecting = Arrays.asList(bitmapIndex.getBitmap(i), filter);
         final ImmutableBitmap bitmap = selector.getBitmapFactory().intersection(intersecting);
         if (bitmap.size() > 0) {
           final String value = function.apply(bitmapIndex.getValue(i));
-          update(histogram, value, bitmap.size());
+          update(union, value, bitmap.size());
         }
       }
-      return histogram;
+      return union;
     }
 
-    protected abstract T newInstance(int sketchParam);
-
-    protected abstract void update(T instance, String value, int count);
+    protected abstract void update(TypedSketch<U> instance, Object value, int count);
   }
 
-  public static class Quantile extends CardinalitySensitive<ItemsSketch<String>>
+  public static class Quantile extends CardinalitySensitive<ItemsUnion>
   {
     @Override
-    protected final ItemsSketch<String> newInstance(int sketchParam)
-    {
-      return ItemsSketch.getInstance(sketchParam, Ordering.natural());
-    }
-
-    @Override
     @SuppressWarnings("unchecked")
-    protected final void update(ItemsSketch<String> sketch, String value, int count)
+    protected final void update(TypedSketch<ItemsUnion> sketch, Object value, int count)
     {
       for (int i = 0; i < count; i++) {
-        sketch.update(value);
+        sketch.value().update(value);
       }
     }
 
     @Override
-    public ItemsUnion<String> newUnion(int sketchParam)
+    public TypedSketch<ItemsUnion> newUnion(int sketchParam, ValueType type)
     {
-      return ItemsUnion.<String>getInstance(sketchParam, Ordering.natural());
+      ItemsUnion union = ItemsUnion.getInstance(sketchParam, Ordering.natural());
+      return TypedSketch.of(type, union);
     }
 
     @Override
     @SuppressWarnings("unchecked")
-    public void updateWithValue(Object union, String value)
+    public void updateWithValue(TypedSketch<ItemsUnion> union, Object value)
     {
-      ((ItemsUnion) union).update(value);
+      union.value().update(value);
     }
 
     @Override
     @SuppressWarnings("unchecked")
-    public void updateWithSketch(Object union, Object sketch)
+    public void updateWithSketch(TypedSketch<ItemsUnion> union, Object sketch)
     {
-      ((ItemsUnion) union).update((ItemsSketch) sketch);
+      union.value().update((ItemsSketch) sketch);
     }
 
     @Override
-    public Object toSketch(Object input)
+    public TypedSketch<ItemsSketch> toSketch(TypedSketch<ItemsUnion> input)
     {
-      if (input instanceof ItemsUnion) {
-        return ((ItemsUnion) input).getResult();
-      }
-      return input;
+      return TypedSketch.of(input.type(), input.value().getResult());
     }
   }
 
-  public static class Frequency extends CardinalitySensitive<com.yahoo.sketches.frequencies.ItemsSketch<String>>
+  public static class Frequency extends CardinalitySensitive<com.yahoo.sketches.frequencies.ItemsSketch>
   {
     @Override
-    protected final com.yahoo.sketches.frequencies.ItemsSketch<String> newInstance(int sketchParam)
+    @SuppressWarnings("unchecked")
+    protected final void update(TypedSketch<com.yahoo.sketches.frequencies.ItemsSketch> instance, Object value, int count)
     {
-      return newUnion(sketchParam);
+      instance.value().update(value, count);
+    }
+
+    @Override
+    public TypedSketch<com.yahoo.sketches.frequencies.ItemsSketch> newUnion(int sketchParam, ValueType type)
+    {
+      return TypedSketch.of(type, new com.yahoo.sketches.frequencies.ItemsSketch(sketchParam));
     }
 
     @Override
     @SuppressWarnings("unchecked")
-    protected final void update(com.yahoo.sketches.frequencies.ItemsSketch<String> instance, String value, int count)
+    public void updateWithValue(TypedSketch<com.yahoo.sketches.frequencies.ItemsSketch> union, Object value)
     {
-      instance.update(value, count);
-    }
-
-    @Override
-    public com.yahoo.sketches.frequencies.ItemsSketch<String> newUnion(int sketchParam)
-    {
-      return new com.yahoo.sketches.frequencies.ItemsSketch<>(sketchParam);
+      union.value().update(value);
     }
 
     @Override
     @SuppressWarnings("unchecked")
-    public void updateWithValue(Object union, String value)
+    public void updateWithSketch(TypedSketch<com.yahoo.sketches.frequencies.ItemsSketch> union, Object sketch)
     {
-      ((com.yahoo.sketches.frequencies.ItemsSketch) union).update(value);
+      union.value().merge((com.yahoo.sketches.frequencies.ItemsSketch) sketch);
     }
 
     @Override
-    @SuppressWarnings("unchecked")
-    public void updateWithSketch(Object union, Object sketch)
-    {
-      ((com.yahoo.sketches.frequencies.ItemsSketch) union).merge((com.yahoo.sketches.frequencies.ItemsSketch) sketch);
-    }
-
-    @Override
-    public Object toSketch(Object input)
+    public TypedSketch toSketch(TypedSketch<com.yahoo.sketches.frequencies.ItemsSketch> input)
     {
       return input;
     }
   }
 
-  public static class Sampling extends CardinalitySensitive<ReservoirItemsSketch<String>>
+  public static class Sampling extends CardinalitySensitive<ReservoirItemsUnion>
   {
     @Override
-    protected final ReservoirItemsSketch<String> newInstance(int sketchParam)
-    {
-      return ReservoirItemsSketch.getInstance(sketchParam);
-    }
-
-    @Override
     @SuppressWarnings("unchecked")
-    protected final void update(ReservoirItemsSketch<String> sketch, String value, int count)
+    protected final void update(TypedSketch<ReservoirItemsUnion> sketch, Object value, int count)
     {
       for (int i = 0; i < count; i++) {
-        sketch.update(value);
+        sketch.value().update(value);
       }
     }
 
     @Override
-    public ReservoirItemsUnion<String> newUnion(int sketchParam)
+    public TypedSketch<ReservoirItemsUnion> newUnion(int sketchParam, ValueType type)
     {
-      return ReservoirItemsUnion.getInstance(sketchParam);
+      return TypedSketch.of(type, (ReservoirItemsUnion) ReservoirItemsUnion.getInstance(sketchParam));
     }
 
     @Override
     @SuppressWarnings("unchecked")
-    public void updateWithValue(Object union, String value)
+    public void updateWithValue(TypedSketch<ReservoirItemsUnion> union, Object value)
     {
-      ((ReservoirItemsSketch) union).update(value);
+      union.value().update(value);
     }
 
     @Override
     @SuppressWarnings("unchecked")
-    public void updateWithSketch(Object union, Object sketch)
+    public void updateWithSketch(TypedSketch<ReservoirItemsUnion> union, Object sketch)
     {
-      ((ReservoirItemsUnion) union).update((ReservoirItemsSketch) sketch);
+      union.value().update((ReservoirItemsSketch) sketch);
     }
 
     @Override
-    public Object toSketch(Object input)
+    public TypedSketch toSketch(TypedSketch<ReservoirItemsUnion> union)
     {
-      if (input instanceof ReservoirItemsUnion) {
-        return ((ReservoirItemsUnion) input).getResult();
-      }
-      return input;
+      return TypedSketch.of(union.type(), union.value().getResult());
     }
   }
 }

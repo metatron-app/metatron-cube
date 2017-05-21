@@ -146,7 +146,6 @@ public class GenericSumAggregatorFactory extends GenericAggregatorFactory
   {
     switch (valueType) {
       case FLOAT:
-        return ((Number) lhs).floatValue() + ((Number) rhs).floatValue();
       case DOUBLE:
         return ((Number) lhs).doubleValue() + ((Number) rhs).doubleValue();
       case LONG:

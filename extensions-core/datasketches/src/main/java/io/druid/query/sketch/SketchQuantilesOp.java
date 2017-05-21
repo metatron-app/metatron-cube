@@ -37,8 +37,8 @@ public enum SketchQuantilesOp
     @SuppressWarnings("unchecked")
     public Object calculate(ItemsSketch sketch, Object parameter)
     {
-      if (parameter instanceof String[]) {
-        return sketch.getCDF((String[]) parameter);
+      if (parameter.getClass().isArray()) {
+        return sketch.getCDF((Object[]) parameter);
       }
       throw new IllegalArgumentException("Not supported parameter " + parameter + "(" + parameter.getClass() + ")");
     }
@@ -48,8 +48,8 @@ public enum SketchQuantilesOp
     @SuppressWarnings("unchecked")
     public Object calculate(ItemsSketch sketch, Object parameter)
     {
-      if (parameter instanceof String[]) {
-        return sketch.getPMF((String[]) parameter);
+      if (parameter.getClass().isArray()) {
+        return sketch.getPMF((Object[]) parameter);
       }
       throw new IllegalArgumentException("Not supported parameter " + parameter + "(" + parameter.getClass() + ")");
     }

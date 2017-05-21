@@ -19,6 +19,7 @@
 
 package io.druid.query.sketch;
 
+import com.google.common.base.Preconditions;
 import com.google.common.collect.Maps;
 import com.metamx.common.guava.nary.BinaryFn;
 import io.druid.query.Result;
@@ -52,8 +53,8 @@ public class SketchBinaryFn
 
     final Map<String, Object> merged = Maps.newHashMap();
     for (Map.Entry<String, Object> entry : value1.entrySet()) {
-      Object sketch = entry.getValue();
-      Object merging = value2.get(entry.getKey());
+      TypedSketch sketch = (TypedSketch) entry.getValue();
+      TypedSketch merging = (TypedSketch) value2.get(entry.getKey());
       if (merging != null) {
         sketch = merge(sketch, merging);
       }
@@ -67,11 +68,13 @@ public class SketchBinaryFn
     return new Result<>(arg1.getTimestamp(), merged);
   }
 
-  private Object merge(Object object1, Object object2)
+  @SuppressWarnings("unchecked")
+  final TypedSketch merge(TypedSketch object1, TypedSketch object2)
   {
-    Object union = handler.newUnion(nomEntries);
-    handler.updateWithSketch(union, object1);
-    handler.updateWithSketch(union, object2);
+    Preconditions.checkArgument(object1.type() == object2.type(), "Type mismatch");
+    TypedSketch union = handler.newUnion(nomEntries, object1.type());
+    handler.updateWithSketch(union, object1.value());
+    handler.updateWithSketch(union, object2.value());
     return handler.toSketch(union);
   }
 }

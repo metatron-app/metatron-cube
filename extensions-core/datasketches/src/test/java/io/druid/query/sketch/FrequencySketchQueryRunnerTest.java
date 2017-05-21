@@ -26,6 +26,7 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.metamx.common.guava.Sequences;
 import com.yahoo.sketches.frequencies.ItemsSketch;
+import io.druid.data.ValueType;
 import io.druid.query.Query;
 import io.druid.query.QueryRunner;
 import io.druid.query.QueryRunnerTestHelper;
@@ -90,15 +91,15 @@ public class FrequencySketchQueryRunnerTest
       mapper = mapper.registerModule(module);
     }
     int nomEntries = 16;
-    Object union1 = handler.newUnion(nomEntries);
+    TypedSketch union1 = handler.newUnion(nomEntries, ValueType.STRING);
     handler.updateWithValue(union1, "automotive");
     handler.updateWithValue(union1, "business");
     handler.updateWithValue(union1, "entertainment");
     handler.updateWithValue(union1, "health");
     handler.updateWithValue(union1, "mezzanine");
     handler.updateWithValue(union1, "news");
-    ItemsSketch sketch1 = (ItemsSketch) handler.toSketch(union1);
-    Object union2 = handler.newUnion(nomEntries);
+    ItemsSketch sketch1 = (ItemsSketch) handler.toSketch(union1).value();
+    TypedSketch union2 = handler.newUnion(nomEntries, ValueType.STRING);
     handler.updateWithValue(union2, "automotive1");
     handler.updateWithValue(union2, "automotive2");
     handler.updateWithValue(union2, "automotive3");
@@ -120,7 +121,7 @@ public class FrequencySketchQueryRunnerTest
     handler.updateWithValue(union2, "premium1");
     handler.updateWithValue(union2, "premium2");
     handler.updateWithValue(union2, "premium3");
-    ItemsSketch sketch2 = (ItemsSketch) handler.toSketch(union2);
+    ItemsSketch sketch2 = (ItemsSketch) handler.toSketch(union2).value();
 
     Map<String, Object> sketches = ImmutableMap.<String, Object>of("quality1", sketch1, "quality2", sketch2);
     Result<Map<String, Object>> result = new Result<>(new DateTime("2016-12-14T16:08:00"), sketches);
@@ -139,8 +140,8 @@ public class FrequencySketchQueryRunnerTest
         {
         }
     );
-    assertEqual(sketch1, SketchOperations.deserializeFrequency(deserialized.getValue().get("quality1")));
-    assertEqual(sketch2, SketchOperations.deserializeFrequency(deserialized.getValue().get("quality2")));
+    assertEqual(sketch1, SketchOperations.deserializeFrequency(deserialized.getValue().get("quality1"), ValueType.STRING));
+    assertEqual(sketch2, SketchOperations.deserializeFrequency(deserialized.getValue().get("quality2"), ValueType.STRING));
 
     Map<String, Object> object = ImmutableMap.<String, Object>builder()
                 .put("queryType", "sketch")
@@ -169,23 +170,23 @@ public class FrequencySketchQueryRunnerTest
   {
     SketchHandler handler = SketchOp.FREQUENCY.handler();
     int nomEntries = 16;
-    Object union1 = handler.newUnion(nomEntries);
+    TypedSketch union1 = handler.newUnion(nomEntries, ValueType.STRING);
     handler.updateWithValue(union1, "automotive");
     handler.updateWithValue(union1, "business");
     handler.updateWithValue(union1, "entertainment");
     handler.updateWithValue(union1, "health");
     handler.updateWithValue(union1, "mezzanine");
     handler.updateWithValue(union1, "news");
-    ItemsSketch sketch1 = (ItemsSketch) handler.toSketch(union1);
-    Assert.assertEquals(1L, sketch1.getEstimate("mezzanine"));
-    Object union2 = handler.newUnion(nomEntries);
+    TypedSketch<ItemsSketch> sketch1 = (TypedSketch<ItemsSketch>) handler.toSketch(union1);
+    Assert.assertEquals(1L, sketch1.value().getEstimate("mezzanine"));
+    TypedSketch union2 = handler.newUnion(nomEntries, ValueType.STRING);
     handler.updateWithValue(union2, "premium");
     handler.updateWithValue(union2, "premium");
     handler.updateWithValue(union2, "premium");
     handler.updateWithValue(union2, "mezzanine");
     handler.updateWithValue(union2, "mezzanine");
-    ItemsSketch sketch2 = (ItemsSketch) handler.toSketch(union2);
-    Assert.assertEquals(2L, sketch2.getEstimate("mezzanine"));
+    TypedSketch<ItemsSketch> sketch2 = (TypedSketch<ItemsSketch>) handler.toSketch(union2);
+    Assert.assertEquals(2L, sketch2.value().getEstimate("mezzanine"));
 
     Result<Map<String, Object>> merged =
         new SketchBinaryFn(nomEntries, handler).apply(
@@ -199,8 +200,8 @@ public class FrequencySketchQueryRunnerTest
             )
         );
 
-    ItemsSketch sketch = (ItemsSketch) merged.getValue().get("quality");
-    Assert.assertEquals(3L, sketch.getEstimate("mezzanine"));
+    TypedSketch<ItemsSketch> sketch = (TypedSketch<ItemsSketch>) merged.getValue().get("quality");
+    Assert.assertEquals(3L, sketch.value().getEstimate("mezzanine"));
   }
 
   @Test
@@ -209,7 +210,10 @@ public class FrequencySketchQueryRunnerTest
     SketchQuery query = new SketchQuery(
         new TableDataSource(QueryRunnerTestHelper.dataSource),
         QueryRunnerTestHelper.fullOnInterval,
-        null, DefaultDimensionSpec.toSpec("market", "quality"), null, 16, SketchOp.FREQUENCY, null
+        null,
+        null,
+        DefaultDimensionSpec.toSpec("market", "quality"),
+        null, 16, SketchOp.FREQUENCY, null
     );
 
     List<Result<Map<String, Object>>> result = Sequences.toList(
@@ -218,23 +222,23 @@ public class FrequencySketchQueryRunnerTest
     );
     Assert.assertEquals(1, result.size());
     Map<String, Object> values = result.get(0).getValue();
-    ItemsSketch sketch1 = (ItemsSketch) values.get("market");
+    TypedSketch<ItemsSketch> sketch1 = (TypedSketch<ItemsSketch>) values.get("market");
     System.out.println(sketch1);
-    Assert.assertEquals(187L, sketch1.getEstimate("upfront"), 5);
-    Assert.assertEquals(838L, sketch1.getEstimate("spot"), 5);
-    Assert.assertEquals(187L, sketch1.getEstimate("total_market"), 5);
+    Assert.assertEquals(187L, sketch1.value().getEstimate("upfront"), 5);
+    Assert.assertEquals(838L, sketch1.value().getEstimate("spot"), 5);
+    Assert.assertEquals(187L, sketch1.value().getEstimate("total_market"), 5);
 
-    ItemsSketch sketch2 = (ItemsSketch) values.get("quality");
+    TypedSketch<ItemsSketch> sketch2 = (TypedSketch<ItemsSketch>) values.get("quality");
     System.out.println(sketch2);
-    Assert.assertEquals(94L, sketch2.getEstimate("entertainment"), 5);
-    Assert.assertEquals(280L, sketch2.getEstimate("mezzanine"), 5);
-    Assert.assertEquals(280L, sketch2.getEstimate("premium"), 5);
-    Assert.assertEquals(94L, sketch2.getEstimate("business"), 5);
-    Assert.assertEquals(94L, sketch2.getEstimate("news"), 5);
-    Assert.assertEquals(94L, sketch2.getEstimate("technology"), 5);
-    Assert.assertEquals(94L, sketch2.getEstimate("automotive"), 5);
-    Assert.assertEquals(94L, sketch2.getEstimate("travel"), 5);
-    Assert.assertEquals(94L, sketch2.getEstimate("health"), 5);
+    Assert.assertEquals(94L, sketch2.value().getEstimate("entertainment"), 5);
+    Assert.assertEquals(280L, sketch2.value().getEstimate("mezzanine"), 5);
+    Assert.assertEquals(280L, sketch2.value().getEstimate("premium"), 5);
+    Assert.assertEquals(94L, sketch2.value().getEstimate("business"), 5);
+    Assert.assertEquals(94L, sketch2.value().getEstimate("news"), 5);
+    Assert.assertEquals(94L, sketch2.value().getEstimate("technology"), 5);
+    Assert.assertEquals(94L, sketch2.value().getEstimate("automotive"), 5);
+    Assert.assertEquals(94L, sketch2.value().getEstimate("travel"), 5);
+    Assert.assertEquals(94L, sketch2.value().getEstimate("health"), 5);
   }
 
     @Test
@@ -246,9 +250,11 @@ public class FrequencySketchQueryRunnerTest
         AndDimFilter.of(
             BoundDimFilter.gt("market", "spot"),
             BoundDimFilter.lte("quality", "premium")
-        ), DefaultDimensionSpec.toSpec("market", "quality"), null,
-        16, SketchOp.FREQUENCY, null
-        );
+        ),
+        null,
+        DefaultDimensionSpec.toSpec("market", "quality"),
+        null, 16, SketchOp.FREQUENCY, null
+    );
 
     List<Result<Map<String, Object>>> result = Sequences.toList(
         runner.run(query, null),
@@ -256,15 +262,15 @@ public class FrequencySketchQueryRunnerTest
     );
     Assert.assertEquals(1, result.size());
     Map<String, Object> values = result.get(0).getValue();
-    ItemsSketch sketch1 = (ItemsSketch) values.get("market");
+    TypedSketch<ItemsSketch> sketch1 = (TypedSketch<ItemsSketch>) values.get("market");
     System.out.println(sketch1);
-    Assert.assertEquals(186L, sketch1.getEstimate("upfront"), 5);
-    Assert.assertEquals(186L, sketch1.getEstimate("total_market"), 5);
+    Assert.assertEquals(186L, sketch1.value().getEstimate("upfront"), 5);
+    Assert.assertEquals(186L, sketch1.value().getEstimate("total_market"), 5);
 
-    ItemsSketch sketch2 = (ItemsSketch) values.get("quality");
+    TypedSketch<ItemsSketch> sketch2 = (TypedSketch<ItemsSketch>) values.get("quality");
     System.out.println(sketch2);
-    Assert.assertEquals(186L, sketch2.getEstimate("mezzanine"), 5);
-    Assert.assertEquals(186L, sketch2.getEstimate("premium"), 5);
+    Assert.assertEquals(186L, sketch2.value().getEstimate("mezzanine"), 5);
+    Assert.assertEquals(186L, sketch2.value().getEstimate("premium"), 5);
   }
 
   private void assertEqual(ItemsSketch expected, ItemsSketch result)

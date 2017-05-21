@@ -34,8 +34,6 @@ import io.druid.initialization.DruidModule;
 import io.druid.query.Query;
 import io.druid.query.QueryRunnerFactory;
 import io.druid.query.QueryToolChest;
-import io.druid.query.sketch.SummaryPostProcessor;
-import io.druid.query.sketch.SummaryQuery;
 import io.druid.query.sketch.SimilarityProcessingOperator;
 import io.druid.query.sketch.SketchFrequencyProcessor;
 import io.druid.query.sketch.SketchQuantilesProcessor;
@@ -44,6 +42,8 @@ import io.druid.query.sketch.SketchQueryQueryToolChest;
 import io.druid.query.sketch.SketchQueryRunnerFactory;
 import io.druid.query.sketch.SketchSamplingProcessor;
 import io.druid.query.sketch.SketchThetaProcessor;
+import io.druid.query.sketch.SummaryPostProcessor;
+import io.druid.query.sketch.SummaryQuery;
 import io.druid.segment.serde.ComplexMetrics;
 
 import java.util.Arrays;

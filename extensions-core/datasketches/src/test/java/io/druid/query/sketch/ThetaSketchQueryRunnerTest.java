@@ -29,6 +29,7 @@ import com.yahoo.sketches.Family;
 import com.yahoo.sketches.theta.SetOperation;
 import com.yahoo.sketches.theta.Sketch;
 import com.yahoo.sketches.theta.Union;
+import io.druid.data.ValueType;
 import io.druid.query.QueryRunner;
 import io.druid.query.QueryRunnerTestHelper;
 import io.druid.query.Result;
@@ -145,23 +146,23 @@ public class ThetaSketchQueryRunnerTest
   @Test
   public void testSketchMergeFunction() throws Exception
   {
-    SketchHandler handler = SketchOp.THETA.handler();
+    SketchHandler<Union> handler = SketchOp.THETA.handler();
     int nomEntries = 16;
-    Union union1 = (Union) SetOperation.builder().build(nomEntries, Family.UNION);
-    union1.update("automotive");
-    union1.update("business");
-    union1.update("entertainment");
-    union1.update("health");
-    union1.update("mezzanine");
-    union1.update("news");
-    Sketch sketch1 = union1.getResult(true, null);
-    Assert.assertEquals(6, sketch1.getEstimate(), 0.001);
-    Union union2 = (Union) SetOperation.builder().build(nomEntries, Family.UNION);
-    union2.update("automotive");
-    union2.update("health");
-    union2.update("premium");
-    Sketch sketch2 = union2.getResult(true, null);
-    Assert.assertEquals(3, sketch2.getEstimate(), 0.001);
+    TypedSketch<Union> union1 = handler.newUnion(nomEntries, ValueType.STRING);
+    handler.updateWithValue(union1, "automotive");
+    handler.updateWithValue(union1, "business");
+    handler.updateWithValue(union1, "entertainment");
+    handler.updateWithValue(union1, "health");
+    handler.updateWithValue(union1, "mezzanine");
+    handler.updateWithValue(union1, "news");
+    TypedSketch<Sketch> sketch1 = handler.toSketch(union1);
+    Assert.assertEquals(6, sketch1.value().getEstimate(), 0.001);
+    TypedSketch<Union> union2 = handler.newUnion(nomEntries, ValueType.STRING);
+    handler.updateWithValue(union2, "automotive");
+    handler.updateWithValue(union2, "health");
+    handler.updateWithValue(union2, "premium");
+    TypedSketch<Sketch> sketch2 = handler.toSketch(union2);
+    Assert.assertEquals(3, sketch2.value().getEstimate(), 0.001);
 
     Result<Map<String, Object>> merged =
         new SketchBinaryFn(nomEntries, handler).apply(
@@ -175,8 +176,8 @@ public class ThetaSketchQueryRunnerTest
             )
         );
 
-    Sketch sketch = (Sketch) merged.getValue().get("quality");
-    Assert.assertEquals(7, sketch.getEstimate(), 0.001);
+    TypedSketch<Sketch> sketch = (TypedSketch<Sketch>) merged.getValue().get("quality");
+    Assert.assertEquals(7, sketch.value().getEstimate(), 0.001);
   }
 
   @Test
@@ -185,7 +186,7 @@ public class ThetaSketchQueryRunnerTest
     SketchQuery query = new SketchQuery(
         new TableDataSource(QueryRunnerTestHelper.dataSource),
         QueryRunnerTestHelper.fullOnInterval,
-        null, DefaultDimensionSpec.toSpec("market", "quality"), null, 16, null, null
+        null, null, DefaultDimensionSpec.toSpec("market", "quality"), null, 16, null, null
     );
 
     List<Result<Map<String, Object>>> result = Sequences.toList(
@@ -194,8 +195,8 @@ public class ThetaSketchQueryRunnerTest
     );
     Assert.assertEquals(1, result.size());
     Map<String, Object> values = result.get(0).getValue();
-    Assert.assertEquals(3, ((Sketch) values.get("market")).getEstimate(), 0.001);
-    Assert.assertEquals(9, ((Sketch) values.get("quality")).getEstimate(), 0.001);
+    Assert.assertEquals(3, ((TypedSketch<Sketch>) values.get("market")).value().getEstimate(), 0.001);
+    Assert.assertEquals(9, ((TypedSketch<Sketch>) values.get("quality")).value().getEstimate(), 0.001);
   }
 
   @Test
@@ -207,6 +208,7 @@ public class ThetaSketchQueryRunnerTest
         AndDimFilter.of(
             BoundDimFilter.between("market", "spot", "upfront"),
             BoundDimFilter.between("quality", "health", "premium")),
+        null,
         DefaultDimensionSpec.toSpec("market", "quality"), null,
         16, null, null
         );
@@ -217,8 +219,8 @@ public class ThetaSketchQueryRunnerTest
     );
     Assert.assertEquals(1, result.size());
     Map<String, Object> values = result.get(0).getValue();
-    Assert.assertEquals(2, ((Sketch) values.get("market")).getEstimate(), 0.001);
-    Assert.assertEquals(3, ((Sketch) values.get("quality")).getEstimate(), 0.001);
+    Assert.assertEquals(2, ((TypedSketch<Sketch>) values.get("market")).value().getEstimate(), 0.001);
+    Assert.assertEquals(3, ((TypedSketch<Sketch>) values.get("quality")).value().getEstimate(), 0.001);
   }
 
   private void assertEqual(Sketch expected, Sketch result)

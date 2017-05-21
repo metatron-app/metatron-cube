@@ -96,14 +96,14 @@ public class SimilarityProcessingOperator extends PostProcessingOperator.UnionSu
                 final Map<String, Object> result = element.getValue();
                 final Map<String, Sketch> sketchMap = Maps.newHashMapWithExpectedSize(result.size());
                 for (Map.Entry<String, Object> entry : result.entrySet()) {
-                  Sketch sketch = SketchOperations.deserialize(entry.getValue());
+                  TypedSketch<Sketch> sketch = (TypedSketch<Sketch>) entry.getValue();
                   for (Map.Entry<String, Sketch> sketches : sketchMap.entrySet()) {
-                    double similarity = getSimilarity(nomEntries, sketch, sketches.getValue());
+                    double similarity = getSimilarity(nomEntries, sketch.value(), sketches.getValue());
                     if (similarity > threshold) {
                       similarities.add(new Similarity(entry.getKey(), sketches.getKey(), similarity));
                     }
                   }
-                  sketchMap.put(entry.getKey(), sketch);
+                  sketchMap.put(entry.getKey(), sketch.value());
                 }
                 return null;
               }
@@ -167,8 +167,8 @@ public class SimilarityProcessingOperator extends PostProcessingOperator.UnionSu
 
                         final Map<String, Sketch> sketchMap = Maps.newHashMapWithExpectedSize(result.size());
                         for (Map.Entry<String, Object> entry : result.entrySet()) {
-                          Sketch sketch = SketchOperations.deserialize(entry.getValue());
-                          sketchMap.put(entry.getKey(), sketch);
+                          TypedSketch<Sketch> sketch = (TypedSketch<Sketch>) entry.getValue();
+                          sketchMap.put(entry.getKey(), sketch.value());
                         }
 
                         for (Map.Entry<String, Map<String, Sketch>> prev : sketches.entrySet()) {

@@ -367,6 +367,18 @@ public class SelectQuery extends BaseQuery<Result<SelectResultValue>>
   }
 
   @Override
+  public boolean allDimensionsForEmpty()
+  {
+    return BaseQuery.allColumnsForEmpty(this, true);
+  }
+
+  @Override
+  public boolean allMetricsForEmpty()
+  {
+    return BaseQuery.allColumnsForEmpty(this, true);
+  }
+
+  @Override
   public String toString()
   {
     StringBuilder builder = new StringBuilder(64)

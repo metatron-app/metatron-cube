@@ -234,6 +234,19 @@ public class StreamQuery extends BaseQuery<StreamQueryRow>
     );
   }
 
+
+  @Override
+  public boolean allDimensionsForEmpty()
+  {
+    return BaseQuery.allColumnsForEmpty(this, true);
+  }
+
+  @Override
+  public boolean allMetricsForEmpty()
+  {
+    return BaseQuery.allColumnsForEmpty(this, true);
+  }
+
   @Override
   public String toString()
   {

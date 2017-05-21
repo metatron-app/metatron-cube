@@ -62,7 +62,8 @@ public class SketchThetaProcessor extends PostProcessingOperator.Abstract
                 Result<Map<String, Object>> element = (Result<Map<String, Object>>) input;
                 Map<String, Object> result = element.getValue();
                 for (Map.Entry<String, Object> entry : result.entrySet()) {
-                  entry.setValue(toMap((Sketch) entry.getValue()));
+                  TypedSketch<Sketch> sketch = (TypedSketch<Sketch>) entry.getValue();
+                  entry.setValue(toMap(sketch.value()));
                 }
                 return input;
               }

@@ -442,6 +442,12 @@ public class GroupByQuery extends BaseQuery<Row> implements Query.DimensionSuppo
     );
   }
 
+    @Override
+  public boolean allDimensionsForEmpty()
+  {
+    return BaseQuery.allColumnsForEmpty(this, false);
+  }
+
   public static class Builder
   {
     private DataSource dataSource;

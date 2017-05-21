@@ -88,7 +88,8 @@ public class SketchQuantilesProcessor extends PostProcessingOperator.Abstract
                 Map<String, Object> result = element.getValue();
                 for (Map.Entry<String, Object> entry : result.entrySet()) {
                   Object param = parameter instanceof Map ? ((Map)parameter).get(entry.getKey()) : parameter;
-                  entry.setValue(op.calculate((ItemsSketch) entry.getValue(), param));
+                  TypedSketch<ItemsSketch> sketch = (TypedSketch<ItemsSketch>) entry.getValue();
+                  entry.setValue(op.calculate(sketch.value(), param));
                 }
                 return input;
               }

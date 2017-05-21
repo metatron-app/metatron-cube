@@ -61,8 +61,8 @@ public class SketchSamplingProcessor extends PostProcessingOperator.Abstract
                 Result<Map<String, Object>> element = (Result<Map<String, Object>>) input;
                 Map<String, Object> result = element.getValue();
                 for (Map.Entry<String, Object> entry : result.entrySet()) {
-                  ReservoirItemsSketch sketch = (ReservoirItemsSketch) entry.getValue();
-                  entry.setValue(sketch.getRawSamplesAsList());
+                  TypedSketch<ReservoirItemsSketch> sketch = (TypedSketch<ReservoirItemsSketch>) entry.getValue();
+                  entry.setValue(sketch.value());
                 }
                 return input;
               }

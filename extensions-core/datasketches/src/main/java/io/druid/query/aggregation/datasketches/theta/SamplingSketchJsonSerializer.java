@@ -23,7 +23,6 @@ import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.databind.JsonSerializer;
 import com.fasterxml.jackson.databind.SerializerProvider;
 import com.yahoo.sketches.ArrayOfStringsSerDe;
-import com.yahoo.sketches.frequencies.ItemsSketch;
 import com.yahoo.sketches.sampling.ReservoirItemsSketch;
 
 import java.io.IOException;

@@ -23,6 +23,7 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.base.Preconditions;
+import com.google.common.collect.ImmutableList;
 import io.druid.query.BaseQuery;
 import io.druid.query.DataSource;
 import io.druid.query.Query;
@@ -40,9 +41,10 @@ import java.util.Objects;
  */
 @JsonTypeName("sketch")
 public class SketchQuery extends BaseQuery<Result<Map<String, Object>>>
-    implements Query.DimensionSupport<Result<Map<String, Object>>>
+    implements Query.ViewSupport<Result<Map<String, Object>>>
 {
   private final List<DimensionSpec> dimensions;
+  private final List<String> metrics;
   private final List<VirtualColumn> virtualColumns;
   private final DimFilter filter;
   private final int sketchParam;
@@ -53,16 +55,18 @@ public class SketchQuery extends BaseQuery<Result<Map<String, Object>>>
       @JsonProperty("dataSource") DataSource dataSource,
       @JsonProperty("intervals") QuerySegmentSpec querySegmentSpec,
       @JsonProperty("filter") DimFilter filter,
-      @JsonProperty("dimensions") List<DimensionSpec> dimensions,
       @JsonProperty("virtualColumns") List<VirtualColumn> virtualColumns,
+      @JsonProperty("dimensions") List<DimensionSpec> dimensions,
+      @JsonProperty("metrics") List<String> metrics,
       @JsonProperty("sketchParam") Integer sketchParam,
       @JsonProperty("sketchOp") SketchOp sketchOp,
       @JsonProperty("context") Map<String, Object> context
   )
   {
     super(dataSource, querySegmentSpec, false, context);
-    this.dimensions = dimensions;
     this.virtualColumns = virtualColumns;
+    this.dimensions = dimensions == null ? ImmutableList.<DimensionSpec>of() : dimensions;
+    this.metrics = metrics == null ? ImmutableList.<String>of() : metrics;
     this.filter = filter;
     this.sketchOp = sketchOp == null ? SketchOp.THETA : sketchOp;
     this.sketchParam = sketchParam == null ? this.sketchOp.defaultParam() : this.sketchOp.normalize(sketchParam);
@@ -89,7 +93,10 @@ public class SketchQuery extends BaseQuery<Result<Map<String, Object>>>
     return new SketchQuery(
         getDataSource(),
         spec,
-        filter, dimensions, virtualColumns,
+        filter,
+        virtualColumns,
+        dimensions,
+        metrics,
         sketchParam,
         sketchOp,
         getContext()
@@ -103,8 +110,9 @@ public class SketchQuery extends BaseQuery<Result<Map<String, Object>>>
         dataSource,
         getQuerySegmentSpec(),
         filter,
-        dimensions,
         virtualColumns,
+        dimensions,
+        metrics,
         sketchParam,
         sketchOp,
         getContext()
@@ -118,8 +126,9 @@ public class SketchQuery extends BaseQuery<Result<Map<String, Object>>>
         getDataSource(),
         getQuerySegmentSpec(),
         filter,
-        dimensions,
         virtualColumns,
+        dimensions,
+        metrics,
         sketchParam,
         sketchOp,
         computeOverridenContext(contextOverrides)
@@ -133,30 +142,13 @@ public class SketchQuery extends BaseQuery<Result<Map<String, Object>>>
         getDataSource(),
         getQuerySegmentSpec(),
         filter,
-        dimensions,
         virtualColumns,
+        dimensions,
+        metrics,
         sketchParam,
         sketchOp,
         getContext()
     );
-  }
-
-  @Override
-  public DimFilter getDimFilter()
-  {
-    return filter;
-  }
-
-  @JsonProperty
-  public List<DimensionSpec> getDimensions()
-  {
-    return dimensions;
-  }
-
-  @JsonProperty
-  public List<VirtualColumn> getVirtualColumns()
-  {
-    return virtualColumns;
   }
 
   @Override
@@ -166,8 +158,25 @@ public class SketchQuery extends BaseQuery<Result<Map<String, Object>>>
         getDataSource(),
         getQuerySegmentSpec(),
         filter,
-        dimensions,
         virtualColumns,
+        dimensions,
+        metrics,
+        sketchParam,
+        sketchOp,
+        getContext()
+    );
+  }
+
+  @Override
+  public SketchQuery withMetrics(List<String> metrics)
+  {
+    return new SketchQuery(
+        getDataSource(),
+        getQuerySegmentSpec(),
+        filter,
+        virtualColumns,
+        dimensions,
+        metrics,
         sketchParam,
         sketchOp,
         getContext()
@@ -181,12 +190,53 @@ public class SketchQuery extends BaseQuery<Result<Map<String, Object>>>
         getDataSource(),
         getQuerySegmentSpec(),
         filter,
-        dimensions,
         virtualColumns,
+        dimensions,
+        metrics,
         sketchParam,
         sketchOp,
         getContext()
     );
+  }
+
+  @Override
+  public boolean allDimensionsForEmpty()
+  {
+    return BaseQuery.allColumnsForEmpty(this, false);
+  }
+
+  @Override
+  public boolean allMetricsForEmpty()
+  {
+    return BaseQuery.allColumnsForEmpty(this, false);
+  }
+
+  @Override
+  @JsonProperty
+  public DimFilter getDimFilter()
+  {
+    return filter;
+  }
+
+  @Override
+  @JsonProperty
+  public List<DimensionSpec> getDimensions()
+  {
+    return dimensions;
+  }
+
+  @Override
+  @JsonProperty
+  public List<String> getMetrics()
+  {
+    return metrics;
+  }
+
+  @Override
+  @JsonProperty
+  public List<VirtualColumn> getVirtualColumns()
+  {
+    return virtualColumns;
   }
 
   @JsonProperty
@@ -213,8 +263,9 @@ public class SketchQuery extends BaseQuery<Result<Map<String, Object>>>
     return "SketchQuery{" +
            "dataSource='" + getDataSource() + '\'' +
            ", sketchOp=" + sketchOp +
-           ", dimensions=" + dimensions +
            ", virtualColumns=" + virtualColumns +
+           ", dimensions=" + dimensions +
+           ", metrics=" + metrics +
            ", filter=" + filter +
            ", sketchParam=" + sketchParam +
            toString(POST_PROCESSING, FORWARD_URL, FORWARD_CONTEXT) +

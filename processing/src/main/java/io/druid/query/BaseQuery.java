@@ -80,9 +80,9 @@ public abstract class BaseQuery<T extends Comparable<T>> implements Query<T>
     return PropUtils.parseBoolean(query.getContext(), OPTIMIZE_QUERY, defaultValue);
   }
 
-  public static <T> boolean allColumnsForEmpty(Query<T> query)
+  public static <T> boolean allColumnsForEmpty(Query<T> query, boolean defaultValue)
   {
-    return PropUtils.parseBoolean(query.getContext(), ALL_COLUMNS_FOR_EMPTY, true);
+    return PropUtils.parseBoolean(query.getContext(), ALL_COLUMNS_FOR_EMPTY, defaultValue);
   }
 
   public static <T> int getContextUncoveredIntervalsLimit(Query<T> query, int defaultValue)

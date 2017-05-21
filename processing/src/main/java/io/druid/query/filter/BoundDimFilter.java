@@ -25,9 +25,11 @@ import com.google.common.base.Preconditions;
 import io.druid.common.utils.StringUtils;
 import io.druid.math.expr.Parser;
 import io.druid.query.extraction.ExtractionFn;
+import io.druid.query.ordering.StringComparators;
 import io.druid.segment.filter.BoundFilter;
 
 import java.nio.ByteBuffer;
+import java.util.Comparator;
 import java.util.Set;
 
 public class BoundDimFilter implements DimFilter.ExpressionSupport
@@ -37,7 +39,7 @@ public class BoundDimFilter implements DimFilter.ExpressionSupport
   private final String lower;
   private final boolean lowerStrict;
   private final boolean upperStrict;
-  private final boolean alphaNumeric;
+  private final String comparatorType;
   private final ExtractionFn extractionFn;
 
   @JsonCreator
@@ -48,6 +50,7 @@ public class BoundDimFilter implements DimFilter.ExpressionSupport
       @JsonProperty("lowerStrict") Boolean lowerStrict,
       @JsonProperty("upperStrict") Boolean upperStrict,
       @JsonProperty("alphaNumeric") Boolean alphaNumeric,
+      @JsonProperty("comparatorType") String comparatorType,
       @JsonProperty("extractionFn") ExtractionFn extractionFn
   )
   {
@@ -57,11 +60,30 @@ public class BoundDimFilter implements DimFilter.ExpressionSupport
     this.lower = lower;
     this.lowerStrict = (lowerStrict == null) ? false : lowerStrict;
     this.upperStrict = (upperStrict == null) ? false : upperStrict;
-    this.alphaNumeric = (alphaNumeric == null) ? false : alphaNumeric;
+    this.comparatorType = comparatorType != null ? comparatorType :
+                          alphaNumeric != null && alphaNumeric ? StringComparators.ALPHANUMERIC_NAME :
+                          StringComparators.LEXICOGRAPHIC_NAME;
     this.extractionFn = extractionFn;
     Preconditions.checkArgument(
         Parser.findRequiredBindings(dimension).size() == 1, "expression should contain only one dimension"
     );
+    Preconditions.checkArgument(
+        StringComparators.tryMakeComparator(this.comparatorType) != null,
+        "invalid comparator type" + this.comparatorType
+    );
+  }
+
+  public BoundDimFilter(
+      String dimension,
+      String lower,
+      String upper,
+      Boolean lowerStrict,
+      Boolean upperStrict,
+      Boolean alphaNumeric,
+      ExtractionFn extractionFn
+  )
+  {
+    this(dimension, lower, upper, lowerStrict, upperStrict, alphaNumeric, null, extractionFn);
   }
 
   public static BoundDimFilter between(String dimension, String lower, String upper)
@@ -126,9 +148,19 @@ public class BoundDimFilter implements DimFilter.ExpressionSupport
   }
 
   @JsonProperty
-  public boolean isAlphaNumeric()
+  public String getComparatorType()
   {
-    return alphaNumeric;
+    return comparatorType;
+  }
+
+  public boolean isLexicographic()
+  {
+    return comparatorType.equalsIgnoreCase(StringComparators.LEXICOGRAPHIC_NAME);
+  }
+
+  public Comparator<String> getComparator()
+  {
+    return StringComparators.makeComparator(comparatorType);
   }
 
   public boolean hasLowerBound()
@@ -159,10 +191,10 @@ public class BoundDimFilter implements DimFilter.ExpressionSupport
     } else if (this.getUpper() == null) {
       boundType = 0x3;
     }
+    byte[] comparatorBytes = StringUtils.toUtf8WithNullToEmpty(comparatorType);
 
     byte lowerStrictByte = !isLowerStrict() ? 0x0 : (byte) 1;
     byte upperStrictByte = !isUpperStrict() ? 0x0 : (byte) 1;
-    byte AlphaNumericByte = !isAlphaNumeric() ? 0x0 : (byte) 1;
 
     byte[] extractionFnBytes = extractionFn == null ? new byte[0] : extractionFn.getCacheKey();
 
@@ -171,19 +203,21 @@ public class BoundDimFilter implements DimFilter.ExpressionSupport
         + dimensionBytes.length
         + upperBytes.length
         + lowerBytes.length
+        + comparatorBytes.length
         + extractionFnBytes.length
     );
     boundCacheBuffer.put(DimFilterCacheHelper.BOUND_CACHE_ID)
                     .put(boundType)
                     .put(upperStrictByte)
                     .put(lowerStrictByte)
-                    .put(AlphaNumericByte)
                     .put(DimFilterCacheHelper.STRING_SEPARATOR)
                     .put(dimensionBytes)
                     .put(DimFilterCacheHelper.STRING_SEPARATOR)
                     .put(upperBytes)
                     .put(DimFilterCacheHelper.STRING_SEPARATOR)
                     .put(lowerBytes)
+                    .put(DimFilterCacheHelper.STRING_SEPARATOR)
+                    .put(comparatorBytes)
                     .put(DimFilterCacheHelper.STRING_SEPARATOR)
                     .put(extractionFnBytes);
     return boundCacheBuffer.array();
@@ -222,9 +256,6 @@ public class BoundDimFilter implements DimFilter.ExpressionSupport
     if (extractionFn != null) {
       builder.append(extractionFn.getClass().getSimpleName()).append('(');
     }
-    if (alphaNumeric) {
-      builder.append('@');
-    }
     builder.append(dimension);
     if (extractionFn != null) {
       builder.append(')');
@@ -232,7 +263,15 @@ public class BoundDimFilter implements DimFilter.ExpressionSupport
     if (upper != null) {
       builder.append(upperStrict ? " < " : " <= ").append(upper);
     }
+    if (comparatorType != null) {
+      builder.append('(').append(comparatorType).append(')');
+    }
     return builder.toString();
+  }
+
+  public BoundDimFilter withType(String comparatorType)
+  {
+    return new BoundDimFilter(dimension, lower, upper, lowerStrict, upperStrict, null, comparatorType, extractionFn);
   }
 
   @Override
@@ -253,7 +292,7 @@ public class BoundDimFilter implements DimFilter.ExpressionSupport
     if (isUpperStrict() != that.isUpperStrict()) {
       return false;
     }
-    if (isAlphaNumeric() != that.isAlphaNumeric()) {
+    if (!comparatorType.equals(that.comparatorType)) {
       return false;
     }
     if (!getDimension().equals(that.getDimension())) {
@@ -279,7 +318,7 @@ public class BoundDimFilter implements DimFilter.ExpressionSupport
     result = 31 * result + (getLower() != null ? getLower().hashCode() : 0);
     result = 31 * result + (isLowerStrict() ? 1 : 0);
     result = 31 * result + (isUpperStrict() ? 1 : 0);
-    result = 31 * result + (isAlphaNumeric() ? 1 : 0);
+    result = 31 * result + comparatorType.hashCode();
     result = 31 * result + (getExtractionFn() != null ? getExtractionFn().hashCode() : 0);
     return result;
   }
