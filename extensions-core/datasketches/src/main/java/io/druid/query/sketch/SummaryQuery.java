@@ -52,6 +52,7 @@ public class SummaryQuery extends BaseQuery<Result<Map<String, Object>>>
   private final List<DimensionSpec> dimensions;
   private final List<String> metrics;
   private final List<VirtualColumn> virtualColumns;
+  private final boolean includeTimeStats;
 
   @JsonCreator
   public SummaryQuery(
@@ -61,6 +62,7 @@ public class SummaryQuery extends BaseQuery<Result<Map<String, Object>>>
       @JsonProperty("dimensions") List<DimensionSpec> dimensions,
       @JsonProperty("metrics") List<String> metrics,
       @JsonProperty("filter") DimFilter filter,
+      @JsonProperty("includeTimeStats") boolean includeTimeStats,
       @JsonProperty("context") Map<String, Object> context
   )
   {
@@ -69,6 +71,7 @@ public class SummaryQuery extends BaseQuery<Result<Map<String, Object>>>
     this.virtualColumns = virtualColumns;
     this.dimensions = dimensions;
     this.metrics = metrics;
+    this.includeTimeStats = includeTimeStats;
   }
 
   @Override
@@ -84,7 +87,8 @@ public class SummaryQuery extends BaseQuery<Result<Map<String, Object>>>
         Maps.newHashMap(getContext())
     );
     Map<String, Object> postProcessor = ImmutableMap.<String, Object>of(
-        QueryContextKeys.POST_PROCESSING, ImmutableMap.of("type", "sketch.summary")
+        QueryContextKeys.POST_PROCESSING,
+        ImmutableMap.of("type", "sketch.summary", "includeTimeStats", includeTimeStats)
     );
     Map<String, Object> joinContext = computeOverridenContext(postProcessor);
 
@@ -131,6 +135,12 @@ public class SummaryQuery extends BaseQuery<Result<Map<String, Object>>>
     return metrics;
   }
 
+  @JsonProperty
+  public boolean isIncludeTimeStats()
+  {
+    return includeTimeStats;
+  }
+
   @Override
   public SummaryQuery withDimensionSpecs(List<DimensionSpec> dimensions)
   {
@@ -141,6 +151,7 @@ public class SummaryQuery extends BaseQuery<Result<Map<String, Object>>>
         dimensions,
         metrics,
         dimFilter,
+        includeTimeStats,
         getContext()
     );
   }
@@ -155,6 +166,7 @@ public class SummaryQuery extends BaseQuery<Result<Map<String, Object>>>
         dimensions,
         metrics,
         dimFilter,
+        includeTimeStats,
         getContext()
     );
   }
@@ -169,6 +181,7 @@ public class SummaryQuery extends BaseQuery<Result<Map<String, Object>>>
         dimensions,
         metrics,
         dimFilter,
+        includeTimeStats,
         getContext()
     );
   }
@@ -183,6 +196,7 @@ public class SummaryQuery extends BaseQuery<Result<Map<String, Object>>>
         dimensions,
         metrics,
         dimFilter,
+        includeTimeStats,
         getContext()
     );
   }
@@ -197,6 +211,7 @@ public class SummaryQuery extends BaseQuery<Result<Map<String, Object>>>
         dimensions,
         metrics,
         dimFilter,
+        includeTimeStats,
         getContext()
     );
   }
@@ -211,6 +226,7 @@ public class SummaryQuery extends BaseQuery<Result<Map<String, Object>>>
         dimensions,
         metrics,
         dimFilter,
+        includeTimeStats,
         computeOverridenContext(contextOverride)
     );
   }
@@ -225,6 +241,7 @@ public class SummaryQuery extends BaseQuery<Result<Map<String, Object>>>
         dimensions,
         metrics,
         dimFilter,
+        includeTimeStats,
         getContext()
     );
   }
@@ -249,6 +266,7 @@ public class SummaryQuery extends BaseQuery<Result<Map<String, Object>>>
     if (metrics != null && !metrics.isEmpty()) {
       builder.append(", metrics=").append(metrics);
     }
+    builder.append(", includeTimeStats=").append(includeTimeStats);
     return builder.toString();
   }
 }

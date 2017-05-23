@@ -87,6 +87,13 @@ public class SegmentMetadataQuery extends BaseQuery<SegmentAnalysis>
       JodaUtils.MIN_INSTANT, JodaUtils.MAX_INSTANT
   );
 
+  public static final EnumSet<AnalysisType> DEFAULT_NON_COLUMN_STATS = EnumSet.of(
+      AnalysisType.SERIALIZED_SIZE,
+      AnalysisType.LAST_ACCESS_TIME,
+      AnalysisType.INGESTED_NUMROW,
+      AnalysisType.INTERVAL
+  );
+
   public static final EnumSet<AnalysisType> DEFAULT_ANALYSIS_TYPES = EnumSet.of(
       AnalysisType.CARDINALITY,
       AnalysisType.SIZE,

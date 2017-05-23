@@ -21,6 +21,7 @@ package io.druid.query.sketch;
 
 import com.fasterxml.jackson.annotation.JacksonInject;
 import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
@@ -63,12 +64,18 @@ import io.druid.query.dimension.DimensionSpec;
 import io.druid.query.filter.BoundDimFilter;
 import io.druid.query.filter.OrDimFilter;
 import io.druid.query.groupby.GroupByQuery;
+import io.druid.query.metadata.metadata.NoneColumnIncluderator;
+import io.druid.query.metadata.metadata.SegmentAnalysis;
+import io.druid.query.metadata.metadata.SegmentMetadataQuery;
 import io.druid.query.search.SearchResultValue;
 import io.druid.query.search.search.LexicographicSearchSortSpec;
 import io.druid.query.search.search.SearchHit;
 import io.druid.query.search.search.SearchQuery;
 import io.druid.query.search.search.SearchQuerySpec;
 import io.druid.segment.VirtualColumn;
+import io.druid.segment.column.Column;
+import org.joda.time.DateTime;
+import org.joda.time.Interval;
 
 import java.lang.reflect.Array;
 import java.util.Arrays;
@@ -84,15 +91,18 @@ public class SummaryPostProcessor extends PostProcessingOperator.UnionSupport
 {
   private static final Logger LOG = new Logger(SimilarityProcessingOperator.class);
 
+  private final boolean includeTimeStats;
   private final QuerySegmentWalker segmentWalker;
   private final ListeningExecutorService exec;
 
   @JsonCreator
   public SummaryPostProcessor(
+      @JsonProperty("includeTimeStats") boolean includeTimeStats,
       @JacksonInject QuerySegmentWalker segmentWalker,
       @JacksonInject @Processing ExecutorService exec
   )
   {
+    this.includeTimeStats = includeTimeStats;
     this.segmentWalker = segmentWalker;
     this.exec = MoreExecutors.listeningDecorator(exec);
   }
@@ -213,6 +223,7 @@ public class SummaryPostProcessor extends PostProcessingOperator.UnionSupport
 
                 final GroupByQuery groupBy = configureForType(baseQuery, column, lower, upper, sketch.type());
 
+                final Map<String, Object> stats = results.get(column);
                 futures.add(
                     exec.submit(
                         new AbstractPrioritizedCallable<Integer>(0)
@@ -228,7 +239,6 @@ public class SummaryPostProcessor extends PostProcessingOperator.UnionSupport
                               return 0;
                             }
                             Row row = Iterables.getOnlyElement(rows);
-                            Map<String, Object> stats = results.get(column);
                             stats.put("outliers", row.getLongMetric("outlier"));
                             stats.put("missing", row.getLongMetric("missing"));
                             if (ValueType.isNumeric(sketch.type())) {
@@ -263,6 +273,50 @@ public class SummaryPostProcessor extends PostProcessingOperator.UnionSupport
             }
           }
         }
+        if (includeTimeStats) {
+          final SegmentMetadataQuery metaQuery = new SegmentMetadataQuery(
+              representative.getDataSource(),
+              representative.getQuerySegmentSpec(),
+              new NoneColumnIncluderator(),
+              false,
+              null,
+              SegmentMetadataQuery.DEFAULT_NON_COLUMN_STATS,
+              false,
+              false
+          );
+          final Map<String, Object> stats = Maps.newLinkedHashMap();
+          final List<Map<String, Object>> segments = Lists.newArrayList();
+          stats.put("segments", segments);
+          futures.add(
+              exec.submit(
+                  new AbstractPrioritizedCallable<Integer>(0)
+                  {
+                    @Override
+                    public Integer call()
+                    {
+                      for (SegmentAnalysis meta : Sequences.toList(
+                          metaQuery.run(segmentWalker, Maps.<String, Object>newHashMap()),
+                          Lists.<SegmentAnalysis>newArrayList()
+                      )) {
+                        Map<String, Object> value = Maps.newLinkedHashMap();
+                        value.put("interval", Iterables.getOnlyElement(meta.getIntervals()));
+                        value.put("rows", meta.getNumRows());
+                        if (meta.getIngestedNumRows() > 0) {
+                          value.put("ingestedRows", meta.getIngestedNumRows());
+                        }
+                        value.put("serializedSize", meta.getSerializedSize());
+                        value.put("lastAccessTime", new DateTime(meta.getLastAccessTime()));
+
+                        segments.add(value);
+                      }
+                      return 0;
+                    }
+                  }
+              )
+          );
+          results.put(Column.TIME_COLUMN_NAME, stats);
+        }
+
         Futures.getUnchecked(Futures.allAsList(futures));
         return Sequences.simple(Arrays.asList(results));
       }
