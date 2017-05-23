@@ -73,6 +73,7 @@ public class MultiSegmentSelectQueryTest
   private static final QueryRunnerFactory factory = new SelectQueryRunnerFactory(
       toolChest,
       new SelectQueryEngine(),
+      new SelectQueryConfig(),
       QueryRunnerTestHelper.NOOP_QUERYWATCHER
   );
 

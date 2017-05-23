@@ -56,6 +56,7 @@ public class SelectQueryRunnerFactory
 
   private final SelectQueryQueryToolChest toolChest;
   private final SelectQueryEngine engine;
+  private final SelectQueryConfig config;
   private final QueryWatcher queryWatcher;
 
   @BitmapCache
@@ -66,19 +67,22 @@ public class SelectQueryRunnerFactory
   public SelectQueryRunnerFactory(
       SelectQueryQueryToolChest toolChest,
       SelectQueryEngine engine,
+      SelectQueryConfig config,
       QueryWatcher queryWatcher) {
-    this(toolChest, engine, queryWatcher, null);
+    this(toolChest, engine, config, queryWatcher, null);
   }
 
   public SelectQueryRunnerFactory(
       SelectQueryQueryToolChest toolChest,
       SelectQueryEngine engine,
+      SelectQueryConfig config,
       QueryWatcher queryWatcher,
       Cache cache
   )
   {
     this.toolChest = toolChest;
     this.engine = engine;
+    this.config = config;
     this.queryWatcher = queryWatcher;
     this.cache = cache;
   }
@@ -122,7 +126,7 @@ public class SelectQueryRunnerFactory
   {
     if (optimizer == null ||
         ((Set<String>) Futures.getUnchecked(optimizer)).contains(segment.getIdentifier())) {
-      return new SelectQueryRunner(engine, segment, cache);
+      return new SelectQueryRunner(engine, config, segment, cache);
     }
     return new NoopQueryRunner<Result<SelectResultValue>>();
   }
@@ -148,13 +152,15 @@ public class SelectQueryRunnerFactory
   private static class SelectQueryRunner implements QueryRunner<Result<SelectResultValue>>
   {
     private final SelectQueryEngine engine;
+    private final SelectQueryConfig config;
     private final Segment segment;
     private final Cache cache;
 
-    private SelectQueryRunner(SelectQueryEngine engine, Segment segment, Cache cache)
+    private SelectQueryRunner(SelectQueryEngine engine, SelectQueryConfig config, Segment segment, Cache cache)
     {
       this.engine = engine;
       this.segment = segment;
+      this.config = config;
       this.cache = cache;
     }
 
@@ -168,7 +174,7 @@ public class SelectQueryRunnerFactory
         throw new ISE("Got a [%s] which isn't a %s", input.getClass(), SelectQuery.class);
       }
 
-      return engine.process((SelectQuery) input, segment, cache);
+      return engine.process((SelectQuery) input, config, segment, cache);
     }
   }
 }

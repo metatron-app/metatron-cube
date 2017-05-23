@@ -79,6 +79,7 @@ public class SelectQueryExplodeTest
     SelectQueryRunnerFactory factory = new SelectQueryRunnerFactory(
         toolChest,
         new SelectQueryEngine(),
+        new SelectQueryConfig(),
         QueryRunnerTestHelper.NOOP_QUERYWATCHER
     );
 

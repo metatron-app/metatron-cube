@@ -41,6 +41,7 @@ import io.druid.segment.column.Column;
 import io.druid.segment.data.IndexedInts;
 import io.druid.timeline.DataSegmentUtils;
 import org.apache.commons.lang.StringUtils;
+import org.joda.time.DateTime;
 import org.joda.time.Interval;
 
 import java.util.List;
@@ -50,7 +51,12 @@ import java.util.Map;
  */
 public class SelectQueryEngine
 {
-  public Sequence<Result<SelectResultValue>> process(final SelectQuery baseQuery, final Segment segment, final Cache cache)
+  public Sequence<Result<SelectResultValue>> process(
+      final SelectQuery baseQuery,
+      final SelectQueryConfig config,
+      final Segment segment,
+      final Cache cache
+  )
   {
     final StorageAdapter adapter = segment.asStorageAdapter(true);
 
@@ -110,7 +116,8 @@ public class SelectQueryEngine
             int lastOffset = offset.startOffset();
             for (; !cursor.isDone() && offset.hasNext(); cursor.advance(), offset.next()) {
               final Map<String, Object> theEvent = Maps.newLinkedHashMap();
-              theEvent.put(EventHolder.timestampKey, timestampColumnSelector.get());
+              long value = timestampColumnSelector.get();
+              theEvent.put(EventHolder.timestampKey, config.isUseDateTime() ? new DateTime(value) : value);
 
               for (Map.Entry<String, DimensionSelector> dimSelector : dimSelectors.entrySet()) {
                 final String dim = dimSelector.getKey();

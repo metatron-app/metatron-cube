@@ -54,7 +54,6 @@ import io.druid.query.QueryToolChestWarehouse;
 import io.druid.query.QueryWatcher;
 import io.druid.query.Result;
 import io.druid.query.aggregation.MetricManipulatorFns;
-import io.druid.server.QueryResource;
 import org.jboss.netty.handler.codec.http.HttpHeaders;
 import org.jboss.netty.handler.codec.http.HttpMethod;
 
@@ -153,8 +152,7 @@ public class DirectDruidClient<T> implements QueryRunner<T>
            .setHeader(
                HttpHeaders.Names.CONTENT_TYPE,
                contentType
-           )
-           .setHeader(QueryResource.DRUID_INTERNAL_HEADER, "true"),
+           ),
           handlerFactory.create(query, url, builder, context)
       );
 

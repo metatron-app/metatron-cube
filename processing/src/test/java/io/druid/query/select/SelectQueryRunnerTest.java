@@ -113,6 +113,7 @@ public class SelectQueryRunnerTest
             new SelectQueryRunnerFactory(
                 toolChest,
                 new SelectQueryEngine(),
+                new SelectQueryConfig(),
                 QueryRunnerTestHelper.NOOP_QUERYWATCHER
             )
         ),

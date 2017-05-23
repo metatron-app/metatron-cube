@@ -41,6 +41,7 @@ import io.druid.query.select.SelectForwardQueryToolChest;
 import io.druid.query.select.SelectMetaQuery;
 import io.druid.query.select.SelectMetaQueryToolChest;
 import io.druid.query.select.SelectQuery;
+import io.druid.query.select.SelectQueryConfig;
 import io.druid.query.select.SelectQueryQueryToolChest;
 import io.druid.query.select.StreamQuery;
 import io.druid.query.select.StreamQueryToolChest;
@@ -85,6 +86,7 @@ public class QueryToolChestModule implements Module
 
     JsonConfigProvider.bind(binder, "druid.query.groupBy", GroupByQueryConfig.class);
     JsonConfigProvider.bind(binder, "druid.query.search", SearchQueryConfig.class);
+    JsonConfigProvider.bind(binder, "druid.query.select", SelectQueryConfig.class);
     JsonConfigProvider.bind(binder, "druid.query.topN", TopNQueryConfig.class);
     JsonConfigProvider.bind(binder, "druid.query.segmentMetadata", SegmentMetadataQueryConfig.class);
   }

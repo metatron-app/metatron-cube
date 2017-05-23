@@ -69,6 +69,9 @@ public class EventHolder
       return new DateTime(retVal).getMillis();
     } else if (retVal instanceof DateTime) {
       return ((DateTime) retVal).getMillis();
+    } else if (retVal instanceof Map) {
+      Map dateTime = (Map)retVal;
+      return (Long) dateTime.get("m");
     } else {
       throw new ISE("Do not understand format [%s]", retVal.getClass());
     }

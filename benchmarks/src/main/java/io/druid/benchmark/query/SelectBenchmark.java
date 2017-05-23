@@ -49,6 +49,7 @@ import io.druid.query.dimension.DefaultDimensionSpec;
 import io.druid.query.select.EventHolder;
 import io.druid.query.select.PagingSpec;
 import io.druid.query.select.SelectQuery;
+import io.druid.query.select.SelectQueryConfig;
 import io.druid.query.select.SelectQueryEngine;
 import io.druid.query.select.SelectQueryQueryToolChest;
 import io.druid.query.select.SelectQueryRunnerFactory;
@@ -231,6 +232,7 @@ public class SelectBenchmark
             QueryBenchmarkUtil.NoopIntervalChunkingQueryRunnerDecorator()
         ),
         new SelectQueryEngine(),
+        new SelectQueryConfig(),
         QueryBenchmarkUtil.NOOP_QUERYWATCHER
     );
   }

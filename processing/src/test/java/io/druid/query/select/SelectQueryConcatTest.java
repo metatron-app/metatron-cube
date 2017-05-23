@@ -46,6 +46,7 @@ public class SelectQueryConcatTest
           QueryRunnerTestHelper.NoopIntervalChunkingQueryRunnerDecorator()
       ),
       new SelectQueryEngine(),
+      new SelectQueryConfig(),
       QueryRunnerTestHelper.NOOP_QUERYWATCHER
   );
 

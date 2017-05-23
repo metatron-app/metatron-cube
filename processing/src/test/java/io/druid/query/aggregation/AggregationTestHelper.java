@@ -63,6 +63,7 @@ import io.druid.query.groupby.GroupByQueryRunnerFactory;
 import io.druid.query.search.SearchQueryQueryToolChest;
 import io.druid.query.search.SearchQueryRunnerFactory;
 import io.druid.query.search.search.SearchQueryConfig;
+import io.druid.query.select.SelectQueryConfig;
 import io.druid.query.select.SelectQueryEngine;
 import io.druid.query.select.SelectQueryQueryToolChest;
 import io.druid.query.select.SelectQueryRunnerFactory;
@@ -209,6 +210,7 @@ public class AggregationTestHelper
             QueryRunnerTestHelper.NoopIntervalChunkingQueryRunnerDecorator()
         ),
         new SelectQueryEngine(),
+        new SelectQueryConfig(),
         QueryRunnerTestHelper.NOOP_QUERYWATCHER
     );
 

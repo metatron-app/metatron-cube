@@ -42,7 +42,6 @@ import io.druid.guice.LocalDataStorageDruidModule;
 import io.druid.guice.annotations.Json;
 import io.druid.guice.annotations.Self;
 import io.druid.guice.annotations.Smile;
-import io.druid.jackson.JodaStuff;
 import io.druid.query.BaseQuery;
 import io.druid.query.DruidMetrics;
 import io.druid.query.PostProcessingOperators;
@@ -98,8 +97,6 @@ public class QueryResource
   protected static final String APPLICATION_SMILE = "application/smile";
 
   protected static final int RESPONSE_CTX_HEADER_LEN_LIMIT = 7 * 1024;
-
-  public static final String DRUID_INTERNAL_HEADER = "Druid-Internal";
 
   protected final ServerConfig config;
   protected final ObjectMapper jsonMapper;
@@ -443,7 +440,6 @@ public class QueryResource
   {
     final boolean isSmile;
     final boolean isPretty;
-    final boolean isInternal;
     final String contentType;
 
     RequestContext(HttpServletRequest request, boolean pretty)
@@ -452,7 +448,6 @@ public class QueryResource
       isSmile = SmileMediaTypes.APPLICATION_JACKSON_SMILE.equals(requestType)
                 || APPLICATION_SMILE.equals(requestType);
       isPretty = pretty;
-      isInternal = Boolean.valueOf(request.getHeader(DRUID_INTERNAL_HEADER));
       contentType = isSmile ? SmileMediaTypes.APPLICATION_JACKSON_SMILE : MediaType.APPLICATION_JSON;
     }
 
@@ -469,9 +464,6 @@ public class QueryResource
     ObjectWriter getOutputWriter()
     {
       ObjectMapper mapper = getInputMapper();
-      if (isInternal) {
-        mapper = JodaStuff.overrideForInternal(mapper);
-      }
       return isPretty ? mapper.writerWithDefaultPrettyPrinter() : mapper.writer();
     }
 
