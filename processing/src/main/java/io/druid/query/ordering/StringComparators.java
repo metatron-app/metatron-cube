@@ -23,6 +23,7 @@ import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.fasterxml.jackson.annotation.JsonTypeInfo.As;
 import com.fasterxml.jackson.annotation.JsonTypeInfo.Id;
+import com.google.common.collect.Maps;
 import com.google.common.primitives.Ints;
 import com.google.common.primitives.Longs;
 import com.google.common.primitives.UnsignedBytes;
@@ -30,7 +31,11 @@ import com.metamx.common.IAE;
 import com.metamx.common.StringUtils;
 import org.joda.time.DateTimeConstants;
 
+import java.text.DateFormatSymbols;
+import java.util.Calendar;
 import java.util.Comparator;
+import java.util.Locale;
+import java.util.Map;
 import java.util.Objects;
 
 
@@ -46,8 +51,9 @@ public class StringComparators
   public static final AlphanumericComparator ALPHANUMERIC = new AlphanumericComparator();
   public static final IntegerComparator INTEGER = new IntegerComparator();
   public static final FloatingPointComparator FLOATING_POINT = new FloatingPointComparator();
-  public static final DayOfWeekComparator DAY_OF_WEEK = new DayOfWeekComparator();
-    
+  public static final DayOfWeekComparator DAY_OF_WEEK = new DayOfWeekComparator(null);
+  public static final DayOfWeekComparator DAY_OF_WEEK_KR = new DayOfWeekComparator(Locale.KOREA);
+
   @JsonTypeInfo(use=Id.NAME, include=As.PROPERTY, property="type", defaultImpl = LexicographicComparator.class)
   @JsonSubTypes(value = {
       @JsonSubTypes.Type(name = StringComparators.LEXICOGRAPHIC_NAME, value = LexicographicComparator.class),
@@ -410,6 +416,36 @@ public class StringComparators
 
   public static class DayOfWeekComparator extends AbstractStringComparator implements StringComparator
   {
+    private final Map<String, Integer> codes = Maps.newHashMap();
+
+    private DayOfWeekComparator(Locale locale)
+    {
+      DateFormatSymbols symbols = locale == null ? new DateFormatSymbols() : new DateFormatSymbols(locale);
+      String[] wd = symbols.getWeekdays();
+      String[] swd = symbols.getShortWeekdays();
+
+      codes.put(wd[Calendar.MONDAY].toUpperCase(), DateTimeConstants.MONDAY);
+      codes.put(swd[Calendar.MONDAY].toUpperCase(), DateTimeConstants.MONDAY);
+
+      codes.put(wd[Calendar.TUESDAY].toUpperCase(), DateTimeConstants.TUESDAY);
+      codes.put(swd[Calendar.TUESDAY].toUpperCase(), DateTimeConstants.TUESDAY);
+
+      codes.put(wd[Calendar.WEDNESDAY].toUpperCase(), DateTimeConstants.WEDNESDAY);
+      codes.put(swd[Calendar.WEDNESDAY].toUpperCase(), DateTimeConstants.WEDNESDAY);
+
+      codes.put(wd[Calendar.THURSDAY].toUpperCase(), DateTimeConstants.THURSDAY);
+      codes.put(swd[Calendar.THURSDAY].toUpperCase(), DateTimeConstants.THURSDAY);
+
+      codes.put(wd[Calendar.FRIDAY].toUpperCase(), DateTimeConstants.FRIDAY);
+      codes.put(swd[Calendar.FRIDAY].toUpperCase(), DateTimeConstants.FRIDAY);
+
+      codes.put(wd[Calendar.SATURDAY].toUpperCase(), DateTimeConstants.SATURDAY);
+      codes.put(swd[Calendar.SATURDAY].toUpperCase(), DateTimeConstants.SATURDAY);
+
+      codes.put(wd[Calendar.SUNDAY].toUpperCase(), DateTimeConstants.SUNDAY);
+      codes.put(swd[Calendar.SUNDAY].toUpperCase(), DateTimeConstants.SUNDAY);
+    }
+
     @Override
     public int _compare(String s1, String s2)
     {
@@ -418,16 +454,8 @@ public class StringComparators
 
     private int toCode(String s)
     {
-      switch (s.toUpperCase()) {
-        case "MONDAY": return DateTimeConstants.MONDAY;
-        case "TUESDAY": return DateTimeConstants.TUESDAY;
-        case "WEDNESDAY": return DateTimeConstants.WEDNESDAY;
-        case "THURSDAY": return DateTimeConstants.THURSDAY;
-        case "FRIDAY": return DateTimeConstants.FRIDAY;
-        case "SATURDAY": return DateTimeConstants.SATURDAY;
-        case "SUNDAY": return DateTimeConstants.SUNDAY;
-        default: return DateTimeConstants.SUNDAY + 1;
-      }
+      Integer code = codes.get(s.toUpperCase());
+      return code == null ? 0 : code;
     }
 
     @Override
@@ -451,7 +479,8 @@ public class StringComparators
     if (type == null) {
       return null;
     }
-    switch (type.toLowerCase()) {
+    String lowerCased = type.toLowerCase();
+    switch (lowerCased) {
       case StringComparators.LEXICOGRAPHIC_NAME:
         return LEXICOGRAPHIC;
       case StringComparators.ALPHANUMERIC_NAME:
@@ -463,6 +492,9 @@ public class StringComparators
       case StringComparators.DAY_OF_WEEK_NAME:
         return DAY_OF_WEEK;
       default:
+        if (lowerCased.startsWith(StringComparators.DAY_OF_WEEK_NAME + ".")) {
+          return new DayOfWeekComparator(new Locale(lowerCased.substring(10)));
+        }
         return null;
     }
   }
