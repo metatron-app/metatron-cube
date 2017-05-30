@@ -163,7 +163,7 @@ public class Parser
     };
   }
 
-  public static Expr.NumericBinding withSuppliers(final Map<String, Supplier<Object>> bindings)
+  public static Expr.NumericBinding withSuppliers(final Map<String, Supplier> bindings)
   {
     return new Expr.NumericBinding()
     {
@@ -176,11 +176,43 @@ public class Parser
       @Override
       public Object get(String name)
       {
-        Supplier<Object> supplier = bindings.get(name);
+        Supplier supplier = bindings.get(name);
         if (supplier == null && !bindings.containsKey(name)) {
           throw new RuntimeException("No binding found for " + name);
         }
         return supplier == null ? null : supplier.get();
+      }
+    };
+  }
+
+  public static Expr.TypeBinding withTypeMap(final Map<String, ExprType> bindings)
+  {
+    return new Expr.TypeBinding()
+    {
+      @Override
+      public ExprType type(String name)
+      {
+        ExprType type = bindings.get(name);
+        if (type == null) {
+          throw new RuntimeException("No binding found for " + name);
+        }
+        return type;
+      }
+    };
+  }
+
+  public static Expr.TypeBinding withTypeSuppliers(final Map<String, DSuppliers.TypedSupplier> bindings)
+  {
+    return new Expr.TypeBinding()
+    {
+      @Override
+      public ExprType type(String name)
+      {
+        DSuppliers.Typed supplier = bindings.get(name);
+        if (supplier == null) {
+          throw new RuntimeException("No binding found for " + name);
+        }
+        return ExprType.typeOf(supplier.classOfObject());
       }
     };
   }

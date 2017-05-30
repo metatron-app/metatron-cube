@@ -32,7 +32,7 @@ import java.util.List;
 public interface ExcelFunctions extends Function.Library
 {
   // fv(double r, double n, double y, double p, boolean t = false)
-  class ExcelFV implements Function
+  class ExcelFV extends ExprType.DoubleFunction
   {
     @Override
     public String name()
@@ -59,7 +59,7 @@ public interface ExcelFunctions extends Function.Library
   }
 
   // pv(double r, double n, double y, double f, boolean t = false)
-  class ExcelPV implements Function
+  class ExcelPV extends ExprType.DoubleFunction
   {
     @Override
     public String name()
@@ -86,7 +86,7 @@ public interface ExcelFunctions extends Function.Library
   }
 
   // nper(double r, double y, double p, double f, boolean t = false)
-  class ExcelNPER implements Function
+  class ExcelNPER extends ExprType.DoubleFunction
   {
     @Override
     public String name()
@@ -154,7 +154,7 @@ public interface ExcelFunctions extends Function.Library
   }
 
   // pmt(double r, double n, double p, double f = 0D, boolean t = false)
-  class ExcelPMT implements Function
+  class ExcelPMT extends ExprType.DoubleFunction
   {
     @Override
     public String name()
@@ -181,7 +181,7 @@ public interface ExcelFunctions extends Function.Library
   }
 
   // ipmt(double r, int per, int nper, double pv, double fv = 0D, int type = 0)
-  class ExcelIPMT implements Function
+  class ExcelIPMT extends ExprType.DoubleFunction
   {
     @Override
     public String name()
@@ -209,7 +209,7 @@ public interface ExcelFunctions extends Function.Library
   }
 
   // ppmt(double r, int per, int nper, double pv, double fv = 0D, int type = 0)
-  class ExcelPPMT implements Function
+  class ExcelPPMT extends ExprType.DoubleFunction
   {
     @Override
     public String name()

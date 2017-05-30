@@ -235,5 +235,16 @@ public class ParserTest
   {
     validateParser("sqrt(x)", "(sqrt [x])", "[x]");
     validateParser("if(cond,then,else)", "(if [cond, then, else])", "[cond, then, else]");
+
+    validateParser(
+        "if(tot_scrbr_cnt=='NULL'||tot_scrbr_cnt=='\\n',1,tot_scrbr_cnt)",
+        "(if [(|| (== tot_scrbr_cnt NULL) (== tot_scrbr_cnt \n)), 1, tot_scrbr_cnt])",
+        "[tot_scrbr_cnt]"
+    );
+    validateParser(
+        "if(tot_scrbr_cnt=='NULL'||tot_scrbr_cnt=='\\\\N',1,tot_scrbr_cnt)",
+        "(if [(|| (== tot_scrbr_cnt NULL) (== tot_scrbr_cnt \\N)), 1, tot_scrbr_cnt])",
+        "[tot_scrbr_cnt]"
+    );
   }
 }

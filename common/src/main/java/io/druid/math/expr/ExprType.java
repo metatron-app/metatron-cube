@@ -21,6 +21,9 @@ package io.druid.math.expr;
 
 import com.google.common.base.Strings;
 import io.druid.data.ValueType;
+import org.joda.time.DateTime;
+
+import java.util.List;
 
 /**
  */
@@ -29,21 +32,36 @@ public enum ExprType
   DOUBLE {
     @Override
     public boolean isNumeric() { return true; }
+    @Override
+    public Class classOfObject() { return Number.class; }
   },
   LONG {
     @Override
     public boolean isNumeric() { return true; }
+    @Override
+    public Class classOfObject() { return Number.class; }
   },
   DATETIME {
     @Override
     public boolean isNumeric() { return false; }
+    @Override
+    public Class classOfObject() { return DateTime.class; }
   },
   STRING {
     @Override
     public boolean isNumeric() { return false; }
+    @Override
+    public Class classOfObject() { return String.class; }
+  },
+  UNKNOWN {
+    @Override
+    public boolean isNumeric() { return false; }
+    @Override
+    public Class classOfObject() { return Object.class; }
   };
 
   public abstract boolean isNumeric();
+  public abstract Class classOfObject();
 
   public static ExprType bestEffortOf(String name)
   {
@@ -63,8 +81,10 @@ public enum ExprType
         return LONG;
       case "DATETIME":
         return DATETIME;
-      default:
+      case "STRING":
         return STRING;
+      default:
+        return UNKNOWN;
     }
   }
 
@@ -77,9 +97,62 @@ public enum ExprType
       case DOUBLE:
         return DOUBLE;
       case STRING:
-      case COMPLEX:
-      default:
         return STRING;
+      default:
+        return UNKNOWN;
+    }
+  }
+
+  public static ExprType typeOf(Class clazz)
+  {
+    if (clazz == String.class) {
+      return STRING;
+    }
+    if (clazz == Long.TYPE || clazz == Long.class) {
+      return LONG;
+    }
+    if (clazz == Float.TYPE || clazz == Float.class || clazz == Double.TYPE || clazz == Double.class) {
+      return DOUBLE;
+    }
+    if (clazz == DateTime.class) {
+      return DATETIME;
+    }
+    return UNKNOWN;
+  }
+
+  public static abstract class StringFunction implements Function
+  {
+    @Override
+    public final ExprType apply(List<Expr> args, Expr.TypeBinding bindings)
+    {
+      return ExprType.STRING;
+    }
+  }
+
+  public static abstract class LongFunction implements Function
+  {
+    @Override
+    public final ExprType apply(List<Expr> args, Expr.TypeBinding bindings)
+    {
+      return ExprType.LONG;
+    }
+  }
+
+  public static abstract class DoubleFunction implements Function
+  {
+    @Override
+    public final ExprType apply(List<Expr> args, Expr.TypeBinding bindings)
+    {
+      return ExprType.DOUBLE;
+    }
+  }
+
+  public static abstract class IndecisiveFunction implements Function
+  {
+    @Override
+    public final ExprType apply(List<Expr> args, Expr.TypeBinding bindings)
+    {
+      return ExprType.UNKNOWN;
     }
   }
 }

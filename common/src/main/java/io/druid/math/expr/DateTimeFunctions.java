@@ -44,11 +44,16 @@ public interface DateTimeFunctions extends Function.Library
 {
   class CurrentTime implements Function
   {
-
     @Override
     public String name()
     {
       return "current_time";
+    }
+
+    @Override
+    public ExprType apply(List<Expr> args, Expr.TypeBinding bindings)
+    {
+      return ExprType.DATETIME;
     }
 
     @Override
@@ -67,12 +72,18 @@ public interface DateTimeFunctions extends Function.Library
     }
 
     @Override
+    public ExprType apply(List<Expr> args, Expr.TypeBinding bindings)
+    {
+      return ExprType.UNKNOWN;
+    }
+
+    @Override
     public ExprEval apply(List<Expr> args, Expr.NumericBinding bindings)
     {
       if (args.size() != 1 && args.size() != 2) {
         throw new IllegalArgumentException("function '" + name() + "' needs one or two arguments");
       }
-      return ExprEval.of(toInterval(args, bindings), ExprType.STRING);
+      return ExprEval.of(toInterval(args, bindings), ExprType.UNKNOWN);
     }
 
     protected Interval toInterval(List<Expr> args, Expr.NumericBinding bindings)
@@ -91,6 +102,12 @@ public interface DateTimeFunctions extends Function.Library
   {
     boolean initialized;
     DateTimeZone timeZone;
+
+    @Override
+    public ExprType apply(List<Expr> args, Expr.TypeBinding bindings)
+    {
+      return ExprType.LONG;
+    }
 
     @Override
     public final ExprEval apply(List<Expr> args, Expr.NumericBinding bindings)
@@ -113,6 +130,12 @@ public interface DateTimeFunctions extends Function.Library
   {
     boolean initialized;
     DateTimeZone timeZone;
+
+    @Override
+    public ExprType apply(List<Expr> args, Expr.TypeBinding bindings)
+    {
+      return ExprType.DATETIME;
+    }
 
     @Override
     public ExprEval apply(List<Expr> args, Expr.NumericBinding bindings)
@@ -168,7 +191,7 @@ public interface DateTimeFunctions extends Function.Library
   }
 
   // whole time based
-  class DiffTime extends Function.NewInstance
+  class DiffTime extends ExprType.LongFunction implements Function.Factory
   {
     private Unit unit;
     private DateTimeZone timeZone;
@@ -216,6 +239,12 @@ public interface DateTimeFunctions extends Function.Library
       }
       return ExprEval.of(new Duration(time1, time2).getMillis());
     }
+
+    @Override
+    public Function get()
+    {
+      return new DiffTime();
+    }
   }
 
   class DayName extends UnaryTimeMath
@@ -224,6 +253,12 @@ public interface DateTimeFunctions extends Function.Library
     public String name()
     {
       return "dayname";
+    }
+
+    @Override
+    public ExprType apply(List<Expr> args, Expr.TypeBinding bindings)
+    {
+      return ExprType.STRING;
     }
 
     @Override
@@ -314,6 +349,12 @@ public interface DateTimeFunctions extends Function.Library
     public String name()
     {
       return "monthname";
+    }
+
+    @Override
+    public ExprType apply(List<Expr> args, Expr.TypeBinding bindings)
+    {
+      return ExprType.STRING;
     }
 
     @Override
@@ -412,6 +453,12 @@ public interface DateTimeFunctions extends Function.Library
       return "timestamp";
     }
 
+    @Override
+    public ExprType apply(List<Expr> args, Expr.TypeBinding bindings)
+    {
+      return ExprType.LONG;
+    }
+
     protected ExprEval toValue(DateTime date)
     {
       return ExprEval.of(date.getMillis(), ExprType.LONG);
@@ -453,6 +500,12 @@ public interface DateTimeFunctions extends Function.Library
     public String name()
     {
       return "datetime";
+    }
+
+    @Override
+    public ExprType apply(List<Expr> args, Expr.TypeBinding bindings)
+    {
+      return ExprType.DATETIME;
     }
 
     protected void initialize(List<Expr> args, Map<String, Expr> params, Expr.NumericBinding bindings)
@@ -516,6 +569,12 @@ public interface DateTimeFunctions extends Function.Library
     public String name()
     {
       return "time_format";
+    }
+
+    @Override
+    public ExprType apply(List<Expr> args, Expr.TypeBinding bindings)
+    {
+      return ExprType.STRING;
     }
 
     @Override

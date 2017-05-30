@@ -23,8 +23,12 @@ import com.google.common.math.DoubleMath;
 import com.google.common.primitives.Ints;
 import io.druid.math.expr.BuiltinFunctions.SingleParamMath;
 import io.druid.math.expr.BuiltinFunctions.TripleParamMath;
+import io.druid.math.expr.Expr;
 import io.druid.math.expr.ExprEval;
+import io.druid.math.expr.ExprType;
 import io.druid.math.expr.Function;
+
+import java.util.List;
 
 /**
  */
@@ -36,6 +40,12 @@ public class GuavaDoubleMath implements Function.Library
     public String name()
     {
       return "factorial";
+    }
+
+    @Override
+    public ExprType type(ExprType param)
+    {
+      return ExprType.DOUBLE;
     }
 
     @Override
@@ -51,6 +61,12 @@ public class GuavaDoubleMath implements Function.Library
     public String name()
     {
       return "fuzzyCompare";
+    }
+
+    @Override
+    public ExprType apply(List<Expr> args, Expr.TypeBinding bindings)
+    {
+      return ExprType.DOUBLE;
     }
 
     @Override

@@ -19,6 +19,7 @@
 
 package io.druid.math.expr;
 
+import com.google.common.base.Optional;
 import com.google.common.base.Strings;
 import com.google.common.math.LongMath;
 
@@ -31,6 +32,8 @@ import java.util.Objects;
  */
 public interface Expr extends Expression
 {
+  ExprType type(TypeBinding bindings);
+
   ExprEval eval(NumericBinding bindings);
 
   interface NumericBinding
@@ -40,10 +43,13 @@ public interface Expr extends Expression
     Object get(String name);
   }
 
-  interface WindowContext extends NumericBinding
+  interface TypeBinding
   {
     ExprType type(String name);
-    Object get(String name);
+  }
+
+  interface WindowContext extends NumericBinding, TypeBinding
+  {
     Object get(int index, String name);
     Iterable<Object> iterator(String name);
     Iterable<Object> iterator(int startRel, int endRel, String name);
@@ -72,6 +78,12 @@ class LongExpr implements Constant
   }
 
   @Override
+  public ExprType type(TypeBinding bindings)
+  {
+    return ExprType.LONG;
+  }
+
+  @Override
   public ExprEval eval(NumericBinding bindings)
   {
     return ExprEval.of(value, ExprType.LONG);
@@ -91,6 +103,12 @@ class StringExpr implements Constant
   public String toString()
   {
     return String.valueOf(value);
+  }
+
+  @Override
+  public ExprType type(TypeBinding bindings)
+  {
+    return ExprType.STRING;
   }
 
   @Override
@@ -116,6 +134,12 @@ class DoubleExpr implements Constant
   }
 
   @Override
+  public ExprType type(TypeBinding bindings)
+  {
+    return ExprType.DOUBLE;
+  }
+
+  @Override
   public ExprEval eval(NumericBinding bindings)
   {
     return ExprEval.of(value, ExprType.DOUBLE);
@@ -135,6 +159,12 @@ class IdentifierExpr implements Expr
   public String toString()
   {
     return value;
+  }
+
+  @Override
+  public ExprType type(TypeBinding bindings)
+  {
+    return Optional.fromNullable(bindings.type(value)).or(ExprType.UNKNOWN);
   }
 
   @Override
@@ -159,6 +189,12 @@ class AssignExpr implements Expr
   public String toString()
   {
     return "(" + assignee + " = " + assigned + ")";
+  }
+
+  @Override
+  public ExprType type(TypeBinding bindings)
+  {
+    throw new IllegalStateException("cannot evaluated directly");
   }
 
   @Override
@@ -188,6 +224,12 @@ class FunctionExpr implements Expr
   }
 
   @Override
+  public ExprType type(TypeBinding bindings)
+  {
+    return function.apply(args, bindings);
+  }
+
+  @Override
   public ExprEval eval(NumericBinding bindings)
   {
     return function.apply(args, bindings);
@@ -201,6 +243,16 @@ class UnaryMinusExpr implements Expr
   UnaryMinusExpr(Expr expr)
   {
     this.expr = expr;
+  }
+
+  @Override
+  public ExprType type(TypeBinding bindings)
+  {
+    ExprType ret = expr.type(bindings);
+    if (ret != ExprType.LONG && ret != ExprType.DOUBLE) {
+      return ExprType.UNKNOWN;
+    }
+    return ret;
   }
 
   @Override
@@ -230,6 +282,16 @@ class UnaryNotExpr implements Expr, Expression.NotExpression
   UnaryNotExpr(Expr expr)
   {
     this.expr = expr;
+  }
+
+  @Override
+  public ExprType type(TypeBinding bindings)
+  {
+    ExprType ret = expr.type(bindings);
+    if (ret != ExprType.LONG && ret != ExprType.DOUBLE) {
+      return ExprType.UNKNOWN;
+    }
+    return ret;
   }
 
   @Override
@@ -283,6 +345,31 @@ abstract class BinaryNumericOpExprBase extends BinaryOpExprBase
   public BinaryNumericOpExprBase(String op, Expr left, Expr right)
   {
     super(op, left, right);
+  }
+
+  @Override
+  public ExprType type(TypeBinding bindings)
+  {
+    ExprType leftType = left.type(bindings);
+    ExprType rightType = right.type(bindings);
+    if (leftType == ExprType.STRING || rightType == ExprType.STRING) {
+      return supportsStringEval() ? ExprType.STRING : ExprType.UNKNOWN;
+    }
+    if (leftType == ExprType.LONG && rightType == ExprType.LONG) {
+      return ExprType.LONG;
+    }
+    return ExprType.DOUBLE;
+  }
+
+  private boolean supportsStringEval()
+  {
+    try {
+      return getClass().getDeclaredMethod("evalString", String.class, String.class).getDeclaringClass()
+             != BinaryNumericOpExprBase.class;
+    }
+    catch (Exception e) {
+      return false;
+    }
   }
 
   @Override
@@ -619,6 +706,14 @@ class BinAndExpr extends BinaryOpExprBase implements Expression.AndExpression
   }
 
   @Override
+  public ExprType type(TypeBinding bindings)
+  {
+    ExprType leftType = left.type(bindings);
+    ExprType rightType = right.type(bindings);
+    return leftType == rightType ? leftType : ExprType.UNKNOWN;
+  }
+
+  @Override
   public ExprEval eval(NumericBinding bindings)
   {
     ExprEval leftVal = left.eval(bindings);
@@ -637,6 +732,14 @@ class BinOrExpr extends BinaryOpExprBase implements Expression.OrExpression
   BinOrExpr(String op, Expr left, Expr right)
   {
     super(op, left, right);
+  }
+
+  @Override
+  public ExprType type(TypeBinding bindings)
+  {
+    ExprType leftType = left.type(bindings);
+    ExprType rightType = right.type(bindings);
+    return leftType == rightType ? leftType : ExprType.UNKNOWN;
   }
 
   @Override

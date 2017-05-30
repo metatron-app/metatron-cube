@@ -22,7 +22,7 @@ package io.druid.segment;
 import com.google.common.base.Predicate;
 import com.google.common.base.Predicates;
 import com.google.common.base.Strings;
-import com.google.common.base.Supplier;
+import io.druid.common.guava.DSuppliers;
 import io.druid.common.utils.StringUtils;
 
 import java.util.Objects;
@@ -91,24 +91,54 @@ public class ColumnSelectors
     };
   }
 
-  public static Supplier<Object> asSupplier(final FloatColumnSelector selector)
+  public static DSuppliers.TypedSupplier<Float> asSupplier(final FloatColumnSelector selector)
   {
-    return new Supplier<Object>()
+    return new DSuppliers.TypedSupplier<Float>()
     {
       @Override
-      public Number get()
+      public Class<Float> classOfObject()
+      {
+        return Float.TYPE;
+      }
+
+      @Override
+      public Float get()
       {
         return selector.get();
       }
     };
   }
 
-  public static Supplier<Object> asSupplier(final DoubleColumnSelector selector)
+  public static DSuppliers.TypedSupplier<Double> asSupplier(final DoubleColumnSelector selector)
   {
-    return new Supplier<Object>()
+    return new DSuppliers.TypedSupplier<Double>()
     {
       @Override
-      public Number get()
+      public Class<Double> classOfObject()
+      {
+        return Double.TYPE;
+      }
+
+      @Override
+      public Double get()
+      {
+        return selector.get();
+      }
+    };
+  }
+
+  public static DSuppliers.TypedSupplier<Long> asSupplier(final LongColumnSelector selector)
+  {
+    return new DSuppliers.TypedSupplier<Long>()
+    {
+      @Override
+      public Class<Long> classOfObject()
+      {
+        return Long.TYPE;
+      }
+
+      @Override
+      public Long get()
       {
         return selector.get();
       }
@@ -125,18 +155,6 @@ public class ColumnSelectors
       return metricFactory.makeFloatColumnSelector(fieldName);
     }
     return wrapAsFloatSelector(metricFactory.makeMathExpressionSelector(fieldExpression));
-  }
-
-  public static Supplier<Object> asSupplier(final LongColumnSelector selector)
-  {
-    return new Supplier<Object>()
-    {
-      @Override
-      public Number get()
-      {
-        return selector.get();
-      }
-    };
   }
 
   public static DoubleColumnSelector getDoubleColumnSelector(
@@ -190,7 +208,7 @@ public class ColumnSelectors
       @Override
       public double get()
       {
-        return selector.get().doubleValue();
+        return selector.get().asDouble();
       }
     };
   }
@@ -202,7 +220,7 @@ public class ColumnSelectors
       @Override
       public float get()
       {
-        return selector.get().floatValue();
+        return selector.get().asFloat();
       }
     };
   }
@@ -214,7 +232,7 @@ public class ColumnSelectors
       @Override
       public long get()
       {
-        return selector.get().longValue();
+        return selector.get().asLong();
       }
     };
   }
@@ -226,7 +244,7 @@ public class ColumnSelectors
       @Override
       public Class classOfObject()
       {
-        return Object.class;
+        return selector.classOfObject();
       }
 
       @Override

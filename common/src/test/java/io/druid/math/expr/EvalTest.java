@@ -67,7 +67,7 @@ public class EvalTest
   private Object eval(String x, Expr.NumericBinding bindings)
   {
     ExprEval ret = Parser.parse(x).eval(bindings);
-    Assert.assertEquals(ExprType.STRING, ret.type());
+    Assert.assertEquals(ExprType.UNKNOWN, ret.type());
     return ret.value();
   }
 
@@ -510,6 +510,12 @@ public class EvalTest
     Assert.assertEquals("navi", Parser.parse("regex ('navis', '(.*)s', 1)").eval(bindings).asString());
     Assert.assertEquals("is", Parser.parse("regex ('navis', '(.*)v(..)', 2)").eval(bindings).asString());
     Assert.assertEquals("navis", Parser.parse("regex ('navis', '.*vi.*', 0)").eval(bindings).asString());
+
+    Assert.assertEquals(
+        "198.126.63",
+        Parser.parse("regex ('198.126.63.1', '(\\\\d{1,4}(\\\\.\\\\d{1,4}){2})\\\\.\\\\d{1,4}', 1)")
+              .eval(bindings).asString()
+    );
   }
 
   @Test
@@ -553,7 +559,31 @@ public class EvalTest
   {
     Expr.NumericBinding bindings = Parser.withMap(ImmutableMap.<String, Object>of());
     Assert.assertTrue(Parser.parse("ipv4_in('192.168.3.4', '192.168.0.0')").eval(bindings).asBoolean());
-    Assert.assertTrue(Parser.parse("ipv4_in('192.168.3.4', '192.168.0.0', '192.168.128.128')").eval(bindings).asBoolean());
-    Assert.assertFalse(Parser.parse("ipv4_in('192.168.3.4', '192.168.32.0', '192.168.128.128')").eval(bindings).asBoolean());
+    Assert.assertTrue(
+        Parser.parse("ipv4_in('192.168.3.4', '192.168.0.0', '192.168.128.128')")
+              .eval(bindings)
+              .asBoolean()
+    );
+    Assert.assertFalse(
+        Parser.parse("ipv4_in('192.168.3.4', '192.168.32.0', '192.168.128.128')")
+              .eval(bindings)
+              .asBoolean()
+    );
+  }
+
+  @Test
+  public void testTypes()
+  {
+    Expr.TypeBinding bindings = Parser.withTypeMap(
+        ImmutableMap.<String, ExprType>of("a", ExprType.LONG, "b", ExprType.STRING, "c", ExprType.DOUBLE)
+    );
+    Assert.assertEquals(ExprType.LONG, Parser.parse("a * cast(b, 'long')").type(bindings));
+    Assert.assertEquals(ExprType.DOUBLE, Parser.parse("a * cast(b, 'double')").type(bindings));
+    Assert.assertEquals(ExprType.STRING, Parser.parse("concat(a, cast(b, 'double'))").type(bindings));
+    Assert.assertEquals(ExprType.LONG, Parser.parse("a * cast(b, 'long')").type(bindings));
+
+    Assert.assertEquals(ExprType.LONG, Parser.parse("if(C == '', 0, CAST(C, 'INT') / 10 * 10)").type(bindings));
+    Assert.assertEquals(ExprType.UNKNOWN, Parser.parse("if(C == '', 0, CAST(C, 'INT') / 10 * 10.0)").type(bindings));
+    Assert.assertEquals(ExprType.DOUBLE, Parser.parse("if(C == '', 0.0, CAST(C, 'INT') / 10 * 10.0)").type(bindings));
   }
 }

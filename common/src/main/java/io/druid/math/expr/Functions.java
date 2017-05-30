@@ -59,6 +59,12 @@ public class Functions
           {
             return expr;
           }
+
+          @Override
+          public ExprType apply(List<Expr> args, Expr.TypeBinding bindings)
+          {
+            return expr.type();
+          }
         };
       }
     };

@@ -174,6 +174,12 @@ public enum DescExtractor
               String value = args.get(1).eval(bindings).asString();
               return ExprEval.of(values.get(value));
             }
+
+            @Override
+            public ExprType apply(List<Expr> args, Expr.TypeBinding bindings)
+            {
+              return ExprType.STRING;
+            }
           };
         }
       };
@@ -231,6 +237,12 @@ public enum DescExtractor
         {
           Preconditions.checkArgument(args.size() == 1);
           return ExprEval.of(mapping.get(args.get(0).eval(bindings).asString()));
+        }
+
+        @Override
+        public ExprType apply(List<Expr> args, Expr.TypeBinding bindings)
+        {
+          return ExprType.STRING;
         }
       };
     }

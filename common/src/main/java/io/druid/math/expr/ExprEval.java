@@ -32,27 +32,19 @@ public class ExprEval extends Pair<Object, ExprType>
 {
   public static ExprEval bestEffortOf(Object val)
   {
-    if (val instanceof ExprEval) {
-      return (ExprEval) val;
-    }
-    if (val instanceof Number) {
-      if (val instanceof Byte || val instanceof Short || val instanceof Integer || val instanceof Long) {
-        return ExprEval.of(val, ExprType.LONG);
-      }
-      if (val instanceof Float || val instanceof Double) {
-        return ExprEval.of(val, ExprType.DOUBLE);
-      }
-    }
-    if (val instanceof DateTime) {
-      return ExprEval.of((DateTime)val);
-    }
-    return ExprEval.of(val == null ? null : String.valueOf(val), ExprType.STRING);
+    return bestEffortOf(val, ExprType.UNKNOWN);
   }
 
-  public static ExprEval bestEffortOf(Object val, ExprType type)
+  public static ExprEval bestEffortOf(Object val, ExprType defaultType)
   {
+    if (val == null) {
+      return ExprEval.of(null, ExprType.STRING);  // compatibility
+    }
     if (val instanceof ExprEval) {
       return (ExprEval) val;
+    }
+    if (val instanceof String) {
+      return ExprEval.of(val, ExprType.STRING);
     }
     if (val instanceof Number) {
       if (val instanceof Byte || val instanceof Short || val instanceof Integer || val instanceof Long) {
@@ -65,7 +57,7 @@ public class ExprEval extends Pair<Object, ExprType>
     if (val instanceof DateTime) {
       return ExprEval.of((DateTime)val);
     }
-    return new ExprEval(val, type != null ? type : ExprType.STRING);
+    return new ExprEval(val, defaultType == null ? ExprType.UNKNOWN : defaultType);
   }
 
   public static ExprEval of(Object value, ExprType type)
@@ -180,10 +172,8 @@ public class ExprEval extends Pair<Object, ExprType>
         return longValue() > 0;
       case STRING:
         return !isNull() && Boolean.valueOf(stringValue());
-      case DATETIME:
-        // ?
     }
-    return false;
+    return !isNull();
   }
 
   public float asFloat()
@@ -254,6 +244,6 @@ public class ExprEval extends Pair<Object, ExprType>
       case DATETIME:
         return ExprEval.of((DateTime)null);
     }
-    return ExprEval.of((String)null);
+    return ExprEval.of(null, ExprType.UNKNOWN);
   }
 }

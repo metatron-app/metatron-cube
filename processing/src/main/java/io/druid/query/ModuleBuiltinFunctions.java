@@ -78,7 +78,7 @@ public class ModuleBuiltinFunctions implements Function.Library
             granularity.next(interval.getEndMillis())
         );
       }
-      return ExprEval.of(interval, ExprType.STRING);
+      return ExprEval.of(interval, ExprType.UNKNOWN);
     }
 
     @Override
@@ -98,6 +98,12 @@ public class ModuleBuiltinFunctions implements Function.Library
     public String name()
     {
       return "lookup";
+    }
+
+    @Override
+    public ExprType apply(List<Expr> args, Expr.TypeBinding bindings)
+    {
+      return ExprType.STRING;
     }
 
     @Override

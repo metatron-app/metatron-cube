@@ -19,15 +19,12 @@
 
 package io.druid.segment;
 
-import com.google.common.base.Supplier;
+import io.druid.common.guava.DSuppliers;
 
 import java.io.Closeable;
 
-public interface ObjectColumnSelector<T> extends Supplier<T>
+public interface ObjectColumnSelector<T> extends DSuppliers.TypedSupplier<T>
 {
-  public Class<T> classOfObject();
-  public T get();
-
   interface WithBaggage<T> extends ObjectColumnSelector<T>, Closeable
   {
   }

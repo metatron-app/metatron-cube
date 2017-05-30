@@ -33,6 +33,7 @@ import com.google.common.primitives.UnsignedBytes;
 import com.metamx.common.Pair;
 import com.metamx.common.logger.Logger;
 import io.druid.math.expr.Expr.NumericBinding;
+import io.druid.math.expr.Expr.TypeBinding;
 import io.druid.math.expr.Expr.WindowContext;
 import io.druid.math.expr.Function.Factory;
 import org.apache.commons.lang.StringUtils;
@@ -41,6 +42,7 @@ import org.joda.time.DateTimeZone;
 import org.joda.time.Days;
 import org.mozilla.javascript.Context;
 import org.mozilla.javascript.ScriptableObject;
+import org.python.core.PyArray;
 import org.python.core.PyCode;
 import org.python.core.PyFloat;
 import org.python.core.PyInteger;
@@ -72,7 +74,13 @@ public interface BuiltinFunctions extends Function.Library
   abstract class SingleParam implements Function
   {
     @Override
-    public ExprEval apply(List<Expr> args, NumericBinding bindings)
+    public final ExprType apply(List<Expr> args, TypeBinding bindings)
+    {
+      return args.size() == 1 ? type(args.get(0).type(bindings)) : ExprType.UNKNOWN;
+    }
+
+    @Override
+    public final ExprEval apply(List<Expr> args, NumericBinding bindings)
     {
       if (args.size() != 1) {
         throw new RuntimeException("function '" + name() + "' needs 1 argument");
@@ -82,10 +90,18 @@ public interface BuiltinFunctions extends Function.Library
     }
 
     protected abstract ExprEval eval(ExprEval param);
+
+    protected abstract ExprType type(ExprType param);
   }
 
   abstract class DoubleParam implements Function
   {
+    @Override
+    public final ExprType apply(List<Expr> args, TypeBinding bindings)
+    {
+      return args.size() == 2 ? eval(args.get(0).type(bindings), args.get(1).type(bindings)) : ExprType.UNKNOWN;
+    }
+
     @Override
     public ExprEval apply(List<Expr> args, NumericBinding bindings)
     {
@@ -98,6 +114,8 @@ public interface BuiltinFunctions extends Function.Library
     }
 
     protected abstract ExprEval eval(ExprEval x, ExprEval y);
+
+    protected abstract ExprType eval(ExprType x, ExprType y);
   }
 
   abstract class TripleParam implements Function
@@ -156,6 +174,27 @@ public interface BuiltinFunctions extends Function.Library
   abstract class SingleParamMath extends SingleParam
   {
     @Override
+    public ExprType type(ExprType param)
+    {
+      if (param == ExprType.LONG) {
+        return supports(Long.TYPE) ? ExprType.LONG : ExprType.DOUBLE;
+      } else if (param == ExprType.DOUBLE) {
+        return supports(Double.TYPE) ? ExprType.DOUBLE : ExprType.LONG;
+      }
+      return ExprType.UNKNOWN;
+    }
+
+    private boolean supports(Class<?> type)
+    {
+      try {
+        return getClass().getDeclaredMethod("eval", type).getDeclaringClass() != SingleParamMath.class;
+      }
+      catch (Exception e) {
+        return false;
+      }
+    }
+
+    @Override
     protected ExprEval eval(ExprEval param)
     {
       if (param.type() == ExprType.LONG) {
@@ -163,7 +202,7 @@ public interface BuiltinFunctions extends Function.Library
       } else if (param.type() == ExprType.DOUBLE) {
         return eval(param.doubleValue());
       }
-      return ExprEval.of(null, ExprType.STRING);
+      return ExprEval.of(null, ExprType.UNKNOWN);
     }
 
     protected ExprEval eval(long param)
@@ -180,6 +219,29 @@ public interface BuiltinFunctions extends Function.Library
   abstract class DoubleParamMath extends DoubleParam
   {
     @Override
+    public ExprType eval(ExprType x, ExprType y)
+    {
+      if (x.isNumeric() || y.isNumeric()) {
+        if (x == ExprType.LONG && y == ExprType.LONG) {
+          return supports(Long.TYPE) ? ExprType.LONG : ExprType.DOUBLE;
+        } else {
+          return supports(Double.TYPE) ? ExprType.DOUBLE : ExprType.LONG;
+        }
+      }
+      return ExprType.UNKNOWN;
+    }
+
+    private boolean supports(Class<?> type)
+    {
+      try {
+        return getClass().getDeclaredMethod("eval", type, type).getDeclaringClass() != SingleParamMath.class;
+      }
+      catch (Exception e) {
+        return false;
+      }
+    }
+
+    @Override
     protected ExprEval eval(ExprEval x, ExprEval y)
     {
       if (x.type().isNumeric() || y.type().isNumeric()) {
@@ -189,7 +251,7 @@ public interface BuiltinFunctions extends Function.Library
           return eval(x.doubleValue(), y.doubleValue());
         }
       }
-      return ExprEval.of(null, ExprType.STRING);
+      return ExprEval.of(null, ExprType.UNKNOWN);
     }
 
     protected ExprEval eval(long x, long y)
@@ -238,6 +300,12 @@ public interface BuiltinFunctions extends Function.Library
     }
 
     @Override
+    public ExprType type(ExprType param)
+    {
+      return ExprType.LONG;
+    }
+
+    @Override
     protected ExprEval eval(ExprEval param)
     {
       if (param.value() instanceof Collection) {
@@ -247,7 +315,7 @@ public interface BuiltinFunctions extends Function.Library
     }
   }
 
-  class Like implements Function, Factory
+  class Like extends ExprType.StringFunction implements Factory
   {
     private Pair<RegexUtils.PatternType, Object> matcher;
 
@@ -290,6 +358,12 @@ public interface BuiltinFunctions extends Function.Library
     }
 
     @Override
+    public final ExprType apply(List<Expr> args, Expr.TypeBinding bindings)
+    {
+      return args.size() == 2 ? ExprType.LONG : args.size() == 3 ?ExprType.STRING : ExprType.UNKNOWN;
+    }
+
+    @Override
     public ExprEval apply(List<Expr> args, NumericBinding bindings)
     {
       if (matcher == null) {
@@ -318,7 +392,7 @@ public interface BuiltinFunctions extends Function.Library
     }
   }
 
-  class RFunc implements Function, Factory
+  class RFunc extends ExprType.IndecisiveFunction implements Factory
   {
     private Rengine r;
     private String function;
@@ -363,8 +437,8 @@ public interface BuiltinFunctions extends Function.Library
           case LONG:
             r.assign(symbol, new int[]{Ints.checkedCast(eval.longValue())});
             break;
-          case STRING:
-            r.assign(symbol, eval.stringValue());
+          default:
+            r.assign(symbol, eval.asString());
             break;
         }
       }
@@ -390,7 +464,7 @@ public interface BuiltinFunctions extends Function.Library
     }
   }
 
-  abstract class AbstractPythonFunc implements Function, Factory
+  abstract class AbstractPythonFunc extends ExprType.IndecisiveFunction implements Factory
   {
     static {
       Properties prop = new Properties();
@@ -419,7 +493,10 @@ public interface BuiltinFunctions extends Function.Library
       if (result instanceof PyInteger || result instanceof PyLong) {
         return ExprEval.of(result.asLong(), ExprType.LONG);
       }
-      return ExprEval.of(result.asStringOrNull(), ExprType.STRING);
+      if (result instanceof PyArray) {
+        return ExprEval.of(((PyArray)result).getArray(), ExprType.UNKNOWN);
+      }
+      return ExprEval.of(null, ExprType.UNKNOWN);
     }
   }
 
@@ -1051,7 +1128,19 @@ public interface BuiltinFunctions extends Function.Library
     @Override
     protected ExprEval eval(ExprEval x, ExprEval y)
     {
-      return ExprEval.of(Math.scalb(x.doubleValue(), y.intValue()));
+      if (x.isNumeric() && y.isNumeric()) {
+        return ExprEval.of(Math.scalb(x.doubleValue(), y.intValue()));
+      }
+      return ExprEval.of(null, ExprType.UNKNOWN);
+    }
+
+    @Override
+    protected ExprType eval(ExprType x, ExprType y)
+    {
+      if (x.isNumeric() && y.isNumeric()) {
+        return ExprType.DOUBLE;
+      }
+      return ExprType.UNKNOWN;
     }
   }
 
@@ -1061,6 +1150,26 @@ public interface BuiltinFunctions extends Function.Library
     public String name()
     {
       return "if";
+    }
+
+    @Override
+    public ExprType apply(List<Expr> args, TypeBinding bindings)
+    {
+      if (args.size() < 3 || args.size() % 2 == 0) {
+        return ExprType.UNKNOWN;
+      }
+      ExprType prev = args.get(1).type(bindings);
+      for (int i = 3; i < args.size() - 1; i += 2) {
+        ExprType type = args.get(i).type(bindings);
+        if (prev != null && prev != type) {
+          return ExprType.UNKNOWN;
+        }
+        prev = type;
+      }
+      if (!prev.equals(args.get(args.size() - 1).type(bindings))) {
+        return ExprType.UNKNOWN;
+      }
+      return prev;
     }
 
     @Override
@@ -1093,6 +1202,15 @@ public interface BuiltinFunctions extends Function.Library
     }
 
     @Override
+    public ExprType apply(List<Expr> args, TypeBinding bindings)
+    {
+      if (args.size() != 2) {
+        return ExprType.UNKNOWN;
+      }
+      return ExprType.bestEffortOf(Evals.getConstantString(args.get(1)));
+    }
+
+    @Override
     public ExprEval apply(List<Expr> args, NumericBinding bindings)
     {
       if (args.size() != 2) {
@@ -1121,6 +1239,12 @@ public interface BuiltinFunctions extends Function.Library
     }
 
     @Override
+    public ExprType apply(List<Expr> args, TypeBinding bindings)
+    {
+      return args.size() == 1 ? ExprType.LONG : ExprType.UNKNOWN;
+    }
+
+    @Override
     public ExprEval apply(List<Expr> args, NumericBinding bindings)
     {
       if (args.size() != 1) {
@@ -1137,6 +1261,19 @@ public interface BuiltinFunctions extends Function.Library
     public String name()
     {
       return "nvl";
+    }
+
+    @Override
+    public ExprType apply(List<Expr> args, TypeBinding bindings)
+    {
+      if (args.size() == 2) {
+        ExprType x = args.get(0).type(bindings);
+        ExprType y = args.get(1).type(bindings);
+        if (x == y) {
+          return x;
+        }
+      }
+      return ExprType.UNKNOWN;
     }
 
     @Override
@@ -1171,6 +1308,12 @@ public interface BuiltinFunctions extends Function.Library
     }
 
     @Override
+    public ExprType apply(List<Expr> args, TypeBinding bindings)
+    {
+      return args.size() == 2 ? ExprType.LONG : ExprType.UNKNOWN;
+    }
+
+    @Override
     public ExprEval apply(List<Expr> args, NumericBinding bindings)
     {
       if (args.size() < 2) {
@@ -1188,6 +1331,24 @@ public interface BuiltinFunctions extends Function.Library
     public String name()
     {
       return "case";
+    }
+
+    @Override
+    public ExprType apply(List<Expr> args, TypeBinding bindings)
+    {
+      if (args.size() < 3) {
+        return ExprType.UNKNOWN;
+      }
+      ExprType prev = args.get(2).type(bindings);
+      for (int i = 4; i < args.size(); i += 2) {
+        if (prev != args.get(i).type(bindings)) {
+          return ExprType.UNKNOWN;
+        }
+      }
+      if (args.size() % 2 != 1 && prev != args.get(args.size() - 1).type(bindings)) {
+        return ExprType.UNKNOWN;
+      }
+      return prev;
     }
 
     @Override
@@ -1209,7 +1370,7 @@ public interface BuiltinFunctions extends Function.Library
     }
   }
 
-  class JavaScriptFunc implements Function
+  class JavaScriptFunc extends ExprType.IndecisiveFunction
   {
     ScriptableObject scope;
     org.mozilla.javascript.Function fnApply;
@@ -1281,7 +1442,7 @@ public interface BuiltinFunctions extends Function.Library
     }
   }
 
-  class ConcatFunc implements Function
+  class ConcatFunc extends ExprType.StringFunction
   {
     @Override
     public String name()
@@ -1300,7 +1461,7 @@ public interface BuiltinFunctions extends Function.Library
     }
   }
 
-  class FormatFunc implements Function, Factory
+  class FormatFunc extends ExprType.StringFunction implements Factory
   {
     final StringBuilder builder = new StringBuilder();
     final Formatter formatter = new Formatter(builder);
@@ -1339,7 +1500,7 @@ public interface BuiltinFunctions extends Function.Library
     }
   }
 
-  class LPadFunc implements Function, Factory
+  class LPadFunc extends ExprType.StringFunction implements Factory
   {
     @Override
     public String name()
@@ -1375,7 +1536,7 @@ public interface BuiltinFunctions extends Function.Library
     }
   }
 
-  class RPadFunc implements Function, Factory
+  class RPadFunc extends ExprType.StringFunction implements Factory
   {
     @Override
     public String name()
@@ -1411,7 +1572,7 @@ public interface BuiltinFunctions extends Function.Library
     }
   }
 
-  class UpperFunc implements Function
+  class UpperFunc extends ExprType.StringFunction
   {
     @Override
     public String name()
@@ -1430,7 +1591,7 @@ public interface BuiltinFunctions extends Function.Library
     }
   }
 
-  class LowerFunc implements Function
+  class LowerFunc extends ExprType.StringFunction
   {
     @Override
     public String name()
@@ -1449,7 +1610,7 @@ public interface BuiltinFunctions extends Function.Library
     }
   }
 
-  class SplitFunc implements Function
+  class SplitFunc extends ExprType.StringFunction
   {
     @Override
     public String name()
@@ -1472,7 +1633,7 @@ public interface BuiltinFunctions extends Function.Library
     }
   }
 
-  class ProperFunc implements Function
+  class ProperFunc extends ExprType.StringFunction
   {
     @Override
     public String name()
@@ -1489,12 +1650,12 @@ public interface BuiltinFunctions extends Function.Library
       String input = args.get(0).eval(bindings).asString();
       return ExprEval.of(
           Strings.isNullOrEmpty(input) ? input :
-          Character.toUpperCase(input.charAt(0)) + input.substring(1)
+          Character.toUpperCase(input.charAt(0)) + input.substring(1).toLowerCase()
       );
     }
   }
 
-  class LengthFunc implements Function
+  class LengthFunc extends ExprType.LongFunction
   {
     @Override
     public String name()
@@ -1513,7 +1674,7 @@ public interface BuiltinFunctions extends Function.Library
     }
   }
 
-  class LeftFunc implements Function
+  class LeftFunc extends ExprType.StringFunction
   {
     @Override
     public String name()
@@ -1534,7 +1695,7 @@ public interface BuiltinFunctions extends Function.Library
     }
   }
 
-  class RightFunc implements Function
+  class RightFunc extends ExprType.StringFunction
   {
     @Override
     public String name()
@@ -1559,7 +1720,7 @@ public interface BuiltinFunctions extends Function.Library
     }
   }
 
-  class MidFunc implements Function
+  class MidFunc extends ExprType.StringFunction
   {
     @Override
     public String name()
@@ -1581,7 +1742,7 @@ public interface BuiltinFunctions extends Function.Library
     }
   }
 
-  class IndexOfFunc implements Function
+  class IndexOfFunc extends ExprType.LongFunction
   {
     @Override
     public String name()
@@ -1602,7 +1763,7 @@ public interface BuiltinFunctions extends Function.Library
     }
   }
 
-  class ReplaceFunc implements Function
+  class ReplaceFunc extends ExprType.StringFunction
   {
     @Override
     public String name()
@@ -1627,7 +1788,7 @@ public interface BuiltinFunctions extends Function.Library
     }
   }
 
-  class TrimFunc implements Function
+  class TrimFunc extends ExprType.StringFunction
   {
     @Override
     public String name()
@@ -1646,7 +1807,7 @@ public interface BuiltinFunctions extends Function.Library
     }
   }
 
-  class InFunc implements Function, Factory
+  class InFunc extends ExprType.LongFunction implements Factory
   {
     @Override
     public String name()
@@ -1665,7 +1826,7 @@ public interface BuiltinFunctions extends Function.Library
         }
         set = Sets.newHashSet();
         for (int i = 1; i < args.size(); i++) {
-          set.add(args.get(i).eval(null).value());
+          set.add(Evals.getConstant(args.get(i)));
         }
       }
       return ExprEval.of(set.contains(args.get(0).eval(bindings).value()));
@@ -1678,7 +1839,7 @@ public interface BuiltinFunctions extends Function.Library
     }
   }
 
-  class Now implements Function {
+  class Now extends ExprType.LongFunction {
 
     @Override
     public String name()
@@ -1693,7 +1854,7 @@ public interface BuiltinFunctions extends Function.Library
     }
   }
 
-  class IPv4In extends Function.NewInstance
+  class IPv4In extends ExprType.LongFunction implements Factory
   {
     byte[] start;
     byte[] end = Ints.toByteArray(-1);
@@ -1745,9 +1906,15 @@ public interface BuiltinFunctions extends Function.Library
       }
       return true;
     }
+
+    @Override
+    public Function get()
+    {
+      return new IPv4In();
+    }
   }
 
-  abstract class PartitionFunction implements Function, Factory
+  abstract class PartitionFunction extends ExprType.IndecisiveFunction implements Factory
   {
     protected String fieldName;
     protected ExprType fieldType;
@@ -2675,7 +2842,7 @@ public interface BuiltinFunctions extends Function.Library
     }
   }
 
-  class PartitionEval implements Function
+  class PartitionEval extends ExprType.StringFunction implements Function
   {
     @Override
     public String name()
@@ -2698,7 +2865,7 @@ public interface BuiltinFunctions extends Function.Library
     }
   }
 
-  class AssignFirst implements Function
+  class AssignFirst extends ExprType.StringFunction implements Function
   {
     @Override
     public String name()

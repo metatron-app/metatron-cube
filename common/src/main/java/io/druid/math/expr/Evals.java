@@ -31,6 +31,7 @@ import org.joda.time.DateTimeZone;
 import org.joda.time.format.DateTimeFormatter;
 
 import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 
@@ -161,23 +162,24 @@ public class Evals
     return (Number) constant;
   }
 
-  static Object getConstant(Expr arg)
+  static Object getConstant(final Expr arg)
   {
-    if (arg instanceof StringExpr) {
-      return arg.eval(null).stringValue();
-    } else if (arg instanceof LongExpr) {
-      return arg.eval(null).longValue();
-    } else if (arg instanceof DoubleExpr) {
-      return arg.eval(null).doubleValue();
-    } else if (arg instanceof UnaryMinusExpr) {
-      UnaryMinusExpr minusExpr = (UnaryMinusExpr)arg;
-      if (minusExpr.expr instanceof LongExpr) {
-        return -minusExpr.expr.eval(null).longValue();
-      } else if (minusExpr.expr instanceof DoubleExpr) {
-        return -minusExpr.expr.eval(null).doubleValue();
-      }
-    }
-    throw new RuntimeException(arg + " is not a constant");
+    return arg.eval(
+        new Expr.NumericBinding()
+        {
+          @Override
+          public Collection<String> names()
+          {
+            return Collections.emptyList();
+          }
+
+          @Override
+          public Object get(String name)
+          {
+            throw new RuntimeException(arg + " is not a constant");
+          }
+        }
+    ).value();
   }
 
   static boolean isConstantString(Expr arg)

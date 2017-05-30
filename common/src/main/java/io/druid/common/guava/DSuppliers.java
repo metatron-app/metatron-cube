@@ -27,6 +27,15 @@ import java.util.concurrent.atomic.AtomicReference;
  */
 public class DSuppliers
 {
+  public static interface Typed<T>
+  {
+    Class<T> classOfObject();
+  }
+
+  public static interface TypedSupplier<T> extends Supplier<T>, Typed<T>
+  {
+  }
+
   public static <T> Supplier<T> of(final AtomicReference<T> ref)
   {
     return new Supplier<T>()

@@ -21,8 +21,11 @@ package io.druid.segment;
 
 import com.google.common.base.Supplier;
 import com.google.common.collect.Maps;
+import io.druid.common.guava.DSuppliers;
+import io.druid.common.guava.GuavaUtils;
 import io.druid.math.expr.Expr;
 import io.druid.math.expr.ExprEval;
+import io.druid.math.expr.ExprType;
 import io.druid.math.expr.Parser;
 import io.druid.query.dimension.DimensionSpec;
 import io.druid.segment.column.ColumnCapabilities;
@@ -50,13 +53,25 @@ public interface ColumnSelectorFactory
     public ExprEvalColumnSelector makeMathExpressionSelector(String expression)
     {
       final Expr parsed = Parser.parse(expression);
-      final Map<String, Supplier<Object>> values = Maps.newHashMap();
+      final Map<String, DSuppliers.TypedSupplier> values = Maps.newHashMap();
       for (String columnName : Parser.findRequiredBindings(parsed)) {
         values.put(columnName, makeObjectColumnSelector(columnName));
       }
-      final Expr.NumericBinding binding = Parser.withSuppliers(values);
+      final ExprType expected = parsed.type(Parser.withTypeSuppliers(values));
+      final Expr.NumericBinding binding = Parser.withSuppliers(
+          Maps.transformValues(
+              values,
+              GuavaUtils.<DSuppliers.TypedSupplier, Supplier>caster()
+          )
+      );
       return new ExprEvalColumnSelector()
       {
+        @Override
+        public Class classOfObject()
+        {
+          return expected.classOfObject();
+        }
+
         @Override
         public ExprEval get()
         {

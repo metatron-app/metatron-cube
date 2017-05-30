@@ -36,6 +36,8 @@ import com.google.common.primitives.Longs;
 import com.metamx.common.guava.Sequence;
 import com.metamx.common.guava.Sequences;
 import io.druid.cache.Cache;
+import io.druid.common.guava.DSuppliers;
+import io.druid.common.guava.GuavaUtils;
 import io.druid.data.ValueType;
 import io.druid.granularity.QueryGranularity;
 import io.druid.math.expr.Evals;
@@ -860,7 +862,7 @@ public class IncrementalIndexStorageAdapter implements StorageAdapter
     {
       final Expr parsed = Parser.parse(expression);
 
-      final Expr.NumericBinding binding = indexToBinding(parsed);
+      final Expr.NumericBinding binding = toValueBinding(Parser.findRequiredBindings(parsed));
       return new ValueMatcher() {
         @Override
         public boolean matches()
@@ -870,10 +872,20 @@ public class IncrementalIndexStorageAdapter implements StorageAdapter
       };
     }
 
-    private Expr.NumericBinding indexToBinding(Expr parsed)
+    private Expr.NumericBinding toValueBinding(List<String> columns)
     {
-      final Map<String, Supplier<Object>> values = Maps.newHashMap();
-      for (String column : Parser.findRequiredBindings(parsed)) {
+      return Parser.withSuppliers(
+          Maps.transformValues(
+              indexAsBinding(columns),
+              GuavaUtils.<DSuppliers.TypedSupplier, Supplier>caster()
+          )
+      );
+    }
+
+    private Map<String, DSuppliers.TypedSupplier> indexAsBinding(List<String> columns)
+    {
+      final Map<String, DSuppliers.TypedSupplier> values = Maps.newHashMap();
+      for (String column : columns) {
         IncrementalIndex.DimensionDesc dimensionDesc = index.getDimension(column);
         if (dimensionDesc != null) {
           if (dimensionDesc.getCapabilities().hasMultipleValues()) {
@@ -882,8 +894,14 @@ public class IncrementalIndexStorageAdapter implements StorageAdapter
           final int dimIndex = dimensionDesc.getIndex();
           final IncrementalIndex.DimDim dimDim = dimensionDesc.getValues();
           final ValueType type = dimensionDesc.getCapabilities().getType();
-          final Supplier<Object> supplier = new Supplier<Object>()
+          final DSuppliers.TypedSupplier supplier = new DSuppliers.TypedSupplier()
           {
+            @Override
+            public Class classOfObject()
+            {
+              return type.classOfObject();
+            }
+
             @Override
             public Comparable get()
             {
@@ -936,8 +954,7 @@ public class IncrementalIndexStorageAdapter implements StorageAdapter
           }
         }
       }
-
-      return Parser.withSuppliers(values);
+      return values;
     }
   }
 

@@ -22,6 +22,7 @@ package io.druid.math.expr;
 import com.google.common.base.Supplier;
 import com.google.common.base.Throwables;
 import io.druid.math.expr.Expr.NumericBinding;
+import io.druid.math.expr.Expr.TypeBinding;
 
 import java.util.List;
 
@@ -32,6 +33,8 @@ public interface Function
   String name();
 
   ExprEval apply(List<Expr> args, NumericBinding bindings);
+
+  ExprType apply(List<Expr> args, TypeBinding bindings);
 
   interface Factory extends Supplier<Function>
   {
