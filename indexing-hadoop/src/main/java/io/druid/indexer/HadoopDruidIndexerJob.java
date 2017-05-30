@@ -64,6 +64,7 @@ public class HadoopDruidIndexerJob implements Jobby
   @Override
   public boolean run()
   {
+    log.info("Running HadoopDruidIndexerJob.. %s %s", config.getDataSource(), config.getIntervals());
     List<Jobby> jobs = Lists.newArrayList();
     JobHelper.ensurePaths(config);
 

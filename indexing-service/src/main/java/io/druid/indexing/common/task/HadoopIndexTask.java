@@ -139,6 +139,7 @@ public class HadoopIndexTask extends HadoopTask
               intervals.get()
           )
       );
+      log.info("Checking readiness of task %s on intervals.. %s - %s", getId(), interval, intervals.get());
       return taskActionClient.submit(new LockTryAcquireAction(interval)) != null;
     } else {
       return true;

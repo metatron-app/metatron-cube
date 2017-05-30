@@ -161,6 +161,7 @@ public class IndexGeneratorJob implements HadoopDruidIndexerJob.IndexingStatsPro
 
   public boolean run()
   {
+    log.info("Running IndexGeneratorJob.. %s %s", config.getDataSource(), config.getIntervals());
     try {
       Job job = Job.getInstance(
           new Configuration(),

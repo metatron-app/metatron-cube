@@ -64,6 +64,7 @@ public class DetermineSizeBasedPartitionsJob implements Jobby
   @Override
   public boolean run()
   {
+    log.info("Running DetermineSizeBasedPartitionsJob.. %s %s", config.getDataSource(), config.getIntervals());
     long startTime = System.currentTimeMillis();
     long targetSize = config.getTargetPartitionSize();
 

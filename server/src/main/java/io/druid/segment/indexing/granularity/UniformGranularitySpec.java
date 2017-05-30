@@ -32,6 +32,7 @@ import org.joda.time.DateTime;
 import org.joda.time.Interval;
 
 import java.util.List;
+import java.util.Objects;
 import java.util.SortedSet;
 
 public class UniformGranularitySpec implements GranularitySpec
@@ -42,33 +43,22 @@ public class UniformGranularitySpec implements GranularitySpec
   private final Granularity segmentGranularity;
   private final QueryGranularity queryGranularity;
   private final Boolean rollup;
-  private final List<Interval> inputIntervals;
-  private final ArbitraryGranularitySpec wrappedSpec;
+  private final List<Interval> intervals;
+
+  private transient ArbitraryGranularitySpec normalized;
 
   @JsonCreator
   public UniformGranularitySpec(
       @JsonProperty("segmentGranularity") Granularity segmentGranularity,
       @JsonProperty("queryGranularity") QueryGranularity queryGranularity,
       @JsonProperty("rollup") Boolean rollup,
-      @JsonProperty("intervals") List<Interval> inputIntervals
-
+      @JsonProperty("intervals") List<Interval> intervals
   )
   {
     this.segmentGranularity = segmentGranularity == null ? DEFAULT_SEGMENT_GRANULARITY : segmentGranularity;
     this.queryGranularity = queryGranularity == null ? DEFAULT_QUERY_GRANULARITY : queryGranularity;
     this.rollup = rollup == null ? Boolean.TRUE : rollup;
-
-    if (inputIntervals != null) {
-      List<Interval> granularIntervals = Lists.newArrayList();
-      for (Interval inputInterval : inputIntervals) {
-        Iterables.addAll(granularIntervals, this.segmentGranularity.getIterable(inputInterval));
-      }
-      this.inputIntervals = ImmutableList.copyOf(inputIntervals);
-      this.wrappedSpec = new ArbitraryGranularitySpec(queryGranularity, rollup, granularIntervals);
-    } else {
-      this.inputIntervals = null;
-      this.wrappedSpec = null;
-    }
+    this.intervals = intervals;
   }
 
   public UniformGranularitySpec(
@@ -83,17 +73,33 @@ public class UniformGranularitySpec implements GranularitySpec
   @Override
   public Optional<SortedSet<Interval>> bucketIntervals()
   {
-    if (wrappedSpec == null) {
+    if (intervals == null) {
       return Optional.absent();
     } else {
-      return wrappedSpec.bucketIntervals();
+      return normalize().bucketIntervals();
     }
+  }
+
+  private ArbitraryGranularitySpec normalize()
+  {
+    if (normalized == null) {
+      List<Interval> granularIntervals = Lists.newArrayList();
+      for (Interval inputInterval : intervals) {
+        Iterables.addAll(granularIntervals, segmentGranularity.getIterable(inputInterval));
+      }
+      normalized = new ArbitraryGranularitySpec(queryGranularity, rollup, ImmutableList.copyOf(granularIntervals));
+    }
+    return normalized;
   }
 
   @Override
   public Optional<Interval> bucketInterval(DateTime dt)
   {
-    return wrappedSpec.bucketInterval(dt);
+    if (intervals == null) {
+      return Optional.absent();
+    } else {
+      return normalize().bucketInterval(dt);
+    }
   }
 
   @Override
@@ -118,9 +124,9 @@ public class UniformGranularitySpec implements GranularitySpec
   }
 
   @JsonProperty("intervals")
-  public Optional<List<Interval>> getIntervals()
+  public List<Interval> getIntervals()
   {
-    return Optional.fromNullable(inputIntervals);
+    return intervals;
   }
 
   @Override
@@ -144,10 +150,7 @@ public class UniformGranularitySpec implements GranularitySpec
     if (!rollup.equals(that.rollup)) {
       return false;
     }
-    if (inputIntervals != null ? !inputIntervals.equals(that.inputIntervals) : that.inputIntervals != null) {
-      return false;
-    }
-    return !(wrappedSpec != null ? !wrappedSpec.equals(that.wrappedSpec) : that.wrappedSpec != null);
+    return Objects.equals(intervals, that.intervals);
 
   }
 
@@ -157,8 +160,7 @@ public class UniformGranularitySpec implements GranularitySpec
     int result = segmentGranularity.hashCode();
     result = 31 * result + queryGranularity.hashCode();
     result = 31 * result + rollup.hashCode();
-    result = 31 * result + (inputIntervals != null ? inputIntervals.hashCode() : 0);
-    result = 31 * result + (wrappedSpec != null ? wrappedSpec.hashCode() : 0);
+    result = 31 * result + (intervals != null ? intervals.hashCode() : 0);
     return result;
   }
 }

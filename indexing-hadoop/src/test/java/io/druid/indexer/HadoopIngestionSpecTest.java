@@ -74,7 +74,7 @@ public class HadoopIngestionSpecTest
     Assert.assertEquals(
         "getIntervals",
         Lists.newArrayList(new Interval("2012-01-01/P1D")),
-        granularitySpec.getIntervals().get()
+        granularitySpec.getIntervals()
     );
 
     Assert.assertEquals(

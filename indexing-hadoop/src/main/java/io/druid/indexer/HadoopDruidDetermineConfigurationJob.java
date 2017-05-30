@@ -50,6 +50,7 @@ public class HadoopDruidDetermineConfigurationJob implements Jobby
   @Override
   public boolean run()
   {
+    log.info("Running HadoopDruidDetermineConfigurationJob.. %s %s", config.getDataSource(), config.getIntervals());
     List<Jobby> jobs = Lists.newArrayList();
 
     JobHelper.ensurePaths(config);

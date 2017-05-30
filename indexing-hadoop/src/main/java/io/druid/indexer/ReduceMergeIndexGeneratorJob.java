@@ -88,6 +88,7 @@ public class ReduceMergeIndexGeneratorJob implements HadoopDruidIndexerJob.Index
 
   public boolean run()
   {
+    log.info("Running ReduceMergeIndexGeneratorJob.. %s %s", config.getDataSource(), config.getIntervals());
     Configuration conf = new Configuration();
     try {
       Job job = Job.getInstance(

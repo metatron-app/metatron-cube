@@ -44,6 +44,7 @@ import org.joda.time.DateTime;
 import org.joda.time.Interval;
 
 import javax.annotation.Nullable;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -227,6 +228,7 @@ public class TaskLockbox
     );
 
     String[] dataSources = StringUtils.split(task.getRequiredLockName(), ';');
+    log.info("Try lock for task %s on %s for interval %s", task.getId(), Arrays.toString(dataSources), interval);
     Preconditions.checkArgument(dataSources.length != 0);
     Preconditions.checkArgument(!preferredVersion.isPresent() || dataSources.length == 1);
 
@@ -249,8 +251,10 @@ public class TaskLockbox
         if (overlapped.isEmpty()) {
           needToLock.add(dataSource);
         } else if (overlapped.size() == 1) {
+          log.info("Found lock possession %s for datasource %s", overlapped.get(0), dataSource);
           foundPosses.add(overlapped.get(0));
         } else {
+          log.info("Multiple lock possessions %s for datasource %s.. cannot proceed", overlapped, dataSource);
           return Optional.absent();
         }
       }
@@ -259,9 +263,11 @@ public class TaskLockbox
       for (TaskLockPosse posse : foundPosses) {
         TaskLock lock = posse.getTaskLock();
         if (!lock.isShareable(task.getGroupId(), interval)) {
+          log.info("Cannot share lock %s (not matching interval or group)", lock);
           return Optional.absent();
         }
         if (version != null && !version.equals(lock.getVersion())) {
+          log.info("Cannot share lock %s (conflicting version)", lock);
           return Optional.absent();
         }
         version = lock.getVersion();
@@ -281,20 +287,21 @@ public class TaskLockbox
               posseMap = new TreeMap<Interval, TaskLockPosse>(JodaUtils.intervalsByStartThenEnd())
           );
         }
-        TaskLockPosse locked = new TaskLockPosse(new TaskLock(task.getGroupId(), dataSource, interval, version));
+        TaskLock taskLock = new TaskLock(task.getGroupId(), dataSource, interval, version);
+        TaskLockPosse locked = new TaskLockPosse(taskLock);
         posseMap.put(interval, locked);
         targets.add(locked);
-        log.info("Created new TaskLockPosse: %s", locked);
+        log.info("Created new TaskLock: %s", taskLock);
       }
 
       // Add to existing TaskLockPosse, if necessary
       List<TaskLock> toPersist = Lists.newArrayList();
       for (TaskLockPosse posseToUse : targets) {
         if (posseToUse.getTaskIds().add(taskId)) {
-          log.info("Added task[%s] to TaskLock[%s]", taskId, posseToUse.getTaskLock().getGroupId());
+          log.info("Added task[%s] to TaskLock[%s]", taskId, posseToUse.getTaskLock());
           toPersist.add(posseToUse.getTaskLock());
         } else {
-          log.info("Task[%s] already present in TaskLock[%s]", taskId, posseToUse.getTaskLock().getGroupId());
+          log.info("Task[%s] already present in TaskLock[%s]", taskId, posseToUse.getTaskLock());
         }
       }
 

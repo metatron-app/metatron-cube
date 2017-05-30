@@ -19,6 +19,7 @@
 
 package io.druid.indexer;
 
+import com.metamx.common.logger.Logger;
 import io.druid.timeline.DataSegment;
 
 import java.util.List;
@@ -27,6 +28,8 @@ import java.util.List;
  */
 public class MetadataStorageUpdaterJob implements Jobby
 {
+  private static final Logger log = new Logger(MetadataStorageUpdaterJob.class);
+
   private final HadoopDruidIndexerConfig config;
   private final MetadataStorageUpdaterJobHandler handler;
 
@@ -42,6 +45,7 @@ public class MetadataStorageUpdaterJob implements Jobby
   @Override
   public boolean run()
   {
+    log.info("Running MetadataStorageUpdaterJob.. %s %s", config.getDataSource(), config.getIntervals());
     final List<DataSegment> segments = IndexGeneratorJob.getPublishedSegments(config);
     final String segmentTable = config.getSchema().getIOConfig().getMetadataUpdateSpec().getSegmentTable();
     handler.publishSegments(segmentTable, segments, HadoopDruidIndexerConfig.JSON_MAPPER);

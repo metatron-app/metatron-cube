@@ -73,6 +73,7 @@ public class MapOnlyIndexGeneratorJob implements HadoopDruidIndexerJob.IndexingS
 
   public boolean run()
   {
+    log.info("Running MapOnlyIndexGeneratorJob.. %s %s", config.getDataSource(), config.getIntervals());
     try {
       Job job = Job.getInstance(
           new Configuration(),

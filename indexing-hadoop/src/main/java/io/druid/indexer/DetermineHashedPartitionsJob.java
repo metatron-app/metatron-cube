@@ -77,6 +77,7 @@ public class DetermineHashedPartitionsJob implements Jobby
 
   public boolean run()
   {
+    log.info("Running DetermineHashedPartitionsJob.. %s %s", config.getDataSource(), config.getIntervals());
     try {
       /*
        * Group by (timestamp, dimensions) so we can correctly count dimension values as they would appear

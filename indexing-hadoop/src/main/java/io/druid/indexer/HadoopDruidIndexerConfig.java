@@ -278,6 +278,7 @@ public class HadoopDruidIndexerConfig
 
   public void setGranularitySpec(GranularitySpec granularitySpec)
   {
+    log.info("Replacing %s with %s", schema.getDataSchema().getGranularitySpec(), granularitySpec);
     this.schema = schema.withDataSchema(schema.getDataSchema().withGranularitySpec(granularitySpec));
     this.pathSpec = JSON_MAPPER.convertValue(schema.getIOConfig().getPathSpec(), PathSpec.class);
   }
@@ -304,12 +305,14 @@ public class HadoopDruidIndexerConfig
 
   public void setVersion(String version)
   {
+    log.info("Replacing %s with %s", schema.getTuningConfig().getVersion(), version);
     this.schema = schema.withTuningConfig(schema.getTuningConfig().withVersion(version));
     this.pathSpec = JSON_MAPPER.convertValue(schema.getIOConfig().getPathSpec(), PathSpec.class);
   }
 
   public void setShardSpecs(Map<DateTime, List<HadoopyShardSpec>> shardSpecs)
   {
+    log.info("Replacing %s with %s", schema.getTuningConfig().getShardSpecs(), shardSpecs);
     this.schema = schema.withTuningConfig(schema.getTuningConfig().withShardSpecs(shardSpecs));
     this.pathSpec = JSON_MAPPER.convertValue(schema.getIOConfig().getPathSpec(), PathSpec.class);
   }
