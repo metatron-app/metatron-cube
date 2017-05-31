@@ -33,13 +33,13 @@ public enum ExprType
     @Override
     public boolean isNumeric() { return true; }
     @Override
-    public Class classOfObject() { return Number.class; }
+    public Class classOfObject() { return Double.class; }
   },
   LONG {
     @Override
     public boolean isNumeric() { return true; }
     @Override
-    public Class classOfObject() { return Number.class; }
+    public Class classOfObject() { return Long.class; }
   },
   DATETIME {
     @Override

@@ -23,6 +23,7 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonValue;
 import com.google.common.base.Preconditions;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import io.druid.common.utils.JodaUtils;
@@ -32,6 +33,7 @@ import io.druid.query.Query;
 import io.druid.query.TableDataSource;
 import io.druid.query.spec.MultipleIntervalSegmentSpec;
 import io.druid.query.spec.QuerySegmentSpec;
+import io.druid.segment.VirtualColumn;
 import org.joda.time.Interval;
 
 import java.nio.ByteBuffer;
@@ -101,6 +103,8 @@ public class SegmentMetadataQuery extends BaseQuery<SegmentAnalysis>
       AnalysisType.MINMAX
   );
 
+  private final List<VirtualColumn> virtualColumns;
+  private final List<String> expressions;
   private final ColumnIncluderator toInclude;
   private final boolean merge;
   private final boolean usingDefaultInterval;
@@ -111,6 +115,8 @@ public class SegmentMetadataQuery extends BaseQuery<SegmentAnalysis>
   public SegmentMetadataQuery(
       @JsonProperty("dataSource") DataSource dataSource,
       @JsonProperty("intervals") QuerySegmentSpec querySegmentSpec,
+      @JsonProperty("virtualColumns") List<VirtualColumn> virtualColumns,
+      @JsonProperty("expressions") List<String> expressions,
       @JsonProperty("toInclude") ColumnIncluderator toInclude,
       @JsonProperty("merge") Boolean merge,
       @JsonProperty("context") Map<String, Object> context,
@@ -132,6 +138,8 @@ public class SegmentMetadataQuery extends BaseQuery<SegmentAnalysis>
     } else {
       this.usingDefaultInterval = useDefaultInterval == null ? false : useDefaultInterval;
     }
+    this.virtualColumns = virtualColumns;
+    this.expressions = expressions == null ? ImmutableList.<String>of() : expressions;
     this.toInclude = toInclude == null ? new AllColumnIncluderator() : toInclude;
     this.merge = merge == null ? false : merge;
     this.analysisTypes = (analysisTypes == null) ? DEFAULT_ANALYSIS_TYPES : analysisTypes;
@@ -140,6 +148,18 @@ public class SegmentMetadataQuery extends BaseQuery<SegmentAnalysis>
         "SegmentMetadataQuery only supports table datasource"
     );
     this.lenientAggregatorMerge = lenientAggregatorMerge == null ? false : lenientAggregatorMerge;
+  }
+
+  @JsonProperty
+  public List<VirtualColumn> getVirtualColumns()
+  {
+    return virtualColumns;
+  }
+
+  @JsonProperty
+  public List<String> getExpressions()
+  {
+    return expressions;
   }
 
   @JsonProperty
@@ -248,6 +268,8 @@ public class SegmentMetadataQuery extends BaseQuery<SegmentAnalysis>
     return new SegmentMetadataQuery(
         getDataSource(),
         getQuerySegmentSpec(),
+        virtualColumns,
+        expressions,
         toInclude,
         merge,
         computeOverridenContext(contextOverride),
@@ -263,6 +285,8 @@ public class SegmentMetadataQuery extends BaseQuery<SegmentAnalysis>
     return new SegmentMetadataQuery(
         getDataSource(),
         spec,
+        virtualColumns,
+        expressions,
         toInclude,
         merge,
         getContext(),
@@ -278,6 +302,8 @@ public class SegmentMetadataQuery extends BaseQuery<SegmentAnalysis>
     return new SegmentMetadataQuery(
         dataSource,
         getQuerySegmentSpec(),
+        virtualColumns,
+        expressions,
         toInclude,
         merge,
         getContext(),
@@ -292,6 +318,8 @@ public class SegmentMetadataQuery extends BaseQuery<SegmentAnalysis>
     return new SegmentMetadataQuery(
         getDataSource(),
         getQuerySegmentSpec(),
+        virtualColumns,
+        expressions,
         includerator,
         merge,
         getContext(),
@@ -309,6 +337,8 @@ public class SegmentMetadataQuery extends BaseQuery<SegmentAnalysis>
     return new SegmentMetadataQuery(
         getDataSource(),
         getQuerySegmentSpec(),
+        virtualColumns,
+        expressions,
         toInclude,
         merge,
         getContext(),
@@ -324,6 +354,8 @@ public class SegmentMetadataQuery extends BaseQuery<SegmentAnalysis>
     return "SegmentMetadataQuery{" +
            "dataSource='" + getDataSource() + '\'' +
            ", querySegmentSpec=" + getQuerySegmentSpec() +
+           ", virtualColumns=" + virtualColumns +
+           ", expressions=" + expressions +
            ", toInclude=" + toInclude +
            ", merge=" + merge +
            ", usingDefaultInterval=" + usingDefaultInterval +
@@ -348,6 +380,8 @@ public class SegmentMetadataQuery extends BaseQuery<SegmentAnalysis>
     return merge == that.merge &&
            usingDefaultInterval == that.usingDefaultInterval &&
            lenientAggregatorMerge == that.lenientAggregatorMerge &&
+           Objects.equals(virtualColumns, that.virtualColumns) &&
+           Objects.equals(expressions, that.expressions) &&
            Objects.equals(toInclude, that.toInclude) &&
            Objects.equals(analysisTypes, that.analysisTypes);
   }
@@ -357,6 +391,8 @@ public class SegmentMetadataQuery extends BaseQuery<SegmentAnalysis>
   {
     return Objects.hash(
         super.hashCode(),
+        virtualColumns,
+        expressions,
         toInclude,
         merge,
         usingDefaultInterval,

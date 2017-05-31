@@ -67,9 +67,9 @@ public interface ColumnSelectorFactory
       return new ExprEvalColumnSelector()
       {
         @Override
-        public Class classOfObject()
+        public ExprType typeOfObject()
         {
-          return expected.classOfObject();
+          return expected;
         }
 
         @Override

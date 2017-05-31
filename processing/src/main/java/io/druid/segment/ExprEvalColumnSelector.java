@@ -19,12 +19,14 @@
 
 package io.druid.segment;
 
-import io.druid.common.guava.DSuppliers;
 import io.druid.math.expr.ExprEval;
+import io.druid.math.expr.ExprType;
 
 /**
  */
-public interface ExprEvalColumnSelector extends DSuppliers.Typed
+public interface ExprEvalColumnSelector
 {
+  ExprType typeOfObject();
+
   ExprEval get();
 }

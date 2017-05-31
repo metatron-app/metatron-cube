@@ -75,7 +75,6 @@ import io.druid.query.search.search.SearchQuerySpec;
 import io.druid.segment.VirtualColumn;
 import io.druid.segment.column.Column;
 import org.joda.time.DateTime;
-import org.joda.time.Interval;
 
 import java.lang.reflect.Array;
 import java.util.Arrays;
@@ -277,6 +276,8 @@ public class SummaryPostProcessor extends PostProcessingOperator.UnionSupport
           final SegmentMetadataQuery metaQuery = new SegmentMetadataQuery(
               representative.getDataSource(),
               representative.getQuerySegmentSpec(),
+              null,
+              null,
               new NoneColumnIncluderator(),
               false,
               null,

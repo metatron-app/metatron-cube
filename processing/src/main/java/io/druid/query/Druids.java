@@ -976,6 +976,8 @@ public class Druids
   {
     private DataSource dataSource;
     private QuerySegmentSpec querySegmentSpec;
+    private List<VirtualColumn> virtualColumns;
+    private List<String> expressions;
     private ColumnIncluderator toInclude;
     private EnumSet<SegmentMetadataQuery.AnalysisType> analysisTypes;
     private Boolean merge;
@@ -998,6 +1000,8 @@ public class Druids
       return new SegmentMetadataQuery(
           dataSource,
           querySegmentSpec,
+          virtualColumns,
+          expressions,
           toInclude,
           merge,
           context,
@@ -1050,6 +1054,18 @@ public class Druids
     public SegmentMetadataQueryBuilder intervals(List<Interval> l)
     {
       querySegmentSpec = new LegacySegmentSpec(l);
+      return this;
+    }
+
+    public SegmentMetadataQueryBuilder virtualColumns(List<VirtualColumn> virtualColumns)
+    {
+      this.virtualColumns = virtualColumns;
+      return this;
+    }
+
+    public SegmentMetadataQueryBuilder expressions(List<String> expressions)
+    {
+      this.expressions = expressions;
       return this;
     }
 

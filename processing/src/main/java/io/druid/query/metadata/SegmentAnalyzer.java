@@ -23,15 +23,18 @@ import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import com.google.common.collect.Iterables;
+import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import com.google.common.primitives.Longs;
 import com.metamx.common.guava.Accumulator;
 import com.metamx.common.guava.Sequence;
+import com.metamx.common.guava.Sequences;
 import com.metamx.common.logger.Logger;
 import io.druid.common.utils.StringUtils;
 import io.druid.data.ValueType;
 import io.druid.granularity.QueryGranularities;
+import io.druid.math.expr.ExprType;
 import io.druid.query.dimension.DefaultDimensionSpec;
 import io.druid.query.metadata.metadata.ColumnAnalysis;
 import io.druid.query.metadata.metadata.SegmentMetadataQuery;
@@ -52,6 +55,7 @@ import io.druid.segment.serde.ComplexMetrics;
 import org.joda.time.Interval;
 
 import java.util.EnumSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
@@ -83,7 +87,7 @@ public class SegmentAnalyzer
     return Preconditions.checkNotNull(segment, "segment").asStorageAdapter(false).getNumRows();
   }
 
-  public Map<String, ColumnAnalysis> analyze(Segment segment)
+  public Map<String, ColumnAnalysis> analyze(Segment segment, VirtualColumns virtualColumn, List<String> expressions)
   {
     Preconditions.checkNotNull(segment, "segment");
 
@@ -143,6 +147,16 @@ public class SegmentAnalyzer
         analyzeNumericColumn(Column.TIME_COLUMN_NAME, timeCapabilities, storageAdapter, NUM_BYTES_IN_TIMESTAMP)
     );
 
+    Cursor cursor = Iterables.getOnlyElement(
+        Sequences.toList(
+            storageAdapter.makeCursors(null, segment.getDataInterval(), virtualColumn, QueryGranularities.ALL, null, false),
+            Lists.<Cursor>newArrayList()
+        )
+    );
+    for (String expression : expressions) {
+      ExprType type = cursor.makeMathExpressionSelector(expression).typeOfObject();
+      columns.put(expression, new ColumnAnalysis(type.name(), false, 0, 0, null, null, null));
+    }
     return columns;
   }
 

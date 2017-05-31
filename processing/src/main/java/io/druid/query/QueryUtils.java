@@ -116,6 +116,8 @@ public class QueryUtils
     SegmentMetadataQuery metaQuery = new SegmentMetadataQuery(
         query.getDataSource(),
         query.getQuerySegmentSpec(),
+        null,
+        null,
         new NoneColumnIncluderator(),
         false,
         null,

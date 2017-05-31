@@ -244,7 +244,7 @@ public class ColumnSelectors
       @Override
       public Class classOfObject()
       {
-        return selector.classOfObject();
+        return selector.typeOfObject().classOfObject();
       }
 
       @Override

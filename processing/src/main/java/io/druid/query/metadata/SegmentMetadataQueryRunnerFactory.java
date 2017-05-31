@@ -47,6 +47,7 @@ import io.druid.query.metadata.metadata.SegmentAnalysis;
 import io.druid.query.metadata.metadata.SegmentMetadataQuery;
 import io.druid.segment.Metadata;
 import io.druid.segment.Segment;
+import io.druid.segment.VirtualColumns;
 import org.joda.time.Interval;
 
 import java.util.ArrayList;
@@ -87,8 +88,12 @@ public class SegmentMetadataQueryRunnerFactory implements QueryRunnerFactory<Seg
       public Sequence<SegmentAnalysis> run(Query<SegmentAnalysis> inQ, Map<String, Object> responseContext)
       {
         SegmentMetadataQuery query = (SegmentMetadataQuery) inQ;
+
         final SegmentAnalyzer analyzer = new SegmentAnalyzer(query.getAnalysisTypes());
-        final Map<String, ColumnAnalysis> analyzedColumns = analyzer.analyze(segment);
+        final List<String> expressions = query.getExpressions();
+        final Map<String, ColumnAnalysis> analyzedColumns = analyzer.analyze(
+            segment, VirtualColumns.valueOf(query.getVirtualColumns()), expressions
+        );
         final long numRows = analyzer.numRows(segment);
         long totalSize = 0;
         long totalSerializedSize = 0;
@@ -109,7 +114,7 @@ public class SegmentMetadataQueryRunnerFactory implements QueryRunnerFactory<Seg
           }
           totalSerializedSize += column.getSerializedSize();
 
-          if (includerator.include(columnName)) {
+          if (expressions.contains(columnName) || includerator.include(columnName)) {
             columns.put(columnName, column);
           }
         }
