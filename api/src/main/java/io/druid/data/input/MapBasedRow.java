@@ -21,7 +21,7 @@ package io.druid.data.input;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.metamx.common.logger.Logger;
+import com.google.common.collect.Maps;
 import org.joda.time.DateTime;
 
 import java.util.Collection;
@@ -32,15 +32,22 @@ import java.util.TreeMap;
 
 /**
  */
-public class MapBasedRow extends AbstractRow
+public class MapBasedRow extends AbstractRow implements Row.Updatable
 {
+  public static MapBasedRow copyOf(Row row)
+  {
+    Map<String, Object> event = Maps.newLinkedHashMap();
+    for (String column : row.getColumns()) {
+      event.put(column, row.getRaw(column));
+    }
+    return new MapBasedRow(row.getTimestamp(), event);
+  }
+
   public static boolean supportInplaceUpdate(Map event)
   {
     Class<? extends Map> clazz = event.getClass();
     return clazz == HashMap.class || clazz == LinkedHashMap.class || clazz == TreeMap.class;
   }
-
-  private static final Logger log = new Logger(MapBasedRow.class);
 
   private final DateTime timestamp;
   private final Map<String, Object> event;
@@ -91,6 +98,18 @@ public class MapBasedRow extends AbstractRow
   public Collection<String> getColumns()
   {
     return event.keySet();
+  }
+
+  @Override
+  public boolean isUpdatable()
+  {
+    return supportInplaceUpdate(event);
+  }
+
+  @Override
+  public void set(String column, Object value)
+  {
+    event.put(column, value);
   }
 
   @Override

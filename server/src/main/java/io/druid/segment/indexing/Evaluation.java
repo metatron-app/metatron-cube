@@ -27,7 +27,8 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import io.druid.data.ValueType;
 import io.druid.data.input.InputRow;
-import io.druid.data.input.MapBasedRow;
+import io.druid.data.input.Row;
+import io.druid.data.input.Rows;
 import io.druid.math.expr.Expr;
 import io.druid.math.expr.Parser;
 
@@ -99,9 +100,9 @@ public class Evaluation
         for (Expr expression : parsedExpressions) {
           bindings.set(expression.eval(bindings).value());
         }
-        // hate this (todo)
-        ((MapBasedRow)inputRow).getEvent().put(outputName, bindings.get());
-        return inputRow;
+        Row.Updatable updatable = Rows.toUpdatable(inputRow);
+        updatable.set(outputName, bindings.get());
+        return (InputRow) updatable;
       }
     };
   }

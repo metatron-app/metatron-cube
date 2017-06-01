@@ -42,6 +42,7 @@ import io.druid.collections.StupidPool;
 import io.druid.common.guava.CombiningSequence;
 import io.druid.data.input.MapBasedRow;
 import io.druid.data.input.Row;
+import io.druid.data.input.Rows;
 import io.druid.granularity.QueryGranularity;
 import io.druid.guice.annotations.Global;
 import io.druid.query.BaseQuery;
@@ -355,16 +356,12 @@ public class GroupByQueryQueryToolChest extends QueryToolChest<Row, GroupByQuery
       @Override
       public Row apply(Row input)
       {
-        Map<String, Object> event = ((MapBasedRow) input).getEvent();
-        boolean updateInplace = MapBasedRow.supportInplaceUpdate(event);
-        if (!updateInplace) {
-          event = Maps.newLinkedHashMap(event);
-        }
+        Row.Updatable updatable = Rows.toUpdatable(input);
         for (AggregatorFactory agg : query.getAggregatorSpecs()) {
           final String name = agg.getName();
-          event.put(name, fn.manipulate(agg, event.get(name)));
+          updatable.set(name, fn.manipulate(agg, input.getRaw(name)));
         }
-        return updateInplace ? input : new MapBasedRow(input.getTimestamp(), event);
+        return (Row) updatable;
       }
     };
   }

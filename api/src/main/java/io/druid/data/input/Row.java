@@ -95,4 +95,11 @@ public interface Row extends Comparable<Row>
   public long getLongMetric(String metric);
 
   public Collection<String> getColumns();
+
+  public interface Updatable
+  {
+    boolean isUpdatable();
+
+    void set(String column, Object value);
+  }
 }

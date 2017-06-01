@@ -36,6 +36,22 @@ import java.util.TreeMap;
  */
 public class Rows
 {
+  public static Row.Updatable toUpdatable(Row row)
+  {
+    if (row instanceof Row.Updatable && ((Row.Updatable) row).isUpdatable()) {
+      return (Row.Updatable) row;
+    }
+    return MapBasedRow.copyOf(row);
+  }
+
+  public static Row.Updatable toUpdatable(InputRow row)
+  {
+    if (row instanceof Row.Updatable && ((Row.Updatable) row).isUpdatable()) {
+      return (Row.Updatable) row;
+    }
+    return MapBasedInputRow.copyOf(row);
+  }
+
   public static InputRow toCaseInsensitiveInputRow(final Row row, final List<String> dimensions)
   {
     if (row instanceof MapBasedRow) {

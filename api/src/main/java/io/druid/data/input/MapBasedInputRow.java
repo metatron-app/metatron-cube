@@ -19,6 +19,7 @@
 
 package io.druid.data.input;
 
+import com.google.common.collect.Maps;
 import org.joda.time.DateTime;
 
 import java.util.List;
@@ -28,6 +29,15 @@ import java.util.Map;
  */
 public class MapBasedInputRow extends MapBasedRow implements InputRow
 {
+  public static MapBasedInputRow copyOf(InputRow row)
+  {
+    Map<String, Object> event = Maps.newLinkedHashMap();
+    for (String column : row.getColumns()) {
+      event.put(column, row.getRaw(column));
+    }
+    return new MapBasedInputRow(row.getTimestamp(), row.getDimensions(), event);
+  }
+
   private final List<String> dimensions;
 
   public MapBasedInputRow(
