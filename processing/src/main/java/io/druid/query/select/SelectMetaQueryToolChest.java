@@ -81,10 +81,10 @@ public class SelectMetaQueryToolChest extends QueryToolChest<Result<SelectMetaRe
               Result<SelectMetaResultValue> arg1, Result<SelectMetaResultValue> arg2
           )
           {
-            if (arg1 == null || arg1.getValue().getTotalCount() == 0) {
+            if (arg1 == null) {
               return arg2;
             }
-            if (arg2 == null || arg2.getValue().getTotalCount() == 0) {
+            if (arg2 == null) {
               return arg1;
             }
             DateTime timestamp = arg1.getTimestamp();
