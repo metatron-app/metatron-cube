@@ -21,12 +21,14 @@ package io.druid.query;
 
 import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
+import io.druid.query.aggregation.model.HoltWintersPostProcessor;
 
 @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
 @JsonSubTypes(value = {
     @JsonSubTypes.Type(name = "timewarp", value = TimewarpOperator.class),
     @JsonSubTypes.Type(name = "join", value = JoinPostProcessor.class),
-    @JsonSubTypes.Type(name = "tabular", value = TabularPostProcessor.class)
+    @JsonSubTypes.Type(name = "tabular", value = TabularPostProcessor.class),
+    @JsonSubTypes.Type(name = "holtWinters", value = HoltWintersPostProcessor.class)
 })
 public interface PostProcessingOperator<T>
 {
