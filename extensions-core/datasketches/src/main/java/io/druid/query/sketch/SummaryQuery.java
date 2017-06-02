@@ -79,7 +79,7 @@ public class SummaryQuery extends BaseQuery<Result<Map<String, Object>>>
   public Query rewriteQuery(QuerySegmentWalker segmentWalker, ObjectMapper jsonMapper)
   {
     SketchQuery quantile = new SketchQuery(
-        getDataSource(), getQuerySegmentSpec(), dimFilter, virtualColumns, dimensions, metrics, 4096, SketchOp.QUANTILE,
+        getDataSource(), getQuerySegmentSpec(), dimFilter, virtualColumns, dimensions, metrics, 8192, SketchOp.QUANTILE,
         Maps.newHashMap(getContext())
     );
     SketchQuery theta = new SketchQuery(

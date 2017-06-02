@@ -23,11 +23,13 @@ import com.fasterxml.jackson.annotation.JacksonInject;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
+import com.google.common.base.Function;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+import com.google.common.collect.Ordering;
 import com.google.common.collect.Sets;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
@@ -55,6 +57,7 @@ import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.CountAggregatorFactory;
 import io.druid.query.aggregation.GenericSumAggregatorFactory;
 import io.druid.query.aggregation.PostAggregator;
+import io.druid.query.aggregation.corr.PearsonAggregatorFactory;
 import io.druid.query.aggregation.kurtosis.KurtosisAggregatorFactory;
 import io.druid.query.aggregation.post.MathPostAggregator;
 import io.druid.query.aggregation.variance.StandardDeviationPostAggregator;
@@ -78,6 +81,7 @@ import org.joda.time.DateTime;
 
 import java.lang.reflect.Array;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -139,6 +143,14 @@ public class SummaryPostProcessor extends PostProcessingOperator.UnionSupport
           );
           final Map<String, Object> value = values.getValue();
           if (sketchQuery.getSketchOp() == SketchOp.QUANTILE) {
+            Map<String, ValueType> numericColumns = Maps.newHashMap();
+            for (Map.Entry<String, Object> entry : value.entrySet()) {
+              final String column = entry.getKey();
+              final TypedSketch<ItemsSketch> sketch = (TypedSketch<ItemsSketch>) entry.getValue();
+              if (ValueType.isNumeric(sketch.type())) {
+                numericColumns.put(column, sketch.type());
+              }
+            }
             for (Map.Entry<String, Object> entry : value.entrySet()) {
               final String column = entry.getKey();
               final TypedSketch<ItemsSketch> sketch = (TypedSketch<ItemsSketch>) entry.getValue();
@@ -148,6 +160,7 @@ public class SummaryPostProcessor extends PostProcessingOperator.UnionSupport
               }
               final ItemsSketch itemsSketch = sketch.value();
               Object[] quantiles = (Object[]) SketchQuantilesOp.QUANTILES.calculate(itemsSketch, 11);
+              result.put("type", sketch.type());
               result.put("min", quantiles[0]);
               result.put("max", quantiles[quantiles.length - 1]);
               result.put("median", quantiles[5]);
@@ -220,7 +233,14 @@ public class SummaryPostProcessor extends PostProcessingOperator.UnionSupport
                     null, null, null, null, null
                 );
 
-                final GroupByQuery groupBy = configureForType(baseQuery, column, lower, upper, sketch.type());
+                final GroupByQuery groupBy = configureForType(
+                    baseQuery,
+                    column,
+                    lower,
+                    upper,
+                    sketch.type(),
+                    numericColumns
+                );
 
                 final Map<String, Object> stats = results.get(column);
                 futures.add(
@@ -245,6 +265,47 @@ public class SummaryPostProcessor extends PostProcessingOperator.UnionSupport
                               stats.put("variance", row.getDoubleMetric("variance"));
                               stats.put("stddev", row.getDoubleMetric("stddev"));
                               stats.put("skewness", row.getDoubleMetric("skewness"));
+                            }
+                            Map<String, Double> variances = Maps.newHashMap();
+                            List<Pair<Double, String>> covariances = Lists.newArrayList();
+                            for (String column : row.getColumns()) {
+                              if (column.startsWith("pearson")) {
+                                int index1 = column.indexOf(',');
+                                int index2 = column.indexOf(')', index1);
+                                String target = column.substring(index1 + 1, index2).trim();
+                                covariances.add(Pair.of(row.getDoubleMetric(column), target));
+                              } else if (column.startsWith("variance")) {
+                                int index1 = column.indexOf('(');
+                                int index2 = column.indexOf(')', index1);
+                                String target = column.substring(index1 + 1, index2).trim();
+                                variances.put(target, row.getDoubleMetric(column));
+                              }
+                            }
+                            Collections.sort(
+                                covariances,
+                                Pair.lhsComparator(
+                                    Ordering.<Double>natural().onResultOf(
+                                        new Function<Double, Double>()
+                                        {
+                                          @Override
+                                          public Double apply(Double input) { return Math.abs(input); }
+                                        }
+                                    )
+                                )
+                            );
+
+                            List<Map<String, Object>> pearsonBest = Lists.newArrayList();
+                            for (int i = 0; i < Math.min(covariances.size(), 5); i++) {
+                              Pair<Double, String> covariance = covariances.get(i);
+                              pearsonBest.add(
+                                  ImmutableMap.<String, Object>of(
+                                      "with", covariance.rhs,
+                                      "pearson", covariance.lhs
+                                  )
+                              );
+                            }
+                            if (!pearsonBest.isEmpty()) {
+                              stats.put("pearsons", pearsonBest);
                             }
                             return 0;
                           }
@@ -343,7 +404,8 @@ public class SummaryPostProcessor extends PostProcessingOperator.UnionSupport
       String column,
       Object lower,
       Object upper,
-      ValueType type
+      ValueType type,
+      Map<String, ValueType> numericColumns
   )
   {
     String escaped = "\"" + column + "\"";
@@ -363,18 +425,29 @@ public class SummaryPostProcessor extends PostProcessingOperator.UnionSupport
               )
           );
     }
+    List<AggregatorFactory> aggregators = Lists.newArrayList();
+    if (numericColumns.containsKey(column) && numericColumns.size() >= 2) {
+      for (Map.Entry<String, ValueType> entry : numericColumns.entrySet()) {
+        String target = entry.getKey();
+        if (!column.equals(target)) {
+          String name = "pearson(" + column + ", " + target + ")";
+          aggregators.add(new PearsonAggregatorFactory(name, column, target, null, "double"));
+        }
+      }
+    }
     String outlier = escaped + " < " + lower + " || " + escaped + " >  " + upper;
-    return groupBy
-        .withAggregatorSpecs(
-            ImmutableList.<AggregatorFactory>of(
-                new CountAggregatorFactory("count"),
-                new CountAggregatorFactory("outlier", outlier),
-                new CountAggregatorFactory("missing", isNull),
-                new GenericSumAggregatorFactory("sum", column, null),
-                new VarianceAggregatorFactory("variance", column),
-                new KurtosisAggregatorFactory("skewness", column, null, null)
-            )
+    aggregators.addAll(
+        ImmutableList.<AggregatorFactory>of(
+            new CountAggregatorFactory("count"),
+            new CountAggregatorFactory("outlier", outlier),
+            new CountAggregatorFactory("missing", isNull),
+            new GenericSumAggregatorFactory("sum", column, null),
+            new VarianceAggregatorFactory("variance", column),
+            new KurtosisAggregatorFactory("skewness", column, null, null)
         )
+    );
+    return groupBy
+        .withAggregatorSpecs(aggregators)
         .withPostAggregatorSpecs(
             ImmutableList.<PostAggregator>of(
                 new MathPostAggregator("mean", "sum / count"),
