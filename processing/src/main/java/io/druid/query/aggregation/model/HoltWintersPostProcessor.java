@@ -22,6 +22,8 @@ package io.druid.query.aggregation.model;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Supplier;
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.metamx.common.guava.Accumulator;
@@ -38,13 +40,16 @@ import io.druid.granularity.QueryGranularity;
 import io.druid.query.PostProcessingOperator;
 import io.druid.query.Query;
 import io.druid.query.QueryRunner;
+import io.druid.query.dimension.DimensionSpec;
 import io.druid.query.groupby.GroupByQuery;
 import io.druid.query.select.StreamQuery;
 import io.druid.query.select.StreamQueryRow;
+import io.druid.segment.ObjectArray;
 import org.apache.commons.lang.mutable.MutableLong;
 
 import java.lang.reflect.Array;
 import java.util.Arrays;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
@@ -62,6 +67,7 @@ public class HoltWintersPostProcessor extends PostProcessingOperator.Abstract
   private final boolean pad;
   private final List<String> columns;
   private final int numPrediction;
+  private final int limit;
 
   @JsonCreator
   public HoltWintersPostProcessor(
@@ -72,7 +78,8 @@ public class HoltWintersPostProcessor extends PostProcessingOperator.Abstract
       @JsonProperty("seasonalityType") HoltWintersModel.SeasonalityType seasonalityType,
       @JsonProperty("pad") Boolean pad,
       @JsonProperty("columns") List<String> columns,
-      @JsonProperty("numPrediction") Integer numPrediction
+      @JsonProperty("numPrediction") Integer numPrediction,
+      @JsonProperty("trainLastN") Integer trainLastN
   )
   {
     this.alpha = alpha == null ? HoltWintersModel.DEFAULT_ALPHA : alpha;
@@ -83,6 +90,7 @@ public class HoltWintersPostProcessor extends PostProcessingOperator.Abstract
     this.pad = pad == null ? HoltWintersModel.DEFAULT_PAD : pad;
     this.columns = columns;
     this.numPrediction = numPrediction == null ? 32 : numPrediction;
+    this.limit = trainLastN == null ? 1024 : trainLastN;
   }
 
   @Override
@@ -95,33 +103,33 @@ public class HoltWintersPostProcessor extends PostProcessingOperator.Abstract
       public Sequence run(Query query, Map responseContext)
       {
         final String[] numericColumns = columns.toArray(new String[columns.size()]);
-        final List<Number>[] numbers = (List<Number>[]) Array.newInstance(List.class, columns.size());
-        for (int i = 0; i < numericColumns.length; i++) {
-          numbers[i] = Lists.newArrayList();
-        }
-
         if (query instanceof StreamQuery) {
-          Sequence<StreamQueryRow> sequence = baseRunner.run(query, responseContext);
-
-          sequence.accumulate(
+          // this is used for quick calculation of prediction only
+          final LimitedQueue<Number>[] numbers = makeReservoir(numericColumns.length);
+          baseRunner.run(query, responseContext).accumulate(
               null, new Accumulator<Object, StreamQueryRow>()
               {
                 @Override
                 public Object accumulate(Object accumulated, StreamQueryRow in)
                 {
                   for (int i = 0; i < numericColumns.length; i++) {
-                    numbers[i].add((Number) in.get(numericColumns[i]));
+                    Object value = in.get(numericColumns[i]);
+                    if (value instanceof Number) {
+                      numbers[i].add((Number) value);
+                    }
                   }
                   return null;
                 }
               }
           );
-          return hasPrediction(numbers)
-                 ? Sequences.simple(Arrays.asList(makeArrayedPrediction(numericColumns, numbers)))
-                 : Sequences.empty();
+          return Sequences.simple(Arrays.asList(makeArrayedPrediction(numericColumns, numbers)));
 
         } else if (query instanceof GroupByQuery) {
           final GroupByQuery groupBy = (GroupByQuery) query;
+          final String[] dimensions = Lists.transform(groupBy.getDimensions(), DimensionSpec.OUTPUT_NAME)
+                                           .toArray(new String[0]);
+
+          final Map<ObjectArray<Object>, Object> numbersMap = Maps.newHashMap();
           final MutableLong lastTimestamp = new MutableLong();
           final Sequence<Row> sequence = baseRunner.run(groupBy, responseContext);
           Sequence<Row> tapping = new Sequence<Row>()
@@ -138,7 +146,19 @@ public class HoltWintersPostProcessor extends PostProcessingOperator.Abstract
                     public OutType accumulate(OutType accumulated, Row in)
                     {
                       for (int i = 0; i < numericColumns.length; i++) {
-                        numbers[i].add((Number) in.getRaw(numericColumns[i]));
+                        final Object[] values = new Object[dimensions.length];
+                        for (int d = 0; d < dimensions.length; d++) {
+                          values[d] = internIfString(in.getRaw(dimensions[d]));
+                        }
+                        final ObjectArray key = new ObjectArray(values);
+                        LimitedQueue<Number>[] numbers = (LimitedQueue<Number>[]) numbersMap.get(key);
+                        if (numbers == null) {
+                          numbersMap.put(key, numbers = makeReservoir(numericColumns.length));
+                        }
+                        Object value = in.getRaw(numericColumns[i]);
+                        if (value instanceof Number) {
+                          numbers[i].add((Number) value);
+                        }
                       }
                       lastTimestamp.setValue(in.getTimestampFromEpoch());
                       return accumulator.accumulate(accumulated, in);
@@ -158,12 +178,23 @@ public class HoltWintersPostProcessor extends PostProcessingOperator.Abstract
                     @Override
                     public OutType accumulate(OutType accumulated, Row in)
                     {
-                      OutType output = super.accumulate(accumulated, in);
                       for (int i = 0; i < numericColumns.length; i++) {
-                        numbers[i].add((Number) in.getRaw(numericColumns[i]));
+                        final Object[] values = new Object[dimensions.length];
+                        for (int d = 0; d < dimensions.length; d++) {
+                          values[d] = internIfString(in.getRaw(dimensions[d]));
+                        }
+                        final ObjectArray key = new ObjectArray(values);
+                        LimitedQueue<Number>[] numbers = (LimitedQueue<Number>[]) numbersMap.get(key);
+                        if (numbers == null) {
+                          numbersMap.put(key, numbers = makeReservoir(numericColumns.length));
+                        }
+                        Object value = in.getRaw(numericColumns[i]);
+                        if (value instanceof Number) {
+                          numbers[i].add((Number) value);
+                        }
                       }
                       lastTimestamp.setValue(in.getTimestampFromEpoch());
-                      return output;
+                      return super.accumulate(accumulated, in);
                     }
                   }
               );
@@ -175,11 +206,16 @@ public class HoltWintersPostProcessor extends PostProcessingOperator.Abstract
             @Override
             public Sequence<Row> get()
             {
-              LOG.info("Calculating %d predictions from %d rows.. ", numPrediction, numbers[0].size());
-              long start = lastTimestamp.longValue();
-              return hasPrediction(numbers)
-                     ? Sequences.simple(makeRowedPrediction(numericColumns, numbers, start, groupBy.getGranularity()))
-                     : Sequences.<Row>empty();
+              LOG.info("Calculating %d predictions.. ", numPrediction);
+              return Sequences.simple(
+                  makeRowedPrediction(
+                      numericColumns,
+                      dimensions,
+                      numbersMap,
+                      lastTimestamp.longValue(),
+                      groupBy.getGranularity()
+                  )
+              );
             }
           };
           return Sequences.concat(tapping, new LazySequence<Row>(supplier));
@@ -191,41 +227,116 @@ public class HoltWintersPostProcessor extends PostProcessingOperator.Abstract
     };
   }
 
-  private boolean hasPrediction(List<Number>[] numbers)
+  @SuppressWarnings("unchecked")
+  private LimitedQueue<Number>[] makeReservoir(int length)
   {
-    return numbers[0].size() >= period * 2;
+    final LimitedQueue<Number>[] numbers = (LimitedQueue<Number>[]) Array.newInstance(
+        LimitedQueue.class,
+        columns.size()
+    );
+    for (int i = 0; i < length; i++) {
+      numbers[i] = new LimitedQueue(limit);
+    }
+    return numbers;
   }
 
-  private Map<String, Object> makeArrayedPrediction(String[] columnNames, List<Number>[] numbers)
+  private Object internIfString(Object value)
+  {
+    return value instanceof String ? ((String)value).intern() : value;
+  }
+
+  private boolean hasPrediction(int history)
+  {
+    return history >= period * 2;
+  }
+
+  private Map<String, Object> makeArrayedPrediction(String[] columnNames, LimitedQueue<Number>[] numbers)
   {
     Map<String, Object> predictions = Maps.newLinkedHashMap();
     HoltWintersModel model = new HoltWintersModel(alpha, beta, gamma, period, seasonalityType, pad);
     for (int i = 0; i < columnNames.length; i++) {
-      predictions.put(columnNames[i], model.doPredict(numbers[i], numPrediction));
+      if (hasPrediction(numbers[i].size())) {
+        predictions.put(columnNames[i], model.doPredict(numbers[i].asList(), numPrediction));
+      }
     }
     return predictions;
   }
 
+  @SuppressWarnings("unchecked")
   private List<Row> makeRowedPrediction(
-      String[] columnNames,
-      List<Number>[] numbers,
+      String[] metrics,
+      String[] dimensions,
+      Map<ObjectArray<Object>, Object> numbersMap,
       long lastTimestamp,
       QueryGranularity granularity
   )
   {
-    double[][] predictions = new double[columnNames.length][];
     HoltWintersModel model = new HoltWintersModel(alpha, beta, gamma, period, seasonalityType, pad);
-    for (int i = 0; i < columnNames.length; i++) {
-      predictions[i] = model.doPredict(numbers[i], numPrediction);
-    }
-    List<Row> rows = Lists.newArrayList();
-    for (int p = 0; p < numPrediction; p++) {
-      Map<String, Object> row = Maps.newLinkedHashMap();
-      for (int i = 0; i < columnNames.length; i++) {
-        row.put(columnNames[i], predictions[i][p]);
+    for (Map.Entry<ObjectArray<Object>, Object> entry : numbersMap.entrySet()) {
+      LimitedQueue<Number>[] numbers = (LimitedQueue<Number>[]) entry.getValue();
+      double[][] predictions = new double[metrics.length][];
+      for (int i = 0; i < metrics.length; i++) {
+        if (hasPrediction(numbers[i].size())) {
+          predictions[i] = model.doPredict(numbers[i].asList(), numPrediction);
+        }
       }
-      rows.add(new MapBasedRow(lastTimestamp = granularity.next(lastTimestamp), row));
+      entry.setValue(predictions);
+    }
+    List<Row> rows = Lists.newArrayListWithExpectedSize(numPrediction);
+    for (int p = 0; p < numPrediction; p++) {
+      lastTimestamp = granularity.next(lastTimestamp);
+      for (Map.Entry<ObjectArray<Object>, Object> entry : numbersMap.entrySet()) {
+        Map<String, Object> row = Maps.newLinkedHashMap();
+        final ObjectArray<Object> key = entry.getKey();
+        for (int i = 0; i < dimensions.length; i++) {
+          row.put(dimensions[i], key.array()[i]);
+        }
+        final double[][] predictions = (double[][]) entry.getValue();
+        for (int i = 0; i < metrics.length; i++) {
+          if (predictions[i] != null) {
+            row.put(metrics[i], predictions[i][p]);
+          }
+        }
+        rows.add(new MapBasedRow(granularity.toDateTime(lastTimestamp), row));
+      }
     }
     return rows;
+  }
+
+  private static class LimitedQueue<T> implements Iterable<T>
+  {
+    private final List<T> queue = Lists.newArrayList();
+    private final int limit;
+    private int index = -1;
+
+    private LimitedQueue(int limit) {this.limit = limit;}
+
+    public void add(T object)
+    {
+      if (queue.size() < limit) {
+        queue.add(object);
+      } else {
+        queue.set(index = (index + 1) % limit, object);
+      }
+    }
+
+    public int size()
+    {
+      return queue.size();
+    }
+
+    @Override
+    public Iterator<T> iterator()
+    {
+      if (queue.size() < limit || index == limit - 1) {
+        return queue.iterator();
+      }
+      return Iterables.concat(queue.subList(index + 1, limit), queue.subList(0, index)).iterator();
+    }
+
+    public List<T> asList()
+    {
+      return ImmutableList.copyOf(this);
+    }
   }
 }

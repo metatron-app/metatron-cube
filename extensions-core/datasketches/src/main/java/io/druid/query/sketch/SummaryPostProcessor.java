@@ -267,7 +267,7 @@ public class SummaryPostProcessor extends PostProcessingOperator.UnionSupport
 
                               List<Pair<Double, String>> covariances = Lists.newArrayList();
                               for (String column : row.getColumns()) {
-                                if (column.startsWith("pearson")) {
+                                if (column.startsWith("covariance")) {
                                   int index1 = column.indexOf(',');
                                   int index2 = column.indexOf(')', index1);
                                   String target = column.substring(index1 + 1, index2).trim();
@@ -283,7 +283,7 @@ public class SummaryPostProcessor extends PostProcessingOperator.UnionSupport
                                             @Override
                                             public Double apply(Double input) { return Math.abs(input); }
                                           }
-                                      )
+                                      ).reverse()
                                   )
                               );
 
@@ -293,12 +293,12 @@ public class SummaryPostProcessor extends PostProcessingOperator.UnionSupport
                                 covarianceBest.add(
                                     ImmutableMap.<String, Object>of(
                                         "with", covariance.rhs,
-                                        "pearson", covariance.lhs
+                                        "covariance", covariance.lhs
                                     )
                                 );
                               }
                               if (!covarianceBest.isEmpty()) {
-                                stats.put("pearsons", covarianceBest);
+                                stats.put("covariances", covarianceBest);
                               }
                             }
                             return 0;
@@ -426,7 +426,7 @@ public class SummaryPostProcessor extends PostProcessingOperator.UnionSupport
         for (Map.Entry<String, ValueType> entry : numericColumns.entrySet()) {
           String target = entry.getKey();
           if (!column.equals(target)) {
-            String name = "pearson(" + column + ", " + target + ")";
+            String name = "covariance(" + column + ", " + target + ")";
             aggregators.add(new PearsonAggregatorFactory(name, column, target, null, "double"));
           }
         }

@@ -23,7 +23,6 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonValue;
 import com.metamx.common.ISE;
 
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.Objects;
 
@@ -184,10 +183,15 @@ public class HoltWintersModel
    */
   protected <T extends Number> double[] doPredict(Collection<T> values, int numPredictions)
   {
-    return next(values, numPredictions);
+    int i = 0;
+    double[] doubles = new double[values.size()];
+    for (T value : values) {
+      doubles[i++] = value.doubleValue();
+    }
+    return next(doubles, numPredictions);
   }
 
-  public <T extends Number> double next(Collection<T> values)
+  public double next(double[] values)
   {
     return next(values, 1)[0];
   }
@@ -197,19 +201,17 @@ public class HoltWintersModel
    *
    * @param values       Collection of values to calculate avg for
    * @param numForecasts number of forecasts into the future to return
-   * @param <T>          Type T extending Number
    *
    * @return Returns a Double containing the moving avg for the window
    */
-  public <T extends Number> double[] next(Collection<T> values, int numForecasts)
+  public double[] next(double[] values, int numForecasts)
   {
-
-    if (values.size() < period * 2) {
+    if (values.length < period * 2) {
       // We need at least two full "seasons" to use HW
       // This should have been caught earlier, we can't do anything now...bail
       throw new ISE(
           "Holt-Winters aggregation requires at least (2 * period == 2 * "
-          + period + " == " + (2 * period) + ") data-points to function.  Only [" + values.size() + "] were provided."
+          + period + " == " + (2 * period) + ") data-points to function.  Only [" + values.length + "] were provided."
       );
     }
 
@@ -221,13 +223,10 @@ public class HoltWintersModel
     double b = 0;
     double last_b = 0;
 
-    // Seasonal value
-    double[] seasonal = new double[values.size()];
-
     int counter = 0;
-    double[] vs = new double[values.size()];
-    for (T v : values) {
-      vs[counter] = v.doubleValue() + padding;
+    double[] vs = new double[values.length];
+    for (double v : values) {
+      vs[counter] = v + padding;
       counter += 1;
     }
 
@@ -235,44 +234,41 @@ public class HoltWintersModel
     // Calculate the slopes between first and second season for each period
     for (int i = 0; i < period; i++) {
       s += vs[i];
-      b += (vs[i + period] - vs[i]) / period;
+      b += vs[i + period] - vs[i];
     }
-    s /= period;
-    b /= period;
-    last_s = s;
+    last_s = s / period;
+    last_b = b / (period * period);
 
-    // Calculate first seasonal
-    if (Double.compare(s, 0.0) == 0 || Double.compare(s, -0.0) == 0) {
-      Arrays.fill(seasonal, 0.0);
+    // Seasonal value
+    double[] seasonal = initSeasonalValues(values, period);
+
+    final double _alpha = 1.0d - alpha;
+    final double _beta = 1.0d - beta;
+    final double _gamma = 1.0d - gamma;
+
+    if (seasonalityType == SeasonalityType.MULTIPLICATIVE) {
+      for (int i = period; i < vs.length; i++) {
+        s = alpha * (vs[i] / seasonal[i - period]) + _alpha * (last_s + last_b);
+        b = beta * (s - last_s) + _beta * last_b;
+        seasonal[i] = gamma * (vs[i] / (last_s + last_b)) + _gamma * seasonal[i - period];
+
+        last_s = s;
+        last_b = b;
+      }
     } else {
-      for (int i = 0; i < period; i++) {
-        seasonal[i] = vs[i] / s;
+      for (int i = period; i < vs.length; i++) {
+        s = alpha * (vs[i] - seasonal[i - period]) + _alpha * (last_s + last_b);
+        b = beta * (s - last_s) + _beta * last_b;
+        seasonal[i] = gamma * (vs[i] - (last_s - last_b)) + _gamma * seasonal[i - period];
+
+        last_s = s;
+        last_b = b;
       }
-    }
-
-    for (int i = period; i < vs.length; i++) {
-      // TODO if perf is a problem, we can specialize a subclass to avoid conditionals on each iteration
-      if (seasonalityType.equals(SeasonalityType.MULTIPLICATIVE)) {
-        s = alpha * (vs[i] / seasonal[i - period]) + (1.0d - alpha) * (last_s + last_b);
-      } else {
-        s = alpha * (vs[i] - seasonal[i - period]) + (1.0d - alpha) * (last_s + last_b);
-      }
-
-      b = beta * (s - last_s) + (1 - beta) * last_b;
-
-      if (seasonalityType.equals(SeasonalityType.MULTIPLICATIVE)) {
-        seasonal[i] = gamma * (vs[i] / (last_s + last_b)) + (1 - gamma) * seasonal[i - period];
-      } else {
-        seasonal[i] = gamma * (vs[i] - (last_s - last_b)) + (1 - gamma) * seasonal[i - period];
-      }
-
-      last_s = s;
-      last_b = b;
     }
 
     double[] forecastValues = new double[numForecasts];
     for (int i = 1; i <= numForecasts; i++) {
-      int idx = values.size() - period + ((i - 1) % period);
+      int idx = values.length - period + ((i - 1) % period);
 
       // TODO perhaps pad out seasonal to a power of 2 and use a mask instead of modulo?
       if (seasonalityType.equals(SeasonalityType.MULTIPLICATIVE)) {
@@ -283,6 +279,37 @@ public class HoltWintersModel
     }
 
     return forecastValues;
+  }
+
+  private double[] initSeasonalValues(double[] values, int period)
+  {
+    int seasons = values.length / period;
+    double[] seasonalAverage = new double[seasons];
+
+    double[] averagedObservations = new double[values.length];
+
+    for (int i = 0; i < seasons; i++) {
+      for (int j = 0; j < period; j++) {
+        seasonalAverage[i] += values[(i * period) + j];
+      }
+      seasonalAverage[i] /= period;
+    }
+
+    for (int i = 0; i < seasons; i++) {
+      for (int j = 0; j < period; j++) {
+        averagedObservations[(i * period) + j] = values[(i * period) + j] / seasonalAverage[i];
+      }
+    }
+
+    final double[] seasonalIndices = new double[values.length];
+    for (int i = 0; i < period; i++) {
+      for (int j = 0; j < seasons; j++) {
+        seasonalIndices[i] += averagedObservations[(j * period) + i];
+      }
+      seasonalIndices[i] /= seasons;
+    }
+
+    return seasonalIndices;
   }
 
   @Override
@@ -309,6 +336,31 @@ public class HoltWintersModel
            && Objects.equals(pad, other.pad);
   }
 
+  public HoltWintersModel withAlpha(double alpha)
+  {
+    return new HoltWintersModelBuilder(this).alpha(alpha).build();
+  }
+
+  public HoltWintersModel withBeta(double beta)
+  {
+    return new HoltWintersModelBuilder(this).beta(beta).build();
+  }
+
+  public HoltWintersModel withGamma(double gamma)
+  {
+    return new HoltWintersModelBuilder(this).gamma(gamma).build();
+  }
+
+  public HoltWintersModel withPeriod(int period)
+  {
+    return new HoltWintersModelBuilder(this).period(period).build();
+  }
+
+  public HoltWintersModel withPad(boolean pad)
+  {
+    return new HoltWintersModelBuilder(this).pad(pad).build();
+  }
+
   public static class HoltWintersModelBuilder
   {
 
@@ -318,6 +370,17 @@ public class HoltWintersModel
     private int period = DEFAULT_PERIOD;
     private SeasonalityType seasonalityType = DEFAULT_SEASONALITY_TYPE;
     private Boolean pad = null;
+
+    public HoltWintersModelBuilder() {}
+
+    public HoltWintersModelBuilder(HoltWintersModel model) {
+      this.alpha = model.alpha;
+      this.beta = model.beta;
+      this.gamma = model.gamma;
+      this.period = model.period;
+      this.seasonalityType = model.seasonalityType;
+      this.pad = model.pad;
+    }
 
     /**
      * Alpha controls the smoothing of the data.  Alpha = 1 retains no memory of past values
