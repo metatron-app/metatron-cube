@@ -22,6 +22,7 @@ package io.druid.query.aggregation.model;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Supplier;
+import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
@@ -256,7 +257,8 @@ public class HoltWintersPostProcessor extends PostProcessingOperator.Abstract
     HoltWintersModel model = new HoltWintersModel(alpha, beta, gamma, period, seasonalityType, pad);
     for (int i = 0; i < columnNames.length; i++) {
       if (hasPrediction(numbers[i].size())) {
-        predictions.put(columnNames[i], model.doPredict(numbers[i].asList(), numPrediction));
+        double[][] prediction = Predictions.predict(model, asArray(numbers[i]), numPrediction, 95, true);
+        predictions.put(columnNames[i], prediction);
       }
     }
     return predictions;
@@ -271,36 +273,53 @@ public class HoltWintersPostProcessor extends PostProcessingOperator.Abstract
       QueryGranularity granularity
   )
   {
-    HoltWintersModel model = new HoltWintersModel(alpha, beta, gamma, period, seasonalityType, pad);
-    for (Map.Entry<ObjectArray<Object>, Object> entry : numbersMap.entrySet()) {
-      LimitedQueue<Number>[] numbers = (LimitedQueue<Number>[]) entry.getValue();
-      double[][] predictions = new double[metrics.length][];
-      for (int i = 0; i < metrics.length; i++) {
-        if (hasPrediction(numbers[i].size())) {
-          predictions[i] = model.doPredict(numbers[i].asList(), numPrediction);
-        }
-      }
-      entry.setValue(predictions);
-    }
     List<Row> rows = Lists.newArrayListWithExpectedSize(numPrediction);
-    for (int p = 0; p < numPrediction; p++) {
-      lastTimestamp = granularity.next(lastTimestamp);
+    try {
+      HoltWintersModel model = new HoltWintersModel(alpha, beta, gamma, period, seasonalityType, pad);
       for (Map.Entry<ObjectArray<Object>, Object> entry : numbersMap.entrySet()) {
-        Map<String, Object> row = Maps.newLinkedHashMap();
-        final ObjectArray<Object> key = entry.getKey();
-        for (int i = 0; i < dimensions.length; i++) {
-          row.put(dimensions[i], key.array()[i]);
-        }
-        final double[][] predictions = (double[][]) entry.getValue();
+        LimitedQueue<Number>[] numbers = (LimitedQueue<Number>[]) entry.getValue();
+        double[][][] predictions = new double[metrics.length][][];
         for (int i = 0; i < metrics.length; i++) {
-          if (predictions[i] != null) {
-            row.put(metrics[i], predictions[i][p]);
+          if (hasPrediction(numbers[i].size())) {
+            double[] tsData = asArray(numbers[i]);
+            predictions[i] = Predictions.predict(model, tsData, numPrediction, 95, true);
+            LOG.info("%s : %s", Arrays.toString(tsData), Arrays.toString(predictions[i][1]));
           }
         }
-        rows.add(new MapBasedRow(granularity.toDateTime(lastTimestamp), row));
+        entry.setValue(predictions);
+      }
+      for (int p = 0; p < numPrediction; p++) {
+        lastTimestamp = granularity.next(lastTimestamp);
+        for (Map.Entry<ObjectArray<Object>, Object> entry : numbersMap.entrySet()) {
+          Map<String, Object> row = Maps.newLinkedHashMap();
+          final ObjectArray<Object> key = entry.getKey();
+          for (int i = 0; i < dimensions.length; i++) {
+            row.put(dimensions[i], key.array()[i]);
+          }
+          final double[][][] predictions = (double[][][]) entry.getValue();
+          for (int i = 0; i < metrics.length; i++) {
+            if (predictions[i] != null) {
+              row.put(metrics[i], predictions[i][p]);
+            }
+          }
+          rows.add(new MapBasedRow(granularity.toDateTime(lastTimestamp), row));
+        }
       }
     }
+    catch (Exception e) {
+      LOG.warn(e, "Failed");
+      throw Throwables.propagate(e);
+    }
     return rows;
+  }
+
+  private double[] asArray(LimitedQueue<Number> numbers) {
+    int i = 0;
+    double[] array = new double[numbers.size()];
+    for (Number number : numbers) {
+      array[i++] = number.doubleValue();
+    }
+    return array;
   }
 
   private static class LimitedQueue<T> implements Iterable<T>
@@ -331,7 +350,7 @@ public class HoltWintersPostProcessor extends PostProcessingOperator.Abstract
       if (queue.size() < limit || index == limit - 1) {
         return queue.iterator();
       }
-      return Iterables.concat(queue.subList(index + 1, limit), queue.subList(0, index)).iterator();
+      return Iterables.concat(queue.subList(index + 1, limit), queue.subList(0, index + 1)).iterator();
     }
 
     public List<T> asList()

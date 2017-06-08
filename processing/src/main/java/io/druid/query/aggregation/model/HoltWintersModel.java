@@ -23,6 +23,7 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonValue;
 import com.metamx.common.ISE;
 
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Objects;
 
@@ -37,6 +38,36 @@ public class HoltWintersModel
   public static final int DEFAULT_PERIOD = 1;
   public static final SeasonalityType DEFAULT_SEASONALITY_TYPE = SeasonalityType.ADDITIVE;
   public static final boolean DEFAULT_PAD = false;
+
+  public double alpha()
+  {
+    return alpha;
+  }
+
+  public double beta()
+  {
+    return beta;
+  }
+
+  public double gamma()
+  {
+    return gamma;
+  }
+
+  public int period()
+  {
+    return period;
+  }
+
+  public SeasonalityType seasonalityType()
+  {
+    return seasonalityType;
+  }
+
+  public boolean pad()
+  {
+    return pad;
+  }
 
   public enum SeasonalityType
   {
@@ -181,19 +212,14 @@ public class HoltWintersModel
    *
    * @return Returns an array of doubles, since most smoothing methods operate on floating points
    */
-  protected <T extends Number> double[] doPredict(Collection<T> values, int numPredictions)
+  <T extends Number> double[] doPredict(Collection<T> values, int numPredictions)
   {
     int i = 0;
     double[] doubles = new double[values.size()];
     for (T value : values) {
       doubles[i++] = value.doubleValue();
     }
-    return next(doubles, numPredictions);
-  }
-
-  public double next(double[] values)
-  {
-    return next(values, 1)[0];
+    return doPredict(doubles, numPredictions, true);
   }
 
   /**
@@ -204,7 +230,7 @@ public class HoltWintersModel
    *
    * @return Returns a Double containing the moving avg for the window
    */
-  public double[] next(double[] values, int numForecasts)
+  public double[] doPredict(final double[] values, final int numForecasts, final boolean forecastOnly)
   {
     if (values.length < period * 2) {
       // We need at least two full "seasons" to use HW
@@ -221,95 +247,96 @@ public class HoltWintersModel
 
     // Trend value
     double b = 0;
-    double last_b = 0;
+    double last_b;
 
-    int counter = 0;
-    double[] vs = new double[values.length];
-    for (double v : values) {
-      vs[counter] = v + padding;
-      counter += 1;
+    if (padding != 0) {
+      for (int i = 0; i < values.length; i++) {
+        values[i] += padding;
+      }
     }
 
     // Initial level value is average of first season
     // Calculate the slopes between first and second season for each period
     for (int i = 0; i < period; i++) {
-      s += vs[i];
-      b += vs[i + period] - vs[i];
+      s += values[i];
+      b += values[i + period] - values[i];
     }
     last_s = s / period;
     last_b = b / (period * period);
 
     // Seasonal value
-    double[] seasonal = initSeasonalValues(values, period);
+    double[] seasonal = initFirstSeason(values, new double[values.length], period);
+    double[] forecasts = new double[values.length + numForecasts];
 
     final double _alpha = 1.0d - alpha;
     final double _beta = 1.0d - beta;
     final double _gamma = 1.0d - gamma;
 
     if (seasonalityType == SeasonalityType.MULTIPLICATIVE) {
-      for (int i = period; i < vs.length; i++) {
-        s = alpha * (vs[i] / seasonal[i - period]) + _alpha * (last_s + last_b);
+      for (int i = period; i < values.length; i++) {
+        forecasts[i] = last_s + last_s + seasonal[i - period];
+        s = alpha * (values[i] / seasonal[i - period]) + _alpha * (last_s + last_b);
         b = beta * (s - last_s) + _beta * last_b;
-        seasonal[i] = gamma * (vs[i] / (last_s + last_b)) + _gamma * seasonal[i - period];
+        seasonal[i] = gamma * (values[i] / (last_s + last_b)) + _gamma * seasonal[i - period];
 
         last_s = s;
         last_b = b;
       }
     } else {
-      for (int i = period; i < vs.length; i++) {
-        s = alpha * (vs[i] - seasonal[i - period]) + _alpha * (last_s + last_b);
+      for (int i = period; i < values.length; i++) {
+        forecasts[i] = last_s + last_s + seasonal[i - period];
+        s = alpha * (values[i] - seasonal[i - period]) + _alpha * (last_s + last_b);
         b = beta * (s - last_s) + _beta * last_b;
-        seasonal[i] = gamma * (vs[i] - (last_s - last_b)) + _gamma * seasonal[i - period];
+        seasonal[i] = gamma * (values[i] - (last_s - last_b)) + _gamma * seasonal[i - period];
 
         last_s = s;
         last_b = b;
       }
     }
 
-    double[] forecastValues = new double[numForecasts];
-    for (int i = 1; i <= numForecasts; i++) {
-      int idx = values.length - period + ((i - 1) % period);
-
-      // TODO perhaps pad out seasonal to a power of 2 and use a mask instead of modulo?
-      if (seasonalityType.equals(SeasonalityType.MULTIPLICATIVE)) {
-        forecastValues[i - 1] = (s + (i * b)) * seasonal[idx];
-      } else {
-        forecastValues[i - 1] = s + (i * b) + seasonal[idx];
+    final int lastPeriod = values.length - period;
+    if (seasonalityType == SeasonalityType.MULTIPLICATIVE) {
+      for (int i = 0; i < numForecasts; i++) {
+        int idx = lastPeriod + i % period;
+        forecasts[values.length + i] = (last_s + (i + 1) * last_b) * seasonal[idx];
+      }
+    } else {
+      for (int i = 0; i < numForecasts; i++) {
+        int idx = lastPeriod + i % period;
+        forecasts[values.length + i] = (last_s + (i + 1) * last_b) + seasonal[idx];
       }
     }
 
-    return forecastValues;
+    return forecastOnly ? Arrays.copyOfRange(forecasts, values.length, forecasts.length) : forecasts;
   }
 
-  private double[] initSeasonalValues(double[] values, int period)
+  private double[] initFirstSeason(double[] values, double[] seasonal, int period)
   {
-    int seasons = values.length / period;
-    double[] seasonalAverage = new double[seasons];
-
-    double[] averagedObservations = new double[values.length];
+    final int seasons = values.length / period;
+    double[] seasonAverage = new double[seasons];
+    double[] averaged = new double[values.length];
 
     for (int i = 0; i < seasons; i++) {
       for (int j = 0; j < period; j++) {
-        seasonalAverage[i] += values[(i * period) + j];
+        seasonAverage[i] += values[(i * period) + j];
       }
-      seasonalAverage[i] /= period;
+      seasonAverage[i] /= period;
     }
 
     for (int i = 0; i < seasons; i++) {
       for (int j = 0; j < period; j++) {
-        averagedObservations[(i * period) + j] = values[(i * period) + j] / seasonalAverage[i];
+        averaged[(i * period) + j] = seasonAverage[i] == 0 ? 0 : values[(i * period) + j] / seasonAverage[i];
       }
     }
 
-    final double[] seasonalIndices = new double[values.length];
     for (int i = 0; i < period; i++) {
       for (int j = 0; j < seasons; j++) {
-        seasonalIndices[i] += averagedObservations[(j * period) + i];
+        seasonal[i] += averaged[(j * period) + i];
       }
-      seasonalIndices[i] /= seasons;
+      seasonal[i] /= seasons;
     }
 
-    return seasonalIndices;
+    return seasonal;
   }
 
   @Override
