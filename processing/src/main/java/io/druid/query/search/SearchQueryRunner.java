@@ -281,7 +281,7 @@ public class SearchQueryRunner implements QueryRunner<Result<SearchResultValue>>
         ImmutableList.of(
             new Result<>(
                 segment.getDataInterval().getStart(),
-                new SearchResultValue(ImmutableList.copyOf(source))
+                new SearchResultValue(Lists.newArrayList(source))
             )
         )
     );

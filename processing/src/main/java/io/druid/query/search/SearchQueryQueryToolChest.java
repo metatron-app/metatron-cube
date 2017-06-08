@@ -252,26 +252,28 @@ public class SearchQueryQueryToolChest extends QueryToolChest<Result<SearchResul
             return new Result<>(
                 new DateTime(((Number) result.get(0)).longValue()),
                 new SearchResultValue(
-                    Lists.transform(
-                        (List) result.get(1),
-                        new Function<Object, SearchHit>()
-                        {
-                          @Override
-                          public SearchHit apply(@Nullable Object input)
-                          {
-                            if (input instanceof Map) {
-                              return new SearchHit(
+                    Lists.newArrayList(
+                        Lists.transform(
+                            (List) result.get(1),
+                            new Function<Object, SearchHit>()
+                            {
+                              @Override
+                              public SearchHit apply(@Nullable Object input)
+                              {
+                                if (input instanceof Map) {
+                                  return new SearchHit(
                                       (String) ((Map) input).get("dimension"),
                                       (String) ((Map) input).get("value"),
                                       (Integer) ((Map) input).get("count")
-                              );
-                            } else if (input instanceof SearchHit) {
-                              return (SearchHit) input;
-                            } else {
-                              throw new IAE("Unknown format [%s]", input.getClass());
+                                  );
+                                } else if (input instanceof SearchHit) {
+                                  return (SearchHit) input;
+                                } else {
+                                  throw new IAE("Unknown format [%s]", input.getClass());
+                                }
+                              }
                             }
-                          }
-                        }
+                        )
                     )
                 )
             );
