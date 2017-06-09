@@ -59,13 +59,14 @@ public class Predictions
 
   public static double[][] predict(
       HoltWintersModel model,
+      SimpleBounds bounds,
       final double[] tsData,
       int numPrediction,
       int ci,
       boolean predictOnly
   )
   {
-    HoltWintersModel optimized = optimize(model, tsData);
+    HoltWintersModel optimized = optimize(model, tsData, bounds);
 
     LOG.info(
         "predicting %d from %d values with param (%f, %f, %f), %d period",
@@ -111,7 +112,12 @@ public class Predictions
     return ranged;
   }
 
-  private static HoltWintersModel optimize(final HoltWintersModel model, final double[] tsData)
+  static HoltWintersModel optimize(final HoltWintersModel model, final double[] tsData)
+  {
+    return optimize(model, tsData, new SimpleBounds(new double[]{0.0, 0.0, 0.0}, new double[]{1.0, 1.0, 1.0}));
+  }
+
+  static HoltWintersModel optimize(final HoltWintersModel model, final double[] tsData, SimpleBounds bounds)
   {
     final AtomicReference<double[]> bestTillNow = new AtomicReference<>();
     ObjectiveFunction function = new ObjectiveFunction(
@@ -120,7 +126,7 @@ public class Predictions
           @Override
           public double value(double[] point)
           {
-            double value = sse(model.withAlpha(point[0]).withBeta(point[1]).withGamma(point[2]), tsData);
+            double value = sse(model.withParam(point[0], point[1], point[2]), tsData);
             if (bestTillNow.get() == null || bestTillNow.get()[0] > value) {
               bestTillNow.set(new double[] {value, point[0], point[1], point[2]});
             }
@@ -134,12 +140,12 @@ public class Predictions
     MaxIter maxIter = new MaxIter(30000);
     MaxEval maxEval = new MaxEval(30000);
     GoalType goal = GoalType.MINIMIZE;
-    SimpleBounds bounds = new SimpleBounds(new double[]{0.0, 0.0, 0.0}, new double[]{1.0, 1.0, 1.0});
+
     try {
       PointValuePair optimal = optimizer.optimize(function, goal, bounds, initGuess, maxIter, maxEval);
       double[] params = optimal.getPoint();
 
-      return model.withAlpha(params[0]).withBeta(params[1]).withGamma(params[2]);
+      return model.withParam(params[0], params[1], params[2]);
     }
     catch (Exception e) {
       LOG.warn("Failed to optimize.. %s", e.toString());
@@ -147,7 +153,7 @@ public class Predictions
       if (point == null) {
         return model;
       }
-      return model.withAlpha(point[1]).withBeta(point[2]).withGamma(point[3]);
+      return model.withParam(point[1], point[2], point[3]);
     }
   }
 

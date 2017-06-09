@@ -30,6 +30,8 @@ public class StreamQueryRow extends LinkedHashMap<String, Object> implements Com
   @Override
   public int compareTo(StreamQueryRow o)
   {
-    return Longs.compare((Long)get(EventHolder.timestampKey), (Long)o.get(EventHolder.timestampKey));
+    return Longs.compare(getTimestamp(), o.getTimestamp());
   }
+
+  public long getTimestamp() {return (Long) get(EventHolder.timestampKey);}
 }

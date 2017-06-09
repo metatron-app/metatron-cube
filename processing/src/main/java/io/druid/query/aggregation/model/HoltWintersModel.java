@@ -363,6 +363,11 @@ public class HoltWintersModel
            && Objects.equals(pad, other.pad);
   }
 
+  public HoltWintersModel withParam(double alpha, double beta, double gamma)
+  {
+    return new HoltWintersModelBuilder(this).alpha(alpha).beta(beta).gamma(gamma).build();
+  }
+
   public HoltWintersModel withAlpha(double alpha)
   {
     return new HoltWintersModelBuilder(this).alpha(alpha).build();

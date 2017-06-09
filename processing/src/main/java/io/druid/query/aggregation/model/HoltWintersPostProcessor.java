@@ -23,8 +23,6 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Supplier;
 import com.google.common.base.Throwables;
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.metamx.common.guava.Accumulator;
@@ -47,10 +45,10 @@ import io.druid.query.select.StreamQuery;
 import io.druid.query.select.StreamQueryRow;
 import io.druid.segment.ObjectArray;
 import org.apache.commons.lang.mutable.MutableLong;
+import org.apache.commons.math3.optim.SimpleBounds;
 
 import java.lang.reflect.Array;
 import java.util.Arrays;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
@@ -59,6 +57,10 @@ import java.util.Map;
 public class HoltWintersPostProcessor extends PostProcessingOperator.Abstract
 {
   private static final Logger LOG = new Logger(HoltWintersPostProcessor.class);
+
+  private static final int DEFAULT_USE_LAST_N = 4096;
+  private static final int DEFAULT_NUM_PREDICTION = 32;
+  private static final int DEFAULT_CONFIDENCE = 95;
 
   private final double alpha;
   private final double beta;
@@ -69,6 +71,9 @@ public class HoltWintersPostProcessor extends PostProcessingOperator.Abstract
   private final List<String> columns;
   private final int numPrediction;
   private final int limit;
+  private final int confidence;
+
+  private final SimpleBounds bounds;
 
   @JsonCreator
   public HoltWintersPostProcessor(
@@ -79,8 +84,9 @@ public class HoltWintersPostProcessor extends PostProcessingOperator.Abstract
       @JsonProperty("seasonalityType") HoltWintersModel.SeasonalityType seasonalityType,
       @JsonProperty("pad") Boolean pad,
       @JsonProperty("columns") List<String> columns,
+      @JsonProperty("useLastN") Integer useLastN,
       @JsonProperty("numPrediction") Integer numPrediction,
-      @JsonProperty("trainLastN") Integer trainLastN
+      @JsonProperty("confidence") Integer confidence
   )
   {
     this.alpha = alpha == null ? HoltWintersModel.DEFAULT_ALPHA : alpha;
@@ -90,8 +96,13 @@ public class HoltWintersPostProcessor extends PostProcessingOperator.Abstract
     this.seasonalityType = seasonalityType == null ? HoltWintersModel.DEFAULT_SEASONALITY_TYPE : seasonalityType;
     this.pad = pad == null ? HoltWintersModel.DEFAULT_PAD : pad;
     this.columns = columns;
-    this.numPrediction = numPrediction == null ? 32 : numPrediction;
-    this.limit = trainLastN == null ? 1024 : trainLastN;
+    this.limit = useLastN == null ? DEFAULT_USE_LAST_N : useLastN;
+    this.numPrediction = numPrediction == null ? DEFAULT_NUM_PREDICTION : numPrediction;
+    this.confidence = confidence == null ? DEFAULT_CONFIDENCE : confidence;
+    this.bounds = new SimpleBounds(
+        new double[] {alpha == null ? 0 : alpha, beta == null ? 0 : beta, gamma == null ? 0 : gamma },
+        new double[] {alpha == null ? 1 : alpha, beta == null ? 1 : beta, gamma == null ? 1 : gamma }
+    );
   }
 
   @Override
@@ -105,18 +116,20 @@ public class HoltWintersPostProcessor extends PostProcessingOperator.Abstract
       {
         final String[] numericColumns = columns.toArray(new String[columns.size()]);
         if (query instanceof StreamQuery) {
+          final QueryGranularity granularity = ((StreamQuery) query).getGranularity();
           // this is used for quick calculation of prediction only
-          final LimitedQueue<Number>[] numbers = makeReservoir(numericColumns.length);
+          final BoundedTimeseries[] numbers = makeReservoir(numericColumns.length, granularity);
           baseRunner.run(query, responseContext).accumulate(
               null, new Accumulator<Object, StreamQueryRow>()
               {
                 @Override
                 public Object accumulate(Object accumulated, StreamQueryRow in)
                 {
+                  long timestamp = in.getTimestamp();
                   for (int i = 0; i < numericColumns.length; i++) {
                     Object value = in.get(numericColumns[i]);
                     if (value instanceof Number) {
-                      numbers[i].add((Number) value);
+                      numbers[i].add(((Number) value).doubleValue(), timestamp, timestamp);
                     }
                   }
                   return null;
@@ -127,6 +140,7 @@ public class HoltWintersPostProcessor extends PostProcessingOperator.Abstract
 
         } else if (query instanceof GroupByQuery) {
           final GroupByQuery groupBy = (GroupByQuery) query;
+          final QueryGranularity granularity = groupBy.getGranularity();
           final String[] dimensions = Lists.transform(groupBy.getDimensions(), DimensionSpec.OUTPUT_NAME)
                                            .toArray(new String[0]);
 
@@ -143,25 +157,31 @@ public class HoltWintersPostProcessor extends PostProcessingOperator.Abstract
               return sequence.accumulate(
                   initValue, new Accumulator<OutType, Row>()
                   {
+                    private Long minTimeStamp;
+
                     @Override
                     public OutType accumulate(OutType accumulated, Row in)
                     {
+                      long timestamp = in.getTimestampFromEpoch();
+                      if (minTimeStamp == null) {
+                        minTimeStamp = timestamp;   // assume time sorted
+                      }
                       for (int i = 0; i < numericColumns.length; i++) {
                         final Object[] values = new Object[dimensions.length];
                         for (int d = 0; d < dimensions.length; d++) {
                           values[d] = internIfString(in.getRaw(dimensions[d]));
                         }
                         final ObjectArray key = new ObjectArray(values);
-                        LimitedQueue<Number>[] numbers = (LimitedQueue<Number>[]) numbersMap.get(key);
+                        BoundedTimeseries[] numbers = (BoundedTimeseries[]) numbersMap.get(key);
                         if (numbers == null) {
-                          numbersMap.put(key, numbers = makeReservoir(numericColumns.length));
+                          numbersMap.put(key, numbers = makeReservoir(numericColumns.length, granularity));
                         }
                         Object value = in.getRaw(numericColumns[i]);
                         if (value instanceof Number) {
-                          numbers[i].add((Number) value);
+                          numbers[i].add(((Number) value).doubleValue(), minTimeStamp, timestamp);
                         }
                       }
-                      lastTimestamp.setValue(in.getTimestampFromEpoch());
+                      lastTimestamp.setValue(timestamp);
                       return accumulator.accumulate(accumulated, in);
                     }
                   }
@@ -176,25 +196,31 @@ public class HoltWintersPostProcessor extends PostProcessingOperator.Abstract
               return sequence.toYielder(
                   initValue, new DelegatingYieldingAccumulator<OutType, Row>(accumulator)
                   {
+                    private Long minTimeStamp;
+
                     @Override
                     public OutType accumulate(OutType accumulated, Row in)
                     {
+                      long timestamp = in.getTimestampFromEpoch();
+                      if (minTimeStamp == null) {
+                        minTimeStamp = timestamp;   // assume time sorted
+                      }
                       for (int i = 0; i < numericColumns.length; i++) {
                         final Object[] values = new Object[dimensions.length];
                         for (int d = 0; d < dimensions.length; d++) {
                           values[d] = internIfString(in.getRaw(dimensions[d]));
                         }
                         final ObjectArray key = new ObjectArray(values);
-                        LimitedQueue<Number>[] numbers = (LimitedQueue<Number>[]) numbersMap.get(key);
+                        BoundedTimeseries[] numbers = (BoundedTimeseries[]) numbersMap.get(key);
                         if (numbers == null) {
-                          numbersMap.put(key, numbers = makeReservoir(numericColumns.length));
+                          numbersMap.put(key, numbers = makeReservoir(numericColumns.length, granularity));
                         }
                         Object value = in.getRaw(numericColumns[i]);
                         if (value instanceof Number) {
-                          numbers[i].add((Number) value);
+                          numbers[i].add(((Number) value).doubleValue(), minTimeStamp, timestamp);
                         }
                       }
-                      lastTimestamp.setValue(in.getTimestampFromEpoch());
+                      lastTimestamp.setValue(timestamp);
                       return super.accumulate(accumulated, in);
                     }
                   }
@@ -229,21 +255,18 @@ public class HoltWintersPostProcessor extends PostProcessingOperator.Abstract
   }
 
   @SuppressWarnings("unchecked")
-  private LimitedQueue<Number>[] makeReservoir(int length)
+  private BoundedTimeseries[] makeReservoir(int length, QueryGranularity granularity)
   {
-    final LimitedQueue<Number>[] numbers = (LimitedQueue<Number>[]) Array.newInstance(
-        LimitedQueue.class,
-        columns.size()
-    );
+    final BoundedTimeseries[] numbers = (BoundedTimeseries[]) Array.newInstance(BoundedTimeseries.class, columns.size());
     for (int i = 0; i < length; i++) {
-      numbers[i] = new LimitedQueue(limit);
+      numbers[i] = new BoundedTimeseries(limit, granularity);
     }
     return numbers;
   }
 
   private Object internIfString(Object value)
   {
-    return value instanceof String ? ((String)value).intern() : value;
+    return value instanceof String ? ((String) value).intern() : value;
   }
 
   private boolean hasPrediction(int history)
@@ -251,13 +274,14 @@ public class HoltWintersPostProcessor extends PostProcessingOperator.Abstract
     return history >= period * 2;
   }
 
-  private Map<String, Object> makeArrayedPrediction(String[] columnNames, LimitedQueue<Number>[] numbers)
+  private Map<String, Object> makeArrayedPrediction(String[] columnNames, BoundedTimeseries[] numbers)
   {
     Map<String, Object> predictions = Maps.newLinkedHashMap();
     HoltWintersModel model = new HoltWintersModel(alpha, beta, gamma, period, seasonalityType, pad);
     for (int i = 0; i < columnNames.length; i++) {
       if (hasPrediction(numbers[i].size())) {
-        double[][] prediction = Predictions.predict(model, asArray(numbers[i]), numPrediction, 95, true);
+        double[] tsData = numbers[i].asArray();
+        double[][] prediction = Predictions.predict(model, bounds, tsData, numPrediction, confidence, true);
         predictions.put(columnNames[i], prediction);
       }
     }
@@ -277,13 +301,12 @@ public class HoltWintersPostProcessor extends PostProcessingOperator.Abstract
     try {
       HoltWintersModel model = new HoltWintersModel(alpha, beta, gamma, period, seasonalityType, pad);
       for (Map.Entry<ObjectArray<Object>, Object> entry : numbersMap.entrySet()) {
-        LimitedQueue<Number>[] numbers = (LimitedQueue<Number>[]) entry.getValue();
+        BoundedTimeseries[] numbers = (BoundedTimeseries[]) entry.getValue();
         double[][][] predictions = new double[metrics.length][][];
         for (int i = 0; i < metrics.length; i++) {
           if (hasPrediction(numbers[i].size())) {
-            double[] tsData = asArray(numbers[i]);
-            predictions[i] = Predictions.predict(model, tsData, numPrediction, 95, true);
-            LOG.info("%s : %s", Arrays.toString(tsData), Arrays.toString(predictions[i][1]));
+            double[] tsData = numbers[i].asArray();
+            predictions[i] = Predictions.predict(model, bounds, tsData, numPrediction, confidence, true);
           }
         }
         entry.setValue(predictions);
@@ -313,49 +336,87 @@ public class HoltWintersPostProcessor extends PostProcessingOperator.Abstract
     return rows;
   }
 
-  private double[] asArray(LimitedQueue<Number> numbers) {
-    int i = 0;
-    double[] array = new double[numbers.size()];
-    for (Number number : numbers) {
-      array[i++] = number.doubleValue();
-    }
-    return array;
-  }
-
-  private static class LimitedQueue<T> implements Iterable<T>
+  private static class BoundedTimeseries
   {
-    private final List<T> queue = Lists.newArrayList();
     private final int limit;
-    private int index = -1;
+    private double[] values;
+    private int index;
+    private boolean exceeded;
 
-    private LimitedQueue(int limit) {this.limit = limit;}
+    private final QueryGranularity granularity;
+    private long lastTime;
 
-    public void add(T object)
+    private BoundedTimeseries(int limit, QueryGranularity granularity)
     {
-      if (queue.size() < limit) {
-        queue.add(object);
-      } else {
-        queue.set(index = (index + 1) % limit, object);
+      this.limit = Math.max(limit, 32);
+      this.values = new double[32];
+      this.granularity = granularity;
+    }
+
+    public void add(double value, long startTime, long currentTime)
+    {
+      if (lastTime == 0) {
+        final int count = countEmpty(startTime, currentTime);
+        for (int i = 0; i < count; i++) {
+          _add(value);  // flat...
+        }
+      } else if (granularity.next(lastTime) < currentTime) {
+        final int count = countEmpty(lastTime, currentTime);
+        if (count > 0) {
+          double lastValue = lastValue();
+          double delta = (value - lastValue) / count;
+          for (int i = 0; i < count; i++) {
+            _add(lastValue + delta * i);  // linear...
+          }
+        }
       }
+      _add(value);
+      this.lastTime = currentTime;
+    }
+
+    private int countEmpty(long from, long to)
+    {
+      int i = 0;
+      for (; from < to; from = granularity.next(from)) {
+        i++;
+      }
+      return i;
+    }
+
+    private double lastValue()
+    {
+      return index > 0 ? values[index - 1] : values[values.length - 1];
+    }
+
+    private void _add(double value)
+    {
+      if (values.length < limit && index == values.length - 1) {
+        double[] extended = new double[Math.min(limit, values.length * 2)];
+        System.arraycopy(values, 0, extended, 0, values.length);
+        values = extended;
+      }
+      values[index++] = value;
+      index = index % values.length;
+      exceeded |= index == 0;
     }
 
     public int size()
     {
-      return queue.size();
+      return exceeded ? values.length : index;
     }
 
-    @Override
-    public Iterator<T> iterator()
+    public double[] asArray()
     {
-      if (queue.size() < limit || index == limit - 1) {
-        return queue.iterator();
+      if (!exceeded) {
+        return Arrays.copyOfRange(values, 0, index);
       }
-      return Iterables.concat(queue.subList(index + 1, limit), queue.subList(0, index + 1)).iterator();
-    }
-
-    public List<T> asList()
-    {
-      return ImmutableList.copyOf(this);
+      if (index == 0) {
+        return values;
+      }
+      final double[] result = new double[values.length];
+      System.arraycopy(values, index, result, 0, values.length - index);
+      System.arraycopy(values, 0, result, values.length - index, index);
+      return result;
     }
   }
 }
