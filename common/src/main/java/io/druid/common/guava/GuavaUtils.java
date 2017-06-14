@@ -27,6 +27,7 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Ordering;
 import com.google.common.io.CharStreams;
 import com.google.common.io.InputSupplier;
+import com.google.common.primitives.Ints;
 import com.metamx.common.Pair;
 
 import javax.annotation.Nullable;
@@ -179,5 +180,26 @@ public class GuavaUtils
       return list1;
     }
     return Lists.newArrayList(Iterables.concat(list1, list2));
+  }
+
+  public static int[] checkedCast(long[] longs)
+  {
+    int[] ints = new int[longs.length];
+    for (int i = 0; i < ints.length; i++) {
+      if (longs[i] != (int) longs[i]) {
+        return null;
+      }
+      ints[i] = (int) longs[i];
+    }
+    return ints;
+  }
+
+  public static double[] castDouble(long[] longs)
+  {
+    double[] doubles = new double[longs.length];
+    for (int i = 0; i < doubles.length; i++) {
+      doubles[i] = (double) longs[i];
+    }
+    return doubles;
   }
 }

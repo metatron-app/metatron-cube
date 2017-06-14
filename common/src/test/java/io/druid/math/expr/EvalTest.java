@@ -19,6 +19,7 @@
 
 package io.druid.math.expr;
 
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Sets;
 import org.joda.time.DateTime;
@@ -29,6 +30,7 @@ import org.junit.Ignore;
 import org.junit.Test;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
@@ -202,12 +204,12 @@ public class EvalTest
     // not-exists (explicit)
     Assert.assertEquals(100L, evalLong("case (x + 10, 0, 2, 1, 3, 100)", bindings));
 
-    Interval eval = (Interval)eval("recent('1D 10s')", bindings);
+    Interval eval = (Interval) eval("recent('1D 10s')", bindings);
     long now = System.currentTimeMillis();
     Assert.assertEquals(now - 86410000L, eval.getStartMillis(), 1000);
     Assert.assertEquals(now, eval.getEndMillis(), 1000);
 
-    eval = (Interval)eval("recent('7D 10s', '5D 1s')", bindings);
+    eval = (Interval) eval("recent('7D 10s', '5D 1s')", bindings);
     now = System.currentTimeMillis();
     Assert.assertEquals(now - (86400000L * 7) - 10000, eval.getStartMillis(), 1000);
     Assert.assertEquals(now - (86400000L * 5) - 1000, eval.getEndMillis(), 1000);
@@ -344,7 +346,8 @@ public class EvalTest
                     .put("t5", time5.getMillis())
                     .put("t6", time6.getMillis())
                     .put("t7", time7.getMillis())
-                    .put("t8", time8.getMillis()).build());
+                    .put("t8", time8.getMillis()).build()
+    );
 
     Assert.assertEquals(70, evalLong("difftime('MINUTE', t1, t2)", bindings));
     Assert.assertEquals(170, evalLong("difftime('MINUTE', t1, t3)", bindings));
@@ -522,8 +525,61 @@ public class EvalTest
   @Ignore("needs native library and R_HOME env")
   public void testRFunc()
   {
+    // basic
     Expr.NumericBinding bindings = Parser.withMap(ImmutableMap.<String, Object>of("a", 30, "b", 3));
-    Assert.assertEquals(33, Parser.parse("r('func <- function(a, b) { a + b }', 'func', a, b)").eval(bindings).longValue());
+    Assert.assertEquals(33, evalLong("r('func <- function(a, b) { a + b }', 'func', a, b)", bindings));
+
+    // R to Java
+    Map eval = (Map) eval(
+        "r('map <- function(a, b) {"
+        + "  data.frame("
+        + "    gender = c(\"Male\", \"Male\",\"Female\"), \n"
+        + "    height = c(152, 171.5, 165), \n"
+        + "    weight = c(81, 93, 78),\n"
+        + "    Age = c(42, 38, 26)\n"
+        + "  )"
+        + "}', 'map', a, b)", bindings
+    );
+    Assert.assertEquals(4, eval.size());
+    Assert.assertArrayEquals(new String[]{"Male", "Male", "Female"}, (String[]) eval.get("gender"));
+    Assert.assertArrayEquals(new double[]{152, 171.5, 165}, (double[]) eval.get("height"), 0.001);
+    Assert.assertArrayEquals(new double[]{81, 93, 78}, (double[]) eval.get("weight"), 0.001);
+    Assert.assertArrayEquals(new double[]{42, 38, 26}, (double[]) eval.get("Age"), 0.001);
+
+    // java to R
+    bindings = Parser.withMap(
+        ImmutableMap.<String, Object>of(
+            "x", ImmutableMap.<String, Object>of(
+                "gender", new String[]{"Male", "Male", "Female"},
+                "height", new double[]{152, 171.5, 165},
+                "weight", new double[]{81, 93, 78},
+                "Age", new double[]{42, 38, 26}
+            )
+        )
+    );
+    Map map = (Map) eval("r('identity <- function(x) { x }', 'identity', x)", bindings);
+    Assert.assertEquals(4, map.size());
+    Assert.assertArrayEquals(new String[]{"Male", "Male", "Female"}, (String[]) map.get("gender"));
+    Assert.assertArrayEquals(new double[]{152, 171.5, 165}, (double[]) map.get("height"), 0.001);
+    Assert.assertArrayEquals(new double[]{81, 93, 78}, (double[]) map.get("weight"), 0.001);
+    Assert.assertArrayEquals(new double[]{42, 38, 26}, (double[]) map.get("Age"), 0.001);
+
+    bindings = Parser.withMap(
+        ImmutableMap.<String, Object>of(
+            "x", ImmutableList.<Object>of(
+                new String[]{"Male", "Male", "Female"},
+                new double[]{152, 171.5, 165},
+                new double[]{81, 93, 78},
+                new double[]{42, 38, 26}
+            )
+        )
+    );
+    List list = (List) eval("r('identity <- function(x) { x }', 'identity', x)", bindings);
+    Assert.assertEquals(4, list.size());
+    Assert.assertArrayEquals(new String[]{"Male", "Male", "Female"}, (String[]) list.get(0));
+    Assert.assertArrayEquals(new double[]{152, 171.5, 165}, (double[]) list.get(1), 0.001);
+    Assert.assertArrayEquals(new double[]{81, 93, 78}, (double[]) list.get(2), 0.001);
+    Assert.assertArrayEquals(new double[]{42, 38, 26}, (double[]) list.get(3), 0.001);
   }
 
   @Test
@@ -531,7 +587,7 @@ public class EvalTest
   public void testPyFunc()
   {
     Expr.NumericBinding bindings = Parser.withMap(ImmutableMap.<String, Object>of("a", 30, "b", 3));
-    Assert.assertEquals(90, Parser.parse("py('def multi(a,b): return a * b', 'multi', a, b)").eval(bindings).longValue());
+    Assert.assertEquals(90, evalLong("py('def multi(a,b): return a * b', 'multi', a, b)", bindings));
   }
 
   @Test
@@ -539,7 +595,7 @@ public class EvalTest
   public void testPyEvalFunc()
   {
     Expr.NumericBinding bindings = Parser.withMap(ImmutableMap.<String, Object>of("a", 30, "b", 3));
-    Assert.assertEquals(90, Parser.parse("pyEval('a * b')").eval(bindings).longValue());
+    Assert.assertEquals(90, evalLong("pyEval('a * b')", bindings));
   }
 
   @Test

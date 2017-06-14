@@ -32,6 +32,7 @@ import com.google.common.primitives.Longs;
 import com.google.common.primitives.UnsignedBytes;
 import com.metamx.common.Pair;
 import com.metamx.common.logger.Logger;
+import io.druid.common.guava.GuavaUtils;
 import io.druid.math.expr.Expr.NumericBinding;
 import io.druid.math.expr.Expr.TypeBinding;
 import io.druid.math.expr.Expr.WindowContext;
@@ -51,6 +52,8 @@ import org.python.core.PyObject;
 import org.python.core.PyString;
 import org.python.util.PythonInterpreter;
 import org.rosuda.JRI.REXP;
+import org.rosuda.JRI.RFactor;
+import org.rosuda.JRI.RVector;
 import org.rosuda.JRI.Rengine;
 
 import java.io.File;
@@ -62,6 +65,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Properties;
 import java.util.Set;
+import java.util.Vector;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -392,11 +396,209 @@ public interface BuiltinFunctions extends Function.Library
     }
   }
 
-  class RFunc extends ExprType.IndecisiveFunction implements Factory
+  abstract class AbstractRFunc extends ExprType.IndecisiveFunction implements Factory
   {
-    private Rengine r;
-    private String function;
+    private static Rengine r;
+    private static Map<String, String> functions = Maps.newHashMap();
+
+    static {
+      try {
+        r = new Rengine(new String[]{"--vanilla"}, false, null);
+      }
+      catch (Exception e) {
+        log.warn(e, "Failed to initialize r");
+      }
+    }
+
     private final StringBuilder query = new StringBuilder();
+
+    protected final String registerFunction(String function, String expression)
+    {
+      String prev = functions.putIfAbsent(function, expression);
+      if (prev != null && !prev.equals(expression)) {
+        functions.put(function, prev);
+        throw new IllegalStateException("function " + function + " is registered already");
+      }
+      if (r.eval(expression) == null) {
+        functions.remove(function);
+        throw new IllegalArgumentException("invalid expression " + expression);
+      }
+      return function;
+    }
+
+    protected final REXP evaluate(String function, List<Expr> args, NumericBinding bindings)
+    {
+      query.setLength(0);
+      query.append(function != null ? function : args.get(1).eval(bindings).asString()).append('(');
+
+      r.getRsync().lock();
+      try {
+        for (int i = 0; i < args.size(); i++) {
+          final String symbol = "p" + i;
+          if (i > 0) {
+            query.append(", ");
+          }
+          query.append(symbol);
+
+          REXP rexp = toR(args.get(i).eval(bindings));
+          r.rniAssign(symbol, exp(rexp), 0);
+        }
+        String expression = query.append(')').toString();
+        return r.eval(expression);
+      }
+      finally {
+        r.getRsync().unlock();
+      }
+    }
+
+    private long exp(REXP rexp)
+    {
+      switch (rexp.getType()) {
+        case REXP.XT_INT:
+        case REXP.XT_ARRAY_INT:
+          return r.rniPutIntArray(rexp.asIntArray());
+        case REXP.XT_DOUBLE:
+        case REXP.XT_ARRAY_DOUBLE:
+          return r.rniPutDoubleArray(rexp.asDoubleArray());
+        case REXP.XT_ARRAY_BOOL_INT:
+          return r.rniPutBoolArrayI(rexp.asIntArray());
+        case REXP.XT_STR:
+        case REXP.XT_ARRAY_STR:
+          return r.rniPutStringArray(rexp.asStringArray());
+        case REXP.XT_VECTOR:
+          RVector vector = rexp.asVector();
+          long[] exps = new long[vector.size()];
+          for (int j = 0; j < exps.length; j++) {
+            exps[j] = exp((REXP)vector.get(j));
+          }
+          long exp = r.rniPutVector(exps);
+          @SuppressWarnings("unchecked")
+          Vector<String> names = vector.getNames();
+          if (names != null) {
+            long attr = r.rniPutStringArray(names.toArray(new String[names.size()]));
+            r.rniSetAttr(exp, "names", attr);
+          }
+          return exp;
+        default:
+          return -1;
+      }
+    }
+
+    private REXP toR(ExprEval eval)
+    {
+      if (eval.isNull()) {
+        return null;
+      }
+      switch (eval.type()) {
+        case DOUBLE:
+          return new REXP(new double[]{eval.doubleValue()});
+        case LONG:
+          long value = eval.longValue();
+          return value == (int) value ? new REXP(new int[]{(int) value}) : new REXP(new double[]{value});
+        case STRING:
+          return new REXP(new String[]{eval.asString()});
+      }
+      return toR(eval.value());
+    }
+
+    @SuppressWarnings("unchecked")
+    private REXP toR(Object value)
+    {
+      if (value == null) {
+        return new REXP(REXP.XT_NULL, null);
+      }
+      if (value instanceof String) {
+        return new REXP(new String[]{(String) value});
+      } else if (value instanceof Double) {
+        return new REXP(new double[]{(Double) value});
+      } else if (value instanceof Long) {
+        long longValue = (Long)value;
+        return longValue == (int) longValue ? new REXP(new int[]{(int) longValue}) : new REXP(new double[]{longValue});
+      } else if (value instanceof List) {
+        RVector vector = new RVector();
+        for (Object element : ((List)value)) {
+          vector.add(toR(element));
+        }
+        return new REXP(REXP.XT_VECTOR, vector);
+      } else if (value instanceof Map) {
+        Map<?, ?> map = (Map<?, ?>) value;
+        RVector vector = new RVector();
+        String[] names = new String[map.size()];
+        int i = 0;
+        for (Map.Entry entry : map.entrySet()) {
+          names[i++] = Objects.toString(entry.getKey(), null);
+          vector.add(toR(entry.getValue()));
+        }
+        vector.setNames(names);
+        return new REXP(REXP.XT_VECTOR, vector);
+      } else if (value.getClass().isArray()) {
+        Class component = value.getClass().getComponentType();
+        if (component == String.class) {
+          return new REXP((String[])value);
+        } else if (component == double.class) {
+          return new REXP((double[])value);
+        } else if (component == long.class) {
+          long[] longs = (long[]) value;
+          int[] ints = GuavaUtils.checkedCast(longs);
+          return ints != null ? new REXP(ints) : new REXP(GuavaUtils.castDouble(longs));
+        } else if (component == int.class) {
+          return new REXP((int[])value);
+        }
+      }
+      return new REXP(new String[] {Objects.toString(value)});
+    }
+
+    protected final ExprEval toJava(REXP expr)
+    {
+      switch (expr.getType()) {
+        case REXP.XT_INT:
+          return ExprEval.of(expr.asInt());
+        case REXP.XT_ARRAY_INT:
+          int[] ints = expr.asIntArray();
+          return ints.length == 1 ? ExprEval.of(ints[0]) : ExprEval.of(ints, ExprType.UNKNOWN);
+        case REXP.XT_DOUBLE:
+          return ExprEval.of(expr.asDouble());
+        case REXP.XT_ARRAY_DOUBLE:
+          double[] doubles = expr.asDoubleArray();
+          return doubles.length == 1 ? ExprEval.of(doubles[0]) : ExprEval.of(doubles, ExprType.UNKNOWN);
+        case REXP.XT_STR:
+          return ExprEval.of(expr.asString());
+        case REXP.XT_ARRAY_STR:
+          String[] strings = expr.asStringArray();
+          return strings.length == 1 ? ExprEval.of(strings[0]) : ExprEval.of(strings, ExprType.UNKNOWN);
+        case REXP.XT_VECTOR:
+          RVector vector = expr.asVector();
+          Vector names = vector.getNames();
+          if (names == null) {
+            List<Object> result = Lists.newArrayList();
+            for (Object element : vector) {
+              result.add(toJava((REXP) element).value());
+            }
+            return ExprEval.of(result, ExprType.UNKNOWN);
+          }
+          Map<String, Object> result = Maps.newLinkedHashMap();
+          for (int i = 0; i < names.size(); i++) {
+            result.put(String.valueOf(names.get(i)), toJava((REXP) vector.get(i)).value());
+          }
+          return ExprEval.of(result, ExprType.UNKNOWN);
+        case REXP.XT_FACTOR:
+          RFactor factor = expr.asFactor();
+          String[] array = new String[factor.size()];
+          for (int i = 0; i < factor.size(); i++) {
+            array[i] = factor.at(i);
+          }
+          return ExprEval.of(array, ExprType.UNKNOWN);
+        case REXP.XT_LIST:
+          // RList.. what the fuck is this?
+        default:
+          return ExprEval.bestEffortOf(expr.getContent());
+      }
+    }
+  }
+
+  final class RFunc extends AbstractRFunc
+  {
+    private String function;
 
     @Override
     public String name()
@@ -407,54 +609,15 @@ public interface BuiltinFunctions extends Function.Library
     @Override
     public ExprEval apply(List<Expr> args, NumericBinding bindings)
     {
-      if (r == null) {
+      if (function == null) {
         if (args.size() < 2) {
           throw new RuntimeException("function '" + name() + "' should have at least two arguments");
         }
-        Rengine re = new Rengine(new String[]{"--vanilla"}, false, null);
-        if (!re.waitForR()) {
-          throw new RuntimeException("failed to initialize R engine");
-        }
-        re.eval(Evals.getConstantString(args.get(0)));
-        r = re;
-        if (args.get(1) instanceof StringExpr) {
-          function = Evals.getConstantString(args.get(1));
-        }
+        String name = Evals.getConstantString(args.get(1));
+        String expression = Evals.getConstantString(args.get(0));
+        function = registerFunction(name, expression);
       }
-      query.setLength(0);
-      query.append(function != null ? function : args.get(1).eval(bindings).asString()).append('(');
-      for (int i = 2; i < args.size(); i++) {
-        final String symbol = "p" + i;
-        if (i > 2) {
-          query.append(", ");
-        }
-        query.append(symbol);
-        final ExprEval eval = args.get(i).eval(bindings);
-        switch (eval.type()) {
-          case DOUBLE:
-            r.assign(symbol, new double[]{eval.doubleValue()});
-            break;
-          case LONG:
-            r.assign(symbol, new int[]{Ints.checkedCast(eval.longValue())});
-            break;
-          default:
-            r.assign(symbol, eval.asString());
-            break;
-        }
-      }
-      final REXP expr = r.eval(query.append(')').toString());
-      switch (expr.getType()) {
-        case REXP.XT_DOUBLE:
-        case REXP.XT_ARRAY_DOUBLE:
-          return ExprEval.of(expr.asDouble());
-        case REXP.XT_INT:
-        case REXP.XT_ARRAY_INT:
-          return ExprEval.of(expr.asInt());
-        case REXP.XT_STR:
-          return ExprEval.of(expr.asString());
-        default:
-          return ExprEval.bestEffortOf(expr.getContent());
-      }
+      return toJava(evaluate(function, args.subList(2, args.size()), bindings));
     }
 
     @Override
@@ -515,7 +678,7 @@ public interface BuiltinFunctions extends Function.Library
     public ExprEval apply(List<Expr> args, NumericBinding bindings)
     {
       if (!initialized) {
-        if (args.isEmpty()) {
+        if (args.size() < 2) {
           throw new RuntimeException("function '" + name() + "' should have at least two arguments");
         }
         p.exec(Evals.getConstantString(args.get(0)));
