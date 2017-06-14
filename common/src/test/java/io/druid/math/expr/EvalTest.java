@@ -21,6 +21,7 @@ package io.druid.math.expr;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
@@ -588,6 +589,50 @@ public class EvalTest
   {
     Expr.NumericBinding bindings = Parser.withMap(ImmutableMap.<String, Object>of("a", 30, "b", 3));
     Assert.assertEquals(90, evalLong("py('def multi(a,b): return a * b', 'multi', a, b)", bindings));
+
+    // python to Java
+    Map eval = (Map) eval(
+        "py('def map(a, b): \n"
+        + "  dict = { } \n"
+        + "  dict[\"gender\"] = [\"Male\", \"Male\",\"Female\"] \n"
+        + "  dict[\"height\"] = [152, 171.5, 165, a] \n"
+        + "  dict[\"weight\"] = [81, 93, 78, b] \n"
+        + "  dict[\"Age\"] = [42, 38, 26, a * b] \n"
+        + "  return dict\n'"
+        + ", 'map', a, b)", bindings
+    );
+    Assert.assertEquals(4, eval.size());
+    Assert.assertEquals(Lists.newArrayList("Male", "Male", "Female"), eval.get("gender"));
+    Assert.assertEquals(Lists.newArrayList(152L, 171.5, 165L, 30L), eval.get("height"));
+    Assert.assertEquals(Lists.newArrayList(81L, 93L, 78L, 3L), eval.get("weight"));
+    Assert.assertEquals(Lists.newArrayList(42L, 38L, 26L, 90L), eval.get("Age"));
+
+    // java to python
+    Map<String, Object> param = ImmutableMap.<String, Object>of(
+        "gender", new String[]{"Male", "Male", "Female"},
+        "height", new double[]{152, 171.5, 165},
+        "weight", new double[]{81, 93, 78},
+        "Age", new double[]{42, 38, 26}
+    );
+    bindings = Parser.withMap(ImmutableMap.<String, Object>of("x", param, "a", 30, "b", 3));
+    Map map = (Map) eval("py('def identity(x): return x', 'identity', x)", bindings);
+    Assert.assertEquals(4, map.size());
+    Assert.assertArrayEquals(new String[]{"Male", "Male", "Female"}, (String[]) map.get("gender"));
+    Assert.assertArrayEquals(new double[]{152, 171.5, 165}, (double[]) map.get("height"), 0.001);
+    Assert.assertArrayEquals(new double[]{81, 93, 78}, (double[]) map.get("weight"), 0.001);
+    Assert.assertArrayEquals(new double[]{42, 38, 26}, (double[]) map.get("Age"), 0.001);
+
+    Map map2 = (Map) eval(
+        "py('def modify(x, a, b):\n"
+        + "  x[\"height\"].append(a)\n"
+        + "  x[\"weight\"].append(b)\n"
+        + "  x[\"Age\"].append(a * b)\n"
+        + "  return x', 'modify', x, a, b)", bindings);
+    Assert.assertEquals(4, map2.size());
+    Assert.assertArrayEquals(new String[]{"Male", "Male", "Female"}, (String[]) map2.get("gender"));
+    Assert.assertArrayEquals(new double[]{152, 171.5, 165, 30}, (double[]) map2.get("height"), 0.001);
+    Assert.assertArrayEquals(new double[]{81, 93, 78, 3}, (double[]) map2.get("weight"), 0.001);
+    Assert.assertArrayEquals(new double[]{42, 38, 26, 90}, (double[]) map2.get("Age"), 0.001);
   }
 
   @Test
@@ -596,6 +641,27 @@ public class EvalTest
   {
     Expr.NumericBinding bindings = Parser.withMap(ImmutableMap.<String, Object>of("a", 30, "b", 3));
     Assert.assertEquals(90, evalLong("pyEval('a * b')", bindings));
+
+    bindings = Parser.withMap(ImmutableMap.<String, Object>of("a", new double[] {10, 20}, "b", new double[] {30, 40}));
+    Assert.assertArrayEquals(new double[]{10, 20, 30, 40}, (double[]) eval("pyEval('a + b')", bindings), 0.001);
+
+    Map<String, Object> param = ImmutableMap.<String, Object>of(
+        "gender", new String[]{"Male", "Male", "Female"},
+        "height", new double[]{152, 171.5, 165},
+        "weight", new double[]{81, 93, 78},
+        "Age", new double[]{42, 38, 26}
+    );
+    bindings = Parser.withMap(
+        ImmutableMap.<String, Object>of("x", param, "a", 30, "b", 3)
+    );
+
+    Map map2 = (Map) eval(
+        "pyEval('x[\"height\"].append(a), x[\"weight\"].append(b), x[\"Age\"].append(a * b), x', x, a, b)", bindings);
+    Assert.assertEquals(4, map2.size());
+    Assert.assertArrayEquals(new String[]{"Male", "Male", "Female"}, (String[]) map2.get("gender"));
+    Assert.assertArrayEquals(new double[]{152, 171.5, 165, 30}, (double[]) map2.get("height"), 0.001);
+    Assert.assertArrayEquals(new double[]{81, 93, 78, 3}, (double[]) map2.get("weight"), 0.001);
+    Assert.assertArrayEquals(new double[]{42, 38, 26, 90}, (double[]) map2.get("Age"), 0.001);
   }
 
   @Test

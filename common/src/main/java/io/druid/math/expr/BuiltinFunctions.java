@@ -43,13 +43,19 @@ import org.joda.time.DateTimeZone;
 import org.joda.time.Days;
 import org.mozilla.javascript.Context;
 import org.mozilla.javascript.ScriptableObject;
+import org.python.core.Py;
 import org.python.core.PyArray;
 import org.python.core.PyCode;
+import org.python.core.PyDictionary;
 import org.python.core.PyFloat;
 import org.python.core.PyInteger;
+import org.python.core.PyList;
 import org.python.core.PyLong;
+import org.python.core.PyNone;
 import org.python.core.PyObject;
 import org.python.core.PyString;
+import org.python.core.PyTuple;
+import org.python.core.adapter.PyObjectAdapter;
 import org.python.util.PythonInterpreter;
 import org.rosuda.JRI.REXP;
 import org.rosuda.JRI.RFactor;
@@ -398,16 +404,21 @@ public interface BuiltinFunctions extends Function.Library
 
   abstract class AbstractRFunc extends ExprType.IndecisiveFunction implements Factory
   {
-    private static Rengine r;
-    private static Map<String, String> functions = Maps.newHashMap();
+    private static final Rengine r;
+    private static final Map<String, String> functions = Maps.newHashMap();
 
     static {
-      try {
-        r = new Rengine(new String[]{"--vanilla"}, false, null);
+      String rHome = System.getProperty("R_HOME");
+      Rengine engine = null;
+      if (rHome != null) {
+        try {
+          engine = new Rengine(new String[]{"--vanilla"}, false, null);
+        }
+        catch (Exception e) {
+          log.warn(e, "Failed to initialize r");
+        }
       }
-      catch (Exception e) {
-        log.warn(e, "Failed to initialize r");
-      }
+      r = engine;
     }
 
     private final StringBuilder query = new StringBuilder();
@@ -635,17 +646,72 @@ public interface BuiltinFunctions extends Function.Library
       if (new File(pythonHome).isDirectory()) {
         prop.setProperty("python.home", pythonHome);
         PythonInterpreter.initialize(System.getProperties(), prop, new String[]{});
+
+        Py.getAdapter().addPostClass(
+            new PyObjectAdapter()
+            {
+              @Override
+              public PyObject adapt(Object o)
+              {
+                Map<?, ?> map = (Map<?, ?>) o;
+                Map<PyObject, PyObject> converted = Maps.newHashMap();
+                for (Map.Entry<?, ?> entry : map.entrySet()) {
+                  converted.put(Py.java2py(entry.getKey()), Py.java2py(entry.getValue()));
+                }
+                return new PyDictionary(converted);
+              }
+
+              @Override
+              public boolean canAdapt(Object o)
+              {
+                return Map.class.isInstance(o);
+              }
+            }
+        );
+        Py.getAdapter().addPostClass(
+            new PyObjectAdapter()
+            {
+              @Override
+              public PyObject adapt(Object o)
+              {
+                List<?> list = (List<?>) o;
+                List<PyObject> converted = Lists.newArrayList();
+                for (Object element : list) {
+                  converted.add(Py.java2py(element));
+                }
+                return PyList.fromList(converted);
+              }
+
+              @Override
+              public boolean canAdapt(Object o)
+              {
+                return List.class.isInstance(o);
+              }
+            }
+        );
       } else {
         log.info("invalid or absent of python.home in system environment..");
       }
+    }
+
+    private static final String[] params = new String[] {"p0", "p1", "p2", "p3", "p4", "p5", "p6", "p7", "p8", "p9"};
+
+    final String paramName(int index)
+    {
+      return index < params.length ? params[index] : "p" + index;
     }
 
     final PythonInterpreter p = new PythonInterpreter();
 
     final ExprEval toExprEval(PyObject result)
     {
-      if (result == null) {
-        return ExprEval.of(null, ExprType.STRING);
+      return toExprEval(result, false);
+    }
+
+    final ExprEval toExprEval(PyObject result, boolean evaluation)
+    {
+      if (result == null || result instanceof PyNone) {
+        return ExprEval.of(null, ExprType.UNKNOWN);
       }
       if (result instanceof PyString) {
         return ExprEval.of(result.asString(), ExprType.STRING);
@@ -659,14 +725,43 @@ public interface BuiltinFunctions extends Function.Library
       if (result instanceof PyArray) {
         return ExprEval.of(((PyArray)result).getArray(), ExprType.UNKNOWN);
       }
-      return ExprEval.of(null, ExprType.UNKNOWN);
+      if (result instanceof PyList) {
+        PyList pyList = (PyList) result;
+        List<Object> list = Lists.newArrayList();
+        for (int i = 0; i < pyList.size(); i++) {
+          list.add(toExprEval(pyList.pyget(i)).value());
+        }
+        return ExprEval.of(list, ExprType.UNKNOWN);
+      }
+      if (result instanceof PyDictionary) {
+        Map<PyObject, PyObject> internal = ((PyDictionary) result).getMap();
+        Map<String, Object> map = Maps.newHashMapWithExpectedSize(internal.size());
+        for (Map.Entry<PyObject, PyObject> entry : internal.entrySet()) {
+          ExprEval key = toExprEval(entry.getKey());
+          if (!key.isNull()) {
+            map.put(key.asString(), toExprEval(entry.getValue()).value());
+          }
+        }
+        return ExprEval.of(map, ExprType.UNKNOWN);
+      }
+      if (result instanceof PyTuple) {
+        PyObject[] array = ((PyTuple)result).getArray();
+        if (evaluation) {
+          return toExprEval(array[array.length - 1]);
+        }
+        List<Object> list = Lists.newArrayList();
+        for (PyObject element : array) {
+          list.add(toExprEval(element).value());
+        }
+        return ExprEval.of(list, ExprType.UNKNOWN);
+      }
+      return ExprEval.of(result.toString(), ExprType.UNKNOWN);
     }
   }
 
   final class PythonFunc extends AbstractPythonFunc
   {
-    private boolean initialized;
-    private final StringBuilder query = new StringBuilder();
+    private PyCode code;
 
     @Override
     public String name()
@@ -677,25 +772,29 @@ public interface BuiltinFunctions extends Function.Library
     @Override
     public ExprEval apply(List<Expr> args, NumericBinding bindings)
     {
-      if (!initialized) {
+      if (code == null) {
         if (args.size() < 2) {
           throw new RuntimeException("function '" + name() + "' should have at least two arguments");
         }
         p.exec(Evals.getConstantString(args.get(0)));
-        initialized = true;
-      }
-      query.setLength(0);
-      query.append(args.get(1).eval(bindings).asString()).append('(');
-      for (int i = 2; i < args.size(); i++) {
-        if (i > 2) {
-          query.append(',');
-        }
-        ExprEval param = args.get(i).eval(bindings);
-        query.append(param.isNull() ? "" : param.asString());
-      }
-      query.append(')');
+        String functionName = Evals.getConstantString(args.get(1));
 
-      return toExprEval(p.eval(query.toString()));
+        StringBuilder builder = new StringBuilder();
+        builder.append(functionName).append('(');
+        for (int i = 0; i < args.size() - 2; i++) {
+          if (i > 0) {
+            builder.append(',');
+          }
+          builder.append(paramName(i));
+        }
+        builder.append(')');
+        code = p.compile(builder.toString());
+      }
+      for (int i = 0; i < args.size() - 2; i++) {
+        Object value = args.get(i + 2).eval(bindings).value();
+        p.set(paramName(i), Py.java2py(value));
+      }
+      return toExprEval(p.eval(code));
     }
 
     @Override
@@ -727,7 +826,7 @@ public interface BuiltinFunctions extends Function.Library
       for (String column : bindings.names()) {
         p.set(column, bindings.get(column));
       }
-      return toExprEval(p.eval(code));
+      return toExprEval(p.eval(code), true);
     }
 
     @Override
