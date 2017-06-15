@@ -762,6 +762,7 @@ public interface BuiltinFunctions extends Function.Library
   final class PythonFunc extends AbstractPythonFunc
   {
     private PyCode code;
+    private String parameters;
 
     @Override
     public String name()
@@ -772,15 +773,18 @@ public interface BuiltinFunctions extends Function.Library
     @Override
     public ExprEval apply(List<Expr> args, NumericBinding bindings)
     {
-      if (code == null) {
+      if (code == null && parameters == null) {
         if (args.size() < 2) {
           throw new RuntimeException("function '" + name() + "' should have at least two arguments");
         }
         p.exec(Evals.getConstantString(args.get(0)));
-        String functionName = Evals.getConstantString(args.get(1));
+        final boolean constantMethod = Evals.isConstantString(args.get(1));
 
         StringBuilder builder = new StringBuilder();
-        builder.append(functionName).append('(');
+        if (constantMethod) {
+          builder.append(Evals.getConstantString(args.get(1)));
+        }
+        builder.append('(');
         for (int i = 0; i < args.size() - 2; i++) {
           if (i > 0) {
             builder.append(',');
@@ -788,13 +792,24 @@ public interface BuiltinFunctions extends Function.Library
           builder.append(paramName(i));
         }
         builder.append(')');
-        code = p.compile(builder.toString());
+
+        if (constantMethod) {
+          code = p.compile(builder.toString());
+        } else {
+          parameters = builder.toString();
+        }
       }
       for (int i = 0; i < args.size() - 2; i++) {
         Object value = args.get(i + 2).eval(bindings).value();
         p.set(paramName(i), Py.java2py(value));
       }
-      return toExprEval(p.eval(code));
+      if (code != null) {
+        return toExprEval(p.eval(code));
+      } else {
+        String functionName = Evals.evalString(args.get(1), bindings);
+        PyCode code = p.compile(functionName + parameters);
+        return toExprEval(p.eval(code));
+      }
     }
 
     @Override

@@ -115,7 +115,12 @@ public class Evals
 
   public static String evalOptionalString(Expr arg, Expr.NumericBinding binding)
   {
-    return arg == null ? null : arg.eval(binding).asString();
+    return arg == null ? null : evalString(arg, binding);
+  }
+
+  public static String evalString(Expr arg, Expr.NumericBinding binding)
+  {
+    return arg.eval(binding).asString();
   }
 
   public static boolean evalOptionalBoolean(Expr arg, Expr.NumericBinding binding, boolean defaultVal)

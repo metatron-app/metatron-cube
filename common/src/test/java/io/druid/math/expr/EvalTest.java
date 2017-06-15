@@ -633,6 +633,32 @@ public class EvalTest
     Assert.assertArrayEquals(new double[]{152, 171.5, 165, 30}, (double[]) map2.get("height"), 0.001);
     Assert.assertArrayEquals(new double[]{81, 93, 78, 3}, (double[]) map2.get("weight"), 0.001);
     Assert.assertArrayEquals(new double[]{42, 38, 26, 90}, (double[]) map2.get("Age"), 0.001);
+
+    // dynamic method
+    String pyCode = "py('def modify1(x, a, b):\n"
+                    + "  x[\"height\"].append(a)\n"
+                    + "  return x\n"
+                    + "def modify2(x, a, b): \n"
+                    + "  x[\"weight\"].append(b)\n"
+                    + "  return x'";
+
+    bindings = Parser.withMap(ImmutableMap.<String, Object>of("x", param, "a", 30, "b", 3, "m", "modify1"));
+    Map map3 = (Map) eval(pyCode + ", m, x, a, b)", bindings);
+
+    Assert.assertEquals(4, map3.size());
+    Assert.assertArrayEquals(new String[]{"Male", "Male", "Female"}, (String[]) map3.get("gender"));
+    Assert.assertArrayEquals(new double[]{152, 171.5, 165, 30}, (double[]) map3.get("height"), 0.001);
+    Assert.assertArrayEquals(new double[]{81, 93, 78}, (double[]) map3.get("weight"), 0.001);
+    Assert.assertArrayEquals(new double[]{42, 38, 26}, (double[]) map3.get("Age"), 0.001);
+
+    bindings = Parser.withMap(ImmutableMap.<String, Object>of("x", param, "a", 30, "b", 3, "m", "modify2"));
+    Map map4 = (Map) eval(pyCode + ", m, x, a, b)", bindings);
+
+    Assert.assertEquals(4, map4.size());
+    Assert.assertArrayEquals(new String[]{"Male", "Male", "Female"}, (String[]) map4.get("gender"));
+    Assert.assertArrayEquals(new double[]{152, 171.5, 165}, (double[]) map4.get("height"), 0.001);
+    Assert.assertArrayEquals(new double[]{81, 93, 78, 3}, (double[]) map4.get("weight"), 0.001);
+    Assert.assertArrayEquals(new double[]{42, 38, 26}, (double[]) map4.get("Age"), 0.001);
   }
 
   @Test
