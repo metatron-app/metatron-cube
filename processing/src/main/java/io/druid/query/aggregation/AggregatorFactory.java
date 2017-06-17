@@ -19,7 +19,9 @@
 
 package io.druid.query.aggregation;
 
+import com.google.common.base.Function;
 import com.google.common.collect.Iterables;
+import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import com.metamx.common.logger.Logger;
@@ -215,4 +217,40 @@ public abstract class AggregatorFactory implements Cacheable
     }
     return types;
   }
+
+  public static List<AggregatorFactory> toCombiner(List<AggregatorFactory> aggregators)
+  {
+    List<AggregatorFactory> combiners = Lists.newArrayList();
+    for (AggregatorFactory aggregator : aggregators) {
+      combiners.add(aggregator.getCombiningFactory());
+    }
+    return combiners;
+  }
+
+  public static List<AggregatorFactory> toRelay(List<String> metrics, String type)
+  {
+    List<AggregatorFactory> relay = Lists.newArrayList();
+    for (String metric : metrics) {
+      relay.add(new RelayAggregatorFactory(metric, metric, type));
+    }
+    return relay;
+  }
+
+  public static List<AggregatorFactory> toRelay(List<AggregatorFactory> aggregators)
+  {
+    List<AggregatorFactory> relay = Lists.newArrayList();
+    for (AggregatorFactory aggregator : aggregators) {
+      relay.add(new RelayAggregatorFactory(aggregator.getName(), aggregator.getName(), aggregator.getTypeName()));
+    }
+    return relay;
+  }
+
+  public static Function<AggregatorFactory, String> NAME = new Function<AggregatorFactory, String>()
+  {
+    @Override
+    public String apply(AggregatorFactory input)
+    {
+      return input.getName();
+    }
+  };
 }

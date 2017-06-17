@@ -22,23 +22,27 @@ package io.druid.query;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
+import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
+import com.metamx.common.guava.Sequences;
 import com.metamx.common.logger.Logger;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.data.input.MapBasedRow;
 import io.druid.data.input.Row;
+import io.druid.granularity.QueryGranularities;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.PostAggregator;
 import io.druid.query.aggregation.RelayAggregatorFactory;
-import io.druid.query.dimension.DefaultDimensionSpec;
 import io.druid.query.dimension.DimensionSpec;
 import io.druid.query.groupby.GroupByQuery;
 import io.druid.query.select.EventHolder;
-import io.druid.query.select.SelectQuery;
-import io.druid.query.select.StreamQuery;
+import io.druid.query.select.SelectMetaQuery;
+import io.druid.query.select.SelectMetaResultValue;
+import io.druid.segment.incremental.IncrementalIndexSchema;
 
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -89,84 +93,132 @@ public class Queries
     return null;
   }
 
-  public static List<DimensionSpec> getRelayDimensions(Query subQuery)
+  public static IncrementalIndexSchema relaySchema(Query subQuery, QuerySegmentWalker segmentWalker)
   {
-    List<DimensionSpec> relay;
+    // use granularity truncated min timestamp since incoming truncated timestamps may precede timeStart
+    IncrementalIndexSchema.Builder builder = new IncrementalIndexSchema.Builder()
+        .withMinTimestamp(Long.MIN_VALUE)
+        .withQueryGranularity(QueryGranularities.ALL)
+        .withFixedSchema(true);
+
     if (subQuery instanceof GroupByQuery) {
       final GroupByQuery groupByQuery = (GroupByQuery) subQuery;
-      relay = groupByQuery.getDimensions();
-    } else if (subQuery instanceof SelectQuery) {
-      final SelectQuery selectQuery = (SelectQuery) subQuery;
-      relay = selectQuery.getDimensions();
-    } else if (subQuery instanceof StreamQuery) {
-      final StreamQuery streamQuery = (StreamQuery) subQuery;
-      relay = streamQuery.getDimensions();
-    } else if (subQuery instanceof JoinQuery.JoinDelegate) {
-      final Set<DimensionSpec> dimensions = Sets.newHashSet();
-      final JoinQuery.JoinDelegate joinQuery = (JoinQuery.JoinDelegate) subQuery;
-      for (Object query : joinQuery.getQueries()) {
-        dimensions.addAll(getRelayDimensions((Query)query));
+      List<DimensionSpec> dimensions = groupByQuery.getDimensions();
+      if (dimensions.isEmpty() && groupByQuery.getDataSource() instanceof ViewDataSource) {
+        builder.withDimensions(resolveSchemaFromView(subQuery, segmentWalker).dimensions);
+      } else {
+        builder.withDimensions(Lists.transform(dimensions, DimensionSpec.OUTPUT_NAME));
       }
-      return Lists.newArrayList(dimensions);
-    } else {
-      throw new UnsupportedOperationException("Cannot extract dimension from query " + subQuery);
-    }
-    if (relay.isEmpty() && subQuery.getDataSource() instanceof ViewDataSource) {
-      for (String dimension : ((ViewDataSource)subQuery.getDataSource()).getColumns()) {
-        relay.add(DefaultDimensionSpec.of(dimension));
-      }
-    }
-    return relay;
-  }
-
-  public static List<AggregatorFactory> getRelayMetrics(Query subQuery)
-  {
-    final List<AggregatorFactory> relay = Lists.newArrayList();
-    if (subQuery instanceof GroupByQuery) {
-      final GroupByQuery groupByQuery = (GroupByQuery) subQuery;
-
-      final Map<String, String> schema = Maps.newHashMap();
-      for (AggregatorFactory aggregatorFactory : groupByQuery.getAggregatorSpecs()) {
-        schema.put(aggregatorFactory.getName(), aggregatorFactory.getTypeName());
-      }
+      List<AggregatorFactory> aggs = AggregatorFactory.toCombiner(groupByQuery.getAggregatorSpecs());
       for (PostAggregator postAggregator : groupByQuery.getPostAggregatorSpecs()) {
-        schema.put(postAggregator.getName(), "object");
+        aggs.add(new RelayAggregatorFactory(postAggregator.getName(), postAggregator.getName(), "object"));
       }
-      for (Map.Entry<String, String> entry : schema.entrySet()) {
-        relay.add(new RelayAggregatorFactory(entry.getKey(), entry.getKey(), entry.getValue()));
-      }
-    } else if (subQuery instanceof SelectQuery) {
-      final SelectQuery selectQuery = (SelectQuery) subQuery;
+      return builder.withMetrics(aggs.toArray(new AggregatorFactory[aggs.size()])).build();
+    } else if (subQuery instanceof Query.ViewSupport) {
+      final Query.ViewSupport<?> selectQuery = (Query.ViewSupport) subQuery;
+      List<String> dimensions = Lists.transform(selectQuery.getDimensions(), DimensionSpec.OUTPUT_NAME);
       List<String> metrics = selectQuery.getMetrics();
-      if (metrics.isEmpty()) {
-        metrics = selectQuery.getDataSource() instanceof ViewDataSource ?
-                  ((ViewDataSource)selectQuery.getDataSource()).getColumns() : metrics;
+      if (selectQuery.getDataSource() instanceof ViewDataSource) {
+        ViewDataSource dataSource = (ViewDataSource) subQuery.getDataSource();
+        List<String> columns = Lists.newArrayList(dataSource.getColumns());
+        if (dimensions.isEmpty() && !columns.isEmpty()) {
+          Schema schema = resolveSchemaFromView(subQuery, segmentWalker);
+          return builder.withDimensions(schema.dimensions)
+                        .withMetrics(AggregatorFactory.toRelay(schema.metrics))
+                        .withRollup(false)
+                        .build();
+        } else {
+          columns.removeAll(dimensions);
+          if (metrics.isEmpty() && !columns.isEmpty()) {
+            Schema schema = resolveSchemaFromView(subQuery, segmentWalker);
+            return builder.withDimensions(schema.dimensions)
+                          .withMetrics(AggregatorFactory.toRelay(schema.metrics))
+                          .withRollup(false)
+                          .build();
+          }
+        }
       }
-      for (String metric : metrics) {
-        relay.add(new RelayAggregatorFactory(metric, metric, "object"));
-      }
-    } else if (subQuery instanceof StreamQuery) {
-      final StreamQuery streamQuery = (StreamQuery) subQuery;
-      for (String metric : streamQuery.getMetrics()) {
-        relay.add(new RelayAggregatorFactory(metric, metric, "object"));
-      }
+      return builder.withDimensions(dimensions)
+                    .withMetrics(AggregatorFactory.toRelay(metrics, "object"))
+                    .withRollup(false)
+                    .build();
     } else if (subQuery instanceof JoinQuery.JoinDelegate) {
-      final List<AggregatorFactory> aggregators = Lists.newArrayList();
       final JoinQuery.JoinDelegate joinQuery = (JoinQuery.JoinDelegate) subQuery;
+      Set<String> dimensions = Sets.newLinkedHashSet();
+      List<AggregatorFactory> metrics = Lists.newArrayList();
       for (Object query : joinQuery.getQueries()) {
-        aggregators.addAll(getRelayMetrics((Query)query));
+        IncrementalIndexSchema schema = relaySchema((Query) query, segmentWalker);
+        for (String dimension : schema.getDimensionsSpec().getDimensionNames()) {
+          if (!dimensions.contains(dimension)) {
+            dimensions.add(dimension);
+          }
+        }
+        metrics.addAll(Arrays.asList(schema.getMetrics()));
       }
-      return aggregators;
+      return builder.withDimensions(Lists.newArrayList(dimensions))
+                    .withMetrics(AggregatorFactory.toRelay(metrics))
+                    .withRollup(false)
+                    .build();
     } else {
       // todo union-all (partitioned-join, etc.)
+      // todo timeseries topN query
       throw new UnsupportedOperationException("Cannot extract metric from query " + subQuery);
     }
-    if (relay.isEmpty() && subQuery.getDataSource() instanceof ViewDataSource) {
-      for (String metric : ((ViewDataSource)subQuery.getDataSource()).getColumns()) {
-        relay.add(new RelayAggregatorFactory(metric, metric, "object"));
+  }
+
+  private static class Schema
+  {
+    private final List<String> dimensions = Lists.newArrayList();
+    private final List<AggregatorFactory> metrics = Lists.newArrayList();
+
+    @Override
+    public String toString()
+    {
+      return "Schema{" +
+             "dimensions=" + dimensions +
+             ", metrics=" + metrics +
+             '}';
+    }
+  }
+
+  private static Schema resolveSchemaFromView(Query<?> subQuery, QuerySegmentWalker segmentWalker)
+  {
+    Schema schema = new Schema();
+    ViewDataSource dataSource = (ViewDataSource) subQuery.getDataSource();
+    List<String> columns = dataSource.getColumns();
+    List<String> exclusions = dataSource.getColumnExclusions();
+    if (columns.isEmpty()) {
+      return schema;
+    }
+    SelectMetaQuery metaQuery = new SelectMetaQuery(
+        subQuery.getDataSource(),
+        subQuery.getQuerySegmentSpec(),
+        null,
+        QueryGranularities.ALL,
+        null,
+        null,
+        Maps.<String, Object>newHashMap()
+    );
+    Result<SelectMetaResultValue> result = Iterables.getOnlyElement(
+        Sequences.toList(
+            metaQuery.run(segmentWalker, Maps.<String, Object>newHashMap()),
+            Lists.<Result<SelectMetaResultValue>>newArrayList()
+        ), null
+    );
+    if (result == null) {
+      return schema;
+    }
+    SelectMetaResultValue resolved = result.getValue();
+    schema.dimensions.addAll(resolved.getDimensions());
+    schema.dimensions.retainAll(columns);
+    schema.dimensions.removeAll(exclusions);
+    for (AggregatorFactory aggregator : resolved.getAggregators()) {
+      if (!exclusions.contains(aggregator.getName()) && columns.contains(aggregator.getName())) {
+        schema.metrics.add(aggregator);
       }
     }
-    return relay;
+    LOG.info("Resolved schema %s", schema);
+    return schema;
   }
 
   public static <I> Function<I, Row> getRowConverter(Query<I> subQuery)

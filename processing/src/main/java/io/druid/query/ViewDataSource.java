@@ -138,6 +138,6 @@ public class ViewDataSource extends TableDataSource
   @Override
   public String toString()
   {
-    return name + columns + "-" + columnExclusions + "(" + virtualColumns + ")";
+    return name + columns + "-" + columnExclusions + (virtualColumns == null ? "" : "(" + virtualColumns + ")");
   }
 }

@@ -45,7 +45,7 @@ import java.util.concurrent.Future;
 
 public class GroupByQueryHelper
 {
-  private static final String CTX_KEY_MAX_RESULTS = "maxResults";
+  public static final String CTX_KEY_MAX_RESULTS = "maxResults";
   public static final String CTX_KEY_FUDGE_TIMESTAMP = "fudgeTimestamp";
 
   public static IncrementalIndex createMergeIndex(
@@ -94,7 +94,8 @@ public class GroupByQueryHelper
         .withMinTimestamp(Long.MIN_VALUE)
         .withQueryGranularity(QueryGranularities.ALL)
         .withMetrics(aggs.toArray(new AggregatorFactory[aggs.size()]))
-        .withGroupBy()
+        .withFixedSchema(true)
+        .withRollup(true)
         .build();
 
     int maxRowCount = Math.min(

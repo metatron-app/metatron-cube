@@ -25,33 +25,34 @@ import io.druid.granularity.QueryGranularities;
 import io.druid.granularity.QueryGranularity;
 import io.druid.query.aggregation.AggregatorFactory;
 
+import java.util.List;
+
 /**
  */
 public class IncrementalIndexSchema
 {
-  public static final int ROLLUP = 0;
-  public static final int NO_ROLLUP = 1;
-  public static final int GROUP_BY = 2;
-
   private final long minTimestamp;
   private final QueryGranularity gran;
   private final DimensionsSpec dimensionsSpec;
   private final AggregatorFactory[] metrics;
-  private final int mode;
+  private final boolean rollup;
+  private final boolean fixedSchema;
 
   public IncrementalIndexSchema(
       long minTimestamp,
       QueryGranularity gran,
       DimensionsSpec dimensionsSpec,
       AggregatorFactory[] metrics,
-      int mode
+      boolean rollup,
+      boolean fixedSchema
   )
   {
     this.minTimestamp = minTimestamp;
     this.gran = gran;
     this.dimensionsSpec = dimensionsSpec;
     this.metrics = metrics;
-    this.mode = mode;
+    this.rollup = rollup;
+    this.fixedSchema = fixedSchema;
   }
 
   public IncrementalIndexSchema(
@@ -62,7 +63,7 @@ public class IncrementalIndexSchema
       boolean rollup
   )
   {
-    this(minTimestamp, gran, dimensionsSpec, metrics, rollup ? ROLLUP : NO_ROLLUP);
+    this(minTimestamp, gran, dimensionsSpec, metrics, rollup, false);
   }
 
   public long getMinTimestamp()
@@ -87,12 +88,12 @@ public class IncrementalIndexSchema
 
   public boolean isRollup()
   {
-    return mode == ROLLUP || mode == GROUP_BY;
+    return rollup;
   }
 
-  public boolean isGroupBy()
+  public boolean isFixedSchema()
   {
-    return mode == GROUP_BY;
+    return fixedSchema;
   }
 
   public static class Builder
@@ -101,7 +102,8 @@ public class IncrementalIndexSchema
     private QueryGranularity gran;
     private DimensionsSpec dimensionsSpec;
     private AggregatorFactory[] metrics;
-    private int mode;
+    private boolean fixedSchema;
+    private boolean rollup;
 
     public Builder()
     {
@@ -109,7 +111,7 @@ public class IncrementalIndexSchema
       this.gran = QueryGranularities.NONE;
       this.dimensionsSpec = new DimensionsSpec(null, null, null);
       this.metrics = new AggregatorFactory[]{};
-      this.mode = ROLLUP;
+      this.rollup = true;
     }
 
     public Builder withMinTimestamp(long minTimestamp)
@@ -143,6 +145,18 @@ public class IncrementalIndexSchema
       return this;
     }
 
+    public Builder withDimensions(List<String> dimensions)
+    {
+      this.dimensionsSpec = new DimensionsSpec(DimensionsSpec.getDefaultSchemas(dimensions), null, null);
+      return this;
+    }
+
+    public Builder withMetrics(List<AggregatorFactory> metrics)
+    {
+      this.metrics = metrics.toArray(new AggregatorFactory[metrics.size()]);
+      return this;
+    }
+
     public Builder withMetrics(AggregatorFactory[] metrics)
     {
       this.metrics = metrics;
@@ -151,19 +165,19 @@ public class IncrementalIndexSchema
 
     public Builder withRollup(boolean rollup)
     {
-      this.mode = rollup ? ROLLUP : NO_ROLLUP;
+      this.rollup = rollup;
       return this;
     }
 
-    public Builder withGroupBy()
+    public Builder withFixedSchema(boolean fixedSchema)
     {
-      this.mode = GROUP_BY;
+      this.fixedSchema = fixedSchema;
       return this;
     }
 
     public IncrementalIndexSchema build()
     {
-      return new IncrementalIndexSchema(minTimestamp, gran, dimensionsSpec, metrics, mode);
+      return new IncrementalIndexSchema(minTimestamp, gran, dimensionsSpec, metrics, rollup, fixedSchema);
     }
   }
 }

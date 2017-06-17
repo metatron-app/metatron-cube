@@ -76,7 +76,7 @@ public class GroupByQueryRunnerTestHelper
     QueryRunner<T> baseRunner;
     if (query.getDataSource() instanceof QueryDataSource) {
       Query innerQuery = ((QueryDataSource) query.getDataSource()).getQuery().withOverriddenContext(query.getContext());
-      baseRunner = toolChest.handleSubQuery(query, innerQuery, toMergeRunner(factory, runner, innerQuery, true));
+      baseRunner = toolChest.handleSubQuery(innerQuery, toMergeRunner(factory, runner, innerQuery, true), null, null);
     } else {
       baseRunner = toolChest.mergeResults(toolChest.preMergeQueryDecoration(runner));
     }

@@ -435,7 +435,7 @@ public abstract class IncrementalIndex<AggregatorType> implements Iterable<Row>,
   private final boolean reportParseExceptions;
   private final boolean sortFacts;
   private final boolean rollup;
-  private final boolean groupBy;
+  private final boolean fixedSchema;
   private final Metadata metadata;
 
   private final Map<String, MetricDesc> metricDescs;
@@ -490,7 +490,7 @@ public abstract class IncrementalIndex<AggregatorType> implements Iterable<Row>,
     this.reportParseExceptions = reportParseExceptions;
     this.sortFacts = sortFacts;
     this.rollup = incrementalIndexSchema.isRollup();
-    this.groupBy = incrementalIndexSchema.isGroupBy();
+    this.fixedSchema = incrementalIndexSchema.isFixedSchema();
 
     this.metadata = new Metadata()
         .setAggregators(getCombiningAggregators(metrics))
@@ -823,7 +823,7 @@ public abstract class IncrementalIndex<AggregatorType> implements Iterable<Row>,
   // fast track for group-by query
   public void initialize(List<String> dimensions)
   {
-    Preconditions.checkArgument(groupBy, "this is only for group-by");
+    Preconditions.checkArgument(fixedSchema, "this is only for group-by");
     for (String dimension : dimensions) {
       addNewDimension(dimension, ColumnCapabilitiesImpl.of(ValueType.STRING), MultiValueHandling.ARRAY, -1);
     }
@@ -831,7 +831,7 @@ public abstract class IncrementalIndex<AggregatorType> implements Iterable<Row>,
 
   public void initialize(Map<String, String[]> dimensions)
   {
-    Preconditions.checkArgument(groupBy, "this is only for group-by");
+    Preconditions.checkArgument(fixedSchema, "this is only for group-by");
     for (Map.Entry<String, String[]> entry : dimensions.entrySet()) {
       String dimension = entry.getKey();
       DimDim values = new NullValueConverterDimDim(makeDimDim(dimension, entry.getValue(), SizeEstimator.STRING), -1);
@@ -853,7 +853,7 @@ public abstract class IncrementalIndex<AggregatorType> implements Iterable<Row>,
 
   public int add(Row row)
   {
-    Preconditions.checkArgument(groupBy, "this is only for group-by");
+    Preconditions.checkArgument(fixedSchema, "this is only for group-by");
     try {
       return addTimeAndDims(row, toTimeAndDims(row));
     }
@@ -1704,7 +1704,7 @@ public abstract class IncrementalIndex<AggregatorType> implements Iterable<Row>,
 
   protected final Comparator<TimeAndDims> dimsComparator()
   {
-    if (groupBy && !dimensionDescs.isEmpty() && isAllReadOnly()) {
+    if (fixedSchema && !dimensionDescs.isEmpty() && isAllReadOnly()) {
       final int length = dimensionDescs.size();
       return new Comparator<TimeAndDims>()
       {

@@ -28,6 +28,7 @@ import io.druid.timeline.LogicalSegment;
 
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ExecutorService;
 
 /**
  * The broker-side (also used by server in some cases) API for a specific Query type.  This API is still undergoing
@@ -195,15 +196,16 @@ public abstract class QueryToolChest<ResultType, QueryType extends Query<ResultT
   }
 
   /**
-   *
-   * @param query
    * @param innerQuery
    * @param innerQueryRunner
+   * @param segmentWalker
+   * @param executor
    */
   public <I> QueryRunner<ResultType> handleSubQuery(
-      QueryType query,
       Query<I> innerQuery,
-      QueryRunner<I> innerQueryRunner
+      QueryRunner<I> innerQueryRunner,
+      QuerySegmentWalker segmentWalker,
+      ExecutorService executor
   )
   {
     throw new UnsupportedOperationException("handleSourceQuery");

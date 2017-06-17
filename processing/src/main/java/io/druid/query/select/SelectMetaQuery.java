@@ -216,10 +216,9 @@ public class SelectMetaQuery extends BaseQuery<Result<SelectMetaResultValue>>
   @Override
   public String toString()
   {
-    return "SelectQuery{" +
+    return "SelectMetaQuery{" +
            "dataSource='" + getDataSource() + '\'' +
            ", querySegmentSpec=" + getQuerySegmentSpec() +
-           ", descending=" + isDescending() +
            ", dimFilter=" + dimFilter +
            ", granularity=" + granularity +
            ", columns=" + columns +

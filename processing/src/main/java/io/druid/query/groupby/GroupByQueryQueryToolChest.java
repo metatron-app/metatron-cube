@@ -37,6 +37,7 @@ import com.metamx.common.ISE;
 import com.metamx.common.guava.ResourceClosingSequence;
 import com.metamx.common.guava.Sequence;
 import com.metamx.common.guava.Sequences;
+import com.metamx.common.logger.Logger;
 import com.metamx.emitter.service.ServiceMetricEvent;
 import io.druid.collections.StupidPool;
 import io.druid.common.guava.CombiningSequence;
@@ -55,6 +56,7 @@ import io.druid.query.Query;
 import io.druid.query.QueryCacheHelper;
 import io.druid.query.QueryContextKeys;
 import io.druid.query.QueryRunner;
+import io.druid.query.QuerySegmentWalker;
 import io.druid.query.QueryToolChest;
 import io.druid.query.SubqueryQueryRunner;
 import io.druid.query.TabularFormat;
@@ -69,7 +71,9 @@ import io.druid.query.extraction.ExtractionFn;
 import io.druid.query.filter.DimFilter;
 import io.druid.query.spec.MultipleIntervalSegmentSpec;
 import io.druid.segment.incremental.IncrementalIndex;
+import io.druid.segment.incremental.IncrementalIndexSchema;
 import io.druid.segment.incremental.IncrementalIndexStorageAdapter;
+import io.druid.segment.incremental.OnheapIncrementalIndex;
 import org.joda.time.DateTime;
 import org.joda.time.Interval;
 
@@ -82,6 +86,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ExecutorService;
 
 /**
  */
@@ -95,6 +100,8 @@ public class GroupByQueryQueryToolChest extends QueryToolChest<Row, GroupByQuery
   private static final TypeReference<Row> TYPE_REFERENCE = new TypeReference<Row>()
   {
   };
+
+  private static final Logger LOG = new Logger(GroupByQueryQueryToolChest.class);
 
   private final Supplier<GroupByQueryConfig> configSupplier;
 
@@ -198,14 +205,13 @@ public class GroupByQueryQueryToolChest extends QueryToolChest<Row, GroupByQuery
 
   @Override
   public <I> QueryRunner<Row> handleSubQuery(
-      final GroupByQuery query,
       final Query<I> subQuery,
-      final QueryRunner<I> subQueryRunner
+      final QueryRunner<I> subQueryRunner,
+      final QuerySegmentWalker segmentWalker,
+      final ExecutorService executor
   )
   {
-    final List<DimensionSpec> dimensions = Queries.getRelayDimensions(subQuery);
-    final List<AggregatorFactory> aggregators = Queries.getRelayMetrics(subQuery);
-
+    final IncrementalIndexSchema schema = Queries.relaySchema(subQuery, segmentWalker);
     return new QueryRunner<Row>()
     {
       @Override
@@ -213,9 +219,16 @@ public class GroupByQueryQueryToolChest extends QueryToolChest<Row, GroupByQuery
       {
         final Sequence<Row> innerSequence = Sequences.map(
             subQueryRunner.run(subQuery, responseContext), Queries.getRowConverter(subQuery));
+
+        long start = System.currentTimeMillis();
         final IncrementalIndex innerQueryResultIndex = innerSequence.accumulate(
-            makeIncrementalIndex(query, dimensions, aggregators, true),
+            makeIncrementalIndex(query, schema, true),
             GroupByQueryHelper.<Row>newIndexAccumulator()
+        );
+        LOG.info(
+            "Accumulated sub-query into index in %,d msec.. total %,d rows",
+            (System.currentTimeMillis() - start),
+            innerQueryResultIndex.size()
         );
 
         final GroupByQuery outerQuery = (GroupByQuery) query;
@@ -301,21 +314,17 @@ public class GroupByQueryQueryToolChest extends QueryToolChest<Row, GroupByQuery
   }
 
   private IncrementalIndex makeIncrementalIndex(
-      Query query,
-      List<DimensionSpec> dimensions,
-      List<AggregatorFactory> aggregators,
+      Query<?> query,
+      IncrementalIndexSchema schema,
       boolean sortFacts
   )
   {
-    return GroupByQueryHelper.createMergeIndex(
-        query,
-        dimensions,
-        aggregators,
-        configSupplier.get().getMaxResults(),
-        bufferPool,
-        sortFacts,
-        null
+    int maxResult = configSupplier.get().getMaxResults();
+    int maxRowCount = Math.min(
+        query.getContextValue(GroupByQueryHelper.CTX_KEY_MAX_RESULTS, maxResult),
+        maxResult
     );
+    return new OnheapIncrementalIndex(schema, false, true, sortFacts, maxRowCount);
   }
 
   private IncrementalIndex makeIncrementalIndex(
