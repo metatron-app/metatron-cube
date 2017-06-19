@@ -23,22 +23,21 @@ import com.fasterxml.jackson.annotation.JacksonInject;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Preconditions;
+import com.google.common.base.Function;
 import com.google.common.base.Throwables;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
-import com.google.common.util.concurrent.MoreExecutors;
 import com.metamx.common.Pair;
 import com.metamx.common.guava.Accumulator;
 import com.metamx.common.guava.Sequence;
 import com.metamx.common.guava.Sequences;
 import com.metamx.common.logger.Logger;
+import io.druid.data.input.MapBasedRow;
 import io.druid.guice.annotations.Processing;
-import io.druid.math.expr.Evals;
-import io.druid.math.expr.Expr;
-import io.druid.math.expr.Parser;
+import org.python.google.common.util.concurrent.Futures;
 
 import java.util.Arrays;
 import java.util.Collections;
@@ -54,30 +53,18 @@ public class JoinPostProcessor extends PostProcessingOperator.UnionSupport
 {
   private static final Logger log = new Logger(JoinPostProcessor.class);
 
-  private final JoinType joinType;
-  private final String leftAlias;
-  private final String rightAlias;
-  private final String[] leftJoinColumns;
-  private final String[] rightJoinColumns;
+  private final JoinElement[] elements;
   private final QueryToolChestWarehouse warehouse;
   private final ExecutorService exec;
 
   @JsonCreator
   public JoinPostProcessor(
-      @JsonProperty("joinType") JoinType joinType,
-      @JsonProperty("leftAlias") String leftAlias,
-      @JsonProperty("leftJoinExpressions") List<String> leftJoinColumns,
-      @JsonProperty("rightAlias") String rightAlias,
-      @JsonProperty("rightJoinExpressions") List<String> rightJoinColumns,
+      @JsonProperty("elements") List<JoinElement> elements,
       @JacksonInject QueryToolChestWarehouse warehouse,
       @JacksonInject @Processing ExecutorService exec
   )
   {
-    this.joinType = joinType == null ? JoinType.INNER : joinType;
-    this.leftAlias = Preconditions.checkNotNull(leftAlias);
-    this.rightAlias = Preconditions.checkNotNull(rightAlias);
-    this.leftJoinColumns = leftJoinColumns.toArray(new String[leftJoinColumns.size()]);
-    this.rightJoinColumns = rightJoinColumns.toArray(new String[rightJoinColumns.size()]);
+    this.elements = elements.toArray(new JoinElement[elements.size()]);
     this.warehouse = warehouse;
     this.exec = exec;
   }
@@ -97,12 +84,16 @@ public class JoinPostProcessor extends PostProcessingOperator.UnionSupport
       @SuppressWarnings("unchecked")
       public Sequence run(Query query, Map responseContext)
       {
-        final List<Sequence<Map<String, Object>>> leftSequences = Lists.newArrayList();
-        final List<Sequence<Map<String, Object>>> rightSequences = Lists.newArrayList();
+        final int joinAliases = elements.length + 1;
+        final List<Sequence<Map<String, Object>>>[] sequencesList = new List[joinAliases];
+        for (int i = 0; i < joinAliases; i++) {
+          sequencesList[i] = Lists.<Sequence<Map<String, Object>>>newArrayList();
+        }
         Sequence<Pair<Query, Sequence>> sequences = baseQueryRunner.run(query, responseContext);
         sequences.accumulate(
             null, new Accumulator<Object, Pair<Query, Sequence>>()
             {
+              int index;
               @Override
               public Object accumulate(
                   Object accumulated, Pair<Query, Sequence> in
@@ -110,28 +101,25 @@ public class JoinPostProcessor extends PostProcessingOperator.UnionSupport
               {
                 Query element = in.lhs;
                 Sequence sequence = in.rhs;
-                String dataSource = Iterables.getOnlyElement(element.getDataSource().getNames());
-                if (leftAlias.equals(dataSource)) {
-                  TabularFormat tabular = warehouse.getToolChest(element).toTabularFormat(sequence, null);
-                  leftSequences.add(tabular.getSequence());
-                } else if (rightAlias.equals(dataSource)) {
-                  TabularFormat tabular = warehouse.getToolChest(element).toTabularFormat(sequence, null);
-                  rightSequences.add(tabular.getSequence());
-                } else {
-                  throw new IllegalStateException("Invalid dataSource " + dataSource +
-                                                  ".. should be one of " + Arrays.asList(leftAlias, rightAlias));
-                }
+
+                TabularFormat tabular = warehouse.getToolChest(element).toTabularFormat(sequence, null);
+                sequencesList[index++].add(tabular.getSequence());
                 return null;
               }
             }
         );
-        final Future<JoiningRow[]> leftRowsFuture = toList(leftSequences, leftJoinColumns, exec);
-        final Future<JoiningRow[]> rightRowsFuture = toList(
-            rightSequences, rightJoinColumns, MoreExecutors.sameThreadExecutor()
-        );
 
+        @SuppressWarnings("unchecked")
+        Future<JoiningRow[]>[] joining = new Future[joinAliases];
+        for (int i = 0; i < sequencesList.length; i++) {
+          if (i == 0) {
+            joining[i] = toList(sequencesList[i], elements[0].getLeftJoinColumns(), exec);
+          } else {
+            joining[i] = toList(sequencesList[i], elements[i - 1].getRightJoinColumns(), exec);
+          }
+        }
         try {
-          return Sequences.simple(join(leftRowsFuture.get(), rightRowsFuture.get(), joinType));
+          return Sequences.simple(join(joining));
         }
         catch (Exception e) {
           throw Throwables.propagate(e);
@@ -142,7 +130,7 @@ public class JoinPostProcessor extends PostProcessingOperator.UnionSupport
 
   private Future<JoiningRow[]> toList(
       final List<Sequence<Map<String, Object>>> sequences,
-      final String[] joinColumns,
+      final List<String> joinColumns,
       final ExecutorService executor
   )
   {
@@ -160,38 +148,58 @@ public class JoinPostProcessor extends PostProcessingOperator.UnionSupport
     );
   }
 
+  @SafeVarargs
   @VisibleForTesting
-  Iterable<Map<String, Object>> join(
-      List<Map<String, Object>> leftRows,
-      List<Map<String, Object>> rightRows,
-      JoinType type
-  )
+  final Iterable<Map<String, Object>> join(List<Map<String, Object>>... rows) throws Exception
   {
-    return join(sort(leftRows, leftJoinColumns), sort(rightRows, rightJoinColumns), type);
+    @SuppressWarnings("unchecked")
+    Future<JoiningRow[]>[] joining = new Future[rows.length];
+    for (int i = 0; i < rows.length; i++) {
+      List<String> joinColumns = i == 0  ? elements[0].getLeftJoinColumns() : elements[i - 1].getRightJoinColumns();
+      joining[i] = Futures.immediateFuture(sort(rows[i], joinColumns));
+    }
+    return join(joining);
   }
 
-  private Iterable<Map<String, Object>> join(final JoiningRow[] lefts, final JoiningRow[] rights, final JoinType type)
+  private Iterable<Map<String, Object>> join(final Future<JoiningRow[]>[] rows)
+      throws Exception
+  {
+    JoiningRow[] left = rows[0].get();
+    Iterable<JoiningRow> iterable = ImmutableList.of();
+    for (int i = 1; i < rows.length; i++) {
+      iterable = join(left, rows[i].get(), elements[i - 1]);
+      if (i == rows.length - 1) {
+        break;
+      }
+      left = sort(Iterables.toArray(iterable, JoiningRow.class), elements[i].getLeftJoinColumns());
+    }
+    return Iterables.transform(iterable, TO_ROW);
+  }
+
+  private Iterable<JoiningRow> join(final JoiningRow[] lefts, final JoiningRow[] rights, JoinElement element)
   {
     if (lefts.length == 0 && rights.length == 0) {
       return Collections.emptyList();
     }
-    log.info("Starting joining left %d rows, right %d rows", lefts.length, rights.length);
+    final JoinType type = element.getJoinType();
+    final int joinColumnLen = element.getLeftJoinColumns().size();
+    log.info("Starting %s joining left %d rows + right %d rows", type, lefts.length, rights.length);
 
     final int sizeL = lefts.length;
     final int sizeR = rights.length;
-    return new Iterable<Map<String, Object>>()
+    return new Iterable<JoiningRow>()
     {
       @Override
-      public Iterator<Map<String, Object>> iterator()
+      public Iterator<JoiningRow> iterator()
       {
-        return new Iterator<Map<String, Object>>()
+        return new Iterator<JoiningRow>()
         {
-          private Iterator<Map<String, Object>> iterator = Iterators.emptyIterator();
+          private Iterator<JoiningRow> iterator = Iterators.emptyIterator();
 
           private int indexL;
           private int indexR;
-          private final String[] peekL = new String[leftJoinColumns.length];
-          private final String[] peekR = new String[rightJoinColumns.length];
+          private final String[] peekL = new String[joinColumnLen];
+          private final String[] peekR = new String[joinColumnLen];
 
           {
             if (sizeL > 0) {
@@ -295,7 +303,7 @@ public class JoinPostProcessor extends PostProcessingOperator.UnionSupport
           }
 
           @Override
-          public Map<String, Object> next()
+          public JoiningRow next()
           {
             return iterator.next();
           }
@@ -332,25 +340,22 @@ public class JoinPostProcessor extends PostProcessingOperator.UnionSupport
             return indexR;
           }
 
-          private Iterator<Map<String, Object>> leftOnly(final int ls, final int le)
+          private Iterator<JoiningRow> leftOnly(final int ls, final int le)
           {
             return toIterator(lefts, ls, le);
           }
 
-          private Iterator<Map<String, Object>> rightOnly(final int rs, final int re)
+          private Iterator<JoiningRow> rightOnly(final int rs, final int re)
           {
             return toIterator(rights, rs, re);
           }
 
-          private Iterator<Map<String, Object>> product(final int ls, final int le, final int rs, final int re)
+          private Iterator<JoiningRow> product(final int ls, final int le, final int rs, final int re)
           {
             if (le - ls == 1 && re - rs == 1) {
-              Map<String, Object> joined = Maps.newLinkedHashMap();
-              joined.putAll(lefts[ls].source);
-              joined.putAll(rights[rs].source);
-              return Iterators.singletonIterator(joined);
+              return Iterators.singletonIterator(lefts[ls].merge(rights[rs]));
             }
-            return new Iterator<Map<String, Object>>()
+            return new Iterator<JoiningRow>()
             {
               int li = ls;
               int ri = rs;
@@ -362,16 +367,13 @@ public class JoinPostProcessor extends PostProcessingOperator.UnionSupport
               }
 
               @Override
-              public Map<String, Object> next()
+              public JoiningRow next()
               {
-                Map<String, Object> joined = Maps.newLinkedHashMap();
                 if (ri >= re) {
                   li++;
                   ri = rs;
                 }
-                joined.putAll(lefts[li].source);
-                joined.putAll(rights[ri++].source);
-                return joined;
+                return lefts[li].merge(rights[ri++]);
               }
             };
           }
@@ -389,11 +391,12 @@ public class JoinPostProcessor extends PostProcessingOperator.UnionSupport
         };
       }
     };
+
   }
 
-  private Iterator<Map<String, Object>> toIterator(final JoiningRow[] rows, final int start, final int end)
+  private Iterator<JoiningRow> toIterator(final JoiningRow[] rows, final int start, final int end)
   {
-    return new Iterator<Map<String, Object>>()
+    return new Iterator<JoiningRow>()
     {
       int index = start;
 
@@ -404,48 +407,43 @@ public class JoinPostProcessor extends PostProcessingOperator.UnionSupport
       }
 
       @Override
-      public Map<String, Object> next()
+      public JoiningRow next()
       {
-        return rows[index++].source;
+        return rows[index++];
       }
     };
   }
 
-  private JoiningRow[] sort(List<Map<String, Object>> rows, String[] expressions)
+  private JoiningRow[] sort(List<Map<String, Object>> rows, List<String> columns)
   {
-    String[] simple = new String[expressions.length];
-    Expr[] complex = new Expr[expressions.length];
-    boolean hasComplex = false;
-    for (int i = 0; i < expressions.length; i++) {
-      Expr expr = Parser.parse(expressions[i]);
-      if (Evals.isIdentifier(expr)) {
-        simple[i] = Evals.getIdentifier(expr);
-      } else {
-        complex[i] = expr;
-        hasComplex = true;
-      }
-    }
-    JoiningRow[] sorted = new JoiningRow[rows.size()];
+    final String[] array = columns.toArray(new String[columns.size()]);
+    final JoiningRow[] sorted = new JoiningRow[rows.size()];
     for (int i = 0; i < sorted.length; i++) {
       Map<String, Object> row = rows.get(i);
-      String[] joinKey = new String[simple.length];
-      for (int j = 0; j < simple.length; j++) {
-        if (simple[j] != null) {
-          joinKey[j] = (String) row.get(simple[j]);
-        }
-      }
-      if (hasComplex) {
-        Expr.NumericBinding binding = Parser.withMap(row);
-        for (int j = 0; j < complex.length; j++) {
-          if (complex[j] != null) {
-            joinKey[j] = complex[j].eval(binding).asString();
-          }
-        }
+      String[] joinKey = new String[array.length];
+      for (int j = 0; j < array.length; j++) {
+        joinKey[j] = (String) row.get(array[j]);
       }
       sorted[i] = new JoiningRow(joinKey, row);
     }
     Arrays.sort(sorted);
     return sorted;
+  }
+
+  private JoiningRow[] sort(JoiningRow[] rows, List<String> columns)
+  {
+    log.info("Sorting intermediate results on %s", columns);
+    final String[] array = columns.toArray(new String[columns.size()]);
+    for (int i = 0; i < rows.length; i++) {
+      Map<String, Object> row = rows[i].source;
+      String[] joinKey = new String[array.length];
+      for (int j = 0; j < array.length; j++) {
+        joinKey[j] = (String) row.get(array[j]);
+      }
+      rows[i] = new JoiningRow(joinKey, row);
+    }
+    Arrays.sort(rows);
+    return rows;
   }
 
   @Override
@@ -456,10 +454,10 @@ public class JoinPostProcessor extends PostProcessingOperator.UnionSupport
 
   private static class JoiningRow implements Comparable<JoiningRow>
   {
-    final Map<String, Object> source;
-    final String[] joinKeys;
+    private final String[] joinKeys;
+    private final Map<String, Object> source;
 
-    private JoiningRow(String[] joinKeys, Map<String, Object> source)
+    public JoiningRow(String[] joinKeys, Map<String, Object> source)
     {
       this.joinKeys = joinKeys;
       this.source = source;
@@ -476,7 +474,33 @@ public class JoinPostProcessor extends PostProcessingOperator.UnionSupport
       }
       return 0;
     }
+
+    @SuppressWarnings("unchecked")
+    public JoiningRow merge(JoiningRow row)
+    {
+      Map<String, Object> merged;
+      if (MapBasedRow.supportInplaceUpdate(source)) {
+        source.putAll(row.source);
+        merged = source;
+      } else if (MapBasedRow.supportInplaceUpdate(row.source)) {
+        row.source.putAll(source);
+        merged = row.source;
+      } else {
+        merged = Maps.newHashMap(source);
+        merged.putAll(row.source);
+      }
+      return new JoiningRow(joinKeys, merged);
+    }
   }
+
+  static final Function<JoiningRow, Map<String, Object>> TO_ROW = new Function<JoiningRow, Map<String, Object>>()
+  {
+    @Override
+    public Map<String, Object> apply(JoiningRow input)
+    {
+      return input.source;
+    }
+  };
 
   static final int LEFT_IS_GREATER = 1;
   static final int RIGHT_IS_GREATER = -1;

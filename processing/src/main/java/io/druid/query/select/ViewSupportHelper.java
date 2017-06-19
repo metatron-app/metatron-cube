@@ -44,11 +44,6 @@ public class ViewSupportHelper
 {
   private static final Logger log = new Logger(ViewSupportHelper.class);
 
-  public static boolean hasFilter(DataSource dataSource)
-  {
-    return dataSource instanceof ViewDataSource && ((ViewDataSource) dataSource).getFilter() != null;
-  }
-
   public static <T> Query<T> rewrite(Query.DimFilterSupport<T> query, StorageAdapter adapter)
   {
     DataSource dataSource = query.getDataSource();

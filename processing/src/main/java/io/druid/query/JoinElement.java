@@ -22,109 +22,97 @@ package io.druid.query;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;
-import com.google.common.collect.Lists;
-import com.google.common.collect.Sets;
-import io.druid.math.expr.Parser;
 import io.druid.query.filter.AndDimFilter;
 import io.druid.query.filter.DimFilter;
 import io.druid.query.spec.QuerySegmentSpec;
-import io.druid.segment.filter.Filters;
 
 import java.util.List;
-import java.util.Set;
 
 /**
  */
 public class JoinElement
 {
-  private final DataSource dataSource;
-  private final List<String> joinExpressions;
+  private final JoinType joinType;
+
+  private final String leftAlias;
+  private final List<String> leftJoinColumns;
+
+  private final String rightAlias;
+  private final List<String> rightJoinColumns;
 
   @JsonCreator
   public JoinElement(
-      @JsonProperty("dataSource") DataSource dataSource,
-      @JsonProperty("joinExpressions") List<String> joinExpressions
+      @JsonProperty("joinType") JoinType joinType,
+      @JsonProperty("leftAlias") String leftAlias,
+      @JsonProperty("leftJoinColumns") List<String> leftJoinColumns,
+      @JsonProperty("rightAlias") String rightAlias,
+      @JsonProperty("rightJoinColumns") List<String> rightJoinColumns
   )
   {
-    this.dataSource = Preconditions.checkNotNull(dataSource);
-    this.joinExpressions = Preconditions.checkNotNull(joinExpressions);
+    this.joinType = joinType == null ? JoinType.INNER : joinType;
+    this.leftAlias = leftAlias;   // can be null.. ignored when i > 0
+    this.leftJoinColumns = Preconditions.checkNotNull(leftJoinColumns);
+    this.rightAlias = Preconditions.checkNotNull(rightAlias);
+    this.rightJoinColumns = Preconditions.checkNotNull(rightJoinColumns);
+    Preconditions.checkArgument(leftJoinColumns.size() > 0);
+    Preconditions.checkArgument(leftJoinColumns.size() == rightJoinColumns.size());
   }
 
   @JsonProperty
-  public DataSource getDataSource()
+  public JoinType getJoinType()
   {
-    return dataSource;
+    return joinType;
   }
 
   @JsonProperty
-  public List<String> getJoinExpressions()
+  public String getLeftAlias()
   {
-    return joinExpressions;
+    return leftAlias;
   }
 
-  public boolean hasFilter()
+  @JsonProperty
+  public List<String> getLeftJoinColumns()
   {
-    return dataSource instanceof QueryDataSource && ((QueryDataSource) dataSource).getQuery().hasFilters();
+    return leftJoinColumns;
   }
 
-  public DimFilter getFilter()
+  @JsonProperty
+  public String getRightAlias()
+  {
+    return rightAlias;
+  }
+
+  @JsonProperty
+  public List<String> getRightJoinColumns()
+  {
+    return rightJoinColumns;
+  }
+
+  public String[] getFirstKeys()
+  {
+    return new String[]{leftJoinColumns.get(0), rightJoinColumns.get(0)};
+  }
+
+  public static Query toQuery(DataSource dataSource, QuerySegmentSpec segmentSpec)
+  {
+    return toQuery(dataSource, segmentSpec, null);
+  }
+
+  public static Query toQuery(DataSource dataSource, QuerySegmentSpec segmentSpec, DimFilter filter)
   {
     if (dataSource instanceof QueryDataSource) {
       Query query = ((QueryDataSource) dataSource).getQuery();
-      if (query instanceof Query.DimFilterSupport) {
-        return ((Query.DimFilterSupport) query).getDimFilter();
-      }
-    }
-    return null;
-  }
-
-  public JoinElement withDataSource(DataSource dataSource)
-  {
-    return new JoinElement(dataSource, joinExpressions);
-  }
-
-  public Query toQuery(QuerySegmentSpec segmentSpec)
-  {
-    return toQuery(segmentSpec, null);
-  }
-
-  public Query toQuery(QuerySegmentSpec segmentSpec, DimFilter filter)
-  {
-    if (dataSource instanceof QueryDataSource) {
-      Query query = ((QueryDataSource) dataSource).getQuery();
-      query = query.withQuerySegmentSpec(segmentSpec);
-      if (filter != null && query instanceof Query.DimFilterSupport) {
+      if (filter != null) {
         Query.DimFilterSupport filterSupport = (Query.DimFilterSupport) query;
         if (filterSupport.getDimFilter() != null) {
           filter = AndDimFilter.of(filterSupport.getDimFilter(), filter);
+          query = filterSupport.withDimFilter(filter);
         }
-        query = filterSupport.withDimFilter(filter);
       }
       return query;
     }
-    DataSource ds = dataSource;
-    if (dataSource instanceof ViewDataSource) {
-      ViewDataSource joinDS = (ViewDataSource) dataSource;
-      List<String> columns = joinDS.getColumns();
-      if (columns != null && !columns.isEmpty()) {
-        Set<String> retainer = Sets.newLinkedHashSet();
-        for (String expression : joinExpressions) {
-          retainer.addAll(Parser.findRequiredBindings(expression));
-        }
-        if (filter != null) {
-          retainer.addAll(Filters.getDependents(filter));
-        }
-        retainer.addAll(columns);
-        joinDS = joinDS.withColumns(Lists.newArrayList(retainer));
-      }
-      if (joinDS.getFilter() != null) {
-        filter = filter == null ? joinDS.getFilter() : AndDimFilter.of(filter, joinDS.getFilter());
-        joinDS = joinDS.withFilter(null);
-      }
-      ds = joinDS;
-    }
     return new Druids.SelectQueryBuilder()
-        .dataSource(ds)
+        .dataSource(dataSource)
         .intervals(segmentSpec)
         .filters(filter)
         .streaming();
@@ -134,8 +122,11 @@ public class JoinElement
   public String toString()
   {
     return "JoinElement{" +
-           "dataSource=" + dataSource +
-           ", joinExpressions=" + joinExpressions +
+           "joinType=" + joinType +
+           ", leftAlias=" + leftAlias +
+           ", leftJoinColumns=" + leftJoinColumns +
+           ", rightAlias=" + rightAlias +
+           ", rightJoinColumns=" + rightJoinColumns +
            '}';
   }
 }

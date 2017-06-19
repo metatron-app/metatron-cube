@@ -51,8 +51,8 @@ public class QueryUtils
       ObjectMapper jsonMapper,
       QuerySegmentSpec segmentSpec,
       DimFilter filter,
-      String table,
-      String expression,
+      DataSource dataSource,
+      String column,
       int evenSpaced,
       int evenCounted
   )
@@ -65,16 +65,14 @@ public class QueryUtils
         "evenCounted", evenCounted > 0 ? evenCounted : -1
     );
 
-    // adding ExpressionDimensionSpec directly makes type missed.. I don't know the reason
+    // adding Object directly makes type of it missed.. I don't know the reason
     Map<String, String> dimensionSpec = ImmutableMap.of(
-        "type", "expression",
-        "expression", expression,
-        "outputName", expression
+        "type", "default", "dimension", column, "outputName", column
     );
     Query.DimFilterSupport query = (Query.DimFilterSupport) Queries.toQuery(
         ImmutableMap.<String, Object>builder()
                     .put("queryType", "sketch")
-                    .put("dataSource", table)
+                    .put("dataSource", Queries.convert(dataSource, jsonMapper, Map.class))
                     .put("intervals", segmentSpec)
                     .put("dimensions", Arrays.asList(dimensionSpec))
                     .put("sketchOp", "QUANTILE")
@@ -88,7 +86,7 @@ public class QueryUtils
     if (filter != null) {
       query = query.withDimFilter(filter);
     }
-    log.info("Running sketch query on join partition key %s.%s", table, expression);
+    log.info("Running sketch query on join partition key %s.%s", dataSource, column);
     log.debug("Running.. %s", query);
 
     @SuppressWarnings("unchecked")
@@ -97,7 +95,7 @@ public class QueryUtils
     );
     if (!res.isEmpty()) {
       String prev = null;
-      String[] splits = (String[]) res.get(0).getValue().get(expression);
+      String[] splits = (String[]) res.get(0).getValue().get(column);
       log.info("Partition keys.. %s", Arrays.toString(splits));
       List<String> partitions = Lists.newArrayList();
       for (String split : splits) {
@@ -133,7 +131,7 @@ public class QueryUtils
     return res.get(0).getIntervals();
   }
 
-  public static Iterable<DimFilter> toFilters(final String expression, final List<String> partitions)
+  public static Iterable<DimFilter> toFilters(final String column, final List<String> partitions)
   {
     return new Iterable<DimFilter>()
     {
@@ -155,11 +153,11 @@ public class QueryUtils
           {
             DimFilter filter;
             if (index == 1) {
-              filter = BoundDimFilter.lt(expression, partitions.get(index));
+              filter = BoundDimFilter.lt(column, partitions.get(index));
             } else if (index == partitions.size() - 1) {
-              filter = BoundDimFilter.gte(expression, partitions.get(index - 1));
+              filter = BoundDimFilter.gte(column, partitions.get(index - 1));
             } else {
-              filter = BoundDimFilter.between(expression, partitions.get(index - 1), partitions.get(index));
+              filter = BoundDimFilter.between(column, partitions.get(index - 1), partitions.get(index));
             }
             index++;
             return filter;

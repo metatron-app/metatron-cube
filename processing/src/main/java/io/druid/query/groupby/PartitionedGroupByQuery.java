@@ -193,21 +193,17 @@ public class PartitionedGroupByQuery extends GroupByQuery implements Query.Rewri
       ObjectMapper jsonMapper
   )
   {
-    String table = Iterables.getOnlyElement(getDataSource().getNames());
     DimensionSpec dimensionSpec = getDimensions().get(0);
-    String expression = dimensionSpec.getDimension();
-    if (dimensionSpec instanceof ExpressionDimensionSpec) {
-      expression = ((ExpressionDimensionSpec) dimensionSpec).getExpression();
-    }
+    String dimension = dimensionSpec.getDimension();
     List<String> partitions = QueryUtils.runSketchQuery(
         segmentWalker, jsonMapper, getQuerySegmentSpec(), getDimFilter(),
-        table, expression, numPartition, scannerLen
+        getDataSource(), dimension, numPartition, scannerLen
     );
     if (partitions == null || partitions.size() == 1) {
       return asGroupByQuery(intervals, null);
     }
     List<Query> queries = Lists.newArrayList();
-    for (DimFilter filter : QueryUtils.toFilters(expression, partitions)) {
+    for (DimFilter filter : QueryUtils.toFilters(dimension, partitions)) {
       queries.add(asGroupByQuery(intervals, filter));
     }
     return new UnionAllQuery(null, queries, false, limit, parallelism, queue, getContext());

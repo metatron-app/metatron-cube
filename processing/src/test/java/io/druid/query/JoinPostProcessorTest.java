@@ -71,15 +71,11 @@ public class JoinPostProcessorTest
   }
 
   @Test
-  public void testJoin()
+  public void testJoin() throws Exception
   {
-    JoinPostProcessor processor = new JoinPostProcessor(
-        JoinType.INNER,
-        "ds1", Arrays.asList("a", "b"),
-        "ds2", Arrays.asList("c", "d"),
-        warehouse,
-        Executors.newSingleThreadExecutor()
-    );
+    JoinPostProcessor inner = test1(JoinType.INNER);
+    JoinPostProcessor lo = test1(JoinType.LO);
+    JoinPostProcessor ro = test1(JoinType.RO);
 
     // no match
     List<Map<String, Object>> l = Arrays.<Map<String, Object>>asList(
@@ -88,9 +84,9 @@ public class JoinPostProcessorTest
     List<Map<String, Object>> r = Arrays.<Map<String, Object>>asList(
         ImmutableMap.<String, Object>of("c", "spot", "d", "business", "y", 200)
     );
-    assertJoin(processor.join(l, r, JoinType.INNER), new int[][]{});
-    assertJoin(processor.join(l, r, JoinType.LO), new int[][]{{100, -1}});
-    assertJoin(processor.join(l, r, JoinType.RO), new int[][]{{-1, 200}});
+    assertJoin(inner.join(l, r), new int[][]{});
+    assertJoin(lo.join(l, r), new int[][]{{100, -1}});
+    assertJoin(ro.join(l, r), new int[][]{{-1, 200}});
 
     // inner product
     l = Arrays.<Map<String, Object>>asList(
@@ -101,11 +97,11 @@ public class JoinPostProcessorTest
         ImmutableMap.<String, Object>of("c", "spot", "d", "automotive", "y", 300),
         ImmutableMap.<String, Object>of("c", "spot", "d", "automotive", "y", 400)
     );
-    assertJoin(processor.join(l, r, JoinType.INNER), new int[][]{{100, 300}, {100, 400}, {200, 300}, {200, 400}});
-    assertJoin(processor.join(l, r, JoinType.LO), new int[][]{{100, 300}, {100, 400}, {200, 300}, {200, 400}});
-    assertJoin(processor.join(l, r, JoinType.RO), new int[][]{{100, 300}, {100, 400}, {200, 300}, {200, 400}});
+    assertJoin(inner.join(l, r), new int[][]{{100, 300}, {100, 400}, {200, 300}, {200, 400}});
+    assertJoin(lo.join(l, r), new int[][]{{100, 300}, {100, 400}, {200, 300}, {200, 400}});
+    assertJoin(ro.join(l, r), new int[][]{{100, 300}, {100, 400}, {200, 300}, {200, 400}});
 
-    // more
+    // more1
     l = Arrays.<Map<String, Object>>asList(
         ImmutableMap.<String, Object>of("a", "spot", "b", "automotive", "x", 100),
         ImmutableMap.<String, Object>of("a", "spot", "b", "business", "x", 200),
@@ -116,11 +112,11 @@ public class JoinPostProcessorTest
         ImmutableMap.<String, Object>of("c", "spot", "d", "automotive", "y", 500),
         ImmutableMap.<String, Object>of("c", "total", "d", "mezzanine", "y", 600)
     );
-    assertJoin(processor.join(l, r, JoinType.INNER), new int[][]{{100, 400}, {100, 500}, {300, 600}});
-    assertJoin(processor.join(l, r, JoinType.LO), new int[][]{{100, 400}, {100, 500}, {200, -1}, {300, 600}});
-    assertJoin(processor.join(l, r, JoinType.RO), new int[][]{{100, 400}, {100, 500}, {300, 600}});
+    assertJoin(inner.join(l, r), new int[][]{{100, 400}, {100, 500}, {300, 600}});
+    assertJoin(lo.join(l, r), new int[][]{{100, 400}, {100, 500}, {200, -1}, {300, 600}});
+    assertJoin(ro.join(l, r), new int[][]{{100, 400}, {100, 500}, {300, 600}});
 
-    // more
+    // more2
     l = Arrays.<Map<String, Object>>asList(
         ImmutableMap.<String, Object>of("a", "spot", "b", "business", "x", 100),
         ImmutableMap.<String, Object>of("a", "spot", "b", "health", "x", 200),
@@ -131,10 +127,110 @@ public class JoinPostProcessorTest
         ImmutableMap.<String, Object>of("c", "spot", "d", "health", "y", 500),
         ImmutableMap.<String, Object>of("c", "total", "d", "business", "y", 600)
     );
-    assertJoin(processor.join(l, r, JoinType.INNER), new int[][]{{200, 500}});
-    assertJoin(processor.join(l, r, JoinType.LO), new int[][]{{100, -1}, {200, 500}, {300, -1}});
-    assertJoin(processor.join(l, r, JoinType.RO), new int[][]{{-1, 400}, {200, 500}, {-1, 600}});
+    assertJoin(inner.join(l, r), new int[][]{{200, 500}});
+    assertJoin(lo.join(l, r), new int[][]{{100, -1}, {200, 500}, {300, -1}});
+    assertJoin(ro.join(l, r), new int[][]{{-1, 400}, {200, 500}, {-1, 600}});
   }
+
+  private JoinPostProcessor test1(JoinType type)
+  {
+    return new JoinPostProcessor(
+        Arrays.asList(new JoinElement(type, "ds1", Arrays.asList("a", "b"), "ds2", Arrays.asList("c", "d"))),
+        warehouse,
+        Executors.newSingleThreadExecutor()
+    );
+  }
+
+  @Test
+  public void testMultiJoin() throws Exception
+  {
+    JoinPostProcessor inner = test2(JoinType.INNER);
+    JoinPostProcessor lo = test2(JoinType.LO);
+    JoinPostProcessor ro = test2(JoinType.RO);
+
+    // no match
+    List<Map<String, Object>> a1 = Arrays.<Map<String, Object>>asList(
+        ImmutableMap.<String, Object>of("a", "spot", "b", "automotive", "x", 100)
+    );
+    List<Map<String, Object>> a2 = Arrays.<Map<String, Object>>asList(
+        ImmutableMap.<String, Object>of("c", "spot", "d", "business", "y", 200)
+    );
+    List<Map<String, Object>> a3 = Arrays.<Map<String, Object>>asList(
+        ImmutableMap.<String, Object>of("e", "spot", "f", "entertainment", "z", 300)
+    );
+    assertJoin(inner.join(a1, a2, a3), new int[][]{});
+    assertJoin(lo.join(a1, a2, a3), new int[][]{{100, -1, -1}});
+    assertJoin(ro.join(a1, a2, a3), new int[][]{{-1, -1, 300}});
+
+    // inner product
+    a1 = Arrays.<Map<String, Object>>asList(
+        ImmutableMap.<String, Object>of("a", "spot", "b", "automotive", "x", 100),
+        ImmutableMap.<String, Object>of("a", "spot", "b", "automotive", "x", 200)
+    );
+    a2 = Arrays.<Map<String, Object>>asList(
+        ImmutableMap.<String, Object>of("c", "spot", "d", "automotive", "y", 300),
+        ImmutableMap.<String, Object>of("c", "spot", "d", "automotive", "y", 400)
+    );
+    a3 = Arrays.<Map<String, Object>>asList(
+        ImmutableMap.<String, Object>of("e", "spot", "f", "automotive", "z", 500),
+        ImmutableMap.<String, Object>of("e", "spot", "f", "automotive", "z", 600)
+    );
+    assertJoin(
+        inner.join(a1, a2, a3),
+        new int[][]{{100, 300, 500}, {100, 300, 600}, {100, 400, 500}, {100, 400, 600},
+                    {200, 300, 500}, {200, 300, 600}, {200, 400, 500}, {200, 400, 600}}
+    );
+    assertJoin(
+        lo.join(a1, a2, a3),
+        new int[][]{{100, 300, 500}, {100, 300, 600}, {100, 400, 500}, {100, 400, 600},
+                    {200, 300, 500}, {200, 300, 600}, {200, 400, 500}, {200, 400, 600}}
+    );
+    assertJoin(
+        ro.join(a1, a2, a3),
+        new int[][]{{100, 300, 500}, {100, 300, 600}, {100, 400, 500}, {100, 400, 600},
+                    {200, 300, 500}, {200, 300, 600}, {200, 400, 500}, {200, 400, 600}}
+    );
+
+    // more1
+    a1 = Arrays.<Map<String, Object>>asList(
+        ImmutableMap.<String, Object>of("a", "spot", "b", "automotive", "x", 100),
+        ImmutableMap.<String, Object>of("a", "spot", "b", "business", "x", 200),
+        ImmutableMap.<String, Object>of("a", "total", "b", "mezzanine", "x", 300)
+    );
+    a2 = Arrays.<Map<String, Object>>asList(
+        ImmutableMap.<String, Object>of("c", "spot", "d", "automotive", "y", 400),
+        ImmutableMap.<String, Object>of("c", "spot", "d", "automotive", "y", 500),
+        ImmutableMap.<String, Object>of("c", "total", "d", "mezzanine", "y", 600)
+    );
+    a3 = Arrays.<Map<String, Object>>asList(
+        ImmutableMap.<String, Object>of("e", "spot", "f", "-", "z", 700),
+        ImmutableMap.<String, Object>of("e", "spot", "f", "business", "z", 800),
+        ImmutableMap.<String, Object>of("e", "total", "f", "mezzanine", "z", 900)
+    );
+    assertJoin(inner.join(a1, a2, a3), new int[][]{{300, 600, 900}});
+    assertJoin(
+        lo.join(a1, a2, a3),
+        new int[][]{{100, 400, -1}, {100, 500, -1}, {200, -1, 800}, {300, 600, 900}}
+    );
+    assertJoin(
+        ro.join(a1, a2, a3),
+        new int[][]{{-1, -1, 700}, {-1, -1, 800}, {300, 600, 900}}
+    );
+  }
+
+  private JoinPostProcessor test2(JoinType type)
+  {
+    return new JoinPostProcessor(
+          Arrays.asList(
+              new JoinElement(type, "ds1", Arrays.asList("a", "b"), "ds2", Arrays.asList("c", "d")),
+              new JoinElement(type, "ds1", Arrays.asList("a", "b"), "ds3", Arrays.asList("e", "f"))
+          ),
+          warehouse,
+          Executors.newSingleThreadExecutor()
+      );
+  }
+
+  private final String[] k = new String[]{"x", "y", "z"};
 
   private void assertJoin(Iterable<Map<String, Object>> join, int[][] expected)
   {
@@ -142,26 +238,25 @@ public class JoinPostProcessorTest
     for (Object x : join) {
       System.out.println(x);
     }
-    int i = 0;
+    int x = 0;
     for (Map<String, Object> joined : join) {
-      Object x = joined.get("x");
-      Object y = joined.get("y");
-      if (expected[i][0] < 0) {
-        Assert.assertNull(joined.toString(), x);
-      } else {
-        Assert.assertNotNull(joined.toString(), x);
-        Assert.assertEquals(joined.toString(), expected[i][0], ((Integer) x).intValue());
+      for (int i = 0; i < expected[x].length; i++) {
+        validate(joined, expected[x][i], joined.get(k[i]));
       }
-      if (expected[i][1] < 0) {
-        Assert.assertNull(joined.toString(), y);
-      } else {
-        Assert.assertNotNull(joined.toString(), y);
-        Assert.assertEquals(joined.toString(), expected[i][1], ((Integer) y).intValue());
-      }
-      i++;
+      x++;
     }
-    if (i != expected.length) {
+    if (x != expected.length) {
       Assert.fail("needs more result");
+    }
+  }
+
+  private void validate(Map<String, Object> joined, int i, Object x)
+  {
+    if (i < 0) {
+      Assert.assertNull(joined.toString(), x);
+    } else {
+      Assert.assertNotNull(joined.toString(), x);
+      Assert.assertEquals(joined.toString(), i, ((Integer) x).intValue());
     }
   }
 }

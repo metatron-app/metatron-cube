@@ -82,15 +82,20 @@ public class Queries
     }
   }
 
-  public static Query toQuery(Map<String, Object> object, ObjectMapper jsonMapper)
+  public static <T> T convert(Object object, ObjectMapper jsonMapper, Class<T> expected)
   {
     try {
-      return jsonMapper.convertValue(object, Query.class);
+      return jsonMapper.convertValue(object, expected);
     }
     catch (Exception ex) {
-      LOG.warn(ex, "Failed to convert to query");
+      LOG.warn(ex, "Failed to convert to " + expected.getClass().getSimpleName());
     }
     return null;
+  }
+
+  public static Query toQuery(Map<String, Object> object, ObjectMapper jsonMapper)
+  {
+    return convert(object, jsonMapper, Query.class);
   }
 
   public static IncrementalIndexSchema relaySchema(Query subQuery, QuerySegmentWalker segmentWalker)

@@ -28,12 +28,9 @@ import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
-import com.metamx.common.Pair;
-import io.druid.math.expr.Parser;
 import io.druid.query.filter.DimFilter;
 import io.druid.query.spec.QuerySegmentSpec;
 
-import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -43,7 +40,7 @@ import java.util.Set;
  */
 public class JoinQuery<T extends Comparable<T>> extends BaseQuery<T> implements Query.RewritingQuery<T>
 {
-  private final JoinType joinType;
+  private final Map<String, DataSource> dataSources;
   private final List<JoinElement> elements;
   private final int numPartition;
   private final int scannerLen;
@@ -51,12 +48,9 @@ public class JoinQuery<T extends Comparable<T>> extends BaseQuery<T> implements 
   private final int parallelism;
   private final int queue;
 
-  private final String leftAlias;
-  private final String rightAlias;
-
   @JsonCreator
   public JoinQuery(
-      @JsonProperty("joinType") JoinType joinType,
+      @JsonProperty("dataSources") Map<String, DataSource> dataSources,
       @JsonProperty("elements") List<JoinElement> elements,
       @JsonProperty("intervals") QuerySegmentSpec querySegmentSpec,
       @JsonProperty("numPartition") int numPartition,
@@ -67,81 +61,60 @@ public class JoinQuery<T extends Comparable<T>> extends BaseQuery<T> implements 
       @JsonProperty("context") Map<String, Object> context
   )
   {
-    super(validateDataSource(elements), validateSegmentSpec(elements, querySegmentSpec), false, context);
-    this.joinType = joinType == null ? JoinType.INNER : joinType;
-    this.elements = validateJoinCondition(elements);
+    super(toDummyDataSource(dataSources), querySegmentSpec, false, context);
+    this.dataSources = validateDataSources(dataSources, getQuerySegmentSpec());
+    this.elements = validateElements(this.dataSources, elements);
     this.numPartition = numPartition == 0 && scannerLen == 0 ? 1 : numPartition;
     this.scannerLen = scannerLen;
     this.limit = limit;
     this.parallelism = parallelism;   // warn : can take "(n-way + 1) x parallelism" threads
     this.queue = queue;
-    this.leftAlias = Iterables.getOnlyElement(elements.get(0).getDataSource().getNames());
-    this.rightAlias = Iterables.getOnlyElement(elements.get(1).getDataSource().getNames());
     Preconditions.checkArgument(
         numPartition > 0 || scannerLen > 0, "one of 'numPartition' or 'scannerLen' should be configured"
     );
   }
 
   // dummy datasource for authorization
-  private static DataSource validateDataSource(List<JoinElement> elements)
+  private static DataSource toDummyDataSource(Map<String, DataSource> dataSources)
   {
-    Preconditions.checkArgument(elements.size() == 2, "For now");
     Set<String> names = Sets.newLinkedHashSet();
-    names.addAll(elements.get(0).getDataSource().getNames());
-    names.addAll(elements.get(1).getDataSource().getNames());
+    for (DataSource dataSource : dataSources.values()) {
+      names.addAll(Preconditions.checkNotNull(dataSource).getNames());
+    }
     return UnionDataSource.of(names);
   }
 
-  private static QuerySegmentSpec validateSegmentSpec(List<JoinElement> elements, QuerySegmentSpec segmentSpec)
+  private static Map<String, DataSource> validateDataSources(
+      Map<String, DataSource> dataSources,
+      QuerySegmentSpec segmentSpec
+  )
   {
-    Preconditions.checkArgument(elements.size() == 2, "For now");
-    JoinElement lhs = elements.get(0);
-    JoinElement rhs = elements.get(1);
-
-    if (lhs.getDataSource() instanceof QueryDataSource) {
-      Query query1 = ((QueryDataSource) lhs.getDataSource()).getQuery();
-      QuerySegmentSpec segmentSpec1 = query1.getQuerySegmentSpec();
-      if (segmentSpec != null && segmentSpec1.getIntervals().isEmpty()) {
-        elements.set(0, lhs.withDataSource(new QueryDataSource(query1.withQuerySegmentSpec(segmentSpec))));
-      } else {
-        Preconditions.checkArgument(segmentSpec == null || segmentSpec.equals(segmentSpec1));
+    Map<String, DataSource> validated = Maps.newHashMap();
+    for (Map.Entry<String, DataSource> entry : dataSources.entrySet()) {
+      DataSource dataSource = entry.getValue();
+      if (dataSource instanceof QueryDataSource) {
+        Query query = ((QueryDataSource) dataSource).getQuery();
+        QuerySegmentSpec currentSpec = query.getQuerySegmentSpec();
+        if (currentSpec == null || currentSpec.getIntervals().isEmpty()) {
+          dataSource = new QueryDataSource(query.withQuerySegmentSpec(segmentSpec));
+        }
       }
-      segmentSpec = segmentSpec1;
+      validated.put(entry.getKey(), dataSource);
     }
-    if (rhs.getDataSource() instanceof QueryDataSource) {
-      Query query2 = ((QueryDataSource) rhs.getDataSource()).getQuery();
-      QuerySegmentSpec segmentSpec2 = query2.getQuerySegmentSpec();
-      if (segmentSpec != null && segmentSpec2.getIntervals().isEmpty()) {
-        elements.set(1, lhs.withDataSource(new QueryDataSource(query2.withQuerySegmentSpec(segmentSpec))));
-      } else {
-        Preconditions.checkArgument(segmentSpec == null || segmentSpec.equals(segmentSpec2));
-      }
-      segmentSpec = segmentSpec2;
-    }
-    return segmentSpec;
+    return validated;
   }
 
-  private List<JoinElement> validateJoinCondition(List<JoinElement> elements)
+  private static List<JoinElement> validateElements(Map<String, DataSource> dataSources, List<JoinElement> elements)
   {
-    Preconditions.checkArgument(elements.size() == 2, "For now");
-    JoinElement lhs = elements.get(0);
-    JoinElement rhs = elements.get(1);
-
-    Preconditions.checkArgument(lhs.getJoinExpressions().size() > 0);
-    Preconditions.checkArgument(rhs.getJoinExpressions().size() > 0);
-    Preconditions.checkArgument(lhs.getJoinExpressions().size() == rhs.getJoinExpressions().size());
-
-    for (String expression : lhs.getJoinExpressions()) {
-      Preconditions.checkArgument(Parser.findRequiredBindings(expression).size() == 1);
+    JoinElement firstJoin = elements.get(0);
+    Preconditions.checkNotNull(
+        dataSources.get(firstJoin.getLeftAlias()), "failed to find alias " + firstJoin.getLeftAlias()
+    );
+    for (JoinElement element : elements) {
+      Preconditions.checkNotNull(
+          dataSources.get(element.getRightAlias()), "failed to find alias " + firstJoin.getRightAlias()
+      );
     }
-    for (String expression : rhs.getJoinExpressions()) {
-      Preconditions.checkArgument(Parser.findRequiredBindings(expression).size() == 1);
-    }
-
-    // todo: nested element with multiple datasources (union, etc.)
-    Preconditions.checkArgument(lhs.getDataSource().getNames().size() == 1);
-    Preconditions.checkArgument(rhs.getDataSource().getNames().size() == 1);
-
     return elements;
   }
 
@@ -184,9 +157,12 @@ public class JoinQuery<T extends Comparable<T>> extends BaseQuery<T> implements 
   @Override
   public boolean hasFilters()
   {
-    for (JoinElement element : elements) {
-      if (element.hasFilter()) {
-        return true;
+    for (DataSource dataSource : dataSources.values()) {
+      if (dataSource instanceof QueryDataSource) {
+        Query query = ((QueryDataSource) dataSource).getQuery();
+        if (query.hasFilters()) {
+          return true;
+        }
       }
     }
     return false;
@@ -203,7 +179,7 @@ public class JoinQuery<T extends Comparable<T>> extends BaseQuery<T> implements 
   public Query<T> withOverriddenContext(Map<String, Object> contextOverride)
   {
     return new JoinQuery(
-        joinType,
+        dataSources,
         elements,
         getQuerySegmentSpec(),
         numPartition,
@@ -231,38 +207,35 @@ public class JoinQuery<T extends Comparable<T>> extends BaseQuery<T> implements 
   @SuppressWarnings("unchecked")
   public Query rewriteQuery(QuerySegmentWalker segmentWalker, ObjectMapper jsonMapper)
   {
-    JoinElement lhs = elements.get(0);
-    JoinElement rhs = elements.get(1);
-
-    JoinPartitionSpec partitions = partition(segmentWalker, jsonMapper);
     Map<String, Object> joinProcessor = Maps.newHashMap();
-
     joinProcessor.put(
         QueryContextKeys.POST_PROCESSING,
-        ImmutableMap.builder()
-                    .put("type", "join")
-                    .put("joinType", joinType.name())
-                    .put("leftAlias", leftAlias)
-                    .put("leftJoinExpressions", lhs.getJoinExpressions())
-                    .put("rightAlias", rightAlias)
-                    .put("rightJoinExpressions", rhs.getJoinExpressions())
-                    .build()
+        ImmutableMap.of(
+            "type", "join",
+            "elements", elements
+        )
     );
-    Map<String, Object> context = getContext();
-    Map<String, Object> joinContext = computeOverridenContext(joinProcessor);
 
     QuerySegmentSpec segmentSpec = getQuerySegmentSpec();
+    JoinPartitionSpec partitions = partition(segmentWalker, jsonMapper);
     if (partitions == null || partitions.size() == 1) {
-      Query left = lhs.toQuery(segmentSpec);
-      Query right = rhs.toQuery(segmentSpec);
-      return new JoinDelegate(Arrays.asList(left, right), limit, parallelism, queue, joinContext);
+      List<Query> queries = Lists.newArrayList();
+      JoinElement firstJoin = elements.get(0);
+      queries.add(JoinElement.toQuery(dataSources.get(firstJoin.getLeftAlias()), segmentSpec));
+      for (JoinElement element : elements) {
+        queries.add(JoinElement.toQuery(dataSources.get(element.getRightAlias()), segmentSpec));
+      }
+      return new JoinDelegate(queries, limit, parallelism, queue, computeOverridenContext(joinProcessor));
     }
     List<Query> queries = Lists.newArrayList();
-    for (Pair<DimFilter, DimFilter> filters : partitions) {
-      List<Query> list = Arrays.asList(lhs.toQuery(segmentSpec, filters.lhs), rhs.toQuery(segmentSpec, filters.rhs));
-      queries.add(new JoinDelegate(list, -1, 0, 0, joinContext));
+    for (List<DimFilter> filters : partitions) {
+      JoinElement element = Iterables.getOnlyElement(elements);
+      List<Query> partitioned = Lists.newArrayList();
+      partitioned.add(JoinElement.toQuery(dataSources.get(element.getLeftAlias()), segmentSpec, filters.get(0)));
+      partitioned.add(JoinElement.toQuery(dataSources.get(element.getRightAlias()), segmentSpec, filters.get(1)));
+      queries.add(new JoinDelegate(partitioned, -1, 0, 0, computeOverridenContext(joinProcessor)));
     }
-    return new UnionAllQuery(null, queries, false, limit, parallelism, queue, context);
+    return new UnionAllQuery(null, queries, false, limit, parallelism, queue, getContext());
   }
 
   private JoinPartitionSpec partition(QuerySegmentWalker segmentWalker, ObjectMapper jsonMapper)
@@ -270,30 +243,39 @@ public class JoinQuery<T extends Comparable<T>> extends BaseQuery<T> implements 
     if (numPartition <= 1 && scannerLen <= 0) {
       return null;
     }
-    JoinElement lhs = elements.get(0);
-    JoinElement rhs = elements.get(1);
-
-    String left = lhs.getJoinExpressions().get(0);
-    String right = rhs.getJoinExpressions().get(0);
-
-    List<String> partitions;
-    if (joinType != JoinType.RO) {
-      partitions = runSketchQuery(segmentWalker, lhs.getFilter(), jsonMapper, leftAlias, left);
-    } else {
-      partitions = runSketchQuery(segmentWalker, rhs.getFilter(), jsonMapper, rightAlias, right);
+    Preconditions.checkArgument(elements.size() == 1, "cannot apply partition on multi-way join");
+    for (DataSource dataSource : dataSources.values()) {
+      Preconditions.checkArgument(
+          !(dataSource instanceof QueryDataSource) ||
+          ((QueryDataSource) dataSource).getQuery() instanceof DimFilterSupport,
+          "cannot apply partition on dataSource " + dataSource
+      );
     }
+    JoinElement element = elements.get(0);
+    boolean rightJoin = element.getJoinType() == JoinType.RO;
+    String alias = rightJoin ? element.getRightAlias() : element.getLeftAlias();
+    String partitionKey = rightJoin ? element.getRightJoinColumns().get(0) : element.getLeftJoinColumns().get(0);
+
+    DataSource dataSource = dataSources.get(alias);
+    List<String> partitions = runSketchQuery(
+        segmentWalker,
+        jsonMapper,
+        null,
+        dataSource,
+        partitionKey
+    );
     if (partitions != null && partitions.size() > 2) {
-      return new JoinPartitionSpec(left, right, partitions);
+      return new JoinPartitionSpec(element.getFirstKeys(), partitions);
     }
     return null;
   }
 
   private List<String> runSketchQuery(
       QuerySegmentWalker segmentWalker,
-      DimFilter filter,
       ObjectMapper jsonMapper,
-      String table,
-      String expression
+      DimFilter filter,
+      DataSource dataSource,
+      String column
   )
   {
     return QueryUtils.runSketchQuery(
@@ -301,8 +283,8 @@ public class JoinQuery<T extends Comparable<T>> extends BaseQuery<T> implements 
         jsonMapper,
         getQuerySegmentSpec(),
         filter,
-        table,
-        expression,
+        dataSource,
+        column,
         numPartition,
         scannerLen
     );
@@ -312,49 +294,53 @@ public class JoinQuery<T extends Comparable<T>> extends BaseQuery<T> implements 
   public String toString()
   {
     return "JoinQuery{" +
-           "joinType=" + joinType +
+           "dataSources=" + dataSources +
            ", elements=" + elements +
            ", numPartition=" + numPartition +
            ", scannerLen=" + scannerLen +
+           ", parallelism=" + parallelism +
+           ", queue=" + queue +
            ", limit=" + limit +
            '}';
   }
 
-  private static class JoinPartitionSpec implements Iterable<Pair<DimFilter, DimFilter>>
+  private static class JoinPartitionSpec implements Iterable<List<DimFilter>>
   {
-    final String leftExpression;
-    final String rightExpression;
+    final String[] firstKeys;
     final List<String> partitions;
 
     private JoinPartitionSpec(
-        String leftExpression,
-        String rightExpression,
+        String[] firstKeys,
         List<String> partitions
     )
     {
-      this.leftExpression = Preconditions.checkNotNull(leftExpression);
-      this.rightExpression = Preconditions.checkNotNull(rightExpression);
+      this.firstKeys = firstKeys;
       this.partitions = Preconditions.checkNotNull(partitions);
     }
 
     @Override
-    public Iterator<Pair<DimFilter, DimFilter>> iterator()
+    public Iterator<List<DimFilter>> iterator()
     {
-      return new Iterator<Pair<DimFilter, DimFilter>>()
+      final List<Iterator<DimFilter>> filters = Lists.newArrayList();
+      for (String firstKey : firstKeys) {
+        filters.add(QueryUtils.toFilters(firstKey, partitions).iterator());
+      }
+      return new Iterator<List<DimFilter>>()
       {
-        private final Iterator<DimFilter> left = QueryUtils.toFilters(leftExpression, partitions).iterator();
-        private final Iterator<DimFilter> right = QueryUtils.toFilters(rightExpression, partitions).iterator();
-
         @Override
         public boolean hasNext()
         {
-          return left.hasNext();
+          return filters.get(0).hasNext();
         }
 
         @Override
-        public Pair<DimFilter, DimFilter> next()
+        public List<DimFilter> next()
         {
-          return Pair.of(left.next(), right.next());
+          List<DimFilter> result = Lists.newArrayList();
+          for (Iterator<DimFilter> filter : filters) {
+            result.add(filter.next());
+          }
+          return result;
         }
       };
     }
@@ -397,8 +383,9 @@ public class JoinQuery<T extends Comparable<T>> extends BaseQuery<T> implements 
     {
       return "JoinDelegate{" +
              "queries=" + getQueries() +
+             ", parallelism=" + getParallelism() +
+             ", queue=" + getQueue() +
              ", limit=" + getLimit() +
-             ", join=" + getContextValue(QueryContextKeys.POST_PROCESSING) +
              '}';
     }
   }

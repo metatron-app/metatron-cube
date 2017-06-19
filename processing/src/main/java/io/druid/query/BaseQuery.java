@@ -153,7 +153,7 @@ public abstract class BaseQuery<T extends Comparable<T>> implements Query<T>
   @Override
   public boolean hasFilters()
   {
-    return this instanceof DimFilterSupport && ViewSupportHelper.hasFilter(getDataSource());
+    return this instanceof DimFilterSupport && DataSources.hasFilter(getDataSource());
   }
 
   public boolean allDimensionsForEmpty()
