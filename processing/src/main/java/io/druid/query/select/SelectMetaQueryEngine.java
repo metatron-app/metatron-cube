@@ -33,6 +33,7 @@ import io.druid.granularity.QueryGranularity;
 import io.druid.query.QueryRunnerHelper;
 import io.druid.query.Result;
 import io.druid.query.aggregation.AggregatorFactory;
+import io.druid.query.dimension.DimensionSpecs;
 import io.druid.segment.Cursor;
 import io.druid.segment.Metadata;
 import io.druid.segment.Segment;
@@ -68,8 +69,8 @@ public class SelectMetaQueryEngine
 
     StorageAdapter storageAdapter = segment.asStorageAdapter(false);
     Metadata metadata = storageAdapter.getMetadata();
-    final List<String> dimensions = Lists.newArrayList(storageAdapter.getAvailableDimensions());
-    final List<String> metrics = Lists.newArrayList(storageAdapter.getAvailableMetrics());
+    final List<String> dimensions = DimensionSpecs.toOutputNames(query.getDimensions());
+    final List<String> metrics = Lists.newArrayList(query.getMetrics());
     final AggregatorFactory[] aggregators;
     if (metadata != null && metadata.getAggregators() != null) {
       aggregators = metadata.getAggregators();
@@ -124,17 +125,19 @@ public class SelectMetaQueryEngine
     );
   }
 
+  // not include virtual columns & not consider extract, lookup, etc.
   private float calculateAverageSize(SelectMetaQuery query, StorageAdapter adapter)
   {
     float averageSize = 0;
-    final Set<String> retain = query.getColumns() == null ? null : Sets.newHashSet(query.getColumns());
+    final Set<String> dimensions = Sets.newHashSet(DimensionSpecs.toOutputNames(query.getDimensions()));
     for (String dimension : adapter.getAvailableDimensions()) {
-      if (retain == null || retain.contains(dimension)) {
+      if (dimensions.contains(dimension)) {
         averageSize += adapter.getAverageSize(dimension);
       }
     }
+    final Set<String> metrics = Sets.newHashSet(query.getMetrics());
     for (String metric : adapter.getAvailableMetrics()) {
-      if (retain == null || retain.contains(metric)) {
+      if (metrics == null || metrics.contains(metric)) {
         averageSize += adapter.getAverageSize(metric);
       }
     }

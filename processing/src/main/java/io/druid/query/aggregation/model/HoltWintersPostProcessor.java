@@ -39,7 +39,7 @@ import io.druid.granularity.QueryGranularity;
 import io.druid.query.PostProcessingOperator;
 import io.druid.query.Query;
 import io.druid.query.QueryRunner;
-import io.druid.query.dimension.DimensionSpec;
+import io.druid.query.dimension.DimensionSpecs;
 import io.druid.query.groupby.GroupByQuery;
 import io.druid.query.select.StreamQuery;
 import io.druid.query.select.StreamQueryRow;
@@ -141,8 +141,7 @@ public class HoltWintersPostProcessor extends PostProcessingOperator.Abstract
         } else if (query instanceof GroupByQuery) {
           final GroupByQuery groupBy = (GroupByQuery) query;
           final QueryGranularity granularity = groupBy.getGranularity();
-          final String[] dimensions = Lists.transform(groupBy.getDimensions(), DimensionSpec.OUTPUT_NAME)
-                                           .toArray(new String[0]);
+          final String[] dimensions = DimensionSpecs.toOutputNames(groupBy.getDimensions()).toArray(new String[0]);
 
           final Map<ObjectArray<Object>, Object> numbersMap = Maps.newHashMap();
           final MutableLong lastTimestamp = new MutableLong();

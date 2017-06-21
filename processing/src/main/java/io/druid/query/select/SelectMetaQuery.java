@@ -22,7 +22,6 @@ package io.druid.query.select;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
-import com.google.common.collect.ImmutableList;
 import io.druid.granularity.QueryGranularity;
 import io.druid.query.BaseQuery;
 import io.druid.query.DataSource;
@@ -41,11 +40,13 @@ import java.util.Objects;
  */
 @JsonTypeName("selectMeta")
 public class SelectMetaQuery extends BaseQuery<Result<SelectMetaResultValue>>
-  implements Query.DimFilterSupport<Result<SelectMetaResultValue>>
+  implements Query.ViewSupport<Result<SelectMetaResultValue>>
 {
   private final DimFilter dimFilter;
   private final QueryGranularity granularity;
-  private final List<String> columns;
+  private final List<DimensionSpec> dimensions;
+  private final List<String> metrics;
+  private final List<VirtualColumn> virtualColumns;
   private final PagingSpec pagingSpec;
 
   @JsonCreator
@@ -54,22 +55,38 @@ public class SelectMetaQuery extends BaseQuery<Result<SelectMetaResultValue>>
       @JsonProperty("intervals") QuerySegmentSpec querySegmentSpec,
       @JsonProperty("filter") DimFilter dimFilter,
       @JsonProperty("granularity") QueryGranularity granularity,
-      @JsonProperty("columns") List<String> columns,
+      @JsonProperty("dimensions") List<DimensionSpec> dimensions,
+      @JsonProperty("metrics") List<String> metrics,
+      @JsonProperty("virtualColumns") List<VirtualColumn> virtualColumns,
       @JsonProperty("pagingSpec") PagingSpec pagingSpec,
       @JsonProperty("context") Map<String, Object> context
   )
   {
     super(dataSource, querySegmentSpec, false, context);
-    this.columns = columns;
+    this.dimensions = dimensions;
+    this.metrics = metrics;
+    this.virtualColumns = virtualColumns;
     this.dimFilter = dimFilter;
     this.granularity = granularity;
     this.pagingSpec = pagingSpec;
   }
 
   @JsonProperty
-  public List<String> getColumns()
+  public List<DimensionSpec> getDimensions()
   {
-    return columns;
+    return dimensions;
+  }
+
+  @JsonProperty
+  public List<String> getMetrics()
+  {
+    return metrics;
+  }
+
+  @JsonProperty
+  public List<VirtualColumn> getVirtualColumns()
+  {
+    return virtualColumns;
   }
 
   @JsonProperty("filter")
@@ -109,9 +126,9 @@ public class SelectMetaQuery extends BaseQuery<Result<SelectMetaResultValue>>
         isDescending(),
         getDimFilter(),
         getGranularity(),
-        ImmutableList.<DimensionSpec>of(),
-        ImmutableList.<String>of(),
-        ImmutableList.<VirtualColumn>of(),
+        getDimensions(),
+        getMetrics(),
+        getVirtualColumns(),
         getPagingSpec(),
         null,
         null,
@@ -140,7 +157,9 @@ public class SelectMetaQuery extends BaseQuery<Result<SelectMetaResultValue>>
         getQuerySegmentSpec(),
         getDimensionsFilter(),
         getGranularity(),
-        getColumns(),
+        getDimensions(),
+        getMetrics(),
+        getVirtualColumns(),
         getPagingSpec(),
         computeOverridenContext(contextOverride)
     );
@@ -154,7 +173,9 @@ public class SelectMetaQuery extends BaseQuery<Result<SelectMetaResultValue>>
         spec,
         getDimensionsFilter(),
         getGranularity(),
-        getColumns(),
+        getDimensions(),
+        getMetrics(),
+        getVirtualColumns(),
         getPagingSpec(),
         getContext()
     );
@@ -168,7 +189,9 @@ public class SelectMetaQuery extends BaseQuery<Result<SelectMetaResultValue>>
         getQuerySegmentSpec(),
         getDimensionsFilter(),
         getGranularity(),
-        getColumns(),
+        getDimensions(),
+        getMetrics(),
+        getVirtualColumns(),
         getPagingSpec(),
         getContext()
     );
@@ -181,7 +204,58 @@ public class SelectMetaQuery extends BaseQuery<Result<SelectMetaResultValue>>
         getQuerySegmentSpec(),
         filter,
         getGranularity(),
-        getColumns(),
+        getDimensions(),
+        getMetrics(),
+        getVirtualColumns(),
+        getPagingSpec(),
+        getContext()
+    );
+  }
+
+
+  @Override
+  public DimensionSupport<Result<SelectMetaResultValue>> withDimensionSpecs(List<DimensionSpec> dimensions)
+  {
+    return new SelectMetaQuery(
+        getDataSource(),
+        getQuerySegmentSpec(),
+        getDimFilter(),
+        getGranularity(),
+        dimensions,
+        getMetrics(),
+        getVirtualColumns(),
+        getPagingSpec(),
+        getContext()
+    );
+  }
+
+  @Override
+  public DimensionSupport<Result<SelectMetaResultValue>> withVirtualColumns(List<VirtualColumn> virtualColumns)
+  {
+    return new SelectMetaQuery(
+        getDataSource(),
+        getQuerySegmentSpec(),
+        getDimFilter(),
+        getGranularity(),
+        getDimensions(),
+        getMetrics(),
+        virtualColumns,
+        getPagingSpec(),
+        getContext()
+    );
+  }
+
+  @Override
+  public ViewSupport<Result<SelectMetaResultValue>> withMetrics(List<String> metrics)
+  {
+    return new SelectMetaQuery(
+        getDataSource(),
+        getQuerySegmentSpec(),
+        getDimFilter(),
+        getGranularity(),
+        getDimensions(),
+        metrics,
+        getVirtualColumns(),
         getPagingSpec(),
         getContext()
     );
@@ -194,7 +268,9 @@ public class SelectMetaQuery extends BaseQuery<Result<SelectMetaResultValue>>
         getQuerySegmentSpec(),
         getDimensionsFilter(),
         granularity,
-        getColumns(),
+        getDimensions(),
+        getMetrics(),
+        getVirtualColumns(),
         getPagingSpec(),
         getContext()
     );
@@ -207,10 +283,24 @@ public class SelectMetaQuery extends BaseQuery<Result<SelectMetaResultValue>>
         getQuerySegmentSpec(),
         getDimensionsFilter(),
         getGranularity(),
-        getColumns(),
+        getDimensions(),
+        getMetrics(),
+        getVirtualColumns(),
         pagingSpec,
         getContext()
     );
+  }
+
+  @Override
+  public boolean allDimensionsForEmpty()
+  {
+    return BaseQuery.allColumnsForEmpty(this, true);
+  }
+
+  @Override
+  public boolean allMetricsForEmpty()
+  {
+    return BaseQuery.allColumnsForEmpty(this, true);
   }
 
   @Override
@@ -221,7 +311,9 @@ public class SelectMetaQuery extends BaseQuery<Result<SelectMetaResultValue>>
            ", querySegmentSpec=" + getQuerySegmentSpec() +
            ", dimFilter=" + dimFilter +
            ", granularity=" + granularity +
-           ", columns=" + columns +
+           ", dimensions=" + dimensions +
+           ", metrics=" + metrics +
+           ", virtualColumns=" + virtualColumns +
            ", pagingSpec=" + pagingSpec +
            '}';
   }
@@ -247,7 +339,13 @@ public class SelectMetaQuery extends BaseQuery<Result<SelectMetaResultValue>>
     if (!Objects.equals(granularity, that.granularity)) {
       return false;
     }
-    if (!Objects.equals(columns, that.columns)) {
+    if (!Objects.equals(dimensions, that.dimensions)) {
+      return false;
+    }
+    if (!Objects.equals(metrics, that.metrics)) {
+      return false;
+    }
+    if (!Objects.equals(virtualColumns, that.virtualColumns)) {
       return false;
     }
     if (!Objects.equals(pagingSpec, that.pagingSpec)) {
@@ -262,7 +360,9 @@ public class SelectMetaQuery extends BaseQuery<Result<SelectMetaResultValue>>
     int result = super.hashCode();
     result = 31 * result + (dimFilter != null ? dimFilter.hashCode() : 0);
     result = 31 * result + (granularity != null ? granularity.hashCode() : 0);
-    result = 31 * result + (columns != null ? columns.hashCode() : 0);
+    result = 31 * result + (dimensions != null ? dimensions.hashCode() : 0);
+    result = 31 * result + (metrics != null ? metrics.hashCode() : 0);
+    result = 31 * result + (virtualColumns != null ? virtualColumns.hashCode() : 0);
     result = 31 * result + (pagingSpec != null ? pagingSpec.hashCode() : 0);
     return result;
   }

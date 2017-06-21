@@ -31,6 +31,7 @@ import io.druid.granularity.QueryGranularities;
 import io.druid.query.Query;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.dimension.DimensionSpec;
+import io.druid.query.dimension.DimensionSpecs;
 import io.druid.segment.incremental.IncrementalIndex;
 import io.druid.segment.incremental.IncrementalIndexSchema;
 import io.druid.segment.incremental.OffheapIncrementalIndex;
@@ -113,7 +114,7 @@ public class GroupByQueryHelper
     if (optimizer != null) {
       index.initialize((Map<String, String[]>) Futures.getUnchecked(optimizer));
     } else if (dimensions != null) {
-      index.initialize(Lists.transform(dimensions, DimensionSpec.OUTPUT_NAME));
+      index.initialize(DimensionSpecs.toOutputNames(dimensions));
     }
     return index;
   }

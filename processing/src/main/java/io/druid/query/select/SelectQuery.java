@@ -107,7 +107,9 @@ public class SelectQuery extends BaseQuery<Result<SelectResultValue>>
         getQuerySegmentSpec(),
         getDimFilter(),
         getGranularity(),
-        ImmutableList.<String>of(),
+        getDimensions(),
+        getMetrics(),
+        getVirtualColumns(),
         getPagingSpec(),
         getContext()
     );

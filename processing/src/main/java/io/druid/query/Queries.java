@@ -36,6 +36,7 @@ import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.PostAggregator;
 import io.druid.query.aggregation.RelayAggregatorFactory;
 import io.druid.query.dimension.DimensionSpec;
+import io.druid.query.dimension.DimensionSpecs;
 import io.druid.query.groupby.GroupByQuery;
 import io.druid.query.select.EventHolder;
 import io.druid.query.select.SelectMetaQuery;
@@ -112,7 +113,7 @@ public class Queries
       if (dimensions.isEmpty() && groupByQuery.getDataSource() instanceof ViewDataSource) {
         builder.withDimensions(resolveSchemaFromView(subQuery, segmentWalker).dimensions);
       } else {
-        builder.withDimensions(Lists.transform(dimensions, DimensionSpec.OUTPUT_NAME));
+        builder.withDimensions(DimensionSpecs.toOutputNames(dimensions));
       }
       List<AggregatorFactory> aggs = AggregatorFactory.toCombiner(groupByQuery.getAggregatorSpecs());
       for (PostAggregator postAggregator : groupByQuery.getPostAggregatorSpecs()) {
@@ -121,7 +122,7 @@ public class Queries
       return builder.withMetrics(aggs.toArray(new AggregatorFactory[aggs.size()])).build();
     } else if (subQuery instanceof Query.ViewSupport) {
       final Query.ViewSupport<?> selectQuery = (Query.ViewSupport) subQuery;
-      List<String> dimensions = Lists.transform(selectQuery.getDimensions(), DimensionSpec.OUTPUT_NAME);
+      List<String> dimensions = DimensionSpecs.toOutputNames(selectQuery.getDimensions());
       List<String> metrics = selectQuery.getMetrics();
       if (selectQuery.getDataSource() instanceof ViewDataSource) {
         ViewDataSource dataSource = (ViewDataSource) subQuery.getDataSource();
@@ -200,6 +201,8 @@ public class Queries
         subQuery.getQuerySegmentSpec(),
         null,
         QueryGranularities.ALL,
+        null,
+        null,
         null,
         null,
         Maps.<String, Object>newHashMap()
