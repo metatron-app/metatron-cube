@@ -100,7 +100,7 @@ public class SelectQuery extends BaseQuery<Result<SelectResultValue>>
     return true;
   }
 
-  public SelectMetaQuery toMetaQuery()
+  public SelectMetaQuery toMetaQuery(boolean schemaOnly)
   {
     return new SelectMetaQuery(
         getDataSource(),
@@ -110,6 +110,7 @@ public class SelectQuery extends BaseQuery<Result<SelectResultValue>>
         getDimensions(),
         getMetrics(),
         getVirtualColumns(),
+        schemaOnly,
         getPagingSpec(),
         getContext()
     );

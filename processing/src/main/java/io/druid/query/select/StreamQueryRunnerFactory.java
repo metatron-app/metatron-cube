@@ -74,7 +74,7 @@ public class StreamQueryRunnerFactory
       public Sequence<StreamQueryRow> run(Query<StreamQueryRow> query, Map<String, Object> responseContext)
       {
         Pair<Schema, Sequence<Object[]>> result = engine.process((StreamQuery) query, segment, cache);
-        final String[] columnNames = result.lhs.getColumnNames();
+        final String[] columnNames = result.lhs.getColumnNames().toArray(new String[0]);
         return Sequences.map(
             result.rhs, new Function<Object[], StreamQueryRow>()
             {

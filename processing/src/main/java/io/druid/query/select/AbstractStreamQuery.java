@@ -128,7 +128,7 @@ public abstract class AbstractStreamQuery<T extends Comparable<T>> extends BaseQ
     return BaseQuery.allColumnsForEmpty(this, true);
   }
 
-  public SelectMetaQuery toMetaQuery()
+  public SelectMetaQuery toMetaQuery(boolean schemaOnly)
   {
     return new SelectMetaQuery(
         getDataSource(),
@@ -138,6 +138,7 @@ public abstract class AbstractStreamQuery<T extends Comparable<T>> extends BaseQ
         getDimensions(),
         getMetrics(),
         getVirtualColumns(),
+        schemaOnly,
         null,
         getContext()
     );

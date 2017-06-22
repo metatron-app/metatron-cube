@@ -69,7 +69,7 @@ public class StreamQueryEngine
     Preconditions.checkArgument(intervals.size() == 1, "Can only handle a single interval, got[%s]", intervals);
 
     final String concatString = query.getConcatString();
-    final Schema schema = ViewSupportHelper.toSchema(query, segment);
+    final Schema schema = ViewSupportHelper.toSchema(query, segment).appendTime();
 
     final List<DimensionSpec> dimensions = query.getDimensions();
     final List<String> metrics = query.getMetrics();

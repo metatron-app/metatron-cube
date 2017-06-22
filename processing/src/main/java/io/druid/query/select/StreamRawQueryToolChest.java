@@ -86,7 +86,7 @@ public class StreamRawQueryToolChest extends QueryToolChest<RawRows, StreamRawQu
                   @Override
                   public Sequence<Map<String, Object>> apply(RawRows input)
                   {
-                    final String[] columnNames = input.getSchema().getColumnNames();
+                    final String[] columnNames = input.getSchema().getColumnNames().toArray(new String[0]);
                     final List<Object[]> rows = input.getRows();
                     return Sequences.simple(
                         new Iterable<Map<String, Object>>()

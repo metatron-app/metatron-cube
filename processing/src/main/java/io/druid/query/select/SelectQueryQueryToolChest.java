@@ -405,7 +405,7 @@ public class SelectQueryQueryToolChest extends QueryToolChest<Result<SelectResul
     Map<String, Object> context = Maps.newHashMap();
     List<Interval> intervals = query.getQuerySegmentSpec().getIntervals();
 
-    SelectMetaQuery metaQuery = query.toMetaQuery();
+    SelectMetaQuery metaQuery = query.toMetaQuery(false);
     List<Result<SelectMetaResultValue>> results =
         Sequences.toList(
             walker.getQueryRunnerForIntervals(metaQuery, intervals).run(metaQuery, context),

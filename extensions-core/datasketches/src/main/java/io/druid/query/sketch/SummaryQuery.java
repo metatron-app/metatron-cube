@@ -23,6 +23,7 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
 import io.druid.query.BaseQuery;
@@ -68,9 +69,9 @@ public class SummaryQuery extends BaseQuery<Result<Map<String, Object>>>
   {
     super(dataSource, querySegmentSpec, false, context);
     this.dimFilter = filter;
+    this.dimensions = dimensions == null ? ImmutableList.<DimensionSpec>of() : dimensions;
+    this.metrics = metrics == null ? ImmutableList.<String>of() : metrics;
     this.virtualColumns = virtualColumns;
-    this.dimensions = dimensions;
-    this.metrics = metrics;
     this.includeTimeStats = includeTimeStats;
   }
 
@@ -260,10 +261,10 @@ public class SummaryQuery extends BaseQuery<Result<Map<String, Object>>>
     if (virtualColumns != null && !virtualColumns.isEmpty()) {
       builder.append(", virtualColumns=").append(virtualColumns);
     }
-    if (dimensions != null && !dimensions.isEmpty()) {
+    if (!dimensions.isEmpty()) {
       builder.append(", dimensions=").append(dimensions);
     }
-    if (metrics != null && !metrics.isEmpty()) {
+    if (!metrics.isEmpty()) {
       builder.append(", metrics=").append(metrics);
     }
     builder.append(", includeTimeStats=").append(includeTimeStats);

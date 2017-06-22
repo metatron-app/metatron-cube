@@ -22,7 +22,6 @@ package io.druid.query.select;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.google.common.base.Function;
 import com.google.common.base.Functions;
-import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Ordering;
 import com.metamx.common.guava.nary.BinaryFn;
@@ -36,12 +35,10 @@ import io.druid.query.QueryToolChest;
 import io.druid.query.Result;
 import io.druid.query.ResultGranularTimestampComparator;
 import io.druid.query.ResultMergeQueryRunner;
-import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.MetricManipulationFn;
 import io.druid.timeline.LogicalSegment;
 import org.joda.time.DateTime;
 
-import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 
@@ -93,31 +90,18 @@ public class SelectMetaQueryToolChest extends QueryToolChest<Result<SelectMetaRe
             }
             SelectMetaResultValue value1 = arg1.getValue();
             SelectMetaResultValue value2 = arg2.getValue();
+
             Map<String, Integer> merged = Maps.newTreeMap();
             merged.putAll(value1.getPerSegmentCounts());
             for (Map.Entry<String, Integer> entry : value2.getPerSegmentCounts().entrySet()) {
               Integer prev = merged.get(entry.getKey());
               merged.put(entry.getKey(), prev == null ? entry.getValue() : prev + entry.getValue());
             }
-            List<String> dimensions = Lists.newArrayList(value1.getDimensions());
-            for (String dimension : value2.getDimensions()) {
-              if (!dimensions.contains(dimension)) {
-                dimensions.add(dimension);
-              }
-            }
-            List<String> metrics = Lists.newArrayList(value1.getMetrics());
-            for (String metric : value2.getMetrics()) {
-              if (!metrics.contains(metric)) {
-                metrics.add(metric);
-              }
-            }
-            AggregatorFactory[] aggregators = AggregatorFactory.mergeAggregators(
-                Arrays.asList(value1.getAggregators(), value1.getAggregators())
-            );
+            Schema mergedSchema = value1.getSchema().merge(value2.getSchema());
             long estimatedSize = value1.getEstimatedSize() + value2.getEstimatedSize();
             return new Result<>(
                 timestamp,
-                new SelectMetaResultValue(dimensions, metrics, aggregators, merged, estimatedSize)
+                new SelectMetaResultValue(mergedSchema, merged, estimatedSize)
             );
           }
         };

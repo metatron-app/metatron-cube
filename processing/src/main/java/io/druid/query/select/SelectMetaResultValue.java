@@ -21,10 +21,8 @@ package io.druid.query.select;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import io.druid.query.aggregation.AggregatorFactory;
+import com.google.common.collect.ImmutableMap;
 
-import java.util.Arrays;
-import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 
@@ -32,25 +30,19 @@ import java.util.Objects;
  */
 public class SelectMetaResultValue
 {
+  private final Schema schema;
   private final Map<String, Integer> perSegmentCounts;
-  private final List<String> dimensions;
-  private final List<String> metrics;
-  private final AggregatorFactory[] aggregators;
   private final int totalCount;
   private final long estimatedSize;
 
   @JsonCreator
   public SelectMetaResultValue(
-      @JsonProperty("dimensions") List<String> dimensions,
-      @JsonProperty("metrics") List<String> metrics,
-      @JsonProperty("aggregators") AggregatorFactory[] aggregators,
+      @JsonProperty("schema") Schema schema,
       @JsonProperty("perSegmentCounts") Map<String, Integer> perSegmentCounts,
       @JsonProperty("estimatedSize") long estimatedSize
   )
   {
-    this.dimensions = dimensions;
-    this.metrics = metrics;
-    this.aggregators = aggregators;
+    this.schema = schema;
     this.perSegmentCounts = perSegmentCounts;
     int total = 0;
     for (Integer segmentCount : perSegmentCounts.values()) {
@@ -60,22 +52,15 @@ public class SelectMetaResultValue
     this.estimatedSize = estimatedSize;
   }
 
-  @JsonProperty
-  public List<String> getDimensions()
+  public SelectMetaResultValue(Schema schema)
   {
-    return dimensions;
+    this(schema, ImmutableMap.<String, Integer>of(), 0L);
   }
 
   @JsonProperty
-  public List<String> getMetrics()
+  public Schema getSchema()
   {
-    return metrics;
-  }
-
-  @JsonProperty
-  public AggregatorFactory[] getAggregators()
-  {
-    return aggregators;
+    return schema;
   }
 
   @JsonProperty
@@ -108,10 +93,7 @@ public class SelectMetaResultValue
 
     SelectMetaResultValue that = (SelectMetaResultValue) o;
 
-    if (!Objects.equals(dimensions, that.dimensions)) {
-      return false;
-    }
-    if (!Objects.equals(metrics, that.metrics)) {
+    if (!Objects.equals(schema, that.schema)) {
       return false;
     }
     if (!Objects.equals(perSegmentCounts, that.perSegmentCounts)) {
@@ -123,9 +105,8 @@ public class SelectMetaResultValue
   @Override
   public int hashCode()
   {
-    int hash = Objects.hashCode(perSegmentCounts);
-    hash = hash * 31 + Objects.hashCode(dimensions);
-    hash = hash * 31 + Objects.hashCode(metrics);
+    int hash = Objects.hashCode(schema);
+    hash = hash * 31 + Objects.hashCode(perSegmentCounts);
     return hash;
   }
 
@@ -133,9 +114,7 @@ public class SelectMetaResultValue
   public String toString()
   {
     return "SelectMetaResultValue{" +
-           "dimensions=" + dimensions +
-           ", metrics=" + metrics +
-           ", aggregators=" + Arrays.toString(aggregators) +
+           "schema=" + schema +
            ", perSegmentCounts=" + perSegmentCounts +
            ", totalCount=" + totalCount +
            ", estimatedSize=" + estimatedSize +

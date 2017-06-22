@@ -23,19 +23,17 @@ import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
-import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import com.metamx.common.ISE;
 import com.metamx.common.guava.BaseSequence;
 import com.metamx.common.guava.Sequence;
+import com.metamx.common.guava.Sequences;
 import io.druid.granularity.QueryGranularities;
 import io.druid.granularity.QueryGranularity;
 import io.druid.query.QueryRunnerHelper;
 import io.druid.query.Result;
-import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.dimension.DimensionSpecs;
 import io.druid.segment.Cursor;
-import io.druid.segment.Metadata;
 import io.druid.segment.Segment;
 import io.druid.segment.StorageAdapter;
 import io.druid.segment.VirtualColumns;
@@ -68,14 +66,16 @@ public class SelectMetaQueryEngine
     final String segmentId = segment.getIdentifier();
 
     StorageAdapter storageAdapter = segment.asStorageAdapter(false);
-    Metadata metadata = storageAdapter.getMetadata();
-    final List<String> dimensions = DimensionSpecs.toOutputNames(query.getDimensions());
-    final List<String> metrics = Lists.newArrayList(query.getMetrics());
-    final AggregatorFactory[] aggregators;
-    if (metadata != null && metadata.getAggregators() != null) {
-      aggregators = metadata.getAggregators();
-    } else {
-      aggregators = null;
+    final Schema schema = ViewSupportHelper.toSchema(query, segment);
+    if (query.isSchemaOnly()) {
+      return Sequences.simple(
+          Arrays.asList(
+              new Result<SelectMetaResultValue>(
+                  granularity.toDateTime(interval.getStartMillis()),
+                  new SelectMetaResultValue(schema)
+              )
+          )
+      );
     }
 
     final PagingOffset offset = query.getPagingOffset(segmentId);
@@ -92,7 +92,7 @@ public class SelectMetaQueryEngine
               new Result<>(
                   granularity.toDateTime(interval.getStartMillis()),
                   new SelectMetaResultValue(
-                      dimensions, metrics, aggregators, ImmutableMap.of(segmentId, row), (long) (row * averageSize)
+                      schema, ImmutableMap.of(segmentId, row), (long) (row * averageSize)
                   )
               )
           )
@@ -118,7 +118,7 @@ public class SelectMetaQueryEngine
             }
             return new Result<>(
                 cursor.getTime(),
-                new SelectMetaResultValue(dimensions, metrics, aggregators, ImmutableMap.of(segmentId, row), (long) (row * averageSize))
+                new SelectMetaResultValue(schema, ImmutableMap.of(segmentId, row), (long) (row * averageSize))
             );
           }
         }

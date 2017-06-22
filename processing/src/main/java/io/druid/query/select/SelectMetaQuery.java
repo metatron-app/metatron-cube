@@ -22,6 +22,7 @@ package io.druid.query.select;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
+import com.google.common.collect.ImmutableList;
 import io.druid.granularity.QueryGranularity;
 import io.druid.query.BaseQuery;
 import io.druid.query.DataSource;
@@ -47,6 +48,7 @@ public class SelectMetaQuery extends BaseQuery<Result<SelectMetaResultValue>>
   private final List<DimensionSpec> dimensions;
   private final List<String> metrics;
   private final List<VirtualColumn> virtualColumns;
+  private final boolean schemaOnly;
   private final PagingSpec pagingSpec;
 
   @JsonCreator
@@ -58,16 +60,18 @@ public class SelectMetaQuery extends BaseQuery<Result<SelectMetaResultValue>>
       @JsonProperty("dimensions") List<DimensionSpec> dimensions,
       @JsonProperty("metrics") List<String> metrics,
       @JsonProperty("virtualColumns") List<VirtualColumn> virtualColumns,
+      @JsonProperty("schemaOnly") Boolean schemaOnly,
       @JsonProperty("pagingSpec") PagingSpec pagingSpec,
       @JsonProperty("context") Map<String, Object> context
   )
   {
     super(dataSource, querySegmentSpec, false, context);
-    this.dimensions = dimensions;
-    this.metrics = metrics;
+    this.dimensions = dimensions == null ? ImmutableList.<DimensionSpec>of() : dimensions;
+    this.metrics = metrics == null ? ImmutableList.<String>of() : metrics;
     this.virtualColumns = virtualColumns;
     this.dimFilter = dimFilter;
     this.granularity = granularity;
+    this.schemaOnly = schemaOnly == null ? false : schemaOnly;
     this.pagingSpec = pagingSpec;
   }
 
@@ -105,6 +109,12 @@ public class SelectMetaQuery extends BaseQuery<Result<SelectMetaResultValue>>
   public QueryGranularity getGranularity()
   {
     return granularity;
+  }
+
+  @JsonProperty
+  public boolean isSchemaOnly()
+  {
+    return schemaOnly;
   }
 
   @JsonProperty
@@ -160,6 +170,7 @@ public class SelectMetaQuery extends BaseQuery<Result<SelectMetaResultValue>>
         getDimensions(),
         getMetrics(),
         getVirtualColumns(),
+        isSchemaOnly(),
         getPagingSpec(),
         computeOverridenContext(contextOverride)
     );
@@ -176,6 +187,7 @@ public class SelectMetaQuery extends BaseQuery<Result<SelectMetaResultValue>>
         getDimensions(),
         getMetrics(),
         getVirtualColumns(),
+        isSchemaOnly(),
         getPagingSpec(),
         getContext()
     );
@@ -192,6 +204,7 @@ public class SelectMetaQuery extends BaseQuery<Result<SelectMetaResultValue>>
         getDimensions(),
         getMetrics(),
         getVirtualColumns(),
+        isSchemaOnly(),
         getPagingSpec(),
         getContext()
     );
@@ -207,6 +220,7 @@ public class SelectMetaQuery extends BaseQuery<Result<SelectMetaResultValue>>
         getDimensions(),
         getMetrics(),
         getVirtualColumns(),
+        isSchemaOnly(),
         getPagingSpec(),
         getContext()
     );
@@ -224,6 +238,7 @@ public class SelectMetaQuery extends BaseQuery<Result<SelectMetaResultValue>>
         dimensions,
         getMetrics(),
         getVirtualColumns(),
+        isSchemaOnly(),
         getPagingSpec(),
         getContext()
     );
@@ -240,6 +255,7 @@ public class SelectMetaQuery extends BaseQuery<Result<SelectMetaResultValue>>
         getDimensions(),
         getMetrics(),
         virtualColumns,
+        isSchemaOnly(),
         getPagingSpec(),
         getContext()
     );
@@ -256,6 +272,7 @@ public class SelectMetaQuery extends BaseQuery<Result<SelectMetaResultValue>>
         getDimensions(),
         metrics,
         getVirtualColumns(),
+        isSchemaOnly(),
         getPagingSpec(),
         getContext()
     );
@@ -271,6 +288,7 @@ public class SelectMetaQuery extends BaseQuery<Result<SelectMetaResultValue>>
         getDimensions(),
         getMetrics(),
         getVirtualColumns(),
+        isSchemaOnly(),
         getPagingSpec(),
         getContext()
     );
@@ -286,6 +304,7 @@ public class SelectMetaQuery extends BaseQuery<Result<SelectMetaResultValue>>
         getDimensions(),
         getMetrics(),
         getVirtualColumns(),
+        isSchemaOnly(),
         pagingSpec,
         getContext()
     );
@@ -314,6 +333,7 @@ public class SelectMetaQuery extends BaseQuery<Result<SelectMetaResultValue>>
            ", dimensions=" + dimensions +
            ", metrics=" + metrics +
            ", virtualColumns=" + virtualColumns +
+           ", schemaOnly=" + schemaOnly +
            ", pagingSpec=" + pagingSpec +
            '}';
   }
@@ -348,6 +368,9 @@ public class SelectMetaQuery extends BaseQuery<Result<SelectMetaResultValue>>
     if (!Objects.equals(virtualColumns, that.virtualColumns)) {
       return false;
     }
+    if (schemaOnly != that.schemaOnly) {
+      return false;
+    }
     if (!Objects.equals(pagingSpec, that.pagingSpec)) {
       return false;
     }
@@ -363,6 +386,7 @@ public class SelectMetaQuery extends BaseQuery<Result<SelectMetaResultValue>>
     result = 31 * result + (dimensions != null ? dimensions.hashCode() : 0);
     result = 31 * result + (metrics != null ? metrics.hashCode() : 0);
     result = 31 * result + (virtualColumns != null ? virtualColumns.hashCode() : 0);
+    result = 31 * result + (schemaOnly ? 1 : 0);
     result = 31 * result + (pagingSpec != null ? pagingSpec.hashCode() : 0);
     return result;
   }

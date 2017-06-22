@@ -27,7 +27,6 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Ordering;
 import com.google.common.io.CharStreams;
 import com.google.common.io.InputSupplier;
-import com.google.common.primitives.Ints;
 import com.metamx.common.Pair;
 
 import javax.annotation.Nullable;
@@ -166,6 +165,12 @@ public class GuavaUtils
       retaining.removeAll(exclusions);
     }
     return retaining;
+  }
+
+  @SafeVarargs
+  public static <T> List<T> concat(List<T> list1, T... elements)
+  {
+    return concat(list1, Arrays.asList(elements));
   }
 
   public static <T> List<T> concat(List<T> list1, List<T> list2)

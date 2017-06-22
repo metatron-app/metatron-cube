@@ -24,6 +24,7 @@ import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
+import com.metamx.common.Pair;
 import com.metamx.common.logger.Logger;
 import io.druid.data.ValueType;
 import io.druid.query.Cacheable;
@@ -236,21 +237,21 @@ public abstract class AggregatorFactory implements Cacheable
     return relay;
   }
 
-  public static List<AggregatorFactory> toRelay(List<AggregatorFactory> aggregators)
+  public static List<AggregatorFactory> toRelay(Iterable<Pair<String, String>> nameTypePairs)
   {
     List<AggregatorFactory> relay = Lists.newArrayList();
-    for (AggregatorFactory aggregator : aggregators) {
-      relay.add(new RelayAggregatorFactory(aggregator.getName(), aggregator.getName(), aggregator.getTypeName()));
+    for (Pair<String, String> nameTypePair : nameTypePairs) {
+      relay.add(new RelayAggregatorFactory(nameTypePair.lhs, nameTypePair.lhs, nameTypePair.rhs));
     }
     return relay;
   }
 
-  public static Function<AggregatorFactory, String> NAME = new Function<AggregatorFactory, String>()
+  public static Function<AggregatorFactory, Pair<String, String>> NAME_TYPE = new Function<AggregatorFactory, Pair<String, String>>()
   {
     @Override
-    public String apply(AggregatorFactory input)
+    public Pair<String, String> apply(AggregatorFactory input)
     {
-      return input.getName();
+      return Pair.of(input.getName(), input.getTypeName());
     }
   };
 }

@@ -39,6 +39,7 @@ import io.druid.query.dimension.DimensionSpec;
 import io.druid.query.dimension.DimensionSpecs;
 import io.druid.query.groupby.GroupByQuery;
 import io.druid.query.select.EventHolder;
+import io.druid.query.select.Schema;
 import io.druid.query.select.SelectMetaQuery;
 import io.druid.query.select.SelectMetaResultValue;
 import io.druid.segment.incremental.IncrementalIndexSchema;
@@ -111,7 +112,7 @@ public class Queries
       final GroupByQuery groupByQuery = (GroupByQuery) subQuery;
       List<DimensionSpec> dimensions = groupByQuery.getDimensions();
       if (dimensions.isEmpty() && groupByQuery.getDataSource() instanceof ViewDataSource) {
-        builder.withDimensions(resolveSchemaFromView(subQuery, segmentWalker).dimensions);
+        builder.withDimensions(resolveSchemaFromView(subQuery, segmentWalker).getDimensionNames());
       } else {
         builder.withDimensions(DimensionSpecs.toOutputNames(dimensions));
       }
@@ -125,24 +126,11 @@ public class Queries
       List<String> dimensions = DimensionSpecs.toOutputNames(selectQuery.getDimensions());
       List<String> metrics = selectQuery.getMetrics();
       if (selectQuery.getDataSource() instanceof ViewDataSource) {
-        ViewDataSource dataSource = (ViewDataSource) subQuery.getDataSource();
-        List<String> columns = Lists.newArrayList(dataSource.getColumns());
-        if (dimensions.isEmpty() && !columns.isEmpty()) {
-          Schema schema = resolveSchemaFromView(subQuery, segmentWalker);
-          return builder.withDimensions(schema.dimensions)
-                        .withMetrics(AggregatorFactory.toRelay(schema.metrics))
-                        .withRollup(false)
-                        .build();
-        } else {
-          columns.removeAll(dimensions);
-          if (metrics.isEmpty() && !columns.isEmpty()) {
-            Schema schema = resolveSchemaFromView(subQuery, segmentWalker);
-            return builder.withDimensions(schema.dimensions)
-                          .withMetrics(AggregatorFactory.toRelay(schema.metrics))
-                          .withRollup(false)
-                          .build();
-          }
-        }
+        Schema schema = resolveSchemaFromView(subQuery, segmentWalker);
+        return builder.withDimensions(schema.getDimensionNames())
+                      .withMetrics(AggregatorFactory.toRelay(schema.metricAndTypes()))
+                      .withRollup(false)
+                      .build();
       }
       return builder.withDimensions(dimensions)
                     .withMetrics(AggregatorFactory.toRelay(metrics, "object"))
@@ -162,7 +150,7 @@ public class Queries
         metrics.addAll(Arrays.asList(schema.getMetrics()));
       }
       return builder.withDimensions(Lists.newArrayList(dimensions))
-                    .withMetrics(AggregatorFactory.toRelay(metrics))
+                    .withMetrics(AggregatorFactory.toRelay(Iterables.transform(metrics, AggregatorFactory.NAME_TYPE)))
                     .withRollup(false)
                     .build();
     } else {
@@ -172,30 +160,8 @@ public class Queries
     }
   }
 
-  private static class Schema
-  {
-    private final List<String> dimensions = Lists.newArrayList();
-    private final List<AggregatorFactory> metrics = Lists.newArrayList();
-
-    @Override
-    public String toString()
-    {
-      return "Schema{" +
-             "dimensions=" + dimensions +
-             ", metrics=" + metrics +
-             '}';
-    }
-  }
-
   private static Schema resolveSchemaFromView(Query<?> subQuery, QuerySegmentWalker segmentWalker)
   {
-    Schema schema = new Schema();
-    ViewDataSource dataSource = (ViewDataSource) subQuery.getDataSource();
-    List<String> columns = dataSource.getColumns();
-    List<String> exclusions = dataSource.getColumnExclusions();
-    if (columns.isEmpty()) {
-      return schema;
-    }
     SelectMetaQuery metaQuery = new SelectMetaQuery(
         subQuery.getDataSource(),
         subQuery.getQuerySegmentSpec(),
@@ -204,6 +170,7 @@ public class Queries
         null,
         null,
         null,
+        true,
         null,
         Maps.<String, Object>newHashMap()
     );
@@ -214,19 +181,9 @@ public class Queries
         ), null
     );
     if (result == null) {
-      return schema;
+      return Schema.EMPTY;
     }
-    SelectMetaResultValue resolved = result.getValue();
-    schema.dimensions.addAll(resolved.getDimensions());
-    schema.dimensions.retainAll(columns);
-    schema.dimensions.removeAll(exclusions);
-    for (AggregatorFactory aggregator : resolved.getAggregators()) {
-      if (!exclusions.contains(aggregator.getName()) && columns.contains(aggregator.getName())) {
-        schema.metrics.add(aggregator);
-      }
-    }
-    LOG.info("Resolved schema %s", schema);
-    return schema;
+    return result.getValue().getSchema();
   }
 
   public static <I> Function<I, Row> getRowConverter(Query<I> subQuery)

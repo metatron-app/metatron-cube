@@ -20,6 +20,7 @@
 package io.druid.query.select;
 
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
@@ -88,6 +89,7 @@ public class SelectMetaQueryRunnerTest
         DefaultDimensionSpec.toSpec(Arrays.asList("market")),
         null,
         null,
+        false,
         null,
         Maps.<String, Object>newHashMap()
     );
@@ -97,28 +99,28 @@ public class SelectMetaQueryRunnerTest
         Lists.<Result<SelectMetaResultValue>>newArrayList()
     );
 
-    Assert.assertEquals(1, results.size());
-    Result<SelectMetaResultValue> r = results.get(0);
+    Result<SelectMetaResultValue> r = Iterables.getOnlyElement(results);
+    SelectMetaResultValue value = r.getValue();
     Assert.assertEquals(new DateTime(2011, 1, 12, 0, 0), r.getTimestamp());
-    Assert.assertEquals(ImmutableMap.of("testSegment", 26), r.getValue().getPerSegmentCounts());
-    Assert.assertEquals(dimensions, r.getValue().getDimensions());
-    Assert.assertEquals(Sets.newHashSet(metrics), Sets.newHashSet(r.getValue().getMetrics()));
-    Assert.assertEquals(26, r.getValue().getTotalCount());
-    Assert.assertEquals(incremental ? 598 : 988, r.getValue().getEstimatedSize());
+    Assert.assertEquals(ImmutableMap.of("testSegment", 26), value.getPerSegmentCounts());
+    Assert.assertEquals(dimensions, value.getSchema().getDimensionNames());
+    Assert.assertEquals(Sets.newHashSet(metrics), Sets.newHashSet(value.getSchema().getMetricNames()));
+    Assert.assertEquals(26, value.getTotalCount());
+    Assert.assertEquals(incremental ? 598 : 988, value.getEstimatedSize());
 
     query = query.withDimFilter(new InDimFilter("quality", Arrays.asList("mezzanine", "health"), null));
     results = Sequences.toList(
         runner.run(query, ImmutableMap.of()),
         Lists.<Result<SelectMetaResultValue>>newArrayList()
     );
-    Assert.assertEquals(1, results.size());
-    r = results.get(0);
-    Assert.assertEquals(r.getTimestamp(), new DateTime(2011, 1, 12, 0, 0));
-    Assert.assertEquals(ImmutableMap.of("testSegment", 8), r.getValue().getPerSegmentCounts());
-    Assert.assertEquals(dimensions, r.getValue().getDimensions());
-    Assert.assertEquals(Sets.newHashSet(metrics), Sets.newHashSet(r.getValue().getMetrics()));
-    Assert.assertEquals(8, r.getValue().getTotalCount());
-    Assert.assertEquals(incremental ? 184 : 304, r.getValue().getEstimatedSize());
+    r = Iterables.getOnlyElement(results);
+    value = r.getValue();
+    Assert.assertEquals(new DateTime(2011, 1, 12, 0, 0), r.getTimestamp());
+    Assert.assertEquals(ImmutableMap.of("testSegment", 8), value.getPerSegmentCounts());
+    Assert.assertEquals(dimensions, value.getSchema().getDimensionNames());
+    Assert.assertEquals(Sets.newHashSet(metrics), Sets.newHashSet(value.getSchema().getMetricNames()));
+    Assert.assertEquals(8, value.getTotalCount());
+    Assert.assertEquals(incremental ? 184 : 304, value.getEstimatedSize());
 
     query = query.withQueryGranularity(QueryGranularities.DAY);
     results = Sequences.toList(
@@ -127,20 +129,21 @@ public class SelectMetaQueryRunnerTest
     );
     Assert.assertEquals(2, results.size());
     r = results.get(0);
-    Assert.assertEquals(r.getTimestamp(), new DateTime(2011, 1, 12, 0, 0));
-    Assert.assertEquals(ImmutableMap.of("testSegment", 4), r.getValue().getPerSegmentCounts());
-    Assert.assertEquals(dimensions, r.getValue().getDimensions());
-    Assert.assertEquals(Sets.newHashSet(metrics), Sets.newHashSet(r.getValue().getMetrics()));
-    Assert.assertEquals(4, r.getValue().getTotalCount());
-    Assert.assertEquals(incremental ? 92 : 152, r.getValue().getEstimatedSize());
+    value = r.getValue();
+    Assert.assertEquals(new DateTime(2011, 1, 12, 0, 0), r.getTimestamp());
+    Assert.assertEquals(ImmutableMap.of("testSegment", 4), value.getPerSegmentCounts());
+    Assert.assertEquals(dimensions, value.getSchema().getDimensionNames());
+    Assert.assertEquals(Sets.newHashSet(metrics), Sets.newHashSet(value.getSchema().getMetricNames()));
+    Assert.assertEquals(4, value.getTotalCount());
+    Assert.assertEquals(incremental ? 92 : 152, value.getEstimatedSize());
 
     r = results.get(1);
-    Assert.assertEquals(r.getTimestamp(), new DateTime(2011, 1, 13, 0, 0));
-    Assert.assertEquals(ImmutableMap.of("testSegment", 4), r.getValue().getPerSegmentCounts());
-    Assert.assertEquals(dimensions, r.getValue().getDimensions());
-    Assert.assertEquals(Sets.newHashSet(metrics), Sets.newHashSet(r.getValue().getMetrics()));
-    Assert.assertEquals(4, r.getValue().getTotalCount());
-    Assert.assertEquals(incremental ? 92 : 152, r.getValue().getEstimatedSize());
+    Assert.assertEquals(new DateTime(2011, 1, 13, 0, 0), r.getTimestamp());
+    Assert.assertEquals(ImmutableMap.of("testSegment", 4), value.getPerSegmentCounts());
+    Assert.assertEquals(dimensions, value.getSchema().getDimensionNames());
+    Assert.assertEquals(Sets.newHashSet(metrics), Sets.newHashSet(value.getSchema().getMetricNames()));
+    Assert.assertEquals(4, value.getTotalCount());
+    Assert.assertEquals(incremental ? 92 : 152, value.getEstimatedSize());
   }
 
   @Test
@@ -159,6 +162,7 @@ public class SelectMetaQueryRunnerTest
         DefaultDimensionSpec.toSpec(Arrays.asList("market")),
         metrics,
         null,
+        false,
         new PagingSpec(ImmutableMap.of("testSegment", 3), -1),
         Maps.<String, Object>newHashMap()
     );
@@ -172,8 +176,9 @@ public class SelectMetaQueryRunnerTest
     Result<SelectMetaResultValue> r = results.get(0);
     Assert.assertEquals(new DateTime(2011, 1, 12, 0, 0), r.getTimestamp());
     Assert.assertEquals(ImmutableMap.of("testSegment", 23), r.getValue().getPerSegmentCounts());
-    Assert.assertEquals(dimensions, r.getValue().getDimensions());
-    Assert.assertEquals(Sets.newHashSet(metrics), Sets.newHashSet(r.getValue().getMetrics()));
+    Schema schema = r.getValue().getSchema();
+    Assert.assertEquals(dimensions, schema.getDimensionNames());
+    Assert.assertEquals(Sets.newHashSet(metrics), Sets.newHashSet(schema.getMetricNames()));
     Assert.assertEquals(23, r.getValue().getTotalCount());
     Assert.assertEquals(incremental ? 529 : 460, r.getValue().getEstimatedSize());
 
@@ -186,8 +191,9 @@ public class SelectMetaQueryRunnerTest
     r = results.get(0);
     Assert.assertEquals(r.getTimestamp(), new DateTime(2011, 1, 12, 0, 0));
     Assert.assertEquals(ImmutableMap.of("testSegment", 5), r.getValue().getPerSegmentCounts());
-    Assert.assertEquals(dimensions, r.getValue().getDimensions());
-    Assert.assertEquals(Sets.newHashSet(metrics), Sets.newHashSet(r.getValue().getMetrics()));
+    schema = r.getValue().getSchema();
+    Assert.assertEquals(dimensions, schema.getDimensionNames());
+    Assert.assertEquals(Sets.newHashSet(metrics), Sets.newHashSet(schema.getMetricNames()));
     Assert.assertEquals(5, r.getValue().getTotalCount());
     Assert.assertEquals(incremental ? 115 : 100, r.getValue().getEstimatedSize());
 
@@ -200,16 +206,18 @@ public class SelectMetaQueryRunnerTest
     r = results.get(0);
     Assert.assertEquals(r.getTimestamp(), new DateTime(2011, 1, 12, 0, 0));
     Assert.assertEquals(ImmutableMap.of("testSegment", 1), r.getValue().getPerSegmentCounts());
-    Assert.assertEquals(dimensions, r.getValue().getDimensions());
-    Assert.assertEquals(Sets.newHashSet(metrics), Sets.newHashSet(r.getValue().getMetrics()));
+    schema = r.getValue().getSchema();
+    Assert.assertEquals(dimensions, schema.getDimensionNames());
+    Assert.assertEquals(Sets.newHashSet(metrics), Sets.newHashSet(schema.getMetricNames()));
     Assert.assertEquals(1, r.getValue().getTotalCount());
     Assert.assertEquals(incremental ? 23 : 20, r.getValue().getEstimatedSize());
 
     r = results.get(1);
     Assert.assertEquals(r.getTimestamp(), new DateTime(2011, 1, 13, 0, 0));
     Assert.assertEquals(ImmutableMap.of("testSegment", 1), r.getValue().getPerSegmentCounts());
-    Assert.assertEquals(dimensions, r.getValue().getDimensions());
-    Assert.assertEquals(Sets.newHashSet(metrics), Sets.newHashSet(r.getValue().getMetrics()));
+    schema = r.getValue().getSchema();
+    Assert.assertEquals(dimensions, schema.getDimensionNames());
+    Assert.assertEquals(Sets.newHashSet(metrics), Sets.newHashSet(schema.getMetricNames()));
     Assert.assertEquals(1, r.getValue().getTotalCount());
     Assert.assertEquals(incremental ? 23 : 20, r.getValue().getEstimatedSize());
   }

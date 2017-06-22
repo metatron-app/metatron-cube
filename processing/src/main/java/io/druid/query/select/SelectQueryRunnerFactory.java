@@ -93,7 +93,7 @@ public class SelectQueryRunnerFactory
     PagingSpec pagingSpec = query.getPagingSpec();
     int threshold = pagingSpec.getThreshold();
     if (threshold > 0) {
-      final SelectMetaQuery baseQuery = query.toMetaQuery();
+      final SelectMetaQuery baseQuery = query.toMetaQuery(false);
       final SelectMetaQueryEngine metaQueryEngine = new SelectMetaQueryEngine();
 
       final Set<String> targets = Sets.newHashSet();
