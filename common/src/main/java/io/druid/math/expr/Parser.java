@@ -217,6 +217,22 @@ public class Parser
     };
   }
 
+  public static Expr.TypeBinding withTypeStrings(final Map<String, String> bindings)
+  {
+    return new Expr.TypeBinding()
+    {
+      @Override
+      public ExprType type(String name)
+      {
+        String typeName = bindings.get(name);
+        if (typeName == null) {
+          throw new RuntimeException("No binding found for " + name);
+        }
+        return ExprType.bestEffortOf(typeName);
+      }
+    };
+  }
+
   public static com.google.common.base.Function<String, String> asStringFunction(final Expr expr)
   {
     final DSuppliers.HandOver<String> supplier = new DSuppliers.HandOver<>();

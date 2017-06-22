@@ -19,7 +19,11 @@
 
 package io.druid.segment;
 
+import com.google.common.collect.Maps;
+import io.druid.math.expr.ExprType;
 import io.druid.segment.data.Indexed;
+
+import java.util.Map;
 
 /**
  */
@@ -39,5 +43,21 @@ public class Segments
       return segment.asQueryableIndex(false).getNumRows();
     }
     return segment.asStorageAdapter(false).getNumRows();
+  }
+
+  public static Map<String, String> toTypeMap(Segment segment, VirtualColumns virtualColumns)
+  {
+    StorageAdapter adapter = segment.asStorageAdapter(false);
+    Map<String, String> suppliers = Maps.newLinkedHashMap();
+    for (String dimension : adapter.getAvailableDimensions()) {
+      suppliers.put(dimension, ExprType.STRING.name());
+    }
+    for (String metric : adapter.getAvailableMetrics()) {
+      suppliers.put(metric, adapter.getColumnTypeName(metric));
+    }
+    for (VirtualColumn virtualColumn : virtualColumns) {
+      virtualColumns.resolveTypes(suppliers, virtualColumn);
+    }
+    return suppliers;
   }
 }

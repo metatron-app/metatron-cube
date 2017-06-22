@@ -100,7 +100,7 @@ public class SelectQuery extends BaseQuery<Result<SelectResultValue>>
     return true;
   }
 
-  SelectMetaQuery toMetaQuery()
+  public SelectMetaQuery toMetaQuery()
   {
     return new SelectMetaQuery(
         getDataSource(),

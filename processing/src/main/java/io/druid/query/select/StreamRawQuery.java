@@ -19,7 +19,6 @@
 
 package io.druid.query.select;
 
-import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import io.druid.granularity.QueryGranularity;
@@ -35,11 +34,10 @@ import java.util.Map;
 
 /**
  */
-@JsonTypeName(Query.SELECT_STREAM)
-public class StreamQuery extends AbstractStreamQuery<StreamQueryRow>
+@JsonTypeName(Query.SELECT_STREAM_RAW)
+public class StreamRawQuery extends AbstractStreamQuery<RawRows>
 {
-  @JsonCreator
-  public StreamQuery(
+  public StreamRawQuery(
       @JsonProperty("dataSource") DataSource dataSource,
       @JsonProperty("intervals") QuerySegmentSpec querySegmentSpec,
       @JsonProperty("filter") DimFilter dimFilter,
@@ -51,34 +49,29 @@ public class StreamQuery extends AbstractStreamQuery<StreamQueryRow>
       @JsonProperty("context") Map<String, Object> context
   )
   {
-    super(dataSource, querySegmentSpec, dimFilter, granularity, dimensions, metrics, virtualColumns, concatString, context);
+    super(
+        dataSource,
+        querySegmentSpec,
+        dimFilter,
+        granularity,
+        dimensions,
+        metrics,
+        virtualColumns,
+        concatString,
+        context
+    );
   }
 
   @Override
   public String getType()
   {
-    return Query.SELECT_STREAM;
-  }
-
-  public StreamQuery withQuerySegmentSpec(QuerySegmentSpec querySegmentSpec)
-  {
-    return new StreamQuery(
-        getDataSource(),
-        querySegmentSpec,
-        getDimFilter(),
-        getGranularity(),
-        getDimensions(),
-        getMetrics(),
-        getVirtualColumns(),
-        getConcatString(),
-        getContext()
-    );
+    return SELECT_STREAM_RAW;
   }
 
   @Override
-  public StreamQuery withDataSource(DataSource dataSource)
+  public Query<RawRows> withDataSource(DataSource dataSource)
   {
-    return new StreamQuery(
+    return new StreamRawQuery(
         dataSource,
         getQuerySegmentSpec(),
         getDimFilter(),
@@ -91,28 +84,13 @@ public class StreamQuery extends AbstractStreamQuery<StreamQueryRow>
     );
   }
 
-  public StreamQuery withOverriddenContext(Map<String, Object> contextOverrides)
-  {
-    return new StreamQuery(
-        getDataSource(),
-        getQuerySegmentSpec(),
-        getDimFilter(),
-        getGranularity(),
-        getDimensions(),
-        getMetrics(),
-        getVirtualColumns(),
-        getConcatString(),
-        computeOverridenContext(contextOverrides)
-    );
-  }
-
   @Override
-  public StreamQuery withDimFilter(DimFilter dimFilter)
+  public Query<RawRows> withQuerySegmentSpec(QuerySegmentSpec spec)
   {
-    return new StreamQuery(
+    return new StreamRawQuery(
         getDataSource(),
-        getQuerySegmentSpec(),
-        dimFilter,
+        spec,
+        getDimFilter(),
         getGranularity(),
         getDimensions(),
         getMetrics(),
@@ -122,9 +100,42 @@ public class StreamQuery extends AbstractStreamQuery<StreamQueryRow>
     );
   }
 
-  public StreamQuery withDimensionSpecs(List<DimensionSpec> dimensions)
+  @Override
+  public Query<RawRows> withOverriddenContext(Map<String, Object> contextOverride)
   {
-    return new StreamQuery(
+    return new StreamRawQuery(
+        getDataSource(),
+        getQuerySegmentSpec(),
+        getDimFilter(),
+        getGranularity(),
+        getDimensions(),
+        getMetrics(),
+        getVirtualColumns(),
+        getConcatString(),
+        computeOverridenContext(contextOverride)
+    );
+  }
+
+  @Override
+  public DimFilterSupport<RawRows> withDimFilter(DimFilter filter)
+  {
+    return new StreamRawQuery(
+        getDataSource(),
+        getQuerySegmentSpec(),
+        filter,
+        getGranularity(),
+        getDimensions(),
+        getMetrics(),
+        getVirtualColumns(),
+        getConcatString(),
+        getContext()
+    );
+  }
+
+  @Override
+  public DimensionSupport<RawRows> withDimensionSpecs(List<DimensionSpec> dimensions)
+  {
+    return new StreamRawQuery(
         getDataSource(),
         getQuerySegmentSpec(),
         getDimFilter(),
@@ -138,24 +149,9 @@ public class StreamQuery extends AbstractStreamQuery<StreamQueryRow>
   }
 
   @Override
-  public StreamQuery withVirtualColumns(List<VirtualColumn> virtualColumns)
+  public ViewSupport<RawRows> withMetrics(List<String> metrics)
   {
-    return new StreamQuery(
-        getDataSource(),
-        getQuerySegmentSpec(),
-        getDimFilter(),
-        getGranularity(),
-        getDimensions(),
-        getMetrics(),
-        virtualColumns,
-        getConcatString(),
-        getContext()
-    );
-  }
-
-  public StreamQuery withMetrics(List<String> metrics)
-  {
-    return new StreamQuery(
+    return new StreamRawQuery(
         getDataSource(),
         getQuerySegmentSpec(),
         getDimFilter(),
@@ -163,6 +159,22 @@ public class StreamQuery extends AbstractStreamQuery<StreamQueryRow>
         getDimensions(),
         metrics,
         getVirtualColumns(),
+        getConcatString(),
+        getContext()
+    );
+  }
+
+  @Override
+  public DimensionSupport<RawRows> withVirtualColumns(List<VirtualColumn> virtualColumns)
+  {
+    return new StreamRawQuery(
+        getDataSource(),
+        getQuerySegmentSpec(),
+        getDimFilter(),
+        getGranularity(),
+        getDimensions(),
+        getMetrics(),
+        virtualColumns,
         getConcatString(),
         getContext()
     );

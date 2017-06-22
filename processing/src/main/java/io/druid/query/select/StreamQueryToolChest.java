@@ -25,6 +25,7 @@ import com.google.common.base.Functions;
 import com.metamx.common.guava.Sequence;
 import com.metamx.common.guava.Sequences;
 import com.metamx.emitter.service.ServiceMetricEvent;
+import io.druid.common.guava.GuavaUtils;
 import io.druid.query.DruidMetrics;
 import io.druid.query.QueryRunner;
 import io.druid.query.QueryToolChest;
@@ -76,16 +77,7 @@ public class StreamQueryToolChest extends QueryToolChest<StreamQueryRow, StreamQ
       @Override
       public Sequence<Map<String, Object>> getSequence()
       {
-        return Sequences.map(
-            sequence, new Function<StreamQueryRow, Map<String, Object>>()
-            {
-              @Override
-              public Map<String, Object> apply(StreamQueryRow input)
-              {
-                return input;
-              }
-            }
-        );
+        return Sequences.map(sequence, GuavaUtils.<StreamQueryRow, Map<String, Object>>caster());
       }
 
       @Override

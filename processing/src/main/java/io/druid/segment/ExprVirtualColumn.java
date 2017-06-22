@@ -28,26 +28,44 @@ import io.druid.math.expr.Parser;
 import io.druid.query.filter.DimFilterCacheHelper;
 
 import java.nio.ByteBuffer;
+import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 
 /**
  */
-public class ExprVirtualColumn implements VirtualColumn
+public class ExprVirtualColumn implements VirtualColumn.Generic
 {
   private static final byte VC_TYPE_ID = 0x01;
 
   private final String outputName;
   private final String expression;
 
+  private final boolean includeAsDimension;
+  private final boolean includeAsMetric;
+
   @JsonCreator
   public ExprVirtualColumn(
       @JsonProperty("expression") String expression,
-      @JsonProperty("outputName") String outputName
+      @JsonProperty("outputName") String outputName,
+      @JsonProperty("includeAsDimension") boolean includeAsDimension,
+      @JsonProperty("includeAsMetric") boolean includeAsMetric
   )
   {
     this.expression = Preconditions.checkNotNull(expression, "expression should not be null");
     this.outputName = outputName == null ? Iterables.getOnlyElement(
         Parser.findRequiredBindings(expression), "output name should not be null") : outputName;
+    Preconditions.checkArgument(
+        !(includeAsDimension && includeAsMetric),
+        "Must have a valid, non-null fieldName or fieldExpression"
+    );
+    this.includeAsDimension = includeAsDimension;
+    this.includeAsMetric = includeAsMetric;
+  }
+
+  public ExprVirtualColumn(String expression, String outputName)
+  {
+    this(expression, outputName, false, false);
   }
 
   @Override
@@ -83,7 +101,7 @@ public class ExprVirtualColumn implements VirtualColumn
   @Override
   public VirtualColumn duplicate()
   {
-    return new ExprVirtualColumn(expression, outputName);
+    return new ExprVirtualColumn(expression, outputName, includeAsDimension, includeAsMetric);
   }
 
   @Override
@@ -92,10 +110,12 @@ public class ExprVirtualColumn implements VirtualColumn
     byte[] expr = StringUtils.toUtf8(expression);
     byte[] output = StringUtils.toUtf8(outputName);
 
-    return ByteBuffer.allocate(2 + expr.length + output.length)
+    return ByteBuffer.allocate(2 + expr.length + output.length + 2)
                      .put(VC_TYPE_ID)
                      .put(expr).put(DimFilterCacheHelper.STRING_SEPARATOR)
                      .put(output)
+                     .put(includeAsDimension ? (byte) 1 : 0)
+                     .put(includeAsMetric ? (byte) 1 : 0)
                      .array();
   }
 
@@ -109,6 +129,31 @@ public class ExprVirtualColumn implements VirtualColumn
   public String getOutputName()
   {
     return outputName;
+  }
+
+  @Override
+  @JsonProperty
+  public boolean includeAsDimension()
+  {
+    return includeAsDimension;
+  }
+
+  @Override
+  @JsonProperty
+  public boolean includeAsMetric()
+  {
+    return includeAsMetric;
+  }
+
+  public List<String> getRequiredBinding()
+  {
+    return Parser.findRequiredBindings(expression);
+  }
+
+  @Override
+  public String resolveType(Map<String, String> typeMap)
+  {
+    return Parser.parse(expression).type(Parser.withTypeStrings(typeMap)).name();
   }
 
   @Override
@@ -135,6 +180,12 @@ public class ExprVirtualColumn implements VirtualColumn
     if (!outputName.equals(that.outputName)) {
       return false;
     }
+    if (includeAsDimension != that.includeAsDimension) {
+      return false;
+    }
+    if (includeAsMetric != that.includeAsMetric) {
+      return false;
+    }
 
     return true;
   }
@@ -142,7 +193,7 @@ public class ExprVirtualColumn implements VirtualColumn
   @Override
   public int hashCode()
   {
-    return Objects.hash(expression, outputName);
+    return Objects.hash(expression, outputName, includeAsDimension, includeAsMetric);
   }
 
   @Override
@@ -151,6 +202,8 @@ public class ExprVirtualColumn implements VirtualColumn
     return "ExprVirtualColumn{" +
            "expression='" + expression + '\'' +
            ", outputName='" + outputName + '\'' +
+           ", includeAsDimension='" + includeAsDimension + '\'' +
+           ", includeAsMetric='" + includeAsMetric + '\'' +
            '}';
   }
 }

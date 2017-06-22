@@ -22,6 +22,7 @@ package io.druid.query.select;
 import com.google.common.base.Function;
 import com.google.common.base.Supplier;
 import com.google.common.collect.Iterables;
+import com.google.common.collect.Lists;
 import com.google.inject.Inject;
 import com.metamx.common.Pair;
 import com.metamx.common.guava.LazySequence;
@@ -34,7 +35,9 @@ import io.druid.query.QueryRunner;
 import io.druid.query.QueryRunnerFactory;
 import io.druid.query.QueryToolChest;
 import io.druid.segment.Segment;
+import org.joda.time.DateTime;
 
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutorService;
@@ -42,10 +45,10 @@ import java.util.concurrent.Future;
 
 /**
  */
-public class StreamQueryRunnerFactory
-    implements QueryRunnerFactory<StreamQueryRow, StreamQuery>
+public class StreamRawQueryRunnerFactory
+    implements QueryRunnerFactory<RawRows, StreamRawQuery>
 {
-  private final StreamQueryToolChest toolChest;
+  private final StreamRawQueryToolChest toolChest;
   private final StreamQueryEngine engine;
 
   @BitmapCache
@@ -53,12 +56,12 @@ public class StreamQueryRunnerFactory
   private Cache cache;
 
   @Inject
-  public StreamQueryRunnerFactory(StreamQueryToolChest toolChest, StreamQueryEngine engine)
+  public StreamRawQueryRunnerFactory(StreamRawQueryToolChest toolChest, StreamQueryEngine engine)
   {
     this(toolChest, engine, null);
   }
 
-  public StreamQueryRunnerFactory(StreamQueryToolChest toolChest, StreamQueryEngine engine, Cache cache)
+  public StreamRawQueryRunnerFactory(StreamRawQueryToolChest toolChest, StreamQueryEngine engine, Cache cache)
   {
     this.toolChest = toolChest;
     this.engine = engine;
@@ -66,58 +69,49 @@ public class StreamQueryRunnerFactory
   }
 
   @Override
-  public QueryRunner<StreamQueryRow> createRunner(final Segment segment, Future<Object> optimizer)
+  public QueryRunner<RawRows> createRunner(final Segment segment, Future<Object> optimizer)
   {
-    return new QueryRunner<StreamQueryRow>()
+    return new QueryRunner<RawRows>()
     {
       @Override
-      public Sequence<StreamQueryRow> run(Query<StreamQueryRow> query, Map<String, Object> responseContext)
+      public Sequence<RawRows> run(Query<RawRows> query, Map<String, Object> responseContext)
       {
-        Pair<Schema, Sequence<Object[]>> result = engine.process((StreamQuery) query, segment, cache);
-        final String[] columnNames = result.lhs.getColumnNames();
-        return Sequences.map(
-            result.rhs, new Function<Object[], StreamQueryRow>()
-            {
-              @Override
-              public StreamQueryRow apply(final Object[] input)
-              {
-                final StreamQueryRow theEvent = new StreamQueryRow();
-                for (int i = 0; i < input.length; i++) {
-                  theEvent.put(columnNames[i], input[i]);
-                }
-                return theEvent;
-              }
-            }
+        Pair<Schema, Sequence<Object[]>> result = engine.process((StreamRawQuery) query, segment, cache);
+        DateTime start = segment.getDataInterval().getStart();
+        return Sequences.simple(
+            Arrays.asList(
+                new RawRows(start, result.lhs, Sequences.toList(result.rhs, Lists.<Object[]>newArrayList()))
+            )
         );
       }
     };
   }
 
   @Override
-  public QueryRunner<StreamQueryRow> mergeRunners(
+  public QueryRunner<RawRows> mergeRunners(
       final ExecutorService queryExecutor,
-      final Iterable<QueryRunner<StreamQueryRow>> queryRunners,
+      final Iterable<QueryRunner<RawRows>> queryRunners,
       Future<Object> optimizer
   )
   {
-    return new QueryRunner<StreamQueryRow>()
+    return new QueryRunner<RawRows>()
     {
       @Override
-      public Sequence<StreamQueryRow> run(final Query<StreamQueryRow> query, final Map<String, Object> responseContext)
+      public Sequence<RawRows> run(final Query<RawRows> query, final Map<String, Object> responseContext)
       {
         return Sequences.concat(
             Iterables.transform(
                 queryRunners,
-                new Function<QueryRunner<StreamQueryRow>, Sequence<StreamQueryRow>>()
+                new Function<QueryRunner<RawRows>, Sequence<RawRows>>()
                 {
                   @Override
-                  public Sequence<StreamQueryRow> apply(final QueryRunner<StreamQueryRow> input)
+                  public Sequence<RawRows> apply(final QueryRunner<RawRows> input)
                   {
-                    return new LazySequence<StreamQueryRow>(
-                        new Supplier<Sequence<StreamQueryRow>>()
+                    return new LazySequence<RawRows>(
+                        new Supplier<Sequence<RawRows>>()
                         {
                           @Override
-                          public Sequence<StreamQueryRow> get()
+                          public Sequence<RawRows> get()
                           {
                             return input.run(query, responseContext);
                           }
@@ -132,13 +126,13 @@ public class StreamQueryRunnerFactory
   }
 
   @Override
-  public QueryToolChest<StreamQueryRow, StreamQuery> getToolchest()
+  public QueryToolChest<RawRows, StreamRawQuery> getToolchest()
   {
     return toolChest;
   }
 
   @Override
-  public Future<Object> preFactoring(StreamQuery query, List<Segment> segments, ExecutorService exec)
+  public Future<Object> preFactoring(StreamRawQuery query, List<Segment> segments, ExecutorService exec)
   {
     return null;
   }

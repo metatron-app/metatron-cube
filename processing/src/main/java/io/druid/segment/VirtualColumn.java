@@ -23,6 +23,9 @@ import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import io.druid.query.Cacheable;
 
+import java.util.List;
+import java.util.Map;
+
 /**
  */
 @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type", defaultImpl = ExprVirtualColumn.class)
@@ -49,4 +52,15 @@ public interface VirtualColumn extends Cacheable
   DimensionSelector asDimension(String dimension, ColumnSelectorFactory factory);
 
   VirtualColumn duplicate();
+
+  interface Generic extends VirtualColumn
+  {
+    boolean includeAsDimension();
+
+    boolean includeAsMetric();
+
+    List<String> getRequiredBinding();
+
+    String resolveType(Map<String, String> typeMap);
+  }
 }

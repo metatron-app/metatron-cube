@@ -22,9 +22,8 @@ package io.druid.query.select;
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Iterables;
-import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
 import com.metamx.common.ISE;
+import com.metamx.common.Pair;
 import com.metamx.common.guava.Sequence;
 import com.metamx.common.guava.Sequences;
 import io.druid.cache.Cache;
@@ -42,15 +41,19 @@ import io.druid.segment.data.IndexedInts;
 import org.apache.commons.lang.StringUtils;
 import org.joda.time.Interval;
 
+import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
-import java.util.Map;
 
 /**
  */
 public class StreamQueryEngine
 {
-  public Sequence<StreamQueryRow> process(final StreamQuery baseQuery, final Segment segment, final Cache cache)
+  public Pair<Schema, Sequence<Object[]>> process(
+      final AbstractStreamQuery baseQuery,
+      final Segment segment,
+      final Cache cache
+  )
   {
     final StorageAdapter adapter = segment.asStorageAdapter(true);
 
@@ -60,11 +63,18 @@ public class StreamQueryEngine
       );
     }
 
-    final StreamQuery query = (StreamQuery) ViewSupportHelper.rewrite(baseQuery, adapter);
+    final AbstractStreamQuery<?> query = (AbstractStreamQuery) ViewSupportHelper.rewrite(baseQuery, adapter);
+
     List<Interval> intervals = query.getQuerySegmentSpec().getIntervals();
     Preconditions.checkArgument(intervals.size() == 1, "Can only handle a single interval, got[%s]", intervals);
 
-    return Sequences.concat(
+    final String concatString = query.getConcatString();
+    final Schema schema = ViewSupportHelper.toSchema(query, segment);
+
+    final List<DimensionSpec> dimensions = query.getDimensions();
+    final List<String> metrics = query.getMetrics();
+
+    Sequence<Object[]> sequence = Sequences.concat(
         QueryRunnerHelper.makeCursorBasedQuery(
             adapter,
             Iterables.getOnlyElement(intervals),
@@ -73,31 +83,29 @@ public class StreamQueryEngine
             cache,
             query.isDescending(),
             query.getGranularity(),
-            new Function<Cursor, Sequence<StreamQueryRow>>()
+            new Function<Cursor, Sequence<Object[]>>()
             {
               @Override
-              public Sequence<StreamQueryRow> apply(final Cursor cursor)
+              public Sequence<Object[]> apply(final Cursor cursor)
               {
                 final LongColumnSelector timestampColumnSelector = cursor.makeLongColumnSelector(Column.TIME_COLUMN_NAME);
 
-                final Map<String, DimensionSelector> dimSelectors = Maps.newLinkedHashMap();
-                for (DimensionSpec dim : query.getDimensions()) {
-                  final DimensionSelector dimSelector = cursor.makeDimensionSelector(dim);
-                  dimSelectors.put(dim.getOutputName(), dimSelector);
+                final DimensionSelector[] dimSelectors = new DimensionSelector[dimensions.size()];
+                for (int i = 0; i < dimSelectors.length; i++) {
+                  dimSelectors[i] = cursor.makeDimensionSelector(dimensions.get(i));
+                }
+                final ObjectColumnSelector[] metSelectors = new ObjectColumnSelector[metrics.size()];
+                for (int i = 0; i < metSelectors.length; i++) {
+                  metSelectors[i] = cursor.makeObjectColumnSelector(metrics.get(i));
                 }
 
-                final Map<String, ObjectColumnSelector> metSelectors = Maps.newLinkedHashMap();
-                for (String metric : query.getMetrics()) {
-                  final ObjectColumnSelector metricSelector = cursor.makeObjectColumnSelector(metric);
-                  metSelectors.put(metric, metricSelector);
-                }
                 return Sequences.simple(
-                    new Iterable<StreamQueryRow>()
+                    new Iterable<Object[]>()
                     {
                       @Override
-                      public Iterator<StreamQueryRow> iterator()
+                      public Iterator<Object[]> iterator()
                       {
-                        return new Iterator<StreamQueryRow>()
+                        return new Iterator<Object[]>()
                         {
                           @Override
                           public boolean hasNext()
@@ -106,47 +114,39 @@ public class StreamQueryEngine
                           }
 
                           @Override
-                          public StreamQueryRow next()
+                          public Object[] next()
                           {
-                            final StreamQueryRow theEvent = new StreamQueryRow();
-                            theEvent.put(EventHolder.timestampKey, timestampColumnSelector.get());
+                            final Object[] theEvent = new Object[schema.size()];
 
-                            for (Map.Entry<String, DimensionSelector> dimSelector : dimSelectors.entrySet()) {
-                              final String dim = dimSelector.getKey();
-                              final DimensionSelector selector = dimSelector.getValue();
-
+                            int index = 0;
+                            for (DimensionSelector selector : dimSelectors) {
                               if (selector == null) {
-                                theEvent.put(dim, null);
+                                continue;
+                              }
+                              final IndexedInts vals = selector.getRow();
+                              final int size = vals.size();
+                              if (size == 1) {
+                                theEvent[index++] = selector.lookupName(vals.get(0));
                               } else {
-                                final IndexedInts vals = selector.getRow();
-
-                                if (vals.size() == 1) {
-                                  final String dimVal = selector.lookupName(vals.get(0));
-                                  theEvent.put(dim, dimVal);
+                                String[] dimVals = new String[size];
+                                for (int i = 0; i < size; ++i) {
+                                  dimVals[i] = selector.lookupName(vals.get(i));
+                                }
+                                if (concatString != null) {
+                                  theEvent[index++] = StringUtils.join(dimVals, concatString);
                                 } else {
-                                  List<String> dimVals = Lists.newArrayList();
-                                  for (int i = 0; i < vals.size(); ++i) {
-                                    dimVals.add(selector.lookupName(vals.get(i)));
-                                  }
-                                  if (query.getConcatString() != null) {
-                                    theEvent.put(dim, StringUtils.join(dimVals, query.getConcatString()));
-                                  } else {
-                                    theEvent.put(dim, dimVals);
-                                  }
+                                  theEvent[index++] = Arrays.asList(dimVals);
                                 }
                               }
                             }
 
-                            for (Map.Entry<String, ObjectColumnSelector> metSelector : metSelectors.entrySet()) {
-                              final String metric = metSelector.getKey();
-                              final ObjectColumnSelector selector = metSelector.getValue();
-
-                              if (selector == null) {
-                                theEvent.put(metric, null);
-                              } else {
-                                theEvent.put(metric, selector.get());
+                            for (ObjectColumnSelector selector : metSelectors) {
+                              if (selector != null) {
+                                theEvent[index++] = selector.get();
                               }
                             }
+                            theEvent[index] = timestampColumnSelector.get();
+
                             cursor.advance();
                             return theEvent;
                           }
@@ -158,5 +158,7 @@ public class StreamQueryEngine
             }
         )
     );
+
+    return Pair.of(schema, sequence);
   }
 }

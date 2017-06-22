@@ -26,6 +26,7 @@ import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
+import io.druid.math.expr.ExprType;
 import io.druid.query.dimension.DimensionSpec;
 import io.druid.query.filter.DimFilter;
 import io.druid.segment.column.ColumnCapabilities;
@@ -42,7 +43,7 @@ import java.util.Set;
 
 /**
  */
-public class VirtualColumns
+public class VirtualColumns implements Iterable<VirtualColumn>
 {
   public static void checkDimensionIndexed(List<VirtualColumn> virtualColumns, String dimension)
   {
@@ -288,6 +289,12 @@ public class VirtualColumns
     };
   }
 
+  @Override
+  public Iterator<VirtualColumn> iterator()
+  {
+    return virtualColumns.values().iterator();
+  }
+
   public static class VirtualColumnAsColumnSelectorFactory extends ColumnSelectorFactory.ExprUnSupport
   {
     private final VirtualColumn virtualColumn;
@@ -413,5 +420,27 @@ public class VirtualColumns
       }
     }
     return true;
+  }
+
+  public void resolveTypes(Map<String, String> suppliers, VirtualColumn virtualColumn)
+  {
+    String outputName = virtualColumn.getOutputName();
+    if (!suppliers.containsKey(outputName) && virtualColumn instanceof VirtualColumn.Generic) {
+      VirtualColumn.Generic generic = (VirtualColumn.Generic) virtualColumn;
+      if (generic.includeAsDimension()) {
+        suppliers.put(outputName, ExprType.STRING.name());
+      } else if (generic.includeAsMetric()) {
+        for (String binding : generic.getRequiredBinding()) {
+          if (suppliers.containsKey(binding)) {
+            continue;
+          }
+          VirtualColumn vc = getVirtualColumn(binding);
+          if (vc != null) {
+            resolveTypes(suppliers, vc);
+          }
+        }
+        suppliers.put(outputName, generic.resolveType(suppliers));
+      }
+    }
   }
 }

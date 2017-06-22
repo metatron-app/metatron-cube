@@ -27,6 +27,18 @@ import java.util.concurrent.atomic.AtomicReference;
  */
 public class DSuppliers
 {
+  public static <T> Typed<T> typeOf(final Class<T> clazz)
+  {
+    return new Typed<T>()
+    {
+      @Override
+      public Class<T> classOfObject()
+      {
+        return clazz;
+      }
+    };
+  }
+
   public static interface Typed<T>
   {
     Class<T> classOfObject();

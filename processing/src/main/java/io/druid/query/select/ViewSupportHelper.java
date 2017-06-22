@@ -24,19 +24,26 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import com.metamx.common.logger.Logger;
 import io.druid.common.guava.GuavaUtils;
+import io.druid.data.ValueType;
+import io.druid.math.expr.ExprType;
 import io.druid.query.DataSource;
 import io.druid.query.Query;
 import io.druid.query.TableDataSource;
 import io.druid.query.ViewDataSource;
 import io.druid.query.dimension.DefaultDimensionSpec;
+import io.druid.query.dimension.DimensionSpecs;
 import io.druid.query.filter.AndDimFilter;
 import io.druid.query.filter.DimFilter;
+import io.druid.segment.Segment;
+import io.druid.segment.Segments;
 import io.druid.segment.StorageAdapter;
 import io.druid.segment.VirtualColumn;
 import io.druid.segment.VirtualColumns;
 
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 
 /**
  */
@@ -72,7 +79,8 @@ public class ViewSupportHelper
           List<String> availableDimensions =
               GuavaUtils.exclude(GuavaUtils.retain(adapter.getAvailableDimensions(), retainers), exclusions);
           for (String remain : GuavaUtils.exclude(retainers, availableDimensions)) {
-            if (virtualColumn.getVirtualColumn(remain) != null) {
+            VirtualColumn vc = virtualColumn.getVirtualColumn(remain);
+            if (vc instanceof VirtualColumn.Generic && ((VirtualColumn.Generic)vc).includeAsDimension()) {
               availableDimensions.add(remain);
             }
           }
@@ -95,7 +103,8 @@ public class ViewSupportHelper
           List<String> availableMetrics =
               GuavaUtils.exclude(GuavaUtils.retain(adapter.getAvailableMetrics(), retainers), exclusions);
           for (String remain : GuavaUtils.exclude(retainers, availableMetrics)) {
-            if (virtualColumn.getVirtualColumn(remain) != null) {
+            VirtualColumn vc = virtualColumn.getVirtualColumn(remain);
+            if (vc instanceof VirtualColumn.Generic && ((VirtualColumn.Generic)vc).includeAsMetric()) {
               availableMetrics.add(remain);
             }
           }
@@ -117,5 +126,29 @@ public class ViewSupportHelper
       log.info("view translated query to %s", query);
     }
     return query;
+  }
+
+  public static Schema toSchema(Query.ViewSupport<?> query, Segment segment)
+  {
+    final List<String> dimensions = DimensionSpecs.toOutputNames(query.getDimensions());
+    final List<String> metrics = query.getMetrics();
+    final VirtualColumns virtualColumns = VirtualColumns.valueOf(query.getVirtualColumns());
+
+    final Map<String, String> types = Segments.toTypeMap(segment, virtualColumns);
+
+    final String[] columnNames = Lists.newArrayList(
+        Iterables.concat(dimensions, metrics, Arrays.asList(EventHolder.timestampKey))
+    ).toArray(new String[0]);
+
+    final String[] columnTypes = new String[columnNames.length];
+
+    int i = 0;
+    for (; i < columnNames.length - 1; i++) {
+      String type = types.get(columnNames[i]);
+      columnTypes[i] = type == null ? ExprType.UNKNOWN.name() : type;
+    }
+    columnTypes[i] = ValueType.LONG.name();
+
+    return new Schema(columnNames, columnTypes);
   }
 }
