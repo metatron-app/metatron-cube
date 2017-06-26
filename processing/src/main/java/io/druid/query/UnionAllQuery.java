@@ -21,10 +21,15 @@ package io.druid.query;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Iterables;
+import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
+import io.druid.common.utils.JodaUtils;
+import io.druid.query.spec.MultipleIntervalSegmentSpec;
 import io.druid.query.spec.QuerySegmentSpec;
+import org.joda.time.Interval;
 
 import java.util.List;
 import java.util.Map;
@@ -47,6 +52,19 @@ public class UnionAllQuery<T extends Comparable<T>> extends BaseQuery<T>
     return UnionDataSource.of(names);
   }
 
+  // dummy datasource for authorization
+  private static <T> QuerySegmentSpec unionQuerySegmentSpec(Query<T> query, List<Query<T>> queries)
+  {
+    if (queries == null || queries.isEmpty()) {
+      return Preconditions.checkNotNull(query).getQuerySegmentSpec();
+    }
+    List<Interval> intervals = Lists.newArrayList();
+    for (Query q : queries) {
+      intervals.addAll(q.getQuerySegmentSpec().getIntervals());
+    }
+    return new MultipleIntervalSegmentSpec(JodaUtils.condenseIntervals(intervals));
+  }
+
   private final Query<T> query;
   private final List<Query<T>> queries;
   private final boolean sortOnUnion;
@@ -65,7 +83,7 @@ public class UnionAllQuery<T extends Comparable<T>> extends BaseQuery<T>
       @JsonProperty("context") Map<String, Object> context
   )
   {
-    super(unionDataSource(query, queries), null, false, context);
+    super(unionDataSource(query, queries), unionQuerySegmentSpec(query, queries), false, context);
     this.query = query;
     this.queries = queries;
     this.sortOnUnion = sortOnUnion;
@@ -148,13 +166,42 @@ public class UnionAllQuery<T extends Comparable<T>> extends BaseQuery<T>
 
   @Override
   @SuppressWarnings("unchecked")
-  public Query<T> withOverriddenContext(Map<String, Object> contextOverride)
+  public Query<T> withOverriddenContext(final Map<String, Object> contextOverride)
   {
     Map<String, Object> context = computeOverridenContext(contextOverride);
     if (queries == null) {
-      return new UnionAllQuery(query, null, sortOnUnion, limit, parallelism, queue, context);
+      return newInstance(overrideContext(query, contextOverride), null, context);
     }
-    return new UnionAllQuery(null, queries, sortOnUnion, limit, parallelism, queue, context);
+    return newInstance(null, overrideContext(queries, contextOverride), context);
+  }
+
+  @SuppressWarnings("unchecked")
+  protected Query newInstance(Query<T> query, List<Query<T>> queries, Map<String, Object> context)
+  {
+    return new UnionAllQuery(
+        query, queries, sortOnUnion, limit, parallelism, queue, context
+    );
+  }
+
+  protected Query<T> overrideContext(Query<T> query, Map<String, Object> contextOverride)
+  {
+    return query.withOverriddenContext(contextOverride);
+  }
+
+  protected List<Query<T>> overrideContext(List<Query<T>> queries, final Map<String, Object> contextOverride)
+  {
+    return Lists.newArrayList(
+        Lists.transform(
+            queries, new Function<Query<T>, Query<T>>()
+            {
+              @Override
+              public Query<T> apply(Query<T> input)
+              {
+                return input.withOverriddenContext(contextOverride);
+              }
+            }
+        )
+    );
   }
 
   @Override

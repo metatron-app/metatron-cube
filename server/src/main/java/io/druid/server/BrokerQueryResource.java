@@ -24,6 +24,7 @@ import com.fasterxml.jackson.jaxrs.smile.SmileMediaTypes;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+import com.google.common.collect.Sets;
 import com.google.inject.Inject;
 import com.metamx.common.guava.Sequence;
 import com.metamx.common.guava.Sequences;
@@ -38,6 +39,7 @@ import io.druid.data.output.Formatters;
 import io.druid.guice.annotations.Json;
 import io.druid.guice.annotations.Self;
 import io.druid.guice.annotations.Smile;
+import io.druid.indexing.overlord.IndexerMetadataStorageCoordinator;
 import io.druid.query.BaseQuery;
 import io.druid.query.DataSource;
 import io.druid.query.LocatedSegmentDescriptor;
@@ -55,6 +57,7 @@ import io.druid.query.select.SelectForwardQuery;
 import io.druid.query.select.SelectQuery;
 import io.druid.query.select.StreamQuery;
 import io.druid.segment.IndexMergerV9;
+import io.druid.segment.loading.DataSegmentPusher;
 import io.druid.server.coordination.DruidServerMetadata;
 import io.druid.server.initialization.ServerConfig;
 import io.druid.server.log.RequestLogger;
@@ -91,6 +94,8 @@ public class BrokerQueryResource extends QueryResource
 {
   private final CoordinatorClient coordinator;
   private final TimelineServerView brokerServerView;
+  private final DataSegmentPusher pusher;
+  private final IndexerMetadataStorageCoordinator indexerMetadataStorageCoordinator;
 
   @Inject
   public BrokerQueryResource(
@@ -104,6 +109,8 @@ public class BrokerQueryResource extends QueryResource
       AuthConfig authConfig,
       CoordinatorClient coordinator,
       TimelineServerView brokerServerView,
+      DataSegmentPusher pusher,
+      IndexerMetadataStorageCoordinator indexerMetadataStorageCoordinator,
       @Self DruidNode node,
       QueryToolChestWarehouse warehouse,
       IndexMergerV9 merger,
@@ -126,6 +133,8 @@ public class BrokerQueryResource extends QueryResource
     );
     this.coordinator = coordinator;
     this.brokerServerView = brokerServerView;
+    this.pusher = pusher;
+    this.indexerMetadataStorageCoordinator = indexerMetadataStorageCoordinator;
   }
 
   @POST
@@ -278,8 +287,15 @@ public class BrokerQueryResource extends QueryResource
       Map<String, Object> dataMeta = (Map<String, Object>) result.get("data");
       URI location = (URI) dataMeta.get("location");
       DataSegment segment = (DataSegment) dataMeta.get("segment");
-      BrokerServerView serverView = (BrokerServerView) brokerServerView;
-      serverView.addedLocalSegment(segment, merger.getIndexIO().loadIndex(new File(location.getPath())));
+      if (PropUtils.parseBoolean(forwardContext, "temporary", true)) {
+        log.info("Publishing index to temporary table..");
+        BrokerServerView serverView = (BrokerServerView) brokerServerView;
+        serverView.addedLocalSegment(segment, merger.getIndexIO().loadIndex(new File(location.getPath())));
+      } else {
+        log.info("Publishing index to table..");
+        pusher.push(new File(location.getPath()), segment);
+        indexerMetadataStorageCoordinator.announceHistoricalSegments(Sets.newHashSet(segment));
+      }
     }
     return Sequences.simple(Arrays.asList(result));
   }

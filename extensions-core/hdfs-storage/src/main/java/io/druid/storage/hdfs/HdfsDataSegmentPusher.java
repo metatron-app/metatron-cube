@@ -23,12 +23,14 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.io.ByteSink;
 import com.google.common.io.ByteSource;
 import com.google.inject.Inject;
 import com.metamx.common.CompressionUtils;
+import com.metamx.common.Granularity;
 import com.metamx.common.IAE;
 import com.metamx.common.logger.Logger;
 import io.druid.common.utils.PropUtils;
@@ -65,6 +67,7 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -244,6 +247,7 @@ public class HdfsDataSegmentPusher implements DataSegmentPusher, ResultWriter
           jsonMapper.convertValue(context.get("schema"), IncrementalIndexSchema.class),
           "cannot find/create index schema"
       );
+      final Interval queryInterval = jsonMapper.convertValue(context.get("interval"), Interval.class);
       final List<String> dimensions = schema.getDimensionsSpec().getDimensionNames();
       final List<String> metrics = schema.getMetricNames();
 
@@ -306,6 +310,9 @@ public class HdfsDataSegmentPusher implements DataSegmentPusher, ResultWriter
           if (!index.isEmpty()) {
             files.add(persist());
           }
+          if (files.isEmpty()) {
+            return ImmutableMap.<String, Object>of("rowCount", rowCount);
+          }
           File mergedBase;
           if (files.size() == 1) {
             mergedBase = files.get(0);
@@ -314,6 +321,7 @@ public class HdfsDataSegmentPusher implements DataSegmentPusher, ResultWriter
             for (File file : files) {
               indexes.add(merger.getIndexIO().loadIndex(file));
             }
+            log.info("Merging %d indices into one", indexes.size());
             mergedBase = merger.mergeQueryableIndexAndClose(
                 indexes,
                 schema.getMetrics(),
@@ -370,11 +378,37 @@ public class HdfsDataSegmentPusher implements DataSegmentPusher, ResultWriter
 
         private IncrementalIndex newIndex()
         {
-          return new OnheapIncrementalIndex(schema, true, true, true, maxRowCount);
+          return new OnheapIncrementalIndex(schema, true, true, true, maxRowCount)
+          {
+            @Override
+            public Interval getInterval()
+            {
+              Interval dataInterval = new Interval(getMinTimeMillis(), getMaxTimeMillis());
+              if (dataInterval.toPeriod().getMillis() == 0) {
+                dataInterval = queryInterval;
+              }
+              Granularity prev = Granularity.YEAR;
+              for (Granularity granularity : Arrays.asList(
+                  Granularity.HOUR,
+                  Granularity.DAY,
+                  Granularity.MONTH,
+                  Granularity.YEAR
+              )) {
+                if (Iterables.size(granularity.getIterable(dataInterval)) > 1) {
+                  break;
+                }
+                prev = granularity;
+              }
+              Interval interval = new Interval(prev.truncate(index.getMinTime()), prev.increment(index.getMaxTime()));
+              log.info("Using data interval %s", interval);
+              return interval;
+            }
+          };
         }
 
         private File persist() throws IOException
         {
+          log.info("Flushing %,d rows with estimated size %,d bytes", index.size(), index.estimatedOccupation());
           return merger.persist(index, nextFile(), new IndexSpec());
         }
 

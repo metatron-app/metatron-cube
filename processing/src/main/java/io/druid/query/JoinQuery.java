@@ -352,9 +352,9 @@ public class JoinQuery<T extends Comparable<T>> extends BaseQuery<T> implements 
   }
 
   @SuppressWarnings("unchecked")
-  public static class JoinDelegate extends UnionAllQuery
+  public static class JoinDelegate<T extends Comparable<T>> extends UnionAllQuery<T>
   {
-    public JoinDelegate(List<Query> list, int limit, int parallelism, int queue, Map<String, Object> context)
+    public JoinDelegate(List<Query<T>> list, int limit, int parallelism, int queue, Map<String, Object> context)
     {
       super(null, list, false, limit, parallelism, queue, context);
     }
@@ -372,10 +372,11 @@ public class JoinQuery<T extends Comparable<T>> extends BaseQuery<T> implements 
     }
 
     @Override
-    public Query withOverriddenContext(Map contextOverride)
+    @SuppressWarnings("unchecked")
+    protected Query<T> newInstance(Query<T> query, List<Query<T>> queries, Map<String, Object> context)
     {
-      Map<String, Object> context = computeOverridenContext(contextOverride);
-      return new JoinDelegate(getQueries(), getLimit(), getParallelism(), getQueue(), context);
+      Preconditions.checkArgument(query == null);
+      return new JoinDelegate(queries, getLimit(), getParallelism(), getQueue(), context);
     }
 
     @Override

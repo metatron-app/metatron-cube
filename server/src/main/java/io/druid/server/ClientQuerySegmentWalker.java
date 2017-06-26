@@ -143,15 +143,15 @@ public class ClientQuerySegmentWalker implements QuerySegmentWalker
     final boolean sortOnUnion = union.isSortOnUnion();
     final PostProcessingOperator<T> postProcessing = PostProcessingOperators.load(union, mapper);
 
-    final List<Query<T>> ready = toTargetQueries(union, queryId);
     final UnionAllQueryRunner<T> baseRunner;
     if (union.getParallelism() < 1) {
      // executes when the first element of the sequence is accessed
      baseRunner = new UnionAllQueryRunner<T>()
       {
         @Override
-        public Sequence<Pair<Query<T>, Sequence<T>>> run(Query<T> query, final Map<String, Object> responseContext)
+        public Sequence<Pair<Query<T>, Sequence<T>>> run(final Query<T> query, final Map<String, Object> responseContext)
         {
+          final List<Query<T>> ready = toTargetQueries((UnionAllQuery<T>) query, queryId);
           return Sequences.simple(
               Lists.transform(
                   ready,
@@ -186,6 +186,7 @@ public class ClientQuerySegmentWalker implements QuerySegmentWalker
         @Override
         public Sequence<Pair<Query<T>, Sequence<T>>> run(final Query<T> query, final Map<String, Object> responseContext)
         {
+          final List<Query<T>> ready = toTargetQueries((UnionAllQuery<T>) query, queryId);
           final Execs.Semaphore semaphore = new Execs.Semaphore(Math.max(union.getParallelism(), union.getQueue()));
           final List<ListenableFuture<Sequence<T>>> futures = Execs.execute(
               exec, Lists.transform(

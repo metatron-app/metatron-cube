@@ -38,6 +38,7 @@ import com.metamx.common.guava.Yielder;
 import com.metamx.common.guava.YieldingAccumulator;
 import com.metamx.emitter.EmittingLogger;
 import com.metamx.emitter.service.ServiceEmitter;
+import io.druid.common.utils.JodaUtils;
 import io.druid.common.utils.PropUtils;
 import io.druid.data.output.Formatters;
 import io.druid.guice.LocalDataStorageDruidModule;
@@ -68,6 +69,7 @@ import io.druid.server.security.AuthorizationInfo;
 import io.druid.server.security.Resource;
 import io.druid.server.security.ResourceType;
 import org.joda.time.DateTime;
+import org.joda.time.Interval;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.ws.rs.Consumes;
@@ -513,6 +515,7 @@ public class QueryResource
     String format = Formatters.getFormat(forwardContext);
     if ("index".equals(format)) {
       String indexSchema = Objects.toString(forwardContext.get("schema"), null);
+      String indexInterval = Objects.toString(forwardContext.get("interval"), null);
       if (Strings.isNullOrEmpty(indexSchema)) {
         IncrementalIndexSchema schema = Queries.relaySchema(query, texasRanger.getDelegate());
         log.info(
@@ -524,7 +527,10 @@ public class QueryResource
             "schema",
             jsonMapper.convertValue(schema, new TypeReference<Map<String, Object>>() { })
         );
-        log.info("%s", jsonMapper.convertValue(schema, new TypeReference<Map<String, Object>>() { }));
+        if (indexInterval == null || jsonMapper.readValue(indexInterval, Interval.class) == null) {
+          Interval dataInterval = JodaUtils.umbrellaInterval(query.getQuerySegmentSpec().getIntervals());
+          forwardContext.put("interval", dataInterval.toString());
+        }
       }
     }
 

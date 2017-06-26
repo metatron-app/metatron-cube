@@ -206,7 +206,7 @@ public class PartitionedGroupByQuery extends GroupByQuery implements Query.Rewri
     for (DimFilter filter : QueryUtils.toFilters(dimension, partitions)) {
       queries.add(asGroupByQuery(intervals, filter));
     }
-    return new UnionAllQuery(null, queries, false, limit, parallelism, queue, getContext());
+    return new GroupByDelegate(queries, limit, parallelism, queue, getContext());
   }
 
   private GroupByQuery asGroupByQuery(List<Interval> interval, DimFilter filter)
@@ -315,5 +315,45 @@ public class PartitionedGroupByQuery extends GroupByQuery implements Query.Rewri
         queue,
         getContext()
     );
+  }
+
+  @SuppressWarnings("unchecked")
+  public static class GroupByDelegate<T extends Comparable<T>> extends UnionAllQuery<T>
+  {
+    public GroupByDelegate(List<Query<T>> list, int limit, int parallelism, int queue, Map<String, Object> context)
+    {
+      super(null, list, false, limit, parallelism, queue, context);
+    }
+
+    @Override
+    public Query withQueries(List queries)
+    {
+      return new GroupByDelegate(queries, getLimit(), getParallelism(), getQueue(), getContext());
+    }
+
+    @Override
+    public Query withQuery(Query query)
+    {
+      throw new IllegalStateException();
+    }
+
+    @Override
+    @SuppressWarnings("unchecked")
+    protected Query<T> newInstance(Query<T> query, List<Query<T>> queries, Map<String, Object> context)
+    {
+      Preconditions.checkArgument(query == null);
+      return new GroupByDelegate(queries, getLimit(), getParallelism(), getQueue(), context);
+    }
+
+    @Override
+    public String toString()
+    {
+      return "GroupByDelegate{" +
+             "queries=" + getQueries() +
+             ", parallelism=" + getParallelism() +
+             ", queue=" + getQueue() +
+             ", limit=" + getLimit() +
+             '}';
+    }
   }
 }

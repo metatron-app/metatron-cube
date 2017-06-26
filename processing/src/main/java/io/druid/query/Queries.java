@@ -38,6 +38,7 @@ import io.druid.query.aggregation.RelayAggregatorFactory;
 import io.druid.query.dimension.DimensionSpec;
 import io.druid.query.dimension.DimensionSpecs;
 import io.druid.query.groupby.GroupByQuery;
+import io.druid.query.groupby.PartitionedGroupByQuery;
 import io.druid.query.select.EventHolder;
 import io.druid.query.select.Schema;
 import io.druid.query.select.SelectMetaQuery;
@@ -153,6 +154,9 @@ public class Queries
                     .withMetrics(AggregatorFactory.toRelay(Iterables.transform(metrics, AggregatorFactory.NAME_TYPE)))
                     .withRollup(false)
                     .build();
+    } else if (subQuery instanceof PartitionedGroupByQuery.GroupByDelegate) {
+      GroupByQuery query = (GroupByQuery) ((UnionAllQuery)subQuery).getQueries().get(0);
+      return relaySchema(query, segmentWalker);
     } else {
       // todo union-all (partitioned-join, etc.)
       // todo timeseries topN query
