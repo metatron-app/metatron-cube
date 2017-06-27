@@ -20,6 +20,7 @@
 package io.druid.math.expr;
 
 import com.google.common.base.Preconditions;
+import com.google.common.base.Splitter;
 import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
@@ -1803,7 +1804,7 @@ public interface BuiltinFunctions extends Function.Library
         padding = string.charAt(0);
       }
       String input = args.get(0).eval(bindings).asString();
-      return ExprEval.of(Strings.padStart(input, length, padding));
+      return ExprEval.of(input == null ? null : Strings.padStart(input, length, padding));
     }
 
     @Override
@@ -1839,7 +1840,7 @@ public interface BuiltinFunctions extends Function.Library
         padding = string.charAt(0);
       }
       String input = args.get(0).eval(bindings).asString();
-      return ExprEval.of(Strings.padEnd(input, length, padding));
+      return ExprEval.of(input == null ? null : Strings.padEnd(input, length, padding));
     }
 
     @Override
@@ -1887,8 +1888,39 @@ public interface BuiltinFunctions extends Function.Library
     }
   }
 
-  class SplitFunc extends ExprType.StringFunction
+  // pattern
+  class SplitRegex extends ExprType.StringFunction
   {
+    @Override
+    public String name()
+    {
+      return "splitRegex";
+    }
+
+    @Override
+    public ExprEval apply(List<Expr> args, NumericBinding bindings)
+    {
+      if (args.size() != 3) {
+        throw new RuntimeException("function 'splitRegex' needs 3 arguments");
+      }
+      ExprEval inputEval = args.get(0).eval(bindings);
+      if (inputEval.isNull()) {
+        return ExprEval.of((String) null);
+      }
+      String input = inputEval.asString();
+      String splitter = args.get(1).eval(bindings).asString();
+      int index = (int) args.get(2).eval(bindings).longValue();
+
+      String[] split = input.split(splitter);
+      return ExprEval.of(index >= split.length ? null : split[index]);
+    }
+  }
+
+  // constant literal
+  class Split extends ExprType.StringFunction implements Factory
+  {
+    private Splitter splitter;
+
     @Override
     public String name()
     {
@@ -1898,15 +1930,38 @@ public interface BuiltinFunctions extends Function.Library
     @Override
     public ExprEval apply(List<Expr> args, NumericBinding bindings)
     {
-      if (args.size() != 3) {
-        throw new RuntimeException("function 'split' needs 3 arguments");
+      if (splitter == null) {
+        if (args.size() != 3) {
+          throw new RuntimeException("function 'split' needs 3 arguments");
+        }
+        String separator = Evals.getConstantString(args.get(1));
+        if (separator.length() == 1) {
+          splitter = Splitter.on(separator.charAt(0));
+        } else {
+          splitter = Splitter.on(separator);
+        }
       }
-      String input = args.get(0).eval(bindings).asString();
-      String splitter = args.get(1).eval(bindings).asString();
+      ExprEval inputEval = args.get(0).eval(bindings);
+      if (inputEval.isNull()) {
+        return ExprEval.of((String) null);
+      }
+      String input = inputEval.asString();
       int index = (int) args.get(2).eval(bindings).longValue();
+      if (index < 0) {
+        return ExprEval.of((String) null);
+      }
+      for (String x : splitter.split(input)) {
+        if (index-- == 0) {
+          return ExprEval.of(x);
+        }
+      }
+      return ExprEval.of((String) null);
+    }
 
-      String[] split = input.split(splitter);
-      return ExprEval.of(index >= split.length ? null : split[index]);
+    @Override
+    public Function get()
+    {
+      return new Split();
     }
   }
 

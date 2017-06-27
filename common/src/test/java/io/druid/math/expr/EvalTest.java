@@ -398,9 +398,11 @@ public class EvalTest
   @Test
   public void testSplit()
   {
-    Expr.NumericBinding bindings = Parser.withMap(ImmutableMap.of("x", "a:b:c"));
-    Assert.assertEquals("c", Parser.parse("split(x, ':', 2)").eval(bindings).stringValue());
-    Assert.assertEquals(null, Parser.parse("split(x, ':', 4)").eval(bindings).stringValue());
+    Expr.NumericBinding bindings = Parser.withMap(ImmutableMap.of("x", "a|b|c"));
+    Assert.assertEquals("c", Parser.parse("split(x, '|', 2)").eval(bindings).stringValue());
+    Assert.assertEquals(null, Parser.parse("split(x, '|', 4)").eval(bindings).stringValue());
+    Assert.assertEquals("c", Parser.parse("splitRegex(x, '\\\\|', 2)").eval(bindings).stringValue());
+    Assert.assertEquals(null, Parser.parse("splitRegex(x, '\\\\|', 4)").eval(bindings).stringValue());
   }
 
   @Test
