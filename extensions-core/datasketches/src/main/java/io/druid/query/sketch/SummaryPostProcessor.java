@@ -175,6 +175,13 @@ public class SummaryPostProcessor extends PostProcessingOperator.UnionSupport
               result.put("iqr", new Object[]{lower, upper});
               result.put("count", itemsSketch.getN());
 
+              if (ValueType.isNumeric(sketch.type())) {
+                double q1 = ((Number) lower).doubleValue();
+                double q3 = ((Number) upper).doubleValue();
+                double delta = (q3 - q1) * 1.5;
+                result.put("outlierThreshold", new double[]{q1 - delta, q3 + delta});
+              }
+
               if (sketch.type() == ValueType.STRING) {
                 final SearchQuery search = new SearchQuery(
                     representative.getDataSource(),
@@ -411,9 +418,9 @@ public class SummaryPostProcessor extends PostProcessingOperator.UnionSupport
 
     if (ValueType.isNumeric(type)) {
       double q1 = ((Number) lower).doubleValue();
-      double q2 = ((Number) upper).doubleValue();
-      double iqr = q2 - q1;
-      String outlier = escaped + " < " + (q1 - iqr * 1.5) + " || " + escaped + " >  " + (q2 + iqr * 1.5);
+      double q3 = ((Number) upper).doubleValue();
+      double iqr = q3 - q1;
+      String outlier = escaped + " < " + (q1 - iqr * 1.5) + " || " + escaped + " >  " + (q3 + iqr * 1.5);
       aggregators.add(new CountAggregatorFactory("outlier", outlier));
       aggregators.add(new GenericSumAggregatorFactory("sum", column, null));
       aggregators.add(new VarianceAggregatorFactory("variance", column));
