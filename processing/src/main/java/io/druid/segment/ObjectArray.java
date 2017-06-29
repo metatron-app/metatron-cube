@@ -42,6 +42,12 @@ public class ObjectArray<T>
     return array;
   }
 
+  public ObjectArray<T> pack(T[] values)
+  {
+    System.arraycopy(values, 0, array, 0, values.length);
+    return this;
+  }
+
   public String concat(String delimiter, String postfix)
   {
     StringBuilder b = new StringBuilder();

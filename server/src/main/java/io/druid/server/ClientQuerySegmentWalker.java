@@ -31,6 +31,7 @@ import com.metamx.common.guava.MergeSequence;
 import com.metamx.common.guava.ResourceClosingSequence;
 import com.metamx.common.guava.Sequence;
 import com.metamx.common.guava.Sequences;
+import com.metamx.common.logger.Logger;
 import com.metamx.emitter.service.ServiceEmitter;
 import io.druid.client.CachingClusteredClient;
 import io.druid.common.guava.FutureSequence;
@@ -68,6 +69,8 @@ import java.util.concurrent.Future;
  */
 public class ClientQuerySegmentWalker implements QuerySegmentWalker
 {
+  private static final Logger LOG = new Logger(ClientQuerySegmentWalker.class);
+
   private final ServiceEmitter emitter;
   private final CachingClusteredClient baseClient;
   private final QueryToolChestWarehouse warehouse;
@@ -188,6 +191,7 @@ public class ClientQuerySegmentWalker implements QuerySegmentWalker
         {
           final List<Query<T>> ready = toTargetQueries((UnionAllQuery<T>) query, queryId);
           final Execs.Semaphore semaphore = new Execs.Semaphore(Math.max(union.getParallelism(), union.getQueue()));
+          LOG.info("Starting parallel working on " + ready.size());
           final List<ListenableFuture<Sequence<T>>> futures = Execs.execute(
               exec, Lists.transform(
                   ready, new Function<Query<T>, Callable<Sequence<T>>>()

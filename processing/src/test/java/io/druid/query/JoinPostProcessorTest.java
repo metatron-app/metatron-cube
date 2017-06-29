@@ -84,9 +84,9 @@ public class JoinPostProcessorTest
     List<Map<String, Object>> r = Arrays.<Map<String, Object>>asList(
         ImmutableMap.<String, Object>of("c", "spot", "d", "business", "y", 200)
     );
-    assertJoin(inner.join(l, r), new int[][]{});
-    assertJoin(lo.join(l, r), new int[][]{{100, -1}});
-    assertJoin(ro.join(l, r), new int[][]{{-1, 200}});
+    assertJoin(new int[][]{}, inner.join(l, r), inner.hashJoin(l, r));
+    assertJoin(new int[][]{{100, -1}}, lo.join(l, r), lo.hashJoin(l, r));
+    assertJoin(new int[][]{{-1, 200}}, ro.join(l, r));
 
     // inner product
     l = Arrays.<Map<String, Object>>asList(
@@ -97,9 +97,9 @@ public class JoinPostProcessorTest
         ImmutableMap.<String, Object>of("c", "spot", "d", "automotive", "y", 300),
         ImmutableMap.<String, Object>of("c", "spot", "d", "automotive", "y", 400)
     );
-    assertJoin(inner.join(l, r), new int[][]{{100, 300}, {100, 400}, {200, 300}, {200, 400}});
-    assertJoin(lo.join(l, r), new int[][]{{100, 300}, {100, 400}, {200, 300}, {200, 400}});
-    assertJoin(ro.join(l, r), new int[][]{{100, 300}, {100, 400}, {200, 300}, {200, 400}});
+    assertJoin(new int[][]{{100, 300}, {100, 400}, {200, 300}, {200, 400}}, inner.join(l, r), inner.hashJoin(l, r));
+    assertJoin(new int[][]{{100, 300}, {100, 400}, {200, 300}, {200, 400}}, lo.join(l, r), lo.hashJoin(l, r));
+    assertJoin(new int[][]{{100, 300}, {100, 400}, {200, 300}, {200, 400}}, ro.join(l, r));
 
     // more1
     l = Arrays.<Map<String, Object>>asList(
@@ -112,9 +112,9 @@ public class JoinPostProcessorTest
         ImmutableMap.<String, Object>of("c", "spot", "d", "automotive", "y", 500),
         ImmutableMap.<String, Object>of("c", "total", "d", "mezzanine", "y", 600)
     );
-    assertJoin(inner.join(l, r), new int[][]{{100, 400}, {100, 500}, {300, 600}});
-    assertJoin(lo.join(l, r), new int[][]{{100, 400}, {100, 500}, {200, -1}, {300, 600}});
-    assertJoin(ro.join(l, r), new int[][]{{100, 400}, {100, 500}, {300, 600}});
+    assertJoin(new int[][]{{100, 400}, {100, 500}, {300, 600}}, inner.join(l, r), inner.hashJoin(l, r));
+    assertJoin(new int[][]{{100, 400}, {100, 500}, {200, -1}, {300, 600}}, lo.join(l, r), lo.hashJoin(l, r));
+    assertJoin(new int[][]{{100, 400}, {100, 500}, {300, 600}}, ro.join(l, r));
 
     // more2
     l = Arrays.<Map<String, Object>>asList(
@@ -127,9 +127,9 @@ public class JoinPostProcessorTest
         ImmutableMap.<String, Object>of("c", "spot", "d", "health", "y", 500),
         ImmutableMap.<String, Object>of("c", "total", "d", "business", "y", 600)
     );
-    assertJoin(inner.join(l, r), new int[][]{{200, 500}});
-    assertJoin(lo.join(l, r), new int[][]{{100, -1}, {200, 500}, {300, -1}});
-    assertJoin(ro.join(l, r), new int[][]{{-1, 400}, {200, 500}, {-1, 600}});
+    assertJoin(new int[][]{{200, 500}}, inner.join(l, r), inner.hashJoin(l, r));
+    assertJoin(new int[][]{{100, -1}, {200, 500}, {300, -1}}, lo.join(l, r), lo.hashJoin(l, r));
+    assertJoin(new int[][]{{-1, 400}, {200, 500}, {-1, 600}}, ro.join(l, r));
   }
 
   private JoinPostProcessor test1(JoinType type)
@@ -158,9 +158,13 @@ public class JoinPostProcessorTest
     List<Map<String, Object>> a3 = Arrays.<Map<String, Object>>asList(
         ImmutableMap.<String, Object>of("e", "spot", "f", "entertainment", "z", 300)
     );
-    assertJoin(inner.join(a1, a2, a3), new int[][]{});
-    assertJoin(lo.join(a1, a2, a3), new int[][]{{100, -1, -1}});
-    assertJoin(ro.join(a1, a2, a3), new int[][]{{-1, -1, 300}});
+    assertJoin(new int[][]{}, inner.join(a1, a2, a3));
+    assertJoin(new int[][]{}, inner.hashJoin(a1, a2, a3));
+
+    assertJoin(new int[][]{{100, -1, -1}}, lo.join(a1, a2, a3));
+    assertJoin(new int[][]{{100, -1, -1}}, lo.hashJoin(a1, a2, a3));
+
+    assertJoin(new int[][]{{-1, -1, 300}}, ro.join(a1, a2, a3));
 
     // inner product
     a1 = Arrays.<Map<String, Object>>asList(
@@ -176,19 +180,19 @@ public class JoinPostProcessorTest
         ImmutableMap.<String, Object>of("e", "spot", "f", "automotive", "z", 600)
     );
     assertJoin(
-        inner.join(a1, a2, a3),
         new int[][]{{100, 300, 500}, {100, 300, 600}, {100, 400, 500}, {100, 400, 600},
-                    {200, 300, 500}, {200, 300, 600}, {200, 400, 500}, {200, 400, 600}}
+                    {200, 300, 500}, {200, 300, 600}, {200, 400, 500}, {200, 400, 600}},
+        inner.join(a1, a2, a3), inner.hashJoin(a1, a2, a3)
     );
     assertJoin(
-        lo.join(a1, a2, a3),
         new int[][]{{100, 300, 500}, {100, 300, 600}, {100, 400, 500}, {100, 400, 600},
-                    {200, 300, 500}, {200, 300, 600}, {200, 400, 500}, {200, 400, 600}}
+                    {200, 300, 500}, {200, 300, 600}, {200, 400, 500}, {200, 400, 600}},
+        lo.join(a1, a2, a3), lo.hashJoin(a1, a2, a3)
     );
     assertJoin(
-        ro.join(a1, a2, a3),
         new int[][]{{100, 300, 500}, {100, 300, 600}, {100, 400, 500}, {100, 400, 600},
-                    {200, 300, 500}, {200, 300, 600}, {200, 400, 500}, {200, 400, 600}}
+                    {200, 300, 500}, {200, 300, 600}, {200, 400, 500}, {200, 400, 600}},
+        ro.join(a1, a2, a3)
     );
 
     // more1
@@ -207,14 +211,13 @@ public class JoinPostProcessorTest
         ImmutableMap.<String, Object>of("e", "spot", "f", "business", "z", 800),
         ImmutableMap.<String, Object>of("e", "total", "f", "mezzanine", "z", 900)
     );
-    assertJoin(inner.join(a1, a2, a3), new int[][]{{300, 600, 900}});
+    assertJoin(new int[][]{{300, 600, 900}}, inner.join(a1, a2, a3), inner.hashJoin(a1, a2, a3));
     assertJoin(
-        lo.join(a1, a2, a3),
-        new int[][]{{100, 400, -1}, {100, 500, -1}, {200, -1, 800}, {300, 600, 900}}
+        new int[][]{{100, 400, -1}, {100, 500, -1}, {200, -1, 800}, {300, 600, 900}},
+        lo.join(a1, a2, a3), lo.hashJoin(a1, a2, a3)
     );
     assertJoin(
-        ro.join(a1, a2, a3),
-        new int[][]{{-1, -1, 700}, {-1, -1, 800}, {300, 600, 900}}
+        new int[][]{{-1, -1, 700}, {-1, -1, 800}, {300, 600, 900}}, ro.join(a1, a2, a3)
     );
   }
 
@@ -232,21 +235,24 @@ public class JoinPostProcessorTest
 
   private final String[] k = new String[]{"x", "y", "z"};
 
-  private void assertJoin(Iterable<Map<String, Object>> join, int[][] expected)
+  @SafeVarargs
+  private final void assertJoin(int[][] expected, Iterable<Map<String, Object>>... joins)
   {
-    System.out.println("-------------");
-    for (Object x : join) {
-      System.out.println(x);
-    }
-    int x = 0;
-    for (Map<String, Object> joined : join) {
-      for (int i = 0; i < expected[x].length; i++) {
-        validate(joined, expected[x][i], joined.get(k[i]));
+    for (Iterable<Map<String, Object>> join : joins) {
+      System.out.println("-------------");
+      for (Object x : join) {
+        System.out.println(x);
       }
-      x++;
-    }
-    if (x != expected.length) {
-      Assert.fail("needs more result");
+      int x = 0;
+      for (Map<String, Object> joined : join) {
+        for (int i = 0; i < expected[x].length; i++) {
+          validate(joined, expected[x][i], joined.get(k[i]));
+        }
+        x++;
+      }
+      if (x != expected.length) {
+        Assert.fail("needs more result");
+      }
     }
   }
 

@@ -21,6 +21,7 @@ package io.druid.query;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableMap;
@@ -63,7 +64,7 @@ public class JoinQuery<T extends Comparable<T>> extends BaseQuery<T> implements 
   {
     super(toDummyDataSource(dataSources), querySegmentSpec, false, context);
     this.dataSources = validateDataSources(dataSources, getQuerySegmentSpec());
-    this.elements = validateElements(this.dataSources, elements);
+    this.elements = validateElements(this.dataSources, Preconditions.checkNotNull(elements));
     this.numPartition = numPartition == 0 && scannerLen == 0 ? 1 : numPartition;
     this.scannerLen = scannerLen;
     this.limit = limit;
@@ -106,6 +107,7 @@ public class JoinQuery<T extends Comparable<T>> extends BaseQuery<T> implements 
 
   private static List<JoinElement> validateElements(Map<String, DataSource> dataSources, List<JoinElement> elements)
   {
+    Preconditions.checkArgument(elements.size() > 0);
     JoinElement firstJoin = elements.get(0);
     Preconditions.checkNotNull(
         dataSources.get(firstJoin.getLeftAlias()), "failed to find alias " + firstJoin.getLeftAlias()
@@ -207,14 +209,13 @@ public class JoinQuery<T extends Comparable<T>> extends BaseQuery<T> implements 
   @SuppressWarnings("unchecked")
   public Query rewriteQuery(QuerySegmentWalker segmentWalker, ObjectMapper jsonMapper)
   {
-    Map<String, Object> joinProcessor = Maps.newHashMap();
-    joinProcessor.put(
-        QueryContextKeys.POST_PROCESSING,
-        ImmutableMap.of(
-            "type", "join",
-            "elements", elements
-        )
+    JoinPostProcessor joinProcessor = jsonMapper.convertValue(
+        ImmutableMap.of("type", "join", "elements", elements),
+        new TypeReference<JoinPostProcessor>()
+        {
+        }
     );
+    Map<String, Object> joinContext = ImmutableMap.<String, Object>of(QueryContextKeys.POST_PROCESSING, joinProcessor);
 
     QuerySegmentSpec segmentSpec = getQuerySegmentSpec();
     JoinPartitionSpec partitions = partition(segmentWalker, jsonMapper);
@@ -225,15 +226,27 @@ public class JoinQuery<T extends Comparable<T>> extends BaseQuery<T> implements 
       for (JoinElement element : elements) {
         queries.add(JoinElement.toQuery(dataSources.get(element.getRightAlias()), segmentSpec));
       }
-      return new JoinDelegate(queries, limit, parallelism, queue, computeOverridenContext(joinProcessor));
+      return new JoinDelegate(queries, limit, parallelism, queue, computeOverridenContext(joinContext));
     }
+
+    JoinElement element = Preconditions.checkNotNull(Iterables.getFirst(elements, null));
+
+    boolean first = true;
     List<Query> queries = Lists.newArrayList();
     for (List<DimFilter> filters : partitions) {
-      JoinElement element = Iterables.getOnlyElement(elements);
       List<Query> partitioned = Lists.newArrayList();
       partitioned.add(JoinElement.toQuery(dataSources.get(element.getLeftAlias()), segmentSpec, filters.get(0)));
       partitioned.add(JoinElement.toQuery(dataSources.get(element.getRightAlias()), segmentSpec, filters.get(1)));
-      queries.add(new JoinDelegate(partitioned, -1, 0, 0, computeOverridenContext(joinProcessor)));
+      if (first) {
+        for (int i = 1; i < elements.size(); i++) {
+          partitioned.add(
+              JoinElement.toQuery(dataSources.get(elements.get(i).getRightAlias()), segmentSpec)
+                         .withOverriddenContext(ImmutableMap.of("hash", true))
+          );
+        }
+      }
+      queries.add(new JoinDelegate(partitioned, -1, 0, 0, computeOverridenContext(joinContext)));
+      first = false;
     }
     return new UnionAllQuery(null, queries, false, limit, parallelism, queue, getContext());
   }
@@ -243,7 +256,6 @@ public class JoinQuery<T extends Comparable<T>> extends BaseQuery<T> implements 
     if (numPartition <= 1 && scannerLen <= 0) {
       return null;
     }
-    Preconditions.checkArgument(elements.size() == 1, "cannot apply partition on multi-way join");
     for (DataSource dataSource : dataSources.values()) {
       Preconditions.checkArgument(
           !(dataSource instanceof QueryDataSource) ||

@@ -20,6 +20,7 @@
 package io.druid.concurrent;
 
 import com.google.common.base.Function;
+import com.google.common.base.Throwables;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.util.concurrent.AbstractFuture;
@@ -144,32 +145,37 @@ public class Execs
   public static class Semaphore implements Closeable
   {
     private final java.util.concurrent.Semaphore semaphore;
+    private final String name = Integer.toHexString(System.identityHashCode(this));
 
     public Semaphore(int parallelism)
     {
+      log.debug("init parallelism = %d", parallelism);
       this.semaphore = new java.util.concurrent.Semaphore(parallelism);
     }
 
     public boolean acquire(WaitingFuture future)
     {
+      log.debug("> acquiring %s", name);
       try {
         semaphore.acquire();
       }
       catch (Exception e) {
-        future.setException(e);
-        return false;
+        return future.setException(e);
       }
+      log.debug("< acquired %s", name);
       return !future.isCancelled();
     }
 
     @Override
     public void close() throws IOException
     {
+      log.debug("> close %s", name);
       semaphore.release();
     }
 
     public void destroy()
     {
+      log.debug("> destroy %s", name);
       semaphore.release(semaphore.getQueueLength());
     }
   }
@@ -201,6 +207,7 @@ public class Execs
             {
               for (WaitingFuture<V> work = queue.poll(); work != null; work = queue.poll()) {
                 if (!semaphore.acquire(work) || !work.execute()) {
+                  log.warn("Something wrong.. aborting");
                   break;
                 }
               }
@@ -219,19 +226,21 @@ public class Execs
 
     public boolean execute()
     {
+      log.debug("--- executing %s", callable);
       try {
         return set(callable.call());
       }
       catch (Exception e) {
-        setException(e);
+        return setException(e);
       }
-      return false;
     }
 
     @Override
     public boolean setException(Throwable throwable)
     {
-      return super.setException(throwable);
+      super.setException(throwable);
+      Throwables.propagate(throwable);
+      return false;
     }
 
     private static <V> Function<Callable<V>, WaitingFuture<V>> toWaiter()

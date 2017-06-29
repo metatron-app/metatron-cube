@@ -26,10 +26,15 @@ import com.fasterxml.jackson.databind.ObjectMapper;
  */
 public class PostProcessingOperators
 {
+  @SuppressWarnings("unchecked")
   public static <T> PostProcessingOperator<T> load(Query<T> query, ObjectMapper mapper)
   {
+    Object value = query.getContextValue(QueryContextKeys.POST_PROCESSING);
+    if (value instanceof PostProcessingOperator) {
+      return (PostProcessingOperator<T>) value;
+    }
     return mapper.convertValue(
-        query.<String>getContextValue(QueryContextKeys.POST_PROCESSING),
+        value,
         new TypeReference<PostProcessingOperator<T>>()
         {
         }

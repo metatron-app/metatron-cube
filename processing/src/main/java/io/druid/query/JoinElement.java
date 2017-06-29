@@ -88,6 +88,11 @@ public class JoinElement
     return rightJoinColumns;
   }
 
+  public int keyLength()
+  {
+    return leftJoinColumns.size();
+  }
+
   public String[] getFirstKeys()
   {
     return new String[]{leftJoinColumns.get(0), rightJoinColumns.get(0)};

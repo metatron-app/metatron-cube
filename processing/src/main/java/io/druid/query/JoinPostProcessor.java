@@ -24,12 +24,13 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Function;
+import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Iterables;
 import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+import com.google.common.util.concurrent.SettableFuture;
 import com.metamx.common.Pair;
 import com.metamx.common.guava.Accumulator;
 import com.metamx.common.guava.Sequence;
@@ -37,6 +38,8 @@ import com.metamx.common.guava.Sequences;
 import com.metamx.common.logger.Logger;
 import io.druid.data.input.MapBasedRow;
 import io.druid.guice.annotations.Processing;
+import io.druid.segment.ObjectArray;
+import org.apache.commons.lang.mutable.MutableInt;
 import org.python.google.common.util.concurrent.Futures;
 
 import java.util.Arrays;
@@ -57,7 +60,10 @@ public class JoinPostProcessor extends PostProcessingOperator.UnionSupport
   private final QueryToolChestWarehouse warehouse;
   private final ExecutorService exec;
 
+  private final SettableFuture<Hashed>[] hashed;
+
   @JsonCreator
+  @SuppressWarnings("unchecked")
   public JoinPostProcessor(
       @JsonProperty("elements") List<JoinElement> elements,
       @JacksonInject QueryToolChestWarehouse warehouse,
@@ -67,6 +73,10 @@ public class JoinPostProcessor extends PostProcessingOperator.UnionSupport
     this.elements = elements.toArray(new JoinElement[elements.size()]);
     this.warehouse = warehouse;
     this.exec = exec;
+    this.hashed = new SettableFuture[elements.size() + 1];
+    for (int i = 0; i < hashed.length; i++) {
+      hashed[i] = SettableFuture.create();
+    }
   }
 
   @Override
@@ -85,15 +95,17 @@ public class JoinPostProcessor extends PostProcessingOperator.UnionSupport
       public Sequence run(Query query, Map responseContext)
       {
         final int joinAliases = elements.length + 1;
+        log.info("Running %d-way join processing", joinAliases);
+        final boolean[] hashing = new boolean[joinAliases];
         final List<Sequence<Map<String, Object>>>[] sequencesList = new List[joinAliases];
         for (int i = 0; i < joinAliases; i++) {
           sequencesList[i] = Lists.<Sequence<Map<String, Object>>>newArrayList();
         }
+        final MutableInt indexer = new MutableInt();
         Sequence<Pair<Query, Sequence>> sequences = baseQueryRunner.run(query, responseContext);
         sequences.accumulate(
             null, new Accumulator<Object, Pair<Query, Sequence>>()
             {
-              int index;
               @Override
               public Object accumulate(
                   Object accumulated, Pair<Query, Sequence> in
@@ -103,23 +115,30 @@ public class JoinPostProcessor extends PostProcessingOperator.UnionSupport
                 Sequence sequence = in.rhs;
 
                 TabularFormat tabular = warehouse.getToolChest(element).toTabularFormat(sequence, null);
-                sequencesList[index++].add(tabular.getSequence());
+                sequencesList[indexer.intValue()].add(tabular.getSequence());
+                hashing[indexer.intValue()] = element.getContextBoolean("hash", false);
+                indexer.increment();
                 return null;
               }
             }
         );
 
-        @SuppressWarnings("unchecked")
-        Future<JoiningRow[]>[] joining = new Future[joinAliases];
-        for (int i = 0; i < sequencesList.length; i++) {
+        final Future[] joining = new Future[joinAliases];
+        int i = 0;
+        for (; i < indexer.intValue(); i++) {
+          int hashIndex = hashing[i] ? i : -i - 1;
           if (i == 0) {
-            joining[i] = toList(sequencesList[i], elements[0].getLeftJoinColumns(), exec);
+            joining[i] = toList(hashIndex, sequencesList[i], elements[0].getLeftJoinColumns(), exec);
           } else {
-            joining[i] = toList(sequencesList[i], elements[i - 1].getRightJoinColumns(), exec);
+            joining[i] = toList(hashIndex, sequencesList[i], elements[i - 1].getRightJoinColumns(), exec);
           }
         }
+        for (; i < joining.length; i++) {
+          joining[i] = hashed[i];
+          hashing[i] = true;
+        }
         try {
-          return Sequences.simple(join(joining));
+          return Sequences.simple(join(joining, hashing));
         }
         catch (Exception e) {
           throw Throwables.propagate(e);
@@ -128,91 +147,103 @@ public class JoinPostProcessor extends PostProcessingOperator.UnionSupport
     };
   }
 
-  private Future<JoiningRow[]> toList(
+  private Future toList(
+      final int index,
       final List<Sequence<Map<String, Object>>> sequences,
       final List<String> joinColumns,
       final ExecutorService executor
   )
   {
     return executor.submit(
-        new AbstractPrioritizedCallable<JoiningRow[]>(0)
+        new AbstractPrioritizedCallable(0)
         {
           @Override
-          public JoiningRow[] call()
+          public Object call()
           {
             Sequence<Map<String, Object>> sequence = Sequences.concat(sequences);
             List<Map<String, Object>> rows = Sequences.toList(sequence, Lists.<Map<String, Object>>newArrayList());
-            return sort(rows, joinColumns);
+            if (index >= 0) {
+              Hashed hashing = toHash(index, sort(rows, joinColumns, index));
+              if (!hashed[index].set(hashing)) {
+                throw new IllegalStateException("Failed to hash!");
+              }
+              return hashing;
+            }
+            return sort(rows, joinColumns, -index - 1);
           }
         }
     );
   }
 
-  @SafeVarargs
-  @VisibleForTesting
-  final Iterable<Map<String, Object>> join(List<Map<String, Object>>... rows) throws Exception
+  private Hashed toHash(int index, JoiningRow[] sorted)
   {
-    @SuppressWarnings("unchecked")
-    Future<JoiningRow[]>[] joining = new Future[rows.length];
-    for (int i = 0; i < rows.length; i++) {
-      List<String> joinColumns = i == 0  ? elements[0].getLeftJoinColumns() : elements[i - 1].getRightJoinColumns();
-      joining[i] = Futures.immediateFuture(sort(rows[i], joinColumns));
+    log.info("Hashing [%s] %d rows", toAlias(index), sorted.length);
+    Map<ObjectArray<String>, List<Map<String, Object>>> rights = Maps.newHashMap();
+    String[] prev = null;
+    List<Map<String, Object>> rowList = Lists.newArrayList();
+    for (JoiningRow row : sorted) {
+      if (prev != null && !Arrays.equals(prev, row.joinKeys)) {
+        rights.put(new ObjectArray<String>(prev), rowList);
+        rowList = Lists.newArrayList();
+      }
+      rowList.add(row.source);
+      prev = row.joinKeys;
     }
-    return join(joining);
+    if (!rowList.isEmpty()) {
+      rights.put(new ObjectArray<String>(prev), rowList);
+    }
+    return new Hashed(rights);
   }
 
-  private Iterable<Map<String, Object>> join(final Future<JoiningRow[]>[] rows)
+  private String toAlias(int index)
+  {
+    return index == 0 ? elements[0].getLeftAlias() : elements[index - 1].getRightAlias();
+  }
+
+  @SuppressWarnings("unchecked")
+  private Iterable<Map<String, Object>> join(final Future[] rows, final boolean[] hashed)
       throws Exception
   {
-    JoiningRow[] left = rows[0].get();
-    Iterable<JoiningRow> iterable = ImmutableList.of();
+    Preconditions.checkArgument(!hashed[0]);
+    JoiningRow[] left = (JoiningRow[]) rows[0].get();
+    Iterable<Map<String, Object>> iterable = ImmutableList.of();
     for (int i = 1; i < rows.length; i++) {
-      iterable = join(left, rows[i].get(), elements[i - 1]);
+      if (hashed[i]) {
+        iterable = hashJoin(left, (Hashed) rows[i].get(), i - 1);
+      } else {
+        iterable = join(left, (JoiningRow[]) rows[i].get(), i - 1);
+      }
       if (i == rows.length - 1) {
         break;
       }
-      left = sort(Iterables.toArray(iterable, JoiningRow.class), elements[i].getLeftJoinColumns());
+      left = sort(iterable, elements[i].getLeftJoinColumns(), i);
     }
-    return Iterables.transform(iterable, TO_ROW);
+    return iterable;
   }
 
-  private Iterable<JoiningRow> join(final JoiningRow[] lefts, final JoiningRow[] rights, JoinElement element)
+  private Iterable<Map<String, Object>> join(final JoiningRow[] lefts, final JoiningRow[] rights, int index)
   {
     if (lefts.length == 0 && rights.length == 0) {
       return Collections.emptyList();
     }
-    final JoinType type = element.getJoinType();
-    final int joinColumnLen = element.getLeftJoinColumns().size();
-    log.info("Starting %s joining left %d rows + right %d rows", type, lefts.length, rights.length);
+    final JoinType type = elements[index].getJoinType();
+    final int keyLength = elements[index].keyLength();
+    log.info(
+        "Starting %s join. %d rows [%s] + %d rows [%s]",
+        type, lefts.length, toAlias(index), rights.length, toAlias(index + 1)
+    );
 
-    final int sizeL = lefts.length;
-    final int sizeR = rights.length;
-    return new Iterable<JoiningRow>()
+    return new Iterable<Map<String, Object>>()
     {
       @Override
-      public Iterator<JoiningRow> iterator()
+      public Iterator<Map<String, Object>> iterator()
       {
-        return new Iterator<JoiningRow>()
+        final RowIterator left = new RowIterator(lefts, keyLength);
+        final RowIterator right = new RowIterator(rights, keyLength);
+
+        return new Iterator<Map<String, Object>>()
         {
-          private Iterator<JoiningRow> iterator = Iterators.emptyIterator();
-
-          private int indexL;
-          private int indexR;
-          private final String[] peekL = new String[joinColumnLen];
-          private final String[] peekR = new String[joinColumnLen];
-
-          {
-            if (sizeL > 0) {
-              for (int i = 0; i < peekL.length; i++) {
-                peekL[i] = readL(i);
-              }
-            }
-            if (sizeR > 0) {
-              for (int i = 0; i < peekR.length; i++) {
-                peekR[i] = readR(i);
-              }
-            }
-          }
+          private Iterator<Map<String, Object>> iterator = Iterators.emptyIterator();
 
           @Override
           public boolean hasNext()
@@ -221,23 +252,26 @@ public class JoinPostProcessor extends PostProcessingOperator.UnionSupport
               return true;
             }
             switch (type) {
-              case INNER: return inner();
-              case LO: return leftOuter();
-              case RO: return rightOuter();
+              case INNER:
+                return inner();
+              case LO:
+                return leftOuter();
+              case RO:
+                return rightOuter();
             }
             throw new IllegalArgumentException();
           }
 
           private boolean inner()
           {
-            while (!iterator.hasNext() && indexL < sizeL && indexR < sizeR) {
-              final int compare = compare();
+            while (!iterator.hasNext() && left.hasMore() && right.hasMore()) {
+              final int compare = left.compareTo(right);
               if (compare == 0) {
-                iterator = product(indexL, nextL(), indexR, nextR());
+                iterator = product(left.index, left.next(), right.index, right.next());
               } else if (compare > 0) {
-                nextR();
+                right.next();
               } else {
-                nextL();
+                left.next();
               }
             }
             return iterator.hasNext();
@@ -248,114 +282,70 @@ public class JoinPostProcessor extends PostProcessingOperator.UnionSupport
           // b  b -> b b
           private boolean leftOuter()
           {
-            final int ls = indexL;
-            while (!iterator.hasNext() && indexL < sizeL && indexR < sizeR) {
-              final int compare = compare();
+            final int ls = left.index;
+            while (!iterator.hasNext() && left.hasMore() && right.hasMore()) {
+              final int compare = left.compareTo(right);
               if (compare == 0) {
-                if (indexL > ls) {
-                  iterator = leftOnly(ls, indexL);
+                if (left.index > ls) {
+                  iterator = left.iterateToCurrent(ls);
                 } else {
-                  iterator = product(indexL, nextL(), indexR, nextR());
+                  iterator = product(left.index, left.next(), right.index, right.next());
                 }
               } else if (compare > 0) {
-                if (indexL > ls) {
-                  iterator = leftOnly(ls, indexL);
+                if (left.index > ls) {
+                  iterator = left.iterateToCurrent(ls);
                 } else {
-                  nextR();
+                  right.next();
                 }
               } else {
-                nextL();
+                left.next();
               }
             }
-            if (!iterator.hasNext() && ls < sizeL) {
-              iterator = leftOnly(ls, sizeL);
-              indexL = sizeL;
+            if (!iterator.hasNext() && ls < left.limit) {
+              iterator = left.iterateToEnd(ls);
             }
             return iterator.hasNext();
           }
 
           private boolean rightOuter()
           {
-            final int rs = indexR;
-            while (!iterator.hasNext() && indexL < sizeL && indexR < sizeR) {
-              final int compare = compare();
+            final int rs = right.index;
+            while (!iterator.hasNext() && left.hasMore() && right.hasMore()) {
+              final int compare = left.compareTo(right);
               if (compare == 0) {
-                if (indexR > rs) {
-                  iterator = rightOnly(rs, indexR);
+                if (right.index > rs) {
+                  iterator = right.iterateToCurrent(rs);
                 } else {
-                  iterator = product(indexL, nextL(), indexR, nextR());
+                  iterator = product(left.index, left.next(), right.index, right.next());
                 }
               } else if (compare > 0) {
-                nextR();
+                right.next();
               } else {
-                if (indexR > rs) {
-                  iterator = rightOnly(rs, indexR);
+                if (right.index > rs) {
+                  iterator = right.iterateToCurrent(rs);
                 } else {
-                  nextL();
+                  left.next();
                 }
               }
             }
-            if (!iterator.hasNext() && rs < sizeR) {
-              iterator = rightOnly(rs, sizeR);
-              indexR = sizeR;
+            if (!iterator.hasNext() && rs < right.limit) {
+              iterator = right.iterateToEnd(rs);
             }
             return iterator.hasNext();
           }
 
           @Override
-          public JoiningRow next()
+          public Map<String, Object> next()
           {
             return iterator.next();
           }
 
-          private String readL(int i) {return lefts[indexL].joinKeys[i];}
-
-          private String readR(int i) {return rights[indexR].joinKeys[i];}
-
-          private int nextL()
-          {
-            boolean next = false;
-            while (!next && ++indexL < sizeL) {
-              for (int i = peekL.length - 1; i >= 0; i--) {
-                if (next || JoinPostProcessor.compare(peekL[i], readL(i)) != 0) {
-                  peekL[i] = readL(i);
-                  next = true;
-                }
-              }
-            }
-            return indexL;
-          }
-
-          private int nextR()
-          {
-            boolean next = false;
-            while (!next && ++indexR < sizeR) {
-              for (int i = peekR.length - 1; i >= 0; i--) {
-                if (next || JoinPostProcessor.compare(peekR[i], readR(i)) != 0) {
-                  peekR[i] = readR(i);
-                  next = true;
-                }
-              }
-            }
-            return indexR;
-          }
-
-          private Iterator<JoiningRow> leftOnly(final int ls, final int le)
-          {
-            return toIterator(lefts, ls, le);
-          }
-
-          private Iterator<JoiningRow> rightOnly(final int rs, final int re)
-          {
-            return toIterator(rights, rs, re);
-          }
-
-          private Iterator<JoiningRow> product(final int ls, final int le, final int rs, final int re)
+          private Iterator<Map<String, Object>> product(final int ls, final int le, final int rs, final int re)
           {
             if (le - ls == 1 && re - rs == 1) {
-              return Iterators.singletonIterator(lefts[ls].merge(rights[rs]));
+              return Iterators.singletonIterator(lefts[ls].mergeRow(rights[rs]));
             }
-            return new Iterator<JoiningRow>()
+            return new Iterator<Map<String, Object>>()
             {
               int li = ls;
               int ri = rs;
@@ -367,55 +357,30 @@ public class JoinPostProcessor extends PostProcessingOperator.UnionSupport
               }
 
               @Override
-              public JoiningRow next()
+              public Map<String, Object> next()
               {
                 if (ri >= re) {
                   li++;
                   ri = rs;
                 }
-                return lefts[li].merge(rights[ri++]);
+                return lefts[li].mergeRow(rights[ri++]);
               }
             };
-          }
-
-          private int compare()
-          {
-            for (int i = 0; i < peekL.length; i++) {
-              int compare = JoinPostProcessor.compare(peekL[i], peekR[i]);
-              if (compare != 0) {
-                return compare;
-              }
-            }
-            return 0;
           }
         };
       }
     };
-
   }
 
-  private Iterator<JoiningRow> toIterator(final JoiningRow[] rows, final int start, final int end)
+  private JoiningRow[] sort(Iterable<Map<String, Object>> rows, List<String> columns, int index)
   {
-    return new Iterator<JoiningRow>()
-    {
-      int index = start;
-
-      @Override
-      public boolean hasNext()
-      {
-        return index < end;
-      }
-
-      @Override
-      public JoiningRow next()
-      {
-        return rows[index++];
-      }
-    };
+    return sort(Lists.newArrayList(rows), columns, index);
   }
 
-  private JoiningRow[] sort(List<Map<String, Object>> rows, List<String> columns)
+  private JoiningRow[] sort(List<Map<String, Object>> rows, List<String> columns, int index)
   {
+    long start = System.currentTimeMillis();
+    log.info(".. sorting [%s] %d rows on %s", toAlias(index), rows.size(), columns);
     final String[] array = columns.toArray(new String[columns.size()]);
     final JoiningRow[] sorted = new JoiningRow[rows.size()];
     for (int i = 0; i < sorted.length; i++) {
@@ -427,23 +392,8 @@ public class JoinPostProcessor extends PostProcessingOperator.UnionSupport
       sorted[i] = new JoiningRow(joinKey, row);
     }
     Arrays.sort(sorted);
+    log.info(".. sorted %d rows in %,d msec", rows.size(), (System.currentTimeMillis() - start));
     return sorted;
-  }
-
-  private JoiningRow[] sort(JoiningRow[] rows, List<String> columns)
-  {
-    log.info("Sorting intermediate results on %s", columns);
-    final String[] array = columns.toArray(new String[columns.size()]);
-    for (int i = 0; i < rows.length; i++) {
-      Map<String, Object> row = rows[i].source;
-      String[] joinKey = new String[array.length];
-      for (int j = 0; j < array.length; j++) {
-        joinKey[j] = (String) row.get(array[j]);
-      }
-      rows[i] = new JoiningRow(joinKey, row);
-    }
-    Arrays.sort(rows);
-    return rows;
   }
 
   @Override
@@ -476,20 +426,199 @@ public class JoinPostProcessor extends PostProcessingOperator.UnionSupport
     }
 
     @SuppressWarnings("unchecked")
-    public JoiningRow merge(JoiningRow row)
+    public Map<String, Object> mergeRow(JoiningRow row)
     {
       Map<String, Object> merged;
       if (MapBasedRow.supportInplaceUpdate(source)) {
-        source.putAll(row.source);
         merged = source;
+        merged.putAll(row.source);
       } else if (MapBasedRow.supportInplaceUpdate(row.source)) {
-        row.source.putAll(source);
         merged = row.source;
+        merged.putAll(source);
       } else {
         merged = Maps.newHashMap(source);
         merged.putAll(row.source);
       }
-      return new JoiningRow(joinKeys, merged);
+      return merged;
+    }
+  }
+
+  private Iterable<Map<String, Object>> hashJoin(
+      final JoiningRow[] lefts,
+      final Hashed rights,
+      final int index
+  )
+  {
+    final JoinType type = elements[index].getJoinType();
+    log.info(
+        "Starting hash-%s join. %d rows [%s] + %d rows [%s]",
+        type, lefts.length, toAlias(index), rights.size(), toAlias(index + 1)
+    );
+    Preconditions.checkArgument(type != JoinType.RO);
+    if (lefts.length == 0 || rights.isEmpty()) {
+      return Collections.emptyList();
+    }
+    final int keyLength = elements[index].keyLength();
+
+    return new Iterable<Map<String, Object>>()
+    {
+      @Override
+      public Iterator<Map<String, Object>> iterator()
+      {
+        final RowIterator left = new RowIterator(lefts, keyLength);
+
+        return new Iterator<Map<String, Object>>()
+        {
+          private final ObjectArray<String> wrapper = new ObjectArray<String>(new String[keyLength]);
+          private Iterator<Map<String, Object>> iterator = Iterators.emptyIterator();
+
+          @Override
+          public boolean hasNext()
+          {
+            while (!iterator.hasNext() && left.hasMore()) {
+              List<Map<String, Object>> match = rights.get(wrapper.pack(left.peek));
+              if (match != null) {
+                iterator = product(match);
+              } else {
+                if (type == JoinType.LO) {
+                  iterator = left.iterate(left.index, left.next());
+                } else {
+                  left.next();
+                }
+              }
+            }
+            return iterator.hasNext();
+          }
+
+          private Iterator<Map<String, Object>> product(final List<Map<String, Object>> match)
+          {
+            final Iterator<Map<String, Object>> lefts = left.iterateToNext();
+            if (!lefts.hasNext() || match.isEmpty()) {
+              return Iterators.emptyIterator();
+            }
+            return new Iterator<Map<String, Object>>()
+            {
+              private Map<String, Object> left = lefts.next();
+              private Iterator<Map<String, Object>> rights = match.iterator();
+
+              @Override
+              public boolean hasNext()
+              {
+                return lefts.hasNext() || rights.hasNext();
+              }
+
+              @Override
+              public Map<String, Object> next()
+              {
+                if (rights.hasNext()) {
+                  Map<String, Object> merged = Maps.newHashMap(left);
+                  merged.putAll(rights.next());
+                  return merged;
+                }
+                left = lefts.next();
+                rights = match.iterator();
+                return next();
+              }
+            };
+          }
+
+          @Override
+          public Map<String, Object> next()
+          {
+            return iterator.next();
+          }
+        };
+      }
+    };
+  }
+
+  private static class RowIterator
+  {
+    private int index;
+
+    private final JoiningRow[] rows;
+    private final String[] peek;
+
+    private final int limit;
+    private final int keyLength;
+
+    private RowIterator(JoiningRow[] rows, int keyLength)
+    {
+      this.rows = rows;
+      this.limit = rows.length;
+      this.keyLength = keyLength;
+      this.peek = new String[keyLength];
+      if (index < limit) {
+        System.arraycopy(rows[index].joinKeys, 0, peek, 0, keyLength);
+      }
+    }
+
+    private boolean hasMore()
+    {
+      return index < limit;
+    }
+
+    private int next()
+    {
+      boolean next = false;
+      while (!next && ++index < limit) {
+        for (int i = peek.length - 1; i >= 0; i--) {
+          if (next || JoinPostProcessor.compare(peek[i], readL(i)) != 0) {
+            peek[i] = readL(i);
+            next = true;
+          }
+        }
+      }
+      return index;
+    }
+
+    private String readL(int i) {return rows[index].joinKeys[i];}
+
+    private int compareTo(RowIterator other)
+    {
+      final String[] otherKey = other.peek;
+      for (int i = 0; i < keyLength; i++) {
+        int compare = JoinPostProcessor.compare(peek[i], otherKey[i]);
+        if (compare != 0) {
+          return compare;
+        }
+      }
+      return 0;
+    }
+
+    private Iterator<Map<String, Object>> iterateToEnd(final int start)
+    {
+      return iterate(start, limit);
+    }
+
+    private Iterator<Map<String, Object>> iterateToCurrent(final int start)
+    {
+      return iterate(start, index);
+    }
+
+    private Iterator<Map<String, Object>> iterateToNext()
+    {
+      return iterate(index, next());
+    }
+
+    private Iterator<Map<String, Object>> iterate(final int start, final int end)
+    {
+      index = start;
+
+      return new Iterator<Map<String, Object>>()
+      {
+        @Override
+        public boolean hasNext()
+        {
+          return index < end;
+        }
+
+        @Override
+        public Map<String, Object> next()
+        {
+          return rows[index++].source;
+        }
+      };
     }
   }
 
@@ -517,5 +646,57 @@ public class JoinPostProcessor extends PostProcessingOperator.UnionSupport
       return LEFT_IS_GREATER;
     }
     return d1.compareTo(d2);
+  }
+
+  private static class Hashed
+  {
+    private final Map<ObjectArray<String>, List<Map<String, Object>>> hashed;
+
+    private Hashed(Map<ObjectArray<String>, List<Map<String, Object>>> hashed) {this.hashed = hashed;}
+
+    public boolean isEmpty()
+    {
+      return hashed.isEmpty();
+    }
+
+    public List<Map<String, Object>> get(ObjectArray<String> key)
+    {
+      return hashed.get(key);
+    }
+
+    public int size()
+    {
+      return hashed.size();
+    }
+  }
+
+  @SafeVarargs
+  @VisibleForTesting
+  final Iterable<Map<String, Object>> join(List<Map<String, Object>>... rows) throws Exception
+  {
+    @SuppressWarnings("unchecked")
+    Future<JoiningRow[]>[] joining = new Future[rows.length];
+    for (int i = 0; i < rows.length; i++) {
+      List<String> joinColumns = i == 0 ? elements[0].getLeftJoinColumns() : elements[i - 1].getRightJoinColumns();
+      joining[i] = Futures.immediateFuture(sort(rows[i], joinColumns, i));
+    }
+    return join(joining, new boolean[rows.length]);
+  }
+
+  @SafeVarargs
+  @VisibleForTesting
+  final Iterable<Map<String, Object>> hashJoin(List<Map<String, Object>>... rows) throws Exception
+  {
+    JoiningRow[] left = sort(rows[0], elements[0].getLeftJoinColumns(), 0);
+    Iterable<Map<String, Object>> iterable = ImmutableList.of();
+    for (int i = 1; i < rows.length; i++) {
+      JoiningRow[] joiningRows = sort(rows[i], elements[i - 1].getRightJoinColumns(), i);
+      iterable = hashJoin(left, toHash(i, joiningRows), i - 1);
+      if (i == rows.length - 1) {
+        break;
+      }
+      left = sort(Lists.newArrayList(iterable), elements[i].getLeftJoinColumns(), i);
+    }
+    return iterable;
   }
 }
