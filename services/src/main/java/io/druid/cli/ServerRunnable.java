@@ -22,6 +22,7 @@ package io.druid.cli;
 import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
+import com.google.common.collect.Ordering;
 import com.google.inject.Injector;
 import com.metamx.common.lifecycle.Lifecycle;
 import com.metamx.common.logger.Logger;
@@ -75,6 +76,11 @@ public abstract class ServerRunnable extends GuiceRunnable
 
   public static void main(String[] args) throws Exception
   {
+    // coordinator starts storage module. for derby, it starts derby server in it
+    Ordering<String> ordering = Ordering.explicit(
+        "zookeeper", "coordinator", "broker", "historical", "overlord", "middleManager", "realtime"
+    );
+    Arrays.sort(args, ordering);
     List<String> params = Lists.newArrayList(Arrays.asList(args));
     if (params.contains("zookeeper")) {
       Properties startupProperties = new Properties();
