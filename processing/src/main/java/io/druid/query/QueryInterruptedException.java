@@ -21,7 +21,12 @@ package io.druid.query;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.google.common.collect.Lists;
+import com.google.common.collect.Sets;
 
+import java.util.Arrays;
+import java.util.List;
+import java.util.Set;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.TimeoutException;
 
@@ -48,19 +53,22 @@ public class QueryInterruptedException extends RuntimeException
 
   private final String errorCode;
   private final String errorClass;
-  private final String host;
+  private final List<String> errorStack;
+  private String host;
 
   @JsonCreator
   public QueryInterruptedException(
       @JsonProperty("error") String errorCode,
       @JsonProperty("errorMessage") String errorMessage,
       @JsonProperty("errorClass") String errorClass,
+      @JsonProperty("errorStack") List<String> errorStack,
       @JsonProperty("host") String host
   )
   {
     super(errorMessage);
     this.errorCode = errorCode;
     this.errorClass = errorClass;
+    this.errorStack = errorStack;
     this.host = host;
   }
 
@@ -80,6 +88,7 @@ public class QueryInterruptedException extends RuntimeException
     super(cause == null ? null : cause.getMessage(), cause);
     this.errorCode = getErrorCodeFromThrowable(cause);
     this.errorClass = getErrorClassFromThrowable(cause);
+    this.errorStack = cause == null ? null : stackTrace(cause);
     this.host = host;
   }
 
@@ -103,9 +112,20 @@ public class QueryInterruptedException extends RuntimeException
   }
 
   @JsonProperty
+  public List<String> getErrorStack()
+  {
+    return errorStack;
+  }
+
+  @JsonProperty
   public String getHost()
   {
     return host;
+  }
+
+  public void setHost(String host)
+  {
+    this.host = host;
   }
 
   private static String getErrorCodeFromThrowable(Throwable e)
@@ -145,8 +165,37 @@ public class QueryInterruptedException extends RuntimeException
 
   public static QueryInterruptedException wrapIfNeeded(Throwable e, String hostPort)
   {
-    return e instanceof QueryInterruptedException
-           ? (QueryInterruptedException) e
-           : new QueryInterruptedException(e, hostPort);
+    if (e instanceof QueryInterruptedException) {
+      QueryInterruptedException qie = (QueryInterruptedException) e;
+      if (qie.getHost() == null) {
+        qie.setHost(hostPort);
+      }
+      return qie;
+    } else {
+      return new QueryInterruptedException(e, hostPort);
+    }
+  }
+
+  private static List<String> stackTrace(Throwable e)
+  {
+    return stackTrace(e, Sets.<Throwable>newHashSet(), Lists.<String>newArrayList(), "");
+  }
+
+  private static List<String> stackTrace(Throwable e, Set<Throwable> visited, List<String> errorStack, String prefix)
+  {
+    StackTraceElement[] trace = e.getStackTrace();
+    errorStack.add(prefix + trace[0]);
+    for (StackTraceElement element : Arrays.copyOfRange(trace, 1, Math.min(4, trace.length))) {
+      String stack = element.toString();
+      if (errorStack.contains(stack)) {
+        break;
+      }
+      errorStack.add(stack);
+    }
+    errorStack.add("... more");
+    if (e.getCause() != null && visited.add(e.getCause())) {
+      stackTrace(e.getCause(), visited, errorStack, "Caused by: ");
+    }
+    return errorStack;
   }
 }

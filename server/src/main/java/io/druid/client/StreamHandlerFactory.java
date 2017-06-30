@@ -28,6 +28,7 @@ import com.metamx.emitter.service.ServiceEmitter;
 import com.metamx.emitter.service.ServiceMetricEvent;
 import com.metamx.http.client.response.ClientResponse;
 import io.druid.query.Query;
+import io.druid.query.QueryInterruptedException;
 import org.jboss.netty.buffer.ChannelBuffer;
 import org.jboss.netty.buffer.ChannelBufferInputStream;
 import org.jboss.netty.handler.codec.http.HttpChunk;
@@ -40,6 +41,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.SequenceInputStream;
 import java.net.URL;
+import java.nio.ByteBuffer;
 import java.util.Enumeration;
 import java.util.Map;
 import java.util.concurrent.BlockingDeque;
@@ -51,11 +53,13 @@ import java.util.concurrent.atomic.AtomicLong;
  */
 public class StreamHandlerFactory
 {
-  private final Logger log;
+  protected final Logger log;
+  protected final ObjectMapper mapper;
 
-  public StreamHandlerFactory(Logger log)
+  public StreamHandlerFactory(Logger log, ObjectMapper mapper)
   {
     this.log = log;
+    this.mapper = mapper;
   }
 
   public StreamHandler create(final String queryId, final URL url, final int queueSize)
@@ -88,14 +92,23 @@ public class StreamHandlerFactory
         response(requestStartTime, responseStartTime = System.currentTimeMillis());
 
         if (status.getCode() >= HttpResponseStatus.INTERNAL_SERVER_ERROR.getCode()) {
-          final String contents = response.getContent().toString(Charsets.ISO_8859_1);
+          final ByteBuffer contents = response.getContent().toByteBuffer();
+          final byte[] binary = new byte[contents.remaining()];
+          contents.get(binary);
+
           return ClientResponse.<InputStream>finished(
               new InputStream()
               {
                 @Override
                 public int read() throws IOException
                 {
-                  throw new IOException(contents);
+                  throw toException(binary);
+                }
+
+                @Override
+                public int available() throws IOException
+                {
+                  throw toException(binary);
                 }
               }
           );
@@ -159,6 +172,17 @@ public class StreamHandlerFactory
               }
             }
         );
+      }
+
+      private IOException toException(byte[] contents) throws IOException
+      {
+        try {
+          throw mapper.readValue(contents, QueryInterruptedException.class);
+        }
+        catch (IOException e) {
+          // ignore
+        }
+        throw new IOException(new String(contents, Charsets.ISO_8859_1));
       }
 
       @Override
@@ -232,13 +256,11 @@ public class StreamHandlerFactory
   public static class WithEmitter extends StreamHandlerFactory
   {
     private final ServiceEmitter emitter;
-    private final ObjectMapper mapper;
 
     public WithEmitter(Logger log, ServiceEmitter emitter, ObjectMapper mapper)
     {
-      super(log);
+      super(log, mapper);
       this.emitter = emitter;
-      this.mapper = mapper;
     }
 
     public StreamHandler create(
