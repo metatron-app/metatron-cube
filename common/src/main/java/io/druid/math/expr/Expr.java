@@ -377,10 +377,15 @@ abstract class BinaryNumericOpExprBase extends BinaryOpExprBase
   {
     ExprEval leftVal = left.eval(bindings);
     ExprEval rightVal = right.eval(bindings);
+    if (leftVal.isNull() && rightVal.isNumeric()) {
+      leftVal = Evals.castNullToNumeric(leftVal, rightVal.type());
+    } else if (rightVal.isNull() && leftVal.isNumeric()) {
+      rightVal = Evals.castNullToNumeric(rightVal, leftVal.type());
+    }
     if (leftVal.type() == ExprType.STRING || rightVal.type() == ExprType.STRING) {
       return evalString(Strings.nullToEmpty(leftVal.asString()), Strings.nullToEmpty(rightVal.asString()));
     }
-    if (leftVal.value() == null || rightVal.value() == null) {
+    if (leftVal.isNull() || rightVal.isNull()) {
       throw new IllegalArgumentException("null value");
     }
     if (leftVal.type() == ExprType.LONG && rightVal.type() == ExprType.LONG) {
@@ -519,7 +524,8 @@ class BinPlusExpr extends BinaryNumericOpExprBase
   }
 
   @Override
-  protected ExprEval evalString(String left, String right) {
+  protected ExprEval evalString(String left, String right)
+  {
     return ExprEval.of(left + right);
   }
 

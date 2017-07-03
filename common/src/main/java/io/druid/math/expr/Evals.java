@@ -20,6 +20,7 @@
 package io.druid.math.expr;
 
 import com.google.common.base.Function;
+import com.google.common.base.Preconditions;
 import com.google.common.base.Predicate;
 import com.google.common.base.Strings;
 import com.metamx.common.Pair;
@@ -243,6 +244,16 @@ public class Evals
       default:
         throw new IllegalArgumentException("not supported type " + castTo);
     }
+  }
+
+  static ExprEval castNullToNumeric(ExprEval eval, ExprType castTo)
+  {
+    Preconditions.checkArgument(eval.isNull());
+    Preconditions.checkArgument(castTo.isNumeric());
+    if (eval.type() == ExprType.LONG && castTo == ExprType.LONG) {
+      return ExprEval.of(0L);
+    }
+    return ExprEval.of(0D);
   }
 
   public static com.google.common.base.Function<Comparable, Number> asNumberFunc(ValueType type)

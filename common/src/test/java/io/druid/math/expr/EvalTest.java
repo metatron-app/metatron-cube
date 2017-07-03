@@ -736,4 +736,16 @@ public class EvalTest
     Assert.assertEquals(ExprType.UNKNOWN, Parser.parse("if(C == '', 0, CAST(C, 'INT') / 10 * 10.0)").type(bindings));
     Assert.assertEquals(ExprType.DOUBLE, Parser.parse("if(C == '', 0.0, CAST(C, 'INT') / 10 * 10.0)").type(bindings));
   }
+
+  @Test
+  public void testNullCasting()
+  {
+    Expr.NumericBinding bindings = Parser.withMap(ImmutableMap.<String, Object>of("a", 10, "b", 20.D, "c", ""));
+    Assert.assertEquals(10, evalDouble("a + c", bindings), 0.0001);
+    Assert.assertEquals(10, evalDouble("a - c", bindings), 0.0001);
+    Assert.assertEquals(0, evalDouble("a * c", bindings), 0.0001);
+    Assert.assertEquals(20D, evalDouble("b + c", bindings), 0.0001);
+    Assert.assertEquals(20D, evalDouble("b - c", bindings), 0.0001);
+    Assert.assertEquals(0D, evalDouble("b * c", bindings), 0.0001);
+  }
 }
