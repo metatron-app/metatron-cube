@@ -31,6 +31,7 @@ import io.druid.timeline.partition.PartitionHolder;
 import org.joda.time.Interval;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Comparator;
 import java.util.Iterator;
 import java.util.List;
@@ -97,11 +98,10 @@ public class VersionedIntervalTimeline<VersionType, ObjectType> implements Timel
 
   public void add(final Interval interval, VersionType version, PartitionChunk<ObjectType> object)
   {
+    lock.writeLock().lock();
     try {
-      lock.writeLock().lock();
-
       Map<VersionType, TimelineEntry> exists = allTimelineEntries.get(interval);
-      TimelineEntry entry = null;
+      TimelineEntry entry;
 
       if (exists == null) {
         entry = new TimelineEntry(interval, version, new PartitionHolder<ObjectType>(object));
@@ -133,9 +133,8 @@ public class VersionedIntervalTimeline<VersionType, ObjectType> implements Timel
 
   public PartitionChunk<ObjectType> remove(Interval interval, VersionType version, PartitionChunk<ObjectType> chunk)
   {
+    lock.writeLock().lock();
     try {
-      lock.writeLock().lock();
-
       Map<VersionType, TimelineEntry> versionEntries = allTimelineEntries.get(interval);
       if (versionEntries == null) {
         return null;
@@ -167,8 +166,8 @@ public class VersionedIntervalTimeline<VersionType, ObjectType> implements Timel
 
   public PartitionHolder<ObjectType> findEntry(Interval interval, VersionType version)
   {
+    lock.readLock().lock();
     try {
-      lock.readLock().lock();
       for (Map.Entry<Interval, TreeMap<VersionType, TimelineEntry>> entry : allTimelineEntries.entrySet()) {
         if (entry.getKey().equals(interval) || entry.getKey().contains(interval)) {
           TimelineEntry foundEntry = entry.getValue().get(version);
@@ -198,8 +197,8 @@ public class VersionedIntervalTimeline<VersionType, ObjectType> implements Timel
    */
   public List<TimelineObjectHolder<VersionType, ObjectType>> lookup(Interval interval)
   {
+    lock.readLock().lock();
     try {
-      lock.readLock().lock();
       return lookup(interval, false);
     }
     finally {
@@ -210,8 +209,8 @@ public class VersionedIntervalTimeline<VersionType, ObjectType> implements Timel
   @Override
   public Iterable<TimelineObjectHolder<VersionType, ObjectType>> lookupWithIncompletePartitions(Interval interval)
   {
+    lock.readLock().lock();
     try {
-      lock.readLock().lock();
       return lookup(interval, true);
     }
     finally {
@@ -221,8 +220,8 @@ public class VersionedIntervalTimeline<VersionType, ObjectType> implements Timel
 
   public Set<TimelineObjectHolder<VersionType, ObjectType>> findOvershadowed()
   {
+    lock.readLock().lock();
     try {
-      lock.readLock().lock();
       Set<TimelineObjectHolder<VersionType, ObjectType>> retVal = Sets.newHashSet();
 
       Map<Interval, Map<VersionType, TimelineEntry>> overShadowed = Maps.newHashMap();
@@ -476,6 +475,17 @@ public class VersionedIntervalTimeline<VersionType, ObjectType> implements Timel
 
     if (retVal.isEmpty()) {
       return retVal;
+    }
+
+    if (retVal.size() == 1) {
+      TimelineObjectHolder<VersionType, ObjectType> singleEntry = retVal.get(0);
+      return Arrays.asList(
+          new TimelineObjectHolder<VersionType, ObjectType>(
+              interval.overlap(singleEntry.getInterval()),
+              singleEntry.getVersion(),
+              singleEntry.getObject()
+          )
+      );
     }
 
     TimelineObjectHolder<VersionType, ObjectType> firstEntry = retVal.get(0);
