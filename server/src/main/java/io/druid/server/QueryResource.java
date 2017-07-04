@@ -23,7 +23,6 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.ObjectWriter;
 import com.fasterxml.jackson.jaxrs.smile.SmileMediaTypes;
-import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableMap;
@@ -166,26 +165,11 @@ public class QueryResource
     if (log.isDebugEnabled()) {
       log.debug("Received cancel request for query [%s]", queryId);
     }
-    if (authConfig.isEnabled()) {
-      // This is an experimental feature, see - https://github.com/druid-io/druid/pull/2424
-      final AuthorizationInfo authorizationInfo = (AuthorizationInfo) req.getAttribute(AuthConfig.DRUID_AUTH_TOKEN);
-      Preconditions.checkNotNull(
-          authorizationInfo,
-          "Security is enabled but no authorization info found in the request"
-      );
-      Set<String> datasources = queryManager.getQueryDatasources(queryId);
-      if (datasources == null) {
-        log.warn("QueryId [%s] not registered with QueryManager, cannot cancel", queryId);
-      } else {
-        for (String dataSource : datasources) {
-          Access authResult = authorizationInfo.isAuthorized(
-              new Resource(dataSource, ResourceType.DATASOURCE),
-              Action.WRITE
-          );
-          if (!authResult.isAllowed()) {
-            return Response.status(Response.Status.FORBIDDEN).header("Access-Check-Result", authResult).build();
-          }
-        }
+    Set<String> dataSources = queryManager.getQueryDatasources(queryId);
+    if (dataSources != null && !dataSources.isEmpty()) {
+      Access access = authorizeDS(dataSources, Action.WRITE, req);
+      if (access != null) {
+        return Response.status(Response.Status.FORBIDDEN).header("Access-Check-Result", access).build();
       }
     }
     queryManager.cancelQuery(queryId);
@@ -234,22 +218,10 @@ public class QueryResource
 
       query = prepareQuery(query);
 
-      if (authConfig.isEnabled()) {
-        // This is an experimental feature, see - https://github.com/druid-io/druid/pull/2424
-        AuthorizationInfo authorizationInfo = (AuthorizationInfo) req.getAttribute(AuthConfig.DRUID_AUTH_TOKEN);
-        if (authorizationInfo != null) {
-          for (String dataSource : query.getDataSource().getNames()) {
-            Access authResult = authorizationInfo.isAuthorized(
-                new Resource(dataSource, ResourceType.DATASOURCE),
-                Action.READ
-            );
-            if (!authResult.isAllowed()) {
-              return Response.status(Response.Status.FORBIDDEN).header("Access-Check-Result", authResult).build();
-            }
-          }
-        } else {
-          throw new ISE("WTF?! Security is enabled but no authorization info found in the request");
-        }
+      // This is an experimental feature, see - https://github.com/druid-io/druid/pull/2424
+      Access access = authorize(query, req);
+      if (access != null) {
+        return Response.status(Response.Status.FORBIDDEN).header("Access-Check-Result", access).build();
       }
 
       // concurrent hashmap
@@ -422,6 +394,29 @@ public class QueryResource
     finally {
       Thread.currentThread().setName(currThreadName);
     }
+  }
+
+  protected Access authorize(Query query, HttpServletRequest req)
+  {
+    return authorizeDS(query.getDataSource().getNames(), Action.READ, req);
+  }
+
+  protected Access authorizeDS(Iterable<String> dataSources, Action action, HttpServletRequest req)
+  {
+    if (authConfig.isEnabled()) {
+      AuthorizationInfo authorizationInfo = (AuthorizationInfo) req.getAttribute(AuthConfig.DRUID_AUTH_TOKEN);
+      if (authorizationInfo == null) {
+        throw new ISE("Security is enabled but no authorization info found in the request");
+      }
+      for (String dataSource : dataSources) {
+        Resource resource = new Resource(dataSource, ResourceType.DATASOURCE);
+        Access authResult = authorizationInfo.isAuthorized(resource, action);
+        if (!authResult.isAllowed()) {
+          return authResult;
+        }
+      }
+    }
+    return null;
   }
 
   protected Query prepareQuery(Query query) throws Exception
