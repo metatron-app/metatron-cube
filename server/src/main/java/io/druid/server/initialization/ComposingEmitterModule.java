@@ -48,6 +48,12 @@ public class ComposingEmitterModule implements DruidModule
   public void configure(Binder binder)
   {
     JsonConfigProvider.bind(binder, "druid.emitter.composing", ComposingEmitterConfig.class);
+    JsonConfigProvider.bind(
+        binder,
+        "druid.event.emitter.composing",
+        ComposingEmitterConfig.class,
+        Names.named("event.composing")
+    );
   }
 
   @Override
@@ -60,6 +66,19 @@ public class ComposingEmitterModule implements DruidModule
   @ManageLifecycle
   @Named("composing")
   public Emitter getEmitter(ComposingEmitterConfig config, final Injector injector)
+  {
+    return createEmitter(config, injector);
+  }
+
+  @Provides
+  @ManageLifecycle
+  @Named("event.composing")
+  public Emitter getEventEmitter(@Named("event.composing") ComposingEmitterConfig config, final Injector injector)
+  {
+    return createEmitter(config, injector);
+  }
+
+  private Emitter createEmitter(ComposingEmitterConfig config, final Injector injector)
   {
     log.info("Creating Composing Emitter with %s", config.getEmitters());
 

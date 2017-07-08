@@ -27,6 +27,7 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.metamx.common.Pair;
+import com.metamx.emitter.core.NoopEmitter;
 import io.druid.curator.CuratorTestBase;
 import io.druid.jackson.DefaultObjectMapper;
 import io.druid.query.TableDataSource;
@@ -331,7 +332,7 @@ public class CoordinatorServerViewTest extends CuratorTestBase
     };
 
     overlordServerView = new CoordinatorServerView(
-        baseView
+        baseView, new NoopEmitter()
     );
 
     baseView.start();

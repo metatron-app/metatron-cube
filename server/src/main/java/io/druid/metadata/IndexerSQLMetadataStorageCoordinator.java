@@ -24,6 +24,7 @@ import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
@@ -37,10 +38,13 @@ import com.metamx.common.ISE;
 import com.metamx.common.StringUtils;
 import com.metamx.common.lifecycle.LifecycleStart;
 import com.metamx.common.logger.Logger;
+import com.metamx.emitter.core.Emitter;
+import com.metamx.emitter.core.NoopEmitter;
 import io.druid.indexing.overlord.DataSourceMetadata;
 import io.druid.indexing.overlord.IndexerMetadataStorageCoordinator;
 import io.druid.indexing.overlord.SegmentPublishResult;
 import io.druid.segment.realtime.appenderator.SegmentIdentifier;
+import io.druid.server.log.Events;
 import io.druid.timeline.DataSegment;
 import io.druid.timeline.TimelineObjectHolder;
 import io.druid.timeline.VersionedIntervalTimeline;
@@ -81,17 +85,29 @@ public class IndexerSQLMetadataStorageCoordinator implements IndexerMetadataStor
   private final ObjectMapper jsonMapper;
   private final MetadataStorageTablesConfig dbTables;
   private final SQLMetadataConnector connector;
+  private final Emitter emitter;
 
   @Inject
+  public IndexerSQLMetadataStorageCoordinator(
+      ObjectMapper jsonMapper,
+      MetadataStorageTablesConfig dbTables,
+      SQLMetadataConnector connector,
+      @Events Emitter emitter
+  )
+  {
+    this.jsonMapper = jsonMapper;
+    this.dbTables = dbTables;
+    this.connector = connector;
+    this.emitter = emitter;
+  }
+
   public IndexerSQLMetadataStorageCoordinator(
       ObjectMapper jsonMapper,
       MetadataStorageTablesConfig dbTables,
       SQLMetadataConnector connector
   )
   {
-    this.jsonMapper = jsonMapper;
-    this.dbTables = dbTables;
-    this.connector = connector;
+    this(jsonMapper, dbTables, connector, new NoopEmitter());
   }
 
   @LifecycleStart
@@ -629,6 +645,17 @@ public class IndexerSQLMetadataStorageCoordinator implements IndexerMetadataStor
             .execute();
 
       log.info("Published segment [%s] to DB", segment.getIdentifier());
+
+      emitter.emit(
+          new Events.SimpleEvent(
+              ImmutableMap.<String, Object>of(
+                  "feed", "IndexerSQLMetadataStorageCoordinator",
+                  "type", "segmentAnnounced",
+                  "createdDate", System.currentTimeMillis(),
+                  "payload", segment
+              )
+          )
+      );
     }
     catch (Exception e) {
       log.error(e, "Exception inserting segment [%s] into DB", segment.getIdentifier());

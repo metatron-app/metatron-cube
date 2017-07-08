@@ -23,18 +23,14 @@ package io.druid.metadata;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Charsets;
+import com.google.common.collect.ImmutableMap;
 import com.google.inject.Inject;
-import com.metamx.common.lifecycle.Lifecycle;
 import com.metamx.common.logger.Logger;
-import com.metamx.http.client.HttpClient;
-import com.metamx.http.client.HttpClientConfig;
-import com.metamx.http.client.HttpClientInit;
-import com.metamx.http.client.Request;
-import com.metamx.http.client.response.StatusResponseHandler;
+import com.metamx.emitter.core.Emitter;
+import com.metamx.emitter.core.NoopEmitter;
+import io.druid.server.log.Events;
 import io.druid.timeline.DataSegment;
 import io.druid.timeline.partition.NoneShardSpec;
-import org.jboss.netty.handler.codec.http.HttpMethod;
 import org.joda.time.DateTime;
 import org.skife.jdbi.v2.DBI;
 import org.skife.jdbi.v2.Handle;
@@ -55,16 +51,14 @@ public class SQLMetadataSegmentPublisher implements MetadataSegmentPublisher
   private final SQLMetadataConnector connector;
   private final String statement;
 
-  private final HttpClient client;
-  private final Request request;
+  private final Emitter emitter;
 
   @Inject
   public SQLMetadataSegmentPublisher(
       ObjectMapper jsonMapper,
       MetadataStorageTablesConfig config,
-      MetadataSegmentPublisherConfig publish,
       SQLMetadataConnector connector,
-      Lifecycle lifecycle
+      @Events Emitter emitter
   )
   {
     this.jsonMapper = jsonMapper;
@@ -75,19 +69,7 @@ public class SQLMetadataSegmentPublisher implements MetadataSegmentPublisher
         + "VALUES (:id, :dataSource, :created_date, :start, :end, :partitioned, :version, :used, :payload)",
         config.getSegmentsTable()
     );
-    URL postURL = publish == null ? null : toURL(publish.getUrl());
-    if (postURL != null) {
-      HttpClientConfig configure = HttpClientConfig.builder()
-                                                   .withReadTimeout(publish.getReadTimeout())
-                                                   .withNumConnections(publish.getNumConnection())
-                                                   .build();
-      client = HttpClientInit.createClient(configure, lifecycle);
-      request = new Request(HttpMethod.POST, postURL);
-      log.info("published segments will be posted to %s with timeout %s", postURL, configure.getReadTimeout());
-    } else {
-      client = null;
-      request = null;
-    }
+    this.emitter = emitter;
   }
 
   public SQLMetadataSegmentPublisher(
@@ -96,7 +78,7 @@ public class SQLMetadataSegmentPublisher implements MetadataSegmentPublisher
       SQLMetadataConnector connector
   )
   {
-    this(jsonMapper, config, null, connector, null);
+    this(jsonMapper, config, connector, new NoopEmitter());
   }
 
   private URL toURL(String url)
@@ -116,13 +98,13 @@ public class SQLMetadataSegmentPublisher implements MetadataSegmentPublisher
     publishSegment(
         segment.getIdentifier(),
         segment.getDataSource(),
-        new DateTime().toString(),
+        new DateTime(),
         segment.getInterval().getStart().toString(),
         segment.getInterval().getEnd().toString(),
         (segment.getShardSpec() instanceof NoneShardSpec) ? false : true,
         segment.getVersion(),
         true,
-        jsonMapper.writeValueAsBytes(segment)
+        segment
     );
   }
 
@@ -130,13 +112,13 @@ public class SQLMetadataSegmentPublisher implements MetadataSegmentPublisher
   void publishSegment(
       final String identifier,
       final String dataSource,
-      final String createdDate,
+      final DateTime createdDate,
       final String start,
       final String end,
       final boolean partitioned,
       final String version,
       final boolean used,
-      final byte[] payload
+      final DataSegment segment
   )
   {
     try {
@@ -170,13 +152,13 @@ public class SQLMetadataSegmentPublisher implements MetadataSegmentPublisher
               handle.createStatement(statement)
                     .bind("id", identifier)
                     .bind("dataSource", dataSource)
-                    .bind("created_date", createdDate)
+                    .bind("created_date", createdDate.toString())
                     .bind("start", start)
                     .bind("end", end)
                     .bind("partitioned", partitioned)
                     .bind("version", version)
                     .bind("used", used)
-                    .bind("payload", payload)
+                    .bind("payload", jsonMapper.writeValueAsBytes(segment))
                     .execute();
 
               return null;
@@ -188,16 +170,15 @@ public class SQLMetadataSegmentPublisher implements MetadataSegmentPublisher
       log.error(e, "Exception inserting into DB");
       throw new RuntimeException(e);
     }
-    if (client != null) {
-      try {
-        client.go(
-            request.setContent("application/json", payload),
-            new StatusResponseHandler(Charsets.UTF_8)
-        ).get();
-      }
-      catch (Exception e) {
-        log.warn(e, "failed to post published segment");
-      }
-    }
+    emitter.emit(
+        new Events.SimpleEvent(
+            ImmutableMap.<String, Object>of(
+                "feed", "SQLMetadataSegmentPublisher",
+                "type", "segmentAnnounced",
+                "createdDate", System.currentTimeMillis(),
+                "payload", segment
+            )
+        )
+    );
   }
 }

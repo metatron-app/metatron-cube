@@ -91,7 +91,6 @@ import io.druid.segment.realtime.plumber.SegmentHandoffNotifierFactory;
 import io.druid.server.QueryResource;
 import io.druid.server.initialization.jetty.ChatHandlerServerModule;
 import io.druid.server.initialization.jetty.JettyServerInitializer;
-import io.druid.server.log.EventForwarder;
 import io.druid.server.metrics.DataSourceTaskIdHolder;
 import org.eclipse.jetty.server.Server;
 
@@ -162,7 +161,6 @@ public class CliPeon extends GuiceRunnable
             binder.bind(TaskToolboxFactory.class).in(LazySingleton.class);
 
             JsonConfigProvider.bind(binder, "druid.indexer.task", TaskConfig.class);
-            JsonConfigProvider.bind(binder, "druid.indexer.task.events", EventForwarder.class);
             JsonConfigProvider.bind(binder, "druid.peon.taskActionClient.retry", RetryPolicyConfig.class);
 
             configureTaskActionClient(binder);

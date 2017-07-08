@@ -26,6 +26,7 @@ import com.google.inject.Binder;
 import com.google.inject.Module;
 import com.google.inject.Provides;
 import com.google.inject.name.Named;
+import com.google.inject.name.Names;
 import com.google.inject.util.Providers;
 import com.metamx.common.lifecycle.Lifecycle;
 import com.metamx.emitter.core.Emitter;
@@ -48,6 +49,7 @@ public class HttpEmitterModule implements Module
   public void configure(Binder binder)
   {
     JsonConfigProvider.bind(binder, "druid.emitter.http", HttpEmitterConfig.class);
+    JsonConfigProvider.bind(binder, "druid.event.emitter.http", HttpEmitterConfig.class, Names.named("event.http"));
 
     final SSLContext context;
     try {
@@ -65,6 +67,29 @@ public class HttpEmitterModule implements Module
   public Emitter getEmitter(
       Supplier<HttpEmitterConfig> config,
       @Nullable SSLContext sslContext,
+      Lifecycle lifecycle,
+      ObjectMapper jsonMapper
+  )
+  {
+    return createEmitter(config, sslContext, lifecycle, jsonMapper);
+  }
+
+  @Provides
+  @ManageLifecycle
+  @Named("event.http")
+  public Emitter getEventEmitter(
+      @Named("event.http") Supplier<HttpEmitterConfig> config,
+      @Nullable SSLContext sslContext,
+      Lifecycle lifecycle,
+      ObjectMapper jsonMapper
+  )
+  {
+    return createEmitter(config, sslContext, lifecycle, jsonMapper);
+  }
+
+  private Emitter createEmitter(
+      Supplier<HttpEmitterConfig> config,
+      SSLContext sslContext,
       Lifecycle lifecycle,
       ObjectMapper jsonMapper
   )

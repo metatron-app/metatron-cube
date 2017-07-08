@@ -28,6 +28,7 @@ import com.google.common.collect.Sets;
 import com.google.inject.Inject;
 import com.metamx.common.guava.Sequence;
 import com.metamx.common.guava.Sequences;
+import com.metamx.emitter.core.Emitter;
 import com.metamx.emitter.service.ServiceEmitter;
 import io.druid.client.BrokerServerView;
 import io.druid.client.TimelineServerView;
@@ -60,6 +61,7 @@ import io.druid.segment.IndexMergerV9;
 import io.druid.segment.loading.DataSegmentPusher;
 import io.druid.server.coordination.DruidServerMetadata;
 import io.druid.server.initialization.ServerConfig;
+import io.druid.server.log.Events;
 import io.druid.server.log.RequestLogger;
 import io.druid.server.security.AuthConfig;
 import io.druid.timeline.DataSegment;
@@ -104,6 +106,7 @@ public class BrokerQueryResource extends QueryResource
       @Smile ObjectMapper smileMapper,
       QuerySegmentWalker texasRanger,
       ServiceEmitter emitter,
+      @Events Emitter eventEmitter,
       RequestLogger requestLogger,
       QueryManager queryManager,
       AuthConfig authConfig,
@@ -123,6 +126,7 @@ public class BrokerQueryResource extends QueryResource
         smileMapper,
         texasRanger,
         emitter,
+        eventEmitter,
         requestLogger,
         queryManager,
         authConfig,
@@ -287,15 +291,21 @@ public class BrokerQueryResource extends QueryResource
       Map<String, Object> dataMeta = (Map<String, Object>) result.get("data");
       URI location = (URI) dataMeta.get("location");
       DataSegment segment = (DataSegment) dataMeta.get("segment");
+      ImmutableMap.Builder<String, Object> builder = ImmutableMap.builder();
+      builder.put("feed", "BrokerQueryResource");
+      builder.put("payload", segment);
       if (PropUtils.parseBoolean(forwardContext, "temporary", true)) {
         log.info("Publishing index to temporary table..");
         BrokerServerView serverView = (BrokerServerView) brokerServerView;
         serverView.addedLocalSegment(segment, merger.getIndexIO().loadIndex(new File(location.getPath())));
+        builder.put("type", "localPublish");
       } else {
         log.info("Publishing index to table..");
         pusher.push(new File(location.getPath()), segment);
         indexerMetadataStorageCoordinator.announceHistoricalSegments(Sets.newHashSet(segment));
+        builder.put("type", "publish");
       }
+      eventEmitter.emit(new Events.SimpleEvent(builder.put("createTime", System.currentTimeMillis()).build()));
     }
     return Sequences.simple(Arrays.asList(result));
   }

@@ -21,7 +21,8 @@ package io.druid.metadata;
 
 import com.fasterxml.jackson.annotation.JacksonInject;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.metamx.common.lifecycle.Lifecycle;
+import com.metamx.emitter.core.Emitter;
+import io.druid.server.log.Events;
 
 import javax.validation.constraints.NotNull;
 
@@ -39,11 +40,7 @@ public class SQLMetadataSegmentPublisherProvider implements MetadataSegmentPubli
 
   @JacksonInject
   @NotNull
-  private MetadataSegmentPublisherConfig publish = null;
-
-  @JacksonInject
-  @NotNull
-  private Lifecycle lifecycle = null;
+  private @Events Emitter emitter = null;
 
   @JacksonInject
   @NotNull
@@ -52,6 +49,6 @@ public class SQLMetadataSegmentPublisherProvider implements MetadataSegmentPubli
   @Override
   public MetadataSegmentPublisher get()
   {
-    return new SQLMetadataSegmentPublisher(jsonMapper, config, publish, connector, lifecycle);
+    return new SQLMetadataSegmentPublisher(jsonMapper, config, connector, emitter);
   }
 }

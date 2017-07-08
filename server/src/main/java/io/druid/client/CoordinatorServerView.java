@@ -19,14 +19,17 @@
 
 package io.druid.client;
 
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Ordering;
 import com.google.inject.Inject;
 import com.metamx.common.logger.Logger;
+import com.metamx.emitter.core.Emitter;
 import io.druid.concurrent.Execs;
 import io.druid.query.DataSource;
 import io.druid.server.coordination.DruidServerMetadata;
+import io.druid.server.log.Events;
 import io.druid.timeline.DataSegment;
 import io.druid.timeline.VersionedIntervalTimeline;
 import io.druid.timeline.partition.PartitionChunk;
@@ -47,15 +50,18 @@ public class CoordinatorServerView implements InventoryView
   private final Map<String, VersionedIntervalTimeline<String, SegmentLoadInfo>> timelines;
 
   private final ServerInventoryView baseView;
+  private final Emitter emitter;
 
   private volatile boolean initialized = false;
 
   @Inject
   public CoordinatorServerView(
-      ServerInventoryView baseView
+      ServerInventoryView baseView,
+      @Events Emitter emitter
   )
   {
     this.baseView = baseView;
+    this.emitter = emitter;
     this.segmentLoadInfos = Maps.newHashMap();
     this.timelines = Maps.newHashMap();
 
@@ -135,6 +141,15 @@ public class CoordinatorServerView implements InventoryView
         VersionedIntervalTimeline<String, SegmentLoadInfo> timeline = timelines.get(segment.getDataSource());
         if (timeline == null) {
           timeline = new VersionedIntervalTimeline<>(Ordering.natural());
+          emitter.emit(
+              new Events.SimpleEvent(
+                  ImmutableMap.<String, Object>of(
+                      "feed", "CoordinatorServerView",
+                      "type", "newDataSource",
+                      "createdDate", System.currentTimeMillis(),
+                      "dataSource", segment.getDataSource())
+              )
+          );
           timelines.put(segment.getDataSource(), timeline);
         }
 

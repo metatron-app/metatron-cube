@@ -30,6 +30,7 @@ import io.druid.jackson.DefaultObjectMapper;
 import io.druid.server.metrics.NoopServiceEmitter;
 import io.druid.timeline.DataSegment;
 import io.druid.timeline.partition.NoneShardSpec;
+import org.joda.time.DateTime;
 import org.joda.time.Interval;
 import org.junit.Assert;
 import org.junit.Before;
@@ -119,7 +120,7 @@ public class MetadataSegmentManagerTest
   }
 
   @Test
-  public void testPollWithCurroptedSegment()
+  public void testPollWithCorruptedSegment()
   {
     //create a corrupted segment entry in segments table, which tests
     //that overall loading of segments from database continues to work
@@ -127,13 +128,13 @@ public class MetadataSegmentManagerTest
     publisher.publishSegment(
         "corrupt-segment-id",
         "corrupt-datasource",
-        "corrupt-create-date",
+        new DateTime(),
         "corrupt-start-date",
         "corrupt-end-date",
         true,
         "corrupt-version",
         true,
-        "corrupt-payload".getBytes()
+        segment1
     );
 
     EmittingLogger.registerEmitter(new NoopServiceEmitter());

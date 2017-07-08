@@ -25,6 +25,7 @@ import com.google.inject.Binder;
 import com.google.inject.Module;
 import com.google.inject.Provides;
 import com.google.inject.name.Named;
+import com.google.inject.name.Names;
 import com.metamx.emitter.core.Emitter;
 import com.metamx.emitter.core.LoggingEmitter;
 import com.metamx.emitter.core.LoggingEmitterConfig;
@@ -36,15 +37,31 @@ import io.druid.guice.ManageLifecycle;
 public class LogEmitterModule implements Module
 {
   public static final String EMITTER_TYPE = "logging";
+  public static final String EVENT_EMITTER_TYPE = "event.logging";
 
   @Override
   public void configure(Binder binder)
   {
     JsonConfigProvider.bind(binder, "druid.emitter.logging", LoggingEmitterConfig.class);
+    JsonConfigProvider.bind(
+        binder,
+        "druid.event.emitter.logging",
+        LoggingEmitterConfig.class,
+        Names.named(EVENT_EMITTER_TYPE)
+    );
   }
 
   @Provides @ManageLifecycle @Named(EMITTER_TYPE)
   public Emitter makeEmitter(Supplier<LoggingEmitterConfig> config, ObjectMapper jsonMapper)
+  {
+    return new LoggingEmitter(config.get(), jsonMapper);
+  }
+
+  @Provides @ManageLifecycle @Named(EVENT_EMITTER_TYPE)
+  public Emitter makeEventEmitter(
+      @Named(EVENT_EMITTER_TYPE) Supplier<LoggingEmitterConfig> config,
+      ObjectMapper jsonMapper
+  )
   {
     return new LoggingEmitter(config.get(), jsonMapper);
   }

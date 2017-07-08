@@ -21,9 +21,10 @@ package io.druid.indexing.common.actions;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.inject.Inject;
+import com.metamx.emitter.core.Emitter;
 import io.druid.indexing.common.task.Task;
 import io.druid.indexing.overlord.TaskStorage;
-import io.druid.server.log.EventForwarder;
+import io.druid.server.log.Events;
 
 /**
  */
@@ -31,14 +32,14 @@ public class LocalTaskActionClientFactory implements TaskActionClientFactory
 {
   private final TaskStorage storage;
   private final TaskActionToolbox toolbox;
-  private final EventForwarder forwarder;
+  private final Emitter emitter;
 
   @Inject
-  public LocalTaskActionClientFactory(TaskStorage storage, TaskActionToolbox toolbox, EventForwarder forwarder)
+  public LocalTaskActionClientFactory(TaskStorage storage, TaskActionToolbox toolbox, @Events Emitter emitter)
   {
     this.storage = storage;
     this.toolbox = toolbox;
-    this.forwarder = forwarder;
+    this.emitter = emitter;
   }
 
   @VisibleForTesting
@@ -50,6 +51,6 @@ public class LocalTaskActionClientFactory implements TaskActionClientFactory
   @Override
   public TaskActionClient create(Task task)
   {
-    return new LocalTaskActionClient(task, storage, toolbox, forwarder);
+    return new LocalTaskActionClient(task, storage, toolbox, emitter);
   }
 }

@@ -25,6 +25,7 @@ import com.google.inject.Binder;
 import com.google.inject.Binding;
 import com.google.inject.Inject;
 import com.google.inject.Injector;
+import com.google.inject.Key;
 import com.google.inject.Module;
 import com.google.inject.Provider;
 import com.google.inject.Provides;
@@ -32,14 +33,16 @@ import com.google.inject.TypeLiteral;
 import com.google.inject.name.Named;
 import com.google.inject.name.Names;
 import com.metamx.common.ISE;
-import com.metamx.common.logger.Logger;
 import com.metamx.emitter.EmittingLogger;
 import com.metamx.emitter.core.Emitter;
+import com.metamx.emitter.core.NoopEmitter;
 import com.metamx.emitter.service.ServiceEmitter;
+import io.druid.common.utils.StringUtils;
 import io.druid.guice.LazySingleton;
 import io.druid.guice.ManageLifecycle;
 import io.druid.guice.annotations.Self;
 import io.druid.server.DruidNode;
+import io.druid.server.log.Events;
 
 import java.lang.annotation.Annotation;
 import java.util.List;
@@ -49,8 +52,8 @@ import java.util.Properties;
  */
 public class EmitterModule implements Module
 {
-  private static final Logger log = new Logger(EmitterModule.class);
   private static final String EMITTER_PROPERTY = "druid.emitter";
+  private static final String EVENT_EMITTER_PROPERTY = "druid.event.emitter";
 
   private final Properties props;
 
@@ -66,6 +69,7 @@ public class EmitterModule implements Module
   public void configure(Binder binder)
   {
     String emitterType = props.getProperty(EMITTER_PROPERTY, "");
+    String eventEmitterType = props.getProperty(EVENT_EMITTER_PROPERTY, "");
 
     binder.install(new NoopEmitterModule());
     binder.install(new LogEmitterModule());
@@ -73,6 +77,9 @@ public class EmitterModule implements Module
     binder.install(new ComposingEmitterModule());
 
     binder.bind(Emitter.class).toProvider(new EmitterProvider(emitterType)).in(LazySingleton.class);
+    binder.bind(Key.get(Emitter.class, Events.class))
+          .toProvider(new EmitterProvider("event." + eventEmitterType))
+          .in(LazySingleton.class);
   }
 
   @Provides
@@ -101,6 +108,11 @@ public class EmitterModule implements Module
     @Inject
     public void inject(Injector injector)
     {
+      if (StringUtils.isNullOrEmpty(emitterType)) {
+        emitter = new NoopEmitter();
+        return;
+      }
+
       final List<Binding<Emitter>> emitterBindings = injector.findBindingsByType(new TypeLiteral<Emitter>(){});
 
       emitter = findEmitter(emitterType, emitterBindings);

@@ -23,7 +23,6 @@ import com.google.inject.Binder;
 import com.google.inject.Module;
 import io.druid.metadata.MetadataRuleManagerConfig;
 import io.druid.metadata.MetadataSegmentManagerConfig;
-import io.druid.metadata.MetadataSegmentPublisherConfig;
 import io.druid.metadata.MetadataStorageConnectorConfig;
 import io.druid.metadata.MetadataStorageTablesConfig;
 
@@ -34,7 +33,6 @@ public class MetadataConfigModule implements Module
   {
     JsonConfigProvider.bind(binder, "druid.metadata.storage.tables", MetadataStorageTablesConfig.class);
     JsonConfigProvider.bind(binder, "druid.metadata.storage.connector", MetadataStorageConnectorConfig.class);
-    JsonConfigProvider.bind(binder, "druid.metadata.publisher", MetadataSegmentPublisherConfig.class);
 
     JsonConfigProvider.bind(binder, "druid.manager.segments", MetadataSegmentManagerConfig.class);
     JsonConfigProvider.bind(binder, "druid.manager.rules", MetadataRuleManagerConfig.class);

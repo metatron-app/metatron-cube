@@ -32,6 +32,7 @@ import io.druid.guice.ManageLifecycle;
 public class NoopEmitterModule implements Module
 {
   public static final String EMITTER_TYPE = "noop";
+  public static final String EVENT_EMITTER_TYPE = "event.noop";
 
   @Override
   public void configure(Binder binder)
@@ -42,6 +43,14 @@ public class NoopEmitterModule implements Module
   @ManageLifecycle
   @Named(EMITTER_TYPE)
   public Emitter makeEmitter()
+  {
+    return new NoopEmitter();
+  }
+
+  @Provides
+  @ManageLifecycle
+  @Named(EVENT_EMITTER_TYPE)
+  public Emitter makeEventEmitter()
   {
     return new NoopEmitter();
   }

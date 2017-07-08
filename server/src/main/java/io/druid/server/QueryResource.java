@@ -36,6 +36,7 @@ import com.metamx.common.guava.Sequences;
 import com.metamx.common.guava.Yielder;
 import com.metamx.common.guava.YieldingAccumulator;
 import com.metamx.emitter.EmittingLogger;
+import com.metamx.emitter.core.Emitter;
 import com.metamx.emitter.service.ServiceEmitter;
 import io.druid.common.utils.JodaUtils;
 import io.druid.common.utils.PropUtils;
@@ -60,6 +61,7 @@ import io.druid.query.TabularFormat;
 import io.druid.segment.IndexMergerV9;
 import io.druid.segment.incremental.IncrementalIndexSchema;
 import io.druid.server.initialization.ServerConfig;
+import io.druid.server.log.Events;
 import io.druid.server.log.RequestLogger;
 import io.druid.server.security.Access;
 import io.druid.server.security.Action;
@@ -111,6 +113,7 @@ public class QueryResource
   protected final QuerySegmentWalker.Wrapper texasRanger;
   protected final ServiceEmitter emitter;
   protected final RequestLogger requestLogger;
+  protected final Emitter eventEmitter;
   protected final QueryManager queryManager;
   protected final AuthConfig authConfig;
 
@@ -126,6 +129,7 @@ public class QueryResource
       @Smile ObjectMapper smileMapper,
       final QuerySegmentWalker texasRanger,
       ServiceEmitter emitter,
+      @Events Emitter eventEmitter,
       RequestLogger requestLogger,
       QueryManager queryManager,
       AuthConfig authConfig,
@@ -139,6 +143,7 @@ public class QueryResource
     this.jsonMapper = jsonMapper;
     this.smileMapper = smileMapper;
     this.emitter = emitter;
+    this.eventEmitter = eventEmitter;
     this.requestLogger = requestLogger;
     this.queryManager = queryManager;
     this.authConfig = authConfig;
