@@ -337,7 +337,7 @@ public class QueryResourceTest
           @Override
           public void run()
           {
-            Response response = queryResource.getServer("id_1", testServletRequest);
+            Response response = queryResource.cancelQuery("id_1", testServletRequest);
             Assert.assertEquals(Response.Status.ACCEPTED.getStatusCode(), response.getStatus());
             waitForCancellationLatch.countDown();
             waitFinishLatch.countDown();
@@ -437,7 +437,7 @@ public class QueryResourceTest
           @Override
           public void run()
           {
-            Response response = queryResource.getServer("id_1", testServletRequest);
+            Response response = queryResource.cancelQuery("id_1", testServletRequest);
             Assert.assertEquals(Response.Status.FORBIDDEN.getStatusCode(), response.getStatus());
             waitForCancellationLatch.countDown();
             waitFinishLatch.countDown();

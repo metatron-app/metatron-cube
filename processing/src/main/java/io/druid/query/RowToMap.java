@@ -19,23 +19,44 @@
 
 package io.druid.query;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.metamx.common.guava.Sequence;
-import io.druid.data.input.InputRow;
+import com.metamx.common.guava.Sequences;
 import io.druid.data.input.Row;
-import io.druid.data.input.impl.InputRowParser;
+import io.druid.data.input.Rows;
 
-import java.io.IOException;
-import java.net.URI;
-import java.util.List;
 import java.util.Map;
 
 /**
  */
-public interface ResultWriter
+@SuppressWarnings("unchecked")
+public class RowToMap extends PostProcessingOperator.Abstract<Row>
 {
-  String FILE_SCHEME = "file";
+  private final String timestampColumn;
 
-  Sequence<Row> read(List<URI> locations, InputRowParser parser) throws IOException;
+  @JsonCreator
+  public RowToMap(@JsonProperty("timestampColumn") String timestampColumn)
+  {
+    this.timestampColumn = timestampColumn;
+  }
 
-  Map<String, Object> write(URI location, TabularFormat result, Map<String, Object> context) throws IOException;
+  @Override
+  public QueryRunner postProcess(final QueryRunner<Row> baseRunner)
+  {
+    return new QueryRunner()
+    {
+      @Override
+      public Sequence run(Query query, Map responseContext)
+      {
+        return Sequences.map(baseRunner.run(query, responseContext), Rows.rowToMap(timestampColumn));
+      }
+    };
+  }
+
+  @Override
+  public boolean hasTabularOutput()
+  {
+    return true;
+  }
 }

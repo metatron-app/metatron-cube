@@ -19,6 +19,7 @@
 
 package io.druid.data.input;
 
+import com.google.common.base.Function;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSortedSet;
 import com.google.common.collect.Maps;
@@ -36,6 +37,31 @@ import java.util.TreeMap;
  */
 public class Rows
 {
+  public static Function rowToMap(final String timestampColumn)
+  {
+    return new Function()
+    {
+      @Override
+      public Map<String, Object> apply(Object input)
+      {
+        Row row = (Row) input;
+        if (row instanceof MapBasedRow) {
+          Map<String, Object> event = ((MapBasedRow) row).getEvent();
+          if (MapBasedRow.supportInplaceUpdate(event)) {
+            event.put(timestampColumn, row.getTimestamp());
+            return event;
+          }
+        }
+        Map<String, Object> event = Maps.newLinkedHashMap();
+        for (String column : row.getColumns()) {
+          event.put(column, row.getRaw(column));
+        }
+        event.put(timestampColumn, row.getTimestamp());
+        return event;
+      }
+    };
+  }
+
   public static Row.Updatable toUpdatable(Row row)
   {
     if (row instanceof Row.Updatable && ((Row.Updatable) row).isUpdatable()) {

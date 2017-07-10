@@ -20,6 +20,7 @@
 package io.druid.storage.hdfs;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableMap;
@@ -32,9 +33,13 @@ import com.google.inject.Inject;
 import com.metamx.common.CompressionUtils;
 import com.metamx.common.Granularity;
 import com.metamx.common.IAE;
+import com.metamx.common.guava.Sequence;
 import com.metamx.common.logger.Logger;
 import io.druid.common.utils.PropUtils;
+import io.druid.common.utils.Sequences;
 import io.druid.data.input.MapBasedRow;
+import io.druid.data.input.Row;
+import io.druid.data.input.impl.InputRowParser;
 import io.druid.data.output.CountingAccumulator;
 import io.druid.data.output.Formatters;
 import io.druid.data.output.formatter.OrcFormatter;
@@ -55,6 +60,7 @@ import io.druid.timeline.DataSegment;
 import io.druid.timeline.partition.NoneShardSpec;
 import org.apache.commons.io.FileUtils;
 import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.FSDataOutputStream;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.LocalFileSystem;
@@ -62,12 +68,17 @@ import org.apache.hadoop.fs.Path;
 import org.joda.time.DateTime;
 import org.joda.time.Interval;
 
+import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.io.OutputStream;
+import java.lang.management.ManagementFactory;
+import java.lang.management.MemoryMXBean;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.Arrays;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -82,6 +93,8 @@ public class HdfsDataSegmentPusher implements DataSegmentPusher, ResultWriter
   private final Configuration hadoopConfig;
   private final ObjectMapper jsonMapper;
   private final IndexMergerV9 merger;
+
+  private final MemoryMXBean memoryMXBean = ManagementFactory.getMemoryMXBean();
 
   @Inject
   public HdfsDataSegmentPusher(
@@ -162,6 +175,102 @@ public class HdfsDataSegmentPusher implements DataSegmentPusher, ResultWriter
   }
 
   @Override
+  public Sequence<Row> read(final List<URI> locations, final InputRowParser parser) throws IOException
+  {
+    long total = 0;
+    final float[] thresholds = new float[locations.size() + 1];
+    for (int i = 0; i < locations.size(); i++) {
+      thresholds[i] = total;
+      Path path = new Path(locations.get(i));
+      FileSystem fileSystem = path.getFileSystem(hadoopConfig);
+      total += fileSystem.getFileStatus(path).getLen();
+    }
+    thresholds[locations.size()] = total;
+
+    final Iterable<Sequences.RowReader> readers = Iterables.transform(
+        locations, new Function<URI, Sequences.RowReader>()
+        {
+          @Override
+          public Sequences.RowReader apply(URI input)
+          {
+            final int index = locations.indexOf(input);
+            try {
+              return toReader(input, index);
+            }
+            catch (Throwable t) {
+              throw Throwables.propagate(t);
+            }
+          }
+
+          private Sequences.RowReader toReader(URI input, final int index) throws IOException
+          {
+            final Path path = new Path(input);
+            final FileSystem fileSystem = path.getFileSystem(hadoopConfig);
+            final FSDataInputStream open = fileSystem.open(path);
+            final BufferedReader reader = new BufferedReader(new InputStreamReader(open));
+            return new Sequences.RowReader()
+            {
+              @Override
+              public Object readRow() throws IOException, InterruptedException
+              {
+                return reader.readLine();
+              }
+
+              @Override
+              public float progress() throws IOException, InterruptedException
+              {
+                return (thresholds[index] + open.getPos()) / thresholds[thresholds.length - 1];
+              }
+
+              @Override
+              public void close() throws IOException
+              {
+                reader.close();
+              }
+            };
+          }
+        }
+    );
+
+    return Sequences.toSequence(
+        new Sequences.RowReader()
+        {
+          private Iterator<Sequences.RowReader> iterator = readers.iterator();
+          private Sequences.RowReader current = Sequences.NULL_READER;
+
+          @Override
+          public void close() throws IOException
+          {
+            current.close();
+          }
+
+          @Override
+          public Object readRow() throws IOException, InterruptedException
+          {
+            Object row = current.readRow();
+            for (;row == null && iterator.hasNext(); row = current.readRow()) {
+              current.close();
+              current = iterator.next();
+            }
+            return row;
+          }
+
+          @Override
+          public float progress() throws IOException, InterruptedException
+          {
+            return current.progress();
+          }
+        },
+        new Function<Object, Row>()
+        {
+          @Override
+          @SuppressWarnings("unchecked")
+          public Row apply(Object input) { return parser.parse(input); }
+        }
+    );
+  }
+
+  @Override
   public Map<String, Object> write(URI location, TabularFormat result, Map<String, Object> context)
       throws IOException
   {
@@ -174,7 +283,7 @@ public class HdfsDataSegmentPusher implements DataSegmentPusher, ResultWriter
     FileSystem fileSystem = targetDirectory.getFileSystem(hadoopConfig);
     if (fileSystem instanceof LocalFileSystem) {
       // we don't need crc
-      fileSystem = ((LocalFileSystem)fileSystem).getRawFileSystem();
+      fileSystem = ((LocalFileSystem) fileSystem).getRawFileSystem();
     }
 
     boolean cleanup = PropUtils.parseBoolean(context, "cleanup", false);
@@ -258,8 +367,8 @@ public class HdfsDataSegmentPusher implements DataSegmentPusher, ResultWriter
       temp.delete();
       temp.mkdirs();
 
-      return new CountingAccumulator() {
-
+      return new CountingAccumulator()
+      {
         private static final int OCCUPY_CHECK_INTERVAL = 5000;
 
         private int indexCount;
@@ -293,7 +402,7 @@ public class HdfsDataSegmentPusher implements DataSegmentPusher, ResultWriter
             }
           }
           catch (Exception e) {
-            Throwables.propagate(e);
+            throw Throwables.propagate(e);
           }
           return null;
         }
@@ -384,31 +493,37 @@ public class HdfsDataSegmentPusher implements DataSegmentPusher, ResultWriter
             public Interval getInterval()
             {
               Interval dataInterval = new Interval(getMinTimeMillis(), getMaxTimeMillis());
-              if (dataInterval.toPeriod().getMillis() == 0) {
+              log.info("Interval of data [%s]", dataInterval);
+              if (dataInterval.toPeriod().getMillis() == 0 && queryInterval != null) {
                 dataInterval = queryInterval;
               }
-              Granularity prev = Granularity.YEAR;
-              for (Granularity granularity : Arrays.asList(
-                  Granularity.HOUR,
-                  Granularity.DAY,
-                  Granularity.MONTH,
-                  Granularity.YEAR
-              )) {
-                if (Iterables.size(granularity.getIterable(dataInterval)) > 1) {
-                  break;
-                }
-                prev = granularity;
-              }
-              Interval interval = new Interval(prev.truncate(index.getMinTime()), prev.increment(index.getMaxTime()));
-              log.info("Using data interval %s", interval);
+              Granularity granularity = coveringGranularity(dataInterval);
+              Interval interval = new Interval(
+                  granularity.truncate(index.getMinTime()),
+                  granularity.increment(index.getMaxTime())
+              );
+              log.info("Using segment interval [%s]", interval);
               return interval;
             }
           };
         }
 
+        private Granularity coveringGranularity(Interval dataInterval)
+        {
+          for (Granularity granularity : Arrays.asList(Granularity.HOUR, Granularity.DAY, Granularity.MONTH)) {
+            if (Iterables.size(granularity.getIterable(dataInterval)) <= 1) {
+              return granularity;
+            }
+          }
+          return Granularity.YEAR;
+        }
+
         private File persist() throws IOException
         {
-          log.info("Flushing %,d rows with estimated size %,d bytes", index.size(), index.estimatedOccupation());
+          log.info(
+              "Flushing %,d rows with estimated size %,d bytes.. Heap usage %s",
+              index.size(), index.estimatedOccupation(), memoryMXBean.getHeapMemoryUsage()
+          );
           return merger.persist(index, nextFile(), new IndexSpec());
         }
 

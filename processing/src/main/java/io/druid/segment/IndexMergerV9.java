@@ -21,6 +21,7 @@ package io.druid.segment;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Function;
+import com.google.common.base.Preconditions;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
@@ -257,7 +258,13 @@ public class IndexMergerV9 extends IndexMerger
       v9Smoosher.close();
       progress.stop();
 
-      log.info("Completed writing index %,d msec", System.currentTimeMillis() - startTime);
+      long totalSize = 0L;
+      for (File file : Preconditions.checkNotNull(outDir.listFiles(), "output dir is not valid")) {
+        if (file.isFile() && file.getName().endsWith(".smoosh")) {
+          totalSize += file.length();
+        }
+      }
+      log.info("Completed writing index %,d msec, %,d bytes", System.currentTimeMillis() - startTime, totalSize);
       return outDir;
     }
     finally {
@@ -723,7 +730,7 @@ public class IndexMergerV9 extends IndexMerger
         }
       }
       if ((++rowCount % 500000) == 0) {
-        log.info("..walked 500,000/%,d rows in %,d millis.", rowCount, System.currentTimeMillis() - time);
+        log.info("..walked 500,000 rows.. total %,d rows in %,d millis.", rowCount, System.currentTimeMillis() - time);
         time = System.currentTimeMillis();
       }
     }

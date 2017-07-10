@@ -28,7 +28,8 @@ import io.druid.query.aggregation.model.HoltWintersPostProcessor;
     @JsonSubTypes.Type(name = "timewarp", value = TimewarpOperator.class),
     @JsonSubTypes.Type(name = "join", value = JoinPostProcessor.class),
     @JsonSubTypes.Type(name = "tabular", value = TabularPostProcessor.class),
-    @JsonSubTypes.Type(name = "holtWinters", value = HoltWintersPostProcessor.class)
+    @JsonSubTypes.Type(name = "holtWinters", value = HoltWintersPostProcessor.class),
+    @JsonSubTypes.Type(name = "rowToMap", value = RowToMap.class)
 })
 public interface PostProcessingOperator<T>
 {

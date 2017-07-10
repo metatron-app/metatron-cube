@@ -19,13 +19,19 @@
 
 package io.druid.server;
 
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.jaxrs.smile.SmileMediaTypes;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
+import com.google.common.util.concurrent.ForwardingListenableFuture;
+import com.google.common.util.concurrent.ListenableFuture;
+import com.google.common.util.concurrent.ListeningExecutorService;
+import com.google.common.util.concurrent.MoreExecutors;
 import com.google.inject.Inject;
+import com.metamx.common.IAE;
 import com.metamx.common.guava.Sequence;
 import com.metamx.common.guava.Sequences;
 import com.metamx.emitter.core.Emitter;
@@ -34,18 +40,30 @@ import io.druid.client.BrokerServerView;
 import io.druid.client.TimelineServerView;
 import io.druid.client.coordinator.CoordinatorClient;
 import io.druid.client.selector.ServerSelector;
+import io.druid.common.Progressing;
 import io.druid.common.utils.JodaUtils;
 import io.druid.common.utils.PropUtils;
+import io.druid.data.input.Row;
+import io.druid.data.input.Rows;
+import io.druid.data.input.impl.DimensionsSpec;
+import io.druid.data.input.impl.InputRowParser;
+import io.druid.data.input.impl.ParseSpec;
+import io.druid.data.input.impl.StringInputRowParser;
 import io.druid.data.output.Formatters;
 import io.druid.guice.annotations.Json;
+import io.druid.guice.annotations.Processing;
 import io.druid.guice.annotations.Self;
 import io.druid.guice.annotations.Smile;
 import io.druid.indexing.overlord.IndexerMetadataStorageCoordinator;
+import io.druid.query.AbstractPrioritizedCallable;
 import io.druid.query.BaseQuery;
 import io.druid.query.DataSource;
+import io.druid.query.DummyQuery;
 import io.druid.query.LocatedSegmentDescriptor;
 import io.druid.query.Query;
+import io.druid.query.QueryContextKeys;
 import io.druid.query.QueryDataSource;
+import io.druid.query.QueryRunner;
 import io.druid.query.QuerySegmentWalker;
 import io.druid.query.QueryToolChestWarehouse;
 import io.druid.query.RegexDataSource;
@@ -58,6 +76,8 @@ import io.druid.query.select.SelectForwardQuery;
 import io.druid.query.select.SelectQuery;
 import io.druid.query.select.StreamQuery;
 import io.druid.segment.IndexMergerV9;
+import io.druid.segment.incremental.IncrementalIndexSchema;
+import io.druid.segment.indexing.DataSchema;
 import io.druid.segment.loading.DataSegmentPusher;
 import io.druid.server.coordination.DruidServerMetadata;
 import io.druid.server.initialization.ServerConfig;
@@ -75,6 +95,7 @@ import javax.ws.rs.Consumes;
 import javax.ws.rs.GET;
 import javax.ws.rs.POST;
 import javax.ws.rs.Path;
+import javax.ws.rs.PathParam;
 import javax.ws.rs.Produces;
 import javax.ws.rs.QueryParam;
 import javax.ws.rs.core.Context;
@@ -88,6 +109,8 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
+import java.util.concurrent.ExecutorService;
 
 /**
  */
@@ -98,6 +121,8 @@ public class BrokerQueryResource extends QueryResource
   private final TimelineServerView brokerServerView;
   private final DataSegmentPusher pusher;
   private final IndexerMetadataStorageCoordinator indexerMetadataStorageCoordinator;
+
+  private final ListeningExecutorService exec;
 
   @Inject
   public BrokerQueryResource(
@@ -117,7 +142,8 @@ public class BrokerQueryResource extends QueryResource
       @Self DruidNode node,
       QueryToolChestWarehouse warehouse,
       IndexMergerV9 merger,
-      Map<String, ResultWriter> writerMap
+      Map<String, ResultWriter> writerMap,
+      @Processing ExecutorService exec
   )
   {
     super(
@@ -139,6 +165,7 @@ public class BrokerQueryResource extends QueryResource
     this.brokerServerView = brokerServerView;
     this.pusher = pusher;
     this.indexerMetadataStorageCoordinator = indexerMetadataStorageCoordinator;
+    this.exec = MoreExecutors.listeningDecorator(exec);
   }
 
   @POST
@@ -308,5 +335,150 @@ public class BrokerQueryResource extends QueryResource
       eventEmitter.emit(new Events.SimpleEvent(builder.put("createTime", System.currentTimeMillis()).build()));
     }
     return Sequences.simple(Arrays.asList(result));
+  }
+
+  @POST
+  @Path("/load")
+  @Produces({MediaType.APPLICATION_JSON, SmileMediaTypes.APPLICATION_JACKSON_SMILE})
+  @Consumes({MediaType.APPLICATION_JSON, SmileMediaTypes.APPLICATION_JACKSON_SMILE, APPLICATION_SMILE})
+  @SuppressWarnings("unchecked")
+  public Response loadToIndex(
+      BrokerLoadSpec loadSpec,
+      @QueryParam("rollup") boolean rollup,
+      @QueryParam("maxOccupation") long maxOccupation,
+      @QueryParam("maxRowCount") long maxRowCount,
+      @QueryParam("temporary") Boolean temporary,
+      @QueryParam("async") Boolean async,
+      @QueryParam("pretty") String pretty,
+      @Context final HttpServletRequest req
+  ) throws Exception
+  {
+    final DataSchema schema = loadSpec.getSchema();
+    final InputRowParser parser = schema.getParser();
+
+    final RequestContext context = new RequestContext(req, pretty != null);
+    try {
+      if (!(parser instanceof StringInputRowParser)) {
+        throw new IllegalArgumentException("Currently supports StringInputRowParser only");
+      }
+      ParseSpec parseSpec = parser.getParseSpec();
+      final DimensionsSpec dimensionsSpec = parseSpec.getDimensionsSpec();
+      final String timestampColumn = parseSpec.getTimestampSpec().getTimestampColumn();
+      if (!dimensionsSpec.hasCustomDimensions()) {
+        throw new IllegalArgumentException("Need to specify dimension specs, for now");
+      }
+      final List<URI> locations = loadSpec.getURIs();
+      final String scheme = locations.get(0).getScheme();
+      final ResultWriter writer = writerMap.get(scheme);
+      if (writer == null) {
+        throw new IAE("Unsupported scheme '%s'", scheme);
+      }
+      IncrementalIndexSchema indexSchema = new IncrementalIndexSchema.Builder()
+          .withDimensionsSpec(dimensionsSpec)
+          .withMetrics(schema.getAggregators())
+          .withFixedSchema(true)
+          .withRollup(rollup)
+          .build();
+
+      Map<String, Object> forwardContext = Maps.newHashMap();
+      forwardContext.put("format", "index");
+      forwardContext.put("schema", jsonMapper.convertValue(indexSchema, new TypeReference<Map<String, Object>>() { } ));
+      forwardContext.put("timestampColumn", timestampColumn);
+      forwardContext.put("dataSource", schema.getDataSource());
+      forwardContext.put("registerTable", true);
+      forwardContext.put("temporary", temporary == null || temporary);
+      forwardContext.put("maxOccupation", Math.max(maxOccupation, 256 << 20));
+      forwardContext.put("maxRowCount", Math.max(maxRowCount, 500000));
+
+      File output = File.createTempFile("__druid_broker-", "-file_loader");
+      output.delete();
+      output.mkdirs();
+
+      final DummyQuery<Row> query = new DummyQuery<Row>().withOverriddenContext(
+          ImmutableMap.<String, Object>of(
+              BaseQuery.QUERYID, UUID.randomUUID().toString(),
+              Query.FORWARD_URL, "file://" + output.getAbsolutePath(),
+              Query.FORWARD_CONTEXT, forwardContext,
+              QueryContextKeys.POST_PROCESSING, ImmutableMap.of("type", "rowToMap") // dummy to skip tabulating
+          )
+      );
+      log.info("Start loading.. %s into index", locations);
+      final Sequence<Row> sequence = writer.read(locations, parser);
+      final QueryRunner runner = wrapForward(
+          query, new QueryRunner()
+          {
+            @Override
+            public Sequence run(Query query, Map responseContext)
+            {
+              return Sequences.map(sequence, Rows.rowToMap(timestampColumn));
+            }
+          }
+      );
+      if (async) {
+        queryManager.registerQuery(
+            query, new ProgressingFuture(
+                exec.submit(
+                    new AbstractPrioritizedCallable<Sequence>(0)
+                    {
+                      @Override
+                      public Sequence call() throws Exception
+                      {
+                        return runner.run(query, Maps.newHashMap());
+                      }
+                    }
+                ), sequence
+            )
+        );
+        return context.ok(ImmutableMap.of("queryId", query.getId()));
+      } else {
+        List result = Sequences.toList(runner.run(query, Maps.newHashMap()), Lists.newArrayList());
+        return context.ok(result.size() == 1 ? result.get(0) : result);
+      }
+    }
+    catch (Throwable e) {
+      log.warn(e, "Failed loading");
+      return context.gotError(e);
+    }
+  }
+
+  @GET
+  @Path("/progress/{id}")
+  @Produces(MediaType.APPLICATION_JSON)
+  public Response getProgress(
+      @PathParam("id") String queryId,
+      @Context final HttpServletRequest req
+  ) throws Exception
+  {
+    final RequestContext context = new RequestContext(req, false);
+    try {
+      return context.ok(queryManager.progress(queryId));
+    }
+    catch (Throwable e) {
+      return context.gotError(e);
+    }
+  }
+
+  private static class ProgressingFuture<T> extends ForwardingListenableFuture<T> implements Progressing
+  {
+    private final ListenableFuture<T> delegate;
+    private final Object progressing;
+
+    private ProgressingFuture(ListenableFuture<T> delegate, Object progressing)
+    {
+      this.delegate = delegate;
+      this.progressing = progressing;
+    }
+
+    @Override
+    protected ListenableFuture<T> delegate()
+    {
+      return delegate;
+    }
+
+    @Override
+    public float progress() throws IOException, InterruptedException
+    {
+      return progressing instanceof Progressing ? ((Progressing)progressing).progress() : -1;
+    }
   }
 }

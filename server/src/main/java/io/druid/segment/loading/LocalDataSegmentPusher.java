@@ -27,8 +27,11 @@ import com.google.common.io.ByteStreams;
 import com.google.common.io.Files;
 import com.google.inject.Inject;
 import com.metamx.common.CompressionUtils;
+import com.metamx.common.guava.Sequence;
 import com.metamx.common.logger.Logger;
 import io.druid.common.utils.PropUtils;
+import io.druid.data.input.Row;
+import io.druid.data.input.impl.InputRowParser;
 import io.druid.data.output.CountingAccumulator;
 import io.druid.data.output.Formatters;
 import io.druid.query.ResultWriter;
@@ -43,6 +46,7 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -119,6 +123,13 @@ public class LocalDataSegmentPusher implements DataSegmentPusher, ResultWriter
   private ImmutableMap<String, Object> makeLoadSpec(File outFile)
   {
     return ImmutableMap.<String, Object>of("type", "local", "path", outFile.toString());
+  }
+
+  @Override
+  public Sequence<Row> read(List<URI> locations, InputRowParser parser) throws IOException
+  {
+    // todo
+    throw new UnsupportedOperationException();
   }
 
   @Override

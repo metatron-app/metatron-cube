@@ -20,13 +20,16 @@
 package io.druid.server;
 
 import com.google.common.collect.HashMultimap;
+import com.google.common.collect.Iterables;
 import com.google.common.collect.Multimaps;
 import com.google.common.collect.SetMultimap;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.MoreExecutors;
+import io.druid.common.Progressing;
 import io.druid.query.Query;
 import io.druid.query.QueryWatcher;
 
+import java.io.IOException;
 import java.util.List;
 import java.util.Set;
 
@@ -82,5 +85,17 @@ public class QueryManager implements QueryWatcher
   public Set<String> getQueryDatasources(final String queryId)
   {
     return queryDatasources.get(queryId);
+  }
+
+  public float progress(String queryId) throws IOException, InterruptedException
+  {
+    Set<ListenableFuture> futures = queries.get(queryId);
+    if (futures != null && futures.size() == 1) {
+      ListenableFuture future = Iterables.getFirst(futures, null);
+      if (future instanceof Progressing) {
+        return ((Progressing)future).progress();
+      }
+    }
+    return -1;
   }
 }
