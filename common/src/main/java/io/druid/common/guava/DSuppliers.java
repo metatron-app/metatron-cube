@@ -20,6 +20,7 @@
 package io.druid.common.guava;
 
 import com.google.common.base.Supplier;
+import io.druid.data.ValueDesc;
 
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -27,24 +28,12 @@ import java.util.concurrent.atomic.AtomicReference;
  */
 public class DSuppliers
 {
-  public static <T> Typed<T> typeOf(final Class<T> clazz)
+  public static interface Typed
   {
-    return new Typed<T>()
-    {
-      @Override
-      public Class<T> classOfObject()
-      {
-        return clazz;
-      }
-    };
+    ValueDesc type();
   }
 
-  public static interface Typed<T>
-  {
-    Class<T> classOfObject();
-  }
-
-  public static interface TypedSupplier<T> extends Supplier<T>, Typed<T>
+  public static interface TypedSupplier<T> extends Supplier<T>, Typed
   {
   }
 

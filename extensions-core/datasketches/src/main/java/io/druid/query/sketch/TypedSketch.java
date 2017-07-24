@@ -168,8 +168,8 @@ public abstract class TypedSketch<T> extends Pair<ValueType, T>
   {
     byte[] sketch = sketchToBytes();
     byte[] typed = new byte[sketch.length + 1];
+    typed[0] = toByte(lhs);
     System.arraycopy(sketch, 0, typed, 1, sketch.length);
-    typed[0] = (byte) lhs.ordinal();
     return typed;
   }
 
@@ -192,6 +192,38 @@ public abstract class TypedSketch<T> extends Pair<ValueType, T>
         return longsSerDe;
       case STRING:
         return stringsSerDe;
+      default:
+        throw new UnsupportedOperationException("unsupported type " + type);
+    }
+  }
+
+  public static byte toByte(ValueType type)
+  {
+    switch (type) {
+      case FLOAT:
+        return 0;
+      case DOUBLE:
+        return 1;
+      case LONG:
+        return 2;
+      case STRING:
+        return 3;
+      default:
+        throw new UnsupportedOperationException("unsupported type " + type);
+    }
+  }
+
+  public static ValueType fromByte(byte type)
+  {
+    switch (type) {
+      case 0:
+        return ValueType.FLOAT;
+      case 1:
+        return ValueType.DOUBLE;
+      case 2:
+        return ValueType.LONG;
+      case 3:
+        return ValueType.STRING;
       default:
         throw new UnsupportedOperationException("unsupported type " + type);
     }

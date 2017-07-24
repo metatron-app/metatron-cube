@@ -26,6 +26,7 @@ import com.google.common.collect.Iterables;
 import com.google.common.collect.Sets;
 import com.metamx.collections.bitmap.ImmutableBitmap;
 import com.metamx.collections.bitmap.MutableBitmap;
+import io.druid.data.ValueDesc;
 import io.druid.query.extraction.ExtractionFn;
 import io.druid.query.filter.BitmapIndexSelector;
 import io.druid.query.filter.Filter;
@@ -36,8 +37,6 @@ import io.druid.segment.ObjectColumnSelector;
 import io.druid.segment.column.BitmapIndex;
 import io.druid.segment.data.IndexedInts;
 
-import java.lang.reflect.Array;
-import java.util.Objects;
 import java.util.Set;
 
 /**
@@ -109,7 +108,7 @@ public class InFilter extends Filter.WithDictionary
   public ValueMatcher makeMatcher(ColumnSelectorFactory columnSelectorFactory)
   {
     ObjectColumnSelector selector = columnSelectorFactory.makeObjectColumnSelector(dimension);
-    if (selector.classOfObject() == IndexedInts.WithLookup.class) {
+    if (ValueDesc.isIndexedId(selector.type())) {
       if (extractionFn == null) {
         final ObjectColumnSelector<IndexedInts.WithLookup> indexedSelector = selector;
         return new ValueMatcher()
@@ -145,42 +144,9 @@ public class InFilter extends Filter.WithDictionary
           }
         };
       }
-      selector = Filters.asStringArraySelector(selector);
+      selector = Filters.asMultiValued(selector);
     }
-
-    if (selector.classOfObject() == String.class) {
-      final ObjectColumnSelector<String> stringSelector = selector;
-      return new ValueMatcher()
-      {
-        final Predicate<String> predicate = toPredicate();
-        @Override
-        public boolean matches()
-        {
-          return predicate.apply(stringSelector.get());
-        }
-      };
-    }
-
-    final ObjectColumnSelector arraySelector = selector;
-    return new ValueMatcher()
-    {
-      final Predicate<String> predicate = toPredicate();
-      @Override
-      public boolean matches()
-      {
-        Object object = arraySelector.get();
-        if (object == null || !object.getClass().isArray()) {
-          return predicate.apply(Objects.toString(object, null));
-        }
-        int length = Array.getLength(object);
-        for (int i = 0; i < length; i++) {
-          if (predicate.apply(Objects.toString(Array.get(object, i), null))) {
-            return true;
-          }
-        }
-        return false;
-      }
-    };
+    return Filters.dimensionalSelectorToValueMatcher(selector, toPredicate());
   }
 
   @Override

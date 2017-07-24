@@ -21,7 +21,6 @@ package io.druid.segment;
 
 import com.google.common.base.Function;
 import com.google.common.base.Predicates;
-import com.google.common.base.Supplier;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
@@ -32,6 +31,7 @@ import com.metamx.common.guava.CloseQuietly;
 import com.metamx.common.guava.Sequence;
 import com.metamx.common.guava.Sequences;
 import io.druid.cache.Cache;
+import io.druid.data.ValueDesc;
 import io.druid.data.ValueType;
 import io.druid.granularity.QueryGranularity;
 import io.druid.query.QueryInterruptedException;
@@ -204,9 +204,12 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
   @Override
   public String getColumnTypeName(String columnName)
   {
-    final Column column = index.getColumn(columnName);
-    final ComplexColumn complexColumn = column.getComplexColumn();
-    return complexColumn != null ? complexColumn.getTypeName() : column.getCapabilities().getType().toString();
+    Column column = index.getColumn(columnName);
+    if (column != null) {
+      ValueType valueType = column.getCapabilities().getType();
+      return valueType.isPrimitive() ? valueType.name() : column.getComplexColumn().getTypeName();
+    }
+    return null;
   }
 
   @Override
@@ -604,7 +607,7 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
                           return vc.asFloatMetric(columnName, this);
                         }
                         Column holder = index.getColumn(columnName);
-                        if (holder != null && ValueType.isNumeric(holder.getCapabilities().getType())) {
+                        if (holder != null && holder.getCapabilities().getType().isNumeric()) {
                           cachedMetricVals = holder.getGenericColumn();
                           genericColumnCache.put(columnName, cachedMetricVals);
                         }
@@ -643,7 +646,7 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
                           return vc.asDoubleMetric(columnName, this);
                         }
                         Column holder = index.getColumn(columnName);
-                        if (holder != null && ValueType.isNumeric(holder.getCapabilities().getType())) {
+                        if (holder != null && holder.getCapabilities().getType().isNumeric()) {
                           cachedMetricVals = holder.getGenericColumn();
                           genericColumnCache.put(columnName, cachedMetricVals);
                         }
@@ -682,7 +685,7 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
                           return vc.asLongMetric(columnName, this);
                         }
                         Column holder = index.getColumn(columnName);
-                        if (holder != null && ValueType.isNumeric(holder.getCapabilities().getType())) {
+                        if (holder != null && holder.getCapabilities().getType().isNumeric()) {
                           cachedMetricVals = holder.getGenericColumn();
                           genericColumnCache.put(columnName, cachedMetricVals);
                         }
@@ -718,9 +721,9 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
                         return new ObjectColumnSelector()
                         {
                           @Override
-                          public Class classOfObject()
+                          public ValueDesc type()
                           {
-                            return ValueType.LONG.classOfObject();
+                            return ValueDesc.LONG;
                           }
 
                           @Override
@@ -760,9 +763,9 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
                             }
 
                             @Override
-                            public Class classOfObject()
+                            public ValueDesc type()
                             {
-                              return Object.class;
+                              return ValueDesc.ofMultiValued(capabilities.getType());
                             }
 
                             @Override
@@ -792,9 +795,9 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
                             }
 
                             @Override
-                            public Class classOfObject()
+                            public ValueDesc type()
                             {
-                              return String.class;
+                              return ValueDesc.of(capabilities.getType());
                             }
 
                             @Override
@@ -804,8 +807,9 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
                             }
                           };
                         }
-                      } else if (capabilities.getType() == ValueType.COMPLEX) {
+                      } else if (!capabilities.getType().isPrimitive()) {
                         final ComplexColumn columnVals = holder.getComplexColumn();
+                        final ValueDesc valueType = ValueDesc.of(columnVals.getTypeName());
                         cachedColumnVals = new ObjectColumnSelector.WithBaggage()
                         {
                           @Override
@@ -815,9 +819,9 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
                           }
 
                           @Override
-                          public Class classOfObject()
+                          public ValueDesc type()
                           {
-                            return columnVals.getClazz();
+                            return valueType;
                           }
 
                           @Override
@@ -846,9 +850,9 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
                             }
 
                             @Override
-                            public Class classOfObject()
+                            public ValueDesc type()
                             {
-                              return Float.TYPE;
+                              return ValueDesc.FLOAT;
                             }
 
                             @Override
@@ -867,9 +871,9 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
                             }
 
                             @Override
-                            public Class classOfObject()
+                            public ValueDesc type()
                             {
-                              return Long.TYPE;
+                              return ValueDesc.LONG;
                             }
 
                             @Override
@@ -888,9 +892,9 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
                             }
 
                             @Override
-                            public Class classOfObject()
+                            public ValueDesc type()
                             {
-                              return Double.TYPE;
+                              return ValueDesc.DOUBLE;
                             }
 
                             @Override
@@ -909,9 +913,9 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
                             }
 
                             @Override
-                            public Class classOfObject()
+                            public ValueDesc type()
                             {
-                              return String.class;
+                              return ValueDesc.STRING;
                             }
 
                             @Override

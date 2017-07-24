@@ -22,6 +22,8 @@ package io.druid.query.aggregation.variance;
 import com.google.common.base.Predicates;
 import com.google.common.collect.Lists;
 import com.metamx.common.Pair;
+import io.druid.data.ValueDesc;
+import io.druid.query.RowResolver;
 import io.druid.query.aggregation.BufferAggregator;
 import io.druid.segment.FloatColumnSelector;
 import io.druid.segment.ObjectColumnSelector;
@@ -159,9 +161,9 @@ public class VarianceAggregatorCollectorTest
     Object v;
 
     @Override
-    public Class classOfObject()
+    public ValueDesc type()
     {
-      return v == null ? Object.class : v.getClass();
+      return v == null ? ValueDesc.UNKNOWN : RowResolver.toValueType(v.getClass());
     }
 
     @Override

@@ -25,7 +25,7 @@ import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
-import io.druid.data.ValueType;
+import io.druid.data.ValueDesc;
 import io.druid.data.input.InputRow;
 import io.druid.data.input.Row;
 import io.druid.data.input.Rows;
@@ -40,7 +40,7 @@ import java.util.Objects;
  */
 public class Evaluation
 {
-  public static List<RowEvaluator<InputRow>> toEvaluators(List<Evaluation> evaluations, Map<String, ValueType> types)
+  public static List<RowEvaluator<InputRow>> toEvaluators(List<Evaluation> evaluations, Map<String, ValueDesc> types)
   {
     if (evaluations == null || evaluations.isEmpty()) {
       return ImmutableList.of();
@@ -87,7 +87,7 @@ public class Evaluation
     return expressions;
   }
 
-  public RowEvaluator<InputRow> toEvaluator(final Map<String, ValueType> types)
+  public RowEvaluator<InputRow> toEvaluator(final Map<String, ValueDesc> types)
   {
     return new RowEvaluator<InputRow>()
     {

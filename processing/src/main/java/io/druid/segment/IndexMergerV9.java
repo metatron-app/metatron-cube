@@ -44,6 +44,7 @@ import com.metamx.common.io.smoosh.SmooshedWriter;
 import com.metamx.common.logger.Logger;
 import io.druid.collections.CombiningIterable;
 import io.druid.common.utils.JodaUtils;
+import io.druid.data.ValueDesc;
 import io.druid.data.ValueType;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.segment.column.Column;
@@ -179,10 +180,9 @@ public class IndexMergerV9 extends IndexMerger
       log.info("Completed version.bin in %,d millis.", System.currentTimeMillis() - startTime);
 
       progress.progress();
-      final Map<String, ValueType> metricsValueTypes = Maps.newTreeMap(Ordering.<String>natural().nullsFirst());
-      final Map<String, String> metricTypeNames = Maps.newTreeMap(Ordering.<String>natural().nullsFirst());
+      final Map<String, ValueDesc> metricTypeNames = Maps.newTreeMap(Ordering.<String>natural().nullsFirst());
       final List<ColumnCapabilitiesImpl> dimCapabilities = Lists.newArrayListWithCapacity(mergedDimensions.size());
-      mergeCapabilities(adapters, mergedDimensions, metricsValueTypes, metricTypeNames, dimCapabilities);
+      mergeCapabilities(adapters, mergedDimensions, metricTypeNames, dimCapabilities);
 
       /************* Setup Dim Conversions **************/
       progress.progress();
@@ -214,7 +214,7 @@ public class IndexMergerV9 extends IndexMerger
           ioPeon, mergedDimensions, dimCapabilities, dimCardinalities, indexSpec
       );
       final ArrayList<GenericColumnSerializer> metWriters = setupMetricsWriters(
-          ioPeon, mergedMetrics, metricsValueTypes, metricTypeNames, indexSpec
+          ioPeon, mergedMetrics, metricTypeNames, indexSpec
       );
       final List<IntBuffer> rowNumConversions = Lists.newArrayListWithCapacity(adapters.size());
       final ArrayList<MutableBitmap> nullRowsList = Lists.newArrayListWithCapacity(mergedDimensions.size());
@@ -242,7 +242,7 @@ public class IndexMergerV9 extends IndexMerger
       /************ Finalize Build Columns *************/
       progress.progress();
       makeTimeColumn(v9Smoosher, progress, timeWriter);
-      makeMetricsColumns(v9Smoosher, progress, mergedMetrics, metricsValueTypes, metricTypeNames, metWriters);
+      makeMetricsColumns(v9Smoosher, progress, mergedMetrics, metricTypeNames, metWriters);
       makeDimensionColumns(
           v9Smoosher, progress, indexSpec, mergedDimensions, dimensionSkipFlag, dimCapabilities,
           dimValueWriters, dimWriters, bitmapIndexWriters, spatialIndexWriters
@@ -409,8 +409,7 @@ public class IndexMergerV9 extends IndexMerger
       final FileSmoosher v9Smoosher,
       final ProgressIndicator progress,
       final List<String> mergedMetrics,
-      final Map<String, ValueType> metricsValueTypes,
-      final Map<String, String> metricTypeNames,
+      final Map<String, ValueDesc> metricTypeNames,
       final List<GenericColumnSerializer> metWriters
   ) throws IOException
   {
@@ -425,8 +424,8 @@ public class IndexMergerV9 extends IndexMerger
       writer.close();
 
       final ColumnDescriptor.Builder builder = ColumnDescriptor.builder();
-      ValueType type = metricsValueTypes.get(metric);
-      switch (type) {
+      ValueDesc type = metricTypeNames.get(metric);
+      switch (type.type()) {
         case LONG:
           builder.setValueType(ValueType.LONG);
           builder.addSerde(
@@ -455,8 +454,8 @@ public class IndexMergerV9 extends IndexMerger
           );
           break;
         case COMPLEX:
-          final String typeName = metricTypeNames.get(metric);
-          builder.setValueType(ValueType.COMPLEX);
+          final String typeName = type.typeName();
+          builder.setValueType(ValueType.of(typeName));
           builder.addSerde(
               ComplexColumnPartSerde.serializerBuilder().withTypeName(typeName)
                                     .withDelegate((ComplexColumnSerializer) writer)
@@ -754,17 +753,16 @@ public class IndexMergerV9 extends IndexMerger
   private ArrayList<GenericColumnSerializer> setupMetricsWriters(
       final IOPeon ioPeon,
       final List<String> mergedMetrics,
-      final Map<String, ValueType> metricsValueTypes,
-      final Map<String, String> metricTypeNames,
+      final Map<String, ValueDesc> metricTypeNames,
       final IndexSpec indexSpec
   ) throws IOException
   {
     ArrayList<GenericColumnSerializer> metWriters = Lists.newArrayListWithCapacity(mergedMetrics.size());
     final CompressedObjectStrategy.CompressionStrategy metCompression = indexSpec.getMetricCompressionStrategy();
     for (String metric : mergedMetrics) {
-      ValueType type = metricsValueTypes.get(metric);
+      ValueDesc type = metricTypeNames.get(metric);
       GenericColumnSerializer writer;
-      switch (type) {
+      switch (type.type()) {
         case LONG:
           writer = LongColumnSerializer.create(ioPeon, metric, metCompression);
           break;
@@ -775,7 +773,7 @@ public class IndexMergerV9 extends IndexMerger
           writer = DoubleColumnSerializer.create(ioPeon, metric, metCompression);
           break;
         case COMPLEX:
-          final String typeName = metricTypeNames.get(metric);
+          final String typeName = type.typeName();
           ComplexMetricSerde serde = ComplexMetrics.getSerdeForType(typeName);
           if (serde == null) {
             throw new ISE("Unknown type[%s]", typeName);
@@ -946,8 +944,7 @@ public class IndexMergerV9 extends IndexMerger
   private void mergeCapabilities(
       final List<IndexableAdapter> adapters,
       final List<String> mergedDimensions,
-      final Map<String, ValueType> metricsValueTypes,
-      final Map<String, String> metricTypeNames,
+      final Map<String, ValueDesc> metricTypeNames,
       final List<ColumnCapabilitiesImpl> dimCapabilities
   )
   {
@@ -968,7 +965,6 @@ public class IndexMergerV9 extends IndexMerger
           mergedCapabilities = new ColumnCapabilitiesImpl();
         }
         capabilitiesMap.put(metric, mergedCapabilities.merge(capabilities));
-        metricsValueTypes.put(metric, capabilities.getType());
         metricTypeNames.put(metric, adapter.getMetricType(metric));
       }
     }

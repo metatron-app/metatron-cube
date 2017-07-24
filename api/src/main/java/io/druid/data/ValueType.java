@@ -7,7 +7,6 @@ import com.google.common.primitives.Doubles;
 import com.google.common.primitives.Floats;
 import com.google.common.primitives.Longs;
 import io.druid.data.input.Row;
-import org.joda.time.DateTime;
 
 import java.util.Comparator;
 
@@ -105,6 +104,12 @@ public enum ValueType
     {
       return Ordering.natural().nullsFirst();
     }
+
+    @Override
+    public boolean isNumeric()
+    {
+      return false;
+    }
   },
   COMPLEX {
     @Override
@@ -118,6 +123,18 @@ public enum ValueType
     {
       throw new UnsupportedOperationException();
     }
+
+    @Override
+    public boolean isNumeric()
+    {
+      return false;
+    }
+
+    @Override
+    public boolean isPrimitive()
+    {
+      return false;
+    }
   };
 
   public abstract Class classOfObject();
@@ -127,6 +144,16 @@ public enum ValueType
   public Object get(Row row, String column)
   {
     return row.getRaw(column);
+  }
+
+  public boolean isNumeric()
+  {
+    return true;
+  }
+
+  public boolean isPrimitive()
+  {
+    return true;
   }
 
   @JsonValue
@@ -172,10 +199,5 @@ public enum ValueType
       return DOUBLE;
     }
     return COMPLEX;
-  }
-
-  public static boolean isNumeric(ValueType type)
-  {
-    return type == DOUBLE || type == FLOAT || type == LONG;
   }
 }

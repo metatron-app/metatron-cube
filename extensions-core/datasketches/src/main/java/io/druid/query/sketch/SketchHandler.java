@@ -102,7 +102,7 @@ public interface SketchHandler<U>
     @Override
     public boolean supports(ValueType type)
     {
-      return type != ValueType.COMPLEX;
+      return type.isNumeric();
     }
 
     @Override
@@ -151,7 +151,7 @@ public interface SketchHandler<U>
     public boolean supports(ValueType type)
     {
 //      return type != ValueType.COMPLEX || Comparable.class.isAssignableFrom(type.classOfObject());
-      return type != ValueType.COMPLEX;
+      return type.isNumeric();
     }
 
     @Override

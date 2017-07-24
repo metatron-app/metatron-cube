@@ -19,6 +19,8 @@
 
 package io.druid.query.aggregation;
 
+import io.druid.data.ValueDesc;
+import io.druid.query.RowResolver;
 import io.druid.segment.ObjectColumnSelector;
 
 /**
@@ -35,9 +37,9 @@ public class TestObjectColumnSelector implements ObjectColumnSelector
   }
 
   @Override
-  public Class classOfObject()
+  public ValueDesc type()
   {
-    return objects[index].getClass();
+    return RowResolver.toValueType(objects[index].getClass());
   }
 
   @Override

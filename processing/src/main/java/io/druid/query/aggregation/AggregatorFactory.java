@@ -26,7 +26,7 @@ import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import com.metamx.common.Pair;
 import com.metamx.common.logger.Logger;
-import io.druid.data.ValueType;
+import io.druid.data.ValueDesc;
 import io.druid.query.Cacheable;
 import io.druid.segment.ColumnSelectorFactory;
 
@@ -207,13 +207,13 @@ public abstract class AggregatorFactory implements Cacheable
            : mergedAggregators.values().toArray(new AggregatorFactory[mergedAggregators.size()]);
   }
 
-  public static Map<String, ValueType> toExpectedInputType(AggregatorFactory[] aggregators)
+  public static Map<String, ValueDesc> toExpectedInputType(AggregatorFactory[] aggregators)
   {
-    Map<String, ValueType> types = Maps.newHashMap();
+    Map<String, ValueDesc> types = Maps.newHashMap();
     for (AggregatorFactory factory : aggregators) {
       Set<String> required = Sets.newHashSet(factory.requiredFields());
       if (required.size() == 1) {
-        types.put(Iterables.getOnlyElement(required), ValueType.fromString(factory.getInputTypeName()));
+        types.put(Iterables.getOnlyElement(required), ValueDesc.of(factory.getInputTypeName()));
       }
     }
     return types;

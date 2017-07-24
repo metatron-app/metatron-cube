@@ -60,6 +60,7 @@ import io.druid.common.guava.FileOutputSupplier;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.common.utils.JodaUtils;
 import io.druid.common.utils.SerializerUtils;
+import io.druid.data.ValueDesc;
 import io.druid.data.ValueType;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.segment.column.ColumnCapabilities;
@@ -656,8 +657,7 @@ public class IndexMerger
       );
     }
 
-    final Map<String, ValueType> valueTypes = Maps.newTreeMap(Ordering.<String>natural().nullsFirst());
-    final Map<String, String> metricTypeNames = Maps.newTreeMap(Ordering.<String>natural().nullsFirst());
+    final Map<String, ValueDesc> metricTypeNames = Maps.newTreeMap(Ordering.<String>natural().nullsFirst());
     final Map<String, ColumnCapabilitiesImpl> columnCapabilities = Maps.newHashMap();
 
     for (IndexableAdapter adapter : indexes) {
@@ -677,8 +677,6 @@ public class IndexMerger
           mergedCapabilities = new ColumnCapabilitiesImpl();
         }
         columnCapabilities.put(metric, mergedCapabilities.merge(capabilities));
-
-        valueTypes.put(metric, capabilities.getType());
         metricTypeNames.put(metric, adapter.getMetricType(metric));
       }
     }
@@ -855,8 +853,8 @@ public class IndexMerger
 
       ArrayList<MetricColumnSerializer> metWriters = Lists.newArrayListWithCapacity(mergedMetrics.size());
       for (String metric : mergedMetrics) {
-        ValueType type = valueTypes.get(metric);
-        switch (type) {
+        ValueDesc type = metricTypeNames.get(metric);
+        switch (type.type()) {
           case LONG:
             metWriters.add(new LongMetricColumnSerializer(metric, v8OutDir, ioPeon));
             break;
@@ -867,7 +865,7 @@ public class IndexMerger
             metWriters.add(new DoubleMetricColumnSerializer(metric, v8OutDir, ioPeon));
             break;
           case COMPLEX:
-            final String typeName = metricTypeNames.get(metric);
+            final String typeName = type.typeName();
             ComplexMetricSerde serde = ComplexMetrics.getSerdeForType(typeName);
 
             if (serde == null) {

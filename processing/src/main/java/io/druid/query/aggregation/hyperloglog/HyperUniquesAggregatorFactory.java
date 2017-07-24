@@ -25,6 +25,7 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Ordering;
 import com.metamx.common.IAE;
 import io.druid.common.utils.StringUtils;
+import io.druid.data.ValueDesc;
 import io.druid.math.expr.Parser;
 import io.druid.query.aggregation.Aggregator;
 import io.druid.query.aggregation.AggregatorFactory;
@@ -86,13 +87,13 @@ public class HyperUniquesAggregatorFactory extends AggregatorFactory
       return Aggregators.noopAggregator();
     }
 
-    final Class classOfObject = selector.classOfObject();
-    if (classOfObject.equals(Object.class) || HyperLogLogCollector.class.isAssignableFrom(classOfObject)) {
+    final ValueDesc valueType = selector.type();
+    if ("hyperUnique".equals(valueType.typeName())) {
       return new HyperUniquesAggregator(name, ColumnSelectors.toPredicate(predicate, metricFactory), selector);
     }
 
     throw new IAE(
-        "Incompatible type for metric[%s], expected a HyperUnique, got a %s", fieldName, classOfObject
+        "Incompatible type for metric[%s], expected a HyperUnique, got a %s", fieldName, valueType
     );
   }
 
@@ -105,14 +106,12 @@ public class HyperUniquesAggregatorFactory extends AggregatorFactory
       return Aggregators.noopBufferAggregator();
     }
 
-    final Class classOfObject = selector.classOfObject();
-    if (classOfObject.equals(Object.class) || HyperLogLogCollector.class.isAssignableFrom(classOfObject)) {
+    final String typeName = selector.type().typeName();
+    if ("hyperUnique".equals(typeName) || ValueDesc.UNKNOWN_TYPE.equals(typeName)) {
       return new HyperUniquesBufferAggregator(ColumnSelectors.toPredicate(predicate, metricFactory), selector);
     }
 
-    throw new IAE(
-        "Incompatible type for metric[%s], expected a HyperUnique, got a %s", fieldName, classOfObject
-    );
+    throw new IAE("Incompatible type for metric[%s], expected a HyperUnique, got a %s", fieldName, typeName);
   }
 
   @Override

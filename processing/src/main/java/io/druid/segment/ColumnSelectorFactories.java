@@ -19,6 +19,7 @@
 
 package io.druid.segment;
 
+import io.druid.data.ValueDesc;
 import io.druid.query.dimension.DimensionSpec;
 import io.druid.segment.column.ColumnCapabilities;
 
@@ -140,12 +141,12 @@ public class ColumnSelectorFactories
   public static abstract class ArrayIndexed implements ColumnSelectorFactory
   {
     protected final ObjectColumnSelector selector;
-    protected final Class elementClass;
+    protected final ValueDesc elementType;
 
-    protected ArrayIndexed(ObjectColumnSelector selector, Class elementClass)
+    protected ArrayIndexed(ObjectColumnSelector selector, ValueDesc elementType)
     {
       this.selector = selector;
-      this.elementClass = elementClass;
+      this.elementType = elementType;
     }
 
     public ObjectColumnSelector getSelector()
@@ -245,9 +246,9 @@ public class ColumnSelectorFactories
       return new ObjectColumnSelector()
       {
         @Override
-        public Class classOfObject()
+        public ValueDesc type()
         {
-          return elementClass;
+          return elementType;
         }
 
         @Override
@@ -263,16 +264,16 @@ public class ColumnSelectorFactories
   {
     private final int index;
 
-    public FixedArrayIndexed(int index, ObjectColumnSelector selector, Class elementClass)
+    public FixedArrayIndexed(int index, ObjectColumnSelector selector, ValueDesc elementType)
     {
-      super(selector, elementClass);
+      super(selector, elementType);
       this.index = index;
     }
 
     protected final Object getObject()
     {
       List value = (List) selector.get();
-      return value == null ? value : value.get(index);
+      return value == null ? null : value.get(index);
     }
   }
 
@@ -280,9 +281,9 @@ public class ColumnSelectorFactories
   {
     private int index = -1;
 
-    public VariableArrayIndexed(ObjectColumnSelector selector, Class elementClass)
+    public VariableArrayIndexed(ObjectColumnSelector selector, ValueDesc elementType)
     {
-      super(selector, elementClass);
+      super(selector, elementType);
     }
 
     public void setIndex(int index)
@@ -293,7 +294,7 @@ public class ColumnSelectorFactories
     protected final Object getObject()
     {
       List value = (List) selector.get();
-      return value == null ? value : value.get(index);
+      return value == null ? null : value.get(index);
     }
   }
 }

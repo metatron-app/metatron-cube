@@ -23,6 +23,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Strings;
 import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
+import io.druid.data.ValueDesc;
 import io.druid.query.dimension.DefaultDimensionSpec;
 import io.druid.query.dimension.DimensionSpec;
 import io.druid.segment.ColumnSelectorFactory;
@@ -351,9 +352,9 @@ public class DimensionArrayAggregatorFactory extends AbstractArrayAggregatorFact
       return new ObjectColumnSelector()
       {
         @Override
-        public Class classOfObject()
+        public ValueDesc type()
         {
-          return String.class;
+          return ValueDesc.STRING;
         }
 
         @Override

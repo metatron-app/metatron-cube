@@ -173,13 +173,13 @@ public class SketchQueryRunner implements QueryRunner<Result<Map<String, Object>
         for (String metric : metrics) {
           TypedSketch union = prev.get(metric);
           ObjectColumnSelector selector = cursor.makeObjectColumnSelector(metric);
-          if (selector == null || !handler.supports(ValueType.of(selector.classOfObject()))) {
+          if (selector == null || !handler.supports(selector.type().type())) {
             sketches.add(union);
             metricSelectors.add(null);
           } else {
             metricSelectors.add(selector);
             if (union == null) {
-              prev.put(metric, union = handler.newUnion(nomEntries, ValueType.of(selector.classOfObject())));
+              prev.put(metric, union = handler.newUnion(nomEntries, selector.type().type()));
             }
             sketches.add(union);
           }

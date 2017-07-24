@@ -29,6 +29,7 @@ import com.google.common.collect.Sets;
 import com.metamx.common.guava.Sequences;
 import com.metamx.common.logger.Logger;
 import io.druid.common.guava.GuavaUtils;
+import io.druid.data.ValueDesc;
 import io.druid.data.input.MapBasedRow;
 import io.druid.data.input.Row;
 import io.druid.granularity.QueryGranularities;
@@ -119,7 +120,7 @@ public class Queries
       }
       List<AggregatorFactory> aggs = AggregatorFactory.toCombiner(groupByQuery.getAggregatorSpecs());
       for (PostAggregator postAggregator : groupByQuery.getPostAggregatorSpecs()) {
-        aggs.add(new RelayAggregatorFactory(postAggregator.getName(), postAggregator.getName(), "object"));
+        aggs.add(new RelayAggregatorFactory(postAggregator.getName(), postAggregator.getName(), ValueDesc.UNKNOWN_TYPE));
       }
       return builder.withMetrics(aggs.toArray(new AggregatorFactory[aggs.size()])).build();
     } else if (subQuery instanceof Query.ViewSupport) {
@@ -134,7 +135,7 @@ public class Queries
                       .build();
       }
       return builder.withDimensions(dimensions)
-                    .withMetrics(AggregatorFactory.toRelay(metrics, "object"))
+                    .withMetrics(AggregatorFactory.toRelay(metrics, ValueDesc.UNKNOWN_TYPE))
                     .withRollup(false)
                     .build();
     } else if (subQuery instanceof JoinQuery.JoinDelegate) {

@@ -109,7 +109,7 @@ public class SketchQueryQueryToolChest extends QueryToolChest<Result<Map<String,
         Map<String, Object> sketches = input.getValue();
         for (Map.Entry<String, Object> entry : sketches.entrySet()) {
           byte[] value = SketchOperations.asBytes(entry.getValue());
-          ValueType type = ValueType.values()[value[0]];
+          ValueType type = TypedSketch.fromByte(value[0]);
           NativeMemory memory = new NativeMemory(Arrays.copyOfRange(value, 1, value.length));
           Object deserialize;
           if (query.getSketchOp() == SketchOp.THETA) {

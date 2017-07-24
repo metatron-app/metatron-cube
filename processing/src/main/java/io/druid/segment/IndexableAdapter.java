@@ -19,6 +19,7 @@
 
 package io.druid.segment;
 
+import io.druid.data.ValueDesc;
 import io.druid.segment.column.ColumnCapabilities;
 import io.druid.segment.data.Indexed;
 import io.druid.segment.data.IndexedInts;
@@ -43,7 +44,7 @@ public interface IndexableAdapter
 
   IndexedInts getBitmapIndex(String dimension, int dictId);
 
-  String getMetricType(String metric);
+  ValueDesc getMetricType(String metric);
 
   ColumnCapabilities getCapabilities(String column);
 

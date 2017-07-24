@@ -19,7 +19,7 @@
 
 package io.druid.segment.indexing;
 
-import io.druid.data.ValueType;
+import io.druid.data.ValueDesc;
 import io.druid.data.input.Row;
 import io.druid.math.expr.Expr;
 import io.druid.segment.column.Column;
@@ -32,13 +32,13 @@ import java.util.Map;
 public class RowBinding<T> implements Expr.NumericBinding
 {
   private final String defaultColumn;
-  private final Map<String, ValueType> types;
+  private final Map<String, ValueDesc> types;
 
   private volatile Row row;
   private volatile boolean evaluated;
   private volatile T tempResult;
 
-  public RowBinding(String defaultColumn, Map<String, ValueType> types)
+  public RowBinding(String defaultColumn, Map<String, ValueDesc> types)
   {
     this.defaultColumn = defaultColumn;
     this.types = types;
@@ -64,8 +64,8 @@ public class RowBinding<T> implements Expr.NumericBinding
 
   private Object getColumn(String name)
   {
-    ValueType type = types.get(name);
-    return type == null ? row.getRaw(name) : type.get(row, name);
+    ValueDesc type = types.get(name);
+    return type == null ? row.getRaw(name) : type.type().get(row, name);
   }
 
   public void reset(Row row)

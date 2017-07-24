@@ -52,7 +52,6 @@ public abstract class ComplexMetricSerde
    *
    * @return an ObjectStrategy as used by GenericIndexed
    */
-  @Deprecated
   public abstract ObjectStrategy getObjectStrategy();
 
   /**
@@ -67,17 +66,6 @@ public abstract class ComplexMetricSerde
   public Function<Object, Long> inputSizeFn()
   {
     return null;
-  }
-
-  /**
-   * Converts intermediate representation of aggregate to byte[].
-   *
-   * @param val intermediate representation of aggregate
-   * @return serialized intermediate representation of aggregate in byte[]
-   */
-  public byte[] toBytes(Object val)
-  {
-    return getObjectStrategy().toBytes(val);
   }
 
   /**

@@ -33,10 +33,16 @@ public class ComplexMetrics
 {
   private static final Logger log = new Logger(ComplexMetrics.class);
   private static final Map<String, ComplexMetricSerde> complexSerializers = Maps.newHashMap();
+  private static final Map<Class, String> classToTypeName = Maps.newHashMap();
 
   public static ComplexMetricSerde getSerdeForType(String type)
   {
     return complexSerializers.get(type);
+  }
+
+  public static String getTypeNameForClass(Class clazz)
+  {
+    return classToTypeName.get(clazz);
   }
 
   public static void registerSerde(String type, ComplexMetricSerde serde)
@@ -44,11 +50,17 @@ public class ComplexMetrics
     if (complexSerializers.containsKey(type)) {
       throw new ISE("Serializer for type[%s] already exists.", type);
     }
-    complexSerializers.put(type, serde);
+    addToMap(type, serde);
     if (!type.startsWith("array")) {
       type = "array." + type;
-      complexSerializers.put(type, new ArrayMetricSerde(type, ValueType.COMPLEX, serde));
+      addToMap(type, new ArrayMetricSerde(type, ValueType.of(type), serde));
     }
     log.info("serde for type " + type + " is registered with class " + serde.getClass());
+  }
+
+  private static synchronized void addToMap(String type, ComplexMetricSerde serde)
+  {
+    complexSerializers.put(type, serde);
+    classToTypeName.put(serde.getObjectStrategy().getClazz(), type);
   }
 }

@@ -24,7 +24,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.metamx.common.IAE;
 import com.metamx.common.StringUtils;
-import io.druid.data.ValueType;
+import io.druid.data.ValueDesc;
 import io.druid.query.aggregation.Aggregator;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.BufferAggregator;
@@ -76,7 +76,7 @@ public class VarianceAggregatorFactory extends GenericAggregatorFactory
   @Override
   public String getInputTypeName()
   {
-    return inputType;
+    return inputType.typeName();
   }
 
   @Override
@@ -86,9 +86,9 @@ public class VarianceAggregatorFactory extends GenericAggregatorFactory
   }
 
   @Override
-  protected Aggregator factorize(ColumnSelectorFactory metricFactory, ValueType valueType)
+  protected Aggregator factorize(ColumnSelectorFactory metricFactory, ValueDesc valueType)
   {
-    switch (valueType) {
+    switch (valueType.type()) {
       case FLOAT:
         return VarianceAggregator.create(
             name,
@@ -120,16 +120,18 @@ public class VarianceAggregatorFactory extends GenericAggregatorFactory
             ColumnSelectors.toPredicate(predicate, metricFactory)
         );
       case COMPLEX:
-        if ("variance".equalsIgnoreCase(inputType) || "varianceCombined".equalsIgnoreCase(inputType)) {
-          return VarianceAggregator.create(
-              name,
-              ColumnSelectors.getObjectColumnSelector(
-                  metricFactory,
-                  fieldName,
-                  fieldExpression
-              ),
-              ColumnSelectors.toPredicate(predicate, metricFactory)
-          );
+        switch (valueType.typeName()) {
+          case "variance":
+          case "varianceCombined":
+            return VarianceAggregator.create(
+                name,
+                ColumnSelectors.getObjectColumnSelector(
+                    metricFactory,
+                    fieldName,
+                    fieldExpression
+                ),
+                ColumnSelectors.toPredicate(predicate, metricFactory)
+            );
         }
     }
     throw new IAE(
@@ -138,9 +140,9 @@ public class VarianceAggregatorFactory extends GenericAggregatorFactory
   }
 
   @Override
-  protected BufferAggregator factorizeBuffered(ColumnSelectorFactory metricFactory, ValueType valueType)
+  protected BufferAggregator factorizeBuffered(ColumnSelectorFactory metricFactory, ValueDesc valueType)
   {
-    switch (valueType) {
+    switch (valueType.type()) {
       case FLOAT:
         return VarianceBufferAggregator.create(
             name,
@@ -172,7 +174,9 @@ public class VarianceAggregatorFactory extends GenericAggregatorFactory
             ColumnSelectors.toPredicate(predicate, metricFactory)
         );
       case COMPLEX:
-        if ("variance".equalsIgnoreCase(inputType) || "varianceCombined".equalsIgnoreCase(inputType)) {
+      switch (valueType.typeName()) {
+        case "variance":
+        case "varianceCombined":
           return VarianceBufferAggregator.create(
               name,
               ColumnSelectors.getObjectColumnSelector(
@@ -182,7 +186,7 @@ public class VarianceAggregatorFactory extends GenericAggregatorFactory
               ),
               ColumnSelectors.toPredicate(predicate, metricFactory)
           );
-        }
+      }
     }
     throw new IAE(
         "Incompatible type for metric[%s], expected a float, double, long or variance, got a %s", fieldName, inputType

@@ -197,18 +197,11 @@ public class BoundFilter extends Filter.WithDictionary implements Predicate<Stri
   {
     final ObjectColumnSelector selector;
     if (boundDimFilter.getDimension() != null) {
-      selector = Filters.getStringSelector(columnSelectorFactory, boundDimFilter.getDimension());
+      selector = Filters.makeDimensionalSelector(columnSelectorFactory, boundDimFilter.getDimension());
     } else {
       selector = Filters.getExprStringSelector(columnSelectorFactory, boundDimFilter.getExpression());
     }
-    return new ValueMatcher()
-    {
-      @Override
-      public boolean matches()
-      {
-        return apply((String)selector.get());
-      }
-    };
+    return Filters.dimensionalSelectorToValueMatcher(selector, this);
   }
 
   @Override

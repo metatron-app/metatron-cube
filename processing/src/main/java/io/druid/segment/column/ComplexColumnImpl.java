@@ -26,9 +26,6 @@ import io.druid.segment.data.GenericIndexed;
  */
 public class ComplexColumnImpl extends AbstractColumn
 {
-  private static final ColumnCapabilitiesImpl CAPABILITIES = new ColumnCapabilitiesImpl()
-      .setType(ValueType.COMPLEX);
-
   private final GenericIndexed column;
   private final String typeName;
 
@@ -41,7 +38,7 @@ public class ComplexColumnImpl extends AbstractColumn
   @Override
   public ColumnCapabilities getCapabilities()
   {
-    return CAPABILITIES;
+    return ColumnCapabilitiesImpl.of(ValueType.of(typeName));
   }
 
   @Override

@@ -27,6 +27,8 @@ import com.google.common.collect.Iterables;
 import com.google.common.collect.Iterators;
 import com.google.common.collect.Sets;
 import com.metamx.common.StringUtils;
+import io.druid.data.ValueDesc;
+import io.druid.data.ValueType;
 import io.druid.query.QueryCacheHelper;
 import io.druid.query.dimension.DefaultDimensionSpec;
 import io.druid.query.filter.DimFilter;
@@ -93,9 +95,9 @@ public class KeyIndexedVirtualColumn implements VirtualColumn
         private transient IndexedInts values;
 
         @Override
-        public Class<String> classOfObject()
+        public ValueDesc type()
         {
-          return String.class;
+          return ValueDesc.STRING;
         }
 
         @Override
@@ -115,22 +117,10 @@ public class KeyIndexedVirtualColumn implements VirtualColumn
       @SuppressWarnings("unchecked")
       final ObjectColumnSelector<List> selector = factory.makeObjectColumnSelector(column);
       if (selector == null) {
-        return new ObjectColumnSelector()
-        {
-          @Override
-          public Class classOfObject()
-          {
-            return Object.class;
-          }
-
-          @Override
-          public Object get()
-          {
-            return null;
-          }
-        };
+        return ColumnSelectors.nullObjectSelector(ValueDesc.UNKNOWN);
       }
-      if (selector.classOfObject() != List.class) {
+      final ValueDesc elementType = ValueDesc.elementOfArray(selector.type());
+      if (elementType == null) {
         throw new IllegalArgumentException("target column '" + column + "' should be array type");
       }
 
@@ -140,9 +130,9 @@ public class KeyIndexedVirtualColumn implements VirtualColumn
         private transient List values;
 
         @Override
-        public Class<Object> classOfObject()
+        public ValueDesc type()
         {
-          return Object.class;
+          return elementType;
         }
 
         @Override
@@ -235,9 +225,9 @@ public class KeyIndexedVirtualColumn implements VirtualColumn
             return new ObjectColumnSelector<IndexedInts.WithLookup>()
             {
               @Override
-              public Class<IndexedInts.WithLookup> classOfObject()
+              public ValueDesc type()
               {
-                return IndexedInts.WithLookup.class;
+                return ValueDesc.INDEXED_ID;
               }
 
               @Override
@@ -461,6 +451,12 @@ public class KeyIndexedVirtualColumn implements VirtualColumn
     public String lookupName(int id)
     {
       return selector.lookupName(id);
+    }
+
+    @Override
+    public ValueType elementType()
+    {
+      return ValueType.STRING;
     }
 
     @Override

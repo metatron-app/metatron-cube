@@ -21,7 +21,8 @@ package io.druid.query.aggregation;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import io.druid.data.ValueType;
+import com.google.common.base.Preconditions;
+import io.druid.data.ValueDesc;
 import io.druid.segment.ColumnSelectorFactory;
 import io.druid.segment.ColumnSelectors;
 
@@ -41,6 +42,7 @@ public class GenericMaxAggregatorFactory extends GenericAggregatorFactory
   )
   {
     super(name, fieldName, fieldExpression, predicate, inputType);
+    Preconditions.checkArgument(outputType.type().isPrimitive(), "cannot max on complex type");
   }
 
   public GenericMaxAggregatorFactory(String name, String fieldName, String inputType)
@@ -49,9 +51,9 @@ public class GenericMaxAggregatorFactory extends GenericAggregatorFactory
   }
 
   @Override
-  protected final Aggregator factorize(ColumnSelectorFactory metricFactory, ValueType valueType)
+  protected final Aggregator factorize(ColumnSelectorFactory metricFactory, ValueDesc valueType)
   {
-    switch (valueType) {
+    switch (valueType.type()) {
       case FLOAT:
         return DoubleMaxAggregator.create(
             ColumnSelectors.getFloatColumnSelector(
@@ -84,9 +86,9 @@ public class GenericMaxAggregatorFactory extends GenericAggregatorFactory
   }
 
   @Override
-  protected final BufferAggregator factorizeBuffered(ColumnSelectorFactory metricFactory, ValueType valueType)
+  protected final BufferAggregator factorizeBuffered(ColumnSelectorFactory metricFactory, ValueDesc valueType)
   {
-    switch (valueType) {
+    switch (valueType.type()) {
       case FLOAT:
         return DoubleMaxBufferAggregator.create(
             ColumnSelectors.getFloatColumnSelector(
@@ -137,6 +139,7 @@ public class GenericMaxAggregatorFactory extends GenericAggregatorFactory
   }
 
   @Override
+  @SuppressWarnings("unchecked")
   public final Object combine(Object lhs, Object rhs)
   {
     return comparator.compare(lhs, rhs) > 0 ? lhs : rhs;

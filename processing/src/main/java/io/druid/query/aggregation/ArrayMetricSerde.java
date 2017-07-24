@@ -59,11 +59,6 @@ public class ArrayMetricSerde extends ComplexMetricSerde
     this.strategy = serde == null ? null : serde.getObjectStrategy();
   }
 
-  public Class getElementObjectClass()
-  {
-    return type == ValueType.COMPLEX ? strategy.getClazz() : type.classOfObject();
-  }
-
   @Override
   public String getTypeName()
   {
@@ -209,7 +204,7 @@ public class ArrayMetricSerde extends ComplexMetricSerde
             break;
           case COMPLEX:
             for (Object v : value) {
-              writeBytes(serde.toBytes(v), out);
+              writeBytes(strategy.toBytes(v), out);
             }
         }
         return out.toByteArray();

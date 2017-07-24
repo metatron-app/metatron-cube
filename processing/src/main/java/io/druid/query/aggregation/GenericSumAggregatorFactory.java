@@ -21,6 +21,8 @@ package io.druid.query.aggregation;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.google.common.base.Preconditions;
+import io.druid.data.ValueDesc;
 import io.druid.data.ValueType;
 import io.druid.segment.ColumnSelectorFactory;
 import io.druid.segment.ColumnSelectors;
@@ -41,6 +43,7 @@ public class GenericSumAggregatorFactory extends GenericAggregatorFactory
   )
   {
     super(name, fieldName, fieldExpression, predicate, inputType);
+    Preconditions.checkArgument(outputType.type().isPrimitive(), "cannot sum on complex type");
   }
 
   public GenericSumAggregatorFactory(String name, String fieldName, String inputType)
@@ -48,9 +51,17 @@ public class GenericSumAggregatorFactory extends GenericAggregatorFactory
     this(name, fieldName, null, null, inputType);
   }
 
-  protected final Aggregator factorize(ColumnSelectorFactory metricFactory, ValueType valueType)
+  @Override
+  protected ValueDesc toOutputType(ValueDesc inputType)
   {
-    switch (valueType) {
+    ValueDesc elementType = super.toOutputType(inputType);
+    return elementType.type() == ValueType.FLOAT ? ValueDesc.DOUBLE : elementType;
+  }
+
+  @Override
+  protected final Aggregator factorize(ColumnSelectorFactory metricFactory, ValueDesc valueType)
+  {
+    switch (valueType.type()) {
       case FLOAT:
         return DoubleSumAggregator.create(
             ColumnSelectors.getFloatColumnSelector(
@@ -83,9 +94,10 @@ public class GenericSumAggregatorFactory extends GenericAggregatorFactory
     }
   }
 
-  protected final BufferAggregator factorizeBuffered(ColumnSelectorFactory metricFactory, ValueType valueType)
+  @Override
+  protected final BufferAggregator factorizeBuffered(ColumnSelectorFactory metricFactory, ValueDesc valueType)
   {
-    switch (valueType) {
+    switch (valueType.type()) {
       case FLOAT:
         return DoubleSumBufferAggregator.create(
             ColumnSelectors.getFloatColumnSelector(
@@ -118,12 +130,6 @@ public class GenericSumAggregatorFactory extends GenericAggregatorFactory
   }
 
   @Override
-  public String getTypeName()
-  {
-    return valueType == ValueType.FLOAT ? ValueType.DOUBLE.name() : super.getTypeName();
-  }
-
-  @Override
   protected final AggregatorFactory withValue(String name, String fieldName, String inputType)
   {
     return new GenericSumAggregatorFactory(name, fieldName, inputType);
@@ -144,7 +150,7 @@ public class GenericSumAggregatorFactory extends GenericAggregatorFactory
   @Override
   public final Object combine(Object lhs, Object rhs)
   {
-    switch (valueType) {
+    switch (outputType.type()) {
       case FLOAT:
       case DOUBLE:
         return ((Number) lhs).doubleValue() + ((Number) rhs).doubleValue();

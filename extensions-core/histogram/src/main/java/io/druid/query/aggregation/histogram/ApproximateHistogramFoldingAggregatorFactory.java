@@ -26,6 +26,7 @@ import com.google.common.primitives.Floats;
 import com.google.common.primitives.Ints;
 import com.metamx.common.IAE;
 import io.druid.common.utils.StringUtils;
+import io.druid.data.ValueDesc;
 import io.druid.query.aggregation.Aggregator;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.BufferAggregator;
@@ -68,9 +69,9 @@ public class ApproximateHistogramFoldingAggregatorFactory extends ApproximateHis
       selector = new ObjectColumnSelector()
       {
         @Override
-        public Class<? extends ApproximateHistogramHolder> classOfObject()
+        public ValueDesc type()
         {
-          return compact ? ApproximateCompactHistogram.class : ApproximateHistogram.class;
+          return ValueDesc.of(compact ? "approximateCompactHistogram" : "approximateHistogram");
         }
 
         @Override
@@ -81,9 +82,12 @@ public class ApproximateHistogramFoldingAggregatorFactory extends ApproximateHis
       };
     }
 
-    final Class cls = selector.classOfObject();
-    if (cls.equals(Object.class) || ApproximateHistogram.class.isAssignableFrom(cls)
-        || ApproximateCompactHistogram.class.isAssignableFrom(cls)) {
+    String typeName = selector.type().typeName();
+    if (typeName.equals(ValueDesc.UNKNOWN_TYPE) ||
+        typeName.equals("approximateHistogram") ||
+        typeName.equals("approximateCompactHistogram") ||
+        typeName.equals("approximateBase64Histogram") ||
+        typeName.equals("approximateBase64CompactHistogram")) {
       return new ApproximateHistogramFoldingAggregator(
           name,
           selector,
@@ -98,7 +102,7 @@ public class ApproximateHistogramFoldingAggregatorFactory extends ApproximateHis
     throw new IAE(
         "Incompatible type for metric[%s], expected a ApproximateHistogram, got a %s",
         fieldName,
-        cls
+        typeName
     );
   }
 
@@ -113,9 +117,9 @@ public class ApproximateHistogramFoldingAggregatorFactory extends ApproximateHis
       selector = new ObjectColumnSelector<ApproximateHistogram>()
       {
         @Override
-        public Class<ApproximateHistogram> classOfObject()
+        public ValueDesc type()
         {
-          return ApproximateHistogram.class;
+          return ValueDesc.of("approximateHistogram");
         }
 
         @Override
@@ -126,8 +130,10 @@ public class ApproximateHistogramFoldingAggregatorFactory extends ApproximateHis
       };
     }
 
-    final Class cls = selector.classOfObject();
-    if (cls.equals(Object.class) || ApproximateHistogramHolder.class.isAssignableFrom(cls)) {
+    String typeName = selector.type().typeName();
+    if (typeName.equals(ValueDesc.UNKNOWN_TYPE) ||
+        typeName.equals("approximateHistogram") ||
+        typeName.equals("approximateCompactHistogram")) {
       return new ApproximateHistogramFoldingBufferAggregator(
           selector, resolution, lowerLimit, upperLimit,
           ColumnSelectors.toPredicate(predicate, metricFactory)
@@ -137,7 +143,7 @@ public class ApproximateHistogramFoldingAggregatorFactory extends ApproximateHis
     throw new IAE(
         "Incompatible type for metric[%s], expected a ApproximateHistogram, got a %s",
         fieldName,
-        cls
+        typeName
     );
   }
 

@@ -26,8 +26,7 @@ import com.google.common.collect.Lists;
 import com.google.common.primitives.Ints;
 import com.metamx.common.StringUtils;
 import com.metamx.common.logger.Logger;
-import io.druid.segment.serde.ComplexMetricSerde;
-import io.druid.segment.serde.ComplexMetrics;
+import io.druid.data.ValueDesc;
 
 import java.nio.ByteBuffer;
 import java.util.Comparator;
@@ -45,15 +44,14 @@ public abstract class AbstractArrayAggregatorFactory extends AggregatorFactory
   final AggregatorFactory delegate;
   final int limit;
 
-  final Class elementClass;
+  final ValueDesc elementType;
 
   public AbstractArrayAggregatorFactory(String column, AggregatorFactory delegate, int limit)
   {
     this.delegate = delegate;
     this.column = column == null ? Iterables.getOnlyElement(delegate.requiredFields()) : column;
     this.limit = limit <= 0 ? DEFAULT_LIMIT : limit;
-    ComplexMetricSerde serde = ComplexMetrics.getSerdeForType(getTypeName());
-    this.elementClass = serde != null ? ((ArrayMetricSerde)serde).getElementObjectClass() : Object.class;
+    this.elementType = ValueDesc.of(delegate.getTypeName());
   }
 
   @JsonProperty("column")

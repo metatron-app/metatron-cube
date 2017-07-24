@@ -19,6 +19,7 @@
 
 package io.druid.query.aggregation;
 
+import io.druid.data.ValueDesc;
 import io.druid.segment.DoubleColumnSelector;
 import io.druid.segment.FloatColumnSelector;
 import io.druid.segment.ObjectColumnSelector;
@@ -30,9 +31,9 @@ public class MetricSelectorUtils
     return new ObjectColumnSelector<Float>()
     {
       @Override
-      public Class<Float> classOfObject()
+      public ValueDesc type()
       {
-        return Float.TYPE;
+        return ValueDesc.FLOAT;
       }
 
       @Override
@@ -48,9 +49,9 @@ public class MetricSelectorUtils
     return new ObjectColumnSelector<Double>()
     {
       @Override
-      public Class<Double> classOfObject()
+      public ValueDesc type()
       {
-        return Double.TYPE;
+        return ValueDesc.DOUBLE;
       }
 
       @Override

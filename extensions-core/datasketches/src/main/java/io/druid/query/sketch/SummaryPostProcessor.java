@@ -144,9 +144,9 @@ public class SummaryPostProcessor extends PostProcessingOperator.UnionSupport
             Map<String, ValueType> numericColumns = Maps.newHashMap();
             for (Map.Entry<String, Object> entry : value.entrySet()) {
               final String column = entry.getKey();
-              final TypedSketch<ItemsSketch> sketch = (TypedSketch<ItemsSketch>) entry.getValue();
-              if (ValueType.isNumeric(sketch.type())) {
-                numericColumns.put(column, sketch.type());
+              final ValueType type = ((TypedSketch<ItemsSketch>) entry.getValue()).type();
+              if (type.isNumeric()) {
+                numericColumns.put(column, type);
               }
             }
             for (Map.Entry<String, Object> entry : value.entrySet()) {
@@ -157,8 +157,9 @@ public class SummaryPostProcessor extends PostProcessingOperator.UnionSupport
                 results.put(column, result = Maps.newLinkedHashMap());
               }
               final ItemsSketch itemsSketch = sketch.value();
+              final ValueType type = sketch.type();
               Object[] quantiles = (Object[]) SketchQuantilesOp.QUANTILES.calculate(itemsSketch, 11);
-              result.put("type", sketch.type());
+              result.put("type", type);
               result.put("min", quantiles[0]);
               result.put("max", quantiles[quantiles.length - 1]);
               result.put("median", quantiles[5]);
@@ -175,14 +176,14 @@ public class SummaryPostProcessor extends PostProcessingOperator.UnionSupport
               result.put("iqr", new Object[]{lower, upper});
               result.put("count", itemsSketch.getN());
 
-              if (ValueType.isNumeric(sketch.type())) {
+              if (type.isNumeric()) {
                 double q1 = ((Number) lower).doubleValue();
                 double q3 = ((Number) upper).doubleValue();
                 double delta = (q3 - q1) * 1.5;
                 result.put("outlierThreshold", new double[]{q1 - delta, q3 + delta});
               }
 
-              if (sketch.type() == ValueType.STRING) {
+              if (type == ValueType.STRING) {
                 final SearchQuery search = new SearchQuery(
                     representative.getDataSource(),
                     null,
@@ -225,7 +226,7 @@ public class SummaryPostProcessor extends PostProcessingOperator.UnionSupport
                 );
               }
 
-              if (sketch.type() != ValueType.COMPLEX) {
+              if (type.isPrimitive()) {
                 GroupByQuery baseQuery = new GroupByQuery(
                     representative.getDataSource(),
                     representative.getQuerySegmentSpec(),
@@ -243,7 +244,7 @@ public class SummaryPostProcessor extends PostProcessingOperator.UnionSupport
                     column,
                     lower,
                     upper,
-                    sketch.type(),
+                    type,
                     numericColumns
                 );
 
@@ -265,7 +266,7 @@ public class SummaryPostProcessor extends PostProcessingOperator.UnionSupport
                             Row row = Iterables.getOnlyElement(rows);
                             stats.put("missing", row.getLongMetric("missing"));
 
-                            if (ValueType.isNumeric(sketch.type())) {
+                            if (type.isNumeric()) {
                               stats.put("mean", row.getDoubleMetric("mean"));
                               stats.put("variance", row.getDoubleMetric("variance"));
                               stats.put("stddev", row.getDoubleMetric("stddev"));
@@ -416,7 +417,7 @@ public class SummaryPostProcessor extends PostProcessingOperator.UnionSupport
     aggregators.add(new CountAggregatorFactory("count"));
     aggregators.add(new CountAggregatorFactory("missing", "isnull(" + escaped + ")"));
 
-    if (ValueType.isNumeric(type)) {
+    if (type.isNumeric()) {
       double q1 = ((Number) lower).doubleValue();
       double q3 = ((Number) upper).doubleValue();
       double iqr = q3 - q1;

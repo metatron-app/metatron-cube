@@ -30,7 +30,7 @@ import com.google.common.primitives.Doubles;
 import com.google.common.primitives.Floats;
 import com.google.common.primitives.Longs;
 import io.druid.common.utils.StringUtils;
-import io.druid.data.ValueType;
+import io.druid.data.ValueDesc;
 import io.druid.math.expr.Evals;
 import io.druid.math.expr.Parser;
 import io.druid.segment.ColumnSelectorFactory;
@@ -53,15 +53,15 @@ public class ListAggregatorFactory extends AggregatorFactory
 
   private final String name;
   private final String expression;
-  private final String inputType;
+  private final ValueDesc inputType;
   private final int limit;
   private final boolean dedup;
   private final boolean sort;
 
   @JsonIgnore
-  private final ValueType valueType;
+  private final ValueDesc elementType;
   @JsonIgnore
-  private final boolean arrayInput;
+  private final ValueDesc outputType;
 
   @JsonCreator
   public ListAggregatorFactory(
@@ -75,18 +75,18 @@ public class ListAggregatorFactory extends AggregatorFactory
   {
     this.name = Preconditions.checkNotNull(name, "Must have a valid, non-null aggregator name");
     this.expression = Preconditions.checkNotNull(expression);
-    this.inputType = Preconditions.checkNotNull(inputType);
+    this.inputType = ValueDesc.of(Preconditions.checkNotNull(inputType));
     this.limit = limit;
     this.dedup = dedup;
     this.sort = sort;
-    if (inputType.startsWith("array.")) {
-      arrayInput = true;
-      valueType = ValueType.of(inputType.substring(6));
+    if (ValueDesc.isArray(inputType)) {
+      elementType = ValueDesc.elementOfArray(inputType);
+      outputType = this.inputType;
     } else {
-      arrayInput = false;
-      valueType = ValueType.of(inputType);
+      elementType = this.inputType;
+      outputType = ValueDesc.ofArray(inputType);
     }
-    Preconditions.checkArgument(valueType != ValueType.COMPLEX, "not support complex type");
+    Preconditions.checkArgument(ValueDesc.isPrimitive(elementType), "does not support complex type");
   }
 
   private Collection<Object> createCollection()
@@ -106,7 +106,7 @@ public class ListAggregatorFactory extends AggregatorFactory
   @Override
   public Aggregator factorize(ColumnSelectorFactory metricFactory)
   {
-    if (arrayInput) {
+    if (ValueDesc.isArray(inputType)) {
       @SuppressWarnings("unchecked")
       final ObjectColumnSelector<List> selector = metricFactory.makeObjectColumnSelector(expression);
       return new Aggregators.AbstractEstimableAggregator()
@@ -167,7 +167,7 @@ public class ListAggregatorFactory extends AggregatorFactory
       @Override
       public void aggregate()
       {
-        Object value = Evals.castTo(selector.get(), valueType);
+        Object value = Evals.castTo(selector.get(), elementType);
         list.add(value);
         if (limit > 0 && list.size() > limit) {
           throw new IllegalStateException("Exceeding limit " + limit);
@@ -197,7 +197,7 @@ public class ListAggregatorFactory extends AggregatorFactory
     if (value == null) {
       return 0;
     }
-    switch (valueType) {
+    switch (elementType.type()) {
       case FLOAT:
         return Floats.BYTES;
       case LONG:
@@ -213,7 +213,7 @@ public class ListAggregatorFactory extends AggregatorFactory
   @Override
   public BufferAggregator factorizeBuffered(ColumnSelectorFactory metricFactory)
   {
-    if (arrayInput) {
+    if (ValueDesc.isArray(inputType)) {
       @SuppressWarnings("unchecked")
       final ObjectColumnSelector<List> selector = metricFactory.makeObjectColumnSelector(expression);
       return new BufferAggregator.Abstract()
@@ -261,7 +261,7 @@ public class ListAggregatorFactory extends AggregatorFactory
       public void aggregate(ByteBuffer buf, int position)
       {
         Collection<Object> list = lists.get(buf.getInt(position));
-        list.add(Evals.castTo(selector.get(), valueType));
+        list.add(Evals.castTo(selector.get(), elementType));
         if (limit > 0 && list.size() > limit) {
           throw new IllegalStateException("Exceeding limit " + limit);
         }
@@ -279,7 +279,7 @@ public class ListAggregatorFactory extends AggregatorFactory
   @Override
   public Comparator getComparator()
   {
-    return valueType.comparator();
+    return outputType.type().comparator();  // always throws exception
   }
 
   @Override
@@ -300,7 +300,7 @@ public class ListAggregatorFactory extends AggregatorFactory
   public AggregatorFactory getCombiningFactory()
   {
     // takes array as input
-    return new ListAggregatorFactory(name, name, arrayInput ? inputType : "array." + inputType, limit, dedup, sort);
+    return new ListAggregatorFactory(name, name, outputType.typeName(), limit, dedup, sort);
   }
 
   @Override
@@ -340,7 +340,7 @@ public class ListAggregatorFactory extends AggregatorFactory
   @JsonProperty
   public String getInputType()
   {
-    return inputType;
+    return inputType.typeName();
   }
 
   @JsonProperty
@@ -372,7 +372,7 @@ public class ListAggregatorFactory extends AggregatorFactory
   {
     byte[] nameBytes = StringUtils.toUtf8WithNullToEmpty(name);
     byte[] expressionBytes = StringUtils.toUtf8WithNullToEmpty(expression);
-    byte[] inputTypeBytes = StringUtils.toUtf8WithNullToEmpty(inputType);
+    byte[] inputTypeBytes = StringUtils.toUtf8WithNullToEmpty(inputType.typeName());
 
     int length = 1
                  + nameBytes.length
@@ -394,13 +394,13 @@ public class ListAggregatorFactory extends AggregatorFactory
   @Override
   public String getInputTypeName()
   {
-    return inputType;
+    return inputType.typeName();
   }
 
   @Override
   public String getTypeName()
   {
-    return "array." + valueType.name().toLowerCase();
+    return outputType.typeName();
   }
 
   @Override

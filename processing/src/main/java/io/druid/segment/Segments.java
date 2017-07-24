@@ -20,7 +20,7 @@
 package io.druid.segment;
 
 import com.google.common.collect.Maps;
-import io.druid.math.expr.ExprType;
+import io.druid.data.ValueDesc;
 import io.druid.segment.data.Indexed;
 
 import java.util.Map;
@@ -50,7 +50,7 @@ public class Segments
     StorageAdapter adapter = segment.asStorageAdapter(false);
     Map<String, String> suppliers = Maps.newLinkedHashMap();
     for (String dimension : adapter.getAvailableDimensions()) {
-      suppliers.put(dimension, ExprType.STRING.name());
+      suppliers.put(dimension, ValueDesc.STRING_TYPE);
     }
     for (String metric : adapter.getAvailableMetrics()) {
       suppliers.put(metric, adapter.getColumnTypeName(metric));

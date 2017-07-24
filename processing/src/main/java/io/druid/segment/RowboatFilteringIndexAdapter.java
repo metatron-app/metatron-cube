@@ -21,6 +21,7 @@ package io.druid.segment;
 
 import com.google.common.base.Predicate;
 import com.google.common.collect.Iterables;
+import io.druid.data.ValueDesc;
 import io.druid.segment.column.ColumnCapabilities;
 import io.druid.segment.data.Indexed;
 import io.druid.segment.data.IndexedInts;
@@ -76,7 +77,7 @@ public class RowboatFilteringIndexAdapter implements IndexableAdapter
   }
 
   @Override
-  public String getMetricType(String metric)
+  public ValueDesc getMetricType(String metric)
   {
     return baseAdapter.getMetricType(metric);
   }

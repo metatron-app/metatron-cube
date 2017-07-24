@@ -27,7 +27,7 @@ import com.google.common.primitives.Doubles;
 import com.google.common.primitives.Floats;
 import com.google.common.primitives.Longs;
 import io.druid.common.utils.StringUtils;
-import io.druid.data.ValueType;
+import io.druid.data.ValueDesc;
 import io.druid.math.expr.Parser;
 import io.druid.segment.ColumnSelectorFactories.VariableArrayIndexed;
 import io.druid.segment.ColumnSelectorFactory;
@@ -47,10 +47,9 @@ public abstract class GenericAggregatorFactory extends AggregatorFactory
   protected final String name;
   protected final String fieldExpression;
   protected final String predicate;
-  protected final String inputType;
+  protected final ValueDesc inputType;
 
-  protected final boolean arrayInput;
-  protected final ValueType valueType;
+  protected final ValueDesc outputType;
   protected final Comparator comparator;
 
   public GenericAggregatorFactory(
@@ -66,20 +65,13 @@ public abstract class GenericAggregatorFactory extends AggregatorFactory
         fieldName == null ^ fieldExpression == null,
         "Must have a valid, non-null fieldName or fieldExpression"
     );
-    inputType = inputType == null ? ValueType.DOUBLE.name() : inputType;
+    this.inputType = inputType == null ? ValueDesc.DOUBLE : ValueDesc.of(inputType);
     this.name = name;
     this.fieldName = fieldName;
     this.fieldExpression = fieldExpression;
     this.predicate = predicate;
-    this.inputType = inputType;
-    if (inputType.startsWith("array.")) {
-      arrayInput = true;
-      valueType = ValueType.of(inputType.substring(6));
-    } else {
-      arrayInput = false;
-      valueType = ValueType.of(inputType);
-    }
-    comparator = valueType == ValueType.COMPLEX ? null : valueType.comparator();
+    this.outputType = toOutputType(this.inputType);
+    this.comparator = ValueDesc.isPrimitive(outputType) ? outputType.type().comparator() : null;
   }
 
   public GenericAggregatorFactory(String name, String fieldName, String inputType)
@@ -87,17 +79,23 @@ public abstract class GenericAggregatorFactory extends AggregatorFactory
     this(name, fieldName, null, null, inputType);
   }
 
+  protected ValueDesc toOutputType(ValueDesc inputType)
+  {
+    return ValueDesc.isArray(inputType) ? ValueDesc.elementOfArray(inputType) : inputType;
+  }
+
   @Override
   public Aggregator factorize(ColumnSelectorFactory metricFactory)
   {
-    if (!arrayInput) {
-      return factorize(metricFactory, valueType);
+    if (!ValueDesc.isArray(inputType)) {
+      return factorize(metricFactory, inputType);
     }
+    ValueDesc elementType = ValueDesc.elementOfArray(inputType);
     @SuppressWarnings("unchecked")
     final ObjectColumnSelector<List> selector = metricFactory.makeObjectColumnSelector(fieldName);
-    final VariableArrayIndexed factory = new VariableArrayIndexed(selector, valueType.classOfObject());
+    final VariableArrayIndexed factory = new VariableArrayIndexed(selector, elementType);
 
-    return new Aggregators.DelegatedAggregator(factorize(factory, valueType))
+    return new Aggregators.DelegatedAggregator(factorize(factory, elementType))
     {
       @Override
       public final void aggregate()
@@ -114,14 +112,15 @@ public abstract class GenericAggregatorFactory extends AggregatorFactory
   @Override
   public BufferAggregator factorizeBuffered(ColumnSelectorFactory metricFactory)
   {
-    if (!arrayInput) {
-      return factorizeBuffered(metricFactory, valueType);
+    if (!ValueDesc.isArray(inputType)) {
+      return factorizeBuffered(metricFactory, inputType);
     }
+    ValueDesc elementType = ValueDesc.elementOfArray(inputType);
     @SuppressWarnings("unchecked")
     final ObjectColumnSelector<List> selector = metricFactory.makeObjectColumnSelector(fieldName);
-    final VariableArrayIndexed factory = new VariableArrayIndexed(selector, valueType.classOfObject());
+    final VariableArrayIndexed factory = new VariableArrayIndexed(selector, elementType);
 
-    return new Aggregators.DelegatedBufferAggregator(factorizeBuffered(factory, valueType))
+    return new Aggregators.DelegatedBufferAggregator(factorizeBuffered(factory, elementType))
     {
       @Override
       public final void aggregate(ByteBuffer buf, int position)
@@ -135,9 +134,9 @@ public abstract class GenericAggregatorFactory extends AggregatorFactory
     };
   }
 
-  protected abstract Aggregator factorize(ColumnSelectorFactory metricFactory, ValueType valueType);
+  protected abstract Aggregator factorize(ColumnSelectorFactory metricFactory, ValueDesc valueType);
 
-  protected abstract BufferAggregator factorizeBuffered(ColumnSelectorFactory metricFactory, ValueType valueType);
+  protected abstract BufferAggregator factorizeBuffered(ColumnSelectorFactory metricFactory, ValueDesc valueType);
 
   protected abstract AggregatorFactory withValue(String name, String fieldName, String inputType);
 
@@ -210,7 +209,7 @@ public abstract class GenericAggregatorFactory extends AggregatorFactory
   @JsonProperty
   public String getInputType()
   {
-    return inputType;
+    return inputType.typeName();
   }
 
   @Override
@@ -235,7 +234,7 @@ public abstract class GenericAggregatorFactory extends AggregatorFactory
     byte[] fieldNameBytes = StringUtils.toUtf8WithNullToEmpty(fieldName);
     byte[] fieldExpressionBytes = StringUtils.toUtf8WithNullToEmpty(fieldExpression);
     byte[] predicateBytes = StringUtils.toUtf8WithNullToEmpty(predicate);
-    byte[] inputTypeBytes = StringUtils.toUtf8WithNullToEmpty(inputType);
+    byte[] inputTypeBytes = StringUtils.toUtf8WithNullToEmpty(inputType.typeName());
 
     int length = 1 + nameBytes.length
                    + fieldNameBytes.length
@@ -255,13 +254,13 @@ public abstract class GenericAggregatorFactory extends AggregatorFactory
   @Override
   public String getTypeName()
   {
-    return arrayInput ? inputType.substring(6) : inputType;
+    return outputType.typeName();
   }
 
   @Override
   public int getMaxIntermediateSize()
   {
-    switch (valueType) {
+    switch (outputType.type()) {
       case FLOAT:
         return Floats.BYTES;
       case DOUBLE:

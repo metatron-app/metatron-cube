@@ -22,6 +22,7 @@ package io.druid.query.aggregation;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.collect.Lists;
 import io.druid.common.guava.DSuppliers;
+import io.druid.data.ValueDesc;
 import io.druid.segment.ColumnSelectorFactories.FixedArrayIndexed;
 import io.druid.segment.ColumnSelectorFactory;
 import io.druid.segment.ObjectColumnSelector;
@@ -60,9 +61,9 @@ public class ArrayAggregatorFactory extends AbstractArrayAggregatorFactory
     final ObjectColumnSelector<List> memoized = new ObjectColumnSelector<List>()
     {
       @Override
-      public Class classOfObject()
+      public ValueDesc type()
       {
-        return selector.classOfObject();
+        return selector.type();
       }
 
       @Override
@@ -149,7 +150,7 @@ public class ArrayAggregatorFactory extends AbstractArrayAggregatorFactory
       {
         final int min = Math.min(limit, size);
         for (int i = aggregators.size(); i < min; i++) {
-          Aggregator factorize = delegate.factorize(new FixedArrayIndexed(i, memoized, elementClass));
+          Aggregator factorize = delegate.factorize(new FixedArrayIndexed(i, memoized, elementType));
           if (factorize instanceof Aggregators.EstimableAggregator) {
             estimated += ((Aggregators.EstimableAggregator)factorize).estimateOccupation();
           } else {
@@ -172,9 +173,9 @@ public class ArrayAggregatorFactory extends AbstractArrayAggregatorFactory
     final ObjectColumnSelector<List> memoized = new ObjectColumnSelector<List>()
     {
       @Override
-      public Class classOfObject()
+      public ValueDesc type()
       {
-        return selector.classOfObject();
+        return selector.type();
       }
 
       @Override
@@ -253,7 +254,7 @@ public class ArrayAggregatorFactory extends AbstractArrayAggregatorFactory
       {
         final int min = Math.min(limit, size);
         for (int i = aggregators.size(); i < min; i++) {
-          BufferAggregator factorize = delegate.factorizeBuffered(new FixedArrayIndexed(i, memoized, elementClass));
+          BufferAggregator factorize = delegate.factorizeBuffered(new FixedArrayIndexed(i, memoized, elementType));
           factorize.init(buf, position);
           position += delegate.getMaxIntermediateSize();
           aggregators.add(factorize);

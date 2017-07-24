@@ -21,6 +21,7 @@ package io.druid.math.expr;
 
 import com.google.common.primitives.Ints;
 import com.metamx.common.Pair;
+import io.druid.data.ValueDesc;
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
 
@@ -50,9 +51,7 @@ public class ExprEval extends Pair<Object, ExprType>
       if (val instanceof Byte || val instanceof Short || val instanceof Integer || val instanceof Long) {
         return ExprEval.of(val, ExprType.LONG);
       }
-      if (val instanceof Float || val instanceof Double) {
-        return ExprEval.of(val, ExprType.DOUBLE);
-      }
+      return ExprEval.of(val, ExprType.DOUBLE);
     }
     if (val instanceof DateTime) {
       return ExprEval.of((DateTime)val);
@@ -245,5 +244,10 @@ public class ExprEval extends Pair<Object, ExprType>
         return ExprEval.of((DateTime)null);
     }
     return ExprEval.of(null, ExprType.UNKNOWN);
+  }
+
+  public ValueDesc asValueDesc()
+  {
+    return rhs.asValueDesc();
   }
 }

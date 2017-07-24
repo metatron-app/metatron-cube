@@ -20,13 +20,12 @@
 package io.druid.query.aggregation.kurtosis;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
-import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.base.Preconditions;
 import com.metamx.common.IAE;
 import io.druid.common.utils.StringUtils;
-import io.druid.data.ValueType;
+import io.druid.data.ValueDesc;
 import io.druid.query.aggregation.Aggregator;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.BufferAggregator;
@@ -50,10 +49,7 @@ public class KurtosisAggregatorFactory extends AggregatorFactory
   protected final String name;
   protected final String fieldName;
   protected final String predicate;
-  protected final String inputType;
-
-  @JsonIgnore
-  protected final ValueType valueType;
+  protected final ValueDesc inputType;
 
   @JsonCreator
   public KurtosisAggregatorFactory(
@@ -66,8 +62,7 @@ public class KurtosisAggregatorFactory extends AggregatorFactory
     this.name = Preconditions.checkNotNull(name, "Must have a valid, non-null aggregator name");
     this.fieldName = Preconditions.checkNotNull(fieldName, "fieldName1 should not be null");
     this.predicate = predicate;
-    this.inputType = inputType == null ? "double" : inputType;
-    this.valueType = ValueType.of(this.inputType);
+    this.inputType = inputType == null ? ValueDesc.DOUBLE : ValueDesc.of(inputType);
   }
 
   @Override
@@ -93,7 +88,7 @@ public class KurtosisAggregatorFactory extends AggregatorFactory
   @JsonProperty
   public String getInputTypeName()
   {
-    return inputType;
+    return inputType.typeName();
   }
 
   @JsonProperty
@@ -117,7 +112,7 @@ public class KurtosisAggregatorFactory extends AggregatorFactory
   @Override
   public Aggregator factorize(ColumnSelectorFactory metricFactory)
   {
-    switch (valueType) {
+    switch (inputType.type()) {
       case FLOAT:
       case DOUBLE:
       case LONG:
@@ -127,7 +122,7 @@ public class KurtosisAggregatorFactory extends AggregatorFactory
             ColumnSelectors.toPredicate(predicate, metricFactory)
         );
       case COMPLEX:
-        if ("kurtosis".equalsIgnoreCase(inputType)) {
+        if ("kurtosis".equals(inputType.typeName())) {
           return KurtosisAggregator.create(
               name,
               metricFactory.makeObjectColumnSelector(fieldName),
@@ -143,7 +138,7 @@ public class KurtosisAggregatorFactory extends AggregatorFactory
   @Override
   public BufferAggregator factorizeBuffered(ColumnSelectorFactory metricFactory)
   {
-    switch (valueType) {
+    switch (inputType.type()) {
       case FLOAT:
       case DOUBLE:
       case LONG:
@@ -153,7 +148,7 @@ public class KurtosisAggregatorFactory extends AggregatorFactory
             ColumnSelectors.toPredicate(predicate, metricFactory)
         );
       case COMPLEX:
-        if ("kurtosis".equalsIgnoreCase(inputType)) {
+        if ("kurtosis".equals(inputType.typeName())) {
           return KurtosisBufferAggregator.create(
               name,
               metricFactory.makeObjectColumnSelector(fieldName),
@@ -217,7 +212,7 @@ public class KurtosisAggregatorFactory extends AggregatorFactory
     byte[] nameBytes = StringUtils.toUtf8WithNullToEmpty(name);
     byte[] fieldNameBytes = StringUtils.toUtf8WithNullToEmpty(fieldName);
     byte[] predicateBytes = StringUtils.toUtf8WithNullToEmpty(predicate);
-    byte[] inputTypeBytes = StringUtils.toUtf8WithNullToEmpty(inputType);
+    byte[] inputTypeBytes = StringUtils.toUtf8WithNullToEmpty(inputType.typeName());
 
     int length = 1 + nameBytes.length
                    + fieldNameBytes.length

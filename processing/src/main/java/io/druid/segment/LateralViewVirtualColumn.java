@@ -8,6 +8,7 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import com.metamx.common.StringUtils;
 import io.druid.common.guava.DSuppliers.HandOver;
+import io.druid.data.ValueDesc;
 import io.druid.query.QueryCacheHelper;
 import io.druid.query.filter.DimFilterCacheHelper;
 import io.druid.segment.data.IndexedInts;
@@ -98,9 +99,9 @@ public class LateralViewVirtualColumn implements VirtualColumn
       private transient ObjectColumnSelector[] selectors;
 
       @Override
-      public Class<Object> classOfObject()
+      public ValueDesc type()
       {
-        return Object.class;
+        return ValueDesc.UNKNOWN;
       }
 
       @Override

@@ -75,15 +75,8 @@ public class DimensionPredicateFilter extends Filter.WithDictionary
   @Override
   public ValueMatcher makeMatcher(ColumnSelectorFactory columnSelectorFactory)
   {
-    final ObjectColumnSelector selector = Filters.getStringSelector(columnSelectorFactory, dimension);
-    return new ValueMatcher()
-    {
-      @Override
-      public boolean matches()
-      {
-        return predicate.apply((String)selector.get());
-      }
-    };
+    final ObjectColumnSelector selector = Filters.makeDimensionalSelector(columnSelectorFactory, dimension);
+    return Filters.dimensionalSelectorToValueMatcher(selector, predicate);
   }
 
   @Override

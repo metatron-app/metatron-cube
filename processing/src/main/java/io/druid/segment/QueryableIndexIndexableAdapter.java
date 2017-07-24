@@ -27,6 +27,7 @@ import com.google.common.collect.Sets;
 import com.metamx.common.ISE;
 import com.metamx.common.guava.CloseQuietly;
 import com.metamx.common.logger.Logger;
+import io.druid.data.ValueDesc;
 import io.druid.data.ValueType;
 import io.druid.segment.column.BitmapIndex;
 import io.druid.segment.column.Column;
@@ -317,23 +318,17 @@ public class QueryableIndexIndexableAdapter implements IndexableAdapter
   }
 
   @Override
-  public String getMetricType(String metric)
+  public ValueDesc getMetricType(String metric)
   {
     final Column column = input.getColumn(metric);
-
-    final ValueType type = column.getCapabilities().getType();
-    switch (type) {
-      case FLOAT:
-        return "float";
-      case DOUBLE:
-        return "double";
-      case LONG:
-        return "long";
-      case COMPLEX:
-        return column.getComplexColumn().getTypeName();
-      default:
-        throw new ISE("Unknown type[%s]", type);
+    if (column == null) {
+      return null;
     }
+    ColumnCapabilities capabilities = column.getCapabilities();
+    if (!capabilities.getType().isPrimitive()) {
+      return ValueDesc.of(column.getComplexColumn().getTypeName());
+    }
+    return ValueDesc.of(column.getCapabilities().getType());
   }
 
   @Override

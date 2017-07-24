@@ -38,6 +38,7 @@ import com.metamx.common.guava.Sequences;
 import io.druid.cache.Cache;
 import io.druid.common.guava.DSuppliers;
 import io.druid.common.guava.GuavaUtils;
+import io.druid.data.ValueDesc;
 import io.druid.data.ValueType;
 import io.druid.granularity.QueryGranularity;
 import io.druid.math.expr.Evals;
@@ -67,6 +68,7 @@ import io.druid.segment.VirtualColumn;
 import io.druid.segment.VirtualColumns;
 import io.druid.segment.column.Column;
 import io.druid.segment.column.ColumnCapabilities;
+import io.druid.segment.column.ColumnCapabilitiesImpl;
 import io.druid.segment.data.Indexed;
 import io.druid.segment.data.IndexedInts;
 import io.druid.segment.data.ListIndexed;
@@ -182,8 +184,16 @@ public class IncrementalIndexStorageAdapter implements StorageAdapter
   @Override
   public String getColumnTypeName(String column)
   {
-    final String metricType = index.getMetricType(column);
-    return metricType != null ? metricType : getColumnCapabilities(column).getType().toString();
+    // check first for compatibility
+    String metricType = index.getMetricType(column);
+    if (metricType != null) {
+      return metricType;
+    }
+    ColumnCapabilities capabilities = index.getCapabilities(column);
+    if (capabilities != null) {
+      return capabilities.getType().name();
+    }
+    return null;
   }
 
   @Override
@@ -610,9 +620,9 @@ public class IncrementalIndexStorageAdapter implements StorageAdapter
                   return new ObjectColumnSelector<Long>()
                   {
                     @Override
-                    public Class classOfObject()
+                    public ValueDesc type()
                     {
-                      return Long.TYPE;
+                      return ValueDesc.LONG;
                     }
 
                     @Override
@@ -626,13 +636,13 @@ public class IncrementalIndexStorageAdapter implements StorageAdapter
                 final Integer metricIndexInt = index.getMetricIndex(column);
                 if (metricIndexInt != null) {
                   final int metricIndex = metricIndexInt;
-                  final Class classOfObject = index.getMetricClass(column);
+                  final ValueDesc valueType = ValueDesc.of(index.getMetricType(column));
                   return new ObjectColumnSelector()
                   {
                     @Override
-                    public Class classOfObject()
+                    public ValueDesc type()
                     {
-                      return classOfObject;
+                      return valueType;
                     }
 
                     @Override
@@ -656,15 +666,20 @@ public class IncrementalIndexStorageAdapter implements StorageAdapter
                   return null;
                 }
 
+                final ColumnCapabilitiesImpl capabilities = dimensionDesc.getCapabilities();
+                final ValueDesc valueType = capabilities.hasMultipleValues()
+                                            ? ValueDesc.ofMultiValued(capabilities.getType())
+                                            : ValueDesc.of(capabilities.getType());
+
                 final int dimensionIndex = dimensionDesc.getIndex();
                 final IncrementalIndex.DimDim dimDim = dimensionDesc.getValues();
 
                 return new ObjectColumnSelector<Object>()
                 {
                   @Override
-                  public Class<Object> classOfObject()
+                  public ValueDesc type()
                   {
-                    return Object.class;
+                    return valueType;
                   }
 
                   @Override
@@ -893,13 +908,13 @@ public class IncrementalIndexStorageAdapter implements StorageAdapter
           }
           final int dimIndex = dimensionDesc.getIndex();
           final IncrementalIndex.DimDim dimDim = dimensionDesc.getValues();
-          final ValueType type = dimensionDesc.getCapabilities().getType();
+          final ValueDesc type = ValueDesc.of(dimensionDesc.getCapabilities().getType());
           final DSuppliers.TypedSupplier supplier = new DSuppliers.TypedSupplier()
           {
             @Override
-            public Class classOfObject()
+            public ValueDesc type()
             {
-              return type.classOfObject();
+              return type;
             }
 
             @Override
@@ -918,7 +933,7 @@ public class IncrementalIndexStorageAdapter implements StorageAdapter
         IncrementalIndex.MetricDesc metricDesc = index.getMetricDesc(column);
         if (metricDesc != null) {
           final int metricIndex = metricDesc.getIndex();
-          final ValueType type = ValueType.of(metricDesc.getType());
+          final ValueType type = ValueDesc.of(metricDesc.getType()).type();
           if (ValueType.FLOAT == type) {
             final FloatColumnSelector selector = new FloatColumnSelector()
             {

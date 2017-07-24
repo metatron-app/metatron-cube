@@ -21,6 +21,7 @@ package io.druid.segment.filter;
 
 import com.metamx.collections.bitmap.ImmutableBitmap;
 import com.metamx.collections.bitmap.MutableBitmap;
+import io.druid.data.ValueDesc;
 import io.druid.query.filter.BitmapIndexSelector;
 import io.druid.query.filter.Filter;
 import io.druid.query.filter.ValueMatcher;
@@ -74,7 +75,7 @@ public class SelectorFilter extends Filter.WithDictionary
   public ValueMatcher makeMatcher(ColumnSelectorFactory columnSelectorFactory)
   {
     final ObjectColumnSelector selector = columnSelectorFactory.makeObjectColumnSelector(dimension);
-    if (selector.classOfObject() == IndexedInts.WithLookup.class) {
+    if (ValueDesc.isIndexedId(selector.type())) {
       return new ValueMatcher()
       {
         private boolean init;

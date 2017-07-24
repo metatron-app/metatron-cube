@@ -21,7 +21,7 @@ package io.druid.query.metadata;
 
 import com.google.common.collect.Lists;
 import com.metamx.common.guava.Sequences;
-import io.druid.data.ValueType;
+import io.druid.data.ValueDesc;
 import io.druid.query.LegacyDataSource;
 import io.druid.query.QueryRunner;
 import io.druid.query.QueryRunnerFactory;
@@ -78,7 +78,7 @@ public class SegmentAnalyzerTest
     for (String dimension : TestIndex.DIMENSIONS) {
       final ColumnAnalysis columnAnalysis = columns.get(dimension);
 
-      Assert.assertEquals(dimension, ValueType.STRING.name(), columnAnalysis.getType());
+      Assert.assertEquals(dimension, ValueDesc.STRING_TYPE, columnAnalysis.getType());
       if (analyses == null) {
         Assert.assertTrue(dimension, columnAnalysis.getCardinality() > 0);
       } else {
@@ -92,7 +92,7 @@ public class SegmentAnalyzerTest
 
       Assert.assertEquals(
           metric,
-          metric.equals("index") ? ValueType.DOUBLE.name() : ValueType.FLOAT.name(),
+          metric.equals("index") ? ValueDesc.DOUBLE_TYPE : ValueDesc.FLOAT_TYPE,
           columnAnalysis.getType()
       );
       if (analyses == null) {
@@ -134,7 +134,7 @@ public class SegmentAnalyzerTest
       if (dimension.equals("null_column")) {
         Assert.assertNull(columnAnalysis);
       } else {
-        Assert.assertEquals(dimension, ValueType.STRING.name(), columnAnalysis.getType());
+        Assert.assertEquals(dimension, ValueDesc.STRING_TYPE, columnAnalysis.getType());
         if (analyses == null) {
           Assert.assertTrue(dimension, columnAnalysis.getSize() > 0);
           Assert.assertTrue(dimension, columnAnalysis.getCardinality() > 0);
@@ -150,7 +150,7 @@ public class SegmentAnalyzerTest
 
       Assert.assertEquals(
           metric,
-          metric.equals("index") ? ValueType.DOUBLE.name() : ValueType.FLOAT.name(),
+          metric.equals("index") ? ValueDesc.DOUBLE_TYPE : ValueDesc.FLOAT_TYPE,
           columnAnalysis.getType()
       );
       if (analyses == null) {

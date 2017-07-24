@@ -38,6 +38,7 @@ import com.metamx.common.logger.Logger;
 import com.metamx.common.parsers.ParseException;
 import io.druid.common.utils.JodaUtils;
 import io.druid.common.utils.StringUtils;
+import io.druid.data.ValueDesc;
 import io.druid.data.ValueType;
 import io.druid.data.input.InputRow;
 import io.druid.data.input.MapBasedRow;
@@ -259,9 +260,9 @@ public abstract class IncrementalIndex<AggregatorType> implements Iterable<Row>,
           return new ObjectColumnSelector()
           {
             @Override
-            public Class classOfObject()
+            public ValueDesc type()
             {
-              return ValueType.LONG.classOfObject();
+              return ValueDesc.LONG;
             }
 
             @Override
@@ -273,22 +274,22 @@ public abstract class IncrementalIndex<AggregatorType> implements Iterable<Row>,
         }
 
         final String typeName = agg.getInputTypeName();
-        final ValueType type = ValueType.of(typeName);
+        final ValueDesc type = ValueDesc.of(typeName);
 
-        if (type != ValueType.COMPLEX || !deserializeComplexMetrics) {
-          final boolean dimension = type == ValueType.COMPLEX && typeName.equals("array.string");
+        if (ValueDesc.isPrimitive(type) || !deserializeComplexMetrics) {
+          final boolean dimension = type.typeName().equals("array.string");
           return new ObjectColumnSelector()
           {
             @Override
-            public Class classOfObject()
+            public ValueDesc type()
             {
-              return type.classOfObject();
+              return type;
             }
 
             @Override
             public Object get()
             {
-              switch (type) {
+              switch (type.type()) {
                 case FLOAT:
                   return in.get().getFloatMetric(column);
                 case LONG:
@@ -312,9 +313,9 @@ public abstract class IncrementalIndex<AggregatorType> implements Iterable<Row>,
           return new ObjectColumnSelector()
           {
             @Override
-            public Class classOfObject()
+            public ValueDesc type()
             {
-              return extractor.extractedClass();
+              return type;
             }
 
             @Override
@@ -1294,16 +1295,7 @@ public abstract class IncrementalIndex<AggregatorType> implements Iterable<Row>,
       this.index = index;
       this.name = factory.getName();
       this.type = factory.getTypeName();
-      this.capabilities = new ColumnCapabilitiesImpl();
-      if (type.equalsIgnoreCase("float")) {
-        capabilities.setType(ValueType.FLOAT);
-      } else if (type.equalsIgnoreCase("double")) {
-        capabilities.setType(ValueType.DOUBLE);
-      } else if (type.equalsIgnoreCase("long")) {
-        capabilities.setType(ValueType.LONG);
-      } else {
-        capabilities.setType(ValueType.COMPLEX);
-      }
+      this.capabilities = ColumnCapabilitiesImpl.of(ValueType.of(type));
     }
 
     public int getIndex()

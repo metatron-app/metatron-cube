@@ -30,20 +30,23 @@ import com.metamx.collections.bitmap.BitmapFactory;
 import com.metamx.collections.bitmap.ImmutableBitmap;
 import com.metamx.collections.bitmap.MutableBitmap;
 import com.metamx.common.guava.FunctionalIterable;
-import io.druid.math.expr.Evals;
+import io.druid.data.ValueDesc;
+import io.druid.data.ValueType;
 import io.druid.math.expr.Expressions;
-import io.druid.math.expr.Parser;
 import io.druid.query.filter.AndDimFilter;
 import io.druid.query.filter.BitmapIndexSelector;
 import io.druid.query.filter.DimFilter;
 import io.druid.query.filter.Filter;
+import io.druid.query.filter.ValueMatcher;
 import io.druid.segment.ColumnSelectorFactory;
+import io.druid.segment.ColumnSelectors;
 import io.druid.segment.ExprEvalColumnSelector;
 import io.druid.segment.ObjectColumnSelector;
 import io.druid.segment.column.BitmapIndex;
 import io.druid.segment.data.Indexed;
 import io.druid.segment.data.IndexedInts;
 
+import java.lang.reflect.Array;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Objects;
@@ -96,9 +99,9 @@ public class Filters
     return new ObjectColumnSelector()
     {
       @Override
-      public Class classOfObject()
+      public ValueDesc type()
       {
-        return String.class;
+        return ValueDesc.STRING;
       }
 
       @Override
@@ -109,23 +112,31 @@ public class Filters
     };
   }
 
-  public static ObjectColumnSelector getStringSelector(ColumnSelectorFactory factory, String column)
+  @SuppressWarnings("unchecked")
+  public static ObjectColumnSelector makeDimensionalSelector(ColumnSelectorFactory factory, String column)
   {
     final ObjectColumnSelector selector = factory.makeObjectColumnSelector(column);
-    if (selector.classOfObject() == String.class) {
+    if (selector == null) {
+      return ColumnSelectors.nullObjectSelector(ValueDesc.STRING);
+    }
+    ValueDesc type = selector.type();
+    if (ValueDesc.isString(type)) {
       return selector;
     }
-    if (selector.classOfObject() == IndexedInts.WithLookup.class) {
-      return Filters.asStringArraySelector(selector);
+    if (ValueDesc.isIndexedId(type)) {
+      return Filters.asMultiValued(selector);
+    }
+    if (ValueDesc.isArray(type)) {
+      return Filters.asArray(selector);
     }
 
     // toString, whatsoever
     return new ObjectColumnSelector()
     {
       @Override
-      public Class classOfObject()
+      public ValueDesc type()
       {
-        return String.class;
+        return ValueDesc.STRING;
       }
 
       @Override
@@ -136,14 +147,14 @@ public class Filters
     };
   }
 
-  public static ObjectColumnSelector asStringArraySelector(final ObjectColumnSelector<IndexedInts.WithLookup> selector)
+  public static ObjectColumnSelector asMultiValued(final ObjectColumnSelector<IndexedInts.WithLookup> selector)
   {
     return new ObjectColumnSelector() {
 
       @Override
-      public Class classOfObject()
+      public ValueDesc type()
       {
-        return Object.class;
+        return ValueDesc.ofMultiValued(ValueType.STRING);
       }
 
       @Override
@@ -161,6 +172,71 @@ public class Filters
           }
           return array;
         }
+      }
+    };
+  }
+
+  public static ObjectColumnSelector asArray(final ObjectColumnSelector<List> selector)
+  {
+    return new ObjectColumnSelector() {
+
+      @Override
+      public ValueDesc type()
+      {
+        return ValueDesc.ofMultiValued(ValueType.STRING);
+      }
+
+      @Override
+      public Object get()
+      {
+        List indexed = selector.get();
+        if (indexed == null || indexed.isEmpty()) {
+          return null;
+        } else if (indexed.size() == 1) {
+          return Objects.toString(indexed.get(0), null);
+        } else {
+          String[] array = new String[indexed.size()];
+          for (int i = 0; i < array.length; i++) {
+            array[i] = Objects.toString(indexed.get(i), null);
+          }
+          return array;
+        }
+      }
+    };
+  }
+
+  @SuppressWarnings("unchecked")
+  public static ValueMatcher dimensionalSelectorToValueMatcher(
+      final ObjectColumnSelector selector,
+      final Predicate predicate
+  )
+  {
+    if (ValueDesc.isPrimitive(selector.type())) {
+      return new ValueMatcher()
+      {
+        @Override
+        public boolean matches()
+        {
+          return predicate.apply(selector.get());
+        }
+      };
+    }
+    return new ValueMatcher()
+    {
+      @Override
+      public boolean matches()
+      {
+        Object object = selector.get();
+        if (object == null || !object.getClass().isArray()) {
+          return predicate.apply(Objects.toString(object, null));
+        }
+        int length = Array.getLength(object);
+        for (int i = 0; i < length; i++) {
+          if (predicate.apply(Objects.toString(Array.get(object, i), null))) {
+            return true;
+          }
+        }
+        return false;
       }
     };
   }

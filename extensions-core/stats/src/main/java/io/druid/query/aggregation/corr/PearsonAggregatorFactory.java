@@ -20,13 +20,12 @@
 package io.druid.query.aggregation.corr;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
-import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.base.Preconditions;
 import com.metamx.common.IAE;
 import io.druid.common.utils.StringUtils;
-import io.druid.data.ValueType;
+import io.druid.data.ValueDesc;
 import io.druid.query.aggregation.Aggregator;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.BufferAggregator;
@@ -51,10 +50,7 @@ public class PearsonAggregatorFactory extends AggregatorFactory
   protected final String fieldName1;
   protected final String fieldName2;
   protected final String predicate;
-  protected final String inputType;
-
-  @JsonIgnore
-  protected final ValueType valueType;
+  protected final ValueDesc inputType;
 
   @JsonCreator
   public PearsonAggregatorFactory(
@@ -69,9 +65,8 @@ public class PearsonAggregatorFactory extends AggregatorFactory
     this.fieldName1 = Preconditions.checkNotNull(fieldName1, "fieldName1 should not be null");
     this.fieldName2 = fieldName2;
     this.predicate = predicate;
-    this.inputType = inputType == null ? "double" : inputType;
-    this.valueType = ValueType.of(this.inputType);
-    if (ValueType.isNumeric(valueType)) {
+    this.inputType = inputType == null ? ValueDesc.DOUBLE : ValueDesc.of(inputType);
+    if (ValueDesc.isNumeric(this.inputType)) {
       Preconditions.checkArgument(fieldName2 != null, "fieldName2 should not be null");
     } else {
       Preconditions.checkArgument(fieldName2 == null, "fieldName2 should be null");
@@ -88,7 +83,7 @@ public class PearsonAggregatorFactory extends AggregatorFactory
   @Override
   public List<String> requiredFields()
   {
-    return valueType == ValueType.COMPLEX ? Arrays.asList(fieldName1) : Arrays.asList(fieldName1, fieldName2);
+    return ValueDesc.isPrimitive(inputType) ? Arrays.asList(fieldName1, fieldName2) : Arrays.asList(fieldName1);
   }
 
   @Override
@@ -101,7 +96,7 @@ public class PearsonAggregatorFactory extends AggregatorFactory
   @JsonProperty
   public String getInputTypeName()
   {
-    return inputType;
+    return inputType.typeName();
   }
 
   @JsonProperty
@@ -131,7 +126,7 @@ public class PearsonAggregatorFactory extends AggregatorFactory
   @Override
   public Aggregator factorize(ColumnSelectorFactory metricFactory)
   {
-    switch (valueType) {
+    switch (inputType.type()) {
       case FLOAT:
       case DOUBLE:
       case LONG:
@@ -142,7 +137,7 @@ public class PearsonAggregatorFactory extends AggregatorFactory
             ColumnSelectors.toPredicate(predicate, metricFactory)
         );
       case COMPLEX:
-        if ("pearson".equalsIgnoreCase(inputType)) {
+        if ("pearson".equals(inputType.typeName())) {
           return PearsonAggregator.create(
               name,
               metricFactory.makeObjectColumnSelector(fieldName1),
@@ -158,7 +153,7 @@ public class PearsonAggregatorFactory extends AggregatorFactory
   @Override
   public BufferAggregator factorizeBuffered(ColumnSelectorFactory metricFactory)
   {
-    switch (valueType) {
+    switch (inputType.type()) {
       case FLOAT:
       case DOUBLE:
       case LONG:
@@ -169,7 +164,7 @@ public class PearsonAggregatorFactory extends AggregatorFactory
             ColumnSelectors.toPredicate(predicate, metricFactory)
         );
       case COMPLEX:
-        if ("pearson".equalsIgnoreCase(inputType)) {
+        if ("pearson".equals(inputType.typeName())) {
           return PearsonBufferAggregator.create(
               name,
               metricFactory.makeObjectColumnSelector(fieldName1),
@@ -234,7 +229,7 @@ public class PearsonAggregatorFactory extends AggregatorFactory
     byte[] fieldName1Bytes = StringUtils.toUtf8WithNullToEmpty(fieldName1);
     byte[] fieldName2Bytes = StringUtils.toUtf8WithNullToEmpty(fieldName2);
     byte[] predicateBytes = StringUtils.toUtf8WithNullToEmpty(predicate);
-    byte[] inputTypeBytes = StringUtils.toUtf8WithNullToEmpty(inputType);
+    byte[] inputTypeBytes = StringUtils.toUtf8WithNullToEmpty(inputType.typeName());
 
     int length = 1 + nameBytes.length
                    + fieldName1Bytes.length

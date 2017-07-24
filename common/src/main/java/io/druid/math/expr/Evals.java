@@ -25,6 +25,7 @@ import com.google.common.base.Predicate;
 import com.google.common.base.Strings;
 import com.metamx.common.Pair;
 import io.druid.common.utils.JodaUtils;
+import io.druid.data.ValueDesc;
 import io.druid.data.ValueType;
 import org.apache.commons.lang.StringUtils;
 import org.joda.time.DateTime;
@@ -230,9 +231,9 @@ public class Evals
     throw new IllegalArgumentException("not supported type " + castTo);
   }
 
-  public static Object castTo(ExprEval eval, ValueType castTo)
+  public static Object castTo(ExprEval eval, ValueDesc castTo)
   {
-    switch (castTo) {
+    switch (castTo.type()) {
       case FLOAT:
         return eval.asFloat();
       case DOUBLE:
@@ -242,6 +243,7 @@ public class Evals
       case STRING:
         return eval.asString();
       default:
+        // todo
         throw new IllegalArgumentException("not supported type " + castTo);
     }
   }

@@ -212,7 +212,7 @@ public class Parser
         if (supplier == null) {
           throw new RuntimeException("No binding found for " + name);
         }
-        return ExprType.typeOf(supplier.classOfObject());
+        return ExprType.bestEffortOf(supplier.type().typeName());
       }
     };
   }

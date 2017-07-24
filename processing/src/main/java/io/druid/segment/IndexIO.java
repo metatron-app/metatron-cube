@@ -790,7 +790,7 @@ public class IndexIO
               }
               final GenericIndexed column = (GenericIndexed) holder.complexType;
               final String complexType = holder.getTypeName();
-              builder.setValueType(ValueType.COMPLEX);
+              builder.setValueType(ValueType.of(complexType));
               builder.addSerde(
                   ComplexColumnPartSerde.legacySerializerBuilder()
                                         .withTypeName(complexType)
@@ -979,7 +979,7 @@ public class IndexIO
           columns.put(
               metric,
               new ColumnBuilder()
-                  .setType(ValueType.COMPLEX)
+                  .setType(ValueType.of(metricHolder.getTypeName()))
                   .setComplexColumn(
                       new ComplexColumnPartSupplier(
                           metricHolder.getTypeName(), (GenericIndexed) metricHolder.complexType

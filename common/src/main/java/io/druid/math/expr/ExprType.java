@@ -20,6 +20,7 @@
 package io.druid.math.expr;
 
 import com.google.common.base.Strings;
+import io.druid.data.ValueDesc;
 import io.druid.data.ValueType;
 import org.joda.time.DateTime;
 
@@ -33,35 +34,41 @@ public enum ExprType
     @Override
     public boolean isNumeric() { return true; }
     @Override
-    public Class classOfObject() { return Double.class; }
+    public ValueDesc asValueDesc() { return ValueDesc.DOUBLE; }
   },
   LONG {
     @Override
     public boolean isNumeric() { return true; }
     @Override
-    public Class classOfObject() { return Long.class; }
+    public ValueDesc asValueDesc() { return ValueDesc.LONG; }
   },
   DATETIME {
     @Override
     public boolean isNumeric() { return false; }
     @Override
-    public Class classOfObject() { return DateTime.class; }
+    public ValueDesc asValueDesc() { return ValueDesc.DATETIME; }
   },
   STRING {
     @Override
     public boolean isNumeric() { return false; }
     @Override
-    public Class classOfObject() { return String.class; }
+    public ValueDesc asValueDesc() { return ValueDesc.STRING; }
   },
   UNKNOWN {
     @Override
     public boolean isNumeric() { return false; }
     @Override
-    public Class classOfObject() { return Object.class; }
+    public ValueDesc asValueDesc() { return ValueDesc.UNKNOWN; }
   };
 
+  public String typeName()
+  {
+    return name().toLowerCase();
+  }
+
   public abstract boolean isNumeric();
-  public abstract Class classOfObject();
+
+  public abstract ValueDesc asValueDesc();
 
   public static ExprType bestEffortOf(String name)
   {

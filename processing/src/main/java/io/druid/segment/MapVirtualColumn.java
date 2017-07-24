@@ -24,6 +24,8 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Maps;
 import io.druid.common.utils.StringUtils;
+import io.druid.data.ValueDesc;
+import io.druid.data.ValueType;
 import io.druid.query.dimension.DefaultDimensionSpec;
 import io.druid.query.filter.DimFilterCacheHelper;
 import io.druid.segment.data.IndexedInts;
@@ -71,18 +73,19 @@ public class MapVirtualColumn implements VirtualColumn
   @Override
   public ObjectColumnSelector asMetric(String column, ColumnSelectorFactory factory)
   {
+    Preconditions.checkArgument(column.startsWith(outputName));
+    final int index = column.indexOf('.', outputName.length());
     final DimensionSelector keySelector = factory.makeDimensionSelector(DefaultDimensionSpec.of(keyDimension));
     if (valueDimension != null) {
       final DimensionSelector valueSelector = factory.makeDimensionSelector(DefaultDimensionSpec.of(valueDimension));
 
-      int index = column.indexOf('.');
       if (index < 0) {
         return new ObjectColumnSelector<Map>()
         {
           @Override
-          public Class classOfObject()
+          public ValueDesc type()
           {
-            return Map.class;
+            return ValueDesc.MAP;
           }
 
           @Override
@@ -108,28 +111,15 @@ public class MapVirtualColumn implements VirtualColumn
 
       final int keyId = keySelector.lookupId(column.substring(index + 1));
       if (keyId < 0) {
-        return new ObjectColumnSelector()
-        {
-          @Override
-          public Class classOfObject()
-          {
-            return String.class;
-          }
-
-          @Override
-          public Object get()
-          {
-            return null;
-          }
-        };
+        return ColumnSelectors.nullObjectSelector(ValueDesc.STRING);
       }
 
       return new ObjectColumnSelector<String>()
       {
         @Override
-        public Class classOfObject()
+        public ValueDesc type()
         {
-          return String.class;
+          return ValueDesc.STRING;
         }
 
         @Override
@@ -151,16 +141,18 @@ public class MapVirtualColumn implements VirtualColumn
       };
     }
 
+    @SuppressWarnings("unchecked")
     final ObjectColumnSelector<List> valueSelector = factory.makeObjectColumnSelector(valueMetric);
-
-    int index = column.indexOf('.');
+    if (valueSelector == null) {
+      return ColumnSelectors.nullObjectSelector(index < 0 ? ValueDesc.MAP : ValueDesc.UNKNOWN);
+    }
     if (index < 0) {
       return new ObjectColumnSelector<Map>()
       {
         @Override
-        public Class classOfObject()
+        public ValueDesc type()
         {
-          return Map.class;
+          return ValueDesc.MAP;
         }
 
         @Override
@@ -181,30 +173,21 @@ public class MapVirtualColumn implements VirtualColumn
       };
     }
 
+    final ValueDesc elementType = ValueDesc.elementOfArray(valueSelector.type());
+    if (elementType == null) {
+      throw new IllegalArgumentException("target column '" + column + "' should be array type");
+    }
     final int keyId = keySelector.lookupId(column.substring(index + 1));
     if (keyId < 0) {
-      return new ObjectColumnSelector()
-      {
-        @Override
-        public Class classOfObject()
-        {
-          return String.class;
-        }
-
-        @Override
-        public Object get()
-        {
-          return null;
-        }
-      };
+      return ColumnSelectors.nullObjectSelector(elementType);
     }
 
     return new ObjectColumnSelector<Object>()
     {
       @Override
-      public Class classOfObject()
+      public ValueDesc type()
       {
-        return Object.class;
+        return elementType;
       }
 
       @Override
@@ -230,7 +213,7 @@ public class MapVirtualColumn implements VirtualColumn
   public FloatColumnSelector asFloatMetric(String dimension, ColumnSelectorFactory factory)
   {
     final ObjectColumnSelector selector = asMetric(dimension, factory);
-    if (selector.classOfObject() == Map.class) {
+    if (ValueDesc.isMap(selector.type())) {
       throw new UnsupportedOperationException("asFloatMetric");
     }
     return ColumnSelectors.asFloat(selector);
@@ -240,7 +223,7 @@ public class MapVirtualColumn implements VirtualColumn
   public DoubleColumnSelector asDoubleMetric(String dimension, ColumnSelectorFactory factory)
   {
     final ObjectColumnSelector selector = asMetric(dimension, factory);
-    if (selector.classOfObject() == Map.class) {
+    if (ValueDesc.isMap(selector.type())) {
       throw new UnsupportedOperationException("asDoubleMetric");
     }
     return ColumnSelectors.asDouble(selector);
@@ -250,7 +233,7 @@ public class MapVirtualColumn implements VirtualColumn
   public LongColumnSelector asLongMetric(String dimension, ColumnSelectorFactory factory)
   {
     final ObjectColumnSelector selector = asMetric(dimension, factory);
-    if (selector.classOfObject() == Map.class) {
+    if (ValueDesc.isMap(selector.type())) {
       throw new UnsupportedOperationException("asLongMetric");
     }
     return ColumnSelectors.asLong(selector);
@@ -259,7 +242,8 @@ public class MapVirtualColumn implements VirtualColumn
   @Override
   public DimensionSelector asDimension(String dimension, ColumnSelectorFactory factory)
   {
-    int index = dimension.indexOf('.');
+    Preconditions.checkArgument(dimension.startsWith(outputName));
+    final int index = dimension.indexOf('.', outputName.length());
     if (index < 0) {
       throw new IllegalArgumentException(dimension + " cannot be used as dimension");
     }
@@ -271,7 +255,7 @@ public class MapVirtualColumn implements VirtualColumn
       return factory.makeDimensionSelector(DefaultDimensionSpec.of(valueDimension));
     }
     ObjectColumnSelector selector = asMetric(dimension, factory);
-    if (selector.classOfObject() != String.class) {
+    if (ValueType.STRING.equals(selector.type())) {
       throw new UnsupportedOperationException("asDimension");
     }
     return VirtualColumns.toDimensionSelector(selector);

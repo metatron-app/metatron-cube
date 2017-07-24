@@ -19,6 +19,8 @@
 
 package io.druid.segment.data;
 
+import io.druid.data.ValueType;
+
 import java.io.Closeable;
 
 /**
@@ -35,5 +37,7 @@ public interface IndexedInts extends Iterable<Integer>, Closeable
     int lookupId(String name);
 
     String lookupName(int id);
+
+    ValueType elementType();    // type of value
   }
 }

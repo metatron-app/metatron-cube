@@ -28,6 +28,7 @@ import com.google.common.collect.Maps;
 import com.google.common.util.concurrent.MoreExecutors;
 import com.metamx.common.guava.Sequences;
 import io.druid.common.utils.JodaUtils;
+import io.druid.data.ValueDesc;
 import io.druid.data.ValueType;
 import io.druid.granularity.QueryGranularities;
 import io.druid.jackson.DefaultObjectMapper;
@@ -267,7 +268,8 @@ public class SegmentMetadataQueryTest
         .withColumns(new ListColumnIncluderator(Arrays.asList("partial_null_column")))
         .withMoreAnalysis(
             SegmentMetadataQuery.AnalysisType.CARDINALITY,
-            SegmentMetadataQuery.AnalysisType.NULL_COUNT);
+            SegmentMetadataQuery.AnalysisType.NULL_COUNT
+        );
 
     // don't know why null-count is different, whatever..
     SegmentAnalysis expected = new SegmentAnalysis(
@@ -275,7 +277,9 @@ public class SegmentMetadataQueryTest
         ImmutableList.of( new Interval("2011-01-12T00:00:00.000Z/2011-04-15T00:00:00.001Z")),
         ImmutableMap.of(
             "partial_null_column",
-            new ColumnAnalysis("STRING", false, mmap1 ? 930 : 920, 0, 2, mmap1 ? 1023 : 1012, "", "value", null)
+            new ColumnAnalysis(
+                ValueDesc.STRING_TYPE, false, mmap1 ? 930 : 920, 0, 2, mmap1 ? 1023 : 1012, "", "value", null
+            )
         ),
         mmap1 ? 98580 : 99353,
         1209,

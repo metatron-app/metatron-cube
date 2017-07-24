@@ -24,6 +24,7 @@ import com.google.common.base.Predicates;
 import com.google.common.base.Strings;
 import io.druid.common.guava.DSuppliers;
 import io.druid.common.utils.StringUtils;
+import io.druid.data.ValueDesc;
 
 import java.util.Objects;
 
@@ -96,9 +97,9 @@ public class ColumnSelectors
     return new DSuppliers.TypedSupplier<Float>()
     {
       @Override
-      public Class<Float> classOfObject()
+      public ValueDesc type()
       {
-        return Float.TYPE;
+        return ValueDesc.FLOAT;
       }
 
       @Override
@@ -114,9 +115,9 @@ public class ColumnSelectors
     return new DSuppliers.TypedSupplier<Double>()
     {
       @Override
-      public Class<Double> classOfObject()
+      public ValueDesc type()
       {
-        return Double.TYPE;
+        return ValueDesc.DOUBLE;
       }
 
       @Override
@@ -132,9 +133,9 @@ public class ColumnSelectors
     return new DSuppliers.TypedSupplier<Long>()
     {
       @Override
-      public Class<Long> classOfObject()
+      public ValueDesc type()
       {
-        return Long.TYPE;
+        return ValueDesc.LONG;
       }
 
       @Override
@@ -242,15 +243,33 @@ public class ColumnSelectors
     return new ObjectColumnSelector()
     {
       @Override
-      public Class classOfObject()
+      public ValueDesc type()
       {
-        return selector.typeOfObject().classOfObject();
+        return selector.typeOfObject().asValueDesc();
       }
 
       @Override
       public Object get()
       {
         return selector.get().value();
+      }
+    };
+  }
+
+  public static ObjectColumnSelector nullObjectSelector(final ValueDesc valueType)
+  {
+    return new ObjectColumnSelector()
+    {
+      @Override
+      public ValueDesc type()
+      {
+        return valueType;
+      }
+
+      @Override
+      public Object get()
+      {
+        return null;
       }
     };
   }

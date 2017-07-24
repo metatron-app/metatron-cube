@@ -26,7 +26,7 @@ import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
-import io.druid.math.expr.ExprType;
+import io.druid.data.ValueDesc;
 import io.druid.query.dimension.DimensionSpec;
 import io.druid.query.filter.DimFilter;
 import io.druid.segment.column.ColumnCapabilities;
@@ -428,7 +428,7 @@ public class VirtualColumns implements Iterable<VirtualColumn>
     if (!suppliers.containsKey(outputName) && virtualColumn instanceof VirtualColumn.Generic) {
       VirtualColumn.Generic generic = (VirtualColumn.Generic) virtualColumn;
       if (generic.includeAsDimension()) {
-        suppliers.put(outputName, ExprType.STRING.name());
+        suppliers.put(outputName, ValueDesc.STRING_TYPE);
       } else if (generic.includeAsMetric()) {
         for (String binding : generic.getRequiredBinding()) {
           if (suppliers.containsKey(binding)) {
