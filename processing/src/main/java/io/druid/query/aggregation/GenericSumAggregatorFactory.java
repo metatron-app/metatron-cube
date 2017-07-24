@@ -118,6 +118,12 @@ public class GenericSumAggregatorFactory extends GenericAggregatorFactory
   }
 
   @Override
+  public String getTypeName()
+  {
+    return valueType == ValueType.FLOAT ? ValueType.DOUBLE.name() : super.getTypeName();
+  }
+
+  @Override
   protected final AggregatorFactory withValue(String name, String fieldName, String inputType)
   {
     return new GenericSumAggregatorFactory(name, fieldName, inputType);

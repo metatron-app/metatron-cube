@@ -183,15 +183,15 @@ public class SegmentMetadataQueryTest
             ),
             "index",
             new ColumnAnalysis(
-                ValueType.FLOAT.toString(),
+                ValueType.DOUBLE.toString(),
                 false,
-                9672,
+                14508,
                 null,
                 null,
                 null,
                 null
             )
-        ), mmap1 ? 93744 : 94517,
+        ), mmap1 ? 98580 : 99353,
         1209,
         null,
         null
@@ -224,16 +224,16 @@ public class SegmentMetadataQueryTest
             ),
             "index",
             new ColumnAnalysis(
-                ValueType.FLOAT.toString(),
+                ValueType.DOUBLE.toString(),
                 false,
-                9672,
+                14508,
                 null,
                 null,
                 null,
                 null
             )
         // null_column will be included only for incremental index, which makes a little bigger result than expected
-        ), mmap2 ? 93744 : 94517,
+        ), mmap2 ? 98580 : 99353,
         1209,
         null,
         null
@@ -277,7 +277,7 @@ public class SegmentMetadataQueryTest
             "partial_null_column",
             new ColumnAnalysis("STRING", false, mmap1 ? 930 : 920, 0, 2, mmap1 ? 1023 : 1012, "", "value", null)
         ),
-        mmap1 ? 93744 : 94517,
+        mmap1 ? 98580 : 99353,
         1209,
         null,
         null
@@ -577,9 +577,9 @@ public class SegmentMetadataQueryTest
             ),
             "index",
             new ColumnAnalysis(
-                ValueType.FLOAT.toString(),
+                ValueType.DOUBLE.toString(),
                 false,
-                9672 * 2,
+                14508 * 2,
                 null,
                 null,
                 null,

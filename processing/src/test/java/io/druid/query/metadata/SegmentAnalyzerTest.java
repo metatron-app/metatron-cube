@@ -90,7 +90,11 @@ public class SegmentAnalyzerTest
     for (String metric : TestIndex.METRICS) {
       final ColumnAnalysis columnAnalysis = columns.get(metric);
 
-      Assert.assertEquals(metric, ValueType.FLOAT.name(), columnAnalysis.getType());
+      Assert.assertEquals(
+          metric,
+          metric.equals("index") ? ValueType.DOUBLE.name() : ValueType.FLOAT.name(),
+          columnAnalysis.getType()
+      );
       if (analyses == null) {
         Assert.assertTrue(metric, columnAnalysis.getSize() > 0);
       } else {
@@ -144,7 +148,11 @@ public class SegmentAnalyzerTest
     for (String metric : TestIndex.METRICS) {
       final ColumnAnalysis columnAnalysis = columns.get(metric);
 
-      Assert.assertEquals(metric, ValueType.FLOAT.name(), columnAnalysis.getType());
+      Assert.assertEquals(
+          metric,
+          metric.equals("index") ? ValueType.DOUBLE.name() : ValueType.FLOAT.name(),
+          columnAnalysis.getType()
+      );
       if (analyses == null) {
         Assert.assertTrue(metric, columnAnalysis.getSize() > 0);
       } else {
