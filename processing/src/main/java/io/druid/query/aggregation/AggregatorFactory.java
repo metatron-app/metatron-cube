@@ -237,21 +237,22 @@ public abstract class AggregatorFactory implements Cacheable
     return relay;
   }
 
-  public static List<AggregatorFactory> toRelay(Iterable<Pair<String, String>> nameTypePairs)
+  public static List<AggregatorFactory> toRelay(Iterable<Pair<String, ValueDesc>> nameTypePairs)
   {
     List<AggregatorFactory> relay = Lists.newArrayList();
-    for (Pair<String, String> nameTypePair : nameTypePairs) {
-      relay.add(new RelayAggregatorFactory(nameTypePair.lhs, nameTypePair.lhs, nameTypePair.rhs));
+    for (Pair<String, ValueDesc> nameTypePair : nameTypePairs) {
+      relay.add(new RelayAggregatorFactory(nameTypePair.lhs, nameTypePair.lhs, nameTypePair.rhs.typeName()));
     }
     return relay;
   }
 
-  public static Function<AggregatorFactory, Pair<String, String>> NAME_TYPE = new Function<AggregatorFactory, Pair<String, String>>()
-  {
-    @Override
-    public Pair<String, String> apply(AggregatorFactory input)
-    {
-      return Pair.of(input.getName(), input.getTypeName());
-    }
-  };
+  public static Function<AggregatorFactory, Pair<String, ValueDesc>> NAME_TYPE =
+      new Function<AggregatorFactory, Pair<String, ValueDesc>>()
+      {
+        @Override
+        public Pair<String, ValueDesc> apply(AggregatorFactory input)
+        {
+          return Pair.of(input.getName(), ValueDesc.of(input.getTypeName()));
+        }
+      };
 }

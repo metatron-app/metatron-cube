@@ -21,7 +21,6 @@ package io.druid.math.expr;
 
 import com.google.common.base.Strings;
 import io.druid.data.ValueDesc;
-import io.druid.data.ValueType;
 import org.joda.time.DateTime;
 
 import java.util.List;
@@ -95,9 +94,9 @@ public enum ExprType
     }
   }
 
-  public static ExprType typeOf(ValueType type)
+  public static ExprType typeOf(ValueDesc type)
   {
-    switch (type) {
+    switch (type.type()) {
       case LONG:
         return LONG;
       case FLOAT:
@@ -105,6 +104,7 @@ public enum ExprType
         return DOUBLE;
       case STRING:
         return STRING;
+      case COMPLEX:
       default:
         return UNKNOWN;
     }

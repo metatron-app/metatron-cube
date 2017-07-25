@@ -17,27 +17,13 @@
  * under the License.
  */
 
-package io.druid.segment;
-
-import io.druid.segment.data.Indexed;
+package io.druid.data;
 
 /**
  */
-public class Segments
+public interface TypeResolver
 {
-  public static Indexed<String> getAvailableDimensions(Segment segment)
-  {
-    if (segment.asQueryableIndex(false) != null) {
-      return segment.asQueryableIndex(false).getAvailableDimensions();
-    }
-    return segment.asStorageAdapter(false).getAvailableDimensions();
-  }
+  ValueDesc resolveColumn(String column);
 
-  public static int getNumRows(Segment segment)
-  {
-    if (segment.asQueryableIndex(false) != null) {
-      return segment.asQueryableIndex(false).getNumRows();
-    }
-    return segment.asStorageAdapter(false).getNumRows();
-  }
+  ValueDesc resolveColumn(String column, ValueDesc defaultType);
 }

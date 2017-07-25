@@ -19,16 +19,16 @@
 
 package io.druid.query;
 
-import com.google.common.base.Preconditions;
 import com.google.common.collect.Maps;
+import com.metamx.common.Pair;
+import io.druid.data.TypeResolver;
 import io.druid.data.ValueDesc;
-import io.druid.math.expr.Expr;
-import io.druid.math.expr.ExprType;
+import io.druid.data.ValueType;
+import io.druid.segment.StorageAdapter;
 import io.druid.segment.VirtualColumn;
 import io.druid.segment.VirtualColumns;
-import io.druid.segment.column.ColumnCapabilitiesImpl;
+import io.druid.segment.column.ColumnCapabilities;
 import io.druid.segment.data.IndexedInts;
-import io.druid.segment.incremental.IncrementalIndex;
 import io.druid.segment.serde.ComplexMetricSerde;
 import io.druid.segment.serde.ComplexMetrics;
 import org.joda.time.DateTime;
@@ -38,7 +38,7 @@ import java.util.Map;
 
 /**
  */
-public class RowResolver implements Expr.TypeBinding
+public class RowResolver implements TypeResolver
 {
   public static Class<?> toClass(String typeName)
   {
@@ -105,32 +105,57 @@ public class RowResolver implements Expr.TypeBinding
     return ValueDesc.UNKNOWN;
   }
 
-  private final Map<String, String> typeMap = Maps.newHashMap();
+  private final Map<String, ValueDesc> columnTypes = Maps.newHashMap();
+  private final Map<String, Pair<VirtualColumn, ValueDesc>> virtualColumnTypes = Maps.newHashMap();
+  private final VirtualColumns virtualColumns;
 
-  public RowResolver(IncrementalIndex<?> index, VirtualColumns virtualColumns)
+  public RowResolver(StorageAdapter adapter, VirtualColumns virtualColumns)
   {
-    for (Map.Entry<String, IncrementalIndex.DimensionDesc> entry : index.getDimensionDescs().entrySet()) {
-      ColumnCapabilitiesImpl capabilities = entry.getValue().getCapabilities();
-//      Preconditions.checkArgument(capabilities.getType() != ValueType.COMPLEX);
-//      typeMap.put(entry.getKey(), capabilities.getType().name());
+    for (String dimension : adapter.getAvailableDimensions()) {
+      columnTypes.put(dimension, toColumnType(adapter, dimension));
     }
-    for (IncrementalIndex.MetricDesc desc : index.getMetrics()) {
-      typeMap.put(desc.getName(), desc.getType());
+    for (String metric : adapter.getAvailableMetrics()) {
+      columnTypes.put(metric, toColumnType(adapter, metric));
     }
-    for (VirtualColumn vc : virtualColumns) {
-
-    }
+    this.virtualColumns = virtualColumns;
   }
 
-  public String typeOf(String column)
+  private ValueDesc toColumnType(StorageAdapter adapter, String dimension)
   {
-    return typeMap.get(column);
+    ColumnCapabilities capabilities = adapter.getColumnCapabilities(dimension);
+    if (capabilities == null) {
+      return ValueDesc.UNKNOWN;
+    } else if (capabilities.getType() == ValueType.COMPLEX) {
+      return ValueDesc.of(adapter.getColumnTypeName(dimension));
+    }
+    return ValueDesc.of(capabilities.getType());
   }
 
   @Override
-  public ExprType type(String column)
+  public ValueDesc resolveColumn(String column)
   {
-    String type = Preconditions.checkNotNull(typeMap.get(column), "No binding found for " + column);
-    return ExprType.bestEffortOf(type);
+    return resolveColumn(column, null);
+  }
+
+  @Override
+  public ValueDesc resolveColumn(String column, ValueDesc defaultType)
+  {
+    ValueDesc columnType = columnTypes.get(column);
+    if (columnType != null) {
+      return columnType;
+    }
+    Pair<VirtualColumn, ValueDesc> vcResolved = virtualColumnTypes.get(column);
+    if (vcResolved != null) {
+      return vcResolved.rhs;
+    }
+    VirtualColumn vc = virtualColumns.getVirtualColumn(column);
+    if (vc != null) {
+      ValueDesc valueType = vc.resolveType(column, this);
+      if (valueType != null) {
+        virtualColumnTypes.put(column, Pair.of(vc, valueType));
+        return valueType;
+      }
+    }
+    return defaultType;
   }
 }

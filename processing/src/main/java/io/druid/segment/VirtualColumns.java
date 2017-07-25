@@ -26,7 +26,6 @@ import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
-import io.druid.data.ValueDesc;
 import io.druid.query.dimension.DimensionSpec;
 import io.druid.query.filter.DimFilter;
 import io.druid.segment.column.ColumnCapabilities;
@@ -420,27 +419,5 @@ public class VirtualColumns implements Iterable<VirtualColumn>
       }
     }
     return true;
-  }
-
-  public void resolveTypes(Map<String, String> suppliers, VirtualColumn virtualColumn)
-  {
-    String outputName = virtualColumn.getOutputName();
-    if (!suppliers.containsKey(outputName) && virtualColumn instanceof VirtualColumn.Generic) {
-      VirtualColumn.Generic generic = (VirtualColumn.Generic) virtualColumn;
-      if (generic.includeAsDimension()) {
-        suppliers.put(outputName, ValueDesc.STRING_TYPE);
-      } else if (generic.includeAsMetric()) {
-        for (String binding : generic.getRequiredBinding()) {
-          if (suppliers.containsKey(binding)) {
-            continue;
-          }
-          VirtualColumn vc = getVirtualColumn(binding);
-          if (vc != null) {
-            resolveTypes(suppliers, vc);
-          }
-        }
-        suppliers.put(outputName, generic.resolveType(suppliers));
-      }
-    }
   }
 }

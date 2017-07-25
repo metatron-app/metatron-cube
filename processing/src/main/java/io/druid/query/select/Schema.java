@@ -28,7 +28,7 @@ import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import com.metamx.common.Pair;
 import io.druid.common.guava.GuavaUtils;
-import io.druid.math.expr.ExprType;
+import io.druid.data.ValueDesc;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.AggregatorFactoryNotMergeableException;
 
@@ -43,20 +43,20 @@ public class Schema
   public static final Schema EMPTY = new Schema(
       Collections.<String>emptyList(),
       Collections.<String>emptyList(),
-      Collections.<String>emptyList(),
+      Collections.<ValueDesc>emptyList(),
       Collections.<AggregatorFactory>emptyList()
   );
 
   private final List<String> dimensionNames;
   private final List<String> metricNames;
-  private final List<String> columnTypes;
+  private final List<ValueDesc> columnTypes;
   private final List<AggregatorFactory> aggregators;
 
   @JsonCreator
   public Schema(
       @JsonProperty("dimensionNames") List<String> dimensionNames,
       @JsonProperty("metricNames") List<String> metricNames,
-      @JsonProperty("columnTypes") List<String> columnTypes,
+      @JsonProperty("columnTypes") List<ValueDesc> columnTypes,
       @JsonProperty("aggregators") List<AggregatorFactory> aggregators
   )
   {
@@ -88,7 +88,7 @@ public class Schema
   }
 
   @JsonProperty
-  public List<String> getColumnTypes()
+  public List<ValueDesc> getColumnTypes()
   {
     return columnTypes;
   }
@@ -104,17 +104,17 @@ public class Schema
     return columnTypes.size();
   }
 
-  public Iterable<Pair<String, String>> columnAndTypes()
+  public Iterable<Pair<String, ValueDesc>> columnAndTypes()
   {
     return GuavaUtils.zip(getColumnNames(), columnTypes);
   }
 
-  public Iterable<Pair<String, String>> dimensionAndTypes()
+  public Iterable<Pair<String, ValueDesc>> dimensionAndTypes()
   {
     return GuavaUtils.zip(dimensionNames, columnTypes.subList(0, dimensionNames.size()));
   }
 
-  public Iterable<Pair<String, String>> metricAndTypes()
+  public Iterable<Pair<String, ValueDesc>> metricAndTypes()
   {
     return GuavaUtils.zip(metricNames, columnTypes.subList(dimensionNames.size(), columnTypes.size()));
   }
@@ -129,7 +129,7 @@ public class Schema
     return aggregators.get(metricNames.indexOf(metric));
   }
 
-  public String getTypeOfName(String column)
+  public ValueDesc getTypeOfName(String column)
   {
     int index = dimensionNames.indexOf(column);
     if (index < 0) {
@@ -143,7 +143,7 @@ public class Schema
     return new Schema(
         Lists.newArrayList(dimensionNames),
         GuavaUtils.concat(metricNames, EventHolder.timestampKey),
-        GuavaUtils.concat(columnTypes, ExprType.LONG.name()),
+        GuavaUtils.concat(columnTypes, ValueDesc.LONG),
         GuavaUtils.concat(aggregators, (AggregatorFactory) null)
     );
   }
@@ -162,7 +162,7 @@ public class Schema
         mergedMetrics.add(metric);
       }
     }
-    Map<String, String> merged = Maps.newHashMap();
+    Map<String, ValueDesc> merged = Maps.newHashMap();
     List<AggregatorFactory> mergedAggregators = Lists.newArrayList();
     for (String metric : mergedMetrics) {
       AggregatorFactory factory1 = getAggregatorOfName(metric);
@@ -174,7 +174,7 @@ public class Schema
       } else {
         try {
           AggregatorFactory factory = factory1.getMergingFactory(factory2);
-          merged.put(metric, factory.getTypeName());
+          merged.put(metric, ValueDesc.of(factory.getTypeName()));
           mergedAggregators.add(factory);
         }
         catch (AggregatorFactoryNotMergeableException e) {
@@ -183,13 +183,13 @@ public class Schema
         }
       }
     }
-    List<String> mergedTypes = Lists.newArrayList();
+    List<ValueDesc> mergedTypes = Lists.newArrayList();
     for (String columnName : Iterables.concat(mergedDimensions, mergedMetrics)) {
-      String type1 = getTypeOfName(columnName);
-      String type2 = other.getTypeOfName(columnName);
+      ValueDesc type1 = getTypeOfName(columnName);
+      ValueDesc type2 = other.getTypeOfName(columnName);
       if (!type1.equals(type2)) {
-        String type = merged.get(columnName);
-        mergedTypes.add(type == null ? ExprType.UNKNOWN.name() : type);
+        ValueDesc type = merged.get(columnName);
+        mergedTypes.add(type == null ? ValueDesc.UNKNOWN : type);
       } else {
         mergedTypes.add(type1);
       }

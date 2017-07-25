@@ -34,6 +34,18 @@ public class ColumnCapabilitiesImpl implements ColumnCapabilities
     return capabilities;
   }
 
+  public static ColumnCapabilitiesImpl copyOf(ColumnCapabilities capabilities)
+  {
+    ColumnCapabilitiesImpl copy = new ColumnCapabilitiesImpl();
+    copy.setType(capabilities.getType());
+    copy.setDictionaryEncoded(capabilities.isDictionaryEncoded());
+    copy.setRunLengthEncoded(capabilities.isRunLengthEncoded());
+    copy.setHasBitmapIndexes(capabilities.hasBitmapIndexes());
+    copy.setHasSpatialIndexes(capabilities.hasSpatialIndexes());
+    copy.setHasMultipleValues(capabilities.hasMultipleValues());
+    return copy;
+  }
+
   private ValueType type = null;
   private boolean dictionaryEncoded = false;
   private boolean runLengthEncoded = false;

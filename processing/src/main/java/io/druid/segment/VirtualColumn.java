@@ -21,10 +21,10 @@ package io.druid.segment;
 
 import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
+import io.druid.data.TypeResolver;
+import io.druid.data.ValueDesc;
+import io.druid.data.ValueType;
 import io.druid.query.Cacheable;
-
-import java.util.List;
-import java.util.Map;
 
 /**
  */
@@ -40,6 +40,8 @@ public interface VirtualColumn extends Cacheable
   String getOutputName();
 
   boolean isIndexed(String dimension);
+
+  ValueDesc resolveType(String column, TypeResolver resolver);
 
   ObjectColumnSelector asMetric(String dimension, ColumnSelectorFactory factory);
 
@@ -58,9 +60,5 @@ public interface VirtualColumn extends Cacheable
     boolean includeAsDimension();
 
     boolean includeAsMetric();
-
-    List<String> getRequiredBinding();
-
-    String resolveType(Map<String, String> typeMap);
   }
 }

@@ -114,6 +114,12 @@ public class ValueDesc
     return elementType != null ? of(elementType) : defaultType;
   }
 
+  public static ValueDesc elementOfArray(ValueDesc valueType, ValueDesc defaultType)
+  {
+    String elementType = valueType == null ? null : subElementOf(valueType.typeName, ARRAY_PREFIX);
+    return elementType != null ? of(elementType) : defaultType;
+  }
+
   private static String subElementOf(String typeName, String prefix)
   {
     return isPrefixed(typeName, prefix) ? typeName.substring(prefix.length()) : null;

@@ -25,9 +25,10 @@ import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import com.metamx.common.logger.Logger;
 import io.druid.common.guava.GuavaUtils;
-import io.druid.math.expr.ExprType;
+import io.druid.data.ValueDesc;
 import io.druid.query.DataSource;
 import io.druid.query.Query;
+import io.druid.query.RowResolver;
 import io.druid.query.TableDataSource;
 import io.druid.query.ViewDataSource;
 import io.druid.query.aggregation.AggregatorFactory;
@@ -36,7 +37,6 @@ import io.druid.query.dimension.DimensionSpecs;
 import io.druid.query.filter.AndDimFilter;
 import io.druid.query.filter.DimFilter;
 import io.druid.segment.Segment;
-import io.druid.segment.Segments;
 import io.druid.segment.StorageAdapter;
 import io.druid.segment.VirtualColumn;
 import io.druid.segment.VirtualColumns;
@@ -134,12 +134,11 @@ public class ViewSupportHelper
     final List<String> metrics = Lists.newArrayList(query.getMetrics());
     final VirtualColumns virtualColumns = VirtualColumns.valueOf(query.getVirtualColumns());
 
-    final Map<String, String> types = Segments.toTypeMap(segment, virtualColumns);
+    final RowResolver resolver = new RowResolver(segment.asStorageAdapter(false), virtualColumns);
 
-    final List<String> columnTypes = Lists.newArrayList();
+    final List<ValueDesc> columnTypes = Lists.newArrayList();
     for (String columnName : Iterables.concat(dimensions, metrics)) {
-      String type = types.get(columnName);
-      columnTypes.add(type == null ? ExprType.UNKNOWN.name() : type);
+      columnTypes.add(resolver.resolveColumn(columnName, ValueDesc.UNKNOWN));
     }
     List<AggregatorFactory> aggregators = Lists.newArrayList();
     StorageAdapter adapter = segment.asStorageAdapter(false);

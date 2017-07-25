@@ -25,6 +25,7 @@ import com.google.common.base.Preconditions;
 import com.google.common.collect.Maps;
 import io.druid.common.utils.StringUtils;
 import io.druid.data.ValueDesc;
+import io.druid.data.TypeResolver;
 import io.druid.data.ValueType;
 import io.druid.query.dimension.DefaultDimensionSpec;
 import io.druid.query.filter.DimFilterCacheHelper;
@@ -68,6 +69,20 @@ public class MapVirtualColumn implements VirtualColumn
     this.valueDimension = valueDimension;
     this.valueMetric = valueMetric;
     this.outputName = outputName;
+  }
+
+  @Override
+  public ValueDesc resolveType(String column, TypeResolver types)
+  {
+    Preconditions.checkArgument(column.startsWith(outputName));
+    final int index = column.indexOf('.', outputName.length());
+    if (index < 0) {
+      return ValueDesc.MAP;
+    }
+    if (valueDimension != null) {
+      return ValueDesc.STRING;
+    }
+    return ValueDesc.elementOfArray(types.resolveColumn(valueMetric), ValueDesc.UNKNOWN);
   }
 
   @Override

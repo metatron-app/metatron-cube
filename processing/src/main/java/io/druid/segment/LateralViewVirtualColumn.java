@@ -8,6 +8,7 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import com.metamx.common.StringUtils;
 import io.druid.common.guava.DSuppliers.HandOver;
+import io.druid.data.TypeResolver;
 import io.druid.data.ValueDesc;
 import io.druid.query.QueryCacheHelper;
 import io.druid.query.filter.DimFilterCacheHelper;
@@ -86,6 +87,12 @@ public class LateralViewVirtualColumn implements VirtualColumn
   public List<String> getValues()
   {
     return values;
+  }
+
+  @Override
+  public ValueDesc resolveType(String column, TypeResolver types)
+  {
+    return column.equals(outputName) ? ValueDesc.STRING : ValueDesc.UNKNOWN;
   }
 
   @Override

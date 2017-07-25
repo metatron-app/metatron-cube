@@ -24,12 +24,12 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Iterables;
 import com.metamx.common.StringUtils;
+import io.druid.data.TypeResolver;
+import io.druid.data.ValueDesc;
 import io.druid.math.expr.Parser;
 import io.druid.query.filter.DimFilterCacheHelper;
 
 import java.nio.ByteBuffer;
-import java.util.List;
-import java.util.Map;
 import java.util.Objects;
 
 /**
@@ -99,6 +99,13 @@ public class ExprVirtualColumn implements VirtualColumn.Generic
   }
 
   @Override
+  public ValueDesc resolveType(String column, TypeResolver types)
+  {
+    Preconditions.checkArgument(column.equals(outputName));
+    return Parser.parse(expression).type(Parser.withTypes(types)).asValueDesc();
+  }
+
+  @Override
   public VirtualColumn duplicate()
   {
     return new ExprVirtualColumn(expression, outputName, includeAsDimension, includeAsMetric);
@@ -143,17 +150,6 @@ public class ExprVirtualColumn implements VirtualColumn.Generic
   public boolean includeAsMetric()
   {
     return includeAsMetric;
-  }
-
-  public List<String> getRequiredBinding()
-  {
-    return Parser.findRequiredBindings(expression);
-  }
-
-  @Override
-  public String resolveType(Map<String, String> typeMap)
-  {
-    return Parser.parse(expression).type(Parser.withTypeStrings(typeMap)).name();
   }
 
   @Override

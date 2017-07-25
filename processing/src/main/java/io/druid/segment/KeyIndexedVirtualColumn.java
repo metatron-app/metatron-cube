@@ -28,6 +28,7 @@ import com.google.common.collect.Iterators;
 import com.google.common.collect.Sets;
 import com.metamx.common.StringUtils;
 import io.druid.data.ValueDesc;
+import io.druid.data.TypeResolver;
 import io.druid.data.ValueType;
 import io.druid.query.QueryCacheHelper;
 import io.druid.query.dimension.DefaultDimensionSpec;
@@ -81,6 +82,18 @@ public class KeyIndexedVirtualColumn implements VirtualColumn
     this.outputName = Preconditions.checkNotNull(outputName, "output name should not be null");
     this.valueColumns = Sets.newHashSet(Iterables.concat(this.valueDimensions, this.valueMetrics));
     this.indexer = new KeyIndexedHolder();
+  }
+
+  @Override
+  public ValueDesc resolveType(String column, TypeResolver types)
+  {
+    if (valueDimensions.contains(column)) {
+      return ValueDesc.STRING;
+    }
+    if (valueMetrics.contains(column)) {
+      return ValueDesc.elementOfArray(types.resolveColumn(column), ValueDesc.UNKNOWN);
+    }
+    return types.resolveColumn(column, ValueDesc.UNKNOWN);
   }
 
   @Override
