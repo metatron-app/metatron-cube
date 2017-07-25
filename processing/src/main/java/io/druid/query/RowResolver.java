@@ -158,4 +158,16 @@ public class RowResolver implements TypeResolver
     }
     return defaultType;
   }
+
+  public VirtualColumn resolveVC(String column)
+  {
+    if (resolveColumn(column) == null) {
+      return null;
+    }
+    Pair<VirtualColumn, ValueDesc> resolved = virtualColumnTypes.get(column);
+    if (resolved != null && resolved.lhs != null) {
+      return resolved.lhs;
+    }
+    return null;
+  }
 }

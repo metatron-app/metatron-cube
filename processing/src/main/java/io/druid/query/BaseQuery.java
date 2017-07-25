@@ -158,12 +158,12 @@ public abstract class BaseQuery<T extends Comparable<T>> implements Query<T>
 
   public boolean allDimensionsForEmpty()
   {
-    return BaseQuery.allColumnsForEmpty(this, false);
+    return BaseQuery.allColumnsForEmpty(this, true);
   }
 
   public boolean allMetricsForEmpty()
   {
-    return BaseQuery.allColumnsForEmpty(this, false);
+    return BaseQuery.allColumnsForEmpty(this, true);
   }
 
   public boolean needsSchemaResolution()

@@ -36,9 +36,6 @@ public class ViewDataSource extends TableDataSource
   private final List<String> columns;
 
   @JsonProperty
-  private final List<String> columnExclusions;
-
-  @JsonProperty
   private final List<VirtualColumn> virtualColumns;
 
   @JsonProperty
@@ -51,7 +48,6 @@ public class ViewDataSource extends TableDataSource
   public ViewDataSource(
       @JsonProperty("name") String name,
       @JsonProperty("columns") List<String> columns,
-      @JsonProperty("columnExclusions") List<String> columnExclusions,
       @JsonProperty("virtualColumns") List<VirtualColumn> virtualColumns,
       @JsonProperty("filter") DimFilter filter,
       @JsonProperty("lowerCasedOutput") boolean lowerCasedOutput
@@ -59,8 +55,7 @@ public class ViewDataSource extends TableDataSource
   {
     super(Preconditions.checkNotNull(name));
     this.columns = columns == null ? ImmutableList.<String>of() : columns;
-    this.columnExclusions = columnExclusions == null ? ImmutableList.<String>of() : columnExclusions;
-    this.virtualColumns = virtualColumns;
+    this.virtualColumns = virtualColumns == null ? ImmutableList.<VirtualColumn>of() : virtualColumns;
     this.filter = filter;
     this.lowerCasedOutput = lowerCasedOutput;
   }
@@ -69,12 +64,6 @@ public class ViewDataSource extends TableDataSource
   public List<String> getColumns()
   {
     return columns;
-  }
-
-  @JsonProperty
-  public List<String> getColumnExclusions()
-  {
-    return columnExclusions;
   }
 
   @JsonProperty
@@ -97,12 +86,12 @@ public class ViewDataSource extends TableDataSource
 
   public ViewDataSource withColumns(List<String> columns)
   {
-    return new ViewDataSource(name, columns, columnExclusions, virtualColumns, filter, lowerCasedOutput);
+    return new ViewDataSource(name, columns, virtualColumns, filter, lowerCasedOutput);
   }
 
   public ViewDataSource withFilter(DimFilter filter)
   {
-    return new ViewDataSource(name, columns, columnExclusions, virtualColumns, filter, lowerCasedOutput);
+    return new ViewDataSource(name, columns, virtualColumns, filter, lowerCasedOutput);
   }
 
   @Override
@@ -117,9 +106,6 @@ public class ViewDataSource extends TableDataSource
     if (!Objects.equals(columns, that.columns)) {
       return false;
     }
-    if (!Objects.equals(columnExclusions, that.columnExclusions)) {
-      return false;
-    }
     if (!Objects.equals(virtualColumns, that.virtualColumns)) {
       return false;
     }
@@ -132,12 +118,12 @@ public class ViewDataSource extends TableDataSource
   @Override
   public int hashCode()
   {
-    return Objects.hash(name, columns, columnExclusions, virtualColumns, filter);
+    return Objects.hash(name, columns, virtualColumns, filter);
   }
 
   @Override
   public String toString()
   {
-    return name + columns + "-" + columnExclusions + (virtualColumns == null ? "" : "(" + virtualColumns + ")");
+    return name + columns + (virtualColumns == null ? "" : "(" + virtualColumns + ")");
   }
 }

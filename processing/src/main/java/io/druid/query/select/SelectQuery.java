@@ -78,7 +78,7 @@ public class SelectQuery extends BaseQuery<Result<SelectResultValue>>
     this.granularity = granularity == null ? QueryGranularities.ALL : granularity;
     this.dimensions = dimensions == null ? ImmutableList.<DimensionSpec>of() : dimensions;
     this.metrics = metrics == null ? ImmutableList.<String>of() : metrics;
-    this.virtualColumns = virtualColumns;
+    this.virtualColumns = virtualColumns == null ? ImmutableList.<VirtualColumn>of() : virtualColumns;
     this.lateralView = lateralView;
     this.outputColumns = outputColumns;
     this.pagingSpec = pagingSpec == null ? PagingSpec.GET_ALL : pagingSpec;
@@ -367,18 +367,6 @@ public class SelectQuery extends BaseQuery<Result<SelectResultValue>>
         lateralView,
         getContext()
     );
-  }
-
-  @Override
-  public boolean allDimensionsForEmpty()
-  {
-    return BaseQuery.allColumnsForEmpty(this, true);
-  }
-
-  @Override
-  public boolean allMetricsForEmpty()
-  {
-    return BaseQuery.allColumnsForEmpty(this, true);
   }
 
   @Override

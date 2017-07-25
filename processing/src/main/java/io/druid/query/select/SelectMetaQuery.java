@@ -68,7 +68,7 @@ public class SelectMetaQuery extends BaseQuery<Result<SelectMetaResultValue>>
     super(dataSource, querySegmentSpec, false, context);
     this.dimensions = dimensions == null ? ImmutableList.<DimensionSpec>of() : dimensions;
     this.metrics = metrics == null ? ImmutableList.<String>of() : metrics;
-    this.virtualColumns = virtualColumns;
+    this.virtualColumns = virtualColumns == null ? ImmutableList.<VirtualColumn>of() : virtualColumns;
     this.dimFilter = dimFilter;
     this.granularity = granularity;
     this.schemaOnly = schemaOnly == null ? false : schemaOnly;
@@ -228,7 +228,7 @@ public class SelectMetaQuery extends BaseQuery<Result<SelectMetaResultValue>>
 
 
   @Override
-  public DimensionSupport<Result<SelectMetaResultValue>> withDimensionSpecs(List<DimensionSpec> dimensions)
+  public SelectMetaQuery withDimensionSpecs(List<DimensionSpec> dimensions)
   {
     return new SelectMetaQuery(
         getDataSource(),
@@ -245,7 +245,7 @@ public class SelectMetaQuery extends BaseQuery<Result<SelectMetaResultValue>>
   }
 
   @Override
-  public DimensionSupport<Result<SelectMetaResultValue>> withVirtualColumns(List<VirtualColumn> virtualColumns)
+  public SelectMetaQuery withVirtualColumns(List<VirtualColumn> virtualColumns)
   {
     return new SelectMetaQuery(
         getDataSource(),
@@ -262,7 +262,7 @@ public class SelectMetaQuery extends BaseQuery<Result<SelectMetaResultValue>>
   }
 
   @Override
-  public ViewSupport<Result<SelectMetaResultValue>> withMetrics(List<String> metrics)
+  public SelectMetaQuery withMetrics(List<String> metrics)
   {
     return new SelectMetaQuery(
         getDataSource(),
@@ -308,18 +308,6 @@ public class SelectMetaQuery extends BaseQuery<Result<SelectMetaResultValue>>
         pagingSpec,
         getContext()
     );
-  }
-
-  @Override
-  public boolean allDimensionsForEmpty()
-  {
-    return BaseQuery.allColumnsForEmpty(this, true);
-  }
-
-  @Override
-  public boolean allMetricsForEmpty()
-  {
-    return BaseQuery.allColumnsForEmpty(this, true);
   }
 
   @Override

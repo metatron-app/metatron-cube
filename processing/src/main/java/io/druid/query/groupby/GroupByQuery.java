@@ -227,6 +227,11 @@ public class GroupByQuery extends BaseQuery<Row> implements Query.DimensionSuppo
     return postProcFn.apply(results);
   }
 
+  public boolean allDimensionsForEmpty()
+  {
+    return BaseQuery.allColumnsForEmpty(this, false);
+  }
+
   @Override
   public GroupByQuery withOverriddenContext(Map<String, Object> contextOverride)
   {

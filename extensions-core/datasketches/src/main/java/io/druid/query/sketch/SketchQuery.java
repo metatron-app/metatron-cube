@@ -63,7 +63,7 @@ public class SketchQuery extends BaseQuery<Result<Map<String, Object>>>
   )
   {
     super(dataSource, querySegmentSpec, false, context);
-    this.virtualColumns = virtualColumns;
+    this.virtualColumns = virtualColumns == null ? ImmutableList.<VirtualColumn>of() : virtualColumns;
     this.dimensions = dimensions == null ? ImmutableList.<DimensionSpec>of() : dimensions;
     this.metrics = metrics == null ? ImmutableList.<String>of() : metrics;
     this.filter = filter;

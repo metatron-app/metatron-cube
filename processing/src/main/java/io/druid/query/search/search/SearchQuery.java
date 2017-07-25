@@ -99,12 +99,6 @@ public class SearchQuery extends BaseQuery<Result<SearchResultValue>>
   }
 
   @Override
-  public boolean allDimensionsForEmpty()
-  {
-    return BaseQuery.allColumnsForEmpty(this, true);
-  }
-
-  @Override
   public SearchQuery withQuerySegmentSpec(QuerySegmentSpec spec)
   {
     return new SearchQuery(

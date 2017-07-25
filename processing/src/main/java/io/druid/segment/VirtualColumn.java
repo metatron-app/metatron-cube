@@ -54,11 +54,4 @@ public interface VirtualColumn extends Cacheable
   DimensionSelector asDimension(String dimension, ColumnSelectorFactory factory);
 
   VirtualColumn duplicate();
-
-  interface Generic extends VirtualColumn
-  {
-    boolean includeAsDimension();
-
-    boolean includeAsMetric();
-  }
 }

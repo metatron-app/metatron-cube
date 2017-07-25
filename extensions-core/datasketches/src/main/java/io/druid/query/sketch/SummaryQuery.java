@@ -71,7 +71,7 @@ public class SummaryQuery extends BaseQuery<Result<Map<String, Object>>>
     this.dimFilter = filter;
     this.dimensions = dimensions == null ? ImmutableList.<DimensionSpec>of() : dimensions;
     this.metrics = metrics == null ? ImmutableList.<String>of() : metrics;
-    this.virtualColumns = virtualColumns;
+    this.virtualColumns = virtualColumns == null ? ImmutableList.<VirtualColumn>of() : virtualColumns;
     this.includeTimeStats = includeTimeStats;
   }
 

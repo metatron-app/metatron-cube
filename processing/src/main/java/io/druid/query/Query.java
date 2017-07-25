@@ -149,6 +149,10 @@ public interface Query<T> extends QueryContextKeys
   {
     List<String> getMetrics();
 
+    ViewSupport<T> withDimensionSpecs(List<DimensionSpec> dimensions);
+
+    ViewSupport<T> withVirtualColumns(List<VirtualColumn> virtualColumns);
+
     ViewSupport<T> withMetrics(List<String> metrics);
 
     boolean allMetricsForEmpty();

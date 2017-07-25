@@ -69,7 +69,7 @@ public class StreamRawQuery extends AbstractStreamQuery<RawRows>
   }
 
   @Override
-  public Query<RawRows> withDataSource(DataSource dataSource)
+  public StreamRawQuery withDataSource(DataSource dataSource)
   {
     return new StreamRawQuery(
         dataSource,
@@ -85,7 +85,7 @@ public class StreamRawQuery extends AbstractStreamQuery<RawRows>
   }
 
   @Override
-  public Query<RawRows> withQuerySegmentSpec(QuerySegmentSpec spec)
+  public StreamRawQuery withQuerySegmentSpec(QuerySegmentSpec spec)
   {
     return new StreamRawQuery(
         getDataSource(),
@@ -101,7 +101,7 @@ public class StreamRawQuery extends AbstractStreamQuery<RawRows>
   }
 
   @Override
-  public Query<RawRows> withOverriddenContext(Map<String, Object> contextOverride)
+  public StreamRawQuery withOverriddenContext(Map<String, Object> contextOverride)
   {
     return new StreamRawQuery(
         getDataSource(),
@@ -117,7 +117,7 @@ public class StreamRawQuery extends AbstractStreamQuery<RawRows>
   }
 
   @Override
-  public DimFilterSupport<RawRows> withDimFilter(DimFilter filter)
+  public StreamRawQuery withDimFilter(DimFilter filter)
   {
     return new StreamRawQuery(
         getDataSource(),
@@ -133,7 +133,7 @@ public class StreamRawQuery extends AbstractStreamQuery<RawRows>
   }
 
   @Override
-  public DimensionSupport<RawRows> withDimensionSpecs(List<DimensionSpec> dimensions)
+  public StreamRawQuery withDimensionSpecs(List<DimensionSpec> dimensions)
   {
     return new StreamRawQuery(
         getDataSource(),
@@ -149,7 +149,7 @@ public class StreamRawQuery extends AbstractStreamQuery<RawRows>
   }
 
   @Override
-  public ViewSupport<RawRows> withMetrics(List<String> metrics)
+  public StreamRawQuery withMetrics(List<String> metrics)
   {
     return new StreamRawQuery(
         getDataSource(),
@@ -165,7 +165,7 @@ public class StreamRawQuery extends AbstractStreamQuery<RawRows>
   }
 
   @Override
-  public DimensionSupport<RawRows> withVirtualColumns(List<VirtualColumn> virtualColumns)
+  public StreamRawQuery withVirtualColumns(List<VirtualColumn> virtualColumns)
   {
     return new StreamRawQuery(
         getDataSource(),

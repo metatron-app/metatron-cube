@@ -64,7 +64,7 @@ public abstract class AbstractStreamQuery<T extends Comparable<T>> extends BaseQ
     this.granularity = granularity == null ? QueryGranularities.ALL : granularity;
     this.dimensions = dimensions == null ? ImmutableList.<DimensionSpec>of() : dimensions;
     this.metrics = metrics == null ? ImmutableList.<String>of() : metrics;
-    this.virtualColumns = virtualColumns;
+    this.virtualColumns = virtualColumns == null ? ImmutableList.<VirtualColumn>of() : virtualColumns;
     this.concatString = concatString;
   }
 
@@ -114,18 +114,6 @@ public abstract class AbstractStreamQuery<T extends Comparable<T>> extends BaseQ
   public List<VirtualColumn> getVirtualColumns()
   {
     return virtualColumns;
-  }
-
-  @Override
-  public boolean allDimensionsForEmpty()
-  {
-    return BaseQuery.allColumnsForEmpty(this, true);
-  }
-
-  @Override
-  public boolean allMetricsForEmpty()
-  {
-    return BaseQuery.allColumnsForEmpty(this, true);
   }
 
   public SelectMetaQuery toMetaQuery(boolean schemaOnly)

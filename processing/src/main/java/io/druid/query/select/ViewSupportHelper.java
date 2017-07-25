@@ -22,11 +22,8 @@ package io.druid.query.select;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
-import com.google.common.collect.Sets;
 import com.metamx.common.logger.Logger;
-import io.druid.common.guava.GuavaUtils;
 import io.druid.data.ValueDesc;
-import io.druid.query.DataSource;
 import io.druid.query.Query;
 import io.druid.query.RowResolver;
 import io.druid.query.TableDataSource;
@@ -41,7 +38,6 @@ import io.druid.segment.StorageAdapter;
 import io.druid.segment.VirtualColumn;
 import io.druid.segment.VirtualColumns;
 
-import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 
@@ -53,78 +49,108 @@ public class ViewSupportHelper
 
   public static <T> Query<T> rewrite(Query.DimFilterSupport<T> query, StorageAdapter adapter)
   {
-    DataSource dataSource = query.getDataSource();
-
-    Collection<String> retainers = null;
-    Collection<String> exclusions = null;
-    List<VirtualColumn> virtualColumns = Lists.newArrayList();
-    DimFilter dimFilter = null;
-    boolean lowerCasedOutput = false;     // to lessen pain of hive integration
-
-    boolean viewDataSourced = dataSource instanceof ViewDataSource;
-    if (viewDataSourced) {
-      ViewDataSource view = (ViewDataSource) dataSource;
-      retainers = view.getColumns().isEmpty() ? null : Sets.newHashSet(view.getColumns());
-      exclusions = view.getColumnExclusions().isEmpty() ? null : Sets.newHashSet(view.getColumnExclusions());
-      virtualColumns = GuavaUtils.<VirtualColumn>concat(virtualColumns, view.getVirtualColumns());
-      dimFilter = view.getFilter();
-      lowerCasedOutput = view.isLowerCasedOutput();
+    if (query.getDataSource() instanceof ViewDataSource) {
+      return rewriteWithView(query, adapter);
     }
-
-    VirtualColumns virtualColumn = VirtualColumns.valueOf(virtualColumns);
     if (query instanceof Query.DimensionSupport) {
       Query.DimensionSupport<T> dimensionSupport = (Query.DimensionSupport<T>)query;
-      if (dimensionSupport.getDimensions() == null || dimensionSupport.getDimensions().isEmpty()) {
-        if (viewDataSourced || dimensionSupport.allDimensionsForEmpty()) {
-          List<String> availableDimensions =
-              GuavaUtils.exclude(GuavaUtils.retain(adapter.getAvailableDimensions(), retainers), exclusions);
-          for (String remain : GuavaUtils.exclude(virtualColumn.getVirtualColumnNames(), availableDimensions)) {
-            VirtualColumn vc = virtualColumn.getVirtualColumn(remain);
-            if (vc instanceof VirtualColumn.Generic && ((VirtualColumn.Generic)vc).includeAsDimension()) {
-              availableDimensions.add(remain);
-            }
-          }
-          if (!availableDimensions.isEmpty()) {
-            dimensionSupport = dimensionSupport.withDimensionSpecs(
-                DefaultDimensionSpec.toSpec(availableDimensions, lowerCasedOutput)
-            );
-          }
-        }
+      if (dimensionSupport.getDimensions().isEmpty() && dimensionSupport.allDimensionsForEmpty()) {
+        query = dimensionSupport.withDimensionSpecs(
+            DefaultDimensionSpec.toSpec(adapter.getAvailableDimensions())
+        );
       }
-      if (!virtualColumns.isEmpty() && virtualColumns != dimensionSupport.getVirtualColumns()) {
-        dimensionSupport = dimensionSupport.withVirtualColumns(virtualColumns);
-      }
-      query = dimensionSupport;
     }
     if (query instanceof Query.ViewSupport) {
       Query.ViewSupport<T> viewSupport = (Query.ViewSupport<T>)query;
-      if (viewSupport.getMetrics() == null || viewSupport.getMetrics().isEmpty()) {
-        if (viewDataSourced || viewSupport.allMetricsForEmpty()) {
-          List<String> availableMetrics =
-              GuavaUtils.exclude(GuavaUtils.retain(adapter.getAvailableMetrics(), retainers), exclusions);
-          for (String remain : GuavaUtils.exclude(virtualColumn.getVirtualColumnNames(), availableMetrics)) {
-            VirtualColumn vc = virtualColumn.getVirtualColumn(remain);
-            if (vc instanceof VirtualColumn.Generic && ((VirtualColumn.Generic)vc).includeAsMetric()) {
-              availableMetrics.add(remain);
+      if (viewSupport.getMetrics().isEmpty() && viewSupport.allMetricsForEmpty()) {
+        query = viewSupport.withMetrics(Lists.newArrayList(adapter.getAvailableMetrics()));
+      }
+    }
+    return query;
+  }
+
+  public static <T> Query<T> rewriteWithView(Query.DimFilterSupport<T> query, StorageAdapter adapter)
+  {
+    ViewDataSource view = (ViewDataSource) query.getDataSource();
+    if (query instanceof Query.ViewSupport) {
+      Query.ViewSupport<T> viewSupport = (Query.ViewSupport<T>) query;
+
+      List<String> dimensions = Lists.newArrayList(adapter.getAvailableDimensions());
+      List<String> metrics = Lists.newArrayList(adapter.getAvailableMetrics());
+      List<String> retainers = Lists.newArrayList(view.getColumns());
+      if (!retainers.isEmpty()) {
+        dimensions.retainAll(retainers);
+        metrics.retainAll(retainers);
+        retainers.removeAll(dimensions);
+        retainers.removeAll(metrics);
+      }
+      List<VirtualColumn> virtualColumns = Lists.newArrayList(viewSupport.getVirtualColumns());
+      if (!retainers.isEmpty()) {
+        RowResolver resolver1 = new RowResolver(adapter, VirtualColumns.valueOf(virtualColumns));
+        RowResolver resolver2 = new RowResolver(adapter, VirtualColumns.valueOf(view.getVirtualColumns()));
+        for (String remaining : retainers) {
+          if (resolver1.resolveColumn(remaining) == null && resolver2.resolveColumn(remaining) != null) {
+            VirtualColumn virtualColumn = resolver2.resolveVC(remaining);
+            if (virtualColumn != null) {
+              virtualColumns.add(virtualColumn);
+              metrics.add(virtualColumn.getOutputName());
             }
-          }
-          if (!availableMetrics.isEmpty()) {
-            viewSupport = viewSupport.withMetrics(availableMetrics);
           }
         }
       }
+      if (viewSupport.getDimensions().isEmpty()) {
+        boolean lowerCasedOutput = view.isLowerCasedOutput();
+        viewSupport = viewSupport.withDimensionSpecs(DefaultDimensionSpec.toSpec(dimensions, lowerCasedOutput));
+      }
+      if (viewSupport.getMetrics().isEmpty()) {
+        viewSupport = viewSupport.withMetrics(metrics);
+      }
+      if (!virtualColumns.isEmpty()) {
+        viewSupport = viewSupport.withVirtualColumns(virtualColumns);
+      }
       query = viewSupport;
+    } else if (query instanceof Query.DimensionSupport) {
+      Query.DimensionSupport<T> dimSupport = (Query.DimensionSupport<T>) query;
+
+      List<String> dimensions = Lists.newArrayList(adapter.getAvailableDimensions());
+      List<String> retainers = Lists.newArrayList(view.getColumns());
+      if (!retainers.isEmpty()) {
+        dimensions.retainAll(retainers);
+        retainers.removeAll(dimensions);
+      }
+      List<VirtualColumn> virtualColumns = Lists.newArrayList(dimSupport.getVirtualColumns());
+      if (!retainers.isEmpty()) {
+        RowResolver resolver1 = new RowResolver(adapter, VirtualColumns.valueOf(virtualColumns));
+        RowResolver resolver2 = new RowResolver(adapter, VirtualColumns.valueOf(view.getVirtualColumns()));
+        for (String remaining : retainers) {
+          if (resolver1.resolveColumn(remaining) == null && resolver2.resolveColumn(remaining) != null) {
+            VirtualColumn virtualColumn = resolver2.resolveVC(remaining);
+            if (virtualColumn != null) {
+              virtualColumns.add(virtualColumn);
+              dimensions.add(virtualColumn.getOutputName());
+            }
+          }
+        }
+      }
+      if (dimSupport.getDimensions().isEmpty()) {
+        boolean lowerCasedOutput = view.isLowerCasedOutput();
+        dimSupport = dimSupport.withDimensionSpecs(DefaultDimensionSpec.toSpec(dimensions, lowerCasedOutput));
+      }
+      if (!virtualColumns.isEmpty()) {
+        dimSupport = dimSupport.withVirtualColumns(virtualColumns);
+      }
+      query = dimSupport;
     }
+
+    DimFilter dimFilter = view.getFilter();
     if (dimFilter != null) {
       if (query.getDimFilter() != null) {
         dimFilter = AndDimFilter.of(dimFilter, query.getDimFilter());
       }
       query = query.withDimFilter(dimFilter);
     }
-    if (viewDataSourced) {
-      query.withDataSource(new TableDataSource(Iterables.getOnlyElement(dataSource.getNames())));
-      log.info("view translated query to %s", query);
-    }
+    query.withDataSource(new TableDataSource(view.getName()));
+    log.info("view translated query to %s", query);
     return query;
   }
 
