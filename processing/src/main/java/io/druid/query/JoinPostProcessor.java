@@ -181,19 +181,19 @@ public class JoinPostProcessor extends PostProcessingOperator.UnionSupport
   private Hashed toHash(int index, JoiningRow[] sorted)
   {
     log.info("Hashing [%s] %d rows", toAlias(index), sorted.length);
-    Map<ObjectArray<String>, List<Map<String, Object>>> rights = Maps.newHashMap();
-    String[] prev = null;
+    Map<ObjectArray<Comparable>, List<Map<String, Object>>> rights = Maps.newHashMap();
+    Comparable[] prev = null;
     List<Map<String, Object>> rowList = Lists.newArrayList();
     for (JoiningRow row : sorted) {
       if (prev != null && !Arrays.equals(prev, row.joinKeys)) {
-        rights.put(new ObjectArray<String>(prev), rowList);
+        rights.put(new ObjectArray<Comparable>(prev), rowList);
         rowList = Lists.newArrayList();
       }
       rowList.add(row.source);
       prev = row.joinKeys;
     }
     if (!rowList.isEmpty()) {
-      rights.put(new ObjectArray<String>(prev), rowList);
+      rights.put(new ObjectArray<Comparable>(prev), rowList);
     }
     return new Hashed(rights);
   }
@@ -391,9 +391,9 @@ public class JoinPostProcessor extends PostProcessingOperator.UnionSupport
     final JoiningRow[] sorted = new JoiningRow[rows.size()];
     for (int i = 0; i < sorted.length; i++) {
       Map<String, Object> row = rows.get(i);
-      String[] joinKey = new String[array.length];
+      Comparable[] joinKey = new Comparable[array.length];
       for (int j = 0; j < array.length; j++) {
-        joinKey[j] = (String) row.get(array[j]);
+        joinKey[j] = (Comparable) row.get(array[j]);
       }
       if (prefixAlias) {
         Map<String, Object> prefixed = Maps.newHashMapWithExpectedSize(row.size());
@@ -417,10 +417,10 @@ public class JoinPostProcessor extends PostProcessingOperator.UnionSupport
 
   private static class JoiningRow implements Comparable<JoiningRow>
   {
-    private final String[] joinKeys;
+    private final Comparable[] joinKeys;
     private final Map<String, Object> source;
 
-    public JoiningRow(String[] joinKeys, Map<String, Object> source)
+    public JoiningRow(Comparable[] joinKeys, Map<String, Object> source)
     {
       this.joinKeys = joinKeys;
       this.source = source;
@@ -482,7 +482,7 @@ public class JoinPostProcessor extends PostProcessingOperator.UnionSupport
 
         return new Iterator<Map<String, Object>>()
         {
-          private final ObjectArray<String> wrapper = new ObjectArray<String>(new String[keyLength]);
+          private final ObjectArray<Comparable> wrapper = new ObjectArray<Comparable>(new Comparable[keyLength]);
           private Iterator<Map<String, Object>> iterator = Iterators.emptyIterator();
 
           @Override
@@ -550,7 +550,7 @@ public class JoinPostProcessor extends PostProcessingOperator.UnionSupport
     private int index;
 
     private final JoiningRow[] rows;
-    private final String[] peek;
+    private final Comparable[] peek;
 
     private final int limit;
     private final int keyLength;
@@ -560,7 +560,7 @@ public class JoinPostProcessor extends PostProcessingOperator.UnionSupport
       this.rows = rows;
       this.limit = rows.length;
       this.keyLength = keyLength;
-      this.peek = new String[keyLength];
+      this.peek = new Comparable[keyLength];
       if (index < limit) {
         System.arraycopy(rows[index].joinKeys, 0, peek, 0, keyLength);
       }
@@ -585,11 +585,11 @@ public class JoinPostProcessor extends PostProcessingOperator.UnionSupport
       return index;
     }
 
-    private String readL(int i) {return rows[index].joinKeys[i];}
+    private Comparable readL(int i) {return rows[index].joinKeys[i];}
 
     private int compareTo(RowIterator other)
     {
-      final String[] otherKey = other.peek;
+      final Comparable[] otherKey = other.peek;
       for (int i = 0; i < keyLength; i++) {
         int compare = JoinPostProcessor.compare(peek[i], otherKey[i]);
         if (compare != 0) {
@@ -647,7 +647,8 @@ public class JoinPostProcessor extends PostProcessingOperator.UnionSupport
   static final int LEFT_IS_GREATER = 1;
   static final int RIGHT_IS_GREATER = -1;
 
-  private static int compare(String d1, String d2)
+  @SuppressWarnings("unchecked")
+  private static int compare(Comparable d1, Comparable d2)
   {
     if (d1 == d2) {
       return 0;
@@ -663,16 +664,16 @@ public class JoinPostProcessor extends PostProcessingOperator.UnionSupport
 
   private static class Hashed
   {
-    private final Map<ObjectArray<String>, List<Map<String, Object>>> hashed;
+    private final Map<ObjectArray<Comparable>, List<Map<String, Object>>> hashed;
 
-    private Hashed(Map<ObjectArray<String>, List<Map<String, Object>>> hashed) {this.hashed = hashed;}
+    private Hashed(Map<ObjectArray<Comparable>, List<Map<String, Object>>> hashed) {this.hashed = hashed;}
 
     public boolean isEmpty()
     {
       return hashed.isEmpty();
     }
 
-    public List<Map<String, Object>> get(ObjectArray<String> key)
+    public List<Map<String, Object>> get(ObjectArray<Comparable> key)
     {
       return hashed.get(key);
     }

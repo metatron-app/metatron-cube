@@ -416,7 +416,7 @@ public class HdfsDataSegmentPusher implements DataSegmentPusher, ResultWriter
         @Override
         public Map<String, Object> close() throws IOException
         {
-          if (!index.isEmpty()) {
+          if (index != null && !index.isEmpty()) {
             files.add(persist());
           }
           if (files.isEmpty()) {
