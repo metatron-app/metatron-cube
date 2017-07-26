@@ -38,6 +38,7 @@ import io.druid.segment.column.GenericColumn;
 import io.druid.segment.column.IndexedDoublesGenericColumn;
 import io.druid.segment.column.IndexedFloatsGenericColumn;
 import io.druid.segment.column.IndexedLongsGenericColumn;
+import io.druid.segment.column.IndexedStringsGenericColumn;
 import io.druid.segment.data.ArrayBasedIndexedInts;
 import io.druid.segment.data.BitmapCompressedIndexedInts;
 import io.druid.segment.data.EmptyIndexedInts;
@@ -211,6 +212,7 @@ public class QueryableIndexIndexableAdapter implements IndexableAdapter
                 case FLOAT:
                 case DOUBLE:
                 case LONG:
+                case STRING:
                   metrics[i] = column.getGenericColumn();
                   break;
                 case COMPLEX:
@@ -276,6 +278,8 @@ public class QueryableIndexIndexableAdapter implements IndexableAdapter
                 metricArray[i] = ((GenericColumn) metrics[i]).getDoubleSingleValueRow(currRow);
               } else if (metrics[i] instanceof IndexedLongsGenericColumn) {
                 metricArray[i] = ((GenericColumn) metrics[i]).getLongSingleValueRow(currRow);
+              } else if (metrics[i] instanceof IndexedStringsGenericColumn) {
+                metricArray[i] = ((GenericColumn) metrics[i]).getStringSingleValueRow(currRow);
               } else if (metrics[i] instanceof ComplexColumn) {
                 metricArray[i] = ((ComplexColumn) metrics[i]).getRowValue(currRow);
               }

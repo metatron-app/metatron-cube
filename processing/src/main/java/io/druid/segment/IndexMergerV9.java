@@ -73,6 +73,8 @@ import io.druid.segment.serde.DictionaryEncodedColumnPartSerde;
 import io.druid.segment.serde.DoubleGenericColumnPartSerde;
 import io.druid.segment.serde.FloatGenericColumnPartSerde;
 import io.druid.segment.serde.LongGenericColumnPartSerde;
+import io.druid.segment.serde.StringGenericColumnPartSerde;
+import io.druid.segment.serde.StringMetricSerde;
 import org.apache.commons.io.FileUtils;
 import org.joda.time.DateTime;
 import org.joda.time.Interval;
@@ -453,6 +455,10 @@ public class IndexMergerV9 extends IndexMerger
                                          .build()
           );
           break;
+        case STRING:
+          builder.setValueType(ValueType.STRING);
+          builder.addSerde(new StringGenericColumnPartSerde((ComplexColumnSerializer) writer));
+          break;
         case COMPLEX:
           final String typeName = type.typeName();
           builder.setValueType(ValueType.of(typeName));
@@ -771,6 +777,9 @@ public class IndexMergerV9 extends IndexMerger
           break;
         case DOUBLE:
           writer = DoubleColumnSerializer.create(ioPeon, metric, metCompression);
+          break;
+        case STRING:
+          writer = ComplexColumnSerializer.create(ioPeon, metric, StringMetricSerde.INSTANCE);
           break;
         case COMPLEX:
           final String typeName = type.typeName();

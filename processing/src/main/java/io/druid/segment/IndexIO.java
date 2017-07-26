@@ -959,7 +959,7 @@ public class IndexIO
 
       for (String metric : index.getAvailableMetrics()) {
         final MetricHolder metricHolder = index.getMetricHolder(metric);
-        if (metricHolder.getType() == MetricHolder.MetricType.FLOAT) {
+        if (metricHolder.getType() == ValueType.FLOAT) {
           columns.put(
               metric,
               new ColumnBuilder()
@@ -967,7 +967,7 @@ public class IndexIO
                   .setGenericColumn(new FloatGenericColumnSupplier(metricHolder.floatType, BYTE_ORDER))
                   .build()
           );
-        } else if (metricHolder.getType() == MetricHolder.MetricType.DOUBLE) {
+        } else if (metricHolder.getType() == ValueType.DOUBLE) {
           columns.put(
               metric,
               new ColumnBuilder()
@@ -975,7 +975,7 @@ public class IndexIO
                   .setGenericColumn(new DoubleGenericColumnSupplier(metricHolder.doubleType, BYTE_ORDER))
                   .build()
           );
-        } else if (metricHolder.getType() == MetricHolder.MetricType.COMPLEX) {
+        } else if (metricHolder.getType() == ValueType.COMPLEX) {
           columns.put(
               metric,
               new ColumnBuilder()

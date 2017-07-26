@@ -24,11 +24,10 @@ import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.fasterxml.jackson.databind.module.SimpleModule;
 import com.google.common.hash.Hashing;
 import io.druid.data.ValueType;
-import io.druid.query.aggregation.CollectionCountPostAggregator;
-import io.druid.query.aggregation.ListAggregatorFactory;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.ArrayAggregatorFactory;
 import io.druid.query.aggregation.ArrayMetricSerde;
+import io.druid.query.aggregation.CollectionCountPostAggregator;
 import io.druid.query.aggregation.CountAggregatorFactory;
 import io.druid.query.aggregation.DimensionArrayAggregatorFactory;
 import io.druid.query.aggregation.DoubleMaxAggregatorFactory;
@@ -40,6 +39,7 @@ import io.druid.query.aggregation.GenericMinAggregatorFactory;
 import io.druid.query.aggregation.GenericSumAggregatorFactory;
 import io.druid.query.aggregation.HistogramAggregatorFactory;
 import io.druid.query.aggregation.JavaScriptAggregatorFactory;
+import io.druid.query.aggregation.ListAggregatorFactory;
 import io.druid.query.aggregation.ListFoldingAggregatorFactory;
 import io.druid.query.aggregation.LongMaxAggregatorFactory;
 import io.druid.query.aggregation.LongMinAggregatorFactory;
@@ -59,6 +59,7 @@ import io.druid.query.aggregation.post.JavaScriptPostAggregator;
 import io.druid.query.aggregation.post.MathPostAggregator;
 import io.druid.segment.serde.ComplexMetricSerde;
 import io.druid.segment.serde.ComplexMetrics;
+import io.druid.segment.serde.StringMetricSerde;
 
 /**
  */
@@ -75,11 +76,14 @@ public class AggregatorsModule extends SimpleModule
       ComplexMetrics.registerSerde("hyperUnique", new HyperUniquesSerde(Hashing.murmur3_128()));
     }
     if (ComplexMetrics.getSerdeForType("array") == null) {
-      ComplexMetrics.registerSerde("array", new ArrayMetricSerde("array", ValueType.FLOAT, null));
-      ComplexMetrics.registerSerde("array.float", new ArrayMetricSerde("array.float", ValueType.FLOAT, null));
-      ComplexMetrics.registerSerde("array.double", new ArrayMetricSerde("array.double", ValueType.DOUBLE, null));
-      ComplexMetrics.registerSerde("array.long", new ArrayMetricSerde("array.long", ValueType.LONG, null));
-      ComplexMetrics.registerSerde("array.string", new ArrayMetricSerde("array.string", ValueType.STRING, null));
+      ComplexMetrics.registerSerde("array", new ArrayMetricSerde(ValueType.FLOAT));
+      ComplexMetrics.registerSerde("array.float", new ArrayMetricSerde(ValueType.FLOAT));
+      ComplexMetrics.registerSerde("array.double", new ArrayMetricSerde(ValueType.DOUBLE));
+      ComplexMetrics.registerSerde("array.long", new ArrayMetricSerde(ValueType.LONG));
+      ComplexMetrics.registerSerde("array.string", new ArrayMetricSerde(ValueType.STRING));
+    }
+    if (ComplexMetrics.getSerdeForType("string") == null) {
+      ComplexMetrics.registerSerde("string", StringMetricSerde.INSTANCE);
     }
 
     setMixInAnnotation(AggregatorFactory.class, AggregatorFactoryMixin.class);

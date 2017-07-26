@@ -25,6 +25,7 @@ import com.google.common.io.OutputSupplier;
 import com.metamx.common.IAE;
 import com.metamx.common.ISE;
 import io.druid.common.utils.SerializerUtils;
+import io.druid.data.ValueType;
 import io.druid.segment.data.CompressedDoublesIndexedSupplier;
 import io.druid.segment.data.CompressedDoublesSupplierSerializer;
 import io.druid.segment.data.CompressedFloatsIndexedSupplier;
@@ -54,27 +55,6 @@ public class MetricHolder
 {
   private static final byte[] version = new byte[]{0x0};
   private static final SerializerUtils serializerUtils = new SerializerUtils();
-
-  public static MetricHolder floatMetric(String name, CompressedFloatsIndexedSupplier column)
-  {
-    MetricHolder retVal = new MetricHolder(name, "float");
-    retVal.floatType = column;
-    return retVal;
-  }
-
-  public static MetricHolder doubleMetric(String name, CompressedDoublesIndexedSupplier column)
-  {
-    MetricHolder retVal = new MetricHolder(name, "double");
-    retVal.doubleType = column;
-    return retVal;
-  }
-
-  public static MetricHolder complexMetric(String name, String typeName, Indexed column)
-  {
-    MetricHolder retVal = new MetricHolder(name, typeName);
-    retVal.complexType = column;
-    return retVal;
-  }
 
   public static void writeComplexMetric(
       OutputSupplier<? extends OutputStream> outSupplier, String name, String typeName, GenericIndexedWriter column
@@ -194,27 +174,7 @@ public class MetricHolder
 
   private final String name;
   private final String typeName;
-  private final MetricType type;
-
-  public enum MetricType
-  {
-    LONG,
-    FLOAT,
-    DOUBLE,
-    COMPLEX;
-
-    static MetricType determineType(String typeName)
-    {
-      if ("long".equalsIgnoreCase(typeName)) {
-        return LONG;
-      } else if ("float".equalsIgnoreCase(typeName)) {
-        return FLOAT;
-      } else if ("double".equalsIgnoreCase(typeName)) {
-        return DOUBLE;
-      }
-      return COMPLEX;
-    }
-  }
+  private final ValueType type;
 
   CompressedLongsIndexedSupplier longType = null;
   CompressedFloatsIndexedSupplier floatType = null;
@@ -228,7 +188,7 @@ public class MetricHolder
   {
     this.name = name;
     this.typeName = typeName;
-    this.type = MetricType.determineType(typeName);
+    this.type = ValueType.of(typeName);
   }
 
   public String getName()
@@ -241,59 +201,36 @@ public class MetricHolder
     return typeName;
   }
 
-  public MetricType getType()
+  public ValueType getType()
   {
     return type;
   }
 
   public IndexedLongs getLongType()
   {
-    assertType(MetricType.LONG);
+    assertType(ValueType.LONG);
     return longType.get();
   }
 
   public IndexedFloats getFloatType()
   {
-    assertType(MetricType.FLOAT);
+    assertType(ValueType.FLOAT);
     return floatType.get();
   }
 
   public IndexedDoubles getDoubleType()
   {
-    assertType(MetricType.DOUBLE);
+    assertType(ValueType.DOUBLE);
     return doubleType.get();
   }
 
   public Indexed getComplexType()
   {
-    assertType(MetricType.COMPLEX);
+    assertType(ValueType.COMPLEX);
     return complexType;
   }
 
-  public MetricHolder convertByteOrder(ByteOrder order)
-  {
-    MetricHolder retVal;
-    switch (type) {
-      case LONG:
-        retVal = new MetricHolder(name, typeName);
-        retVal.longType = longType.convertByteOrder(order);
-        return retVal;
-      case FLOAT:
-        retVal = new MetricHolder(name, typeName);
-        retVal.floatType = floatType.convertByteOrder(order);
-        return retVal;
-      case DOUBLE:
-        retVal = new MetricHolder(name, typeName);
-        retVal.doubleType = doubleType.convertByteOrder(order);
-        return retVal;
-      case COMPLEX:
-        return this;
-    }
-
-    return null;
-  }
-
-  private void assertType(MetricType type)
+  private void assertType(ValueType type)
   {
     if (this.type != type) {
       throw new IAE("type[%s] cannot be cast to [%s]", typeName, type);

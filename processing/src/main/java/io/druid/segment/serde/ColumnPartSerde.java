@@ -36,6 +36,7 @@ import java.nio.channels.WritableByteChannel;
     @JsonSubTypes.Type(name = "float", value = FloatGenericColumnPartSerde.class),
     @JsonSubTypes.Type(name = "double", value = DoubleGenericColumnPartSerde.class),
     @JsonSubTypes.Type(name = "long", value = LongGenericColumnPartSerde.class),
+    @JsonSubTypes.Type(name = "string", value = StringGenericColumnPartSerde.class),
     @JsonSubTypes.Type(name = "stringDictionary", value = DictionaryEncodedColumnPartSerde.class)
 })
 public interface ColumnPartSerde

@@ -22,7 +22,7 @@ package io.druid.segment.serde;
 import com.google.common.collect.Maps;
 import com.metamx.common.ISE;
 import com.metamx.common.logger.Logger;
-import io.druid.data.ValueType;
+import io.druid.data.ValueDesc;
 import io.druid.query.aggregation.ArrayMetricSerde;
 
 import java.util.Map;
@@ -51,9 +51,11 @@ public class ComplexMetrics
       throw new ISE("Serializer for type[%s] already exists.", type);
     }
     addToMap(type, serde);
-    if (!type.startsWith("array")) {
-      type = "array." + type;
-      addToMap(type, new ArrayMetricSerde(type, ValueType.of(type), serde));
+    if (!ValueDesc.isArray(type)) {
+      ValueDesc arrayType = ValueDesc.ofArray(type);
+      if (!complexSerializers.containsKey(arrayType.typeName())) {
+        registerSerde(arrayType.typeName(), new ArrayMetricSerde(serde));
+      }
     }
     log.info("serde for type " + type + " is registered with class " + serde.getClass());
   }
