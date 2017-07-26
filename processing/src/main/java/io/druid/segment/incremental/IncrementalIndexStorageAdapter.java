@@ -20,6 +20,7 @@
 package io.druid.segment.incremental;
 
 import com.google.common.base.Function;
+import com.google.common.base.Preconditions;
 import com.google.common.base.Predicate;
 import com.google.common.base.Predicates;
 import com.google.common.base.Strings;
@@ -73,6 +74,8 @@ import io.druid.segment.data.Indexed;
 import io.druid.segment.data.IndexedInts;
 import io.druid.segment.data.ListIndexed;
 import io.druid.segment.filter.BooleanValueMatcher;
+import io.druid.timeline.DataSegment;
+import io.druid.timeline.partition.NoneShardSpec;
 import org.joda.time.DateTime;
 import org.joda.time.Interval;
 
@@ -91,19 +94,29 @@ public class IncrementalIndexStorageAdapter implements StorageAdapter
 {
   private static final NullDimensionSelector NULL_DIMENSION_SELECTOR = new NullDimensionSelector();
 
+  private final String segmentIdentifier;
   private final IncrementalIndex<?> index;
+
+  public IncrementalIndexStorageAdapter(String segmentIdentifier, IncrementalIndex<?> index)
+  {
+    this.segmentIdentifier = segmentIdentifier;
+    this.index = index;
+  }
 
   public IncrementalIndexStorageAdapter(
       IncrementalIndex<?> index
   )
   {
-    this.index = index;
+    this(null, index);
   }
 
   @Override
   public String getSegmentIdentifier()
   {
-    throw new UnsupportedOperationException();
+    if (segmentIdentifier == null) {
+      throw new UnsupportedOperationException();
+    }
+    return segmentIdentifier;
   }
 
   @Override
@@ -977,5 +990,29 @@ public class IncrementalIndexStorageAdapter implements StorageAdapter
   public Metadata getMetadata()
   {
     return index.getMetadata();
+  }
+
+  public static class Temporary extends IncrementalIndexStorageAdapter
+  {
+    private final String dataSource;
+
+    public Temporary(String dataSource, IncrementalIndex<?> index)
+    {
+      super(index);
+      this.dataSource = Preconditions.checkNotNull(dataSource);
+    }
+
+    @Override
+    public String getSegmentIdentifier()
+    {
+      // return dummy segment id to avoid exceptions in select engine
+      return DataSegment.makeDataSegmentIdentifier(
+          dataSource,
+          getMinTime(),
+          getMaxTime(),
+          "temporary",
+          NoneShardSpec.instance()
+      );
+    }
   }
 }

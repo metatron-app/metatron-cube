@@ -23,6 +23,7 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Function;
 import com.google.common.base.Functions;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
@@ -30,6 +31,7 @@ import com.google.common.collect.Ordering;
 import com.google.common.collect.Sets;
 import com.google.inject.Inject;
 import com.metamx.common.StringUtils;
+import com.metamx.common.guava.ResourceClosingSequence;
 import com.metamx.common.guava.Sequence;
 import com.metamx.common.guava.Sequences;
 import com.metamx.common.guava.nary.BinaryFn;
@@ -37,11 +39,13 @@ import com.metamx.common.logger.Logger;
 import com.metamx.emitter.service.ServiceMetricEvent;
 import io.druid.common.utils.JodaUtils;
 import io.druid.data.input.MapBasedRow;
+import io.druid.data.input.Row;
 import io.druid.granularity.QueryGranularity;
 import io.druid.query.CacheStrategy;
 import io.druid.query.DruidMetrics;
 import io.druid.query.IntervalChunkingQueryRunnerDecorator;
 import io.druid.query.LateralViewSpec;
+import io.druid.query.Queries;
 import io.druid.query.Query;
 import io.druid.query.QueryCacheHelper;
 import io.druid.query.QueryRunner;
@@ -56,8 +60,14 @@ import io.druid.query.UnionDataSource;
 import io.druid.query.aggregation.MetricManipulationFn;
 import io.druid.query.dimension.DimensionSpec;
 import io.druid.query.filter.DimFilter;
+import io.druid.query.groupby.GroupByQueryConfig;
+import io.druid.query.groupby.GroupByQueryHelper;
 import io.druid.query.spec.MultipleIntervalSegmentSpec;
 import io.druid.segment.VirtualColumn;
+import io.druid.segment.incremental.IncrementalIndex;
+import io.druid.segment.incremental.IncrementalIndexSchema;
+import io.druid.segment.incremental.IncrementalIndexStorageAdapter;
+import io.druid.segment.incremental.OnheapIncrementalIndex;
 import io.druid.timeline.DataSegmentUtils;
 import io.druid.timeline.LogicalSegment;
 import org.apache.commons.lang.mutable.MutableInt;
@@ -73,6 +83,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
+import java.util.concurrent.ExecutorService;
 
 /**
  */
@@ -91,17 +102,33 @@ public class SelectQueryQueryToolChest extends QueryToolChest<Result<SelectResul
   private static final Logger logger = new Logger(SelectMetaQueryToolChest.class);
 
   private final ObjectMapper jsonMapper;
-
+  private final SelectQueryEngine engine;
+  private final SelectQueryConfig config;
+  private final GroupByQueryConfig groupByConfig;
   private final IntervalChunkingQueryRunnerDecorator intervalChunkingQueryRunnerDecorator;
 
   @Inject
   public SelectQueryQueryToolChest(
       ObjectMapper jsonMapper,
+      SelectQueryEngine engine,
+      SelectQueryConfig config,
+      GroupByQueryConfig groupByConfig,
       IntervalChunkingQueryRunnerDecorator intervalChunkingQueryRunnerDecorator
   )
   {
     this.jsonMapper = jsonMapper;
+    this.engine = engine;
+    this.config = config;
+    this.groupByConfig = groupByConfig;
     this.intervalChunkingQueryRunnerDecorator = intervalChunkingQueryRunnerDecorator;
+  }
+
+  public SelectQueryQueryToolChest(
+      ObjectMapper jsonMapper,
+      IntervalChunkingQueryRunnerDecorator intervalChunkingQueryRunnerDecorator
+  )
+  {
+    this(jsonMapper, null, null, null, intervalChunkingQueryRunnerDecorator);
   }
 
   @Override
@@ -132,6 +159,85 @@ public class SelectQueryQueryToolChest extends QueryToolChest<Result<SelectResul
         );
       }
     };
+  }
+
+  @Override
+  public <I> QueryRunner<Result<SelectResultValue>> handleSubQuery(
+      final Query<I> subQuery,
+      final QueryRunner<I> subQueryRunner,
+      final QuerySegmentWalker segmentWalker,
+      final ExecutorService executor
+  )
+  {
+    final IncrementalIndexSchema schema = Queries.relaySchema(subQuery, segmentWalker);
+    return new QueryRunner<Result<SelectResultValue>>()
+    {
+      @Override
+      public Sequence<Result<SelectResultValue>> run(
+          Query<Result<SelectResultValue>> query,
+          Map<String, Object> responseContext
+      )
+      {
+        final Sequence<Row> innerSequence = Sequences.map(
+            subQueryRunner.run(subQuery, responseContext), Queries.getRowConverter(subQuery));
+
+        long start = System.currentTimeMillis();
+        final IncrementalIndex innerQueryResultIndex = innerSequence.accumulate(
+            makeIncrementalIndex(query, schema, true),
+            GroupByQueryHelper.<Row>newIndexAccumulator()
+        );
+        logger.info(
+            "Accumulated sub-query into index in %,d msec.. total %,d rows",
+            (System.currentTimeMillis() - start),
+            innerQueryResultIndex.size()
+        );
+
+        List<String> dataSources = query.getDataSource().getNames();
+        if (dataSources.size() > 1) {
+          query = query.withDataSource(
+              new TableDataSource(org.apache.commons.lang.StringUtils.join(dataSources, '_'))
+          );
+        }
+        final String dataSource = Iterables.getOnlyElement(query.getDataSource().getNames());
+        final SelectQuery outerQuery = (SelectQuery) query;
+
+        return new ResourceClosingSequence<>(
+            Sequences.concat(
+                Sequences.map(
+                    Sequences.simple(outerQuery.getIntervals()),
+                    new Function<Interval, Sequence<Result<SelectResultValue>>>()
+                    {
+                      @Override
+                      public Sequence<Result<SelectResultValue>> apply(Interval interval)
+                      {
+                        return engine.process(
+                            outerQuery.withQuerySegmentSpec(
+                                new MultipleIntervalSegmentSpec(ImmutableList.of(interval))
+                            ),
+                            config,
+                            new IncrementalIndexStorageAdapter.Temporary(dataSource, innerQueryResultIndex)
+                        );
+                      }
+                    }
+                )
+            ), innerQueryResultIndex
+        );
+      }
+    };
+  }
+
+  private IncrementalIndex makeIncrementalIndex(
+      Query<?> query,
+      IncrementalIndexSchema schema,
+      boolean sortFacts
+  )
+  {
+    int maxResult = groupByConfig.getMaxResults();
+    int maxRowCount = Math.min(
+        query.getContextValue(GroupByQueryHelper.CTX_KEY_MAX_RESULTS, maxResult),
+        maxResult
+    );
+    return new OnheapIncrementalIndex(schema, false, true, sortFacts, maxRowCount);
   }
 
   @Override

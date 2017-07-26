@@ -174,7 +174,7 @@ public class SelectQueryRunnerFactory
         throw new ISE("Got a [%s] which isn't a %s", input.getClass(), SelectQuery.class);
       }
 
-      return engine.process((SelectQuery) input, config, segment, cache);
+      return engine.process((SelectQuery) input, config, segment.asStorageAdapter(true), cache);
     }
   }
 }

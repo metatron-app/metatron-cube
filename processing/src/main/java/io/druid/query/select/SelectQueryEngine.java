@@ -24,7 +24,6 @@ import com.google.common.base.Preconditions;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
-import com.metamx.common.ISE;
 import com.metamx.common.guava.Sequence;
 import io.druid.cache.Cache;
 import io.druid.query.QueryRunnerHelper;
@@ -34,7 +33,6 @@ import io.druid.segment.Cursor;
 import io.druid.segment.DimensionSelector;
 import io.druid.segment.LongColumnSelector;
 import io.druid.segment.ObjectColumnSelector;
-import io.druid.segment.Segment;
 import io.druid.segment.StorageAdapter;
 import io.druid.segment.VirtualColumns;
 import io.druid.segment.column.Column;
@@ -54,18 +52,19 @@ public class SelectQueryEngine
   public Sequence<Result<SelectResultValue>> process(
       final SelectQuery baseQuery,
       final SelectQueryConfig config,
-      final Segment segment,
+      final StorageAdapter adapter
+  )
+  {
+    return process(baseQuery, config, adapter, null);
+  }
+
+  public Sequence<Result<SelectResultValue>> process(
+      final SelectQuery baseQuery,
+      final SelectQueryConfig config,
+      final StorageAdapter adapter,
       final Cache cache
   )
   {
-    final StorageAdapter adapter = segment.asStorageAdapter(true);
-
-    if (adapter == null) {
-      throw new ISE(
-          "Null storage adapter found. Probably trying to issue a query against a segment being memory unmapped."
-      );
-    }
-
     final SelectQuery query = (SelectQuery) ViewSupportHelper.rewrite(baseQuery, adapter);
     // at the point where this code is called, only one datasource should exist.
     String dataSource = Iterables.getOnlyElement(query.getDataSource().getNames());
@@ -74,7 +73,7 @@ public class SelectQueryEngine
     Preconditions.checkArgument(intervals.size() == 1, "Can only handle a single interval, got[%s]", intervals);
 
     // should be rewritten with given interval
-    final String segmentId = DataSegmentUtils.withInterval(dataSource, segment.getIdentifier(), intervals.get(0));
+    final String segmentId = DataSegmentUtils.withInterval(dataSource, adapter.getSegmentIdentifier(), intervals.get(0));
 
     return QueryRunnerHelper.makeCursorBasedQuery(
         adapter,

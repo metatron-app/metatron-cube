@@ -64,7 +64,7 @@ public class IncrementalIndexSegment extends AbstractSegment
   public StorageAdapter asStorageAdapter(boolean forQuery)
   {
     accessed(forQuery);
-    return new IncrementalIndexStorageAdapter(index);
+    return new IncrementalIndexStorageAdapter(segmentIdentifier, index);
   }
 
   @Override
