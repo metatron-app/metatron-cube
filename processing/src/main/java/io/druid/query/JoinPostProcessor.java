@@ -57,6 +57,7 @@ public class JoinPostProcessor extends PostProcessingOperator.UnionSupport
   private static final Logger log = new Logger(JoinPostProcessor.class);
 
   private final JoinElement[] elements;
+  private final boolean prefixAlias;
   private final QueryToolChestWarehouse warehouse;
   private final ExecutorService exec;
 
@@ -66,11 +67,13 @@ public class JoinPostProcessor extends PostProcessingOperator.UnionSupport
   @SuppressWarnings("unchecked")
   public JoinPostProcessor(
       @JsonProperty("elements") List<JoinElement> elements,
+      @JsonProperty("prefixAlias") boolean prefixAlias,
       @JacksonInject QueryToolChestWarehouse warehouse,
       @JacksonInject @Processing ExecutorService exec
   )
   {
     this.elements = elements.toArray(new JoinElement[elements.size()]);
+    this.prefixAlias = prefixAlias;
     this.warehouse = warehouse;
     this.exec = exec;
     this.hashed = new SettableFuture[elements.size() + 1];
@@ -379,8 +382,11 @@ public class JoinPostProcessor extends PostProcessingOperator.UnionSupport
 
   private JoiningRow[] sort(List<Map<String, Object>> rows, List<String> columns, int index)
   {
+    String alias = toAlias(index);
+    log.info(".. sorting [%s] %d rows on %s", alias, rows.size(), columns);
+
     long start = System.currentTimeMillis();
-    log.info(".. sorting [%s] %d rows on %s", toAlias(index), rows.size(), columns);
+    final String prefix = alias + ".";
     final String[] array = columns.toArray(new String[columns.size()]);
     final JoiningRow[] sorted = new JoiningRow[rows.size()];
     for (int i = 0; i < sorted.length; i++) {
@@ -388,6 +394,13 @@ public class JoinPostProcessor extends PostProcessingOperator.UnionSupport
       String[] joinKey = new String[array.length];
       for (int j = 0; j < array.length; j++) {
         joinKey[j] = (String) row.get(array[j]);
+      }
+      if (prefixAlias) {
+        Map<String, Object> prefixed = Maps.newHashMapWithExpectedSize(row.size());
+        for (Map.Entry<String, Object> entry : row.entrySet()) {
+          prefixed.put(prefix + entry.getKey(), entry.getValue());
+        }
+        row = prefixed;
       }
       sorted[i] = new JoiningRow(joinKey, row);
     }

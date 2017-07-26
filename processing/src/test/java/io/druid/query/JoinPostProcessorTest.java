@@ -140,7 +140,7 @@ public class JoinPostProcessorTest
     JoinElement element1 = new JoinElement(type, "ds1", Arrays.asList("a", "b"), "ds2", Arrays.asList("c", "d"));
     JoinElement element2 = new JoinElement(type, "ds1.a = ds2.c && ds1.b = ds2.d").rewrite(dataSources);
     Assert.assertEquals(element1, element2);
-    return new JoinPostProcessor(Arrays.asList(element1), warehouse, Executors.newSingleThreadExecutor());
+    return new JoinPostProcessor(Arrays.asList(element1), false, warehouse, Executors.newSingleThreadExecutor());
   }
 
   @Test
@@ -230,6 +230,7 @@ public class JoinPostProcessorTest
               new JoinElement(type, "ds1", Arrays.asList("a", "b"), "ds2", Arrays.asList("c", "d")),
               new JoinElement(type, "ds1", Arrays.asList("a", "b"), "ds3", Arrays.asList("e", "f"))
           ),
+          false,
           warehouse,
           Executors.newSingleThreadExecutor()
       );

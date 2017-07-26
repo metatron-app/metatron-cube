@@ -43,6 +43,7 @@ public class JoinQuery<T extends Comparable<T>> extends BaseQuery<T> implements 
 {
   private final Map<String, DataSource> dataSources;
   private final List<JoinElement> elements;
+  private final boolean prefixAlias;
   private final int numPartition;
   private final int scannerLen;
   private final int limit;
@@ -53,6 +54,7 @@ public class JoinQuery<T extends Comparable<T>> extends BaseQuery<T> implements 
   public JoinQuery(
       @JsonProperty("dataSources") Map<String, DataSource> dataSources,
       @JsonProperty("elements") List<JoinElement> elements,
+      @JsonProperty("prefixAlias") boolean prefixAlias,
       @JsonProperty("intervals") QuerySegmentSpec querySegmentSpec,
       @JsonProperty("numPartition") int numPartition,
       @JsonProperty("scannerLen") int scannerLen,
@@ -64,6 +66,7 @@ public class JoinQuery<T extends Comparable<T>> extends BaseQuery<T> implements 
   {
     super(toDummyDataSource(dataSources), querySegmentSpec, false, context);
     this.dataSources = validateDataSources(dataSources, getQuerySegmentSpec());
+    this.prefixAlias = prefixAlias;
     this.elements = validateElements(this.dataSources, Preconditions.checkNotNull(elements));
     this.numPartition = numPartition == 0 && scannerLen == 0 ? 1 : numPartition;
     this.scannerLen = scannerLen;
@@ -131,6 +134,12 @@ public class JoinQuery<T extends Comparable<T>> extends BaseQuery<T> implements 
   }
 
   @JsonProperty
+  public boolean isPrefixAlias()
+  {
+    return prefixAlias;
+  }
+
+  @JsonProperty
   public int getNumPartition()
   {
     return numPartition;
@@ -187,6 +196,7 @@ public class JoinQuery<T extends Comparable<T>> extends BaseQuery<T> implements 
     return new JoinQuery(
         dataSources,
         elements,
+        prefixAlias,
         getQuerySegmentSpec(),
         numPartition,
         scannerLen,
@@ -214,13 +224,18 @@ public class JoinQuery<T extends Comparable<T>> extends BaseQuery<T> implements 
   public Query rewriteQuery(QuerySegmentWalker segmentWalker, ObjectMapper jsonMapper)
   {
     JoinPostProcessor joinProcessor = jsonMapper.convertValue(
-        ImmutableMap.of("type", "join", "elements", elements),
+        ImmutableMap.of("type", "join", "elements", elements, "prefixAlias", prefixAlias),
         new TypeReference<JoinPostProcessor>()
         {
         }
     );
     Map<String, Object> joinContext = ImmutableMap.<String, Object>of(QueryContextKeys.POST_PROCESSING, joinProcessor);
 
+    final List<String> aliases = Lists.newArrayList();
+    aliases.add(elements.get(0).getLeftAlias());
+    for (JoinElement element : elements) {
+      aliases.add(element.getRightAlias());
+    }
     QuerySegmentSpec segmentSpec = getQuerySegmentSpec();
     JoinPartitionSpec partitions = partition(segmentWalker, jsonMapper);
     if (partitions == null || partitions.size() == 1) {
@@ -230,7 +245,8 @@ public class JoinQuery<T extends Comparable<T>> extends BaseQuery<T> implements 
       for (JoinElement element : elements) {
         queries.add(JoinElement.toQuery(dataSources.get(element.getRightAlias()), segmentSpec));
       }
-      return new JoinDelegate(queries, limit, parallelism, queue, computeOverridenContext(joinContext));
+      Map<String, Object> context = computeOverridenContext(joinContext);
+      return new JoinDelegate(queries, prefixAlias ? aliases : null, limit, parallelism, queue, context);
     }
 
     JoinElement element = Preconditions.checkNotNull(Iterables.getFirst(elements, null));
@@ -249,7 +265,8 @@ public class JoinQuery<T extends Comparable<T>> extends BaseQuery<T> implements 
           );
         }
       }
-      queries.add(new JoinDelegate(partitioned, -1, 0, 0, computeOverridenContext(joinContext)));
+      Map<String, Object> context = computeOverridenContext(joinContext);
+      queries.add(new JoinDelegate(partitioned, prefixAlias ? aliases : null, -1, 0, 0, context));
       first = false;
     }
     return new UnionAllQuery(null, queries, false, limit, parallelism, queue, getContext());
@@ -370,15 +387,30 @@ public class JoinQuery<T extends Comparable<T>> extends BaseQuery<T> implements 
   @SuppressWarnings("unchecked")
   public static class JoinDelegate<T extends Comparable<T>> extends UnionAllQuery<T>
   {
-    public JoinDelegate(List<Query<T>> list, int limit, int parallelism, int queue, Map<String, Object> context)
+    private final List<String> prefixAliases;  // for schema resolving
+
+    public JoinDelegate(
+        List<Query<T>> list,
+        List<String> prefixAliases,
+        int limit,
+        int parallelism,
+        int queue,
+        Map<String, Object> context
+    )
     {
       super(null, list, false, limit, parallelism, queue, context);
+      this.prefixAliases = prefixAliases;
+    }
+
+    public List<String> getPrefixAliases()
+    {
+      return prefixAliases;
     }
 
     @Override
     public Query withQueries(List queries)
     {
-      return new JoinDelegate(queries, getLimit(), getParallelism(), getQueue(), getContext());
+      return new JoinDelegate(queries, prefixAliases, getLimit(), getParallelism(), getQueue(), getContext());
     }
 
     @Override
@@ -392,7 +424,7 @@ public class JoinQuery<T extends Comparable<T>> extends BaseQuery<T> implements 
     protected Query<T> newInstance(Query<T> query, List<Query<T>> queries, Map<String, Object> context)
     {
       Preconditions.checkArgument(query == null);
-      return new JoinDelegate(queries, getLimit(), getParallelism(), getQueue(), context);
+      return new JoinDelegate(queries, prefixAliases, getLimit(), getParallelism(), getQueue(), context);
     }
 
     @Override

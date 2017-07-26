@@ -46,7 +46,6 @@ import io.druid.query.select.SelectMetaQuery;
 import io.druid.query.select.SelectMetaResultValue;
 import io.druid.segment.incremental.IncrementalIndexSchema;
 
-import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -139,19 +138,28 @@ public class Queries
                     .withRollup(false)
                     .build();
     } else if (subQuery instanceof JoinQuery.JoinDelegate) {
-      final JoinQuery.JoinDelegate joinQuery = (JoinQuery.JoinDelegate) subQuery;
-      Set<String> dimensions = Sets.newLinkedHashSet();
+      final JoinQuery.JoinDelegate<?> joinQuery = (JoinQuery.JoinDelegate) subQuery;
+      List<String> dimensions = Lists.newArrayList();
       List<AggregatorFactory> metrics = Lists.newArrayList();
-      for (Object query : joinQuery.getQueries()) {
-        IncrementalIndexSchema schema = relaySchema((Query) query, segmentWalker);
+      List queries = joinQuery.getQueries();
+      List<String> aliases = joinQuery.getPrefixAliases();
+      for (int i = 0; i < queries.size(); i++) {
+        final String prefix = aliases == null ? "" : aliases.get(i) + ".";
+        IncrementalIndexSchema schema = relaySchema((Query) queries.get(i), segmentWalker);
         for (String dimension : schema.getDimensionsSpec().getDimensionNames()) {
-          if (!dimensions.contains(dimension)) {
-            dimensions.add(dimension);
+          String prefixed = prefix + dimension;
+          if (!dimensions.contains(prefixed)) {
+            dimensions.add(prefixed);
           }
         }
-        metrics.addAll(Arrays.asList(schema.getMetrics()));
+        AggregatorFactory[] aggregators = schema.getMetrics();
+        for (AggregatorFactory aggregator : aggregators) {
+          String prefixed = prefix + aggregator.getName();
+          Preconditions.checkArgument(aggregator instanceof RelayAggregatorFactory);
+          metrics.add(new RelayAggregatorFactory(prefixed, prefixed, aggregator.getTypeName()));
+        }
       }
-      return builder.withDimensions(Lists.newArrayList(dimensions))
+      return builder.withDimensions(dimensions)
                     .withMetrics(AggregatorFactory.toRelay(Iterables.transform(metrics, AggregatorFactory.NAME_TYPE)))
                     .withRollup(false)
                     .build();
