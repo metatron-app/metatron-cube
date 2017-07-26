@@ -107,17 +107,21 @@ public class JoinQuery<T extends Comparable<T>> extends BaseQuery<T> implements 
 
   private static List<JoinElement> validateElements(Map<String, DataSource> dataSources, List<JoinElement> elements)
   {
-    Preconditions.checkArgument(elements.size() > 0);
-    JoinElement firstJoin = elements.get(0);
+    List<JoinElement> rewrite = Lists.newArrayList();
+    for (JoinElement element : elements) {
+      rewrite.add(element.rewrite(dataSources.keySet()));
+    }
+    Preconditions.checkArgument(rewrite.size() > 0);
+    JoinElement firstJoin = rewrite.get(0);
     Preconditions.checkNotNull(
         dataSources.get(firstJoin.getLeftAlias()), "failed to find alias " + firstJoin.getLeftAlias()
     );
-    for (JoinElement element : elements) {
+    for (JoinElement element : rewrite) {
       Preconditions.checkNotNull(
           dataSources.get(element.getRightAlias()), "failed to find alias " + firstJoin.getRightAlias()
       );
     }
-    return elements;
+    return rewrite;
   }
 
   @JsonProperty
