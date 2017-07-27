@@ -22,6 +22,7 @@ package io.druid.query.sketch;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
@@ -98,9 +99,10 @@ public class SimilarityProcessingOperator extends PostProcessingOperator.UnionSu
                 for (Map.Entry<String, Object> entry : result.entrySet()) {
                   TypedSketch<Sketch> sketch = (TypedSketch<Sketch>) entry.getValue();
                   for (Map.Entry<String, Sketch> sketches : sketchMap.entrySet()) {
-                    double similarity = getSimilarity(nomEntries, sketch.value(), sketches.getValue());
+                    Map<String, Object> relations = getSimilarity(nomEntries, sketch.value(), sketches.getValue());
+                    double similarity = (double) relations.get("similarity");
                     if (similarity > threshold) {
-                      similarities.add(new Similarity(entry.getKey(), sketches.getKey(), similarity));
+                      similarities.add(new Similarity(entry.getKey(), sketches.getKey(), relations));
                     }
                   }
                   sketchMap.put(entry.getKey(), sketch.value());
@@ -181,11 +183,14 @@ public class SimilarityProcessingOperator extends PostProcessingOperator.UnionSu
                             final Sketch sketch = entry.getValue();
                             double maxSimilarity = -1;
                             String maxSimilarDimension = null;
+                            Map<String, Object> maxRelations = null;
                             for (Map.Entry<String, Sketch> sketches : prev.getValue().entrySet()) {
-                              double similarity = getSimilarity(nomEntries, sketch, sketches.getValue());
+                              Map<String, Object> relations = getSimilarity(nomEntries, sketch, sketches.getValue());
+                              double similarity = (double) relations.get("similarity");
                               if (maxSimilarDimension == null || similarity > maxSimilarity) {
                                 maxSimilarDimension = sketches.getKey();
                                 maxSimilarity = similarity;
+                                maxRelations = relations;
                               }
                             }
                             if (maxSimilarity > threshold) {
@@ -193,7 +198,7 @@ public class SimilarityProcessingOperator extends PostProcessingOperator.UnionSu
                                   new Similarity(
                                       dataSource + "." + columnName,
                                       ds + "." + maxSimilarDimension,
-                                      maxSimilarity
+                                      maxRelations
                                   )
                               );
                             }
@@ -213,29 +218,38 @@ public class SimilarityProcessingOperator extends PostProcessingOperator.UnionSu
     };
   }
 
-  private double getSimilarity(int nomEntries, Sketch source, Sketch target)
+  // a - b, b - a, a & b, a | b
+  private Map<String, Object> getSimilarity(int nomEntries, Sketch source, Sketch target)
   {
-    double sourceAll = source.getEstimate();
-    double targetAll = target.getEstimate();
-    if (sourceAll >= targetAll) {
-      if (sourceAll < targetAll * 2f) {
-        double union = SketchOperations.sketchSetOperation(UNION, nomEntries, source, target).getEstimate();
-        double intersect = SketchOperations.sketchSetOperation(INTERSECT, nomEntries, source, target).getEstimate();
-        return intersect / union;
-      } else if (sourceAll < targetAll * 4f) {
-        double targetOnly = SketchOperations.sketchSetOperation(NOT, nomEntries, target, source).getEstimate();
-        return (targetAll - (targetOnly * 4)) / targetAll;
+    double A = source.getEstimate();
+    double B = target.getEstimate();
+    double AorB = SketchOperations.sketchSetOperation(UNION, nomEntries, source, target).getEstimate();
+    double AandB = SketchOperations.sketchSetOperation(INTERSECT, nomEntries, source, target).getEstimate();
+    double A_B = SketchOperations.sketchSetOperation(NOT, nomEntries, source, target).getEstimate();
+    double B_A = SketchOperations.sketchSetOperation(NOT, nomEntries, target, source).getEstimate();
+
+    double similarity = -1;
+    if (A >= B) {
+      if (A < B * 1.5f) {
+        similarity = AandB / AorB;
+      } else if (A < B * 8f) {
+        similarity = (B - (Math.pow(B_A, 2d))) / B;
       }
     } else {
-      if (targetAll < sourceAll * 2f) {
-        double union = SketchOperations.sketchSetOperation(UNION, nomEntries, source, target).getEstimate();
-        double intersect = SketchOperations.sketchSetOperation(INTERSECT, nomEntries, source, target).getEstimate();
-        return intersect / union;
-      } else if (targetAll < sourceAll * 4f) {
-        double sourceOnly = SketchOperations.sketchSetOperation(NOT, nomEntries, source, target).getEstimate();
-        return (sourceAll - (sourceOnly * 4)) / sourceAll;
+      if (B < A * 1.5f) {
+        similarity = AandB / AorB;
+      } else if (B < A * 8f) {
+        similarity = (A - (Math.pow(A_B, 2d))) / A;
       }
     }
-    return -1;
+    return ImmutableMap.<String, Object>builder()
+                       .put("similarity", Math.max(-1, similarity))
+                       .put("A", (int) A)
+                       .put("B", (int) B)
+                       .put("A or B", (int) AorB)
+                       .put("A and B", (int) AandB)
+                       .put("A-B", (int) A_B)
+                       .put("B-A", (int) B_A)
+                       .build();
   }
 }

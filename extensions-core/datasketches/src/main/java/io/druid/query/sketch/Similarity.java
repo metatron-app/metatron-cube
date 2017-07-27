@@ -22,24 +22,26 @@ package io.druid.query.sketch;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
+import java.util.Map;
+
 /**
  */
 public class Similarity
 {
   private final String from;
   private final String to;
-  private final double similarity;
+  private final Map<String, Object> relations;
 
   @JsonCreator
   public Similarity(
       @JsonProperty("from") String from,
       @JsonProperty("to") String to,
-      @JsonProperty("similarity") double similarity
+      @JsonProperty("relations") Map<String, Object> relations
   )
   {
     this.from = from;
     this.to = to;
-    this.similarity = similarity;
+    this.relations = relations;
   }
 
   @JsonProperty
@@ -55,8 +57,8 @@ public class Similarity
   }
 
   @JsonProperty
-  public double getSimilarity()
+  public Map<String, Object> getRelations()
   {
-    return similarity;
+    return relations;
   }
 }
