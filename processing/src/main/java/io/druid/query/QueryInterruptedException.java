@@ -184,8 +184,14 @@ public class QueryInterruptedException extends RuntimeException
   private static List<String> stackTrace(Throwable e, Set<Throwable> visited, List<String> errorStack, String prefix)
   {
     StackTraceElement[] trace = e.getStackTrace();
+    if (trace.length == 0) {
+      return errorStack;
+    }
     errorStack.add(prefix + trace[0]);
-    for (StackTraceElement element : Arrays.copyOfRange(trace, 1, Math.min(4, trace.length))) {
+    if (trace.length == 1) {
+      return errorStack;
+    }
+    for (StackTraceElement element : Arrays.copyOfRange(trace, 1, Math.min(6, trace.length))) {
       String stack = element.toString();
       if (errorStack.contains(stack)) {
         break;
