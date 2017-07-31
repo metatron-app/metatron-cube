@@ -19,8 +19,9 @@
 
 package io.druid.query;
 
+import com.google.common.collect.ImmutableMap;
+import com.metamx.common.guava.Accumulator;
 import com.metamx.common.guava.Sequence;
-import io.druid.data.input.InputRow;
 import io.druid.data.input.Row;
 import io.druid.data.input.impl.InputRowParser;
 
@@ -38,4 +39,32 @@ public interface ResultWriter
   Sequence<Row> read(List<URI> locations, InputRowParser parser) throws IOException;
 
   Map<String, Object> write(URI location, TabularFormat result, Map<String, Object> context) throws IOException;
+
+  ResultWriter NULL = new ResultWriter()
+  {
+    @Override
+    public Sequence<Row> read(List<URI> locations, InputRowParser parser) throws IOException
+    {
+      throw new UnsupportedOperationException("read");
+    }
+
+    @Override
+    public Map<String, Object> write(
+        URI location, TabularFormat result, Map<String, Object> context
+    ) throws IOException
+    {
+      return ImmutableMap.<String, Object>of(
+          "rowCount", result.getSequence().accumulate(
+              0L, new Accumulator<Long, Map<String, Object>>()
+              {
+                @Override
+                public Long accumulate(Long accumulated, Map<String, Object> in)
+                {
+                  return accumulated + 1;
+                }
+              }
+          )
+      );
+    }
+  };
 }

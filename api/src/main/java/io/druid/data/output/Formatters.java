@@ -53,6 +53,11 @@ public class Formatters
     return Preconditions.checkNotNull(format, "format is null").toLowerCase();
   }
 
+  public static boolean isIndexFormat(Map<String, Object> context)
+  {
+    return "index".equals(getFormat(context));
+  }
+
   public static CountingAccumulator toBasicExporter(
       Map<String, Object> context,
       ObjectMapper jsonMapper,

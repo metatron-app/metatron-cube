@@ -59,7 +59,18 @@ public class SpecificSegmentQueryRunner<T> implements QueryRunner<T>
 
     final Thread currThread = Thread.currentThread();
     final String currThreadName = currThread.getName();
-    final String newName = String.format("%s_%s_%s", query.getType(), query.getDataSource(), query.getIntervals());
+
+    // see QueryResource
+    int index = currThreadName.indexOf('[');
+    String prefix = index > 0 ? currThreadName.substring(0, index) : currThreadName;
+
+    final String newName = String.format(
+        "%s[%s_%s_%s]",
+        prefix,
+        query.getType(),
+        query.getId(),
+        specificSpec.getDescriptor().getInterval()
+    );
 
     final Sequence<T> baseSequence = doNamed(
         currThread, currThreadName, newName, new Callable<Sequence<T>>()

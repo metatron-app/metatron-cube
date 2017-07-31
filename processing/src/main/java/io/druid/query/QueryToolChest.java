@@ -202,7 +202,6 @@ public abstract class QueryToolChest<ResultType, QueryType extends Query<ResultT
    * @param executor
    */
   public <I> QueryRunner<ResultType> handleSubQuery(
-      Query<I> innerQuery,
       QueryRunner<I> innerQueryRunner,
       QuerySegmentWalker segmentWalker,
       ExecutorService executor

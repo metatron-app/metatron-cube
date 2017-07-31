@@ -48,6 +48,7 @@ import io.druid.query.LateralViewSpec;
 import io.druid.query.Queries;
 import io.druid.query.Query;
 import io.druid.query.QueryCacheHelper;
+import io.druid.query.QueryDataSource;
 import io.druid.query.QueryRunner;
 import io.druid.query.QuerySegmentWalker;
 import io.druid.query.QueryToolChest;
@@ -163,21 +164,22 @@ public class SelectQueryQueryToolChest extends QueryToolChest<Result<SelectResul
 
   @Override
   public <I> QueryRunner<Result<SelectResultValue>> handleSubQuery(
-      final Query<I> subQuery,
       final QueryRunner<I> subQueryRunner,
       final QuerySegmentWalker segmentWalker,
       final ExecutorService executor
   )
   {
-    final IncrementalIndexSchema schema = Queries.relaySchema(subQuery, segmentWalker);
     return new QueryRunner<Result<SelectResultValue>>()
     {
       @Override
+      @SuppressWarnings("unchecked")
       public Sequence<Result<SelectResultValue>> run(
           Query<Result<SelectResultValue>> query,
           Map<String, Object> responseContext
       )
       {
+        final Query<I> subQuery = ((QueryDataSource)query.getDataSource()).getQuery();
+        final IncrementalIndexSchema schema = Queries.relaySchema(subQuery, segmentWalker);
         final Sequence<Row> innerSequence = Sequences.map(
             subQueryRunner.run(subQuery, responseContext), Queries.getRowConverter(subQuery));
 

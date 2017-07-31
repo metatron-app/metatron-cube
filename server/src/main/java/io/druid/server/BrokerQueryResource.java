@@ -313,8 +313,7 @@ public class BrokerQueryResource extends QueryResource
   protected Sequence wrapForwardResult(Map<String, Object> forwardContext, Map<String, Object> result)
       throws IOException
   {
-    String format = Formatters.getFormat(forwardContext);
-    if ("index".equals(format) && PropUtils.parseBoolean(forwardContext, "registerTable", false)) {
+    if (Formatters.isIndexFormat(forwardContext) && PropUtils.parseBoolean(forwardContext, "registerTable", false)) {
       Map<String, Object> dataMeta = (Map<String, Object>) result.get("data");
       URI location = (URI) dataMeta.get("location");
       DataSegment segment = (DataSegment) dataMeta.get("segment");

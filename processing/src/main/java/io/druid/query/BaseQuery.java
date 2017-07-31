@@ -28,7 +28,6 @@ import com.google.common.collect.Ordering;
 import com.metamx.common.StringUtils;
 import com.metamx.common.guava.Sequence;
 import io.druid.common.utils.PropUtils;
-import io.druid.query.select.ViewSupportHelper;
 import io.druid.query.spec.MultipleIntervalSegmentSpec;
 import io.druid.query.spec.QuerySegmentSpec;
 import org.joda.time.Duration;
@@ -98,7 +97,7 @@ public abstract class BaseQuery<T extends Comparable<T>> implements Query<T>
 
   public static <T> Map<String, Object> getResultForwardContext(Query<T> query)
   {
-    return query.getContextValue(FORWARD_CONTEXT);
+    return query.getContextValue(FORWARD_CONTEXT, Maps.<String, Object>newHashMap());
   }
 
   public static <T> boolean isParallelForwarding(Query<T> query)

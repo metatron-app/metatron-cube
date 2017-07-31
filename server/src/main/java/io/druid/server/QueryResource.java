@@ -26,6 +26,7 @@ import com.fasterxml.jackson.jaxrs.smile.SmileMediaTypes;
 import com.google.common.base.Strings;
 import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Lists;
 import com.google.common.collect.MapMaker;
 import com.google.common.io.CountingOutputStream;
 import com.google.inject.Inject;
@@ -58,6 +59,7 @@ import io.druid.query.QuerySegmentWalker;
 import io.druid.query.QueryToolChestWarehouse;
 import io.druid.query.ResultWriter;
 import io.druid.query.TabularFormat;
+import io.druid.query.UnionAllQuery;
 import io.druid.segment.IndexMergerV9;
 import io.druid.segment.incremental.IncrementalIndexSchema;
 import io.druid.server.initialization.ServerConfig;
@@ -91,6 +93,7 @@ import java.io.OutputStream;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.Arrays;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
@@ -196,7 +199,8 @@ public class QueryResource
     final String contentType = context.getContentType();
     final ObjectWriter jsonWriter = context.getOutputWriter();
 
-    final String currThreadName = Thread.currentThread().getName();
+    final Thread currentThread = Thread.currentThread();
+    final String currThreadName = currentThread.getName();
     try {
       query = context.getInputMapper().readValue(in, Query.class);
       queryId = query.getId();
@@ -213,11 +217,8 @@ public class QueryResource
         );
       }
 
-      Thread.currentThread()
-            .setName(String.format("%s[%s_%s_%s]", currThreadName, query.getType(), query.getDataSource(), queryId));
-      if (log.isDebugEnabled()) {
-        log.debug("Got query [%s]", query);
-      }
+      log.info("Got query [%s]", log.isDebugEnabled() ? query : queryId);
+      currentThread.setName(String.format("%s[%s_%s]", currThreadName, query.getType(), queryId));
 
       query = prepareQuery(query);
 
@@ -395,7 +396,7 @@ public class QueryResource
       return context.gotError(e);
     }
     finally {
-      Thread.currentThread().setName(currThreadName);
+      currentThread.setName(currThreadName);
     }
   }
 
@@ -503,15 +504,14 @@ public class QueryResource
     }
     final String scheme = uri.getScheme() == null ? ResultWriter.FILE_SCHEME : uri.getScheme();
 
-    final ResultWriter writer = writerMap.get(uri.getScheme());
+    final ResultWriter writer = scheme.equals("null") ? ResultWriter.NULL : writerMap.get(uri.getScheme());
     if (writer == null) {
       log.warn("Unsupported scheme '" + uri.getScheme() + "'");
       throw new IAE("Unsupported scheme '%s'", uri.getScheme());
     }
     final Map<String, Object> forwardContext = BaseQuery.getResultForwardContext(query);
 
-    String format = Formatters.getFormat(forwardContext);
-    if ("index".equals(format)) {
+    if (Formatters.isIndexFormat(forwardContext)) {
       String indexSchema = Objects.toString(forwardContext.get("schema"), null);
       String indexInterval = Objects.toString(forwardContext.get("interval"), null);
       if (Strings.isNullOrEmpty(indexSchema)) {
@@ -545,11 +545,7 @@ public class QueryResource
           if (scheme.equals(ResultWriter.FILE_SCHEME) || scheme.equals(LocalDataStorageDruidModule.SCHEME)) {
             rewritten = rewriteURI(uri, scheme, node, null);
           }
-          // remove forward context for historical, etc.
-          Query queryToRun = query.withOverriddenContext(
-              ImmutableMap.of(Query.FORWARD_URL, "", Query.FORWARD_CONTEXT, "")
-          );
-          TabularFormat result = toTabularFormat(queryToRun, responseContext);
+          TabularFormat result = toTabularFormat(removeForwardContext(query), responseContext);
           return wrapForwardResult(forwardContext, writer.write(rewritten, result, forwardContext));
         }
         catch (Exception e) {
@@ -579,6 +575,28 @@ public class QueryResource
         );
       }
     };
+  }
+
+  // remove forward context (except select forward query) for historical, etc.
+  private Query removeForwardContext(Query query)
+  {
+    if (query instanceof UnionAllQuery) {
+      UnionAllQuery<?> union = (UnionAllQuery)query;
+      if (union.getQueries() != null) {
+        List<Query> rewritten = Lists.newArrayList();
+        for (Query element : union.getQueries()) {
+          rewritten.add(removeForwardContext(element));
+        }
+        return union.withQueries(rewritten);
+      }
+      return union.withQuery(removeForwardContext(union.getQuery()));
+    }
+    Map<String, String> override = ImmutableMap.of(Query.FORWARD_URL, "", Query.FORWARD_CONTEXT, "");
+    if (query.getDataSource() instanceof QueryDataSource) {
+      QueryDataSource dataSource = (QueryDataSource) query.getDataSource();
+      query = query.withDataSource(new QueryDataSource(dataSource.getQuery().withOverriddenContext(override)));
+    }
+    return query.withOverriddenContext(override);
   }
 
   private static URI getForwardURI(Query query) throws URISyntaxException

@@ -115,7 +115,7 @@ public class ClientQuerySegmentWalker implements QuerySegmentWalker
 
     if (query.getDataSource() instanceof QueryDataSource) {
       Query innerQuery = ((QueryDataSource)query.getDataSource()).getQuery().withOverriddenContext(query.getContext());
-      return toolChest.handleSubQuery(innerQuery, makeRunner(innerQuery, true), this, exec);
+      return toolChest.handleSubQuery(makeRunner(innerQuery, true), this, exec);
     }
 
     if (query instanceof UnionAllQuery) {

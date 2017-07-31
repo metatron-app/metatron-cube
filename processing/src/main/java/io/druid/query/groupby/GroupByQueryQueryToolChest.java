@@ -55,6 +55,7 @@ import io.druid.query.Queries;
 import io.druid.query.Query;
 import io.druid.query.QueryCacheHelper;
 import io.druid.query.QueryContextKeys;
+import io.druid.query.QueryDataSource;
 import io.druid.query.QueryRunner;
 import io.druid.query.QuerySegmentWalker;
 import io.druid.query.QueryToolChest;
@@ -205,18 +206,19 @@ public class GroupByQueryQueryToolChest extends QueryToolChest<Row, GroupByQuery
 
   @Override
   public <I> QueryRunner<Row> handleSubQuery(
-      final Query<I> subQuery,
       final QueryRunner<I> subQueryRunner,
       final QuerySegmentWalker segmentWalker,
       final ExecutorService executor
   )
   {
-    final IncrementalIndexSchema schema = Queries.relaySchema(subQuery, segmentWalker);
     return new QueryRunner<Row>()
     {
       @Override
+      @SuppressWarnings("unchecked")
       public Sequence<Row> run(Query<Row> query, Map<String, Object> responseContext)
       {
+        final Query<I> subQuery = ((QueryDataSource)query.getDataSource()).getQuery();
+        final IncrementalIndexSchema schema = Queries.relaySchema(subQuery, segmentWalker);
         final Sequence<Row> innerSequence = Sequences.map(
             subQueryRunner.run(subQuery, responseContext), Queries.getRowConverter(subQuery));
 
