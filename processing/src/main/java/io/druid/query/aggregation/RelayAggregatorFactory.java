@@ -21,6 +21,7 @@ package io.druid.query.aggregation;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.google.common.base.Preconditions;
 import io.druid.segment.ColumnSelectorFactory;
 
 import java.util.Arrays;
@@ -42,9 +43,9 @@ public class RelayAggregatorFactory extends AggregatorFactory
       @JsonProperty("typeName") String typeName
   )
   {
-    this.name = name;
-    this.columnName = columnName;
-    this.typeName = typeName;
+    this.name = Preconditions.checkNotNull(name == null ? columnName : name);
+    this.columnName = Preconditions.checkNotNull(columnName == null ? name : columnName);
+    this.typeName = Preconditions.checkNotNull(typeName);
   }
 
   @Override
@@ -131,5 +132,15 @@ public class RelayAggregatorFactory extends AggregatorFactory
   public Object getAggregatorStartValue()
   {
     return null;
+  }
+
+  @Override
+  public String toString()
+  {
+    return "RelayAggregatorFactory{" +
+           "name='" + name + '\'' +
+           ", columnName='" + columnName + '\'' +
+           ", typeName='" + typeName + '\'' +
+           '}';
   }
 }

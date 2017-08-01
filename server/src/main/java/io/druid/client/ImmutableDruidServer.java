@@ -101,4 +101,17 @@ public class ImmutableDruidServer
   {
     return segments;
   }
+
+  @Override
+  public String toString()
+  {
+    return "ImmutableDruidServer{" +
+           "name='" + metadata.getName() + '\'' +
+           ", host='" + metadata.getHost() + '\'' +
+           ", maxSize=" + metadata.getMaxSize() +
+           ", tier='" + metadata.getTier() + '\'' +
+           ", type='" + metadata.getType() + '\'' +
+           ", priority='" + metadata.getPriority() + '\'' +
+           '}';
+  }
 }

@@ -21,6 +21,7 @@ package io.druid.indexer;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -576,8 +577,10 @@ public class HadoopDruidIndexerConfig
 
   public void verify()
   {
+    final ObjectMapper mapper = JSON_MAPPER.copy().setSerializationInclusion(JsonInclude.Include.NON_EMPTY);
+
     try {
-      log.info("Running with config:%n%s", JSON_MAPPER.writerWithDefaultPrettyPrinter().writeValueAsString(this));
+      log.info("Running with config:%n%s", mapper.writerWithDefaultPrettyPrinter().writeValueAsString(this));
     }
     catch (IOException e) {
       throw Throwables.propagate(e);

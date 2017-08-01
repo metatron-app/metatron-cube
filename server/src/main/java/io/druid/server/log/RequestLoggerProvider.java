@@ -50,7 +50,7 @@ public interface RequestLoggerProvider extends Provider<RequestLogger>
     @Override
     public RequestLogger get()
     {
-      final ObjectMapper mapper = jsonMapper.setSerializationInclusion(JsonInclude.Include.NON_EMPTY);
+      final ObjectMapper mapper = jsonMapper.copy().setSerializationInclusion(JsonInclude.Include.NON_EMPTY);
 
       return new RequestLogger()
       {

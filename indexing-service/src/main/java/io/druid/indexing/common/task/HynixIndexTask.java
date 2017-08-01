@@ -19,8 +19,10 @@ import java.util.Set;
  */
 public class HynixIndexTask extends HadoopIndexTask
 {
+  @SuppressWarnings("unchecked")
   private String extractRequiredLockName(HadoopIngestionSpec spec)
   {
+    String schemaDataSource = spec.getDataSchema().getDataSource();
     Map<String, Object> pathSpec = spec.getIOConfig().getPathSpec();
     if ("hynix".equals(pathSpec.get("type"))) {
       // simple validation
@@ -28,10 +30,9 @@ public class HynixIndexTask extends HadoopIndexTask
       if (tuningConfig.getIngestionMode() != IngestionMode.REDUCE_MERGE) {
         throw new IllegalArgumentException("hynix type input spec only can be used with REDUCE_MERGE mode");
       }
-      String defaultDataSource = (String) pathSpec.get("dataSource");
       Set<String> dataSources = Sets.newLinkedHashSet();
       for (Map elementSpec : (List<Map>) pathSpec.get("elements")) {
-        String dataSourceName = Objects.toString(elementSpec.get("dataSource"), defaultDataSource);
+        String dataSourceName = Objects.toString(elementSpec.get("dataSource"), schemaDataSource);
         if (dataSourceName == null || dataSourceName.indexOf(';') >= 0) {
           throw new IllegalArgumentException("Datasource name should not be empty or contain ';'");
         }
@@ -41,7 +42,7 @@ public class HynixIndexTask extends HadoopIndexTask
       }
       return StringUtils.join(dataSources, ';');
     }
-    return spec.getDataSchema().getDataSource();
+    return schemaDataSource;
   }
 
   @JsonIgnore

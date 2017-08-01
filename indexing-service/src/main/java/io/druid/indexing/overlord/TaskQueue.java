@@ -543,12 +543,14 @@ public class TaskQueue
           addTaskInternal(task);
         }
 
-        log.info(
-            "Synced %d tasks from storage (%d tasks added, %d tasks removed).",
-            tasksSynced,
-            addedTasks.size(),
-            removedTasks.size()
-        );
+        if (!addedTasks.isEmpty()) {
+          log.info(
+              "Synced %d tasks from storage (%d tasks added, %d tasks removed).",
+              tasksSynced,
+              addedTasks.size(),
+              removedTasks.size()
+          );
+        }
         managementMayBeNecessary.signalAll();
       } else {
         log.info("Not active. Skipping storage sync.");
