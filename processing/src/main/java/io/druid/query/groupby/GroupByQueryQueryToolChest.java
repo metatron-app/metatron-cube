@@ -222,6 +222,11 @@ public class GroupByQueryQueryToolChest extends QueryToolChest<Row, GroupByQuery
         final Sequence<Row> innerSequence = Sequences.map(
             subQueryRunner.run(subQuery, responseContext), Queries.getRowConverter(subQuery));
 
+        LOG.info(
+            "Accumulating into intermediate index with dimension %s and metric %s",
+            schema.getDimensionsSpec().getDimensionNames(),
+            schema.getMetricNames()
+        );
         long start = System.currentTimeMillis();
         final IncrementalIndex innerQueryResultIndex = innerSequence.accumulate(
             makeIncrementalIndex(query, schema, true),

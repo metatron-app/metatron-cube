@@ -159,6 +159,13 @@ public class Queries
           metrics.add(new RelayAggregatorFactory(prefixed, prefixed, aggregator.getTypeName()));
         }
       }
+      // multiple timestamps.. we use timestamp from the first alias as indexing timestamp and add others into metric
+      if (aliases != null) {
+        for (String alias : aliases) {
+          String timestamp = alias + "." + EventHolder.timestampKey;
+          metrics.add(new RelayAggregatorFactory(timestamp, timestamp, ValueDesc.LONG_TYPE));
+        }
+      }
       return builder.withDimensions(dimensions)
                     .withMetrics(AggregatorFactory.toRelay(Iterables.transform(metrics, AggregatorFactory.NAME_TYPE)))
                     .withRollup(false)
@@ -202,6 +209,10 @@ public class Queries
   public static <I> Function<I, Row> getRowConverter(Query<I> subQuery)
   {
     if (subQuery instanceof JoinQuery.JoinDelegate) {
+      final JoinQuery.JoinDelegate delegate = (JoinQuery.JoinDelegate) subQuery;
+      final String timeColumn = delegate.getPrefixAliases() == null
+                                ? EventHolder.timestampKey
+                                : delegate.getPrefixAliases().get(0) + "." + EventHolder.timestampKey;
       return new Function<I, Row>()
       {
         @Override
@@ -209,7 +220,7 @@ public class Queries
         public Row apply(I input)
         {
           Map<String, Object> event = (Map<String, Object>) input;
-          return new MapBasedRow((Long)event.get(EventHolder.timestampKey), event);
+          return new MapBasedRow((Long)event.get(timeColumn), event);
         }
       };
     }
