@@ -409,7 +409,7 @@ public interface DateTimeFunctions extends Function.Library
     }
   }
 
-  abstract class DateTimeInput extends BuiltinFunctions.NamedParams
+  abstract class DateTimeInput extends BuiltinFunctions.NamedParams implements Function.Factory
   {
     DateTimeFormatter formatter;
 

@@ -57,23 +57,38 @@ public class Parser
   public static void register(Class parent)
   {
     for (Class clazz : parent.getClasses()) {
-      if (!Modifier.isAbstract(clazz.getModifiers()) && Function.class.isAssignableFrom(clazz)) {
-        try {
+      if (Modifier.isAbstract(clazz.getModifiers())) {
+        continue;
+      }
+      String name = null;
+      Supplier<Function> supplier = null;
+      try {
+        if (Function.Factory.class.isAssignableFrom(clazz)) {
+          Function.Factory factory = (Function.Factory) clazz.newInstance();
+          name = factory.name().toLowerCase();
+          supplier = factory;
+        } else if (Function.class.isAssignableFrom(clazz)) {
           Function function = (Function) clazz.newInstance();
-          String name = function.name().toLowerCase();
-          if (functions.containsKey(name)) {
-            throw new IllegalArgumentException("function '" + name + "' should not be overridden");
-          }
-          Supplier<Function> supplier = function instanceof Function.Factory ? (Function.Factory) function
-                                                                             : Suppliers.ofInstance(function);
-          functions.put(name, supplier);
-          if (parent != BuiltinFunctions.class) {
-            log.info("user defined function '" + name + "' is registered with class " + clazz.getName());
-          }
+          name = function.name().toLowerCase();
+          supplier = Suppliers.ofInstance(function);
         }
-        catch (Exception e) {
-          log.info(e, "failed to instantiate " + clazz.getName() + ".. ignoring");
+      }
+      catch (Exception e) {
+        log.info(e, "failed to instantiate " + clazz.getName() + ".. ignoring");
+      }
+      if (name == null || supplier == null) {
+        continue;
+      }
+      Supplier prev = functions.get(name);
+      if (prev != null) {
+        if (prev.get().getClass() != supplier.get().getClass()) {
+          throw new IllegalArgumentException("function '" + name + "' cannot not be overridden");
         }
+        continue;
+      }
+      functions.put(name, supplier);
+      if (parent != BuiltinFunctions.class && parent != DateTimeFunctions.class && parent != ExcelFunctions.class) {
+        log.info("user defined function '" + name + "' is registered with class " + clazz.getName());
       }
     }
   }

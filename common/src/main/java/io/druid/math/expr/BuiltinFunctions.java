@@ -146,7 +146,7 @@ public interface BuiltinFunctions extends Function.Library
     protected abstract ExprEval eval(ExprEval x, ExprEval y, ExprEval z);
   }
 
-  abstract class NamedParams implements Function, Factory
+  abstract class NamedParams implements Function
   {
     private int namedParamStart = -1;
     private final Map<String, Expr> namedParam = Maps.newLinkedHashMap();

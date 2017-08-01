@@ -31,28 +31,21 @@ import io.druid.query.Query;
 import io.druid.query.QueryRunner;
 import io.druid.query.QueryRunnerTestHelper;
 import io.druid.query.Result;
-import io.druid.query.dimension.DefaultDimensionSpec;
 import io.druid.query.dimension.ExtractionDimensionSpec;
 import io.druid.query.extraction.MapLookupExtractor;
 import io.druid.query.filter.AndDimFilter;
 import io.druid.query.filter.DimFilter;
 import io.druid.query.filter.ExtractionDimFilter;
-import io.druid.query.filter.InDimFilter;
 import io.druid.query.filter.SelectorDimFilter;
-import io.druid.query.lookup.LookupConfig;
 import io.druid.query.lookup.LookupExtractionFn;
-import io.druid.query.lookup.LookupReferencesManager;
 import io.druid.query.search.search.FragmentSearchQuerySpec;
 import io.druid.query.search.search.LexicographicSearchSortSpec;
 import io.druid.query.search.search.SearchHit;
 import io.druid.query.search.search.SearchQuery;
 import io.druid.query.search.search.SearchQueryConfig;
-import io.druid.query.search.search.SearchQuerySpec;
 import io.druid.query.search.search.StrlenSearchSortSpec;
 import io.druid.query.spec.MultipleIntervalSegmentSpec;
-import io.druid.segment.ExprVirtualColumn;
 import io.druid.segment.TestHelper;
-import io.druid.segment.VirtualColumn;
 import org.joda.time.DateTime;
 import org.joda.time.Interval;
 import org.junit.Assert;
@@ -485,51 +478,6 @@ public class SearchQueryRunnerTest
                               .build();
 
     checkSearchQuery(query, expectedHits);
-  }
-
-  @Test
-  public void testSearchWithVC()
-  {
-    ModuleBuiltinFunctions.lookupManager = new LookupReferencesManager(new LookupConfig(null), null);
-    ModuleBuiltinFunctions.lookupManager.put(
-        "dummy", ImmutableMap.<Object, String>of(
-            "automotive", "a",
-            "business", "b",
-            "entertainment", "c",
-            "health", "d",
-            "mezzanine", "e"
-        )
-    );
-
-    List<SearchHit> expectedHits = Lists.newLinkedList();
-    expectedHits.add(new SearchHit("vc", "a", 93));
-    expectedHits.add(new SearchHit("vc", "b", 93));
-    expectedHits.add(new SearchHit("vc", "e", 279));
-
-    VirtualColumn vc = new ExprVirtualColumn("lookup('dummy', quality)", "vc");
-    SearchQuery query = Druids.newSearchQueryBuilder()
-                              .dataSource(QueryRunnerTestHelper.dataSource)
-                              .granularity(QueryRunnerTestHelper.allGran)
-                              .filters(
-                                  new InDimFilter(
-                                      QueryRunnerTestHelper.qualityDimension,
-                                      Arrays.asList("automotive", "business", "mezzanine"),
-                                      null
-                                  )
-                              )
-                              .intervals(QueryRunnerTestHelper.fullOnInterval)
-                              .virtualColumns(Arrays.asList(vc))
-                              .dimensions(DefaultDimensionSpec.of("vc"))
-                              .query(new SearchQuerySpec.TakeAll())
-                              .build();
-
-    ModuleBuiltinFunctions.lookupManager.start();
-    try {
-      checkSearchQuery(query, expectedHits);
-    }
-    finally {
-      ModuleBuiltinFunctions.lookupManager.stop();
-    }
   }
 
   @Test

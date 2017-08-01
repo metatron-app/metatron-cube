@@ -19,8 +19,12 @@
 
 package io.druid.query;
 
+import com.fasterxml.jackson.annotation.JacksonInject;
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
+import com.google.common.base.Throwables;
 import com.google.inject.Inject;
 import io.druid.granularity.QueryGranularity;
 import io.druid.math.expr.BuiltinFunctions;
@@ -44,7 +48,7 @@ import java.util.Objects;
 public class ModuleBuiltinFunctions implements Function.Library
 {
   @Inject
-  public static LookupReferencesManager lookupManager;
+  public static ObjectMapper mapper;
 
   public static class TruncatedRecent extends DateTimeFunctions.Recent implements Function.Factory
   {
@@ -88,11 +92,41 @@ public class ModuleBuiltinFunctions implements Function.Library
     }
   }
 
-  public static class Lookup extends BuiltinFunctions.NamedParams
+  public static class Lookup implements Function.Factory
   {
+    @Override
+    public String name()
+    {
+      return "lookup";
+    }
+
+    @Override
+    public Function get()
+    {
+      try {
+        return mapper.readValue("{}", LookupFunc.class);  // there would be definitely better way
+      }
+      catch (Throwable e) {
+        throw Throwables.propagate(e);
+      }
+    }
+  }
+
+  private static class LookupFunc extends BuiltinFunctions.NamedParams
+  {
+    private final LookupReferencesManager lookupManager;
+
     private LookupExtractor extractor;
     private boolean retainMissingValue;
     private String replaceMissingValueWith;
+
+    @JsonCreator
+    public LookupFunc(
+        @JacksonInject LookupReferencesManager lookupManager
+    )
+    {
+      this.lookupManager = Preconditions.checkNotNull(lookupManager, "cannot find lookup manager");
+    }
 
     @Override
     public String name()
@@ -136,12 +170,6 @@ public class ModuleBuiltinFunctions implements Function.Library
         // cannot apply retainMissingValue (see MultiDimLookupExtractionFn)
       }
       return ExprEval.of(Strings.isNullOrEmpty(evaluated) ? replaceMissingValueWith : evaluated);
-    }
-
-    @Override
-    public Function get()
-    {
-      return new Lookup();
     }
   }
 }
