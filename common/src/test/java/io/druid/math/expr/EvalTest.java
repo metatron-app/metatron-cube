@@ -241,6 +241,17 @@ public class EvalTest
             + ")", bindings
         )
     );
+    // with escape
+    Assert.assertEquals(
+        "2016-11-16T17:11:39.662Z", evalString(
+            "time_format("
+            + time + ", "
+            + "out.format='yyyy-MM-dd\\'T\\'HH:mm:ss.SSS\\'Z\\'', "
+            + "out.locale='us', "
+            + "out.timezone='PST'"
+            + ")", bindings
+        )
+    );
   }
 
   @Test

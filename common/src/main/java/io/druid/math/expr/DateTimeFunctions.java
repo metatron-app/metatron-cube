@@ -565,6 +565,10 @@ public interface DateTimeFunctions extends Function.Library
   {
     private DateTimeFormatter outputFormat;
 
+    // cached
+    private long prevTime = -1;
+    private String prevValue;
+
     @Override
     public String name()
     {
@@ -591,7 +595,11 @@ public interface DateTimeFunctions extends Function.Library
     @Override
     protected final ExprEval toValue(DateTime date)
     {
-      return ExprEval.of(outputFormat.print(date));
+      if (prevValue == null || date.getMillis() != prevTime) {
+        prevTime = date.getMillis();
+        prevValue = outputFormat.print(date);
+      }
+      return ExprEval.of(prevValue);
     }
 
     @Override
