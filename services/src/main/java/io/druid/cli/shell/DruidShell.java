@@ -56,7 +56,7 @@ import java.util.Set;
 
 /**
  */
-public class DruidShell
+public class DruidShell implements CommonShell
 {
   private static final Logger LOG = new Logger(DruidShell.class);
   private static final StatusResponseHandler RESPONSE_HANDLER = new StatusResponseHandler(Charsets.UTF_8);

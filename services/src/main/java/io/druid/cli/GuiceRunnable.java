@@ -26,6 +26,7 @@ import com.google.inject.Injector;
 import com.google.inject.Module;
 import com.metamx.common.lifecycle.Lifecycle;
 import com.metamx.common.logger.Logger;
+import io.druid.guice.PropertiesModule;
 import io.druid.initialization.Initialization;
 import io.druid.initialization.LogLevelAdjuster;
 import io.druid.server.log.StartupLoggingConfig;
@@ -53,6 +54,11 @@ public abstract class GuiceRunnable implements Runnable
   }
 
   protected abstract List<? extends Module> getModules();
+
+  protected void overrideProperties(List<String> properties)
+  {
+    PropertiesModule.load(baseInjector.getInstance(Properties.class), properties);
+  }
 
   public Injector makeInjector()
   {

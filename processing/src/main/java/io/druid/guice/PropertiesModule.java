@@ -56,17 +56,18 @@ public class PropertiesModule implements Module
   @Override
   public void configure(Binder binder)
   {
-    final Properties fileProps = new Properties();
-    Properties systemProps = System.getProperties();
+    Properties props = load(new Properties(System.getProperties()), propertiesFiles);
+    binder.bind(Properties.class).toInstance(props);
+    binder.requestStaticInjection(TimestampSpec.class);
+  }
 
-    Properties props = new Properties(fileProps);
-    props.putAll(systemProps);
-
-    for (String propertiesFile : propertiesFiles) {
+  public static Properties load(Properties instance, List<String> properties)
+  {
+    for (String propertiesFile : properties) {
       InputStream stream = ClassLoader.getSystemResourceAsStream(propertiesFile);
       try {
         if (stream == null) {
-          File workingDirectoryFile = new File(systemProps.getProperty("druid.properties.file", propertiesFile));
+          File workingDirectoryFile = new File(instance.getProperty("druid.properties.file", propertiesFile));
           if (workingDirectoryFile.exists()) {
             stream = new BufferedInputStream(new FileInputStream(workingDirectoryFile));
           }
@@ -77,9 +78,10 @@ public class PropertiesModule implements Module
           continue;
         }
         log.info("Loading properties from %s (%s)", propertiesFile, ClassLoader.getSystemResource(propertiesFile));
+        Properties fileProps = new Properties();
         try {
           fileProps.load(new InputStreamReader(stream, Charsets.UTF_8));
-          props.putAll(fileProps);
+          instance.putAll(fileProps);
         }
         catch (IOException e) {
           throw Throwables.propagate(e);
@@ -92,8 +94,6 @@ public class PropertiesModule implements Module
         CloseQuietly.close(stream);
       }
     }
-
-    binder.bind(Properties.class).toInstance(props);
-    binder.requestStaticInjection(TimestampSpec.class);
+    return instance;
   }
 }

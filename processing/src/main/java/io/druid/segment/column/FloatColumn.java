@@ -25,6 +25,7 @@ import io.druid.segment.data.CompressedFloatsIndexedSupplier;
 
 /**
  */
+@Deprecated
 public class FloatColumn extends AbstractColumn
 {
   private static final ColumnCapabilitiesImpl CAPABILITIES = new ColumnCapabilitiesImpl()

@@ -74,7 +74,7 @@ case $startStop in
     case $nodeType in
       (tools)
         echo Running tool $1...
-        java -cp conf/druid:lib/* io.druid.cli.Main $nodeType $@
+        java `cat conf/druid/_common/jvm.config | xargs` -cp conf/druid:lib/* io.druid.cli.Main $nodeType $@
         ;;
     esac
 esac

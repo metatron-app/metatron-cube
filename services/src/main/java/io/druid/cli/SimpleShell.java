@@ -29,7 +29,10 @@ import com.metamx.common.lifecycle.Lifecycle;
 import com.metamx.common.logger.Logger;
 import io.airlift.airline.Arguments;
 import io.airlift.airline.Command;
+import io.airlift.airline.Option;
+import io.druid.cli.shell.CommonShell;
 import io.druid.cli.shell.DruidShell;
+import io.druid.cli.shell.IndexViewer;
 import io.druid.guice.IndexingServiceModuleHelper;
 
 import java.util.List;
@@ -45,6 +48,12 @@ public class SimpleShell extends GuiceRunnable
   {
     super(log);
   }
+
+  @Option(name = "-c", description = "", required = false)
+  private String command = "shell";
+
+  @Option(name = "-p", description = "", required = false)
+  private List<String> properties;
 
   @Arguments(description = "Additional arguments")
   public List<String> args;
@@ -62,6 +71,7 @@ public class SimpleShell extends GuiceRunnable
             binder.bindConstant().annotatedWith(Names.named("servicePort")).to(0);
             IndexingServiceModuleHelper.configureTaskRunnerConfigs(binder);
             binder.bind(DruidShell.class);
+            binder.bind(IndexViewer.class);
           }
         }
     );
@@ -70,8 +80,11 @@ public class SimpleShell extends GuiceRunnable
   @Override
   public void run()
   {
+    if (properties != null && !properties.isEmpty()) {
+      overrideProperties(properties);
+    }
     final Injector injector = makeInjector();
-    final DruidShell shell = injector.getInstance(DruidShell.class);
+    final CommonShell shell = injector.getInstance("index".equals(command) ? IndexViewer.class : DruidShell.class);
     final Lifecycle lifeCycle = initLifecycle(injector);
     try {
       shell.run(args);

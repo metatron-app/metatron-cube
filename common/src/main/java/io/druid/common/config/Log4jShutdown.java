@@ -20,6 +20,7 @@
 package io.druid.common.config;
 
 import com.google.common.base.Throwables;
+import com.google.common.util.concurrent.Callables;
 import org.apache.logging.log4j.core.util.Cancellable;
 import org.apache.logging.log4j.core.util.ShutdownCallbackRegistry;
 
@@ -42,7 +43,15 @@ public class Log4jShutdown implements ShutdownCallbackRegistry, org.apache.loggi
       throw new NullPointerException("callback");
     }
     if (!isStarted()) {
-      throw new IllegalStateException("Not started");
+      // HDFS makes Log4J context in shutdown process making unnecessary error. returns dummy
+      return new Cancellable()
+      {
+        @Override
+        public void run() { }
+
+        @Override
+        public void cancel() { }
+      };
     }
     final Cancellable cancellable = new Cancellable()
     {

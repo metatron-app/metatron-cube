@@ -25,6 +25,7 @@ import io.druid.segment.data.CompressedLongsIndexedSupplier;
 
 /**
  */
+@Deprecated
 public class LongColumn extends AbstractColumn
 {
   private static final ColumnCapabilitiesImpl CAPABILITIES = new ColumnCapabilitiesImpl()

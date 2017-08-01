@@ -23,6 +23,8 @@ import com.metamx.common.guava.CloseQuietly;
 import io.druid.segment.ColumnPartProvider;
 import io.druid.segment.data.GenericIndexed;
 
+import java.io.IOException;
+
 /**
  */
 class SimpleColumn implements Column
@@ -63,14 +65,22 @@ class SimpleColumn implements Column
   @Override
   public int getLength()
   {
-    GenericColumn column = null;
-    try {
-      column = genericColumn.get();
-      return column.length();
+    if (genericColumn != null) {
+      try (GenericColumn column = genericColumn.get()) {
+        return column.length();
+      }
+      catch (Throwable e) {
+        // ignore
+      }
+    } else if (dictionaryEncodedColumn != null) {
+      try (DictionaryEncodedColumn column = dictionaryEncodedColumn.get()) {
+        return column.length();
+      }
+      catch (IOException e) {
+        // ignore
+      }
     }
-    finally {
-      CloseQuietly.close(column);
-    }
+    return -1;
   }
 
   @Override
@@ -96,6 +106,26 @@ class SimpleColumn implements Column
       serialized += spatialIndex.getSerializedSize();
     }
     return serialized;
+  }
+
+  @Override
+  public long getSerializedSize(Type type)
+  {
+    switch (type) {
+      case DICTIONARY_ENCODED:
+        return dictionaryEncodedColumn.getSerializedSize();
+      case RUNLENGTH_ENCODED:
+        return runLengthColumn.getSerializedSize();
+      case GENERIC:
+        return genericColumn.getSerializedSize();
+      case COMPLEX:
+        return complexColumn.getSerializedSize();
+      case BITMAP:
+        return bitmapIndex.getSerializedSize();
+      case SPATIAL:
+        return spatialIndex.getSerializedSize();
+    }
+    return -1;
   }
 
   @Override

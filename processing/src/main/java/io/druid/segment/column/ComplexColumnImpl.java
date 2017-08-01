@@ -24,6 +24,7 @@ import io.druid.segment.data.GenericIndexed;
 
 /**
  */
+@Deprecated
 public class ComplexColumnImpl extends AbstractColumn
 {
   private final GenericIndexed column;

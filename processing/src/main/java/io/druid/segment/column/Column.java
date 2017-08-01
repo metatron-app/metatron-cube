@@ -25,11 +25,22 @@ import io.druid.segment.data.GenericIndexed;
  */
 public interface Column
 {
+  enum Type
+  {
+    DICTIONARY_ENCODED,
+    RUNLENGTH_ENCODED,
+    GENERIC,
+    COMPLEX,
+    BITMAP,
+    SPATIAL,
+  }
+
   public static final String TIME_COLUMN_NAME = "__time";
   public ColumnCapabilities getCapabilities();
 
   public int getLength();
   public long getSerializedSize();
+  public long getSerializedSize(Type type);
   public float getAverageSize();
   public GenericIndexed<String> getDictionary();
   public DictionaryEncodedColumn getDictionaryEncoding();

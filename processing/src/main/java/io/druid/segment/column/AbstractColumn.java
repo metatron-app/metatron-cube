@@ -23,6 +23,7 @@ import io.druid.segment.data.GenericIndexed;
 
 /**
  */
+@Deprecated
 public abstract class AbstractColumn implements Column
 {
   @Override
@@ -69,6 +70,12 @@ public abstract class AbstractColumn implements Column
 
   @Override
   public ColumnCapabilities getCapabilities()
+  {
+    throw new UnsupportedOperationException();
+  }
+
+  @Override
+  public long getSerializedSize(Type type)
   {
     throw new UnsupportedOperationException();
   }

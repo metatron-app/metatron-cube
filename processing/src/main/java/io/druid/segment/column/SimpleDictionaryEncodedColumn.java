@@ -90,6 +90,12 @@ public class SimpleDictionaryEncodedColumn
   }
 
   @Override
+  public GenericIndexed<String> dictionary()
+  {
+    return delegate;
+  }
+
+  @Override
   public void close() throws IOException
   {
     if(column != null) {

@@ -19,6 +19,7 @@
 
 package io.druid.segment.column;
 
+import io.druid.segment.data.GenericIndexed;
 import io.druid.segment.data.IndexedInts;
 
 import java.io.Closeable;
@@ -35,5 +36,6 @@ public interface DictionaryEncodedColumn extends Closeable
   public int lookupId(String name);
   public int getCardinality();
 
+  public GenericIndexed<String> dictionary();
   public Iterable<String> loadAll();
 }

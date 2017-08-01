@@ -56,6 +56,11 @@ public class Metadata
     container = new ConcurrentHashMap<>();
   }
 
+  public Map<String, Object> getContainer()
+  {
+    return container;
+  }
+
   public AggregatorFactory[] getAggregators()
   {
     return aggregators;
