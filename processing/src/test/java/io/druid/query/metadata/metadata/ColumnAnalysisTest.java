@@ -82,6 +82,26 @@ public class ColumnAnalysisTest
   }
 
   @Test
+  public void testNumericColumns() throws Exception
+  {
+    final ColumnAnalysis analysis1 = new ColumnAnalysis("LONG", false, 1L, 2, 100L, 300L, null);
+    final ColumnAnalysis analysis2 = new ColumnAnalysis("LONG", false, 3L, 4, 200L, 400L, null);
+
+    assertSerDe(analysis1);
+    assertSerDe(analysis2);
+
+    final ColumnAnalysis expected = new ColumnAnalysis("LONG", false, 4L, 4, 100L, 400L, null);
+
+    ColumnAnalysis fold1 = analysis1.fold(analysis2);
+    ColumnAnalysis fold2 = analysis2.fold(analysis1);
+    Assert.assertEquals(expected, fold1);
+    Assert.assertEquals(expected, fold2);
+
+    assertSerDe(fold1);
+    assertSerDe(fold2);
+  }
+
+  @Test
   public void testFoldDifferentTypes() throws Exception
   {
     final ColumnAnalysis analysis1 = new ColumnAnalysis("hyperUnique", false, 1L, 1, null, null, null);

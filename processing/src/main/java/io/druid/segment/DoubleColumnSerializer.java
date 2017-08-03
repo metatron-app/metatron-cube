@@ -19,14 +19,15 @@
 
 package io.druid.segment;
 
+import com.google.common.collect.ImmutableMap;
 import io.druid.segment.data.CompressedDoublesSupplierSerializer;
-import io.druid.segment.data.CompressedFloatsSupplierSerializer;
 import io.druid.segment.data.CompressedObjectStrategy;
 import io.druid.segment.data.IOPeon;
 
 import java.io.IOException;
 import java.nio.ByteOrder;
 import java.nio.channels.WritableByteChannel;
+import java.util.Map;
 
 public class DoubleColumnSerializer implements GenericColumnSerializer
 {
@@ -43,9 +44,13 @@ public class DoubleColumnSerializer implements GenericColumnSerializer
   private final String filenameBase;
   private final ByteOrder byteOrder;
   private final CompressedObjectStrategy.CompressionStrategy compression;
+
   private CompressedDoublesSupplierSerializer writer;
 
-  public DoubleColumnSerializer(
+  private double min = Double.POSITIVE_INFINITY;
+  private double max = Double.NEGATIVE_INFINITY;
+
+  private DoubleColumnSerializer(
       IOPeon ioPeon,
       String filenameBase,
       ByteOrder byteOrder,
@@ -74,7 +79,15 @@ public class DoubleColumnSerializer implements GenericColumnSerializer
   public void serialize(Object obj) throws IOException
   {
     double val = (obj == null) ? 0 : ((Number) obj).doubleValue();
+    min = Math.min(min, val);
+    max = Math.max(max, val);
     writer.add(val);
+  }
+
+  @Override
+  public Map<String, Object> getSerializeStats()
+  {
+    return writer.size() > 0 ? ImmutableMap.<String, Object>of("min", min, "max", max) : null;
   }
 
   @Override

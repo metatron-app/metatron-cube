@@ -21,6 +21,8 @@ package io.druid.segment.column;
 
 import io.druid.segment.data.GenericIndexed;
 
+import java.util.Map;
+
 /**
  */
 public interface Column
@@ -49,4 +51,5 @@ public interface Column
   public ComplexColumn getComplexColumn();
   public BitmapIndex getBitmapIndex();
   public SpatialIndex getSpatialIndex();
+  public Map<String, Object> getColumnStats();
 }

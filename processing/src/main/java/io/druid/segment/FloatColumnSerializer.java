@@ -19,6 +19,7 @@
 
 package io.druid.segment;
 
+import com.google.common.collect.ImmutableMap;
 import io.druid.segment.data.CompressedFloatsSupplierSerializer;
 import io.druid.segment.data.CompressedObjectStrategy;
 import io.druid.segment.data.IOPeon;
@@ -26,6 +27,7 @@ import io.druid.segment.data.IOPeon;
 import java.io.IOException;
 import java.nio.ByteOrder;
 import java.nio.channels.WritableByteChannel;
+import java.util.Map;
 
 public class FloatColumnSerializer implements GenericColumnSerializer
 {
@@ -43,6 +45,9 @@ public class FloatColumnSerializer implements GenericColumnSerializer
   private final ByteOrder byteOrder;
   private final CompressedObjectStrategy.CompressionStrategy compression;
   private CompressedFloatsSupplierSerializer writer;
+
+  private float min = Float.POSITIVE_INFINITY;
+  private float max = Float.NEGATIVE_INFINITY;
 
   public FloatColumnSerializer(
       IOPeon ioPeon,
@@ -73,6 +78,8 @@ public class FloatColumnSerializer implements GenericColumnSerializer
   public void serialize(Object obj) throws IOException
   {
     float val = (obj == null) ? 0 : ((Number) obj).floatValue();
+    min = Math.min(min, val);
+    max = Math.max(max, val);
     writer.add(val);
   }
 
@@ -86,6 +93,12 @@ public class FloatColumnSerializer implements GenericColumnSerializer
   public long getSerializedSize()
   {
     return writer.getSerializedSize();
+  }
+
+  @Override
+  public Map<String, Object> getSerializeStats()
+  {
+    return writer.size() > 0 ? ImmutableMap.<String, Object>of("min", min, "max", max) : null;
   }
 
   @Override

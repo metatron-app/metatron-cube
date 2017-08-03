@@ -28,6 +28,7 @@ import io.druid.segment.data.GenericIndexed;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.WritableByteChannel;
+import java.util.Map;
 
 /**
  */
@@ -96,6 +97,12 @@ public class ComplexColumnPartSerde implements ColumnPartSerde
         {
           delegate.writeToChannel(channel);
         }
+
+        @Override
+        public Map<String, Object> getStats()
+        {
+          return delegate.getSerializeStats();
+        }
       }
       );
     }
@@ -138,6 +145,12 @@ public class ComplexColumnPartSerde implements ColumnPartSerde
         public void write(WritableByteChannel channel) throws IOException
         {
           delegate.writeToChannel(channel);
+        }
+
+        @Override
+        public Map<String, Object> getStats()
+        {
+          return null;
         }
       }
       );

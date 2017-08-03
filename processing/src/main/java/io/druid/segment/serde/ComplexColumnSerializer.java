@@ -25,6 +25,7 @@ import io.druid.segment.data.IOPeon;
 
 import java.io.IOException;
 import java.nio.channels.WritableByteChannel;
+import java.util.Map;
 
 public class ComplexColumnSerializer implements GenericColumnSerializer
 {
@@ -80,6 +81,12 @@ public class ComplexColumnSerializer implements GenericColumnSerializer
   public long getSerializedSize()
   {
     return writer.getSerializedSize();
+  }
+
+  @Override
+  public Map<String, Object> getSerializeStats()
+  {
+    return null;
   }
 
   @Override

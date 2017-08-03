@@ -23,6 +23,8 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
+import com.google.common.collect.Sets;
 import com.metamx.common.IAE;
 import io.druid.data.ValueType;
 import io.druid.segment.serde.ColumnPartSerde;
@@ -31,6 +33,8 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.WritableByteChannel;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 /**
  */
@@ -45,16 +49,20 @@ public class ColumnDescriptor
   private final boolean hasMultipleValues;
   private final List<ColumnPartSerde> parts;
 
+  private Map<String, Object> stats;
+
   @JsonCreator
   public ColumnDescriptor(
       @JsonProperty("valueType") ValueType valueType,
       @JsonProperty("hasMultipleValues") boolean hasMultipleValues,
-      @JsonProperty("parts") List<ColumnPartSerde> parts
+      @JsonProperty("parts") List<ColumnPartSerde> parts,
+      @JsonProperty("stats") Map<String, Object> stats
   )
   {
     this.valueType = valueType;
     this.hasMultipleValues = hasMultipleValues;
     this.parts = parts;
+    this.stats = stats;
   }
 
   @JsonProperty
@@ -73,6 +81,30 @@ public class ColumnDescriptor
   public List<ColumnPartSerde> getParts()
   {
     return parts;
+  }
+
+  @JsonProperty
+  public Map<String, Object> getStats()
+  {
+    return stats;
+  }
+
+  public void finalizeSerialization()
+  {
+    Set<String> conflicts = Sets.newHashSet();
+    Map<String, Object> merged = Maps.newHashMap();
+    for (ColumnPartSerde part : parts) {
+      Map<String, Object> stat = part.getSerializer().getStats();
+      if (stat == null) {
+        continue;
+      }
+      conflicts.addAll(Sets.intersection(merged.keySet(), stat.keySet()));
+      merged.putAll(stat);
+    }
+    for (String conflict : conflicts) {
+      merged.remove(conflict);
+    }
+    this.stats = merged;
   }
 
   public long numBytes()
@@ -97,6 +129,7 @@ public class ColumnDescriptor
   {
     final ColumnBuilder builder = new ColumnBuilder()
         .setType(valueType)
+        .setColumnStats(stats)
         .setHasMultipleValues(hasMultipleValues);
 
     for (ColumnPartSerde part : parts) {
@@ -142,7 +175,7 @@ public class ColumnDescriptor
     public ColumnDescriptor build()
     {
       Preconditions.checkNotNull(valueType, "must specify a valueType");
-      return new ColumnDescriptor(valueType, hasMultipleValues == null ? false : hasMultipleValues, parts);
+      return new ColumnDescriptor(valueType, hasMultipleValues == null ? false : hasMultipleValues, parts, null);
     }
   }
 }

@@ -19,11 +19,11 @@
 
 package io.druid.segment.column;
 
-import com.metamx.common.guava.CloseQuietly;
 import io.druid.segment.ColumnPartProvider;
 import io.druid.segment.data.GenericIndexed;
 
 import java.io.IOException;
+import java.util.Map;
 
 /**
  */
@@ -36,6 +36,7 @@ class SimpleColumn implements Column
   private final ColumnPartProvider<ComplexColumn> complexColumn;
   private final ColumnPartProvider<BitmapIndex> bitmapIndex;
   private final ColumnPartProvider<SpatialIndex> spatialIndex;
+  private final Map<String, Object> stats;
 
   SimpleColumn(
       ColumnCapabilities capabilities,
@@ -44,7 +45,8 @@ class SimpleColumn implements Column
       ColumnPartProvider<GenericColumn> genericColumn,
       ColumnPartProvider<ComplexColumn> complexColumn,
       ColumnPartProvider<BitmapIndex> bitmapIndex,
-      ColumnPartProvider<SpatialIndex> spatialIndex
+      ColumnPartProvider<SpatialIndex> spatialIndex,
+      Map<String, Object> stats
   )
   {
     this.capabilities = capabilities;
@@ -54,6 +56,7 @@ class SimpleColumn implements Column
     this.complexColumn = complexColumn;
     this.bitmapIndex = bitmapIndex;
     this.spatialIndex = spatialIndex;
+    this.stats = stats;
   }
 
   @Override
@@ -193,5 +196,11 @@ class SimpleColumn implements Column
   public SpatialIndex getSpatialIndex()
   {
     return spatialIndex == null ? null : spatialIndex.get();
+  }
+
+  @Override
+  public Map<String, Object> getColumnStats()
+  {
+    return stats;
   }
 }

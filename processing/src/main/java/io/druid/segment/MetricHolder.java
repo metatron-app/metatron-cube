@@ -155,17 +155,13 @@ public class MetricHolder
         holder.doubleType = CompressedDoublesIndexedSupplier.fromByteBuffer(buf, ByteOrder.nativeOrder());
         break;
       case COMPLEX:
-        if (strategy != null) {
-          holder.complexType = GenericIndexed.read(buf, strategy);
-        } else {
-          final ComplexMetricSerde serdeForType = ComplexMetrics.getSerdeForType(holder.getTypeName());
+        final ComplexMetricSerde serdeForType = ComplexMetrics.getSerdeForType(holder.getTypeName());
 
-          if (serdeForType == null) {
-            throw new ISE("Unknown type[%s], cannot load.", holder.getTypeName());
-          }
-
-          holder.complexType = GenericIndexed.read(buf, serdeForType.getObjectStrategy());
+        if (serdeForType == null) {
+          throw new ISE("Unknown type[%s], cannot load.", holder.getTypeName());
         }
+
+        holder.complexType = GenericIndexed.read(buf, serdeForType.getObjectStrategy());
         break;
     }
 

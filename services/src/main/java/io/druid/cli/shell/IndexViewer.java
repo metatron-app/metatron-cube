@@ -340,12 +340,18 @@ public class IndexViewer implements CommonShell
         type = ValueType.of(complexColumn.getTypeName());   // more specific for complex type
         CloseQuietly.close(complexColumn);
       }
-
-      writer.println(
-          format("  type : %s, numRows : %d, hasMultiValue = %s, (%,d bytes, %3.1f%% of total)",
-                 type, numRows, capabilities.hasMultipleValues(), columnSize, (columnSize * 100f / totalSize)
+      Map<String, Object> columnStats = column.getColumnStats();
+      writer.print(
+          format(
+              "  type : %s, numRows : %d, hasMultiValue = %s, (%,d bytes, %3.1f%% of total)",
+              type, numRows, capabilities.hasMultipleValues(), columnSize, (columnSize * 100f / totalSize)
           )
       );
+      if (columnStats != null) {
+        writer.println(format(", stats %s", columnStats));
+      } else {
+        writer.println();
+      }
       StringBuilder builder = new StringBuilder();
       if (capabilities.isDictionaryEncoded()) {
         DictionaryEncodedColumn dictionaryEncoded = column.getDictionaryEncoding();

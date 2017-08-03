@@ -21,6 +21,8 @@ package io.druid.segment.column;
 
 import io.druid.segment.data.GenericIndexed;
 
+import java.util.Map;
+
 /**
  */
 @Deprecated
@@ -36,6 +38,12 @@ public abstract class AbstractColumn implements Column
   public SpatialIndex getSpatialIndex()
   {
     throw new UnsupportedOperationException();
+  }
+
+  @Override
+  public Map<String, Object> getColumnStats()
+  {
+    return null;
   }
 
   @Override

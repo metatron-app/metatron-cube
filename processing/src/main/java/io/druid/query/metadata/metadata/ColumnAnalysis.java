@@ -21,7 +21,9 @@ package io.druid.query.metadata.metadata;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
+import io.druid.data.ValueType;
 
 import java.util.Objects;
 
@@ -46,6 +48,8 @@ public class ColumnAnalysis
   private final Comparable maxValue;
   private final String errorMessage;
 
+  private boolean numeric;
+
   @JsonCreator
   public ColumnAnalysis(
       @JsonProperty("type") String type,
@@ -68,6 +72,7 @@ public class ColumnAnalysis
     this.maxValue = maxValue;
     this.nullCount = nullCount;
     this.errorMessage = errorMessage;
+    this.numeric = ValueType.of(type).isNumeric();
   }
 
   public ColumnAnalysis(
@@ -119,15 +124,35 @@ public class ColumnAnalysis
     return nullCount;
   }
 
-  @JsonTypeInfo(use = JsonTypeInfo.Id.NAME)
+  /**
+   * from https://github.com/easysoa/EasySOA-Incubation/blob/master/easysoa-registry-v1/easysoa-registry-rest-core/src/main/java/org/easysoa/registry/rest/SoaNodeInformation.java
+   *
+   * Its @JsonTypeInfo(use = Id.NAME, include = As.WRAPPER_OBJECT) lets contained
+   * objects be written as tercely as possible (ex. of int : 1, to compare with
+   * ex. of long : {Long:1}). Alternatively, Id.MINIMAL_CLASS is powerful but far
+   * less pretty (shows full Java class names), and As.PROPERTY is not as terce
+   * (additional "property=" for ALL objects including ex. int).
+   * Its @JsonSubTypes is required, else error ex. :
+   * Could not resolve type id 'Long' into a subtype of [simple type, class java.io.Serializable]
+   * @return
+   */
   @JsonProperty
+  @JsonSubTypes({
+      @JsonSubTypes.Type(String.class), @JsonSubTypes.Type(Integer.class), @JsonSubTypes.Type(Long.class),
+      @JsonSubTypes.Type(Float.class), @JsonSubTypes.Type(Double.class)
+  })
+  @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, include = JsonTypeInfo.As.WRAPPER_OBJECT)
   public Comparable getMinValue()
   {
     return minValue;
   }
 
-  @JsonTypeInfo(use = JsonTypeInfo.Id.NAME)
   @JsonProperty
+  @JsonSubTypes({
+      @JsonSubTypes.Type(String.class), @JsonSubTypes.Type(Integer.class), @JsonSubTypes.Type(Long.class),
+      @JsonSubTypes.Type(Float.class), @JsonSubTypes.Type(Double.class)
+  })
+  @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, include = JsonTypeInfo.As.WRAPPER_OBJECT)
   public Comparable getMaxValue()
   {
     return maxValue;
@@ -197,6 +222,10 @@ public class ColumnAnalysis
 
   private <T extends Comparable> T choose(T obj1, T obj2, boolean max)
   {
+    if (numeric && (obj1 == null || obj2 == null)) {
+      // null means N/A for numeric types..
+      return null;
+    }
     if (obj1 == null) {
       return max ? obj2 : null;
     }

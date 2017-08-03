@@ -735,6 +735,7 @@ public class IndexIO
               .addSerde(columnPartBuilder.build())
               .build();
 
+          serdeficator.finalizeSerialization();
           ByteArrayOutputStream baos = new ByteArrayOutputStream();
           serializerUtils.writeString(baos, mapper.writeValueAsString(serdeficator));
           byte[] specBytes = baos.toByteArray();
@@ -803,6 +804,7 @@ public class IndexIO
 
           final ColumnDescriptor serdeficator = builder.build();
 
+          serdeficator.finalizeSerialization();
           ByteArrayOutputStream baos = new ByteArrayOutputStream();
           serializerUtils.writeString(baos, mapper.writeValueAsString(serdeficator));
           byte[] specBytes = baos.toByteArray();
@@ -828,6 +830,7 @@ public class IndexIO
           );
           final ColumnDescriptor serdeficator = builder.build();
 
+          serdeficator.finalizeSerialization();
           ByteArrayOutputStream baos = new ByteArrayOutputStream();
           serializerUtils.writeString(baos, mapper.writeValueAsString(serdeficator));
           byte[] specBytes = baos.toByteArray();

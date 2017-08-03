@@ -23,6 +23,8 @@ import com.google.common.base.Preconditions;
 import io.druid.data.ValueType;
 import io.druid.segment.ColumnPartProvider;
 
+import java.util.Map;
+
 /**
  */
 public class ColumnBuilder
@@ -36,6 +38,8 @@ public class ColumnBuilder
   private ColumnPartProvider<ComplexColumn> complexColumn = null;
   private ColumnPartProvider<BitmapIndex> bitmapIndex = null;
   private ColumnPartProvider<SpatialIndex> spatialIndex = null;
+
+  private Map<String, Object> stats;
 
   public ColumnBuilder setType(ValueType type)
   {
@@ -85,6 +89,12 @@ public class ColumnBuilder
     return this;
   }
 
+  public ColumnBuilder setColumnStats(Map<String, Object> stats)
+  {
+    this.stats = stats;
+    return this;
+  }
+
   public Column build()
   {
     Preconditions.checkState(type != null, "Type must be set.");
@@ -103,7 +113,8 @@ public class ColumnBuilder
         genericColumn,
         complexColumn,
         bitmapIndex,
-        spatialIndex
+        spatialIndex,
+        stats
     );
   }
 }

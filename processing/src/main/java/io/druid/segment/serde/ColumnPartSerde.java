@@ -27,6 +27,7 @@ import io.druid.segment.column.ColumnConfig;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.WritableByteChannel;
+import java.util.Map;
 
 /**
  */
@@ -50,6 +51,8 @@ public interface ColumnPartSerde
     public long numBytes();
 
     public void write(WritableByteChannel channel) throws IOException;
+
+    public Map<String, Object> getStats();
   }
 
   public interface Deserializer

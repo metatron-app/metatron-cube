@@ -111,13 +111,13 @@ public class SegmentAnalyzer
       final ValueType type = capabilities.getType();
       switch (type) {
         case LONG:
-          analysis = analyzeNumericColumn(columnName, capabilities, storageAdapter, Longs.BYTES);
+          analysis = analyzeNumericColumn(columnName, capabilities, storageAdapter, column, Longs.BYTES);
           break;
         case FLOAT:
-          analysis = analyzeNumericColumn(columnName, capabilities, storageAdapter, NUM_BYTES_IN_TEXT_FLOAT);
+          analysis = analyzeNumericColumn(columnName, capabilities, storageAdapter, column, NUM_BYTES_IN_TEXT_FLOAT);
           break;
         case DOUBLE:
-          analysis = analyzeNumericColumn(columnName, capabilities, storageAdapter, NUM_BYTES_IN_TEXT_DOUBLE);
+          analysis = analyzeNumericColumn(columnName, capabilities, storageAdapter, column, NUM_BYTES_IN_TEXT_DOUBLE);
           break;
         case STRING:
           if (index != null) {
@@ -138,13 +138,14 @@ public class SegmentAnalyzer
     }
 
     // Add time column too
+    Column column = index == null ? null : index.getColumn(Column.TIME_COLUMN_NAME);
     ColumnCapabilities timeCapabilities = storageAdapter.getColumnCapabilities(Column.TIME_COLUMN_NAME);
     if (timeCapabilities == null) {
       timeCapabilities = new ColumnCapabilitiesImpl().setType(ValueType.LONG).setHasMultipleValues(false);
     }
     columns.put(
         Column.TIME_COLUMN_NAME,
-        analyzeNumericColumn(Column.TIME_COLUMN_NAME, timeCapabilities, storageAdapter, NUM_BYTES_IN_TIMESTAMP)
+        analyzeNumericColumn(Column.TIME_COLUMN_NAME, timeCapabilities, storageAdapter, column, NUM_BYTES_IN_TIMESTAMP)
     );
 
     Cursor cursor = Iterables.getOnlyElement(
@@ -189,6 +190,7 @@ public class SegmentAnalyzer
       final String columnName,
       final ColumnCapabilities capabilities,
       final StorageAdapter storageAdapter,
+      final Column column,
       final long sizePerRow
   )
   {
@@ -205,6 +207,13 @@ public class SegmentAnalyzer
       serializedSize = storageAdapter.getSerializedSize(columnName);
     }
 
+    Comparable minValue = null;
+    Comparable maxValue = null;
+    if (analyzingMinMax() && column != null && column.getColumnStats() != null) {
+      Map<String, Object> stats = column.getColumnStats();
+      minValue = (Comparable) stats.get("min");
+      maxValue = (Comparable) stats.get("max");
+    }
     return new ColumnAnalysis(
         capabilities.getType().name(),
         capabilities.hasMultipleValues(),
@@ -212,8 +221,8 @@ public class SegmentAnalyzer
         serializedSize,
         null,
         null,
-        null,
-        null,
+        minValue,
+        maxValue,
         null
     );
   }

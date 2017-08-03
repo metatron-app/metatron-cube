@@ -54,6 +54,7 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.channels.WritableByteChannel;
+import java.util.Map;
 
 
 public class DictionaryEncodedColumnPartSerde implements ColumnPartSerde
@@ -246,6 +247,12 @@ public class DictionaryEncodedColumnPartSerde implements ColumnPartSerde
                 spatialIndexWriter.writeToChannel(channel);
               }
             }
+
+            @Override
+            public Map<String, Object> getStats()
+            {
+              return null;
+            }
           }
       );
     }
@@ -403,6 +410,12 @@ public class DictionaryEncodedColumnPartSerde implements ColumnPartSerde
                     channel
                 );
               }
+            }
+
+            @Override
+            public Map<String, Object> getStats()
+            {
+              return null;
             }
           }
       );

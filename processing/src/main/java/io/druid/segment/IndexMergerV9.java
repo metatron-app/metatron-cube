@@ -512,6 +512,7 @@ public class IndexMergerV9 extends IndexMerger
       final ColumnDescriptor serdeficator
   ) throws IOException
   {
+    serdeficator.finalizeSerialization();
     ByteArrayOutputStream baos = new ByteArrayOutputStream();
     serializerUtils.writeString(baos, mapper.writeValueAsString(serdeficator));
     byte[] specBytes = baos.toByteArray();

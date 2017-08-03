@@ -22,6 +22,7 @@ package io.druid.segment;
 import java.io.Closeable;
 import java.io.IOException;
 import java.nio.channels.WritableByteChannel;
+import java.util.Map;
 
 public interface GenericColumnSerializer extends Closeable
 {
@@ -30,6 +31,8 @@ public interface GenericColumnSerializer extends Closeable
   public void serialize(Object obj) throws IOException;
 
   public long getSerializedSize();
+
+  public Map<String, Object> getSerializeStats();
 
   public void writeToChannel(WritableByteChannel channel) throws IOException;
 }

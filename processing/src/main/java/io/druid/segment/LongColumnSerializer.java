@@ -19,6 +19,7 @@
 
 package io.druid.segment;
 
+import com.google.common.collect.ImmutableMap;
 import io.druid.segment.data.CompressedLongsSupplierSerializer;
 import io.druid.segment.data.CompressedObjectStrategy;
 import io.druid.segment.data.IOPeon;
@@ -26,6 +27,7 @@ import io.druid.segment.data.IOPeon;
 import java.io.IOException;
 import java.nio.ByteOrder;
 import java.nio.channels.WritableByteChannel;
+import java.util.Map;
 
 public class LongColumnSerializer implements GenericColumnSerializer
 {
@@ -43,6 +45,9 @@ public class LongColumnSerializer implements GenericColumnSerializer
   private final ByteOrder byteOrder;
   private final CompressedObjectStrategy.CompressionStrategy compression;
   private CompressedLongsSupplierSerializer writer;
+
+  private long min = Long.MAX_VALUE;
+  private long max = Long.MIN_VALUE;
 
   public LongColumnSerializer(
       IOPeon ioPeon,
@@ -73,6 +78,8 @@ public class LongColumnSerializer implements GenericColumnSerializer
   public void serialize(Object obj) throws IOException
   {
     long val = (obj == null) ? 0 : ((Number) obj).longValue();
+    min = Math.min(min, val);
+    max = Math.max(max, val);
     writer.add(val);
   }
 
@@ -86,6 +93,12 @@ public class LongColumnSerializer implements GenericColumnSerializer
   public long getSerializedSize()
   {
     return writer.getSerializedSize();
+  }
+
+  @Override
+  public Map<String, Object> getSerializeStats()
+  {
+    return writer.size() > 0 ? ImmutableMap.<String, Object>of("min", min, "max", max) : null;
   }
 
   @Override
