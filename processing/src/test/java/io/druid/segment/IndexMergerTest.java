@@ -1376,7 +1376,69 @@ public class IndexMergerTest
   }
 
   @Test
-  public void testNoRollupMergeWithDuplicateRow() throws Exception
+  public void testNoRollupMergeWithDuplicateRowWithNoRollup() throws Exception
+  {
+    final QueryableIndex merged = toMergedIndex(false);
+
+    final QueryableIndexIndexableAdapter adapter = new QueryableIndexIndexableAdapter(merged);
+    final List<Rowboat> boatList = ImmutableList.copyOf(adapter.getRows());
+
+    Assert.assertEquals(
+        ImmutableList.of("d3", "d6", "d8", "d9"),
+        ImmutableList.copyOf(adapter.getDimensionNames())
+    );
+    Assert.assertEquals(5, boatList.size());
+    Assert.assertArrayEquals(new int[][]{{1}, {0}, {0}, {0}}, boatList.get(0).getDims());
+    Assert.assertArrayEquals(new int[][]{{1}, {0}, {0}, {0}}, boatList.get(1).getDims());
+    Assert.assertArrayEquals(new int[][]{{1}, {0}, {0}, {0}}, boatList.get(2).getDims());
+    Assert.assertArrayEquals(new int[][]{{0}, {1}, {1}, {1}}, boatList.get(3).getDims());
+    Assert.assertArrayEquals(new int[][]{{0}, {1}, {1}, {1}}, boatList.get(4).getDims());
+
+    checkBitmapIndex(Lists.newArrayList(3, 4), adapter.getBitmapIndex("d3", ""));
+    checkBitmapIndex(Lists.newArrayList(0, 1, 2), adapter.getBitmapIndex("d3", "310"));
+
+    checkBitmapIndex(Lists.newArrayList(0, 1, 2), adapter.getBitmapIndex("d6", ""));
+    checkBitmapIndex(Lists.newArrayList(3, 4), adapter.getBitmapIndex("d6", "621"));
+
+    checkBitmapIndex(Lists.newArrayList(0, 1, 2), adapter.getBitmapIndex("d8", ""));
+    checkBitmapIndex(Lists.newArrayList(3, 4), adapter.getBitmapIndex("d8", "821"));
+
+    checkBitmapIndex(new ArrayList<Integer>(), adapter.getBitmapIndex("d9", ""));
+    checkBitmapIndex(Lists.newArrayList(0, 1, 2), adapter.getBitmapIndex("d9", "910"));
+    checkBitmapIndex(Lists.newArrayList(3, 4), adapter.getBitmapIndex("d9", "921"));
+  }
+
+  @Test
+  public void testNoRollupMergeWithDuplicateRowWithRollup() throws Exception
+  {
+    final QueryableIndex merged = toMergedIndex(true);
+
+    final QueryableIndexIndexableAdapter adapter = new QueryableIndexIndexableAdapter(merged);
+    final List<Rowboat> boatList = ImmutableList.copyOf(adapter.getRows());
+
+    Assert.assertEquals(
+        ImmutableList.of("d3", "d6", "d8", "d9"),
+        ImmutableList.copyOf(adapter.getDimensionNames())
+    );
+    Assert.assertEquals(2, boatList.size());
+    Assert.assertArrayEquals(new int[][]{{1}, {0}, {0}, {0}}, boatList.get(0).getDims());
+    Assert.assertArrayEquals(new int[][]{{0}, {1}, {1}, {1}}, boatList.get(1).getDims());
+
+    checkBitmapIndex(Lists.newArrayList(1), adapter.getBitmapIndex("d3", ""));
+    checkBitmapIndex(Lists.newArrayList(0), adapter.getBitmapIndex("d3", "310"));
+
+    checkBitmapIndex(Lists.newArrayList(0), adapter.getBitmapIndex("d6", ""));
+    checkBitmapIndex(Lists.newArrayList(1), adapter.getBitmapIndex("d6", "621"));
+
+    checkBitmapIndex(Lists.newArrayList(0), adapter.getBitmapIndex("d8", ""));
+    checkBitmapIndex(Lists.newArrayList(1), adapter.getBitmapIndex("d8", "821"));
+
+    checkBitmapIndex(new ArrayList<Integer>(), adapter.getBitmapIndex("d9", ""));
+    checkBitmapIndex(Lists.newArrayList(0), adapter.getBitmapIndex("d9", "910"));
+    checkBitmapIndex(Lists.newArrayList(1), adapter.getBitmapIndex("d9", "921"));
+  }
+
+  private QueryableIndex toMergedIndex(boolean rollup) throws IOException
   {
     // (d3, d6, d8, d9) as actually data from index1 and index2
     // index1 has two duplicate rows
@@ -1399,6 +1461,15 @@ public class IndexMergerTest
             Arrays.asList("d1", "d2", "d3", "d4", "d5", "d6", "d7", "d8", "d9"),
             ImmutableMap.<String, Object>of(
                 "d1", "", "d2", "", "d3", "310", "d7", "", "d9", "910"
+            )
+        )
+    );
+    toPersistA.add(
+        new MapBasedInputRow(
+            4,
+            Arrays.asList("d4", "d5", "d6", "d7", "d8", "d9"),
+            ImmutableMap.<String, Object>of(
+                "d5", "", "d6", "621", "d7", "", "d8", "821", "d9", "921"
             )
         )
     );
@@ -1455,43 +1526,17 @@ public class IndexMergerTest
         )
     );
 
-    final QueryableIndex merged = closer.closeLater(
+    return closer.closeLater(
         INDEX_IO.loadIndex(
             INDEX_MERGER.mergeQueryableIndex(
                 Arrays.asList(indexA, indexB),
-                false,
+                rollup,
                 new AggregatorFactory[]{new CountAggregatorFactory("count")},
                 tmpDirMerged,
                 indexSpec
             )
         )
     );
-
-    final QueryableIndexIndexableAdapter adapter = new QueryableIndexIndexableAdapter(merged);
-    final List<Rowboat> boatList = ImmutableList.copyOf(adapter.getRows());
-
-    Assert.assertEquals(
-        ImmutableList.of("d3", "d6", "d8", "d9"),
-        ImmutableList.copyOf(adapter.getDimensionNames())
-    );
-    Assert.assertEquals(4, boatList.size());
-    Assert.assertArrayEquals(new int[][]{{1}, {0}, {0}, {0}}, boatList.get(0).getDims());
-    Assert.assertArrayEquals(new int[][]{{1}, {0}, {0}, {0}}, boatList.get(1).getDims());
-    Assert.assertArrayEquals(new int[][]{{1}, {0}, {0}, {0}}, boatList.get(2).getDims());
-    Assert.assertArrayEquals(new int[][]{{0}, {1}, {1}, {1}}, boatList.get(3).getDims());
-
-    checkBitmapIndex(Lists.newArrayList(3), adapter.getBitmapIndex("d3", ""));
-    checkBitmapIndex(Lists.newArrayList(0, 1, 2), adapter.getBitmapIndex("d3", "310"));
-
-    checkBitmapIndex(Lists.newArrayList(0, 1, 2), adapter.getBitmapIndex("d6", ""));
-    checkBitmapIndex(Lists.newArrayList(3), adapter.getBitmapIndex("d6", "621"));
-
-    checkBitmapIndex(Lists.newArrayList(0, 1, 2), adapter.getBitmapIndex("d8", ""));
-    checkBitmapIndex(Lists.newArrayList(3), adapter.getBitmapIndex("d8", "821"));
-
-    checkBitmapIndex(new ArrayList<Integer>(), adapter.getBitmapIndex("d9", ""));
-    checkBitmapIndex(Lists.newArrayList(0, 1, 2), adapter.getBitmapIndex("d9", "910"));
-    checkBitmapIndex(Lists.newArrayList(3), adapter.getBitmapIndex("d9", "921"));
   }
 
   private void checkBitmapIndex(ArrayList<Integer> expected, IndexedInts real)

@@ -20,6 +20,7 @@
 package io.druid.segment.incremental;
 
 import com.google.common.base.Function;
+import com.google.common.base.Preconditions;
 import com.google.common.collect.Iterators;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
@@ -91,6 +92,7 @@ public class IncrementalIndexAdapter implements IndexableAdapter
       Interval dataInterval, IncrementalIndex<?> index, BitmapFactory bitmapFactory
   )
   {
+    Preconditions.checkArgument(index.isSorted(), "incremental index should be sorted on time and dimensions");
     this.dataInterval = dataInterval;
     this.index = index;
 

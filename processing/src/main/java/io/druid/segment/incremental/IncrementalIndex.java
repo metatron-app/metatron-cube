@@ -436,7 +436,7 @@ public abstract class IncrementalIndex<AggregatorType> implements Iterable<Row>,
   private final int maxLengthForAggregators;
   private final boolean deserializeComplexMetrics;
   private final boolean reportParseExceptions;
-  private final boolean sortFacts;
+  private final boolean sortFacts;    // this need to be true for query or indexing (false only for gby merging)
   private final boolean rollup;
   private final boolean fixedSchema;
   private final Metadata metadata;
@@ -1234,6 +1234,11 @@ public abstract class IncrementalIndex<AggregatorType> implements Iterable<Row>,
     return rollup;
   }
 
+  public boolean isSorted()
+  {
+    return sortFacts;
+  }
+
   public static final class DimensionDesc
   {
     private final int index;
@@ -1731,16 +1736,14 @@ public abstract class IncrementalIndex<AggregatorType> implements Iterable<Row>,
     if (rollup) {
       return new TimeAndDimsComp(dimValues);
     }
-    return new Comparator<TimeAndDims>()
+    return new TimeAndDimsComp(dimValues)
     {
       @Override
       public int compare(TimeAndDims o1, TimeAndDims o2)
       {
-        NoRollup nr1 = (NoRollup)o1;
-        NoRollup nr2 = (NoRollup)o2;
-        int compare = Longs.compare(nr1.timestamp, nr2.timestamp);
+        int compare = super.compare(o1, o2);
         if (compare == 0) {
-          compare = Longs.compare(nr1.indexer, nr2.indexer);
+          compare = Longs.compare(((NoRollup)o1).indexer, ((NoRollup)o2).indexer);
         }
         return compare;
       }
@@ -1758,7 +1761,7 @@ public abstract class IncrementalIndex<AggregatorType> implements Iterable<Row>,
   }
 
   @VisibleForTesting
-  static final class TimeAndDimsComp implements Comparator<TimeAndDims>
+  static class TimeAndDimsComp implements Comparator<TimeAndDims>
   {
     private final List<DimDim> dimValues;
 
@@ -1795,12 +1798,7 @@ public abstract class IncrementalIndex<AggregatorType> implements Iterable<Row>,
         int valsIndex = 0;
         while (retVal == 0 && valsIndex < lhsIdxs.length) {
           if (lhsIdxs[valsIndex] != rhsIdxs[valsIndex]) {
-            final DimDim dimLookup = dimValues.get(index);
-            if (dimLookup instanceof ReadOnlyDimDim) {
-              retVal = Ints.compare(lhsIdxs[valsIndex], rhsIdxs[valsIndex]);
-            } else {
-              retVal = dimLookup.compare(lhsIdxs[valsIndex], rhsIdxs[valsIndex]);
-            }
+            retVal = dimValues.get(index).compare(lhsIdxs[valsIndex], rhsIdxs[valsIndex]);
           }
           ++valsIndex;
         }
