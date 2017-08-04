@@ -217,7 +217,7 @@ public class IncrementalIndexAdapter implements IndexableAdapter
   }
 
   @Override
-  public Iterable<Rowboat> getRows()
+  public Iterable<Rowboat> getRows(final int indexNum)
   {
     return new Iterable<Rowboat>()
     {
@@ -278,6 +278,7 @@ public class IncrementalIndexAdapter implements IndexableAdapter
                     timeAndDims.getTimestamp(),
                     dims,
                     metrics,
+                    indexNum,
                     count++
                 );
               }

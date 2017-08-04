@@ -23,7 +23,6 @@ import com.google.common.io.ByteStreams;
 import com.google.common.io.OutputSupplier;
 import com.google.common.primitives.Ints;
 import com.metamx.common.StringUtils;
-import io.druid.collections.IntList;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -152,15 +151,6 @@ public class SerializerUtils
 
     for (int i = 0; i < ints.length; i++) {
       writeInt(out, ints[i]);
-    }
-  }
-
-  public void writeInts(OutputStream out, IntList ints) throws IOException
-  {
-    writeInt(out, ints.length());
-
-    for (int i = 0; i < ints.length(); i++) {
-      writeInt(out, ints.get(i));
     }
   }
 

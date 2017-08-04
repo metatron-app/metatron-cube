@@ -19,6 +19,7 @@
 
 package io.druid.segment.filter;
 
+import io.druid.collections.IntList;
 import io.druid.segment.Rowboat;
 import org.junit.Assert;
 import org.junit.Test;
@@ -31,14 +32,26 @@ public class RowboatTest
   @Test
   public void testRowboatCompare()
   {
-    Rowboat rb1 = new Rowboat(12345L, new int[][]{new int[]{1}, new int[]{2}}, new Object[]{new Integer(7)}, 5);
-    Rowboat rb2 = new Rowboat(12345L, new int[][]{new int[]{1}, new int[]{2}}, new Object[]{new Integer(7)}, 5);
+    Rowboat rb1 = new Rowboat(12345L, new int[][]{new int[]{1}, new int[]{2}}, new Object[]{7}, 1, 5);
+    Rowboat rb2 = new Rowboat(12345L, new int[][]{new int[]{1}, new int[]{2}}, new Object[]{7}, 1, 5);
     Assert.assertEquals(0, rb1.compareTo(rb2));
 
-    Rowboat rb3 = new Rowboat(12345L, new int[][]{new int[]{3}, new int[]{2}}, new Object[]{new Integer(7)}, 5);
+    Rowboat rb3 = new Rowboat(12345L, new int[][]{new int[]{3}, new int[]{2}}, new Object[]{7}, 1, 5);
     Assert.assertNotEquals(0, rb1.compareTo(rb3));
   }
 
+  @Test
+  public void testRowboatComprise()
+  {
+    Rowboat rb1 = new Rowboat(12345L, new int[][]{new int[]{1}, new int[]{2}}, new Object[]{7}, 0, 10);
+    rb1.comprised(new IntList(0, 11));
+    Rowboat rb2 = new Rowboat(12345L, new int[][]{new int[]{1}, new int[]{2}}, new Object[]{7}, 1, 5);
+
+    IntList comprisedRows = rb1.getComprisedRows();
+    comprisedRows.addAll(rb2.getComprisedRows());
+    Assert.assertEquals(3 * 2, comprisedRows.size());
+    Assert.assertArrayEquals(new int[] {0, 10, 0, 11, 1, 5}, comprisedRows.compact());
+  }
 
   @Test
   public void testBiggerCompare()
@@ -62,7 +75,7 @@ public class RowboatTest
             new int[]{0}
         },
         new Object[]{1.0, 47.0, "someMetric"},
-        0
+        1, 0
     );
 
     Rowboat rb2 = new Rowboat(
@@ -84,7 +97,7 @@ public class RowboatTest
             new int[]{0}
         },
         new Object[]{1.0, 47.0, "someMetric"},
-        0
+        1, 0
     );
 
     Assert.assertNotEquals(0, rb1.compareTo(rb2));
@@ -94,8 +107,8 @@ public class RowboatTest
   public void testToString()
   {
     Assert.assertEquals(
-        "Rowboat{timestamp=1970-01-01T00:00:00.000Z, dims=[[1], [2]], metrics=[someMetric], comprisedRows={}}",
-        new Rowboat(0, new int[][]{new int[]{1}, new int[]{2}}, new Object[]{"someMetric"}, 5).toString()
+        "Rowboat{timestamp=1970-01-01T00:00:00.000Z, dims=[[1], [2]], metrics=[someMetric], comprisedRows=[1, 5]}",
+        new Rowboat(0, new int[][]{new int[]{1}, new int[]{2}}, new Object[]{"someMetric"}, 1, 5).toString()
     );
   }
 
@@ -103,8 +116,8 @@ public class RowboatTest
   public void testLotsONullString()
   {
     Assert.assertEquals(
-        "Rowboat{timestamp=1970-01-01T00:00:00.000Z, dims=null, metrics=null, comprisedRows={}}",
-        new Rowboat(0, null, null, 5).toString()
+        "Rowboat{timestamp=1970-01-01T00:00:00.000Z, dims=null, metrics=null, comprisedRows=[1, 5]}",
+        new Rowboat(0, null, null, 1, 5).toString()
     );
   }
 }

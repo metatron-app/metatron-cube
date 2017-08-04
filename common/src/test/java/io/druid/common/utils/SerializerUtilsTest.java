@@ -19,7 +19,6 @@
 
 package io.druid.common.utils;
 
-import io.druid.collections.IntList;
 import org.junit.After;
 import org.junit.Assert;
 import org.junit.Before;
@@ -98,18 +97,6 @@ public class SerializerUtilsTest
   public void testWriteInts() throws IOException
   {
     serializerUtils.writeInts(outStream, ints);
-    byte [] actuals = outStream.toByteArray();
-    Assert.assertArrayEquals(intsByte, actuals);
-  }
-
-  @Test
-  public void testWriteIntList() throws IOException
-  {
-    IntList list = new IntList();
-    for (int i = 0;i < ints.length;i++) {
-      list.add(ints[i]);
-    }
-    serializerUtils.writeInts(outStream, list);
     byte [] actuals = outStream.toByteArray();
     Assert.assertArrayEquals(intsByte, actuals);
   }

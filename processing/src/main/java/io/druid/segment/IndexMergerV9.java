@@ -43,6 +43,7 @@ import com.metamx.common.io.smoosh.FileSmoosher;
 import com.metamx.common.io.smoosh.SmooshedWriter;
 import com.metamx.common.logger.Logger;
 import io.druid.collections.CombiningIterable;
+import io.druid.collections.IntList;
 import io.druid.common.utils.JodaUtils;
 import io.druid.data.ValueDesc;
 import io.druid.data.ValueType;
@@ -218,7 +219,7 @@ public class IndexMergerV9 extends IndexMerger
       final ArrayList<GenericColumnSerializer> metWriters = setupMetricsWriters(
           ioPeon, mergedMetrics, metricTypeNames, indexSpec
       );
-      final List<IntBuffer> rowNumConversions = Lists.newArrayListWithCapacity(adapters.size());
+      final int[][] rowNumConversions = new int[adapters.size()][];
       final ArrayList<MutableBitmap> nullRowsList = Lists.newArrayListWithCapacity(mergedDimensions.size());
       for (int i = 0; i < mergedDimensions.size(); ++i) {
         nullRowsList.add(indexSpec.getBitmapSerdeFactory().getBitmapFactory().makeEmptyMutableBitmap());
@@ -535,7 +536,7 @@ public class IndexMergerV9 extends IndexMerger
       final List<String> mergedDimensions,
       final IndexSpec indexSpec,
       final File v9OutDir,
-      final List<IntBuffer> rowNumConversions,
+      final int[][] rowNumConversions,
       final ArrayList<MutableBitmap> nullRowsList,
       final ArrayList<GenericIndexedWriter<String>> dimValueWriters,
       final ArrayList<GenericIndexedWriter<ImmutableBitmap>> bitmapIndexWriters,
@@ -583,7 +584,7 @@ public class IndexMergerV9 extends IndexMerger
           if (seekedDictId != IndexSeeker.NOT_EXIST) {
             convertedInverteds.add(
                 new ConvertingIndexedInts(
-                    adapters.get(j).getBitmapIndex(dimension, seekedDictId), rowNumConversions.get(j)
+                    adapters.get(j).getBitmapIndex(dimension, seekedDictId), rowNumConversions[j]
                 )
             );
           }
@@ -684,7 +685,7 @@ public class IndexMergerV9 extends IndexMerger
       final ArrayList<IndexedIntsWriter> dimWriters,
       final ArrayList<GenericColumnSerializer> metWriters,
       final ArrayList<Boolean> dimensionSkipFlag,
-      final List<IntBuffer> rowNumConversions,
+      final int[][] rowNumConversions,
       final ArrayList<MutableBitmap> nullRowsList,
       final ArrayList<Boolean> dimHasNullFlags
   ) throws IOException
@@ -694,10 +695,9 @@ public class IndexMergerV9 extends IndexMerger
     long startTime = System.currentTimeMillis();
 
     int rowCount = 0;
-    for (IndexableAdapter adapter : adapters) {
-      int[] arr = new int[adapter.getNumRows()];
-      Arrays.fill(arr, INVALID_ROW);
-      rowNumConversions.add(IntBuffer.wrap(arr));
+    for (int i = 0; i < adapters.size(); i++) {
+      rowNumConversions[i] = new int[adapters.get(i).getNumRows()];
+      Arrays.fill(rowNumConversions[i], INVALID_ROW);
     }
 
     long time = System.currentTimeMillis();
@@ -725,23 +725,12 @@ public class IndexMergerV9 extends IndexMerger
         dimWriters.get(i).add(dims[i]);
       }
 
-      for (Map.Entry<Integer, TreeSet<Integer>> comprisedRow : theRow.getComprisedRows().entrySet()) {
-        final IntBuffer conversionBuffer = rowNumConversions.get(comprisedRow.getKey());
+      theRow.applyRowMapping(rowNumConversions, rowCount);
 
-        for (Integer rowNum : comprisedRow.getValue()) {
-          while (conversionBuffer.position() < rowNum) {
-            conversionBuffer.put(INVALID_ROW);
-          }
-          conversionBuffer.put(rowCount);
-        }
-      }
       if ((++rowCount % 500000) == 0) {
         log.info("..walked 500,000 rows.. total %,d rows in %,d millis.", rowCount, System.currentTimeMillis() - time);
         time = System.currentTimeMillis();
       }
-    }
-    for (IntBuffer rowNumConversion : rowNumConversions) {
-      rowNumConversion.rewind();
     }
     log.info("completed walk through of %,d rows in %,d millis.", rowCount, System.currentTimeMillis() - startTime);
     progress.stopSection(section);

@@ -31,21 +31,14 @@ import com.metamx.common.Granularity;
 import io.druid.data.input.impl.CSVParseSpec;
 import io.druid.data.input.impl.DimensionsSpec;
 import io.druid.data.input.impl.InputRowParser;
-import io.druid.data.input.impl.JSONParseSpec;
-import io.druid.data.input.impl.StringInputRowParser;
 import io.druid.data.input.impl.TimestampSpec;
 import io.druid.granularity.QueryGranularities;
-import io.druid.granularity.QueryGranularity;
-import io.druid.jackson.DefaultObjectMapper;
 import io.druid.metadata.MetadataStorageConnectorConfig;
 import io.druid.query.aggregation.AggregatorFactory;
-import io.druid.query.aggregation.CountAggregatorFactory;
 import io.druid.query.aggregation.LongSumAggregatorFactory;
-import io.druid.query.aggregation.hyperloglog.HyperUniquesAggregatorFactory;
 import io.druid.segment.QueryableIndex;
 import io.druid.segment.QueryableIndexIndexableAdapter;
 import io.druid.segment.Rowboat;
-import io.druid.segment.data.Indexed;
 import io.druid.segment.indexing.DataSchema;
 import io.druid.segment.indexing.granularity.UniformGranularitySpec;
 import io.druid.timeline.DataSegment;
@@ -65,7 +58,6 @@ import org.apache.hadoop.io.SequenceFile.Writer;
 import org.apache.hadoop.io.compress.CompressionCodec;
 import org.apache.hadoop.mapreduce.JobContext;
 import org.apache.hadoop.mapreduce.lib.input.SequenceFileInputFormat;
-import org.apache.hadoop.util.Progressable;
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeComparator;
 import org.joda.time.Interval;
@@ -74,13 +66,10 @@ import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
-import org.junit.runner.RunWith;
-import org.junit.runners.Parameterized;
 
 import java.io.*;
 import java.nio.ByteBuffer;
 import java.util.Arrays;
-import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -389,7 +378,7 @@ public class IndexGeneratorJobSettlingTest
 
         int count60 = 0;
         int count66 = 0;
-        for (Rowboat row : adapter.getRows())
+        for (Rowboat row : adapter.getRows(1))
         {
           Long sum = (Long)row.getMetrics()[0];
           if (sum == 60) {

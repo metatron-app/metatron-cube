@@ -106,7 +106,6 @@ import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.PriorityQueue;
 import java.util.Set;
-import java.util.TreeSet;
 
 /**
  */
@@ -885,11 +884,10 @@ public class IndexMerger
 
       int rowCount = 0;
       long time = System.currentTimeMillis();
-      List<IntBuffer> rowNumConversions = Lists.newArrayListWithCapacity(indexes.size());
-      for (IndexableAdapter index : indexes) {
-        int[] arr = new int[index.getNumRows()];
-        Arrays.fill(arr, INVALID_ROW);
-        rowNumConversions.add(IntBuffer.wrap(arr));
+      int[][] rowNumConversions = new int[indexes.size()][];
+      for (int i = 0; i < rowNumConversions.length; i++) {
+        rowNumConversions[i] = new int[indexes.get(i).getNumRows()];
+        Arrays.fill(rowNumConversions[i], INVALID_ROW);
       }
 
       for (Rowboat theRow : theRows) {
@@ -917,16 +915,7 @@ public class IndexMerger
           }
         }
 
-        for (Map.Entry<Integer, TreeSet<Integer>> comprisedRow : theRow.getComprisedRows().entrySet()) {
-          final IntBuffer conversionBuffer = rowNumConversions.get(comprisedRow.getKey());
-
-          for (Integer rowNum : comprisedRow.getValue()) {
-            while (conversionBuffer.position() < rowNum) {
-              conversionBuffer.put(INVALID_ROW);
-            }
-            conversionBuffer.put(rowCount);
-          }
-        }
+        theRow.applyRowMapping(rowNumConversions, rowCount);
 
         if ((++rowCount % 500000) == 0) {
           log.info(
@@ -934,10 +923,6 @@ public class IndexMerger
           );
           time = System.currentTimeMillis();
         }
-      }
-
-      for (IntBuffer rowNumConversion : rowNumConversions) {
-        rowNumConversion.rewind();
       }
 
       final File timeFile = IndexIO.makeTimeFile(v8OutDir, IndexIO.BYTE_ORDER);
@@ -1017,7 +1002,7 @@ public class IndexMerger
             if (seekedDictId != IndexSeeker.NOT_EXIST) {
               convertedInverteds.add(
                   new ConvertingIndexedInts(
-                      indexes.get(j).getBitmapIndex(dimension, seekedDictId), rowNumConversions.get(j)
+                      indexes.get(j).getBitmapIndex(dimension, seekedDictId), rowNumConversions[j]
                   )
               );
             }
@@ -1131,7 +1116,7 @@ public class IndexMerger
   }
 
   protected Iterable<Rowboat> makeRowIterable(
-      List<IndexableAdapter> indexes,
+      final List<IndexableAdapter> indexes,
       final List<String> mergedDimensions,
       final List<String> mergedMetrics,
       ArrayList<Map<String, IntBuffer>> dimConversions,
@@ -1147,7 +1132,7 @@ public class IndexMerger
       final int[] dimLookup = toLookupMap(adapter.getDimensionNames(), mergedDimensions);
       final int[] metricLookup = toLookupMap(adapter.getMetricNames(), mergedMetrics);
 
-      Iterable<Rowboat> target = indexes.get(i).getRows();
+      Iterable<Rowboat> target = indexes.get(i).getRows(i);
       if (dimLookup != null || metricLookup != null) {
         // resize/reorder index table if needed
         target = Iterables.transform(
@@ -1177,19 +1162,14 @@ public class IndexMerger
                   }
                 }
 
-                return new Rowboat(
-                    input.getTimestamp(),
-                    newDims,
-                    newMetrics,
-                    input.getRowNum()
-                );
+                return input.withDimsAndMetrics(newDims, newMetrics);
               }
             }
         );
       }
       boats.add(
           new MMappedIndexRowIterable(
-              target, mergedDimensions, dimConversions.get(i), i, convertMissingDimsFlags
+              target, mergedDimensions, dimConversions.get(i), convertMissingDimsFlags
           )
       );
     }
@@ -1362,15 +1342,15 @@ public class IndexMerger
   public static class ConvertingIndexedInts implements Iterable<Integer>
   {
     private final IndexedInts baseIndex;
-    private final IntBuffer conversionBuffer;
+    private final int[] conversion;
 
     public ConvertingIndexedInts(
         IndexedInts baseIndex,
-        IntBuffer conversionBuffer
+        int[] conversion
     )
     {
       this.baseIndex = baseIndex;
-      this.conversionBuffer = conversionBuffer;
+      this.conversion = conversion;
     }
 
     public int size()
@@ -1380,7 +1360,7 @@ public class IndexMerger
 
     public int get(int index)
     {
-      return conversionBuffer.get(baseIndex.get(index));
+      return conversion[baseIndex.get(index)];
     }
 
     @Override
@@ -1391,9 +1371,9 @@ public class IndexMerger
           new Function<Integer, Integer>()
           {
             @Override
-            public Integer apply(@Nullable Integer input)
+            public Integer apply(Integer input)
             {
-              return conversionBuffer.get(input);
+              return conversion[input];
             }
           }
       );
@@ -1405,7 +1385,6 @@ public class IndexMerger
     private final Iterable<Rowboat> index;
     private final List<String> convertedDims;
     private final Map<String, IntBuffer> converters;
-    private final int indexNumber;
     private final ArrayList<Boolean> convertMissingDimsFlags;
     private static final int[] EMPTY_STR_DIM = new int[]{0};
 
@@ -1413,20 +1392,13 @@ public class IndexMerger
         Iterable<Rowboat> index,
         List<String> convertedDims,
         Map<String, IntBuffer> converters,
-        int indexNumber,
         ArrayList<Boolean> convertMissingDimsFlags
     )
     {
       this.index = index;
       this.convertedDims = convertedDims;
       this.converters = converters;
-      this.indexNumber = indexNumber;
       this.convertMissingDimsFlags = convertMissingDimsFlags;
-    }
-
-    public Iterable<Rowboat> getIndex()
-    {
-      return index;
     }
 
     @Override
@@ -1449,7 +1421,7 @@ public class IndexMerger
           new Function<Rowboat, Rowboat>()
           {
             @Override
-            public Rowboat apply(@Nullable Rowboat input)
+            public Rowboat apply(Rowboat input)
             {
               int[][] dims = input.getDims();
               int[][] newDims = new int[convertedDims.size()][];
@@ -1476,16 +1448,7 @@ public class IndexMerger
                 }
               }
 
-              final Rowboat retVal = new Rowboat(
-                  input.getTimestamp(),
-                  newDims,
-                  input.getMetrics(),
-                  input.getRowNum()
-              );
-
-              retVal.addRow(indexNumber, input.getRowNum());
-
-              return retVal;
+              return input.withDims(newDims);
             }
           }
       );
@@ -1548,38 +1511,20 @@ public class IndexMerger
         return lhs;
       }
 
-      Object[] metrics = new Object[metricAggs.length];
       Object[] lhsMetrics = lhs.getMetrics();
       Object[] rhsMetrics = rhs.getMetrics();
 
-      for (int i = 0; i < metrics.length; ++i) {
+      for (int i = 0; i < metricAggs.length; ++i) {
         Object lhsMetric = lhsMetrics[i];
         Object rhsMetric = rhsMetrics[i];
         if (lhsMetric == null) {
-          metrics[i] = rhsMetric;
-        } else if (rhsMetric == null) {
-          metrics[i] = lhsMetric;
-        } else {
-          metrics[i] = metricAggs[i].combine(lhsMetric, rhsMetric);
+          lhsMetrics[i] = rhsMetric;
+        } else if (rhsMetric != null) {
+          lhsMetrics[i] = metricAggs[i].combine(lhsMetric, rhsMetric);
         }
       }
-
-      final Rowboat retVal = new Rowboat(
-          lhs.getTimestamp(),
-          lhs.getDims(),
-          metrics,
-          lhs.getRowNum()
-      );
-
-      for (Rowboat rowboat : Arrays.asList(lhs, rhs)) {
-        for (Map.Entry<Integer, TreeSet<Integer>> entry : rowboat.getComprisedRows().entrySet()) {
-          for (Integer rowNum : entry.getValue()) {
-            retVal.addRow(entry.getKey(), rowNum);
-          }
-        }
-      }
-
-      return retVal;
+      lhs.comprised(rhs.getComprisedRows());
+      return lhs;
     }
   }
 

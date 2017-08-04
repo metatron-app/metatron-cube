@@ -20,12 +20,10 @@
 package io.druid.segment.data;
 
 import com.google.common.primitives.Ints;
-import io.druid.collections.IntList;
 import io.druid.common.guava.GuavaUtils;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
-import java.nio.IntBuffer;
 import java.util.Iterator;
 
 /**
@@ -39,18 +37,6 @@ public class IntBufferIndexedInts implements IndexedInts, Comparable<IntBufferIn
   {
     final ByteBuffer buffer = ByteBuffer.allocate(array.length * Ints.BYTES);
     buffer.asIntBuffer().put(array);
-
-    return new IntBufferIndexedInts(buffer.asReadOnlyBuffer());
-  }
-
-  public static IntBufferIndexedInts fromIntList(IntList intList)
-  {
-    final ByteBuffer buffer = ByteBuffer.allocate(intList.length() * Ints.BYTES);
-    final IntBuffer intBuf = buffer.asIntBuffer();
-
-    for (int i = 0; i < intList.length(); ++i) {
-      intBuf.put(intList.get(i));
-    }
 
     return new IntBufferIndexedInts(buffer.asReadOnlyBuffer());
   }

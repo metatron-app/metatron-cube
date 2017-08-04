@@ -39,7 +39,6 @@ import io.druid.segment.column.IndexedDoublesGenericColumn;
 import io.druid.segment.column.IndexedFloatsGenericColumn;
 import io.druid.segment.column.IndexedLongsGenericColumn;
 import io.druid.segment.column.IndexedStringsGenericColumn;
-import io.druid.segment.data.ArrayBasedIndexedInts;
 import io.druid.segment.data.BitmapCompressedIndexedInts;
 import io.druid.segment.data.EmptyIndexedInts;
 import io.druid.segment.data.Indexed;
@@ -169,7 +168,7 @@ public class QueryableIndexIndexableAdapter implements IndexableAdapter
   }
 
   @Override
-  public Iterable<Rowboat> getRows()
+  public Iterable<Rowboat> getRows(final int indexNum)
   {
     return new Iterable<Rowboat>()
     {
@@ -235,10 +234,8 @@ public class QueryableIndexIndexableAdapter implements IndexableAdapter
                   CloseQuietly.close((Closeable) metric);
                 }
               }
-              for (Object dimension : dictionaryEncodedColumns) {
-                if (dimension instanceof Closeable) {
-                  CloseQuietly.close((Closeable) dimension);
-                }
+              for (DictionaryEncodedColumn dimension : dictionaryEncodedColumns) {
+                CloseQuietly.close(dimension);
               }
               done = true;
             }
@@ -255,18 +252,16 @@ public class QueryableIndexIndexableAdapter implements IndexableAdapter
             final int[][] dims = new int[dictionaryEncodedColumns.length][];
             int dimIndex = 0;
             for (final DictionaryEncodedColumn dict : dictionaryEncodedColumns) {
-              final IndexedInts dimVals;
+              int[] theVals;
               if (dict.hasMultipleValues()) {
-                dimVals = dict.getMultiValueRow(currRow);
+                IndexedInts dimVals = dict.getMultiValueRow(currRow);
+                theVals = new int[dimVals.size()];
+                for (int i = 0; i < theVals.length; ++i) {
+                  theVals[i] = dimVals.get(i);
+                }
               } else {
-                dimVals = new ArrayBasedIndexedInts(new int[]{dict.getSingleValueRow(currRow)});
+                theVals = new int[] { dict.getSingleValueRow(currRow) };
               }
-
-              int[] theVals = new int[dimVals.size()];
-              for (int j = 0; j < theVals.length; ++j) {
-                theVals[j] = dimVals.get(j);
-              }
-
               dims[dimIndex++] = theVals;
             }
 
@@ -286,7 +281,7 @@ public class QueryableIndexIndexableAdapter implements IndexableAdapter
             }
 
             final Rowboat retVal = new Rowboat(
-                timestamps.getLongSingleValueRow(currRow), dims, metricArray, currRow
+                timestamps.getLongSingleValueRow(currRow), dims, metricArray, indexNum, currRow
             );
 
             ++currRow;

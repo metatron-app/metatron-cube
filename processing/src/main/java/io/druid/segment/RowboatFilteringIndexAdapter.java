@@ -71,9 +71,9 @@ public class RowboatFilteringIndexAdapter implements IndexableAdapter
   }
 
   @Override
-  public Iterable<Rowboat> getRows()
+  public Iterable<Rowboat> getRows(int indexNum)
   {
-    return Iterables.filter(baseAdapter.getRows(), filter);
+    return Iterables.filter(baseAdapter.getRows(indexNum), filter);
   }
 
   @Override

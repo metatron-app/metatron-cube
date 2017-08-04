@@ -19,116 +19,95 @@
 
 package io.druid.collections;
 
-import java.nio.IntBuffer;
-import java.util.ArrayList;
+import com.google.common.base.Preconditions;
+
+import java.util.Arrays;
 
 /**
  */
 public class IntList
 {
-  private final ArrayList<int[]> baseLists = new ArrayList<int[]>();
-
-  private final int allocateSize;
-
-  private int maxIndex;
+  private int[] baseArray;
+  private int size;
 
   public IntList()
   {
-    this(1000);
+    this(10);
   }
 
-  public IntList(final int allocateSize)
+  public IntList(int init)
   {
-    this.allocateSize = allocateSize;
-
-    maxIndex = -1;
+    this.baseArray = new int[init];
   }
 
-  public int length()
+  public IntList(int... baseArray)
   {
-    return maxIndex + 1;
+    this(baseArray, baseArray.length);
   }
 
-  public boolean isEmpty()
+  public IntList(int[] baseArray, int size)
   {
-    return (length() == 0);
+    this.baseArray = baseArray;
+    this.size = size;
+    Preconditions.checkArgument(size <= baseArray.length);
+  }
+
+  public int size()
+  {
+    return size;
   }
 
   public void add(int value)
   {
-    set(length(), value);
+    reserve(1);
+    baseArray[size++] = value;
+  }
+
+  public void addAll(int... values)
+  {
+    reserve(values.length);
+    System.arraycopy(values, 0, baseArray, size, values.length);
+    size += values.length;
+  }
+
+  public void addAll(IntList comprisedRows)
+  {
+    reserve(comprisedRows.size);
+    System.arraycopy(comprisedRows.baseArray, 0, baseArray, size, comprisedRows.size);
+    size += comprisedRows.size;
+  }
+
+  private void reserve(int reserve)
+  {
+    if (size + reserve > baseArray.length) {
+      baseArray = Arrays.copyOf(baseArray, Math.max(baseArray.length << 1, baseArray.length + reserve));
+    }
   }
 
   public void set(int index, int value)
   {
-    int subListIndex = index / allocateSize;
-
-    if (subListIndex >= baseLists.size()) {
-      for (int i = baseLists.size(); i <= subListIndex; ++i) {
-        baseLists.add(null);
-      }
+    if (index >= size) {
+      throw new ArrayIndexOutOfBoundsException(index);
     }
-
-    int[] baseList = baseLists.get(subListIndex);
-
-    if (baseList == null) {
-      baseList = new int[allocateSize];
-      baseLists.set(subListIndex, baseList);
-    }
-
-    baseList[index % allocateSize] = value;
-
-    if (index > maxIndex) {
-      maxIndex = index;
-    }
+    baseArray[index] = value;
   }
 
   public int get(int index)
   {
-    if (index > maxIndex) {
+    if (index >= size) {
       throw new ArrayIndexOutOfBoundsException(index);
     }
-
-    int subListIndex = index / allocateSize;
-    int[] baseList = baseLists.get(subListIndex);
-
-    if (baseList == null) {
-      return 0;
-    }
-
-    return baseList[index % allocateSize];
+    return baseArray[index];
   }
 
-  public int baseListCount()
+  public int[] compact()
   {
-    return baseLists.size();
+    return Arrays.copyOfRange(baseArray, 0, size);
   }
 
-  public IntBuffer getBaseList(int index)
+  @Override
+  public String toString()
   {
-    final int[] array = baseLists.get(index);
-    if (array == null) {
-      return null;
-    }
-
-    final IntBuffer retVal = IntBuffer.wrap(array);
-
-    if (index + 1 == baseListCount()) {
-      retVal.limit(maxIndex - (index * allocateSize) + 1);
-    }
-
-    return retVal.asReadOnlyBuffer();
-  }
-
-  public int[] toArray()
-  {
-    int[] retVal = new int[length()];
-    int currIndex = 0;
-    for (int[] arr : baseLists) {
-      int min = Math.min(length() - currIndex, arr.length);
-      System.arraycopy(arr, 0, retVal, currIndex, min);
-      currIndex += min;
-    }
-    return retVal;
+    return Arrays.toString(compact());
   }
 }

@@ -19,37 +19,37 @@
 
 package io.druid.segment;
 
-import com.google.common.collect.Maps;
-import com.google.common.collect.Sets;
 import com.google.common.primitives.Ints;
 import com.google.common.primitives.Longs;
+import io.druid.collections.IntList;
 import org.joda.time.DateTime;
 
 import java.util.Arrays;
-import java.util.Map;
-import java.util.TreeSet;
 
 public class Rowboat implements Comparable<Rowboat>
 {
   private final long timestamp;
   private final int[][] dims;
   private final Object[] metrics;
-  private final int rowNum;
-  private final Map<Integer, TreeSet<Integer>> comprisedRows;
+  private final IntList comprisedRows;
 
   public Rowboat(
       long timestamp,
       int[][] dims,
       Object[] metrics,
+      int indexNum,
       int rowNum
   )
+  {
+    this(timestamp, dims, metrics, new IntList(indexNum, rowNum));
+  }
+
+  private Rowboat(long timestamp, int[][] dims, Object[] metrics, IntList comprisedRows)
   {
     this.timestamp = timestamp;
     this.dims = dims;
     this.metrics = metrics;
-    this.rowNum = rowNum;
-
-    this.comprisedRows = Maps.newHashMap();
+    this.comprisedRows = comprisedRows;
   }
 
   public long getTimestamp()
@@ -67,24 +67,31 @@ public class Rowboat implements Comparable<Rowboat>
     return metrics;
   }
 
-  public void addRow(int indexNum, int rowNum)
+  public void comprised(IntList comprising)
   {
-    TreeSet<Integer> rowNums = comprisedRows.get(indexNum);
-    if (rowNums == null) {
-      rowNums = Sets.newTreeSet();
-      comprisedRows.put(indexNum, rowNums);
-    }
-    rowNums.add(rowNum);
+    comprisedRows.addAll(comprising);
   }
 
-  public Map<Integer, TreeSet<Integer>> getComprisedRows()
+  public IntList getComprisedRows()
   {
     return comprisedRows;
   }
 
+  public void applyRowMapping(int[][] conversions, int rowNum)
+  {
+    for (int i = 0; i < comprisedRows.size(); i += 2) {
+      conversions[comprisedRows.get(i)][comprisedRows.get(i + 1)] = rowNum;
+    }
+  }
+
+  public int getIndexNum()
+  {
+    return comprisedRows.get(0);
+  }
+
   public int getRowNum()
   {
-    return rowNum;
+    return comprisedRows.get(1);
   }
 
   @Override
@@ -124,6 +131,16 @@ public class Rowboat implements Comparable<Rowboat>
     }
 
     return retVal;
+  }
+
+  public Rowboat withDims(int[][] newDims)
+  {
+    return new Rowboat(timestamp, newDims, metrics, comprisedRows);
+  }
+
+  public Rowboat withDimsAndMetrics(int[][] newDims, Object[] newMetrics)
+  {
+    return new Rowboat(timestamp, newDims, newMetrics, comprisedRows);
   }
 
   @Override
