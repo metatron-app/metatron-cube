@@ -33,6 +33,7 @@ import org.eclipse.jetty.servlets.GzipFilter;
 
 import javax.ws.rs.HttpMethod;
 import java.util.Set;
+import java.util.zip.Deflater;
 
 public class JettyServerInitUtils
 {
@@ -57,6 +58,8 @@ public class JettyServerInitUtils
   {
     filterHolder.setInitParameter("minGzipSize", "0");
     filterHolder.setInitParameter("methods", GZIP_METHODS);
+    filterHolder.setInitParameter("bufferSize", String.valueOf(32768));   // 4x default
+    filterHolder.setInitParameter("deflateCompressionLevel", String.valueOf(Deflater.NO_COMPRESSION));
 
     // We don't actually have any precomputed .gz resources, and checking for them inside jars is expensive.
     filterHolder.setInitParameter("checkGzExists", String.valueOf(false));
