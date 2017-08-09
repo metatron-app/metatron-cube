@@ -39,12 +39,14 @@ import io.druid.server.lookup.namespace.cache.NamespaceExtractionCacheManager;
 import io.druid.server.lookup.namespace.cache.OffHeapNamespaceExtractionCacheManager;
 import io.druid.server.lookup.namespace.cache.OnHeapNamespaceExtractionCacheManager;
 
+import java.sql.Driver;
+import java.util.Arrays;
 import java.util.List;
 
 /**
  *
  */
-public class NamespaceExtractionModule implements DruidModule
+public class NamespaceExtractionModule implements DruidModule.WithServices
 {
   public static final String TYPE_PREFIX = "druid.lookup.namespace.cache.type";
 
@@ -103,5 +105,11 @@ public class NamespaceExtractionModule implements DruidModule
         .addBinding(StaticMapExtractionNamespace.class)
         .to(StaticMapExtractionNamespaceCacheFactory.class)
         .in(LazySingleton.class);
+  }
+
+  @Override
+  public List<? extends Class> getServices()
+  {
+    return Arrays.asList(Driver.class);
   }
 }

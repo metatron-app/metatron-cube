@@ -22,6 +22,7 @@ package io.druid.server.lookup.namespace;
 import com.metamx.common.Pair;
 import com.metamx.common.logger.Logger;
 import io.druid.common.utils.JodaUtils;
+import io.druid.metadata.MetadataStorageConnectorConfig;
 import io.druid.query.lookup.namespace.ExtractionNamespaceCacheFactory;
 import io.druid.query.lookup.namespace.JDBCExtractionNamespace;
 import org.apache.commons.collections.keyvalue.MultiKey;
@@ -29,10 +30,13 @@ import org.apache.commons.lang.StringUtils;
 import org.skife.jdbi.v2.DBI;
 import org.skife.jdbi.v2.Handle;
 import org.skife.jdbi.v2.StatementContext;
+import org.skife.jdbi.v2.tweak.ConnectionFactory;
 import org.skife.jdbi.v2.tweak.HandleCallback;
 import org.skife.jdbi.v2.tweak.ResultSetMapper;
 import org.skife.jdbi.v2.util.TimestampMapper;
 
+import java.sql.Connection;
+import java.sql.DriverManager;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
@@ -160,10 +164,16 @@ public class JDBCExtractionNamespaceCacheFactory
       dbi = dbiCache.get(key);
     }
     if (dbi == null) {
+      final MetadataStorageConnectorConfig config = namespace.getConnectorConfig();
       final DBI newDbi = new DBI(
-          namespace.getConnectorConfig().getConnectURI(),
-          namespace.getConnectorConfig().getUser(),
-          namespace.getConnectorConfig().getPassword()
+          new ConnectionFactory()
+          {
+            @Override
+            public Connection openConnection() throws SQLException
+            {
+              return DriverManager.getConnection(config.getConnectURI(), config.getUser(), config.getPassword());
+            }
+          }
       );
       dbiCache.putIfAbsent(key, newDbi);
       dbi = dbiCache.get(key);

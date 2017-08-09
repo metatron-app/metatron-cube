@@ -28,4 +28,10 @@ import java.util.List;
 public interface DruidModule extends com.google.inject.Module
 {
   public List<? extends Module> getJacksonModules();
+
+  // load aux services for the module
+  public interface WithServices extends DruidModule
+  {
+    public List<? extends Class> getServices();
+  }
 }

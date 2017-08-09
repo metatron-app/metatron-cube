@@ -156,6 +156,12 @@ public class Initialization
       try {
         final URLClassLoader loader = getClassLoaderForExtension(extension);
         for (T module : ServiceLoader.load(clazz, loader)) {
+          if (module instanceof DruidModule.WithServices) {
+            for (Class service : ((DruidModule.WithServices)module).getServices()) {
+              log.info(".. Loading aux service [%s] for extension", service.getName());
+              Lists.newArrayList(ServiceLoader.load(service, loader));
+            }
+          }
           final String moduleName = module.getClass().getCanonicalName();
           if (moduleName == null) {
             log.warn(
