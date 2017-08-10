@@ -55,8 +55,6 @@ public class GenericIndexed<T> implements Indexed<T>, DictionaryLoader<T>
 {
   private static final byte version = 0x1;
 
-  private int indexOffset;
-
   public static <T> GenericIndexed<T> fromArray(T[] objects, ObjectStrategy<T> strategy)
   {
     return fromIterable(Arrays.asList(objects), strategy);
@@ -159,13 +157,14 @@ public class GenericIndexed<T> implements Indexed<T>, DictionaryLoader<T>
     return theBuffer.getInt(indexOffset + (size - 1) * 4) - size * 4;
   }
 
-  private final ByteBuffer theBuffer;
-  private final ObjectStrategy<T> strategy;
-  private final boolean allowReverseLookup;
-  private final int size;
+  final ByteBuffer theBuffer;
+  final ObjectStrategy<T> strategy;
+  final boolean allowReverseLookup;
 
-  private final int valuesOffset;
-  private final BufferIndexed bufferIndexed;
+  final int size;
+  final int indexOffset;
+  final int valuesOffset;
+  final BufferIndexed bufferIndexed;
 
   GenericIndexed(
       ByteBuffer buffer,
@@ -183,7 +182,7 @@ public class GenericIndexed<T> implements Indexed<T>, DictionaryLoader<T>
     bufferIndexed = new BufferIndexed();
   }
 
-  private GenericIndexed(
+  GenericIndexed(
       ByteBuffer buffer,
       ObjectStrategy<T> strategy,
       boolean allowReverseLookup,
@@ -494,11 +493,52 @@ public class GenericIndexed<T> implements Indexed<T>, DictionaryLoader<T>
       cachedValues = (T[]) Array.newInstance(strategy.getClazz(), size());
     }
 
+    Cached(
+        ByteBuffer buffer,
+        ObjectStrategy<T> strategy,
+        boolean allowReverseLookup,
+        int size,
+        int indexOffset,
+        int valuesOffset,
+        BufferIndexed bufferIndexed,
+        T[] cachedValues,
+        boolean loadedAll
+    )
+    {
+      super(buffer, strategy, allowReverseLookup, size, indexOffset, valuesOffset, bufferIndexed);
+      this.cachedValues = cachedValues;
+      this.loadedAll = loadedAll;
+    }
+
     @Override
     public T get(int index)
     {
-      final T cachedValue = cachedValues[index];
-      return cachedValues[index] != null ? cachedValue : (cachedValues[index] = super.get(index));
+      return cachedValues[index] != null ? cachedValues[index] : (cachedValues[index] = super.get(index));
+    }
+
+    @Override
+    public GenericIndexed<T> asSingleThreaded()
+    {
+      final ByteBuffer copyBuffer = theBuffer.asReadOnlyBuffer();
+      BufferIndexed bufferIndexed = new BufferIndexed()
+      {
+        @Override
+        public T get(int index)
+        {
+          return _get(copyBuffer, index);
+        }
+      };
+      return new Cached<T>(
+          copyBuffer,
+          strategy,
+          allowReverseLookup,
+          size,
+          indexOffset,
+          valuesOffset,
+          bufferIndexed,
+          cachedValues,
+          loadedAll
+      );
     }
 
     @Override
