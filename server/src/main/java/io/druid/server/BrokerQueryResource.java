@@ -314,11 +314,14 @@ public class BrokerQueryResource extends QueryResource
       throws IOException
   {
     if (Formatters.isIndexFormat(forwardContext) && PropUtils.parseBoolean(forwardContext, "registerTable", false)) {
+      result = Maps.newLinkedHashMap(result);
+      result.put("broker", node.getHostAndPort());
       Map<String, Object> dataMeta = (Map<String, Object>) result.get("data");
       URI location = (URI) dataMeta.get("location");
       DataSegment segment = (DataSegment) dataMeta.get("segment");
       ImmutableMap.Builder<String, Object> builder = ImmutableMap.builder();
       builder.put("feed", "BrokerQueryResource");
+      builder.put("broker", node.getHostAndPort());
       builder.put("payload", segment);
       if (PropUtils.parseBoolean(forwardContext, "temporary", true)) {
         log.info("Publishing index to temporary table..");
@@ -428,7 +431,7 @@ public class BrokerQueryResource extends QueryResource
                 ), sequence
             )
         );
-        return context.ok(ImmutableMap.of("queryId", query.getId()));
+        return context.ok(ImmutableMap.of("queryId", query.getId(), "broker", node.getHostAndPort()));
       } else {
         List result = Sequences.toList(runner.run(query, Maps.newHashMap()), Lists.newArrayList());
         return context.ok(result.size() == 1 ? result.get(0) : result);
