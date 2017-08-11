@@ -190,7 +190,8 @@ public class ClientQuerySegmentWalker implements QuerySegmentWalker
         public Sequence<Pair<Query<T>, Sequence<T>>> run(final Query<T> query, final Map<String, Object> responseContext)
         {
           final List<Query<T>> ready = toTargetQueries((UnionAllQuery<T>) query, queryId);
-          final Execs.Semaphore semaphore = new Execs.Semaphore(Math.max(union.getParallelism(), union.getQueue()));
+          final int parallelism = Math.min(union.getParallelism(), ready.size());
+          final Execs.Semaphore semaphore = new Execs.Semaphore(Math.max(parallelism, union.getQueue()));
           LOG.info("Starting parallel working on " + ready.size());
           final List<ListenableFuture<Sequence<T>>> futures = Execs.execute(
               exec, Lists.transform(
@@ -204,7 +205,9 @@ public class ClientQuerySegmentWalker implements QuerySegmentWalker
                         @Override
                         public Sequence<T> call() throws Exception
                         {
+                          // should eagerly retrieve result in executor
                           Sequence<T> sequence = makeRunner(query, false).run(query, responseContext);
+                          sequence = Sequences.simple(Sequences.toList(sequence, Lists.<T>newArrayList()));
                           return new ResourceClosingSequence<T>(sequence, semaphore);
                         }
 
@@ -216,7 +219,7 @@ public class ClientQuerySegmentWalker implements QuerySegmentWalker
                       };
                     }
                   }
-              ), semaphore, union.getParallelism(), priority
+              ), semaphore, parallelism, priority
           );
           Sequence<Pair<Query<T>, Sequence<T>>> sequence = Sequences.simple(
               GuavaUtils.zip(ready, Lists.transform(futures, FutureSequence.<T>toSequence()))
