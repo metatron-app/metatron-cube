@@ -45,6 +45,7 @@ import io.druid.query.QueryToolChest;
 import io.druid.query.Result;
 import io.druid.query.ResultGranularTimestampComparator;
 import io.druid.query.ResultMergeQueryRunner;
+import io.druid.query.TabularFormat;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.AggregatorUtil;
 import io.druid.query.aggregation.MetricManipulationFn;
@@ -640,6 +641,38 @@ public class TopNQueryQueryToolChest extends QueryToolChest<Result<TopNResultVal
         } else {
           return result;
         }
+      }
+    };
+  }
+
+  @Override
+  public TabularFormat toTabularFormat(
+      final Sequence<Result<TopNResultValue>> sequence, final String timestampColumn
+  )
+  {
+    return new TabularFormat()
+    {
+      @Override
+      public Sequence<Map<String, Object>> getSequence()
+      {
+        return Sequences.concat(
+            Sequences.map(
+                sequence, new Function<Result<TopNResultValue>, Sequence<Map<String, Object>>>()
+                {
+                  @Override
+                  public Sequence<Map<String, Object>> apply(Result<TopNResultValue> input)
+                  {
+                    return Sequences.simple(input.getValue().getValue());
+                  }
+                }
+            )
+        );
+      }
+
+      @Override
+      public Map<String, Object> getMetaData()
+      {
+        return null;
       }
     };
   }
