@@ -220,17 +220,17 @@ public class QueryResource
       log.info("Got query [%s]", log.isDebugEnabled() ? query : queryId);
       currentThread.setName(String.format("%s[%s_%s]", currThreadName, query.getType(), queryId));
 
-      query = prepareQuery(query);
+      final Query prepared = prepareQuery(query);
 
       // This is an experimental feature, see - https://github.com/druid-io/druid/pull/2424
-      Access access = authorize(query, req);
+      Access access = authorize(prepared, req);
       if (access != null) {
         return Response.status(Response.Status.FORBIDDEN).header("Access-Check-Result", access).build();
       }
 
       // concurrent hashmap
       final Map<String, Object> responseContext = new MapMaker().makeMap();
-      final Sequence results = query.run(texasRanger, responseContext);
+      final Sequence results = prepared.run(texasRanger, responseContext);
 
       final Yielder yielder = results.toYielder(
           null,

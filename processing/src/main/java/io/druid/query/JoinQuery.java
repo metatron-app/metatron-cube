@@ -68,13 +68,13 @@ public class JoinQuery<T extends Comparable<T>> extends BaseQuery<T> implements 
     this.dataSources = validateDataSources(dataSources, getQuerySegmentSpec());
     this.prefixAlias = prefixAlias;
     this.elements = validateElements(this.dataSources, Preconditions.checkNotNull(elements));
-    this.numPartition = numPartition == 0 && scannerLen == 0 ? 1 : numPartition;
+    this.numPartition = numPartition <= 0 && scannerLen <= 0 ? 1 : numPartition;
     this.scannerLen = scannerLen;
     this.limit = limit;
     this.parallelism = parallelism;   // warn : can take "(n-way + 1) x parallelism" threads
     this.queue = queue;
     Preconditions.checkArgument(
-        numPartition > 0 || scannerLen > 0, "one of 'numPartition' or 'scannerLen' should be configured"
+        this.numPartition > 0 || this.scannerLen > 0, "one of 'numPartition' or 'scannerLen' should be configured"
     );
   }
 

@@ -109,7 +109,7 @@ public class ClientQuerySegmentWalker implements QuerySegmentWalker
   }
 
   @SuppressWarnings("unchecked")
-  private <T> QueryRunner<T> makeRunner(Query<T> query, boolean sourceQuery)
+  private <T> QueryRunner<T> makeRunner(Query<T> query, boolean subQuery)
   {
     QueryToolChest<T, Query<T>> toolChest = warehouse.getToolChest(query);
 
@@ -130,7 +130,7 @@ public class ClientQuerySegmentWalker implements QuerySegmentWalker
     runner = runner.applyPreMergeDecoration()
                    .mergeResults()
                    .applyPostMergeDecoration();
-    if (!sourceQuery) {
+    if (!subQuery) {
       runner = runner.applyFinalizeResults()
                      .emitCPUTimeMetric(emitter);
     }
@@ -147,7 +147,7 @@ public class ClientQuerySegmentWalker implements QuerySegmentWalker
     final PostProcessingOperator<T> postProcessing = PostProcessingOperators.load(union, mapper);
 
     final UnionAllQueryRunner<T> baseRunner;
-    if (union.getParallelism() < 1) {
+    if (union.getParallelism() <= 1) {
      // executes when the first element of the sequence is accessed
      baseRunner = new UnionAllQueryRunner<T>()
       {
@@ -192,7 +192,7 @@ public class ClientQuerySegmentWalker implements QuerySegmentWalker
           final List<Query<T>> ready = toTargetQueries((UnionAllQuery<T>) query, queryId);
           final int parallelism = Math.min(union.getParallelism(), ready.size());
           final Execs.Semaphore semaphore = new Execs.Semaphore(Math.max(parallelism, union.getQueue()));
-          LOG.info("Starting parallel working on " + ready.size());
+          LOG.info("Starting %d parallel works with %d threads", ready.size(), parallelism);
           final List<ListenableFuture<Sequence<T>>> futures = Execs.execute(
               exec, Lists.transform(
                   ready, new Function<Query<T>, Callable<Sequence<T>>>()
