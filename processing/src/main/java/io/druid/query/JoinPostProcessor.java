@@ -166,13 +166,13 @@ public class JoinPostProcessor extends PostProcessingOperator.UnionSupport
             Sequence<Map<String, Object>> sequence = Sequences.concat(sequences);
             List<Map<String, Object>> rows = Sequences.toList(sequence, Lists.<Map<String, Object>>newArrayList());
             if (index >= 0) {
-              Hashed hashing = toHash(index, sort(rows, joinColumns, index));
+              Hashed hashing = toHash(index, sort(rows, joinColumns, true, index));
               if (!hashed[index].set(hashing)) {
                 throw new IllegalStateException("Failed to hash!");
               }
               return hashing;
             }
-            return sort(rows, joinColumns, -index - 1);
+            return sort(rows, joinColumns, true, -index - 1);
           }
         }
     );
@@ -375,12 +375,14 @@ public class JoinPostProcessor extends PostProcessingOperator.UnionSupport
     };
   }
 
+  // from join result.. need prefix for key column
   private JoiningRow[] sort(Iterable<Map<String, Object>> rows, List<String> columns, int index)
   {
-    return sort(Lists.newArrayList(rows), columns, index);
+    return sort(Lists.newArrayList(rows), toKeyColumns(columns), false, index);
   }
 
-  private JoiningRow[] sort(List<Map<String, Object>> rows, List<String> columns, int index)
+  // from source.. need prefix for value
+  private JoiningRow[] sort(List<Map<String, Object>> rows, List<String> columns, boolean prefixAlias, int index)
   {
     String alias = toAlias(index);
     log.info(".. sorting [%s] %d rows on %s", alias, rows.size(), columns);
@@ -407,6 +409,19 @@ public class JoinPostProcessor extends PostProcessingOperator.UnionSupport
     Arrays.sort(sorted);
     log.info(".. sorted %d rows in %,d msec", rows.size(), (System.currentTimeMillis() - start));
     return sorted;
+  }
+
+  private List<String> toKeyColumns(List<String> columns)
+  {
+    if (!prefixAlias) {
+      return columns;
+    }
+    String prefix = toAlias(0) + ".";
+    List<String> prefixed = Lists.newArrayList();
+    for (String column : columns) {
+      prefixed.add(prefix + column);
+    }
+    return prefixed;
   }
 
   @Override

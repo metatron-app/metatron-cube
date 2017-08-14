@@ -198,6 +198,9 @@ public class SelectQueryQueryToolChest extends QueryToolChest<Result<SelectResul
             (System.currentTimeMillis() - start),
             innerQueryResultIndex.size()
         );
+        if (innerQueryResultIndex.isEmpty()) {
+          return Sequences.empty();
+        }
 
         List<String> dataSources = query.getDataSource().getNames();
         if (dataSources.size() > 1) {
