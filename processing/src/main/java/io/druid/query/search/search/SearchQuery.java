@@ -72,7 +72,7 @@ public class SearchQuery extends BaseQuery<Result<SearchResultValue>>
     this.sortSpec = sortSpec == null ? new LexicographicSearchSortSpec() : sortSpec;
     this.granularity = granularity == null ? QueryGranularities.ALL : granularity;
     this.limit = (limit == 0) ? 1000 : limit;
-    this.virtualColumns = virtualColumns;
+    this.virtualColumns = virtualColumns == null ? ImmutableList.<VirtualColumn>of() : virtualColumns;
     this.dimensions = dimensions == null ? ImmutableList.<DimensionSpec>of() : dimensions;
     this.valueOnly = valueOnly;
     this.querySpec = querySpec == null ? new SearchQuerySpec.TakeAll() : querySpec;

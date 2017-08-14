@@ -107,7 +107,7 @@ public class GroupByQuery extends BaseQuery<Row> implements Query.DimensionSuppo
     for (DimensionSpec spec : this.dimensions) {
       Preconditions.checkArgument(spec != null, "dimensions has null DimensionSpec");
     }
-    this.virtualColumns = virtualColumns;
+    this.virtualColumns = virtualColumns == null ? ImmutableList.<VirtualColumn>of() : virtualColumns;
     this.aggregatorSpecs = aggregatorSpecs == null ? ImmutableList.<AggregatorFactory>of() : aggregatorSpecs;
     this.postAggregatorSpecs = postAggregatorSpecs == null ? ImmutableList.<PostAggregator>of() : postAggregatorSpecs;
     this.havingSpec = havingSpec;
@@ -227,9 +227,21 @@ public class GroupByQuery extends BaseQuery<Row> implements Query.DimensionSuppo
     return postProcFn.apply(results);
   }
 
+  @Override
   public boolean allDimensionsForEmpty()
   {
     return BaseQuery.allColumnsForEmpty(this, false);
+  }
+
+  @Override
+  public boolean neededForDimension(String column)
+  {
+    for (DimensionSpec dimensionSpec : dimensions) {
+      if (column.equals(dimensionSpec.getOutputName())) {
+        return true;
+      }
+    }
+    return false;
   }
 
   @Override

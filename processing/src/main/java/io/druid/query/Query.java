@@ -140,6 +140,9 @@ public interface Query<T> extends QueryContextKeys
 
     DimensionSupport<T> withVirtualColumns(List<VirtualColumn> virtualColumns);
 
+    // can return true only for group-by & top-n query (include revolved vc as a dimension)
+    boolean neededForDimension(String column);
+
     boolean needsSchemaResolution();
 
     boolean allDimensionsForEmpty();

@@ -71,30 +71,35 @@ public class ViewSupportHelper
 
   public static <T> Query<T> rewriteWithView(Query.DimFilterSupport<T> query, StorageAdapter adapter)
   {
+    List<String> dimensions = Lists.newArrayList(adapter.getAvailableDimensions());
+    List<String> metrics = Lists.newArrayList(adapter.getAvailableMetrics());
+
     ViewDataSource view = (ViewDataSource) query.getDataSource();
+    List<String> retainers = Lists.newArrayList(view.getColumns());
+    if (!retainers.isEmpty()) {
+      dimensions.retainAll(retainers);
+      metrics.retainAll(retainers);
+      retainers.removeAll(dimensions);
+      retainers.removeAll(metrics);
+    }
+
     if (query instanceof Query.ViewSupport) {
       Query.ViewSupport<T> viewSupport = (Query.ViewSupport<T>) query;
-
-      List<String> dimensions = Lists.newArrayList(adapter.getAvailableDimensions());
-      List<String> metrics = Lists.newArrayList(adapter.getAvailableMetrics());
-      List<String> retainers = Lists.newArrayList(view.getColumns());
-      if (!retainers.isEmpty()) {
-        dimensions.retainAll(retainers);
-        metrics.retainAll(retainers);
-        retainers.removeAll(dimensions);
-        retainers.removeAll(metrics);
-      }
       List<VirtualColumn> virtualColumns = Lists.newArrayList(viewSupport.getVirtualColumns());
-      if (!retainers.isEmpty()) {
-        RowResolver resolver1 = new RowResolver(adapter, VirtualColumns.valueOf(virtualColumns));
-        RowResolver resolver2 = new RowResolver(adapter, VirtualColumns.valueOf(view.getVirtualColumns()));
-        for (String remaining : retainers) {
-          if (resolver1.resolveColumn(remaining) == null && resolver2.resolveColumn(remaining) != null) {
-            VirtualColumn virtualColumn = resolver2.resolveVC(remaining);
-            if (virtualColumn != null) {
-              virtualColumns.add(virtualColumn);
-              metrics.add(virtualColumn.getOutputName());
-            }
+      RowResolver resolver1 = new RowResolver(adapter, VirtualColumns.valueOf(virtualColumns));
+      RowResolver resolver2 = new RowResolver(adapter, VirtualColumns.valueOf(view.getVirtualColumns()));
+      for (String resolving : Iterables.concat(DimensionSpecs.toInputNames(viewSupport.getDimensions()), retainers)) {
+        if (dimensions.contains(resolving) || metrics.contains(resolving)) {
+          continue;
+        }
+        VirtualColumn vc1 = resolver1.resolveVC(resolving);
+        VirtualColumn vc2 = resolver2.resolveVC(resolving);
+        if (vc1 == null && vc2 != null) {
+          virtualColumns.add(vc2);
+          if (viewSupport.neededForDimension(resolving)) {
+            dimensions.add(resolving);
+          } else {
+            metrics.add(resolving);
           }
         }
       }
@@ -111,25 +116,18 @@ public class ViewSupportHelper
       query = viewSupport;
     } else if (query instanceof Query.DimensionSupport) {
       Query.DimensionSupport<T> dimSupport = (Query.DimensionSupport<T>) query;
-
-      List<String> dimensions = Lists.newArrayList(adapter.getAvailableDimensions());
-      List<String> retainers = Lists.newArrayList(view.getColumns());
-      if (!retainers.isEmpty()) {
-        dimensions.retainAll(retainers);
-        retainers.removeAll(dimensions);
-      }
       List<VirtualColumn> virtualColumns = Lists.newArrayList(dimSupport.getVirtualColumns());
-      if (!retainers.isEmpty()) {
-        RowResolver resolver1 = new RowResolver(adapter, VirtualColumns.valueOf(virtualColumns));
-        RowResolver resolver2 = new RowResolver(adapter, VirtualColumns.valueOf(view.getVirtualColumns()));
-        for (String remaining : retainers) {
-          if (resolver1.resolveColumn(remaining) == null && resolver2.resolveColumn(remaining) != null) {
-            VirtualColumn virtualColumn = resolver2.resolveVC(remaining);
-            if (virtualColumn != null) {
-              virtualColumns.add(virtualColumn);
-              dimensions.add(virtualColumn.getOutputName());
-            }
-          }
+      RowResolver resolver1 = new RowResolver(adapter, VirtualColumns.valueOf(virtualColumns));
+      RowResolver resolver2 = new RowResolver(adapter, VirtualColumns.valueOf(view.getVirtualColumns()));
+      for (String resolving : Iterables.concat(DimensionSpecs.toInputNames(dimSupport.getDimensions()), retainers)) {
+        if (dimensions.contains(resolving) || !dimSupport.neededForDimension(resolving)) {
+          continue;
+        }
+        VirtualColumn vc1 = resolver1.resolveVC(resolving);
+        VirtualColumn vc2 = resolver2.resolveVC(resolving);
+        if (vc1 == null && vc2 != null) {
+          virtualColumns.add(vc2);
+          dimensions.add(resolving);
         }
       }
       if (dimSupport.getDimensions().isEmpty()) {
@@ -149,7 +147,7 @@ public class ViewSupportHelper
       }
       query = query.withDimFilter(dimFilter);
     }
-    query.withDataSource(new TableDataSource(view.getName()));
+    query = (Query.DimFilterSupport<T>) query.withDataSource(new TableDataSource(view.getName()));
     log.info("view translated query to %s", query);
     return query;
   }

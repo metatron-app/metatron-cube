@@ -138,7 +138,7 @@ public class SegmentMetadataQuery extends BaseQuery<SegmentAnalysis>
     } else {
       this.usingDefaultInterval = useDefaultInterval == null ? false : useDefaultInterval;
     }
-    this.virtualColumns = virtualColumns;
+    this.virtualColumns = virtualColumns == null ? ImmutableList.<VirtualColumn>of() : virtualColumns;
     this.expressions = expressions == null ? ImmutableList.<String>of() : expressions;
     this.toInclude = toInclude == null ? new AllColumnIncluderator() : toInclude;
     this.merge = merge == null ? false : merge;

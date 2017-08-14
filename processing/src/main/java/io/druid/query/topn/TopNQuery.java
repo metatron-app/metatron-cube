@@ -23,6 +23,7 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Iterables;
 import io.druid.granularity.QueryGranularity;
 import io.druid.query.BaseQuery;
 import io.druid.query.DataSource;
@@ -37,6 +38,7 @@ import io.druid.query.spec.QuerySegmentSpec;
 import io.druid.segment.VirtualColumn;
 import io.druid.segment.VirtualColumns;
 
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -44,6 +46,7 @@ import java.util.Objects;
 /**
  */
 public class TopNQuery extends BaseQuery<Result<TopNResultValue>>
+    implements Query.DimensionSupport<Result<TopNResultValue>>
 {
   public static final String TOPN = "topN";
 
@@ -75,7 +78,7 @@ public class TopNQuery extends BaseQuery<Result<TopNResultValue>>
   {
     super(dataSource, querySegmentSpec, false, context);
     this.dimensionSpec = dimensionSpec;
-    this.virtualColumns = virtualColumns;
+    this.virtualColumns = virtualColumns == null ? ImmutableList.<VirtualColumn>of() : virtualColumns;
     this.topNMetricSpec = topNMetricSpec;
     this.threshold = threshold;
 
@@ -105,6 +108,12 @@ public class TopNQuery extends BaseQuery<Result<TopNResultValue>>
   public String getType()
   {
     return TOPN;
+  }
+
+  @Override
+  public List<DimensionSpec> getDimensions()
+  {
+    return Arrays.asList(dimensionSpec);
   }
 
   @JsonProperty("virtualColumns")
@@ -137,6 +146,12 @@ public class TopNQuery extends BaseQuery<Result<TopNResultValue>>
     return dimFilter;
   }
 
+  @Override
+  public DimFilter getDimFilter()
+  {
+    return dimFilter;
+  }
+
   @JsonProperty
   public QueryGranularity getGranularity()
   {
@@ -161,6 +176,18 @@ public class TopNQuery extends BaseQuery<Result<TopNResultValue>>
     return outputColumns;
   }
 
+  @Override
+  public boolean allDimensionsForEmpty()
+  {
+    return false;
+  }
+
+  @Override
+  public boolean neededForDimension(String column)
+  {
+    return column.equals(dimensionSpec.getOutputName());
+  }
+
   public void initTopNAlgorithmSelector(TopNAlgorithmSelector selector)
   {
     if (dimensionSpec.getExtractionFn() != null) {
@@ -178,6 +205,44 @@ public class TopNQuery extends BaseQuery<Result<TopNResultValue>>
         topNMetricSpec,
         threshold,
         querySegmentSpec,
+        dimFilter,
+        granularity,
+        aggregatorSpecs,
+        postAggregatorSpecs,
+        outputColumns,
+        getContext()
+    );
+  }
+
+  @Override
+  public DimensionSupport<Result<TopNResultValue>> withDimensionSpecs(List<DimensionSpec> dimensions)
+  {
+    return new TopNQuery(
+        getDataSource(),
+        virtualColumns,
+        Iterables.getOnlyElement(dimensions),
+        topNMetricSpec,
+        threshold,
+        getQuerySegmentSpec(),
+        dimFilter,
+        granularity,
+        aggregatorSpecs,
+        postAggregatorSpecs,
+        outputColumns,
+        getContext()
+    );
+  }
+
+  @Override
+  public DimensionSupport<Result<TopNResultValue>> withVirtualColumns(List<VirtualColumn> virtualColumns)
+  {
+    return new TopNQuery(
+        getDataSource(),
+        virtualColumns,
+        dimensionSpec,
+        topNMetricSpec,
+        threshold,
+        getQuerySegmentSpec(),
         dimFilter,
         granularity,
         aggregatorSpecs,

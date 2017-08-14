@@ -248,6 +248,11 @@ public abstract class BaseQuery<T extends Comparable<T>> implements Query<T>
     return PropUtils.parseInt(getContext(), key, defaultValue);
   }
 
+  public boolean neededForDimension(String column)
+  {
+    return false;
+  }
+
   protected String toString(String key)
   {
     Object value = Objects.toString(getContextValue(key), null);
