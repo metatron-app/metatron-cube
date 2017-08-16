@@ -47,6 +47,7 @@ import com.metamx.collections.bitmap.MutableBitmap;
 import com.metamx.collections.spatial.ImmutableRTree;
 import com.metamx.collections.spatial.RTree;
 import com.metamx.collections.spatial.split.LinearGutmanSplitStrategy;
+import com.metamx.common.ByteBufferUtils;
 import com.metamx.common.IAE;
 import com.metamx.common.ISE;
 import com.metamx.common.Pair;
@@ -1054,6 +1055,7 @@ public class IndexMerger
           ByteStreams.copy(spatialWriter.combineStreams(), spatialOut);
           spatialIoPeon.cleanup();
         }
+        ByteBufferUtils.unmap(dimValsMapped);
       }
 
       log.info("outDir[%s] completed inverted.drd in %,d millis.", v8OutDir, System.currentTimeMillis() - startTime);

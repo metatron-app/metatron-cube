@@ -38,6 +38,7 @@ import com.metamx.collections.bitmap.MutableBitmap;
 import com.metamx.collections.spatial.ImmutableRTree;
 import com.metamx.collections.spatial.RTree;
 import com.metamx.collections.spatial.split.LinearGutmanSplitStrategy;
+import com.metamx.common.ByteBufferUtils;
 import com.metamx.common.ISE;
 import com.metamx.common.io.smoosh.FileSmoosher;
 import com.metamx.common.io.smoosh.SmooshedWriter;
@@ -621,6 +622,7 @@ public class IndexMergerV9 extends IndexMerger
       if (spatialIndexWriter != null) {
         spatialIndexWriter.write(ImmutableRTree.newImmutableFromMutable(tree));
       }
+      ByteBufferUtils.unmap(dimValsMapped);
       log.info(
           "Completed dim[%s] inverted with cardinality[%,d] in %,d millis.",
           dimension,
