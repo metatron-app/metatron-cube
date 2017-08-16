@@ -35,7 +35,8 @@ import io.druid.query.filter.Filter;
 import io.druid.query.filter.ValueMatcher;
 import io.druid.query.filter.ValueMatcherFactory;
 import io.druid.segment.ColumnSelectorFactory;
-import io.druid.segment.ObjectColumnSelector;
+import io.druid.segment.ColumnSelectors;
+import io.druid.segment.ExprEvalColumnSelector;
 import io.druid.segment.column.BitmapIndex;
 
 import java.util.Comparator;
@@ -193,15 +194,13 @@ public class BoundFilter extends Filter.WithDictionary implements Predicate<Stri
   }
 
   @Override
-  public ValueMatcher makeMatcher(ColumnSelectorFactory columnSelectorFactory)
+  public ValueMatcher makeMatcher(ColumnSelectorFactory factory)
   {
-    final ObjectColumnSelector selector;
     if (boundDimFilter.getDimension() != null) {
-      selector = Filters.makeDimensionalSelector(columnSelectorFactory, boundDimFilter.getDimension());
-    } else {
-      selector = Filters.getExprStringSelector(columnSelectorFactory, boundDimFilter.getExpression());
+      return Filters.toValueMatcher(factory, boundDimFilter.getDimension(), this);
     }
-    return Filters.dimensionalSelectorToValueMatcher(selector, this);
+    ExprEvalColumnSelector selector = factory.makeMathExpressionSelector(boundDimFilter.getExpression());
+    return Filters.toValueMatcher(ColumnSelectors.asStringSelector(selector), this);
   }
 
   @Override

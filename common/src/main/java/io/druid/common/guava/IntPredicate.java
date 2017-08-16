@@ -17,16 +17,11 @@
  * under the License.
  */
 
-package io.druid.segment.data;
-
-import java.io.Closeable;
+package io.druid.common.guava;
 
 /**
- * Get a int an index (array or list lookup abstraction without boxing).
  */
-public interface IndexedInts extends Iterable<Integer>, Closeable
+public interface IntPredicate
 {
-  int size();
-  int get(int index);
-  void fill(int index, int[] toFill);
+  boolean apply(int value);
 }

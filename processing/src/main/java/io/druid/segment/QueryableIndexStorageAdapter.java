@@ -771,13 +771,14 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
                             public Object get()
                             {
                               final IndexedInts multiValueRow = columnVals.getMultiValueRow(cursorOffset.getOffset());
-                              if (multiValueRow.size() == 0) {
+                              final int length = multiValueRow.size();
+                              if (length == 0) {
                                 return null;
-                              } else if (multiValueRow.size() == 1) {
+                              } else if (length == 1) {
                                 return columnVals.lookupName(multiValueRow.get(0));
                               } else {
-                                final String[] strings = new String[multiValueRow.size()];
-                                for (int i = 0; i < multiValueRow.size(); i++) {
+                                final String[] strings = new String[length];
+                                for (int i = 0; i < length; i++) {
                                   strings[i] = columnVals.lookupName(multiValueRow.get(i));
                                 }
                                 return strings;

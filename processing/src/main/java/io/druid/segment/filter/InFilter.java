@@ -26,16 +26,20 @@ import com.google.common.collect.Iterables;
 import com.google.common.collect.Sets;
 import com.metamx.collections.bitmap.ImmutableBitmap;
 import com.metamx.collections.bitmap.MutableBitmap;
+import io.druid.common.guava.IntPredicate;
 import io.druid.data.ValueDesc;
+import io.druid.query.dimension.DefaultDimensionSpec;
 import io.druid.query.extraction.ExtractionFn;
 import io.druid.query.filter.BitmapIndexSelector;
 import io.druid.query.filter.Filter;
 import io.druid.query.filter.ValueMatcher;
 import io.druid.query.filter.ValueMatcherFactory;
 import io.druid.segment.ColumnSelectorFactory;
+import io.druid.segment.ColumnSelectors;
+import io.druid.segment.DimensionSelector;
 import io.druid.segment.ObjectColumnSelector;
 import io.druid.segment.column.BitmapIndex;
-import io.druid.segment.data.IndexedInts;
+import io.druid.segment.data.IndexedID;
 
 import java.util.Set;
 
@@ -105,12 +109,37 @@ public class InFilter extends Filter.WithDictionary
   }
 
   @Override
-  public ValueMatcher makeMatcher(ColumnSelectorFactory columnSelectorFactory)
+  @SuppressWarnings("unchecked")
+  public ValueMatcher makeMatcher(ColumnSelectorFactory factory)
   {
-    ObjectColumnSelector selector = columnSelectorFactory.makeObjectColumnSelector(dimension);
-    if (ValueDesc.isIndexedId(selector.type())) {
+    ValueDesc type = factory.getColumnType(dimension);
+    if (type == null) {
+      return BooleanValueMatcher.of(toPredicate().apply(null));
+    }
+    if (ValueDesc.isDimension(type) && extractionFn == null) {
+      final DimensionSelector selector = factory.makeDimensionSelector(DefaultDimensionSpec.of(dimension));
+      final Set<Integer> ids = Sets.newHashSet();
+      boolean allowsNull = false;
+      for (String value : values) {
+        allowsNull |= Strings.isNullOrEmpty(value);
+        int index = selector.lookupId(value);
+        if (index >= 0) {
+          ids.add(index);
+        }
+      }
+      return Filters.toValueMatcher(
+          selector, new IntPredicate()
+          {
+            @Override
+            public boolean apply(int value) { return ids.contains(value); }
+          },
+          allowsNull
+      );
+    }
+    ObjectColumnSelector selector = factory.makeObjectColumnSelector(dimension);
+    if (ValueDesc.isIndexedId(type)) {
       if (extractionFn == null) {
-        final ObjectColumnSelector<IndexedInts.WithLookup> indexedSelector = selector;
+        final ObjectColumnSelector<IndexedID> indexedSelector = selector;
         return new ValueMatcher()
         {
           private boolean ready;
@@ -118,11 +147,7 @@ public class InFilter extends Filter.WithDictionary
           @Override
           public boolean matches()
           {
-            final IndexedInts.WithLookup indexed = indexedSelector.get();
-            final int size = indexed.size();
-            if (size == 0) {
-              return false;
-            }
+            final IndexedID indexed = indexedSelector.get();
             if (!ready) {
               for (String value : values) {
                 int id = indexed.lookupId(value);
@@ -132,21 +157,13 @@ public class InFilter extends Filter.WithDictionary
               }
               ready = true;
             }
-            if (size == 1) {
-              return find.contains(indexed.get(0));
-            }
-            for (Integer id : indexed) {
-              if (find.contains(id)) {
-                return true;
-              }
-            }
-            return false;
+            return find.contains(indexed.get());
           }
         };
       }
-      selector = Filters.asMultiValued(selector);
+      selector = ColumnSelectors.asValued(selector);
     }
-    return Filters.dimensionalSelectorToValueMatcher(selector, toPredicate());
+    return Filters.toValueMatcher(selector, toPredicate());
   }
 
   @Override

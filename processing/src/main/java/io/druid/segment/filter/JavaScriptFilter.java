@@ -27,7 +27,6 @@ import io.druid.query.filter.JavaScriptDimFilter;
 import io.druid.query.filter.ValueMatcher;
 import io.druid.query.filter.ValueMatcherFactory;
 import io.druid.segment.ColumnSelectorFactory;
-import io.druid.segment.ObjectColumnSelector;
 import org.mozilla.javascript.Context;
 
 public class JavaScriptFilter extends Filter.WithDictionary
@@ -87,10 +86,9 @@ public class JavaScriptFilter extends Filter.WithDictionary
   }
 
   @Override
-  public ValueMatcher makeMatcher(ColumnSelectorFactory columnSelectorFactory)
+  public ValueMatcher makeMatcher(ColumnSelectorFactory factory)
   {
-    final ObjectColumnSelector selector = Filters.makeDimensionalSelector(columnSelectorFactory, dimension);
-    return Filters.dimensionalSelectorToValueMatcher(selector, predicate);
+    return Filters.toValueMatcher(factory, dimension, predicate);
   }
 
   @Override

@@ -24,11 +24,10 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
-import com.google.common.collect.Iterators;
 import com.google.common.collect.Sets;
 import com.metamx.common.StringUtils;
-import io.druid.data.ValueDesc;
 import io.druid.data.TypeResolver;
+import io.druid.data.ValueDesc;
 import io.druid.data.ValueType;
 import io.druid.query.QueryCacheHelper;
 import io.druid.query.dimension.DefaultDimensionSpec;
@@ -36,6 +35,7 @@ import io.druid.query.filter.DimFilter;
 import io.druid.query.filter.DimFilterCacheHelper;
 import io.druid.query.filter.ValueMatcher;
 import io.druid.segment.data.EmptyIndexedInts;
+import io.druid.segment.data.IndexedID;
 import io.druid.segment.data.IndexedInts;
 import io.druid.segment.filter.Filters;
 
@@ -93,7 +93,10 @@ public class KeyIndexedVirtualColumn implements VirtualColumn
     if (valueMetrics.contains(column)) {
       return ValueDesc.elementOfArray(types.resolveColumn(column), ValueDesc.UNKNOWN);
     }
-    return ValueDesc.UNKNOWN;
+    if (outputName.equals(column)) {
+      return ValueDesc.subElementOf(types.resolveColumn(keyDimension), ValueDesc.UNKNOWN);
+    }
+    return types.resolveColumn(column);
   }
 
   @Override
@@ -219,7 +222,7 @@ public class KeyIndexedVirtualColumn implements VirtualColumn
     return new KeyIndexedVirtualColumn(keyDimension, valueDimensions, valueMetrics, keyFilter, outputName);
   }
 
-  private DimensionSelector toFilteredSelector(ColumnSelectorFactory factory)
+  private DimensionSelector toFilteredSelector(final ColumnSelectorFactory factory)
   {
     final DimensionSelector selector = factory.makeDimensionSelector(DefaultDimensionSpec.of(keyDimension));
     if (keyFilter == null) {
@@ -227,15 +230,15 @@ public class KeyIndexedVirtualColumn implements VirtualColumn
     }
     final IteratingIndexedInts iterator = new IteratingIndexedInts(selector);
     final ValueMatcher keyMatcher = Filters.toFilter(keyFilter).makeMatcher(
-        new ColumnSelectorFactories.Delegated(factory)
+        new ColumnSelectorFactories.NotSupports()
         {
           @Override
           public ObjectColumnSelector makeObjectColumnSelector(String columnName)
           {
-            if (!columnName.equals(outputName)) {
-              throw new UnsupportedOperationException("cannot reference column '" + columnName + "' in current context");
-            }
-            return new ObjectColumnSelector<IndexedInts.WithLookup>()
+            Preconditions.checkArgument(
+                columnName.equals(outputName), "cannot reference column '" + columnName + "' in current context"
+            );
+            return new ObjectColumnSelector<IndexedID>()
             {
               @Override
               public ValueDesc type()
@@ -244,14 +247,24 @@ public class KeyIndexedVirtualColumn implements VirtualColumn
               }
 
               @Override
-              public IndexedInts.WithLookup get()
+              public IndexedID get()
               {
                 return iterator;
               }
             };
           }
+
+          @Override
+          public ValueDesc getColumnType(String columnName)
+          {
+            Preconditions.checkArgument(
+                columnName.equals(outputName), "cannot reference column '" + columnName + "' in current context"
+            );
+            return ValueDesc.ofIndexedId(ValueType.STRING);
+          }
         }
     );
+
     return new DelegatedDimensionSelector(selector)
     {
       @Override
@@ -437,8 +450,8 @@ public class KeyIndexedVirtualColumn implements VirtualColumn
            '}';
   }
 
-  private static class IteratingIndexedInts implements IndexedInts.WithLookup {
-
+  private static class IteratingIndexedInts implements IndexedID
+  {
     private int index;
     private IndexedInts indexedInts;
     private final DimensionSelector selector;
@@ -452,6 +465,12 @@ public class KeyIndexedVirtualColumn implements VirtualColumn
     {
       index = 0;
       return indexedInts = selector.getRow();
+    }
+
+    @Override
+    public int get()
+    {
+      return indexedInts.get(index);
     }
 
     @Override
@@ -470,35 +489,6 @@ public class KeyIndexedVirtualColumn implements VirtualColumn
     public ValueType elementType()
     {
       return ValueType.STRING;
-    }
-
-    @Override
-    public int size()
-    {
-      return 1;
-    }
-
-    @Override
-    public int get(int dummy)
-    {
-      return indexedInts.get(index);
-    }
-
-    @Override
-    public void fill(int index, int[] toFill)
-    {
-      throw new UnsupportedOperationException("fill");
-    }
-
-    @Override
-    public void close() throws IOException
-    {
-    }
-
-    @Override
-    public Iterator<Integer> iterator()
-    {
-      return Iterators.singletonIterator(get(0));
     }
   }
 

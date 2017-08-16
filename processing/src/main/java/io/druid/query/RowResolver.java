@@ -26,7 +26,7 @@ import io.druid.data.ValueDesc;
 import io.druid.segment.StorageAdapter;
 import io.druid.segment.VirtualColumn;
 import io.druid.segment.VirtualColumns;
-import io.druid.segment.data.IndexedInts;
+import io.druid.segment.data.IndexedID;
 import io.druid.segment.serde.ComplexMetricSerde;
 import io.druid.segment.serde.ComplexMetrics;
 import org.joda.time.DateTime;
@@ -63,7 +63,7 @@ public class RowResolver implements TypeResolver
     }
 
     if (typeName.startsWith(ValueDesc.INDEXED_ID_PREFIX)) {
-      return IndexedInts.WithLookup.class;
+      return IndexedID.class;
     }
 
     ComplexMetricSerde serde = ComplexMetrics.getSerdeForType(typeName);
@@ -94,8 +94,8 @@ public class RowResolver implements TypeResolver
       return ValueDesc.MAP;
     } else if (List.class.isAssignableFrom(clazz)) {
       return ValueDesc.LIST;
-    } else if (IndexedInts.WithLookup.class.isAssignableFrom(clazz)) {
-      IndexedInts.WithLookup lookup = (IndexedInts.WithLookup)object;
+    } else if (IndexedID.class.isAssignableFrom(clazz)) {
+      IndexedID lookup = (IndexedID)object;
       return lookup == null ? ValueDesc.INDEXED_ID : ValueDesc.ofIndexedId(lookup.elementType());
     } else if (clazz.isArray()) {
       return ValueDesc.ofArray(toValueType(clazz.getComponentType(), null));

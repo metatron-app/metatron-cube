@@ -19,14 +19,17 @@
 
 package io.druid.segment.data;
 
-import java.io.Closeable;
+import io.druid.data.ValueType;
 
 /**
- * Get a int an index (array or list lookup abstraction without boxing).
  */
-public interface IndexedInts extends Iterable<Integer>, Closeable
+public interface IndexedID
 {
-  int size();
-  int get(int index);
-  void fill(int index, int[] toFill);
+  int get();
+
+  int lookupId(String name);
+
+  Object lookupName(int id);
+
+  ValueType elementType();    // type of value
 }

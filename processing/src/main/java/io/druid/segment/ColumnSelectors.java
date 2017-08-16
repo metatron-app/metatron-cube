@@ -25,7 +25,12 @@ import com.google.common.base.Strings;
 import io.druid.common.guava.DSuppliers;
 import io.druid.common.utils.StringUtils;
 import io.druid.data.ValueDesc;
+import io.druid.data.ValueType;
+import io.druid.query.dimension.DefaultDimensionSpec;
+import io.druid.segment.data.IndexedID;
+import io.druid.segment.data.IndexedInts;
 
+import java.util.List;
 import java.util.Objects;
 
 /**
@@ -286,6 +291,140 @@ public class ColumnSelectors
       public boolean apply(Object input)
       {
         return selector.get().asBoolean();
+      }
+    };
+  }
+
+  public static ObjectColumnSelector asStringSelector(final ExprEvalColumnSelector selector)
+  {
+    return new ObjectColumnSelector()
+    {
+      @Override
+      public ValueDesc type()
+      {
+        return ValueDesc.STRING;
+      }
+
+      @Override
+      public String get()
+      {
+        return selector.get().asString();
+      }
+    };
+  }
+
+  @SuppressWarnings("unchecked")
+  public static ObjectColumnSelector toDimensionalSelector(ColumnSelectorFactory factory, String column)
+  {
+    ValueDesc type = factory.getColumnType(column);
+    if (type == null) {
+      return nullObjectSelector(ValueDesc.STRING);
+    }
+    if (ValueDesc.isDimension(type)) {
+      return asArray(factory.makeDimensionSelector(DefaultDimensionSpec.of(column)));
+    }
+
+    final ObjectColumnSelector selector = factory.makeObjectColumnSelector(column);
+    if (ValueDesc.isString(type)) {
+      return selector;
+    }
+    if (ValueDesc.isIndexedId(type)) {
+      return asValued(selector);
+    }
+    if (ValueDesc.isArray(type)) {
+      return asArray(selector, ValueDesc.subElementOf(type, ValueDesc.UNKNOWN));
+    }
+    // toString, whatsoever
+    return new ObjectColumnSelector()
+    {
+      @Override
+      public ValueDesc type()
+      {
+        return ValueDesc.STRING;
+      }
+
+      @Override
+      public String get()
+      {
+        return Objects.toString(selector.get(), null);
+      }
+    };
+  }
+
+  public static ObjectColumnSelector asValued(final ObjectColumnSelector<IndexedID> selector)
+  {
+    return new ObjectColumnSelector()
+    {
+      @Override
+      public ValueDesc type()
+      {
+        return selector.type();
+      }
+
+      @Override
+      public Object get()
+      {
+        IndexedID indexed = selector.get();
+        return indexed.lookupName(indexed.get());
+      }
+    };
+  }
+
+  public static ObjectColumnSelector asArray(final ObjectColumnSelector<List> selector, final ValueDesc element)
+  {
+    return new ObjectColumnSelector()
+    {
+      @Override
+      public ValueDesc type()
+      {
+        return ValueDesc.ofMultiValued(element);
+      }
+
+      @Override
+      public Object get()
+      {
+        List indexed = selector.get();
+        if (indexed == null || indexed.isEmpty()) {
+          return null;
+        } else if (indexed.size() == 1) {
+          return Objects.toString(indexed.get(0), null);
+        } else {
+          String[] array = new String[indexed.size()];
+          for (int i = 0; i < array.length; i++) {
+            array[i] = Objects.toString(indexed.get(i), null);
+          }
+          return array;
+        }
+      }
+    };
+  }
+
+  public static ObjectColumnSelector asArray(final DimensionSelector selector)
+  {
+    return new ObjectColumnSelector()
+    {
+      @Override
+      public ValueDesc type()
+      {
+        return ValueDesc.ofMultiValued(ValueType.STRING);
+      }
+
+      @Override
+      public Object get()
+      {
+        final IndexedInts indexed = selector.getRow();
+        final int length = indexed.size();
+        if (length == 0) {
+          return null;
+        } else if (indexed.size() == 1) {
+          return selector.lookupName(indexed.get(0));
+        } else {
+          final String[] array = new String[length];
+          for (int i = 0; i < array.length; i++) {
+            array[i] = selector.lookupName(indexed.get(i));
+          }
+          return array;
+        }
       }
     };
   }

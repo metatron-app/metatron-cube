@@ -210,4 +210,14 @@ public class InDimFilter implements DimFilter
     result = 31 * result + (extractionFn != null ? extractionFn.hashCode() : 0);
     return result;
   }
+
+  @Override
+  public String toString()
+  {
+    return "InDimFilter{" +
+           "values=" + values +
+           ", dimension='" + dimension + '\'' +
+           ", extractionFn=" + extractionFn +
+           '}';
+  }
 }

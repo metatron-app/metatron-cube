@@ -21,15 +21,10 @@ package io.druid.segment.incremental;
 
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
-import com.google.common.base.Predicate;
-import com.google.common.base.Predicates;
-import com.google.common.base.Strings;
-import com.google.common.base.Supplier;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
 import com.google.common.primitives.Doubles;
 import com.google.common.primitives.Floats;
 import com.google.common.primitives.Ints;
@@ -37,28 +32,18 @@ import com.google.common.primitives.Longs;
 import com.metamx.common.guava.Sequence;
 import com.metamx.common.guava.Sequences;
 import io.druid.cache.Cache;
-import io.druid.common.guava.DSuppliers;
-import io.druid.common.guava.GuavaUtils;
 import io.druid.data.ValueDesc;
-import io.druid.data.ValueType;
 import io.druid.granularity.QueryGranularity;
-import io.druid.math.expr.Evals;
-import io.druid.math.expr.Expr;
-import io.druid.math.expr.ExprEval;
-import io.druid.math.expr.Parser;
 import io.druid.query.QueryInterruptedException;
 import io.druid.query.RowResolver;
 import io.druid.query.dimension.DimensionSpec;
 import io.druid.query.extraction.ExtractionFn;
 import io.druid.query.filter.DimFilter;
 import io.druid.query.filter.ValueMatcher;
-import io.druid.query.filter.ValueMatcherFactory;
 import io.druid.segment.Capabilities;
-import io.druid.segment.ColumnSelectors;
 import io.druid.segment.Cursor;
 import io.druid.segment.DimensionSelector;
 import io.druid.segment.DoubleColumnSelector;
-import io.druid.segment.ExprVirtualColumn;
 import io.druid.segment.FloatColumnSelector;
 import io.druid.segment.LongColumnSelector;
 import io.druid.segment.Metadata;
@@ -80,7 +65,6 @@ import io.druid.timeline.partition.NoneShardSpec;
 import org.joda.time.DateTime;
 import org.joda.time.Interval;
 
-import javax.annotation.Nullable;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -291,15 +275,10 @@ public class IncrementalIndexStorageAdapter implements StorageAdapter
         Sequences.simple(iterable),
         new Function<Long, Cursor>()
         {
-          EntryHolder currEntry = new EntryHolder();
-          private final ValueMatcher filterMatcher;
-
-          {
-            filterMatcher = makeFilterMatcher(filter, currEntry, virtualColumns);
-          }
+          private EntryHolder currEntry = new EntryHolder();
 
           @Override
-          public Cursor apply(@Nullable final Long input)
+          public Cursor apply(final Long input)
           {
             final long timeStart = Math.max(input, actualInterval.getStartMillis());
 
@@ -307,10 +286,11 @@ public class IncrementalIndexStorageAdapter implements StorageAdapter
             {
               private Iterator<Map.Entry<IncrementalIndex.TimeAndDims, Integer>> baseIter;
               private NavigableMap<IncrementalIndex.TimeAndDims, Integer> cursorMap;
-              final DateTime time;
-              int numAdvanced = -1;
-              boolean done;
+              private final DateTime time;
+              private int numAdvanced = -1;
+              private boolean done;
 
+              private final ValueMatcher filterMatcher;
               {
                 cursorMap = index.getSubMap(
                     index.createRangeTimeAndDims(timeStart),
@@ -320,7 +300,7 @@ public class IncrementalIndexStorageAdapter implements StorageAdapter
                   cursorMap = cursorMap.descendingMap();
                 }
                 time = gran.toDateTime(input);
-
+                filterMatcher = filter == null ? BooleanValueMatcher.TRUE : filter.toFilter().makeMatcher(this);
                 reset();
               }
 
@@ -465,7 +445,7 @@ public class IncrementalIndexStorageAdapter implements StorageAdapter
                       }
                     }
 
-                    final List<Integer> vals = valsTmp == null ? Collections.EMPTY_LIST : valsTmp;
+                    final List<Integer> vals = valsTmp == null ? Collections.<Integer>emptyList() : valsTmp;
                     return new IndexedInts()
                     {
                       @Override
@@ -742,21 +722,6 @@ public class IncrementalIndexStorageAdapter implements StorageAdapter
     );
   }
 
-  private boolean isComparableNullOrEmpty(final Comparable value)
-  {
-    if (value instanceof String) {
-      return Strings.isNullOrEmpty((String) value);
-    }
-    return value == null;
-  }
-
-  private ValueMatcher makeFilterMatcher(DimFilter filter, EntryHolder holder, VirtualColumns virtualColumns)
-  {
-    return filter == null
-           ? BooleanValueMatcher.TRUE
-           : filter.toFilter().makeMatcher(new EntryHolderValueMatcherFactory(holder, virtualColumns));
-  }
-
   private static class EntryHolder
   {
     Map.Entry<IncrementalIndex.TimeAndDims, Integer> currEntry = null;
@@ -779,217 +744,6 @@ public class IncrementalIndexStorageAdapter implements StorageAdapter
     public Integer getValue()
     {
       return currEntry.getValue();
-    }
-  }
-
-  private class EntryHolderValueMatcherFactory implements ValueMatcherFactory
-  {
-    private final EntryHolder holder;
-    private final VirtualColumns virtualColumns;
-
-    public EntryHolderValueMatcherFactory(
-        EntryHolder holder,
-        VirtualColumns virtualColumns
-    )
-    {
-      this.holder = holder;
-      this.virtualColumns = virtualColumns;
-    }
-
-    @Override
-    public ValueMatcher makeValueMatcher(String dimension, final Comparable value)
-    {
-      IncrementalIndex.DimensionDesc dimensionDesc = index.getDimension(dimension);
-      if (dimensionDesc == null) {
-        VirtualColumn virtualColumn = virtualColumns.getVirtualColumn(dimension);
-        if (virtualColumn instanceof ExprVirtualColumn) {
-          return makeExpressionMatcher(
-              ((ExprVirtualColumn) virtualColumn).getExpression(),
-              new Predicate<ExprEval>()
-              {
-                @Override
-                public boolean apply(ExprEval input)
-                {
-                  return input.asString().equals(value);
-                }
-              }
-          );
-        }
-        return new BooleanValueMatcher(virtualColumn == null && isComparableNullOrEmpty(value));
-      }
-      final int dimIndex = dimensionDesc.getIndex();
-      final IncrementalIndex.DimDim dimDim = dimensionDesc.getValues();
-
-      final Integer id = dimDim.getId(value);
-      if (id == null) {
-        if (isComparableNullOrEmpty(value)) {
-          return new ValueMatcher()
-          {
-            @Override
-            public boolean matches()
-            {
-              int[][] dims = holder.getKey().getDims();
-              if (dimIndex >= dims.length || dims[dimIndex] == null) {
-                return true;
-              }
-              return false;
-            }
-          };
-        }
-        return BooleanValueMatcher.FALSE;
-      }
-
-      return new ValueMatcher()
-      {
-        @Override
-        public boolean matches()
-        {
-          int[][] dims = holder.getKey().getDims();
-          if (dimIndex >= dims.length || dims[dimIndex] == null) {
-            return isComparableNullOrEmpty(value);
-          }
-
-          return Ints.indexOf(dims[dimIndex], id) >= 0;
-        }
-      };
-    }
-
-    @Override
-    @SuppressWarnings("unchecked")
-    public ValueMatcher makeValueMatcher(String dimension, final Predicate predicate)
-    {
-      IncrementalIndex.DimensionDesc dimensionDesc = index.getDimension(dimension);
-      if (dimensionDesc == null) {
-        VirtualColumn virtualColumn = virtualColumns.getVirtualColumn(dimension);
-        if (virtualColumn instanceof ExprVirtualColumn) {
-          return makeExpressionMatcher(
-              ((ExprVirtualColumn) virtualColumn).getExpression(),
-              Predicates.compose(predicate, Evals.AS_STRING)
-          );
-        }
-        return new BooleanValueMatcher(virtualColumn == null && predicate.apply(null));
-      }
-      final int dimIndex = dimensionDesc.getIndex();
-      final IncrementalIndex.DimDim dimDim = dimensionDesc.getValues();
-
-      return new ValueMatcher()
-      {
-        @Override
-        public boolean matches()
-        {
-          int[][] dims = holder.getKey().getDims();
-          if (dimIndex >= dims.length || dims[dimIndex] == null) {
-            return predicate.apply(null);
-          }
-
-          for (int dimVal : dims[dimIndex]) {
-            if (predicate.apply(dimDim.getValue(dimVal))) {
-              return true;
-            }
-          }
-          return false;
-        }
-      };
-    }
-
-    @Override
-    public ValueMatcher makeExpressionMatcher(String expression, final Predicate<ExprEval> predicate)
-    {
-      final Expr parsed = Parser.parse(expression);
-
-      final Expr.NumericBinding binding = toValueBinding(Parser.findRequiredBindings(parsed));
-      return new ValueMatcher() {
-        @Override
-        public boolean matches()
-        {
-          return predicate.apply(parsed.eval(binding));
-        }
-      };
-    }
-
-    private Expr.NumericBinding toValueBinding(List<String> columns)
-    {
-      return Parser.withSuppliers(
-          Maps.transformValues(
-              indexAsBinding(columns),
-              GuavaUtils.<DSuppliers.TypedSupplier, Supplier>caster()
-          )
-      );
-    }
-
-    private Map<String, DSuppliers.TypedSupplier> indexAsBinding(List<String> columns)
-    {
-      final Map<String, DSuppliers.TypedSupplier> values = Maps.newHashMap();
-      for (String column : columns) {
-        IncrementalIndex.DimensionDesc dimensionDesc = index.getDimension(column);
-        if (dimensionDesc != null) {
-          if (dimensionDesc.getCapabilities().hasMultipleValues()) {
-            throw new IllegalArgumentException("multi-valued dimension");
-          }
-          final int dimIndex = dimensionDesc.getIndex();
-          final IncrementalIndex.DimDim dimDim = dimensionDesc.getValues();
-          final ValueDesc type = ValueDesc.of(dimensionDesc.getCapabilities().getType());
-          final DSuppliers.TypedSupplier supplier = new DSuppliers.TypedSupplier()
-          {
-            @Override
-            public ValueDesc type()
-            {
-              return type;
-            }
-
-            @Override
-            public Comparable get()
-            {
-              int[][] dims = holder.getKey().getDims();
-              if (dimIndex < dims.length && dims[dimIndex] != null && dims[dimIndex].length == 1) {
-                return dimDim.getValue(dims[dimIndex][0]);
-              }
-              return null;
-            }
-          };
-          values.put(column, supplier);
-          continue;
-        }
-        IncrementalIndex.MetricDesc metricDesc = index.getMetricDesc(column);
-        if (metricDesc != null) {
-          final int metricIndex = metricDesc.getIndex();
-          final ValueType type = ValueDesc.of(metricDesc.getType()).type();
-          if (ValueType.FLOAT == type) {
-            final FloatColumnSelector selector = new FloatColumnSelector()
-            {
-              @Override
-              public float get()
-              {
-                return index.getMetricFloatValue(holder.getValue(), metricIndex);
-              }
-            };
-            values.put(column, ColumnSelectors.asSupplier(selector));
-          } else if (ValueType.DOUBLE == type) {
-            final DoubleColumnSelector selector = new DoubleColumnSelector()
-            {
-              @Override
-              public double get()
-              {
-                return index.getMetricDoubleValue(holder.getValue(), metricIndex);
-              }
-            };
-            values.put(column, ColumnSelectors.asSupplier(selector));
-          } else if (ValueType.LONG == type) {
-            final LongColumnSelector selector = new LongColumnSelector()
-            {
-              @Override
-              public long get()
-              {
-                return index.getMetricLongValue(holder.getValue(), metricIndex);
-              }
-            };
-            values.put(column, ColumnSelectors.asSupplier(selector));
-          } else {
-            throw new UnsupportedOperationException("Unsupported type " + type);
-          }
-        }
-      }
-      return values;
     }
   }
 

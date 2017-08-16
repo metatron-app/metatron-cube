@@ -87,6 +87,11 @@ public class ValueDesc
     return ValueDesc.of(MULTIVALUED_PREFIX + valueType.name());
   }
 
+  public static ValueDesc ofMultiValued(ValueDesc valueType)
+  {
+    return ValueDesc.of(MULTIVALUED_PREFIX + valueType.typeName());
+  }
+
   public static ValueDesc ofIndexedId(ValueType valueType)
   {
     return ValueDesc.of(INDEXED_ID_PREFIX + valueType.name());
@@ -104,7 +109,7 @@ public class ValueDesc
 
   public static boolean isDimension(ValueDesc valueType)
   {
-    return isDimension(valueType.typeName);
+    return valueType != null && isDimension(valueType.typeName);
   }
 
   public static boolean isDimension(String typeName)
@@ -154,9 +159,10 @@ public class ValueDesc
     return isPrefixed(typeName, prefix) ? typeName.substring(prefix.length()) : null;
   }
 
-  public static String subElementOf(ValueDesc valueType)
+  public static ValueDesc subElementOf(ValueDesc valueType, ValueDesc defaultType)
   {
-    return valueType == null ? null : subElementOf(valueType.typeName);
+    String typeName = valueType == null ? null : subElementOf(valueType.typeName);
+    return typeName == null ? defaultType : ValueDesc.of(typeName);
   }
 
   public static String subElementOf(String typeName)
