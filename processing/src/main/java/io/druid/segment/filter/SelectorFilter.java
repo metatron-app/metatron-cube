@@ -22,14 +22,17 @@ package io.druid.segment.filter;
 import com.metamx.collections.bitmap.ImmutableBitmap;
 import com.metamx.collections.bitmap.MutableBitmap;
 import io.druid.data.ValueDesc;
+import io.druid.query.dimension.DefaultDimensionSpec;
 import io.druid.query.filter.BitmapIndexSelector;
 import io.druid.query.filter.Filter;
 import io.druid.query.filter.ValueMatcher;
 import io.druid.query.filter.ValueMatcherFactory;
 import io.druid.segment.ColumnSelectorFactory;
+import io.druid.segment.DimensionSelector;
 import io.druid.segment.ObjectColumnSelector;
 import io.druid.segment.column.BitmapIndex;
 import io.druid.segment.data.IndexedInts;
+import org.python.google.common.base.Strings;
 
 /**
  */
@@ -72,9 +75,43 @@ public class SelectorFilter extends Filter.WithDictionary
   }
 
   @Override
-  public ValueMatcher makeMatcher(ColumnSelectorFactory columnSelectorFactory)
+  public ValueMatcher makeMatcher(ColumnSelectorFactory factory)
   {
-    final ObjectColumnSelector selector = columnSelectorFactory.makeObjectColumnSelector(dimension);
+    final boolean nullOrEmpty = Strings.isNullOrEmpty(value);
+    final ValueDesc valueType = factory.getColumnType(dimension);
+    if (valueType == null) {
+      return BooleanValueMatcher.of(nullOrEmpty);
+    }
+    if (ValueDesc.isDimension(valueType)) {
+      final DimensionSelector selector = factory.makeDimensionSelector(DefaultDimensionSpec.of(dimension));
+      @SuppressWarnings("unchecked")
+      final int index = selector.lookupId(value);
+      if (index < 0) {
+        return BooleanValueMatcher.FALSE;
+      }
+      return new ValueMatcher()
+      {
+        @Override
+        public boolean matches()
+        {
+          final IndexedInts indexed = selector.getRow();
+          final int size = indexed.size();
+          if (size == 0) {
+            return nullOrEmpty;
+          }
+          if (size == 1) {
+            return index == indexed.get(0);
+          }
+          for (int i = 0; i < size; i++) {
+            if (index == indexed.get(i)) {
+              return true;
+            }
+          }
+          return nullOrEmpty;
+        }
+      };
+    }
+    final ObjectColumnSelector selector = factory.makeObjectColumnSelector(dimension);
     if (ValueDesc.isIndexedId(selector.type())) {
       return new ValueMatcher()
       {

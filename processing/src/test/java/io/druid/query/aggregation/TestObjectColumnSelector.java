@@ -39,7 +39,7 @@ public class TestObjectColumnSelector implements ObjectColumnSelector
   @Override
   public ValueDesc type()
   {
-    return RowResolver.toValueType(objects[index].getClass());
+    return RowResolver.toValueType(objects[index]);
   }
 
   @Override

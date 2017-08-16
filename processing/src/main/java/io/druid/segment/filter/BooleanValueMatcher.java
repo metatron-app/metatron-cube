@@ -28,6 +28,11 @@ public class BooleanValueMatcher implements ValueMatcher
   public static final ValueMatcher TRUE = new BooleanValueMatcher(true);
   public static final ValueMatcher FALSE = new BooleanValueMatcher(false);
 
+  public static ValueMatcher of(boolean bool)
+  {
+    return bool ? TRUE : FALSE;
+  }
+
   private final boolean matches;
 
   public BooleanValueMatcher(final boolean matches) {

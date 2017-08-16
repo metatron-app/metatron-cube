@@ -163,7 +163,7 @@ public class VarianceAggregatorCollectorTest
     @Override
     public ValueDesc type()
     {
-      return v == null ? ValueDesc.UNKNOWN : RowResolver.toValueType(v.getClass());
+      return RowResolver.toValueType(v);
     }
 
     @Override

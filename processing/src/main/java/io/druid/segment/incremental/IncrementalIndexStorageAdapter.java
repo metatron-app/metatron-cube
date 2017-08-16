@@ -47,6 +47,7 @@ import io.druid.math.expr.Expr;
 import io.druid.math.expr.ExprEval;
 import io.druid.math.expr.Parser;
 import io.druid.query.QueryInterruptedException;
+import io.druid.query.RowResolver;
 import io.druid.query.dimension.DimensionSpec;
 import io.druid.query.extraction.ExtractionFn;
 import io.druid.query.filter.DimFilter;
@@ -195,16 +196,20 @@ public class IncrementalIndexStorageAdapter implements StorageAdapter
   }
 
   @Override
-  public String getColumnTypeName(String column)
+  public ValueDesc getColumnType(String column)
   {
     // check first for compatibility
     String metricType = index.getMetricType(column);
     if (metricType != null) {
-      return metricType;
+      return ValueDesc.of(metricType);
+    }
+    IncrementalIndex.DimensionDesc dimensionDesc = index.getDimension(column);
+    if (dimensionDesc != null) {
+      return ValueDesc.ofDimension(dimensionDesc.getCapabilities().getType());
     }
     ColumnCapabilities capabilities = index.getCapabilities(column);
     if (capabilities != null) {
-      return capabilities.getType().name();
+      return ValueDesc.of(capabilities.getType());
     }
     return null;
   }
@@ -280,6 +285,8 @@ public class IncrementalIndexStorageAdapter implements StorageAdapter
       // might be better to be included in granularity#iterable
       iterable = Lists.reverse(ImmutableList.copyOf(iterable));
     }
+    final RowResolver resolver = new RowResolver(this, virtualColumns);
+
     return Sequences.map(
         Sequences.simple(iterable),
         new Function<Long, Cursor>()
@@ -725,9 +732,9 @@ public class IncrementalIndexStorageAdapter implements StorageAdapter
               }
 
               @Override
-              public ColumnCapabilities getColumnCapabilities(String columnName)
+              public ValueDesc getColumnType(String columnName)
               {
-                return index.getCapabilities(columnName);
+                return resolver.resolveColumn(columnName);
               }
             };
           }

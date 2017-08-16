@@ -22,7 +22,10 @@ package io.druid.segment;
 import com.google.common.base.Preconditions;
 import com.metamx.collections.bitmap.BitmapFactory;
 import com.metamx.common.io.smoosh.SmooshedFileMapper;
+import io.druid.data.ValueDesc;
+import io.druid.data.ValueType;
 import io.druid.segment.column.Column;
+import io.druid.segment.column.ColumnCapabilities;
 import io.druid.segment.data.Indexed;
 import org.joda.time.Interval;
 
@@ -95,6 +98,24 @@ public class SimpleQueryableIndex implements QueryableIndex
   public Column getColumn(String columnName)
   {
     return columns.get(columnName);
+  }
+
+  @Override
+  public ValueDesc getColumnType(String columnName)
+  {
+    Column column = columns.get(columnName);
+    if (column == null) {
+      return null;
+    }
+    ColumnCapabilities capabilities = column.getCapabilities();
+    ValueType valueType = capabilities.getType();
+    if (capabilities.isDictionaryEncoded()) {
+      return ValueDesc.ofDimension(valueType);
+    } else if (!valueType.isPrimitive()) {
+      return ValueDesc.of(column.getComplexColumn().getTypeName());
+    }
+    return ValueDesc.of(valueType);
+
   }
 
   @Override

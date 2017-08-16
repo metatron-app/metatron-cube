@@ -26,9 +26,9 @@ import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
+import io.druid.data.ValueDesc;
 import io.druid.query.dimension.DimensionSpec;
 import io.druid.query.filter.DimFilter;
-import io.druid.segment.column.ColumnCapabilities;
 import io.druid.segment.data.ArrayBasedIndexedInts;
 import io.druid.segment.data.IndexedInts;
 import io.druid.segment.filter.Filters;
@@ -277,13 +277,13 @@ public class VirtualColumns implements Iterable<VirtualColumn>
       }
 
       @Override
-      public ColumnCapabilities getColumnCapabilities(String columnName)
+      public ValueDesc getColumnType(String columnName)
       {
         ColumnSelectorFactory wrapped = delegate.get(columnName);
         if (wrapped != null) {
-          return wrapped.getColumnCapabilities(columnName);
+          return wrapped.getColumnType(columnName);
         }
-        return factory.getColumnCapabilities(columnName);
+        return factory.getColumnType(columnName);
       }
     };
   }
@@ -366,12 +366,12 @@ public class VirtualColumns implements Iterable<VirtualColumn>
     }
 
     @Override
-    public ColumnCapabilities getColumnCapabilities(String columnName)
+    public ValueDesc getColumnType(String columnName)
     {
       if (metricColumns.contains(columnName)) {
-        throw new UnsupportedOperationException("getColumnCapabilities");
+        throw new UnsupportedOperationException("getColumnType");
       }
-      return factory.getColumnCapabilities(columnName);
+      return factory.getColumnType(columnName);
     }
   }
 

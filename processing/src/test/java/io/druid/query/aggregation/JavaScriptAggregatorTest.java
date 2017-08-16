@@ -22,6 +22,7 @@ package io.druid.query.aggregation;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+import io.druid.data.ValueDesc;
 import io.druid.js.JavaScriptConfig;
 import io.druid.query.dimension.DimensionSpec;
 import io.druid.segment.ColumnSelectorFactory;
@@ -31,7 +32,6 @@ import io.druid.segment.ExprEvalColumnSelector;
 import io.druid.segment.FloatColumnSelector;
 import io.druid.segment.LongColumnSelector;
 import io.druid.segment.ObjectColumnSelector;
-import io.druid.segment.column.ColumnCapabilities;
 import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
@@ -92,7 +92,7 @@ public class JavaScriptAggregatorTest
     }
 
     @Override
-    public ColumnCapabilities getColumnCapabilities(String columnName)
+    public ValueDesc getColumnType(String columnName)
     {
       return null;
     }

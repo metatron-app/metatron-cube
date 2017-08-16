@@ -328,7 +328,7 @@ public abstract class IncrementalIndex<AggregatorType> implements Iterable<Row>,
       }
 
       @Override
-      public ColumnCapabilities getColumnCapabilities(String columnName)
+      public ValueDesc getColumnType(String columnName)
       {
         return null;
       }

@@ -21,7 +21,6 @@ package io.druid.segment;
 
 import io.druid.data.ValueDesc;
 import io.druid.query.dimension.DimensionSpec;
-import io.druid.segment.column.ColumnCapabilities;
 
 import java.util.List;
 
@@ -74,9 +73,9 @@ public class ColumnSelectorFactories
     }
 
     @Override
-    public ColumnCapabilities getColumnCapabilities(String columnName)
+    public ValueDesc getColumnType(String columnName)
     {
-      throw new UnsupportedOperationException("getColumnCapabilities");
+      throw new UnsupportedOperationException("getColumnType");
     }
   }
 
@@ -126,9 +125,9 @@ public class ColumnSelectorFactories
     }
 
     @Override
-    public ColumnCapabilities getColumnCapabilities(String columnName)
+    public ValueDesc getColumnType(String columnName)
     {
-      return delegate.getColumnCapabilities(columnName);
+      return delegate.getColumnType(columnName);
     }
 
     @Override
@@ -173,9 +172,9 @@ public class ColumnSelectorFactories
     }
 
     @Override
-    public ColumnCapabilities getColumnCapabilities(String columnName)
+    public ValueDesc getColumnType(String columnName)
     {
-      throw new UnsupportedOperationException("getColumnCapabilities");
+      throw new UnsupportedOperationException("getColumnType");
     }
 
     protected abstract Object getObject();

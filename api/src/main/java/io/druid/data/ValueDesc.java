@@ -21,6 +21,7 @@ package io.druid.data;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonValue;
+import com.google.common.base.Preconditions;
 
 /**
  */
@@ -40,8 +41,15 @@ public class ValueDesc
   public static final String UNKNOWN_TYPE = "unknown";
 
   public static final String ARRAY_PREFIX = "array.";
+  // aka. IndexedInts.WithLookup
+  // this is return type of object selector which simulates dimension selector (used for some filter optimization)
   public static final String INDEXED_ID_PREFIX = "indexed.";
+  // this is return type of object selector which can return element type or array of element type,
+  // which is trait of dimension
   public static final String MULTIVALUED_PREFIX = "multivalued.";
+
+    // prefix of dimension
+  public static final String DIMENSION_PREFIX = "dimension.";
 
   // primitives
   public static ValueDesc STRING = new ValueDesc(ValueType.STRING, STRING_TYPE);
@@ -68,9 +76,20 @@ public class ValueDesc
     return ValueDesc.of(ARRAY_PREFIX + typeName);
   }
 
+  public static ValueDesc ofDimension(ValueType valueType)
+  {
+    Preconditions.checkArgument(valueType.isPrimitive(), "complex type dimension is not allowed");
+    return of(DIMENSION_PREFIX + valueType.name());
+  }
+
   public static ValueDesc ofMultiValued(ValueType valueType)
   {
     return ValueDesc.of(MULTIVALUED_PREFIX + valueType.name());
+  }
+
+  public static ValueDesc ofIndexedId(ValueType valueType)
+  {
+    return ValueDesc.of(INDEXED_ID_PREFIX + valueType.name());
   }
 
   public static boolean isArray(ValueDesc valueType)
@@ -81,6 +100,16 @@ public class ValueDesc
   public static boolean isArray(String typeName)
   {
     return isPrefixed(typeName, ARRAY_PREFIX);
+  }
+
+  public static boolean isDimension(ValueDesc valueType)
+  {
+    return isDimension(valueType.typeName);
+  }
+
+  public static boolean isDimension(String typeName)
+  {
+    return isPrefixed(typeName, DIMENSION_PREFIX);
   }
 
   public static boolean isIndexedId(ValueDesc valueType)
@@ -95,7 +124,7 @@ public class ValueDesc
 
   private static boolean isPrefixed(String typeName, String prefix)
   {
-    return typeName.startsWith(prefix);
+    return typeName != null && typeName.toLowerCase().startsWith(prefix);
   }
 
   public static ValueDesc elementOfArray(ValueDesc valueType)
@@ -123,6 +152,17 @@ public class ValueDesc
   private static String subElementOf(String typeName, String prefix)
   {
     return isPrefixed(typeName, prefix) ? typeName.substring(prefix.length()) : null;
+  }
+
+  public static String subElementOf(ValueDesc valueType)
+  {
+    return valueType == null ? null : subElementOf(valueType.typeName);
+  }
+
+  public static String subElementOf(String typeName)
+  {
+    int index = typeName.indexOf('.');
+    return index < 0 ? null : typeName.substring(index + 1);
   }
 
   private final ValueType type;

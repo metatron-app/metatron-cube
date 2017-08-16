@@ -23,11 +23,9 @@ import com.google.common.collect.Maps;
 import com.metamx.common.Pair;
 import io.druid.data.TypeResolver;
 import io.druid.data.ValueDesc;
-import io.druid.data.ValueType;
 import io.druid.segment.StorageAdapter;
 import io.druid.segment.VirtualColumn;
 import io.druid.segment.VirtualColumns;
-import io.druid.segment.column.ColumnCapabilities;
 import io.druid.segment.data.IndexedInts;
 import io.druid.segment.serde.ComplexMetricSerde;
 import io.druid.segment.serde.ComplexMetrics;
@@ -64,7 +62,7 @@ public class RowResolver implements TypeResolver
         return Object.class;
     }
 
-    if (typeName.equals(ValueDesc.INDEXED_ID_TYPE) || typeName.startsWith(ValueDesc.INDEXED_ID_PREFIX)) {
+    if (typeName.startsWith(ValueDesc.INDEXED_ID_PREFIX)) {
       return IndexedInts.WithLookup.class;
     }
 
@@ -75,9 +73,14 @@ public class RowResolver implements TypeResolver
     return Object.class;
   }
 
-  public static ValueDesc toValueType(Class<?> clazz)
+  public static ValueDesc toValueType(Object obj)
   {
-    if (clazz == null || clazz == Object.class) {
+    return obj == null ? ValueDesc.UNKNOWN : toValueType(obj.getClass(), obj);
+  }
+
+  private static ValueDesc toValueType(Class clazz, Object object)
+  {
+    if (clazz == Object.class) {
       return ValueDesc.UNKNOWN;
     } else if (clazz == String.class) {
       return ValueDesc.STRING;
@@ -92,9 +95,10 @@ public class RowResolver implements TypeResolver
     } else if (List.class.isAssignableFrom(clazz)) {
       return ValueDesc.LIST;
     } else if (IndexedInts.WithLookup.class.isAssignableFrom(clazz)) {
-      return ValueDesc.INDEXED_ID;
+      IndexedInts.WithLookup lookup = (IndexedInts.WithLookup)object;
+      return lookup == null ? ValueDesc.INDEXED_ID : ValueDesc.ofIndexedId(lookup.elementType());
     } else if (clazz.isArray()) {
-      return ValueDesc.ofArray(toValueType(clazz.getComponentType()));
+      return ValueDesc.ofArray(toValueType(clazz.getComponentType(), null));
     }
     // cannot make multi-valued type from class
 
@@ -112,23 +116,12 @@ public class RowResolver implements TypeResolver
   public RowResolver(StorageAdapter adapter, VirtualColumns virtualColumns)
   {
     for (String dimension : adapter.getAvailableDimensions()) {
-      columnTypes.put(dimension, toColumnType(adapter, dimension));
+      columnTypes.put(dimension, adapter.getColumnType(dimension));
     }
     for (String metric : adapter.getAvailableMetrics()) {
-      columnTypes.put(metric, toColumnType(adapter, metric));
+      columnTypes.put(metric, adapter.getColumnType(metric));
     }
     this.virtualColumns = virtualColumns;
-  }
-
-  private ValueDesc toColumnType(StorageAdapter adapter, String dimension)
-  {
-    ColumnCapabilities capabilities = adapter.getColumnCapabilities(dimension);
-    if (capabilities == null) {
-      return ValueDesc.UNKNOWN;
-    } else if (capabilities.getType() == ValueType.COMPLEX) {
-      return ValueDesc.of(adapter.getColumnTypeName(dimension));
-    }
-    return ValueDesc.of(capabilities.getType());
   }
 
   @Override

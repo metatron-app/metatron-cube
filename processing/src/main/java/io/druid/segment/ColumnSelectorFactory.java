@@ -23,12 +23,12 @@ import com.google.common.base.Supplier;
 import com.google.common.collect.Maps;
 import io.druid.common.guava.DSuppliers;
 import io.druid.common.guava.GuavaUtils;
+import io.druid.data.ValueDesc;
 import io.druid.math.expr.Expr;
 import io.druid.math.expr.ExprEval;
 import io.druid.math.expr.ExprType;
 import io.druid.math.expr.Parser;
 import io.druid.query.dimension.DimensionSpec;
-import io.druid.segment.column.ColumnCapabilities;
 
 import java.util.Map;
 
@@ -44,7 +44,7 @@ public interface ColumnSelectorFactory
   public LongColumnSelector makeLongColumnSelector(String columnName);
   public ObjectColumnSelector makeObjectColumnSelector(String columnName);
   public ExprEvalColumnSelector makeMathExpressionSelector(String expression);
-  public ColumnCapabilities getColumnCapabilities(String columnName);
+  public ValueDesc getColumnType(String columnName);
 
   abstract class ExprSupport implements ColumnSelectorFactory
   {

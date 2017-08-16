@@ -19,6 +19,7 @@
 
 package io.druid.segment;
 
+import io.druid.data.ValueDesc;
 import io.druid.segment.column.ColumnCapabilities;
 import io.druid.segment.data.Indexed;
 import org.joda.time.DateTime;
@@ -54,7 +55,7 @@ public interface StorageAdapter extends CursorFactory
    * @param column column name
    * @return type name
    */
-  public String getColumnTypeName(String column);
+  public ValueDesc getColumnType(String column);
   public long getSerializedSize(String column);
   public float getAverageSize(String column);
   public int getNumRows();

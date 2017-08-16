@@ -33,7 +33,6 @@ import io.druid.segment.ExprEvalColumnSelector;
 import io.druid.segment.FloatColumnSelector;
 import io.druid.segment.LongColumnSelector;
 import io.druid.segment.ObjectColumnSelector;
-import io.druid.segment.column.ColumnCapabilities;
 import io.druid.segment.data.IndexedInts;
 
 import java.io.IOException;
@@ -372,9 +371,9 @@ public class DimensionArrayAggregatorFactory extends AbstractArrayAggregatorFact
     }
 
     @Override
-    public ColumnCapabilities getColumnCapabilities(String columnName)
+    public ValueDesc getColumnType(String columnName)
     {
-      throw new UnsupportedOperationException("getColumnCapabilities");
+      throw new UnsupportedOperationException("getColumnType");
     }
 
     @Override

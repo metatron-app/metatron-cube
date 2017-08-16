@@ -590,6 +590,9 @@ public class VirtualColumnTest
         runner.run(query, ImmutableMap.<String, Object>of()),
         Lists.<Row>newArrayList()
     );
+    for(Object x : results) {
+      System.out.println(x);
+    }
     TestHelper.assertExpectedObjects(expected, results, "");
   }
 }

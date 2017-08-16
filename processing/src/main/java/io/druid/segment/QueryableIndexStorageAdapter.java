@@ -35,6 +35,7 @@ import io.druid.data.ValueDesc;
 import io.druid.data.ValueType;
 import io.druid.granularity.QueryGranularity;
 import io.druid.query.QueryInterruptedException;
+import io.druid.query.RowResolver;
 import io.druid.query.dimension.DimensionSpec;
 import io.druid.query.extraction.ExtractionFn;
 import io.druid.query.filter.DimFilter;
@@ -202,14 +203,9 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
   }
 
   @Override
-  public String getColumnTypeName(String columnName)
+  public ValueDesc getColumnType(String columnName)
   {
-    Column column = index.getColumn(columnName);
-    if (column != null) {
-      ValueType valueType = column.getCapabilities().getType();
-      return valueType.isPrimitive() ? valueType.name() : column.getComplexColumn().getTypeName();
-    }
-    return null;
+    return index.getColumnType(columnName);
   }
 
   @Override
@@ -283,12 +279,12 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
           descending
       );
     }
-
     return Sequences.filter(
         new CursorSequenceBuilder(
             index,
             actualInterval,
             virtualColumns,
+            new RowResolver(this, virtualColumns),
             gran,
             offset,
             valuesFilter == null ? null : valuesFilter.toFilter(),
@@ -305,6 +301,7 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
     private final ColumnSelector index;
     private final Interval interval;
     private final VirtualColumns virtualColumns;
+    private final RowResolver resolver;
     private final QueryGranularity gran;
     private final Offset offset;
     private final long minDataTimestamp;
@@ -317,6 +314,7 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
         ColumnSelector index,
         Interval interval,
         VirtualColumns virtualColumns,
+        RowResolver resolver,
         QueryGranularity gran,
         Offset offset,
         Filter filter,
@@ -328,6 +326,7 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
       this.index = index;
       this.interval = interval;
       this.virtualColumns = virtualColumns;
+      this.resolver = resolver;
       this.gran = gran;
       this.offset = offset;
       this.filter = filter;
@@ -933,10 +932,9 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
                     }
 
                     @Override
-                    public ColumnCapabilities getColumnCapabilities(String columnName)
+                    public ValueDesc getColumnType(String columnName)
                     {
-                      Column holder = index.getColumn(columnName);
-                      return holder == null ? null : holder.getCapabilities();
+                      return resolver.resolveColumn(columnName);
                     }
                   };
                 }

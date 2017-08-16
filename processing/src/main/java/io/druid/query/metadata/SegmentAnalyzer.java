@@ -32,6 +32,7 @@ import com.metamx.common.guava.Sequence;
 import com.metamx.common.guava.Sequences;
 import com.metamx.common.logger.Logger;
 import io.druid.common.utils.StringUtils;
+import io.druid.data.ValueDesc;
 import io.druid.data.ValueType;
 import io.druid.granularity.QueryGranularities;
 import io.druid.math.expr.ExprType;
@@ -120,7 +121,7 @@ public class SegmentAnalyzer
           analysis = analyzeNumericColumn(columnName, capabilities, storageAdapter, column, NUM_BYTES_IN_TEXT_DOUBLE);
           break;
         case STRING:
-          if (index != null) {
+          if (column != null) {
             analysis = analyzeStringColumn(columnName, capabilities, storageAdapter, column);
           } else {
             analysis = analyzeStringColumn(columnName, capabilities, storageAdapter);
@@ -397,7 +398,7 @@ public class SegmentAnalyzer
   {
     final ComplexColumn complexColumn = column != null ? column.getComplexColumn() : null;
     final boolean hasMultipleValues = capabilities != null && capabilities.hasMultipleValues();
-    final String typeName = storageAdapter.getColumnTypeName(columnName);
+    final ValueDesc valueType = storageAdapter.getColumnType(columnName);
     long size = 0;
     long serializedSize = 0;
 
@@ -405,24 +406,21 @@ public class SegmentAnalyzer
       serializedSize = storageAdapter.getSerializedSize(columnName);
     }
     if (analyzingSize() && complexColumn != null) {
-      final ComplexMetricSerde serde = ComplexMetrics.getSerdeForType(typeName);
+      final ComplexMetricSerde serde = ComplexMetrics.getSerdeForType(valueType.typeName());
       if (serde == null) {
-        return ColumnAnalysis.error(String.format("unknown_complex_%s", typeName));
+        return ColumnAnalysis.error(String.format("unknown_complex_%s", valueType));
       }
-
       final Function<Object, Long> inputSizeFn = serde.inputSizeFn();
-      if (inputSizeFn == null) {
-        return new ColumnAnalysis(typeName, hasMultipleValues, 0, serializedSize, null, null, null, null, null);
-      }
-
-      final int length = column.getLength();
-      for (int i = 0; i < length; ++i) {
-        size += inputSizeFn.apply(complexColumn.getRowValue(i));
+      if (inputSizeFn != null) {
+        final int length = column.getLength();
+        for (int i = 0; i < length; ++i) {
+          size += inputSizeFn.apply(complexColumn.getRowValue(i));
+        }
       }
     }
 
     return new ColumnAnalysis(
-        typeName,
+        valueType.typeName(),
         hasMultipleValues,
         size,
         serializedSize,

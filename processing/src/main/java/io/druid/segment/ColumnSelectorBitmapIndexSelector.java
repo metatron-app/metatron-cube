@@ -24,6 +24,7 @@ import com.metamx.collections.bitmap.BitmapFactory;
 import com.metamx.collections.bitmap.ImmutableBitmap;
 import com.metamx.collections.spatial.ImmutableRTree;
 import com.metamx.common.guava.CloseQuietly;
+import io.druid.data.ValueDesc;
 import io.druid.query.filter.BitmapIndexSelector;
 import io.druid.segment.column.BitmapIndex;
 import io.druid.segment.column.Column;
@@ -71,6 +72,12 @@ public class ColumnSelectorBitmapIndexSelector implements BitmapIndexSelector
       public Column getColumn(String columnName)
       {
         return name.equals(columnName) ? column : null;
+      }
+
+      @Override
+      public ValueDesc getColumnType(String columnName)
+      {
+        return index.getColumnType(columnName);
       }
     };
   }

@@ -93,7 +93,7 @@ public class KeyIndexedVirtualColumn implements VirtualColumn
     if (valueMetrics.contains(column)) {
       return ValueDesc.elementOfArray(types.resolveColumn(column), ValueDesc.UNKNOWN);
     }
-    return types.resolveColumn(column, ValueDesc.UNKNOWN);
+    return ValueDesc.UNKNOWN;
   }
 
   @Override
@@ -240,7 +240,7 @@ public class KeyIndexedVirtualColumn implements VirtualColumn
               @Override
               public ValueDesc type()
               {
-                return ValueDesc.INDEXED_ID;
+                return ValueDesc.ofIndexedId(ValueType.STRING);
               }
 
               @Override

@@ -28,6 +28,7 @@ import com.google.common.collect.Maps;
 import com.google.common.primitives.Ints;
 import com.metamx.common.logger.Logger;
 import com.metamx.common.parsers.ParseException;
+import io.druid.data.ValueDesc;
 import io.druid.data.input.Row;
 import io.druid.granularity.QueryGranularity;
 import io.druid.query.aggregation.AbstractArrayAggregatorFactory;
@@ -43,7 +44,6 @@ import io.druid.segment.ExprEvalColumnSelector;
 import io.druid.segment.FloatColumnSelector;
 import io.druid.segment.LongColumnSelector;
 import io.druid.segment.ObjectColumnSelector;
-import io.druid.segment.column.ColumnCapabilities;
 
 import java.util.Arrays;
 import java.util.Collections;
@@ -660,9 +660,9 @@ public class OnheapIncrementalIndex extends IncrementalIndex<Aggregator>
     }
 
     @Override
-    public ColumnCapabilities getColumnCapabilities(String columnName)
+    public ValueDesc getColumnType(String columnName)
     {
-      return delegate.getColumnCapabilities(columnName);
+      return delegate.getColumnType(columnName);
     }
   }
 

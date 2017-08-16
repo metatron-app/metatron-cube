@@ -20,6 +20,7 @@
 package io.druid.query.aggregation;
 
 import com.google.common.collect.Lists;
+import io.druid.data.ValueDesc;
 import io.druid.js.JavaScriptConfig;
 import io.druid.query.dimension.DimensionSpec;
 import io.druid.query.extraction.ExtractionFn;
@@ -42,7 +43,6 @@ import io.druid.segment.ExprEvalColumnSelector;
 import io.druid.segment.FloatColumnSelector;
 import io.druid.segment.LongColumnSelector;
 import io.druid.segment.ObjectColumnSelector;
-import io.druid.segment.column.ColumnCapabilities;
 import io.druid.segment.data.ArrayBasedIndexedInts;
 import io.druid.segment.data.IndexedInts;
 import org.junit.Assert;
@@ -182,7 +182,7 @@ public class FilteredAggregatorTest
       }
 
       @Override
-      public ColumnCapabilities getColumnCapabilities(String columnName)
+      public ValueDesc getColumnType(String columnName)
       {
         throw new UnsupportedOperationException();
       }
