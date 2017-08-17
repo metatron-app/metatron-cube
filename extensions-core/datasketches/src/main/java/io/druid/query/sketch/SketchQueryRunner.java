@@ -19,6 +19,7 @@
 
 package io.druid.query.sketch;
 
+import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.metamx.collections.bitmap.BitmapFactory;
@@ -32,7 +33,9 @@ import io.druid.granularity.QueryGranularities;
 import io.druid.query.Query;
 import io.druid.query.QueryRunner;
 import io.druid.query.Result;
+import io.druid.query.RowResolver;
 import io.druid.query.dimension.DimensionSpec;
+import io.druid.query.dimension.DimensionSpecs;
 import io.druid.query.extraction.ExtractionFn;
 import io.druid.query.extraction.ExtractionFns;
 import io.druid.query.extraction.IdentityExtractionFn;
@@ -90,10 +93,12 @@ public class SketchQueryRunner implements QueryRunner<Result<Map<String, Object>
 
     // Closing this will cause segfaults in unit tests.
     final QueryableIndex index = segment.asQueryableIndex(true);
+    final RowResolver resolver = RowResolver.of(index, vcs);
 
     Map<String, TypedSketch> unions = Maps.newLinkedHashMap();
 
-    if (index != null && metrics.isEmpty() && vcs.supportsBitmap(dimensions, filter)) {
+    Iterable<String> columns = Iterables.transform(dimensions, DimensionSpecs.INPUT_NAME);
+    if (index != null && metrics.isEmpty() && resolver.supportsBitmap(columns, filter)) {
       final BitmapFactory bitmapFactory = index.getBitmapFactoryForDimensions();
       final ColumnSelectorBitmapIndexSelector selector = new ColumnSelectorBitmapIndexSelector(bitmapFactory, index);
       final ImmutableBitmap filterBitmap = toDependentBitmap(filter, selector);

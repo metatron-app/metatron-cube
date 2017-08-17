@@ -21,6 +21,8 @@ package io.druid.segment.filter;
 
 import com.google.common.base.Predicate;
 import com.metamx.collections.bitmap.ImmutableBitmap;
+import io.druid.data.ValueDesc;
+import io.druid.query.RowResolver;
 import io.druid.query.filter.BitmapIndexSelector;
 import io.druid.query.filter.Filter;
 import io.druid.query.filter.JavaScriptDimFilter;
@@ -28,7 +30,7 @@ import io.druid.query.filter.ValueMatcher;
 import io.druid.segment.ColumnSelectorFactory;
 import org.mozilla.javascript.Context;
 
-public class JavaScriptFilter extends Filter.WithDictionary
+public class JavaScriptFilter implements Filter
 {
   private final String dimension;
   private final JavaScriptDimFilter.JavaScriptPredicate predicate;
@@ -40,6 +42,12 @@ public class JavaScriptFilter extends Filter.WithDictionary
   {
     this.dimension = dimension;
     this.predicate = predicate;
+  }
+
+  @Override
+  public boolean supportsBitmap(RowResolver resolver)
+  {
+    return ValueDesc.isDimension(resolver.resolveColumn(dimension));
   }
 
   @Override

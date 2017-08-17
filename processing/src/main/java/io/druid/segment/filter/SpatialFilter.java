@@ -22,6 +22,8 @@ import com.google.common.base.Preconditions;
 import com.google.common.base.Predicate;
 import com.metamx.collections.bitmap.ImmutableBitmap;
 import com.metamx.collections.spatial.search.Bound;
+import io.druid.data.ValueDesc;
+import io.druid.query.RowResolver;
 import io.druid.query.filter.BitmapIndexSelector;
 import io.druid.query.filter.Filter;
 import io.druid.query.filter.ValueMatcher;
@@ -31,7 +33,7 @@ import io.druid.segment.incremental.SpatialDimensionRowTransformer;
 
 /**
  */
-public class SpatialFilter extends Filter.WithDictionary
+public class SpatialFilter implements Filter
 {
   private final String dimension;
   private final Bound bound;
@@ -46,9 +48,15 @@ public class SpatialFilter extends Filter.WithDictionary
   }
 
   @Override
+  public boolean supportsBitmap(RowResolver resolver)
+  {
+    return ValueDesc.isDimension(resolver.resolveColumn(dimension));
+  }
+
+  @Override
   public ImmutableBitmap getValueBitmap(BitmapIndexSelector selector)
   {
-    return null;
+    return null;  // todo
   }
 
   @Override

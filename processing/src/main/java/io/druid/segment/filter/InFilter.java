@@ -28,6 +28,7 @@ import com.metamx.collections.bitmap.ImmutableBitmap;
 import com.metamx.collections.bitmap.MutableBitmap;
 import io.druid.common.guava.IntPredicate;
 import io.druid.data.ValueDesc;
+import io.druid.query.RowResolver;
 import io.druid.query.dimension.DefaultDimensionSpec;
 import io.druid.query.extraction.ExtractionFn;
 import io.druid.query.filter.BitmapIndexSelector;
@@ -44,7 +45,7 @@ import java.util.Set;
 
 /**
  */
-public class InFilter extends Filter.WithDictionary
+public class InFilter implements Filter
 {
   private final String dimension;
   private final Set<String> values;
@@ -55,6 +56,12 @@ public class InFilter extends Filter.WithDictionary
     this.dimension = dimension;
     this.values = values;
     this.extractionFn = extractionFn;
+  }
+
+  @Override
+  public boolean supportsBitmap(RowResolver resolver)
+  {
+    return ValueDesc.isDimension(resolver.resolveColumn(dimension));
   }
 
   @Override

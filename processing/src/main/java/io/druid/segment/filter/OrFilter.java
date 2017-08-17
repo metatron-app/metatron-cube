@@ -22,6 +22,7 @@ package io.druid.segment.filter;
 import com.google.common.collect.Lists;
 import com.metamx.collections.bitmap.ImmutableBitmap;
 import io.druid.math.expr.Expression;
+import io.druid.query.RowResolver;
 import io.druid.query.filter.BitmapIndexSelector;
 import io.druid.query.filter.Filter;
 import io.druid.query.filter.ValueMatcher;
@@ -32,7 +33,7 @@ import java.util.List;
 
 /**
  */
-public class OrFilter extends Filter.WithDictionary implements Expression.OrExpression
+public class OrFilter implements Filter, Expression.OrExpression
 {
   public static Filter of(Filter... filters)
   {
@@ -80,8 +81,8 @@ public class OrFilter extends Filter.WithDictionary implements Expression.OrExpr
     }
 
     List<ImmutableBitmap> bitmaps = Lists.newArrayList();
-    for (int i = 0; i < filters.size(); i++) {
-      bitmaps.add(filters.get(i).getBitmapIndex(selector));
+    for (Filter filter : filters) {
+      bitmaps.add(filter.getBitmapIndex(selector));
     }
 
     return selector.getBitmapFactory().union(bitmaps);
@@ -122,10 +123,10 @@ public class OrFilter extends Filter.WithDictionary implements Expression.OrExpr
   }
 
   @Override
-  public boolean supportsBitmap()
+  public boolean supportsBitmap(RowResolver resolver)
   {
     for (Filter child : filters) {
-      if (!child.supportsBitmap()) {
+      if (!child.supportsBitmap(resolver)) {
         return false;
       }
     }
@@ -133,6 +134,7 @@ public class OrFilter extends Filter.WithDictionary implements Expression.OrExpr
   }
 
   @Override
+  @SuppressWarnings("unchecked")
   public List<Filter> getChildren()
   {
     return filters;

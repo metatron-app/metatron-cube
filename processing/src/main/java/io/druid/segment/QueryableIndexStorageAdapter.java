@@ -245,7 +245,8 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
       actualInterval = actualInterval.withEnd(dataInterval.getEnd());
     }
 
-    final DimFilter[] filters = Filters.partitionWithBitmapSupport(filter, virtualColumns.getVirtualColumnNames());
+    final RowResolver resolver = new RowResolver(this, virtualColumns);
+    final DimFilter[] filters = Filters.partitionWithBitmapSupport(filter, resolver);
 
     final DimFilter bitmapFilter = filters == null ? null : filters[0];
     final DimFilter valuesFilter = filters == null ? null : filters[1];
@@ -284,7 +285,7 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
             index,
             actualInterval,
             virtualColumns,
-            new RowResolver(this, virtualColumns),
+            resolver,
             gran,
             offset,
             valuesFilter == null ? null : valuesFilter.toFilter(),

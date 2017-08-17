@@ -21,6 +21,7 @@ package io.druid.segment.filter;
 
 import com.metamx.collections.bitmap.ImmutableBitmap;
 import io.druid.math.expr.Expression;
+import io.druid.query.RowResolver;
 import io.druid.query.filter.BitmapIndexSelector;
 import io.druid.query.filter.Filter;
 import io.druid.query.filter.ValueMatcher;
@@ -28,7 +29,7 @@ import io.druid.segment.ColumnSelectorFactory;
 
 /**
  */
-public class NotFilter extends Filter.WithDictionary implements Expression.NotExpression
+public class NotFilter implements Filter, Expression.NotExpression
 {
   public static Filter of(Filter filter)
   {
@@ -84,9 +85,9 @@ public class NotFilter extends Filter.WithDictionary implements Expression.NotEx
   }
 
   @Override
-  public boolean supportsBitmap()
+  public boolean supportsBitmap(RowResolver resolver)
   {
-    return baseFilter.supportsBitmap();
+    return baseFilter.supportsBitmap(resolver);
   }
 
   @Override
@@ -96,6 +97,7 @@ public class NotFilter extends Filter.WithDictionary implements Expression.NotEx
   }
 
   @Override
+  @SuppressWarnings("unchecked")
   public Filter getChild()
   {
     return baseFilter;

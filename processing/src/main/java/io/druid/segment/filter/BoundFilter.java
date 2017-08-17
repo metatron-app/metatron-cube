@@ -25,8 +25,10 @@ import com.google.common.collect.Iterables;
 import com.metamx.collections.bitmap.BitmapFactory;
 import com.metamx.collections.bitmap.ImmutableBitmap;
 import com.metamx.collections.bitmap.MutableBitmap;
+import io.druid.data.ValueDesc;
 import io.druid.math.expr.Expr;
 import io.druid.math.expr.Parser;
+import io.druid.query.RowResolver;
 import io.druid.query.extraction.ExtractionFn;
 import io.druid.query.filter.BitmapIndexSelector;
 import io.druid.query.filter.BoundDimFilter;
@@ -40,7 +42,7 @@ import io.druid.segment.column.BitmapIndex;
 import java.util.Comparator;
 import java.util.Iterator;
 
-public class BoundFilter extends Filter.WithDictionary implements Predicate<String>
+public class BoundFilter implements Filter, Predicate<String>
 {
   private final BoundDimFilter boundDimFilter;
   private final Comparator<String> comparator;
@@ -52,6 +54,13 @@ public class BoundFilter extends Filter.WithDictionary implements Predicate<Stri
     this.comparator = boundDimFilter.getComparator();
     this.extractionFn = boundDimFilter.getExtractionFn();
   }
+
+    @Override
+  public boolean supportsBitmap(RowResolver resolver)
+    {
+      return boundDimFilter.getDimension() != null
+             && ValueDesc.isDimension(resolver.resolveColumn(boundDimFilter.getDimension()));
+    }
 
   @Override
   public ImmutableBitmap getValueBitmap(BitmapIndexSelector selector)

@@ -48,6 +48,7 @@ import io.druid.query.QueryRunner;
 import io.druid.query.QueryRunnerFactory;
 import io.druid.query.QueryToolChest;
 import io.druid.query.QueryWatcher;
+import io.druid.query.RowResolver;
 import io.druid.query.dimension.DefaultDimensionSpec;
 import io.druid.query.dimension.DimensionSpec;
 import io.druid.query.filter.DimFilter;
@@ -128,7 +129,7 @@ public class GroupByQueryRunnerFactory implements QueryRunnerFactory<Row, GroupB
     if (!DefaultDimensionSpec.isAllDefault(query.getDimensions())) {
       return null;
     }
-    final Set<String> vcNames = VirtualColumns.getVirtualColumnNames(query.getVirtualColumns());
+    final VirtualColumns vcs = VirtualColumns.valueOf(query.getVirtualColumns());
 
     final long start = System.currentTimeMillis();
     log.info("Initializing group-by optimizer with target %d segments", segments.size());
@@ -136,19 +137,12 @@ public class GroupByQueryRunnerFactory implements QueryRunnerFactory<Row, GroupB
     Filter filter = null;
     String filterDim = null;
     DimFilter dimFilter = query.getDimFilter();
-    if (dimFilter != null) {
-      for (String dependent : Filters.getDependents(dimFilter)) {
-        if (vcNames.contains(dependent)) {
-          return null;  // todo
-        }
-      }
+    if (dimFilter != null && supportsBitmap(segments, vcs, dimFilter)) {
       filter = Filters.toFilter(dimFilter);
-      if (filter.supportsBitmap()) {
-        Set<String> dependents = Filters.getDependents(dimFilter);
-        if (dependents.size() == 1) {
-          filterDim = Iterables.getOnlyElement(dependents);
-          log.info("Using filtered loader for dimension %s: %s", filterDim, dimFilter);
-        }
+      Set<String> dependents = Filters.getDependents(dimFilter);
+      if (dependents.size() == 1) {
+        filterDim = Iterables.getOnlyElement(dependents);
+        log.info("Using filtered loader for dimension %s: %s", filterDim, dimFilter);
       }
     }
 
@@ -160,13 +154,17 @@ public class GroupByQueryRunnerFactory implements QueryRunnerFactory<Row, GroupB
       }
       for (DimensionSpec dimension : query.getDimensions()) {
         String dimensionName = dimension.getDimension();
-        Column column = index.getColumn(dimensionName);
-        if (column == null || !column.getCapabilities().isDictionaryEncoded()) {
-          return null;
-        }
         List<DictionaryLoader<String>> dictionaries = columns.get(dimension.getOutputName());
         if (dictionaries == null) {
           columns.put(dimension.getOutputName(), dictionaries = Lists.newArrayList());
+        }
+        Column column = index.getColumn(dimensionName);
+        if (column == null) {
+          dictionaries.add(DictionaryLoader.nullLoader);
+          continue;
+        }
+        if (!column.getCapabilities().isDictionaryEncoded()) {
+          return null;
         }
         final GenericIndexed<String> dictionary = column.getDictionary();
         if (dimensionName.equals(filterDim)) {
@@ -277,6 +275,17 @@ public class GroupByQueryRunnerFactory implements QueryRunnerFactory<Row, GroupB
             }
         )
     );
+  }
+
+  private boolean supportsBitmap(List<Segment> segments, VirtualColumns vcs, DimFilter filter)
+  {
+    for (Segment segment : segments) {
+      RowResolver resolver = RowResolver.of(segment.asQueryableIndex(false), vcs);
+      if (resolver == null || !resolver.supportsBitmap(Arrays.<String>asList(), filter)) {
+        return false;
+      }
+    }
+    return true;
   }
 
   @Override

@@ -20,6 +20,7 @@
 package io.druid.query.filter;
 
 import com.metamx.collections.bitmap.ImmutableBitmap;
+import io.druid.query.RowResolver;
 import io.druid.segment.ColumnSelectorFactory;
 import io.druid.segment.filter.BooleanValueMatcher;
 
@@ -71,7 +72,7 @@ public class NoopDimFilter implements DimFilter
       }
 
       @Override
-      public boolean supportsBitmap()
+      public boolean supportsBitmap(RowResolver resolver)
       {
         return false;
       }

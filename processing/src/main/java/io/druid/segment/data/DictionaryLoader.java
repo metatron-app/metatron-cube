@@ -19,6 +19,7 @@
 
 package io.druid.segment.data;
 
+import java.util.Arrays;
 import java.util.Collection;
 
 /**
@@ -28,4 +29,19 @@ public interface DictionaryLoader<T>
   int size();
 
   Collection<T> loadFully();
+
+  DictionaryLoader nullLoader = new DictionaryLoader()
+  {
+    @Override
+    public int size()
+    {
+      return 1;
+    }
+
+    @Override
+    public Collection loadFully()
+    {
+      return Arrays.asList((Object)null);
+    }
+  };
 }

@@ -28,10 +28,8 @@ import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import io.druid.data.ValueDesc;
 import io.druid.query.dimension.DimensionSpec;
-import io.druid.query.filter.DimFilter;
 import io.druid.segment.data.ArrayBasedIndexedInts;
 import io.druid.segment.data.IndexedInts;
-import io.druid.segment.filter.Filters;
 
 import java.io.IOException;
 import java.util.Arrays;
@@ -398,26 +396,5 @@ public class VirtualColumns implements Iterable<VirtualColumn>
   public Set<String> getVirtualColumnNames()
   {
     return ImmutableSet.copyOf(virtualColumns.keySet());
-  }
-
-  // DimensionSpec with multiple dimensions or referencing virtual column are handled through cursor only
-  public boolean supportsBitmap(Iterable<DimensionSpec> dimensionSpecs, DimFilter filter)
-  {
-    for (DimensionSpec dimensionSpec : dimensionSpecs) {
-      if (getVirtualColumn(dimensionSpec.getDimension()) != null) {
-        return false;
-      }
-    }
-    if (filter != null) {
-      if (!Filters.toFilter(filter).supportsBitmap()) {
-        return false;
-      }
-      for (String reference : Filters.getDependents(filter)) {
-        if (getVirtualColumn(reference) != null) {
-          return false;
-        }
-      }
-    }
-    return true;
   }
 }

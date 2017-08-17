@@ -37,7 +37,9 @@ import io.druid.granularity.QueryGranularities;
 import io.druid.query.Query;
 import io.druid.query.QueryRunner;
 import io.druid.query.Result;
+import io.druid.query.RowResolver;
 import io.druid.query.dimension.DimensionSpec;
+import io.druid.query.dimension.DimensionSpecs;
 import io.druid.query.extraction.ExtractionFn;
 import io.druid.query.extraction.ExtractionFns;
 import io.druid.query.extraction.IdentityExtractionFn;
@@ -110,8 +112,10 @@ public class SearchQueryRunner implements QueryRunner<Result<SearchResultValue>>
     final String segmentId = segment.getIdentifier();
 
     final VirtualColumns vcs = VirtualColumns.valueOf(query.getVirtualColumns());
+    final RowResolver resolver = RowResolver.of(index, vcs);
 
-    if (index != null && vcs.supportsBitmap(dimensions, filter)) {
+    Iterable<String> columns = Iterables.transform(dimensions, DimensionSpecs.INPUT_NAME);
+    if (index != null && resolver.supportsBitmap(columns, filter)) {
       final Map<SearchHit, MutableInt> retVal = Maps.newHashMap();
 
       final BitmapFactory bitmapFactory = index.getBitmapFactoryForDimensions();

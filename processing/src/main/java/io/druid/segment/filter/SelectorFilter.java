@@ -23,6 +23,7 @@ import com.metamx.collections.bitmap.ImmutableBitmap;
 import com.metamx.collections.bitmap.MutableBitmap;
 import io.druid.common.guava.IntPredicate;
 import io.druid.data.ValueDesc;
+import io.druid.query.RowResolver;
 import io.druid.query.dimension.DefaultDimensionSpec;
 import io.druid.query.filter.BitmapIndexSelector;
 import io.druid.query.filter.Filter;
@@ -36,7 +37,7 @@ import org.python.google.common.base.Strings;
 
 /**
  */
-public class SelectorFilter extends Filter.WithDictionary
+public class SelectorFilter implements Filter
 {
   private final String dimension;
   private final String value;
@@ -48,6 +49,12 @@ public class SelectorFilter extends Filter.WithDictionary
   {
     this.dimension = dimension;
     this.value = value;
+  }
+
+  @Override
+  public boolean supportsBitmap(RowResolver resolver)
+  {
+    return ValueDesc.isDimension(resolver.resolveColumn(dimension));
   }
 
   @Override

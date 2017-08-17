@@ -23,7 +23,6 @@ import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Predicate;
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import com.metamx.collections.bitmap.BitmapFactory;
@@ -33,6 +32,7 @@ import com.metamx.common.guava.FunctionalIterable;
 import io.druid.common.guava.IntPredicate;
 import io.druid.data.ValueDesc;
 import io.druid.math.expr.Expressions;
+import io.druid.query.RowResolver;
 import io.druid.query.dimension.DefaultDimensionSpec;
 import io.druid.query.filter.AndDimFilter;
 import io.druid.query.filter.BitmapIndexSelector;
@@ -310,12 +310,7 @@ public class Filters
     );
   }
 
-  public static DimFilter[] partitionWithBitmapSupport(DimFilter current)
-  {
-    return partitionWithBitmapSupport(current, ImmutableSet.<String>of());
-  }
-
-  public static DimFilter[] partitionWithBitmapSupport(DimFilter current, final Set<String> virtualColumns)
+  public static DimFilter[] partitionWithBitmapSupport(DimFilter current, final RowResolver resolver)
   {
     current = Filters.convertToCNF(current);
     if (current == null) {
@@ -327,15 +322,7 @@ public class Filters
           @Override
           public boolean apply(DimFilter input)
           {
-            if (!input.toFilter().supportsBitmap()) {
-              return false;
-            }
-            for (String dependent : Filters.getDependents(input)) {
-              if (virtualColumns.contains(dependent)) {
-                return false;
-              }
-            }
-            return true;
+            return input.toFilter().supportsBitmap(resolver);
           }
         }
     );

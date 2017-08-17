@@ -19,14 +19,18 @@
 
 package io.druid.query;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Maps;
 import com.metamx.common.Pair;
 import io.druid.data.TypeResolver;
 import io.druid.data.ValueDesc;
+import io.druid.query.filter.DimFilter;
+import io.druid.segment.QueryableIndex;
 import io.druid.segment.StorageAdapter;
 import io.druid.segment.VirtualColumn;
 import io.druid.segment.VirtualColumns;
 import io.druid.segment.data.IndexedID;
+import io.druid.segment.filter.Filters;
 import io.druid.segment.serde.ComplexMetricSerde;
 import io.druid.segment.serde.ComplexMetrics;
 import org.joda.time.DateTime;
@@ -38,6 +42,11 @@ import java.util.Map;
  */
 public class RowResolver implements TypeResolver
 {
+  public static RowResolver of(QueryableIndex index, VirtualColumns virtualColumns)
+  {
+    return index == null ? null : new RowResolver(index, virtualColumns);
+  }
+
   public static Class<?> toClass(String typeName)
   {
     ValueDesc valueDesc = ValueDesc.of(typeName);
@@ -124,6 +133,21 @@ public class RowResolver implements TypeResolver
     this.virtualColumns = virtualColumns;
   }
 
+  private RowResolver(QueryableIndex index, VirtualColumns virtualColumns)
+  {
+    for (String dimension : index.getColumnNames()) {
+      columnTypes.put(dimension, index.getColumnType(dimension));
+    }
+    this.virtualColumns = virtualColumns;
+  }
+
+  @VisibleForTesting
+  public RowResolver(Map<String, ValueDesc> columnTypes, VirtualColumns virtualColumns)
+  {
+    this.columnTypes.putAll(columnTypes);
+    this.virtualColumns = virtualColumns;
+  }
+
   @Override
   public ValueDesc resolveColumn(String column)
   {
@@ -162,5 +186,19 @@ public class RowResolver implements TypeResolver
       return resolved.lhs;
     }
     return null;
+  }
+
+  public boolean supportsBitmap(Iterable<String> columns, DimFilter filter)
+  {
+    for (String column : columns) {
+      ValueDesc valueType = resolveColumn(column);
+      if (valueType != null && !ValueDesc.isDimension(valueType)) {
+        return false;
+      }
+    }
+    if (filter != null) {
+      return Filters.toFilter(filter).supportsBitmap(this);
+    }
+    return true;
   }
 }

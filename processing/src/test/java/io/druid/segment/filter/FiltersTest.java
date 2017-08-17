@@ -19,13 +19,18 @@
 
 package io.druid.segment.filter;
 
+import com.google.common.collect.ImmutableMap;
+import io.druid.data.ValueDesc;
+import io.druid.data.ValueType;
 import io.druid.query.QueryRunnerTestHelper;
+import io.druid.query.RowResolver;
 import io.druid.query.filter.AndDimFilter;
 import io.druid.query.filter.DimFilter;
 import io.druid.query.filter.MathExprFilter;
 import io.druid.query.filter.NotDimFilter;
 import io.druid.query.filter.OrDimFilter;
 import io.druid.query.filter.SelectorDimFilter;
+import io.druid.segment.VirtualColumns;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -34,6 +39,12 @@ public class FiltersTest
   @Test
   public void testPartitionWithBitmapSupport() throws Exception
   {
+    ValueDesc dimensionType = ValueDesc.ofDimension(ValueType.STRING);
+    RowResolver resolver = new RowResolver(
+        ImmutableMap.<String, ValueDesc>of("market", dimensionType, "quality", dimensionType),
+        VirtualColumns.EMPTY
+    );
+
     DimFilter dim1 = new SelectorDimFilter(QueryRunnerTestHelper.qualityDimension, "mezzanine", null);
 
     DimFilter dim2 = new MathExprFilter(
@@ -49,26 +60,26 @@ public class FiltersTest
 
     DimFilter[] filters;
 
-    filters = Filters.partitionWithBitmapSupport(null);
+    filters = Filters.partitionWithBitmapSupport(null, resolver);
     Assert.assertNull(filters);
 
-    filters = Filters.partitionWithBitmapSupport(dim1);
+    filters = Filters.partitionWithBitmapSupport(dim1, resolver);
     assertEquals(dim1, filters[0]);
     Assert.assertNull(filters[1]);
 
-    filters = Filters.partitionWithBitmapSupport(dim2);
+    filters = Filters.partitionWithBitmapSupport(dim2, resolver);
     Assert.assertNull(filters[0]);
     assertEquals(dim2, filters[1]);
 
-    filters = Filters.partitionWithBitmapSupport(dim3);
+    filters = Filters.partitionWithBitmapSupport(dim3, resolver);
     assertEquals(dim1, filters[0]);
     assertEquals(dim2, filters[1]);
 
-    filters = Filters.partitionWithBitmapSupport(dim4);
+    filters = Filters.partitionWithBitmapSupport(dim4, resolver);
     Assert.assertNull(filters[0]);
     assertEquals(dim4, filters[1]);
 
-    filters = Filters.partitionWithBitmapSupport(dim5);
+    filters = Filters.partitionWithBitmapSupport(dim5, resolver);
     assertEquals(AndDimFilter.of(dim1, NotDimFilter.of(dim1)), filters[0]);
     assertEquals(NotDimFilter.of(dim2), filters[1]);
   }
