@@ -126,8 +126,9 @@ public class Expressions
   private static <T extends Expression> T flatten(T root, Expression.Factory<T> factory)
   {
     if (root instanceof Expression.BooleanExpression) {
+      Expression.BooleanExpression parent = (Expression.BooleanExpression) root;
       List<T> children = new ArrayList<>();
-      children.addAll(((Expression.BooleanExpression) root).<T>getChildren());
+      children.addAll(parent.<T>getChildren());
       // iterate through the index, so that if we add more children,
       // they don't get re-visited
       for (int i = 0; i < children.size(); ++i) {
@@ -150,7 +151,7 @@ public class Expressions
         }
       }
       // if we have a singleton AND or OR, just return the child
-      if (children.size() == 1 && (root instanceof Expression.BooleanExpression)) {
+      if (children.size() == 1) {
         return children.get(0);
       }
 
@@ -184,7 +185,12 @@ public class Expressions
       result.clear();
       for (T child : children) {
         for (T or : work) {
-          List<T> a = Lists.<T>newArrayList(((Expression.OrExpression) or).<T>getChildren());
+          List<T> a = Lists.<T>newArrayList();
+          if (or instanceof Expression.OrExpression) {
+            a.addAll(((Expression.OrExpression) or).<T>getChildren());
+          } else {
+            a.add(or);
+          }
           a.add(child);
           result.add(factory.or(a));
         }

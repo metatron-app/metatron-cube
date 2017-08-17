@@ -25,6 +25,7 @@ import io.druid.data.ValueType;
 import io.druid.query.QueryRunnerTestHelper;
 import io.druid.query.RowResolver;
 import io.druid.query.filter.AndDimFilter;
+import io.druid.query.filter.BoundDimFilter;
 import io.druid.query.filter.DimFilter;
 import io.druid.query.filter.MathExprFilter;
 import io.druid.query.filter.NotDimFilter;
@@ -36,15 +37,26 @@ import org.junit.Test;
 
 public class FiltersTest
 {
+  private final ValueDesc dimensionType = ValueDesc.ofDimension(ValueType.STRING);
+  private final RowResolver resolver = new RowResolver(
+      ImmutableMap.<String, ValueDesc>of("market", dimensionType, "quality", dimensionType),
+      VirtualColumns.EMPTY
+  );
+
+  @Test
+  public void testCNF() throws Exception
+  {
+    DimFilter dim1 = BoundDimFilter.gt("market", "a");
+    DimFilter dim2 = BoundDimFilter.lt("market", "b");
+    DimFilter dim3 = BoundDimFilter.gt("market", "s");
+
+    DimFilter cnf = Filters.convertToCNF(OrDimFilter.of(AndDimFilter.of(dim1, dim2), dim3));
+    assertEquals(AndDimFilter.of(OrDimFilter.of(dim3, dim1), OrDimFilter.of(dim3, dim2)), cnf);
+  }
+
   @Test
   public void testPartitionWithBitmapSupport() throws Exception
   {
-    ValueDesc dimensionType = ValueDesc.ofDimension(ValueType.STRING);
-    RowResolver resolver = new RowResolver(
-        ImmutableMap.<String, ValueDesc>of("market", dimensionType, "quality", dimensionType),
-        VirtualColumns.EMPTY
-    );
-
     DimFilter dim1 = new SelectorDimFilter(QueryRunnerTestHelper.qualityDimension, "mezzanine", null);
 
     DimFilter dim2 = new MathExprFilter(

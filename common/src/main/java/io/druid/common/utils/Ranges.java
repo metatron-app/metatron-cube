@@ -17,7 +17,7 @@
  * under the License.
  */
 
-package io.druid.hive;
+package io.druid.common.utils;
 
 import com.google.common.base.Function;
 import com.google.common.base.Predicate;
@@ -67,6 +67,9 @@ public class Ranges
         int compare = 0;
         if (lhs.hasLowerBound() && rhs.hasLowerBound()) {
           compare = lhs.lowerEndpoint().compareTo(rhs.lowerEndpoint());
+          if (compare == 0 && lhs.lowerBoundType() != rhs.lowerBoundType()) {
+            compare = lhs.lowerBoundType() == BoundType.OPEN ? 1 : -1;
+          }
         } else if (!lhs.hasLowerBound() && rhs.hasLowerBound()) {
           compare = -1;
         } else if (lhs.hasLowerBound() && !rhs.hasLowerBound()) {
@@ -77,6 +80,9 @@ public class Ranges
         }
         if (lhs.hasUpperBound() && rhs.hasUpperBound()) {
           compare = lhs.upperEndpoint().compareTo(rhs.upperEndpoint());
+          if (compare == 0 && lhs.lowerBoundType() != rhs.lowerBoundType()) {
+            compare = lhs.lowerBoundType() == BoundType.CLOSED ? 1 : -1;
+          }
         } else if (!lhs.hasUpperBound() && rhs.hasUpperBound()) {
           compare = -1;
         } else if (lhs.hasUpperBound() && !rhs.hasUpperBound()) {

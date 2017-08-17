@@ -300,4 +300,41 @@ public class Parser
       }
     }
   }
+
+  static final Expression.Factory<Expr> EXPR_FACTORY = new Expression.Factory<Expr>()
+  {
+    @Override
+    public Expr or(List<Expr> children)
+    {
+      Preconditions.checkArgument(!children.isEmpty());
+      if (children.size() == 1) {
+        return children.get(0);
+      }
+      Expr prev = new BinOrExpr("||", children.get(0), children.get(1));
+      for (int i = 2; i < children.size(); i++) {
+        prev = new BinOrExpr("||", prev, children.get(i));
+      }
+      return prev;
+    }
+
+    @Override
+    public Expr and(List<Expr> children)
+    {
+      Preconditions.checkArgument(!children.isEmpty());
+      if (children.size() == 1) {
+        return children.get(0);
+      }
+      Expr prev = new BinAndExpr("&&", children.get(0), children.get(1));
+      for (int i = 2; i < children.size(); i++) {
+        prev = new BinAndExpr("&&", prev, children.get(i));
+      }
+      return prev;
+    }
+
+    @Override
+    public Expr not(Expr expression)
+    {
+      return new UnaryNotExpr(expression);
+    }
+  };
 }

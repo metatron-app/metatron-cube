@@ -22,22 +22,31 @@ package io.druid.segment.filter;
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Predicate;
+import com.google.common.collect.BoundType;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
+import com.google.common.collect.Range;
 import com.google.common.collect.Sets;
 import com.metamx.collections.bitmap.BitmapFactory;
 import com.metamx.collections.bitmap.ImmutableBitmap;
 import com.metamx.collections.bitmap.MutableBitmap;
 import com.metamx.common.guava.FunctionalIterable;
+import com.metamx.common.logger.Logger;
 import io.druid.common.guava.IntPredicate;
+import io.druid.common.utils.Ranges;
 import io.druid.data.ValueDesc;
 import io.druid.math.expr.Expressions;
 import io.druid.query.RowResolver;
 import io.druid.query.dimension.DefaultDimensionSpec;
 import io.druid.query.filter.AndDimFilter;
 import io.druid.query.filter.BitmapIndexSelector;
+import io.druid.query.filter.BoundDimFilter;
 import io.druid.query.filter.DimFilter;
 import io.druid.query.filter.Filter;
+import io.druid.query.filter.InDimFilter;
+import io.druid.query.filter.OrDimFilter;
+import io.druid.query.filter.SelectorDimFilter;
 import io.druid.query.filter.ValueMatcher;
 import io.druid.segment.ColumnSelectorFactory;
 import io.druid.segment.ColumnSelectors;
@@ -58,6 +67,8 @@ import java.util.Set;
  */
 public class Filters
 {
+  private static final Logger logger = new Logger(Filters.class);
+
   /**
    * Convert a list of DimFilters to a list of Filters.
    *
@@ -381,5 +392,35 @@ public class Filters
   public static Filter convertToCNF(Filter current)
   {
     return Expressions.convertToCNF(current, new Filter.Factory());
+  }
+
+  // should be string type
+  public static DimFilter toFilter(String dimension, List<Range> ranges)
+  {
+    Iterable<Range> filtered = Iterables.filter(ranges, Ranges.VALID);
+    List<String> equalValues = Lists.newArrayList();
+    List<DimFilter> dimFilters = Lists.newArrayList();
+    for (Range range : filtered) {
+      String lower = range.hasLowerBound() ? (String) range.lowerEndpoint() : null;
+      String upper = range.hasUpperBound() ? (String) range.upperEndpoint() : null;
+      if (lower == null && upper == null) {
+        return null;
+      }
+      if (Objects.equals(lower, upper)) {
+        equalValues.add(lower);
+        continue;
+      }
+      boolean lowerStrict = range.hasLowerBound() && range.lowerBoundType() == BoundType.OPEN;
+      boolean upperStrict = range.hasUpperBound() && range.upperBoundType() == BoundType.OPEN;
+      dimFilters.add(new BoundDimFilter(dimension, lower, upper, lowerStrict, upperStrict, false, null));
+    }
+    if (equalValues.size() > 1) {
+      dimFilters.add(new InDimFilter(dimension, equalValues, null));
+    } else if (equalValues.size() == 1) {
+      dimFilters.add(new SelectorDimFilter(dimension, equalValues.get(0), null));
+    }
+    DimFilter dimFilter = new OrDimFilter(dimFilters).optimize();
+    logger.info("Converted dimension '%s' ranges %s to filter %s", dimension, ranges, dimFilter);
+    return dimFilter;
   }
 }

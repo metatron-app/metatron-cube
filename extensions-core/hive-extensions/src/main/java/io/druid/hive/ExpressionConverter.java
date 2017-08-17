@@ -30,11 +30,7 @@ import com.google.common.collect.Sets;
 import com.metamx.common.Pair;
 import com.metamx.common.logger.Logger;
 import io.druid.common.utils.JodaUtils;
-import io.druid.query.filter.BoundDimFilter;
-import io.druid.query.filter.DimFilter;
-import io.druid.query.filter.InDimFilter;
-import io.druid.query.filter.OrDimFilter;
-import io.druid.query.filter.SelectorDimFilter;
+import io.druid.common.utils.Ranges;
 import org.apache.commons.codec.binary.Base64;
 import org.apache.commons.lang.StringUtils;
 import org.apache.hadoop.conf.Configuration;
@@ -97,7 +93,6 @@ import java.sql.Timestamp;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Set;
 
 /**
@@ -134,36 +129,6 @@ public class ExpressionConverter
     );
     logger.info("Converted time ranges %s to interval %s", ranges, intervals);
     return intervals;
-  }
-
-  // should be string type
-  public static DimFilter toFilter(String dimension, List<Range> ranges)
-  {
-    Iterable<Range> filtered = Iterables.filter(ranges, Ranges.VALID);
-    List<String> equalValues = Lists.newArrayList();
-    List<DimFilter> dimFilters = Lists.newArrayList();
-    for (Range range : filtered) {
-      String lower = range.hasLowerBound() ? (String) range.lowerEndpoint() : null;
-      String upper = range.hasUpperBound() ? (String) range.upperEndpoint() : null;
-      if (lower == null && upper == null) {
-        return null;
-      }
-      if (Objects.equals(lower, upper)) {
-        equalValues.add(lower);
-        continue;
-      }
-      boolean lowerStrict = range.hasLowerBound() && range.lowerBoundType() == BoundType.OPEN;
-      boolean upperStrict = range.hasUpperBound() && range.upperBoundType() == BoundType.OPEN;
-      dimFilters.add(new BoundDimFilter(dimension, lower, upper, lowerStrict, upperStrict, false, null));
-    }
-    if (equalValues.size() > 1) {
-      dimFilters.add(new InDimFilter(dimension, equalValues, null));
-    } else if (equalValues.size() == 1) {
-      dimFilters.add(new SelectorDimFilter(dimension, equalValues.get(0), null));
-    }
-    DimFilter dimFilter = new OrDimFilter(dimFilters).optimize();
-    logger.info("Converted dimension '%s' ranges %s to filter %s", dimension, ranges, dimFilter);
-    return dimFilter;
   }
 
   public static Map<String, TypeInfo> getColumnTypes(Configuration configuration, String timeColumnName)

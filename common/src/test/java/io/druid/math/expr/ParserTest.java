@@ -247,4 +247,23 @@ public class ParserTest
         "[tot_scrbr_cnt]"
     );
   }
+
+  @Test
+  public void testDecomposition()
+  {
+    Expr parse = Parser.parse("(a > 1 && a < 2) || (a > 100)");
+    Assert.assertEquals("(|| (&& (> a 1) (< a 2)) (> a 100))", parse.toString());
+    Expr cnf = Expressions.convertToCNF(parse, Parser.EXPR_FACTORY);
+    Assert.assertEquals("(&& (|| (> a 100) (> a 1)) (|| (> a 100) (< a 2)))", cnf.toString());
+
+    parse = Parser.parse("!(a > 1 && a < 2) || (a > 100)");
+    Assert.assertEquals("(|| !(&& (> a 1) (< a 2)) (> a 100))", parse.toString());
+    cnf = Expressions.convertToCNF(parse, Parser.EXPR_FACTORY);
+    Assert.assertEquals("(|| (|| !(> a 1) !(< a 2)) (> a 100))", cnf.toString());
+
+    parse = Parser.parse("(a > 1 && a < 2) || !(a > 100)");
+    Assert.assertEquals("(|| (&& (> a 1) (< a 2)) !(> a 100))", parse.toString());
+    cnf = Expressions.convertToCNF(parse, Parser.EXPR_FACTORY);
+    Assert.assertEquals("(&& (|| !(> a 100) (> a 1)) (|| !(> a 100) (< a 2)))", cnf.toString());
+  }
 }
