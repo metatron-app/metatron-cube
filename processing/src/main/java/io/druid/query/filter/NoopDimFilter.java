@@ -71,12 +71,6 @@ public class NoopDimFilter implements DimFilter
       }
 
       @Override
-      public ValueMatcher makeMatcher(ValueMatcherFactory factory)
-      {
-        return new BooleanValueMatcher(true);
-      }
-
-      @Override
       public boolean supportsBitmap()
       {
         return false;

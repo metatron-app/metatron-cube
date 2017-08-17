@@ -33,7 +33,6 @@ import io.druid.query.extraction.ExtractionFn;
 import io.druid.query.filter.BitmapIndexSelector;
 import io.druid.query.filter.Filter;
 import io.druid.query.filter.ValueMatcher;
-import io.druid.query.filter.ValueMatcherFactory;
 import io.druid.segment.ColumnSelectorFactory;
 import io.druid.segment.ColumnSelectors;
 import io.druid.segment.DimensionSelector;
@@ -164,12 +163,6 @@ public class InFilter extends Filter.WithDictionary
       selector = ColumnSelectors.asValued(selector);
     }
     return Filters.toValueMatcher(selector, toPredicate());
-  }
-
-  @Override
-  public ValueMatcher makeMatcher(ValueMatcherFactory factory)
-  {
-    return factory.makeValueMatcher(dimension, toPredicate());
   }
 
   private Predicate<String> toPredicate()

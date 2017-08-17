@@ -21,7 +21,9 @@ package io.druid.query.aggregation;
 
 import com.google.common.collect.Lists;
 import io.druid.data.ValueDesc;
+import io.druid.data.ValueType;
 import io.druid.js.JavaScriptConfig;
+import io.druid.query.dimension.DefaultDimensionSpec;
 import io.druid.query.dimension.DimensionSpec;
 import io.druid.query.extraction.ExtractionFn;
 import io.druid.query.extraction.JavaScriptExtractionFn;
@@ -37,6 +39,7 @@ import io.druid.query.filter.SearchQueryDimFilter;
 import io.druid.query.filter.SelectorDimFilter;
 import io.druid.query.search.search.ContainsSearchQuerySpec;
 import io.druid.segment.ColumnSelectorFactory;
+import io.druid.segment.ColumnSelectors;
 import io.druid.segment.DimensionSelector;
 import io.druid.segment.DoubleColumnSelector;
 import io.druid.segment.ExprEvalColumnSelector;
@@ -172,6 +175,25 @@ public class FilteredAggregatorTest
       @Override
       public ObjectColumnSelector makeObjectColumnSelector(String columnName)
       {
+        if (columnName.equals("value")) {
+          return new ObjectColumnSelector()
+          {
+            @Override
+            public Object get()
+            {
+              return selector.get();
+            }
+
+            @Override
+            public ValueDesc type()
+            {
+              return ValueDesc.FLOAT;
+            }
+          };
+        }
+        if (columnName.equals("dim")) {
+          return ColumnSelectors.asArray(makeDimensionSelector(DefaultDimensionSpec.of(columnName)));
+        }
         throw new UnsupportedOperationException();
       }
 
@@ -184,7 +206,13 @@ public class FilteredAggregatorTest
       @Override
       public ValueDesc getColumnType(String columnName)
       {
-        throw new UnsupportedOperationException();
+        if (columnName.equals("value")) {
+          return ValueDesc.FLOAT;
+        }
+        if (columnName.equals("dim")) {
+          return ValueDesc.ofDimension(ValueType.STRING);
+        }
+        return null;
       }
     };
   }

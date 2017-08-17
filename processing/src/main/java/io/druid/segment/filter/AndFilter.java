@@ -25,7 +25,6 @@ import io.druid.math.expr.Expression;
 import io.druid.query.filter.BitmapIndexSelector;
 import io.druid.query.filter.Filter;
 import io.druid.query.filter.ValueMatcher;
-import io.druid.query.filter.ValueMatcherFactory;
 import io.druid.segment.ColumnSelectorFactory;
 
 import java.util.Arrays;
@@ -90,21 +89,6 @@ public class AndFilter extends Filter.WithDictionary implements Expression.AndEx
     ValueMatcher[] matchers = new ValueMatcher[filters.size()];
     for (int i = 0; i < filters.size(); i++) {
       matchers[i] = filters.get(i).makeMatcher(columnSelectorFactory);
-    }
-    return makeMatcher(matchers);
-  }
-
-  @Override
-  public ValueMatcher makeMatcher(ValueMatcherFactory factory)
-  {
-    if (filters.size() == 0) {
-      return BooleanValueMatcher.FALSE;
-    }
-
-    final ValueMatcher[] matchers = new ValueMatcher[filters.size()];
-
-    for (int i = 0; i < filters.size(); i++) {
-      matchers[i] = filters.get(i).makeMatcher(factory);
     }
     return makeMatcher(matchers);
   }

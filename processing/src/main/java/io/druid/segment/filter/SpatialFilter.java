@@ -25,7 +25,6 @@ import com.metamx.collections.spatial.search.Bound;
 import io.druid.query.filter.BitmapIndexSelector;
 import io.druid.query.filter.Filter;
 import io.druid.query.filter.ValueMatcher;
-import io.druid.query.filter.ValueMatcherFactory;
 import io.druid.segment.ColumnSelectorFactory;
 import io.druid.segment.ObjectColumnSelector;
 import io.druid.segment.incremental.SpatialDimensionRowTransformer;
@@ -72,14 +71,6 @@ public class SpatialFilter extends Filter.WithDictionary
         return predicate.apply(selector.get());
       }
     };
-  }
-
-  @Override
-  public ValueMatcher makeMatcher(ValueMatcherFactory factory)
-  {
-    return factory.makeValueMatcher(
-        dimension, toPredicate()
-    );
   }
 
   private Predicate toPredicate()

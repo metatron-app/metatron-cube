@@ -25,7 +25,6 @@ import com.google.common.collect.Iterables;
 import com.metamx.collections.bitmap.BitmapFactory;
 import com.metamx.collections.bitmap.ImmutableBitmap;
 import com.metamx.collections.bitmap.MutableBitmap;
-import io.druid.math.expr.Evals;
 import io.druid.math.expr.Expr;
 import io.druid.math.expr.Parser;
 import io.druid.query.extraction.ExtractionFn;
@@ -33,7 +32,6 @@ import io.druid.query.filter.BitmapIndexSelector;
 import io.druid.query.filter.BoundDimFilter;
 import io.druid.query.filter.Filter;
 import io.druid.query.filter.ValueMatcher;
-import io.druid.query.filter.ValueMatcherFactory;
 import io.druid.segment.ColumnSelectorFactory;
 import io.druid.segment.ColumnSelectors;
 import io.druid.segment.ExprEvalColumnSelector;
@@ -201,15 +199,6 @@ public class BoundFilter extends Filter.WithDictionary implements Predicate<Stri
     }
     ExprEvalColumnSelector selector = factory.makeMathExpressionSelector(boundDimFilter.getExpression());
     return Filters.toValueMatcher(ColumnSelectors.asStringSelector(selector), this);
-  }
-
-  @Override
-  public ValueMatcher makeMatcher(ValueMatcherFactory factory)
-  {
-    if (boundDimFilter.getExpression() == null) {
-      return factory.makeValueMatcher(boundDimFilter.getDimension(), this);
-    }
-    return factory.makeExpressionMatcher(boundDimFilter.getExpression(), Predicates.compose(this, Evals.AS_STRING));
   }
 
   public boolean apply(String input)

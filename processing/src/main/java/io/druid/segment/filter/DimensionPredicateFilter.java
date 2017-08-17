@@ -26,7 +26,6 @@ import io.druid.query.extraction.ExtractionFn;
 import io.druid.query.filter.BitmapIndexSelector;
 import io.druid.query.filter.Filter;
 import io.druid.query.filter.ValueMatcher;
-import io.druid.query.filter.ValueMatcherFactory;
 import io.druid.segment.ColumnSelectorFactory;
 
 /**
@@ -77,9 +76,4 @@ public class DimensionPredicateFilter extends Filter.WithDictionary
     return Filters.toValueMatcher(factory, dimension, predicate);
   }
 
-  @Override
-  public ValueMatcher makeMatcher(ValueMatcherFactory factory)
-  {
-    return factory.makeValueMatcher(dimension, predicate);
-  }
 }

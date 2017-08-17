@@ -27,7 +27,6 @@ import io.druid.query.dimension.DefaultDimensionSpec;
 import io.druid.query.filter.BitmapIndexSelector;
 import io.druid.query.filter.Filter;
 import io.druid.query.filter.ValueMatcher;
-import io.druid.query.filter.ValueMatcherFactory;
 import io.druid.segment.ColumnSelectorFactory;
 import io.druid.segment.DimensionSelector;
 import io.druid.segment.ObjectColumnSelector;
@@ -67,12 +66,6 @@ public class SelectorFilter extends Filter.WithDictionary
   public ImmutableBitmap getBitmapIndex(BitmapIndexSelector selector)
   {
     return selector.getBitmapIndex(dimension, value);
-  }
-
-  @Override
-  public ValueMatcher makeMatcher(ValueMatcherFactory factory)
-  {
-    return factory.makeValueMatcher(dimension, value);
   }
 
   @Override

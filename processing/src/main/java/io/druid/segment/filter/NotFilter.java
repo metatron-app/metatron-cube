@@ -24,7 +24,6 @@ import io.druid.math.expr.Expression;
 import io.druid.query.filter.BitmapIndexSelector;
 import io.druid.query.filter.Filter;
 import io.druid.query.filter.ValueMatcher;
-import io.druid.query.filter.ValueMatcherFactory;
 import io.druid.segment.ColumnSelectorFactory;
 
 /**
@@ -73,21 +72,6 @@ public class NotFilter extends Filter.WithDictionary implements Expression.NotEx
   public ValueMatcher makeMatcher(ColumnSelectorFactory columnSelectorFactory)
   {
     final ValueMatcher baseMatcher = baseFilter.makeMatcher(columnSelectorFactory);
-
-    return new ValueMatcher()
-    {
-      @Override
-      public boolean matches()
-      {
-        return !baseMatcher.matches();
-      }
-    };
-  }
-
-  @Override
-  public ValueMatcher makeMatcher(ValueMatcherFactory factory)
-  {
-    final ValueMatcher baseMatcher = baseFilter.makeMatcher(factory);
 
     return new ValueMatcher()
     {

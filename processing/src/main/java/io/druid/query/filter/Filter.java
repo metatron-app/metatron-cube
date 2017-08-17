@@ -32,8 +32,6 @@ import java.util.List;
  */
 public interface Filter extends Expression
 {
-  ValueMatcher makeMatcher(ValueMatcherFactory factory);
-
   // return true only when getBitmapIndex() is implemented
   boolean supportsBitmap();
 
