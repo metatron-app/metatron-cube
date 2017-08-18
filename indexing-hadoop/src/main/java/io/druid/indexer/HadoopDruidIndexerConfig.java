@@ -304,6 +304,11 @@ public class HadoopDruidIndexerConfig
     return schema.getTuningConfig().isIgnoreInvalidRows();
   }
 
+  public int getMaxReducer()
+  {
+    return schema.getTuningConfig().getMaxReducer();
+  }
+
   public void setVersion(String version)
   {
     log.info("Replacing %s with %s", schema.getTuningConfig().getVersion(), version);

@@ -43,6 +43,7 @@ public class HadoopTuningConfig implements TuningConfig
   private static final IndexSpec DEFAULT_INDEX_SPEC = new IndexSpec();
   private static final int DEFAULT_ROW_FLUSH_BOUNDARY = 75000;
   private static final boolean DEFAULT_USE_COMBINER = false;
+  private static final int DEFAULT_MAX_REDUCER = 100;
   private static final Boolean DEFAULT_BUILD_V9_DIRECTLY = Boolean.FALSE;
   private static final int DEFAULT_NUM_BACKGROUND_PERSIST_THREADS = 0;
 
@@ -66,6 +67,7 @@ public class HadoopTuningConfig implements TuningConfig
         null,
         false,
         false,
+        DEFAULT_MAX_REDUCER,
         null,
         DEFAULT_BUILD_V9_DIRECTLY,
         DEFAULT_NUM_BACKGROUND_PERSIST_THREADS
@@ -89,6 +91,7 @@ public class HadoopTuningConfig implements TuningConfig
   private final IngestionMode ingestionMode;
   private final boolean combineText;
   private final boolean useCombiner;
+  private final int maxReducer;
   private final Boolean buildV9Directly;
   private final int numBackgroundPersistThreads;
 
@@ -111,6 +114,7 @@ public class HadoopTuningConfig implements TuningConfig
       final @JsonProperty("ingestionMode") IngestionMode ingestionMode,
       final @JsonProperty("combineText") boolean combineText,
       final @JsonProperty("useCombiner") Boolean useCombiner,
+      final @JsonProperty("maxReducer") Integer maxReducer,
       // See https://github.com/druid-io/druid/pull/1922
       final @JsonProperty("rowFlushBoundary") Integer maxRowsInMemoryCOMPAT,
       final @JsonProperty("buildV9Directly") Boolean buildV9Directly,
@@ -137,6 +141,7 @@ public class HadoopTuningConfig implements TuningConfig
     this.combineText = combineText;
     this.useCombiner = useCombiner == null ? DEFAULT_USE_COMBINER : useCombiner;
     this.buildV9Directly = buildV9Directly == null ? DEFAULT_BUILD_V9_DIRECTLY : buildV9Directly;
+    this.maxReducer = maxReducer == null ? DEFAULT_MAX_REDUCER : maxReducer;
     this.numBackgroundPersistThreads = numBackgroundPersistThreads == null ? DEFAULT_NUM_BACKGROUND_PERSIST_THREADS : numBackgroundPersistThreads;
     Preconditions.checkArgument(this.numBackgroundPersistThreads >= 0, "Not support persistBackgroundCount < 0");
   }
@@ -178,6 +183,7 @@ public class HadoopTuningConfig implements TuningConfig
         null,
         combineText,
         useCombiner,
+        null,
         maxRowsInMemoryCOMPAT,
         buildV9Directly,
         numBackgroundPersistThreads
@@ -297,6 +303,12 @@ public class HadoopTuningConfig implements TuningConfig
     return numBackgroundPersistThreads;
   }
 
+  @JsonProperty
+  public int getMaxReducer()
+  {
+    return maxReducer;
+  }
+
   public HadoopTuningConfig withWorkingPath(String path)
   {
     return new HadoopTuningConfig(
@@ -317,6 +329,7 @@ public class HadoopTuningConfig implements TuningConfig
         ingestionMode,
         combineText,
         useCombiner,
+        maxReducer,
         null,
         buildV9Directly,
         numBackgroundPersistThreads
@@ -343,6 +356,7 @@ public class HadoopTuningConfig implements TuningConfig
         ingestionMode,
         combineText,
         useCombiner,
+        maxReducer,
         null,
         buildV9Directly,
         numBackgroundPersistThreads
@@ -369,6 +383,7 @@ public class HadoopTuningConfig implements TuningConfig
         ingestionMode,
         combineText,
         useCombiner,
+        maxReducer,
         null,
         buildV9Directly,
         numBackgroundPersistThreads

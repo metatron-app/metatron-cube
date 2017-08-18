@@ -99,10 +99,11 @@ public class DetermineHashedPartitionsJob implements Jobby
       groupByJob.setOutputValueClass(NullWritable.class);
       groupByJob.setOutputFormatClass(SequenceFileOutputFormat.class);
       groupByJob.setPartitionerClass(DetermineHashedPartitionsPartitioner.class);
-      if (!config.getSegmentGranularIntervals().isPresent()) {
+      Optional<Set<Interval>> segmentGranularIntervals = config.getSegmentGranularIntervals();
+      if (!segmentGranularIntervals.isPresent()) {
         groupByJob.setNumReduceTasks(1);
       } else {
-        groupByJob.setNumReduceTasks(config.getSegmentGranularIntervals().get().size());
+        groupByJob.setNumReduceTasks(Math.min(config.getMaxReducer(), segmentGranularIntervals.get().size()));
       }
       JobHelper.setupClasspath(
           JobHelper.distributedClassPath(config.getWorkingPath()),
@@ -125,9 +126,9 @@ public class DetermineHashedPartitionsJob implements Jobby
        * Load partitions and intervals determined by the previous job.
        */
 
-      log.info("Job completed, loading up partitions for intervals[%s].", config.getSegmentGranularIntervals());
+      log.info("Job completed, loading up partitions for intervals[%s].", segmentGranularIntervals);
       FileSystem fileSystem = null;
-      if (!config.getSegmentGranularIntervals().isPresent()) {
+      if (!segmentGranularIntervals.isPresent()) {
         final Path intervalInfoPath = config.makeIntervalInfoPath();
         fileSystem = intervalInfoPath.getFileSystem(groupByJob.getConfiguration());
         if (!Utils.exists(groupByJob, fileSystem, intervalInfoPath)) {
@@ -146,11 +147,11 @@ public class DetermineHashedPartitionsJob implements Jobby
                 intervals
             )
         );
-        log.info("Determined Intervals for Job [%s]" + config.getSegmentGranularIntervals());
+        log.info("Determined Intervals for Job [%s]" + segmentGranularIntervals);
       }
       Map<DateTime, List<HadoopyShardSpec>> shardSpecs = Maps.newTreeMap(DateTimeComparator.getInstance());
       int shardCount = 0;
-      for (Interval segmentGranularity : config.getSegmentGranularIntervals().get()) {
+      for (Interval segmentGranularity : segmentGranularIntervals.get()) {
         DateTime bucket = segmentGranularity.getStart();
 
         final Path partitionInfoPath = config.makeSegmentPartitionInfoPath(segmentGranularity);

@@ -180,7 +180,7 @@ public class IndexGeneratorJob implements HadoopDruidIndexerJob.IndexingStatsPro
 
       SortableBytes.useSortableBytesAsMapOutputKey(job);
 
-      int numReducers = Iterables.size(config.getAllBuckets().get());
+      int numReducers = Math.min(config.getMaxReducer(), Iterables.size(config.getAllBuckets().get()));
       if (numReducers == 0) {
         throw new RuntimeException("No buckets?? seems there is no data to index.");
       }
