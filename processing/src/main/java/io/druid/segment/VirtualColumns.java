@@ -46,7 +46,9 @@ public class VirtualColumns implements Iterable<VirtualColumn>
   {
     if (virtualColumns != null && !virtualColumns.isEmpty()) {
       for (VirtualColumn vc : virtualColumns) {
-        Preconditions.checkArgument(vc.isIndexed(dimension), "cannot reference virtual column in this context");
+        if (vc.getOutputName().equals(dimension)) {
+          Preconditions.checkArgument(vc.isIndexed(dimension), "cannot reference virtual column in this context");
+        }
       }
     }
   }
