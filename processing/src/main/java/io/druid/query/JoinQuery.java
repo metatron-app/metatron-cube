@@ -128,6 +128,12 @@ public class JoinQuery<T extends Comparable<T>> extends BaseQuery<T> implements 
   }
 
   @JsonProperty
+  public Map<String, DataSource> getDataSources()
+  {
+    return dataSources;
+  }
+
+  @JsonProperty
   public List<JoinElement> getElements()
   {
     return elements;
@@ -329,6 +335,7 @@ public class JoinQuery<T extends Comparable<T>> extends BaseQuery<T> implements 
     return "JoinQuery{" +
            "dataSources=" + dataSources +
            ", elements=" + elements +
+           ", prefixAlias=" + prefixAlias +
            ", numPartition=" + numPartition +
            ", scannerLen=" + scannerLen +
            ", parallelism=" + parallelism +
@@ -433,6 +440,7 @@ public class JoinQuery<T extends Comparable<T>> extends BaseQuery<T> implements 
       return "JoinDelegate{" +
              "queries=" + getQueries() +
              ", parallelism=" + getParallelism() +
+             ", prefixAliases=" + getPrefixAliases() +
              ", queue=" + getQueue() +
              ", limit=" + getLimit() +
              '}';

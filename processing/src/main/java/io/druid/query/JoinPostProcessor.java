@@ -47,6 +47,7 @@ import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
 
@@ -98,7 +99,7 @@ public class JoinPostProcessor extends PostProcessingOperator.UnionSupport
       public Sequence run(Query query, Map responseContext)
       {
         final int joinAliases = elements.length + 1;
-        log.info("Running %d-way join processing", joinAliases);
+        log.info("Running %d-way join processing %s", joinAliases, toAliases());
         final boolean[] hashing = new boolean[joinAliases];
         final List<Sequence<Map<String, Object>>>[] sequencesList = new List[joinAliases];
         for (int i = 0; i < joinAliases; i++) {
@@ -117,8 +118,11 @@ public class JoinPostProcessor extends PostProcessingOperator.UnionSupport
                 Query element = in.lhs;
                 Sequence sequence = in.rhs;
 
-                TabularFormat tabular = warehouse.getToolChest(element).toTabularFormat(sequence, null);
-                sequencesList[indexer.intValue()].add(tabular.getSequence());
+                QueryToolChest toolChest = warehouse.getToolChest(element);
+                if (toolChest != null) {
+                  sequence = toolChest.toTabularFormat(sequence, null).getSequence();
+                }
+                sequencesList[indexer.intValue()].add(sequence);
                 hashing[indexer.intValue()] = element.getContextBoolean("hash", false);
                 indexer.increment();
                 return null;
@@ -143,6 +147,9 @@ public class JoinPostProcessor extends PostProcessingOperator.UnionSupport
         try {
           return Sequences.simple(join(joining, hashing));
         }
+        catch (ExecutionException e) {
+          throw Throwables.propagate(e.getCause() == null ? e : e.getCause());
+        }
         catch (Exception e) {
           throw Throwables.propagate(e);
         }
@@ -166,13 +173,13 @@ public class JoinPostProcessor extends PostProcessingOperator.UnionSupport
             Sequence<Map<String, Object>> sequence = Sequences.concat(sequences);
             List<Map<String, Object>> rows = Sequences.toList(sequence, Lists.<Map<String, Object>>newArrayList());
             if (index >= 0) {
-              Hashed hashing = toHash(index, sort(rows, joinColumns, true, index));
+              Hashed hashing = toHash(index, sort(rows, joinColumns, prefixAlias, index));
               if (!hashed[index].set(hashing)) {
                 throw new IllegalStateException("Failed to hash!");
               }
               return hashing;
             }
-            return sort(rows, joinColumns, true, -index - 1);
+            return sort(rows, joinColumns, prefixAlias, -index - 1);
           }
         }
     );
@@ -201,6 +208,16 @@ public class JoinPostProcessor extends PostProcessingOperator.UnionSupport
   private String toAlias(int index)
   {
     return index == 0 ? elements[0].getLeftAlias() : elements[index - 1].getRightAlias();
+  }
+
+  private List<String> toAliases()
+  {
+    List<String> aliases = Lists.newArrayList();
+    aliases.add(elements[0].getLeftAlias());
+    for (JoinElement element : elements) {
+      aliases.add(element.getRightAlias());
+    }
+    return aliases;
   }
 
   @SuppressWarnings("unchecked")

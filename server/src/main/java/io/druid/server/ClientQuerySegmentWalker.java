@@ -63,7 +63,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Future;
 
 /**
  */
@@ -231,10 +230,6 @@ public class ClientQuerySegmentWalker implements QuerySegmentWalker
                 @Override
                 public void close() throws IOException
                 {
-                  for (Future<Sequence<T>> future : futures) {
-                    future.cancel(true);
-                  }
-                  futures.clear();
                   semaphore.destroy();
                 }
               }
