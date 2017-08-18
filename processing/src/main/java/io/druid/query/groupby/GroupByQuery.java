@@ -230,7 +230,7 @@ public class GroupByQuery extends BaseQuery<Row> implements Query.DimensionSuppo
   @Override
   public boolean allDimensionsForEmpty()
   {
-    return BaseQuery.allColumnsForEmpty(this, false);
+    return BaseQuery.allDimensionsForEmpty(this, false);
   }
 
   @Override

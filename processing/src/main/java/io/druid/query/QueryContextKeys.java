@@ -37,7 +37,8 @@ public interface QueryContextKeys
 
   public static final String OPTIMIZE_QUERY = "optimizeQuery";
   public static final String POST_PROCESSING = "postProcessing";
-  public static final String ALL_COLUMNS_FOR_EMPTY = "allColumnsForEmpty";
+  public static final String ALL_DIMENSIONS_FOR_EMPTY = "allDimensionsForEmpty";
+  public static final String ALL_METRICS_FOR_EMPTY = "allMetricsForEmpty";
   public static final String FORWARD_URL = "forwardURL";
   public static final String FORWARD_CONTEXT = "forwardContext";
 

@@ -80,9 +80,14 @@ public abstract class BaseQuery<T extends Comparable<T>> implements Query<T>
     return PropUtils.parseBoolean(query.getContext(), OPTIMIZE_QUERY, defaultValue);
   }
 
-  public static <T> boolean allColumnsForEmpty(Query<T> query, boolean defaultValue)
+  public static <T> boolean allDimensionsForEmpty(Query<T> query, boolean defaultValue)
   {
-    return PropUtils.parseBoolean(query.getContext(), ALL_COLUMNS_FOR_EMPTY, defaultValue);
+    return PropUtils.parseBoolean(query.getContext(), ALL_DIMENSIONS_FOR_EMPTY, defaultValue);
+  }
+
+  public static <T> boolean allMetricsForEmpty(Query<T> query, boolean defaultValue)
+  {
+    return PropUtils.parseBoolean(query.getContext(), ALL_METRICS_FOR_EMPTY, defaultValue);
   }
 
   public static <T> int getContextUncoveredIntervalsLimit(Query<T> query, int defaultValue)
@@ -157,12 +162,12 @@ public abstract class BaseQuery<T extends Comparable<T>> implements Query<T>
 
   public boolean allDimensionsForEmpty()
   {
-    return BaseQuery.allColumnsForEmpty(this, true);
+    return BaseQuery.allDimensionsForEmpty(this, true);
   }
 
   public boolean allMetricsForEmpty()
   {
-    return BaseQuery.allColumnsForEmpty(this, true);
+    return BaseQuery.allMetricsForEmpty(this, true);
   }
 
   public boolean needsSchemaResolution()

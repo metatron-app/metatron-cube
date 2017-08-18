@@ -497,7 +497,11 @@ public class QueryBasedInputFormat extends InputFormat<NullWritable, MapWritable
       builder = new Druids.SelectQueryBuilder()
           .dataSource(dataSource)
           .granularity(QueryGranularities.ALL)
-          .context(ImmutableMap.<String, Object>of(BaseQuery.ALL_COLUMNS_FOR_EMPTY, false));
+          .context(ImmutableMap.<String, Object>of(
+                       BaseQuery.ALL_DIMENSIONS_FOR_EMPTY, false,
+                       BaseQuery.ALL_METRICS_FOR_EMPTY, false
+                   )
+          );
 
       timeColumn = configuration.get(CONF_DRUID_TIME_COLUMN_NAME, EventHolder.timestampKey);
 
