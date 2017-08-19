@@ -27,18 +27,15 @@ public class DocumentsColumnAggregator implements Aggregator
     return ((DocumentsColumn)ldc).add((DocumentsColumn)rdc);
   }
 
-  private final String name;
   private final ObjectColumnSelector selector;
   private final boolean compress;
   private DocumentsColumn documentsColumn;
 
   public DocumentsColumnAggregator(
-    String name,
-    ObjectColumnSelector selector,
-    boolean compress
+      ObjectColumnSelector selector,
+      boolean compress
   )
   {
-    this.name = name;
     this.selector = selector;
     this.compress = compress;
 
@@ -68,11 +65,6 @@ public class DocumentsColumnAggregator implements Aggregator
   @Override
   public float getFloat() {
     throw new UnsupportedOperationException("DocumentsColumnAggregator does not support getFloat()");
-  }
-
-  @Override
-  public String getName() {
-    return name;
   }
 
   @Override

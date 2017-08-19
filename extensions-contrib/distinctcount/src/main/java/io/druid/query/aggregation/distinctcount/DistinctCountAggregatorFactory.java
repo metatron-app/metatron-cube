@@ -76,10 +76,9 @@ public class DistinctCountAggregatorFactory extends AggregatorFactory
   {
     DimensionSelector selector = makeDimensionSelector(columnFactory);
     if (selector == null) {
-      return new EmptyDistinctCountAggregator(name);
+      return new EmptyDistinctCountAggregator();
     } else {
       return new DistinctCountAggregator(
-          name,
           selector,
           bitMapFactory.makeEmptyMutableBitmap(),
           ColumnSelectors.toPredicate(predicate, columnFactory)

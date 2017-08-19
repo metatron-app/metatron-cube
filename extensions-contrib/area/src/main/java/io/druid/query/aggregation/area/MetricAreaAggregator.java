@@ -22,16 +22,13 @@ public class MetricAreaAggregator implements Aggregator
     return ((MetricArea)lma).add(rma);
   }
 
-  private final String name;
   private final ObjectColumnSelector selector;
   private MetricArea metricArea;
 
   public MetricAreaAggregator(
-      String name,
       ObjectColumnSelector selector
   )
   {
-    this.name = name;
     this.selector = selector;
     this.metricArea = new MetricArea();
   }
@@ -61,12 +58,6 @@ public class MetricAreaAggregator implements Aggregator
   }
 
   @Override
-  public String getName()
-  {
-    return name;
-  }
-
-  @Override
   public void close()
   {
   }
@@ -80,6 +71,6 @@ public class MetricAreaAggregator implements Aggregator
   @Override
   public double getDouble()
   {
-    return (double) metricArea.getArea();
+    return metricArea.getArea();
   }
 }

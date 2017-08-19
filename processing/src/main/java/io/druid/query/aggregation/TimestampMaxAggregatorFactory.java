@@ -65,7 +65,7 @@ public class TimestampMaxAggregatorFactory extends AggregatorFactory
   @Override
   public Aggregator factorize(ColumnSelectorFactory metricFactory)
   {
-    return new TimestampMaxAggregator(name, metricFactory.makeObjectColumnSelector(fieldName), timestampSpec);
+    return new TimestampMaxAggregator(metricFactory.makeObjectColumnSelector(fieldName), timestampSpec);
   }
 
   @Override

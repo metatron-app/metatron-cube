@@ -57,12 +57,6 @@ public class Aggregators
       }
 
       @Override
-      public String getName()
-      {
-        return null;
-      }
-
-      @Override
       public void close()
       {
 
@@ -113,12 +107,6 @@ public class Aggregators
     public float getFloat()
     {
       return delegate.getFloat();
-    }
-
-    @Override
-    public String getName()
-    {
-      return delegate.getName();
     }
 
     @Override
@@ -326,12 +314,6 @@ public class Aggregators
           return Double.valueOf((String)value);
         }
         throw new IllegalArgumentException("cannot convert " + value.getClass() + " to double");
-      }
-
-      @Override
-      public String getName()
-      {
-        return null;
       }
 
       @Override

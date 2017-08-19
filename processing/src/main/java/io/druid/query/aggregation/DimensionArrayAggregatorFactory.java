@@ -124,12 +124,6 @@ public class DimensionArrayAggregatorFactory extends AbstractArrayAggregatorFact
       }
 
       @Override
-      public String getName()
-      {
-        return delegate.getName();
-      }
-
-      @Override
       public void close()
       {
         for (Aggregator aggregator : aggregators) {

@@ -89,7 +89,7 @@ public class HyperUniquesAggregatorFactory extends AggregatorFactory
 
     final ValueDesc valueType = selector.type();
     if ("hyperUnique".equals(valueType.typeName())) {
-      return new HyperUniquesAggregator(name, ColumnSelectors.toPredicate(predicate, metricFactory), selector);
+      return new HyperUniquesAggregator(ColumnSelectors.toPredicate(predicate, metricFactory), selector);
     }
 
     throw new IAE(

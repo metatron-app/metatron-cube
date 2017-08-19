@@ -1,8 +1,6 @@
 package io.druid.query.aggregation.median;
 
 import io.druid.query.aggregation.Aggregator;
-import io.druid.segment.DoubleColumnSelector;
-import io.druid.segment.FloatColumnSelector;
 import io.druid.segment.ObjectColumnSelector;
 
 import java.util.Comparator;
@@ -21,18 +19,15 @@ public class DruidTDigestAggregator implements Aggregator
   // can hold compression * 5 points typically
   public static final int DEFAULT_COMPRESSION = 10;
 
-  private final String name;
   private final ObjectColumnSelector selector;
   private final double compression;
   private DruidTDigest digest;
 
   public DruidTDigestAggregator(
-      String name,
       ObjectColumnSelector selector,
       int compression
   )
   {
-    this.name = name;
     this.digest = new DruidTDigest(compression);
     this.selector = selector;
     this.compression = compression;
@@ -72,12 +67,6 @@ public class DruidTDigestAggregator implements Aggregator
   public double getDouble()
   {
     throw new UnsupportedOperationException("DruidTDigestAggregator does not support getDouble()");
-  }
-
-  @Override
-  public String getName()
-  {
-    return name;
   }
 
   @Override

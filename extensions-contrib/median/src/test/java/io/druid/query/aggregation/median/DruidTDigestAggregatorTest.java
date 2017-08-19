@@ -1,6 +1,5 @@
 package io.druid.query.aggregation.median;
 
-import com.google.common.primitives.Doubles;
 import io.druid.query.aggregation.*;
 import org.apache.commons.lang.ArrayUtils;
 import org.junit.Assert;
@@ -30,7 +29,7 @@ public class DruidTDigestAggregatorTest {
 
     final TestObjectColumnSelector selector = new TestObjectColumnSelector(values);
 
-    DruidTDigestAggregator aggregator = new DruidTDigestAggregator("test", selector, 10);
+    DruidTDigestAggregator aggregator = new DruidTDigestAggregator(selector, 10);
 
     for (double value: values) {
       aggregate(selector, aggregator);
@@ -121,7 +120,7 @@ public class DruidTDigestAggregatorTest {
 
     final TestObjectColumnSelector selector = new TestObjectColumnSelector(values);
 
-    DruidTDigestAggregator aggregator = new DruidTDigestAggregator("test", selector, 10);
+    DruidTDigestAggregator aggregator = new DruidTDigestAggregator(selector, 10);
 
     for (double value: values) {
       aggregate(selector, aggregator);

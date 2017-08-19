@@ -32,14 +32,7 @@ import io.druid.segment.ObjectColumnSelector;
  */
 public abstract class VarianceAggregator implements Aggregator
 {
-  protected final String name;
-
   protected final VarianceAggregatorCollector holder = new VarianceAggregatorCollector();
-
-  public VarianceAggregator(String name)
-  {
-    this.name = name;
-  }
 
   @Override
   public void reset()
@@ -51,12 +44,6 @@ public abstract class VarianceAggregator implements Aggregator
   public Object get()
   {
     return holder;
-  }
-
-  @Override
-  public String getName()
-  {
-    return name;
   }
 
   @Override
@@ -82,13 +69,13 @@ public abstract class VarianceAggregator implements Aggregator
     throw new UnsupportedOperationException("VarianceAggregator does not support getLong()");
   }
 
-  public static Aggregator create(String name, final FloatColumnSelector selector, final Predicate<?> predicate)
+  public static Aggregator create(final FloatColumnSelector selector, final Predicate<?> predicate)
   {
     if (selector == null) {
       return Aggregators.noopAggregator();
     }
     if (predicate == null || predicate == Predicates.alwaysTrue()) {
-      return new VarianceAggregator(name)
+      return new VarianceAggregator()
       {
         @Override
         public void aggregate()
@@ -97,7 +84,7 @@ public abstract class VarianceAggregator implements Aggregator
         }
       };
     } else {
-      return new VarianceAggregator(name)
+      return new VarianceAggregator()
       {
         @Override
         public void aggregate()
@@ -110,12 +97,12 @@ public abstract class VarianceAggregator implements Aggregator
     }
   }
 
-  public static Aggregator create(String name, final DoubleColumnSelector selector, final Predicate<?> predicate)
+  public static Aggregator create(final DoubleColumnSelector selector, final Predicate<?> predicate)
   {
     if (selector == null) {
       return Aggregators.noopAggregator();
     }
-    return new VarianceAggregator(name)
+    return new VarianceAggregator()
     {
       @Override
       public void aggregate()
@@ -127,12 +114,12 @@ public abstract class VarianceAggregator implements Aggregator
     };
   }
 
-  public static Aggregator create(String name, final LongColumnSelector selector, final Predicate<?> predicate)
+  public static Aggregator create(final LongColumnSelector selector, final Predicate<?> predicate)
   {
     if (selector == null) {
       return Aggregators.noopAggregator();
     }
-    return new VarianceAggregator(name)
+    return new VarianceAggregator()
     {
       @Override
       public void aggregate()
@@ -144,12 +131,12 @@ public abstract class VarianceAggregator implements Aggregator
     };
   }
 
-  public static Aggregator create(String name, final ObjectColumnSelector selector, final Predicate<?> predicate)
+  public static Aggregator create(final ObjectColumnSelector selector, final Predicate<?> predicate)
   {
     if (selector == null) {
       return Aggregators.noopAggregator();
     }
-    return new VarianceAggregator(name)
+    return new VarianceAggregator()
     {
       @Override
       public void aggregate()

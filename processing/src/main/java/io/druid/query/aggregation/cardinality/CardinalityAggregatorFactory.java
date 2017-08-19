@@ -93,7 +93,7 @@ public class CardinalityAggregatorFactory extends AggregatorFactory
       return Aggregators.noopAggregator();
     }
 
-    return new CardinalityAggregator(name, ColumnSelectors.toPredicate(predicate, columnFactory), selectors, byRow);
+    return new CardinalityAggregator(ColumnSelectors.toPredicate(predicate, columnFactory), selectors, byRow);
   }
 
 

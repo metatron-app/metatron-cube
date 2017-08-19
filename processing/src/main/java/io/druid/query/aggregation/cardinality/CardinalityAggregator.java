@@ -36,7 +36,6 @@ public class CardinalityAggregator implements Aggregator
 {
   private static final String NULL_STRING = "\u0000";
 
-  private final String name;
   private final Predicate predicate;
   private final List<DimensionSelector> selectorList;
   private final boolean byRow;
@@ -90,22 +89,20 @@ public class CardinalityAggregator implements Aggregator
   private HyperLogLogCollector collector;
 
   public CardinalityAggregator(
-      String name,
       Predicate predicate,
       List<DimensionSelector> selectorList,
       boolean byRow
   )
   {
-    this.name = name;
     this.predicate = predicate;
     this.selectorList = selectorList;
     this.collector = HyperLogLogCollector.makeLatestCollector();
     this.byRow = byRow;
   }
 
-  public CardinalityAggregator(String name, List<DimensionSelector> selectorList, boolean byRow)
+  public CardinalityAggregator(List<DimensionSelector> selectorList, boolean byRow)
   {
-    this(name, Predicates.alwaysTrue(), selectorList, byRow);
+    this(Predicates.alwaysTrue(), selectorList, byRow);
   }
 
   @Override
@@ -151,15 +148,9 @@ public class CardinalityAggregator implements Aggregator
   }
 
   @Override
-  public String getName()
-  {
-    return name;
-  }
-
-  @Override
   public Aggregator clone()
   {
-    return new CardinalityAggregator(name, predicate, selectorList, byRow);
+    return new CardinalityAggregator(predicate, selectorList, byRow);
   }
 
   @Override

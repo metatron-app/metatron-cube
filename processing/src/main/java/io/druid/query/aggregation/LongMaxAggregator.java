@@ -94,12 +94,6 @@ public abstract class LongMaxAggregator implements Aggregator
   }
 
   @Override
-  public String getName()
-  {
-    return null;
-  }
-
-  @Override
   public void close()
   {
     // no resources to cleanup

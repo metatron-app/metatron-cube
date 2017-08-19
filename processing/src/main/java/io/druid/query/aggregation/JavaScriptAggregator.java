@@ -37,15 +37,13 @@ public class JavaScriptAggregator implements Aggregator
     public void close();
   }
 
-  private final String name;
   private final ObjectColumnSelector[] selectorList;
   private final ScriptAggregator script;
 
   private volatile double current;
 
-  public JavaScriptAggregator(String name, List<ObjectColumnSelector> selectorList, ScriptAggregator script)
+  public JavaScriptAggregator(List<ObjectColumnSelector> selectorList, ScriptAggregator script)
   {
-    this.name = name;
     this.selectorList = Lists.newArrayList(selectorList).toArray(new ObjectColumnSelector[]{});
     this.script = script;
 
@@ -86,12 +84,6 @@ public class JavaScriptAggregator implements Aggregator
   public double getDouble()
   {
     return current;
-  }
-
-  @Override
-  public String getName()
-  {
-    return name;
   }
 
   @Override

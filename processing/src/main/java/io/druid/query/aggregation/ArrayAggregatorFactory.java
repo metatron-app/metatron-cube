@@ -133,12 +133,6 @@ public class ArrayAggregatorFactory extends AbstractArrayAggregatorFactory
       }
 
       @Override
-      public String getName()
-      {
-        return delegate.getName();
-      }
-
-      @Override
       public void close()
       {
         for (Aggregator aggregator : aggregators) {

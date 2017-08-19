@@ -151,7 +151,6 @@ public class JavaScriptAggregatorTest
     Map<String, String> script = sumLogATimesBPlusTen;
 
     JavaScriptAggregator agg = new JavaScriptAggregator(
-        "billy",
         Arrays.<ObjectColumnSelector>asList(MetricSelectorUtils.wrap(selector1), MetricSelectorUtils.wrap(selector2)),
         JavaScriptAggregatorFactory.compileScript(
             script.get("fnAggregate"),
@@ -161,8 +160,6 @@ public class JavaScriptAggregatorTest
     );
 
     agg.reset();
-
-    Assert.assertEquals("billy", agg.getName());
 
     double val = 10.;
     Assert.assertEquals(val, agg.get());
@@ -226,7 +223,6 @@ public class JavaScriptAggregatorTest
     Map<String, String> script = scriptDoubleSum;
 
     JavaScriptAggregator agg = new JavaScriptAggregator(
-        "billy",
         Collections.<ObjectColumnSelector>singletonList(null),
         JavaScriptAggregatorFactory.compileScript(
             script.get("fnAggregate"),
@@ -236,8 +232,6 @@ public class JavaScriptAggregatorTest
     );
 
     final double val = 0;
-
-    Assert.assertEquals("billy", agg.getName());
 
     agg.reset();
     Assert.assertEquals(val, agg.get());
@@ -260,7 +254,6 @@ public class JavaScriptAggregatorTest
   {
     final TestObjectColumnSelector ocs = new TestObjectColumnSelector("what", null, new String[]{"hey", "there"});
     final JavaScriptAggregator agg = new JavaScriptAggregator(
-        "billy",
         Collections.<ObjectColumnSelector>singletonList(ocs),
         JavaScriptAggregatorFactory.compileScript(
             "function aggregate(current, a) { if (Array.isArray(a)) { return current + a.length; } else if (typeof a === 'string') { return current + 1; } else { return current; } }",
@@ -270,8 +263,6 @@ public class JavaScriptAggregatorTest
     );
 
     agg.reset();
-
-    Assert.assertEquals("billy", agg.getName());
 
     double val = 0.;
     Assert.assertEquals(val, agg.get());
@@ -356,7 +347,6 @@ public class JavaScriptAggregatorTest
 
     Map<String, String> script = scriptDoubleSum;
     JavaScriptAggregator aggRhino = new JavaScriptAggregator(
-        "billy",
         Lists.asList(MetricSelectorUtils.wrap(selector), new ObjectColumnSelector[]{}),
         JavaScriptAggregatorFactory.compileScript(
             script.get("fnAggregate"),

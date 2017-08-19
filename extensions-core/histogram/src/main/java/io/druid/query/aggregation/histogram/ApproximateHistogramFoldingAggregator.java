@@ -111,12 +111,6 @@ public class ApproximateHistogramFoldingAggregator implements Aggregators.Estima
   }
 
   @Override
-  public String getName()
-  {
-    return name;
-  }
-
-  @Override
   public void close()
   {
     // no resources to cleanup

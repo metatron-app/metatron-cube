@@ -36,18 +36,16 @@ public class CountAggregator implements Aggregator
   }
 
   long count = 0;
-  private final String name;
   private final Predicate predicate;
 
-  public CountAggregator(String name, Predicate predicate)
+  public CountAggregator(Predicate predicate)
   {
-    this.name = name;
     this.predicate = predicate;
   }
 
-  public CountAggregator(String name)
+  public CountAggregator()
   {
-    this(name, Predicates.alwaysTrue());
+    this(Predicates.alwaysTrue());
   }
 
   @Override
@@ -89,15 +87,9 @@ public class CountAggregator implements Aggregator
   }
 
   @Override
-  public String getName()
-  {
-    return this.name;
-  }
-
-  @Override
   public Aggregator clone()
   {
-    return new CountAggregator(name, predicate);
+    return new CountAggregator(predicate);
   }
 
   @Override

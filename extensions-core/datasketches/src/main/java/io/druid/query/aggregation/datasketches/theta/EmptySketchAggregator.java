@@ -23,13 +23,6 @@ import io.druid.query.aggregation.Aggregator;
 
 public class EmptySketchAggregator implements Aggregator
 {
-  private final String name;
-
-  public EmptySketchAggregator(String name)
-  {
-    this.name = name;
-  }
-
   @Override
   public void aggregate()
   {
@@ -62,12 +55,6 @@ public class EmptySketchAggregator implements Aggregator
   public double getDouble()
   {
     throw new UnsupportedOperationException("Not implemented");
-  }
-
-  @Override
-  public String getName()
-  {
-    return name;
   }
 
   @Override

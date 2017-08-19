@@ -30,14 +30,7 @@ import io.druid.segment.ObjectColumnSelector;
  */
 public abstract class KurtosisAggregator implements Aggregator
 {
-  protected final String name;
-
   protected final KurtosisAggregatorCollector holder = new KurtosisAggregatorCollector();
-
-  public KurtosisAggregator(String name)
-  {
-    this.name = name;
-  }
 
   @Override
   public void reset()
@@ -49,12 +42,6 @@ public abstract class KurtosisAggregator implements Aggregator
   public Object get()
   {
     return holder;
-  }
-
-  @Override
-  public String getName()
-  {
-    return name;
   }
 
   @Override
@@ -81,13 +68,12 @@ public abstract class KurtosisAggregator implements Aggregator
   }
 
   public static Aggregator create(
-      String name,
       final DoubleColumnSelector selector,
       final Predicate<?> predicate
   )
   {
     if (predicate == null || predicate == Predicates.alwaysTrue()) {
-      return new KurtosisAggregator(name)
+      return new KurtosisAggregator()
       {
         @Override
         public void aggregate()
@@ -96,7 +82,7 @@ public abstract class KurtosisAggregator implements Aggregator
         }
       };
     } else {
-      return new KurtosisAggregator(name)
+      return new KurtosisAggregator()
       {
         @Override
         public void aggregate()
@@ -109,12 +95,12 @@ public abstract class KurtosisAggregator implements Aggregator
     }
   }
 
-  public static Aggregator create(String name, final ObjectColumnSelector selector, final Predicate<?> predicate)
+  public static Aggregator create(final ObjectColumnSelector selector, final Predicate<?> predicate)
   {
     if (selector == null) {
       return Aggregators.noopAggregator();
     }
-    return new KurtosisAggregator(name)
+    return new KurtosisAggregator()
     {
       @Override
       public void aggregate()

@@ -87,12 +87,6 @@ public class RangeAggregator implements Aggregator
   }
 
   @Override
-  public String getName()
-  {
-    return delegate.getName();
-  }
-
-  @Override
   public void close()
   {
     delegate.close();

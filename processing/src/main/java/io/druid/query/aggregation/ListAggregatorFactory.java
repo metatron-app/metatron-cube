@@ -122,12 +122,6 @@ public class ListAggregatorFactory extends AggregatorFactory
         private final Collection<Object> list = createCollection();
 
         @Override
-        public String getName()
-        {
-          return "list";
-        }
-
-        @Override
         public void aggregate()
         {
           List value = selector.get();
@@ -157,12 +151,6 @@ public class ListAggregatorFactory extends AggregatorFactory
       }
 
       private final Collection<Object> list = createCollection();
-
-      @Override
-      public String getName()
-      {
-        return "list";
-      }
 
       @Override
       public void aggregate()

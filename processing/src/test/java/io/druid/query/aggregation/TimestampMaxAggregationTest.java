@@ -86,8 +86,6 @@ public class TimestampMaxAggregationTest
   {
     TimestampMaxAggregator aggregator = (TimestampMaxAggregator) aggregatorFactory.factorize(selectorFactory);
 
-    Assert.assertEquals("tmax", aggregator.getName());
-
     for (Timestamp value: values) {
       aggregate(selector, aggregator);
     }

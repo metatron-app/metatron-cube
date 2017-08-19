@@ -37,7 +37,6 @@ public class MetricAreaAggregatorFactory extends AggregatorFactory
   public Aggregator factorize(ColumnSelectorFactory metricFactory)
   {
     return new MetricAreaAggregator(
-        name,
         metricFactory.makeObjectColumnSelector(fieldName)
     );
   }

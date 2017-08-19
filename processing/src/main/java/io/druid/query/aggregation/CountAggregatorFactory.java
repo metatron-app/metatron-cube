@@ -59,7 +59,7 @@ public class CountAggregatorFactory extends AggregatorFactory
   @Override
   public Aggregator factorize(ColumnSelectorFactory metricFactory)
   {
-    return new CountAggregator(name, ColumnSelectors.toPredicate(predicate, metricFactory));
+    return new CountAggregator(ColumnSelectors.toPredicate(predicate, metricFactory));
   }
 
   @Override

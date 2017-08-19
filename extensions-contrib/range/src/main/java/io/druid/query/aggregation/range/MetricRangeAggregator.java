@@ -1,6 +1,5 @@
 package io.druid.query.aggregation.range;
 
-import com.google.common.primitives.Floats;
 import io.druid.query.aggregation.Aggregator;
 import io.druid.segment.ObjectColumnSelector;
 
@@ -23,16 +22,13 @@ public class MetricRangeAggregator implements Aggregator
     return ((MetricRange)lmr).add(rmr);
   }
 
-  private final String name;
   private final ObjectColumnSelector selector;
   private MetricRange metricRange;
 
   public MetricRangeAggregator(
-      String name,
       ObjectColumnSelector selector
   )
   {
-    this.name = name;
     this.selector = selector;
     this.metricRange = new MetricRange();
   }
@@ -59,12 +55,6 @@ public class MetricRangeAggregator implements Aggregator
   public float getFloat()
   {
     return (float)metricRange.getRange();
-  }
-
-  @Override
-  public String getName()
-  {
-    return name;
   }
 
   @Override

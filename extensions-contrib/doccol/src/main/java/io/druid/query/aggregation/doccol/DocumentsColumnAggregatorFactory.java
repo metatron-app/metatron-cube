@@ -41,7 +41,6 @@ public class DocumentsColumnAggregatorFactory extends AggregatorFactory
   public Aggregator factorize(ColumnSelectorFactory metricFactory)
   {
     return new DocumentsColumnAggregator(
-        name,
         metricFactory.makeObjectColumnSelector(fieldName),
         compress
     );

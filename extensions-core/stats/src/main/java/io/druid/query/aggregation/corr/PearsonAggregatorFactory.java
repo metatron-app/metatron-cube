@@ -131,7 +131,6 @@ public class PearsonAggregatorFactory extends AggregatorFactory
       case DOUBLE:
       case LONG:
         return PearsonAggregator.create(
-            name,
             metricFactory.makeDoubleColumnSelector(fieldName1),
             metricFactory.makeDoubleColumnSelector(fieldName2),
             ColumnSelectors.toPredicate(predicate, metricFactory)
@@ -139,7 +138,6 @@ public class PearsonAggregatorFactory extends AggregatorFactory
       case COMPLEX:
         if ("pearson".equals(inputType.typeName())) {
           return PearsonAggregator.create(
-              name,
               metricFactory.makeObjectColumnSelector(fieldName1),
               ColumnSelectors.toPredicate(predicate, metricFactory)
           );

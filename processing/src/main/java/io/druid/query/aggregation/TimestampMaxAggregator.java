@@ -36,14 +36,12 @@ public class TimestampMaxAggregator implements Aggregator
   }
 
   private final ObjectColumnSelector selector;
-  private final String name;
   private final TimestampSpec timestampSpec;
 
   private long max;
 
-  public TimestampMaxAggregator(String name, ObjectColumnSelector selector, TimestampSpec timestampSpec)
+  public TimestampMaxAggregator(ObjectColumnSelector selector, TimestampSpec timestampSpec)
   {
-    this.name = name;
     this.selector = selector;
     this.timestampSpec = timestampSpec;
 
@@ -83,12 +81,6 @@ public class TimestampMaxAggregator implements Aggregator
   }
 
   @Override
-  public String getName()
-  {
-    return name;
-  }
-
-  @Override
   public void close()
   {
     // no resource to cleanup
@@ -108,6 +100,6 @@ public class TimestampMaxAggregator implements Aggregator
   @Override
   public Aggregator clone()
   {
-    return new TimestampMaxAggregator(name, selector, timestampSpec);
+    return new TimestampMaxAggregator(selector, timestampSpec);
   }
 }

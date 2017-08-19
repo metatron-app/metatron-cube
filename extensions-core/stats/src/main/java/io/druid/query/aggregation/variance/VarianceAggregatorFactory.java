@@ -91,7 +91,6 @@ public class VarianceAggregatorFactory extends GenericAggregatorFactory
     switch (valueType.type()) {
       case FLOAT:
         return VarianceAggregator.create(
-            name,
             ColumnSelectors.getFloatColumnSelector(
                 metricFactory,
                 fieldName,
@@ -101,7 +100,6 @@ public class VarianceAggregatorFactory extends GenericAggregatorFactory
         );
       case DOUBLE:
         return VarianceAggregator.create(
-            name,
             ColumnSelectors.getDoubleColumnSelector(
                 metricFactory,
                 fieldName,
@@ -111,7 +109,6 @@ public class VarianceAggregatorFactory extends GenericAggregatorFactory
         );
       case LONG:
         return VarianceAggregator.create(
-            name,
             ColumnSelectors.getLongColumnSelector(
                 metricFactory,
                 fieldName,
@@ -124,7 +121,6 @@ public class VarianceAggregatorFactory extends GenericAggregatorFactory
           case "variance":
           case "varianceCombined":
             return VarianceAggregator.create(
-                name,
                 ColumnSelectors.getObjectColumnSelector(
                     metricFactory,
                     fieldName,

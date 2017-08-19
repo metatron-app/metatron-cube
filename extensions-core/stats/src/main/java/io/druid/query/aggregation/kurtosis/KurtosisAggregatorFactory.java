@@ -117,14 +117,12 @@ public class KurtosisAggregatorFactory extends AggregatorFactory
       case DOUBLE:
       case LONG:
         return KurtosisAggregator.create(
-            name,
             metricFactory.makeDoubleColumnSelector(fieldName),
             ColumnSelectors.toPredicate(predicate, metricFactory)
         );
       case COMPLEX:
         if ("kurtosis".equals(inputType.typeName())) {
           return KurtosisAggregator.create(
-              name,
               metricFactory.makeObjectColumnSelector(fieldName),
               ColumnSelectors.toPredicate(predicate, metricFactory)
           );

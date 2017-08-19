@@ -30,14 +30,7 @@ import io.druid.segment.ObjectColumnSelector;
  */
 public abstract class PearsonAggregator implements Aggregator
 {
-  protected final String name;
-
   protected final PearsonAggregatorCollector holder = new PearsonAggregatorCollector();
-
-  public PearsonAggregator(String name)
-  {
-    this.name = name;
-  }
 
   @Override
   public void reset()
@@ -49,12 +42,6 @@ public abstract class PearsonAggregator implements Aggregator
   public Object get()
   {
     return holder;
-  }
-
-  @Override
-  public String getName()
-  {
-    return name;
   }
 
   @Override
@@ -81,14 +68,13 @@ public abstract class PearsonAggregator implements Aggregator
   }
 
   public static Aggregator create(
-      String name,
       final DoubleColumnSelector selector1,
       final DoubleColumnSelector selector2,
       final Predicate<?> predicate
   )
   {
     if (predicate == null || predicate == Predicates.alwaysTrue()) {
-      return new PearsonAggregator(name)
+      return new PearsonAggregator()
       {
         @Override
         public void aggregate()
@@ -97,7 +83,7 @@ public abstract class PearsonAggregator implements Aggregator
         }
       };
     } else {
-      return new PearsonAggregator(name)
+      return new PearsonAggregator()
       {
         @Override
         public void aggregate()
@@ -110,12 +96,12 @@ public abstract class PearsonAggregator implements Aggregator
     }
   }
 
-  public static Aggregator create(String name, final ObjectColumnSelector selector, final Predicate<?> predicate)
+  public static Aggregator create(final ObjectColumnSelector selector, final Predicate<?> predicate)
   {
     if (selector == null) {
       return Aggregators.noopAggregator();
     }
-    return new PearsonAggregator(name)
+    return new PearsonAggregator()
     {
       @Override
       public void aggregate()

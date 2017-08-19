@@ -53,7 +53,6 @@ public class JavaScriptAggregatorBenchmark extends SimpleBenchmark
     Map<String, String> script = scriptDoubleSum;
 
     jsAggregator = new JavaScriptAggregator(
-        "billy",
         Lists.asList(MetricSelectorUtils.wrap(selector), new ObjectColumnSelector[]{}),
         JavaScriptAggregatorFactory.compileScript(
             script.get("fnAggregate"),

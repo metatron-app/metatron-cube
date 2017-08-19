@@ -111,7 +111,6 @@ public class ApproximateHistogramAggregator implements Aggregators.EstimableAggr
     throw new UnsupportedOperationException("ApproximateHistogramAggregator does not support getDouble()");
   }
 
-  @Override
   public String getName()
   {
     return name;

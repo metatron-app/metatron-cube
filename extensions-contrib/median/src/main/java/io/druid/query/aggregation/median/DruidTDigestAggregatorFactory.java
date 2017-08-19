@@ -41,7 +41,6 @@ public class DruidTDigestAggregatorFactory extends AggregatorFactory{
   @Override
   public Aggregator factorize(ColumnSelectorFactory metricFactory) {
     return new DruidTDigestAggregator(
-        name,
         metricFactory.makeObjectColumnSelector(fieldName),
         compression
         );

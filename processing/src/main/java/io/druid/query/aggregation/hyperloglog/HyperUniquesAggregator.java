@@ -27,19 +27,16 @@ import io.druid.segment.ObjectColumnSelector;
  */
 public class HyperUniquesAggregator implements Aggregator
 {
-  private final String name;
   private final Predicate predicate;
   private final ObjectColumnSelector selector;
 
   private HyperLogLogCollector collector;
 
   public HyperUniquesAggregator(
-      String name,
       Predicate predicate,
       ObjectColumnSelector selector
   )
   {
-    this.name = name;
     this.predicate = predicate;
     this.selector = selector;
 
@@ -82,12 +79,6 @@ public class HyperUniquesAggregator implements Aggregator
   public double getDouble()
   {
     throw new UnsupportedOperationException("HyperUniquesAggregator does not support getDouble()");
-  }
-
-  @Override
-  public String getName()
-  {
-    return name;
   }
 
   @Override

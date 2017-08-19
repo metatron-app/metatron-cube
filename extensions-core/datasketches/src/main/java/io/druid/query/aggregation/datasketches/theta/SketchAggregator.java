@@ -20,7 +20,6 @@
 package io.druid.query.aggregation.datasketches.theta;
 
 import com.metamx.common.ISE;
-import com.metamx.common.logger.Logger;
 import com.yahoo.memory.Memory;
 import com.yahoo.sketches.Family;
 import com.yahoo.sketches.theta.SetOperation;
@@ -33,19 +32,12 @@ import java.util.List;
 
 public class SketchAggregator implements Aggregator
 {
-  private static final Logger logger = new Logger(SketchAggregator.class);
-
   private final ObjectColumnSelector selector;
-  private final String name;
-  private final int size;
-
   private Union union;
 
-  public SketchAggregator(String name, ObjectColumnSelector selector, int size)
+  public SketchAggregator(ObjectColumnSelector selector, int size)
   {
-    this.name = name;
     this.selector = selector;
-    this.size = size;
     union = new SynchronizedUnion((Union) SetOperation.builder().build(size, Family.UNION));
   }
 
@@ -93,12 +85,6 @@ public class SketchAggregator implements Aggregator
   public double getDouble()
   {
     throw new UnsupportedOperationException("Not implemented");
-  }
-
-  @Override
-  public String getName()
-  {
-    return name;
   }
 
   @Override
