@@ -266,7 +266,7 @@ public class GroupByQueryQueryToolChest extends QueryToolChest<Row, GroupByQuery
         innerQueryResultIndex.close();
 
         return new ResourceClosingSequence<>(
-            outerQuery.applyLimit(postAggregate(outerQuery, outerQueryResultIndex), configSupplier.get()),
+            postAggregate(outerQuery, outerQueryResultIndex),
             outerQueryResultIndex
         );
       }
@@ -280,44 +280,47 @@ public class GroupByQueryQueryToolChest extends QueryToolChest<Row, GroupByQuery
         query.getPostAggregatorSpecs(),
         query.getAggregatorSpecs()
     );
-    return query.applyLimit(
-        Sequences.map(
-            mergedSequence,
-            new Function<Row, Row>()
+    if (!postAggregators.isEmpty() || !granularity.isUTC()) {
+      mergedSequence = Sequences.map(
+          mergedSequence,
+          new Function<Row, Row>()
+          {
+            @Override
+            public Row apply(final Row row)
             {
-              @Override
-              public Row apply(final Row row)
-              {
-                final Map<String, Object> newMap = Maps.newLinkedHashMap(((MapBasedRow) row).getEvent());
+              final Map<String, Object> newMap = Maps.newLinkedHashMap(((MapBasedRow) row).getEvent());
 
-                for (PostAggregator postAggregator : postAggregators) {
-                  newMap.put(postAggregator.getName(), postAggregator.compute(newMap));
-                }
-                return new MapBasedRow(granularity.toDateTime(row.getTimestampFromEpoch()), newMap);
+              for (PostAggregator postAggregator : postAggregators) {
+                newMap.put(postAggregator.getName(), postAggregator.compute(newMap));
               }
+              return new MapBasedRow(granularity.toDateTime(row.getTimestampFromEpoch()), newMap);
             }
-        ), configSupplier.get()
-    );
+          }
+      );
+    }
+    return query.applyLimit(mergedSequence, configSupplier.get());
   }
 
-  private Sequence<Row> postAggregate(final GroupByQuery query, IncrementalIndex<?> index)
+  private Sequence<Row> postAggregate(GroupByQuery query, IncrementalIndex<?> index)
   {
-    return Sequences.map(
-        Sequences.simple(index.iterableWithPostAggregations(query.getPostAggregatorSpecs(), query.isDescending())),
-        new Function<Row, Row>()
-        {
-          @Override
-          public Row apply(Row input)
+    final QueryGranularity granularity = query.getGranularity();
+    final List<PostAggregator> postAggregators = query.getPostAggregatorSpecs();  // decorated inside of index
+    Iterable<Row> sequence = index.iterableWithPostAggregations(postAggregators, query.isDescending());
+    if (!granularity.isUTC()) {
+      sequence = Iterables.transform(
+          sequence,
+          new Function<Row, Row>()
           {
-            final MapBasedRow row = (MapBasedRow) input;
-            return new MapBasedRow(
-                query.getGranularity()
-                     .toDateTime(row.getTimestampFromEpoch()),
-                row.getEvent()
-            );
+            @Override
+            public Row apply(Row input)
+            {
+              final MapBasedRow row = (MapBasedRow) input;
+              return new MapBasedRow(granularity.toDateTime(row.getTimestampFromEpoch()), row.getEvent());
+            }
           }
-        }
-    );
+      );
+    }
+    return query.applyLimit(Sequences.simple(sequence), configSupplier.get());
   }
 
   private IncrementalIndex makeIncrementalIndex(

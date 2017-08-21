@@ -60,6 +60,12 @@ public class  PeriodGranularity extends BaseQueryGranularity
     this.isCompound = isCompoundPeriod(period);
   }
 
+  @Override
+  public boolean isUTC()
+  {
+    return chronology == ISOChronology.getInstanceUTC();
+  }
+
   @JsonProperty("period")
   public Period getPeriod()
   {

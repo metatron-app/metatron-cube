@@ -37,6 +37,11 @@ public abstract class QueryGranularity
 
   public abstract DateTime toDateTime(long offset);
 
+  public boolean isUTC()
+  {
+    return true;
+  }
+
   public abstract Iterable<Long> iterable(final long start, final long end);
 
   @JsonCreator
