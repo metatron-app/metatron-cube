@@ -54,6 +54,7 @@ import io.druid.query.spec.QuerySegmentSpec;
 import io.druid.query.topn.TopNQuery;
 import io.druid.query.topn.TopNQueryBuilder;
 import io.druid.query.topn.TopNQueryConfig;
+import io.druid.query.topn.TopNQueryEngine;
 import io.druid.query.topn.TopNQueryQueryToolChest;
 import io.druid.query.topn.TopNQueryRunnerFactory;
 import io.druid.query.topn.TopNResultValue;
@@ -237,7 +238,7 @@ public class TopNBenchmark
 
     factory = new TopNQueryRunnerFactory(
         new OffheapBufferPool(250000000, Integer.MAX_VALUE),
-        new TopNQueryQueryToolChest(new TopNQueryConfig(), QueryBenchmarkUtil.NoopIntervalChunkingQueryRunnerDecorator()),
+        new TopNQueryQueryToolChest(new TopNQueryConfig(), new TopNQueryEngine(null), QueryBenchmarkUtil.NoopIntervalChunkingQueryRunnerDecorator()),
         QueryBenchmarkUtil.NOOP_QUERYWATCHER
     );
   }

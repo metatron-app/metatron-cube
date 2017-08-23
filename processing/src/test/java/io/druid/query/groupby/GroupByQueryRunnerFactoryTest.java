@@ -176,7 +176,7 @@ public class GroupByQueryRunnerFactoryTest
 
     GroupByQueryEngine engine = new GroupByQueryEngine(configSupplier, pool);
     GroupByQueryQueryToolChest toolchest = new GroupByQueryQueryToolChest(
-        configSupplier, mapper, engine, pool,
+        configSupplier, engine, pool,
         QueryRunnerTestHelper.NoopIntervalChunkingQueryRunnerDecorator()
     );
     return new GroupByQueryRunnerFactory(

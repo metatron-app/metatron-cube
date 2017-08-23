@@ -21,6 +21,7 @@ package io.druid.query.topn;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.google.common.base.Function;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
@@ -28,23 +29,30 @@ import com.google.common.collect.Ordering;
 import com.google.common.primitives.Ints;
 import com.google.inject.Inject;
 import com.metamx.common.ISE;
+import com.metamx.common.guava.ResourceClosingSequence;
 import com.metamx.common.guava.Sequence;
 import com.metamx.common.guava.Sequences;
 import com.metamx.common.guava.nary.BinaryFn;
+import com.metamx.common.logger.Logger;
 import com.metamx.emitter.service.ServiceMetricEvent;
+import io.druid.data.input.Row;
 import io.druid.granularity.QueryGranularity;
 import io.druid.query.BaseQuery;
 import io.druid.query.BySegmentResultValue;
 import io.druid.query.CacheStrategy;
 import io.druid.query.DruidMetrics;
 import io.druid.query.IntervalChunkingQueryRunnerDecorator;
+import io.druid.query.Queries;
 import io.druid.query.Query;
 import io.druid.query.QueryCacheHelper;
+import io.druid.query.QueryDataSource;
 import io.druid.query.QueryRunner;
+import io.druid.query.QuerySegmentWalker;
 import io.druid.query.QueryToolChest;
 import io.druid.query.Result;
 import io.druid.query.ResultGranularTimestampComparator;
 import io.druid.query.ResultMergeQueryRunner;
+import io.druid.query.TableDataSource;
 import io.druid.query.TabularFormat;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.AggregatorUtil;
@@ -54,13 +62,20 @@ import io.druid.query.aggregation.PostAggregators;
 import io.druid.query.dimension.DefaultDimensionSpec;
 import io.druid.query.dimension.DimensionSpec;
 import io.druid.query.filter.DimFilter;
+import io.druid.query.groupby.GroupByQueryHelper;
+import io.druid.query.spec.MultipleIntervalSegmentSpec;
+import io.druid.segment.incremental.IncrementalIndex;
+import io.druid.segment.incremental.IncrementalIndexSchema;
+import io.druid.segment.incremental.IncrementalIndexStorageAdapter;
+import io.druid.segment.incremental.OnheapIncrementalIndex;
 import org.joda.time.DateTime;
+import org.joda.time.Interval;
 
-import javax.annotation.Nullable;
 import java.nio.ByteBuffer;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ExecutorService;
 
 /**
  */
@@ -73,17 +88,22 @@ public class TopNQueryQueryToolChest extends QueryToolChest<Result<TopNResultVal
   private static final TypeReference<Object> OBJECT_TYPE_REFERENCE = new TypeReference<Object>()
   {
   };
-  private final TopNQueryConfig config;
 
+  private static final Logger logger = new Logger(TopNQueryQueryToolChest.class);
+
+  private final TopNQueryConfig config;
+  private final TopNQueryEngine engine;
   private final IntervalChunkingQueryRunnerDecorator intervalChunkingQueryRunnerDecorator;
 
   @Inject
   public TopNQueryQueryToolChest(
       TopNQueryConfig config,
+      TopNQueryEngine engine,
       IntervalChunkingQueryRunnerDecorator intervalChunkingQueryRunnerDecorator
   )
   {
     this.config = config;
+    this.engine = engine;
     this.intervalChunkingQueryRunnerDecorator = intervalChunkingQueryRunnerDecorator;
   }
 
@@ -92,9 +112,8 @@ public class TopNQueryQueryToolChest extends QueryToolChest<Result<TopNResultVal
     return Lists.transform(
         aggregatorFactories, new Function<AggregatorFactory, String>()
         {
-          @Nullable
           @Override
-          public String apply(@Nullable AggregatorFactory input)
+          public String apply(AggregatorFactory input)
           {
             return input.getName();
           }
@@ -258,8 +277,7 @@ public class TopNQueryQueryToolChest extends QueryToolChest<Result<TopNResultVal
                         + 1
                     );
 
-                    for (int i = 0; i < aggFactoryNames.length; ++i) {
-                      final String name = aggFactoryNames[i];
+                    for (final String name : aggFactoryNames) {
                       values.put(name, input.get(name));
                     }
 
@@ -385,6 +403,7 @@ public class TopNQueryQueryToolChest extends QueryToolChest<Result<TopNResultVal
           private final QueryGranularity granularity = query.getGranularity();
 
           @Override
+          @SuppressWarnings("unchecked")
           public Result<TopNResultValue> apply(Object input)
           {
             List<Object> results = (List<Object>) input;
@@ -675,5 +694,80 @@ public class TopNQueryQueryToolChest extends QueryToolChest<Result<TopNResultVal
         return null;
       }
     };
+  }
+
+  @Override
+  public <I> QueryRunner<Result<TopNResultValue>> handleSubQuery(
+      final QueryRunner<I> subQueryRunner,
+      final QuerySegmentWalker segmentWalker,
+      final ExecutorService executor,
+      final int maxRowCount
+  )
+  {
+    final QueryRunner<Result<TopNResultValue>> runner = new QueryRunner<Result<TopNResultValue>>()
+    {
+      @Override
+      @SuppressWarnings("unchecked")
+      public Sequence<Result<TopNResultValue>> run(
+          Query<Result<TopNResultValue>> query,
+          Map<String, Object> responseContext
+      )
+      {
+        final Query<I> subQuery = ((QueryDataSource)query.getDataSource()).getQuery();
+        final IncrementalIndexSchema schema = Queries.relaySchema(subQuery, segmentWalker);
+        final Sequence<Row> innerSequence = Sequences.map(
+            subQueryRunner.run(subQuery, responseContext), Queries.getRowConverter(subQuery));
+
+        logger.info(
+            "Accumulating into intermediate index with dimension %s and metric %s",
+            schema.getDimensionsSpec().getDimensionNames(),
+            schema.getMetricNames()
+        );
+        long start = System.currentTimeMillis();
+        final IncrementalIndex innerQueryResultIndex = innerSequence.accumulate(
+            new OnheapIncrementalIndex(schema, false, true, true, maxRowCount),
+            GroupByQueryHelper.<Row>newIndexAccumulator()
+        );
+        logger.info(
+            "Accumulated sub-query into index in %,d msec.. total %,d rows",
+            (System.currentTimeMillis() - start),
+            innerQueryResultIndex.size()
+        );
+        if (innerQueryResultIndex.isEmpty()) {
+          return Sequences.empty();
+        }
+
+        List<String> dataSources = query.getDataSource().getNames();
+        if (dataSources.size() > 1) {
+          query = query.withDataSource(
+              new TableDataSource(org.apache.commons.lang.StringUtils.join(dataSources, '_'))
+          );
+        }
+        final String dataSource = Iterables.getOnlyElement(query.getDataSource().getNames());
+        final TopNQuery outerQuery = (TopNQuery) query;
+
+        return new ResourceClosingSequence<>(
+            Sequences.concat(
+                Sequences.map(
+                    Sequences.simple(outerQuery.getIntervals()),
+                    new Function<Interval, Sequence<Result<TopNResultValue>>>()
+                    {
+                      @Override
+                      public Sequence<Result<TopNResultValue>> apply(Interval interval)
+                      {
+                        return engine.query(
+                            outerQuery.withQuerySegmentSpec(
+                                new MultipleIntervalSegmentSpec(ImmutableList.of(interval))
+                            ),
+                            new IncrementalIndexStorageAdapter.Temporary(dataSource, innerQueryResultIndex)
+                        );
+                      }
+                    }
+                )
+            ), innerQueryResultIndex
+        );
+      }
+    };
+    return new ThresholdAdjustingQueryRunner(runner, config);
   }
 }

@@ -104,6 +104,7 @@ public class TopNQueryRunnerTest
                 TestQueryRunners.getPool(),
                 new TopNQueryQueryToolChest(
                     new TopNQueryConfig(),
+                    TestHelper.testTopNQueryEngine(),
                     QueryRunnerTestHelper.NoopIntervalChunkingQueryRunnerDecorator()
                 ),
                 QueryRunnerTestHelper.NOOP_QUERYWATCHER
@@ -125,6 +126,7 @@ public class TopNQueryRunnerTest
                 ),
                 new TopNQueryQueryToolChest(
                     new TopNQueryConfig(),
+                    TestHelper.testTopNQueryEngine(),
                     QueryRunnerTestHelper.NoopIntervalChunkingQueryRunnerDecorator()
                 ),
                 QueryRunnerTestHelper.NOOP_QUERYWATCHER
@@ -167,6 +169,7 @@ public class TopNQueryRunnerTest
   {
     final TopNQueryQueryToolChest chest = new TopNQueryQueryToolChest(
         new TopNQueryConfig(),
+        TestHelper.testTopNQueryEngine(),
         QueryRunnerTestHelper.NoopIntervalChunkingQueryRunnerDecorator()
     );
     final QueryRunner<Result<TopNResultValue>> mergeRunner = chest.mergeResults(runner);
@@ -237,6 +240,7 @@ public class TopNQueryRunnerTest
 
     QueryToolChest toolChest = new TopNQueryQueryToolChest(
         new TopNQueryConfig(),
+        TestHelper.testTopNQueryEngine(),
         QueryRunnerTestHelper.NoopIntervalChunkingQueryRunnerDecorator()
     );
 
@@ -3410,6 +3414,7 @@ public class TopNQueryRunnerTest
   {
     final TopNQueryQueryToolChest chest = new TopNQueryQueryToolChest(
         new TopNQueryConfig(),
+        TestHelper.testTopNQueryEngine(),
         QueryRunnerTestHelper.NoopIntervalChunkingQueryRunnerDecorator()
     );
     final QueryRunner<Result<TopNResultValue>> Runner = chest.mergeResults(chest.preMergeQueryDecoration(runner));

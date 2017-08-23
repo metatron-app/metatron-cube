@@ -22,16 +22,24 @@ package io.druid.segment;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.util.DefaultPrettyPrinter;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.base.Supplier;
+import com.google.common.base.Suppliers;
 import com.google.common.collect.Lists;
 import com.metamx.common.guava.Sequence;
 import com.metamx.common.guava.Sequences;
+import io.druid.collections.StupidPool;
 import io.druid.data.input.MapBasedRow;
 import io.druid.data.input.Row;
 import io.druid.jackson.DefaultObjectMapper;
 import io.druid.query.Result;
+import io.druid.query.groupby.GroupByQueryConfig;
+import io.druid.query.groupby.GroupByQueryEngine;
+import io.druid.query.topn.TopNQueryConfig;
+import io.druid.query.topn.TopNQueryEngine;
 import io.druid.segment.column.ColumnConfig;
 import org.junit.Assert;
 
+import java.nio.ByteBuffer;
 import java.util.Iterator;
 import java.util.Map;
 
@@ -263,5 +271,21 @@ public class TestHelper
   private static void assertResult(String msg, Result<?> expected, Result actual)
   {
     Assert.assertEquals(msg, expected, actual);
+  }
+
+  public static TopNQueryEngine testTopNQueryEngine()
+  {
+    return new TopNQueryEngine(
+        new StupidPool<ByteBuffer>(
+            new Supplier<ByteBuffer>()
+            {
+              @Override
+              public ByteBuffer get()
+              {
+                return ByteBuffer.allocate(1024 * 1024);
+              }
+            }
+        )
+    );
   }
 }

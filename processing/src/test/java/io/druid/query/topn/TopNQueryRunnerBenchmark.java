@@ -35,6 +35,7 @@ import io.druid.query.aggregation.DoubleMinAggregatorFactory;
 import io.druid.query.aggregation.PostAggregator;
 import io.druid.segment.IncrementalIndexSegment;
 import io.druid.segment.QueryableIndexSegment;
+import io.druid.segment.TestHelper;
 import io.druid.segment.TestIndex;
 import org.junit.BeforeClass;
 import org.junit.Ignore;
@@ -99,7 +100,10 @@ public class TopNQueryRunnerBenchmark extends AbstractBenchmark
               }
             }
         ),
-        new TopNQueryQueryToolChest(new TopNQueryConfig(), QueryRunnerTestHelper.NoopIntervalChunkingQueryRunnerDecorator()),
+        new TopNQueryQueryToolChest(
+            new TopNQueryConfig(),
+            TestHelper.testTopNQueryEngine(),
+            QueryRunnerTestHelper.NoopIntervalChunkingQueryRunnerDecorator()),
         QueryRunnerTestHelper.NOOP_QUERYWATCHER
     );
     testCaseMap.put(

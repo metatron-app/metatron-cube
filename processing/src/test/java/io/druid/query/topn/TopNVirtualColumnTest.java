@@ -72,6 +72,7 @@ public class TopNVirtualColumnTest
     new DefaultObjectMapper();
     TopNQueryQueryToolChest toolChest = new TopNQueryQueryToolChest(
         new TopNQueryConfig(),
+        TestHelper.testTopNQueryEngine(),
         QueryRunnerTestHelper.NoopIntervalChunkingQueryRunnerDecorator()
     );
 

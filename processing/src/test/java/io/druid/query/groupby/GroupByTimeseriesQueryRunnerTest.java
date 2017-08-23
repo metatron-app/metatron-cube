@@ -28,7 +28,6 @@ import com.metamx.common.guava.Sequences;
 import io.druid.collections.StupidPool;
 import io.druid.data.input.MapBasedRow;
 import io.druid.data.input.Row;
-import io.druid.jackson.DefaultObjectMapper;
 import io.druid.query.Query;
 import io.druid.query.QueryRunner;
 import io.druid.query.QueryRunnerTestHelper;
@@ -77,7 +76,7 @@ public class GroupByTimeseriesQueryRunnerTest extends TimeseriesQueryRunnerTest
         QueryRunnerTestHelper.NOOP_QUERYWATCHER,
         configSupplier,
         new GroupByQueryQueryToolChest(
-            configSupplier, new DefaultObjectMapper(),
+            configSupplier,
             engine, TestQueryRunners.pool,
             QueryRunnerTestHelper.NoopIntervalChunkingQueryRunnerDecorator()
         ),

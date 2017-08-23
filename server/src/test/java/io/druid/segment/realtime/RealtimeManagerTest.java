@@ -703,7 +703,7 @@ public class RealtimeManagerTest
         QueryRunnerTestHelper.NOOP_QUERYWATCHER,
         configSupplier,
         new GroupByQueryQueryToolChest(
-            configSupplier, mapper, engine, TestQueryRunners.pool,
+            configSupplier, engine, TestQueryRunners.pool,
             QueryRunnerTestHelper.NoopIntervalChunkingQueryRunnerDecorator()
         ),
         TestQueryRunners.pool

@@ -95,10 +95,9 @@ public class GroupByMergedQueryRunner<T> implements QueryRunner<T>
   {
     final GroupByQuery query = (GroupByQuery) queryParam;
 
-    final boolean isSingleThreaded = query.getContextValue(
-        CTX_KEY_IS_SINGLE_THREADED,
-        configSupplier.get().isSingleThreaded()
-    );
+    GroupByQueryConfig queryConfig = configSupplier.get();
+    final int maxRowCount = queryConfig.getMaxResults();
+    final boolean isSingleThreaded = query.getContextValue(CTX_KEY_IS_SINGLE_THREADED, queryConfig.isSingleThreaded());
 
     final ExecutorService executor = isSingleThreaded ? MoreExecutors.sameThreadExecutor() : exec;
     int parallelism = query.getContextInt(QueryContextKeys.GBY_MERGE_PARALLELISM, DEFAULT_MERGE_PARALLELISM);
@@ -109,11 +108,7 @@ public class GroupByMergedQueryRunner<T> implements QueryRunner<T>
     }
 
     final IncrementalIndex<?> incrementalIndex = GroupByQueryHelper.createMergeIndex(
-        query,
-        configSupplier.get(),
-        bufferPool,
-        false,
-        optimizer
+        query, bufferPool, false, maxRowCount, optimizer
     );
     final Pair<Queue, Accumulator<Queue, T>> bySegmentAccumulatorPair = GroupByQueryHelper.createBySegmentAccumulatorPair();
     final boolean bySegment = BaseQuery.getContextBySegment(query, false);

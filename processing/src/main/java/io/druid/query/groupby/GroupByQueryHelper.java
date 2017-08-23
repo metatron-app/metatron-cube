@@ -28,7 +28,6 @@ import com.metamx.common.guava.Accumulator;
 import io.druid.collections.StupidPool;
 import io.druid.data.input.Row;
 import io.druid.granularity.QueryGranularities;
-import io.druid.query.Query;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.dimension.DimensionSpec;
 import io.druid.query.dimension.DimensionSpecs;
@@ -51,35 +50,15 @@ public class GroupByQueryHelper
 
   public static IncrementalIndex createMergeIndex(
       final GroupByQuery query,
-      final GroupByQueryConfig config,
       final StupidPool<ByteBuffer> bufferPool,
       final boolean sortFacts,
-      final Future<Object> optimizer
-  )
-  {
-    return createMergeIndex(
-        query,
-        query.getDimensions(),
-        query.getAggregatorSpecs(),
-        config.getMaxResults(),
-        bufferPool,
-        sortFacts,
-        optimizer
-    );
-  }
-
-  public static IncrementalIndex createMergeIndex(
-      final Query<?> query,
-      final List<DimensionSpec> dimensions,
-      final List<AggregatorFactory> aggregators,
       final int maxResult,
-      final StupidPool<ByteBuffer> bufferPool,
-      final boolean sortFacts,
       final Future<Object> optimizer
   )
   {
+    final List<DimensionSpec> dimensions = query.getDimensions();
     final List<AggregatorFactory> aggs = Lists.transform(
-        aggregators,
+        query.getAggregatorSpecs(),
         new Function<AggregatorFactory, AggregatorFactory>()
         {
           @Override

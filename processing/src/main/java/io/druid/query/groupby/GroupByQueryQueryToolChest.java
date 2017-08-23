@@ -20,7 +20,6 @@
 package io.druid.query.groupby;
 
 import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Function;
 import com.google.common.base.Functions;
 import com.google.common.base.Predicate;
@@ -107,22 +106,19 @@ public class GroupByQueryQueryToolChest extends QueryToolChest<Row, GroupByQuery
   private final Supplier<GroupByQueryConfig> configSupplier;
 
   private final StupidPool<ByteBuffer> bufferPool;
-  private final ObjectMapper jsonMapper;
-  private GroupByQueryEngine engine; // For running the outer query around a subquery
+  private final GroupByQueryEngine engine; // For running the outer query around a subquery
 
   private final IntervalChunkingQueryRunnerDecorator intervalChunkingQueryRunnerDecorator;
 
   @Inject
   public GroupByQueryQueryToolChest(
       Supplier<GroupByQueryConfig> configSupplier,
-      ObjectMapper jsonMapper,
       GroupByQueryEngine engine,
       @Global StupidPool<ByteBuffer> bufferPool,
       IntervalChunkingQueryRunnerDecorator intervalChunkingQueryRunnerDecorator
   )
   {
     this.configSupplier = configSupplier;
-    this.jsonMapper = jsonMapper;
     this.engine = engine;
     this.bufferPool = bufferPool;
     this.intervalChunkingQueryRunnerDecorator = intervalChunkingQueryRunnerDecorator;
@@ -208,7 +204,8 @@ public class GroupByQueryQueryToolChest extends QueryToolChest<Row, GroupByQuery
   public <I> QueryRunner<Row> handleSubQuery(
       final QueryRunner<I> subQueryRunner,
       final QuerySegmentWalker segmentWalker,
-      final ExecutorService executor
+      final ExecutorService executor,
+      final int maxRowCount
   )
   {
     return new QueryRunner<Row>()
@@ -259,7 +256,7 @@ public class GroupByQueryQueryToolChest extends QueryToolChest<Row, GroupByQuery
         );
         final IncrementalIndex<?> outerQueryResultIndex =
             outerSequence.accumulate(
-                makeIncrementalIndex(outerQuery, true),
+                GroupByQueryHelper.createMergeIndex(outerQuery, bufferPool, true, maxRowCount, null),
                 GroupByQueryHelper.<Row>newIndexAccumulator()
             );
 
@@ -335,18 +332,6 @@ public class GroupByQueryQueryToolChest extends QueryToolChest<Row, GroupByQuery
         maxResult
     );
     return new OnheapIncrementalIndex(schema, false, true, sortFacts, maxRowCount);
-  }
-
-  private IncrementalIndex makeIncrementalIndex(
-      GroupByQuery query, boolean sortFacts)
-  {
-    return GroupByQueryHelper.createMergeIndex(
-        query,
-        configSupplier.get(),
-        bufferPool,
-        sortFacts,
-        null
-    );
   }
 
   @Override
@@ -705,35 +690,35 @@ public class GroupByQueryQueryToolChest extends QueryToolChest<Row, GroupByQuery
     return new QueryRunner<Row>()
     {
       @Override
-      public Sequence<Row> run(
-          Query<Row> query, Map<String, Object> responseContext
-      )
+      public Sequence<Row> run(Query<Row> query, Map<String, Object> responseContext)
       {
-        final Sequence<Row> result;
-        final List<String> outputColumns = ((GroupByQuery)query).getOutputColumns();
-        final LateralViewSpec lateralViewSpec = ((GroupByQuery) query).getLateralView();
-        if (outputColumns != null) {
-          result = Sequences.map(
-              runner.run(query, responseContext), new Function<Row, Row>()
-              {
-                @Override
-                public Row apply(Row input)
-                {
-                  DateTime timestamp = input.getTimestamp();
-                  Map<String, Object> retained = Maps.newHashMapWithExpectedSize(outputColumns.size());
-                  for (String retain : outputColumns) {
-                    retained.put(retain, input.getRaw(retain));
-                  }
-                  return new MapBasedRow(timestamp, retained);
-                }
-              }
-          );
-        } else {
-          result = runner.run(query, responseContext);
-        }
-        return lateralViewSpec != null ? toLateralView(result, lateralViewSpec) : result;
+        return finalDecoration(query, runner.run(query, responseContext));
       }
     };
+  }
+
+  private Sequence<Row> finalDecoration(Query<Row> query, Sequence<Row> sequence)
+  {
+    final List<String> outputColumns = ((GroupByQuery) query).getOutputColumns();
+    final LateralViewSpec lateralViewSpec = ((GroupByQuery) query).getLateralView();
+    if (outputColumns != null) {
+      sequence = Sequences.map(
+          sequence, new Function<Row, Row>()
+          {
+            @Override
+            public Row apply(Row input)
+            {
+              DateTime timestamp = input.getTimestamp();
+              Map<String, Object> retained = Maps.newHashMapWithExpectedSize(outputColumns.size());
+              for (String retain : outputColumns) {
+                retained.put(retain, input.getRaw(retain));
+              }
+              return new MapBasedRow(timestamp, retained);
+            }
+          }
+      );
+    }
+    return lateralViewSpec != null ? toLateralView(sequence, lateralViewSpec) : sequence;
   }
 
   Sequence<Row> toLateralView(Sequence<Row> result, final LateralViewSpec lateralViewSpec)

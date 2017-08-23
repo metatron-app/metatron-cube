@@ -39,6 +39,7 @@ import io.druid.query.aggregation.CountAggregatorFactory;
 import io.druid.query.dimension.DefaultDimensionSpec;
 import io.druid.query.spec.MultipleIntervalSegmentSpec;
 import io.druid.segment.IncrementalIndexSegment;
+import io.druid.segment.TestHelper;
 import io.druid.segment.TestIndex;
 import org.joda.time.DateTime;
 import org.joda.time.Interval;
@@ -57,7 +58,7 @@ public class TopNQueryQueryToolChestTest
   public void testCacheStrategy() throws Exception
   {
     CacheStrategy<Result<TopNResultValue>, Object, TopNQuery> strategy =
-        new TopNQueryQueryToolChest(null, null).getCacheStrategy(
+        new TopNQueryQueryToolChest(null, null, null).getCacheStrategy(
             new TopNQuery(
                 new TableDataSource("dummy"),
                 null,
@@ -114,6 +115,7 @@ public class TopNQueryQueryToolChestTest
     TopNQueryConfig config = new TopNQueryConfig();
     final TopNQueryQueryToolChest chest = new TopNQueryQueryToolChest(
         config,
+        TestHelper.testTopNQueryEngine(),
         QueryRunnerTestHelper.NoopIntervalChunkingQueryRunnerDecorator()
     );
     QueryRunnerFactory factory = new TopNQueryRunnerFactory(

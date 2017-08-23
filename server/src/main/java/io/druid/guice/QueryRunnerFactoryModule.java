@@ -47,6 +47,7 @@ import io.druid.query.timeboundary.TimeBoundaryQueryRunnerFactory;
 import io.druid.query.timeseries.TimeseriesQuery;
 import io.druid.query.timeseries.TimeseriesQueryRunnerFactory;
 import io.druid.query.topn.TopNQuery;
+import io.druid.query.topn.TopNQueryEngine;
 import io.druid.query.topn.TopNQueryRunnerFactory;
 import io.druid.server.QueryManager;
 
@@ -92,5 +93,6 @@ public class QueryRunnerFactoryModule extends QueryToolChestModule
     }
 
     binder.bind(GroupByQueryEngine.class).in(LazySingleton.class);
+    binder.bind(TopNQueryEngine.class).in(LazySingleton.class);
   }
 }

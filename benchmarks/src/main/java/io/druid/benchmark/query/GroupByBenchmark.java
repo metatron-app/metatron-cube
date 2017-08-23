@@ -252,7 +252,7 @@ public class GroupByBenchmark
         QueryBenchmarkUtil.NOOP_QUERYWATCHER,
         configSupplier,
         new GroupByQueryQueryToolChest(
-            configSupplier, JSON_MAPPER, engine, bufferPool2,
+            configSupplier, engine, bufferPool2,
             QueryBenchmarkUtil.NoopIntervalChunkingQueryRunnerDecorator()
         ),
         bufferPool2

@@ -223,6 +223,7 @@ public class CachingClusteredClientTest
                   .put(
                       TopNQuery.class, new TopNQueryQueryToolChest(
                           new TopNQueryConfig(),
+                          TestHelper.testTopNQueryEngine(),
                           QueryRunnerTestHelper.NoopIntervalChunkingQueryRunnerDecorator()
                       )
                   )
@@ -243,7 +244,6 @@ public class CachingClusteredClientTest
                       GroupByQuery.class,
                       new GroupByQueryQueryToolChest(
                           GROUPBY_QUERY_CONFIG_SUPPLIER,
-                          jsonMapper,
                           new GroupByQueryEngine(
                               GROUPBY_QUERY_CONFIG_SUPPLIER,
                               new StupidPool<>(
@@ -782,6 +782,7 @@ public class CachingClusteredClientTest
     QueryRunner runner = new FinalizeResultsQueryRunner(
         client, new TopNQueryQueryToolChest(
         new TopNQueryConfig(),
+        TestHelper.testTopNQueryEngine(),
         QueryRunnerTestHelper.NoopIntervalChunkingQueryRunnerDecorator()
     )
     );
@@ -859,6 +860,7 @@ public class CachingClusteredClientTest
     QueryRunner runner = new FinalizeResultsQueryRunner(
         client, new TopNQueryQueryToolChest(
         new TopNQueryConfig(),
+        TestHelper.testTopNQueryEngine(),
         QueryRunnerTestHelper.NoopIntervalChunkingQueryRunnerDecorator()
     )
     );
@@ -960,6 +962,7 @@ public class CachingClusteredClientTest
     QueryRunner runner = new FinalizeResultsQueryRunner(
         client, new TopNQueryQueryToolChest(
         new TopNQueryConfig(),
+        TestHelper.testTopNQueryEngine(),
         QueryRunnerTestHelper.NoopIntervalChunkingQueryRunnerDecorator()
     )
     );
@@ -1034,6 +1037,7 @@ public class CachingClusteredClientTest
     QueryRunner runner = new FinalizeResultsQueryRunner(
         client, new TopNQueryQueryToolChest(
         new TopNQueryConfig(),
+        TestHelper.testTopNQueryEngine(),
         QueryRunnerTestHelper.NoopIntervalChunkingQueryRunnerDecorator()
     )
     );
@@ -1313,7 +1317,6 @@ public class CachingClusteredClientTest
         client,
         new GroupByQueryQueryToolChest(
             configSupplier,
-            jsonMapper,
             new GroupByQueryEngine(
                 configSupplier,
                 new StupidPool<>(
@@ -2564,7 +2567,6 @@ public class CachingClusteredClientTest
         client,
         new GroupByQueryQueryToolChest(
             configSupplier,
-            jsonMapper,
             new GroupByQueryEngine(
                 configSupplier,
                 new StupidPool<>(

@@ -22,12 +22,14 @@ package io.druid.query.topn;
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Predicates;
+import com.google.inject.Inject;
 import com.metamx.common.guava.Sequence;
 import com.metamx.common.guava.Sequences;
 import com.metamx.common.logger.Logger;
 import io.druid.cache.Cache;
 import io.druid.collections.StupidPool;
 import io.druid.granularity.QueryGranularity;
+import io.druid.guice.annotations.Global;
 import io.druid.query.Result;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.extraction.ExtractionFn;
@@ -51,7 +53,8 @@ public class TopNQueryEngine
 
   private final StupidPool<ByteBuffer> bufferPool;
 
-  public TopNQueryEngine(StupidPool<ByteBuffer> bufferPool)
+  @Inject
+  public TopNQueryEngine(@Global StupidPool<ByteBuffer> bufferPool)
   {
     this.bufferPool = bufferPool;
   }

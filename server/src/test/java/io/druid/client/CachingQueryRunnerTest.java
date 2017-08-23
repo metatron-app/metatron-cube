@@ -54,6 +54,7 @@ import io.druid.query.topn.TopNQueryBuilder;
 import io.druid.query.topn.TopNQueryConfig;
 import io.druid.query.topn.TopNQueryQueryToolChest;
 import io.druid.query.topn.TopNResultValue;
+import io.druid.segment.TestHelper;
 import org.joda.time.DateTime;
 import org.joda.time.Interval;
 import org.junit.Assert;
@@ -102,6 +103,7 @@ public class CachingQueryRunnerTest
 
     QueryToolChest toolchest = new TopNQueryQueryToolChest(
         new TopNQueryConfig(),
+        TestHelper.testTopNQueryEngine(),
         QueryRunnerTestHelper.NoopIntervalChunkingQueryRunnerDecorator()
     );
 

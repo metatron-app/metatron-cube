@@ -27,7 +27,6 @@ import io.druid.query.aggregation.MetricManipulationFn;
 import io.druid.timeline.LogicalSegment;
 
 import java.util.List;
-import java.util.Map;
 import java.util.concurrent.ExecutorService;
 
 /**
@@ -196,15 +195,16 @@ public abstract class QueryToolChest<ResultType, QueryType extends Query<ResultT
   }
 
   /**
-   * @param innerQuery
-   * @param innerQueryRunner
+   * @param subQueryRunner
    * @param segmentWalker
    * @param executor
+   * @param maxRowCount
    */
   public <I> QueryRunner<ResultType> handleSubQuery(
-      QueryRunner<I> innerQueryRunner,
+      QueryRunner<I> subQueryRunner,
       QuerySegmentWalker segmentWalker,
-      ExecutorService executor
+      ExecutorService executor,
+      int maxRowCount
   )
   {
     throw new UnsupportedOperationException("handleSourceQuery");

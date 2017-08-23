@@ -96,7 +96,7 @@ public class GroupByQueryExplodeTest
     final GroupByQueryEngine engine = new GroupByQueryEngine(configSupplier, pool);
 
     final GroupByQueryQueryToolChest toolChest = new GroupByQueryQueryToolChest(
-        configSupplier, mapper, engine, TestQueryRunners.pool,
+        configSupplier, engine, TestQueryRunners.pool,
         QueryRunnerTestHelper.NoopIntervalChunkingQueryRunnerDecorator()
     );
     final GroupByQueryRunnerFactory factory = new GroupByQueryRunnerFactory(

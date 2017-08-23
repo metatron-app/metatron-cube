@@ -61,7 +61,6 @@ import io.druid.query.UnionDataSource;
 import io.druid.query.aggregation.MetricManipulationFn;
 import io.druid.query.dimension.DimensionSpec;
 import io.druid.query.filter.DimFilter;
-import io.druid.query.groupby.GroupByQueryConfig;
 import io.druid.query.groupby.GroupByQueryHelper;
 import io.druid.query.spec.MultipleIntervalSegmentSpec;
 import io.druid.segment.VirtualColumn;
@@ -105,7 +104,6 @@ public class SelectQueryQueryToolChest extends QueryToolChest<Result<SelectResul
   private final ObjectMapper jsonMapper;
   private final SelectQueryEngine engine;
   private final SelectQueryConfig config;
-  private final GroupByQueryConfig groupByConfig;
   private final IntervalChunkingQueryRunnerDecorator intervalChunkingQueryRunnerDecorator;
 
   @Inject
@@ -113,14 +111,12 @@ public class SelectQueryQueryToolChest extends QueryToolChest<Result<SelectResul
       ObjectMapper jsonMapper,
       SelectQueryEngine engine,
       SelectQueryConfig config,
-      GroupByQueryConfig groupByConfig,
       IntervalChunkingQueryRunnerDecorator intervalChunkingQueryRunnerDecorator
   )
   {
     this.jsonMapper = jsonMapper;
     this.engine = engine;
     this.config = config;
-    this.groupByConfig = groupByConfig;
     this.intervalChunkingQueryRunnerDecorator = intervalChunkingQueryRunnerDecorator;
   }
 
@@ -129,7 +125,7 @@ public class SelectQueryQueryToolChest extends QueryToolChest<Result<SelectResul
       IntervalChunkingQueryRunnerDecorator intervalChunkingQueryRunnerDecorator
   )
   {
-    this(jsonMapper, null, null, null, intervalChunkingQueryRunnerDecorator);
+    this(jsonMapper, null, null, intervalChunkingQueryRunnerDecorator);
   }
 
   @Override
@@ -166,7 +162,8 @@ public class SelectQueryQueryToolChest extends QueryToolChest<Result<SelectResul
   public <I> QueryRunner<Result<SelectResultValue>> handleSubQuery(
       final QueryRunner<I> subQueryRunner,
       final QuerySegmentWalker segmentWalker,
-      final ExecutorService executor
+      final ExecutorService executor,
+      final int maxRowCount
   )
   {
     return new QueryRunner<Result<SelectResultValue>>()
@@ -190,7 +187,7 @@ public class SelectQueryQueryToolChest extends QueryToolChest<Result<SelectResul
         );
         long start = System.currentTimeMillis();
         final IncrementalIndex innerQueryResultIndex = innerSequence.accumulate(
-            makeIncrementalIndex(query, schema, true),
+            new OnheapIncrementalIndex(schema, false, true, true, maxRowCount),
             GroupByQueryHelper.<Row>newIndexAccumulator()
         );
         logger.info(
@@ -234,20 +231,6 @@ public class SelectQueryQueryToolChest extends QueryToolChest<Result<SelectResul
         );
       }
     };
-  }
-
-  private IncrementalIndex makeIncrementalIndex(
-      Query<?> query,
-      IncrementalIndexSchema schema,
-      boolean sortFacts
-  )
-  {
-    int maxResult = groupByConfig.getMaxResults();
-    int maxRowCount = Math.min(
-        query.getContextValue(GroupByQueryHelper.CTX_KEY_MAX_RESULTS, maxResult),
-        maxResult
-    );
-    return new OnheapIncrementalIndex(schema, false, true, sortFacts, maxRowCount);
   }
 
   @Override

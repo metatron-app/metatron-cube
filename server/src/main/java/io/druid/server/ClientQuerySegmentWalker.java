@@ -55,6 +55,8 @@ import io.druid.query.SegmentDescriptor;
 import io.druid.query.TableDataSource;
 import io.druid.query.UnionAllQuery;
 import io.druid.query.UnionAllQueryRunner;
+import io.druid.query.groupby.GroupByQueryConfig;
+import io.druid.query.groupby.GroupByQueryHelper;
 import org.joda.time.Interval;
 
 import java.io.Closeable;
@@ -74,6 +76,7 @@ public class ClientQuerySegmentWalker implements QuerySegmentWalker
   private final CachingClusteredClient baseClient;
   private final QueryToolChestWarehouse warehouse;
   private final RetryQueryRunnerConfig retryConfig;
+  private final GroupByQueryConfig groupByConfig;
   private final ObjectMapper objectMapper;
   private final ExecutorService exec;
 
@@ -83,6 +86,7 @@ public class ClientQuerySegmentWalker implements QuerySegmentWalker
       CachingClusteredClient baseClient,
       QueryToolChestWarehouse warehouse,
       RetryQueryRunnerConfig retryConfig,
+      GroupByQueryConfig groupByConfig,
       ObjectMapper objectMapper,
       @Processing ExecutorService exec
   )
@@ -91,6 +95,7 @@ public class ClientQuerySegmentWalker implements QuerySegmentWalker
     this.baseClient = baseClient;
     this.warehouse = warehouse;
     this.retryConfig = retryConfig;
+    this.groupByConfig = groupByConfig;
     this.objectMapper = objectMapper;
     this.exec = exec;
   }
@@ -114,7 +119,13 @@ public class ClientQuerySegmentWalker implements QuerySegmentWalker
 
     if (query.getDataSource() instanceof QueryDataSource) {
       Query innerQuery = ((QueryDataSource)query.getDataSource()).getQuery().withOverriddenContext(query.getContext());
-      return toolChest.handleSubQuery(makeRunner(innerQuery, true), this, exec);
+      int maxResult = groupByConfig.getMaxResults();
+      int maxRowCount = Math.min(
+          query.getContextValue(GroupByQueryHelper.CTX_KEY_MAX_RESULTS, maxResult),
+          maxResult
+      );
+      QueryRunner subQueryRunner = makeRunner(innerQuery, true);
+      return toolChest.finalQueryDecoration(toolChest.handleSubQuery(subQueryRunner, this, exec, maxRowCount));
     }
 
     if (query instanceof UnionAllQuery) {

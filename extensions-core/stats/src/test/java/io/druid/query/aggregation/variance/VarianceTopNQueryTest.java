@@ -138,6 +138,7 @@ public class VarianceTopNQueryTest
   {
     final TopNQueryQueryToolChest chest = new TopNQueryQueryToolChest(
         new TopNQueryConfig(),
+        TestHelper.testTopNQueryEngine(),
         QueryRunnerTestHelper.NoopIntervalChunkingQueryRunnerDecorator()
     );
     final QueryRunner<Result<TopNResultValue>> mergeRunner = chest.mergeResults(runner);

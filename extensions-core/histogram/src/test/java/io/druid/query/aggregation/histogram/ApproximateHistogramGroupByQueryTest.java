@@ -86,7 +86,7 @@ public class ApproximateHistogramGroupByQueryTest
         QueryRunnerTestHelper.NOOP_QUERYWATCHER,
         configSupplier,
         new GroupByQueryQueryToolChest(
-            configSupplier, mapper, engine, pool,
+            configSupplier, engine, pool,
             QueryRunnerTestHelper.NoopIntervalChunkingQueryRunnerDecorator()
         ),
         pool
@@ -110,7 +110,7 @@ public class ApproximateHistogramGroupByQueryTest
         QueryRunnerTestHelper.NOOP_QUERYWATCHER,
         singleThreadedConfigSupplier,
         new GroupByQueryQueryToolChest(
-            singleThreadedConfigSupplier, mapper, singleThreadEngine, pool,
+            singleThreadedConfigSupplier, singleThreadEngine, pool,
             QueryRunnerTestHelper.NoopIntervalChunkingQueryRunnerDecorator()
         ),
         pool

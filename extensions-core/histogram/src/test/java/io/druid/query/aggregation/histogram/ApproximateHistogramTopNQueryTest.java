@@ -64,6 +64,7 @@ public class ApproximateHistogramTopNQueryTest
                     TestQueryRunners.getPool(),
                     new TopNQueryQueryToolChest(
                         new TopNQueryConfig(),
+                        TestHelper.testTopNQueryEngine(),
                         QueryRunnerTestHelper.NoopIntervalChunkingQueryRunnerDecorator()
                     ),
                     QueryRunnerTestHelper.NOOP_QUERYWATCHER
@@ -83,6 +84,7 @@ public class ApproximateHistogramTopNQueryTest
                     ),
                     new TopNQueryQueryToolChest(
                         new TopNQueryConfig(),
+                        TestHelper.testTopNQueryEngine(),
                         QueryRunnerTestHelper.NoopIntervalChunkingQueryRunnerDecorator()
                     ),
                     QueryRunnerTestHelper.NOOP_QUERYWATCHER

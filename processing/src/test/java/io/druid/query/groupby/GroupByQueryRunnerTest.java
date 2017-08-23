@@ -178,7 +178,7 @@ public class GroupByQueryRunnerTest
         QueryRunnerTestHelper.NOOP_QUERYWATCHER,
         configSupplier,
         new GroupByQueryQueryToolChest(
-            configSupplier, mapper, engine, TestQueryRunners.pool,
+            configSupplier, engine, TestQueryRunners.pool,
             QueryRunnerTestHelper.NoopIntervalChunkingQueryRunnerDecorator()
         ),
         TestQueryRunners.pool
@@ -202,7 +202,7 @@ public class GroupByQueryRunnerTest
         QueryRunnerTestHelper.NOOP_QUERYWATCHER,
         singleThreadedConfigSupplier,
         new GroupByQueryQueryToolChest(
-            singleThreadedConfigSupplier, mapper, singleThreadEngine, pool,
+            singleThreadedConfigSupplier, singleThreadEngine, pool,
             QueryRunnerTestHelper.NoopIntervalChunkingQueryRunnerDecorator()
         ),
         pool
@@ -2822,7 +2822,6 @@ public class GroupByQueryRunnerTest
 
     QueryRunner<Row> mergeRunner = new GroupByQueryQueryToolChest(
         configSupplier,
-        new DefaultObjectMapper(),
         engine,
         TestQueryRunners.pool,
         QueryRunnerTestHelper.NoopIntervalChunkingQueryRunnerDecorator()
@@ -2881,7 +2880,6 @@ public class GroupByQueryRunnerTest
 
     QueryRunner<Row> mergeRunner = new GroupByQueryQueryToolChest(
         configSupplier,
-        new DefaultObjectMapper(),
         engine,
         TestQueryRunners.pool,
         QueryRunnerTestHelper.NoopIntervalChunkingQueryRunnerDecorator()
@@ -2961,7 +2959,6 @@ public class GroupByQueryRunnerTest
 
     QueryRunner<Row> mergeRunner = new GroupByQueryQueryToolChest(
         configSupplier,
-        new DefaultObjectMapper(),
         engine,
         TestQueryRunners.pool,
         QueryRunnerTestHelper.NoopIntervalChunkingQueryRunnerDecorator()
@@ -4453,7 +4450,6 @@ public class GroupByQueryRunnerTest
 
     QueryRunner<Row> mergeRunner = new GroupByQueryQueryToolChest(
         configSupplier,
-        new DefaultObjectMapper(),
         engine,
         TestQueryRunners.pool,
         QueryRunnerTestHelper.NoopIntervalChunkingQueryRunnerDecorator()

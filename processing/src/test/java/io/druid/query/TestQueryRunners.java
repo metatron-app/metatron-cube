@@ -32,6 +32,7 @@ import io.druid.query.topn.TopNQueryConfig;
 import io.druid.query.topn.TopNQueryQueryToolChest;
 import io.druid.query.topn.TopNQueryRunnerFactory;
 import io.druid.segment.Segment;
+import io.druid.segment.TestHelper;
 
 import java.nio.ByteBuffer;
 
@@ -62,8 +63,11 @@ public class TestQueryRunners
   {
     QueryRunnerFactory factory = new TopNQueryRunnerFactory(
         pool,
-        new TopNQueryQueryToolChest(topNConfig,
-            QueryRunnerTestHelper.NoopIntervalChunkingQueryRunnerDecorator()),
+        new TopNQueryQueryToolChest(
+            topNConfig,
+            TestHelper.testTopNQueryEngine(),
+            QueryRunnerTestHelper.NoopIntervalChunkingQueryRunnerDecorator()
+        ),
         QueryRunnerTestHelper.NOOP_QUERYWATCHER
     );
     return new FinalizeResultsQueryRunner<T>(
