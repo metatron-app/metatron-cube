@@ -99,7 +99,7 @@ public class SelectQueryQueryToolChest extends QueryToolChest<Result<SelectResul
       {
       };
 
-  private static final Logger logger = new Logger(SelectMetaQueryToolChest.class);
+  private static final Logger logger = new Logger(SelectQueryQueryToolChest.class);
 
   private final ObjectMapper jsonMapper;
   private final SelectQueryEngine engine;
