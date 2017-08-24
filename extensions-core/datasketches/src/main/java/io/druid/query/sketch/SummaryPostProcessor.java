@@ -41,6 +41,7 @@ import com.metamx.common.guava.Sequences;
 import com.metamx.common.logger.Logger;
 import com.yahoo.sketches.quantiles.ItemsSketch;
 import com.yahoo.sketches.theta.Sketch;
+import io.druid.common.guava.GuavaUtils;
 import io.druid.data.ValueType;
 import io.druid.data.input.Row;
 import io.druid.granularity.QueryGranularities;
@@ -141,14 +142,43 @@ public class SummaryPostProcessor extends PostProcessingOperator.UnionSupport
           );
           final Map<String, Object> value = values.getValue();
           if (sketchQuery.getSketchOp() == SketchOp.QUANTILE) {
-            Map<String, ValueType> numericColumns = Maps.newHashMap();
+            final Map<String, ValueType> primitiveColumns = Maps.newTreeMap();
+            final Map<String, ValueType> numericColumns = Maps.newTreeMap();
             for (Map.Entry<String, Object> entry : value.entrySet()) {
               final String column = entry.getKey();
               final ValueType type = ((TypedSketch<ItemsSketch>) entry.getValue()).type();
+              if (type.isPrimitive()) {
+                primitiveColumns.put(column, type);
+              }
               if (type.isNumeric()) {
                 numericColumns.put(column, type);
               }
             }
+            List<AggregatorFactory> aggregators = Lists.newArrayList();
+            if (numericColumns.size() >= 2) {
+              List<String> columnNames = Lists.newArrayList(numericColumns.keySet());
+              for (int i = 0; i < columnNames.size(); i++) {
+                for (int j = i + 1; j < columnNames.size(); j++) {
+                  String from = columnNames.get(i);
+                  String to = columnNames.get(j);
+                  String name = "covariance(" + from + ", " + to + ")";
+                  aggregators.add(new PearsonAggregatorFactory(name, from, to, null, "double"));
+                }
+              }
+            }
+            aggregators.add(new CountAggregatorFactory("count"));
+
+            GroupByQuery runner = new GroupByQuery(
+                representative.getDataSource(),
+                representative.getQuerySegmentSpec(),
+                null,
+                QueryGranularities.ALL,
+                ImmutableList.<DimensionSpec>of(),
+                virtualColumns,
+                aggregators,
+                ImmutableList.<PostAggregator>of(),
+                null, null, null, null, null
+            );
             for (Map.Entry<String, Object> entry : value.entrySet()) {
               final String column = entry.getKey();
               final TypedSketch<ItemsSketch> sketch = (TypedSketch<ItemsSketch>) entry.getValue();
@@ -165,11 +195,12 @@ public class SummaryPostProcessor extends PostProcessingOperator.UnionSupport
               result.put("median", quantiles[5]);
 
               Object[] dedup = dedup(quantiles);
-              double[] pmf = (double[]) SketchQuantilesOp.PMF.calculate(itemsSketch, dedup);
-              double[] cdf = (double[]) SketchQuantilesOp.CDF.calculate(itemsSketch, dedup);
               result.put("quantiles", dedup);
-              result.put("pmf", pmf);
-              result.put("cdf", cdf);
+              if (dedup.length > 1) {
+                Object[] splits = Arrays.copyOfRange(dedup, 1, dedup.length - 1); // remove min value
+                result.put("pmf", SketchQuantilesOp.PMF.calculate(itemsSketch, splits));
+                result.put("cdf", SketchQuantilesOp.CDF.calculate(itemsSketch, splits));
+              }
 
               Object lower = itemsSketch.getQuantile(0.25f);
               Object upper = itemsSketch.getQuantile(0.75f);
@@ -225,97 +256,85 @@ public class SummaryPostProcessor extends PostProcessingOperator.UnionSupport
                     )
                 );
               }
-
               if (type.isPrimitive()) {
-                GroupByQuery baseQuery = new GroupByQuery(
-                    representative.getDataSource(),
-                    representative.getQuerySegmentSpec(),
-                    null,
-                    QueryGranularities.ALL,
-                    ImmutableList.<DimensionSpec>of(),
-                    virtualColumns,
-                    ImmutableList.<AggregatorFactory>of(new CountAggregatorFactory("count")),
-                    ImmutableList.<PostAggregator>of(),
-                    null, null, null, null, null
-                );
-
-                final GroupByQuery groupBy = configureForType(
-                    baseQuery,
-                    column,
-                    lower,
-                    upper,
-                    type,
-                    numericColumns
-                );
-
-                final Map<String, Object> stats = results.get(column);
-                futures.add(
-                    exec.submit(
-                        new AbstractPrioritizedCallable<Integer>(0)
-                        {
-                          @Override
-                          public Integer call()
-                          {
-                            List<Row> rows = Sequences.toList(
-                                groupBy.run(segmentWalker, Maps.<String, Object>newHashMap()),
-                                Lists.<Row>newArrayList()
-                            );
-                            if (rows.isEmpty()) {
-                              return 0;
-                            }
-                            Row row = Iterables.getOnlyElement(rows);
-                            stats.put("missing", row.getLongMetric("missing"));
-
-                            if (type.isNumeric()) {
-                              stats.put("mean", row.getDoubleMetric("mean"));
-                              stats.put("variance", row.getDoubleMetric("variance"));
-                              stats.put("stddev", row.getDoubleMetric("stddev"));
-                              stats.put("skewness", row.getDoubleMetric("skewness"));
-                              stats.put("outliers", row.getLongMetric("outlier"));
-
-                              List<Pair<Double, String>> covariances = Lists.newArrayList();
-                              for (String column : row.getColumns()) {
-                                if (column.startsWith("covariance")) {
-                                  int index1 = column.indexOf(',');
-                                  int index2 = column.indexOf(')', index1);
-                                  String target = column.substring(index1 + 1, index2).trim();
-                                  covariances.add(Pair.of(row.getDoubleMetric(column), target));
-                                }
-                              }
-                              Collections.sort(
-                                  covariances,
-                                  Pair.lhsComparator(
-                                      Ordering.<Double>natural().onResultOf(
-                                          new Function<Double, Double>()
-                                          {
-                                            @Override
-                                            public Double apply(Double input) { return Math.abs(input); }
-                                          }
-                                      ).reverse()
-                                  )
-                              );
-
-                              List<Map<String, Object>> covarianceBest = Lists.newArrayList();
-                              for (int i = 0; i < Math.min(covariances.size(), 5); i++) {
-                                Pair<Double, String> covariance = covariances.get(i);
-                                covarianceBest.add(
-                                    ImmutableMap.<String, Object>of(
-                                        "with", covariance.rhs,
-                                        "covariance", covariance.lhs
-                                    )
-                                );
-                              }
-                              if (!covarianceBest.isEmpty()) {
-                                stats.put("covariances", covarianceBest);
-                              }
-                            }
-                            return 0;
-                          }
-                        }
-                    )
-                );
+                runner = configureForType(runner, column, lower, upper, type);
               }
             }
+            final GroupByQuery groupBy = runner;
+            futures.add(
+                exec.submit(
+                    new AbstractPrioritizedCallable<Integer>(0)
+                    {
+                      @Override
+                      public Integer call()
+                      {
+                        List<Row> rows = Sequences.toList(
+                            groupBy.run(segmentWalker, Maps.<String, Object>newHashMap()),
+                            Lists.<Row>newArrayList()
+                        );
+                        if (rows.isEmpty()) {
+                          return 0;
+                        }
+                        Row row = Iterables.getOnlyElement(rows);
+
+                        Map<String, List<Pair<Double, String>>> covarianceMap = Maps.newHashMap();
+                        for (String column : row.getColumns()) {
+                          if (column.startsWith("covariance(")) {
+                            int index1 = column.indexOf(',', 11);
+                            int index2 = column.indexOf(')', index1);
+                            String from = column.substring(11, index1).trim();
+                            String to = column.substring(index1 + 1, index2).trim();
+                            double covariance = row.getDoubleMetric(column);
+                            GuavaUtils.add(covarianceMap, from, Pair.of(covariance, to));
+                            GuavaUtils.add(covarianceMap, to, Pair.of(covariance, from));
+                          }
+                        }
+                        for (String column : primitiveColumns.keySet()) {
+                          ValueType type = primitiveColumns.get(column);
+                          Map<String, Object> stats = results.get(column);
+                          stats.put("missing", row.getLongMetric(column + ".missing"));
+
+                          if (type.isNumeric()) {
+                            stats.put("mean", row.getDoubleMetric(column + ".mean"));
+                            stats.put("variance", row.getDoubleMetric(column + ".variance"));
+                            stats.put("stddev", row.getDoubleMetric(column + ".stddev"));
+                            stats.put("skewness", row.getDoubleMetric(column + ".skewness"));
+                            stats.put("outliers", row.getLongMetric(column + ".outlier"));
+
+                            List<Pair<Double, String>> covariances = covarianceMap.get(column);
+                            Collections.sort(
+                                covariances,
+                                Pair.lhsComparator(
+                                    Ordering.<Double>natural().onResultOf(
+                                        new Function<Double, Double>()
+                                        {
+                                          @Override
+                                          public Double apply(Double input) { return Math.abs(input); }
+                                        }
+                                    ).reverse()
+                                )
+                            );
+
+                            List<Map<String, Object>> covarianceBest = Lists.newArrayList();
+                            for (int i = 0; i < Math.min(covariances.size(), 5); i++) {
+                              Pair<Double, String> covariance = covariances.get(i);
+                              covarianceBest.add(
+                                  ImmutableMap.<String, Object>of(
+                                      "with", covariance.rhs,
+                                      "covariance", covariance.lhs
+                                  )
+                              );
+                            }
+                            if (!covarianceBest.isEmpty()) {
+                              stats.put("covariances", covarianceBest);
+                            }
+                          }
+                        }
+                        return 0;
+                      }
+                    }
+                )
+            );
           } else if (sketchQuery.getSketchOp() == SketchOp.THETA) {
             for (Map.Entry<String, Object> entry : value.entrySet()) {
               String dimension = entry.getKey();
@@ -406,44 +425,32 @@ public class SummaryPostProcessor extends PostProcessingOperator.UnionSupport
       String column,
       Object lower,
       Object upper,
-      ValueType type,
-      Map<String, ValueType> numericColumns
+      ValueType type
   )
   {
     String escaped = "\"" + column + "\"";
 
     List<AggregatorFactory> aggregators = Lists.newArrayList();
     List<PostAggregator> postAggregators = Lists.newArrayList();
-    aggregators.add(new CountAggregatorFactory("count"));
-    aggregators.add(new CountAggregatorFactory("missing", "isnull(" + escaped + ")"));
+    aggregators.add(new CountAggregatorFactory(column + ".missing", "isnull(" + escaped + ")"));
 
     if (type.isNumeric()) {
       double q1 = ((Number) lower).doubleValue();
       double q3 = ((Number) upper).doubleValue();
       double iqr = q3 - q1;
       String outlier = escaped + " < " + (q1 - iqr * 1.5) + " || " + escaped + " >  " + (q3 + iqr * 1.5);
-      aggregators.add(new CountAggregatorFactory("outlier", outlier));
-      aggregators.add(new GenericSumAggregatorFactory("sum", column, null));
-      aggregators.add(new VarianceAggregatorFactory("variance", column));
-      aggregators.add(new KurtosisAggregatorFactory("skewness", column, null, null));
+      aggregators.add(new CountAggregatorFactory(column + ".outlier", outlier));
+      aggregators.add(new GenericSumAggregatorFactory(column + ".sum", column, null));
+      aggregators.add(new VarianceAggregatorFactory(column + ".variance", column));
+      aggregators.add(new KurtosisAggregatorFactory(column + ".skewness", column, null, null));
 
-      postAggregators.add(new MathPostAggregator("mean", "sum / count"));
-      postAggregators.add(new StandardDeviationPostAggregator("stddev", "variance", null));
-
-      if (numericColumns.containsKey(column) && numericColumns.size() >= 2) {
-        for (Map.Entry<String, ValueType> entry : numericColumns.entrySet()) {
-          String target = entry.getKey();
-          if (!column.equals(target)) {
-            String name = "covariance(" + column + ", " + target + ")";
-            aggregators.add(new PearsonAggregatorFactory(name, column, target, null, "double"));
-          }
-        }
-      }
+      postAggregators.add(new MathPostAggregator(column + ".mean", column + ".sum / count"));
+      postAggregators.add(new StandardDeviationPostAggregator(column + ".stddev", column + ".variance", null));
     }
 
     return groupBy
-        .withAggregatorSpecs(aggregators)
-        .withPostAggregatorSpecs(postAggregators);
+        .withAggregatorSpecs(GuavaUtils.concat(groupBy.getAggregatorSpecs(), aggregators))
+        .withPostAggregatorSpecs(GuavaUtils.concat(groupBy.getPostAggregatorSpecs(), postAggregators));
   }
 
   @Override

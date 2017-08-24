@@ -40,6 +40,7 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
 import java.util.zip.GZIPInputStream;
 
 /**
@@ -206,5 +207,14 @@ public class GuavaUtils
       doubles[i] = (double) longs[i];
     }
     return doubles;
+  }
+
+  public static <K, V> void add(Map<K, List<V>> map, K key, V value)
+  {
+    List<V> list = map.get(key);
+    if (list == null) {
+      map.put(key, list = Lists.newArrayList());
+    }
+    list.add(value);
   }
 }
