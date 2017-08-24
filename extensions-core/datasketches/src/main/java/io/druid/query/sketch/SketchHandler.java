@@ -31,6 +31,7 @@ import com.yahoo.sketches.theta.Sketch;
 import com.yahoo.sketches.theta.Union;
 import io.druid.data.ValueType;
 import io.druid.query.extraction.ExtractionFn;
+import io.druid.query.extraction.IdentityExtractionFn;
 import io.druid.query.filter.BitmapIndexSelector;
 import io.druid.segment.column.BitmapIndex;
 
@@ -71,9 +72,16 @@ public interface SketchHandler<U>
     public TypedSketch<Union> calculate(int sketchParam, BitmapIndex bitmapIndex, ExtractionFn function)
     {
       final TypedSketch<Union> union = newUnion(sketchParam, ValueType.STRING);
+      final Union sketch = union.value();
       final int cardinality = bitmapIndex.getCardinality();
-      for (int i = 0; i < cardinality; ++i) {
-        union.value().update(function.apply(bitmapIndex.getValue(i)));
+      if (function == null) {
+        for (int i = 0; i < cardinality; ++i) {
+          sketch.update(bitmapIndex.getValueAsRaw(i));
+        }
+      } else {
+        for (int i = 0; i < cardinality; i++) {
+          sketch.update(function.apply(bitmapIndex.getValue(i)));
+        }
       }
       return union;
     }
@@ -157,10 +165,11 @@ public interface SketchHandler<U>
     @Override
     public final TypedSketch<U> calculate(int sketchParam, BitmapIndex bitmapIndex, ExtractionFn function)
     {
+      final ExtractionFn extraction = function == null ? IdentityExtractionFn.nullToEmpty() : function;
       final TypedSketch<U> union = newUnion(sketchParam, ValueType.STRING);
       final int cardinality = bitmapIndex.getCardinality();
       for (int i = 0; i < cardinality; ++i) {
-        final String value = function.apply(bitmapIndex.getValue(i));
+        final String value = extraction.apply(bitmapIndex.getValue(i));
         update(union, value, bitmapIndex.getBitmap(i).size());
       }
       return union;

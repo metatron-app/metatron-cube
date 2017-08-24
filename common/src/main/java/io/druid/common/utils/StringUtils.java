@@ -53,7 +53,7 @@ public class StringUtils extends com.metamx.common.StringUtils
     }
   };
 
-  private static final byte[] EMPTY_BYTES = new byte[0];
+  public static final byte[] EMPTY_BYTES = new byte[0];
 
   // should be used only for estimation
   // returns the same result with StringUtils.fromUtf8(value).length for valid string values

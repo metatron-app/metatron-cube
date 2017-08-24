@@ -62,6 +62,12 @@ public class BitmapIndexColumnPartSupplier implements ColumnPartProvider<BitmapI
       }
 
       @Override
+      public byte[] getValueAsRaw(int index)
+      {
+        return dictionary.getAsRaw(index);
+      }
+
+      @Override
       public boolean hasNulls()
       {
         return dictionary.indexOf(null) >= 0;

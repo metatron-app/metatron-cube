@@ -111,7 +111,7 @@ public class SketchQueryRunner implements QueryRunner<Result<Map<String, Object>
         if (bitmapIndex == null) {
           continue;
         }
-        ExtractionFn function = ExtractionFns.getExtractionFn(spec, IdentityExtractionFn.nullToEmpty());
+        ExtractionFn function = spec.getExtractionFn();
         TypedSketch calculate;
         if (filterBitmap == null) {
           calculate = handler.calculate(sketchParam, bitmapIndex, function);

@@ -131,6 +131,11 @@ public class GenericIndexed<T> implements Indexed<T>, DictionaryLoader<T>
     return bufferIndexed.get(index);
   }
 
+  public byte[] getAsRaw(int index)
+  {
+    return bufferIndexed.getAsRaw(index);
+  }
+
   /**
    * Returns the index of "value" in this GenericIndexed object, or (-(insertion point) - 1) if the value is not
    * present, in the manner of Arrays.binarySearch. This strengthens the contract of Indexed, which only guarantees
@@ -207,9 +212,9 @@ public class GenericIndexed<T> implements Indexed<T>, DictionaryLoader<T>
     BufferIndexed bufferIndexed = new BufferIndexed()
     {
       @Override
-      public T get(int index)
+      protected ByteBuffer reader()
       {
-        return _get(copyBuffer, index);
+        return copyBuffer;
       }
     };
     return new GenericIndexed<>(
@@ -265,14 +270,14 @@ public class GenericIndexed<T> implements Indexed<T>, DictionaryLoader<T>
       return size;
     }
 
-    @Override
-    public T get(final int index)
+    protected ByteBuffer reader()
     {
-      return _get(theBuffer.asReadOnlyBuffer(), index);
+      return bufferAsReadOnly();
     }
 
-    protected T _get(final ByteBuffer copyBuffer, final int index)
+    public final T get(final int index)
     {
+      final ByteBuffer copyBuffer = reader();
       if (index < 0) {
         throw new IAE("Index[%s] < 0", index);
       }
@@ -281,6 +286,30 @@ public class GenericIndexed<T> implements Indexed<T>, DictionaryLoader<T>
       }
 
       return loadValue(copyBuffer, index);
+    }
+
+    public final byte[] getAsRaw(final int index)
+    {
+      final ByteBuffer copyBuffer = reader();
+      final int startOffset;
+      final int endOffset;
+
+      if (index == 0) {
+        startOffset = 4;
+        endOffset = copyBuffer.getInt(indexOffset);
+      } else {
+        copyBuffer.position(indexOffset + ((index - 1) * 4));
+        startOffset = copyBuffer.getInt() + 4;
+        endOffset = copyBuffer.getInt();
+      }
+
+      if (startOffset == endOffset) {
+        return StringUtils.EMPTY_BYTES;
+      }
+      copyBuffer.position(valuesOffset + startOffset);
+      byte[] array = new byte[endOffset - startOffset];
+      copyBuffer.get(array);
+      return array;
     }
 
     private T loadValue(final ByteBuffer copyBuffer, final int index)
@@ -381,9 +410,9 @@ public class GenericIndexed<T> implements Indexed<T>, DictionaryLoader<T>
     return new BufferIndexed()
     {
       @Override
-      public T get(int index)
+      protected ByteBuffer reader()
       {
-        return _get(copyBuffer, index);
+        return copyBuffer;
       }
     };
   }
@@ -523,9 +552,9 @@ public class GenericIndexed<T> implements Indexed<T>, DictionaryLoader<T>
       BufferIndexed bufferIndexed = new BufferIndexed()
       {
         @Override
-        public T get(int index)
+        protected ByteBuffer reader()
         {
-          return _get(copyBuffer, index);
+          return copyBuffer;
         }
       };
       return new Cached<T>(
