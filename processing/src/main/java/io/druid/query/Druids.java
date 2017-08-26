@@ -334,6 +334,7 @@ public class Druids
     private QuerySegmentSpec querySegmentSpec;
     private DimFilter dimFilter;
     private QueryGranularity granularity;
+    private List<VirtualColumn> virtualColumns;
     private List<AggregatorFactory> aggregatorSpecs;
     private List<PostAggregator> postAggregatorSpecs;
     private List<String> outputColumns;
@@ -361,6 +362,7 @@ public class Druids
           descending,
           dimFilter,
           granularity,
+          virtualColumns,
           aggregatorSpecs,
           postAggregatorSpecs,
           outputColumns,
@@ -377,6 +379,7 @@ public class Druids
           .filters(query.getDimensionsFilter())
           .descending(query.isDescending())
           .granularity(query.getGranularity())
+          .virtualColumns(query.getVirtualColumns())
           .aggregators(query.getAggregatorSpecs())
           .postAggregators(query.getPostAggregatorSpecs())
           .outputColumns(query.getOutputColumns())
@@ -392,6 +395,7 @@ public class Druids
           .filters(builder.dimFilter)
           .descending(builder.descending)
           .granularity(builder.granularity)
+          .virtualColumns(builder.virtualColumns)
           .aggregators(builder.aggregatorSpecs)
           .postAggregators(builder.postAggregatorSpecs)
           .outputColumns(builder.outputColumns)
@@ -502,6 +506,12 @@ public class Druids
     public TimeseriesQueryBuilder granularity(QueryGranularity g)
     {
       granularity = g;
+      return this;
+    }
+
+    public TimeseriesQueryBuilder virtualColumns(List<VirtualColumn> v)
+    {
+      virtualColumns = v;
       return this;
     }
 

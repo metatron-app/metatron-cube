@@ -49,7 +49,9 @@ import io.druid.query.filter.RegexDimFilter;
 import io.druid.query.filter.SelectorDimFilter;
 import io.druid.query.lookup.LookupExtractionFn;
 import io.druid.query.spec.MultipleIntervalSegmentSpec;
+import io.druid.segment.ExprVirtualColumn;
 import io.druid.segment.TestHelper;
+import io.druid.segment.VirtualColumn;
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
 import org.joda.time.Interval;
@@ -333,12 +335,21 @@ public class TimeseriesQueryRunnerTest
     TimeseriesQuery query = Druids.newTimeseriesQueryBuilder()
                                   .dataSource(QueryRunnerTestHelper.dataSource)
                                   .intervals("2011-03-31T00:00:00-07:00/2011-04-02T00:00:00-07:00")
+                                  .virtualColumns(
+                                      Arrays.<VirtualColumn>asList(
+                                          new ExprVirtualColumn("index + 10", "index2")
+                                      )
+                                  )
                                   .aggregators(
                                       Arrays.<AggregatorFactory>asList(
                                           QueryRunnerTestHelper.rowsCount,
                                           new LongSumAggregatorFactory(
                                               "idx",
                                               "index"
+                                          ),
+                                          new LongSumAggregatorFactory(
+                                              "idx2",
+                                              "index2"
                                           )
                                       )
                                   )
@@ -356,13 +367,13 @@ public class TimeseriesQueryRunnerTest
         new Result<>(
             new DateTime("2011-03-31", DateTimeZone.forID("America/Los_Angeles")),
             new TimeseriesResultValue(
-                ImmutableMap.<String, Object>of("rows", 13L, "idx", 6619L)
+                ImmutableMap.<String, Object>of("rows", 13L, "idx", 6619L, "idx2", 6619L + 130L)
             )
         ),
         new Result<>(
             new DateTime("2011-04-01T", DateTimeZone.forID("America/Los_Angeles")),
             new TimeseriesResultValue(
-                ImmutableMap.<String, Object>of("rows", 13L, "idx", 5827L)
+                ImmutableMap.<String, Object>of("rows", 13L, "idx", 5827L, "idx2", 5827L + 130L)
             )
         )
     );

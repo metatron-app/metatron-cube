@@ -75,6 +75,7 @@ public class TimeseriesQueryQueryToolChestTest
                 descending,
                 null,
                 QueryGranularities.ALL,
+                null,
                 ImmutableList.<AggregatorFactory>of(new CountAggregatorFactory("metric1")),
                 null,
                 null,

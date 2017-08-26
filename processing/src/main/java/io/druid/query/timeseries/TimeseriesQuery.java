@@ -22,6 +22,7 @@ package io.druid.query.timeseries;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
+import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import io.druid.granularity.QueryGranularity;
 import io.druid.query.BaseQuery;
@@ -31,9 +32,11 @@ import io.druid.query.Query;
 import io.druid.query.Result;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.PostAggregator;
+import io.druid.query.dimension.DimensionSpec;
 import io.druid.query.filter.DimFilter;
 import io.druid.query.LateralViewSpec;
 import io.druid.query.spec.QuerySegmentSpec;
+import io.druid.segment.VirtualColumn;
 
 import java.util.List;
 import java.util.Map;
@@ -42,10 +45,11 @@ import java.util.Map;
  */
 @JsonTypeName("timeseries")
 public class TimeseriesQuery extends BaseQuery<Result<TimeseriesResultValue>>
-  implements Query.DimFilterSupport<Result<TimeseriesResultValue>>
+  implements Query.DimensionSupport<Result<TimeseriesResultValue>>
 {
   private final DimFilter dimFilter;
   private final QueryGranularity granularity;
+  private final List<VirtualColumn> virtualColumns;
   private final List<AggregatorFactory> aggregatorSpecs;
   private final List<PostAggregator> postAggregatorSpecs;
   private final List<String> outputColumns;
@@ -58,6 +62,7 @@ public class TimeseriesQuery extends BaseQuery<Result<TimeseriesResultValue>>
       @JsonProperty("descending") boolean descending,
       @JsonProperty("filter") DimFilter dimFilter,
       @JsonProperty("granularity") QueryGranularity granularity,
+      @JsonProperty("virtualColumns") List<VirtualColumn> virtualColumns,
       @JsonProperty("aggregations") List<AggregatorFactory> aggregatorSpecs,
       @JsonProperty("postAggregations") List<PostAggregator> postAggregatorSpecs,
       @JsonProperty("outputColumns") List<String> outputColumns,
@@ -68,7 +73,8 @@ public class TimeseriesQuery extends BaseQuery<Result<TimeseriesResultValue>>
     super(dataSource, querySegmentSpec, descending, context);
     this.dimFilter = dimFilter;
     this.granularity = granularity;
-    this.aggregatorSpecs = aggregatorSpecs;
+    this.virtualColumns = virtualColumns == null ? ImmutableList.<VirtualColumn>of() : virtualColumns;
+    this.aggregatorSpecs = aggregatorSpecs == null ? ImmutableList.<AggregatorFactory>of() : aggregatorSpecs;
     this.postAggregatorSpecs = postAggregatorSpecs == null ? ImmutableList.<PostAggregator>of() : postAggregatorSpecs;
     this.outputColumns = outputColumns;
     this.lateralView = lateralView;
@@ -104,6 +110,19 @@ public class TimeseriesQuery extends BaseQuery<Result<TimeseriesResultValue>>
   public QueryGranularity getGranularity()
   {
     return granularity;
+  }
+
+  @Override
+  public List<DimensionSpec> getDimensions()
+  {
+    return ImmutableList.of();
+  }
+
+  @Override
+  @JsonProperty("virtualColumns")
+  public List<VirtualColumn> getVirtualColumns()
+  {
+    return virtualColumns;
   }
 
   @JsonProperty("aggregations")
@@ -144,6 +163,7 @@ public class TimeseriesQuery extends BaseQuery<Result<TimeseriesResultValue>>
         isDescending(),
         dimFilter,
         granularity,
+        virtualColumns,
         aggregatorSpecs,
         postAggregatorSpecs,
         outputColumns,
@@ -161,6 +181,7 @@ public class TimeseriesQuery extends BaseQuery<Result<TimeseriesResultValue>>
         isDescending(),
         dimFilter,
         granularity,
+        virtualColumns,
         aggregatorSpecs,
         postAggregatorSpecs,
         outputColumns,
@@ -178,6 +199,7 @@ public class TimeseriesQuery extends BaseQuery<Result<TimeseriesResultValue>>
         isDescending(),
         dimFilter,
         granularity,
+        virtualColumns,
         aggregatorSpecs,
         postAggregatorSpecs,
         outputColumns,
@@ -195,6 +217,7 @@ public class TimeseriesQuery extends BaseQuery<Result<TimeseriesResultValue>>
         isDescending(),
         dimFilter,
         granularity,
+        virtualColumns,
         aggregatorSpecs,
         postAggregatorSpecs,
         outputColumns,
@@ -211,6 +234,33 @@ public class TimeseriesQuery extends BaseQuery<Result<TimeseriesResultValue>>
         isDescending(),
         dimFilter,
         granularity,
+        virtualColumns,
+        aggregatorSpecs,
+        postAggregatorSpecs,
+        outputColumns,
+        lateralView,
+        getContext()
+    );
+  }
+
+
+  @Override
+  public DimensionSupport<Result<TimeseriesResultValue>> withDimensionSpecs(List<DimensionSpec> dimensions)
+  {
+    Preconditions.checkArgument(dimensions == null || dimensions.isEmpty());
+    return this;
+  }
+
+  @Override
+  public DimensionSupport<Result<TimeseriesResultValue>> withVirtualColumns(List<VirtualColumn> virtualColumns)
+  {
+    return new TimeseriesQuery(
+        getDataSource(),
+        getQuerySegmentSpec(),
+        isDescending(),
+        dimFilter,
+        granularity,
+        virtualColumns,
         aggregatorSpecs,
         postAggregatorSpecs,
         outputColumns,
@@ -228,6 +278,7 @@ public class TimeseriesQuery extends BaseQuery<Result<TimeseriesResultValue>>
         ", descending=" + isDescending() +
         ", dimFilter=" + dimFilter +
         ", granularity='" + granularity + '\'' +
+        ", virtualColumns=" + virtualColumns +
         ", aggregatorSpecs=" + aggregatorSpecs +
         ", postAggregatorSpecs=" + postAggregatorSpecs +
         ", outputColumns=" + outputColumns +
@@ -245,6 +296,9 @@ public class TimeseriesQuery extends BaseQuery<Result<TimeseriesResultValue>>
 
     TimeseriesQuery that = (TimeseriesQuery) o;
 
+    if (virtualColumns != null ? !virtualColumns.equals(that.virtualColumns) : that.virtualColumns != null) {
+      return false;
+    }
     if (aggregatorSpecs != null ? !aggregatorSpecs.equals(that.aggregatorSpecs) : that.aggregatorSpecs != null)
       return false;
     if (dimFilter != null ? !dimFilter.equals(that.dimFilter) : that.dimFilter != null) return false;
@@ -265,6 +319,7 @@ public class TimeseriesQuery extends BaseQuery<Result<TimeseriesResultValue>>
     int result = super.hashCode();
     result = 31 * result + (dimFilter != null ? dimFilter.hashCode() : 0);
     result = 31 * result + (granularity != null ? granularity.hashCode() : 0);
+    result = 31 * result + (virtualColumns != null ? virtualColumns.hashCode() : 0);
     result = 31 * result + (aggregatorSpecs != null ? aggregatorSpecs.hashCode() : 0);
     result = 31 * result + (postAggregatorSpecs != null ? postAggregatorSpecs.hashCode() : 0);
     result = 31 * result + (outputColumns != null ? outputColumns.hashCode() : 0);
