@@ -43,11 +43,11 @@ import com.yahoo.sketches.quantiles.ItemsSketch;
 import com.yahoo.sketches.theta.Sketch;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.data.ValueType;
-import io.druid.data.input.Row;
 import io.druid.granularity.QueryGranularities;
 import io.druid.guice.annotations.Processing;
 import io.druid.query.AbstractPrioritizedCallable;
 import io.druid.query.BaseQuery;
+import io.druid.query.MetricValueExtractor;
 import io.druid.query.PostProcessingOperator;
 import io.druid.query.Query;
 import io.druid.query.QueryRunner;
@@ -64,8 +64,6 @@ import io.druid.query.aggregation.post.MathPostAggregator;
 import io.druid.query.aggregation.variance.StandardDeviationPostAggregator;
 import io.druid.query.aggregation.variance.VarianceAggregatorFactory;
 import io.druid.query.dimension.DefaultDimensionSpec;
-import io.druid.query.dimension.DimensionSpec;
-import io.druid.query.groupby.GroupByQuery;
 import io.druid.query.metadata.metadata.NoneColumnIncluderator;
 import io.druid.query.metadata.metadata.SegmentAnalysis;
 import io.druid.query.metadata.metadata.SegmentMetadataQuery;
@@ -74,6 +72,8 @@ import io.druid.query.search.search.LexicographicSearchSortSpec;
 import io.druid.query.search.search.SearchHit;
 import io.druid.query.search.search.SearchQuery;
 import io.druid.query.search.search.SearchQuerySpec;
+import io.druid.query.timeseries.TimeseriesQuery;
+import io.druid.query.timeseries.TimeseriesResultValue;
 import io.druid.segment.VirtualColumn;
 import io.druid.segment.column.Column;
 import org.joda.time.DateTime;
@@ -168,16 +168,16 @@ public class SummaryPostProcessor extends PostProcessingOperator.UnionSupport
             }
             aggregators.add(new CountAggregatorFactory("count"));
 
-            GroupByQuery runner = new GroupByQuery(
+            TimeseriesQuery runner = new TimeseriesQuery(
                 representative.getDataSource(),
                 representative.getQuerySegmentSpec(),
+                false,
                 null,
                 QueryGranularities.ALL,
-                ImmutableList.<DimensionSpec>of(),
                 virtualColumns,
                 aggregators,
                 ImmutableList.<PostAggregator>of(),
-                null, null, null, null, null
+                null, null, null
             );
             for (Map.Entry<String, Object> entry : value.entrySet()) {
               final String column = entry.getKey();
@@ -260,7 +260,7 @@ public class SummaryPostProcessor extends PostProcessingOperator.UnionSupport
                 runner = configureForType(runner, column, lower, upper, type);
               }
             }
-            final GroupByQuery groupBy = runner;
+            final TimeseriesQuery timeseries = runner;
             futures.add(
                 exec.submit(
                     new AbstractPrioritizedCallable<Integer>(0)
@@ -268,15 +268,15 @@ public class SummaryPostProcessor extends PostProcessingOperator.UnionSupport
                       @Override
                       public Integer call()
                       {
-                        List<Row> rows = Sequences.toList(
-                            groupBy.run(segmentWalker, Maps.<String, Object>newHashMap()),
-                            Lists.<Row>newArrayList()
+                        List<Result<TimeseriesResultValue>> rows = Sequences.toList(
+                            timeseries.run(segmentWalker, Maps.<String, Object>newHashMap()),
+                            Lists.<Result<TimeseriesResultValue>>newArrayList()
                         );
                         if (rows.isEmpty()) {
                           return 0;
                         }
-                        Row row = Iterables.getOnlyElement(rows);
-
+                        Result<TimeseriesResultValue> result = Iterables.getOnlyElement(rows);
+                        MetricValueExtractor row = result.getValue();
                         Map<String, List<Pair<Double, String>>> covarianceMap = Maps.newHashMap();
                         for (String column : row.getColumns()) {
                           if (column.startsWith("covariance(")) {
@@ -302,30 +302,30 @@ public class SummaryPostProcessor extends PostProcessingOperator.UnionSupport
                             stats.put("outliers", row.getLongMetric(column + ".outlier"));
 
                             List<Pair<Double, String>> covariances = covarianceMap.get(column);
-                            Collections.sort(
-                                covariances,
-                                Pair.lhsComparator(
-                                    Ordering.<Double>natural().onResultOf(
-                                        new Function<Double, Double>()
-                                        {
-                                          @Override
-                                          public Double apply(Double input) { return Math.abs(input); }
-                                        }
-                                    ).reverse()
-                                )
-                            );
-
-                            List<Map<String, Object>> covarianceBest = Lists.newArrayList();
-                            for (int i = 0; i < Math.min(covariances.size(), 5); i++) {
-                              Pair<Double, String> covariance = covariances.get(i);
-                              covarianceBest.add(
-                                  ImmutableMap.<String, Object>of(
-                                      "with", covariance.rhs,
-                                      "covariance", covariance.lhs
+                            if (covariances != null && !covariances.isEmpty()) {
+                              Collections.sort(
+                                  covariances,
+                                  Pair.lhsComparator(
+                                      Ordering.<Double>natural().onResultOf(
+                                          new Function<Double, Double>()
+                                          {
+                                            @Override
+                                            public Double apply(Double input) { return Math.abs(input); }
+                                          }
+                                      ).reverse()
                                   )
                               );
-                            }
-                            if (!covarianceBest.isEmpty()) {
+
+                              List<Map<String, Object>> covarianceBest = Lists.newArrayList();
+                              for (int i = 0; i < Math.min(covariances.size(), 5); i++) {
+                                Pair<Double, String> covariance = covariances.get(i);
+                                covarianceBest.add(
+                                    ImmutableMap.<String, Object>of(
+                                        "with", covariance.rhs,
+                                        "covariance", covariance.lhs
+                                    )
+                                );
+                              }
                               stats.put("covariances", covarianceBest);
                             }
                           }
@@ -420,8 +420,8 @@ public class SummaryPostProcessor extends PostProcessingOperator.UnionSupport
     return quantiles;
   }
 
-  private GroupByQuery configureForType(
-      GroupByQuery groupBy,
+  private TimeseriesQuery configureForType(
+      TimeseriesQuery query,
       String column,
       Object lower,
       Object upper,
@@ -448,9 +448,9 @@ public class SummaryPostProcessor extends PostProcessingOperator.UnionSupport
       postAggregators.add(new StandardDeviationPostAggregator(column + ".stddev", column + ".variance", null));
     }
 
-    return groupBy
-        .withAggregatorSpecs(GuavaUtils.concat(groupBy.getAggregatorSpecs(), aggregators))
-        .withPostAggregatorSpecs(GuavaUtils.concat(groupBy.getPostAggregatorSpecs(), postAggregators));
+    return query
+        .withAggregatorSpecs(GuavaUtils.concat(query.getAggregatorSpecs(), aggregators))
+        .withPostAggregatorSpecs(GuavaUtils.concat(query.getPostAggregatorSpecs(), postAggregators));
   }
 
   @Override

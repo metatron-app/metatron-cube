@@ -22,6 +22,7 @@ package io.druid.query;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonValue;
 
+import java.util.Collection;
 import java.util.Map;
 
 /**
@@ -42,6 +43,11 @@ public class MetricValueExtractor
   public Map<String, Object> getBaseObject()
   {
     return value;
+  }
+
+  public Collection<String> getColumns()
+  {
+    return value.keySet();
   }
 
   public Float getFloatMetric(String name)

@@ -243,6 +243,39 @@ public class TimeseriesQuery extends BaseQuery<Result<TimeseriesResultValue>>
     );
   }
 
+  public TimeseriesQuery withAggregatorSpecs(List<AggregatorFactory> aggregatorSpecs)
+  {
+    return new TimeseriesQuery(
+        getDataSource(),
+        getQuerySegmentSpec(),
+        isDescending(),
+        dimFilter,
+        granularity,
+        virtualColumns,
+        aggregatorSpecs,
+        postAggregatorSpecs,
+        outputColumns,
+        lateralView,
+        getContext()
+    );
+  }
+
+  public TimeseriesQuery withPostAggregatorSpecs(List<PostAggregator> postAggregatorSpecs)
+  {
+    return new TimeseriesQuery(
+        getDataSource(),
+        getQuerySegmentSpec(),
+        isDescending(),
+        dimFilter,
+        granularity,
+        virtualColumns,
+        aggregatorSpecs,
+        postAggregatorSpecs,
+        outputColumns,
+        lateralView,
+        getContext()
+    );
+  }
 
   @Override
   public DimensionSupport<Result<TimeseriesResultValue>> withDimensionSpecs(List<DimensionSpec> dimensions)
