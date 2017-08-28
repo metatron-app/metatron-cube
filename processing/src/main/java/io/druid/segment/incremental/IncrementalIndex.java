@@ -26,6 +26,7 @@ import com.google.common.base.Strings;
 import com.google.common.base.Supplier;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Iterables;
 import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
@@ -1141,10 +1142,26 @@ public abstract class IncrementalIndex<AggregatorType> implements Iterable<Row>,
 
   public Iterable<Row> iterable(boolean asSorted)
   {
+    final Map<TimeAndDims, Integer> facts = getFacts();
     if (asSorted && !sortFacts) {
-      throw new IllegalStateException("Cannot make sorted iterable");
+      final long start = System.currentTimeMillis();
+      final List<Map.Entry<TimeAndDims, Integer>> list = Lists.newArrayList(facts.entrySet());
+      Collections.sort(
+          list, new Comparator<Map.Entry<TimeAndDims, Integer>>()
+          {
+            private final Comparator<TimeAndDims> comparator = dimsComparator();
+
+            @Override
+            public int compare(Map.Entry<TimeAndDims, Integer> o1, Map.Entry<TimeAndDims, Integer> o2)
+            {
+              return comparator.compare(o1.getKey(), o2.getKey());
+            }
+          }
+      );
+      log.info("Sorting %d rows.. %,d msec", facts.size(), (System.currentTimeMillis() - start));
+      return Iterables.transform(list, rowFunction(ImmutableList.<PostAggregator>of()));
     }
-    return iterableWithPostAggregations(null, false);
+    return Iterables.transform(facts.entrySet(), rowFunction(ImmutableList.<PostAggregator>of()));
   }
 
   public Iterable<Row> iterableWithPostAggregations(final List<PostAggregator> postAggs, final boolean descending)

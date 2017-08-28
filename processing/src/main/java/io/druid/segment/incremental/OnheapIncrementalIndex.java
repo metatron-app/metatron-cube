@@ -21,8 +21,6 @@ package io.druid.segment.incremental;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Supplier;
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.primitives.Ints;
@@ -35,7 +33,6 @@ import io.druid.query.aggregation.AbstractArrayAggregatorFactory;
 import io.druid.query.aggregation.Aggregator;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.Aggregators;
-import io.druid.query.aggregation.PostAggregator;
 import io.druid.query.dimension.DimensionSpec;
 import io.druid.segment.ColumnSelectorFactory;
 import io.druid.segment.DimensionSelector;
@@ -46,11 +43,8 @@ import io.druid.segment.LongColumnSelector;
 import io.druid.segment.ObjectColumnSelector;
 
 import java.util.Arrays;
-import java.util.Collections;
-import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
-import java.util.SortedMap;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ConcurrentSkipListMap;
@@ -167,31 +161,7 @@ public class OnheapIncrementalIndex extends IncrementalIndex<Aggregator>
   }
 
   @Override
-  public Iterable<Row> iterable(boolean asSorted)
-  {
-    if (asSorted && !(facts instanceof SortedMap)) {
-      final long start = System.currentTimeMillis();
-      final Comparator<TimeAndDims> comparator = dimsComparator();
-      List<Map.Entry<TimeAndDims, Integer>> list = Lists.newArrayList(facts.entrySet());
-      Collections.sort(
-          list, new Comparator<Map.Entry<TimeAndDims, Integer>>()
-          {
-            @Override
-            public int compare(
-                Map.Entry<TimeAndDims, Integer> o1, Map.Entry<TimeAndDims, Integer> o2
-            )
-            {
-              return comparator.compare(o1.getKey(), o2.getKey());
-            }
-          }
-      );
-      log.info("Sorting %d rows.. %,d msec", facts.size(), (System.currentTimeMillis() - start));
-      return Iterables.transform(list, rowFunction(ImmutableList.<PostAggregator>of()));
-    }
-    return super.iterable(asSorted);
-  }
-
-  @Override
+  @SuppressWarnings("unchecked")
   protected DimDim makeDimDim(String dimension, SizeEstimator estimator)
   {
     return new OnHeapDimDim(estimator);
@@ -231,15 +201,14 @@ public class OnheapIncrementalIndex extends IncrementalIndex<Aggregator>
   {
     final Integer priorIndex = facts.get(key);
 
-    Aggregator[] aggs;
+    final Aggregator[] aggs;
 
+    rowContainer.set(row);
     if (null != priorIndex) {
       aggs = concurrentGet(priorIndex);
-      doAggregate(aggs, rowContainer, row, reportParseExceptions);
+      doAggregate(aggs, reportParseExceptions);
     } else {
-      aggs = new Aggregator[metrics.length];
-      factorizeAggs(metrics, aggs, rowContainer, row);
-      doAggregate(aggs, rowContainer, row, reportParseExceptions);
+      aggs = factorizeAggs(metrics, reportParseExceptions);
 
       final Integer rowIndex = indexIncrement.getAndIncrement();
       concurrentSet(rowIndex, aggs);
@@ -253,48 +222,32 @@ public class OnheapIncrementalIndex extends IncrementalIndex<Aggregator>
         numEntries.incrementAndGet();
       } else {
         // We lost a race
-        aggs = concurrentGet(prev);
-        doAggregate(aggs, rowContainer, row, reportParseExceptions);
+        doAggregate(concurrentGet(prev), reportParseExceptions);
         // Free up the misfire
         concurrentRemove(rowIndex);
         // This is expected to occur ~80% of the time in the worst scenarios
       }
     }
-
+    rowContainer.set(null);
     return numEntries.get();
   }
 
-  private void factorizeAggs(
-      AggregatorFactory[] metrics,
-      Aggregator[] aggs,
-      ThreadLocal<Row> rowContainer,
-      Row row
-  )
+  private Aggregator[] factorizeAggs(AggregatorFactory[] metrics, boolean reportParseExceptions)
   {
-    rowContainer.set(row);
+    final Aggregator[] aggs = new Aggregator[metrics.length];
     for (int i = 0; i < metrics.length; i++) {
-      final AggregatorFactory agg = metrics[i];
-      aggs[i] = agg.factorize(selectors[i]);
+      aggregate(aggs[i] = metrics[i].factorize(selectors[i]), reportParseExceptions);
     }
-    rowContainer.set(null);
+    return aggs;
   }
 
-  private void doAggregate(
-      Aggregator[] aggs,
-      ThreadLocal<Row> rowContainer,
-      Row row,
-      boolean reportParseExceptions
-  )
+  private void doAggregate(Aggregator[] aggs, boolean reportParseExceptions)
   {
-    rowContainer.set(row);
-
     for (Aggregator agg : aggs) {
       synchronized (agg) {
         aggregate(agg, reportParseExceptions);
       }
     }
-
-    rowContainer.set(null);
   }
 
   private void aggregate(Aggregator agg, boolean reportParseExceptions)
