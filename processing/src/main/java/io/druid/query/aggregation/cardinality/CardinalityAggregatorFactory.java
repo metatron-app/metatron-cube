@@ -49,39 +49,33 @@ import java.util.Objects;
 
 public class CardinalityAggregatorFactory extends AggregatorFactory
 {
-  public static Object estimateCardinality(Object object)
-  {
-    if (object == null) {
-      return 0;
-    }
-
-    return ((HyperLogLogCollector) object).estimateCardinality();
-  }
-
   private static final byte CACHE_TYPE_ID = (byte) 0x8;
 
   private final String name;
   private final String predicate;
   private final List<String> fieldNames;
   private final boolean byRow;
+  private final boolean round;
 
   @JsonCreator
   public CardinalityAggregatorFactory(
-      @JsonProperty("name") String name,
+      @JsonProperty("name") final String name,
       @JsonProperty("fieldNames") final List<String> fieldNames,
       @JsonProperty("predicate") final String predicate,
-      @JsonProperty("byRow") final boolean byRow
+      @JsonProperty("byRow") final boolean byRow,
+      @JsonProperty("round") final boolean round
   )
   {
     this.name = name;
     this.predicate = predicate;
     this.fieldNames = fieldNames;
     this.byRow = byRow;
+    this.round = round;
   }
 
   public CardinalityAggregatorFactory(String name, List<String> fieldNames, boolean byRow)
   {
-    this(name, fieldNames, null, byRow);
+    this(name, fieldNames, null, byRow, false);
   }
 
   @Override
@@ -156,7 +150,7 @@ public class CardinalityAggregatorFactory extends AggregatorFactory
   @Override
   public AggregatorFactory getCombiningFactory()
   {
-    return new HyperUniquesAggregatorFactory(name, name, null);
+    return new HyperUniquesAggregatorFactory(name, name, null, round);
   }
 
   @Override
@@ -184,7 +178,7 @@ public class CardinalityAggregatorFactory extends AggregatorFactory
 
   public Object finalizeComputation(Object object)
   {
-    return estimateCardinality(object);
+    return HyperUniquesAggregatorFactory.estimateCardinality(object, round);
   }
 
   @Override
@@ -222,17 +216,24 @@ public class CardinalityAggregatorFactory extends AggregatorFactory
     return byRow;
   }
 
+  @JsonProperty
+  public boolean isRound()
+  {
+    return round;
+  }
+
   @Override
   public byte[] getCacheKey()
   {
     byte[] fieldNameBytes = StringUtils.toUtf8(Joiner.on("\u0001").join(fieldNames));
     byte[] predicateBytes = StringUtils.toUtf8WithNullToEmpty(predicate);
 
-    return ByteBuffer.allocate(2 + fieldNameBytes.length + predicateBytes.length)
+    return ByteBuffer.allocate(3 + fieldNameBytes.length + predicateBytes.length)
                      .put(CACHE_TYPE_ID)
                      .put(fieldNameBytes)
                      .put(predicateBytes)
                      .put((byte) (byRow ? 1 : 0))
+                     .put((byte) (round ? 1 : 0))
                      .array();
   }
 
@@ -269,6 +270,9 @@ public class CardinalityAggregatorFactory extends AggregatorFactory
     if (byRow != that.byRow) {
       return false;
     }
+    if (round != that.round) {
+      return false;
+    }
     if (fieldNames != null ? !fieldNames.equals(that.fieldNames) : that.fieldNames != null) {
       return false;
     }
@@ -289,6 +293,7 @@ public class CardinalityAggregatorFactory extends AggregatorFactory
     result = 31 * result + (fieldNames != null ? fieldNames.hashCode() : 0);
     result = 31 * result + Objects.hashCode(predicate);
     result = 31 * result + (byRow ? 1 : 0);
+    result = 31 * result + (round ? 1 : 0);
     return result;
   }
 
@@ -299,6 +304,8 @@ public class CardinalityAggregatorFactory extends AggregatorFactory
            "name='" + name + '\'' +
            ", fieldNames='" + fieldNames + '\'' +
            ", predicate='" + predicate + '\'' +
+           ", byRow=" + byRow +
+           ", round=" + round +
            '}';
   }
 }

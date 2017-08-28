@@ -128,7 +128,8 @@ instead of the cardinality aggregator if you do not care about the individual va
   "type": "cardinality",
   "name": "<output_name>",
   "fieldNames": [ <dimension1>, <dimension2>, ... ],
-  "byRow": <false | true> # (optional, defaults to false)
+  "byRow": <false | true> # (optional, defaults to false),
+  "round": <false | true> # (optional, defaults to false)
 }
 ```
 
@@ -191,7 +192,12 @@ Determine the number of distinct people (i.e. combinations of first and last nam
 Uses [HyperLogLog](http://algo.inria.fr/flajolet/Publications/FlFuGaMe07.pdf) to compute the estimated cardinality of a dimension that has been aggregated as a "hyperUnique" metric at indexing time.
 
 ```json
-{ "type" : "hyperUnique", "name" : <output_name>, "fieldName" : <metric_name> }
+{
+  "type" : "hyperUnique",
+  "name" : <output_name>,
+  "fieldName" : <metric_name>,
+  "round" : false
+}
 ```
 
 For more approximate aggregators, please see [theta sketches](../development/extensions-core/datasketches-aggregators.html).

@@ -82,7 +82,11 @@ Example JavaScript aggregator:
 The hyperUniqueCardinality post aggregator is used to wrap a hyperUnique object such that it can be used in post aggregations.
 
 ```json
-{ "type"  : "hyperUniqueCardinality", "name": <output name>, "fieldName"  : <the name field value of the hyperUnique aggregator>}
+{
+  "type"  : "hyperUniqueCardinality",
+  "name": <output name>,
+  "fieldName"  : <the name field value of the hyperUnique aggregator>
+}
 ```
 
 It can be used in a sample calculation as so:
@@ -102,6 +106,10 @@ It can be used in a sample calculation as so:
     ]
   }]
 ```
+
+This post-aggregator will inherit the rounding behavior of the aggregator it references. Note that this inheritance
+is only effective if you directly reference an aggregator. Going through another post-aggregator, for example, will
+cause the user-specified rounding behavior to get lost and default to "no rounding".
 
 ## Example Usage
 

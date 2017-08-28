@@ -157,6 +157,12 @@ public class QueryRunnerTestHelper
       "uniques",
       "quality_uniques"
   );
+  public static final HyperUniquesAggregatorFactory qualityUniquesRounded = new HyperUniquesAggregatorFactory(
+      "uniques",
+      "quality_uniques",
+      null,
+      true
+  );
   public static final CardinalityAggregatorFactory qualityCardinality = new CardinalityAggregatorFactory(
       "cardinality",
       Arrays.asList("quality"),

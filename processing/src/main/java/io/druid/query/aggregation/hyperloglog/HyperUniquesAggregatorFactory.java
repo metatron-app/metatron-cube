@@ -46,18 +46,26 @@ import java.util.Objects;
  */
 public class HyperUniquesAggregatorFactory extends AggregatorFactory
 {
-  public static Object estimateCardinality(Object object)
+  public static Object estimateCardinality(Object object, boolean round)
   {
     if (object == null) {
       return 0;
     }
 
-    return ((HyperLogLogCollector) object).estimateCardinality();
+    final HyperLogLogCollector collector = (HyperLogLogCollector) object;
+
+    // Avoid ternary, it causes estimateCardinalityRound to be cast to double.
+    if (round) {
+      return collector.estimateCardinalityRound();
+    } else {
+      return collector.estimateCardinality();
+    }
   }
 
   private static final byte CACHE_TYPE_ID = 0x5;
 
   private final String name;
+  private final boolean round;
 
   private final String fieldName;
   private final String predicate;
@@ -65,17 +73,19 @@ public class HyperUniquesAggregatorFactory extends AggregatorFactory
   public HyperUniquesAggregatorFactory(
       @JsonProperty("name") String name,
       @JsonProperty("fieldName") String fieldName,
-      @JsonProperty("predicate") String predicate
+      @JsonProperty("predicate") String predicate,
+      @JsonProperty("round") boolean round
   )
   {
     this.name = name;
     this.fieldName = fieldName;
     this.predicate = predicate;
+    this.round = round;
   }
 
   public HyperUniquesAggregatorFactory(String name, String fieldName)
   {
-    this(name, fieldName, null);
+    this(name, fieldName, null, false);
   }
 
   @Override
@@ -135,7 +145,7 @@ public class HyperUniquesAggregatorFactory extends AggregatorFactory
   @Override
   public AggregatorFactory getCombiningFactory()
   {
-    return new HyperUniquesAggregatorFactory(name, name);
+    return new HyperUniquesAggregatorFactory(name, name, null, round);
   }
 
   @Override
@@ -167,7 +177,7 @@ public class HyperUniquesAggregatorFactory extends AggregatorFactory
 
   public Object finalizeComputation(Object object)
   {
-    return estimateCardinality(object);
+    return estimateCardinality(object, round);
   }
 
   @Override
@@ -205,11 +215,18 @@ public class HyperUniquesAggregatorFactory extends AggregatorFactory
   {
     byte[] fieldNameBytes = StringUtils.toUtf8(fieldName);
     byte[] predicateBytes = StringUtils.toUtf8WithNullToEmpty(predicate);
-    return ByteBuffer.allocate(1 + fieldNameBytes.length + predicateBytes.length)
+    return ByteBuffer.allocate(1 + fieldNameBytes.length + predicateBytes.length + 1)
                      .put(CACHE_TYPE_ID)
                      .put(fieldNameBytes)
                      .put(predicateBytes)
+                     .put((byte) (isRound() ? 1 : 0))
                      .array();
+  }
+
+  @JsonProperty
+  public boolean isRound()
+  {
+    return round;
   }
 
   @Override
@@ -237,20 +254,22 @@ public class HyperUniquesAggregatorFactory extends AggregatorFactory
            "name='" + name + '\'' +
            ", fieldName='" + fieldName + '\'' +
            ", predicate='" + predicate + '\'' +
+           ", round=" + round +
            '}';
   }
 
   @Override
-  public boolean equals(Object o)
+  public boolean equals(final Object o)
   {
     if (this == o) return true;
     if (o == null || getClass() != o.getClass()) return false;
 
     HyperUniquesAggregatorFactory that = (HyperUniquesAggregatorFactory) o;
 
-    if (!fieldName.equals(that.fieldName)) return false;
-    if (!name.equals(that.name)) return false;
+    if (!Objects.equals(fieldName, that.fieldName)) return false;
+    if (!Objects.equals(name, that.name)) return false;
     if (!Objects.equals(predicate, that.predicate)) return false;
+    if (!Objects.equals(round, that.round)) return false;
 
     return true;
   }
@@ -258,9 +277,6 @@ public class HyperUniquesAggregatorFactory extends AggregatorFactory
   @Override
   public int hashCode()
   {
-    int result = name.hashCode();
-    result = 31 * result + fieldName.hashCode();
-    result = 31 * result + Objects.hashCode(predicate);
-    return result;
+    return Objects.hash(name, fieldName, predicate, round);
   }
 }

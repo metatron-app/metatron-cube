@@ -75,7 +75,7 @@ public class HyperUniqueFinalizingPostAggregator implements PostAggregator
   @Override
   public Object compute(DateTime timestamp, Map<String, Object> combinedAggregators)
   {
-    return HyperUniquesAggregatorFactory.estimateCardinality(combinedAggregators.get(fieldName));
+    return HyperUniquesAggregatorFactory.estimateCardinality(combinedAggregators.get(fieldName), false);
   }
 
   @Override
