@@ -19,8 +19,6 @@ package io.druid.data.input.impl;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.annotation.JsonSubTypes;
-import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.google.common.base.Function;
 import com.google.common.base.Functions;
 import com.google.common.collect.ImmutableSet;
@@ -28,6 +26,7 @@ import com.google.common.primitives.Longs;
 import com.google.inject.Inject;
 import com.metamx.common.logger.Logger;
 import com.metamx.common.parsers.TimestampParser;
+import io.druid.data.input.TimestampSpec;
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
 import org.joda.time.format.DateTimeFormat;
@@ -42,11 +41,7 @@ import java.util.Set;
 
 /**
  */
-@JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type", defaultImpl = TimestampSpec.class)
-@JsonSubTypes(value = {
-    @JsonSubTypes.Type(name = "default", value = TimestampSpec.class)
-})
-public class TimestampSpec
+public class DefaultTimestampSpec implements TimestampSpec
 {
   private static final Logger log = new Logger(TimestampSpec.class);
 
@@ -81,7 +76,7 @@ public class TimestampSpec
   static Properties properties;
 
   @JsonCreator
-  public TimestampSpec(
+  public DefaultTimestampSpec(
       @JsonProperty("column") String timestampColumn,
       @JsonProperty("format") String format,
       // this value should never be set for production data
@@ -106,7 +101,7 @@ public class TimestampSpec
     this.timeZone = timeZone == null ? null : DateTimeZone.forID(timeZone);
   }
 
-  public TimestampSpec(
+  public DefaultTimestampSpec(
       String timestampColumn,
       String format,
       DateTime missingValue,
@@ -118,7 +113,7 @@ public class TimestampSpec
     this(timestampColumn, format, missingValue, invalidValue, replaceWrongColumn, removeTimestampColumn, null);
   }
 
-  public TimestampSpec(String timestampColumn, String format, DateTime missingValue)
+  public DefaultTimestampSpec(String timestampColumn, String format, DateTime missingValue)
   {
     this(timestampColumn, format, missingValue, null, false, false, null);
   }
@@ -293,6 +288,7 @@ public class TimestampSpec
     }
   }
 
+  @Override
   @JsonProperty("column")
   public String getTimestampColumn()
   {
@@ -329,6 +325,7 @@ public class TimestampSpec
     return timeZone == null ? null : timeZone.getID();
   }
 
+  @Override
   public DateTime extractTimestamp(Map<String, Object> input)
   {
     return extractTimestamp(input, removeTimestampColumn);
@@ -372,7 +369,7 @@ public class TimestampSpec
       return false;
     }
 
-    TimestampSpec that = (TimestampSpec) o;
+    DefaultTimestampSpec that = (DefaultTimestampSpec) o;
 
     if (!timestampColumn.equals(that.timestampColumn)) {
       return false;

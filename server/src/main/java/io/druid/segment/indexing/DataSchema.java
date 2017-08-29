@@ -31,10 +31,10 @@ import com.metamx.common.IAE;
 import com.metamx.common.logger.Logger;
 import io.druid.data.ValueDesc;
 import io.druid.data.input.InputRow;
+import io.druid.data.input.TimestampSpec;
 import io.druid.data.input.impl.DimensionsSpec;
 import io.druid.data.input.impl.InputRowParser;
 import io.druid.data.input.impl.ParseSpec;
-import io.druid.data.input.impl.TimestampSpec;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.segment.indexing.granularity.GranularitySpec;
 import io.druid.segment.indexing.granularity.UniformGranularitySpec;
@@ -184,7 +184,7 @@ public class DataSchema
       final TimestampSpec timestampSpec = inputRowParser.getParseSpec().getTimestampSpec();
 
       // exclude timestamp from dimensions by default, unless explicitly included in the list of dimensions
-      if (timestampSpec != null) {
+      if (timestampSpec != null && timestampSpec.getTimestampColumn() != null) {
         final String timestampColumn = timestampSpec.getTimestampColumn();
         if (!(dimensionsSpec.hasCustomDimensions() && dimensionsSpec.getDimensionNames().contains(timestampColumn))) {
           dimensionExclusions.add(timestampColumn);

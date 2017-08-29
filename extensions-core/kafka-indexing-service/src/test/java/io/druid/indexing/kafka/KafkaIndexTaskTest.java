@@ -54,7 +54,7 @@ import io.druid.data.input.impl.JSONParseSpec;
 import io.druid.data.input.impl.JSONPathFieldSpec;
 import io.druid.data.input.impl.JSONPathSpec;
 import io.druid.data.input.impl.StringInputRowParser;
-import io.druid.data.input.impl.TimestampSpec;
+import io.druid.data.input.impl.DefaultTimestampSpec;
 import io.druid.granularity.QueryGranularities;
 import io.druid.indexing.common.SegmentLoaderFactory;
 import io.druid.indexing.common.TaskLock;
@@ -184,7 +184,7 @@ public class KafkaIndexTaskTest
         objectMapper.convertValue(
             new StringInputRowParser(
                 new JSONParseSpec(
-                    new TimestampSpec("timestamp", "iso", null),
+                    new DefaultTimestampSpec("timestamp", "iso", null),
                     new DimensionsSpec(
                         DimensionsSpec.getDefaultSchemas(ImmutableList.<String>of("dim1", "dim2")),
                         null,

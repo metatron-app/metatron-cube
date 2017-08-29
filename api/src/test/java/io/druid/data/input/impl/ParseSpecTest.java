@@ -31,7 +31,7 @@ public class ParseSpecTest
   public void testDuplicateNames() throws Exception
   {
     final ParseSpec spec = new DelimitedParseSpec(
-        new TimestampSpec(
+        new DefaultTimestampSpec(
             "timestamp",
             "auto",
             null
@@ -51,7 +51,7 @@ public class ParseSpecTest
   public void testDimAndDimExcluOverlap() throws Exception
   {
     final ParseSpec spec = new DelimitedParseSpec(
-        new TimestampSpec(
+        new DefaultTimestampSpec(
             "timestamp",
             "auto",
             null
@@ -71,7 +71,7 @@ public class ParseSpecTest
   public void testDimExclusionDuplicate() throws Exception
   {
     final ParseSpec spec = new DelimitedParseSpec(
-        new TimestampSpec(
+        new DefaultTimestampSpec(
             "timestamp",
             "auto",
             null

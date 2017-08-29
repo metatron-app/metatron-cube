@@ -53,7 +53,7 @@ public class JavaScriptParseSpecTest
         )
     );
     JavaScriptParseSpec spec = new JavaScriptParseSpec(
-        new TimestampSpec("abc", "iso", null),
+        new DefaultTimestampSpec("abc", "iso", null),
         new DimensionsSpec(DimensionsSpec.getDefaultSchemas(Arrays.asList("abc")), null, null),
         "abc",
         JavaScriptConfig.getDefault()
@@ -62,8 +62,8 @@ public class JavaScriptParseSpecTest
         jsonMapper.writeValueAsString(spec),
         JavaScriptParseSpec.class
     );
-    Assert.assertEquals("abc", serde.getTimestampSpec().getTimestampColumn());
-    Assert.assertEquals("iso", serde.getTimestampSpec().getTimestampFormat());
+    Assert.assertEquals("abc", ((DefaultTimestampSpec)serde.getTimestampSpec()).getTimestampColumn());
+    Assert.assertEquals("iso", ((DefaultTimestampSpec)serde.getTimestampSpec()).getTimestampFormat());
 
     Assert.assertEquals("abc", serde.getFunction());
     Assert.assertEquals(Arrays.asList("abc"), serde.getDimensionsSpec().getDimensionNames());
@@ -74,7 +74,7 @@ public class JavaScriptParseSpecTest
   {
     final JavaScriptConfig config = JavaScriptConfig.getDefault();
     JavaScriptParseSpec spec = new JavaScriptParseSpec(
-        new TimestampSpec("abc", "iso", null),
+        new DefaultTimestampSpec("abc", "iso", null),
         new DimensionsSpec(DimensionsSpec.getDefaultSchemas(Arrays.asList("abc")), null, null),
         "function(str) { var parts = str.split(\"-\"); return { one: parts[0], two: parts[1] } }",
         config
@@ -90,7 +90,7 @@ public class JavaScriptParseSpecTest
   {
     final JavaScriptConfig config = new JavaScriptConfig(true);
     JavaScriptParseSpec spec = new JavaScriptParseSpec(
-        new TimestampSpec("abc", "iso", null),
+        new DefaultTimestampSpec("abc", "iso", null),
         new DimensionsSpec(DimensionsSpec.getDefaultSchemas(Arrays.asList("abc")), null, null),
         "abc",
         config

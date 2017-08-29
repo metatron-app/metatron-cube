@@ -40,7 +40,7 @@ public class JSONParseSpecTest {
     HashMap<String, Boolean> feature = new HashMap<String, Boolean>();
     feature.put("ALLOW_UNQUOTED_CONTROL_CHARS", true);
     JSONParseSpec spec = new JSONParseSpec(
-        new TimestampSpec("timestamp", "iso", null),
+        new DefaultTimestampSpec("timestamp", "iso", null),
         new DimensionsSpec(DimensionsSpec.getDefaultSchemas(ImmutableList.of("bar", "foo")), null, null),
         null,
         feature
@@ -50,8 +50,8 @@ public class JSONParseSpecTest {
         jsonMapper.writeValueAsString(spec),
         JSONParseSpec.class
     );
-    Assert.assertEquals("timestamp", serde.getTimestampSpec().getTimestampColumn());
-    Assert.assertEquals("iso", serde.getTimestampSpec().getTimestampFormat());
+    Assert.assertEquals("timestamp", ((DefaultTimestampSpec)serde.getTimestampSpec()).getTimestampColumn());
+    Assert.assertEquals("iso", ((DefaultTimestampSpec)serde.getTimestampSpec()).getTimestampFormat());
 
     Assert.assertEquals(Arrays.asList("bar", "foo"), serde.getDimensionsSpec().getDimensionNames());
     Assert.assertEquals(feature, serde.getFeatureSpec());

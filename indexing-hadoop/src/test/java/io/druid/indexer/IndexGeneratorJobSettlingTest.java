@@ -31,7 +31,7 @@ import com.metamx.common.Granularity;
 import io.druid.data.input.impl.CSVParseSpec;
 import io.druid.data.input.impl.DimensionsSpec;
 import io.druid.data.input.impl.InputRowParser;
-import io.druid.data.input.impl.TimestampSpec;
+import io.druid.data.input.impl.DefaultTimestampSpec;
 import io.druid.granularity.QueryGranularities;
 import io.druid.metadata.MetadataStorageConnectorConfig;
 import io.druid.query.aggregation.AggregatorFactory;
@@ -135,7 +135,7 @@ public class IndexGeneratorJobSettlingTest
   private final String inputFormatName = null;
   private final InputRowParser inputRowParser = new HadoopyStringInputRowParser(
       new CSVParseSpec(
-          new TimestampSpec("timestamp", "yyyyMMddHH", null),
+          new DefaultTimestampSpec("timestamp", "yyyyMMddHH", null),
           new DimensionsSpec(DimensionsSpec.getDefaultSchemas(
               ImmutableList.of("module_name", "eqp_param_name", "eqp_recipe_id", "eqp_step_id", "lot_code")
           ), null, null),

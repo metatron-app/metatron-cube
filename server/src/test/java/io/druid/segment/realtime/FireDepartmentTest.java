@@ -27,7 +27,7 @@ import io.druid.client.cache.MapCache;
 import io.druid.data.input.impl.DimensionsSpec;
 import io.druid.data.input.impl.JSONParseSpec;
 import io.druid.data.input.impl.StringInputRowParser;
-import io.druid.data.input.impl.TimestampSpec;
+import io.druid.data.input.impl.DefaultTimestampSpec;
 import io.druid.granularity.QueryGranularities;
 import io.druid.jackson.DefaultObjectMapper;
 import io.druid.query.aggregation.AggregatorFactory;
@@ -77,7 +77,7 @@ public class FireDepartmentTest
             jsonMapper.convertValue(
                 new StringInputRowParser(
                     new JSONParseSpec(
-                        new TimestampSpec(
+                        new DefaultTimestampSpec(
                             "timestamp",
                             "auto",
                             null

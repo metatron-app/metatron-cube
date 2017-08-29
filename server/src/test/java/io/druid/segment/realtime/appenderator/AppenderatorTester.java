@@ -32,7 +32,7 @@ import io.druid.concurrent.Execs;
 import io.druid.data.input.impl.DimensionsSpec;
 import io.druid.data.input.impl.JSONParseSpec;
 import io.druid.data.input.impl.MapInputRowParser;
-import io.druid.data.input.impl.TimestampSpec;
+import io.druid.data.input.impl.DefaultTimestampSpec;
 import io.druid.granularity.QueryGranularities;
 import io.druid.jackson.DefaultObjectMapper;
 import io.druid.query.DefaultQueryRunnerFactoryConglomerate;
@@ -102,7 +102,7 @@ public class AppenderatorTester implements AutoCloseable
     final Map<String, Object> parserMap = objectMapper.convertValue(
         new MapInputRowParser(
             new JSONParseSpec(
-                new TimestampSpec("ts", "auto", null),
+                new DefaultTimestampSpec("ts", "auto", null),
                 new DimensionsSpec(null, null, null)
             )
         ),

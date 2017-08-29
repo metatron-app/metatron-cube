@@ -23,10 +23,10 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.io.Files;
 import com.metamx.common.Granularity;
+import io.druid.data.input.impl.DefaultTimestampSpec;
 import io.druid.data.input.impl.DelimitedParseSpec;
 import io.druid.data.input.impl.DimensionsSpec;
 import io.druid.data.input.impl.StringInputRowParser;
-import io.druid.data.input.impl.TimestampSpec;
 import io.druid.granularity.QueryGranularities;
 import io.druid.indexer.partitions.HashedPartitionsSpec;
 import io.druid.query.aggregation.AggregatorFactory;
@@ -110,7 +110,7 @@ public class DetermineHashedPartitionsJobTest
             HadoopDruidIndexerConfig.JSON_MAPPER.convertValue(
                 new StringInputRowParser(
                     new DelimitedParseSpec(
-                        new TimestampSpec("ts", null, null),
+                        new DefaultTimestampSpec("ts", null, null),
                         new DimensionsSpec(
                             DimensionsSpec.getDefaultSchemas(ImmutableList.of("market", "quality", "placement", "placementish")),
                             null,

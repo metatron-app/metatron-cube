@@ -24,7 +24,6 @@ import io.druid.data.input.avro.AvroBytesDecoder;
 import io.druid.data.input.avro.GenericRecordAsMap;
 import io.druid.data.input.impl.InputRowParser;
 import io.druid.data.input.impl.ParseSpec;
-import io.druid.data.input.impl.TimestampSpec;
 import org.apache.avro.generic.GenericRecord;
 import org.joda.time.DateTime;
 

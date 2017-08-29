@@ -33,7 +33,7 @@ import io.druid.data.input.InputRow;
 import io.druid.data.input.impl.CSVParseSpec;
 import io.druid.data.input.impl.DimensionsSpec;
 import io.druid.data.input.impl.StringInputRowParser;
-import io.druid.data.input.impl.TimestampSpec;
+import io.druid.data.input.impl.DefaultTimestampSpec;
 import io.druid.granularity.QueryGranularities;
 import io.druid.indexer.hadoop.WindowedDataSegment;
 import io.druid.jackson.DefaultObjectMapper;
@@ -345,7 +345,7 @@ public class BatchDeltaIngestionTest
                 MAPPER.convertValue(
                     new StringInputRowParser(
                         new CSVParseSpec(
-                            new TimestampSpec("timestamp", "yyyyMMddHH", null),
+                            new DefaultTimestampSpec("timestamp", "yyyyMMddHH", null),
                             new DimensionsSpec(DimensionsSpec.getDefaultSchemas(ImmutableList.of("host")), null, null),
                             null,
                             ImmutableList.of("timestamp", "host", "host2", "visited_num")

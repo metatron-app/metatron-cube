@@ -26,7 +26,7 @@ import io.druid.data.input.impl.CSVParseSpec;
 import io.druid.data.input.impl.DimensionsSpec;
 import io.druid.data.input.impl.SpatialDimensionSchema;
 import io.druid.data.input.impl.StringInputRowParser;
-import io.druid.data.input.impl.TimestampSpec;
+import io.druid.data.input.impl.DefaultTimestampSpec;
 import io.druid.granularity.QueryGranularities;
 import io.druid.indexing.common.TaskLock;
 import io.druid.indexing.common.TaskToolbox;
@@ -105,7 +105,7 @@ public class IndexTaskTest
                 jsonMapper.convertValue(
                     new StringInputRowParser(
                         new CSVParseSpec(
-                            new TimestampSpec(
+                            new DefaultTimestampSpec(
                                 "ts",
                                 "auto",
                                 null
@@ -177,7 +177,7 @@ public class IndexTaskTest
                 jsonMapper.convertValue(
                     new StringInputRowParser(
                         new CSVParseSpec(
-                            new TimestampSpec(
+                            new DefaultTimestampSpec(
                                 "ts",
                                 "auto",
                                 null
@@ -283,7 +283,7 @@ public class IndexTaskTest
                 jsonMapper.convertValue(
                     new StringInputRowParser(
                         new CSVParseSpec(
-                            new TimestampSpec(
+                            new DefaultTimestampSpec(
                                 "ts",
                                 "auto",
                                 null

@@ -32,7 +32,7 @@ import com.metamx.common.ISE;
 import io.druid.data.input.impl.CSVParseSpec;
 import io.druid.data.input.impl.DimensionsSpec;
 import io.druid.data.input.impl.StringInputRowParser;
-import io.druid.data.input.impl.TimestampSpec;
+import io.druid.data.input.impl.DefaultTimestampSpec;
 import io.druid.granularity.QueryGranularities;
 import io.druid.guice.GuiceInjectors;
 import io.druid.guice.JsonConfigProvider;
@@ -264,7 +264,7 @@ public class DatasourcePathSpecTest
                 HadoopDruidIndexerConfig.JSON_MAPPER.convertValue(
                     new StringInputRowParser(
                         new CSVParseSpec(
-                            new TimestampSpec("timestamp", "yyyyMMddHH", null),
+                            new DefaultTimestampSpec("timestamp", "yyyyMMddHH", null),
                             new DimensionsSpec(null, null, null),
                             null,
                             ImmutableList.of("timestamp", "host", "visited")

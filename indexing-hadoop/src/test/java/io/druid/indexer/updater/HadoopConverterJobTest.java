@@ -33,7 +33,7 @@ import io.druid.client.DruidDataSource;
 import io.druid.data.input.impl.DelimitedParseSpec;
 import io.druid.data.input.impl.DimensionsSpec;
 import io.druid.data.input.impl.StringInputRowParser;
-import io.druid.data.input.impl.TimestampSpec;
+import io.druid.data.input.impl.DefaultTimestampSpec;
 import io.druid.granularity.QueryGranularities;
 import io.druid.indexer.HadoopDruidDetermineConfigurationJob;
 import io.druid.indexer.HadoopDruidIndexerConfig;
@@ -161,7 +161,7 @@ public class HadoopConverterJobTest
                 HadoopDruidIndexerConfig.JSON_MAPPER.convertValue(
                     new StringInputRowParser(
                         new DelimitedParseSpec(
-                            new TimestampSpec("ts", "iso", null),
+                            new DefaultTimestampSpec("ts", "iso", null),
                             new DimensionsSpec(DimensionsSpec.getDefaultSchemas(Arrays.asList(TestIndex.DIMENSIONS)), null, null),
                             "\t",
                             "\u0001",

@@ -19,7 +19,7 @@
 
 package io.druid.query.aggregation;
 
-import io.druid.data.input.impl.TimestampSpec;
+import io.druid.data.input.impl.DefaultTimestampSpec;
 import io.druid.segment.ObjectColumnSelector;
 import org.joda.time.DateTime;
 
@@ -36,11 +36,11 @@ public class TimestampMaxAggregator implements Aggregator
   }
 
   private final ObjectColumnSelector selector;
-  private final TimestampSpec timestampSpec;
+  private final DefaultTimestampSpec timestampSpec;
 
   private long max;
 
-  public TimestampMaxAggregator(ObjectColumnSelector selector, TimestampSpec timestampSpec)
+  public TimestampMaxAggregator(ObjectColumnSelector selector, DefaultTimestampSpec timestampSpec)
   {
     this.selector = selector;
     this.timestampSpec = timestampSpec;

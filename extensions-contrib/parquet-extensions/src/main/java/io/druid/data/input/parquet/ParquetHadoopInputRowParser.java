@@ -24,11 +24,11 @@ import com.google.common.collect.Lists;
 import io.druid.data.input.AvroStreamInputRowParser;
 import io.druid.data.input.InputRow;
 import io.druid.data.input.MapBasedInputRow;
+import io.druid.data.input.TimestampSpec;
 import io.druid.data.input.avro.GenericRecordAsMap;
 import io.druid.data.input.impl.DimensionSchema;
 import io.druid.data.input.impl.InputRowParser;
 import io.druid.data.input.impl.ParseSpec;
-import io.druid.data.input.impl.TimestampSpec;
 import org.apache.avro.generic.GenericRecord;
 import org.joda.time.DateTime;
 

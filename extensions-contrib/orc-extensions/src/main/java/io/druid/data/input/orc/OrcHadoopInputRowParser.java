@@ -27,13 +27,14 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import io.druid.data.input.InputRow;
 import io.druid.data.input.MapBasedInputRow;
+import io.druid.data.input.TimestampSpec;
 import io.druid.data.input.impl.DimensionSchema;
 import io.druid.data.input.impl.DimensionsSpec;
 import io.druid.data.input.impl.InputRowParser;
 import io.druid.data.input.impl.ParseSpec;
 import io.druid.data.input.impl.StringDimensionSchema;
 import io.druid.data.input.impl.TimeAndDimsParseSpec;
-import io.druid.data.input.impl.TimestampSpec;
+import io.druid.data.input.impl.DefaultTimestampSpec;
 import io.druid.indexer.hadoop.HadoopAwareParser;
 import io.druid.indexer.path.HynixCombineInputFormat;
 import org.apache.commons.lang.StringUtils;
@@ -285,7 +286,7 @@ public class OrcHadoopInputRowParser implements HadoopAwareParser<OrcStruct>
     Configuration conf = new Configuration();
     Reader r = OrcFile.createReader(path, OrcFile.readerOptions(conf));
     int index = args[1].indexOf('=');
-    TimestampSpec timeSpec = new TimestampSpec(
+    TimestampSpec timeSpec = new DefaultTimestampSpec(
         args[1].substring(0, index).trim(),
         args[1].substring(index).trim(),
         null

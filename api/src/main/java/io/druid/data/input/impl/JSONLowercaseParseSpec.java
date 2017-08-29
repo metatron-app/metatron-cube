@@ -22,8 +22,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.metamx.common.parsers.JSONToLowerParser;
 import com.metamx.common.parsers.Parser;
-
-import java.util.List;
+import io.druid.data.input.TimestampSpec;
 
 /**
  * This class is only here for backwards compatibility

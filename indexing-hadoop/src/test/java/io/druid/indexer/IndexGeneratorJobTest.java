@@ -32,7 +32,7 @@ import io.druid.data.input.impl.DimensionsSpec;
 import io.druid.data.input.impl.InputRowParser;
 import io.druid.data.input.impl.JSONParseSpec;
 import io.druid.data.input.impl.StringInputRowParser;
-import io.druid.data.input.impl.TimestampSpec;
+import io.druid.data.input.impl.DefaultTimestampSpec;
 import io.druid.granularity.QueryGranularities;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.CountAggregatorFactory;
@@ -139,7 +139,7 @@ public class IndexGeneratorJobTest
                 null,
                 new StringInputRowParser(
                     new CSVParseSpec(
-                        new TimestampSpec("timestamp", "yyyyMMddHH", null),
+                        new DefaultTimestampSpec("timestamp", "yyyyMMddHH", null),
                         new DimensionsSpec(DimensionsSpec.getDefaultSchemas(ImmutableList.of("host")), null, null),
                         null,
                         ImmutableList.of("timestamp", "host", "visited_num")
@@ -184,7 +184,7 @@ public class IndexGeneratorJobTest
                 null,
                 new HadoopyStringInputRowParser(
                     new CSVParseSpec(
-                        new TimestampSpec("timestamp", "yyyyMMddHH", null),
+                        new DefaultTimestampSpec("timestamp", "yyyyMMddHH", null),
                         new DimensionsSpec(DimensionsSpec.getDefaultSchemas(ImmutableList.of("host")), null, null),
                         null,
                         ImmutableList.of("timestamp", "host", "visited_num")
@@ -229,7 +229,7 @@ public class IndexGeneratorJobTest
                 null,
                 new StringInputRowParser(
                     new CSVParseSpec(
-                        new TimestampSpec("timestamp", "yyyyMMddHH", null),
+                        new DefaultTimestampSpec("timestamp", "yyyyMMddHH", null),
                         new DimensionsSpec(DimensionsSpec.getDefaultSchemas(ImmutableList.of("host")), null, null),
                         null,
                         ImmutableList.of("timestamp", "host", "visited_num")
@@ -284,7 +284,7 @@ public class IndexGeneratorJobTest
                 SequenceFileInputFormat.class.getName(),
                 new HadoopyStringInputRowParser(
                     new CSVParseSpec(
-                        new TimestampSpec("timestamp", "yyyyMMddHH", null),
+                        new DefaultTimestampSpec("timestamp", "yyyyMMddHH", null),
                         new DimensionsSpec(DimensionsSpec.getDefaultSchemas(ImmutableList.of("host")), null, null),
                         null,
                         ImmutableList.of("timestamp", "host", "visited_num")
@@ -315,7 +315,7 @@ public class IndexGeneratorJobTest
                 null,
                 new StringInputRowParser(
                     new JSONParseSpec(
-                        new TimestampSpec("ts", "yyyyMMddHH", null),
+                        new DefaultTimestampSpec("ts", "yyyyMMddHH", null),
                         new DimensionsSpec(null, null, null)
                     )
                 ),
@@ -344,7 +344,7 @@ public class IndexGeneratorJobTest
                 null,
                 new StringInputRowParser(
                     new JSONParseSpec(
-                        new TimestampSpec("ts", "yyyyMMddHH", null),
+                        new DefaultTimestampSpec("ts", "yyyyMMddHH", null),
                         new DimensionsSpec(DimensionsSpec.getDefaultSchemas(ImmutableList.of("B", "F", "M", "Q", "X", "Y")), null, null)
                     )
                 ),

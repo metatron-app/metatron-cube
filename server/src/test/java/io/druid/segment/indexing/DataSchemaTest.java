@@ -28,7 +28,7 @@ import com.metamx.common.IAE;
 import io.druid.data.input.impl.DimensionsSpec;
 import io.druid.data.input.impl.JSONParseSpec;
 import io.druid.data.input.impl.StringInputRowParser;
-import io.druid.data.input.impl.TimestampSpec;
+import io.druid.data.input.impl.DefaultTimestampSpec;
 import io.druid.granularity.QueryGranularities;
 import io.druid.jackson.DefaultObjectMapper;
 import io.druid.query.aggregation.AggregatorFactory;
@@ -57,7 +57,7 @@ public class DataSchemaTest
     Map<String, Object> parser = jsonMapper.convertValue(
         new StringInputRowParser(
             new JSONParseSpec(
-                new TimestampSpec("time", "auto", null),
+                new DefaultTimestampSpec("time", "auto", null),
                 new DimensionsSpec(DimensionsSpec.getDefaultSchemas(ImmutableList.of("dimB", "dimA")), null, null)
             )
         ), new TypeReference<Map<String, Object>>() {}
@@ -86,7 +86,7 @@ public class DataSchemaTest
     Map<String, Object> parser = jsonMapper.convertValue(
         new StringInputRowParser(
             new JSONParseSpec(
-                new TimestampSpec("time", "auto", null),
+                new DefaultTimestampSpec("time", "auto", null),
                 new DimensionsSpec(DimensionsSpec.getDefaultSchemas(ImmutableList.of("time", "dimA", "dimB", "col2")), ImmutableList.of("dimC"), null)
             )
         ), new TypeReference<Map<String, Object>>() {}
@@ -115,7 +115,7 @@ public class DataSchemaTest
     Map<String, Object> parser = jsonMapper.convertValue(
         new StringInputRowParser(
             new JSONParseSpec(
-                new TimestampSpec("time", "auto", null),
+                new DefaultTimestampSpec("time", "auto", null),
                 new DimensionsSpec(DimensionsSpec.getDefaultSchemas(ImmutableList.of("time", "dimA", "dimB", "metric1")), ImmutableList.of("dimC"), null)
             )
         ), new TypeReference<Map<String, Object>>() {}
@@ -196,7 +196,7 @@ public class DataSchemaTest
     Assert.assertEquals(
         actual.getParser().getParseSpec(),
         new JSONParseSpec(
-            new TimestampSpec("xXx", null, null),
+            new DefaultTimestampSpec("xXx", null, null),
             new DimensionsSpec(null, Arrays.asList("metric1", "xXx", "col1"), null)
         )
     );

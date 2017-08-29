@@ -26,7 +26,7 @@ import io.druid.concurrent.Execs;
 import io.druid.data.input.impl.DimensionsSpec;
 import io.druid.data.input.impl.JSONParseSpec;
 import io.druid.data.input.impl.MapInputRowParser;
-import io.druid.data.input.impl.TimestampSpec;
+import io.druid.data.input.impl.DefaultTimestampSpec;
 import io.druid.jackson.DefaultObjectMapper;
 import io.druid.server.metrics.EventReceiverFirehoseMetric;
 import io.druid.server.metrics.EventReceiverFirehoseRegister;
@@ -79,7 +79,7 @@ public class EventReceiverFirehoseTest
     firehose = (EventReceiverFirehoseFactory.EventReceiverFirehose) eventReceiverFirehoseFactory.connect(
         new MapInputRowParser(
             new JSONParseSpec(
-                new TimestampSpec(
+                new DefaultTimestampSpec(
                     "timestamp",
                     "auto",
                     null
@@ -209,7 +209,7 @@ public class EventReceiverFirehoseTest
             .connect(
                 new MapInputRowParser(
                     new JSONParseSpec(
-                        new TimestampSpec(
+                        new DefaultTimestampSpec(
                             "timestamp",
                             "auto",
                             null

@@ -20,7 +20,7 @@ package io.druid.indexer.path;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
-import io.druid.data.input.impl.TimestampSpec;
+import io.druid.data.input.impl.DefaultTimestampSpec;
 import org.joda.time.DateTime;
 
 import java.util.Map;
@@ -28,7 +28,7 @@ import java.util.Map;
 /**
  */
 @JsonTypeName("hynix")
-public class HynixTimestampSpec extends TimestampSpec
+public class HynixTimestampSpec extends DefaultTimestampSpec
 {
   @JsonCreator
   public HynixTimestampSpec(

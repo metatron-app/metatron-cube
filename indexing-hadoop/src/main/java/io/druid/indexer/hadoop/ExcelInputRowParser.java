@@ -26,9 +26,9 @@ import com.google.common.base.Suppliers;
 import io.druid.data.input.ExcelParser;
 import io.druid.data.input.InputRow;
 import io.druid.data.input.MapBasedInputRow;
+import io.druid.data.input.TimestampSpec;
 import io.druid.data.input.impl.InputRowParser;
 import io.druid.data.input.impl.ParseSpec;
-import io.druid.data.input.impl.TimestampSpec;
 import org.joda.time.DateTime;
 
 import java.util.List;

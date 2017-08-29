@@ -19,7 +19,6 @@
 package io.druid.data.input;
 
 import com.fasterxml.jackson.databind.DeserializationFeature;
-import com.fasterxml.jackson.databind.MapperFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.google.common.base.Function;
@@ -28,10 +27,10 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import io.druid.data.input.avro.AvroExtensionsModule;
 import io.druid.data.input.avro.SchemaRepoBasedAvroBytesDecoder;
+import io.druid.data.input.impl.DefaultTimestampSpec;
 import io.druid.data.input.impl.DimensionsSpec;
 import io.druid.data.input.impl.InputRowParser;
 import io.druid.data.input.impl.TimeAndDimsParseSpec;
-import io.druid.data.input.impl.TimestampSpec;
 import io.druid.data.input.schemarepo.Avro1124RESTRepositoryClientWrapper;
 import io.druid.data.input.schemarepo.Avro1124SubjectAndIdConverter;
 import org.apache.avro.Schema;
@@ -79,7 +78,7 @@ public class AvroStreamInputRowParserTest
   public static final DateTime DATE_TIME = new DateTime(2015, 10, 25, 19, 30);
   public static final List<String> DIMENSIONS = Arrays.asList(EVENT_TYPE, ID, SOME_OTHER_ID, IS_VALID);
   public static final TimeAndDimsParseSpec PARSE_SPEC = new TimeAndDimsParseSpec(
-      new TimestampSpec("timestamp", "millis", null),
+      new DefaultTimestampSpec("timestamp", "millis", null),
       new DimensionsSpec(DimensionsSpec.getDefaultSchemas(DIMENSIONS), Collections.<String>emptyList(), null)
   );
   public static final MyFixed SOME_FIXED_VALUE = new MyFixed(ByteBuffer.allocate(16).array());

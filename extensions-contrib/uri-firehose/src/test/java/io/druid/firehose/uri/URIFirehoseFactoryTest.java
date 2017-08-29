@@ -32,7 +32,7 @@ import io.druid.data.input.InputRow;
 import io.druid.data.input.impl.DelimitedParseSpec;
 import io.druid.data.input.impl.DimensionsSpec;
 import io.druid.data.input.impl.StringInputRowParser;
-import io.druid.data.input.impl.TimestampSpec;
+import io.druid.data.input.impl.DefaultTimestampSpec;
 import io.druid.guice.GuiceInjectors;
 import io.druid.initialization.Initialization;
 import org.junit.Assert;
@@ -83,7 +83,7 @@ public class URIFirehoseFactoryTest
 
     StringInputRowParser parser = new StringInputRowParser(
         new DelimitedParseSpec(
-            new TimestampSpec(
+            new DefaultTimestampSpec(
                 "time",
                 "auto",
                 null
@@ -122,7 +122,7 @@ public class URIFirehoseFactoryTest
 
     StringInputRowParser parser = new StringInputRowParser(
         new DelimitedParseSpec(
-            new TimestampSpec(
+            new DefaultTimestampSpec(
                 "time",
                 "auto",
                 null
@@ -159,7 +159,7 @@ public class URIFirehoseFactoryTest
 
     StringInputRowParser parser = new StringInputRowParser(
         new DelimitedParseSpec(
-            new TimestampSpec(
+            new DefaultTimestampSpec(
                 "time",
                 "auto",
                 null

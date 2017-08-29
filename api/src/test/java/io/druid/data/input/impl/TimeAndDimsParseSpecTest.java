@@ -63,7 +63,7 @@ public class TimeAndDimsParseSpecTest
 
     Assert.assertEquals(
         new TimeAndDimsParseSpec(
-            new TimestampSpec("tcol", null, null),
+            new DefaultTimestampSpec("tcol", null, null),
             new DimensionsSpec(DimensionsSpec.getDefaultSchemas(ImmutableList.of("host")), null, null)
         ),
         actual

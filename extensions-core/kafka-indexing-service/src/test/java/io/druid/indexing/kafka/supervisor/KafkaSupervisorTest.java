@@ -34,7 +34,7 @@ import io.druid.data.input.impl.JSONPathFieldSpec;
 import io.druid.data.input.impl.JSONPathSpec;
 import io.druid.data.input.impl.StringDimensionSchema;
 import io.druid.data.input.impl.StringInputRowParser;
-import io.druid.data.input.impl.TimestampSpec;
+import io.druid.data.input.impl.DefaultTimestampSpec;
 import io.druid.granularity.QueryGranularities;
 import io.druid.indexing.common.TaskInfoProvider;
 import io.druid.indexing.common.TaskLocation;
@@ -1241,7 +1241,7 @@ public class KafkaSupervisorTest extends EasyMockSupport
         objectMapper.convertValue(
             new StringInputRowParser(
                 new JSONParseSpec(
-                    new TimestampSpec("timestamp", "iso", null),
+                    new DefaultTimestampSpec("timestamp", "iso", null),
                     new DimensionsSpec(
                         dimensions,
                         null,

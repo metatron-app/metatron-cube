@@ -262,7 +262,7 @@ public class JDBCFirehoseFactoryTest
 
     MapInputRowParser parser = new MapInputRowParser(
         new JSONParseSpec(
-            new TimestampSpec(
+            new DefaultTimestampSpec(
                 tsName,
                 "YYYY-MM-DD HH:mm:ss.s",
                 null
@@ -308,7 +308,7 @@ public class JDBCFirehoseFactoryTest
 
     MapInputRowParser parser = new MapInputRowParser(
         new JSONParseSpec(
-            new TimestampSpec(
+            new DefaultTimestampSpec(
                 tsName,
                 "YYYY-MM-DD HH:mm:ss.s",
                 null
@@ -361,7 +361,7 @@ public class JDBCFirehoseFactoryTest
 
     MapInputRowParser parser = new MapInputRowParser(
         new JSONParseSpec(
-            new TimestampSpec(
+            new DefaultTimestampSpec(
                 newTs,
                 "YYYY-MM-DD HH:mm:ss.s",
                 null
@@ -414,7 +414,7 @@ public class JDBCFirehoseFactoryTest
 
     MapInputRowParser parser = new MapInputRowParser(
         new JSONParseSpec(
-            new TimestampSpec(
+            new DefaultTimestampSpec(
                 newTs,
                 "YYYY-MM-DD HH:mm:ss.s",
                 null

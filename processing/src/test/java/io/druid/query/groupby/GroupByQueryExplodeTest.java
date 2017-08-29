@@ -28,10 +28,10 @@ import com.google.common.io.CharSource;
 import com.metamx.common.guava.Sequences;
 import io.druid.collections.StupidPool;
 import io.druid.data.input.Row;
+import io.druid.data.input.impl.DefaultTimestampSpec;
 import io.druid.data.input.impl.DelimitedParseSpec;
 import io.druid.data.input.impl.DimensionsSpec;
 import io.druid.data.input.impl.StringInputRowParser;
-import io.druid.data.input.impl.TimestampSpec;
 import io.druid.granularity.QueryGranularities;
 import io.druid.jackson.DefaultObjectMapper;
 import io.druid.query.QueryRunner;
@@ -126,7 +126,7 @@ public class GroupByQueryExplodeTest
 
     final StringInputRowParser parser = new StringInputRowParser(
         new DelimitedParseSpec(
-            new TimestampSpec("ts", "iso", null),
+            new DefaultTimestampSpec("ts", "iso", null),
             new DimensionsSpec(DimensionsSpec.getDefaultSchemas(Arrays.asList("x")), null, null),
             "\t",
             ",",

@@ -23,6 +23,7 @@ import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.metamx.common.parsers.CSVParser;
 import com.metamx.common.parsers.Parser;
+import io.druid.data.input.TimestampSpec;
 
 import java.util.List;
 

@@ -39,7 +39,7 @@ import io.druid.data.input.impl.DimensionsSpec;
 import io.druid.data.input.impl.InputRowParser;
 import io.druid.data.input.impl.JSONParseSpec;
 import io.druid.data.input.impl.MapInputRowParser;
-import io.druid.data.input.impl.TimestampSpec;
+import io.druid.data.input.impl.DefaultTimestampSpec;
 import io.druid.granularity.QueryGranularities;
 import io.druid.indexing.common.SegmentLoaderFactory;
 import io.druid.indexing.common.TaskToolboxFactory;
@@ -95,7 +95,7 @@ public class IngestSegmentFirehoseFactoryTimelineTest
   private static final String[] METRICS = new String[]{"m1"};
   private static final InputRowParser<Map<String, Object>> ROW_PARSER = new MapInputRowParser(
       new JSONParseSpec(
-          new TimestampSpec(TIME_COLUMN, "auto", null),
+          new DefaultTimestampSpec(TIME_COLUMN, "auto", null),
           new DimensionsSpec(
               DimensionsSpec.getDefaultSchemas(Arrays.asList(DIMENSIONS)),
               null,

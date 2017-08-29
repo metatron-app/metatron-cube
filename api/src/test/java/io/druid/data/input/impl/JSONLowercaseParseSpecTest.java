@@ -20,7 +20,6 @@
 package io.druid.data.input.impl;
 
 import com.google.common.collect.Lists;
-import com.metamx.common.parsers.JSONToLowerParser;
 import com.metamx.common.parsers.Parser;
 import junit.framework.Assert;
 import org.junit.Test;
@@ -34,7 +33,7 @@ public class JSONLowercaseParseSpecTest
   public void testLowercasing() throws Exception
   {
     JSONLowercaseParseSpec spec = new JSONLowercaseParseSpec(
-        new TimestampSpec(
+        new DefaultTimestampSpec(
             "timestamp",
             "auto",
             null

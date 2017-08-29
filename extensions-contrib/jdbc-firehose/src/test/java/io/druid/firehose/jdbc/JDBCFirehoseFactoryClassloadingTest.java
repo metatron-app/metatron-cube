@@ -22,7 +22,7 @@ import com.google.common.collect.Lists;
 import io.druid.data.input.impl.DimensionsSpec;
 import io.druid.data.input.impl.JSONParseSpec;
 import io.druid.data.input.impl.MapInputRowParser;
-import io.druid.data.input.impl.TimestampSpec;
+import io.druid.data.input.impl.DefaultTimestampSpec;
 import org.junit.Assert;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -56,7 +56,7 @@ public class JDBCFirehoseFactoryClassloadingTest
 
   private static final MapInputRowParser parser = new MapInputRowParser(
       new JSONParseSpec(
-          new TimestampSpec(
+          new DefaultTimestampSpec(
               "COL1",
               "YYYY-MM-DD HH:mm:ss.s",
               null

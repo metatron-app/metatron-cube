@@ -8,11 +8,11 @@ import com.fasterxml.jackson.annotation.PropertyAccessor;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.wnameless.json.flattener.JsonFlattener;
 import com.metamx.common.parsers.Parser;
+import io.druid.data.input.impl.DefaultTimestampSpec;
 import io.druid.data.input.impl.DimensionsSpec;
 import io.druid.data.input.impl.JSONParseSpec;
 import io.druid.data.input.impl.JSONPathFieldSpec;
 import io.druid.data.input.impl.JSONPathSpec;
-import io.druid.data.input.impl.TimestampSpec;
 import io.druid.jackson.DefaultObjectMapper;
 
 import java.util.ArrayList;
@@ -35,7 +35,7 @@ public class FlattenJSONBenchmarkUtil
   public Parser getFlatParser()
   {
     JSONParseSpec spec = new JSONParseSpec(
-        new TimestampSpec("ts", "iso", null),
+        new DefaultTimestampSpec("ts", "iso", null),
         new DimensionsSpec(null, null, null),
         null,
         null
@@ -49,7 +49,7 @@ public class FlattenJSONBenchmarkUtil
     JSONPathSpec flattenSpec = new JSONPathSpec(true, fields);
 
     JSONParseSpec spec = new JSONParseSpec(
-        new TimestampSpec("ts", "iso", null),
+        new DefaultTimestampSpec("ts", "iso", null),
         new DimensionsSpec(null, null, null),
         flattenSpec,
         null
@@ -92,7 +92,7 @@ public class FlattenJSONBenchmarkUtil
 
     JSONPathSpec flattenSpec = new JSONPathSpec(true, fields);
     JSONParseSpec spec = new JSONParseSpec(
-        new TimestampSpec("ts", "iso", null),
+        new DefaultTimestampSpec("ts", "iso", null),
         new DimensionsSpec(null, null, null),
         flattenSpec,
         null
@@ -135,7 +135,7 @@ public class FlattenJSONBenchmarkUtil
 
     JSONPathSpec flattenSpec = new JSONPathSpec(false, fields);
     JSONParseSpec spec = new JSONParseSpec(
-        new TimestampSpec("ts", "iso", null),
+        new DefaultTimestampSpec("ts", "iso", null),
         new DimensionsSpec(null, null, null),
         flattenSpec,
         null

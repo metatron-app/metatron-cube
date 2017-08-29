@@ -22,6 +22,7 @@ package io.druid.data.input.impl;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.metamx.common.parsers.Parser;
+import io.druid.data.input.TimestampSpec;
 
 import java.util.List;
 import java.util.Map;
@@ -37,7 +38,7 @@ public class TimeAndDimsParseSpec extends ParseSpec
   )
   {
     super(
-        timestampSpec != null ? timestampSpec : new TimestampSpec(null, null, null),
+        timestampSpec != null ? timestampSpec : new DefaultTimestampSpec(null, null, null),
         dimensionsSpec != null ? dimensionsSpec : new DimensionsSpec(null, null, null)
     );
   }

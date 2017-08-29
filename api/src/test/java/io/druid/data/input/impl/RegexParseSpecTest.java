@@ -37,7 +37,7 @@ public class RegexParseSpecTest
   public void testSerde() throws IOException
   {
     RegexParseSpec spec = new RegexParseSpec(
-        new TimestampSpec("abc", "iso", null),
+        new DefaultTimestampSpec("abc", "iso", null),
         new DimensionsSpec(DimensionsSpec.getDefaultSchemas(Arrays.asList("abc")), null, null),
         "\u0001",
         Arrays.asList("abc"),
@@ -47,8 +47,8 @@ public class RegexParseSpecTest
         jsonMapper.writeValueAsString(spec),
         RegexParseSpec.class
     );
-    Assert.assertEquals("abc", serde.getTimestampSpec().getTimestampColumn());
-    Assert.assertEquals("iso", serde.getTimestampSpec().getTimestampFormat());
+    Assert.assertEquals("abc", ((DefaultTimestampSpec)serde.getTimestampSpec()).getTimestampColumn());
+    Assert.assertEquals("iso", ((DefaultTimestampSpec)serde.getTimestampSpec()).getTimestampFormat());
 
     Assert.assertEquals("abc", serde.getPattern());
     Assert.assertEquals("\u0001", serde.getListDelimiter());

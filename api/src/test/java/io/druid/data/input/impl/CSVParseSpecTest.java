@@ -33,7 +33,7 @@ public class CSVParseSpecTest
   public void testColumnMissing() throws Exception
   {
     final ParseSpec spec = new CSVParseSpec(
-        new TimestampSpec(
+        new DefaultTimestampSpec(
             "timestamp",
             "auto",
             null
@@ -52,7 +52,7 @@ public class CSVParseSpecTest
   public void testComma() throws Exception
   {
     final ParseSpec spec = new CSVParseSpec(
-        new TimestampSpec(
+        new DefaultTimestampSpec(
             "timestamp",
             "auto",
             null

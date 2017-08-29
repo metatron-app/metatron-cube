@@ -24,6 +24,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Optional;
 import com.metamx.common.parsers.Parser;
 import com.metamx.common.parsers.RegexParser;
+import io.druid.data.input.TimestampSpec;
 
 import java.util.List;
 

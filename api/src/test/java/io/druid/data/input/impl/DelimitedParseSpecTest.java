@@ -37,7 +37,7 @@ public class DelimitedParseSpecTest
   public void testSerde() throws IOException
   {
     DelimitedParseSpec spec = new DelimitedParseSpec(
-        new TimestampSpec("abc", "iso", null),
+        new DefaultTimestampSpec("abc", "iso", null),
         new DimensionsSpec(DimensionsSpec.getDefaultSchemas(Arrays.asList("abc")), null, null),
         "\u0001",
         "\u0002",
@@ -48,8 +48,8 @@ public class DelimitedParseSpecTest
         jsonMapper.writeValueAsString(spec),
         DelimitedParseSpec.class
     );
-    Assert.assertEquals("abc", serde.getTimestampSpec().getTimestampColumn());
-    Assert.assertEquals("iso", serde.getTimestampSpec().getTimestampFormat());
+    Assert.assertEquals("abc", ((DefaultTimestampSpec)serde.getTimestampSpec()).getTimestampColumn());
+    Assert.assertEquals("iso", ((DefaultTimestampSpec)serde.getTimestampSpec()).getTimestampFormat());
 
     Assert.assertEquals(Arrays.asList("abc"), serde.getColumns());
     Assert.assertEquals("\u0001", serde.getDelimiter());
@@ -63,7 +63,7 @@ public class DelimitedParseSpecTest
   public void testColumnMissing() throws Exception
   {
     final ParseSpec spec = new DelimitedParseSpec(
-        new TimestampSpec(
+        new DefaultTimestampSpec(
             "timestamp",
             "auto",
             null
@@ -83,7 +83,7 @@ public class DelimitedParseSpecTest
   public void testComma() throws Exception
   {
     final ParseSpec spec = new DelimitedParseSpec(
-        new TimestampSpec(
+        new DefaultTimestampSpec(
             "timestamp",
             "auto",
             null
@@ -102,7 +102,7 @@ public class DelimitedParseSpecTest
   @Test(expected = NullPointerException.class)
   public void testDefaultColumnList(){
     final DelimitedParseSpec spec = new DelimitedParseSpec(
-        new TimestampSpec(
+        new DefaultTimestampSpec(
             "timestamp",
             "auto",
             null

@@ -21,6 +21,7 @@ package io.druid.data.input.impl;
 
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
+import io.druid.data.input.TimestampSpec;
 import org.joda.time.DateTime;
 import org.joda.time.format.ISODateTimeFormat;
 import org.junit.Assert;
@@ -33,7 +34,7 @@ public class TimestampSpecTest
   @Test
   public void testExtractTimestamp() throws Exception
   {
-    TimestampSpec spec = new TimestampSpec("TIMEstamp", "yyyy-MM-dd", null);
+    TimestampSpec spec = new DefaultTimestampSpec("TIMEstamp", "yyyy-MM-dd", null);
     Assert.assertEquals(
         new DateTime("2014-03-01"),
         spec.extractTimestamp(ImmutableMap.<String, Object>of("TIMEstamp", "2014-03-01"))
@@ -43,7 +44,7 @@ public class TimestampSpecTest
   @Test
   public void testExtractTimestampWithMissingTimestampColumn() throws Exception
   {
-    TimestampSpec spec = new TimestampSpec(null, null, new DateTime(0));
+    TimestampSpec spec = new DefaultTimestampSpec(null, null, new DateTime(0));
     Assert.assertEquals(
         new DateTime("1970-01-01"),
         spec.extractTimestamp(ImmutableMap.<String, Object>of("dim", "foo"))
@@ -61,7 +62,7 @@ public class TimestampSpecTest
         "2000-01-01T05:00:02",
         "2000-01-01T05:00:03",
         };
-    TimestampSpec spec = new TimestampSpec("TIMEstamp", DATE_FORMAT, null);
+    TimestampSpec spec = new DefaultTimestampSpec("TIMEstamp", DATE_FORMAT, null);
 
     for (int i = 0; i < dates.length; ++i) {
       String date = dates[i];
@@ -70,7 +71,7 @@ public class TimestampSpecTest
       Assert.assertEquals(expectedDateTime, dateTime);
     }
 
-    spec = new TimestampSpec("TIMEstamp", DATE_FORMAT, null, null, false, false, "Asia/Saigon");
+    spec = new DefaultTimestampSpec("TIMEstamp", DATE_FORMAT, null, null, false, false, "Asia/Saigon");
     for (int i = 0; i < dates.length; ++i) {
       String date = dates[i];
       DateTime dateTime = spec.extractTimestamp(ImmutableMap.<String, Object>of("TIMEstamp", date));
@@ -83,7 +84,7 @@ public class TimestampSpecTest
   {
     DateTime missing = new DateTime(9998);
     DateTime invalid = new DateTime(9999);
-    TimestampSpec spec = new TimestampSpec("TIMEstamp", "yyyy-MM-dd", missing, invalid, true, false, null);
+    TimestampSpec spec = new DefaultTimestampSpec("TIMEstamp", "yyyy-MM-dd", missing, invalid, true, false, null);
     Map<String, Object> invalidRow = Maps.newHashMap(ImmutableMap.<String, Object>of("TIMEstamp", "2014-03-XY"));
     Map<String, Object> missingRow = Maps.newHashMap();
     Assert.assertEquals(invalid, spec.extractTimestamp(invalidRow));

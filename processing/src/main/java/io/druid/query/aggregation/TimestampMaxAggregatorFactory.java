@@ -23,14 +23,16 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;
 import com.google.common.primitives.Longs;
-import com.google.inject.Inject;
 import io.druid.common.utils.StringUtils;
-import io.druid.data.input.impl.TimestampSpec;
+import io.druid.data.input.impl.DefaultTimestampSpec;
 import io.druid.segment.ColumnSelectorFactory;
 import org.joda.time.DateTime;
 
 import java.nio.ByteBuffer;
-import java.util.*;
+import java.util.Arrays;
+import java.util.Comparator;
+import java.util.List;
+import java.util.Objects;
 
 public class TimestampMaxAggregatorFactory extends AggregatorFactory
 {
@@ -40,10 +42,7 @@ public class TimestampMaxAggregatorFactory extends AggregatorFactory
   private final String fieldName;
   private final String timeFormat;
 
-  private TimestampSpec timestampSpec;
-
-  @Inject
-  private static Properties properties;
+  private DefaultTimestampSpec timestampSpec;
 
   @JsonCreator
   public TimestampMaxAggregatorFactory(
@@ -58,8 +57,7 @@ public class TimestampMaxAggregatorFactory extends AggregatorFactory
     this.name = name;
     this.fieldName = fieldName;
     this.timeFormat = timeFormat;
-
-    this.timestampSpec = new TimestampSpec(fieldName, timeFormat, null);
+    this.timestampSpec = new DefaultTimestampSpec(fieldName, timeFormat, null);
   }
 
   @Override
@@ -200,8 +198,8 @@ public class TimestampMaxAggregatorFactory extends AggregatorFactory
   @Override
   public int hashCode()
   {
-    int result = fieldName != null ? fieldName.hashCode() : 0;
-    result = 31 * result + (name != null ? name.hashCode() : 0);
+    int result = fieldName.hashCode();
+    result = 31 * result + name.hashCode();
     return result;
   }
 }

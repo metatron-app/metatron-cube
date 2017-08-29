@@ -34,9 +34,9 @@ import com.metamx.common.guava.Sequences;
 import io.druid.collections.StupidPool;
 import io.druid.data.input.Row;
 import io.druid.data.input.impl.CSVParseSpec;
+import io.druid.data.input.impl.DefaultTimestampSpec;
 import io.druid.data.input.impl.DimensionsSpec;
 import io.druid.data.input.impl.StringInputRowParser;
-import io.druid.data.input.impl.TimestampSpec;
 import io.druid.granularity.QueryGranularities;
 import io.druid.jackson.DefaultObjectMapper;
 import io.druid.query.Query;
@@ -127,7 +127,7 @@ public class GroupByQueryRunnerFactoryTest
 
     StringInputRowParser parser = new StringInputRowParser(
         new CSVParseSpec(
-            new TimestampSpec("timestamp", "iso", null),
+            new DefaultTimestampSpec("timestamp", "iso", null),
             new DimensionsSpec(DimensionsSpec.getDefaultSchemas(ImmutableList.of("product", "tags")), null, null),
             "\t",
             ImmutableList.of("timestamp", "product", "tags")

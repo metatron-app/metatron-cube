@@ -26,7 +26,7 @@ import com.google.inject.Binder;
 import com.google.inject.Module;
 import com.metamx.common.guava.CloseQuietly;
 import com.metamx.common.logger.Logger;
-import io.druid.data.input.impl.TimestampSpec;
+import io.druid.data.input.impl.DefaultTimestampSpec;
 
 import java.io.BufferedInputStream;
 import java.io.File;
@@ -58,7 +58,7 @@ public class PropertiesModule implements Module
   {
     Properties props = load(new Properties(System.getProperties()), propertiesFiles);
     binder.bind(Properties.class).toInstance(props);
-    binder.requestStaticInjection(TimestampSpec.class);
+    binder.requestStaticInjection(DefaultTimestampSpec.class);
   }
 
   public static Properties load(Properties instance, List<String> properties)

@@ -43,7 +43,7 @@ import io.druid.data.input.impl.InputRowParser;
 import io.druid.data.input.impl.JSONParseSpec;
 import io.druid.data.input.impl.MapInputRowParser;
 import io.druid.data.input.impl.SpatialDimensionSchema;
-import io.druid.data.input.impl.TimestampSpec;
+import io.druid.data.input.impl.DefaultTimestampSpec;
 import io.druid.granularity.QueryGranularities;
 import io.druid.guice.GuiceAnnotationIntrospector;
 import io.druid.guice.GuiceInjectableValues;
@@ -286,7 +286,7 @@ public class IngestSegmentFirehoseFactoryTest
         ROW_PARSER,
         new MapInputRowParser(
             new JSONParseSpec(
-                new TimestampSpec(TIME_COLUMN, "auto", null),
+                new DefaultTimestampSpec(TIME_COLUMN, "auto", null),
                 new DimensionsSpec(
                     DimensionsSpec.getDefaultSchemas(ImmutableList.<String>of()),
                     ImmutableList.of(DIM_FLOAT_NAME, DIM_LONG_NAME),
@@ -404,7 +404,7 @@ public class IngestSegmentFirehoseFactoryTest
 
   private static final InputRowParser<Map<String, Object>> ROW_PARSER = new MapInputRowParser(
       new JSONParseSpec(
-          new TimestampSpec(TIME_COLUMN, "auto", null),
+          new DefaultTimestampSpec(TIME_COLUMN, "auto", null),
           new DimensionsSpec(
               DimensionsSpec.getDefaultSchemas(ImmutableList.of(DIM_NAME)),
               ImmutableList.of(DIM_FLOAT_NAME, DIM_LONG_NAME),
