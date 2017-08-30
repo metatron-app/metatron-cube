@@ -94,7 +94,7 @@ public class ColumnDescriptor
     Set<String> conflicts = Sets.newHashSet();
     Map<String, Object> merged = Maps.newHashMap();
     for (ColumnPartSerde part : parts) {
-      Map<String, Object> stat = part.getSerializer().getStats();
+      Map<String, Object> stat = part.getSerializer().getSerializeStats();
       if (stat == null) {
         continue;
       }
@@ -112,7 +112,7 @@ public class ColumnDescriptor
     long retVal = 0;
 
     for (ColumnPartSerde part : parts) {
-      retVal += part.getSerializer().numBytes();
+      retVal += part.getSerializer().getSerializedSize();
     }
 
     return retVal;
@@ -121,7 +121,7 @@ public class ColumnDescriptor
   public void write(WritableByteChannel channel) throws IOException
   {
     for (ColumnPartSerde part : parts) {
-      part.getSerializer().write(channel);
+      part.getSerializer().writeToChannel(channel);
     }
   }
 

@@ -48,11 +48,11 @@ public interface ColumnPartSerde
 
   public interface Serializer
   {
-    public long numBytes();
+    public long getSerializedSize();
 
-    public void write(WritableByteChannel channel) throws IOException;
+    public void writeToChannel(WritableByteChannel channel) throws IOException;
 
-    public Map<String, Object> getStats();
+    public Map<String, Object> getSerializeStats();
   }
 
   public interface Deserializer

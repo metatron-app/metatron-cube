@@ -29,6 +29,7 @@ import com.metamx.common.guava.CloseQuietly;
 import io.druid.collections.ResourceHolder;
 import io.druid.collections.StupidResourceHolder;
 import io.druid.segment.CompressedPools;
+import io.druid.segment.serde.ColumnPartSerde;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -36,10 +37,11 @@ import java.nio.ByteOrder;
 import java.nio.DoubleBuffer;
 import java.nio.channels.WritableByteChannel;
 import java.util.Iterator;
+import java.util.Map;
 
 /**
  */
-public class CompressedDoublesIndexedSupplier implements Supplier<IndexedDoubles>
+public class CompressedDoublesIndexedSupplier implements Supplier<IndexedDoubles>, ColumnPartSerde.Serializer
 {
   public static final byte LZF_VERSION = 0x1;
   public static final byte version = 0x2;
@@ -95,11 +97,13 @@ public class CompressedDoublesIndexedSupplier implements Supplier<IndexedDoubles
     }
   }
 
+  @Override
   public long getSerializedSize()
   {
     return baseDoubleBuffers.getSerializedSize() + 1 + 4 + 4 + 1;
   }
 
+  @Override
   public void writeToChannel(WritableByteChannel channel) throws IOException
   {
     channel.write(ByteBuffer.wrap(new byte[]{version}));
@@ -107,6 +111,12 @@ public class CompressedDoublesIndexedSupplier implements Supplier<IndexedDoubles
     channel.write(ByteBuffer.wrap(Ints.toByteArray(sizePer)));
     channel.write(ByteBuffer.wrap(new byte[]{compression.getId()}));
     baseDoubleBuffers.writeToChannel(channel);
+  }
+
+  @Override
+  public Map<String, Object> getSerializeStats()
+  {
+    return null;
   }
 
   public CompressedDoublesIndexedSupplier convertByteOrder(ByteOrder order)

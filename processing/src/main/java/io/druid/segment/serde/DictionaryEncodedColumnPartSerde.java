@@ -206,7 +206,7 @@ public class DictionaryEncodedColumnPartSerde implements ColumnPartSerde
           new Serializer()
           {
             @Override
-            public long numBytes()
+            public long getSerializedSize()
             {
               long size = 1 + // version
                           (version.compareTo(VERSION.COMPRESSED) >= 0
@@ -228,7 +228,7 @@ public class DictionaryEncodedColumnPartSerde implements ColumnPartSerde
             }
 
             @Override
-            public void write(WritableByteChannel channel) throws IOException
+            public void writeToChannel(WritableByteChannel channel) throws IOException
             {
               channel.write(ByteBuffer.wrap(new byte[]{version.asByte()}));
               if (version.compareTo(VERSION.COMPRESSED) >= 0) {
@@ -249,7 +249,7 @@ public class DictionaryEncodedColumnPartSerde implements ColumnPartSerde
             }
 
             @Override
-            public Map<String, Object> getStats()
+            public Map<String, Object> getSerializeStats()
             {
               return null;
             }
@@ -357,7 +357,7 @@ public class DictionaryEncodedColumnPartSerde implements ColumnPartSerde
           new Serializer()
           {
             @Override
-            public long numBytes()
+            public long getSerializedSize()
             {
               long size = 1 + // version
                           (version.compareTo(VERSION.COMPRESSED) >= 0 ? Ints.BYTES : 0);// flag if version >= compressed
@@ -378,7 +378,7 @@ public class DictionaryEncodedColumnPartSerde implements ColumnPartSerde
             }
 
             @Override
-            public void write(WritableByteChannel channel) throws IOException
+            public void writeToChannel(WritableByteChannel channel) throws IOException
             {
               channel.write(ByteBuffer.wrap(new byte[]{version.asByte()}));
               if (version.compareTo(VERSION.COMPRESSED) >= 0) {
@@ -413,7 +413,7 @@ public class DictionaryEncodedColumnPartSerde implements ColumnPartSerde
             }
 
             @Override
-            public Map<String, Object> getStats()
+            public Map<String, Object> getSerializeStats()
             {
               return null;
             }
@@ -488,9 +488,8 @@ public class DictionaryEncodedColumnPartSerde implements ColumnPartSerde
             )
         );
 
-        ImmutableRTree rSpatialIndex = null;
         if (buffer.hasRemaining()) {
-          rSpatialIndex = ByteBufferSerializer.read(
+          ImmutableRTree rSpatialIndex = ByteBufferSerializer.read(
               buffer, new IndexedRTree.ImmutableRTreeObjectStrategy(bitmapSerdeFactory.getBitmapFactory())
           );
           builder.setSpatialIndex(new SpatialIndexColumnPartSupplier(rSpatialIndex));

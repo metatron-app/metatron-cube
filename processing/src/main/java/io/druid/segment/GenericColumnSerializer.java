@@ -19,20 +19,14 @@
 
 package io.druid.segment;
 
+import io.druid.segment.serde.ColumnPartSerde;
+
 import java.io.Closeable;
 import java.io.IOException;
-import java.nio.channels.WritableByteChannel;
-import java.util.Map;
 
-public interface GenericColumnSerializer extends Closeable
+public interface GenericColumnSerializer extends ColumnPartSerde.Serializer, Closeable
 {
   public void open() throws IOException;
 
   public void serialize(Object obj) throws IOException;
-
-  public long getSerializedSize();
-
-  public Map<String, Object> getSerializeStats();
-
-  public void writeToChannel(WritableByteChannel channel) throws IOException;
 }

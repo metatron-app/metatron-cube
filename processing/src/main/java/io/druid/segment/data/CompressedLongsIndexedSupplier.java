@@ -29,6 +29,7 @@ import com.metamx.common.guava.CloseQuietly;
 import io.druid.collections.ResourceHolder;
 import io.druid.collections.StupidResourceHolder;
 import io.druid.segment.CompressedPools;
+import io.druid.segment.serde.ColumnPartSerde;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -37,10 +38,11 @@ import java.nio.LongBuffer;
 import java.nio.channels.WritableByteChannel;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 
 /**
  */
-public class CompressedLongsIndexedSupplier implements Supplier<IndexedLongs>
+public class CompressedLongsIndexedSupplier implements Supplier<IndexedLongs>, ColumnPartSerde.Serializer
 {
   public static final byte LZF_VERSION = 0x1;
   public static final byte version = 0x2;
@@ -97,11 +99,13 @@ public class CompressedLongsIndexedSupplier implements Supplier<IndexedLongs>
     }
   }
 
+  @Override
   public long getSerializedSize()
   {
     return baseLongBuffers.getSerializedSize() + 1 + 4 + 4 + 1;
   }
 
+  @Override
   public void writeToChannel(WritableByteChannel channel) throws IOException
   {
     channel.write(ByteBuffer.wrap(new byte[]{version}));
@@ -274,6 +278,12 @@ public class CompressedLongsIndexedSupplier implements Supplier<IndexedLongs>
         ),
         compression
     );
+  }
+
+  @Override
+  public Map<String, Object> getSerializeStats()
+  {
+    return null;
   }
 
   private class CompressedIndexedLongs implements IndexedLongs

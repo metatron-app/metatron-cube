@@ -27,7 +27,7 @@ import java.io.IOException;
 import java.nio.channels.WritableByteChannel;
 import java.util.Map;
 
-public class ComplexColumnSerializer implements GenericColumnSerializer
+public class ComplexColumnSerializer implements GenericColumnSerializer, ColumnPartSerde.Serializer
 {
   public static ComplexColumnSerializer create(
       IOPeon ioPeon,
@@ -84,14 +84,14 @@ public class ComplexColumnSerializer implements GenericColumnSerializer
   }
 
   @Override
-  public Map<String, Object> getSerializeStats()
-  {
-    return null;
-  }
-
-  @Override
   public void writeToChannel(WritableByteChannel channel) throws IOException
   {
     writer.writeToChannel(channel);
+  }
+
+  @Override
+  public Map<String, Object> getSerializeStats()
+  {
+    return null;
   }
 }

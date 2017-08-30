@@ -106,5 +106,4 @@ public class FloatColumnSerializer implements GenericColumnSerializer
   {
     writer.writeToChannel(channel);
   }
-
 }

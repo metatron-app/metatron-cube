@@ -84,26 +84,7 @@ public class ComplexColumnPartSerde implements ColumnPartSerde
     public ComplexColumnPartSerde build()
     {
       return new ComplexColumnPartSerde(
-          typeName, new Serializer()
-      {
-        @Override
-        public long numBytes()
-        {
-          return delegate.getSerializedSize();
-        }
-
-        @Override
-        public void write(WritableByteChannel channel) throws IOException
-        {
-          delegate.writeToChannel(channel);
-        }
-
-        @Override
-        public Map<String, Object> getStats()
-        {
-          return delegate.getSerializeStats();
-        }
-      }
+          typeName, delegate
       );
     }
   }
@@ -133,26 +114,7 @@ public class ComplexColumnPartSerde implements ColumnPartSerde
     public ComplexColumnPartSerde build()
     {
       return new ComplexColumnPartSerde(
-          typeName, new Serializer()
-      {
-        @Override
-        public long numBytes()
-        {
-          return delegate.getSerializedSize();
-        }
-
-        @Override
-        public void write(WritableByteChannel channel) throws IOException
-        {
-          delegate.writeToChannel(channel);
-        }
-
-        @Override
-        public Map<String, Object> getStats()
-        {
-          return null;
-        }
-      }
+          typeName, delegate
       );
     }
   }

@@ -26,6 +26,7 @@ import com.metamx.common.IAE;
 import com.metamx.common.guava.CloseQuietly;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.common.utils.StringUtils;
+import io.druid.segment.serde.ColumnPartSerde;
 
 import java.io.ByteArrayOutputStream;
 import java.io.Closeable;
@@ -37,6 +38,7 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 
 /**
  * A generic, flat storage mechanism.  Use static methods fromArray() or fromIterable() to construct.  If input
@@ -51,7 +53,7 @@ import java.util.List;
  * bytes 10-((numElements * 4) + 10): integers representing *end* offsets of byte serialized values
  * bytes ((numElements * 4) + 10)-(numBytesUsed + 2): 4-byte integer representing length of value, followed by bytes for value
  */
-public class GenericIndexed<T> implements Indexed<T>, DictionaryLoader<T>
+public class GenericIndexed<T> implements Indexed<T>, DictionaryLoader<T>, ColumnPartSerde.Serializer
 {
   private static final byte version = 0x1;
 
@@ -397,6 +399,12 @@ public class GenericIndexed<T> implements Indexed<T>, DictionaryLoader<T>
     channel.write(ByteBuffer.wrap(Ints.toByteArray(theBuffer.remaining() + 4)));
     channel.write(ByteBuffer.wrap(Ints.toByteArray(size)));
     channel.write(theBuffer.asReadOnlyBuffer());
+  }
+
+  @Override
+  public Map<String, Object> getSerializeStats()
+  {
+    return null;
   }
 
   /**
