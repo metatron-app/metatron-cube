@@ -71,7 +71,10 @@ public class SketchBinaryFn
   @SuppressWarnings("unchecked")
   final TypedSketch merge(TypedSketch object1, TypedSketch object2)
   {
-    Preconditions.checkArgument(object1.type() == object2.type(), "Type mismatch");
+    Preconditions.checkArgument(
+        object1.type() == object2.type(),
+        "Type mismatch.. " + object1.type() + " with " + object2.type()
+    );
     TypedSketch union = handler.newUnion(nomEntries, object1.type());
     handler.updateWithSketch(union, object1.value());
     handler.updateWithSketch(union, object2.value());

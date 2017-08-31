@@ -25,20 +25,31 @@ import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Iterables;
 import com.google.common.collect.Maps;
+import com.metamx.common.guava.Accumulator;
+import com.metamx.common.guava.Sequence;
 import io.druid.query.BaseQuery;
 import io.druid.query.DataSource;
 import io.druid.query.Query;
 import io.druid.query.QueryContextKeys;
+import io.druid.query.QueryRunner;
 import io.druid.query.QuerySegmentWalker;
 import io.druid.query.Result;
 import io.druid.query.UnionAllQuery;
 import io.druid.query.dimension.DimensionSpec;
 import io.druid.query.filter.DimFilter;
+import io.druid.query.metadata.metadata.AllColumnIncluderator;
+import io.druid.query.metadata.metadata.ColumnAnalysis;
+import io.druid.query.metadata.metadata.SegmentAnalysis;
+import io.druid.query.metadata.metadata.SegmentMetadataQuery;
 import io.druid.query.spec.QuerySegmentSpec;
 import io.druid.segment.VirtualColumn;
+import org.apache.commons.lang.mutable.MutableInt;
+import org.joda.time.Interval;
 
 import java.util.Arrays;
+import java.util.EnumSet;
 import java.util.List;
 import java.util.Map;
 
@@ -79,17 +90,87 @@ public class SummaryQuery extends BaseQuery<Result<Map<String, Object>>>
   @SuppressWarnings("unchecked")
   public Query rewriteQuery(QuerySegmentWalker segmentWalker, ObjectMapper jsonMapper)
   {
+    SegmentMetadataQuery metaQuery = new SegmentMetadataQuery(
+        getDataSource(),
+        getQuerySegmentSpec(),
+        getVirtualColumns(),
+        null,
+        new AllColumnIncluderator(),
+        false,
+        null,
+        EnumSet.noneOf(SegmentMetadataQuery.AnalysisType.class),
+        false,
+        false
+    );
+    List<Interval> intervals = metaQuery.getQuerySegmentSpec().getIntervals();
+    QueryRunner<SegmentAnalysis> runner = segmentWalker.getQueryRunnerForIntervals(metaQuery, intervals);
+
+    Sequence<SegmentAnalysis> sequence = runner.run(metaQuery, Maps.<String, Object>newHashMap());
+    final Map<String, Map<String, MutableInt>> results = Maps.newHashMap();
+    sequence.accumulate(
+        null, new Accumulator<Object, SegmentAnalysis>()
+        {
+          @Override
+          public Object accumulate(Object accumulated, SegmentAnalysis in)
+          {
+            for (Map.Entry<String, ColumnAnalysis> entry : in.getColumns().entrySet()) {
+              Map<String, MutableInt> counters = results.get(entry.getKey());
+              if (counters == null) {
+                results.put(entry.getKey(), counters = Maps.newHashMap());
+              }
+              String type = entry.getValue().getType();
+              MutableInt counter = counters.get(type);
+              if (counter == null) {
+                counters.put(type, counter = new MutableInt());
+              }
+              counter.increment();
+            }
+            return accumulated;
+          }
+        }
+    );
+    Map<String, String> majorTypes = Maps.newHashMap();
+    Map<String, Map<String, Integer>> typeDetail = Maps.newHashMap();
+    for (Map.Entry<String, Map<String, MutableInt>> entry : results.entrySet()) {
+      String column = entry.getKey();
+      Map<String, MutableInt> value = entry.getValue();
+      if (value.size() == 1) {
+        String type = Iterables.getOnlyElement(value.keySet());
+        MutableInt count = Iterables.getOnlyElement(value.values());
+        majorTypes.put(column, type);
+        typeDetail.put(column, ImmutableMap.of(type, count.intValue()));
+        continue;
+      }
+      int max = -1;
+      String major = null;
+      Map<String, Integer> detail = Maps.newHashMap();
+      for (Map.Entry<String, MutableInt> x : value.entrySet()) {
+        String type = x.getKey();
+        int count = x.getValue().intValue();
+        if (max < 0 || max <= count) {
+          max = count;
+          major = type;
+        }
+        detail.put(type, count);
+      }
+      majorTypes.put(column, major);
+      typeDetail.put(column, detail);
+    }
+
+    Map<String, Object> context = Maps.newHashMap(getContext());
+    context.put("majorTypes", majorTypes);
+
     SketchQuery quantile = new SketchQuery(
         getDataSource(), getQuerySegmentSpec(), dimFilter, virtualColumns, dimensions, metrics, 8192, SketchOp.QUANTILE,
-        Maps.newHashMap(getContext())
+        Maps.newHashMap(context)
     );
     SketchQuery theta = new SketchQuery(
         getDataSource(), getQuerySegmentSpec(), dimFilter, virtualColumns, dimensions, metrics, null, SketchOp.THETA,
-        Maps.newHashMap(getContext())
+        Maps.newHashMap(context)
     );
     Map<String, Object> postProcessor = ImmutableMap.<String, Object>of(
         QueryContextKeys.POST_PROCESSING,
-        ImmutableMap.of("type", "sketch.summary", "includeTimeStats", includeTimeStats)
+        ImmutableMap.of("type", "sketch.summary", "includeTimeStats", includeTimeStats, "typeDetail", typeDetail)
     );
     Map<String, Object> joinContext = computeOverridenContext(postProcessor);
 

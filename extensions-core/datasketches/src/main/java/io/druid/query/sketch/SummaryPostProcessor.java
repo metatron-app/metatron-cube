@@ -94,17 +94,20 @@ public class SummaryPostProcessor extends PostProcessingOperator.UnionSupport
   private static final Logger LOG = new Logger(SimilarityProcessingOperator.class);
 
   private final boolean includeTimeStats;
+  private final Map<String, Map<String, Integer>> typeDetail;
   private final QuerySegmentWalker segmentWalker;
   private final ListeningExecutorService exec;
 
   @JsonCreator
   public SummaryPostProcessor(
       @JsonProperty("includeTimeStats") boolean includeTimeStats,
+      @JsonProperty("typeDetail") Map<String, Map<String, Integer>> typeDetail,
       @JacksonInject QuerySegmentWalker segmentWalker,
       @JacksonInject @Processing ExecutorService exec
   )
   {
     this.includeTimeStats = includeTimeStats;
+    this.typeDetail = typeDetail;
     this.segmentWalker = segmentWalker;
     this.exec = MoreExecutors.listeningDecorator(exec);
   }
@@ -190,6 +193,9 @@ public class SummaryPostProcessor extends PostProcessingOperator.UnionSupport
               final ValueType type = sketch.type();
               Object[] quantiles = (Object[]) SketchQuantilesOp.QUANTILES.calculate(itemsSketch, 11);
               result.put("type", type);
+              if (typeDetail != null && typeDetail.containsKey(column)) {
+                result.put("typeDetail", typeDetail.get(column));
+              }
               result.put("min", quantiles[0]);
               result.put("max", quantiles[quantiles.length - 1]);
               result.put("median", quantiles[5]);

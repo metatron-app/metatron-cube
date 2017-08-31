@@ -19,6 +19,7 @@
 
 package io.druid.query.sketch;
 
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
@@ -28,6 +29,8 @@ import com.metamx.common.ISE;
 import com.metamx.common.guava.Accumulator;
 import com.metamx.common.guava.Sequence;
 import com.metamx.common.guava.Sequences;
+import com.metamx.common.logger.Logger;
+import io.druid.data.ValueDesc;
 import io.druid.data.ValueType;
 import io.druid.granularity.QueryGranularities;
 import io.druid.query.Query;
@@ -37,8 +40,6 @@ import io.druid.query.RowResolver;
 import io.druid.query.dimension.DimensionSpec;
 import io.druid.query.dimension.DimensionSpecs;
 import io.druid.query.extraction.ExtractionFn;
-import io.druid.query.extraction.ExtractionFns;
-import io.druid.query.extraction.IdentityExtractionFn;
 import io.druid.query.filter.AndDimFilter;
 import io.druid.query.filter.BitmapIndexSelector;
 import io.druid.query.filter.DimFilter;
@@ -65,6 +66,8 @@ import java.util.Map;
  */
 public class SketchQueryRunner implements QueryRunner<Result<Map<String, Object>>>
 {
+  private static final Logger LOG = new Logger(SketchQueryRunner.class);
+
   private final Segment segment;
 
   public SketchQueryRunner(Segment segment)
@@ -83,6 +86,7 @@ public class SketchQueryRunner implements QueryRunner<Result<Map<String, Object>
     }
     SketchQuery baseQuery = (SketchQuery) input;
     final SketchQuery query = (SketchQuery) ViewSupportHelper.rewrite(baseQuery, segment.asStorageAdapter(true));
+    final Map<String, String> majorTypes = baseQuery.getContextValue("majorTypes", ImmutableMap.<String, String>of());
 
     final List<DimensionSpec> dimensions = query.getDimensions();
     final List<String> metrics = query.getMetrics();
@@ -107,6 +111,14 @@ public class SketchQueryRunner implements QueryRunner<Result<Map<String, Object>
         if (column == null) {
           continue;
         }
+        String majorType = majorTypes.get(spec.getDimension());
+        if (majorType != null && !majorType.equalsIgnoreCase(ValueDesc.STRING_TYPE)) {
+          LOG.info(
+              "Skipping %s, which is expected to be %s type but %s type",
+              spec.getDimension(), majorType, ValueDesc.STRING_TYPE
+          );
+          continue;
+        }
         BitmapIndex bitmapIndex = column.getBitmapIndex();
         if (bitmapIndex == null) {
           continue;
@@ -125,7 +137,7 @@ public class SketchQueryRunner implements QueryRunner<Result<Map<String, Object>
       final Sequence<Cursor> cursors = adapter.makeCursors(
           filter, segment.getDataInterval(), vcs, QueryGranularities.ALL, null, false
       );
-      unions = cursors.accumulate(unions, createAccumulator(dimensions, metrics, sketchParam, handler));
+      unions = cursors.accumulate(unions, createAccumulator(majorTypes, dimensions, metrics, sketchParam, handler));
     }
     final Map<String, Object> sketches = Maps.newLinkedHashMap();
     for (Map.Entry<String, TypedSketch> entry : unions.entrySet()) {
@@ -153,6 +165,7 @@ public class SketchQueryRunner implements QueryRunner<Result<Map<String, Object>
   }
 
   private Accumulator<Map<String, TypedSketch>, Cursor> createAccumulator(
+      final Map<String, String> majorTypes,
       final List<DimensionSpec> dimensions,
       final List<String> metrics,
       final int nomEntries,
@@ -167,6 +180,14 @@ public class SketchQueryRunner implements QueryRunner<Result<Map<String, Object>
         final List<DimensionSelector> dimSelectors = Lists.newArrayList();
         final List<TypedSketch> sketches = Lists.newArrayList();
         for (DimensionSpec dimension : dimensions) {
+          String majorType = majorTypes.get(dimension.getDimension());
+          if (majorType != null && !majorType.equalsIgnoreCase(ValueDesc.STRING_TYPE)) {
+            LOG.info(
+                "Skipping %s, which is expected to be %s type but %s type",
+                dimension.getDimension(), majorType, ValueDesc.STRING_TYPE
+            );
+            continue;
+          }
           dimSelectors.add(cursor.makeDimensionSelector(dimension));
           TypedSketch union = prev.get(dimension.getOutputName());
           if (union == null) {
@@ -177,6 +198,14 @@ public class SketchQueryRunner implements QueryRunner<Result<Map<String, Object>
         final List<ObjectColumnSelector> metricSelectors = Lists.newArrayList();
         for (String metric : metrics) {
           TypedSketch union = prev.get(metric);
+          ValueDesc type = cursor.getColumnType(metric);
+          String majorType = majorTypes.get(metric);
+          if (majorType != null && type != null && !majorType.equalsIgnoreCase(type.typeName())) {
+            LOG.info("Skipping %s, which is expected to be %s type but %s type", metric, majorType, type);
+            sketches.add(union);
+            metricSelectors.add(null);
+            continue;
+          }
           ObjectColumnSelector selector = cursor.makeObjectColumnSelector(metric);
           if (selector == null || !handler.supports(selector.type().type())) {
             sketches.add(union);
