@@ -126,7 +126,8 @@ public class Schema
 
   public AggregatorFactory getAggregatorOfName(String metric)
   {
-    return aggregators.get(metricNames.indexOf(metric));
+    int index = metricNames.indexOf(metric);
+    return index < 0 ? null : aggregators.get(index);
   }
 
   public ValueDesc getTypeOfName(String column)

@@ -61,6 +61,18 @@ public class RelayAggregatorFactory extends AggregatorFactory
   }
 
   @Override
+  public AggregatorFactory getMergingFactory(AggregatorFactory other) throws AggregatorFactoryNotMergeableException
+  {
+    if (other instanceof RelayAggregatorFactory) {
+      RelayAggregatorFactory relay = (RelayAggregatorFactory)other;
+      if (name.equals(relay.name) && typeName.equals(relay.typeName)) {
+        return new RelayAggregatorFactory(name, name, typeName);
+      }
+    }
+    throw new AggregatorFactoryNotMergeableException(this, other);
+  }
+
+  @Override
   public Comparator getComparator()
   {
     throw new UnsupportedOperationException("getComparator");
@@ -132,6 +144,40 @@ public class RelayAggregatorFactory extends AggregatorFactory
   public Object getAggregatorStartValue()
   {
     return null;
+  }
+
+  @Override
+  public boolean equals(Object o)
+  {
+    if (this == o) {
+      return true;
+    }
+    if (o == null || getClass() != o.getClass()) {
+      return false;
+    }
+
+    RelayAggregatorFactory that = (RelayAggregatorFactory) o;
+
+    if (!columnName.equals(that.columnName)) {
+      return false;
+    }
+    if (!name.equals(that.name)) {
+      return false;
+    }
+    if (!typeName.equals(that.typeName)) {
+      return false;
+    }
+
+    return true;
+  }
+
+  @Override
+  public int hashCode()
+  {
+    int result = name.hashCode();
+    result = 31 * result + columnName.hashCode();
+    result = 31 * result + typeName.hashCode();
+    return result;
   }
 
   @Override
