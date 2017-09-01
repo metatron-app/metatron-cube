@@ -17,16 +17,18 @@
  * under the License.
  */
 
-package io.druid.query.sketch;
+package io.druid.query.aggregation.covariance;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.Iterables;
-import com.google.common.collect.Maps;
+import com.google.common.collect.Lists;
+import io.druid.data.ValueDesc;
+import io.druid.granularity.QueryGranularities;
 import io.druid.query.BaseQuery;
 import io.druid.query.DataSource;
 import io.druid.query.Query;
@@ -34,37 +36,35 @@ import io.druid.query.QueryContextKeys;
 import io.druid.query.QuerySegmentWalker;
 import io.druid.query.QueryUtils;
 import io.druid.query.Result;
-import io.druid.query.UnionAllQuery;
-import io.druid.query.dimension.DimensionSpec;
+import io.druid.query.aggregation.AggregatorFactory;
+import io.druid.query.aggregation.PostAggregator;
+import io.druid.query.aggregation.corr.PearsonAggregatorFactory;
 import io.druid.query.filter.DimFilter;
 import io.druid.query.spec.QuerySegmentSpec;
+import io.druid.query.timeseries.TimeseriesQuery;
 import io.druid.segment.VirtualColumn;
-import org.apache.commons.lang.mutable.MutableInt;
 
-import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 
 /**
  */
-@JsonTypeName("summary")
-public class SummaryQuery extends BaseQuery<Result<Map<String, Object>>>
+@JsonTypeName("covariance")
+public class CovarianceQuery extends BaseQuery<Result<Map<String, Object>>>
     implements BaseQuery.RewritingQuery<Result<Map<String, Object>>>,
-    Query.ViewSupport<Result<Map<String, Object>>>
+    Query.DimFilterSupport<Result<Map<String, Object>>>
 {
   private final DimFilter dimFilter;
-  private final List<DimensionSpec> dimensions;
-  private final List<String> metrics;
+  private final String column;
   private final List<VirtualColumn> virtualColumns;
   private final boolean includeTimeStats;
 
   @JsonCreator
-  public SummaryQuery(
+  public CovarianceQuery(
       @JsonProperty("dataSource") DataSource dataSource,
       @JsonProperty("intervals") QuerySegmentSpec querySegmentSpec,
       @JsonProperty("virtualColumns") List<VirtualColumn> virtualColumns,
-      @JsonProperty("dimensions") List<DimensionSpec> dimensions,
-      @JsonProperty("metrics") List<String> metrics,
+      @JsonProperty("column") String column,
       @JsonProperty("filter") DimFilter filter,
       @JsonProperty("includeTimeStats") boolean includeTimeStats,
       @JsonProperty("context") Map<String, Object> context
@@ -72,8 +72,7 @@ public class SummaryQuery extends BaseQuery<Result<Map<String, Object>>>
   {
     super(dataSource, querySegmentSpec, false, context);
     this.dimFilter = filter;
-    this.dimensions = dimensions == null ? ImmutableList.<DimensionSpec>of() : dimensions;
-    this.metrics = metrics == null ? ImmutableList.<String>of() : metrics;
+    this.column = Preconditions.checkNotNull(column, "column cannot be null");
     this.virtualColumns = virtualColumns == null ? ImmutableList.<VirtualColumn>of() : virtualColumns;
     this.includeTimeStats = includeTimeStats;
   }
@@ -82,53 +81,32 @@ public class SummaryQuery extends BaseQuery<Result<Map<String, Object>>>
   @SuppressWarnings("unchecked")
   public Query rewriteQuery(QuerySegmentWalker segmentWalker, ObjectMapper jsonMapper)
   {
-    final Map<String, Map<String, MutableInt>> results = QueryUtils.analyzeTypes(segmentWalker, this);
-    Map<String, String> majorTypes = Maps.newHashMap();
-    Map<String, Map<String, Integer>> typeDetail = Maps.newHashMap();
-    for (Map.Entry<String, Map<String, MutableInt>> entry : results.entrySet()) {
-      String column = entry.getKey();
-      Map<String, MutableInt> value = entry.getValue();
-      if (value.size() == 1) {
-        String type = Iterables.getOnlyElement(value.keySet());
-        MutableInt count = Iterables.getOnlyElement(value.values());
-        majorTypes.put(column, type);
-        typeDetail.put(column, ImmutableMap.of(type, count.intValue()));
-        continue;
+    Map<String, String> majorTypes = QueryUtils.toMajorType(QueryUtils.analyzeTypes(segmentWalker, this));
+
+    List<AggregatorFactory> aggregators = Lists.newArrayList();
+    for (Map.Entry<String, String> entry : majorTypes.entrySet()) {
+      if (ValueDesc.of(entry.getValue()).type().isNumeric()) {
+        String target = entry.getKey();
+        aggregators.add(new PearsonAggregatorFactory(target, column, target, null, "double"));
       }
-      int max = -1;
-      String major = null;
-      Map<String, Integer> detail = Maps.newHashMap();
-      for (Map.Entry<String, MutableInt> x : value.entrySet()) {
-        String type = x.getKey();
-        int count = x.getValue().intValue();
-        if (max < 0 || max <= count) {
-          max = count;
-          major = type;
-        }
-        detail.put(type, count);
-      }
-      majorTypes.put(column, major);
-      typeDetail.put(column, detail);
     }
-
-    Map<String, Object> context = Maps.newHashMap(getContext());
-    context.put("majorTypes", majorTypes);
-
-    SketchQuery quantile = new SketchQuery(
-        getDataSource(), getQuerySegmentSpec(), dimFilter, virtualColumns, dimensions, metrics, 8192, SketchOp.QUANTILE,
-        Maps.newHashMap(context)
-    );
-    SketchQuery theta = new SketchQuery(
-        getDataSource(), getQuerySegmentSpec(), dimFilter, virtualColumns, dimensions, metrics, null, SketchOp.THETA,
-        Maps.newHashMap(context)
-    );
     Map<String, Object> postProcessor = ImmutableMap.<String, Object>of(
         QueryContextKeys.POST_PROCESSING,
-        ImmutableMap.of("type", "sketch.summary", "includeTimeStats", includeTimeStats, "typeDetail", typeDetail)
+        ImmutableMap.of("type", "stats.covariance")
     );
-    Map<String, Object> joinContext = computeOverridenContext(postProcessor);
-
-    return new UnionAllQuery(null, Arrays.asList(quantile, theta), false, -1, -1, -1, joinContext);
+    return new TimeseriesQuery(
+        getDataSource(),
+        getQuerySegmentSpec(),
+        false,
+        null,
+        QueryGranularities.ALL,
+        virtualColumns,
+        aggregators,
+        ImmutableList.<PostAggregator>of(),
+        null,
+        null,
+        computeOverridenContext(postProcessor)
+    );
   }
 
   @Override
@@ -152,23 +130,15 @@ public class SummaryQuery extends BaseQuery<Result<Map<String, Object>>>
 
   @Override
   @JsonProperty
-  public List<DimensionSpec> getDimensions()
-  {
-    return dimensions;
-  }
-
-  @Override
-  @JsonProperty
   public List<VirtualColumn> getVirtualColumns()
   {
     return virtualColumns;
   }
 
-  @Override
   @JsonProperty
-  public List<String> getMetrics()
+  public String getColumn()
   {
-    return metrics;
+    return column;
   }
 
   @JsonProperty
@@ -178,14 +148,13 @@ public class SummaryQuery extends BaseQuery<Result<Map<String, Object>>>
   }
 
   @Override
-  public SummaryQuery withDimensionSpecs(List<DimensionSpec> dimensions)
+  public CovarianceQuery withVirtualColumns(List<VirtualColumn> virtualColumns)
   {
-    return new SummaryQuery(
+    return new CovarianceQuery(
         getDataSource(),
         getQuerySegmentSpec(),
         virtualColumns,
-        dimensions,
-        metrics,
+        column,
         dimFilter,
         includeTimeStats,
         getContext()
@@ -193,44 +162,13 @@ public class SummaryQuery extends BaseQuery<Result<Map<String, Object>>>
   }
 
   @Override
-  public ViewSupport<Result<Map<String, Object>>> withMetrics(List<String> metrics)
+  public CovarianceQuery withQuerySegmentSpec(QuerySegmentSpec spec)
   {
-    return new SummaryQuery(
-        getDataSource(),
-        getQuerySegmentSpec(),
-        virtualColumns,
-        dimensions,
-        metrics,
-        dimFilter,
-        includeTimeStats,
-        getContext()
-    );
-  }
-
-  @Override
-  public SummaryQuery withVirtualColumns(List<VirtualColumn> virtualColumns)
-  {
-    return new SummaryQuery(
-        getDataSource(),
-        getQuerySegmentSpec(),
-        virtualColumns,
-        dimensions,
-        metrics,
-        dimFilter,
-        includeTimeStats,
-        getContext()
-    );
-  }
-
-  @Override
-  public SummaryQuery withQuerySegmentSpec(QuerySegmentSpec spec)
-  {
-    return new SummaryQuery(
+    return new CovarianceQuery(
         getDataSource(),
         spec,
         virtualColumns,
-        dimensions,
-        metrics,
+        column,
         dimFilter,
         includeTimeStats,
         getContext()
@@ -238,14 +176,13 @@ public class SummaryQuery extends BaseQuery<Result<Map<String, Object>>>
   }
 
   @Override
-  public SummaryQuery withDataSource(DataSource dataSource)
+  public CovarianceQuery withDataSource(DataSource dataSource)
   {
-    return new SummaryQuery(
+    return new CovarianceQuery(
         dataSource,
         getQuerySegmentSpec(),
         virtualColumns,
-        dimensions,
-        metrics,
+        column,
         dimFilter,
         includeTimeStats,
         getContext()
@@ -253,14 +190,13 @@ public class SummaryQuery extends BaseQuery<Result<Map<String, Object>>>
   }
 
   @Override
-  public SummaryQuery withOverriddenContext(Map<String, Object> contextOverride)
+  public CovarianceQuery withOverriddenContext(Map<String, Object> contextOverride)
   {
-    return new SummaryQuery(
+    return new CovarianceQuery(
         getDataSource(),
         getQuerySegmentSpec(),
         virtualColumns,
-        dimensions,
-        metrics,
+        column,
         dimFilter,
         includeTimeStats,
         computeOverridenContext(contextOverride)
@@ -268,14 +204,13 @@ public class SummaryQuery extends BaseQuery<Result<Map<String, Object>>>
   }
 
   @Override
-  public SummaryQuery withDimFilter(DimFilter dimFilter)
+  public CovarianceQuery withDimFilter(DimFilter dimFilter)
   {
-    return new SummaryQuery(
+    return new CovarianceQuery(
         getDataSource(),
         getQuerySegmentSpec(),
         virtualColumns,
-        dimensions,
-        metrics,
+        column,
         dimFilter,
         includeTimeStats,
         getContext()
@@ -296,12 +231,7 @@ public class SummaryQuery extends BaseQuery<Result<Map<String, Object>>>
     if (virtualColumns != null && !virtualColumns.isEmpty()) {
       builder.append(", virtualColumns=").append(virtualColumns);
     }
-    if (!dimensions.isEmpty()) {
-      builder.append(", dimensions=").append(dimensions);
-    }
-    if (!metrics.isEmpty()) {
-      builder.append(", metrics=").append(metrics);
-    }
+    builder.append(", column=").append(column);
     builder.append(", includeTimeStats=").append(includeTimeStats);
     return builder.toString();
   }

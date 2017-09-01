@@ -52,7 +52,7 @@ public class FunctionInitializer implements Module
     }
   }
 
-  private static List<NamedType> resolveSubtypes(ObjectMapper mapper, Class<?> clazz)
+  public static List<NamedType> resolveSubtypes(ObjectMapper mapper, Class<?> clazz)
   {
     JavaType type = mapper.getTypeFactory().constructType(clazz);
 

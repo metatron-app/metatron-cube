@@ -83,9 +83,9 @@ public class ViewSupportHelper
       retainers.removeAll(metrics);
     }
 
+    List<VirtualColumn> virtualColumns = Lists.newArrayList(query.getVirtualColumns());
     if (query instanceof Query.ViewSupport) {
       Query.ViewSupport<T> viewSupport = (Query.ViewSupport<T>) query;
-      List<VirtualColumn> virtualColumns = Lists.newArrayList(viewSupport.getVirtualColumns());
       RowResolver resolver1 = new RowResolver(adapter, VirtualColumns.valueOf(virtualColumns));
       RowResolver resolver2 = new RowResolver(adapter, VirtualColumns.valueOf(view.getVirtualColumns()));
       for (String resolving : Iterables.concat(DimensionSpecs.toInputNames(viewSupport.getDimensions()), retainers)) {
@@ -110,13 +110,9 @@ public class ViewSupportHelper
       if (viewSupport.getMetrics().isEmpty()) {
         viewSupport = viewSupport.withMetrics(metrics);
       }
-      if (!virtualColumns.isEmpty()) {
-        viewSupport = viewSupport.withVirtualColumns(virtualColumns);
-      }
       query = viewSupport;
     } else if (query instanceof Query.DimensionSupport) {
       Query.DimensionSupport<T> dimSupport = (Query.DimensionSupport<T>) query;
-      List<VirtualColumn> virtualColumns = Lists.newArrayList(dimSupport.getVirtualColumns());
       RowResolver resolver1 = new RowResolver(adapter, VirtualColumns.valueOf(virtualColumns));
       RowResolver resolver2 = new RowResolver(adapter, VirtualColumns.valueOf(view.getVirtualColumns()));
       for (String resolving : Iterables.concat(DimensionSpecs.toInputNames(dimSupport.getDimensions()), retainers)) {
@@ -134,9 +130,6 @@ public class ViewSupportHelper
         boolean lowerCasedOutput = view.isLowerCasedOutput();
         dimSupport = dimSupport.withDimensionSpecs(DefaultDimensionSpec.toSpec(dimensions, lowerCasedOutput));
       }
-      if (!virtualColumns.isEmpty()) {
-        dimSupport = dimSupport.withVirtualColumns(virtualColumns);
-      }
       query = dimSupport;
     }
 
@@ -146,6 +139,9 @@ public class ViewSupportHelper
         dimFilter = AndDimFilter.of(dimFilter, query.getDimFilter());
       }
       query = query.withDimFilter(dimFilter);
+    }
+    if (!virtualColumns.isEmpty()) {
+      query = query.withVirtualColumns(virtualColumns);
     }
     query = (Query.DimFilterSupport<T>) query.withDataSource(new TableDataSource(view.getName()));
     log.info("view translated query to %s", query);

@@ -38,4 +38,7 @@ public interface ColumnIncluderator
 
   public boolean include(String columnName);
   public byte[] getCacheKey();
+
+  ColumnIncluderator ALL = new AllColumnIncluderator();
+  ColumnIncluderator NONE = new NoneColumnIncluderator();
 }

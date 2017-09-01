@@ -23,13 +23,11 @@ import com.fasterxml.jackson.annotation.JacksonInject;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
-import com.google.common.base.Function;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
-import com.google.common.collect.Ordering;
 import com.google.common.collect.Sets;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
@@ -80,7 +78,6 @@ import org.joda.time.DateTime;
 
 import java.lang.reflect.Array;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -283,18 +280,6 @@ public class SummaryPostProcessor extends PostProcessingOperator.UnionSupport
                         }
                         Result<TimeseriesResultValue> result = Iterables.getOnlyElement(rows);
                         MetricValueExtractor row = result.getValue();
-                        Map<String, List<Pair<Double, String>>> covarianceMap = Maps.newHashMap();
-                        for (String column : row.getColumns()) {
-                          if (column.startsWith("covariance(")) {
-                            int index1 = column.indexOf(',', 11);
-                            int index2 = column.indexOf(')', index1);
-                            String from = column.substring(11, index1).trim();
-                            String to = column.substring(index1 + 1, index2).trim();
-                            double covariance = row.getDoubleMetric(column);
-                            GuavaUtils.add(covarianceMap, from, Pair.of(covariance, to));
-                            GuavaUtils.add(covarianceMap, to, Pair.of(covariance, from));
-                          }
-                        }
                         for (String column : primitiveColumns.keySet()) {
                           ValueType type = primitiveColumns.get(column);
                           Map<String, Object> stats = results.get(column);
@@ -306,34 +291,6 @@ public class SummaryPostProcessor extends PostProcessingOperator.UnionSupport
                             stats.put("stddev", row.getDoubleMetric(column + ".stddev"));
                             stats.put("skewness", row.getDoubleMetric(column + ".skewness"));
                             stats.put("outliers", row.getLongMetric(column + ".outlier"));
-
-                            List<Pair<Double, String>> covariances = covarianceMap.get(column);
-                            if (covariances != null && !covariances.isEmpty()) {
-                              Collections.sort(
-                                  covariances,
-                                  Pair.lhsComparator(
-                                      Ordering.<Double>natural().onResultOf(
-                                          new Function<Double, Double>()
-                                          {
-                                            @Override
-                                            public Double apply(Double input) { return Math.abs(input); }
-                                          }
-                                      ).reverse()
-                                  )
-                              );
-
-                              List<Map<String, Object>> covarianceBest = Lists.newArrayList();
-                              for (int i = 0; i < Math.min(covariances.size(), 5); i++) {
-                                Pair<Double, String> covariance = covariances.get(i);
-                                covarianceBest.add(
-                                    ImmutableMap.<String, Object>of(
-                                        "with", covariance.rhs,
-                                        "covariance", covariance.lhs
-                                    )
-                                );
-                              }
-                              stats.put("covariances", covarianceBest);
-                            }
                           }
                         }
                         return 0;

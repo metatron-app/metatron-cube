@@ -128,17 +128,17 @@ public interface Query<T> extends QueryContextKeys
     DimFilter getDimFilter();
 
     DimFilterSupport<T> withDimFilter(DimFilter filter);
+
+    List<VirtualColumn> getVirtualColumns();
+
+    DimFilterSupport<T> withVirtualColumns(List<VirtualColumn> virtualColumns);
   }
 
   interface DimensionSupport<T> extends DimFilterSupport<T>
   {
     List<DimensionSpec> getDimensions();
 
-    List<VirtualColumn> getVirtualColumns();
-
     DimensionSupport<T> withDimensionSpecs(List<DimensionSpec> dimensions);
-
-    DimensionSupport<T> withVirtualColumns(List<VirtualColumn> virtualColumns);
 
     // can return true only for group-by & top-n query (include revolved vc as a dimension)
     boolean neededForDimension(String column);

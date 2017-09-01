@@ -22,16 +22,23 @@ package io.druid.query;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+import com.metamx.common.guava.Accumulator;
+import com.metamx.common.guava.Sequence;
 import com.metamx.common.guava.Sequences;
 import com.metamx.common.logger.Logger;
 import io.druid.query.filter.BoundDimFilter;
 import io.druid.query.filter.DimFilter;
+import io.druid.query.metadata.metadata.ColumnAnalysis;
+import io.druid.query.metadata.metadata.ColumnIncluderator;
 import io.druid.query.metadata.metadata.NoneColumnIncluderator;
 import io.druid.query.metadata.metadata.SegmentAnalysis;
 import io.druid.query.metadata.metadata.SegmentMetadataQuery;
 import io.druid.query.spec.QuerySegmentSpec;
+import io.druid.segment.VirtualColumn;
+import org.apache.commons.lang.mutable.MutableInt;
 import org.joda.time.Interval;
 
 import java.util.Arrays;
@@ -129,6 +136,82 @@ public class QueryUtils
     );
     Preconditions.checkArgument(res.size() == 1);
     return res.get(0).getIntervals();
+  }
+
+  @SuppressWarnings("unchecked")
+  public static Map<String, Map<String, MutableInt>> analyzeTypes(QuerySegmentWalker segmentWalker, Query query)
+  {
+    List<VirtualColumn> vcs = null;
+    if (query instanceof Query.DimensionSupport) {
+      vcs = ((Query.DimensionSupport)query).getVirtualColumns();
+    }
+    SegmentMetadataQuery metaQuery = new SegmentMetadataQuery(
+        query.getDataSource(),
+        query.getQuerySegmentSpec(),
+        vcs,
+        null,
+        ColumnIncluderator.ALL,
+        false,
+        null,
+        EnumSet.noneOf(SegmentMetadataQuery.AnalysisType.class),
+        false,
+        false
+    );
+    List<Interval> intervals = metaQuery.getQuerySegmentSpec().getIntervals();
+    QueryRunner<SegmentAnalysis> runner = segmentWalker.getQueryRunnerForIntervals(metaQuery, intervals);
+
+    Sequence<SegmentAnalysis> sequence = runner.run(metaQuery, Maps.<String, Object>newHashMap());
+    final Map<String, Map<String, MutableInt>> results = Maps.newHashMap();
+    sequence.accumulate(
+        null, new Accumulator<Object, SegmentAnalysis>()
+        {
+          @Override
+          public Object accumulate(Object accumulated, SegmentAnalysis in)
+          {
+            for (Map.Entry<String, ColumnAnalysis> entry : in.getColumns().entrySet()) {
+              Map<String, MutableInt> counters = results.get(entry.getKey());
+              if (counters == null) {
+                results.put(entry.getKey(), counters = Maps.newHashMap());
+              }
+              String type = entry.getValue().getType();
+              MutableInt counter = counters.get(type);
+              if (counter == null) {
+                counters.put(type, counter = new MutableInt());
+              }
+              counter.increment();
+            }
+            return accumulated;
+          }
+        }
+    );
+    return results;
+  }
+
+  public static Map<String, String> toMajorType(Map<String, Map<String, MutableInt>> types)
+  {
+    Map<String, String> majorTypes = Maps.newHashMap();
+    for (Map.Entry<String, Map<String, MutableInt>> entry : types.entrySet()) {
+      String column = entry.getKey();
+      Map<String, MutableInt> value = entry.getValue();
+      if (value.isEmpty()) {
+        continue;
+      }
+      if (value.size() == 1) {
+        majorTypes.put(column, Iterables.getOnlyElement(value.keySet()));
+        continue;
+      }
+      int max = -1;
+      String major = null;
+      for (Map.Entry<String, MutableInt> x : value.entrySet()) {
+        int count = x.getValue().intValue();
+        if (max < 0 || max <= count) {
+          major = x.getKey();
+          max = count;
+        }
+      }
+      majorTypes.put(column, major);
+    }
+    return majorTypes;
   }
 
   public static Iterable<DimFilter> toFilters(final String column, final List<String> partitions)

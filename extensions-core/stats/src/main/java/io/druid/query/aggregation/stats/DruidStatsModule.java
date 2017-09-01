@@ -29,6 +29,8 @@ import io.druid.query.aggregation.corr.PearsonFoldingAggregatorFactory;
 import io.druid.query.aggregation.corr.PearsonSerde;
 import io.druid.query.aggregation.covariance.CovarianceAggregatorFactory;
 import io.druid.query.aggregation.covariance.CovarianceFoldingAggregatorFactory;
+import io.druid.query.aggregation.covariance.CovariancePostProcessor;
+import io.druid.query.aggregation.covariance.CovarianceQuery;
 import io.druid.query.aggregation.covariance.CovarianceSerde;
 import io.druid.query.aggregation.kurtosis.KurtosisAggregatorFactory;
 import io.druid.query.aggregation.kurtosis.KurtosisFoldingAggregatorFactory;
@@ -46,7 +48,7 @@ public class DruidStatsModule implements DruidModule
   public List<? extends Module> getJacksonModules()
   {
     return ImmutableList.of(
-        new SimpleModule().registerSubtypes(
+        new SimpleModule("stats").registerSubtypes(
             VarianceAggregatorFactory.class,
             VarianceFoldingAggregatorFactory.class,
             StandardDeviationPostAggregator.class,
@@ -55,7 +57,9 @@ public class DruidStatsModule implements DruidModule
             CovarianceAggregatorFactory.class,
             CovarianceFoldingAggregatorFactory.class,
             KurtosisAggregatorFactory.class,
-            KurtosisFoldingAggregatorFactory.class
+            KurtosisFoldingAggregatorFactory.class,
+            CovarianceQuery.class,
+            CovariancePostProcessor.class
         )
     );
   }
