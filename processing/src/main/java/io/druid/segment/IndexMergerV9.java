@@ -754,6 +754,7 @@ public class IndexMergerV9 extends IndexMerger
   ) throws IOException
   {
     ArrayList<GenericColumnSerializer> metWriters = Lists.newArrayListWithCapacity(mergedMetrics.size());
+    final BitmapFactory bitmapFactory = indexSpec.getBitmapSerdeFactory().getBitmapFactory();
     final CompressedObjectStrategy.CompressionStrategy metCompression = indexSpec.getMetricCompressionStrategy();
     for (String metric : mergedMetrics) {
       ValueDesc type = metricTypeNames.get(metric);
@@ -763,7 +764,7 @@ public class IndexMergerV9 extends IndexMerger
           writer = LongColumnSerializer.create(ioPeon, metric, metCompression);
           break;
         case FLOAT:
-          writer = FloatColumnSerializer.create(ioPeon, metric, metCompression);
+          writer = FloatColumnSerializer.create(ioPeon, metric, metCompression, bitmapFactory);
           break;
         case DOUBLE:
           writer = DoubleColumnSerializer.create(ioPeon, metric, metCompression);

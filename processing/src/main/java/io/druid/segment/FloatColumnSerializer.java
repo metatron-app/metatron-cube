@@ -20,8 +20,11 @@
 package io.druid.segment;
 
 import com.google.common.collect.ImmutableMap;
+import com.metamx.collections.bitmap.BitmapFactory;
+import com.metamx.common.logger.Logger;
 import io.druid.segment.data.CompressedFloatsSupplierSerializer;
 import io.druid.segment.data.CompressedObjectStrategy;
+import io.druid.segment.data.FloatHistogram;
 import io.druid.segment.data.IOPeon;
 
 import java.io.IOException;
@@ -31,13 +34,16 @@ import java.util.Map;
 
 public class FloatColumnSerializer implements GenericColumnSerializer
 {
+  private static final Logger LOG = new Logger(FloatColumnSerializer.class);
+
   public static FloatColumnSerializer create(
       IOPeon ioPeon,
       String filenameBase,
-      CompressedObjectStrategy.CompressionStrategy compression
+      CompressedObjectStrategy.CompressionStrategy compression,
+      BitmapFactory bitmapFactory
   )
   {
-    return new FloatColumnSerializer(ioPeon, filenameBase, IndexIO.BYTE_ORDER, compression);
+    return new FloatColumnSerializer(ioPeon, filenameBase, IndexIO.BYTE_ORDER, compression, bitmapFactory);
   }
 
   private final IOPeon ioPeon;
@@ -46,20 +52,21 @@ public class FloatColumnSerializer implements GenericColumnSerializer
   private final CompressedObjectStrategy.CompressionStrategy compression;
   private CompressedFloatsSupplierSerializer writer;
 
-  private float min = Float.POSITIVE_INFINITY;
-  private float max = Float.NEGATIVE_INFINITY;
+  private final FloatHistogram histogram;
 
-  public FloatColumnSerializer(
+  private FloatColumnSerializer(
       IOPeon ioPeon,
       String filenameBase,
       ByteOrder byteOrder,
-      CompressedObjectStrategy.CompressionStrategy compression
+      CompressedObjectStrategy.CompressionStrategy compression,
+      BitmapFactory bitmapFactory
   )
   {
     this.ioPeon = ioPeon;
     this.filenameBase = filenameBase;
     this.byteOrder = byteOrder;
     this.compression = compression;
+    this.histogram = new FloatHistogram(bitmapFactory, 10000);
   }
 
   @Override
@@ -78,8 +85,7 @@ public class FloatColumnSerializer implements GenericColumnSerializer
   public void serialize(Object obj) throws IOException
   {
     float val = (obj == null) ? 0 : ((Number) obj).floatValue();
-    min = Math.min(min, val);
-    max = Math.max(max, val);
+    histogram.offer(val);
     writer.add(val);
   }
 
@@ -98,7 +104,14 @@ public class FloatColumnSerializer implements GenericColumnSerializer
   @Override
   public Map<String, Object> getSerializeStats()
   {
-    return writer.size() > 0 ? ImmutableMap.<String, Object>of("min", min, "max", max) : null;
+    LOG.info("---------> %s ", histogram.finalize(10));
+    if (writer.size() == 0) {
+      return null;
+    }
+    return ImmutableMap.<String, Object>of(
+        "min", histogram.getMin(),
+        "max", histogram.getMax()
+    );
   }
 
   @Override

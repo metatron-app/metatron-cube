@@ -20,12 +20,14 @@
 package io.druid.collections;
 
 import com.google.common.base.Preconditions;
+import com.google.common.primitives.Ints;
 
 import java.util.Arrays;
+import java.util.Iterator;
 
 /**
  */
-public class IntList
+public class IntList implements Iterable<Integer>
 {
   private int[] baseArray;
   private int size;
@@ -103,6 +105,22 @@ public class IntList
   public int[] compact()
   {
     return Arrays.copyOfRange(baseArray, 0, size);
+  }
+
+  @Override
+  public Iterator<Integer> iterator()
+  {
+    return Ints.asList(compact()).iterator();
+  }
+
+  public boolean isEmpty()
+  {
+    return size == 0;
+  }
+
+  public void clear()
+  {
+    size = 0;
   }
 
   @Override

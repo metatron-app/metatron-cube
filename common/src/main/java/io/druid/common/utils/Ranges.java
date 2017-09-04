@@ -125,4 +125,16 @@ public class Ranges
                            && range1.upperBoundType() == BoundType.CLOSED
                            && range2.lowerBoundType() == BoundType.CLOSED);
   }
+
+  @SuppressWarnings("unchecked")
+  public static boolean isPoint(Range range)
+  {
+    if (!range.hasLowerBound() || !range.hasUpperBound()) {
+      return false;
+    }
+    if (range.isEmpty()) {
+      return false;
+    }
+    return range.lowerEndpoint().compareTo(range.upperEndpoint()) == 0;
+  }
 }

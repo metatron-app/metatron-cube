@@ -80,6 +80,9 @@ public class RoaringBitmapSerdeFactory implements BitmapSerdeFactory
     @Override
     public ImmutableBitmap fromByteBuffer(ByteBuffer buffer, int numBytes)
     {
+      if (buffer.remaining() == 0) {
+        return bitmapFactory.makeEmptyImmutableBitmap();
+      }
       final ByteBuffer readOnlyBuffer = buffer.asReadOnlyBuffer();
       readOnlyBuffer.limit(readOnlyBuffer.position() + numBytes);
       return new WrappedImmutableRoaringBitmap(new ImmutableRoaringBitmap(readOnlyBuffer));
