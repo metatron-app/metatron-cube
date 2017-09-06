@@ -49,9 +49,9 @@ public class ExprEval extends Pair<Object, ExprType>
     }
     if (val instanceof Number) {
       if (val instanceof Byte || val instanceof Short || val instanceof Integer || val instanceof Long) {
-        return ExprEval.of(val, ExprType.LONG);
+        return ExprEval.of(((Number)val).longValue(), ExprType.LONG);
       }
-      return ExprEval.of(val, ExprType.DOUBLE);
+      return ExprEval.of(((Number)val).doubleValue(), ExprType.DOUBLE);
     }
     if (val instanceof DateTime) {
       return ExprEval.of((DateTime)val);

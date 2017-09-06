@@ -25,6 +25,7 @@ import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+import com.google.common.collect.Range;
 import com.google.common.collect.Sets;
 import com.google.common.net.InetAddresses;
 import com.google.common.primitives.Doubles;
@@ -2139,7 +2140,7 @@ public interface BuiltinFunctions extends Function.Library
     }
   }
 
-  class InFunc extends ExprType.LongFunction implements Factory
+  class InFunc extends ExprType.BoolFunction implements Factory
   {
     @Override
     public String name()
@@ -2168,6 +2169,45 @@ public interface BuiltinFunctions extends Function.Library
     public Function get()
     {
       return new InFunc();
+    }
+  }
+
+  class BetweenFunc extends ExprType.BoolFunction implements Factory
+  {
+    @Override
+    public String name()
+    {
+      return "between";
+    }
+
+    private transient ExprType type;
+    private transient Range<Comparable> range;
+
+    @Override
+    public ExprEval apply(List<Expr> args, NumericBinding bindings)
+    {
+      if (range == null) {
+        if (args.size() != 3) {
+          throw new RuntimeException("function 'between' needs 3 arguments");
+        }
+        Expr param1 = args.get(1);
+        Expr param2 = args.get(2);
+        if (!Evals.isConstant(param1) || !Evals.isConstant(param2)) {
+          throw new RuntimeException("needs constants for range values");
+        }
+        ExprEval eval1 = param1.eval(bindings);
+        ExprEval eval2 = Evals.castTo(param2.eval(bindings), eval1.type());
+        range = Range.closed((Comparable) eval1.value(), (Comparable) eval2.value());
+        type = eval1.type();
+      }
+      ExprEval eval = Evals.castTo(args.get(0).eval(bindings), type);
+      return ExprEval.of(range.contains((Comparable) eval.value()));
+    }
+
+    @Override
+    public Function get()
+    {
+      return new BetweenFunc();
     }
   }
 

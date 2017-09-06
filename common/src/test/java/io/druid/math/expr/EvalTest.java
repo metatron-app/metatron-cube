@@ -39,37 +39,42 @@ import java.util.Set;
  */
 public class EvalTest
 {
+  private ExprEval _eval(String x, Expr.NumericBinding bindings)
+  {
+    return Parser.parse(x).eval(bindings);
+  }
+
   private long evalLong(String x, Expr.NumericBinding bindings)
   {
-    ExprEval ret = Parser.parse(x).eval(bindings);
+    ExprEval ret = _eval(x, bindings);
     Assert.assertEquals(ExprType.LONG, ret.type());
     return ret.longValue();
   }
 
   private double evalDouble(String x, Expr.NumericBinding bindings)
   {
-    ExprEval ret = Parser.parse(x).eval(bindings);
+    ExprEval ret = _eval(x, bindings);
     Assert.assertEquals(ExprType.DOUBLE, ret.type());
     return ret.doubleValue();
   }
 
   private String evalString(String x, Expr.NumericBinding bindings)
   {
-    ExprEval ret = Parser.parse(x).eval(bindings);
+    ExprEval ret = _eval(x, bindings);
     Assert.assertEquals(ExprType.STRING, ret.type());
     return ret.stringValue();
   }
 
   private DateTime evalDateTime(String x, Expr.NumericBinding bindings)
   {
-    ExprEval ret = Parser.parse(x).eval(bindings);
+    ExprEval ret = _eval(x, bindings);
     Assert.assertEquals(ExprType.DATETIME, ret.type());
     return ret.asDateTime();
   }
 
   private Object eval(String x, Expr.NumericBinding bindings)
   {
-    ExprEval ret = Parser.parse(x).eval(bindings);
+    ExprEval ret = _eval(x, bindings);
     Assert.assertEquals(ExprType.UNKNOWN, ret.type());
     return ret.value();
   }
@@ -758,5 +763,14 @@ public class EvalTest
     Assert.assertEquals(20D, evalDouble("b + c", bindings), 0.0001);
     Assert.assertEquals(20D, evalDouble("b - c", bindings), 0.0001);
     Assert.assertEquals(0D, evalDouble("b * c", bindings), 0.0001);
+  }
+
+  @Test
+  public void testBetween()
+  {
+    Expr.NumericBinding bindings = Parser.withMap(ImmutableMap.<String, Object>of("a", 10, "b", 20.D, "c", ""));
+    Assert.assertTrue(_eval("between(a, 10, 15)", bindings).asBoolean());
+    Assert.assertTrue(_eval("between(b, 15, 20)", bindings).asBoolean());
+    Assert.assertFalse(_eval("between(b, 25, 30)", bindings).asBoolean());
   }
 }

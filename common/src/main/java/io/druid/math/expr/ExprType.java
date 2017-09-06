@@ -154,6 +154,10 @@ public enum ExprType
     }
   }
 
+  public static abstract class BoolFunction extends LongFunction
+  {
+  }
+
   public static abstract class IndecisiveFunction implements Function
   {
     @Override
