@@ -22,7 +22,7 @@ package io.druid.segment.serde;
 import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import io.druid.segment.column.ColumnBuilder;
-import io.druid.segment.column.ColumnConfig;
+import io.druid.segment.data.BitmapSerdeFactory;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -57,6 +57,6 @@ public interface ColumnPartSerde
 
   public interface Deserializer
   {
-    public void read(ByteBuffer buffer, ColumnBuilder builder, ColumnConfig columnConfig);
+    public void read(ByteBuffer buffer, ColumnBuilder builder, BitmapSerdeFactory serdeFactory);
   }
 }

@@ -20,14 +20,17 @@
 package io.druid.segment;
 
 import com.google.common.collect.ImmutableMap;
-import com.metamx.collections.bitmap.BitmapFactory;
+import com.google.common.primitives.Ints;
 import com.metamx.common.logger.Logger;
+import io.druid.segment.data.BitmapSerdeFactory;
 import io.druid.segment.data.CompressedFloatsSupplierSerializer;
 import io.druid.segment.data.CompressedObjectStrategy;
+import io.druid.segment.data.FloatBitmaps;
 import io.druid.segment.data.FloatHistogram;
 import io.druid.segment.data.IOPeon;
 
 import java.io.IOException;
+import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.channels.WritableByteChannel;
 import java.util.Map;
@@ -40,10 +43,10 @@ public class FloatColumnSerializer implements GenericColumnSerializer
       IOPeon ioPeon,
       String filenameBase,
       CompressedObjectStrategy.CompressionStrategy compression,
-      BitmapFactory bitmapFactory
+      BitmapSerdeFactory serdeFactory
   )
   {
-    return new FloatColumnSerializer(ioPeon, filenameBase, IndexIO.BYTE_ORDER, compression, bitmapFactory);
+    return new FloatColumnSerializer(ioPeon, filenameBase, IndexIO.BYTE_ORDER, compression, serdeFactory);
   }
 
   private final IOPeon ioPeon;
@@ -52,21 +55,24 @@ public class FloatColumnSerializer implements GenericColumnSerializer
   private final CompressedObjectStrategy.CompressionStrategy compression;
   private CompressedFloatsSupplierSerializer writer;
 
+  private final BitmapSerdeFactory serdeFactory;
   private final FloatHistogram histogram;
+  private ByteBuffer bitmapPayload;
 
   private FloatColumnSerializer(
       IOPeon ioPeon,
       String filenameBase,
       ByteOrder byteOrder,
       CompressedObjectStrategy.CompressionStrategy compression,
-      BitmapFactory bitmapFactory
+      BitmapSerdeFactory serdeFactory
   )
   {
     this.ioPeon = ioPeon;
     this.filenameBase = filenameBase;
     this.byteOrder = byteOrder;
     this.compression = compression;
-    this.histogram = new FloatHistogram(bitmapFactory, 10000);
+    this.serdeFactory = serdeFactory;
+    this.histogram = new FloatHistogram(serdeFactory.getBitmapFactory(), 10000, 20, 100000);
   }
 
   @Override
@@ -98,13 +104,22 @@ public class FloatColumnSerializer implements GenericColumnSerializer
   @Override
   public long getSerializedSize()
   {
-    return writer.getSerializedSize();
+    long size = writer.getSerializedSize();
+    FloatBitmaps bitmaps = histogram.finalize(20);
+    if (bitmaps != null) {
+      byte[] payload = FloatBitmaps.getStrategy(serdeFactory).toBytes(bitmaps);
+      bitmapPayload = (ByteBuffer) ByteBuffer.allocate(Ints.BYTES + payload.length)
+                                             .putInt(payload.length)
+                                             .put(payload)
+                                             .flip();
+      size += bitmapPayload.remaining();
+    }
+    return size;
   }
 
   @Override
   public Map<String, Object> getSerializeStats()
   {
-    LOG.info("---------> %s ", histogram.finalize(10));
     if (writer.size() == 0) {
       return null;
     }
@@ -118,5 +133,8 @@ public class FloatColumnSerializer implements GenericColumnSerializer
   public void writeToChannel(WritableByteChannel channel) throws IOException
   {
     writer.writeToChannel(channel);
+    if (bitmapPayload != null) {
+      channel.write(bitmapPayload);
+    }
   }
 }

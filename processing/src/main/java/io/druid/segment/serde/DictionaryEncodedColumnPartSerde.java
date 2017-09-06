@@ -32,7 +32,6 @@ import io.druid.segment.ColumnPartProviders;
 import io.druid.segment.CompressedVSizeIndexedSupplier;
 import io.druid.segment.CompressedVSizeIndexedV3Supplier;
 import io.druid.segment.column.ColumnBuilder;
-import io.druid.segment.column.ColumnConfig;
 import io.druid.segment.data.BitmapSerde;
 import io.druid.segment.data.BitmapSerdeFactory;
 import io.druid.segment.data.ByteBufferSerializer;
@@ -434,7 +433,7 @@ public class DictionaryEncodedColumnPartSerde implements ColumnPartSerde
     return new Deserializer()
     {
       @Override
-      public void read(ByteBuffer buffer, ColumnBuilder builder, ColumnConfig columnConfig)
+      public void read(ByteBuffer buffer, ColumnBuilder builder, BitmapSerdeFactory serdeFactory)
       {
         final VERSION rVersion = VERSION.fromByte(buffer.get());
         final int rFlags;
@@ -472,8 +471,7 @@ public class DictionaryEncodedColumnPartSerde implements ColumnPartSerde
                    new DictionaryEncodedColumnSupplier(
                        rDictionary,
                        rSingleValuedColumn,
-                       rMultiValuedColumn,
-                       columnConfig.columnCacheSizeBytes()
+                       rMultiValuedColumn
                    )
                );
 

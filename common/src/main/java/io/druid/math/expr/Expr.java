@@ -58,7 +58,7 @@ public interface Expr extends Expression
   }
 }
 
-interface Constant extends Expr
+interface Constant extends Expr, Expression.ConstExpression
 {
 }
 
@@ -88,6 +88,12 @@ class LongExpr implements Constant
   {
     return ExprEval.of(value, ExprType.LONG);
   }
+
+  @Override
+  public Long get()
+  {
+    return value;
+  }
 }
 
 class StringExpr implements Constant
@@ -116,6 +122,12 @@ class StringExpr implements Constant
   {
     return ExprEval.of(value, ExprType.STRING);
   }
+
+  @Override
+  public String get()
+  {
+    return value;
+  }
 }
 
 class DoubleExpr implements Constant
@@ -143,6 +155,12 @@ class DoubleExpr implements Constant
   public ExprEval eval(NumericBinding bindings)
   {
     return ExprEval.of(value, ExprType.DOUBLE);
+  }
+
+  @Override
+  public Double get()
+  {
+    return value;
   }
 }
 
@@ -204,7 +222,7 @@ class AssignExpr implements Expr
   }
 }
 
-class FunctionExpr implements Expr
+class FunctionExpr implements Expr, Expression.FuncExpression
 {
   final Function function;
   final String name;
@@ -215,6 +233,19 @@ class FunctionExpr implements Expr
     this.function = function;
     this.name = name;
     this.args = args;
+  }
+
+  @Override
+  public String op()
+  {
+    return name;
+  }
+
+  @Override
+  @SuppressWarnings("unchecked")
+  public List<Expr> getChildren()
+  {
+    return args;
   }
 
   @Override
@@ -314,6 +345,7 @@ class UnaryNotExpr implements Expr, Expression.NotExpression
   }
 
   @Override
+  @SuppressWarnings("unchecked")
   public Expr getChild()
   {
     return expr;
@@ -333,18 +365,30 @@ abstract class BinaryOpExprBase implements Expr
     this.right = right;
   }
 
+  public String op()
+  {
+    return op;
+  }
+
   @Override
   public String toString()
   {
-    return "(" + op + " " + left + " " + right + ")";
+    return "(" + left + " " + op + " " + right + ")";
   }
 }
 
-abstract class BinaryNumericOpExprBase extends BinaryOpExprBase
+abstract class BinaryNumericOpExprBase extends BinaryOpExprBase implements Expression.FuncExpression
 {
   public BinaryNumericOpExprBase(String op, Expr left, Expr right)
   {
     super(op, left, right);
+  }
+
+  @Override
+  @SuppressWarnings("unchecked")
+  public List<Expr> getChildren()
+  {
+    return Arrays.asList(left, right);
   }
 
   @Override
@@ -402,12 +446,6 @@ abstract class BinaryNumericOpExprBase extends BinaryOpExprBase
   protected abstract long evalLong(long left, long right);
 
   protected abstract double evalDouble(double left, double right);
-
-  @Override
-  public String toString()
-  {
-    return "(" + op + " " + left + " " + right + ")";
-  }
 }
 
 class BinMinusExpr extends BinaryNumericOpExprBase
@@ -727,6 +765,7 @@ class BinAndExpr extends BinaryOpExprBase implements Expression.AndExpression
   }
 
   @Override
+  @SuppressWarnings("unchecked")
   public List<Expr> getChildren()
   {
     return Arrays.asList(left, right);
@@ -756,57 +795,7 @@ class BinOrExpr extends BinaryOpExprBase implements Expression.OrExpression
   }
 
   @Override
-  public List<Expr> getChildren()
-  {
-    return Arrays.asList(left, right);
-  }
-}
-
-class BinAndExpr2 extends BinaryNumericOpExprBase implements Expression.AndExpression
-{
-  BinAndExpr2(String op, Expr left, Expr right)
-  {
-    super(op, left, right);
-  }
-
-  protected long evalLong(long left, long right)
-  {
-    return left > 0 && right > 0 ? 1L : 0L;
-  }
-
-  @Override
-  protected double evalDouble(double left, double right)
-  {
-    return left > 0 && right > 0 ? 1.0d : 0.0d;
-  }
-
-  @Override
-  public List<Expr> getChildren()
-  {
-    return Arrays.asList(left, right);
-  }
-}
-
-class BinOrExpr2 extends BinaryNumericOpExprBase implements Expression.OrExpression
-{
-  BinOrExpr2(String op, Expr left, Expr right)
-  {
-    super(op, left, right);
-  }
-
-  @Override
-  protected long evalLong(long left, long right)
-  {
-    return left > 0 || right > 0 ? 1L : 0L;
-  }
-
-  @Override
-  protected double evalDouble(double left, double right)
-  {
-    return left > 0 || right > 0 ? 1.0d : 0.0d;
-  }
-
-  @Override
+  @SuppressWarnings("unchecked")
   public List<Expr> getChildren()
   {
     return Arrays.asList(left, right);

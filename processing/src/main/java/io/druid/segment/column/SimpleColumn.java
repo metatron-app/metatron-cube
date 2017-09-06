@@ -36,6 +36,7 @@ class SimpleColumn implements Column
   private final ColumnPartProvider<ComplexColumn> complexColumn;
   private final ColumnPartProvider<BitmapIndex> bitmapIndex;
   private final ColumnPartProvider<SpatialIndex> spatialIndex;
+  private final ColumnPartProvider<MetricBitmap> metricBitmap;
   private final Map<String, Object> stats;
 
   SimpleColumn(
@@ -46,6 +47,7 @@ class SimpleColumn implements Column
       ColumnPartProvider<ComplexColumn> complexColumn,
       ColumnPartProvider<BitmapIndex> bitmapIndex,
       ColumnPartProvider<SpatialIndex> spatialIndex,
+      ColumnPartProvider<MetricBitmap> metricBitmap,
       Map<String, Object> stats
   )
   {
@@ -56,6 +58,7 @@ class SimpleColumn implements Column
     this.complexColumn = complexColumn;
     this.bitmapIndex = bitmapIndex;
     this.spatialIndex = spatialIndex;
+    this.metricBitmap = metricBitmap;
     this.stats = stats;
   }
 
@@ -108,25 +111,30 @@ class SimpleColumn implements Column
     if (spatialIndex != null) {
       serialized += spatialIndex.getSerializedSize();
     }
+    if (metricBitmap != null) {
+      serialized += metricBitmap.getSerializedSize();
+    }
     return serialized;
   }
 
   @Override
-  public long getSerializedSize(Type type)
+  public long getSerializedSize(EncodeType encodeType)
   {
-    switch (type) {
+    switch (encodeType) {
       case DICTIONARY_ENCODED:
-        return dictionaryEncodedColumn.getSerializedSize();
+        return dictionaryEncodedColumn == null ? -1 : dictionaryEncodedColumn.getSerializedSize();
       case RUNLENGTH_ENCODED:
-        return runLengthColumn.getSerializedSize();
+        return runLengthColumn == null ? -1 : runLengthColumn.getSerializedSize();
       case GENERIC:
-        return genericColumn.getSerializedSize();
+        return genericColumn == null ? -1 : genericColumn.getSerializedSize();
       case COMPLEX:
-        return complexColumn.getSerializedSize();
+        return complexColumn == null ? -1 : complexColumn.getSerializedSize();
       case BITMAP:
-        return bitmapIndex.getSerializedSize();
+        return bitmapIndex == null ? -1 : bitmapIndex.getSerializedSize();
       case SPATIAL:
-        return spatialIndex.getSerializedSize();
+        return spatialIndex == null ? -1 : spatialIndex.getSerializedSize();
+      case METRIC_BITMAP:
+        return metricBitmap == null ? -1 : metricBitmap.getSerializedSize();
     }
     return -1;
   }
@@ -152,6 +160,9 @@ class SimpleColumn implements Column
     }
     if (spatialIndex != null) {
       return spatialIndex.getSerializedSize() / spatialIndex.size();
+    }
+    if (metricBitmap != null) {
+      return metricBitmap.getSerializedSize() / metricBitmap.size();
     }
     return 0;
   }
@@ -196,6 +207,12 @@ class SimpleColumn implements Column
   public SpatialIndex getSpatialIndex()
   {
     return spatialIndex == null ? null : spatialIndex.get();
+  }
+
+  @Override
+  public MetricBitmap getMetricBitmap()
+  {
+    return metricBitmap == null ? null : metricBitmap.get();
   }
 
   @Override

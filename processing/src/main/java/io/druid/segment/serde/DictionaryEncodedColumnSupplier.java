@@ -33,19 +33,16 @@ public class DictionaryEncodedColumnSupplier implements ColumnPartProvider.Dicti
   private final GenericIndexed<String> dictionary;
   private final ColumnPartProvider<IndexedInts> singleValuedColumn;
   private final ColumnPartProvider<IndexedMultivalue<IndexedInts>> multiValuedColumn;
-  private final int lookupCacheSize;
 
   public DictionaryEncodedColumnSupplier(
       GenericIndexed<String> dictionary,
       ColumnPartProvider<IndexedInts> singleValuedColumn,
-      ColumnPartProvider<IndexedMultivalue<IndexedInts>> multiValuedColumn,
-      int lookupCacheSize
+      ColumnPartProvider<IndexedMultivalue<IndexedInts>> multiValuedColumn
   )
   {
     this.dictionary = dictionary;
     this.singleValuedColumn = singleValuedColumn;
     this.multiValuedColumn = multiValuedColumn;
-    this.lookupCacheSize = lookupCacheSize;
   }
 
   @Override

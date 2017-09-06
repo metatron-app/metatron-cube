@@ -24,7 +24,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import io.druid.data.ValueType;
 import io.druid.segment.DoubleColumnSerializer;
 import io.druid.segment.column.ColumnBuilder;
-import io.druid.segment.column.ColumnConfig;
+import io.druid.segment.data.BitmapSerdeFactory;
 import io.druid.segment.data.CompressedDoublesIndexedSupplier;
 
 import java.nio.ByteBuffer;
@@ -129,7 +129,7 @@ public class DoubleGenericColumnPartSerde implements ColumnPartSerde
     return new Deserializer()
     {
       @Override
-      public void read(ByteBuffer buffer, ColumnBuilder builder, ColumnConfig columnConfig)
+      public void read(ByteBuffer buffer, ColumnBuilder builder, BitmapSerdeFactory serdeFactory)
       {
         final CompressedDoublesIndexedSupplier column = CompressedDoublesIndexedSupplier.fromByteBuffer(
             buffer,

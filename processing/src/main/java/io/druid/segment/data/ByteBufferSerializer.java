@@ -20,6 +20,7 @@
 package io.druid.segment.data;
 
 import com.google.common.primitives.Ints;
+import com.metamx.common.Pair;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -37,6 +38,16 @@ public class ByteBufferSerializer<T>
     buffer.position(bufferToUse.limit());
 
     return strategy.fromByteBuffer(bufferToUse, size);
+  }
+
+  public static <T> Pair<Integer, T> readWithLength(ByteBuffer buffer, ObjectStrategy<T> strategy)
+  {
+    int size = buffer.getInt();
+    ByteBuffer bufferToUse = buffer.asReadOnlyBuffer();
+    bufferToUse.limit(bufferToUse.position() + size);
+    buffer.position(bufferToUse.limit());
+
+    return Pair.of(size, strategy.fromByteBuffer(bufferToUse, size));
   }
 
   public static <T> void writeToChannel(T obj, ObjectStrategy<T> strategy, WritableByteChannel channel)

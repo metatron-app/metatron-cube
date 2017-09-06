@@ -93,7 +93,7 @@ public class FloatHistogram
       }
     } else if (position == bins.length || position == -breaks.length - 1) {
       overMax.add(count++);
-      if (min != max && overMax.size() > (count - overMax.size()) / numGroup) {
+      if (min != max && overMax.size() > (count - overMax.size()) / (numGroup * 1.5)) {
         handleOverMax();
       }
     } else {
@@ -179,7 +179,7 @@ public class FloatHistogram
     return breaks[bins.length] + (max - breaks[bins.length]) * 2;
   }
 
-  public FloatRanges finalize(int numGroup)
+  public FloatBitmaps finalize(int numGroup)
   {
     if (min == max || count == 0) {
       return null;
@@ -196,7 +196,7 @@ public class FloatHistogram
     return toHistogram(numGroup);
   }
 
-  private FloatRanges toHistogram(int numGroup)
+  private FloatBitmaps toHistogram(int numGroup)
   {
     Preconditions.checkArgument(breaks[0] == min);
     Preconditions.checkArgument(breaks[bins.length] >= max);
@@ -244,7 +244,7 @@ public class FloatHistogram
         }
     );
 
-    return new FloatRanges(
+    return new FloatBitmaps(
         factory,
         Floats.toArray(mergedBreaks),
         immutable.toArray(new ImmutableBitmap[immutable.size()])

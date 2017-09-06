@@ -26,14 +26,17 @@ import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
+import com.metamx.collections.bitmap.BitmapFactory;
 import com.metamx.collections.bitmap.ImmutableBitmap;
 import com.metamx.common.guava.CloseQuietly;
 import com.metamx.common.guava.Sequence;
 import com.metamx.common.guava.Sequences;
+import com.metamx.common.logger.Logger;
 import io.druid.cache.Cache;
 import io.druid.data.ValueDesc;
 import io.druid.data.ValueType;
 import io.druid.granularity.QueryGranularity;
+import io.druid.math.expr.Expression;
 import io.druid.query.QueryInterruptedException;
 import io.druid.query.RowResolver;
 import io.druid.query.dimension.DimensionSpec;
@@ -47,6 +50,7 @@ import io.druid.segment.column.ColumnCapabilities;
 import io.druid.segment.column.ComplexColumn;
 import io.druid.segment.column.DictionaryEncodedColumn;
 import io.druid.segment.column.GenericColumn;
+import io.druid.segment.column.MetricBitmap;
 import io.druid.segment.data.Indexed;
 import io.druid.segment.data.IndexedInts;
 import io.druid.segment.data.Offset;
@@ -58,13 +62,17 @@ import org.joda.time.Interval;
 import java.io.Closeable;
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.util.Arrays;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
 
 /**
  */
 public class QueryableIndexStorageAdapter implements StorageAdapter
 {
+  private static final Logger LOG = new Logger(QueryableIndexStorageAdapter.class);
+
   private static final NullDimensionSelector NULL_DIMENSION_SELECTOR = new NullDimensionSelector();
 
   private final QueryableIndex index;
@@ -245,40 +253,42 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
       actualInterval = actualInterval.withEnd(dataInterval.getEnd());
     }
 
+    final BitmapFactory bitmapFactory = index.getBitmapFactoryForDimensions();
+
     final RowResolver resolver = new RowResolver(this, virtualColumns);
     final DimFilter[] filters = Filters.partitionWithBitmapSupport(filter, resolver);
 
     final DimFilter bitmapFilter = filters == null ? null : filters[0];
     final DimFilter valuesFilter = filters == null ? null : filters[1];
 
+    ImmutableBitmap baseBitmap = null;
+    if (valuesFilter != null) {
+      if (valuesFilter instanceof Expression.AndExpression) {
+        List<ImmutableBitmap> bitmaps = Lists.newArrayList();
+        for (Expression child : ((Expression.AndExpression)valuesFilter).getChildren()) {
+          ImmutableBitmap bitmap = toBitmap((DimFilter) child);
+          if (bitmap != null) {
+            bitmaps.add(bitmap);
+          }
+        }
+        baseBitmap = bitmapFactory.intersection(bitmaps);
+      } else {
+        baseBitmap = toBitmap(valuesFilter);
+      }
+    }
+    if (bitmapFilter != null) {
+      if (baseBitmap == null) {
+        baseBitmap = toBitmap(bitmapFilter, cache);
+      } else {
+        baseBitmap = bitmapFactory.intersection(Arrays.asList(baseBitmap, toBitmap(bitmapFilter, cache)));
+      }
+    }
     final Offset offset;
-    if (bitmapFilter == null) {
+    if (baseBitmap == null) {
       offset = new NoFilterOffset(0, index.getNumRows(), descending);
     } else {
-      final ColumnSelectorBitmapIndexSelector selector = new ColumnSelectorBitmapIndexSelector(
-          index.getBitmapFactoryForDimensions(),
-          index
-      );
-      Cache.NamedKey key = null;
-      ImmutableBitmap bitmapIndex = null;
-      if (cache != null && segmentId != null) {
-        key = new Cache.NamedKey(segmentId, bitmapFilter.getCacheKey());
-        byte[] cached = cache.get(key);
-        if (cached != null) {
-          bitmapIndex = selector.getBitmapFactory().mapImmutableBitmap(ByteBuffer.wrap(cached));
-        }
-      }
-      if (bitmapIndex == null) {
-        bitmapIndex = bitmapFilter.toFilter().getBitmapIndex(selector);
-        if (key != null) {
-          cache.put(key, bitmapIndex.toBytes());
-        }
-      }
-      offset = new BitmapOffset(
-          selector.getBitmapFactory(),
-          bitmapIndex,
-          descending
-      );
+      LOG.info("%s : %,d / %,d", filter, baseBitmap.size(), index.getNumRows());
+      offset = new BitmapOffset(bitmapFactory, baseBitmap, descending);
     }
     return Sequences.filter(
         new CursorSequenceBuilder(
@@ -295,6 +305,50 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
         ).build(),
         Predicates.<Cursor>notNull()
     );
+  }
+
+  private ImmutableBitmap toBitmap(DimFilter dimFilter, Cache cache)
+  {
+    final ColumnSelectorBitmapIndexSelector selector = new ColumnSelectorBitmapIndexSelector(
+        index.getBitmapFactoryForDimensions(),
+        index
+    );
+    Cache.NamedKey key = null;
+    ImmutableBitmap bitmapIndex = null;
+    if (cache != null && segmentId != null) {
+      key = new Cache.NamedKey(segmentId, dimFilter.getCacheKey());
+      byte[] cached = cache.get(key);
+      if (cached != null) {
+        bitmapIndex = selector.getBitmapFactory().mapImmutableBitmap(ByteBuffer.wrap(cached));
+      }
+    }
+    if (bitmapIndex == null) {
+      bitmapIndex = dimFilter.toFilter().getBitmapIndex(selector);
+      if (key != null) {
+        cache.put(key, bitmapIndex.toBytes());
+      }
+      LOG.debug("%s : %,d / %,d", dimFilter, bitmapIndex.size(), index.getNumRows());
+    }
+    return bitmapIndex;
+  }
+
+  private ImmutableBitmap toBitmap(DimFilter dimFilter)
+  {
+    Map<String, MetricBitmap> metricBitmaps = Maps.newHashMap();
+    for (String metric : getAvailableMetrics()) {
+      MetricBitmap metricBitmap = index.getColumn(metric).getMetricBitmap();
+      if (metricBitmap != null) {
+        metricBitmaps.put(metric, metricBitmap);
+      }
+    }
+    if (!metricBitmaps.isEmpty()) {
+      ImmutableBitmap bitmap = Filters.toBitmap(dimFilter, index.getBitmapFactoryForDimensions(), metricBitmaps);
+      if (bitmap != null) {
+        LOG.debug("%s : %,d / %,d", dimFilter, bitmap.size(), index.getNumRows());
+      }
+      return bitmap;
+    }
+    return null;
   }
 
   private static class CursorSequenceBuilder

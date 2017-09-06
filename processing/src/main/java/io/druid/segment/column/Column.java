@@ -27,7 +27,7 @@ import java.util.Map;
  */
 public interface Column
 {
-  enum Type
+  enum EncodeType
   {
     DICTIONARY_ENCODED,
     RUNLENGTH_ENCODED,
@@ -35,6 +35,7 @@ public interface Column
     COMPLEX,
     BITMAP,
     SPATIAL,
+    METRIC_BITMAP
   }
 
   public static final String TIME_COLUMN_NAME = "__time";
@@ -42,7 +43,7 @@ public interface Column
 
   public int getLength();
   public long getSerializedSize();
-  public long getSerializedSize(Type type);
+  public long getSerializedSize(EncodeType encodeType);
   public float getAverageSize();
   public GenericIndexed<String> getDictionary();
   public DictionaryEncodedColumn getDictionaryEncoding();
@@ -51,5 +52,6 @@ public interface Column
   public ComplexColumn getComplexColumn();
   public BitmapIndex getBitmapIndex();
   public SpatialIndex getSpatialIndex();
+  public MetricBitmap getMetricBitmap();
   public Map<String, Object> getColumnStats();
 }

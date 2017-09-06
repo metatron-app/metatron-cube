@@ -94,10 +94,10 @@ public class FloatHistogramTest
     for (int i = 0; i < 20; i++) {
       histogram.offer(200);
     }
-    FloatRanges ranges = histogram.finalize(5);
+    FloatBitmaps bitmaps = histogram.finalize(5);
 
-    Assert.assertArrayEquals(new float[]{100, 200}, ranges.getBreaks(), 0.001f);
-    Assert.assertArrayEquals(new int[]{25}, ranges.getSizes());
+    Assert.assertArrayEquals(new float[]{100, 200}, bitmaps.getBreaks(), 0.001f);
+    Assert.assertArrayEquals(new int[]{25}, bitmaps.getSizes());
   }
 
   @Test
@@ -113,10 +113,10 @@ public class FloatHistogramTest
     histogram.offer(100);
     histogram.offer(200);
     histogram.offer(300);
-    FloatRanges ranges = histogram.finalize(3);
+    FloatBitmaps bitmaps = histogram.finalize(3);
 
-    Assert.assertArrayEquals(new float[]{100, 200, 300}, ranges.getBreaks(), 0.001f);
-    Assert.assertArrayEquals(new int[]{5, 8}, ranges.getSizes());
+    Assert.assertArrayEquals(new float[]{100, 200, 300}, bitmaps.getBreaks(), 0.001f);
+    Assert.assertArrayEquals(new int[]{5, 8}, bitmaps.getSizes());
   }
 
   @Test
@@ -127,49 +127,49 @@ public class FloatHistogramTest
       histogram.offer(i);
       histogram.offer(i);
     }
-    FloatRanges ranges = histogram.finalize(10);
+    FloatBitmaps bitmaps = histogram.finalize(10);
 
-    Assert.assertArrayEquals(new float[]{0f, 1f, 2f, 3f, 4f, 6f, 8f, 9f}, ranges.getBreaks(), 0.001f);
-    Assert.assertArrayEquals(new int[]{2, 2, 2, 2, 4, 4, 4}, ranges.getSizes());
+    Assert.assertArrayEquals(new float[]{0f, 1f, 2f, 3f, 4f, 6f, 8f, 9f}, bitmaps.getBreaks(), 0.001f);
+    Assert.assertArrayEquals(new int[]{2, 2, 2, 2, 4, 4, 4}, bitmaps.getSizes());
 
     // empty
-    assertEquals(ranges.of(Range.openClosed(4f, 4f)), new int[]{});
-    assertEquals(ranges.of(Range.closedOpen(4f, 4f)), new int[]{});
+    assertEquals(bitmaps.filterFor(Range.openClosed(4f, 4f)), new int[]{});
+    assertEquals(bitmaps.filterFor(Range.closedOpen(4f, 4f)), new int[]{});
 
     // point
-    assertEquals(ranges.of(Range.closed(4f, 4f)), new int[]{8, 9, 10, 11});
+    assertEquals(bitmaps.filterFor(Range.closed(4f, 4f)), new int[]{8, 9, 10, 11});
 
     // lower ~
-    assertEquals(ranges.of(Range.downTo(6f, BoundType.CLOSED)), new int[]{12, 13, 14, 15, 16, 17, 18, 19});
-    assertEquals(ranges.of(Range.downTo(6f, BoundType.OPEN)), new int[]{12, 13, 14, 15, 16, 17, 18, 19});
+    assertEquals(bitmaps.filterFor(Range.downTo(6f, BoundType.CLOSED)), new int[]{12, 13, 14, 15, 16, 17, 18, 19});
+    assertEquals(bitmaps.filterFor(Range.downTo(6f, BoundType.OPEN)), new int[]{12, 13, 14, 15, 16, 17, 18, 19});
 
     // ~ upper
-    assertEquals(ranges.of(Range.upTo(2f, BoundType.CLOSED)), new int[]{0, 1, 2, 3, 4, 5});
-    assertEquals(ranges.of(Range.upTo(2f, BoundType.OPEN)), new int[]{0, 1, 2, 3});
+    assertEquals(bitmaps.filterFor(Range.upTo(2f, BoundType.CLOSED)), new int[]{0, 1, 2, 3, 4, 5});
+    assertEquals(bitmaps.filterFor(Range.upTo(2f, BoundType.OPEN)), new int[]{0, 1, 2, 3});
 
     // to max
-    assertEquals(ranges.of(Range.openClosed(8f, 9f)), new int[]{16, 17, 18, 19});
-    assertEquals(ranges.of(Range.closedOpen(8f, 9f)), new int[]{16, 17, 18, 19});
-    assertEquals(ranges.of(Range.openClosed(8f, 10f)), new int[]{16, 17, 18, 19});
-    assertEquals(ranges.of(Range.closedOpen(8f, 10f)), new int[]{16, 17, 18, 19});
+    assertEquals(bitmaps.filterFor(Range.openClosed(8f, 9f)), new int[]{16, 17, 18, 19});
+    assertEquals(bitmaps.filterFor(Range.closedOpen(8f, 9f)), new int[]{16, 17, 18, 19});
+    assertEquals(bitmaps.filterFor(Range.openClosed(8f, 10f)), new int[]{16, 17, 18, 19});
+    assertEquals(bitmaps.filterFor(Range.closedOpen(8f, 10f)), new int[]{16, 17, 18, 19});
 
     // over max
-    assertEquals(ranges.of(Range.downTo(9f, BoundType.CLOSED)), new int[]{16, 17, 18, 19});
-    assertEquals(ranges.of(Range.downTo(9f, BoundType.OPEN)), new int[]{});
+    assertEquals(bitmaps.filterFor(Range.downTo(9f, BoundType.CLOSED)), new int[]{16, 17, 18, 19});
+    assertEquals(bitmaps.filterFor(Range.downTo(9f, BoundType.OPEN)), new int[]{});
 
     // under min
-    assertEquals(ranges.of(Range.upTo(0f, BoundType.CLOSED)), new int[]{0, 1});
-    assertEquals(ranges.of(Range.upTo(0f, BoundType.OPEN)), new int[]{});
+    assertEquals(bitmaps.filterFor(Range.upTo(0f, BoundType.CLOSED)), new int[]{0, 1});
+    assertEquals(bitmaps.filterFor(Range.upTo(0f, BoundType.OPEN)), new int[]{});
 
     // range
-    assertEquals(ranges.of(Range.openClosed(1.5f, 2.5f)), new int[]{2, 3, 4, 5});
-    assertEquals(ranges.of(Range.openClosed(2f, 2.5f)), new int[]{4, 5});
-    assertEquals(ranges.of(Range.closed(1.5f, 3f)), new int[]{2, 3, 4, 5, 6, 7});
-    assertEquals(ranges.of(Range.openClosed(0.1f, 0.5f)), new int[]{0, 1});
+    assertEquals(bitmaps.filterFor(Range.openClosed(1.5f, 2.5f)), new int[]{2, 3, 4, 5});
+    assertEquals(bitmaps.filterFor(Range.openClosed(2f, 2.5f)), new int[]{4, 5});
+    assertEquals(bitmaps.filterFor(Range.closed(1.5f, 3f)), new int[]{2, 3, 4, 5, 6, 7});
+    assertEquals(bitmaps.filterFor(Range.openClosed(0.1f, 0.5f)), new int[]{0, 1});
 
     // oob
-    assertEquals(ranges.of(Range.upTo(-1f, BoundType.CLOSED)), new int[]{});
-    assertEquals(ranges.of(Range.downTo(10f, BoundType.CLOSED)), new int[]{});
+    assertEquals(bitmaps.filterFor(Range.upTo(-1f, BoundType.CLOSED)), new int[]{});
+    assertEquals(bitmaps.filterFor(Range.downTo(10f, BoundType.CLOSED)), new int[]{});
   }
 
   private void assertEquals(ImmutableBitmap bitmap, int[] expected)
@@ -189,10 +189,10 @@ public class FloatHistogramTest
       histogram.offer(i);
       histogram.offer(i);
     }
-    FloatRanges ranges = histogram.finalize(5);
+    FloatBitmaps bitmaps = histogram.finalize(5);
 
-    Assert.assertArrayEquals(new float[]{0f, 2f, 4f, 6f, 8f, 9f}, ranges.getBreaks(), 0.001f);
-    Assert.assertArrayEquals(new int[]{4, 4, 4, 4, 4}, ranges.getSizes());
+    Assert.assertArrayEquals(new float[]{0f, 2f, 4f, 6f, 8f, 9f}, bitmaps.getBreaks(), 0.001f);
+    Assert.assertArrayEquals(new int[]{4, 4, 4, 4, 4}, bitmaps.getSizes());
   }
 
   @Test
@@ -203,10 +203,10 @@ public class FloatHistogramTest
       histogram.offer(i);
       histogram.offer(i);
     }
-    FloatRanges ranges = histogram.finalize(3);
+    FloatBitmaps bitmaps = histogram.finalize(3);
 
-    Assert.assertArrayEquals(new float[]{0f, 3f, 6f, 9f}, ranges.getBreaks(), 0.001f);
-    Assert.assertArrayEquals(new int[]{6, 6, 8}, ranges.getSizes());
+    Assert.assertArrayEquals(new float[]{0f, 3f, 6f, 9f}, bitmaps.getBreaks(), 0.001f);
+    Assert.assertArrayEquals(new int[]{6, 6, 8}, bitmaps.getSizes());
   }
 
   @Test
@@ -217,10 +217,10 @@ public class FloatHistogramTest
       histogram.offer(i);
       histogram.offer(i);
     }
-    FloatRanges ranges = histogram.finalize(5);
+    FloatBitmaps bitmaps = histogram.finalize(5);
 
-    Assert.assertArrayEquals(new float[]{1f, 3f, 5f, 7f, 9f, 10f}, ranges.getBreaks(), 0.001f);
-    Assert.assertArrayEquals(new int[]{4, 4, 4, 4, 4}, ranges.getSizes());
+    Assert.assertArrayEquals(new float[]{1f, 3f, 5f, 7f, 9f, 10f}, bitmaps.getBreaks(), 0.001f);
+    Assert.assertArrayEquals(new int[]{4, 4, 4, 4, 4}, bitmaps.getSizes());
   }
 
   @Test
@@ -231,10 +231,10 @@ public class FloatHistogramTest
       histogram.offer(i);
       histogram.offer(i);
     }
-    FloatRanges ranges = histogram.finalize(3);
+    FloatBitmaps bitmaps = histogram.finalize(3);
 
-    Assert.assertArrayEquals(new float[]{1f, 4f, 7f, 10f}, ranges.getBreaks(), 0.001f);
-    Assert.assertArrayEquals(new int[]{6, 6, 8}, ranges.getSizes());
+    Assert.assertArrayEquals(new float[]{1f, 4f, 7f, 10f}, bitmaps.getBreaks(), 0.001f);
+    Assert.assertArrayEquals(new int[]{6, 6, 8}, bitmaps.getSizes());
   }
 
   @Test
@@ -275,13 +275,13 @@ public class FloatHistogramTest
     for (float value : values) {
       histogram.offer(value);
     }
-    FloatRanges ranges = histogram.finalize(group);
+    FloatBitmaps bitmaps = histogram.finalize(group);
 
-    Assert.assertArrayEquals(breaks, ranges.getBreaks(), 0.001f);
-    Assert.assertArrayEquals(sizes, ranges.getSizes());
+    Assert.assertArrayEquals(breaks, bitmaps.getBreaks(), 0.001f);
+    Assert.assertArrayEquals(sizes, bitmaps.getSizes());
 
-    Assert.assertEquals(545.9906f, ranges.getMin(), 0.001f);
-    Assert.assertEquals(1870.061f, ranges.getMax(), 0.001f);
+    Assert.assertEquals(545.9906f, bitmaps.getMin(), 0.001f);
+    Assert.assertEquals(1870.061f, bitmaps.getMax(), 0.001f);
   }
 
   @Test
@@ -291,20 +291,19 @@ public class FloatHistogramTest
     for (int i = 10000; i <= 100000; i++) {
       histogram.offer(i);
     }
-    FloatRanges ranges = histogram.finalize(5);
+    FloatBitmaps bitmaps = histogram.finalize(5);
+    Assert.assertArrayEquals(new float[]{10000f, 26423f, 45611f, 62445f, 77887f, 97877f, 100000f}, bitmaps.getBreaks(), 0.001f);
+    Assert.assertArrayEquals(new int[]{16423, 19188, 16834, 15442, 19990, 2124}, bitmaps.getSizes());
 
-    Assert.assertArrayEquals(new float[]{10000f, 26179f, 44667f, 60751f, 77547f, 99903f, 100000f}, ranges.getBreaks(), 0.001f);
-    Assert.assertArrayEquals(new int[]{16179, 18488, 16084, 16796, 22356, 98}, ranges.getSizes());
+    bitmaps = histogram.finalize(10);
 
-    ranges = histogram.finalize(10);
+    Assert.assertArrayEquals(new float[]{10000f, 19807f, 31255f, 41301f, 50517f, 62445f, 69669f, 77887f, 87237f, 97877f, 100000f}, bitmaps.getBreaks(), 0.001f);
+    Assert.assertArrayEquals(new int[]{9807, 11448, 10046, 9216, 11928, 7224, 8218, 9350, 10640, 2124}, bitmaps.getSizes());
 
-    Assert.assertArrayEquals(new float[]{10000f, 21055f, 33681f, 44667f, 56139f, 65825f, 77547f, 91731f, 100000f}, ranges.getBreaks(), 0.001f);
-    Assert.assertArrayEquals(new int[]{11055, 12626, 10986, 11472, 9686, 11722, 14184, 8270}, ranges.getSizes());
+    bitmaps = histogram.finalize(20);
 
-    ranges = histogram.finalize(20);
-
-    Assert.assertArrayEquals(new float[]{10000f, 15163f, 21055f, 26179f, 33681f, 38653f, 44667f, 51945f, 56139f, 60751f, 65825f, 71407f, 77547f, 84301f, 91731f, 99903f, 100000f}, ranges.getBreaks(), 0.001f);
-    Assert.assertArrayEquals(new int[]{5163, 5892, 5124, 7502, 4972, 6014, 7278, 4194, 4612, 5074, 5582, 6140, 6754, 7430, 8172, 98}, ranges.getSizes());
+    Assert.assertArrayEquals(new float[]{10000f, 14529f, 19807f, 26423f, 31255f, 37511f, 41301f, 45611f, 50517f, 56097f, 62445f, 69669f, 77887f, 82411f, 87237f, 92385f, 97877f, 100000f}, bitmaps.getBreaks(), 0.001f);
+    Assert.assertArrayEquals(new int[]{4529, 5278, 6616, 4832, 6256, 3790, 4310, 4906, 5580, 6348, 7224, 8218, 4524, 4826, 5148, 5492, 2124}, bitmaps.getSizes());
   }
 
   @Test
@@ -314,19 +313,19 @@ public class FloatHistogramTest
     for (int i = 100000; i >= 10000; i--) {
       histogram.offer(i);
     }
-    FloatRanges ranges = histogram.finalize(5);
+    FloatBitmaps bitmaps = histogram.finalize(5);
 
-    Assert.assertArrayEquals(new float[]{10000f, 29317f, 47258f, 64306f, 80129f, 97450f, 100000f}, ranges.getBreaks(), 0.001f);
-    Assert.assertArrayEquals(new int[]{19317, 17941, 17048, 15823, 17321, 2551}, ranges.getSizes());
+    Assert.assertArrayEquals(new float[]{10000f, 29317f, 47258f, 64306f, 80129f, 97450f, 100000f}, bitmaps.getBreaks(), 0.001f);
+    Assert.assertArrayEquals(new int[]{19317, 17941, 17048, 15823, 17321, 2551}, bitmaps.getSizes());
 
-    ranges = histogram.finalize(10);
+    bitmaps = histogram.finalize(10);
 
-    Assert.assertArrayEquals(new float[]{10000f, 22071f, 32683f, 41850f, 52162f, 64306f, 75844f, 87806f, 97450f, 100000f}, ranges.getBreaks(), 0.001f);
-    Assert.assertArrayEquals(new int[]{12071, 10612, 9167, 10312, 12144, 11538, 11962, 9644, 2551}, ranges.getSizes());
+    Assert.assertArrayEquals(new float[]{10000f, 22071f, 32683f, 41850f, 52162f, 64306f, 75844f, 87806f, 97450f, 100000f}, bitmaps.getBreaks(), 0.001f);
+    Assert.assertArrayEquals(new int[]{12071, 10612, 9167, 10312, 12144, 11538, 11962, 9644, 2551}, bitmaps.getSizes());
 
-    ranges = histogram.finalize(20);
+    bitmaps = histogram.finalize(20);
 
-    Assert.assertArrayEquals(new float[]{10000f, 14082f, 22071f, 29317f, 32683f, 38942f, 41850f, 47258f, 52162f, 56611f, 64306f, 70636f, 75844f, 80129f, 87806f, 92875f, 97450f, 100000f}, ranges.getBreaks(), 0.001f);
-    Assert.assertArrayEquals(new int[]{4082, 7989, 7246, 3366, 6259, 2908, 5408, 4904, 4449, 7695, 6330, 5208, 4285, 7677, 5069, 4575, 2551}, ranges.getSizes());
+    Assert.assertArrayEquals(new float[]{10000f, 14082f, 22071f, 29317f, 32683f, 38942f, 41850f, 47258f, 52162f, 56611f, 64306f, 70636f, 75844f, 80129f, 87806f, 92875f, 97450f, 100000f}, bitmaps.getBreaks(), 0.001f);
+    Assert.assertArrayEquals(new int[]{4082, 7989, 7246, 3366, 6259, 2908, 5408, 4904, 4449, 7695, 6330, 5208, 4285, 7677, 5069, 4575, 2551}, bitmaps.getSizes());
   }
 }

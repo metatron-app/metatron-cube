@@ -158,6 +158,30 @@ public class Parser
     return found;
   }
 
+  public static interface Visitor<T>
+  {
+    T visit(Expr expr, List<T> children);
+  }
+
+  public static <T> T traverse(Expr expr, Visitor<T> visitor)
+  {
+    List<T> params = Lists.newArrayList();
+    if (expr instanceof BinaryOpExprBase) {
+      BinaryOpExprBase binary = (BinaryOpExprBase) expr;
+      params.add(traverse(binary.left, visitor));
+      params.add(traverse(binary.right, visitor));
+    } else if (expr instanceof UnaryMinusExpr) {
+      params.add(traverse(((UnaryMinusExpr) expr).expr, visitor));
+    } else if (expr instanceof UnaryNotExpr) {
+      params.add(traverse(((UnaryNotExpr) expr).expr, visitor));
+    } else if (expr instanceof FunctionExpr) {
+      for (Expr child : ((FunctionExpr) expr).args) {
+        params.add(traverse(child, visitor));
+      }
+    }
+    return visitor.visit(expr, params);
+  }
+
   public static Expr.NumericBinding withMap(final Map<String, ?> bindings)
   {
     return new Expr.NumericBinding()
@@ -301,7 +325,8 @@ public class Parser
     }
   }
 
-  static final Expression.Factory<Expr> EXPR_FACTORY = new Expression.Factory<Expr>()
+  // under construction
+  public static final Expression.Factory<Expr> EXPR_FACTORY = new Expression.Factory<Expr>()
   {
     @Override
     public Expr or(List<Expr> children)

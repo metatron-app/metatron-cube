@@ -22,10 +22,13 @@ package io.druid.segment.serde;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.druid.data.ValueType;
+import io.druid.segment.ColumnPartProviders;
 import io.druid.segment.FloatColumnSerializer;
 import io.druid.segment.column.ColumnBuilder;
-import io.druid.segment.column.ColumnConfig;
+import io.druid.segment.data.BitmapSerdeFactory;
+import io.druid.segment.data.ByteBufferSerializer;
 import io.druid.segment.data.CompressedFloatsIndexedSupplier;
+import io.druid.segment.data.FloatBitmaps;
 
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
@@ -129,7 +132,7 @@ public class FloatGenericColumnPartSerde implements ColumnPartSerde
     return new Deserializer()
     {
       @Override
-      public void read(ByteBuffer buffer, ColumnBuilder builder, ColumnConfig columnConfig)
+      public void read(ByteBuffer buffer, ColumnBuilder builder, BitmapSerdeFactory serdeFactory)
       {
         final CompressedFloatsIndexedSupplier column = CompressedFloatsIndexedSupplier.fromByteBuffer(
             buffer,
@@ -138,6 +141,17 @@ public class FloatGenericColumnPartSerde implements ColumnPartSerde
         builder.setType(ValueType.FLOAT)
                .setHasMultipleValues(false)
                .setGenericColumn(new FloatGenericColumnSupplier(column, byteOrder));
+
+        if (buffer.remaining() > 0) {
+          builder.setMetricBitmap(
+              ColumnPartProviders.ofMetric(
+                  ByteBufferSerializer.readWithLength(
+                      buffer,
+                      FloatBitmaps.getStrategy(serdeFactory)
+                  )
+              )
+          );
+        }
       }
     };
   }

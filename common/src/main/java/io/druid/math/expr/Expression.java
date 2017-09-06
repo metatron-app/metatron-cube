@@ -43,7 +43,22 @@ public interface Expression
   {
   }
 
-  interface Factory<T extends Expression> {
+  // optional
+  interface FuncExpression extends Expression
+  {
+    String op();
+
+    <T extends Expression> List<T> getChildren();
+  }
+
+  // optional
+  interface ConstExpression extends Expression
+  {
+    Comparable get();
+  }
+
+  interface Factory<T extends Expression>
+  {
     T or(List<T> children);
     T and(List<T> children);
     T not(T expression);

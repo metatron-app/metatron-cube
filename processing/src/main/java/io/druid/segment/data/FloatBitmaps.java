@@ -1,3 +1,22 @@
+/*
+ * Licensed to Metamarkets Group Inc. (Metamarkets) under one
+ * or more contributor license agreements. See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership. Metamarkets licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License. You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing,
+ * software distributed under the License is distributed on an
+ * "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ * KIND, either express or implied. See the License for the
+ * specific language governing permissions and limitations
+ * under the License.
+ */
+
 package io.druid.segment.data;
 
 import com.google.common.collect.BoundType;
@@ -6,27 +25,29 @@ import com.google.common.io.ByteArrayDataOutput;
 import com.google.common.io.ByteStreams;
 import com.metamx.collections.bitmap.BitmapFactory;
 import com.metamx.collections.bitmap.ImmutableBitmap;
+import io.druid.data.ValueType;
+import io.druid.segment.column.MetricBitmap;
 
 import java.nio.ByteBuffer;
 import java.util.Arrays;
 
 /**
  */
-public class FloatRanges
+public class FloatBitmaps implements MetricBitmap<Float>
 {
-  public static ObjectStrategy<FloatRanges> getStrategy(final BitmapSerdeFactory serdeFactory)
+  public static ObjectStrategy<FloatBitmaps> getStrategy(final BitmapSerdeFactory serdeFactory)
   {
     final ObjectStrategy<ImmutableBitmap> strategy = serdeFactory.getObjectStrategy();
-    return new ObjectStrategy.NotComparable<FloatRanges>()
+    return new ObjectStrategy.NotComparable<FloatBitmaps>()
     {
       @Override
-      public Class<? extends FloatRanges> getClazz()
+      public Class<? extends FloatBitmaps> getClazz()
       {
-        return FloatRanges.class;
+        return FloatBitmaps.class;
       }
 
       @Override
-      public FloatRanges fromByteBuffer(ByteBuffer buffer, int numBytes)
+      public FloatBitmaps fromByteBuffer(ByteBuffer buffer, int numBytes)
       {
         float[] breaks = new float[buffer.getInt()];
         for (int i = 0; i < breaks.length; i++) {
@@ -36,11 +57,11 @@ public class FloatRanges
         for (int i = 0; i < bitmaps.length; i++) {
           bitmaps[i] = ByteBufferSerializer.read(buffer, strategy);
         }
-        return new FloatRanges(serdeFactory.getBitmapFactory(), breaks, bitmaps);
+        return new FloatBitmaps(serdeFactory.getBitmapFactory(), breaks, bitmaps);
       }
 
       @Override
-      public byte[] toBytes(FloatRanges val)
+      public byte[] toBytes(FloatBitmaps val)
       {
         ByteArrayDataOutput bout = ByteStreams.newDataOutput();
         bout.writeInt(val.breaks.length);
@@ -56,7 +77,7 @@ public class FloatRanges
       }
 
       @Override
-      public int compare(FloatRanges o1, FloatRanges o2)
+      public int compare(FloatBitmaps o1, FloatBitmaps o2)
       {
         throw new UnsupportedOperationException();
       }
@@ -67,14 +88,27 @@ public class FloatRanges
   private final float[] breaks;   // in-ex in-ex... in-in (includes max)
   private final ImmutableBitmap[] bins;
 
-  public FloatRanges(BitmapFactory factory, float[] breaks, ImmutableBitmap[] bins)
+  public FloatBitmaps(BitmapFactory factory, float[] breaks, ImmutableBitmap[] bins)
   {
     this.breaks = breaks;
     this.bins = bins;
     this.factory = factory;
   }
 
-  public ImmutableBitmap of(Range<Float> range)
+  @Override
+  public ValueType type()
+  {
+    return ValueType.FLOAT;
+  }
+
+  @Override
+  public BitmapFactory getFactory()
+  {
+    return factory;
+  }
+
+  @Override
+  public ImmutableBitmap filterFor(Range<Float> range)
   {
     if (range.isEmpty()) {
       return factory.makeEmptyImmutableBitmap();
@@ -132,6 +166,15 @@ public class FloatRanges
     return breaks[bins.length];
   }
 
+  @Override
+  public int size()
+  {
+    int size = 0;
+    for (ImmutableBitmap bin : bins) {
+      size += bin.size();
+    }
+    return size;
+  }
   @Override
   public String toString()
   {

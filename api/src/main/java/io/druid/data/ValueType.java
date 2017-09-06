@@ -9,6 +9,7 @@ import com.google.common.primitives.Longs;
 import io.druid.data.input.Row;
 
 import java.util.Comparator;
+import java.util.Objects;
 
 /**
  */
@@ -39,6 +40,15 @@ public enum ValueType
     {
       return row.getFloatMetric(column);
     }
+
+    @Override
+    public Comparable cast(Object value)
+    {
+      if (value instanceof Number) {
+        return ((Number) value).floatValue();
+      }
+      return super.cast(value);
+    }
   },
   LONG {
     @Override
@@ -64,6 +74,15 @@ public enum ValueType
     public Object get(Row row, String column)
     {
       return row.getLongMetric(column);
+    }
+
+    @Override
+    public Comparable cast(Object value)
+    {
+      if (value instanceof Number) {
+        return ((Number) value).longValue();
+      }
+      return super.cast(value);
     }
   },
   DOUBLE {
@@ -92,6 +111,14 @@ public enum ValueType
       return row.getDoubleMetric(column);
     }
 
+    @Override
+    public Comparable cast(Object value)
+    {
+      if (value instanceof Number) {
+        return ((Number) value).doubleValue();
+      }
+      return super.cast(value);
+    }
   },
   STRING {
     @Override
@@ -109,6 +136,12 @@ public enum ValueType
     public boolean isNumeric()
     {
       return false;
+    }
+
+    @Override
+    public Comparable cast(Object value)
+    {
+      return Objects.toString(value, null);
     }
   },
   COMPLEX {
@@ -140,6 +173,11 @@ public enum ValueType
   public abstract Class classOfObject();
 
   public abstract Comparator comparator();
+
+  public Comparable cast(Object value)
+  {
+    throw new UnsupportedOperationException("cast");
+  }
 
   public Object get(Row row, String column)
   {

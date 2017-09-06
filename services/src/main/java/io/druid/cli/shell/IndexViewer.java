@@ -357,7 +357,7 @@ public class IndexViewer implements CommonShell
         DictionaryEncodedColumn dictionaryEncoded = column.getDictionaryEncoding();
         GenericIndexed<String> dictionary = dictionaryEncoded.dictionary();
         long dictionarySize = dictionary.getSerializedSize();
-        long encodedSize = column.getSerializedSize(Column.Type.DICTIONARY_ENCODED);
+        long encodedSize = column.getSerializedSize(Column.EncodeType.DICTIONARY_ENCODED);
         builder.append(
             format(
                 "  dictionary encoded (cardinality = %d, hasNull = %s, dictionary = %,d bytes, rows = %,d bytes)",
@@ -370,19 +370,19 @@ public class IndexViewer implements CommonShell
         if (builder.length() > 0) {
           builder.append(", ");
         }
-        builder.append(format("bitmap (%,d bytes)", column.getSerializedSize(Column.Type.BITMAP)));
+        builder.append(format("bitmap (%,d bytes)", column.getSerializedSize(Column.EncodeType.BITMAP)));
       }
       if (capabilities.hasSpatialIndexes()) {
         if (builder.length() > 0) {
           builder.append(", ");
         }
-        builder.append(format("spatial indexed (%,d bytes)", column.getSerializedSize(Column.Type.SPATIAL)));
+        builder.append(format("spatial indexed (%,d bytes)", column.getSerializedSize(Column.EncodeType.SPATIAL)));
       }
       if (capabilities.isRunLengthEncoded()) {
         if (builder.length() > 0) {
           builder.append(", ");
         }
-        builder.append(format("RLE encoded (%,d bytes)", column.getSerializedSize(Column.Type.RUNLENGTH_ENCODED)));
+        builder.append(format("RLE encoded (%,d bytes)", column.getSerializedSize(Column.EncodeType.RUNLENGTH_ENCODED)));
       }
       if (builder.length() > 0) {
         writer.println(builder.toString());

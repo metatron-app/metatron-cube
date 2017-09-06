@@ -147,36 +147,6 @@ public class ExprListenerImpl extends ExprBaseListener
   }
 
   @Override
-  public void exitLogicalAndOrExpr2(ExprParser.LogicalAndOrExpr2Context ctx)
-  {
-    int opCode = ((TerminalNode) ctx.getChild(1)).getSymbol().getType();
-    switch (opCode) {
-      case ExprParser.AND:
-        nodes.put(
-            ctx,
-            new BinAndExpr2(
-                ctx.getChild(1).getText(),
-                (Expr) nodes.get(ctx.getChild(0)),
-                (Expr) nodes.get(ctx.getChild(2))
-            )
-        );
-        break;
-      case ExprParser.OR:
-        nodes.put(
-            ctx,
-            new BinOrExpr2(
-                ctx.getChild(1).getText(),
-                (Expr) nodes.get(ctx.getChild(0)),
-                (Expr) nodes.get(ctx.getChild(2))
-            )
-        );
-        break;
-      default:
-        throw new RuntimeException("Unrecognized binary operator " + ctx.getChild(1).getText());
-    }
-  }
-
-  @Override
   public void exitNestedExpr(ExprParser.NestedExprContext ctx)
   {
     nodes.put(ctx, nodes.get(ctx.getChild(1)));

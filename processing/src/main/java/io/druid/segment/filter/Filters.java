@@ -36,7 +36,15 @@ import com.metamx.common.logger.Logger;
 import io.druid.common.guava.IntPredicate;
 import io.druid.common.utils.Ranges;
 import io.druid.data.ValueDesc;
+import io.druid.data.ValueType;
+import io.druid.math.expr.Expr;
+import io.druid.math.expr.Expression;
+import io.druid.math.expr.Expression.AndExpression;
+import io.druid.math.expr.Expression.FuncExpression;
+import io.druid.math.expr.Expression.NotExpression;
+import io.druid.math.expr.Expression.OrExpression;
 import io.druid.math.expr.Expressions;
+import io.druid.math.expr.Parser;
 import io.druid.query.RowResolver;
 import io.druid.query.dimension.DefaultDimensionSpec;
 import io.druid.query.filter.AndDimFilter;
@@ -45,6 +53,7 @@ import io.druid.query.filter.BoundDimFilter;
 import io.druid.query.filter.DimFilter;
 import io.druid.query.filter.Filter;
 import io.druid.query.filter.InDimFilter;
+import io.druid.query.filter.MathExprFilter;
 import io.druid.query.filter.OrDimFilter;
 import io.druid.query.filter.SelectorDimFilter;
 import io.druid.query.filter.ValueMatcher;
@@ -53,13 +62,16 @@ import io.druid.segment.ColumnSelectors;
 import io.druid.segment.DimensionSelector;
 import io.druid.segment.ObjectColumnSelector;
 import io.druid.segment.column.BitmapIndex;
+import io.druid.segment.column.MetricBitmap;
 import io.druid.segment.data.Indexed;
 import io.druid.segment.data.IndexedInts;
 
 import java.lang.reflect.Array;
+import java.util.Arrays;
 import java.util.BitSet;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 
@@ -344,6 +356,175 @@ public class Filters
     Set<String> handler = Sets.newHashSet();
     filter.addDependent(handler);
     return handler;
+  }
+
+  @SuppressWarnings("unchecked")
+  public static ImmutableBitmap toBitmap(DimFilter filter, BitmapFactory factory, Map<String, MetricBitmap> metrics)
+  {
+    if (filter instanceof SelectorDimFilter) {
+      SelectorDimFilter selector = (SelectorDimFilter) filter;
+      MetricBitmap metricBitmap = metrics.get(selector.getDimension());
+      if (metricBitmap != null) {
+        return metricBitmap.filterFor(Range.closed(selector.getValue(), selector.getValue()));
+      }
+    } else if (filter instanceof InDimFilter) {
+      InDimFilter selector = (InDimFilter) filter;
+      MetricBitmap metricBitmap = metrics.get(selector.getDimension());
+      if (metricBitmap != null) {
+        List<ImmutableBitmap> bitmaps = Lists.newArrayList();
+        for (String value : selector.getValues()) {
+          ImmutableBitmap bitmap = metricBitmap.filterFor(Range.closed(value, value));
+          if (bitmap == null) {
+            return null;
+          }
+          bitmaps.add(bitmap);
+        }
+        return metricBitmap.getFactory().union(bitmaps);
+      }
+    } else if (filter instanceof MathExprFilter) {
+      MathExprFilter selector = (MathExprFilter) filter;
+      Expr expr = Parser.parse(selector.getExpression());
+      Expr cnf = Expressions.convertToCNF(expr, Parser.EXPR_FACTORY);
+      return toBitmap(cnf, factory, metrics, false);
+    }
+    return null;
+  }
+
+  public static ImmutableBitmap toBitmap(
+      Expression tree,
+      BitmapFactory factory,
+      Map<String, MetricBitmap> metrics,
+      boolean withNot
+  )
+  {
+    if (tree instanceof FuncExpression) {
+      List<String> required = Parser.findRequiredBindings((Expr) tree);
+      if (required.size() != 1 || !metrics.containsKey(required.get(0))) {
+        return null;
+      }
+      MetricBitmap metric = metrics.get(required.get(0));
+      ImmutableBitmap bitmap = leafToRanges((FuncExpression) tree, metric, withNot);
+      if (bitmap != null) {
+        logger.debug("%s : %,d / %,d", tree, bitmap.size(), metric.size());
+      }
+      return bitmap;
+    } else if (tree instanceof AndExpression) {
+      List<ImmutableBitmap> bitmaps = Lists.newArrayList();
+      for (Expression child : ((Expression.BooleanExpression)tree).getChildren()) {
+        ImmutableBitmap extracted = toBitmap(child, factory, metrics, withNot);
+        if (extracted != null) {
+          bitmaps.add(extracted);
+        }
+      }
+      return factory.intersection(bitmaps);
+    } else if (tree instanceof OrExpression) {
+      List<ImmutableBitmap> bitmaps = Lists.newArrayList();
+      for (Expression child : ((Expression.BooleanExpression)tree).getChildren()) {
+        ImmutableBitmap extracted = toBitmap(child, factory, metrics, withNot);
+        if (extracted == null) {
+          return null;
+        }
+        bitmaps.add(extracted);
+      }
+      return factory.union(bitmaps);
+    } else if (tree instanceof NotExpression) {
+      return toBitmap(((NotExpression) tree).getChild(), factory, metrics, !withNot);
+    }
+    return null;
+  }
+
+  // constants need to be calculated apriori
+  @SuppressWarnings("unchecked")
+  private static ImmutableBitmap leafToRanges(
+      FuncExpression expression,
+      MetricBitmap metric,
+      boolean withNot
+  )
+  {
+    final ValueType type = metric.type();
+    final BitmapFactory factory = metric.getFactory();
+
+    final Comparable constant = getOnlyConstant(expression.getChildren(), type);
+    switch (expression.op()) {
+      case "<":
+        return constant == null ? null :
+               metric.filterFor(withNot ? Range.atLeast(constant) : Range.lessThan(constant));
+      case ">":
+        return constant == null ? null :
+               metric.filterFor(withNot ? Range.atMost(constant) : Range.greaterThan(constant));
+      case "<=":
+        return constant == null ? null :
+               metric.filterFor(withNot ? Range.greaterThan(constant) : Range.atMost(constant));
+      case ">=":
+        return constant == null ? null :
+               metric.filterFor(withNot ? Range.lessThan(constant) : Range.atLeast(constant));
+      case "==":
+        if (constant == null) {
+          return null;
+        }
+        if (withNot) {
+          return factory.union(
+              Arrays.asList(metric.filterFor(Range.lessThan(constant)), metric.filterFor(Range.greaterThan(constant)))
+          );
+        }
+        return metric.filterFor(Range.closed(constant, constant));
+      case "between":
+        List<Comparable> constants = getConstants(expression.getChildren(), type);
+        if (constants.size() != 2) {
+          return null;
+        }
+        Comparable value1 = constants.get(0);
+        Comparable value2 = constants.get(1);
+        if (value1 == null || value2 == null) {
+          return null;
+        }
+        if (value1.compareTo(value2) > 0) {
+          Comparable x = value1;
+          value1 = value2;
+          value2 = x;
+        }
+        if (withNot) {
+          return factory.union(
+              Arrays.asList(metric.filterFor(Range.lessThan(value1)), metric.filterFor(Range.greaterThan(value2)))
+          );
+        }
+        return metric.filterFor(Range.closed(value1, value2));
+      case "in":
+        if (withNot) {
+          return null;  // hard to be expressed with bitmap
+        }
+        List<ImmutableBitmap> bitmaps = Lists.newArrayList();
+        for (Comparable value : getConstants(expression.getChildren(), type)) {
+          bitmaps.add(metric.filterFor(Range.closed(value, value)));
+        }
+        return factory.union(bitmaps);
+    }
+    return null;
+  }
+
+  private static Comparable getOnlyConstant(List<Expression> children, ValueType type)
+  {
+    Comparable constant = null;
+    for (Expression expr : children) {
+      if (expr instanceof Expression.ConstExpression) {
+        if (constant != null) {
+          return null;
+        }
+        constant = type.cast(((Expression.ConstExpression) expr).get());
+      }
+    }
+    return constant;
+  }
+
+  private static List<Comparable> getConstants(List<Expression> children, ValueType type)
+  {
+    List<Comparable> constants = Lists.newArrayList();
+    for (Expression expr : children) {
+      if (expr instanceof Expression.ConstExpression) {
+        constants.add(type.cast(((Expression.ConstExpression)expr).get()));
+      }
+    }
+    return constants;
   }
 
   private static DimFilter[] partitionFilterWith(DimFilter current, Predicate<DimFilter> predicate)

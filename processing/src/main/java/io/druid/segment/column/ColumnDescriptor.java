@@ -27,6 +27,7 @@ import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import com.metamx.common.IAE;
 import io.druid.data.ValueType;
+import io.druid.segment.data.BitmapSerdeFactory;
 import io.druid.segment.serde.ColumnPartSerde;
 
 import java.io.IOException;
@@ -125,7 +126,7 @@ public class ColumnDescriptor
     }
   }
 
-  public Column read(ByteBuffer buffer, ColumnConfig columnConfig)
+  public Column read(ByteBuffer buffer, BitmapSerdeFactory serdeFactory)
   {
     final ColumnBuilder builder = new ColumnBuilder()
         .setType(valueType)
@@ -133,7 +134,7 @@ public class ColumnDescriptor
         .setHasMultipleValues(hasMultipleValues);
 
     for (ColumnPartSerde part : parts) {
-      part.getDeserializer().read(buffer, builder, columnConfig);
+      part.getDeserializer().read(buffer, builder, serdeFactory);
     }
 
     return builder.build();

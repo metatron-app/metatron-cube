@@ -19,50 +19,20 @@
 
 package io.druid.segment.column;
 
+import com.google.common.collect.Range;
+import com.metamx.collections.bitmap.BitmapFactory;
+import com.metamx.collections.bitmap.ImmutableBitmap;
 import io.druid.data.ValueType;
-import io.druid.segment.data.GenericIndexed;
 
 /**
  */
-@Deprecated
-public class ComplexColumnImpl extends AbstractColumn
+public interface MetricBitmap<T extends Comparable>
 {
-  private final GenericIndexed column;
-  private final String typeName;
+  ValueType type();
 
-  public ComplexColumnImpl(String typeName, GenericIndexed column)
-  {
-    this.column = column;
-    this.typeName = typeName;
-  }
+  BitmapFactory getFactory();
 
-  @Override
-  public ColumnCapabilities getCapabilities()
-  {
-    return ColumnCapabilitiesImpl.of(ValueType.of(typeName));
-  }
+  ImmutableBitmap filterFor(Range<T> range);
 
-  @Override
-  public int getLength()
-  {
-    return column.size();
-  }
-
-  @Override
-  public long getSerializedSize()
-  {
-    return column.getSerializedSize();
-  }
-
-  @Override
-  public float getAverageSize()
-  {
-    return column.getSerializedSize() / column.size();
-  }
-
-  @Override
-  public ComplexColumn getComplexColumn()
-  {
-    return new IndexedComplexColumn(typeName, column);
-  }
+  int size();
 }

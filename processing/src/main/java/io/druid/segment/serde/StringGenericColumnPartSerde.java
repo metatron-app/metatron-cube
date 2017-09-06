@@ -22,7 +22,7 @@ package io.druid.segment.serde;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import io.druid.data.ValueType;
 import io.druid.segment.column.ColumnBuilder;
-import io.druid.segment.column.ColumnConfig;
+import io.druid.segment.data.BitmapSerdeFactory;
 import io.druid.segment.data.GenericIndexed;
 
 import java.nio.ByteBuffer;
@@ -56,7 +56,7 @@ public class StringGenericColumnPartSerde implements ColumnPartSerde
     return new Deserializer()
     {
       @Override
-      public void read(ByteBuffer buffer, ColumnBuilder builder, ColumnConfig columnConfig)
+      public void read(ByteBuffer buffer, ColumnBuilder builder, BitmapSerdeFactory serdeFactory)
       {
         GenericIndexed<String> indexed = GenericIndexed.read(buffer, GenericIndexed.STRING_STRATEGY);
         builder.setType(ValueType.STRING)

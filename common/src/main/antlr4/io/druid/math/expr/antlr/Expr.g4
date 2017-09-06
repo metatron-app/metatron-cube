@@ -6,7 +6,6 @@ expr : ('-'|'!') expr                                 # unaryOpExpr
      | expr ('+'|'-') expr                            # addSubExpr
      | expr ('<'|'<='|'>'|'>='|'=='|'!=') expr        # logicalOpExpr
      | expr ('&&'|'||') expr                          # logicalAndOrExpr
-     | expr ('&'|'|') expr                            # logicalAndOrExpr2
      | expr '=' expr                                  # assignExpr
      | '(' expr ')'                                   # nestedExpr
      | IDENTIFIER '(' fnArgs? ')'                     # functionExpr

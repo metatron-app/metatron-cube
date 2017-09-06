@@ -38,6 +38,7 @@ public class ColumnBuilder
   private ColumnPartProvider<ComplexColumn> complexColumn = null;
   private ColumnPartProvider<BitmapIndex> bitmapIndex = null;
   private ColumnPartProvider<SpatialIndex> spatialIndex = null;
+  private ColumnPartProvider<MetricBitmap> metricBitmap = null;
 
   private Map<String, Object> stats;
 
@@ -89,6 +90,12 @@ public class ColumnBuilder
     return this;
   }
 
+  public ColumnBuilder setMetricBitmap(ColumnPartProvider<MetricBitmap> metricBitmap)
+  {
+    this.metricBitmap = metricBitmap;
+    return this;
+  }
+
   public ColumnBuilder setColumnStats(Map<String, Object> stats)
   {
     this.stats = stats;
@@ -114,6 +121,7 @@ public class ColumnBuilder
         complexColumn,
         bitmapIndex,
         spatialIndex,
+        metricBitmap,
         stats
     );
   }

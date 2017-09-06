@@ -77,15 +77,15 @@ public class ParserTest
     Assert.assertEquals(expected, actual);
 
     actual = Parser.parse("-1+2").toString();
-    expected = "(+ -1 2)";
+    expected = "(-1 + 2)";
     Assert.assertEquals(expected, actual);
 
     actual = Parser.parse("-1*2").toString();
-    expected = "(* -1 2)";
+    expected = "(-1 * 2)";
     Assert.assertEquals(expected, actual);
 
     actual = Parser.parse("-1^2").toString();
-    expected = "(^ -1 2)";
+    expected = "(-1 ^ 2)";
     Assert.assertEquals(expected, actual);
   }
 
@@ -98,57 +98,57 @@ public class ParserTest
   @Test
   public void testSimpleLogicalOps1()
   {
-    validateParser("x>y", "(> x y)", "[x, y]");
-    validateParser("x<y", "(< x y)", "[x, y]");
-    validateParser("x<=y", "(<= x y)", "[x, y]");
-    validateParser("x>=y", "(>= x y)", "[x, y]");
-    validateParser("x==y", "(== x y)", "[x, y]");
-    validateParser("x!=y", "(!= x y)", "[x, y]");
-    validateParser("x && y", "(&& x y)", "[x, y]");
-    validateParser("x || y", "(|| x y)", "[x, y]");
+    validateParser("x>y", "(x > y)", "[x, y]");
+    validateParser("x<y", "(x < y)", "[x, y]");
+    validateParser("x<=y", "(x <= y)", "[x, y]");
+    validateParser("x>=y", "(x >= y)", "[x, y]");
+    validateParser("x==y", "(x == y)", "[x, y]");
+    validateParser("x!=y", "(x != y)", "[x, y]");
+    validateParser("x && y", "(x && y)", "[x, y]");
+    validateParser("x || y", "(x || y)", "[x, y]");
   }
 
   @Test
   public void testSimpleAdditivityOp1()
   {
-    validateParser("x+y", "(+ x y)", "[x, y]");
-    validateParser("x-y", "(- x y)", "[x, y]");
+    validateParser("x+y", "(x + y)", "[x, y]");
+    validateParser("x-y", "(x - y)", "[x, y]");
   }
 
   @Test
   public void testSimpleAdditivityOp2()
   {
-    validateParser("x+y+z", "(+ (+ x y) z)", "[x, y, z]");
-    validateParser("x+y-z", "(- (+ x y) z)", "[x, y, z]");
-    validateParser("x-y+z", "(+ (- x y) z)", "[x, y, z]");
-    validateParser("x-y-z", "(- (- x y) z)", "[x, y, z]");
+    validateParser("x+y+z", "((x + y) + z)", "[x, y, z]");
+    validateParser("x+y-z", "((x + y) - z)", "[x, y, z]");
+    validateParser("x-y+z", "((x - y) + z)", "[x, y, z]");
+    validateParser("x-y-z", "((x - y) - z)", "[x, y, z]");
   }
 
   @Test
   public void testSimpleMultiplicativeOp1()
   {
-    validateParser("x*y", "(* x y)", "[x, y]");
-    validateParser("x/y", "(/ x y)", "[x, y]");
-    validateParser("x%y", "(% x y)", "[x, y]");
+    validateParser("x*y", "(x * y)", "[x, y]");
+    validateParser("x/y", "(x / y)", "[x, y]");
+    validateParser("x%y", "(x % y)", "[x, y]");
   }
 
   @Test
   public void testSimpleMultiplicativeOp2()
   {
     String actual = Parser.parse("1*2*3").toString();
-    String expected = "(* (* 1 2) 3)";
+    String expected = "((1 * 2) * 3)";
     Assert.assertEquals(expected, actual);
 
     actual = Parser.parse("1*2/3").toString();
-    expected = "(/ (* 1 2) 3)";
+    expected = "((1 * 2) / 3)";
     Assert.assertEquals(expected, actual);
 
     actual = Parser.parse("1/2*3").toString();
-    expected = "(* (/ 1 2) 3)";
+    expected = "((1 / 2) * 3)";
     Assert.assertEquals(expected, actual);
 
     actual = Parser.parse("1/2/3").toString();
-    expected = "(/ (/ 1 2) 3)";
+    expected = "((1 / 2) / 3)";
     Assert.assertEquals(expected, actual);
   }
 
@@ -156,7 +156,7 @@ public class ParserTest
   public void testSimpleCarrot1()
   {
     String actual = Parser.parse("1^2").toString();
-    String expected = "(^ 1 2)";
+    String expected = "(1 ^ 2)";
     Assert.assertEquals(expected, actual);
   }
 
@@ -164,7 +164,7 @@ public class ParserTest
   public void testSimpleCarrot2()
   {
     String actual = Parser.parse("1^2^3").toString();
-    String expected = "(^ 1 (^ 2 3))";
+    String expected = "(1 ^ (2 ^ 3))";
     Assert.assertEquals(expected, actual);
   }
 
@@ -172,61 +172,61 @@ public class ParserTest
   public void testMixed()
   {
     String actual = Parser.parse("1+2*3").toString();
-    String expected = "(+ 1 (* 2 3))";
+    String expected = "(1 + (2 * 3))";
     Assert.assertEquals(expected, actual);
 
     actual = Parser.parse("1+(2*3)").toString();
     Assert.assertEquals(expected, actual);
 
     actual = Parser.parse("(1+2)*3").toString();
-    expected = "(* (+ 1 2) 3)";
+    expected = "((1 + 2) * 3)";
     Assert.assertEquals(expected, actual);
 
 
     actual = Parser.parse("1*2+3").toString();
-    expected = "(+ (* 1 2) 3)";
+    expected = "((1 * 2) + 3)";
     Assert.assertEquals(expected, actual);
 
     actual = Parser.parse("(1*2)+3").toString();
     Assert.assertEquals(expected, actual);
 
     actual = Parser.parse("1*(2+3)").toString();
-    expected = "(* 1 (+ 2 3))";
+    expected = "(1 * (2 + 3))";
     Assert.assertEquals(expected, actual);
 
 
     actual = Parser.parse("1+2^3").toString();
-    expected = "(+ 1 (^ 2 3))";
+    expected = "(1 + (2 ^ 3))";
     Assert.assertEquals(expected, actual);
 
     actual = Parser.parse("1+(2^3)").toString();
-    expected = "(+ 1 (^ 2 3))";
+    expected = "(1 + (2 ^ 3))";
     Assert.assertEquals(expected, actual);
 
     actual = Parser.parse("(1+2)^3").toString();
-    expected = "(^ (+ 1 2) 3)";
+    expected = "((1 + 2) ^ 3)";
     Assert.assertEquals(expected, actual);
 
 
     actual = Parser.parse("1^2+3").toString();
-    expected = "(+ (^ 1 2) 3)";
+    expected = "((1 ^ 2) + 3)";
     Assert.assertEquals(expected, actual);
 
     actual = Parser.parse("(1^2)+3").toString();
-    expected = "(+ (^ 1 2) 3)";
+    expected = "((1 ^ 2) + 3)";
     Assert.assertEquals(expected, actual);
 
     actual = Parser.parse("1^(2+3)").toString();
-    expected = "(^ 1 (+ 2 3))";
+    expected = "(1 ^ (2 + 3))";
     Assert.assertEquals(expected, actual);
 
 
     actual = Parser.parse("1^2*3+4").toString();
-    expected = "(+ (* (^ 1 2) 3) 4)";
+    expected = "(((1 ^ 2) * 3) + 4)";
     Assert.assertEquals(expected, actual);
 
     actual = Parser.parse("-1^-2*-3+-4").toString();
-    expected = "(+ (* (^ -1 -2) -3) -4)";
+    expected = "(((-1 ^ -2) * -3) + -4)";
     Assert.assertEquals(expected, actual);
   }
 
@@ -238,12 +238,12 @@ public class ParserTest
 
     validateParser(
         "if(tot_scrbr_cnt=='NULL'||tot_scrbr_cnt=='\\n',1,tot_scrbr_cnt)",
-        "(if [(|| (== tot_scrbr_cnt NULL) (== tot_scrbr_cnt \n)), 1, tot_scrbr_cnt])",
+        "(if [((tot_scrbr_cnt == NULL) || (tot_scrbr_cnt == \n)), 1, tot_scrbr_cnt])",
         "[tot_scrbr_cnt]"
     );
     validateParser(
         "if(tot_scrbr_cnt=='NULL'||tot_scrbr_cnt=='\\\\N',1,tot_scrbr_cnt)",
-        "(if [(|| (== tot_scrbr_cnt NULL) (== tot_scrbr_cnt \\N)), 1, tot_scrbr_cnt])",
+        "(if [((tot_scrbr_cnt == NULL) || (tot_scrbr_cnt == \\N)), 1, tot_scrbr_cnt])",
         "[tot_scrbr_cnt]"
     );
   }
@@ -252,18 +252,18 @@ public class ParserTest
   public void testDecomposition()
   {
     Expr parse = Parser.parse("(a > 1 && a < 2) || (a > 100)");
-    Assert.assertEquals("(|| (&& (> a 1) (< a 2)) (> a 100))", parse.toString());
+    Assert.assertEquals("(((a > 1) && (a < 2)) || (a > 100))", parse.toString());
     Expr cnf = Expressions.convertToCNF(parse, Parser.EXPR_FACTORY);
-    Assert.assertEquals("(&& (|| (> a 100) (> a 1)) (|| (> a 100) (< a 2)))", cnf.toString());
+    Assert.assertEquals("(((a > 100) || (a > 1)) && ((a > 100) || (a < 2)))", cnf.toString());
 
     parse = Parser.parse("!(a > 1 && a < 2) || (a > 100)");
-    Assert.assertEquals("(|| !(&& (> a 1) (< a 2)) (> a 100))", parse.toString());
+    Assert.assertEquals("(!((a > 1) && (a < 2)) || (a > 100))", parse.toString());
     cnf = Expressions.convertToCNF(parse, Parser.EXPR_FACTORY);
-    Assert.assertEquals("(|| (|| !(> a 1) !(< a 2)) (> a 100))", cnf.toString());
+    Assert.assertEquals("((!(a > 1) || !(a < 2)) || (a > 100))", cnf.toString());
 
     parse = Parser.parse("(a > 1 && a < 2) || !(a > 100)");
-    Assert.assertEquals("(|| (&& (> a 1) (< a 2)) !(> a 100))", parse.toString());
+    Assert.assertEquals("(((a > 1) && (a < 2)) || !(a > 100))", parse.toString());
     cnf = Expressions.convertToCNF(parse, Parser.EXPR_FACTORY);
-    Assert.assertEquals("(&& (|| !(> a 100) (> a 1)) (|| !(> a 100) (< a 2)))", cnf.toString());
+    Assert.assertEquals("((!(a > 100) || (a > 1)) && (!(a > 100) || (a < 2)))", cnf.toString());
   }
 }
