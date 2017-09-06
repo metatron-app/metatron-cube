@@ -64,7 +64,6 @@ import io.druid.segment.IndexMergerV9;
 import io.druid.segment.IndexSpec;
 import io.druid.segment.QueryableIndex;
 import io.druid.segment.QueryableIndexSegment;
-import io.druid.segment.column.ColumnConfig;
 import io.druid.segment.incremental.IncrementalIndex;
 import io.druid.segment.incremental.IncrementalIndexSchema;
 import io.druid.segment.incremental.OnheapIncrementalIndex;
@@ -129,15 +128,7 @@ public class SearchBenchmark
   static {
     JSON_MAPPER = new DefaultObjectMapper();
     INDEX_IO = new IndexIO(
-        JSON_MAPPER,
-        new ColumnConfig()
-        {
-          @Override
-          public int columnCacheSizeBytes()
-          {
-            return 0;
-          }
-        }
+        JSON_MAPPER
     );
     INDEX_MERGER_V9 = new IndexMergerV9(JSON_MAPPER, INDEX_IO);
   }

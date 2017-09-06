@@ -111,6 +111,7 @@ public class ColumnBuilder
             .setType(type)
             .setDictionaryEncoded(dictionaryEncodedColumn != null)
             .setHasBitmapIndexes(bitmapIndex != null)
+            .setHasMetricBitmap(metricBitmap != null)
             .setHasSpatialIndexes(spatialIndex != null)
             .setRunLengthEncoded(runLengthColumn != null)
             .setHasMultipleValues(hasMultipleValues)

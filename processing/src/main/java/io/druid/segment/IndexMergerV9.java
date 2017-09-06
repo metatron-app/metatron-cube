@@ -211,7 +211,7 @@ public class IndexMergerV9 extends IndexMerger
           convertMissingDimsFlags,
           rowMergerFn
       );
-      final LongColumnSerializer timeWriter = setupTimeWriter(ioPeon);
+      final LongColumnSerializer timeWriter = setupTimeWriter(ioPeon, indexSpec);
       final ArrayList<IndexedIntsWriter> dimWriters = setupDimensionWriters(
           ioPeon, mergedDimensions, dimCapabilities, dimCardinalities, indexSpec
       );
@@ -736,10 +736,11 @@ public class IndexMergerV9 extends IndexMerger
     progress.stopSection(section);
   }
 
-  private LongColumnSerializer setupTimeWriter(final IOPeon ioPeon) throws IOException
+  private LongColumnSerializer setupTimeWriter(final IOPeon ioPeon, final IndexSpec indexSpec) throws IOException
   {
+    final BitmapSerdeFactory serdeFactory = indexSpec.getBitmapSerdeFactory();
     LongColumnSerializer timeWriter = LongColumnSerializer.create(
-        ioPeon, "little_end_time", CompressedObjectStrategy.DEFAULT_COMPRESSION_STRATEGY
+        ioPeon, "little_end_time", CompressedObjectStrategy.DEFAULT_COMPRESSION_STRATEGY, serdeFactory
     );
     // we will close this writer after we added all the timestamps
     timeWriter.open();
@@ -761,13 +762,13 @@ public class IndexMergerV9 extends IndexMerger
       GenericColumnSerializer writer;
       switch (type.type()) {
         case LONG:
-          writer = LongColumnSerializer.create(ioPeon, metric, metCompression);
+          writer = LongColumnSerializer.create(ioPeon, metric, metCompression, serdeFactory);
           break;
         case FLOAT:
           writer = FloatColumnSerializer.create(ioPeon, metric, metCompression, serdeFactory);
           break;
         case DOUBLE:
-          writer = DoubleColumnSerializer.create(ioPeon, metric, metCompression);
+          writer = DoubleColumnSerializer.create(ioPeon, metric, metCompression, serdeFactory);
           break;
         case STRING:
           writer = ComplexColumnSerializer.create(ioPeon, metric, StringMetricSerde.INSTANCE);

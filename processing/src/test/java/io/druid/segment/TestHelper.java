@@ -23,7 +23,6 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.util.DefaultPrettyPrinter;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Supplier;
-import com.google.common.base.Suppliers;
 import com.google.common.collect.Lists;
 import com.metamx.common.guava.Sequence;
 import com.metamx.common.guava.Sequences;
@@ -32,11 +31,7 @@ import io.druid.data.input.MapBasedRow;
 import io.druid.data.input.Row;
 import io.druid.jackson.DefaultObjectMapper;
 import io.druid.query.Result;
-import io.druid.query.groupby.GroupByQueryConfig;
-import io.druid.query.groupby.GroupByQueryEngine;
-import io.druid.query.topn.TopNQueryConfig;
 import io.druid.query.topn.TopNQueryEngine;
-import io.druid.segment.column.ColumnConfig;
 import org.junit.Assert;
 
 import java.nio.ByteBuffer;
@@ -55,15 +50,7 @@ public class TestHelper
   static {
     JSON_MAPPER = new DefaultObjectMapper();
     INDEX_IO = new IndexIO(
-        JSON_MAPPER,
-        new ColumnConfig()
-        {
-          @Override
-          public int columnCacheSizeBytes()
-          {
-            return 0;
-          }
-        }
+        JSON_MAPPER
     );
     INDEX_MERGER = new IndexMerger(JSON_MAPPER, INDEX_IO);
     INDEX_MERGER_V9 = new IndexMergerV9(JSON_MAPPER, INDEX_IO);

@@ -74,7 +74,6 @@ import io.druid.segment.QueryableIndex;
 import io.druid.segment.QueryableIndexSegment;
 import io.druid.segment.Segment;
 import io.druid.segment.TestHelper;
-import io.druid.segment.column.ColumnConfig;
 import io.druid.segment.incremental.IncrementalIndex;
 import io.druid.segment.incremental.OnheapIncrementalIndex;
 import org.apache.commons.io.IOUtils;
@@ -170,15 +169,7 @@ public class AggregationTestHelper
     );
 
     IndexIO indexIO = new IndexIO(
-        mapper,
-        new ColumnConfig()
-        {
-          @Override
-          public int columnCacheSizeBytes()
-          {
-            return 0;
-          }
-        }
+        mapper
     );
 
     return new AggregationTestHelper(
@@ -215,15 +206,7 @@ public class AggregationTestHelper
     );
 
     IndexIO indexIO = new IndexIO(
-        mapper,
-        new ColumnConfig()
-        {
-          @Override
-          public int columnCacheSizeBytes()
-          {
-            return 0;
-          }
-        }
+        mapper
     );
 
     return new AggregationTestHelper(

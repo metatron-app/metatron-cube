@@ -22,18 +22,18 @@ package io.druid.segment.data;
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
-import com.google.common.primitives.Floats;
+import com.google.common.primitives.Longs;
 import com.google.common.primitives.Ints;
 import com.metamx.collections.bitmap.BitmapFactory;
 import com.metamx.collections.bitmap.ImmutableBitmap;
 import com.metamx.collections.bitmap.MutableBitmap;
-import io.druid.segment.data.MetricBitmaps.FloatBitmaps;
+import io.druid.segment.data.MetricBitmaps.LongBitmaps;
 
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
-public class FloatHistogram
+public class LongHistogram
 {
   private static final int DEFAULT_NUM_GROUP = 10;
   private static final int DEFAULT_COMPACT_INTERVAL = -1;
@@ -43,34 +43,34 @@ public class FloatHistogram
   private final int numGroup;
   private final int compactInterval;
 
-  private float[] breaks;
+  private long[] breaks;
   private MutableBitmap[] bins;
   private int count;
-  private float min;
-  private float max;
+  private long min;
+  private long max;
 
-  private final List<FloatWithTag> sampling = Lists.newArrayList();
+  private final List<LongWithTag> sampling = Lists.newArrayList();
   private final MutableBitmap belowMin;
   private final MutableBitmap overMax;
 
-  public FloatHistogram(BitmapFactory factory, int numSample)
+  public LongHistogram(BitmapFactory factory, int numSample)
   {
     this(factory, numSample, DEFAULT_NUM_GROUP, DEFAULT_COMPACT_INTERVAL);
   }
 
-  public FloatHistogram(BitmapFactory factory, int numSample, int numGroup, int compactInterval)
+  public LongHistogram(BitmapFactory factory, int numSample, int numGroup, int compactInterval)
   {
     this.factory = factory;
     this.numSample = numSample;
     this.numGroup = numGroup;
     this.compactInterval = compactInterval;
-    this.min = Float.MAX_VALUE;
-    this.max = Float.MIN_VALUE;
+    this.min = Long.MAX_VALUE;
+    this.max = Long.MIN_VALUE;
     this.belowMin = factory.makeEmptyMutableBitmap();
     this.overMax = factory.makeEmptyMutableBitmap();
   }
 
-  public void offer(float d)
+  public void offer(long d)
   {
     if (d < min) {
       min = d;
@@ -79,7 +79,7 @@ public class FloatHistogram
       max = d;
     }
     if (count < numSample) {
-      sampling.add(new FloatWithTag(count++, d));
+      sampling.add(new LongWithTag(count++, d));
       return;
     }
     if (breaks == null) {
@@ -110,7 +110,7 @@ public class FloatHistogram
   {
     Collections.sort(sampling);
 
-    breaks = new float[numGroup + 1];
+    breaks = new long[numGroup + 1];
     bins = new MutableBitmap[numGroup];
     for (int i = 0; i < bins.length; i++) {
       bins[i] = factory.makeEmptyMutableBitmap();
@@ -146,7 +146,7 @@ public class FloatHistogram
 
   private void handleBelowMin()
   {
-    float[] newBreaks = new float[breaks.length + 1];
+    long[] newBreaks = new long[breaks.length + 1];
     MutableBitmap[] newBins = new MutableBitmap[bins.length + 1];
     System.arraycopy(breaks, 0, newBreaks, 1, breaks.length);
     System.arraycopy(bins, 0, newBins, 1, bins.length);
@@ -161,7 +161,7 @@ public class FloatHistogram
   private void handleOverMax()
   {
     Preconditions.checkArgument(breaks.length > 1 || max > breaks[bins.length]);
-    float[] newBreaks = Arrays.copyOf(breaks, breaks.length + 1);
+    long[] newBreaks = Arrays.copyOf(breaks, breaks.length + 1);
     MutableBitmap[] newBins = Arrays.copyOf(bins, bins.length + 1);
     newBreaks[breaks.length] = newNextMax();
     newBins[bins.length] = factory.makeEmptyMutableBitmap();
@@ -172,7 +172,7 @@ public class FloatHistogram
   }
 
   // returns new break which includes max for simplicity
-  private float newNextMax()
+  private long newNextMax()
   {
     if (max == breaks[bins.length]) {
       return breaks[bins.length] + (breaks[bins.length] - breaks[bins.length - 1]);
@@ -180,12 +180,12 @@ public class FloatHistogram
     return breaks[bins.length] + (max - breaks[bins.length]) * 2;
   }
 
-  public FloatBitmaps snapshot()
+  public LongBitmaps snapshot()
   {
     return snapshot(numGroup);
   }
 
-  public FloatBitmaps snapshot(int numGroup)
+  public LongBitmaps snapshot(int numGroup)
   {
     if (min == max || count == 0) {
       return null;
@@ -202,12 +202,12 @@ public class FloatHistogram
     return toHistogram(numGroup);
   }
 
-  private FloatBitmaps toHistogram(int numGroup)
+  private LongBitmaps toHistogram(int numGroup)
   {
     Preconditions.checkArgument(breaks[0] == min);
     Preconditions.checkArgument(breaks[bins.length] >= max);
 
-    List<Float> mergedBreaks = Lists.newArrayList();
+    List<Long> mergedBreaks = Lists.newArrayList();
     List<MutableBitmap> mergedBins = Lists.newArrayList();
 
     mergedBreaks.add(min);
@@ -250,16 +250,16 @@ public class FloatHistogram
         }
     );
 
-    return new FloatBitmaps(
+    return new LongBitmaps(
         factory,
-        Floats.toArray(mergedBreaks),
+        Longs.toArray(mergedBreaks),
         immutable.toArray(new ImmutableBitmap[immutable.size()])
     );
   }
 
   private void compact(int numGroup)
   {
-    List<Float> mergedBreaks = Lists.newArrayList();
+    List<Long> mergedBreaks = Lists.newArrayList();
     List<MutableBitmap> mergedBins = Lists.newArrayList();
 
     mergedBreaks.add(breaks[0]);
@@ -286,11 +286,11 @@ public class FloatHistogram
     mergedBins.add(mergee);
     mergedBreaks.add(breaks[prev]);
 
-    this.breaks = Floats.toArray(mergedBreaks);
+    this.breaks = Longs.toArray(mergedBreaks);
     this.bins = mergedBins.toArray(new MutableBitmap[mergedBins.size()]);
   }
 
-  public float[] getBreaks()
+  public long[] getBreaks()
   {
     return breaks;
   }
@@ -300,12 +300,12 @@ public class FloatHistogram
     return bins;
   }
 
-  public float getMin()
+  public long getMin()
   {
     return min;
   }
 
-  public float getMax()
+  public long getMax()
   {
     return max;
   }
@@ -328,21 +328,21 @@ public class FloatHistogram
     return builder.toString();
   }
 
-  private class FloatWithTag implements Comparable<FloatWithTag>
+  private class LongWithTag implements Comparable<LongWithTag>
   {
     final int id;
-    final float value;
+    final long value;
 
-    private FloatWithTag(int id, float value)
+    private LongWithTag(int id, long value)
     {
       this.id = id;
       this.value = value;
     }
 
     @Override
-    public int compareTo(FloatWithTag o)
+    public int compareTo(LongWithTag o)
     {
-      int compare = Float.compare(value, o.value);
+      int compare = Long.compare(value, o.value);
       if (compare == 0) {
         compare = Ints.compare(id, o.id);
       }

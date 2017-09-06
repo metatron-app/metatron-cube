@@ -21,7 +21,7 @@ package io.druid.segment;
 
 import com.metamx.common.Pair;
 import io.druid.segment.column.MetricBitmap;
-import io.druid.segment.data.FloatBitmaps;
+import io.druid.segment.data.MetricBitmaps;
 import io.druid.segment.data.VSizeIndexed;
 import io.druid.segment.data.VSizeIndexedInts;
 
@@ -65,14 +65,14 @@ public class ColumnPartProviders
     };
   }
 
-  public static ColumnPartProvider<MetricBitmap> ofMetric(final Pair<Integer, FloatBitmaps> bitmaps)
+  public static ColumnPartProvider<MetricBitmap> ofMetric(final Pair<Integer, MetricBitmaps> bitmaps)
   {
     return new ColumnPartProvider<MetricBitmap>()
     {
       @Override
       public int size()
       {
-        return bitmaps.rhs.size();
+        return bitmaps.rhs.rows();
       }
 
       @Override

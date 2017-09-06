@@ -20,11 +20,17 @@
 package io.druid.segment;
 
 import com.google.common.collect.ImmutableMap;
+import com.google.common.primitives.Ints;
+import io.druid.data.ValueType;
+import io.druid.segment.data.BitmapSerdeFactory;
 import io.druid.segment.data.CompressedDoublesSupplierSerializer;
 import io.druid.segment.data.CompressedObjectStrategy;
+import io.druid.segment.data.DoubleHistogram;
 import io.druid.segment.data.IOPeon;
+import io.druid.segment.data.MetricBitmaps;
 
 import java.io.IOException;
+import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.channels.WritableByteChannel;
 import java.util.Map;
@@ -34,10 +40,11 @@ public class DoubleColumnSerializer implements GenericColumnSerializer
   public static DoubleColumnSerializer create(
       IOPeon ioPeon,
       String filenameBase,
-      CompressedObjectStrategy.CompressionStrategy compression
+      CompressedObjectStrategy.CompressionStrategy compression,
+      BitmapSerdeFactory serdeFactory
   )
   {
-    return new DoubleColumnSerializer(ioPeon, filenameBase, IndexIO.BYTE_ORDER, compression);
+    return new DoubleColumnSerializer(ioPeon, filenameBase, IndexIO.BYTE_ORDER, compression, serdeFactory);
   }
 
   private final IOPeon ioPeon;
@@ -47,20 +54,29 @@ public class DoubleColumnSerializer implements GenericColumnSerializer
 
   private CompressedDoublesSupplierSerializer writer;
 
-  private double min = Double.POSITIVE_INFINITY;
-  private double max = Double.NEGATIVE_INFINITY;
+  private final BitmapSerdeFactory serdeFactory;
+  private final DoubleHistogram histogram;
+  private ByteBuffer bitmapPayload;
 
   private DoubleColumnSerializer(
       IOPeon ioPeon,
       String filenameBase,
       ByteOrder byteOrder,
-      CompressedObjectStrategy.CompressionStrategy compression
+      CompressedObjectStrategy.CompressionStrategy compression,
+      BitmapSerdeFactory serdeFactory
   )
   {
     this.ioPeon = ioPeon;
     this.filenameBase = filenameBase;
     this.byteOrder = byteOrder;
     this.compression = compression;
+    this.serdeFactory = serdeFactory;
+    this.histogram = new DoubleHistogram(
+        serdeFactory.getBitmapFactory(),
+        DEFAULT_NUM_SAMPLE,
+        DEFAULT_NUM_GROUP,
+        DEFAULT_COMPACT_INTERVAL
+    );
   }
 
   @Override
@@ -79,15 +95,20 @@ public class DoubleColumnSerializer implements GenericColumnSerializer
   public void serialize(Object obj) throws IOException
   {
     double val = (obj == null) ? 0 : ((Number) obj).doubleValue();
-    min = Math.min(min, val);
-    max = Math.max(max, val);
+    histogram.offer(val);
     writer.add(val);
   }
 
   @Override
   public Map<String, Object> getSerializeStats()
   {
-    return writer.size() > 0 ? ImmutableMap.<String, Object>of("min", min, "max", max) : null;
+    if (writer.size() == 0) {
+      return null;
+    }
+    return ImmutableMap.<String, Object>of(
+        "min", histogram.getMin(),
+        "max", histogram.getMax()
+    );
   }
 
   @Override
@@ -99,13 +120,25 @@ public class DoubleColumnSerializer implements GenericColumnSerializer
   @Override
   public long getSerializedSize()
   {
-    return writer.getSerializedSize();
+    long size = writer.getSerializedSize();
+    MetricBitmaps bitmaps = histogram.snapshot();
+    if (bitmaps != null) {
+      byte[] payload = MetricBitmaps.getStrategy(serdeFactory, ValueType.DOUBLE).toBytes(bitmaps);
+      bitmapPayload = (ByteBuffer) ByteBuffer.allocate(Ints.BYTES + payload.length)
+                                             .putInt(payload.length)
+                                             .put(payload)
+                                             .flip();
+      size += bitmapPayload.remaining();
+    }
+    return size;
   }
 
   @Override
   public void writeToChannel(WritableByteChannel channel) throws IOException
   {
     writer.writeToChannel(channel);
+    if (bitmapPayload != null) {
+      channel.write(bitmapPayload);
+    }
   }
-
 }

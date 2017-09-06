@@ -29,7 +29,6 @@ import io.druid.jackson.DefaultObjectMapper;
 import io.druid.segment.IndexIO;
 import io.druid.segment.IndexMerger;
 import io.druid.segment.IndexMergerV9;
-import io.druid.segment.column.ColumnConfig;
 import io.druid.segment.realtime.firehose.ChatHandlerProvider;
 import io.druid.segment.realtime.firehose.NoopChatHandlerProvider;
 
@@ -49,15 +48,7 @@ public class TestUtils
   {
     jsonMapper = new DefaultObjectMapper();
     indexIO = new IndexIO(
-        jsonMapper,
-        new ColumnConfig()
-        {
-          @Override
-          public int columnCacheSizeBytes()
-          {
-            return 0;
-          }
-        }
+        jsonMapper
     );
     indexMerger = new IndexMerger(jsonMapper, indexIO);
     indexMergerV9 = new IndexMergerV9(jsonMapper, indexIO);

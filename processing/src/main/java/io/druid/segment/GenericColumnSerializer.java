@@ -26,6 +26,10 @@ import java.io.IOException;
 
 public interface GenericColumnSerializer extends ColumnPartSerde.Serializer, Closeable
 {
+  int DEFAULT_NUM_SAMPLE = 40000;
+  int DEFAULT_NUM_GROUP = 32;
+  int DEFAULT_COMPACT_INTERVAL = 100000;
+
   public void open() throws IOException;
 
   public void serialize(Object obj) throws IOException;

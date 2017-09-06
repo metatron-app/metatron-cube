@@ -21,13 +21,13 @@ package io.druid.segment;
 
 import com.google.common.collect.ImmutableMap;
 import com.google.common.primitives.Ints;
-import com.metamx.common.logger.Logger;
+import io.druid.data.ValueType;
 import io.druid.segment.data.BitmapSerdeFactory;
 import io.druid.segment.data.CompressedFloatsSupplierSerializer;
 import io.druid.segment.data.CompressedObjectStrategy;
-import io.druid.segment.data.FloatBitmaps;
 import io.druid.segment.data.FloatHistogram;
 import io.druid.segment.data.IOPeon;
+import io.druid.segment.data.MetricBitmaps;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -37,8 +37,6 @@ import java.util.Map;
 
 public class FloatColumnSerializer implements GenericColumnSerializer
 {
-  private static final Logger LOG = new Logger(FloatColumnSerializer.class);
-
   public static FloatColumnSerializer create(
       IOPeon ioPeon,
       String filenameBase,
@@ -72,7 +70,12 @@ public class FloatColumnSerializer implements GenericColumnSerializer
     this.byteOrder = byteOrder;
     this.compression = compression;
     this.serdeFactory = serdeFactory;
-    this.histogram = new FloatHistogram(serdeFactory.getBitmapFactory(), 10000, 20, 100000);
+    this.histogram = new FloatHistogram(
+        serdeFactory.getBitmapFactory(),
+        DEFAULT_NUM_SAMPLE,
+        DEFAULT_NUM_GROUP,
+        DEFAULT_COMPACT_INTERVAL
+    );
   }
 
   @Override
@@ -105,9 +108,9 @@ public class FloatColumnSerializer implements GenericColumnSerializer
   public long getSerializedSize()
   {
     long size = writer.getSerializedSize();
-    FloatBitmaps bitmaps = histogram.finalize(20);
+    MetricBitmaps bitmaps = histogram.snapshot();
     if (bitmaps != null) {
-      byte[] payload = FloatBitmaps.getStrategy(serdeFactory).toBytes(bitmaps);
+      byte[] payload = MetricBitmaps.getStrategy(serdeFactory, ValueType.FLOAT).toBytes(bitmaps);
       bitmapPayload = (ByteBuffer) ByteBuffer.allocate(Ints.BYTES + payload.length)
                                              .putInt(payload.length)
                                              .put(payload)

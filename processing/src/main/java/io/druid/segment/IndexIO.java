@@ -51,7 +51,6 @@ import io.druid.common.utils.SerializerUtils;
 import io.druid.data.ValueType;
 import io.druid.segment.column.Column;
 import io.druid.segment.column.ColumnBuilder;
-import io.druid.segment.column.ColumnConfig;
 import io.druid.segment.column.ColumnDescriptor;
 import io.druid.segment.data.ArrayIndexed;
 import io.druid.segment.data.BitmapSerde;
@@ -112,24 +111,22 @@ public class IndexIO
 
   private final ObjectMapper mapper;
   private final DefaultIndexIOHandler defaultIndexIOHandler;
-  private final ColumnConfig columnConfig;
 
   @Inject
-  public IndexIO(ObjectMapper mapper, ColumnConfig columnConfig)
+  public IndexIO(ObjectMapper mapper)
   {
     this.mapper = Preconditions.checkNotNull(mapper, "null ObjectMapper");
-    this.columnConfig = Preconditions.checkNotNull(columnConfig, "null ColumnConfig");
     defaultIndexIOHandler = new DefaultIndexIOHandler(mapper);
     indexLoaders = ImmutableMap.<Integer, IndexLoader>builder()
-                               .put(0, new LegacyIndexLoader(defaultIndexIOHandler, columnConfig))
-                               .put(1, new LegacyIndexLoader(defaultIndexIOHandler, columnConfig))
-                               .put(2, new LegacyIndexLoader(defaultIndexIOHandler, columnConfig))
-                               .put(3, new LegacyIndexLoader(defaultIndexIOHandler, columnConfig))
-                               .put(4, new LegacyIndexLoader(defaultIndexIOHandler, columnConfig))
-                               .put(5, new LegacyIndexLoader(defaultIndexIOHandler, columnConfig))
-                               .put(6, new LegacyIndexLoader(defaultIndexIOHandler, columnConfig))
-                               .put(7, new LegacyIndexLoader(defaultIndexIOHandler, columnConfig))
-                               .put(8, new LegacyIndexLoader(defaultIndexIOHandler, columnConfig))
+                               .put(0, new LegacyIndexLoader(defaultIndexIOHandler))
+                               .put(1, new LegacyIndexLoader(defaultIndexIOHandler))
+                               .put(2, new LegacyIndexLoader(defaultIndexIOHandler))
+                               .put(3, new LegacyIndexLoader(defaultIndexIOHandler))
+                               .put(4, new LegacyIndexLoader(defaultIndexIOHandler))
+                               .put(5, new LegacyIndexLoader(defaultIndexIOHandler))
+                               .put(6, new LegacyIndexLoader(defaultIndexIOHandler))
+                               .put(7, new LegacyIndexLoader(defaultIndexIOHandler))
+                               .put(8, new LegacyIndexLoader(defaultIndexIOHandler))
                                .put(9, new V9IndexLoader())
                                .build();
 
@@ -910,12 +907,10 @@ public class IndexIO
   static class LegacyIndexLoader implements IndexLoader
   {
     private final IndexIOHandler legacyHandler;
-    private final ColumnConfig columnConfig;
 
-    LegacyIndexLoader(IndexIOHandler legacyHandler, ColumnConfig columnConfig)
+    LegacyIndexLoader(IndexIOHandler legacyHandler)
     {
       this.legacyHandler = legacyHandler;
-      this.columnConfig = columnConfig;
     }
 
     @Override
@@ -966,7 +961,7 @@ public class IndexIO
               metric,
               new ColumnBuilder()
                   .setType(ValueType.FLOAT)
-                  .setGenericColumn(new FloatGenericColumnSupplier(metricHolder.floatType, BYTE_ORDER))
+                  .setGenericColumn(new FloatGenericColumnSupplier(metricHolder.floatType))
                   .build()
           );
         } else if (metricHolder.getType() == ValueType.DOUBLE) {
@@ -974,7 +969,7 @@ public class IndexIO
               metric,
               new ColumnBuilder()
                   .setType(ValueType.DOUBLE)
-                  .setGenericColumn(new DoubleGenericColumnSupplier(metricHolder.doubleType, BYTE_ORDER))
+                  .setGenericColumn(new DoubleGenericColumnSupplier(metricHolder.doubleType))
                   .build()
           );
         } else if (metricHolder.getType() == ValueType.COMPLEX) {

@@ -20,11 +20,17 @@
 package io.druid.segment;
 
 import com.google.common.collect.ImmutableMap;
+import com.google.common.primitives.Ints;
+import io.druid.data.ValueType;
+import io.druid.segment.data.BitmapSerdeFactory;
 import io.druid.segment.data.CompressedLongsSupplierSerializer;
 import io.druid.segment.data.CompressedObjectStrategy;
+import io.druid.segment.data.LongHistogram;
 import io.druid.segment.data.IOPeon;
+import io.druid.segment.data.MetricBitmaps;
 
 import java.io.IOException;
+import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.channels.WritableByteChannel;
 import java.util.Map;
@@ -34,32 +40,43 @@ public class LongColumnSerializer implements GenericColumnSerializer
   public static LongColumnSerializer create(
       IOPeon ioPeon,
       String filenameBase,
-      CompressedObjectStrategy.CompressionStrategy compression
+      CompressedObjectStrategy.CompressionStrategy compression,
+      BitmapSerdeFactory serdeFactory
   )
   {
-    return new LongColumnSerializer(ioPeon, filenameBase, IndexIO.BYTE_ORDER, compression);
+    return new LongColumnSerializer(ioPeon, filenameBase, IndexIO.BYTE_ORDER, compression, serdeFactory);
   }
 
   private final IOPeon ioPeon;
   private final String filenameBase;
   private final ByteOrder byteOrder;
   private final CompressedObjectStrategy.CompressionStrategy compression;
+
   private CompressedLongsSupplierSerializer writer;
 
-  private long min = Long.MAX_VALUE;
-  private long max = Long.MIN_VALUE;
+  private final BitmapSerdeFactory serdeFactory;
+  private final LongHistogram histogram;
+  private ByteBuffer bitmapPayload;
 
-  public LongColumnSerializer(
+  private LongColumnSerializer(
       IOPeon ioPeon,
       String filenameBase,
       ByteOrder byteOrder,
-      CompressedObjectStrategy.CompressionStrategy compression
+      CompressedObjectStrategy.CompressionStrategy compression,
+      BitmapSerdeFactory serdeFactory
   )
   {
     this.ioPeon = ioPeon;
     this.filenameBase = filenameBase;
     this.byteOrder = byteOrder;
     this.compression = compression;
+    this.serdeFactory = serdeFactory;
+    this.histogram = new LongHistogram(
+        serdeFactory.getBitmapFactory(),
+        DEFAULT_NUM_SAMPLE,
+        DEFAULT_NUM_GROUP,
+        DEFAULT_COMPACT_INTERVAL
+    );
   }
 
   @Override
@@ -78,8 +95,7 @@ public class LongColumnSerializer implements GenericColumnSerializer
   public void serialize(Object obj) throws IOException
   {
     long val = (obj == null) ? 0 : ((Number) obj).longValue();
-    min = Math.min(min, val);
-    max = Math.max(max, val);
+    histogram.offer(val);
     writer.add(val);
   }
 
@@ -92,19 +108,37 @@ public class LongColumnSerializer implements GenericColumnSerializer
   @Override
   public long getSerializedSize()
   {
-    return writer.getSerializedSize();
+    long size = writer.getSerializedSize();
+    MetricBitmaps bitmaps = histogram.snapshot();
+    if (bitmaps != null) {
+      byte[] payload = MetricBitmaps.getStrategy(serdeFactory, ValueType.LONG).toBytes(bitmaps);
+      bitmapPayload = (ByteBuffer) ByteBuffer.allocate(Ints.BYTES + payload.length)
+                                             .putInt(payload.length)
+                                             .put(payload)
+                                             .flip();
+      size += bitmapPayload.remaining();
+    }
+    return size;
   }
 
   @Override
   public Map<String, Object> getSerializeStats()
   {
-    return writer.size() > 0 ? ImmutableMap.<String, Object>of("min", min, "max", max) : null;
+    if (writer.size() == 0) {
+      return null;
+    }
+    return ImmutableMap.<String, Object>of(
+        "min", histogram.getMin(),
+        "max", histogram.getMax()
+    );
   }
 
   @Override
   public void writeToChannel(WritableByteChannel channel) throws IOException
   {
     writer.writeToChannel(channel);
+    if (bitmapPayload != null) {
+      channel.write(bitmapPayload);
+    }
   }
-
 }

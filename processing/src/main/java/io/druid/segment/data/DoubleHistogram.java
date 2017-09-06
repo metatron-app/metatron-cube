@@ -22,18 +22,18 @@ package io.druid.segment.data;
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
-import com.google.common.primitives.Floats;
+import com.google.common.primitives.Doubles;
 import com.google.common.primitives.Ints;
 import com.metamx.collections.bitmap.BitmapFactory;
 import com.metamx.collections.bitmap.ImmutableBitmap;
 import com.metamx.collections.bitmap.MutableBitmap;
-import io.druid.segment.data.MetricBitmaps.FloatBitmaps;
+import io.druid.segment.data.MetricBitmaps.DoubleBitmaps;
 
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
-public class FloatHistogram
+public class DoubleHistogram
 {
   private static final int DEFAULT_NUM_GROUP = 10;
   private static final int DEFAULT_COMPACT_INTERVAL = -1;
@@ -43,34 +43,34 @@ public class FloatHistogram
   private final int numGroup;
   private final int compactInterval;
 
-  private float[] breaks;
+  private double[] breaks;
   private MutableBitmap[] bins;
   private int count;
-  private float min;
-  private float max;
+  private double min;
+  private double max;
 
-  private final List<FloatWithTag> sampling = Lists.newArrayList();
+  private final List<DoubleWithTag> sampling = Lists.newArrayList();
   private final MutableBitmap belowMin;
   private final MutableBitmap overMax;
 
-  public FloatHistogram(BitmapFactory factory, int numSample)
+  public DoubleHistogram(BitmapFactory factory, int numSample)
   {
     this(factory, numSample, DEFAULT_NUM_GROUP, DEFAULT_COMPACT_INTERVAL);
   }
 
-  public FloatHistogram(BitmapFactory factory, int numSample, int numGroup, int compactInterval)
+  public DoubleHistogram(BitmapFactory factory, int numSample, int numGroup, int compactInterval)
   {
     this.factory = factory;
     this.numSample = numSample;
     this.numGroup = numGroup;
     this.compactInterval = compactInterval;
-    this.min = Float.MAX_VALUE;
-    this.max = Float.MIN_VALUE;
+    this.min = Double.MAX_VALUE;
+    this.max = Double.MIN_VALUE;
     this.belowMin = factory.makeEmptyMutableBitmap();
     this.overMax = factory.makeEmptyMutableBitmap();
   }
 
-  public void offer(float d)
+  public void offer(double d)
   {
     if (d < min) {
       min = d;
@@ -79,7 +79,7 @@ public class FloatHistogram
       max = d;
     }
     if (count < numSample) {
-      sampling.add(new FloatWithTag(count++, d));
+      sampling.add(new DoubleWithTag(count++, d));
       return;
     }
     if (breaks == null) {
@@ -110,7 +110,7 @@ public class FloatHistogram
   {
     Collections.sort(sampling);
 
-    breaks = new float[numGroup + 1];
+    breaks = new double[numGroup + 1];
     bins = new MutableBitmap[numGroup];
     for (int i = 0; i < bins.length; i++) {
       bins[i] = factory.makeEmptyMutableBitmap();
@@ -146,7 +146,7 @@ public class FloatHistogram
 
   private void handleBelowMin()
   {
-    float[] newBreaks = new float[breaks.length + 1];
+    double[] newBreaks = new double[breaks.length + 1];
     MutableBitmap[] newBins = new MutableBitmap[bins.length + 1];
     System.arraycopy(breaks, 0, newBreaks, 1, breaks.length);
     System.arraycopy(bins, 0, newBins, 1, bins.length);
@@ -161,7 +161,7 @@ public class FloatHistogram
   private void handleOverMax()
   {
     Preconditions.checkArgument(breaks.length > 1 || max > breaks[bins.length]);
-    float[] newBreaks = Arrays.copyOf(breaks, breaks.length + 1);
+    double[] newBreaks = Arrays.copyOf(breaks, breaks.length + 1);
     MutableBitmap[] newBins = Arrays.copyOf(bins, bins.length + 1);
     newBreaks[breaks.length] = newNextMax();
     newBins[bins.length] = factory.makeEmptyMutableBitmap();
@@ -172,7 +172,7 @@ public class FloatHistogram
   }
 
   // returns new break which includes max for simplicity
-  private float newNextMax()
+  private double newNextMax()
   {
     if (max == breaks[bins.length]) {
       return breaks[bins.length] + (breaks[bins.length] - breaks[bins.length - 1]);
@@ -180,12 +180,12 @@ public class FloatHistogram
     return breaks[bins.length] + (max - breaks[bins.length]) * 2;
   }
 
-  public FloatBitmaps snapshot()
+  public DoubleBitmaps snapshot()
   {
     return snapshot(numGroup);
   }
 
-  public FloatBitmaps snapshot(int numGroup)
+  public DoubleBitmaps snapshot(int numGroup)
   {
     if (min == max || count == 0) {
       return null;
@@ -202,12 +202,12 @@ public class FloatHistogram
     return toHistogram(numGroup);
   }
 
-  private FloatBitmaps toHistogram(int numGroup)
+  private DoubleBitmaps toHistogram(int numGroup)
   {
     Preconditions.checkArgument(breaks[0] == min);
     Preconditions.checkArgument(breaks[bins.length] >= max);
 
-    List<Float> mergedBreaks = Lists.newArrayList();
+    List<Double> mergedBreaks = Lists.newArrayList();
     List<MutableBitmap> mergedBins = Lists.newArrayList();
 
     mergedBreaks.add(min);
@@ -250,16 +250,16 @@ public class FloatHistogram
         }
     );
 
-    return new FloatBitmaps(
+    return new DoubleBitmaps(
         factory,
-        Floats.toArray(mergedBreaks),
+        Doubles.toArray(mergedBreaks),
         immutable.toArray(new ImmutableBitmap[immutable.size()])
     );
   }
 
   private void compact(int numGroup)
   {
-    List<Float> mergedBreaks = Lists.newArrayList();
+    List<Double> mergedBreaks = Lists.newArrayList();
     List<MutableBitmap> mergedBins = Lists.newArrayList();
 
     mergedBreaks.add(breaks[0]);
@@ -286,11 +286,11 @@ public class FloatHistogram
     mergedBins.add(mergee);
     mergedBreaks.add(breaks[prev]);
 
-    this.breaks = Floats.toArray(mergedBreaks);
+    this.breaks = Doubles.toArray(mergedBreaks);
     this.bins = mergedBins.toArray(new MutableBitmap[mergedBins.size()]);
   }
 
-  public float[] getBreaks()
+  public double[] getBreaks()
   {
     return breaks;
   }
@@ -300,12 +300,12 @@ public class FloatHistogram
     return bins;
   }
 
-  public float getMin()
+  public double getMin()
   {
     return min;
   }
 
-  public float getMax()
+  public double getMax()
   {
     return max;
   }
@@ -328,21 +328,21 @@ public class FloatHistogram
     return builder.toString();
   }
 
-  private class FloatWithTag implements Comparable<FloatWithTag>
+  private class DoubleWithTag implements Comparable<DoubleWithTag>
   {
     final int id;
-    final float value;
+    final double value;
 
-    private FloatWithTag(int id, float value)
+    private DoubleWithTag(int id, double value)
     {
       this.id = id;
       this.value = value;
     }
 
     @Override
-    public int compareTo(FloatWithTag o)
+    public int compareTo(DoubleWithTag o)
     {
-      int compare = Float.compare(value, o.value);
+      int compare = Double.compare(value, o.value);
       if (compare == 0) {
         compare = Ints.compare(id, o.id);
       }

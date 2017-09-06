@@ -28,7 +28,7 @@ import io.druid.segment.column.ColumnBuilder;
 import io.druid.segment.data.BitmapSerdeFactory;
 import io.druid.segment.data.ByteBufferSerializer;
 import io.druid.segment.data.CompressedFloatsIndexedSupplier;
-import io.druid.segment.data.FloatBitmaps;
+import io.druid.segment.data.MetricBitmaps;
 
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
@@ -140,14 +140,14 @@ public class FloatGenericColumnPartSerde implements ColumnPartSerde
         );
         builder.setType(ValueType.FLOAT)
                .setHasMultipleValues(false)
-               .setGenericColumn(new FloatGenericColumnSupplier(column, byteOrder));
+               .setGenericColumn(new FloatGenericColumnSupplier(column));
 
         if (buffer.remaining() > 0) {
           builder.setMetricBitmap(
               ColumnPartProviders.ofMetric(
                   ByteBufferSerializer.readWithLength(
                       buffer,
-                      FloatBitmaps.getStrategy(serdeFactory)
+                      MetricBitmaps.getStrategy(serdeFactory, ValueType.FLOAT)
                   )
               )
           );

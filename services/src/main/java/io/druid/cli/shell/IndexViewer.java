@@ -30,6 +30,7 @@ import io.druid.segment.column.Column;
 import io.druid.segment.column.ColumnCapabilities;
 import io.druid.segment.column.ComplexColumn;
 import io.druid.segment.column.DictionaryEncodedColumn;
+import io.druid.segment.column.MetricBitmap;
 import io.druid.segment.data.GenericIndexed;
 import io.druid.segment.loading.DataSegmentPusherUtil;
 import io.druid.segment.loading.SegmentLoaderConfig;
@@ -352,7 +353,7 @@ public class IndexViewer implements CommonShell
       } else {
         writer.println();
       }
-      StringBuilder builder = new StringBuilder();
+      StringBuilder builder = new StringBuilder().append("  ");
       if (capabilities.isDictionaryEncoded()) {
         DictionaryEncodedColumn dictionaryEncoded = column.getDictionaryEncoding();
         GenericIndexed<String> dictionary = dictionaryEncoded.dictionary();
@@ -360,31 +361,43 @@ public class IndexViewer implements CommonShell
         long encodedSize = column.getSerializedSize(Column.EncodeType.DICTIONARY_ENCODED);
         builder.append(
             format(
-                "  dictionary encoded (cardinality = %d, hasNull = %s, dictionary = %,d bytes, rows = %,d bytes)",
+                "dictionary encoded (cardinality = %d, hasNull = %s, dictionary = %,d bytes, rows = %,d bytes)",
                 dictionary.size(), dictionary.indexOf(null) >= 0, dictionarySize, (encodedSize - dictionarySize)
             )
         );
         CloseQuietly.close(dictionaryEncoded);
       }
       if (capabilities.hasBitmapIndexes()) {
-        if (builder.length() > 0) {
+        if (builder.length() > 2) {
           builder.append(", ");
         }
         builder.append(format("bitmap (%,d bytes)", column.getSerializedSize(Column.EncodeType.BITMAP)));
       }
       if (capabilities.hasSpatialIndexes()) {
-        if (builder.length() > 0) {
+        if (builder.length() > 2) {
           builder.append(", ");
         }
         builder.append(format("spatial indexed (%,d bytes)", column.getSerializedSize(Column.EncodeType.SPATIAL)));
       }
       if (capabilities.isRunLengthEncoded()) {
-        if (builder.length() > 0) {
+        if (builder.length() > 2) {
           builder.append(", ");
         }
         builder.append(format("RLE encoded (%,d bytes)", column.getSerializedSize(Column.EncodeType.RUNLENGTH_ENCODED)));
       }
-      if (builder.length() > 0) {
+      if (capabilities.hasMetricBitmap()) {
+        if (builder.length() > 2) {
+          builder.append(", ");
+        }
+        MetricBitmap bitmap = column.getMetricBitmap();
+        builder.append(
+            format(
+                "metric bitmap (%d bitmaps, %,d bytes)",
+                bitmap.size(), column.getSerializedSize(Column.EncodeType.METRIC_BITMAP)
+            )
+        );
+      }
+      if (builder.length() > 2) {
         writer.println(builder.toString());
       }
       writer.println();

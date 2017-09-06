@@ -49,7 +49,6 @@ import io.druid.query.timeseries.TimeseriesQueryQueryToolChest;
 import io.druid.query.timeseries.TimeseriesQueryRunnerFactory;
 import io.druid.segment.IndexIO;
 import io.druid.segment.IndexMerger;
-import io.druid.segment.column.ColumnConfig;
 import io.druid.segment.indexing.DataSchema;
 import io.druid.segment.indexing.RealtimeTuningConfig;
 import io.druid.segment.indexing.granularity.UniformGranularitySpec;
@@ -142,15 +141,7 @@ public class AppenderatorTester implements AutoCloseable
     queryExecutor = Execs.singleThreaded("queryExecutor(%d)");
 
     indexIO = new IndexIO(
-        objectMapper,
-        new ColumnConfig()
-        {
-          @Override
-          public int columnCacheSizeBytes()
-          {
-            return 0;
-          }
-        }
+        objectMapper
     );
     indexMerger = new IndexMerger(objectMapper, indexIO);
 
