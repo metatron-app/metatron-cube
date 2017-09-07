@@ -45,6 +45,8 @@ public class DoubleHistogram
 
   private double[] breaks;
   private MutableBitmap[] bins;
+  private final MutableBitmap zeros;
+
   private int count;
   private double min;
   private double max;
@@ -68,6 +70,7 @@ public class DoubleHistogram
     this.max = Double.MIN_VALUE;
     this.belowMin = factory.makeEmptyMutableBitmap();
     this.overMax = factory.makeEmptyMutableBitmap();
+    this.zeros = factory.makeEmptyMutableBitmap();
   }
 
   public void offer(double d)
@@ -77,6 +80,9 @@ public class DoubleHistogram
     }
     if (d > max) {
       max = d;
+    }
+    if (d == 0d) {
+      zeros.add(count);
     }
     if (count < numSample) {
       sampling.add(new DoubleWithTag(count++, d));
@@ -253,7 +259,8 @@ public class DoubleHistogram
     return new DoubleBitmaps(
         factory,
         Doubles.toArray(mergedBreaks),
-        immutable.toArray(new ImmutableBitmap[immutable.size()])
+        immutable.toArray(new ImmutableBitmap[immutable.size()]),
+        factory.makeImmutableBitmap(zeros)
     );
   }
 

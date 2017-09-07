@@ -392,8 +392,8 @@ public class IndexViewer implements CommonShell
         MetricBitmap bitmap = column.getMetricBitmap();
         builder.append(
             format(
-                "metric bitmap (%d bitmaps, %,d bytes)",
-                bitmap.size(), column.getSerializedSize(Column.EncodeType.METRIC_BITMAP)
+                "metric bitmap (%d bitmaps, %,d zeros, %,d bytes)",
+                bitmap.numBins(), bitmap.zeroRows(), column.getSerializedSize(Column.EncodeType.METRIC_BITMAP)
             )
         );
       }

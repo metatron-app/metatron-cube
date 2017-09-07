@@ -45,6 +45,8 @@ public class FloatHistogram
 
   private float[] breaks;
   private MutableBitmap[] bins;
+  private final MutableBitmap zeros;
+
   private int count;
   private float min;
   private float max;
@@ -68,6 +70,7 @@ public class FloatHistogram
     this.max = Float.MIN_VALUE;
     this.belowMin = factory.makeEmptyMutableBitmap();
     this.overMax = factory.makeEmptyMutableBitmap();
+    this.zeros = factory.makeEmptyMutableBitmap();
   }
 
   public void offer(float d)
@@ -77,6 +80,9 @@ public class FloatHistogram
     }
     if (d > max) {
       max = d;
+    }
+    if (d == 0f) {
+      zeros.add(count);
     }
     if (count < numSample) {
       sampling.add(new FloatWithTag(count++, d));
@@ -110,8 +116,10 @@ public class FloatHistogram
   {
     Collections.sort(sampling);
 
-    breaks = new float[numGroup + 1];
-    bins = new MutableBitmap[numGroup];
+    int initialGroup = numGroup << 1;
+
+    breaks = new float[initialGroup + 1];
+    bins = new MutableBitmap[initialGroup];
     for (int i = 0; i < bins.length; i++) {
       bins[i] = factory.makeEmptyMutableBitmap();
     }
@@ -121,7 +129,7 @@ public class FloatHistogram
     int x = 0;
     int b = 0;
     int i = 1;
-    final float increment = sampling.size() / (float) numGroup;
+    final float increment = sampling.size() / (float) initialGroup;
     for (; i < breaks.length; i++, b++) {
       b = Math.max(b, (int) (increment * i));
       for (; b < sampling.size() && sampling.get(b).value <= breaks[i - 1]; b++) {
@@ -253,7 +261,8 @@ public class FloatHistogram
     return new FloatBitmaps(
         factory,
         Floats.toArray(mergedBreaks),
-        immutable.toArray(new ImmutableBitmap[immutable.size()])
+        immutable.toArray(new ImmutableBitmap[immutable.size()]),
+        factory.makeImmutableBitmap(zeros)
     );
   }
 

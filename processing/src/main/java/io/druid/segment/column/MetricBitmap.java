@@ -34,7 +34,9 @@ public interface MetricBitmap<T extends Comparable>
 
   ImmutableBitmap filterFor(Range<T> range);
 
-  int size();
+  int numBins();
 
   int rows();
+
+  int zeroRows();
 }

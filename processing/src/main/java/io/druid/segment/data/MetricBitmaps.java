@@ -29,6 +29,7 @@ import com.google.common.primitives.Floats;
 import com.google.common.primitives.Longs;
 import com.metamx.collections.bitmap.BitmapFactory;
 import com.metamx.collections.bitmap.ImmutableBitmap;
+import io.druid.common.utils.Ranges;
 import io.druid.data.ValueType;
 import io.druid.segment.column.MetricBitmap;
 
@@ -62,7 +63,10 @@ public abstract class MetricBitmaps<T extends Comparable> implements MetricBitma
               floats[i] = buffer.getFloat();
             }
             return new MetricBitmaps.FloatBitmaps(
-                bitmapFactory, floats, loadBitmaps(buffer, strategy, size - 1)
+                bitmapFactory,
+                floats,
+                loadBitmaps(buffer, strategy, size - 1),
+                ByteBufferSerializer.read(buffer, strategy)
             );
           case LONG:
             long[] longs = new long[size];
@@ -70,7 +74,10 @@ public abstract class MetricBitmaps<T extends Comparable> implements MetricBitma
               longs[i] = buffer.getLong();
             }
             return new MetricBitmaps.LongBitmaps(
-                bitmapFactory, longs, loadBitmaps(buffer, strategy, size - 1)
+                bitmapFactory,
+                longs,
+                loadBitmaps(buffer, strategy, size - 1),
+                ByteBufferSerializer.read(buffer, strategy)
             );
           case DOUBLE:
             double[] doubles = new double[size];
@@ -78,7 +85,10 @@ public abstract class MetricBitmaps<T extends Comparable> implements MetricBitma
               doubles[i] = buffer.getDouble();
             }
             return new MetricBitmaps.DoubleBitmaps(
-                bitmapFactory, doubles, loadBitmaps(buffer, strategy, size - 1)
+                bitmapFactory,
+                doubles,
+                loadBitmaps(buffer, strategy, size - 1),
+                ByteBufferSerializer.read(buffer, strategy)
             );
           default:
             throw new UnsupportedClassVersionError(type + " is not supported");
@@ -127,6 +137,9 @@ public abstract class MetricBitmaps<T extends Comparable> implements MetricBitma
           bout.writeInt(bytes.length);
           bout.write(bytes);
         }
+        byte[] bytes = strategy.toBytes(val.zeros);
+        bout.writeInt(bytes.length);
+        bout.write(bytes);
         return bout.toByteArray();
       }
 
@@ -142,12 +155,14 @@ public abstract class MetricBitmaps<T extends Comparable> implements MetricBitma
 
   private final T[] breaks;   // in-ex in-ex... in-in (includes max)
   private final ImmutableBitmap[] bins;
+  private final ImmutableBitmap zeros;
 
-  public MetricBitmaps(BitmapFactory factory, T[] breaks, ImmutableBitmap[] bins)
+  public MetricBitmaps(BitmapFactory factory, T[] breaks, ImmutableBitmap[] bins, ImmutableBitmap zeros)
   {
     this.breaks = breaks;
     this.bins = bins;
     this.factory = factory;
+    this.zeros = zeros;
   }
 
   @Override
@@ -164,6 +179,9 @@ public abstract class MetricBitmaps<T extends Comparable> implements MetricBitma
   {
     if (range.isEmpty()) {
       return factory.makeEmptyImmutableBitmap();
+    }
+    if (isPointZero(range)) {
+      return zeros;
     }
     int from = 0;
     int to = bins.length - 1;
@@ -193,10 +211,12 @@ public abstract class MetricBitmaps<T extends Comparable> implements MetricBitma
   }
 
   @Override
-  public int size()
+  public int numBins()
   {
     return bins.length;
   }
+
+  protected abstract boolean isPointZero(Range<T> range);
 
   protected abstract int binarySearch(T lower);
 
@@ -231,6 +251,12 @@ public abstract class MetricBitmaps<T extends Comparable> implements MetricBitma
   }
 
   @Override
+  public int zeroRows()
+  {
+    return zeros.size();
+  }
+
+  @Override
   public String toString()
   {
     return Arrays.toString(breaks) + ":" + Arrays.toString(getSizes());
@@ -240,9 +266,9 @@ public abstract class MetricBitmaps<T extends Comparable> implements MetricBitma
   {
     private final float[] breaks;   // in-ex in-ex... in-in (includes max)
 
-    public FloatBitmaps(BitmapFactory factory, float[] breaks, ImmutableBitmap[] bins)
+    public FloatBitmaps(BitmapFactory factory, float[] breaks, ImmutableBitmap[] bins, ImmutableBitmap zeros)
     {
-      super(factory, Floats.asList(breaks).toArray(new Float[breaks.length]), bins);
+      super(factory, Floats.asList(breaks).toArray(new Float[breaks.length]), bins, zeros);
       this.breaks = breaks;
     }
 
@@ -250,6 +276,12 @@ public abstract class MetricBitmaps<T extends Comparable> implements MetricBitma
     public ValueType type()
     {
       return ValueType.FLOAT;
+    }
+
+    @Override
+    protected boolean isPointZero(Range<Float> range)
+    {
+      return Ranges.isPoint(range) && range.lowerEndpoint() == 0f;
     }
 
     @Override
@@ -268,9 +300,9 @@ public abstract class MetricBitmaps<T extends Comparable> implements MetricBitma
   {
     private final double[] breaks;   // in-ex in-ex... in-in (includes max)
 
-    public DoubleBitmaps(BitmapFactory factory, double[] breaks, ImmutableBitmap[] bins)
+    public DoubleBitmaps(BitmapFactory factory, double[] breaks, ImmutableBitmap[] bins, ImmutableBitmap zeros)
     {
-      super(factory, Doubles.asList(breaks).toArray(new Double[breaks.length]), bins);
+      super(factory, Doubles.asList(breaks).toArray(new Double[breaks.length]), bins, zeros);
       this.breaks = breaks;
     }
 
@@ -278,6 +310,12 @@ public abstract class MetricBitmaps<T extends Comparable> implements MetricBitma
     public ValueType type()
     {
       return ValueType.DOUBLE;
+    }
+
+    @Override
+    protected boolean isPointZero(Range<Double> range)
+    {
+      return Ranges.isPoint(range) && range.lowerEndpoint() == 0d;
     }
 
     @Override
@@ -296,9 +334,9 @@ public abstract class MetricBitmaps<T extends Comparable> implements MetricBitma
   {
     private final long[] breaks;   // in-ex in-ex... in-in (includes max)
 
-    public LongBitmaps(BitmapFactory factory, long[] breaks, ImmutableBitmap[] bins)
+    public LongBitmaps(BitmapFactory factory, long[] breaks, ImmutableBitmap[] bins, ImmutableBitmap zeros)
     {
-      super(factory, Longs.asList(breaks).toArray(new Long[breaks.length]), bins);
+      super(factory, Longs.asList(breaks).toArray(new Long[breaks.length]), bins, zeros);
       this.breaks = breaks;
     }
 
@@ -306,6 +344,12 @@ public abstract class MetricBitmaps<T extends Comparable> implements MetricBitma
     public ValueType type()
     {
       return ValueType.LONG;
+    }
+
+    @Override
+    protected boolean isPointZero(Range<Long> range)
+    {
+      return Ranges.isPoint(range) && range.lowerEndpoint() == 0l;
     }
 
     @Override

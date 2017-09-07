@@ -45,6 +45,8 @@ public class LongHistogram
 
   private long[] breaks;
   private MutableBitmap[] bins;
+  private final MutableBitmap zeros;
+
   private int count;
   private long min;
   private long max;
@@ -68,6 +70,7 @@ public class LongHistogram
     this.max = Long.MIN_VALUE;
     this.belowMin = factory.makeEmptyMutableBitmap();
     this.overMax = factory.makeEmptyMutableBitmap();
+    this.zeros = factory.makeEmptyMutableBitmap();
   }
 
   public void offer(long d)
@@ -77,6 +80,9 @@ public class LongHistogram
     }
     if (d > max) {
       max = d;
+    }
+    if (d == 0l) {
+      zeros.add(count);
     }
     if (count < numSample) {
       sampling.add(new LongWithTag(count++, d));
@@ -253,7 +259,8 @@ public class LongHistogram
     return new LongBitmaps(
         factory,
         Longs.toArray(mergedBreaks),
-        immutable.toArray(new ImmutableBitmap[immutable.size()])
+        immutable.toArray(new ImmutableBitmap[immutable.size()]),
+        factory.makeImmutableBitmap(zeros)
     );
   }
 
