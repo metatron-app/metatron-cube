@@ -24,6 +24,7 @@ import com.google.common.base.Preconditions;
 import com.google.common.base.Predicate;
 import com.google.common.base.Strings;
 import com.metamx.common.Pair;
+import com.metamx.common.logger.Logger;
 import io.druid.common.utils.JodaUtils;
 import io.druid.data.ValueDesc;
 import io.druid.data.ValueType;
@@ -32,6 +33,7 @@ import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
 import org.joda.time.format.DateTimeFormatter;
 
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
@@ -41,6 +43,7 @@ import java.util.Objects;
  */
 public class Evals
 {
+  static final Logger LOG = new Logger(Evals.class);
   static final DateTimeFormatter defaultFormat = JodaUtils.toTimeFormatter("yyyy-MM-dd HH:mm:ss[.SSSSSS]");
 
   public static final Predicate<ExprEval> PREDICATE = new Predicate<ExprEval>()
@@ -204,6 +207,36 @@ public class Evals
     return false;
   }
 
+  static boolean isAllConstants(Expr... exprs)
+  {
+    return isAllConstants(Arrays.asList(exprs));
+  }
+
+  static boolean isAllConstants(List<Expr> exprs)
+  {
+    for (Expr expr : exprs) {
+      if (!isConstant(expr)) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  static Expr toConstant(ExprEval eval)
+  {
+    switch (eval.type()) {
+      case DOUBLE:
+        return new DoubleExpr(eval.asDouble());
+      case LONG:
+      case DATETIME:
+        return new LongExpr(eval.asLong());
+      case STRING:
+        return new StringExpr(eval.asString());
+      default:
+        throw new UnsupportedOperationException("invalid type" + eval.type());
+    }
+  }
+
   static Object[] getConstants(List<Expr> args)
   {
     Object[] constants = new Object[args.size()];
@@ -362,5 +395,20 @@ public class Evals
       }
     };
     return Pair.of(assign.assignee.eval(bindings).stringValue(), assign.assigned);
+  }
+
+  // for binary operator not providing constructor of form <init>(String, Expr, Expr),
+  // you should create it explicitly in here
+  public static Expr binaryOp(BinaryOpExprBase binary, Expr left, Expr right)
+  {
+    try {
+      return binary.getClass()
+                   .getDeclaredConstructor(String.class, Expr.class, Expr.class)
+                   .newInstance(binary.op, left, right);
+    }
+    catch (Exception e) {
+      LOG.warn(e, "failed to rewrite expression " + binary);
+      return binary;  // best effort.. keep it working
+    }
   }
 }

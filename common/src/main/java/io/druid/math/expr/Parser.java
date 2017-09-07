@@ -95,16 +95,25 @@ public class Parser
 
   public static Expr parse(String in)
   {
-    return parse(in, functions);
+    return parse(in, functions, true);
   }
 
-  public static Expr parse(String in, Map<String, Supplier<Function>> func)
+  public static Expr parse(String in, boolean flatten)
+  {
+    return parse(in, functions, flatten);
+  }
+
+  public static Expr parse(String in, Map<String, Supplier<Function>> func, boolean flatten)
   {
     ParseTree parseTree = parseTree(in);
     ParseTreeWalker walker = new ParseTreeWalker();
     ExprListenerImpl listener = new ExprListenerImpl(parseTree, func);
     walker.walk(listener, parseTree);
-    return listener.getAST();
+    Expr expr = listener.getAST();
+    if (flatten) {
+      expr = flatten(expr);
+    }
+    return expr;
   }
 
   public static Expr parseWith(String in, Function.Factory... moreFunctions)
@@ -116,7 +125,7 @@ public class Parser
           "cannot override existing function %s", factory.name()
       );
     }
-    return parse(in, custom);
+    return parse(in, custom, true);
   }
 
   public static ParseTree parseTree(String in)
@@ -156,6 +165,50 @@ public class Parser
       }
     }
     return found;
+  }
+
+  public static Expr flatten(Expr expr)
+  {
+    if (expr instanceof BinaryOpExprBase) {
+      BinaryOpExprBase binary = (BinaryOpExprBase) expr;
+      Expr left = flatten(binary.left);
+      Expr right = flatten(binary.right);
+      if (Evals.isAllConstants(left, right)) {
+        expr = Evals.toConstant(expr.eval(null));
+      } else if (left != binary.left || right != binary.right) {
+        return Evals.binaryOp(binary, left, right);
+      }
+    } else if (expr instanceof Unary) {
+      Unary unary = (Unary) expr;
+      Expr eval = flatten(unary.getChild());
+      if (eval instanceof Constant) {
+        expr = Evals.toConstant(expr.eval(null));
+      } else if (eval != unary.getChild()) {
+        if (expr instanceof UnaryMinusExpr) {
+          expr = new UnaryMinusExpr(eval);
+        } else if (expr instanceof UnaryNotExpr) {
+          expr = new UnaryNotExpr(eval);
+        } else {
+          expr = unary; // unknown type..
+        }
+      }
+    } else if (expr instanceof FunctionExpr) {
+      FunctionExpr functionExpr = (FunctionExpr) expr;
+      List<Expr> args = functionExpr.args;
+      boolean flattened = false;
+      List<Expr> flattening = Lists.newArrayListWithCapacity(args.size());
+      for (Expr arg : args) {
+        Expr flatten = flatten(arg);
+        flattened |= flatten != arg;
+        flattening.add(flatten);
+      }
+      if (Evals.isAllConstants(flattening)) {
+        expr = Evals.toConstant(expr.eval(null));
+      } else if (flattened) {
+        expr = new FunctionExpr(functionExpr.function, functionExpr.name, flattening);
+      }
+    }
+    return expr;
   }
 
   public static interface Visitor<T>

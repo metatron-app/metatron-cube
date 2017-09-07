@@ -62,6 +62,11 @@ interface Constant extends Expr, Expression.ConstExpression
 {
 }
 
+interface Unary extends Expr
+{
+  Expr getChild();
+}
+
 class LongExpr implements Constant
 {
   private final long value;
@@ -267,13 +272,19 @@ class FunctionExpr implements Expr, Expression.FuncExpression
   }
 }
 
-class UnaryMinusExpr implements Expr
+class UnaryMinusExpr implements Unary
 {
   final Expr expr;
 
   UnaryMinusExpr(Expr expr)
   {
     this.expr = expr;
+  }
+
+  @Override
+  public Expr getChild()
+  {
+    return expr;
   }
 
   @Override
@@ -306,7 +317,7 @@ class UnaryMinusExpr implements Expr
   }
 }
 
-class UnaryNotExpr implements Expr, Expression.NotExpression
+class UnaryNotExpr implements Unary, Expression.NotExpression
 {
   final Expr expr;
 

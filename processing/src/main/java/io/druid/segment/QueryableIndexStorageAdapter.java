@@ -77,11 +77,23 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
 
   private final QueryableIndex index;
   private final String segmentId;
+  private final Map<String, MetricBitmap> metricBitmaps;
 
   public QueryableIndexStorageAdapter(QueryableIndex index, String segmentId)
   {
     this.index = index;
     this.segmentId = segmentId;
+    metricBitmaps = Maps.newHashMap();
+    for (String metric : getAvailableMetrics()) {
+      MetricBitmap metricBitmap = index.getColumn(metric).getMetricBitmap();
+      if (metricBitmap != null) {
+        metricBitmaps.put(metric, metricBitmap);
+      }
+    }
+    MetricBitmap metricBitmap = index.getColumn(Column.TIME_COLUMN_NAME).getMetricBitmap();
+    if (metricBitmap != null) {
+      metricBitmaps.put(Column.TIME_COLUMN_NAME, metricBitmap);
+    }
   }
 
   public QueryableIndexStorageAdapter(QueryableIndex index)
@@ -334,13 +346,6 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
 
   private ImmutableBitmap toBitmap(DimFilter dimFilter)
   {
-    Map<String, MetricBitmap> metricBitmaps = Maps.newHashMap();
-    for (String metric : getAvailableMetrics()) {
-      MetricBitmap metricBitmap = index.getColumn(metric).getMetricBitmap();
-      if (metricBitmap != null) {
-        metricBitmaps.put(metric, metricBitmap);
-      }
-    }
     if (!metricBitmaps.isEmpty()) {
       ImmutableBitmap bitmap = Filters.toBitmap(dimFilter, index.getBitmapFactoryForDimensions(), metricBitmaps);
       if (bitmap != null) {

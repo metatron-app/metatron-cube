@@ -533,6 +533,33 @@ public interface DateTimeFunctions extends Function.Library
     }
   }
 
+  class DateTimeMillisFunc extends DateTimeInput
+  {
+    @Override
+    public String name()
+    {
+      return "datetime_millis";
+    }
+
+    @Override
+    public ExprType apply(List<Expr> args, Expr.TypeBinding bindings)
+    {
+      return ExprType.LONG;
+    }
+
+    @Override
+    protected final ExprEval toValue(DateTime date)
+    {
+      return ExprEval.of(date.getMillis());
+    }
+
+    @Override
+    public Function get()
+    {
+      return new DateTimeMillisFunc();
+    }
+  }
+
   class TimestampValidateFunc extends TimestampFromEpochFunc
   {
     @Override
