@@ -283,8 +283,11 @@ public class SummaryPostProcessor extends PostProcessingOperator.UnionSupport
                         for (String column : primitiveColumns.keySet()) {
                           ValueType type = primitiveColumns.get(column);
                           Map<String, Object> stats = results.get(column);
-                          stats.put("missing", row.getLongMetric(column + ".missing"));
-
+                          if (type.isNumeric()) {
+                            stats.put("zeros", row.getLongMetric(column + ".missing"));
+                          } else {
+                            stats.put("missing", row.getLongMetric(column + ".missing"));
+                          }
                           if (type.isNumeric()) {
                             stats.put("mean", row.getDoubleMetric(column + ".mean"));
                             stats.put("variance", row.getDoubleMetric(column + ".variance"));
@@ -395,7 +398,11 @@ public class SummaryPostProcessor extends PostProcessingOperator.UnionSupport
 
     List<AggregatorFactory> aggregators = Lists.newArrayList();
     List<PostAggregator> postAggregators = Lists.newArrayList();
-    aggregators.add(new CountAggregatorFactory(column + ".missing", "isnull(" + escaped + ")"));
+    if (type.isNumeric()) {
+      aggregators.add(new CountAggregatorFactory(column + ".missing", escaped + " == 0"));
+    } else {
+      aggregators.add(new CountAggregatorFactory(column + ".missing", "isnull(" + escaped + ")"));
+    }
 
     if (type.isNumeric()) {
       double q1 = ((Number) lower).doubleValue();
