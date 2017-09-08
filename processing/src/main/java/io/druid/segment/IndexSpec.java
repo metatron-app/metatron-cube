@@ -63,6 +63,7 @@ public class IndexSpec
   private final BitmapSerdeFactory bitmapSerdeFactory;
   private final String dimensionCompression;
   private final String metricCompression;
+  private final boolean makeHistogram;
 
 
   /**
@@ -70,7 +71,7 @@ public class IndexSpec
    */
   public IndexSpec()
   {
-    this(null, null, null);
+    this(null, null, null, true);
   }
 
   /**
@@ -91,7 +92,8 @@ public class IndexSpec
   public IndexSpec(
       @JsonProperty("bitmap") BitmapSerdeFactory bitmapSerdeFactory,
       @JsonProperty("dimensionCompression") String dimensionCompression,
-      @JsonProperty("metricCompression") String metricCompression
+      @JsonProperty("metricCompression") String metricCompression,
+      @JsonProperty("makeHistogram") Boolean makeHistogram
   )
   {
     Preconditions.checkArgument(dimensionCompression == null || dimensionCompression.equals(UNCOMPRESSED) || COMPRESSION_NAMES.contains(dimensionCompression),
@@ -103,6 +105,7 @@ public class IndexSpec
     this.bitmapSerdeFactory = bitmapSerdeFactory != null ? bitmapSerdeFactory : new ConciseBitmapSerdeFactory();
     this.metricCompression = metricCompression;
     this.dimensionCompression = dimensionCompression;
+    this.makeHistogram = makeHistogram == null || makeHistogram;
   }
 
   @JsonProperty("bitmap")
@@ -123,6 +126,12 @@ public class IndexSpec
     return metricCompression;
   }
 
+  @JsonProperty("makeHistogram")
+  public boolean isMakeHistogram()
+  {
+    return makeHistogram;
+  }
+
   public CompressedObjectStrategy.CompressionStrategy getMetricCompressionStrategy()
   {
     return CompressedObjectStrategy.CompressionStrategy.valueOf(
@@ -141,6 +150,11 @@ public class IndexSpec
   {
     return compression.equals(UNCOMPRESSED) ? null :
            CompressedObjectStrategy.CompressionStrategy.valueOf(compression.toUpperCase());
+  }
+
+  public IndexSpec withMakeHistogram(boolean makeHistogram)
+  {
+    return new IndexSpec(bitmapSerdeFactory, dimensionCompression, metricCompression, makeHistogram);
   }
 
   @Override

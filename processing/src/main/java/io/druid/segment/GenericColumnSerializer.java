@@ -19,6 +19,8 @@
 
 package io.druid.segment;
 
+import io.druid.segment.data.MetricBitmaps;
+import io.druid.segment.data.MetricHistogram;
 import io.druid.segment.serde.ColumnPartSerde;
 
 import java.io.Closeable;
@@ -33,4 +35,109 @@ public interface GenericColumnSerializer extends ColumnPartSerde.Serializer, Clo
   public void open() throws IOException;
 
   public void serialize(Object obj) throws IOException;
+
+  class FloatMinMax implements MetricHistogram.FloatType
+  {
+    float min = Float.MAX_VALUE;
+    float max = Float.MIN_VALUE;
+
+    @Override
+    public void offer(float value)
+    {
+      if (value < min) {
+        min = value;
+      }
+      if (value > max) {
+        max = value;
+      }
+    }
+
+    @Override
+    public float getMin()
+    {
+      return min;
+    }
+
+    @Override
+    public float getMax()
+    {
+      return max;
+    }
+
+    @Override
+    public MetricBitmaps<Float> snapshot()
+    {
+      return null;
+    }
+  }
+
+  class DoubleMinMax implements MetricHistogram.DoubleType
+  {
+    double min = Double.MAX_VALUE;
+    double max = Double.MIN_VALUE;
+
+    @Override
+    public void offer(double value)
+    {
+      if (value < min) {
+        min = value;
+      }
+      if (value > max) {
+        max = value;
+      }
+    }
+
+    @Override
+    public double getMin()
+    {
+      return min;
+    }
+
+    @Override
+    public double getMax()
+    {
+      return max;
+    }
+
+    @Override
+    public MetricBitmaps<Double> snapshot()
+    {
+      return null;
+    }
+  }
+
+  class LongMinMax implements MetricHistogram.LongType
+  {
+    long min = Long.MAX_VALUE;
+    long max = Long.MIN_VALUE;
+
+    @Override
+    public void offer(long value)
+    {
+      if (value < min) {
+        min = value;
+      }
+      if (value > max) {
+        max = value;
+      }
+    }
+
+    @Override
+    public long getMin()
+    {
+      return min;
+    }
+
+    @Override
+    public long getMax()
+    {
+      return max;
+    }
+
+    @Override
+    public MetricBitmaps<Long> snapshot()
+    {
+      return null;
+    }
+  }
 }

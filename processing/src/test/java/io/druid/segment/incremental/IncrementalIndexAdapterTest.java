@@ -45,7 +45,8 @@ public class IncrementalIndexAdapterTest
   private static final IndexSpec INDEX_SPEC = new IndexSpec(
       new ConciseBitmapSerdeFactory(),
       CompressedObjectStrategy.CompressionStrategy.LZ4.name().toLowerCase(),
-      CompressedObjectStrategy.CompressionStrategy.LZ4.name().toLowerCase()
+      CompressedObjectStrategy.CompressionStrategy.LZ4.name().toLowerCase(),
+      false
   );
 
   @Test

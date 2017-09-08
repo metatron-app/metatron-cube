@@ -28,6 +28,7 @@ import io.druid.segment.data.CompressedObjectStrategy;
 import io.druid.segment.data.DoubleHistogram;
 import io.druid.segment.data.IOPeon;
 import io.druid.segment.data.MetricBitmaps;
+import io.druid.segment.data.MetricHistogram;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -41,10 +42,11 @@ public class DoubleColumnSerializer implements GenericColumnSerializer
       IOPeon ioPeon,
       String filenameBase,
       CompressedObjectStrategy.CompressionStrategy compression,
-      BitmapSerdeFactory serdeFactory
+      BitmapSerdeFactory serdeFactory,
+      boolean histogram
   )
   {
-    return new DoubleColumnSerializer(ioPeon, filenameBase, IndexIO.BYTE_ORDER, compression, serdeFactory);
+    return new DoubleColumnSerializer(ioPeon, filenameBase, IndexIO.BYTE_ORDER, compression, serdeFactory, histogram);
   }
 
   private final IOPeon ioPeon;
@@ -55,7 +57,7 @@ public class DoubleColumnSerializer implements GenericColumnSerializer
   private CompressedDoublesSupplierSerializer writer;
 
   private final BitmapSerdeFactory serdeFactory;
-  private final DoubleHistogram histogram;
+  private final MetricHistogram.DoubleType histogram;
   private ByteBuffer bitmapPayload;
 
   private DoubleColumnSerializer(
@@ -63,7 +65,8 @@ public class DoubleColumnSerializer implements GenericColumnSerializer
       String filenameBase,
       ByteOrder byteOrder,
       CompressedObjectStrategy.CompressionStrategy compression,
-      BitmapSerdeFactory serdeFactory
+      BitmapSerdeFactory serdeFactory,
+      boolean histogram
   )
   {
     this.ioPeon = ioPeon;
@@ -71,12 +74,16 @@ public class DoubleColumnSerializer implements GenericColumnSerializer
     this.byteOrder = byteOrder;
     this.compression = compression;
     this.serdeFactory = serdeFactory;
-    this.histogram = new DoubleHistogram(
-        serdeFactory.getBitmapFactory(),
-        DEFAULT_NUM_SAMPLE,
-        DEFAULT_NUM_GROUP,
-        DEFAULT_COMPACT_INTERVAL
-    );
+    if (histogram) {
+      this.histogram = new DoubleHistogram(
+          serdeFactory.getBitmapFactory(),
+          DEFAULT_NUM_SAMPLE,
+          DEFAULT_NUM_GROUP,
+          DEFAULT_COMPACT_INTERVAL
+      );
+    } else {
+      this.histogram = new DoubleMinMax();
+    }
   }
 
   @Override

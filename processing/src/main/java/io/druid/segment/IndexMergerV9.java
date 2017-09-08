@@ -738,9 +738,10 @@ public class IndexMergerV9 extends IndexMerger
 
   private LongColumnSerializer setupTimeWriter(final IOPeon ioPeon, final IndexSpec indexSpec) throws IOException
   {
+    final boolean makeHistogram = indexSpec.isMakeHistogram();
     final BitmapSerdeFactory serdeFactory = indexSpec.getBitmapSerdeFactory();
     LongColumnSerializer timeWriter = LongColumnSerializer.create(
-        ioPeon, "little_end_time", CompressedObjectStrategy.DEFAULT_COMPRESSION_STRATEGY, serdeFactory
+        ioPeon, "little_end_time", CompressedObjectStrategy.DEFAULT_COMPRESSION_STRATEGY, serdeFactory, makeHistogram
     );
     // we will close this writer after we added all the timestamps
     timeWriter.open();
@@ -755,6 +756,7 @@ public class IndexMergerV9 extends IndexMerger
   ) throws IOException
   {
     ArrayList<GenericColumnSerializer> metWriters = Lists.newArrayListWithCapacity(mergedMetrics.size());
+    final boolean makeHistogram = indexSpec.isMakeHistogram();
     final BitmapSerdeFactory serdeFactory = indexSpec.getBitmapSerdeFactory();
     final CompressedObjectStrategy.CompressionStrategy metCompression = indexSpec.getMetricCompressionStrategy();
     for (String metric : mergedMetrics) {
@@ -762,13 +764,13 @@ public class IndexMergerV9 extends IndexMerger
       GenericColumnSerializer writer;
       switch (type.type()) {
         case LONG:
-          writer = LongColumnSerializer.create(ioPeon, metric, metCompression, serdeFactory);
+          writer = LongColumnSerializer.create(ioPeon, metric, metCompression, serdeFactory, makeHistogram);
           break;
         case FLOAT:
-          writer = FloatColumnSerializer.create(ioPeon, metric, metCompression, serdeFactory);
+          writer = FloatColumnSerializer.create(ioPeon, metric, metCompression, serdeFactory, makeHistogram);
           break;
         case DOUBLE:
-          writer = DoubleColumnSerializer.create(ioPeon, metric, metCompression, serdeFactory);
+          writer = DoubleColumnSerializer.create(ioPeon, metric, metCompression, serdeFactory, makeHistogram);
           break;
         case STRING:
           writer = ComplexColumnSerializer.create(ioPeon, metric, StringMetricSerde.INSTANCE);

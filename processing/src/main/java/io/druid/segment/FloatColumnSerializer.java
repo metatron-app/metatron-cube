@@ -28,6 +28,7 @@ import io.druid.segment.data.CompressedObjectStrategy;
 import io.druid.segment.data.FloatHistogram;
 import io.druid.segment.data.IOPeon;
 import io.druid.segment.data.MetricBitmaps;
+import io.druid.segment.data.MetricHistogram;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -41,10 +42,11 @@ public class FloatColumnSerializer implements GenericColumnSerializer
       IOPeon ioPeon,
       String filenameBase,
       CompressedObjectStrategy.CompressionStrategy compression,
-      BitmapSerdeFactory serdeFactory
+      BitmapSerdeFactory serdeFactory,
+      boolean histogram
   )
   {
-    return new FloatColumnSerializer(ioPeon, filenameBase, IndexIO.BYTE_ORDER, compression, serdeFactory);
+    return new FloatColumnSerializer(ioPeon, filenameBase, IndexIO.BYTE_ORDER, compression, serdeFactory, histogram);
   }
 
   private final IOPeon ioPeon;
@@ -54,7 +56,7 @@ public class FloatColumnSerializer implements GenericColumnSerializer
   private CompressedFloatsSupplierSerializer writer;
 
   private final BitmapSerdeFactory serdeFactory;
-  private final FloatHistogram histogram;
+  private final MetricHistogram.FloatType histogram;
   private ByteBuffer bitmapPayload;
 
   private FloatColumnSerializer(
@@ -62,7 +64,8 @@ public class FloatColumnSerializer implements GenericColumnSerializer
       String filenameBase,
       ByteOrder byteOrder,
       CompressedObjectStrategy.CompressionStrategy compression,
-      BitmapSerdeFactory serdeFactory
+      BitmapSerdeFactory serdeFactory,
+      boolean histogram
   )
   {
     this.ioPeon = ioPeon;
@@ -70,12 +73,16 @@ public class FloatColumnSerializer implements GenericColumnSerializer
     this.byteOrder = byteOrder;
     this.compression = compression;
     this.serdeFactory = serdeFactory;
-    this.histogram = new FloatHistogram(
-        serdeFactory.getBitmapFactory(),
-        DEFAULT_NUM_SAMPLE,
-        DEFAULT_NUM_GROUP,
-        DEFAULT_COMPACT_INTERVAL
-    );
+    if (histogram) {
+      this.histogram = new FloatHistogram(
+          serdeFactory.getBitmapFactory(),
+          DEFAULT_NUM_SAMPLE,
+          DEFAULT_NUM_GROUP,
+          DEFAULT_COMPACT_INTERVAL
+      );
+    } else {
+      this.histogram = new FloatMinMax();
+    }
   }
 
   @Override

@@ -411,7 +411,13 @@ public class ReduceMergeIndexGeneratorJob implements HadoopDruidIndexerJob.Index
       );
 
       long prev = System.currentTimeMillis();
-      File localFile = merger.persist(index, interval, nextFile(), config.getIndexSpec(), progressIndicator);
+      File localFile = merger.persist(
+          index,
+          interval,
+          nextFile(),
+          config.getIndexSpec().withMakeHistogram(false),
+          progressIndicator
+      );
 
       final Path outFile = new Path(shufflingPath, localFile.getName() + ".zip");
       shufflingFS.mkdirs(outFile.getParent());

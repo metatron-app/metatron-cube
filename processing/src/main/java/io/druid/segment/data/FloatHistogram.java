@@ -33,7 +33,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
-public class FloatHistogram
+public class FloatHistogram implements MetricHistogram.FloatType
 {
   private static final int DEFAULT_NUM_GROUP = 10;
   private static final int DEFAULT_COMPACT_INTERVAL = -1;

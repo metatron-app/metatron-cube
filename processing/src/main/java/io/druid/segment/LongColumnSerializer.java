@@ -28,6 +28,7 @@ import io.druid.segment.data.CompressedObjectStrategy;
 import io.druid.segment.data.LongHistogram;
 import io.druid.segment.data.IOPeon;
 import io.druid.segment.data.MetricBitmaps;
+import io.druid.segment.data.MetricHistogram;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -41,10 +42,11 @@ public class LongColumnSerializer implements GenericColumnSerializer
       IOPeon ioPeon,
       String filenameBase,
       CompressedObjectStrategy.CompressionStrategy compression,
-      BitmapSerdeFactory serdeFactory
+      BitmapSerdeFactory serdeFactory,
+      boolean histogram
   )
   {
-    return new LongColumnSerializer(ioPeon, filenameBase, IndexIO.BYTE_ORDER, compression, serdeFactory);
+    return new LongColumnSerializer(ioPeon, filenameBase, IndexIO.BYTE_ORDER, compression, serdeFactory, histogram);
   }
 
   private final IOPeon ioPeon;
@@ -55,7 +57,7 @@ public class LongColumnSerializer implements GenericColumnSerializer
   private CompressedLongsSupplierSerializer writer;
 
   private final BitmapSerdeFactory serdeFactory;
-  private final LongHistogram histogram;
+  private final MetricHistogram.LongType histogram;
   private ByteBuffer bitmapPayload;
 
   private LongColumnSerializer(
@@ -63,7 +65,8 @@ public class LongColumnSerializer implements GenericColumnSerializer
       String filenameBase,
       ByteOrder byteOrder,
       CompressedObjectStrategy.CompressionStrategy compression,
-      BitmapSerdeFactory serdeFactory
+      BitmapSerdeFactory serdeFactory,
+      boolean histogram
   )
   {
     this.ioPeon = ioPeon;
@@ -71,12 +74,16 @@ public class LongColumnSerializer implements GenericColumnSerializer
     this.byteOrder = byteOrder;
     this.compression = compression;
     this.serdeFactory = serdeFactory;
-    this.histogram = new LongHistogram(
-        serdeFactory.getBitmapFactory(),
-        DEFAULT_NUM_SAMPLE,
-        DEFAULT_NUM_GROUP,
-        DEFAULT_COMPACT_INTERVAL
-    );
+    if (histogram) {
+      this.histogram = new LongHistogram(
+          serdeFactory.getBitmapFactory(),
+          DEFAULT_NUM_SAMPLE,
+          DEFAULT_NUM_GROUP,
+          DEFAULT_COMPACT_INTERVAL
+      );
+    } else {
+      this.histogram = new LongMinMax();
+    }
   }
 
   @Override
