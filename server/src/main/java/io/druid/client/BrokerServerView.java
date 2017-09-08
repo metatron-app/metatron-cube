@@ -206,7 +206,7 @@ public class BrokerServerView implements TimelineServerView
 
     baseView.registerServerCallback(
         exec,
-        new ServerView.ServerCallback()
+        new ServerCallback()
         {
           @Override
           public ServerView.CallbackAction serverRemoved(DruidServer server)

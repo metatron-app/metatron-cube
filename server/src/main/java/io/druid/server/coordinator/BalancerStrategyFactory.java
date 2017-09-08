@@ -23,10 +23,11 @@ import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.google.common.util.concurrent.ListeningExecutorService;
 
-@JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "strategy", defaultImpl = CostBalancerStrategyFactory.class)
+@JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "strategy", defaultImpl = CachingCostBalancerStrategyFactory.class)
 @JsonSubTypes(value = {
     @JsonSubTypes.Type(name = "diskNormalized", value = DiskNormalizedCostBalancerStrategyFactory.class),
     @JsonSubTypes.Type(name = "cost", value = CostBalancerStrategyFactory.class),
+    @JsonSubTypes.Type(name = "cachingCost", value = CachingCostBalancerStrategyFactory.class),
     @JsonSubTypes.Type(name = "random", value = RandomBalancerStrategyFactory.class),
 })
 public interface BalancerStrategyFactory
