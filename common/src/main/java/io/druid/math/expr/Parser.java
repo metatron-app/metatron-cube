@@ -50,6 +50,7 @@ public class Parser
 
   static {
     register(BuiltinFunctions.class);
+    register(PredicateFunctions.class);
     register(DateTimeFunctions.class);
     register(ExcelFunctions.class);
   }
@@ -87,7 +88,10 @@ public class Parser
         continue;
       }
       functions.put(name, supplier);
-      if (parent != BuiltinFunctions.class && parent != DateTimeFunctions.class && parent != ExcelFunctions.class) {
+      if (parent != BuiltinFunctions.class
+          && parent != PredicateFunctions.class
+          && parent != DateTimeFunctions.class
+          && parent != ExcelFunctions.class) {
         log.info("user defined function '" + name + "' is registered with class " + clazz.getName());
       }
     }

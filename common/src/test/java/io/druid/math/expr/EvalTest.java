@@ -458,19 +458,17 @@ public class EvalTest
     }
     Set<Long> longs = Sets.newHashSet(1L, 3L, 5L);
     for (int i = 0; i < 5; i++) {
-      long value = i;
-      mapping.put("x", value);
+      mapping.put("x", (long) i);
       Expr.NumericBinding bindings = Parser.withMap(mapping);
       boolean eval = Parser.parse("in(x, 1, 3, 5)").eval(bindings).asBoolean();
-      Assert.assertEquals(longs.contains(value), eval);
+      Assert.assertEquals(longs.contains((long) i), eval);
     }
     Set<Double> doubles = Sets.newHashSet(1D, 3D, 5D);
     for (int i = 0; i < 5; i++) {
-      double value = i;
-      mapping.put("x", value);
+      mapping.put("x", (double) i);
       Expr.NumericBinding bindings = Parser.withMap(mapping);
       boolean eval = Parser.parse("in(x, 1.0, 3.0, 5.0)").eval(bindings).asBoolean();
-      Assert.assertEquals(doubles.contains(value), eval);
+      Assert.assertEquals(doubles.contains((double) i), eval);
     }
   }
 
@@ -772,5 +770,19 @@ public class EvalTest
     Assert.assertTrue(_eval("between(a, 10, 15)", bindings).asBoolean());
     Assert.assertTrue(_eval("between(b, 15, 20)", bindings).asBoolean());
     Assert.assertFalse(_eval("between(b, 25, 30)", bindings).asBoolean());
+  }
+
+  @Test
+  public void testStartsWith()
+  {
+    Expr.NumericBinding bindings = Parser.withMap(ImmutableMap.<String, Object>of("a", "navis", "b", "NavIs", "c", ""));
+    Assert.assertTrue(_eval("startsWith(a, 'na')", bindings).asBoolean());
+    Assert.assertFalse(_eval("startsWith(b, 'na')", bindings).asBoolean());
+    Assert.assertTrue(_eval("startsWithIgnoreCase(b, 'na')", bindings).asBoolean());
+    Assert.assertFalse(_eval("startsWith(c, 'na')", bindings).asBoolean());
+
+    Assert.assertTrue(_eval("endsWith(a, 'is')", bindings).asBoolean());
+    Assert.assertFalse(_eval("endsWith(b, 'is')", bindings).asBoolean());
+    Assert.assertTrue(_eval("endsWithIgnoreCase(b, 'is')", bindings).asBoolean());
   }
 }

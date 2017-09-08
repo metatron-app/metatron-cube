@@ -25,14 +25,11 @@ import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
-import com.google.common.collect.Range;
-import com.google.common.collect.Sets;
 import com.google.common.net.InetAddresses;
 import com.google.common.primitives.Doubles;
 import com.google.common.primitives.Ints;
 import com.google.common.primitives.Longs;
 import com.google.common.primitives.UnsignedBytes;
-import com.metamx.common.Pair;
 import com.metamx.common.logger.Logger;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.math.expr.Expr.NumericBinding;
@@ -72,7 +69,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Properties;
-import java.util.Set;
 import java.util.Vector;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -327,37 +323,6 @@ public interface BuiltinFunctions extends Function.Library
     }
   }
 
-  class Like extends ExprType.StringFunction implements Factory
-  {
-    private Pair<RegexUtils.PatternType, Object> matcher;
-
-    @Override
-    public String name()
-    {
-      return "like";
-    }
-
-    @Override
-    public ExprEval apply(List<Expr> args, NumericBinding bindings)
-    {
-      if (matcher == null) {
-        if (args.size() != 2) {
-          throw new RuntimeException("function '" + name() + "' needs 2 arguments");
-        }
-        Expr expr2 = args.get(1);
-        matcher = RegexUtils.parse(Evals.getConstantString(expr2));
-      }
-      ExprEval eval = args.get(0).eval(bindings);
-      return ExprEval.of(RegexUtils.evaluate(eval.asString(), matcher.lhs, matcher.rhs));
-    }
-
-    @Override
-    public Function get()
-    {
-      return new Like();
-    }
-  }
-
   class Regex implements Function, Factory
   {
     private Matcher matcher;
@@ -372,7 +337,7 @@ public interface BuiltinFunctions extends Function.Library
     @Override
     public final ExprType apply(List<Expr> args, Expr.TypeBinding bindings)
     {
-      return args.size() == 2 ? ExprType.LONG : args.size() == 3 ?ExprType.STRING : ExprType.UNKNOWN;
+      return args.size() == 2 ? ExprType.LONG : args.size() == 3 ? ExprType.STRING : ExprType.UNKNOWN;
     }
 
     @Override
@@ -2137,77 +2102,6 @@ public interface BuiltinFunctions extends Function.Library
       }
       String input = args.get(0).eval(bindings).asString();
       return ExprEval.of(Strings.isNullOrEmpty(input) ? input : input.trim());
-    }
-  }
-
-  class InFunc extends ExprType.BoolFunction implements Factory
-  {
-    @Override
-    public String name()
-    {
-      return "in";
-    }
-
-    private transient Set<Object> set;
-
-    @Override
-    public ExprEval apply(List<Expr> args, NumericBinding bindings)
-    {
-      if (set == null) {
-        if (args.size() < 2) {
-          throw new RuntimeException("function 'in' needs at least 2 arguments");
-        }
-        set = Sets.newHashSet();
-        for (int i = 1; i < args.size(); i++) {
-          set.add(Evals.getConstant(args.get(i)));
-        }
-      }
-      return ExprEval.of(set.contains(args.get(0).eval(bindings).value()));
-    }
-
-    @Override
-    public Function get()
-    {
-      return new InFunc();
-    }
-  }
-
-  class BetweenFunc extends ExprType.BoolFunction implements Factory
-  {
-    @Override
-    public String name()
-    {
-      return "between";
-    }
-
-    private transient ExprType type;
-    private transient Range<Comparable> range;
-
-    @Override
-    public ExprEval apply(List<Expr> args, NumericBinding bindings)
-    {
-      if (range == null) {
-        if (args.size() != 3) {
-          throw new RuntimeException("function 'between' needs 3 arguments");
-        }
-        Expr param1 = args.get(1);
-        Expr param2 = args.get(2);
-        if (!Evals.isConstant(param1) || !Evals.isConstant(param2)) {
-          throw new RuntimeException("needs constants for range values");
-        }
-        ExprEval eval1 = param1.eval(bindings);
-        ExprEval eval2 = Evals.castTo(param2.eval(bindings), eval1.type());
-        range = Range.closed((Comparable) eval1.value(), (Comparable) eval2.value());
-        type = eval1.type();
-      }
-      ExprEval eval = Evals.castTo(args.get(0).eval(bindings), type);
-      return ExprEval.of(range.contains((Comparable) eval.value()));
-    }
-
-    @Override
-    public Function get()
-    {
-      return new BetweenFunc();
     }
   }
 
