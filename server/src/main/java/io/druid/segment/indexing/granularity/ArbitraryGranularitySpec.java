@@ -41,17 +41,20 @@ public class ArbitraryGranularitySpec implements GranularitySpec
   private final TreeSet<Interval> intervals;
   private final QueryGranularity queryGranularity;
   private final Boolean rollup;
+  private final Boolean append;
 
   @JsonCreator
   public ArbitraryGranularitySpec(
       @JsonProperty("queryGranularity") QueryGranularity queryGranularity,
       @JsonProperty("rollup") Boolean rollup,
+      @JsonProperty("append") Boolean append,
       @JsonProperty("intervals") List<Interval> inputIntervals
   )
   {
     this.queryGranularity = queryGranularity;
     this.intervals = Sets.newTreeSet(JodaUtils.intervalsByStartThenEnd());
     this.rollup = rollup == null ? Boolean.TRUE : rollup;
+    this.append = append == null ? Boolean.FALSE : append;
 
     if (inputIntervals == null) {
       inputIntervals = Lists.newArrayList();
@@ -87,7 +90,7 @@ public class ArbitraryGranularitySpec implements GranularitySpec
       List<Interval> inputIntervals
   )
   {
-    this(queryGranularity, true, inputIntervals);
+    this(queryGranularity, true, false, inputIntervals);
   }
 
   @Override
@@ -121,6 +124,13 @@ public class ArbitraryGranularitySpec implements GranularitySpec
   public boolean isRollup()
   {
     return rollup;
+  }
+
+  @Override
+  @JsonProperty("append")
+  public boolean isAppending()
+  {
+    return append;
   }
 
   @Override

@@ -144,6 +144,7 @@ public class DetermineHashedPartitionsJob implements Jobby
                 config.getGranularitySpec().getSegmentGranularity(),
                 config.getGranularitySpec().getQueryGranularity(),
                 config.getGranularitySpec().isRollup(),
+                config.getGranularitySpec().isAppending(),
                 intervals
             )
         );

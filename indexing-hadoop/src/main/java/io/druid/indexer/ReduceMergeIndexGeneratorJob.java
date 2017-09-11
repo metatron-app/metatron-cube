@@ -28,6 +28,7 @@ import com.metamx.common.logger.Logger;
 import io.druid.common.utils.CompressionUtils;
 import io.druid.data.input.InputRow;
 import io.druid.indexer.path.HynixCombineInputFormat;
+import io.druid.query.SegmentDescriptor;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.segment.BaseProgressIndicator;
 import io.druid.segment.IndexMerger;
@@ -37,7 +38,10 @@ import io.druid.segment.incremental.IncrementalIndex;
 import io.druid.segment.incremental.IncrementalIndexSchema;
 import io.druid.segment.incremental.IndexSizeExceededException;
 import io.druid.segment.incremental.OnheapIncrementalIndex;
+import io.druid.segment.indexing.granularity.GranularitySpec;
+import io.druid.segment.indexing.granularity.AppendingGranularitySpec;
 import io.druid.timeline.DataSegment;
+import io.druid.timeline.partition.LinearShardSpec;
 import io.druid.timeline.partition.NoneShardSpec;
 import io.druid.timeline.partition.NumberedShardSpec;
 import io.druid.timeline.partition.ShardSpec;
@@ -546,7 +550,20 @@ public class ReduceMergeIndexGeneratorJob implements HadoopDruidIndexerJob.Index
       final String dataSource = split[0];
       final DateTime time = new DateTime(Long.valueOf(split[1]));
 
-      final Interval interval = config.getGranularitySpec().bucketInterval(time).get();
+      final GranularitySpec granularitySpec = config.getGranularitySpec();
+      final Interval interval = granularitySpec.bucketInterval(time).get();
+
+      String version = tuningConfig.getVersion();
+      LinearShardSpec appendingSpec = null;
+      if (granularitySpec instanceof AppendingGranularitySpec) {
+        SegmentDescriptor descriptor = ((AppendingGranularitySpec) granularitySpec).getSegmentDescriptor(interval);
+        if (descriptor != null) {
+          appendingSpec = LinearShardSpec.of(descriptor.getPartitionNumber());
+          version = descriptor.getVersion();
+        } else {
+          appendingSpec = LinearShardSpec.of(0);
+        }
+      }
       final List<String> files = Lists.newArrayList(Iterables.transform(values, Functions.toStringFunction()));
       final List<List<File>> groups = groupToShards(files, maxShardLength);
 
@@ -578,8 +595,13 @@ public class ReduceMergeIndexGeneratorJob implements HadoopDruidIndexerJob.Index
               progressIndicator
           );
         }
-        ShardSpec shardSpec = singleShard ? NoneShardSpec.instance() : new NumberedShardSpec(i, groups.size());
-        writeShard(dataSource, mergedBase, interval, Lists.newArrayList(dimensions), shardSpec, context);
+        ShardSpec shardSpec;
+        if (appendingSpec != null) {
+          shardSpec = LinearShardSpec.of(appendingSpec.getPartitionNum() + i);
+        } else {
+          shardSpec = singleShard ? NoneShardSpec.instance() : new NumberedShardSpec(i, groups.size());
+        }
+        writeShard(dataSource, mergedBase, version, interval, Lists.newArrayList(dimensions), shardSpec, context);
       }
     }
 
@@ -621,6 +643,7 @@ public class ReduceMergeIndexGeneratorJob implements HadoopDruidIndexerJob.Index
     private void writeShard(
         String dataSource,
         File directory,
+        String version,
         Interval interval,
         List<String> dimensions,
         ShardSpec shardSpec,
@@ -631,7 +654,7 @@ public class ReduceMergeIndexGeneratorJob implements HadoopDruidIndexerJob.Index
       final DataSegment segmentTemplate = new DataSegment(
           dataSource,
           interval,
-          tuningConfig.getVersion(),
+          version,
           null,
           dimensions,
           metricNames,

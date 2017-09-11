@@ -1,11 +1,13 @@
 package io.druid.indexer;
 
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import com.metamx.common.IAE;
 import com.metamx.common.logger.Logger;
 import io.druid.data.input.InputRow;
+import io.druid.query.SegmentDescriptor;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.segment.BaseProgressIndicator;
 import io.druid.segment.IndexMerger;
@@ -14,7 +16,10 @@ import io.druid.segment.QueryableIndex;
 import io.druid.segment.incremental.IncrementalIndex;
 import io.druid.segment.incremental.IncrementalIndexSchema;
 import io.druid.segment.incremental.OnheapIncrementalIndex;
+import io.druid.segment.indexing.granularity.AppendingGranularitySpec;
+import io.druid.segment.indexing.granularity.GranularitySpec;
 import io.druid.timeline.DataSegment;
+import io.druid.timeline.partition.LinearShardSpec;
 import io.druid.timeline.partition.NoneShardSpec;
 import io.druid.timeline.partition.NumberedShardSpec;
 import io.druid.timeline.partition.ShardSpec;
@@ -49,21 +54,6 @@ public class MapOnlyIndexGeneratorJob implements HadoopDruidIndexerJob.IndexingS
   {
     this.config = config;
     this.jobStats = new IndexGeneratorJob.IndexGeneratorStats();
-
-    for (List<HadoopyShardSpec> shardSpecs : config.getSchema().getTuningConfig().getShardSpecs().values()) {
-      for (HadoopyShardSpec shardSpec : shardSpecs) {
-        ShardSpec spec = shardSpec.getActualSpec();
-        if (spec instanceof NoneShardSpec) {
-          continue;
-        }
-        if (spec instanceof NumberedShardSpec
-            && ((NumberedShardSpec) spec).getPartitions() == 1
-            && spec.getPartitionNum() == 0) {
-          continue;
-        }
-        throw new IllegalArgumentException("cannot handle shard spec " + shardSpec);
-      }
-    }
   }
 
   public IndexGeneratorJob.IndexGeneratorStats getJobStats()
@@ -172,8 +162,8 @@ public class MapOnlyIndexGeneratorJob implements HadoopDruidIndexerJob.IndexingS
       tuningConfig = config.getSchema().getTuningConfig();
 
       aggregators = config.getSchema().getDataSchema().getAggregators();
-      for (int i = 0; i < aggregators.length; ++i) {
-        metricNames.add(aggregators[i].getName());
+      for (AggregatorFactory aggregator : aggregators) {
+        metricNames.add(aggregator.getName());
       }
 
       flushedIndex = context.getCounter("navis", "index-flush-count");
@@ -209,7 +199,7 @@ public class MapOnlyIndexGeneratorJob implements HadoopDruidIndexerJob.IndexingS
     }
 
     private Interval interval;
-    private IncrementalIndex index;
+    private IncrementalIndex<?> index;
 
     @Override
     protected void innerMap(
@@ -287,8 +277,22 @@ public class MapOnlyIndexGeneratorJob implements HadoopDruidIndexerJob.IndexingS
           toMerge.add(finalFile);
         }
       }
+      final GranularitySpec granularitySpec = config.getGranularitySpec();
+      LinearShardSpec appendingSpec = null;
+      String version = tuningConfig.getVersion();
+      if (granularitySpec instanceof AppendingGranularitySpec) {
+        SegmentDescriptor descriptor = ((AppendingGranularitySpec) granularitySpec).getSegmentDescriptor(interval);
+        if (descriptor != null) {
+          appendingSpec = LinearShardSpec.of(descriptor.getPartitionNumber());
+          version = descriptor.getVersion();
+        } else {
+          appendingSpec = LinearShardSpec.of(0);
+        }
+      }
+
       if (toMerge.size() == 1) {
-        writeShard(toMerge.iterator().next(), new NoneShardSpec(), context);
+        ShardSpec shardSpec = appendingSpec != null ? appendingSpec : NoneShardSpec.instance();
+        writeShard(Iterables.getOnlyElement(toMerge), version, shardSpec, context);
       } else {
         List<List<File>> groups = groupToShards(toMerge, maxShardLength);
 
@@ -312,8 +316,13 @@ public class MapOnlyIndexGeneratorJob implements HadoopDruidIndexerJob.IndexingS
                 progressIndicator
             );
           }
-          ShardSpec shardSpec = singleShard ? new NoneShardSpec() : new NumberedShardSpec(i, groups.size());
-          writeShard(mergedBase, shardSpec, context);
+          ShardSpec shardSpec;
+          if (appendingSpec != null) {
+            shardSpec = LinearShardSpec.of(appendingSpec.getPartitionNum() + i);
+          } else {
+            shardSpec = singleShard ? NoneShardSpec.instance() : new NumberedShardSpec(i, groups.size());
+          }
+          writeShard(mergedBase, version, shardSpec, context);
         }
       }
       for (File file : toMerge) {
@@ -346,12 +355,12 @@ public class MapOnlyIndexGeneratorJob implements HadoopDruidIndexerJob.IndexingS
       return groups;
     }
 
-    private void writeShard(File directory, ShardSpec shardSpec, Context context) throws IOException
+    private void writeShard(File directory, String version, ShardSpec shardSpec, Context context) throws IOException
     {
       final DataSegment segmentTemplate = new DataSegment(
           config.getDataSource(),
           interval,
-          tuningConfig.getVersion(),
+          version,
           null,
           ImmutableList.copyOf(allDimensionNames),
           metricNames,

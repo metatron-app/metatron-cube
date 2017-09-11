@@ -43,6 +43,7 @@ public class UniformGranularitySpec implements GranularitySpec
   private final Granularity segmentGranularity;
   private final QueryGranularity queryGranularity;
   private final Boolean rollup;
+  private final Boolean append;
   private final List<Interval> intervals;
 
   private transient ArbitraryGranularitySpec normalized;
@@ -52,12 +53,14 @@ public class UniformGranularitySpec implements GranularitySpec
       @JsonProperty("segmentGranularity") Granularity segmentGranularity,
       @JsonProperty("queryGranularity") QueryGranularity queryGranularity,
       @JsonProperty("rollup") Boolean rollup,
+      @JsonProperty("append") Boolean append,
       @JsonProperty("intervals") List<Interval> intervals
   )
   {
     this.segmentGranularity = segmentGranularity == null ? DEFAULT_SEGMENT_GRANULARITY : segmentGranularity;
     this.queryGranularity = queryGranularity == null ? DEFAULT_QUERY_GRANULARITY : queryGranularity;
     this.rollup = rollup == null ? Boolean.TRUE : rollup;
+    this.append = append == null ? Boolean.FALSE: append;
     this.intervals = intervals;
   }
 
@@ -67,7 +70,7 @@ public class UniformGranularitySpec implements GranularitySpec
       List<Interval> inputIntervals
   )
   {
-    this(segmentGranularity, queryGranularity, true, inputIntervals);
+    this(segmentGranularity, queryGranularity, true, false, inputIntervals);
   }
 
   @Override
@@ -87,7 +90,12 @@ public class UniformGranularitySpec implements GranularitySpec
       for (Interval inputInterval : intervals) {
         Iterables.addAll(granularIntervals, segmentGranularity.getIterable(inputInterval));
       }
-      normalized = new ArbitraryGranularitySpec(queryGranularity, rollup, ImmutableList.copyOf(granularIntervals));
+      normalized = new ArbitraryGranularitySpec(
+          queryGranularity,
+          rollup,
+          append,
+          ImmutableList.copyOf(granularIntervals)
+      );
     }
     return normalized;
   }
@@ -114,6 +122,13 @@ public class UniformGranularitySpec implements GranularitySpec
   public boolean isRollup()
   {
     return rollup;
+  }
+
+  @Override
+  @JsonProperty("append")
+  public boolean isAppending()
+  {
+    return append;
   }
 
   @Override

@@ -106,7 +106,13 @@ public class UniformGranularityTest
         new Interval("2012-01-03T00Z/2012-01-04T00Z"),
         new Interval("2012-01-01T00Z/2012-01-03T00Z")
     );
-    final GranularitySpec spec = new UniformGranularitySpec(Granularity.DAY, QueryGranularities.NONE, false, intervals);
+    final GranularitySpec spec = new UniformGranularitySpec(
+        Granularity.DAY,
+        QueryGranularities.NONE,
+        false,
+        false,
+        intervals
+    );
 
     Assert.assertFalse(spec.isRollup());
   }

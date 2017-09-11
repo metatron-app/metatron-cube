@@ -28,6 +28,11 @@ import java.util.List;
 
 public class LinearShardSpec implements ShardSpec
 {
+  public static LinearShardSpec of(int partitionNum)
+  {
+    return new LinearShardSpec(partitionNum);
+  }
+
   private int partitionNum;
 
   @JsonCreator

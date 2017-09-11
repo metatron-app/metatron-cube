@@ -36,7 +36,8 @@ import java.util.SortedSet;
 @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type", defaultImpl = UniformGranularitySpec.class)
 @JsonSubTypes(value = {
     @JsonSubTypes.Type(name = "uniform", value = UniformGranularitySpec.class),
-    @JsonSubTypes.Type(name = "arbitrary", value = ArbitraryGranularitySpec.class)
+    @JsonSubTypes.Type(name = "arbitrary", value = ArbitraryGranularitySpec.class),
+    @JsonSubTypes.Type(name = "append", value = AppendingGranularitySpec.class)
 })
 public interface GranularitySpec
 {
@@ -57,8 +58,9 @@ public interface GranularitySpec
 
   public Granularity getSegmentGranularity();
 
-  public boolean isRollup();
-
   public QueryGranularity getQueryGranularity();
 
+  public boolean isAppending();
+
+  public boolean isRollup();
 }

@@ -185,6 +185,9 @@ public class IndexGeneratorJob implements HadoopDruidIndexerJob.IndexingStatsPro
         throw new RuntimeException("No buckets?? seems there is no data to index.");
       }
 
+      if (config.getGranularitySpec().isAppending()) {
+        throw new RuntimeException("Does not support segment appending in this mode.");
+      }
       if (config.getSchema().getTuningConfig().getUseCombiner()) {
         // when settling is used, combiner should be turned off
         if (config.getSchema().getSettlingConfig() == null) {

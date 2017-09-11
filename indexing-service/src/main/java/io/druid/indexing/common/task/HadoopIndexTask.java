@@ -42,8 +42,13 @@ import io.druid.indexing.common.TaskStatus;
 import io.druid.indexing.common.TaskToolbox;
 import io.druid.indexing.common.actions.LockAcquireAction;
 import io.druid.indexing.common.actions.LockTryAcquireAction;
+import io.druid.indexing.common.actions.SegmentAppendingAction;
 import io.druid.indexing.common.actions.TaskActionClient;
 import io.druid.indexing.hadoop.OverlordActionBasedUsedSegmentLister;
+import io.druid.query.SegmentDescriptor;
+import io.druid.segment.indexing.DataSchema;
+import io.druid.segment.indexing.granularity.AppendingGranularitySpec;
+import io.druid.segment.indexing.granularity.GranularitySpec;
 import io.druid.timeline.DataSegment;
 import org.joda.time.DateTime;
 import org.joda.time.Interval;
@@ -78,7 +83,7 @@ public class HadoopIndexTask extends HadoopTask
   /**
    * @param spec is used by the HadoopDruidIndexerJob to set up the appropriate parameters
    *             for creating Druid index segments. It may be modified.
-   *             <p>
+   *             <p/>
    *             Here, we will ensure that the DbConnectorConfig field of the spec is set to null, such that the
    *             job does not push a list of published segments the database. Instead, we will use the method
    *             IndexGeneratorJob.getPublishedSegments() to simply return a list of the published
@@ -178,34 +183,41 @@ public class HadoopIndexTask extends HadoopTask
         new OverlordActionBasedUsedSegmentLister(toolbox)
     );
 
+    final String dataSource = getDataSource();
     final String config = invokeForeignLoader(
         "io.druid.indexing.common.task.HadoopIndexTask$HadoopDetermineConfigInnerProcessing",
         new String[]{
             toolbox.getObjectMapper().writeValueAsString(spec),
             toolbox.getConfig().getHadoopWorkingPath(),
-            toolbox.getSegmentPusher().getPathForHadoop(getDataSource())
+            toolbox.getSegmentPusher().getPathForHadoop(dataSource)
         },
         loader
     );
 
-    final HadoopIngestionSpec indexerSchema = toolbox
+    HadoopIngestionSpec indexerSchema = toolbox
         .getObjectMapper()
         .readValue(config, HadoopIngestionSpec.class);
 
+    DataSchema dataSchema = indexerSchema.getDataSchema();
+    GranularitySpec granularitySpec = dataSchema.getGranularitySpec();
+    List<Interval> intervals = JodaUtils.condenseIntervals(granularitySpec.bucketIntervals().get());
+
+    TaskActionClient actionClient = toolbox.getTaskActionClient();
 
     // We should have a lock from before we started running only if interval was specified
-    final String version;
+    TaskLock lock;
     if (determineIntervals) {
-      Interval interval = JodaUtils.umbrellaInterval(
-          JodaUtils.condenseIntervals(
-              indexerSchema.getDataSchema().getGranularitySpec().bucketIntervals().get()
-          )
-      );
-      TaskLock lock = toolbox.getTaskActionClient().submit(new LockAcquireAction(interval));
-      version = lock.getVersion();
+      lock = actionClient.submit(new LockAcquireAction(JodaUtils.umbrellaInterval(intervals)));
     } else {
-      Iterable<TaskLock> locks = getTaskLocks(toolbox);
-      version = Iterables.getFirst(locks, null).getVersion();
+      lock = Iterables.get(getTaskLocks(toolbox), 0);
+    }
+    String version = lock.getVersion();
+
+    if (granularitySpec.isAppending()) {
+      List<SegmentDescriptor> descriptors = actionClient.submit(new SegmentAppendingAction(dataSource, intervals));
+      indexerSchema = indexerSchema.withDataSchema(
+          dataSchema.withGranularitySpec(new AppendingGranularitySpec(granularitySpec, descriptors))
+      );
     }
 
     log.info("Setting version to: %s", version);
