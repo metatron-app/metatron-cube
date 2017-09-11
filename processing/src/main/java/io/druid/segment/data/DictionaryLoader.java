@@ -30,7 +30,7 @@ public interface DictionaryLoader<T>
 
   Collection<T> loadFully();
 
-  DictionaryLoader nullLoader = new DictionaryLoader()
+  DictionaryLoader<String> nullLoader = new DictionaryLoader<String>()
   {
     @Override
     public int size()
@@ -39,9 +39,9 @@ public interface DictionaryLoader<T>
     }
 
     @Override
-    public Collection loadFully()
+    public Collection<String> loadFully()
     {
-      return Arrays.asList((Object)null);
+      return Arrays.asList((String)null);
     }
   };
 }

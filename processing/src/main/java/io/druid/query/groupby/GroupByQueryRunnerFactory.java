@@ -51,6 +51,7 @@ import io.druid.query.QueryWatcher;
 import io.druid.query.RowResolver;
 import io.druid.query.dimension.DefaultDimensionSpec;
 import io.druid.query.dimension.DimensionSpec;
+import io.druid.query.dimension.DimensionSpecs;
 import io.druid.query.filter.DimFilter;
 import io.druid.query.filter.Filter;
 import io.druid.segment.ColumnSelectorBitmapIndexSelector;
@@ -129,15 +130,22 @@ public class GroupByQueryRunnerFactory implements QueryRunnerFactory<Row, GroupB
     if (!DefaultDimensionSpec.isAllDefault(query.getDimensions())) {
       return null;
     }
+    final DimFilter dimFilter = query.getDimFilter();
     final VirtualColumns vcs = VirtualColumns.valueOf(query.getVirtualColumns());
+    for (Segment segment : segments) {
+      RowResolver resolver = RowResolver.of(segment.asQueryableIndex(false), vcs);
+      List<String> dimensions = Lists.transform(query.getDimensions(), DimensionSpecs.INPUT_NAME);
+      if (resolver == null || !resolver.supportsBitmap(dimensions, dimFilter)) {
+        return null;
+      }
+    }
 
     final long start = System.currentTimeMillis();
     log.info("Initializing group-by optimizer with target %d segments", segments.size());
 
     Filter filter = null;
     String filterDim = null;
-    DimFilter dimFilter = query.getDimFilter();
-    if (dimFilter != null && supportsBitmap(segments, vcs, dimFilter)) {
+    if (dimFilter != null) {
       filter = Filters.toFilter(dimFilter);
       Set<String> dependents = Filters.getDependents(dimFilter);
       if (dependents.size() == 1) {
@@ -275,17 +283,6 @@ public class GroupByQueryRunnerFactory implements QueryRunnerFactory<Row, GroupB
             }
         )
     );
-  }
-
-  private boolean supportsBitmap(List<Segment> segments, VirtualColumns vcs, DimFilter filter)
-  {
-    for (Segment segment : segments) {
-      RowResolver resolver = RowResolver.of(segment.asQueryableIndex(false), vcs);
-      if (resolver == null || !resolver.supportsBitmap(Arrays.<String>asList(), filter)) {
-        return false;
-      }
-    }
-    return true;
   }
 
   @Override
