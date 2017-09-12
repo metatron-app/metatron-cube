@@ -405,7 +405,7 @@ public class Filters
       MetricBitmap metric = metrics.get(required.get(0));
       ImmutableBitmap bitmap = leafToRanges((FuncExpression) tree, metric, withNot);
       if (bitmap != null) {
-        logger.debug("%s : %,d / %,d", tree, bitmap.size(), metric.rows());
+        logger.debug("%s%s : %,d / %,d", withNot ? "!": "", tree, bitmap.size(), metric.rows());
       }
       return bitmap;
     } else if (tree instanceof AndExpression) {

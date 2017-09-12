@@ -30,14 +30,7 @@ import io.druid.segment.ObjectColumnSelector;
  */
 public abstract class CovarianceAggregator implements Aggregator
 {
-  protected final String name;
-
   protected final io.druid.query.aggregation.covariance.CovarianceAggregatorCollector holder = new io.druid.query.aggregation.covariance.CovarianceAggregatorCollector();
-
-  public CovarianceAggregator(String name)
-  {
-    this.name = name;
-  }
 
   @Override
   public void reset()
@@ -75,14 +68,13 @@ public abstract class CovarianceAggregator implements Aggregator
   }
 
   public static Aggregator create(
-      String name,
       final DoubleColumnSelector selector1,
       final DoubleColumnSelector selector2,
       final Predicate<?> predicate
   )
   {
     if (predicate == null || predicate == Predicates.alwaysTrue()) {
-      return new CovarianceAggregator(name)
+      return new CovarianceAggregator()
       {
         @Override
         public void aggregate()
@@ -91,7 +83,7 @@ public abstract class CovarianceAggregator implements Aggregator
         }
       };
     } else {
-      return new CovarianceAggregator(name)
+      return new CovarianceAggregator()
       {
         @Override
         public void aggregate()
@@ -104,12 +96,12 @@ public abstract class CovarianceAggregator implements Aggregator
     }
   }
 
-  public static Aggregator create(String name, final ObjectColumnSelector selector, final Predicate<?> predicate)
+  public static Aggregator create(final ObjectColumnSelector selector, final Predicate<?> predicate)
   {
     if (selector == null) {
       return Aggregators.noopAggregator();
     }
-    return new CovarianceAggregator(name)
+    return new CovarianceAggregator()
     {
       @Override
       public void aggregate()

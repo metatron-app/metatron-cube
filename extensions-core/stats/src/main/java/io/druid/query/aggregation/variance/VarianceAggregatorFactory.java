@@ -259,11 +259,11 @@ public class VarianceAggregatorFactory extends GenericAggregatorFactory
   @Override
   public String toString()
   {
-    return getClass().getSimpleName() + "{" +
+    return getClass().getSimpleName() + '{' +
            "name='" + name + '\'' +
-           ", fieldName='" + fieldName + '\'' +
-           ", fieldExpression='" + fieldExpression + '\'' +
-           ", predicate='" + predicate + '\'' +
+           (fieldName == null ? "": ", fieldName='" + fieldName + '\'') +
+           (fieldExpression == null ? "": ", fieldExpression='" + fieldExpression + '\'') +
+           (predicate == null ? "": ", predicate='" + predicate + '\'') +
            ", estimator='" + estimator + '\'' +
            ", inputType='" + inputType + '\'' +
            '}';

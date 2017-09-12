@@ -146,7 +146,7 @@ public class CountAggregatorFactory extends AggregatorFactory
   {
     return "CountAggregatorFactory{" +
            "name='" + name + '\'' +
-           "predicate='" + predicate + '\'' +
+           (predicate == null ? "": ", predicate='" + predicate + '\'') +
            '}';
   }
 

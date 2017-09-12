@@ -131,7 +131,6 @@ public class CovarianceAggregatorFactory extends AggregatorFactory
       case DOUBLE:
       case LONG:
         return CovarianceAggregator.create(
-            name,
             metricFactory.makeDoubleColumnSelector(fieldName1),
             metricFactory.makeDoubleColumnSelector(fieldName2),
             ColumnSelectors.toPredicate(predicate, metricFactory)
@@ -139,7 +138,6 @@ public class CovarianceAggregatorFactory extends AggregatorFactory
       case COMPLEX:
         if ("covariance".equalsIgnoreCase(inputType.typeName())) {
           return CovarianceAggregator.create(
-              name,
               metricFactory.makeObjectColumnSelector(fieldName1),
               ColumnSelectors.toPredicate(predicate, metricFactory)
           );

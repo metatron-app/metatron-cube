@@ -275,11 +275,11 @@ public abstract class GenericAggregatorFactory extends AggregatorFactory
   public String toString()
   {
     return getClass().getSimpleName() + '{' +
-           "fieldName='" + fieldName + '\'' +
-           ", fieldExpression='" + fieldExpression + '\'' +
-           ", predicate='" + predicate + '\'' +
+           "name='" + name + '\'' +
+           (fieldName == null ? "": ", fieldName='" + fieldName + '\'') +
+           (fieldExpression == null ? "": ", fieldExpression='" + fieldExpression + '\'') +
+           (predicate == null ? "": ", predicate='" + predicate + '\'') +
            ", inputType='" + inputType + '\'' +
-           ", name='" + name + '\'' +
            '}';
   }
 
