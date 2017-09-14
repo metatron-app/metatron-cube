@@ -31,17 +31,17 @@ public class DruidTDigest {
     }
   }
 
-  public void add(double x)
+  public synchronized void add(double x)
   {
     digest.add(x);
   }
 
-  public void add(double x, int w)
+  public synchronized void add(double x, int w)
   {
     digest.add(x, w);
   }
 
-  public void add(DruidTDigest other)
+  public synchronized void add(DruidTDigest other)
   {
     if (other.size() > 0)
     {

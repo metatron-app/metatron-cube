@@ -82,7 +82,10 @@ public abstract class DoubleMaxAggregator implements Aggregator
         @Override
         public final void aggregate()
         {
-          max = Math.max(max, selector.get());
+          float v = selector.get();
+          synchronized (this) {
+            max = Math.max(max, v);
+          }
         }
       };
     } else {
@@ -92,7 +95,10 @@ public abstract class DoubleMaxAggregator implements Aggregator
         public final void aggregate()
         {
           if (predicate.matches()) {
-            max = Math.max(max, selector.get());
+            float v = selector.get();
+            synchronized (this) {
+              max = Math.max(max, v);
+            }
           }
         }
       };
@@ -107,7 +113,10 @@ public abstract class DoubleMaxAggregator implements Aggregator
         @Override
         public final void aggregate()
         {
-          max = Math.max(max, selector.get());
+          double v = selector.get();
+          synchronized (this) {
+            max = Math.max(max, v);
+          }
         }
       };
     } else {
@@ -117,7 +126,10 @@ public abstract class DoubleMaxAggregator implements Aggregator
         public final void aggregate()
         {
           if (predicate.matches()) {
-            max = Math.max(max, selector.get());
+            double v = selector.get();
+            synchronized (this) {
+              max = Math.max(max, v);
+            }
           }
         }
       };

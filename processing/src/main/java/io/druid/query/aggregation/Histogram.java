@@ -54,7 +54,7 @@ public class Histogram
     for(long k : bins) this.count += k;
   }
 
-  public void offer(float d) {
+  public synchronized void offer(float d) {
     if(d > max) max = d;
     if(d < min) min = d;
 
@@ -64,7 +64,7 @@ public class Histogram
     count++;
   }
 
-  public Histogram fold(Histogram h) {
+  public synchronized Histogram fold(Histogram h) {
     Preconditions.checkArgument(Arrays.equals(breaks, h.breaks), "Cannot fold histograms with different breaks");
 
     if(h.min < min) min = h.min;

@@ -45,7 +45,10 @@ public abstract class LongMinAggregator implements Aggregator
         @Override
         public final void aggregate()
         {
-          min = Math.min(min, selector.get());
+          long v = selector.get();
+          synchronized (this) {
+            min = Math.min(min, v);
+          }
         }
       };
     } else {
@@ -55,7 +58,10 @@ public abstract class LongMinAggregator implements Aggregator
         public final void aggregate()
         {
           if (predicate.matches()) {
-            min = Math.min(min, selector.get());
+            long v = selector.get();
+            synchronized (this) {
+              min = Math.min(min, v);
+            }
           }
         }
       };

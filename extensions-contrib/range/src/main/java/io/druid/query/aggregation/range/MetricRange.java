@@ -32,7 +32,7 @@ public class MetricRange
     return this;
   }
 
-  public MetricRange add(Object o)
+  public synchronized MetricRange add(Object o)
   {
     if (o instanceof Double) {
       return add((double)o);
@@ -43,7 +43,7 @@ public class MetricRange
     return this;
   }
 
-  public MetricRange add(double value)
+  public synchronized MetricRange add(double value)
   {
     if (min > value) {
       min = value;
@@ -55,7 +55,7 @@ public class MetricRange
     return this;
   }
 
-  public MetricRange add(MetricRange other)
+  public synchronized MetricRange add(MetricRange other)
   {
     if (min > other.min) {
       min = other.min;

@@ -320,7 +320,7 @@ public abstract class ApproximateHistogramHolder
    *
    * @param value the value to be added
    */
-  public void offer(float value)
+  public synchronized void offer(float value)
   {
     // update min/max
     if (value < min) {

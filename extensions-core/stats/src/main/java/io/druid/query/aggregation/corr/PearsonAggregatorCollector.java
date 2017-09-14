@@ -170,7 +170,7 @@ class PearsonAggregatorCollector
     this.covar = covar;
   }
 
-  public PearsonAggregatorCollector add(final double vx, final double vy)
+  public synchronized PearsonAggregatorCollector add(final double vx, final double vy)
   {
     final double deltaX = vx - xavg;
     final double deltaY = vy - yavg;

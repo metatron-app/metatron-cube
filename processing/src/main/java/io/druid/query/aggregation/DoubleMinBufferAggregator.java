@@ -73,7 +73,11 @@ public abstract class DoubleMinBufferAggregator implements BufferAggregator
         @Override
         public final void aggregate(ByteBuffer buf, int position)
         {
-          buf.putDouble(position, Math.min(buf.getDouble(position), (double) selector.get()));
+          final double v1 = buf.getDouble(position);
+          final double v2 = (double) selector.get();
+          if (Double.compare(v1, v2) >= 0) {
+            buf.putDouble(position, v2);
+          }
         }
       };
     } else {
@@ -83,7 +87,11 @@ public abstract class DoubleMinBufferAggregator implements BufferAggregator
         public final void aggregate(ByteBuffer buf, int position)
         {
           if (predicate.matches()) {
-            buf.putDouble(position, Math.min(buf.getDouble(position), (double) selector.get()));
+            final double v1 = buf.getDouble(position);
+            final double v2 = (double) selector.get();
+            if (Double.compare(v1, v2) >= 0) {
+              buf.putDouble(position, v2);
+            }
           }
         }
       };
@@ -98,7 +106,11 @@ public abstract class DoubleMinBufferAggregator implements BufferAggregator
         @Override
         public final void aggregate(ByteBuffer buf, int position)
         {
-          buf.putDouble(position, Math.min(buf.getDouble(position), selector.get()));
+          final double v1 = buf.getDouble(position);
+          final double v2 = selector.get();
+          if (Double.compare(v1, v2) >= 0) {
+            buf.putDouble(position, v2);
+          }
         }
       };
     } else {
@@ -108,7 +120,11 @@ public abstract class DoubleMinBufferAggregator implements BufferAggregator
         public final void aggregate(ByteBuffer buf, int position)
         {
           if (predicate.matches()) {
-            buf.putDouble(position, Math.min(buf.getDouble(position), selector.get()));
+            final double v1 = buf.getDouble(position);
+            final double v2 = selector.get();
+            if (Double.compare(v1, v2) >= 0) {
+              buf.putDouble(position, v2);
+            }
           }
         }
       };

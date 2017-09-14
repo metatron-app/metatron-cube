@@ -35,14 +35,14 @@ public class DocumentsColumn {
     docs = new ArrayList<>();
   }
 
-  public DocumentsColumn add(String doc)
+  public synchronized DocumentsColumn add(String doc)
   {
     docs.add(doc);
     numDoc++;
     return this;
   }
 
-  public DocumentsColumn add(DocumentsColumn dc)
+  public synchronized DocumentsColumn add(DocumentsColumn dc)
   {
     for(String doc: dc.get())
     {

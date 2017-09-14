@@ -36,7 +36,11 @@ public abstract class LongMinBufferAggregator implements BufferAggregator
         @Override
         public final void aggregate(ByteBuffer buf, int position)
         {
-          buf.putLong(position, Math.min(buf.getLong(position), selector.get()));
+          final long v1 = buf.getLong(position);
+          final long v2 = selector.get();
+          if (Long.compare(v1, v2) >= 0) {
+            buf.putLong(position, v2);
+          }
         }
       };
     } else {
@@ -46,7 +50,11 @@ public abstract class LongMinBufferAggregator implements BufferAggregator
         public final void aggregate(ByteBuffer buf, int position)
         {
           if (predicate.matches()) {
-            buf.putLong(position, Math.min(buf.getLong(position), selector.get()));
+            final long v1 = buf.getLong(position);
+            final long v2 = selector.get();
+            if (Long.compare(v1, v2) >= 0) {
+              buf.putLong(position, v2);
+            }
           }
         }
       };

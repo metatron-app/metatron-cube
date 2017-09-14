@@ -91,7 +91,10 @@ public abstract class DoubleSumAggregator implements Aggregator
         @Override
         public final void aggregate()
         {
-          sum += selector.get();
+          float v = selector.get();
+          synchronized (this) {
+            sum += v;
+          }
         }
       };
     } else {
@@ -101,7 +104,10 @@ public abstract class DoubleSumAggregator implements Aggregator
         public final void aggregate()
         {
           if (predicate.matches()) {
-            sum += selector.get();
+            float v = selector.get();
+            synchronized (this) {
+              sum += v;
+            }
           }
         }
       };
@@ -116,7 +122,10 @@ public abstract class DoubleSumAggregator implements Aggregator
         @Override
         public final void aggregate()
         {
-          sum += selector.get();
+          double v = selector.get();
+          synchronized (this) {
+            sum += v;
+          }
         }
       };
     } else {
@@ -126,7 +135,10 @@ public abstract class DoubleSumAggregator implements Aggregator
         public final void aggregate()
         {
           if (predicate.matches()) {
-            sum += selector.get();
+            double v = selector.get();
+            synchronized (this) {
+              sum += v;
+            }
           }
         }
       };

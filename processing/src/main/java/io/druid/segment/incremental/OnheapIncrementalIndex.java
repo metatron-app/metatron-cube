@@ -246,9 +246,7 @@ public class OnheapIncrementalIndex extends IncrementalIndex<Aggregator>
   private void doAggregate(Aggregator[] aggs, boolean reportParseExceptions)
   {
     for (Aggregator agg : aggs) {
-      synchronized (agg) {
-        aggregate(agg, reportParseExceptions);
-      }
+      aggregate(agg, reportParseExceptions);
     }
   }
 

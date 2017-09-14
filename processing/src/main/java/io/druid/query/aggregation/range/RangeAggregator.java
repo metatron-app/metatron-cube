@@ -42,7 +42,7 @@ public class RangeAggregator implements Aggregator
   }
 
   @Override
-  public void aggregate()
+  public synchronized void aggregate()
   {
     switch(rangeState) {
       case beforeStart:

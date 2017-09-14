@@ -42,7 +42,7 @@ public class MetricArea
     return this;
   }
 
-  public MetricArea add(Object o)
+  public synchronized MetricArea add(Object o)
   {
     if (o instanceof Double) {
       return add((double)o);
@@ -53,7 +53,7 @@ public class MetricArea
     return this;
   }
 
-  public MetricArea add(double value)
+  public synchronized MetricArea add(double value)
   {
     if (min > value)
     {

@@ -263,7 +263,7 @@ public abstract class HyperLogLogCollector implements Comparable<HyperLogLogColl
     return storageBuffer;
   }
 
-  public void add(byte[] hashedValue)
+  public synchronized void add(byte[] hashedValue)
   {
     if (hashedValue.length < minBytesRequired) {
       throw new IAE("Insufficient bytes, need[%d] got [%d]", minBytesRequired, hashedValue.length);
@@ -293,7 +293,7 @@ public abstract class HyperLogLogCollector implements Comparable<HyperLogLogColl
     add(bucket, positionOf1);
   }
 
-  public void add(short bucket, byte positionOf1)
+  public synchronized void add(short bucket, byte positionOf1)
   {
     if (storageBuffer.isReadOnly()) {
       convertToMutableByteBuffer();
@@ -326,7 +326,7 @@ public abstract class HyperLogLogCollector implements Comparable<HyperLogLogColl
     }
   }
 
-  public HyperLogLogCollector fold(HyperLogLogCollector other)
+  public synchronized HyperLogLogCollector fold(HyperLogLogCollector other)
   {
     if (other == null || other.storageBuffer.remaining() == 0) {
       return this;

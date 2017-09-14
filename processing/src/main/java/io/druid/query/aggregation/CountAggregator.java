@@ -51,7 +51,9 @@ public class CountAggregator implements Aggregator
   public void aggregate()
   {
     if (predicate.matches()) {
-      ++count;
+      synchronized (this) {
+        ++count;
+      }
     }
   }
 

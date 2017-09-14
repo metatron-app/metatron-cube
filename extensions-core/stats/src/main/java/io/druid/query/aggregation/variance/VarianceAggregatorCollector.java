@@ -137,7 +137,7 @@ public class VarianceAggregatorCollector
     this.nvariance = nvariance;
   }
 
-  public VarianceAggregatorCollector add(float v)
+  public synchronized VarianceAggregatorCollector add(float v)
   {
     count++;
     sum += v;
@@ -148,7 +148,7 @@ public class VarianceAggregatorCollector
     return this;
   }
 
-  public VarianceAggregatorCollector add(double v)
+  public synchronized VarianceAggregatorCollector add(double v)
   {
     count++;
     sum += v;
@@ -159,7 +159,7 @@ public class VarianceAggregatorCollector
     return this;
   }
 
-  public VarianceAggregatorCollector add(long v)
+  public synchronized VarianceAggregatorCollector add(long v)
   {
     count++;
     sum += v;

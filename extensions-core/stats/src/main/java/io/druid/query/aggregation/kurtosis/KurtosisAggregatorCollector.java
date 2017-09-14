@@ -169,7 +169,7 @@ class KurtosisAggregatorCollector
     this.M4 = M4;
   }
 
-  public KurtosisAggregatorCollector add(final double x)
+  public synchronized KurtosisAggregatorCollector add(final double x)
   {
     final long n1 = n;
     n = n + 1;

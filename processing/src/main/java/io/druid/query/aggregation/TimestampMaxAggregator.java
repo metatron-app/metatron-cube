@@ -51,14 +51,16 @@ public class TimestampMaxAggregator implements Aggregator
   @Override
   public void aggregate() {
     Object o = selector.get();
-    if (o instanceof Number) {
-      max = Math.max(max, ((Number)o).longValue());
-    } else if (o instanceof DateTime) {
-      max = Math.max(max, ((DateTime)o).getMillis());
-    } else if (o instanceof Timestamp) {
-      max = Math.max(max, ((Timestamp)o).getTime());
-    } else if (o instanceof String) {
-      max = Math.max(max, timestampSpec.parseDateTime(o).getMillis());
+    synchronized (this) {
+      if (o instanceof Number) {
+        max = Math.max(max, ((Number) o).longValue());
+      } else if (o instanceof DateTime) {
+        max = Math.max(max, ((DateTime) o).getMillis());
+      } else if (o instanceof Timestamp) {
+        max = Math.max(max, ((Timestamp) o).getTime());
+      } else if (o instanceof String) {
+        max = Math.max(max, timestampSpec.parseDateTime(o).getMillis());
+      }
     }
   }
 

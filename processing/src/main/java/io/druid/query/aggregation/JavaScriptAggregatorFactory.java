@@ -323,7 +323,10 @@ public class JavaScriptAggregatorFactory extends AggregatorFactory
           }
         }
 
-        final Object res = fnAggregate.call(cx, scope, scope, args);
+        final Object res;
+        synchronized (fnAggregate) {
+          res = fnAggregate.call(cx, scope, scope, args);
+        }
         return Context.toNumber(res);
       }
 

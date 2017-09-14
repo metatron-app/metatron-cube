@@ -143,7 +143,7 @@ class CovarianceAggregatorCollector
     this.covar = covar;
   }
 
-  public CovarianceAggregatorCollector add(final double vx, final double vy)
+  public synchronized CovarianceAggregatorCollector add(final double vx, final double vy)
   {
     final double deltaX = vx - xavg;
     final double deltaY = vy - yavg;

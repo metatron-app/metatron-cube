@@ -52,7 +52,7 @@ public class HistogramAggregator implements Aggregator
   @Override
   public void aggregate()
   {
-    histogram.offer((float)selector.get());
+    histogram.offer(selector.get());
   }
 
   @Override

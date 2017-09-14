@@ -68,10 +68,12 @@ public class ApproximateHistogramFoldingAggregator implements Aggregators.Estima
         return;
       }
 
-      if (h.binCount() + histogram.binCount() <= tmpBufferB.length) {
-        histogram.foldFast(h, tmpBufferP, tmpBufferB);
-      } else {
-        histogram.foldFast(h);
+      synchronized (this) {
+        if (h.binCount() + histogram.binCount() <= tmpBufferB.length) {
+          histogram.foldFast(h, tmpBufferP, tmpBufferB);
+        } else {
+          histogram.foldFast(h);
+        }
       }
     }
   }

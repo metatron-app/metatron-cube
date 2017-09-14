@@ -53,7 +53,10 @@ public abstract class LongSumAggregator implements Aggregator
         @Override
         public final void aggregate()
         {
-          sum += selector.get();
+          long v = selector.get();
+          synchronized (this) {
+            sum += v;
+          }
         }
       };
     } else {
@@ -63,7 +66,10 @@ public abstract class LongSumAggregator implements Aggregator
         public final void aggregate()
         {
           if (predicate.matches()) {
-            sum += selector.get();
+            long v = selector.get();
+            synchronized (this) {
+              sum += v;
+            }
           }
         }
       };

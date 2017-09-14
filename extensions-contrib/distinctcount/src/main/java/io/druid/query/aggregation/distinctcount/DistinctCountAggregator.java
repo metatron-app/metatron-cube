@@ -45,8 +45,10 @@ public class DistinctCountAggregator implements Aggregator
   public void aggregate()
   {
     if (predicate.matches()) {
-      for (final Integer index : selector.getRow()) {
-        mutableBitmap.add(index);
+      synchronized (this) {
+        for (final Integer index : selector.getRow()) {
+          mutableBitmap.add(index);
+        }
       }
     }
   }

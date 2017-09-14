@@ -82,7 +82,10 @@ public abstract class DoubleMinAggregator implements Aggregator
         @Override
         public final void aggregate()
         {
-          min = Math.min(min, selector.get());
+          float v = selector.get();
+          synchronized (this) {
+            min = Math.min(min, v);
+          }
         }
       };
     } else {
@@ -92,7 +95,10 @@ public abstract class DoubleMinAggregator implements Aggregator
         public final void aggregate()
         {
           if (predicate.matches()) {
-            min = Math.min(min, selector.get());
+            float v = selector.get();
+            synchronized (this) {
+              min = Math.min(min, v);
+            }
           }
         }
       };
@@ -107,7 +113,10 @@ public abstract class DoubleMinAggregator implements Aggregator
         @Override
         public final void aggregate()
         {
-          min = Math.min(min, selector.get());
+          double v = selector.get();
+          synchronized (this) {
+            min = Math.min(min, v);
+          }
         }
       };
     } else {
@@ -117,7 +126,10 @@ public abstract class DoubleMinAggregator implements Aggregator
         public final void aggregate()
         {
           if (predicate.matches()) {
-            min = Math.min(min, selector.get());
+            double v = selector.get();
+            synchronized (this) {
+              min = Math.min(min, v);
+            }
           }
         }
       };
