@@ -36,6 +36,10 @@ public interface Function
 
   ExprType apply(List<Expr> args, TypeBinding bindings);
 
+  // marker to skip constant flattening
+  interface External extends Function {
+  }
+
   interface Factory extends Supplier<Function>
   {
     String name();

@@ -574,7 +574,7 @@ public interface BuiltinFunctions extends Function.Library
     }
   }
 
-  final class RFunc extends AbstractRFunc
+  final class RFunc extends AbstractRFunc implements Function.External
   {
     private String function;
 
@@ -605,7 +605,7 @@ public interface BuiltinFunctions extends Function.Library
     }
   }
 
-  abstract class AbstractPythonFunc extends ExprType.IndecisiveFunction implements Factory
+  abstract class AbstractPythonFunc extends ExprType.IndecisiveFunction implements Function.External, Factory
   {
     static {
       Properties prop = new Properties();
@@ -1614,7 +1614,7 @@ public interface BuiltinFunctions extends Function.Library
     }
   }
 
-  class JavaScriptFunc extends ExprType.IndecisiveFunction
+  class JavaScriptFunc extends ExprType.IndecisiveFunction implements Function.External
   {
     ScriptableObject scope;
     org.mozilla.javascript.Function fnApply;

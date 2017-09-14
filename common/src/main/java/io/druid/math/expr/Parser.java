@@ -198,6 +198,9 @@ public class Parser
       }
     } else if (expr instanceof FunctionExpr) {
       FunctionExpr functionExpr = (FunctionExpr) expr;
+      if (functionExpr.function instanceof Function.External) {
+        return expr;
+      }
       List<Expr> args = functionExpr.args;
       boolean flattened = false;
       List<Expr> flattening = Lists.newArrayListWithCapacity(args.size());

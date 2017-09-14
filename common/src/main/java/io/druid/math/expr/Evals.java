@@ -222,18 +222,46 @@ public class Evals
     return true;
   }
 
+  // do not use except flattening purpose
   static Expr toConstant(ExprEval eval)
   {
     switch (eval.type()) {
       case DOUBLE:
         return new DoubleExpr(eval.asDouble());
       case LONG:
-      case DATETIME:
         return new LongExpr(eval.asLong());
       case STRING:
         return new StringExpr(eval.asString());
       default:
-        throw new UnsupportedOperationException("invalid type" + eval.type());
+        return new RelayExpr(eval);
+    }
+  }
+
+  private static class RelayExpr implements Constant
+  {
+    private final ExprEval eval;
+
+    public RelayExpr(ExprEval eval)
+    {
+      this.eval = eval;
+    }
+
+    @Override
+    public Comparable get()
+    {
+      return (Comparable) eval.value();
+    }
+
+    @Override
+    public ExprType type(TypeBinding bindings)
+    {
+      return eval.type();
+    }
+
+    @Override
+    public ExprEval eval(NumericBinding bindings)
+    {
+      return eval;
     }
   }
 
