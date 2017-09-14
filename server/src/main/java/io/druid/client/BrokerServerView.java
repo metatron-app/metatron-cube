@@ -69,6 +69,7 @@ import io.druid.timeline.DataSegment;
 import io.druid.timeline.VersionedIntervalTimeline;
 import io.druid.timeline.partition.PartitionChunk;
 import io.druid.timeline.partition.PartitionHolder;
+import org.joda.time.Interval;
 
 import javax.annotation.Nullable;
 import java.io.IOException;
@@ -276,11 +277,11 @@ public class BrokerServerView implements TimelineServerView
     return queryableDruidServer;
   }
 
-  public void addedLocalSegment(DataSegment segment, QueryableIndex index)
+  public void addedLocalSegment(DataSegment segment, QueryableIndex index, Map<String, Object> metaData)
   {
     log.debug("Adding local segment[%s]", segment);
     synchronized (lock) {
-      addSegment(node, segment).addIndex(segment, index);
+      addSegment(node, segment).addIndex(segment, index, metaData);
     }
   }
 
@@ -291,6 +292,18 @@ public class BrokerServerView implements TimelineServerView
       return ImmutableList.of();
     }
     return localServer.getLocalDataSources();
+  }
+
+  public Interval getLocalDataSourceCoverage(String dataSource)
+  {
+    QueryableDruidServer localServer = clients.get(node.getName());
+    return localServer == null ? null : localServer.getLocalDataSourceCoverage(dataSource);
+  }
+
+  public Map<String, Object> getLocalDataSourceMeta(Iterable<String> dataSources, String queryId)
+  {
+    QueryableDruidServer localServer = clients.get(node.getName());
+    return localServer == null ? null : localServer.getLocalDataSourceMetaData(dataSources, queryId);
   }
 
   public boolean dropLocalDataSource(String dataSource)

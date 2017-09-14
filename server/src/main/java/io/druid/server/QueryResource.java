@@ -585,7 +585,7 @@ public class QueryResource
             rewritten = rewriteURI(uri, scheme, node, null);
           }
           TabularFormat result = toTabularFormat(removeForwardContext(query), responseContext);
-          return wrapForwardResult(forwardContext, writer.write(rewritten, result, forwardContext));
+          return wrapForwardResult(query, forwardContext, writer.write(rewritten, result, forwardContext));
         }
         catch (Exception e) {
           throw Throwables.propagate(e);
@@ -660,7 +660,7 @@ public class QueryResource
     );
   }
 
-  protected Sequence wrapForwardResult(Map<String, Object> forwardContext, Map<String, Object> result)
+  protected Sequence wrapForwardResult(Query query, Map<String, Object> forwardContext, Map<String, Object> result)
       throws IOException
   {
     return Sequences.simple(Arrays.asList(result));

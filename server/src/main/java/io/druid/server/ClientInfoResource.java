@@ -63,6 +63,7 @@ import javax.ws.rs.QueryParam;
 import javax.ws.rs.core.Context;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
@@ -180,11 +181,21 @@ public class ClientInfoResource
       theInterval = new Interval(interval);
     }
 
-    TimelineLookup<String, ServerSelector> timeline = timelineServerView.getTimeline(new TableDataSource(dataSourceName));
-    Iterable<TimelineObjectHolder<String, ServerSelector>> serversLookup = timeline != null ? timeline.lookup(
-        theInterval
-    ) : null;
-    if (serversLookup == null || Iterables.isEmpty(serversLookup)) {
+    TableDataSource dataSource = new TableDataSource(dataSourceName);
+    TimelineLookup<String, ServerSelector> timeline = timelineServerView.getTimeline(dataSource);
+    if (timeline == null) {
+      return Collections.emptyMap();
+    }
+    return toClientResult(theInterval, timeline);
+  }
+
+  private Map<String, Object> toClientResult(
+      Interval theInterval,
+      TimelineLookup<String, ServerSelector> timeline
+  )
+  {
+    Iterable<TimelineObjectHolder<String, ServerSelector>> serversLookup = timeline.lookup(theInterval);
+    if (Iterables.isEmpty(serversLookup)) {
       return Collections.emptyMap();
     }
     Map<Interval, Object> servedIntervals = new TreeMap<>(
@@ -345,6 +356,35 @@ public class ClientInfoResource
       return Lists.newArrayList(filterDataSources(request, dataSources));
     }
     return dataSources;
+  }
+
+  @GET
+  @Path("/local/{dataSource}/coverage")
+  @Produces(MediaType.APPLICATION_JSON)
+  public Interval getLocalDataSourceCoverage(
+      @PathParam("dataSource") String dataSource,
+      @Context HttpServletRequest request
+  )
+  {
+    if (authConfig.isEnabled() &&
+        Iterables.isEmpty(filterDataSources(request, Arrays.asList(dataSource)))) {
+      return null;
+    }
+    return ((BrokerServerView) timelineServerView).getLocalDataSourceCoverage(dataSource);
+  }
+
+  @GET
+  @Path("/local/check/{queryId}")
+  @Produces(MediaType.APPLICATION_JSON)
+  public Map<String, Object> getLocalDataSourceMeta(
+      @PathParam("queryId") String queryId,
+      @Context HttpServletRequest request)
+  {
+    List<String> dataSources = ((BrokerServerView) timelineServerView).getLocalDataSources();
+    if (authConfig.isEnabled()) {
+      dataSources = Lists.newArrayList(filterDataSources(request, dataSources));
+    }
+    return ((BrokerServerView) timelineServerView).getLocalDataSourceMeta(dataSources, queryId);
   }
 
   protected DateTime getCurrentTime()

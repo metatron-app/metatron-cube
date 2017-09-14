@@ -19,6 +19,7 @@
 
 package io.druid.client.selector;
 
+import com.google.common.base.Function;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Ordering;
@@ -30,9 +31,12 @@ import io.druid.segment.QueryableIndexSegment;
 import io.druid.timeline.DataSegment;
 import io.druid.timeline.VersionedIntervalTimeline;
 import io.druid.timeline.partition.NoneShardSpec;
+import io.druid.timeline.partition.PartitionChunk;
+import org.joda.time.Interval;
 
 import java.util.List;
 import java.util.Map;
+import java.util.TreeMap;
 
 /**
  */
@@ -63,12 +67,51 @@ public class QueryableDruidServer
     return Lists.newArrayList(localTimelineView.keySet());
   }
 
+  public Interval getLocalDataSourceCoverage(String dataSource)
+  {
+    VersionedIntervalTimeline<String, ReferenceCountingSegment> segmentMap = localTimelineView.get(dataSource);
+    if (segmentMap != null) {
+      return segmentMap.coverage();
+    }
+    return null;
+  }
+
+  public Map<String, Object> getLocalDataSourceMetaData(Iterable<String> dataSources, final String queryId)
+  {
+    for (String dataSource : dataSources) {
+      VersionedIntervalTimeline<String, ReferenceCountingSegment> timeline = localTimelineView.get(dataSource);
+      Map<String, Object> found = timeline.find(
+          new Function<Map.Entry<Interval, TreeMap<String, VersionedIntervalTimeline<String, ReferenceCountingSegment>.TimelineEntry>>, Map<String, Object>>()
+          {
+            @Override
+            public Map<String, Object> apply(Map.Entry<Interval, TreeMap<String, VersionedIntervalTimeline<String, ReferenceCountingSegment>.TimelineEntry>> input)
+            {
+              for (VersionedIntervalTimeline<String, ReferenceCountingSegment>.TimelineEntry entry : input.getValue()
+                                                                                                          .values()) {
+                for (PartitionChunk<ReferenceCountingSegment> chunk : entry.getPartitionHolder()) {
+                  Map<String, Object> metaData = chunk.getObject().metaData();
+                  if (metaData != null && queryId.equals(metaData.get("queryId"))) {
+                    return metaData;
+                  }
+                }
+              }
+              return null;
+            }
+          }
+      );
+      if (found != null) {
+        return found;
+      }
+    }
+    return null;
+  }
+
   public Map<String, VersionedIntervalTimeline<String, ReferenceCountingSegment>> getLocalTimelineView()
   {
     return localTimelineView;
   }
 
-  public void addIndex(DataSegment segment, QueryableIndex index)
+  public void addIndex(DataSegment segment, QueryableIndex index, Map<String, Object> metaData)
   {
     String dataSource = segment.getDataSource();
     VersionedIntervalTimeline<String, ReferenceCountingSegment> segmentMap = localTimelineView.get(dataSource);
@@ -80,7 +123,8 @@ public class QueryableDruidServer
     }
     ReferenceCountingSegment countingSegment = new ReferenceCountingSegment(
         segment,
-        new QueryableIndexSegment(segment.getIdentifier(), index)
+        new QueryableIndexSegment(segment.getIdentifier(), index),
+        metaData
     );
     segmentMap.add(segment.getInterval(), segment.getVersion(), NoneShardSpec.instance().createChunk(countingSegment));
   }

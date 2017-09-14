@@ -19,11 +19,11 @@
 
 package io.druid.timeline;
 
+import com.google.common.base.Function;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
-import com.metamx.common.logger.Logger;
 import io.druid.common.utils.JodaUtils;
 import io.druid.timeline.partition.ImmutablePartitionHolder;
 import io.druid.timeline.partition.PartitionChunk;
@@ -61,8 +61,6 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
  */
 public class VersionedIntervalTimeline<VersionType, ObjectType> implements TimelineLookup<VersionType, ObjectType>
 {
-  private static final Logger log = new Logger(VersionedIntervalTimeline.class);
-
   private final ReentrantReadWriteLock lock = new ReentrantReadWriteLock(true);
 
   final NavigableMap<Interval, TimelineEntry> completePartitionsTimeline = new TreeMap<Interval, TimelineEntry>(
@@ -80,6 +78,34 @@ public class VersionedIntervalTimeline<VersionType, ObjectType> implements Timel
   )
   {
     this.versionComparator = versionComparator;
+  }
+
+  public Interval coverage()
+  {
+    Interval from1 = Iterables.getFirst(completePartitionsTimeline.keySet(), null);
+    Interval from2 = Iterables.getFirst(incompletePartitionsTimeline.keySet(), null);
+    if (from1 == null && from2 == null) {
+      return null;
+    }
+    long from;
+    if (from1 == null) {
+      from = from2.getStartMillis();
+    } else if (from2 == null) {
+      from = from1.getStartMillis();
+    } else {
+      from = from1.getStartMillis() < from2.getStartMillis() ? from1.getStartMillis() : from2.getStartMillis();
+    }
+    Interval to1 = completePartitionsTimeline.lastKey();
+    Interval to2 = incompletePartitionsTimeline.lastKey();
+    long to;
+    if (to1 == null) {
+      to = to2.getEndMillis();
+    } else if (from2 == null) {
+      to = to1.getEndMillis();
+    } else {
+      to = to1.getEndMillis() > to2.getEndMillis() ? to1.getEndMillis() : to2.getEndMillis();
+    }
+    return new Interval(from, to);
   }
 
   public List<PartitionChunk<ObjectType>> clear()
@@ -162,6 +188,23 @@ public class VersionedIntervalTimeline<VersionType, ObjectType> implements Timel
     finally {
       lock.writeLock().unlock();
     }
+  }
+
+  public <T> T find(Function<Map.Entry<Interval, TreeMap<VersionType, TimelineEntry>>, T> finder)
+  {
+    lock.readLock().lock();
+    try {
+      for (Map.Entry<Interval, TreeMap<VersionType, TimelineEntry>> entry : allTimelineEntries.entrySet()) {
+        T found = finder.apply(entry);
+        if (found != null) {
+          return found;
+        }
+      }
+    }
+    finally {
+      lock.readLock().unlock();
+    }
+    return null;
   }
 
   public PartitionHolder<ObjectType> findEntry(Interval interval, VersionType version)

@@ -310,12 +310,13 @@ public class BrokerQueryResource extends QueryResource
 
   @Override
   @SuppressWarnings("unchecked")
-  protected Sequence wrapForwardResult(Map<String, Object> forwardContext, Map<String, Object> result)
+  protected Sequence wrapForwardResult(Query query, Map<String, Object> forwardContext, Map<String, Object> result)
       throws IOException
   {
     if (Formatters.isIndexFormat(forwardContext) && PropUtils.parseBoolean(forwardContext, "registerTable", false)) {
       result = Maps.newLinkedHashMap(result);
       result.put("broker", node.getHostAndPort());
+      result.put("queryId", query.getId());
       Map<String, Object> dataMeta = (Map<String, Object>) result.get("data");
       URI location = (URI) dataMeta.get("location");
       DataSegment segment = (DataSegment) dataMeta.get("segment");
@@ -326,7 +327,7 @@ public class BrokerQueryResource extends QueryResource
       if (PropUtils.parseBoolean(forwardContext, "temporary", true)) {
         log.info("Publishing index to temporary table..");
         BrokerServerView serverView = (BrokerServerView) brokerServerView;
-        serverView.addedLocalSegment(segment, merger.getIndexIO().loadIndex(new File(location.getPath())));
+        serverView.addedLocalSegment(segment, merger.getIndexIO().loadIndex(new File(location.getPath())), result);
         builder.put("type", "localPublish");
       } else {
         log.info("Publishing index to table..");

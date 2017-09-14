@@ -19,18 +19,35 @@
 
 package io.druid.client;
 
+import com.google.common.collect.Maps;
 import io.druid.segment.Segment;
 import io.druid.timeline.DataSegment;
+import org.joda.time.DateTime;
+
+import java.util.Map;
 
 /**
  */
 public class ReferenceCountingSegment extends io.druid.segment.ReferenceCountingSegment
 {
   final DataSegment dataSegment;
+  final Map<String, Object> metaData;
 
-  public ReferenceCountingSegment(DataSegment dataSegment, Segment baseSegment)
+  public ReferenceCountingSegment(DataSegment dataSegment, Segment baseSegment, Map<String, Object> metaData)
   {
     super(baseSegment);
     this.dataSegment = dataSegment;
+    this.metaData = Maps.newLinkedHashMap(metaData);
+    this.metaData.put("registered", new DateTime().toString());
+  }
+
+  public DataSegment dataSegment()
+  {
+    return dataSegment;
+  }
+
+  public Map<String, Object> metaData()
+  {
+    return metaData;
   }
 }
