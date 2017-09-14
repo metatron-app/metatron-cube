@@ -21,6 +21,8 @@ package io.druid.segment;
 
 import io.druid.data.ValueDesc;
 import io.druid.query.dimension.DimensionSpec;
+import io.druid.query.filter.DimFilter;
+import io.druid.query.filter.ValueMatcher;
 
 import java.util.List;
 
@@ -28,7 +30,7 @@ import java.util.List;
  */
 public class ColumnSelectorFactories
 {
-  public static class NotSupports implements ColumnSelectorFactory
+  public static class NotSupports extends ColumnSelectorFactory.ExprUnSupport
   {
     @Override
     public Iterable<String> getColumnNames()
@@ -64,12 +66,6 @@ public class ColumnSelectorFactories
     public ObjectColumnSelector makeObjectColumnSelector(String columnName)
     {
       throw new UnsupportedOperationException("makeObjectColumnSelector");
-    }
-
-    @Override
-    public ExprEvalColumnSelector makeMathExpressionSelector(String expression)
-    {
-      throw new UnsupportedOperationException("makeMathExpressionSelector");
     }
 
     @Override
@@ -125,6 +121,12 @@ public class ColumnSelectorFactories
     }
 
     @Override
+    public ValueMatcher makeAuxiliaryMatcher(DimFilter filter)
+    {
+      return delegate.makeAuxiliaryMatcher(filter);
+    }
+
+    @Override
     public ValueDesc getColumnType(String columnName)
     {
       return delegate.getColumnType(columnName);
@@ -137,7 +139,7 @@ public class ColumnSelectorFactories
     }
   }
 
-  public static abstract class ArrayIndexed implements ColumnSelectorFactory
+  public static abstract class ArrayIndexed extends ColumnSelectorFactory.ExprUnSupport
   {
     protected final ObjectColumnSelector selector;
     protected final ValueDesc elementType;
@@ -157,12 +159,6 @@ public class ColumnSelectorFactories
     public DimensionSelector makeDimensionSelector(DimensionSpec dimensionSpec)
     {
       throw new UnsupportedOperationException("makeDimensionSelector");
-    }
-
-    @Override
-    public ExprEvalColumnSelector makeMathExpressionSelector(String expression)
-    {
-      throw new UnsupportedOperationException("makeMathExpressionSelector");
     }
 
     @Override

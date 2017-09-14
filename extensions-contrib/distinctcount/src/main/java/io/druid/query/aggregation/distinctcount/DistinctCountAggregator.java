@@ -19,21 +19,21 @@
 
 package io.druid.query.aggregation.distinctcount;
 
-import com.google.common.base.Predicate;
 import com.metamx.collections.bitmap.MutableBitmap;
 import io.druid.query.aggregation.Aggregator;
+import io.druid.query.filter.ValueMatcher;
 import io.druid.segment.DimensionSelector;
 
 public class DistinctCountAggregator implements Aggregator
 {
   private final DimensionSelector selector;
   private final MutableBitmap mutableBitmap;
-  private final Predicate predicate;
+  private final ValueMatcher predicate;
 
   public DistinctCountAggregator(
       DimensionSelector selector,
       MutableBitmap mutableBitmap,
-      Predicate predicate
+      ValueMatcher predicate
   )
   {
     this.selector = selector;
@@ -44,7 +44,7 @@ public class DistinctCountAggregator implements Aggregator
   @Override
   public void aggregate()
   {
-    if (predicate.apply(null)) {
+    if (predicate.matches()) {
       for (final Integer index : selector.getRow()) {
         mutableBitmap.add(index);
       }

@@ -118,13 +118,13 @@ public class KurtosisAggregatorFactory extends AggregatorFactory
       case LONG:
         return KurtosisAggregator.create(
             metricFactory.makeDoubleColumnSelector(fieldName),
-            ColumnSelectors.toPredicate(predicate, metricFactory)
+            ColumnSelectors.toMatcher(predicate, metricFactory)
         );
       case COMPLEX:
         if ("kurtosis".equals(inputType.typeName())) {
           return KurtosisAggregator.create(
               metricFactory.makeObjectColumnSelector(fieldName),
-              ColumnSelectors.toPredicate(predicate, metricFactory)
+              ColumnSelectors.toMatcher(predicate, metricFactory)
           );
         }
     }
@@ -143,14 +143,14 @@ public class KurtosisAggregatorFactory extends AggregatorFactory
         return KurtosisBufferAggregator.create(
             name,
             ColumnSelectors.asDouble(metricFactory.makeObjectColumnSelector(fieldName)),
-            ColumnSelectors.toPredicate(predicate, metricFactory)
+            ColumnSelectors.toMatcher(predicate, metricFactory)
         );
       case COMPLEX:
         if ("kurtosis".equals(inputType.typeName())) {
           return KurtosisBufferAggregator.create(
               name,
               metricFactory.makeObjectColumnSelector(fieldName),
-              ColumnSelectors.toPredicate(predicate, metricFactory)
+              ColumnSelectors.toMatcher(predicate, metricFactory)
           );
         }
     }

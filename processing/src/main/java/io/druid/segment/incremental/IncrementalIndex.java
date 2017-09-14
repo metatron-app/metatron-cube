@@ -55,6 +55,8 @@ import io.druid.query.aggregation.PostAggregator;
 import io.druid.query.aggregation.PostAggregators;
 import io.druid.query.dimension.DimensionSpec;
 import io.druid.query.extraction.ExtractionFn;
+import io.druid.query.filter.DimFilter;
+import io.druid.query.filter.ValueMatcher;
 import io.druid.segment.ColumnSelectorFactory;
 import io.druid.segment.DimensionSelector;
 import io.druid.segment.DoubleColumnSelector;
@@ -326,6 +328,12 @@ public abstract class IncrementalIndex<AggregatorType> implements Iterable<Row>,
             }
           };
         }
+      }
+
+      @Override
+      public ValueMatcher makeAuxiliaryMatcher(DimFilter filter)
+      {
+        return null;
       }
 
       @Override

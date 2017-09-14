@@ -19,21 +19,21 @@
 
 package io.druid.query.aggregation.hyperloglog;
 
-import com.google.common.base.Predicate;
 import io.druid.query.aggregation.Aggregator;
+import io.druid.query.filter.ValueMatcher;
 import io.druid.segment.ObjectColumnSelector;
 
 /**
  */
 public class HyperUniquesAggregator implements Aggregator
 {
-  private final Predicate predicate;
+  private final ValueMatcher predicate;
   private final ObjectColumnSelector selector;
 
   private HyperLogLogCollector collector;
 
   public HyperUniquesAggregator(
-      Predicate predicate,
+      ValueMatcher predicate,
       ObjectColumnSelector selector
   )
   {
@@ -46,7 +46,7 @@ public class HyperUniquesAggregator implements Aggregator
   @Override
   public void aggregate()
   {
-    if (predicate.apply(null)) {
+    if (predicate.matches()) {
       collector.fold((HyperLogLogCollector) selector.get());
     }
   }

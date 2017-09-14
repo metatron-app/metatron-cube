@@ -19,13 +19,12 @@
 
 package io.druid.query.aggregation.cardinality;
 
-import com.google.common.base.Predicate;
-import com.google.common.base.Predicates;
 import com.google.common.hash.HashFunction;
 import com.google.common.hash.Hasher;
 import com.google.common.hash.Hashing;
 import io.druid.query.aggregation.Aggregator;
 import io.druid.query.aggregation.hyperloglog.HyperLogLogCollector;
+import io.druid.query.filter.ValueMatcher;
 import io.druid.segment.DimensionSelector;
 import io.druid.segment.data.IndexedInts;
 
@@ -36,7 +35,7 @@ public class CardinalityAggregator implements Aggregator
 {
   private static final String NULL_STRING = "\u0000";
 
-  private final Predicate predicate;
+  private final ValueMatcher predicate;
   private final List<DimensionSelector> selectorList;
   private final boolean byRow;
 
@@ -89,7 +88,7 @@ public class CardinalityAggregator implements Aggregator
   private HyperLogLogCollector collector;
 
   public CardinalityAggregator(
-      Predicate predicate,
+      ValueMatcher predicate,
       List<DimensionSelector> selectorList,
       boolean byRow
   )
@@ -102,13 +101,13 @@ public class CardinalityAggregator implements Aggregator
 
   public CardinalityAggregator(List<DimensionSelector> selectorList, boolean byRow)
   {
-    this(Predicates.alwaysTrue(), selectorList, byRow);
+    this(ValueMatcher.TRUE, selectorList, byRow);
   }
 
   @Override
   public void aggregate()
   {
-    if (predicate.apply(null)) {
+    if (predicate.matches()) {
       if (byRow) {
         hashRow(selectorList, collector);
       } else {

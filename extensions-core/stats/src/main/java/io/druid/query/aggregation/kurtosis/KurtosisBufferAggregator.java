@@ -19,10 +19,10 @@
 
 package io.druid.query.aggregation.kurtosis;
 
-import com.google.common.base.Predicate;
 import com.google.common.primitives.Longs;
 import io.druid.query.aggregation.Aggregators;
 import io.druid.query.aggregation.BufferAggregator;
+import io.druid.query.filter.ValueMatcher;
 import io.druid.segment.DoubleColumnSelector;
 import io.druid.segment.ObjectColumnSelector;
 
@@ -93,7 +93,7 @@ public abstract class KurtosisBufferAggregator implements BufferAggregator
   static BufferAggregator create(
       String name,
       final DoubleColumnSelector selector,
-      final Predicate<?> predicate
+      final ValueMatcher predicate
   )
   {
     if (selector == null) {
@@ -104,7 +104,7 @@ public abstract class KurtosisBufferAggregator implements BufferAggregator
       @Override
       public void aggregate(ByteBuffer buf, int position)
       {
-        if (predicate.apply(null)) {
+        if (predicate.matches()) {
           long n = buf.getLong(position + COUNT_OFFSET);
           double mean = buf.getDouble(position + MEAN_OFFSET);
           double M2 = buf.getDouble(position + M2_OFFSET);
@@ -135,7 +135,7 @@ public abstract class KurtosisBufferAggregator implements BufferAggregator
     };
   }
 
-  static BufferAggregator create(final String name, final ObjectColumnSelector selector, final Predicate<?> predicate)
+  static BufferAggregator create(final String name, final ObjectColumnSelector selector, final ValueMatcher predicate)
   {
     if (selector == null) {
       return Aggregators.noopBufferAggregator();
@@ -145,7 +145,7 @@ public abstract class KurtosisBufferAggregator implements BufferAggregator
       @Override
       public void aggregate(ByteBuffer buf, int position)
       {
-        if (predicate.apply(null)) {
+        if (predicate.matches()) {
           final KurtosisAggregatorCollector holder = (KurtosisAggregatorCollector) selector.get();
           if (holder == null || holder.n == 0) {
             return;

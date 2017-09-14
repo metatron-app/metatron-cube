@@ -19,10 +19,9 @@
 
 package io.druid.query.aggregation;
 
-import com.google.common.base.Predicate;
-import com.google.common.base.Predicates;
 import com.google.common.collect.Ordering;
 import com.google.common.primitives.Doubles;
+import io.druid.query.filter.ValueMatcher;
 import io.druid.segment.DoubleColumnSelector;
 import io.druid.segment.FloatColumnSelector;
 
@@ -84,9 +83,9 @@ public abstract class DoubleSumAggregator implements Aggregator
     // no resources to cleanup
   }
 
-  public static DoubleSumAggregator create(final FloatColumnSelector selector, final Predicate predicate)
+  public static DoubleSumAggregator create(final FloatColumnSelector selector, final ValueMatcher predicate)
   {
-    if (predicate == null || predicate == Predicates.alwaysTrue()) {
+    if (predicate == null || predicate == ValueMatcher.TRUE) {
       return new DoubleSumAggregator()
       {
         @Override
@@ -101,7 +100,7 @@ public abstract class DoubleSumAggregator implements Aggregator
         @Override
         public final void aggregate()
         {
-          if (predicate.apply(null)) {
+          if (predicate.matches()) {
             sum += selector.get();
           }
         }
@@ -109,9 +108,9 @@ public abstract class DoubleSumAggregator implements Aggregator
     }
   }
 
-  public static DoubleSumAggregator create(final DoubleColumnSelector selector, final Predicate predicate)
+  public static DoubleSumAggregator create(final DoubleColumnSelector selector, final ValueMatcher predicate)
   {
-    if (predicate == null || predicate == Predicates.alwaysTrue()) {
+    if (predicate == null || predicate == ValueMatcher.TRUE) {
       return new DoubleSumAggregator()
       {
         @Override
@@ -126,7 +125,7 @@ public abstract class DoubleSumAggregator implements Aggregator
         @Override
         public final void aggregate()
         {
-          if (predicate.apply(null)) {
+          if (predicate.matches()) {
             sum += selector.get();
           }
         }

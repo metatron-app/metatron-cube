@@ -133,13 +133,13 @@ public class PearsonAggregatorFactory extends AggregatorFactory
         return PearsonAggregator.create(
             metricFactory.makeDoubleColumnSelector(fieldName1),
             metricFactory.makeDoubleColumnSelector(fieldName2),
-            ColumnSelectors.toPredicate(predicate, metricFactory)
+            ColumnSelectors.toMatcher(predicate, metricFactory)
         );
       case COMPLEX:
         if ("pearson".equals(inputType.typeName())) {
           return PearsonAggregator.create(
               metricFactory.makeObjectColumnSelector(fieldName1),
-              ColumnSelectors.toPredicate(predicate, metricFactory)
+              ColumnSelectors.toMatcher(predicate, metricFactory)
           );
         }
     }
@@ -159,14 +159,14 @@ public class PearsonAggregatorFactory extends AggregatorFactory
             name,
             ColumnSelectors.asDouble(metricFactory.makeObjectColumnSelector(fieldName1)),
             ColumnSelectors.asDouble(metricFactory.makeObjectColumnSelector(fieldName2)),
-            ColumnSelectors.toPredicate(predicate, metricFactory)
+            ColumnSelectors.toMatcher(predicate, metricFactory)
         );
       case COMPLEX:
         if ("pearson".equals(inputType.typeName())) {
           return PearsonBufferAggregator.create(
               name,
               metricFactory.makeObjectColumnSelector(fieldName1),
-              ColumnSelectors.toPredicate(predicate, metricFactory)
+              ColumnSelectors.toMatcher(predicate, metricFactory)
           );
         }
     }

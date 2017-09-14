@@ -19,8 +19,7 @@
 
 package io.druid.query.aggregation;
 
-import com.google.common.base.Predicate;
-import com.google.common.base.Predicates;
+import io.druid.query.filter.ValueMatcher;
 import io.druid.segment.DoubleColumnSelector;
 import io.druid.segment.FloatColumnSelector;
 
@@ -75,9 +74,9 @@ public abstract class DoubleMinAggregator implements Aggregator
     // no resources to cleanup
   }
 
-  public static DoubleMinAggregator create(final FloatColumnSelector selector, final Predicate predicate)
+  public static DoubleMinAggregator create(final FloatColumnSelector selector, final ValueMatcher predicate)
   {
-    if (predicate == null || predicate == Predicates.alwaysTrue()) {
+    if (predicate == null || predicate == ValueMatcher.TRUE) {
       return new DoubleMinAggregator()
       {
         @Override
@@ -92,7 +91,7 @@ public abstract class DoubleMinAggregator implements Aggregator
         @Override
         public final void aggregate()
         {
-          if (predicate.apply(null)) {
+          if (predicate.matches()) {
             min = Math.min(min, selector.get());
           }
         }
@@ -100,9 +99,9 @@ public abstract class DoubleMinAggregator implements Aggregator
     }
   }
 
-  public static DoubleMinAggregator create(final DoubleColumnSelector selector, final Predicate predicate)
+  public static DoubleMinAggregator create(final DoubleColumnSelector selector, final ValueMatcher predicate)
   {
-    if (predicate == null || predicate == Predicates.alwaysTrue()) {
+    if (predicate == null || predicate == ValueMatcher.TRUE) {
       return new DoubleMinAggregator()
       {
         @Override
@@ -117,7 +116,7 @@ public abstract class DoubleMinAggregator implements Aggregator
         @Override
         public final void aggregate()
         {
-          if (predicate.apply(null)) {
+          if (predicate.matches()) {
             min = Math.min(min, selector.get());
           }
         }

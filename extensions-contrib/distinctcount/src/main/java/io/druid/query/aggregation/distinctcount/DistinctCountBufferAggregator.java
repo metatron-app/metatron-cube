@@ -19,10 +19,10 @@
 
 package io.druid.query.aggregation.distinctcount;
 
-import com.google.common.base.Predicate;
 import com.metamx.collections.bitmap.MutableBitmap;
 import com.metamx.collections.bitmap.WrappedRoaringBitmap;
 import io.druid.query.aggregation.BufferAggregator;
+import io.druid.query.filter.ValueMatcher;
 import io.druid.segment.DimensionSelector;
 
 import java.nio.ByteBuffer;
@@ -32,12 +32,12 @@ import java.util.Map;
 public class DistinctCountBufferAggregator implements BufferAggregator
 {
   private final DimensionSelector selector;
-  private final Predicate predicate;
+  private final ValueMatcher predicate;
   private final Map<Integer, MutableBitmap> mutableBitmapCollection = new HashMap<>();
 
   public DistinctCountBufferAggregator(
       DimensionSelector selector,
-      Predicate predicate
+      ValueMatcher predicate
   )
   {
     this.selector = selector;
@@ -53,7 +53,7 @@ public class DistinctCountBufferAggregator implements BufferAggregator
   @Override
   public void aggregate(ByteBuffer buf, int position)
   {
-    if (predicate.apply(null)) {
+    if (predicate.matches()) {
       MutableBitmap mutableBitmap = getMutableBitmap(buf, position);
       for (final Integer index : selector.getRow()) {
         mutableBitmap.add(index);

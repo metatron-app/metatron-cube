@@ -19,8 +19,8 @@
 
 package io.druid.query.aggregation.histogram;
 
-import com.google.common.base.Predicate;
 import io.druid.query.aggregation.BufferAggregator;
+import io.druid.query.filter.ValueMatcher;
 import io.druid.segment.ObjectColumnSelector;
 
 import java.nio.ByteBuffer;
@@ -31,7 +31,7 @@ public class ApproximateHistogramFoldingBufferAggregator implements BufferAggreg
   private final int resolution;
   private final float upperLimit;
   private final float lowerLimit;
-  private final Predicate predicate;
+  private final ValueMatcher predicate;
 
   private float[] tmpBufferP;
   private long[] tmpBufferB;
@@ -41,7 +41,7 @@ public class ApproximateHistogramFoldingBufferAggregator implements BufferAggreg
       int resolution,
       float lowerLimit,
       float upperLimit,
-      Predicate predicate
+      ValueMatcher predicate
   )
   {
     this.selector = selector;
@@ -57,7 +57,7 @@ public class ApproximateHistogramFoldingBufferAggregator implements BufferAggreg
   @Override
   public void init(ByteBuffer buf, int position)
   {
-    if (predicate.apply(null)) {
+    if (predicate.matches()) {
       ApproximateHistogram h = new ApproximateHistogram(resolution, lowerLimit, upperLimit);
 
       ByteBuffer mutationBuffer = buf.duplicate();

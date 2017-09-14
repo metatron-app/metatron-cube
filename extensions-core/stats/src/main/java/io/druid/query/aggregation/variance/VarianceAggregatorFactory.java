@@ -96,7 +96,7 @@ public class VarianceAggregatorFactory extends GenericAggregatorFactory
                 fieldName,
                 fieldExpression
             ),
-            ColumnSelectors.toPredicate(predicate, metricFactory)
+            ColumnSelectors.toMatcher(predicate, metricFactory)
         );
       case DOUBLE:
         return VarianceAggregator.create(
@@ -105,7 +105,7 @@ public class VarianceAggregatorFactory extends GenericAggregatorFactory
                 fieldName,
                 fieldExpression
             ),
-            ColumnSelectors.toPredicate(predicate, metricFactory)
+            ColumnSelectors.toMatcher(predicate, metricFactory)
         );
       case LONG:
         return VarianceAggregator.create(
@@ -114,7 +114,7 @@ public class VarianceAggregatorFactory extends GenericAggregatorFactory
                 fieldName,
                 fieldExpression
             ),
-            ColumnSelectors.toPredicate(predicate, metricFactory)
+            ColumnSelectors.toMatcher(predicate, metricFactory)
         );
       case COMPLEX:
         switch (valueType.typeName()) {
@@ -126,7 +126,7 @@ public class VarianceAggregatorFactory extends GenericAggregatorFactory
                     fieldName,
                     fieldExpression
                 ),
-                ColumnSelectors.toPredicate(predicate, metricFactory)
+                ColumnSelectors.toMatcher(predicate, metricFactory)
             );
         }
     }
@@ -147,7 +147,7 @@ public class VarianceAggregatorFactory extends GenericAggregatorFactory
                 fieldName,
                 fieldExpression
             ),
-            ColumnSelectors.toPredicate(predicate, metricFactory)
+            ColumnSelectors.toMatcher(predicate, metricFactory)
         );
       case DOUBLE:
         return VarianceBufferAggregator.create(
@@ -157,7 +157,7 @@ public class VarianceAggregatorFactory extends GenericAggregatorFactory
                 fieldName,
                 fieldExpression
             ),
-            ColumnSelectors.toPredicate(predicate, metricFactory)
+            ColumnSelectors.toMatcher(predicate, metricFactory)
         );
       case LONG:
         return VarianceBufferAggregator.create(
@@ -167,7 +167,7 @@ public class VarianceAggregatorFactory extends GenericAggregatorFactory
                 fieldName,
                 fieldExpression
             ),
-            ColumnSelectors.toPredicate(predicate, metricFactory)
+            ColumnSelectors.toMatcher(predicate, metricFactory)
         );
       case COMPLEX:
       switch (valueType.typeName()) {
@@ -180,7 +180,7 @@ public class VarianceAggregatorFactory extends GenericAggregatorFactory
                   fieldName,
                   fieldExpression
               ),
-              ColumnSelectors.toPredicate(predicate, metricFactory)
+              ColumnSelectors.toMatcher(predicate, metricFactory)
           );
       }
     }

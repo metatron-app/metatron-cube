@@ -82,7 +82,7 @@ public class LongSumAggregatorFactory extends AggregatorFactory
   {
     return LongSumAggregator.create(
         getLongColumnSelector(metricFactory),
-        ColumnSelectors.toPredicate(predicate, metricFactory)
+        ColumnSelectors.toMatcher(predicate, metricFactory)
     );
   }
 
@@ -91,7 +91,7 @@ public class LongSumAggregatorFactory extends AggregatorFactory
   {
     return LongSumBufferAggregator.create(
         getLongColumnSelector(metricFactory),
-        ColumnSelectors.toPredicate(predicate, metricFactory)
+        ColumnSelectors.toMatcher(predicate, metricFactory)
     );
   }
 

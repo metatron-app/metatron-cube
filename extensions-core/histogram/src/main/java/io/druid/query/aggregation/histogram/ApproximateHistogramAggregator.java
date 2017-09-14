@@ -19,9 +19,9 @@
 
 package io.druid.query.aggregation.histogram;
 
-import com.google.common.base.Predicate;
 import com.google.common.primitives.Longs;
 import io.druid.query.aggregation.Aggregators;
+import io.druid.query.filter.ValueMatcher;
 import io.druid.segment.FloatColumnSelector;
 
 import java.util.Comparator;
@@ -48,7 +48,7 @@ public class ApproximateHistogramAggregator implements Aggregators.EstimableAggr
   private final float lowerLimit;
   private final float upperLimit;
   private final boolean compact;
-  private final Predicate predicate;
+  private final ValueMatcher predicate;
 
   private ApproximateHistogramHolder histogram;
 
@@ -59,7 +59,7 @@ public class ApproximateHistogramAggregator implements Aggregators.EstimableAggr
       float lowerLimit,
       float upperLimit,
       boolean compact,
-      Predicate predicate
+      ValueMatcher predicate
   )
   {
     this.name = name;
@@ -75,8 +75,8 @@ public class ApproximateHistogramAggregator implements Aggregators.EstimableAggr
   @Override
   public void aggregate()
   {
-    if (predicate.apply(null)) {
-      histogram.offer((float) selector.get());
+    if (predicate.matches()) {
+      histogram.offer(selector.get());
     }
   }
 

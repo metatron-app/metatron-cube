@@ -78,7 +78,7 @@ public class DoubleSumAggregatorFactory extends AggregatorFactory
   {
     return DoubleSumAggregator.create(
         getFloatColumnSelector(metricFactory),
-        ColumnSelectors.toPredicate(predicate, metricFactory)
+        ColumnSelectors.toMatcher(predicate, metricFactory)
     );
   }
 
@@ -87,7 +87,7 @@ public class DoubleSumAggregatorFactory extends AggregatorFactory
   {
     return DoubleSumBufferAggregator.create(
         getFloatColumnSelector(metricFactory),
-        ColumnSelectors.toPredicate(predicate, metricFactory)
+        ColumnSelectors.toMatcher(predicate, metricFactory)
     );
   }
 

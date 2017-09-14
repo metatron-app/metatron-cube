@@ -89,7 +89,7 @@ public class HyperUniquesAggregatorFactory extends AggregatorFactory
 
     final ValueDesc valueType = selector.type();
     if ("hyperUnique".equals(valueType.typeName())) {
-      return new HyperUniquesAggregator(ColumnSelectors.toPredicate(predicate, metricFactory), selector);
+      return new HyperUniquesAggregator(ColumnSelectors.toMatcher(predicate, metricFactory), selector);
     }
 
     throw new IAE(
@@ -108,7 +108,7 @@ public class HyperUniquesAggregatorFactory extends AggregatorFactory
 
     final String typeName = selector.type().typeName();
     if ("hyperUnique".equals(typeName) || ValueDesc.UNKNOWN_TYPE.equals(typeName)) {
-      return new HyperUniquesBufferAggregator(ColumnSelectors.toPredicate(predicate, metricFactory), selector);
+      return new HyperUniquesBufferAggregator(ColumnSelectors.toMatcher(predicate, metricFactory), selector);
     }
 
     throw new IAE("Incompatible type for metric[%s], expected a HyperUnique, got a %s", fieldName, typeName);

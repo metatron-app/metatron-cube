@@ -19,10 +19,10 @@
 
 package io.druid.query.aggregation.corr;
 
-import com.google.common.base.Predicate;
 import com.google.common.primitives.Longs;
 import io.druid.query.aggregation.Aggregators;
 import io.druid.query.aggregation.BufferAggregator;
+import io.druid.query.filter.ValueMatcher;
 import io.druid.segment.DoubleColumnSelector;
 import io.druid.segment.ObjectColumnSelector;
 
@@ -97,7 +97,7 @@ public abstract class PearsonBufferAggregator implements BufferAggregator
       String name,
       final DoubleColumnSelector selector1,
       final DoubleColumnSelector selector2,
-      final Predicate<?> predicate
+      final ValueMatcher predicate
   )
   {
     if (selector1 == null || selector2 == null) {
@@ -108,7 +108,7 @@ public abstract class PearsonBufferAggregator implements BufferAggregator
       @Override
       public void aggregate(ByteBuffer buf, int position)
       {
-        if (predicate.apply(null)) {
+        if (predicate.matches()) {
           long count = buf.getLong(position + COUNT_OFFSET);
           double xavg = buf.getDouble(position + XAVG_OFFSET);
           double yavg = buf.getDouble(position + YAVG_OFFSET);
@@ -140,7 +140,7 @@ public abstract class PearsonBufferAggregator implements BufferAggregator
     };
   }
 
-  static BufferAggregator create(final String name, final ObjectColumnSelector selector, final Predicate<?> predicate)
+  static BufferAggregator create(final String name, final ObjectColumnSelector selector, final ValueMatcher predicate)
   {
     if (selector == null) {
       return Aggregators.noopBufferAggregator();
@@ -150,7 +150,7 @@ public abstract class PearsonBufferAggregator implements BufferAggregator
       @Override
       public void aggregate(ByteBuffer buf, int position)
       {
-        if (predicate.apply(null)) {
+        if (predicate.matches()) {
           final PearsonAggregatorCollector holder = (PearsonAggregatorCollector) selector.get();
           if (holder == null || holder.count == 0) {
             return;

@@ -19,9 +19,8 @@
 
 package io.druid.query.aggregation;
 
-import com.google.common.base.Predicate;
-import com.google.common.base.Predicates;
 import com.google.common.primitives.Longs;
+import io.druid.query.filter.ValueMatcher;
 import io.druid.segment.LongColumnSelector;
 
 import java.util.Comparator;
@@ -46,9 +45,9 @@ public abstract class LongSumAggregator implements Aggregator
 
   long sum = 0;
 
-  public static LongSumAggregator create(final LongColumnSelector selector, final Predicate predicate)
+  public static LongSumAggregator create(final LongColumnSelector selector, final ValueMatcher predicate)
   {
-    if (predicate == null || predicate == Predicates.alwaysTrue()) {
+    if (predicate == null || predicate == ValueMatcher.TRUE) {
       return new LongSumAggregator()
       {
         @Override
@@ -63,7 +62,7 @@ public abstract class LongSumAggregator implements Aggregator
         @Override
         public final void aggregate()
         {
-          if (predicate.apply(null)) {
+          if (predicate.matches()) {
             sum += selector.get();
           }
         }

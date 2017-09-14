@@ -110,7 +110,7 @@ public class ApproximateHistogramAggregatorFactory extends AggregatorFactory
         lowerLimit,
         upperLimit,
         compact,
-        ColumnSelectors.toPredicate(predicate, metricFactory)
+        ColumnSelectors.toMatcher(predicate, metricFactory)
     );
   }
 
@@ -122,7 +122,7 @@ public class ApproximateHistogramAggregatorFactory extends AggregatorFactory
         resolution,
         lowerLimit,
         upperLimit,
-        ColumnSelectors.toPredicate(predicate, metricFactory)
+        ColumnSelectors.toMatcher(predicate, metricFactory)
     );
   }
 

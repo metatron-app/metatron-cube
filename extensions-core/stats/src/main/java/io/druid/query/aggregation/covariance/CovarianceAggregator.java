@@ -19,10 +19,9 @@
 
 package io.druid.query.aggregation.covariance;
 
-import com.google.common.base.Predicate;
-import com.google.common.base.Predicates;
 import io.druid.query.aggregation.Aggregator;
 import io.druid.query.aggregation.Aggregators;
+import io.druid.query.filter.ValueMatcher;
 import io.druid.segment.DoubleColumnSelector;
 import io.druid.segment.ObjectColumnSelector;
 
@@ -70,10 +69,10 @@ public abstract class CovarianceAggregator implements Aggregator
   public static Aggregator create(
       final DoubleColumnSelector selector1,
       final DoubleColumnSelector selector2,
-      final Predicate<?> predicate
+      final ValueMatcher predicate
   )
   {
-    if (predicate == null || predicate == Predicates.alwaysTrue()) {
+    if (predicate == null || predicate == ValueMatcher.TRUE) {
       return new CovarianceAggregator()
       {
         @Override
@@ -88,7 +87,7 @@ public abstract class CovarianceAggregator implements Aggregator
         @Override
         public void aggregate()
         {
-          if (predicate.apply(null)) {
+          if (predicate.matches()) {
             holder.add(selector1.get(), selector2.get());
           }
         }
@@ -96,7 +95,7 @@ public abstract class CovarianceAggregator implements Aggregator
     }
   }
 
-  public static Aggregator create(final ObjectColumnSelector selector, final Predicate<?> predicate)
+  public static Aggregator create(final ObjectColumnSelector selector, final ValueMatcher predicate)
   {
     if (selector == null) {
       return Aggregators.noopAggregator();
@@ -106,7 +105,7 @@ public abstract class CovarianceAggregator implements Aggregator
       @Override
       public void aggregate()
       {
-        if (predicate.apply(null)) {
+        if (predicate.matches()) {
           io.druid.query.aggregation.covariance.CovarianceAggregatorCollector.combineValues(holder, selector.get());
         }
       }

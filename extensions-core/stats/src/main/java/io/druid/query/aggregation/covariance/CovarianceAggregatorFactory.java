@@ -133,13 +133,13 @@ public class CovarianceAggregatorFactory extends AggregatorFactory
         return CovarianceAggregator.create(
             metricFactory.makeDoubleColumnSelector(fieldName1),
             metricFactory.makeDoubleColumnSelector(fieldName2),
-            ColumnSelectors.toPredicate(predicate, metricFactory)
+            ColumnSelectors.toMatcher(predicate, metricFactory)
         );
       case COMPLEX:
         if ("covariance".equalsIgnoreCase(inputType.typeName())) {
           return CovarianceAggregator.create(
               metricFactory.makeObjectColumnSelector(fieldName1),
-              ColumnSelectors.toPredicate(predicate, metricFactory)
+              ColumnSelectors.toMatcher(predicate, metricFactory)
           );
         }
     }
@@ -159,14 +159,14 @@ public class CovarianceAggregatorFactory extends AggregatorFactory
             name,
             ColumnSelectors.asDouble(metricFactory.makeObjectColumnSelector(fieldName1)),
             ColumnSelectors.asDouble(metricFactory.makeObjectColumnSelector(fieldName2)),
-            ColumnSelectors.toPredicate(predicate, metricFactory)
+            ColumnSelectors.toMatcher(predicate, metricFactory)
         );
       case COMPLEX:
         if ("covariance".equalsIgnoreCase(inputType.typeName())) {
           return CovarianceBufferAggregator.create(
               name,
               metricFactory.makeObjectColumnSelector(fieldName1),
-              ColumnSelectors.toPredicate(predicate, metricFactory)
+              ColumnSelectors.toMatcher(predicate, metricFactory)
           );
         }
     }

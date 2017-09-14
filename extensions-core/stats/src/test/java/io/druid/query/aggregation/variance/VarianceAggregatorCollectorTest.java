@@ -19,12 +19,12 @@
 
 package io.druid.query.aggregation.variance;
 
-import com.google.common.base.Predicates;
 import com.google.common.collect.Lists;
 import com.metamx.common.Pair;
 import io.druid.data.ValueDesc;
 import io.druid.query.RowResolver;
 import io.druid.query.aggregation.BufferAggregator;
+import io.druid.query.filter.ValueMatcher;
 import io.druid.segment.FloatColumnSelector;
 import io.druid.segment.ObjectColumnSelector;
 import org.junit.Assert;
@@ -117,7 +117,7 @@ public class VarianceAggregatorCollectorTest
         for (int i = 0; i < mergeOn; i++) {
           holders1.add(new VarianceAggregatorCollector());
           holders2.add(Pair.<BufferAggregator, ByteBuffer>of(
-                           VarianceBufferAggregator.create("XX", valueHandOver, Predicates.alwaysTrue()),
+                           VarianceBufferAggregator.create("XX", valueHandOver, ValueMatcher.TRUE),
                            ByteBuffer.allocate(VarianceAggregatorCollector.getMaxIntermediateSize())
                        ));
         }
@@ -133,7 +133,7 @@ public class VarianceAggregatorCollectorTest
         }
         ObjectHandOver collectHandOver = new ObjectHandOver();
         ByteBuffer buffer = ByteBuffer.allocate(VarianceAggregatorCollector.getMaxIntermediateSize());
-        BufferAggregator merger = VarianceBufferAggregator.create("xxx", collectHandOver, Predicates.alwaysTrue());
+        BufferAggregator merger = VarianceBufferAggregator.create("xxx", collectHandOver, ValueMatcher.TRUE);
         for (int i = 0; i < mergeOn; i++) {
           collectHandOver.v = holders2.get(i).lhs.get(holders2.get(i).rhs, 0);
           merger.aggregate(buffer, 0);

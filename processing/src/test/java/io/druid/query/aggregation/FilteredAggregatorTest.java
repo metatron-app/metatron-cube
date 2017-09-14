@@ -42,7 +42,6 @@ import io.druid.segment.ColumnSelectorFactory;
 import io.druid.segment.ColumnSelectors;
 import io.druid.segment.DimensionSelector;
 import io.druid.segment.DoubleColumnSelector;
-import io.druid.segment.ExprEvalColumnSelector;
 import io.druid.segment.FloatColumnSelector;
 import io.druid.segment.LongColumnSelector;
 import io.druid.segment.ObjectColumnSelector;
@@ -85,7 +84,7 @@ public class FilteredAggregatorTest
 
   private ColumnSelectorFactory makeColumnSelector(final TestFloatColumnSelector selector){
 
-    return new ColumnSelectorFactory()
+    return new ColumnSelectorFactory.ExprUnSupport()
     {
       @Override
       public Iterable<String> getColumnNames()
@@ -194,12 +193,6 @@ public class FilteredAggregatorTest
         if (columnName.equals("dim")) {
           return ColumnSelectors.asArray(makeDimensionSelector(DefaultDimensionSpec.of(columnName)));
         }
-        throw new UnsupportedOperationException();
-      }
-
-      @Override
-      public ExprEvalColumnSelector makeMathExpressionSelector(String expression)
-      {
         throw new UnsupportedOperationException();
       }
 

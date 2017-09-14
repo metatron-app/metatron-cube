@@ -25,6 +25,8 @@ import com.google.common.collect.Maps;
 import io.druid.data.ValueDesc;
 import io.druid.js.JavaScriptConfig;
 import io.druid.query.dimension.DimensionSpec;
+import io.druid.query.filter.DimFilter;
+import io.druid.query.filter.ValueMatcher;
 import io.druid.segment.ColumnSelectorFactory;
 import io.druid.segment.DimensionSelector;
 import io.druid.segment.DoubleColumnSelector;
@@ -87,6 +89,12 @@ public class JavaScriptAggregatorTest
 
     @Override
     public ExprEvalColumnSelector makeMathExpressionSelector(String expression)
+    {
+      return null;
+    }
+
+    @Override
+    public ValueMatcher makeAuxiliaryMatcher(DimFilter filter)
     {
       return null;
     }

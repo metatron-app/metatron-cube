@@ -59,13 +59,13 @@ public class CountAggregatorFactory extends AggregatorFactory
   @Override
   public Aggregator factorize(ColumnSelectorFactory metricFactory)
   {
-    return new CountAggregator(ColumnSelectors.toPredicate(predicate, metricFactory));
+    return new CountAggregator(ColumnSelectors.toMatcher(predicate, metricFactory));
   }
 
   @Override
   public BufferAggregator factorizeBuffered(ColumnSelectorFactory metricFactory)
   {
-    return new CountBufferAggregator(ColumnSelectors.toPredicate(predicate, metricFactory));
+    return new CountBufferAggregator(ColumnSelectors.toMatcher(predicate, metricFactory));
   }
 
   @Override

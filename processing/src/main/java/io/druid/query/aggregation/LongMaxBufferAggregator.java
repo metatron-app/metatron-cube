@@ -19,8 +19,7 @@
 
 package io.druid.query.aggregation;
 
-import com.google.common.base.Predicate;
-import com.google.common.base.Predicates;
+import io.druid.query.filter.ValueMatcher;
 import io.druid.segment.LongColumnSelector;
 
 import java.nio.ByteBuffer;
@@ -29,9 +28,9 @@ import java.nio.ByteBuffer;
  */
 public abstract class LongMaxBufferAggregator implements BufferAggregator
 {
-  public static LongMaxBufferAggregator create(final LongColumnSelector selector, final Predicate predicate)
+  public static LongMaxBufferAggregator create(final LongColumnSelector selector, final ValueMatcher predicate)
   {
-    if (predicate == null || predicate == Predicates.alwaysTrue()) {
+    if (predicate == null || predicate == ValueMatcher.TRUE) {
       return new LongMaxBufferAggregator()
       {
         @Override
@@ -46,7 +45,7 @@ public abstract class LongMaxBufferAggregator implements BufferAggregator
         @Override
         public final void aggregate(ByteBuffer buf, int position)
         {
-          if (predicate.apply(null)) {
+          if (predicate.matches()) {
             buf.putLong(position, Math.max(buf.getLong(position), selector.get()));
           }
         }

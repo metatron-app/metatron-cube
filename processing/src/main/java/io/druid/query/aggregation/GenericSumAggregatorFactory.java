@@ -69,7 +69,7 @@ public class GenericSumAggregatorFactory extends GenericAggregatorFactory
                 fieldName,
                 fieldExpression
             ),
-            ColumnSelectors.toPredicate(predicate, metricFactory)
+            ColumnSelectors.toMatcher(predicate, metricFactory)
         );
       case DOUBLE:
         return DoubleSumAggregator.create(
@@ -78,7 +78,7 @@ public class GenericSumAggregatorFactory extends GenericAggregatorFactory
                 fieldName,
                 fieldExpression
             ),
-            ColumnSelectors.toPredicate(predicate, metricFactory)
+            ColumnSelectors.toMatcher(predicate, metricFactory)
         );
       case LONG:
         return LongSumAggregator.create(
@@ -87,7 +87,7 @@ public class GenericSumAggregatorFactory extends GenericAggregatorFactory
                 fieldName,
                 fieldExpression
             ),
-            ColumnSelectors.toPredicate(predicate, metricFactory)
+            ColumnSelectors.toMatcher(predicate, metricFactory)
         );
       default:
         throw new IllegalArgumentException();
@@ -105,7 +105,7 @@ public class GenericSumAggregatorFactory extends GenericAggregatorFactory
                 fieldName,
                 fieldExpression
             ),
-            ColumnSelectors.toPredicate(predicate, metricFactory)
+            ColumnSelectors.toMatcher(predicate, metricFactory)
         );
       case DOUBLE:
         return DoubleSumBufferAggregator.create(
@@ -114,7 +114,7 @@ public class GenericSumAggregatorFactory extends GenericAggregatorFactory
                 fieldName,
                 fieldExpression
             ),
-            ColumnSelectors.toPredicate(predicate, metricFactory)
+            ColumnSelectors.toMatcher(predicate, metricFactory)
         );
       case LONG:
         return LongSumBufferAggregator.create(
@@ -123,7 +123,7 @@ public class GenericSumAggregatorFactory extends GenericAggregatorFactory
                 fieldName,
                 fieldExpression
             ),
-            ColumnSelectors.toPredicate(predicate, metricFactory)
+            ColumnSelectors.toMatcher(predicate, metricFactory)
         );
     }
     throw new IllegalStateException();

@@ -19,10 +19,9 @@
 
 package io.druid.query.aggregation.variance;
 
-import com.google.common.base.Predicate;
-import com.google.common.base.Predicates;
 import io.druid.query.aggregation.Aggregator;
 import io.druid.query.aggregation.Aggregators;
+import io.druid.query.filter.ValueMatcher;
 import io.druid.segment.DoubleColumnSelector;
 import io.druid.segment.FloatColumnSelector;
 import io.druid.segment.LongColumnSelector;
@@ -69,12 +68,12 @@ public abstract class VarianceAggregator implements Aggregator
     throw new UnsupportedOperationException("VarianceAggregator does not support getLong()");
   }
 
-  public static Aggregator create(final FloatColumnSelector selector, final Predicate<?> predicate)
+  public static Aggregator create(final FloatColumnSelector selector, final ValueMatcher predicate)
   {
     if (selector == null) {
       return Aggregators.noopAggregator();
     }
-    if (predicate == null || predicate == Predicates.alwaysTrue()) {
+    if (predicate == null || predicate == ValueMatcher.TRUE) {
       return new VarianceAggregator()
       {
         @Override
@@ -89,7 +88,7 @@ public abstract class VarianceAggregator implements Aggregator
         @Override
         public void aggregate()
         {
-          if (predicate.apply(null)) {
+          if (predicate.matches()) {
             holder.add(selector.get());
           }
         }
@@ -97,7 +96,7 @@ public abstract class VarianceAggregator implements Aggregator
     }
   }
 
-  public static Aggregator create(final DoubleColumnSelector selector, final Predicate<?> predicate)
+  public static Aggregator create(final DoubleColumnSelector selector, final ValueMatcher predicate)
   {
     if (selector == null) {
       return Aggregators.noopAggregator();
@@ -107,14 +106,14 @@ public abstract class VarianceAggregator implements Aggregator
       @Override
       public void aggregate()
       {
-        if (predicate.apply(null)) {
+        if (predicate.matches()) {
           holder.add(selector.get());
         }
       }
     };
   }
 
-  public static Aggregator create(final LongColumnSelector selector, final Predicate<?> predicate)
+  public static Aggregator create(final LongColumnSelector selector, final ValueMatcher predicate)
   {
     if (selector == null) {
       return Aggregators.noopAggregator();
@@ -124,14 +123,14 @@ public abstract class VarianceAggregator implements Aggregator
       @Override
       public void aggregate()
       {
-        if (predicate.apply(null)) {
+        if (predicate.matches()) {
           holder.add(selector.get());
         }
       }
     };
   }
 
-  public static Aggregator create(final ObjectColumnSelector selector, final Predicate<?> predicate)
+  public static Aggregator create(final ObjectColumnSelector selector, final ValueMatcher predicate)
   {
     if (selector == null) {
       return Aggregators.noopAggregator();
@@ -141,7 +140,7 @@ public abstract class VarianceAggregator implements Aggregator
       @Override
       public void aggregate()
       {
-        if (predicate.apply(null)) {
+        if (predicate.matches()) {
           VarianceAggregatorCollector.combineValues(holder, selector.get());
         }
       }

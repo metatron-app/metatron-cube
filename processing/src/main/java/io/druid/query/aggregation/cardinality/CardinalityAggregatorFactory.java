@@ -93,7 +93,7 @@ public class CardinalityAggregatorFactory extends AggregatorFactory
       return Aggregators.noopAggregator();
     }
 
-    return new CardinalityAggregator(ColumnSelectors.toPredicate(predicate, columnFactory), selectors, byRow);
+    return new CardinalityAggregator(ColumnSelectors.toMatcher(predicate, columnFactory), selectors, byRow);
   }
 
 
@@ -106,7 +106,7 @@ public class CardinalityAggregatorFactory extends AggregatorFactory
       return Aggregators.noopBufferAggregator();
     }
 
-    return new CardinalityBufferAggregator(selectors, ColumnSelectors.toPredicate(predicate, columnFactory), byRow);
+    return new CardinalityBufferAggregator(selectors, ColumnSelectors.toMatcher(predicate, columnFactory), byRow);
   }
 
   private List<DimensionSelector> makeDimensionSelectors(final ColumnSelectorFactory columnFactory)

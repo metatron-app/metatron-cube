@@ -29,7 +29,6 @@ import io.druid.query.dimension.DimensionSpec;
 import io.druid.segment.ColumnSelectorFactory;
 import io.druid.segment.DimensionSelector;
 import io.druid.segment.DoubleColumnSelector;
-import io.druid.segment.ExprEvalColumnSelector;
 import io.druid.segment.FloatColumnSelector;
 import io.druid.segment.LongColumnSelector;
 import io.druid.segment.ObjectColumnSelector;
@@ -225,7 +224,7 @@ public class DimensionArrayAggregatorFactory extends AbstractArrayAggregatorFact
     };
   }
 
-  private static class DimensionArrayColumnSelectorFactory implements ColumnSelectorFactory
+  private static class DimensionArrayColumnSelectorFactory extends ColumnSelectorFactory.ExprUnSupport
   {
     private final int index;
     private final DimensionSelector selector;
@@ -356,12 +355,6 @@ public class DimensionArrayAggregatorFactory extends AbstractArrayAggregatorFact
           return selector.lookupName(selector.getRow().get(index));
         }
       };
-    }
-
-    @Override
-    public ExprEvalColumnSelector makeMathExpressionSelector(String expression)
-    {
-      throw new UnsupportedOperationException("makeMathExpressionSelector");
     }
 
     @Override

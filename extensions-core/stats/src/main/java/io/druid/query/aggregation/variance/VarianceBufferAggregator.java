@@ -19,11 +19,11 @@
 
 package io.druid.query.aggregation.variance;
 
-import com.google.common.base.Predicate;
 import com.google.common.primitives.Doubles;
 import com.google.common.primitives.Longs;
 import io.druid.query.aggregation.Aggregators;
 import io.druid.query.aggregation.BufferAggregator;
+import io.druid.query.filter.ValueMatcher;
 import io.druid.segment.DoubleColumnSelector;
 import io.druid.segment.FloatColumnSelector;
 import io.druid.segment.LongColumnSelector;
@@ -87,7 +87,7 @@ public abstract class VarianceBufferAggregator implements BufferAggregator
   {
   }
 
-  static BufferAggregator create(String name, final FloatColumnSelector selector, final Predicate<?> predicate)
+  static BufferAggregator create(String name, final FloatColumnSelector selector, final ValueMatcher predicate)
   {
     if (selector == null) {
       return Aggregators.noopBufferAggregator();
@@ -97,7 +97,7 @@ public abstract class VarianceBufferAggregator implements BufferAggregator
       @Override
       public void aggregate(ByteBuffer buf, int position)
       {
-        if (predicate.apply(null)) {
+        if (predicate.matches()) {
           float v = selector.get();
           long count = buf.getLong(position + COUNT_OFFSET) + 1;
           double sum = buf.getDouble(position + SUM_OFFSET) + v;
@@ -113,7 +113,7 @@ public abstract class VarianceBufferAggregator implements BufferAggregator
     };
   }
 
-  static BufferAggregator create(String name, final DoubleColumnSelector selector, final Predicate<?> predicate)
+  static BufferAggregator create(String name, final DoubleColumnSelector selector, final ValueMatcher predicate)
   {
     if (selector == null) {
       return Aggregators.noopBufferAggregator();
@@ -123,7 +123,7 @@ public abstract class VarianceBufferAggregator implements BufferAggregator
       @Override
       public void aggregate(ByteBuffer buf, int position)
       {
-        if (predicate.apply(null)) {
+        if (predicate.matches()) {
           double v = selector.get();
           long count = buf.getLong(position + COUNT_OFFSET) + 1;
           double sum = buf.getDouble(position + SUM_OFFSET) + v;
@@ -139,7 +139,7 @@ public abstract class VarianceBufferAggregator implements BufferAggregator
     };
   }
 
-  static BufferAggregator create(String name, final LongColumnSelector selector, final Predicate<?> predicate)
+  static BufferAggregator create(String name, final LongColumnSelector selector, final ValueMatcher predicate)
   {
     if (selector == null) {
       return Aggregators.noopBufferAggregator();
@@ -149,7 +149,7 @@ public abstract class VarianceBufferAggregator implements BufferAggregator
       @Override
       public void aggregate(ByteBuffer buf, int position)
       {
-        if (predicate.apply(null)) {
+        if (predicate.matches()) {
           long v = selector.get();
           long count = buf.getLong(position + COUNT_OFFSET) + 1;
           double sum = buf.getDouble(position + SUM_OFFSET) + v;
@@ -165,7 +165,7 @@ public abstract class VarianceBufferAggregator implements BufferAggregator
     };
   }
 
-  static BufferAggregator create(String name, final ObjectColumnSelector selector, final Predicate<?> predicate)
+  static BufferAggregator create(String name, final ObjectColumnSelector selector, final ValueMatcher predicate)
   {
     if (selector == null) {
       return Aggregators.noopBufferAggregator();
@@ -175,7 +175,7 @@ public abstract class VarianceBufferAggregator implements BufferAggregator
       @Override
       public void aggregate(ByteBuffer buf, int position)
       {
-        if (predicate.apply(null)) {
+        if (predicate.matches()) {
           Object input = selector.get();
           if (input == null || !(input instanceof VarianceAggregatorCollector)) {
             return;

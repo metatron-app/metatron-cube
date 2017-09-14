@@ -19,10 +19,9 @@
 
 package io.druid.query.aggregation.kurtosis;
 
-import com.google.common.base.Predicate;
-import com.google.common.base.Predicates;
 import io.druid.query.aggregation.Aggregator;
 import io.druid.query.aggregation.Aggregators;
+import io.druid.query.filter.ValueMatcher;
 import io.druid.segment.DoubleColumnSelector;
 import io.druid.segment.ObjectColumnSelector;
 
@@ -69,10 +68,10 @@ public abstract class KurtosisAggregator implements Aggregator
 
   public static Aggregator create(
       final DoubleColumnSelector selector,
-      final Predicate<?> predicate
+      final ValueMatcher predicate
   )
   {
-    if (predicate == null || predicate == Predicates.alwaysTrue()) {
+    if (predicate == null || predicate == ValueMatcher.TRUE) {
       return new KurtosisAggregator()
       {
         @Override
@@ -87,7 +86,7 @@ public abstract class KurtosisAggregator implements Aggregator
         @Override
         public void aggregate()
         {
-          if (predicate.apply(null)) {
+          if (predicate.matches()) {
             holder.add(selector.get());
           }
         }
@@ -95,7 +94,7 @@ public abstract class KurtosisAggregator implements Aggregator
     }
   }
 
-  public static Aggregator create(final ObjectColumnSelector selector, final Predicate<?> predicate)
+  public static Aggregator create(final ObjectColumnSelector selector, final ValueMatcher predicate)
   {
     if (selector == null) {
       return Aggregators.noopAggregator();
@@ -105,7 +104,7 @@ public abstract class KurtosisAggregator implements Aggregator
       @Override
       public void aggregate()
       {
-        if (predicate.apply(null)) {
+        if (predicate.matches()) {
           KurtosisAggregatorCollector.combineValues(holder, selector.get());
         }
       }

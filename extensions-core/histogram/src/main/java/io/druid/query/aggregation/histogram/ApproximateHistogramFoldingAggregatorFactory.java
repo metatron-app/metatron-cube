@@ -89,13 +89,12 @@ public class ApproximateHistogramFoldingAggregatorFactory extends ApproximateHis
         typeName.equals("approximateBase64Histogram") ||
         typeName.equals("approximateBase64CompactHistogram")) {
       return new ApproximateHistogramFoldingAggregator(
-          name,
           selector,
           resolution,
           lowerLimit,
           upperLimit,
           compact,
-          ColumnSelectors.toPredicate(predicate, metricFactory)
+          ColumnSelectors.toMatcher(predicate, metricFactory)
       );
     }
 
@@ -136,7 +135,7 @@ public class ApproximateHistogramFoldingAggregatorFactory extends ApproximateHis
         typeName.equals("approximateCompactHistogram")) {
       return new ApproximateHistogramFoldingBufferAggregator(
           selector, resolution, lowerLimit, upperLimit,
-          ColumnSelectors.toPredicate(predicate, metricFactory)
+          ColumnSelectors.toMatcher(predicate, metricFactory)
       );
     }
 

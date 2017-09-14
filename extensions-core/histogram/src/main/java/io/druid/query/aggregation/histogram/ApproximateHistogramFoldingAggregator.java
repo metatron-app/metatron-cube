@@ -20,13 +20,12 @@
 package io.druid.query.aggregation.histogram;
 
 
-import com.google.common.base.Predicate;
 import io.druid.query.aggregation.Aggregators;
+import io.druid.query.filter.ValueMatcher;
 import io.druid.segment.ObjectColumnSelector;
 
 public class ApproximateHistogramFoldingAggregator implements Aggregators.EstimableAggregator
 {
-  private final String name;
   private final ObjectColumnSelector<ApproximateHistogramHolder> selector;
   private final int resolution;
   private final float lowerLimit;
@@ -37,19 +36,17 @@ public class ApproximateHistogramFoldingAggregator implements Aggregators.Estima
   private long[] tmpBufferB;
 
   private final boolean compact;
-  private final Predicate predicate;
+  private final ValueMatcher predicate;
 
   public ApproximateHistogramFoldingAggregator(
-      String name,
       ObjectColumnSelector<ApproximateHistogramHolder> selector,
       int resolution,
       float lowerLimit,
       float upperLimit,
       boolean compact,
-      Predicate predicate
+      ValueMatcher predicate
   )
   {
-    this.name = name;
     this.selector = selector;
     this.resolution = resolution;
     this.lowerLimit = lowerLimit;
@@ -65,7 +62,7 @@ public class ApproximateHistogramFoldingAggregator implements Aggregators.Estima
   @Override
   public void aggregate()
   {
-    if (predicate.apply(null)) {
+    if (predicate.matches()) {
       ApproximateHistogramHolder h = selector.get();
       if (h == null) {
         return;

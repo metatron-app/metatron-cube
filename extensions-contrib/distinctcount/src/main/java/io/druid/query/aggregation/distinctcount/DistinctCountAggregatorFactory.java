@@ -81,7 +81,7 @@ public class DistinctCountAggregatorFactory extends AggregatorFactory
       return new DistinctCountAggregator(
           selector,
           bitMapFactory.makeEmptyMutableBitmap(),
-          ColumnSelectors.toPredicate(predicate, columnFactory)
+          ColumnSelectors.toMatcher(predicate, columnFactory)
       );
     }
   }
@@ -94,7 +94,7 @@ public class DistinctCountAggregatorFactory extends AggregatorFactory
       return new EmptyDistinctCountBufferAggregator();
     } else {
       return new DistinctCountBufferAggregator(
-          makeDimensionSelector(columnFactory), ColumnSelectors.toPredicate(predicate, columnFactory)
+          makeDimensionSelector(columnFactory), ColumnSelectors.toMatcher(predicate, columnFactory)
       );
     }
   }

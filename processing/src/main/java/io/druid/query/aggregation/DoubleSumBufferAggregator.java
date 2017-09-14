@@ -19,8 +19,7 @@
 
 package io.druid.query.aggregation;
 
-import com.google.common.base.Predicate;
-import com.google.common.base.Predicates;
+import io.druid.query.filter.ValueMatcher;
 import io.druid.segment.DoubleColumnSelector;
 import io.druid.segment.FloatColumnSelector;
 
@@ -66,9 +65,9 @@ public abstract class DoubleSumBufferAggregator implements BufferAggregator
     // no resources to cleanup
   }
 
-  public static DoubleSumBufferAggregator create(final FloatColumnSelector selector, final Predicate predicate)
+  public static DoubleSumBufferAggregator create(final FloatColumnSelector selector, final ValueMatcher predicate)
   {
-    if (predicate == null || predicate == Predicates.alwaysTrue()) {
+    if (predicate == null || predicate == ValueMatcher.TRUE) {
       return new DoubleSumBufferAggregator()
       {
         @Override
@@ -83,7 +82,7 @@ public abstract class DoubleSumBufferAggregator implements BufferAggregator
         @Override
         public final void aggregate(ByteBuffer buf, int position)
         {
-          if (predicate.apply(null)) {
+          if (predicate.matches()) {
             buf.putDouble(position, buf.getDouble(position) + selector.get());
           }
         }
@@ -91,9 +90,9 @@ public abstract class DoubleSumBufferAggregator implements BufferAggregator
     }
   }
 
-  public static DoubleSumBufferAggregator create(final DoubleColumnSelector selector, final Predicate predicate)
+  public static DoubleSumBufferAggregator create(final DoubleColumnSelector selector, final ValueMatcher predicate)
   {
-    if (predicate == null || predicate == Predicates.alwaysTrue()) {
+    if (predicate == null || predicate == ValueMatcher.TRUE) {
       return new DoubleSumBufferAggregator()
       {
         @Override
@@ -108,7 +107,7 @@ public abstract class DoubleSumBufferAggregator implements BufferAggregator
         @Override
         public final void aggregate(ByteBuffer buf, int position)
         {
-          if (predicate.apply(null)) {
+          if (predicate.matches()) {
             buf.putDouble(position, buf.getDouble(position) + selector.get());
           }
         }

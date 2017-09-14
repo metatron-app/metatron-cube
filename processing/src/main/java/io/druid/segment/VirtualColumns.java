@@ -22,14 +22,18 @@ package io.druid.segment;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
+import com.google.common.collect.Iterables;
 import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import io.druid.data.ValueDesc;
 import io.druid.query.dimension.DimensionSpec;
+import io.druid.query.filter.DimFilter;
+import io.druid.query.filter.ValueMatcher;
 import io.druid.segment.data.ArrayBasedIndexedInts;
 import io.druid.segment.data.IndexedInts;
+import io.druid.segment.filter.Filters;
 
 import java.io.IOException;
 import java.util.Arrays;
@@ -274,6 +278,21 @@ public class VirtualColumns implements Iterable<VirtualColumn>
           return wrapped.makeObjectColumnSelector(columnName);
         }
         return factory.makeObjectColumnSelector(columnName);
+      }
+
+      @Override
+      public ValueMatcher makeAuxiliaryMatcher(DimFilter filter)
+      {
+        Set<String> dependents = Filters.getDependents(filter);
+        if (dependents.size() != 1) {
+          return null;
+        }
+        String columnName = Iterables.getOnlyElement(dependents);
+        ColumnSelectorFactory wrapped = delegate.get(columnName);
+        if (wrapped != null) {
+          return wrapped.makeAuxiliaryMatcher(filter);
+        }
+        return factory.makeAuxiliaryMatcher(filter);
       }
 
       @Override

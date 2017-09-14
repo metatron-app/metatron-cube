@@ -29,6 +29,8 @@ import io.druid.math.expr.ExprEval;
 import io.druid.math.expr.ExprType;
 import io.druid.math.expr.Parser;
 import io.druid.query.dimension.DimensionSpec;
+import io.druid.query.filter.DimFilter;
+import io.druid.query.filter.ValueMatcher;
 
 import java.util.Map;
 
@@ -44,6 +46,7 @@ public interface ColumnSelectorFactory
   public LongColumnSelector makeLongColumnSelector(String columnName);
   public ObjectColumnSelector makeObjectColumnSelector(String columnName);
   public ExprEvalColumnSelector makeMathExpressionSelector(String expression);
+  public ValueMatcher makeAuxiliaryMatcher(DimFilter filter);
   public ValueDesc getColumnType(String columnName);
 
   abstract class ExprSupport implements ColumnSelectorFactory
@@ -83,9 +86,16 @@ public interface ColumnSelectorFactory
 
   abstract class ExprUnSupport implements ColumnSelectorFactory
   {
+    @Override
     public ExprEvalColumnSelector makeMathExpressionSelector(String expression)
     {
       throw new UnsupportedOperationException("makeMathExpressionSelector");
+    }
+
+    @Override
+    public ValueMatcher makeAuxiliaryMatcher(DimFilter filter)
+    {
+      return null;
     }
   }
 }

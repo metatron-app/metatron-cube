@@ -23,5 +23,23 @@ package io.druid.query.filter;
  */
 public interface ValueMatcher
 {
-  public boolean matches();
+  boolean matches();
+
+  ValueMatcher TRUE = new ValueMatcher()
+  {
+    @Override
+    public final boolean matches()
+    {
+      return true;
+    }
+  };
+
+  ValueMatcher FALSE = new ValueMatcher()
+  {
+    @Override
+    public final boolean matches()
+    {
+      return false;
+    }
+  };
 }

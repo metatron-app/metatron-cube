@@ -19,14 +19,14 @@
 
 package io.druid.segment;
 
-import com.google.common.base.Predicate;
-import com.google.common.base.Predicates;
 import com.google.common.base.Strings;
 import io.druid.common.guava.DSuppliers;
 import io.druid.common.utils.StringUtils;
 import io.druid.data.ValueDesc;
 import io.druid.data.ValueType;
 import io.druid.query.dimension.DefaultDimensionSpec;
+import io.druid.query.filter.MathExprFilter;
+import io.druid.query.filter.ValueMatcher;
 import io.druid.segment.data.IndexedID;
 import io.druid.segment.data.IndexedInts;
 
@@ -279,18 +279,33 @@ public class ColumnSelectors
     };
   }
 
-  public static Predicate toPredicate(String expression, ColumnSelectorFactory metricFactory)
+  @SuppressWarnings("unchecked")
+  public static ValueMatcher toMatcher(String expression, ColumnSelectorFactory metricFactory)
   {
     if (StringUtils.isNullOrEmpty(expression)) {
-      return Predicates.alwaysTrue();
+      return ValueMatcher.TRUE;
+    }
+    final ValueMatcher matcher = metricFactory.makeAuxiliaryMatcher(new MathExprFilter(expression));
+    if (matcher == ValueMatcher.FALSE) {
+      return matcher;
     }
     final ExprEvalColumnSelector selector = metricFactory.makeMathExpressionSelector(expression);
-    return new Predicate()
+    if (matcher == ValueMatcher.TRUE || matcher == null) {
+      return new ValueMatcher()
+      {
+        @Override
+        public boolean matches()
+        {
+          return selector.get().asBoolean();
+        }
+      };
+    }
+    return new ValueMatcher()
     {
       @Override
-      public boolean apply(Object input)
+      public boolean matches()
       {
-        return selector.get().asBoolean();
+        return matcher.matches() && selector.get().asBoolean();
       }
     };
   }

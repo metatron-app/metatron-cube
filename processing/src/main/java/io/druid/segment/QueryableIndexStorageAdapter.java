@@ -313,7 +313,8 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
             valuesFilter == null ? null : valuesFilter.toFilter(),
             minDataTimestamp,
             maxDataTimestamp,
-            descending
+            descending,
+            metricBitmaps
         ).build(),
         Predicates.<Cursor>notNull()
     );
@@ -358,7 +359,7 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
 
   private static class CursorSequenceBuilder
   {
-    private final ColumnSelector index;
+    private final QueryableIndex index;
     private final Interval interval;
     private final VirtualColumns virtualColumns;
     private final RowResolver resolver;
@@ -367,11 +368,12 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
     private final long minDataTimestamp;
     private final long maxDataTimestamp;
     private final boolean descending;
+    private final Map<String, MetricBitmap> metricBitmaps;
 
     private final Filter filter;
 
     public CursorSequenceBuilder(
-        ColumnSelector index,
+        QueryableIndex index,
         Interval interval,
         VirtualColumns virtualColumns,
         RowResolver resolver,
@@ -380,7 +382,8 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
         Filter filter,
         long minDataTimestamp,
         long maxDataTimestamp,
-        boolean descending
+        boolean descending,
+        Map<String, MetricBitmap> metricBitmaps
     )
     {
       this.index = index;
@@ -393,6 +396,7 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
       this.minDataTimestamp = minDataTimestamp;
       this.maxDataTimestamp = maxDataTimestamp;
       this.descending = descending;
+      this.metricBitmaps = metricBitmaps;
     }
 
     public Sequence<Cursor> build()
@@ -990,6 +994,31 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
                         objectColumnCache.put(column, cachedColumnVals);
                       }
                       return cachedColumnVals;
+                    }
+
+                    @Override
+                    public ValueMatcher makeAuxiliaryMatcher(DimFilter filter)
+                    {
+                      final BitmapFactory bitmapFactory = index.getBitmapFactoryForDimensions();
+                      final ImmutableBitmap bitmap = Filters.toBitmap(filter, bitmapFactory, metricBitmaps);
+                      if (bitmap != null) {
+                        LOG.debug("%s : %,d / %,d", filter, bitmap.size(), index.getNumRows());
+                        if (bitmap.isEmpty()) {
+                          return ValueMatcher.FALSE;
+                        }
+                        if (bitmap.size() == index.getNumRows()) {
+                          return ValueMatcher.TRUE;
+                        }
+                        return new ValueMatcher()
+                        {
+                          @Override
+                          public boolean matches()
+                          {
+                            return bitmap.get(cursorOffset.getOffset());
+                          }
+                        };
+                      }
+                      return null;
                     }
 
                     @Override

@@ -712,6 +712,12 @@ public class IncrementalIndexStorageAdapter implements StorageAdapter
               }
 
               @Override
+              public ValueMatcher makeAuxiliaryMatcher(DimFilter filter)
+              {
+                return null;
+              }
+
+              @Override
               public ValueDesc getColumnType(String columnName)
               {
                 return resolver.resolveColumn(columnName);

@@ -19,10 +19,9 @@
 
 package io.druid.query.aggregation.cardinality;
 
-import com.google.common.base.Predicate;
-import com.google.common.base.Predicates;
 import io.druid.query.aggregation.BufferAggregator;
 import io.druid.query.aggregation.hyperloglog.HyperLogLogCollector;
+import io.druid.query.filter.ValueMatcher;
 import io.druid.segment.DimensionSelector;
 
 import java.nio.ByteBuffer;
@@ -31,14 +30,14 @@ import java.util.List;
 public class CardinalityBufferAggregator implements BufferAggregator
 {
   private final List<DimensionSelector> selectorList;
-  private final Predicate predicate;
+  private final ValueMatcher predicate;
   private final boolean byRow;
 
   private static final byte[] EMPTY_BYTES = HyperLogLogCollector.makeEmptyVersionedByteArray();
 
   public CardinalityBufferAggregator(
       List<DimensionSelector> selectorList,
-      Predicate predicate,
+      ValueMatcher predicate,
       boolean byRow
   )
   {
@@ -49,7 +48,7 @@ public class CardinalityBufferAggregator implements BufferAggregator
 
   public CardinalityBufferAggregator(List<DimensionSelector> selectorList, boolean byRow)
   {
-    this(selectorList, Predicates.alwaysTrue(), byRow);
+    this(selectorList, ValueMatcher.TRUE, byRow);
   }
 
   @Override
@@ -63,7 +62,7 @@ public class CardinalityBufferAggregator implements BufferAggregator
   @Override
   public void aggregate(ByteBuffer buf, int position)
   {
-    if (predicate.apply(null)) {
+    if (predicate.matches()) {
       final HyperLogLogCollector collector = HyperLogLogCollector.makeCollector(
           (ByteBuffer) buf.duplicate().position(position).limit(
               position
