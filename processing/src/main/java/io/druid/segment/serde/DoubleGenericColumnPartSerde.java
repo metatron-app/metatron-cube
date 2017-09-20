@@ -144,11 +144,10 @@ public class DoubleGenericColumnPartSerde implements ColumnPartSerde
 
         if (buffer.remaining() > 0) {
           builder.setMetricBitmap(
-              ColumnPartProviders.ofMetric(
-                  ByteBufferSerializer.readWithLength(
-                      buffer,
-                      MetricBitmaps.getStrategy(serdeFactory, ValueType.DOUBLE)
-                  )
+              ColumnPartProviders.ofMetricBitmap(
+                  column.size(),
+                  ByteBufferSerializer.prepareForRead(buffer),
+                  MetricBitmaps.getStrategy(serdeFactory, ValueType.DOUBLE)
               )
           );
         }

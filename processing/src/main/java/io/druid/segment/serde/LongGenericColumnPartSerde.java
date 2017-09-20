@@ -29,7 +29,6 @@ import io.druid.segment.data.BitmapSerdeFactory;
 import io.druid.segment.data.ByteBufferSerializer;
 import io.druid.segment.data.CompressedLongsIndexedSupplier;
 import io.druid.segment.data.MetricBitmaps;
-import io.druid.segment.data.MetricBitmaps.LongBitmaps;
 
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
@@ -145,11 +144,10 @@ public class LongGenericColumnPartSerde implements ColumnPartSerde
 
         if (buffer.remaining() > 0) {
           builder.setMetricBitmap(
-              ColumnPartProviders.ofMetric(
-                  ByteBufferSerializer.readWithLength(
-                      buffer,
-                      MetricBitmaps.getStrategy(serdeFactory, ValueType.LONG)
-                  )
+              ColumnPartProviders.ofMetricBitmap(
+                  column.size(),
+                  ByteBufferSerializer.prepareForRead(buffer),
+                  MetricBitmaps.getStrategy(serdeFactory, ValueType.LONG)
               )
           );
         }

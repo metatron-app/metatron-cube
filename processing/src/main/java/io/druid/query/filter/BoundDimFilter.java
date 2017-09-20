@@ -33,7 +33,7 @@ import java.util.Comparator;
 import java.util.Objects;
 import java.util.Set;
 
-public class BoundDimFilter implements DimFilter.ExpressionSupport
+public class BoundDimFilter implements DimFilter
 {
   private final String dimension;
   private final String expression;
@@ -126,7 +126,7 @@ public class BoundDimFilter implements DimFilter.ExpressionSupport
     return dimension;
   }
 
-  @Override
+  @JsonProperty
   public String getExpression()
   {
     return expression;

@@ -521,7 +521,7 @@ public class TaskSerdeTest
     );
     final ConvertSegmentTask convertSegmentTaskOriginal = ConvertSegmentTask.create(
         segment,
-        new IndexSpec(new RoaringBitmapSerdeFactory(), "lzf", "uncompressed", false),
+        new IndexSpec(new RoaringBitmapSerdeFactory(), "lzf", "uncompressed"),
         false,
         true,
         null

@@ -239,8 +239,7 @@ public abstract class BaseFilterTest
                                                           .indexSpec(new IndexSpec(
                                                               bitmapSerdeFactoryEntry.getValue(),
                                                               null,
-                                                              null,
-                                                              false
+                                                              null
                                                           ))
                                                           .indexMerger(indexMergerEntry.getValue());
 

@@ -169,12 +169,6 @@ public abstract class MetricBitmaps<T extends Comparable> implements MetricBitma
   public abstract ValueType type();
 
   @Override
-  public BitmapFactory getFactory()
-  {
-    return factory;
-  }
-
-  @Override
   public ImmutableBitmap filterFor(Range<T> range)
   {
     if (range.isEmpty()) {
@@ -254,6 +248,10 @@ public abstract class MetricBitmaps<T extends Comparable> implements MetricBitma
   public int zeroRows()
   {
     return zeros.size();
+  }
+
+  @Override
+  public void close() {
   }
 
   @Override

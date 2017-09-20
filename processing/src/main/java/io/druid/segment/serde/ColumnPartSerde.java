@@ -48,7 +48,7 @@ public interface ColumnPartSerde
 
   public interface Serializer
   {
-    public long getSerializedSize();
+    public long getSerializedSize() throws IOException;
 
     public void writeToChannel(WritableByteChannel channel) throws IOException;
 
@@ -57,6 +57,6 @@ public interface ColumnPartSerde
 
   public interface Deserializer
   {
-    public void read(ByteBuffer buffer, ColumnBuilder builder, BitmapSerdeFactory serdeFactory);
+    public void read(ByteBuffer buffer, ColumnBuilder builder, BitmapSerdeFactory serdeFactory) throws IOException;
   }
 }

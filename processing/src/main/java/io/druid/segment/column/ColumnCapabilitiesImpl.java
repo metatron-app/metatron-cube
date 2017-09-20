@@ -44,6 +44,7 @@ public class ColumnCapabilitiesImpl implements ColumnCapabilities
     copy.setHasSpatialIndexes(capabilities.hasSpatialIndexes());
     copy.setHasMultipleValues(capabilities.hasMultipleValues());
     copy.setHasMetricBitmap(capabilities.hasMetricBitmap());
+    copy.setHasLuceneIndex(capabilities.hasLuceneIndex());
     return copy;
   }
 
@@ -54,6 +55,7 @@ public class ColumnCapabilitiesImpl implements ColumnCapabilities
   private boolean hasSpatialIndexes = false;
   private boolean hasMultipleValues = false;
   private boolean hasMetricBitmap = false;
+  private boolean hasLuceneIndex = false;
 
   @Override
   @JsonProperty
@@ -147,6 +149,19 @@ public class ColumnCapabilitiesImpl implements ColumnCapabilities
   }
 
   @Override
+  @JsonProperty("hasLuceneIndex")
+  public boolean hasLuceneIndex()
+  {
+    return hasLuceneIndex;
+  }
+
+  public ColumnCapabilitiesImpl setHasLuceneIndex(boolean hasLuceneIndex)
+  {
+    this.hasLuceneIndex = hasLuceneIndex;
+    return this;
+  }
+
+  @Override
   public ColumnCapabilitiesImpl merge(ColumnCapabilities other)
   {
     if (other == null) {
@@ -167,6 +182,7 @@ public class ColumnCapabilitiesImpl implements ColumnCapabilities
     this.hasSpatialIndexes |= other.hasSpatialIndexes();
     this.hasMultipleValues |= other.hasMultipleValues();
     this.hasMetricBitmap &= other.hasMetricBitmap();
+    this.hasLuceneIndex &= other.hasLuceneIndex();
 
     return this;
   }

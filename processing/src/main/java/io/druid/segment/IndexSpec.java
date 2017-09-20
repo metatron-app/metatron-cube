@@ -23,6 +23,7 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Sets;
 import io.druid.segment.data.BitmapSerdeFactory;
@@ -31,6 +32,7 @@ import io.druid.segment.data.ConciseBitmapSerdeFactory;
 
 import javax.annotation.Nullable;
 import java.util.Arrays;
+import java.util.Map;
 import java.util.Set;
 
 /**
@@ -64,14 +66,14 @@ public class IndexSpec
   private final String dimensionCompression;
   private final String metricCompression;
   private final boolean makeHistogram;
-
+  private final  Map<String, String> luceneIndexing;
 
   /**
    * Creates an IndexSpec with default parameters
    */
   public IndexSpec()
   {
-    this(null, null, null, true);
+    this(null, null, null, true, null);
   }
 
   /**
@@ -93,7 +95,8 @@ public class IndexSpec
       @JsonProperty("bitmap") BitmapSerdeFactory bitmapSerdeFactory,
       @JsonProperty("dimensionCompression") String dimensionCompression,
       @JsonProperty("metricCompression") String metricCompression,
-      @JsonProperty("makeHistogram") Boolean makeHistogram
+      @JsonProperty("makeHistogram") Boolean makeHistogram,
+      @JsonProperty("luceneIndexing") Map<String, String> luceneIndexing
   )
   {
     Preconditions.checkArgument(dimensionCompression == null || dimensionCompression.equals(UNCOMPRESSED) || COMPRESSION_NAMES.contains(dimensionCompression),
@@ -106,6 +109,16 @@ public class IndexSpec
     this.metricCompression = metricCompression;
     this.dimensionCompression = dimensionCompression;
     this.makeHistogram = makeHistogram == null || makeHistogram;
+    this.luceneIndexing = luceneIndexing == null ? ImmutableMap.<String, String>of() : luceneIndexing;
+  }
+
+  public IndexSpec(
+      BitmapSerdeFactory bitmapSerdeFactory,
+      String dimensionCompression,
+      String metricCompression
+  )
+  {
+    this(bitmapSerdeFactory, dimensionCompression, metricCompression, false, null);
   }
 
   @JsonProperty("bitmap")
@@ -132,6 +145,12 @@ public class IndexSpec
     return makeHistogram;
   }
 
+  @JsonProperty("luceneIndexing")
+  public Map<String, String> getLuceneIndexing()
+  {
+    return luceneIndexing;
+  }
+
   public CompressedObjectStrategy.CompressionStrategy getMetricCompressionStrategy()
   {
     return CompressedObjectStrategy.CompressionStrategy.valueOf(
@@ -154,7 +173,24 @@ public class IndexSpec
 
   public IndexSpec withMakeHistogram(boolean makeHistogram)
   {
-    return new IndexSpec(bitmapSerdeFactory, dimensionCompression, metricCompression, makeHistogram);
+    return new IndexSpec(
+        bitmapSerdeFactory,
+        dimensionCompression,
+        metricCompression,
+        makeHistogram,
+        luceneIndexing
+    );
+  }
+
+  public IndexSpec withMakeHistogram(Map<String, String> luceneIndexing)
+  {
+    return new IndexSpec(
+        bitmapSerdeFactory,
+        dimensionCompression,
+        metricCompression,
+        makeHistogram,
+        luceneIndexing
+    );
   }
 
   @Override
@@ -169,6 +205,9 @@ public class IndexSpec
 
     IndexSpec indexSpec = (IndexSpec) o;
 
+    if (makeHistogram != indexSpec.makeHistogram) {
+      return false;
+    }
     if (bitmapSerdeFactory != null
         ? !bitmapSerdeFactory.equals(indexSpec.bitmapSerdeFactory)
         : indexSpec.bitmapSerdeFactory != null) {
@@ -179,10 +218,15 @@ public class IndexSpec
         : indexSpec.dimensionCompression != null) {
       return false;
     }
-    return !(metricCompression != null
-             ? !metricCompression.equals(indexSpec.metricCompression)
-             : indexSpec.metricCompression != null);
-
+    if (metricCompression != null
+        ? !metricCompression.equals(indexSpec.metricCompression)
+        : indexSpec.metricCompression != null) {
+      return false;
+    }
+    if (!luceneIndexing.equals(indexSpec.luceneIndexing)) {
+      return false;
+    }
+    return true;
   }
 
   @Override
@@ -191,6 +235,8 @@ public class IndexSpec
     int result = bitmapSerdeFactory != null ? bitmapSerdeFactory.hashCode() : 0;
     result = 31 * result + (dimensionCompression != null ? dimensionCompression.hashCode() : 0);
     result = 31 * result + (metricCompression != null ? metricCompression.hashCode() : 0);
+    result = 31 * result + (makeHistogram ? 1 : 0);
+    result = 31 * result + luceneIndexing.hashCode();
     return result;
   }
 }

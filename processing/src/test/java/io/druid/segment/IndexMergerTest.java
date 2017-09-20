@@ -127,8 +127,7 @@ public class IndexMergerTest
       return new IndexSpec(
           bitmapSerdeFactory,
           compressionStrategy.name().toLowerCase(),
-          dimCompressionStrategy.name().toLowerCase(),
-          false
+          dimCompressionStrategy.name().toLowerCase()
       );
     } else {
       return new IndexSpec();
@@ -609,8 +608,7 @@ public class IndexMergerTest
     IndexSpec newSpec = new IndexSpec(
         indexSpec.getBitmapSerdeFactory(),
         "lz4".equals(indexSpec.getDimensionCompression()) ? "lzf" : "lz4",
-        "lz4".equals(indexSpec.getMetricCompression()) ? "lzf" : "lz4",
-        false
+        "lz4".equals(indexSpec.getMetricCompression()) ? "lzf" : "lz4"
     );
 
     AggregatorFactory[] mergedAggregators = new AggregatorFactory[]{new CountAggregatorFactory("count")};
@@ -747,8 +745,7 @@ public class IndexMergerTest
     IndexSpec newSpec = new IndexSpec(
         indexSpec.getBitmapSerdeFactory(),
         "lz4".equals(indexSpec.getDimensionCompression()) ? "lzf" : "lz4",
-        "lz4".equals(indexSpec.getMetricCompression()) ? "lzf" : "lz4",
-        false
+        "lz4".equals(indexSpec.getMetricCompression()) ? "lzf" : "lz4"
     );
 
     QueryableIndex converted = closer.closeLater(

@@ -39,6 +39,7 @@ public class ColumnBuilder
   private ColumnPartProvider<BitmapIndex> bitmapIndex = null;
   private ColumnPartProvider<SpatialIndex> spatialIndex = null;
   private ColumnPartProvider<MetricBitmap> metricBitmap = null;
+  private ColumnPartProvider<LuceneIndex> luceneIndex = null;
 
   private Map<String, Object> stats;
 
@@ -96,6 +97,12 @@ public class ColumnBuilder
     return this;
   }
 
+  public ColumnBuilder setLuceneIndex(ColumnPartProvider<LuceneIndex> luceneIndex)
+  {
+    this.luceneIndex = luceneIndex;
+    return this;
+  }
+
   public ColumnBuilder setColumnStats(Map<String, Object> stats)
   {
     this.stats = stats;
@@ -112,6 +119,7 @@ public class ColumnBuilder
             .setDictionaryEncoded(dictionaryEncodedColumn != null)
             .setHasBitmapIndexes(bitmapIndex != null)
             .setHasMetricBitmap(metricBitmap != null)
+            .setHasLuceneIndex(luceneIndex != null)
             .setHasSpatialIndexes(spatialIndex != null)
             .setRunLengthEncoded(runLengthColumn != null)
             .setHasMultipleValues(hasMultipleValues)
@@ -123,6 +131,7 @@ public class ColumnBuilder
         bitmapIndex,
         spatialIndex,
         metricBitmap,
+        luceneIndex,
         stats
     );
   }

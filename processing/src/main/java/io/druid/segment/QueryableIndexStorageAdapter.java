@@ -22,6 +22,7 @@ package io.druid.segment;
 import com.google.common.base.Function;
 import com.google.common.base.Predicates;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Iterables;
 import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
@@ -41,6 +42,7 @@ import io.druid.query.QueryInterruptedException;
 import io.druid.query.RowResolver;
 import io.druid.query.dimension.DimensionSpec;
 import io.druid.query.extraction.ExtractionFn;
+import io.druid.query.filter.BitmapIndexSelector;
 import io.druid.query.filter.DimFilter;
 import io.druid.query.filter.Filter;
 import io.druid.query.filter.ValueMatcher;
@@ -50,7 +52,6 @@ import io.druid.segment.column.ColumnCapabilities;
 import io.druid.segment.column.ComplexColumn;
 import io.druid.segment.column.DictionaryEncodedColumn;
 import io.druid.segment.column.GenericColumn;
-import io.druid.segment.column.MetricBitmap;
 import io.druid.segment.data.Indexed;
 import io.druid.segment.data.IndexedInts;
 import io.druid.segment.data.Offset;
@@ -62,7 +63,6 @@ import org.joda.time.Interval;
 import java.io.Closeable;
 import java.io.IOException;
 import java.nio.ByteBuffer;
-import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -77,23 +77,11 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
 
   private final QueryableIndex index;
   private final String segmentId;
-  private final Map<String, MetricBitmap> metricBitmaps;
 
   public QueryableIndexStorageAdapter(QueryableIndex index, String segmentId)
   {
     this.index = index;
     this.segmentId = segmentId;
-    metricBitmaps = Maps.newHashMap();
-    for (String metric : getAvailableMetrics()) {
-      MetricBitmap metricBitmap = index.getColumn(metric).getMetricBitmap();
-      if (metricBitmap != null) {
-        metricBitmaps.put(metric, metricBitmap);
-      }
-    }
-    MetricBitmap metricBitmap = index.getColumn(Column.TIME_COLUMN_NAME).getMetricBitmap();
-    if (metricBitmap != null) {
-      metricBitmaps.put(Column.TIME_COLUMN_NAME, metricBitmap);
-    }
   }
 
   public QueryableIndexStorageAdapter(QueryableIndex index)
@@ -273,28 +261,17 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
     final DimFilter bitmapFilter = filters == null ? null : filters[0];
     final DimFilter valuesFilter = filters == null ? null : filters[1];
 
+    final ColumnSelectorBitmapIndexSelector selector = new ColumnSelectorBitmapIndexSelector(bitmapFactory, index);
+
     ImmutableBitmap baseBitmap = null;
-    if (valuesFilter != null) {
-      if (valuesFilter instanceof Expression.AndExpression) {
-        List<ImmutableBitmap> bitmaps = Lists.newArrayList();
-        for (Expression child : ((Expression.AndExpression)valuesFilter).getChildren()) {
-          ImmutableBitmap bitmap = toBitmap((DimFilter) child);
-          if (bitmap != null) {
-            bitmaps.add(bitmap);
-          }
-        }
-        baseBitmap = bitmapFactory.intersection(bitmaps);
-      } else {
-        baseBitmap = toBitmap(valuesFilter);
-      }
-    }
     if (bitmapFilter != null) {
-      if (baseBitmap == null) {
-        baseBitmap = toBitmap(bitmapFilter, cache);
-      } else {
-        baseBitmap = bitmapFactory.intersection(Arrays.asList(baseBitmap, toBitmap(bitmapFilter, cache)));
-      }
+      baseBitmap = toExactBitmap(bitmapFilter, selector, cache);
     }
+    if (valuesFilter != null) {
+      ImmutableBitmap bitmap = toHelperBitmap(valuesFilter, selector);
+      baseBitmap = Filters.intersection(bitmapFactory, baseBitmap, bitmap);
+    }
+
     final Offset offset;
     if (baseBitmap == null) {
       offset = new NoFilterOffset(0, index.getNumRows(), descending);
@@ -302,59 +279,104 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
       LOG.info("%s : %,d / %,d", filter, baseBitmap.size(), index.getNumRows());
       offset = new BitmapOffset(bitmapFactory, baseBitmap, descending);
     }
-    return Sequences.filter(
-        new CursorSequenceBuilder(
-            index,
-            actualInterval,
-            virtualColumns,
-            resolver,
-            gran,
-            offset,
-            valuesFilter == null ? null : valuesFilter.toFilter(),
-            minDataTimestamp,
-            maxDataTimestamp,
-            descending,
-            metricBitmaps
-        ).build(),
-        Predicates.<Cursor>notNull()
+    return Sequences.withBaggage(
+        Sequences.filter(
+            new CursorSequenceBuilder(
+                index,
+                actualInterval,
+                virtualColumns,
+                resolver,
+                gran,
+                offset,
+                valuesFilter == null ? null : valuesFilter.toFilter(),
+                minDataTimestamp,
+                maxDataTimestamp,
+                descending,
+                selector
+            ).build(),
+            Predicates.<Cursor>notNull()
+        ),
+        selector
     );
   }
 
-  private ImmutableBitmap toBitmap(DimFilter dimFilter, Cache cache)
+  private ImmutableBitmap toExactBitmap(DimFilter dimFilter, BitmapIndexSelector bitmapSelector, Cache cache)
   {
-    final ColumnSelectorBitmapIndexSelector selector = new ColumnSelectorBitmapIndexSelector(
-        index.getBitmapFactoryForDimensions(),
-        index
-    );
+    BitmapFactory factory = index.getBitmapFactoryForDimensions();
     Cache.NamedKey key = null;
-    ImmutableBitmap bitmapIndex = null;
     if (cache != null && segmentId != null) {
       key = new Cache.NamedKey(segmentId, dimFilter.getCacheKey());
       byte[] cached = cache.get(key);
       if (cached != null) {
-        bitmapIndex = selector.getBitmapFactory().mapImmutableBitmap(ByteBuffer.wrap(cached));
+        return factory.mapImmutableBitmap(ByteBuffer.wrap(cached));
       }
     }
-    if (bitmapIndex == null) {
-      bitmapIndex = dimFilter.toFilter().getBitmapIndex(selector);
-      if (key != null) {
-        cache.put(key, bitmapIndex.toBytes());
+
+    ImmutableBitmap baseBitmap;
+    if (dimFilter instanceof Expression.AndExpression) {
+      List<ImmutableBitmap> bitmaps = Lists.newArrayList();
+      for (Expression child : ((Expression.AndExpression) dimFilter).getChildren()) {
+        ImmutableBitmap bitmap = toExactBitmap((DimFilter) child, bitmapSelector);
+        if (bitmap != null) {
+          LOG.debug("%s : %,d / %,d", child, bitmap.size(), index.getNumRows());
+          bitmaps.add(bitmap);
+        }
       }
-      LOG.debug("%s : %,d / %,d", dimFilter, bitmapIndex.size(), index.getNumRows());
+      baseBitmap = bitmapSelector.getBitmapFactory().intersection(bitmaps);
+    } else {
+      baseBitmap = toExactBitmap(dimFilter, bitmapSelector);
     }
-    return bitmapIndex;
+    if (key != null) {
+      cache.put(key, baseBitmap.toBytes());
+    }
+    LOG.debug("%s : %,d / %,d", dimFilter, baseBitmap.size(), index.getNumRows());
+    return baseBitmap;
   }
 
-  private ImmutableBitmap toBitmap(DimFilter dimFilter)
+  private ImmutableBitmap toExactBitmap(DimFilter dimFilter, BitmapIndexSelector bitmapSelector)
   {
-    if (!metricBitmaps.isEmpty()) {
-      ImmutableBitmap bitmap = Filters.toBitmap(dimFilter, index.getBitmapFactoryForDimensions(), metricBitmaps);
-      if (bitmap != null) {
-        LOG.debug("%s : %,d / %,d", dimFilter, bitmap.size(), index.getNumRows());
-      }
-      return bitmap;
+    String column = Iterables.getOnlyElement(Filters.getDependents(dimFilter));
+    ColumnCapabilities capabilities = index.getColumn(column).getCapabilities();
+
+    if (capabilities.hasBitmapIndexes()) {
+      return Filters.toInherentBitmap(dimFilter, bitmapSelector);
+    } else if (capabilities.hasLuceneIndex()) {
+      return Filters.toExternalBitmap(dimFilter, bitmapSelector);
+    } else {
+      throw new IllegalStateException("column " + column + " is not indexed");
     }
-    return null;
+  }
+
+  private ImmutableBitmap toHelperBitmap(DimFilter dimFilter, BitmapIndexSelector bitmapSelector)
+  {
+    for (String columnName : Filters.getDependents(dimFilter)) {
+      Column column = index.getColumn(columnName);
+      if (column == null) {
+        continue;
+      }
+      ColumnCapabilities capabilities = column.getCapabilities();
+      if (capabilities.hasLuceneIndex() && !capabilities.hasMetricBitmap()) {
+        throw new IllegalArgumentException("lucene index on column " + columnName + " cannot be used in this context");
+      }
+    }
+    ImmutableBitmap baseBitmap;
+    if (dimFilter instanceof Expression.AndExpression) {
+      List<ImmutableBitmap> bitmaps = Lists.newArrayList();
+      for (Expression child : ((Expression.AndExpression) dimFilter).getChildren()) {
+        ImmutableBitmap bitmap = Filters.toExternalBitmap((DimFilter) child, bitmapSelector);
+        if (bitmap != null) {
+          LOG.debug("%s : %,d / %,d", child, bitmap.size(), index.getNumRows());
+          bitmaps.add(bitmap);
+        }
+      }
+      baseBitmap = bitmapSelector.getBitmapFactory().intersection(bitmaps);
+    } else {
+      baseBitmap = Filters.toExternalBitmap(dimFilter, bitmapSelector);
+    }
+    if (baseBitmap != null) {
+      LOG.debug("%s : %,d / %,d", dimFilter, baseBitmap.size(), index.getNumRows());
+    }
+    return baseBitmap;
   }
 
   private static class CursorSequenceBuilder
@@ -368,7 +390,7 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
     private final long minDataTimestamp;
     private final long maxDataTimestamp;
     private final boolean descending;
-    private final Map<String, MetricBitmap> metricBitmaps;
+    private final BitmapIndexSelector bitmapSelector;
 
     private final Filter filter;
 
@@ -383,7 +405,7 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
         long minDataTimestamp,
         long maxDataTimestamp,
         boolean descending,
-        Map<String, MetricBitmap> metricBitmaps
+        BitmapIndexSelector bitmapSelector
     )
     {
       this.index = index;
@@ -396,7 +418,7 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
       this.minDataTimestamp = minDataTimestamp;
       this.maxDataTimestamp = maxDataTimestamp;
       this.descending = descending;
-      this.metricBitmaps = metricBitmaps;
+      this.bitmapSelector = bitmapSelector;
     }
 
     public Sequence<Cursor> build()
@@ -999,8 +1021,7 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
                     @Override
                     public ValueMatcher makeAuxiliaryMatcher(DimFilter filter)
                     {
-                      final BitmapFactory bitmapFactory = index.getBitmapFactoryForDimensions();
-                      final ImmutableBitmap bitmap = Filters.toBitmap(filter, bitmapFactory, metricBitmaps);
+                      final ImmutableBitmap bitmap = Filters.toExternalBitmap(filter, bitmapSelector);
                       if (bitmap != null) {
                         LOG.debug("%s : %,d / %,d", filter, bitmap.size(), index.getNumRows());
                         if (bitmap.isEmpty()) {

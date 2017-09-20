@@ -20,6 +20,7 @@
 package io.druid.query;
 
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.collect.Iterables;
 import com.google.common.collect.Maps;
 import com.metamx.common.Pair;
 import io.druid.data.TypeResolver;
@@ -29,6 +30,7 @@ import io.druid.segment.QueryableIndex;
 import io.druid.segment.StorageAdapter;
 import io.druid.segment.VirtualColumn;
 import io.druid.segment.VirtualColumns;
+import io.druid.segment.column.ColumnCapabilities;
 import io.druid.segment.data.IndexedID;
 import io.druid.segment.filter.Filters;
 import io.druid.segment.serde.ComplexMetricSerde;
@@ -37,6 +39,7 @@ import org.joda.time.DateTime;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  */
@@ -118,6 +121,7 @@ public class RowResolver implements TypeResolver
     return ValueDesc.UNKNOWN;
   }
 
+  private final Map<String, ColumnCapabilities> columnCapabilities = Maps.newHashMap();
   private final Map<String, ValueDesc> columnTypes = Maps.newHashMap();
   private final Map<String, Pair<VirtualColumn, ValueDesc>> virtualColumnTypes = Maps.newHashMap();
   private final VirtualColumns virtualColumns;
@@ -126,9 +130,11 @@ public class RowResolver implements TypeResolver
   {
     for (String dimension : adapter.getAvailableDimensions()) {
       columnTypes.put(dimension, adapter.getColumnType(dimension));
+      columnCapabilities.put(dimension, adapter.getColumnCapabilities(dimension));
     }
     for (String metric : adapter.getAvailableMetrics()) {
       columnTypes.put(metric, adapter.getColumnType(metric));
+      columnCapabilities.put(metric, adapter.getColumnCapabilities(metric));
     }
     this.virtualColumns = virtualColumns;
   }
@@ -137,6 +143,7 @@ public class RowResolver implements TypeResolver
   {
     for (String dimension : index.getColumnNames()) {
       columnTypes.put(dimension, index.getColumnType(dimension));
+      columnCapabilities.put(dimension, index.getColumn(dimension).getCapabilities());
     }
     this.virtualColumns = virtualColumns;
   }
@@ -188,17 +195,31 @@ public class RowResolver implements TypeResolver
     return null;
   }
 
+  public boolean supportsBitmap(DimFilter filter)
+  {
+    Set<String> dependents = Filters.getDependents(filter);
+    return dependents.size() == 1 && supportsBitmap(Iterables.getOnlyElement(dependents));
+  }
+
+  public boolean supportsBitmap(String column)
+  {
+    if (column == null) {
+      return false;
+    }
+    ColumnCapabilities capabilities = columnCapabilities.get(column);
+    if (capabilities == null) {
+      return ValueDesc.isDimension(resolveColumn(column));
+    }
+    return capabilities.hasBitmapIndexes() || capabilities.hasLuceneIndex();
+  }
+
   public boolean supportsBitmap(Iterable<String> columns, DimFilter filter)
   {
     for (String column : columns) {
-      ValueDesc valueType = resolveColumn(column);
-      if (valueType != null && !ValueDesc.isDimension(valueType)) {
+      if (!supportsBitmap(column)) {
         return false;
       }
     }
-    if (filter != null) {
-      return Filters.toFilter(filter).supportsBitmap(this);
-    }
-    return true;
+    return filter == null || supportsBitmap(filter);
   }
 }

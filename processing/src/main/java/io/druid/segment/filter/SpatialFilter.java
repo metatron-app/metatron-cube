@@ -22,8 +22,6 @@ import com.google.common.base.Preconditions;
 import com.google.common.base.Predicate;
 import com.metamx.collections.bitmap.ImmutableBitmap;
 import com.metamx.collections.spatial.search.Bound;
-import io.druid.data.ValueDesc;
-import io.druid.query.RowResolver;
 import io.druid.query.filter.BitmapIndexSelector;
 import io.druid.query.filter.Filter;
 import io.druid.query.filter.ValueMatcher;
@@ -45,12 +43,6 @@ public class SpatialFilter implements Filter
   {
     this.dimension = Preconditions.checkNotNull(dimension, "dimension");
     this.bound = Preconditions.checkNotNull(bound, "bound");
-  }
-
-  @Override
-  public boolean supportsBitmap(RowResolver resolver)
-  {
-    return ValueDesc.isDimension(resolver.resolveColumn(dimension));
   }
 
   @Override

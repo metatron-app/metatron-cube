@@ -19,21 +19,10 @@
 
 package io.druid.segment.column;
 
-import io.druid.data.ValueType;
+import org.apache.lucene.search.Query;
 
 /**
  */
-public interface ColumnCapabilities
+public interface LuceneIndex extends ExternalBitmap<Query>
 {
-  public ValueType getType();
-
-  public boolean isDictionaryEncoded();
-  public boolean isRunLengthEncoded();
-  public boolean hasBitmapIndexes();
-  public boolean hasSpatialIndexes();
-  public boolean hasMultipleValues();
-  public boolean hasMetricBitmap();
-  public boolean hasLuceneIndex();
-
-  public ColumnCapabilitiesImpl merge(ColumnCapabilities other);
 }

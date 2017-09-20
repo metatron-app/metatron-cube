@@ -22,12 +22,24 @@ package io.druid.query.filter;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;
+import com.google.common.base.Supplier;
+import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Iterables;
+import com.google.common.collect.Lists;
+import com.metamx.collections.bitmap.BitmapFactory;
+import com.metamx.collections.bitmap.ImmutableBitmap;
+import com.metamx.collections.bitmap.MutableBitmap;
 import com.metamx.common.StringUtils;
+import io.druid.common.guava.DSuppliers;
+import io.druid.math.expr.Expr;
+import io.druid.math.expr.Expr.NumericBinding;
 import io.druid.math.expr.Parser;
 import io.druid.segment.ColumnSelectorFactory;
 import io.druid.segment.ExprEvalColumnSelector;
+import io.druid.segment.column.BitmapIndex;
 
 import java.nio.ByteBuffer;
+import java.util.List;
 import java.util.Set;
 
 /**
@@ -75,8 +87,55 @@ public class MathExprFilter implements DimFilter
   @Override
   public Filter toFilter()
   {
-    return new Filter.WithoutDictionary()
+    return new Filter()
     {
+      @Override
+      public ImmutableBitmap getValueBitmap(BitmapIndexSelector selector)
+      {
+        final Expr expr = Parser.parse(expression);
+        String dimension = Iterables.getOnlyElement(Parser.findRequiredBindings(expr));
+        BitmapIndex bitmapIndex = selector.getBitmapIndex(dimension);
+
+        BitmapFactory factory = selector.getBitmapFactory();
+
+        final int cardinality = bitmapIndex.getCardinality();
+        final DSuppliers.HandOver<String> handOver = new DSuppliers.HandOver<>();
+        final NumericBinding binding = Parser.withSuppliers(ImmutableMap.<String, Supplier>of(dimension, handOver));
+
+        final MutableBitmap mutableBitmap = factory.makeEmptyMutableBitmap();
+        for (int i = 0; i < cardinality; i++) {
+          handOver.set(bitmapIndex.getValue(i));
+          if (expr.eval(binding).asBoolean()) {
+            mutableBitmap.add(i);
+          }
+        }
+        handOver.set(null);
+        return factory.makeImmutableBitmap(mutableBitmap);
+      }
+
+      @Override
+      public ImmutableBitmap getBitmapIndex(BitmapIndexSelector selector)
+      {
+        final Expr expr = Parser.parse(expression);
+        String dimension = Iterables.getOnlyElement(Parser.findRequiredBindings(expr));
+        BitmapIndex bitmapIndex = selector.getBitmapIndex(dimension);
+
+        BitmapFactory factory = selector.getBitmapFactory();
+
+        final int cardinality = bitmapIndex.getCardinality();
+        final DSuppliers.HandOver<String> handOver = new DSuppliers.HandOver<>();
+        final NumericBinding binding = Parser.withSuppliers(ImmutableMap.<String, Supplier>of(dimension, handOver));
+
+        final List<ImmutableBitmap> bitmaps = Lists.newArrayList();
+        for (int i = 0; i < cardinality; i++) {
+          handOver.set(bitmapIndex.getValue(i));
+          if (expr.eval(binding).asBoolean()) {
+            bitmaps.add(bitmapIndex.getBitmap(i));
+          }
+        }
+        handOver.set(null);
+        return factory.union(bitmaps);
+      }
 
       @Override
       public ValueMatcher makeMatcher(ColumnSelectorFactory columnSelectorFactory)

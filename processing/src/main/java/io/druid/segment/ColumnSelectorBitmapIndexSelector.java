@@ -20,6 +20,7 @@
 package io.druid.segment;
 
 import com.google.common.base.Strings;
+import com.google.common.collect.Maps;
 import com.metamx.collections.bitmap.BitmapFactory;
 import com.metamx.collections.bitmap.ImmutableBitmap;
 import com.metamx.collections.spatial.ImmutableRTree;
@@ -28,21 +29,30 @@ import io.druid.data.ValueDesc;
 import io.druid.query.filter.BitmapIndexSelector;
 import io.druid.segment.column.BitmapIndex;
 import io.druid.segment.column.Column;
+import io.druid.segment.column.ColumnCapabilities;
+import io.druid.segment.column.ExternalBitmap;
 import io.druid.segment.column.GenericColumn;
+import io.druid.segment.column.LuceneIndex;
+import io.druid.segment.column.MetricBitmap;
 import io.druid.segment.data.GenericIndexed;
 import io.druid.segment.data.Indexed;
 import io.druid.segment.data.IndexedIterable;
 import io.druid.segment.data.ListIndexed;
 
+import java.io.Closeable;
+import java.io.IOException;
 import java.util.Arrays;
 import java.util.Iterator;
+import java.util.Map;
 
 /**
  */
-public class ColumnSelectorBitmapIndexSelector implements BitmapIndexSelector
+public class ColumnSelectorBitmapIndexSelector implements BitmapIndexSelector, Closeable
 {
   private final BitmapFactory bitmapFactory;
   private final ColumnSelector index;
+  private final Map<String, LuceneIndex> luceneIndices = Maps.newHashMap();
+  private final Map<String, MetricBitmap> metricBitmaps = Maps.newHashMap();
 
   public ColumnSelectorBitmapIndexSelector(
       final BitmapFactory bitmapFactory,
@@ -183,5 +193,53 @@ public class ColumnSelectorBitmapIndexSelector implements BitmapIndexSelector
     }
 
     return column.getSpatialIndex().getRTree();
+  }
+
+  @Override
+  public LuceneIndex getLuceneIndex(String dimension)
+  {
+    LuceneIndex lucene = luceneIndices.get(dimension);
+    if (lucene == null) {
+      final Column column = index.getColumn(dimension);
+      if (column == null || !column.getCapabilities().hasLuceneIndex()) {
+        return null;
+      }
+      luceneIndices.put(dimension, lucene = column.getLuceneIndex());
+    }
+    return lucene;
+  }
+
+  @Override
+  public MetricBitmap getMetricBitmap(String dimension)
+  {
+    MetricBitmap metric = metricBitmaps.get(dimension);
+    if (metric == null) {
+      final Column column = index.getColumn(dimension);
+      if (column == null || !column.getCapabilities().hasMetricBitmap()) {
+        return null;
+      }
+      metricBitmaps.put(dimension, metric = column.getMetricBitmap());
+    }
+    return metric;
+  }
+
+  @Override
+  public ColumnCapabilities getCapabilities(String dimension)
+  {
+    Column column = index.getColumn(dimension);
+    return column == null ? null : column.getCapabilities();
+  }
+
+  @Override
+  public void close() throws IOException
+  {
+    for (ExternalBitmap bitmap : luceneIndices.values()) {
+      CloseQuietly.close(bitmap);
+    }
+    for (ExternalBitmap bitmap : metricBitmaps.values()) {
+      CloseQuietly.close(bitmap);
+    }
+    luceneIndices.clear();
+    metricBitmaps.clear();
   }
 }

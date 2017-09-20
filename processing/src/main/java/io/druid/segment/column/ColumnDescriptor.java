@@ -108,7 +108,7 @@ public class ColumnDescriptor
     this.stats = merged;
   }
 
-  public long numBytes()
+  public long numBytes() throws IOException
   {
     long retVal = 0;
 
@@ -126,7 +126,7 @@ public class ColumnDescriptor
     }
   }
 
-  public Column read(ByteBuffer buffer, BitmapSerdeFactory serdeFactory)
+  public Column read(ByteBuffer buffer, BitmapSerdeFactory serdeFactory) throws IOException
   {
     final ColumnBuilder builder = new ColumnBuilder()
         .setType(valueType)

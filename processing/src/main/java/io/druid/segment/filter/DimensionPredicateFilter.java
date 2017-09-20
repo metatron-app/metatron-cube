@@ -22,8 +22,6 @@ package io.druid.segment.filter;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Predicate;
 import com.metamx.collections.bitmap.ImmutableBitmap;
-import io.druid.data.ValueDesc;
-import io.druid.query.RowResolver;
 import io.druid.query.extraction.ExtractionFn;
 import io.druid.query.filter.BitmapIndexSelector;
 import io.druid.query.filter.Filter;
@@ -58,12 +56,6 @@ public class DimensionPredicateFilter implements Filter
         }
       };
     }
-  }
-
-  @Override
-  public boolean supportsBitmap(RowResolver resolver)
-  {
-    return ValueDesc.isDimension(resolver.resolveColumn(dimension));
   }
 
   @Override

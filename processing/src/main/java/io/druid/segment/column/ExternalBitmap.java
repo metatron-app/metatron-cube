@@ -19,21 +19,18 @@
 
 package io.druid.segment.column;
 
+import com.metamx.collections.bitmap.ImmutableBitmap;
 import io.druid.data.ValueType;
+
+import java.io.Closeable;
 
 /**
  */
-public interface ColumnCapabilities
+public interface ExternalBitmap<T> extends Closeable
 {
-  public ValueType getType();
+  ValueType type();
 
-  public boolean isDictionaryEncoded();
-  public boolean isRunLengthEncoded();
-  public boolean hasBitmapIndexes();
-  public boolean hasSpatialIndexes();
-  public boolean hasMultipleValues();
-  public boolean hasMetricBitmap();
-  public boolean hasLuceneIndex();
+  ImmutableBitmap filterFor(T query);
 
-  public ColumnCapabilitiesImpl merge(ColumnCapabilities other);
+  int rows();
 }

@@ -35,6 +35,9 @@ import io.druid.query.filter.ExtractionDimFilter;
 import io.druid.query.filter.Filter;
 import io.druid.query.filter.SelectorDimFilter;
 import io.druid.segment.column.BitmapIndex;
+import io.druid.segment.column.ColumnCapabilities;
+import io.druid.segment.column.LuceneIndex;
+import io.druid.segment.column.MetricBitmap;
 import io.druid.segment.data.ArrayIndexed;
 import io.druid.segment.data.BitmapSerdeFactory;
 import io.druid.segment.data.ConciseBitmapSerdeFactory;
@@ -127,6 +130,24 @@ public class ExtractionDimFilterTest
 
     @Override
     public ImmutableRTree getSpatialIndex(String dimension)
+    {
+      return null;
+    }
+
+    @Override
+    public LuceneIndex getLuceneIndex(String dimension)
+    {
+      return null;
+    }
+
+    @Override
+    public MetricBitmap getMetricBitmap(String dimension)
+    {
+      return null;
+    }
+
+    @Override
+    public ColumnCapabilities getCapabilities(String dimension)
     {
       return null;
     }

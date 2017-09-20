@@ -19,11 +19,13 @@
 
 package io.druid.segment;
 
-import com.metamx.common.Pair;
 import io.druid.segment.column.MetricBitmap;
 import io.druid.segment.data.MetricBitmaps;
+import io.druid.segment.data.ObjectStrategy;
 import io.druid.segment.data.VSizeIndexed;
 import io.druid.segment.data.VSizeIndexedInts;
+
+import java.nio.ByteBuffer;
 
 /**
  */
@@ -65,26 +67,32 @@ public class ColumnPartProviders
     };
   }
 
-  public static ColumnPartProvider<MetricBitmap> ofMetric(final Pair<Integer, MetricBitmaps> bitmaps)
+  public static ColumnPartProvider<MetricBitmap> ofMetricBitmap(
+      final int numRows,
+      final ByteBuffer buffer,
+      final ObjectStrategy<MetricBitmaps> strategy
+  )
   {
+    final int length = buffer.remaining();
+
     return new ColumnPartProvider<MetricBitmap>()
     {
       @Override
       public int size()
       {
-        return bitmaps.rhs.rows();
+        return numRows;
       }
 
       @Override
       public long getSerializedSize()
       {
-        return bitmaps.lhs;
+        return length;
       }
 
       @Override
       public MetricBitmap get()
       {
-        return bitmaps.rhs;
+        return strategy.fromByteBuffer(buffer.asReadOnlyBuffer(), length);
       }
     };
   }

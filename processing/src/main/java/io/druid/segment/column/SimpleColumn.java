@@ -37,6 +37,7 @@ class SimpleColumn implements Column
   private final ColumnPartProvider<BitmapIndex> bitmapIndex;
   private final ColumnPartProvider<SpatialIndex> spatialIndex;
   private final ColumnPartProvider<MetricBitmap> metricBitmap;
+  private final ColumnPartProvider<LuceneIndex> luceneIndex;
   private final Map<String, Object> stats;
 
   SimpleColumn(
@@ -48,6 +49,7 @@ class SimpleColumn implements Column
       ColumnPartProvider<BitmapIndex> bitmapIndex,
       ColumnPartProvider<SpatialIndex> spatialIndex,
       ColumnPartProvider<MetricBitmap> metricBitmap,
+      ColumnPartProvider<LuceneIndex> luceneIndex,
       Map<String, Object> stats
   )
   {
@@ -59,6 +61,7 @@ class SimpleColumn implements Column
     this.bitmapIndex = bitmapIndex;
     this.spatialIndex = spatialIndex;
     this.metricBitmap = metricBitmap;
+    this.luceneIndex = luceneIndex;
     this.stats = stats;
   }
 
@@ -114,6 +117,9 @@ class SimpleColumn implements Column
     if (metricBitmap != null) {
       serialized += metricBitmap.getSerializedSize();
     }
+    if (luceneIndex != null) {
+      serialized += luceneIndex.getSerializedSize();
+    }
     return serialized;
   }
 
@@ -135,6 +141,8 @@ class SimpleColumn implements Column
         return spatialIndex == null ? -1 : spatialIndex.getSerializedSize();
       case METRIC_BITMAP:
         return metricBitmap == null ? -1 : metricBitmap.getSerializedSize();
+      case LUCENE_INDEX:
+        return luceneIndex == null ? -1 : luceneIndex.getSerializedSize();
     }
     return -1;
   }
@@ -163,6 +171,9 @@ class SimpleColumn implements Column
     }
     if (metricBitmap != null) {
       return metricBitmap.getSerializedSize() / metricBitmap.size();
+    }
+    if (luceneIndex != null) {
+      return luceneIndex.getSerializedSize() / luceneIndex.size();
     }
     return 0;
   }
@@ -213,6 +224,12 @@ class SimpleColumn implements Column
   public MetricBitmap getMetricBitmap()
   {
     return metricBitmap == null ? null : metricBitmap.get();
+  }
+
+  @Override
+  public LuceneIndex getLuceneIndex()
+  {
+    return luceneIndex == null ? null : luceneIndex.get();
   }
 
   @Override

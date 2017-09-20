@@ -20,23 +20,12 @@
 package io.druid.segment.column;
 
 import com.google.common.collect.Range;
-import com.metamx.collections.bitmap.BitmapFactory;
-import com.metamx.collections.bitmap.ImmutableBitmap;
-import io.druid.data.ValueType;
 
 /**
  */
-public interface MetricBitmap<T extends Comparable>
+public interface MetricBitmap<T extends Comparable> extends ExternalBitmap<Range<T>>
 {
-  ValueType type();
-
-  BitmapFactory getFactory();
-
-  ImmutableBitmap filterFor(Range<T> range);
-
   int numBins();
-
-  int rows();
 
   int zeroRows();
 }

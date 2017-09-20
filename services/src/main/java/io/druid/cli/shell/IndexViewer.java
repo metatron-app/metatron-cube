@@ -397,6 +397,12 @@ public class IndexViewer implements CommonShell
             )
         );
       }
+      if (capabilities.hasLuceneIndex()) {
+        if (builder.length() > 2) {
+          builder.append(", ");
+        }
+        builder.append(format("lucene index (%,d bytes)", column.getSerializedSize(Column.EncodeType.LUCENE_INDEX)));
+      }
       if (builder.length() > 2) {
         writer.println(builder.toString());
       }

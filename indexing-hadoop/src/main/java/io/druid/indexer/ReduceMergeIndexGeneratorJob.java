@@ -157,7 +157,7 @@ public class ReduceMergeIndexGeneratorJob implements HadoopDruidIndexerJob.Index
 
     private long maxOccupation;
     private int maxRowCount;
-    private int occupationCheckInterval = 5000;
+    private int occupationCheckInterval = 50000;
 
     private File baseFlushFile;
     private Path shufflingPath;

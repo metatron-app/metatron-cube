@@ -39,6 +39,7 @@ public class DimFilterCacheHelper
   static final byte IN_CACHE_ID = 0x9;
   static final byte BOUND_CACHE_ID = 0xA;
   static final byte MATH_EXPR_CACHE_ID = 0xB;
+  static final byte LUCENE_CACHE_ID = 0xC;
 
   public static final byte STRING_SEPARATOR = (byte) 0xFF;
 

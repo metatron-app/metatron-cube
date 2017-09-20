@@ -92,6 +92,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 
 public class IndexMergerV9 extends IndexMerger
@@ -757,6 +758,7 @@ public class IndexMergerV9 extends IndexMerger
   {
     ArrayList<GenericColumnSerializer> metWriters = Lists.newArrayListWithCapacity(mergedMetrics.size());
     final boolean makeHistogram = indexSpec.isMakeHistogram();
+    final Map<String, String> luceneIndexing = indexSpec.getLuceneIndexing();
     final BitmapSerdeFactory serdeFactory = indexSpec.getBitmapSerdeFactory();
     final CompressedObjectStrategy.CompressionStrategy metCompression = indexSpec.getMetricCompressionStrategy();
     for (String metric : mergedMetrics) {
@@ -773,7 +775,11 @@ public class IndexMergerV9 extends IndexMerger
           writer = DoubleColumnSerializer.create(ioPeon, metric, metCompression, serdeFactory, makeHistogram);
           break;
         case STRING:
-          writer = ComplexColumnSerializer.create(ioPeon, metric, StringMetricSerde.INSTANCE);
+          String analyzer = null;
+          if (luceneIndexing.containsKey(metric)) {
+            analyzer = Objects.toString(luceneIndexing.get(metric), "standard");
+          }
+          writer = ComplexColumnSerializer.create(ioPeon, metric, StringMetricSerde.INSTANCE, analyzer);
           break;
         case COMPLEX:
           final String typeName = type.typeName();
@@ -781,7 +787,7 @@ public class IndexMergerV9 extends IndexMerger
           if (serde == null) {
             throw new ISE("Unknown type[%s]", typeName);
           }
-          writer = ComplexColumnSerializer.create(ioPeon, metric, serde);
+          writer = ComplexColumnSerializer.create(ioPeon, metric, serde, null);
           break;
         default:
           throw new ISE("Unknown type[%s]", type);

@@ -22,10 +22,7 @@ package io.druid.benchmark;
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.FluentIterable;
-import com.google.common.io.BaseEncoding;
-import com.google.common.primitives.Ints;
 import com.metamx.collections.bitmap.BitmapFactory;
-import com.metamx.collections.bitmap.ConciseBitmapFactory;
 import com.metamx.collections.bitmap.ImmutableBitmap;
 import com.metamx.collections.bitmap.MutableBitmap;
 import com.metamx.collections.bitmap.RoaringBitmapFactory;
@@ -33,8 +30,10 @@ import com.metamx.collections.spatial.ImmutableRTree;
 import io.druid.query.filter.BitmapIndexSelector;
 import io.druid.query.filter.BoundDimFilter;
 import io.druid.segment.column.BitmapIndex;
+import io.druid.segment.column.ColumnCapabilities;
+import io.druid.segment.column.LuceneIndex;
+import io.druid.segment.column.MetricBitmap;
 import io.druid.segment.data.BitmapSerdeFactory;
-import io.druid.segment.data.ConciseBitmapSerdeFactory;
 import io.druid.segment.data.GenericIndexed;
 import io.druid.segment.data.Indexed;
 import io.druid.segment.data.RoaringBitmapSerdeFactory;
@@ -223,6 +222,24 @@ public class BoundFilterBenchmark
 
       @Override
       public ImmutableRTree getSpatialIndex(String dimension)
+      {
+        throw new UnsupportedOperationException();
+      }
+
+      @Override
+      public LuceneIndex getLuceneIndex(String dimension)
+      {
+        throw new UnsupportedOperationException();
+      }
+
+      @Override
+      public MetricBitmap getMetricBitmap(String dimension)
+      {
+        throw new UnsupportedOperationException();
+      }
+
+      @Override
+      public ColumnCapabilities getCapabilities(String dimension)
       {
         throw new UnsupportedOperationException();
       }

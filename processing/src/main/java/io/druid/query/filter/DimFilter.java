@@ -41,8 +41,8 @@ import java.util.Set;
     @JsonSubTypes.Type(name="spatial", value=SpatialDimFilter.class),
     @JsonSubTypes.Type(name="in", value=InDimFilter.class),
     @JsonSubTypes.Type(name="bound", value=BoundDimFilter.class),
-    @JsonSubTypes.Type(name="math", value=MathExprFilter.class)
-
+    @JsonSubTypes.Type(name="math", value=MathExprFilter.class),
+    @JsonSubTypes.Type(name="lucene", value=LuceneFilter.class)
 })
 public interface DimFilter extends Expression
 {
@@ -89,10 +89,5 @@ public interface DimFilter extends Expression
     {
       return new NotDimFilter(expression);
     }
-  }
-
-  interface ExpressionSupport extends DimFilter
-  {
-    String getExpression();
   }
 }

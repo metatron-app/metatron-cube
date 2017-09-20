@@ -35,7 +35,8 @@ public interface Column
     COMPLEX,
     BITMAP,
     SPATIAL,
-    METRIC_BITMAP
+    METRIC_BITMAP,
+    LUCENE_INDEX
   }
 
   public static final String TIME_COLUMN_NAME = "__time";
@@ -53,5 +54,6 @@ public interface Column
   public BitmapIndex getBitmapIndex();
   public SpatialIndex getSpatialIndex();
   public MetricBitmap getMetricBitmap();
+  public LuceneIndex getLuceneIndex();
   public Map<String, Object> getColumnStats();
 }

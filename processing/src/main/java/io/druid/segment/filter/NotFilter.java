@@ -21,7 +21,6 @@ package io.druid.segment.filter;
 
 import com.metamx.collections.bitmap.ImmutableBitmap;
 import io.druid.math.expr.Expression;
-import io.druid.query.RowResolver;
 import io.druid.query.filter.BitmapIndexSelector;
 import io.druid.query.filter.Filter;
 import io.druid.query.filter.ValueMatcher;
@@ -82,12 +81,6 @@ public class NotFilter implements Filter, Expression.NotExpression
         return !baseMatcher.matches();
       }
     };
-  }
-
-  @Override
-  public boolean supportsBitmap(RowResolver resolver)
-  {
-    return baseFilter.supportsBitmap(resolver);
   }
 
   @Override
