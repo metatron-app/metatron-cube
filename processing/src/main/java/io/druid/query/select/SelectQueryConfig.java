@@ -30,8 +30,16 @@ public class SelectQueryConfig
   @JsonProperty
   private boolean useDateTime = false;
 
+  @JsonProperty
+  private int optimizeSegmentThreshold = 2;
+
   public boolean isUseDateTime()
   {
     return useDateTime;
+  }
+
+  public int getOptimizeSegmentThreshold()
+  {
+    return optimizeSegmentThreshold;
   }
 }

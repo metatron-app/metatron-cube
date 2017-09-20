@@ -90,6 +90,9 @@ public class SelectQueryRunnerFactory
   @Override
   public Future<Object> preFactoring(SelectQuery query, List<Segment> segments, ExecutorService exec)
   {
+    if (segments.size() < config.getOptimizeSegmentThreshold()) {
+      return null;
+    }
     PagingSpec pagingSpec = query.getPagingSpec();
     int threshold = pagingSpec.getThreshold();
     if (threshold > 0) {
