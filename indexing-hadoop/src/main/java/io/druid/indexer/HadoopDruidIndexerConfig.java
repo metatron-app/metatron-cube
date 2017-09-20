@@ -38,6 +38,7 @@ import com.google.inject.Binder;
 import com.google.inject.Injector;
 import com.google.inject.Key;
 import com.google.inject.Module;
+import com.google.inject.name.Names;
 import com.metamx.common.guava.FunctionalIterable;
 import com.metamx.common.logger.Logger;
 import io.druid.common.utils.JodaUtils;
@@ -109,6 +110,8 @@ public class HadoopDruidIndexerConfig
                 JsonConfigProvider.bindInstance(
                     binder, Key.get(DruidNode.class, Self.class), new DruidNode("hadoop-indexer", null, null)
                 );
+                binder.bindConstant().annotatedWith(Names.named("serviceName")).to("druid/hadoop-indexing");
+                binder.bindConstant().annotatedWith(Names.named("servicePort")).to(-1);
               }
             },
             new IndexingHadoopModule()

@@ -29,6 +29,11 @@ import io.druid.curator.discovery.ServiceAnnouncer;
 import io.druid.guice.ManageLifecycle;
 import io.druid.guice.annotations.Self;
 import io.druid.server.DruidNode;
+import io.druid.server.QueryManager;
+
+import java.util.concurrent.Executors;
+import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.TimeUnit;
 
 @ManageLifecycle
 public class DruidBroker
@@ -39,6 +44,7 @@ public class DruidBroker
 
   @Inject
   public DruidBroker(
+      final QueryManager queryManager,
       final ServerInventoryView serverInventoryView,
       final @Self DruidNode self,
       final ServiceAnnouncer serviceAnnouncer
@@ -59,6 +65,19 @@ public class DruidBroker
           }
         }
     );
+    final ThreadFactory factory = Executors.defaultThreadFactory();
+    Executors.newSingleThreadScheduledExecutor(
+        new ThreadFactory()
+        {
+          @Override
+          public Thread newThread(Runnable r)
+          {
+            Thread thread = factory.newThread(r);
+            thread.setName("QueryManager");
+            return thread;
+          }
+        }
+    ).scheduleWithFixedDelay(queryManager, 1, 1, TimeUnit.HOURS);
   }
 
   @LifecycleStart
