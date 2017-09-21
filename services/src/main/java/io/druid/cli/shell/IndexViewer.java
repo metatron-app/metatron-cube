@@ -14,6 +14,7 @@ import com.google.common.collect.Ordering;
 import com.google.common.collect.Sets;
 import com.google.common.io.Closeables;
 import com.google.common.primitives.Ints;
+import com.google.common.util.concurrent.Futures;
 import com.google.inject.Inject;
 import com.metamx.common.ISE;
 import com.metamx.common.Pair;
@@ -62,6 +63,11 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.ThreadFactory;
 
 /**
  */
@@ -72,6 +78,7 @@ public class IndexViewer implements CommonShell
   private final IndexIO indexIO;
   private final SegmentLoaderConfig config;
   private final ObjectMapper jsonMapper;
+  private final ExecutorService executor;
 
   @Inject
   public IndexViewer(
@@ -83,6 +90,19 @@ public class IndexViewer implements CommonShell
     this.indexIO = indexIO;
     this.config = config;
     this.jsonMapper = jsonMapper;
+    this.executor = Executors.newFixedThreadPool(
+        10, new ThreadFactory()
+        {
+          private final ThreadFactory factory = Executors.defaultThreadFactory();
+          @Override
+          public Thread newThread(Runnable r)
+          {
+            Thread thread = factory.newThread(r);
+            thread.setDaemon(true);
+            return thread;
+          }
+        }
+    );
   }
 
   public void run(List<String> arguments) throws Exception
@@ -271,10 +291,10 @@ public class IndexViewer implements CommonShell
     long totalSize = 0;
     Map<String, int[]> offsets = index.offsets.get();
     List<Pair<String, int[]>> values = Lists.newArrayList();
-    Iterable<String> columns = Iterables.concat(Arrays.asList(Column.TIME_COLUMN_NAME), index.index.getColumnNames());
+    Iterable<String> columns = Iterables.concat(Arrays.asList(Column.TIME_COLUMN_NAME), index.index().getColumnNames());
     for (String column : columns) {
       values.add(Pair.of(column, offsets.get(column)));
-      totalSize += index.index.getColumn(column).getSerializedSize();
+      totalSize += index.index().getColumn(column).getSerializedSize();
     }
     Collections.sort(
         values, new Comparator<Pair<String, int[]>>()
@@ -315,11 +335,11 @@ public class IndexViewer implements CommonShell
         }
       }
     }
-    String bitmapFactory = index.index.getBitmapFactoryForDimensions().getClass().getSimpleName();
+    String bitmapFactory = index.index().getBitmapFactoryForDimensions().getClass().getSimpleName();
     writer.println(format("  Bitmap Factory : %s", bitmapFactory));
     writer.println();
 
-    Set<String> dimensions = Sets.newHashSet(index.index.getAvailableDimensions());
+    Set<String> dimensions = Sets.newHashSet(index.index().getAvailableDimensions());
     dimensions.add(Column.TIME_COLUMN_NAME);
 
     for (Pair<String, int[]> value : values) {
@@ -329,7 +349,7 @@ public class IndexViewer implements CommonShell
       writer.println(
           format("> %s '%s' (%s, %,d ~ %,d)", columnType, columnName, toChunkFile(offset[0]), offset[1], offset[2])
       );
-      Column column = index.index.getColumn(columnName);
+      Column column = index.index().getColumn(columnName);
       ColumnCapabilities capabilities = column.getCapabilities();
 
       int numRows = column.getLength();
@@ -470,14 +490,23 @@ public class IndexViewer implements CommonShell
     private final File location;
     private final long size;
     private final DataSegment segment;
-    private final SimpleQueryableIndex index;
+    private final Future<SimpleQueryableIndex> index;
 
-    private IndexMeta(File location, DataSegment segment) throws IOException
+    private IndexMeta(final File location, DataSegment segment) throws IOException
     {
       this.location = location;
       this.size = FileUtils.sizeOfDirectory(location);
       this.segment = segment;
-      this.index = (SimpleQueryableIndex) indexIO.loadIndex(location);
+      this.index = executor.submit(
+          new Callable<SimpleQueryableIndex>()
+          {
+            @Override
+            public SimpleQueryableIndex call() throws Exception
+            {
+              return (SimpleQueryableIndex) indexIO.loadIndex(location);
+            }
+          }
+      );
     }
 
     private final Supplier<Map<String, int[]>> offsets = Suppliers.memoize(
@@ -496,14 +525,19 @@ public class IndexViewer implements CommonShell
         }
     );
 
+    public SimpleQueryableIndex index()
+    {
+      return Futures.getUnchecked(index);
+    }
+
     public Interval getDataInterval()
     {
-      return index.getDataInterval();
+      return segment.getInterval();
     }
 
     public Metadata getMetadata()
     {
-      return index.getMetadata();
+      return index().getMetadata();
     }
   }
 }
