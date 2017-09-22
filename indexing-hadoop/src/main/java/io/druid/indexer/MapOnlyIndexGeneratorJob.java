@@ -20,8 +20,6 @@ import io.druid.segment.indexing.granularity.AppendingGranularitySpec;
 import io.druid.segment.indexing.granularity.GranularitySpec;
 import io.druid.timeline.DataSegment;
 import io.druid.timeline.partition.LinearShardSpec;
-import io.druid.timeline.partition.NoneShardSpec;
-import io.druid.timeline.partition.NumberedShardSpec;
 import io.druid.timeline.partition.ShardSpec;
 import org.apache.commons.io.FileUtils;
 import org.apache.hadoop.conf.Configuration;
@@ -278,21 +276,18 @@ public class MapOnlyIndexGeneratorJob implements HadoopDruidIndexerJob.IndexingS
         }
       }
       final GranularitySpec granularitySpec = config.getGranularitySpec();
-      LinearShardSpec appendingSpec = null;
+      LinearShardSpec appendingSpec = LinearShardSpec.of(0);
       String version = tuningConfig.getVersion();
       if (granularitySpec instanceof AppendingGranularitySpec) {
         SegmentDescriptor descriptor = ((AppendingGranularitySpec) granularitySpec).getSegmentDescriptor(interval);
         if (descriptor != null) {
           appendingSpec = LinearShardSpec.of(descriptor.getPartitionNumber());
           version = descriptor.getVersion();
-        } else {
-          appendingSpec = LinearShardSpec.of(0);
         }
       }
 
       if (toMerge.size() == 1) {
-        ShardSpec shardSpec = appendingSpec != null ? appendingSpec : NoneShardSpec.instance();
-        writeShard(Iterables.getOnlyElement(toMerge), version, shardSpec, context);
+        writeShard(Iterables.getOnlyElement(toMerge), version, appendingSpec, context);
       } else {
         List<List<File>> groups = groupToShards(toMerge, maxShardLength);
 
@@ -316,12 +311,7 @@ public class MapOnlyIndexGeneratorJob implements HadoopDruidIndexerJob.IndexingS
                 progressIndicator
             );
           }
-          ShardSpec shardSpec;
-          if (appendingSpec != null) {
-            shardSpec = LinearShardSpec.of(appendingSpec.getPartitionNum() + i);
-          } else {
-            shardSpec = singleShard ? NoneShardSpec.instance() : new NumberedShardSpec(i, groups.size());
-          }
+          ShardSpec shardSpec = LinearShardSpec.of(appendingSpec.getPartitionNum() + i);
           writeShard(mergedBase, version, shardSpec, context);
         }
       }

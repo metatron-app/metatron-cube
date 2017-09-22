@@ -38,12 +38,10 @@ import io.druid.segment.incremental.IncrementalIndex;
 import io.druid.segment.incremental.IncrementalIndexSchema;
 import io.druid.segment.incremental.IndexSizeExceededException;
 import io.druid.segment.incremental.OnheapIncrementalIndex;
-import io.druid.segment.indexing.granularity.GranularitySpec;
 import io.druid.segment.indexing.granularity.AppendingGranularitySpec;
+import io.druid.segment.indexing.granularity.GranularitySpec;
 import io.druid.timeline.DataSegment;
 import io.druid.timeline.partition.LinearShardSpec;
-import io.druid.timeline.partition.NoneShardSpec;
-import io.druid.timeline.partition.NumberedShardSpec;
 import io.druid.timeline.partition.ShardSpec;
 import org.apache.commons.io.FileUtils;
 import org.apache.hadoop.conf.Configuration;
@@ -554,14 +552,12 @@ public class ReduceMergeIndexGeneratorJob implements HadoopDruidIndexerJob.Index
       final Interval interval = granularitySpec.bucketInterval(time).get();
 
       String version = tuningConfig.getVersion();
-      LinearShardSpec appendingSpec = null;
+      LinearShardSpec appendingSpec = LinearShardSpec.of(0);
       if (granularitySpec instanceof AppendingGranularitySpec) {
         SegmentDescriptor descriptor = ((AppendingGranularitySpec) granularitySpec).getSegmentDescriptor(interval);
         if (descriptor != null) {
           appendingSpec = LinearShardSpec.of(descriptor.getPartitionNumber());
           version = descriptor.getVersion();
-        } else {
-          appendingSpec = LinearShardSpec.of(0);
         }
       }
       final List<String> files = Lists.newArrayList(Iterables.transform(values, Functions.toStringFunction()));
@@ -595,12 +591,7 @@ public class ReduceMergeIndexGeneratorJob implements HadoopDruidIndexerJob.Index
               progressIndicator
           );
         }
-        ShardSpec shardSpec;
-        if (appendingSpec != null) {
-          shardSpec = LinearShardSpec.of(appendingSpec.getPartitionNum() + i);
-        } else {
-          shardSpec = singleShard ? NoneShardSpec.instance() : new NumberedShardSpec(i, groups.size());
-        }
+        ShardSpec shardSpec = LinearShardSpec.of(appendingSpec.getPartitionNum() + i);
         writeShard(dataSource, mergedBase, version, interval, Lists.newArrayList(dimensions), shardSpec, context);
       }
     }
