@@ -20,6 +20,7 @@
 package io.druid.segment.filter;
 
 import com.google.common.base.Function;
+import com.google.common.base.Preconditions;
 import com.google.common.base.Predicate;
 import com.google.common.base.Strings;
 import com.google.common.collect.Iterables;
@@ -31,6 +32,7 @@ import io.druid.data.ValueDesc;
 import io.druid.query.dimension.DefaultDimensionSpec;
 import io.druid.query.extraction.ExtractionFn;
 import io.druid.query.filter.BitmapIndexSelector;
+import io.druid.query.filter.BitmapType;
 import io.druid.query.filter.Filter;
 import io.druid.query.filter.ValueMatcher;
 import io.druid.segment.ColumnSelectorFactory;
@@ -40,6 +42,7 @@ import io.druid.segment.ObjectColumnSelector;
 import io.druid.segment.column.BitmapIndex;
 import io.druid.segment.data.IndexedID;
 
+import java.util.EnumSet;
 import java.util.Set;
 
 /**
@@ -75,8 +78,12 @@ public class InFilter implements Filter
   }
 
   @Override
-  public ImmutableBitmap getBitmapIndex(final BitmapIndexSelector selector)
+  public ImmutableBitmap getBitmapIndex(final BitmapIndexSelector selector, final EnumSet<BitmapType> using)
   {
+    Preconditions.checkArgument(
+        extractionFn == null || Filters.hasBitmapOrNull(selector, dimension),
+        "extractionFn requires bitmap index"
+    );
     if (extractionFn == null) {
       return selector.getBitmapFactory().union(
           Iterables.transform(

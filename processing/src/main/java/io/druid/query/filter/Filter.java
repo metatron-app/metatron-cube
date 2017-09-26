@@ -26,6 +26,7 @@ import io.druid.segment.filter.AndFilter;
 import io.druid.segment.filter.NotFilter;
 import io.druid.segment.filter.OrFilter;
 
+import java.util.EnumSet;
 import java.util.List;
 
 /**
@@ -36,7 +37,7 @@ public interface Filter extends Expression
   ImmutableBitmap getValueBitmap(BitmapIndexSelector selector);
 
   // bitmap based filter will be applied whenever it's possible
-  ImmutableBitmap getBitmapIndex(BitmapIndexSelector selector);
+  ImmutableBitmap getBitmapIndex(BitmapIndexSelector selector, EnumSet<BitmapType> using);
 
   // used when bitmap filter cannot be applied
   ValueMatcher makeMatcher(ColumnSelectorFactory columnSelectorFactory);

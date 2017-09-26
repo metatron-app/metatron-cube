@@ -39,6 +39,7 @@ import io.druid.segment.ExprEvalColumnSelector;
 import io.druid.segment.column.BitmapIndex;
 
 import java.nio.ByteBuffer;
+import java.util.EnumSet;
 import java.util.List;
 import java.util.Set;
 
@@ -114,7 +115,7 @@ public class MathExprFilter implements DimFilter
       }
 
       @Override
-      public ImmutableBitmap getBitmapIndex(BitmapIndexSelector selector)
+      public ImmutableBitmap getBitmapIndex(BitmapIndexSelector selector, EnumSet<BitmapType> using)
       {
         final Expr expr = Parser.parse(expression);
         String dimension = Iterables.getOnlyElement(Parser.findRequiredBindings(expr));

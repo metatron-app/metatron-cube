@@ -23,11 +23,13 @@ import com.google.common.collect.Lists;
 import com.metamx.collections.bitmap.ImmutableBitmap;
 import io.druid.math.expr.Expression;
 import io.druid.query.filter.BitmapIndexSelector;
+import io.druid.query.filter.BitmapType;
 import io.druid.query.filter.Filter;
 import io.druid.query.filter.ValueMatcher;
 import io.druid.segment.ColumnSelectorFactory;
 
 import java.util.Arrays;
+import java.util.EnumSet;
 import java.util.List;
 
 /**
@@ -73,15 +75,15 @@ public class OrFilter implements Filter, Expression.OrExpression
   }
 
   @Override
-  public ImmutableBitmap getBitmapIndex(BitmapIndexSelector selector)
+  public ImmutableBitmap getBitmapIndex(BitmapIndexSelector selector, EnumSet<BitmapType> using)
   {
     if (filters.size() == 1) {
-      return filters.get(0).getBitmapIndex(selector);
+      return filters.get(0).getBitmapIndex(selector, using);
     }
 
     List<ImmutableBitmap> bitmaps = Lists.newArrayList();
     for (Filter filter : filters) {
-      bitmaps.add(filter.getBitmapIndex(selector));
+      bitmaps.add(filter.getBitmapIndex(selector, using));
     }
 
     return selector.getBitmapFactory().union(bitmaps);

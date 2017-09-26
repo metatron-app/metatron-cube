@@ -135,7 +135,7 @@ public class GroupByQueryRunnerFactory implements QueryRunnerFactory<Row, GroupB
     for (Segment segment : segments) {
       RowResolver resolver = RowResolver.of(segment.asQueryableIndex(false), vcs);
       List<String> dimensions = Lists.transform(query.getDimensions(), DimensionSpecs.INPUT_NAME);
-      if (resolver == null || !resolver.supportsBitmap(dimensions, dimFilter)) {
+      if (resolver == null || !resolver.supportsExactBitmap(dimensions, dimFilter)) {
         return null;
       }
     }

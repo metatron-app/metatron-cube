@@ -25,6 +25,7 @@ import com.google.common.collect.Maps;
 import com.metamx.common.Pair;
 import io.druid.data.TypeResolver;
 import io.druid.data.ValueDesc;
+import io.druid.query.filter.BitmapType;
 import io.druid.query.filter.DimFilter;
 import io.druid.segment.QueryableIndex;
 import io.druid.segment.StorageAdapter;
@@ -37,6 +38,7 @@ import io.druid.segment.serde.ComplexMetricSerde;
 import io.druid.segment.serde.ComplexMetrics;
 import org.joda.time.DateTime;
 
+import java.util.EnumSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -195,31 +197,37 @@ public class RowResolver implements TypeResolver
     return null;
   }
 
-  public boolean supportsBitmap(DimFilter filter)
+  public boolean supportsBitmap(DimFilter filter, EnumSet<BitmapType> using)
   {
     Set<String> dependents = Filters.getDependents(filter);
-    return dependents.size() == 1 && supportsBitmap(Iterables.getOnlyElement(dependents));
+    return dependents.size() == 1 && supportsBitmap(Iterables.getOnlyElement(dependents), using);
   }
 
-  public boolean supportsBitmap(String column)
+  private boolean supportsBitmap(String column, EnumSet<BitmapType> using)
   {
-    if (column == null) {
-      return false;
-    }
     ColumnCapabilities capabilities = columnCapabilities.get(column);
     if (capabilities == null) {
-      return ValueDesc.isDimension(resolveColumn(column));
+      return using.contains(BitmapType.DIMENSIONAL) && ValueDesc.isDimension(resolveColumn(column));
     }
-    return capabilities.hasBitmapIndexes() || capabilities.hasLuceneIndex();
+    if (using.contains(BitmapType.DIMENSIONAL) && capabilities.hasBitmapIndexes()) {
+      return true;
+    }
+    if (using.contains(BitmapType.LUCENE_INDEX) && capabilities.hasLuceneIndex()) {
+      return true;
+    }
+    if (using.contains(BitmapType.METRIC_HISTOGRAM) && capabilities.hasMetricBitmap()) {
+      return true;
+    }
+    return false;
   }
 
-  public boolean supportsBitmap(Iterable<String> columns, DimFilter filter)
+  public boolean supportsExactBitmap(Iterable<String> columns, DimFilter filter)
   {
     for (String column : columns) {
-      if (!supportsBitmap(column)) {
+      if (!supportsBitmap(column, BitmapType.EXACT)) {
         return false;
       }
     }
-    return filter == null || supportsBitmap(filter);
+    return filter == null || supportsBitmap(filter, BitmapType.EXACT);
   }
 }

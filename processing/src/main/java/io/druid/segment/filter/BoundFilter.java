@@ -29,6 +29,7 @@ import io.druid.math.expr.Expr;
 import io.druid.math.expr.Parser;
 import io.druid.query.extraction.ExtractionFn;
 import io.druid.query.filter.BitmapIndexSelector;
+import io.druid.query.filter.BitmapType;
 import io.druid.query.filter.BoundDimFilter;
 import io.druid.query.filter.Filter;
 import io.druid.query.filter.ValueMatcher;
@@ -38,6 +39,7 @@ import io.druid.segment.ExprEvalColumnSelector;
 import io.druid.segment.column.BitmapIndex;
 
 import java.util.Comparator;
+import java.util.EnumSet;
 import java.util.Iterator;
 
 public class BoundFilter implements Filter, Predicate<String>
@@ -78,7 +80,7 @@ public class BoundFilter implements Filter, Predicate<String>
   }
 
   @Override
-  public ImmutableBitmap getBitmapIndex(final BitmapIndexSelector selector)
+  public ImmutableBitmap getBitmapIndex(final BitmapIndexSelector selector, EnumSet<BitmapType> using)
   {
     String dimension = boundDimFilter.getDimension();
     String expression = boundDimFilter.getExpression();

@@ -19,20 +19,26 @@
 
 package io.druid.segment.filter;
 
+import com.google.common.collect.Range;
 import com.metamx.collections.bitmap.ImmutableBitmap;
 import com.metamx.collections.bitmap.MutableBitmap;
 import io.druid.common.guava.IntPredicate;
 import io.druid.data.ValueDesc;
 import io.druid.query.dimension.DefaultDimensionSpec;
 import io.druid.query.filter.BitmapIndexSelector;
+import io.druid.query.filter.BitmapType;
 import io.druid.query.filter.Filter;
 import io.druid.query.filter.ValueMatcher;
 import io.druid.segment.ColumnSelectorFactory;
 import io.druid.segment.DimensionSelector;
 import io.druid.segment.ObjectColumnSelector;
 import io.druid.segment.column.BitmapIndex;
+import io.druid.segment.column.ColumnCapabilities;
+import io.druid.segment.column.Lucenes;
 import io.druid.segment.data.IndexedID;
 import org.python.google.common.base.Strings;
+
+import java.util.EnumSet;
 
 /**
  */
@@ -63,9 +69,21 @@ public class SelectorFilter implements Filter
   }
 
   @Override
-  public ImmutableBitmap getBitmapIndex(BitmapIndexSelector selector)
+  @SuppressWarnings("unchecked")
+  public ImmutableBitmap getBitmapIndex(BitmapIndexSelector selector, EnumSet<BitmapType> using)
   {
-    return selector.getBitmapIndex(dimension, value);
+    ColumnCapabilities capabilities = selector.getCapabilities(dimension);
+    if (capabilities == null) {
+      return selector.getBitmapIndex(dimension, value);
+    }
+    if (using.contains(BitmapType.DIMENSIONAL) && capabilities.hasBitmapIndexes()) {
+      return selector.getBitmapIndex(dimension, value);
+    } else if (using.contains(BitmapType.LUCENE_INDEX) && capabilities.hasLuceneIndex()) {
+      return selector.getLuceneIndex(dimension).filterFor(Lucenes.point(dimension, value));
+    } else if (using.contains(BitmapType.METRIC_HISTOGRAM) && capabilities.hasMetricBitmap()) {
+      return selector.getMetricBitmap(dimension).filterFor(Range.closed(value, value));
+    }
+    throw new IllegalArgumentException("column " + dimension + " is not indexed with " + using);
   }
 
   @Override

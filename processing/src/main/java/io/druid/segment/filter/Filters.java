@@ -49,10 +49,12 @@ import io.druid.query.RowResolver;
 import io.druid.query.dimension.DefaultDimensionSpec;
 import io.druid.query.filter.AndDimFilter;
 import io.druid.query.filter.BitmapIndexSelector;
+import io.druid.query.filter.BitmapType;
 import io.druid.query.filter.BoundDimFilter;
 import io.druid.query.filter.DimFilter;
 import io.druid.query.filter.Filter;
 import io.druid.query.filter.InDimFilter;
+import io.druid.query.filter.LuceneFilter;
 import io.druid.query.filter.MathExprFilter;
 import io.druid.query.filter.OrDimFilter;
 import io.druid.query.filter.SelectorDimFilter;
@@ -62,6 +64,7 @@ import io.druid.segment.ColumnSelectors;
 import io.druid.segment.DimensionSelector;
 import io.druid.segment.ObjectColumnSelector;
 import io.druid.segment.column.BitmapIndex;
+import io.druid.segment.column.ColumnCapabilities;
 import io.druid.segment.column.ExternalBitmap;
 import io.druid.segment.column.LuceneIndex;
 import io.druid.segment.column.Lucenes;
@@ -75,6 +78,7 @@ import javax.annotation.Nullable;
 import java.lang.reflect.Array;
 import java.util.Arrays;
 import java.util.BitSet;
+import java.util.EnumSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Objects;
@@ -350,7 +354,7 @@ public class Filters
           @Override
           public boolean apply(DimFilter input)
           {
-            return resolver.supportsBitmap(input);
+            return resolver.supportsBitmap(input, BitmapType.EXACT);
           }
         }
     );
@@ -365,33 +369,70 @@ public class Filters
     return handler;
   }
 
-  public static ImmutableBitmap toInherentBitmap(DimFilter filter, BitmapIndexSelector bitmapSelector)
+  public static ImmutableBitmap toBitmap(DimFilter dimFilter, BitmapIndexSelector selector)
   {
-    return filter.toFilter().getBitmapIndex(bitmapSelector);
+    return toBitmap(dimFilter, selector, BitmapType.EXACT);
+  }
+
+  public static ImmutableBitmap toBitmap(
+      DimFilter dimFilter,
+      BitmapIndexSelector selector,
+      EnumSet<BitmapType> include
+  )
+  {
+    ImmutableBitmap baseBitmap;
+    if (dimFilter instanceof Expression.AndExpression) {
+      List<ImmutableBitmap> bitmaps = Lists.newArrayList();
+      for (Expression child : ((Expression.AndExpression) dimFilter).getChildren()) {
+        DimFilter filter = (DimFilter) child;
+        ImmutableBitmap bitmap = _toBitmap(filter, selector, include);
+        if (bitmap != null) {
+          logger.debug("%s : %,d / %,d", filter, bitmap.size(), selector.getNumRows());
+          bitmaps.add(bitmap);
+        }
+      }
+      baseBitmap = selector.getBitmapFactory().intersection(bitmaps);
+    } else {
+      baseBitmap = _toBitmap(dimFilter, selector, include);
+    }
+    if (baseBitmap != null) {
+      logger.debug("%s : %,d / %,d", dimFilter, baseBitmap.size(), selector.getNumRows());
+    }
+    return baseBitmap;
+  }
+
+  private static ImmutableBitmap _toBitmap(
+      DimFilter dimFilter,
+      BitmapIndexSelector bitmapSelector,
+      EnumSet<BitmapType> using
+  )
+  {
+    Set<String> dependents = Filters.getDependents(dimFilter);
+    if (dependents.size() == 1 && using.contains(BitmapType.DIMENSIONAL)) {
+      ColumnCapabilities capabilities = bitmapSelector.getCapabilities(Iterables.getOnlyElement(dependents));
+      if (capabilities != null && capabilities.hasBitmapIndexes()) {
+        return dimFilter.toFilter().getBitmapIndex(bitmapSelector, using);
+      }
+    }
+    ImmutableBitmap bitmap = toExternalBitmap(dimFilter, bitmapSelector, using);
+    if (bitmap == null && using.equals(BitmapType.EXACT)) {
+      throw new UnsupportedOperationException("cannot make exact bitmap from " + dimFilter);
+    }
+    return bitmap;
   }
 
   @SuppressWarnings("unchecked")
-  public static ImmutableBitmap toExternalBitmap(DimFilter filter, BitmapIndexSelector bitmapSelector)
+  private static ImmutableBitmap toExternalBitmap(
+      DimFilter filter,
+      BitmapIndexSelector bitmapSelector,
+      EnumSet<BitmapType> using
+  )
   {
-    // todo move this into filter itself (need to provide column capabilities to DimFilter)
-    if (filter instanceof SelectorDimFilter) {
-      SelectorDimFilter selector = (SelectorDimFilter) filter;
-      ExternalBitmap metricBitmap = getWhatever(bitmapSelector, selector.getDimension());
-      if (metricBitmap instanceof LuceneIndex) {
-        return metricBitmap.filterFor(Lucenes.point(selector.getDimension(), selector.getValue()));
-      } else if (metricBitmap instanceof MetricBitmap) {
-        return metricBitmap.filterFor(Range.closed(selector.getValue(), selector.getValue()));
-      }
-    } else if (filter instanceof InDimFilter) {
+    // todo move this into filter itself (see SelectorFilter)
+    if (filter instanceof InDimFilter) {
       InDimFilter selector = (InDimFilter) filter;
-      ExternalBitmap metricBitmap = getWhatever(bitmapSelector, selector.getDimension());
-      if (metricBitmap instanceof LuceneIndex) {
-        List<Term> terms = Lists.newArrayList();
-        for (String value : selector.getValues()) {
-          terms.add(new Term(selector.getDimension(), value));
-        }
-        return metricBitmap.filterFor(new TermsQuery(terms));
-      } else if (metricBitmap instanceof MetricBitmap) {
+      ExternalBitmap metricBitmap = getWhatever(bitmapSelector, selector.getDimension(), using);
+      if (metricBitmap instanceof MetricBitmap) {
         List<ImmutableBitmap> bitmaps = Lists.newArrayList();
         for (String value : selector.getValues()) {
           ImmutableBitmap bitmap = metricBitmap.filterFor(Range.closed(value, value));
@@ -401,17 +442,29 @@ public class Filters
           bitmaps.add(bitmap);
         }
         return bitmapSelector.getBitmapFactory().union(bitmaps);
+      } else if (metricBitmap instanceof LuceneIndex) {
+        List<Term> terms = Lists.newArrayList();
+        for (String value : selector.getValues()) {
+          terms.add(new Term(selector.getDimension(), value));
+        }
+        return metricBitmap.filterFor(new TermsQuery(terms));
       }
     } else if (filter instanceof MathExprFilter) {
-      MathExprFilter selector = (MathExprFilter) filter;
-      Expr expr = Parser.parse(selector.getExpression());
+      Expr expr = Parser.parse(((MathExprFilter) filter).getExpression());
       Expr cnf = Expressions.convertToCNF(expr, Parser.EXPR_FACTORY);
-      return toExprBitmap(cnf, bitmapSelector, false);
+      return toExprBitmap(cnf, bitmapSelector, using, false);
+    } else if (filter instanceof LuceneFilter) {
+      return filter.toFilter().getBitmapIndex(bitmapSelector, using);
     }
-    return filter.toFilter().getBitmapIndex(bitmapSelector);
+    return null;
   }
 
-  public static ImmutableBitmap toExprBitmap(Expression tree, BitmapIndexSelector bitmapSelector, boolean withNot)
+  private static ImmutableBitmap toExprBitmap(
+      Expression tree,
+      BitmapIndexSelector bitmapSelector,
+      EnumSet<BitmapType> using,
+      boolean withNot
+  )
   {
     BitmapFactory factory = bitmapSelector.getBitmapFactory();
     if (tree instanceof FuncExpression) {
@@ -420,7 +473,7 @@ public class Filters
         return null;
       }
       String column = required.get(0);
-      ExternalBitmap metric = getWhatever(bitmapSelector, column);
+      ExternalBitmap metric = getWhatever(bitmapSelector, column, using);
       if (metric == null) {
         return null;
       }
@@ -432,7 +485,7 @@ public class Filters
     } else if (tree instanceof AndExpression) {
       List<ImmutableBitmap> bitmaps = Lists.newArrayList();
       for (Expression child : ((Expression.BooleanExpression) tree).getChildren()) {
-        ImmutableBitmap extracted = toExprBitmap(child, bitmapSelector, withNot);
+        ImmutableBitmap extracted = toExprBitmap(child, bitmapSelector, using, withNot);
         if (extracted != null) {
           bitmaps.add(extracted);
         }
@@ -441,7 +494,7 @@ public class Filters
     } else if (tree instanceof OrExpression) {
       List<ImmutableBitmap> bitmaps = Lists.newArrayList();
       for (Expression child : ((Expression.BooleanExpression) tree).getChildren()) {
-        ImmutableBitmap extracted = toExprBitmap(child, bitmapSelector, withNot);
+        ImmutableBitmap extracted = toExprBitmap(child, bitmapSelector, using, withNot);
         if (extracted == null) {
           return null;
         }
@@ -449,15 +502,18 @@ public class Filters
       }
       return factory.union(bitmaps);
     } else if (tree instanceof NotExpression) {
-      return toExprBitmap(((NotExpression) tree).getChild(), bitmapSelector, !withNot);
+      return toExprBitmap(((NotExpression) tree).getChild(), bitmapSelector, using, !withNot);
     }
     return null;
   }
 
-  private static ExternalBitmap getWhatever(BitmapIndexSelector bitmaps, String column)
+  private static ExternalBitmap getWhatever(BitmapIndexSelector bitmaps, String column, EnumSet<BitmapType> using)
   {
-    ExternalBitmap bitmap = bitmaps.getMetricBitmap(column);
-    if (bitmap == null) {
+    ExternalBitmap bitmap = null;
+    if (using.contains(BitmapType.METRIC_HISTOGRAM)) {
+      bitmap = bitmaps.getMetricBitmap(column);
+    }
+    if (bitmap == null && using.contains(BitmapType.LUCENE_INDEX)) {
       bitmap = bitmaps.getLuceneIndex(column);
     }
     return bitmap;
@@ -691,5 +747,11 @@ public class Filters
       return baseBitmap;
     }
     return bitmapFactory.intersection(Arrays.asList(baseBitmap, bitmap));
+  }
+
+  public static boolean hasBitmapOrNull(BitmapIndexSelector selector, String dimension)
+  {
+    ColumnCapabilities capabilities = selector.getCapabilities(dimension);
+    return capabilities == null || capabilities.hasBitmapIndexes();
   }
 }

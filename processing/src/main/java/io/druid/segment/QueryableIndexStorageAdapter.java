@@ -22,7 +22,6 @@ package io.druid.segment;
 import com.google.common.base.Function;
 import com.google.common.base.Predicates;
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Iterables;
 import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
@@ -37,12 +36,12 @@ import io.druid.cache.Cache;
 import io.druid.data.ValueDesc;
 import io.druid.data.ValueType;
 import io.druid.granularity.QueryGranularity;
-import io.druid.math.expr.Expression;
 import io.druid.query.QueryInterruptedException;
 import io.druid.query.RowResolver;
 import io.druid.query.dimension.DimensionSpec;
 import io.druid.query.extraction.ExtractionFn;
 import io.druid.query.filter.BitmapIndexSelector;
+import io.druid.query.filter.BitmapType;
 import io.druid.query.filter.DimFilter;
 import io.druid.query.filter.Filter;
 import io.druid.query.filter.ValueMatcher;
@@ -64,7 +63,6 @@ import java.io.Closeable;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.Iterator;
-import java.util.List;
 import java.util.Map;
 
 /**
@@ -268,7 +266,7 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
       baseBitmap = toExactBitmap(bitmapFilter, selector, cache);
     }
     if (valuesFilter != null) {
-      ImmutableBitmap bitmap = toHelperBitmap(valuesFilter, selector);
+      ImmutableBitmap bitmap = Filters.toBitmap(valuesFilter, selector, BitmapType.HELPER);
       baseBitmap = Filters.intersection(bitmapFactory, baseBitmap, bitmap);
     }
 
@@ -288,7 +286,7 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
                 resolver,
                 gran,
                 offset,
-                valuesFilter == null ? null : valuesFilter.toFilter(),
+                Filters.toFilter(valuesFilter),
                 minDataTimestamp,
                 maxDataTimestamp,
                 descending,
@@ -302,80 +300,20 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
 
   private ImmutableBitmap toExactBitmap(DimFilter dimFilter, BitmapIndexSelector bitmapSelector, Cache cache)
   {
-    BitmapFactory factory = index.getBitmapFactoryForDimensions();
     Cache.NamedKey key = null;
     if (cache != null && segmentId != null) {
       key = new Cache.NamedKey(segmentId, dimFilter.getCacheKey());
       byte[] cached = cache.get(key);
       if (cached != null) {
-        return factory.mapImmutableBitmap(ByteBuffer.wrap(cached));
+        return bitmapSelector.getBitmapFactory().mapImmutableBitmap(ByteBuffer.wrap(cached));
       }
     }
-
-    ImmutableBitmap baseBitmap;
-    if (dimFilter instanceof Expression.AndExpression) {
-      List<ImmutableBitmap> bitmaps = Lists.newArrayList();
-      for (Expression child : ((Expression.AndExpression) dimFilter).getChildren()) {
-        ImmutableBitmap bitmap = toExactBitmap((DimFilter) child, bitmapSelector);
-        if (bitmap != null) {
-          LOG.debug("%s : %,d / %,d", child, bitmap.size(), index.getNumRows());
-          bitmaps.add(bitmap);
-        }
-      }
-      baseBitmap = bitmapSelector.getBitmapFactory().intersection(bitmaps);
-    } else {
-      baseBitmap = toExactBitmap(dimFilter, bitmapSelector);
-    }
+    ImmutableBitmap baseBitmap = Filters.toBitmap(dimFilter, bitmapSelector, BitmapType.EXACT);
     if (key != null) {
       cache.put(key, baseBitmap.toBytes());
     }
-    LOG.debug("%s : %,d / %,d", dimFilter, baseBitmap.size(), index.getNumRows());
-    return baseBitmap;
-  }
-
-  private ImmutableBitmap toExactBitmap(DimFilter dimFilter, BitmapIndexSelector bitmapSelector)
-  {
-    String column = Iterables.getOnlyElement(Filters.getDependents(dimFilter));
-    ColumnCapabilities capabilities = index.getColumn(column).getCapabilities();
-
-    if (capabilities.hasBitmapIndexes()) {
-      return Filters.toInherentBitmap(dimFilter, bitmapSelector);
-    } else if (capabilities.hasLuceneIndex()) {
-      return Filters.toExternalBitmap(dimFilter, bitmapSelector);
-    } else {
-      throw new IllegalStateException("column " + column + " is not indexed");
-    }
-  }
-
-  private ImmutableBitmap toHelperBitmap(DimFilter dimFilter, BitmapIndexSelector bitmapSelector)
-  {
-    for (String columnName : Filters.getDependents(dimFilter)) {
-      Column column = index.getColumn(columnName);
-      if (column == null) {
-        continue;
-      }
-      ColumnCapabilities capabilities = column.getCapabilities();
-      if (capabilities.hasLuceneIndex() && !capabilities.hasMetricBitmap()) {
-        throw new IllegalArgumentException("lucene index on column " + columnName + " cannot be used in this context");
-      }
-    }
-    ImmutableBitmap baseBitmap;
-    if (dimFilter instanceof Expression.AndExpression) {
-      List<ImmutableBitmap> bitmaps = Lists.newArrayList();
-      for (Expression child : ((Expression.AndExpression) dimFilter).getChildren()) {
-        ImmutableBitmap bitmap = Filters.toExternalBitmap((DimFilter) child, bitmapSelector);
-        if (bitmap != null) {
-          LOG.debug("%s : %,d / %,d", child, bitmap.size(), index.getNumRows());
-          bitmaps.add(bitmap);
-        }
-      }
-      baseBitmap = bitmapSelector.getBitmapFactory().intersection(bitmaps);
-    } else {
-      baseBitmap = Filters.toExternalBitmap(dimFilter, bitmapSelector);
-    }
-    if (baseBitmap != null) {
-      LOG.debug("%s : %,d / %,d", dimFilter, baseBitmap.size(), index.getNumRows());
-    }
+    // cannot be null
+    LOG.debug("%s : %,d / %,d", dimFilter, baseBitmap.size(), bitmapSelector.getNumRows());
     return baseBitmap;
   }
 
@@ -1021,7 +959,7 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
                     @Override
                     public ValueMatcher makeAuxiliaryMatcher(DimFilter filter)
                     {
-                      final ImmutableBitmap bitmap = Filters.toExternalBitmap(filter, bitmapSelector);
+                      final ImmutableBitmap bitmap = Filters.toBitmap(filter, bitmapSelector, BitmapType.ALL);
                       if (bitmap != null) {
                         LOG.debug("%s : %,d / %,d", filter, bitmap.size(), index.getNumRows());
                         if (bitmap.isEmpty()) {

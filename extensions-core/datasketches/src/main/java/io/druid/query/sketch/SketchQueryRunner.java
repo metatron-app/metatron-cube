@@ -102,7 +102,7 @@ public class SketchQueryRunner implements QueryRunner<Result<Map<String, Object>
     Map<String, TypedSketch> unions = Maps.newLinkedHashMap();
 
     Iterable<String> columns = Iterables.transform(dimensions, DimensionSpecs.INPUT_NAME);
-    if (index != null && metrics.isEmpty() && resolver.supportsBitmap(columns, filter)) {
+    if (metrics.isEmpty() && resolver != null && resolver.supportsExactBitmap(columns, filter)) {
       final BitmapFactory bitmapFactory = index.getBitmapFactoryForDimensions();
       final ColumnSelectorBitmapIndexSelector selector = new ColumnSelectorBitmapIndexSelector(bitmapFactory, index);
       final ImmutableBitmap filterBitmap = toDependentBitmap(filter, selector);
@@ -155,11 +155,11 @@ public class SketchQueryRunner implements QueryRunner<Result<Map<String, Object>
       return null;
     }
     if (!(current instanceof AndDimFilter)) {
-      return current.toFilter().getBitmapIndex(selector);
+      return Filters.toBitmap(current, selector);
     }
     List<ImmutableBitmap> filters = Lists.newArrayList();
     for (DimFilter child : ((AndDimFilter) current).getChildren()) {
-      filters.add(child.toFilter().getBitmapIndex(selector));
+      filters.add(Filters.toBitmap(child, selector));
     }
     return selector.getBitmapFactory().intersection(filters);
   }

@@ -22,9 +22,12 @@ package io.druid.segment.filter;
 import com.metamx.collections.bitmap.ImmutableBitmap;
 import io.druid.math.expr.Expression;
 import io.druid.query.filter.BitmapIndexSelector;
+import io.druid.query.filter.BitmapType;
 import io.druid.query.filter.Filter;
 import io.druid.query.filter.ValueMatcher;
 import io.druid.segment.ColumnSelectorFactory;
+
+import java.util.EnumSet;
 
 /**
  */
@@ -60,10 +63,10 @@ public class NotFilter implements Filter, Expression.NotExpression
   }
 
   @Override
-  public ImmutableBitmap getBitmapIndex(BitmapIndexSelector selector)
+  public ImmutableBitmap getBitmapIndex(BitmapIndexSelector selector, EnumSet<BitmapType> using)
   {
     return selector.getBitmapFactory().complement(
-        baseFilter.getBitmapIndex(selector),
+        baseFilter.getBitmapIndex(selector, using),
         selector.getNumRows()
     );
   }

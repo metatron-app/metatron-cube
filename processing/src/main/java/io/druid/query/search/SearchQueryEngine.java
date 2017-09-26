@@ -57,6 +57,7 @@ import io.druid.segment.VirtualColumns;
 import io.druid.segment.column.BitmapIndex;
 import io.druid.segment.column.Column;
 import io.druid.segment.data.IndexedInts;
+import io.druid.segment.filter.Filters;
 import org.apache.commons.lang.mutable.MutableInt;
 import org.joda.time.DateTime;
 
@@ -113,7 +114,7 @@ public class SearchQueryEngine
 
     final DateTime timestamp = segment.getDataInterval().getStart();
     Iterable<String> columns = Iterables.transform(dimensions, DimensionSpecs.INPUT_NAME);
-    if (index != null && resolver.supportsBitmap(columns, filter)) {
+    if (resolver != null && resolver.supportsExactBitmap(columns, filter)) {
       final Map<SearchHit, MutableInt> retVal = Maps.newHashMap();
 
       final BitmapFactory bitmapFactory = index.getBitmapFactoryForDimensions();
@@ -129,7 +130,7 @@ public class SearchQueryEngine
         }
       }
       if (baseFilter == null) {
-        baseFilter = filter == null ? null : filter.toFilter().getBitmapIndex(selector);
+        baseFilter = filter == null ? null : Filters.toBitmap(filter, selector);
         if (key != null) {
           cache.put(key, baseFilter.toBytes());
         }

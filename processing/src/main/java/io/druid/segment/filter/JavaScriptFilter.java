@@ -22,11 +22,14 @@ package io.druid.segment.filter;
 import com.google.common.base.Predicate;
 import com.metamx.collections.bitmap.ImmutableBitmap;
 import io.druid.query.filter.BitmapIndexSelector;
+import io.druid.query.filter.BitmapType;
 import io.druid.query.filter.Filter;
 import io.druid.query.filter.JavaScriptDimFilter;
 import io.druid.query.filter.ValueMatcher;
 import io.druid.segment.ColumnSelectorFactory;
 import org.mozilla.javascript.Context;
+
+import java.util.EnumSet;
 
 public class JavaScriptFilter implements Filter
 {
@@ -64,7 +67,7 @@ public class JavaScriptFilter implements Filter
   }
 
   @Override
-  public ImmutableBitmap getBitmapIndex(final BitmapIndexSelector selector)
+  public ImmutableBitmap getBitmapIndex(final BitmapIndexSelector selector, EnumSet<BitmapType> using)
   {
     final Context cx = Context.enter();
     try {

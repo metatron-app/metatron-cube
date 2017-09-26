@@ -32,6 +32,7 @@ import org.apache.lucene.queryparser.classic.QueryParser;
 import org.apache.lucene.search.Query;
 
 import java.nio.ByteBuffer;
+import java.util.EnumSet;
 import java.util.Objects;
 import java.util.Set;
 
@@ -112,7 +113,7 @@ public class LuceneFilter implements DimFilter
       }
 
       @Override
-      public ImmutableBitmap getBitmapIndex(BitmapIndexSelector selector)
+      public ImmutableBitmap getBitmapIndex(BitmapIndexSelector selector, EnumSet<BitmapType> using)
       {
         // lucene field-name == druid column-name
         LuceneIndex index = Preconditions.checkNotNull(selector.getLuceneIndex(field), "no lucene index for " + field);
