@@ -31,6 +31,7 @@ import com.metamx.common.guava.Sequences;
 import com.metamx.common.logger.Logger;
 import io.druid.query.filter.BoundDimFilter;
 import io.druid.query.filter.DimFilter;
+import io.druid.query.filter.DimFilters;
 import io.druid.query.metadata.metadata.ColumnAnalysis;
 import io.druid.query.metadata.metadata.ColumnIncluderator;
 import io.druid.query.metadata.metadata.NoneColumnIncluderator;
@@ -46,6 +47,7 @@ import java.util.EnumSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 /**
  */
@@ -72,16 +74,20 @@ public class QueryUtils
         "evenCounted", evenCounted > 0 ? evenCounted : -1
     );
 
-    // adding Object directly makes type of it missed.. I don't know the reason
-    Map<String, String> dimensionSpec = ImmutableMap.of(
-        "type", "default", "dimension", column, "outputName", column
-    );
+    ViewDataSource view;
+    if (dataSource instanceof ViewDataSource) {
+      view = (ViewDataSource) dataSource;
+      view = view.withColumns(Arrays.asList(column))
+                 .withFilter(DimFilters.andNullable(view.getFilter(), filter));
+    } else {
+      String name = Iterables.getOnlyElement(dataSource.getNames());
+      view = new ViewDataSource(name, Arrays.asList(column), null, filter, false);
+    }
     Query.DimFilterSupport query = (Query.DimFilterSupport) Queries.toQuery(
         ImmutableMap.<String, Object>builder()
                     .put("queryType", "sketch")
-                    .put("dataSource", Queries.convert(dataSource, jsonMapper, Map.class))
+                    .put("dataSource", Queries.convert(view, jsonMapper, Map.class))
                     .put("intervals", segmentSpec)
-                    .put("dimensions", Arrays.asList(dimensionSpec))
                     .put("sketchOp", "QUANTILE")
                     .put("context", ImmutableMap.of(QueryContextKeys.POST_PROCESSING, postProc))
                     .build(), jsonMapper
@@ -90,15 +96,14 @@ public class QueryUtils
     if (query == null) {
       return null;
     }
-    if (filter != null) {
-      query = query.withDimFilter(filter);
-    }
+    final Query runner = query.withId(UUID.randomUUID().toString());
+
     log.info("Running sketch query on join partition key %s.%s", dataSource, column);
-    log.debug("Running.. %s", query);
+    log.debug("Running.. %s", runner);
 
     @SuppressWarnings("unchecked")
     final List<Result<Map<String, Object>>> res = Sequences.toList(
-        query.run(segmentWalker, Maps.newHashMap()), Lists.<Result<Map<String, Object>>>newArrayList()
+        runner.run(segmentWalker, Maps.newHashMap()), Lists.<Result<Map<String, Object>>>newArrayList()
     );
     if (!res.isEmpty()) {
       String prev = null;

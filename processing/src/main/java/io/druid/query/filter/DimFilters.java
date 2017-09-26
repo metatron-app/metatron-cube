@@ -42,6 +42,20 @@ public class DimFilters
     return and(Arrays.asList(filters));
   }
 
+  public static AndDimFilter andNullable(DimFilter... filters)
+  {
+    if (filters == null) {
+      return null;
+    }
+    List<DimFilter> filtered = Lists.newArrayList();
+    for (DimFilter filter : filters) {
+      if (filter != null) {
+        filtered.add(filter);
+      }
+    }
+    return filtered.isEmpty() ? null : and(filtered);
+  }
+
   public static AndDimFilter and(List<DimFilter> filters)
   {
     return new AndDimFilter(filters);
