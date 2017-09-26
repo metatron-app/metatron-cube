@@ -20,6 +20,7 @@
 package io.druid.segment.serde;
 
 import com.google.common.base.Strings;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.primitives.Ints;
 import io.druid.segment.GenericColumnSerializer;
 import io.druid.segment.column.Lucenes;
@@ -50,6 +51,10 @@ public class ComplexColumnSerializer implements GenericColumnSerializer, ColumnP
   private final IOPeon ioPeon;
   private final String filenameBase;
   private final ComplexMetricSerde serde;
+
+  private String minValue;
+  private String maxValue;
+  private int numNulls;
 
   private final IndexWriter luceneIndexer;
   private ByteBuffer lucenePayload;
@@ -90,6 +95,13 @@ public class ComplexColumnSerializer implements GenericColumnSerializer, ColumnP
       doc.add(new TextField(filenameBase, Strings.nullToEmpty((String) obj), Field.Store.NO));
       luceneIndexer.addDocument(doc);
     }
+    if (obj == null) {
+      numNulls++;
+    } else if (serde == StringMetricSerde.INSTANCE) {
+      String value = (String) obj;
+      minValue = minValue == null || minValue.compareTo(value) > 0 ? value : minValue;
+      maxValue = maxValue == null || maxValue.compareTo(value) < 0 ? value : maxValue;
+    }
   }
 
   @Override
@@ -125,6 +137,13 @@ public class ComplexColumnSerializer implements GenericColumnSerializer, ColumnP
   @Override
   public Map<String, Object> getSerializeStats()
   {
-    return null;
+    if (minValue == null || maxValue == null) {
+      return null;
+    }
+    return ImmutableMap.<String, Object>of(
+        "min", minValue,
+        "max", maxValue,
+        "numNulls", numNulls
+    );
   }
 }

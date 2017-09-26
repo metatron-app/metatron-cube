@@ -247,36 +247,47 @@ public class SegmentAnalyzer
     Comparable min = null;
     Comparable max = null;
 
-    if (!capabilities.hasBitmapIndexes()) {
-      return ColumnAnalysis.error("string_no_bitmap");
-    }
-
-    final BitmapIndex bitmapIndex = column.getBitmapIndex();
-    final int cardinality = bitmapIndex.getCardinality();
-
-    if (analyzingSize()) {
-      for (int i = 0; i < cardinality; ++i) {
-        String value = bitmapIndex.getValue(i);
-        if (value != null) {
-          size += StringUtils.estimatedBinaryLengthAsUTF8(value) *
-                  bitmapIndex.getBitmap(bitmapIndex.getIndex(value)).size();
-        }
-      }
-    }
     if (analyzingSerializedSize()) {
       serializedSize = storageAdapter.getSerializedSize(columnName);
     }
 
-    if (analyzingMinMax() && cardinality > 0) {
-      min = Strings.nullToEmpty(bitmapIndex.getValue(0));
-      max = Strings.nullToEmpty(bitmapIndex.getValue(cardinality - 1));
-    }
+    Integer nullCount = null;
+    Integer cardinality = null;
 
-    int nullCount = 0;
-    if (analyzingNullCount() && cardinality > 0) {
-      int index = bitmapIndex.getIndex(null);
-      if (index >= 0) {
-        nullCount = bitmapIndex.getBitmap(index).size();
+    if (column.getCapabilities().hasBitmapIndexes()) {
+      final BitmapIndex bitmapIndex = column.getBitmapIndex();
+
+      cardinality = bitmapIndex.getCardinality();
+      if (analyzingSize()) {
+        for (int i = 0; i < cardinality; ++i) {
+          String value = bitmapIndex.getValue(i);
+          if (value != null) {
+            size += StringUtils.estimatedBinaryLengthAsUTF8(value) *
+                    bitmapIndex.getBitmap(bitmapIndex.getIndex(value)).size();
+          }
+        }
+      }
+
+      if (analyzingMinMax() && cardinality > 0) {
+        min = Strings.nullToEmpty(bitmapIndex.getValue(0));
+        max = Strings.nullToEmpty(bitmapIndex.getValue(cardinality - 1));
+      }
+
+      if (analyzingNullCount() && cardinality > 0) {
+        int index = bitmapIndex.getIndex(null);
+        if (index >= 0) {
+          nullCount = bitmapIndex.getBitmap(index).size();
+        }
+      }
+    } else {
+      // best effort
+      Map<String, Object> columnStats = column.getColumnStats();
+      if (columnStats != null && analyzingNullCount()) {
+        nullCount = (Integer) columnStats.get("numNulls");
+      }
+      if (columnStats != null && analyzingMinMax()) {
+        min = (Comparable) columnStats.get("min");
+        max = (Comparable) columnStats.get("max");
       }
     }
 
