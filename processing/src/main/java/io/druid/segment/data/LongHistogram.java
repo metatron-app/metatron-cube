@@ -191,6 +191,12 @@ public class LongHistogram implements MetricHistogram.LongType
     return snapshot(numGroup);
   }
 
+  @Override
+  public int getNumZeros()
+  {
+    return zeros.size();
+  }
+
   public LongBitmaps snapshot(int numGroup)
   {
     if (min == max || count == 0) {

@@ -208,12 +208,18 @@ public class SegmentAnalyzer
       serializedSize = storageAdapter.getSerializedSize(columnName);
     }
 
+    Integer nullCount = null;
     Comparable minValue = null;
     Comparable maxValue = null;
-    if (analyzingMinMax() && column != null && column.getColumnStats() != null) {
+    if ((analyzingMinMax() || analyzingNullCount()) && column != null && column.getColumnStats() != null) {
       Map<String, Object> stats = column.getColumnStats();
-      minValue = (Comparable) stats.get("min");
-      maxValue = (Comparable) stats.get("max");
+      if (analyzingMinMax()) {
+        minValue = (Comparable) stats.get("min");
+        maxValue = (Comparable) stats.get("max");
+      }
+      if (analyzingNullCount()) {
+        nullCount = (Integer) stats.get("numZeros");
+      }
     }
     return new ColumnAnalysis(
         capabilities.getType().name(),
@@ -221,7 +227,7 @@ public class SegmentAnalyzer
         size,
         serializedSize,
         null,
-        null,
+        nullCount,
         minValue,
         maxValue,
         null

@@ -193,6 +193,12 @@ public class FloatHistogram implements MetricHistogram.FloatType
     return snapshot(numGroup);
   }
 
+  @Override
+  public int getNumZeros()
+  {
+    return zeros.size();
+  }
+
   public FloatBitmaps snapshot(int numGroup)
   {
     if (min == max || count == 0) {

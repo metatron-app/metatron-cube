@@ -114,7 +114,8 @@ public class DoubleColumnSerializer implements GenericColumnSerializer
     }
     return ImmutableMap.<String, Object>of(
         "min", histogram.getMin(),
-        "max", histogram.getMax()
+        "max", histogram.getMax(),
+        "numZeros", histogram.getNumZeros()
     );
   }
 

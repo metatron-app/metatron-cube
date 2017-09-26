@@ -40,6 +40,7 @@ public interface GenericColumnSerializer extends ColumnPartSerde.Serializer, Clo
   {
     float min = Float.MAX_VALUE;
     float max = Float.MIN_VALUE;
+    int numZeros = 0;
 
     @Override
     public void offer(float value)
@@ -49,6 +50,9 @@ public interface GenericColumnSerializer extends ColumnPartSerde.Serializer, Clo
       }
       if (value > max) {
         max = value;
+      }
+      if (value == 0) {
+        numZeros++;
       }
     }
 
@@ -65,6 +69,12 @@ public interface GenericColumnSerializer extends ColumnPartSerde.Serializer, Clo
     }
 
     @Override
+    public int getNumZeros()
+    {
+      return numZeros;
+    }
+
+    @Override
     public MetricBitmaps<Float> snapshot()
     {
       return null;
@@ -75,6 +85,7 @@ public interface GenericColumnSerializer extends ColumnPartSerde.Serializer, Clo
   {
     double min = Double.MAX_VALUE;
     double max = Double.MIN_VALUE;
+    int numZeros = 0;
 
     @Override
     public void offer(double value)
@@ -84,6 +95,9 @@ public interface GenericColumnSerializer extends ColumnPartSerde.Serializer, Clo
       }
       if (value > max) {
         max = value;
+      }
+      if (value == 0) {
+        numZeros++;
       }
     }
 
@@ -100,6 +114,12 @@ public interface GenericColumnSerializer extends ColumnPartSerde.Serializer, Clo
     }
 
     @Override
+    public int getNumZeros()
+    {
+      return numZeros;
+    }
+
+    @Override
     public MetricBitmaps<Double> snapshot()
     {
       return null;
@@ -110,6 +130,7 @@ public interface GenericColumnSerializer extends ColumnPartSerde.Serializer, Clo
   {
     long min = Long.MAX_VALUE;
     long max = Long.MIN_VALUE;
+    int numZeros = 0;
 
     @Override
     public void offer(long value)
@@ -119,6 +140,9 @@ public interface GenericColumnSerializer extends ColumnPartSerde.Serializer, Clo
       }
       if (value > max) {
         max = value;
+      }
+      if (value == 0) {
+        numZeros++;
       }
     }
 
@@ -132,6 +156,12 @@ public interface GenericColumnSerializer extends ColumnPartSerde.Serializer, Clo
     public long getMax()
     {
       return max;
+    }
+
+    @Override
+    public int getNumZeros()
+    {
+      return numZeros;
     }
 
     @Override

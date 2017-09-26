@@ -25,6 +25,8 @@ public interface MetricHistogram<T extends Comparable>
 {
   MetricBitmaps<T> snapshot();
 
+  int getNumZeros();
+
   interface FloatType extends MetricHistogram<Float>
   {
     void offer(float value);

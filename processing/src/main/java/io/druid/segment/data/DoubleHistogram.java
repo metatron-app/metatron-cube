@@ -191,6 +191,12 @@ public class DoubleHistogram implements MetricHistogram.DoubleType
     return snapshot(numGroup);
   }
 
+  @Override
+  public int getNumZeros()
+  {
+    return zeros.size();
+  }
+
   public DoubleBitmaps snapshot(int numGroup)
   {
     if (min == max || count == 0) {
