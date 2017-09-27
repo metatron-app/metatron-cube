@@ -23,7 +23,9 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.base.Preconditions;
+import com.google.common.base.Throwables;
 import com.google.common.collect.Lists;
+import com.google.common.collect.Sets;
 import com.metamx.common.logger.Logger;
 import io.druid.indexer.path.HynixPathSpec;
 import io.druid.indexer.path.HynixPathSpecElement;
@@ -33,8 +35,10 @@ import org.apache.hadoop.hive.metastore.api.FieldSchema;
 import org.apache.hadoop.hive.ql.metadata.Partition;
 import org.apache.hadoop.hive.ql.metadata.Table;
 
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  */
@@ -47,15 +51,25 @@ public class HivePathSpec extends HynixPathSpec
   public HivePathSpec(
       @JsonProperty("source") String source,
       @JsonProperty("metastoreUri") String metastoreUri,
-      @JsonProperty("partialPartitions") Map<String, String> partialPartitions
+      @JsonProperty("partialPartitions") Map<String, String> partialPartitions,
+      @JsonProperty("partialPartitionList") List<Map<String, String>> partialPartitionList
   ) throws Exception
   {
-    super(extract(source, metastoreUri, partialPartitions));
+    super(extract(source, metastoreUri, partialPartitions, partialPartitionList));
   }
 
-  private static HynixPathSpec extract(String source, String metastoreUri, Map<String, String> partialPartitions)
+  private static HynixPathSpec extract(
+      String source,
+      String metastoreUri,
+      Map<String, String> partialPartitions,
+      List<Map<String, String>> partialPartitionList
+  )
       throws Exception
   {
+    Preconditions.checkArgument(partialPartitions == null || partialPartitionList == null);
+    if (partialPartitionList == null && partialPartitions != null) {
+      partialPartitionList = Arrays.asList(partialPartitions);
+    }
     String dbName;
     String tableName;
     int index = Preconditions.checkNotNull(source, "source cannot be null").indexOf('.');
@@ -87,40 +101,59 @@ public class HivePathSpec extends HynixPathSpec
       // todo rewrite parser spec with serde
 
       Class inputFormat = table.getInputFormatClass();
-      List<HynixPathSpecElement> pathSpecs = Lists.newArrayList();
+      Set<HynixPathSpecElement> pathSpecs = Sets.newHashSet();
       if (table.isPartitioned()) {
-        List<String> partitionVals = Lists.newArrayList();
-        if (partialPartitions != null && !partialPartitions.isEmpty()) {
-          for (FieldSchema partitionKey : table.getPartitionKeys()) {
-            String partitionVal = partialPartitions.remove(partitionKey.getName());
-            if (partitionVal != null) {
-              partitionVals.add(partitionVal);
-              continue;
+        if (partialPartitionList == null || partialPartitionList.isEmpty()) {
+          for (org.apache.hadoop.hive.metastore.api.Partition partition :
+              client.listPartitions(dbName, tableName, (short)-1)) {
+            pathSpecs.add(new HynixPathSpecElement(new Partition(table, partition).getLocation(), null, null, null));
+          }
+        } else {
+          for (Map<String, String> partialPartitionValues : partialPartitionList) {
+            List<String> partitionVals = Lists.newArrayList();
+            for (FieldSchema partitionKey : table.getPartitionKeys()) {
+              String partitionVal = partialPartitionValues.remove(partitionKey.getName());
+              if (partitionVal != null) {
+                partitionVals.add(partitionVal);
+                continue;
+              }
+              if (!partialPartitionValues.isEmpty()) {
+                logger.warn("some partition values are not used.. %s" + partialPartitionList);
+              }
+              break;
             }
-            if (!partialPartitions.isEmpty()) {
-              logger.warn("some partition values are not used.. %s" + partialPartitions);
+            for (org.apache.hadoop.hive.metastore.api.Partition partition :
+                partitionVals.isEmpty() ?
+                client.listPartitions(dbName, tableName, (short) -1) :
+                client.listPartitions(dbName, tableName, partitionVals, (short) -1)) {
+              pathSpecs.add(new HynixPathSpecElement(new Partition(table, partition).getLocation(), null, null, null));
             }
-            break;
           }
         }
-        for (org.apache.hadoop.hive.metastore.api.Partition partition :
-            partitionVals.isEmpty() ?
-            client.listPartitions(dbName, tableName, (short) -1) :
-            client.listPartitions(dbName, tableName, partitionVals, (short) -1)) {
-          pathSpecs.add(new HynixPathSpecElement(new Partition(table, partition).getLocation(), null, null, null));
-        }
       } else {
-        if (partialPartitions != null && !partialPartitions.isEmpty()) {
+        if (partialPartitionList != null && !partialPartitionList.isEmpty()) {
           logger.warn(
-              "table '%s.%s' is not partitioned table.. ignoring partial partition %s",
+              "table '%s.%s' is not partitioned table.. ignoring partition values %s",
               table.getDbName(),
               table.getTableName(),
-              partialPartitions
+              partialPartitionList
           );
         }
         pathSpecs.add(new HynixPathSpecElement(table.getDataLocation().toString(), null, null, null));
       }
-      return new HynixPathSpec(null, pathSpecs, inputFormat, null, false, table.isPartitioned(), null);
+      return new HynixPathSpec(
+          null,
+          Lists.newArrayList(pathSpecs),
+          inputFormat,
+          null,
+          false,
+          table.isPartitioned(),
+          null
+      );
+    }
+    catch (Exception ex) {
+      logger.warn(ex, "Failed to translate hive table to path spec");
+      throw Throwables.propagate(ex);
     }
     finally {
       client.close();
