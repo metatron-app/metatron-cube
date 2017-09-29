@@ -21,6 +21,7 @@ package io.druid.query.metadata.metadata;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.metamx.common.Granularity;
 import io.druid.granularity.QueryGranularity;
 import io.druid.query.aggregation.AggregatorFactory;
 import org.joda.time.Interval;
@@ -41,6 +42,7 @@ public class SegmentAnalysis implements Comparable<SegmentAnalysis>
   private final long lastAccessTime;
   private final Map<String, AggregatorFactory> aggregators;
   private final QueryGranularity queryGranularity;
+  private final Granularity segmentGranularity;
   private final Boolean rollup;
 
   @JsonCreator
@@ -55,6 +57,7 @@ public class SegmentAnalysis implements Comparable<SegmentAnalysis>
       @JsonProperty("lastAccessTime") long lastAccessTime,
       @JsonProperty("aggregators") Map<String, AggregatorFactory> aggregators,
       @JsonProperty("queryGranularity") QueryGranularity queryGranularity,
+      @JsonProperty("segmentGranularity") Granularity segmentGranularity,
       @JsonProperty("rollup") Boolean rollup
   )
   {
@@ -68,6 +71,7 @@ public class SegmentAnalysis implements Comparable<SegmentAnalysis>
     this.lastAccessTime = lastAccessTime;
     this.aggregators = aggregators;
     this.queryGranularity = queryGranularity;
+    this.segmentGranularity = segmentGranularity;
     this.rollup = rollup;
   }
 
@@ -81,7 +85,7 @@ public class SegmentAnalysis implements Comparable<SegmentAnalysis>
       QueryGranularity queryGranularity
   )
   {
-    this(id, interval, columns, size, 0L, numRows, -1L, -1L, aggregators, queryGranularity, null);
+    this(id, interval, columns, size, 0L, numRows, -1L, -1L, aggregators, queryGranularity, null, null);
   }
 
   public SegmentAnalysis(List<Interval> interval)
@@ -144,6 +148,12 @@ public class SegmentAnalysis implements Comparable<SegmentAnalysis>
   }
 
   @JsonProperty
+  public Granularity getSegmentGranularity()
+  {
+    return segmentGranularity;
+  }
+
+  @JsonProperty
   public Boolean isRollup()
   {
     return rollup;
@@ -168,6 +178,7 @@ public class SegmentAnalysis implements Comparable<SegmentAnalysis>
         lastAccessTime,
         aggregators,
         queryGranularity,
+        segmentGranularity,
         rollup
     );
   }
@@ -186,6 +197,7 @@ public class SegmentAnalysis implements Comparable<SegmentAnalysis>
            ", lastAccessTime=" + lastAccessTime +
            ", aggregators=" + aggregators +
            ", queryGranularity=" + queryGranularity +
+           ", segmentGranularity=" + segmentGranularity +
            ", rollup=" + rollup +
            '}';
   }
@@ -213,7 +225,8 @@ public class SegmentAnalysis implements Comparable<SegmentAnalysis>
            Objects.equals(interval, that.interval) &&
            Objects.equals(columns, that.columns) &&
            Objects.equals(aggregators, that.aggregators) &&
-           Objects.equals(queryGranularity, that.queryGranularity);
+           Objects.equals(queryGranularity, that.queryGranularity) &&
+           Objects.equals(segmentGranularity, that.segmentGranularity);
   }
 
   /**
@@ -234,6 +247,7 @@ public class SegmentAnalysis implements Comparable<SegmentAnalysis>
         ingestedNumRows,
         aggregators,
         queryGranularity,
+        segmentGranularity,
         rollup
     );
   }

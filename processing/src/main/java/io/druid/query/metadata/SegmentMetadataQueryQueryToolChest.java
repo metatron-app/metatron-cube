@@ -31,6 +31,7 @@ import com.google.common.collect.Maps;
 import com.google.common.collect.Ordering;
 import com.google.common.collect.Sets;
 import com.google.inject.Inject;
+import com.metamx.common.Granularity;
 import com.metamx.common.guava.MappedSequence;
 import com.metamx.common.guava.Sequence;
 import com.metamx.common.guava.nary.BinaryFn;
@@ -332,10 +333,16 @@ public class SegmentMetadataQueryQueryToolChest extends QueryToolChest<SegmentAn
       }
     }
 
-    final QueryGranularity queryGranularity = QueryGranularity.mergeQueryGranularities(
+    final QueryGranularity queryGranularity = QueryGranularity.checkAllEquals(
         Lists.newArrayList(
             arg1.getQueryGranularity(),
             arg2.getQueryGranularity()
+        )
+    );
+    final Granularity segmentGranularity = QueryGranularity.checkAllEquals(
+        Lists.newArrayList(
+            arg1.getSegmentGranularity(),
+            arg2.getSegmentGranularity()
         )
     );
 
@@ -372,6 +379,7 @@ public class SegmentMetadataQueryQueryToolChest extends QueryToolChest<SegmentAn
         lastAccessTime,
         aggregators.isEmpty() ? null : aggregators,
         queryGranularity,
+        segmentGranularity,
         rollup
     );
   }
@@ -390,6 +398,7 @@ public class SegmentMetadataQueryQueryToolChest extends QueryToolChest<SegmentAn
         analysis.getLastAccessTime(),
         analysis.getAggregators(),
         analysis.getQueryGranularity(),
+        analysis.getSegmentGranularity(),
         analysis.isRollup()
     );
   }

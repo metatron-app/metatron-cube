@@ -26,6 +26,7 @@ import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.ListeningExecutorService;
 import com.google.common.util.concurrent.MoreExecutors;
 import com.google.inject.Inject;
+import com.metamx.common.Granularity;
 import com.metamx.common.guava.Sequence;
 import com.metamx.common.guava.Sequences;
 import com.metamx.common.logger.Logger;
@@ -120,36 +121,26 @@ public class SegmentMetadataQueryRunnerFactory implements QueryRunnerFactory<Seg
         }
         List<Interval> retIntervals = query.analyzingInterval() ? Arrays.asList(segment.getDataInterval()) : null;
 
-        final Map<String, AggregatorFactory> aggregators;
-        Metadata metadata = null;
-        if (query.hasAggregators()) {
-          metadata = segment.asStorageAdapter(false).getMetadata();
-          if (metadata != null && metadata.getAggregators() != null) {
-            aggregators = Maps.newHashMap();
-            for (AggregatorFactory aggregator : metadata.getAggregators()) {
-              aggregators.put(aggregator.getName(), aggregator);
-            }
-          } else {
-            aggregators = null;
+        Metadata metadata = segment.asStorageAdapter(false).getMetadata();;
+
+        Map<String, AggregatorFactory> aggregators = null;
+        if (query.hasAggregators() && metadata != null && metadata.getAggregators() != null) {
+          aggregators = Maps.newHashMap();
+          for (AggregatorFactory aggregator : metadata.getAggregators()) {
+            aggregators.put(aggregator.getName(), aggregator);
           }
-        } else {
-          aggregators = null;
         }
 
-        final QueryGranularity queryGranularity;
-        if (query.hasQueryGranularity()) {
-          if (metadata == null) {
-            metadata = segment.asStorageAdapter(false).getMetadata();
-          }
+        QueryGranularity queryGranularity = null;
+        if (metadata != null && query.hasQueryGranularity()) {
           queryGranularity = metadata.getQueryGranularity();
-        } else {
-          queryGranularity = null;
+        }
+        Granularity segmentGranularity = null;
+        if (metadata != null && query.hasQueryGranularity()) {
+          segmentGranularity = metadata.getSegmentGranularity();
         }
         long ingestedNumRows = -1;
         if (query.hasIngestedNumRows()) {
-          if (metadata == null) {
-            metadata = segment.asStorageAdapter(false).getMetadata();
-          }
           ingestedNumRows = metadata.getIngestedNumRows();
         }
 
@@ -160,9 +151,6 @@ public class SegmentMetadataQueryRunnerFactory implements QueryRunnerFactory<Seg
 
         Boolean rollup = null;
         if (query.hasRollup()) {
-          if (metadata == null) {
-            metadata = segment.asStorageAdapter(false).getMetadata();
-          }
           rollup = metadata != null ? metadata.isRollup() : null;
           if (rollup == null) {
             // in this case, this segment is built before no-rollup function is coded,
@@ -184,6 +172,7 @@ public class SegmentMetadataQueryRunnerFactory implements QueryRunnerFactory<Seg
                     lastAccessTime,
                     aggregators,
                     queryGranularity,
+                    segmentGranularity,
                     rollup
                 )
             )

@@ -20,6 +20,7 @@
 package io.druid.segment;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.metamx.common.Granularity;
 import io.druid.granularity.QueryGranularity;
 import io.druid.query.aggregation.AggregatorFactory;
 
@@ -28,6 +29,7 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
@@ -44,6 +46,9 @@ public class Metadata
 
   @JsonProperty
   private QueryGranularity queryGranularity;
+
+  @JsonProperty
+  private Granularity segmentGranularity;
 
   @JsonProperty
   private Long ingestedNumRows;
@@ -80,6 +85,17 @@ public class Metadata
   public Metadata setQueryGranularity(QueryGranularity queryGranularity)
   {
     this.queryGranularity = queryGranularity;
+    return this;
+  }
+
+  public Granularity getSegmentGranularity()
+  {
+    return segmentGranularity;
+  }
+
+  public Metadata setSegmentGranularity(Granularity segmentGranularity)
+  {
+    this.segmentGranularity = segmentGranularity;
     return this;
   }
 
@@ -145,6 +161,7 @@ public class Metadata
                                                    : null;
 
     List<QueryGranularity> gransToMerge = new ArrayList<>();
+    List<Granularity> segGransToMerge = new ArrayList<>();
     List<Boolean> rollupToMerge = new ArrayList<>();
 
     Long ingestedNumRows = 0L;
@@ -157,6 +174,9 @@ public class Metadata
 
         if (gransToMerge != null) {
           gransToMerge.add(metadata.getQueryGranularity());
+        }
+        if (segGransToMerge != null) {
+          segGransToMerge.add(metadata.getSegmentGranularity());
         }
         if (ingestedNumRows == null || metadata.ingestedNumRows == null) {
           ingestedNumRows = null;
@@ -173,6 +193,7 @@ public class Metadata
         //final merged segment should not have same in metadata
         aggregatorsToMerge = null;
         gransToMerge = null;
+        segGransToMerge = null;
         rollupToMerge = null;
       }
     }
@@ -189,7 +210,10 @@ public class Metadata
     }
 
     if (gransToMerge != null) {
-      result.setQueryGranularity(QueryGranularity.mergeQueryGranularities(gransToMerge));
+      result.setQueryGranularity(QueryGranularity.checkAllEquals(gransToMerge));
+    }
+    if (segGransToMerge != null) {
+      result.setSegmentGranularity(QueryGranularity.checkAllEquals(segGransToMerge));
     }
     if (ingestedNumRows != null) {
       result.setIngestedNumRow(ingestedNumRows);
@@ -239,6 +263,9 @@ public class Metadata
     if (rollup != null ? !rollup.equals(metadata.rollup) : metadata.rollup != null) {
       return false;
     }
+    if (!Objects.equals(segmentGranularity, metadata.segmentGranularity)) {
+      return false;
+    }
     return queryGranularity != null
            ? queryGranularity.equals(metadata.queryGranularity)
            : metadata.queryGranularity == null;
@@ -251,6 +278,7 @@ public class Metadata
     int result = container.hashCode();
     result = 31 * result + (aggregators != null ? Arrays.hashCode(aggregators) : 0);
     result = 31 * result + (queryGranularity != null ? queryGranularity.hashCode() : 0);
+    result = 31 * result + (segmentGranularity != null ? segmentGranularity.hashCode() : 0);
     result = 31 * result + (rollup != null ? rollup.hashCode() : 0);
     return result;
   }
@@ -263,6 +291,8 @@ public class Metadata
            "container=" + container +
            ", aggregators=" + Arrays.toString(aggregators) +
            ", queryGranularity=" + queryGranularity +
+           ", segmentGranularity=" + segmentGranularity +
+           ", ingestedNumRows=" + ingestedNumRows +
            ", rollup=" + rollup +
            '}';
   }

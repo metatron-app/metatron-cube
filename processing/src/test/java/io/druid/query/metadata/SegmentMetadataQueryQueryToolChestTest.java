@@ -280,6 +280,7 @@ public class SegmentMetadataQueryQueryToolChestTest
         -1L,
         null,
         null,
+        null,
         false
     );
     final SegmentAnalysis analysis3 = new SegmentAnalysis(
@@ -291,6 +292,7 @@ public class SegmentMetadataQueryQueryToolChestTest
         0,
         0,
         -1L,
+        null,
         null,
         null,
         false
@@ -306,6 +308,7 @@ public class SegmentMetadataQueryQueryToolChestTest
         -1L,
         null,
         null,
+        null,
         true
     );
     final SegmentAnalysis analysis5 = new SegmentAnalysis(
@@ -317,6 +320,7 @@ public class SegmentMetadataQueryQueryToolChestTest
         0,
         0,
         -1L,
+        null,
         null,
         null,
         true

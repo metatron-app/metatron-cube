@@ -329,6 +329,7 @@ public class SegmentMetadataQueryTest
         -1L,
         null,
         null,
+        null,
         rollup1 != rollup2 ? null : rollup1
     );
 

@@ -820,12 +820,12 @@ public class QueryGranularityTest
   @Test
   public void testMerge()
   {
-    Assert.assertNull(QueryGranularity.mergeQueryGranularities(null));
-    Assert.assertNull(QueryGranularity.mergeQueryGranularities(ImmutableList.<QueryGranularity>of()));
-    Assert.assertNull(QueryGranularity.mergeQueryGranularities(Lists.newArrayList(null, QueryGranularities.DAY)));
-    Assert.assertNull(QueryGranularity.mergeQueryGranularities(Lists.newArrayList(QueryGranularities.DAY, null)));
+    Assert.assertNull(QueryGranularity.checkAllEquals(null));
+    Assert.assertNull(QueryGranularity.checkAllEquals(ImmutableList.<QueryGranularity>of()));
+    Assert.assertNull(QueryGranularity.checkAllEquals(Lists.newArrayList(null, QueryGranularities.DAY)));
+    Assert.assertNull(QueryGranularity.checkAllEquals(Lists.newArrayList(QueryGranularities.DAY, null)));
     Assert.assertNull(
-        QueryGranularity.mergeQueryGranularities(
+        QueryGranularity.checkAllEquals(
             Lists.newArrayList(
                 QueryGranularities.DAY,
                 null,
@@ -834,12 +834,12 @@ public class QueryGranularityTest
         )
     );
     Assert.assertNull(
-        QueryGranularity.mergeQueryGranularities(ImmutableList.of(QueryGranularities.ALL, QueryGranularities.DAY))
+        QueryGranularity.checkAllEquals(ImmutableList.of(QueryGranularities.ALL, QueryGranularities.DAY))
     );
 
     Assert.assertEquals(
         QueryGranularities.ALL,
-        QueryGranularity.mergeQueryGranularities(ImmutableList.of(QueryGranularities.ALL, QueryGranularities.ALL))
+        QueryGranularity.checkAllEquals(ImmutableList.of(QueryGranularities.ALL, QueryGranularities.ALL))
     );
   }
 
