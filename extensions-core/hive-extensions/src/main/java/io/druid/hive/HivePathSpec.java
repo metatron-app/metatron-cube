@@ -101,12 +101,12 @@ public class HivePathSpec extends HynixPathSpec
       // todo rewrite parser spec with serde
 
       Class inputFormat = table.getInputFormatClass();
-      Set<HynixPathSpecElement> pathSpecs = Sets.newHashSet();
+      Set<String> pathSpecs = Sets.newTreeSet();
       if (table.isPartitioned()) {
         if (partialPartitionList == null || partialPartitionList.isEmpty()) {
           for (org.apache.hadoop.hive.metastore.api.Partition partition :
               client.listPartitions(dbName, tableName, (short)-1)) {
-            pathSpecs.add(new HynixPathSpecElement(new Partition(table, partition).getLocation(), null, null, null));
+            pathSpecs.add(new Partition(table, partition).getLocation());
           }
         } else {
           for (Map<String, String> partialPartitionValues : partialPartitionList) {
@@ -126,7 +126,7 @@ public class HivePathSpec extends HynixPathSpec
                 partitionVals.isEmpty() ?
                 client.listPartitions(dbName, tableName, (short) -1) :
                 client.listPartitions(dbName, tableName, partitionVals, (short) -1)) {
-              pathSpecs.add(new HynixPathSpecElement(new Partition(table, partition).getLocation(), null, null, null));
+              pathSpecs.add(new Partition(table, partition).getLocation());
             }
           }
         }
@@ -139,11 +139,16 @@ public class HivePathSpec extends HynixPathSpec
               partialPartitionList
           );
         }
-        pathSpecs.add(new HynixPathSpecElement(table.getDataLocation().toString(), null, null, null));
+        pathSpecs.add(table.getDataLocation().toString());
+      }
+      logger.info("Using paths.. ", pathSpecs);
+      List<HynixPathSpecElement> elements = Lists.newArrayList();
+      for (String element : pathSpecs) {
+        elements.add(new HynixPathSpecElement(element, null, null, null));
       }
       return new HynixPathSpec(
           null,
-          Lists.newArrayList(pathSpecs),
+          elements,
           inputFormat,
           null,
           false,

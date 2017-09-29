@@ -25,6 +25,7 @@ import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+import com.metamx.common.logger.Logger;
 import io.druid.data.input.InputRow;
 import io.druid.data.input.MapBasedInputRow;
 import io.druid.data.input.TimestampSpec;
@@ -76,6 +77,8 @@ import java.util.Properties;
 
 public class OrcHadoopInputRowParser implements HadoopAwareParser<OrcStruct>
 {
+  private static final Logger logger = new Logger(OrcHadoopInputRowParser.class);
+
   private final ParseSpec parseSpec;
   private final String typeString;
   private final List<String> dimensions;
@@ -166,6 +169,7 @@ public class OrcHadoopInputRowParser implements HadoopAwareParser<OrcStruct>
       try {
         Reader reader = OrcFile.createReader(path, OrcFile.readerOptions(context.getConfiguration()));
         dynamicInspector = (StructObjectInspector) reader.getObjectInspector();
+        logger.info("Using ObjectInspector in orc meta %s", dynamicInspector.toString());
       }
       catch (Exception e) {
         throw Throwables.propagate(e);
@@ -182,6 +186,7 @@ public class OrcHadoopInputRowParser implements HadoopAwareParser<OrcStruct>
     if (typeString == null) {
       return null;
     }
+    logger.info("Using user specified spec %s", typeString);
     OrcSerde serde = new OrcSerde();
     TypeInfo typeInfo = TypeInfoUtils.getTypeInfoFromTypeString(typeString);
     Properties table = getTablePropertiesFromStructTypeInfo((StructTypeInfo) typeInfo);
