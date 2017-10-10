@@ -102,7 +102,7 @@ public class SelectMetaQueryEngine
     return QueryRunnerHelper.makeCursorBasedQuery(
         adapter,
         intervals,
-        VirtualColumns.EMPTY,
+        VirtualColumns.valueOf(query.getVirtualColumns()),
         query.getDimensionsFilter(),
         null,
         query.isDescending(),
