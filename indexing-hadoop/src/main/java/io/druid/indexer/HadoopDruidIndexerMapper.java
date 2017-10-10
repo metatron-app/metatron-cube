@@ -26,7 +26,6 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.metamx.common.Pair;
-import com.metamx.common.RE;
 import com.metamx.common.logger.Logger;
 import io.druid.data.input.InputRow;
 import io.druid.data.input.MapBasedInputRow;
@@ -48,12 +47,15 @@ public abstract class HadoopDruidIndexerMapper<KEYOUT, VALUEOUT> extends Mapper<
 {
   private static final Logger log = new Logger(HadoopDruidIndexerMapper.class);
 
+  private static final int INVALID_LOG_THRESHOLD = 30;
+
   protected HadoopDruidIndexerConfig config;
   private InputRowParser parser;
   protected GranularitySpec granularitySpec;
 
   private Function<InputRow, Iterable<InputRow>> generator;
   private Counter indexedRows;
+  private Counter invalidRows;
   private Counter oobRows;
   private Counter errRows;
 
@@ -122,6 +124,7 @@ public abstract class HadoopDruidIndexerMapper<KEYOUT, VALUEOUT> extends Mapper<
     }
 
     indexedRows = context.getCounter("navis", "indexed-row-num");
+    invalidRows = context.getCounter(HadoopDruidIndexerConfig.IndexJobCounters.INVALID_ROW_COUNTER);
     oobRows = context.getCounter("navis", "oob-row-num");
     errRows = context.getCounter("navis", "err-row-num");
 
@@ -168,7 +171,7 @@ public abstract class HadoopDruidIndexerMapper<KEYOUT, VALUEOUT> extends Mapper<
   ) throws IOException, InterruptedException
   {
     try {
-      final InputRow inputRow = parseRow(value, context);
+      final InputRow inputRow = parseInputRow(value);
       if (inputRow == null) {
         return;
       }
@@ -187,24 +190,25 @@ public abstract class HadoopDruidIndexerMapper<KEYOUT, VALUEOUT> extends Mapper<
         }
       }
     }
-    catch (RuntimeException e) {
-      throw new RE(e, "Failure on row[%s]", value);
-    }
-  }
-
-  private InputRow parseRow(Object value, Context context)
-  {
-    try {
-      return parseInputRow(value);
-    }
     catch (Exception e) {
       errRows.increment(1);
       if (config.isIgnoreInvalidRows()) {
-        log.debug(e, "Ignoring invalid row [%s] due to parsing error", value.toString());
-        context.getCounter(HadoopDruidIndexerConfig.IndexJobCounters.INVALID_ROW_COUNTER).increment(1);
-        return null; // we're ignoring this invalid row
+        handelInvalidRow(value, e);
+        return; // we're ignoring this invalid row
       }
       throw Throwables.propagate(e);
+    }
+  }
+
+  private void handelInvalidRow(Object value, Exception e)
+  {
+    invalidRows.increment(1);
+    if (invalidRows.getValue() <= INVALID_LOG_THRESHOLD) {
+      log.debug(
+          e,
+          "Ignoring invalid row [%s] due to parsing error.. %s", value,
+          invalidRows.getValue() == INVALID_LOG_THRESHOLD ? "will not be logged further" : ""
+      );
     }
   }
 
