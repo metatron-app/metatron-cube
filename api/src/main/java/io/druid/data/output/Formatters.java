@@ -36,7 +36,6 @@ import org.apache.poi.xssf.streaming.SXSSFSheet;
 import org.apache.poi.xssf.streaming.SXSSFWorkbook;
 
 import java.io.IOException;
-import java.io.OutputStream;
 import java.util.Arrays;
 import java.util.Date;
 import java.util.List;
@@ -77,11 +76,11 @@ public class Formatters
   public static CountingAccumulator toExcelExporter(final ByteSink sink, final Map<String, Object> context)
       throws IOException
   {
-    final String[] dimensions = parseStrings(context.get("columns"));
+    final String[] columns = parseStrings(context.get("columns"));
     final int flushInterval = parseInt(context.get("flushInterval"), DEFAULT_FLUSH_INTERVAL);
     final int maxRowsPerSheet = parseInt(context.get("maxRowsPerSheet"), DEFAULT_MAX_ROWS_PER_SHEET);
 
-    if (dimensions != null) {
+    if (columns != null) {
       return new ExcelAccumulator(sink, flushInterval, maxRowsPerSheet)
       {
         @Override
@@ -89,29 +88,18 @@ public class Formatters
         {
           super.nextSheet();
           Row r = nextRow(true);
-          for (int i = 0; i < dimensions.length; i++) {
+          for (int i = 0; i < columns.length; i++) {
             Cell c = r.createCell(i);
-            c.setCellValue(dimensions[i]);
+            c.setCellValue(columns[i]);
           }
-        }
-
-        @Override
-        public CountingAccumulator init()
-        {
-          Row r = nextRow(true);
-          for (int i = 0; i < dimensions.length; i++) {
-            Cell c = r.createCell(i);
-            c.setCellValue(dimensions[i]);
-          }
-          return this;
         }
 
         @Override
         public Void accumulate(Void accumulated, Map<String, Object> in)
         {
           Row r = nextRow(false);
-          for (int i = 0; i < dimensions.length; i++) {
-            Object o = in.get(dimensions[i]);
+          for (int i = 0; i < columns.length; i++) {
+            Object o = in.get(columns[i]);
             if (o == null) {
               continue;
             }
@@ -146,7 +134,6 @@ public class Formatters
     private final int flushInterval;
     private final int maxRowsPerSheet;
     private final SXSSFWorkbook wb = new SXSSFWorkbook(-1);
-    private final CountingOutputStream export;
 
     private SXSSFSheet sheet;
     private int rowNumInSheet;
@@ -157,7 +144,6 @@ public class Formatters
       this.sink = sink;
       this.flushInterval = flushInterval;
       this.maxRowsPerSheet = maxRowsPerSheet > 0 ? Math.min(maxRowsPerSheet, MAX_ROW_INDEX) : MAX_ROW_INDEX;
-      this.export = new CountingOutputStream(sink.openBufferedStream());
     }
 
     protected Row nextRow(boolean header)
@@ -224,18 +210,19 @@ public class Formatters
     @Override
     public Map<String, Object> close() throws IOException
     {
-      try {
-        try (OutputStream output = sink.openBufferedStream()) {
+      try (CountingOutputStream output = new CountingOutputStream(sink.openBufferedStream())) {
+        try {
           wb.write(output);
         }
+        finally {
+          wb.dispose();
+          wb.close();
+        }
+        return ImmutableMap.<String, Object>of(
+            "rowCount", count(),
+            "data", ImmutableMap.of(sink.toString(), output.getCount())
+        );
       }
-      finally {
-        wb.dispose();
-        wb.close();
-      }
-      return ImmutableMap.<String, Object>of(
-          "rowCount", count(),
-          "data", ImmutableMap.of(sink.toString(), export.getCount()));
     }
   }
 
