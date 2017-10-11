@@ -52,17 +52,21 @@ public class HivePathSpec extends HynixPathSpec
       @JsonProperty("source") String source,
       @JsonProperty("metastoreUri") String metastoreUri,
       @JsonProperty("partialPartitions") Map<String, String> partialPartitions,
-      @JsonProperty("partialPartitionList") List<Map<String, String>> partialPartitionList
+      @JsonProperty("partialPartitionList") List<Map<String, String>> partialPartitionList,
+      @JsonProperty("splitSize") String splitSize,
+      @JsonProperty("properties") Map<String, Object> properties
   ) throws Exception
   {
-    super(extract(source, metastoreUri, partialPartitions, partialPartitionList));
+    super(extract(source, metastoreUri, partialPartitions, partialPartitionList, splitSize, properties));
   }
 
   private static HynixPathSpec extract(
       String source,
       String metastoreUri,
       Map<String, String> partialPartitions,
-      List<Map<String, String>> partialPartitionList
+      List<Map<String, String>> partialPartitionList,
+      String splitSize,
+      Map<String, Object> properties
   )
       throws Exception
   {
@@ -150,10 +154,10 @@ public class HivePathSpec extends HynixPathSpec
           null,
           elements,
           inputFormat,
-          null,
+          splitSize,
           false,
           table.isPartitioned(),
-          null
+          properties
       );
     }
     catch (Exception ex) {
