@@ -721,7 +721,9 @@ public class IndexGeneratorJob implements HadoopDruidIndexerJob.IndexingStatsPro
           if (flush) {
             allDimensionNames.addAll(index.getDimensionOrder());
 
-            log.info(index.getOutOfRowsReason());
+            if (index.getOutOfRowsReason() != null) {
+              log.info(index.getOutOfRowsReason());
+            }
             log.info(
                 "%,d lines to %,d rows in %,d millis",
                 lineCount - runningTotalLineCount,
