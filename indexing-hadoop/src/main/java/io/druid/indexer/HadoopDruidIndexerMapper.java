@@ -29,6 +29,8 @@ import com.metamx.common.Pair;
 import com.metamx.common.logger.Logger;
 import io.druid.data.input.InputRow;
 import io.druid.data.input.MapBasedInputRow;
+import io.druid.data.input.Row;
+import io.druid.data.input.Rows;
 import io.druid.data.input.impl.InputRowParser;
 import io.druid.data.input.impl.StringInputRowParser;
 import io.druid.indexer.hadoop.HadoopAwareParser;
@@ -217,7 +219,11 @@ public abstract class HadoopDruidIndexerMapper<KEYOUT, VALUEOUT> extends Mapper<
     InputRow inputRow = parseInputRow(value, parser);
     Map<String, String> partition = HynixCombineInputFormat.CURRENT_PARTITION.get();
     if (inputRow != null && partition != null && !partition.isEmpty()) {
-      ((MapBasedInputRow) inputRow).getEvent().putAll(partition);
+      Row.Updatable updatable = Rows.toUpdatable(inputRow);
+      for (Map.Entry<String, String> entry : partition.entrySet()) {
+        updatable.set(entry.getKey(), entry.getValue());
+      }
+      inputRow = (InputRow) updatable;
     }
     return inputRow;
   }

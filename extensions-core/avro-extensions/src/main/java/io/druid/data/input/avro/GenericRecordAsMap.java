@@ -20,6 +20,8 @@ package io.druid.data.input.avro;
 
 import com.google.common.base.Function;
 import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
+import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericData;
 import org.apache.avro.generic.GenericRecord;
 
@@ -35,6 +37,7 @@ public class GenericRecordAsMap implements Map<String, Object>
 {
   private final GenericRecord record;
   private final boolean fromPigAvroStorage;
+  private final Map<String, Schema.Field> schema = Maps.newHashMap();
 
   private static final Function<Object, String> PIG_AVRO_STORAGE_ARRAY_TO_STRING_INCLUDING_NULL = new Function<Object, String>()
   {
@@ -50,24 +53,27 @@ public class GenericRecordAsMap implements Map<String, Object>
   {
     this.record = record;
     this.fromPigAvroStorage = fromPigAvroStorage;
+    for (Schema.Field field : record.getSchema().getFields()) {
+      schema.put(field.name(), field);
+    }
   }
 
   @Override
   public int size()
   {
-    throw new UnsupportedOperationException();
+    return schema.size();
   }
 
   @Override
   public boolean isEmpty()
   {
-    throw new UnsupportedOperationException();
+    return schema.isEmpty();
   }
 
   @Override
   public boolean containsKey(Object key)
   {
-    throw new UnsupportedOperationException();
+    return schema.containsKey(key);
   }
 
   @Override
@@ -134,7 +140,7 @@ public class GenericRecordAsMap implements Map<String, Object>
   @Override
   public Set<String> keySet()
   {
-    throw new UnsupportedOperationException();
+    return schema.keySet();
   }
 
   @Override
