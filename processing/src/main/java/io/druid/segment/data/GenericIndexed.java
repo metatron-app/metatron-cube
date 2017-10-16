@@ -57,6 +57,8 @@ public class GenericIndexed<T> implements Indexed<T>, DictionaryLoader<T>, Colum
 {
   private static final byte version = 0x1;
 
+  private static final int CACHE_THRESHOLD = 65536;
+
   public static <T> GenericIndexed<T> fromArray(T[] objects, ObjectStrategy<T> strategy)
   {
     return fromIterable(Arrays.asList(objects), strategy);
@@ -441,7 +443,8 @@ public class GenericIndexed<T> implements Indexed<T>, DictionaryLoader<T>, Colum
       bufferToUse.limit(bufferToUse.position() + size);
       buffer.position(bufferToUse.limit());
 
-      if (cached) {
+      int numRows = bufferToUse.getInt(bufferToUse.position());
+      if (cached && numRows < CACHE_THRESHOLD) {
         return new GenericIndexed.Cached<T>(
             bufferToUse,
             strategy,
