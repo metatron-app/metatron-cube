@@ -21,6 +21,8 @@ package io.druid.segment.serde;
 
 import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
+import com.google.inject.Provider;
+import io.druid.segment.SharedDictionary;
 import io.druid.segment.column.ColumnBuilder;
 import io.druid.segment.data.BitmapSerdeFactory;
 
@@ -57,6 +59,11 @@ public interface ColumnPartSerde
 
   public interface Deserializer
   {
-    public void read(ByteBuffer buffer, ColumnBuilder builder, BitmapSerdeFactory serdeFactory) throws IOException;
+    public void read(
+        ByteBuffer buffer,
+        ColumnBuilder builder,
+        BitmapSerdeFactory serdeFactory,
+        Provider<SharedDictionary.Mapping> dictionary
+    ) throws IOException;
   }
 }

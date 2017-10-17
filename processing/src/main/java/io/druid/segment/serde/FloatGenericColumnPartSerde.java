@@ -21,9 +21,11 @@ package io.druid.segment.serde;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.google.inject.Provider;
 import io.druid.data.ValueType;
 import io.druid.segment.ColumnPartProviders;
 import io.druid.segment.FloatColumnSerializer;
+import io.druid.segment.SharedDictionary;
 import io.druid.segment.column.ColumnBuilder;
 import io.druid.segment.data.BitmapSerdeFactory;
 import io.druid.segment.data.ByteBufferSerializer;
@@ -132,7 +134,12 @@ public class FloatGenericColumnPartSerde implements ColumnPartSerde
     return new Deserializer()
     {
       @Override
-      public void read(ByteBuffer buffer, ColumnBuilder builder, BitmapSerdeFactory serdeFactory)
+      public void read(
+          ByteBuffer buffer,
+          ColumnBuilder builder,
+          BitmapSerdeFactory serdeFactory,
+          Provider<SharedDictionary.Mapping> dictionary
+      )
       {
         final CompressedFloatsIndexedSupplier column = CompressedFloatsIndexedSupplier.fromByteBuffer(
             buffer,

@@ -28,6 +28,7 @@ import io.druid.guice.annotations.Json;
 import io.druid.segment.QueryableIndex;
 import io.druid.segment.QueryableIndexSegment;
 import io.druid.segment.Segment;
+import io.druid.segment.SharedDictionary;
 import io.druid.timeline.DataSegment;
 import org.apache.commons.io.FileUtils;
 
@@ -90,10 +91,10 @@ public class SegmentLoaderLocalCacheManager implements SegmentLoader
   }
 
   @Override
-  public Segment getSegment(DataSegment segment) throws SegmentLoadingException
+  public Segment getSegment(DataSegment segment, SharedDictionary dictionary) throws SegmentLoadingException
   {
     File segmentFiles = getSegmentFiles(segment);
-    final QueryableIndex index = factory.factorize(segmentFiles);
+    final QueryableIndex index = factory.factorize(segmentFiles, dictionary);
 
     return new QueryableIndexSegment(segment.getIdentifier(), index);
   }

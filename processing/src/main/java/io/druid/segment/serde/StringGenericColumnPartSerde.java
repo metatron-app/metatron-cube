@@ -21,11 +21,13 @@ package io.druid.segment.serde;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.google.common.base.Throwables;
+import com.google.inject.Provider;
 import com.metamx.collections.bitmap.BitmapFactory;
 import com.metamx.collections.bitmap.ImmutableBitmap;
 import com.metamx.collections.bitmap.MutableBitmap;
 import io.druid.data.ValueType;
 import io.druid.segment.ColumnPartProvider;
+import io.druid.segment.SharedDictionary;
 import io.druid.segment.column.ColumnBuilder;
 import io.druid.segment.column.LuceneIndex;
 import io.druid.segment.column.Lucenes;
@@ -70,7 +72,12 @@ public class StringGenericColumnPartSerde implements ColumnPartSerde
     return new Deserializer()
     {
       @Override
-      public void read(ByteBuffer buffer, ColumnBuilder builder, BitmapSerdeFactory serdeFactory) throws IOException
+      public void read(
+          ByteBuffer buffer,
+          ColumnBuilder builder,
+          BitmapSerdeFactory serdeFactory,
+          Provider<SharedDictionary.Mapping> dictionary
+      ) throws IOException
       {
         final BitmapFactory factory = serdeFactory.getBitmapFactory();
         final GenericIndexed<String> indexed = GenericIndexed.read(buffer, GenericIndexed.STRING_STRATEGY);

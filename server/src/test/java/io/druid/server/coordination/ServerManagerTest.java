@@ -37,7 +37,6 @@ import com.metamx.common.guava.YieldingAccumulator;
 import com.metamx.common.guava.YieldingSequenceBase;
 import com.metamx.emitter.EmittingLogger;
 import com.metamx.emitter.service.ServiceMetricEvent;
-
 import io.druid.client.cache.CacheConfig;
 import io.druid.client.cache.LocalCacheProvider;
 import io.druid.granularity.QueryGranularities;
@@ -60,13 +59,13 @@ import io.druid.segment.IndexIO;
 import io.druid.segment.QueryableIndex;
 import io.druid.segment.ReferenceCountingSegment;
 import io.druid.segment.Segment;
+import io.druid.segment.SharedDictionary;
 import io.druid.segment.StorageAdapter;
 import io.druid.segment.loading.SegmentLoader;
 import io.druid.segment.loading.SegmentLoadingException;
 import io.druid.server.metrics.NoopServiceEmitter;
 import io.druid.timeline.DataSegment;
 import io.druid.timeline.partition.NoneShardSpec;
-
 import org.joda.time.Interval;
 import org.junit.Assert;
 import org.junit.Before;
@@ -116,7 +115,7 @@ public class ServerManagerTest
           }
 
           @Override
-          public Segment getSegment(final DataSegment segment)
+          public Segment getSegment(final DataSegment segment, SharedDictionary dictionary)
           {
             return new SegmentForTesting(
                 MapUtils.getString(segment.getLoadSpec(), "version"),

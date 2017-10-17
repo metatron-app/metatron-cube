@@ -34,6 +34,7 @@ import com.google.common.io.Closeables;
 import com.google.common.io.Files;
 import com.google.common.primitives.Ints;
 import com.google.inject.Inject;
+import com.google.inject.Provider;
 import com.metamx.collections.bitmap.BitmapFactory;
 import com.metamx.collections.bitmap.ConciseBitmapFactory;
 import com.metamx.collections.bitmap.ImmutableBitmap;
@@ -206,12 +207,17 @@ public class IndexIO
 
   public QueryableIndex loadIndex(File inDir) throws IOException
   {
+    return loadIndex(inDir, null);
+  }
+
+  public QueryableIndex loadIndex(File inDir, SharedDictionary dictionary) throws IOException
+  {
     final int version = SegmentUtils.getVersionFromDir(inDir);
 
     final IndexLoader loader = indexLoaders.get(version);
 
     if (loader != null) {
-      return loader.load(inDir, mapper);
+      return loader.load(inDir, mapper, dictionary);
     } else {
       throw new ISE("Unknown index version[%s]", version);
     }
@@ -901,7 +907,7 @@ public class IndexIO
 
   static interface IndexLoader
   {
-    public QueryableIndex load(File inDir, ObjectMapper mapper) throws IOException;
+    public QueryableIndex load(File inDir, ObjectMapper mapper, SharedDictionary dictionary) throws IOException;
   }
 
   static class LegacyIndexLoader implements IndexLoader
@@ -914,7 +920,7 @@ public class IndexIO
     }
 
     @Override
-    public QueryableIndex load(File inDir, ObjectMapper mapper) throws IOException
+    public QueryableIndex load(File inDir, ObjectMapper mapper, SharedDictionary dictionary) throws IOException
     {
       MMappedIndex index = legacyHandler.mapDir(inDir);
 
@@ -1017,7 +1023,7 @@ public class IndexIO
   static class V9IndexLoader implements IndexLoader
   {
     @Override
-    public QueryableIndex load(File inDir, ObjectMapper mapper) throws IOException
+    public QueryableIndex load(File inDir, ObjectMapper mapper, SharedDictionary dictionary) throws IOException
     {
       log.debug("Mapping v9 index[%s]", inDir);
       long startTime = System.currentTimeMillis();
@@ -1072,10 +1078,14 @@ public class IndexIO
       Map<String, Column> columns = Maps.newHashMap();
 
       for (String columnName : cols) {
-        columns.put(columnName, deserializeColumn(mapper, serdeFactory, smooshedFiles.mapFile(columnName)));
+        Provider<SharedDictionary.Mapping> provider = dictionary == null ? null : dictionary.asProvider(columnName);
+        columns.put(columnName, deserializeColumn(smooshedFiles.mapFile(columnName), mapper, serdeFactory, provider));
       }
 
-      columns.put(Column.TIME_COLUMN_NAME, deserializeColumn(mapper, serdeFactory, smooshedFiles.mapFile("__time")));
+      columns.put(
+          Column.TIME_COLUMN_NAME,
+          deserializeColumn(smooshedFiles.mapFile("__time"), mapper, serdeFactory, null)
+      );
 
       final QueryableIndex index = new SimpleQueryableIndex(
           dataInterval, cols, dims, serdeFactory.getBitmapFactory(), columns, smooshedFiles, metadata
@@ -1086,13 +1096,18 @@ public class IndexIO
       return index;
     }
 
-    private Column deserializeColumn(ObjectMapper mapper, BitmapSerdeFactory serdeFactory, ByteBuffer byteBuffer)
+    private Column deserializeColumn(
+        ByteBuffer byteBuffer,
+        ObjectMapper mapper,
+        BitmapSerdeFactory serdeFactory,
+        Provider<SharedDictionary.Mapping> dictionary
+    )
         throws IOException
     {
       ColumnDescriptor serde = mapper.readValue(
           serializerUtils.readString(byteBuffer), ColumnDescriptor.class
       );
-      return serde.read(byteBuffer, serdeFactory);
+      return serde.read(byteBuffer, serdeFactory, dictionary);
     }
   }
 

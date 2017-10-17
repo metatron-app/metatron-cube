@@ -104,7 +104,7 @@ public class ComplexColumnSerializerTest
     ByteBuffer payload = ByteBuffer.wrap(bout.toByteArray());
     Assert.assertEquals(length, payload.remaining());
 
-    deserializer.read(payload, builder, serdeFactory);
+    deserializer.read(payload, builder, serdeFactory, null);
 
     Column column = builder.build();
     LuceneIndex luceneIndex = column.getLuceneIndex();

@@ -23,6 +23,7 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;
 import com.google.common.primitives.Ints;
+import com.google.inject.Provider;
 import com.metamx.collections.bitmap.ImmutableBitmap;
 import com.metamx.collections.spatial.ImmutableRTree;
 import com.metamx.common.IAE;
@@ -31,6 +32,7 @@ import io.druid.segment.ColumnPartProvider;
 import io.druid.segment.ColumnPartProviders;
 import io.druid.segment.CompressedVSizeIndexedSupplier;
 import io.druid.segment.CompressedVSizeIndexedV3Supplier;
+import io.druid.segment.SharedDictionary;
 import io.druid.segment.column.ColumnBuilder;
 import io.druid.segment.data.BitmapSerde;
 import io.druid.segment.data.BitmapSerdeFactory;
@@ -433,7 +435,12 @@ public class DictionaryEncodedColumnPartSerde implements ColumnPartSerde
     return new Deserializer()
     {
       @Override
-      public void read(ByteBuffer buffer, ColumnBuilder builder, BitmapSerdeFactory serdeFactory)
+      public void read(
+          ByteBuffer buffer,
+          ColumnBuilder builder,
+          BitmapSerdeFactory serdeFactory,
+          Provider<SharedDictionary.Mapping> dictionary
+      )
       {
         final VERSION rVersion = VERSION.fromByte(buffer.get());
         final int rFlags;
@@ -451,7 +458,7 @@ public class DictionaryEncodedColumnPartSerde implements ColumnPartSerde
         final GenericIndexed<String> rDictionary = GenericIndexed.read(
             buffer,
             GenericIndexed.STRING_WITH_INTERN_STRATEGY,
-            true
+            dictionary
         );
         builder.setType(ValueType.STRING);
 

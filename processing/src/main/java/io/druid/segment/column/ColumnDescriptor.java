@@ -25,8 +25,10 @@ import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
+import com.google.inject.Provider;
 import com.metamx.common.IAE;
 import io.druid.data.ValueType;
+import io.druid.segment.SharedDictionary;
 import io.druid.segment.data.BitmapSerdeFactory;
 import io.druid.segment.serde.ColumnPartSerde;
 
@@ -126,7 +128,8 @@ public class ColumnDescriptor
     }
   }
 
-  public Column read(ByteBuffer buffer, BitmapSerdeFactory serdeFactory) throws IOException
+  public Column read(ByteBuffer buffer, BitmapSerdeFactory serdeFactory, Provider<SharedDictionary.Mapping> dictionary)
+      throws IOException
   {
     final ColumnBuilder builder = new ColumnBuilder()
         .setType(valueType)
@@ -134,7 +137,7 @@ public class ColumnDescriptor
         .setHasMultipleValues(hasMultipleValues);
 
     for (ColumnPartSerde part : parts) {
-      part.getDeserializer().read(buffer, builder, serdeFactory);
+      part.getDeserializer().read(buffer, builder, serdeFactory, dictionary);
     }
 
     return builder.build();

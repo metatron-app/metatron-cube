@@ -26,12 +26,13 @@ import com.metamx.common.IAE;
 import com.metamx.common.guava.CloseQuietly;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.common.utils.StringUtils;
+import io.druid.segment.SharedDictionary;
 import io.druid.segment.serde.ColumnPartSerde;
 
+import javax.inject.Provider;
 import java.io.ByteArrayOutputStream;
 import java.io.Closeable;
 import java.io.IOException;
-import java.lang.reflect.Array;
 import java.nio.ByteBuffer;
 import java.nio.channels.WritableByteChannel;
 import java.util.Arrays;
@@ -57,7 +58,7 @@ public class GenericIndexed<T> implements Indexed<T>, DictionaryLoader<T>, Colum
 {
   private static final byte version = 0x1;
 
-  private static final int CACHE_THRESHOLD = 65536;
+  private static final int CACHE_THRESHOLD = 131072;
 
   public static <T> GenericIndexed<T> fromArray(T[] objects, ObjectStrategy<T> strategy)
   {
@@ -230,11 +231,6 @@ public class GenericIndexed<T> implements Indexed<T>, DictionaryLoader<T>, Colum
         valuesOffset,
         bufferIndexed
     );
-  }
-
-  public boolean isLoadedAll()
-  {
-    return false;
   }
 
   @SuppressWarnings("unchecked")
@@ -429,10 +425,15 @@ public class GenericIndexed<T> implements Indexed<T>, DictionaryLoader<T>, Colum
 
   public static <T> GenericIndexed<T> read(ByteBuffer buffer, ObjectStrategy<T> strategy)
   {
-    return read(buffer, strategy, false);
+    return read(buffer, strategy, null);
   }
 
-  public static <T> GenericIndexed<T> read(ByteBuffer buffer, ObjectStrategy<T> strategy, boolean cached)
+  @SuppressWarnings("unchecked")
+  public static <T> GenericIndexed<T> read(
+      ByteBuffer buffer,
+      ObjectStrategy<T> strategy,
+      Provider<SharedDictionary.Mapping> dictionary
+  )
   {
     byte versionFromBuffer = buffer.get();
 
@@ -444,10 +445,11 @@ public class GenericIndexed<T> implements Indexed<T>, DictionaryLoader<T>, Colum
       buffer.position(bufferToUse.limit());
 
       int numRows = bufferToUse.getInt(bufferToUse.position());
-      if (cached && numRows < CACHE_THRESHOLD) {
+      if (dictionary != null && numRows < CACHE_THRESHOLD) {
         return new GenericIndexed.Cached<T>(
             bufferToUse,
             strategy,
+            dictionary.get(),
             allowReverseLookup
         );
       }
@@ -523,14 +525,21 @@ public class GenericIndexed<T> implements Indexed<T>, DictionaryLoader<T>, Colum
 
   static final class Cached<T> extends GenericIndexed<T>
   {
-    private final T[] cachedValues;
-    private transient volatile boolean loadedAll;
+    private final SharedDictionary.Mapping<T> dictionary;
+    private final int[] cachedValues;
 
     @SuppressWarnings("unchecked")
-    Cached(ByteBuffer buffer, ObjectStrategy<T> strategy, boolean allowReverseLookup)
+    Cached(
+        ByteBuffer buffer,
+        ObjectStrategy<T> strategy,
+        SharedDictionary.Mapping<T> dictionary,
+        boolean allowReverseLookup
+    )
     {
       super(buffer, strategy, allowReverseLookup);
-      cachedValues = (T[]) Array.newInstance(strategy.getClazz(), size());
+      this.dictionary = dictionary;
+      this.cachedValues = new int[size()];
+      Arrays.fill(cachedValues, -1);
     }
 
     Cached(
@@ -541,19 +550,25 @@ public class GenericIndexed<T> implements Indexed<T>, DictionaryLoader<T>, Colum
         int indexOffset,
         int valuesOffset,
         BufferIndexed bufferIndexed,
-        T[] cachedValues,
-        boolean loadedAll
+        SharedDictionary.Mapping<T> dictionary,
+        int[] cachedValues
     )
     {
       super(buffer, strategy, allowReverseLookup, size, indexOffset, valuesOffset, bufferIndexed);
+      this.dictionary = dictionary;
       this.cachedValues = cachedValues;
-      this.loadedAll = loadedAll;
     }
 
     @Override
     public T get(int index)
     {
-      return cachedValues[index] != null ? cachedValues[index] : (cachedValues[index] = super.get(index));
+      int x = cachedValues[index];
+      if (x >= 0) {
+        return dictionary.getValue(x);
+      }
+      T value = super.get(index);
+      cachedValues[index] = dictionary.getId(value);
+      return value;
     }
 
     @Override
@@ -576,15 +591,9 @@ public class GenericIndexed<T> implements Indexed<T>, DictionaryLoader<T>, Colum
           indexOffset,
           valuesOffset,
           bufferIndexed,
-          cachedValues,
-          loadedAll
+          dictionary,
+          cachedValues
       );
-    }
-
-    @Override
-    public boolean isLoadedAll()
-    {
-      return loadedAll;
     }
 
     @Override
@@ -592,16 +601,11 @@ public class GenericIndexed<T> implements Indexed<T>, DictionaryLoader<T>, Colum
     public Collection<T> loadFully()
     {
       Preconditions.checkArgument(cachedValues.length == size());
-      if (!loadedAll) {
-        final ByteBuffer buffer = bufferAsReadOnly();
-        for (int i = 0; i < cachedValues.length; i++) {
-          if (cachedValues[i] == null) {
-            cachedValues[i] = loadValue(buffer, i);
-          }
-        }
-        loadedAll = true;
+      final List<T> loaded = Lists.newArrayList();
+      for (int i = 0; i < cachedValues.length; i++) {
+        loaded.add(get(i));
       }
-      return Arrays.asList(cachedValues);
+      return loaded;
     }
   }
 }
