@@ -192,8 +192,9 @@ public class Queries
         null,
         true,
         null,
-        Maps.<String, Object>newHashMap()
+        extractContext(subQuery, BaseQuery.QUERYID)
     );
+
     Result<SelectMetaResultValue> result = Iterables.getOnlyElement(
         Sequences.toList(
             metaQuery.run(segmentWalker, Maps.<String, Object>newHashMap()),
@@ -225,5 +226,17 @@ public class Queries
       };
     }
     return GuavaUtils.caster();
+  }
+
+  public static Map<String, Object> extractContext(Query<?> query, String... keys)
+  {
+    Map<String, Object> context = query.getContext();
+    Map<String, Object> extracted = Maps.newHashMap();
+    for (String key : keys) {
+      if (context.containsKey(key)) {
+        extracted.put(key, context.get(key));
+      }
+    }
+    return extracted;
   }
 }

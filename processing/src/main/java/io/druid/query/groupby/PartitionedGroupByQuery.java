@@ -24,6 +24,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
 import com.google.common.math.IntMath;
 import io.druid.common.utils.JodaUtils;
 import io.druid.data.input.Row;
@@ -206,7 +207,7 @@ public class PartitionedGroupByQuery extends GroupByQuery implements Query.Rewri
     for (DimFilter filter : QueryUtils.toFilters(dimension, partitions)) {
       queries.add(asGroupByQuery(intervals, filter));
     }
-    return new GroupByDelegate(queries, limit, parallelism, queue, getContext());
+    return new GroupByDelegate(queries, limit, parallelism, queue, Maps.newHashMap(getContext()));
   }
 
   private GroupByQuery asGroupByQuery(List<Interval> interval, DimFilter filter)
@@ -225,7 +226,7 @@ public class PartitionedGroupByQuery extends GroupByQuery implements Query.Rewri
         getLimitSpec(),
         getOutputColumns(),
         getLateralView(),
-        getContext()
+        Maps.newHashMap(getContext())
     );
   }
 

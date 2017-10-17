@@ -440,10 +440,11 @@ public class QueryResource
     if (query.getDataSource() instanceof QueryDataSource) {
       Query source = ((QueryDataSource) query.getDataSource()).getQuery();
       if (source instanceof Query.RewritingQuery) {
-        Query element = rewriteQuery(source);
-        if (element != source) {
-          rewritten = rewritten.withDataSource(new QueryDataSource(element));
+        if (source.getId() == null) {
+          source = source.withId(query.getId());
         }
+        Query element = rewriteQuery(source);
+        rewritten = rewritten.withDataSource(new QueryDataSource(element));
       }
     }
     if (query instanceof JoinQuery) {
@@ -451,10 +452,11 @@ public class QueryResource
       for (Map.Entry<String, DataSource> entry : joinQuery.getDataSources().entrySet()) {
         if (entry.getValue() instanceof QueryDataSource) {
           Query source = ((QueryDataSource) entry.getValue()).getQuery();
-          Query element = rewriteQuery(source);
-          if (element != source) {
-            entry.setValue(new QueryDataSource(element));
+          if (source.getId() == null) {
+            source = source.withId(query.getId());
           }
+          Query element = rewriteQuery(source);
+          entry.setValue(new QueryDataSource(element));
         }
       }
     }
@@ -462,21 +464,21 @@ public class QueryResource
       UnionAllQuery<?> union = (UnionAllQuery) rewritten;
       if (union.getQuery() != null) {
         Query source = union.getQuery();
-        Query element = rewriteQuery(source);
-        if (element != source) {
-          rewritten = union.withQuery(element);
+        if (source.getId() == null) {
+          source = source.withId(query.getId());
         }
+        Query element = rewriteQuery(source);
+        rewritten = union.withQuery(element);
       } else {
-        boolean changed = false;
         List<Query> queries = Lists.newArrayList();
         for (Query source : union.getQueries()) {
+          if (source.getId() == null) {
+            source = source.withId(query.getId());
+          }
           Query element = rewriteQuery(source);
           queries.add(element);
-          changed |= element != source;
         }
-        if (changed) {
-          rewritten = union.withQueries(queries);
-        }
+        rewritten = union.withQueries(queries);
       }
     }
     if (query instanceof Query.RewritingQuery) {

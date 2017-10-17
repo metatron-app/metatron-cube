@@ -229,6 +229,7 @@ public class JoinQuery<T extends Comparable<T>> extends BaseQuery<T> implements 
   @SuppressWarnings("unchecked")
   public Query rewriteQuery(QuerySegmentWalker segmentWalker, ObjectMapper jsonMapper)
   {
+    String queryId = getId();
     JoinPostProcessor joinProcessor = jsonMapper.convertValue(
         ImmutableMap.of("type", "join", "elements", elements, "prefixAlias", prefixAlias),
         new TypeReference<JoinPostProcessor>()
@@ -247,9 +248,9 @@ public class JoinQuery<T extends Comparable<T>> extends BaseQuery<T> implements 
     if (partitions == null || partitions.size() == 1) {
       List<Query> queries = Lists.newArrayList();
       JoinElement firstJoin = elements.get(0);
-      queries.add(JoinElement.toQuery(dataSources.get(firstJoin.getLeftAlias()), segmentSpec));
+      queries.add(JoinElement.toQuery(dataSources.get(firstJoin.getLeftAlias()), segmentSpec).withId(queryId));
       for (JoinElement element : elements) {
-        queries.add(JoinElement.toQuery(dataSources.get(element.getRightAlias()), segmentSpec));
+        queries.add(JoinElement.toQuery(dataSources.get(element.getRightAlias()), segmentSpec).withId(queryId));
       }
       Map<String, Object> context = computeOverridenContext(joinContext);
       return new JoinDelegate(queries, prefixAlias ? aliases : null, limit, parallelism, queue, context);
@@ -261,13 +262,17 @@ public class JoinQuery<T extends Comparable<T>> extends BaseQuery<T> implements 
     List<Query> queries = Lists.newArrayList();
     for (List<DimFilter> filters : partitions) {
       List<Query> partitioned = Lists.newArrayList();
-      partitioned.add(JoinElement.toQuery(dataSources.get(element.getLeftAlias()), segmentSpec, filters.get(0)));
-      partitioned.add(JoinElement.toQuery(dataSources.get(element.getRightAlias()), segmentSpec, filters.get(1)));
+      DataSource left = dataSources.get(element.getLeftAlias());
+      DataSource right = dataSources.get(element.getRightAlias());
+      partitioned.add(JoinElement.toQuery(left, segmentSpec, filters.get(0)).withId(queryId));
+      partitioned.add(JoinElement.toQuery(right, segmentSpec, filters.get(1)).withId(queryId));
       if (first) {
         for (int i = 1; i < elements.size(); i++) {
+          DataSource dataSource = dataSources.get(elements.get(i).getRightAlias());
           partitioned.add(
-              JoinElement.toQuery(dataSources.get(elements.get(i).getRightAlias()), segmentSpec)
+              JoinElement.toQuery(dataSource, segmentSpec)
                          .withOverriddenContext(ImmutableMap.of("hash", true))
+                         .withId(queryId)
           );
         }
       }
@@ -275,7 +280,7 @@ public class JoinQuery<T extends Comparable<T>> extends BaseQuery<T> implements 
       queries.add(new JoinDelegate(partitioned, prefixAlias ? aliases : null, -1, 0, 0, context));
       first = false;
     }
-    return new UnionAllQuery(null, queries, false, limit, parallelism, queue, getContext());
+    return new UnionAllQuery(null, queries, false, limit, parallelism, queue, Maps.newHashMap(getContext()));
   }
 
   private JoinPartitionSpec partition(QuerySegmentWalker segmentWalker, ObjectMapper jsonMapper)

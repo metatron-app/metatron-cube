@@ -19,7 +19,6 @@
 
 package io.druid.server;
 
-import com.google.common.base.Preconditions;
 import com.google.common.base.Predicate;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Maps;
@@ -28,6 +27,7 @@ import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.MoreExecutors;
 import com.google.inject.Inject;
 import com.google.inject.name.Named;
+import com.metamx.common.logger.Logger;
 import io.druid.common.Progressing;
 import io.druid.query.Query;
 import io.druid.query.QueryWatcher;
@@ -41,6 +41,8 @@ import java.util.function.Function;
 
 public class QueryManager implements QueryWatcher, Runnable
 {
+  private static final Logger LOG = new Logger(QueryManager.class);
+
   private static final long DEFAULT_EXPIRE = 3600000;   // 1hour
 
   private final Map<String, QueryStatus> queries;
@@ -70,6 +72,10 @@ public class QueryManager implements QueryWatcher, Runnable
   public void registerQuery(final Query query, final ListenableFuture future)
   {
     final String id = query.getId();
+    if (id == null) {
+      LOG.warn("Query id for %s is null.. fix that", query.getType());
+      return;
+    }
     final List<String> dataSources = query.getDataSource().getNames();
     final QueryStatus status = queries.computeIfAbsent(
         id, new Function<String, QueryStatus>()
@@ -91,8 +97,8 @@ public class QueryManager implements QueryWatcher, Runnable
           {
             status.futures.remove(future);
             status.dataSources.removeAll(dataSources);
+            // this is possible because druid registers queries before fire to historical nodes
             if (status.futures.isEmpty() && status.dataSources.isEmpty()) {
-              Preconditions.checkArgument(status.end < 0);
               status.end = System.currentTimeMillis();
               if (!broker) {
                 queries.remove(id);

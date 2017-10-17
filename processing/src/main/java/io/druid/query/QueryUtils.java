@@ -121,7 +121,7 @@ public class QueryUtils
     return null;
   }
 
-  public static List<Interval> analyzeInterval(QuerySegmentWalker segmentWalker, Query query)
+  public static List<Interval> analyzeInterval(QuerySegmentWalker segmentWalker, Query<?> query)
   {
     SegmentMetadataQuery metaQuery = new SegmentMetadataQuery(
         query.getDataSource(),
@@ -130,7 +130,7 @@ public class QueryUtils
         null,
         new NoneColumnIncluderator(),
         false,
-        null,
+        Queries.extractContext(query, BaseQuery.QUERYID),
         EnumSet.of(SegmentMetadataQuery.AnalysisType.INTERVAL),
         false,
         false
@@ -157,7 +157,7 @@ public class QueryUtils
         null,
         ColumnIncluderator.ALL,
         false,
-        null,
+        Queries.extractContext(query, BaseQuery.QUERYID),
         EnumSet.noneOf(SegmentMetadataQuery.AnalysisType.class),
         false,
         false
