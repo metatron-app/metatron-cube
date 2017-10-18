@@ -8,6 +8,7 @@ import com.google.common.base.Function;
 import com.google.common.base.Functions;
 import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableSet;
+import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.inject.Inject;
 import com.metamx.common.ISE;
@@ -22,12 +23,16 @@ import com.metamx.http.client.response.StatusResponseHolder;
 import io.druid.common.utils.StringUtils;
 import io.druid.guice.annotations.Global;
 import io.druid.metadata.DescExtractor;
+import io.druid.query.LocatedSegmentDescriptor;
+import io.druid.server.coordination.DruidServerMetadata;
 import io.druid.server.coordinator.DruidCoordinator;
 import io.druid.server.initialization.IndexerZkConfig;
 import org.apache.curator.framework.CuratorFramework;
 import org.apache.curator.framework.recipes.leader.LeaderLatch;
 import org.apache.curator.framework.recipes.leader.Participant;
 import org.apache.curator.utils.ZKPaths;
+import org.apache.curator.x.discovery.ServiceDiscovery;
+import org.apache.curator.x.discovery.ServiceInstance;
 import org.jboss.netty.handler.codec.http.HttpMethod;
 import org.jboss.netty.handler.codec.http.HttpResponse;
 import org.jboss.netty.handler.codec.http.HttpResponseStatus;
@@ -73,6 +78,7 @@ public class DruidShell implements CommonShell
 
   private final IndexerZkConfig zkPaths;
   private final CuratorFramework curator;
+  private final ServiceDiscovery<Void> discovery;
   private final HttpClient httpClient;
   private final ObjectMapper jsonMapper;
 
@@ -80,12 +86,14 @@ public class DruidShell implements CommonShell
   public DruidShell(
       IndexerZkConfig zkPaths,
       CuratorFramework curator,
+      ServiceDiscovery<Void> discovery,
       @Global HttpClient httpClient,
       @JacksonInject ObjectMapper jsonMapper
   )
   {
     this.zkPaths = zkPaths;
     this.curator = curator;
+    this.discovery = discovery;
     this.httpClient = httpClient;
     this.jsonMapper = jsonMapper;
   }
@@ -109,16 +117,47 @@ public class DruidShell implements CommonShell
         LOG.info("Overlord participant : %s", participant);
       }
     }
-
+    List<URL> brokerURLs = discover("broker");
+    for (URL broker : brokerURLs) {
+      LOG.info("Broker : %s", broker);
+    }
     final URL coordinatorURL = new URL("http://" + coordinatorLatch.getLeader().getId());
     final URL overlordURL = new URL("http://" + indexerLatch.getLeader().getId());
 
     try (Terminal terminal = TerminalBuilder.builder().build()) {
-      execute(coordinatorURL, overlordURL, terminal, arguments);
+      execute(coordinatorURL, overlordURL, brokerURLs, terminal, arguments);
     }
   }
 
-  private void execute(final URL coordinatorURL, final URL overlordURL, Terminal terminal, List<String> arguments)
+  private List<URL> discover(String service) throws Exception
+  {
+    return Lists.newArrayList(
+        Iterables.transform(
+            discovery.queryForInstances(service),
+            new Function<ServiceInstance<Void>, URL>()
+            {
+              @Override
+              public URL apply(ServiceInstance<Void> input)
+              {
+                try {
+                  return new URL("http://" + input.getAddress() + ":" + input.getPort());
+                }
+                catch (Exception e) {
+                  throw Throwables.propagate(e);
+                }
+              }
+            }
+        )
+    );
+  }
+
+  private void execute(
+      final URL coordinatorURL,
+      final URL overlordURL,
+      final List<URL> brokerURLs,
+      final Terminal terminal,
+      List<String> arguments
+  )
       throws Exception
   {
     final String prompt = "> ";
@@ -127,7 +166,7 @@ public class DruidShell implements CommonShell
       Cursor cursor = new Cursor(arguments);
       try {
         writer.println(prompt + org.apache.commons.lang.StringUtils.join(arguments, " "));
-        handleCommand(coordinatorURL, overlordURL, writer, cursor);
+        handleCommand(coordinatorURL, overlordURL, brokerURLs, writer, cursor);
       }
       finally {
         writer.flush();
@@ -161,6 +200,7 @@ public class DruidShell implements CommonShell
         "lookup",
         "tasks",
         "task",
+        "query",
         "help",
         "quit",
         "exit"
@@ -176,7 +216,7 @@ public class DruidShell implements CommonShell
       }
     };
 
-    final Set<String> dsRequired = ImmutableSet.of("datasource", "rule", "desc");
+    final Set<String> dsRequired = ImmutableSet.of("datasource", "rule", "desc", "query");
     Completer dsCompleter = new Completer()
     {
       @Override
@@ -371,7 +411,7 @@ public class DruidShell implements CommonShell
       }
       Cursor cursor = new Cursor(reader.getParser().parse(line, 0).words());
       try {
-        handleCommand(coordinatorURL, overlordURL, writer, cursor);
+        handleCommand(coordinatorURL, overlordURL, brokerURLs, writer, cursor);
       }
       catch (ISE e) {
         LOG.info(e.toString());
@@ -394,7 +434,13 @@ public class DruidShell implements CommonShell
 
   private static final String[] PREFIX = new String[]{"  >> ", "    >> ", "      >> "};
 
-  private void handleCommand(URL coordinatorURL, URL overlordURL, PrintWriter writer, Cursor cursor)
+  private void handleCommand(
+      URL coordinatorURL,
+      URL overlordURL,
+      List<URL> brokerURLs,
+      PrintWriter writer,
+      Cursor cursor
+  )
       throws Exception
   {
     Resource resource = new Resource();
@@ -425,6 +471,7 @@ public class DruidShell implements CommonShell
         writer.println("lookup <tier-name> [lookup-name]");
         writer.println("tasks [-full] [-completed [-recent=<duration>]]");
         writer.println("task <task-id> [-status|-segments|-log]");
+        writer.println("query <datasource-name> <intervals> [-full]");
         return;
       case "loadstatus":
         Map<String, Object> loadStatus = execute(coordinatorURL, "/druid/coordinator/v1/loadstatus", MAP);
@@ -525,7 +572,7 @@ public class DruidShell implements CommonShell
           writer.println(PREFIX[0] + execute(coordinatorURL, resource.get(), LIST));
         }
         break;
-      case "datasource":
+      case "datasource": {
         resource.append("/druid/coordinator/v1/datasources");
         if (!cursor.hasMore()) {
           writer.println("needs datasource name");
@@ -614,6 +661,7 @@ public class DruidShell implements CommonShell
           writer.println(PREFIX[0] + execute(coordinatorURL, resource.get(), LIST));
         }
         break;
+      }
       case "desc":
         resource.append("/druid/coordinator/v1/datasources");
         if (!cursor.hasMore()) {
@@ -791,7 +839,62 @@ public class DruidShell implements CommonShell
           }
         }
         writer.println(PREFIX[0] + execute(overlordURL, resource.get(), MAP));
-        return;
+        break;
+      case "query": {
+        if (brokerURLs.isEmpty()) {
+          writer.println("no broker..");
+          return;
+        }
+        if (!cursor.hasMore()) {
+          writer.println("needs datasource & comma separated intervals");
+          return;
+        }
+        String dataSource = cursor.next();
+
+        resource.append("/druid/v2/candidates");
+        resource.appendOption("datasource=" + dataSource);
+        if (!cursor.hasMore()) {
+          writer.println("comma separated intervals");
+          return;
+        }
+        String intervals = cursor.next();
+        boolean full = cursor.hasMore() && cursor.next().equals("-full");
+
+        resource.appendOption("intervals=" + URLEncoder.encode(intervals, StringUtils.UTF8_STRING));
+        for (LocatedSegmentDescriptor located : execute(
+            brokerURLs.get(0),
+            resource.get(),
+            new TypeReference<List<LocatedSegmentDescriptor>>()
+            {
+            }
+        )) {
+          if (full) {
+            writer.println(PREFIX[0] + located);
+          } else {
+            StringBuilder b = new StringBuilder();
+            b.append(located.getInterval()).append('[').append(located.getPartitionNumber()).append(']').append(' ');
+            b.append('(').append(located.getVersion()).append(')');
+            b.append(" = ");
+            b.append(
+                String.join(
+                    ", ",
+                    Lists.transform(
+                        located.getLocations(), new Function<DruidServerMetadata, String>()
+                        {
+                          @Override
+                          public String apply(DruidServerMetadata input)
+                          {
+                            return input.getName();
+                          }
+                        }
+                    )
+                )
+            );
+            writer.println(PREFIX[0] + b.toString());
+          }
+        }
+        break;
+      }
       default:
         writer.println(PREFIX[0] + "invalid command " + cursor.command());
     }
