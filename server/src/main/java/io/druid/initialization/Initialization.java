@@ -75,6 +75,7 @@ import java.net.URLClassLoader;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.ServiceLoader;
@@ -158,8 +159,17 @@ public class Initialization
         for (T module : ServiceLoader.load(clazz, loader)) {
           if (module instanceof DruidModule.WithServices) {
             for (Class service : ((DruidModule.WithServices)module).getServices()) {
-              log.info(".. Loading aux service [%s] for extension", service.getName());
-              Lists.newArrayList(ServiceLoader.load(service, loader));
+              log.info(".. Loading aux service [%s] for extension [%s]", service.getName(), module.getClass());
+              Iterator auxLoader = ServiceLoader.load(service, loader).iterator();
+              // for aux service, we can ignore loading failure (avatica.UnregisteredDriver, for example)
+              while (auxLoader.hasNext()) {
+                try {
+                  auxLoader.next();   // loaded here
+                }
+                catch (Throwable e) {
+                  log.info(e, ".... Failed to load one of aux service.. ignoring");
+                }
+              }
             }
           }
           final String moduleName = module.getClass().getCanonicalName();
