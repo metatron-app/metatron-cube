@@ -607,6 +607,8 @@ public interface BuiltinFunctions extends Function.Library
 
   abstract class AbstractPythonFunc extends ExprType.IndecisiveFunction implements Function.External, Factory
   {
+    static final boolean init;
+
     static {
       Properties prop = new Properties();
       String pythonHome = System.getProperty("python.home", System.getProperty("user.home") + "/jython2.7.0");
@@ -656,8 +658,10 @@ public interface BuiltinFunctions extends Function.Library
               }
             }
         );
+        init = true;
       } else {
         log.info("invalid or absent of python.home in system environment..");
+        init = false;
       }
     }
 
@@ -668,7 +672,7 @@ public interface BuiltinFunctions extends Function.Library
       return index < params.length ? params[index] : "p" + index;
     }
 
-    final PythonInterpreter p = new PythonInterpreter();
+    final PythonInterpreter p = init ? new PythonInterpreter() : null;
 
     final ExprEval toExprEval(PyObject result)
     {
