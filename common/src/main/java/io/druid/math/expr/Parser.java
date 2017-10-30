@@ -294,10 +294,7 @@ public class Parser
       public ExprType type(String name)
       {
         ExprType type = bindings.get(name);
-        if (type == null) {
-          throw new RuntimeException("No binding found for " + name);
-        }
-        return type;
+        return type == null ? ExprType.UNKNOWN : type;
       }
     };
   }
@@ -310,10 +307,7 @@ public class Parser
       public ExprType type(String name)
       {
         DSuppliers.Typed supplier = bindings.get(name);
-        if (supplier == null) {
-          throw new RuntimeException("No binding found for " + name);
-        }
-        return ExprType.bestEffortOf(supplier.type().typeName());
+        return supplier == null ? ExprType.UNKNOWN : ExprType.bestEffortOf(supplier.type().typeName());
       }
     };
   }
@@ -326,10 +320,7 @@ public class Parser
       public ExprType type(String name)
       {
         ValueDesc valueType = bindings.resolveColumn(name);
-        if (valueType == null) {
-          throw new RuntimeException("No binding found for " + name);
-        }
-        return ExprType.typeOf(valueType);
+        return valueType == null ? ExprType.UNKNOWN : ExprType.typeOf(valueType);
       }
     };
   }
