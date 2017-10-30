@@ -191,7 +191,10 @@ public class SummaryPostProcessor extends PostProcessingOperator.UnionSupport
               }
               final ItemsSketch itemsSketch = sketch.value();
               final ValueType type = sketch.type();
-              Object[] quantiles = (Object[]) SketchQuantilesOp.QUANTILES.calculate(itemsSketch, 11);
+              Object[] quantiles = (Object[]) SketchQuantilesOp.QUANTILES.calculate(
+                  itemsSketch,
+                  SketchQuantilesOp.DEFAULT_QUANTILE_PARAM
+              );
               result.put("type", type);
               if (typeDetail != null && typeDetail.containsKey(column)) {
                 result.put("typeDetail", typeDetail.get(column));

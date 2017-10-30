@@ -62,7 +62,7 @@ public class QueryUtils
       DimFilter filter,
       DataSource dataSource,
       String column,
-      int evenSpaced,
+      int slopedSpaced,
       int evenCounted
   )
   {
@@ -70,7 +70,7 @@ public class QueryUtils
     Object postProc = ImmutableMap.<String, Object>of(
         "type", "sketch.quantiles",
         "op", "QUANTILES",
-        "evenSpaced", evenSpaced > 0 ? evenSpaced + 1 : -1,
+        "slopedSpaced", slopedSpaced > 0 ? slopedSpaced + 1 : -1,
         "evenCounted", evenCounted > 0 ? evenCounted : -1
     );
 
