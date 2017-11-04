@@ -29,16 +29,22 @@ import com.google.inject.name.Named;
 import com.google.inject.name.Names;
 import com.google.inject.util.Providers;
 import com.metamx.common.lifecycle.Lifecycle;
+import com.metamx.common.logger.Logger;
 import com.metamx.emitter.core.Emitter;
+import com.metamx.emitter.core.HttpEmitterConfig;
 import com.metamx.emitter.core.HttpPostEmitter;
-import com.metamx.http.client.HttpClientConfig;
-import com.metamx.http.client.HttpClientInit;
 import io.druid.guice.JsonConfigProvider;
 import io.druid.guice.LazySingleton;
 import io.druid.guice.ManageLifecycle;
+import io.netty.handler.ssl.ClientAuth;
+import io.netty.handler.ssl.JdkSslContext;
+import org.asynchttpclient.AsyncHttpClient;
+import org.asynchttpclient.DefaultAsyncHttpClient;
+import org.asynchttpclient.DefaultAsyncHttpClientConfig;
 
 import javax.annotation.Nullable;
 import javax.net.ssl.SSLContext;
+import java.io.Closeable;
 import java.security.NoSuchAlgorithmException;
 
 /**
@@ -71,38 +77,42 @@ public class HttpEmitterModule implements Module
       ObjectMapper jsonMapper
   )
   {
-    return createEmitter(config, sslContext, lifecycle, jsonMapper);
-  }
-
-  @Provides
-  @ManageLifecycle
-  @Named("event.http")
-  public Emitter getEventEmitter(
-      @Named("event.http") Supplier<HttpEmitterConfig> config,
-      @Nullable SSLContext sslContext,
-      Lifecycle lifecycle,
-      ObjectMapper jsonMapper
-  )
-  {
-    return createEmitter(config, sslContext, lifecycle, jsonMapper);
-  }
-
-  private Emitter createEmitter(
-      Supplier<HttpEmitterConfig> config,
-      SSLContext sslContext,
-      Lifecycle lifecycle,
-      ObjectMapper jsonMapper
-  )
-  {
-    final HttpClientConfig.Builder builder = HttpClientConfig
-        .builder()
-        .withNumConnections(1)
-        .withReadTimeout(config.get().getReadTimeout().toStandardDuration());
-
+    final DefaultAsyncHttpClientConfig.Builder builder = new DefaultAsyncHttpClientConfig.Builder();
     if (sslContext != null) {
-      builder.withSslContext(sslContext);
+      builder.setSslContext(new JdkSslContext(sslContext, true, ClientAuth.NONE));
+    }
+    final AsyncHttpClient client = new DefaultAsyncHttpClient(builder.build());
+    lifecycle.addHandler(new CloseableHandler(client));
+
+    return new HttpPostEmitter(config.get(), client, jsonMapper);
+  }
+
+  private static class CloseableHandler implements Lifecycle.Handler
+  {
+    private static final Logger log = new Logger(CloseableHandler.class);
+    private final Closeable o;
+
+    private CloseableHandler(Closeable o)
+    {
+      this.o = o;
     }
 
-    return new HttpPostEmitter(config.get(), HttpClientInit.createClient(builder.build(), lifecycle), jsonMapper);
+    @Override
+    public void start() throws Exception
+    {
+      // do nothing
+    }
+
+    @Override
+    public void stop()
+    {
+      log.info("Closing object[%s]", o);
+      try {
+        o.close();
+      }
+      catch (Exception e) {
+        log.error(e, "Exception when closing object [%s]", o);
+      }
+    }
   }
 }

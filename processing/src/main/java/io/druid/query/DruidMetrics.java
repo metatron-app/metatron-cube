@@ -22,7 +22,6 @@ package io.druid.query;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Function;
-import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.metamx.emitter.service.ServiceMetricEvent;
@@ -41,7 +40,6 @@ public class DruidMetrics
   public final static String ID = "id";
   public final static String TASK_ID = "taskId";
   public final static String STATUS = "status";
-  public final static String VERSION = "version";
 
   // task metrics
   public final static String TASK_TYPE = "taskType";
@@ -65,7 +63,6 @@ public class DruidMetrics
   public static <T> ServiceMetricEvent.Builder makePartialQueryTimeMetric(Query<T> query)
   {
     return new ServiceMetricEvent.Builder()
-        .setDimension(VERSION, Strings.nullToEmpty(DruidMetrics.class.getPackage().getImplementationVersion()))
         .setDimension(DATASOURCE, DataSourceUtil.getMetricName(query.getDataSource()))
         .setDimension(TYPE, query.getType())
         .setDimension(
