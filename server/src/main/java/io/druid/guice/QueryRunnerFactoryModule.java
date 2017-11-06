@@ -30,6 +30,8 @@ import io.druid.query.datasourcemetadata.DataSourceMetadataQueryRunnerFactory;
 import io.druid.query.groupby.GroupByQuery;
 import io.druid.query.groupby.GroupByQueryEngine;
 import io.druid.query.groupby.GroupByQueryRunnerFactory;
+import io.druid.query.kmeans.FindNearestQuery;
+import io.druid.query.kmeans.FindNearestQueryRunnerFactory;
 import io.druid.query.metadata.SegmentMetadataQueryRunnerFactory;
 import io.druid.query.metadata.metadata.SegmentMetadataQuery;
 import io.druid.query.search.SearchQueryRunnerFactory;
@@ -70,6 +72,7 @@ public class QueryRunnerFactoryModule extends QueryToolChestModule
                   .put(StreamRawQuery.class, StreamRawQueryRunnerFactory.class)
                   .put(TopNQuery.class, TopNQueryRunnerFactory.class)
                   .put(DataSourceMetadataQuery.class, DataSourceMetadataQueryRunnerFactory.class)
+                  .put(FindNearestQuery.class, FindNearestQueryRunnerFactory.class)
                   .build();
 
   @Override

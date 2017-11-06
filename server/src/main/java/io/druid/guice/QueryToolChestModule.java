@@ -30,6 +30,8 @@ import io.druid.query.datasourcemetadata.DataSourceQueryQueryToolChest;
 import io.druid.query.groupby.GroupByQuery;
 import io.druid.query.groupby.GroupByQueryConfig;
 import io.druid.query.groupby.GroupByQueryQueryToolChest;
+import io.druid.query.kmeans.FindNearestQuery;
+import io.druid.query.kmeans.FindNearestQueryToolChest;
 import io.druid.query.metadata.SegmentMetadataQueryConfig;
 import io.druid.query.metadata.SegmentMetadataQueryQueryToolChest;
 import io.druid.query.metadata.metadata.SegmentMetadataQuery;
@@ -75,6 +77,7 @@ public class QueryToolChestModule implements Module
                   .put(SelectForwardQuery.class, SelectForwardQueryToolChest.class)
                   .put(TopNQuery.class, TopNQueryQueryToolChest.class)
                   .put(DataSourceMetadataQuery.class, DataSourceQueryQueryToolChest.class)
+                  .put(FindNearestQuery.class, FindNearestQueryToolChest.class)
                   .build();
 
   @Override

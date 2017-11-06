@@ -24,6 +24,7 @@ import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.fasterxml.jackson.databind.module.SimpleModule;
 import com.google.common.hash.Hashing;
 import io.druid.data.ValueType;
+import io.druid.query.SelectEachQuery;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.ArrayAggregatorFactory;
 import io.druid.query.aggregation.ArrayMetricSerde;
@@ -88,6 +89,9 @@ public class AggregatorsModule extends SimpleModule
 
     setMixInAnnotation(AggregatorFactory.class, AggregatorFactoryMixin.class);
     setMixInAnnotation(PostAggregator.class, PostAggregatorMixin.class);
+
+    // for test
+    registerSubtypes(SelectEachQuery.class);
   }
 
   @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")

@@ -23,19 +23,22 @@ import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.Ordering;
+import com.metamx.common.Pair;
 import com.metamx.common.guava.Sequence;
 import io.druid.query.datasourcemetadata.DataSourceMetadataQuery;
 import io.druid.query.dimension.DimensionSpec;
 import io.druid.query.filter.DimFilter;
 import io.druid.query.groupby.GroupByQuery;
 import io.druid.query.groupby.PartitionedGroupByQuery;
+import io.druid.query.kmeans.FindNearestQuery;
+import io.druid.query.kmeans.KMeansQuery;
 import io.druid.query.metadata.metadata.SegmentMetadataQuery;
 import io.druid.query.search.search.SearchQuery;
-import io.druid.query.select.StreamRawQuery;
 import io.druid.query.select.SelectForwardQuery;
 import io.druid.query.select.SelectMetaQuery;
 import io.druid.query.select.SelectQuery;
 import io.druid.query.select.StreamQuery;
+import io.druid.query.select.StreamRawQuery;
 import io.druid.query.spec.QuerySegmentSpec;
 import io.druid.query.timeboundary.TimeBoundaryQuery;
 import io.druid.query.timeseries.TimeseriesQuery;
@@ -64,6 +67,8 @@ import java.util.Map;
     @JsonSubTypes.Type(name = Query.JOIN, value = JoinQuery.class),
     @JsonSubTypes.Type(name = Query.GROUP_BY_PARTITIONED, value = PartitionedGroupByQuery.class),
     @JsonSubTypes.Type(name = Query.SELECT_DELEGATE, value = SelectForwardQuery.class),
+    @JsonSubTypes.Type(name = "kmeans", value = KMeansQuery.class),
+    @JsonSubTypes.Type(name = "kmeans.nearest", value = FindNearestQuery.class),
 })
 public interface Query<T> extends QueryContextKeys
 {
@@ -81,6 +86,7 @@ public interface Query<T> extends QueryContextKeys
   String TOPN = "topN";
   String DATASOURCE_METADATA = "dataSourceMetadata";
   String UNION_ALL = "unionAll";
+  String ITERATE = "iterate";
   String JOIN = "join";
 
   DataSource getDataSource();
@@ -164,5 +170,10 @@ public interface Query<T> extends QueryContextKeys
   interface RewritingQuery<T> extends Query<T>
   {
     Query rewriteQuery(QuerySegmentWalker segmentWalker, ObjectMapper jsonMapper);
+  }
+
+  interface IteratingQuery<INTERMEDIATE, FINAL>
+  {
+    Pair<Sequence<FINAL>, Query<INTERMEDIATE>> next(Sequence<INTERMEDIATE> sequence, Query<INTERMEDIATE> prev);
   }
 }

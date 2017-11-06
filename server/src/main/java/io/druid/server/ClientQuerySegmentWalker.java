@@ -61,6 +61,7 @@ import org.joda.time.Interval;
 
 import java.io.Closeable;
 import java.io.IOException;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Callable;
@@ -135,6 +136,10 @@ public class ClientQuerySegmentWalker implements QuerySegmentWalker
       return getUnionQueryRunner((UnionAllQuery) query, objectMapper);
     }
 
+    if (query instanceof Query.IteratingQuery) {
+      return getIteratingQueryRunner((Query.IteratingQuery) query);
+    }
+
     FluentQueryRunnerBuilder<T> builder = new FluentQueryRunnerBuilder<>(toolChest);
     FluentQueryRunnerBuilder.FluentQueryRunner runner = builder.create(
         new RetryQueryRunner<>(baseClient, toolChest, retryConfig, objectMapper)
@@ -148,6 +153,45 @@ public class ClientQuerySegmentWalker implements QuerySegmentWalker
                      .emitCPUTimeMetric(emitter);
     }
     return runner.postProcess(PostProcessingOperators.load(query, objectMapper));
+  }
+
+  private <I, T> QueryRunner<T> getIteratingQueryRunner(final Query.IteratingQuery<I, T> iterating)
+  {
+    return new QueryRunner<T>()
+    {
+      @Override
+      public Sequence<T> run(Query<T> query, final Map<String, Object> responseContext)
+      {
+        return Sequences.concat(
+            new Iterable<Sequence<T>>()
+            {
+              @Override
+              public Iterator<Sequence<T>> iterator()
+              {
+                return new Iterator<Sequence<T>>()
+                {
+                  private Query<I> query = iterating.next(null, null).rhs;
+
+                  @Override
+                  public boolean hasNext()
+                  {
+                    return query != null;
+                  }
+
+                  @Override
+                  public Sequence<T> next()
+                  {
+                    Sequence<I> sequence = makeRunner(query, false).run(query, responseContext);
+                    Pair<Sequence<T>, Query<I>> next = iterating.next(sequence, query);
+                    query = next.rhs;
+                    return next.lhs;
+                  }
+                };
+              }
+            }
+        );
+      }
+    };
   }
 
   private <T extends Comparable<T>> QueryRunner<T> getUnionQueryRunner(
