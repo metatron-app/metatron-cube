@@ -28,7 +28,6 @@ import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import com.google.common.primitives.Longs;
 import com.metamx.common.guava.Accumulator;
-import com.metamx.common.guava.Sequence;
 import com.metamx.common.guava.Sequences;
 import com.metamx.common.logger.Logger;
 import io.druid.common.utils.StringUtils;
@@ -41,6 +40,7 @@ import io.druid.query.metadata.metadata.ColumnAnalysis;
 import io.druid.query.metadata.metadata.SegmentMetadataQuery;
 import io.druid.segment.Cursor;
 import io.druid.segment.DimensionSelector;
+import io.druid.segment.ObjectColumnSelector;
 import io.druid.segment.QueryableIndex;
 import io.druid.segment.Segment;
 import io.druid.segment.StorageAdapter;
@@ -53,6 +53,7 @@ import io.druid.segment.column.ComplexColumn;
 import io.druid.segment.data.IndexedInts;
 import io.druid.segment.serde.ComplexMetricSerde;
 import io.druid.segment.serde.ComplexMetrics;
+import org.apache.commons.lang.mutable.MutableInt;
 import org.joda.time.Interval;
 
 import java.util.EnumSet;
@@ -208,17 +209,61 @@ public class SegmentAnalyzer
       serializedSize = storageAdapter.getSerializedSize(columnName);
     }
 
+    final boolean analyzingMinMax = analyzingMinMax();
+    final boolean analyzingNullCount = analyzingNullCount();
+
     Integer nullCount = null;
     Comparable minValue = null;
     Comparable maxValue = null;
-    if ((analyzingMinMax() || analyzingNullCount()) && column != null && column.getColumnStats() != null) {
+    boolean minMaxEvaluated = false;
+    if ((analyzingMinMax || analyzingNullCount) && column != null && column.getColumnStats() != null) {
       Map<String, Object> stats = column.getColumnStats();
-      if (analyzingMinMax()) {
+      if (analyzingMinMax) {
         minValue = (Comparable) stats.get("min");
         maxValue = (Comparable) stats.get("max");
+        minMaxEvaluated = stats.containsKey("min") && stats.containsKey("max");
       }
-      if (analyzingNullCount()) {
+      if (analyzingNullCount) {
         nullCount = (Integer) stats.get("numZeros");
+      }
+    }
+    if (analyzingMinMax && !minMaxEvaluated || analyzingNullCount && nullCount == null) {
+      Object[] accumulated = accumulate(
+          storageAdapter, new Object[]{null, null, new MutableInt()}, new Accumulator<Object[], Cursor>()
+          {
+            @Override
+            @SuppressWarnings("unchecked")
+            public Object[] accumulate(Object[] accumulated, Cursor cursor)
+            {
+              if (!ValueDesc.isNumeric(cursor.getColumnType(columnName))) {
+                return accumulated;
+              }
+              ObjectColumnSelector selector = cursor.makeObjectColumnSelector(columnName);
+              for (; !cursor.isDone(); cursor.advance()) {
+                Comparable comparable = (Comparable) selector.get();
+                if (comparable == null) {
+                  ((MutableInt) accumulated[2]).increment();
+                  continue;
+                }
+                if (analyzingMinMax) {
+                  if (accumulated[0] == null || comparable.compareTo(accumulated[0]) < 0) {
+                    accumulated[0] = comparable;
+                  }
+                  if (accumulated[1] == null || comparable.compareTo(accumulated[1]) > 0) {
+                    accumulated[1] = comparable;
+                  }
+                }
+              }
+              return accumulated;
+            }
+          }
+      );
+      if (analyzingMinMax) {
+        minValue = (Comparable) accumulated[0];
+        maxValue = (Comparable) accumulated[1];
+      }
+      if (analyzingNullCount) {
+        nullCount = ((MutableInt) accumulated[2]).intValue();
       }
     }
     return new ColumnAnalysis(
@@ -331,21 +376,8 @@ public class SegmentAnalyzer
 
     final long[] accumulated = new long[] {0, 0};
     if (analyzeNullCount || analyzingSize) {
-      final long start = storageAdapter.getMinTime().getMillis();
-      final long end = storageAdapter.getMaxTime().getMillis();
-
-      final Sequence<Cursor> cursors =
-          storageAdapter.makeCursors(
-              null,
-              new Interval(start, end),
-              VirtualColumns.EMPTY,
-              QueryGranularities.ALL,
-              null,
-              false
-          );
-
-      cursors.accumulate(
-          accumulated,
+      accumulate(
+          storageAdapter, accumulated,
           new Accumulator<long[], Cursor>()
           {
             @Override
@@ -447,5 +479,12 @@ public class SegmentAnalyzer
         null,
         null
     );
+  }
+
+  private <T> T accumulate(StorageAdapter storageAdapter, T initial, Accumulator<T, Cursor> accumulator)
+  {
+    Interval interval = new Interval(storageAdapter.getMinTime(), storageAdapter.getMaxTime());
+    return storageAdapter.makeCursors(null, interval, VirtualColumns.EMPTY, QueryGranularities.ALL, null, false)
+                         .accumulate(initial, accumulator);
   }
 }

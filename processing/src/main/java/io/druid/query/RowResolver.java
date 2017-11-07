@@ -25,13 +25,16 @@ import com.google.common.collect.Maps;
 import com.metamx.common.Pair;
 import io.druid.data.TypeResolver;
 import io.druid.data.ValueDesc;
+import io.druid.data.ValueType;
 import io.druid.query.filter.BitmapType;
 import io.druid.query.filter.DimFilter;
 import io.druid.segment.QueryableIndex;
 import io.druid.segment.StorageAdapter;
 import io.druid.segment.VirtualColumn;
 import io.druid.segment.VirtualColumns;
+import io.druid.segment.column.Column;
 import io.druid.segment.column.ColumnCapabilities;
+import io.druid.segment.column.ColumnCapabilitiesImpl;
 import io.druid.segment.data.IndexedID;
 import io.druid.segment.filter.Filters;
 import io.druid.segment.serde.ComplexMetricSerde;
@@ -138,6 +141,8 @@ public class RowResolver implements TypeResolver
       columnTypes.put(metric, adapter.getColumnType(metric));
       columnCapabilities.put(metric, adapter.getColumnCapabilities(metric));
     }
+    columnTypes.put(Column.TIME_COLUMN_NAME, ValueDesc.of(ValueType.LONG));
+    columnCapabilities.put(Column.TIME_COLUMN_NAME, ColumnCapabilitiesImpl.of(ValueType.LONG));
     this.virtualColumns = virtualColumns;
   }
 
@@ -147,6 +152,8 @@ public class RowResolver implements TypeResolver
       columnTypes.put(dimension, index.getColumnType(dimension));
       columnCapabilities.put(dimension, index.getColumn(dimension).getCapabilities());
     }
+    columnTypes.put(Column.TIME_COLUMN_NAME, index.getColumnType(Column.TIME_COLUMN_NAME));
+    columnCapabilities.put(Column.TIME_COLUMN_NAME, index.getColumn(Column.TIME_COLUMN_NAME).getCapabilities());
     this.virtualColumns = virtualColumns;
   }
 

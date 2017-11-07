@@ -235,21 +235,21 @@ public class ValueDesc
 
   public static boolean isMap(ValueDesc type)
   {
-    return type.typeName.equals(MAP_TYPE);
+    return type != null && type.typeName.equals(MAP_TYPE);
   }
 
   public static boolean isString(ValueDesc type)
   {
-    return type.type == ValueType.STRING;
+    return type != null && type.type == ValueType.STRING;
   }
 
   public static boolean isPrimitive(ValueDesc type)
   {
-    return type.type.isPrimitive();
+    return type != null && type.type.isPrimitive();
   }
 
   public static boolean isNumeric(ValueDesc type)
   {
-    return type.type.isNumeric();
+    return type != null && type.type.isNumeric();
   }
 }

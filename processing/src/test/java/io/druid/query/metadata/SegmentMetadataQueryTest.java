@@ -168,8 +168,8 @@ public class SegmentMetadataQueryTest
                 false,
                 12090,
                 null,
-                null,
-                null,
+                1294790400000L,
+                1302739200000L,
                 null
             ),
             "placement",
@@ -188,8 +188,8 @@ public class SegmentMetadataQueryTest
                 false,
                 14508,
                 null,
-                null,
-                null,
+                59.02102279663086D,
+                1870.06103515625D,
                 null
             )
         ), mmap1 ? 98580 : 99353,
@@ -209,8 +209,8 @@ public class SegmentMetadataQueryTest
                 false,
                 12090,
                 null,
-                null,
-                null,
+                1294790400000L,
+                1302739200000L,
                 null
             ),
             "placement",
@@ -229,8 +229,8 @@ public class SegmentMetadataQueryTest
                 false,
                 14508,
                 null,
-                null,
-                null,
+                59.02102279663086D,
+                1870.06103515625D,
                 null
             )
         // null_column will be included only for incremental index, which makes a little bigger result than expected
@@ -576,8 +576,8 @@ public class SegmentMetadataQueryTest
                 false,
                 12090 * 2,
                 null,
-                null,
-                null,
+                1294790400000L,
+                1302739200000L,
                 null
             ),
             "index",
@@ -586,8 +586,8 @@ public class SegmentMetadataQueryTest
                 false,
                 14508 * 2,
                 null,
-                null,
-                null,
+                59.02102279663086D,
+                1870.06103515625D,
                 null
             ),
             column,
