@@ -260,22 +260,20 @@ public class GroupByQueryEngine
         final Integer position = positions.get(wrapper);
 
         if (position == null) {
-          int allocated = positionMaintainer.getNext();
+          final int allocated = positionMaintainer.getNext();
           if (allocated < 0) {
             return Lists.newArrayList(key);
           }
           positions.put(wrapper, allocated);
 
           for (int i = 0; i < aggregators.length; ++i) {
-            aggregators[i].init(metricValues, allocated);
-            aggregators[i].aggregate(metricValues, allocated);
-            allocated += increments[i];
+            aggregators[i].init(metricValues, allocated + increments[i]);
+            aggregators[i].aggregate(metricValues, allocated + increments[i]);
           }
         } else {
-          int allocated = position;
+          final int allocated = position;
           for (int i = 0; i < aggregators.length; ++i) {
-            aggregators[i].aggregate(metricValues, allocated);
-            allocated += increments[i];
+            aggregators[i].aggregate(metricValues, allocated + increments[i]);
           }
         }
         return null;
@@ -298,13 +296,8 @@ public class GroupByQueryEngine
     )
     {
       this.nextVal = start;
+      this.increment = increments[increments.length - 1];
       this.increments = increments;
-
-      int theIncrement = 0;
-      for (int increment : increments) {
-        theIncrement += increment;
-      }
-      this.increment = theIncrement;
 
       this.max = max - increment; // Make sure there is enough room for one more increment
     }
@@ -342,7 +335,7 @@ public class GroupByQueryEngine
     private final AggregatorFactory[] aggregatorSpecs;
     private final BufferAggregator[] aggregators;
     private final String[] metricNames;
-    private final int[] sizesRequired;
+    private final int[] increments;
 
     private final List<PostAggregator> postAggregators;
 
@@ -401,12 +394,12 @@ public class GroupByQueryEngine
       aggregatorSpecs = query.getAggregatorSpecs().toArray(new AggregatorFactory[0]);
       aggregators = new BufferAggregator[aggregatorSpecs.length];
       metricNames = new String[aggregatorSpecs.length];
-      sizesRequired = new int[aggregatorSpecs.length];
+      increments = new int[aggregatorSpecs.length + 1];
       for (int i = 0; i < aggregatorSpecs.length; ++i) {
         AggregatorFactory aggregatorSpec = aggregatorSpecs[i];
         aggregators[i] = aggregatorSpec.factorizeBuffered(factory);
         metricNames[i] = aggregatorSpec.getName();
-        sizesRequired[i] = aggregatorSpec.getMaxIntermediateSize();
+        increments[i + 1] = increments[i] + aggregatorSpec.getMaxIntermediateSize();
       }
       postAggregators = PostAggregators.decorate(query.getPostAggregatorSpecs(), aggregatorSpecs);
     }
@@ -422,7 +415,7 @@ public class GroupByQueryEngine
         return false;
       }
 
-      final PositionMaintainer positionMaintainer = new PositionMaintainer(0, sizesRequired, metricsBuffer.remaining());
+      final PositionMaintainer positionMaintainer = new PositionMaintainer(0, increments, metricsBuffer.remaining());
       final RowUpdater rowUpdater = new RowUpdater(metricsBuffer, aggregators, positionMaintainer, maxIntermediateRows);
       if (unprocessedKeys != null) {
         for (int[] key : unprocessedKeys) {
@@ -473,17 +466,15 @@ public class GroupByQueryEngine
 
                   final int[] keyArray = input.getKey().array;
                   for (int i = 0; i < dimensions.length; ++i) {
-                    final DimensionSelector dimSelector = dimensions[i];
                     final int dimVal = keyArray[i];
                     if (dimVal >= 0) {
-                      theEvent.put(dimNames[i], dimSelector.lookupName(dimVal));
+                      theEvent.put(dimNames[i], dimensions[i].lookupName(dimVal));
                     }
                   }
 
-                  int position = input.getValue();
+                  final int position = input.getValue();
                   for (int i = 0; i < aggregators.length; ++i) {
-                    theEvent.put(metricNames[i], aggregators[i].get(metricsBuffer, position));
-                    position += increments[i];
+                    theEvent.put(metricNames[i], aggregators[i].get(metricsBuffer, position + increments[i]));
                   }
 
                   for (PostAggregator postAggregator : postAggregators) {

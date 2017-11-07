@@ -253,12 +253,15 @@ public class GroupByQueryRunnerFactory implements QueryRunnerFactory<Row, GroupB
                 for (Integer merging : Futures.getUnchecked(future)) {
                   counter += merging;
                 }
+                // needs sorting for faster iteration (sorting in IncrementalIndex)
                 final String[] array = merged.toArray(new String[merged.size()]);
-                Arrays.sort(array);
+                long sorting = System.currentTimeMillis();
+                Arrays.parallelSort(array);
                 sorted.set(array);
+                long current = System.currentTimeMillis();
                 log.info(
-                    "Merged %,d words into %,d dictionary in %,d msec",
-                    counter, merged.size(), (System.currentTimeMillis() - start)
+                    "Merged %,d words into %,d dictionary in %,d msec (%,d msec for sorting)",
+                    counter, merged.size(), current - start, current - sorting
                 );
               }
               catch (Throwable t) {
