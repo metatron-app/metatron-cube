@@ -22,6 +22,7 @@ package io.druid.segment;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.inject.Provider;
+import io.druid.segment.data.DictionaryLoader;
 
 import java.util.List;
 import java.util.Map;
@@ -71,6 +72,39 @@ public class SharedDictionary
     public synchronized T getValue(int id)
     {
       return idToValue.get(id);
+    }
+
+    public synchronized List<T> values()
+    {
+      return Lists.<T>newArrayList(idToValue);
+    }
+
+    public MappingCollector<T> collector(int size)
+    {
+      return new MappingCollector<>(this, size);
+    }
+  }
+
+  public static class MappingCollector<T> implements DictionaryLoader.Collector<T>
+  {
+    private final Mapping<T> mapping;
+    private final int[] map;
+
+    private MappingCollector(Mapping<T> mapping, int size)
+    {
+      this.mapping = mapping;
+      this.map = new int[size];
+    }
+
+    @Override
+    public void collect(int id, T value)
+    {
+      map[id] = mapping.getId(value);
+    }
+
+    public int[] mapping()
+    {
+      return map;
     }
   }
 }

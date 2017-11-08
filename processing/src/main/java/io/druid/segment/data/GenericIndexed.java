@@ -20,7 +20,6 @@
 package io.druid.segment.data;
 
 import com.google.common.base.Preconditions;
-import com.google.common.collect.Lists;
 import com.google.common.primitives.Ints;
 import com.metamx.common.IAE;
 import com.metamx.common.guava.CloseQuietly;
@@ -36,9 +35,7 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.WritableByteChannel;
 import java.util.Arrays;
-import java.util.Collection;
 import java.util.Iterator;
-import java.util.List;
 import java.util.Map;
 
 /**
@@ -128,6 +125,15 @@ public class GenericIndexed<T> implements Indexed<T>, DictionaryLoader<T>, Colum
   public int size()
   {
     return bufferIndexed.size();
+  }
+
+  @Override
+  public void collect(Collector<T> collector)
+  {
+    final ByteBuffer buffer = bufferAsReadOnly();
+    for (int i = 0; i < size; i++) {
+      collector.collect(i, loadValue(buffer, i));
+    }
   }
 
   @Override
@@ -233,17 +239,6 @@ public class GenericIndexed<T> implements Indexed<T>, DictionaryLoader<T>, Colum
     );
   }
 
-  @SuppressWarnings("unchecked")
-  public Collection<T> loadFully()
-  {
-    final List<T> loaded = Lists.newArrayListWithCapacity(size);
-    final ByteBuffer buffer = bufferAsReadOnly();
-    for (int i = 0; i < size; i++) {
-      loaded.add(loadValue(buffer, i));
-    }
-    return loaded;
-  }
-
   protected final ByteBuffer bufferAsReadOnly()
   {
     return theBuffer.asReadOnlyBuffer();
@@ -256,8 +251,6 @@ public class GenericIndexed<T> implements Indexed<T>, DictionaryLoader<T>, Colum
 
   class BufferIndexed implements Indexed<T>
   {
-    int lastReadSize;
-
     @Override
     public Class<? extends T> getClazz()
     {
@@ -331,22 +324,9 @@ public class GenericIndexed<T> implements Indexed<T>, DictionaryLoader<T>, Colum
       }
 
       copyBuffer.position(valuesOffset + startOffset);
-      final int size = endOffset - startOffset;
-      lastReadSize = size;
+
       // fromByteBuffer must not modify the buffer limit
-      final T value = strategy.fromByteBuffer(copyBuffer, size);
-
-      return value;
-    }
-
-    /**
-     * This method makes no guarantees with respect to thread safety
-     *
-     * @return the size in bytes of the last value read
-     */
-    public int getLastValueSize()
-    {
-      return lastReadSize;
+      return strategy.fromByteBuffer(copyBuffer, endOffset - startOffset);
     }
 
     @Override
@@ -597,15 +577,12 @@ public class GenericIndexed<T> implements Indexed<T>, DictionaryLoader<T>, Colum
     }
 
     @Override
-    @SuppressWarnings("unchecked")
-    public Collection<T> loadFully()
+    public void collect(Collector<T> collector)
     {
       Preconditions.checkArgument(cachedValues.length == size());
-      final List<T> loaded = Lists.newArrayList();
-      for (int i = 0; i < cachedValues.length; i++) {
-        loaded.add(get(i));
+      for (int i = 0; i < size; i++) {
+        collector.collect(i, get(i));
       }
-      return loaded;
     }
   }
 }

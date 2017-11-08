@@ -67,7 +67,6 @@ import org.roaringbitmap.IntIterator;
 
 import java.nio.ByteBuffer;
 import java.util.Arrays;
-import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -167,11 +166,7 @@ public class GroupByQueryRunnerFactory implements QueryRunnerFactory<Row, GroupB
           columns.put(dimension.getOutputName(), dictionaries = Lists.newArrayList());
         }
         Column column = index.getColumn(dimensionName);
-        if (column == null) {
-          dictionaries.add(DictionaryLoader.nullLoader);
-          continue;
-        }
-        if (!column.getCapabilities().isDictionaryEncoded()) {
+        if (column == null || !column.getCapabilities().isDictionaryEncoded()) {
           return null;
         }
         final GenericIndexed<String> dictionary = column.getDictionary();
@@ -199,14 +194,13 @@ public class GroupByQueryRunnerFactory implements QueryRunnerFactory<Row, GroupB
                 }
 
                 @Override
-                public Collection<String> loadFully()
+                public void collect(Collector<String> collector)
                 {
                   final IntIterator iterator = bitmap.iterator();
-                  final List<String> values = Lists.newArrayListWithCapacity(bitmap.size());
                   while (iterator.hasNext()) {
-                    values.add(dictionary.get(iterator.next()));
+                    final int id = iterator.next();
+                    collector.collect(id, dictionary.get(id));
                   }
-                  return values;
                 }
               }
           );
@@ -223,6 +217,14 @@ public class GroupByQueryRunnerFactory implements QueryRunnerFactory<Row, GroupB
       final String outputName = entry.getKey();
       final Set<String> merged = Sets.newConcurrentHashSet();
       final List<ListenableFuture<Integer>> elements = Lists.newArrayList();
+      final DictionaryLoader.Collector<String> collector = new DictionaryLoader.Collector<String>()
+      {
+        @Override
+        public void collect(int id, String value)
+        {
+          merged.add(Strings.nullToEmpty(value));
+        }
+      };
       for (final DictionaryLoader<String> dictionary : entry.getValue()) {
         elements.add(
             executor.submit(
@@ -231,9 +233,7 @@ public class GroupByQueryRunnerFactory implements QueryRunnerFactory<Row, GroupB
                   @Override
                   public Integer call()
                   {
-                    for (String value : dictionary.loadFully()) {
-                      merged.add(Strings.nullToEmpty(value));
-                    }
+                    dictionary.collect(collector);
                     return dictionary.size();
                   }
                 }

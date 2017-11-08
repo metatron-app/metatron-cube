@@ -37,5 +37,4 @@ public interface DictionaryEncodedColumn extends Closeable
   public int getCardinality();
 
   public GenericIndexed<String> dictionary();
-  public Iterable<String> loadAll();
 }

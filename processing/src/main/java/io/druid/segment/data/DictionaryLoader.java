@@ -19,29 +19,16 @@
 
 package io.druid.segment.data;
 
-import java.util.Arrays;
-import java.util.Collection;
-
 /**
  */
 public interface DictionaryLoader<T>
 {
   int size();
 
-  Collection<T> loadFully();
+  void collect(Collector<T> collector);
 
-  DictionaryLoader<String> nullLoader = new DictionaryLoader<String>()
+  interface Collector<T>
   {
-    @Override
-    public int size()
-    {
-      return 1;
-    }
-
-    @Override
-    public Collection<String> loadFully()
-    {
-      return Arrays.asList((String)null);
-    }
-  };
+    void collect(int id, T value);
+  }
 }

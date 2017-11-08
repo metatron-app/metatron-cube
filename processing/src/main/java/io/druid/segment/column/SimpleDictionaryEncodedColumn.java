@@ -105,10 +105,4 @@ public class SimpleDictionaryEncodedColumn
       multiValueColumn.close();
     }
   }
-
-  @Override
-  public Iterable<String> loadAll()
-  {
-    return delegate.loadFully();
-  }
 }
