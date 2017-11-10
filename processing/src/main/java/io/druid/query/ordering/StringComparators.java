@@ -46,13 +46,14 @@ public class StringComparators
   public static final String INTEGER_NAME = "integer";
   public static final String FLOATING_POINT_NAME = "floatingpoint";
   public static final String DAY_OF_WEEK_NAME = "dayofweek";
-  
+  public static final String MONTH_NAME = "month";
+
   public static final LexicographicComparator LEXICOGRAPHIC = new LexicographicComparator();
   public static final AlphanumericComparator ALPHANUMERIC = new AlphanumericComparator();
   public static final IntegerComparator INTEGER = new IntegerComparator();
   public static final FloatingPointComparator FLOATING_POINT = new FloatingPointComparator();
   public static final DayOfWeekComparator DAY_OF_WEEK = new DayOfWeekComparator(null);
-  public static final DayOfWeekComparator DAY_OF_WEEK_KR = new DayOfWeekComparator(Locale.KOREA);
+  public static final MonthComparator MONTH = new MonthComparator(null);
 
   @JsonTypeInfo(use=Id.NAME, include=As.PROPERTY, property="type", defaultImpl = LexicographicComparator.class)
   @JsonSubTypes(value = {
@@ -60,7 +61,8 @@ public class StringComparators
       @JsonSubTypes.Type(name = StringComparators.ALPHANUMERIC_NAME, value = AlphanumericComparator.class),
       @JsonSubTypes.Type(name = StringComparators.INTEGER_NAME, value = IntegerComparator.class),
       @JsonSubTypes.Type(name = StringComparators.FLOATING_POINT_NAME, value = FloatingPointComparator.class),
-      @JsonSubTypes.Type(name = StringComparators.DAY_OF_WEEK_NAME, value = DayOfWeekComparator.class)
+      @JsonSubTypes.Type(name = StringComparators.DAY_OF_WEEK_NAME, value = DayOfWeekComparator.class),
+      @JsonSubTypes.Type(name = StringComparators.MONTH_NAME, value = MonthComparator.class)
   })
   public static interface StringComparator extends Comparator<String>
   {
@@ -465,6 +467,72 @@ public class StringComparators
     }
   }
 
+  public static class MonthComparator extends AbstractStringComparator implements StringComparator
+  {
+    private final Map<String, Integer> codes = Maps.newHashMap();
+
+    private MonthComparator(Locale locale)
+    {
+      DateFormatSymbols symbols = locale == null ? new DateFormatSymbols() : new DateFormatSymbols(locale);
+      String[] wd = symbols.getMonths();
+      String[] swd = symbols.getShortMonths();
+
+      codes.put(wd[Calendar.JANUARY].toUpperCase(), DateTimeConstants.JANUARY);
+      codes.put(swd[Calendar.JANUARY].toUpperCase(), DateTimeConstants.JANUARY);
+
+      codes.put(wd[Calendar.FEBRUARY].toUpperCase(), DateTimeConstants.FEBRUARY);
+      codes.put(swd[Calendar.FEBRUARY].toUpperCase(), DateTimeConstants.FEBRUARY);
+
+      codes.put(wd[Calendar.MARCH].toUpperCase(), DateTimeConstants.MARCH);
+      codes.put(swd[Calendar.MARCH].toUpperCase(), DateTimeConstants.MARCH);
+
+      codes.put(wd[Calendar.APRIL].toUpperCase(), DateTimeConstants.APRIL);
+      codes.put(swd[Calendar.APRIL].toUpperCase(), DateTimeConstants.APRIL);
+
+      codes.put(wd[Calendar.MAY].toUpperCase(), DateTimeConstants.MAY);
+      codes.put(swd[Calendar.MAY].toUpperCase(), DateTimeConstants.MAY);
+
+      codes.put(wd[Calendar.JUNE].toUpperCase(), DateTimeConstants.JUNE);
+      codes.put(swd[Calendar.JUNE].toUpperCase(), DateTimeConstants.JUNE);
+
+      codes.put(wd[Calendar.JULY].toUpperCase(), DateTimeConstants.JULY);
+      codes.put(swd[Calendar.JULY].toUpperCase(), DateTimeConstants.JULY);
+
+      codes.put(wd[Calendar.AUGUST].toUpperCase(), DateTimeConstants.AUGUST);
+      codes.put(swd[Calendar.AUGUST].toUpperCase(), DateTimeConstants.AUGUST);
+
+      codes.put(wd[Calendar.SEPTEMBER].toUpperCase(), DateTimeConstants.SEPTEMBER);
+      codes.put(swd[Calendar.SEPTEMBER].toUpperCase(), DateTimeConstants.SEPTEMBER);
+
+      codes.put(wd[Calendar.OCTOBER].toUpperCase(), DateTimeConstants.OCTOBER);
+      codes.put(swd[Calendar.OCTOBER].toUpperCase(), DateTimeConstants.OCTOBER);
+
+      codes.put(wd[Calendar.NOVEMBER].toUpperCase(), DateTimeConstants.NOVEMBER);
+      codes.put(swd[Calendar.NOVEMBER].toUpperCase(), DateTimeConstants.NOVEMBER);
+
+      codes.put(wd[Calendar.DECEMBER].toUpperCase(), DateTimeConstants.DECEMBER);
+      codes.put(swd[Calendar.DECEMBER].toUpperCase(), DateTimeConstants.DECEMBER);
+    }
+
+    @Override
+    public int _compare(String s1, String s2)
+    {
+      return Ints.compare(toCode(s1), toCode(s2));
+    }
+
+    private int toCode(String s)
+    {
+      Integer code = codes.get(s.toUpperCase());
+      return code == null ? 0 : code;
+    }
+
+    @Override
+    public String toString()
+    {
+      return StringComparators.DAY_OF_WEEK_NAME;
+    }
+  }
+
   public static StringComparator makeComparator(String type)
   {
     StringComparator comparator = tryMakeComparator(type);
@@ -491,9 +559,14 @@ public class StringComparators
         return FLOATING_POINT;
       case StringComparators.DAY_OF_WEEK_NAME:
         return DAY_OF_WEEK;
+      case StringComparators.MONTH_NAME:
+        return MONTH;
       default:
         if (lowerCased.startsWith(StringComparators.DAY_OF_WEEK_NAME + ".")) {
           return new DayOfWeekComparator(new Locale(lowerCased.substring(10)));
+        }
+        if (lowerCased.startsWith(StringComparators.MONTH_NAME + ".")) {
+          return new MonthComparator(new Locale(lowerCased.substring(MONTH_NAME.length() + 1)));
         }
         return null;
     }

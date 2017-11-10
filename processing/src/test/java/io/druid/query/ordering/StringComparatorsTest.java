@@ -34,14 +34,18 @@ public class StringComparatorsTest
 {
 
   @Test
-  public void testLocaledDayOfWeek()
+  public void testLocaledTimes()
   {
-    test(null);
-    test("ko");
-    test("en");
+    testDayOfWeek(null);
+    testDayOfWeek("ko");
+    testDayOfWeek("en");
+
+    testMonth(null);
+    testMonth("ko");
+    testMonth("en");
   }
 
-  private void test(String language)
+  private void testDayOfWeek(String language)
   {
     boolean defaultLocale = language == null;
     DateFormatSymbols symbols = defaultLocale ? new DateFormatSymbols() : new DateFormatSymbols(new Locale(language));
@@ -57,6 +61,35 @@ public class StringComparatorsTest
           dayOfWeek[Calendar.FRIDAY],
           dayOfWeek[Calendar.SATURDAY],
           dayOfWeek[Calendar.SUNDAY]
+      );
+      List<String> shuffle = Lists.newArrayList(expected);
+      Collections.shuffle(shuffle);
+      Collections.sort(shuffle, comparator);
+      Assert.assertEquals(expected, shuffle);
+    }
+  }
+
+  private void testMonth(String language)
+  {
+    boolean defaultLocale = language == null;
+    DateFormatSymbols symbols = defaultLocale ? new DateFormatSymbols() : new DateFormatSymbols(new Locale(language));
+    StringComparators.StringComparator comparator = StringComparators.makeComparator(
+        defaultLocale ? "month" : "month." + language
+    );
+    for (String[] months : new String[][]{symbols.getMonths(), symbols.getShortMonths()}) {
+      List<String> expected = Arrays.<String>asList(
+          months[Calendar.JANUARY],
+          months[Calendar.FEBRUARY],
+          months[Calendar.MARCH],
+          months[Calendar.APRIL],
+          months[Calendar.MAY],
+          months[Calendar.JUNE],
+          months[Calendar.JULY],
+          months[Calendar.AUGUST],
+          months[Calendar.SEPTEMBER],
+          months[Calendar.OCTOBER],
+          months[Calendar.NOVEMBER],
+          months[Calendar.DECEMBER]
       );
       List<String> shuffle = Lists.newArrayList(expected);
       Collections.shuffle(shuffle);
