@@ -423,7 +423,7 @@ public class JoinPostProcessor extends PostProcessingOperator.UnionSupport
       }
       sorted[i] = new JoiningRow(joinKey, row);
     }
-    Arrays.sort(sorted);
+    Arrays.parallelSort(sorted);
     log.info(".. sorted %d rows in %,d msec", rows.size(), (System.currentTimeMillis() - start));
     return sorted;
   }
