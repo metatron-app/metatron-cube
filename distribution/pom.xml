@@ -63,6 +63,7 @@
                                     -Ddruid.extensions.hadoopDependenciesDir=${project.build.directory}/hadoop-dependencies
                                 </argument>
                                 <argument>-Dhadoop.dist.version=${hadoop.compile.version}</argument>
+                                <argument>-Dthrift.dist.version=${thrift.compile.version}</argument>
                                 <argument>io.druid.cli.Main</argument>
                                 <argument>tools</argument>
                                 <argument>pull-deps</argument>
