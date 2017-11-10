@@ -222,7 +222,19 @@ public class EvalTest
 
     // format (string to string)
     Assert.assertEquals(
-        "11-16-2016 PM 05:11:39.662-08:00", evalString(
+        "11-16-2016 PM 05:11:39.662-0800", evalString(
+            "time_format("
+            + "'2016-11-17 오전 10:11:39.662+09:00', "
+            + "format='yyyy-MM-dd a hh:mm:ss.SSSZ', "
+            + "locale='ko', "
+            + "out.format='MM-dd-yyyy a hh:mm:ss.SSSZZ', "
+            + "out.locale='us', "
+            + "out.timezone='PST'"
+            + ")", bindings
+        )
+    );
+    Assert.assertEquals(
+        "11-16-2016 PM 05:11:39.662-0800", evalString(
             "time_format("
             + "'2016-11-17 오전 10:11:39.662+0900', "
             + "format='yyyy-MM-dd a hh:mm:ss.SSSZZ', "
@@ -237,7 +249,7 @@ public class EvalTest
     long time = new DateTime("2016-11-17T10:11:39.662+0900").getMillis();
     // format (long to string)
     Assert.assertEquals(
-        "11-16-2016 PM 05:11:39.662-08:00", evalString(
+        "11-16-2016 PM 05:11:39.662-0800", evalString(
             "time_format("
             + time + ", "
             + "out.format='MM-dd-yyyy a hh:mm:ss.SSSZZ', "
@@ -254,6 +266,17 @@ public class EvalTest
             + "out.format='yyyy-MM-dd\\'T\\'HH:mm:ss.SSS\\'Z\\'', "
             + "out.locale='us', "
             + "out.timezone='PST'"
+            + ")", bindings
+        )
+    );
+    // quarter
+    Assert.assertEquals(
+        "Q4 2016", evalString(
+            "time_format("
+            + time + ", "
+            + "out.format='qqq yyyy', "
+            + "out.locale='en', "
+            + "out.timezone='UTC'"
             + ")", bindings
         )
     );

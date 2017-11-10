@@ -24,6 +24,7 @@ import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import com.google.common.primitives.Longs;
+import com.ibm.icu.text.SimpleDateFormat;
 import com.metamx.common.guava.Comparators;
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
@@ -261,7 +262,9 @@ public class JodaUtils
     return period;
   }
 
-  public static final DateTimeFormatter ISO8601 = toTimeFormatter("yyyy-MM-dd'T'HH:mm:ss[.SSS][ZZ]");
+  // Z instead of ZZ (for compatible output with com.ibm.icu.SimpleDateFormat)
+  public static final String ISO8601_FORMAT = "yyyy-MM-dd'T'HH:mm:ss[.SSS][Z]";
+  public static final DateTimeFormatter ISO8601 = toTimeFormatter(ISO8601_FORMAT);
 
   public static DateTimeFormatter toTimeFormatter(String formatString)
   {
@@ -270,6 +273,9 @@ public class JodaUtils
 
   public static DateTimeFormatter toTimeFormatter(String formatString, String locale, String timeZone)
   {
+    if (formatString == null) {
+      formatString = ISO8601_FORMAT;
+    }
     DateTimeFormatterBuilder b = new DateTimeFormatterBuilder();
     int prev = 0;
     boolean escape = false;
@@ -306,7 +312,7 @@ public class JodaUtils
     return formatter;
   }
 
-  //DateTimeZone.forID cannot handle abbreviations like PST
+  // DateTimeZone.forID cannot handle abbreviations like PST
   public static DateTimeZone toTimeZone(String timeZone)
   {
     if (timeZone == null) {
@@ -323,5 +329,39 @@ public class JodaUtils
       // ignore
     }
     return DateTimeZone.forTimeZone(TimeZone.getTimeZone(timeZone));
+  }
+
+  public static interface OutputFormatter
+  {
+    String format(DateTime dateTime);
+  }
+
+  // icu only supports quarter
+  public static OutputFormatter toOutFormatter(String format, String locale, String zone)
+  {
+    if (format == null) {
+      return new OutputFormatter()
+      {
+        @Override
+        public String format(DateTime dateTime)
+        {
+          return ISO8601.print(dateTime);
+        }
+      };
+    }
+    final SimpleDateFormat formatter = locale == null
+                                 ? new SimpleDateFormat(format)
+                                 : new SimpleDateFormat(format, Locale.forLanguageTag(locale));
+    if (zone != null) {
+      formatter.setTimeZone(com.ibm.icu.util.TimeZone.getTimeZone(zone));
+    }
+    return new OutputFormatter()
+    {
+      @Override
+      public String format(DateTime dateTime)
+      {
+        return formatter.format(dateTime.getMillis());
+      }
+    };
   }
 }

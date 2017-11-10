@@ -438,7 +438,8 @@ public interface DateTimeFunctions extends Function.Library
                         Evals.getConstantString(args.get(3)).trim() :
                         Evals.evalOptionalString(params.get("timezone"), bindings);
 
-      formatter = format == null ? JodaUtils.ISO8601 : JodaUtils.toTimeFormatter(format, locale, timezone);
+      formatter = format == null && locale == null && timezone == null ? JodaUtils.ISO8601 :
+                  JodaUtils.toTimeFormatter(format, locale, timezone);
     }
 
     protected abstract ExprEval toValue(DateTime date);
@@ -590,7 +591,7 @@ public interface DateTimeFunctions extends Function.Library
   // string/long to string
   class TimeFormatFunc extends DateTimeInput
   {
-    private DateTimeFormatter outputFormat;
+    private JodaUtils.OutputFormatter outputFormat;
 
     // cached
     private long prevTime = -1;
@@ -616,7 +617,7 @@ public interface DateTimeFunctions extends Function.Library
       String locale = Evals.evalOptionalString(params.get("out.locale"), bindings);
       String timezone = Evals.evalOptionalString(params.get("out.timezone"), bindings);
 
-      outputFormat = format == null ? JodaUtils.ISO8601 : JodaUtils.toTimeFormatter(format, locale, timezone);
+      outputFormat = JodaUtils.toOutFormatter(format, locale, timezone);
     }
 
     @Override
@@ -624,7 +625,7 @@ public interface DateTimeFunctions extends Function.Library
     {
       if (prevValue == null || date.getMillis() != prevTime) {
         prevTime = date.getMillis();
-        prevValue = outputFormat.print(date);
+        prevValue = outputFormat.format(date);
       }
       return ExprEval.of(prevValue);
     }

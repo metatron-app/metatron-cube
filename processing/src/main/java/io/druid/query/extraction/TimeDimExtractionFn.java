@@ -22,8 +22,6 @@ package io.druid.query.extraction;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;
-import com.ibm.icu.text.SimpleDateFormat;
-import com.ibm.icu.util.TimeZone;
 import io.druid.common.utils.JodaUtils;
 import io.druid.common.utils.StringUtils;
 import io.druid.query.aggregation.AggregatorUtil;
@@ -31,7 +29,6 @@ import org.joda.time.DateTime;
 import org.joda.time.format.DateTimeFormatter;
 
 import java.nio.ByteBuffer;
-import java.util.Locale;
 import java.util.Objects;
 
 /**
@@ -46,7 +43,7 @@ public class TimeDimExtractionFn extends DimExtractionFn implements ExtractionFn
   private final String resultFormat;
   private final String resultLocale;
   private final String resultZone;
-  private final SimpleDateFormat resultFormatter;
+  private final JodaUtils.OutputFormatter resultFormatter;
 
   @JsonCreator
   public TimeDimExtractionFn(
@@ -69,23 +66,12 @@ public class TimeDimExtractionFn extends DimExtractionFn implements ExtractionFn
     this.resultFormat = resultFormat;
     this.resultLocale = resultLocale;
     this.resultZone = resultZone;
-    this.resultFormatter = toFormatter(resultFormat, resultLocale, resultZone);
+    this.resultFormatter = JodaUtils.toOutFormatter(resultFormat, resultLocale, resultZone);
   }
 
   public TimeDimExtractionFn(String timeFormat, String resultFormat)
   {
     this(timeFormat, null, null, resultFormat, null, null);
-  }
-
-  private SimpleDateFormat toFormatter(String format, String locale, String zone)
-  {
-    SimpleDateFormat formatter = locale == null
-                                 ? new SimpleDateFormat(format)
-                                 : new SimpleDateFormat(format, Locale.forLanguageTag(locale));
-    if (zone != null) {
-      formatter.setTimeZone(TimeZone.getTimeZone(zone));
-    }
-    return formatter;
   }
 
   @Override
@@ -131,7 +117,7 @@ public class TimeDimExtractionFn extends DimExtractionFn implements ExtractionFn
     catch (IllegalArgumentException e) {
       return dimValue;
     }
-    return resultFormatter.format(date.getMillis());
+    return resultFormatter.format(date);
   }
 
   @JsonProperty("timeFormat")
