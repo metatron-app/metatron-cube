@@ -44,6 +44,7 @@ public class StringComparators
   public static final String LEXICOGRAPHIC_NAME = "lexicographic";
   public static final String ALPHANUMERIC_NAME = "alphanumeric";
   public static final String INTEGER_NAME = "integer";
+  public static final String LONG_NAME = "long";
   public static final String FLOATING_POINT_NAME = "floatingpoint";
   public static final String DAY_OF_WEEK_NAME = "dayofweek";
   public static final String MONTH_NAME = "month";
@@ -51,15 +52,17 @@ public class StringComparators
   public static final LexicographicComparator LEXICOGRAPHIC = new LexicographicComparator();
   public static final AlphanumericComparator ALPHANUMERIC = new AlphanumericComparator();
   public static final IntegerComparator INTEGER = new IntegerComparator();
+  public static final IntegerComparator LONG = new IntegerComparator();
   public static final FloatingPointComparator FLOATING_POINT = new FloatingPointComparator();
   public static final DayOfWeekComparator DAY_OF_WEEK = new DayOfWeekComparator(null);
   public static final MonthComparator MONTH = new MonthComparator(null);
 
-  @JsonTypeInfo(use=Id.NAME, include=As.PROPERTY, property="type", defaultImpl = LexicographicComparator.class)
+  @JsonTypeInfo(use = Id.NAME, include = As.PROPERTY, property = "type", defaultImpl = LexicographicComparator.class)
   @JsonSubTypes(value = {
       @JsonSubTypes.Type(name = StringComparators.LEXICOGRAPHIC_NAME, value = LexicographicComparator.class),
       @JsonSubTypes.Type(name = StringComparators.ALPHANUMERIC_NAME, value = AlphanumericComparator.class),
       @JsonSubTypes.Type(name = StringComparators.INTEGER_NAME, value = IntegerComparator.class),
+      @JsonSubTypes.Type(name = StringComparators.LONG_NAME, value = LongComparator.class),
       @JsonSubTypes.Type(name = StringComparators.FLOATING_POINT_NAME, value = FloatingPointComparator.class),
       @JsonSubTypes.Type(name = StringComparators.DAY_OF_WEEK_NAME, value = DayOfWeekComparator.class),
       @JsonSubTypes.Type(name = StringComparators.MONTH_NAME, value = MonthComparator.class)
@@ -107,7 +110,7 @@ public class StringComparators
     public int compare(String s, String s2)
     {
       // Avoid conversion to bytes for equal references
-      if(s == s2){
+      if (s == s2) {
         return 0;
       }
       // null first
@@ -123,7 +126,7 @@ public class StringComparators
           StringUtils.toUtf8(s2)
       );
     }
-    
+
     @Override
     public boolean equals(Object o)
     {
@@ -133,57 +136,48 @@ public class StringComparators
       if (o == null || getClass() != o.getClass()) {
         return false;
       }
-      
+
       return true;
     }
-    
+
     @Override
     public String toString()
     {
       return StringComparators.LEXICOGRAPHIC_NAME;
     }
   }
-  
+
   public static class AlphanumericComparator implements StringComparator
   {
     // This code is based on https://github.com/amjjd/java-alphanum, see
     // NOTICE file for more information
     public int compare(String str1, String str2)
     {
-      int[] pos =
-      { 0, 0 };
-
-      if (str1 == null)
-      {
+      if (str1 == null) {
         return -1;
-      } else if (str2 == null)
-      {
+      } else if (str2 == null) {
         return 1;
-      } else if (str1.length() == 0)
-      {
+      } else if (str1.length() == 0) {
         return str2.length() == 0 ? 0 : -1;
-      } else if (str2.length() == 0)
-      {
+      } else if (str2.length() == 0) {
         return 1;
       }
 
-      while (pos[0] < str1.length() && pos[1] < str2.length())
-      {
-        int ch1 = str1.codePointAt(pos[0]);
-        int ch2 = str2.codePointAt(pos[1]);
+      final int[] pos = {0, 0};
 
-        int result = 0;
+      while (pos[0] < str1.length() && pos[1] < str2.length()) {
+        final int ch1 = str1.codePointAt(pos[0]);
+        final int ch2 = str2.codePointAt(pos[1]);
 
-        if (isDigit(ch1))
-        {
+        final int result;
+
+        if (isDigit(ch1)) {
           result = isDigit(ch2) ? compareNumbers(str1, str2, pos) : -1;
-        } else
-        {
+        } else {
           result = isDigit(ch2) ? 1 : compareNonNumeric(str1, str2, pos);
         }
 
-        if (result != 0)
-        {
+        if (result != 0) {
           return result;
         }
       }
@@ -198,13 +192,11 @@ public class StringComparators
       int ch0 = -1, ch1 = -1;
 
       // Skip leading zeroes, but keep a count of them.
-      while (pos[0] < str0.length() && isZero(ch0 = str0.codePointAt(pos[0])))
-      {
+      while (pos[0] < str0.length() && isZero(ch0 = str0.codePointAt(pos[0]))) {
         zeroes0++;
         pos[0] += Character.charCount(ch0);
       }
-      while (pos[1] < str1.length() && isZero(ch1 = str1.codePointAt(pos[1])))
-      {
+      while (pos[1] < str1.length() && isZero(ch1 = str1.codePointAt(pos[1]))) {
         zeroes1++;
         pos[1] += Character.charCount(ch1);
       }
@@ -213,52 +205,39 @@ public class StringComparators
       // other, it's a larger number. In case they turn out to have
       // equal lengths, we compare digits at each position; the first
       // unequal pair determines which is the bigger number.
-      while (true)
-      {
+      while (true) {
         boolean noMoreDigits0 = (ch0 < 0) || !isDigit(ch0);
         boolean noMoreDigits1 = (ch1 < 0) || !isDigit(ch1);
 
-        if (noMoreDigits0 && noMoreDigits1)
-        {
+        if (noMoreDigits0 && noMoreDigits1) {
           return delta != 0 ? delta : zeroes0 - zeroes1;
-        } else if (noMoreDigits0)
-        {
+        } else if (noMoreDigits0) {
           return -1;
-        } else if (noMoreDigits1)
-        {
+        } else if (noMoreDigits1) {
           return 1;
-        } else if (delta == 0 && ch0 != ch1)
-        {
+        } else if (delta == 0 && ch0 != ch1) {
           delta = valueOf(ch0) - valueOf(ch1);
         }
 
-        if (pos[0] < str0.length())
-        {
+        if (pos[0] < str0.length()) {
           ch0 = str0.codePointAt(pos[0]);
-          if (isDigit(ch0))
-          {
+          if (isDigit(ch0)) {
             pos[0] += Character.charCount(ch0);
-          } else
-          {
+          } else {
             ch0 = -1;
           }
-        } else
-        {
+        } else {
           ch0 = -1;
         }
 
-        if (pos[1] < str1.length())
-        {
+        if (pos[1] < str1.length()) {
           ch1 = str1.codePointAt(pos[1]);
-          if (isDigit(ch1))
-          {
+          if (isDigit(ch1)) {
             pos[1] += Character.charCount(ch1);
-          } else
-          {
+          } else {
             ch1 = -1;
           }
-        } else
-        {
+        } else {
           ch1 = -1;
         }
       }
@@ -267,10 +246,10 @@ public class StringComparators
     private boolean isDigit(int ch)
     {
       return (ch >= '0' && ch <= '9') ||
-          (ch >= '\u0660' && ch <= '\u0669') ||
-          (ch >= '\u06F0' && ch <= '\u06F9') ||
-          (ch >= '\u0966' && ch <= '\u096F') ||
-          (ch >= '\uFF10' && ch <= '\uFF19');
+             (ch >= '\u0660' && ch <= '\u0669') ||
+             (ch >= '\u06F0' && ch <= '\u06F9') ||
+             (ch >= '\u0966' && ch <= '\u096F') ||
+             (ch >= '\uFF10' && ch <= '\uFF19');
     }
 
     private boolean isZero(int ch)
@@ -280,24 +259,19 @@ public class StringComparators
 
     private int valueOf(int digit)
     {
-      if (digit <= '9')
-      {
+      if (digit <= '9') {
         return digit - '0';
       }
-      if (digit <= '\u0669')
-      {
+      if (digit <= '\u0669') {
         return digit - '\u0660';
       }
-      if (digit <= '\u06F9')
-      {
+      if (digit <= '\u06F9') {
         return digit - '\u06F0';
       }
-      if (digit <= '\u096F')
-      {
+      if (digit <= '\u096F') {
         return digit - '\u0966';
       }
-      if (digit <= '\uFF19')
-      {
+      if (digit <= '\uFF19') {
         return digit - '\uFF10';
       }
 
@@ -310,23 +284,21 @@ public class StringComparators
       int start0 = pos[0];
       int ch0 = str0.codePointAt(pos[0]);
       pos[0] += Character.charCount(ch0);
-      while (pos[0] < str0.length() && !isDigit(ch0 = str0.codePointAt(pos[0])))
-      {
+      while (pos[0] < str0.length() && !isDigit(ch0 = str0.codePointAt(pos[0]))) {
         pos[0] += Character.charCount(ch0);
       }
 
       int start1 = pos[1];
       int ch1 = str1.codePointAt(pos[1]);
       pos[1] += Character.charCount(ch1);
-      while (pos[1] < str1.length() && !isDigit(ch1 = str1.codePointAt(pos[1])))
-      {
+      while (pos[1] < str1.length() && !isDigit(ch1 = str1.codePointAt(pos[1]))) {
         pos[1] += Character.charCount(ch1);
       }
 
       // compare the substrings
       return String.CASE_INSENSITIVE_ORDER.compare(str0.substring(start0, pos[0]), str1.substring(start1, pos[1]));
     }
-    
+
     @Override
     public boolean equals(Object o)
     {
@@ -336,10 +308,9 @@ public class StringComparators
       if (o == null || getClass() != o.getClass()) {
         return false;
       }
-      
       return true;
     }
-    
+
     @Override
     public String toString()
     {
@@ -353,7 +324,7 @@ public class StringComparators
     public final int _compare(String s, String s2)
     {
       // Avoid conversion to bytes for equal references
-      if(s == s2){
+      if (s == s2) {
         return 0;
       }
       // null first
@@ -374,13 +345,38 @@ public class StringComparators
     }
   }
 
+  public static class LongComparator extends AbstractStringComparator implements StringComparator
+  {
+    @Override
+    public final int _compare(String s, String s2)
+    {
+      if (s == s2) {
+        return 0;
+      }
+      if (s == null) {
+        return -1;
+      }
+      if (s2 == null) {
+        return 1;
+      }
+
+      return Longs.compare(Long.valueOf(s), Long.valueOf(s2));
+    }
+
+    @Override
+    public String toString()
+    {
+      return StringComparators.LONG_NAME;
+    }
+  }
+
   public static class FloatingPointComparator extends AbstractStringComparator implements StringComparator
   {
     @Override
     public final int _compare(String s, String s2)
     {
       // Avoid conversion to bytes for equal references
-      if(s == s2){
+      if (s == s2) {
         return 0;
       }
       // null first
@@ -555,6 +551,8 @@ public class StringComparators
         return ALPHANUMERIC;
       case StringComparators.INTEGER_NAME:
         return INTEGER;
+      case StringComparators.LONG_NAME:
+        return LONG;
       case StringComparators.FLOATING_POINT_NAME:
         return FLOATING_POINT;
       case StringComparators.DAY_OF_WEEK_NAME:
