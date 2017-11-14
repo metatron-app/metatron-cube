@@ -109,7 +109,7 @@ public class TimeseriesBinaryFnTest
     );
 
     Result<TimeseriesResultValue> expected = new Result<TimeseriesResultValue>(
-        new DateTime(QueryGranularities.DAY.truncate(currTime.getMillis())),
+        QueryGranularities.DAY.bucketStart(currTime),
         new TimeseriesResultValue(
             ImmutableMap.<String, Object>of(
                 "rows", 3L,

@@ -49,7 +49,7 @@ import io.druid.data.input.impl.DimensionSchema.MultiValueHandling;
 import io.druid.data.input.impl.DimensionsSpec;
 import io.druid.data.input.impl.SpatialDimensionSchema;
 import io.druid.data.input.impl.StringDimensionSchema;
-import io.druid.granularity.QueryGranularity;
+import io.druid.granularity.Granularity;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.PostAggregator;
 import io.druid.query.aggregation.PostAggregators;
@@ -436,7 +436,7 @@ public abstract class IncrementalIndex<AggregatorType> implements Iterable<Row>,
     };
   }
 
-  protected final QueryGranularity gran;
+  protected final Granularity gran;
 
   private final long minTimestamp;
   private final List<Function<InputRow, InputRow>> rowTransformers;
@@ -798,7 +798,7 @@ public abstract class IncrementalIndex<AggregatorType> implements Iterable<Row>,
   {
     final long truncated = isTemporary()
                            ? timestampFromEpoch
-                           : Math.max(gran.truncate(timestampFromEpoch), minTimestamp);
+                           : Math.max(gran.bucketStart(gran.toDateTime(timestampFromEpoch)).getMillis(), minTimestamp);
 
     minTimeMillis = Math.min(minTimeMillis, truncated);
     maxTimeMillis = Math.max(maxTimeMillis, truncated);
@@ -1022,7 +1022,7 @@ public abstract class IncrementalIndex<AggregatorType> implements Iterable<Row>,
     if (isTemporary()) {
       return new Interval(JodaUtils.MIN_INSTANT, JodaUtils.MAX_INSTANT);
     }
-    return new Interval(minTimestamp, isEmpty() ? minTimestamp : gran.next(getMaxTimeMillis()));
+    return new Interval(getMinTime(), isEmpty() ? getMinTime() : gran.bucketEnd(getMaxTime()));
   }
 
   public boolean isTemporary()

@@ -28,7 +28,7 @@ import com.metamx.common.guava.Sequences;
 import com.metamx.common.logger.Logger;
 import io.druid.cache.Cache;
 import io.druid.collections.StupidPool;
-import io.druid.granularity.QueryGranularity;
+import io.druid.granularity.Granularity;
 import io.druid.guice.annotations.Global;
 import io.druid.query.Result;
 import io.druid.query.aggregation.AggregatorFactory;
@@ -74,7 +74,7 @@ public class TopNQueryEngine
 
     final List<Interval> queryIntervals = query.getQuerySegmentSpec().getIntervals();
     final DimFilter filter = query.getDimensionsFilter();
-    final QueryGranularity granularity = query.getGranularity();
+    final Granularity granularity = query.getGranularity();
     final Function<Cursor, Result<TopNResultValue>> mapFn = getMapFn(query, adapter);
 
     Preconditions.checkArgument(

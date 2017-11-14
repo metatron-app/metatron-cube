@@ -25,7 +25,7 @@ import com.google.common.collect.Lists;
 import io.druid.data.input.impl.DimensionsSpec;
 import io.druid.data.input.impl.InputRowParser;
 import io.druid.granularity.QueryGranularities;
-import io.druid.granularity.QueryGranularity;
+import io.druid.granularity.Granularity;
 import io.druid.query.aggregation.AggregatorFactory;
 
 import java.util.Arrays;
@@ -36,7 +36,7 @@ import java.util.List;
 public class IncrementalIndexSchema
 {
   private final long minTimestamp;
-  private final QueryGranularity gran;
+  private final Granularity gran;
   private final DimensionsSpec dimensionsSpec;
   private final AggregatorFactory[] metrics;
   private final boolean rollup;
@@ -45,7 +45,7 @@ public class IncrementalIndexSchema
   @JsonCreator
   public IncrementalIndexSchema(
       @JsonProperty("minTimestamp") long minTimestamp,
-      @JsonProperty("gran") QueryGranularity gran,
+      @JsonProperty("gran") Granularity gran,
       @JsonProperty("dimensionsSpec") DimensionsSpec dimensionsSpec,
       @JsonProperty("metrics") AggregatorFactory[] metrics,
       @JsonProperty("rollup") boolean rollup,
@@ -62,7 +62,7 @@ public class IncrementalIndexSchema
 
   public IncrementalIndexSchema(
       long minTimestamp,
-      QueryGranularity gran,
+      Granularity gran,
       DimensionsSpec dimensionsSpec,
       AggregatorFactory[] metrics,
       boolean rollup
@@ -78,7 +78,7 @@ public class IncrementalIndexSchema
   }
 
   @JsonProperty
-  public QueryGranularity getGran()
+  public Granularity getGran()
   {
     return gran;
   }
@@ -132,7 +132,7 @@ public class IncrementalIndexSchema
   public static class Builder
   {
     private long minTimestamp;
-    private QueryGranularity gran;
+    private Granularity gran;
     private DimensionsSpec dimensionsSpec;
     private AggregatorFactory[] metrics;
     private boolean fixedSchema;
@@ -153,7 +153,7 @@ public class IncrementalIndexSchema
       return this;
     }
 
-    public Builder withQueryGranularity(QueryGranularity gran)
+    public Builder withQueryGranularity(Granularity gran)
     {
       this.gran = gran;
       return this;

@@ -23,7 +23,7 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
-import io.druid.granularity.QueryGranularity;
+import io.druid.granularity.Granularity;
 import io.druid.granularity.QueryGranularities;
 import io.druid.query.BaseQuery;
 import io.druid.query.DataSource;
@@ -45,7 +45,7 @@ public class SearchQuery extends BaseQuery<Result<SearchResultValue>>
 {
   private final DimFilter dimFilter;
   private final SearchSortSpec sortSpec;
-  private final QueryGranularity granularity;
+  private final Granularity granularity;
   private final List<VirtualColumn> virtualColumns;
   private final List<DimensionSpec> dimensions;
   private final SearchQuerySpec querySpec;
@@ -56,7 +56,7 @@ public class SearchQuery extends BaseQuery<Result<SearchResultValue>>
   public SearchQuery(
       @JsonProperty("dataSource") DataSource dataSource,
       @JsonProperty("filter") DimFilter dimFilter,
-      @JsonProperty("granularity") QueryGranularity granularity,
+      @JsonProperty("granularity") Granularity granularity,
       @JsonProperty("limit") int limit,
       @JsonProperty("intervals") QuerySegmentSpec querySegmentSpec,
       @JsonProperty("virtualColumns") List<VirtualColumn> virtualColumns,
@@ -176,7 +176,7 @@ public class SearchQuery extends BaseQuery<Result<SearchResultValue>>
   }
 
   @JsonProperty
-  public QueryGranularity getGranularity()
+  public Granularity getGranularity()
   {
     return granularity;
   }

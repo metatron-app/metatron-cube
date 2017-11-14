@@ -59,9 +59,7 @@ public class FiltersTest
   {
     DimFilter dim1 = new SelectorDimFilter(QueryRunnerTestHelper.qualityDimension, "mezzanine", null);
 
-    DimFilter dim2 = new MathExprFilter(
-        "return market === \"spot\" && quality === \"business\"; }"
-    );
+    DimFilter dim2 = new MathExprFilter("market == \"spot\" && quality == \"business\"");
 
     DimFilter dim3 = AndDimFilter.of(dim1, dim2);
 

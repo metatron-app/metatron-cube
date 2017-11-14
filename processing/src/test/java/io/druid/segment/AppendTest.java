@@ -23,7 +23,7 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.metamx.common.Pair;
-import io.druid.granularity.QueryGranularity;
+import io.druid.granularity.Granularity;
 import io.druid.granularity.QueryGranularities;
 import io.druid.query.Druids;
 import io.druid.query.QueryRunner;
@@ -79,7 +79,7 @@ public class AppendTest
   };
 
   final String dataSource = "testing";
-  final QueryGranularity allGran = QueryGranularities.ALL;
+  final Granularity allGran = QueryGranularities.ALL;
   final String dimensionValue = "dimension";
   final String valueValue = "value";
   final String marketDimension = "market";

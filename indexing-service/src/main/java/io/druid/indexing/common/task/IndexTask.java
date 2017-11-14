@@ -42,7 +42,7 @@ import io.druid.data.input.Firehose;
 import io.druid.data.input.FirehoseFactory;
 import io.druid.data.input.InputRow;
 import io.druid.data.input.Rows;
-import io.druid.granularity.QueryGranularity;
+import io.druid.granularity.Granularity;
 import io.druid.indexing.common.TaskLock;
 import io.druid.indexing.common.TaskStatus;
 import io.druid.indexing.common.TaskToolbox;
@@ -92,7 +92,7 @@ public class IndexTask extends AbstractFixedIntervalTask
       final ShardSpec shardSpec,
       final Interval interval,
       final InputRow inputRow,
-      final QueryGranularity rollupGran
+      final Granularity rollupGran
   )
   {
     return interval.contains(inputRow.getTimestampFromEpoch())
@@ -263,7 +263,7 @@ public class IndexTask extends AbstractFixedIntervalTask
   private List<ShardSpec> determinePartitions(
       final Interval interval,
       final int targetPartitionSize,
-      final QueryGranularity queryGranularity
+      final Granularity queryGranularity
   ) throws IOException
   {
     log.info("Determining partitions for interval[%s] with targetPartitionSize[%d]", interval, targetPartitionSize);
@@ -384,7 +384,7 @@ public class IndexTask extends AbstractFixedIntervalTask
         metrics
     );
 
-    final QueryGranularity rollupGran = ingestionSchema.getDataSchema().getGranularitySpec().getQueryGranularity();
+    final Granularity rollupGran = ingestionSchema.getDataSchema().getGranularitySpec().getQueryGranularity();
     try {
       plumber.startJob();
 

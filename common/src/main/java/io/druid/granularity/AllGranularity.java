@@ -20,32 +20,62 @@
 package io.druid.granularity;
 
 import com.google.common.collect.ImmutableList;
-import io.druid.common.utils.JodaUtils;
+import io.druid.common.DateTimes;
+import org.joda.time.DateTime;
+import org.joda.time.Interval;
+import org.joda.time.format.DateTimeFormatter;
 
-public final class AllGranularity extends BaseQueryGranularity
+/**
+ * AllGranularty buckets everything into a single bucket
+ */
+public class AllGranularity extends Granularity
 {
+  /**
+   * This constructor is public b/c it is serialized and deserialized
+   * based on type in GranularityModule
+   */
+  public AllGranularity() {}
+
   @Override
-  public long next(long offset)
+  public DateTimeFormatter getFormatter(Formatter type)
   {
-    return JodaUtils.MAX_INSTANT;
+    throw new UnsupportedOperationException("This method should not be invoked for this granularity type");
   }
 
   @Override
-  public long truncate(long offset)
+  public DateTime increment(DateTime time)
   {
-    return JodaUtils.MIN_INSTANT;
+    return DateTimes.MAX;
   }
 
   @Override
-  public byte[] cacheKey()
+  public DateTime decrement(DateTime time)
+  {
+    throw new UnsupportedOperationException("This method should not be invoked for this granularity type");
+  }
+
+  @Override
+  public DateTime bucketStart(DateTime time)
+  {
+    return DateTimes.MIN;
+  }
+
+  @Override
+  public DateTime toDate(String filePath, Formatter formatter)
+  {
+    throw new UnsupportedOperationException("This method should not be invoked for this granularity type");
+  }
+
+  @Override
+  public byte[] getCacheKey()
   {
     return new byte[]{0x7f};
   }
 
   @Override
-  public Iterable<Long> iterable(long start, long end)
+  public Iterable<Interval> getIterable(Interval input)
   {
-    return ImmutableList.of(start);
+    return ImmutableList.of(input);
   }
 
   @Override
@@ -64,7 +94,7 @@ public final class AllGranularity extends BaseQueryGranularity
   @Override
   public int hashCode()
   {
-    return 1;
+    return getClass().hashCode();
   }
 
   @Override

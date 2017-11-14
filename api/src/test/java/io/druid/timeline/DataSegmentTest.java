@@ -23,8 +23,6 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.Lists;
-import com.google.common.collect.Sets;
 import io.druid.TestObjectMapper;
 import io.druid.data.input.InputRow;
 import io.druid.timeline.partition.NoneShardSpec;
@@ -37,10 +35,8 @@ import org.junit.Assert;
 import org.junit.Test;
 
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 
 /**
  */
@@ -198,44 +194,5 @@ public class DataSegmentTest
     final DataSegment segment2 = mapper.readValue(mapper.writeValueAsString(segment), DataSegment.class);
     Assert.assertEquals("empty dimensions", ImmutableList.of(), segment2.getDimensions());
     Assert.assertEquals("empty metrics", ImmutableList.of(), segment2.getMetrics());
-  }
-
-  @Test
-  public void testBucketMonthComparator() throws Exception
-  {
-    DataSegment[] sortedOrder = {
-        makeDataSegment("test1", "2011-01-01/2011-01-02", "a"),
-        makeDataSegment("test1", "2011-01-02/2011-01-03", "a"),
-        makeDataSegment("test1", "2011-01-02/2011-01-03", "b"),
-        makeDataSegment("test2", "2011-01-01/2011-01-02", "a"),
-        makeDataSegment("test2", "2011-01-02/2011-01-03", "a"),
-        makeDataSegment("test1", "2011-02-01/2011-02-02", "a"),
-        makeDataSegment("test1", "2011-02-02/2011-02-03", "a"),
-        makeDataSegment("test1", "2011-02-02/2011-02-03", "b"),
-        makeDataSegment("test2", "2011-02-01/2011-02-02", "a"),
-        makeDataSegment("test2", "2011-02-02/2011-02-03", "a"),
-    };
-
-    List<DataSegment> shuffled = Lists.newArrayList(sortedOrder);
-    Collections.shuffle(shuffled);
-
-    Set<DataSegment> theSet = Sets.newTreeSet(DataSegment.bucketMonthComparator());
-    theSet.addAll(shuffled);
-
-    int index = 0;
-    for (DataSegment dataSegment : theSet) {
-      Assert.assertEquals(sortedOrder[index], dataSegment);
-      ++index;
-    }
-  }
-
-  private DataSegment makeDataSegment(String dataSource, String interval, String version)
-  {
-    return DataSegment.builder()
-                      .dataSource(dataSource)
-                      .interval(new Interval(interval))
-                      .version(version)
-                      .size(1)
-                      .build();
   }
 }

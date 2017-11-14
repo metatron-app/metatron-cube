@@ -28,7 +28,7 @@ import com.metamx.common.logger.Logger;
 import com.metamx.common.parsers.ParseException;
 import io.druid.data.ValueDesc;
 import io.druid.data.input.Row;
-import io.druid.granularity.QueryGranularity;
+import io.druid.granularity.Granularity;
 import io.druid.query.aggregation.AbstractArrayAggregatorFactory;
 import io.druid.query.aggregation.Aggregator;
 import io.druid.query.aggregation.AggregatorFactory;
@@ -95,7 +95,7 @@ public class OnheapIncrementalIndex extends IncrementalIndex<Aggregator>
 
   public OnheapIncrementalIndex(
       long minTimestamp,
-      QueryGranularity gran,
+      Granularity gran,
       final AggregatorFactory[] metrics,
       boolean deserializeComplexMetrics,
       boolean reportParseExceptions,
@@ -119,7 +119,7 @@ public class OnheapIncrementalIndex extends IncrementalIndex<Aggregator>
 
   @VisibleForTesting
   public OnheapIncrementalIndex(
-      long minTimestamp, QueryGranularity gran, final AggregatorFactory[] metrics, int maxRowCount
+      long minTimestamp, Granularity gran, final AggregatorFactory[] metrics, int maxRowCount
   )
   {
     this(minTimestamp, gran, true, metrics, maxRowCount);
@@ -128,7 +128,7 @@ public class OnheapIncrementalIndex extends IncrementalIndex<Aggregator>
   @VisibleForTesting
   public OnheapIncrementalIndex(
       long minTimestamp,
-      QueryGranularity gran,
+      Granularity gran,
       boolean rollup,
       final AggregatorFactory[] metrics,
       int maxRowCount

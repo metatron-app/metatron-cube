@@ -22,7 +22,7 @@ package io.druid.query.groupby.having;
 import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import io.druid.data.input.Row;
-import io.druid.query.Cacheable;
+import io.druid.common.Cacheable;
 
 /**
  * A "having" clause that filters aggregated/dimension value. This is similar to SQL's "having"

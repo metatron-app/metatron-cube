@@ -38,7 +38,6 @@ import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.ListeningExecutorService;
 import com.google.common.util.concurrent.MoreExecutors;
 import com.metamx.common.CompressionUtils;
-import com.metamx.common.Granularity;
 import com.metamx.common.ISE;
 import com.metamx.common.guava.Sequences;
 import com.metamx.common.logger.Logger;
@@ -198,7 +197,7 @@ public class KafkaIndexTaskTest
             Map.class
         ),
         new AggregatorFactory[]{new CountAggregatorFactory("rows")},
-        new UniformGranularitySpec(Granularity.DAY, QueryGranularities.NONE, null),
+        new UniformGranularitySpec(QueryGranularities.DAY, QueryGranularities.NONE, null),
         objectMapper
     );
   }

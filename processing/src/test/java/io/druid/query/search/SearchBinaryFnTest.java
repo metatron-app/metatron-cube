@@ -130,7 +130,7 @@ public class SearchBinaryFnTest
     );
 
     Result<SearchResultValue> expected = new Result<SearchResultValue>(
-        new DateTime(QueryGranularities.DAY.truncate(currTime.getMillis())),
+        QueryGranularities.DAY.bucketStart(currTime),
         new SearchResultValue(
             ImmutableList.<SearchHit>of(
                 new SearchHit(

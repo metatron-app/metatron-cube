@@ -23,7 +23,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Joiner;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
-import com.metamx.common.Granularity;
+import io.druid.granularity.Granularity;
 import io.druid.granularity.QueryGranularities;
 import io.druid.indexer.HadoopDruidIndexerConfig;
 import io.druid.indexer.HadoopIOConfig;
@@ -86,7 +86,7 @@ public class GranularityPathSpecTest
 
   @Test public void testSetDataGranularity()
   {
-    Granularity granularity = Granularity.DAY;
+    Granularity granularity = QueryGranularities.DAY;
     granularityPathSpec.setDataGranularity(granularity);
     Assert.assertEquals(granularity, granularityPathSpec.getDataGranularity());
   }
@@ -94,13 +94,13 @@ public class GranularityPathSpecTest
   @Test
   public void testSerdeCustomInputFormat() throws Exception
   {
-    testSerde("/test/path", "*.test", "pat_pat", Granularity.SECOND, TextInputFormat.class);
+    testSerde("/test/path", "*.test", "pat_pat", QueryGranularities.SECOND, TextInputFormat.class);
   }
 
   @Test
   public void testSerdeNoInputFormat() throws Exception
   {
-    testSerde("/test/path", "*.test", "pat_pat", Granularity.SECOND, null);
+    testSerde("/test/path", "*.test", "pat_pat", QueryGranularities.SECOND, null);
   }
 
   @Test
@@ -113,7 +113,7 @@ public class GranularityPathSpecTest
             null,
             new AggregatorFactory[0],
             new UniformGranularitySpec(
-                Granularity.DAY,
+                QueryGranularities.DAY,
                 QueryGranularities.MINUTE,
                 ImmutableList.of(new Interval("2015-11-06T00:00Z/2015-11-07T00:00Z"))
             ),
@@ -123,7 +123,7 @@ public class GranularityPathSpecTest
         new HadoopTuningConfig(null, null, null, null, null, null, false, false, false, false, null, false, false, null, null, null)
     );
 
-    granularityPathSpec.setDataGranularity(Granularity.HOUR);
+    granularityPathSpec.setDataGranularity(QueryGranularities.HOUR);
     granularityPathSpec.setFilePattern(".*");
     granularityPathSpec.setInputFormat(TextInputFormat.class);
 

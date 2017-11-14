@@ -22,7 +22,6 @@ package io.druid.indexer;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.io.Files;
-import com.metamx.common.Granularity;
 import io.druid.data.input.impl.DefaultTimestampSpec;
 import io.druid.data.input.impl.DelimitedParseSpec;
 import io.druid.data.input.impl.DimensionsSpec;
@@ -132,7 +131,7 @@ public class DetermineHashedPartitionsJobTest
             ),
             new AggregatorFactory[]{new DoubleSumAggregatorFactory("index", "index")},
             new UniformGranularitySpec(
-                Granularity.DAY,
+                QueryGranularities.DAY,
                 QueryGranularities.NONE,
                 ImmutableList.of(new Interval(interval))
             ),

@@ -27,7 +27,7 @@ import com.google.common.collect.Sets;
 import com.metamx.common.Pair;
 import com.metamx.common.logger.Logger;
 import io.druid.data.ValueDesc;
-import io.druid.query.Cacheable;
+import io.druid.common.Cacheable;
 import io.druid.segment.ColumnSelectorFactory;
 
 import java.util.Comparator;

@@ -61,7 +61,7 @@ import io.druid.data.input.MapBasedRow;
 import io.druid.data.input.Row;
 import io.druid.granularity.PeriodGranularity;
 import io.druid.granularity.QueryGranularities;
-import io.druid.granularity.QueryGranularity;
+import io.druid.granularity.Granularity;
 import io.druid.jackson.DefaultObjectMapper;
 import io.druid.query.BySegmentResultValueClass;
 import io.druid.query.DataSource;
@@ -207,9 +207,9 @@ public class CachingClusteredClientTest
   );
   private static final DimFilter DIM_FILTER = null;
   private static final List<PostAggregator> RENAMED_POST_AGGS = ImmutableList.of();
-  private static final QueryGranularity GRANULARITY = QueryGranularities.DAY;
+  private static final Granularity GRANULARITY = QueryGranularities.DAY;
   private static final DateTimeZone TIMEZONE = DateTimeZone.forID("America/Los_Angeles");
-  private static final QueryGranularity PT1H_TZ_GRANULARITY = new PeriodGranularity(new Period("PT1H"), null, TIMEZONE);
+  private static final Granularity PT1H_TZ_GRANULARITY = new PeriodGranularity(new Period("PT1H"), null, TIMEZONE);
   private static final String TOP_DIM = "a_dim";
   private static final Supplier<GroupByQueryConfig> GROUPBY_QUERY_CONFIG_SUPPLIER = Suppliers.ofInstance(new GroupByQueryConfig());
   static final QueryToolChestWarehouse WAREHOUSE = new MapQueryToolChestWarehouse(

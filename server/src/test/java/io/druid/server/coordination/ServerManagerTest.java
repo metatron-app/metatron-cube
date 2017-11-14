@@ -40,7 +40,7 @@ import com.metamx.emitter.service.ServiceMetricEvent;
 import io.druid.client.cache.CacheConfig;
 import io.druid.client.cache.LocalCacheProvider;
 import io.druid.granularity.QueryGranularities;
-import io.druid.granularity.QueryGranularity;
+import io.druid.granularity.Granularity;
 import io.druid.jackson.DefaultObjectMapper;
 import io.druid.query.ConcatQueryRunner;
 import io.druid.query.Druids;
@@ -410,7 +410,7 @@ public class ServerManagerTest
   }
 
   private <T> Future assertQueryable(
-      QueryGranularity granularity,
+      Granularity granularity,
       String dataSource,
       Interval interval,
       List<Pair<String, Interval>> expected

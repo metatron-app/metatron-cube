@@ -22,7 +22,7 @@ package io.druid.query.select;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.collect.ImmutableList;
 import io.druid.granularity.QueryGranularities;
-import io.druid.granularity.QueryGranularity;
+import io.druid.granularity.Granularity;
 import io.druid.query.BaseQuery;
 import io.druid.query.DataSource;
 import io.druid.query.Query;
@@ -41,7 +41,7 @@ public abstract class AbstractStreamQuery<T extends Comparable<T>> extends BaseQ
     implements Query.ViewSupport<T>
 {
   private final DimFilter dimFilter;
-  private final QueryGranularity granularity;
+  private final Granularity granularity;
   private final List<DimensionSpec> dimensions;
   private final List<String> metrics;
   private final List<VirtualColumn> virtualColumns;
@@ -51,7 +51,7 @@ public abstract class AbstractStreamQuery<T extends Comparable<T>> extends BaseQ
       DataSource dataSource,
       QuerySegmentSpec querySegmentSpec,
       DimFilter dimFilter,
-      QueryGranularity granularity,
+      Granularity granularity,
       List<DimensionSpec> dimensions,
       List<String> metrics,
       List<VirtualColumn> virtualColumns,
@@ -87,7 +87,7 @@ public abstract class AbstractStreamQuery<T extends Comparable<T>> extends BaseQ
   }
 
   @JsonProperty
-  public QueryGranularity getGranularity()
+  public Granularity getGranularity()
   {
     return granularity;
   }

@@ -256,7 +256,7 @@ public class SelectBenchmark
     return Sequences.toList(queryResult, Lists.<T>newArrayList());
   }
 
-  // don't run this benchmark with a query that doesn't use QueryGranularity.ALL,
+  // don't run this benchmark with a query that doesn't use Granularity.ALL,
   // this pagination function probably doesn't work correctly in that case.
   private SelectQuery incrementQueryPagination(SelectQuery query, SelectResultValue prevResult)
   {

@@ -22,13 +22,12 @@ package io.druid.indexer;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
-import com.metamx.common.Granularity;
 import io.druid.data.input.InputRow;
 import io.druid.data.input.MapBasedInputRow;
 import io.druid.data.input.impl.CSVParseSpec;
+import io.druid.data.input.impl.DefaultTimestampSpec;
 import io.druid.data.input.impl.DimensionsSpec;
 import io.druid.data.input.impl.StringInputRowParser;
-import io.druid.data.input.impl.DefaultTimestampSpec;
 import io.druid.granularity.QueryGranularities;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.LongSumAggregatorFactory;
@@ -80,7 +79,7 @@ public class IndexGeneratorCombinerTest
                     new HyperUniquesAggregatorFactory("unique_hosts", "host")
                 },
                 new UniformGranularitySpec(
-                    Granularity.DAY, QueryGranularities.NONE, ImmutableList.of(Interval.parse("2010/2011"))
+                    QueryGranularities.DAY, QueryGranularities.NONE, ImmutableList.of(Interval.parse("2010/2011"))
                 ),
                 HadoopDruidIndexerConfig.JSON_MAPPER
             ),

@@ -36,7 +36,7 @@ import com.metamx.common.parsers.ParseException;
 import io.druid.data.input.MapBasedInputRow;
 import io.druid.data.input.Row;
 import io.druid.granularity.QueryGranularities;
-import io.druid.granularity.QueryGranularity;
+import io.druid.granularity.Granularity;
 import io.druid.query.Druids;
 import io.druid.query.FinalizeResultsQueryRunner;
 import io.druid.query.QueryRunner;
@@ -112,7 +112,7 @@ public class OnheapIncrementalIndexBenchmark extends AbstractBenchmark
 
     public MapIncrementalIndex(
         long minTimestamp,
-        QueryGranularity gran,
+        Granularity gran,
         AggregatorFactory[] metrics,
         int maxRowCount
     )
@@ -250,7 +250,7 @@ public class OnheapIncrementalIndexBenchmark extends AbstractBenchmark
 
     final OnheapIncrementalIndex incrementalIndex = this.incrementalIndex.getConstructor(
         Long.TYPE,
-        QueryGranularity.class,
+        Granularity.class,
         AggregatorFactory[].class,
         Integer.TYPE
     ).newInstance(0, QueryGranularities.NONE, factories, elementsPerThread * taskCount);

@@ -26,11 +26,10 @@ import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.ListeningExecutorService;
 import com.google.common.util.concurrent.MoreExecutors;
 import com.google.inject.Inject;
-import com.metamx.common.Granularity;
 import com.metamx.common.guava.Sequence;
 import com.metamx.common.guava.Sequences;
 import com.metamx.common.logger.Logger;
-import io.druid.granularity.QueryGranularity;
+import io.druid.granularity.Granularity;
 import io.druid.query.AbstractPrioritizedCallable;
 import io.druid.query.BaseQuery;
 import io.druid.query.ConcatQueryRunner;
@@ -131,7 +130,7 @@ public class SegmentMetadataQueryRunnerFactory implements QueryRunnerFactory<Seg
           }
         }
 
-        QueryGranularity queryGranularity = null;
+        Granularity queryGranularity = null;
         if (metadata != null && query.hasQueryGranularity()) {
           queryGranularity = metadata.getQueryGranularity();
         }

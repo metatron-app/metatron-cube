@@ -276,7 +276,7 @@ public class SearchQueryQueryToolChest extends QueryToolChest<Result<SearchResul
         final DimFilter dimFilter = query.getDimensionsFilter();
         final byte[] filterBytes = dimFilter == null ? new byte[]{} : dimFilter.getCacheKey();
         final byte[] querySpecBytes = query.getQuery().getCacheKey();
-        final byte[] granularityBytes = query.getGranularity().cacheKey();
+        final byte[] granularityBytes = query.getGranularity().getCacheKey();
 
         final byte[] vcBytes = QueryCacheHelper.computeAggregatorBytes(query.getVirtualColumns());
         final Collection<DimensionSpec> dimensions = query.getDimensions() == null

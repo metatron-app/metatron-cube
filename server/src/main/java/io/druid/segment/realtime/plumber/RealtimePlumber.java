@@ -32,7 +32,6 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.primitives.Ints;
 import com.google.common.util.concurrent.MoreExecutors;
-import com.metamx.common.Granularity;
 import com.metamx.common.ISE;
 import com.metamx.common.Pair;
 import com.metamx.common.concurrent.ScheduledExecutors;
@@ -51,6 +50,7 @@ import io.druid.concurrent.Execs;
 import io.druid.concurrent.TaskThreadPriority;
 import io.druid.data.input.Committer;
 import io.druid.data.input.InputRow;
+import io.druid.granularity.Granularity;
 import io.druid.query.MetricsEmittingQueryRunner;
 import io.druid.query.NoopQueryRunner;
 import io.druid.query.Query;
@@ -275,7 +275,7 @@ public class RealtimePlumber implements Plumber
     final Granularity segmentGranularity = schema.getGranularitySpec().getSegmentGranularity();
     final VersioningPolicy versioningPolicy = config.getVersioningPolicy();
 
-    final long truncatedTime = segmentGranularity.truncate(new DateTime(timestamp)).getMillis();
+    final long truncatedTime = segmentGranularity.bucketStart(new DateTime(timestamp)).getMillis();
 
     Sink retVal = sinks.get(truncatedTime);
 
@@ -934,7 +934,7 @@ public class RealtimePlumber implements Plumber
     final Granularity segmentGranularity = schema.getGranularitySpec().getSegmentGranularity();
     final Period windowPeriod = config.getWindowPeriod();
 
-    final DateTime truncatedNow = segmentGranularity.truncate(new DateTime());
+    final DateTime truncatedNow = segmentGranularity.bucketStart(new DateTime());
     final long windowMillis = windowPeriod.toStandardDuration().getMillis();
 
     log.info(
@@ -991,7 +991,7 @@ public class RealtimePlumber implements Plumber
 
     final long windowMillis = windowPeriod.toStandardDuration().getMillis();
     log.info("Starting merge and push.");
-    DateTime minTimestampAsDate = segmentGranularity.truncate(
+    DateTime minTimestampAsDate = segmentGranularity.bucketStart(
         new DateTime(
             Math.max(
                 windowMillis,

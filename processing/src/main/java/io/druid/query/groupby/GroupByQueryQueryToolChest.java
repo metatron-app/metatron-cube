@@ -43,7 +43,7 @@ import io.druid.common.guava.CombiningSequence;
 import io.druid.data.input.MapBasedRow;
 import io.druid.data.input.Row;
 import io.druid.data.input.Rows;
-import io.druid.granularity.QueryGranularity;
+import io.druid.granularity.Granularity;
 import io.druid.guice.annotations.Global;
 import io.druid.query.BaseQuery;
 import io.druid.query.CacheStrategy;
@@ -272,7 +272,7 @@ public class GroupByQueryQueryToolChest extends QueryToolChest<Row, GroupByQuery
 
   private Sequence<Row> postProcessing(GroupByQuery query, Sequence<Row> mergedSequence)
   {
-    final QueryGranularity granularity = query.getGranularity();
+    final Granularity granularity = query.getGranularity();
     final List<PostAggregator> postAggregators = PostAggregators.decorate(
         query.getPostAggregatorSpecs(),
         query.getAggregatorSpecs()
@@ -300,7 +300,7 @@ public class GroupByQueryQueryToolChest extends QueryToolChest<Row, GroupByQuery
 
   private Sequence<Row> postAggregate(GroupByQuery query, IncrementalIndex<?> index)
   {
-    final QueryGranularity granularity = query.getGranularity();
+    final Granularity granularity = query.getGranularity();
     final List<PostAggregator> postAggregators = query.getPostAggregatorSpecs();  // decorated inside of index
     Iterable<Row> sequence = index.iterableWithPostAggregations(postAggregators, query.isDescending());
     if (!granularity.isUTC()) {
@@ -497,7 +497,7 @@ public class GroupByQueryQueryToolChest extends QueryToolChest<Row, GroupByQuery
         final DimFilter dimFilter = query.getDimFilter();
         final byte[] filterBytes = dimFilter == null ? new byte[]{} : dimFilter.getCacheKey();
         final byte[] aggregatorBytes = QueryCacheHelper.computeAggregatorBytes(query.getAggregatorSpecs());
-        final byte[] granularityBytes = query.getGranularity().cacheKey();
+        final byte[] granularityBytes = query.getGranularity().getCacheKey();
         final byte[][] dimensionsBytes = new byte[query.getDimensions().size()][];
         int dimensionsBytesSize = 0;
         int index = 0;
@@ -582,7 +582,7 @@ public class GroupByQueryQueryToolChest extends QueryToolChest<Row, GroupByQuery
       {
         return new Function<Object, Row>()
         {
-          private final QueryGranularity granularity = query.getGranularity();
+          private final Granularity granularity = query.getGranularity();
 
           @Override
           public Row apply(Object input)

@@ -27,12 +27,11 @@ import com.google.inject.Binder;
 import com.google.inject.Injector;
 import com.google.inject.Key;
 import com.google.inject.Module;
-import com.metamx.common.Granularity;
 import com.metamx.common.ISE;
 import io.druid.data.input.impl.CSVParseSpec;
+import io.druid.data.input.impl.DefaultTimestampSpec;
 import io.druid.data.input.impl.DimensionsSpec;
 import io.druid.data.input.impl.StringInputRowParser;
-import io.druid.data.input.impl.DefaultTimestampSpec;
 import io.druid.granularity.QueryGranularities;
 import io.druid.guice.GuiceInjectors;
 import io.druid.guice.JsonConfigProvider;
@@ -276,7 +275,7 @@ public class DatasourcePathSpecTest
                     new LongSumAggregatorFactory("visited_sum", "visited")
                 },
                 new UniformGranularitySpec(
-                    Granularity.DAY, QueryGranularities.NONE, ImmutableList.of(Interval.parse("2000/3000"))
+                    QueryGranularities.DAY, QueryGranularities.NONE, ImmutableList.of(Interval.parse("2000/3000"))
                 ),
                 HadoopDruidIndexerConfig.JSON_MAPPER
             ),

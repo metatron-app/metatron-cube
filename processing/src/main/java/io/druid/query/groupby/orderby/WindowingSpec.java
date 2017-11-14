@@ -34,7 +34,7 @@ import io.druid.math.expr.Expr;
 import io.druid.math.expr.ExprEval;
 import io.druid.math.expr.ExprType;
 import io.druid.math.expr.Parser;
-import io.druid.query.Cacheable;
+import io.druid.common.Cacheable;
 import io.druid.query.QueryCacheHelper;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.PostAggregator;

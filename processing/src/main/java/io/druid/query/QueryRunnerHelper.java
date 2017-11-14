@@ -28,7 +28,7 @@ import com.metamx.common.guava.Sequence;
 import com.metamx.common.guava.Sequences;
 import com.metamx.common.logger.Logger;
 import io.druid.cache.Cache;
-import io.druid.granularity.QueryGranularity;
+import io.druid.granularity.Granularity;
 import io.druid.query.aggregation.Aggregator;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.filter.DimFilter;
@@ -75,7 +75,7 @@ public class QueryRunnerHelper
       DimFilter filter,
       Cache cache,
       boolean descending,
-      QueryGranularity granularity,
+      Granularity granularity,
       final Function<Cursor, Result<T>> mapFn
   )
   {
@@ -94,7 +94,7 @@ public class QueryRunnerHelper
       DimFilter filter,
       Cache cache,
       boolean descending,
-      QueryGranularity granularity,
+      Granularity granularity,
       final Function<Cursor, T> mapFn
   )
   {

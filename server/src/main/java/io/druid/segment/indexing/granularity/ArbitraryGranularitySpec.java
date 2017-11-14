@@ -26,9 +26,8 @@ import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
 import com.google.common.collect.PeekingIterator;
 import com.google.common.collect.Sets;
-import com.metamx.common.Granularity;
 import io.druid.common.utils.JodaUtils;
-import io.druid.granularity.QueryGranularity;
+import io.druid.granularity.Granularity;
 import org.joda.time.DateTime;
 import org.joda.time.Interval;
 
@@ -39,13 +38,13 @@ import java.util.TreeSet;
 public class ArbitraryGranularitySpec implements GranularitySpec
 {
   private final TreeSet<Interval> intervals;
-  private final QueryGranularity queryGranularity;
+  private final Granularity queryGranularity;
   private final Boolean rollup;
   private final Boolean append;
 
   @JsonCreator
   public ArbitraryGranularitySpec(
-      @JsonProperty("queryGranularity") QueryGranularity queryGranularity,
+      @JsonProperty("queryGranularity") Granularity queryGranularity,
       @JsonProperty("rollup") Boolean rollup,
       @JsonProperty("append") Boolean append,
       @JsonProperty("intervals") List<Interval> inputIntervals
@@ -86,7 +85,7 @@ public class ArbitraryGranularitySpec implements GranularitySpec
   }
 
   public ArbitraryGranularitySpec(
-      QueryGranularity queryGranularity,
+      Granularity queryGranularity,
       List<Interval> inputIntervals
   )
   {
@@ -135,7 +134,7 @@ public class ArbitraryGranularitySpec implements GranularitySpec
 
   @Override
   @JsonProperty("queryGranularity")
-  public QueryGranularity getQueryGranularity()
+  public Granularity getQueryGranularity()
   {
     return queryGranularity;
   }

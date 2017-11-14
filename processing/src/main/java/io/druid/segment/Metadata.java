@@ -20,8 +20,7 @@
 package io.druid.segment;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.metamx.common.Granularity;
-import io.druid.granularity.QueryGranularity;
+import io.druid.granularity.Granularity;
 import io.druid.query.aggregation.AggregatorFactory;
 
 import java.util.ArrayList;
@@ -45,7 +44,7 @@ public class Metadata
   private AggregatorFactory[] aggregators;
 
   @JsonProperty
-  private QueryGranularity queryGranularity;
+  private Granularity queryGranularity;
 
   @JsonProperty
   private Granularity segmentGranularity;
@@ -77,12 +76,12 @@ public class Metadata
     return this;
   }
 
-  public QueryGranularity getQueryGranularity()
+  public Granularity getQueryGranularity()
   {
     return queryGranularity;
   }
 
-  public Metadata setQueryGranularity(QueryGranularity queryGranularity)
+  public Metadata setQueryGranularity(Granularity queryGranularity)
   {
     this.queryGranularity = queryGranularity;
     return this;
@@ -160,7 +159,7 @@ public class Metadata
                                                    ? new ArrayList<AggregatorFactory[]>()
                                                    : null;
 
-    List<QueryGranularity> gransToMerge = new ArrayList<>();
+    List<Granularity> gransToMerge = new ArrayList<>();
     List<Granularity> segGransToMerge = new ArrayList<>();
     List<Boolean> rollupToMerge = new ArrayList<>();
 
@@ -210,10 +209,10 @@ public class Metadata
     }
 
     if (gransToMerge != null) {
-      result.setQueryGranularity(QueryGranularity.checkAllEquals(gransToMerge));
+      result.setQueryGranularity(Granularity.mergeGranularities(gransToMerge));
     }
     if (segGransToMerge != null) {
-      result.setSegmentGranularity(QueryGranularity.checkAllEquals(segGransToMerge));
+      result.setSegmentGranularity(Granularity.mergeGranularities(segGransToMerge));
     }
     if (ingestedNumRows != null) {
       result.setIngestedNumRow(ingestedNumRows);

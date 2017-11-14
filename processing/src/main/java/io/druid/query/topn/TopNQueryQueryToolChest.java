@@ -36,7 +36,7 @@ import com.metamx.common.guava.nary.BinaryFn;
 import com.metamx.common.logger.Logger;
 import com.metamx.emitter.service.ServiceMetricEvent;
 import io.druid.data.input.Row;
-import io.druid.granularity.QueryGranularity;
+import io.druid.granularity.Granularity;
 import io.druid.query.BaseQuery;
 import io.druid.query.BySegmentResultValue;
 import io.druid.query.CacheStrategy;
@@ -341,7 +341,7 @@ public class TopNQueryQueryToolChest extends QueryToolChest<Result<TopNResultVal
         final DimFilter dimFilter = query.getDimensionsFilter();
         final byte[] filterBytes = dimFilter == null ? new byte[]{} : dimFilter.getCacheKey();
         final byte[] aggregatorBytes = QueryCacheHelper.computeAggregatorBytes(query.getAggregatorSpecs());
-        final byte[] granularityBytes = query.getGranularity().cacheKey();
+        final byte[] granularityBytes = query.getGranularity().getCacheKey();
         final byte[] outputColumnsBytes = QueryCacheHelper.computeCacheBytes(query.getOutputColumns());
 
         return ByteBuffer
@@ -400,7 +400,7 @@ public class TopNQueryQueryToolChest extends QueryToolChest<Result<TopNResultVal
       {
         return new Function<Object, Result<TopNResultValue>>()
         {
-          private final QueryGranularity granularity = query.getGranularity();
+          private final Granularity granularity = query.getGranularity();
 
           @Override
           @SuppressWarnings("unchecked")

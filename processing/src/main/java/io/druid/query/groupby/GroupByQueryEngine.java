@@ -42,7 +42,7 @@ import io.druid.collections.StupidPool;
 import io.druid.data.input.MapBasedRow;
 import io.druid.data.input.Row;
 import io.druid.granularity.QueryGranularities;
-import io.druid.granularity.QueryGranularity;
+import io.druid.granularity.Granularity;
 import io.druid.guice.annotations.Global;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.BufferAggregator;
@@ -87,7 +87,7 @@ public class GroupByQueryEngine
    */
   public static Long getUniversalTimestamp(final GroupByQuery query)
   {
-    final QueryGranularity gran = query.getGranularity();
+    final Granularity gran = query.getGranularity();
     final String timestampStringFromContext = query.getContextValue(GroupByQueryHelper.CTX_KEY_FUDGE_TIMESTAMP);
 
     if (!Strings.isNullOrEmpty(timestampStringFromContext)) {

@@ -25,7 +25,6 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.io.Files;
-import com.metamx.common.Granularity;
 import io.druid.data.input.impl.DefaultTimestampSpec;
 import io.druid.data.input.impl.DimensionsSpec;
 import io.druid.data.input.impl.InputRowParser;
@@ -191,7 +190,7 @@ public class OrcIndexGeneratorJobTest
                 ),
                 aggs,
                 new UniformGranularitySpec(
-                    Granularity.DAY, QueryGranularities.NONE, ImmutableList.of(this.interval)
+                    QueryGranularities.DAY, QueryGranularities.NONE, ImmutableList.of(this.interval)
                 ),
                 mapper
             ),

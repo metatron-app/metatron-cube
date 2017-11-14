@@ -39,7 +39,7 @@ import com.metamx.common.logger.Logger;
 import io.druid.collections.CombiningIterable;
 import io.druid.data.input.InputRow;
 import io.druid.data.input.Rows;
-import io.druid.granularity.QueryGranularity;
+import io.druid.granularity.Granularity;
 import io.druid.indexer.partitions.SingleDimensionPartitionsSpec;
 import io.druid.timeline.partition.NoneShardSpec;
 import io.druid.timeline.partition.ShardSpec;
@@ -257,7 +257,7 @@ public class DeterminePartitionsJob implements Jobby
 
   public static class DeterminePartitionsGroupByMapper extends HadoopDruidIndexerMapper<BytesWritable, NullWritable>
   {
-    private QueryGranularity rollupGranularity = null;
+    private Granularity rollupGranularity = null;
 
     @Override
     protected void setup(Context context)
@@ -275,7 +275,7 @@ public class DeterminePartitionsJob implements Jobby
     ) throws IOException, InterruptedException
     {
       final List<Object> groupKey = Rows.toGroupKey(
-          rollupGranularity.truncate(inputRow.getTimestampFromEpoch()),
+          rollupGranularity.bucketStart(inputRow.getTimestamp()).getMillis(),
           inputRow
       );
       context.write(

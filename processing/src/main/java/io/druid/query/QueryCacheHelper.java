@@ -20,6 +20,7 @@
 package io.druid.query;
 
 import com.google.common.collect.Lists;
+import io.druid.common.Cacheable;
 import io.druid.common.utils.StringUtils;
 import io.druid.query.filter.DimFilterCacheHelper;
 

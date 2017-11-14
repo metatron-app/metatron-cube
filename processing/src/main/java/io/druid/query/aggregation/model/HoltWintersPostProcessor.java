@@ -35,7 +35,7 @@ import com.metamx.common.guava.YieldingAccumulator;
 import com.metamx.common.logger.Logger;
 import io.druid.data.input.MapBasedRow;
 import io.druid.data.input.Row;
-import io.druid.granularity.QueryGranularity;
+import io.druid.granularity.Granularity;
 import io.druid.query.PostProcessingOperator;
 import io.druid.query.Query;
 import io.druid.query.QueryRunner;
@@ -116,7 +116,7 @@ public class HoltWintersPostProcessor extends PostProcessingOperator.Abstract
       {
         final String[] numericColumns = columns.toArray(new String[columns.size()]);
         if (query instanceof StreamQuery) {
-          final QueryGranularity granularity = ((StreamQuery) query).getGranularity();
+          final Granularity granularity = ((StreamQuery) query).getGranularity();
           // this is used for quick calculation of prediction only
           final BoundedTimeseries[] numbers = makeReservoir(numericColumns.length, granularity);
           baseRunner.run(query, responseContext).accumulate(
@@ -140,7 +140,7 @@ public class HoltWintersPostProcessor extends PostProcessingOperator.Abstract
 
         } else if (query instanceof GroupByQuery) {
           final GroupByQuery groupBy = (GroupByQuery) query;
-          final QueryGranularity granularity = groupBy.getGranularity();
+          final Granularity granularity = groupBy.getGranularity();
           final String[] dimensions = DimensionSpecs.toOutputNames(groupBy.getDimensions()).toArray(new String[0]);
 
           final Map<ObjectArray<Object>, Object> numbersMap = Maps.newHashMap();
@@ -254,7 +254,7 @@ public class HoltWintersPostProcessor extends PostProcessingOperator.Abstract
   }
 
   @SuppressWarnings("unchecked")
-  private BoundedTimeseries[] makeReservoir(int length, QueryGranularity granularity)
+  private BoundedTimeseries[] makeReservoir(int length, Granularity granularity)
   {
     final BoundedTimeseries[] numbers = (BoundedTimeseries[]) Array.newInstance(BoundedTimeseries.class, columns.size());
     for (int i = 0; i < length; i++) {
@@ -293,7 +293,7 @@ public class HoltWintersPostProcessor extends PostProcessingOperator.Abstract
       String[] dimensions,
       Map<ObjectArray<Object>, Object> numbersMap,
       long lastTimestamp,
-      QueryGranularity granularity
+      Granularity granularity
   )
   {
     List<Row> rows = Lists.newArrayListWithExpectedSize(numPrediction);
@@ -342,10 +342,10 @@ public class HoltWintersPostProcessor extends PostProcessingOperator.Abstract
     private int index;
     private boolean exceeded;
 
-    private final QueryGranularity granularity;
+    private final Granularity granularity;
     private long lastTime;
 
-    private BoundedTimeseries(int limit, QueryGranularity granularity)
+    private BoundedTimeseries(int limit, Granularity granularity)
     {
       this.limit = Math.max(limit, 32);
       this.values = new double[32];

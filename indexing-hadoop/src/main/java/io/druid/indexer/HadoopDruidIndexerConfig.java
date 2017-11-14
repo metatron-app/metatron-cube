@@ -45,7 +45,7 @@ import io.druid.common.utils.JodaUtils;
 import io.druid.data.input.InputRow;
 import io.druid.data.input.impl.InputRowParser;
 import io.druid.data.input.impl.ParseSpec;
-import io.druid.granularity.QueryGranularity;
+import io.druid.granularity.Granularity;
 import io.druid.guice.GuiceInjectors;
 import io.druid.guice.JsonConfigProvider;
 import io.druid.guice.annotations.Self;
@@ -219,7 +219,7 @@ public class HadoopDruidIndexerConfig
   private volatile PathSpec pathSpec;
   private final Map<DateTime, ShardSpecLookup> shardSpecLookups = Maps.newHashMap();
   private final Map<DateTime, Map<ShardSpec, HadoopyShardSpec>> hadoopShardSpecLookup = Maps.newHashMap();
-  private final QueryGranularity rollupGran;
+  private final Granularity rollupGran;
 
   @JsonCreator
   public HadoopDruidIndexerConfig(

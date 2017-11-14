@@ -29,10 +29,11 @@ import com.google.common.collect.Iterables;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Ordering;
 import com.google.common.collect.Sets;
-import com.metamx.common.Granularity;
 import io.druid.data.input.Committer;
 import io.druid.data.input.InputRow;
 import io.druid.data.input.MapBasedInputRow;
+import io.druid.granularity.Granularity;
+import io.druid.granularity.QueryGranularities;
 import io.druid.jackson.DefaultObjectMapper;
 import io.druid.query.SegmentDescriptor;
 import io.druid.segment.realtime.plumber.SegmentHandoffNotifier;
@@ -93,7 +94,7 @@ public class FiniteAppenderatorDriverTest
   public void setUp()
   {
     appenderatorTester = new AppenderatorTester(MAX_ROWS_IN_MEMORY);
-    allocator = new TestSegmentAllocator(DATA_SOURCE, Granularity.HOUR);
+    allocator = new TestSegmentAllocator(DATA_SOURCE, QueryGranularities.HOUR);
     driver = new FiniteAppenderatorDriver(
         appenderatorTester.getAppenderator(),
         allocator,
@@ -246,7 +247,7 @@ public class FiniteAppenderatorDriverTest
     ) throws IOException
     {
       synchronized (counters) {
-        final long timestampTruncated = granularity.truncate(timestamp).getMillis();
+        final long timestampTruncated = granularity.bucketStart(timestamp).getMillis();
         if (!counters.containsKey(timestampTruncated)) {
           counters.put(timestampTruncated, new AtomicInteger());
         }

@@ -33,7 +33,6 @@ import com.google.common.collect.Sets;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.ListeningExecutorService;
 import com.google.common.util.concurrent.MoreExecutors;
-import com.metamx.common.Granularity;
 import com.metamx.common.ISE;
 import com.metamx.common.Pair;
 import com.metamx.common.guava.Sequences;
@@ -46,7 +45,13 @@ import com.metamx.metrics.MonitorScheduler;
 import io.druid.client.cache.CacheConfig;
 import io.druid.client.cache.MapCache;
 import io.druid.concurrent.Execs;
-import io.druid.data.input.*;
+import io.druid.data.input.Committer;
+import io.druid.data.input.Firehose;
+import io.druid.data.input.FirehoseFactory;
+import io.druid.data.input.FirehoseFactoryV2;
+import io.druid.data.input.FirehoseV2;
+import io.druid.data.input.InputRow;
+import io.druid.data.input.MapBasedInputRow;
 import io.druid.data.input.impl.InputRowParser;
 import io.druid.granularity.QueryGranularities;
 import io.druid.indexing.common.SegmentLoaderFactory;
@@ -951,8 +956,8 @@ public class RealtimeIndexTaskTest
             directory,
             task1.getId(),
             task1.getDataSource(),
-            Granularity.DAY.truncate(now),
-            Granularity.DAY.increment(Granularity.DAY.truncate(now))
+            QueryGranularities.DAY.bucketStart(now),
+            QueryGranularities.DAY.bucketEnd(now)
         )
     );
 
@@ -1034,7 +1039,7 @@ public class RealtimeIndexTaskTest
         "test_ds",
         null,
         new AggregatorFactory[]{new CountAggregatorFactory("rows"), new LongSumAggregatorFactory("met1", "met1")},
-        new UniformGranularitySpec(Granularity.DAY, QueryGranularities.NONE, null),
+        new UniformGranularitySpec(QueryGranularities.DAY, QueryGranularities.NONE, null),
         objectMapper
     );
     RealtimeIOConfig realtimeIOConfig = new RealtimeIOConfig(

@@ -26,7 +26,6 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.io.Files;
 import com.google.common.util.concurrent.MoreExecutors;
-import com.metamx.common.Granularity;
 import com.metamx.emitter.service.ServiceEmitter;
 import io.druid.client.cache.MapCache;
 import io.druid.data.input.Committer;
@@ -142,7 +141,7 @@ public class RealtimePlumberSchoolTest
             Map.class
         ),
         new AggregatorFactory[]{new CountAggregatorFactory("rows")},
-        new UniformGranularitySpec(Granularity.HOUR, QueryGranularities.NONE, null),
+        new UniformGranularitySpec(QueryGranularities.HOUR, QueryGranularities.NONE, null),
         jsonMapper
     );
 
@@ -158,7 +157,7 @@ public class RealtimePlumberSchoolTest
             Map.class
         ),
         new AggregatorFactory[]{new CountAggregatorFactory("rows")},
-        new UniformGranularitySpec(Granularity.YEAR, QueryGranularities.NONE, null),
+        new UniformGranularitySpec(QueryGranularities.YEAR, QueryGranularities.NONE, null),
         jsonMapper
     );
 

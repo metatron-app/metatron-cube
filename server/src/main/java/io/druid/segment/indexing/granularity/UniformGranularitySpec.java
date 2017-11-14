@@ -25,9 +25,8 @@ import com.google.common.base.Optional;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
-import com.metamx.common.Granularity;
+import io.druid.granularity.Granularity;
 import io.druid.granularity.QueryGranularities;
-import io.druid.granularity.QueryGranularity;
 import org.joda.time.DateTime;
 import org.joda.time.Interval;
 
@@ -37,11 +36,11 @@ import java.util.SortedSet;
 
 public class UniformGranularitySpec implements GranularitySpec
 {
-  private static final Granularity DEFAULT_SEGMENT_GRANULARITY = Granularity.DAY;
-  private static final QueryGranularity DEFAULT_QUERY_GRANULARITY = QueryGranularities.NONE;
+  private static final Granularity DEFAULT_SEGMENT_GRANULARITY = QueryGranularities.DAY;
+  private static final Granularity DEFAULT_QUERY_GRANULARITY = QueryGranularities.NONE;
 
   private final Granularity segmentGranularity;
-  private final QueryGranularity queryGranularity;
+  private final Granularity queryGranularity;
   private final Boolean rollup;
   private final Boolean append;
   private final List<Interval> intervals;
@@ -51,7 +50,7 @@ public class UniformGranularitySpec implements GranularitySpec
   @JsonCreator
   public UniformGranularitySpec(
       @JsonProperty("segmentGranularity") Granularity segmentGranularity,
-      @JsonProperty("queryGranularity") QueryGranularity queryGranularity,
+      @JsonProperty("queryGranularity") Granularity queryGranularity,
       @JsonProperty("rollup") Boolean rollup,
       @JsonProperty("append") Boolean append,
       @JsonProperty("intervals") List<Interval> intervals
@@ -66,7 +65,7 @@ public class UniformGranularitySpec implements GranularitySpec
 
   public UniformGranularitySpec(
       Granularity segmentGranularity,
-      QueryGranularity queryGranularity,
+      Granularity queryGranularity,
       List<Interval> inputIntervals
   )
   {
@@ -133,7 +132,7 @@ public class UniformGranularitySpec implements GranularitySpec
 
   @Override
   @JsonProperty("queryGranularity")
-  public QueryGranularity getQueryGranularity()
+  public Granularity getQueryGranularity()
   {
     return queryGranularity;
   }

@@ -29,7 +29,7 @@ import com.google.common.math.IntMath;
 import io.druid.common.utils.JodaUtils;
 import io.druid.data.input.Row;
 import io.druid.granularity.QueryGranularities;
-import io.druid.granularity.QueryGranularity;
+import io.druid.granularity.Granularity;
 import io.druid.query.DataSource;
 import io.druid.query.Query;
 import io.druid.query.QuerySegmentWalker;
@@ -69,7 +69,7 @@ public class PartitionedGroupByQuery extends GroupByQuery implements Query.Rewri
       @JsonProperty("dataSource") DataSource dataSource,
       @JsonProperty("intervals") QuerySegmentSpec querySegmentSpec,
       @JsonProperty("filter") DimFilter dimFilter,
-      @JsonProperty("granularity") QueryGranularity granularity,
+      @JsonProperty("granularity") Granularity granularity,
       @JsonProperty("dimensions") List<DimensionSpec> dimensions,
       @JsonProperty("virtualColumns") List<VirtualColumn> virtualColumns,
       @JsonProperty("aggregations") List<AggregatorFactory> aggregatorSpecs,
@@ -152,7 +152,7 @@ public class PartitionedGroupByQuery extends GroupByQuery implements Query.Rewri
     if (numPartition == 1) {
       return asGroupByQuery(null, null);
     }
-    QueryGranularity granularity = getGranularity();
+    Granularity granularity = getGranularity();
     if (granularity == QueryGranularities.ALL) {
       return splitOnDimension(null, numPartition, segmentWalker, jsonMapper);
     }
@@ -165,7 +165,7 @@ public class PartitionedGroupByQuery extends GroupByQuery implements Query.Rewri
     for (Interval interval : getQuerySegmentSpec().getIntervals()) {
       Interval trimmed = JodaUtils.trim(interval, analyzed);
       if (trimmed != null) {
-        Iterables.addAll(splits, QueryGranularities.split(trimmed, granularity));
+        Iterables.addAll(splits, granularity.getIterable(trimmed));
       }
     }
     List<Query> queries = Lists.newArrayList();

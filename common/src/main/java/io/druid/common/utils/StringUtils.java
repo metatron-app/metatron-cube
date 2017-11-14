@@ -22,6 +22,9 @@ package io.druid.common.utils;
 import com.google.common.base.Function;
 import com.google.common.base.Strings;
 
+import java.util.IllegalFormatException;
+import java.util.Locale;
+
 /**
  */
 public class StringUtils extends com.metamx.common.StringUtils
@@ -119,5 +122,68 @@ public class StringUtils extends com.metamx.common.StringUtils
       index++;
     }
     return Long.parseLong(value.substring(0, index));
+  }
+
+  /**
+   * Equivalent of String.format(Locale.ENGLISH, message, formatArgs).
+   */
+  public static String format(String message, Object... formatArgs)
+  {
+    return String.format(Locale.ENGLISH, message, formatArgs);
+  }
+
+  /**
+   * Formats the string as {@link #format(String, Object...)}, but instead of failing on illegal format, returns the
+   * concatenated format string and format arguments. Should be used for unimportant formatting like logging,
+   * exception messages, typically not directly.
+   */
+  public static String nonStrictFormat(String message, Object... formatArgs)
+  {
+    if (formatArgs == null || formatArgs.length == 0) {
+      return message;
+    }
+    try {
+      return String.format(Locale.ENGLISH, message, formatArgs);
+    }
+    catch (IllegalFormatException e) {
+      StringBuilder bob = new StringBuilder(message);
+      for (Object formatArg : formatArgs) {
+        bob.append("; ").append(formatArg);
+      }
+      return bob.toString();
+    }
+  }
+
+  public static String toLowerCase(String s)
+  {
+    return s.toLowerCase(Locale.ENGLISH);
+  }
+
+  public static String toUpperCase(String s)
+  {
+    return s.toUpperCase(Locale.ENGLISH);
+  }
+
+  public static String removeChar(String s, char c)
+  {
+    for (int i = 0; i < s.length(); i++) {
+      if (s.charAt(i) == c) {
+        return removeChar(s, c, i);
+      }
+    }
+    return s;
+  }
+
+  private static String removeChar(String s, char c, int firstOccurranceIndex)
+  {
+    StringBuilder sb = new StringBuilder(s.length() - 1);
+    sb.append(s, 0, firstOccurranceIndex);
+    for (int i = firstOccurranceIndex + 1; i < s.length(); i++) {
+      char charOfString = s.charAt(i);
+      if (charOfString != c) {
+        sb.append(charOfString);
+      }
+    }
+    return sb.toString();
   }
 }

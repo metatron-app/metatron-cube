@@ -20,7 +20,7 @@
 package io.druid.query.topn;
 
 import com.google.common.collect.Lists;
-import io.druid.granularity.QueryGranularity;
+import io.druid.granularity.Granularity;
 import io.druid.granularity.QueryGranularities;
 import io.druid.query.DataSource;
 import io.druid.query.TableDataSource;
@@ -70,7 +70,7 @@ public class TopNQueryBuilder
   private int threshold;
   private QuerySegmentSpec querySegmentSpec;
   private DimFilter dimFilter;
-  private QueryGranularity granularity;
+  private Granularity granularity;
   private List<AggregatorFactory> aggregatorSpecs;
   private List<PostAggregator> postAggregatorSpecs;
   private List<String> outputColumns;
@@ -125,7 +125,7 @@ public class TopNQueryBuilder
     return dimFilter;
   }
 
-  public QueryGranularity getGranularity()
+  public Granularity getGranularity()
   {
     return granularity;
   }
@@ -297,11 +297,11 @@ public class TopNQueryBuilder
 
   public TopNQueryBuilder granularity(String g)
   {
-    granularity = QueryGranularity.fromString(g);
+    granularity = Granularity.fromString(g);
     return this;
   }
 
-  public TopNQueryBuilder granularity(QueryGranularity g)
+  public TopNQueryBuilder granularity(Granularity g)
   {
     granularity = g;
     return this;

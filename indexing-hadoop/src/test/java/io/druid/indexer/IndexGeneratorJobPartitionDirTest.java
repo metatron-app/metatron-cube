@@ -26,16 +26,17 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.io.Files;
-import com.metamx.common.Granularity;
 import io.druid.data.input.impl.CSVParseSpec;
+import io.druid.data.input.impl.DefaultTimestampSpec;
 import io.druid.data.input.impl.DimensionsSpec;
 import io.druid.data.input.impl.InputRowParser;
-import io.druid.data.input.impl.DefaultTimestampSpec;
 import io.druid.granularity.QueryGranularities;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.LongSumAggregatorFactory;
 import io.druid.query.aggregation.hyperloglog.HyperUniquesAggregatorFactory;
-import io.druid.segment.*;
+import io.druid.segment.QueryableIndex;
+import io.druid.segment.QueryableIndexIndexableAdapter;
+import io.druid.segment.Rowboat;
 import io.druid.segment.data.Indexed;
 import io.druid.segment.indexing.DataSchema;
 import io.druid.segment.indexing.granularity.UniformGranularitySpec;
@@ -53,7 +54,12 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
-import java.io.*;
+import java.io.BufferedOutputStream;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.OutputStream;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
@@ -206,7 +212,7 @@ public class IndexGeneratorJobPartitionDirTest
                 ),
                 aggs,
                 new UniformGranularitySpec(
-                    Granularity.DAY, QueryGranularities.NONE, ImmutableList.of(this.interval)
+                    QueryGranularities.DAY, QueryGranularities.NONE, ImmutableList.of(this.interval)
                 ),
                 mapper
             ),

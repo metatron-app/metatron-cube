@@ -23,8 +23,7 @@ import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import io.druid.data.TypeResolver;
 import io.druid.data.ValueDesc;
-import io.druid.data.ValueType;
-import io.druid.query.Cacheable;
+import io.druid.common.Cacheable;
 
 /**
  */

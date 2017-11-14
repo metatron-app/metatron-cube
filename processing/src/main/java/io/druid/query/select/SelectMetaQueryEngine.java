@@ -29,7 +29,7 @@ import com.metamx.common.guava.BaseSequence;
 import com.metamx.common.guava.Sequence;
 import com.metamx.common.guava.Sequences;
 import io.druid.granularity.QueryGranularities;
-import io.druid.granularity.QueryGranularity;
+import io.druid.granularity.Granularity;
 import io.druid.query.QueryRunnerHelper;
 import io.druid.query.Result;
 import io.druid.query.dimension.DimensionSpecs;
@@ -62,7 +62,7 @@ public class SelectMetaQueryEngine
     Preconditions.checkArgument(intervals.size() == 1, "Can only handle a single interval, got[%s]", intervals);
 
     final Interval interval = Iterables.getOnlyElement(intervals);
-    final QueryGranularity granularity = query.getGranularity();
+    final Granularity granularity = query.getGranularity();
     final String segmentId = segment.getIdentifier();
 
     StorageAdapter storageAdapter = segment.asStorageAdapter(false);

@@ -29,7 +29,7 @@ import com.metamx.common.UOE;
 import com.metamx.common.guava.MergeSequence;
 import com.metamx.common.guava.Sequence;
 import com.metamx.common.guava.Sequences;
-import io.druid.granularity.QueryGranularity;
+import io.druid.granularity.Granularity;
 import io.druid.granularity.QueryGranularities;
 import io.druid.js.JavaScriptConfig;
 import io.druid.query.aggregation.AggregatorFactory;
@@ -100,8 +100,8 @@ public class QueryRunnerTestHelper
 
   public static final DateTime minTime = new DateTime("2011-01-12T00:00:00.000Z");
 
-  public static final QueryGranularity dayGran = QueryGranularities.DAY;
-  public static final QueryGranularity allGran = QueryGranularities.ALL;
+  public static final Granularity dayGran = QueryGranularities.DAY;
+  public static final Granularity allGran = QueryGranularities.ALL;
   public static final String timeDimension = "__time";
   public static final String marketDimension = "market";
   public static final String qualityDimension = "quality";

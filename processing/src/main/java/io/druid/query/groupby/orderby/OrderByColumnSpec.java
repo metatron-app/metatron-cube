@@ -29,7 +29,7 @@ import com.metamx.common.IAE;
 import com.metamx.common.ISE;
 import com.metamx.common.StringUtils;
 
-import io.druid.query.Cacheable;
+import io.druid.common.Cacheable;
 import io.druid.query.ordering.StringComparators;
 import io.druid.query.ordering.StringComparators.StringComparator;
 

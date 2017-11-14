@@ -17,11 +17,29 @@
  * under the License.
  */
 
-package io.druid.query;
+package io.druid.common;
 
-/**
- */
-public interface Cacheable
+import com.google.common.collect.ImmutableList;
+import io.druid.common.utils.JodaUtils;
+import org.joda.time.Interval;
+import org.joda.time.chrono.ISOChronology;
+
+public final class Intervals
 {
-  byte[] getCacheKey();
+  public static final Interval ETERNITY = utc(JodaUtils.MIN_INSTANT, JodaUtils.MAX_INSTANT);
+  public static final ImmutableList<Interval> ONLY_ETERNITY = ImmutableList.of(ETERNITY);
+
+  public static Interval utc(long startInstant, long endInstant)
+  {
+    return new Interval(startInstant, endInstant, ISOChronology.getInstanceUTC());
+  }
+
+  public static Interval of(String interval)
+  {
+    return new Interval(interval, ISOChronology.getInstanceUTC());
+  }
+
+  private Intervals()
+  {
+  }
 }

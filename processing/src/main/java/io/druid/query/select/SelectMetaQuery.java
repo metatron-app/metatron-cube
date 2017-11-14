@@ -23,7 +23,7 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.collect.ImmutableList;
-import io.druid.granularity.QueryGranularity;
+import io.druid.granularity.Granularity;
 import io.druid.query.BaseQuery;
 import io.druid.query.DataSource;
 import io.druid.query.Query;
@@ -44,7 +44,7 @@ public class SelectMetaQuery extends BaseQuery<Result<SelectMetaResultValue>>
   implements Query.ViewSupport<Result<SelectMetaResultValue>>
 {
   private final DimFilter dimFilter;
-  private final QueryGranularity granularity;
+  private final Granularity granularity;
   private final List<DimensionSpec> dimensions;
   private final List<String> metrics;
   private final List<VirtualColumn> virtualColumns;
@@ -56,7 +56,7 @@ public class SelectMetaQuery extends BaseQuery<Result<SelectMetaResultValue>>
       @JsonProperty("dataSource") DataSource dataSource,
       @JsonProperty("intervals") QuerySegmentSpec querySegmentSpec,
       @JsonProperty("filter") DimFilter dimFilter,
-      @JsonProperty("granularity") QueryGranularity granularity,
+      @JsonProperty("granularity") Granularity granularity,
       @JsonProperty("dimensions") List<DimensionSpec> dimensions,
       @JsonProperty("metrics") List<String> metrics,
       @JsonProperty("virtualColumns") List<VirtualColumn> virtualColumns,
@@ -106,7 +106,7 @@ public class SelectMetaQuery extends BaseQuery<Result<SelectMetaResultValue>>
   }
 
   @JsonProperty
-  public QueryGranularity getGranularity()
+  public Granularity getGranularity()
   {
     return granularity;
   }
@@ -278,7 +278,7 @@ public class SelectMetaQuery extends BaseQuery<Result<SelectMetaResultValue>>
     );
   }
 
-  public SelectMetaQuery withQueryGranularity(QueryGranularity granularity)
+  public SelectMetaQuery withQueryGranularity(Granularity granularity)
   {
     return new SelectMetaQuery(
         getDataSource(),

@@ -21,7 +21,6 @@ package io.druid.segment.realtime.plumber;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.Lists;
-import com.metamx.common.Granularity;
 import com.metamx.common.concurrent.ScheduledExecutors;
 import com.metamx.emitter.EmittingLogger;
 import com.metamx.emitter.service.ServiceEmitter;
@@ -29,6 +28,7 @@ import io.druid.cache.Cache;
 import io.druid.client.cache.CacheConfig;
 import io.druid.common.guava.ThreadRenamingCallable;
 import io.druid.concurrent.Execs;
+import io.druid.granularity.Granularity;
 import io.druid.query.QueryRunnerFactoryConglomerate;
 import io.druid.segment.IndexIO;
 import io.druid.segment.IndexMerger;
@@ -142,7 +142,7 @@ public class FlushingPlumber extends RealtimePlumber
   private void startFlushThread()
   {
     final Granularity segmentGranularity = schema.getGranularitySpec().getSegmentGranularity();
-    final DateTime truncatedNow = segmentGranularity.truncate(new DateTime());
+    final DateTime truncatedNow = segmentGranularity.bucketStart(new DateTime());
     final long windowMillis = config.getWindowPeriod().toStandardDuration().getMillis();
 
     log.info(
@@ -179,7 +179,7 @@ public class FlushingPlumber extends RealtimePlumber
                   return ScheduledExecutors.Signal.STOP;
                 }
 
-                long minTimestamp = segmentGranularity.truncate(
+                long minTimestamp = segmentGranularity.bucketStart(
                     getRejectionPolicy().getCurrMaxTime().minus(windowMillis)
                 ).getMillis();
 

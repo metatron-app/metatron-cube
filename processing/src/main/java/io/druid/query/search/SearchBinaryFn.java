@@ -24,7 +24,7 @@ import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.metamx.common.guava.nary.BinaryFn;
 import io.druid.granularity.AllGranularity;
-import io.druid.granularity.QueryGranularity;
+import io.druid.granularity.Granularity;
 import io.druid.query.Result;
 import io.druid.query.search.search.SearchHit;
 import io.druid.query.search.search.SearchSortSpec;
@@ -41,12 +41,12 @@ public class SearchBinaryFn
     implements BinaryFn<Result<SearchResultValue>, Result<SearchResultValue>, Result<SearchResultValue>>
 {
   private final Comparator<SearchHit> comparator;
-  private final QueryGranularity gran;
+  private final Granularity gran;
   private final int limit;
 
   public SearchBinaryFn(
       SearchSortSpec searchSortSpec,
-      QueryGranularity granularity,
+      Granularity granularity,
       int limit
   )
   {
@@ -68,7 +68,7 @@ public class SearchBinaryFn
 
     final DateTime timestamp = gran instanceof AllGranularity
                                ? arg1.getTimestamp()
-                               : gran.toDateTime(gran.truncate(arg1.getTimestamp().getMillis()));
+                               : gran.bucketStart(arg1.getTimestamp());
 
     SearchResultValue arg1Vals = arg1.getValue();
     SearchResultValue arg2Vals = arg2.getValue();
@@ -111,7 +111,7 @@ public class SearchBinaryFn
 
   public static class WithCount extends SearchBinaryFn
   {
-    public WithCount(SearchSortSpec searchSortSpec, QueryGranularity granularity, int limit)
+    public WithCount(SearchSortSpec searchSortSpec, Granularity granularity, int limit)
     {
       super(searchSortSpec, granularity, limit);
     }

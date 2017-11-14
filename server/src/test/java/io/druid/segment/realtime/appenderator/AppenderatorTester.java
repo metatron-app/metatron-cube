@@ -21,7 +21,6 @@ package io.druid.segment.realtime.appenderator;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.ImmutableMap;
-import com.metamx.common.Granularity;
 import com.metamx.common.logger.Logger;
 import com.metamx.emitter.EmittingLogger;
 import com.metamx.emitter.core.LoggingEmitter;
@@ -114,7 +113,7 @@ public class AppenderatorTester implements AutoCloseable
             new CountAggregatorFactory("count"),
             new LongSumAggregatorFactory("met", "met")
         },
-        new UniformGranularitySpec(Granularity.MINUTE, QueryGranularities.NONE, null),
+        new UniformGranularitySpec(QueryGranularities.MINUTE, QueryGranularities.NONE, null),
         objectMapper
     );
 

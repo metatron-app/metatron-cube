@@ -19,7 +19,7 @@
 
 package io.druid.query;
 
-import io.druid.granularity.QueryGranularity;
+import io.druid.granularity.Granularity;
 import io.druid.granularity.QueryGranularities;
 import org.joda.time.DateTime;
 import org.junit.Assert;
@@ -67,7 +67,7 @@ public class ResultGranularTimestampComparatorTest
     Result<Object> greater = new Result<Object>(time.plusHours(25), null);
     Result<Object> less = new Result<Object>(time.minusHours(1), null);
 
-    QueryGranularity day = QueryGranularities.DAY;
+    Granularity day = QueryGranularities.DAY;
     Assert.assertEquals(ResultGranularTimestampComparator.create(day, descending).compare(res, same), 0);
     Assert.assertEquals(ResultGranularTimestampComparator.create(day, descending).compare(res, greater), descending ? 1 : -1);
     Assert.assertEquals(ResultGranularTimestampComparator.create(day, descending).compare(res, less), descending ? -1 : 1);
@@ -81,7 +81,7 @@ public class ResultGranularTimestampComparatorTest
     Result<Object> greater = new Result<Object>(time.plusHours(1), null);
     Result<Object> less = new Result<Object>(time.minusHours(1), null);
 
-    QueryGranularity hour = QueryGranularities.HOUR;
+    Granularity hour = QueryGranularities.HOUR;
     Assert.assertEquals(ResultGranularTimestampComparator.create(hour, descending).compare(res, same), 0);
     Assert.assertEquals(ResultGranularTimestampComparator.create(hour, descending).compare(res, greater), descending ? 1 : -1);
     Assert.assertEquals(ResultGranularTimestampComparator.create(hour, descending).compare(res, less), descending ? -1 : 1);

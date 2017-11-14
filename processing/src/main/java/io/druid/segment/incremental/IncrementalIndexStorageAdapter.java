@@ -33,7 +33,7 @@ import com.metamx.common.guava.Sequence;
 import com.metamx.common.guava.Sequences;
 import io.druid.cache.Cache;
 import io.druid.data.ValueDesc;
-import io.druid.granularity.QueryGranularity;
+import io.druid.granularity.Granularity;
 import io.druid.query.QueryInterruptedException;
 import io.druid.query.RowResolver;
 import io.druid.query.dimension.DimensionSpec;
@@ -235,7 +235,7 @@ public class IncrementalIndexStorageAdapter implements StorageAdapter
       final DimFilter filter,
       final Interval interval,
       final VirtualColumns virtualColumns,
-      final QueryGranularity gran,
+      final Granularity gran,
       final Cache cache,
       final boolean descending
   )
@@ -244,43 +244,30 @@ public class IncrementalIndexStorageAdapter implements StorageAdapter
       return Sequences.empty();
     }
 
-    Interval actualIntervalTmp = interval;
+    final Interval dataInterval = new Interval(getMinTime(), gran.bucketEnd(getMaxTime()));
 
-    final Interval dataInterval = new Interval(
-        getMinTime().getMillis(),
-        gran.next(gran.truncate(getMaxTime().getMillis()))
-    );
-
-    if (!actualIntervalTmp.overlaps(dataInterval)) {
+    if (!interval.overlaps(dataInterval)) {
       return Sequences.empty();
     }
 
-    if (actualIntervalTmp.getStart().isBefore(dataInterval.getStart())) {
-      actualIntervalTmp = actualIntervalTmp.withStart(dataInterval.getStart());
-    }
-    if (actualIntervalTmp.getEnd().isAfter(dataInterval.getEnd())) {
-      actualIntervalTmp = actualIntervalTmp.withEnd(dataInterval.getEnd());
-    }
+    final Interval actualInterval = interval.overlap(dataInterval);
 
-    final Interval actualInterval = actualIntervalTmp;
-
-    Iterable<Long> iterable = gran.iterable(actualInterval.getStartMillis(), actualInterval.getEndMillis());
+    Iterable<Interval> iterable = gran.getIterable(actualInterval);
     if (descending) {
-      // might be better to be included in granularity#iterable
       iterable = Lists.reverse(ImmutableList.copyOf(iterable));
     }
     final RowResolver resolver = new RowResolver(this, virtualColumns);
 
     return Sequences.map(
         Sequences.simple(iterable),
-        new Function<Long, Cursor>()
+        new Function<Interval, Cursor>()
         {
           private EntryHolder currEntry = new EntryHolder();
 
           @Override
-          public Cursor apply(final Long input)
+          public Cursor apply(final Interval interval)
           {
-            final long timeStart = Math.max(input, actualInterval.getStartMillis());
+            final long timeStart = Math.max(interval.getStartMillis(), actualInterval.getStartMillis());
 
             return new Cursor.ExprSupport()
             {
@@ -294,12 +281,14 @@ public class IncrementalIndexStorageAdapter implements StorageAdapter
               {
                 cursorMap = index.getSubMap(
                     index.createRangeTimeAndDims(timeStart),
-                    index.createRangeTimeAndDims(Math.min(actualInterval.getEndMillis(), gran.next(input)))
+                    index.createRangeTimeAndDims(
+                        Math.min(actualInterval.getEndMillis(), gran.increment(interval.getStart()).getMillis())
+                    )
                 );
                 if (descending) {
                   cursorMap = cursorMap.descendingMap();
                 }
-                time = gran.toDateTime(input);
+                time = gran.toDateTime(interval.getStartMillis());
                 filterMatcher = filter == null ? BooleanValueMatcher.TRUE : filter.toFilter().makeMatcher(this);
                 reset();
               }

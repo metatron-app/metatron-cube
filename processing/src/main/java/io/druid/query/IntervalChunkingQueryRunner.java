@@ -27,8 +27,10 @@ import com.metamx.common.guava.Sequence;
 import com.metamx.common.guava.Sequences;
 import com.metamx.emitter.service.ServiceEmitter;
 import com.metamx.emitter.service.ServiceMetricEvent;
+import io.druid.common.DateTimes;
 import io.druid.granularity.PeriodGranularity;
 import io.druid.query.spec.MultipleIntervalSegmentSpec;
+import org.joda.time.DateTime;
 import org.joda.time.Interval;
 import org.joda.time.Period;
 
@@ -127,27 +129,24 @@ public class IntervalChunkingQueryRunner<T> implements QueryRunner<T>
     );
   }
 
-  private Iterable<Interval> splitInterval(Interval interval, Period period)
+  private static Iterable<Interval> splitInterval(Interval interval, Period period)
   {
     if (interval.getEndMillis() == interval.getStartMillis()) {
       return Lists.newArrayList(interval);
     }
 
     List<Interval> intervals = Lists.newArrayList();
-    Iterator<Long> timestamps = new PeriodGranularity(period, null, null).iterable(
-        interval.getStartMillis(),
-        interval.getEndMillis()
-    ).iterator();
+    Iterator<Interval> timestamps = new PeriodGranularity(period, null, null).getIterable(interval).iterator();
 
-    long start = Math.max(timestamps.next(), interval.getStartMillis());
+    DateTime start = DateTimes.max(timestamps.next().getStart(), interval.getStart());
     while (timestamps.hasNext()) {
-      long end = timestamps.next();
+      DateTime end = timestamps.next().getStart();
       intervals.add(new Interval(start, end));
       start = end;
     }
 
-    if (start < interval.getEndMillis()) {
-      intervals.add(new Interval(start, interval.getEndMillis()));
+    if (start.compareTo(interval.getEnd()) < 0) {
+      intervals.add(new Interval(start, interval.getEnd()));
     }
 
     return intervals;

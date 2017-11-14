@@ -35,7 +35,7 @@ import com.metamx.common.logger.Logger;
 import io.druid.cache.Cache;
 import io.druid.data.ValueDesc;
 import io.druid.data.ValueType;
-import io.druid.granularity.QueryGranularity;
+import io.druid.granularity.Granularity;
 import io.druid.query.QueryInterruptedException;
 import io.druid.query.RowResolver;
 import io.druid.query.dimension.DimensionSpec;
@@ -226,19 +226,18 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
       DimFilter filter,
       Interval interval,
       VirtualColumns virtualColumns,
-      QueryGranularity gran,
+      Granularity gran,
       Cache cache,
       boolean descending
   )
   {
     Interval actualInterval = interval;
 
-    long minDataTimestamp = getMinTime().getMillis();
-    long maxDataTimestamp = getMaxTime().getMillis();
-    final Interval dataInterval = new Interval(
-        minDataTimestamp,
-        gran.next(gran.truncate(maxDataTimestamp))
-    );
+    DateTime minTime = getMinTime();
+    long minDataTimestamp = minTime.getMillis();
+    DateTime maxTime = getMaxTime();
+    long maxDataTimestamp = maxTime.getMillis();
+    final Interval dataInterval = new Interval(minTime, gran.bucketEnd(maxTime));
 
     if (!actualInterval.overlaps(dataInterval)) {
       return Sequences.empty();
@@ -323,7 +322,7 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
     private final Interval interval;
     private final VirtualColumns virtualColumns;
     private final RowResolver resolver;
-    private final QueryGranularity gran;
+    private final Granularity gran;
     private final Offset offset;
     private final long minDataTimestamp;
     private final long maxDataTimestamp;
@@ -337,7 +336,7 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
         Interval interval,
         VirtualColumns virtualColumns,
         RowResolver resolver,
-        QueryGranularity gran,
+        Granularity gran,
         Offset offset,
         Filter filter,
         long minDataTimestamp,
@@ -370,7 +369,7 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
 
       final GenericColumn timestamps = index.getColumn(Column.TIME_COLUMN_NAME).getGenericColumn();
 
-      Iterable<Long> iterable = gran.iterable(interval.getStartMillis(), interval.getEndMillis());
+      Iterable<Interval> iterable = gran.getIterable(interval);
       if (descending) {
         iterable = Lists.reverse(ImmutableList.copyOf(iterable));
       }
@@ -378,13 +377,16 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
       return Sequences.withBaggage(
           Sequences.map(
               Sequences.simple(iterable),
-              new Function<Long, Cursor>()
+              new Function<Interval, Cursor>()
               {
                 @Override
-                public Cursor apply(final Long input)
+               public Cursor apply(final Interval inputInterval)
                 {
-                  final long timeStart = Math.max(interval.getStartMillis(), input);
-                  final long timeEnd = Math.min(interval.getEndMillis(), gran.next(input));
+                  final long timeStart = Math.max(interval.getStartMillis(), inputInterval.getStartMillis());
+                  final long timeEnd = Math.min(
+                      interval.getEndMillis(),
+                      gran.increment(inputInterval.getStart()).getMillis()
+                  );
 
                   if (descending) {
                     for (; baseOffset.withinBounds(); baseOffset.increment()) {
@@ -417,7 +419,7 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
                   return new Cursor.ExprSupport()
                   {
                     private final Offset initOffset = offset.clone();
-                    private final DateTime myBucket = gran.toDateTime(input);
+                    final DateTime myBucket = gran.toDateTime(inputInterval.getStartMillis());
                     private final ValueMatcher filterMatcher =
                         filter == null ? BooleanValueMatcher.TRUE : filter.makeMatcher(this);
                     private Offset cursorOffset = offset;

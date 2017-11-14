@@ -29,7 +29,7 @@ import com.metamx.common.parsers.ParseException;
 import io.druid.collections.ResourceHolder;
 import io.druid.collections.StupidPool;
 import io.druid.data.input.Row;
-import io.druid.granularity.QueryGranularity;
+import io.druid.granularity.Granularity;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.BufferAggregator;
 import io.druid.segment.ColumnSelectorFactory;
@@ -106,7 +106,7 @@ public class OffheapIncrementalIndex extends IncrementalIndex<BufferAggregator>
 
   public OffheapIncrementalIndex(
       long minTimestamp,
-      QueryGranularity gran,
+      Granularity gran,
       boolean rollup,
       AggregatorFactory[] metrics,
       int maxRowCount,

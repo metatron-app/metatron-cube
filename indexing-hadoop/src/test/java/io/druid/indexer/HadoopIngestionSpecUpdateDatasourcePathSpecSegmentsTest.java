@@ -24,7 +24,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
-import com.metamx.common.Granularity;
+import io.druid.granularity.QueryGranularities;
 import io.druid.indexer.hadoop.DatasourceIngestionSpec;
 import io.druid.indexer.hadoop.WindowedDataSegment;
 import io.druid.indexer.path.DatasourcePathSpec;
@@ -235,7 +235,7 @@ public class HadoopIngestionSpecUpdateDatasourcePathSpecSegmentsTest
             null,
             new AggregatorFactory[0],
             new UniformGranularitySpec(
-                Granularity.DAY,
+                QueryGranularities.DAY,
                 null,
                 ImmutableList.of(
                     new Interval("2010-01-01/P1D")

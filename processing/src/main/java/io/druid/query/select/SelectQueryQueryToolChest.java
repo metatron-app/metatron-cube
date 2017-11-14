@@ -40,7 +40,7 @@ import com.metamx.emitter.service.ServiceMetricEvent;
 import io.druid.common.utils.JodaUtils;
 import io.druid.data.input.MapBasedRow;
 import io.druid.data.input.Row;
-import io.druid.granularity.QueryGranularity;
+import io.druid.granularity.Granularity;
 import io.druid.query.CacheStrategy;
 import io.druid.query.DruidMetrics;
 import io.druid.query.IntervalChunkingQueryRunnerDecorator;
@@ -263,7 +263,7 @@ public class SelectQueryQueryToolChest extends QueryToolChest<Result<SelectResul
       {
         final DimFilter dimFilter = query.getDimensionsFilter();
         final byte[] filterBytes = dimFilter == null ? new byte[]{} : dimFilter.getCacheKey();
-        final byte[] granularityBytes = query.getGranularity().cacheKey();
+        final byte[] granularityBytes = query.getGranularity().getCacheKey();
 
         List<DimensionSpec> dimensionSpecs = query.getDimensions();
         if (dimensionSpecs == null) {
@@ -371,7 +371,7 @@ public class SelectQueryQueryToolChest extends QueryToolChest<Result<SelectResul
       {
         return new Function<Object, Result<SelectResultValue>>()
         {
-          private final QueryGranularity granularity = query.getGranularity();
+          private final Granularity granularity = query.getGranularity();
 
           @Override
           public Result<SelectResultValue> apply(Object input)
@@ -440,7 +440,7 @@ public class SelectQueryQueryToolChest extends QueryToolChest<Result<SelectResul
       return segments;
     }
 
-    final QueryGranularity granularity = query.getGranularity();
+    final Granularity granularity = query.getGranularity();
 
     List<Interval> intervals = Lists.newArrayList(
         Iterables.transform(paging.keySet(), DataSegmentUtils.INTERVAL_EXTRACTOR(dataSource))
@@ -453,13 +453,13 @@ public class SelectQueryQueryToolChest extends QueryToolChest<Result<SelectResul
     TreeMap<Long, Long> granularThresholds = Maps.newTreeMap();
     for (Interval interval : intervals) {
       if (query.isDescending()) {
-        long granularEnd = granularity.truncate(interval.getEndMillis());
+        long granularEnd = granularity.bucketStart(interval.getEnd()).getMillis();
         Long currentEnd = granularThresholds.get(granularEnd);
         if (currentEnd == null || interval.getEndMillis() > currentEnd) {
           granularThresholds.put(granularEnd, interval.getEndMillis());
         }
       } else {
-        long granularStart = granularity.truncate(interval.getStartMillis());
+        long granularStart = granularity.bucketStart(interval.getStart()).getMillis();
         Long currentStart = granularThresholds.get(granularStart);
         if (currentStart == null || interval.getStartMillis() < currentStart) {
           granularThresholds.put(granularStart, interval.getStartMillis());
@@ -473,7 +473,7 @@ public class SelectQueryQueryToolChest extends QueryToolChest<Result<SelectResul
     if (query.isDescending()) {
       while (it.hasNext()) {
         Interval interval = it.next().getInterval();
-        Map.Entry<Long, Long> ceiling = granularThresholds.ceilingEntry(granularity.truncate(interval.getEndMillis()));
+        Map.Entry<Long, Long> ceiling = granularThresholds.ceilingEntry(granularity.bucketStart(interval.getEnd()).getMillis());
         if (ceiling == null || interval.getStartMillis() >= ceiling.getValue()) {
           it.remove();
         }
@@ -481,7 +481,7 @@ public class SelectQueryQueryToolChest extends QueryToolChest<Result<SelectResul
     } else {
       while (it.hasNext()) {
         Interval interval = it.next().getInterval();
-        Map.Entry<Long, Long> floor = granularThresholds.floorEntry(granularity.truncate(interval.getStartMillis()));
+        Map.Entry<Long, Long> floor = granularThresholds.floorEntry(granularity.bucketStart(interval.getStart()).getMillis());
         if (floor == null || interval.getEndMillis() <= floor.getValue()) {
           it.remove();
         }

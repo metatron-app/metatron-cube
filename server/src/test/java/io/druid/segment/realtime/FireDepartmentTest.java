@@ -21,7 +21,6 @@ package io.druid.segment.realtime;
 
 import com.fasterxml.jackson.databind.InjectableValues;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.metamx.common.Granularity;
 import io.druid.client.cache.CacheConfig;
 import io.druid.client.cache.MapCache;
 import io.druid.data.input.impl.DimensionsSpec;
@@ -94,7 +93,7 @@ public class FireDepartmentTest
             new AggregatorFactory[]{
                 new CountAggregatorFactory("count")
             },
-            new UniformGranularitySpec(Granularity.HOUR, QueryGranularities.MINUTE, null),
+            new UniformGranularitySpec(QueryGranularities.HOUR, QueryGranularities.MINUTE, null),
             jsonMapper
         ),
         new RealtimeIOConfig(

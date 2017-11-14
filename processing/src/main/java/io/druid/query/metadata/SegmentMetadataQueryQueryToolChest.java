@@ -31,14 +31,13 @@ import com.google.common.collect.Maps;
 import com.google.common.collect.Ordering;
 import com.google.common.collect.Sets;
 import com.google.inject.Inject;
-import com.metamx.common.Granularity;
 import com.metamx.common.guava.MappedSequence;
 import com.metamx.common.guava.Sequence;
 import com.metamx.common.guava.nary.BinaryFn;
 import com.metamx.emitter.service.ServiceMetricEvent;
 import io.druid.common.guava.CombiningSequence;
 import io.druid.common.utils.JodaUtils;
-import io.druid.granularity.QueryGranularity;
+import io.druid.granularity.Granularity;
 import io.druid.query.CacheStrategy;
 import io.druid.query.DruidMetrics;
 import io.druid.query.Query;
@@ -333,13 +332,13 @@ public class SegmentMetadataQueryQueryToolChest extends QueryToolChest<SegmentAn
       }
     }
 
-    final QueryGranularity queryGranularity = QueryGranularity.checkAllEquals(
+    final Granularity queryGranularity = Granularity.mergeGranularities(
         Lists.newArrayList(
             arg1.getQueryGranularity(),
             arg2.getQueryGranularity()
         )
     );
-    final Granularity segmentGranularity = QueryGranularity.checkAllEquals(
+    final Granularity segmentGranularity = Granularity.mergeGranularities(
         Lists.newArrayList(
             arg1.getSegmentGranularity(),
             arg2.getSegmentGranularity()

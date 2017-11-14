@@ -34,7 +34,6 @@ import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Ordering;
-import com.metamx.common.Granularity;
 import com.metamx.common.ISE;
 import com.metamx.common.Pair;
 import com.metamx.common.guava.Comparators;
@@ -636,7 +635,7 @@ public class TaskLifecycleTest
                 null,
                 new AggregatorFactory[]{new DoubleSumAggregatorFactory("met", "met")},
                 new UniformGranularitySpec(
-                    Granularity.DAY,
+                    QueryGranularities.DAY,
                     null,
                     ImmutableList.of(new Interval("2010-01-01/P2D"))
                 ),
@@ -694,7 +693,7 @@ public class TaskLifecycleTest
                 null,
                 new AggregatorFactory[]{new DoubleSumAggregatorFactory("met", "met")},
                 new UniformGranularitySpec(
-                    Granularity.DAY,
+                    QueryGranularities.DAY,
                     null,
                     ImmutableList.of(new Interval("2010-01-01/P1D"))
                 ),
@@ -1046,7 +1045,7 @@ public class TaskLifecycleTest
                 null,
                 new AggregatorFactory[]{new DoubleSumAggregatorFactory("met", "met")},
                 new UniformGranularitySpec(
-                    Granularity.DAY,
+                    QueryGranularities.DAY,
                     null,
                     ImmutableList.of(new Interval("2010-01-01/P2D"))
                 ),
@@ -1151,7 +1150,7 @@ public class TaskLifecycleTest
         "test_ds",
         null,
         new AggregatorFactory[]{new LongSumAggregatorFactory("count", "rows")},
-        new UniformGranularitySpec(Granularity.DAY, QueryGranularities.NONE, null),
+        new UniformGranularitySpec(QueryGranularities.DAY, QueryGranularities.NONE, null),
         mapper
     );
     RealtimeIOConfig realtimeIOConfig = new RealtimeIOConfig(

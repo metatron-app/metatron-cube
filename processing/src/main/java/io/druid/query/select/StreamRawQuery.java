@@ -21,7 +21,7 @@ package io.druid.query.select;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
-import io.druid.granularity.QueryGranularity;
+import io.druid.granularity.Granularity;
 import io.druid.query.DataSource;
 import io.druid.query.Query;
 import io.druid.query.dimension.DimensionSpec;
@@ -41,7 +41,7 @@ public class StreamRawQuery extends AbstractStreamQuery<RawRows>
       @JsonProperty("dataSource") DataSource dataSource,
       @JsonProperty("intervals") QuerySegmentSpec querySegmentSpec,
       @JsonProperty("filter") DimFilter dimFilter,
-      @JsonProperty("granularity") QueryGranularity granularity,
+      @JsonProperty("granularity") Granularity granularity,
       @JsonProperty("dimensions") List<DimensionSpec> dimensions,
       @JsonProperty("metrics") List<String> metrics,
       @JsonProperty("virtualColumns") List<VirtualColumn> virtualColumns,

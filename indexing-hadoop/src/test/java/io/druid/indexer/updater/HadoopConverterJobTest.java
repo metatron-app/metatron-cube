@@ -28,7 +28,6 @@ import com.google.common.collect.Sets;
 import com.google.common.io.ByteSource;
 import com.google.common.io.Files;
 import com.metamx.common.FileUtils;
-import com.metamx.common.Granularity;
 import io.druid.client.DruidDataSource;
 import io.druid.data.input.impl.DelimitedParseSpec;
 import io.druid.data.input.impl.DimensionsSpec;
@@ -175,7 +174,7 @@ public class HadoopConverterJobTest
                     new HyperUniquesAggregatorFactory("quality_uniques", "quality")
                 },
                 new UniformGranularitySpec(
-                    Granularity.MONTH,
+                    QueryGranularities.MONTH,
                     QueryGranularities.DAY,
                     ImmutableList.<Interval>of(interval)
                 ),

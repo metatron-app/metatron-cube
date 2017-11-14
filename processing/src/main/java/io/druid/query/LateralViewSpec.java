@@ -28,6 +28,7 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import com.google.common.primitives.Ints;
+import io.druid.common.Cacheable;
 import io.druid.query.filter.DimFilterCacheHelper;
 import io.druid.segment.ObjectArray;
 import org.apache.commons.lang.StringUtils;

@@ -31,7 +31,6 @@ import com.google.common.io.ByteSink;
 import com.google.common.io.ByteSource;
 import com.google.inject.Inject;
 import com.metamx.common.CompressionUtils;
-import com.metamx.common.Granularity;
 import com.metamx.common.IAE;
 import com.metamx.common.guava.Sequence;
 import com.metamx.common.logger.Logger;
@@ -43,6 +42,8 @@ import io.druid.data.input.impl.InputRowParser;
 import io.druid.data.output.CountingAccumulator;
 import io.druid.data.output.Formatters;
 import io.druid.data.output.formatter.OrcFormatter;
+import io.druid.granularity.Granularity;
+import io.druid.granularity.QueryGranularities;
 import io.druid.query.ResultWriter;
 import io.druid.query.TabularFormat;
 import io.druid.query.select.EventHolder;
@@ -499,8 +500,8 @@ public class HdfsDataSegmentPusher implements DataSegmentPusher, ResultWriter
               }
               Granularity granularity = coveringGranularity(dataInterval);
               Interval interval = new Interval(
-                  granularity.truncate(index.getMinTime()),
-                  granularity.increment(index.getMaxTime())
+                  granularity.bucketStart(index.getMinTime()),
+                  granularity.bucketEnd(index.getMaxTime())
               );
               log.info("Using segment interval [%s]", interval);
               return interval;
@@ -510,12 +511,16 @@ public class HdfsDataSegmentPusher implements DataSegmentPusher, ResultWriter
 
         private Granularity coveringGranularity(Interval dataInterval)
         {
-          for (Granularity granularity : Arrays.asList(Granularity.HOUR, Granularity.DAY, Granularity.MONTH)) {
+          for (Granularity granularity : Arrays.asList(
+              QueryGranularities.HOUR,
+              QueryGranularities.DAY,
+              QueryGranularities.MONTH
+          )) {
             if (Iterables.size(granularity.getIterable(dataInterval)) <= 1) {
               return granularity;
             }
           }
-          return Granularity.YEAR;
+          return QueryGranularities.YEAR;
         }
 
         private File persist() throws IOException

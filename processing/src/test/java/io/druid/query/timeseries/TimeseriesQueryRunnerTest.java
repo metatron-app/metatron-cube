@@ -24,8 +24,9 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.metamx.common.guava.Sequences;
+import io.druid.common.DateTimes;
 import io.druid.granularity.PeriodGranularity;
-import io.druid.granularity.QueryGranularity;
+import io.druid.granularity.Granularity;
 import io.druid.granularity.QueryGranularities;
 import io.druid.query.Druids;
 import io.druid.query.FluentQueryRunnerBuilder;
@@ -119,7 +120,7 @@ public class TimeseriesQueryRunnerTest
   @Test
   public void testFullOnTimeseries()
   {
-    QueryGranularity gran = QueryGranularities.DAY;
+    Granularity gran = QueryGranularities.DAY;
     TimeseriesQuery query = Druids.newTimeseriesQueryBuilder()
                                   .dataSource(QueryRunnerTestHelper.dataSource)
                                   .granularity(gran)
@@ -546,17 +547,17 @@ public class TimeseriesQueryRunnerTest
                                    .build();
 
     List<Result<TimeseriesResultValue>> lotsOfZeroes = Lists.newArrayList();
-    for (final Long millis : QueryGranularities.HOUR.iterable(
-        new DateTime("2011-04-14T01").getMillis(),
-        new DateTime("2011-04-15").getMillis()
-    )) {
+    final Iterable<Interval> iterable = QueryGranularities.HOUR.getIterable(
+        new Interval(DateTimes.of("2011-04-14T01"), DateTimes.of("2011-04-15"))
+    );
+    for (Interval interval : iterable) {
       lotsOfZeroes.add(
-          new Result<>(
-              new DateTime(millis),
-              new TimeseriesResultValue(
-                  ImmutableMap.<String, Object>of("rows", 0L, "idx", 0L)
+              new Result<>(
+                      interval.getStart(),
+                      new TimeseriesResultValue(
+                              ImmutableMap.<String, Object>of("rows", 0L, "idx", 0L)
+                      )
               )
-          )
       );
     }
     List<Result<TimeseriesResultValue>> expectedResults1 = Lists.newArrayList(

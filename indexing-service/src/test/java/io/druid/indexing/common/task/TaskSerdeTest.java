@@ -23,7 +23,6 @@ import com.fasterxml.jackson.databind.Module;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
-import com.metamx.common.Granularity;
 import io.druid.client.indexing.ClientAppendQuery;
 import io.druid.client.indexing.ClientKillQuery;
 import io.druid.client.indexing.ClientMergeQuery;
@@ -84,7 +83,7 @@ public class TaskSerdeTest
                 null,
                 new AggregatorFactory[]{new DoubleSumAggregatorFactory("met", "met")},
                 new UniformGranularitySpec(
-                    Granularity.DAY,
+                    QueryGranularities.DAY,
                     null,
                     ImmutableList.of(new Interval("2010-01-01/P2D"))
                 ),
@@ -125,7 +124,7 @@ public class TaskSerdeTest
                 null,
                 new AggregatorFactory[]{new DoubleSumAggregatorFactory("met", "met")},
                 new UniformGranularitySpec(
-                    Granularity.DAY,
+                    QueryGranularities.DAY,
                     null,
                     ImmutableList.of(new Interval("2010-01-01/P2D"))
                 ),
@@ -307,7 +306,7 @@ public class TaskSerdeTest
                 "foo",
                 null,
                 new AggregatorFactory[0],
-                new UniformGranularitySpec(Granularity.HOUR, QueryGranularities.NONE, null),
+                new UniformGranularitySpec(QueryGranularities.HOUR, QueryGranularities.NONE, null),
                 jsonMapper
             ),
             new RealtimeIOConfig(
@@ -361,7 +360,7 @@ public class TaskSerdeTest
             .getTuningConfig().getWindowPeriod()
     );
     Assert.assertEquals(
-        Granularity.HOUR,
+        QueryGranularities.HOUR,
         task.getRealtimeIngestionSchema().getDataSchema().getGranularitySpec().getSegmentGranularity()
     );
     Assert.assertTrue(task.getRealtimeIngestionSchema().getTuningConfig().isReportParseExceptions());
@@ -587,7 +586,7 @@ public class TaskSerdeTest
         new HadoopIngestionSpec(
             new DataSchema(
                 "foo", null, new AggregatorFactory[0], new UniformGranularitySpec(
-                Granularity.DAY,
+                QueryGranularities.DAY,
                 null,
                 ImmutableList.of(new Interval("2010-01-01/P1D"))
             ),

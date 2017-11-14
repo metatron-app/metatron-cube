@@ -26,7 +26,7 @@ import io.druid.granularity.AllGranularity;
 import io.druid.granularity.DurationGranularity;
 import io.druid.granularity.NoneGranularity;
 import io.druid.granularity.PeriodGranularity;
-import io.druid.granularity.QueryGranularity;
+import io.druid.granularity.Granularity;
 
 /**
  */
@@ -36,7 +36,7 @@ public class QueryGranularityModule extends SimpleModule
   {
     super("QueryGranularityModule");
 
-    setMixInAnnotation(QueryGranularity.class, QueryGranularityMixin.class);
+    setMixInAnnotation(Granularity.class, QueryGranularityMixin.class);
     registerSubtypes(
         new NamedType(PeriodGranularity.class, "period"),
         new NamedType(DurationGranularity.class, "duration"),
@@ -45,6 +45,6 @@ public class QueryGranularityModule extends SimpleModule
     );
   }
 
-  @JsonTypeInfo(use= JsonTypeInfo.Id.NAME, property = "type", defaultImpl = QueryGranularity.class)
+  @JsonTypeInfo(use= JsonTypeInfo.Id.NAME, property = "type", defaultImpl = Granularity.class)
   public static interface QueryGranularityMixin {}
 }

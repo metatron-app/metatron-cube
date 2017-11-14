@@ -21,8 +21,7 @@ package io.druid.query.metadata.metadata;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.metamx.common.Granularity;
-import io.druid.granularity.QueryGranularity;
+import io.druid.granularity.Granularity;
 import io.druid.query.aggregation.AggregatorFactory;
 import org.joda.time.Interval;
 
@@ -41,7 +40,7 @@ public class SegmentAnalysis implements Comparable<SegmentAnalysis>
   private final long ingestedNumRows;
   private final long lastAccessTime;
   private final Map<String, AggregatorFactory> aggregators;
-  private final QueryGranularity queryGranularity;
+  private final Granularity queryGranularity;
   private final Granularity segmentGranularity;
   private final Boolean rollup;
 
@@ -56,7 +55,7 @@ public class SegmentAnalysis implements Comparable<SegmentAnalysis>
       @JsonProperty("ingestedNumRows") long ingestedNumRows,
       @JsonProperty("lastAccessTime") long lastAccessTime,
       @JsonProperty("aggregators") Map<String, AggregatorFactory> aggregators,
-      @JsonProperty("queryGranularity") QueryGranularity queryGranularity,
+      @JsonProperty("queryGranularity") Granularity queryGranularity,
       @JsonProperty("segmentGranularity") Granularity segmentGranularity,
       @JsonProperty("rollup") Boolean rollup
   )
@@ -82,7 +81,7 @@ public class SegmentAnalysis implements Comparable<SegmentAnalysis>
       long size,
       long numRows,
       Map<String, AggregatorFactory> aggregators,
-      QueryGranularity queryGranularity
+      Granularity queryGranularity
   )
   {
     this(id, interval, columns, size, 0L, numRows, -1L, -1L, aggregators, queryGranularity, null, null);
@@ -142,7 +141,7 @@ public class SegmentAnalysis implements Comparable<SegmentAnalysis>
   }
 
   @JsonProperty
-  public QueryGranularity getQueryGranularity()
+  public Granularity getQueryGranularity()
   {
     return queryGranularity;
   }

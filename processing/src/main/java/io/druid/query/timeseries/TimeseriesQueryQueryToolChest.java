@@ -30,7 +30,7 @@ import com.metamx.common.guava.Sequence;
 import com.metamx.common.guava.Sequences;
 import com.metamx.common.guava.nary.BinaryFn;
 import com.metamx.emitter.service.ServiceMetricEvent;
-import io.druid.granularity.QueryGranularity;
+import io.druid.granularity.Granularity;
 import io.druid.query.CacheStrategy;
 import io.druid.query.DruidMetrics;
 import io.druid.query.LateralViewSpec;
@@ -139,7 +139,7 @@ public class TimeseriesQueryQueryToolChest extends QueryToolChest<Result<Timeser
         final DimFilter dimFilter = query.getDimensionsFilter();
         final byte[] filterBytes = dimFilter == null ? new byte[]{} : dimFilter.getCacheKey();
         final byte[] aggregatorBytes = QueryCacheHelper.computeAggregatorBytes(query.getAggregatorSpecs());
-        final byte[] granularityBytes = query.getGranularity().cacheKey();
+        final byte[] granularityBytes = query.getGranularity().getCacheKey();
         final byte descending = query.isDescending() ? (byte) 1 : 0;
         final byte skipEmptyBuckets = query.isSkipEmptyBuckets() ? (byte) 1 : 0;
         final byte[] outputColumnsBytes = QueryCacheHelper.computeCacheBytes(query.getOutputColumns());
@@ -197,7 +197,7 @@ public class TimeseriesQueryQueryToolChest extends QueryToolChest<Result<Timeser
       {
         return new Function<Object, Result<TimeseriesResultValue>>()
         {
-          private final QueryGranularity granularity = query.getGranularity();
+          private final Granularity granularity = query.getGranularity();
 
           @Override
           public Result<TimeseriesResultValue> apply(@Nullable Object input)

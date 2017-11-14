@@ -27,7 +27,7 @@ import com.google.common.collect.Ordering;
 import com.metamx.common.guava.nary.BinaryFn;
 import com.metamx.emitter.service.ServiceMetricEvent;
 import io.druid.granularity.AllGranularity;
-import io.druid.granularity.QueryGranularity;
+import io.druid.granularity.Granularity;
 import io.druid.query.DruidMetrics;
 import io.druid.query.Query;
 import io.druid.query.QueryRunner;
@@ -70,7 +70,7 @@ public class SelectMetaQueryToolChest extends QueryToolChest<Result<SelectMetaRe
       )
       {
         SelectMetaQuery query = (SelectMetaQuery) input;
-        final QueryGranularity gran = query.getGranularity();
+        final Granularity gran = query.getGranularity();
         return new BinaryFn<Result<SelectMetaResultValue>, Result<SelectMetaResultValue>, Result<SelectMetaResultValue>>()
         {
           @Override
@@ -84,10 +84,9 @@ public class SelectMetaQueryToolChest extends QueryToolChest<Result<SelectMetaRe
             if (arg2 == null) {
               return arg1;
             }
-            DateTime timestamp = arg1.getTimestamp();
-            if (!(gran instanceof AllGranularity)) {
-              timestamp = gran.toDateTime(gran.truncate(timestamp.getMillis()));
-            }
+            final DateTime timestamp = gran instanceof AllGranularity
+                                       ? arg1.getTimestamp()
+                                       : gran.bucketStart(arg1.getTimestamp());
             SelectMetaResultValue value1 = arg1.getValue();
             SelectMetaResultValue value2 = arg2.getValue();
 

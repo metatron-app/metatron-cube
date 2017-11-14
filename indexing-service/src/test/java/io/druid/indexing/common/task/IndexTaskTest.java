@@ -21,7 +21,6 @@ package io.druid.indexing.common.task;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.Lists;
-import com.metamx.common.Granularity;
 import io.druid.data.input.impl.CSVParseSpec;
 import io.druid.data.input.impl.DimensionsSpec;
 import io.druid.data.input.impl.SpatialDimensionSchema;
@@ -125,7 +124,7 @@ public class IndexTaskTest
                     new LongSumAggregatorFactory("val", "val")
                 },
                 new UniformGranularitySpec(
-                    Granularity.DAY,
+                    QueryGranularities.DAY,
                     QueryGranularities.MINUTE,
                     Arrays.asList(new Interval("2014/2015"))
                 ),
@@ -303,7 +302,7 @@ public class IndexTaskTest
                     new LongSumAggregatorFactory("val", "val")
                 },
                 new UniformGranularitySpec(
-                    Granularity.HOUR,
+                    QueryGranularities.HOUR,
                     QueryGranularities.HOUR,
                     Arrays.asList(new Interval("2015-03-01T08:00:00Z/2015-03-01T09:00:00Z"))
                 ),

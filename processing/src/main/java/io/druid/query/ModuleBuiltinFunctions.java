@@ -26,7 +26,7 @@ import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import com.google.common.base.Throwables;
 import com.google.inject.Inject;
-import io.druid.granularity.QueryGranularity;
+import io.druid.granularity.Granularity;
 import io.druid.math.expr.BuiltinFunctions;
 import io.druid.math.expr.DateTimeFunctions;
 import io.druid.math.expr.Evals;
@@ -52,7 +52,7 @@ public class ModuleBuiltinFunctions implements Function.Library
 
   public static class TruncatedRecent extends DateTimeFunctions.Recent implements Function.Factory
   {
-    private QueryGranularity granularity;
+    private Granularity granularity;
 
     @Override
     public String name()
@@ -68,18 +68,18 @@ public class ModuleBuiltinFunctions implements Function.Library
       }
       if (granularity == null) {
         String string = args.get(args.size() - 1).eval(bindings).asString();
-        granularity = QueryGranularity.fromString(string);
+        granularity = Granularity.fromString(string);
       }
       Interval interval = toInterval(args, bindings);
       if (args.size() == 2) {
         interval = new Interval(
-            granularity.truncate(interval.getStartMillis()),
-            interval.getEndMillis()
+            granularity.bucketStart(interval.getStart()),
+            interval.getEnd()
         );
       } else {
         interval = new Interval(
-            granularity.truncate(interval.getStartMillis()),
-            granularity.next(interval.getEndMillis())
+            granularity.bucketStart(interval.getStart()),
+            granularity.bucketEnd(interval.getEnd())
         );
       }
       return ExprEval.of(interval, ExprType.UNKNOWN);

@@ -34,7 +34,7 @@ import com.metamx.common.guava.Sequence;
 import com.metamx.common.guava.Sequences;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.data.input.Row;
-import io.druid.granularity.QueryGranularity;
+import io.druid.granularity.Granularity;
 import io.druid.query.BaseQuery;
 import io.druid.query.DataSource;
 import io.druid.query.LateralViewSpec;
@@ -76,7 +76,7 @@ public class GroupByQuery extends BaseQuery<Row> implements Query.DimensionSuppo
   private final HavingSpec havingSpec;
   private final LateralViewSpec lateralView;
   private final DimFilter dimFilter;
-  private final QueryGranularity granularity;
+  private final Granularity granularity;
   private final List<DimensionSpec> dimensions;
   private final List<VirtualColumn> virtualColumns;
   private final List<AggregatorFactory> aggregatorSpecs;
@@ -88,7 +88,7 @@ public class GroupByQuery extends BaseQuery<Row> implements Query.DimensionSuppo
       @JsonProperty("dataSource") DataSource dataSource,
       @JsonProperty("intervals") QuerySegmentSpec querySegmentSpec,
       @JsonProperty("filter") DimFilter dimFilter,
-      @JsonProperty("granularity") QueryGranularity granularity,
+      @JsonProperty("granularity") Granularity granularity,
       @JsonProperty("dimensions") List<DimensionSpec> dimensions,
       @JsonProperty("virtualColumns") List<VirtualColumn> virtualColumns,
       @JsonProperty("aggregations") List<AggregatorFactory> aggregatorSpecs,
@@ -128,7 +128,7 @@ public class GroupByQuery extends BaseQuery<Row> implements Query.DimensionSuppo
   }
 
   @JsonProperty
-  public QueryGranularity getGranularity()
+  public Granularity getGranularity()
   {
     return granularity;
   }
@@ -464,7 +464,7 @@ public class GroupByQuery extends BaseQuery<Row> implements Query.DimensionSuppo
     private DataSource dataSource;
     private QuerySegmentSpec querySegmentSpec;
     private DimFilter dimFilter;
-    private QueryGranularity granularity;
+    private Granularity granularity;
     private List<DimensionSpec> dimensions;
     private List<VirtualColumn> virtualColumns;
     private List<AggregatorFactory> aggregatorSpecs;
@@ -623,7 +623,7 @@ public class GroupByQuery extends BaseQuery<Row> implements Query.DimensionSuppo
       return this;
     }
 
-    public Builder setGranularity(QueryGranularity granularity)
+    public Builder setGranularity(Granularity granularity)
     {
       this.granularity = granularity;
       return this;
@@ -883,8 +883,8 @@ public class GroupByQuery extends BaseQuery<Row> implements Query.DimensionSuppo
 
             if (granular) {
               timeCompare = Longs.compare(
-                  granularity.truncate(lhs.getTimestampFromEpoch()),
-                  granularity.truncate(rhs.getTimestampFromEpoch())
+                  granularity.bucketStart(lhs.getTimestamp()).getMillis(),
+                  granularity.bucketStart(rhs.getTimestamp()).getMillis()
               );
             } else {
               timeCompare = Longs.compare(

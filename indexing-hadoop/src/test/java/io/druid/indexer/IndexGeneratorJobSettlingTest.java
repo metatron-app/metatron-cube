@@ -27,11 +27,10 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.io.Files;
-import com.metamx.common.Granularity;
 import io.druid.data.input.impl.CSVParseSpec;
+import io.druid.data.input.impl.DefaultTimestampSpec;
 import io.druid.data.input.impl.DimensionsSpec;
 import io.druid.data.input.impl.InputRowParser;
-import io.druid.data.input.impl.DefaultTimestampSpec;
 import io.druid.granularity.QueryGranularities;
 import io.druid.metadata.MetadataStorageConnectorConfig;
 import io.druid.query.aggregation.AggregatorFactory;
@@ -67,7 +66,12 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
 
-import java.io.*;
+import java.io.BufferedOutputStream;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.OutputStream;
 import java.nio.ByteBuffer;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -225,7 +229,7 @@ public class IndexGeneratorJobSettlingTest
                 ),
                 aggs,
                 new UniformGranularitySpec(
-                    Granularity.DAY, QueryGranularities.DAY, ImmutableList.of(this.interval)
+                    QueryGranularities.DAY, QueryGranularities.DAY, ImmutableList.of(this.interval)
                 ),
                 mapper
             ),

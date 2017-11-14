@@ -25,7 +25,6 @@ import com.google.common.base.Optional;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.util.concurrent.ListenableFuture;
-import com.metamx.common.Granularity;
 import com.metamx.common.ISE;
 import io.druid.data.input.impl.DimensionSchema;
 import io.druid.data.input.impl.DimensionsSpec;
@@ -1256,7 +1255,7 @@ public class KafkaSupervisorTest extends EasyMockSupport
         ),
         new AggregatorFactory[]{new CountAggregatorFactory("rows")},
         new UniformGranularitySpec(
-            Granularity.HOUR,
+            QueryGranularities.HOUR,
             QueryGranularities.NONE,
             ImmutableList.<Interval>of()
         ),

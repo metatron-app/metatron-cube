@@ -31,7 +31,6 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Interner;
 import com.google.common.collect.Interners;
 import com.google.common.collect.Iterables;
-import com.metamx.common.Granularity;
 import io.druid.jackson.CommaListJoinDeserializer;
 import io.druid.jackson.CommaListJoinSerializer;
 import io.druid.query.SegmentDescriptor;
@@ -40,7 +39,6 @@ import io.druid.timeline.partition.ShardSpec;
 import org.joda.time.DateTime;
 import org.joda.time.Interval;
 
-import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 
@@ -276,29 +274,6 @@ public class DataSegment implements Comparable<DataSegment>
            ", dataSource='" + dataSource + '\'' +
            ", binaryVersion='" + binaryVersion + '\'' +
            '}';
-  }
-
-  public static Comparator<DataSegment> bucketMonthComparator()
-  {
-    return new Comparator<DataSegment>()
-    {
-      @Override
-      public int compare(DataSegment lhs, DataSegment rhs)
-      {
-        int retVal;
-
-        DateTime lhsMonth = Granularity.MONTH.truncate(lhs.getInterval().getStart());
-        DateTime rhsMonth = Granularity.MONTH.truncate(rhs.getInterval().getStart());
-
-        retVal = lhsMonth.compareTo(rhsMonth);
-
-        if (retVal != 0) {
-          return retVal;
-        }
-
-        return lhs.compareTo(rhs);
-      }
-    };
   }
 
   public static Builder builder()

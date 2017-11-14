@@ -19,22 +19,52 @@
 
 package io.druid.granularity;
 
-public final class NoneGranularity extends BaseQueryGranularity
+import org.joda.time.DateTime;
+import org.joda.time.format.DateTimeFormatter;
+
+/**
+ * NoneGranularity does not bucket data
+ */
+public class NoneGranularity extends Granularity
 {
+  /**
+   * This constructor is public b/c it is serialized and deserialized
+   * based on type in GranularityModule
+   */
+  public NoneGranularity() {}
+
   @Override
-  public long next(long offset)
+  public DateTimeFormatter getFormatter(Formatter type)
   {
-    return offset + 1;
+    throw new UnsupportedOperationException("This method should not be invoked for this granularity type");
   }
 
   @Override
-  public long truncate(long offset)
+  public DateTime increment(DateTime time)
   {
-    return offset;
+    return time.plus(1);
   }
 
   @Override
-  public byte[] cacheKey()
+  public DateTime decrement(DateTime time)
+  {
+    return time.minus(1);
+  }
+
+  @Override
+  public DateTime bucketStart(DateTime time)
+  {
+    return time;
+  }
+
+  @Override
+  public DateTime toDate(String filePath, Formatter formatter)
+  {
+    throw new UnsupportedOperationException("This method should not be invoked for this granularity type");
+  }
+
+  @Override
+  public byte[] getCacheKey()
   {
     return new byte[]{0x0};
   }

@@ -22,7 +22,7 @@ package io.druid.query.topn;
 import com.google.common.collect.Maps;
 import com.metamx.common.guava.nary.BinaryFn;
 import io.druid.granularity.AllGranularity;
-import io.druid.granularity.QueryGranularity;
+import io.druid.granularity.Granularity;
 import io.druid.query.Result;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.AggregatorUtil;
@@ -42,7 +42,7 @@ public class TopNBinaryFn implements BinaryFn<Result<TopNResultValue>, Result<To
 {
   private final TopNResultMerger merger;
   private final DimensionSpec dimSpec;
-  private final QueryGranularity gran;
+  private final Granularity gran;
   private final String dimension;
   private final TopNMetricSpec topNMetricSpec;
   private final int threshold;
@@ -52,7 +52,7 @@ public class TopNBinaryFn implements BinaryFn<Result<TopNResultValue>, Result<To
 
   public TopNBinaryFn(
       final TopNResultMerger merger,
-      final QueryGranularity granularity,
+      final Granularity granularity,
       final DimensionSpec dimSpec,
       final TopNMetricSpec topNMetricSpec,
       final int threshold,
@@ -121,12 +121,9 @@ public class TopNBinaryFn implements BinaryFn<Result<TopNResultValue>, Result<To
       }
     }
 
-    final DateTime timestamp;
-    if (gran instanceof AllGranularity) {
-      timestamp = arg1.getTimestamp();
-    } else {
-      timestamp = gran.toDateTime(gran.truncate(arg1.getTimestamp().getMillis()));
-    }
+    final DateTime timestamp = gran instanceof AllGranularity
+                               ? arg1.getTimestamp()
+                               : gran.bucketStart(arg1.getTimestamp());
 
     TopNResultBuilder bob = topNMetricSpec.getResultBuilder(
         timestamp,

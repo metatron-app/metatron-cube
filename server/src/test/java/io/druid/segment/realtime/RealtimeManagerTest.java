@@ -29,7 +29,6 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.util.concurrent.MoreExecutors;
-import com.metamx.common.Granularity;
 import com.metamx.common.ISE;
 import com.metamx.common.parsers.ParseException;
 import io.druid.collections.StupidPool;
@@ -137,14 +136,14 @@ public class RealtimeManagerTest
         "test",
         null,
         new AggregatorFactory[]{new CountAggregatorFactory("rows")},
-        new UniformGranularitySpec(Granularity.HOUR, QueryGranularities.NONE, null),
+        new UniformGranularitySpec(QueryGranularities.HOUR, QueryGranularities.NONE, null),
         jsonMapper
     );
     schema2 = new DataSchema(
         "testV2",
         null,
         new AggregatorFactory[]{new CountAggregatorFactory("rows")},
-        new UniformGranularitySpec(Granularity.HOUR, QueryGranularities.NONE, null),
+        new UniformGranularitySpec(QueryGranularities.HOUR, QueryGranularities.NONE, null),
         jsonMapper
     );
     RealtimeIOConfig ioConfig = new RealtimeIOConfig(
@@ -290,7 +289,7 @@ public class RealtimeManagerTest
         "testing",
         null,
         new AggregatorFactory[]{new CountAggregatorFactory("ignore")},
-        new UniformGranularitySpec(Granularity.HOUR, QueryGranularities.NONE, null),
+        new UniformGranularitySpec(QueryGranularities.HOUR, QueryGranularities.NONE, null),
         jsonMapper
     );
 

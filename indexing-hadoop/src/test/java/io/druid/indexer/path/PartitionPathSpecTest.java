@@ -24,7 +24,6 @@ import com.google.common.base.Joiner;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
-import com.metamx.common.Granularity;
 import io.druid.granularity.QueryGranularities;
 import io.druid.indexer.HadoopDruidIndexerConfig;
 import io.druid.indexer.HadoopIOConfig;
@@ -106,7 +105,7 @@ public class PartitionPathSpecTest
             null,
             new AggregatorFactory[0],
             new UniformGranularitySpec(
-                Granularity.DAY,
+                QueryGranularities.DAY,
                 QueryGranularities.MINUTE,
                 ImmutableList.of(new Interval("2015-11-06T00:00Z/2015-11-07T00:00Z"))
             ),
@@ -170,7 +169,7 @@ public class PartitionPathSpecTest
             null,
             new AggregatorFactory[0],
             new UniformGranularitySpec(
-                Granularity.DAY,
+                QueryGranularities.DAY,
                 QueryGranularities.MINUTE,
                 ImmutableList.of(new Interval("2015-11-06T00:00Z/2015-11-07T00:00Z"))
             ),
@@ -225,7 +224,7 @@ public class PartitionPathSpecTest
             null,
             new AggregatorFactory[0],
             new UniformGranularitySpec(
-                Granularity.DAY,
+                QueryGranularities.DAY,
                 QueryGranularities.MINUTE,
                 ImmutableList.of(new Interval("2015-11-06T00:00Z/2015-11-07T00:00Z"))
             ),
@@ -286,7 +285,7 @@ public class PartitionPathSpecTest
             null,
             new AggregatorFactory[0],
             new UniformGranularitySpec(
-                Granularity.DAY,
+                QueryGranularities.DAY,
                 QueryGranularities.MINUTE,
                 ImmutableList.of(new Interval("2015-11-06T00:00Z/2015-11-07T00:00Z"))
             ),
@@ -356,7 +355,7 @@ public class PartitionPathSpecTest
             null,
             new AggregatorFactory[0],
             new UniformGranularitySpec(
-                Granularity.DAY,
+                QueryGranularities.DAY,
                 QueryGranularities.MINUTE,
                 ImmutableList.of(new Interval("2015-11-06T00:00Z/2015-11-07T00:00Z"))
             ),
@@ -413,7 +412,7 @@ public class PartitionPathSpecTest
             null,
             new AggregatorFactory[0],
             new UniformGranularitySpec(
-                Granularity.DAY,
+                QueryGranularities.DAY,
                 QueryGranularities.MINUTE,
                 ImmutableList.of(new Interval("2015-11-06T00:00Z/2015-11-07T00:00Z"))
             ),
@@ -465,7 +464,7 @@ public class PartitionPathSpecTest
             null,
             new AggregatorFactory[0],
             new UniformGranularitySpec(
-                Granularity.DAY,
+                QueryGranularities.DAY,
                 QueryGranularities.MINUTE,
                 ImmutableList.of(new Interval("2015-11-06T00:00Z/2015-11-07T00:00Z"))
             ),
