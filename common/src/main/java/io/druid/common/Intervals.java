@@ -19,8 +19,11 @@
 
 package io.druid.common;
 
+import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import io.druid.common.utils.JodaUtils;
+import org.joda.time.DateTime;
+import org.joda.time.DateTimeUtils;
 import org.joda.time.Interval;
 import org.joda.time.chrono.ISOChronology;
 
@@ -37,6 +40,12 @@ public final class Intervals
   public static Interval of(String interval)
   {
     return new Interval(interval, ISOChronology.getInstanceUTC());
+  }
+
+  public static Interval of(DateTime start, DateTime end)
+  {
+    Preconditions.checkArgument(DateTimeUtils.getInstantChronology(start) == DateTimeUtils.getInstantChronology(end));
+    return new Interval(start, end);
   }
 
   private Intervals()

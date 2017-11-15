@@ -65,6 +65,7 @@ import io.druid.query.aggregation.MetricManipulationFn;
 import io.druid.query.aggregation.MetricManipulatorFns;
 import io.druid.query.aggregation.PostAggregator;
 import io.druid.query.aggregation.PostAggregators;
+import io.druid.query.aggregation.model.HoltWintersPostProcessor;
 import io.druid.query.dimension.DefaultDimensionSpec;
 import io.druid.query.dimension.DimensionSpec;
 import io.druid.query.extraction.ExtractionFn;
@@ -708,6 +709,9 @@ public class GroupByQueryQueryToolChest extends QueryToolChest<Row, GroupByQuery
             @Override
             public Row apply(Row input)
             {
+              if (input instanceof HoltWintersPostProcessor.PredictedRow) {
+                return input;   // nasty
+              }
               DateTime timestamp = input.getTimestamp();
               Map<String, Object> retained = Maps.newHashMapWithExpectedSize(outputColumns.size());
               for (String retain : outputColumns) {

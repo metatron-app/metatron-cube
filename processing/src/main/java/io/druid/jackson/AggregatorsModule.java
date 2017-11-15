@@ -24,6 +24,8 @@ import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.fasterxml.jackson.databind.module.SimpleModule;
 import com.google.common.hash.Hashing;
 import io.druid.data.ValueType;
+import io.druid.data.input.MapBasedRow;
+import io.druid.data.input.Row;
 import io.druid.query.SelectEachQuery;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.ArrayAggregatorFactory;
@@ -53,6 +55,7 @@ import io.druid.query.aggregation.cardinality.CardinalityAggregatorFactory;
 import io.druid.query.aggregation.hyperloglog.HyperUniqueFinalizingPostAggregator;
 import io.druid.query.aggregation.hyperloglog.HyperUniquesAggregatorFactory;
 import io.druid.query.aggregation.hyperloglog.HyperUniquesSerde;
+import io.druid.query.aggregation.model.HoltWintersPostProcessor;
 import io.druid.query.aggregation.post.ArithmeticPostAggregator;
 import io.druid.query.aggregation.post.ConstantPostAggregator;
 import io.druid.query.aggregation.post.FieldAccessPostAggregator;
@@ -89,6 +92,7 @@ public class AggregatorsModule extends SimpleModule
 
     setMixInAnnotation(AggregatorFactory.class, AggregatorFactoryMixin.class);
     setMixInAnnotation(PostAggregator.class, PostAggregatorMixin.class);
+    setMixInAnnotation(Row.class, Rows.class);
 
     // for test
     registerSubtypes(SelectEachQuery.class);
@@ -134,6 +138,15 @@ public class AggregatorsModule extends SimpleModule
       @JsonSubTypes.Type(name = "count", value = CollectionCountPostAggregator.class)
   })
   public static interface PostAggregatorMixin
+  {
+  }
+
+  @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "version", defaultImpl = MapBasedRow.class)
+  @JsonSubTypes(value = {
+      @JsonSubTypes.Type(name = "v1", value = MapBasedRow.class),
+      @JsonSubTypes.Type(name = "predict", value = HoltWintersPostProcessor.PredictedRow.class)
+  })
+  public static interface Rows
   {
   }
 }

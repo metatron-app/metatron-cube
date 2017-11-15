@@ -4,6 +4,7 @@ import com.google.common.base.Function;
 import com.google.common.base.Throwables;
 import com.metamx.common.guava.Accumulator;
 import com.metamx.common.guava.CloseQuietly;
+import com.metamx.common.guava.DelegatingYieldingAccumulator;
 import com.metamx.common.guava.Sequence;
 import com.metamx.common.guava.Yielder;
 import com.metamx.common.guava.YieldingAccumulator;
@@ -55,6 +56,47 @@ public class Sequences extends com.metamx.common.guava.Sequences
         throw new UnsupportedOperationException("toYielder");
       }
     };
+  }
+
+  public abstract static class PeekingSequence<T> implements Sequence<T>
+  {
+    private final Sequence<T> sequence;
+
+    protected PeekingSequence(Sequence<T> sequence) {this.sequence = sequence;}
+
+    @Override
+    public <OutType> OutType accumulate(OutType initValue, final Accumulator<OutType, T> accumulator)
+    {
+      return sequence.accumulate(
+          initValue, new Accumulator<OutType, T>()
+          {
+            @Override
+            public OutType accumulate(OutType accumulated, T in)
+            {
+              return accumulator.accumulate(accumulated, peek(in));
+            }
+          }
+      );
+    }
+
+    @Override
+    public <OutType> Yielder<OutType> toYielder(
+        OutType initValue, YieldingAccumulator<OutType, T> accumulator
+    )
+    {
+      return sequence.toYielder(
+          initValue, new DelegatingYieldingAccumulator<OutType, T>(accumulator)
+          {
+            @Override
+            public OutType accumulate(OutType accumulated, T in)
+            {
+              return super.accumulate(accumulated, peek(in));
+            }
+          }
+      );
+    }
+
+    protected abstract T peek(T row);
   }
 
   public static final RowReader NULL_READER = new RowReader()

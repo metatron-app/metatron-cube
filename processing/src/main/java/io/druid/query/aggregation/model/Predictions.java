@@ -77,6 +77,17 @@ public class Predictions
         optimized.gamma(),
         optimized.period()
     );
+    return predictWithModel(optimized, tsData, numPrediction, ci, predictOnly);
+  }
+
+  static double[][] predictWithModel(
+      HoltWintersModel optimized,
+      double[] tsData,
+      int numPrediction,
+      int ci,
+      boolean predictOnly
+  )
+  {
     final double[] predictions = optimized.doPredict(tsData, numPrediction, false);   // tsData.length + numForecasts
 
     double variance = 0;
