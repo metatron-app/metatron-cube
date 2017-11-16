@@ -24,6 +24,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Supplier;
 import com.google.common.base.Throwables;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
@@ -43,6 +44,7 @@ import io.druid.granularity.Granularity;
 import io.druid.query.PostProcessingOperator;
 import io.druid.query.Query;
 import io.druid.query.QueryRunner;
+import io.druid.query.aggregation.PostAggregator;
 import io.druid.query.dimension.DimensionSpecs;
 import io.druid.query.groupby.GroupByQuery;
 import io.druid.query.select.StreamQuery;
@@ -78,6 +80,8 @@ public class HoltWintersPostProcessor extends PostProcessingOperator.Abstract
   private final int numPrediction;
   private final int limit;
   private final int confidence;
+  private final List<PostAggregator> postAggregations;
+
   private final String timeColumn;
   private final Granularity timeGranularity;
   private final DateTimeFormatter dateTimeFormatter;
@@ -96,6 +100,7 @@ public class HoltWintersPostProcessor extends PostProcessingOperator.Abstract
       @JsonProperty("useLastN") Integer useLastN,
       @JsonProperty("numPrediction") Integer numPrediction,
       @JsonProperty("confidence") Integer confidence,
+      @JsonProperty("postAggregations") List<PostAggregator> postAggregations,
       @JsonProperty("timeColumn") String timeColumn,
       @JsonProperty("timeFormat") String timeFormat,
       @JsonProperty("timeLocale") String timeLocale,
@@ -113,6 +118,7 @@ public class HoltWintersPostProcessor extends PostProcessingOperator.Abstract
     this.limit = useLastN == null ? DEFAULT_USE_LAST_N : useLastN;
     this.numPrediction = numPrediction == null ? DEFAULT_NUM_PREDICTION : numPrediction;
     this.confidence = confidence == null ? DEFAULT_CONFIDENCE : confidence;
+    this.postAggregations = postAggregations == null ? ImmutableList.<PostAggregator>of() : postAggregations;
     this.timeColumn = timeColumn;
     this.timeGranularity = timeGranularity;
     this.bounds = new SimpleBounds(
@@ -314,6 +320,9 @@ public class HoltWintersPostProcessor extends PostProcessingOperator.Abstract
               row.put(metrics[i], predictions[i][p]);
               row.put(metrics[i] + ".params", params[i]);
             }
+          }
+          for (PostAggregator postAggregator : postAggregations) {
+            row.put(postAggregator.getName(), postAggregator.compute(timestamp, row));
           }
           rows.add(new PredictedRow(timestamp, row));
         }
