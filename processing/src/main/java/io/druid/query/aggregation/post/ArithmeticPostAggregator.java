@@ -26,6 +26,7 @@ import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import com.metamx.common.IAE;
 import io.druid.query.aggregation.PostAggregator;
+import org.joda.time.DateTime;
 
 import java.util.Comparator;
 import java.util.Iterator;
@@ -103,14 +104,14 @@ public class ArithmeticPostAggregator implements PostAggregator
   }
 
   @Override
-  public Object compute(Map<String, Object> values)
+  public Object compute(DateTime timestamp, Map<String, Object> values)
   {
     Iterator<PostAggregator> fieldsIter = fields.iterator();
     double retVal = 0.0;
     if (fieldsIter.hasNext()) {
-      retVal = ((Number) fieldsIter.next().compute(values)).doubleValue();
+      retVal = ((Number) fieldsIter.next().compute(timestamp, values)).doubleValue();
       while (fieldsIter.hasNext()) {
-        retVal = op.compute(retVal, ((Number) fieldsIter.next().compute(values)).doubleValue());
+        retVal = op.compute(retVal, ((Number) fieldsIter.next().compute(timestamp, values)).doubleValue());
       }
     }
     return retVal;

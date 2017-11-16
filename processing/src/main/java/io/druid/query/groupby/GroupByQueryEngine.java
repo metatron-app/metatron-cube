@@ -478,7 +478,7 @@ public class GroupByQueryEngine
                   }
 
                   for (PostAggregator postAggregator : postAggregators) {
-                    theEvent.put(postAggregator.getName(), postAggregator.compute(theEvent));
+                    theEvent.put(postAggregator.getName(), postAggregator.compute(timestamp, theEvent));
                   }
 
                   return new MapBasedRow(timestamp, theEvent);

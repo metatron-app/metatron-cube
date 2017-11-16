@@ -24,6 +24,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Sets;
 import io.druid.query.aggregation.PostAggregator;
+import org.joda.time.DateTime;
 
 import java.util.Comparator;
 import java.util.Map;
@@ -67,7 +68,7 @@ public class ConstantPostAggregator implements PostAggregator
   }
 
   @Override
-  public Object compute(Map<String, Object> combinedAggregators)
+  public Object compute(DateTime timestamp, Map<String, Object> combinedAggregators)
   {
     return constantValue;
   }

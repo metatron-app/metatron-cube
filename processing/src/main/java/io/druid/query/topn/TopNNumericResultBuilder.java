@@ -161,7 +161,7 @@ public class TopNNumericResultBuilder implements TopNResultBuilder
 
     // Order matters here, do not unroll
     for (PostAggregator postAgg : postAggs) {
-      metricValues.put(postAgg.getName(), postAgg.compute(metricValues));
+      metricValues.put(postAgg.getName(), postAgg.compute(timestamp, metricValues));
     }
 
     Object topNMetricVal = metricValues.get(metricName);

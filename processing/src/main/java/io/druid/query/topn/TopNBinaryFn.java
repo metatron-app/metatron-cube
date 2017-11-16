@@ -112,7 +112,7 @@ public class TopNBinaryFn implements BinaryFn<Result<TopNResultValue>, Result<To
         }
 
         for (PostAggregator pf : postAggregations) {
-          retVal.put(pf.getName(), pf.compute(retVal));
+          retVal.put(pf.getName(), pf.compute(arg1.getTimestamp(), retVal));
         }
 
         retVals.put(dimensionValue, retVal);

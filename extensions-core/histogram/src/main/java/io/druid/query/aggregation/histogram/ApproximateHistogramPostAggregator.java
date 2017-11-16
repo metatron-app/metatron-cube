@@ -22,6 +22,7 @@ package io.druid.query.aggregation.histogram;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.collect.Sets;
 import io.druid.query.aggregation.PostAggregator;
+import org.joda.time.DateTime;
 
 import java.util.Comparator;
 import java.util.Map;
@@ -56,7 +57,7 @@ public abstract class ApproximateHistogramPostAggregator implements PostAggregat
   }
 
   @Override
-  public abstract Object compute(Map<String, Object> values);
+  public abstract Object compute(DateTime timestamp, Map<String, Object> values);
 
   @Override
   @JsonProperty

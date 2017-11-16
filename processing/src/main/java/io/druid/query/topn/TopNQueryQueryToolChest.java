@@ -199,8 +199,9 @@ public class TopNQueryQueryToolChest extends QueryToolChest<Result<TopNResultVal
       private final String[] aggFactoryNames = extractFactoryName(query.getAggregatorSpecs());
 
       @Override
-      public Result<TopNResultValue> apply(Result<TopNResultValue> result)
+      public Result<TopNResultValue> apply(final Result<TopNResultValue> result)
       {
+        final DateTime timestamp = result.getTimestamp();
         List<Map<String, Object>> serializedValues = Lists.newArrayList(
             Iterables.transform(
                 result.getValue(),
@@ -226,7 +227,7 @@ public class TopNQueryQueryToolChest extends QueryToolChest<Result<TopNResultVal
                       if (calculatedPostAgg != null) {
                         values.put(name, calculatedPostAgg);
                       } else {
-                        values.put(name, postAgg.compute(values));
+                        values.put(name, postAgg.compute(timestamp, values));
                       }
                     }
                     values.put(dimension, input.get(dimension));
@@ -263,6 +264,7 @@ public class TopNQueryQueryToolChest extends QueryToolChest<Result<TopNResultVal
       @Override
       public Result<TopNResultValue> apply(Result<TopNResultValue> result)
       {
+        final DateTime timestamp = result.getTimestamp();
         List<Map<String, Object>> serializedValues = Lists.newArrayList(
             Iterables.transform(
                 result.getValue(),
@@ -286,7 +288,7 @@ public class TopNQueryQueryToolChest extends QueryToolChest<Result<TopNResultVal
                       if (calculatedPostAgg != null) {
                         values.put(postAgg.getName(), calculatedPostAgg);
                       } else {
-                        values.put(postAgg.getName(), postAgg.compute(values));
+                        values.put(postAgg.getName(), postAgg.compute(timestamp, values));
                       }
                     }
                     for (int i = 0; i < aggFactoryNames.length; ++i) {
@@ -427,7 +429,7 @@ public class TopNQueryQueryToolChest extends QueryToolChest<Result<TopNResultVal
               }
 
               for (PostAggregator postAgg : postAggs) {
-                vals.put(postAgg.getName(), postAgg.compute(vals));
+                vals.put(postAgg.getName(), postAgg.compute(timestamp, vals));
               }
 
               retVal.add(vals);

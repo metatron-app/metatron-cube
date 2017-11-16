@@ -22,6 +22,7 @@ package io.druid.query.aggregation.histogram;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
+import org.joda.time.DateTime;
 
 import java.util.Comparator;
 import java.util.Map;
@@ -41,7 +42,7 @@ public class MedianPostAggregator extends ApproximateHistogramPostAggregator
   }
 
   @Override
-  public Object compute(Map<String, Object> values)
+  public Object compute(DateTime timestamp, Map<String, Object> values)
   {
     return ((ApproximateHistogramHolder) values.get(this.getFieldName())).getMedian();
   }

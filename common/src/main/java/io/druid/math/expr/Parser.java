@@ -36,6 +36,7 @@ import org.antlr.v4.runtime.ANTLRInputStream;
 import org.antlr.v4.runtime.CommonTokenStream;
 import org.antlr.v4.runtime.tree.ParseTree;
 import org.antlr.v4.runtime.tree.ParseTreeWalker;
+import org.joda.time.DateTime;
 
 import java.lang.reflect.Modifier;
 import java.util.Collection;
@@ -255,6 +256,34 @@ public class Parser
       @Override
       public Object get(String name)
       {
+        Object value = bindings.get(name);
+        if (value == null && !bindings.containsKey(name)) {
+          throw new RuntimeException("No binding found for " + name);
+        }
+        return value;
+      }
+    };
+  }
+
+  private static final String TIME_COLUMN_NAME = "__time";
+
+  public static Expr.NumericBinding withTimeAndMap(final DateTime timestamp, final Map<String, ?> bindings)
+  {
+    Preconditions.checkArgument(!bindings.containsKey(TIME_COLUMN_NAME));
+    return new Expr.NumericBinding()
+    {
+      @Override
+      public Collection<String> names()
+      {
+        return bindings.keySet();
+      }
+
+      @Override
+      public Object get(String name)
+      {
+        if (name.equals(TIME_COLUMN_NAME)) {
+          return timestamp;
+        }
         Object value = bindings.get(name);
         if (value == null && !bindings.containsKey(name)) {
           throw new RuntimeException("No binding found for " + name);

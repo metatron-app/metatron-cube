@@ -5,6 +5,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.collect.Sets;
 import io.druid.query.aggregation.PostAggregator;
+import org.joda.time.DateTime;
 
 import java.util.Comparator;
 import java.util.Map;
@@ -40,7 +41,7 @@ public class DruidTDigestMedianPostAggregator implements PostAggregator
   }
 
   @Override
-  public Object compute(Map<String, Object> values)
+  public Object compute(DateTime timestamp, Map<String, Object> values)
   {
     final DruidTDigest digest = (DruidTDigest) values.get(this.getFieldName());
     return digest.median();

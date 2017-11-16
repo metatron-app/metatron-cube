@@ -23,6 +23,7 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.collect.Sets;
+import org.joda.time.DateTime;
 
 import java.util.Comparator;
 import java.util.Map;
@@ -65,7 +66,7 @@ public class MinPostAggregator extends ApproximateHistogramPostAggregator
   }
 
   @Override
-  public Object compute(Map<String, Object> values)
+  public Object compute(DateTime timestamp, Map<String, Object> values)
   {
     final ApproximateHistogramHolder ah = (ApproximateHistogramHolder) values.get(this.getFieldName());
     return ah.getMin();

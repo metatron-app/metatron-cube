@@ -19,6 +19,7 @@
 
 package io.druid.query.aggregation.histogram;
 
+import io.druid.common.DateTimes;
 import io.druid.query.aggregation.TestFloatColumnSelector;
 import io.druid.query.filter.ValueMatcher;
 import org.junit.Assert;
@@ -61,7 +62,7 @@ public class ApproximateHistogramPostAggregatorTest
         "price",
         5
     );
-    Assert.assertEquals(ah.toHistogram(5), approximateHistogramPostAggregator.compute(metricValues));
+    Assert.assertEquals(ah.toHistogram(5), approximateHistogramPostAggregator.compute(DateTimes.nowUtc(), metricValues));
   }
 
 }

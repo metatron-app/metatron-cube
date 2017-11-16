@@ -27,6 +27,7 @@ import com.google.common.collect.Sets;
 import com.google.common.primitives.Doubles;
 import com.yahoo.sketches.theta.Sketch;
 import io.druid.query.aggregation.PostAggregator;
+import org.joda.time.DateTime;
 
 import java.util.Comparator;
 import java.util.Map;
@@ -80,9 +81,9 @@ public class SketchEstimatePostAggregator implements PostAggregator
   }
 
   @Override
-  public Object compute(Map<String, Object> combinedAggregators)
+  public Object compute(DateTime timestamp, Map<String, Object> combinedAggregators)
   {
-    Sketch sketch = (Sketch) field.compute(combinedAggregators);
+    Sketch sketch = (Sketch) field.compute(timestamp, combinedAggregators);
     if (errorBoundsStdDev != null) {
       SketchEstimateWithErrorBounds result = new SketchEstimateWithErrorBounds(
           sketch.getEstimate(),

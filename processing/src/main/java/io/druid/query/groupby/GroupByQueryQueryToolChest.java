@@ -289,7 +289,7 @@ public class GroupByQueryQueryToolChest extends QueryToolChest<Row, GroupByQuery
               final Map<String, Object> newMap = Maps.newLinkedHashMap(((MapBasedRow) row).getEvent());
 
               for (PostAggregator postAggregator : postAggregators) {
-                newMap.put(postAggregator.getName(), postAggregator.compute(newMap));
+                newMap.put(postAggregator.getName(), postAggregator.compute(row.getTimestamp(), newMap));
               }
               return new MapBasedRow(granularity.toDateTime(row.getTimestampFromEpoch()), newMap);
             }

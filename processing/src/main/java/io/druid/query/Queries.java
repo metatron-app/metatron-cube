@@ -44,6 +44,7 @@ import io.druid.query.select.EventHolder;
 import io.druid.query.select.Schema;
 import io.druid.query.select.SelectMetaQuery;
 import io.druid.query.select.SelectMetaResultValue;
+import io.druid.segment.column.Column;
 import io.druid.segment.incremental.IncrementalIndexSchema;
 
 import java.util.List;
@@ -77,8 +78,8 @@ public class Queries
         final Set<String> missing = Sets.difference(dependencies, combinedAggNames);
 
         Preconditions.checkArgument(
-            missing.isEmpty(),
-            "Missing fields [%s] for postAggregator [%s]", missing, postAgg.getName()
+            missing.isEmpty() || missing.size() == 1 && missing.contains(Column.TIME_COLUMN_NAME),
+            "Missing fields %s for postAggregator [%s]", missing, postAgg.getName()
         );
         Preconditions.checkArgument(combinedAggNames.add(postAgg.getName()), "[%s] already defined", postAgg.getName());
       }

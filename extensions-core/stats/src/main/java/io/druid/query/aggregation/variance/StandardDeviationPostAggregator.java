@@ -26,6 +26,7 @@ import com.google.common.base.Preconditions;
 import com.google.common.collect.Sets;
 import io.druid.query.aggregation.PostAggregator;
 import io.druid.query.aggregation.post.ArithmeticPostAggregator;
+import org.joda.time.DateTime;
 
 import java.util.Comparator;
 import java.util.Map;
@@ -68,7 +69,7 @@ public class StandardDeviationPostAggregator implements PostAggregator
   }
 
   @Override
-  public Object compute(Map<String, Object> combinedAggregators)
+  public Object compute(DateTime timestamp, Map<String, Object> combinedAggregators)
   {
     return Math.sqrt(((VarianceAggregatorCollector) combinedAggregators.get(fieldName)).getVariance(isVariancePop));
   }

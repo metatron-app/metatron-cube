@@ -1723,19 +1723,26 @@ public class GroupByQueryRunnerTest
                 QueryRunnerTestHelper.rowsCount,
                 new DoubleSumAggregatorFactory("idx", null, "index / 2 + indexMin", null)
             )
+        )
+        .setPostAggregatorSpecs(
+            Lists.<PostAggregator>newArrayList(
+                new MathPostAggregator(
+                    "MMM-yyyy", "time_format(__time, out.format='MMM yyyy', out.timezone='UTC', out.locale='en')"
+                )
+            )
         );
 
     expectedResults = GroupByQueryRunnerTestHelper.createExpectedRows(
-        new String[]{"__time", "alias", "rows", "idx"},
-        new Object[]{"2011-04-01", "travel", 2L, 365.4876403808594D},
-        new Object[]{"2011-04-01", "technology", 2L, 267.3737487792969D},
-        new Object[]{"2011-04-01", "news", 2L, 333.3147277832031D},
-        new Object[]{"2011-04-01", "health", 2L, 325.467529296875D},
-        new Object[]{"2011-04-01", "entertainment", 2L, 479.916015625D},
-        new Object[]{"2011-04-01", "business", 2L, 328.083740234375D},
-        new Object[]{"2011-04-01", "automotive", 2L, 405.5966796875D},
-        new Object[]{"2011-04-01", "premium", 6L, 6627.927734375D},
-        new Object[]{"2011-04-01", "mezzanine", 6L, 6635.47998046875D}
+        new String[]{"__time", "alias", "rows", "idx", "MMM-yyyy"},
+        new Object[]{"2011-04-01", "travel", 2L, 365.4876403808594D, "Apr 2011"},
+        new Object[]{"2011-04-01", "technology", 2L, 267.3737487792969D, "Apr 2011"},
+        new Object[]{"2011-04-01", "news", 2L, 333.3147277832031D, "Apr 2011"},
+        new Object[]{"2011-04-01", "health", 2L, 325.467529296875D, "Apr 2011"},
+        new Object[]{"2011-04-01", "entertainment", 2L, 479.916015625D, "Apr 2011"},
+        new Object[]{"2011-04-01", "business", 2L, 328.083740234375D, "Apr 2011"},
+        new Object[]{"2011-04-01", "automotive", 2L, 405.5966796875D, "Apr 2011"},
+        new Object[]{"2011-04-01", "premium", 6L, 6627.927734375D, "Apr 2011"},
+        new Object[]{"2011-04-01", "mezzanine", 6L, 6635.47998046875D, "Apr 2011"}
     );
 
     TestHelper.assertExpectedObjects(expectedResults, mergeRunner.run(builder.build(), context), "no-limit");

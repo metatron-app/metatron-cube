@@ -19,6 +19,8 @@
 
 package io.druid.query.aggregation;
 
+import org.joda.time.DateTime;
+
 import java.util.Comparator;
 import java.util.Map;
 import java.util.Set;
@@ -32,7 +34,7 @@ public interface PostAggregator
 
   public Comparator getComparator();
 
-  public Object compute(Map<String, Object> combinedAggregators);
+  public Object compute(DateTime timestamp, Map<String, Object> combinedAggregators);
 
   public String getName();
 }

@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.collect.Sets;
 import io.druid.query.aggregation.PostAggregator;
+import org.joda.time.DateTime;
 
 import java.util.Comparator;
 import java.util.Map;
@@ -38,7 +39,7 @@ public class MetricRangePostAggregator implements PostAggregator
   }
 
   @Override
-  public Object compute(Map<String, Object> combinedAggregators)
+  public Object compute(DateTime timestamp, Map<String, Object> combinedAggregators)
   {
     return ((MetricRange) combinedAggregators.get(this.getFieldName())).getRange();
   }

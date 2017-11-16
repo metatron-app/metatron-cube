@@ -24,6 +24,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.collect.Sets;
 import com.metamx.common.IAE;
+import org.joda.time.DateTime;
 
 import java.util.Map;
 import java.util.Set;
@@ -60,7 +61,7 @@ public class BucketsPostAggregator extends ApproximateHistogramPostAggregator
   }
 
   @Override
-  public Object compute(Map<String, Object> values)
+  public Object compute(DateTime timestamp, Map<String, Object> values)
   {
     ApproximateHistogramHolder ah = (ApproximateHistogramHolder) values.get(this.getFieldName());
     return ah.toHistogram(bucketSize, offset);

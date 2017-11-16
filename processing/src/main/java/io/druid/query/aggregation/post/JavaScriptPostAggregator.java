@@ -27,6 +27,7 @@ import com.google.common.collect.Sets;
 import com.metamx.common.ISE;
 import io.druid.js.JavaScriptConfig;
 import io.druid.query.aggregation.PostAggregator;
+import org.joda.time.DateTime;
 import org.mozilla.javascript.Context;
 import org.mozilla.javascript.ContextFactory;
 import org.mozilla.javascript.ScriptableObject;
@@ -122,7 +123,7 @@ public class JavaScriptPostAggregator implements PostAggregator
   }
 
   @Override
-  public Object compute(Map<String, Object> combinedAggregators)
+  public Object compute(DateTime timestamp, Map<String, Object> combinedAggregators)
   {
     if (fn == null) {
       throw new ISE("JavaScript is disabled");

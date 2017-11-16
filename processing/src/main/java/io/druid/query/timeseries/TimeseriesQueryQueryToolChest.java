@@ -283,7 +283,7 @@ public class TimeseriesQueryQueryToolChest extends QueryToolChest<Result<Timeser
             values.put(agg.getName(), holder.getMetric(agg.getName()));
           }
           for (PostAggregator postAgg : postAggregators) {
-            values.put(postAgg.getName(), postAgg.compute(values));
+            values.put(postAgg.getName(), postAgg.compute(result.getTimestamp(), values));
           }
         }
         for (AggregatorFactory agg : query.getAggregatorSpecs()) {

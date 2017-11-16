@@ -37,6 +37,7 @@ import com.metamx.common.IAE;
 import com.metamx.common.ISE;
 import com.metamx.common.logger.Logger;
 import com.metamx.common.parsers.ParseException;
+import io.druid.common.DateTimes;
 import io.druid.common.utils.JodaUtils;
 import io.druid.common.utils.StringUtils;
 import io.druid.data.ValueDesc;
@@ -1235,8 +1236,11 @@ public abstract class IncrementalIndex<AggregatorType> implements Iterable<Row>,
           theVals.put(metrics[i].getName(), getAggVal(aggs[i], rowOffset, i));
         }
 
-        for (PostAggregator postAgg : postAggregators) {
-          theVals.put(postAgg.getName(), postAgg.compute(theVals));
+        if (!postAggregators.isEmpty()) {
+          DateTime current = DateTimes.utc(timeAndDims.getTimestamp());
+          for (PostAggregator postAgg : postAggregators) {
+            theVals.put(postAgg.getName(), postAgg.compute(current, theVals));
+          }
         }
 
         return new MapBasedRow(timeAndDims.getTimestamp(), theVals);

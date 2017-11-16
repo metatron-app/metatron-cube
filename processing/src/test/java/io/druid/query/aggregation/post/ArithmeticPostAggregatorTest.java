@@ -24,6 +24,7 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import io.druid.query.aggregation.CountAggregator;
 import io.druid.query.aggregation.PostAggregator;
+import org.joda.time.DateTime;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -58,29 +59,30 @@ public class ArithmeticPostAggregatorTest
             )
         );
 
+    DateTime timestamp = DateTime.now();
     for (PostAggregator postAggregator : postAggregatorList) {
-      metricValues.put(postAggregator.getName(), postAggregator.compute(metricValues));
+      metricValues.put(postAggregator.getName(), postAggregator.compute(timestamp, metricValues));
     }
 
     arithmeticPostAggregator = new ArithmeticPostAggregator("add", "+", postAggregatorList);
     mathPostAggregator = new MathPostAggregator("add", "roku + rows");
-    Assert.assertEquals(9.0, arithmeticPostAggregator.compute(metricValues));
-    Assert.assertEquals(9L, mathPostAggregator.compute(metricValues));
+    Assert.assertEquals(9.0, arithmeticPostAggregator.compute(timestamp, metricValues));
+    Assert.assertEquals(9L, mathPostAggregator.compute(timestamp, metricValues));
 
     arithmeticPostAggregator = new ArithmeticPostAggregator("subtract", "-", postAggregatorList);
     mathPostAggregator = new MathPostAggregator("add", "roku - rows");
-    Assert.assertEquals(3.0, arithmeticPostAggregator.compute(metricValues));
-    Assert.assertEquals(3L, mathPostAggregator.compute(metricValues));
+    Assert.assertEquals(3.0, arithmeticPostAggregator.compute(timestamp, metricValues));
+    Assert.assertEquals(3L, mathPostAggregator.compute(timestamp, metricValues));
 
     arithmeticPostAggregator = new ArithmeticPostAggregator("multiply", "*", postAggregatorList);
     mathPostAggregator = new MathPostAggregator("add", "roku * rows");
-    Assert.assertEquals(18.0, arithmeticPostAggregator.compute(metricValues));
-    Assert.assertEquals(18L, mathPostAggregator.compute(metricValues));
+    Assert.assertEquals(18.0, arithmeticPostAggregator.compute(timestamp, metricValues));
+    Assert.assertEquals(18L, mathPostAggregator.compute(timestamp, metricValues));
 
     arithmeticPostAggregator = new ArithmeticPostAggregator("divide", "/", postAggregatorList);
     mathPostAggregator = new MathPostAggregator("add", "roku / rows");
-    Assert.assertEquals(2.0, arithmeticPostAggregator.compute(metricValues));
-    Assert.assertEquals(2L, mathPostAggregator.compute(metricValues));
+    Assert.assertEquals(2.0, arithmeticPostAggregator.compute(timestamp, metricValues));
+    Assert.assertEquals(2L, mathPostAggregator.compute(timestamp, metricValues));
   }
 
   @Test
@@ -103,12 +105,14 @@ public class ArithmeticPostAggregatorTest
 
     arithmeticPostAggregator = new ArithmeticPostAggregator("add", "+", postAggregatorList);
     Comparator comp = arithmeticPostAggregator.getComparator();
-    Object before = arithmeticPostAggregator.compute(metricValues);
+
+    DateTime timestamp = DateTime.now();
+    Object before = arithmeticPostAggregator.compute(timestamp, metricValues);
     agg.aggregate();
     agg.aggregate();
     agg.aggregate();
     metricValues.put("rows", agg.get());
-    Object after = arithmeticPostAggregator.compute(metricValues);
+    Object after = arithmeticPostAggregator.compute(timestamp, metricValues);
 
     Assert.assertEquals(-1, comp.compare(before, after));
     Assert.assertEquals(0, comp.compare(before, before));
@@ -129,11 +133,11 @@ public class ArithmeticPostAggregatorTest
         "numericFirst"
     );
 
-
-    Assert.assertEquals(Double.NaN, agg.compute(ImmutableMap.<String, Object>of("value", 0)));
-    Assert.assertEquals(Double.NaN, agg.compute(ImmutableMap.<String, Object>of("value", Double.NaN)));
-    Assert.assertEquals(Double.POSITIVE_INFINITY, agg.compute(ImmutableMap.<String, Object>of("value", 1)));
-    Assert.assertEquals(Double.NEGATIVE_INFINITY, agg.compute(ImmutableMap.<String, Object>of("value", -1)));
+    DateTime timestamp = DateTime.now();
+    Assert.assertEquals(Double.NaN, agg.compute(timestamp, ImmutableMap.<String, Object>of("value", 0)));
+    Assert.assertEquals(Double.NaN, agg.compute(timestamp, ImmutableMap.<String, Object>of("value", Double.NaN)));
+    Assert.assertEquals(Double.POSITIVE_INFINITY, agg.compute(timestamp, ImmutableMap.<String, Object>of("value", 1)));
+    Assert.assertEquals(Double.NEGATIVE_INFINITY, agg.compute(timestamp, ImmutableMap.<String, Object>of("value", -1)));
   }
 
   @Test
@@ -147,11 +151,11 @@ public class ArithmeticPostAggregatorTest
             new ConstantPostAggregator("denomiator", 0)
         )
     );
-
-    Assert.assertEquals(0.0, agg.compute(ImmutableMap.<String, Object>of("value", 0)));
-    Assert.assertEquals(0.0, agg.compute(ImmutableMap.<String, Object>of("value", Double.NaN)));
-    Assert.assertEquals(0.0, agg.compute(ImmutableMap.<String, Object>of("value", 1)));
-    Assert.assertEquals(0.0, agg.compute(ImmutableMap.<String, Object>of("value", -1)));
+    DateTime timestamp = DateTime.now();
+    Assert.assertEquals(0.0, agg.compute(timestamp, ImmutableMap.<String, Object>of("value", 0)));
+    Assert.assertEquals(0.0, agg.compute(timestamp, ImmutableMap.<String, Object>of("value", Double.NaN)));
+    Assert.assertEquals(0.0, agg.compute(timestamp, ImmutableMap.<String, Object>of("value", 1)));
+    Assert.assertEquals(0.0, agg.compute(timestamp, ImmutableMap.<String, Object>of("value", -1)));
   }
 
   @Test

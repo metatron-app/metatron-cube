@@ -27,6 +27,7 @@ import com.metamx.common.logger.Logger;
 import com.yahoo.sketches.Util;
 import com.yahoo.sketches.theta.Sketch;
 import io.druid.query.aggregation.PostAggregator;
+import org.joda.time.DateTime;
 
 import java.util.Comparator;
 import java.util.List;
@@ -79,11 +80,11 @@ public class SketchSetPostAggregator implements PostAggregator
   }
 
   @Override
-  public Object compute(final Map<String, Object> combinedAggregators)
+  public Object compute(DateTime timestamp, final Map<String, Object> combinedAggregators)
   {
     Sketch[] sketches = new Sketch[fields.size()];
     for (int i = 0; i < sketches.length; i++) {
-      sketches[i] = (Sketch) fields.get(i).compute(combinedAggregators);
+      sketches[i] = (Sketch) fields.get(i).compute(timestamp, combinedAggregators);
     }
 
     return SketchOperations.sketchSetOperation(func, maxSketchSize, sketches);

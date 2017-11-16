@@ -22,6 +22,8 @@ package io.druid.query.aggregation.hyperloglog;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.hash.HashFunction;
 import com.google.common.hash.Hashing;
+import io.druid.common.DateTimes;
+import org.joda.time.DateTime;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -47,7 +49,8 @@ public class HyperUniqueFinalizingPostAggregatorTest
       collector.add(hashedVal);
     }
 
-    double cardinality = (Double) postAggregator.compute(ImmutableMap.<String, Object>of("uniques", collector));
+    DateTime timestamp = DateTimes.nowUtc();
+    double cardinality = (Double) postAggregator.compute(timestamp, ImmutableMap.<String, Object>of("uniques", collector));
 
     Assert.assertTrue(cardinality == 99.37233005831612);
   }

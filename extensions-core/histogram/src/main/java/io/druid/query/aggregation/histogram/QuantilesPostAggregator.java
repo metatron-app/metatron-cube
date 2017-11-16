@@ -24,6 +24,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.collect.Sets;
 import com.metamx.common.IAE;
+import org.joda.time.DateTime;
 
 import java.util.Arrays;
 import java.util.Comparator;
@@ -67,7 +68,7 @@ public class QuantilesPostAggregator extends ApproximateHistogramPostAggregator
   }
 
   @Override
-  public Object compute(Map<String, Object> values)
+  public Object compute(DateTime timestamp, Map<String, Object> values)
   {
     final ApproximateHistogramHolder ah = (ApproximateHistogramHolder) values.get(this.getFieldName());
 

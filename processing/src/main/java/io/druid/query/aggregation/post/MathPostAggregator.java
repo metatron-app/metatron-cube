@@ -28,6 +28,8 @@ import io.druid.math.expr.Parser;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.DecoratingPostAggregator;
 import io.druid.query.aggregation.PostAggregator;
+import io.druid.segment.column.Column;
+import org.joda.time.DateTime;
 
 import java.util.Collection;
 import java.util.Comparator;
@@ -96,9 +98,9 @@ public class MathPostAggregator implements DecoratingPostAggregator
   }
 
   @Override
-  public Object compute(Map<String, Object> values)
+  public Object compute(DateTime timestamp, Map<String, Object> values)
   {
-    return parsed.eval(Parser.withMap(values)).value();
+    return parsed.eval(Parser.withTimeAndMap(timestamp, values)).value();
   }
 
   @Override
@@ -139,7 +141,7 @@ public class MathPostAggregator implements DecoratingPostAggregator
     return new MathPostAggregator(name, expression, ordering)
     {
       @Override
-      public Object compute(final Map<String, Object> values)
+      public Object compute(final DateTime timestamp, final Map<String, Object> values)
       {
         Expr.NumericBinding binding = new Expr.NumericBinding()
         {
@@ -152,6 +154,9 @@ public class MathPostAggregator implements DecoratingPostAggregator
           @Override
           public Object get(final String name)
           {
+            if (name.equals(Column.TIME_COLUMN_NAME)) {
+              return timestamp;
+            }
             final Object value = values.get(name);
             if (value == null && !values.containsKey(name)) {
               throw new RuntimeException("No binding found for " + name);

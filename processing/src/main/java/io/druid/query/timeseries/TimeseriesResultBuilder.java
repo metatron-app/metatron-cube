@@ -50,7 +50,7 @@ public class TimeseriesResultBuilder
 
   public TimeseriesResultBuilder addMetric(PostAggregator postAggregator)
   {
-    metricValues.put(postAggregator.getName(), postAggregator.compute(metricValues));
+    metricValues.put(postAggregator.getName(), postAggregator.compute(timestamp, metricValues));
     return this;
   }
 

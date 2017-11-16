@@ -29,6 +29,7 @@ import io.druid.common.guava.GuavaUtils;
 import io.druid.math.expr.Evals;
 import io.druid.math.expr.Expr;
 import io.druid.math.expr.Parser;
+import org.joda.time.DateTime;
 
 import java.util.Collection;
 import java.util.Comparator;
@@ -99,7 +100,7 @@ public class CollectionCountPostAggregator implements PostAggregator
   }
 
   @Override
-  public final Object compute(Map<String, Object> combinedAggregators)
+  public final Object compute(DateTime timestamp, Map<String, Object> combinedAggregators)
   {
     Object value;
     if (field != null) {

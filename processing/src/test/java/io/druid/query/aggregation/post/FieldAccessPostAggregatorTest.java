@@ -19,7 +19,9 @@
 
 package io.druid.query.aggregation.post;
 
+import io.druid.common.DateTimes;
 import io.druid.query.aggregation.CountAggregator;
+import org.joda.time.DateTime;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -39,12 +41,14 @@ public class FieldAccessPostAggregatorTest
     CountAggregator agg = new CountAggregator();
     Map<String, Object> metricValues = new HashMap<String, Object>();
     metricValues.put("rows", agg.get());
-    Assert.assertEquals(new Long(0L), fieldAccessPostAggregator.compute(metricValues));
+
+    DateTime timestamp = DateTimes.nowUtc();
+    Assert.assertEquals(new Long(0L), fieldAccessPostAggregator.compute(timestamp, metricValues));
 
     agg.aggregate();
     agg.aggregate();
     agg.aggregate();
     metricValues.put("rows", agg.get());
-    Assert.assertEquals(new Long(3L), fieldAccessPostAggregator.compute(metricValues));
+    Assert.assertEquals(new Long(3L), fieldAccessPostAggregator.compute(timestamp, metricValues));
   }
 }
