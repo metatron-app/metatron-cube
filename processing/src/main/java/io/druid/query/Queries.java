@@ -22,6 +22,7 @@ package io.druid.query;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
@@ -44,6 +45,8 @@ import io.druid.query.select.EventHolder;
 import io.druid.query.select.Schema;
 import io.druid.query.select.SelectMetaQuery;
 import io.druid.query.select.SelectMetaResultValue;
+import io.druid.query.timeseries.TimeseriesQuery;
+import io.druid.query.topn.TopNQuery;
 import io.druid.segment.column.Column;
 import io.druid.segment.incremental.IncrementalIndexSchema;
 
@@ -84,6 +87,30 @@ public class Queries
         Preconditions.checkArgument(combinedAggNames.add(postAgg.getName()), "[%s] already defined", postAgg.getName());
       }
     }
+  }
+
+  public static List<AggregatorFactory> getAggregators(Query query)
+  {
+    if (query instanceof GroupByQuery) {
+      return ((GroupByQuery) query).getAggregatorSpecs();
+    } else if (query instanceof TimeseriesQuery) {
+      return ((TimeseriesQuery) query).getAggregatorSpecs();
+    } else if (query instanceof TopNQuery) {
+      return ((TopNQuery) query).getAggregatorSpecs();
+    }
+    return ImmutableList.of();
+  }
+
+  public static List<PostAggregator> getPostAggregators(Query query)
+  {
+    if (query instanceof GroupByQuery) {
+      return ((GroupByQuery) query).getPostAggregatorSpecs();
+    } else if (query instanceof TimeseriesQuery) {
+      return ((TimeseriesQuery) query).getPostAggregatorSpecs();
+    } else if (query instanceof TopNQuery) {
+      return ((TopNQuery) query).getPostAggregatorSpecs();
+    }
+    return ImmutableList.of();
   }
 
   public static <T> T convert(Object object, ObjectMapper jsonMapper, Class<T> expected)

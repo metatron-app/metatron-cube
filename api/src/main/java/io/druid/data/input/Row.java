@@ -100,6 +100,8 @@ public interface Row extends Comparable<Row>
   {
     boolean isUpdatable();
 
+    Object getRaw(String column);
+
     void set(String column, Object value);
   }
 }

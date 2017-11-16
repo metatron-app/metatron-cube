@@ -104,6 +104,7 @@ public class SketchModule implements DruidModule
             .registerSubtypes(SketchFrequencyProcessor.class)
             .registerSubtypes(SketchSamplingProcessor.class)
             .registerSubtypes(SummaryPostProcessor.class)
+            .registerSubtypes(SketchEstimatePostProcessor.class)
             .addSerializer(
                 Sketch.class, new SketchJsonSerializer()
             )
