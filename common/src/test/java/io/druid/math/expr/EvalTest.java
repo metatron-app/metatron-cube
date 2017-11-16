@@ -23,6 +23,8 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
+import io.druid.granularity.Granularity;
+import io.druid.granularity.GranularityType;
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
 import org.joda.time.Interval;
@@ -807,5 +809,54 @@ public class EvalTest
     Assert.assertTrue(_eval("endsWith(a, 'is')", bindings).asBoolean());
     Assert.assertFalse(_eval("endsWith(b, 'is')", bindings).asBoolean());
     Assert.assertTrue(_eval("endsWithIgnoreCase(b, 'is')", bindings).asBoolean());
+  }
+
+  @Test
+  public void testGranularFunctions()
+  {
+    DateTime time1 = new DateTime("2016-03-04T22:25:00");
+    DateTime time2 = new DateTime("2018-10-27T22:25:00");
+    Expr.NumericBinding bindings = Parser.withMap(
+        ImmutableMap.<String, Object>of(
+            "__time1", time1,
+            "__time2", time2.getMillis()
+        )
+    );
+    for (GranularityType type : GranularityType.values()) {
+      Granularity granularity = type.getDefaultGranularity();
+      Assert.assertEquals(
+          granularity.bucketStart(time1).getMillis(),
+          evalLong("bucketStart(__time1, '" + type.name() + "')", bindings)
+      );
+      Assert.assertEquals(
+          granularity.bucketStart(time1),
+          evalDateTime("bucketStartDateTime(__time1, '" + type.name() + "')", bindings)
+      );
+      Assert.assertEquals(
+          granularity.bucketStart(time2).getMillis(),
+          evalLong("bucketStart(__time2, '" + type.name() + "')", bindings)
+      );
+      Assert.assertEquals(
+          granularity.bucketStart(time2),
+          evalDateTime("bucketStartDateTime(__time2, '" + type.name() + "')", bindings)
+      );
+
+      Assert.assertEquals(
+          granularity.bucketEnd(time1).getMillis(),
+          evalLong("bucketEnd(__time1, '" + type.name() + "')", bindings)
+      );
+      Assert.assertEquals(
+          granularity.bucketEnd(time1),
+          evalDateTime("bucketEndDateTime(__time1, '" + type.name() + "')", bindings)
+      );
+      Assert.assertEquals(
+          granularity.bucketEnd(time2).getMillis(),
+          evalLong("bucketEnd(__time2, '" + type.name() + "')", bindings)
+      );
+      Assert.assertEquals(
+          granularity.bucketEnd(time2),
+          evalDateTime("bucketEndDateTime(__time2, '" + type.name() + "')", bindings)
+      );
+    }
   }
 }

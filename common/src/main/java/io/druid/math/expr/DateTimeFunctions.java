@@ -20,7 +20,9 @@
 package io.druid.math.expr;
 
 import com.google.common.primitives.Ints;
+import io.druid.common.DateTimes;
 import io.druid.common.utils.JodaUtils;
+import io.druid.granularity.Granularity;
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
 import org.joda.time.Days;
@@ -95,6 +97,110 @@ public interface DateTimeFunctions extends Function.Library
       }
       Period afterNow = JodaUtils.toPeriod(args.get(1).eval(bindings).asString());
       return new Interval(now.minus(beforeNow), now.minus(afterNow));
+    }
+  }
+
+  public static abstract class GranularFunc extends Function.NewInstance
+  {
+    private Granularity granularity;
+
+    @Override
+    public ExprEval apply(List<Expr> args, Expr.NumericBinding bindings)
+    {
+      if (args.size() != 2) {
+        throw new IllegalArgumentException("function '" + name() + "' needs two arguments");
+      }
+      if (granularity == null) {
+        String string = args.get(1).eval(bindings).asString();
+        granularity = Granularity.fromString(string);
+      }
+      return eval(args.get(0).eval(bindings), granularity);
+    }
+
+    protected abstract ExprEval eval(ExprEval param, Granularity granularity);
+  }
+
+  public static class BucketStart extends GranularFunc
+  {
+    @Override
+    public String name()
+    {
+      return "bucketStart";
+    }
+
+    @Override
+    public ExprType apply(List<Expr> args, Expr.TypeBinding bindings)
+    {
+      return ExprType.LONG;
+    }
+
+    @Override
+    protected ExprEval eval(ExprEval param, Granularity granularity)
+    {
+      return ExprEval.of(granularity.bucketStart(DateTimes.utc(param.asLong())).getMillis());
+    }
+  }
+
+  public static class BucketEnd extends GranularFunc
+  {
+    @Override
+    public String name()
+    {
+      return "bucketEnd";
+    }
+
+    @Override
+    public ExprType apply(List<Expr> args, Expr.TypeBinding bindings)
+    {
+      return ExprType.LONG;
+    }
+
+    @Override
+    protected ExprEval eval(ExprEval param, Granularity granularity)
+    {
+      return ExprEval.of(granularity.bucketEnd(DateTimes.utc(param.asLong())).getMillis());
+    }
+  }
+
+  public static class BucketStartDT extends GranularFunc
+  {
+    @Override
+    public String name()
+    {
+      return "bucketStartDateTime";
+    }
+
+    @Override
+    public ExprType apply(List<Expr> args, Expr.TypeBinding bindings)
+    {
+      return ExprType.DATETIME;
+    }
+
+    @Override
+    protected ExprEval eval(ExprEval param, Granularity granularity)
+    {
+      return ExprEval.of(granularity.bucketStart(param.asDateTime()));
+    }
+  }
+
+  public static class BucketEndDT extends GranularFunc
+  {
+    @Override
+    public String name()
+    {
+      return "bucketEndDateTime";
+    }
+
+    @Override
+    public ExprType apply(List<Expr> args, Expr.TypeBinding bindings)
+    {
+      return ExprType.DATETIME;
+    }
+
+    @Override
+    protected ExprEval eval(ExprEval param, Granularity granularity)
+    {
+      return ExprEval.of(granularity.bucketEnd(param.asDateTime()));
     }
   }
 
