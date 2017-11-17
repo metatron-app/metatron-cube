@@ -25,6 +25,10 @@ import com.google.common.collect.Range;
  */
 public interface MetricBitmap<T extends Comparable> extends ExternalBitmap<Range<T>>
 {
+  T getMin();
+
+  T getMax();
+
   int numBins();
 
   int zeroRows();

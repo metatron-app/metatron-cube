@@ -353,10 +353,6 @@ public class SegmentMetadataQueryQueryToolChest extends QueryToolChest<SegmentAn
       mergedId = "merged";
     }
 
-    long ingestedNumRows = -1;
-    if (arg1.getIngestedNumRows() >= 0 && arg2.getIngestedNumRows() >= 0) {
-      ingestedNumRows = arg1.getIngestedNumRows() + arg2.getIngestedNumRows();
-    }
     long lastAccessTime = Math.max(arg1.getLastAccessTime(), arg2.getLastAccessTime());
 
     final Boolean rollup;
@@ -371,10 +367,9 @@ public class SegmentMetadataQueryQueryToolChest extends QueryToolChest<SegmentAn
         mergedId,
         newIntervals,
         columns,
-        arg1.getSize() + arg2.getSize(),
-        arg1.getSerializedSize() + arg2.getSerializedSize(),
-        arg1.getNumRows() + arg2.getNumRows(),
-        ingestedNumRows,
+        sumIfPositives(arg1.getSerializedSize(), arg2.getSerializedSize()),
+        sumIfPositives(arg1.getNumRows(), arg2.getNumRows()),
+        sumIfPositives(arg1.getIngestedNumRows(), arg2.getIngestedNumRows()),
         lastAccessTime,
         aggregators.isEmpty() ? null : aggregators,
         queryGranularity,
@@ -390,7 +385,6 @@ public class SegmentMetadataQueryQueryToolChest extends QueryToolChest<SegmentAn
         analysis.getId(),
         analysis.getIntervals() != null ? JodaUtils.condenseIntervals(analysis.getIntervals()) : null,
         analysis.getColumns(),
-        analysis.getSize(),
         analysis.getSerializedSize(),
         analysis.getNumRows(),
         analysis.getIngestedNumRows(),
@@ -400,5 +394,10 @@ public class SegmentMetadataQueryQueryToolChest extends QueryToolChest<SegmentAn
         analysis.getSegmentGranularity(),
         analysis.isRollup()
     );
+  }
+
+  private static long sumIfPositives(long x, long y)
+  {
+    return x < 0 || y < 0 ? -1 : x + y;
   }
 }

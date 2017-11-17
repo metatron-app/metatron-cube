@@ -229,7 +229,6 @@ public class KMeansQuery
         getDataSource(),
         getQuerySegmentSpec(),
         getVirtualColumns(),
-        null,
         new ListColumnIncluderator(getMetrics()),
         true,
         Queries.extractContext(this, BaseQuery.QUERYID),

@@ -331,7 +331,6 @@ public class SummaryPostProcessor extends PostProcessingOperator.UnionSupport
               representative.getDataSource(),
               representative.getQuerySegmentSpec(),
               null,
-              null,
               new NoneColumnIncluderator(),
               false,
               Queries.extractContext(query, BaseQuery.QUERYID),

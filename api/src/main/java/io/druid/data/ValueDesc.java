@@ -176,8 +176,8 @@ public class ValueDesc
 
   private ValueDesc(ValueType type, String typeName)
   {
-    this.type = type;
-    this.typeName = typeName;
+    this.type = Preconditions.checkNotNull(type);
+    this.typeName = Preconditions.checkNotNull(typeName);
   }
 
   public ValueType type()
@@ -188,7 +188,16 @@ public class ValueDesc
   @JsonValue
   public String typeName()
   {
-    return typeName;
+    return type.isPrimitive() ? typeName.toUpperCase() : typeName;
+  }
+
+  public ValueDesc subElement()
+  {
+    int index = typeName.indexOf('.');
+    if (index > 0) {
+      return ValueDesc.of(typeName.substring(index + 1));
+    }
+    throw new IllegalStateException("does not have sub element");
   }
 
   @Override
@@ -230,7 +239,7 @@ public class ValueDesc
 
   public static ValueDesc of(ValueType valueType)
   {
-    return valueType == null ? ValueDesc.UNKNOWN : new ValueDesc(valueType, valueType.name().toLowerCase());
+    return valueType == null ? ValueDesc.UNKNOWN : new ValueDesc(valueType, valueType.name().toUpperCase());
   }
 
   public static boolean isMap(ValueDesc type)

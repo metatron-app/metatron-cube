@@ -21,6 +21,7 @@ package io.druid.query.metadata;
 
 import com.google.common.base.Function;
 import com.google.common.base.Throwables;
+import com.google.common.collect.Iterables;
 import com.google.common.collect.Maps;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.ListeningExecutorService;
@@ -42,12 +43,13 @@ import io.druid.query.QueryToolChest;
 import io.druid.query.QueryWatcher;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.metadata.metadata.ColumnAnalysis;
-import io.druid.query.metadata.metadata.ColumnIncluderator;
 import io.druid.query.metadata.metadata.SegmentAnalysis;
 import io.druid.query.metadata.metadata.SegmentMetadataQuery;
+import io.druid.query.metadata.metadata.SegmentMetadataQuery.AnalysisType;
 import io.druid.segment.Metadata;
 import io.druid.segment.Segment;
-import io.druid.segment.VirtualColumns;
+import io.druid.segment.StorageAdapter;
+import io.druid.segment.column.Column;
 import org.joda.time.Interval;
 
 import java.util.ArrayList;
@@ -89,35 +91,23 @@ public class SegmentMetadataQueryRunnerFactory implements QueryRunnerFactory<Seg
       {
         SegmentMetadataQuery query = (SegmentMetadataQuery) inQ;
 
-        final SegmentAnalyzer analyzer = new SegmentAnalyzer(query.getAnalysisTypes());
-        final List<String> expressions = query.getExpressions();
-        final Map<String, ColumnAnalysis> analyzedColumns = analyzer.analyze(
-            segment, VirtualColumns.valueOf(query.getVirtualColumns()), expressions
-        );
-        final long numRows = analyzer.numRows(segment);
-        long totalSize = 0;
-        long totalSerializedSize = 0;
+        final Map<String, ColumnAnalysis> analyzedColumns = SegmentAnalyzer.analyze(segment, query);
 
-        if (analyzer.analyzingSize()) {
-          // Initialize with the size of the whitespace, 1 byte per
-          totalSize = analyzedColumns.size() * numRows;
-        }
+        final StorageAdapter adapter = segment.asStorageAdapter(false);
+        final long numRows = adapter.getNumRows();
 
-        Map<String, ColumnAnalysis> columns = Maps.newTreeMap();
-        ColumnIncluderator includerator = query.getToInclude();
-        for (Map.Entry<String, ColumnAnalysis> entry : analyzedColumns.entrySet()) {
-          final String columnName = entry.getKey();
-          final ColumnAnalysis column = entry.getValue();
-
-          if (!column.isError()) {
-            totalSize += column.getSize();
-          }
-          totalSerializedSize += column.getSerializedSize();
-
-          if (expressions.contains(columnName) || includerator.include(columnName)) {
-            columns.put(columnName, column);
+        long totalSerializedSize = -1;
+        if (query.getAnalysisTypes().contains(AnalysisType.SERIALIZED_SIZE)) {
+          totalSerializedSize = 0;
+          for (String columnName : Iterables.concat(
+              adapter.getAvailableDimensions(),
+              adapter.getAvailableMetrics(),
+              Arrays.asList(Column.TIME_COLUMN_NAME)
+          )) {
+            totalSerializedSize += adapter.getSerializedSize(columnName);
           }
         }
+
         List<Interval> retIntervals = query.analyzingInterval() ? Arrays.asList(segment.getDataInterval()) : null;
 
         Metadata metadata = segment.asStorageAdapter(false).getMetadata();;
@@ -139,7 +129,7 @@ public class SegmentMetadataQueryRunnerFactory implements QueryRunnerFactory<Seg
           segmentGranularity = metadata.getSegmentGranularity();
         }
         long ingestedNumRows = -1;
-        if (query.hasIngestedNumRows()) {
+        if (metadata != null && query.hasIngestedNumRows()) {
           ingestedNumRows = metadata.getIngestedNumRows();
         }
 
@@ -163,8 +153,7 @@ public class SegmentMetadataQueryRunnerFactory implements QueryRunnerFactory<Seg
                 new SegmentAnalysis(
                     segment.getIdentifier(),
                     retIntervals,
-                    columns,
-                    totalSize,
+                    analyzedColumns,
                     totalSerializedSize,
                     numRows,
                     ingestedNumRows,

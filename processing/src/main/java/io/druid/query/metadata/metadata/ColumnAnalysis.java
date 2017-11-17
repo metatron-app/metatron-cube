@@ -35,15 +35,14 @@ public class ColumnAnalysis
 
   public static ColumnAnalysis error(String reason)
   {
-    return new ColumnAnalysis("STRING", false, -1, -1, null, null, null, null, ERROR_PREFIX + reason);
+    return new ColumnAnalysis("STRING", false, -1, -1, -1, null, null, ERROR_PREFIX + reason);
   }
 
   private final String type;
   private final boolean hasMultipleValues;
-  private final long size;
   private final long serializedSize;
-  private final Integer cardinality;
-  private final Integer nullCount;
+  private final int cardinality;
+  private final int nullCount;
   private final Comparable minValue;
   private final Comparable maxValue;
   private final String errorMessage;
@@ -54,10 +53,9 @@ public class ColumnAnalysis
   public ColumnAnalysis(
       @JsonProperty("type") String type,
       @JsonProperty("hasMultipleValues") boolean hasMultipleValues,
-      @JsonProperty("size") long size,
       @JsonProperty("serializedSize") long serializedSize,
-      @JsonProperty("cardinality") Integer cardinality,
-      @JsonProperty("nullCount") Integer nullCount,
+      @JsonProperty("cardinality") int cardinality,
+      @JsonProperty("nullCount") int nullCount,
       @JsonProperty("minValue") Comparable minValue,
       @JsonProperty("maxValue") Comparable maxValue,
       @JsonProperty("errorMessage") String errorMessage
@@ -65,7 +63,6 @@ public class ColumnAnalysis
   {
     this.type = type;
     this.hasMultipleValues = hasMultipleValues;
-    this.size = size;
     this.serializedSize = serializedSize;
     this.cardinality = cardinality;
     this.minValue = minValue;
@@ -78,14 +75,14 @@ public class ColumnAnalysis
   public ColumnAnalysis(
       String type,
       boolean hasMultipleValues,
-      long size,
-      Integer cardinality,
+      long serializedSize,
+      int cardinality,
       Comparable minValue,
       Comparable maxValue,
       String errorMessage
   )
   {
-    this(type, hasMultipleValues, size, 0L, cardinality, null, minValue, maxValue, errorMessage);
+    this(type, hasMultipleValues, serializedSize, cardinality, -1, minValue, maxValue, errorMessage);
   }
 
   @JsonProperty
@@ -101,25 +98,19 @@ public class ColumnAnalysis
   }
 
   @JsonProperty
-  public long getSize()
-  {
-    return size;
-  }
-
-  @JsonProperty
   public long getSerializedSize()
   {
     return serializedSize;
   }
 
   @JsonProperty
-  public Integer getCardinality()
+  public int getCardinality()
   {
     return cardinality;
   }
 
   @JsonProperty
-  public Integer getNullCount()
+  public int getNullCount()
   {
     return nullCount;
   }
@@ -187,21 +178,6 @@ public class ColumnAnalysis
       return ColumnAnalysis.error("cannot_merge_diff_types");
     }
 
-    Integer cardinality = getCardinality();
-    final Integer rhsCardinality = rhs.getCardinality();
-    if (cardinality == null) {
-      cardinality = rhsCardinality;
-    } else if (rhsCardinality != null) {
-      cardinality = Math.max(cardinality, rhsCardinality);
-    }
-
-    Integer nullCount = getNullCount();
-    if (nullCount == null) {
-      nullCount = rhs.nullCount;
-    } else if (rhs.nullCount != null) {
-      nullCount += rhs.nullCount;
-    }
-
     final boolean multipleValues = hasMultipleValues || rhs.isHasMultipleValues();
 
     Comparable newMin = choose(minValue, rhs.minValue, false);
@@ -210,10 +186,9 @@ public class ColumnAnalysis
     return new ColumnAnalysis(
         type,
         multipleValues,
-        size + rhs.getSize(),
-        serializedSize + rhs.getSerializedSize(),
-        cardinality,
-        nullCount,
+        serializedSize < 0 || rhs.serializedSize < 0 ? -1 : serializedSize + rhs.serializedSize,
+        cardinality < 0 || rhs.cardinality < 0 ? -1 : Math.max(cardinality, rhs.cardinality),
+        nullCount < 0 || rhs.nullCount < 0 ? -1 : nullCount +  rhs.nullCount,
         newMin,
         newMax,
         null
@@ -242,7 +217,6 @@ public class ColumnAnalysis
     return "ColumnAnalysis{" +
            "type='" + type + '\'' +
            ", hasMultipleValues=" + hasMultipleValues +
-           ", size=" + size +
            ", serializedSize=" + serializedSize +
            ", cardinality=" + cardinality +
            ", minValue=" + minValue +
@@ -263,7 +237,6 @@ public class ColumnAnalysis
     }
     ColumnAnalysis that = (ColumnAnalysis) o;
     return hasMultipleValues == that.hasMultipleValues &&
-           size == that.size &&
            serializedSize == that.serializedSize &&
            Objects.equals(type, that.type) &&
            Objects.equals(cardinality, that.cardinality) &&
@@ -279,7 +252,6 @@ public class ColumnAnalysis
     return Objects.hash(
         type,
         hasMultipleValues,
-        size,
         serializedSize,
         cardinality,
         nullCount,

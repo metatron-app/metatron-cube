@@ -64,13 +64,13 @@ public class ColumnAnalysisTest
   @Test
   public void testFoldComplexColumns() throws Exception
   {
-    final ColumnAnalysis analysis1 = new ColumnAnalysis("hyperUnique", false, 0L, null, null, null, null);
-    final ColumnAnalysis analysis2 = new ColumnAnalysis("hyperUnique", false, 0L, null, null, null, null);
+    final ColumnAnalysis analysis1 = new ColumnAnalysis("hyperUnique", false, 0L, -1, null, null, null);
+    final ColumnAnalysis analysis2 = new ColumnAnalysis("hyperUnique", false, 0L, -1, null, null, null);
 
     assertSerDe(analysis1);
     assertSerDe(analysis2);
 
-    final ColumnAnalysis expected = new ColumnAnalysis("hyperUnique", false, 0L, null, null, null, null);
+    final ColumnAnalysis expected = new ColumnAnalysis("hyperUnique", false, 0L, -1, null, null, null);
 
     ColumnAnalysis fold1 = analysis1.fold(analysis2);
     ColumnAnalysis fold2 = analysis2.fold(analysis1);

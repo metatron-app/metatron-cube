@@ -47,11 +47,13 @@ import io.druid.query.metadata.metadata.ColumnAnalysis;
 import io.druid.query.metadata.metadata.ListColumnIncluderator;
 import io.druid.query.metadata.metadata.SegmentAnalysis;
 import io.druid.query.metadata.metadata.SegmentMetadataQuery;
+import io.druid.segment.ExprVirtualColumn;
 import io.druid.segment.IncrementalIndexSegment;
 import io.druid.segment.QueryableIndex;
 import io.druid.segment.QueryableIndexSegment;
 import io.druid.segment.TestHelper;
 import io.druid.segment.TestIndex;
+import io.druid.segment.VirtualColumn;
 import io.druid.segment.incremental.IncrementalIndex;
 import io.druid.timeline.LogicalSegment;
 import org.joda.time.Interval;
@@ -166,33 +168,34 @@ public class SegmentMetadataQueryTest
             new ColumnAnalysis(
                 ValueType.LONG.toString(),
                 false,
-                12090,
-                null,
+                mmap1 ? 916 : 0,
+                -1,
                 1294790400000L,
-                1302739200000L,
-                null
-            ),
-            "placement",
-            new ColumnAnalysis(
-                ValueType.STRING.toString(),
-                false,
-                mmap1 ? 10881 : 10764,
-                1,
-                "preferred",
-                "preferred",
+                1302825600000L,
                 null
             ),
             "index",
             new ColumnAnalysis(
                 ValueType.DOUBLE.toString(),
                 false,
-                14508,
-                null,
+                mmap1 ? 6477 : 0,
+                -1,
                 59.02102279663086D,
                 1870.06103515625D,
                 null
+            ),
+            "placement",
+            new ColumnAnalysis(
+                ValueType.STRING.toString(),
+                false,
+                mmap1 ? 345 : 0,
+                1,
+                "preferred",
+                "preferred",
+                null
             )
-        ), mmap1 ? 98580 : 99353,
+        ),
+        mmap1 ? 47671 : 0,
         1209,
         null,
         null
@@ -207,34 +210,35 @@ public class SegmentMetadataQueryTest
             new ColumnAnalysis(
                 ValueType.LONG.toString(),
                 false,
-                12090,
-                null,
+                mmap2 ? 916 : 0,
+                -1,
                 1294790400000L,
-                1302739200000L,
-                null
-            ),
-            "placement",
-            new ColumnAnalysis(
-                ValueType.STRING.toString(),
-                false,
-                mmap2 ? 10881 : 0,
-                1,
-                null,
-                null,
+                1302825600000L,
                 null
             ),
             "index",
             new ColumnAnalysis(
                 ValueType.DOUBLE.toString(),
                 false,
-                14508,
-                null,
+                mmap2 ? 6477 : 0,
+                -1,
                 59.02102279663086D,
                 1870.06103515625D,
                 null
+            ),
+            "placement",
+            new ColumnAnalysis(
+                ValueType.STRING.toString(),
+                false,
+                mmap2 ? 345 : 0,
+                1,
+                "preferred",
+                "preferred",
+                null
             )
         // null_column will be included only for incremental index, which makes a little bigger result than expected
-        ), mmap2 ? 98580 : 99353,
+        ),
+        mmap2 ? 47671 : 0,
         1209,
         null,
         null
@@ -271,17 +275,51 @@ public class SegmentMetadataQueryTest
             SegmentMetadataQuery.AnalysisType.NULL_COUNT
         );
 
-    // don't know why null-count is different, whatever..
     SegmentAnalysis expected = new SegmentAnalysis(
         expectedSegmentAnalysis1.getId(),
-        ImmutableList.of( new Interval("2011-01-12T00:00:00.000Z/2011-04-15T00:00:00.001Z")),
+        ImmutableList.of(new Interval("2011-01-12T00:00:00.000Z/2011-04-15T00:00:00.001Z")),
         ImmutableMap.of(
             "partial_null_column",
             new ColumnAnalysis(
-                ValueDesc.STRING_TYPE, false, mmap1 ? 930 : 920, 0, 2, mmap1 ? 1023 : 1012, "", "value", null
+                ValueDesc.STRING_TYPE, false, mmap1 ? 674 : 0, 2, 1023, "", "value", null
             )
         ),
-        mmap1 ? 98580 : 99353,
+        mmap1 ? 47671 : 0,
+        1209,
+        null,
+        null
+    );
+    List<SegmentAnalysis> results = Sequences.toList(
+        runner1.run(query, Maps.newHashMap()),
+        Lists.<SegmentAnalysis>newArrayList()
+    );
+
+    Assert.assertEquals(Arrays.asList(expected), results);
+  }
+
+  @Test
+  @SuppressWarnings("unchecked")
+  public void testVC()
+  {
+    Query<SegmentAnalysis> query = testQuery
+        .withColumns(new ListColumnIncluderator(Arrays.asList("numeric-expr", "string-expr")))
+        .withVirtualColumns(
+            Arrays.<VirtualColumn>asList(
+                new ExprVirtualColumn("index + 1", "numeric-expr"),
+                new ExprVirtualColumn("concat(market, '|', quality)", "string-expr")
+            )
+        );
+
+    SegmentAnalysis expected = new SegmentAnalysis(
+        expectedSegmentAnalysis1.getId(),
+        ImmutableList.of(new Interval("2011-01-12T00:00:00.000Z/2011-04-15T00:00:00.001Z")),
+        ImmutableMap.of(
+            "numeric-expr",
+            new ColumnAnalysis(ValueDesc.DOUBLE_TYPE, false, 0, -1, -1, 60.02102279663086D, 1871.06103515625D, null),
+            "string-expr",
+            new ColumnAnalysis(ValueDesc.STRING_TYPE, false, 0, -1, -1, "spot|automotive", "upfront|premium", null)
+        ),
+        mmap1 ? 47671 : 0,
         1209,
         null,
         null
@@ -305,8 +343,8 @@ public class SegmentMetadataQueryTest
             new ColumnAnalysis(
                 ValueType.STRING.toString(),
                 false,
-                0,
-                null,
+                -1,
+                -1,
                 null,
                 null,
                 null
@@ -315,15 +353,14 @@ public class SegmentMetadataQueryTest
             new ColumnAnalysis(
                 ValueType.STRING.toString(),
                 true,
-                0,
-                null,
+                -1,
+                -1,
                 null,
                 null,
                 null
             )
         ),
-        0,
-        0,
+        -1L,
         expectedSegmentAnalysis1.getNumRows() + expectedSegmentAnalysis2.getNumRows(),
         -1L,
         -1L,
@@ -378,7 +415,7 @@ public class SegmentMetadataQueryTest
             new ColumnAnalysis(
                 ValueType.STRING.toString(),
                 false,
-                0,
+                -1,
                 1,
                 null,
                 null,
@@ -388,14 +425,14 @@ public class SegmentMetadataQueryTest
             new ColumnAnalysis(
                 ValueType.STRING.toString(),
                 true,
-                0,
+                -1,
                 9,
                 null,
                 null,
                 null
             )
         ),
-        0,
+        -1,
         expectedSegmentAnalysis1.getNumRows() + expectedSegmentAnalysis2.getNumRows(),
         null,
         null
@@ -459,7 +496,7 @@ public class SegmentMetadataQueryTest
             new ColumnAnalysis(
                 ValueType.STRING.toString(),
                 false,
-                0,
+                -1,
                 1,
                 null,
                 null,
@@ -469,14 +506,14 @@ public class SegmentMetadataQueryTest
             new ColumnAnalysis(
                 "hyperUnique",
                 false,
-                0,
-                null,
+                -1,
+                -1,
                 null,
                 null,
                 null
             )
         ),
-        0,
+        -1,
         expectedSegmentAnalysis1.getNumRows() + expectedSegmentAnalysis2.getNumRows(),
         null,
         null
@@ -522,7 +559,7 @@ public class SegmentMetadataQueryTest
     ColumnAnalysis analysis = new ColumnAnalysis(
         ValueType.STRING.toString(),
         false,
-        (mmap1 ? 10881 : 10764) + (mmap2 ? 10881 : 10764),
+        (mmap1 ? 345 : 0) + (mmap2 ? 345 : 0),
         1,
         "preferred",
         "preferred",
@@ -537,7 +574,7 @@ public class SegmentMetadataQueryTest
     ColumnAnalysis analysis = new ColumnAnalysis(
         ValueType.STRING.toString(),
         false,
-        (mmap1 ? 6882 : 6808) + (mmap2 ? 6882 : 6808),
+        (mmap1 ? 866 : 0) + (mmap2 ? 866 : 0),
         3,
         "spot",
         "upfront",
@@ -552,7 +589,7 @@ public class SegmentMetadataQueryTest
     ColumnAnalysis analysis = new ColumnAnalysis(
         ValueType.STRING.toString(),
         false,
-        (mmap1 ? 9765 : 9660) + (mmap2 ? 9765 : 9660),
+        (mmap1 ? 1953 : 0) + (mmap2 ? 1953 : 0),
         9,
         "automotive",
         "travel",
@@ -574,18 +611,18 @@ public class SegmentMetadataQueryTest
             new ColumnAnalysis(
                 ValueType.LONG.toString(),
                 false,
-                12090 * 2,
-                null,
+                (mmap1 ? 916 : 0) + (mmap2 ? 916 : 0),
+                -1,
                 1294790400000L,
-                1302739200000L,
+                1302825600000L,
                 null
             ),
             "index",
             new ColumnAnalysis(
                 ValueType.DOUBLE.toString(),
                 false,
-                14508 * 2,
-                null,
+                (mmap1 ? 6477 : 0) + (mmap2 ? 6477 : 0),
+                -1,
                 59.02102279663086D,
                 1870.06103515625D,
                 null
@@ -593,7 +630,7 @@ public class SegmentMetadataQueryTest
             column,
             analysis
         ),
-        expectedSegmentAnalysis1.getSize() + expectedSegmentAnalysis2.getSize(),
+        expectedSegmentAnalysis1.getSerializedSize() + expectedSegmentAnalysis2.getSerializedSize(),
         expectedSegmentAnalysis1.getNumRows() + expectedSegmentAnalysis2.getNumRows(),
         null,
         null
@@ -637,14 +674,14 @@ public class SegmentMetadataQueryTest
             new ColumnAnalysis(
                 ValueType.STRING.toString(),
                 false,
-                0,
-                null,
+                -1,
+                -1,
                 null,
                 null,
                 null
             )
         ),
-        0,
+        -1,
         expectedSegmentAnalysis1.getNumRows() + expectedSegmentAnalysis2.getNumRows(),
         null,
         null
@@ -699,14 +736,14 @@ public class SegmentMetadataQueryTest
             new ColumnAnalysis(
                 ValueType.STRING.toString(),
                 false,
-                0,
-                null,
+                -1,
+                -1,
                 null,
                 null,
                 null
             )
         ),
-        0,
+        -1,
         expectedSegmentAnalysis1.getNumRows() + expectedSegmentAnalysis2.getNumRows(),
         expectedAggregators,
         null
@@ -758,14 +795,14 @@ public class SegmentMetadataQueryTest
             new ColumnAnalysis(
                 ValueType.STRING.toString(),
                 false,
-                0,
-                null,
+                -1,
+                -1,
                 null,
                 null,
                 null
             )
         ),
-        0,
+        -1,
         expectedSegmentAnalysis1.getNumRows() + expectedSegmentAnalysis2.getNumRows(),
         null,
         QueryGranularities.NONE
@@ -853,12 +890,12 @@ public class SegmentMetadataQueryTest
                       + "  \"queryType\":\"segmentMetadata\",\n"
                       + "  \"dataSource\":\"test_ds\",\n"
                       + "  \"intervals\":[\"2013-12-04T00:00:00.000Z/2013-12-05T00:00:00.000Z\"],\n"
-                      + "  \"analysisTypes\":[\"cardinality\",\"size\"]\n"
+                      + "  \"analysisTypes\":[\"cardinality\",\"serialized_size\"]\n"
                       + "}";
 
     EnumSet<SegmentMetadataQuery.AnalysisType> expectedAnalysisTypes = EnumSet.of(
         SegmentMetadataQuery.AnalysisType.CARDINALITY,
-        SegmentMetadataQuery.AnalysisType.SIZE
+        SegmentMetadataQuery.AnalysisType.SERIALIZED_SIZE
     );
 
     Query query = MAPPER.readValue(queryStr, Query.class);

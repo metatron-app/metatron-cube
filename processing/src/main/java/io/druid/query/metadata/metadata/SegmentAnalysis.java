@@ -34,7 +34,6 @@ public class SegmentAnalysis implements Comparable<SegmentAnalysis>
   private final String id;
   private final List<Interval> interval;
   private final Map<String, ColumnAnalysis> columns;
-  private final long size;
   private final long serializedSize;
   private final long numRows;
   private final long ingestedNumRows;
@@ -49,7 +48,6 @@ public class SegmentAnalysis implements Comparable<SegmentAnalysis>
       @JsonProperty("id") String id,
       @JsonProperty("intervals") List<Interval> interval,
       @JsonProperty("columns") Map<String, ColumnAnalysis> columns,
-      @JsonProperty("size") long size,
       @JsonProperty("serializedSize") long serializedSize,
       @JsonProperty("numRows") long numRows,
       @JsonProperty("ingestedNumRows") long ingestedNumRows,
@@ -63,7 +61,6 @@ public class SegmentAnalysis implements Comparable<SegmentAnalysis>
     this.id = id;
     this.interval = interval;
     this.columns = columns;
-    this.size = size;
     this.serializedSize = serializedSize;
     this.numRows = numRows;
     this.ingestedNumRows = ingestedNumRows;
@@ -78,13 +75,13 @@ public class SegmentAnalysis implements Comparable<SegmentAnalysis>
       String id,
       List<Interval> interval,
       Map<String, ColumnAnalysis> columns,
-      long size,
+      long serializedSize,
       long numRows,
       Map<String, AggregatorFactory> aggregators,
       Granularity queryGranularity
   )
   {
-    this(id, interval, columns, size, 0L, numRows, -1L, -1L, aggregators, queryGranularity, null, null);
+    this(id, interval, columns, serializedSize, numRows, -1L, -1L, aggregators, queryGranularity, null, null);
   }
 
   public SegmentAnalysis(List<Interval> interval)
@@ -108,12 +105,6 @@ public class SegmentAnalysis implements Comparable<SegmentAnalysis>
   public Map<String, ColumnAnalysis> getColumns()
   {
     return columns;
-  }
-
-  @JsonProperty
-  public long getSize()
-  {
-    return size;
   }
 
   @JsonProperty
@@ -170,7 +161,6 @@ public class SegmentAnalysis implements Comparable<SegmentAnalysis>
         id,
         interval,
         columns,
-        size,
         serializedSize,
         numRows,
         ingestedNumRows,
@@ -189,7 +179,6 @@ public class SegmentAnalysis implements Comparable<SegmentAnalysis>
            "id='" + id + '\'' +
            ", interval=" + interval +
            ", columns=" + columns +
-           ", size=" + size +
            ", serializedSize=" + serializedSize +
            ", numRows=" + numRows +
            ", ingestedNumRows=" + ingestedNumRows +
@@ -214,8 +203,7 @@ public class SegmentAnalysis implements Comparable<SegmentAnalysis>
       return false;
     }
     SegmentAnalysis that = (SegmentAnalysis) o;
-    return size == that.size &&
-           serializedSize == that.serializedSize &&
+    return serializedSize == that.serializedSize &&
            numRows == that.numRows &&
            ingestedNumRows == that.ingestedNumRows &&
            rollup == that.rollup &&
@@ -239,7 +227,6 @@ public class SegmentAnalysis implements Comparable<SegmentAnalysis>
         id,
         interval,
         columns,
-        size,
         serializedSize,
         numRows,
         lastAccessTime,

@@ -22,6 +22,7 @@ package io.druid.query;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Maps;
+import com.google.common.collect.Sets;
 import com.metamx.common.Pair;
 import io.druid.data.TypeResolver;
 import io.druid.data.ValueDesc;
@@ -29,6 +30,7 @@ import io.druid.data.ValueType;
 import io.druid.query.filter.BitmapType;
 import io.druid.query.filter.DimFilter;
 import io.druid.segment.QueryableIndex;
+import io.druid.segment.Segment;
 import io.druid.segment.StorageAdapter;
 import io.druid.segment.VirtualColumn;
 import io.druid.segment.VirtualColumns;
@@ -50,6 +52,15 @@ import java.util.Set;
  */
 public class RowResolver implements TypeResolver
 {
+  public static RowResolver of(Segment segment, VirtualColumns virtualColumns)
+  {
+    QueryableIndex queryable = segment.asQueryableIndex(false);
+    if (queryable != null) {
+      return new RowResolver(queryable, virtualColumns);
+    }
+    return new RowResolver(segment.asStorageAdapter(false), virtualColumns);
+  }
+
   public static RowResolver of(QueryableIndex index, VirtualColumns virtualColumns)
   {
     return index == null ? null : new RowResolver(index, virtualColumns);
@@ -149,8 +160,9 @@ public class RowResolver implements TypeResolver
   private RowResolver(QueryableIndex index, VirtualColumns virtualColumns)
   {
     for (String dimension : index.getColumnNames()) {
+      Column column = index.getColumn(dimension);
       columnTypes.put(dimension, index.getColumnType(dimension));
-      columnCapabilities.put(dimension, index.getColumn(dimension).getCapabilities());
+      columnCapabilities.put(dimension, column.getCapabilities());
     }
     columnTypes.put(Column.TIME_COLUMN_NAME, index.getColumnType(Column.TIME_COLUMN_NAME));
     columnCapabilities.put(Column.TIME_COLUMN_NAME, index.getColumn(Column.TIME_COLUMN_NAME).getCapabilities());
@@ -202,6 +214,23 @@ public class RowResolver implements TypeResolver
       return resolved.lhs;
     }
     return null;
+  }
+
+  public VirtualColumns getVirtualColumns()
+  {
+    return virtualColumns;
+  }
+
+  public ColumnCapabilities getColumnCapabilities(String column)
+  {
+    return columnCapabilities.get(column);
+  }
+
+  public Iterable<String> getAllColumnNames()
+  {
+    Set<String> names = Sets.newLinkedHashSet(virtualColumns.getVirtualColumnNames());
+    names.addAll(columnTypes.keySet()); // override
+    return names;
   }
 
   public boolean supportsBitmap(DimFilter filter, EnumSet<BitmapType> using)

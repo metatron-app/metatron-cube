@@ -267,8 +267,6 @@ public class IncrementalIndexStorageAdapter implements StorageAdapter
           @Override
           public Cursor apply(final Interval interval)
           {
-            final long timeStart = Math.max(interval.getStartMillis(), actualInterval.getStartMillis());
-
             return new Cursor.ExprSupport()
             {
               private Iterator<Map.Entry<IncrementalIndex.TimeAndDims, Integer>> baseIter;
@@ -279,11 +277,14 @@ public class IncrementalIndexStorageAdapter implements StorageAdapter
 
               private final ValueMatcher filterMatcher;
               {
+                long timeStart = Math.max(interval.getStartMillis(), actualInterval.getStartMillis());
+                long timeEnd = Math.min(gran.increment(interval.getStart()).getMillis(), actualInterval.getEndMillis());
+                if (timeEnd == dataInterval.getEndMillis()) {
+                  timeEnd = timeEnd + 1;    // inclusive
+                }
                 cursorMap = index.getSubMap(
                     index.createRangeTimeAndDims(timeStart),
-                    index.createRangeTimeAndDims(
-                        Math.min(actualInterval.getEndMillis(), gran.increment(interval.getStart()).getMillis())
-                    )
+                    index.createRangeTimeAndDims(timeEnd)
                 );
                 if (descending) {
                   cursorMap = cursorMap.descendingMap();

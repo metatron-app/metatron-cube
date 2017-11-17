@@ -19,25 +19,19 @@
 
 package io.druid.query.metadata;
 
-import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
-import com.google.common.collect.Iterables;
-import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
-import com.google.common.collect.Sets;
-import com.google.common.primitives.Longs;
 import com.metamx.common.guava.Accumulator;
-import com.metamx.common.guava.Sequences;
-import com.metamx.common.logger.Logger;
-import io.druid.common.utils.StringUtils;
 import io.druid.data.ValueDesc;
 import io.druid.data.ValueType;
 import io.druid.granularity.QueryGranularities;
-import io.druid.math.expr.ExprType;
+import io.druid.query.RowResolver;
 import io.druid.query.dimension.DefaultDimensionSpec;
 import io.druid.query.metadata.metadata.ColumnAnalysis;
+import io.druid.query.metadata.metadata.ColumnIncluderator;
 import io.druid.query.metadata.metadata.SegmentMetadataQuery;
+import io.druid.query.metadata.metadata.SegmentMetadataQuery.AnalysisType;
 import io.druid.segment.Cursor;
 import io.druid.segment.DimensionSelector;
 import io.druid.segment.ObjectColumnSelector;
@@ -48,210 +42,118 @@ import io.druid.segment.VirtualColumns;
 import io.druid.segment.column.BitmapIndex;
 import io.druid.segment.column.Column;
 import io.druid.segment.column.ColumnCapabilities;
-import io.druid.segment.column.ColumnCapabilitiesImpl;
-import io.druid.segment.column.ComplexColumn;
+import io.druid.segment.column.MetricBitmap;
 import io.druid.segment.data.IndexedInts;
-import io.druid.segment.serde.ComplexMetricSerde;
-import io.druid.segment.serde.ComplexMetrics;
 import org.apache.commons.lang.mutable.MutableInt;
 import org.joda.time.Interval;
 
+import java.util.Comparator;
 import java.util.EnumSet;
-import java.util.List;
 import java.util.Map;
-import java.util.Set;
 
 public class SegmentAnalyzer
 {
-  private static final Logger log = new Logger(SegmentAnalyzer.class);
-
-  /**
-   * This is based on the minimum size of a timestamp (POSIX seconds).  An ISO timestamp will actually be more like 24+
-   */
-  private static final int NUM_BYTES_IN_TIMESTAMP = 10;
-
-  /**
-   * This is based on assuming 6 units of precision, one decimal point and a single value left of the decimal
-   */
-  private static final int NUM_BYTES_IN_TEXT_FLOAT = 8;
-
-  private static final int NUM_BYTES_IN_TEXT_DOUBLE = 12;
-
-  private final EnumSet<SegmentMetadataQuery.AnalysisType> analysisTypes;
-
-  public SegmentAnalyzer(EnumSet<SegmentMetadataQuery.AnalysisType> analysisTypes)
-  {
-    this.analysisTypes = analysisTypes;
-  }
-
-  public long numRows(Segment segment)
-  {
-    return Preconditions.checkNotNull(segment, "segment").asStorageAdapter(false).getNumRows();
-  }
-
-  public Map<String, ColumnAnalysis> analyze(Segment segment, VirtualColumns virtualColumn, List<String> expressions)
+  public static Map<String, ColumnAnalysis> analyze(Segment segment, SegmentMetadataQuery query)
   {
     Preconditions.checkNotNull(segment, "segment");
+    final EnumSet<AnalysisType> analysisTypes = query.getAnalysisTypes();
+    final VirtualColumns vcs = VirtualColumns.valueOf(query.getVirtualColumns());
+    final RowResolver resolver = RowResolver.of(segment, vcs);
 
     // index is null for incremental-index-based segments, but storageAdapter is always available
     final QueryableIndex index = segment.asQueryableIndex(false);
-    final StorageAdapter storageAdapter = segment.asStorageAdapter(false);
+    final StorageAdapter adapter = segment.asStorageAdapter(false);
 
-    final Set<String> columnNames = Sets.newHashSet();
-    Iterables.addAll(columnNames, storageAdapter.getAvailableDimensions());
-    Iterables.addAll(columnNames, storageAdapter.getAvailableMetrics());
+    final ColumnIncluderator predicate = query.getToInclude();
 
-    Map<String, ColumnAnalysis> columns = Maps.newTreeMap();
-
-    for (String columnName : columnNames) {
-      final Column column = index == null ? null : index.getColumn(columnName);
-      final ColumnCapabilities capabilities = column != null
-                                              ? column.getCapabilities()
-                                              : storageAdapter.getColumnCapabilities(columnName);
-
-      final ColumnAnalysis analysis;
-      final ValueType type = capabilities.getType();
-      switch (type) {
-        case LONG:
-          analysis = analyzeNumericColumn(columnName, capabilities, storageAdapter, column, Longs.BYTES);
-          break;
-        case FLOAT:
-          analysis = analyzeNumericColumn(columnName, capabilities, storageAdapter, column, NUM_BYTES_IN_TEXT_FLOAT);
-          break;
-        case DOUBLE:
-          analysis = analyzeNumericColumn(columnName, capabilities, storageAdapter, column, NUM_BYTES_IN_TEXT_DOUBLE);
-          break;
-        case STRING:
-          if (column != null) {
-            analysis = analyzeStringColumn(columnName, capabilities, storageAdapter, column);
-          } else {
-            analysis = analyzeStringColumn(columnName, capabilities, storageAdapter);
-          }
-          break;
-        case COMPLEX:
-          analysis = analyzeComplexColumn(columnName, capabilities, storageAdapter, column);
-          break;
-        default:
-          log.warn("Unknown column type[%s].", type);
-          analysis = ColumnAnalysis.error(String.format("unknown_type_%s", type));
+    final Map<String, ColumnAnalysis> columns = Maps.newTreeMap();
+    for (String columnName : resolver.getAllColumnNames()) {
+      if (!predicate.include(columnName)) {
+        continue;
       }
+      ValueDesc valueDesc = resolver.resolveColumn(columnName);
+      if (valueDesc == null) {
+        continue;
+      }
+      Column column = index == null ? null : index.getColumn(columnName);
 
+      ColumnAnalysis analysis;
+      if (ValueDesc.isDimension(valueDesc)) {
+        ValueType dimensionType = valueDesc.subElement().type();
+        analysis = analyzeDimensionColumn(column, columnName, dimensionType, vcs, adapter, analysisTypes);
+      } else {
+        analysis = analyzeSimpleColumn(column, columnName, valueDesc, vcs, adapter, analysisTypes);
+      }
       columns.put(columnName, analysis);
-    }
-
-    // Add time column too
-    Column column = index == null ? null : index.getColumn(Column.TIME_COLUMN_NAME);
-    ColumnCapabilities timeCapabilities = storageAdapter.getColumnCapabilities(Column.TIME_COLUMN_NAME);
-    if (timeCapabilities == null) {
-      timeCapabilities = new ColumnCapabilitiesImpl().setType(ValueType.LONG).setHasMultipleValues(false);
-    }
-    columns.put(
-        Column.TIME_COLUMN_NAME,
-        analyzeNumericColumn(Column.TIME_COLUMN_NAME, timeCapabilities, storageAdapter, column, NUM_BYTES_IN_TIMESTAMP)
-    );
-
-    Cursor cursor = Iterables.getOnlyElement(
-        Sequences.toList(
-            storageAdapter.makeCursors(null, segment.getDataInterval(), virtualColumn, QueryGranularities.ALL, null, false),
-            Lists.<Cursor>newArrayList()
-        )
-    );
-    for (String expression : expressions) {
-      ExprType type = cursor.makeMathExpressionSelector(expression).typeOfObject();
-      columns.put(expression, new ColumnAnalysis(type.name(), false, 0, 0, null, null, null));
     }
     return columns;
   }
 
-  public boolean analyzingSize()
-  {
-    return analysisTypes.contains(SegmentMetadataQuery.AnalysisType.SIZE);
-  }
-
-  public boolean analyzingNullCount()
-  {
-    return analysisTypes.contains(SegmentMetadataQuery.AnalysisType.NULL_COUNT);
-  }
-
-  public boolean analyzingSerializedSize()
-  {
-    return analysisTypes.contains(SegmentMetadataQuery.AnalysisType.SERIALIZED_SIZE);
-  }
-
-  public boolean analyzingCardinality()
-  {
-    return analysisTypes.contains(SegmentMetadataQuery.AnalysisType.CARDINALITY);
-  }
-
-  public boolean analyzingMinMax()
-  {
-    return analysisTypes.contains(SegmentMetadataQuery.AnalysisType.MINMAX);
-  }
-
-  private ColumnAnalysis analyzeNumericColumn(
-      final String columnName,
-      final ColumnCapabilities capabilities,
-      final StorageAdapter storageAdapter,
+  private static ColumnAnalysis analyzeSimpleColumn(
       final Column column,
-      final long sizePerRow
+      final String columnName,
+      final ValueDesc valueDesc,
+      final VirtualColumns virtualColumns,
+      final StorageAdapter storageAdapter,
+      final EnumSet<AnalysisType> analysisTypes
   )
   {
-    long size = 0;
-    if (analyzingSize()) {
-      if (capabilities.hasMultipleValues()) {
-        return ColumnAnalysis.error("multi_value");
-      }
-      size = storageAdapter.getNumRows() * sizePerRow;
-    }
+    final Map<String, Object> stats = column == null ? null : column.getColumnStats();
+    final ColumnCapabilities capabilities = column == null ? null : column.getCapabilities();
 
-    long serializedSize = 0;
-    if (analyzingSerializedSize()) {
-      serializedSize = storageAdapter.getSerializedSize(columnName);
-    }
+    final boolean analyzingMinMax = analysisTypes.contains(AnalysisType.MINMAX);
+    final boolean analyzingNullCount = analysisTypes.contains(AnalysisType.NULL_COUNT);
 
-    final boolean analyzingMinMax = analyzingMinMax();
-    final boolean analyzingNullCount = analyzingNullCount();
-
-    Integer nullCount = null;
+    int nullCount = -1;
     Comparable minValue = null;
     Comparable maxValue = null;
     boolean minMaxEvaluated = false;
-    if ((analyzingMinMax || analyzingNullCount) && column != null && column.getColumnStats() != null) {
-      Map<String, Object> stats = column.getColumnStats();
+    if ((analyzingMinMax || analyzingNullCount) && stats != null) {
       if (analyzingMinMax) {
         minValue = (Comparable) stats.get("min");
         maxValue = (Comparable) stats.get("max");
         minMaxEvaluated = stats.containsKey("min") && stats.containsKey("max");
       }
-      if (analyzingNullCount) {
+      if (analyzingNullCount && stats.containsKey("numZeros")) {
         nullCount = (Integer) stats.get("numZeros");
       }
     }
-    if (analyzingMinMax && !minMaxEvaluated || analyzingNullCount && nullCount == null) {
+    if (analyzingMinMax && !minMaxEvaluated || analyzingNullCount && nullCount < 0) {
+      if (capabilities != null && capabilities.hasMetricBitmap()) {
+        MetricBitmap metricBitmap = column.getMetricBitmap();
+        if (analyzingMinMax) {
+          minValue = metricBitmap.getMin();
+          maxValue = metricBitmap.getMax();
+          minMaxEvaluated = true;
+        }
+        if (analyzingNullCount && nullCount < 0) {
+          nullCount = metricBitmap.zeroRows();
+        }
+      }
+    }
+    if (ValueDesc.isPrimitive(valueDesc) &&
+        (analyzingMinMax && !minMaxEvaluated || analyzingNullCount && nullCount < 0)) {
       Object[] accumulated = accumulate(
-          storageAdapter, new Object[]{null, null, new MutableInt()}, new Accumulator<Object[], Cursor>()
+          storageAdapter, virtualColumns,
+          new Object[]{null, null, new MutableInt()}, new Accumulator<Object[], Cursor>()
           {
             @Override
             @SuppressWarnings("unchecked")
             public Object[] accumulate(Object[] accumulated, Cursor cursor)
             {
-              if (!ValueDesc.isNumeric(cursor.getColumnType(columnName))) {
-                return accumulated;
-              }
               ObjectColumnSelector selector = cursor.makeObjectColumnSelector(columnName);
+              Preconditions.checkArgument(valueDesc.equals(selector.type()), valueDesc + " vs " + selector.type());
               for (; !cursor.isDone(); cursor.advance()) {
                 Comparable comparable = (Comparable) selector.get();
                 if (comparable == null) {
                   ((MutableInt) accumulated[2]).increment();
                   continue;
                 }
-                if (analyzingMinMax) {
-                  if (accumulated[0] == null || comparable.compareTo(accumulated[0]) < 0) {
-                    accumulated[0] = comparable;
-                  }
-                  if (accumulated[1] == null || comparable.compareTo(accumulated[1]) > 0) {
-                    accumulated[1] = comparable;
-                  }
+                if (accumulated[0] == null || comparable.compareTo(accumulated[0]) < 0) {
+                  accumulated[0] = comparable;
+                }
+                if (accumulated[1] == null || comparable.compareTo(accumulated[1]) > 0) {
+                  accumulated[1] = comparable;
                 }
               }
               return accumulated;
@@ -266,12 +168,16 @@ public class SegmentAnalyzer
         nullCount = ((MutableInt) accumulated[2]).intValue();
       }
     }
+    long serializedSize = -1;
+    if (analysisTypes.contains(AnalysisType.SERIALIZED_SIZE)) {
+      serializedSize = storageAdapter.getSerializedSize(columnName);
+    }
+
     return new ColumnAnalysis(
-        capabilities.getType().name(),
-        capabilities.hasMultipleValues(),
-        size,
+        valueDesc.typeName(),
+        false,
         serializedSize,
-        null,
+        -1,
         nullCount,
         minValue,
         maxValue,
@@ -279,212 +185,129 @@ public class SegmentAnalyzer
     );
   }
 
-  private ColumnAnalysis analyzeStringColumn(
+  private static ColumnAnalysis analyzeDimensionColumn(
+      final Column column,
       final String columnName,
-      final ColumnCapabilities capabilities,
+      final ValueType valueType,
+      final VirtualColumns virtualColumns,
       final StorageAdapter storageAdapter,
-      final Column column
+      final EnumSet<AnalysisType> analysisTypes
   )
   {
-    long size = 0;
-    long serializedSize = 0;
+    final Map<String, Object> stats = column == null ? null : column.getColumnStats();
 
-    Comparable min = null;
-    Comparable max = null;
+    final boolean analyzingMinMax = analysisTypes.contains(AnalysisType.MINMAX);
+    final boolean analyzingNullCount = analysisTypes.contains(AnalysisType.NULL_COUNT);
 
-    if (analyzingSerializedSize()) {
+    int nullCount = -1;
+    Comparable minValue = null;
+    Comparable maxValue = null;
+    boolean minMaxEvaluated = false;
+    if ((analyzingMinMax || analyzingNullCount) && stats != null) {
+      if (analyzingMinMax) {
+        minValue = (Comparable) stats.get("min");
+        maxValue = (Comparable) stats.get("max");
+        minMaxEvaluated = stats.containsKey("min") && stats.containsKey("max");
+      }
+      if (analyzingNullCount && stats.containsKey("numZeros")) {
+        nullCount = (Integer) stats.get("numZeros");
+      }
+    }
+    if (analyzingMinMax && !minMaxEvaluated || analyzingNullCount && nullCount < 0) {
+      if (column != null && column.getCapabilities().hasBitmapIndexes()) {
+        BitmapIndex bitmapIndex = column.getBitmapIndex();
+        int cardinality = bitmapIndex.getCardinality();
+        if (analyzingMinMax && cardinality > 0) {
+          minValue = Strings.nullToEmpty(bitmapIndex.getValue(0));
+          maxValue = Strings.nullToEmpty(bitmapIndex.getValue(cardinality - 1));
+        }
+        if (analyzingNullCount && cardinality > 0) {
+          int index = bitmapIndex.getIndex(null);
+          if (index >= 0) {
+            nullCount = bitmapIndex.getBitmap(index).size();
+          }
+        }
+      } else {
+        final Comparator comparator = valueType.comparator();
+        Object[] accumulated = accumulate(
+            storageAdapter, virtualColumns,
+            new Object[]{null, null, new MutableInt()},
+            new Accumulator<Object[], Cursor>()
+            {
+              @Override
+              @SuppressWarnings("unchecked")
+              public Object[] accumulate(final Object[] accumulated, Cursor cursor)
+              {
+                final DimensionSelector selector = cursor.makeDimensionSelector(DefaultDimensionSpec.of(columnName));
+                if (selector == null) {
+                  return accumulated;
+                }
+                final int nullIndex = selector.lookupId(null);
+
+                for (; !cursor.isDone(); cursor.advance()) {
+                  final IndexedInts vals = selector.getRow();
+                  for (int i = 0; i < vals.size(); ++i) {
+                    final int id = vals.get(i);
+                    if (id == nullIndex) {
+                      ((MutableInt) accumulated[2]).increment();
+                    }
+                    Comparable comparable = id == nullIndex ? "" : selector.lookupName(id);
+                    if (accumulated[0] == null || comparator.compare(comparable, accumulated[0]) < 0) {
+                      accumulated[0] = comparable;
+                    }
+                    if (accumulated[1] == null || comparator.compare(comparable, accumulated[1]) > 0) {
+                      accumulated[1] = comparable;
+                    }
+                  }
+                }
+
+                return accumulated;
+              }
+            }
+        );
+        if (analyzingMinMax) {
+          minValue = (Comparable) accumulated[0];
+          maxValue = (Comparable) accumulated[1];
+        }
+        if (analyzingNullCount) {
+          nullCount = ((MutableInt) accumulated[2]).intValue();
+        }
+      }
+    }
+    long serializedSize = -1;
+    if (analysisTypes.contains(AnalysisType.SERIALIZED_SIZE)) {
       serializedSize = storageAdapter.getSerializedSize(columnName);
     }
 
-    Integer nullCount = null;
-    Integer cardinality = null;
-
-    if (column.getCapabilities().hasBitmapIndexes()) {
-      final BitmapIndex bitmapIndex = column.getBitmapIndex();
-
-      cardinality = bitmapIndex.getCardinality();
-      if (analyzingSize()) {
-        for (int i = 0; i < cardinality; ++i) {
-          String value = bitmapIndex.getValue(i);
-          if (value != null) {
-            size += StringUtils.estimatedBinaryLengthAsUTF8(value) *
-                    bitmapIndex.getBitmap(bitmapIndex.getIndex(value)).size();
-          }
-        }
-      }
-
-      if (analyzingMinMax() && cardinality > 0) {
-        min = Strings.nullToEmpty(bitmapIndex.getValue(0));
-        max = Strings.nullToEmpty(bitmapIndex.getValue(cardinality - 1));
-      }
-
-      if (analyzingNullCount() && cardinality > 0) {
-        int index = bitmapIndex.getIndex(null);
-        if (index >= 0) {
-          nullCount = bitmapIndex.getBitmap(index).size();
-        }
-      }
-    } else {
-      // best effort
-      Map<String, Object> columnStats = column.getColumnStats();
-      if (columnStats != null && analyzingNullCount()) {
-        nullCount = (Integer) columnStats.get("numNulls");
-      }
-      if (columnStats != null && analyzingMinMax()) {
-        min = (Comparable) columnStats.get("min");
-        max = (Comparable) columnStats.get("max");
-      }
-    }
-
-    return new ColumnAnalysis(
-        capabilities.getType().name(),
-        capabilities.hasMultipleValues(),
-        size,
-        serializedSize,
-        analyzingCardinality() ? cardinality : null,
-        analyzingNullCount() ? nullCount : null,
-        min,
-        max,
-        null
-    );
-  }
-
-  private ColumnAnalysis analyzeStringColumn(
-      final String columnName,
-      final ColumnCapabilities capabilities,
-      final StorageAdapter storageAdapter
-  )
-  {
-    int cardinality = 0;
-    long serializedSize = 0;
-
-    Comparable min = null;
-    Comparable max = null;
-
-    if (analyzingCardinality()) {
+    int cardinality = -1;
+    if (analysisTypes.contains(AnalysisType.CARDINALITY)) {
       cardinality = storageAdapter.getDimensionCardinality(columnName);
     }
 
-    final boolean analyzingSize = analyzingSize();
-    final boolean analyzeNullCount;
-    if (analyzingNullCount()) {
-      Comparable minValue = storageAdapter.getMinValue(columnName);
-      analyzeNullCount = minValue instanceof String && !((String) minValue).isEmpty() || minValue != null;
-    } else {
-      analyzeNullCount = false;
-    }
-
-    final long[] accumulated = new long[] {0, 0};
-    if (analyzeNullCount || analyzingSize) {
-      accumulate(
-          storageAdapter, accumulated,
-          new Accumulator<long[], Cursor>()
-          {
-            @Override
-            public long[] accumulate(final long[] accumulated, Cursor cursor)
-            {
-              DimensionSelector selector = cursor.makeDimensionSelector(
-                  new DefaultDimensionSpec(
-                      columnName,
-                      columnName
-                  )
-              );
-              if (selector == null) {
-                return accumulated;
-              }
-              final int nullIndex = analyzeNullCount ? selector.lookupId(null) : -1;
-
-              while (!cursor.isDone()) {
-                final IndexedInts vals = selector.getRow();
-                for (int i = 0; i < vals.size(); ++i) {
-                  final int index = vals.get(i);
-                  if (analyzingSize) {
-                    final String dimVal = selector.lookupName(index);
-                    if (dimVal != null && !dimVal.isEmpty()) {
-                      accumulated[0] += StringUtils.estimatedBinaryLengthAsUTF8(dimVal);
-                    }
-                  }
-                  if (nullIndex >= 0 && vals.get(i) == nullIndex) {
-                    accumulated[1]++;
-                  }
-                }
-                cursor.advance();
-              }
-
-              return accumulated;
-            }
-          }
-      );
-    }
-    if (analyzingSerializedSize()) {
-      serializedSize = storageAdapter.getSerializedSize(columnName);
-    }
-
-    if (analyzingMinMax()) {
-      min = storageAdapter.getMinValue(columnName);
-      max = storageAdapter.getMaxValue(columnName);
-    }
-
     return new ColumnAnalysis(
-        capabilities.getType().name(),
-        capabilities.hasMultipleValues(),
-        accumulated[0],
+        valueType.name(),
+        storageAdapter.getColumnCapabilities(columnName).hasMultipleValues(),
         serializedSize,
-        analyzingCardinality() ? cardinality : null,
-        analyzingNullCount() ? (int)accumulated[1] : null,
-        min,
-        max,
+        cardinality,
+        nullCount,
+        minValue,
+        maxValue,
         null
     );
   }
 
-  private ColumnAnalysis analyzeComplexColumn(
-      final String columnName,
-      final ColumnCapabilities capabilities,
-      final StorageAdapter storageAdapter,
-      final Column column
+  private static <T> T accumulate(
+      StorageAdapter storageAdapter,
+      VirtualColumns vcs,
+      T initial,
+      Accumulator<T, Cursor> accumulator
   )
   {
-    final ComplexColumn complexColumn = column != null ? column.getComplexColumn() : null;
-    final boolean hasMultipleValues = capabilities != null && capabilities.hasMultipleValues();
-    final ValueDesc valueType = storageAdapter.getColumnType(columnName);
-    long size = 0;
-    long serializedSize = 0;
-
-    if (analyzingSerializedSize()) {
-      serializedSize = storageAdapter.getSerializedSize(columnName);
-    }
-    if (analyzingSize() && complexColumn != null) {
-      final ComplexMetricSerde serde = ComplexMetrics.getSerdeForType(valueType.typeName());
-      if (serde == null) {
-        return ColumnAnalysis.error(String.format("unknown_complex_%s", valueType));
-      }
-      final Function<Object, Long> inputSizeFn = serde.inputSizeFn();
-      if (inputSizeFn != null) {
-        final int length = column.getLength();
-        for (int i = 0; i < length; ++i) {
-          size += inputSizeFn.apply(complexColumn.getRowValue(i));
-        }
-      }
-    }
-
-    return new ColumnAnalysis(
-        valueType.typeName(),
-        hasMultipleValues,
-        size,
-        serializedSize,
-        null,
-        null,
-        null,
-        null,
-        null
+    Interval interval = new Interval(
+        storageAdapter.getMinTime().getMillis(),
+        storageAdapter.getMaxTime().getMillis() + 1
     );
-  }
-
-  private <T> T accumulate(StorageAdapter storageAdapter, T initial, Accumulator<T, Cursor> accumulator)
-  {
-    Interval interval = new Interval(storageAdapter.getMinTime(), storageAdapter.getMaxTime());
-    return storageAdapter.makeCursors(null, interval, VirtualColumns.EMPTY, QueryGranularities.ALL, null, false)
+    return storageAdapter.makeCursors(null, interval, vcs, QueryGranularities.ALL, null, false)
                          .accumulate(initial, accumulator);
   }
 }
