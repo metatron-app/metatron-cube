@@ -312,7 +312,9 @@ public class IndexViewer implements CommonShell
     );
     writer.println();
     writer.println(format("> Size of Index (except metadata) : %,d bytes", totalSize));
-
+    writer.println(
+        format("  Number of Rows in index : %,d", index.index().getColumn(Column.TIME_COLUMN_NAME).getLength())
+    );
     Metadata metadata = index.getMetadata();
     if (metadata == null) {
       writer.println("  No metadata");
@@ -326,7 +328,7 @@ public class IndexViewer implements CommonShell
       writer.println("  Query Granularity : " + metadata.getQueryGranularity());
       String rollup = Objects.toString(metadata.isRollup(), "unknown");
       writer.println(
-          "  Ingested NumRows : " + metadata.getIngestedNumRows() + " (rolled-up ? " + rollup + ")"
+          format("  Ingested Number of Rows : %,d (rolled-up ? %s)", metadata.getIngestedNumRows(), rollup)
       );
       if (metadata.getAggregators() != null && metadata.getAggregators().length > 0) {
         writer.println("  Aggregators");
@@ -352,7 +354,6 @@ public class IndexViewer implements CommonShell
       Column column = index.index().getColumn(columnName);
       ColumnCapabilities capabilities = column.getCapabilities();
 
-      int numRows = column.getLength();
       long columnSize = column.getSerializedSize();
 
       ValueType type = capabilities.getType();
@@ -364,8 +365,8 @@ public class IndexViewer implements CommonShell
       Map<String, Object> columnStats = column.getColumnStats();
       writer.print(
           format(
-              "  type : %s, numRows : %d, hasMultiValue = %s, (%,d bytes, %3.1f%% of total)",
-              type, numRows, capabilities.hasMultipleValues(), columnSize, (columnSize * 100f / totalSize)
+              "  type : %s, hasMultiValue = %s, (%,d bytes, %3.1f%% of total)",
+              type, capabilities.hasMultipleValues(), columnSize, (columnSize * 100f / totalSize)
           )
       );
       if (columnStats != null) {
