@@ -49,7 +49,7 @@ public class StringComparatorsTest
   {
     boolean defaultLocale = language == null;
     DateFormatSymbols symbols = defaultLocale ? new DateFormatSymbols() : new DateFormatSymbols(new Locale(language));
-    StringComparators.StringComparator comparator = StringComparators.makeComparator(
+    StringComparator comparator = StringComparators.makeComparator(
         defaultLocale ? "dayofweek" : "dayofweek." + language
     );
     for (String[] dayOfWeek : new String[][]{symbols.getWeekdays(), symbols.getShortWeekdays()}) {
@@ -73,7 +73,7 @@ public class StringComparatorsTest
   {
     boolean defaultLocale = language == null;
     DateFormatSymbols symbols = defaultLocale ? new DateFormatSymbols() : new DateFormatSymbols(new Locale(language));
-    StringComparators.StringComparator comparator = StringComparators.makeComparator(
+    StringComparator comparator = StringComparators.makeComparator(
         defaultLocale ? "month" : "month." + language
     );
     for (String[] months : new String[][]{symbols.getMonths(), symbols.getShortMonths()}) {

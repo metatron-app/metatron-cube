@@ -30,7 +30,7 @@ import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.PostAggregator;
 import io.druid.query.dimension.DimensionSpec;
 import io.druid.query.groupby.orderby.WindowingSpec.PartitionEvaluator;
-import io.druid.query.ordering.StringComparators;
+import io.druid.query.ordering.StringComparator;
 
 import java.util.Arrays;
 import java.util.Collections;
@@ -258,7 +258,7 @@ public class WindowingProcessor implements Function<List<Row>, List<Row>>
 
   private static Ordering<Row> dimensionOrdering(
       final String dimension,
-      final StringComparators.StringComparator comparator
+      final StringComparator comparator
   )
   {
     return Ordering

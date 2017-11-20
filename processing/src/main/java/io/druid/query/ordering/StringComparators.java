@@ -19,10 +19,6 @@
 
 package io.druid.query.ordering;
 
-import com.fasterxml.jackson.annotation.JsonSubTypes;
-import com.fasterxml.jackson.annotation.JsonTypeInfo;
-import com.fasterxml.jackson.annotation.JsonTypeInfo.As;
-import com.fasterxml.jackson.annotation.JsonTypeInfo.Id;
 import com.google.common.collect.Maps;
 import com.google.common.primitives.Ints;
 import com.google.common.primitives.Longs;
@@ -56,20 +52,6 @@ public class StringComparators
   public static final FloatingPointComparator FLOATING_POINT = new FloatingPointComparator();
   public static final DayOfWeekComparator DAY_OF_WEEK = new DayOfWeekComparator(null);
   public static final MonthComparator MONTH = new MonthComparator(null);
-
-  @JsonTypeInfo(use = Id.NAME, include = As.PROPERTY, property = "type", defaultImpl = LexicographicComparator.class)
-  @JsonSubTypes(value = {
-      @JsonSubTypes.Type(name = StringComparators.LEXICOGRAPHIC_NAME, value = LexicographicComparator.class),
-      @JsonSubTypes.Type(name = StringComparators.ALPHANUMERIC_NAME, value = AlphanumericComparator.class),
-      @JsonSubTypes.Type(name = StringComparators.INTEGER_NAME, value = IntegerComparator.class),
-      @JsonSubTypes.Type(name = StringComparators.LONG_NAME, value = LongComparator.class),
-      @JsonSubTypes.Type(name = StringComparators.FLOATING_POINT_NAME, value = FloatingPointComparator.class),
-      @JsonSubTypes.Type(name = StringComparators.DAY_OF_WEEK_NAME, value = DayOfWeekComparator.class),
-      @JsonSubTypes.Type(name = StringComparators.MONTH_NAME, value = MonthComparator.class)
-  })
-  public static interface StringComparator extends Comparator<String>
-  {
-  }
 
   public static abstract class AbstractStringComparator implements Comparator<String>
   {

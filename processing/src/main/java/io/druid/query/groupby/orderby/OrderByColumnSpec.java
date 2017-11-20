@@ -28,10 +28,9 @@ import com.google.common.collect.Lists;
 import com.metamx.common.IAE;
 import com.metamx.common.ISE;
 import com.metamx.common.StringUtils;
-
 import io.druid.common.Cacheable;
+import io.druid.query.ordering.StringComparator;
 import io.druid.query.ordering.StringComparators;
-import io.druid.query.ordering.StringComparators.StringComparator;
 
 import javax.annotation.Nullable;
 import java.nio.ByteBuffer;
