@@ -380,7 +380,7 @@ public class Filters
       EnumSet<BitmapType> include
   )
   {
-    ImmutableBitmap baseBitmap;
+    ImmutableBitmap baseBitmap = null;
     if (dimFilter instanceof Expression.AndExpression) {
       List<ImmutableBitmap> bitmaps = Lists.newArrayList();
       for (Expression child : ((Expression.AndExpression) dimFilter).getChildren()) {
@@ -391,7 +391,10 @@ public class Filters
           bitmaps.add(bitmap);
         }
       }
-      baseBitmap = selector.getBitmapFactory().intersection(bitmaps);
+      if (!bitmaps.isEmpty()) {
+        // concise returns 1,040,187,360. roaring returns 0. makes wrong result anyway
+        baseBitmap = selector.getBitmapFactory().intersection(bitmaps);
+      }
     } else {
       baseBitmap = _toBitmap(dimFilter, selector, include);
     }
@@ -441,7 +444,7 @@ public class Filters
           }
           bitmaps.add(bitmap);
         }
-        return bitmapSelector.getBitmapFactory().union(bitmaps);
+        return bitmaps.isEmpty() ? null : bitmapSelector.getBitmapFactory().union(bitmaps);
       } else if (metricBitmap instanceof LuceneIndex) {
         List<Term> terms = Lists.newArrayList();
         for (String value : selector.getValues()) {
@@ -490,7 +493,7 @@ public class Filters
           bitmaps.add(extracted);
         }
       }
-      return factory.intersection(bitmaps);
+      return bitmaps.isEmpty() ? null : factory.intersection(bitmaps);
     } else if (tree instanceof OrExpression) {
       List<ImmutableBitmap> bitmaps = Lists.newArrayList();
       for (Expression child : ((Expression.BooleanExpression) tree).getChildren()) {
@@ -500,7 +503,7 @@ public class Filters
         }
         bitmaps.add(extracted);
       }
-      return factory.union(bitmaps);
+      return bitmaps.isEmpty() ? null : factory.union(bitmaps);
     } else if (tree instanceof NotExpression) {
       return toExprBitmap(((NotExpression) tree).getChild(), bitmapSelector, using, !withNot);
     }
@@ -626,7 +629,7 @@ public class Filters
               metric.filterFor(Lucenes.point(column, value))
           );
         }
-        return factory.union(bitmaps);
+        return bitmaps.isEmpty() ? null : factory.union(bitmaps);
     }
     return null;
   }
