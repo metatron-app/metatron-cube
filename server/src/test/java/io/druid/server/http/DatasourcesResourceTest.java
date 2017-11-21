@@ -261,7 +261,7 @@ public class DatasourcesResourceTest
 
     EasyMock.replay(inventoryView, server);
     DatasourcesResource datasourcesResource = new DatasourcesResource(inventoryView, null, null, new AuthConfig());
-    Response response = datasourcesResource.getTheDataSource("datasource1", "full", null);
+    Response response = datasourcesResource.getTheDataSource("datasource1", null, "full");
     DruidDataSource result = (DruidDataSource) response.getEntity();
     Assert.assertEquals(200, response.getStatus());
     Assert.assertEquals(dataSource1, result);

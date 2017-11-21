@@ -29,6 +29,7 @@ import io.druid.data.input.impl.DimensionsSpec;
 import io.druid.data.input.impl.JSONParseSpec;
 import io.druid.data.input.impl.StringInputRowParser;
 import io.druid.data.input.impl.DefaultTimestampSpec;
+import io.druid.granularity.DurationGranularity;
 import io.druid.granularity.QueryGranularities;
 import io.druid.jackson.DefaultObjectMapper;
 import io.druid.query.aggregation.AggregatorFactory;
@@ -200,7 +201,7 @@ public class DataSchemaTest
             new DimensionsSpec(null, Arrays.asList("metric1", "xXx", "col1"), null)
         )
     );
-    Assert.assertEquals(
+    Assert.assertArrayEquals(
         actual.getAggregators(),
         new AggregatorFactory[]{
             new DoubleSumAggregatorFactory("metric1", "col1")
@@ -208,7 +209,10 @@ public class DataSchemaTest
     );
     Assert.assertEquals(
         actual.getGranularitySpec(),
-        new ArbitraryGranularitySpec(QueryGranularities.DAY, ImmutableList.of(Interval.parse("2014/2015")))
+        new ArbitraryGranularitySpec(
+            new DurationGranularity(86400000, null),
+            ImmutableList.of(Interval.parse("2014/2015"))
+        )
     );
   }
 }

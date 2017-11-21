@@ -46,18 +46,19 @@ public class QueryManager implements QueryWatcher, Runnable
   private static final long DEFAULT_EXPIRE = 3600000;   // 1hour
 
   private final Map<String, QueryStatus> queries;
-  private final boolean broker;
 
-  @Inject
-  public QueryManager(@Named("serviceName") String serviceName)
-  {
-    this.queries = Maps.newConcurrentMap();
-    this.broker = TieredBrokerConfig.DEFAULT_BROKER_SERVICE_NAME.equals(serviceName);
-  }
+  @Named("serviceName")
+  @Inject(optional = true)
+  private String serviceName;
 
   public QueryManager()
   {
-    this(null);
+    this.queries = Maps.newConcurrentMap();
+  }
+
+  public boolean isBroker()
+  {
+    return TieredBrokerConfig.DEFAULT_BROKER_SERVICE_NAME.equals(serviceName);
   }
 
   public boolean cancelQuery(String id)
@@ -100,7 +101,7 @@ public class QueryManager implements QueryWatcher, Runnable
             // this is possible because druid registers queries before fire to historical nodes
             if (status.futures.isEmpty() && status.dataSources.isEmpty()) {
               status.end = System.currentTimeMillis();
-              if (!broker) {
+              if (!isBroker()) {
                 queries.remove(id);
               }
             }
