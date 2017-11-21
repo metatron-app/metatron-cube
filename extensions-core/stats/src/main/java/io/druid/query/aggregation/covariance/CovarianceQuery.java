@@ -56,8 +56,8 @@ public class CovarianceQuery extends BaseQuery<Result<Map<String, Object>>>
 {
   private final DimFilter dimFilter;
   private final String column;
+  private final List<String> excludes;
   private final List<VirtualColumn> virtualColumns;
-  private final boolean includeTimeStats;
 
   @JsonCreator
   public CovarianceQuery(
@@ -66,15 +66,15 @@ public class CovarianceQuery extends BaseQuery<Result<Map<String, Object>>>
       @JsonProperty("virtualColumns") List<VirtualColumn> virtualColumns,
       @JsonProperty("column") String column,
       @JsonProperty("filter") DimFilter filter,
-      @JsonProperty("includeTimeStats") boolean includeTimeStats,
+      @JsonProperty("excludes") List<String>  excludes,
       @JsonProperty("context") Map<String, Object> context
   )
   {
     super(dataSource, querySegmentSpec, false, context);
     this.dimFilter = filter;
     this.column = Preconditions.checkNotNull(column, "column cannot be null");
+    this.excludes = excludes == null ? ImmutableList.<String>of() : excludes;
     this.virtualColumns = virtualColumns == null ? ImmutableList.<VirtualColumn>of() : virtualColumns;
-    this.includeTimeStats = includeTimeStats;
   }
 
   @Override
@@ -85,8 +85,11 @@ public class CovarianceQuery extends BaseQuery<Result<Map<String, Object>>>
 
     List<AggregatorFactory> aggregators = Lists.newArrayList();
     for (Map.Entry<String, String> entry : majorTypes.entrySet()) {
+      String target = entry.getKey();
+      if (column.equals(target) || excludes.contains(target)) {
+        continue;
+      }
       if (ValueDesc.of(entry.getValue()).type().isNumeric()) {
-        String target = entry.getKey();
         aggregators.add(new PearsonAggregatorFactory(target, column, target, null, "double"));
       }
     }
@@ -141,12 +144,6 @@ public class CovarianceQuery extends BaseQuery<Result<Map<String, Object>>>
     return column;
   }
 
-  @JsonProperty
-  public boolean isIncludeTimeStats()
-  {
-    return includeTimeStats;
-  }
-
   @Override
   public CovarianceQuery withVirtualColumns(List<VirtualColumn> virtualColumns)
   {
@@ -156,7 +153,7 @@ public class CovarianceQuery extends BaseQuery<Result<Map<String, Object>>>
         virtualColumns,
         column,
         dimFilter,
-        includeTimeStats,
+        excludes,
         getContext()
     );
   }
@@ -170,7 +167,7 @@ public class CovarianceQuery extends BaseQuery<Result<Map<String, Object>>>
         virtualColumns,
         column,
         dimFilter,
-        includeTimeStats,
+        excludes,
         getContext()
     );
   }
@@ -184,7 +181,7 @@ public class CovarianceQuery extends BaseQuery<Result<Map<String, Object>>>
         virtualColumns,
         column,
         dimFilter,
-        includeTimeStats,
+        excludes,
         getContext()
     );
   }
@@ -198,7 +195,7 @@ public class CovarianceQuery extends BaseQuery<Result<Map<String, Object>>>
         virtualColumns,
         column,
         dimFilter,
-        includeTimeStats,
+        excludes,
         computeOverridenContext(contextOverride)
     );
   }
@@ -212,7 +209,7 @@ public class CovarianceQuery extends BaseQuery<Result<Map<String, Object>>>
         virtualColumns,
         column,
         dimFilter,
-        includeTimeStats,
+        excludes,
         getContext()
     );
   }
@@ -221,7 +218,7 @@ public class CovarianceQuery extends BaseQuery<Result<Map<String, Object>>>
   public String toString()
   {
     StringBuilder builder = new StringBuilder(64)
-        .append("MetatronDimensionSketchQuery{")
+        .append("CovarianceQuery{")
         .append("dataSource='").append(getDataSource()).append('\'')
         .append(", querySegmentSpec=").append(getQuerySegmentSpec());
 
@@ -232,7 +229,10 @@ public class CovarianceQuery extends BaseQuery<Result<Map<String, Object>>>
       builder.append(", virtualColumns=").append(virtualColumns);
     }
     builder.append(", column=").append(column);
-    builder.append(", includeTimeStats=").append(includeTimeStats);
+    if (excludes != null && !excludes.isEmpty()) {
+      builder.append(", excludes=").append(excludes);
+    }
+    builder.append('}');
     return builder.toString();
   }
 }
