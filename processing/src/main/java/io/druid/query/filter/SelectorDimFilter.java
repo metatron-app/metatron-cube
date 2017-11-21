@@ -31,6 +31,7 @@ import io.druid.segment.filter.DimensionPredicateFilter;
 import io.druid.segment.filter.SelectorFilter;
 
 import java.nio.ByteBuffer;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 
@@ -77,6 +78,16 @@ public class SelectorDimFilter implements DimFilter
   public DimFilter optimize()
   {
     return new InDimFilter(dimension, ImmutableList.of(value), extractionFn).optimize();
+  }
+
+  @Override
+  public DimFilter withRedirection(Map<String, String> mapping)
+  {
+    String replaced = mapping.get(dimension);
+    if (replaced == null || replaced.equals(dimension)) {
+      return this;
+    }
+    return new SelectorDimFilter(replaced, value, extractionFn);
   }
 
   @Override

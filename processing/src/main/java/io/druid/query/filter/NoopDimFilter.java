@@ -25,6 +25,7 @@ import io.druid.segment.filter.BooleanValueMatcher;
 
 import java.nio.ByteBuffer;
 import java.util.EnumSet;
+import java.util.Map;
 import java.util.Set;
 
 /**
@@ -39,6 +40,12 @@ public class NoopDimFilter implements DimFilter
 
   @Override
   public DimFilter optimize()
+  {
+    return this;
+  }
+
+  @Override
+  public DimFilter withRedirection(Map<String, String> mapping)
   {
     return this;
   }

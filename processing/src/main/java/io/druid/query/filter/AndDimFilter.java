@@ -30,6 +30,7 @@ import io.druid.segment.filter.AndFilter;
 import io.druid.segment.filter.Filters;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 /**
@@ -72,6 +73,19 @@ public class AndDimFilter implements DimFilter, AndExpression
   {
     List<DimFilter> elements = DimFilters.optimize(fields);
     return elements.size() == 1 ? elements.get(0) : Druids.newAndDimFilterBuilder().fields(elements).build();
+  }
+
+  @Override
+  public DimFilter withRedirection(Map<String, String> mapping)
+  {
+    boolean changed = false;
+    List<DimFilter> filters = Lists.newArrayList();
+    for (DimFilter filter : fields) {
+      DimFilter optimized = filter.withRedirection(mapping);
+      changed |= optimized != filter;
+      filters.add(optimized);
+    }
+    return changed ? new AndDimFilter(filters) : this;
   }
 
   @Override

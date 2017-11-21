@@ -27,6 +27,7 @@ import io.druid.query.Druids;
 import io.druid.segment.filter.NotFilter;
 
 import java.nio.ByteBuffer;
+import java.util.Map;
 import java.util.Set;
 
 /**
@@ -62,6 +63,13 @@ public class NotDimFilter implements DimFilter, NotExpression
   public DimFilter optimize()
   {
     return Druids.newNotDimFilterBuilder().field(this.getField().optimize()).build();
+  }
+
+  @Override
+  public DimFilter withRedirection(Map<String, String> mapping)
+  {
+    DimFilter optimized = field.withRedirection(mapping);
+    return field != optimized ? new NotDimFilter(optimized) : this;
   }
 
   @Override

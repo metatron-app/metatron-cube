@@ -33,6 +33,7 @@ import org.apache.lucene.search.Query;
 
 import java.nio.ByteBuffer;
 import java.util.EnumSet;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 
@@ -90,6 +91,12 @@ public class LuceneFilter implements DimFilter
 
   @Override
   public DimFilter optimize()
+  {
+    return this;
+  }
+
+  @Override
+  public DimFilter withRedirection(Map<String, String> mapping)
   {
     return this;
   }

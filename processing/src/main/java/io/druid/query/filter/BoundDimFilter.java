@@ -30,6 +30,7 @@ import io.druid.segment.filter.BoundFilter;
 
 import java.nio.ByteBuffer;
 import java.util.Comparator;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 
@@ -236,6 +237,26 @@ public class BoundDimFilter implements DimFilter
   public DimFilter optimize()
   {
     return this;
+  }
+
+  @Override
+  public DimFilter withRedirection(Map<String, String> mapping)
+  {
+    String replaced = mapping.get(dimension);
+    if (replaced == null || replaced.equals(dimension)) {
+      return this;
+    }
+    return new BoundDimFilter(
+        replaced,
+        expression,
+        lower,
+        upper,
+        lowerStrict,
+        upperStrict,
+        null,
+        comparatorType,
+        extractionFn
+    );
   }
 
   @Override

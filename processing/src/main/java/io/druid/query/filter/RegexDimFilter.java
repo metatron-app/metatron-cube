@@ -27,6 +27,7 @@ import io.druid.query.extraction.ExtractionFn;
 import io.druid.segment.filter.RegexFilter;
 
 import java.nio.ByteBuffer;
+import java.util.Map;
 import java.util.Set;
 import java.util.regex.Pattern;
 
@@ -94,6 +95,16 @@ public class RegexDimFilter implements DimFilter
   public DimFilter optimize()
   {
     return this;
+  }
+
+  @Override
+  public DimFilter withRedirection(Map<String, String> mapping)
+  {
+    String replaced = mapping.get(dimension);
+    if (replaced == null || replaced.equals(dimension)) {
+      return this;
+    }
+    return new RegexDimFilter(replaced, pattern, extractionFn);
   }
 
   @Override

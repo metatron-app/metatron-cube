@@ -26,6 +26,7 @@ import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableSortedSet;
 import com.google.common.collect.Iterables;
+import com.google.common.collect.Lists;
 import com.metamx.common.StringUtils;
 import io.druid.query.extraction.ExtractionFn;
 import io.druid.query.lookup.LookupExtractionFn;
@@ -35,6 +36,7 @@ import io.druid.segment.filter.InFilter;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 
@@ -126,6 +128,16 @@ public class InDimFilter implements DimFilter
       return new SelectorDimFilter(inFilter.dimension, inFilter.values.first(), inFilter.getExtractionFn());
     }
     return inFilter;
+  }
+
+  @Override
+  public DimFilter withRedirection(Map<String, String> mapping)
+  {
+    String replaced = mapping.get(dimension);
+    if (replaced == null || replaced.equals(dimension)) {
+      return this;
+    }
+    return new InDimFilter(replaced, Lists.newArrayList(values), extractionFn);
   }
 
   @Override

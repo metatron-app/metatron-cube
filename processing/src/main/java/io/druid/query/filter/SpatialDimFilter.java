@@ -26,6 +26,7 @@ import com.metamx.common.StringUtils;
 import io.druid.segment.filter.SpatialFilter;
 
 import java.nio.ByteBuffer;
+import java.util.Map;
 import java.util.Set;
 
 /**
@@ -66,6 +67,16 @@ public class SpatialDimFilter implements DimFilter
   public DimFilter optimize()
   {
     return this;
+  }
+
+  @Override
+  public DimFilter withRedirection(Map<String, String> mapping)
+  {
+    String replaced = mapping.get(dimension);
+    if (replaced == null || replaced.equals(dimension)) {
+      return this;
+    }
+    return new SpatialDimFilter(replaced, bound);
   }
 
   @Override

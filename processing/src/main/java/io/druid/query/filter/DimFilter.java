@@ -24,6 +24,7 @@ import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import io.druid.math.expr.Expression;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 /**
@@ -46,6 +47,8 @@ import java.util.Set;
 })
 public interface DimFilter extends Expression
 {
+  final Expression.Factory<DimFilter> FACTORY = new Factory();
+
   /**
    * @return return cache key
    */
@@ -56,6 +59,11 @@ public interface DimFilter extends Expression
    * returning the same filter can be a straightforward default implementation.
    */
   public DimFilter optimize();
+
+  /**
+   * replaces referencing column names for optimized filtering
+   */
+  public DimFilter withRedirection(Map<String, String> mapping);
 
   /**
    * @param handler accumulate dependent dimensions

@@ -1011,6 +1011,10 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
                   CloseQuietly.close((Closeable) column);
                 }
               }
+              dictionaryColumnCache.clear();
+              genericColumnCache.clear();
+              complexColumnCache.clear();
+              objectColumnCache.clear();
             }
           }
       );

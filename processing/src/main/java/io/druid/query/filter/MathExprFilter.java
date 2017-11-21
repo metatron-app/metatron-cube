@@ -41,6 +41,7 @@ import io.druid.segment.column.BitmapIndex;
 import java.nio.ByteBuffer;
 import java.util.EnumSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 /**
@@ -75,6 +76,12 @@ public class MathExprFilter implements DimFilter
 
   @Override
   public DimFilter optimize()
+  {
+    return this;
+  }
+
+  @Override
+  public DimFilter withRedirection(Map<String, String> mapping)
   {
     return this;
   }

@@ -19,11 +19,15 @@
 
 package io.druid.query.select;
 
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.metamx.common.logger.Logger;
 import io.druid.data.ValueDesc;
+import io.druid.math.expr.Evals;
+import io.druid.math.expr.Expr;
+import io.druid.math.expr.Parser;
 import io.druid.query.Query;
 import io.druid.query.RowResolver;
 import io.druid.query.TableDataSource;
@@ -33,6 +37,7 @@ import io.druid.query.dimension.DefaultDimensionSpec;
 import io.druid.query.dimension.DimensionSpecs;
 import io.druid.query.filter.AndDimFilter;
 import io.druid.query.filter.DimFilter;
+import io.druid.segment.ExprVirtualColumn;
 import io.druid.segment.Segment;
 import io.druid.segment.StorageAdapter;
 import io.druid.segment.VirtualColumn;
@@ -64,6 +69,15 @@ public class ViewSupportHelper
       Query.ViewSupport<T> viewSupport = (Query.ViewSupport<T>)query;
       if (viewSupport.getMetrics().isEmpty() && viewSupport.allMetricsForEmpty()) {
         query = viewSupport.withMetrics(Lists.newArrayList(adapter.getAvailableMetrics()));
+      }
+    }
+    if (query.getDimFilter() != null) {
+      Map<String, String> aliasMapping = aliasMapping(query.getVirtualColumns());
+      if (!aliasMapping.isEmpty()) {
+        DimFilter optimized = query.getDimFilter().withRedirection(aliasMapping);
+        if (query.getDimFilter() != optimized) {
+          query = query.withDimFilter(optimized);
+        }
       }
     }
     return query;
@@ -133,19 +147,44 @@ public class ViewSupportHelper
       query = dimSupport;
     }
 
+    Map<String, String> aliasMapping = aliasMapping(virtualColumns);
     DimFilter dimFilter = view.getFilter();
-    if (dimFilter != null) {
-      if (query.getDimFilter() != null) {
-        dimFilter = AndDimFilter.of(dimFilter, query.getDimFilter());
-      }
+    if (dimFilter == null) {
+      dimFilter = query.getDimFilter();
+    } else if (query.getDimFilter() != null) {
+      dimFilter = AndDimFilter.of(dimFilter, query.getDimFilter());
+    }
+    if (dimFilter != null && !aliasMapping.isEmpty()) {
+      dimFilter = dimFilter.withRedirection(aliasMapping);
+    }
+    if (dimFilter != query.getDimFilter()) {
       query = query.withDimFilter(dimFilter);
     }
+
     if (!virtualColumns.isEmpty()) {
       query = query.withVirtualColumns(virtualColumns);
     }
     query = (Query.DimFilterSupport<T>) query.withDataSource(new TableDataSource(view.getName()));
     log.info("view translated query to %s", query);
     return query;
+  }
+
+  // some queries uses expression vc as alias.. which disables effective filtering
+  private static Map<String, String> aliasMapping(List<VirtualColumn> virtualColumns)
+  {
+    if (virtualColumns == null || virtualColumns.isEmpty()) {
+      return ImmutableMap.of();
+    }
+    Map<String, String> mapping = Maps.newHashMap();
+    for (VirtualColumn vc : virtualColumns) {
+      if (vc instanceof ExprVirtualColumn) {
+        Expr expr = Parser.parse(((ExprVirtualColumn) vc).getExpression());
+        if (Evals.isIdentifier(expr)) {
+          mapping.put(vc.getOutputName(), Evals.getIdentifier(expr));
+        }
+      }
+    }
+    return mapping;
   }
 
   public static Schema toSchema(Query.ViewSupport<?> query, Segment segment)

@@ -34,6 +34,7 @@ import org.mozilla.javascript.Function;
 import org.mozilla.javascript.ScriptableObject;
 
 import java.nio.ByteBuffer;
+import java.util.Map;
 import java.util.Set;
 
 public class JavaScriptDimFilter implements DimFilter
@@ -106,6 +107,16 @@ public class JavaScriptDimFilter implements DimFilter
   public DimFilter optimize()
   {
     return this;
+  }
+
+  @Override
+  public DimFilter withRedirection(Map<String, String> mapping)
+  {
+    String replaced = mapping.get(dimension);
+    if (replaced == null || replaced.equals(dimension)) {
+      return this;
+    }
+    return new JavaScriptDimFilter(replaced, function, extractionFn, config);
   }
 
   @Override

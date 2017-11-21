@@ -699,7 +699,7 @@ public class Filters
 
   public static DimFilter convertToCNF(DimFilter current)
   {
-    return current == null ? null : Expressions.convertToCNF(current.optimize(), new DimFilter.Factory());
+    return current == null ? null : Expressions.convertToCNF(current.optimize(), DimFilter.FACTORY);
   }
 
   public static Filter convertToCNF(Filter current)
