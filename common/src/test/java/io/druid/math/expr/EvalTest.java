@@ -285,7 +285,7 @@ public class EvalTest
   }
 
   @Test
-  public void testTimes()
+  public void testTimeFunctions()
   {
     DateTimeZone home = DateTimeZone.forID("Asia/Seoul");
     DateTime time = new DateTime("2016-03-04T22:25:00", home);
@@ -298,44 +298,32 @@ public class EvalTest
     Assert.assertEquals(3, evalLong("month(x)", bindings));
     Assert.assertEquals(2016, evalLong("year(x)", bindings));
     Assert.assertEquals("March", evalString("monthname(x)", bindings));
-    Assert.assertEquals("Friday", evalString("dayname(x)", bindings));  // ????
+    Assert.assertEquals("Friday", evalString("dayname(x)", bindings));
     Assert.assertEquals(new DateTime("2016-03-31T22:25:00", home), evalDateTime("last_day(x)", bindings));
     Assert.assertEquals(new DateTime("2016-03-08T01:25:00", home), evalDateTime("add_time(x, '3D 3H')", bindings));
     Assert.assertEquals(new DateTime("2016-03-03T19:22:00", home), evalDateTime("sub_time(x, '1D 3H 3m')", bindings));
 
-    bindings = Parser.withMap(ImmutableMap.of("x", time.getMillis()));
+    // utc
+    Assert.assertEquals(4, evalLong("dayofmonth(x, 'UTC')", bindings));
+    Assert.assertEquals(31, evalLong("lastdayofmonth(x, 'UTC')", bindings));
+    Assert.assertEquals(64, evalLong("dayofyear(x, 'UTC')", bindings));
+    Assert.assertEquals(13, evalLong("hour(x, 'UTC')", bindings));
+    Assert.assertEquals(3, evalLong("month(x, 'UTC')", bindings));
+    Assert.assertEquals(2016, evalLong("year(x, 'UTC')", bindings));
+    Assert.assertEquals("March", evalString("monthname(x, 'UTC')", bindings));
+    Assert.assertEquals("Friday", evalString("dayname(x, 'UTC')", bindings));
+    Assert.assertEquals(new DateTime("2016-03-31T13:25:00Z"), evalDateTime("last_day(x, 'UTC')", bindings));
+    Assert.assertEquals(new DateTime("2016-03-07T16:25:00Z"), evalDateTime("add_time(x, '3D 3H', 'UTC')", bindings));
+    Assert.assertEquals(new DateTime("2016-03-03T10:22:00Z"), evalDateTime("sub_time(x, '1D 3H 3m', 'UTC')", bindings));
+  }
 
-    // iso time
-    Assert.assertEquals(4, evalLong("dayofmonth(x)", bindings));
-    Assert.assertEquals(31, evalLong("lastdayofmonth(x)", bindings));
-    Assert.assertEquals(64, evalLong("dayofyear(x)", bindings));
-    Assert.assertEquals(22 - 9, evalLong("hour(x)", bindings));
-    Assert.assertEquals(3, evalLong("month(x)", bindings));
-    Assert.assertEquals(2016, evalLong("year(x)", bindings));
-    Assert.assertEquals("March", evalString("monthname(x)", bindings));
-    Assert.assertEquals("Friday", evalString("dayname(x)", bindings));
-    Assert.assertEquals(new DateTime("2016-03-31T13:25:00"), evalDateTime("last_day(x)", bindings));
-    Assert.assertEquals(new DateTime("2016-03-07T16:25:00"), evalDateTime("add_time(x, '3D 3H')", bindings));
-    Assert.assertEquals(new DateTime("2016-03-03T10:22:00"), evalDateTime("sub_time(x, '1D 3H 3m')", bindings));
+  @Test
+  public void testComplexTimeFunctions()
+  {
+    DateTimeZone home = DateTimeZone.forID("Asia/Seoul");
+    DateTime time = new DateTime("2016-03-04T22:25:00", home);
+    Expr.NumericBinding bindings = Parser.withMap(ImmutableMap.of("x", time));
 
-    // asia/seoul
-    Assert.assertEquals(4, evalLong("dayofmonth(x, 'Asia/Seoul')", bindings));
-    Assert.assertEquals(31, evalLong("lastdayofmonth(x, 'Asia/Seoul')", bindings));
-    Assert.assertEquals(64, evalLong("dayofyear(x, 'Asia/Seoul')", bindings));
-    Assert.assertEquals(22, evalLong("hour(x, 'Asia/Seoul')", bindings));
-    Assert.assertEquals(3, evalLong("month(x, 'Asia/Seoul')", bindings));
-    Assert.assertEquals(2016, evalLong("year(x, 'Asia/Seoul')", bindings));
-    Assert.assertEquals("March", evalString("monthname(x, 'Asia/Seoul')", bindings));
-    Assert.assertEquals("Friday", evalString("dayname(x, 'Asia/Seoul')", bindings));
-    Assert.assertEquals(
-        new DateTime("2016-03-31T22:25:00", home), evalDateTime("last_day(x, 'Asia/Seoul')", bindings)
-    );
-    Assert.assertEquals(
-        new DateTime("2016-03-08T01:25:00", home), evalDateTime("add_time(x, '3D 3H', 'Asia/Seoul')", bindings)
-    );
-    Assert.assertEquals(
-        new DateTime("2016-03-03T19:22:00", home), evalDateTime("sub_time(x, '1D 3H 3m', 'Asia/Seoul')", bindings)
-    );
     Assert.assertEquals(
         1479377499662L,
         evalLong(
@@ -414,6 +402,57 @@ public class EvalTest
 
     Assert.assertEquals(0, evalLong("difftime('YEAR', t1, t7)", bindings));
     Assert.assertEquals(16, evalLong("difftime('YEAR', t1, t8)", bindings));
+  }
+
+  @Test
+  public void testDatetimeExtract()
+  {
+    DateTime time1 = new DateTime("2016-03-04T16:25:00", DateTimeZone.forID("Asia/Seoul"));
+    DateTime time2 = new DateTime("2032-09-09T22:11:00Z");
+
+    Expr.NumericBinding bindings = Parser.withMap(
+        ImmutableMap.of(
+            "t1", time1.getMillis(),
+            "t2", time2.getMillis()
+        )
+    );
+
+    Assert.assertEquals(25, evalLong("datetime_extract('MINUTE', t1)", bindings));
+    Assert.assertEquals(11, evalLong("datetime_extract('MINUTE', t2)", bindings));
+
+    Assert.assertEquals(16, evalLong("datetime_extract('HOUR', t1, 'Asia/Seoul')", bindings));
+    Assert.assertEquals( 7, evalLong("datetime_extract('HOUR', t1, 'UTC')", bindings));
+    Assert.assertEquals(23, evalLong("datetime_extract('HOUR', t1, 'PST')", bindings));
+
+    Assert.assertEquals( 7, evalLong("datetime_extract('HOUR', t2, 'Asia/Seoul')", bindings));
+    Assert.assertEquals(22, evalLong("datetime_extract('HOUR', t2, 'UTC')", bindings));
+    Assert.assertEquals(15, evalLong("datetime_extract('HOUR', t2, 'PST')", bindings));
+
+    Assert.assertEquals(4, evalLong("datetime_extract('DAY', t1, 'Asia/Seoul')", bindings));
+    Assert.assertEquals(4, evalLong("datetime_extract('DAY', t1, 'UTC')", bindings));
+    Assert.assertEquals(3, evalLong("datetime_extract('DAY', t1, 'PST')", bindings));
+
+    Assert.assertEquals(10, evalLong("datetime_extract('DAY', t2, 'Asia/Seoul')", bindings));
+    Assert.assertEquals( 9, evalLong("datetime_extract('DAY', t2, 'UTC')", bindings));
+    Assert.assertEquals( 9, evalLong("datetime_extract('DAY', t2, 'PST')", bindings));
+
+    Assert.assertEquals(5, evalLong("datetime_extract('DOW', t1, 'UTC')", bindings));
+    Assert.assertEquals(4, evalLong("datetime_extract('DOW', t2, 'UTC')", bindings));
+
+    Assert.assertEquals( 64, evalLong("datetime_extract('DOY', t1, 'UTC')", bindings));
+    Assert.assertEquals(253, evalLong("datetime_extract('DOY', t2, 'UTC')", bindings));
+
+    Assert.assertEquals(9, evalLong("datetime_extract('WEEK', t1, 'UTC')", bindings));
+    Assert.assertEquals(37, evalLong("datetime_extract('WEEK', t2, 'UTC')", bindings));
+
+    Assert.assertEquals(3, evalLong("datetime_extract('MONTH', t1, 'UTC')", bindings));
+    Assert.assertEquals(9, evalLong("datetime_extract('MONTH', t2, 'UTC')", bindings));
+
+    Assert.assertEquals(2016, evalLong("datetime_extract('YEAR', t1, 'UTC')", bindings));
+    Assert.assertEquals(2032, evalLong("datetime_extract('YEAR', t2, 'UTC')", bindings));
+
+    Assert.assertEquals(1, evalLong("datetime_extract('QUARTER', t1, 'UTC')", bindings));
+    Assert.assertEquals(3, evalLong("datetime_extract('QUARTER', t2, 'UTC')", bindings));
   }
 
   @Test

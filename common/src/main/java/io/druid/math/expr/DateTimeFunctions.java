@@ -20,8 +20,11 @@
 package io.druid.math.expr;
 
 import com.google.common.primitives.Ints;
+import com.metamx.common.IAE;
+import com.metamx.common.ISE;
 import io.druid.common.DateTimes;
 import io.druid.common.utils.JodaUtils;
+import io.druid.common.utils.StringUtils;
 import io.druid.granularity.Granularity;
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
@@ -293,7 +296,7 @@ public interface DateTimeFunctions extends Function.Library
 
   static enum Unit
   {
-    MILLIS, SECOND, MINUTE, HOUR, DAY, WEEK, MONTH, YEAR
+    MILLIS, EPOCH, SECOND, MINUTE, HOUR, DAY, WEEK, MONTH, YEAR, DOW, DOY, QUARTER
   }
 
   // whole time based
@@ -342,8 +345,12 @@ public interface DateTimeFunctions extends Function.Library
           return ExprEval.of(Months.monthsBetween(time1, time2).getMonths());
         case YEAR:
           return ExprEval.of(Years.yearsBetween(time1, time2).getYears());
+        case MILLIS:
+        case EPOCH:
+          return ExprEval.of(new Duration(time1, time2).getMillis());
+        default:
+          throw new IllegalArgumentException("invalid time unit " + unit);
       }
-      return ExprEval.of(new Duration(time1, time2).getMillis());
     }
 
     @Override
@@ -353,6 +360,7 @@ public interface DateTimeFunctions extends Function.Library
     }
   }
 
+  // locale?
   class DayName extends UnaryTimeMath
   {
     @Override
@@ -464,6 +472,7 @@ public interface DateTimeFunctions extends Function.Library
     }
   }
 
+  // locale?
   class MonthName extends UnaryTimeMath
   {
     @Override
@@ -755,6 +764,76 @@ public interface DateTimeFunctions extends Function.Library
     public Function get()
     {
       return new TimeFormatFunc();
+    }
+  }
+
+  class DateTimeExtractFunc extends Function.NewInstance implements Function
+  {
+    private Unit unit;
+    private DateTimeZone timeZone;
+
+    @Override
+    public String name()
+    {
+      return "datetime_extract";
+    }
+
+    @Override
+    public ExprType apply(List<Expr> args, Expr.TypeBinding bindings)
+    {
+      return ExprType.LONG;
+    }
+
+    @Override
+    public ExprEval apply(List<Expr> args, Expr.NumericBinding bindings)
+    {
+      if (args.size() < 2 || args.size() > 3) {
+        throw new IAE("Function[%s] must have 2 to 3 arguments", name());
+      }
+
+      if (unit == null) {
+        if (!Evals.isConstantString(args.get(0)) || Evals.getConstant(args.get(0)) == null) {
+          throw new IAE("Function[%s] unit arg must be literal", name());
+        }
+
+        if (args.size() > 2 && !Evals.isConstantString(args.get(2))) {
+          throw new IAE("Function[%s] timezone arg must be literal", name());
+        }
+
+        unit = Unit.valueOf(StringUtils.toUpperCase(Evals.getConstantString(args.get(0))));
+        if (args.size() > 2) {
+          timeZone = JodaUtils.toTimeZone(Evals.getConstantString(args.get(2)));
+        }
+      }
+
+      final DateTime dateTime = Evals.toDateTime(args.get(1).eval(bindings), timeZone);
+
+      switch (unit) {
+        case EPOCH:
+          return ExprEval.of(dateTime.getMillis());
+        case SECOND:
+          return ExprEval.of(dateTime.secondOfMinute().get());
+        case MINUTE:
+          return ExprEval.of(dateTime.minuteOfHour().get());
+        case HOUR:
+          return ExprEval.of(dateTime.hourOfDay().get());
+        case DAY:
+          return ExprEval.of(dateTime.dayOfMonth().get());
+        case DOW:
+          return ExprEval.of(dateTime.dayOfWeek().get());
+        case DOY:
+          return ExprEval.of(dateTime.dayOfYear().get());
+        case WEEK:
+          return ExprEval.of(dateTime.weekOfWeekyear().get());
+        case MONTH:
+          return ExprEval.of(dateTime.monthOfYear().get());
+        case QUARTER:
+          return ExprEval.of((dateTime.monthOfYear().get() - 1) / 3 + 1);
+        case YEAR:
+          return ExprEval.of(dateTime.year().get());
+        default:
+          throw new ISE("Unhandled unit[%s]", unit);
+      }
     }
   }
 }
