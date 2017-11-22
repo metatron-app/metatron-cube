@@ -21,6 +21,7 @@ package io.druid.query.ordering;
 
 import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
+import io.druid.common.Cacheable;
 
 import java.util.Comparator;
 
@@ -40,6 +41,6 @@ import java.util.Comparator;
     @JsonSubTypes.Type(name = StringComparators.DAY_OF_WEEK_NAME, value = StringComparators.DayOfWeekComparator.class),
     @JsonSubTypes.Type(name = StringComparators.MONTH_NAME, value = StringComparators.MonthComparator.class)
 })
-public interface StringComparator extends Comparator<String>
+public interface StringComparator extends Comparator<String>, Cacheable
 {
 }

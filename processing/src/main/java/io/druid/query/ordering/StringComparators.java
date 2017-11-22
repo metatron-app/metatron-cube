@@ -29,10 +29,8 @@ import org.joda.time.DateTimeConstants;
 
 import java.text.DateFormatSymbols;
 import java.util.Calendar;
-import java.util.Comparator;
 import java.util.Locale;
 import java.util.Map;
-import java.util.Objects;
 
 
 public class StringComparators
@@ -53,12 +51,13 @@ public class StringComparators
   public static final DayOfWeekComparator DAY_OF_WEEK = new DayOfWeekComparator(null);
   public static final MonthComparator MONTH = new MonthComparator(null);
 
-  public static abstract class AbstractStringComparator implements Comparator<String>
+  public static abstract class AbstractStringComparator implements StringComparator
   {
     @Override
     public final int compare(String s, String s2)
     {
-      if (Objects.equals(s, s2)) {
+      // Avoid conversion to bytes for equal references
+      if (s == s2) {
         return 0;
       }
       // null first
@@ -72,6 +71,12 @@ public class StringComparators
     }
 
     @Override
+    public int hashCode()
+    {
+      return toString().hashCode();
+    }
+
+    @Override
     public boolean equals(Object o)
     {
       if (this == o) {
@@ -83,43 +88,24 @@ public class StringComparators
       return true;
     }
 
-    public abstract int _compare(String s, String s2);
+    protected abstract int _compare(String s, String s2);
+
+    @Override
+    public byte[] getCacheKey()
+    {
+      return StringUtils.toUtf8(toString());
+    }
   }
 
-  public static class LexicographicComparator implements StringComparator
+  public static class LexicographicComparator extends AbstractStringComparator
   {
     @Override
-    public int compare(String s, String s2)
+    protected final int _compare(String s, String s2)
     {
-      // Avoid conversion to bytes for equal references
-      if (s == s2) {
-        return 0;
-      }
-      // null first
-      if (s == null) {
-        return -1;
-      }
-      if (s2 == null) {
-        return 1;
-      }
-
       return UnsignedBytes.lexicographicalComparator().compare(
           StringUtils.toUtf8(s),
           StringUtils.toUtf8(s2)
       );
-    }
-
-    @Override
-    public boolean equals(Object o)
-    {
-      if (this == o) {
-        return true;
-      }
-      if (o == null || getClass() != o.getClass()) {
-        return false;
-      }
-
-      return true;
     }
 
     @Override
@@ -129,11 +115,12 @@ public class StringComparators
     }
   }
 
-  public static class AlphanumericComparator implements StringComparator
+  public static class AlphanumericComparator extends AbstractStringComparator
   {
     // This code is based on https://github.com/amjjd/java-alphanum, see
     // NOTICE file for more information
-    public int compare(String str1, String str2)
+    @Override
+    protected final int _compare(String str1, String str2)
     {
       if (str1 == null) {
         return -1;
@@ -303,20 +290,8 @@ public class StringComparators
   public static class IntegerComparator extends AbstractStringComparator implements StringComparator
   {
     @Override
-    public final int _compare(String s, String s2)
+    protected final int _compare(String s, String s2)
     {
-      // Avoid conversion to bytes for equal references
-      if (s == s2) {
-        return 0;
-      }
-      // null first
-      if (s == null) {
-        return -1;
-      }
-      if (s2 == null) {
-        return 1;
-      }
-
       return Ints.compare(Integer.valueOf(s), Integer.valueOf(s2));
     }
 
@@ -330,18 +305,8 @@ public class StringComparators
   public static class LongComparator extends AbstractStringComparator implements StringComparator
   {
     @Override
-    public final int _compare(String s, String s2)
+    protected final int _compare(String s, String s2)
     {
-      if (s == s2) {
-        return 0;
-      }
-      if (s == null) {
-        return -1;
-      }
-      if (s2 == null) {
-        return 1;
-      }
-
       return Longs.compare(Long.valueOf(s), Long.valueOf(s2));
     }
 
@@ -355,20 +320,8 @@ public class StringComparators
   public static class FloatingPointComparator extends AbstractStringComparator implements StringComparator
   {
     @Override
-    public final int _compare(String s, String s2)
+    protected final int _compare(String s, String s2)
     {
-      // Avoid conversion to bytes for equal references
-      if (s == s2) {
-        return 0;
-      }
-      // null first
-      if (s == null) {
-        return -1;
-      }
-      if (s2 == null) {
-        return 1;
-      }
-
       // try quick path
       Long l1 = s.indexOf('.') < 0 ? Longs.tryParse(s) : null;
       Long l2 = s2.indexOf('.') < 0 ? Longs.tryParse(s2) : null;
@@ -396,11 +349,13 @@ public class StringComparators
 
   public static class DayOfWeekComparator extends AbstractStringComparator implements StringComparator
   {
+    private final String language;
     private final Map<String, Integer> codes = Maps.newHashMap();
 
-    private DayOfWeekComparator(Locale locale)
+    private DayOfWeekComparator(String type)
     {
-      DateFormatSymbols symbols = locale == null ? new DateFormatSymbols() : new DateFormatSymbols(locale);
+      Locale locale = type == null ? Locale.getDefault(Locale.Category.FORMAT) : new Locale(type);
+      DateFormatSymbols symbols = new DateFormatSymbols(locale);
       String[] wd = symbols.getWeekdays();
       String[] swd = symbols.getShortWeekdays();
 
@@ -424,6 +379,8 @@ public class StringComparators
 
       codes.put(wd[Calendar.SUNDAY].toUpperCase(), DateTimeConstants.SUNDAY);
       codes.put(swd[Calendar.SUNDAY].toUpperCase(), DateTimeConstants.SUNDAY);
+
+      language = locale.getLanguage();
     }
 
     @Override
@@ -441,17 +398,19 @@ public class StringComparators
     @Override
     public String toString()
     {
-      return StringComparators.DAY_OF_WEEK_NAME;
+      return StringComparators.DAY_OF_WEEK_NAME + "." + language;
     }
   }
 
   public static class MonthComparator extends AbstractStringComparator implements StringComparator
   {
+    private final String language;
     private final Map<String, Integer> codes = Maps.newHashMap();
 
-    private MonthComparator(Locale locale)
+    private MonthComparator(String type)
     {
-      DateFormatSymbols symbols = locale == null ? new DateFormatSymbols() : new DateFormatSymbols(locale);
+      Locale locale = type == null ? Locale.getDefault(Locale.Category.FORMAT) : new Locale(type);
+      DateFormatSymbols symbols = new DateFormatSymbols(locale);
       String[] wd = symbols.getMonths();
       String[] swd = symbols.getShortMonths();
 
@@ -490,6 +449,8 @@ public class StringComparators
 
       codes.put(wd[Calendar.DECEMBER].toUpperCase(), DateTimeConstants.DECEMBER);
       codes.put(swd[Calendar.DECEMBER].toUpperCase(), DateTimeConstants.DECEMBER);
+
+      language = locale.getLanguage();
     }
 
     @Override
@@ -507,7 +468,7 @@ public class StringComparators
     @Override
     public String toString()
     {
-      return StringComparators.DAY_OF_WEEK_NAME;
+      return StringComparators.MONTH_NAME + "." + language;
     }
   }
 
@@ -543,10 +504,10 @@ public class StringComparators
         return MONTH;
       default:
         if (lowerCased.startsWith(StringComparators.DAY_OF_WEEK_NAME + ".")) {
-          return new DayOfWeekComparator(new Locale(lowerCased.substring(10)));
+          return new DayOfWeekComparator(lowerCased.substring(DAY_OF_WEEK_NAME.length() + 1));
         }
         if (lowerCased.startsWith(StringComparators.MONTH_NAME + ".")) {
-          return new MonthComparator(new Locale(lowerCased.substring(MONTH_NAME.length() + 1)));
+          return new MonthComparator(lowerCased.substring(MONTH_NAME.length() + 1));
         }
         return null;
     }
