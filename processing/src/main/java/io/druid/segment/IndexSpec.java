@@ -66,14 +66,14 @@ public class IndexSpec
   private final String dimensionCompression;
   private final String metricCompression;
   private final boolean makeHistogram;
-  private final  Map<String, String> luceneIndexing;
+  private final Map<String, String> luceneIndexing;
 
   /**
    * Creates an IndexSpec with default parameters
    */
   public IndexSpec()
   {
-    this(null, null, null, true, null);
+    this(null, null, null, false, null);
   }
 
   /**
@@ -108,7 +108,7 @@ public class IndexSpec
     this.bitmapSerdeFactory = bitmapSerdeFactory != null ? bitmapSerdeFactory : new ConciseBitmapSerdeFactory();
     this.metricCompression = metricCompression;
     this.dimensionCompression = dimensionCompression;
-    this.makeHistogram = makeHistogram == null || makeHistogram;
+    this.makeHistogram = makeHistogram != null && makeHistogram;
     this.luceneIndexing = luceneIndexing == null ? ImmutableMap.<String, String>of() : luceneIndexing;
   }
 
