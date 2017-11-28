@@ -37,8 +37,6 @@ import org.apache.hadoop.fs.PathFilter;
 import org.apache.hadoop.mapreduce.Job;
 import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
 import org.apache.hadoop.mapreduce.lib.input.MultipleInputs;
-import org.joda.time.DateTime;
-import org.joda.time.DateTimeComparator;
 import org.joda.time.Interval;
 
 import java.io.IOException;
@@ -97,7 +95,7 @@ public class DetermineSizeBasedPartitionsJob implements Jobby
           total += iterate(fs, globStat, inputFilter, recursive);
         }
       }
-      Map<DateTime, List<HadoopyShardSpec>> shardSpecs = Maps.newTreeMap(DateTimeComparator.getInstance());
+      Map<Long, List<HadoopyShardSpec>> shardSpecs = Maps.newTreeMap();
 
       for (Interval interval : intervals.get()) {
 
@@ -126,7 +124,7 @@ public class DetermineSizeBasedPartitionsJob implements Jobby
             actualSpecs.add(shardSpec);
           }
         }
-        shardSpecs.put(interval.getStart(), actualSpecs);
+        shardSpecs.put(interval.getStartMillis(), actualSpecs);
       }
 
       config.setShardSpecs(shardSpecs);

@@ -46,7 +46,6 @@ import io.druid.timeline.partition.ShardSpec;
 import org.apache.commons.io.FileUtils;
 import org.apache.hadoop.mapreduce.JobContext;
 import org.joda.time.DateTime;
-import org.joda.time.DateTimeComparator;
 import org.joda.time.Interval;
 import org.junit.Assert;
 import org.junit.Before;
@@ -336,11 +335,11 @@ public class IndexGeneratorJobPartitionDirTest
     }
   }
 
-  private Map<DateTime, List<HadoopyShardSpec>> loadShardSpecs(
+  private Map<Long, List<HadoopyShardSpec>> loadShardSpecs(
       Integer[][][] shardInfoForEachShard
   )
   {
-    Map<DateTime, List<HadoopyShardSpec>> shardSpecs = Maps.newTreeMap(DateTimeComparator.getInstance());
+    Map<Long, List<HadoopyShardSpec>> shardSpecs = Maps.newTreeMap();
     int shardCount = 0;
     int segmentNum = 0;
     for (Interval segmentGranularity : config.getSegmentGranularIntervals().get()) {
@@ -353,7 +352,7 @@ public class IndexGeneratorJobPartitionDirTest
         actualSpecs.add(new HadoopyShardSpec(spec, shardCount++));
       }
 
-      shardSpecs.put(segmentGranularity.getStart(), actualSpecs);
+      shardSpecs.put(segmentGranularity.getStartMillis(), actualSpecs);
     }
 
     return shardSpecs;

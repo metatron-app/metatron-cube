@@ -25,6 +25,7 @@ import com.google.common.base.Strings;
 import com.google.common.base.Throwables;
 import com.google.common.collect.Lists;
 import io.druid.data.input.impl.InputRowParser;
+import io.druid.granularity.Granularities;
 import io.druid.indexer.partitions.HashedPartitionsSpec;
 import io.druid.indexer.partitions.PartitionsSpec;
 import io.druid.indexer.partitions.SingleDimensionPartitionsSpec;
@@ -79,8 +80,8 @@ public class HadoopIngestionSpecTest
 
     Assert.assertEquals(
         "getSegmentGranularity",
-        "HOUR",
-        granularitySpec.getSegmentGranularity().toString()
+        Granularities.HOUR,
+        granularitySpec.getSegmentGranularity()
     );
   }
 

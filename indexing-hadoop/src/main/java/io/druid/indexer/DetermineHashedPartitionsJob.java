@@ -50,7 +50,6 @@ import org.apache.hadoop.mapreduce.Reducer;
 import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
 import org.apache.hadoop.mapreduce.lib.output.SequenceFileOutputFormat;
 import org.joda.time.DateTime;
-import org.joda.time.DateTimeComparator;
 import org.joda.time.Interval;
 
 import java.io.IOException;
@@ -150,7 +149,7 @@ public class DetermineHashedPartitionsJob implements Jobby
         );
         log.info("Determined Intervals for Job [%s]" + segmentGranularIntervals);
       }
-      Map<DateTime, List<HadoopyShardSpec>> shardSpecs = Maps.newTreeMap(DateTimeComparator.getInstance());
+      Map<Long, List<HadoopyShardSpec>> shardSpecs = Maps.newTreeMap();
       int shardCount = 0;
       for (Interval segmentGranularity : segmentGranularIntervals.get()) {
         DateTime bucket = segmentGranularity.getStart();
@@ -192,7 +191,7 @@ public class DetermineHashedPartitionsJob implements Jobby
             }
           }
 
-          shardSpecs.put(bucket, actualSpecs);
+          shardSpecs.put(bucket.getMillis(), actualSpecs);
 
         } else {
           log.info("Path[%s] didn't exist!?", partitionInfoPath);
@@ -321,7 +320,12 @@ public class DetermineHashedPartitionsJob implements Jobby
       for (BytesWritable value : values) {
         aggregate.fold(ByteBuffer.wrap(value.getBytes(), 0, value.getLength()));
       }
-      Interval interval = config.getGranularitySpec().getSegmentGranularity().bucket(new DateTime(key.get()));
+      Optional<Interval> intervalOptional = config.getGranularitySpec().bucketInterval(new DateTime(key.get()));
+
+      if (!intervalOptional.isPresent()) {
+        throw new ISE("WTF?! No bucket found for timestamp: %s", key.get());
+      }
+      Interval interval = intervalOptional.get();
       intervals.add(interval);
       final Path outPath = config.makeSegmentPartitionInfoPath(interval);
       final OutputStream out = Utils.makePathAndOutputStream(

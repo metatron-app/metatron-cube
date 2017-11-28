@@ -58,7 +58,6 @@ import org.apache.hadoop.io.compress.CompressionCodec;
 import org.apache.hadoop.mapreduce.JobContext;
 import org.apache.hadoop.mapreduce.lib.input.SequenceFileInputFormat;
 import org.joda.time.DateTime;
-import org.joda.time.DateTimeComparator;
 import org.joda.time.Interval;
 import org.junit.Assert;
 import org.junit.Before;
@@ -295,12 +294,12 @@ public class IndexGeneratorJobSettlingTest
     return specs;
   }
 
-  private Map<DateTime, List<HadoopyShardSpec>> loadShardSpecs(
+  private Map<Long, List<HadoopyShardSpec>> loadShardSpecs(
       String partitionType,
       Object[][][] shardInfoForEachShard
   )
   {
-    Map<DateTime, List<HadoopyShardSpec>> shardSpecs = Maps.newTreeMap(DateTimeComparator.getInstance());
+    Map<Long, List<HadoopyShardSpec>> shardSpecs = Maps.newTreeMap();
     int shardCount = 0;
     int segmentNum = 0;
     for (Interval segmentGranularity : config.getSegmentGranularIntervals().get()) {
@@ -310,7 +309,7 @@ public class IndexGeneratorJobSettlingTest
         actualSpecs.add(new HadoopyShardSpec(specs.get(i), shardCount++));
       }
 
-      shardSpecs.put(segmentGranularity.getStart(), actualSpecs);
+      shardSpecs.put(segmentGranularity.getStartMillis(), actualSpecs);
     }
 
     return shardSpecs;

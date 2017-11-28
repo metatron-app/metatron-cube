@@ -39,7 +39,7 @@ import java.util.Map;
 public class HadoopTuningConfig implements TuningConfig
 {
   private static final PartitionsSpec DEFAULT_PARTITIONS_SPEC = HashedPartitionsSpec.makeDefaultHashedPartitionsSpec();
-  private static final Map<DateTime, List<HadoopyShardSpec>> DEFAULT_SHARD_SPECS = ImmutableMap.of();
+  private static final Map<Long, List<HadoopyShardSpec>> DEFAULT_SHARD_SPECS = ImmutableMap.of();
   private static final IndexSpec DEFAULT_INDEX_SPEC = new IndexSpec();
   private static final int DEFAULT_ROW_FLUSH_BOUNDARY = 75000;
   private static final boolean DEFAULT_USE_COMBINER = false;
@@ -77,7 +77,7 @@ public class HadoopTuningConfig implements TuningConfig
   private final String workingPath;
   private final String version;
   private final PartitionsSpec partitionsSpec;
-  private final Map<DateTime, List<HadoopyShardSpec>> shardSpecs;
+  private final Map<Long, List<HadoopyShardSpec>> shardSpecs;
   private final IndexSpec indexSpec;
   private final int rowFlushBoundary;
   private final long maxOccupationInMemory;
@@ -100,7 +100,7 @@ public class HadoopTuningConfig implements TuningConfig
       final @JsonProperty("workingPath") String workingPath,
       final @JsonProperty("version") String version,
       final @JsonProperty("partitionsSpec") PartitionsSpec partitionsSpec,
-      final @JsonProperty("shardSpecs") Map<DateTime, List<HadoopyShardSpec>> shardSpecs,
+      final @JsonProperty("shardSpecs") Map<Long, List<HadoopyShardSpec>> shardSpecs,
       final @JsonProperty("indexSpec") IndexSpec indexSpec,
       final @JsonProperty("maxRowsInMemory") Integer maxRowsInMemory,
       final @JsonProperty("maxOccupationInMemory") Long maxOccupationInMemory,
@@ -150,7 +150,7 @@ public class HadoopTuningConfig implements TuningConfig
       String workingPath,
       String version,
       PartitionsSpec partitionsSpec,
-      Map<DateTime, List<HadoopyShardSpec>> shardSpecs,
+      Map<Long, List<HadoopyShardSpec>> shardSpecs,
       IndexSpec indexSpec,
       Integer maxRowsInMemory,
       boolean leaveIntermediate,
@@ -209,7 +209,7 @@ public class HadoopTuningConfig implements TuningConfig
   }
 
   @JsonProperty
-  public Map<DateTime, List<HadoopyShardSpec>> getShardSpecs()
+  public Map<Long, List<HadoopyShardSpec>> getShardSpecs()
   {
     return shardSpecs;
   }
@@ -363,7 +363,7 @@ public class HadoopTuningConfig implements TuningConfig
     );
   }
 
-  public HadoopTuningConfig withShardSpecs(Map<DateTime, List<HadoopyShardSpec>> specs)
+  public HadoopTuningConfig withShardSpecs(Map<Long, List<HadoopyShardSpec>> specs)
   {
     return new HadoopTuningConfig(
         workingPath,
