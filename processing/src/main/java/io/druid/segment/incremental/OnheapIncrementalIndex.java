@@ -368,7 +368,7 @@ public class OnheapIncrementalIndex extends IncrementalIndex<Aggregator>
     private T minValue = null;
     private T maxValue = null;
 
-    private int estimatedSize;
+    private long estimatedSize;
 
     private final List<T> idToValue = Lists.newArrayList();
     private final SizeEstimator<T> estimator;
@@ -440,7 +440,7 @@ public class OnheapIncrementalIndex extends IncrementalIndex<Aggregator>
     }
 
     @Override
-    public int estimatedSize()
+    public long estimatedSize()
     {
       return estimatedSize;
     }

@@ -443,7 +443,7 @@ public abstract class IncrementalIndex<AggregatorType> implements Iterable<Row>,
   private final List<Function<InputRow, InputRow>> rowTransformers;
   private final AggregatorFactory[] metrics;
   private final AggregatorType[] aggs;
-  private final int maxLengthForAggregators;
+  private final long maxLengthForAggregators;
   private final boolean deserializeComplexMetrics;
   private final boolean reportParseExceptions;
   private final boolean sortFacts;    // this need to be true for query or indexing (false only for gby merging)
@@ -900,7 +900,7 @@ public abstract class IncrementalIndex<AggregatorType> implements Iterable<Row>,
     long occupation = maxLengthForAggregators * size;
     for (DimensionDesc dimensionDesc : dimensionDescs.values()) {
       occupation += dimensionDesc.getValues().estimatedSize();
-      occupation += 80 * size;
+      occupation += 64L * size;
     }
     return occupation;
   }
@@ -1405,7 +1405,7 @@ public abstract class IncrementalIndex<AggregatorType> implements Iterable<Row>,
 
     public T getMaxValue();
 
-    public int estimatedSize();
+    public long estimatedSize();
 
     public int add(T value);
 
@@ -1488,7 +1488,7 @@ public abstract class IncrementalIndex<AggregatorType> implements Iterable<Row>,
     }
 
     @Override
-    public int estimatedSize()
+    public long estimatedSize()
     {
       return delegate.estimatedSize();
     }
@@ -1898,7 +1898,7 @@ public abstract class IncrementalIndex<AggregatorType> implements Iterable<Row>,
     }
 
     @Override
-    public int estimatedSize()
+    public long estimatedSize()
     {
       throw new UnsupportedOperationException("estimatedSize");
     }
