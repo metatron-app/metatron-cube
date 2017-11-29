@@ -24,9 +24,11 @@ import com.google.common.base.Supplier;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.primitives.Ints;
+import com.metamx.common.Pair;
 import com.metamx.common.logger.Logger;
 import com.metamx.common.parsers.ParseException;
 import io.druid.data.ValueDesc;
+import io.druid.data.ValueType;
 import io.druid.data.input.Row;
 import io.druid.granularity.Granularity;
 import io.druid.query.aggregation.AbstractArrayAggregatorFactory;
@@ -44,6 +46,7 @@ import io.druid.segment.FloatColumnSelector;
 import io.druid.segment.LongColumnSelector;
 import io.druid.segment.ObjectColumnSelector;
 
+import java.lang.reflect.Array;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
@@ -164,9 +167,9 @@ public class OnheapIncrementalIndex extends IncrementalIndex<Aggregator>
 
   @Override
   @SuppressWarnings("unchecked")
-  protected DimDim makeDimDim(String dimension, SizeEstimator estimator)
+  protected DimDim makeDimDim(String dimension, ValueType type, SizeEstimator estimator)
   {
-    return new OnHeapDimDim(estimator);
+    return new OnHeapDimDim(estimator, type.classOfObject());
   }
 
   @Override
@@ -364,6 +367,7 @@ public class OnheapIncrementalIndex extends IncrementalIndex<Aggregator>
 
   static final class OnHeapDimDim<T extends Comparable<? super T>> implements DimDim<T>
   {
+    private final Class<T> clazz;
     private final Map<T, Integer> valueToId = Maps.newHashMap();
     private T minValue = null;
     private T maxValue = null;
@@ -373,9 +377,10 @@ public class OnheapIncrementalIndex extends IncrementalIndex<Aggregator>
     private final List<T> idToValue = Lists.newArrayList();
     private final SizeEstimator<T> estimator;
 
-    public OnHeapDimDim(SizeEstimator<T> estimator)
+    public OnHeapDimDim(SizeEstimator<T> estimator, Class<T> clazz)
     {
       this.estimator = estimator;
+      this.clazz = clazz;
     }
 
     public int getId(T value)
@@ -461,28 +466,49 @@ public class OnheapIncrementalIndex extends IncrementalIndex<Aggregator>
     public OnHeapDimLookup<T> sort()
     {
       synchronized (valueToId) {
-        return new OnHeapDimLookup(idToValue, size());
+        return new OnHeapDimLookup<T>(idToValue, size(), clazz);
       }
+    }
+  }
+
+  private static class SortablePair<K extends Comparable, V> extends Pair<K, V>
+      implements Comparable<SortablePair<K, V>>
+  {
+    public SortablePair(K lhs, V rhs)
+    {
+      super(lhs, rhs);
+    }
+
+    @Override
+    @SuppressWarnings("unchecked")
+    public int compareTo(SortablePair<K, V> o)
+    {
+      return lhs.compareTo(o.lhs);
     }
   }
 
   static class OnHeapDimLookup<T extends Comparable<? super T>> implements SortedDimLookup<T>
   {
-    private final List<T> sortedVals;
+    private final T[] sortedVals;
     private final int[] idToIndex;
     private final int[] indexToId;
 
-    public OnHeapDimLookup(List<T> idToValue, int length)
+    @SuppressWarnings("unchecked")
+    public OnHeapDimLookup(List<T> idToValue, int length, Class<T> clazz)
     {
-      Map<T, Integer> sortedMap = Maps.newTreeMap();
+      SortablePair[] sortedMap = new SortablePair[length];
       for (int id = 0; id < length; id++) {
-        sortedMap.put(idToValue.get(id), id);
+        sortedMap[id] = new SortablePair(idToValue.get(id), id);
       }
-      this.sortedVals = Lists.newArrayList(sortedMap.keySet());
+      Arrays.parallelSort(sortedMap);
+
+      this.sortedVals = (T[])Array.newInstance(clazz, length);
       this.idToIndex = new int[length];
       this.indexToId = new int[length];
       int index = 0;
-      for (Integer id : sortedMap.values()) {
+      for (SortablePair pair : sortedMap) {
+        sortedVals[index] = (T) pair.lhs;
+        int id = (Integer) pair.rhs;
         idToIndex[id] = index;
         indexToId[index] = id;
         index++;
@@ -492,7 +518,7 @@ public class OnheapIncrementalIndex extends IncrementalIndex<Aggregator>
     @Override
     public int size()
     {
-      return sortedVals.size();
+      return sortedVals.length;
     }
 
     @Override
@@ -504,7 +530,7 @@ public class OnheapIncrementalIndex extends IncrementalIndex<Aggregator>
     @Override
     public T getValueFromSortedId(int index)
     {
-      return sortedVals.get(index);
+      return sortedVals[index];
     }
 
     @Override

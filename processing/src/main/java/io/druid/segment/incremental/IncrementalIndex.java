@@ -559,17 +559,17 @@ public abstract class IncrementalIndex<AggregatorType> implements Iterable<Row>,
     DimDim newDimDim;
     switch (type) {
       case LONG:
-        newDimDim = makeDimDim(dimension, SizeEstimator.LONG);
+        newDimDim = makeDimDim(dimension, type, SizeEstimator.LONG);
         break;
       case FLOAT:
-        newDimDim = makeDimDim(dimension, SizeEstimator.FLOAT);
+        newDimDim = makeDimDim(dimension, type, SizeEstimator.FLOAT);
         break;
       case DOUBLE:
-        newDimDim = makeDimDim(dimension, SizeEstimator.DOUBLE);
+        newDimDim = makeDimDim(dimension, type, SizeEstimator.DOUBLE);
         break;
       case STRING:
         newDimDim = new NullValueConverterDimDim(
-            makeDimDim(dimension, SizeEstimator.STRING),
+            makeDimDim(dimension, type, SizeEstimator.STRING),
             sortFacts ? compareCacheEntry : -1
         );
         break;
@@ -580,7 +580,7 @@ public abstract class IncrementalIndex<AggregatorType> implements Iterable<Row>,
   }
 
   // use newDimDim() to create a DimDim, makeDimDim() provides the subclass-specific implementation
-  protected abstract DimDim makeDimDim(String dimension, SizeEstimator estimator);
+  protected abstract DimDim makeDimDim(String dimension, ValueType type, SizeEstimator estimator);
 
   protected abstract DimDim makeDimDim(String dimension, String[] dictionary, SizeEstimator estimator);
 

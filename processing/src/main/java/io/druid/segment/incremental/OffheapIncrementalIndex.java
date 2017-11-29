@@ -28,6 +28,7 @@ import com.metamx.common.logger.Logger;
 import com.metamx.common.parsers.ParseException;
 import io.druid.collections.ResourceHolder;
 import io.druid.collections.StupidPool;
+import io.druid.data.ValueType;
 import io.druid.data.input.Row;
 import io.druid.granularity.Granularity;
 import io.druid.query.aggregation.AggregatorFactory;
@@ -134,9 +135,10 @@ public class OffheapIncrementalIndex extends IncrementalIndex<BufferAggregator>
   }
 
   @Override
-  protected DimDim makeDimDim(String dimension, SizeEstimator estimator)
+  @SuppressWarnings("unchecked")
+  protected DimDim makeDimDim(String dimension, ValueType type, SizeEstimator estimator)
   {
-    return new OnheapIncrementalIndex.OnHeapDimDim(estimator);
+    return new OnheapIncrementalIndex.OnHeapDimDim(estimator, type.classOfObject());
   }
 
   @Override
