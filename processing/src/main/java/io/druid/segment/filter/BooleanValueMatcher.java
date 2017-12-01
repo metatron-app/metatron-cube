@@ -35,7 +35,8 @@ public class BooleanValueMatcher implements ValueMatcher
 
   private final boolean matches;
 
-  public BooleanValueMatcher(final boolean matches) {
+  private BooleanValueMatcher(final boolean matches)
+  {
     this.matches = matches;
   }
 

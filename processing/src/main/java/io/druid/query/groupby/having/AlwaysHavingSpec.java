@@ -21,8 +21,8 @@ package io.druid.query.groupby.having;
 
 import com.google.common.base.Predicate;
 import com.google.common.base.Predicates;
+import io.druid.data.TypeResolver;
 import io.druid.data.input.Row;
-import io.druid.query.groupby.GroupByQuery;
 
 /**
  * A "having" spec that always evaluates to true
@@ -30,7 +30,7 @@ import io.druid.query.groupby.GroupByQuery;
 public class AlwaysHavingSpec implements HavingSpec
 {
   @Override
-  public Predicate<Row> toEvaluator(GroupByQuery query)
+  public Predicate<Row> toEvaluator(TypeResolver resolver)
   {
     return Predicates.alwaysTrue();
   }

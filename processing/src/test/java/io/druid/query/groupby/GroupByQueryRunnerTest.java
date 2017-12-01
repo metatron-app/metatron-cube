@@ -41,6 +41,7 @@ import com.metamx.common.guava.Sequence;
 import com.metamx.common.guava.Sequences;
 import com.metamx.common.parsers.ParseException;
 import io.druid.collections.StupidPool;
+import io.druid.data.TypeResolver;
 import io.druid.data.input.Row;
 import io.druid.granularity.PeriodGranularity;
 import io.druid.granularity.QueryGranularities;
@@ -3742,7 +3743,7 @@ public class GroupByQueryRunnerTest
             new HavingSpec()
             {
               @Override
-              public Predicate<Row> toEvaluator(GroupByQuery query)
+              public Predicate<Row> toEvaluator(TypeResolver resolver)
               {
                 return new Predicate<Row>()
                 {
@@ -4016,7 +4017,7 @@ public class GroupByQueryRunnerTest
             new HavingSpec()
             {
               @Override
-              public Predicate<Row> toEvaluator(GroupByQuery query)
+              public Predicate<Row> toEvaluator(TypeResolver resolver)
               {
                 return new Predicate<Row>()
                 {

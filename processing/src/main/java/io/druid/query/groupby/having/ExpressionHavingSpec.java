@@ -23,10 +23,10 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Predicate;
+import io.druid.data.TypeResolver;
 import io.druid.data.input.Row;
 import io.druid.math.expr.Expr;
 import io.druid.math.expr.Parser;
-import io.druid.query.groupby.GroupByQuery;
 
 import java.util.Collection;
 
@@ -54,7 +54,7 @@ public class ExpressionHavingSpec implements HavingSpec
   }
 
   @Override
-  public Predicate<Row> toEvaluator(GroupByQuery query)
+  public Predicate<Row> toEvaluator(TypeResolver resolver)
   {
     return new Predicate<Row>()
     {

@@ -75,9 +75,8 @@ public class NoopDimFilter implements DimFilter
       @Override
       public ValueMatcher makeMatcher(ColumnSelectorFactory columnSelectorFactory)
       {
-        return new BooleanValueMatcher(true);
+        return BooleanValueMatcher.of(true);
       }
-
     };
   }
 }

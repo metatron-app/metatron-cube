@@ -21,46 +21,56 @@ package io.druid.query.groupby.having;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.google.common.base.Preconditions;
 import com.google.common.base.Predicate;
-import com.google.common.base.Predicates;
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Lists;
+import io.druid.common.guava.DSuppliers;
 import io.druid.data.TypeResolver;
 import io.druid.data.input.Row;
+import io.druid.query.filter.DimFilter;
+import io.druid.query.filter.ValueMatcher;
+import io.druid.segment.ColumnSelectorFactories;
 
-import java.util.List;
+import java.util.Objects;
 
-/**
- * The logical "and" operator for the "having" clause.
- */
-public class AndHavingSpec implements HavingSpec
+public class DimFilterHavingSpec implements HavingSpec
 {
-  private List<HavingSpec> havingSpecs;
+  private final DimFilter dimFilter;
 
   @JsonCreator
-  public AndHavingSpec(@JsonProperty("havingSpecs") List<HavingSpec> havingSpecs)
+  public DimFilterHavingSpec(
+      @JsonProperty("filter") final DimFilter dimFilter
+  )
   {
-    this.havingSpecs = havingSpecs == null ? ImmutableList.<HavingSpec>of() : havingSpecs;
+    this.dimFilter = Preconditions.checkNotNull(dimFilter, "filter");
   }
 
-  @JsonProperty("havingSpecs")
-  public List<HavingSpec> getHavingSpecs()
+  @JsonProperty("filter")
+  public DimFilter getDimFilter()
   {
-    return havingSpecs;
+    return dimFilter;
   }
 
   @Override
   public Predicate<Row> toEvaluator(TypeResolver resolver)
   {
-    List<Predicate<Row>> predicates = Lists.newArrayList();
-    for (HavingSpec havingSpec : havingSpecs) {
-      predicates.add(havingSpec.toEvaluator(resolver));
-    }
-    return Predicates.and(predicates);
+    final DSuppliers.HandOver<Row> supplier = new DSuppliers.HandOver<>();
+    final ValueMatcher matcher =
+        dimFilter.toFilter().makeMatcher(
+            new ColumnSelectorFactories.FromRow(supplier, resolver, true)
+        );
+    return new Predicate<Row>()
+    {
+      @Override
+      public boolean apply(Row input)
+      {
+        supplier.set(input);
+        return matcher.matches();
+      }
+    };
   }
 
   @Override
-  public boolean equals(Object o)
+  public boolean equals(final Object o)
   {
     if (this == o) {
       return true;
@@ -68,29 +78,21 @@ public class AndHavingSpec implements HavingSpec
     if (o == null || getClass() != o.getClass()) {
       return false;
     }
-
-    AndHavingSpec that = (AndHavingSpec) o;
-
-    if (havingSpecs != null ? !havingSpecs.equals(that.havingSpecs) : that.havingSpecs != null) {
-      return false;
-    }
-
-    return true;
+    final DimFilterHavingSpec that = (DimFilterHavingSpec) o;
+    return Objects.equals(dimFilter, that.dimFilter);
   }
 
   @Override
   public int hashCode()
   {
-    return havingSpecs != null ? havingSpecs.hashCode() : 0;
+    return dimFilter.hashCode();
   }
 
   @Override
   public String toString()
   {
-    final StringBuilder sb = new StringBuilder();
-    sb.append("AndHavingSpec");
-    sb.append("{havingSpecs=").append(havingSpecs);
-    sb.append('}');
-    return sb.toString();
+    return "DimFilterHavingSpec{" +
+           "dimFilter=" + dimFilter +
+           '}';
   }
 }

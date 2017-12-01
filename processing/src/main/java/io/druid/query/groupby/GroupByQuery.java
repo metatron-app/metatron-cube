@@ -41,6 +41,7 @@ import io.druid.query.LateralViewSpec;
 import io.druid.query.Queries;
 import io.druid.query.Query;
 import io.druid.query.QueryDataSource;
+import io.druid.query.RowResolver;
 import io.druid.query.TableDataSource;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.PostAggregator;
@@ -201,7 +202,7 @@ public class GroupByQuery extends BaseQuery<Row> implements Query.DimensionSuppo
         limitSpec.build(dimensions, aggregatorSpecs, postAggregatorSpecs, sortOnTimeForLimit);
 
     if (havingSpec != null) {
-      final Predicate<Row> predicate = havingSpec.toEvaluator(this);
+      final Predicate<Row> predicate = havingSpec.toEvaluator(RowResolver.of(this));
       postProcFn = Functions.compose(
           postProcFn,
           new Function<Sequence<Row>, Sequence<Row>>()

@@ -24,6 +24,4 @@ package io.druid.data;
 public interface TypeResolver
 {
   ValueDesc resolveColumn(String column);
-
-  ValueDesc resolveColumn(String column, ValueDesc defaultType);
 }

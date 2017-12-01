@@ -40,6 +40,7 @@ import com.metamx.common.parsers.ParseException;
 import io.druid.common.DateTimes;
 import io.druid.common.utils.JodaUtils;
 import io.druid.common.utils.StringUtils;
+import io.druid.data.ValueDesc;
 import io.druid.data.ValueType;
 import io.druid.data.input.InputRow;
 import io.druid.data.input.MapBasedRow;
@@ -191,7 +192,7 @@ public abstract class IncrementalIndex<AggregatorType> implements Iterable<Row>,
       final boolean deserializeComplexMetrics
   )
   {
-    return new ColumnSelectorFactories.FromRow(agg, in, deserializeComplexMetrics);
+    return new ColumnSelectorFactories.FromInputRow(in, agg, deserializeComplexMetrics);
   }
 
   protected final Granularity gran;
@@ -751,7 +752,7 @@ public abstract class IncrementalIndex<AggregatorType> implements Iterable<Row>,
     }
   }
 
-  public String getMetricType(String metric)
+  public ValueDesc getMetricType(String metric)
   {
     final MetricDesc metricDesc = getMetricDesc(metric);
     return metricDesc != null ? metricDesc.getType() : null;
@@ -759,10 +760,10 @@ public abstract class IncrementalIndex<AggregatorType> implements Iterable<Row>,
 
   public Class getMetricClass(String metric)
   {
-    MetricDesc metricDesc = metricDescs.get(metric);
-    switch (metricDesc.getCapabilities().getType()) {
+    ValueDesc type = getMetricType(metric);
+    switch (type.type()) {
       case COMPLEX:
-        return ComplexMetrics.getSerdeForType(metricDesc.getType()).getObjectStrategy().getClazz();
+        return ComplexMetrics.getSerdeForType(type.typeName()).getObjectStrategy().getClazz();
       case FLOAT:
         return Float.TYPE;
       case DOUBLE:
@@ -1078,15 +1079,17 @@ public abstract class IncrementalIndex<AggregatorType> implements Iterable<Row>,
   {
     private final int index;
     private final String name;
-    private final String type;
+    private final ValueDesc type;
+    private final ValueDesc inputType;
     private final ColumnCapabilitiesImpl capabilities;
 
     public MetricDesc(int index, AggregatorFactory factory)
     {
       this.index = index;
       this.name = factory.getName();
-      this.type = factory.getTypeName();
-      this.capabilities = ColumnCapabilitiesImpl.of(ValueType.of(type));
+      this.type = ValueDesc.of(factory.getTypeName());
+      this.inputType = ValueDesc.of(factory.getInputTypeName());
+      this.capabilities = ColumnCapabilitiesImpl.of(type.type());
     }
 
     public int getIndex()
@@ -1099,9 +1102,14 @@ public abstract class IncrementalIndex<AggregatorType> implements Iterable<Row>,
       return name;
     }
 
-    public String getType()
+    public ValueDesc getType()
     {
       return type;
+    }
+
+    public ValueDesc getInputType()
+    {
+      return inputType;
     }
 
     public ColumnCapabilitiesImpl getCapabilities()

@@ -26,7 +26,6 @@ import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import com.metamx.collections.bitmap.BitmapFactory;
 import com.metamx.collections.bitmap.MutableBitmap;
-import com.metamx.common.logger.Logger;
 import io.druid.data.ValueDesc;
 import io.druid.segment.IndexableAdapter;
 import io.druid.segment.Metadata;
@@ -50,7 +49,6 @@ import java.util.Set;
  */
 public class IncrementalIndexAdapter implements IndexableAdapter
 {
-  private static final Logger log = new Logger(IncrementalIndexAdapter.class);
   private final Interval dataInterval;
   private final IncrementalIndex<?> index;
   private final Set<String> hasNullValueDimensions;
@@ -314,8 +312,7 @@ public class IncrementalIndexAdapter implements IndexableAdapter
   @Override
   public ValueDesc getMetricType(String metric)
   {
-    String metricType = index.getMetricType(metric);
-    return metricType == null ? null : ValueDesc.of(metricType);
+    return index.getMetricType(metric);
   }
 
   @Override

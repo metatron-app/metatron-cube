@@ -183,9 +183,9 @@ public class IncrementalIndexStorageAdapter implements StorageAdapter
   public ValueDesc getColumnType(String column)
   {
     // check first for compatibility
-    String metricType = index.getMetricType(column);
+    ValueDesc metricType = index.getMetricType(column);
     if (metricType != null) {
-      return ValueDesc.of(metricType);
+      return metricType;
     }
     IncrementalIndex.DimensionDesc dimensionDesc = index.getDimension(column);
     if (dimensionDesc != null) {
@@ -626,7 +626,7 @@ public class IncrementalIndexStorageAdapter implements StorageAdapter
                 final Integer metricIndexInt = index.getMetricIndex(column);
                 if (metricIndexInt != null) {
                   final int metricIndex = metricIndexInt;
-                  final ValueDesc valueType = ValueDesc.of(index.getMetricType(column));
+                  final ValueDesc valueType = index.getMetricType(column);
                   return new ObjectColumnSelector()
                   {
                     @Override

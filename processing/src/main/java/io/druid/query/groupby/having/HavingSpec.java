@@ -22,6 +22,7 @@ package io.druid.query.groupby.having;
 import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.google.common.base.Predicate;
+import io.druid.data.TypeResolver;
 import io.druid.data.input.Row;
 import io.druid.query.groupby.GroupByQuery;
 
@@ -55,7 +56,7 @@ public interface HavingSpec
    * Evaluates if a given row satisfies the having spec.
    *
    * @return return evaluator
-   * @param query
+   * @param resolver
    */
-  Predicate<Row> toEvaluator(GroupByQuery query);
+  Predicate<Row> toEvaluator(TypeResolver resolver);
 }

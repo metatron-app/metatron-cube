@@ -20,15 +20,20 @@
 package io.druid.query;
 
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Preconditions;
 import com.google.common.collect.Iterables;
+import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import com.metamx.common.Pair;
 import io.druid.data.TypeResolver;
 import io.druid.data.ValueDesc;
 import io.druid.data.ValueType;
+import io.druid.query.aggregation.AggregatorFactory;
+import io.druid.query.dimension.DimensionSpecs;
 import io.druid.query.filter.BitmapType;
 import io.druid.query.filter.DimFilter;
+import io.druid.query.groupby.GroupByQuery;
 import io.druid.segment.QueryableIndex;
 import io.druid.segment.Segment;
 import io.druid.segment.StorageAdapter;
@@ -64,6 +69,16 @@ public class RowResolver implements TypeResolver
   public static RowResolver of(QueryableIndex index, VirtualColumns virtualColumns)
   {
     return index == null ? null : new RowResolver(index, virtualColumns);
+  }
+
+  public static RowResolver of(GroupByQuery groupBy)
+  {
+    Preconditions.checkArgument(!(groupBy.getDataSource() instanceof ViewDataSource), "fix this");
+    return new RowResolver(
+        Lists.transform(groupBy.getDimensions(), DimensionSpecs.OUTPUT_NAME),
+        groupBy.getAggregatorSpecs(),
+        VirtualColumns.valueOf(groupBy.getVirtualColumns())
+    );
   }
 
   public static Class<?> toClass(String typeName)
@@ -157,6 +172,18 @@ public class RowResolver implements TypeResolver
     this.virtualColumns = virtualColumns;
   }
 
+  private RowResolver(List<String> dimensions, List<AggregatorFactory> metrics, VirtualColumns virtualColumns)
+  {
+    for (String dimension : dimensions) {
+      columnTypes.put(dimension, ValueDesc.ofDimension(ValueType.STRING));
+    }
+    for (AggregatorFactory metric : metrics) {
+      columnTypes.put(metric.getName(), ValueDesc.of(metric.getTypeName()));
+    }
+    columnTypes.put(Column.TIME_COLUMN_NAME, ValueDesc.of(ValueType.LONG));
+    this.virtualColumns = virtualColumns;
+  }
+
   private RowResolver(QueryableIndex index, VirtualColumns virtualColumns)
   {
     for (String dimension : index.getColumnNames()) {
@@ -182,7 +209,6 @@ public class RowResolver implements TypeResolver
     return resolveColumn(column, null);
   }
 
-  @Override
   public ValueDesc resolveColumn(String column, ValueDesc defaultType)
   {
     ValueDesc columnType = columnTypes.get(column);

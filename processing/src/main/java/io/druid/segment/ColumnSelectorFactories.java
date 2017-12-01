@@ -21,7 +21,9 @@ package io.druid.segment;
 
 import com.google.common.base.Supplier;
 import com.google.common.collect.Lists;
+import com.google.common.collect.Sets;
 import com.metamx.common.ISE;
+import io.druid.data.TypeResolver;
 import io.druid.data.ValueDesc;
 import io.druid.data.input.Row;
 import io.druid.query.aggregation.AggregatorFactory;
@@ -39,6 +41,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Set;
 
 /**
  */
@@ -307,19 +310,61 @@ public class ColumnSelectorFactories
     }
   }
 
-  public static final class FromRow extends ColumnSelectorFactory.ExprSupport
+  public static final class FromRow extends AbstractFromRow
   {
-    private final AggregatorFactory agg;
+    private final TypeResolver resolver;
+
+    public FromRow(
+        Supplier<Row> in,
+        TypeResolver resolver,
+        boolean deserializeComplexMetrics
+    )
+    {
+      super(in, deserializeComplexMetrics);
+      this.resolver = resolver;
+    }
+
+    @Override
+    public ValueDesc getColumnType(String columnName)
+    {
+      return resolver.resolveColumn(columnName);
+    }
+  }
+
+  // it's stupid
+  public static final class FromInputRow extends AbstractFromRow
+  {
+    private final Set<String> required;
+    private final ValueDesc valueDesc;
+
+    public FromInputRow(
+        Supplier<Row> in,
+        AggregatorFactory factory,
+        boolean deserializeComplexMetrics
+    )
+    {
+      super(in, deserializeComplexMetrics);
+      this.valueDesc = ValueDesc.of(factory.getInputTypeName());
+      this.required = Sets.newHashSet(factory.requiredFields());
+    }
+
+    @Override
+    public ValueDesc getColumnType(String columnName)
+    {
+      return required.contains(columnName) ? valueDesc : null;
+    }
+  }
+
+  public static abstract class AbstractFromRow extends ColumnSelectorFactory.ExprSupport
+  {
     private final Supplier<Row> in;
     private final boolean deserializeComplexMetrics;
 
-    public FromRow(
-        final AggregatorFactory agg,
+    public AbstractFromRow(
         final Supplier<Row> in,
         final boolean deserializeComplexMetrics
     )
     {
-      this.agg = agg;
       this.in = in;
       this.deserializeComplexMetrics = deserializeComplexMetrics;
     }
@@ -393,8 +438,23 @@ public class ColumnSelectorFactories
         };
       }
 
-      final String typeName = agg.getInputTypeName();
-      final ValueDesc type = ValueDesc.of(typeName);
+      final ValueDesc type = getColumnType(column);
+      if (type == null || type.equals(ValueDesc.UNKNOWN)) {
+        return new ObjectColumnSelector()
+        {
+          @Override
+          public Object get()
+          {
+            return in.get().getRaw(column);
+          }
+
+          @Override
+          public ValueDesc type()
+          {
+            return ValueDesc.UNKNOWN;
+          }
+        };
+      }
 
       final boolean dimension = ValueDesc.isDimension(type);
 
@@ -425,9 +485,9 @@ public class ColumnSelectorFactories
           }
         };
       } else {
-        final ComplexMetricSerde serde = ComplexMetrics.getSerdeForType(typeName);
+        final ComplexMetricSerde serde = ComplexMetrics.getSerdeForType(type.typeName());
         if (serde == null) {
-          throw new ISE("Don't know how to handle type[%s]", typeName);
+          throw new ISE("Don't know how to handle type[%s]", type.typeName());
         }
 
         final ComplexMetricExtractor extractor = serde.getExtractor();
@@ -450,12 +510,6 @@ public class ColumnSelectorFactories
 
     @Override
     public ValueMatcher makeAuxiliaryMatcher(DimFilter filter)
-    {
-      return null;
-    }
-
-    @Override
-    public ValueDesc getColumnType(String columnName)
     {
       return null;
     }
