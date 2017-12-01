@@ -111,7 +111,7 @@ public class RegexUtils
       if (n == '_') {
         sb.append(".");
       } else if (n == '%') {
-        sb.append(".*");
+        sb.append(".*?");
       } else {
         sb.append(Pattern.quote(Character.toString(n)));
       }
