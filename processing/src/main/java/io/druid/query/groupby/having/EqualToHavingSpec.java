@@ -21,7 +21,9 @@ package io.druid.query.groupby.having;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.google.common.base.Predicate;
 import io.druid.data.input.Row;
+import io.druid.query.groupby.GroupByQuery;
 
 /**
  * The "=" operator in a "having" clause. This is similar to SQL's "having aggregation = value",
@@ -39,8 +41,15 @@ public class EqualToHavingSpec extends CompareHavingSpec
   }
 
   @Override
-  public boolean eval(Row row)
+  public Predicate<Row> toEvaluator(GroupByQuery query)
   {
-    return HavingSpecMetricComparator.compare(row, aggregationName, value) == 0;
+    return new Predicate<Row>()
+    {
+      @Override
+      public boolean apply(Row input)
+      {
+        return HavingSpecMetricComparator.compare(input, aggregationName, value) == 0;
+      }
+    };
   }
 }

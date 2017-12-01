@@ -40,7 +40,6 @@ import com.metamx.common.parsers.ParseException;
 import io.druid.common.DateTimes;
 import io.druid.common.utils.JodaUtils;
 import io.druid.common.utils.StringUtils;
-import io.druid.data.ValueDesc;
 import io.druid.data.ValueType;
 import io.druid.data.input.InputRow;
 import io.druid.data.input.MapBasedRow;
@@ -54,23 +53,11 @@ import io.druid.granularity.Granularity;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.PostAggregator;
 import io.druid.query.aggregation.PostAggregators;
-import io.druid.query.dimension.DimensionSpec;
-import io.druid.query.extraction.ExtractionFn;
-import io.druid.query.filter.DimFilter;
-import io.druid.query.filter.ValueMatcher;
+import io.druid.segment.ColumnSelectorFactories;
 import io.druid.segment.ColumnSelectorFactory;
-import io.druid.segment.DimensionSelector;
-import io.druid.segment.DoubleColumnSelector;
-import io.druid.segment.FloatColumnSelector;
-import io.druid.segment.LongColumnSelector;
 import io.druid.segment.Metadata;
-import io.druid.segment.ObjectColumnSelector;
-import io.druid.segment.column.Column;
 import io.druid.segment.column.ColumnCapabilities;
 import io.druid.segment.column.ColumnCapabilitiesImpl;
-import io.druid.segment.data.IndexedInts;
-import io.druid.segment.serde.ComplexMetricExtractor;
-import io.druid.segment.serde.ComplexMetricSerde;
 import io.druid.segment.serde.ComplexMetrics;
 import org.joda.time.DateTime;
 import org.joda.time.Interval;
@@ -78,8 +65,6 @@ import org.joda.time.Interval;
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.GuardedBy;
 import java.io.Closeable;
-import java.io.IOException;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
@@ -206,235 +191,7 @@ public abstract class IncrementalIndex<AggregatorType> implements Iterable<Row>,
       final boolean deserializeComplexMetrics
   )
   {
-    return new ColumnSelectorFactory.ExprSupport()
-    {
-      @Override
-      public LongColumnSelector makeLongColumnSelector(final String columnName)
-      {
-        if (columnName.equals(Column.TIME_COLUMN_NAME)) {
-          return new LongColumnSelector()
-          {
-            @Override
-            public long get()
-            {
-              return in.get().getTimestampFromEpoch();
-            }
-          };
-        }
-        return new LongColumnSelector()
-        {
-          @Override
-          public long get()
-          {
-            return in.get().getLongMetric(columnName);
-          }
-        };
-      }
-
-      @Override
-      public FloatColumnSelector makeFloatColumnSelector(final String columnName)
-      {
-        return new FloatColumnSelector()
-        {
-          @Override
-          public float get()
-          {
-            return in.get().getFloatMetric(columnName);
-          }
-        };
-      }
-
-      @Override
-      public DoubleColumnSelector makeDoubleColumnSelector(final String columnName)
-      {
-        return new DoubleColumnSelector()
-        {
-          @Override
-          public double get()
-          {
-            return in.get().getDoubleMetric(columnName);
-          }
-        };
-      }
-
-      @Override
-      public ObjectColumnSelector makeObjectColumnSelector(final String column)
-      {
-        if (Column.TIME_COLUMN_NAME.equals(column)) {
-          return new ObjectColumnSelector()
-          {
-            @Override
-            public ValueDesc type()
-            {
-              return ValueDesc.LONG;
-            }
-
-            @Override
-            public Object get()
-            {
-              return in.get().getTimestampFromEpoch();
-            }
-          };
-        }
-
-        final String typeName = agg.getInputTypeName();
-        final ValueDesc type = ValueDesc.of(typeName);
-
-        if (ValueDesc.isPrimitive(type) || !deserializeComplexMetrics) {
-          final boolean dimension = type.typeName().equals("array.string");
-          return new ObjectColumnSelector()
-          {
-            @Override
-            public ValueDesc type()
-            {
-              return type;
-            }
-
-            @Override
-            public Object get()
-            {
-              switch (type.type()) {
-                case FLOAT:
-                  return in.get().getFloatMetric(column);
-                case LONG:
-                  return in.get().getLongMetric(column);
-                case DOUBLE:
-                  return in.get().getDoubleMetric(column);
-              }
-              if (dimension) {
-                return in.get().getDimension(column);
-              }
-              return in.get().getRaw(column);
-            }
-          };
-        } else {
-          final ComplexMetricSerde serde = ComplexMetrics.getSerdeForType(typeName);
-          if (serde == null) {
-            throw new ISE("Don't know how to handle type[%s]", typeName);
-          }
-
-          final ComplexMetricExtractor extractor = serde.getExtractor();
-          return new ObjectColumnSelector()
-          {
-            @Override
-            public ValueDesc type()
-            {
-              return type;
-            }
-
-            @Override
-            public Object get()
-            {
-              return extractor.extractValue(in.get(), column);
-            }
-          };
-        }
-      }
-
-      @Override
-      public ValueMatcher makeAuxiliaryMatcher(DimFilter filter)
-      {
-        return null;
-      }
-
-      @Override
-      public ValueDesc getColumnType(String columnName)
-      {
-        return null;
-      }
-
-      @Override
-      public Iterable<String> getColumnNames()
-      {
-        return null;
-      }
-
-      @Override
-      public DimensionSelector makeDimensionSelector(
-          DimensionSpec dimensionSpec
-      )
-      {
-        return dimensionSpec.decorate(makeDimensionSelectorUndecorated(dimensionSpec));
-      }
-
-      private DimensionSelector makeDimensionSelectorUndecorated(
-          DimensionSpec dimensionSpec
-      )
-      {
-        final String dimension = dimensionSpec.getDimension();
-        final ExtractionFn extractionFn = dimensionSpec.getExtractionFn();
-
-        return new DimensionSelector()
-        {
-          @Override
-          public IndexedInts getRow()
-          {
-            final List<String> dimensionValues = in.get().getDimension(dimension);
-            final ArrayList<Integer> vals = Lists.newArrayList();
-            if (dimensionValues != null) {
-              for (int i = 0; i < dimensionValues.size(); ++i) {
-                vals.add(i);
-              }
-            }
-
-            return new IndexedInts()
-            {
-              @Override
-              public int size()
-              {
-                return vals.size();
-              }
-
-              @Override
-              public int get(int index)
-              {
-                return vals.get(index);
-              }
-
-              @Override
-              public Iterator<Integer> iterator()
-              {
-                return vals.iterator();
-              }
-
-              @Override
-              public void close() throws IOException
-              {
-
-              }
-
-              @Override
-              public void fill(int index, int[] toFill)
-              {
-                throw new UnsupportedOperationException("fill not supported");
-              }
-            };
-          }
-
-          @Override
-          public int getValueCardinality()
-          {
-            throw new UnsupportedOperationException("value cardinality is unknown in incremental index");
-          }
-
-          @Override
-          public String lookupName(int id)
-          {
-            final String value = in.get().getDimension(dimension).get(id);
-            return extractionFn == null ? value : extractionFn.apply(value);
-          }
-
-          @Override
-          public int lookupId(String name)
-          {
-            if (extractionFn != null) {
-              throw new UnsupportedOperationException("cannot perform lookup when applying an extraction function");
-            }
-            return in.get().getDimension(dimension).indexOf(name);
-          }
-        };
-      }
-    };
+    return new ColumnSelectorFactories.FromRow(agg, in, deserializeComplexMetrics);
   }
 
   protected final Granularity gran;

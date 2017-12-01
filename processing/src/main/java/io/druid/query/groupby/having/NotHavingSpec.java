@@ -21,7 +21,10 @@ package io.druid.query.groupby.having;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.google.common.base.Predicate;
+import com.google.common.base.Predicates;
 import io.druid.data.input.Row;
+import io.druid.query.groupby.GroupByQuery;
 
 /**
  * The logical "not" operator for the "having" clause.
@@ -43,9 +46,9 @@ public class NotHavingSpec implements HavingSpec
   }
 
   @Override
-  public boolean eval(Row row)
+  public Predicate<Row> toEvaluator(GroupByQuery query)
   {
-    return !havingSpec.eval(row);
+    return Predicates.not(havingSpec.toEvaluator(query));
   }
 
   @Override

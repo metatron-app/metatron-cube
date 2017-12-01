@@ -21,7 +21,9 @@ package io.druid.query.groupby.having;
 
 import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
+import com.google.common.base.Predicate;
 import io.druid.data.input.Row;
+import io.druid.query.groupby.GroupByQuery;
 
 /**
  * A "having" clause that filters aggregated/dimension value. This is similar to SQL's "having"
@@ -46,15 +48,14 @@ public interface HavingSpec
 {
   // Atoms for easy combination, but for now they are mostly useful
   // for testing.
-  public static final HavingSpec NEVER = new NeverHavingSpec();
-  public static final HavingSpec ALWAYS = new AlwaysHavingSpec();
+  HavingSpec NEVER = new NeverHavingSpec();
+  HavingSpec ALWAYS = new AlwaysHavingSpec();
 
   /**
    * Evaluates if a given row satisfies the having spec.
    *
-   * @param row A Row of data that may contain aggregated values
-   *
-   * @return true if the given row satisfies the having spec. False otherwise.
+   * @return return evaluator
+   * @param query
    */
-  public boolean eval(Row row);
+  Predicate<Row> toEvaluator(GroupByQuery query);
 }

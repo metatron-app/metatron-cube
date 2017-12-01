@@ -201,6 +201,7 @@ public class GroupByQuery extends BaseQuery<Row> implements Query.DimensionSuppo
         limitSpec.build(dimensions, aggregatorSpecs, postAggregatorSpecs, sortOnTimeForLimit);
 
     if (havingSpec != null) {
+      final Predicate<Row> predicate = havingSpec.toEvaluator(this);
       postProcFn = Functions.compose(
           postProcFn,
           new Function<Sequence<Row>, Sequence<Row>>()
@@ -208,17 +209,7 @@ public class GroupByQuery extends BaseQuery<Row> implements Query.DimensionSuppo
             @Override
             public Sequence<Row> apply(Sequence<Row> input)
             {
-              return Sequences.filter(
-                  input,
-                  new Predicate<Row>()
-                  {
-                    @Override
-                    public boolean apply(Row input)
-                    {
-                      return havingSpec.eval(input);
-                    }
-                  }
-              );
+              return Sequences.filter(input, predicate);
             }
           }
       );

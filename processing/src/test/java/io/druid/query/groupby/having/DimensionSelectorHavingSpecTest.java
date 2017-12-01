@@ -20,6 +20,7 @@
 package io.druid.query.groupby.having;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.base.Predicate;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import io.druid.data.input.MapBasedRow;
@@ -120,34 +121,38 @@ public class DimensionSelectorHavingSpecTest
   public void testDimensionFilterSpec()
   {
     DimensionSelectorHavingSpec spec = new DimensionSelectorHavingSpec("dimension", "v", null);
-    assertTrue(spec.eval(getTestRow("v")));
-    assertTrue(spec.eval(getTestRow(ImmutableList.of("v", "v1"))));
-    assertFalse(spec.eval(getTestRow(ImmutableList.of())));
-    assertFalse(spec.eval(getTestRow("v1")));
+    Predicate<Row> predicate = spec.toEvaluator(null);
+    assertTrue(predicate.apply(getTestRow("v")));
+    assertTrue(predicate.apply(getTestRow(ImmutableList.of("v", "v1"))));
+    assertFalse(predicate.apply(getTestRow(ImmutableList.of())));
+    assertFalse(predicate.apply(getTestRow("v1")));
 
     spec = new DimensionSelectorHavingSpec("dimension", null, null);
-    assertTrue(spec.eval(getTestRow(ImmutableList.of())));
-    assertTrue(spec.eval(getTestRow(ImmutableList.of(""))));
-    assertFalse(spec.eval(getTestRow(ImmutableList.of("v"))));
-    assertFalse(spec.eval(getTestRow(ImmutableList.of("v", "v1"))));
+    predicate = spec.toEvaluator(null);
+    assertTrue(predicate.apply(getTestRow(ImmutableList.of())));
+    assertTrue(predicate.apply(getTestRow(ImmutableList.of(""))));
+    assertFalse(predicate.apply(getTestRow(ImmutableList.of("v"))));
+    assertFalse(predicate.apply(getTestRow(ImmutableList.of("v", "v1"))));
 
     spec = new DimensionSelectorHavingSpec("dimension", "", null);
-    assertTrue(spec.eval(getTestRow(ImmutableList.of())));
-    assertTrue(spec.eval(getTestRow(ImmutableList.of(""))));
-    assertTrue(spec.eval(getTestRow(ImmutableList.of("v", "v1", ""))));
-    assertFalse(spec.eval(getTestRow(ImmutableList.of("v"))));
-    assertFalse(spec.eval(getTestRow(ImmutableList.of("v", "v1"))));
+    predicate = spec.toEvaluator(null);
+    assertTrue(predicate.apply(getTestRow(ImmutableList.of())));
+    assertTrue(predicate.apply(getTestRow(ImmutableList.of(""))));
+    assertTrue(predicate.apply(getTestRow(ImmutableList.of("v", "v1", ""))));
+    assertFalse(predicate.apply(getTestRow(ImmutableList.of("v"))));
+    assertFalse(predicate.apply(getTestRow(ImmutableList.of("v", "v1"))));
 
     ExtractionFn extractionFn = new RegexDimExtractionFn("^([^,]*),", true, "default");
     spec = new DimensionSelectorHavingSpec("dimension", "v", extractionFn);
-    assertTrue(spec.eval(getTestRow(ImmutableList.of("v,v1", "v2,v3"))));
-    assertFalse(spec.eval(getTestRow(ImmutableList.of("v1,v4"))));
-    assertFalse(spec.eval(getTestRow(ImmutableList.of("v"))));
-    assertFalse(spec.eval(getTestRow(ImmutableList.of("v1", "default"))));
-    assertTrue(spec.eval(getTestRow(ImmutableList.of("v,default", "none"))));
+    predicate = spec.toEvaluator(null);
+    assertTrue(predicate.apply(getTestRow(ImmutableList.of("v,v1", "v2,v3"))));
+    assertFalse(predicate.apply(getTestRow(ImmutableList.of("v1,v4"))));
+    assertFalse(predicate.apply(getTestRow(ImmutableList.of("v"))));
+    assertFalse(predicate.apply(getTestRow(ImmutableList.of("v1", "default"))));
+    assertTrue(predicate.apply(getTestRow(ImmutableList.of("v,default", "none"))));
     
     spec = new DimensionSelectorHavingSpec("dimension", "default", extractionFn);
-    assertTrue(spec.eval(getTestRow(ImmutableList.of("v1,v2", "none")))); 
-
+    predicate = spec.toEvaluator(null);
+    assertTrue(predicate.apply(getTestRow(ImmutableList.of("v1,v2", "none")))); 
   }
 }

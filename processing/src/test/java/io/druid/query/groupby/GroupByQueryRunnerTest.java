@@ -23,6 +23,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.util.DefaultPrettyPrinter;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Function;
+import com.google.common.base.Predicate;
 import com.google.common.base.Supplier;
 import com.google.common.base.Suppliers;
 import com.google.common.collect.ImmutableList;
@@ -3741,9 +3742,16 @@ public class GroupByQueryRunnerTest
             new HavingSpec()
             {
               @Override
-              public boolean eval(Row row)
+              public Predicate<Row> toEvaluator(GroupByQuery query)
               {
-                return (row.getFloatMetric("idx_subpostagg") < 3800);
+                return new Predicate<Row>()
+                {
+                  @Override
+                  public boolean apply(Row input)
+                  {
+                    return (input.getFloatMetric("idx_subpostagg") < 3800);
+                  }
+                };
               }
             }
         )
@@ -4008,9 +4016,16 @@ public class GroupByQueryRunnerTest
             new HavingSpec()
             {
               @Override
-              public boolean eval(Row row)
+              public Predicate<Row> toEvaluator(GroupByQuery query)
               {
-                return (row.getFloatMetric("idx_subpostagg") < 3800);
+                return new Predicate<Row>()
+                {
+                  @Override
+                  public boolean apply(Row input)
+                  {
+                    return (input.getFloatMetric("idx_subpostagg") < 3800);
+                  }
+                };
               }
             }
         )

@@ -21,8 +21,12 @@ package io.druid.query.groupby.having;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.google.common.base.Predicate;
+import com.google.common.base.Predicates;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Lists;
 import io.druid.data.input.Row;
+import io.druid.query.groupby.GroupByQuery;
 
 import java.util.List;
 
@@ -46,15 +50,13 @@ public class AndHavingSpec implements HavingSpec
   }
 
   @Override
-  public boolean eval(Row row)
+  public Predicate<Row> toEvaluator(GroupByQuery query)
   {
+    List<Predicate<Row>> predicates = Lists.newArrayList();
     for (HavingSpec havingSpec : havingSpecs) {
-      if (!havingSpec.eval(row)) {
-        return false;
-      }
+      predicates.add(havingSpec.toEvaluator(query));
     }
-
-    return true;
+    return Predicates.and(predicates);
   }
 
   @Override

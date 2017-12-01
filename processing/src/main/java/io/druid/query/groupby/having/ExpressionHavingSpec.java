@@ -22,9 +22,11 @@ package io.druid.query.groupby.having;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;
+import com.google.common.base.Predicate;
 import io.druid.data.input.Row;
 import io.druid.math.expr.Expr;
 import io.druid.math.expr.Parser;
+import io.druid.query.groupby.GroupByQuery;
 
 import java.util.Collection;
 
@@ -52,9 +54,16 @@ public class ExpressionHavingSpec implements HavingSpec
   }
 
   @Override
-  public boolean eval(Row row)
+  public Predicate<Row> toEvaluator(GroupByQuery query)
   {
-    return expr.eval(binding.setRow(row)).asBoolean();
+    return new Predicate<Row>()
+    {
+      @Override
+      public boolean apply(Row input)
+      {
+        return expr.eval(binding.setRow(input)).asBoolean();
+      }
+    };
   }
 
   @Override

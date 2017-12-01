@@ -22,10 +22,12 @@ package io.druid.query.groupby.having;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;
+import com.google.common.base.Predicate;
 import com.google.common.base.Strings;
 import io.druid.data.input.Row;
 import io.druid.query.extraction.ExtractionFn;
 import io.druid.query.extraction.IdentityExtractionFn;
+import io.druid.query.groupby.GroupByQuery;
 
 import java.util.List;
 
@@ -65,24 +67,34 @@ public class DimensionSelectorHavingSpec implements HavingSpec
     return extractionFn;
   }
 
-  public boolean eval(Row row)
+  @Override
+  public Predicate<Row> toEvaluator(
+      GroupByQuery query
+  )
   {
-    List<String> dimRowValList = row.getDimension(dimension);
-    if (dimRowValList == null || dimRowValList.isEmpty()) {
-      return Strings.isNullOrEmpty(value);
-    }
+    return new Predicate<Row>()
+    {
+      @Override
+      public boolean apply(Row input)
+      {
+        List<String> dimRowValList = input.getDimension(dimension);
+        if (dimRowValList == null || dimRowValList.isEmpty()) {
+          return Strings.isNullOrEmpty(value);
+        }
 
-    for (String rowVal : dimRowValList) {
-      String extracted = getExtractionFn().apply(rowVal);
-      if (value != null && value.equals(extracted)) {
-        return true;
-      }
-      if (extracted == null || extracted.isEmpty()) {
-        return Strings.isNullOrEmpty(value);
-      }
-    }
+        for (String rowVal : dimRowValList) {
+          String extracted = getExtractionFn().apply(rowVal);
+          if (value != null && value.equals(extracted)) {
+            return true;
+          }
+          if (extracted == null || extracted.isEmpty()) {
+            return Strings.isNullOrEmpty(value);
+          }
+        }
 
-    return false;
+        return false;
+      }
+    };
   }
 
   @Override
@@ -114,6 +126,7 @@ public class DimensionSelectorHavingSpec implements HavingSpec
     return (valEquals && dimEquals && extractionFn.equals(that.extractionFn));
   }
 
+
   @Override
   public int hashCode()
   {
@@ -121,7 +134,6 @@ public class DimensionSelectorHavingSpec implements HavingSpec
     result = 31 * result + (value != null ? value.hashCode() : 0);
     return result;
   }
-
 
   public String toString()
   {
@@ -133,5 +145,4 @@ public class DimensionSelectorHavingSpec implements HavingSpec
     sb.append("'}");
     return sb.toString();
   }
-
 }
