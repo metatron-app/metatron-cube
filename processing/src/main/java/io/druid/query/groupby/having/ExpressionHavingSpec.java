@@ -22,20 +22,16 @@ package io.druid.query.groupby.having;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;
-import com.metamx.common.StringUtils;
 import io.druid.data.input.Row;
 import io.druid.math.expr.Expr;
 import io.druid.math.expr.Parser;
 
-import java.nio.ByteBuffer;
 import java.util.Collection;
 
 /**
  */
 public class ExpressionHavingSpec implements HavingSpec
 {
-  private static final byte CACHE_KEY = (byte) 0x9;
-
   private final String expression;
 
   private final Expr expr;
@@ -59,16 +55,6 @@ public class ExpressionHavingSpec implements HavingSpec
   public boolean eval(Row row)
   {
     return expr.eval(binding.setRow(row)).asBoolean();
-  }
-
-  @Override
-  public byte[] getCacheKey()
-  {
-    byte[] expressionBytes = StringUtils.toUtf8(expression);
-    return ByteBuffer.allocate(1 + expressionBytes.length)
-                     .put(CACHE_KEY)
-                     .put(expressionBytes)
-                     .array();
   }
 
   @Override

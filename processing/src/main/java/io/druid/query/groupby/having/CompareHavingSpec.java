@@ -21,11 +21,6 @@ package io.druid.query.groupby.having;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;
-import com.google.common.primitives.Bytes;
-import com.metamx.common.StringUtils;
-
-import java.nio.ByteBuffer;
-import java.util.Arrays;
 
 /**
  */
@@ -51,20 +46,6 @@ public abstract class CompareHavingSpec implements HavingSpec
   {
     return value;
   }
-
-  @Override
-  public byte[] getCacheKey()
-  {
-    final byte[] aggBytes = StringUtils.toUtf8(aggregationName);
-    final byte[] valBytes = Bytes.toArray(Arrays.asList(value));
-    return ByteBuffer.allocate(1 + aggBytes.length + valBytes.length)
-                     .put(getCacheType())
-                     .put(aggBytes)
-                     .put(valBytes)
-                     .array();
-  }
-
-  protected abstract byte getCacheType();
 
   /**
    * This method treats internal value as double mainly for ease of test.

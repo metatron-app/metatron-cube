@@ -508,7 +508,6 @@ public class GroupByQueryQueryToolChest extends QueryToolChest<Row, GroupByQuery
           ++index;
         }
         final byte[] vcBytes = QueryCacheHelper.computeAggregatorBytes(query.getVirtualColumns());
-        final byte[] havingBytes = query.getHavingSpec() == null ? new byte[]{} : query.getHavingSpec().getCacheKey();
         final byte[] explodeBytes = QueryCacheHelper.computeCacheBytes(query.getLateralView());
         final byte[] limitBytes = query.getLimitSpec().getCacheKey();
         final byte[] outputColumnsBytes = QueryCacheHelper.computeCacheBytes(query.getOutputColumns());
@@ -521,7 +520,6 @@ public class GroupByQueryQueryToolChest extends QueryToolChest<Row, GroupByQuery
                 + aggregatorBytes.length
                 + dimensionsBytesSize
                 + vcBytes.length
-                + havingBytes.length
                 + explodeBytes.length
                 + limitBytes.length
                 + outputColumnsBytes.length
@@ -538,7 +536,6 @@ public class GroupByQueryQueryToolChest extends QueryToolChest<Row, GroupByQuery
 
         return buffer
             .put(vcBytes)
-            .put(havingBytes)
             .put(explodeBytes)
             .put(limitBytes)
             .put(outputColumnsBytes)

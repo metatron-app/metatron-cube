@@ -34,8 +34,6 @@ import java.util.Arrays;
  */
 public class GreaterThanHavingSpec extends CompareHavingSpec
 {
-  private static final byte CACHE_KEY = 0x4;
-
   @JsonCreator
   public GreaterThanHavingSpec(
       @JsonProperty("aggregation") String aggName,
@@ -43,12 +41,6 @@ public class GreaterThanHavingSpec extends CompareHavingSpec
   )
   {
     super(aggName, value);
-  }
-
-  @Override
-  protected byte getCacheType()
-  {
-    return CACHE_KEY;
   }
 
   @Override

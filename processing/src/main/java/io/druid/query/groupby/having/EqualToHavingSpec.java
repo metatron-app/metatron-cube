@@ -29,8 +29,6 @@ import io.druid.data.input.Row;
  */
 public class EqualToHavingSpec extends CompareHavingSpec
 {
-  private static final byte CACHE_KEY = 0x3;
-
   @JsonCreator
   public EqualToHavingSpec(
       @JsonProperty("aggregation") String aggName,
@@ -38,12 +36,6 @@ public class EqualToHavingSpec extends CompareHavingSpec
   )
   {
     super(aggName, value);
-  }
-
-  @Override
-  protected byte getCacheType()
-  {
-    return CACHE_KEY;
   }
 
   @Override

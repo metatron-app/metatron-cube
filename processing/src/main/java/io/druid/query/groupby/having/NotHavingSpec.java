@@ -23,15 +23,11 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.druid.data.input.Row;
 
-import java.nio.ByteBuffer;
-
 /**
  * The logical "not" operator for the "having" clause.
  */
 public class NotHavingSpec implements HavingSpec
 {
-  private static final byte CACHE_KEY = 0x6;
-
   private HavingSpec havingSpec;
 
   @JsonCreator
@@ -50,15 +46,6 @@ public class NotHavingSpec implements HavingSpec
   public boolean eval(Row row)
   {
     return !havingSpec.eval(row);
-  }
-
-  @Override
-  public byte[] getCacheKey()
-  {
-    return ByteBuffer.allocate(1 + havingSpec.getCacheKey().length)
-                     .put(CACHE_KEY)
-                     .put(havingSpec.getCacheKey())
-                     .array();
   }
 
   @Override

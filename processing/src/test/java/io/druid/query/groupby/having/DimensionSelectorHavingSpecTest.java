@@ -20,20 +20,16 @@
 package io.druid.query.groupby.having;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.common.base.Charsets;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import io.druid.data.input.MapBasedRow;
 import io.druid.data.input.Row;
 import io.druid.jackson.DefaultObjectMapper;
 import io.druid.query.extraction.ExtractionFn;
-import io.druid.query.extraction.IdentityExtractionFn;
 import io.druid.query.extraction.RegexDimExtractionFn;
 import org.junit.Assert;
 import org.junit.Test;
 
-import java.nio.ByteBuffer;
-import java.util.Arrays;
 import java.util.Map;
 
 import static org.junit.Assert.assertEquals;
@@ -44,10 +40,6 @@ import static org.junit.Assert.assertTrue;
 
 public class DimensionSelectorHavingSpecTest
 {
-
-  private static final byte CACHE_KEY = (byte) 0x8;
-  private static final byte STRING_SEPARATOR = (byte) 0xFF;
-
   private Row getTestRow(Object dimensionValue)
   {
     return new MapBasedRow(0, ImmutableMap.of("dimension", dimensionValue));
@@ -157,48 +149,5 @@ public class DimensionSelectorHavingSpecTest
     spec = new DimensionSelectorHavingSpec("dimension", "default", extractionFn);
     assertTrue(spec.eval(getTestRow(ImmutableList.of("v1,v2", "none")))); 
 
-  }
-
-  @Test
-  public void testGetCacheKey()
-  {
-    ExtractionFn extractionFn = IdentityExtractionFn.getInstance();
-    byte[] dimBytes = "dimension".getBytes(Charsets.UTF_8);
-    byte[] valBytes = "v".getBytes(Charsets.UTF_8);
-    byte[] extFunKey = extractionFn.getCacheKey();
-
-    byte[] expected = ByteBuffer.allocate(3 + dimBytes.length + valBytes.length + extFunKey.length)
-                                 .put(CACHE_KEY)
-                                 .put(dimBytes)
-                                 .put(STRING_SEPARATOR)
-                                 .put(valBytes)
-                                 .put(STRING_SEPARATOR)
-                                 .put(extFunKey)
-                                 .array();
-    
-    DimensionSelectorHavingSpec dfhs = new DimensionSelectorHavingSpec("dimension", "v", null);
-    DimensionSelectorHavingSpec dfhs1 = new DimensionSelectorHavingSpec("dimension", "v", null);
-    DimensionSelectorHavingSpec dfhs2 = new DimensionSelectorHavingSpec("dimensi", "onv", null);
-
-    byte[] actual = dfhs.getCacheKey();
-
-    Assert.assertArrayEquals(expected, actual);
-    Assert.assertTrue(Arrays.equals(dfhs.getCacheKey(), dfhs1.getCacheKey()));
-    Assert.assertFalse(Arrays.equals(dfhs.getCacheKey(), dfhs2.getCacheKey()));
-    
-    extractionFn = new RegexDimExtractionFn("^([^,]*),", false, "");
-    extFunKey = extractionFn.getCacheKey();
-    dfhs = new DimensionSelectorHavingSpec("dimension", "v", extractionFn);
-    actual = dfhs.getCacheKey();
-    expected = ByteBuffer.allocate(3 + dimBytes.length + valBytes.length + extFunKey.length)
-                                 .put(CACHE_KEY)
-                                 .put(dimBytes)
-                                 .put(STRING_SEPARATOR)
-                                 .put(valBytes)
-                                 .put(STRING_SEPARATOR)
-                                 .put(extFunKey)
-                                 .array();
-    
-    Assert.assertArrayEquals(expected, actual);
   }
 }

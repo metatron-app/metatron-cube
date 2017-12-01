@@ -28,20 +28,12 @@ import io.druid.data.input.Row;
  */
 public class LessThanHavingSpec extends CompareHavingSpec
 {
-  private static final byte CACHE_KEY = 0x5;
-
   public LessThanHavingSpec(
       @JsonProperty("aggregation") String aggName,
       @JsonProperty("value") Number value
   )
   {
     super(aggName, value);
-  }
-
-  @Override
-  protected byte getCacheType()
-  {
-    return CACHE_KEY;
   }
 
   @Override

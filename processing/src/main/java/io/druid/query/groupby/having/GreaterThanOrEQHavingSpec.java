@@ -26,19 +26,11 @@ import io.druid.data.input.Row;
  */
 public class GreaterThanOrEQHavingSpec extends CompareHavingSpec
 {
-  private static final byte CACHE_KEY = 0x0a;
-
   public GreaterThanOrEQHavingSpec(
       @JsonProperty("aggregation") String aggName,
       @JsonProperty("value") Number value)
   {
     super(aggName, value);
-  }
-
-  @Override
-  protected byte getCacheType()
-  {
-    return CACHE_KEY;
   }
 
   @Override

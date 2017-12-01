@@ -26,17 +26,9 @@ import io.druid.data.input.Row;
  */
 public class NeverHavingSpec implements HavingSpec
 {
-  private static final byte CACHE_KEY = 0x1;
-
   @Override
   public boolean eval(Row row)
   {
     return false;
-  }
-
-  @Override
-  public byte[] getCacheKey()
-  {
-    return new byte[]{CACHE_KEY};
   }
 }
