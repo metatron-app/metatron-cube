@@ -44,7 +44,7 @@ import java.util.Objects;
  */
 @JsonTypeName("select")
 public class SelectQuery extends BaseQuery<Result<SelectResultValue>>
-    implements Query.ViewSupport<Result<SelectResultValue>>
+    implements Query.MetricSupport<Result<SelectResultValue>>
 {
   private final DimFilter dimFilter;
   private final Granularity granularity;

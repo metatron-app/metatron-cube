@@ -66,7 +66,6 @@ public class Queries
   )
   {
     Preconditions.checkNotNull(aggFactories, "aggregations cannot be null");
-    Preconditions.checkArgument(aggFactories.size() > 0, "Must have at least one AggregatorFactory");
 
     final Set<String> aggNames = Sets.newHashSet();
     for (AggregatorFactory aggFactory : aggFactories) {
@@ -150,8 +149,8 @@ public class Queries
         aggs.add(new RelayAggregatorFactory(postAggregator.getName(), postAggregator.getName(), ValueDesc.UNKNOWN_TYPE));
       }
       return builder.withMetrics(aggs.toArray(new AggregatorFactory[aggs.size()])).build();
-    } else if (subQuery instanceof Query.ViewSupport) {
-      final Query.ViewSupport<?> selectQuery = (Query.ViewSupport) subQuery;
+    } else if (subQuery instanceof Query.MetricSupport) {
+      final Query.MetricSupport<?> selectQuery = (Query.MetricSupport) subQuery;
       List<String> dimensions = DimensionSpecs.toOutputNames(selectQuery.getDimensions());
       List<String> metrics = selectQuery.getMetrics();
       if (selectQuery.needsSchemaResolution()) {

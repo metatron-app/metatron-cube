@@ -50,7 +50,7 @@ import java.util.Map;
 @JsonTypeName("summary")
 public class SummaryQuery extends BaseQuery<Result<Map<String, Object>>>
     implements BaseQuery.RewritingQuery<Result<Map<String, Object>>>,
-    Query.ViewSupport<Result<Map<String, Object>>>
+    Query.MetricSupport<Result<Map<String, Object>>>
 {
   private final DimFilter dimFilter;
   private final List<DimensionSpec> dimensions;
@@ -193,7 +193,7 @@ public class SummaryQuery extends BaseQuery<Result<Map<String, Object>>>
   }
 
   @Override
-  public ViewSupport<Result<Map<String, Object>>> withMetrics(List<String> metrics)
+  public MetricSupport<Result<Map<String, Object>>> withMetrics(List<String> metrics)
   {
     return new SummaryQuery(
         getDataSource(),

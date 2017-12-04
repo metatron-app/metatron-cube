@@ -38,7 +38,7 @@ import java.util.Objects;
 /**
  */
 public abstract class AbstractStreamQuery<T extends Comparable<T>> extends BaseQuery<T>
-    implements Query.ViewSupport<T>
+    implements Query.MetricSupport<T>
 {
   private final DimFilter dimFilter;
   private final Granularity granularity;

@@ -30,6 +30,7 @@ import io.druid.data.ValueDesc;
 import io.druid.common.Cacheable;
 import io.druid.segment.ColumnSelectorFactory;
 
+import javax.annotation.Nullable;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -205,6 +206,33 @@ public abstract class AggregatorFactory implements Cacheable
     return mergedAggregators == null
            ? null
            : mergedAggregators.values().toArray(new AggregatorFactory[mergedAggregators.size()]);
+  }
+
+  public static Map<String, AggregatorFactory> asMap(AggregatorFactory[] aggregators)
+  {
+    Map<String, AggregatorFactory> map = Maps.newHashMap();
+    if (aggregators != null) {
+      for (AggregatorFactory factory : aggregators) {
+        map.put(factory.getName(), factory);
+      }
+    }
+    return map;
+  }
+
+  public static List<String> toNames(List<AggregatorFactory> aggregators)
+  {
+    return Lists.newArrayList(
+        Lists.transform(
+            aggregators, new Function<AggregatorFactory, String>()
+            {
+              @Override
+              public String apply(AggregatorFactory input)
+              {
+                return input.getName();
+              }
+            }
+        )
+    );
   }
 
   public static Map<String, ValueDesc> toExpectedInputType(AggregatorFactory[] aggregators)

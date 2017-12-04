@@ -110,21 +110,47 @@ public class JoinQuery<T extends Comparable<T>> extends BaseQuery<T> implements 
 
   private static List<JoinElement> validateElements(Map<String, DataSource> dataSources, List<JoinElement> elements)
   {
+    Preconditions.checkArgument(!elements.isEmpty());
     List<JoinElement> rewrite = Lists.newArrayList();
     for (JoinElement element : elements) {
       rewrite.add(element.rewrite(dataSources.keySet()));
     }
-    Preconditions.checkArgument(rewrite.size() > 0);
     JoinElement firstJoin = rewrite.get(0);
-    Preconditions.checkNotNull(
-        dataSources.get(firstJoin.getLeftAlias()), "failed to find alias " + firstJoin.getLeftAlias()
-    );
+    validateDataSource(dataSources, firstJoin.getLeftAlias(), firstJoin.getLeftJoinColumns());
     for (JoinElement element : rewrite) {
-      Preconditions.checkNotNull(
-          dataSources.get(element.getRightAlias()), "failed to find alias " + firstJoin.getRightAlias()
-      );
+      validateDataSource(dataSources, element.getRightAlias(), element.getRightJoinColumns());
     }
     return rewrite;
+  }
+
+  // I hate this.. just add join columns into view columns.. is it so hard?
+  private static void validateDataSource(Map<String, DataSource> dataSources, String alias, List<String> joinColumns)
+  {
+    DataSource dataSource = dataSources.get(alias);
+    Preconditions.checkNotNull(dataSource, "failed to find alias " + alias);
+    DataSource rewritten = rewriteDataSource(dataSource, joinColumns);
+    if (rewritten != null) {
+      dataSources.put(alias, rewritten);
+    }
+  }
+
+  private static DataSource rewriteDataSource(DataSource ds, List<String> joinColumns)
+  {
+    if (ds instanceof ViewDataSource) {
+      ViewDataSource view = (ViewDataSource) ds;
+      boolean changed = false;
+      List<String> columns = Lists.newArrayList(view.getColumns());
+      for (String joinColumn : joinColumns) {
+        if (!columns.contains(joinColumn)) {
+          columns.add(joinColumn);
+          changed = true;
+        }
+      }
+      if (changed) {
+        return view.withColumns(columns);
+      }
+    }
+    return null;
   }
 
   @JsonProperty

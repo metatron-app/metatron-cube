@@ -171,6 +171,12 @@ public class ValueDesc
     return index < 0 ? null : typeName.substring(index + 1);
   }
 
+  public static ValueType typeOfDimension(ValueDesc valueType)
+  {
+    Preconditions.checkArgument(isDimension(valueType));
+    return ValueType.of(subElementOf(valueType.typeName()));
+  }
+
   private final ValueType type;
   private final String typeName;
 

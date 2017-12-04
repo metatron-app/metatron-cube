@@ -73,6 +73,17 @@ public class VirtualColumns implements Iterable<VirtualColumn>
       ImmutableMap.<String, VirtualColumn>of()
   );
 
+  public static Map<String, VirtualColumn> asMap(List<VirtualColumn> virtualColumns)
+  {
+    Map<String, VirtualColumn> map = Maps.newLinkedHashMap();
+    for (VirtualColumn vc : virtualColumns) {
+      if (map.put(vc.getOutputName(), vc.duplicate()) != null) {
+        throw new IllegalArgumentException("duplicated columns in virtualColumns");
+      }
+    }
+    return map;
+  }
+
   public static VirtualColumns valueOf(VirtualColumn virtualColumn)
   {
     return virtualColumn == null ? EMPTY : valueOf(Arrays.asList(virtualColumn));
@@ -83,13 +94,7 @@ public class VirtualColumns implements Iterable<VirtualColumn>
     if (virtualColumns == null || virtualColumns.isEmpty()) {
       return EMPTY;
     }
-    Map<String, VirtualColumn> map = Maps.newHashMapWithExpectedSize(virtualColumns.size());
-    for (VirtualColumn vc : virtualColumns) {
-      if (map.put(vc.getOutputName(), vc.duplicate()) != null) {
-        throw new IllegalArgumentException("duplicated columns in virtualColumns");
-      }
-    }
-    return new VirtualColumns(map);
+    return new VirtualColumns(asMap(virtualColumns));
   }
 
   public static DimensionSelector toDimensionSelector(final ObjectColumnSelector selector)

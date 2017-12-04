@@ -180,8 +180,8 @@ public abstract class BaseQuery<T extends Comparable<T>> implements Query<T>
         return true;
       }
     }
-    if (this instanceof ViewSupport) {
-      if (((ViewSupport) this).getMetrics().isEmpty() && allMetricsForEmpty()) {
+    if (this instanceof MetricSupport) {
+      if (((MetricSupport) this).getMetrics().isEmpty() && allMetricsForEmpty()) {
         return true;
       }
     }
@@ -251,11 +251,6 @@ public abstract class BaseQuery<T extends Comparable<T>> implements Query<T>
   public int getContextInt(String key, int defaultValue)
   {
     return PropUtils.parseInt(getContext(), key, defaultValue);
-  }
-
-  public boolean neededForDimension(String column)
-  {
-    return false;
   }
 
   protected String toString(String key)

@@ -45,7 +45,7 @@ import java.util.Map;
  */
 @JsonTypeName("timeseries")
 public class TimeseriesQuery extends BaseQuery<Result<TimeseriesResultValue>>
-  implements Query.DimensionSupport<Result<TimeseriesResultValue>>
+  implements Query.AggregationsSupport<Result<TimeseriesResultValue>>
 {
   private final DimFilter dimFilter;
   private final Granularity granularity;
@@ -243,6 +243,7 @@ public class TimeseriesQuery extends BaseQuery<Result<TimeseriesResultValue>>
     );
   }
 
+  @Override
   public TimeseriesQuery withAggregatorSpecs(List<AggregatorFactory> aggregatorSpecs)
   {
     return new TimeseriesQuery(
@@ -260,6 +261,7 @@ public class TimeseriesQuery extends BaseQuery<Result<TimeseriesResultValue>>
     );
   }
 
+  @Override
   public TimeseriesQuery withPostAggregatorSpecs(List<PostAggregator> postAggregatorSpecs)
   {
     return new TimeseriesQuery(
@@ -278,14 +280,14 @@ public class TimeseriesQuery extends BaseQuery<Result<TimeseriesResultValue>>
   }
 
   @Override
-  public DimensionSupport<Result<TimeseriesResultValue>> withDimensionSpecs(List<DimensionSpec> dimensions)
+  public AggregationsSupport<Result<TimeseriesResultValue>> withDimensionSpecs(List<DimensionSpec> dimensions)
   {
     Preconditions.checkArgument(dimensions == null || dimensions.isEmpty());
     return this;
   }
 
   @Override
-  public DimensionSupport<Result<TimeseriesResultValue>> withVirtualColumns(List<VirtualColumn> virtualColumns)
+  public AggregationsSupport<Result<TimeseriesResultValue>> withVirtualColumns(List<VirtualColumn> virtualColumns)
   {
     return new TimeseriesQuery(
         getDataSource(),

@@ -64,7 +64,7 @@ import java.util.Map;
 
 /**
  */
-public class GroupByQuery extends BaseQuery<Row> implements Query.DimensionSupport<Row>
+public class GroupByQuery extends BaseQuery<Row> implements Query.AggregationsSupport<Row>
 {
   public static final String SORT_ON_TIME = "groupby.sort.on.time";
 
@@ -226,17 +226,6 @@ public class GroupByQuery extends BaseQuery<Row> implements Query.DimensionSuppo
   }
 
   @Override
-  public boolean neededForDimension(String column)
-  {
-    for (DimensionSpec dimensionSpec : dimensions) {
-      if (column.equals(dimensionSpec.getOutputName())) {
-        return true;
-      }
-    }
-    return false;
-  }
-
-  @Override
   public GroupByQuery withOverriddenContext(Map<String, Object> contextOverride)
   {
     return new GroupByQuery(
@@ -394,6 +383,7 @@ public class GroupByQuery extends BaseQuery<Row> implements Query.DimensionSuppo
     );
   }
 
+  @Override
   public GroupByQuery withAggregatorSpecs(final List<AggregatorFactory> aggregatorSpecs)
   {
     return new GroupByQuery(
@@ -405,6 +395,26 @@ public class GroupByQuery extends BaseQuery<Row> implements Query.DimensionSuppo
         getVirtualColumns(),
         aggregatorSpecs,
         getPostAggregatorSpecs(),
+        getHavingSpec(),
+        getLimitSpec(),
+        getOutputColumns(),
+        getLateralView(),
+        getContext()
+    );
+  }
+
+  @Override
+  public GroupByQuery withPostAggregatorSpecs(final List<PostAggregator> postAggregatorSpecs)
+  {
+    return new GroupByQuery(
+        getDataSource(),
+        getQuerySegmentSpec(),
+        getDimFilter(),
+        getGranularity(),
+        getDimensions(),
+        getVirtualColumns(),
+        getAggregatorSpecs(),
+        postAggregatorSpecs,
         getHavingSpec(),
         getLimitSpec(),
         getOutputColumns(),
@@ -425,25 +435,6 @@ public class GroupByQuery extends BaseQuery<Row> implements Query.DimensionSuppo
         getAggregatorSpecs(),
         getPostAggregatorSpecs(),
         havingSpec,
-        getLimitSpec(),
-        getOutputColumns(),
-        getLateralView(),
-        getContext()
-    );
-  }
-
-  public GroupByQuery withPostAggregatorSpecs(final List<PostAggregator> postAggregatorSpecs)
-  {
-    return new GroupByQuery(
-        getDataSource(),
-        getQuerySegmentSpec(),
-        getDimFilter(),
-        getGranularity(),
-        getDimensions(),
-        getVirtualColumns(),
-        getAggregatorSpecs(),
-        postAggregatorSpecs,
-        getHavingSpec(),
         getLimitSpec(),
         getOutputColumns(),
         getLateralView(),

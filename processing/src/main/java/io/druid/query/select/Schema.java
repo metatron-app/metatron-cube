@@ -28,6 +28,7 @@ import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import com.metamx.common.Pair;
 import io.druid.common.guava.GuavaUtils;
+import io.druid.data.TypeResolver;
 import io.druid.data.ValueDesc;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.AggregatorFactoryNotMergeableException;
@@ -38,7 +39,7 @@ import java.util.Map;
 
 /**
  */
-public class Schema
+public class Schema implements TypeResolver
 {
   public static final Schema EMPTY = new Schema(
       Collections.<String>emptyList(),
@@ -130,7 +131,8 @@ public class Schema
     return index < 0 ? null : aggregators.get(index);
   }
 
-  public ValueDesc getTypeOfName(String column)
+  @Override
+  public ValueDesc resolveColumn(String column)
   {
     int index = dimensionNames.indexOf(column);
     if (index < 0) {
@@ -186,8 +188,8 @@ public class Schema
     }
     List<ValueDesc> mergedTypes = Lists.newArrayList();
     for (String columnName : Iterables.concat(mergedDimensions, mergedMetrics)) {
-      ValueDesc type1 = getTypeOfName(columnName);
-      ValueDesc type2 = other.getTypeOfName(columnName);
+      ValueDesc type1 = resolveColumn(columnName);
+      ValueDesc type2 = other.resolveColumn(columnName);
       if (!type1.equals(type2)) {
         ValueDesc type = merged.get(columnName);
         mergedTypes.add(type == null ? ValueDesc.UNKNOWN : type);

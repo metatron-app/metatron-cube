@@ -41,7 +41,7 @@ import java.util.Objects;
  */
 @JsonTypeName("selectMeta")
 public class SelectMetaQuery extends BaseQuery<Result<SelectMetaResultValue>>
-  implements Query.ViewSupport<Result<SelectMetaResultValue>>
+  implements Query.MetricSupport<Result<SelectMetaResultValue>>
 {
   private final DimFilter dimFilter;
   private final Granularity granularity;

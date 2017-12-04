@@ -46,7 +46,7 @@ import java.util.Objects;
 /**
  */
 public class TopNQuery extends BaseQuery<Result<TopNResultValue>>
-    implements Query.DimensionSupport<Result<TopNResultValue>>
+    implements Query.AggregationsSupport<Result<TopNResultValue>>
 {
   public static final String TOPN = "topN";
 
@@ -182,12 +182,6 @@ public class TopNQuery extends BaseQuery<Result<TopNResultValue>>
     return false;
   }
 
-  @Override
-  public boolean neededForDimension(String column)
-  {
-    return column.equals(dimensionSpec.getOutputName());
-  }
-
   public void initTopNAlgorithmSelector(TopNAlgorithmSelector selector)
   {
     if (dimensionSpec.getExtractionFn() != null) {
@@ -215,7 +209,7 @@ public class TopNQuery extends BaseQuery<Result<TopNResultValue>>
   }
 
   @Override
-  public DimensionSupport<Result<TopNResultValue>> withDimensionSpecs(List<DimensionSpec> dimensions)
+  public AggregationsSupport<Result<TopNResultValue>> withDimensionSpecs(List<DimensionSpec> dimensions)
   {
     return new TopNQuery(
         getDataSource(),
@@ -234,7 +228,7 @@ public class TopNQuery extends BaseQuery<Result<TopNResultValue>>
   }
 
   @Override
-  public DimensionSupport<Result<TopNResultValue>> withVirtualColumns(List<VirtualColumn> virtualColumns)
+  public AggregationsSupport<Result<TopNResultValue>> withVirtualColumns(List<VirtualColumn> virtualColumns)
   {
     return new TopNQuery(
         getDataSource(),
@@ -270,6 +264,7 @@ public class TopNQuery extends BaseQuery<Result<TopNResultValue>>
     );
   }
 
+  @Override
   public TopNQuery withAggregatorSpecs(List<AggregatorFactory> aggregatorSpecs)
   {
     return new TopNQuery(
@@ -288,6 +283,7 @@ public class TopNQuery extends BaseQuery<Result<TopNResultValue>>
     );
   }
 
+  @Override
   public TopNQuery withPostAggregatorSpecs(List<PostAggregator> postAggregatorSpecs)
   {
     return new TopNQuery(

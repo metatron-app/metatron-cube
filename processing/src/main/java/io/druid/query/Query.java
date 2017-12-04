@@ -25,6 +25,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.Ordering;
 import com.metamx.common.Pair;
 import com.metamx.common.guava.Sequence;
+import io.druid.query.aggregation.AggregatorFactory;
+import io.druid.query.aggregation.PostAggregator;
 import io.druid.query.datasourcemetadata.DataSourceMetadataQuery;
 import io.druid.query.dimension.DimensionSpec;
 import io.druid.query.filter.DimFilter;
@@ -146,23 +148,29 @@ public interface Query<T> extends QueryContextKeys
 
     DimensionSupport<T> withDimensionSpecs(List<DimensionSpec> dimensions);
 
-    // can return true only for group-by & top-n query (include revolved vc as a dimension)
-    boolean neededForDimension(String column);
-
     boolean needsSchemaResolution();
 
     boolean allDimensionsForEmpty();
   }
 
-  interface ViewSupport<T> extends DimFilterSupport<T>, DimensionSupport<T>
+  interface MetricSupport<T> extends DimensionSupport<T>
   {
     List<String> getMetrics();
 
-    ViewSupport<T> withDimensionSpecs(List<DimensionSpec> dimensions);
+    MetricSupport<T> withMetrics(List<String> metrics);
 
-    ViewSupport<T> withVirtualColumns(List<VirtualColumn> virtualColumns);
+    boolean allMetricsForEmpty();
+  }
 
-    ViewSupport<T> withMetrics(List<String> metrics);
+  interface AggregationsSupport<T> extends DimensionSupport<T>
+  {
+    List<AggregatorFactory> getAggregatorSpecs();
+
+    AggregationsSupport<T> withAggregatorSpecs(List<AggregatorFactory> metrics);
+
+    List<PostAggregator> getPostAggregatorSpecs();
+
+    AggregationsSupport<T> withPostAggregatorSpecs(List<PostAggregator> metrics);
 
     boolean allMetricsForEmpty();
   }

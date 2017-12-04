@@ -40,7 +40,7 @@ import java.util.Objects;
  */
 @JsonTypeName("sketch")
 public class SketchQuery extends BaseQuery<Result<Map<String, Object>>>
-    implements Query.ViewSupport<Result<Map<String, Object>>>
+    implements Query.MetricSupport<Result<Map<String, Object>>>
 {
   private final List<DimensionSpec> dimensions;
   private final List<String> metrics;

@@ -144,18 +144,6 @@ public class GuavaUtils
     return result;
   }
 
-  public static List<String> retain(Iterable<String> name, Collection<String> retainer)
-  {
-    if (name == null) {
-      return Lists.<String>newArrayList();
-    }
-    List<String> retaining = Lists.newArrayList(name);
-    if (retainer != null) {
-      retaining.retainAll(retainer);
-    }
-    return retaining;
-  }
-
   public static List<String> exclude(Iterable<String> name, Collection<String> exclusions)
   {
     if (name == null) {
