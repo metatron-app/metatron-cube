@@ -20,7 +20,6 @@
 package io.druid.segment;
 
 import com.google.common.base.Preconditions;
-import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Iterators;
@@ -69,9 +68,10 @@ public class VirtualColumns implements Iterable<VirtualColumn>
     return ImmutableSet.of();
   }
 
-  public static final VirtualColumns EMPTY = new VirtualColumns(
-      ImmutableMap.<String, VirtualColumn>of()
-  );
+  public static VirtualColumns empty()
+  {
+    return new VirtualColumns(Maps.<String, VirtualColumn>newHashMap());
+  }
 
   public static Map<String, VirtualColumn> asMap(List<VirtualColumn> virtualColumns)
   {
@@ -86,13 +86,13 @@ public class VirtualColumns implements Iterable<VirtualColumn>
 
   public static VirtualColumns valueOf(VirtualColumn virtualColumn)
   {
-    return virtualColumn == null ? EMPTY : valueOf(Arrays.asList(virtualColumn));
+    return virtualColumn == null ? empty() : valueOf(Arrays.asList(virtualColumn));
   }
 
   public static VirtualColumns valueOf(List<VirtualColumn> virtualColumns)
   {
     if (virtualColumns == null || virtualColumns.isEmpty()) {
-      return EMPTY;
+      return empty();
     }
     return new VirtualColumns(asMap(virtualColumns));
   }
@@ -401,9 +401,14 @@ public class VirtualColumns implements Iterable<VirtualColumn>
 
   private final Map<String, VirtualColumn> virtualColumns;
 
-  public VirtualColumns(Map<String, VirtualColumn> virtualColumns)
+  private VirtualColumns(Map<String, VirtualColumn> virtualColumns)
   {
     this.virtualColumns = virtualColumns;
+  }
+
+  public void addVirtualColumn(VirtualColumn vc)
+  {
+    virtualColumns.put(vc.getOutputName(), vc);
   }
 
   public VirtualColumn getVirtualColumn(String dimension)

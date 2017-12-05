@@ -37,6 +37,7 @@ import io.druid.query.Result;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.ArrayAggregatorFactory;
 import io.druid.query.aggregation.LongSumAggregatorFactory;
+import io.druid.segment.ArrayVirtualColumn;
 import io.druid.segment.ExprVirtualColumn;
 import io.druid.segment.IncrementalIndexSegment;
 import io.druid.segment.MapVirtualColumn;
@@ -215,6 +216,43 @@ public class MapVirtualColumnTest
             Lists.<Result<SelectResultValue>>newArrayList()
         )
     );
+  }
+
+  @Test
+  public void testArrayVC() throws Exception
+  {
+    List<Map> expectedResults = Arrays.<Map>asList(
+        mapOf(
+            "dim", "a",
+            "access", Arrays.asList(100L, 200L, 300L),
+            "access.0", 100L,
+            "access.1", 200L,
+            "access.2", 300L
+        ),
+        mapOf(
+            "dim", null,
+            "access", Arrays.asList(100L, 500L, 900L),
+            "access.0", 100L,
+            "access.1", 500L,
+            "access.2", 900L
+        ),
+        mapOf(
+            "dim", "c",
+            "access", Arrays.asList(400L, 500L, 600L),
+            "access.0", 400L,
+            "access.1", 500L,
+            "access.2", 600L
+        )
+    );
+    Druids.SelectQueryBuilder builder = testBuilder();
+    List<VirtualColumn> virtualColumns = Arrays.<VirtualColumn>asList(
+        new ArrayVirtualColumn("array", "access")
+    );
+    SelectQuery selectQuery = builder.dimensions(Arrays.asList("dim"))
+                                     .metrics(Arrays.asList("access", "access.0", "access.1", "access.2"))
+                                     .virtualColumns(virtualColumns)
+                                     .build();
+    checkSelectQuery(selectQuery, expectedResults);
   }
 
   private Map mapOf(Object... elements)

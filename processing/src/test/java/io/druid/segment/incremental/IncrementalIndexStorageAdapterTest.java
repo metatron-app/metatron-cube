@@ -405,7 +405,7 @@ public class IncrementalIndexStorageAdapterTest
     final StorageAdapter sa = new IncrementalIndexStorageAdapter(index);
 
     Sequence<Cursor> cursors = sa.makeCursors(
-        null, new Interval(timestamp - 60_000, timestamp + 60_000), VirtualColumns.EMPTY, QueryGranularities.ALL, null, false
+        null, new Interval(timestamp - 60_000, timestamp + 60_000), VirtualColumns.empty(), QueryGranularities.ALL, null, false
     );
 
     Sequences.toList(

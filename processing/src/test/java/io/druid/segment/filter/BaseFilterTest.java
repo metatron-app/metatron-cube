@@ -265,7 +265,7 @@ public abstract class BaseFilterTest
     final Sequence<Cursor> cursors = adapter.makeCursors(
         filter,
         new Interval(JodaUtils.MIN_INSTANT, JodaUtils.MAX_INSTANT),
-        VirtualColumns.EMPTY,
+        VirtualColumns.empty(),
         QueryGranularities.ALL,
         null,
         false

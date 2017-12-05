@@ -75,7 +75,7 @@ public class IngestSegmentFirehose implements Firehose
                         adapter.getAdapter().makeCursors(
                             dimFilter,
                             adapter.getInterval(),
-                            VirtualColumns.EMPTY,
+                            VirtualColumns.empty(),
                             granularity,
                             null, false
                         ), new Function<Cursor, Sequence<InputRow>>()
