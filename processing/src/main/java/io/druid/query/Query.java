@@ -36,6 +36,7 @@ import io.druid.query.kmeans.FindNearestQuery;
 import io.druid.query.kmeans.KMeansQuery;
 import io.druid.query.metadata.metadata.SegmentMetadataQuery;
 import io.druid.query.search.search.SearchQuery;
+import io.druid.query.select.SchemaQuery;
 import io.druid.query.select.SelectForwardQuery;
 import io.druid.query.select.SelectMetaQuery;
 import io.druid.query.select.SelectQuery;
@@ -61,6 +62,7 @@ import java.util.Map;
     @JsonSubTypes.Type(name = Query.SEGMENT_METADATA, value = SegmentMetadataQuery.class),
     @JsonSubTypes.Type(name = Query.SELECT, value = SelectQuery.class),
     @JsonSubTypes.Type(name = Query.SELECT_META, value = SelectMetaQuery.class),
+    @JsonSubTypes.Type(name = Query.SCHEMA, value = SchemaQuery.class),
     @JsonSubTypes.Type(name = Query.SELECT_STREAM, value = StreamQuery.class),
     @JsonSubTypes.Type(name = Query.SELECT_STREAM_RAW, value = StreamRawQuery.class),
     @JsonSubTypes.Type(name = Query.TOPN, value = TopNQuery.class),
@@ -82,6 +84,7 @@ public interface Query<T> extends QueryContextKeys
   String SEGMENT_METADATA = "segmentMetadata";
   String SELECT = "select";
   String SELECT_META = "selectMeta";
+  String SCHEMA = "schema";
   String SELECT_STREAM = "select.stream";
   String SELECT_STREAM_RAW = "select.stream.raw";
   String SELECT_DELEGATE = "select.delegate";

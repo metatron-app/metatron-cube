@@ -54,7 +54,7 @@ public class SelectMetaResultValue
 
   public SelectMetaResultValue(Schema schema)
   {
-    this(schema, ImmutableMap.<String, Integer>of(), 0L);
+    this(schema, ImmutableMap.<String, Integer>of(), -1L);
   }
 
   @JsonProperty

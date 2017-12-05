@@ -19,7 +19,6 @@
 
 package io.druid.query.groupby;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Supplier;
 import com.google.common.base.Suppliers;
 import com.google.common.collect.ImmutableMap;
@@ -34,7 +33,6 @@ import io.druid.data.input.impl.DelimitedParseSpec;
 import io.druid.data.input.impl.DimensionsSpec;
 import io.druid.data.input.impl.StringInputRowParser;
 import io.druid.granularity.QueryGranularities;
-import io.druid.jackson.DefaultObjectMapper;
 import io.druid.query.QueryRunner;
 import io.druid.query.QueryRunnerTestHelper;
 import io.druid.query.TestQueryRunners;
@@ -89,7 +87,6 @@ public class VirtualColumnTest
   @Parameterized.Parameters
   public static Iterable<Object[]> constructorFeeder() throws IOException
   {
-    final ObjectMapper mapper = new DefaultObjectMapper();
     final StupidPool<ByteBuffer> pool = new StupidPool<>(
         new Supplier<ByteBuffer>()
         {
@@ -232,6 +229,42 @@ public class VirtualColumnTest
         .addOrderByColumn("a.dim_nvl")
         .build();
     checkQueryResult(query, expectedResults);
+  }
+
+  @Test(expected = UnsupportedOperationException.class)
+  public void testException1() throws Exception
+  {
+    GroupByQuery.Builder builder = testBuilder();
+
+    List<VirtualColumn> virtualColumns = Arrays.<VirtualColumn>asList(
+        new MapVirtualColumn("keys", null, "array", "params"),
+        new ExprVirtualColumn("nvl(dim, 'null')", "a.dim_nvl")
+    );
+    GroupByQuery query = builder
+        .setDimensions(DefaultDimensionSpec.toSpec("params"))
+        .setVirtualColumns(virtualColumns)
+        .addOrderByColumn("a.dim_nvl")
+        .build();
+
+    Sequences.toList(runner.run(query, ImmutableMap.<String, Object>of()), Lists.<Row>newArrayList());
+  }
+
+  @Test(expected = UnsupportedOperationException.class)
+  public void testException2() throws Exception
+  {
+    GroupByQuery.Builder builder = testBuilder();
+
+    List<VirtualColumn> virtualColumns = Arrays.<VirtualColumn>asList(
+        new MapVirtualColumn("keys", null, "array", "params"),
+        new ExprVirtualColumn("nvl(dim, 'null')", "a.dim_nvl")
+    );
+    GroupByQuery query = builder
+        .setDimensions(DefaultDimensionSpec.toSpec("params.key1"))
+        .setVirtualColumns(virtualColumns)
+        .addOrderByColumn("a.dim_nvl")
+        .build();
+
+    Sequences.toList(runner.run(query, ImmutableMap.<String, Object>of()), Lists.<Row>newArrayList());
   }
 
   @Test

@@ -285,7 +285,7 @@ public class SegmentAnalyzer
     }
 
     return new ColumnAnalysis(
-        valueType.name(),
+        valueType.toString(),
         storageAdapter.getColumnCapabilities(columnName).hasMultipleValues(),
         serializedSize,
         cardinality,

@@ -24,9 +24,8 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Maps;
 import io.druid.common.utils.StringUtils;
-import io.druid.data.ValueDesc;
 import io.druid.data.TypeResolver;
-import io.druid.data.ValueType;
+import io.druid.data.ValueDesc;
 import io.druid.query.dimension.DefaultDimensionSpec;
 import io.druid.query.filter.DimFilterCacheHelper;
 import io.druid.segment.data.IndexedInts;
@@ -260,7 +259,7 @@ public class MapVirtualColumn implements VirtualColumn
     Preconditions.checkArgument(dimension.startsWith(outputName));
     final int index = dimension.indexOf('.', outputName.length());
     if (index < 0) {
-      throw new IllegalArgumentException(dimension + " cannot be used as dimension");
+      throw new UnsupportedOperationException(dimension + " cannot be used as dimension");
     }
     String target = dimension.substring(index + 1);
     if (MAP_KEY.equals(target)) {
@@ -270,8 +269,8 @@ public class MapVirtualColumn implements VirtualColumn
       return factory.makeDimensionSelector(DefaultDimensionSpec.of(valueDimension));
     }
     ObjectColumnSelector selector = asMetric(dimension, factory);
-    if (ValueType.STRING.equals(selector.type())) {
-      throw new UnsupportedOperationException("asDimension");
+    if (!ValueDesc.isString(selector.type())) {
+      throw new UnsupportedOperationException(dimension + " cannot be used as dimension");
     }
     return VirtualColumns.toDimensionSelector(selector);
   }

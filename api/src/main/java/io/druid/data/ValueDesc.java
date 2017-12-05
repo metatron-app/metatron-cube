@@ -28,10 +28,10 @@ import com.google.common.base.Preconditions;
 public class ValueDesc
 {
   // primitives (should be conform with ValueType.name())
-  public static final String STRING_TYPE = "STRING";
-  public static final String FLOAT_TYPE = "FLOAT";
-  public static final String DOUBLE_TYPE = "DOUBLE";
-  public static final String LONG_TYPE = "LONG";
+  public static final String STRING_TYPE = "string";
+  public static final String FLOAT_TYPE = "float";
+  public static final String DOUBLE_TYPE = "double";
+  public static final String LONG_TYPE = "long";
 
   // non primitives
   public static final String MAP_TYPE = "map";
@@ -52,10 +52,10 @@ public class ValueDesc
   public static final String DIMENSION_PREFIX = "dimension.";
 
   // primitives
-  public static ValueDesc STRING = new ValueDesc(ValueType.STRING, STRING_TYPE);
-  public static ValueDesc FLOAT = new ValueDesc(ValueType.FLOAT, FLOAT_TYPE);
-  public static ValueDesc DOUBLE = new ValueDesc(ValueType.DOUBLE, DOUBLE_TYPE);
-  public static ValueDesc LONG = new ValueDesc(ValueType.LONG, LONG_TYPE);
+  public static ValueDesc STRING = new ValueDesc(ValueType.STRING);
+  public static ValueDesc FLOAT = new ValueDesc(ValueType.FLOAT);
+  public static ValueDesc DOUBLE = new ValueDesc(ValueType.DOUBLE);
+  public static ValueDesc LONG = new ValueDesc(ValueType.LONG);
 
   // internal types
   public static ValueDesc MAP = of(MAP_TYPE);
@@ -79,12 +79,12 @@ public class ValueDesc
   public static ValueDesc ofDimension(ValueType valueType)
   {
     Preconditions.checkArgument(valueType.isPrimitive(), "complex type dimension is not allowed");
-    return of(DIMENSION_PREFIX + valueType.name());
+    return of(DIMENSION_PREFIX + valueType.toString());
   }
 
   public static ValueDesc ofMultiValued(ValueType valueType)
   {
-    return ValueDesc.of(MULTIVALUED_PREFIX + valueType.name());
+    return ValueDesc.of(MULTIVALUED_PREFIX + valueType.toString());
   }
 
   public static ValueDesc ofMultiValued(ValueDesc valueType)
@@ -94,7 +94,7 @@ public class ValueDesc
 
   public static ValueDesc ofIndexedId(ValueType valueType)
   {
-    return ValueDesc.of(INDEXED_ID_PREFIX + valueType.name());
+    return ValueDesc.of(INDEXED_ID_PREFIX + valueType.toString());
   }
 
   public static boolean isArray(ValueDesc valueType)
@@ -180,10 +180,31 @@ public class ValueDesc
   private final ValueType type;
   private final String typeName;
 
-  private ValueDesc(ValueType type, String typeName)
+  private ValueDesc(ValueType primitive)
   {
-    this.type = Preconditions.checkNotNull(type);
-    this.typeName = Preconditions.checkNotNull(typeName);
+    Preconditions.checkArgument(primitive.isPrimitive(), "should be primitive type");
+    this.type = primitive;
+    this.typeName = primitive.toString();
+  }
+
+  private ValueDesc(String typeName)
+  {
+    this.type = ValueType.of(Preconditions.checkNotNull(typeName, "typeName cannot be null"));
+    this.typeName = type.isPrimitive() ? type.toString() : normalize(typeName);
+  }
+
+  // complex types are case sensitive (same with serde-name) but primitive types are not.. fuck
+  private String normalize(String typeName)
+  {
+    ValueType valueType = ValueType.of(typeName);
+    if (valueType.isPrimitive()) {
+      return valueType.toString();
+    }
+    int index = typeName.lastIndexOf('.');
+    if (index < 0) {
+      return typeName;
+    }
+    return typeName.substring(0, index) + "." + normalize(typeName.substring(index + 1));
   }
 
   public ValueType type()
@@ -194,7 +215,7 @@ public class ValueDesc
   @JsonValue
   public String typeName()
   {
-    return type.isPrimitive() ? typeName.toUpperCase() : typeName;
+    return typeName;
   }
 
   public ValueDesc subElement()
@@ -240,12 +261,12 @@ public class ValueDesc
   @JsonCreator
   public static ValueDesc of(String typeName)
   {
-    return typeName == null ? ValueDesc.UNKNOWN : new ValueDesc(ValueType.of(typeName), typeName);
+    return typeName == null ? ValueDesc.UNKNOWN : new ValueDesc(typeName);
   }
 
   public static ValueDesc of(ValueType valueType)
   {
-    return valueType == null ? ValueDesc.UNKNOWN : new ValueDesc(valueType, valueType.name().toUpperCase());
+    return valueType == null ? ValueDesc.UNKNOWN : new ValueDesc(valueType);
   }
 
   public static boolean isMap(ValueDesc type)

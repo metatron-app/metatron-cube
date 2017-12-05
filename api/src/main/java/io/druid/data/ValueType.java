@@ -198,7 +198,7 @@ public enum ValueType
   @Override
   public String toString()
   {
-    return this.name().toUpperCase();
+    return this.name().toLowerCase();
   }
 
   @JsonCreator

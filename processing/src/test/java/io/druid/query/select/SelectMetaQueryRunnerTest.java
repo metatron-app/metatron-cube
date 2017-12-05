@@ -24,7 +24,10 @@ import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
+import com.metamx.common.Pair;
 import com.metamx.common.guava.Sequences;
+import io.druid.data.ValueDesc;
+import io.druid.data.ValueType;
 import io.druid.granularity.QueryGranularities;
 import io.druid.query.QueryRunner;
 import io.druid.query.QueryRunnerTestHelper;
@@ -63,10 +66,10 @@ public class SelectMetaQueryRunnerTest
     );
   }
 
-  private final QueryRunner runner;
+  private final QueryRunner<Result<SelectMetaResultValue>> runner;
   private final String name;
 
-  public SelectMetaQueryRunnerTest(QueryRunner runner, String name)
+  public SelectMetaQueryRunnerTest(QueryRunner<Result<SelectMetaResultValue>> runner, String name)
   {
     this.runner = runner;
     this.name = name;
@@ -95,7 +98,7 @@ public class SelectMetaQueryRunnerTest
     );
 
     List<Result<SelectMetaResultValue>> results = Sequences.toList(
-        runner.run(query, ImmutableMap.of()),
+        runner.run(query, ImmutableMap.<String, Object>of()),
         Lists.<Result<SelectMetaResultValue>>newArrayList()
     );
 
@@ -110,7 +113,7 @@ public class SelectMetaQueryRunnerTest
 
     query = query.withDimFilter(new InDimFilter("quality", Arrays.asList("mezzanine", "health"), null));
     results = Sequences.toList(
-        runner.run(query, ImmutableMap.of()),
+        runner.run(query, ImmutableMap.<String, Object>of()),
         Lists.<Result<SelectMetaResultValue>>newArrayList()
     );
     r = Iterables.getOnlyElement(results);
@@ -124,7 +127,7 @@ public class SelectMetaQueryRunnerTest
 
     query = query.withQueryGranularity(QueryGranularities.DAY);
     results = Sequences.toList(
-        runner.run(query, ImmutableMap.of()),
+        runner.run(query, ImmutableMap.<String, Object>of()),
         Lists.<Result<SelectMetaResultValue>>newArrayList()
     );
     Assert.assertEquals(2, results.size());
@@ -168,7 +171,7 @@ public class SelectMetaQueryRunnerTest
     );
 
     List<Result<SelectMetaResultValue>> results = Sequences.toList(
-        runner.run(query, ImmutableMap.of()),
+        runner.run(query, ImmutableMap.<String, Object>of()),
         Lists.<Result<SelectMetaResultValue>>newArrayList()
     );
 
@@ -184,7 +187,7 @@ public class SelectMetaQueryRunnerTest
 
     query = query.withDimFilter(new InDimFilter("quality", Arrays.asList("mezzanine", "health"), null));
     results = Sequences.toList(
-        runner.run(query, ImmutableMap.of()),
+        runner.run(query, ImmutableMap.<String, Object>of()),
         Lists.<Result<SelectMetaResultValue>>newArrayList()
     );
     Assert.assertEquals(1, results.size());
@@ -199,7 +202,7 @@ public class SelectMetaQueryRunnerTest
 
     query = query.withQueryGranularity(QueryGranularities.DAY);
     results = Sequences.toList(
-        runner.run(query, ImmutableMap.of()),
+        runner.run(query, ImmutableMap.<String, Object>of()),
         Lists.<Result<SelectMetaResultValue>>newArrayList()
     );
     Assert.assertEquals(2, results.size());
@@ -220,5 +223,35 @@ public class SelectMetaQueryRunnerTest
     Assert.assertEquals(Sets.newHashSet(metrics), Sets.newHashSet(schema.getMetricNames()));
     Assert.assertEquals(1, r.getValue().getTotalCount());
     Assert.assertEquals(incremental ? 23 : 20, r.getValue().getEstimatedSize());
+  }
+
+  @Test
+  public void testSchema()
+  {
+    SelectMetaQuery query = new SchemaQuery(
+        new TableDataSource(QueryRunnerTestHelper.dataSource),
+        new MultipleIntervalSegmentSpec(Arrays.asList(new Interval("2011-01-12/2011-01-14"))),
+        DefaultDimensionSpec.toSpec(Arrays.asList("market")),
+        metrics,
+        null,
+        Maps.<String, Object>newHashMap()
+    ).rewriteQuery(null, null);
+
+    Schema schema = Iterables.getOnlyElement(
+        Sequences.toList(
+            runner.run(query, ImmutableMap.<String, Object>of()),
+            Lists.<Result<SelectMetaResultValue>>newArrayList()
+        )
+    ).getValue().getSchema();
+
+    List<Pair<String, ValueDesc>> expected = Arrays.asList(
+        Pair.of("market", ValueDesc.ofDimension(ValueType.STRING)),
+        Pair.of("index", ValueDesc.DOUBLE),
+        Pair.of("indexMin", ValueDesc.FLOAT),
+        Pair.of("indexMaxPlusTen", ValueDesc.FLOAT),
+        Pair.of("quality_uniques", ValueDesc.of("hyperUnique"))
+    );
+    Assert.assertTrue(Iterables.elementsEqual(expected, schema.columnAndTypes()));
+    System.out.println("[SelectMetaQueryRunnerTest/testSchema] " + schema);
   }
 }

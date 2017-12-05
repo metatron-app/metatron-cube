@@ -34,6 +34,9 @@ import io.druid.query.Druids;
 import io.druid.query.QueryRunner;
 import io.druid.query.QueryRunnerTestHelper;
 import io.druid.query.Result;
+import io.druid.query.aggregation.AggregatorFactory;
+import io.druid.query.aggregation.ArrayAggregatorFactory;
+import io.druid.query.aggregation.LongSumAggregatorFactory;
 import io.druid.segment.ExprVirtualColumn;
 import io.druid.segment.IncrementalIndexSegment;
 import io.druid.segment.MapVirtualColumn;
@@ -82,6 +85,11 @@ public class MapVirtualColumnTest
     final IncrementalIndexSchema schema = new IncrementalIndexSchema.Builder()
         .withMinTimestamp(new DateTime("2011-01-12T00:00:00.000Z").getMillis())
         .withQueryGranularity(QueryGranularities.NONE)
+        .withMetrics(
+            new AggregatorFactory[]{
+                new ArrayAggregatorFactory("array", new LongSumAggregatorFactory("array", "array"), -1)
+            }
+        )
         .build();
     final IncrementalIndex index = new OnheapIncrementalIndex(schema, true, 10000);
 
@@ -91,15 +99,15 @@ public class MapVirtualColumnTest
             new DimensionsSpec(DimensionsSpec.getDefaultSchemas(Arrays.asList("dim", "keys", "values")), null, null),
             "\t",
             ",",
-            Arrays.asList("ts", "dim", "keys", "values")
+            Arrays.asList("ts", "dim", "keys", "values", "array")
         )
         , "utf8"
     );
 
     CharSource input = CharSource.wrap(
-        "2011-01-12T00:00:00.000Z\ta\tkey1,key2,key3\tvalue1,value2,value3\n" +
-        "2011-01-12T00:00:00.001Z\t\tkey4,key5,key6\tvalue4\n" +
-        "2011-01-12T00:00:00.002Z\tc\tkey1,key5\tvalue1,value5,value9\n"
+        "2011-01-12T00:00:00.000Z\ta\tkey1,key2,key3\tvalue1,value2,value3\t100,200,300\n" +
+        "2011-01-12T00:00:00.001Z\t\tkey4,key5,key6\tvalue4\t100,500,900\n" +
+        "2011-01-12T00:00:00.002Z\tc\tkey1,key5\tvalue1,value5,value9\t400,500,600\n"
     );
 
     IncrementalIndex index1 = TestIndex.loadIncrementalIndex(index, input, parser);
@@ -164,11 +172,49 @@ public class MapVirtualColumnTest
         new MapVirtualColumn("keys", "values", null, "params"),
         new ExprVirtualColumn("nvl(dim, 'null')", "dim_nvl")
     );
-    SelectQuery selectQuery = builder.dimensions(Arrays.asList("dim"))
-                                     .metrics(Arrays.asList("params.key1", "params.key3", "params.key5", "params", "dim_nvl"))
+    SelectQuery selectQuery = builder.dimensions(Arrays.asList("dim", "params.key1"))
+                                     .metrics(Arrays.asList("params.key3", "params.key5", "params", "dim_nvl"))
                                      .virtualColumns(virtualColumns)
                                      .build();
     checkSelectQuery(selectQuery, expectedResults);
+  }
+
+  @Test(expected = UnsupportedOperationException.class)
+  public void testException1() throws Exception
+  {
+    Druids.SelectQueryBuilder builder = testBuilder();
+    List<VirtualColumn> virtualColumns = Arrays.<VirtualColumn>asList(
+        new MapVirtualColumn("keys", "values", null, "params")
+    );
+    // cannot use map type as dimension
+    SelectQuery selectQuery = builder.dimensions(Arrays.asList("params"))
+                                     .virtualColumns(virtualColumns)
+                                     .build();
+    System.out.println(
+        Sequences.toList(
+            runner.run(selectQuery, ImmutableMap.of()),
+            Lists.<Result<SelectResultValue>>newArrayList()
+        )
+    );
+  }
+
+  @Test(expected = UnsupportedOperationException.class)
+  public void testException2() throws Exception
+  {
+    Druids.SelectQueryBuilder builder = testBuilder();
+    List<VirtualColumn> virtualColumns = Arrays.<VirtualColumn>asList(
+        new MapVirtualColumn("keys", null, "array", "params")
+    );
+    // cannot use non-string type as dimension
+    SelectQuery selectQuery = builder.dimensions(Arrays.asList("params.key1"))
+                                     .virtualColumns(virtualColumns)
+                                     .build();
+    System.out.println(
+        Sequences.toList(
+            runner.run(selectQuery, ImmutableMap.of()),
+            Lists.<Result<SelectResultValue>>newArrayList()
+        )
+    );
   }
 
   private Map mapOf(Object... elements)
