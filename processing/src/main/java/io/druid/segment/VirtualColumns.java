@@ -97,6 +97,11 @@ public class VirtualColumns implements Iterable<VirtualColumn>
     return new VirtualColumns(asMap(virtualColumns));
   }
 
+  public static VirtualColumns valueOf(List<VirtualColumn> virtualColumns, StorageAdapter adapter)
+  {
+    return valueOf(virtualColumns).addImplicitVCs(adapter);
+  }
+
   public static DimensionSelector toDimensionSelector(final ObjectColumnSelector selector)
   {
     if (selector == null) {
@@ -406,15 +411,10 @@ public class VirtualColumns implements Iterable<VirtualColumn>
     this.virtualColumns = virtualColumns;
   }
 
-  public void addVirtualColumn(VirtualColumn vc)
-  {
-    virtualColumns.put(vc.getOutputName(), vc);
-  }
-
   public VirtualColumn getVirtualColumn(String dimension)
   {
     VirtualColumn vc = virtualColumns.get(dimension);
-    for (int i = dimension.length(); vc == null && i > 0;) {
+    for (int i = dimension.length(); vc == null && i > 0; ) {
       int index = dimension.lastIndexOf('.', i - 1);
       if (index > 0) {
         vc = virtualColumns.get(dimension.substring(0, index));
@@ -427,5 +427,15 @@ public class VirtualColumns implements Iterable<VirtualColumn>
   public Set<String> getVirtualColumnNames()
   {
     return ImmutableSet.copyOf(virtualColumns.keySet());
+  }
+
+  public VirtualColumns addImplicitVCs(StorageAdapter adapter)
+  {
+    for (String metric : adapter.getAvailableMetrics()) {
+      if (!virtualColumns.containsKey(metric) && ValueDesc.isArray(adapter.getColumnType(metric))) {
+        virtualColumns.put(metric, ArrayVirtualColumn.implicit(metric));  // implicit array vc
+      }
+    }
+    return this;
   }
 }

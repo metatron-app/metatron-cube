@@ -196,18 +196,18 @@ public class ViewSupportHelper
 
   public static Schema toSchema(Query.MetricSupport<?> query, Segment segment)
   {
+    final StorageAdapter adapter = segment.asStorageAdapter(false);
     final List<String> dimensions = DimensionSpecs.toOutputNames(query.getDimensions());
     final List<String> metrics = Lists.newArrayList(query.getMetrics());
-    final VirtualColumns virtualColumns = VirtualColumns.valueOf(query.getVirtualColumns());
 
-    final RowResolver resolver = new RowResolver(segment.asStorageAdapter(false), virtualColumns);
+    final VirtualColumns virtualColumns = VirtualColumns.valueOf(query.getVirtualColumns(), adapter);
+    final RowResolver resolver = new RowResolver(adapter, virtualColumns);
 
     final List<ValueDesc> columnTypes = Lists.newArrayList();
     for (String columnName : Iterables.concat(dimensions, metrics)) {
       columnTypes.add(resolver.resolveColumn(columnName, ValueDesc.UNKNOWN));
     }
     List<AggregatorFactory> aggregators = Lists.newArrayList();
-    StorageAdapter adapter = segment.asStorageAdapter(false);
     if (adapter.getMetadata() != null && adapter.getMetadata().getAggregators() != null) {
       Map<String, AggregatorFactory> factoryMap = Maps.newHashMap();
       for (AggregatorFactory aggregator : adapter.getMetadata().getAggregators()) {

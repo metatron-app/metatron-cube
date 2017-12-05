@@ -265,7 +265,7 @@ public class IncrementalIndexStorageAdapterTest
       Sequence<Cursor> cursorSequence = adapter.makeCursors(
           new SelectorDimFilter("sally", "bo", null),
           interval,
-          null,
+          VirtualColumns.empty(),
           QueryGranularities.NONE,
           null, descending
       );

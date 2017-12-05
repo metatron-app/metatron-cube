@@ -34,6 +34,7 @@ public interface QueryableIndex extends ColumnSelector, Closeable
   public int getNumRows();
   public Indexed<String> getAvailableDimensions();
   public BitmapFactory getBitmapFactoryForDimensions();
+  public Iterable<String> getAvailableMetrics();
   public Metadata getMetadata();
 
   /**

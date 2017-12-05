@@ -244,6 +244,7 @@ public class MapVirtualColumnTest
             "access.2", 600L
         )
     );
+    // access via explicit vc
     Druids.SelectQueryBuilder builder = testBuilder();
     List<VirtualColumn> virtualColumns = Arrays.<VirtualColumn>asList(
         new ArrayVirtualColumn("array", "access")
@@ -252,6 +253,36 @@ public class MapVirtualColumnTest
                                      .metrics(Arrays.asList("access", "access.0", "access.1", "access.2"))
                                      .virtualColumns(virtualColumns)
                                      .build();
+    checkSelectQuery(selectQuery, expectedResults);
+
+    // access via implicit vc
+    expectedResults = Arrays.<Map>asList(
+        mapOf(
+            "dim", "a",
+            "array", Arrays.asList(100L, 200L, 300L),
+            "array.0", 100L,
+            "array.1", 200L,
+            "array.2", 300L
+        ),
+        mapOf(
+            "dim", null,
+            "array", Arrays.asList(100L, 500L, 900L),
+            "array.0", 100L,
+            "array.1", 500L,
+            "array.2", 900L
+        ),
+        mapOf(
+            "dim", "c",
+            "array", Arrays.asList(400L, 500L, 600L),
+            "array.0", 400L,
+            "array.1", 500L,
+            "array.2", 600L
+        )
+    );
+
+    selectQuery = builder.dimensions(Arrays.asList("dim"))
+                         .metrics(Arrays.asList("array", "array.0", "array.1", "array.2"))
+                         .build();
     checkSelectQuery(selectQuery, expectedResults);
   }
 

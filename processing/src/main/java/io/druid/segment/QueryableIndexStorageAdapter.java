@@ -243,6 +243,8 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
       return Sequences.empty();
     }
 
+    virtualColumns.addImplicitVCs(this);
+
     if (actualInterval.getStart().isBefore(dataInterval.getStart())) {
       actualInterval = actualInterval.withStart(dataInterval.getStart());
     }

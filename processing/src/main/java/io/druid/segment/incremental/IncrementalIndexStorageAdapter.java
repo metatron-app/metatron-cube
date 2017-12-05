@@ -250,12 +250,15 @@ public class IncrementalIndexStorageAdapter implements StorageAdapter
       return Sequences.empty();
     }
 
+    virtualColumns.addImplicitVCs(this);
+
     final Interval actualInterval = interval.overlap(dataInterval);
 
     Iterable<Interval> iterable = gran.getIterable(actualInterval);
     if (descending) {
       iterable = Lists.reverse(ImmutableList.copyOf(iterable));
     }
+
     final RowResolver resolver = new RowResolver(this, virtualColumns);
 
     return Sequences.map(

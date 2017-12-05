@@ -57,12 +57,12 @@ public class SegmentAnalyzer
   {
     Preconditions.checkNotNull(segment, "segment");
     final EnumSet<AnalysisType> analysisTypes = query.getAnalysisTypes();
-    final VirtualColumns vcs = VirtualColumns.valueOf(query.getVirtualColumns());
-    final RowResolver resolver = RowResolver.of(segment, vcs);
-
     // index is null for incremental-index-based segments, but storageAdapter is always available
     final QueryableIndex index = segment.asQueryableIndex(false);
     final StorageAdapter adapter = segment.asStorageAdapter(false);
+
+    final VirtualColumns vcs = VirtualColumns.valueOf(query.getVirtualColumns(), adapter);
+    final RowResolver resolver = RowResolver.of(segment, vcs);
 
     final ColumnIncluderator predicate = query.getToInclude();
 

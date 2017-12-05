@@ -20,6 +20,7 @@
 package io.druid.segment;
 
 import com.google.common.base.Preconditions;
+import com.google.common.collect.Sets;
 import com.metamx.collections.bitmap.BitmapFactory;
 import com.metamx.common.io.smoosh.SmooshedFileMapper;
 import io.druid.data.ValueDesc;
@@ -74,6 +75,12 @@ public class SimpleQueryableIndex implements QueryableIndex
   public int getNumRows()
   {
     return columns.get(Column.TIME_COLUMN_NAME).getLength();
+  }
+
+  @Override
+  public Iterable<String> getAvailableMetrics()
+  {
+    return Sets.difference(Sets.newHashSet(columnNames), Sets.newHashSet(availableDimensions));
   }
 
   @Override

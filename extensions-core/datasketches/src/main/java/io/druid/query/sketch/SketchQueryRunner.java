@@ -90,13 +90,15 @@ public class SketchQueryRunner implements QueryRunner<Result<Map<String, Object>
 
     final List<DimensionSpec> dimensions = query.getDimensions();
     final List<String> metrics = query.getMetrics();
-    final VirtualColumns vcs = VirtualColumns.valueOf(query.getVirtualColumns());
     final DimFilter filter = query.getFilter();
     final int sketchParam = query.getSketchParam();
     final SketchHandler<?> handler = query.getSketchOp().handler();
 
     // Closing this will cause segfaults in unit tests.
     final QueryableIndex index = segment.asQueryableIndex(true);
+    final StorageAdapter adapter = segment.asStorageAdapter(true);
+
+    final VirtualColumns vcs = VirtualColumns.valueOf(query.getVirtualColumns(), adapter);
     final RowResolver resolver = RowResolver.of(index, vcs);
 
     Map<String, TypedSketch> unions = Maps.newLinkedHashMap();
@@ -133,7 +135,6 @@ public class SketchQueryRunner implements QueryRunner<Result<Map<String, Object>
         unions.put(spec.getOutputName(), calculate);
       }
     } else {
-      final StorageAdapter adapter = segment.asStorageAdapter(true);
       final Sequence<Cursor> cursors = adapter.makeCursors(
           filter, segment.getDataInterval(), vcs, QueryGranularities.ALL, null, false
       );

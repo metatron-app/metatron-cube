@@ -49,6 +49,7 @@ import io.druid.query.aggregation.LongSumAggregatorFactory;
 import io.druid.query.aggregation.cardinality.CardinalityAggregatorFactory;
 import io.druid.query.dimension.DefaultDimensionSpec;
 import io.druid.query.filter.InDimFilter;
+import io.druid.segment.ArrayVirtualColumn;
 import io.druid.segment.ExprVirtualColumn;
 import io.druid.segment.IncrementalIndexSegment;
 import io.druid.segment.KeyIndexedVirtualColumn;
@@ -355,6 +356,47 @@ public class VirtualColumnTest
         )
         .setVirtualColumns(virtualColumns)
         .build();
+    checkQueryResult(query, expectedResults);
+  }
+
+  @Test
+  public void testArrayVC() throws Exception
+  {
+    GroupByQuery.Builder builder = testBuilder();
+
+    // implicit
+    List<Row> expectedResults = GroupByQueryRunnerTestHelper.createExpectedRows(
+        new String[]{"__time", "dim", "sumOfArray0", "sumOfArray1", "sumOfArray2"},
+        new Object[]{"2011-01-12T00:00:00.000Z", null, 12L, 24L, 38L},
+        new Object[]{"2011-01-12T00:00:00.000Z", "a", 500L, 700L, 900L},
+        new Object[]{"2011-01-12T00:00:00.000Z", "c", 101L, 505L, 909L}
+    );
+    GroupByQuery query = builder
+        .setDimensions(DefaultDimensionSpec.toSpec("dim"))
+        .setAggregatorSpecs(
+            Arrays.<AggregatorFactory>asList(
+                new LongSumAggregatorFactory("sumOfArray0", "array.0"),
+                new LongSumAggregatorFactory("sumOfArray1", "array.1"),
+                new LongSumAggregatorFactory("sumOfArray2", "array.2")
+            )
+        )
+        .build();
+
+    checkQueryResult(query, expectedResults);
+
+    // explicit
+    query = builder
+        .setDimensions(DefaultDimensionSpec.toSpec("dim"))
+        .setVirtualColumns(Arrays.<VirtualColumn>asList(new ArrayVirtualColumn("array", "access")))
+        .setAggregatorSpecs(
+            Arrays.<AggregatorFactory>asList(
+                new LongSumAggregatorFactory("sumOfArray0", "access.0"),
+                new LongSumAggregatorFactory("sumOfArray1", "access.1"),
+                new LongSumAggregatorFactory("sumOfArray2", "access.2")
+            )
+        )
+        .build();
+
     checkQueryResult(query, expectedResults);
   }
 

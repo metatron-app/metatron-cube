@@ -91,7 +91,20 @@ public class SearchQueryEngine
       final boolean merge
   )
   {
-    final SearchQuery query = (SearchQuery) ViewSupportHelper.rewrite(baseQuery, segment.asStorageAdapter(true));
+    // Closing this will cause segfaults in unit tests.
+    final QueryableIndex index = segment.asQueryableIndex(true);
+    final StorageAdapter adapter = segment.asStorageAdapter(true);
+    if (adapter == null) {
+      log.makeAlert("WTF!? Unable to process search query on segment.")
+         .addData("segment", segment.getIdentifier())
+         .addData("query", baseQuery).emit();
+      throw new ISE(
+          "Null storage adapter found. Probably trying to issue a query against a segment being memory unmapped."
+      );
+    }
+    final String segmentId = segment.getIdentifier();
+
+    final SearchQuery query = (SearchQuery) ViewSupportHelper.rewrite(baseQuery, adapter);
 
     final DimFilter filter = query.getDimensionsFilter();
     final List<DimensionSpec> dimensions = query.getDimensions();
@@ -105,11 +118,7 @@ public class SearchQueryEngine
     final Comparator<SearchHit> resultComparator = sort.getResultComparator();
     final boolean needsFullScan = limit < 0 || (!query.isValueOnly() && sort.sortOnCount());
 
-    // Closing this will cause segfaults in unit tests.
-    final QueryableIndex index = segment.asQueryableIndex(false);
-    final String segmentId = segment.getIdentifier();
-
-    final VirtualColumns vcs = VirtualColumns.valueOf(query.getVirtualColumns());
+    final VirtualColumns vcs = VirtualColumns.valueOf(query.getVirtualColumns(), adapter);
     final RowResolver resolver = RowResolver.of(index, vcs);
 
     final DateTime timestamp = segment.getDataInterval().getStart();
@@ -175,17 +184,6 @@ public class SearchQueryEngine
       }
 
       return makeReturnResult(retVal, comparator, resultComparator, timestamp, merge, limit);
-    }
-
-    final StorageAdapter adapter = segment.asStorageAdapter(false);
-
-    if (adapter == null) {
-      log.makeAlert("WTF!? Unable to process search query on segment.")
-         .addData("segment", segment.getIdentifier())
-         .addData("query", query).emit();
-      throw new ISE(
-          "Null storage adapter found. Probably trying to issue a query against a segment being memory unmapped."
-      );
     }
 
     final Sequence<Cursor> cursors = adapter.makeCursors(
