@@ -66,6 +66,11 @@ public class HadoopIOConfig implements IOConfig
     return segmentOutputPath;
   }
 
+  public HadoopIOConfig withPathSpec(Map<String, Object> pathSpec)
+  {
+    return new HadoopIOConfig(pathSpec, metadataUpdateSpec, segmentOutputPath);
+  }
+
   public HadoopIOConfig withSegmentOutputPath(String path)
   {
     return new HadoopIOConfig(pathSpec, metadataUpdateSpec, path);

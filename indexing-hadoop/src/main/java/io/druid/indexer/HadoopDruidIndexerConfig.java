@@ -21,7 +21,6 @@ package io.druid.indexer;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonIgnore;
-import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -53,6 +52,7 @@ import io.druid.indexer.partitions.PartitionsSpec;
 import io.druid.indexer.path.PartitionPathSpec;
 import io.druid.indexer.path.PathSpec;
 import io.druid.initialization.Initialization;
+import io.druid.jackson.DefaultObjectMapper;
 import io.druid.segment.IndexIO;
 import io.druid.segment.IndexMerger;
 import io.druid.segment.IndexMergerV9;
@@ -210,7 +210,7 @@ public class HadoopDruidIndexerConfig
 
   public static HadoopDruidIndexerConfig fromConfiguration(Configuration conf)
   {
-    final HadoopDruidIndexerConfig retVal = fromString(conf.get(HadoopDruidIndexerConfig.CONFIG_PROPERTY));
+    final HadoopDruidIndexerConfig retVal = fromString(conf.get(CONFIG_PROPERTY));
     retVal.verify();
     return retVal;
   }
@@ -222,12 +222,22 @@ public class HadoopDruidIndexerConfig
   private final Granularity rollupGran;
 
   @JsonCreator
+  @SuppressWarnings("unchecked")
   public HadoopDruidIndexerConfig(
-      final @JsonProperty("spec") HadoopIngestionSpec spec
+      @JsonProperty("spec") HadoopIngestionSpec spec
   )
   {
+    PathSpec pathSpec = JSON_MAPPER.convertValue(spec.getIOConfig().getPathSpec(), PathSpec.class);
+    if (pathSpec instanceof PathSpec.Resolving) {
+      pathSpec = ((PathSpec.Resolving) pathSpec).resolve();
+      spec = spec.withIOConfig(
+          spec.getIOConfig().withPathSpec(
+              DefaultObjectMapper.excludeNulls(JSON_MAPPER).convertValue(pathSpec, Map.class)
+          )
+      );
+    }
     this.schema = spec;
-    this.pathSpec = JSON_MAPPER.convertValue(spec.getIOConfig().getPathSpec(), PathSpec.class);
+    this.pathSpec = pathSpec;
     for (Map.Entry<Long, List<HadoopyShardSpec>> entry : spec.getTuningConfig().getShardSpecs().entrySet()) {
       if (entry.getValue() == null || entry.getValue().isEmpty()) {
         continue;
@@ -581,7 +591,7 @@ public class HadoopDruidIndexerConfig
     Configuration conf = job.getConfiguration();
 
     try {
-      conf.set(HadoopDruidIndexerConfig.CONFIG_PROPERTY, HadoopDruidIndexerConfig.JSON_MAPPER.writeValueAsString(this));
+      conf.set(CONFIG_PROPERTY, JSON_MAPPER.writeValueAsString(this));
     }
     catch (IOException e) {
       throw Throwables.propagate(e);
@@ -590,7 +600,7 @@ public class HadoopDruidIndexerConfig
 
   public void verify()
   {
-    final ObjectMapper mapper = JSON_MAPPER.copy().setSerializationInclusion(JsonInclude.Include.NON_EMPTY);
+    final ObjectMapper mapper = DefaultObjectMapper.excludeNulls(JSON_MAPPER);
 
     try {
       log.info("Running with config:%n%s", mapper.writerWithDefaultPrettyPrinter().writeValueAsString(this));

@@ -28,17 +28,22 @@ import java.io.IOException;
 
 /**
  */
-@JsonTypeInfo(use= JsonTypeInfo.Id.NAME, property="type")
-@JsonSubTypes(value={
-    @JsonSubTypes.Type(name="granular_unprocessed", value=GranularUnprocessedPathSpec.class),
-    @JsonSubTypes.Type(name="granularity", value=GranularityPathSpec.class),
-    @JsonSubTypes.Type(name="static", value=StaticPathSpec.class),
-    @JsonSubTypes.Type(name="hynix", value=HynixPathSpec.class),
-    @JsonSubTypes.Type(name="dataSource", value=DatasourcePathSpec.class),
-    @JsonSubTypes.Type(name="multi", value=MultiplePathSpec.class),
-    @JsonSubTypes.Type(name="partition", value=PartitionPathSpec.class)
+@JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
+@JsonSubTypes(value = {
+    @JsonSubTypes.Type(name = "granular_unprocessed", value = GranularUnprocessedPathSpec.class),
+    @JsonSubTypes.Type(name = "granularity", value = GranularityPathSpec.class),
+    @JsonSubTypes.Type(name = "static", value = StaticPathSpec.class),
+    @JsonSubTypes.Type(name = "hynix", value = HynixPathSpec.class),
+    @JsonSubTypes.Type(name = "dataSource", value = DatasourcePathSpec.class),
+    @JsonSubTypes.Type(name = "multi", value = MultiplePathSpec.class),
+    @JsonSubTypes.Type(name = "partition", value = PartitionPathSpec.class)
 })
 public interface PathSpec
 {
-  public Job addInputPaths(HadoopDruidIndexerConfig config, Job job) throws IOException;
+  Job addInputPaths(HadoopDruidIndexerConfig config, Job job) throws IOException;
+
+  interface Resolving extends PathSpec
+  {
+    PathSpec resolve();
+  }
 }

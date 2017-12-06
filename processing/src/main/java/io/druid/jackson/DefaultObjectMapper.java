@@ -19,6 +19,7 @@
 
 package io.druid.jackson;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.core.JsonFactory;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.MapperFeature;
@@ -64,5 +65,10 @@ public class DefaultObjectMapper extends ObjectMapper
   public ObjectMapper copy()
   {
     return new DefaultObjectMapper(this);
+  }
+
+  public static ObjectMapper excludeNulls(ObjectMapper mapper)
+  {
+    return mapper.copy().setSerializationInclusion(JsonInclude.Include.NON_EMPTY);
   }
 }
