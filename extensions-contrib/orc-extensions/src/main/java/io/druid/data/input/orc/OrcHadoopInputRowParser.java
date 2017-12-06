@@ -29,19 +29,22 @@ import com.metamx.common.logger.Logger;
 import io.druid.data.input.InputRow;
 import io.druid.data.input.MapBasedInputRow;
 import io.druid.data.input.TimestampSpec;
+import io.druid.data.input.impl.DefaultTimestampSpec;
 import io.druid.data.input.impl.DimensionSchema;
 import io.druid.data.input.impl.DimensionsSpec;
 import io.druid.data.input.impl.InputRowParser;
 import io.druid.data.input.impl.ParseSpec;
 import io.druid.data.input.impl.StringDimensionSchema;
 import io.druid.data.input.impl.TimeAndDimsParseSpec;
-import io.druid.data.input.impl.DefaultTimestampSpec;
 import io.druid.indexer.hadoop.HadoopAwareParser;
 import io.druid.indexer.path.HynixCombineInputFormat;
 import org.apache.commons.lang.StringUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.hive.common.type.HiveChar;
+import org.apache.hadoop.hive.common.type.HiveDecimal;
+import org.apache.hadoop.hive.common.type.HiveVarchar;
 import org.apache.hadoop.hive.ql.io.orc.OrcFile;
 import org.apache.hadoop.hive.ql.io.orc.OrcNewInputFormat;
 import org.apache.hadoop.hive.ql.io.orc.OrcSerde;
@@ -69,6 +72,7 @@ import org.joda.time.DateTime;
 
 import javax.annotation.Nullable;
 import java.io.IOException;
+import java.sql.Timestamp;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
@@ -132,7 +136,7 @@ public class OrcHadoopInputRowParser implements HadoopAwareParser<OrcStruct>
           PrimitiveObjectInspector primitiveObjectInspector = (PrimitiveObjectInspector) objectInspector;
           map.put(
               field.getFieldName(),
-              primitiveObjectInspector.getPrimitiveJavaObject(oip.getStructFieldData(input, field))
+              getDatum(primitiveObjectInspector, oip.getStructFieldData(input, field))
           );
           break;
         case LIST:  // array case - only 1-depth array supported yet
@@ -151,6 +155,25 @@ public class OrcHadoopInputRowParser implements HadoopAwareParser<OrcStruct>
     return new MapBasedInputRow(timestamp, dimensions, map);
   }
 
+  private Object getDatum(PrimitiveObjectInspector inspector, Object field)
+  {
+    Object datum = inspector.getPrimitiveJavaObject(field);
+    if (datum == null) {
+      return null;
+    }
+    final PrimitiveObjectInspector.PrimitiveCategory category = inspector.getPrimitiveCategory();
+    if (category == PrimitiveObjectInspector.PrimitiveCategory.CHAR) {
+      datum = ((HiveChar) datum).getValue();
+    } else if (category == PrimitiveObjectInspector.PrimitiveCategory.VARCHAR) {
+      datum = ((HiveVarchar) datum).getValue();
+    } else if (category == PrimitiveObjectInspector.PrimitiveCategory.DECIMAL) {
+      datum = ((HiveDecimal) datum).bigDecimalValue();
+    } else if (category == PrimitiveObjectInspector.PrimitiveCategory.TIMESTAMP) {
+      datum = ((Timestamp) datum).getTime();
+    }
+    return datum;
+  }
+
   private StructObjectInspector getObjectInspector()
   {
     if (staticInspector != null) {
@@ -163,7 +186,7 @@ public class OrcHadoopInputRowParser implements HadoopAwareParser<OrcStruct>
     } else if (split instanceof FileSplit) {
       path = ((FileSplit)split).getPath();
     } else {
-      throw new IllegalArgumentException("Cannot access path in split " + split);  
+      throw new IllegalArgumentException("Cannot access path in split " + split);
     }
     if (currentPath == null || !Objects.equals(currentPath, path)) {
       try {
@@ -212,7 +235,7 @@ public class OrcHadoopInputRowParser implements HadoopAwareParser<OrcStruct>
           @Nullable
           @Override
           public Object apply(@Nullable Object input) {
-            return primitiveObjectInspector.getPrimitiveJavaObject(input);
+            return getDatum(primitiveObjectInspector, input);
           }
         });
         break;
