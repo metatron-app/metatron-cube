@@ -40,13 +40,13 @@ public class HynixPathSpecElement
 
   @JsonCreator
   public HynixPathSpecElement(
-      @JsonProperty("paths") String path,
+      @JsonProperty("paths") String paths,
       @JsonProperty("dataSource") String dataSource,
       @JsonProperty("inputFormat") Class<? extends InputFormat> inputFormat,
       @JsonProperty("interval") Interval interval
   )
   {
-    this.paths = Preconditions.checkNotNull(path, "path should not be null");
+    this.paths = Preconditions.checkNotNull(paths, "path should not be null");
     this.dataSource = dataSource;
     this.inputFormat = inputFormat;
     this.interval = interval;
@@ -74,6 +74,16 @@ public class HynixPathSpecElement
   public Interval getInterval()
   {
     return interval;
+  }
+
+  public HynixPathSpecElement withPaths(String paths)
+  {
+    return new HynixPathSpecElement(paths, dataSource, inputFormat, interval);
+  }
+
+  public HynixPathSpecElement withDataSource(String dataSource)
+  {
+    return new HynixPathSpecElement(paths, dataSource, inputFormat, interval);
   }
 
   @Override

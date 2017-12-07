@@ -19,10 +19,12 @@
 
 package io.druid.indexer.path;
 
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.metamx.common.logger.Logger;
+import io.druid.indexer.HadoopDruidIndexerConfig;
 import io.druid.indexer.hadoop.DatasourceInputFormat;
 import io.druid.indexer.hadoop.InputFormatWrapper;
 import org.apache.hadoop.conf.Configuration;
@@ -56,6 +58,10 @@ import java.util.Map;
 public class HynixCombineInputFormat extends FileInputFormat
 {
   private static final Logger log = new Logger(HynixCombineInputFormat.class);
+
+  public static final int COMBINE_PER_ELEMENT = 0;
+  public static final int NO_COMBINE = -1;
+
   public static final ThreadLocal<String> CURRENT_DATASOURCE = new ThreadLocal<>();
   public static final ThreadLocal<Path> CURRENT_PATH = new ThreadLocal<>();
   public static final ThreadLocal<Map<String, String>> CURRENT_PARTITION = new ThreadLocal<>();
@@ -66,35 +72,42 @@ public class HynixCombineInputFormat extends FileInputFormat
   protected boolean isSplitable(JobContext context, Path file)
   {
     if (splitable == null) {
-      Class clazz = getInputFormatClass(context.getConfiguration());
-      if (TextInputFormat.class.isAssignableFrom(clazz) ||
-          org.apache.hadoop.mapred.TextInputFormat.class.isAssignableFrom(clazz)) {
-        CompressionCodec codec = new CompressionCodecFactory(context.getConfiguration()).getCodec(file);
-        return splitable = codec == null || codec instanceof SplittableCompressionCodec;
-      } else {
-        splitable = false;
+      Configuration configuration = context.getConfiguration();
+      if (configuration.getLong(HynixPathSpec.SPLIT_SIZE, COMBINE_PER_ELEMENT) != COMBINE_PER_ELEMENT) {
+        Class clazz = getInputFormatClass(configuration);
+        if (TextInputFormat.class.isAssignableFrom(clazz) ||
+            org.apache.hadoop.mapred.TextInputFormat.class.isAssignableFrom(clazz)) {
+          CompressionCodec codec = new CompressionCodecFactory(configuration).getCodec(file);
+          return splitable = codec == null || codec instanceof SplittableCompressionCodec;
+        }
       }
+      splitable = false;
     }
     return splitable;
   }
 
   @Override
+  @SuppressWarnings("unchecked")
   public List<InputSplit> getSplits(JobContext context) throws IOException
   {
     Configuration conf = context.getConfiguration();
 
     // splitSize < 0 : no combine, splitSize == 0 : combine per elements
-    final long splitSize = conf.getLong(HynixPathSpec.SPLIT_SIZE, 0);
+    final long splitSize = conf.getLong(HynixPathSpec.SPLIT_SIZE, COMBINE_PER_ELEMENT);
     log.info("Start splitting on target size %,d", splitSize);
 
+    List<HynixPathSpecElement> elements = HadoopDruidIndexerConfig.JSON_MAPPER.readValue(
+        conf.get(HynixPathSpec.PATH_ELEMENTS_JSON), new TypeReference<List<HynixPathSpecElement>>() { }
+    );
+
     Map<String, List<String>> dsPathMap = Maps.newLinkedHashMap();
-    for (String specString : conf.get(HynixPathSpec.PATH_SPECS).split(",")) {
-      String[] spec = specString.split(";");
-      List<String> paths = dsPathMap.get(spec[0]);
+    for (HynixPathSpecElement element : elements) {
+      String dataSource = element.getDataSource();
+      List<String> paths = dsPathMap.get(dataSource);
       if (paths == null) {
-        dsPathMap.put(spec[0], paths = Lists.newArrayList());
+        dsPathMap.put(dataSource, paths = Lists.newArrayList());
       }
-      paths.add(spec[1]);
+      paths.add(element.getPaths());
     }
     Job cloned = Job.getInstance(conf);
 
@@ -104,12 +117,10 @@ public class HynixCombineInputFormat extends FileInputFormat
     Map<String, List<FileSplit>> combined = Maps.newHashMap();
     for (Map.Entry<String, List<String>> entry : dsPathMap.entrySet()) {
       String dataSource = entry.getKey();
-      FileInputFormat.setInputPaths(cloned, StringUtils.join(",", entry.getValue()));
-      List<FileSplit> splits = super.getSplits(cloned);
-      if (splitSize == 0) {
-        Map<String, List<FileSplit>> compact = compact(ImmutableMap.of(dataSource, splits));
-        if (!compact.isEmpty()) {
-          result.add(new HynixSplit(compact));
+      if (splitSize == COMBINE_PER_ELEMENT) {
+        for (String paths : entry.getValue()) {
+          FileInputFormat.setInputPaths(cloned, paths);
+          result.add(new HynixSplit(ImmutableMap.<String, List<InputSplit>>of(dataSource, super.getSplits(cloned))));
         }
         continue;
       }
@@ -117,6 +128,8 @@ public class HynixCombineInputFormat extends FileInputFormat
       if (splitList == null) {
         combined.put(dataSource, splitList = Lists.newArrayList());
       }
+      FileInputFormat.setInputPaths(cloned, StringUtils.join(",", entry.getValue()));
+      List<FileSplit> splits = super.getSplits(cloned);
       for (FileSplit split : splits) {
         splitList.add(split);
         currentSize += split.getLength();

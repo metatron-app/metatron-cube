@@ -21,13 +21,13 @@ package io.druid.indexer.path;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 import com.metamx.common.logger.Logger;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.common.utils.StringUtils;
 import io.druid.indexer.HadoopDruidIndexerConfig;
+import io.druid.jackson.DefaultObjectMapper;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.mapreduce.InputFormat;
 import org.apache.hadoop.mapreduce.Job;
@@ -43,9 +43,9 @@ import java.util.Objects;
  */
 public class HynixPathSpec implements PathSpec
 {
-  private static final int DEFAULT_SPLIT_SIZE = 0;
+  public static final int DEFAULT_SPLIT_SIZE = HynixCombineInputFormat.COMBINE_PER_ELEMENT;
 
-  public static final String PATH_SPECS = "hynix.input.path.specs";
+  public static final String PATH_ELEMENTS_JSON = "hynix.input.path.elements";
   public static final String INPUT_FORMAT_OLD = "hynix.input.path.specs.format.old";
   public static final String INPUT_FORMAT_NEW = "hynix.input.path.specs.format.new";
   public static final String SPLIT_SIZE = "hynix.input.path.specs.split.size";
@@ -143,7 +143,6 @@ public class HynixPathSpec implements PathSpec
   @Override
   public Job addInputPaths(HadoopDruidIndexerConfig config, Job job) throws IOException
   {
-    String schemaDataSource = config.getDataSource();
     if (properties != null && !properties.isEmpty()) {
       for (Map.Entry<String, Object> entry : properties.entrySet()) {
         Object value = entry.getValue();
@@ -172,23 +171,30 @@ public class HynixPathSpec implements PathSpec
       }
     }
 
-    List<String> paths = Lists.newArrayList();
-    StringBuilder builder = new StringBuilder();
+    String dataSource = config.getDataSource();
+
+    List<String> paths = Lists.newArrayList();  // needed for some reason but I've forgot
+    List<HynixPathSpecElement> rewritten = Lists.newArrayList();
     for (HynixPathSpecElement element : elements) {
-      String dataSource = Optional.fromNullable(element.getDataSource()).or(schemaDataSource);
+      StringBuilder elementPaths = new StringBuilder();
       for (String path : HadoopGlobPathSplitter.splitGlob(element.getPaths())) {
-        if (builder.length() > 0) {
-          builder.append(',');
+        path = basePath == null ? path : basePath + "/" + path;
+        if (elementPaths.length() > 0) {
+          elementPaths.append(',');
         }
-        if (basePath != null) {
-          path = basePath + "/" + path;
-        }
-        builder.append(dataSource).append(';').append(path);
+        elementPaths.append(path);
         paths.add(path);
       }
+      element = element.withPaths(elementPaths.toString());
+      if (element.getDataSource() == null) {
+        element = element.withDataSource(dataSource);
+      }
+      rewritten.add(element);
     }
-    // ds1;path1,ds1;path2,ds2;path3
-    job.getConfiguration().set(PATH_SPECS, builder.toString());
+    job.getConfiguration().set(
+        PATH_ELEMENTS_JSON,
+        DefaultObjectMapper.excludeNulls(HadoopDruidIndexerConfig.JSON_MAPPER).writeValueAsString(rewritten)
+    );
     if (InputFormat.class.isAssignableFrom(inputFormat)) {
       job.getConfiguration().setClass(INPUT_FORMAT_NEW, inputFormat, InputFormat.class);
     } else if (org.apache.hadoop.mapred.InputFormat.class.isAssignableFrom(inputFormat)) {
