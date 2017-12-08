@@ -32,7 +32,16 @@ import java.util.regex.Pattern;
  */
 public interface PredicateFunctions extends Function.Library
 {
-  class Like extends ExprType.BoolFunction implements Function.Factory
+  abstract class PredicateFunc extends Function.NewInstance
+  {
+    @Override
+    public ExprType apply(List<Expr> args, Expr.TypeBinding bindings)
+    {
+      return ExprType.LONG;
+    }
+  }
+
+  final class Like extends PredicateFunc
   {
     private Pair<RegexUtils.PatternType, Object> matcher;
 
@@ -55,15 +64,9 @@ public interface PredicateFunctions extends Function.Library
       ExprEval eval = args.get(0).eval(bindings);
       return ExprEval.of(RegexUtils.evaluate(eval.asString(), matcher.lhs, matcher.rhs));
     }
-
-    @Override
-    public Function get()
-    {
-      return new Like();
-    }
   }
 
-  class InFunc extends ExprType.BoolFunction implements Function.Factory
+  final class InFunc extends PredicateFunc
   {
     @Override
     public String name()
@@ -87,15 +90,9 @@ public interface PredicateFunctions extends Function.Library
       }
       return ExprEval.of(set.contains(args.get(0).eval(bindings).value()));
     }
-
-    @Override
-    public Function get()
-    {
-      return new InFunc();
-    }
   }
 
-  class BetweenFunc extends ExprType.BoolFunction implements Function.Factory
+  final class BetweenFunc extends PredicateFunc
   {
     @Override
     public String name()
@@ -126,15 +123,9 @@ public interface PredicateFunctions extends Function.Library
       ExprEval eval = Evals.castTo(args.get(0).eval(bindings), type);
       return ExprEval.of(range.contains((Comparable) eval.value()));
     }
-
-    @Override
-    public Function get()
-    {
-      return new BetweenFunc();
-    }
   }
 
-  class StartsWithFunc extends ExprType.BoolFunction implements Function.Factory
+  final class StartsWithFunc extends PredicateFunc
   {
     @Override
     public String name()
@@ -158,15 +149,9 @@ public interface PredicateFunctions extends Function.Library
       String eval = args.get(0).eval(bindings).asString();
       return ExprEval.of(eval == null ? prefix == null : prefix != null && eval.startsWith(prefix));
     }
-
-    @Override
-    public Function get()
-    {
-      return new StartsWithFunc();
-    }
   }
 
-  class EndsWithFunc extends ExprType.BoolFunction implements Function.Factory
+  final class EndsWithFunc extends PredicateFunc
   {
     @Override
     public String name()
@@ -190,15 +175,9 @@ public interface PredicateFunctions extends Function.Library
       String eval = args.get(0).eval(bindings).asString();
       return ExprEval.of(eval == null ? prefix == null : prefix != null && eval.endsWith(prefix));
     }
-
-    @Override
-    public Function get()
-    {
-      return new EndsWithFunc();
-    }
   }
 
-  class StartsWithIgnoreCaseFunc extends ExprType.BoolFunction implements Function.Factory
+  final class StartsWithIgnoreCaseFunc extends PredicateFunc
   {
     @Override
     public String name()
@@ -223,15 +202,9 @@ public interface PredicateFunctions extends Function.Library
       String eval = args.get(0).eval(bindings).asString();
       return ExprEval.of(eval == null ? prefix == null : prefix != null && eval.toLowerCase().startsWith(prefix));
     }
-
-    @Override
-    public Function get()
-    {
-      return new StartsWithIgnoreCaseFunc();
-    }
   }
 
-  class EndsWithIgnoreCaseFunc extends ExprType.BoolFunction implements Function.Factory
+  final class EndsWithIgnoreCaseFunc extends PredicateFunc
   {
     @Override
     public String name()
@@ -256,15 +229,9 @@ public interface PredicateFunctions extends Function.Library
       String eval = args.get(0).eval(bindings).asString();
       return ExprEval.of(eval == null ? prefix == null : prefix != null && eval.toLowerCase().endsWith(prefix));
     }
-
-    @Override
-    public Function get()
-    {
-      return new EndsWithIgnoreCaseFunc();
-    }
   }
 
-  class ContainsFunc extends ExprType.BoolFunction implements Function.Factory
+  final class ContainsFunc extends PredicateFunc
   {
     @Override
     public String name()
@@ -280,7 +247,7 @@ public interface PredicateFunctions extends Function.Library
     {
       if (!initialized) {
         if (args.size() != 2) {
-          throw new RuntimeException("function 'endsWithIgnoreCase' needs 2 arguments");
+          throw new RuntimeException("function 'contains' needs 2 arguments");
         }
         this.contained = Evals.getConstantString(args.get(1));
         initialized = true;
@@ -288,15 +255,9 @@ public interface PredicateFunctions extends Function.Library
       String eval = args.get(0).eval(bindings).asString();
       return ExprEval.of(eval == null ? contained == null : contained != null && eval.contains(contained));
     }
-
-    @Override
-    public Function get()
-    {
-      return new ContainsFunc();
-    }
   }
 
-  class MatchFunc extends ExprType.BoolFunction implements Function.Factory
+  final class MatchFunc extends PredicateFunc
   {
     @Override
     public String name()
@@ -317,12 +278,6 @@ public interface PredicateFunctions extends Function.Library
       }
       String eval = args.get(0).eval(bindings).asString();
       return ExprEval.of(eval != null && matcher.reset(eval).matches());
-    }
-
-    @Override
-    public Function get()
-    {
-      return new MatchFunc();
     }
   }
 }

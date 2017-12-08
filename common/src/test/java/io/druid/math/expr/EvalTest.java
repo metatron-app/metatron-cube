@@ -539,18 +539,18 @@ public class EvalTest
   public void testRegex()
   {
     Expr.NumericBinding bindings = Parser.withMap(ImmutableMap.<String, Object>of());
-    Assert.assertTrue(Parser.parse("regex ('navis', '.*s')").eval(bindings).asBoolean());
-    Assert.assertTrue(Parser.parse("regex ('navis', 'n.*v..*')").eval(bindings).asBoolean());
-    Assert.assertTrue(Parser.parse("regex ('navis', '.*v..')").eval(bindings).asBoolean());
-    Assert.assertTrue(Parser.parse("regex ('navis', '.*vi.*')").eval(bindings).asBoolean());
-    Assert.assertTrue(Parser.parse("regex ('navis', '..vi.')").eval(bindings).asBoolean());
-    Assert.assertTrue(Parser.parse("regex ('navis', 'n.*s')").eval(bindings).asBoolean());
-    Assert.assertTrue(Parser.parse("regex ('navis', '.a.*i.')").eval(bindings).asBoolean());
+    Assert.assertTrue(Parser.parse("match ('navis', '.*s')").eval(bindings).asBoolean());
+    Assert.assertTrue(Parser.parse("match ('navis', 'n.*v..*')").eval(bindings).asBoolean());
+    Assert.assertTrue(Parser.parse("match ('navis', '.*v..')").eval(bindings).asBoolean());
+    Assert.assertTrue(Parser.parse("match ('navis', '.*vi.*')").eval(bindings).asBoolean());
+    Assert.assertTrue(Parser.parse("match ('navis', '..vi.')").eval(bindings).asBoolean());
+    Assert.assertTrue(Parser.parse("match ('navis', 'n.*s')").eval(bindings).asBoolean());
+    Assert.assertTrue(Parser.parse("match ('navis', '.a.*i.')").eval(bindings).asBoolean());
 
-    Assert.assertFalse(Parser.parse("regex ('nabis', 'n.*v.*')").eval(bindings).asBoolean());
-    Assert.assertFalse(Parser.parse("regex ('nabis', '.*v...*')").eval(bindings).asBoolean());
-    Assert.assertFalse(Parser.parse("regex ('nabis', '.*vi.*')").eval(bindings).asBoolean());
-    Assert.assertFalse(Parser.parse("regex ('nabis', '..vi.')").eval(bindings).asBoolean());
+    Assert.assertFalse(Parser.parse("match ('nabis', 'n.*v.*')").eval(bindings).asBoolean());
+    Assert.assertFalse(Parser.parse("match ('nabis', '.*v...*')").eval(bindings).asBoolean());
+    Assert.assertFalse(Parser.parse("match ('nabis', '.*vi.*')").eval(bindings).asBoolean());
+    Assert.assertFalse(Parser.parse("match ('nabis', '..vi.')").eval(bindings).asBoolean());
 
     Assert.assertEquals("navi", Parser.parse("regex ('navis', '(.*)s', 1)").eval(bindings).asString());
     Assert.assertEquals("is", Parser.parse("regex ('navis', '(.*)v(..)', 2)").eval(bindings).asString());

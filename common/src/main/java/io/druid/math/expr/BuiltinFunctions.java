@@ -323,10 +323,10 @@ public interface BuiltinFunctions extends Function.Library
     }
   }
 
-  class Regex implements Function, Factory
+  final class Regex extends Function.NewInstance
   {
     private Matcher matcher;
-    private int index = -1;
+    private int index;
 
     @Override
     public String name()
@@ -335,9 +335,9 @@ public interface BuiltinFunctions extends Function.Library
     }
 
     @Override
-    public final ExprType apply(List<Expr> args, Expr.TypeBinding bindings)
+    public ExprType apply(List<Expr> args, Expr.TypeBinding bindings)
     {
-      return args.size() == 2 ? ExprType.LONG : args.size() == 3 ? ExprType.STRING : ExprType.UNKNOWN;
+      return ExprType.STRING;
     }
 
     @Override
@@ -356,16 +356,7 @@ public interface BuiltinFunctions extends Function.Library
       }
       ExprEval eval = args.get(0).eval(bindings);
       Matcher m = matcher.reset(eval.asString());
-      if (index < 0) {
-        return ExprEval.of(m.matches());
-      }
       return ExprEval.of(m.matches() ? matcher.group(index) : null);
-    }
-
-    @Override
-    public Function get()
-    {
-      return new Regex();
     }
   }
 
