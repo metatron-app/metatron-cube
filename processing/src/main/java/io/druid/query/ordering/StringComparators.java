@@ -25,8 +25,10 @@ import com.google.common.primitives.Longs;
 import com.google.common.primitives.UnsignedBytes;
 import com.metamx.common.IAE;
 import com.metamx.common.StringUtils;
+import io.druid.common.guava.GuavaUtils;
 import org.joda.time.DateTimeConstants;
 
+import java.math.BigDecimal;
 import java.text.DateFormatSymbols;
 import java.util.Calendar;
 import java.util.Locale;
@@ -40,14 +42,16 @@ public class StringComparators
   public static final String INTEGER_NAME = "integer";
   public static final String LONG_NAME = "long";
   public static final String FLOATING_POINT_NAME = "floatingpoint";
+  public static final String NUMERIC_NAME = "numeric";
   public static final String DAY_OF_WEEK_NAME = "dayofweek";
   public static final String MONTH_NAME = "month";
 
   public static final LexicographicComparator LEXICOGRAPHIC = new LexicographicComparator();
   public static final AlphanumericComparator ALPHANUMERIC = new AlphanumericComparator();
   public static final IntegerComparator INTEGER = new IntegerComparator();
-  public static final IntegerComparator LONG = new IntegerComparator();
+  public static final LongComparator LONG = new LongComparator();
   public static final FloatingPointComparator FLOATING_POINT = new FloatingPointComparator();
+  public static final NumericComparator NUMERIC = new NumericComparator();
   public static final DayOfWeekComparator DAY_OF_WEEK = new DayOfWeekComparator(null);
   public static final MonthComparator MONTH = new MonthComparator(null);
 
@@ -347,6 +351,60 @@ public class StringComparators
     }
   }
 
+  public static class NumericComparator extends AbstractStringComparator implements StringComparator
+  {
+    @Override
+    protected final int _compare(String o1, String o2)
+    {
+      // Creating a BigDecimal from a String is expensive (involves copying the String into a char[])
+      // Converting the String to a Long first is faster.
+      // We optimize here with the assumption that integer values are more common than floating point.
+      Long long1 = GuavaUtils.tryParseLong(o1);
+      Long long2 = GuavaUtils.tryParseLong(o2);
+
+      if (long1 != null && long2 != null) {
+        return Long.compare(long1, long2);
+      }
+
+      final BigDecimal bd1 = long1 == null ? convertStringToBigDecimal(o1) : new BigDecimal(long1);
+      final BigDecimal bd2 = long2 == null ? convertStringToBigDecimal(o2) : new BigDecimal(long2);
+
+      if (bd1 != null && bd2 != null) {
+        return bd1.compareTo(bd2);
+      }
+
+      if (bd1 == null && bd2 == null) {
+        // both Strings are unparseable, just compare lexicographically to have a well-defined ordering
+        return StringComparators.LEXICOGRAPHIC.compare(o1, o2);
+      }
+
+      if (bd1 == null) {
+        return -1;
+      } else {
+        return 1;
+      }
+    }
+
+    @Override
+    public String toString()
+    {
+      return StringComparators.NUMERIC_NAME;
+    }
+  }
+
+  private static BigDecimal convertStringToBigDecimal(String input)
+  {
+    // treat unparseable Strings as nulls
+    BigDecimal bd = null;
+    try {
+      bd = new BigDecimal(input);
+    }
+    catch (NumberFormatException ex) {
+      // ignore
+    }
+    return bd;
+  }
+
   public static class DayOfWeekComparator extends AbstractStringComparator implements StringComparator
   {
     private final String language;
@@ -498,6 +556,8 @@ public class StringComparators
         return LONG;
       case StringComparators.FLOATING_POINT_NAME:
         return FLOATING_POINT;
+      case StringComparators.NUMERIC_NAME:
+        return NUMERIC;
       case StringComparators.DAY_OF_WEEK_NAME:
         return DAY_OF_WEEK;
       case StringComparators.MONTH_NAME:

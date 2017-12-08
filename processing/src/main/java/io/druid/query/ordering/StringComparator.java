@@ -38,6 +38,7 @@ import java.util.Comparator;
     @JsonSubTypes.Type(name = StringComparators.INTEGER_NAME, value = StringComparators.IntegerComparator.class),
     @JsonSubTypes.Type(name = StringComparators.LONG_NAME, value = StringComparators.LongComparator.class),
     @JsonSubTypes.Type(name = StringComparators.FLOATING_POINT_NAME, value = StringComparators.FloatingPointComparator.class),
+    @JsonSubTypes.Type(name = StringComparators.NUMERIC_NAME, value = StringComparators.NumericComparator.class),
     @JsonSubTypes.Type(name = StringComparators.DAY_OF_WEEK_NAME, value = StringComparators.DayOfWeekComparator.class),
     @JsonSubTypes.Type(name = StringComparators.MONTH_NAME, value = StringComparators.MonthComparator.class)
 })

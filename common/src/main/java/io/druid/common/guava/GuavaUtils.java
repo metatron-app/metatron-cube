@@ -22,11 +22,13 @@ package io.druid.common.guava;
 import com.google.common.base.Charsets;
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
+import com.google.common.base.Strings;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Ordering;
 import com.google.common.io.CharStreams;
 import com.google.common.io.InputSupplier;
+import com.google.common.primitives.Longs;
 import com.metamx.common.Pair;
 
 import javax.annotation.Nullable;
@@ -109,6 +111,14 @@ public class GuavaUtils
         );
       }
     };
+  }
+
+  @Nullable
+  public static Long tryParseLong(@Nullable String string)
+  {
+    return Strings.isNullOrEmpty(string)
+           ? null
+           : Longs.tryParse(string.charAt(0) == '+' ? string.substring(1) : string);
   }
 
   @SuppressWarnings("unchecked")
