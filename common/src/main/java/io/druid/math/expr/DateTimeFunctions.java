@@ -389,6 +389,21 @@ public interface DateTimeFunctions extends Function.Library
     }
   }
 
+  class LastDayOfMonth extends UnaryTimeMath
+  {
+    @Override
+    public String name()
+    {
+      return "lastdayofmonth";
+    }
+
+    @Override
+    protected final ExprEval evaluate(DateTime time)
+    {
+      return ExprEval.of(time.dayOfMonth().getMaximumValue());
+    }
+  }
+
   class DayOfWeek extends UnaryTimeMath
   {
     @Override

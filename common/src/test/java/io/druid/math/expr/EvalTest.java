@@ -292,6 +292,7 @@ public class EvalTest
 
     Expr.NumericBinding bindings = Parser.withMap(ImmutableMap.of("x", time));
     Assert.assertEquals(4, evalLong("dayofmonth(x)", bindings));
+    Assert.assertEquals(31, evalLong("lastdayofmonth(x)", bindings));
     Assert.assertEquals(64, evalLong("dayofyear(x)", bindings));
     Assert.assertEquals(22, evalLong("hour(x)", bindings));
     Assert.assertEquals(3, evalLong("month(x)", bindings));
@@ -306,6 +307,7 @@ public class EvalTest
 
     // iso time
     Assert.assertEquals(4, evalLong("dayofmonth(x)", bindings));
+    Assert.assertEquals(31, evalLong("lastdayofmonth(x)", bindings));
     Assert.assertEquals(64, evalLong("dayofyear(x)", bindings));
     Assert.assertEquals(22 - 9, evalLong("hour(x)", bindings));
     Assert.assertEquals(3, evalLong("month(x)", bindings));
@@ -318,6 +320,7 @@ public class EvalTest
 
     // asia/seoul
     Assert.assertEquals(4, evalLong("dayofmonth(x, 'Asia/Seoul')", bindings));
+    Assert.assertEquals(31, evalLong("lastdayofmonth(x, 'Asia/Seoul')", bindings));
     Assert.assertEquals(64, evalLong("dayofyear(x, 'Asia/Seoul')", bindings));
     Assert.assertEquals(22, evalLong("hour(x, 'Asia/Seoul')", bindings));
     Assert.assertEquals(3, evalLong("month(x, 'Asia/Seoul')", bindings));
