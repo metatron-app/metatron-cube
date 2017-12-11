@@ -20,9 +20,10 @@
 package io.druid.query.extraction;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.druid.granularity.Granularities;
+import io.druid.granularity.Granularity;
 import io.druid.jackson.DefaultObjectMapper;
 import org.joda.time.DateTime;
-import org.joda.time.DateTimeZone;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -47,7 +48,7 @@ public class TimeFormatExtractionFnTest
   @Test
   public void testDayOfWeekExtraction() throws Exception
   {
-    TimeFormatExtractionFn fn = new TimeFormatExtractionFn("EEEE", null, null);
+    TimeFormatExtractionFn fn = new TimeFormatExtractionFn("EEEE", null, null, null);
     Assert.assertEquals("Thursday",  fn.apply(timestamps[0]));
     Assert.assertEquals("Friday",    fn.apply(timestamps[1]));
     Assert.assertEquals("Tuesday",   fn.apply(timestamps[2]));
@@ -55,13 +56,13 @@ public class TimeFormatExtractionFnTest
     Assert.assertEquals("Saturday",  fn.apply(timestamps[4]));
     Assert.assertEquals("Monday",    fn.apply(timestamps[5]));
 
-    testSerde(fn, "EEEE", null, null);
+    testSerde(fn, "EEEE", null, null, Granularities.NONE);
   }
 
   @Test
   public void testLocalizedExtraction() throws Exception
   {
-    TimeFormatExtractionFn fn = new TimeFormatExtractionFn("EEEE", null, "is");
+    TimeFormatExtractionFn fn = new TimeFormatExtractionFn("EEEE", null, "is", null);
     Assert.assertEquals("fimmtudagur",  fn.apply(timestamps[0]));
     Assert.assertEquals("föstudagur",   fn.apply(timestamps[1]));
     Assert.assertEquals("þriðjudagur",  fn.apply(timestamps[2]));
@@ -69,7 +70,21 @@ public class TimeFormatExtractionFnTest
     Assert.assertEquals("laugardagur",  fn.apply(timestamps[4]));
     Assert.assertEquals("mánudagur",    fn.apply(timestamps[5]));
 
-    testSerde(fn, "EEEE", null, "is");
+    testSerde(fn, "EEEE", null, "is", Granularities.NONE);
+  }
+
+  @Test
+  public void testGranularExtractionWithNullPattern() throws Exception
+  {
+    TimeFormatExtractionFn fn = new TimeFormatExtractionFn("yyyy-MM-dd'T'HH:mm:ss.SSS", null, null, Granularities.DAY);
+    Assert.assertEquals("2015-01-01T00:00:00.000", fn.apply(timestamps[0]));
+    Assert.assertEquals("2015-01-02T00:00:00.000", fn.apply(timestamps[1]));
+    Assert.assertEquals("2015-03-03T00:00:00.000", fn.apply(timestamps[2]));
+    Assert.assertEquals("2015-03-04T00:00:00.000", fn.apply(timestamps[3]));
+    Assert.assertEquals("2015-05-02T00:00:00.000", fn.apply(timestamps[4]));
+    Assert.assertEquals("2015-12-21T00:00:00.000", fn.apply(timestamps[5]));
+
+    testSerde(fn, "yyyy-MM-dd'T'HH:mm:ss.SSS", null, null, Granularities.DAY);
   }
 
   @Test
@@ -83,18 +98,25 @@ public class TimeFormatExtractionFnTest
     Assert.assertEquals("In Berlin ist es schon Sonntag",    fn.apply(timestamps[4]));
     Assert.assertEquals("In Berlin ist es schon Dienstag",   fn.apply(timestamps[5]));
 
-    testSerde(fn, "'In Berlin ist es schon 'EEEE", "Europe/Berlin", "de");
+    testSerde(fn, "'In Berlin ist es schon 'EEEE", "Europe/Berlin", "de", Granularities.NONE);
   }
 
-  public void testSerde(TimeFormatExtractionFn fn, String format, String tz, String locale) throws Exception {
+  public void testSerde(
+      final TimeFormatExtractionFn fn,
+      final String format,
+      final String tz,
+      final String locale,
+      final Granularity granularity
+  ) throws Exception
+  {
     final ObjectMapper objectMapper = new DefaultObjectMapper();
-    final  String json = objectMapper.writeValueAsString(fn);
+    final String json = objectMapper.writeValueAsString(fn);
     TimeFormatExtractionFn deserialized = objectMapper.readValue(json, TimeFormatExtractionFn.class);
 
     Assert.assertEquals(format, deserialized.getFormat());
     Assert.assertEquals(tz, deserialized.getTimeZone());
     Assert.assertEquals(locale, deserialized.getLocale());
-
+    Assert.assertEquals(granularity, deserialized.getGranularity());
     Assert.assertEquals(fn, deserialized);
   }
 
