@@ -15,8 +15,8 @@ expr : ('-'|'!') expr                                 # unaryOpExpr
      | STRING                                         # string
      ;
 
-fnArgs : expr (',' expr)*                             # functionArgs
-       ;
+fnArgs : expr? (',' expr?)*                           # functionArgs
+     ;
 
 IDENTIFIER : [_$a-zA-Z\uAC00-\uD7AF][._$a-zA-Z0-9\[\]\uAC00-\uD7AF]* | '"' ~["]+ '"';
 LONG : [0-9]+ ;

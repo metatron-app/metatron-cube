@@ -41,6 +41,7 @@ import org.joda.time.Years;
 import org.joda.time.format.DateTimeFormatter;
 
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 
 /**
@@ -211,6 +212,7 @@ public interface DateTimeFunctions extends Function.Library
   {
     boolean initialized;
     DateTimeZone timeZone;
+    Locale locale;
 
     @Override
     public ExprType apply(List<Expr> args, Expr.TypeBinding bindings)
@@ -222,10 +224,11 @@ public interface DateTimeFunctions extends Function.Library
     public final ExprEval apply(List<Expr> args, Expr.NumericBinding bindings)
     {
       if (!initialized) {
-        if (args.size() != 1 && args.size() != 2) {
-          throw new IllegalArgumentException("function '" + name() + "' needs one or two arguments");
+        if (args.size() != 1 && args.size() != 2 && args.size() != 3) {
+          throw new IllegalArgumentException("function '" + name() + "' needs one to three arguments");
         }
-        timeZone = args.size() == 2 ? JodaUtils.toTimeZone(Evals.getConstantString(args.get(1))) : null;
+        timeZone = args.size() > 1 ? JodaUtils.toTimeZone(Evals.getConstantString(args.get(1))) : null;
+        locale = args.size() > 2 ? JodaUtils.toLocale(Evals.getConstantString(args.get(2))) : null;
         initialized = true;
       }
       DateTime time = Evals.toDateTime(args.get(0).eval(bindings), timeZone);
@@ -360,7 +363,6 @@ public interface DateTimeFunctions extends Function.Library
     }
   }
 
-  // locale?
   class DayName extends UnaryTimeMath
   {
     @Override
@@ -378,7 +380,7 @@ public interface DateTimeFunctions extends Function.Library
     @Override
     protected final ExprEval evaluate(DateTime time)
     {
-      return ExprEval.of(time.dayOfWeek().getAsText());
+      return ExprEval.of(time.dayOfWeek().getAsText(locale));
     }
   }
 
@@ -472,7 +474,6 @@ public interface DateTimeFunctions extends Function.Library
     }
   }
 
-  // locale?
   class MonthName extends UnaryTimeMath
   {
     @Override
@@ -490,7 +491,7 @@ public interface DateTimeFunctions extends Function.Library
     @Override
     protected final ExprEval evaluate(DateTime time)
     {
-      return ExprEval.of(time.monthOfYear().getAsText());
+      return ExprEval.of(time.monthOfYear().getAsText(locale));
     }
   }
 

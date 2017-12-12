@@ -304,7 +304,7 @@ public class JodaUtils
     }
     DateTimeFormatter formatter = b.toFormatter();
     if (locale != null) {
-      formatter = formatter.withLocale(new Locale(locale));
+      formatter = formatter.withLocale(toLocale(locale));
     }
     if (timeZone != null) {
       formatter = formatter.withZone(toTimeZone(timeZone));
@@ -329,6 +329,11 @@ public class JodaUtils
       // ignore
     }
     return DateTimeZone.forTimeZone(TimeZone.getTimeZone(timeZone));
+  }
+
+  public static Locale toLocale(String locale)
+  {
+    return locale == null ? null : new Locale(locale);
   }
 
   public static interface OutputFormatter

@@ -293,6 +293,7 @@ public class ExprListenerImpl extends ExprBaseListener
       throw new RuntimeException("function " + fnName + " is not defined.");
     }
 
+    @SuppressWarnings("unchecked")
     List<Expr> args = ctx.getChildCount() > 3 ? (List<Expr>) nodes.get(ctx.getChild(2)) : Collections.<Expr>emptyList();
     nodes.put(
         ctx,
@@ -317,12 +318,18 @@ public class ExprListenerImpl extends ExprBaseListener
   public void exitFunctionArgs(ExprParser.FunctionArgsContext ctx)
   {
     List<Expr> args = new ArrayList<>();
-    args.add((Expr) nodes.get(ctx.getChild(0)));
-
-    if (ctx.getChildCount() > 1) {
-      for (int i = 1; i <= ctx.getChildCount() / 2; i++) {
-        args.add((Expr) nodes.get(ctx.getChild(2 * i)));
+    int x = -1;
+    for (int i = 0; i < ctx.getChildCount(); i++) {
+      ParseTree child = ctx.getChild(i);
+      if (child instanceof TerminalNode && child.getText().equals(",")) {
+        args.add(x < 0 ? new StringExpr(null) : (Expr) nodes.get(ctx.getChild(x)));
+        x = -1;
+        continue;
       }
+      x = i;
+    }
+    if (x >= 0) {
+      args.add((Expr) nodes.get(ctx.getChild(x)));
     }
 
     nodes.put(ctx, args);

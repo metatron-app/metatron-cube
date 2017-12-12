@@ -285,7 +285,7 @@ public class EvalTest
   }
 
   @Test
-  public void testTimeFunctions()
+  public void testDatetimeFunctions()
   {
     DateTimeZone home = DateTimeZone.forID("Asia/Seoul");
     DateTime time = new DateTime("2016-03-04T22:25:00", home);
@@ -299,6 +299,8 @@ public class EvalTest
     Assert.assertEquals(2016, evalLong("year(x)", bindings));
     Assert.assertEquals("March", evalString("monthname(x)", bindings));
     Assert.assertEquals("Friday", evalString("dayname(x)", bindings));
+    Assert.assertEquals("3월", evalString("monthname(x, ,'ko')", bindings));
+    Assert.assertEquals("금요일", evalString("dayname(x, ,'ko')", bindings));
     Assert.assertEquals(new DateTime("2016-03-31T22:25:00", home), evalDateTime("last_day(x)", bindings));
     Assert.assertEquals(new DateTime("2016-03-08T01:25:00", home), evalDateTime("add_time(x, '3D 3H')", bindings));
     Assert.assertEquals(new DateTime("2016-03-03T19:22:00", home), evalDateTime("sub_time(x, '1D 3H 3m')", bindings));
@@ -311,7 +313,9 @@ public class EvalTest
     Assert.assertEquals(3, evalLong("month(x, 'UTC')", bindings));
     Assert.assertEquals(2016, evalLong("year(x, 'UTC')", bindings));
     Assert.assertEquals("March", evalString("monthname(x, 'UTC')", bindings));
-    Assert.assertEquals("Friday", evalString("dayname(x, 'UTC')", bindings));
+    Assert.assertEquals("Friday", evalString("dayname(x, 'UTC', )", bindings));
+    Assert.assertEquals("3月", evalString("monthname(x, 'UTC','ja')", bindings));
+    Assert.assertEquals("金曜日", evalString("dayname(x, 'UTC','ja')", bindings));
     Assert.assertEquals(new DateTime("2016-03-31T13:25:00Z"), evalDateTime("last_day(x, 'UTC')", bindings));
     Assert.assertEquals(new DateTime("2016-03-07T16:25:00Z"), evalDateTime("add_time(x, '3D 3H', 'UTC')", bindings));
     Assert.assertEquals(new DateTime("2016-03-03T10:22:00Z"), evalDateTime("sub_time(x, '1D 3H 3m', 'UTC')", bindings));
