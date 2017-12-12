@@ -22,12 +22,11 @@ package io.druid.query.aggregation.cardinality;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Function;
-import com.google.common.base.Joiner;
-import com.google.common.base.Predicates;
-import com.google.common.collect.Iterables;
+import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 import io.druid.common.utils.StringUtils;
 import io.druid.math.expr.Parser;
+import io.druid.query.QueryCacheHelper;
 import io.druid.query.aggregation.Aggregator;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.AggregatorFactoryNotMergeableException;
@@ -36,12 +35,13 @@ import io.druid.query.aggregation.BufferAggregator;
 import io.druid.query.aggregation.hyperloglog.HyperLogLogCollector;
 import io.druid.query.aggregation.hyperloglog.HyperUniquesAggregatorFactory;
 import io.druid.query.dimension.DefaultDimensionSpec;
+import io.druid.query.dimension.DimensionSpec;
+import io.druid.query.dimension.DimensionSpecs;
 import io.druid.segment.ColumnSelectorFactory;
 import io.druid.segment.ColumnSelectors;
 import io.druid.segment.DimensionSelector;
 import org.apache.commons.codec.binary.Base64;
 
-import javax.annotation.Nullable;
 import java.nio.ByteBuffer;
 import java.util.Comparator;
 import java.util.List;
@@ -54,6 +54,7 @@ public class CardinalityAggregatorFactory extends AggregatorFactory
   private final String name;
   private final String predicate;
   private final List<String> fieldNames;
+  private final List<DimensionSpec> fields;
   private final boolean byRow;
   private final boolean round;
 
@@ -61,6 +62,7 @@ public class CardinalityAggregatorFactory extends AggregatorFactory
   public CardinalityAggregatorFactory(
       @JsonProperty("name") final String name,
       @JsonProperty("fieldNames") final List<String> fieldNames,
+      @JsonProperty("fields") final List<DimensionSpec> fields,
       @JsonProperty("predicate") final String predicate,
       @JsonProperty("byRow") final boolean byRow,
       @JsonProperty("round") final boolean round
@@ -69,13 +71,18 @@ public class CardinalityAggregatorFactory extends AggregatorFactory
     this.name = name;
     this.predicate = predicate;
     this.fieldNames = fieldNames;
+    this.fields = fields;
     this.byRow = byRow;
     this.round = round;
+    Preconditions.checkArgument(
+        fieldNames == null ^ fields == null,
+        "Must have a valid, non-null fieldNames or fields"
+    );
   }
 
   public CardinalityAggregatorFactory(String name, List<String> fieldNames, boolean byRow)
   {
-    this(name, fieldNames, null, byRow, false);
+    this(name, fieldNames, null, null, byRow, false);
   }
 
   @Override
@@ -106,18 +113,16 @@ public class CardinalityAggregatorFactory extends AggregatorFactory
   private List<DimensionSelector> makeDimensionSelectors(final ColumnSelectorFactory columnFactory)
   {
     return Lists.newArrayList(
-        Iterables.filter(
-            Iterables.transform(
-                fieldNames, new Function<String, DimensionSelector>()
+        Lists.transform(
+            Preconditions.checkNotNull(fieldNames == null ? fields : DefaultDimensionSpec.toSpec(fieldNames)),
+            new Function<DimensionSpec, DimensionSelector>()
             {
-              @Nullable
               @Override
-              public DimensionSelector apply(@Nullable String input)
+              public DimensionSelector apply(DimensionSpec input)
               {
-                return columnFactory.makeDimensionSelector(new DefaultDimensionSpec(input, input));
+                return columnFactory.makeDimensionSelector(input);
               }
             }
-            ), Predicates.notNull()
         )
     );
   }
@@ -197,7 +202,12 @@ public class CardinalityAggregatorFactory extends AggregatorFactory
   @Override
   public List<String> requiredFields()
   {
-    List<String> required = Lists.newArrayList(fieldNames);
+    List<String> required = Lists.newArrayList();
+    if (fieldNames != null) {
+      required.addAll(fieldNames);
+    } else {
+      required.addAll(Lists.transform(fields, DimensionSpecs.INPUT_NAME));
+    }
     if (predicate != null) {
       required.addAll(Parser.findRequiredBindings(predicate));
     }
@@ -208,6 +218,12 @@ public class CardinalityAggregatorFactory extends AggregatorFactory
   public List<String> getFieldNames()
   {
     return fieldNames;
+  }
+
+  @JsonProperty
+  public List<DimensionSpec> getFields()
+  {
+    return fields;
   }
 
   @JsonProperty
@@ -225,12 +241,17 @@ public class CardinalityAggregatorFactory extends AggregatorFactory
   @Override
   public byte[] getCacheKey()
   {
-    byte[] fieldNameBytes = StringUtils.toUtf8(Joiner.on("\u0001").join(fieldNames));
+    byte[] fieldBytes;
+    if (fieldNames != null) {
+      fieldBytes = QueryCacheHelper.computeCacheBytes(fieldNames);
+    } else {
+      fieldBytes = QueryCacheHelper.computeAggregatorBytes(fields);
+    }
     byte[] predicateBytes = StringUtils.toUtf8WithNullToEmpty(predicate);
 
-    return ByteBuffer.allocate(3 + fieldNameBytes.length + predicateBytes.length)
+    return ByteBuffer.allocate(3 + fieldBytes.length + predicateBytes.length)
                      .put(CACHE_TYPE_ID)
-                     .put(fieldNameBytes)
+                     .put(fieldBytes)
                      .put(predicateBytes)
                      .put((byte) (byRow ? 1 : 0))
                      .put((byte) (round ? 1 : 0))
@@ -273,10 +294,13 @@ public class CardinalityAggregatorFactory extends AggregatorFactory
     if (round != that.round) {
       return false;
     }
-    if (fieldNames != null ? !fieldNames.equals(that.fieldNames) : that.fieldNames != null) {
+    if (!Objects.equals(fieldNames, that.fieldNames)) {
       return false;
     }
-    if (name != null ? !name.equals(that.name) : that.name != null) {
+    if (!Objects.equals(fields, that.fields)) {
+      return false;
+    }
+    if (!Objects.equals(name, that.name)) {
       return false;
     }
     if (!Objects.equals(predicate, that.predicate)) {
@@ -291,6 +315,7 @@ public class CardinalityAggregatorFactory extends AggregatorFactory
   {
     int result = name != null ? name.hashCode() : 0;
     result = 31 * result + (fieldNames != null ? fieldNames.hashCode() : 0);
+    result = 31 * result + (fields != null ? fields.hashCode() : 0);
     result = 31 * result + Objects.hashCode(predicate);
     result = 31 * result + (byRow ? 1 : 0);
     result = 31 * result + (round ? 1 : 0);
@@ -303,6 +328,7 @@ public class CardinalityAggregatorFactory extends AggregatorFactory
     return "CardinalityAggregatorFactory{" +
            "name='" + name + '\'' +
            ", fieldNames='" + fieldNames + '\'' +
+           ", fields='" + fields + '\'' +
            ", predicate='" + predicate + '\'' +
            ", byRow=" + byRow +
            ", round=" + round +

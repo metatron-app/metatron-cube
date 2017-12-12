@@ -75,7 +75,7 @@ public class CardinalityAggregatorBenchmark extends SimpleBenchmark
 
 
     final CardinalityAggregatorTest.TestDimensionSelector dim1 =
-        new CardinalityAggregatorTest.TestDimensionSelector(values);
+        new CardinalityAggregatorTest.TestDimensionSelector(values, null);
 
     selectorList = Lists.newArrayList(
         (DimensionSelector) dim1
