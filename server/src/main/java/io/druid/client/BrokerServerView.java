@@ -77,6 +77,7 @@ import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
@@ -96,6 +97,7 @@ public class BrokerServerView implements TimelineServerView
   private final ConcurrentMap<String, QueryableDruidServer> clients;
   private final Map<String, ServerSelector> selectors;
   private final Map<String, VersionedIntervalTimeline<String, ServerSelector>> timelines;
+  private final ConcurrentMap<TimelineCallback, Executor> timelineCallbacks = new ConcurrentHashMap<>();
 
   private final QueryToolChestWarehouse warehouse;
   private final QueryWatcher queryWatcher;
@@ -178,6 +180,16 @@ public class BrokerServerView implements TimelineServerView
           public CallbackAction segmentViewInitialized()
           {
             initialized = true;
+            executeCallbacks(
+                new Function<TimelineCallback, CallbackAction>()
+                {
+                  @Override
+                  public CallbackAction apply(TimelineCallback timelineCallback)
+                  {
+                    return timelineCallback.timelineInitialized();
+                  }
+                }
+            );
             return ServerView.CallbackAction.CONTINUE;
           }
         },
@@ -246,7 +258,7 @@ public class BrokerServerView implements TimelineServerView
     }
   }
 
-  private QueryableDruidServer addSegment(DruidServer server, DataSegment segment)
+  private QueryableDruidServer addSegment(final DruidServer server, final DataSegment segment)
   {
     String segmentId = segment.getIdentifier();
     ServerSelector selector = selectors.get(segmentId);
@@ -274,6 +286,17 @@ public class BrokerServerView implements TimelineServerView
       queryableDruidServer = retVal;
     }
     selector.addServerAndUpdateSegment(queryableDruidServer, segment);
+
+    executeCallbacks(
+        new Function<TimelineCallback, CallbackAction>()
+        {
+          @Override
+          public CallbackAction apply(TimelineCallback input)
+          {
+            return input.segmentAdded(server.getMetadata(), segment);
+          }
+        }
+    );
     return queryableDruidServer;
   }
 
@@ -331,7 +354,7 @@ public class BrokerServerView implements TimelineServerView
     }
   }
 
-  private void serverRemovedSegment(DruidServerMetadata server, DataSegment segment)
+  private void serverRemovedSegment(final DruidServerMetadata server, final DataSegment segment)
   {
 
     String segmentId = segment.getIdentifier();
@@ -369,6 +392,17 @@ public class BrokerServerView implements TimelineServerView
               segment.getInterval(),
               segment.getVersion()
           );
+        } else {
+          executeCallbacks(
+              new Function<TimelineCallback, CallbackAction>()
+              {
+                @Override
+                public CallbackAction apply(TimelineCallback callback)
+                {
+                  return callback.segmentRemoved(server, segment);
+                }
+              }
+          );
         }
       }
     }
@@ -386,6 +420,12 @@ public class BrokerServerView implements TimelineServerView
 
   @Override
   @SuppressWarnings("unchecked")
+  public void registerTimelineCallback(final Executor exec, final TimelineCallback callback)
+  {
+    timelineCallbacks.put(callback, exec);
+  }
+
+  @Override
   public <T> QueryRunner<T> getQueryRunner(DruidServer server)
   {
     final QueryableDruidServer queryableDruidServer;
@@ -550,5 +590,23 @@ public class BrokerServerView implements TimelineServerView
   public void registerSegmentCallback(Executor exec, SegmentCallback callback)
   {
     baseView.registerSegmentCallback(exec, callback, segmentFilter);
+  }
+
+  private void executeCallbacks(final Function<TimelineCallback, CallbackAction> function)
+  {
+    for (final Map.Entry<TimelineCallback, Executor> entry : timelineCallbacks.entrySet()) {
+      entry.getValue().execute(
+          new Runnable()
+          {
+            @Override
+            public void run()
+            {
+              if (CallbackAction.UNREGISTER == function.apply(entry.getKey())) {
+                timelineCallbacks.remove(entry.getKey());
+              }
+            }
+          }
+      );
+    }
   }
 }

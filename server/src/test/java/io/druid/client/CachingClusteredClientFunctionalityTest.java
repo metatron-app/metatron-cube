@@ -200,9 +200,13 @@ public class CachingClusteredClientFunctionalityTest {
           }
 
           @Override
+          public void registerTimelineCallback(Executor exec, TimelineCallback callback)
+          {
+          }
+
+          @Override
           public void registerServerCallback(Executor exec, ServerCallback callback)
           {
-
           }
         },
         cache,
