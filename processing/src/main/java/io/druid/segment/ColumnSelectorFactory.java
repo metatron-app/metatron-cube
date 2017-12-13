@@ -44,7 +44,7 @@ public interface ColumnSelectorFactory
   public FloatColumnSelector makeFloatColumnSelector(String columnName);
   public DoubleColumnSelector makeDoubleColumnSelector(String columnName);
   public LongColumnSelector makeLongColumnSelector(String columnName);
-  public ObjectColumnSelector makeObjectColumnSelector(String columnName);
+  public <T> ObjectColumnSelector<T> makeObjectColumnSelector(String columnName);
   public ExprEvalColumnSelector makeMathExpressionSelector(String expression);
   public ValueMatcher makeAuxiliaryMatcher(DimFilter filter);
   public ValueDesc getColumnType(String columnName);

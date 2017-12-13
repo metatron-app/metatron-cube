@@ -39,7 +39,12 @@ public interface ObjectStrategy<T> extends Comparator<T>
   public T fromByteBuffer(ByteBuffer buffer, int numBytes);
   public byte[] toBytes(T val);
 
-  interface NotComparable<T> extends ObjectStrategy<T>
+  abstract class NotComparable<T> implements ObjectStrategy<T>
   {
+    @Override
+    public final int compare(Object o1, Object o2)
+    {
+      throw new UnsupportedOperationException();
+    }
   }
 }

@@ -267,6 +267,10 @@ public abstract class GenericAggregatorFactory extends AggregatorFactory
         return Doubles.BYTES;
       case LONG:
         return Longs.BYTES;
+      case COMPLEX:
+        if (ValueDesc.isDecimal(outputType)) {
+          return 128;
+        }
     }
     throw new IllegalStateException();
   }

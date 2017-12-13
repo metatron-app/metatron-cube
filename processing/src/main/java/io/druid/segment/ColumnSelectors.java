@@ -195,7 +195,8 @@ public class ColumnSelectors
     return wrapAsLongSelector(metricFactory.makeMathExpressionSelector(fieldExpression));
   }
 
-  public static ObjectColumnSelector getObjectColumnSelector(
+  @SuppressWarnings("unchecked")
+  public static <T> ObjectColumnSelector<T> getObjectColumnSelector(
       ColumnSelectorFactory metricFactory,
       String fieldName,
       String fieldExpression

@@ -147,6 +147,7 @@ public abstract class AggregatorFactory implements Cacheable
    *
    * @return the starting value for a corresponding aggregator.
    */
+  @Deprecated
   public abstract Object getAggregatorStartValue();
 
   /**

@@ -121,7 +121,7 @@ public abstract class ComplexMetricSerde
     @Override
     public ObjectStrategy getObjectStrategy()
     {
-      return new ObjectStrategy()
+      return new ObjectStrategy.NotComparable<Object>()
       {
         @Override
         public Class getClazz()
@@ -140,13 +140,12 @@ public abstract class ComplexMetricSerde
         {
           throw new UnsupportedOperationException("toBytes");
         }
-
-        @Override
-        public int compare(Object o1, Object o2)
-        {
-          throw new UnsupportedOperationException("compare");
-        }
       };
     }
+  }
+
+  public static interface Factory
+  {
+    ComplexMetricSerde create(String elementType);
   }
 }

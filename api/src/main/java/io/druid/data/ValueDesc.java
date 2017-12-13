@@ -48,8 +48,11 @@ public class ValueDesc
   // which is trait of dimension
   public static final String MULTIVALUED_PREFIX = "multivalued.";
 
-    // prefix of dimension
+  // prefix of dimension
   public static final String DIMENSION_PREFIX = "dimension.";
+
+  // descriptive type
+  public static final String DECIMAL = "decimal";
 
   // primitives
   public static ValueDesc STRING = new ValueDesc(ValueType.STRING);
@@ -127,6 +130,11 @@ public class ValueDesc
     return typeName.equals(INDEXED_ID_TYPE) || isPrefixed(typeName, INDEXED_ID_PREFIX);
   }
 
+  public static boolean isDecimal(ValueDesc valueType)
+  {
+    return valueType != null && valueType.typeName.startsWith(DECIMAL);
+  }
+
   private static boolean isPrefixed(String typeName, String prefix)
   {
     return typeName != null && typeName.toLowerCase().startsWith(prefix);
@@ -163,6 +171,12 @@ public class ValueDesc
   {
     String typeName = valueType == null ? null : subElementOf(valueType.typeName);
     return typeName == null ? defaultType : ValueDesc.of(typeName);
+  }
+
+  public static String headElementOf(String typeName)
+  {
+    int index = typeName.indexOf('.');
+    return index < 0 ? null : typeName.substring(0, index);
   }
 
   public static String subElementOf(String typeName)
@@ -225,6 +239,11 @@ public class ValueDesc
       return ValueDesc.of(typeName.substring(index + 1));
     }
     throw new IllegalStateException("does not have sub element");
+  }
+
+  public boolean hasSubElement()
+  {
+    return typeName.indexOf('.') >= 0;
   }
 
   @Override

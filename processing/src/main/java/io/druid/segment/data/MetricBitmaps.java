@@ -142,12 +142,6 @@ public abstract class MetricBitmaps<T extends Comparable> implements MetricBitma
         bout.write(bytes);
         return bout.toByteArray();
       }
-
-      @Override
-      public int compare(MetricBitmaps o1, MetricBitmaps o2)
-      {
-        throw new UnsupportedOperationException();
-      }
     };
   }
 

@@ -71,7 +71,7 @@ public class GenericIndexed<T> implements Indexed<T>, DictionaryLoader<T>, Colum
       return new GenericIndexed<T>(buffer, strategy, true);
     }
 
-    boolean allowReverseLookup = true;
+    boolean allowReverseLookup = !(strategy instanceof ObjectStrategy.NotComparable);
     int count = 0;
 
     ByteArrayOutputStream headerBytes = new ByteArrayOutputStream();

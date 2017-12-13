@@ -26,23 +26,56 @@ import io.druid.data.ValueDesc;
 import io.druid.query.aggregation.ArrayMetricSerde;
 
 import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  */
 public class ComplexMetrics
 {
   private static final Logger log = new Logger(ComplexMetrics.class);
+  private static final Map<String, ComplexMetricSerde.Factory> complexSerializerFactories = Maps.newHashMap();
   private static final Map<String, ComplexMetricSerde> complexSerializers = Maps.newHashMap();
   private static final Map<Class, String> classToTypeName = Maps.newHashMap();
 
+  private static Pattern DESCRIPTION = Pattern.compile("^(.+)\\((.*)\\)$");
+
+  public static ComplexMetricSerde getSerdeForType(ValueDesc type)
+  {
+    return getSerdeForType(type.typeName());
+  }
+
   public static ComplexMetricSerde getSerdeForType(String type)
   {
-    return complexSerializers.get(type);
+    ComplexMetricSerde serde = complexSerializers.get(type);
+    if (serde == null) {
+      Matcher matcher = DESCRIPTION.matcher(type);
+      if (matcher.matches()) {
+        ComplexMetricSerde.Factory factory = complexSerializerFactories.get(matcher.group(1));
+        if (factory != null) {
+          serde = factory.create(matcher.group(2));
+        }
+      }
+    }
+    return serde;
+  }
+
+  public static ComplexMetricSerde.Factory getSerdeFactory(String type)
+  {
+    return complexSerializerFactories.get(type);
   }
 
   public static String getTypeNameForClass(Class clazz)
   {
     return classToTypeName.get(clazz);
+  }
+
+  public static void registerSerdeFactory(String type, ComplexMetricSerde.Factory factory)
+  {
+    if (complexSerializerFactories.containsKey(type)) {
+      throw new ISE("Serializer for type[%s] already exists.", type);
+    }
+    complexSerializerFactories.put(type, factory);
   }
 
   public static void registerSerde(String type, ComplexMetricSerde serde)

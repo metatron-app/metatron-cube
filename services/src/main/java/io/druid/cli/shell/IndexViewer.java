@@ -22,6 +22,7 @@ import com.metamx.common.StringUtils;
 import com.metamx.common.guava.CloseQuietly;
 import com.metamx.common.logger.Logger;
 import io.druid.common.utils.JodaUtils;
+import io.druid.data.ValueDesc;
 import io.druid.data.ValueType;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.segment.IndexIO;
@@ -356,17 +357,20 @@ public class IndexViewer implements CommonShell
 
       long columnSize = column.getSerializedSize();
 
+      ValueDesc desc;
       ValueType type = capabilities.getType();
-      ComplexColumn complexColumn = column.getComplexColumn();
-      if (complexColumn != null) {
-        type = ValueType.of(complexColumn.getTypeName());   // more specific for complex type
+      if (type == ValueType.COMPLEX) {
+        ComplexColumn complexColumn = column.getComplexColumn();
+        desc = ValueDesc.of(complexColumn.getTypeName());   // more specific for complex type
         CloseQuietly.close(complexColumn);
+      } else {
+        desc = ValueDesc.of(type);
       }
       Map<String, Object> columnStats = column.getColumnStats();
       writer.print(
           format(
               "  type : %s, hasMultiValue = %s, (%,d bytes, %3.1f%% of total)",
-              type, capabilities.hasMultipleValues(), columnSize, (columnSize * 100f / totalSize)
+              desc, capabilities.hasMultipleValues(), columnSize, (columnSize * 100f / totalSize)
           )
       );
       if (columnStats != null) {

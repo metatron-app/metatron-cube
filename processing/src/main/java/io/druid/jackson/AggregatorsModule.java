@@ -32,6 +32,7 @@ import io.druid.query.aggregation.ArrayAggregatorFactory;
 import io.druid.query.aggregation.ArrayMetricSerde;
 import io.druid.query.aggregation.CollectionCountPostAggregator;
 import io.druid.query.aggregation.CountAggregatorFactory;
+import io.druid.query.aggregation.DecimalMetricSerde;
 import io.druid.query.aggregation.DimensionArrayAggregatorFactory;
 import io.druid.query.aggregation.DoubleMaxAggregatorFactory;
 import io.druid.query.aggregation.DoubleMinAggregatorFactory;
@@ -88,6 +89,12 @@ public class AggregatorsModule extends SimpleModule
     }
     if (ComplexMetrics.getSerdeForType("string") == null) {
       ComplexMetrics.registerSerde("string", StringMetricSerde.INSTANCE);
+    }
+    if (ComplexMetrics.getSerdeForType("decimal") == null) {
+      ComplexMetrics.registerSerde("decimal", new DecimalMetricSerde());
+    }
+    if (ComplexMetrics.getSerdeFactory("decimal") == null) {
+      ComplexMetrics.registerSerdeFactory("decimal", new DecimalMetricSerde.Factory());
     }
 
     setMixInAnnotation(AggregatorFactory.class, AggregatorFactoryMixin.class);

@@ -26,12 +26,17 @@ import io.druid.data.ValueDesc;
 import io.druid.data.ValueType;
 import io.druid.segment.ColumnSelectorFactory;
 import io.druid.segment.ColumnSelectors;
+import io.druid.segment.serde.ComplexMetrics;
+
+import java.math.BigDecimal;
 
 /**
  */
 public class GenericSumAggregatorFactory extends GenericAggregatorFactory
 {
   private static final byte CACHE_TYPE_ID = 0x0A;
+
+  private final boolean handleDecimal;
 
   @JsonCreator
   public GenericSumAggregatorFactory(
@@ -43,7 +48,11 @@ public class GenericSumAggregatorFactory extends GenericAggregatorFactory
   )
   {
     super(name, fieldName, fieldExpression, predicate, inputType);
-    Preconditions.checkArgument(outputType.type().isPrimitive(), "cannot sum on complex type");
+    Preconditions.checkArgument(
+        ValueDesc.isPrimitive(outputType) || ValueDesc.isDecimal(outputType),
+        "unsupported type " + outputType
+    );
+    this.handleDecimal = ValueDesc.isDecimal(outputType);
   }
 
   public GenericSumAggregatorFactory(String name, String fieldName, String inputType)
@@ -89,9 +98,19 @@ public class GenericSumAggregatorFactory extends GenericAggregatorFactory
             ),
             ColumnSelectors.toMatcher(predicate, metricFactory)
         );
-      default:
-        throw new IllegalArgumentException();
+      case COMPLEX:
+        if (ValueDesc.isDecimal(valueType)) {
+          return DecimalSumAggregator.create(
+              ColumnSelectors.<BigDecimal>getObjectColumnSelector(
+                  metricFactory,
+                  fieldName,
+                  fieldExpression
+              ),
+              ColumnSelectors.toMatcher(predicate, metricFactory)
+          );
+        }
     }
+    throw new IllegalArgumentException("unsupported type " + valueType);
   }
 
   @Override
@@ -125,8 +144,21 @@ public class GenericSumAggregatorFactory extends GenericAggregatorFactory
             ),
             ColumnSelectors.toMatcher(predicate, metricFactory)
         );
+      case COMPLEX:
+        if (ValueDesc.isDecimal(valueType)) {
+          DecimalMetricSerde decimalSerde = (DecimalMetricSerde) ComplexMetrics.getSerdeForType(valueType);
+          return DecimalSumBufferAggregator.create(
+              ColumnSelectors.<BigDecimal>getObjectColumnSelector(
+                  metricFactory,
+                  fieldName,
+                  fieldExpression
+              ),
+              ColumnSelectors.toMatcher(predicate, metricFactory),
+              Preconditions.checkNotNull(decimalSerde, "unsupported type " + valueType)
+          );
+        }
     }
-    throw new IllegalStateException();
+    throw new IllegalArgumentException("unsupported type " + valueType);
   }
 
   @Override
@@ -148,6 +180,15 @@ public class GenericSumAggregatorFactory extends GenericAggregatorFactory
   }
 
   @Override
+  public final Object deserialize(Object object)
+  {
+    if (handleDecimal && object instanceof String) {
+      return new BigDecimal((String) object);
+    }
+    return super.deserialize(object);
+  }
+
+  @Override
   public final Object combine(Object lhs, Object rhs)
   {
     switch (outputType.type()) {
@@ -156,6 +197,8 @@ public class GenericSumAggregatorFactory extends GenericAggregatorFactory
         return ((Number) lhs).doubleValue() + ((Number) rhs).doubleValue();
       case LONG:
         return ((Number) lhs).longValue() + ((Number) rhs).longValue();
+      case COMPLEX:
+        return ((BigDecimal) lhs).add((BigDecimal) rhs);
     }
     throw new IllegalStateException();
   }
