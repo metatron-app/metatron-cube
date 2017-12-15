@@ -62,6 +62,7 @@ import io.druid.query.QueryToolChestWarehouse;
 import io.druid.query.ResultWriter;
 import io.druid.query.TabularFormat;
 import io.druid.query.UnionAllQuery;
+import io.druid.query.spec.MultipleIntervalSegmentSpec;
 import io.druid.segment.IndexMergerV9;
 import io.druid.segment.incremental.IncrementalIndexSchema;
 import io.druid.server.initialization.ServerConfig;
@@ -219,7 +220,7 @@ public class QueryResource
         );
       }
 
-      log.info("Got query [%s]", log.isDebugEnabled() ? query : queryId);
+      log.info("Got query [%s]", log.isDebugEnabled() ? query : queryId + ":" + query.getType());
       currentThread.setName(String.format("%s[%s_%s]", currThreadName, query.getType(), queryId));
 
       final Query prepared = prepareQuery(query);
@@ -278,7 +279,7 @@ public class QueryResource
                         new RequestLogLine(
                             new DateTime(start),
                             req.getRemoteAddr(),
-                            theQuery,
+                            toLoggingQuery(theQuery),
                             new QueryStats(
                                 ImmutableMap.<String, Object>of(
                                     "query/time", queryTime,
@@ -330,7 +331,7 @@ public class QueryResource
             new RequestLogLine(
                 new DateTime(start),
                 req.getRemoteAddr(),
-                query,
+                toLoggingQuery(query),
                 new QueryStats(
                     ImmutableMap.<String, Object>of(
                         "query/time",
@@ -371,7 +372,7 @@ public class QueryResource
             new RequestLogLine(
                 new DateTime(start),
                 req.getRemoteAddr(),
-                query,
+                toLoggingQuery(query),
                 new QueryStats(
                     ImmutableMap.<String, Object>of(
                         "query/time",
@@ -400,6 +401,14 @@ public class QueryResource
     finally {
       currentThread.setName(currThreadName);
     }
+  }
+
+  // suppress excessive interval logging in historical node
+  protected Query toLoggingQuery(Query<?> query)
+  {
+    return query.withQuerySegmentSpec(
+        new MultipleIntervalSegmentSpec(Arrays.asList(JodaUtils.umbrellaInterval(query.getIntervals())))
+    );
   }
 
   protected Access authorize(Query query, HttpServletRequest req)

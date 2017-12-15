@@ -239,6 +239,12 @@ public class BrokerQueryResource extends QueryResource
   }
 
   @Override
+  protected Query toLoggingQuery(Query<?> query)
+  {
+    return query;
+  }
+
+  @Override
   @SuppressWarnings("unchecked")
   protected Query prepareQuery(Query query) throws Exception
   {
