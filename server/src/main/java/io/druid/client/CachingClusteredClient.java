@@ -71,6 +71,7 @@ import io.druid.timeline.TimelineObjectHolder;
 import io.druid.timeline.partition.PartitionChunk;
 import org.joda.time.Interval;
 
+import java.io.Closeable;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -82,6 +83,8 @@ import java.util.Set;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 
 /**
  */
@@ -348,19 +351,22 @@ public class CachingClusteredClient<T> implements QueryRunner<T>
           @Override
           public Sequence<T> get()
           {
+            final CacheAccessTime cacheAccessTime = new CacheAccessTime();
+
             ArrayList<Sequence<T>> sequencesByInterval = Lists.newArrayList();
-            addSequencesFromCache(sequencesByInterval);
+            if (strategy != null) {
+              addSequencesFromCache(sequencesByInterval, cacheAccessTime);
+            }
             addSequencesFromServer(sequencesByInterval);
 
-            return mergeCachedAndUncachedSequences(query, sequencesByInterval);
+            return mergeCachedAndUncachedSequences(query, sequencesByInterval, cachedResults.size(), cacheAccessTime);
           }
 
-          private void addSequencesFromCache(ArrayList<Sequence<T>> listOfSequences)
+          private void addSequencesFromCache(
+              final ArrayList<Sequence<T>> listOfSequences,
+              final CacheAccessTime cacheAccessTime
+          )
           {
-            if (strategy == null) {
-              return;
-            }
-
             final Function<Object, T> pullFromCacheFunction = strategy.pullFromCache();
             final TypeReference<Object> cacheObjectClazz = strategy.getCacheObjectClazz();
             for (Pair<Interval, byte[]> cachedResultPair : cachedResults) {
@@ -368,8 +374,6 @@ public class CachingClusteredClient<T> implements QueryRunner<T>
               Sequence<Object> cachedSequence = new BaseSequence<>(
                   new BaseSequence.IteratorMaker<Object, Iterator<Object>>()
                   {
-                    private long cumulative;
-
                     @Override
                     public Iterator<Object> make()
                     {
@@ -387,16 +391,13 @@ public class CachingClusteredClient<T> implements QueryRunner<T>
                         throw Throwables.propagate(e);
                       }
                       finally {
-                        cumulative += (System.currentTimeMillis() - prev);
+                        cacheAccessTime.addRow(System.currentTimeMillis() - prev);
                       }
                     }
 
                     @Override
                     public void cleanup(Iterator<Object> iterFromMake)
                     {
-                      log.info(
-                          "Deserialized rows from %,d cached segments, took %,d msec", cachedResults.size(), cumulative
-                      );
                     }
                   }
               );
@@ -574,17 +575,60 @@ public class CachingClusteredClient<T> implements QueryRunner<T>
 
   protected Sequence<T> mergeCachedAndUncachedSequences(
       Query<T> query,
-      List<Sequence<T>> sequencesByInterval
+      List<Sequence<T>> sequencesByInterval,
+      final int numCachedSegments,
+      final CacheAccessTime cacheAccessTime
   )
   {
+    Sequence<T> base;
     if (sequencesByInterval.isEmpty()) {
-      return Sequences.empty();
+      base = Sequences.empty();
+    } else {
+      base = new MergeSequence<>(
+          query.getResultOrdering(),
+          Sequences.simple(sequencesByInterval)
+      );
+    }
+    if (numCachedSegments == 0 || cacheAccessTime == null) {
+      return base;
+    }
+    return Sequences.withBaggage(
+        base, new Closeable()
+        {
+          @Override
+          public void close() throws IOException
+          {
+            log.info(
+                "Deserialized %,d rows from %,d cached segments, took %,d msec",
+                cacheAccessTime.rows(), numCachedSegments, cacheAccessTime.time()
+            );
+          }
+        }
+    );
+  }
+
+  private static class CacheAccessTime extends Pair<AtomicLong, AtomicInteger>
+  {
+    public CacheAccessTime()
+    {
+      super(new AtomicLong(), new AtomicInteger());
     }
 
-    return new MergeSequence<>(
-        query.getResultOrdering(),
-        Sequences.simple(sequencesByInterval)
-    );
+    public void addRow(long time)
+    {
+      lhs.addAndGet(time);
+      rhs.incrementAndGet();
+    }
+
+    public long time()
+    {
+      return lhs.get();
+    }
+
+    public int rows()
+    {
+      return rhs.get();
+    }
   }
 
   private static class CachePopulator

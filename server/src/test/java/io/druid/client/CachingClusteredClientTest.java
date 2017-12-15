@@ -937,7 +937,9 @@ public class CachingClusteredClientTest
                 .threshold(3)
                 .aggregators(Arrays.<AggregatorFactory>asList(new CountAggregatorFactory("b")))
                 .build(),
-            sequences
+            sequences,
+            -1,
+            null
         )
     );
   }
