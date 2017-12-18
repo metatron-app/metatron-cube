@@ -27,6 +27,7 @@ import com.metamx.common.guava.Sequences;
 import com.metamx.emitter.service.ServiceMetricEvent;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.query.DruidMetrics;
+import io.druid.query.Query;
 import io.druid.query.QueryRunner;
 import io.druid.query.QueryToolChest;
 import io.druid.query.TabularFormat;
@@ -44,9 +45,22 @@ public class StreamQueryToolChest extends QueryToolChest<StreamQueryRow, StreamQ
       };
 
   @Override
-  public QueryRunner<StreamQueryRow> mergeResults(QueryRunner<StreamQueryRow> queryRunner)
+  public QueryRunner<StreamQueryRow> mergeResults(final QueryRunner<StreamQueryRow> queryRunner)
   {
-    return queryRunner; // don't care ordering.. just concat
+    return new QueryRunner<StreamQueryRow>()
+    {
+      @Override
+      public Sequence<StreamQueryRow> run(
+          Query<StreamQueryRow> query, Map<String, Object> responseContext
+      )
+      {
+        Sequence<StreamQueryRow> sequence = queryRunner.run(query, responseContext);
+        if (((StreamQuery)query).getLimit() > 0) {
+          sequence = Sequences.limit(sequence, ((StreamQuery)query).getLimit());
+        }
+        return sequence;
+      }
+    };
   }
 
   @Override

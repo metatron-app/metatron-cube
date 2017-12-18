@@ -19,6 +19,7 @@
 
 package io.druid.query.kmeans;
 
+import com.google.common.util.concurrent.Futures;
 import com.google.inject.Inject;
 import com.metamx.common.Pair;
 import com.metamx.common.guava.Accumulator;
@@ -36,6 +37,7 @@ import io.druid.query.select.Schema;
 import io.druid.query.select.StreamQuery;
 import io.druid.query.select.StreamQueryEngine;
 import io.druid.segment.Segment;
+import org.apache.commons.lang.mutable.MutableInt;
 
 import java.util.Arrays;
 import java.util.List;
@@ -69,6 +71,12 @@ public class FindNearestQueryRunnerFactory
   }
 
   @Override
+  public Future<Object> preFactoring(FindNearestQuery query, List<Segment> segments, ExecutorService exec)
+  {
+    return Futures.<Object>immediateFuture(new MutableInt(0));
+  }
+
+  @Override
   public QueryRunner<CentroidDesc> createRunner(final Segment segment, final Future<Object> optimizer)
   {
     return new QueryRunner<CentroidDesc>()
@@ -80,7 +88,7 @@ public class FindNearestQueryRunnerFactory
         final int dimension = nearestQuery.getMetrics().size();
 
         StreamQuery stream = nearestQuery.asInput();
-        Pair<Schema, Sequence<Object[]>> result = engine.process(stream, segment, cache);
+        Pair<Schema, Sequence<Object[]>> result = engine.process(stream, segment, optimizer, cache);
 
         final Centroid[] centroids = nearestQuery.getCentroids().toArray(new Centroid[0]);
         final CentroidDesc[] descs = new CentroidDesc[centroids.length];
@@ -136,11 +144,5 @@ public class FindNearestQueryRunnerFactory
   public QueryToolChest<CentroidDesc, FindNearestQuery> getToolchest()
   {
     return toolChest;
-  }
-
-  @Override
-  public Future<Object> preFactoring(FindNearestQuery query, List<Segment> segments, ExecutorService exec)
-  {
-    return null;
   }
 }

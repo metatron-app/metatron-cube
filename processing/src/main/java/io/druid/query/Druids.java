@@ -1157,10 +1157,8 @@ public class Druids
       concatString = null;
     }
 
-
     public StreamQuery streaming()
     {
-      Preconditions.checkArgument(pagingSpec == null || pagingSpec.equals(PagingSpec.GET_ALL));
       return new StreamQuery(
           dataSource,
           querySegmentSpec,
@@ -1170,6 +1168,7 @@ public class Druids
           metrics,
           virtualColumns,
           concatString,
+          pagingSpec == null ? -1 : pagingSpec.getThreshold(),
           context
       );
     }
@@ -1355,6 +1354,12 @@ public class Druids
     public SelectQueryBuilder outputColumns(List<String> o)
     {
       outputColumns = o;
+      return this;
+    }
+
+    public SelectQueryBuilder outputColumns(int limit)
+    {
+      pagingSpec = PagingSpec.newSpec(limit);
       return this;
     }
   }

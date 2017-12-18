@@ -129,6 +129,7 @@ public class FindNearestQuery extends BaseQuery<CentroidDesc>
         getMetrics(),
         getVirtualColumns(),
         null,
+        -1,
         computeOverridenContext(ImmutableMap.<String, Object>of(ALL_DIMENSIONS_FOR_EMPTY, false))
     );
   }

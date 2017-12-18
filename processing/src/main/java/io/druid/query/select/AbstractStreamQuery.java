@@ -46,6 +46,7 @@ public abstract class AbstractStreamQuery<T extends Comparable<T>> extends BaseQ
   private final List<String> metrics;
   private final List<VirtualColumn> virtualColumns;
   private final String concatString;
+  private final int limit;
 
   public AbstractStreamQuery(
       DataSource dataSource,
@@ -56,6 +57,7 @@ public abstract class AbstractStreamQuery<T extends Comparable<T>> extends BaseQ
       List<String> metrics,
       List<VirtualColumn> virtualColumns,
       String concatString,
+      int limit,
       Map<String, Object> context
   )
   {
@@ -66,6 +68,7 @@ public abstract class AbstractStreamQuery<T extends Comparable<T>> extends BaseQ
     this.metrics = metrics == null ? ImmutableList.<String>of() : metrics;
     this.virtualColumns = virtualColumns == null ? ImmutableList.<VirtualColumn>of() : virtualColumns;
     this.concatString = concatString;
+    this.limit = limit > 0 ? limit : -1;
   }
 
   @Override
@@ -105,6 +108,12 @@ public abstract class AbstractStreamQuery<T extends Comparable<T>> extends BaseQ
   }
 
   @JsonProperty
+  public int getLimit()
+  {
+    return limit;
+  }
+
+  @JsonProperty
   public List<String> getMetrics()
   {
     return metrics;
@@ -139,7 +148,8 @@ public abstract class AbstractStreamQuery<T extends Comparable<T>> extends BaseQ
         .append(getType()).append('{')
         .append("dataSource='").append(getDataSource()).append('\'')
         .append(", querySegmentSpec=").append(getQuerySegmentSpec())
-        .append(", granularity=").append(granularity);
+        .append(", granularity=").append(granularity)
+        .append(", limit=").append(limit);
 
     if (dimFilter != null) {
       builder.append(", dimFilter=").append(dimFilter);
@@ -193,6 +203,9 @@ public abstract class AbstractStreamQuery<T extends Comparable<T>> extends BaseQ
     if (!Objects.equals(concatString, that.concatString)) {
       return false;
     }
+    if (limit != that.limit) {
+      return false;
+    }
 
     return true;
   }
@@ -207,6 +220,7 @@ public abstract class AbstractStreamQuery<T extends Comparable<T>> extends BaseQ
     result = 31 * result + (metrics != null ? metrics.hashCode() : 0);
     result = 31 * result + (virtualColumns != null ? virtualColumns.hashCode() : 0);
     result = 31 * result + (concatString != null ? concatString.hashCode() : 0);
+    result = 31 * result + limit;
     return result;
   }
 }

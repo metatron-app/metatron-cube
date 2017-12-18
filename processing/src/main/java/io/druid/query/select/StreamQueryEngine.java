@@ -39,11 +39,14 @@ import io.druid.segment.VirtualColumns;
 import io.druid.segment.column.Column;
 import io.druid.segment.data.IndexedInts;
 import org.apache.commons.lang.StringUtils;
+import org.apache.commons.lang.mutable.MutableInt;
 import org.joda.time.Interval;
+import org.python.google.common.util.concurrent.Futures;
 
 import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
+import java.util.concurrent.Future;
 
 /**
  */
@@ -52,6 +55,7 @@ public class StreamQueryEngine
   public Pair<Schema, Sequence<Object[]>> process(
       final AbstractStreamQuery baseQuery,
       final Segment segment,
+      final Future optimizer,
       final Cache cache
   )
   {
@@ -63,11 +67,14 @@ public class StreamQueryEngine
       );
     }
 
+    @SuppressWarnings("unchecked")
+    final MutableInt counter = Futures.<MutableInt>getUnchecked(optimizer);
     final AbstractStreamQuery<?> query = (AbstractStreamQuery) ViewSupportHelper.rewrite(baseQuery, adapter);
 
     List<Interval> intervals = query.getQuerySegmentSpec().getIntervals();
     Preconditions.checkArgument(intervals.size() == 1, "Can only handle a single interval, got[%s]", intervals);
 
+    final int limit = query.getLimit();
     final String concatString = query.getConcatString();
     final Schema schema = ViewSupportHelper.toSchema(query, segment).appendTime();
 
@@ -110,7 +117,7 @@ public class StreamQueryEngine
                           @Override
                           public boolean hasNext()
                           {
-                            return !cursor.isDone();
+                            return !cursor.isDone() && (limit <= 0 || counter.intValue() < limit);
                           }
 
                           @Override
@@ -147,6 +154,7 @@ public class StreamQueryEngine
                             }
                             theEvent[index] = timestampColumnSelector.get();
 
+                            counter.increment();
                             cursor.advance();
                             return theEvent;
                           }

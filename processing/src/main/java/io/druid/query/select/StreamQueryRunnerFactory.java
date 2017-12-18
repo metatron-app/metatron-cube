@@ -22,6 +22,7 @@ package io.druid.query.select;
 import com.google.common.base.Function;
 import com.google.common.base.Supplier;
 import com.google.common.collect.Iterables;
+import com.google.common.util.concurrent.Futures;
 import com.google.inject.Inject;
 import com.metamx.common.Pair;
 import com.metamx.common.guava.LazySequence;
@@ -34,6 +35,7 @@ import io.druid.query.QueryRunner;
 import io.druid.query.QueryRunnerFactory;
 import io.druid.query.QueryToolChest;
 import io.druid.segment.Segment;
+import org.apache.commons.lang.mutable.MutableInt;
 
 import java.util.List;
 import java.util.Map;
@@ -66,14 +68,20 @@ public class StreamQueryRunnerFactory
   }
 
   @Override
-  public QueryRunner<StreamQueryRow> createRunner(final Segment segment, Future<Object> optimizer)
+  public Future<Object> preFactoring(StreamQuery query, List<Segment> segments, ExecutorService exec)
+  {
+    return Futures.<Object>immediateFuture(new MutableInt(0));
+  }
+
+  @Override
+  public QueryRunner<StreamQueryRow> createRunner(final Segment segment, final Future<Object> optimizer)
   {
     return new QueryRunner<StreamQueryRow>()
     {
       @Override
       public Sequence<StreamQueryRow> run(Query<StreamQueryRow> query, Map<String, Object> responseContext)
       {
-        Pair<Schema, Sequence<Object[]>> result = engine.process((StreamQuery) query, segment, cache);
+        Pair<Schema, Sequence<Object[]>> result = engine.process((StreamQuery) query, segment, optimizer, cache);
         final String[] columnNames = result.lhs.getColumnNames().toArray(new String[0]);
         return Sequences.map(
             result.rhs, new Function<Object[], StreamQueryRow>()
@@ -135,11 +143,5 @@ public class StreamQueryRunnerFactory
   public QueryToolChest<StreamQueryRow, StreamQuery> getToolchest()
   {
     return toolChest;
-  }
-
-  @Override
-  public Future<Object> preFactoring(StreamQuery query, List<Segment> segments, ExecutorService exec)
-  {
-    return null;
   }
 }

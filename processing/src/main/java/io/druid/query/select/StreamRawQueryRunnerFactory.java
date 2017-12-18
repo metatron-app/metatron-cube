@@ -23,6 +23,7 @@ import com.google.common.base.Function;
 import com.google.common.base.Supplier;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
+import com.google.common.util.concurrent.Futures;
 import com.google.inject.Inject;
 import com.metamx.common.Pair;
 import com.metamx.common.guava.LazySequence;
@@ -35,6 +36,7 @@ import io.druid.query.QueryRunner;
 import io.druid.query.QueryRunnerFactory;
 import io.druid.query.QueryToolChest;
 import io.druid.segment.Segment;
+import org.apache.commons.lang.mutable.MutableInt;
 import org.joda.time.DateTime;
 
 import java.util.Arrays;
@@ -69,14 +71,20 @@ public class StreamRawQueryRunnerFactory
   }
 
   @Override
-  public QueryRunner<RawRows> createRunner(final Segment segment, Future<Object> optimizer)
+  public Future<Object> preFactoring(StreamRawQuery query, List<Segment> segments, ExecutorService exec)
+  {
+    return Futures.<Object>immediateFuture(new MutableInt(0));
+  }
+
+  @Override
+  public QueryRunner<RawRows> createRunner(final Segment segment, final Future<Object> optimizer)
   {
     return new QueryRunner<RawRows>()
     {
       @Override
       public Sequence<RawRows> run(Query<RawRows> query, Map<String, Object> responseContext)
       {
-        Pair<Schema, Sequence<Object[]>> result = engine.process((StreamRawQuery) query, segment, cache);
+        Pair<Schema, Sequence<Object[]>> result = engine.process((StreamRawQuery) query, segment, optimizer, cache);
         DateTime start = segment.getDataInterval().getStart();
         return Sequences.simple(
             Arrays.asList(
@@ -129,11 +137,5 @@ public class StreamRawQueryRunnerFactory
   public QueryToolChest<RawRows, StreamRawQuery> getToolchest()
   {
     return toolChest;
-  }
-
-  @Override
-  public Future<Object> preFactoring(StreamRawQuery query, List<Segment> segments, ExecutorService exec)
-  {
-    return null;
   }
 }

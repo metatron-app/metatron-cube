@@ -229,6 +229,7 @@ public abstract class BaseQuery<T extends Comparable<T>> implements Query<T>
   }
 
   @Override
+  @SuppressWarnings("unchecked")
   public <ContextType> ContextType getContextValue(String key)
   {
     return context == null ? null : (ContextType) context.get(key);
@@ -300,7 +301,7 @@ public abstract class BaseQuery<T extends Comparable<T>> implements Query<T>
   }
 
   @Override
-  public Query withId(String id)
+  public Query<T> withId(String id)
   {
     return withOverriddenContext(ImmutableMap.<String, Object>of(QUERYID, id));
   }
@@ -317,21 +318,21 @@ public abstract class BaseQuery<T extends Comparable<T>> implements Query<T>
 
     BaseQuery baseQuery = (BaseQuery) o;
 
+    if (!dataSource.equals(baseQuery.dataSource)) {
+      return false;
+    }
     if (descending != baseQuery.descending) {
       return false;
     }
     if (context != null ? !context.equals(baseQuery.context) : baseQuery.context != null) {
       return false;
     }
-    if (dataSource != null ? !dataSource.equals(baseQuery.dataSource) : baseQuery.dataSource != null) {
-      return false;
-    }
-    if (duration != null ? !duration.equals(baseQuery.duration) : baseQuery.duration != null) {
-      return false;
-    }
     if (querySegmentSpec != null
         ? !querySegmentSpec.equals(baseQuery.querySegmentSpec)
         : baseQuery.querySegmentSpec != null) {
+      return false;
+    }
+    if (duration != null ? !duration.equals(baseQuery.duration) : baseQuery.duration != null) {
       return false;
     }
 
@@ -341,7 +342,7 @@ public abstract class BaseQuery<T extends Comparable<T>> implements Query<T>
   @Override
   public int hashCode()
   {
-    int result = dataSource != null ? dataSource.hashCode() : 0;
+    int result = dataSource.hashCode();
     result = 31 * result + (descending ? 1 : 0);
     result = 31 * result + (context != null ? context.hashCode() : 0);
     result = 31 * result + (querySegmentSpec != null ? querySegmentSpec.hashCode() : 0);

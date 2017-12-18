@@ -48,10 +48,22 @@ public class StreamQuery extends AbstractStreamQuery<StreamQueryRow>
       @JsonProperty("metrics") List<String> metrics,
       @JsonProperty("virtualColumns") List<VirtualColumn> virtualColumns,
       @JsonProperty("concatString") String concatString,
+      @JsonProperty("limit") int limit,
       @JsonProperty("context") Map<String, Object> context
   )
   {
-    super(dataSource, querySegmentSpec, dimFilter, granularity, dimensions, metrics, virtualColumns, concatString, context);
+    super(
+        dataSource,
+        querySegmentSpec,
+        dimFilter,
+        granularity,
+        dimensions,
+        metrics,
+        virtualColumns,
+        concatString,
+        limit,
+        context
+    );
   }
 
   @Override
@@ -60,6 +72,7 @@ public class StreamQuery extends AbstractStreamQuery<StreamQueryRow>
     return Query.SELECT_STREAM;
   }
 
+  @Override
   public StreamQuery withQuerySegmentSpec(QuerySegmentSpec querySegmentSpec)
   {
     return new StreamQuery(
@@ -71,6 +84,7 @@ public class StreamQuery extends AbstractStreamQuery<StreamQueryRow>
         getMetrics(),
         getVirtualColumns(),
         getConcatString(),
+        getLimit(),
         getContext()
     );
   }
@@ -87,10 +101,12 @@ public class StreamQuery extends AbstractStreamQuery<StreamQueryRow>
         getMetrics(),
         getVirtualColumns(),
         getConcatString(),
+        getLimit(),
         getContext()
     );
   }
 
+  @Override
   public StreamQuery withOverriddenContext(Map<String, Object> contextOverrides)
   {
     return new StreamQuery(
@@ -102,6 +118,7 @@ public class StreamQuery extends AbstractStreamQuery<StreamQueryRow>
         getMetrics(),
         getVirtualColumns(),
         getConcatString(),
+        getLimit(),
         computeOverridenContext(contextOverrides)
     );
   }
@@ -118,10 +135,12 @@ public class StreamQuery extends AbstractStreamQuery<StreamQueryRow>
         getMetrics(),
         getVirtualColumns(),
         getConcatString(),
+        getLimit(),
         getContext()
     );
   }
 
+  @Override
   public StreamQuery withDimensionSpecs(List<DimensionSpec> dimensions)
   {
     return new StreamQuery(
@@ -133,6 +152,7 @@ public class StreamQuery extends AbstractStreamQuery<StreamQueryRow>
         getMetrics(),
         getVirtualColumns(),
         getConcatString(),
+        getLimit(),
         getContext()
     );
   }
@@ -149,10 +169,12 @@ public class StreamQuery extends AbstractStreamQuery<StreamQueryRow>
         getMetrics(),
         virtualColumns,
         getConcatString(),
+        getLimit(),
         getContext()
     );
   }
 
+  @Override
   public StreamQuery withMetrics(List<String> metrics)
   {
     return new StreamQuery(
@@ -164,6 +186,7 @@ public class StreamQuery extends AbstractStreamQuery<StreamQueryRow>
         metrics,
         getVirtualColumns(),
         getConcatString(),
+        getLimit(),
         getContext()
     );
   }

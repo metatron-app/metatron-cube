@@ -46,6 +46,7 @@ public class StreamRawQuery extends AbstractStreamQuery<RawRows>
       @JsonProperty("metrics") List<String> metrics,
       @JsonProperty("virtualColumns") List<VirtualColumn> virtualColumns,
       @JsonProperty("concatString") String concatString,
+      @JsonProperty("limit") int limit,
       @JsonProperty("context") Map<String, Object> context
   )
   {
@@ -58,6 +59,7 @@ public class StreamRawQuery extends AbstractStreamQuery<RawRows>
         metrics,
         virtualColumns,
         concatString,
+        limit,
         context
     );
   }
@@ -80,6 +82,7 @@ public class StreamRawQuery extends AbstractStreamQuery<RawRows>
         getMetrics(),
         getVirtualColumns(),
         getConcatString(),
+        getLimit(),
         getContext()
     );
   }
@@ -96,6 +99,7 @@ public class StreamRawQuery extends AbstractStreamQuery<RawRows>
         getMetrics(),
         getVirtualColumns(),
         getConcatString(),
+        getLimit(),
         getContext()
     );
   }
@@ -112,6 +116,7 @@ public class StreamRawQuery extends AbstractStreamQuery<RawRows>
         getMetrics(),
         getVirtualColumns(),
         getConcatString(),
+        getLimit(),
         computeOverridenContext(contextOverride)
     );
   }
@@ -128,6 +133,7 @@ public class StreamRawQuery extends AbstractStreamQuery<RawRows>
         getMetrics(),
         getVirtualColumns(),
         getConcatString(),
+        getLimit(),
         getContext()
     );
   }
@@ -144,6 +150,7 @@ public class StreamRawQuery extends AbstractStreamQuery<RawRows>
         getMetrics(),
         getVirtualColumns(),
         getConcatString(),
+        getLimit(),
         getContext()
     );
   }
@@ -160,6 +167,7 @@ public class StreamRawQuery extends AbstractStreamQuery<RawRows>
         metrics,
         getVirtualColumns(),
         getConcatString(),
+        getLimit(),
         getContext()
     );
   }
@@ -176,6 +184,7 @@ public class StreamRawQuery extends AbstractStreamQuery<RawRows>
         getMetrics(),
         virtualColumns,
         getConcatString(),
+        getLimit(),
         getContext()
     );
   }
