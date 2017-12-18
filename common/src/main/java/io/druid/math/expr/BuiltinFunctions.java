@@ -2100,6 +2100,69 @@ public interface BuiltinFunctions extends Function.Library
     }
   }
 
+  // sql
+  final class BtrimFunc extends ExprType.StringFunction
+  {
+    @Override
+    public String name()
+    {
+      return "btrim";
+    }
+
+    @Override
+    public ExprEval apply(List<Expr> args, NumericBinding bindings)
+    {
+      if (args.size() != 1 && args.size() != 2) {
+        throw new RuntimeException("function 'btrim' needs 1 or 2 arguments");
+      }
+      String input = args.get(0).eval(bindings).asString();
+      String strip = args.size() > 1 ? Evals.getConstantString(args.get(1)) : null;
+      return ExprEval.of(StringUtils.stripEnd(StringUtils.stripStart(input, strip), strip));
+    }
+  }
+
+  // sql
+  final class LtrimFunc extends ExprType.StringFunction
+  {
+    @Override
+    public String name()
+    {
+      return "ltrim";
+    }
+
+    @Override
+    public ExprEval apply(List<Expr> args, NumericBinding bindings)
+    {
+      if (args.size() != 1 && args.size() != 2) {
+        throw new RuntimeException("function 'ltrim' needs 1 or 2 arguments");
+      }
+      String input = args.get(0).eval(bindings).asString();
+      String strip = args.size() > 1 ? Evals.getConstantString(args.get(1)) : null;
+      return ExprEval.of(StringUtils.stripStart(input, strip));
+    }
+  }
+
+  // sql
+  final class RtrimFunc extends ExprType.StringFunction
+  {
+    @Override
+    public String name()
+    {
+      return "rtrim";
+    }
+
+    @Override
+    public ExprEval apply(List<Expr> args, NumericBinding bindings)
+    {
+      if (args.size() != 1 && args.size() != 2) {
+        throw new RuntimeException("function 'ltrim' needs 1 or 2 arguments");
+      }
+      String input = args.get(0).eval(bindings).asString();
+      String strip = args.size() > 1 ? Evals.getConstantString(args.get(1)) : null;
+      return ExprEval.of(StringUtils.stripEnd(input, strip));
+    }
+  }
+
   class Now extends ExprType.LongFunction {
 
     @Override

@@ -858,6 +858,30 @@ public class EvalTest
   }
 
   @Test
+  public void testXTrim()
+  {
+    Expr.NumericBinding bindings = Parser.withMap(
+        ImmutableMap.<String, Object>of(
+            "a", "  navis ",
+            "b", "??navis?",
+            "c", "*?NavIs ?",
+            "d", ""
+        )
+    );
+    Assert.assertEquals("navis", evalString("btrim(a)", bindings));
+    Assert.assertEquals("  navis", evalString("rtrim(a)", bindings));
+    Assert.assertEquals("navis ", evalString("ltrim(a)", bindings));
+
+    Assert.assertEquals("navis", evalString("btrim(b, '?')", bindings));
+    Assert.assertEquals("??navis", evalString("rtrim(b, '?')", bindings));
+    Assert.assertEquals("navis?", evalString("ltrim(b, '?')", bindings));
+
+    Assert.assertEquals("NavIs ", evalString("btrim(c, '*?')", bindings));
+    Assert.assertEquals("*?NavIs ", evalString("rtrim(c, '*?')", bindings));
+    Assert.assertEquals("NavIs ?", evalString("ltrim(c, '*?')", bindings));
+  }
+
+  @Test
   public void testGranularFunctions()
   {
     DateTime time1 = new DateTime("2016-03-04T22:25:00");
