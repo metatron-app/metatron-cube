@@ -23,6 +23,7 @@ import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Predicate;
 import com.google.common.base.Strings;
+import com.google.common.primitives.Ints;
 import com.metamx.common.Pair;
 import com.metamx.common.logger.Logger;
 import io.druid.common.utils.JodaUtils;
@@ -136,7 +137,7 @@ public class Evals
   public static String getConstantString(Expr arg)
   {
     if (!(arg instanceof StringExpr)) {
-      throw new RuntimeException(arg + " is not constant string");
+      throw new IllegalArgumentException(arg + " is not constant string");
     }
     return arg.eval(null).stringValue();
   }
@@ -149,7 +150,7 @@ public class Evals
   public static String getIdentifier(Expr arg)
   {
     if (!isIdentifier(arg)) {
-      throw new RuntimeException(arg + " is not identifier");
+      throw new IllegalArgumentException(arg + " is not identifier");
     }
     return arg.toString();
   }
@@ -158,21 +159,26 @@ public class Evals
   {
     Object constant = getConstant(arg);
     if (!(constant instanceof Long)) {
-      throw new RuntimeException(arg + " is not a constant long");
+      throw new IllegalArgumentException(arg + " is not a constant long");
     }
     return (Long) constant;
+  }
+
+  static int getConstantInt(Expr arg)
+  {
+    return Ints.checkedCast(getConstantLong(arg));
   }
 
   static Number getConstantNumber(Expr arg)
   {
     Object constant = getConstant(arg);
     if (!(constant instanceof Number)) {
-      throw new RuntimeException(arg + " is not a constant number");
+      throw new IllegalArgumentException(arg + " is not a constant number");
     }
     return (Number) constant;
   }
 
-  static Object getConstant(final Expr arg)
+  static ExprEval getConstantEval(final Expr arg)
   {
     return arg.eval(
         new Expr.NumericBinding()
@@ -186,10 +192,15 @@ public class Evals
           @Override
           public Object get(String name)
           {
-            throw new RuntimeException(arg + " is not a constant");
+            throw new IllegalArgumentException(arg + " is not a constant");
           }
         }
-    ).value();
+    );
+  }
+
+  static Object getConstant(final Expr arg)
+  {
+    return getConstantEval(arg).value();
   }
 
   static boolean isConstantString(Expr arg)

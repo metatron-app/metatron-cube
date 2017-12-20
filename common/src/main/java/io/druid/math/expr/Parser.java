@@ -22,7 +22,6 @@ package io.druid.math.expr;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import com.google.common.base.Supplier;
-import com.google.common.base.Suppliers;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
@@ -47,7 +46,9 @@ import java.util.Set;
 public class Parser
 {
   private static final Logger log = new Logger(Parser.class);
-  private static final Map<String, Supplier<Function>> functions = Maps.newHashMap();
+
+  private static final Map<String, Object> registered = Maps.newConcurrentMap();
+  private static final Map<String, Function.Factory> functions = Maps.newHashMap();
 
   static {
     register(BuiltinFunctions.class);
@@ -58,41 +59,41 @@ public class Parser
 
   public static void register(Class parent)
   {
+    if (registered.putIfAbsent(parent.getName(), new Object()) != null) {
+      return;
+    }
+    boolean userDefinedLibrary = parent != BuiltinFunctions.class &&
+                                 parent != PredicateFunctions.class &&
+                                 parent != DateTimeFunctions.class &&
+                                 parent != ExcelFunctions.class;
     for (Class clazz : parent.getClasses()) {
       if (Modifier.isAbstract(clazz.getModifiers())) {
         continue;
       }
-      String name = null;
-      Supplier<Function> supplier = null;
+      Function.Factory factory = null;
       try {
         if (Function.Factory.class.isAssignableFrom(clazz)) {
-          Function.Factory factory = (Function.Factory) clazz.newInstance();
-          name = factory.name().toLowerCase();
-          supplier = factory;
+          factory = (Function.Factory) clazz.newInstance();
         } else if (Function.class.isAssignableFrom(clazz)) {
           Function function = (Function) clazz.newInstance();
-          name = function.name().toLowerCase();
-          supplier = Suppliers.ofInstance(function);
+          factory = new Function.Stateless(function);
         }
       }
       catch (Exception e) {
         log.info(e, "failed to instantiate " + clazz.getName() + ".. ignoring");
-      }
-      if (name == null || supplier == null) {
         continue;
       }
-      Supplier prev = functions.get(name);
+      if (factory == null || factory.name() == null) {
+        continue;
+      }
+      String name = factory.name().toLowerCase();
+      Function.Factory prev = functions.get(name);
       if (prev != null) {
-        if (prev.get().getClass() != supplier.get().getClass()) {
-          throw new IllegalArgumentException("function '" + name + "' cannot not be overridden");
-        }
-        continue;
+        throw new IllegalArgumentException("function '" + name + "' cannot not be overridden");
       }
-      functions.put(name, supplier);
-      if (parent != BuiltinFunctions.class
-          && parent != PredicateFunctions.class
-          && parent != DateTimeFunctions.class
-          && parent != ExcelFunctions.class) {
+      functions.put(name, factory);
+
+      if (userDefinedLibrary) {
         log.info("user defined function '" + name + "' is registered with class " + clazz.getName());
       }
     }
@@ -108,7 +109,7 @@ public class Parser
     return parse(in, functions, flatten);
   }
 
-  public static Expr parse(String in, Map<String, Supplier<Function>> func, boolean flatten)
+  public static Expr parse(String in, Map<String, Function.Factory> func, boolean flatten)
   {
     ParseTree parseTree = parseTree(in);
     ParseTreeWalker walker = new ParseTreeWalker();
@@ -123,7 +124,7 @@ public class Parser
 
   public static Expr parseWith(String in, Function.Factory... moreFunctions)
   {
-    Map<String, Supplier<Function>> custom = Maps.newHashMap(functions);
+    Map<String, Function.Factory> custom = Maps.newHashMap(functions);
     for (Function.Factory factory : moreFunctions) {
       Preconditions.checkArgument(
           custom.put(factory.name().toLowerCase(), factory) == null,

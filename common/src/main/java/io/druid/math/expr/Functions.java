@@ -44,7 +44,7 @@ public class Functions
       }
 
       @Override
-      public Function get()
+      public Function create(List<Expr> args)
       {
         return new Function()
         {

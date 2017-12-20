@@ -32,14 +32,9 @@ import java.util.List;
 public interface ExcelFunctions extends Function.Library
 {
   // fv(double r, double n, double y, double p, boolean t = false)
-  class ExcelFV extends ExprType.DoubleFunction
+  @Function.Named("fv")
+  class ExcelFV extends Function.DoubleOut
   {
-    @Override
-    public String name()
-    {
-      return "fv";
-    }
-
     @Override
     public ExprEval apply(List<Expr> args, NumericBinding bindings)
     {
@@ -59,14 +54,9 @@ public interface ExcelFunctions extends Function.Library
   }
 
   // pv(double r, double n, double y, double f, boolean t = false)
-  class ExcelPV extends ExprType.DoubleFunction
+  @Function.Named("pv")
+  class ExcelPV extends Function.DoubleOut
   {
-    @Override
-    public String name()
-    {
-      return "pv";
-    }
-
     @Override
     public ExprEval apply(List<Expr> args, NumericBinding bindings)
     {
@@ -86,14 +76,9 @@ public interface ExcelFunctions extends Function.Library
   }
 
   // nper(double r, double y, double p, double f, boolean t = false)
-  class ExcelNPER extends ExprType.DoubleFunction
+  @Function.Named("nper")
+  class ExcelNPER extends Function.DoubleOut
   {
-    @Override
-    public String name()
-    {
-      return "nper";
-    }
-
     @Override
     public ExprEval apply(List<Expr> args, NumericBinding bindings)
     {
@@ -113,16 +98,11 @@ public interface ExcelFunctions extends Function.Library
   }
 
   // npv(double[] cfs, double discountRate)
+  @Function.Named("$npv")
   class ExcelNPV extends BuiltinFunctions.PartitionFunction
   {
     private double discountRate;
     private double[] values;
-
-    @Override
-    public String name()
-    {
-      return "$npv";
-    }
 
     @Override
     protected void initialize(Expr.WindowContext context, Object[] parameters)
@@ -145,23 +125,12 @@ public interface ExcelFunctions extends Function.Library
       }
       return null;
     }
-
-    @Override
-    public Function get()
-    {
-      return new ExcelNPV();
-    }
   }
 
   // pmt(double r, double n, double p, double f = 0D, boolean t = false)
-  class ExcelPMT extends ExprType.DoubleFunction
+  @Function.Named("pmt")
+  class ExcelPMT extends Function.DoubleOut
   {
-    @Override
-    public String name()
-    {
-      return "pmt";
-    }
-
     @Override
     public ExprEval apply(List<Expr> args, NumericBinding bindings)
     {
@@ -181,14 +150,9 @@ public interface ExcelFunctions extends Function.Library
   }
 
   // ipmt(double r, int per, int nper, double pv, double fv = 0D, int type = 0)
-  class ExcelIPMT extends ExprType.DoubleFunction
+  @Function.Named("ipmt")
+  class ExcelIPMT extends Function.DoubleOut
   {
-    @Override
-    public String name()
-    {
-      return "ipmt";
-    }
-
     @Override
     public ExprEval apply(List<Expr> args, NumericBinding bindings)
     {
@@ -209,14 +173,9 @@ public interface ExcelFunctions extends Function.Library
   }
 
   // ppmt(double r, int per, int nper, double pv, double fv = 0D, int type = 0)
-  class ExcelPPMT extends ExprType.DoubleFunction
+  @Function.Named("ppmt")
+  class ExcelPPMT extends Function.DoubleOut
   {
-    @Override
-    public String name()
-    {
-      return "ppmt";
-    }
-
     @Override
     public ExprEval apply(List<Expr> args, NumericBinding bindings)
     {
@@ -237,16 +196,11 @@ public interface ExcelFunctions extends Function.Library
   }
 
   // irr(double[] income) = irr(double[] income, 0.1D)
+  @Function.Named("$irr")
   class ExcelIRR extends BuiltinFunctions.PartitionFunction
   {
     private double guess = 0.1D;
     private double[] values;
-
-    @Override
-    public String name()
-    {
-      return "$irr";
-    }
 
     @Override
     protected void initialize(Expr.WindowContext context, Object[] parameters)
@@ -268,26 +222,15 @@ public interface ExcelFunctions extends Function.Library
       }
       return null;
     }
-
-    @Override
-    public Function get()
-    {
-      return new ExcelIRR();
-    }
   }
 
   // mirr(double[] in, double financeRate, double reinvestRate)
+  @Function.Named("$mirr")
   class ExcelMIRR extends BuiltinFunctions.PartitionFunction
   {
     private double financeRate;
     private double reinvestRate;
     private double[] values;
-
-    @Override
-    public String name()
-    {
-      return "$mirr";
-    }
 
     @Override
     protected void initialize(Expr.WindowContext context, Object[] parameters)
@@ -337,12 +280,6 @@ public interface ExcelFunctions extends Function.Library
         value = Math.pow(-fv / pv, 1d / numOfYears) - 1;
       }
       return value;
-    }
-
-    @Override
-    public Function get()
-    {
-      return new ExcelMIRR();
     }
   }
 }

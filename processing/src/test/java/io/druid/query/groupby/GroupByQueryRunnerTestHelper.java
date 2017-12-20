@@ -133,7 +133,7 @@ public class GroupByQueryRunnerTestHelper
         Assert.assertEquals(e.getTimestamp(), r.getTimestamp());
       }
       for (String columnName : columnNames) {
-        Assert.assertEquals(e.getRaw(columnName), r.getRaw(columnName));
+        Assert.assertEquals(i + " th", e.getRaw(columnName), r.getRaw(columnName));
       }
     }
     if (expected.size() > result.size()) {

@@ -34,14 +34,9 @@ import java.util.List;
  */
 public class GuavaDoubleMath implements Function.Library
 {
+  @Function.Named("factorial")
   public static class Factorial extends SingleParamMath
   {
-    @Override
-    public String name()
-    {
-      return "factorial";
-    }
-
     @Override
     public ExprType type(ExprType param)
     {
@@ -55,14 +50,9 @@ public class GuavaDoubleMath implements Function.Library
     }
   }
 
+  @Function.Named("fuzzyCompare")
   public static class FuzzyCompare extends TripleParamMath
   {
-    @Override
-    public String name()
-    {
-      return "fuzzyCompare";
-    }
-
     @Override
     public ExprType apply(List<Expr> args, Expr.TypeBinding bindings)
     {

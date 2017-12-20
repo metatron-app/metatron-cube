@@ -23,8 +23,6 @@ import com.google.common.base.Strings;
 import io.druid.data.ValueDesc;
 import org.joda.time.DateTime;
 
-import java.util.List;
-
 /**
  */
 public enum ExprType
@@ -125,41 +123,5 @@ public enum ExprType
       return DATETIME;
     }
     return UNKNOWN;
-  }
-
-  public static abstract class StringFunction implements Function
-  {
-    @Override
-    public final ExprType apply(List<Expr> args, Expr.TypeBinding bindings)
-    {
-      return ExprType.STRING;
-    }
-  }
-
-  public static abstract class LongFunction implements Function
-  {
-    @Override
-    public final ExprType apply(List<Expr> args, Expr.TypeBinding bindings)
-    {
-      return ExprType.LONG;
-    }
-  }
-
-  public static abstract class DoubleFunction implements Function
-  {
-    @Override
-    public final ExprType apply(List<Expr> args, Expr.TypeBinding bindings)
-    {
-      return ExprType.DOUBLE;
-    }
-  }
-
-  public static abstract class IndecisiveFunction implements Function
-  {
-    @Override
-    public final ExprType apply(List<Expr> args, Expr.TypeBinding bindings)
-    {
-      return ExprType.UNKNOWN;
-    }
   }
 }

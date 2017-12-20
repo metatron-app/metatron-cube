@@ -19,13 +19,11 @@
 
 package io.druid.query;
 
-import com.fasterxml.jackson.annotation.JacksonInject;
-import com.fasterxml.jackson.annotation.JsonCreator;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
-import com.google.common.base.Throwables;
 import com.google.inject.Inject;
+import com.google.inject.Injector;
+import com.google.inject.Key;
 import io.druid.granularity.Granularity;
 import io.druid.math.expr.BuiltinFunctions;
 import io.druid.math.expr.DateTimeFunctions;
@@ -35,6 +33,7 @@ import io.druid.math.expr.ExprEval;
 import io.druid.math.expr.ExprType;
 import io.druid.math.expr.Function;
 import io.druid.query.lookup.LookupExtractor;
+import io.druid.query.lookup.LookupExtractorFactory;
 import io.druid.query.lookup.LookupReferencesManager;
 import org.apache.commons.collections.keyvalue.MultiKey;
 import org.joda.time.Interval;
@@ -48,128 +47,94 @@ import java.util.Objects;
 public class ModuleBuiltinFunctions implements Function.Library
 {
   @Inject
-  public static ObjectMapper mapper;
+  public static Injector injector;
 
-  public static class TruncatedRecent extends DateTimeFunctions.Recent implements Function.Factory
+  @Function.Named("truncatedRecent")
+  public static class TruncatedRecent extends Function.AbstractFactory
   {
-    private Granularity granularity;
-
     @Override
-    public String name()
-    {
-      return "truncatedRecent";
-    }
-
-    @Override
-    public ExprEval apply(List<Expr> args, Expr.NumericBinding bindings)
+    public Function create(List<Expr> args)
     {
       if (args.size() != 2 && args.size() != 3) {
         throw new IllegalArgumentException("function '" + name() + "' needs two or three arguments");
       }
-      if (granularity == null) {
-        String string = args.get(args.size() - 1).eval(bindings).asString();
-        granularity = Granularity.fromString(string);
-      }
-      Interval interval = toInterval(args, bindings);
-      if (args.size() == 2) {
-        interval = new Interval(
-            granularity.bucketStart(interval.getStart()),
-            interval.getEnd()
-        );
-      } else {
-        interval = new Interval(
-            granularity.bucketStart(interval.getStart()),
-            granularity.bucketEnd(interval.getEnd())
-        );
-      }
-      return ExprEval.of(interval, ExprType.UNKNOWN);
-    }
+      final Granularity granularity = Granularity.fromString(Evals.getConstantString(args.get(args.size() - 1)));
+      return new IndecisiveChild()
+      {
+        final DateTimeFunctions.Recent recent = new DateTimeFunctions.Recent();
 
-    @Override
-    public Function get()
-    {
-      return new TruncatedRecent();
+        @Override
+        public ExprEval apply(List<Expr> args, Expr.NumericBinding bindings)
+        {
+          Interval interval = recent.toInterval(args, bindings);
+          if (args.size() == 2) {
+            interval = new Interval(
+                granularity.bucketStart(interval.getStart()),
+                interval.getEnd()
+            );
+          } else {
+            interval = new Interval(
+                granularity.bucketStart(interval.getStart()),
+                granularity.bucketEnd(interval.getEnd())
+            );
+          }
+          return ExprEval.of(interval, ExprType.UNKNOWN);
+        }
+      };
     }
   }
 
-  public static class Lookup implements Function.Factory
+  @Function.Named("lookup")
+  public static class LookupFunc extends BuiltinFunctions.NamedParams
   {
     @Override
-    public String name()
+    protected Map<String, Object> parameterize(List<Expr> exprs, Map<String, ExprEval> namedParam)
     {
-      return "lookup";
-    }
-
-    @Override
-    public Function get()
-    {
-      try {
-        return mapper.readValue("{}", LookupFunc.class);  // there would be definitely better way
+      if (exprs.size() != 2 && exprs.size() != 3) {
+        throw new IllegalArgumentException("function '" + name() + "' needs two or three generic arguments");
       }
-      catch (Throwable e) {
-        throw Throwables.propagate(e);
-      }
-    }
-  }
+      Map<String, Object> parameter = super.parameterize(exprs, namedParam);
 
-  private static class LookupFunc extends BuiltinFunctions.NamedParams
-  {
-    private final LookupReferencesManager lookupManager;
+      String name = Evals.getConstantString(exprs.get(0));
+      parameter.put("retainMissingValue", getBoolean(namedParam, "retainMissingValue"));
+      parameter.put("replaceMissingValueWith", getString(namedParam, "replaceMissingValueWith"));
 
-    private LookupExtractor extractor;
-    private boolean retainMissingValue;
-    private String replaceMissingValueWith;
+      LookupExtractorFactory factory = injector.getInstance(Key.get(LookupReferencesManager.class)).get(name);
+      parameter.put("extractor", Preconditions.checkNotNull(factory, "cannot find lookup " + name).get());
 
-    @JsonCreator
-    public LookupFunc(
-        @JacksonInject LookupReferencesManager lookupManager
-    )
-    {
-      this.lookupManager = Preconditions.checkNotNull(lookupManager, "cannot find lookup manager");
+      return parameter;
     }
 
     @Override
-    public String name()
+    protected Function toFunction(final Map<String, Object> parameter)
     {
-      return "lookup";
-    }
+      final LookupExtractor extractor = (LookupExtractor) parameter.get("extractor");
+      final boolean retainMissingValue = (boolean) parameter.get("retainMissingValue");
+      final String replaceMissingValueWith = (String) parameter.get("replaceMissingValueWith");
 
-    @Override
-    public ExprType apply(List<Expr> args, Expr.TypeBinding bindings)
-    {
-      return ExprType.STRING;
-    }
-
-    @Override
-    protected final ExprEval eval(List<Expr> exprs, Map<String, Expr> params, Expr.NumericBinding bindings)
-    {
-      if (extractor == null) {
-        if (exprs.size() < 2) {
-          throw new IllegalArgumentException("function '" + name() + "' needs at least two generic arguments");
+      return new StringChild()
+      {
+        @Override
+        public ExprEval apply(List<Expr> args, Expr.NumericBinding bindings)
+        {
+          String evaluated = null;
+          if (args.size() == 2) {
+            Object key = args.get(1).eval(bindings).value();
+            evaluated = extractor.apply(key);
+            if (retainMissingValue && Strings.isNullOrEmpty(evaluated)) {
+              return ExprEval.of(Strings.emptyToNull(Objects.toString(key, null)));
+            }
+          } else if (args.size() > 2) {
+            final Object[] key = new Object[args.size() - 1];
+            for (int i = 0; i < key.length; i++) {
+              key[i] = args.get(i + 1).eval(bindings).value();
+            }
+            evaluated = extractor.apply(new MultiKey(key, false));
+            // cannot apply retainMissingValue (see MultiDimLookupExtractionFn)
+          }
+          return ExprEval.of(Strings.isNullOrEmpty(evaluated) ? replaceMissingValueWith : evaluated);
         }
-        String name = Evals.getConstantString(exprs.get(0));
-        extractor = Preconditions.checkNotNull(lookupManager.get(name), "cannot find lookup " + name).get();
-        retainMissingValue = Evals.evalOptionalBoolean(params.get("retainMissingValue"), bindings, false);
-        replaceMissingValueWith = Strings.emptyToNull(
-            Evals.evalOptionalString(params.get("replaceMissingValueWith"), bindings)
-        );
-      }
-      String evaluated = null;
-      if (exprs.size() == 2) {
-        Object key = exprs.get(1).eval(bindings).value();
-        evaluated = extractor.apply(key);
-        if (retainMissingValue && Strings.isNullOrEmpty(evaluated)) {
-          return ExprEval.of(Strings.emptyToNull(Objects.toString(key, null)));
-        }
-      } else if (exprs.size() > 2) {
-        final Object[] key = new Object[exprs.size() - 1];
-        for (int i = 0; i < key.length; i++) {
-          key[i] = exprs.get(i + 1).eval(bindings).value();
-        }
-        evaluated = extractor.apply(new MultiKey(key, false));
-        // cannot apply retainMissingValue (see MultiDimLookupExtractionFn)
-      }
-      return ExprEval.of(Strings.isNullOrEmpty(evaluated) ? replaceMissingValueWith : evaluated);
+      };
     }
   }
 }

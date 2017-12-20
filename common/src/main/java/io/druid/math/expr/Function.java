@@ -19,11 +19,14 @@
 
 package io.druid.math.expr;
 
-import com.google.common.base.Supplier;
-import com.google.common.base.Throwables;
+import com.google.common.base.Preconditions;
 import io.druid.math.expr.Expr.NumericBinding;
 import io.druid.math.expr.Expr.TypeBinding;
 
+import java.lang.annotation.ElementType;
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
+import java.lang.annotation.Target;
 import java.util.List;
 
 /**
@@ -32,33 +35,177 @@ public interface Function
 {
   String name();
 
-  ExprEval apply(List<Expr> args, NumericBinding bindings);
-
   ExprType apply(List<Expr> args, TypeBinding bindings);
 
+  ExprEval apply(List<Expr> args, NumericBinding bindings);
+
   // marker to skip constant flattening
-  interface External extends Function {
+  interface External {
   }
 
-  interface Factory extends Supplier<Function>
+  interface Factory
   {
     String name();
+
+    Function create(List<Expr> args);
   }
 
-  abstract class NewInstance implements Factory, Function
+  @Target({ElementType.TYPE})
+  @Retention(RetentionPolicy.RUNTIME)
+  @interface Named
   {
-    public Function get()
+    String value();
+  }
+
+  abstract class NamedEntity
+  {
+    protected final String name;
+
+    protected NamedEntity()
     {
-      try {
-        return getClass().newInstance();
+      this.name = Preconditions.checkNotNull(getClass().getAnnotation(Named.class).value());
+    }
+
+    protected NamedEntity(String name)
+    {
+      this.name = name;
+    }
+
+    public final String name()
+    {
+      return name;
+    }
+  }
+
+  abstract class NamedFunction extends NamedEntity implements Function
+  {
+  }
+
+  abstract class AbstractFactory extends NamedEntity implements Factory
+  {
+    public abstract class Child implements Function
+    {
+      @Override
+      public final String name()
+      {
+        return name;
       }
-      catch (Exception e) {
-        throw Throwables.propagate(e);
+    }
+
+    public abstract class ExternalChild extends Child implements External
+    {
+      @Override
+      public final ExprType apply(List<Expr> args, TypeBinding bindings)
+      {
+        return ExprType.UNKNOWN;
       }
+    }
+
+    public abstract class StringChild extends Child
+    {
+      @Override
+      public final ExprType apply(List<Expr> args, TypeBinding bindings)
+      {
+        return ExprType.STRING;
+      }
+    }
+
+    public abstract class LongChild extends Child
+    {
+      @Override
+      public final ExprType apply(List<Expr> args, TypeBinding bindings)
+      {
+        return ExprType.LONG;
+      }
+    }
+
+    public abstract class IndecisiveChild extends Child
+    {
+      @Override
+      public final ExprType apply(List<Expr> args, TypeBinding bindings)
+      {
+        return ExprType.UNKNOWN;
+      }
+    }
+
+    public abstract class DateTimeChild extends Child
+    {
+      @Override
+      public final ExprType apply(List<Expr> args, TypeBinding bindings)
+      {
+        return ExprType.DATETIME;
+      }
+    }
+  }
+
+  class Stateless implements Factory
+  {
+    private final Function function;
+
+    public Stateless(Function function)
+    {
+      this.function = function;
+    }
+
+    @Override
+    public String name()
+    {
+      return function.name();
+    }
+
+    @Override
+    public Function create(List<Expr> args)
+    {
+      return function;
     }
   }
 
   interface Library
   {
+  }
+
+  abstract class StringOut extends NamedFunction
+  {
+    @Override
+    public final ExprType apply(List<Expr> args, TypeBinding bindings)
+    {
+      return ExprType.STRING;
+    }
+  }
+
+  abstract class LongOut extends NamedFunction
+  {
+    @Override
+    public final ExprType apply(List<Expr> args, TypeBinding bindings)
+    {
+      return ExprType.LONG;
+    }
+  }
+
+  abstract class DoubleOut extends NamedFunction
+  {
+    @Override
+    public final ExprType apply(List<Expr> args, TypeBinding bindings)
+    {
+      return ExprType.DOUBLE;
+    }
+  }
+
+  abstract class DateTimeOut extends NamedFunction
+  {
+    @Override
+    public final ExprType apply(List<Expr> args, TypeBinding bindings)
+    {
+      return ExprType.DATETIME;
+    }
+  }
+
+  abstract class IndecisiveOut extends NamedFunction
+  {
+    @Override
+    public final ExprType apply(List<Expr> args, TypeBinding bindings)
+    {
+      return ExprType.UNKNOWN;
+    }
   }
 }

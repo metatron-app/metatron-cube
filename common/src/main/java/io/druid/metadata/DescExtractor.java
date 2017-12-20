@@ -152,7 +152,7 @@ public enum DescExtractor
         }
 
         @Override
-        public Function get()
+        public Function create(List<Expr> args)
         {
           return new Function()
           {
@@ -222,7 +222,7 @@ public enum DescExtractor
     }
 
     @Override
-    public Function get()
+    public Function create(List<Expr> args)
     {
       return new Function()
       {

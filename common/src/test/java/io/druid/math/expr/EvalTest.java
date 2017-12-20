@@ -331,7 +331,7 @@ public class EvalTest
     Assert.assertEquals(
         1479377499662L,
         evalLong(
-            "timestamp('2016-11-17 10:11:39.662', 'yyyy-MM-dd HH:mm:ss.SSS')",
+            "timestamp('2016-11-17 10:11:39.662', format='yyyy-MM-dd HH:mm:ss.SSS')",
             bindings
         )
     );

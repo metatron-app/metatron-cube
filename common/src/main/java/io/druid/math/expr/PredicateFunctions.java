@@ -32,252 +32,208 @@ import java.util.regex.Pattern;
  */
 public interface PredicateFunctions extends Function.Library
 {
-  abstract class PredicateFunc extends Function.NewInstance
+  @Function.Named("like")
+  final class Like extends Function.AbstractFactory
   {
     @Override
-    public ExprType apply(List<Expr> args, Expr.TypeBinding bindings)
+    public Function create(List<Expr> args)
     {
-      return ExprType.LONG;
+      if (args.size() != 2) {
+        throw new RuntimeException("function '" + name() + "' needs 2 arguments");
+      }
+      final Pair<RegexUtils.PatternType, Object> matcher = RegexUtils.parse(Evals.getConstantString(args.get(1)));
+      return new LongChild()
+      {
+        @Override
+        public ExprEval apply(List<Expr> args, Expr.NumericBinding bindings)
+        {
+          ExprEval eval = args.get(0).eval(bindings);
+          return ExprEval.of(RegexUtils.evaluate(eval.asString(), matcher.lhs, matcher.rhs));
+        }
+      };
     }
   }
 
-  final class Like extends PredicateFunc
+  @Function.Named("in")
+  final class InFunc extends Function.AbstractFactory
   {
-    private Pair<RegexUtils.PatternType, Object> matcher;
-
     @Override
-    public String name()
+    public Function create(List<Expr> args)
     {
-      return "like";
-    }
-
-    @Override
-    public ExprEval apply(List<Expr> args, Expr.NumericBinding bindings)
-    {
-      if (matcher == null) {
-        if (args.size() != 2) {
-          throw new RuntimeException("function '" + name() + "' needs 2 arguments");
-        }
-        Expr expr2 = args.get(1);
-        matcher = RegexUtils.parse(Evals.getConstantString(expr2));
+      if (args.size() < 2) {
+        throw new RuntimeException("function 'in' needs at least 2 arguments");
       }
-      ExprEval eval = args.get(0).eval(bindings);
-      return ExprEval.of(RegexUtils.evaluate(eval.asString(), matcher.lhs, matcher.rhs));
+      final Set<Object> set = Sets.newHashSet();
+      for (int i = 1; i < args.size(); i++) {
+        set.add(Evals.getConstant(args.get(i)));
+      }
+      return new LongChild()
+      {
+        @Override
+        public ExprEval apply(List<Expr> args, Expr.NumericBinding bindings)
+        {
+          return ExprEval.of(set.contains(args.get(0).eval(bindings).value()));
+        }
+      };
     }
   }
 
-  final class InFunc extends PredicateFunc
+  @Function.Named("between")
+  final class BetweenFunc extends Function.AbstractFactory
   {
     @Override
-    public String name()
+    public Function create(List<Expr> args)
     {
-      return "in";
-    }
-
-    private transient Set<Object> set;
-
-    @Override
-    public ExprEval apply(List<Expr> args, Expr.NumericBinding bindings)
-    {
-      if (set == null) {
-        if (args.size() < 2) {
-          throw new RuntimeException("function 'in' needs at least 2 arguments");
-        }
-        set = Sets.newHashSet();
-        for (int i = 1; i < args.size(); i++) {
-          set.add(Evals.getConstant(args.get(i)));
-        }
+      if (args.size() != 3) {
+        throw new RuntimeException("function 'between' needs 3 arguments");
       }
-      return ExprEval.of(set.contains(args.get(0).eval(bindings).value()));
+      ExprEval eval1 = Evals.getConstantEval(args.get(1));
+      ExprEval eval2 = Evals.castTo(Evals.getConstantEval(args.get(2)), eval1.type());
+      final Range<Comparable> range = Range.closed((Comparable) eval1.value(), (Comparable) eval2.value());
+      final ExprType type = eval1.type();
+      return new LongChild()
+      {
+        @Override
+        public ExprEval apply(List<Expr> args, Expr.NumericBinding bindings)
+        {
+          ExprEval eval = Evals.castTo(args.get(0).eval(bindings), type);
+          return ExprEval.of(range.contains((Comparable) eval.value()));
+        }
+      };
     }
   }
 
-  final class BetweenFunc extends PredicateFunc
+  @Function.Named("startsWith")
+  final class StartsWithFunc extends Function.AbstractFactory
   {
     @Override
-    public String name()
+    public Function create(List<Expr> args)
     {
-      return "between";
-    }
-
-    private transient ExprType type;
-    private transient Range<Comparable> range;
-
-    @Override
-    public ExprEval apply(List<Expr> args, Expr.NumericBinding bindings)
-    {
-      if (range == null) {
-        if (args.size() != 3) {
-          throw new RuntimeException("function 'between' needs 3 arguments");
-        }
-        Expr param1 = args.get(1);
-        Expr param2 = args.get(2);
-        if (!Evals.isConstant(param1) || !Evals.isConstant(param2)) {
-          throw new RuntimeException("needs constants for range values");
-        }
-        ExprEval eval1 = param1.eval(bindings);
-        ExprEval eval2 = Evals.castTo(param2.eval(bindings), eval1.type());
-        range = Range.closed((Comparable) eval1.value(), (Comparable) eval2.value());
-        type = eval1.type();
+      if (args.size() != 2) {
+        throw new RuntimeException("function 'startsWith' needs 2 arguments");
       }
-      ExprEval eval = Evals.castTo(args.get(0).eval(bindings), type);
-      return ExprEval.of(range.contains((Comparable) eval.value()));
+      final String prefix = Evals.getConstantString(args.get(1));
+      return new LongChild()
+      {
+        @Override
+        public ExprEval apply(List<Expr> args, Expr.NumericBinding bindings)
+        {
+          String eval = args.get(0).eval(bindings).asString();
+          return ExprEval.of(eval == null ? prefix == null : prefix != null && eval.startsWith(prefix));
+        }
+      };
     }
   }
 
-  final class StartsWithFunc extends PredicateFunc
+  @Function.Named("endsWith")
+  final class EndsWithFunc extends Function.AbstractFactory
   {
     @Override
-    public String name()
+    public Function create(List<Expr> args)
     {
-      return "startsWith";
-    }
-
-    private transient boolean initialized;
-    private transient String prefix;
-
-    @Override
-    public ExprEval apply(List<Expr> args, Expr.NumericBinding bindings)
-    {
-      if (!initialized) {
-        if (args.size() != 2) {
-          throw new RuntimeException("function 'startsWith' needs 2 arguments");
-        }
-        prefix = Evals.getConstantString(args.get(1));
-        initialized = true;
+      if (args.size() != 2) {
+        throw new RuntimeException("function 'endsWith' needs 2 arguments");
       }
-      String eval = args.get(0).eval(bindings).asString();
-      return ExprEval.of(eval == null ? prefix == null : prefix != null && eval.startsWith(prefix));
+      final String suffix = Evals.getConstantString(args.get(1));
+      return new LongChild()
+      {
+        @Override
+        public ExprEval apply(List<Expr> args, Expr.NumericBinding bindings)
+        {
+          String eval = args.get(0).eval(bindings).asString();
+          return ExprEval.of(eval == null ? suffix == null : suffix != null && eval.endsWith(suffix));
+        }
+      };
     }
   }
 
-  final class EndsWithFunc extends PredicateFunc
+  @Function.Named("startsWithIgnoreCase")
+  final class StartsWithIgnoreCaseFunc extends Function.AbstractFactory
   {
     @Override
-    public String name()
+    public Function create(List<Expr> args)
     {
-      return "endsWith";
-    }
-
-    private transient boolean initialized;
-    private transient String prefix;
-
-    @Override
-    public ExprEval apply(List<Expr> args, Expr.NumericBinding bindings)
-    {
-      if (!initialized) {
-        if (args.size() != 2) {
-          throw new RuntimeException("function 'endsWith' needs 2 arguments");
-        }
-        prefix = Evals.getConstantString(args.get(1));
-        initialized = true;
+      if (args.size() != 2) {
+        throw new RuntimeException("function 'startsWithIgnoreCase' needs 2 arguments");
       }
-      String eval = args.get(0).eval(bindings).asString();
-      return ExprEval.of(eval == null ? prefix == null : prefix != null && eval.endsWith(prefix));
+      String value = Evals.getConstantString(args.get(1));
+      final String prefix = value == null ? null : value.toLowerCase();
+      return new LongChild()
+      {
+        @Override
+        public ExprEval apply(List<Expr> args, Expr.NumericBinding bindings)
+        {
+          String eval = args.get(0).eval(bindings).asString();
+          return ExprEval.of(eval == null ? prefix == null : prefix != null && eval.toLowerCase().startsWith(prefix));
+        }
+      };
     }
   }
 
-  final class StartsWithIgnoreCaseFunc extends PredicateFunc
+  @Function.Named("endsWithIgnoreCase")
+  final class EndsWithIgnoreCaseFunc extends Function.AbstractFactory
   {
     @Override
-    public String name()
+    public Function create(List<Expr> args)
     {
-      return "startsWithIgnoreCase";
-    }
-
-    private transient boolean initialized;
-    private transient String prefix;
-
-    @Override
-    public ExprEval apply(List<Expr> args, Expr.NumericBinding bindings)
-    {
-      if (!initialized) {
-        if (args.size() != 2) {
-          throw new RuntimeException("function 'startsWithIgnoreCase' needs 2 arguments");
-        }
-        String prefix = Evals.getConstantString(args.get(1));
-        this.prefix = prefix == null ? null : prefix.toLowerCase();
-        initialized = true;
+      if (args.size() != 2) {
+        throw new RuntimeException("function 'endsWithIgnoreCase' needs 2 arguments");
       }
-      String eval = args.get(0).eval(bindings).asString();
-      return ExprEval.of(eval == null ? prefix == null : prefix != null && eval.toLowerCase().startsWith(prefix));
+      String value = Evals.getConstantString(args.get(1));
+      final String suffix = value == null ? null : value.toLowerCase();
+      return new LongChild()
+      {
+        @Override
+        public ExprEval apply(List<Expr> args, Expr.NumericBinding bindings)
+        {
+          String eval = args.get(0).eval(bindings).asString();
+          return ExprEval.of(eval == null ? suffix == null : suffix != null && eval.toLowerCase().endsWith(suffix));
+        }
+      };
     }
   }
 
-  final class EndsWithIgnoreCaseFunc extends PredicateFunc
+  @Function.Named("contains")
+  final class ContainsFunc extends Function.AbstractFactory
   {
     @Override
-    public String name()
+    public Function create(List<Expr> args)
     {
-      return "endsWithIgnoreCase";
-    }
-
-    private transient boolean initialized;
-    private transient String prefix;
-
-    @Override
-    public ExprEval apply(List<Expr> args, Expr.NumericBinding bindings)
-    {
-      if (!initialized) {
-        if (args.size() != 2) {
-          throw new RuntimeException("function 'endsWithIgnoreCase' needs 2 arguments");
-        }
-        String prefix = Evals.getConstantString(args.get(1));
-        this.prefix = prefix == null ? null : prefix.toLowerCase();
-        initialized = true;
+      if (args.size() != 2) {
+        throw new RuntimeException("function 'contains' needs 2 arguments");
       }
-      String eval = args.get(0).eval(bindings).asString();
-      return ExprEval.of(eval == null ? prefix == null : prefix != null && eval.toLowerCase().endsWith(prefix));
+      final String contained = Evals.getConstantString(args.get(1));
+      return new LongChild()
+      {
+        @Override
+        public ExprEval apply(List<Expr> args, Expr.NumericBinding bindings)
+        {
+          String eval = args.get(0).eval(bindings).asString();
+          return ExprEval.of(eval == null ? contained == null : contained != null && eval.contains(contained));
+        }
+      };
     }
   }
 
-  final class ContainsFunc extends PredicateFunc
+  @Function.Named("match")
+  final class MatchFunc extends Function.AbstractFactory
   {
     @Override
-    public String name()
+    public Function create(List<Expr> args)
     {
-      return "contains";
-    }
-
-    private transient boolean initialized;
-    private transient String contained;
-
-    @Override
-    public ExprEval apply(List<Expr> args, Expr.NumericBinding bindings)
-    {
-      if (!initialized) {
-        if (args.size() != 2) {
-          throw new RuntimeException("function 'contains' needs 2 arguments");
-        }
-        this.contained = Evals.getConstantString(args.get(1));
-        initialized = true;
+      if (args.size() != 2) {
+        throw new RuntimeException("function 'match' needs 2 arguments");
       }
-      String eval = args.get(0).eval(bindings).asString();
-      return ExprEval.of(eval == null ? contained == null : contained != null && eval.contains(contained));
-    }
-  }
-
-  final class MatchFunc extends PredicateFunc
-  {
-    @Override
-    public String name()
-    {
-      return "match";
-    }
-
-    private transient Matcher matcher;
-
-    @Override
-    public ExprEval apply(List<Expr> args, Expr.NumericBinding bindings)
-    {
-      if (matcher == null) {
-        if (args.size() != 2) {
-          throw new RuntimeException("function 'match' needs 2 arguments");
+      final Matcher matcher = Pattern.compile(Evals.getConstantString(args.get(1))).matcher("");
+      return new LongChild()
+      {
+        @Override
+        public ExprEval apply(List<Expr> args, Expr.NumericBinding bindings)
+        {
+          String eval = args.get(0).eval(bindings).asString();
+          return ExprEval.of(eval != null && matcher.reset(eval).matches());
         }
-        matcher = Pattern.compile(Evals.getConstantString(args.get(1))).matcher("");
-      }
-      String eval = args.get(0).eval(bindings).asString();
-      return ExprEval.of(eval != null && matcher.reset(eval).matches());
+      };
     }
   }
 }

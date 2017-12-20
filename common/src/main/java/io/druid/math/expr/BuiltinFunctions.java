@@ -22,6 +22,7 @@ package io.druid.math.expr;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Splitter;
 import com.google.common.base.Strings;
+import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
@@ -79,7 +80,7 @@ public interface BuiltinFunctions extends Function.Library
 {
   static final Logger log = new Logger(BuiltinFunctions.class);
 
-  abstract class SingleParam implements Function
+  abstract class SingleParam extends Function.NamedFunction
   {
     @Override
     public final ExprType apply(List<Expr> args, TypeBinding bindings)
@@ -102,7 +103,7 @@ public interface BuiltinFunctions extends Function.Library
     protected abstract ExprType type(ExprType param);
   }
 
-  abstract class DoubleParam implements Function
+  abstract class DoubleParam extends Function.NamedFunction
   {
     @Override
     public final ExprType apply(List<Expr> args, TypeBinding bindings)
@@ -126,7 +127,7 @@ public interface BuiltinFunctions extends Function.Library
     protected abstract ExprType eval(ExprType x, ExprType y);
   }
 
-  abstract class TripleParam implements Function
+  abstract class TripleParam extends Function.NamedFunction
   {
     @Override
     public ExprEval apply(List<Expr> args, NumericBinding bindings)
@@ -143,40 +144,64 @@ public interface BuiltinFunctions extends Function.Library
     protected abstract ExprEval eval(ExprEval x, ExprEval y, ExprEval z);
   }
 
-  abstract class NamedParams implements Function
+  abstract class NamedParams extends Function.AbstractFactory
   {
-    private int namedParamStart = -1;
-    private final Map<String, Expr> namedParam = Maps.newLinkedHashMap();
-
     @Override
-    public ExprEval apply(List<Expr> args, NumericBinding bindings)
+    public Function create(List<Expr> args)
     {
-      if (namedParamStart < 0) {
-        List<Expr> param = Lists.newArrayList();
-        int i = 0;
-        for (; i < args.size(); i++) {
-          Expr expr = args.get(i);
-          if (expr instanceof AssignExpr) {
-            break;
-          }
-          param.add(args.get(i));
-        }
-        namedParamStart = i;
-
-        for (; i < args.size(); i++) {
-          Expr expr = args.get(i);
-          if (!(expr instanceof AssignExpr)) {
-            throw new RuntimeException("named parameters should not be mixed with generic param");
-          }
-          AssignExpr assign = (AssignExpr) expr;
-          namedParam.put(Evals.getIdentifier(assign.assignee), assign.assigned);
-          Preconditions.checkArgument(Evals.isConstant(assign.assigned), "named params should be constant");
+      final int namedParamStart;
+      int i = 0;
+      for (; i < args.size(); i++) {
+        if (args.get(i) instanceof AssignExpr) {
+          break;
         }
       }
-      return eval(args.subList(0, namedParamStart), namedParam, bindings);
+      namedParamStart = i;
+      final Map<String, ExprEval> namedParam = Maps.newLinkedHashMap();
+      for (; i < args.size(); i++) {
+        Expr expr = args.get(i);
+        if (!(expr instanceof AssignExpr)) {
+          throw new RuntimeException("named parameters should not be mixed with generic param");
+        }
+        AssignExpr assign = (AssignExpr) expr;
+        namedParam.put(Evals.getIdentifier(assign.assignee), Evals.getConstantEval(assign.assigned));
+        Preconditions.checkArgument(Evals.isConstant(assign.assigned), "named params should be constant");
+      }
+      List<Expr> remaining = args.subList(0, namedParamStart);
+      final Function function = toFunction(parameterize(remaining, namedParam));
+
+      return new Child()
+      {
+        @Override
+        public ExprType apply(List<Expr> args, TypeBinding bindings)
+        {
+          return function.apply(args, bindings);
+        }
+
+        @Override
+        public ExprEval apply(List<Expr> args, NumericBinding bindings)
+        {
+          return function.apply(args.subList(0, namedParamStart), bindings);
+        }
+      };
     }
 
-    protected abstract ExprEval eval(List<Expr> exprs, Map<String, Expr> params, NumericBinding bindings);
+    protected Map<String, Object> parameterize(List<Expr> exprs, Map<String, ExprEval> namedParam)
+    {
+      return Maps.newHashMap();
+    }
+
+    protected final String getString(Map<String, ExprEval> namedParam, String key)
+    {
+      return namedParam.containsKey(key) ? namedParam.get(key).asString() : null;
+    }
+
+    protected final boolean getBoolean(Map<String, ExprEval> namedParam, String key)
+    {
+      return namedParam.containsKey(key) && namedParam.get(key).asBoolean();
+    }
+
+    protected abstract Function toFunction(final Map<String, Object> parameter);
   }
 
   abstract class SingleParamMath extends SingleParam
@@ -299,14 +324,9 @@ public interface BuiltinFunctions extends Function.Library
     }
   }
 
-  class Size extends SingleParam
+  @Function.Named("size")
+  final class Size extends SingleParam
   {
-    @Override
-    public String name()
-    {
-      return "size";
-    }
-
     @Override
     public ExprType type(ExprType param)
     {
@@ -323,44 +343,31 @@ public interface BuiltinFunctions extends Function.Library
     }
   }
 
-  final class Regex extends Function.NewInstance
+  @Function.Named("regex")
+  final class Regex extends Function.AbstractFactory
   {
-    private Matcher matcher;
-    private int index;
-
     @Override
-    public String name()
+    public Function create(List<Expr> args)
     {
-      return "regex";
-    }
-
-    @Override
-    public ExprType apply(List<Expr> args, Expr.TypeBinding bindings)
-    {
-      return ExprType.STRING;
-    }
-
-    @Override
-    public ExprEval apply(List<Expr> args, NumericBinding bindings)
-    {
-      if (matcher == null) {
-        if (args.size() != 2 && args.size() != 3) {
-          throw new RuntimeException("function '" + name() + "' needs 2 or 3 arguments");
-        }
-        Expr expr2 = args.get(1);
-        matcher = Pattern.compile(Evals.getConstantString(expr2)).matcher("");
-        if (args.size() == 3) {
-          Expr expr3 = args.get(2);
-          index = Ints.checkedCast(Evals.getConstantLong(expr3));
-        }
+      if (args.size() != 2 && args.size() != 3) {
+        throw new RuntimeException("function '" + name() + "' needs 2 or 3 arguments");
       }
-      ExprEval eval = args.get(0).eval(bindings);
-      Matcher m = matcher.reset(eval.asString());
-      return ExprEval.of(m.matches() ? matcher.group(index) : null);
+      final Matcher matcher = Pattern.compile(Evals.getConstantString(args.get(1))).matcher("");
+      final int index = args.size() == 3 ? Ints.checkedCast(Evals.getConstantLong(args.get(2))) : 0;
+
+      return new StringChild()
+      {
+        @Override
+        public ExprEval apply(List<Expr> args, NumericBinding bindings)
+        {
+          Matcher m = matcher.reset(Evals.evalString(args.get(0), bindings));
+          return ExprEval.of(m.matches() ? matcher.group(index) : null);
+        }
+      };
     }
   }
 
-  abstract class AbstractRFunc extends ExprType.IndecisiveFunction implements Factory
+  abstract class AbstractRFunc extends Function.AbstractFactory
   {
     private static final Rengine r;
     private static final Map<String, String> functions = Maps.newHashMap();
@@ -565,38 +572,30 @@ public interface BuiltinFunctions extends Function.Library
     }
   }
 
-  final class RFunc extends AbstractRFunc implements Function.External
+  @Function.Named("r")
+  final class RFunc extends AbstractRFunc
   {
-    private String function;
-
     @Override
-    public String name()
+    public Function create(List<Expr> args)
     {
-      return "r";
-    }
-
-    @Override
-    public ExprEval apply(List<Expr> args, NumericBinding bindings)
-    {
-      if (function == null) {
-        if (args.size() < 2) {
-          throw new RuntimeException("function '" + name() + "' should have at least two arguments");
-        }
-        String name = Evals.getConstantString(args.get(1));
-        String expression = Evals.getConstantString(args.get(0));
-        function = registerFunction(name, expression);
+      if (args.size() < 2) {
+        throw new RuntimeException("function '" + name() + "' should have at least two arguments");
       }
-      return toJava(evaluate(function, args.subList(2, args.size()), bindings));
-    }
-
-    @Override
-    public Function get()
-    {
-      return new RFunc();
+      String name = Evals.getConstantString(args.get(1));
+      String expression = Evals.getConstantString(args.get(0));
+      final String function = registerFunction(name, expression);
+      return new ExternalChild()
+      {
+        @Override
+        public ExprEval apply(List<Expr> args, NumericBinding bindings)
+        {
+          return toJava(evaluate(function, args.subList(2, args.size()), bindings));
+        }
+      };
     }
   }
 
-  abstract class AbstractPythonFunc extends ExprType.IndecisiveFunction implements Function.External, Factory
+  abstract class AbstractPythonFunc extends Function.AbstractFactory
   {
     static final boolean init;
 
@@ -721,106 +720,93 @@ public interface BuiltinFunctions extends Function.Library
     }
   }
 
+  @Function.Named("py")
   final class PythonFunc extends AbstractPythonFunc
   {
-    private PyCode code;
-    private String parameters;
-
     @Override
-    public String name()
+    public Function create(List<Expr> args)
     {
-      return "py";
+      if (args.size() < 2) {
+        throw new RuntimeException("function '" + name() + "' should have at least two arguments");
+      }
+      p.exec(Evals.getConstantString(args.get(0)));
+      final boolean constantMethod = Evals.isConstantString(args.get(1));
+
+      StringBuilder builder = new StringBuilder();
+      if (constantMethod) {
+        builder.append(Evals.getConstantString(args.get(1)));
+      }
+      builder.append('(');
+      for (int i = 0; i < args.size() - 2; i++) {
+        if (i > 0) {
+          builder.append(',');
+        }
+        builder.append(paramName(i));
+      }
+      builder.append(')');
+
+      if (constantMethod) {
+        final PyCode code = p.compile(builder.toString());
+        return new ExternalChild()
+        {
+          @Override
+          public ExprEval apply(List<Expr> args, NumericBinding bindings)
+          {
+            setParameters(args, bindings);
+            return toExprEval(p.eval(code));
+          }
+        };
+      }
+      final String parameters = builder.toString();
+      return new ExternalChild()
+      {
+        @Override
+        public ExprEval apply(List<Expr> args, NumericBinding bindings)
+        {
+          setParameters(args, bindings);
+          String functionName = Evals.evalString(args.get(1), bindings);
+          PyCode code = p.compile(functionName + parameters);
+          return toExprEval(p.eval(code));
+        }
+      };
     }
 
-    @Override
-    public ExprEval apply(List<Expr> args, NumericBinding bindings)
+    private void setParameters(List<Expr> args, NumericBinding bindings)
     {
-      if (code == null && parameters == null) {
-        if (args.size() < 2) {
-          throw new RuntimeException("function '" + name() + "' should have at least two arguments");
-        }
-        p.exec(Evals.getConstantString(args.get(0)));
-        final boolean constantMethod = Evals.isConstantString(args.get(1));
-
-        StringBuilder builder = new StringBuilder();
-        if (constantMethod) {
-          builder.append(Evals.getConstantString(args.get(1)));
-        }
-        builder.append('(');
-        for (int i = 0; i < args.size() - 2; i++) {
-          if (i > 0) {
-            builder.append(',');
-          }
-          builder.append(paramName(i));
-        }
-        builder.append(')');
-
-        if (constantMethod) {
-          code = p.compile(builder.toString());
-        } else {
-          parameters = builder.toString();
-        }
-      }
       for (int i = 0; i < args.size() - 2; i++) {
         Object value = args.get(i + 2).eval(bindings).value();
         p.set(paramName(i), Py.java2py(value));
       }
-      if (code != null) {
-        return toExprEval(p.eval(code));
-      } else {
-        String functionName = Evals.evalString(args.get(1), bindings);
-        PyCode code = p.compile(functionName + parameters);
-        return toExprEval(p.eval(code));
-      }
-    }
-
-    @Override
-    public Function get()
-    {
-      return new PythonFunc();
     }
   }
 
+  @Function.Named("pyEval")
   final class PythonEvalFunc extends AbstractPythonFunc
   {
-    private PyCode code;
-
     @Override
-    public String name()
+    public Function create(List<Expr> args)
     {
-      return "pyEval";
-    }
-
-    @Override
-    public ExprEval apply(List<Expr> args, NumericBinding bindings)
-    {
-      if (code == null) {
-        if (args.isEmpty()) {
-          throw new RuntimeException("function '" + name() + "' should have one argument");
+      if (args.isEmpty()) {
+        throw new RuntimeException("function '" + name() + "' should have one argument");
+      }
+      final PyCode code = p.compile(Evals.getConstantString(args.get(0)));
+      return new ExternalChild()
+      {
+        @Override
+        public ExprEval apply(List<Expr> args, NumericBinding bindings)
+        {
+          for (String column : bindings.names()) {
+            p.set(column, bindings.get(column));
+          }
+          return toExprEval(p.eval(code), true);
         }
-        code = p.compile(Evals.getConstantString(args.get(0)));
-      }
-      for (String column : bindings.names()) {
-        p.set(column, bindings.get(column));
-      }
-      return toExprEval(p.eval(code), true);
-    }
-
-    @Override
-    public Function get()
-    {
-      return new PythonEvalFunc();
+      };
     }
   }
 
-  class Abs extends SingleParamMath
+  @Function.Named("abs")
+  final class Abs extends SingleParamMath
   {
-    @Override
-    public String name()
-    {
-      return "abs";
-    }
-
     @Override
     protected ExprEval eval(long param)
     {
@@ -834,14 +820,9 @@ public interface BuiltinFunctions extends Function.Library
     }
   }
 
-  class Acos extends SingleParamMath
+  @Function.Named("acos")
+  final class Acos extends SingleParamMath
   {
-    @Override
-    public String name()
-    {
-      return "acos";
-    }
-
     @Override
     protected ExprEval eval(double param)
     {
@@ -849,14 +830,9 @@ public interface BuiltinFunctions extends Function.Library
     }
   }
 
-  class Asin extends SingleParamMath
+  @Function.Named("asin")
+  final class Asin extends SingleParamMath
   {
-    @Override
-    public String name()
-    {
-      return "asin";
-    }
-
     @Override
     protected ExprEval eval(double param)
     {
@@ -864,14 +840,9 @@ public interface BuiltinFunctions extends Function.Library
     }
   }
 
-  class Atan extends SingleParamMath
+  @Function.Named("atan")
+  final class Atan extends SingleParamMath
   {
-    @Override
-    public String name()
-    {
-      return "atan";
-    }
-
     @Override
     protected ExprEval eval(double param)
     {
@@ -879,14 +850,9 @@ public interface BuiltinFunctions extends Function.Library
     }
   }
 
-  class Cbrt extends SingleParamMath
+  @Function.Named("cbrt")
+  final class Cbrt extends SingleParamMath
   {
-    @Override
-    public String name()
-    {
-      return "cbrt";
-    }
-
     @Override
     protected ExprEval eval(double param)
     {
@@ -894,14 +860,9 @@ public interface BuiltinFunctions extends Function.Library
     }
   }
 
-  class Ceil extends SingleParamMath
+  @Function.Named("ceil")
+  final class Ceil extends SingleParamMath
   {
-    @Override
-    public String name()
-    {
-      return "ceil";
-    }
-
     @Override
     protected ExprEval eval(double param)
     {
@@ -909,14 +870,9 @@ public interface BuiltinFunctions extends Function.Library
     }
   }
 
-  class Cos extends SingleParamMath
+  @Function.Named("cos")
+  final class Cos extends SingleParamMath
   {
-    @Override
-    public String name()
-    {
-      return "cos";
-    }
-
     @Override
     protected ExprEval eval(double param)
     {
@@ -924,14 +880,9 @@ public interface BuiltinFunctions extends Function.Library
     }
   }
 
-  class Cosh extends SingleParamMath
+  @Function.Named("cosh")
+  final class Cosh extends SingleParamMath
   {
-    @Override
-    public String name()
-    {
-      return "cosh";
-    }
-
     @Override
     protected ExprEval eval(double param)
     {
@@ -939,14 +890,9 @@ public interface BuiltinFunctions extends Function.Library
     }
   }
 
-  class Exp extends SingleParamMath
+  @Function.Named("exp")
+  final class Exp extends SingleParamMath
   {
-    @Override
-    public String name()
-    {
-      return "exp";
-    }
-
     @Override
     protected ExprEval eval(double param)
     {
@@ -954,14 +900,9 @@ public interface BuiltinFunctions extends Function.Library
     }
   }
 
-  class Expm1 extends SingleParamMath
+  @Function.Named("expm1")
+  final class Expm1 extends SingleParamMath
   {
-    @Override
-    public String name()
-    {
-      return "expm1";
-    }
-
     @Override
     protected ExprEval eval(double param)
     {
@@ -969,14 +910,10 @@ public interface BuiltinFunctions extends Function.Library
     }
   }
 
-  class Floor extends SingleParamMath
-  {
-    @Override
-    public String name()
-    {
-      return "floor";
-    }
 
+  @Function.Named("floor")
+  final class Floor extends SingleParamMath
+  {
     @Override
     protected ExprEval eval(double param)
     {
@@ -984,14 +921,9 @@ public interface BuiltinFunctions extends Function.Library
     }
   }
 
-  class GetExponent extends SingleParamMath
+  @Function.Named("getExponent")
+  final class GetExponent extends SingleParamMath
   {
-    @Override
-    public String name()
-    {
-      return "getExponent";
-    }
-
     @Override
     protected ExprEval eval(double param)
     {
@@ -999,14 +931,9 @@ public interface BuiltinFunctions extends Function.Library
     }
   }
 
-  class Log extends SingleParamMath
+  @Function.Named("log")
+  final class Log extends SingleParamMath
   {
-    @Override
-    public String name()
-    {
-      return "log";
-    }
-
     @Override
     protected ExprEval eval(double param)
     {
@@ -1014,14 +941,9 @@ public interface BuiltinFunctions extends Function.Library
     }
   }
 
-  class Log10 extends SingleParamMath
+  @Function.Named("log10")
+  final class Log10 extends SingleParamMath
   {
-    @Override
-    public String name()
-    {
-      return "log10";
-    }
-
     @Override
     protected ExprEval eval(double param)
     {
@@ -1029,14 +951,9 @@ public interface BuiltinFunctions extends Function.Library
     }
   }
 
-  class Log1p extends SingleParamMath
+  @Function.Named("log1p")
+  final class Log1p extends SingleParamMath
   {
-    @Override
-    public String name()
-    {
-      return "log1p";
-    }
-
     @Override
     protected ExprEval eval(double param)
     {
@@ -1044,14 +961,9 @@ public interface BuiltinFunctions extends Function.Library
     }
   }
 
-  class NextUp extends SingleParamMath
+  @Function.Named("nextUp")
+  final class NextUp extends SingleParamMath
   {
-    @Override
-    public String name()
-    {
-      return "nextUp";
-    }
-
     @Override
     protected ExprEval eval(double param)
     {
@@ -1059,14 +971,9 @@ public interface BuiltinFunctions extends Function.Library
     }
   }
 
-  class Rint extends SingleParamMath
+  @Function.Named("rint")
+  final class Rint extends SingleParamMath
   {
-    @Override
-    public String name()
-    {
-      return "rint";
-    }
-
     @Override
     protected ExprEval eval(double param)
     {
@@ -1074,14 +981,9 @@ public interface BuiltinFunctions extends Function.Library
     }
   }
 
-  class Round extends SingleParamMath
+  @Function.Named("round")
+  final class Round extends SingleParamMath
   {
-    @Override
-    public String name()
-    {
-      return "round";
-    }
-
     @Override
     protected ExprEval eval(double param)
     {
@@ -1089,14 +991,9 @@ public interface BuiltinFunctions extends Function.Library
     }
   }
 
-  class Signum extends SingleParamMath
+  @Function.Named("signum")
+  final class Signum extends SingleParamMath
   {
-    @Override
-    public String name()
-    {
-      return "signum";
-    }
-
     @Override
     protected ExprEval eval(double param)
     {
@@ -1104,14 +1001,9 @@ public interface BuiltinFunctions extends Function.Library
     }
   }
 
-  class Sin extends SingleParamMath
+  @Function.Named("sin")
+  final class Sin extends SingleParamMath
   {
-    @Override
-    public String name()
-    {
-      return "sin";
-    }
-
     @Override
     protected ExprEval eval(double param)
     {
@@ -1119,14 +1011,9 @@ public interface BuiltinFunctions extends Function.Library
     }
   }
 
-  class Sinh extends SingleParamMath
+  @Function.Named("sinh")
+  final class Sinh extends SingleParamMath
   {
-    @Override
-    public String name()
-    {
-      return "sinh";
-    }
-
     @Override
     protected ExprEval eval(double param)
     {
@@ -1134,14 +1021,9 @@ public interface BuiltinFunctions extends Function.Library
     }
   }
 
-  class Sqrt extends SingleParamMath
+  @Function.Named("sqrt")
+  final class Sqrt extends SingleParamMath
   {
-    @Override
-    public String name()
-    {
-      return "sqrt";
-    }
-
     @Override
     protected ExprEval eval(double param)
     {
@@ -1149,14 +1031,9 @@ public interface BuiltinFunctions extends Function.Library
     }
   }
 
-  class Tan extends SingleParamMath
+  @Function.Named("tan")
+  final class Tan extends SingleParamMath
   {
-    @Override
-    public String name()
-    {
-      return "tan";
-    }
-
     @Override
     protected ExprEval eval(double param)
     {
@@ -1164,14 +1041,9 @@ public interface BuiltinFunctions extends Function.Library
     }
   }
 
-  class Tanh extends SingleParamMath
+  @Function.Named("tanh")
+  final class Tanh extends SingleParamMath
   {
-    @Override
-    public String name()
-    {
-      return "tanh";
-    }
-
     @Override
     protected ExprEval eval(double param)
     {
@@ -1179,14 +1051,9 @@ public interface BuiltinFunctions extends Function.Library
     }
   }
 
-  class ToDegrees extends SingleParamMath
+  @Function.Named("toDegrees")
+  final class ToDegrees extends SingleParamMath
   {
-    @Override
-    public String name()
-    {
-      return "toDegrees";
-    }
-
     @Override
     protected ExprEval eval(double param)
     {
@@ -1194,14 +1061,9 @@ public interface BuiltinFunctions extends Function.Library
     }
   }
 
-  class ToRadians extends SingleParamMath
+  @Function.Named("toRadians")
+  final class ToRadians extends SingleParamMath
   {
-    @Override
-    public String name()
-    {
-      return "toRadians";
-    }
-
     @Override
     protected ExprEval eval(double param)
     {
@@ -1209,14 +1071,9 @@ public interface BuiltinFunctions extends Function.Library
     }
   }
 
-  class Ulp extends SingleParamMath
+  @Function.Named("ulp")
+  final class Ulp extends SingleParamMath
   {
-    @Override
-    public String name()
-    {
-      return "ulp";
-    }
-
     @Override
     protected ExprEval eval(double param)
     {
@@ -1224,14 +1081,9 @@ public interface BuiltinFunctions extends Function.Library
     }
   }
 
-  class Atan2 extends DoubleParamMath
+  @Function.Named("atan2")
+  final class Atan2 extends DoubleParamMath
   {
-    @Override
-    public String name()
-    {
-      return "atan2";
-    }
-
     @Override
     protected ExprEval eval(double y, double x)
     {
@@ -1239,14 +1091,9 @@ public interface BuiltinFunctions extends Function.Library
     }
   }
 
-  class CopySign extends DoubleParamMath
+  @Function.Named("copySign")
+  final class CopySign extends DoubleParamMath
   {
-    @Override
-    public String name()
-    {
-      return "copySign";
-    }
-
     @Override
     protected ExprEval eval(double x, double y)
     {
@@ -1254,14 +1101,9 @@ public interface BuiltinFunctions extends Function.Library
     }
   }
 
-  class Hypot extends DoubleParamMath
+  @Function.Named("hypot")
+  final class Hypot extends DoubleParamMath
   {
-    @Override
-    public String name()
-    {
-      return "hypot";
-    }
-
     @Override
     protected ExprEval eval(double x, double y)
     {
@@ -1269,14 +1111,9 @@ public interface BuiltinFunctions extends Function.Library
     }
   }
 
-  class Remainder extends DoubleParamMath
+  @Function.Named("remainder")
+  final class Remainder extends DoubleParamMath
   {
-    @Override
-    public String name()
-    {
-      return "remainder";
-    }
-
     @Override
     protected ExprEval eval(double x, double y)
     {
@@ -1284,14 +1121,9 @@ public interface BuiltinFunctions extends Function.Library
     }
   }
 
-  class Max extends DoubleParamMath
+  @Function.Named("max")
+  final class Max extends DoubleParamMath
   {
-    @Override
-    public String name()
-    {
-      return "max";
-    }
-
     @Override
     protected ExprEval eval(long x, long y)
     {
@@ -1305,14 +1137,9 @@ public interface BuiltinFunctions extends Function.Library
     }
   }
 
-  class Min extends DoubleParamMath
+  @Function.Named("min")
+  final class Min extends DoubleParamMath
   {
-    @Override
-    public String name()
-    {
-      return "min";
-    }
-
     @Override
     protected ExprEval eval(long x, long y)
     {
@@ -1326,14 +1153,9 @@ public interface BuiltinFunctions extends Function.Library
     }
   }
 
-  class NextAfter extends DoubleParamMath
+  @Function.Named("nextAfter")
+  final class NextAfter extends DoubleParamMath
   {
-    @Override
-    public String name()
-    {
-      return "nextAfter";
-    }
-
     @Override
     protected ExprEval eval(double x, double y)
     {
@@ -1341,14 +1163,9 @@ public interface BuiltinFunctions extends Function.Library
     }
   }
 
-  class Pow extends DoubleParamMath
+  @Function.Named("pow")
+  final class Pow extends DoubleParamMath
   {
-    @Override
-    public String name()
-    {
-      return "pow";
-    }
-
     @Override
     protected ExprEval eval(double x, double y)
     {
@@ -1356,14 +1173,9 @@ public interface BuiltinFunctions extends Function.Library
     }
   }
 
-  class Scalb extends DoubleParam
+  @Function.Named("scalb")
+  final class Scalb extends DoubleParam
   {
-    @Override
-    public String name()
-    {
-      return "scalb";
-    }
-
     @Override
     protected ExprEval eval(ExprEval x, ExprEval y)
     {
@@ -1383,14 +1195,9 @@ public interface BuiltinFunctions extends Function.Library
     }
   }
 
-  class ConditionFunc implements Function
+  @Function.Named("if")
+  final class ConditionFunc extends Function.NamedFunction
   {
-    @Override
-    public String name()
-    {
-      return "if";
-    }
-
     @Override
     public ExprType apply(List<Expr> args, TypeBinding bindings)
     {
@@ -1430,53 +1237,36 @@ public interface BuiltinFunctions extends Function.Library
     }
   }
 
-  class CastFunc implements Function, Factory
+  @Function.Named("cast")
+  final class CastFunc extends Function.AbstractFactory
   {
-    private ExprType castTo;
-
     @Override
-    public String name()
-    {
-      return "cast";
-    }
-
-    @Override
-    public ExprType apply(List<Expr> args, TypeBinding bindings)
-    {
-      if (args.size() != 2) {
-        return ExprType.UNKNOWN;
-      }
-      return ExprType.bestEffortOf(Evals.getConstantString(args.get(1)));
-    }
-
-    @Override
-    public ExprEval apply(List<Expr> args, NumericBinding bindings)
+    public Function create(List<Expr> args)
     {
       if (args.size() != 2) {
         throw new RuntimeException("function '" + name() + "' needs 2 argument");
       }
-      if (castTo == null) {
-        castTo = ExprType.bestEffortOf(Evals.getConstantString(args.get(1)));
-      }
-      return Evals.castTo(args.get(0).eval(bindings), castTo);
-    }
+      final ExprType castTo = ExprType.bestEffortOf(Evals.getConstantString(args.get(1)));
+      return new Child()
+      {
+        @Override
+        public ExprType apply(List<Expr> args, TypeBinding bindings)
+        {
+          return castTo;
+        }
 
-    @Override
-    public Function get()
-    {
-      return new CastFunc();
+        @Override
+        public ExprEval apply(List<Expr> args, NumericBinding bindings)
+        {
+          return Evals.castTo(args.get(0).eval(bindings), castTo);
+        }
+      };
     }
   }
 
-
-  class IsNullFunc implements Function
+  @Function.Named("isNull")
+  final class IsNullFunc extends Function.NamedFunction
   {
-    @Override
-    public String name()
-    {
-      return "isnull";
-    }
-
     @Override
     public ExprType apply(List<Expr> args, TypeBinding bindings)
     {
@@ -1487,21 +1277,16 @@ public interface BuiltinFunctions extends Function.Library
     public ExprEval apply(List<Expr> args, NumericBinding bindings)
     {
       if (args.size() != 1) {
-        throw new RuntimeException("function 'is_null' needs 1 argument");
+        throw new RuntimeException("function 'isnull' needs 1 argument");
       }
       ExprEval eval = args.get(0).eval(bindings);
       return ExprEval.of(eval.isNull());
     }
   }
 
-  class NvlFunc implements Function
+  @Function.Named("nvl")
+  class NvlFunc extends Function.NamedFunction
   {
-    @Override
-    public String name()
-    {
-      return "nvl";
-    }
-
     @Override
     public ExprType apply(List<Expr> args, TypeBinding bindings)
     {
@@ -1529,23 +1314,14 @@ public interface BuiltinFunctions extends Function.Library
     }
   }
 
-  class Coalesce extends NvlFunc
+  @Function.Named("coalesce")
+  final class Coalesce extends NvlFunc
   {
-    @Override
-    public String name()
-    {
-      return "coalesce";
-    }
   }
 
-  class DateDiffFunc implements Function
+  @Function.Named("datediff")
+  final class DateDiffFunc extends Function.NamedFunction
   {
-    @Override
-    public String name()
-    {
-      return "datediff";
-    }
-
     @Override
     public ExprType apply(List<Expr> args, TypeBinding bindings)
     {
@@ -1558,20 +1334,15 @@ public interface BuiltinFunctions extends Function.Library
       if (args.size() < 2) {
         throw new RuntimeException("function 'datediff' need at least 2 arguments");
       }
-      DateTime t1 = Evals.toDateTime(args.get(0).eval(bindings), (DateTimeZone)null);
-      DateTime t2 = Evals.toDateTime(args.get(1).eval(bindings), (DateTimeZone)null);
+      DateTime t1 = Evals.toDateTime(args.get(0).eval(bindings), (DateTimeZone) null);
+      DateTime t2 = Evals.toDateTime(args.get(1).eval(bindings), (DateTimeZone) null);
       return ExprEval.of(Days.daysBetween(t1.withTimeAtStartOfDay(), t2.withTimeAtStartOfDay()).getDays());
     }
   }
 
-  class CaseWhenFunc implements Function
+  @Function.Named("case")
+  final class CaseWhenFunc extends Function.NamedFunction
   {
-    @Override
-    public String name()
-    {
-      return "case";
-    }
-
     @Override
     public ExprType apply(List<Expr> args, TypeBinding bindings)
     {
@@ -1609,64 +1380,49 @@ public interface BuiltinFunctions extends Function.Library
     }
   }
 
-  class JavaScriptFunc extends ExprType.IndecisiveFunction implements Function.External
+  @Function.Named("javascript")
+  final class JavaScriptFunc extends Function.AbstractFactory
   {
-    ScriptableObject scope;
-    org.mozilla.javascript.Function fnApply;
-    com.google.common.base.Function<NumericBinding, Object[]> bindingExtractor;
-
     @Override
-    public String name()
+    public Function create(List<Expr> args)
     {
-      return "javascript";
-    }
-
-    @Override
-    public ExprEval apply(List<Expr> args, NumericBinding bindings)
-    {
-      if (fnApply == null) {
-        if (args.size() != 2) {
-          throw new RuntimeException("function 'javascript' needs 2 argument");
-        }
-        makeFunction(Evals.getConstantString(args.get(0)), Evals.getConstantString(args.get(1)));
+      if (args.size() != 2) {
+        throw new RuntimeException("function 'javascript' needs 2 argument");
       }
+      final String[] parameters = splitAndTrim(Evals.getConstantString(args.get(0)));
+      final String function =
+          "function(" + StringUtils.join(parameters, ",") + ") {" + Evals.getConstantString(args.get(1)) + "}";
 
-      final Object[] params = bindingExtractor.apply(bindings);
-      // one and only one context per thread
-      final Context cx = Context.enter();
-      try {
-        return ExprEval.bestEffortOf(fnApply.call(cx, scope, scope, params));
-      }
-      finally {
-        Context.exit();
-      }
-    }
-
-    private void makeFunction(String required, String script)
-    {
-      final String[] bindings = splitAndTrim(required);
-      final String function = "function(" + StringUtils.join(bindings, ",") + ") {" + script + "}";
-
+      final ScriptableObject scope;
+      final org.mozilla.javascript.Function fnApply;
       final Context cx = Context.enter();
       try {
         cx.setOptimizationLevel(9);
-        this.scope = cx.initStandardObjects();
-        this.fnApply = cx.compileFunction(scope, function, "script", 1, null);
+        scope = cx.initStandardObjects();
+        fnApply = cx.compileFunction(scope, function, "script", 1, null);
       }
       finally {
         Context.exit();
       }
 
-      final Object[] convey = new Object[bindings.length];
-      bindingExtractor = new com.google.common.base.Function<NumericBinding, Object[]>()
+      return new ExternalChild()
       {
+        private final Object[] convey = new Object[parameters.length];
+
         @Override
-        public Object[] apply(NumericBinding input)
+        public ExprEval apply(List<Expr> args, NumericBinding bindings)
         {
-          for (int i = 0; i < bindings.length; i++) {
-            convey[i] = input.get(bindings[i]);
+          for (int i = 0; i < parameters.length; i++) {
+            convey[i] = bindings.get(parameters[i]);
           }
-          return convey;
+          // one and only one context per thread
+          final Context cx = Context.enter();
+          try {
+            return ExprEval.bestEffortOf(fnApply.call(cx, scope, scope, convey));
+          }
+          finally {
+            Context.exit();
+          }
         }
       };
     }
@@ -1681,14 +1437,9 @@ public interface BuiltinFunctions extends Function.Library
     }
   }
 
-  class ConcatFunc extends ExprType.StringFunction
+  @Function.Named("concat")
+  final class ConcatFunc extends Function.StringOut
   {
-    @Override
-    public String name()
-    {
-      return "concat";
-    }
-
     @Override
     public ExprEval apply(List<Expr> args, NumericBinding bindings)
     {
@@ -1700,125 +1451,93 @@ public interface BuiltinFunctions extends Function.Library
     }
   }
 
-  class FormatFunc extends ExprType.StringFunction implements Factory
+  @Function.Named("format")
+  final class FormatFunc extends Function.AbstractFactory
   {
-    final StringBuilder builder = new StringBuilder();
-    final Formatter formatter = new Formatter(builder);
-
-    String format;
-    Object[] formatArgs;
-
     @Override
-    public String name()
+    public Function create(List<Expr> args)
     {
-      return "format";
-    }
+      if (args.isEmpty()) {
+        throw new RuntimeException("function 'format' needs at least 1 argument");
+      }
+      final String format = Evals.getConstantString(args.get(0));
+      final Object[] formatArgs = new Object[args.size() - 1];
+      return new StringChild()
+      {
+        final StringBuilder builder = new StringBuilder();
+        final Formatter formatter = new Formatter(builder);
 
-    @Override
-    public ExprEval apply(List<Expr> args, NumericBinding bindings)
-    {
-      if (format == null) {
-        if (args.isEmpty()) {
-          throw new RuntimeException("function 'format' needs at least 1 argument");
+        @Override
+        public ExprEval apply(List<Expr> args, NumericBinding bindings)
+        {
+          builder.setLength(0);
+          for (int i = 0; i < formatArgs.length; i++) {
+            formatArgs[i] = args.get(i + 1).eval(bindings).value();
+          }
+          formatter.format(format, formatArgs);
+          return ExprEval.of(builder.toString());
         }
-        format = Evals.getConstantString(args.get(0));
-        formatArgs = new Object[args.size() - 1];
-      }
-      builder.setLength(0);
-      for (int i = 0; i < formatArgs.length; i++) {
-        formatArgs[i] = args.get(i + 1).eval(bindings).value();
-      }
-      formatter.format(format, formatArgs);
-      return ExprEval.of(builder.toString());
-    }
-
-    @Override
-    public Function get()
-    {
-      return new FormatFunc();
+      };
     }
   }
 
-  class LPadFunc extends ExprType.StringFunction implements Factory
+  @Function.Named("lpad")
+  final class LPadFunc extends Function.AbstractFactory
   {
     @Override
-    public String name()
+    public Function create(List<Expr> args)
     {
-      return "lpad";
-    }
-
-    private transient int length = -1;
-    private transient char padding;
-
-    @Override
-    public ExprEval apply(List<Expr> args, NumericBinding bindings)
-    {
-      if (length < 0) {
-        if (args.size() < 3) {
-          throw new RuntimeException("function 'lpad' needs 3 arguments");
-        }
-        length = (int) Evals.getConstantLong(args.get(1));
-        String string = Evals.getConstantString(args.get(2));
-        if (string.length() != 1) {
-          throw new RuntimeException("3rd argument of function 'lpad' should be constant char");
-        }
-        padding = string.charAt(0);
+      if (args.size() < 3) {
+        throw new RuntimeException("function 'lpad' needs 3 arguments");
       }
-      String input = args.get(0).eval(bindings).asString();
-      return ExprEval.of(input == null ? null : Strings.padStart(input, length, padding));
-    }
-
-    @Override
-    public Function get()
-    {
-      return new LPadFunc();
+      final int length = Evals.getConstantInt(args.get(1));
+      String string = Evals.getConstantString(args.get(2));
+      if (string.length() != 1) {
+        throw new RuntimeException("3rd argument of function 'lpad' should be constant char");
+      }
+      final char padding = string.charAt(0);
+      return new StringChild()
+      {
+        @Override
+        public ExprEval apply(List<Expr> args, NumericBinding bindings)
+        {
+          String input = Evals.evalString(args.get(0), bindings);
+          return ExprEval.of(input == null ? null : Strings.padStart(input, length, padding));
+        }
+      };
     }
   }
 
-  class RPadFunc extends ExprType.StringFunction implements Factory
+  @Function.Named("rpad")
+  final class RPadFunc extends Function.AbstractFactory
   {
     @Override
-    public String name()
+    public Function create(List<Expr> args)
     {
-      return "rpad";
-    }
-
-    private transient int length = -1;
-    private transient char padding;
-
-    @Override
-    public ExprEval apply(List<Expr> args, NumericBinding bindings)
-    {
-      if (length < 0) {
-        if (args.size() < 3) {
-          throw new RuntimeException("function 'rpad' needs 3 arguments");
-        }
-        length = (int) Evals.getConstantLong(args.get(1));
-        String string = Evals.getConstantString(args.get(2));
-        if (string.length() != 1) {
-          throw new RuntimeException("3rd argument of function 'rpad' should be constant char");
-        }
-        padding = string.charAt(0);
+      if (args.size() < 3) {
+        throw new RuntimeException("function 'rpad' needs 3 arguments");
       }
-      String input = args.get(0).eval(bindings).asString();
-      return ExprEval.of(input == null ? null : Strings.padEnd(input, length, padding));
-    }
-
-    @Override
-    public Function get()
-    {
-      return new RPadFunc();
+      final int length = Evals.getConstantInt(args.get(1));
+      String string = Evals.getConstantString(args.get(2));
+      if (string.length() != 1) {
+        throw new RuntimeException("3rd argument of function 'rpad' should be constant char");
+      }
+      final char padding = string.charAt(0);
+      return new StringChild()
+      {
+        @Override
+        public ExprEval apply(List<Expr> args, NumericBinding bindings)
+        {
+          String input = Evals.evalString(args.get(0), bindings);
+          return ExprEval.of(input == null ? null : Strings.padEnd(input, length, padding));
+        }
+      };
     }
   }
 
-  class UpperFunc extends ExprType.StringFunction
+  @Function.Named("upper")
+  final class UpperFunc extends Function.StringOut
   {
-    @Override
-    public String name()
-    {
-      return "upper";
-    }
-
     @Override
     public ExprEval apply(List<Expr> args, NumericBinding bindings)
     {
@@ -1830,14 +1549,9 @@ public interface BuiltinFunctions extends Function.Library
     }
   }
 
-  class LowerFunc extends ExprType.StringFunction
+  @Function.Named("lower")
+  final class LowerFunc extends Function.StringOut
   {
-    @Override
-    public String name()
-    {
-      return "lower";
-    }
-
     @Override
     public ExprEval apply(List<Expr> args, NumericBinding bindings)
     {
@@ -1850,14 +1564,9 @@ public interface BuiltinFunctions extends Function.Library
   }
 
   // pattern
-  class SplitRegex extends ExprType.StringFunction
+  @Function.Named("splitRegex")
+  final class SplitRegex extends Function.StringOut
   {
-    @Override
-    public String name()
-    {
-      return "splitRegex";
-    }
-
     @Override
     public ExprEval apply(List<Expr> args, NumericBinding bindings)
     {
@@ -1877,63 +1586,50 @@ public interface BuiltinFunctions extends Function.Library
     }
   }
 
-  // constant literal
-  class Split extends ExprType.StringFunction implements Factory
+  @Function.Named("split")
+  final class Split extends Function.AbstractFactory
   {
-    private Splitter splitter;
-
     @Override
-    public String name()
+    public Function create(List<Expr> args)
     {
-      return "split";
-    }
-
-    @Override
-    public ExprEval apply(List<Expr> args, NumericBinding bindings)
-    {
-      if (splitter == null) {
-        if (args.size() != 3) {
-          throw new RuntimeException("function 'split' needs 3 arguments");
+      if (args.size() != 3) {
+        throw new RuntimeException("function 'split' needs 3 arguments");
+      }
+      final Splitter splitter;
+      String separator = Evals.getConstantString(args.get(1));
+      if (separator.length() == 1) {
+        splitter = Splitter.on(separator.charAt(0));
+      } else {
+        splitter = Splitter.on(separator);
+      }
+      return new StringChild()
+      {
+        @Override
+        public ExprEval apply(List<Expr> args, NumericBinding bindings)
+        {
+          ExprEval inputEval = args.get(0).eval(bindings);
+          if (inputEval.isNull()) {
+            return ExprEval.of((String) null);
+          }
+          String input = inputEval.asString();
+          int index = (int) args.get(2).eval(bindings).longValue();
+          if (index < 0) {
+            return ExprEval.of((String) null);
+          }
+          for (String x : splitter.split(input)) {
+            if (index-- == 0) {
+              return ExprEval.of(x);
+            }
+          }
+          return ExprEval.of((String) null);
         }
-        String separator = Evals.getConstantString(args.get(1));
-        if (separator.length() == 1) {
-          splitter = Splitter.on(separator.charAt(0));
-        } else {
-          splitter = Splitter.on(separator);
-        }
-      }
-      ExprEval inputEval = args.get(0).eval(bindings);
-      if (inputEval.isNull()) {
-        return ExprEval.of((String) null);
-      }
-      String input = inputEval.asString();
-      int index = (int) args.get(2).eval(bindings).longValue();
-      if (index < 0) {
-        return ExprEval.of((String) null);
-      }
-      for (String x : splitter.split(input)) {
-        if (index-- == 0) {
-          return ExprEval.of(x);
-        }
-      }
-      return ExprEval.of((String) null);
-    }
-
-    @Override
-    public Function get()
-    {
-      return new Split();
+      };
     }
   }
 
-  class ProperFunc extends ExprType.StringFunction
+  @Function.Named("proper")
+  final class ProperFunc extends Function.StringOut
   {
-    @Override
-    public String name()
-    {
-      return "proper";
-    }
-
     @Override
     public ExprEval apply(List<Expr> args, NumericBinding bindings)
     {
@@ -1948,14 +1644,9 @@ public interface BuiltinFunctions extends Function.Library
     }
   }
 
-  class LengthFunc extends ExprType.LongFunction
+  @Function.Named("length")
+  final class LengthFunc extends Function.LongOut
   {
-    @Override
-    public String name()
-    {
-      return "length";
-    }
-
     @Override
     public ExprEval apply(List<Expr> args, NumericBinding bindings)
     {
@@ -1967,14 +1658,9 @@ public interface BuiltinFunctions extends Function.Library
     }
   }
 
-  class LeftFunc extends ExprType.StringFunction
+  @Function.Named("left")
+  final class LeftFunc extends Function.StringOut
   {
-    @Override
-    public String name()
-    {
-      return "left";
-    }
-
     @Override
     public ExprEval apply(List<Expr> args, NumericBinding bindings)
     {
@@ -1988,14 +1674,9 @@ public interface BuiltinFunctions extends Function.Library
     }
   }
 
-  class RightFunc extends ExprType.StringFunction
+  @Function.Named("right")
+  final class RightFunc extends Function.StringOut
   {
-    @Override
-    public String name()
-    {
-      return "right";
-    }
-
     @Override
     public ExprEval apply(List<Expr> args, NumericBinding bindings)
     {
@@ -2013,14 +1694,9 @@ public interface BuiltinFunctions extends Function.Library
     }
   }
 
-  class MidFunc extends ExprType.StringFunction
+  @Function.Named("mid")
+  final class MidFunc extends Function.StringOut
   {
-    @Override
-    public String name()
-    {
-      return "mid";
-    }
-
     @Override
     public ExprEval apply(List<Expr> args, NumericBinding bindings)
     {
@@ -2035,14 +1711,9 @@ public interface BuiltinFunctions extends Function.Library
     }
   }
 
-  class IndexOfFunc extends ExprType.LongFunction
+  @Function.Named("indexOf")
+  final class IndexOfFunc extends Function.LongOut
   {
-    @Override
-    public String name()
-    {
-      return "indexOf";
-    }
-
     @Override
     public ExprEval apply(List<Expr> args, NumericBinding bindings)
     {
@@ -2056,14 +1727,9 @@ public interface BuiltinFunctions extends Function.Library
     }
   }
 
-  class ReplaceFunc extends ExprType.StringFunction
+  @Function.Named("replace")
+  final class ReplaceFunc extends Function.StringOut
   {
-    @Override
-    public String name()
-    {
-      return "replace";
-    }
-
     @Override
     public ExprEval apply(List<Expr> args, NumericBinding bindings)
     {
@@ -2081,14 +1747,9 @@ public interface BuiltinFunctions extends Function.Library
     }
   }
 
-  class TrimFunc extends ExprType.StringFunction
+  @Function.Named("trim")
+  final class TrimFunc extends Function.StringOut
   {
-    @Override
-    public String name()
-    {
-      return "trim";
-    }
-
     @Override
     public ExprEval apply(List<Expr> args, NumericBinding bindings)
     {
@@ -2101,14 +1762,9 @@ public interface BuiltinFunctions extends Function.Library
   }
 
   // sql
-  final class BtrimFunc extends ExprType.StringFunction
+  @Function.Named("btrim")
+  final class BtrimFunc extends Function.StringOut
   {
-    @Override
-    public String name()
-    {
-      return "btrim";
-    }
-
     @Override
     public ExprEval apply(List<Expr> args, NumericBinding bindings)
     {
@@ -2122,14 +1778,9 @@ public interface BuiltinFunctions extends Function.Library
   }
 
   // sql
-  final class LtrimFunc extends ExprType.StringFunction
+  @Function.Named("ltrim")
+  final class LtrimFunc extends Function.StringOut
   {
-    @Override
-    public String name()
-    {
-      return "ltrim";
-    }
-
     @Override
     public ExprEval apply(List<Expr> args, NumericBinding bindings)
     {
@@ -2143,19 +1794,14 @@ public interface BuiltinFunctions extends Function.Library
   }
 
   // sql
-  final class RtrimFunc extends ExprType.StringFunction
+  @Function.Named("rtrim")
+  final class RtrimFunc extends Function.StringOut
   {
-    @Override
-    public String name()
-    {
-      return "rtrim";
-    }
-
     @Override
     public ExprEval apply(List<Expr> args, NumericBinding bindings)
     {
       if (args.size() != 1 && args.size() != 2) {
-        throw new RuntimeException("function 'ltrim' needs 1 or 2 arguments");
+        throw new RuntimeException("function 'rtrim' needs 1 or 2 arguments");
       }
       String input = args.get(0).eval(bindings).asString();
       String strip = args.size() > 1 ? Evals.getConstantString(args.get(1)) : null;
@@ -2163,82 +1809,61 @@ public interface BuiltinFunctions extends Function.Library
     }
   }
 
-  class Now extends ExprType.LongFunction {
-
-    @Override
-    public String name()
-    {
-      return "now";
-    }
-
-    @Override
-    public ExprEval apply(List<Expr> args, NumericBinding bindings)
-    {
-      return ExprEval.of(System.currentTimeMillis());
-    }
-  }
-
-  class IPv4In extends ExprType.LongFunction implements Factory
+  @Function.Named("ipv4_in")
+  final class IPv4In extends Function.AbstractFactory
   {
-    byte[] start;
-    byte[] end = Ints.toByteArray(-1);
-
     @Override
-    public String name()
-    {
-      return "ipv4_in";
-    }
-
-    @Override
-    public ExprEval apply(List<Expr> args, NumericBinding bindings)
+    public Function create(List<Expr> args)
     {
       if (args.size() < 2) {
         throw new RuntimeException("function 'ipv4_in' needs at least 2 arguments");
       }
-      if (start == null) {
-        start = InetAddresses.forString(Evals.getConstantString(args.get(1))).getAddress();
-        Preconditions.checkArgument(start.length == 4);
-        if (args.size() > 2) {
-          end = InetAddresses.forString(Evals.getConstantString(args.get(2))).getAddress();
-          Preconditions.checkArgument(end.length == 4);
-        }
-        for (int i = 0; i < 4; i++) {
-          if (UnsignedBytes.compare(start[i], end[i]) > 0) {
-            throw new IllegalArgumentException();
-          }
-        }
-      }
-      String ipString = args.get(0).eval(bindings).asString();
-      try {
-        return ExprEval.of(evaluate(ipString));
-      }
-      catch (Exception e) {
-        return ExprEval.of(false);
-      }
-    }
-
-    private boolean evaluate(String ipString)
-    {
-      final byte[] address = InetAddresses.forString(ipString).getAddress();
-      if (address.length != 4) {
-        return false;
+      final byte[] start = InetAddresses.forString(Evals.getConstantString(args.get(1))).getAddress();
+      final byte[] end;
+      Preconditions.checkArgument(start.length == 4);
+      if (args.size() > 2) {
+        end = InetAddresses.forString(Evals.getConstantString(args.get(2))).getAddress();
+        Preconditions.checkArgument(end.length == 4);
+      } else {
+        end = Ints.toByteArray(-1);
       }
       for (int i = 0; i < 4; i++) {
-        if (UnsignedBytes.compare(address[i], start[i]) < 0 || UnsignedBytes.compare(address[i], end[i]) > 0) {
-          return false;
+        if (UnsignedBytes.compare(start[i], end[i]) > 0) {
+          throw new IllegalArgumentException("start[n] <= end[n]");
         }
       }
-      return true;
-    }
+      return new LongChild()
+      {
+        @Override
+        public ExprEval apply(List<Expr> args, NumericBinding bindings)
+        {
+          String ipString = Evals.evalString(args.get(0), bindings);
+          try {
+            return ExprEval.of(evaluate(ipString));
+          }
+          catch (Exception e) {
+            return ExprEval.of(false);
+          }
+        }
 
-    @Override
-    public Function get()
-    {
-      return new IPv4In();
+        private boolean evaluate(String ipString)
+        {
+          final byte[] address = InetAddresses.forString(ipString).getAddress();
+          if (address.length != 4) {
+            return false;
+          }
+          for (int i = 0; i < 4; i++) {
+            if (UnsignedBytes.compare(address[i], start[i]) < 0 || UnsignedBytes.compare(address[i], end[i]) > 0) {
+              return false;
+            }
+          }
+          return true;
+        }
+      };
     }
   }
 
-  abstract class PartitionFunction extends ExprType.IndecisiveFunction implements Factory
+  abstract class PartitionFunction extends Function.IndecisiveOut implements Factory
   {
     protected String fieldName;
     protected ExprType fieldType;
@@ -2275,6 +1900,17 @@ public interface BuiltinFunctions extends Function.Library
     protected abstract Object invoke(WindowContext context);
 
     protected void reset() { }
+
+    @Override
+    public Function create(List<Expr> args)
+    {
+      try {
+        return getClass().newInstance();
+      }
+      catch (Exception e) {
+        throw Throwables.propagate(e);
+      }
+    }
   }
 
   abstract class WindowSupport extends PartitionFunction
@@ -2318,99 +1954,50 @@ public interface BuiltinFunctions extends Function.Library
     protected abstract Object current();
   }
 
-  class Prev extends PartitionFunction
+  @Function.Named("$prev")
+  final class Prev extends PartitionFunction
   {
-    @Override
-    public String name()
-    {
-      return "$prev";
-    }
-
     @Override
     protected Object invoke(WindowContext context)
     {
       return context.get(context.index() - 1, fieldName);
     }
-
-    @Override
-    public Function get()
-    {
-      return new Prev();
-    }
   }
 
-  class Next extends PartitionFunction
+  @Function.Named("$next")
+  final class Next extends PartitionFunction
   {
-    @Override
-    public String name()
-    {
-      return "$next";
-    }
-
     @Override
     protected Object invoke(WindowContext context)
     {
       return context.get(context.index() + 1, fieldName);
     }
-
-    @Override
-    public Function get()
-    {
-      return new Next();
-    }
   }
 
-  class PartitionLast extends PartitionFunction
+  @Function.Named("$last")
+  final class PartitionLast extends PartitionFunction
   {
-    @Override
-    public String name()
-    {
-      return "$last";
-    }
-
     @Override
     protected Object invoke(WindowContext context)
     {
       return context.get(context.size() - 1, fieldName);
     }
-
-    @Override
-    public Function get()
-    {
-      return new PartitionLast();
-    }
   }
 
-  class PartitionFirst extends PartitionFunction
+  @Function.Named("$first")
+  final class PartitionFirst extends PartitionFunction
   {
-    @Override
-    public String name()
-    {
-      return "$first";
-    }
-
     @Override
     protected Object invoke(WindowContext context)
     {
       return context.get(0, fieldName);
     }
-
-    @Override
-    public Function get()
-    {
-      return new PartitionFirst();
-    }
   }
 
-  class PartitionNth extends PartitionFunction
+  @Function.Named("$nth")
+  final class PartitionNth extends PartitionFunction
   {
     private int nth;
-
-    @Override
-    public String name()
-    {
-      return "$nth";
-    }
 
     @Override
     protected final void initialize(WindowContext context, Object[] parameters)
@@ -2429,23 +2016,12 @@ public interface BuiltinFunctions extends Function.Library
     {
       return context.get(nth, fieldName);
     }
-
-    @Override
-    public Function get()
-    {
-      return new PartitionNth();
-    }
   }
 
-  class Lag extends PartitionFunction implements Factory
+  @Function.Named("$lag")
+  final class Lag extends PartitionFunction implements Factory
   {
     private int delta;
-
-    @Override
-    public String name()
-    {
-      return "$lag";
-    }
 
     @Override
     protected final void initialize(WindowContext context, Object[] parameters)
@@ -2464,23 +2040,12 @@ public interface BuiltinFunctions extends Function.Library
     {
       return context.get(context.index() - delta, fieldName);
     }
-
-    @Override
-    public Function get()
-    {
-      return new Lag();
-    }
   }
 
-  class Lead extends PartitionFunction implements Factory
+  @Function.Named("$lead")
+  final class Lead extends PartitionFunction implements Factory
   {
     private int delta;
-
-    @Override
-    public String name()
-    {
-      return "$lead";
-    }
 
     @Override
     protected final void initialize(WindowContext context, Object[] parameters)
@@ -2499,24 +2064,13 @@ public interface BuiltinFunctions extends Function.Library
     {
       return context.get(context.index() + delta, fieldName);
     }
-
-    @Override
-    public Function get()
-    {
-      return new Lead();
-    }
   }
 
-  class RunningDelta extends PartitionFunction
+  @Function.Named("$delta")
+  final class RunningDelta extends PartitionFunction
   {
     private long longPrev;
     private double doublePrev;
-
-    @Override
-    public String name()
-    {
-      return "$delta";
-    }
 
     @Override
     protected Object invoke(WindowContext context)
@@ -2556,24 +2110,13 @@ public interface BuiltinFunctions extends Function.Library
       longPrev = 0;
       doublePrev = 0;
     }
-
-    @Override
-    public Function get()
-    {
-      return new RunningDelta();
-    }
   }
 
+  @Function.Named("$sum")
   class RunningSum extends WindowSupport implements Factory
   {
     private long longSum;
     private double doubleSum;
-
-    @Override
-    public String name()
-    {
-      return "$sum";
-    }
 
     @Override
     protected void invoke(Object current)
@@ -2606,23 +2149,12 @@ public interface BuiltinFunctions extends Function.Library
       longSum = 0;
       doubleSum = 0;
     }
-
-    @Override
-    public Function get()
-    {
-      return new RunningSum();
-    }
   }
 
-  class RunningMin extends WindowSupport implements Factory
+  @Function.Named("$min")
+  final class RunningMin extends WindowSupport implements Factory
   {
     private Comparable prev;
-
-    @Override
-    public String name()
-    {
-      return "$min";
-    }
 
     @Override
     @SuppressWarnings("unchecked")
@@ -2645,23 +2177,12 @@ public interface BuiltinFunctions extends Function.Library
     {
       prev = null;
     }
-
-    @Override
-    public Function get()
-    {
-      return new RunningMin();
-    }
   }
 
-  class RunningMax extends WindowSupport implements Factory
+  @Function.Named("$max")
+  final class RunningMax extends WindowSupport implements Factory
   {
     private Comparable prev;
-
-    @Override
-    public String name()
-    {
-      return "$max";
-    }
 
     @Override
     @SuppressWarnings("unchecked")
@@ -2684,45 +2205,23 @@ public interface BuiltinFunctions extends Function.Library
     {
       prev = null;
     }
-
-    @Override
-    public Function get()
-    {
-      return new RunningMax();
-    }
   }
 
-  class RowNum extends PartitionFunction implements Factory
+  @Function.Named("$row_num")
+  final class RowNum extends PartitionFunction implements Factory
   {
-    @Override
-    public String name()
-    {
-      return "$row_num";
-    }
-
     @Override
     protected Object invoke(WindowContext context)
     {
       return context.index() + 1L;
     }
-
-    @Override
-    public Function get()
-    {
-      return new RowNum();
-    }
   }
 
-  class Rank extends PartitionFunction implements Factory
+  @Function.Named("$rank")
+  final class Rank extends PartitionFunction implements Factory
   {
     private long prevRank;
     private Object prev;
-
-    @Override
-    public String name()
-    {
-      return "$rank";
-    }
 
     @Override
     protected Object invoke(WindowContext context)
@@ -2741,24 +2240,13 @@ public interface BuiltinFunctions extends Function.Library
       prevRank = 0L;
       prev = null;
     }
-
-    @Override
-    public Function get()
-    {
-      return new Rank();
-    }
   }
 
-  class DenseRank extends PartitionFunction implements Factory
+  @Function.Named("$dense_rank")
+  final class DenseRank extends PartitionFunction implements Factory
   {
     private long prevRank;
     private Object prev;
-
-    @Override
-    public String name()
-    {
-      return "$dense_rank";
-    }
 
     @Override
     protected Object invoke(WindowContext context)
@@ -2777,23 +2265,12 @@ public interface BuiltinFunctions extends Function.Library
       prevRank = 0L;
       prev = null;
     }
-
-    @Override
-    public Function get()
-    {
-      return new DenseRank();
-    }
   }
 
-  class RunningMean extends RunningSum
+  @Function.Named("$mean")
+  final class RunningMean extends RunningSum
   {
     private int count;
-
-    @Override
-    public String name()
-    {
-      return "$mean";
-    }
 
     @Override
     protected void invoke(Object current)
@@ -2813,25 +2290,14 @@ public interface BuiltinFunctions extends Function.Library
       super.reset();
       count = 0;
     }
-
-    @Override
-    public Function get()
-    {
-      return new RunningMean();
-    }
   }
 
+  @Function.Named("$variance")
   class RunningVariance extends WindowSupport
   {
     long count; // number of elements
     double sum; // sum of elements
     double nvariance; // sum[x-avg^2] (this is actually n times of the variance)
-
-    @Override
-    public String name()
-    {
-      return "$variance";
-    }
 
     @Override
     protected void invoke(Object current)
@@ -2857,90 +2323,46 @@ public interface BuiltinFunctions extends Function.Library
       sum = 0;
       nvariance = 0;
     }
-
-    @Override
-    public Function get()
-    {
-      return new RunningVariance();
-    }
   }
 
-  class RunningStandardDeviation extends RunningVariance
+  @Function.Named("$stddev")
+  final class RunningStandardDeviation extends RunningVariance
   {
-    @Override
-    public String name()
-    {
-      return "$stddev";
-    }
-
     @Override
     protected Double current()
     {
       return Math.sqrt(super.current());
     }
-
-    @Override
-    public Function get()
-    {
-      return new RunningStandardDeviation();
-    }
   }
 
+  @Function.Named("$variancePop")
   class RunningVariancePop extends RunningVariance
   {
-    @Override
-    public String name()
-    {
-      return "$variancePop";
-    }
-
     @Override
     protected Double current()
     {
       return count == 1 ? 0d : nvariance / count;
     }
-
-    @Override
-    public Function get()
-    {
-      return new RunningVariancePop();
-    }
   }
 
-  class RunningStandardDeviationPop extends RunningVariancePop
+  @Function.Named("$stddevPop")
+  final class RunningStandardDeviationPop extends RunningVariancePop
   {
-    @Override
-    public String name()
-    {
-      return "$stddevPop";
-    }
-
     @Override
     protected Double current()
     {
       return Math.sqrt(super.current());
     }
-
-    @Override
-    public Function get()
-    {
-      return new RunningStandardDeviationPop();
-    }
   }
 
-  class RunningPercentile extends WindowSupport implements Factory
+  @Function.Named("$percentile")
+  final class RunningPercentile extends WindowSupport implements Factory
   {
     private float percentile;
 
     private int size;
     private long[] longs;
     private double[] doubles;
-
-    @Override
-    public String name()
-    {
-      return "$percentile";
-    }
 
     @Override
     protected void initialize(WindowContext context, Object[] parameters)
@@ -3011,15 +2433,10 @@ public interface BuiltinFunctions extends Function.Library
     {
       size = 0;
     }
-
-    @Override
-    public Function get()
-    {
-      return new RunningPercentile();
-    }
   }
 
-  class Histogram extends PartitionFunction implements Factory
+  @Function.Named("$histogram")
+  final class Histogram extends PartitionFunction implements Factory
   {
     private int binCount = -1;
 
@@ -3028,12 +2445,6 @@ public interface BuiltinFunctions extends Function.Library
 
     private long[] longs;
     private double[] doubles;
-
-    @Override
-    public String name()
-    {
-      return "$histogram";
-    }
 
     @Override
     protected void initialize(WindowContext context, Object[] parameters)
@@ -3137,73 +2548,60 @@ public interface BuiltinFunctions extends Function.Library
         return ImmutableMap.of("min", min, "max", max, "breaks", Doubles.asList(breaks), "counts", Ints.asList(counts));
       }
     }
-
-    @Override
-    public Function get()
-    {
-      return new Histogram();
-    }
   }
 
-  class PartitionSize extends PartitionFunction implements Factory
+  @Function.Named("$size")
+  final class PartitionSize extends PartitionFunction implements Factory
   {
-    @Override
-    public String name()
-    {
-      return "$size";
-    }
-
     @Override
     protected Object invoke(WindowContext context)
     {
       return (long) context.size();
     }
+  }
 
+  @Function.Named("$assign")
+  final class PartitionEval extends Function.AbstractFactory
+  {
     @Override
-    public Function get()
+    public Function create(List<Expr> args)
     {
-      return new PartitionSize();
+      return new StringChild()
+      {
+        @Override
+        public ExprEval apply(List<Expr> args, NumericBinding bindings)
+        {
+          if (args.isEmpty()) {
+            throw new IllegalArgumentException(name() + " should have at least output field name");
+          }
+          StringBuilder builder = new StringBuilder();
+          builder.append(args.get(0).eval(bindings).stringValue());
+          for (int i = 1; i < args.size(); i++) {
+            builder.append(':').append(args.get(i).eval(bindings).longValue());
+          }
+          return ExprEval.of(builder.toString());
+        }
+      };
     }
   }
 
-  class PartitionEval extends ExprType.StringFunction implements Function
+  @Function.Named("$assignFirst")
+  final class AssignFirst extends Function.AbstractFactory
   {
     @Override
-    public String name()
+    public Function create(List<Expr> args)
     {
-      return "$assign";
-    }
-
-    @Override
-    public ExprEval apply(List<Expr> args, NumericBinding bindings)
-    {
-      if (args.isEmpty()) {
-        throw new IllegalArgumentException(name() + " should have at least output field name");
-      }
-      StringBuilder builder = new StringBuilder();
-      builder.append(args.get(0).eval(bindings).stringValue());
-      for (int i = 1; i < args.size(); i++) {
-        builder.append(':').append(args.get(i).eval(bindings).longValue());
-      }
-      return ExprEval.of(builder.toString());
-    }
-  }
-
-  class AssignFirst extends ExprType.StringFunction implements Function
-  {
-    @Override
-    public String name()
-    {
-      return "$assignFirst";
-    }
-
-    @Override
-    public ExprEval apply(List<Expr> args, NumericBinding bindings)
-    {
-      if (args.size() != 1) {
-        throw new IllegalArgumentException(name() + " should have one argument (output field name)");
-      }
-      return ExprEval.of(args.get(0).eval(bindings).stringValue() + ":0");
+      return new StringChild()
+      {
+        @Override
+        public ExprEval apply(List<Expr> args, NumericBinding bindings)
+        {
+          if (args.size() != 1) {
+            throw new IllegalArgumentException(name() + " should have one argument (output field name)");
+          }
+          return ExprEval.of(args.get(0).eval(bindings).stringValue() + ":0");
+        }
+      };
     }
   }
 }
