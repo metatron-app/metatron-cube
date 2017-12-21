@@ -25,6 +25,7 @@ import com.fasterxml.jackson.databind.module.SimpleModule;
 import com.google.inject.Binder;
 import io.druid.initialization.DruidModule;
 import io.druid.query.ModuleBuiltinFunctions;
+import io.druid.query.sql.SQLFunctions;
 
 import java.util.Arrays;
 import java.util.List;
@@ -39,6 +40,7 @@ public class FunctionModule implements DruidModule
     return Arrays.<Module>asList(
         new SimpleModule("FunctionModule")
             .registerSubtypes(ModuleBuiltinFunctions.class)
+            .registerSubtypes(SQLFunctions.class)
     );
   }
 

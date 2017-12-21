@@ -129,6 +129,16 @@ public class Evals
     return arg.eval(binding).asString();
   }
 
+  public static long evalLong(Expr arg, Expr.NumericBinding binding)
+  {
+    return arg.eval(binding).asLong();
+  }
+
+  public static int evalInt(Expr arg, Expr.NumericBinding binding)
+  {
+    return arg.eval(binding).asInt();
+  }
+
   public static boolean evalOptionalBoolean(Expr arg, Expr.NumericBinding binding, boolean defaultVal)
   {
     return arg == null ? defaultVal : arg.eval(binding).asBoolean();
@@ -140,6 +150,11 @@ public class Evals
       throw new IllegalArgumentException(arg + " is not constant string");
     }
     return arg.eval(null).stringValue();
+  }
+
+  public static String getConstantString(List<Expr> args, int index)
+  {
+    return index < args.size() ? getConstantString(args.get(index)) : null;
   }
 
   public static boolean isIdentifier(Expr arg)
@@ -155,7 +170,7 @@ public class Evals
     return arg.toString();
   }
 
-  static long getConstantLong(Expr arg)
+  public static long getConstantLong(Expr arg)
   {
     Object constant = getConstant(arg);
     if (!(constant instanceof Long)) {
@@ -164,12 +179,12 @@ public class Evals
     return (Long) constant;
   }
 
-  static int getConstantInt(Expr arg)
+  public static int getConstantInt(Expr arg)
   {
     return Ints.checkedCast(getConstantLong(arg));
   }
 
-  static Number getConstantNumber(Expr arg)
+  public static Number getConstantNumber(Expr arg)
   {
     Object constant = getConstant(arg);
     if (!(constant instanceof Number)) {
@@ -178,7 +193,7 @@ public class Evals
     return (Number) constant;
   }
 
-  static ExprEval getConstantEval(final Expr arg)
+  public static ExprEval getConstantEval(final Expr arg)
   {
     return arg.eval(
         new Expr.NumericBinding()
@@ -198,17 +213,22 @@ public class Evals
     );
   }
 
-  static Object getConstant(final Expr arg)
+  public static Object getConstant(final Expr arg)
   {
     return getConstantEval(arg).value();
   }
 
-  static boolean isConstantString(Expr arg)
+  public static Object getConstant(List<Expr> args, int index)
+  {
+    return index < args.size() ? getConstant(args.get(index)) : null;
+  }
+
+  public static boolean isConstantString(Expr arg)
   {
     return arg instanceof StringExpr;
   }
 
-  static boolean isConstant(Expr arg)
+  public static boolean isConstant(Expr arg)
   {
     if (arg instanceof Constant) {
       return true;
@@ -218,12 +238,12 @@ public class Evals
     return false;
   }
 
-  static boolean isAllConstants(Expr... exprs)
+  public static boolean isAllConstants(Expr... exprs)
   {
     return isAllConstants(Arrays.asList(exprs));
   }
 
-  static boolean isAllConstants(List<Expr> exprs)
+  public static boolean isAllConstants(List<Expr> exprs)
   {
     for (Expr expr : exprs) {
       if (!isConstant(expr)) {

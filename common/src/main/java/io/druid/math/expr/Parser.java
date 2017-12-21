@@ -62,6 +62,8 @@ public class Parser
     if (registered.putIfAbsent(parent.getName(), new Object()) != null) {
       return;
     }
+    log.info("registering function in library %s", parent.getName());
+
     boolean userDefinedLibrary = parent != BuiltinFunctions.class &&
                                  parent != PredicateFunctions.class &&
                                  parent != DateTimeFunctions.class &&

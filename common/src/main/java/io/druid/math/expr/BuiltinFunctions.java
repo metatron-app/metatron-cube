@@ -1153,6 +1153,22 @@ public interface BuiltinFunctions extends Function.Library
     }
   }
 
+  @Function.Named("div")
+  final class Div extends DoubleParamMath
+  {
+    @Override
+    protected ExprEval eval(final long x, final long y)
+    {
+      return ExprEval.of(x / y);
+    }
+
+    @Override
+    protected ExprEval eval(final double x, final double y)
+    {
+      return ExprEval.of((long) (x / y));
+    }
+  }
+
   @Function.Named("nextAfter")
   final class NextAfter extends DoubleParamMath
   {
@@ -1645,17 +1661,21 @@ public interface BuiltinFunctions extends Function.Library
   }
 
   @Function.Named("length")
-  final class LengthFunc extends Function.LongOut
+  class LengthFunc extends Function.LongOut
   {
     @Override
-    public ExprEval apply(List<Expr> args, NumericBinding bindings)
+    public final ExprEval apply(List<Expr> args, NumericBinding bindings)
     {
       if (args.size() != 1) {
-        throw new RuntimeException("function 'length' needs 1 argument");
+        throw new RuntimeException("function '" + name() + "' needs 1 argument");
       }
       String input = args.get(0).eval(bindings).asString();
-      return ExprEval.of(Strings.isNullOrEmpty(input) ? 0 : input.length());
+      return ExprEval.of(input == null ? 0 : input.length());
     }
+  }
+
+  @Function.Named("strlen")
+  final class StrlenFunc extends LengthFunc {
   }
 
   @Function.Named("left")
@@ -1695,19 +1715,65 @@ public interface BuiltinFunctions extends Function.Library
   }
 
   @Function.Named("mid")
-  final class MidFunc extends Function.StringOut
+  class MidFunc extends Function.AbstractFactory
   {
     @Override
-    public ExprEval apply(List<Expr> args, NumericBinding bindings)
+    public final Function create(List<Expr> args)
     {
       if (args.size() != 3) {
-        throw new RuntimeException("function 'mid' needs 3 arguments");
+        throw new RuntimeException("function '" + name() + "' needs 3 arguments");
       }
-      String input = args.get(0).eval(bindings).asString();
-      int start = (int) args.get(1).eval(bindings).longValue();
-      int end = (int) args.get(2).eval(bindings).longValue();
+      if (Evals.isConstant(args.get(1)) && Evals.isConstant(args.get(2))) {
+        final int start = Evals.getConstantInt(args.get(1));
+        final int end = Evals.getConstantInt(args.get(2));
+        return new StringChild()
+        {
+          @Override
+          public ExprEval apply(List<Expr> args, NumericBinding bindings)
+          {
+            String input = Evals.evalString(args.get(0), bindings);
+            return eval(input, start, end);
+          }
+        };
+      }
+      return new StringChild()
+      {
+        @Override
+        public ExprEval apply(List<Expr> args, NumericBinding bindings)
+        {
+          String input = Evals.evalString(args.get(0), bindings);
+          return eval(input, Evals.evalInt(args.get(1), bindings), Evals.evalInt(args.get(2), bindings));
+        }
+      };
+    }
 
-      return ExprEval.of(Strings.isNullOrEmpty(input) ? input : input.substring(start, end));
+    protected ExprEval eval(String input, int start, int end)
+    {
+      if (input == null || start >= input.length()) {
+        return ExprEval.of(null, ExprType.STRING);
+      }
+      if (end < 0) {
+        return ExprEval.of(input.substring(start));
+      } else {
+        return ExprEval.of(input.substring(start, Math.min(end, input.length())));
+      }
+    }
+  }
+
+  @Function.Named("substring")
+  final class SubstringFunc extends MidFunc
+  {
+    @Override
+    protected ExprEval eval(String input, int start, int length)
+    {
+      if (input == null || start >= input.length()) {
+        return ExprEval.of(null, ExprType.STRING);
+      }
+      if (length < 0) {
+        return ExprEval.of(input.substring(start));
+      } else {
+        return ExprEval.of(input.substring(start, Math.min(start + length, input.length())));
+      }
     }
   }
 
