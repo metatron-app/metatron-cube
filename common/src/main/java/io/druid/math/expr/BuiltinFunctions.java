@@ -1274,7 +1274,12 @@ public interface BuiltinFunctions extends Function.Library
         @Override
         public ExprEval apply(List<Expr> args, NumericBinding bindings)
         {
-          return Evals.castTo(args.get(0).eval(bindings), castTo);
+          try {
+            return Evals.castTo(args.get(0).eval(bindings), castTo);
+          }
+          catch (Exception e) {
+            return ExprEval.of(null, castTo);
+          }
         }
       };
     }
