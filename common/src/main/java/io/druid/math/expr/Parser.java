@@ -115,7 +115,7 @@ public class Parser
   {
     ParseTree parseTree = parseTree(in);
     ParseTreeWalker walker = new ParseTreeWalker();
-    ExprListenerImpl listener = new ExprListenerImpl(parseTree, func);
+    ExprListenerImpl listener = new ExprListenerImpl(parseTree, func, flatten);
     walker.walk(listener, parseTree);
     Expr expr = listener.getAST();
     if (flatten) {
@@ -175,7 +175,15 @@ public class Parser
     return found;
   }
 
-  public static Expr flatten(Expr expr)
+  static List<Expr> flatten(List<Expr> expr)
+  {
+    for (int i = 0; i < expr.size(); i++) {
+      expr.set(i, flatten(expr.get(i)));
+    }
+    return expr;
+  }
+
+  static Expr flatten(Expr expr)
   {
     if (expr instanceof BinaryOpExprBase) {
       BinaryOpExprBase binary = (BinaryOpExprBase) expr;

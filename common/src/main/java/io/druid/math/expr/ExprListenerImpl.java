@@ -38,12 +38,14 @@ public class ExprListenerImpl extends ExprBaseListener
   private final Map<ParseTree, Object> nodes;
   private final ParseTree rootNodeKey;
   private final Map<String, Function.Factory> functions;
+  private final boolean flatten;
 
-  ExprListenerImpl(ParseTree rootNodeKey, Map<String, Function.Factory> functions)
+  ExprListenerImpl(ParseTree rootNodeKey, Map<String, Function.Factory> functions, boolean flatten)
   {
     this.rootNodeKey = rootNodeKey;
     this.functions = functions;
     this.nodes = new HashMap<>();
+    this.flatten = flatten;
   }
 
   Expr getAST()
@@ -294,6 +296,9 @@ public class ExprListenerImpl extends ExprBaseListener
 
     @SuppressWarnings("unchecked")
     List<Expr> args = ctx.getChildCount() > 3 ? (List<Expr>) nodes.get(ctx.getChild(2)) : Collections.<Expr>emptyList();
+    if (flatten) {
+      args = Parser.flatten(args);
+    }
     nodes.put(
         ctx,
         new FunctionExpr(function.create(args), fnName, args)
