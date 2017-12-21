@@ -115,6 +115,11 @@ public class ValueDesc
     return valueType != null && isDimension(valueType.typeName);
   }
 
+  public static boolean isMultiValued(ValueDesc valueType)
+  {
+    return valueType != null && isPrefixed(valueType.typeName, MULTIVALUED_PREFIX);
+  }
+
   public static boolean isDimension(String typeName)
   {
     return isPrefixed(typeName, DIMENSION_PREFIX);

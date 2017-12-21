@@ -19,6 +19,8 @@
 
 package io.druid.segment.filter;
 
+import com.google.common.base.Predicate;
+import com.google.common.base.Strings;
 import com.google.common.collect.Range;
 import com.metamx.collections.bitmap.ImmutableBitmap;
 import com.metamx.collections.bitmap.MutableBitmap;
@@ -36,9 +38,9 @@ import io.druid.segment.column.BitmapIndex;
 import io.druid.segment.column.ColumnCapabilities;
 import io.druid.segment.column.Lucenes;
 import io.druid.segment.data.IndexedID;
-import org.python.google.common.base.Strings;
 
 import java.util.EnumSet;
+import java.util.Objects;
 
 /**
  */
@@ -129,14 +131,16 @@ public class SelectorFilter implements Filter
         }
       };
     }
-    return new ValueMatcher()
-    {
-      @Override
-      public boolean matches()
-      {
-        return value.equals(selector.get());
-      }
-    };
+    return Filters.toValueMatcher(
+        selector, new Predicate()
+        {
+          @Override
+          public boolean apply(Object input)
+          {
+            return input == null ? allowsNull : value.equals(Objects.toString(input));
+          }
+        }
+    );
   }
 
   @Override

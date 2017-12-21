@@ -43,6 +43,7 @@ import io.druid.segment.column.BitmapIndex;
 import io.druid.segment.data.IndexedID;
 
 import java.util.EnumSet;
+import java.util.Objects;
 import java.util.Set;
 
 /**
@@ -118,16 +119,16 @@ public class InFilter implements Filter
   @SuppressWarnings("unchecked")
   public ValueMatcher makeMatcher(ColumnSelectorFactory factory)
   {
+    final boolean allowsNull = values.contains("");
     ValueDesc type = factory.getColumnType(dimension);
     if (type == null) {
-      return BooleanValueMatcher.of(toPredicate().apply(null));
+      // should handle extract fn
+      return BooleanValueMatcher.of(toPredicate(allowsNull).apply(null));
     }
     if (ValueDesc.isDimension(type) && extractionFn == null) {
       final DimensionSelector selector = factory.makeDimensionSelector(DefaultDimensionSpec.of(dimension));
       final Set<Integer> ids = Sets.newHashSet();
-      boolean allowsNull = false;
       for (String value : values) {
-        allowsNull |= Strings.isNullOrEmpty(value);
         int index = selector.lookupId(value);
         if (index >= 0) {
           ids.add(index);
@@ -169,22 +170,22 @@ public class InFilter implements Filter
       }
       selector = ColumnSelectors.asValued(selector);
     }
-    return Filters.toValueMatcher(selector, toPredicate());
+    return Filters.toValueMatcher(selector, toPredicate(allowsNull));
   }
 
-  private Predicate<String> toPredicate()
+  private Predicate toPredicate(final boolean allowsNull)
   {
-    return new Predicate<String>()
-    {
-      @Override
-      public boolean apply(String input)
-      {
-        if (extractionFn != null) {
-          input = extractionFn.apply(input);
-        }
-        return values.contains(Strings.nullToEmpty(input));
-      }
-    };
+    return new Predicate()
+        {
+          @Override
+          public boolean apply(Object input)
+          {
+            if (extractionFn != null) {
+              input = extractionFn.apply(input);
+            }
+            return input == null ? allowsNull : values.contains(Objects.toString(input));
+          }
+        };
   }
 
   @Override

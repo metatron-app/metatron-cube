@@ -146,7 +146,8 @@ public class Filters
       final Predicate predicate
   )
   {
-    if (ValueDesc.isPrimitive(selector.type())) {
+    final ValueDesc type = selector.type();
+    if (ValueDesc.isPrimitive(type)) {
       return new ValueMatcher()
       {
         @Override
@@ -156,22 +157,32 @@ public class Filters
         }
       };
     }
+    if (ValueDesc.isArray(type) || ValueDesc.isMultiValued(type)) {
+      return new ValueMatcher()
+      {
+        @Override
+        public boolean matches()
+        {
+          final Object object = selector.get();
+          if (object == null || !object.getClass().isArray()) {
+            return predicate.apply(object);
+          }
+          final int length = Array.getLength(object);
+          for (int i = 0; i < length; i++) {
+            if (predicate.apply(Array.get(object, i))) {
+              return true;
+            }
+          }
+          return false;
+        }
+      };
+    }
     return new ValueMatcher()
     {
       @Override
       public boolean matches()
       {
-        Object object = selector.get();
-        if (object == null || !object.getClass().isArray()) {
-          return predicate.apply(Objects.toString(object, null));
-        }
-        int length = Array.getLength(object);
-        for (int i = 0; i < length; i++) {
-          if (predicate.apply(Objects.toString(Array.get(object, i), null))) {
-            return true;
-          }
-        }
-        return false;
+        return predicate.apply(selector.get());
       }
     };
   }
