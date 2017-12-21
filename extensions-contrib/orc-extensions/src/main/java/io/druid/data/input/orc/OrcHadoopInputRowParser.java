@@ -88,8 +88,6 @@ public class OrcHadoopInputRowParser implements HadoopAwareParser<OrcStruct>
   private final List<String> dimensions;
   private final TimestampSpec timestampSpec;
 
-  private final StructObjectInspector staticInspector;
-
   private Context context;
   private Path currentPath;
   private StructObjectInspector dynamicInspector;
@@ -105,7 +103,6 @@ public class OrcHadoopInputRowParser implements HadoopAwareParser<OrcStruct>
     this.typeString = getTypeString(typeString, schema);
     this.dimensions = parseSpec.getDimensionsSpec().getDimensionNames();
     this.timestampSpec = parseSpec.getTimestampSpec();
-    this.staticInspector = initStaticInspector();
   }
 
   private String getTypeString(String typeString, String schema)
@@ -176,8 +173,8 @@ public class OrcHadoopInputRowParser implements HadoopAwareParser<OrcStruct>
 
   private StructObjectInspector getObjectInspector()
   {
-    if (staticInspector != null) {
-      return staticInspector;
+    if (typeString != null) {
+      return initStaticInspector(typeString);
     }
     InputSplit split = context.getInputSplit();
     Path path;
@@ -203,12 +200,8 @@ public class OrcHadoopInputRowParser implements HadoopAwareParser<OrcStruct>
   }
 
   // optional type string
-  private StructObjectInspector initStaticInspector()
+  private StructObjectInspector initStaticInspector(String typeString)
   {
-    String typeString = getTypeString();
-    if (typeString == null) {
-      return null;
-    }
     logger.info("Using user specified spec %s", typeString);
     OrcSerde serde = new OrcSerde();
     TypeInfo typeInfo = TypeInfoUtils.getTypeInfoFromTypeString(typeString);

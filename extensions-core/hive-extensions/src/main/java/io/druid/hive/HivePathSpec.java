@@ -183,7 +183,7 @@ public class HivePathSpec implements PathSpec.Resolving
         }
         pathSpecs.add(table.getDataLocation().toString());
       }
-      logger.info("Using paths.. ", pathSpecs);
+      logger.info("Using paths.. %s", pathSpecs);
       List<HynixPathSpecElement> elements = Lists.newArrayList();
       for (String element : pathSpecs) {
         elements.add(new HynixPathSpecElement(element, null, null, null));
