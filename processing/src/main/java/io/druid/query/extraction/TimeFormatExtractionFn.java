@@ -20,7 +20,6 @@
 package io.druid.query.extraction;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.google.common.base.Preconditions;
 import com.ibm.icu.text.SimpleDateFormat;
 import com.ibm.icu.util.TimeZone;
 import io.druid.common.utils.StringUtils;
@@ -63,11 +62,15 @@ public class TimeFormatExtractionFn implements ExtractionFn.Stateful
 
   private TimeFormatExtractionFn(String pattern, TimeZone tz, Locale locale, Granularity granularity)
   {
-    this.pattern = Preconditions.checkNotNull(pattern, "format cannot be null");
+    this.pattern = pattern;
     this.tz = tz;
     this.locale = locale;
-    this.formatter = locale == null ? new SimpleDateFormat(pattern) : new SimpleDateFormat(pattern, locale);
-    this.formatter.setTimeZone(tz == null ? TimeZone.getTimeZone("UTC") : tz);
+    if (pattern != null) {
+      this.formatter = locale == null ? new SimpleDateFormat(pattern) : new SimpleDateFormat(pattern, locale);
+      this.formatter.setTimeZone(tz == null ? TimeZone.getTimeZone("UTC") : tz);
+    } else {
+      this.formatter = null;
+    }
     this.granularity = granularity == null ? Granularities.NONE : granularity;
   }
 
@@ -125,7 +128,8 @@ public class TimeFormatExtractionFn implements ExtractionFn.Stateful
   @Override
   public String apply(long value)
   {
-    return formatter.format(granularity.truncate(value));
+    long truncated = granularity.truncate(value);
+    return formatter == null ? String.valueOf(truncated) : formatter.format(truncated);
   }
 
   @Override
@@ -176,7 +180,7 @@ public class TimeFormatExtractionFn implements ExtractionFn.Stateful
     if (!Objects.equals(getTimeZone(), that.getTimeZone())) {
       return false;
     }
-    if (!pattern.equals(that.pattern)) {
+    if (!Objects.equals(getFormat(), that.getFormat())) {
       return false;
     }
 
@@ -186,7 +190,7 @@ public class TimeFormatExtractionFn implements ExtractionFn.Stateful
   @Override
   public int hashCode()
   {
-    return Objects.hash(getLocale(), getTimeZone(), pattern, granularity);
+    return Objects.hash(getLocale(), getTimeZone(), getFormat(), granularity);
   }
 
   @Override

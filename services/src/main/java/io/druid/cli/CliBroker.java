@@ -56,6 +56,7 @@ import io.druid.server.http.BrokerResource;
 import io.druid.server.initialization.jetty.JettyServerInitializer;
 import io.druid.server.metrics.MetricsModule;
 import io.druid.server.router.TieredBrokerConfig;
+import io.druid.sql.guice.SqlModule;
 import org.eclipse.jetty.server.Server;
 
 import java.util.List;
@@ -121,7 +122,8 @@ public class CliBroker extends ServerRunnable
           }
         },
         new LookupModule(),
-        new FunctionModule()
+        new FunctionModule(),
+        new SqlModule()
     );
   }
 }

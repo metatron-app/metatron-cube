@@ -90,6 +90,11 @@ public class StringUtils extends com.metamx.common.StringUtils
     return value == null || value.isEmpty();
   }
 
+  public static boolean isNullOrEmpty(Object value)
+  {
+    return value == null || (value instanceof String && ((String)value).isEmpty());
+  }
+
   public static long parseKMGT(String value)
   {
     return parseKMGT(value, 0);

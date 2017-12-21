@@ -58,6 +58,7 @@ import io.druid.query.spec.QuerySegmentSpec;
 import io.druid.segment.VirtualColumn;
 import org.joda.time.Interval;
 
+import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
@@ -641,6 +642,12 @@ public class GroupByQuery extends BaseQuery<Row> implements Query.AggregationsSu
     public Builder setVirtualColumns(List<VirtualColumn> virtualColumns)
     {
       this.virtualColumns = virtualColumns;
+      return this;
+    }
+
+    public Builder setVirtualColumns(VirtualColumn... virtualColumns)
+    {
+      this.virtualColumns = Arrays.asList(virtualColumns);
       return this;
     }
 

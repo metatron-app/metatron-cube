@@ -24,6 +24,7 @@ import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
+import io.druid.common.utils.StringUtils;
 import io.druid.data.input.InputRow;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.CountAggregatorFactory;
@@ -45,14 +46,15 @@ import java.util.UUID;
 public class IndexBuilder
 {
   private static final int ROWS_PER_INDEX_FOR_MERGING = 1;
-  private static final int MAX_ROWS = 50_000;
+  private static final int DEFAULT_MAX_ROWS = Integer.MAX_VALUE;
 
-  private IncrementalIndexSchema schema = new IncrementalIndexSchema.Builder().withMetrics(new AggregatorFactory[]{
-      new CountAggregatorFactory("count")
-  }).build();
-  private IndexMerger indexMerger = TestHelper.getTestIndexMerger();
+  private IncrementalIndexSchema schema = new IncrementalIndexSchema.Builder()
+      .withMetrics(new CountAggregatorFactory("count"))
+      .build();
+  private IndexMerger indexMerger = TestHelper.getTestIndexMergerV9();
   private File tmpDir;
   private IndexSpec indexSpec = new IndexSpec();
+  private int maxRows = DEFAULT_MAX_ROWS;
 
   private final List<InputRow> rows = Lists.newArrayList();
 
@@ -95,27 +97,33 @@ public class IndexBuilder
     return add(Arrays.asList(rows));
   }
 
-  public IndexBuilder add(List<InputRow> rows)
+  public IndexBuilder add(Iterable<InputRow> rows)
   {
-    this.rows.addAll(rows);
+    Iterables.addAll(this.rows, rows);
+    return this;
+  }
+
+  public IndexBuilder rows(Iterable<InputRow> rows)
+  {
+    this.rows.clear();
+    Iterables.addAll(this.rows, rows);
     return this;
   }
 
   public IncrementalIndex buildIncrementalIndex()
   {
-    return buildIncrementalIndexWithRows(schema, rows);
+    return buildIncrementalIndexWithRows(schema, maxRows, rows);
   }
 
   public QueryableIndex buildMMappedIndex()
   {
     Preconditions.checkNotNull(indexMerger, "indexMerger");
     Preconditions.checkNotNull(tmpDir, "tmpDir");
-    final IncrementalIndex incrementalIndex = buildIncrementalIndex();
-    try {
+    try (final IncrementalIndex incrementalIndex = buildIncrementalIndex()) {
       return TestHelper.getTestIndexIO().loadIndex(
           indexMerger.persist(
               incrementalIndex,
-              new File(tmpDir, String.format("testIndex-%s", new Random().nextInt(Integer.MAX_VALUE))),
+              new File(tmpDir, StringUtils.format("testIndex-%s", new Random().nextInt(Integer.MAX_VALUE))),
               indexSpec
           )
       );
@@ -138,9 +146,10 @@ public class IndexBuilder
                 indexMerger.persist(
                     buildIncrementalIndexWithRows(
                         schema,
+                        maxRows,
                         rows.subList(i, Math.min(rows.size(), i + ROWS_PER_INDEX_FOR_MERGING))
                     ),
-                    new File(tmpDir, String.format("testIndex-%s", UUID.randomUUID().toString())),
+                    new File(tmpDir, StringUtils.format("testIndex-%s", UUID.randomUUID().toString())),
                     indexSpec
                 )
             )
@@ -174,7 +183,7 @@ public class IndexBuilder
                   ),
                   AggregatorFactory.class
               ),
-              new File(tmpDir, String.format("testIndex-%s", UUID.randomUUID())),
+              new File(tmpDir, StringUtils.format("testIndex-%s", UUID.randomUUID())),
               indexSpec
           )
       );
@@ -190,6 +199,7 @@ public class IndexBuilder
 
   private static IncrementalIndex buildIncrementalIndexWithRows(
       IncrementalIndexSchema schema,
+      int maxRows,
       Iterable<InputRow> rows
   )
   {
@@ -197,7 +207,7 @@ public class IndexBuilder
     final IncrementalIndex incrementalIndex = new OnheapIncrementalIndex(
         schema,
         true,
-        MAX_ROWS
+        maxRows
     );
     for (InputRow row : rows) {
       try {

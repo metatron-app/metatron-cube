@@ -39,12 +39,6 @@ public class TimeFormatExtractionFnTest
       new DateTime("2015-12-21T23:00:00Z").getMillis()
   };
 
-  @Test(expected = NullPointerException.class)
-  public void testIAEForNullPattern() throws Exception
-  {
-    new TimeFormatExtractionFn(null, null, null);
-  }
-
   @Test
   public void testDayOfWeekExtraction() throws Exception
   {

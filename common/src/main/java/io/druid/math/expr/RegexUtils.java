@@ -19,6 +19,7 @@
 
 package io.druid.math.expr;
 
+import com.google.common.base.Predicate;
 import com.metamx.common.Pair;
 
 import java.util.regex.Matcher;

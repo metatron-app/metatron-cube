@@ -58,6 +58,8 @@
     </scm>
 
     <properties>
+        <maven.compiler.source>1.8</maven.compiler.source>
+        <maven.compiler.target>1.8</maven.compiler.target>
         <metamx.java-util.version>0.27.10</metamx.java-util.version>
         <apache.curator.version>2.10.0</apache.curator.version>
         <jetty.version>9.2.5.v20141112</jetty.version>
@@ -69,6 +71,10 @@
         <hadoop.compile.version>2.3.0</hadoop.compile.version>
         <thrift.compile.version>0.9.2</thrift.compile.version>
         <lucene.version>6.2.0</lucene.version>
+
+        <avatica.version>1.10.0</avatica.version>
+        <calcite.version>1.14.0</calcite.version>
+        <netty.version>4.1.11.Final</netty.version>
     </properties>
 
     <modules>
@@ -83,6 +89,7 @@
         <module>integration-tests</module>
         <module>benchmarks</module>
         <module>aws-common</module>
+        <module>sql</module>
         <!-- Core extensions -->
         <module>extensions-core/avro-extensions</module>
         <module>extensions-core/datasketches</module>
@@ -237,6 +244,10 @@
                         <groupId>log4j</groupId>
                         <artifactId>log4j</artifactId>
                     </exclusion>
+                    <exclusion>
+                        <groupId>io.netty</groupId>
+                        <artifactId>netty</artifactId>
+                    </exclusion>
                 </exclusions>
             </dependency>
             <dependency>
@@ -264,6 +275,32 @@
                 <groupId>org.apache.curator</groupId>
                 <artifactId>curator-x-discovery</artifactId>
                 <version>${apache.curator.version}</version>
+            </dependency>
+          <dependency>
+                <groupId>org.apache.calcite</groupId>
+                <artifactId>calcite-core</artifactId>
+                <version>${calcite.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.apache.calcite</groupId>
+                <artifactId>calcite-linq4j</artifactId>
+                <version>${calcite.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.apache.calcite.avatica</groupId>
+                <artifactId>avatica-core</artifactId>
+                <version>${avatica.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.apache.calcite.avatica</groupId>
+                <artifactId>avatica-server</artifactId>
+                <version>${avatica.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.apache.calcite</groupId>
+                <artifactId>calcite-core</artifactId>
+                <version>${calcite.version}</version>
+                <type>test-jar</type>
             </dependency>
             <dependency>
                 <groupId>com.google.guava</groupId>
@@ -411,6 +448,11 @@
                 <version>${jetty.version}</version>
             </dependency>
             <dependency>
+                <groupId>io.netty</groupId>
+                <artifactId>netty-all</artifactId>
+                <version>${netty.version}</version>
+            </dependency>
+            <dependency>
                 <groupId>joda-time</groupId>
                 <artifactId>joda-time</artifactId>
                 <version>2.8.2</version>
@@ -497,7 +539,7 @@
             <dependency>
                 <groupId>com.google.protobuf</groupId>
                 <artifactId>protobuf-java</artifactId>
-                <version>2.5.0</version>
+                <version>3.1.0</version>
             </dependency>
             <dependency>
                 <groupId>io.tesla.aether</groupId>
@@ -832,6 +874,8 @@
                             <configuration>
                                 <compilerId>javac-with-errorprone</compilerId>
                                 <forceJavacCompilerUse>true</forceJavacCompilerUse>
+                                <source>${maven.compiler.source}</source>
+                                <target>${maven.compiler.target}</target>
                             </configuration>
                             <dependencies>
                                 <dependency>

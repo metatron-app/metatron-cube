@@ -45,70 +45,19 @@ public abstract class AbstractRow implements Row
   @Override
   public float getFloatMetric(String metric)
   {
-    Object metricValue = getRaw(metric);
-
-    if (metricValue == null) {
-      return 0.0f;
-    }
-
-    if (metricValue instanceof Number) {
-      return ((Number) metricValue).floatValue();
-    } else if (metricValue instanceof String) {
-      try {
-        return (float) tryParseDouble((String) metricValue);
-      }
-      catch (Exception e) {
-        throw new ParseException(e, "Unable to parse metrics[%s], value[%s]", metric, metricValue);
-      }
-    } else {
-      throw new ParseException("Unknown type[%s]", metricValue.getClass());
-    }
+    return parseFloat(metric, getRaw(metric));
   }
 
   @Override
   public double getDoubleMetric(String metric)
   {
-    Object metricValue = getRaw(metric);
-
-    if (metricValue == null) {
-      return 0.0d;
-    }
-
-    if (metricValue instanceof Number) {
-      return ((Number) metricValue).doubleValue();
-    } else if (metricValue instanceof String) {
-      try {
-        return tryParseDouble((String) metricValue);
-      }
-      catch (Exception e) {
-        throw new ParseException(e, "Unable to parse metrics[%s], value[%s]", metric, metricValue);
-      }
-    } else {
-      throw new ParseException("Unknown type[%s]", metricValue.getClass());
-    }
+    return parseDouble(metric, getRaw(metric));
   }
 
   @Override
   public long getLongMetric(String metric)
   {
-    Object metricValue = getRaw(metric);
-
-    if (metricValue == null) {
-      return 0L;
-    }
-
-    if (metricValue instanceof Number) {
-      return ((Number) metricValue).longValue();
-    } else if (metricValue instanceof String) {
-      try {
-        return tryParseLong((String) metricValue);
-      }
-      catch (Exception e) {
-        throw new ParseException(e, "Unable to parse metrics[%s], value[%s]", metric, metricValue);
-      }
-    } else {
-      throw new ParseException("Unknown type[%s]", metricValue.getClass());
-    }
+    return parseLong(metric, getRaw(metric));
   }
 
   @Override
@@ -147,6 +96,60 @@ public abstract class AbstractRow implements Row
     throw new UnsupportedOperationException("compareTo");
   }
 
+  public static float parseFloat(String column, Object value)
+  {
+    if (value == null) {
+      return 0F;
+    } else if (value instanceof Number) {
+      return ((Number) value).floatValue();
+    } else if (value instanceof String) {
+      try {
+        return tryParseFloat((String) value);
+      }
+      catch (Exception e) {
+        throw new ParseException(e, "Unable to parse metrics[%s], value[%s]", column, value);
+      }
+    } else {
+      throw new ParseException("Unknown type[%s]", value.getClass());
+    }
+  }
+
+  public static double parseDouble(String column, Object value)
+  {
+    if (value == null) {
+      return 0D;
+    } else if (value instanceof Number) {
+      return ((Number) value).doubleValue();
+    } else if (value instanceof String) {
+      try {
+        return tryParseDouble((String) value);
+      }
+      catch (Exception e) {
+        throw new ParseException(e, "Unable to parse metrics[%s], value[%s]", column, value);
+      }
+    } else {
+      throw new ParseException("Unknown type[%s]", value.getClass());
+    }
+  }
+
+  public static long parseLong(String column, Object value)
+  {
+    if (value == null) {
+      return 0L;
+    } else if (value instanceof Number) {
+      return ((Number) value).longValue();
+    } else if (value instanceof String) {
+      try {
+        return tryParseLong((String) value);
+      }
+      catch (Exception e) {
+        throw new ParseException(e, "Unable to parse metrics[%s], value[%s]", column, value);
+      }
+    } else {
+      throw new ParseException("Unknown type[%s]", value.getClass());
+    }
+  }
+
   // long -> double -> long can make different value
   public static long tryParseLong(final String value)
   {
@@ -180,7 +183,32 @@ public abstract class AbstractRow implements Row
 
   public static float tryParseFloat(final String value)
   {
-    return (float) tryParseDouble(value);
+    if (Strings.isNullOrEmpty(value)) {
+      return 0f;
+    }
+    int i = 0;
+    final char first = value.charAt(0);
+    if (first == '+' || first == '-') {
+      i++;
+    }
+    boolean allDigit = true;
+    boolean containsComma = false;
+    for (; i < value.length(); i++) {
+      final char aChar = value.charAt(i);
+      if (aChar == ',') {
+        containsComma = true;
+      } else if (allDigit && !Character.isDigit(aChar)) {
+        allDigit = false;
+      }
+    }
+    final String target = containsComma ? removeCommaAndFirstPlus(value) : removeFirstPlus(value);
+    if (allDigit) {
+      Long longValue = Longs.tryParse(target);
+      if (longValue != null) {
+        return longValue.floatValue();
+      }
+    }
+    return Float.valueOf(target);
   }
 
   public static double tryParseDouble(final String value)

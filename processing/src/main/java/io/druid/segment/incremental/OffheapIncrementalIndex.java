@@ -33,6 +33,7 @@ import io.druid.data.input.Row;
 import io.druid.granularity.Granularity;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.BufferAggregator;
+import io.druid.segment.ColumnSelectorFactories;
 import io.druid.segment.ColumnSelectorFactory;
 
 import java.io.IOException;
@@ -158,9 +159,9 @@ public class OffheapIncrementalIndex extends IncrementalIndex<BufferAggregator>
     for (int i = 0; i < metrics.length; i++) {
       AggregatorFactory agg = metrics[i];
 
-      ColumnSelectorFactory columnSelectorFactory = makeColumnSelectorFactory(
-          agg,
+      ColumnSelectorFactory columnSelectorFactory = new ColumnSelectorFactories.FromInputRow(
           rowSupplier,
+          agg,
           deserializeComplexMetrics
       );
 
@@ -212,7 +213,7 @@ public class OffheapIncrementalIndex extends IncrementalIndex<BufferAggregator>
           for (int i = 0; i < metrics.length; i++) {
             final AggregatorFactory agg = metrics[i];
             getAggs()[i] = agg.factorizeBuffered(
-                makeColumnSelectorFactory(agg, rowSupplier, deserializeComplexMetrics)
+                new ColumnSelectorFactories.FromInputRow(rowSupplier, agg, deserializeComplexMetrics)
             );
           }
           rowContainer.set(null);

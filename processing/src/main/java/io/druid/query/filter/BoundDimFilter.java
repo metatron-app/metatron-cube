@@ -96,6 +96,20 @@ public class BoundDimFilter implements DimFilter
     this(dimension, null, lower, upper, lowerStrict, upperStrict, alphaNumeric, null, extractionFn);
   }
 
+  public BoundDimFilter(
+      String dimension,
+      String lower,
+      String upper,
+      Boolean lowerStrict,
+      Boolean upperStrict,
+      Boolean alphaNumeric,
+      ExtractionFn extractionFn,
+      String comparatorType
+      )
+  {
+    this(dimension, null, lower, upper, lowerStrict, upperStrict, alphaNumeric, comparatorType, extractionFn);
+  }
+
   public static BoundDimFilter between(String dimension, String lower, String upper)
   {
     return new BoundDimFilter(dimension, lower, upper, false, true, false, null);

@@ -21,6 +21,7 @@ package io.druid.query.sql;
 
 import com.google.common.base.Strings;
 import com.metamx.common.IAE;
+import io.druid.common.utils.StringUtils;
 import io.druid.granularity.PeriodGranularity;
 import io.druid.math.expr.Evals;
 import io.druid.math.expr.Expr;
@@ -84,7 +85,7 @@ public class ExprUtils
     }
 
     DateTime origin = null;
-    if (!Strings.isNullOrEmpty(originArg)) {
+    if (!StringUtils.isNullOrEmpty(originArg)) {
       Chronology chronology = timeZone == null ? ISOChronology.getInstanceUTC() : ISOChronology.getInstance(timeZone);
       origin = new DateTime(originArg, chronology);
     }

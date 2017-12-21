@@ -83,7 +83,7 @@ public class OrderByColumnSpec implements Cacheable
     Preconditions.checkNotNull(obj, "Cannot build an OrderByColumnSpec from a null object.");
 
     if (obj instanceof String) {
-      return new OrderByColumnSpec(obj.toString(), null, null);
+      return new OrderByColumnSpec(obj.toString(), null);
     } else if (obj instanceof Map) {
       final Map map = (Map) obj;
 
@@ -99,7 +99,7 @@ public class OrderByColumnSpec implements Cacheable
 
   public static OrderByColumnSpec asc(String dimension)
   {
-    return new OrderByColumnSpec(dimension, Direction.ASCENDING, null);
+    return new OrderByColumnSpec(dimension, Direction.ASCENDING);
   }
 
   public static List<OrderByColumnSpec> ascending(String... dimension)
@@ -119,7 +119,7 @@ public class OrderByColumnSpec implements Cacheable
 
   public static OrderByColumnSpec desc(String dimension)
   {
-    return new OrderByColumnSpec(dimension, Direction.DESCENDING, null);
+    return new OrderByColumnSpec(dimension, Direction.DESCENDING);
   }
 
   public static List<OrderByColumnSpec> descending(String... dimension)
@@ -142,7 +142,20 @@ public class OrderByColumnSpec implements Cacheable
       Direction direction
   )
   {
-    this(dimension, direction, null);
+    this(dimension, direction, (StringComparator) null);
+  }
+
+  public OrderByColumnSpec(
+      String dimension,
+      Direction direction,
+      String comparatorName
+  )
+  {
+    this(
+        dimension,
+        direction,
+        comparatorName == null ? DEFAULT_DIMENSION_ORDER : determinDimensionComparator(comparatorName)
+    );
   }
 
   public OrderByColumnSpec(

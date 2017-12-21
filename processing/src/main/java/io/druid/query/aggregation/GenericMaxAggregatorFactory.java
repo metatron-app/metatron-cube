@@ -30,6 +30,11 @@ import io.druid.segment.ColumnSelectors;
  */
 public class GenericMaxAggregatorFactory extends GenericAggregatorFactory
 {
+  public static GenericMaxAggregatorFactory expr(String name, String expression, String inputType)
+  {
+    return new GenericMaxAggregatorFactory(name, null, expression, null, inputType);
+  }
+
   private static final byte CACHE_TYPE_ID = 0x0C;
 
   @JsonCreator

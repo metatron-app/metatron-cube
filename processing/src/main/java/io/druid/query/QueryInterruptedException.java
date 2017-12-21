@@ -163,11 +163,16 @@ public class QueryInterruptedException extends RuntimeException
     }
   }
 
+  public static QueryInterruptedException wrapIfNeeded(Throwable e)
+  {
+    return wrapIfNeeded(e, null);
+  }
+
   public static QueryInterruptedException wrapIfNeeded(Throwable e, String hostPort)
   {
     if (e instanceof QueryInterruptedException) {
       QueryInterruptedException qie = (QueryInterruptedException) e;
-      if (qie.getHost() == null) {
+      if (qie.getHost() == null && hostPort != null) {
         qie.setHost(hostPort);
       }
       return qie;

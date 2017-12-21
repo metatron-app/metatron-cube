@@ -26,6 +26,7 @@ import io.druid.common.DateTimes;
 import io.druid.common.utils.JodaUtils;
 import io.druid.common.utils.StringUtils;
 import io.druid.granularity.Granularity;
+import io.druid.granularity.PeriodGranularity;
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
 import org.joda.time.Days;
@@ -100,7 +101,14 @@ public interface DateTimeFunctions extends Function.Library
       if (args.size() != 2) {
         throw new IllegalArgumentException("function '" + name() + "' needs two arguments");
       }
-      return newInstance(Granularity.fromString(Evals.getConstantString(args.get(1))));
+      String string = Evals.getConstantString(args.get(1));
+      Granularity granularity;
+      if (string.startsWith("P")) {
+        granularity = new PeriodGranularity(Period.parse(string), null, null);
+      } else {
+        granularity = Granularity.fromString(string);
+      }
+      return newInstance(granularity);
     }
 
     protected abstract Function newInstance(Granularity granularity);

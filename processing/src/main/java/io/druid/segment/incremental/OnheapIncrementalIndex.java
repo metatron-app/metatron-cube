@@ -38,6 +38,7 @@ import io.druid.query.aggregation.Aggregators;
 import io.druid.query.dimension.DimensionSpec;
 import io.druid.query.filter.DimFilter;
 import io.druid.query.filter.ValueMatcher;
+import io.druid.segment.ColumnSelectorFactories;
 import io.druid.segment.ColumnSelectorFactory;
 import io.druid.segment.DimensionSelector;
 import io.druid.segment.DoubleColumnSelector;
@@ -185,7 +186,11 @@ public class OnheapIncrementalIndex extends IncrementalIndex<Aggregator>
   {
     this.selectors = new ColumnSelectorFactory[metrics.length];
     for (int i = 0; i < metrics.length; i++) {
-      ColumnSelectorFactory delegate = makeColumnSelectorFactory(metrics[i], rowSupplier, deserializeComplexMetrics);
+      ColumnSelectorFactory delegate = new ColumnSelectorFactories.FromInputRow(
+          rowSupplier,
+          metrics[i],
+          deserializeComplexMetrics
+      );
       selectors[i] = new ObjectCachingColumnSelectorFactory(delegate);
     }
 

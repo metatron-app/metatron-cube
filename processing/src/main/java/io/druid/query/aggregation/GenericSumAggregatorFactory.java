@@ -34,6 +34,11 @@ import java.math.BigDecimal;
  */
 public class GenericSumAggregatorFactory extends GenericAggregatorFactory
 {
+  public static GenericSumAggregatorFactory expr(String name, String expression, String inputType)
+  {
+    return new GenericSumAggregatorFactory(name, null, expression, null, inputType);
+  }
+
   private static final byte CACHE_TYPE_ID = 0x0A;
 
   private final boolean handleDecimal;

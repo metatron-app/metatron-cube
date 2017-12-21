@@ -53,6 +53,7 @@ import io.druid.query.timeseries.TimeseriesQueryEngine;
 import io.druid.query.timeseries.TimeseriesQueryQueryToolChest;
 import io.druid.query.timeseries.TimeseriesQueryRunnerFactory;
 import io.druid.query.timeseries.TimeseriesResultValue;
+import io.druid.segment.ColumnSelectorFactories;
 import io.druid.segment.IncrementalIndexSegment;
 import io.druid.segment.Segment;
 import org.joda.time.Interval;
@@ -158,7 +159,7 @@ public class OnheapIncrementalIndexBenchmark extends AbstractBenchmark
         for (int i = 0; i < metrics.length; i++) {
           final AggregatorFactory agg = metrics[i];
           aggs[i] = agg.factorize(
-              makeColumnSelectorFactory(agg, rowSupplier, deserializeComplexMetrics)
+              new ColumnSelectorFactories.FromInputRow(rowSupplier, agg, deserializeComplexMetrics)
           );
         }
         Integer rowIndex;

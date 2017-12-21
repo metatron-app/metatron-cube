@@ -190,7 +190,7 @@ public class IncrementalIndexSchema
       return this;
     }
 
-    public Builder withMetrics(AggregatorFactory[] metrics)
+    public Builder withMetrics(AggregatorFactory... metrics)
     {
       this.metrics = metrics;
       return this;

@@ -51,6 +51,7 @@ import io.druid.query.search.search.SearchSortSpec;
 import io.druid.query.select.PagingSpec;
 import io.druid.query.select.SelectQuery;
 import io.druid.query.select.StreamQuery;
+import io.druid.query.select.StreamRawQuery;
 import io.druid.query.spec.LegacySegmentSpec;
 import io.druid.query.spec.QuerySegmentSpec;
 import io.druid.query.timeboundary.TimeBoundaryQuery;
@@ -512,6 +513,12 @@ public class Druids
     public TimeseriesQueryBuilder virtualColumns(List<VirtualColumn> v)
     {
       virtualColumns = v;
+      return this;
+    }
+
+    public TimeseriesQueryBuilder virtualColumns(VirtualColumn... v)
+    {
+      virtualColumns = Arrays.asList(v);
       return this;
     }
 
@@ -1173,6 +1180,22 @@ public class Druids
       );
     }
 
+    public StreamRawQuery streamingRaw()
+    {
+      return new StreamRawQuery(
+          dataSource,
+          querySegmentSpec,
+          dimFilter,
+          granularity,
+          dimensions,
+          metrics,
+          virtualColumns,
+          concatString,
+          pagingSpec == null ? -1 : pagingSpec.getThreshold(),
+          context
+      );
+    }
+
     public SelectQuery build()
     {
       return new SelectQuery(
@@ -1333,6 +1356,12 @@ public class Druids
       return this;
     }
 
+    public SelectQueryBuilder virtualColumns(VirtualColumn... vcs)
+    {
+      virtualColumns = Arrays.asList(vcs);
+      return this;
+    }
+
     public SelectQueryBuilder pagingSpec(PagingSpec p)
     {
       pagingSpec = p;
@@ -1357,7 +1386,7 @@ public class Druids
       return this;
     }
 
-    public SelectQueryBuilder outputColumns(int limit)
+    public SelectQueryBuilder limit(int limit)
     {
       pagingSpec = PagingSpec.newSpec(limit);
       return this;
