@@ -23,6 +23,7 @@ import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Predicates;
 import com.google.common.collect.FluentIterable;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
 import com.google.inject.Inject;
@@ -49,7 +50,6 @@ import org.apache.calcite.sql.type.SqlTypeName;
 import javax.annotation.Nullable;
 import java.util.Collection;
 import java.util.Map;
-import java.util.Set;
 
 public class InformationSchema extends AbstractSchema
 {
@@ -183,24 +183,42 @@ public class InformationSchema extends AbstractSchema
                 public Iterable<Object[]> apply(final String schemaName)
                 {
                   final SchemaPlus subSchema = rootSchema.getSubSchema(schemaName);
-
-                  final Set<String> authorizedTableNames = subSchema.getTableNames();
-
                   return Iterables.filter(
-                      FluentIterable.from(authorizedTableNames).transform(
-                          new Function<String, Object[]>()
-                          {
-                            @Override
-                            public Object[] apply(final String tableName)
-                            {
-                              return new Object[]{
-                                  EMPTY_CATALOG, // TABLE_CATALOG
-                                  schemaName, // TABLE_SCHEMA
-                                  tableName, // TABLE_NAME
-                                  subSchema.getTable(tableName).getJdbcTableType().toString() // TABLE_TYPE
-                              };
-                            }
-                          }
+                      Iterables.concat(
+                          FluentIterable.from(subSchema.getTableNames()).transform(
+                              new Function<String, Object[]>()
+                              {
+                                @Override
+                                public Object[] apply(final String tableName)
+                                {
+                                  return new Object[]{
+                                      EMPTY_CATALOG, // TABLE_CATALOG
+                                      schemaName, // TABLE_SCHEMA
+                                      tableName, // TABLE_NAME
+                                      subSchema.getTable(tableName).getJdbcTableType().toString() // TABLE_TYPE
+                                  };
+                                }
+                              }
+                          ),
+                          FluentIterable.from(subSchema.getFunctionNames()).transform(
+                              new Function<String, Object[]>()
+                              {
+                                @Override
+                                public Object[] apply(final String functionName)
+                                {
+                                  if (getView(subSchema, functionName) != null) {
+                                    return new Object[]{
+                                        EMPTY_CATALOG, // TABLE_CATALOG
+                                        schemaName, // TABLE_SCHEMA
+                                        functionName, // TABLE_NAME
+                                        "VIEW" // TABLE_TYPE
+                                    };
+                                  } else {
+                                    return null;
+                                  }
+                                }
+                              }
+                          )
                       ),
                       Predicates.notNull()
                   );
@@ -246,11 +264,10 @@ public class InformationSchema extends AbstractSchema
                   final SchemaPlus subSchema = rootSchema.getSubSchema(schemaName);
                   final JavaTypeFactoryImpl typeFactory = new JavaTypeFactoryImpl(TYPE_SYSTEM);
 
-                  final Set<String> authorizedTableNames = subSchema.getTableNames();
-
                   return Iterables.concat(
                       Iterables.filter(
-                              FluentIterable.from(authorizedTableNames).transform(
+                          Iterables.concat(
+                              FluentIterable.from(subSchema.getTableNames()).transform(
                                   new Function<String, Iterable<Object[]>>()
                                   {
                                     @Override
@@ -264,8 +281,28 @@ public class InformationSchema extends AbstractSchema
                                       );
                                     }
                                   }
+                              ),
+                              FluentIterable.from(subSchema.getFunctionNames()).transform(
+                                  new Function<String, Iterable<Object[]>>()
+                                  {
+                                    @Override
+                                    public Iterable<Object[]> apply(final String functionName)
+                                    {
+                                      final TableMacro viewMacro = getView(subSchema, functionName);
+                                      if (viewMacro == null) {
+                                        return null;
+                                      }
+
+                                      return generateColumnMetadata(
+                                          schemaName,
+                                          functionName,
+                                          viewMacro.apply(ImmutableList.of()),
+                                          typeFactory
+                                      );
+                                    }
+                                  }
                               )
-                          ,
+                          ),
                           Predicates.notNull()
                       )
                   );

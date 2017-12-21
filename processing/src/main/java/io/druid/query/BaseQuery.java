@@ -175,11 +175,6 @@ public abstract class BaseQuery<T extends Comparable<T>> implements Query<T>
     if (dataSource instanceof ViewDataSource) {
       return true;
     }
-    if (this instanceof DimensionSupport) {
-      if (((DimensionSupport) this).getDimensions().isEmpty() && allDimensionsForEmpty()) {
-        return true;
-      }
-    }
     if (this instanceof MetricSupport) {
       if (((MetricSupport) this).getMetrics().isEmpty() && allMetricsForEmpty()) {
         return true;

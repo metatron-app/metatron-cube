@@ -61,6 +61,7 @@ public class Queries
   private static final Logger LOG = new Logger(Queries.class);
 
   public static void verifyAggregations(
+      List<String> columns,
       List<AggregatorFactory> aggFactories,
       List<PostAggregator> postAggs
   )
@@ -74,6 +75,7 @@ public class Queries
 
     if (postAggs != null && !postAggs.isEmpty()) {
       final Set<String> combinedAggNames = Sets.newHashSet(aggNames);
+      combinedAggNames.addAll(columns);
 
       for (PostAggregator postAgg : postAggs) {
         final Set<String> dependencies = postAgg.getDependentFields();
@@ -162,6 +164,13 @@ public class Queries
       }
       return builder.withDimensions(dimensions)
                     .withMetrics(AggregatorFactory.toRelay(metrics, ValueDesc.UNKNOWN_TYPE))
+                    .withRollup(false)
+                    .build();
+    } else if (subQuery instanceof Query.AggregationsSupport) {
+      final Query.AggregationsSupport<?> selectQuery = (Query.AggregationsSupport) subQuery;
+      List<String> dimensions = DimensionSpecs.toOutputNames(selectQuery.getDimensions());
+      return builder.withDimensions(dimensions)
+                    .withMetrics(AggregatorFactory.toRelay(selectQuery.getAggregatorSpecs()))
                     .withRollup(false)
                     .build();
     } else if (subQuery instanceof JoinQuery.JoinDelegate) {

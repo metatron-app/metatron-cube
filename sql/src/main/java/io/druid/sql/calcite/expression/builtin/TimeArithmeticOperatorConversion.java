@@ -89,7 +89,7 @@ public abstract class TimeArithmeticOperatorConversion implements SqlOperatorCon
               timeExpr,
               shiftExpr.map(
                   simpleExtraction -> null,
-                  expression -> StringUtils.format("concat('P', %s, 'M')", expression)
+                  expression -> StringUtils.format("'P%sM'", expression)
               ),
               DruidExpression.fromExpression(DruidExpression.numberLiteral(direction > 0 ? 1 : -1))
           )

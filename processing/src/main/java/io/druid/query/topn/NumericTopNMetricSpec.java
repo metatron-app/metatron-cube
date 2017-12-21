@@ -54,7 +54,10 @@ public class NumericTopNMetricSpec implements TopNMetricSpec
   {
     Preconditions.checkNotNull(metric, "metric can't be null");
     Preconditions.checkNotNull(aggregatorSpecs, "aggregations cannot be null");
-    Preconditions.checkArgument(aggregatorSpecs.size() > 0, "Must have at least one AggregatorFactory");
+    Preconditions.checkArgument(
+        aggregatorSpecs.size() > 0 || postAggregatorSpecs.size() > 0,
+        "Must have at least one AggregatorFactory or PostAggregator"
+    );
 
     final AggregatorFactory aggregator = Iterables.tryFind(
         aggregatorSpecs,

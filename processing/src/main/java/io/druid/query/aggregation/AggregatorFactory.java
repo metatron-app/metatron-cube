@@ -257,6 +257,15 @@ public abstract class AggregatorFactory implements Cacheable
     return combiners;
   }
 
+  public static List<AggregatorFactory> toRelay(List<AggregatorFactory> aggregators)
+  {
+    List<AggregatorFactory> relay = Lists.newArrayList();
+    for (AggregatorFactory aggregator : aggregators) {
+      relay.add(new RelayAggregatorFactory(aggregator.getName(), aggregator.getName(), aggregator.getTypeName()));
+    }
+    return relay;
+  }
+
   public static List<AggregatorFactory> toRelay(List<String> metrics, String type)
   {
     List<AggregatorFactory> relay = Lists.newArrayList();

@@ -194,7 +194,7 @@ public class DoubleSumAggregatorFactory extends AggregatorFactory
   @Override
   public String getTypeName()
   {
-    return "float";
+    return "double";
   }
 
   @Override

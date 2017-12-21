@@ -287,7 +287,7 @@ public class CalciteTests
       .withMetrics(
           new CountAggregatorFactory("cnt"),
           new GenericSumAggregatorFactory("m1", "m1", "float"),
-          new DoubleSumAggregatorFactory("m2", "m2"),
+          new GenericSumAggregatorFactory("m2", "m2", "double"),
           new HyperUniquesAggregatorFactory("unique_dim1", "dim1")
       )
       .withRollup(false)

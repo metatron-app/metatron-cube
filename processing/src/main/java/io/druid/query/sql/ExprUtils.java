@@ -71,12 +71,12 @@ public class ExprUtils
   {
     return ExprUtils.toPeriodGranularity(
           Evals.getConstantString(args, index++),
-          Evals.getConstantString(args, index++),
+          Evals.getConstant(args, index++),
           Evals.getConstantString(args, index)
       );
   }
 
-  public static PeriodGranularity toPeriodGranularity(String periodArg, String originArg, String timeZoneArg)
+  public static PeriodGranularity toPeriodGranularity(String periodArg, Object originArg, String timeZoneArg)
   {
     Period period = new Period(periodArg);
     DateTimeZone timeZone = null;

@@ -38,6 +38,7 @@ import io.druid.query.LateralViewSpec;
 import io.druid.query.spec.QuerySegmentSpec;
 import io.druid.segment.VirtualColumn;
 
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 
@@ -79,7 +80,7 @@ public class TimeseriesQuery extends BaseQuery<Result<TimeseriesResultValue>>
     this.outputColumns = outputColumns;
     this.lateralView = lateralView;
 
-    Queries.verifyAggregations(this.aggregatorSpecs, this.postAggregatorSpecs);
+    Queries.verifyAggregations(Arrays.<String>asList(), this.aggregatorSpecs, this.postAggregatorSpecs);
   }
 
   @Override

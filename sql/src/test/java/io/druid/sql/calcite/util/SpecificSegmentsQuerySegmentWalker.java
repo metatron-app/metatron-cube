@@ -32,6 +32,7 @@ import io.druid.query.DataSource;
 import io.druid.query.FinalizeResultsQueryRunner;
 import io.druid.query.NoopQueryRunner;
 import io.druid.query.Query;
+import io.druid.query.QueryDataSource;
 import io.druid.query.QueryRunner;
 import io.druid.query.QueryRunnerFactory;
 import io.druid.query.QueryRunnerFactoryConglomerate;
@@ -39,6 +40,8 @@ import io.druid.query.QuerySegmentWalker;
 import io.druid.query.QueryToolChest;
 import io.druid.query.ReportTimelineMissingSegmentQueryRunner;
 import io.druid.query.SegmentDescriptor;
+import io.druid.query.groupby.GroupByQueryConfig;
+import io.druid.query.groupby.GroupByQueryHelper;
 import io.druid.query.spec.SpecificSegmentQueryRunner;
 import io.druid.query.spec.SpecificSegmentSpec;
 import io.druid.segment.QueryableIndex;
@@ -63,6 +66,7 @@ import java.util.concurrent.Future;
 public class SpecificSegmentsQuerySegmentWalker implements QuerySegmentWalker
 {
   private final QueryRunnerFactoryConglomerate conglomerate;
+  private final GroupByQueryConfig groupByConfig;
   private final Map<String, VersionedIntervalTimeline<String, Segment>> timelines = Maps.newHashMap();
   private final List<Closeable> closeables = Lists.newArrayList();
   private final List<DataSegment> segments = Lists.newArrayList();
@@ -70,6 +74,7 @@ public class SpecificSegmentsQuerySegmentWalker implements QuerySegmentWalker
   public SpecificSegmentsQuerySegmentWalker(QueryRunnerFactoryConglomerate conglomerate)
   {
     this.conglomerate = conglomerate;
+    this.groupByConfig = new GroupByQueryConfig();
   }
 
   public SpecificSegmentsQuerySegmentWalker add(
@@ -239,13 +244,17 @@ public class SpecificSegmentsQuerySegmentWalker implements QuerySegmentWalker
             }
         );
 
-    return
-        FinalizeResultsQueryRunner.finalize(
-            toolChest.mergeResults(
-                factory.mergeRunners(MoreExecutors.sameThreadExecutor(), queryRunners, optimizer)
-            ),
-            toolChest,
-            null
-        );
+    QueryRunner<T> runner = factory.mergeRunners(MoreExecutors.sameThreadExecutor(), queryRunners, optimizer);
+    if (query.getDataSource() instanceof QueryDataSource) {
+      Query innerQuery = ((QueryDataSource) query.getDataSource()).getQuery().withOverriddenContext(query.getContext());
+      int maxResult = groupByConfig.getMaxResults();
+      int maxRowCount = Math.min(
+          query.getContextValue(GroupByQueryHelper.CTX_KEY_MAX_RESULTS, maxResult),
+          maxResult
+      );
+      QueryRunner innerRunner = toQueryRunner(innerQuery, segments);
+      runner = toolChest.handleSubQuery(innerRunner, this, MoreExecutors.sameThreadExecutor(), maxRowCount);
+    }
+    return FinalizeResultsQueryRunner.finalize(toolChest.mergeResults(runner), toolChest, null);
   }
 }

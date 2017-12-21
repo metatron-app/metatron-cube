@@ -129,7 +129,6 @@ public class QueryMaker
             runQuery(query),
             scanResult -> {
               Schema schema = scanResult.getSchema();
-
               List<String> columnNames = schema.getColumnNames();
               final Map<String, Integer> scanColumnOrder = Maps.newHashMap();
 
@@ -138,7 +137,11 @@ public class QueryMaker
               }
 
               for (int i = 0; i < outputRowSignature.getRowOrder().size(); i++) {
-                final Integer index = scanColumnOrder.get(outputRowSignature.getRowOrder().get(i));
+                String columnName = outputRowSignature.getRowOrder().get(i);
+                if (columnName.equals(Column.TIME_COLUMN_NAME)) {
+                  columnName = EventHolder.timestampKey;  // fuck
+                }
+                final Integer index = scanColumnOrder.get(columnName);
                 columnMapping[i] = index == null ? -1 : index;
               }
 

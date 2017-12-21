@@ -47,6 +47,7 @@ import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.PostAggregator;
 import io.druid.query.dimension.DefaultDimensionSpec;
 import io.druid.query.dimension.DimensionSpec;
+import io.druid.query.dimension.DimensionSpecs;
 import io.druid.query.filter.DimFilter;
 import io.druid.query.groupby.having.HavingSpec;
 import io.druid.query.groupby.orderby.DefaultLimitSpec;
@@ -119,7 +120,9 @@ public class GroupByQuery extends BaseQuery<Row> implements Query.AggregationsSu
 
     Preconditions.checkNotNull(this.granularity, "Must specify a granularity");
     Preconditions.checkNotNull(this.aggregatorSpecs, "Must specify at least one aggregator");
-    Queries.verifyAggregations(this.aggregatorSpecs, this.postAggregatorSpecs);
+    Queries.verifyAggregations(
+        Lists.transform(this.dimensions, DimensionSpecs.OUTPUT_NAME), this.aggregatorSpecs, this.postAggregatorSpecs
+    );
   }
 
   @Override

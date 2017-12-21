@@ -94,7 +94,9 @@ public class TopNQuery extends BaseQuery<Result<TopNResultValue>>
     Preconditions.checkArgument(threshold != 0, "Threshold cannot be equal to 0.");
     topNMetricSpec.verifyPreconditions(this.aggregatorSpecs, this.postAggregatorSpecs);
 
-    Queries.verifyAggregations(this.aggregatorSpecs, this.postAggregatorSpecs);
+    Queries.verifyAggregations(
+        Arrays.asList(dimensionSpec.getOutputName()), this.aggregatorSpecs, this.postAggregatorSpecs
+    );
     VirtualColumns.checkDimensionIndexed(virtualColumns, dimensionSpec.getDimension());
   }
 

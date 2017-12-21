@@ -278,6 +278,7 @@ public class TopNQueryQueryToolChest extends QueryToolChest<Result<TopNResultVal
                         + query.getPostAggregatorSpecs().size()
                         + 1
                     );
+                    values.put(dimension, input.get(dimension));
 
                     for (final String name : aggFactoryNames) {
                       values.put(name, input.get(name));
@@ -295,8 +296,6 @@ public class TopNQueryQueryToolChest extends QueryToolChest<Result<TopNResultVal
                       final String name = aggFactoryNames[i];
                       values.put(name, fn.manipulate(aggregatorFactories[i], input.get(name)));
                     }
-
-                    values.put(dimension, input.get(dimension));
 
                     return values;
                   }
