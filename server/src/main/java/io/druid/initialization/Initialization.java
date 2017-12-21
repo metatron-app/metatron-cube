@@ -88,7 +88,8 @@ public class Initialization
   private static final Logger log = new Logger(Initialization.class);
   private static final Map<String, URLClassLoader> loadersMap = Maps.newHashMap();
 
-  private final static Map<Class, Set> extensionsMap = Maps.<Class, Set>newHashMap();
+  private static final Map<Class, Set> extensionsMap = Maps.<Class, Set>newHashMap();
+  private static final Set<String> failed = Sets.newConcurrentHashSet();
 
   /**
    * @param clazz Module class
@@ -167,7 +168,9 @@ public class Initialization
                   auxLoader.next();   // loaded here
                 }
                 catch (Throwable e) {
-                  log.info(e, ".... Failed to load one of aux service.. ignoring");
+                  if (failed.add(e.toString())) {
+                    log.info(e, ".... Failed to load one of aux service.. will ignore similar exceptions");
+                  }
                 }
               }
             }
