@@ -124,24 +124,34 @@ public class Evals
     return arg == null ? null : evalString(arg, binding);
   }
 
+  public static ExprEval eval(Expr arg, Expr.NumericBinding binding)
+  {
+    return arg.eval(binding);
+  }
+
   public static String evalString(Expr arg, Expr.NumericBinding binding)
   {
-    return arg.eval(binding).asString();
+    return eval(arg, binding).asString();
   }
 
   public static long evalLong(Expr arg, Expr.NumericBinding binding)
   {
-    return arg.eval(binding).asLong();
+    return eval(arg, binding).asLong();
   }
 
   public static int evalInt(Expr arg, Expr.NumericBinding binding)
   {
-    return arg.eval(binding).asInt();
+    return eval(arg, binding).asInt();
+  }
+
+  public static boolean evalBoolean(Expr arg, Expr.NumericBinding binding)
+  {
+    return eval(arg, binding).asBoolean();
   }
 
   public static boolean evalOptionalBoolean(Expr arg, Expr.NumericBinding binding, boolean defaultVal)
   {
-    return arg == null ? defaultVal : arg.eval(binding).asBoolean();
+    return arg == null ? defaultVal : eval(arg, binding).asBoolean();
   }
 
   public static String getConstantString(Expr arg)
@@ -149,7 +159,7 @@ public class Evals
     if (!(arg instanceof StringExpr)) {
       throw new IllegalArgumentException(arg + " is not constant string");
     }
-    return arg.eval(null).stringValue();
+    return eval(arg, null).stringValue();
   }
 
   public static String getConstantString(List<Expr> args, int index)
@@ -195,8 +205,8 @@ public class Evals
 
   public static ExprEval getConstantEval(final Expr arg)
   {
-    return arg.eval(
-        new Expr.NumericBinding()
+    return eval(
+        arg, new Expr.NumericBinding()
         {
           @Override
           public Collection<String> names()
@@ -453,7 +463,7 @@ public class Evals
         return name;
       }
     };
-    return Pair.of(assign.assignee.eval(bindings).stringValue(), assign.assigned);
+    return Pair.of(evalString(assign.assignee, bindings), assign.assigned);
   }
 
   // for binary operator not providing constructor of form <init>(String, Expr, Expr),

@@ -124,12 +124,18 @@ public class EvalTest
 
 
     // exists
-    Assert.assertEquals(3.0, evalDouble("case (x - 1, 0.0, 2.0, 1.0, 3.0)", bindings), 0.0001);
-
+    Assert.assertEquals(3.0, evalDouble("switch (x - 1, 0.0, 2.0, 1.0, 3.0)", bindings), 0.0001);
     // not-exists (implicit 0)
-    Assert.assertEquals(0.0, evalDouble("case (x + 10, 0.0, 2.0, 2.0, 3.0)", bindings), 0.0001);
+    Assert.assertEquals(0.0, evalDouble("switch (x + 10, 0.0, 2.0, 2.0, 3.0)", bindings), 0.0001);
     // not-exists (explicit)
-    Assert.assertEquals(100.0, evalDouble("case (x + 10, 0.0, 2.0, 2.0, 3.0, 100.0)", bindings), 0.0001);
+    Assert.assertEquals(100.0, evalDouble("switch (x + 10, 0.0, 2.0, 2.0, 3.0, 100.0)", bindings), 0.0001);
+
+    // exists
+    Assert.assertEquals(3.0, evalDouble("case (x - 1 == 0.0, 2.0, x - 1 == 1.0, 3.0)", bindings), 0.0001);
+    // not-exists (implicit 0)
+    Assert.assertEquals(0.0, evalDouble("case (x + 10 == 0.0, 2.0, x + 10 == 2.0, 3.0)", bindings), 0.0001);
+    // not-exists (explicit)
+    Assert.assertEquals(100.0, evalDouble("case (x + 10 == 0.0, 2.0, x + 10 == 2.0, 3.0, 100.0)", bindings), 0.0001);
   }
 
   @Test
@@ -205,12 +211,18 @@ public class EvalTest
     );
 
     // exists
-    Assert.assertEquals(3L, evalLong("case (x - 1, 9223372036854775807, 2, 9223372036854775806, 3)", bindings));
-
+    Assert.assertEquals(3L, evalLong("switch (x - 1, 9223372036854775807, 2, 9223372036854775806, 3)", bindings));
     // not-exists (implicit 0)
-    Assert.assertEquals(0L, evalLong("case (x + 10, 0, 2, 1, 3)", bindings));
+    Assert.assertEquals(0L, evalLong("switch (x + 10, 0, 2, 1, 3)", bindings));
     // not-exists (explicit)
-    Assert.assertEquals(100L, evalLong("case (x + 10, 0, 2, 1, 3, 100)", bindings));
+    Assert.assertEquals(100L, evalLong("switch (x + 10, 0, 2, 1, 3, 100)", bindings));
+
+    // exists
+    Assert.assertEquals(3L, evalLong("case (x - 1 == 9223372036854775807, 2, x - 1 == 9223372036854775806, 3)", bindings));
+    // not-exists (implicit 0)
+    Assert.assertEquals(0L, evalLong("case (x + 10 == 0, 2, x + 10 == 1, 3)", bindings));
+    // not-exists (explicit)
+    Assert.assertEquals(100L, evalLong("case (x + 10 == 0, 2, x + 10 == 1, 3, 100)", bindings));
 
     Interval eval = (Interval) eval("recent('1D 10s')", bindings);
     long now = System.currentTimeMillis();

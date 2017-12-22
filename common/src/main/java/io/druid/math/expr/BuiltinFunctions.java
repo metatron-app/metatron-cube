@@ -1361,8 +1361,8 @@ public interface BuiltinFunctions extends Function.Library
     }
   }
 
-  @Function.Named("case")
-  final class CaseWhenFunc extends Function.NamedFunction
+  @Function.Named("switch")
+  final class SwitchFunc extends Function.NamedFunction
   {
     @Override
     public ExprType apply(List<Expr> args, TypeBinding bindings)
@@ -1386,7 +1386,7 @@ public interface BuiltinFunctions extends Function.Library
     public ExprEval apply(List<Expr> args, NumericBinding bindings)
     {
       if (args.size() < 3) {
-        throw new RuntimeException("function 'case' needs at least 3 arguments");
+        throw new RuntimeException("function 'switch' needs at least 3 arguments");
       }
       final ExprEval leftVal = args.get(0).eval(bindings);
       for (int i = 1; i < args.size() - 1; i += 2) {
@@ -1398,6 +1398,55 @@ public interface BuiltinFunctions extends Function.Library
         return args.get(args.size() - 1).eval(bindings);
       }
       return leftVal.defaultValue();
+    }
+  }
+
+  @Function.Named("case")
+  final class CaseFunc extends Function.NamedFunction
+  {
+    @Override
+    public ExprType apply(List<Expr> args, TypeBinding bindings)
+    {
+      if (args.size() < 2) {
+        return ExprType.UNKNOWN;
+      }
+      ExprType prev = null;
+      for (int i = 1; i < args.size() - 1; i += 2) {
+        ExprType type = args.get(i).type(bindings);
+        if (prev == null || prev == type) {
+          prev = type;
+          continue;
+        }
+        return ExprType.UNKNOWN;
+      }
+      if (args.size() % 2 == 1 && prev != args.get(args.size() - 1).type(bindings)) {
+        return ExprType.UNKNOWN;
+      }
+      return prev;
+    }
+
+    @Override
+    public ExprEval apply(List<Expr> args, NumericBinding bindings)
+    {
+      if (args.size() < 2) {
+        throw new RuntimeException("function 'case' needs at least 2 arguments");
+      }
+      ExprType type = null;
+      for (int i = 0; i < args.size() - 1; i += 2) {
+        ExprEval eval = Evals.eval(args.get(i), bindings);
+        if (eval.asBoolean()) {
+          return args.get(i + 1).eval(bindings);
+        }
+        if (type != null && type != eval.type()) {
+          type = ExprType.UNKNOWN;
+        } else {
+          type = eval.type();
+        }
+      }
+      if (args.size() % 2 == 1) {
+        return args.get(args.size() - 1).eval(bindings);
+      }
+      return ExprEval.of(null, type);
     }
   }
 
