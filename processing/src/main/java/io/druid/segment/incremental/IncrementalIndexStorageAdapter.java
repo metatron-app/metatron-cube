@@ -404,6 +404,10 @@ public class IncrementalIndexStorageAdapter implements StorageAdapter
                   if (virtualColumn != null) {
                     return virtualColumn.asDimension(dimension, this);
                   }
+                  if (index.getMetricIndex(dimension) != null) {
+                    // todo: group-by columns are converted to string
+                    return VirtualColumns.toDimensionSelector(makeObjectColumnSelector(dimension));
+                  }
                   return NULL_DIMENSION_SELECTOR;
                 }
 

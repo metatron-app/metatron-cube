@@ -39,6 +39,7 @@ import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 
 /**
@@ -117,8 +118,7 @@ public class VirtualColumns implements Iterable<VirtualColumn>
       @Override
       public IndexedInts getRow()
       {
-        Object selected = selector.get();
-        String value = selected == null ? null : String.valueOf(selected);
+        String value = Objects.toString(selector.get(), null);
         Integer index = valToId.get(value);
         if (index == null) {
           valToId.put(value, index = counter++);

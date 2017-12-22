@@ -317,6 +317,29 @@ public class GroupByQueryRunnerTest
   }
 
   @Test
+  public void testGroupByOnMetric()
+  {
+    GroupByQuery query = GroupByQuery
+        .builder()
+        .setDataSource(QueryRunnerTestHelper.dataSource)
+        .setInterval(new Interval("2011-01-12/2011-01-13"))
+        .setDimensions(DefaultDimensionSpec.toSpec("index"))
+        .setAggregatorSpecs(Arrays.<AggregatorFactory>asList(QueryRunnerTestHelper.rowsCount))
+        .setGranularity(QueryRunnerTestHelper.allGran)
+        .build();
+
+    // todo: group-by columns are converted to string
+    List<Row> expectedResults = GroupByQueryRunnerTestHelper.createExpectedRows(
+        new String[]{Column.TIME_COLUMN_NAME, "index", "rows"},
+        array("2011-01-12T00:00:00.000Z", "100.0", 9L),
+        array("2011-01-12T00:00:00.000Z", "1000.0", 2L),
+        array("2011-01-12T00:00:00.000Z", "800.0", 2L)
+    );
+    Iterable<Row> results = GroupByQueryRunnerTestHelper.runQuery(factory, runner, query);
+    TestHelper.assertExpectedObjects(expectedResults, results, "");
+  }
+
+  @Test
   public void testMultiValueDimension()
   {
     GroupByQuery query = GroupByQuery
@@ -2837,63 +2860,6 @@ public class GroupByQueryRunnerTest
         QueryRunnerTestHelper.NoopIntervalChunkingQueryRunnerDecorator()
     ).mergeResults(runner);
     Map<String, Object> context = Maps.newHashMap();
-    TestHelper.assertExpectedObjects(expectedResults, mergeRunner.run(query, context), "no-limit");
-  }
-
-  @Test
-  public void testGroupByWithMetricColumnDisappears() throws Exception
-  {
-    GroupByQuery.Builder builder = GroupByQuery
-        .builder()
-        .setDataSource(QueryRunnerTestHelper.dataSource)
-        .setInterval("2011-04-02/2011-04-04")
-        .addDimension("quality")
-        .addDimension("index")
-        .setAggregatorSpecs(
-            Arrays.<AggregatorFactory>asList(
-                QueryRunnerTestHelper.rowsCount
-            )
-        )
-        .setGranularity(new PeriodGranularity(new Period("P1M"), null, null));
-
-    final GroupByQuery query = builder.build();
-
-    final String[] columns = new String[] {"__time", "index", "quality", "rows"};
-    final List<Row> expectedResults = GroupByQueryRunnerTestHelper.createExpectedRows(
-        columns,
-        array("2011-04-01", null, "automotive", 2L),
-        array("2011-04-01", null, "business", 2L),
-        array("2011-04-01", null, "entertainment", 2L),
-        array("2011-04-01", null, "health", 2L),
-        array("2011-04-01", null, "mezzanine", 6L),
-        array("2011-04-01", null, "news", 2L),
-        array("2011-04-01", null, "premium", 6L),
-        array("2011-04-01", null, "technology", 2L),
-        array("2011-04-01", null, "travel", 2L)
-    );
-
-    Map<String, Object> context = Maps.newHashMap();
-    TestHelper.assertExpectedObjects(expectedResults, runner.run(query, context), "normal");
-    final GroupByQueryEngine engine = new GroupByQueryEngine(
-        configSupplier,
-        new StupidPool<>(
-            new Supplier<ByteBuffer>()
-            {
-              @Override
-              public ByteBuffer get()
-              {
-                return ByteBuffer.allocate(1024 * 1024);
-              }
-            }
-        )
-    );
-
-    QueryRunner<Row> mergeRunner = new GroupByQueryQueryToolChest(
-        configSupplier,
-        engine,
-        TestQueryRunners.pool,
-        QueryRunnerTestHelper.NoopIntervalChunkingQueryRunnerDecorator()
-    ).mergeResults(runner);
     TestHelper.assertExpectedObjects(expectedResults, mergeRunner.run(query, context), "no-limit");
   }
 

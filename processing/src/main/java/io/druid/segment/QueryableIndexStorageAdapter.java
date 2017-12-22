@@ -513,14 +513,18 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
                       DictionaryEncodedColumn cachedColumn = dictionaryColumnCache.get(dimension);
                       if (cachedColumn == null) {
                         cachedColumn = columnDesc.getDictionaryEncoding();
-                        dictionaryColumnCache.put(dimension, cachedColumn);
+                        if (cachedColumn != null) {
+                          dictionaryColumnCache.put(dimension, cachedColumn);
+                        }
+                      }
+                      if (cachedColumn == null) {
+                        // todo: group-by columns are converted to string
+                        return VirtualColumns.toDimensionSelector(makeObjectColumnSelector(dimension));
                       }
 
                       final DictionaryEncodedColumn column = cachedColumn;
 
-                      if (column == null) {
-                        return NULL_DIMENSION_SELECTOR;
-                      } else if (columnDesc.getCapabilities().hasMultipleValues()) {
+                      if (columnDesc.getCapabilities().hasMultipleValues()) {
                         return new DimensionSelector()
                         {
                           @Override
