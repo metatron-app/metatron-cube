@@ -22,6 +22,7 @@ package io.druid.segment.filter;
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Predicate;
+import com.google.common.base.Predicates;
 import com.google.common.base.Strings;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Sets;
@@ -29,6 +30,8 @@ import com.metamx.collections.bitmap.ImmutableBitmap;
 import com.metamx.collections.bitmap.MutableBitmap;
 import io.druid.common.guava.IntPredicate;
 import io.druid.data.ValueDesc;
+import io.druid.math.expr.Evals;
+import io.druid.math.expr.ExprEval;
 import io.druid.query.dimension.DefaultDimensionSpec;
 import io.druid.query.extraction.ExtractionFn;
 import io.druid.query.filter.BitmapIndexSelector;
@@ -43,7 +46,6 @@ import io.druid.segment.column.BitmapIndex;
 import io.druid.segment.data.IndexedID;
 
 import java.util.EnumSet;
-import java.util.Objects;
 import java.util.Set;
 
 /**
@@ -123,7 +125,7 @@ public class InFilter implements Filter
     ValueDesc type = factory.getColumnType(dimension);
     if (type == null) {
       // should handle extract fn
-      return BooleanValueMatcher.of(toPredicate(allowsNull).apply(null));
+      return BooleanValueMatcher.of(toPredicate(allowsNull, null).apply(null));
     }
     if (ValueDesc.isDimension(type) && extractionFn == null) {
       final DimensionSelector selector = factory.makeDimensionSelector(DefaultDimensionSpec.of(dimension));
@@ -170,22 +172,34 @@ public class InFilter implements Filter
       }
       selector = ColumnSelectors.asValued(selector);
     }
-    return Filters.toValueMatcher(selector, toPredicate(allowsNull));
+    return Filters.toValueMatcher(selector, toPredicate(allowsNull, selector.type()));
   }
 
-  private Predicate toPredicate(final boolean allowsNull)
+  @SuppressWarnings("unchecked")
+  private Predicate toPredicate(final boolean containsNull, final ValueDesc valueType)
   {
-    return new Predicate()
-        {
-          @Override
-          public boolean apply(Object input)
-          {
-            if (extractionFn != null) {
-              input = extractionFn.apply(input);
-            }
-            return input == null ? allowsNull : values.contains(Objects.toString(input));
-          }
-        };
+    final Set container;
+    if (extractionFn == null && ValueDesc.isNumeric(valueType)) {
+      Preconditions.checkArgument(!containsNull, "cannot use null value for numeric type");
+      container = Sets.newHashSet();
+      for (String value : values) {
+        container.add(Evals.castTo(ExprEval.of(value), valueType));
+      }
+    } else {
+      container = values;
+    }
+    Predicate predicate = new Predicate()
+    {
+      @Override
+      public boolean apply(Object input)
+      {
+        return input == null ? containsNull : container.contains(input);
+      }
+    };
+    if (extractionFn != null) {
+      predicate = Predicates.compose(predicate, extractionFn);
+    }
+    return predicate;
   }
 
   @Override

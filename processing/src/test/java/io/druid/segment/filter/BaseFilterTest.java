@@ -33,6 +33,7 @@ import io.druid.granularity.QueryGranularities;
 import io.druid.query.aggregation.Aggregator;
 import io.druid.query.aggregation.CountAggregatorFactory;
 import io.druid.query.aggregation.FilteredAggregatorFactory;
+import io.druid.query.aggregation.LongSumAggregatorFactory;
 import io.druid.query.dimension.DefaultDimensionSpec;
 import io.druid.query.filter.DimFilter;
 import io.druid.segment.Cursor;
@@ -50,6 +51,7 @@ import io.druid.segment.data.ConciseBitmapSerdeFactory;
 import io.druid.segment.data.IndexedInts;
 import io.druid.segment.data.RoaringBitmapSerdeFactory;
 import io.druid.segment.incremental.IncrementalIndex;
+import io.druid.segment.incremental.IncrementalIndexSchema;
 import io.druid.segment.incremental.IncrementalIndexStorageAdapter;
 import org.joda.time.Interval;
 import org.junit.Before;
@@ -224,6 +226,11 @@ public abstract class BaseFilterTest
         }
     );
 
+    IncrementalIndexSchema schema = new IncrementalIndexSchema.Builder()
+      .withMetrics(new CountAggregatorFactory("count"))
+      .withMetrics(new LongSumAggregatorFactory("sum", "met0"))
+      .build();
+
     for (Map.Entry<String, BitmapSerdeFactory> bitmapSerdeFactoryEntry : bitmapSerdeFactories.entrySet()) {
       for (Map.Entry<String, IndexMerger> indexMergerEntry : indexMergers.entrySet()) {
         for (Map.Entry<String, Function<IndexBuilder, Pair<StorageAdapter, Closeable>>> finisherEntry : finishers.entrySet()) {
@@ -236,11 +243,13 @@ public abstract class BaseFilterTest
                 optimize
             );
             final IndexBuilder indexBuilder = IndexBuilder.create()
-                                                          .indexSpec(new IndexSpec(
-                                                              bitmapSerdeFactoryEntry.getValue(),
-                                                              null,
-                                                              null
-                                                          ))
+                                                          .schema(schema)
+                                                          .indexSpec(
+                                                              new IndexSpec(
+                                                                  bitmapSerdeFactoryEntry.getValue(),
+                                                                  null,
+                                                                  null
+                                                              ))
                                                           .indexMerger(indexMergerEntry.getValue());
 
             constructors.add(new Object[]{testName, indexBuilder, finisherEntry.getValue(), optimize});

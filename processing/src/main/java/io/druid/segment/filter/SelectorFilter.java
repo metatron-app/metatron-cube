@@ -26,6 +26,8 @@ import com.metamx.collections.bitmap.ImmutableBitmap;
 import com.metamx.collections.bitmap.MutableBitmap;
 import io.druid.common.guava.IntPredicate;
 import io.druid.data.ValueDesc;
+import io.druid.math.expr.Evals;
+import io.druid.math.expr.ExprEval;
 import io.druid.query.dimension.DefaultDimensionSpec;
 import io.druid.query.filter.BitmapIndexSelector;
 import io.druid.query.filter.BitmapType;
@@ -40,7 +42,6 @@ import io.druid.segment.column.Lucenes;
 import io.druid.segment.data.IndexedID;
 
 import java.util.EnumSet;
-import java.util.Objects;
 
 /**
  */
@@ -100,6 +101,9 @@ public class SelectorFilter implements Filter
       final DimensionSelector selector = factory.makeDimensionSelector(DefaultDimensionSpec.of(dimension));
       @SuppressWarnings("unchecked")
       final int index = selector.lookupId(value);
+      if (index < 0) {
+        return BooleanValueMatcher.of(false);
+      }
       return Filters.toValueMatcher(
           selector, new IntPredicate()
           {
@@ -131,13 +135,14 @@ public class SelectorFilter implements Filter
         }
       };
     }
+    final Object casted = ValueDesc.isNumeric(valueType) ? Evals.castTo(ExprEval.of(value), valueType) : value;
     return Filters.toValueMatcher(
         selector, new Predicate()
         {
           @Override
           public boolean apply(Object input)
           {
-            return input == null ? allowsNull : value.equals(Objects.toString(input));
+            return input == null ? allowsNull : casted.equals(input);
           }
         }
     );

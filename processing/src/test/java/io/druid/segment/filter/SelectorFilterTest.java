@@ -24,11 +24,6 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.metamx.common.Pair;
 import io.druid.data.input.InputRow;
-import io.druid.data.input.impl.DefaultTimestampSpec;
-import io.druid.data.input.impl.DimensionsSpec;
-import io.druid.data.input.impl.InputRowParser;
-import io.druid.data.input.impl.MapInputRowParser;
-import io.druid.data.input.impl.TimeAndDimsParseSpec;
 import io.druid.query.extraction.MapLookupExtractor;
 import io.druid.query.filter.DimFilter;
 import io.druid.query.filter.ExtractionDimFilter;
@@ -38,7 +33,7 @@ import io.druid.query.lookup.LookupExtractionFn;
 import io.druid.query.lookup.LookupExtractor;
 import io.druid.segment.IndexBuilder;
 import io.druid.segment.StorageAdapter;
-import org.joda.time.DateTime;
+import io.druid.segment.TestHelper;
 import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.Test;
@@ -53,26 +48,14 @@ import java.util.Map;
 @RunWith(Parameterized.class)
 public class SelectorFilterTest extends BaseFilterTest
 {
-  private static final String TIMESTAMP_COLUMN = "timestamp";
-
-  private static final InputRowParser<Map<String, Object>> PARSER = new MapInputRowParser(
-      new TimeAndDimsParseSpec(
-          new DefaultTimestampSpec(TIMESTAMP_COLUMN, "iso", new DateTime("2000")),
-          new DimensionsSpec(
-              DimensionsSpec.getDefaultSchemas(ImmutableList.of("dim0", "dim1", "dim2", "dim3")),
-              null,
-              null
-          )
-      )
-  );
-
-  private static final List<InputRow> ROWS = ImmutableList.of(
-      PARSER.parse(ImmutableMap.<String, Object>of("dim0", "0", "dim1", "", "dim2", ImmutableList.of("a", "b"))),
-      PARSER.parse(ImmutableMap.<String, Object>of("dim0", "1", "dim1", "10", "dim2", ImmutableList.of())),
-      PARSER.parse(ImmutableMap.<String, Object>of("dim0", "2", "dim1", "2", "dim2", ImmutableList.of(""))),
-      PARSER.parse(ImmutableMap.<String, Object>of("dim0", "3", "dim1", "1", "dim2", ImmutableList.of("a"))),
-      PARSER.parse(ImmutableMap.<String, Object>of("dim0", "4", "dim1", "def", "dim2", ImmutableList.of("c"))),
-      PARSER.parse(ImmutableMap.<String, Object>of("dim0", "5", "dim1", "abc"))
+  private static final List<InputRow> ROWS = TestHelper.createInputRows(
+      new String[]{"__time", "met0", "dim0", "dim1", "dim2"},
+      new Object[]{"2000", 0, "0", "", ImmutableList.of("a", "b")},
+      new Object[]{"2000", 1, "1", "10", ImmutableList.of()},
+      new Object[]{"2000", 2, "2", "2", ImmutableList.of("")},
+      new Object[]{"2000", 3, "3", "1", ImmutableList.of("a")},
+      new Object[]{"2000", 4, "4", "def", ImmutableList.of("c")},
+      new Object[]{"2000", 5, "5", "abc", null}
   );
 
   public SelectorFilterTest(
@@ -122,6 +105,14 @@ public class SelectorFilterTest extends BaseFilterTest
     assertFilterMatches(new SelectorDimFilter("dim2", "b", null), ImmutableList.of("0"));
     assertFilterMatches(new SelectorDimFilter("dim2", "c", null), ImmutableList.of("4"));
     assertFilterMatches(new SelectorDimFilter("dim2", "d", null), ImmutableList.<String>of());
+  }
+
+  @Test
+  public void testMetric()
+  {
+    assertFilterMatches(new SelectorDimFilter("sum", "1", null), ImmutableList.of("1"));
+    assertFilterMatches(new SelectorDimFilter("sum", "2.0", null), ImmutableList.of("2"));
+    assertFilterMatches(new SelectorDimFilter("sum", "3.7", null), ImmutableList.<String>of("3"));
   }
 
   @Test

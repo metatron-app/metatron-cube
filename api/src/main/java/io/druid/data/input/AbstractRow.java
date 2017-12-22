@@ -22,6 +22,7 @@ package io.druid.data.input;
 import com.google.common.base.Function;
 import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
+import com.google.common.primitives.Ints;
 import com.google.common.primitives.Longs;
 import com.metamx.common.parsers.ParseException;
 import org.joda.time.DateTime;
@@ -179,6 +180,11 @@ public abstract class AbstractRow implements Row
       }
     }
     return Double.valueOf(target).longValue();
+  }
+
+  public static int tryParseInt(final String value)
+  {
+    return Ints.checkedCast(tryParseLong(value));
   }
 
   public static float tryParseFloat(final String value)

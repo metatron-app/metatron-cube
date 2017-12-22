@@ -25,11 +25,6 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.metamx.common.Pair;
 import io.druid.data.input.InputRow;
-import io.druid.data.input.impl.DefaultTimestampSpec;
-import io.druid.data.input.impl.DimensionsSpec;
-import io.druid.data.input.impl.InputRowParser;
-import io.druid.data.input.impl.MapInputRowParser;
-import io.druid.data.input.impl.TimeAndDimsParseSpec;
 import io.druid.js.JavaScriptConfig;
 import io.druid.query.extraction.ExtractionFn;
 import io.druid.query.extraction.JavaScriptExtractionFn;
@@ -40,7 +35,7 @@ import io.druid.query.lookup.LookupExtractionFn;
 import io.druid.query.lookup.LookupExtractor;
 import io.druid.segment.IndexBuilder;
 import io.druid.segment.StorageAdapter;
-import org.joda.time.DateTime;
+import io.druid.segment.TestHelper;
 import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.Test;
@@ -54,22 +49,14 @@ import java.util.Map;
 @RunWith(Parameterized.class)
 public class InFilterTest extends BaseFilterTest
 {
-  private static final String TIMESTAMP_COLUMN = "timestamp";
-
-  private static final InputRowParser<Map<String, Object>> PARSER = new MapInputRowParser(
-      new TimeAndDimsParseSpec(
-          new DefaultTimestampSpec(TIMESTAMP_COLUMN, "iso", new DateTime("2000")),
-          new DimensionsSpec(null, null, null)
-      )
-  );
-
-  private static final List<InputRow> ROWS = ImmutableList.of(
-      PARSER.parse(ImmutableMap.<String, Object>of("dim0", "a", "dim1", "", "dim2", ImmutableList.of("a", "b"))),
-      PARSER.parse(ImmutableMap.<String, Object>of("dim0", "b", "dim1", "10", "dim2", ImmutableList.of())),
-      PARSER.parse(ImmutableMap.<String, Object>of("dim0", "c", "dim1", "2", "dim2", ImmutableList.of(""))),
-      PARSER.parse(ImmutableMap.<String, Object>of("dim0", "d", "dim1", "1", "dim2", ImmutableList.of("a"))),
-      PARSER.parse(ImmutableMap.<String, Object>of("dim0", "e", "dim1", "def", "dim2", ImmutableList.of("c"))),
-      PARSER.parse(ImmutableMap.<String, Object>of("dim0", "f", "dim1", "abc"))
+  private static final List<InputRow> ROWS = TestHelper.createInputRows(
+      new String[]{"__time", "met0", "dim0", "dim1", "dim2"},
+      new Object[]{"2000", 1, "a", "", ImmutableList.of("a", "b")},
+      new Object[]{"2000", 2, "b", "10", ImmutableList.of()},
+      new Object[]{"2000", 3, "c", "2", ImmutableList.of("")},
+      new Object[]{"2000", 4, "d", "1", ImmutableList.of("a")},
+      new Object[]{"2000", 5, "e", "def", ImmutableList.of("c")},
+      new Object[]{"2000", 6, "f", "abc", null}
   );
 
   public InFilterTest(
@@ -169,6 +156,25 @@ public class InFilterTest extends BaseFilterTest
     assertFilterMatches(
         toInFilter("dim2", "d"),
         ImmutableList.<String>of()
+    );
+  }
+
+  @Test
+  public void testMetric()
+  {
+    assertFilterMatches(
+        toInFilter("sum", "1", "2"),
+        ImmutableList.<String>of("a", "b")
+    );
+
+    assertFilterMatches(
+        toInFilter("sum", "3.0", "4.0"),
+        ImmutableList.<String>of("c", "d")
+    );
+
+    assertFilterMatches(
+        toInFilter("sum", "5.5"),
+        ImmutableList.<String>of("e")
     );
   }
 
