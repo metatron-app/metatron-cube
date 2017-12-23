@@ -29,6 +29,7 @@ import com.google.common.primitives.Ints;
 import com.metamx.common.ISE;
 import com.metamx.common.guava.Sequence;
 import com.metamx.common.guava.Sequences;
+import com.metamx.common.logger.Logger;
 import io.druid.common.DateTimes;
 import io.druid.data.input.AbstractRow;
 import io.druid.data.input.Row;
@@ -62,12 +63,15 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 
 public class QueryMaker
 {
+  private static final Logger LOG = new Logger(QueryMaker.class);
+
   private final QuerySegmentWalker segmentWalker;
   private final PlannerContext plannerContext;
   private final ObjectMapper jsonMapper;
@@ -95,8 +99,11 @@ public class QueryMaker
 
   public Sequence<Object[]> runQuery(final DruidQuery druidQuery)
   {
-    final Query query = druidQuery.getQuery();
-
+    Query query = druidQuery.getQuery();
+    if (query.getId() == null) {
+      query = query.withId(UUID.randomUUID().toString());
+    }
+    LOG.info("Running query : %s", query);
     if (query instanceof TimeseriesQuery) {
       return executeTimeseries(druidQuery, (TimeseriesQuery) query);
     } else if (query instanceof TopNQuery) {

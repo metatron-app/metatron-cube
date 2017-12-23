@@ -23,7 +23,6 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Joiner;
-import io.druid.query.Query;
 import org.joda.time.DateTime;
 
 import java.util.Arrays;
@@ -34,10 +33,10 @@ public class RequestLogLine
 
   private final DateTime timestamp;
   private final String remoteAddr;
-  private final Query query;
+  private final Object query;
   private final QueryStats queryStats;
 
-  public RequestLogLine(DateTime timestamp, String remoteAddr, Query query, QueryStats queryStats)
+  public RequestLogLine(DateTime timestamp, String remoteAddr, Object query, QueryStats queryStats)
   {
     this.timestamp = timestamp;
     this.remoteAddr = remoteAddr;
@@ -64,7 +63,7 @@ public class RequestLogLine
   }
 
   @JsonProperty("query")
-  public Query getQuery()
+  public Object getQuery()
   {
     return query;
   }

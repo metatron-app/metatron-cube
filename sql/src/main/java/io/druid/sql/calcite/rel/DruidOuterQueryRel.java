@@ -125,7 +125,7 @@ public class DruidOuterQueryRel extends DruidRel<DruidOuterQueryRel>
 
     final RowSignature sourceRowSignature = subQuery.getOutputRowSignature();
     return partialQuery.build(
-        new QueryDataSource(subQuery.toGroupByQuery()),
+        new QueryDataSource(subQuery.getQuery()),
         sourceRowSignature,
         getPlannerContext(),
         getCluster().getRexBuilder()

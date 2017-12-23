@@ -277,7 +277,13 @@ public abstract class BaseQuery<T extends Comparable<T>> implements Query<T>
     if (context != null) {
       overridden.putAll(context);
     }
-    overridden.putAll(overrides);
+    for (Map.Entry<String, Object> override : overrides.entrySet()) {
+      if (override.getValue() == null) {
+        overridden.remove(override.getKey());
+      } else {
+        overridden.put(override.getKey(), override.getValue());
+      }
+    }
 
     return overridden;
   }

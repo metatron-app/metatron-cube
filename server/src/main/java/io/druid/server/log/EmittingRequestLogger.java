@@ -101,7 +101,7 @@ public class EmittingRequestLogger implements RequestLogger
     }
 
     @JsonProperty("query")
-    public Query getQuery()
+    public Object getQuery()
     {
       return request.getQuery();
     }

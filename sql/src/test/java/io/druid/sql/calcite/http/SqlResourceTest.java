@@ -19,15 +19,16 @@
 
 package io.druid.sql.calcite.http;
 
-import com.amazonaws.services.workspaces.model.ResourceLimitExceededException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
-import com.metamx.common.ISE;
 import com.metamx.common.Pair;
 import io.druid.jackson.DefaultObjectMapper;
+import io.druid.math.expr.Parser;
 import io.druid.query.QueryInterruptedException;
+import io.druid.query.sql.SQLFunctions;
+import io.druid.server.log.NoopRequestLogger;
 import io.druid.sql.calcite.planner.Calcites;
 import io.druid.sql.calcite.planner.DruidOperatorTable;
 import io.druid.sql.calcite.planner.PlannerConfig;
@@ -57,6 +58,10 @@ import java.util.Map;
 
 public class SqlResourceTest
 {
+  static {
+    Parser.register(SQLFunctions.class);
+  }
+
   private static final ObjectMapper JSON_MAPPER = new DefaultObjectMapper();
 
   @Rule
@@ -81,6 +86,7 @@ public class SqlResourceTest
     final DruidSchema druidSchema = CalciteTests.createMockSchema(walker, plannerConfig);
     final DruidOperatorTable operatorTable = CalciteTests.createOperatorTable();
     req = EasyMock.createStrictMock(HttpServletRequest.class);
+    EasyMock.expect(req.getRemoteAddr()).andReturn("localhost").anyTimes();
     EasyMock.replay(req);
 
     resource = new SqlResource(
@@ -91,7 +97,8 @@ public class SqlResourceTest
             operatorTable,
             plannerConfig,
             CalciteTests.getJsonMapper()
-        )
+        ),
+        new NoopRequestLogger()
     );
   }
 
@@ -214,17 +221,8 @@ public class SqlResourceTest
   public void testCannotConvert() throws Exception
   {
     // SELECT + ORDER unsupported
-    final QueryInterruptedException exception = doPost(
-        new SqlQuery("SELECT dim1 FROM druid.foo ORDER BY dim1", null)
-    ).lhs;
-
+    Throwable exception = doPost(new SqlQuery("SELECT dim1 FROM druid.foo ORDER BY dim1", null)).lhs;
     Assert.assertNotNull(exception);
-    Assert.assertEquals(QueryInterruptedException.UNKNOWN_EXCEPTION, exception.getErrorCode());
-    Assert.assertEquals(ISE.class.getName(), exception.getErrorClass());
-    Assert.assertTrue(
-        exception.getMessage()
-                 .contains("Cannot build plan for query: SELECT dim1 FROM druid.foo ORDER BY dim1")
-    );
   }
 
   // Returns either an error or a result.

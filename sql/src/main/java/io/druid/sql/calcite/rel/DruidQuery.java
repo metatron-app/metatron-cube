@@ -111,7 +111,6 @@ public class DruidQuery
   private final RowSignature outputRowSignature;
   private final RelDataType outputRowType;
   private final DefaultLimitSpec limitSpec;
-  private final Query query;
 
   public DruidQuery(
       final PartialDruidQuery partialQuery,
@@ -140,7 +139,6 @@ public class DruidQuery
     }
 
     this.limitSpec = computeLimitSpec(partialQuery, this.outputRowSignature);
-    this.query = computeQuery();
   }
 
   @Nullable
@@ -581,7 +579,7 @@ public class DruidQuery
 
   public Query getQuery()
   {
-    return query;
+    return computeQuery();
   }
 
   /**

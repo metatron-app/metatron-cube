@@ -32,6 +32,7 @@ import io.druid.common.utils.StringUtils;
 import io.druid.granularity.Granularities;
 import io.druid.granularity.PeriodGranularity;
 import io.druid.math.expr.Parser;
+import io.druid.query.BaseQuery;
 import io.druid.query.Druids;
 import io.druid.query.Query;
 import io.druid.query.QueryContexts;
@@ -6166,6 +6167,11 @@ public class CalciteQueryTest
     }
   }
 
+  private static final Map<String, Object> REMOVE_ID = Maps.newHashMap();
+  static {
+    REMOVE_ID.put(BaseQuery.QUERYID, null);
+  }
+
   private void verifyResults(
       final String sql,
       final List<Query> expectedQueries,
@@ -6203,7 +6209,7 @@ public class CalciteQueryTest
         Assert.assertEquals(
             StringUtils.format("query #%d: %s", i + 1, sql),
             expectedQueries.get(i),
-            recordedQueries.get(i)
+            recordedQueries.get(i).withOverriddenContext(REMOVE_ID)
         );
       }
     }

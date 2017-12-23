@@ -23,13 +23,18 @@ import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
+import com.google.common.collect.ImmutableMap;
+import com.google.common.io.CountingOutputStream;
 import com.google.inject.Inject;
-import io.druid.common.Yielders;
-import io.druid.guice.annotations.Json;
 import com.metamx.common.ISE;
 import com.metamx.common.guava.Yielder;
 import com.metamx.common.logger.Logger;
+import io.druid.common.Yielders;
+import io.druid.guice.annotations.Json;
 import io.druid.query.QueryInterruptedException;
+import io.druid.server.QueryStats;
+import io.druid.server.RequestLogLine;
+import io.druid.server.log.RequestLogger;
 import io.druid.sql.calcite.planner.Calcites;
 import io.druid.sql.calcite.planner.DruidPlanner;
 import io.druid.sql.calcite.planner.PlannerFactory;
@@ -37,6 +42,7 @@ import io.druid.sql.calcite.planner.PlannerResult;
 import org.apache.calcite.plan.RelOptPlanner;
 import org.apache.calcite.rel.type.RelDataTypeField;
 import org.apache.calcite.sql.type.SqlTypeName;
+import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
 import org.joda.time.format.ISODateTimeFormat;
 
@@ -62,15 +68,18 @@ public class SqlResource
 
   private final ObjectMapper jsonMapper;
   private final PlannerFactory plannerFactory;
+  private final RequestLogger requestLogger;
 
   @Inject
   public SqlResource(
       @Json ObjectMapper jsonMapper,
-      PlannerFactory plannerFactory
+      PlannerFactory plannerFactory,
+      RequestLogger requestLogger
   )
   {
     this.jsonMapper = Preconditions.checkNotNull(jsonMapper, "jsonMapper");
     this.plannerFactory = Preconditions.checkNotNull(plannerFactory, "connection");
+    this.requestLogger = requestLogger;
   }
 
   @POST
@@ -84,6 +93,7 @@ public class SqlResource
     final PlannerResult plannerResult;
     final DateTimeZone timeZone;
 
+    final long start = System.currentTimeMillis();
     try (final DruidPlanner planner = plannerFactory.createPlanner(sqlQuery.getContext())) {
       plannerResult = planner.plan(sqlQuery.getQuery(), req);
       timeZone = planner.getPlannerContext().getTimeZone();
@@ -109,7 +119,8 @@ public class SqlResource
               {
                 Yielder<Object[]> yielder = yielder0;
 
-                try (final JsonGenerator jsonGenerator = jsonMapper.getFactory().createGenerator(outputStream)) {
+                CountingOutputStream os = new CountingOutputStream(outputStream);
+                try (final JsonGenerator jsonGenerator = jsonMapper.getFactory().createGenerator(os)) {
                   jsonGenerator.writeStartArray();
 
                   while (!yielder.isDone()) {
@@ -140,12 +151,29 @@ public class SqlResource
                   jsonGenerator.flush();
 
                   // End with CRLF
-                  outputStream.write('\r');
-                  outputStream.write('\n');
+                  os.write('\r');
+                  os.write('\n');
+
+                  os.flush(); // Some types of OutputStream suppress flush errors in the .close() method.
                 }
                 finally {
                   yielder.close();
                 }
+                final long queryTime = System.currentTimeMillis() - start;
+                requestLogger.log(
+                    new RequestLogLine(
+                        new DateTime(start),
+                        req.getRemoteAddr(),
+                        sqlQuery.getQuery(),
+                        new QueryStats(
+                            ImmutableMap.<String, Object>of(
+                                "query/time", queryTime,
+                                "query/bytes", os.getCount(),
+                                "success", true
+                            )
+                        )
+                    )
+                );
               }
             }
         ).build();
@@ -167,6 +195,22 @@ public class SqlResource
         exceptionToReport = e;
       }
 
+      final long queryTime = System.currentTimeMillis() - start;
+      requestLogger.log(
+          new RequestLogLine(
+              new DateTime(start),
+              req.getRemoteAddr(),
+              sqlQuery.getQuery(),
+              new QueryStats(
+                  ImmutableMap.<String, Object>of(
+                      "query/time", queryTime,
+                      "success", false,
+                      "interrupted", true,
+                      "reason", e.toString()
+                  )
+              )
+          )
+      );
       return Response.serverError()
                      .type(MediaType.APPLICATION_JSON_TYPE)
                      .entity(jsonMapper.writeValueAsBytes(QueryInterruptedException.wrapIfNeeded(exceptionToReport)))
