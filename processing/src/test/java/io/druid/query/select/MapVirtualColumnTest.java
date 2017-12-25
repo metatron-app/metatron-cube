@@ -31,12 +31,16 @@ import io.druid.data.input.impl.StringInputRowParser;
 import io.druid.granularity.QueryGranularities;
 import io.druid.jackson.DefaultObjectMapper;
 import io.druid.query.Druids;
+import io.druid.query.QueryContextKeys;
 import io.druid.query.QueryRunner;
 import io.druid.query.QueryRunnerTestHelper;
 import io.druid.query.Result;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.ArrayAggregatorFactory;
 import io.druid.query.aggregation.LongSumAggregatorFactory;
+import io.druid.query.dimension.DimensionSpecs;
+import io.druid.query.extraction.ExpressionExtractionFn;
+import io.druid.query.extraction.UpperExtractionFn;
 import io.druid.segment.ArrayVirtualColumn;
 import io.druid.segment.ExprVirtualColumn;
 import io.druid.segment.IncrementalIndexSegment;
@@ -177,6 +181,31 @@ public class MapVirtualColumnTest
                                      .metrics(Arrays.asList("params.key3", "params.key5", "params", "dim_nvl"))
                                      .virtualColumns(virtualColumns)
                                      .build();
+    checkSelectQuery(selectQuery, expectedResults);
+  }
+
+  @Test
+  public void testWithExtractFn() throws Exception
+  {
+    Druids.SelectQueryBuilder builder = testBuilder();
+
+    List<Map> expectedResults = Arrays.<Map>asList(
+        mapOf("params.key1", "VALUE1", "dim_nvl", "value1-a"),
+        mapOf("params.key1", null, "dim_nvl", "null-a"),
+        mapOf("params.key1", "VALUE1", "dim_nvl", "value1-a")
+    );
+    List<VirtualColumn> virtualColumns = Arrays.<VirtualColumn>asList(
+        new MapVirtualColumn("keys", "values", null, "params"),
+        new ExprVirtualColumn("nvl(params.key1, 'null')", "dim_nvl")
+    );
+    SelectQuery selectQuery = builder
+        .dimensionSpecs(
+            DimensionSpecs.of("params.key1", new UpperExtractionFn("en")),
+            DimensionSpecs.of("dim_nvl", new ExpressionExtractionFn("dim_nvl + '-a'"))
+        )
+        .virtualColumns(virtualColumns)
+        .context(ImmutableMap.<String, Object>of(QueryContextKeys.ALL_METRICS_FOR_EMPTY, false))
+        .build();
     checkSelectQuery(selectQuery, expectedResults);
   }
 

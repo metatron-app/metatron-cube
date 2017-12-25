@@ -26,6 +26,7 @@ import com.google.common.primitives.Ints;
 import io.druid.common.utils.StringUtils;
 import io.druid.data.TypeResolver;
 import io.druid.data.ValueDesc;
+import io.druid.query.extraction.ExtractionFn;
 import io.druid.query.filter.DimFilterCacheHelper;
 
 import java.nio.ByteBuffer;
@@ -141,13 +142,13 @@ public class ArrayVirtualColumn implements VirtualColumn
   }
 
   @Override
-  public DimensionSelector asDimension(String dimension, ColumnSelectorFactory factory)
+  public DimensionSelector asDimension(String dimension, ExtractionFn extractionFn, ColumnSelectorFactory factory)
   {
     ObjectColumnSelector selector = asMetric(dimension, factory);
     if (selector == null || !ValueDesc.isString(selector.type())) {
       throw new UnsupportedOperationException(dimension + " cannot be used as dimension");
     }
-    return VirtualColumns.toDimensionSelector(selector);
+    return VirtualColumns.toDimensionSelector(selector, extractionFn);
   }
 
   @Override

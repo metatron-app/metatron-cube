@@ -48,6 +48,8 @@ import io.druid.query.aggregation.LongMinAggregatorFactory;
 import io.druid.query.aggregation.LongSumAggregatorFactory;
 import io.druid.query.aggregation.cardinality.CardinalityAggregatorFactory;
 import io.druid.query.dimension.DefaultDimensionSpec;
+import io.druid.query.dimension.DimensionSpecs;
+import io.druid.query.extraction.ExpressionExtractionFn;
 import io.druid.query.filter.InDimFilter;
 import io.druid.segment.ArrayVirtualColumn;
 import io.druid.segment.ExprVirtualColumn;
@@ -579,6 +581,43 @@ public class VirtualColumnTest
                 new LongSumAggregatorFactory("sumOf", "array"),
                 new LongMinAggregatorFactory("minOf", "array"),
                 new LongMaxAggregatorFactory("maxOf", "array")
+            )
+        )
+        .setVirtualColumns(virtualColumns)
+        .build();
+
+    checkQueryResult(query, expectedResults);
+  }
+
+  @Test
+  public void testWithExtractFn() throws Exception
+  {
+    // key1 key2 key3
+    // 100  200  300
+    // 400  500  600
+    // 100  500 (900)
+    //  10   20   30
+    //   2    4    8
+    //   1    5    9
+    GroupByQuery.Builder builder = testBuilder();
+
+    List<Row> expectedResults = GroupByQueryRunnerTestHelper.createExpectedRows(
+        new String[]{"__time", "indexed", "sumOf", "minOf", "maxOf"},
+        new Object[]{"2011-01-12T00:00:00.000Z", "key10", 613L, 1L, 400L},
+        new Object[]{"2011-01-12T00:00:00.000Z", "key20", 1229L, 4L, 500L},
+        new Object[]{"2011-01-12T00:00:00.000Z", "key30", 947L, 8L, 600L}
+    );
+
+    List<VirtualColumn> virtualColumns = Arrays.<VirtualColumn>asList(
+        new KeyIndexedVirtualColumn("keys", Arrays.asList("values"), null, null, "indexed")
+    );
+    GroupByQuery query = builder
+        .setDimensions(DimensionSpecs.of("indexed", new ExpressionExtractionFn("indexed + '0'")))
+        .setAggregatorSpecs(
+            Arrays.<AggregatorFactory>asList(
+                new LongSumAggregatorFactory("sumOf", "values"),
+                new LongMinAggregatorFactory("minOf", "values"),
+                new LongMaxAggregatorFactory("maxOf", "values")
             )
         )
         .setVirtualColumns(virtualColumns)

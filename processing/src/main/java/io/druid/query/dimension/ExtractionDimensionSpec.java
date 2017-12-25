@@ -32,6 +32,11 @@ import java.nio.ByteBuffer;
  */
 public class ExtractionDimensionSpec implements DimensionSpec
 {
+  public static ExtractionDimensionSpec of(String dimensionName, ExtractionFn extractionFn)
+  {
+    return new ExtractionDimensionSpec(dimensionName, dimensionName, extractionFn);
+  }
+
   private static final byte CACHE_TYPE_ID = 0x1;
 
   private final String dimension;

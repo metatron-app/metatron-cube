@@ -444,4 +444,40 @@ public class ColumnSelectors
       }
     };
   }
+
+  public static class SingleValuedDimensionSelector implements DimensionSelector
+  {
+    private final String value;
+    private final boolean nullOrEmpty;
+
+    public SingleValuedDimensionSelector(String value)
+    {
+      this.value = value;
+      this.nullOrEmpty = StringUtils.isNullOrEmpty(value);
+    }
+
+    @Override
+    public IndexedInts getRow()
+    {
+      return NullDimensionSelector.SINGLETON;
+    }
+
+    @Override
+    public int getValueCardinality()
+    {
+      return 1;
+    }
+
+    @Override
+    public String lookupName(int id)
+    {
+      return id == 0 ? value : null;
+    }
+
+    @Override
+    public int lookupId(String name)
+    {
+      return (nullOrEmpty && StringUtils.isNullOrEmpty(name)) || Objects.equals(value, name) ? 0 : -1;
+    }
+  }
 }

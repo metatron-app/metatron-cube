@@ -22,6 +22,7 @@ package io.druid.query.dimension;
 import com.google.common.base.Function;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
+import io.druid.query.extraction.ExtractionFn;
 
 import java.util.List;
 
@@ -56,4 +57,12 @@ public class DimensionSpecs
       return input.getOutputName();
     }
   };
+
+  public static DimensionSpec of(String dimensionName, ExtractionFn extractionFn)
+  {
+    if (extractionFn != null) {
+      return ExtractionDimensionSpec.of(dimensionName, extractionFn);
+    }
+    return DefaultDimensionSpec.of(dimensionName);
+  }
 }

@@ -31,6 +31,9 @@ import io.druid.data.ValueDesc;
 import io.druid.data.ValueType;
 import io.druid.query.QueryCacheHelper;
 import io.druid.query.dimension.DefaultDimensionSpec;
+import io.druid.query.dimension.DimensionSpec;
+import io.druid.query.dimension.DimensionSpecs;
+import io.druid.query.extraction.ExtractionFn;
 import io.druid.query.filter.DimFilter;
 import io.druid.query.filter.DimFilterCacheHelper;
 import io.druid.query.filter.ValueMatcher;
@@ -185,12 +188,16 @@ public class KeyIndexedVirtualColumn implements VirtualColumn
   }
 
   @Override
-  public DimensionSelector asDimension(final String dimension, final ColumnSelectorFactory factory)
+  public DimensionSelector asDimension(
+      final String dimension,
+      final ExtractionFn extractionFn,
+      final ColumnSelectorFactory factory
+  )
   {
     if (!dimension.equals(outputName)) {
       throw new IllegalStateException("Only can be called as a group-by/top-N dimension");
     }
-    final DimensionSelector selector = toFilteredSelector(factory);
+    final DimensionSelector selector = toFilteredSelector(factory, extractionFn);
 
     return new IndexProvidingSelector.Delegated(selector)
     {
@@ -222,9 +229,10 @@ public class KeyIndexedVirtualColumn implements VirtualColumn
     return new KeyIndexedVirtualColumn(keyDimension, valueDimensions, valueMetrics, keyFilter, outputName);
   }
 
-  private DimensionSelector toFilteredSelector(final ColumnSelectorFactory factory)
+  private DimensionSelector toFilteredSelector(final ColumnSelectorFactory factory, final ExtractionFn extractionFn)
   {
-    final DimensionSelector selector = factory.makeDimensionSelector(DefaultDimensionSpec.of(keyDimension));
+    final DimensionSpec dimensionSpec = DimensionSpecs.of(keyDimension, extractionFn);
+    final DimensionSelector selector = factory.makeDimensionSelector(dimensionSpec);
     if (keyFilter == null) {
       return selector;
     }

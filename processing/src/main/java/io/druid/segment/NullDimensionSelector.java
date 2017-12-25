@@ -28,8 +28,7 @@ import java.util.Iterator;
 
 public class NullDimensionSelector implements DimensionSelector
 {
-
-  private static final IndexedInts SINGLETON = new IndexedInts() {
+  public static final IndexedInts SINGLETON = new IndexedInts() {
     @Override
     public int size() {
       return 1;

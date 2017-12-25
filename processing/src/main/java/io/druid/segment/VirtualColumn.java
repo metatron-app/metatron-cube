@@ -24,6 +24,7 @@ import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import io.druid.data.TypeResolver;
 import io.druid.data.ValueDesc;
 import io.druid.common.Cacheable;
+import io.druid.query.extraction.ExtractionFn;
 
 /**
  */
@@ -50,7 +51,7 @@ public interface VirtualColumn extends Cacheable
 
   LongColumnSelector asLongMetric(String dimension, ColumnSelectorFactory factory);
 
-  DimensionSelector asDimension(String dimension, ColumnSelectorFactory factory);
+  DimensionSelector asDimension(String dimension, ExtractionFn extractionFn, ColumnSelectorFactory factory);
 
   VirtualColumn duplicate();
 }

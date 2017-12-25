@@ -1338,6 +1338,12 @@ public class Druids
       return this;
     }
 
+    public SelectQueryBuilder dimensionSpecs(DimensionSpec... d)
+    {
+      dimensions = Arrays.asList(d);
+      return this;
+    }
+
     public SelectQueryBuilder dimensions(List<String> d)
     {
       dimensions = DefaultDimensionSpec.toSpec(d);

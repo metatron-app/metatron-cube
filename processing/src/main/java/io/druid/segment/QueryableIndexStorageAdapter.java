@@ -505,7 +505,7 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
                       if (columnDesc == null) {
                         VirtualColumn virtualColumn = virtualColumns.getVirtualColumn(dimension);
                         if (virtualColumn != null) {
-                          return virtualColumn.asDimension(dimension, this);
+                          return virtualColumn.asDimension(dimension, extractionFn, this);
                         }
                         return NULL_DIMENSION_SELECTOR;
                       }
@@ -519,7 +519,7 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
                       }
                       if (cachedColumn == null) {
                         // todo: group-by columns are converted to string
-                        return VirtualColumns.toDimensionSelector(makeObjectColumnSelector(dimension));
+                        return VirtualColumns.toDimensionSelector(makeObjectColumnSelector(dimension), extractionFn);
                       }
 
                       final DictionaryEncodedColumn column = cachedColumn;

@@ -27,6 +27,7 @@ import com.metamx.common.StringUtils;
 import io.druid.data.TypeResolver;
 import io.druid.data.ValueDesc;
 import io.druid.math.expr.Parser;
+import io.druid.query.extraction.ExtractionFn;
 import io.druid.query.filter.DimFilterCacheHelper;
 
 import java.nio.ByteBuffer;
@@ -77,9 +78,9 @@ public class ExprVirtualColumn implements VirtualColumn
   }
 
   @Override
-  public DimensionSelector asDimension(String dimension, ColumnSelectorFactory factory)
+  public DimensionSelector asDimension(String dimension, ExtractionFn extractionFn, ColumnSelectorFactory factory)
   {
-    return VirtualColumns.toDimensionSelector(asMetric(dimension, factory));
+    return VirtualColumns.toDimensionSelector(asMetric(dimension, factory), extractionFn);
   }
 
   @Override

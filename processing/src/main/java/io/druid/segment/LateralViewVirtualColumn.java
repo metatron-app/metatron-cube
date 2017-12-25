@@ -11,6 +11,7 @@ import io.druid.common.guava.DSuppliers.HandOver;
 import io.druid.data.TypeResolver;
 import io.druid.data.ValueDesc;
 import io.druid.query.QueryCacheHelper;
+import io.druid.query.extraction.ExtractionFn;
 import io.druid.query.filter.DimFilterCacheHelper;
 import io.druid.segment.data.IndexedInts;
 
@@ -148,10 +149,13 @@ public class LateralViewVirtualColumn implements VirtualColumn
   }
 
   @Override
-  public DimensionSelector asDimension(String dimension, ColumnSelectorFactory factory)
+  public DimensionSelector asDimension(String dimension, ExtractionFn extractionFn, ColumnSelectorFactory factory)
   {
     if (!dimension.equals(outputName)) {
       throw new IllegalStateException("Only can be called as a group-by/top-N dimension");
+    }
+    if (extractionFn != null) {
+      throw new UnsupportedOperationException("not supported yet");
     }
     final List<String> targetColumns = Lists.newArrayList();
     for (String column : factory.getColumnNames()) {

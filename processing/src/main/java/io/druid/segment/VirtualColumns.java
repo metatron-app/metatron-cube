@@ -28,6 +28,7 @@ import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import io.druid.data.ValueDesc;
 import io.druid.query.dimension.DimensionSpec;
+import io.druid.query.extraction.ExtractionFn;
 import io.druid.query.filter.DimFilter;
 import io.druid.query.filter.ValueMatcher;
 import io.druid.segment.data.ArrayBasedIndexedInts;
@@ -103,10 +104,16 @@ public class VirtualColumns implements Iterable<VirtualColumn>
     return valueOf(virtualColumns).addImplicitVCs(adapter);
   }
 
-  public static DimensionSelector toDimensionSelector(final ObjectColumnSelector selector)
+  public static DimensionSelector toDimensionSelector(
+      final ObjectColumnSelector selector,
+      final ExtractionFn extractionFn
+  )
   {
     if (selector == null) {
-      return new NullDimensionSelector();
+      if (extractionFn == null) {
+        return new NullDimensionSelector();
+      }
+      return new ColumnSelectors.SingleValuedDimensionSelector(extractionFn.apply(null));
     }
 
     return new DimensionSelector()
@@ -118,7 +125,13 @@ public class VirtualColumns implements Iterable<VirtualColumn>
       @Override
       public IndexedInts getRow()
       {
-        String value = Objects.toString(selector.get(), null);
+        final Object selected = selector.get();
+        final String value;
+        if (extractionFn != null) {
+          value = extractionFn.apply(selected);
+        } else {
+          value = Objects.toString(selected, null);
+        }
         Integer index = valToId.get(value);
         if (index == null) {
           valToId.put(value, index = counter++);
@@ -353,7 +366,7 @@ public class VirtualColumns implements Iterable<VirtualColumn>
     public DimensionSelector makeDimensionSelector(DimensionSpec dimensionSpec)
     {
       if (dimensionColumn.equals(dimensionSpec.getDimension())) {
-        return virtualColumn.asDimension(dimensionSpec.getDimension(), factory);
+        return virtualColumn.asDimension(dimensionSpec.getDimension(), dimensionSpec.getExtractionFn(), factory);
       }
       return factory.makeDimensionSelector(dimensionSpec);
     }

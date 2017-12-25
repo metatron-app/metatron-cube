@@ -642,6 +642,12 @@ public class GroupByQuery extends BaseQuery<Row> implements Query.AggregationsSu
       return this;
     }
 
+    public Builder setDimensions(DimensionSpec... dimensions)
+    {
+      this.dimensions = Lists.newArrayList(dimensions);
+      return this;
+    }
+
     public Builder setVirtualColumns(List<VirtualColumn> virtualColumns)
     {
       this.virtualColumns = virtualColumns;

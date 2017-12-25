@@ -27,6 +27,8 @@ import io.druid.common.utils.StringUtils;
 import io.druid.data.TypeResolver;
 import io.druid.data.ValueDesc;
 import io.druid.query.dimension.DefaultDimensionSpec;
+import io.druid.query.dimension.DimensionSpecs;
+import io.druid.query.extraction.ExtractionFn;
 import io.druid.query.filter.DimFilterCacheHelper;
 import io.druid.segment.data.IndexedInts;
 
@@ -254,7 +256,7 @@ public class MapVirtualColumn implements VirtualColumn
   }
 
   @Override
-  public DimensionSelector asDimension(String dimension, ColumnSelectorFactory factory)
+  public DimensionSelector asDimension(String dimension, ExtractionFn extractionFn, ColumnSelectorFactory factory)
   {
     Preconditions.checkArgument(dimension.startsWith(outputName));
     final int index = dimension.indexOf('.', outputName.length());
@@ -263,16 +265,16 @@ public class MapVirtualColumn implements VirtualColumn
     }
     String target = dimension.substring(index + 1);
     if (MAP_KEY.equals(target)) {
-      return factory.makeDimensionSelector(DefaultDimensionSpec.of(keyDimension));
+      return factory.makeDimensionSelector(DimensionSpecs.of(keyDimension, extractionFn));
     }
     if (MAP_VALUE.equals(target)) {
-      return factory.makeDimensionSelector(DefaultDimensionSpec.of(valueDimension));
+      return factory.makeDimensionSelector(DimensionSpecs.of(valueDimension, extractionFn));
     }
     ObjectColumnSelector selector = asMetric(dimension, factory);
     if (!ValueDesc.isString(selector.type())) {
       throw new UnsupportedOperationException(dimension + " cannot be used as dimension");
     }
-    return VirtualColumns.toDimensionSelector(selector);
+    return VirtualColumns.toDimensionSelector(selector, extractionFn);
   }
 
   @Override
