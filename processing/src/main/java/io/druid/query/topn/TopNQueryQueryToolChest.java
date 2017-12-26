@@ -716,8 +716,7 @@ public class TopNQueryQueryToolChest extends QueryToolChest<Result<TopNResultVal
       {
         final Query<I> subQuery = ((QueryDataSource)query.getDataSource()).getQuery();
         final IncrementalIndexSchema schema = Queries.relaySchema(subQuery, segmentWalker);
-        final Sequence<Row> innerSequence = Sequences.map(
-            subQueryRunner.run(subQuery, responseContext), Queries.getRowConverter(subQuery));
+        final Sequence<Row> innerSequence = Queries.convertRow(subQuery, subQueryRunner.run(subQuery, responseContext));
 
         logger.info(
             "Accumulating into intermediate index with dimension %s and metric %s",

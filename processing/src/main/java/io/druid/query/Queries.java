@@ -27,6 +27,7 @@ import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
+import com.metamx.common.guava.Sequence;
 import com.metamx.common.guava.Sequences;
 import com.metamx.common.logger.Logger;
 import io.druid.common.guava.GuavaUtils;
@@ -47,8 +48,10 @@ import io.druid.query.select.SelectMetaQuery;
 import io.druid.query.select.SelectMetaResultValue;
 import io.druid.query.timeseries.TimeseriesQuery;
 import io.druid.query.topn.TopNQuery;
+import io.druid.query.topn.TopNResultValue;
 import io.druid.segment.column.Column;
 import io.druid.segment.incremental.IncrementalIndexSchema;
+import org.joda.time.DateTime;
 
 import java.util.List;
 import java.util.Map;
@@ -243,25 +246,55 @@ public class Queries
     return result.getValue().getSchema();
   }
 
-  public static <I> Function<I, Row> getRowConverter(Query<I> subQuery)
+  @SuppressWarnings("unchecked")
+  public static <I> Sequence<Row> convertRow(Query<I> subQuery, Sequence<I> sequence)
   {
     if (subQuery instanceof JoinQuery.JoinDelegate) {
       final JoinQuery.JoinDelegate delegate = (JoinQuery.JoinDelegate) subQuery;
       final String timeColumn = delegate.getPrefixAliases() == null
                                 ? EventHolder.timestampKey
                                 : delegate.getPrefixAliases().get(0) + "." + EventHolder.timestampKey;
-      return new Function<I, Row>()
-      {
-        @Override
-        @SuppressWarnings("unchecked")
-        public Row apply(I input)
-        {
-          Map<String, Object> event = (Map<String, Object>) input;
-          return new MapBasedRow((Long)event.get(timeColumn), event);
-        }
-      };
+      return Sequences.map(
+          sequence, new Function<I, Row>()
+          {
+            @Override
+            @SuppressWarnings("unchecked")
+            public Row apply(I input)
+            {
+              Map<String, Object> event = (Map<String, Object>) input;
+              return new MapBasedRow((Long) event.get(timeColumn), event);
+            }
+          }
+      );
+    } else if (subQuery instanceof TopNQuery) {
+      Sequence<Result<TopNResultValue>> topN = (Sequence<Result<TopNResultValue>>) sequence;
+      return Sequences.concat(
+          Sequences.map(
+              topN, new Function<Result<TopNResultValue>, Sequence<Row>>()
+              {
+                @Override
+                public Sequence<Row> apply(Result<TopNResultValue> input)
+                {
+                  final DateTime timestamp = input.getTimestamp();
+                  return Sequences.simple(
+                      Lists.transform(
+                          input.getValue().getValue(),
+                          new Function<Map<String, Object>, Row>()
+                          {
+                            @Override
+                            public Row apply(Map<String, Object> input)
+                            {
+                              return new MapBasedRow(timestamp, input);
+                            }
+                          }
+                      )
+                  );
+                }
+              }
+          )
+      );
     }
-    return GuavaUtils.caster();
+    return Sequences.map(sequence, GuavaUtils.<I, Row>caster());
   }
 
   public static Map<String, Object> extractContext(Query<?> query, String... keys)

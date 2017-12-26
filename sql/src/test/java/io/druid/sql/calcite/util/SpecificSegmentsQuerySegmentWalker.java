@@ -31,6 +31,8 @@ import com.metamx.common.guava.FunctionalIterable;
 import io.druid.query.DataSource;
 import io.druid.query.FinalizeResultsQueryRunner;
 import io.druid.query.NoopQueryRunner;
+import io.druid.query.PostProcessingOperator;
+import io.druid.query.PostProcessingOperators;
 import io.druid.query.Query;
 import io.druid.query.QueryDataSource;
 import io.druid.query.QueryRunner;
@@ -255,6 +257,8 @@ public class SpecificSegmentsQuerySegmentWalker implements QuerySegmentWalker
       QueryRunner innerRunner = toQueryRunner(innerQuery, segments);
       runner = toolChest.handleSubQuery(innerRunner, this, MoreExecutors.sameThreadExecutor(), maxRowCount);
     }
-    return FinalizeResultsQueryRunner.finalize(toolChest.mergeResults(runner), toolChest, null);
+    runner = FinalizeResultsQueryRunner.finalize(toolChest.mergeResults(runner), toolChest, null);
+    PostProcessingOperator postProcessing = PostProcessingOperators.load(query, CalciteTests.getJsonMapper());
+    return postProcessing != null ? postProcessing.postProcess(runner) : runner;
   }
 }

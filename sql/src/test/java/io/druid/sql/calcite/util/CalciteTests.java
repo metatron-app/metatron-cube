@@ -20,40 +20,35 @@
 package io.druid.sql.calcite.util;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.introspect.AnnotationIntrospectorPair;
 import com.google.common.base.Supplier;
-import com.google.common.base.Suppliers;
 import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
-import com.google.common.collect.Maps;
 import com.google.inject.Binder;
 import com.google.inject.Guice;
 import com.google.inject.Injector;
 import com.google.inject.Key;
 import com.google.inject.Module;
-import com.metamx.emitter.core.NoopEmitter;
-import com.metamx.emitter.service.ServiceEmitter;
 import io.druid.collections.StupidPool;
 import io.druid.data.input.InputRow;
-import io.druid.data.input.TimestampSpec;
 import io.druid.data.input.impl.DefaultTimestampSpec;
 import io.druid.data.input.impl.DimensionsSpec;
 import io.druid.data.input.impl.InputRowParser;
 import io.druid.data.input.impl.MapInputRowParser;
 import io.druid.data.input.impl.TimeAndDimsParseSpec;
+import io.druid.guice.GuiceAnnotationIntrospector;
+import io.druid.guice.GuiceInjectableValues;
 import io.druid.guice.annotations.Json;
 import io.druid.query.DefaultQueryRunnerFactoryConglomerate;
-import io.druid.query.DruidProcessingConfig;
 import io.druid.query.Query;
 import io.druid.query.QueryRunnerFactory;
 import io.druid.query.QueryRunnerFactoryConglomerate;
 import io.druid.query.QueryRunnerTestHelper;
-import io.druid.query.QuerySegmentWalker;
 import io.druid.query.QueryToolChest;
 import io.druid.query.QueryToolChestWarehouse;
 import io.druid.query.aggregation.CountAggregatorFactory;
-import io.druid.query.aggregation.DoubleSumAggregatorFactory;
 import io.druid.query.aggregation.GenericSumAggregatorFactory;
 import io.druid.query.aggregation.hyperloglog.HyperUniquesAggregatorFactory;
 import io.druid.query.groupby.GroupByQuery;
@@ -61,8 +56,6 @@ import io.druid.query.groupby.GroupByQueryConfig;
 import io.druid.query.groupby.GroupByQueryEngine;
 import io.druid.query.groupby.GroupByQueryQueryToolChest;
 import io.druid.query.groupby.GroupByQueryRunnerFactory;
-import io.druid.query.groupby.GroupByQueryRunnerTest;
-import io.druid.query.lookup.LookupReferencesManager;
 import io.druid.query.metadata.SegmentMetadataQueryConfig;
 import io.druid.query.metadata.SegmentMetadataQueryQueryToolChest;
 import io.druid.query.metadata.SegmentMetadataQueryRunnerFactory;
@@ -73,7 +66,6 @@ import io.druid.query.select.SelectQueryEngine;
 import io.druid.query.select.SelectQueryQueryToolChest;
 import io.druid.query.select.SelectQueryRunnerFactory;
 import io.druid.query.select.StreamQueryEngine;
-import io.druid.query.select.StreamQueryToolChest;
 import io.druid.query.select.StreamRawQuery;
 import io.druid.query.select.StreamRawQueryRunnerFactory;
 import io.druid.query.select.StreamRawQueryToolChest;
@@ -90,12 +82,7 @@ import io.druid.segment.IndexBuilder;
 import io.druid.segment.QueryableIndex;
 import io.druid.segment.TestHelper;
 import io.druid.segment.incremental.IncrementalIndexSchema;
-import io.druid.server.security.Access;
-import io.druid.server.security.Action;
-import io.druid.server.security.Resource;
-import io.druid.server.security.ResourceType;
 import io.druid.sql.calcite.expression.SqlOperatorConversion;
-import io.druid.sql.calcite.expression.builtin.LookupOperatorConversion;
 import io.druid.sql.calcite.planner.DruidOperatorTable;
 import io.druid.sql.calcite.planner.PlannerConfig;
 import io.druid.sql.calcite.schema.DruidSchema;
@@ -108,7 +95,6 @@ import org.joda.time.chrono.ISOChronology;
 
 import java.io.File;
 import java.nio.ByteBuffer;
-import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -165,7 +151,16 @@ public class CalciteTests
         public void configure(final Binder binder)
         {
           binder.bind(Key.get(ObjectMapper.class, Json.class)).toInstance(TestHelper.JSON_MAPPER);
-
+          binder.bind(QueryToolChestWarehouse.class).toInstance(
+              new QueryToolChestWarehouse()
+              {
+                @Override
+                public <T, QueryType extends Query<T>> QueryToolChest<T, QueryType> getToolChest(final QueryType query)
+                {
+                  return CONGLOMERATE.findFactory(query).getToolchest();
+                }
+              }
+          );
           // This Module is just to get a LookupReferencesManager with a usable "lookyloo" lookup.
 
 //          binder.bind(LookupReferencesManager.class)
@@ -336,7 +331,18 @@ public class CalciteTests
 
   public static ObjectMapper getJsonMapper()
   {
-    return INJECTOR.getInstance(Key.get(ObjectMapper.class, Json.class));
+    ObjectMapper mapper = INJECTOR.getInstance(Key.get(ObjectMapper.class, Json.class));
+    final GuiceAnnotationIntrospector guiceIntrospector = new GuiceAnnotationIntrospector();
+    mapper.setInjectableValues(new GuiceInjectableValues(INJECTOR));
+    mapper.setAnnotationIntrospectors(
+        new AnnotationIntrospectorPair(
+            guiceIntrospector, mapper.getSerializationConfig().getAnnotationIntrospector()
+        ),
+        new AnnotationIntrospectorPair(
+            guiceIntrospector, mapper.getDeserializationConfig().getAnnotationIntrospector()
+        )
+    );
+    return mapper;
   }
 
   public static SpecificSegmentsQuerySegmentWalker createMockWalker(final File tmpDir)
