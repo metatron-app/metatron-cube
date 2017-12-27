@@ -196,7 +196,11 @@ public class ViewSupportHelper
 
   public static Schema toSchema(Query.MetricSupport<?> query, Segment segment)
   {
-    final StorageAdapter adapter = segment.asStorageAdapter(false);
+    return toSchema(query, segment.asStorageAdapter(false));
+  }
+
+  public static Schema toSchema(Query.MetricSupport<?> query, StorageAdapter adapter)
+  {
     final List<String> dimensions = DimensionSpecs.toOutputNames(query.getDimensions());
     final List<String> metrics = Lists.newArrayList(query.getMetrics());
 

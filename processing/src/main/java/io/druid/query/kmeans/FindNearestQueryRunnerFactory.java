@@ -37,6 +37,7 @@ import io.druid.query.select.Schema;
 import io.druid.query.select.StreamQuery;
 import io.druid.query.select.StreamQueryEngine;
 import io.druid.segment.Segment;
+import io.druid.segment.StorageAdapter;
 import org.apache.commons.lang.mutable.MutableInt;
 
 import java.util.Arrays;
@@ -87,8 +88,9 @@ public class FindNearestQueryRunnerFactory
         FindNearestQuery nearestQuery = (FindNearestQuery) query;
         final int dimension = nearestQuery.getMetrics().size();
 
-        StreamQuery stream = nearestQuery.asInput();
-        Pair<Schema, Sequence<Object[]>> result = engine.process(stream, segment, optimizer, cache);
+        final StreamQuery stream = nearestQuery.asInput();
+        final StorageAdapter adapter = segment.asStorageAdapter(true);
+        final Pair<Schema, Sequence<Object[]>> result = engine.processRaw(stream, adapter, optimizer, cache);
 
         final Centroid[] centroids = nearestQuery.getCentroids().toArray(new Centroid[0]);
         final CentroidDesc[] descs = new CentroidDesc[centroids.length];

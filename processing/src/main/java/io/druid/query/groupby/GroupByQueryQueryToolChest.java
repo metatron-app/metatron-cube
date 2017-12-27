@@ -36,7 +36,6 @@ import com.metamx.common.ISE;
 import com.metamx.common.guava.ResourceClosingSequence;
 import com.metamx.common.guava.Sequence;
 import com.metamx.common.guava.Sequences;
-import com.metamx.common.logger.Logger;
 import com.metamx.emitter.service.ServiceMetricEvent;
 import io.druid.collections.StupidPool;
 import io.druid.common.guava.CombiningSequence;
@@ -50,11 +49,9 @@ import io.druid.query.CacheStrategy;
 import io.druid.query.DruidMetrics;
 import io.druid.query.IntervalChunkingQueryRunnerDecorator;
 import io.druid.query.LateralViewSpec;
-import io.druid.query.Queries;
 import io.druid.query.Query;
 import io.druid.query.QueryCacheHelper;
 import io.druid.query.QueryContextKeys;
-import io.druid.query.QueryDataSource;
 import io.druid.query.QueryRunner;
 import io.druid.query.QuerySegmentWalker;
 import io.druid.query.QueryToolChest;
@@ -71,10 +68,9 @@ import io.druid.query.dimension.DimensionSpec;
 import io.druid.query.extraction.ExtractionFn;
 import io.druid.query.filter.DimFilter;
 import io.druid.query.spec.MultipleIntervalSegmentSpec;
+import io.druid.segment.Segment;
+import io.druid.segment.StorageAdapter;
 import io.druid.segment.incremental.IncrementalIndex;
-import io.druid.segment.incremental.IncrementalIndexSchema;
-import io.druid.segment.incremental.IncrementalIndexStorageAdapter;
-import io.druid.segment.incremental.OnheapIncrementalIndex;
 import org.joda.time.DateTime;
 import org.joda.time.Interval;
 
@@ -101,8 +97,6 @@ public class GroupByQueryQueryToolChest extends QueryToolChest<Row, GroupByQuery
   private static final TypeReference<Row> TYPE_REFERENCE = new TypeReference<Row>()
   {
   };
-
-  private static final Logger LOG = new Logger(GroupByQueryQueryToolChest.class);
 
   private final Supplier<GroupByQueryConfig> configSupplier;
 
@@ -209,63 +203,50 @@ public class GroupByQueryQueryToolChest extends QueryToolChest<Row, GroupByQuery
       final int maxRowCount
   )
   {
-    return new QueryRunner<Row>()
+    return new SubQueryRunner<I>(subQueryRunner, segmentWalker, executor, maxRowCount)
     {
       @Override
-      @SuppressWarnings("unchecked")
-      public Sequence<Row> run(Query<Row> query, Map<String, Object> responseContext)
+      protected Sequence<Row> runOuterQuery(
+          Query<Row> query,
+          Map<String, Object> context,
+          Segment segment
+      )
       {
-        final Query<I> subQuery = ((QueryDataSource)query.getDataSource()).getQuery();
-        final IncrementalIndexSchema schema = Queries.relaySchema(subQuery, segmentWalker);
-        final Sequence<Row> innerSequence = Queries.convertRow(subQuery, subQueryRunner.run(subQuery, responseContext));
-
-        LOG.info(
-            "Accumulating into intermediate index with dimension %s and metric %s",
-            schema.getDimensionsSpec().getDimensionNames(),
-            schema.getMetricNames()
-        );
-        long start = System.currentTimeMillis();
-        final IncrementalIndex innerQueryResultIndex = innerSequence.accumulate(
-            makeIncrementalIndex(query, schema, true),
-            GroupByQueryHelper.<Row>newIndexAccumulator()
-        );
-        LOG.info(
-            "Accumulated sub-query into index in %,d msec.. total %,d rows",
-            (System.currentTimeMillis() - start),
-            innerQueryResultIndex.size()
-        );
-
+        final Sequence<Row> outerSequence = super.runOuterQuery(query, context, segment);
         final GroupByQuery outerQuery = (GroupByQuery) query;
-        final Sequence<Row> outerSequence = Sequences.concat(
-            Sequences.map(
-                Sequences.simple(outerQuery.getIntervals()),
-                new Function<Interval, Sequence<Row>>()
-                {
-                  @Override
-                  public Sequence<Row> apply(Interval interval)
-                  {
-                    return engine.process(
-                        outerQuery.withQuerySegmentSpec(
-                            new MultipleIntervalSegmentSpec(ImmutableList.of(interval))
-                        ),
-                        new IncrementalIndexStorageAdapter(innerQueryResultIndex)
-                    );
-                  }
-                }
-            )
-        );
         final IncrementalIndex<?> outerQueryResultIndex =
             outerSequence.accumulate(
                 GroupByQueryHelper.createMergeIndex(outerQuery, bufferPool, true, maxRowCount, null),
                 GroupByQueryHelper.<Row>newIndexAccumulator()
             );
-
-        innerQueryResultIndex.close();
+        close(segment);
 
         return new ResourceClosingSequence<>(
             postAggregate(outerQuery, outerQueryResultIndex),
             outerQueryResultIndex
         );
+      }
+
+      @Override
+      protected Function<Interval, Sequence<Row>> function(
+          Query<Row> query,
+          Map<String, Object> context,
+          Segment segment
+      )
+      {
+        final GroupByQuery outerQuery = (GroupByQuery) query;
+        final StorageAdapter storageAdapter = segment.asStorageAdapter(true);
+        return new Function<Interval, Sequence<Row>>()
+        {
+          @Override
+          public Sequence<Row> apply(Interval interval)
+          {
+            return engine.process(
+                outerQuery.withQuerySegmentSpec(MultipleIntervalSegmentSpec.of(interval)),
+                storageAdapter
+            );
+          }
+        };
       }
     };
   }
@@ -318,20 +299,6 @@ public class GroupByQueryQueryToolChest extends QueryToolChest<Row, GroupByQuery
       );
     }
     return query.applyLimit(Sequences.simple(sequence), configSupplier.get());
-  }
-
-  private IncrementalIndex makeIncrementalIndex(
-      Query<?> query,
-      IncrementalIndexSchema schema,
-      boolean sortFacts
-  )
-  {
-    int maxResult = configSupplier.get().getMaxResults();
-    int maxRowCount = Math.min(
-        query.getContextValue(GroupByQueryHelper.CTX_KEY_MAX_RESULTS, maxResult),
-        maxResult
-    );
-    return new OnheapIncrementalIndex(schema, false, true, sortFacts, maxRowCount);
   }
 
   @Override

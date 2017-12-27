@@ -21,12 +21,29 @@ package io.druid.query;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.google.common.base.Function;
+import com.google.common.base.Throwables;
+import com.google.common.collect.Iterables;
+import com.metamx.common.guava.ResourceClosingSequence;
 import com.metamx.common.guava.Sequence;
+import com.metamx.common.guava.Sequences;
+import com.metamx.common.logger.Logger;
 import com.metamx.emitter.service.ServiceMetricEvent;
+import io.druid.data.input.Row;
 import io.druid.query.aggregation.MetricManipulationFn;
+import io.druid.query.groupby.GroupByQueryHelper;
+import io.druid.segment.IncrementalIndexSegment;
+import io.druid.segment.Segment;
+import io.druid.segment.StorageAdapter;
+import io.druid.segment.incremental.IncrementalIndex;
+import io.druid.segment.incremental.IncrementalIndexSchema;
+import io.druid.segment.incremental.IncrementalIndexStorageAdapter;
+import io.druid.segment.incremental.OnheapIncrementalIndex;
 import io.druid.timeline.LogicalSegment;
+import org.apache.commons.lang.StringUtils;
+import org.joda.time.Interval;
 
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.ExecutorService;
 
 /**
@@ -36,6 +53,8 @@ import java.util.concurrent.ExecutorService;
  */
 public abstract class QueryToolChest<ResultType, QueryType extends Query<ResultType>>
 {
+  protected final Logger LOG = new Logger(getClass());
+
   /**
    * This method wraps a QueryRunner.  The input QueryRunner, by contract, will provide a series of
    * ResultType objects in time order (ascending or descending).  This method should return a new QueryRunner that
@@ -208,5 +227,95 @@ public abstract class QueryToolChest<ResultType, QueryType extends Query<ResultT
   )
   {
     throw new UnsupportedOperationException("handleSourceQuery");
+  }
+
+  protected abstract class SubQueryRunner<I> implements QueryRunner<ResultType>
+  {
+    protected final QueryRunner<I> subQueryRunner;
+    protected final QuerySegmentWalker segmentWalker;
+    protected final ExecutorService executor;
+    protected final int maxRowCount;
+
+    protected SubQueryRunner(
+        QueryRunner<I> subQueryRunner,
+        QuerySegmentWalker segmentWalker,
+        ExecutorService executor,
+        int maxRowCount
+    )
+    {
+      this.subQueryRunner = subQueryRunner;
+      this.segmentWalker = segmentWalker;
+      this.executor = executor;
+      this.maxRowCount = maxRowCount;
+    }
+
+    @Override
+    public Sequence<ResultType> run(Query<ResultType> query, Map<String, Object> responseContext)
+    {
+      @SuppressWarnings("unchecked")
+      final Query<I> subQuery = ((QueryDataSource) query.getDataSource()).getQuery();
+      final IncrementalIndexSchema schema = Queries.relaySchema(subQuery, segmentWalker);
+
+      LOG.info(
+          "Accumulating into intermediate index with dimension %s and metric %s",
+          schema.getDimensionsSpec().getDimensionNames(),
+          schema.getMetricNames()
+      );
+      IncrementalIndex index = new OnheapIncrementalIndex(schema, false, true, true, maxRowCount);
+      IncrementalIndex accumulated = accumulate(subQuery, responseContext, index);
+      if (accumulated.isEmpty()) {
+        return Sequences.empty();
+      }
+      List<String> dataSources = query.getDataSource().getNames();
+      if (dataSources.size() > 1) {
+        query = query.withDataSource(new TableDataSource(StringUtils.join(dataSources, '_')));
+      }
+      final String dataSource = Iterables.getOnlyElement(query.getDataSource().getNames());
+      final StorageAdapter adapter = new IncrementalIndexStorageAdapter.Temporary(dataSource, accumulated);
+      final Segment segment = new IncrementalIndexSegment(accumulated, adapter.getSegmentIdentifier());
+
+      return runOuterQuery(query, responseContext, segment);
+    }
+
+    protected IncrementalIndex accumulate(
+        Query<I> subQuery,
+        Map<String, Object> responseContext,
+        IncrementalIndex index
+    )
+    {
+      long start = System.currentTimeMillis();
+      final Sequence<Row> innerSequence = Queries.convertRow(subQuery, subQueryRunner.run(subQuery, responseContext));
+      IncrementalIndex accumulated = innerSequence.accumulate(index, GroupByQueryHelper.<Row>newIndexAccumulator());
+      LOG.info(
+          "Accumulated sub-query into index in %,d msec.. total %,d rows",
+          (System.currentTimeMillis() - start),
+          accumulated.size()
+      );
+      return accumulated;
+    }
+
+    protected Sequence<ResultType> runOuterQuery(Query<ResultType> query, Map<String, Object> context, Segment segment)
+    {
+      final Function<Interval, Sequence<ResultType>> function = function(query, context, segment);
+      return new ResourceClosingSequence<>(
+          Sequences.concat(Sequences.map(Sequences.simple(query.getIntervals()), function)), segment
+      );
+    }
+
+    protected abstract Function<Interval, Sequence<ResultType>> function(
+        Query<ResultType> query,
+        Map<String, Object> context,
+        Segment segment
+    );
+
+    protected final void close(Segment segment)
+    {
+      try {
+        segment.close();
+      }
+      catch (Exception e) {
+        throw Throwables.propagate(e);
+      }
+    }
   }
 }

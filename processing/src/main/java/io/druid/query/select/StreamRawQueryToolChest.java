@@ -29,13 +29,19 @@ import com.metamx.emitter.service.ServiceMetricEvent;
 import io.druid.query.DruidMetrics;
 import io.druid.query.Query;
 import io.druid.query.QueryRunner;
+import io.druid.query.QuerySegmentWalker;
 import io.druid.query.QueryToolChest;
 import io.druid.query.TabularFormat;
 import io.druid.query.aggregation.MetricManipulationFn;
+import io.druid.query.spec.MultipleIntervalSegmentSpec;
+import io.druid.segment.Segment;
+import io.druid.segment.StorageAdapter;
+import org.joda.time.Interval;
 
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ExecutorService;
 
 /**
  */
@@ -141,6 +147,42 @@ public class StreamRawQueryToolChest extends QueryToolChest<RawRows, StreamRawQu
       public Map<String, Object> getMetaData()
       {
         return null;
+      }
+    };
+  }
+
+  @Override
+  public <I> QueryRunner<RawRows> handleSubQuery(
+      final QueryRunner<I> subQueryRunner,
+      final QuerySegmentWalker segmentWalker,
+      final ExecutorService executor,
+      final int maxRowCount
+  )
+  {
+    return new SubQueryRunner<I>(subQueryRunner, segmentWalker, executor, maxRowCount)
+    {
+      @Override
+      protected Function<Interval, Sequence<RawRows>> function(
+          Query<RawRows> query, Map<String, Object> context,
+          Segment segment
+      )
+      {
+        final StreamQueryEngine engine = new StreamQueryEngine();
+        final StreamRawQuery outerQuery = (StreamRawQuery) query;
+        final StorageAdapter adapter = segment.asStorageAdapter(true);
+        return new Function<Interval, Sequence<RawRows>>()
+        {
+          @Override
+          public Sequence<RawRows> apply(Interval interval)
+          {
+            return engine.process(
+                outerQuery.withQuerySegmentSpec(MultipleIntervalSegmentSpec.of(interval)),
+                adapter,
+                null,
+                null
+            );
+          }
+        };
       }
     };
   }

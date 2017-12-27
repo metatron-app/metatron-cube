@@ -33,11 +33,12 @@ import com.metamx.emitter.service.ServiceMetricEvent;
 import io.druid.granularity.Granularity;
 import io.druid.query.CacheStrategy;
 import io.druid.query.DruidMetrics;
-import io.druid.query.LateralViewSpec;
 import io.druid.query.IntervalChunkingQueryRunnerDecorator;
+import io.druid.query.LateralViewSpec;
 import io.druid.query.Query;
 import io.druid.query.QueryCacheHelper;
 import io.druid.query.QueryRunner;
+import io.druid.query.QuerySegmentWalker;
 import io.druid.query.QueryToolChest;
 import io.druid.query.Result;
 import io.druid.query.ResultGranularTimestampComparator;
@@ -47,13 +48,18 @@ import io.druid.query.aggregation.MetricManipulationFn;
 import io.druid.query.aggregation.PostAggregator;
 import io.druid.query.aggregation.PostAggregators;
 import io.druid.query.filter.DimFilter;
+import io.druid.query.spec.MultipleIntervalSegmentSpec;
+import io.druid.segment.Segment;
+import io.druid.segment.StorageAdapter;
 import org.joda.time.DateTime;
+import org.joda.time.Interval;
 
 import javax.annotation.Nullable;
 import java.nio.ByteBuffer;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ExecutorService;
 
 /**
  */
@@ -368,5 +374,40 @@ public class TimeseriesQueryQueryToolChest extends QueryToolChest<Result<Timeser
             }
         )
     );
+  }
+
+  @Override
+  public <I> QueryRunner<Result<TimeseriesResultValue>> handleSubQuery(
+      final QueryRunner<I> subQueryRunner,
+      final QuerySegmentWalker segmentWalker,
+      final ExecutorService executor,
+      final int maxRowCount
+  )
+  {
+    return new SubQueryRunner<I>(subQueryRunner, segmentWalker, executor, maxRowCount)
+    {
+      @Override
+      protected Function<Interval, Sequence<Result<TimeseriesResultValue>>> function(
+          Query<Result<TimeseriesResultValue>> query, Map<String, Object> context,
+          Segment segment
+      )
+      {
+        final TimeseriesQueryEngine engine = new TimeseriesQueryEngine();
+        final TimeseriesQuery outerQuery = (TimeseriesQuery) query;
+        final StorageAdapter adapter = segment.asStorageAdapter(true);
+        return new Function<Interval, Sequence<Result<TimeseriesResultValue>>>()
+        {
+          @Override
+          public Sequence<Result<TimeseriesResultValue>> apply(Interval interval)
+          {
+            return engine.process(
+                outerQuery.withQuerySegmentSpec(MultipleIntervalSegmentSpec.of(interval)),
+                adapter,
+                null
+            );
+          }
+        };
+      }
+    };
   }
 }

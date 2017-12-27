@@ -21,10 +21,7 @@ package io.druid.segment;
 
 import io.druid.segment.incremental.IncrementalIndex;
 import io.druid.segment.incremental.IncrementalIndexStorageAdapter;
-
 import org.joda.time.Interval;
-
-import java.io.IOException;
 
 /**
  */
@@ -68,7 +65,7 @@ public class IncrementalIndexSegment extends AbstractSegment
   }
 
   @Override
-  public void close() throws IOException
+  public void close()
   {
     index.close();
   }

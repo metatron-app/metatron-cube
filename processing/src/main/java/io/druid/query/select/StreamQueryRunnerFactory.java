@@ -24,7 +24,6 @@ import com.google.common.base.Supplier;
 import com.google.common.collect.Iterables;
 import com.google.common.util.concurrent.Futures;
 import com.google.inject.Inject;
-import com.metamx.common.Pair;
 import com.metamx.common.guava.LazySequence;
 import com.metamx.common.guava.Sequence;
 import com.metamx.common.guava.Sequences;
@@ -81,22 +80,7 @@ public class StreamQueryRunnerFactory
       @Override
       public Sequence<StreamQueryRow> run(Query<StreamQueryRow> query, Map<String, Object> responseContext)
       {
-        Pair<Schema, Sequence<Object[]>> result = engine.process((StreamQuery) query, segment, optimizer, cache);
-        final String[] columnNames = result.lhs.getColumnNames().toArray(new String[0]);
-        return Sequences.map(
-            result.rhs, new Function<Object[], StreamQueryRow>()
-            {
-              @Override
-              public StreamQueryRow apply(final Object[] input)
-              {
-                final StreamQueryRow theEvent = new StreamQueryRow();
-                for (int i = 0; i < input.length; i++) {
-                  theEvent.put(columnNames[i], input[i]);
-                }
-                return theEvent;
-              }
-            }
-        );
+        return engine.process((StreamQuery) query, segment.asStorageAdapter(true), optimizer, cache);
       }
     };
   }

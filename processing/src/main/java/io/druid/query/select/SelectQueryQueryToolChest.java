@@ -23,7 +23,6 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Function;
 import com.google.common.base.Functions;
-import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
@@ -31,24 +30,19 @@ import com.google.common.collect.Ordering;
 import com.google.common.collect.Sets;
 import com.google.inject.Inject;
 import com.metamx.common.StringUtils;
-import com.metamx.common.guava.ResourceClosingSequence;
 import com.metamx.common.guava.Sequence;
 import com.metamx.common.guava.Sequences;
 import com.metamx.common.guava.nary.BinaryFn;
-import com.metamx.common.logger.Logger;
 import com.metamx.emitter.service.ServiceMetricEvent;
 import io.druid.common.utils.JodaUtils;
 import io.druid.data.input.MapBasedRow;
-import io.druid.data.input.Row;
 import io.druid.granularity.Granularity;
 import io.druid.query.CacheStrategy;
 import io.druid.query.DruidMetrics;
 import io.druid.query.IntervalChunkingQueryRunnerDecorator;
 import io.druid.query.LateralViewSpec;
-import io.druid.query.Queries;
 import io.druid.query.Query;
 import io.druid.query.QueryCacheHelper;
-import io.druid.query.QueryDataSource;
 import io.druid.query.QueryRunner;
 import io.druid.query.QuerySegmentWalker;
 import io.druid.query.QueryToolChest;
@@ -61,13 +55,10 @@ import io.druid.query.UnionDataSource;
 import io.druid.query.aggregation.MetricManipulationFn;
 import io.druid.query.dimension.DimensionSpec;
 import io.druid.query.filter.DimFilter;
-import io.druid.query.groupby.GroupByQueryHelper;
 import io.druid.query.spec.MultipleIntervalSegmentSpec;
+import io.druid.segment.Segment;
+import io.druid.segment.StorageAdapter;
 import io.druid.segment.VirtualColumn;
-import io.druid.segment.incremental.IncrementalIndex;
-import io.druid.segment.incremental.IncrementalIndexSchema;
-import io.druid.segment.incremental.IncrementalIndexStorageAdapter;
-import io.druid.segment.incremental.OnheapIncrementalIndex;
 import io.druid.timeline.DataSegmentUtils;
 import io.druid.timeline.LogicalSegment;
 import org.apache.commons.lang.mutable.MutableInt;
@@ -98,8 +89,6 @@ public class SelectQueryQueryToolChest extends QueryToolChest<Result<SelectResul
       new TypeReference<Result<SelectResultValue>>()
       {
       };
-
-  private static final Logger logger = new Logger(SelectQueryQueryToolChest.class);
 
   private final ObjectMapper jsonMapper;
   private final SelectQueryEngine engine;
@@ -166,68 +155,28 @@ public class SelectQueryQueryToolChest extends QueryToolChest<Result<SelectResul
       final int maxRowCount
   )
   {
-    return new QueryRunner<Result<SelectResultValue>>()
+    return new SubQueryRunner<I>(subQueryRunner, segmentWalker, executor, maxRowCount)
     {
       @Override
-      @SuppressWarnings("unchecked")
-      public Sequence<Result<SelectResultValue>> run(
-          Query<Result<SelectResultValue>> query,
-          Map<String, Object> responseContext
+      protected Function<Interval, Sequence<Result<SelectResultValue>>> function(
+          Query<Result<SelectResultValue>> query, Map<String, Object> context,
+          Segment segment
       )
       {
-        final Query<I> subQuery = ((QueryDataSource)query.getDataSource()).getQuery();
-        final IncrementalIndexSchema schema = Queries.relaySchema(subQuery, segmentWalker);
-        final Sequence<Row> innerSequence = Queries.convertRow(subQuery, subQueryRunner.run(subQuery, responseContext));
-
-        logger.info(
-            "Accumulating into intermediate index with dimension %s and metric %s",
-            schema.getDimensionsSpec().getDimensionNames(),
-            schema.getMetricNames()
-        );
-        long start = System.currentTimeMillis();
-        final IncrementalIndex innerQueryResultIndex = innerSequence.accumulate(
-            new OnheapIncrementalIndex(schema, false, true, true, maxRowCount),
-            GroupByQueryHelper.<Row>newIndexAccumulator()
-        );
-        logger.info(
-            "Accumulated sub-query into index in %,d msec.. total %,d rows",
-            (System.currentTimeMillis() - start),
-            innerQueryResultIndex.size()
-        );
-        if (innerQueryResultIndex.isEmpty()) {
-          return Sequences.empty();
-        }
-
-        List<String> dataSources = query.getDataSource().getNames();
-        if (dataSources.size() > 1) {
-          query = query.withDataSource(
-              new TableDataSource(org.apache.commons.lang.StringUtils.join(dataSources, '_'))
-          );
-        }
-        final String dataSource = Iterables.getOnlyElement(query.getDataSource().getNames());
         final SelectQuery outerQuery = (SelectQuery) query;
-
-        return new ResourceClosingSequence<>(
-            Sequences.concat(
-                Sequences.map(
-                    Sequences.simple(outerQuery.getIntervals()),
-                    new Function<Interval, Sequence<Result<SelectResultValue>>>()
-                    {
-                      @Override
-                      public Sequence<Result<SelectResultValue>> apply(Interval interval)
-                      {
-                        return engine.process(
-                            outerQuery.withQuerySegmentSpec(
-                                new MultipleIntervalSegmentSpec(ImmutableList.of(interval))
-                            ),
-                            config,
-                            new IncrementalIndexStorageAdapter.Temporary(dataSource, innerQueryResultIndex)
-                        );
-                      }
-                    }
-                )
-            ), innerQueryResultIndex
-        );
+        final StorageAdapter adapter = segment.asStorageAdapter(true);
+        return new Function<Interval, Sequence<Result<SelectResultValue>>>()
+        {
+          @Override
+          public Sequence<Result<SelectResultValue>> apply(Interval interval)
+          {
+            return engine.process(
+                outerQuery.withQuerySegmentSpec(MultipleIntervalSegmentSpec.of(interval)),
+                config,
+                adapter
+            );
+          }
+        };
       }
     };
   }
@@ -555,11 +504,11 @@ public class SelectQueryQueryToolChest extends QueryToolChest<Result<SelectResul
       }
     }
     if (targetDataSources.size() == 1) {
-      logger.info("Filtered %d segment interval into %d", totalSegments, targetIntervals.size());
+      LOG.info("Filtered %d segment interval into %d", totalSegments, targetIntervals.size());
       return query.withDataSource(new TableDataSource(targetDataSources.get(0)))
                   .withQuerySegmentSpec(new MultipleIntervalSegmentSpec(targetIntervals));
     }
-    logger.info("Filtered %d dataSource into %d", mapping.size(), targetDataSources.size());
+    LOG.info("Filtered %d dataSource into %d", mapping.size(), targetDataSources.size());
     return query.withDataSource(new UnionDataSource(TableDataSource.of(targetDataSources)));
   }
 

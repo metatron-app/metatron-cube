@@ -22,10 +22,8 @@ package io.druid.query.select;
 import com.google.common.base.Function;
 import com.google.common.base.Supplier;
 import com.google.common.collect.Iterables;
-import com.google.common.collect.Lists;
 import com.google.common.util.concurrent.Futures;
 import com.google.inject.Inject;
-import com.metamx.common.Pair;
 import com.metamx.common.guava.LazySequence;
 import com.metamx.common.guava.Sequence;
 import com.metamx.common.guava.Sequences;
@@ -37,9 +35,7 @@ import io.druid.query.QueryRunnerFactory;
 import io.druid.query.QueryToolChest;
 import io.druid.segment.Segment;
 import org.apache.commons.lang.mutable.MutableInt;
-import org.joda.time.DateTime;
 
-import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutorService;
@@ -84,13 +80,7 @@ public class StreamRawQueryRunnerFactory
       @Override
       public Sequence<RawRows> run(Query<RawRows> query, Map<String, Object> responseContext)
       {
-        Pair<Schema, Sequence<Object[]>> result = engine.process((StreamRawQuery) query, segment, optimizer, cache);
-        DateTime start = segment.getDataInterval().getStart();
-        return Sequences.simple(
-            Arrays.asList(
-                new RawRows(start, result.lhs, Sequences.toList(result.rhs, Lists.<Object[]>newArrayList()))
-            )
-        );
+        return engine.process((StreamRawQuery) query, segment.asStorageAdapter(true), optimizer, cache);
       }
     };
   }

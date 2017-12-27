@@ -46,6 +46,10 @@ import io.druid.query.select.EventHolder;
 import io.druid.query.select.Schema;
 import io.druid.query.select.SelectMetaQuery;
 import io.druid.query.select.SelectMetaResultValue;
+import io.druid.query.select.SelectQuery;
+import io.druid.query.select.SelectResultValue;
+import io.druid.query.select.StreamQuery;
+import io.druid.query.select.StreamQueryRow;
 import io.druid.query.timeseries.TimeseriesQuery;
 import io.druid.query.topn.TopNQuery;
 import io.druid.query.topn.TopNResultValue;
@@ -263,6 +267,45 @@ public class Queries
             {
               Map<String, Object> event = (Map<String, Object>) input;
               return new MapBasedRow((Long) event.get(timeColumn), event);
+            }
+          }
+      );
+    } else if (subQuery instanceof SelectQuery) {
+      Sequence<Result<SelectResultValue>> select = (Sequence<Result<SelectResultValue>>) sequence;
+      return Sequences.concat(
+          Sequences.map(
+              select, new Function<Result<SelectResultValue>, Sequence<Row>>()
+              {
+                @Override
+                public Sequence<Row> apply(Result<SelectResultValue> input)
+                {
+                  final DateTime timestamp = input.getTimestamp();
+                  return Sequences.simple(
+                      Lists.transform(
+                          input.getValue().getEvents(),
+                          new Function<EventHolder, Row>()
+                          {
+                            @Override
+                            public Row apply(EventHolder input)
+                            {
+                              return new MapBasedRow(timestamp, input.getEvent());
+                            }
+                          }
+                      )
+                  );
+                }
+              }
+          )
+      );
+    } else if (subQuery instanceof StreamQuery) {
+      Sequence<StreamQueryRow> stream = (Sequence<StreamQueryRow>) sequence;
+      return Sequences.map(
+          stream, new Function<StreamQueryRow, Row>()
+          {
+            @Override
+            public Row apply(StreamQueryRow input)
+            {
+              return new MapBasedRow(input.getTimestamp(), input);
             }
           }
       );

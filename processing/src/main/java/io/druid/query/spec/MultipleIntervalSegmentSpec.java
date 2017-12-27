@@ -27,6 +27,7 @@ import io.druid.query.QueryRunner;
 import io.druid.query.QuerySegmentWalker;
 import org.joda.time.Interval;
 
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
@@ -34,6 +35,11 @@ import java.util.List;
  */
 public class MultipleIntervalSegmentSpec implements QuerySegmentSpec
 {
+  public static MultipleIntervalSegmentSpec of(Interval... intervals)
+  {
+    return new MultipleIntervalSegmentSpec(Arrays.asList(intervals));
+  }
+
   private final List<Interval> intervals;
 
   @JsonCreator

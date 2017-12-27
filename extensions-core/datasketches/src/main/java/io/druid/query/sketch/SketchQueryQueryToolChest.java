@@ -22,46 +22,31 @@ package io.druid.query.sketch;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.google.common.base.Function;
 import com.google.common.base.Functions;
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Iterables;
 import com.google.common.collect.Ordering;
 import com.google.inject.Inject;
-import com.metamx.common.guava.ResourceClosingSequence;
 import com.metamx.common.guava.Sequence;
-import com.metamx.common.guava.Sequences;
 import com.metamx.common.guava.nary.BinaryFn;
-import com.metamx.common.logger.Logger;
 import com.metamx.emitter.service.ServiceMetricEvent;
 import com.yahoo.memory.NativeMemory;
 import io.druid.data.ValueType;
-import io.druid.data.input.Row;
 import io.druid.granularity.QueryGranularities;
 import io.druid.query.CacheStrategy;
 import io.druid.query.DruidMetrics;
 import io.druid.query.IntervalChunkingQueryRunnerDecorator;
-import io.druid.query.Queries;
 import io.druid.query.Query;
-import io.druid.query.QueryDataSource;
 import io.druid.query.QueryRunner;
 import io.druid.query.QuerySegmentWalker;
 import io.druid.query.QueryToolChest;
 import io.druid.query.Result;
 import io.druid.query.ResultGranularTimestampComparator;
 import io.druid.query.ResultMergeQueryRunner;
-import io.druid.query.TableDataSource;
 import io.druid.query.aggregation.MetricManipulationFn;
 import io.druid.query.aggregation.datasketches.theta.SketchOperations;
-import io.druid.query.groupby.GroupByQueryHelper;
 import io.druid.query.spec.MultipleIntervalSegmentSpec;
-import io.druid.segment.IncrementalIndexSegment;
-import io.druid.segment.incremental.IncrementalIndex;
-import io.druid.segment.incremental.IncrementalIndexSchema;
-import io.druid.segment.incremental.IncrementalIndexStorageAdapter;
-import io.druid.segment.incremental.OnheapIncrementalIndex;
+import io.druid.segment.Segment;
 import org.joda.time.Interval;
 
 import java.util.Arrays;
-import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutorService;
 
@@ -73,8 +58,6 @@ public class SketchQueryQueryToolChest extends QueryToolChest<Result<Map<String,
       new TypeReference<Result<Map<String, Object>>>()
       {
       };
-
-  private static final Logger logger = new Logger(SketchQueryQueryToolChest.class);
 
   private final IntervalChunkingQueryRunnerDecorator intervalChunkingQueryRunnerDecorator;
 
@@ -187,73 +170,27 @@ public class SketchQueryQueryToolChest extends QueryToolChest<Result<Map<String,
       final int maxRowCount
   )
   {
-    return new QueryRunner<Result<Map<String, Object>>>()
+    return new SubQueryRunner<I>(subQueryRunner, segmentWalker, executor, maxRowCount)
     {
       @Override
-      @SuppressWarnings("unchecked")
-      public Sequence<Result<Map<String, Object>>> run(
-          Query<Result<Map<String, Object>>> query,
-          final Map<String, Object> responseContext
+      protected Function<Interval, Sequence<Result<Map<String, Object>>>> function(
+          final Query<Result<Map<String, Object>>> query,
+          final Map<String, Object> context,
+          final Segment segment
       )
       {
-        final Query<I> subQuery = ((QueryDataSource)query.getDataSource()).getQuery();
-        final IncrementalIndexSchema schema = Queries.relaySchema(subQuery, segmentWalker);
-        final Sequence<Row> innerSequence = Queries.convertRow(subQuery, subQueryRunner.run(subQuery, responseContext));
-
-        logger.info(
-            "Accumulating into intermediate index with dimension %s and metric %s",
-            schema.getDimensionsSpec().getDimensionNames(),
-            schema.getMetricNames()
-        );
-        long start = System.currentTimeMillis();
-        final IncrementalIndex innerQueryResultIndex = innerSequence.accumulate(
-            new OnheapIncrementalIndex(schema, false, true, true, maxRowCount),
-            GroupByQueryHelper.<Row>newIndexAccumulator()
-        );
-        logger.info(
-            "Accumulated sub-query into index in %,d msec.. total %,d rows",
-            (System.currentTimeMillis() - start),
-            innerQueryResultIndex.size()
-        );
-        if (innerQueryResultIndex.isEmpty()) {
-          return Sequences.empty();
-        }
-
-        List<String> dataSources = query.getDataSource().getNames();
-        if (dataSources.size() > 1) {
-          query = query.withDataSource(
-              new TableDataSource(org.apache.commons.lang.StringUtils.join(dataSources, '_'))
-          );
-        }
-        final String dataSource = Iterables.getOnlyElement(query.getDataSource().getNames());
-        final SketchQuery outerQuery = (SketchQuery) query;
-
-        IncrementalIndexStorageAdapter index = new IncrementalIndexStorageAdapter.Temporary(
-            dataSource, innerQueryResultIndex
-        );
-        final SketchQueryRunner runner = new SketchQueryRunner(
-            new IncrementalIndexSegment(innerQueryResultIndex, index.getSegmentIdentifier())
-        );
-        return new ResourceClosingSequence<>(
-            Sequences.concat(
-                Sequences.map(
-                    Sequences.simple(outerQuery.getIntervals()),
-                    new Function<Interval, Sequence<Result<Map<String, Object>>>>()
-                    {
-                      @Override
-                      public Sequence<Result<Map<String, Object>>> apply(Interval interval)
-                      {
-                        return runner.run(
-                            outerQuery.withQuerySegmentSpec(
-                                new MultipleIntervalSegmentSpec(ImmutableList.of(interval))
-                            ),
-                            responseContext
-                        );
-                      }
-                    }
-                )
-            ), innerQueryResultIndex
-        );
+        final SketchQuery sketchQuery = (SketchQuery) query;
+        final SketchQueryRunner runner = new SketchQueryRunner(segment);
+        return new Function<Interval, Sequence<Result<Map<String, Object>>>>()
+        {
+          @Override
+          public Sequence<Result<Map<String, Object>>> apply(Interval interval)
+          {
+            return runner.run(
+                sketchQuery.withQuerySegmentSpec(MultipleIntervalSegmentSpec.of(interval)), context
+            );
+          }
+        };
       }
     };
   }
