@@ -60,6 +60,7 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.sql.SQLException;
 import java.util.List;
+import java.util.Map;
 
 @Path("/druid/v2/sql/")
 public class SqlResource
@@ -84,18 +85,38 @@ public class SqlResource
 
   @POST
   @Produces(MediaType.APPLICATION_JSON)
+  @Consumes(MediaType.TEXT_PLAIN)
+  public Response doPost(
+      String sqlQuery,
+      @Context HttpServletRequest req
+  ) throws SQLException, IOException
+  {
+    return execute(sqlQuery, ImmutableMap.of(), req);
+  }
+
+  @POST
+  @Produces(MediaType.APPLICATION_JSON)
   @Consumes(MediaType.APPLICATION_JSON)
   public Response doPost(
-      final SqlQuery sqlQuery,
-      @Context final HttpServletRequest req
+      SqlQuery sqlQuery,
+      @Context HttpServletRequest req
+  ) throws SQLException, IOException
+  {
+    return execute(sqlQuery.getQuery(), sqlQuery.getContext(), req);
+  }
+
+  private Response execute(
+      final String query,
+      final Map<String, Object> context,
+      final HttpServletRequest req
   ) throws SQLException, IOException
   {
     final PlannerResult plannerResult;
     final DateTimeZone timeZone;
 
     final long start = System.currentTimeMillis();
-    try (final DruidPlanner planner = plannerFactory.createPlanner(sqlQuery.getContext())) {
-      plannerResult = planner.plan(sqlQuery.getQuery(), req);
+    try (final DruidPlanner planner = plannerFactory.createPlanner(context)) {
+      plannerResult = planner.plan(query, req);
       timeZone = planner.getPlannerContext().getTimeZone();
 
       // Remember which columns are time-typed, so we can emit ISO8601 instead of millis values.
@@ -164,7 +185,7 @@ public class SqlResource
                     new RequestLogLine(
                         new DateTime(start),
                         req.getRemoteAddr(),
-                        sqlQuery.getQuery(),
+                        query,
                         new QueryStats(
                             ImmutableMap.<String, Object>of(
                                 "query/time", queryTime,
@@ -185,12 +206,12 @@ public class SqlResource
       }
     }
     catch (Exception e) {
-      log.warn(e, "Failed to handle query: %s", sqlQuery);
+      log.warn(e, "Failed to handle query: %s %s", query, context);
 
       final Exception exceptionToReport;
 
       if (e instanceof RelOptPlanner.CannotPlanException) {
-        exceptionToReport = new ISE("Cannot build plan for query: %s", sqlQuery.getQuery());
+        exceptionToReport = new ISE("Cannot build plan for query: %s", query);
       } else {
         exceptionToReport = e;
       }
@@ -200,7 +221,7 @@ public class SqlResource
           new RequestLogLine(
               new DateTime(start),
               req.getRemoteAddr(),
-              sqlQuery.getQuery(),
+              query,
               new QueryStats(
                   ImmutableMap.<String, Object>of(
                       "query/time", queryTime,
