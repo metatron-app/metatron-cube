@@ -37,7 +37,6 @@ import io.druid.math.expr.ExprType;
 import io.druid.math.expr.Parser;
 import io.druid.query.DataSource;
 import io.druid.query.Query;
-import io.druid.query.QueryDataSource;
 import io.druid.query.TableDataSource;
 import io.druid.query.ViewDataSource;
 import io.druid.query.aggregation.PostAggregator;
@@ -590,18 +589,6 @@ public class DruidQuery
    */
   private Query computeQuery()
   {
-    if (dataSource instanceof QueryDataSource) {
-      // If there is a subquery then the outer query must be a groupBy.
-      final GroupByQuery outerQuery = toGroupByQuery();
-
-      if (outerQuery == null) {
-        // Bug in the planner rules. They shouldn't allow this to happen.
-        throw new IllegalStateException("Can't use QueryDataSource without an outer groupBy query!");
-      }
-
-      return outerQuery;
-    }
-
     final TimeseriesQuery tsQuery = toTimeseriesQuery();
     if (tsQuery != null) {
       return tsQuery;

@@ -450,6 +450,12 @@ public class Druids
       return this;
     }
 
+    public TimeseriesQueryBuilder dataSource(Query query)
+    {
+      dataSource = new QueryDataSource(query);
+      return this;
+    }
+
     public TimeseriesQueryBuilder dataSource(DataSource ds)
     {
       dataSource = ds;
