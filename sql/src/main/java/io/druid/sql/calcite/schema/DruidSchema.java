@@ -40,8 +40,7 @@ import io.druid.client.ServerView;
 import io.druid.client.TimelineServerView;
 import io.druid.common.DateTimes;
 import io.druid.common.Yielders;
-import io.druid.common.utils.StringUtils;
-import io.druid.data.ValueType;
+import io.druid.data.ValueDesc;
 import io.druid.guice.ManageLifecycle;
 import io.druid.query.Query;
 import io.druid.query.QuerySegmentWalker;
@@ -432,7 +431,7 @@ public class DruidSchema extends AbstractSchema
   {
     synchronized (lock) {
       final TreeMap<DataSegment, RowSignature> segmentMap = segmentSignatures.get(dataSource);
-      final Map<String, ValueType> columnTypes = new TreeMap<>();
+      final Map<String, ValueDesc> columnTypes = new TreeMap<>();
 
       if (segmentMap != null) {
         for (RowSignature rowSignature : segmentMap.values()) {
@@ -492,17 +491,17 @@ public class DruidSchema extends AbstractSchema
         continue;
       }
 
-      ValueType valueType;
+      ValueDesc valueDesc;
       try {
-        valueType = ValueType.valueOf(StringUtils.toUpperCase(entry.getValue().getType()));
+        valueDesc = ValueDesc.of(entry.getValue().getType());
       }
       catch (IllegalArgumentException e) {
         // Assume unrecognized types are some flavor of COMPLEX. This throws away information about exactly
         // what kind of complex column it is, which we may want to preserve some day.
-        valueType = ValueType.COMPLEX;
+        valueDesc = ValueDesc.UNKNOWN;
       }
 
-      rowSignatureBuilder.add(entry.getKey(), valueType);
+      rowSignatureBuilder.add(entry.getKey(), valueDesc);
     }
 
     return rowSignatureBuilder.build();

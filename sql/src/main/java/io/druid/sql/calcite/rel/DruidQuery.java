@@ -29,7 +29,7 @@ import com.google.common.collect.Maps;
 import com.google.common.collect.Ordering;
 import com.google.common.primitives.Ints;
 import com.metamx.common.ISE;
-import io.druid.data.ValueType;
+import io.druid.data.ValueDesc;
 import io.druid.granularity.Granularities;
 import io.druid.granularity.Granularity;
 import io.druid.math.expr.Evals;
@@ -353,8 +353,8 @@ public class DruidQuery
       }
 
       final SqlTypeName sqlTypeName = rexNode.getType().getSqlTypeName();
-      final ValueType outputType = Calcites.getValueTypeForSqlTypeName(sqlTypeName);
-      if (outputType == null || outputType == ValueType.COMPLEX) {
+      final ValueDesc outputType = Calcites.getValueDescForSqlTypeName(sqlTypeName);
+      if (outputType == null || !ValueDesc.isPrimitive(outputType)) {
         // Can't group on unknown or COMPLEX types.
         throw new CannotBuildQueryException(aggregate, rexNode);
       }
@@ -526,7 +526,7 @@ public class DruidQuery
     );
 
     final ExprType fromExprType = Expressions.exprTypeForValueType(
-        Calcites.getValueTypeForSqlTypeName(rexNode.getType().getSqlTypeName())
+        Calcites.getValueDescForSqlTypeName(rexNode.getType().getSqlTypeName())
     );
 
     return toExprType.equals(fromExprType);

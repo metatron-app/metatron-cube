@@ -24,7 +24,7 @@ import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.metamx.common.ISE;
 import io.druid.common.DateTimes;
-import io.druid.data.ValueType;
+import io.druid.data.ValueDesc;
 import io.druid.granularity.Granularity;
 import io.druid.math.expr.ExprType;
 import io.druid.query.extraction.ExtractionFn;
@@ -432,9 +432,12 @@ public class Expressions
     }
   }
 
-  public static ExprType exprTypeForValueType(final ValueType valueType)
+  public static ExprType exprTypeForValueType(final ValueDesc valueDesc)
   {
-    switch (valueType) {
+    if (!ValueDesc.isPrimitive(valueDesc)) {
+      throw new ISE("No ExprType for valueType[%s]", valueDesc);
+    }
+    switch (valueDesc.type()) {
       case LONG:
         return ExprType.LONG;
       case FLOAT:
@@ -443,7 +446,7 @@ public class Expressions
       case STRING:
         return ExprType.STRING;
       default:
-        throw new ISE("No ExprType for valueType[%s]", valueType);
+        throw new ISE("No ExprType for valueDesc[%s]", valueDesc);
     }
   }
 

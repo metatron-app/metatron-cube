@@ -21,10 +21,10 @@ package io.druid.sql.calcite.aggregation;
 
 import com.google.common.collect.ImmutableList;
 import io.druid.common.utils.StringUtils;
+import io.druid.data.ValueDesc;
 import io.druid.query.dimension.DefaultDimensionSpec;
 import io.druid.query.dimension.DimensionSpec;
 import io.druid.segment.VirtualColumn;
-import io.druid.data.ValueType;
 import io.druid.sql.calcite.expression.DruidExpression;
 
 import javax.annotation.Nullable;
@@ -35,12 +35,12 @@ public class DimensionExpression
 {
   private final String outputName;
   private final DruidExpression expression;
-  private final ValueType outputType;
+  private final ValueDesc outputType;
 
   public DimensionExpression(
       final String outputName,
       final DruidExpression expression,
-      final ValueType outputType
+      final ValueDesc outputType
   )
   {
     this.outputName = outputName;
@@ -58,7 +58,7 @@ public class DimensionExpression
     return expression;
   }
 
-  public ValueType getOutputType()
+  public ValueDesc getOutputType()
   {
     return outputType;
   }

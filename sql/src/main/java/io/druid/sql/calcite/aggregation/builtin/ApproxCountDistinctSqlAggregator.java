@@ -23,6 +23,7 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 import com.metamx.common.ISE;
 import io.druid.common.utils.StringUtils;
+import io.druid.data.ValueDesc;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.cardinality.CardinalityAggregatorFactory;
 import io.druid.query.aggregation.hyperloglog.HyperUniquesAggregatorFactory;
@@ -30,7 +31,6 @@ import io.druid.query.dimension.DefaultDimensionSpec;
 import io.druid.query.dimension.DimensionSpec;
 import io.druid.segment.ExprVirtualColumn;
 import io.druid.segment.VirtualColumn;
-import io.druid.data.ValueType;
 import io.druid.sql.calcite.aggregation.Aggregation;
 import io.druid.sql.calcite.aggregation.SqlAggregator;
 import io.druid.sql.calcite.expression.DruidExpression;
@@ -93,11 +93,11 @@ public class ApproxCountDistinctSqlAggregator implements SqlAggregator
     final List<VirtualColumn> virtualColumns = new ArrayList<>();
     final AggregatorFactory aggregatorFactory;
 
-    if (arg.isDirectColumnAccess() && rowSignature.getColumnType(arg.getDirectColumn()) == ValueType.COMPLEX) {
+    if (arg.isDirectColumnAccess() && ValueDesc.isType(rowSignature.getColumnType(arg.getDirectColumn()), "hyperUnique")) {
       aggregatorFactory = new HyperUniquesAggregatorFactory(name, arg.getDirectColumn(), null, true);
     } else {
       final SqlTypeName sqlTypeName = rexNode.getType().getSqlTypeName();
-      final ValueType inputType = Calcites.getValueTypeForSqlTypeName(sqlTypeName);
+      final ValueDesc inputType = Calcites.getValueDescForSqlTypeName(sqlTypeName);
       if (inputType == null) {
         throw new ISE("Cannot translate sqlTypeName[%s] to Druid type for field[%s]", sqlTypeName, name);
       }

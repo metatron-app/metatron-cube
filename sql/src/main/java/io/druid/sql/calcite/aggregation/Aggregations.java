@@ -19,7 +19,7 @@
 
 package io.druid.sql.calcite.aggregation;
 
-import io.druid.data.ValueType;
+import io.druid.data.ValueDesc;
 import io.druid.sql.calcite.expression.DruidExpression;
 import io.druid.sql.calcite.expression.Expressions;
 import io.druid.sql.calcite.planner.PlannerContext;
@@ -67,7 +67,7 @@ public class Aggregations
 
     if (druidExpression.isSimpleExtraction() &&
         (!druidExpression.isDirectColumnAccess()
-         || rowSignature.getColumnType(druidExpression.getDirectColumn()) == ValueType.STRING)) {
+         || ValueDesc.isString(rowSignature.getColumnType(druidExpression.getDirectColumn())))) {
       // Aggregators are unable to implicitly cast strings to numbers. So remove the simple extraction in this case.
       return druidExpression.map(simpleExtraction -> null, Function.identity());
     } else {

@@ -27,16 +27,20 @@ import com.google.common.collect.Maps;
 import com.metamx.common.IAE;
 import com.metamx.common.ISE;
 import com.metamx.common.Pair;
+import io.druid.data.ValueDesc;
 import io.druid.query.ordering.StringComparator;
 import io.druid.query.ordering.StringComparators;
 import io.druid.segment.column.Column;
-import io.druid.data.ValueType;
 import io.druid.sql.calcite.expression.SimpleExtraction;
 import io.druid.sql.calcite.planner.Calcites;
 import org.apache.calcite.rel.type.RelDataType;
+import org.apache.calcite.rel.type.RelDataTypeComparability;
 import org.apache.calcite.rel.type.RelDataTypeFactory;
 import org.apache.calcite.rel.type.RelDataTypeField;
 import org.apache.calcite.sql.SqlCollation;
+import org.apache.calcite.sql.SqlIdentifier;
+import org.apache.calcite.sql.parser.SqlParserPos;
+import org.apache.calcite.sql.type.ObjectSqlType;
 import org.apache.calcite.sql.type.SqlTypeName;
 
 import javax.annotation.Nonnull;
@@ -50,17 +54,16 @@ import java.util.Map;
  */
 public class RowSignature
 {
-  private final Map<String, ValueType> columnTypes;
+  private final Map<String, ValueDesc> columnTypes;
   private final List<String> columnNames;
 
-  private RowSignature(final List<Pair<String, ValueType>> columnTypeList)
+  private RowSignature(final List<Pair<String, ValueDesc>> columnTypeList)
   {
-    final Map<String, ValueType> columnTypes0 = Maps.newHashMap();
+    final Map<String, ValueDesc> columnTypes0 = Maps.newHashMap();
     final ImmutableList.Builder<String> columnNamesBuilder = ImmutableList.builder();
 
-    int i = 0;
-    for (Pair<String, ValueType> pair : columnTypeList) {
-      final ValueType existingType = columnTypes0.get(pair.lhs);
+    for (Pair<String, ValueDesc> pair : columnTypeList) {
+      final ValueDesc existingType = columnTypes0.get(pair.lhs);
       if (existingType != null && existingType != pair.rhs) {
         throw new IAE("Column[%s] has conflicting types [%s] and [%s]", pair.lhs, existingType, pair.rhs);
       }
@@ -84,14 +87,12 @@ public class RowSignature
     for (int i = 0; i < rowOrder.size(); i++) {
       final RelDataTypeField field = rowType.getFieldList().get(i);
       final SqlTypeName sqlTypeName = field.getType().getSqlTypeName();
-      final ValueType valueType;
-
-      valueType = Calcites.getValueTypeForSqlTypeName(sqlTypeName);
-      if (valueType == null) {
+      final ValueDesc valueDesc = Calcites.getValueDescForSqlTypeName(sqlTypeName);
+      if (valueDesc == null) {
         throw new ISE("Cannot translate sqlTypeName[%s] to Druid type for field[%s]", sqlTypeName, rowOrder.get(i));
       }
 
-      rowSignatureBuilder.add(rowOrder.get(i), valueType);
+      rowSignatureBuilder.add(rowOrder.get(i), valueDesc);
     }
 
     return rowSignatureBuilder.build();
@@ -102,7 +103,7 @@ public class RowSignature
     return new Builder();
   }
 
-  public ValueType getColumnType(final String name)
+  public ValueDesc getColumnType(final String name)
   {
     return columnTypes.get(name);
   }
@@ -130,7 +131,7 @@ public class RowSignature
   {
     Preconditions.checkNotNull(simpleExtraction, "simpleExtraction");
     if (simpleExtraction.getExtractionFn() != null
-        || getColumnType(simpleExtraction.getColumn()) == ValueType.STRING) {
+        || ValueDesc.isString(getColumnType(simpleExtraction.getColumn()))) {
       return StringComparators.LEXICOGRAPHIC_NAME;
     } else {
       return StringComparators.NUMERIC_NAME;
@@ -148,13 +149,13 @@ public class RowSignature
   {
     final RelDataTypeFactory.FieldInfoBuilder builder = typeFactory.builder();
     for (final String columnName : columnNames) {
-      final ValueType columnType = getColumnType(columnName);
+      final ValueDesc columnType = getColumnType(columnName);
       final RelDataType type;
 
       if (Column.TIME_COLUMN_NAME.equals(columnName)) {
         type = typeFactory.createSqlType(SqlTypeName.TIMESTAMP);
-      } else {
-        switch (columnType) {
+      } else if (ValueDesc.isPrimitive(columnType)) {
+        switch (columnType.type()) {
           case STRING:
             // Note that there is no attempt here to handle multi-value in any special way. Maybe one day...
             type = typeFactory.createTypeWithNullability(
@@ -180,8 +181,13 @@ public class RowSignature
             type = typeFactory.createSqlType(SqlTypeName.OTHER);
             break;
           default:
-            throw new ISE("WTF?! valueType[%s] not translatable?", columnType);
+            throw new ISE("WTF?! ValueDesc[%s] not translatable?", columnType);
         }
+      } else {
+        type = new ObjectSqlType(
+            SqlTypeName.OTHER, new SqlIdentifier(columnType.typeName(), null, SqlParserPos.ZERO), true, null,
+            RelDataTypeComparability.NONE
+        );
       }
 
       builder.add(columnName, type);
@@ -232,14 +238,14 @@ public class RowSignature
 
   public static class Builder
   {
-    private final List<Pair<String, ValueType>> columnTypeList;
+    private final List<Pair<String, ValueDesc>> columnTypeList;
 
     private Builder()
     {
       this.columnTypeList = Lists.newArrayList();
     }
 
-    public Builder add(String columnName, ValueType columnType)
+    public Builder add(String columnName, ValueDesc columnType)
     {
       Preconditions.checkNotNull(columnName, "columnName");
       Preconditions.checkNotNull(columnType, "columnType");

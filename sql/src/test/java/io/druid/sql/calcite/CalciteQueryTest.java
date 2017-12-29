@@ -404,7 +404,7 @@ public class CalciteQueryTest
             new Object[]{"dim2", "VARCHAR", "YES"},
             new Object[]{"m1", "DOUBLE", "NO"},
             new Object[]{"m2", "DOUBLE", "NO"},
-            new Object[]{"unique_dim1", "OTHER", "NO"}
+            new Object[]{"unique_dim1", "OTHER", "YES"}
         )
     );
   }
@@ -433,7 +433,7 @@ public class CalciteQueryTest
             new Object[]{"dim2", "VARCHAR", "YES"},
             new Object[]{"m1", "DOUBLE", "NO"},
             new Object[]{"m2", "DOUBLE", "NO"},
-            new Object[]{"unique_dim1", "OTHER", "NO"}
+            new Object[]{"unique_dim1", "OTHER", "YES"}
         )
     );
   }
@@ -559,7 +559,7 @@ public class CalciteQueryTest
         ImmutableList.of(),
         ImmutableList.of(
             new Object[]{
-                "DruidQueryRel(query=[{\"queryType\":\"select.stream.raw\",\"dataSource\":{\"type\":\"view\",\"name\":\"foo\",\"columns\":[\"__time\",\"cnt\",\"dim1\",\"dim2\",\"m1\",\"m2\",\"unique_dim1\"],\"virtualColumns\":[],\"filter\":null,\"lowerCasedOutput\":false},\"intervals\":{\"type\":\"intervals\",\"intervals\":[\"-146136543-09-08T08:23:32.096Z/146140482-04-24T15:36:27.903Z\"]},\"filter\":null,\"granularity\":{\"type\":\"all\"},\"dimensions\":[],\"metrics\":[],\"virtualColumns\":[],\"concatString\":null,\"limit\":-1,\"context\":{\"defaultTimeout\":300000,\"maxScatterGatherBytes\":9223372036854775807,\"sqlCurrentTimestamp\":\"2000-01-01T00:00:00Z\"},\"descending\":false}], signature=[{__time:long, cnt:long, dim1:string, dim2:string, m1:double, m2:double, unique_dim1:complex}])\n"
+                "DruidQueryRel(query=[{\"queryType\":\"select.stream.raw\",\"dataSource\":{\"type\":\"view\",\"name\":\"foo\",\"columns\":[\"__time\",\"cnt\",\"dim1\",\"dim2\",\"m1\",\"m2\",\"unique_dim1\"],\"virtualColumns\":[],\"filter\":null,\"lowerCasedOutput\":false},\"intervals\":{\"type\":\"intervals\",\"intervals\":[\"-146136543-09-08T08:23:32.096Z/146140482-04-24T15:36:27.903Z\"]},\"filter\":null,\"granularity\":{\"type\":\"all\"},\"dimensions\":[],\"metrics\":[],\"virtualColumns\":[],\"concatString\":null,\"limit\":-1,\"context\":{\"defaultTimeout\":300000,\"maxScatterGatherBytes\":9223372036854775807,\"sqlCurrentTimestamp\":\"2000-01-01T00:00:00Z\"},\"descending\":false}], signature=[{__time:long, cnt:long, dim1:string, dim2:string, m1:double, m2:double, unique_dim1:hyperUnique}])\n"
             }
         )
     );

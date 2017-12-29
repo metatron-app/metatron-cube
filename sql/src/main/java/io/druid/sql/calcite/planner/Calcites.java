@@ -22,12 +22,11 @@ package io.druid.sql.calcite.planner;
 import com.google.common.io.BaseEncoding;
 import com.google.common.primitives.Chars;
 import com.metamx.common.IAE;
-import io.druid.common.DateTimes;
 import com.metamx.common.ISE;
+import io.druid.common.DateTimes;
 import io.druid.common.utils.StringUtils;
-import io.druid.query.ordering.StringComparator;
+import io.druid.data.ValueDesc;
 import io.druid.query.ordering.StringComparators;
-import io.druid.data.ValueType;
 import io.druid.sql.calcite.schema.DruidSchema;
 import io.druid.sql.calcite.schema.InformationSchema;
 import org.apache.calcite.jdbc.CalciteSchema;
@@ -125,40 +124,37 @@ public class Calcites
     }
   }
 
-  public static ValueType getValueTypeForSqlTypeName(SqlTypeName sqlTypeName)
+  public static ValueDesc getValueDescForSqlTypeName(SqlTypeName sqlTypeName)
   {
     if (SqlTypeName.FLOAT == sqlTypeName) {
-      return ValueType.FLOAT;
+      return ValueDesc.FLOAT;
     } else if (SqlTypeName.FRACTIONAL_TYPES.contains(sqlTypeName)) {
-      return ValueType.DOUBLE;
+      return ValueDesc.DOUBLE;
     } else if (SqlTypeName.TIMESTAMP == sqlTypeName
                || SqlTypeName.DATE == sqlTypeName
                || SqlTypeName.BOOLEAN == sqlTypeName
                || SqlTypeName.INT_TYPES.contains(sqlTypeName)) {
-      return ValueType.LONG;
+      return ValueDesc.LONG;
     } else if (SqlTypeName.CHAR_TYPES.contains(sqlTypeName)) {
-      return ValueType.STRING;
-    } else if (SqlTypeName.OTHER == sqlTypeName) {
-      return ValueType.COMPLEX;
-    } else {
-      return null;
+      return ValueDesc.STRING;
     }
+    return ValueDesc.of(sqlTypeName.getName());
   }
 
   public static String getStringComparatorForSqlTypeName(SqlTypeName sqlTypeName)
   {
-    final ValueType valueType = getValueTypeForSqlTypeName(sqlTypeName);
+    final ValueDesc valueType = getValueDescForSqlTypeName(sqlTypeName);
     return getStringComparatorForValueType(valueType);
   }
 
-  public static String getStringComparatorForValueType(ValueType valueType)
+  public static String getStringComparatorForValueType(ValueDesc valueDesc)
   {
-    if (valueType.isNumeric()) {
+    if (ValueDesc.isNumeric(valueDesc)) {
       return StringComparators.NUMERIC_NAME;
-    } else if (ValueType.STRING == valueType) {
+    } else if (ValueDesc.isString(valueDesc)) {
       return StringComparators.LEXICOGRAPHIC_NAME;
     } else {
-      throw new ISE("Unrecognized valueType[%s]", valueType);
+      throw new ISE("Unrecognized valueDesc[%s]", valueDesc);
     }
   }
 

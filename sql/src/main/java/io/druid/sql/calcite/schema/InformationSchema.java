@@ -27,7 +27,7 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
 import com.google.inject.Inject;
-import io.druid.data.ValueType;
+import io.druid.data.ValueDesc;
 import io.druid.sql.calcite.table.RowSignature;
 import org.apache.calcite.DataContext;
 import org.apache.calcite.jdbc.JavaTypeFactoryImpl;
@@ -61,40 +61,40 @@ public class InformationSchema extends AbstractSchema
   private static final String COLUMNS_TABLE = "COLUMNS";
   private static final RowSignature SCHEMATA_SIGNATURE = RowSignature
       .builder()
-      .add("CATALOG_NAME", ValueType.STRING)
-      .add("SCHEMA_NAME", ValueType.STRING)
-      .add("SCHEMA_OWNER", ValueType.STRING)
-      .add("DEFAULT_CHARACTER_SET_CATALOG", ValueType.STRING)
-      .add("DEFAULT_CHARACTER_SET_SCHEMA", ValueType.STRING)
-      .add("DEFAULT_CHARACTER_SET_NAME", ValueType.STRING)
-      .add("SQL_PATH", ValueType.STRING)
+      .add("CATALOG_NAME", ValueDesc.STRING)
+      .add("SCHEMA_NAME", ValueDesc.STRING)
+      .add("SCHEMA_OWNER", ValueDesc.STRING)
+      .add("DEFAULT_CHARACTER_SET_CATALOG", ValueDesc.STRING)
+      .add("DEFAULT_CHARACTER_SET_SCHEMA", ValueDesc.STRING)
+      .add("DEFAULT_CHARACTER_SET_NAME", ValueDesc.STRING)
+      .add("SQL_PATH", ValueDesc.STRING)
       .build();
   private static final RowSignature TABLES_SIGNATURE = RowSignature
       .builder()
-      .add("TABLE_CATALOG", ValueType.STRING)
-      .add("TABLE_SCHEMA", ValueType.STRING)
-      .add("TABLE_NAME", ValueType.STRING)
-      .add("TABLE_TYPE", ValueType.STRING)
+      .add("TABLE_CATALOG", ValueDesc.STRING)
+      .add("TABLE_SCHEMA", ValueDesc.STRING)
+      .add("TABLE_NAME", ValueDesc.STRING)
+      .add("TABLE_TYPE", ValueDesc.STRING)
       .build();
   private static final RowSignature COLUMNS_SIGNATURE = RowSignature
       .builder()
-      .add("TABLE_CATALOG", ValueType.STRING)
-      .add("TABLE_SCHEMA", ValueType.STRING)
-      .add("TABLE_NAME", ValueType.STRING)
-      .add("COLUMN_NAME", ValueType.STRING)
-      .add("ORDINAL_POSITION", ValueType.STRING)
-      .add("COLUMN_DEFAULT", ValueType.STRING)
-      .add("IS_NULLABLE", ValueType.STRING)
-      .add("DATA_TYPE", ValueType.STRING)
-      .add("CHARACTER_MAXIMUM_LENGTH", ValueType.STRING)
-      .add("CHARACTER_OCTET_LENGTH", ValueType.STRING)
-      .add("NUMERIC_PRECISION", ValueType.STRING)
-      .add("NUMERIC_PRECISION_RADIX", ValueType.STRING)
-      .add("NUMERIC_SCALE", ValueType.STRING)
-      .add("DATETIME_PRECISION", ValueType.STRING)
-      .add("CHARACTER_SET_NAME", ValueType.STRING)
-      .add("COLLATION_NAME", ValueType.STRING)
-      .add("JDBC_TYPE", ValueType.LONG)
+      .add("TABLE_CATALOG", ValueDesc.STRING)
+      .add("TABLE_SCHEMA", ValueDesc.STRING)
+      .add("TABLE_NAME", ValueDesc.STRING)
+      .add("COLUMN_NAME", ValueDesc.STRING)
+      .add("ORDINAL_POSITION", ValueDesc.STRING)
+      .add("COLUMN_DEFAULT", ValueDesc.STRING)
+      .add("IS_NULLABLE", ValueDesc.STRING)
+      .add("DATA_TYPE", ValueDesc.STRING)
+      .add("CHARACTER_MAXIMUM_LENGTH", ValueDesc.STRING)
+      .add("CHARACTER_OCTET_LENGTH", ValueDesc.STRING)
+      .add("NUMERIC_PRECISION", ValueDesc.STRING)
+      .add("NUMERIC_PRECISION_RADIX", ValueDesc.STRING)
+      .add("NUMERIC_SCALE", ValueDesc.STRING)
+      .add("DATETIME_PRECISION", ValueDesc.STRING)
+      .add("CHARACTER_SET_NAME", ValueDesc.STRING)
+      .add("COLLATION_NAME", ValueDesc.STRING)
+      .add("JDBC_TYPE", ValueDesc.LONG)
       .build();
   private static final RelDataTypeSystem TYPE_SYSTEM = RelDataTypeSystem.DEFAULT;
 

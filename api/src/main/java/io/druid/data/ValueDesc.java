@@ -312,4 +312,9 @@ public class ValueDesc
   {
     return type != null && type.type.isNumeric();
   }
+
+  public static boolean isType(ValueDesc type, String typeName)
+  {
+    return type != null && typeName.equals(type.typeName);
+  }
 }

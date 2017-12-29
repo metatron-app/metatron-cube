@@ -22,7 +22,7 @@ package io.druid.sql.calcite.expression;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import io.druid.common.DateTimes;
-import io.druid.data.ValueType;
+import io.druid.data.ValueDesc;
 import io.druid.granularity.Granularities;
 import io.druid.granularity.PeriodGranularity;
 import io.druid.math.expr.ExprEval;
@@ -81,16 +81,16 @@ public class ExpressionsTest
   );
   private final RowSignature rowSignature = RowSignature
       .builder()
-      .add("t", ValueType.LONG)
-      .add("a", ValueType.LONG)
-      .add("b", ValueType.LONG)
-      .add("x", ValueType.FLOAT)
-      .add("y", ValueType.LONG)
-      .add("z", ValueType.FLOAT)
-      .add("s", ValueType.STRING)
-      .add("spacey", ValueType.STRING)
-      .add("tstr", ValueType.STRING)
-      .add("dstr", ValueType.STRING)
+      .add("t", ValueDesc.LONG)
+      .add("a", ValueDesc.LONG)
+      .add("b", ValueDesc.LONG)
+      .add("x", ValueDesc.FLOAT)
+      .add("y", ValueDesc.LONG)
+      .add("z", ValueDesc.FLOAT)
+      .add("s", ValueDesc.STRING)
+      .add("spacey", ValueDesc.STRING)
+      .add("tstr", ValueDesc.STRING)
+      .add("dstr", ValueDesc.STRING)
       .build();
   private final Map<String, Object> bindings = ImmutableMap.<String, Object>builder()
       .put("t", DateTimes.of("2000-02-03T04:05:06").getMillis())

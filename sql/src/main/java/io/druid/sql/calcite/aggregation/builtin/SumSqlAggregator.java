@@ -20,7 +20,7 @@
 package io.druid.sql.calcite.aggregation.builtin;
 
 import com.google.common.collect.Iterables;
-import io.druid.data.ValueType;
+import io.druid.data.ValueDesc;
 import io.druid.query.aggregation.GenericSumAggregatorFactory;
 import io.druid.sql.calcite.aggregation.Aggregation;
 import io.druid.sql.calcite.aggregation.Aggregations;
@@ -74,7 +74,7 @@ public class SumSqlAggregator implements SqlAggregator
     }
 
     final DruidExpression arg = Iterables.getOnlyElement(arguments);
-    final ValueType valueType = Calcites.getValueTypeForSqlTypeName(aggregateCall.getType().getSqlTypeName());
+    final ValueDesc valueDesc = Calcites.getValueDescForSqlTypeName(aggregateCall.getType().getSqlTypeName());
 
     final String fieldName;
     final String expression;
@@ -87,6 +87,6 @@ public class SumSqlAggregator implements SqlAggregator
       expression = arg.getExpression();
     }
 
-    return Aggregation.create(new GenericSumAggregatorFactory(name, fieldName, expression, null, valueType.name()));
+    return Aggregation.create(new GenericSumAggregatorFactory(name, fieldName, expression, null, valueDesc.typeName()));
   }
 }
