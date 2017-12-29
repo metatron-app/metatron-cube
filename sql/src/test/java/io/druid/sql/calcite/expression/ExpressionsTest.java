@@ -150,7 +150,7 @@ public class ExpressionsTest
         ),
         DruidExpression.of(
             SimpleExtraction.of("s", new RegexDimExtractionFn("f(.)", 1, true, null)),
-            "regexp_extract(\"s\",'f(.)',1)"
+            "regex(\"s\",'f(.)',1)"
         ),
         "o"
     );
@@ -163,7 +163,7 @@ public class ExpressionsTest
         ),
         DruidExpression.of(
             SimpleExtraction.of("s", new RegexDimExtractionFn("f(.)", 0, true, null)),
-            "regexp_extract(\"s\",'f(.)')"
+            "regex(\"s\",'f(.)')"
         ),
         "fo"
     );
@@ -178,7 +178,7 @@ public class ExpressionsTest
             inputRef("s"),
             rexBuilder.makeLiteral("oo")
         ),
-        DruidExpression.fromExpression("(strpos(\"s\",'oo') + 1)"),
+        DruidExpression.fromExpression("(indexOf(\"s\",'oo') + 1)"),
         2L
     );
 
@@ -188,7 +188,7 @@ public class ExpressionsTest
             inputRef("s"),
             rexBuilder.makeLiteral("ax")
         ),
-        DruidExpression.fromExpression("(strpos(\"s\",'ax') + 1)"),
+        DruidExpression.fromExpression("(indexOf(\"s\",'ax') + 1)"),
         0L
     );
 
@@ -198,7 +198,7 @@ public class ExpressionsTest
             rexBuilder.makeNullLiteral(typeFactory.createSqlType(SqlTypeName.VARCHAR)),
             rexBuilder.makeLiteral("ax")
         ),
-        DruidExpression.fromExpression("(strpos('','ax') + 1)"),
+        DruidExpression.fromExpression("(indexOf('','ax') + 1)"),
         0L
     );
   }
@@ -546,7 +546,7 @@ public class ExpressionsTest
         ),
         DruidExpression.of(
             null,
-            "timestamp_shift(\"t\",concat('P', 13, 'M'),1)"
+            "timestamp_shift(\"t\",'P13M',1)"
         ),
         DateTimes.of("2000-02-03T04:05:06").plus(period).getMillis()
     );
@@ -596,7 +596,7 @@ public class ExpressionsTest
         ),
         DruidExpression.of(
             null,
-            "timestamp_shift(\"t\",concat('P', 13, 'M'),-1)"
+            "timestamp_shift(\"t\",'P13M',-1)"
         ),
         DateTimes.of("2000-02-03T04:05:06").minus(period).getMillis()
     );

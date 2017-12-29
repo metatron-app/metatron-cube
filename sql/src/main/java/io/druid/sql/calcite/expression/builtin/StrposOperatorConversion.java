@@ -62,7 +62,7 @@ public class StrposOperatorConversion implements SqlOperatorConversion
             null,
             StringUtils.format(
                 "(%s + 1)",
-                DruidExpression.functionCall("strpos", druidExpressions)
+                DruidExpression.functionCall("indexOf", druidExpressions)
             )
         )
     );

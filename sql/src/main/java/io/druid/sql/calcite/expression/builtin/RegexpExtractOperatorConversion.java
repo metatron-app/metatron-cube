@@ -19,7 +19,6 @@
 
 package io.druid.sql.calcite.expression.builtin;
 
-import io.druid.common.utils.StringUtils;
 import io.druid.math.expr.Evals;
 import io.druid.math.expr.Expr;
 import io.druid.query.extraction.RegexDimExtractionFn;
@@ -63,7 +62,7 @@ public class RegexpExtractOperatorConversion implements SqlOperatorConversion
         plannerContext,
         rowSignature,
         rexNode,
-        StringUtils.toLowerCase(calciteOperator().getName()),
+        "regex",
         inputExpressions -> {
           final DruidExpression arg = inputExpressions.get(0);
           final Expr patternExpr = inputExpressions.get(1).parse();

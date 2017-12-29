@@ -231,7 +231,7 @@ public interface PredicateFunctions extends Function.Library
         public ExprEval apply(List<Expr> args, Expr.NumericBinding bindings)
         {
           String eval = args.get(0).eval(bindings).asString();
-          return ExprEval.of(eval != null && matcher.reset(eval).matches());
+          return ExprEval.of(eval != null && matcher.reset(eval).find());
         }
       };
     }

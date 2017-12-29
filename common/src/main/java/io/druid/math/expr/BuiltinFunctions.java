@@ -361,7 +361,7 @@ public interface BuiltinFunctions extends Function.Library
         public ExprEval apply(List<Expr> args, NumericBinding bindings)
         {
           Matcher m = matcher.reset(Evals.evalString(args.get(0), bindings));
-          return ExprEval.of(m.matches() ? matcher.group(index) : null);
+          return ExprEval.of(m.find() ? matcher.group(index) : null);
         }
       };
     }
