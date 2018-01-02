@@ -33,7 +33,7 @@ import io.druid.query.aggregation.model.HoltWintersPostProcessor;
 })
 public interface PostProcessingOperator<T>
 {
-  public QueryRunner<T> postProcess(QueryRunner<T> baseQueryRunner);
+  public QueryRunner postProcess(QueryRunner<T> baseQueryRunner);
 
   public boolean supportsUnionProcessing();
 
@@ -44,7 +44,7 @@ public interface PostProcessingOperator<T>
     @Override
     public boolean supportsUnionProcessing() { return true;}
 
-    public abstract QueryRunner<T> postProcess(UnionAllQueryRunner<T> baseQueryRunner);
+    public abstract QueryRunner postProcess(UnionAllQueryRunner<T> baseQueryRunner);
   }
 
   public abstract class Abstract<T> implements PostProcessingOperator<T>

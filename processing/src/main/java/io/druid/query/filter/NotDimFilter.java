@@ -118,7 +118,7 @@ public class NotDimFilter implements DimFilter, NotExpression
   @Override
   public String toString()
   {
-    return "!" + field;
+    return "!(" + field + ")";
   }
 
   public static DimFilter of(DimFilter filter) {

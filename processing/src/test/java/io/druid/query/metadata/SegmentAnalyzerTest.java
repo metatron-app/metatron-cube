@@ -78,7 +78,7 @@ public class SegmentAnalyzerTest
     for (String dimension : TestIndex.DIMENSIONS) {
       final ColumnAnalysis columnAnalysis = columns.get(dimension);
 
-      Assert.assertEquals(dimension, ValueDesc.STRING_TYPE, columnAnalysis.getType());
+      Assert.assertEquals(dimension, ValueDesc.DIM_STRING.typeName(), columnAnalysis.getType());
       if (analyses == null) {
         Assert.assertTrue(dimension, columnAnalysis.getCardinality() > 0);
       } else {
@@ -134,7 +134,7 @@ public class SegmentAnalyzerTest
       if (dimension.equals("null_column")) {
         Assert.assertNull(columnAnalysis);
       } else {
-        Assert.assertEquals(dimension, ValueDesc.STRING_TYPE, columnAnalysis.getType());
+        Assert.assertEquals(dimension, ValueDesc.DIM_STRING.typeName(), columnAnalysis.getType());
         if (analyses == null) {
           Assert.assertTrue(dimension, columnAnalysis.getSerializedSize() >= 0);
           Assert.assertTrue(dimension, columnAnalysis.getCardinality() > 0);

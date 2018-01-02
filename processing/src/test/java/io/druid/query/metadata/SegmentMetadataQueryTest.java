@@ -186,7 +186,7 @@ public class SegmentMetadataQueryTest
             ),
             "placement",
             new ColumnAnalysis(
-                ValueType.STRING.toString(),
+                ValueDesc.DIM_STRING.typeName(),
                 false,
                 mmap1 ? 345 : 0,
                 1,
@@ -228,7 +228,7 @@ public class SegmentMetadataQueryTest
             ),
             "placement",
             new ColumnAnalysis(
-                ValueType.STRING.toString(),
+                ValueDesc.DIM_STRING.typeName(),
                 false,
                 mmap2 ? 345 : 0,
                 1,
@@ -281,7 +281,7 @@ public class SegmentMetadataQueryTest
         ImmutableMap.of(
             "partial_null_column",
             new ColumnAnalysis(
-                ValueDesc.STRING_TYPE, false, mmap1 ? 674 : 0, 2, 1023, "", "value", null
+                ValueDesc.DIM_STRING.typeName(), false, mmap1 ? 674 : 0, 2, 1023, "", "value", null
             )
         ),
         mmap1 ? 47671 : 0,
@@ -341,7 +341,7 @@ public class SegmentMetadataQueryTest
         ImmutableMap.of(
             "placement",
             new ColumnAnalysis(
-                ValueType.STRING.toString(),
+                ValueDesc.DIM_STRING.typeName(),
                 false,
                 -1,
                 -1,
@@ -351,7 +351,7 @@ public class SegmentMetadataQueryTest
             ),
             "placementish",
             new ColumnAnalysis(
-                ValueType.STRING.toString(),
+                ValueDesc.DIM_STRING.typeName(),
                 true,
                 -1,
                 -1,
@@ -413,7 +413,7 @@ public class SegmentMetadataQueryTest
         ImmutableMap.of(
             "placement",
             new ColumnAnalysis(
-                ValueType.STRING.toString(),
+                ValueDesc.DIM_STRING.typeName(),
                 false,
                 -1,
                 1,
@@ -423,7 +423,7 @@ public class SegmentMetadataQueryTest
             ),
             "placementish",
             new ColumnAnalysis(
-                ValueType.STRING.toString(),
+                ValueDesc.DIM_STRING.typeName(),
                 true,
                 -1,
                 9,
@@ -494,7 +494,7 @@ public class SegmentMetadataQueryTest
         ImmutableMap.of(
             "placement",
             new ColumnAnalysis(
-                ValueType.STRING.toString(),
+                ValueDesc.DIM_STRING.typeName(),
                 false,
                 -1,
                 1,
@@ -557,7 +557,7 @@ public class SegmentMetadataQueryTest
   public void testSegmentMetadataQueryWithDefaultAnalysisMerge()
   {
     ColumnAnalysis analysis = new ColumnAnalysis(
-        ValueType.STRING.toString(),
+        ValueDesc.DIM_STRING.typeName(),
         false,
         (mmap1 ? 345 : 0) + (mmap2 ? 345 : 0),
         1,
@@ -572,7 +572,7 @@ public class SegmentMetadataQueryTest
   public void testSegmentMetadataQueryWithDefaultAnalysisMerge2()
   {
     ColumnAnalysis analysis = new ColumnAnalysis(
-        ValueType.STRING.toString(),
+        ValueDesc.DIM_STRING.typeName(),
         false,
         (mmap1 ? 866 : 0) + (mmap2 ? 866 : 0),
         3,
@@ -587,7 +587,7 @@ public class SegmentMetadataQueryTest
   public void testSegmentMetadataQueryWithDefaultAnalysisMerge3()
   {
     ColumnAnalysis analysis = new ColumnAnalysis(
-        ValueType.STRING.toString(),
+        ValueDesc.DIM_STRING.typeName(),
         false,
         (mmap1 ? 1953 : 0) + (mmap2 ? 1953 : 0),
         9,
@@ -672,7 +672,7 @@ public class SegmentMetadataQueryTest
         ImmutableMap.of(
             "placement",
             new ColumnAnalysis(
-                ValueType.STRING.toString(),
+                ValueDesc.DIM_STRING.typeName(),
                 false,
                 -1,
                 -1,
@@ -734,7 +734,7 @@ public class SegmentMetadataQueryTest
         ImmutableMap.of(
             "placement",
             new ColumnAnalysis(
-                ValueType.STRING.toString(),
+                ValueDesc.DIM_STRING.typeName(),
                 false,
                 -1,
                 -1,
@@ -793,7 +793,7 @@ public class SegmentMetadataQueryTest
         ImmutableMap.of(
             "placement",
             new ColumnAnalysis(
-                ValueType.STRING.toString(),
+                ValueDesc.DIM_STRING.typeName(),
                 false,
                 -1,
                 -1,

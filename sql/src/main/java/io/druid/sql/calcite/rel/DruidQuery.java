@@ -723,6 +723,10 @@ public class DruidQuery
 
     final DimensionExpression dimensionExpr = Iterables.getOnlyElement(dimensions);
     final DimensionSpec dimensionSpec = dimensionExpr.toDimensionSpec();
+    if (!dimensionSpec.getDimension().equals(Column.TIME_COLUMN_NAME) &&
+        !ValueDesc.isDimension(sourceRowSignature.getColumnType(dimensionSpec.getDimension()))) {
+      return null;
+    }
     final OrderByColumnSpec limitColumn;
     if (limitSpec.getColumns().isEmpty()) {
       limitColumn = new OrderByColumnSpec(

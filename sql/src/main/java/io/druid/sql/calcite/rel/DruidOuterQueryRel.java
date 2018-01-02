@@ -123,6 +123,8 @@ public class DruidOuterQueryRel extends DruidRel<DruidOuterQueryRel>
       return null;
     }
 
+    // todo relay expected signature to sub query handler (in toolchest)
+    // extract dimensions in grouping (for possible topN query) and make new signature (as dimension type)
     final RowSignature sourceRowSignature = subQuery.getOutputRowSignature();
     return partialQuery.build(
         new QueryDataSource(subQuery.getQuery()),

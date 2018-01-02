@@ -60,6 +60,9 @@ public class ValueDesc
   public static ValueDesc DOUBLE = new ValueDesc(ValueType.DOUBLE);
   public static ValueDesc LONG = new ValueDesc(ValueType.LONG);
 
+  // dimension
+  public static ValueDesc DIM_STRING = new ValueDesc(DIMENSION_PREFIX + STRING_TYPE);
+
   // internal types
   public static ValueDesc MAP = of(MAP_TYPE);
   public static ValueDesc LIST = of(LIST_TYPE);

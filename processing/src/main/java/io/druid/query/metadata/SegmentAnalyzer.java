@@ -79,8 +79,7 @@ public class SegmentAnalyzer
 
       ColumnAnalysis analysis;
       if (ValueDesc.isDimension(valueDesc)) {
-        ValueType dimensionType = valueDesc.subElement().type();
-        analysis = analyzeDimensionColumn(column, columnName, dimensionType, vcs, adapter, analysisTypes);
+        analysis = analyzeDimensionColumn(column, columnName, valueDesc, vcs, adapter, analysisTypes);
       } else {
         analysis = analyzeSimpleColumn(column, columnName, valueDesc, vcs, adapter, analysisTypes);
       }
@@ -188,12 +187,14 @@ public class SegmentAnalyzer
   private static ColumnAnalysis analyzeDimensionColumn(
       final Column column,
       final String columnName,
-      final ValueType valueType,
+      final ValueDesc valueDesc,
       final VirtualColumns virtualColumns,
       final StorageAdapter storageAdapter,
       final EnumSet<AnalysisType> analysisTypes
   )
   {
+    Preconditions.checkArgument(ValueDesc.isDimension(valueDesc));
+    final ValueType valueType = valueDesc.subElement().type();
     final Map<String, Object> stats = column == null ? null : column.getColumnStats();
 
     final boolean analyzingMinMax = analysisTypes.contains(AnalysisType.MINMAX);
@@ -285,7 +286,7 @@ public class SegmentAnalyzer
     }
 
     return new ColumnAnalysis(
-        valueType.toString(),
+        valueDesc.typeName(),
         storageAdapter.getColumnCapabilities(columnName).hasMultipleValues(),
         serializedSize,
         cardinality,

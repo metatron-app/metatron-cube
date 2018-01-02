@@ -19,6 +19,7 @@
 
 package io.druid.sql.calcite.table;
 
+import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
@@ -28,9 +29,12 @@ import com.metamx.common.IAE;
 import com.metamx.common.ISE;
 import com.metamx.common.Pair;
 import io.druid.data.ValueDesc;
+import io.druid.data.input.impl.DimensionSchema;
+import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.ordering.StringComparator;
 import io.druid.query.ordering.StringComparators;
 import io.druid.segment.column.Column;
+import io.druid.segment.incremental.IncrementalIndexSchema;
 import io.druid.sql.calcite.expression.SimpleExtraction;
 import io.druid.sql.calcite.planner.Calcites;
 import org.apache.calcite.rel.type.RelDataType;
@@ -52,8 +56,20 @@ import java.util.Map;
  * column has a defined type. This is a little bit of a fiction in the Druid world (where rows do not _actually_ have
  * well defined types) but we do impose types for the SQL layer.
  */
-public class RowSignature
+public class RowSignature implements io.druid.query.RowSignature, Function<String, ValueDesc>
 {
+  public static RowSignature from(IncrementalIndexSchema schema)
+  {
+    RowSignature.Builder builder = RowSignature.builder();
+    for (DimensionSchema dimensionSchema : schema.getDimensionsSpec().getDimensions()) {
+      builder.add(dimensionSchema.getName(), ValueDesc.ofDimension(dimensionSchema.getValueType()));
+    }
+    for (AggregatorFactory factory : schema.getMetrics()) {
+      builder.add(factory.getName(), ValueDesc.of(factory.getTypeName()));
+    }
+    return builder.build();
+  }
+
   private final Map<String, ValueDesc> columnTypes;
   private final List<String> columnNames;
 
@@ -108,6 +124,12 @@ public class RowSignature
     return columnTypes.get(name);
   }
 
+  @Override
+  public ValueDesc apply(String input)
+  {
+    return getColumnType(input);
+  }
+
   /**
    * Returns the rowOrder for this signature, which is the list of column names in row order.
    *
@@ -131,6 +153,7 @@ public class RowSignature
   {
     Preconditions.checkNotNull(simpleExtraction, "simpleExtraction");
     if (simpleExtraction.getExtractionFn() != null
+        || ValueDesc.isDimension(getColumnType(simpleExtraction.getColumn()))
         || ValueDesc.isString(getColumnType(simpleExtraction.getColumn()))) {
       return StringComparators.LEXICOGRAPHIC_NAME;
     } else {
@@ -147,9 +170,12 @@ public class RowSignature
    */
   public RelDataType getRelDataType(final RelDataTypeFactory typeFactory)
   {
-    final RelDataTypeFactory.FieldInfoBuilder builder = typeFactory.builder();
+    final RelDataTypeFactory.Builder builder = typeFactory.builder();
     for (final String columnName : columnNames) {
-      final ValueDesc columnType = getColumnType(columnName);
+      ValueDesc columnType = getColumnType(columnName);
+      if (ValueDesc.isDimension(columnType)) {
+        columnType = columnType.subElement();
+      }
       final RelDataType type;
 
       if (Column.TIME_COLUMN_NAME.equals(columnName)) {
@@ -234,6 +260,18 @@ public class RowSignature
       s.append(columnName).append(":").append(getColumnType(columnName));
     }
     return s.append("}").toString();
+  }
+
+  @Override
+  public List<String> getColumnNames()
+  {
+    return ImmutableList.copyOf(columnNames);
+  }
+
+  @Override
+  public List<ValueDesc> getColumnTypes()
+  {
+    return ImmutableList.copyOf(Lists.transform(columnNames, this));
   }
 
   public static class Builder

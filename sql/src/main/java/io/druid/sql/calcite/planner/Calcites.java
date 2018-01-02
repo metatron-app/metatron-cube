@@ -151,7 +151,7 @@ public class Calcites
   {
     if (ValueDesc.isNumeric(valueDesc)) {
       return StringComparators.NUMERIC_NAME;
-    } else if (ValueDesc.isString(valueDesc)) {
+    } else if (ValueDesc.isDimension(valueDesc) || ValueDesc.isString(valueDesc)) {
       return StringComparators.LEXICOGRAPHIC_NAME;
     } else {
       throw new ISE("Unrecognized valueDesc[%s]", valueDesc);

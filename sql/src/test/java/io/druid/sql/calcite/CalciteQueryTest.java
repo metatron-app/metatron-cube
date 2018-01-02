@@ -96,7 +96,6 @@ import io.druid.sql.calcite.util.CalciteTests;
 import io.druid.sql.calcite.util.QueryLogHook;
 import io.druid.sql.calcite.util.SpecificSegmentsQuerySegmentWalker;
 import io.druid.sql.calcite.view.InProcessViewManager;
-import org.apache.calcite.plan.RelOptPlanner;
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
 import org.joda.time.Interval;
@@ -559,7 +558,7 @@ public class CalciteQueryTest
         ImmutableList.of(),
         ImmutableList.of(
             new Object[]{
-                "DruidQueryRel(query=[{\"queryType\":\"select.stream.raw\",\"dataSource\":{\"type\":\"view\",\"name\":\"foo\",\"columns\":[\"__time\",\"cnt\",\"dim1\",\"dim2\",\"m1\",\"m2\",\"unique_dim1\"],\"virtualColumns\":[],\"filter\":null,\"lowerCasedOutput\":false},\"intervals\":{\"type\":\"intervals\",\"intervals\":[\"-146136543-09-08T08:23:32.096Z/146140482-04-24T15:36:27.903Z\"]},\"filter\":null,\"granularity\":{\"type\":\"all\"},\"dimensions\":[],\"metrics\":[],\"virtualColumns\":[],\"concatString\":null,\"limit\":-1,\"context\":{\"defaultTimeout\":300000,\"maxScatterGatherBytes\":9223372036854775807,\"sqlCurrentTimestamp\":\"2000-01-01T00:00:00Z\"},\"descending\":false}], signature=[{__time:long, cnt:long, dim1:string, dim2:string, m1:double, m2:double, unique_dim1:hyperUnique}])\n"
+                "DruidQueryRel(query=[{\"queryType\":\"select.stream.raw\",\"dataSource\":{\"type\":\"view\",\"name\":\"foo\",\"columns\":[\"__time\",\"cnt\",\"dim1\",\"dim2\",\"m1\",\"m2\",\"unique_dim1\"],\"virtualColumns\":[],\"filter\":null,\"lowerCasedOutput\":false},\"intervals\":{\"type\":\"intervals\",\"intervals\":[\"-146136543-09-08T08:23:32.096Z/146140482-04-24T15:36:27.903Z\"]},\"filter\":null,\"granularity\":{\"type\":\"all\"},\"dimensions\":[],\"metrics\":[],\"virtualColumns\":[],\"concatString\":null,\"limit\":-1,\"context\":{\"defaultTimeout\":300000,\"maxScatterGatherBytes\":9223372036854775807,\"sqlCurrentTimestamp\":\"2000-01-01T00:00:00Z\"},\"descending\":false}], signature=[{__time:long, cnt:long, dim1:dimension.string, dim2:dimension.string, m1:double, m2:double, unique_dim1:hyperUnique}])\n"
             }
         )
     );
@@ -1695,8 +1694,8 @@ public class CalciteQueryTest
       e = e1;
     }
 
-    if (!(e instanceof RelOptPlanner.CannotPlanException)) {
-      log.error(e, "Expected CannotPlanException for query: %s", sql);
+    if (e == null) {
+      // now makes queries lazily
       Assert.fail(sql);
     }
   }

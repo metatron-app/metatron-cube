@@ -30,6 +30,7 @@ import com.metamx.common.Pair;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.data.TypeResolver;
 import io.druid.data.ValueDesc;
+import io.druid.query.RowSignature;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.AggregatorFactoryNotMergeableException;
 
@@ -39,7 +40,7 @@ import java.util.Map;
 
 /**
  */
-public class Schema implements TypeResolver
+public class Schema implements TypeResolver, RowSignature
 {
   public static final Schema EMPTY = new Schema(
       Collections.<String>emptyList(),
