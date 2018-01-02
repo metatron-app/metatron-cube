@@ -35,7 +35,7 @@ import java.util.TreeMap;
 
 /**
  */
-public class Rows
+public class Rows extends io.druid.data.Rows
 {
   public static Function rowToMap(final String timestampColumn)
   {

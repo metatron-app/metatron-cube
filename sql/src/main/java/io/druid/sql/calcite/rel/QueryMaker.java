@@ -31,7 +31,7 @@ import com.metamx.common.guava.Sequence;
 import com.metamx.common.guava.Sequences;
 import com.metamx.common.logger.Logger;
 import io.druid.common.DateTimes;
-import io.druid.data.input.AbstractRow;
+import io.druid.data.Rows;
 import io.druid.data.input.Row;
 import io.druid.math.expr.Evals;
 import io.druid.query.Query;
@@ -97,6 +97,11 @@ public class QueryMaker
     return jsonMapper;
   }
 
+  public QuerySegmentWalker getSegmentWalker()
+  {
+    return segmentWalker;
+  }
+
   public Sequence<Object[]> runQuery(final DruidQuery druidQuery)
   {
     Query query = druidQuery.getQuery();
@@ -160,7 +165,7 @@ public class QueryMaker
                   if (index < 0) {
                     continue;
                   }
-                  retVal[field.getIndex()] = coerce(field.getName(), row[index], field.getType().getSqlTypeName());
+                  retVal[field.getIndex()] = coerce(row[index], field.getType().getSqlTypeName());
                 }
                 retVals.add(retVal);
               }
@@ -237,13 +242,11 @@ public class QueryMaker
                                 final String outputName = outputRowSignature.getRowOrder().get(field.getIndex());
                                 if (outputName.equals(Column.TIME_COLUMN_NAME)) {
                                   retVal[field.getIndex()] = coerce(
-                                      outputName,
                                       holder.getTimestamp(),
                                       field.getType().getSqlTypeName()
                                   );
                                 } else {
                                   retVal[field.getIndex()] = coerce(
-                                      outputName,
                                       map.get(outputName),
                                       field.getType().getSqlTypeName()
                                   );
@@ -310,9 +313,9 @@ public class QueryMaker
             for (final RelDataTypeField field : fieldList) {
               final String outputName = rowOrder.get(field.getIndex());
               if (outputName.equals(timeOutputName)) {
-                retVal[field.getIndex()] = coerce(outputName, result.getTimestamp(), field.getType().getSqlTypeName());
+                retVal[field.getIndex()] = coerce(result.getTimestamp(), field.getType().getSqlTypeName());
               } else {
-                retVal[field.getIndex()] = coerce(outputName, row.get(outputName), field.getType().getSqlTypeName());
+                retVal[field.getIndex()] = coerce(row.get(outputName), field.getType().getSqlTypeName());
               }
             }
 
@@ -344,7 +347,7 @@ public class QueryMaker
                   final Object[] retVal = new Object[fieldList.size()];
                   for (final RelDataTypeField field : fieldList) {
                     final String outputName = druidQuery.getOutputRowSignature().getRowOrder().get(field.getIndex());
-                    retVal[field.getIndex()] = coerce(outputName, row.get(outputName), field.getType().getSqlTypeName());
+                    retVal[field.getIndex()] = coerce(row.get(outputName), field.getType().getSqlTypeName());
                   }
 
                   retVals.add(retVal);
@@ -374,7 +377,6 @@ public class QueryMaker
             final Object[] retVal = new Object[fieldList.size()];
             for (RelDataTypeField field : fieldList) {
               retVal[field.getIndex()] = coerce(
-                  field.getName(),
                   row.getRaw(druidQuery.getOutputRowSignature().getRowOrder().get(field.getIndex())),
                   field.getType().getSqlTypeName()
               );
@@ -408,7 +410,7 @@ public class QueryMaker
     }
   }
 
-  private Object coerce(final String column, final Object value, final SqlTypeName sqlType)
+  private Object coerce(final Object value, final SqlTypeName sqlType)
   {
     final Object coercedValue;
 
@@ -446,21 +448,21 @@ public class QueryMaker
       }
     } else if (sqlType == SqlTypeName.BIGINT) {
       try {
-        coercedValue = AbstractRow.parseLong(column, value);
+        coercedValue = Rows.parseLong(value);
       }
       catch (Exception e) {
         throw new ISE("Cannot coerce[%s] to %s", value.getClass().getName(), sqlType);
       }
     } else if (sqlType == SqlTypeName.FLOAT) {
       try {
-        coercedValue = AbstractRow.parseFloat(column, value);
+        coercedValue = Rows.parseFloat(value);
       }
       catch (Exception e) {
         throw new ISE("Cannot coerce[%s] to %s", value.getClass().getName(), sqlType);
       }
     } else if (SqlTypeName.FRACTIONAL_TYPES.contains(sqlType)) {
       try {
-        coercedValue = AbstractRow.parseDouble(column, value);
+        coercedValue = Rows.parseDouble(value);
       }
       catch (Exception e) {
         throw new ISE("Cannot coerce[%s] to %s", value.getClass().getName(), sqlType);

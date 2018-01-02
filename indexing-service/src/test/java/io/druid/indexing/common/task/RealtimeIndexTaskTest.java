@@ -614,7 +614,7 @@ public class RealtimeIndexTaskTest
                 CoreMatchers.allOf(
                     CoreMatchers.<Throwable>instanceOf(ParseException.class),
                     ThrowableMessageMatcher.hasMessage(
-                        CoreMatchers.containsString("Unable to parse metrics[met1], value[foo]")
+                        CoreMatchers.containsString("Unable to parse long from value[foo]")
                     )
                 )
             )

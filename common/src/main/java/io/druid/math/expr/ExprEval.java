@@ -21,8 +21,8 @@ package io.druid.math.expr;
 
 import com.google.common.primitives.Ints;
 import com.metamx.common.Pair;
+import io.druid.data.Rows;
 import io.druid.data.ValueDesc;
-import io.druid.data.input.AbstractRow;
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
 
@@ -183,7 +183,7 @@ public class ExprEval extends Pair<Object, ExprType>
       case LONG:
         return floatValue();
       case STRING:
-        return isNull() ? 0F : AbstractRow.tryParseFloat(asString());
+        return isNull() ? 0F : Rows.tryParseFloat(asString());
       case DATETIME:
         return isNull() ? 0F : dateTimeValue().getMillis();
     }
@@ -197,7 +197,7 @@ public class ExprEval extends Pair<Object, ExprType>
       case LONG:
         return doubleValue();
       case STRING:
-        return isNull() ? 0D : AbstractRow.tryParseDouble(asString());
+        return isNull() ? 0D : Rows.tryParseDouble(asString());
       case DATETIME:
         return isNull() ? 0D : dateTimeValue().getMillis();
     }
@@ -211,7 +211,7 @@ public class ExprEval extends Pair<Object, ExprType>
       case LONG:
         return longValue();
       case STRING:
-        return isNull() ? 0L : AbstractRow.tryParseLong(asString());
+        return isNull() ? 0L : Rows.tryParseLong(asString());
       case DATETIME:
         return isNull() ? 0L : dateTimeValue().getMillis();
     }
@@ -225,7 +225,7 @@ public class ExprEval extends Pair<Object, ExprType>
       case LONG:
         return intValue();
       case STRING:
-        return isNull() ? 0 : AbstractRow.tryParseInt(asString());
+        return isNull() ? 0 : Rows.tryParseInt(asString());
       case DATETIME:
         return isNull() ? 0 : Ints.checkedCast(dateTimeValue().getMillis());
     }
