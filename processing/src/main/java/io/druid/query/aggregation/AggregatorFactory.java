@@ -248,6 +248,15 @@ public abstract class AggregatorFactory implements Cacheable
     return types;
   }
 
+  public static AggregatorFactory[] toCombiner(AggregatorFactory[] aggregators)
+  {
+    AggregatorFactory[] combiningAggregators = new AggregatorFactory[aggregators.length];
+    for (int i = 0; i < aggregators.length; i++) {
+      combiningAggregators[i] = aggregators[i].getCombiningFactory();
+    }
+    return combiningAggregators;
+  }
+
   public static List<AggregatorFactory> toCombiner(List<AggregatorFactory> aggregators)
   {
     List<AggregatorFactory> combiners = Lists.newArrayList();

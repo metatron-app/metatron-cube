@@ -98,8 +98,8 @@ public class OnHeapDimDimTest
     }
     System.out.println(" 4096 entry cache. Took " + (System.currentTimeMillis() - prev) + " msec");
 
-    Assert.assertTrue(Iterables.elementsEqual(index1, index2));
-    Assert.assertTrue(Iterables.elementsEqual(index1, index3));
+    Assert.assertTrue(Iterables.elementsEqual(index1.toMergeStream(), index2.toMergeStream()));
+    Assert.assertTrue(Iterables.elementsEqual(index1.toMergeStream(), index3.toMergeStream()));
   }
 
   private IncrementalIndex createIndexWithCache(int cacheSize)

@@ -113,8 +113,8 @@ public class IncrementalIndexAdapter implements IndexableAdapter
     }
 
     int rowNum = 0;
-    for (IncrementalIndex.TimeAndDims timeAndDims : index.getFacts().keySet()) {
-      final int[][] dims = timeAndDims.getDims();
+    for (Map.Entry<IncrementalIndex.TimeAndDims, Integer> fact : index.getAll(false)) {
+      final int[][] dims = fact.getKey().getDims();
 
       for (IncrementalIndex.DimensionDesc dimension : dimensions) {
         final int dimIndex = dimension.getIndex();
@@ -234,7 +234,7 @@ public class IncrementalIndexAdapter implements IndexableAdapter
          * iterator() call to ensure the counter starts at 0.
          */
         return Iterators.transform(
-            index.getFacts().entrySet().iterator(),
+            index.getAll(false).iterator(),
             new Function<Map.Entry<IncrementalIndex.TimeAndDims, Integer>, Rowboat>()
             {
               int count = 0;

@@ -24,11 +24,9 @@ import com.google.common.base.Supplier;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.primitives.Ints;
-import com.metamx.common.Pair;
 import com.metamx.common.logger.Logger;
 import com.metamx.common.parsers.ParseException;
 import io.druid.data.ValueDesc;
-import io.druid.data.ValueType;
 import io.druid.data.input.Row;
 import io.druid.granularity.Granularity;
 import io.druid.query.aggregation.AbstractArrayAggregatorFactory;
@@ -47,7 +45,6 @@ import io.druid.segment.FloatColumnSelector;
 import io.druid.segment.LongColumnSelector;
 import io.druid.segment.ObjectColumnSelector;
 
-import java.lang.reflect.Array;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
@@ -62,13 +59,11 @@ public class OnheapIncrementalIndex extends IncrementalIndex<Aggregator>
 {
   private static final Logger log = new Logger(OnheapIncrementalIndex.class);
 
+  protected final ConcurrentMap<TimeAndDims, Integer> facts;
   private final ConcurrentHashMap<Integer, Aggregator[]> aggregators = new ConcurrentHashMap<>();
-  private final ConcurrentMap<TimeAndDims, Integer> facts;
   private final AtomicInteger indexIncrement = new AtomicInteger(0);
-  protected final int maxRowCount;
   private ColumnSelectorFactory[] selectors;
 
-  private String outOfRowsReason = null;
   private final int[] arrayAggregatorIndices;
 
   public OnheapIncrementalIndex(
@@ -79,8 +74,7 @@ public class OnheapIncrementalIndex extends IncrementalIndex<Aggregator>
       int maxRowCount
   )
   {
-    super(incrementalIndexSchema, deserializeComplexMetrics, reportParseExceptions, sortFacts);
-    this.maxRowCount = maxRowCount;
+    super(incrementalIndexSchema, deserializeComplexMetrics, reportParseExceptions, sortFacts, maxRowCount);
 
     if (sortFacts) {
       this.facts = new ConcurrentSkipListMap<>(dimsComparator());
@@ -161,22 +155,10 @@ public class OnheapIncrementalIndex extends IncrementalIndex<Aggregator>
   }
 
   @Override
-  public ConcurrentMap<TimeAndDims, Integer> getFacts()
-  {
-    return facts;
-  }
-
-  @Override
   @SuppressWarnings("unchecked")
-  protected DimDim makeDimDim(String dimension, ValueType type, SizeEstimator estimator)
+  public Iterable<Map.Entry<TimeAndDims, Integer>> getRangeOf(final long from, final long to, Boolean timeDescending)
   {
-    return new OnHeapDimDim(estimator, type.classOfObject());
-  }
-
-  @Override
-  protected DimDim makeDimDim(String dimension, String[] dictionary, SizeEstimator estimator)
-  {
-    return new ReadOnlyDimDim(dictionary);
+    return getFacts(facts, from, to, timeDescending);
   }
 
   @Override
@@ -290,16 +272,6 @@ public class OnheapIncrementalIndex extends IncrementalIndex<Aggregator>
   }
 
   @Override
-  public boolean canAppendRow()
-  {
-    final boolean canAdd = size() < maxRowCount;
-    if (!canAdd) {
-      outOfRowsReason = String.format("Maximum number of rows [%d] reached", maxRowCount);
-    }
-    return canAdd;
-  }
-
-  @Override
   public long estimatedOccupation()
   {
     long estimation = super.estimatedOccupation();
@@ -311,12 +283,6 @@ public class OnheapIncrementalIndex extends IncrementalIndex<Aggregator>
       }
     }
     return estimation;
-  }
-
-  @Override
-  public String getOutOfRowsReason()
-  {
-    return outOfRowsReason;
   }
 
   @Override
@@ -367,181 +333,6 @@ public class OnheapIncrementalIndex extends IncrementalIndex<Aggregator>
     facts.clear();
     if (selectors != null) {
       Arrays.fill(selectors, null);
-    }
-  }
-
-  static final class OnHeapDimDim<T extends Comparable<? super T>> implements DimDim<T>
-  {
-    private final Class<T> clazz;
-    private final Map<T, Integer> valueToId = Maps.newHashMap();
-    private T minValue = null;
-    private T maxValue = null;
-
-    private long estimatedSize;
-
-    private final List<T> idToValue = Lists.newArrayList();
-    private final SizeEstimator<T> estimator;
-
-    public OnHeapDimDim(SizeEstimator<T> estimator, Class<T> clazz)
-    {
-      this.estimator = estimator;
-      this.clazz = clazz;
-    }
-
-    public int getId(T value)
-    {
-      synchronized (valueToId) {
-        final Integer id = valueToId.get(value);
-        return id == null ? -1 : id;
-      }
-    }
-
-    public T getValue(int id)
-    {
-      synchronized (valueToId) {
-        return idToValue.get(id);
-      }
-    }
-
-    public boolean contains(T value)
-    {
-      synchronized (valueToId) {
-        return valueToId.containsKey(value);
-      }
-    }
-
-    public int size()
-    {
-      synchronized (valueToId) {
-        return valueToId.size();
-      }
-    }
-
-    public int add(T value)
-    {
-      synchronized (valueToId) {
-        Integer prev = valueToId.get(value);
-        if (prev != null) {
-          estimatedSize += Ints.BYTES;
-          return prev;
-        }
-        final int index = valueToId.size();
-        valueToId.put(value, index);
-        idToValue.add(value);
-        if (value != null) {
-          minValue = minValue == null || minValue.compareTo(value) > 0 ? value : minValue;
-          maxValue = maxValue == null || maxValue.compareTo(value) < 0 ? value : maxValue;
-        }
-        estimatedSize += estimator.estimate(value) + Ints.BYTES;
-        return index;
-      }
-    }
-
-    @Override
-    public T getMinValue()
-    {
-      return minValue;
-    }
-
-    @Override
-    public T getMaxValue()
-    {
-      return maxValue;
-    }
-
-    @Override
-    public long estimatedSize()
-    {
-      return estimatedSize;
-    }
-
-    @Override
-    public final int compare(int lhsIdx, int rhsIdx)
-    {
-      final T lhsVal = getValue(lhsIdx);
-      final T rhsVal = getValue(rhsIdx);
-      if (lhsVal != null && rhsVal != null) {
-        return lhsVal.compareTo(rhsVal);
-      } else if (lhsVal == null ^ rhsVal == null) {
-        return lhsVal == null ? -1 : 1;
-      }
-      return 0;
-    }
-
-    public OnHeapDimLookup<T> sort()
-    {
-      synchronized (valueToId) {
-        return new OnHeapDimLookup<T>(idToValue, size(), clazz);
-      }
-    }
-  }
-
-  private static class SortablePair<K extends Comparable, V> extends Pair<K, V>
-      implements Comparable<SortablePair<K, V>>
-  {
-    public SortablePair(K lhs, V rhs)
-    {
-      super(lhs, rhs);
-    }
-
-    @Override
-    @SuppressWarnings("unchecked")
-    public int compareTo(SortablePair<K, V> o)
-    {
-      return lhs.compareTo(o.lhs);
-    }
-  }
-
-  static class OnHeapDimLookup<T extends Comparable<? super T>> implements SortedDimLookup<T>
-  {
-    private final T[] sortedVals;
-    private final int[] idToIndex;
-    private final int[] indexToId;
-
-    @SuppressWarnings("unchecked")
-    public OnHeapDimLookup(List<T> idToValue, int length, Class<T> clazz)
-    {
-      SortablePair[] sortedMap = new SortablePair[length];
-      for (int id = 0; id < length; id++) {
-        sortedMap[id] = new SortablePair(idToValue.get(id), id);
-      }
-      Arrays.parallelSort(sortedMap);
-
-      this.sortedVals = (T[])Array.newInstance(clazz, length);
-      this.idToIndex = new int[length];
-      this.indexToId = new int[length];
-      int index = 0;
-      for (SortablePair pair : sortedMap) {
-        sortedVals[index] = (T) pair.lhs;
-        int id = (Integer) pair.rhs;
-        idToIndex[id] = index;
-        indexToId[index] = id;
-        index++;
-      }
-    }
-
-    @Override
-    public int size()
-    {
-      return sortedVals.length;
-    }
-
-    @Override
-    public int getUnsortedIdFromSortedId(int index)
-    {
-      return indexToId[index];
-    }
-
-    @Override
-    public T getValueFromSortedId(int index)
-    {
-      return sortedVals[index];
-    }
-
-    @Override
-    public int getSortedIdFromUnsortedId(int id)
-    {
-      return idToIndex[id];
     }
   }
 

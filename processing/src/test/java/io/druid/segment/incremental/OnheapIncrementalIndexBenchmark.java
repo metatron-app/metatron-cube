@@ -147,7 +147,7 @@ public class OnheapIncrementalIndexBenchmark extends AbstractBenchmark
     ) throws IndexSizeExceededException
     {
 
-      final Integer priorIdex = getFacts().get(key);
+      final Integer priorIdex = facts.get(key);
 
       Aggregator[] aggs;
 
@@ -170,10 +170,10 @@ public class OnheapIncrementalIndexBenchmark extends AbstractBenchmark
 
 
         // Last ditch sanity checks
-        if (numEntries.get() >= maxRowCount && !getFacts().containsKey(key)) {
+        if (numEntries.get() >= maxRowCount && !facts.containsKey(key)) {
           throw new IndexSizeExceededException("Maximum number of rows reached");
         }
-        final Integer prev = getFacts().putIfAbsent(key, rowIndex);
+        final Integer prev = facts.putIfAbsent(key, rowIndex);
         if (null == prev) {
           numEntries.incrementAndGet();
         } else {

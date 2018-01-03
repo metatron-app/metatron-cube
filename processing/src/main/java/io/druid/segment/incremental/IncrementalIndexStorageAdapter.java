@@ -71,7 +71,6 @@ import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.NavigableMap;
 
 /**
  */
@@ -273,7 +272,7 @@ public class IncrementalIndexStorageAdapter implements StorageAdapter
             return new Cursor.ExprSupport()
             {
               private Iterator<Map.Entry<IncrementalIndex.TimeAndDims, Integer>> baseIter;
-              private NavigableMap<IncrementalIndex.TimeAndDims, Integer> cursorMap;
+              private Iterable<Map.Entry<IncrementalIndex.TimeAndDims, Integer>> cursorMap;
               private final DateTime time;
               private int numAdvanced = -1;
               private boolean done;
@@ -285,13 +284,7 @@ public class IncrementalIndexStorageAdapter implements StorageAdapter
                 if (timeEnd == dataInterval.getEndMillis()) {
                   timeEnd = timeEnd + 1;    // inclusive
                 }
-                cursorMap = index.getSubMap(
-                    index.createRangeTimeAndDims(timeStart),
-                    index.createRangeTimeAndDims(timeEnd)
-                );
-                if (descending) {
-                  cursorMap = cursorMap.descendingMap();
-                }
+                cursorMap = index.getRangeOf(timeStart, timeEnd, descending);
                 time = gran.toDateTime(interval.getStartMillis());
                 filterMatcher = filter == null ? BooleanValueMatcher.TRUE : filter.toFilter().makeMatcher(this);
                 reset();
@@ -347,7 +340,7 @@ public class IncrementalIndexStorageAdapter implements StorageAdapter
               @Override
               public void reset()
               {
-                baseIter = cursorMap.entrySet().iterator();
+                baseIter = cursorMap.iterator();
 
                 if (numAdvanced == -1) {
                   numAdvanced = 0;
@@ -370,7 +363,7 @@ public class IncrementalIndexStorageAdapter implements StorageAdapter
                   numAdvanced++;
                 }
 
-                done = !foundMatched && (cursorMap.size() == 0 || !baseIter.hasNext());
+                done = !foundMatched && !baseIter.hasNext();
               }
 
               @Override

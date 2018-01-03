@@ -254,15 +254,8 @@ public abstract class QueryToolChest<ResultType, QueryType extends Query<ResultT
     {
       @SuppressWarnings("unchecked")
       final Query<I> subQuery = ((QueryDataSource) query.getDataSource()).getQuery();
-      final IncrementalIndexSchema schema = Queries.relaySchema(subQuery, segmentWalker);
 
-      LOG.info(
-          "Accumulating into intermediate index with dimension %s and metric %s",
-          schema.getDimensionsSpec().getDimensionNames(),
-          schema.getMetricNames()
-      );
-      IncrementalIndex index = new OnheapIncrementalIndex(schema, false, true, true, maxRowCount);
-      IncrementalIndex accumulated = accumulate(subQuery, responseContext, index);
+      IncrementalIndex accumulated = accumulate(subQuery, responseContext);
       if (accumulated.isEmpty()) {
         return Sequences.empty();
       }
@@ -277,13 +270,16 @@ public abstract class QueryToolChest<ResultType, QueryType extends Query<ResultT
       return runOuterQuery(query, responseContext, segment);
     }
 
-    protected IncrementalIndex accumulate(
-        Query<I> subQuery,
-        Map<String, Object> responseContext,
-        IncrementalIndex index
-    )
+    protected IncrementalIndex accumulate(Query<I> subQuery, Map<String, Object> responseContext)
     {
       long start = System.currentTimeMillis();
+      final IncrementalIndexSchema schema = Queries.relaySchema(subQuery, segmentWalker);
+      LOG.info(
+          "Accumulating into intermediate index with dimension %s and metric %s",
+          schema.getDimensionsSpec().getDimensionNames(),
+          schema.getMetricNames()
+      );
+      IncrementalIndex index = new OnheapIncrementalIndex(schema, false, true, true, maxRowCount);
       final Sequence<Row> innerSequence = Queries.convertRow(subQuery, subQueryRunner.run(subQuery, responseContext));
       IncrementalIndex accumulated = innerSequence.accumulate(index, GroupByQueryHelper.<Row>newIndexAccumulator());
       LOG.info(

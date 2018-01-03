@@ -303,7 +303,7 @@ public class IncrementalIndexTest
   public void testCaseSensitivity() throws Exception
   {
     long timestamp = System.currentTimeMillis();
-    IncrementalIndex index = closer.closeLater(indexCreator.createIndex(defaultAggregatorFactories));
+    IncrementalIndex<?> index = closer.closeLater(indexCreator.createIndex(defaultAggregatorFactories));
 
     populateIndex(timestamp, index);
     Assert.assertEquals(Arrays.asList("dim1", "dim2"), index.getDimensionNames());
@@ -645,7 +645,7 @@ public class IncrementalIndexTest
   @Test
   public void testConcurrentAdd() throws Exception
   {
-    final IncrementalIndex index = closer.closeLater(indexCreator.createIndex(defaultAggregatorFactories));
+    final IncrementalIndex<?> index = closer.closeLater(indexCreator.createIndex(defaultAggregatorFactories));
     final int threadCount = 10;
     final int elementsPerThread = 200;
     final int dimensionCount = 5;

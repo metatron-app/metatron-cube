@@ -410,7 +410,7 @@ public class IndexGeneratorJob implements HadoopDruidIndexerJob.IndexingStatsPro
       }
     }
 
-    private void flushIndexToContextAndClose(BytesWritable key, IncrementalIndex index, Context context)
+    private void flushIndexToContextAndClose(BytesWritable key, IncrementalIndex<?> index, Context context)
         throws IOException, InterruptedException
     {
       final List<String> dimensions = index.getDimensionNames();

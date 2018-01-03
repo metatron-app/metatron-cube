@@ -28,7 +28,6 @@ import com.metamx.common.logger.Logger;
 import com.metamx.common.parsers.ParseException;
 import io.druid.collections.ResourceHolder;
 import io.druid.collections.StupidPool;
-import io.druid.data.ValueType;
 import io.druid.data.input.Row;
 import io.druid.granularity.Granularity;
 import io.druid.query.aggregation.AggregatorFactory;
@@ -61,8 +60,6 @@ public class OffheapIncrementalIndex extends IncrementalIndex<BufferAggregator>
 
   private final AtomicInteger indexIncrement = new AtomicInteger(0);
 
-  protected final int maxRowCount;
-
   private volatile Map<String, ColumnSelectorFactory> selectors;
 
   //given a ByteBuffer and an offset where all aggregates for a row are stored
@@ -70,8 +67,6 @@ public class OffheapIncrementalIndex extends IncrementalIndex<BufferAggregator>
   //is stored
   private volatile int[] aggOffsetInBuffer;
   private volatile int aggsTotalSize;
-
-  private String outOfRowsReason = null;
 
   public OffheapIncrementalIndex(
       IncrementalIndexSchema incrementalIndexSchema,
@@ -82,8 +77,7 @@ public class OffheapIncrementalIndex extends IncrementalIndex<BufferAggregator>
       StupidPool<ByteBuffer> bufferPool
   )
   {
-    super(incrementalIndexSchema, deserializeComplexMetrics, reportParseExceptions, sortFacts);
-    this.maxRowCount = maxRowCount;
+    super(incrementalIndexSchema, deserializeComplexMetrics, reportParseExceptions, sortFacts, maxRowCount);
     this.bufferPool = bufferPool;
 
     if (sortFacts) {
@@ -130,22 +124,10 @@ public class OffheapIncrementalIndex extends IncrementalIndex<BufferAggregator>
   }
 
   @Override
-  public ConcurrentMap<TimeAndDims, Integer> getFacts()
-  {
-    return facts;
-  }
-
-  @Override
   @SuppressWarnings("unchecked")
-  protected DimDim makeDimDim(String dimension, ValueType type, SizeEstimator estimator)
+  public Iterable<Map.Entry<TimeAndDims, Integer>> getRangeOf(final long from, final long to, Boolean timeDescending)
   {
-    return new OnheapIncrementalIndex.OnHeapDimDim(estimator, type.classOfObject());
-  }
-
-  @Override
-  protected DimDim makeDimDim(String dimension, String[] dictionary, SizeEstimator estimator)
-  {
-    return new IncrementalIndex.ReadOnlyDimDim(dictionary);
+    return getFacts(facts, from, to, timeDescending);
   }
 
   @Override
@@ -284,22 +266,6 @@ public class OffheapIncrementalIndex extends IncrementalIndex<BufferAggregator>
     }
     rowContainer.set(null);
     return numEntries.get();
-  }
-
-  @Override
-  public boolean canAppendRow()
-  {
-    final boolean canAdd = size() < maxRowCount;
-    if (!canAdd) {
-      outOfRowsReason = String.format("Maximum number of rows [%d] reached", maxRowCount);
-    }
-    return canAdd;
-  }
-
-  @Override
-  public String getOutOfRowsReason()
-  {
-    return outOfRowsReason;
   }
 
   @Override

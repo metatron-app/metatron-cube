@@ -179,7 +179,7 @@ public class GroupByMergedQueryRunner<T> implements QueryRunner<T>
     return new ResourceClosingSequence<T>(
         Sequences.simple(
             Iterables.<Row, T>transform(
-                incrementalIndex.iterable(true),
+                incrementalIndex.toMergeStream(),
                 GuavaUtils.<Row, T>caster()
             )
         ), incrementalIndex
