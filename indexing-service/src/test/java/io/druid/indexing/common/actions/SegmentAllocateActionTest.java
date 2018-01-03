@@ -26,9 +26,9 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
 import com.metamx.common.ISE;
-import io.druid.granularity.DurationGranularity;
 import io.druid.granularity.Granularities;
 import io.druid.granularity.Granularity;
+import io.druid.granularity.PeriodGranularity;
 import io.druid.granularity.QueryGranularities;
 import io.druid.indexing.common.TaskLock;
 import io.druid.indexing.common.task.NoopTask;
@@ -40,6 +40,7 @@ import io.druid.timeline.partition.LinearShardSpec;
 import io.druid.timeline.partition.NumberedShardSpec;
 import io.druid.timeline.partition.SingleDimensionShardSpec;
 import org.joda.time.DateTime;
+import org.joda.time.Period;
 import org.junit.Assert;
 import org.junit.Rule;
 import org.junit.Test;
@@ -65,6 +66,7 @@ public class SegmentAllocateActionTest
             Granularities.DAY,
             Granularities.SIX_HOUR,
             Granularities.HOUR,
+            Granularities.THIRTY_MINUTE,
             Granularities.FIFTEEN_MINUTE,
             Granularities.TEN_MINUTE,
             Granularities.FIVE_MINUTE,
@@ -81,6 +83,7 @@ public class SegmentAllocateActionTest
     Assert.assertEquals(
         ImmutableList.of(
             Granularities.HOUR,
+            Granularities.THIRTY_MINUTE,
             Granularities.FIFTEEN_MINUTE,
             Granularities.TEN_MINUTE,
             Granularities.FIVE_MINUTE,
@@ -688,7 +691,7 @@ public class SegmentAllocateActionTest
 
     Assert.assertEquals(DATA_SOURCE, action2.getDataSource());
     Assert.assertEquals(PARTY_TIME, action2.getTimestamp());
-    Assert.assertEquals(new DurationGranularity(60000, 0), action2.getQueryGranularity());
+    Assert.assertEquals(new PeriodGranularity(new Period("PT1M"), null, null), action2.getQueryGranularity());
     Assert.assertSame(Granularities.HOUR, action2.getPreferredSegmentGranularity());
     Assert.assertEquals("s1", action2.getSequenceName());
     Assert.assertEquals("prev", action2.getPreviousSegmentId());

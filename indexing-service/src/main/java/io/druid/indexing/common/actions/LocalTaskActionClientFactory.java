@@ -22,6 +22,7 @@ package io.druid.indexing.common.actions;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.inject.Inject;
 import com.metamx.emitter.core.Emitter;
+import com.metamx.emitter.core.NoopEmitter;
 import io.druid.indexing.common.task.Task;
 import io.druid.indexing.overlord.TaskStorage;
 import io.druid.server.log.Events;
@@ -45,7 +46,7 @@ public class LocalTaskActionClientFactory implements TaskActionClientFactory
   @VisibleForTesting
   public LocalTaskActionClientFactory(TaskStorage storage, TaskActionToolbox toolbox)
   {
-    this(storage, toolbox, null);
+    this(storage, toolbox, new NoopEmitter());
   }
 
   @Override

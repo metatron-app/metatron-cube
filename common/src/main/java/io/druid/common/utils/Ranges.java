@@ -80,7 +80,7 @@ public class Ranges
         }
         if (lhs.hasUpperBound() && rhs.hasUpperBound()) {
           compare = lhs.upperEndpoint().compareTo(rhs.upperEndpoint());
-          if (compare == 0 && lhs.lowerBoundType() != rhs.lowerBoundType()) {
+          if (compare == 0 && lhs.hasLowerBound() && rhs.hasLowerBound()) {
             compare = lhs.lowerBoundType() == BoundType.CLOSED ? 1 : -1;
           }
         } else if (!lhs.hasUpperBound() && rhs.hasUpperBound()) {

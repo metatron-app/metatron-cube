@@ -37,6 +37,7 @@ import io.druid.guice.GuiceInjectors;
 import io.druid.initialization.Initialization;
 import org.junit.Assert;
 import org.junit.Before;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import java.io.IOException;
@@ -151,6 +152,7 @@ public class URIFirehoseFactoryTest
   }
 
   @Test
+  @Ignore("invalid test")
   public void testHttp() throws IOException, URISyntaxException
   {
     String uriFH = "{\"type\":\"uri\",\"pattern\":\".*.txt\",\"URI\":\"http://localhost/~ktpark/simple_test_data.txt\"}";
