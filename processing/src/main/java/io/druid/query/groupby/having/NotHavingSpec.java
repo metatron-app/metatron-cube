@@ -25,6 +25,9 @@ import com.google.common.base.Predicate;
 import com.google.common.base.Predicates;
 import io.druid.data.TypeResolver;
 import io.druid.data.input.Row;
+import io.druid.query.aggregation.AggregatorFactory;
+
+import java.util.List;
 
 /**
  * The logical "not" operator for the "having" clause.
@@ -46,9 +49,9 @@ public class NotHavingSpec implements HavingSpec
   }
 
   @Override
-  public Predicate<Row> toEvaluator(TypeResolver resolver)
+  public Predicate<Row> toEvaluator(TypeResolver resolver, List<AggregatorFactory> aggregators)
   {
-    return Predicates.not(havingSpec.toEvaluator(resolver));
+    return Predicates.not(havingSpec.toEvaluator(resolver, aggregators));
   }
 
   @Override

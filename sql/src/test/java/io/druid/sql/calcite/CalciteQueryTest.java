@@ -68,7 +68,8 @@ import io.druid.query.filter.NotDimFilter;
 import io.druid.query.filter.OrDimFilter;
 import io.druid.query.filter.SelectorDimFilter;
 import io.druid.query.groupby.GroupByQuery;
-import io.druid.query.groupby.having.DimFilterHavingSpec;
+import io.druid.query.groupby.having.ExpressionHavingSpec;
+import io.druid.query.groupby.having.HavingSpec;
 import io.druid.query.groupby.orderby.DefaultLimitSpec;
 import io.druid.query.groupby.orderby.OrderByColumnSpec;
 import io.druid.query.ordering.StringComparators;
@@ -1087,7 +1088,7 @@ public class CalciteQueryTest
                         .setInterval(QSS(Filtration.eternity()))
                         .setGranularity(Granularities.ALL)
                         .setAggregatorSpecs(AGGS(new GenericSumAggregatorFactory("a0", "m1", "double")))
-                        .setHavingSpec(HAVING(NUMERIC_SELECTOR("a0", "21", null)))
+                        .setHavingSpec(EXPR("(\"a0\" == 21)"))
                         .setContext(QUERY_CONTEXT_DEFAULT)
                         .build()
         ),
@@ -1109,20 +1110,7 @@ public class CalciteQueryTest
                         .setGranularity(Granularities.ALL)
                         .setDimensions(DIMS(new DefaultDimensionSpec("dim1", "d0")))
                         .setAggregatorSpecs(AGGS(new GenericSumAggregatorFactory("a0", "m1", "double")))
-                        .setHavingSpec(
-                            HAVING(
-                                new BoundDimFilter(
-                                    "a0",
-                                    "1",
-                                    null,
-                                    true,
-                                    false,
-                                    false,
-                                    null,
-                                    StringComparators.NUMERIC_NAME
-                                )
-                            )
-                        )
+                        .setHavingSpec(EXPR("(\"a0\" > 1)"))
                         .setContext(QUERY_CONTEXT_DEFAULT)
                         .build()
         ),
@@ -1161,19 +1149,7 @@ public class CalciteQueryTest
                                 )
                             )
                         )
-                        .setHavingSpec(
-                            HAVING(
-                                BOUND(
-                                    "a0",
-                                    "1",
-                                    null,
-                                    true,
-                                    false,
-                                    null,
-                                    StringComparators.NUMERIC_NAME
-                                )
-                            )
-                        )
+                        .setHavingSpec(EXPR("(\"a0\" > 1)"))
                         .setContext(QUERY_CONTEXT_DEFAULT)
                         .build()
         ),
@@ -1212,19 +1188,7 @@ public class CalciteQueryTest
                         .setGranularity(Granularities.ALL)
                         .setDimensions(DIMS(new DefaultDimensionSpec("d0", "_d0")))
                         .setAggregatorSpecs(AGGS(new CountAggregatorFactory("a0")))
-                        .setHavingSpec(
-                            HAVING(
-                                BOUND(
-                                    "a0",
-                                    "1",
-                                    null,
-                                    true,
-                                    false,
-                                    null,
-                                    StringComparators.NUMERIC_NAME
-                                )
-                            )
-                        )
+                        .setHavingSpec(EXPR("(\"a0\" > 1)"))
                         .setContext(QUERY_CONTEXT_DEFAULT)
                         .build()
         ),
@@ -1248,20 +1212,7 @@ public class CalciteQueryTest
                         .setGranularity(Granularities.ALL)
                         .setDimensions(DIMS(new DefaultDimensionSpec("dim1", "d0")))
                         .setAggregatorSpecs(AGGS(new GenericSumAggregatorFactory("a0", "m1", "double")))
-                        .setHavingSpec(
-                            HAVING(
-                                new BoundDimFilter(
-                                    "a0",
-                                    "1",
-                                    null,
-                                    true,
-                                    false,
-                                    false,
-                                    null,
-                                    StringComparators.NUMERIC_NAME
-                                )
-                            )
-                        )
+                        .setHavingSpec(EXPR("(\"a0\" > 1)"))
                         .setContext(QUERY_CONTEXT_DEFAULT)
                         .build()
         ),
@@ -1331,7 +1282,7 @@ public class CalciteQueryTest
                         .setPostAggregatorSpecs(ImmutableList.of(
                             EXPRESSION_POST_AGG("p0", "(\"a0\" / \"a1\")")
                         ))
-                        .setHavingSpec(HAVING(EXPRESSION_FILTER("((\"a0\" / \"a1\") == 1)")))
+                        .setHavingSpec(EXPR("((\"a0\" / \"a1\") == 1)"))
                         .setContext(QUERY_CONTEXT_DEFAULT)
                         .build()
         ),
@@ -4564,7 +4515,7 @@ public class CalciteQueryTest
                                 4
                             )
                         )
-                        .setHavingSpec(HAVING(NUMERIC_SELECTOR("a0", "1", null)))
+                        .setHavingSpec(EXPR("(\"a0\" == 1)"))
                         .setContext(QUERY_CONTEXT_DEFAULT)
                         .build()
         ),
@@ -5944,7 +5895,7 @@ public class CalciteQueryTest
                             new DefaultDimensionSpec("dim2", "d1")
                         ))
                         .setAggregatorSpecs(AGGS(new CountAggregatorFactory("a0")))
-                        .setHavingSpec(HAVING(NUMERIC_SELECTOR("a0", "1", null)))
+                        .setHavingSpec(EXPR("(\"a0\" == 1)"))
                         .setContext(QUERY_CONTEXT_DEFAULT)
                         .build(),
             newScanQueryBuilder()
@@ -6335,9 +6286,9 @@ public class CalciteQueryTest
     return Arrays.asList(aggregators);
   }
 
-  private static DimFilterHavingSpec HAVING(final DimFilter filter)
+  private static HavingSpec EXPR(final String expression)
   {
-    return new DimFilterHavingSpec(filter);
+    return new ExpressionHavingSpec(expression, true);
   }
 
   private static VirtualColumn EXPRESSION_VIRTUAL_COLUMN(

@@ -27,6 +27,7 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import io.druid.data.TypeResolver;
 import io.druid.data.input.Row;
+import io.druid.query.aggregation.AggregatorFactory;
 
 import java.util.List;
 
@@ -50,11 +51,11 @@ public class OrHavingSpec implements HavingSpec
   }
 
   @Override
-  public Predicate<Row> toEvaluator(TypeResolver resolver)
+  public Predicate<Row> toEvaluator(TypeResolver resolver, List<AggregatorFactory> aggregators)
   {
     List<Predicate<Row>> predicates = Lists.newArrayList();
     for (HavingSpec havingSpec : havingSpecs) {
-      predicates.add(havingSpec.toEvaluator(resolver));
+      predicates.add(havingSpec.toEvaluator(resolver, aggregators));
     }
     return Predicates.or(predicates);
   }

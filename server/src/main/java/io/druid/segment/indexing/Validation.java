@@ -29,6 +29,7 @@ import io.druid.data.ValueDesc;
 import io.druid.data.input.InputRow;
 import io.druid.math.expr.Expr;
 import io.druid.math.expr.Parser;
+import io.druid.query.RowBinding;
 
 import java.util.List;
 import java.util.Map;
@@ -89,7 +90,7 @@ public class Validation
   {
     return new RowEvaluator<Boolean>()
     {
-      private final RowBinding<Boolean> bindings = new RowBinding<>(columnName, types);
+      private final DataSchema.WithRecursion<Boolean> bindings = new DataSchema.WithRecursion<>(columnName, types);
 
       @Override
       public Boolean evaluate(InputRow inputRow)

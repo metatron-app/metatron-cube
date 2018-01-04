@@ -17,31 +17,26 @@
  * under the License.
  */
 
-package io.druid.segment.indexing;
+package io.druid.query;
 
+import io.druid.data.TypeResolver;
 import io.druid.data.ValueDesc;
 import io.druid.data.input.Row;
 import io.druid.math.expr.Expr;
 import io.druid.segment.column.Column;
 
 import java.util.Collection;
-import java.util.Map;
 
 /**
  */
-public class RowBinding<T> implements Expr.NumericBinding
+public class RowBinding implements Expr.NumericBinding
 {
-  private final String defaultColumn;
-  private final Map<String, ValueDesc> types;
-
+  private final TypeResolver resolver;
   private volatile Row row;
-  private volatile boolean evaluated;
-  private volatile T tempResult;
 
-  public RowBinding(String defaultColumn, Map<String, ValueDesc> types)
+  public RowBinding(TypeResolver resolver)
   {
-    this.defaultColumn = defaultColumn;
-    this.types = types;
+    this.resolver = resolver;
   }
 
   @Override
@@ -55,34 +50,14 @@ public class RowBinding<T> implements Expr.NumericBinding
   {
     if (Column.TIME_COLUMN_NAME.equals(name)) {
       return row.getTimestampFromEpoch();
+    } else {
+      ValueDesc type = resolver.resolveColumn(name);
+      return type == null ? row.getRaw(name) : type.type().get(row, name);
     }
-    if (!name.equals("_")) {
-      return getColumn(name);
-    }
-    return evaluated ? tempResult : getColumn(defaultColumn);
-  }
-
-  private Object getColumn(String name)
-  {
-    ValueDesc type = types.get(name);
-    return type == null ? row.getRaw(name) : type.type().get(row, name);
   }
 
   public void reset(Row row)
   {
     this.row = row;
-    this.evaluated = false;
-    this.tempResult = null;
-  }
-
-  public void set(T eval)
-  {
-    this.evaluated = true;
-    this.tempResult = eval;
-  }
-
-  public T get()
-  {
-    return tempResult;
   }
 }

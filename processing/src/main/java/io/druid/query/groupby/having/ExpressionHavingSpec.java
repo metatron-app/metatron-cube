@@ -27,24 +27,32 @@ import io.druid.data.TypeResolver;
 import io.druid.data.input.Row;
 import io.druid.math.expr.Expr;
 import io.druid.math.expr.Parser;
+import io.druid.query.RowBinding;
+import io.druid.query.aggregation.AggregatorFactory;
 
-import java.util.Collection;
+import java.util.List;
+import java.util.Map;
 
 /**
  */
 public class ExpressionHavingSpec implements HavingSpec
 {
   private final String expression;
-
-  private final Expr expr;
-  private final RowBinding binding;
+  private final boolean finalize;
 
   @JsonCreator
-  public ExpressionHavingSpec(@JsonProperty("expression") String expression)
+  public ExpressionHavingSpec(
+      @JsonProperty("expression") String expression,
+      @JsonProperty("finalize") boolean finalize
+  )
   {
     this.expression = Preconditions.checkNotNull(expression, "expression should not be null");
-    this.expr = Parser.parse(expression);
-    this.binding = new RowBinding();
+    this.finalize = finalize;
+  }
+
+  public ExpressionHavingSpec(String expression)
+  {
+    this(expression, false);
   }
 
   @JsonProperty("expression")
@@ -54,16 +62,40 @@ public class ExpressionHavingSpec implements HavingSpec
   }
 
   @Override
-  public Predicate<Row> toEvaluator(TypeResolver resolver)
+  public Predicate<Row> toEvaluator(TypeResolver resolver, List<AggregatorFactory> aggregators)
   {
+    final Expr expr = Parser.parse(expression);
+    final RowBinding binding = toBinding(resolver, aggregators);
     return new Predicate<Row>()
     {
       @Override
       public boolean apply(Row input)
       {
-        return expr.eval(binding.setRow(input)).asBoolean();
+        binding.reset(input);
+        return expr.eval(binding).asBoolean();
       }
     };
+  }
+
+  private RowBinding toBinding(final TypeResolver resolver, List<AggregatorFactory> aggregators)
+  {
+    final RowBinding binding;
+    if (finalize && !aggregators.isEmpty()) {
+      final Map<String, AggregatorFactory> factoryMap = AggregatorFactory.asMap(aggregators);
+      binding = new RowBinding(resolver)
+      {
+        @Override
+        public Object get(String name)
+        {
+          Object value = super.get(name);
+          AggregatorFactory factory = factoryMap.get(name);
+          return factory == null ? value : factory.finalizeComputation(value);
+        }
+      };
+    } else {
+      binding = new RowBinding(resolver);
+    }
+    return binding;
   }
 
   @Override
@@ -82,13 +114,13 @@ public class ExpressionHavingSpec implements HavingSpec
       return false;
     }
 
-    return true;
+    return finalize == that.finalize;
   }
 
   @Override
   public int hashCode()
   {
-    return expression.hashCode();
+    return expression.hashCode() * 31 + (finalize ? 1 : 0);
   }
 
   @Override
@@ -96,29 +128,7 @@ public class ExpressionHavingSpec implements HavingSpec
   {
     return "ExpressionHavingSpec{" +
            "expression='" + expression + '\'' +
+           ", finalize=" + finalize +
            '}';
-  }
-
-  private static class RowBinding implements Expr.NumericBinding
-  {
-    private Row row;
-
-    @Override
-    public Collection<String> names()
-    {
-      return row.getColumns();
-    }
-
-    @Override
-    public Object get(String name)
-    {
-      return row.getRaw(name);
-    }
-
-    private RowBinding setRow(Row row)
-    {
-      this.row = row;
-      return this;
-    }
   }
 }

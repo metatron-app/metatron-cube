@@ -19,9 +19,24 @@
 
 package io.druid.data;
 
+import java.util.Map;
+
 /**
  */
 public interface TypeResolver
 {
   ValueDesc resolveColumn(String column);
+
+  class WithMap implements TypeResolver
+  {
+    private final Map<String, ValueDesc> mapping;
+
+    public WithMap(Map<String, ValueDesc> mapping) {this.mapping = mapping;}
+
+    @Override
+    public ValueDesc resolveColumn(String column)
+    {
+      return mapping.get(column);
+    }
+  }
 }

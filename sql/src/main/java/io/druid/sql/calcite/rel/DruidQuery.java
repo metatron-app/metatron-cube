@@ -45,7 +45,8 @@ import io.druid.query.dimension.DefaultDimensionSpec;
 import io.druid.query.dimension.DimensionSpec;
 import io.druid.query.filter.DimFilter;
 import io.druid.query.groupby.GroupByQuery;
-import io.druid.query.groupby.having.DimFilterHavingSpec;
+import io.druid.query.groupby.having.ExpressionHavingSpec;
+import io.druid.query.groupby.having.HavingSpec;
 import io.druid.query.groupby.orderby.DefaultLimitSpec;
 import io.druid.query.groupby.orderby.OrderByColumnSpec;
 import io.druid.query.ordering.StringComparator;
@@ -257,7 +258,7 @@ public class DruidQuery
         aggregate.getRowType()
     );
 
-    final DimFilter havingFilter = computeHavingFilter(
+    final HavingSpec havingFilter = computeHavingFilter(
         partialQuery,
         aggregateRowSignature,
         plannerContext
@@ -412,7 +413,7 @@ public class DruidQuery
   }
 
   @Nullable
-  private static DimFilter computeHavingFilter(
+  private static HavingSpec computeHavingFilter(
       final PartialDruidQuery partialQuery,
       final RowSignature outputRowSignature,
       final PlannerContext plannerContext
@@ -425,15 +426,15 @@ public class DruidQuery
     }
 
     final RexNode condition = havingFilter.getCondition();
-    final DimFilter dimFilter = Expressions.toFilter(
+    final DruidExpression expression = Expressions.toDruidExpression(
         plannerContext,
         outputRowSignature,
         condition
     );
-    if (dimFilter == null) {
+    if (expression == null) {
       throw new CannotBuildQueryException(havingFilter, condition);
     } else {
-      return dimFilter;
+      return new ExpressionHavingSpec(expression.getExpression(), true);
     }
   }
 
@@ -799,7 +800,7 @@ public class DruidQuery
         getVirtualColumns(),
         grouping.getAggregatorFactories(),
         grouping.getPostAggregators(),
-        grouping.getHavingFilter() != null ? new DimFilterHavingSpec(grouping.getHavingFilter()) : null,
+        grouping.getHavingFilter(),
         limitSpec,
         null,
         null,

@@ -24,7 +24,10 @@ import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.google.common.base.Predicate;
 import io.druid.data.TypeResolver;
 import io.druid.data.input.Row;
+import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.groupby.GroupByQuery;
+
+import java.util.List;
 
 /**
  * A "having" clause that filters aggregated/dimension value. This is similar to SQL's "having"
@@ -57,6 +60,7 @@ public interface HavingSpec
    *
    * @return return evaluator
    * @param resolver
+   * @param aggregators
    */
-  Predicate<Row> toEvaluator(TypeResolver resolver);
+  Predicate<Row> toEvaluator(TypeResolver resolver, List<AggregatorFactory> aggregators);
 }

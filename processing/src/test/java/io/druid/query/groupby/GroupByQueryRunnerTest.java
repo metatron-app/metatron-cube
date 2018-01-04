@@ -3710,7 +3710,7 @@ public class GroupByQueryRunnerTest
             new HavingSpec()
             {
               @Override
-              public Predicate<Row> toEvaluator(TypeResolver resolver)
+              public Predicate<Row> toEvaluator(TypeResolver resolver, List<AggregatorFactory> aggregators)
               {
                 return new Predicate<Row>()
                 {
@@ -3984,7 +3984,7 @@ public class GroupByQueryRunnerTest
             new HavingSpec()
             {
               @Override
-              public Predicate<Row> toEvaluator(TypeResolver resolver)
+              public Predicate<Row> toEvaluator(TypeResolver resolver, List<AggregatorFactory> aggregators)
               {
                 return new Predicate<Row>()
                 {

@@ -26,11 +26,11 @@ import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import com.metamx.common.Pair;
 import com.metamx.common.logger.Logger;
-import io.druid.data.ValueDesc;
 import io.druid.common.Cacheable;
+import io.druid.data.ValueDesc;
 import io.druid.segment.ColumnSelectorFactory;
 
-import javax.annotation.Nullable;
+import java.util.Arrays;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -210,6 +210,11 @@ public abstract class AggregatorFactory implements Cacheable
   }
 
   public static Map<String, AggregatorFactory> asMap(AggregatorFactory[] aggregators)
+  {
+    return asMap(Arrays.asList(aggregators));
+  }
+
+  public static Map<String, AggregatorFactory> asMap(List<AggregatorFactory> aggregators)
   {
     Map<String, AggregatorFactory> map = Maps.newHashMap();
     if (aggregators != null) {

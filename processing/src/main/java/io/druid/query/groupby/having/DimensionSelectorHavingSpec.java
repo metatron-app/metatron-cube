@@ -26,6 +26,7 @@ import com.google.common.base.Predicate;
 import com.google.common.base.Strings;
 import io.druid.data.TypeResolver;
 import io.druid.data.input.Row;
+import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.extraction.ExtractionFn;
 import io.druid.query.extraction.IdentityExtractionFn;
 
@@ -69,7 +70,8 @@ public class DimensionSelectorHavingSpec implements HavingSpec
 
   @Override
   public Predicate<Row> toEvaluator(
-      TypeResolver resolver
+      TypeResolver resolver,
+      List<AggregatorFactory> aggregators
   )
   {
     return new Predicate<Row>()

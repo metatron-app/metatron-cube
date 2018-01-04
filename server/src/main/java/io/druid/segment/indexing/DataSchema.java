@@ -29,12 +29,15 @@ import com.google.common.base.Preconditions;
 import com.google.common.collect.Sets;
 import com.metamx.common.IAE;
 import com.metamx.common.logger.Logger;
+import io.druid.data.TypeResolver;
 import io.druid.data.ValueDesc;
 import io.druid.data.input.InputRow;
+import io.druid.data.input.Row;
 import io.druid.data.input.TimestampSpec;
 import io.druid.data.input.impl.DimensionsSpec;
 import io.druid.data.input.impl.InputRowParser;
 import io.druid.data.input.impl.ParseSpec;
+import io.druid.query.RowBinding;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.segment.indexing.granularity.GranularitySpec;
 import io.druid.segment.indexing.granularity.UniformGranularitySpec;
@@ -267,5 +270,51 @@ public class DataSchema
            ", validations=" + validations +
            ", granularitySpec=" + granularitySpec +
            '}';
+  }
+
+  public static final class WithRecursion<T> extends RowBinding
+  {
+    private final String defaultColumn;
+    private volatile boolean evaluated;
+    private volatile T tempResult;
+
+    public WithRecursion(String defaultColumn, TypeResolver types)
+    {
+      super(types);
+      this.defaultColumn = defaultColumn;
+    }
+
+    public WithRecursion(String defaultColumn, Map<String, ValueDesc> types)
+    {
+      this(defaultColumn, new TypeResolver.WithMap(types));
+    }
+
+    public void set(T eval)
+    {
+      this.evaluated = true;
+      this.tempResult = eval;
+    }
+
+    @Override
+    public Object get(String name)
+    {
+      if (name.equals("_")) {
+        return evaluated ? tempResult : super.get(defaultColumn);
+      }
+      return super.get(name);
+    }
+
+    @Override
+    public void reset(Row row)
+    {
+      super.reset(row);
+      this.evaluated = false;
+      this.tempResult = null;
+    }
+
+    public T get()
+    {
+      return tempResult;
+    }
   }
 }

@@ -206,7 +206,7 @@ public class GroupByQuery extends BaseQuery<Row> implements Query.AggregationsSu
         limitSpec.build(dimensions, aggregatorSpecs, postAggregatorSpecs, sortOnTimeForLimit);
 
     if (havingSpec != null) {
-      final Predicate<Row> predicate = havingSpec.toEvaluator(RowResolver.of(this));
+      final Predicate<Row> predicate = havingSpec.toEvaluator(RowResolver.of(this), aggregatorSpecs);
       postProcFn = Functions.compose(
           postProcFn,
           new Function<Sequence<Row>, Sequence<Row>>()

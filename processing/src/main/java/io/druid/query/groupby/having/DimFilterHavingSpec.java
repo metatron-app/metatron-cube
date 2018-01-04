@@ -26,12 +26,15 @@ import com.google.common.base.Predicate;
 import io.druid.common.guava.DSuppliers;
 import io.druid.data.TypeResolver;
 import io.druid.data.input.Row;
+import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.filter.DimFilter;
 import io.druid.query.filter.ValueMatcher;
 import io.druid.segment.ColumnSelectorFactories;
 
+import java.util.List;
 import java.util.Objects;
 
+@Deprecated
 public class DimFilterHavingSpec implements HavingSpec
 {
   private final DimFilter dimFilter;
@@ -51,7 +54,7 @@ public class DimFilterHavingSpec implements HavingSpec
   }
 
   @Override
-  public Predicate<Row> toEvaluator(TypeResolver resolver)
+  public Predicate<Row> toEvaluator(TypeResolver resolver, List<AggregatorFactory> aggregators)
   {
     final DSuppliers.HandOver<Row> supplier = new DSuppliers.HandOver<>();
     final ValueMatcher matcher =

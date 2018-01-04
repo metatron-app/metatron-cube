@@ -31,6 +31,7 @@ import io.druid.data.input.Row;
 import io.druid.data.input.Rows;
 import io.druid.math.expr.Expr;
 import io.druid.math.expr.Parser;
+import io.druid.query.RowBinding;
 
 import java.util.List;
 import java.util.Map;
@@ -91,7 +92,7 @@ public class Evaluation
   {
     return new RowEvaluator<InputRow>()
     {
-      private final RowBinding<Object> bindings = new RowBinding<>(outputName, types);
+      private final DataSchema.WithRecursion<Object> bindings = new DataSchema.WithRecursion<>(outputName, types);
 
       @Override
       public InputRow evaluate(InputRow inputRow)

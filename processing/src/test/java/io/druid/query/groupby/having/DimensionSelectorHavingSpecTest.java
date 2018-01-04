@@ -26,6 +26,7 @@ import com.google.common.collect.ImmutableMap;
 import io.druid.data.input.MapBasedRow;
 import io.druid.data.input.Row;
 import io.druid.jackson.DefaultObjectMapper;
+import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.extraction.ExtractionFn;
 import io.druid.query.extraction.RegexDimExtractionFn;
 import org.junit.Assert;
@@ -121,21 +122,21 @@ public class DimensionSelectorHavingSpecTest
   public void testDimensionFilterSpec()
   {
     DimensionSelectorHavingSpec spec = new DimensionSelectorHavingSpec("dimension", "v", null);
-    Predicate<Row> predicate = spec.toEvaluator(null);
+    Predicate<Row> predicate = spec.toEvaluator(null, ImmutableList.<AggregatorFactory>of());
     assertTrue(predicate.apply(getTestRow("v")));
     assertTrue(predicate.apply(getTestRow(ImmutableList.of("v", "v1"))));
     assertFalse(predicate.apply(getTestRow(ImmutableList.of())));
     assertFalse(predicate.apply(getTestRow("v1")));
 
     spec = new DimensionSelectorHavingSpec("dimension", null, null);
-    predicate = spec.toEvaluator(null);
+    predicate = spec.toEvaluator(null, ImmutableList.<AggregatorFactory>of());
     assertTrue(predicate.apply(getTestRow(ImmutableList.of())));
     assertTrue(predicate.apply(getTestRow(ImmutableList.of(""))));
     assertFalse(predicate.apply(getTestRow(ImmutableList.of("v"))));
     assertFalse(predicate.apply(getTestRow(ImmutableList.of("v", "v1"))));
 
     spec = new DimensionSelectorHavingSpec("dimension", "", null);
-    predicate = spec.toEvaluator(null);
+    predicate = spec.toEvaluator(null, ImmutableList.<AggregatorFactory>of());
     assertTrue(predicate.apply(getTestRow(ImmutableList.of())));
     assertTrue(predicate.apply(getTestRow(ImmutableList.of(""))));
     assertTrue(predicate.apply(getTestRow(ImmutableList.of("v", "v1", ""))));
@@ -144,7 +145,7 @@ public class DimensionSelectorHavingSpecTest
 
     ExtractionFn extractionFn = new RegexDimExtractionFn("^([^,]*),", true, "default");
     spec = new DimensionSelectorHavingSpec("dimension", "v", extractionFn);
-    predicate = spec.toEvaluator(null);
+    predicate = spec.toEvaluator(null, ImmutableList.<AggregatorFactory>of());
     assertTrue(predicate.apply(getTestRow(ImmutableList.of("v,v1", "v2,v3"))));
     assertFalse(predicate.apply(getTestRow(ImmutableList.of("v1,v4"))));
     assertFalse(predicate.apply(getTestRow(ImmutableList.of("v"))));
@@ -152,7 +153,7 @@ public class DimensionSelectorHavingSpecTest
     assertTrue(predicate.apply(getTestRow(ImmutableList.of("v,default", "none"))));
     
     spec = new DimensionSelectorHavingSpec("dimension", "default", extractionFn);
-    predicate = spec.toEvaluator(null);
+    predicate = spec.toEvaluator(null, ImmutableList.<AggregatorFactory>of());
     assertTrue(predicate.apply(getTestRow(ImmutableList.of("v1,v2", "none")))); 
   }
 }

@@ -26,6 +26,7 @@ import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.PostAggregator;
 import io.druid.query.dimension.DimensionSpec;
 import io.druid.query.filter.DimFilter;
+import io.druid.query.groupby.having.HavingSpec;
 import io.druid.sql.calcite.aggregation.Aggregation;
 import io.druid.sql.calcite.aggregation.DimensionExpression;
 import io.druid.sql.calcite.table.RowSignature;
@@ -40,13 +41,13 @@ public class Grouping
 {
   private final List<DimensionExpression> dimensions;
   private final List<Aggregation> aggregations;
-  private final DimFilter havingFilter;
+  private final HavingSpec havingFilter;
   private final RowSignature outputRowSignature;
 
   private Grouping(
       final List<DimensionExpression> dimensions,
       final List<Aggregation> aggregations,
-      final DimFilter havingFilter,
+      final HavingSpec havingFilter,
       final RowSignature outputRowSignature
   )
   {
@@ -84,7 +85,7 @@ public class Grouping
   public static Grouping create(
       final List<DimensionExpression> dimensions,
       final List<Aggregation> aggregations,
-      final DimFilter havingFilter,
+      final HavingSpec havingFilter,
       final RowSignature outputRowSignature
   )
   {
@@ -102,7 +103,7 @@ public class Grouping
   }
 
   @Nullable
-  public DimFilter getHavingFilter()
+  public HavingSpec getHavingFilter()
   {
     return havingFilter;
   }
