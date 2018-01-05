@@ -457,7 +457,7 @@ public class DictionaryEncodedColumnPartSerde implements ColumnPartSerde
 
         final GenericIndexed<String> rDictionary = GenericIndexed.read(
             buffer,
-            GenericIndexed.STRING_WITH_INTERN_STRATEGY,
+            GenericIndexed.STRING_STRATEGY,
             dictionary
         );
         builder.setType(ValueType.STRING);
