@@ -19,7 +19,6 @@
 
 package io.druid.query.aggregation.datasketches.theta;
 
-import com.metamx.common.logger.Logger;
 import com.yahoo.memory.Memory;
 import com.yahoo.memory.MemoryRegion;
 import com.yahoo.memory.NativeMemory;
@@ -27,27 +26,24 @@ import com.yahoo.sketches.Family;
 import com.yahoo.sketches.theta.SetOperation;
 import com.yahoo.sketches.theta.Union;
 import io.druid.query.aggregation.BufferAggregator;
+import io.druid.segment.DimensionSelector;
 import io.druid.segment.ObjectColumnSelector;
+import io.druid.segment.data.IndexedInts;
 
 import java.nio.ByteBuffer;
 import java.util.HashMap;
 import java.util.Map;
 
-public class SketchBufferAggregator implements BufferAggregator
+public abstract class SketchBufferAggregator implements BufferAggregator
 {
-  private static final Logger logger = new Logger(SketchAggregator.class);
-
-  private final ObjectColumnSelector selector;
   private final int size;
   private final int maxIntermediateSize;
 
   private NativeMemory nm;
-
   private final Map<Integer, Union> unions = new HashMap<>(); //position in BB -> Union Object
 
-  public SketchBufferAggregator(ObjectColumnSelector selector, int size, int maxIntermediateSize)
+  public SketchBufferAggregator(int size, int maxIntermediateSize)
   {
-    this.selector = selector;
     this.size = size;
     this.maxIntermediateSize = maxIntermediateSize;
   }
@@ -64,18 +60,6 @@ public class SketchBufferAggregator implements BufferAggregator
   }
 
   @Override
-  public void aggregate(ByteBuffer buf, int position)
-  {
-    Object update = selector.get();
-    if (update == null) {
-      return;
-    }
-
-    Union union = getUnion(buf, position);
-    SketchAggregator.updateUnion(union, update);
-  }
-
-  @Override
   public Object get(ByteBuffer buf, int position)
   {
     //in the code below, I am returning SetOp.getResult(true, null)
@@ -87,7 +71,7 @@ public class SketchBufferAggregator implements BufferAggregator
   }
 
   //Note that this is not threadsafe and I don't think it needs to be
-  private Union getUnion(ByteBuffer buf, int position)
+  protected final Union getUnion(ByteBuffer buf, int position)
   {
     Union union = unions.get(position);
     if (union == null) {
@@ -122,4 +106,65 @@ public class SketchBufferAggregator implements BufferAggregator
     unions.clear();
   }
 
+  public static SketchBufferAggregator create(final DimensionSelector selector, int size, int maxIntermediateSize)
+  {
+    if (selector instanceof DimensionSelector.WithRawAccess) {
+      final DimensionSelector.WithRawAccess rawAccess = (DimensionSelector.WithRawAccess)selector;
+      return new SketchBufferAggregator(size, maxIntermediateSize)
+      {
+        @Override
+        public void aggregate(ByteBuffer buf, int position)
+        {
+          final IndexedInts indexed = selector.getRow();
+          final int length = indexed.size();
+          if (length == 1) {
+            Union union = getUnion(buf, position);
+            union.update(rawAccess.lookupRaw(indexed.get(0)));
+          } else if (length > 1) {
+            Union union = getUnion(buf, position);
+            for (int i = 0; i < length; i++) {
+              union.update(rawAccess.lookupRaw(indexed.get(i)));
+            }
+          }
+        }
+      };
+    } else {
+      return new SketchBufferAggregator(size, maxIntermediateSize)
+      {
+        @Override
+        public void aggregate(ByteBuffer buf, int position)
+        {
+          final IndexedInts indexed = selector.getRow();
+          final int length = indexed.size();
+          if (length == 1) {
+            Union union = getUnion(buf, position);
+            union.update(selector.lookupName(indexed.get(0)));
+          } else if (length > 1) {
+            for (int i = 0; i < length; i++) {
+              Union union = getUnion(buf, position);
+              union.update(selector.lookupName(indexed.get(i)));
+            }
+          }
+        }
+      };
+    }
+  }
+
+  public static SketchBufferAggregator create(final ObjectColumnSelector selector, int size, int maxIntermediateSize)
+  {
+    return new SketchBufferAggregator(size, maxIntermediateSize)
+    {
+      @Override
+      public void aggregate(ByteBuffer buf, int position)
+      {
+        Object update = selector.get();
+        if (update == null) {
+          return;
+        }
+
+        Union union = getUnion(buf, position);
+        SketchAggregator.updateUnion(union, update);
+      }
+    };
+  }
 }

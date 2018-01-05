@@ -26,30 +26,19 @@ import com.yahoo.sketches.theta.SetOperation;
 import com.yahoo.sketches.theta.Sketch;
 import com.yahoo.sketches.theta.Union;
 import io.druid.query.aggregation.Aggregator;
+import io.druid.segment.DimensionSelector;
 import io.druid.segment.ObjectColumnSelector;
+import io.druid.segment.data.IndexedInts;
 
 import java.util.List;
 
-public class SketchAggregator implements Aggregator
+public abstract class SketchAggregator implements Aggregator
 {
-  private final ObjectColumnSelector selector;
-  private Union union;
+  final Union union;
 
-  public SketchAggregator(ObjectColumnSelector selector, int size)
+  public SketchAggregator(int size)
   {
-    this.selector = selector;
     union = new SynchronizedUnion((Union) SetOperation.builder().build(size, Family.UNION));
-  }
-
-  @Override
-  public void aggregate()
-  {
-    Object update = selector.get();
-    if (update == null) {
-      return;
-    }
-
-    updateUnion(union, update);
   }
 
   @Override
@@ -90,7 +79,7 @@ public class SketchAggregator implements Aggregator
   @Override
   public void close()
   {
-    union = null;
+    union.reset();
   }
 
   static void updateUnion(Union union, Object update)
@@ -118,5 +107,62 @@ public class SketchAggregator implements Aggregator
     } else {
       throw new ISE("Illegal type received while theta sketch merging [%s]", update.getClass());
     }
+  }
+
+  public static SketchAggregator create(final DimensionSelector selector, int size)
+  {
+    if (selector instanceof DimensionSelector.WithRawAccess) {
+      final DimensionSelector.WithRawAccess rawAccess = (DimensionSelector.WithRawAccess)selector;
+      return new SketchAggregator(size)
+      {
+        @Override
+        public void aggregate()
+        {
+          final IndexedInts indexed = selector.getRow();
+          final int length = indexed.size();
+          if (length == 1) {
+            union.update(rawAccess.lookupRaw(indexed.get(0)));
+          } else if (length > 1) {
+            for (int i = 0; i < length; i++) {
+              union.update(rawAccess.lookupRaw(indexed.get(i)));
+            }
+          }
+        }
+      };
+    } else {
+      return new SketchAggregator(size)
+      {
+        @Override
+        public void aggregate()
+        {
+          final IndexedInts indexed = selector.getRow();
+          final int length = indexed.size();
+          if (length == 1) {
+            union.update(selector.lookupName(indexed.get(0)));
+          } else if (length > 1) {
+            for (int i = 0; i < length; i++) {
+              union.update(selector.lookupName(indexed.get(i)));
+            }
+          }
+        }
+      };
+    }
+  }
+
+  public static SketchAggregator create(final ObjectColumnSelector selector, int size)
+  {
+    return new SketchAggregator(size)
+    {
+      @Override
+      public void aggregate()
+      {
+        final Object update = selector.get();
+        if (update == null) {
+          return;
+        }
+
+        updateUnion(union, update);
+      }
+    };
   }
 }

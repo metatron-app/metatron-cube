@@ -79,4 +79,9 @@ public interface DimensionSelector
    * @return the id for the given field name
    */
   public int lookupId(String name);
+
+  interface WithRawAccess extends DimensionSelector
+  {
+    byte[] lookupRaw(int id);
+  }
 }

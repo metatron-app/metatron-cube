@@ -31,10 +31,14 @@ import com.yahoo.sketches.theta.SetOperation;
 import com.yahoo.sketches.theta.Sketch;
 import com.yahoo.sketches.theta.Sketches;
 import com.yahoo.sketches.theta.Union;
+import io.druid.data.ValueDesc;
 import io.druid.query.aggregation.Aggregator;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.BufferAggregator;
+import io.druid.query.dimension.DefaultDimensionSpec;
+import io.druid.query.dimension.DimensionSpec;
 import io.druid.segment.ColumnSelectorFactory;
+import io.druid.segment.DimensionSelector;
 import io.druid.segment.ObjectColumnSelector;
 
 import java.nio.ByteBuffer;
@@ -75,24 +79,30 @@ public abstract class SketchAggregatorFactory extends AggregatorFactory
   @Override
   public Aggregator factorize(ColumnSelectorFactory metricFactory)
   {
-    ObjectColumnSelector selector = metricFactory.makeObjectColumnSelector(fieldName);
-    if (selector == null) {
+    ValueDesc type = metricFactory.getColumnType(fieldName);
+    if (type == null) {
       return new EmptySketchAggregator();
-    } else {
-      return new SketchAggregator(selector, size);
     }
+    if (ValueDesc.isDimension(type)) {
+      return SketchAggregator.create(metricFactory.makeDimensionSelector(DefaultDimensionSpec.of(fieldName)), size);
+    }
+    return SketchAggregator.create(metricFactory.makeObjectColumnSelector(fieldName), size);
   }
 
   @SuppressWarnings("unchecked")
   @Override
   public BufferAggregator factorizeBuffered(ColumnSelectorFactory metricFactory)
   {
-    ObjectColumnSelector selector = metricFactory.makeObjectColumnSelector(fieldName);
-    if (selector == null) {
+    ValueDesc type = metricFactory.getColumnType(fieldName);
+    if (type == null) {
       return new EmptySketchBufferAggregator();
-    } else {
-      return new SketchBufferAggregator(selector, size, getMaxIntermediateSize());
     }
+    int maxIntermediateSize = getMaxIntermediateSize();
+    if (ValueDesc.isDimension(type)) {
+      DimensionSelector selector = metricFactory.makeDimensionSelector(DefaultDimensionSpec.of(fieldName));
+      return SketchBufferAggregator.create(selector, size, maxIntermediateSize);
+    }
+    return SketchBufferAggregator.create(metricFactory.makeObjectColumnSelector(fieldName), size, maxIntermediateSize);
   }
 
   @Override

@@ -51,6 +51,7 @@ import io.druid.segment.column.ColumnCapabilities;
 import io.druid.segment.column.ComplexColumn;
 import io.druid.segment.column.DictionaryEncodedColumn;
 import io.druid.segment.column.GenericColumn;
+import io.druid.segment.data.GenericIndexed;
 import io.druid.segment.data.Indexed;
 import io.druid.segment.data.IndexedInts;
 import io.druid.segment.data.Offset;
@@ -525,105 +526,199 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
                       final DictionaryEncodedColumn column = cachedColumn;
 
                       if (columnDesc.getCapabilities().hasMultipleValues()) {
-                        return new DimensionSelector()
-                        {
-                          @Override
-                          public IndexedInts getRow()
+                        if (extractionFn != null) {
+                          return new DimensionSelector()
                           {
-                            return column.getMultiValueRow(cursorOffset.getOffset());
-                          }
-
-                          @Override
-                          public int getValueCardinality()
-                          {
-                            return column.getCardinality();
-                          }
-
-                          @Override
-                          public String lookupName(int id)
-                          {
-                            final String value = column.lookupName(id);
-                            return extractionFn == null ?
-                                   value :
-                                   extractionFn.apply(value);
-                          }
-
-                          @Override
-                          public int lookupId(String name)
-                          {
-                            if (extractionFn != null) {
-                              throw new UnsupportedOperationException(
-                                  "cannot perform lookup when applying an extraction function"
-                              );
-                            }
-                            return column.lookupId(name);
-                          }
-                        };
-                      } else {
-                        return new DimensionSelector()
-                        {
-                          @Override
-                          public IndexedInts getRow()
-                          {
-                            // using an anonymous class is faster than creating a class that stores a copy of the value
-                            return new IndexedInts()
+                            @Override
+                            public IndexedInts getRow()
                             {
-                              @Override
-                              public int size()
-                              {
-                                return 1;
-                              }
+                              return column.getMultiValueRow(cursorOffset.getOffset());
+                            }
 
-                              @Override
-                              public int get(int index)
-                              {
-                                return column.getSingleValueRow(cursorOffset.getOffset());
-                              }
+                            @Override
+                            public int getValueCardinality()
+                            {
+                              return column.getCardinality();
+                            }
 
-                              @Override
-                              public Iterator<Integer> iterator()
-                              {
-                                return Iterators.singletonIterator(column.getSingleValueRow(cursorOffset.getOffset()));
-                              }
+                            @Override
+                            public String lookupName(int id)
+                            {
+                              return extractionFn.apply(column.lookupName(id));
+                            }
 
-                              @Override
-                              public void fill(int index, int[] toFill)
-                              {
-                                throw new UnsupportedOperationException("fill not supported");
-                              }
-
-                              @Override
-                              public void close() throws IOException
-                              {
-
-                              }
-                            };
-                          }
-
-                          @Override
-                          public int getValueCardinality()
-                          {
-                            return column.getCardinality();
-                          }
-
-                          @Override
-                          public String lookupName(int id)
-                          {
-                            final String value = column.lookupName(id);
-                            return extractionFn == null ? value : extractionFn.apply(value);
-                          }
-
-                          @Override
-                          public int lookupId(String name)
-                          {
-                            if (extractionFn != null) {
+                            @Override
+                            public int lookupId(String name)
+                            {
                               throw new UnsupportedOperationException(
                                   "cannot perform lookup when applying an extraction function"
                               );
                             }
-                            return column.lookupId(name);
-                          }
-                        };
+                          };
+                        } else {
+                          final GenericIndexed<String> dictionary = column.dictionary();
+                          return new DimensionSelector.WithRawAccess()
+                          {
+                            @Override
+                            public IndexedInts getRow()
+                            {
+                              return column.getMultiValueRow(cursorOffset.getOffset());
+                            }
+
+                            @Override
+                            public int getValueCardinality()
+                            {
+                              return column.getCardinality();
+                            }
+
+                            @Override
+                            public String lookupName(int id)
+                            {
+                              return column.lookupName(id);
+                            }
+
+                            @Override
+                            public byte[] lookupRaw(int id)
+                            {
+                              return dictionary.getAsRaw(id);
+                            }
+
+                            @Override
+                            public int lookupId(String name)
+                            {
+                              return column.lookupId(name);
+                            }
+                          };
+                        }
+                      } else {
+                        if (extractionFn != null) {
+                          return new DimensionSelector()
+                          {
+                            @Override
+                            public IndexedInts getRow()
+                            {
+                              // using an anonymous class is faster than creating a class that stores a copy of the value
+                              return new IndexedInts()
+                              {
+                                @Override
+                                public int size()
+                                {
+                                  return 1;
+                                }
+
+                                @Override
+                                public int get(int index)
+                                {
+                                  return column.getSingleValueRow(cursorOffset.getOffset());
+                                }
+
+                                @Override
+                                public Iterator<Integer> iterator()
+                                {
+                                  return Iterators.singletonIterator(column.getSingleValueRow(cursorOffset.getOffset()));
+                                }
+
+                                @Override
+                                public void fill(int index, int[] toFill)
+                                {
+                                  throw new UnsupportedOperationException("fill not supported");
+                                }
+
+                                @Override
+                                public void close() throws IOException
+                                {
+
+                                }
+                              };
+                            }
+
+                            @Override
+                            public int getValueCardinality()
+                            {
+                              return column.getCardinality();
+                            }
+
+                            @Override
+                            public String lookupName(int id)
+                            {
+                              return extractionFn.apply(column.lookupName(id));
+                            }
+
+                            @Override
+                            public int lookupId(String name)
+                            {
+                              throw new UnsupportedOperationException(
+                                  "cannot perform lookup when applying an extraction function"
+                              );
+                            }
+                          };
+                        } else {
+                          final GenericIndexed<String> dictionary = column.dictionary();
+                          return new DimensionSelector.WithRawAccess()
+                          {
+                            @Override
+                            public IndexedInts getRow()
+                            {
+                              // using an anonymous class is faster than creating a class that stores a copy of the value
+                              return new IndexedInts()
+                              {
+                                @Override
+                                public int size()
+                                {
+                                  return 1;
+                                }
+
+                                @Override
+                                public int get(int index)
+                                {
+                                  return column.getSingleValueRow(cursorOffset.getOffset());
+                                }
+
+                                @Override
+                                public Iterator<Integer> iterator()
+                                {
+                                  return Iterators.singletonIterator(column.getSingleValueRow(cursorOffset.getOffset()));
+                                }
+
+                                @Override
+                                public void fill(int index, int[] toFill)
+                                {
+                                  throw new UnsupportedOperationException("fill not supported");
+                                }
+
+                                @Override
+                                public void close() throws IOException
+                                {
+
+                                }
+                              };
+                            }
+
+                            @Override
+                            public int getValueCardinality()
+                            {
+                              return column.getCardinality();
+                            }
+
+                            @Override
+                            public String lookupName(int id)
+                            {
+                              return column.lookupName(id);
+                            }
+
+                            @Override
+                            public byte[] lookupRaw(int id)
+                            {
+                              return dictionary.getAsRaw(id);
+                            }
+
+                            @Override
+                            public int lookupId(String name)
+                            {
+                              return column.lookupId(name);
+                            }
+                          };
+                        }
                       }
                     }
 
