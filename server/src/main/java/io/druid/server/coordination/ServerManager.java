@@ -327,7 +327,7 @@ public class ServerManager implements QuerySegmentWalker
             }
         );
 
-    return toQueryRunner(query, segments);
+    return toQueryRunner(query, Lists.newArrayList(segments));
   }
 
   private String getDataSourceName(DataSource dataSource)
@@ -371,9 +371,11 @@ public class ServerManager implements QuerySegmentWalker
 
   private <T> QueryRunner<T> toQueryRunner(
       Query<T> query,
-      Iterable<Pair<SegmentDescriptor, ReferenceCountingSegment>> segments
+      List<Pair<SegmentDescriptor, ReferenceCountingSegment>> segments
   )
   {
+    log.info("Running query [%s] on [%d] segments", query.getId(), segments.size());
+
     final QueryRunnerFactory<T, Query<T>> factory = conglomerate.findFactory(query);
     if (factory == null) {
       log.makeAlert("Unknown query type, [%s]", query.getClass())
@@ -385,7 +387,7 @@ public class ServerManager implements QuerySegmentWalker
     final Future<Object> optimizer = factory.preFactoring(query,
         Lists.newArrayList(
             Iterables.filter(
-                Iterables.transform(
+                Lists.transform(
                     segments,
                     Functions.compose(
                         new Function<ReferenceCountingSegment, Segment>()

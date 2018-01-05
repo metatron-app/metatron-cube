@@ -44,6 +44,7 @@ import com.metamx.http.client.HttpClient;
 import com.metamx.http.client.Request;
 import com.metamx.http.client.response.StatusResponseHandler;
 import com.metamx.http.client.response.StatusResponseHolder;
+import io.druid.concurrent.Execs;
 import io.druid.query.BaseQuery;
 import io.druid.query.BySegmentResultValueClass;
 import io.druid.query.DruidMetrics;
@@ -156,7 +157,7 @@ public class DirectDruidClient<T> implements QueryRunner<T>
           handlerFactory.create(query, url, builder, context)
       );
 
-      queryWatcher.registerQuery(query, future);
+      queryWatcher.registerQuery(query, Execs.tag(future, host));
 
       openConnections.getAndIncrement();
       Futures.addCallback(

@@ -24,9 +24,11 @@ import com.google.common.base.Throwables;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.util.concurrent.AbstractFuture;
+import com.google.common.util.concurrent.ForwardingListenableFuture;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
 import com.metamx.common.logger.Logger;
+import io.druid.common.Tagged;
 import io.druid.common.guava.GuavaUtils;
 
 import javax.annotation.Nullable;
@@ -253,6 +255,35 @@ public class Execs
           return new WaitingFuture<V>(input);
         }
       };
+    }
+  }
+
+  public static <V> ListenableFuture<V> tag(ListenableFuture<V> future, String tag)
+  {
+    return new TaggedFuture<V>(future, tag);
+  }
+
+  private static class TaggedFuture<V> extends ForwardingListenableFuture<V> implements ListenableFuture<V>, Tagged
+  {
+    private final ListenableFuture<V> delegate;
+    private final String tag;
+
+    private TaggedFuture(ListenableFuture<V> delegate, String tag)
+    {
+      this.delegate = delegate;
+      this.tag = tag;
+    }
+
+    @Override
+    protected ListenableFuture<V> delegate()
+    {
+      return delegate;
+    }
+
+    @Override
+    public String getTag()
+    {
+      return tag;
     }
   }
 }
