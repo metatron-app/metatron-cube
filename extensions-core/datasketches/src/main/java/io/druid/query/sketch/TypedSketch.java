@@ -20,6 +20,7 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonValue;
 import com.metamx.common.Pair;
+import com.yahoo.memory.NativeMemory;
 import com.yahoo.sketches.ArrayOfDoublesSerDe;
 import com.yahoo.sketches.ArrayOfItemsSerDe;
 import com.yahoo.sketches.ArrayOfLongsSerDe;
@@ -31,11 +32,37 @@ import com.yahoo.sketches.sampling.ReservoirItemsUnion;
 import com.yahoo.sketches.theta.Sketch;
 import com.yahoo.sketches.theta.Union;
 import io.druid.data.ValueType;
+import io.druid.query.aggregation.datasketches.theta.SketchOperations;
+
+import java.util.Arrays;
 
 /**
  */
 public abstract class TypedSketch<T> extends Pair<ValueType, T>
 {
+  public static TypedSketch deserialize(SketchOp sketchOp, Object bytes)
+  {
+    byte[] value = SketchOperations.asBytes(bytes);
+    ValueType type = TypedSketch.fromByte(value[0]);
+    NativeMemory memory = new NativeMemory(Arrays.copyOfRange(value, 1, value.length));
+    return TypedSketch.of(type, deserialize(sketchOp, type, memory));
+  }
+
+  private static Object deserialize(SketchOp sketchOp, ValueType type, NativeMemory memory)
+  {
+    switch (sketchOp) {
+      case THETA:
+        return SketchOperations.deserializeFromMemory(memory);
+      case QUANTILE:
+        return SketchOperations.deserializeQuantileFromMemory(memory, type);
+      case FREQUENCY:
+        return SketchOperations.deserializeFrequencyFromMemory(memory, type);
+      case SAMPLING:
+        return SketchOperations.deserializeSamplingFromMemory(memory, type);
+    }
+    throw new UnsupportedOperationException("invalid type " + sketchOp);
+  }
+
   public static TypedSketch of(final ValueType type, final Object value)
   {
     if (value instanceof Union) {

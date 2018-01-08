@@ -44,7 +44,7 @@ import java.util.Objects;
 @JsonTypeName("covariance")
 public class CovarianceAggregatorFactory extends AggregatorFactory
 {
-  protected static final byte CACHE_TYPE_ID = 20;
+  protected static final byte CACHE_TYPE_ID = 22;
 
   protected final String name;
   protected final String fieldName1;

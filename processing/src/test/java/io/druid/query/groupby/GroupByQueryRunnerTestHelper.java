@@ -83,7 +83,7 @@ public class GroupByQueryRunnerTestHelper
     if (!subQuery) {
       baseRunner = new FinalizeResultsQueryRunner<>(baseRunner, toolChest);
     }
-    return baseRunner;
+    return toolChest.finalQueryDecoration(baseRunner);
   }
 
   public static Row createExpectedRow(final String timestamp, Object... vals)

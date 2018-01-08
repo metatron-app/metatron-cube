@@ -44,7 +44,7 @@ import java.util.Objects;
 @JsonTypeName("pearson")
 public class PearsonAggregatorFactory extends AggregatorFactory
 {
-  protected static final byte CACHE_TYPE_ID = 20;
+  protected static final byte CACHE_TYPE_ID = 21;
 
   protected final String name;
   protected final String fieldName1;

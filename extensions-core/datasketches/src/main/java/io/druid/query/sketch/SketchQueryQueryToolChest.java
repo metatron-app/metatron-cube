@@ -27,8 +27,6 @@ import com.google.inject.Inject;
 import com.metamx.common.guava.Sequence;
 import com.metamx.common.guava.nary.BinaryFn;
 import com.metamx.emitter.service.ServiceMetricEvent;
-import com.yahoo.memory.NativeMemory;
-import io.druid.data.ValueType;
 import io.druid.granularity.QueryGranularities;
 import io.druid.query.CacheStrategy;
 import io.druid.query.DruidMetrics;
@@ -41,12 +39,10 @@ import io.druid.query.Result;
 import io.druid.query.ResultGranularTimestampComparator;
 import io.druid.query.ResultMergeQueryRunner;
 import io.druid.query.aggregation.MetricManipulationFn;
-import io.druid.query.aggregation.datasketches.theta.SketchOperations;
 import io.druid.query.spec.MultipleIntervalSegmentSpec;
 import io.druid.segment.Segment;
 import org.joda.time.Interval;
 
-import java.util.Arrays;
 import java.util.Map;
 import java.util.concurrent.ExecutorService;
 
@@ -114,20 +110,7 @@ public class SketchQueryQueryToolChest extends QueryToolChest<Result<Map<String,
       {
         Map<String, Object> sketches = input.getValue();
         for (Map.Entry<String, Object> entry : sketches.entrySet()) {
-          byte[] value = SketchOperations.asBytes(entry.getValue());
-          ValueType type = TypedSketch.fromByte(value[0]);
-          NativeMemory memory = new NativeMemory(Arrays.copyOfRange(value, 1, value.length));
-          Object deserialize;
-          if (query.getSketchOp() == SketchOp.THETA) {
-            deserialize = SketchOperations.deserializeFromMemory(memory);
-          } else if (query.getSketchOp() == SketchOp.QUANTILE) {
-            deserialize = SketchOperations.deserializeQuantileFromMemory(memory, type);
-          } else if (query.getSketchOp() == SketchOp.FREQUENCY) {
-            deserialize = SketchOperations.deserializeFrequencyFromMemory(memory, type);
-          } else {
-            deserialize = SketchOperations.deserializeSamplingFromMemory(memory, type);
-          }
-          entry.setValue(TypedSketch.of(type, deserialize));
+          entry.setValue(TypedSketch.deserialize(query.getSketchOp(), entry.getValue()));
         }
         return input;
       }

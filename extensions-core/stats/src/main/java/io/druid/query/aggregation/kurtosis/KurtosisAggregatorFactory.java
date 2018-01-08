@@ -44,7 +44,7 @@ import java.util.Objects;
 @JsonTypeName("kurtosis")
 public class KurtosisAggregatorFactory extends AggregatorFactory
 {
-  protected static final byte CACHE_TYPE_ID = 20;
+  protected static final byte CACHE_TYPE_ID = 23;
 
   protected final String name;
   protected final String fieldName;

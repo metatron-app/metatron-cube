@@ -14,6 +14,8 @@ public enum SketchQuantilesOp
     {
       if (parameter == null) {
         return sketch.getQuantiles(DEFAULT_FRACTIONS);
+      } else if (parameter instanceof Number) {
+        return sketch.getQuantile(((Number)parameter).doubleValue());
       } else if (parameter instanceof double[]) {
         return sketch.getQuantiles((double[])parameter);
       } else if (parameter instanceof QuantileParam) {

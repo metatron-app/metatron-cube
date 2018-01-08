@@ -39,6 +39,7 @@ import io.druid.query.topn.TopNQueryEngine;
 import io.druid.segment.column.Column;
 import org.joda.time.DateTime;
 import org.junit.Assert;
+import org.python.google.common.primitives.Doubles;
 
 import java.nio.ByteBuffer;
 import java.util.Arrays;
@@ -252,6 +253,19 @@ public class TestHelper
             ((Number) expectedValue).doubleValue(),
             ((Number) actualValue).doubleValue(),
             ((Number) expectedValue).doubleValue() * 1e-6
+        );
+      } else if (expectedValue instanceof Double[]) {
+        Assert.assertArrayEquals(
+            String.format("%s: key[%s]", msg, key),
+            Doubles.toArray(Arrays.asList((Double[]) expectedValue)),
+            Doubles.toArray(Arrays.asList((Double[]) actualValue)),
+            0.0001
+        );
+      } else if (expectedValue != null && expectedValue.getClass().isArray()) {
+        Assert.assertArrayEquals(
+            String.format("%s: key[%s]", msg, key),
+            (Object[]) expectedValue,
+            (Object[]) actualValue
         );
       } else {
         Assert.assertEquals(

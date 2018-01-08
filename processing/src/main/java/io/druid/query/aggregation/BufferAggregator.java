@@ -149,4 +149,18 @@ public interface BufferAggregator
     {
     }
   }
+
+  class Null extends Abstract
+  {
+    @Override
+    public void aggregate(ByteBuffer buf, int position)
+    {
+    }
+
+    @Override
+    public Object get(ByteBuffer buf, int position)
+    {
+      return null;
+    }
+  }
 }

@@ -19,7 +19,6 @@
 
 package io.druid.query.sketch;
 
-import com.google.common.collect.Ordering;
 import com.metamx.collections.bitmap.ImmutableBitmap;
 import com.yahoo.sketches.Family;
 import com.yahoo.sketches.quantiles.ItemsSketch;
@@ -64,7 +63,70 @@ public interface SketchHandler<U>
 
   void updateWithSketch(TypedSketch<U> union, Object sketch);
 
+  void reset(TypedSketch<U> union);
+
   TypedSketch toSketch(TypedSketch<U> input);
+
+  public static class Synchronized<X> implements SketchHandler<X>
+  {
+    private final SketchHandler<X> handler;
+
+    public Synchronized(SketchHandler<X> handler) {this.handler = handler;}
+
+    @Override
+    public synchronized TypedSketch<X> calculate(int sketchParam, BitmapIndex bitmapIndex, ExtractionFn function)
+    {
+      return handler.calculate(sketchParam, bitmapIndex, function);
+    }
+
+    @Override
+    public synchronized TypedSketch<X> calculate(
+        int sketchParam,
+        BitmapIndex bitmapIndex,
+        ExtractionFn function,
+        ImmutableBitmap filter,
+        BitmapIndexSelector selector
+    )
+    {
+      return handler.calculate(sketchParam, bitmapIndex, function, filter, selector);
+    }
+
+    @Override
+    public synchronized boolean supports(ValueType type)
+    {
+      return handler.supports(type);
+    }
+
+    @Override
+    public TypedSketch<X> newUnion(int sketchParam, ValueType type)
+    {
+      return handler.newUnion(sketchParam, type);
+    }
+
+    @Override
+    public synchronized void updateWithValue(TypedSketch<X> union, Object value)
+    {
+      handler.updateWithValue(union, value);
+    }
+
+    @Override
+    public synchronized void updateWithSketch(TypedSketch<X> union, Object sketch)
+    {
+      handler.updateWithSketch(union, sketch);
+    }
+
+    @Override
+    public synchronized void reset(TypedSketch<X> union)
+    {
+      handler.reset(union);
+    }
+
+    @Override
+    public synchronized TypedSketch toSketch(TypedSketch<X> input)
+    {
+      return handler.toSketch(input);
+    }
+  }
 
   public static class Theta implements SketchHandler<Union>
   {
@@ -110,7 +172,7 @@ public interface SketchHandler<U>
     @Override
     public boolean supports(ValueType type)
     {
-      return type.isNumeric();
+      return type.isPrimitive();
     }
 
     @Override
@@ -147,6 +209,12 @@ public interface SketchHandler<U>
     }
 
     @Override
+    public void reset(TypedSketch<Union> union)
+    {
+      union.value().reset();
+    }
+
+    @Override
     public TypedSketch toSketch(TypedSketch<Union> input)
     {
       return TypedSketch.of(input.type(), input.value().getResult());
@@ -159,7 +227,7 @@ public interface SketchHandler<U>
     public boolean supports(ValueType type)
     {
 //      return type != ValueType.COMPLEX || Comparable.class.isAssignableFrom(type.classOfObject());
-      return type.isNumeric();
+      return type.isPrimitive();
     }
 
     @Override
@@ -214,8 +282,7 @@ public interface SketchHandler<U>
     @Override
     public TypedSketch<ItemsUnion> newUnion(int sketchParam, ValueType type)
     {
-      ItemsUnion union = ItemsUnion.getInstance(sketchParam, Ordering.natural());
-      return TypedSketch.of(type, union);
+      return TypedSketch.of(type, ItemsUnion.getInstance(sketchParam, type.comparator()));
     }
 
     @Override
@@ -230,6 +297,12 @@ public interface SketchHandler<U>
     public void updateWithSketch(TypedSketch<ItemsUnion> union, Object sketch)
     {
       union.value().update((ItemsSketch) sketch);
+    }
+
+    @Override
+    public void reset(TypedSketch<ItemsUnion> union)
+    {
+      union.value().reset();
     }
 
     @Override
@@ -269,6 +342,12 @@ public interface SketchHandler<U>
     }
 
     @Override
+    public void reset(TypedSketch<com.yahoo.sketches.frequencies.ItemsSketch> union)
+    {
+      union.value().reset();
+    }
+
+    @Override
     public TypedSketch toSketch(TypedSketch<com.yahoo.sketches.frequencies.ItemsSketch> input)
     {
       return input;
@@ -304,6 +383,12 @@ public interface SketchHandler<U>
     public void updateWithSketch(TypedSketch<ReservoirItemsUnion> union, Object sketch)
     {
       union.value().update((ReservoirItemsSketch) sketch);
+    }
+
+    @Override
+    public void reset(TypedSketch<ReservoirItemsUnion> union)
+    {
+      throw new UnsupportedOperationException("reset"); // -_-+
     }
 
     @Override

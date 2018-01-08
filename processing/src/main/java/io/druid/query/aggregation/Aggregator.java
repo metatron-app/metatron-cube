@@ -78,4 +78,18 @@ public interface Aggregator {
     {
     }
   }
+
+  class Null extends Abstract
+  {
+    @Override
+    public void aggregate()
+    {
+    }
+
+    @Override
+    public Object get()
+    {
+      return null;
+    }
+  }
 }

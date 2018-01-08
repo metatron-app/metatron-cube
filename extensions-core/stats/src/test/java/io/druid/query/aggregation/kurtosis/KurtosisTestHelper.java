@@ -19,18 +19,12 @@
 
 package io.druid.query.aggregation.kurtosis;
 
-import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
-import io.druid.data.input.MapBasedRow;
-import io.druid.data.input.Row;
 import io.druid.query.QueryRunnerTestHelper;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.stats.DruidStatsModule;
-import org.joda.time.DateTime;
 
 import java.util.Arrays;
 import java.util.List;
-import java.util.Map;
 
 /**
  */
@@ -56,41 +50,4 @@ public class KurtosisTestHelper extends QueryRunnerTestHelper
       qualityUniques,
       indexKurtosisAggr
   );
-
-  public static class RowBuilder
-  {
-    private final String[] names;
-    private final List<Row> rows = Lists.newArrayList();
-
-    public RowBuilder(String[] names)
-    {
-      this.names = names;
-    }
-
-    public RowBuilder add(final String timestamp, Object... values)
-    {
-      rows.add(build(timestamp, values));
-      return this;
-    }
-
-    public List<Row> build()
-    {
-      try {
-        return Lists.newArrayList(rows);
-      }
-      finally {
-        rows.clear();
-      }
-    }
-
-    public Row build(final String timestamp, Object... values)
-    {
-      Map<String, Object> theVals = Maps.newHashMap();
-      for (int i = 0; i < names.length; i++) {
-        theVals.put(names[i], values[i]);
-      }
-      DateTime ts = new DateTime(timestamp);
-      return new MapBasedRow(ts, theVals);
-    }
-  }
 }

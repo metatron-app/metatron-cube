@@ -20,15 +20,19 @@
 package io.druid.query;
 
 import com.google.common.base.Function;
+import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.metamx.common.UOE;
 import com.metamx.common.guava.MergeSequence;
 import com.metamx.common.guava.Sequence;
 import com.metamx.common.guava.Sequences;
+import io.druid.data.input.MapBasedRow;
+import io.druid.data.input.Row;
 import io.druid.granularity.Granularity;
 import io.druid.granularity.QueryGranularities;
 import io.druid.js.JavaScriptConfig;
@@ -580,5 +584,44 @@ public class QueryRunnerTestHelper
       builder.put(String.valueOf(keyvalues[i]), keyvalues[i + 1]);
     }
     return builder.build();
+  }
+
+  public static class RowBuilder
+  {
+    private final String[] names;
+    private final List<Row> rows = Lists.newArrayList();
+
+    public RowBuilder(String[] names)
+    {
+      this.names = names;
+    }
+
+    public RowBuilder add(final String timestamp, Object... values)
+    {
+      rows.add(build(timestamp, values));
+      return this;
+    }
+
+    public List<Row> build()
+    {
+      try {
+        return Lists.newArrayList(rows);
+      }
+      finally {
+        rows.clear();
+      }
+    }
+
+    public Row build(final String timestamp, Object... values)
+    {
+      Preconditions.checkArgument(names.length == values.length);
+
+      Map<String, Object> theVals = Maps.newHashMap();
+      for (int i = 0; i < values.length; i++) {
+        theVals.put(names[i], values[i]);
+      }
+      DateTime ts = new DateTime(timestamp);
+      return new MapBasedRow(ts, theVals);
+    }
   }
 }
