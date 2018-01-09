@@ -149,7 +149,7 @@ public class ThetaSketchQueryRunnerTest
   {
     SketchHandler<Union> handler = SketchOp.THETA.handler();
     int nomEntries = 16;
-    TypedSketch<Union> union1 = handler.newUnion(nomEntries, ValueType.STRING);
+    TypedSketch<Union> union1 = handler.newUnion(nomEntries, ValueType.STRING, null);
     handler.updateWithValue(union1, "automotive");
     handler.updateWithValue(union1, "business");
     handler.updateWithValue(union1, "entertainment");
@@ -158,7 +158,7 @@ public class ThetaSketchQueryRunnerTest
     handler.updateWithValue(union1, "news");
     TypedSketch<Sketch> sketch1 = handler.toSketch(union1);
     Assert.assertEquals(6, sketch1.value().getEstimate(), 0.001);
-    TypedSketch<Union> union2 = handler.newUnion(nomEntries, ValueType.STRING);
+    TypedSketch<Union> union2 = handler.newUnion(nomEntries, ValueType.STRING, null);
     handler.updateWithValue(union2, "automotive");
     handler.updateWithValue(union2, "health");
     handler.updateWithValue(union2, "premium");

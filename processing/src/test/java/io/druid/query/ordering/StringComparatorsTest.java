@@ -97,4 +97,32 @@ public class StringComparatorsTest
       Assert.assertEquals(expected, shuffle);
     }
   }
+
+  @Test
+  public void testStringArray()
+  {
+    List<String> x1 = Arrays.asList("spot", "total_market", "upfront");
+    List<String> x2 = Arrays.asList(
+        "automotive",
+        "business",
+        "entertainment",
+        "health",
+        "mezzanine",
+        "news",
+        "premium",
+        "technology",
+        "travel"
+    );
+
+    List<String> cartesian = Lists.newArrayList();
+    for (String a : x1) {
+      for (String y : x2) {
+        cartesian.add(a + "\u0001" + y);
+      }
+    }
+    List<String> sorted = Lists.newArrayList(cartesian);
+    Collections.shuffle(cartesian);
+    Collections.sort(cartesian, StringComparators.makeComparator("stringarray.\u0001"));
+    Assert.assertEquals(sorted, cartesian);
+  }
 }

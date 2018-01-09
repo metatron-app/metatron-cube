@@ -41,21 +41,21 @@ public class SketchQuantilesPostAggregator implements PostAggregator
   public static SketchQuantilesPostAggregator fraction(String name, String fieldName, double fraction)
   {
     return new SketchQuantilesPostAggregator(
-        name, fieldName, SketchQuantilesOp.QUANTILES, fraction, null, null, null, null, null
+        name, fieldName, SketchQuantilesOp.QUANTILES, fraction, null, null, null, null, null, null
     );
   }
 
   public static SketchQuantilesPostAggregator fractions(String name, String fieldName, double[] fractions)
   {
     return new SketchQuantilesPostAggregator(
-        name, fieldName, SketchQuantilesOp.QUANTILES, null, fractions, null, null, null, null
+        name, fieldName, SketchQuantilesOp.QUANTILES, null, fractions, null, null, null, null, null
     );
   }
 
   public static SketchQuantilesPostAggregator evenSpaced(String name, String fieldName, int evenSpaced)
   {
     return new SketchQuantilesPostAggregator(
-        name, fieldName, SketchQuantilesOp.QUANTILES, null, null, evenSpaced, null, null, null
+        name, fieldName, SketchQuantilesOp.QUANTILES, null, null, null, evenSpaced, null, null, null
     );
   }
 
@@ -71,6 +71,7 @@ public class SketchQuantilesPostAggregator implements PostAggregator
       @JsonProperty("op") SketchQuantilesOp op,
       @JsonProperty("fraction") Double fraction,
       @JsonProperty("fractions") double[] fractions,
+      @JsonProperty("count") Integer count,
       @JsonProperty("evenSpaced") Integer evenSpaced,
       @JsonProperty("evenCounted") Integer evenCounted,
       @JsonProperty("slopedSpaced") Integer slopedSpaced,
@@ -83,6 +84,7 @@ public class SketchQuantilesPostAggregator implements PostAggregator
     if (op == null || op == SketchQuantilesOp.QUANTILES) {
       parameter = fraction != null ? fraction :
                   fractions != null ? fractions :
+                  count != null ? count :
                   evenSpaced != null && evenSpaced > 0 ? SketchQuantilesOp.evenSpaced(evenSpaced) :
                   evenCounted != null && evenCounted > 0 ? SketchQuantilesOp.evenCounted(evenCounted) :
                   slopedSpaced != null && slopedSpaced > 0 ? SketchQuantilesOp.slopedSpaced(slopedSpaced) :

@@ -19,6 +19,7 @@
 
 package io.druid.query.ordering;
 
+import com.google.common.base.Preconditions;
 import com.google.common.collect.Maps;
 import com.google.common.primitives.Ints;
 import com.google.common.primitives.Longs;
@@ -45,6 +46,8 @@ public class StringComparators
   public static final String NUMERIC_NAME = "numeric";
   public static final String DAY_OF_WEEK_NAME = "dayofweek";
   public static final String MONTH_NAME = "month";
+
+  public static final String STRING_ARRAY_NAME = "stringarray";
 
   public static final LexicographicComparator LEXICOGRAPHIC = new LexicographicComparator();
   public static final AlphanumericComparator ALPHANUMERIC = new AlphanumericComparator();
@@ -128,6 +131,45 @@ public class StringComparators
           StringUtils.toUtf8(s),
           StringUtils.toUtf8(s2)
       );
+    }
+
+    @Override
+    public String toString()
+    {
+      return StringComparators.LEXICOGRAPHIC_NAME;
+    }
+  }
+
+  public static class StringArrayComparator extends AbstractStringComparator
+  {
+    private final char separator;
+
+    public StringArrayComparator(char separator)
+    {
+      this.separator = separator;
+    }
+
+    @Override
+    protected final int _compare(String s1, String s2)
+    {
+      int i1 = 0;
+      int i2 = 0;
+      while (true) {
+        int index1 = s1.indexOf(separator, i1);
+        int index2 = s2.indexOf(separator, i2);
+        if (index1 >= 0 && index2 >= 0) {
+          int compare = s1.substring(i1, index1).compareTo(s2.substring(i2, index2));
+          if (compare != 0) {
+            return compare;
+          }
+          i1 = index1 + 1;
+          i2 = index2 + 1;
+        } else if (index1 < 0 && index2 < 0) {
+          return s1.substring(i1).compareTo(s2.substring(i2));
+        } else {
+          return index2 < 0 ? 1 : -1;
+        }
+      }
     }
 
     @Override
@@ -548,6 +590,14 @@ public class StringComparators
     }
   }
 
+  public static String validate(String type)
+  {
+    if (type != null) {
+      makeComparator(type);
+    }
+    return type;
+  }
+
   public static StringComparator makeComparator(String type)
   {
     StringComparator comparator = tryMakeComparator(type);
@@ -586,6 +636,11 @@ public class StringComparators
         }
         if (lowerCased.startsWith(StringComparators.MONTH_NAME + ".")) {
           return new MonthComparator(lowerCased.substring(MONTH_NAME.length() + 1));
+        }
+        if (lowerCased.startsWith(StringComparators.STRING_ARRAY_NAME + ".")) {
+          String substring = lowerCased.substring(STRING_ARRAY_NAME.length() + 1);
+          Preconditions.checkArgument(substring.length() == 1, "separator should be a char");
+          return new StringArrayComparator(substring.charAt(0));
         }
         return null;
     }

@@ -44,6 +44,7 @@ public class SketchTestHelper extends QueryRunnerTestHelper
       indexMetric,
       SketchOp.QUANTILE,
       null,
+      null,
       false
   );
 
@@ -51,6 +52,7 @@ public class SketchTestHelper extends QueryRunnerTestHelper
       indexSketchMetric,
       indexMetric,
       SketchOp.THETA,
+      null,
       null,
       false
   );
@@ -62,6 +64,7 @@ public class SketchTestHelper extends QueryRunnerTestHelper
       qualityDimension,
       SketchOp.QUANTILE,
       null,
+      null,
       false
   );
 
@@ -69,6 +72,7 @@ public class SketchTestHelper extends QueryRunnerTestHelper
       qualitySketchMetric,
       qualityDimension,
       SketchOp.THETA,
+      null,
       null,
       false
   );

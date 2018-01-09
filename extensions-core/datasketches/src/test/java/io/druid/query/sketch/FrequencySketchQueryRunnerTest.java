@@ -91,7 +91,7 @@ public class FrequencySketchQueryRunnerTest
       mapper = mapper.registerModule(module);
     }
     int nomEntries = 16;
-    TypedSketch union1 = handler.newUnion(nomEntries, ValueType.STRING);
+    TypedSketch union1 = handler.newUnion(nomEntries, ValueType.STRING, null);
     handler.updateWithValue(union1, "automotive");
     handler.updateWithValue(union1, "business");
     handler.updateWithValue(union1, "entertainment");
@@ -99,7 +99,7 @@ public class FrequencySketchQueryRunnerTest
     handler.updateWithValue(union1, "mezzanine");
     handler.updateWithValue(union1, "news");
     ItemsSketch sketch1 = (ItemsSketch) handler.toSketch(union1).value();
-    TypedSketch union2 = handler.newUnion(nomEntries, ValueType.STRING);
+    TypedSketch union2 = handler.newUnion(nomEntries, ValueType.STRING, null);
     handler.updateWithValue(union2, "automotive1");
     handler.updateWithValue(union2, "automotive2");
     handler.updateWithValue(union2, "automotive3");
@@ -170,7 +170,7 @@ public class FrequencySketchQueryRunnerTest
   {
     SketchHandler handler = SketchOp.FREQUENCY.handler();
     int nomEntries = 16;
-    TypedSketch union1 = handler.newUnion(nomEntries, ValueType.STRING);
+    TypedSketch union1 = handler.newUnion(nomEntries, ValueType.STRING, null);
     handler.updateWithValue(union1, "automotive");
     handler.updateWithValue(union1, "business");
     handler.updateWithValue(union1, "entertainment");
@@ -179,7 +179,7 @@ public class FrequencySketchQueryRunnerTest
     handler.updateWithValue(union1, "news");
     TypedSketch<ItemsSketch> sketch1 = (TypedSketch<ItemsSketch>) handler.toSketch(union1);
     Assert.assertEquals(1L, sketch1.value().getEstimate("mezzanine"));
-    TypedSketch union2 = handler.newUnion(nomEntries, ValueType.STRING);
+    TypedSketch union2 = handler.newUnion(nomEntries, ValueType.STRING, null);
     handler.updateWithValue(union2, "premium");
     handler.updateWithValue(union2, "premium");
     handler.updateWithValue(union2, "premium");

@@ -19,6 +19,7 @@
 
 package io.druid.math.expr;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
@@ -32,6 +33,7 @@ import org.junit.Assert;
 import org.junit.Ignore;
 import org.junit.Test;
 
+import java.io.IOException;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -546,6 +548,15 @@ public class EvalTest
   {
     Expr.NumericBinding bindings = Parser.withMap(ImmutableMap.of("x", "abcxbcdexbc", "y", "abc"));
     Assert.assertEquals("a!x!dex!", Parser.parse("replace(x, 'bc', '!')").eval(bindings).stringValue());
+  }
+
+  @Test
+  public void testConcat() throws IOException
+  {
+    Expr.NumericBinding bindings = Parser.withMap(ImmutableMap.of("x", "navis", "y", "manse"));
+    ObjectMapper mapper = new ObjectMapper();
+    String value = mapper.readValue("\"concat(x, '\\u0001', y)\"", String.class);
+    Assert.assertEquals("navis\u0001manse", evalString(value, bindings));
   }
 
   @Test

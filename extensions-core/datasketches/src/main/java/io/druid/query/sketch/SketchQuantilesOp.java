@@ -15,7 +15,11 @@ public enum SketchQuantilesOp
       if (parameter == null) {
         return sketch.getQuantiles(DEFAULT_FRACTIONS);
       } else if (parameter instanceof Number) {
-        return sketch.getQuantile(((Number)parameter).doubleValue());
+        double number = ((Number) parameter).doubleValue();
+        if (number > 1) {
+          number = number / sketch.getN();
+        }
+        return number > 1 ? sketch.getMaxValue() : sketch.getQuantile(number);
       } else if (parameter instanceof double[]) {
         return sketch.getQuantiles((double[])parameter);
       } else if (parameter instanceof QuantileParam) {

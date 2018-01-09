@@ -196,7 +196,7 @@ public class SketchQueryRunner implements QueryRunner<Result<Map<String, Object>
           dimSelectors.add(cursor.makeDimensionSelector(dimension));
           TypedSketch union = prev.get(dimension.getOutputName());
           if (union == null) {
-            prev.put(dimension.getOutputName(), union = handler.newUnion(nomEntries, ValueType.STRING));
+            prev.put(dimension.getOutputName(), union = handler.newUnion(nomEntries, ValueType.STRING, null));
           }
           sketches.add(union);
         }
@@ -224,7 +224,7 @@ public class SketchQueryRunner implements QueryRunner<Result<Map<String, Object>
           } else {
             metricSelectors.add(selector);
             if (union == null) {
-              prev.put(metric, union = handler.newUnion(nomEntries, selector.type().type()));
+              prev.put(metric, union = handler.newUnion(nomEntries, selector.type().type(), null));
             }
             sketches.add(union);
           }

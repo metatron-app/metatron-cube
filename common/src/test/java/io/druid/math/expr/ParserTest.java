@@ -22,6 +22,8 @@ package io.druid.math.expr;
 import org.junit.Assert;
 import org.junit.Test;
 
+import java.io.IOException;
+
 /**
  */
 public class ParserTest
@@ -51,6 +53,9 @@ public class ParserTest
 
     Assert.assertTrue(Parser.parse("'한글.나비스'")  instanceof StringExpr);
     Assert.assertEquals("한글.나비스", Parser.parse("'한글.나비스'").toString());
+
+    Assert.assertTrue(Parser.parse("'\\u0001'") instanceof StringExpr);
+    Assert.assertEquals("\u0001", Parser.parse("'\\u0001'").toString());
   }
 
   @Test

@@ -6,8 +6,6 @@ import io.druid.data.ValueType;
 import org.junit.Assert;
 import org.junit.Test;
 
-import java.util.Arrays;
-
 /**
  */
 public class SketchHandlerTest
@@ -15,7 +13,7 @@ public class SketchHandlerTest
   @Test
   public void testQuantile() {
     SketchHandler.Quantile q = new SketchHandler.Quantile();
-    TypedSketch<ItemsUnion> sketch = q.newUnion(16, ValueType.FLOAT);
+    TypedSketch<ItemsUnion> sketch = q.newUnion(16, ValueType.FLOAT, null);
 
     q.updateWithValue(sketch, 1.5f);
     q.updateWithValue(sketch, 2.5f);
@@ -48,7 +46,7 @@ public class SketchHandlerTest
   @Test
   public void testQuantileMerge() {
     SketchHandler.Quantile q = new SketchHandler.Quantile();
-    TypedSketch<ItemsUnion> sketch1 = q.newUnion(16, ValueType.FLOAT);
+    TypedSketch<ItemsUnion> sketch1 = q.newUnion(16, ValueType.FLOAT, null);
 
     q.updateWithValue(sketch1, 1.5f);
     q.updateWithValue(sketch1, 2.5f);
@@ -62,7 +60,7 @@ public class SketchHandlerTest
     q.updateWithValue(sketch1, 7.5f);
     q.updateWithValue(sketch1, 11.5f);
 
-    TypedSketch<ItemsUnion> sketch2 = q.newUnion(16, ValueType.FLOAT);
+    TypedSketch<ItemsUnion> sketch2 = q.newUnion(16, ValueType.FLOAT, null);
     q.updateWithValue(sketch2, 1.2f);
     q.updateWithValue(sketch2, 2.2f);
     q.updateWithValue(sketch2, 3.2f);

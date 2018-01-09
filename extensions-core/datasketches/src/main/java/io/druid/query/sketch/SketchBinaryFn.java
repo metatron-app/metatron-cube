@@ -75,7 +75,7 @@ public class SketchBinaryFn
         object1.type() == object2.type(),
         "Type mismatch.. " + object1.type() + " with " + object2.type()
     );
-    TypedSketch union = handler.newUnion(nomEntries, object1.type());
+    TypedSketch union = handler.newUnion(nomEntries, object1.type(), null);
     handler.updateWithSketch(union, object1.value());
     handler.updateWithSketch(union, object2.value());
     return handler.toSketch(union);

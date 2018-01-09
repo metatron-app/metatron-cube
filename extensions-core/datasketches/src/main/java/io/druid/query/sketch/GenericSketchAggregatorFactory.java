@@ -35,6 +35,7 @@ import io.druid.query.aggregation.Aggregator;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.BufferAggregator;
 import io.druid.query.dimension.DefaultDimensionSpec;
+import io.druid.query.ordering.StringComparators;
 import io.druid.segment.ColumnSelectorFactory;
 import io.druid.segment.DimensionSelector;
 import io.druid.segment.ObjectColumnSelector;
@@ -44,6 +45,7 @@ import java.nio.ByteBuffer;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Objects;
 
 @JsonTypeName("sketch")
 public class GenericSketchAggregatorFactory extends AggregatorFactory
@@ -55,6 +57,7 @@ public class GenericSketchAggregatorFactory extends AggregatorFactory
 
   private final int sketchParam;
   private final SketchOp sketchOp;
+  private final String stringComparator;
   private final boolean merge;
 
   @JsonCreator
@@ -63,6 +66,7 @@ public class GenericSketchAggregatorFactory extends AggregatorFactory
       @JsonProperty("fieldName") String fieldName,
       @JsonProperty("sketchOp") SketchOp sketchOp,
       @JsonProperty("sketchParam") Integer sketchParam,
+      @JsonProperty("stringComparator") String stringComparator,
       @JsonProperty("merge") boolean merge
   )
   {
@@ -70,6 +74,7 @@ public class GenericSketchAggregatorFactory extends AggregatorFactory
     this.fieldName = fieldName == null ? name : fieldName;
     this.sketchOp = sketchOp == null ? SketchOp.THETA : sketchOp;
     this.sketchParam = sketchParam == null ? this.sketchOp.defaultParam() : this.sketchOp.normalize(sketchParam);
+    this.stringComparator = StringComparators.validate(stringComparator);
     this.merge = merge;
   }
 
@@ -81,13 +86,14 @@ public class GenericSketchAggregatorFactory extends AggregatorFactory
     if (type == null) {
       return new Aggregator.Null();
     }
+    final Comparator comparator = stringComparator != null ? StringComparators.makeComparator(stringComparator) : null;
     final SketchHandler<?> handler = new SketchHandler.Synchronized<>(sketchOp.handler());
     if (ValueDesc.isDimension(type)) {
       Preconditions.checkArgument(!merge, "invalid state");
       final DimensionSelector selector = metricFactory.makeDimensionSelector(DefaultDimensionSpec.of(fieldName));
       return new Aggregator.Abstract()
       {
-        final TypedSketch sketch = handler.newUnion(sketchParam, ValueType.STRING);
+        final TypedSketch sketch = handler.newUnion(sketchParam, ValueType.STRING, comparator);
 
         @Override
         public void aggregate()
@@ -129,7 +135,7 @@ public class GenericSketchAggregatorFactory extends AggregatorFactory
           final TypedSketch sketch = (TypedSketch) selector.get();
           if (sketch != null) {
             if (union == null) {
-              union = handler.newUnion(sketchParam, sketch.type());
+              union = handler.newUnion(sketchParam, sketch.type(), comparator);
             }
             handler.updateWithSketch(union, sketch.value());
           }
@@ -153,7 +159,7 @@ public class GenericSketchAggregatorFactory extends AggregatorFactory
     }
     return new Aggregator.Abstract()
     {
-      final TypedSketch sketch = handler.newUnion(sketchParam, type.type());
+      final TypedSketch sketch = handler.newUnion(sketchParam, type.type(), comparator);
 
       @Override
       public void aggregate()
@@ -183,6 +189,7 @@ public class GenericSketchAggregatorFactory extends AggregatorFactory
     if (type == null) {
       return new BufferAggregator.Null();
     }
+    final Comparator comparator = stringComparator != null ? StringComparators.makeComparator(stringComparator) : null;
     final SketchHandler<?> handler = sketchOp.handler();
     if (ValueDesc.isDimension(type)) {
       Preconditions.checkArgument(!merge, "invalid state");
@@ -195,7 +202,7 @@ public class GenericSketchAggregatorFactory extends AggregatorFactory
         public void init(ByteBuffer buf, int position)
         {
           buf.putInt(position, sketches.size());
-          sketches.add(handler.newUnion(sketchParam, ValueType.STRING));
+          sketches.add(handler.newUnion(sketchParam, ValueType.STRING, comparator));
         }
 
         @Override
@@ -243,7 +250,7 @@ public class GenericSketchAggregatorFactory extends AggregatorFactory
             final int index = buf.getInt(position);
             TypedSketch union = sketches.get(index);
             if (union == null) {
-              sketches.set(index, union = handler.newUnion(sketchParam, sketch.type()));
+              sketches.set(index, union = handler.newUnion(sketchParam, sketch.type(), comparator));
             }
             handler.updateWithSketch(union, sketch.value());
           }
@@ -268,7 +275,7 @@ public class GenericSketchAggregatorFactory extends AggregatorFactory
       public void init(ByteBuffer buf, int position)
       {
         buf.putInt(position, sketches.size());
-        sketches.add(handler.newUnion(sketchParam, type.type()));
+        sketches.add(handler.newUnion(sketchParam, type.type(), comparator));
       }
 
       @Override
@@ -318,7 +325,8 @@ public class GenericSketchAggregatorFactory extends AggregatorFactory
         "Type mismatch.. " + object1.type() + " with " + object2.type()
     );
     SketchHandler<?> handler = sketchOp.handler();
-    TypedSketch union = handler.newUnion(sketchParam, object1.type());
+    Comparator comparator = stringComparator != null ? StringComparators.makeComparator(stringComparator) : null;
+    TypedSketch union = handler.newUnion(sketchParam, object1.type(), comparator);
     handler.updateWithSketch(union, object1.value());
     handler.updateWithSketch(union, object2.value());
     return handler.toSketch(union);
@@ -327,7 +335,7 @@ public class GenericSketchAggregatorFactory extends AggregatorFactory
   @Override
   public AggregatorFactory getCombiningFactory()
   {
-    return new GenericSketchAggregatorFactory(name, name, sketchOp, sketchParam, true);
+    return new GenericSketchAggregatorFactory(name, name, sketchOp, sketchParam, stringComparator, true);
   }
 
   @Override
@@ -356,6 +364,12 @@ public class GenericSketchAggregatorFactory extends AggregatorFactory
   }
 
   @JsonProperty
+  public String getStringComparator()
+  {
+    return stringComparator;
+  }
+
+  @JsonProperty
   public boolean isMerge()
   {
     return merge;
@@ -377,13 +391,15 @@ public class GenericSketchAggregatorFactory extends AggregatorFactory
   public byte[] getCacheKey()
   {
     byte[] fieldNameBytes = StringUtils.toUtf8(fieldName);
-    int length = 7 + fieldNameBytes.length;
+    byte[] comparatorBytes = StringUtils.toUtf8WithNullToEmpty(stringComparator);
+    int length = 7 + fieldNameBytes.length + comparatorBytes.length;
 
     return ByteBuffer.allocate(length)
                      .put(CACHE_TYPE_ID)
                      .put(fieldNameBytes)
                      .put((byte) sketchOp.ordinal())
                      .putInt(sketchParam)
+                     .put(comparatorBytes)
                      .put((byte) (merge ? 1 : 0))
                      .array();
   }
@@ -402,6 +418,7 @@ public class GenericSketchAggregatorFactory extends AggregatorFactory
            + ", fieldName='" + fieldName + '\''
            + ", sketchOp=" + sketchOp
            + ", sketchParam=" + sketchParam
+           + ", stringComparator=" + stringComparator
            + ", merge=" + merge
            + '}';
   }
@@ -431,6 +448,9 @@ public class GenericSketchAggregatorFactory extends AggregatorFactory
     if (sketchParam != that.sketchParam) {
       return false;
     }
+    if (!Objects.equals(stringComparator, that.stringComparator)) {
+      return false;
+    }
     return merge == that.merge;
   }
 
@@ -441,6 +461,7 @@ public class GenericSketchAggregatorFactory extends AggregatorFactory
     result = 31 * result + fieldName.hashCode();
     result = 31 * result + sketchOp.ordinal();
     result = 31 * result + sketchParam;
+    result = 31 * result + Objects.hashCode(stringComparator);
     result = 31 * result + (merge ? 1 : 0);
     return result;
   }
