@@ -65,6 +65,7 @@ import io.druid.server.initialization.jetty.JettyServerModule;
 import io.druid.server.metrics.MetricsModule;
 import org.apache.commons.io.FileUtils;
 import org.eclipse.aether.artifact.DefaultArtifact;
+import org.eclipse.jetty.util.ConcurrentHashSet;
 
 import java.io.File;
 import java.io.FilenameFilter;
@@ -89,7 +90,7 @@ public class Initialization
   private static final Map<String, URLClassLoader> loadersMap = Maps.newHashMap();
 
   private static final Map<Class, Set> extensionsMap = Maps.<Class, Set>newHashMap();
-  private static final Set<String> failed = Sets.newConcurrentHashSet();
+  private static final Set<String> failed = new ConcurrentHashSet<>();
 
   /**
    * @param clazz Module class
