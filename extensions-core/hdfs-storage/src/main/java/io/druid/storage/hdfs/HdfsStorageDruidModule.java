@@ -23,6 +23,7 @@ import com.fasterxml.jackson.core.Version;
 import com.fasterxml.jackson.databind.Module;
 import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableSet;
 import com.google.inject.Binder;
 import com.google.inject.Inject;
 import com.google.inject.multibindings.MapBinder;
@@ -43,6 +44,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Properties;
 import java.util.ServiceLoader;
+import java.util.Set;
 
 /**
  */
@@ -51,6 +53,11 @@ public class HdfsStorageDruidModule implements DruidModule
   private static final Logger LOGGER = new Logger(HdfsStorageDruidModule.class);
   public static final String SCHEME = "hdfs";
   private Properties props = null;
+
+  private static final Set<String> SKIP = ImmutableSet.of(
+      "org.apache.hadoop.hive.ql.io.NullScanFileSystem",
+      "org.apache.hadoop.hive.ql.io.ProxyLocalFileSystem"
+  );
 
   @Inject
   public void setProperties(Properties props)
@@ -115,7 +122,11 @@ public class HdfsStorageDruidModule implements DruidModule
       // next() can throw exception (NoClassDefFoundError, etc.)
       while (loader.hasNext()) {
         try {
-          writers.addBinding(loader.next().getScheme()).to(HdfsDataSegmentPusher.class).in(LazySingleton.class);
+          FileSystem next = loader.next();
+          if (SKIP.contains(next.getClass().getName())) {
+            continue;
+          }
+          writers.addBinding(next.getScheme()).to(HdfsDataSegmentPusher.class).in(LazySingleton.class);
         }
         catch (Throwable e) {
           if (!logged) {
