@@ -27,6 +27,7 @@ import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.util.concurrent.ListenableFuture;
+import com.google.common.util.concurrent.MoreExecutors;
 import com.metamx.common.UOE;
 import com.metamx.common.guava.MergeSequence;
 import com.metamx.common.guava.Sequence;
@@ -363,6 +364,25 @@ public class QueryRunnerTestHelper
     );
   }
 
+  public static <T, QueryType extends Query<T>> List<QueryRunner<T>> makeMergeQueryRunners(
+      QueryRunnerFactory<T, QueryType> factory
+  )
+      throws IOException
+  {
+    final IncrementalIndex rtIndex = TestIndex.getIncrementalTestIndex();
+    final IncrementalIndex noRollupRtIndex = TestIndex.getNoRollupIncrementalTestIndex();
+    final QueryableIndex mMappedTestIndex = TestIndex.getMMappedTestIndex();
+    final QueryableIndex noRollupMMappedTestIndex = TestIndex.getNoRollupMMappedTestIndex();
+    final QueryableIndex mergedRealtimeIndex = TestIndex.mergedRealtimeIndex();
+    return ImmutableList.of(
+        makeQueryRunnerWithMerge(factory, new IncrementalIndexSegment(rtIndex, segmentId)),
+        makeQueryRunnerWithMerge(factory, new IncrementalIndexSegment(noRollupRtIndex, segmentId)),
+        makeQueryRunnerWithMerge(factory, new QueryableIndexSegment(segmentId, mMappedTestIndex)),
+        makeQueryRunnerWithMerge(factory, new QueryableIndexSegment(segmentId, noRollupMMappedTestIndex)),
+        makeQueryRunnerWithMerge(factory, new QueryableIndexSegment(segmentId, mergedRealtimeIndex))
+    );
+  }
+
   @SuppressWarnings("unchecked")
   public static Collection<?> makeUnionQueryRunners(
       QueryRunnerFactory factory,
@@ -468,6 +488,14 @@ public class QueryRunnerTestHelper
         makeSegmentQueryRunner(factory, segmentId, adapter),
         (QueryToolChest<T, Query<T>>)factory.getToolchest()
     );
+  }
+
+  public static <T, QueryType extends Query<T>> QueryRunner<T> makeQueryRunnerWithMerge(
+      QueryRunnerFactory<T, QueryType> factory,
+      Segment adapter
+  )
+  {
+    return makeQueryRunnerWithMerge(factory, MoreExecutors.sameThreadExecutor(), segmentId, adapter);
   }
 
   public static <T, QueryType extends Query<T>> QueryRunner<T> makeQueryRunnerWithMerge(

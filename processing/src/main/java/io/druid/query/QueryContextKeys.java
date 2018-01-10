@@ -27,7 +27,7 @@ public interface QueryContextKeys
   public static final String CHUNK_PERIOD = "chunkPeriod";
   public static final String FINALIZE = "finalize";
   public static final String BY_SEGMENT = "bySegment";
-  public static final String MERGE_GROUP_BY = "mergeGroupBy";
+  public static final String FINAL_WORK = "finalWork";
 
   public static final String GBY_MERGE_PARALLELISM = "groupByMergeParallelism";
 

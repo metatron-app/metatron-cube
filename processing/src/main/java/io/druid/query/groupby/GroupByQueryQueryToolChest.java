@@ -131,7 +131,7 @@ public class GroupByQueryQueryToolChest extends QueryToolChest<Row, GroupByQuery
           return runner.run(query, responseContext);
         }
 
-        if (query.getContextBoolean(QueryContextKeys.MERGE_GROUP_BY, true)) {
+        if (query.getContextBoolean(QueryContextKeys.FINAL_WORK, true)) {
           return mergeGroupByResults(
               (GroupByQuery) query,
               runner,
@@ -181,7 +181,7 @@ public class GroupByQueryQueryToolChest extends QueryToolChest<Row, GroupByQuery
     ).withOverriddenContext(
         ImmutableMap.<String, Object>of(
             QueryContextKeys.FINALIZE, false,
-            QueryContextKeys.MERGE_GROUP_BY, false
+            QueryContextKeys.FINAL_WORK, false
         )
     );
   }

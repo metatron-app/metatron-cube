@@ -267,6 +267,11 @@ public abstract class BaseQuery<T extends Comparable<T>> implements Query<T>
     return builder.toString();
   }
 
+  public Query<T> withOverriddenContext(String key, Object value)
+  {
+    return withOverriddenContext(ImmutableMap.of(Preconditions.checkNotNull(key), Preconditions.checkNotNull(value)));
+  }
+
   public static Map<String, Object> removeContext(String... keys)
   {
     Map<String, Object> remover = Maps.newHashMap();

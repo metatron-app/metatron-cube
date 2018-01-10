@@ -37,6 +37,7 @@ import io.druid.query.IntervalChunkingQueryRunnerDecorator;
 import io.druid.query.LateralViewSpec;
 import io.druid.query.Query;
 import io.druid.query.QueryCacheHelper;
+import io.druid.query.QueryContextKeys;
 import io.druid.query.QueryRunner;
 import io.druid.query.QuerySegmentWalker;
 import io.druid.query.QueryToolChest;
@@ -90,6 +91,17 @@ public class TimeseriesQueryQueryToolChest extends QueryToolChest<Result<Timeser
   {
     return new ResultMergeQueryRunner<Result<TimeseriesResultValue>>(queryRunner)
     {
+      @Override
+      public Sequence<Result<TimeseriesResultValue>> doRun(QueryRunner<Result<TimeseriesResultValue>> baseRunner, Query<Result<TimeseriesResultValue>> query, Map<String, Object> context)
+      {
+        if (query.getContextBoolean(QueryContextKeys.FINAL_WORK, true)) {
+          TimeseriesQuery timeseriesQuery = (TimeseriesQuery) query;
+          query = timeseriesQuery.withPostAggregatorSpecs(null)
+                                 .withOverriddenContext(QueryContextKeys.FINAL_WORK, false);
+        }
+        return super.doRun(baseRunner, query, context);
+      }
+
       @Override
       protected Ordering<Result<TimeseriesResultValue>> makeOrdering(Query<Result<TimeseriesResultValue>> query)
       {
