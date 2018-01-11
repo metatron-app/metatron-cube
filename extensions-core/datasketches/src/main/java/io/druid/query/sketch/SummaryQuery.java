@@ -27,6 +27,7 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Maps;
+import io.druid.data.ValueDesc;
 import io.druid.query.BaseQuery;
 import io.druid.query.DataSource;
 import io.druid.query.Query;
@@ -90,6 +91,10 @@ public class SummaryQuery extends BaseQuery<Result<Map<String, Object>>>
       Map<String, MutableInt> value = entry.getValue();
       if (value.size() == 1) {
         String type = Iterables.getOnlyElement(value.keySet());
+        ValueDesc valueDesc = ValueDesc.of(type);
+        if (ValueDesc.isDimension(valueDesc)) {
+          type = ValueDesc.typeOfDimension(valueDesc).toString();
+        }
         MutableInt count = Iterables.getOnlyElement(value.values());
         majorTypes.put(column, type);
         typeDetail.put(column, ImmutableMap.of(type, count.intValue()));
@@ -106,6 +111,10 @@ public class SummaryQuery extends BaseQuery<Result<Map<String, Object>>>
           major = type;
         }
         detail.put(type, count);
+      }
+      ValueDesc valueDesc = ValueDesc.of(major);
+      if (ValueDesc.isDimension(valueDesc)) {
+        major = ValueDesc.typeOfDimension(valueDesc).toString();
       }
       majorTypes.put(column, major);
       typeDetail.put(column, detail);
