@@ -88,6 +88,8 @@ public class OrcHadoopInputRowParser implements HadoopAwareParser<OrcStruct>
   private final List<String> dimensions;
   private final TimestampSpec timestampSpec;
 
+  private StructObjectInspector staticInspector;
+
   private Context context;
   private Path currentPath;
   private StructObjectInspector dynamicInspector;
@@ -173,8 +175,11 @@ public class OrcHadoopInputRowParser implements HadoopAwareParser<OrcStruct>
 
   private StructObjectInspector getObjectInspector()
   {
+    if (staticInspector != null) {
+      return staticInspector;
+    }
     if (typeString != null) {
-      return initStaticInspector(typeString);
+      return staticInspector = initStaticInspector(typeString);
     }
     InputSplit split = context.getInputSplit();
     Path path;
