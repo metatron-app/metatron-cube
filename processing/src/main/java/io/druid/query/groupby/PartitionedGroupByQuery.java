@@ -22,16 +22,18 @@ package io.druid.query.groupby;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Preconditions;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.math.IntMath;
 import io.druid.common.utils.JodaUtils;
 import io.druid.data.input.Row;
-import io.druid.granularity.QueryGranularities;
 import io.druid.granularity.Granularity;
+import io.druid.granularity.QueryGranularities;
 import io.druid.query.DataSource;
 import io.druid.query.Query;
+import io.druid.query.QueryContextKeys;
 import io.druid.query.QuerySegmentWalker;
 import io.druid.query.QueryUtils;
 import io.druid.query.UnionAllQuery;
@@ -44,6 +46,7 @@ import io.druid.query.filter.AndDimFilter;
 import io.druid.query.filter.DimFilter;
 import io.druid.query.groupby.having.HavingSpec;
 import io.druid.query.groupby.orderby.LimitSpec;
+import io.druid.query.groupby.orderby.LimitSpecs;
 import io.druid.query.groupby.orderby.WindowingSpec;
 import io.druid.query.spec.MultipleIntervalSegmentSpec;
 import io.druid.query.spec.QuerySegmentSpec;
@@ -59,7 +62,6 @@ import java.util.Map;
  */
 public class PartitionedGroupByQuery extends GroupByQuery implements Query.RewritingQuery<Row>
 {
-  private final int limit;
   private final int numPartition;
   private final int scannerLen;
   private final int parallelism;
@@ -94,7 +96,7 @@ public class PartitionedGroupByQuery extends GroupByQuery implements Query.Rewri
         aggregatorSpecs,
         postAggregatorSpecs,
         havingSpec,
-        limitSpec == null ? null : limitSpec.withLimit(Integer.MAX_VALUE),
+        limitSpec,
         outputColumns,
         null,
         context
@@ -111,7 +113,6 @@ public class PartitionedGroupByQuery extends GroupByQuery implements Query.Rewri
         getGranularity() == QueryGranularities.ALL || numPartition > 0,
         "if 'granularity' is not 'ALL', only 'numPartition' can be applicable"
     );
-    this.limit = limitSpec == null ? Integer.MAX_VALUE : limitSpec.getLimit();
     this.numPartition = numPartition;
     this.scannerLen = scannerLen;
     this.parallelism = parallelism;
@@ -139,15 +140,27 @@ public class PartitionedGroupByQuery extends GroupByQuery implements Query.Rewri
     return scannerLen;
   }
 
-  @JsonProperty
-  public int getLimit()
-  {
-    return limit;
-  }
-
   @Override
   @SuppressWarnings("unchecked")
   public Query rewriteQuery(QuerySegmentWalker segmentWalker, ObjectMapper jsonMapper)
+  {
+    LimitSpec limitSpec = getLimitSpec();
+    Query query = tryPartitioning(segmentWalker, jsonMapper);
+    if (LimitSpecs.isDummy(limitSpec)) {
+      return query;
+    }
+    if (query instanceof GroupByQuery) {
+      return ((GroupByQuery) query).withLimitSpec(limitSpec);
+    }
+    Map<String, Object> processor = ImmutableMap.<String, Object>of(
+        "type", "limit",
+        "limitSpec", jsonMapper.convertValue(limitSpec, Map.class)
+    );
+    return query.withOverriddenContext(ImmutableMap.<String, Object>of(QueryContextKeys.POST_PROCESSING, processor));
+  }
+
+  @SuppressWarnings("unchecked")
+  private Query tryPartitioning(QuerySegmentWalker segmentWalker, ObjectMapper jsonMapper)
   {
     if (numPartition == 1) {
       return asGroupByQuery(null, null);
@@ -183,7 +196,7 @@ public class PartitionedGroupByQuery extends GroupByQuery implements Query.Rewri
         queries.add(asGroupByQuery(partition, null));
       }
     }
-    return new UnionAllQuery(null, queries, false, limit, parallelism, queue, getContext());
+    return new GroupByDelegate(queries, parallelism, queue, Maps.newHashMap(getContext()));
   }
 
   @SuppressWarnings("unchecked")
@@ -207,7 +220,7 @@ public class PartitionedGroupByQuery extends GroupByQuery implements Query.Rewri
     for (DimFilter filter : QueryUtils.toFilters(dimension, partitions)) {
       queries.add(asGroupByQuery(intervals, filter));
     }
-    return new GroupByDelegate(queries, limit, parallelism, queue, Maps.newHashMap(getContext()));
+    return new GroupByDelegate(queries, parallelism, queue, Maps.newHashMap(getContext()));
   }
 
   private GroupByQuery asGroupByQuery(List<Interval> interval, DimFilter filter)
@@ -223,7 +236,7 @@ public class PartitionedGroupByQuery extends GroupByQuery implements Query.Rewri
         getAggregatorSpecs(),
         getPostAggregatorSpecs(),
         getHavingSpec(),
-        getLimitSpec(),
+        null,
         getOutputColumns(),
         getLateralView(),
         Maps.newHashMap(getContext())
@@ -321,15 +334,15 @@ public class PartitionedGroupByQuery extends GroupByQuery implements Query.Rewri
   @SuppressWarnings("unchecked")
   public static class GroupByDelegate<T extends Comparable<T>> extends UnionAllQuery<T>
   {
-    public GroupByDelegate(List<Query<T>> list, int limit, int parallelism, int queue, Map<String, Object> context)
+    public GroupByDelegate(List<Query<T>> list, int parallelism, int queue, Map<String, Object> context)
     {
-      super(null, list, false, limit, parallelism, queue, context);
+      super(null, list, false, -1, parallelism, queue, context);
     }
 
     @Override
     public Query withQueries(List queries)
     {
-      return new GroupByDelegate(queries, getLimit(), getParallelism(), getQueue(), getContext());
+      return new GroupByDelegate(queries, getParallelism(), getQueue(), getContext());
     }
 
     @Override
@@ -343,7 +356,7 @@ public class PartitionedGroupByQuery extends GroupByQuery implements Query.Rewri
     protected Query<T> newInstance(Query<T> query, List<Query<T>> queries, Map<String, Object> context)
     {
       Preconditions.checkArgument(query == null);
-      return new GroupByDelegate(queries, getLimit(), getParallelism(), getQueue(), context);
+      return new GroupByDelegate(queries, getParallelism(), getQueue(), context);
     }
 
     @Override
@@ -353,7 +366,6 @@ public class PartitionedGroupByQuery extends GroupByQuery implements Query.Rewri
              "queries=" + getQueries() +
              ", parallelism=" + getParallelism() +
              ", queue=" + getQueue() +
-             ", limit=" + getLimit() +
              '}';
     }
   }

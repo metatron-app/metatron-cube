@@ -22,6 +22,7 @@ package io.druid.query;
 import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import io.druid.query.aggregation.model.HoltWintersPostProcessor;
+import io.druid.query.groupby.LimitingPostProcessor;
 
 @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
 @JsonSubTypes(value = {
@@ -29,7 +30,8 @@ import io.druid.query.aggregation.model.HoltWintersPostProcessor;
     @JsonSubTypes.Type(name = "join", value = JoinPostProcessor.class),
     @JsonSubTypes.Type(name = "tabular", value = TabularPostProcessor.class),
     @JsonSubTypes.Type(name = "holtWinters", value = HoltWintersPostProcessor.class),
-    @JsonSubTypes.Type(name = "rowToMap", value = RowToMap.class)
+    @JsonSubTypes.Type(name = "rowToMap", value = RowToMap.class),
+    @JsonSubTypes.Type(name = "limit", value = LimitingPostProcessor.class),
 })
 public interface PostProcessingOperator<T>
 {

@@ -47,7 +47,11 @@ public abstract class BaseQuery<T extends Comparable<T>> implements Query<T>
   @SuppressWarnings("unchecked")
   public static Query getRepresentative(Query query)
   {
-    return query instanceof UnionAllQuery ? ((UnionAllQuery) query).getRepresentative() : query;
+    Query represent = query instanceof UnionAllQuery ? ((UnionAllQuery) query).getRepresentative() : query;
+    if (represent != query) {
+      return getRepresentative(represent);
+    }
+    return represent;
   }
 
   public static <T> int getContextPriority(Query<T> query, int defaultValue)

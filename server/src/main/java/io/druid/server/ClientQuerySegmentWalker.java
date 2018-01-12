@@ -194,6 +194,7 @@ public class ClientQuerySegmentWalker implements QuerySegmentWalker
     };
   }
 
+  @SuppressWarnings("unchecked")
   private <T extends Comparable<T>> QueryRunner<T> getUnionQueryRunner(
       final UnionAllQuery<T> union,
       final ObjectMapper mapper
@@ -316,7 +317,7 @@ public class ClientQuerySegmentWalker implements QuerySegmentWalker
       };
       runner = postProcessing == null ? merged : postProcessing.postProcess(merged);
     }
-    if (union.getLimit() > 0) {
+    if (union.getLimit() > 0 && union.getLimit() < Integer.MAX_VALUE) {
       return new QueryRunner<T>()
       {
         @Override

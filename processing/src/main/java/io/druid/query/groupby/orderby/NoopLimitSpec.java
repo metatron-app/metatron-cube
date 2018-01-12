@@ -23,6 +23,7 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Function;
 import com.google.common.base.Functions;
+import com.google.common.collect.ImmutableList;
 import com.metamx.common.guava.Sequence;
 import io.druid.data.input.Row;
 import io.druid.query.QueryCacheHelper;
@@ -47,7 +48,7 @@ public class NoopLimitSpec implements LimitSpec
       @JsonProperty("windowingSpecs") List<WindowingSpec> windowingSpecs
   )
   {
-    this.windowingSpecs = windowingSpecs;
+    this.windowingSpecs = windowingSpecs == null ? ImmutableList.<WindowingSpec>of() : windowingSpecs;
   }
 
   public NoopLimitSpec()
@@ -59,6 +60,12 @@ public class NoopLimitSpec implements LimitSpec
   public int getLimit()
   {
     return Integer.MAX_VALUE;
+  }
+
+  @Override
+  public List<OrderByColumnSpec> getColumns()
+  {
+    return ImmutableList.of();
   }
 
   @Override
@@ -76,7 +83,7 @@ public class NoopLimitSpec implements LimitSpec
       boolean sortOnTimeForLimit
   )
   {
-    if (windowingSpecs == null || windowingSpecs.isEmpty()) {
+    if (windowingSpecs.isEmpty()) {
       return Functions.identity();
     }
 
@@ -93,12 +100,6 @@ public class NoopLimitSpec implements LimitSpec
   public LimitSpec merge(LimitSpec other)
   {
     return this;
-  }
-
-  @Override
-  public LimitSpec withLimit(int limit)
-  {
-    return new NoopLimitSpec(windowingSpecs);
   }
 
   @Override
