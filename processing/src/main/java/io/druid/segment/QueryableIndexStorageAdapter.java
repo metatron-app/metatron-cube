@@ -696,11 +696,13 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
                       GenericColumn cachedMetricVals = genericColumnCache.get(columnName);
 
                       if (cachedMetricVals == null) {
-                        VirtualColumn vc = virtualColumns.getVirtualColumn(columnName);
-                        if (vc != null) {
-                          return vc.asFloatMetric(columnName, this);
-                        }
                         Column holder = index.getColumn(columnName);
+                        if (holder == null) {
+                          VirtualColumn vc = virtualColumns.getVirtualColumn(columnName);
+                          if (vc != null) {
+                            return vc.asFloatMetric(columnName, this);
+                          }
+                        }
                         if (holder != null && holder.getCapabilities().getType().isNumeric()) {
                           cachedMetricVals = holder.getGenericColumn();
                           genericColumnCache.put(columnName, cachedMetricVals);
@@ -735,11 +737,13 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
                       GenericColumn cachedMetricVals = genericColumnCache.get(columnName);
 
                       if (cachedMetricVals == null) {
-                        VirtualColumn vc = virtualColumns.getVirtualColumn(columnName);
-                        if (vc != null) {
-                          return vc.asDoubleMetric(columnName, this);
-                        }
                         Column holder = index.getColumn(columnName);
+                        if (holder == null) {
+                          VirtualColumn vc = virtualColumns.getVirtualColumn(columnName);
+                          if (vc != null) {
+                            return vc.asDoubleMetric(columnName, this);
+                          }
+                        }
                         if (holder != null && holder.getCapabilities().getType().isNumeric()) {
                           cachedMetricVals = holder.getGenericColumn();
                           genericColumnCache.put(columnName, cachedMetricVals);
@@ -774,11 +778,13 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
                       GenericColumn cachedMetricVals = genericColumnCache.get(columnName);
 
                       if (cachedMetricVals == null) {
-                        VirtualColumn vc = virtualColumns.getVirtualColumn(columnName);
-                        if (vc != null) {
-                          return vc.asLongMetric(columnName, this);
-                        }
                         Column holder = index.getColumn(columnName);
+                        if (holder == null) {
+                          VirtualColumn vc = virtualColumns.getVirtualColumn(columnName);
+                          if (vc != null) {
+                            return vc.asLongMetric(columnName, this);
+                          }
+                        }
                         if (holder != null && holder.getCapabilities().getType().isNumeric()) {
                           cachedMetricVals = holder.getGenericColumn();
                           genericColumnCache.put(columnName, cachedMetricVals);
