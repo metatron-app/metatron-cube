@@ -591,45 +591,45 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
                           };
                         }
                       } else {
+                        // using an anonymous class is faster than creating a class that stores a copy of the value
+                        final IndexedInts row = new IndexedInts()
+                        {
+                          @Override
+                          public int size()
+                          {
+                            return 1;
+                          }
+
+                          @Override
+                          public int get(int index)
+                          {
+                            return column.getSingleValueRow(cursorOffset.getOffset());
+                          }
+
+                          @Override
+                          public Iterator<Integer> iterator()
+                          {
+                            return Iterators.singletonIterator(column.getSingleValueRow(cursorOffset.getOffset()));
+                          }
+
+                          @Override
+                          public void fill(int index, int[] toFill)
+                          {
+                            throw new UnsupportedOperationException("fill not supported");
+                          }
+
+                          @Override
+                          public void close() throws IOException
+                          {
+                          }
+                        };
                         if (extractionFn != null) {
                           return new DimensionSelector()
                           {
                             @Override
                             public IndexedInts getRow()
                             {
-                              // using an anonymous class is faster than creating a class that stores a copy of the value
-                              return new IndexedInts()
-                              {
-                                @Override
-                                public int size()
-                                {
-                                  return 1;
-                                }
-
-                                @Override
-                                public int get(int index)
-                                {
-                                  return column.getSingleValueRow(cursorOffset.getOffset());
-                                }
-
-                                @Override
-                                public Iterator<Integer> iterator()
-                                {
-                                  return Iterators.singletonIterator(column.getSingleValueRow(cursorOffset.getOffset()));
-                                }
-
-                                @Override
-                                public void fill(int index, int[] toFill)
-                                {
-                                  throw new UnsupportedOperationException("fill not supported");
-                                }
-
-                                @Override
-                                public void close() throws IOException
-                                {
-
-                                }
-                              };
+                              return row;
                             }
 
                             @Override
@@ -659,39 +659,7 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
                             @Override
                             public IndexedInts getRow()
                             {
-                              // using an anonymous class is faster than creating a class that stores a copy of the value
-                              return new IndexedInts()
-                              {
-                                @Override
-                                public int size()
-                                {
-                                  return 1;
-                                }
-
-                                @Override
-                                public int get(int index)
-                                {
-                                  return column.getSingleValueRow(cursorOffset.getOffset());
-                                }
-
-                                @Override
-                                public Iterator<Integer> iterator()
-                                {
-                                  return Iterators.singletonIterator(column.getSingleValueRow(cursorOffset.getOffset()));
-                                }
-
-                                @Override
-                                public void fill(int index, int[] toFill)
-                                {
-                                  throw new UnsupportedOperationException("fill not supported");
-                                }
-
-                                @Override
-                                public void close() throws IOException
-                                {
-
-                                }
-                              };
+                              return row;
                             }
 
                             @Override
