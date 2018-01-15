@@ -36,6 +36,7 @@ import com.metamx.common.guava.Accumulator;
 import com.metamx.common.guava.Sequence;
 import com.metamx.common.guava.Sequences;
 import com.metamx.common.logger.Logger;
+import io.druid.collections.LimitedArrayLit;
 import io.druid.data.input.MapBasedRow;
 import io.druid.guice.annotations.Processing;
 import io.druid.segment.ObjectArray;
@@ -57,6 +58,7 @@ public class JoinPostProcessor extends PostProcessingOperator.UnionSupport
 {
   private static final Logger log = new Logger(JoinPostProcessor.class);
 
+  private final JoinQueryConfig config;
   private final JoinElement[] elements;
   private final boolean prefixAlias;
   private final QueryToolChestWarehouse warehouse;
@@ -67,12 +69,14 @@ public class JoinPostProcessor extends PostProcessingOperator.UnionSupport
   @JsonCreator
   @SuppressWarnings("unchecked")
   public JoinPostProcessor(
+      @JacksonInject JoinQueryConfig config,
       @JsonProperty("elements") List<JoinElement> elements,
       @JsonProperty("prefixAlias") boolean prefixAlias,
       @JacksonInject QueryToolChestWarehouse warehouse,
       @JacksonInject @Processing ExecutorService exec
   )
   {
+    this.config = config;
     this.elements = elements.toArray(new JoinElement[elements.size()]);
     this.prefixAlias = prefixAlias;
     this.warehouse = warehouse;
@@ -171,7 +175,9 @@ public class JoinPostProcessor extends PostProcessingOperator.UnionSupport
           public Object call()
           {
             Sequence<Map<String, Object>> sequence = Sequences.concat(sequences);
-            List<Map<String, Object>> rows = Sequences.toList(sequence, Lists.<Map<String, Object>>newArrayList());
+            List<Map<String, Object>> rows = Sequences.toList(
+                sequence, new LimitedArrayLit<Map<String, Object>>(config.getMaxRows())
+            );
             if (index >= 0) {
               Hashed hashing = toHash(index, sort(rows, joinColumns, prefixAlias, index));
               if (!hashed[index].set(hashing)) {

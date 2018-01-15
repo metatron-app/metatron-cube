@@ -19,13 +19,11 @@
 
 package io.druid.query;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Supplier;
 import com.google.common.base.Suppliers;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import io.druid.collections.StupidPool;
-import io.druid.jackson.DefaultObjectMapper;
 import io.druid.query.groupby.GroupByQuery;
 import io.druid.query.groupby.GroupByQueryConfig;
 import io.druid.query.groupby.GroupByQueryEngine;
@@ -51,7 +49,6 @@ public class JoinPostProcessorTest
 
   static {
     final Supplier<GroupByQueryConfig> supplier = Suppliers.ofInstance(new GroupByQueryConfig());
-    final ObjectMapper mapper = new DefaultObjectMapper();
     final StupidPool<ByteBuffer> pool = new StupidPool<>(
         new Supplier<ByteBuffer>()
         {
@@ -140,7 +137,13 @@ public class JoinPostProcessorTest
     JoinElement element1 = new JoinElement(type, "ds1", Arrays.asList("a", "b"), "ds2", Arrays.asList("c", "d"));
     JoinElement element2 = new JoinElement(type, "ds1.a = ds2.c && ds1.b = ds2.d").rewrite(dataSources);
     Assert.assertEquals(element1, element2);
-    return new JoinPostProcessor(Arrays.asList(element1), false, warehouse, Executors.newSingleThreadExecutor());
+    return new JoinPostProcessor(
+        new JoinQueryConfig(),
+        Arrays.asList(element1),
+        false,
+        warehouse,
+        Executors.newSingleThreadExecutor()
+    );
   }
 
   @Test
@@ -226,14 +229,15 @@ public class JoinPostProcessorTest
   private JoinPostProcessor test2(JoinType type)
   {
     return new JoinPostProcessor(
-          Arrays.asList(
-              new JoinElement(type, "ds1", Arrays.asList("a", "b"), "ds2", Arrays.asList("c", "d")),
-              new JoinElement(type, "ds1", Arrays.asList("a", "b"), "ds3", Arrays.asList("e", "f"))
-          ),
-          false,
-          warehouse,
-          Executors.newSingleThreadExecutor()
-      );
+        new JoinQueryConfig(),
+        Arrays.asList(
+            new JoinElement(type, "ds1", Arrays.asList("a", "b"), "ds2", Arrays.asList("c", "d")),
+            new JoinElement(type, "ds1", Arrays.asList("a", "b"), "ds3", Arrays.asList("e", "f"))
+        ),
+        false,
+        warehouse,
+        Executors.newSingleThreadExecutor()
+    );
   }
 
   private final String[] k = new String[]{"x", "y", "z"};

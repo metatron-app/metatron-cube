@@ -23,6 +23,7 @@ import com.google.common.collect.ImmutableMap;
 import com.google.inject.Binder;
 import com.google.inject.Module;
 import com.google.inject.multibindings.MapBinder;
+import io.druid.query.JoinQueryConfig;
 import io.druid.query.Query;
 import io.druid.query.QueryToolChest;
 import io.druid.query.datasourcemetadata.DataSourceMetadataQuery;
@@ -95,5 +96,7 @@ public class QueryToolChestModule implements Module
     JsonConfigProvider.bind(binder, "druid.query.select", SelectQueryConfig.class);
     JsonConfigProvider.bind(binder, "druid.query.topN", TopNQueryConfig.class);
     JsonConfigProvider.bind(binder, "druid.query.segmentMetadata", SegmentMetadataQueryConfig.class);
+
+    JsonConfigProvider.bind(binder, "druid.query.join", JoinQueryConfig.class);
   }
 }
