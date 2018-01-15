@@ -1854,7 +1854,7 @@ public interface BuiltinFunctions extends Function.Library
     public ExprEval apply(List<Expr> args, NumericBinding bindings)
     {
       if (args.size() != 3) {
-        throw new RuntimeException("function 'indexOf' needs 2 arguments");
+        throw new RuntimeException("function 'replace' needs 3 arguments");
       }
       String input = args.get(0).eval(bindings).asString();
       String find = args.get(1).eval(bindings).asString();
