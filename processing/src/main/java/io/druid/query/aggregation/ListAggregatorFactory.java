@@ -43,6 +43,7 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Objects;
+import java.util.Set;
 
 /**
  */
@@ -91,7 +92,7 @@ public class ListAggregatorFactory extends AggregatorFactory
 
   private Collection<Object> createCollection()
   {
-    return dedup ? Sets.newLinkedHashSet() : Lists.newArrayList();
+    return dedup ? Sets.newHashSet() : Lists.newArrayList();
   }
 
   private Object finalizeCollection(Collection collection)
@@ -125,9 +126,11 @@ public class ListAggregatorFactory extends AggregatorFactory
         public void aggregate()
         {
           List value = selector.get();
-          list.addAll(value);
-          if (limit > 0 && list.size() > limit) {
-            throw new IllegalStateException("Exceeding limit " + limit);
+          synchronized (list) {
+            list.addAll(value);
+            if (limit > 0 && list.size() > limit) {
+              throw new IllegalStateException("Exceeding limit " + limit);
+            }
           }
           estimation += estimate(value);
         }
@@ -156,9 +159,11 @@ public class ListAggregatorFactory extends AggregatorFactory
       public void aggregate()
       {
         Object value = Evals.castTo(selector.get(), elementType);
-        list.add(value);
-        if (limit > 0 && list.size() > limit) {
-          throw new IllegalStateException("Exceeding limit " + limit);
+        synchronized (list) {
+          list.add(value);
+          if (limit > 0 && list.size() > limit) {
+            throw new IllegalStateException("Exceeding limit " + limit);
+          }
         }
         estimation += estimate(value);
       }
@@ -280,8 +285,15 @@ public class ListAggregatorFactory extends AggregatorFactory
     if (rhs == null) {
       return lhs;
     }
-    ((List) lhs).addAll((List) rhs);
-    return lhs;
+    if (dedup) {
+      Set set = Sets.newHashSet();
+      set.addAll((List)lhs);
+      set.addAll((List)rhs);
+      return Lists.newArrayList(set);
+    } else {
+      ((List) lhs).addAll((List) rhs);
+      return lhs;
+    }
   }
 
   @Override

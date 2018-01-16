@@ -23,7 +23,7 @@ public class DruidTDigest {
     this.digest = digest;
   }
 
-  public void add(Object o) {
+  public synchronized void add(Object o) {
     if (o instanceof Number) {
       add(((Number)o).doubleValue());
     } else if (o instanceof DruidTDigest) {
