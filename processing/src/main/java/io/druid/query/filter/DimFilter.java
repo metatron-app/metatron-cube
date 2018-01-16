@@ -21,6 +21,7 @@ package io.druid.query.filter;
 
 import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
+import io.druid.common.Cacheable;
 import io.druid.math.expr.Expression;
 
 import java.util.List;
@@ -45,7 +46,7 @@ import java.util.Set;
     @JsonSubTypes.Type(name="math", value=MathExprFilter.class),
     @JsonSubTypes.Type(name="lucene", value=LuceneFilter.class)
 })
-public interface DimFilter extends Expression
+public interface DimFilter extends Expression, Cacheable
 {
   final Expression.Factory<DimFilter> FACTORY = new Factory();
 

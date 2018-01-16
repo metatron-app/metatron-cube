@@ -66,7 +66,6 @@ import java.util.concurrent.ExecutorService;
  */
 public class TimeseriesQueryQueryToolChest extends QueryToolChest<Result<TimeseriesResultValue>, TimeseriesQuery>
 {
-  private static final byte TIMESERIES_QUERY = 0x0;
   private static final TypeReference<Object> OBJECT_TYPE_REFERENCE =
       new TypeReference<Object>()
       {

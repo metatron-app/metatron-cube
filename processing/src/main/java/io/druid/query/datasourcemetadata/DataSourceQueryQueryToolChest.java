@@ -29,7 +29,6 @@ import com.metamx.common.guava.Sequence;
 import com.metamx.common.guava.Sequences;
 import com.metamx.emitter.service.ServiceMetricEvent;
 import io.druid.query.BySegmentSkippingQueryRunner;
-import io.druid.query.CacheStrategy;
 import io.druid.query.DataSourceUtil;
 import io.druid.query.Query;
 import io.druid.query.QueryRunner;
@@ -121,11 +120,5 @@ public class DataSourceQueryQueryToolChest
   public TypeReference<Result<DataSourceMetadataResultValue>> getResultTypeReference()
   {
     return TYPE_REFERENCE;
-  }
-
-  @Override
-  public CacheStrategy getCacheStrategy(DataSourceMetadataQuery query)
-  {
-    return null;
   }
 }

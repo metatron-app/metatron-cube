@@ -22,6 +22,7 @@ package io.druid.query.sketch;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.google.common.base.Function;
 import com.google.common.base.Functions;
+import com.google.common.collect.Maps;
 import com.google.common.collect.Ordering;
 import com.google.inject.Inject;
 import com.metamx.common.guava.Sequence;
@@ -32,6 +33,7 @@ import io.druid.query.CacheStrategy;
 import io.druid.query.DruidMetrics;
 import io.druid.query.IntervalChunkingQueryRunnerDecorator;
 import io.druid.query.Query;
+import io.druid.query.QueryCacheHelper;
 import io.druid.query.QueryRunner;
 import io.druid.query.QuerySegmentWalker;
 import io.druid.query.QueryToolChest;
@@ -39,10 +41,15 @@ import io.druid.query.Result;
 import io.druid.query.ResultGranularTimestampComparator;
 import io.druid.query.ResultMergeQueryRunner;
 import io.druid.query.aggregation.MetricManipulationFn;
+import io.druid.query.dimension.DimensionSpec;
+import io.druid.query.dimension.DimensionSpecs;
 import io.druid.query.spec.MultipleIntervalSegmentSpec;
 import io.druid.segment.Segment;
+import org.joda.time.DateTime;
 import org.joda.time.Interval;
 
+import java.nio.ByteBuffer;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutorService;
 
@@ -54,6 +61,10 @@ public class SketchQueryQueryToolChest extends QueryToolChest<Result<Map<String,
       new TypeReference<Result<Map<String, Object>>>()
       {
       };
+
+  private static final TypeReference<Object[]> CACHED_TYPE_REFERENCE = new TypeReference<Object[]>()
+  {
+  };
 
   private final IntervalChunkingQueryRunnerDecorator intervalChunkingQueryRunnerDecorator;
 
@@ -132,9 +143,106 @@ public class SketchQueryQueryToolChest extends QueryToolChest<Result<Map<String,
   }
 
   @Override
-  public <T> CacheStrategy<Result<Map<String, Object>>, T, SketchQuery> getCacheStrategy(SketchQuery query)
+  @SuppressWarnings("unchecked")
+  public CacheStrategy<Result<Map<String, Object>>, Object[], SketchQuery> getCacheStrategy(final SketchQuery query)
   {
-    return null;  //todo
+    return new CacheStrategy<Result<Map<String, Object>>, Object[], SketchQuery>()
+    {
+      @Override
+      public byte[] computeCacheKey(SketchQuery query)
+      {
+        final byte[] filterBytes = QueryCacheHelper.computeCacheBytes(query.getDimFilter());
+        final byte[] vcBytes = QueryCacheHelper.computeAggregatorBytes(query.getVirtualColumns());
+        final List<DimensionSpec> dimensions = query.getDimensions();
+        final List<String> metrics = query.getMetrics();
+
+        final byte[][] columnsBytes = new byte[dimensions.size() + metrics.size()][];
+        int columnsBytesSize = 0;
+        int index = 0;
+        for (DimensionSpec dimension : dimensions) {
+          columnsBytes[index] = dimension.getCacheKey();
+          columnsBytesSize += columnsBytes[index].length;
+          ++index;
+        }
+        for (String metric : metrics) {
+          columnsBytes[index] = QueryCacheHelper.computeCacheBytes(metric);
+          columnsBytesSize += columnsBytes[index].length;
+          ++index;
+        }
+
+        final ByteBuffer queryCacheKey = ByteBuffer
+            .allocate(6 + filterBytes.length + vcBytes.length + columnsBytesSize)
+            .put(SKETCH_QUERY)
+            .put((byte) query.getSketchOp().ordinal())
+            .putInt(query.getSketchParam())
+            .put(filterBytes)
+            .put(vcBytes);
+
+        for (byte[] bytes : columnsBytes) {
+          queryCacheKey.put(bytes);
+        }
+
+        return queryCacheKey.array();
+      }
+
+      @Override
+      public TypeReference<Object[]> getCacheObjectClazz()
+      {
+        return CACHED_TYPE_REFERENCE;
+      }
+
+      @Override
+      public Function<Result<Map<String, Object>>, Object[]> prepareForCache()
+      {
+        final List<String> dimensions = DimensionSpecs.toOutputNames(query.getDimensions());
+        final List<String> metrics = query.getMetrics();
+        return new Function<Result<Map<String, Object>>, Object[]>()
+        {
+          @Override
+          public Object[] apply(Result<Map<String, Object>> input)
+          {
+            final Object[] output = new Object[1 + dimensions.size() + metrics.size()];
+            final Map<String, Object> value = input.getValue();
+
+            int index = 0;
+            output[index++] = input.getTimestamp().getMillis();
+            for (String dimension : dimensions) {
+              output[index++] = value.get(dimension);
+            }
+            for (String metric : metrics) {
+              output[index++] = value.get(metric);
+            }
+            return output;
+          }
+        };
+      }
+
+      @Override
+      public Function<Object[], Result<Map<String, Object>>> pullFromCache()
+      {
+        final SketchOp sketchOp = query.getSketchOp();
+        final List<String> dimensions = DimensionSpecs.toOutputNames(query.getDimensions());
+        final List<String> metrics = query.getMetrics();
+        return new Function<Object[], Result<Map<String, Object>>>()
+        {
+          @Override
+          @SuppressWarnings("unchecked")
+          public Result<Map<String, Object>> apply(final Object[] input)
+          {
+            final Map<String, Object> row = Maps.newHashMapWithExpectedSize(dimensions.size() + metrics.size());
+            int index = 1;
+
+            for (String dimension : dimensions) {
+              row.put(dimension, TypedSketch.deserialize(sketchOp, input[index++]));
+            }
+            for (String metric : metrics) {
+              row.put(metric, TypedSketch.deserialize(sketchOp, input[index++]));
+            }
+            return new Result<>(new DateTime(((Number) input[0]).longValue()), row);
+          }
+        };
+      }
+    };
   }
 
   @Override

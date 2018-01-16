@@ -130,6 +130,7 @@ public abstract class BaseQuery<T extends Comparable<T>> implements Query<T>
   )
   {
     Preconditions.checkNotNull(dataSource, "dataSource can't be null");
+    Preconditions.checkNotNull(dataSource, "dataSource can't be null");
 
     this.dataSource = dataSource;
     this.querySegmentSpec = querySegmentSpec == null ? EMPTY : querySegmentSpec;

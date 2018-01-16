@@ -49,8 +49,6 @@ import java.util.Map;
 public class TimeBoundaryQueryQueryToolChest
     extends QueryToolChest<Result<TimeBoundaryResultValue>, TimeBoundaryQuery>
 {
-  private static final byte TIMEBOUNDARY_QUERY = 0x3;
-
   private static final TypeReference<Result<TimeBoundaryResultValue>> TYPE_REFERENCE = new TypeReference<Result<TimeBoundaryResultValue>>()
   {
   };

@@ -31,6 +31,11 @@ import java.util.List;
  */
 public class QueryCacheHelper
 {
+  public static byte[] computeCacheKey(List<? extends Cacheable> targets)
+  {
+    return computeAggregatorBytes(targets);
+  }
+
   public static byte[] computeAggregatorBytes(List<? extends Cacheable> aggregatorSpecs)
   {
     if (aggregatorSpecs == null || aggregatorSpecs.isEmpty()) {
@@ -55,7 +60,12 @@ public class QueryCacheHelper
 
   public static byte[] computeCacheBytes(Cacheable cacheable)
   {
-    return cacheable == null ? new byte[0] : cacheable.getCacheKey();
+    return cacheable == null ? StringUtils.EMPTY_BYTES : cacheable.getCacheKey();
+  }
+
+  public static byte[] computeCacheBytes(String string)
+  {
+    return StringUtils.toUtf8WithNullToEmpty(string);
   }
 
   public static byte[] computeCacheBytes(List<String> strings)

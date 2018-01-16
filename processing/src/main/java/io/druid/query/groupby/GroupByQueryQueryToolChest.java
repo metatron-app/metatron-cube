@@ -89,7 +89,6 @@ import java.util.concurrent.ExecutorService;
  */
 public class GroupByQueryQueryToolChest extends QueryToolChest<Row, GroupByQuery>
 {
-  private static final byte GROUPBY_QUERY = 0x14;
   private static final TypeReference<Object> OBJECT_TYPE_REFERENCE =
       new TypeReference<Object>()
       {

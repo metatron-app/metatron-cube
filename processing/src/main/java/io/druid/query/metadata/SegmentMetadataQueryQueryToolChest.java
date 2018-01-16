@@ -66,7 +66,6 @@ public class SegmentMetadataQueryQueryToolChest extends QueryToolChest<SegmentAn
   private static final TypeReference<SegmentAnalysis> TYPE_REFERENCE = new TypeReference<SegmentAnalysis>()
   {
   };
-  private static final byte[] SEGMENT_METADATA_CACHE_PREFIX = new byte[]{0x4};
   private static final Function<SegmentAnalysis, SegmentAnalysis> MERGE_TRANSFORM_FN = new Function<SegmentAnalysis, SegmentAnalysis>()
   {
     @Override
@@ -176,7 +175,7 @@ public class SegmentMetadataQueryQueryToolChest extends QueryToolChest<SegmentAn
         byte[] includerBytes = query.getToInclude().getCacheKey();
         byte[] analysisTypesBytes = query.getAnalysisTypesCacheKey();
         return ByteBuffer.allocate(1 + includerBytes.length + analysisTypesBytes.length)
-                         .put(SEGMENT_METADATA_CACHE_PREFIX)
+                         .put(SEGMENT_METADATA_QUERY)
                          .put(includerBytes)
                          .put(analysisTypesBytes)
                          .array();

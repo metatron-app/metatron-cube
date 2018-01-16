@@ -80,7 +80,6 @@ import java.util.concurrent.ExecutorService;
  */
 public class SelectQueryQueryToolChest extends QueryToolChest<Result<SelectResultValue>, SelectQuery>
 {
-  private static final byte SELECT_QUERY = 0x13;
   private static final TypeReference<Object> OBJECT_TYPE_REFERENCE =
       new TypeReference<Object>()
       {

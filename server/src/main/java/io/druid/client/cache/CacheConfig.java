@@ -46,7 +46,13 @@ public class CacheConfig
   private int cacheBulkMergeLimit = Integer.MAX_VALUE;
 
   @JsonProperty
-  private List<String> unCacheable = Arrays.asList(Query.GROUP_BY, Query.SELECT);
+  private List<String> unCacheable = Arrays.asList(
+      Query.GROUP_BY,
+      Query.SELECT,
+      Query.SELECT_STREAM,
+      Query.SELECT_STREAM_RAW,
+      Query.SELECT_DELEGATE
+  );
 
   public boolean isPopulateCache()
   {

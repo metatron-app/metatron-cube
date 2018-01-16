@@ -55,6 +55,17 @@ public abstract class QueryToolChest<ResultType, QueryType extends Query<ResultT
 {
   protected final Logger LOG = new Logger(getClass());
 
+  // cacheable queries
+  protected static final byte TIMESERIES_QUERY = 0x0;
+  protected static final byte TOPN_QUERY = 0x1;
+  protected static final byte TIMEBOUNDARY_QUERY = 0x3;
+  protected static final byte SEGMENT_METADATA_QUERY = 0x4;
+  protected static final byte SELECT_QUERY = 0x13;
+  protected static final byte GROUPBY_QUERY = 0x14;
+  protected static final byte SEARCH_QUERY = 0x15;
+  protected static final byte SKETCH_QUERY = 0x16;
+  protected static final byte SELECT_META_QUERY = 0x17;
+
   /**
    * This method wraps a QueryRunner.  The input QueryRunner, by contract, will provide a series of
    * ResultType objects in time order (ascending or descending).  This method should return a new QueryRunner that

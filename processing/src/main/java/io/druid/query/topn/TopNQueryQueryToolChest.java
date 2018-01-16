@@ -71,7 +71,6 @@ import java.util.concurrent.ExecutorService;
  */
 public class TopNQueryQueryToolChest extends QueryToolChest<Result<TopNResultValue>, TopNQuery>
 {
-  private static final byte TOPN_QUERY = 0x1;
   private static final TypeReference<Result<TopNResultValue>> TYPE_REFERENCE = new TypeReference<Result<TopNResultValue>>()
   {
   };

@@ -28,17 +28,21 @@ import com.metamx.common.guava.nary.BinaryFn;
 import com.metamx.emitter.service.ServiceMetricEvent;
 import io.druid.granularity.AllGranularity;
 import io.druid.granularity.Granularity;
+import io.druid.query.CacheStrategy;
 import io.druid.query.DruidMetrics;
 import io.druid.query.Query;
+import io.druid.query.QueryCacheHelper;
 import io.druid.query.QueryRunner;
 import io.druid.query.QueryToolChest;
 import io.druid.query.Result;
 import io.druid.query.ResultGranularTimestampComparator;
 import io.druid.query.ResultMergeQueryRunner;
 import io.druid.query.aggregation.MetricManipulationFn;
+import io.druid.query.dimension.DimensionSpec;
 import io.druid.timeline.LogicalSegment;
 import org.joda.time.DateTime;
 
+import java.nio.ByteBuffer;
 import java.util.List;
 import java.util.Map;
 
@@ -108,6 +112,74 @@ public class SelectMetaQueryToolChest extends QueryToolChest<Result<SelectMetaRe
     };
   }
 
+  @Override
+  @SuppressWarnings("unchecked")
+  public CacheStrategy<Result<SelectMetaResultValue>, Result<SelectMetaResultValue>, SelectMetaQuery> getCacheStrategy(
+      final SelectMetaQuery query
+  )
+  {
+    if (query.getPagingSpec() != null) {
+      return null;
+    }
+    return new CacheStrategy<Result<SelectMetaResultValue>, Result<SelectMetaResultValue>, SelectMetaQuery>()
+    {
+      @Override
+      public byte[] computeCacheKey(SelectMetaQuery query)
+      {
+        final byte[] filterBytes = QueryCacheHelper.computeCacheBytes(query.getDimFilter());
+        final byte[] granBytes = query.getGranularity().getCacheKey();
+        final byte[] vcBytes = QueryCacheHelper.computeAggregatorBytes(query.getVirtualColumns());
+        final List<DimensionSpec> dimensions = query.getDimensions();
+        final List<String> metrics = query.getMetrics();
+
+        final byte[][] columnsBytes = new byte[dimensions.size() + metrics.size()][];
+        int columnsBytesSize = 0;
+        int index = 0;
+        for (DimensionSpec dimension : dimensions) {
+          columnsBytes[index] = dimension.getCacheKey();
+          columnsBytesSize += columnsBytes[index].length;
+          ++index;
+        }
+        for (String metric : metrics) {
+          columnsBytes[index] = QueryCacheHelper.computeCacheBytes(metric);
+          columnsBytesSize += columnsBytes[index].length;
+          ++index;
+        }
+
+        final ByteBuffer queryCacheKey = ByteBuffer
+            .allocate(6 + filterBytes.length + granBytes.length + vcBytes.length + columnsBytesSize)
+            .put(SELECT_META_QUERY)
+            .put(query.isSchemaOnly() ? (byte) 1 : 0)
+            .put(filterBytes)
+            .put(granBytes)
+            .put(vcBytes);
+
+        for (byte[] bytes : columnsBytes) {
+          queryCacheKey.put(bytes);
+        }
+
+        return queryCacheKey.array();
+      }
+
+      @Override
+      public TypeReference<Result<SelectMetaResultValue>> getCacheObjectClazz()
+      {
+        return getResultTypeReference();
+      }
+
+      @Override
+      public Function<Result<SelectMetaResultValue>, Result<SelectMetaResultValue>> prepareForCache()
+      {
+        return Functions.identity();
+      }
+
+      @Override
+      public Function<Result<SelectMetaResultValue>, Result<SelectMetaResultValue>> pullFromCache()
+      {
+        return Functions.identity();
+      }
+    };
+  }
 
   @Override
   public <T extends LogicalSegment> List<T> filterSegments(SelectMetaQuery query, List<T> segments)
