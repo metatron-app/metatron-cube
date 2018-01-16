@@ -48,13 +48,7 @@ import io.druid.indexing.kafka.KafkaIndexTaskClientFactory;
 import io.druid.indexing.kafka.KafkaPartitions;
 import io.druid.indexing.kafka.KafkaTuningConfig;
 import io.druid.indexing.kafka.test.TestBroker;
-import io.druid.indexing.overlord.IndexerMetadataStorageCoordinator;
-import io.druid.indexing.overlord.TaskMaster;
-import io.druid.indexing.overlord.TaskQueue;
-import io.druid.indexing.overlord.TaskRunner;
-import io.druid.indexing.overlord.TaskRunnerListener;
-import io.druid.indexing.overlord.TaskRunnerWorkItem;
-import io.druid.indexing.overlord.TaskStorage;
+import io.druid.indexing.overlord.*;
 import io.druid.indexing.overlord.supervisor.SupervisorReport;
 import io.druid.jackson.DefaultObjectMapper;
 import io.druid.query.aggregation.AggregatorFactory;
@@ -1161,6 +1155,62 @@ public class KafkaSupervisorTest extends EasyMockSupport
 
     verifyAll();
   }
+
+  @Test
+  public void testResetDataSourceMetadata() throws Exception
+  {
+    supervisor = getSupervisor(1, 1, true, "PT1H", null);
+    expect(taskMaster.getTaskQueue()).andReturn(Optional.of(taskQueue)).anyTimes();
+    expect(taskMaster.getTaskRunner()).andReturn(Optional.of(taskRunner)).anyTimes();
+    expect(taskRunner.getRunningTasks()).andReturn(Collections.EMPTY_LIST).anyTimes();
+    expect(taskStorage.getActiveTasks()).andReturn(ImmutableList.<Task>of()).anyTimes();
+    taskRunner.registerListener(anyObject(TaskRunnerListener.class), anyObject(Executor.class));
+    replayAll();
+
+    supervisor.start();
+    supervisor.runInternal();
+    verifyAll();
+
+    Capture<String> captureDataSource = EasyMock.newCapture();
+    Capture<DataSourceMetadata> captureDataSourceMetadata = EasyMock.newCapture();
+
+    KafkaDataSourceMetadata kafkaDataSourceMetadata = new KafkaDataSourceMetadata(new KafkaPartitions(
+        KAFKA_TOPIC,
+        ImmutableMap.of(0, 1000L, 1, 1000L, 2, 1000L)
+    ));
+
+    KafkaDataSourceMetadata resetMetadata = new KafkaDataSourceMetadata(new KafkaPartitions(
+        KAFKA_TOPIC,
+        ImmutableMap.of(1, 1000L, 2, 1000L)
+    ));
+
+    KafkaDataSourceMetadata expectedMetadata = new KafkaDataSourceMetadata(new KafkaPartitions(
+        KAFKA_TOPIC,
+        ImmutableMap.of(0, 1000L)
+    ));
+
+    reset(indexerMetadataStorageCoordinator);
+    expect(indexerMetadataStorageCoordinator.getDataSourceMetadata(DATASOURCE)).andReturn(kafkaDataSourceMetadata);
+    expect(indexerMetadataStorageCoordinator.resetDataSourceMetadata(
+        EasyMock.capture(captureDataSource),
+        EasyMock.capture(captureDataSourceMetadata)
+    )).andReturn(true);
+    replay(indexerMetadataStorageCoordinator);
+
+    try {
+      supervisor.resetInternal(resetMetadata);
+    }
+    catch (NullPointerException npe) {
+      // Expected as there will be an attempt to reset partitionGroups offsets to NOT_SET
+      // however there would be no entries in the map as we have not put nay data in kafka
+      Assert.assertTrue(npe.getCause() == null);
+    }
+    verifyAll();
+
+    Assert.assertEquals(captureDataSource.getValue(), DATASOURCE);
+    Assert.assertEquals(captureDataSourceMetadata.getValue(), expectedMetadata);
+  }
+
 
   private void addSomeEvents(int numEventsPerPartition) throws Exception
   {

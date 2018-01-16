@@ -28,10 +28,7 @@ import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Predicate;
 import com.google.common.base.Throwables;
-import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.Iterables;
-import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
+import com.google.common.collect.*;
 import com.google.common.primitives.Ints;
 import com.google.common.util.concurrent.MoreExecutors;
 import com.metamx.common.ISE;
@@ -66,12 +63,8 @@ import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.serialization.ByteArrayDeserializer;
 import org.joda.time.DateTime;
 
-import java.util.HashMap;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
-import java.util.Properties;
-import java.util.Random;
+import java.io.IOException;
+import java.util.*;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.LinkedBlockingDeque;
@@ -90,6 +83,7 @@ public class KafkaSupervisor implements Supervisor
 {
   private static final EmittingLogger log = new EmittingLogger(KafkaSupervisor.class);
   private static final Random RANDOM = new Random();
+  private static final long NOT_SET = -1;
   private static final long MAX_RUN_FREQUENCY_MILLIS = 1000; // prevent us from running too often in response to events
 
   // Internal data structures
@@ -419,6 +413,23 @@ public class KafkaSupervisor implements Supervisor
         stopped = true;
         stopLock.notifyAll();
       }
+    }
+  }
+
+
+  private class ResetNotice implements Notice
+  {
+    final DataSourceMetadata dataSourceMetadata;
+
+    ResetNotice(DataSourceMetadata dataSourceMetadata)
+    {
+      this.dataSourceMetadata = dataSourceMetadata;
+    }
+
+    @Override
+    public void handle()
+    {
+      resetInternal(dataSourceMetadata);
     }
   }
 
@@ -1129,6 +1140,120 @@ public class KafkaSupervisor implements Supervisor
     }
 
     return consumer.position(topicPartition);
+  }
+
+
+
+  @VisibleForTesting
+  void resetInternal(DataSourceMetadata dataSourceMetadata)
+  {
+    if (dataSourceMetadata == null) {
+      // Reset everything
+      boolean result = indexerMetadataStorageCoordinator.deleteDataSourceMetadata(dataSource);
+      log.info("Reset dataSource[%s] - dataSource metadata entry deleted? [%s]", dataSource, result);
+      taskGroups.values().forEach(this::killTasksInGroup);
+      taskGroups.clear();
+      partitionGroups.clear();
+//      sequenceTaskGroup.clear();
+    } else if (!(dataSourceMetadata instanceof KafkaDataSourceMetadata)) {
+      throw new ISE("Expected KafkaDataSourceMetadata but found instance of [%s]", dataSourceMetadata.getClass());
+    } else {
+      // Reset only the partitions in dataSourceMetadata if it has not been reset yet
+      final KafkaDataSourceMetadata resetKafkaMetadata = (KafkaDataSourceMetadata) dataSourceMetadata;
+
+      if (resetKafkaMetadata.getKafkaPartitions().getTopic().equals(ioConfig.getTopic())) {
+        // metadata can be null
+        final DataSourceMetadata metadata = indexerMetadataStorageCoordinator.getDataSourceMetadata(dataSource);
+        if (metadata != null && !(metadata instanceof KafkaDataSourceMetadata)) {
+          throw new ISE(
+              "Expected KafkaDataSourceMetadata from metadata store but found instance of [%s]",
+              metadata.getClass()
+          );
+        }
+        final KafkaDataSourceMetadata currentMetadata = (KafkaDataSourceMetadata) metadata;
+
+        // defend against consecutive reset requests from replicas
+        // as well as the case where the metadata store do not have an entry for the reset partitions
+        boolean doReset = false;
+        for (Map.Entry<Integer, Long> resetPartitionOffset : resetKafkaMetadata.getKafkaPartitions()
+            .getPartitionOffsetMap()
+            .entrySet()) {
+          final Long partitionOffsetInMetadataStore = currentMetadata == null
+              ? null
+              : currentMetadata.getKafkaPartitions()
+              .getPartitionOffsetMap()
+              .get(resetPartitionOffset.getKey());
+          final TaskGroup partitionTaskGroup = taskGroups.get(getTaskGroupIdForPartition(resetPartitionOffset.getKey()));
+          if (partitionOffsetInMetadataStore != null ||
+              (partitionTaskGroup != null && partitionTaskGroup.partitionOffsets.get(resetPartitionOffset.getKey())
+                  .equals(resetPartitionOffset.getValue()))) {
+            doReset = true;
+            break;
+          }
+        }
+
+        if (!doReset) {
+          log.info("Ignoring duplicate reset request [%s]", dataSourceMetadata);
+          return;
+        }
+
+        boolean metadataUpdateSuccess = false;
+        if (currentMetadata == null) {
+          metadataUpdateSuccess = true;
+        } else {
+          final DataSourceMetadata newMetadata = currentMetadata.minus(resetKafkaMetadata);
+          try {
+            metadataUpdateSuccess = indexerMetadataStorageCoordinator.resetDataSourceMetadata(dataSource, newMetadata);
+          }
+          catch (IOException e) {
+            log.error("Resetting DataSourceMetadata failed [%s]", e.getMessage());
+            Throwables.propagate(e);
+          }
+        }
+        if (metadataUpdateSuccess) {
+          resetKafkaMetadata.getKafkaPartitions().getPartitionOffsetMap().keySet().forEach(partition -> {
+            final int groupId = getTaskGroupIdForPartition(partition);
+            killTaskGroupForPartitions(ImmutableSet.of(partition));
+//            sequenceTaskGroup.remove(generateSequenceName(groupId));
+            taskGroups.remove(groupId);
+            partitionGroups.get(groupId).replaceAll((partitionId, offset) -> NOT_SET);
+          });
+        } else {
+          throw new ISE("Unable to reset metadata");
+        }
+      } else {
+        log.warn(
+            "Reset metadata topic [%s] and supervisor's topic [%s] do not match",
+            resetKafkaMetadata.getKafkaPartitions().getTopic(),
+            ioConfig.getTopic()
+        );
+      }
+    }
+  }
+
+
+
+  public void reset(DataSourceMetadata dataSourceMetadata)
+  {
+    log.info("Posting ResetNotice");
+    notices.add(new ResetNotice(dataSourceMetadata));
+  }
+
+  private void killTaskGroupForPartitions(Set<Integer> partitions)
+  {
+    for (Integer partition : partitions) {
+      killTasksInGroup(taskGroups.get(getTaskGroupIdForPartition(partition)));
+    }
+  }
+
+  private void killTasksInGroup(TaskGroup taskGroup)
+  {
+    if (taskGroup != null) {
+      for (String taskId : taskGroup.tasks.keySet()) {
+        log.info("Killing task [%s] in the task group", taskId);
+        killTask(taskId);
+      }
+    }
   }
 
   /**

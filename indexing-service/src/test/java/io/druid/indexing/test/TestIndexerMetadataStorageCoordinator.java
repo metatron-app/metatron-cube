@@ -74,6 +74,16 @@ public class TestIndexerMetadataStorageCoordinator implements IndexerMetadataSto
   }
 
   @Override
+  public boolean deleteDataSourceMetadata(String dataSource) {
+    return false;
+  }
+
+  @Override
+  public boolean resetDataSourceMetadata(String dataSource, DataSourceMetadata dataSourceMetadata) throws IOException {
+    return false;
+  }
+
+  @Override
   public Set<DataSegment> announceHistoricalSegments(Set<DataSegment> segments)
   {
     Set<DataSegment> added = Sets.newHashSet();

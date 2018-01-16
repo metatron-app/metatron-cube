@@ -26,8 +26,10 @@ import com.metamx.common.Pair;
 import com.metamx.common.lifecycle.LifecycleStart;
 import com.metamx.common.lifecycle.LifecycleStop;
 import com.metamx.emitter.EmittingLogger;
+import io.druid.indexing.overlord.DataSourceMetadata;
 import io.druid.metadata.MetadataSupervisorManager;
 
+import javax.annotation.Nullable;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -85,6 +87,23 @@ public class SupervisorManager
       Preconditions.checkState(started, "SupervisorManager not started");
       return possiblyStopAndRemoveSupervisorInternal(id, true);
     }
+  }
+
+
+  public boolean resetSupervisor(String id, @Nullable DataSourceMetadata dataSourceMetadata)
+  {
+    Preconditions.checkState(started, "SupervisorManager not started");
+    Preconditions.checkNotNull(id, "id");
+
+    Pair<Supervisor, SupervisorSpec> supervisor = supervisors.get(id);
+
+    log.info("Supervisor:" + supervisor);
+    if (supervisor == null) {
+      return false;
+    }
+
+    supervisor.lhs.reset(dataSourceMetadata);
+    return true;
   }
 
   @LifecycleStart

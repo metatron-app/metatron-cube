@@ -932,4 +932,56 @@ public class IndexerSQLMetadataStorageCoordinator implements IndexerMetadataStor
     log.info("Found %,d segments for %s for interval %s.", matchingSegments.size(), dataSource, interval);
     return matchingSegments;
   }
+
+  @Override
+  public boolean deleteDataSourceMetadata(final String dataSource) {
+    return connector.retryWithHandle(
+        new HandleCallback<Boolean>()
+        {
+          @Override
+          public Boolean withHandle(Handle handle) throws Exception
+          {
+            int rows = handle.createStatement(
+                String.format("DELETE from %s WHERE dataSource = :dataSource", dbTables.getDataSourceTable())
+            )
+                .bind("dataSource", dataSource)
+                .execute();
+
+            return rows > 0;
+          }
+        }
+    );
+  }
+
+  @Override
+  public boolean resetDataSourceMetadata(final String dataSource, DataSourceMetadata dataSourceMetadata) throws IOException {
+    {
+      final byte[] newCommitMetadataBytes = jsonMapper.writeValueAsBytes(dataSourceMetadata);
+      final String newCommitMetadataSha1 = BaseEncoding.base16().encode(
+          Hashing.sha1().hashBytes(newCommitMetadataBytes).asBytes()
+      );
+
+      return connector.retryWithHandle(
+          new HandleCallback<Boolean>() {
+            @Override
+            public Boolean withHandle(Handle handle) throws Exception {
+              final int numRows = handle.createStatement(
+                  String.format(
+                      "UPDATE %s SET "
+                          + "commit_metadata_payload = :new_commit_metadata_payload, "
+                          + "commit_metadata_sha1 = :new_commit_metadata_sha1 "
+                          + "WHERE dataSource = :dataSource",
+                      dbTables.getDataSourceTable()
+                  )
+              )
+                  .bind("dataSource", dataSource)
+                  .bind("new_commit_metadata_payload", newCommitMetadataBytes)
+                  .bind("new_commit_metadata_sha1", newCommitMetadataSha1)
+                  .execute();
+              return numRows == 1;
+            }
+          }
+      );
+    }
+  }
 }

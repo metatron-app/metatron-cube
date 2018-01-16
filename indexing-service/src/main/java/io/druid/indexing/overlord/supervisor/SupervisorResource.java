@@ -25,12 +25,7 @@ import com.google.common.collect.ImmutableMap;
 import com.google.inject.Inject;
 import io.druid.indexing.overlord.TaskMaster;
 
-import javax.ws.rs.Consumes;
-import javax.ws.rs.GET;
-import javax.ws.rs.POST;
-import javax.ws.rs.Path;
-import javax.ws.rs.PathParam;
-import javax.ws.rs.Produces;
+import javax.ws.rs.*;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import java.util.List;
@@ -128,6 +123,30 @@ public class SupervisorResource
             }
 
             return Response.ok(spec.get()).build();
+          }
+        }
+    );
+  }
+
+
+  @POST
+  @Path("/{id}/reset")
+  @Produces(MediaType.APPLICATION_JSON)
+  public Response reset(@PathParam("id") final String id)
+  {
+    return asLeaderWithSupervisorManager(
+        new Function<SupervisorManager, Response>()
+        {
+          @Override
+          public Response apply(SupervisorManager manager)
+          {
+            if (manager.resetSupervisor(id, null)) {
+              return Response.ok(ImmutableMap.of("id", id)).build();
+            } else {
+              return Response.status(Response.Status.NOT_FOUND)
+                  .entity(ImmutableMap.of("error", String.format("[%s] does not exist", id)))
+                  .build();
+            }
           }
         }
     );
