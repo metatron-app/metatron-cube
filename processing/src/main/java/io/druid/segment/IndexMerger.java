@@ -274,17 +274,6 @@ public class IndexMerger
 
   public File mergeQueryableIndexAndClose(
       List<QueryableIndex> indexes,
-      final AggregatorFactory[] metricAggs,
-      File outDir,
-      IndexSpec indexSpec,
-      ProgressIndicator progress
-  ) throws IOException
-  {
-    return mergeQueryableIndexAndClose(indexes, true, metricAggs, outDir, indexSpec, progress);
-  }
-
-  public File mergeQueryableIndexAndClose(
-      List<QueryableIndex> indexes,
       final boolean rollup,
       final AggregatorFactory[] metricAggs,
       File outDir,

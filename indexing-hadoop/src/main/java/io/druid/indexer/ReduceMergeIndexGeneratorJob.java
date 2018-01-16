@@ -585,6 +585,7 @@ public class ReduceMergeIndexGeneratorJob implements HadoopDruidIndexerJob.Index
           }
           mergedBase = merger.mergeQueryableIndexAndClose(
               indexes,
+              granularitySpec.isRollup(),
               aggregators,
               new File(baseFlushFile, singleShard ? "single" : "shard-" + i),
               config.getIndexSpec(),

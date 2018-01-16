@@ -434,6 +434,7 @@ public class HdfsDataSegmentPusher implements DataSegmentPusher, ResultWriter
             log.info("Merging %d indices into one", indexes.size());
             mergedBase = merger.mergeQueryableIndexAndClose(
                 indexes,
+                schema.isRollup(),
                 schema.getMetrics(),
                 new File(temp, "merged"),
                 new IndexSpec(),
