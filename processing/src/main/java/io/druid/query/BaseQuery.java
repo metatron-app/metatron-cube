@@ -166,23 +166,53 @@ public abstract class BaseQuery<T extends Comparable<T>> implements Query<T>
 
   public boolean allDimensionsForEmpty()
   {
+    if (this instanceof AggregationsSupport) {
+      // timeseries, group-by, top-n
+      return BaseQuery.allDimensionsForEmpty(this, false);
+    }
+    // select, search, stream, summary, etc.
     return BaseQuery.allDimensionsForEmpty(this, true);
   }
 
   public boolean allMetricsForEmpty()
   {
+    if (this instanceof AggregationsSupport) {
+      return BaseQuery.allMetricsForEmpty(this, false);
+    }
     return BaseQuery.allMetricsForEmpty(this, true);
   }
 
   public boolean needsSchemaResolution()
   {
-    if (dataSource instanceof ViewDataSource) {
-      return true;
+    return needsSchemaResolution(this);
+  }
+
+  public static boolean needsSchemaResolution(Query query)
+  {
+    if (!(query instanceof DimFilterSupport)) {
+      return false;
     }
-    if (this instanceof MetricSupport) {
-      if (((MetricSupport) this).getMetrics().isEmpty() && allMetricsForEmpty()) {
+    if (query instanceof DimensionSupport) {
+      DimensionSupport dimSupport = (DimensionSupport) query;
+      if (dimSupport.getDimensions().isEmpty() && dimSupport.allDimensionsForEmpty()) {
         return true;
       }
+    }
+    if (query instanceof AggregationsSupport) {
+      AggregationsSupport aggrSupport = (AggregationsSupport) query;
+      if (aggrSupport.getAggregatorSpecs().isEmpty() && aggrSupport.allMetricsForEmpty()) {
+        return true;
+      }
+    }
+    if (query instanceof MetricSupport) {
+      MetricSupport metricSupport = (MetricSupport) query;
+      if (metricSupport.getMetrics().isEmpty() && metricSupport.allMetricsForEmpty()) {
+        return true;
+      }
+    }
+    if (query.getDataSource() instanceof ViewDataSource) {
+          ViewDataSource view = (ViewDataSource) query.getDataSource();
+      return !view.getColumns().isEmpty();
     }
     return false;
   }

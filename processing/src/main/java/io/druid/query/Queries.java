@@ -44,8 +44,6 @@ import io.druid.query.groupby.GroupByQuery;
 import io.druid.query.groupby.PartitionedGroupByQuery;
 import io.druid.query.select.EventHolder;
 import io.druid.query.select.Schema;
-import io.druid.query.select.SelectMetaQuery;
-import io.druid.query.select.SelectMetaResultValue;
 import io.druid.query.select.SelectQuery;
 import io.druid.query.select.SelectResultValue;
 import io.druid.query.select.StreamQuery;
@@ -148,8 +146,8 @@ public class Queries
     if (subQuery instanceof GroupByQuery) {
       final GroupByQuery groupByQuery = (GroupByQuery) subQuery;
       List<DimensionSpec> dimensions = groupByQuery.getDimensions();
-      if (dimensions.isEmpty() && groupByQuery.getDataSource() instanceof ViewDataSource) {
-        builder.withDimensions(resolveSchemaFromView(subQuery, segmentWalker).getDimensionNames());
+      if (groupByQuery.needsSchemaResolution()) {
+        builder.withDimensions(QueryUtils.resolveSchema(subQuery, segmentWalker).getDimensionNames());
       } else {
         builder.withDimensions(DimensionSpecs.toOutputNames(dimensions));
       }
@@ -159,27 +157,33 @@ public class Queries
       }
       return builder.withMetrics(aggs.toArray(new AggregatorFactory[aggs.size()])).build();
     } else if (subQuery instanceof Query.MetricSupport) {
-      final Query.MetricSupport<?> selectQuery = (Query.MetricSupport) subQuery;
-      List<String> dimensions = DimensionSpecs.toOutputNames(selectQuery.getDimensions());
-      List<String> metrics = selectQuery.getMetrics();
-      if (selectQuery.needsSchemaResolution()) {
-        Schema schema = resolveSchemaFromView(subQuery, segmentWalker);
+      final Query.MetricSupport<?> metricSupport = (Query.MetricSupport) subQuery;
+      if (metricSupport.needsSchemaResolution()) {
+        Schema schema = QueryUtils.resolveSchema(subQuery, segmentWalker);
         return builder.withDimensions(schema.getDimensionNames())
                       .withMetrics(AggregatorFactory.toRelay(schema.metricAndTypes()))
                       .withRollup(false)
                       .build();
+      } else {
+        return builder.withDimensions(DimensionSpecs.toOutputNames(metricSupport.getDimensions()))
+                      .withMetrics(AggregatorFactory.toRelay(metricSupport.getMetrics(), ValueDesc.UNKNOWN_TYPE))
+                      .withRollup(false)
+                      .build();
       }
-      return builder.withDimensions(dimensions)
-                    .withMetrics(AggregatorFactory.toRelay(metrics, ValueDesc.UNKNOWN_TYPE))
-                    .withRollup(false)
-                    .build();
     } else if (subQuery instanceof Query.AggregationsSupport) {
-      final Query.AggregationsSupport<?> selectQuery = (Query.AggregationsSupport) subQuery;
-      List<String> dimensions = DimensionSpecs.toOutputNames(selectQuery.getDimensions());
-      return builder.withDimensions(dimensions)
-                    .withMetrics(AggregatorFactory.toRelay(selectQuery.getAggregatorSpecs()))
-                    .withRollup(false)
-                    .build();
+      final Query.AggregationsSupport<?> aggrSupport = (Query.AggregationsSupport) subQuery;
+      if (aggrSupport.needsSchemaResolution()) {
+        Schema schema = QueryUtils.resolveSchema(subQuery, segmentWalker);
+        return builder.withDimensions(schema.getDimensionNames())
+                      .withMetrics(AggregatorFactory.toRelay(schema.metricAndTypes()))
+                      .withRollup(false)
+                      .build();
+      } else {
+        return builder.withDimensions(DimensionSpecs.toOutputNames(aggrSupport.getDimensions()))
+                      .withMetrics(AggregatorFactory.toRelay(aggrSupport.getAggregatorSpecs()))
+                      .withRollup(false)
+                      .build();
+      }
     } else if (subQuery instanceof JoinQuery.JoinDelegate) {
       final JoinQuery.JoinDelegate<?> joinQuery = (JoinQuery.JoinDelegate) subQuery;
       List<String> dimensions = Lists.newArrayList();
@@ -221,33 +225,6 @@ public class Queries
       // todo timeseries topN query
       throw new UnsupportedOperationException("Cannot extract metric from query " + subQuery);
     }
-  }
-
-  private static Schema resolveSchemaFromView(Query<?> subQuery, QuerySegmentWalker segmentWalker)
-  {
-    SelectMetaQuery metaQuery = new SelectMetaQuery(
-        subQuery.getDataSource(),
-        subQuery.getQuerySegmentSpec(),
-        null,
-        QueryGranularities.ALL,
-        null,
-        null,
-        null,
-        true,
-        null,
-        extractContext(subQuery, BaseQuery.QUERYID)
-    );
-
-    Result<SelectMetaResultValue> result = Iterables.getOnlyElement(
-        Sequences.toList(
-            metaQuery.run(segmentWalker, Maps.<String, Object>newHashMap()),
-            Lists.<Result<SelectMetaResultValue>>newArrayList()
-        ), null
-    );
-    if (result == null) {
-      return Schema.EMPTY;
-    }
-    return result.getValue().getSchema();
   }
 
   @SuppressWarnings("unchecked")
@@ -350,5 +327,43 @@ public class Queries
       }
     }
     return extracted;
+  }
+
+  public static Query iterate(Query query, Function<Query, Query> function)
+  {
+    if (query.getDataSource() instanceof QueryDataSource) {
+      Query source = ((QueryDataSource) query.getDataSource()).getQuery();
+      Query converted = iterate(source, function);
+      if (!source.equals(converted)) {
+        query = query.withDataSource(new QueryDataSource(converted));
+      }
+    } else if (query instanceof JoinQuery) {
+      JoinQuery<?> joinQuery = (JoinQuery) query;
+      for (Map.Entry<String, DataSource> entry : joinQuery.getDataSources().entrySet()) {
+        if (entry.getValue() instanceof QueryDataSource) {
+          Query source = ((QueryDataSource) entry.getValue()).getQuery();
+          Query converted = iterate(source, function);
+          if (!source.equals(converted)) {
+            entry.setValue(new QueryDataSource(converted));
+          }
+        }
+      }
+    } else if (query instanceof UnionAllQuery) {
+      UnionAllQuery<?> union = (UnionAllQuery) query;
+      if (union.getQuery() != null) {
+        Query source = union.getQuery();
+        Query converted = iterate(source, function);
+        if (!source.equals(converted)) {
+          query = converted;
+        }
+      } else {
+        List<Query> queries = Lists.newArrayList();
+        for (Query source : union.getQueries()) {
+          queries.add(iterate(source, function));
+        }
+        query = union.withQueries(queries);
+      }
+    }
+    return function.apply(query);
   }
 }

@@ -64,7 +64,10 @@ public class SelectMetaQueryEngine
     final Interval interval = Iterables.getOnlyElement(intervals);
     final Granularity granularity = query.getGranularity();
 
-    final Schema schema = ViewSupportHelper.toSchema(query, segment);
+    final String segmentId = segment.getIdentifier();
+    final StorageAdapter storageAdapter = segment.asStorageAdapter(false);
+
+    final Schema schema = ViewSupportHelper.toSchema(query, storageAdapter);
     if (query.isSchemaOnly()) {
       return Sequences.simple(
           Arrays.asList(
@@ -75,8 +78,6 @@ public class SelectMetaQueryEngine
           )
       );
     }
-    final String segmentId = segment.getIdentifier();
-    final StorageAdapter storageAdapter = segment.asStorageAdapter(false);
 
     final PagingOffset offset = query.getPagingOffset(segmentId);
     final float averageSize = calculateAverageSize(query, adapter);

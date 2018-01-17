@@ -23,6 +23,7 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.ObjectWriter;
 import com.fasterxml.jackson.jaxrs.smile.SmileMediaTypes;
+import com.google.common.base.Function;
 import com.google.common.base.Strings;
 import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableMap;
@@ -47,9 +48,7 @@ import io.druid.guice.annotations.Json;
 import io.druid.guice.annotations.Self;
 import io.druid.guice.annotations.Smile;
 import io.druid.query.BaseQuery;
-import io.druid.query.DataSource;
 import io.druid.query.DruidMetrics;
-import io.druid.query.JoinQuery;
 import io.druid.query.PostProcessingOperators;
 import io.druid.query.Queries;
 import io.druid.query.Query;
@@ -445,55 +444,23 @@ public class QueryResource
 
   private Query rewriteQuery(final Query query)
   {
-    Query rewritten = query;
-    if (query.getDataSource() instanceof QueryDataSource) {
-      Query source = ((QueryDataSource) query.getDataSource()).getQuery();
-      if (source instanceof Query.RewritingQuery) {
-        if (source.getId() == null) {
-          source = source.withId(query.getId());
-        }
-        Query element = rewriteQuery(source);
-        rewritten = rewritten.withDataSource(new QueryDataSource(element));
-      }
-    }
-    if (query instanceof JoinQuery) {
-      JoinQuery<?> joinQuery = (JoinQuery)query;
-      for (Map.Entry<String, DataSource> entry : joinQuery.getDataSources().entrySet()) {
-        if (entry.getValue() instanceof QueryDataSource) {
-          Query source = ((QueryDataSource) entry.getValue()).getQuery();
-          if (source.getId() == null) {
-            source = source.withId(query.getId());
+    final String queryId = query.getId();
+    return Queries.iterate(
+        query, new Function<Query, Query>()
+        {
+          @Override
+          public Query apply(Query input)
+          {
+            if (queryId != null && input.getId() == null) {
+              input = input.withId(queryId);
+            }
+            if (input instanceof Query.RewritingQuery) {
+              return ((Query.RewritingQuery) input).rewriteQuery(texasRanger, jsonMapper);
+            }
+            return input;
           }
-          Query element = rewriteQuery(source);
-          entry.setValue(new QueryDataSource(element));
         }
-      }
-    }
-    if (rewritten instanceof UnionAllQuery) {
-      UnionAllQuery<?> union = (UnionAllQuery) rewritten;
-      if (union.getQuery() != null) {
-        Query source = union.getQuery();
-        if (source.getId() == null) {
-          source = source.withId(query.getId());
-        }
-        Query element = rewriteQuery(source);
-        rewritten = union.withQuery(element);
-      } else {
-        List<Query> queries = Lists.newArrayList();
-        for (Query source : union.getQueries()) {
-          if (source.getId() == null) {
-            source = source.withId(query.getId());
-          }
-          Query element = rewriteQuery(source);
-          queries.add(element);
-        }
-        rewritten = union.withQueries(queries);
-      }
-    }
-    if (query instanceof Query.RewritingQuery) {
-      rewritten = ((Query.RewritingQuery) query).rewriteQuery(texasRanger, jsonMapper);
-    }
-    return rewritten;
+    );
   }
 
   protected class RequestContext

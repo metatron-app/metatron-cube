@@ -449,13 +449,11 @@ public class SelectQueryQueryToolChest extends QueryToolChest<Result<SelectResul
 
     int threshold = pagingSpec.getThreshold();
     List<String> dataSourceNames = query.getDataSource().getNames();
-    Map<String, Object> context = Maps.newHashMap();
-    List<Interval> intervals = query.getQuerySegmentSpec().getIntervals();
 
     SelectMetaQuery metaQuery = query.toMetaQuery(false);
     List<Result<SelectMetaResultValue>> results =
         Sequences.toList(
-            walker.getQueryRunnerForIntervals(metaQuery, intervals).run(metaQuery, context),
+            metaQuery.run(walker, Maps.<String, Object>newHashMap()),
             Lists.<Result<SelectMetaResultValue>>newArrayList()
         );
 

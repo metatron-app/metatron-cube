@@ -23,7 +23,9 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
 import io.druid.granularity.Granularity;
+import io.druid.granularity.QueryGranularities;
 import io.druid.query.BaseQuery;
 import io.druid.query.DataSource;
 import io.druid.query.Query;
@@ -43,6 +45,14 @@ import java.util.Objects;
 public class SelectMetaQuery extends BaseQuery<Result<SelectMetaResultValue>>
   implements Query.MetricSupport<Result<SelectMetaResultValue>>
 {
+  public static SelectMetaQuery forSchema(DataSource dataSource, QuerySegmentSpec querySegmentSpec, String queryId)
+  {
+    return new SelectMetaQuery(
+        dataSource, querySegmentSpec, null, QueryGranularities.ALL, null, null, null, true, null,
+        ImmutableMap.<String, Object>of(QUERYID, queryId)
+    );
+  }
+
   private final DimFilter dimFilter;
   private final Granularity granularity;
   private final List<DimensionSpec> dimensions;
@@ -225,7 +235,6 @@ public class SelectMetaQuery extends BaseQuery<Result<SelectMetaResultValue>>
         getContext()
     );
   }
-
 
   @Override
   public SelectMetaQuery withDimensionSpecs(List<DimensionSpec> dimensions)

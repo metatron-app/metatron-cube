@@ -178,12 +178,6 @@ public class TopNQuery extends BaseQuery<Result<TopNResultValue>>
     return outputColumns;
   }
 
-  @Override
-  public boolean allDimensionsForEmpty()
-  {
-    return false;
-  }
-
   public void initTopNAlgorithmSelector(TopNAlgorithmSelector selector)
   {
     if (dimensionSpec.getExtractionFn() != null) {

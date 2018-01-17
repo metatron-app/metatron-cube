@@ -37,6 +37,9 @@ import io.druid.query.metadata.metadata.ColumnIncluderator;
 import io.druid.query.metadata.metadata.NoneColumnIncluderator;
 import io.druid.query.metadata.metadata.SegmentAnalysis;
 import io.druid.query.metadata.metadata.SegmentMetadataQuery;
+import io.druid.query.select.Schema;
+import io.druid.query.select.SelectMetaQuery;
+import io.druid.query.select.SelectMetaResultValue;
 import io.druid.query.spec.QuerySegmentSpec;
 import io.druid.segment.VirtualColumn;
 import org.apache.commons.lang.mutable.MutableInt;
@@ -98,7 +101,7 @@ public class QueryUtils
     }
     final Query runner = query.withId(UUID.randomUUID().toString());
 
-    log.info("Running sketch query on join partition key %s.%s", dataSource, column);
+    log.info("Running sketch query on partition key %s.%s", dataSource, column);
     log.debug("Running.. %s", runner);
 
     @SuppressWarnings("unchecked")
@@ -160,10 +163,8 @@ public class QueryUtils
         false,
         false
     );
-    List<Interval> intervals = metaQuery.getQuerySegmentSpec().getIntervals();
-    QueryRunner<SegmentAnalysis> runner = segmentWalker.getQueryRunnerForIntervals(metaQuery, intervals);
 
-    Sequence<SegmentAnalysis> sequence = runner.run(metaQuery, Maps.<String, Object>newHashMap());
+    Sequence<SegmentAnalysis> sequence = metaQuery.run(segmentWalker, Maps.<String, Object>newHashMap());
     final Map<String, Map<String, MutableInt>> results = Maps.newHashMap();
     sequence.accumulate(
         null, new Accumulator<Object, SegmentAnalysis>()
@@ -251,5 +252,25 @@ public class QueryUtils
         };
       }
     };
+  }
+
+  public static Schema resolveSchema(Query<?> query, QuerySegmentWalker segmentWalker)
+  {
+    SelectMetaQuery metaQuery = SelectMetaQuery.forSchema(
+        TableDataSource.of(Iterables.getOnlyElement(query.getDataSource().getNames())),
+        query.getQuerySegmentSpec(),
+        query.getId()
+    );
+
+    Result<SelectMetaResultValue> result = Iterables.getOnlyElement(
+        Sequences.toList(
+            metaQuery.run(segmentWalker, Maps.<String, Object>newHashMap()),
+            Lists.<Result<SelectMetaResultValue>>newArrayList()
+        ), null
+    );
+    if (result == null) {
+      return Schema.EMPTY;
+    }
+    return result.getValue().getSchema();
   }
 }

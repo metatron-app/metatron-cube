@@ -224,12 +224,6 @@ public class GroupByQuery extends BaseQuery<Row> implements Query.AggregationsSu
   }
 
   @Override
-  public boolean allDimensionsForEmpty()
-  {
-    return BaseQuery.allDimensionsForEmpty(this, false);
-  }
-
-  @Override
   public GroupByQuery withOverriddenContext(Map<String, Object> contextOverride)
   {
     return new GroupByQuery(

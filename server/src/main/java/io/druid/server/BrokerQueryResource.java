@@ -22,6 +22,7 @@ package io.druid.server;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.jaxrs.smile.SmileMediaTypes;
+import com.google.common.base.Function;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
@@ -60,9 +61,9 @@ import io.druid.query.BaseQuery;
 import io.druid.query.DataSource;
 import io.druid.query.DummyQuery;
 import io.druid.query.LocatedSegmentDescriptor;
+import io.druid.query.Queries;
 import io.druid.query.Query;
 import io.druid.query.QueryContextKeys;
-import io.druid.query.QueryDataSource;
 import io.druid.query.QueryRunner;
 import io.druid.query.QuerySegmentWalker;
 import io.druid.query.QueryToolChestWarehouse;
@@ -70,7 +71,6 @@ import io.druid.query.RegexDataSource;
 import io.druid.query.ResultWriter;
 import io.druid.query.SegmentDescriptor;
 import io.druid.query.TableDataSource;
-import io.druid.query.UnionAllQuery;
 import io.druid.query.UnionDataSource;
 import io.druid.query.select.SelectForwardQuery;
 import io.druid.query.select.SelectQuery;
@@ -288,30 +288,28 @@ public class BrokerQueryResource extends QueryResource
 
   private Query rewriteDataSources(Query query)
   {
-    if (query instanceof UnionAllQuery) {
-      UnionAllQuery<?> union = (UnionAllQuery)query;
-      if (union.getQueries() != null) {
-        List<Query> rewritten = Lists.newArrayList();
-        for (Query element : union.getQueries()) {
-          rewritten.add(rewriteDataSources(element));
+    return Queries.iterate(
+        query, new Function<Query, Query>()
+        {
+          @Override
+          public Query apply(Query input)
+          {
+            DataSource dataSource = input.getDataSource();
+            if (dataSource instanceof RegexDataSource) {
+              List<String> exploded = coordinator.findDatasources(dataSource.getNames());
+              if (exploded.isEmpty()) {
+                throw new IAE("cannot find matching datasource from regex %s", dataSource.getNames());
+              }
+              if (exploded.size() == 1) {
+                input = input.withDataSource(TableDataSource.of(exploded.get(0)));
+              } else {
+                input = input.withDataSource(UnionDataSource.of(exploded));
+              }
+            }
+            return input;
+          }
         }
-        return union.withQueries(rewritten);
-      }
-      return union.withQuery(rewriteDataSources(union.getQuery()));
-    }
-    DataSource dataSource = query.getDataSource();
-    if (dataSource instanceof RegexDataSource) {
-      List<String> exploded = coordinator.findDatasources(dataSource.getNames());
-      if (exploded.size() == 1) {
-        query = query.withDataSource(new TableDataSource(exploded.get(0)));
-      } else {
-        query = query.withDataSource(new UnionDataSource(TableDataSource.of(exploded)));
-      }
-    } else if (dataSource instanceof QueryDataSource) {
-      Query subQuery = rewriteDataSources(((QueryDataSource) dataSource).getQuery());
-      query = query.withDataSource(new QueryDataSource(subQuery));
-    }
-    return query;
+    );
   }
 
   @Override

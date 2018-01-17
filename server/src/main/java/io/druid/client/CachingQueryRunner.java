@@ -56,7 +56,7 @@ public class CachingQueryRunner<T> implements QueryRunner<T>
   private final String segmentIdentifier;
   private final SegmentDescriptor segmentDescriptor;
   private final QueryRunner<T> base;
-  private final QueryToolChest toolChest;
+  private final QueryToolChest<T, Query<T>> toolChest;
   private final Cache cache;
   private final ObjectMapper mapper;
   private final CacheConfig cacheConfig;
@@ -67,7 +67,7 @@ public class CachingQueryRunner<T> implements QueryRunner<T>
       SegmentDescriptor segmentDescriptor,
       ObjectMapper mapper,
       Cache cache,
-      QueryToolChest toolchest,
+      QueryToolChest<T, Query<T>> toolchest,
       QueryRunner<T> base,
       ExecutorService backgroundExecutorService,
       CacheConfig cacheConfig
@@ -86,20 +86,21 @@ public class CachingQueryRunner<T> implements QueryRunner<T>
   @Override
   public Sequence<T> run(Query<T> query, Map<String, Object> responseContext)
   {
-    final CacheStrategy strategy = toolChest.getCacheStrategy(query);
+    final CacheStrategy<T, Object, Query<T>> strategy = toolChest.getCacheStrategy(query);
+    if (strategy == null || BaseQuery.needsSchemaResolution(query)) {
+      return base.run(query, responseContext);
+    }
 
     final boolean populateCache = BaseQuery.getContextPopulateCache(query, true)
-                                  && strategy != null
                                   && cacheConfig.isPopulateCache()
                                   && cacheConfig.isQueryCacheable(query);
 
     final boolean useCache = BaseQuery.getContextUseCache(query, true)
-                             && strategy != null
                              && cacheConfig.isUseCache()
                              && cacheConfig.isQueryCacheable(query);
 
     final Cache.NamedKey key;
-    if (strategy != null && (useCache || populateCache)) {
+    if (useCache || populateCache) {
       key = CacheUtil.computeSegmentCacheKey(
           segmentIdentifier,
           segmentDescriptor,
@@ -110,17 +111,17 @@ public class CachingQueryRunner<T> implements QueryRunner<T>
     }
 
     if (useCache) {
-      final Function cacheFn = strategy.pullFromCache();
+      final Function<Object, T> cacheFn = strategy.pullFromCache();
       final byte[] cachedResult = cache.get(key);
       if (cachedResult != null) {
-        final TypeReference cacheObjectClazz = strategy.getCacheObjectClazz();
+        final TypeReference<?> cacheObjectClazz = strategy.getCacheObjectClazz();
 
         return Sequences.map(
-            new BaseSequence<>(
-                new BaseSequence.IteratorMaker<T, Iterator<T>>()
+            BaseSequence.simple(
+                new Iterable<Object>()
                 {
                   @Override
-                  public Iterator<T> make()
+                  public Iterator<Object> iterator()
                   {
                     try {
                       if (cachedResult.length == 0) {
@@ -136,11 +137,6 @@ public class CachingQueryRunner<T> implements QueryRunner<T>
                       throw Throwables.propagate(e);
                     }
                   }
-
-                  @Override
-                  public void cleanup(Iterator<T> iterFromMake)
-                  {
-                  }
                 }
             ),
             cacheFn
@@ -150,7 +146,7 @@ public class CachingQueryRunner<T> implements QueryRunner<T>
 
     final Collection<ListenableFuture<?>> cacheFutures = Collections.synchronizedList(Lists.<ListenableFuture<?>>newLinkedList());
     if (populateCache) {
-      final Function cacheFn = strategy.prepareForCache();
+      final Function<T, Object> cacheFn = strategy.prepareForCache();
       final List<Object> cacheResults = Lists.newLinkedList();
 
       return Sequences.withEffect(

@@ -217,7 +217,7 @@ public class ViewSupportHelperTest
   {
     ViewDataSource view = new ViewDataSource(
         "test",
-        Arrays.asList("dim1", "met1", "vc1", "vc2", "vc3"),
+        Arrays.asList("dim1", "met1", "met2", "vc1", "vc2", "vc3"),
         Arrays.<VirtualColumn>asList(vc1, vc2),
         null,
         false
@@ -233,7 +233,7 @@ public class ViewSupportHelperTest
     Assert.assertTrue(x.getDataSource() instanceof TableDataSource);
     Assert.assertEquals(Arrays.<VirtualColumn>asList(vc1, vc2), x.getVirtualColumns());
     Assert.assertEquals(DefaultDimensionSpec.toSpec(), x.getDimensions());
-    Assert.assertEquals(Arrays.<AggregatorFactory>asList(met1), x.getAggregatorSpecs());
+    Assert.assertEquals(Arrays.<AggregatorFactory>asList(), x.getAggregatorSpecs());
 
     // allDimensionsForEmpty = true
     GroupByQuery q0 = base.withOverriddenContext(
@@ -244,7 +244,7 @@ public class ViewSupportHelperTest
     Assert.assertTrue(x.getDataSource() instanceof TableDataSource);
     Assert.assertEquals(Arrays.<VirtualColumn>asList(vc1, vc2), x.getVirtualColumns());
     Assert.assertEquals(DefaultDimensionSpec.toSpec("dim1"), x.getDimensions());  // dimension from segment
-    Assert.assertEquals(Arrays.<AggregatorFactory>asList(met1), x.getAggregatorSpecs());
+    Assert.assertEquals(Arrays.<AggregatorFactory>asList(), x.getAggregatorSpecs());
 
     // override dimension
     GroupByQuery q1 = q0.withDimensionSpecs(DefaultDimensionSpec.toSpec("dim2"));
@@ -253,25 +253,38 @@ public class ViewSupportHelperTest
     Assert.assertTrue(x.getDataSource() instanceof TableDataSource);
     Assert.assertEquals(Arrays.<VirtualColumn>asList(vc1, vc2), x.getVirtualColumns());
     Assert.assertEquals(DefaultDimensionSpec.toSpec("dim2"), x.getDimensions());  // do not modify
-    Assert.assertEquals(Arrays.<AggregatorFactory>asList(met1), x.getAggregatorSpecs());
+    Assert.assertEquals(Arrays.<AggregatorFactory>asList(), x.getAggregatorSpecs());
 
-    // override vc
-    GroupByQuery q2 = q0.withVirtualColumns(Arrays.<VirtualColumn>asList(vc3));
+    // allMetricsForEmpty = true
+    GroupByQuery q2 = base.withOverriddenContext(
+        ImmutableMap.<String, Object>of(QueryContextKeys.ALL_METRICS_FOR_EMPTY, true)
+    );
 
     x = (GroupByQuery) ViewSupportHelper.rewrite(q2, adapter);
     Assert.assertTrue(x.getDataSource() instanceof TableDataSource);
-    Assert.assertEquals(Arrays.<VirtualColumn>asList(vc1, vc2, vc3), x.getVirtualColumns());
-    Assert.assertEquals(DefaultDimensionSpec.toSpec("dim1"), x.getDimensions());
-    Assert.assertEquals(Arrays.<AggregatorFactory>asList(met1), x.getAggregatorSpecs());
+    Assert.assertEquals(Arrays.<VirtualColumn>asList(vc1, vc2), x.getVirtualColumns());
+    Assert.assertEquals(DefaultDimensionSpec.toSpec(), x.getDimensions());  // dimension from segment
+    Assert.assertEquals(Arrays.<AggregatorFactory>asList(met1, met2), x.getAggregatorSpecs());
 
-    // override aggregator
-    GroupByQuery q3 = q0.withAggregatorSpecs(Arrays.<AggregatorFactory>asList(met3));
+    // override metric
+    GroupByQuery q3 = q2.withAggregatorSpecs(
+        Arrays.<AggregatorFactory>asList(met3)
+    );
 
     x = (GroupByQuery) ViewSupportHelper.rewrite(q3, adapter);
     Assert.assertTrue(x.getDataSource() instanceof TableDataSource);
     Assert.assertEquals(Arrays.<VirtualColumn>asList(vc1, vc2), x.getVirtualColumns());
-    Assert.assertEquals(DefaultDimensionSpec.toSpec("dim1"), x.getDimensions());
+    Assert.assertEquals(DefaultDimensionSpec.toSpec(), x.getDimensions());  // dimension from segment
     Assert.assertEquals(Arrays.<AggregatorFactory>asList(met3), x.getAggregatorSpecs());
+
+    // override vc
+    GroupByQuery q4 = base.withVirtualColumns(Arrays.<VirtualColumn>asList(vc3));
+
+    x = (GroupByQuery) ViewSupportHelper.rewrite(q4, adapter);
+    Assert.assertTrue(x.getDataSource() instanceof TableDataSource);
+    Assert.assertEquals(Arrays.<VirtualColumn>asList(vc1, vc2, vc3), x.getVirtualColumns());
+    Assert.assertEquals(DefaultDimensionSpec.toSpec(), x.getDimensions());
+    Assert.assertEquals(Arrays.<AggregatorFactory>asList(), x.getAggregatorSpecs());
   }
 
   @Test

@@ -21,7 +21,6 @@ package io.druid.query.filter;
 
 import com.google.common.base.Function;
 import com.google.common.base.Predicates;
-import com.google.common.collect.Collections2;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 
@@ -37,12 +36,12 @@ public class DimFilters
     return new SelectorDimFilter(dimension, value, null);
   }
 
-  public static AndDimFilter and(DimFilter... filters)
+  public static DimFilter and(DimFilter... filters)
   {
     return and(Arrays.asList(filters));
   }
 
-  public static AndDimFilter andNullable(DimFilter... filters)
+  public static DimFilter andNullable(DimFilter... filters)
   {
     if (filters == null) {
       return null;
@@ -56,19 +55,19 @@ public class DimFilters
     return filtered.isEmpty() ? null : and(filtered);
   }
 
-  public static AndDimFilter and(List<DimFilter> filters)
+  public static DimFilter and(List<DimFilter> filters)
   {
-    return new AndDimFilter(filters);
+    return filters.size() == 1 ? filters.get(0) : new AndDimFilter(filters);
   }
 
-  public static OrDimFilter or(DimFilter... filters)
+  public static DimFilter or(DimFilter... filters)
   {
     return or(Arrays.asList(filters));
   }
 
-  public static OrDimFilter or(List<DimFilter> filters)
+  public static DimFilter or(List<DimFilter> filters)
   {
-    return new OrDimFilter(filters);
+    return filters.size() == 1 ? filters.get(0) : new OrDimFilter(filters);
   }
 
   public static NotDimFilter not(DimFilter filter)

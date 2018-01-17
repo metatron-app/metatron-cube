@@ -103,6 +103,9 @@ public class ViewDataSource extends TableDataSource
 
     ViewDataSource that = (ViewDataSource) o;
 
+    if (!Objects.equals(name, that.name)) {
+      return false;
+    }
     if (!Objects.equals(columns, that.columns)) {
       return false;
     }
@@ -124,6 +127,6 @@ public class ViewDataSource extends TableDataSource
   @Override
   public String toString()
   {
-    return name + columns + (virtualColumns == null ? "" : "(" + virtualColumns + ")");
+    return "$view:" + name + columns + (virtualColumns == null ? "" : "(" + virtualColumns + ")");
   }
 }

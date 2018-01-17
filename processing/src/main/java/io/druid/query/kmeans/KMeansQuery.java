@@ -33,7 +33,6 @@ import io.druid.query.BaseQuery;
 import io.druid.query.DataSource;
 import io.druid.query.Queries;
 import io.druid.query.Query;
-import io.druid.query.QueryRunner;
 import io.druid.query.QuerySegmentWalker;
 import io.druid.query.metadata.metadata.ColumnAnalysis;
 import io.druid.query.metadata.metadata.ListColumnIncluderator;
@@ -41,7 +40,6 @@ import io.druid.query.metadata.metadata.SegmentAnalysis;
 import io.druid.query.metadata.metadata.SegmentMetadataQuery;
 import io.druid.query.spec.QuerySegmentSpec;
 import io.druid.segment.VirtualColumn;
-import org.joda.time.Interval;
 
 import java.util.EnumSet;
 import java.util.List;
@@ -237,11 +235,9 @@ public class KMeansQuery
         false
     );
 
-    List<Interval> intervals = metaQuery.getQuerySegmentSpec().getIntervals();
-    QueryRunner<SegmentAnalysis> runner = segmentWalker.getQueryRunnerForIntervals(metaQuery, intervals);
-
+    @SuppressWarnings("unchecked")
     List<SegmentAnalysis> sequence = Sequences.toList(
-        runner.run(metaQuery, Maps.<String, Object>newHashMap()),
+        metaQuery.run(segmentWalker, Maps.<String, Object>newHashMap()),
         Lists.<SegmentAnalysis>newArrayList()
     );
     if (sequence == null || sequence.isEmpty()) {

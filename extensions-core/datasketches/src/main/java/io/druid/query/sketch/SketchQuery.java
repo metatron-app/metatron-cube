@@ -84,12 +84,6 @@ public class SketchQuery extends BaseQuery<Result<Map<String, Object>>>
   }
 
   @Override
-  public boolean allMetricsForEmpty()
-  {
-    return BaseQuery.allMetricsForEmpty(this, false);
-  }
-
-  @Override
   public SketchQuery withQuerySegmentSpec(QuerySegmentSpec spec)
   {
     return new SketchQuery(
