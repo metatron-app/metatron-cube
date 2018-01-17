@@ -28,7 +28,6 @@ import com.google.common.base.Strings;
 import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
-import com.google.common.collect.MapMaker;
 import com.google.common.io.CountingOutputStream;
 import com.google.inject.Inject;
 import com.metamx.common.IAE;
@@ -42,6 +41,7 @@ import com.metamx.emitter.core.Emitter;
 import com.metamx.emitter.service.ServiceEmitter;
 import io.druid.common.utils.JodaUtils;
 import io.druid.common.utils.PropUtils;
+import io.druid.concurrent.Execs;
 import io.druid.data.output.Formatters;
 import io.druid.guice.LocalDataStorageDruidModule;
 import io.druid.guice.annotations.Json;
@@ -100,6 +100,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  */
@@ -230,11 +231,14 @@ public class QueryResource
         return Response.status(Response.Status.FORBIDDEN).header("Access-Check-Result", access).build();
       }
 
-      // concurrent hashmap
-      final Map<String, Object> responseContext = new MapMaker().makeMap();
+      Execs.SettableFuture future = new Execs.SettableFuture<Object>();
+      queryManager.registerQuery(query, future);
+
+      final Map<String, Object> responseContext = new ConcurrentHashMap<>();
       final Sequence results = prepared.run(texasRanger, responseContext);
 
-      final Yielder yielder = results.toYielder(
+      @SuppressWarnings("unchecked")
+      final Yielder yielder = Sequences.withBaggage(results, future).toYielder(
           null,
           new YieldingAccumulator()
           {

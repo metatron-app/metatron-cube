@@ -286,4 +286,25 @@ public class Execs
       return tag;
     }
   }
+
+  public static class SettableFuture<V> extends AbstractFuture<V> implements Closeable
+  {
+    @Override
+    public boolean set(@Nullable V value)
+    {
+      return super.set(value);
+    }
+
+    @Override
+    public boolean setException(Throwable throwable)
+    {
+      return super.setException(throwable);
+    }
+
+    @Override
+    public void close() throws IOException
+    {
+      set(null);
+    }
+  }
 }
