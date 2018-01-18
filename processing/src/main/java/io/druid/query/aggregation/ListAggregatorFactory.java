@@ -410,12 +410,6 @@ public class ListAggregatorFactory extends AggregatorFactory
   }
 
   @Override
-  public Object getAggregatorStartValue()
-  {
-    return Lists.newArrayList();
-  }
-
-  @Override
   public boolean providesEstimation()
   {
     return true;

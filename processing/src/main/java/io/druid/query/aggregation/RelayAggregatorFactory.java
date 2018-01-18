@@ -141,12 +141,6 @@ public class RelayAggregatorFactory extends AggregatorFactory
   }
 
   @Override
-  public Object getAggregatorStartValue()
-  {
-    return null;
-  }
-
-  @Override
   public boolean equals(Object o)
   {
     if (this == o) {

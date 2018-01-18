@@ -208,12 +208,6 @@ public class VarianceAggregatorFactory extends GenericAggregatorFactory
   }
 
   @Override
-  public Object getAggregatorStartValue()
-  {
-    return new VarianceAggregatorCollector();
-  }
-
-  @Override
   public Object combine(Object lhs, Object rhs)
   {
     return VarianceAggregatorCollector.combineValues(lhs, rhs);

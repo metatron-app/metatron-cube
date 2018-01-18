@@ -141,9 +141,4 @@ public class MetricAreaAggregatorFactory extends AggregatorFactory
     return Doubles.BYTES + Ints.BYTES + Doubles.BYTES;
   }
 
-  @Override
-  public Object getAggregatorStartValue()
-  {
-    return new MetricArea();
-  }
 }

@@ -212,12 +212,6 @@ public class DistinctCountAggregatorFactory extends AggregatorFactory
   }
 
   @Override
-  public Object getAggregatorStartValue()
-  {
-    return 0;
-  }
-
-  @Override
   public boolean equals(Object o)
   {
     if (this == o) {

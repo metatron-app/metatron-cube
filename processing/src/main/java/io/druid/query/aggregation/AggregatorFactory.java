@@ -143,14 +143,6 @@ public abstract class AggregatorFactory implements Cacheable
   public abstract int getMaxIntermediateSize();
 
   /**
-   * Returns the starting value for a corresponding aggregator. For example, 0 for sums, - Infinity for max, an empty mogrifier
-   *
-   * @return the starting value for a corresponding aggregator.
-   */
-  @Deprecated
-  public abstract Object getAggregatorStartValue();
-
-  /**
    * This AggregatorFactory returns EstimableAggregator which provides more closer estimation of memory usage in ingestion
    *
    * @return
@@ -176,37 +168,31 @@ public abstract class AggregatorFactory implements Cacheable
     if (aggregatorsList == null || aggregatorsList.isEmpty()) {
       return null;
     }
-
-    Map<String, AggregatorFactory> mergedAggregators = new LinkedHashMap<>();
-
     for (AggregatorFactory[] aggregators : aggregatorsList) {
+      if (aggregators == null) {
+        return null;
+      }
+    }
 
-      if (aggregators != null) {
+    final Map<String, AggregatorFactory> mergedAggregators = new LinkedHashMap<>();
+    try {
+      for (AggregatorFactory[] aggregators : aggregatorsList) {
         for (AggregatorFactory aggregator : aggregators) {
           String name = aggregator.getName();
-          if (mergedAggregators.containsKey(name)) {
-            AggregatorFactory other = mergedAggregators.get(name);
-            try {
-              mergedAggregators.put(name, other.getMergingFactory(aggregator));
-            }
-            catch (AggregatorFactoryNotMergeableException ex) {
-              log.warn(ex, "failed to merge aggregator factories");
-              mergedAggregators = null;
-              break;
-            }
+          AggregatorFactory other = mergedAggregators.get(name);
+          if (other != null) {
+            mergedAggregators.put(name, other.getMergingFactory(aggregator));
           } else {
             mergedAggregators.put(name, aggregator);
           }
         }
-      } else {
-        mergedAggregators = null;
-        break;
       }
+    } catch (AggregatorFactoryNotMergeableException ex) {
+      log.warn(ex, "failed to merge aggregator factories");
+      return null;
     }
 
-    return mergedAggregators == null
-           ? null
-           : mergedAggregators.values().toArray(new AggregatorFactory[mergedAggregators.size()]);
+    return mergedAggregators.values().toArray(new AggregatorFactory[mergedAggregators.size()]);
   }
 
   public static Map<String, AggregatorFactory> asMap(AggregatorFactory[] aggregators)

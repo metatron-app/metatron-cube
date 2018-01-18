@@ -170,12 +170,6 @@ public class RangeAggregatorFactory extends AggregatorFactory
   }
 
   @Override
-  public Object getAggregatorStartValue()
-  {
-    return delegateFactory.getAggregatorStartValue();
-  }
-
-  @Override
   public boolean equals(Object o)
   {
     if (this == o) {

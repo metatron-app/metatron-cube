@@ -368,12 +368,6 @@ public class GenericSketchAggregatorFactory extends AggregatorFactory
   }
 
   @Override
-  public Object getAggregatorStartValue()
-  {
-    return null;
-  }
-
-  @Override
   public List<String> requiredFields()
   {
     return Collections.singletonList(fieldName);

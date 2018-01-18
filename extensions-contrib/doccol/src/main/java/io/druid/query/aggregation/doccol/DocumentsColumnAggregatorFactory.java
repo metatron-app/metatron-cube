@@ -143,9 +143,4 @@ public class DocumentsColumnAggregatorFactory extends AggregatorFactory
     return DocumentsColumn.sizeMeta();
   }
 
-  @Override
-  public Object getAggregatorStartValue()
-  {
-    return new DocumentsColumn(compress);
-  }
 }

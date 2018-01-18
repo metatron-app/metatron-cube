@@ -159,12 +159,6 @@ public class TimestampMaxAggregatorFactory extends AggregatorFactory
   }
 
   @Override
-  public Object getAggregatorStartValue()
-  {
-    return Long.MIN_VALUE;
-  }
-
-  @Override
   public String toString()
   {
     return "TimestampMaxAggregatorFactory{" +

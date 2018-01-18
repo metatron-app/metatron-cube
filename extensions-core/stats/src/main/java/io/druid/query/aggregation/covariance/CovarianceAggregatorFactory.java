@@ -182,12 +182,6 @@ public class CovarianceAggregatorFactory extends AggregatorFactory
   }
 
   @Override
-  public Object getAggregatorStartValue()
-  {
-    return new CovarianceAggregatorCollector();
-  }
-
-  @Override
   public Object combine(Object lhs, Object rhs)
   {
     return CovarianceAggregatorCollector.combineValues(lhs, rhs);

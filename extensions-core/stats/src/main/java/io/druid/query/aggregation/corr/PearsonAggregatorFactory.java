@@ -182,12 +182,6 @@ public class PearsonAggregatorFactory extends AggregatorFactory
   }
 
   @Override
-  public Object getAggregatorStartValue()
-  {
-    return new PearsonAggregatorCollector();
-  }
-
-  @Override
   public Object combine(Object lhs, Object rhs)
   {
     return PearsonAggregatorCollector.combineValues(lhs, rhs);

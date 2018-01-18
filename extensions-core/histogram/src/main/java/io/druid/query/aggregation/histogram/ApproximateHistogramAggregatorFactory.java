@@ -292,12 +292,6 @@ public class ApproximateHistogramAggregatorFactory extends AggregatorFactory
     return getEmptyHistogram().getMaxStorageSize();
   }
 
-  @Override
-  public Object getAggregatorStartValue()
-  {
-    return getEmptyHistogram();
-  }
-
   private ApproximateHistogramHolder getEmptyHistogram() {
     return compact ? new ApproximateCompactHistogram(resolution) : new ApproximateHistogram(resolution);
   }

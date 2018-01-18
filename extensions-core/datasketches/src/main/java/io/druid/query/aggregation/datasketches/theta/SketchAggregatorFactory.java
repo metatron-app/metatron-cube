@@ -29,17 +29,14 @@ import com.yahoo.sketches.Family;
 import com.yahoo.sketches.Util;
 import com.yahoo.sketches.theta.SetOperation;
 import com.yahoo.sketches.theta.Sketch;
-import com.yahoo.sketches.theta.Sketches;
 import com.yahoo.sketches.theta.Union;
 import io.druid.data.ValueDesc;
 import io.druid.query.aggregation.Aggregator;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.BufferAggregator;
 import io.druid.query.dimension.DefaultDimensionSpec;
-import io.druid.query.dimension.DimensionSpec;
 import io.druid.segment.ColumnSelectorFactory;
 import io.druid.segment.DimensionSelector;
-import io.druid.segment.ObjectColumnSelector;
 
 import java.nio.ByteBuffer;
 import java.util.Collections;
@@ -162,12 +159,6 @@ public abstract class SketchAggregatorFactory extends AggregatorFactory
   public int getMaxIntermediateSize()
   {
     return SetOperation.getMaxUnionBytes(size);
-  }
-
-  @Override
-  public Object getAggregatorStartValue()
-  {
-    return Sketches.updateSketchBuilder().build(size);
   }
 
   @Override

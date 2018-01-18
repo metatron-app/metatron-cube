@@ -166,12 +166,6 @@ public class KurtosisAggregatorFactory extends AggregatorFactory
   }
 
   @Override
-  public Object getAggregatorStartValue()
-  {
-    return new KurtosisAggregatorCollector();
-  }
-
-  @Override
   public Object combine(Object lhs, Object rhs)
   {
     return KurtosisAggregatorCollector.combineValues(lhs, rhs);

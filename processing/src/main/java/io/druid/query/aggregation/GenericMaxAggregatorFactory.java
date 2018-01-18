@@ -138,12 +138,6 @@ public class GenericMaxAggregatorFactory extends GenericAggregatorFactory
   }
 
   @Override
-  public final Object getAggregatorStartValue()
-  {
-    return Double.NEGATIVE_INFINITY;
-  }
-
-  @Override
   @SuppressWarnings("unchecked")
   public final Object combine(Object lhs, Object rhs)
   {

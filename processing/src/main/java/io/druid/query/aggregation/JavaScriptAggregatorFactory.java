@@ -244,12 +244,6 @@ public class JavaScriptAggregatorFactory extends AggregatorFactory
   }
 
   @Override
-  public Object getAggregatorStartValue()
-  {
-    return getCompiledScript().reset();
-  }
-
-  @Override
   public String toString()
   {
     return "JavaScriptAggregatorFactory{" +

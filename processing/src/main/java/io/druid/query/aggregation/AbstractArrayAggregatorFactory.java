@@ -22,7 +22,6 @@ package io.druid.query.aggregation;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
-import com.google.common.collect.Lists;
 import com.google.common.primitives.Ints;
 import com.metamx.common.StringUtils;
 import com.metamx.common.logger.Logger;
@@ -173,12 +172,6 @@ public abstract class AbstractArrayAggregatorFactory extends AggregatorFactory
   public int getMaxIntermediateSize()
   {
     return delegate.getMaxIntermediateSize() * limit;
-  }
-
-  @Override
-  public Object getAggregatorStartValue()
-  {
-    return Lists.newArrayList();
   }
 
   @Override

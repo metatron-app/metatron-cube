@@ -140,9 +140,4 @@ public class MetricRangeAggregatorFactory extends AggregatorFactory
     return Doubles.BYTES * 2;
   }
 
-  @Override
-  public Object getAggregatorStartValue()
-  {
-    return new MetricRange();
-  }
 }

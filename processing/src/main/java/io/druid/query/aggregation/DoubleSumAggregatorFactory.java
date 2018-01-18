@@ -204,12 +204,6 @@ public class DoubleSumAggregatorFactory extends AggregatorFactory
   }
 
   @Override
-  public Object getAggregatorStartValue()
-  {
-    return 0;
-  }
-
-  @Override
   public String toString()
   {
     return "DoubleSumAggregatorFactory{" +

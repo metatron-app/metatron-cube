@@ -177,12 +177,6 @@ public class DoubleMinAggregatorFactory extends AggregatorFactory
   }
 
   @Override
-  public Object getAggregatorStartValue()
-  {
-    return Double.POSITIVE_INFINITY;
-  }
-
-  @Override
   public String toString()
   {
     return "DoubleMinAggregatorFactory{" +

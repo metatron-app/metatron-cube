@@ -241,7 +241,6 @@ public class HyperUniquesAggregatorFactory extends AggregatorFactory
     return HyperLogLogCollector.getLatestNumBytesForDenseStorage();
   }
 
-  @Override
   public Object getAggregatorStartValue()
   {
     return HyperLogLogCollector.makeLatestCollector();

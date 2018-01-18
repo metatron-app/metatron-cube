@@ -271,12 +271,6 @@ public class CardinalityAggregatorFactory extends AggregatorFactory
   }
 
   @Override
-  public Object getAggregatorStartValue()
-  {
-    return HyperLogLogCollector.makeLatestCollector();
-  }
-
-  @Override
   public boolean equals(Object o)
   {
     if (this == o) {

@@ -172,12 +172,6 @@ public class LongMinAggregatorFactory extends AggregatorFactory
   }
 
   @Override
-  public Object getAggregatorStartValue()
-  {
-    return Long.MAX_VALUE;
-  }
-
-  @Override
   public String toString()
   {
     return "LongMinAggregatorFactory{" +

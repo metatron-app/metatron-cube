@@ -179,12 +179,6 @@ public class GenericSumAggregatorFactory extends GenericAggregatorFactory
   }
 
   @Override
-  public final Object getAggregatorStartValue()
-  {
-    return 0D;
-  }
-
-  @Override
   public final Object deserialize(Object object)
   {
     if (handleDecimal && object instanceof String) {

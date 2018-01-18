@@ -171,12 +171,6 @@ public class HistogramAggregatorFactory extends AggregatorFactory
   }
 
   @Override
-  public Object getAggregatorStartValue()
-  {
-    return new Histogram(breaks);
-  }
-
-  @Override
   public String toString()
   {
     return "HistogramAggregatorFactory{" +
