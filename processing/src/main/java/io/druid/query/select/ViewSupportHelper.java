@@ -214,8 +214,15 @@ public class ViewSupportHelper
     final RowResolver resolver = new RowResolver(adapter, virtualColumns);
 
     final List<ValueDesc> columnTypes = Lists.newArrayList();
-    for (String columnName : Iterables.concat(dimensions, metrics)) {
-      columnTypes.add(resolver.resolveColumn(columnName, ValueDesc.UNKNOWN));
+    for (DimensionSpec dimensionSpec : query.getDimensions()) {
+      if (dimensionSpec.getExtractionFn() == null) {
+        columnTypes.add(resolver.resolveColumn(dimensionSpec.getDimension(), ValueDesc.UNKNOWN));
+      } else {
+        columnTypes.add(ValueDesc.STRING);
+      }
+    }
+    for (String metric : metrics) {
+      columnTypes.add(resolver.resolveColumn(metric, ValueDesc.UNKNOWN));
     }
     List<AggregatorFactory> aggregators = Lists.newArrayList();
     if (adapter.getMetadata() != null && adapter.getMetadata().getAggregators() != null) {

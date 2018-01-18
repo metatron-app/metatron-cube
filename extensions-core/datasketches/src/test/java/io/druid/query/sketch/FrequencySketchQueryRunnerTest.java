@@ -207,7 +207,7 @@ public class FrequencySketchQueryRunnerTest
   @Test
   public void testSketchQuery() throws Exception
   {
-    SketchQuery query = new SketchQuery(
+    SketchQuery baseQuery = new SketchQuery(
         new TableDataSource(QueryRunnerTestHelper.dataSource),
         QueryRunnerTestHelper.fullOnInterval,
         null,
@@ -216,29 +216,34 @@ public class FrequencySketchQueryRunnerTest
         null, 16, SketchOp.FREQUENCY, null
     );
 
-    List<Result<Map<String, Object>>> result = Sequences.toList(
-        runner.run(query, null),
-        Lists.<Result<Map<String, Object>>>newArrayList()
-    );
-    Assert.assertEquals(1, result.size());
-    Map<String, Object> values = result.get(0).getValue();
-    TypedSketch<ItemsSketch> sketch1 = (TypedSketch<ItemsSketch>) values.get("market");
-    System.out.println(sketch1);
-    Assert.assertEquals(187L, sketch1.value().getEstimate("upfront"), 5);
-    Assert.assertEquals(838L, sketch1.value().getEstimate("spot"), 5);
-    Assert.assertEquals(187L, sketch1.value().getEstimate("total_market"), 5);
+    for (boolean includeMetric : new boolean[] {false, true}) {
+      SketchQuery query = baseQuery.withOverriddenContext(
+          ImmutableMap.<String, Object>of(Query.ALL_METRICS_FOR_EMPTY, includeMetric)
+      );
+      List<Result<Map<String, Object>>> result = Sequences.toList(
+          runner.run(query, null),
+          Lists.<Result<Map<String, Object>>>newArrayList()
+      );
+      Assert.assertEquals(1, result.size());
+      Map<String, Object> values = result.get(0).getValue();
+      TypedSketch<ItemsSketch> sketch1 = (TypedSketch<ItemsSketch>) values.get("market");
+      System.out.println(sketch1);
+      Assert.assertEquals(187L, sketch1.value().getEstimate("upfront"), 5);
+      Assert.assertEquals(838L, sketch1.value().getEstimate("spot"), 5);
+      Assert.assertEquals(187L, sketch1.value().getEstimate("total_market"), 5);
 
-    TypedSketch<ItemsSketch> sketch2 = (TypedSketch<ItemsSketch>) values.get("quality");
-    System.out.println(sketch2);
-    Assert.assertEquals(94L, sketch2.value().getEstimate("entertainment"), 5);
-    Assert.assertEquals(280L, sketch2.value().getEstimate("mezzanine"), 5);
-    Assert.assertEquals(280L, sketch2.value().getEstimate("premium"), 5);
-    Assert.assertEquals(94L, sketch2.value().getEstimate("business"), 5);
-    Assert.assertEquals(94L, sketch2.value().getEstimate("news"), 5);
-    Assert.assertEquals(94L, sketch2.value().getEstimate("technology"), 5);
-    Assert.assertEquals(94L, sketch2.value().getEstimate("automotive"), 5);
-    Assert.assertEquals(94L, sketch2.value().getEstimate("travel"), 5);
-    Assert.assertEquals(94L, sketch2.value().getEstimate("health"), 5);
+      TypedSketch<ItemsSketch> sketch2 = (TypedSketch<ItemsSketch>) values.get("quality");
+      System.out.println(sketch2);
+      Assert.assertEquals(94L, sketch2.value().getEstimate("entertainment"), 5);
+      Assert.assertEquals(280L, sketch2.value().getEstimate("mezzanine"), 5);
+      Assert.assertEquals(280L, sketch2.value().getEstimate("premium"), 5);
+      Assert.assertEquals(94L, sketch2.value().getEstimate("business"), 5);
+      Assert.assertEquals(94L, sketch2.value().getEstimate("news"), 5);
+      Assert.assertEquals(94L, sketch2.value().getEstimate("technology"), 5);
+      Assert.assertEquals(94L, sketch2.value().getEstimate("automotive"), 5);
+      Assert.assertEquals(94L, sketch2.value().getEstimate("travel"), 5);
+      Assert.assertEquals(94L, sketch2.value().getEstimate("health"), 5);
+    }
   }
 
     @Test

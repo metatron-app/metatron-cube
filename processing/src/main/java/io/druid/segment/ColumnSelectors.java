@@ -24,6 +24,7 @@ import io.druid.common.guava.DSuppliers;
 import io.druid.common.utils.StringUtils;
 import io.druid.data.ValueDesc;
 import io.druid.data.ValueType;
+import io.druid.math.expr.Evals;
 import io.druid.query.dimension.DefaultDimensionSpec;
 import io.druid.query.filter.MathExprFilter;
 import io.druid.query.filter.ValueMatcher;
@@ -240,6 +241,24 @@ public class ColumnSelectors
       public long get()
       {
         return selector.get().asLong();
+      }
+    };
+  }
+
+  public static ObjectColumnSelector wrapAsObjectSelector(final ExprEvalColumnSelector selector, final ValueDesc castTo)
+  {
+    return new ObjectColumnSelector()
+    {
+      @Override
+      public ValueDesc type()
+      {
+        return castTo;
+      }
+
+      @Override
+      public Object get()
+      {
+        return Evals.castTo(selector.get(), castTo);
       }
     };
   }

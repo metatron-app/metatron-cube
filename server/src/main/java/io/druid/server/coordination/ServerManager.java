@@ -374,7 +374,7 @@ public class ServerManager implements QuerySegmentWalker
       List<Pair<SegmentDescriptor, ReferenceCountingSegment>> segments
   )
   {
-    log.info("Running query [%s] on [%d] segments", query.getId(), segments.size());
+    log.info("Running query [%s:%s] on [%d] segments", query.getType(), query.getId(), segments.size());
 
     final QueryRunnerFactory<T, Query<T>> factory = conglomerate.findFactory(query);
     if (factory == null) {

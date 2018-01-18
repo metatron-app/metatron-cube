@@ -25,15 +25,15 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+import com.metamx.common.Pair;
 import com.metamx.common.guava.Accumulator;
 import com.metamx.common.guava.Sequence;
 import com.metamx.common.guava.Sequences;
 import com.metamx.common.logger.Logger;
+import io.druid.data.ValueDesc;
 import io.druid.query.filter.BoundDimFilter;
 import io.druid.query.filter.DimFilter;
 import io.druid.query.filter.DimFilters;
-import io.druid.query.metadata.metadata.ColumnAnalysis;
-import io.druid.query.metadata.metadata.ColumnIncluderator;
 import io.druid.query.metadata.metadata.NoneColumnIncluderator;
 import io.druid.query.metadata.metadata.SegmentAnalysis;
 import io.druid.query.metadata.metadata.SegmentMetadataQuery;
@@ -41,7 +41,6 @@ import io.druid.query.select.Schema;
 import io.druid.query.select.SelectMetaQuery;
 import io.druid.query.select.SelectMetaResultValue;
 import io.druid.query.spec.QuerySegmentSpec;
-import io.druid.segment.VirtualColumn;
 import org.apache.commons.lang.mutable.MutableInt;
 import org.joda.time.Interval;
 
@@ -146,43 +145,33 @@ public class QueryUtils
   }
 
   @SuppressWarnings("unchecked")
-  public static Map<String, Map<String, MutableInt>> analyzeTypes(QuerySegmentWalker segmentWalker, Query query)
+  public static Map<String, Map<ValueDesc, MutableInt>> analyzeTypes(QuerySegmentWalker segmentWalker, Query query)
   {
-    List<VirtualColumn> vcs = null;
-    if (query instanceof Query.DimensionSupport) {
-      vcs = ((Query.DimensionSupport)query).getVirtualColumns();
-    }
-    SegmentMetadataQuery metaQuery = new SegmentMetadataQuery(
-        query.getDataSource(),
-        query.getQuerySegmentSpec(),
-        vcs,
-        ColumnIncluderator.ALL,
-        false,
-        Queries.extractContext(query, BaseQuery.QUERYID),
-        EnumSet.noneOf(SegmentMetadataQuery.AnalysisType.class),
-        false,
-        false
-    );
+    SelectMetaQuery metaQuery = SelectMetaQuery.forQuery(query, true);
 
-    Sequence<SegmentAnalysis> sequence = metaQuery.run(segmentWalker, Maps.<String, Object>newHashMap());
-    final Map<String, Map<String, MutableInt>> results = Maps.newHashMap();
+    Sequence sequence = metaQuery.run(segmentWalker, Maps.<String, Object>newHashMap());
+    final Map<String, Map<ValueDesc, MutableInt>> results = Maps.newHashMap();
     sequence.accumulate(
-        null, new Accumulator<Object, SegmentAnalysis>()
+        null, new Accumulator<Object, Result<BySegmentResultValue<Result<SelectMetaResultValue>>>>()
         {
           @Override
-          public Object accumulate(Object accumulated, SegmentAnalysis in)
+          public Object accumulate(Object accumulated, Result<BySegmentResultValue<Result<SelectMetaResultValue>>> in)
           {
-            for (Map.Entry<String, ColumnAnalysis> entry : in.getColumns().entrySet()) {
-              Map<String, MutableInt> counters = results.get(entry.getKey());
-              if (counters == null) {
-                results.put(entry.getKey(), counters = Maps.newHashMap());
+            BySegmentResultValue<Result<SelectMetaResultValue>> bySegment = in.getValue();
+            for (Result<SelectMetaResultValue> result : bySegment.getResults()) {
+              SelectMetaResultValue value = result.getValue();
+              for (Pair<String, ValueDesc> pair : value.getSchema().columnAndTypes()) {
+                Map<ValueDesc, MutableInt> counters = results.get(pair.lhs);
+                if (counters == null) {
+                  results.put(pair.lhs, counters = Maps.newHashMap());
+                }
+                ValueDesc type = pair.rhs;
+                MutableInt counter = counters.get(type);
+                if (counter == null) {
+                  counters.put(type, counter = new MutableInt());
+                }
+                counter.increment();
               }
-              String type = entry.getValue().getType();
-              MutableInt counter = counters.get(type);
-              if (counter == null) {
-                counters.put(type, counter = new MutableInt());
-              }
-              counter.increment();
             }
             return accumulated;
           }
@@ -191,12 +180,12 @@ public class QueryUtils
     return results;
   }
 
-  public static Map<String, String> toMajorType(Map<String, Map<String, MutableInt>> types)
+  public static Map<String, ValueDesc> toMajorType(Map<String, Map<ValueDesc, MutableInt>> types)
   {
-    Map<String, String> majorTypes = Maps.newHashMap();
-    for (Map.Entry<String, Map<String, MutableInt>> entry : types.entrySet()) {
+    Map<String, ValueDesc> majorTypes = Maps.newHashMap();
+    for (Map.Entry<String, Map<ValueDesc, MutableInt>> entry : types.entrySet()) {
       String column = entry.getKey();
-      Map<String, MutableInt> value = entry.getValue();
+      Map<ValueDesc, MutableInt> value = entry.getValue();
       if (value.isEmpty()) {
         continue;
       }
@@ -205,8 +194,8 @@ public class QueryUtils
         continue;
       }
       int max = -1;
-      String major = null;
-      for (Map.Entry<String, MutableInt> x : value.entrySet()) {
+      ValueDesc major = null;
+      for (Map.Entry<ValueDesc, MutableInt> x : value.entrySet()) {
         int count = x.getValue().intValue();
         if (max < 0 || max <= count) {
           major = x.getKey();
@@ -256,21 +245,23 @@ public class QueryUtils
 
   public static Schema resolveSchema(Query<?> query, QuerySegmentWalker segmentWalker)
   {
-    SelectMetaQuery metaQuery = SelectMetaQuery.forSchema(
-        TableDataSource.of(Iterables.getOnlyElement(query.getDataSource().getNames())),
-        query.getQuerySegmentSpec(),
-        query.getId()
+    return getSchema(
+        SelectMetaQuery.forSchema(
+            query.getDataSource(),
+            query.getQuerySegmentSpec(),
+            query.getId()
+        ), segmentWalker
     );
+  }
 
+  private static Schema getSchema(SelectMetaQuery metaQuery, QuerySegmentWalker segmentWalker)
+  {
     Result<SelectMetaResultValue> result = Iterables.getOnlyElement(
         Sequences.toList(
             metaQuery.run(segmentWalker, Maps.<String, Object>newHashMap()),
             Lists.<Result<SelectMetaResultValue>>newArrayList()
         ), null
     );
-    if (result == null) {
-      return Schema.EMPTY;
-    }
-    return result.getValue().getSchema();
+    return result == null ? Schema.EMPTY : result.getValue().getSchema();
   }
 }

@@ -42,6 +42,9 @@ public interface QueryContextKeys
   public static final String FORWARD_URL = "forwardURL";
   public static final String FORWARD_CONTEXT = "forwardContext";
 
+  // for sketch
+  public static final String MAJOR_TYPES = "majorTypes";
+
   // forward context
   public static final String FORWARD_TIMESTAMP_COLUMN = "timestampColumn";
   public static final String FORWARD_PARALLEL = "parallel";

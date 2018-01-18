@@ -81,15 +81,15 @@ public class CovarianceQuery extends BaseQuery<Result<Map<String, Object>>>
   @SuppressWarnings("unchecked")
   public Query rewriteQuery(QuerySegmentWalker segmentWalker, ObjectMapper jsonMapper)
   {
-    Map<String, String> majorTypes = QueryUtils.toMajorType(QueryUtils.analyzeTypes(segmentWalker, this));
+    Map<String, ValueDesc> majorTypes = QueryUtils.toMajorType(QueryUtils.analyzeTypes(segmentWalker, this));
 
     List<AggregatorFactory> aggregators = Lists.newArrayList();
-    for (Map.Entry<String, String> entry : majorTypes.entrySet()) {
+    for (Map.Entry<String, ValueDesc> entry : majorTypes.entrySet()) {
       String target = entry.getKey();
       if (column.equals(target) || excludes.contains(target)) {
         continue;
       }
-      if (ValueDesc.of(entry.getValue()).type().isNumeric()) {
+      if (ValueDesc.isNumeric(entry.getValue())) {
         aggregators.add(new PearsonAggregatorFactory(target, column, target, null, "double"));
       }
     }

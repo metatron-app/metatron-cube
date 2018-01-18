@@ -28,6 +28,7 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Maps;
 import io.druid.data.ValueDesc;
+import io.druid.data.ValueType;
 import io.druid.query.BaseQuery;
 import io.druid.query.DataSource;
 import io.druid.query.Query;
@@ -83,61 +84,69 @@ public class SummaryQuery extends BaseQuery<Result<Map<String, Object>>>
   @SuppressWarnings("unchecked")
   public Query rewriteQuery(QuerySegmentWalker segmentWalker, ObjectMapper jsonMapper)
   {
-    final Map<String, Map<String, MutableInt>> results = QueryUtils.analyzeTypes(segmentWalker, this);
-    Map<String, String> majorTypes = Maps.newHashMap();
+    Map<String, Map<ValueDesc, MutableInt>> results = QueryUtils.analyzeTypes(segmentWalker, this);
+
+    Map<String, ValueDesc> majorTypes = Maps.newHashMap();
     Map<String, Map<String, Integer>> typeDetail = Maps.newHashMap();
-    for (Map.Entry<String, Map<String, MutableInt>> entry : results.entrySet()) {
+
+    for (Map.Entry<String, Map<ValueDesc, MutableInt>> entry : results.entrySet()) {
       String column = entry.getKey();
-      Map<String, MutableInt> value = entry.getValue();
-      if (value.size() == 1) {
-        String type = Iterables.getOnlyElement(value.keySet());
-        ValueDesc valueDesc = ValueDesc.of(type);
-        if (ValueDesc.isDimension(valueDesc)) {
-          type = ValueDesc.typeOfDimension(valueDesc).toString();
+      Map<ValueDesc, MutableInt> value = Maps.newHashMap();
+      boolean containsComplex = false;
+      for (Map.Entry<ValueDesc, MutableInt> e : entry.getValue().entrySet()) {
+        ValueDesc type = e.getKey();
+        if (ValueDesc.isDimension(type)) {
+          type = ValueDesc.STRING;
         }
+        value.put(type, e.getValue());
+        containsComplex |= type.type() == ValueType.COMPLEX;
+      }
+      if (value.size() == 1) {
+        ValueDesc type = containsComplex ? ValueDesc.STRING : Iterables.getOnlyElement(value.keySet());
         MutableInt count = Iterables.getOnlyElement(value.values());
         majorTypes.put(column, type);
-        typeDetail.put(column, ImmutableMap.of(type, count.intValue()));
+        typeDetail.put(column, ImmutableMap.of(type.typeName(), count.intValue()));
         continue;
       }
-      int max = -1;
-      String major = null;
-      Map<String, Integer> detail = Maps.newHashMap();
-      for (Map.Entry<String, MutableInt> x : value.entrySet()) {
-        String type = x.getKey();
-        int count = x.getValue().intValue();
-        if (max < 0 || max <= count) {
-          max = count;
-          major = type;
-        }
-        detail.put(type, count);
+      ValueDesc major;
+      if (containsComplex || value.containsKey(ValueDesc.STRING)) {
+        major = ValueDesc.STRING;
+      } else if (value.containsKey(ValueDesc.DOUBLE)) {
+        major = ValueDesc.DOUBLE;
+      } else if (value.containsKey(ValueDesc.FLOAT)) {
+        major = ValueDesc.FLOAT;
+      } else {
+        major = ValueDesc.LONG;
       }
-      ValueDesc valueDesc = ValueDesc.of(major);
-      if (ValueDesc.isDimension(valueDesc)) {
-        major = ValueDesc.typeOfDimension(valueDesc).toString();
+      Map<String, Integer> detail = Maps.newHashMap();
+      for (Map.Entry<ValueDesc, MutableInt> e : value.entrySet()) {
+        detail.put(e.getKey().typeName(), e.getValue().intValue());
       }
       majorTypes.put(column, major);
       typeDetail.put(column, detail);
     }
 
-    Map<String, Object> context = Maps.newHashMap(getContext());
-    context.put("majorTypes", majorTypes);
+    Map<String, Object> sketchContext = Maps.newHashMap(getContext());
+    sketchContext.put(Query.MAJOR_TYPES, majorTypes);
+    sketchContext.put(Query.ALL_DIMENSIONS_FOR_EMPTY, allDimensionsForEmpty(this, false));
+    sketchContext.put(Query.ALL_METRICS_FOR_EMPTY, allMetricsForEmpty(this, false));
 
     SketchQuery quantile = new SketchQuery(
         getDataSource(), getQuerySegmentSpec(), dimFilter, virtualColumns, dimensions, metrics, 8192, SketchOp.QUANTILE,
-        Maps.newHashMap(context)
+        Maps.newHashMap(sketchContext)
     );
     SketchQuery theta = new SketchQuery(
         getDataSource(), getQuerySegmentSpec(), dimFilter, virtualColumns, dimensions, metrics, null, SketchOp.THETA,
-        Maps.newHashMap(context)
+        Maps.newHashMap(sketchContext)
     );
+
     Map<String, Object> postProcessor = ImmutableMap.<String, Object>of(
         QueryContextKeys.POST_PROCESSING,
         ImmutableMap.of("type", "sketch.summary", "includeTimeStats", includeTimeStats, "typeDetail", typeDetail)
     );
-    Map<String, Object> joinContext = computeOverridenContext(postProcessor);
+    Map<String, Object> summaryContext = computeOverridenContext(postProcessor);
 
-    return new UnionAllQuery(null, Arrays.asList(quantile, theta), false, -1, -1, -1, joinContext);
+    return new UnionAllQuery(null, Arrays.asList(quantile, theta), false, -1, 2, -1, summaryContext);
   }
 
   @Override

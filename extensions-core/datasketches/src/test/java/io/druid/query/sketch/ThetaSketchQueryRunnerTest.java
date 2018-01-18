@@ -30,6 +30,7 @@ import com.yahoo.sketches.theta.SetOperation;
 import com.yahoo.sketches.theta.Sketch;
 import com.yahoo.sketches.theta.Union;
 import io.druid.data.ValueType;
+import io.druid.query.Query;
 import io.druid.query.QueryRunner;
 import io.druid.query.QueryRunnerTestHelper;
 import io.druid.query.Result;
@@ -183,20 +184,25 @@ public class ThetaSketchQueryRunnerTest
   @Test
   public void testSketchQuery() throws Exception
   {
-    SketchQuery query = new SketchQuery(
+    SketchQuery baseQuery = new SketchQuery(
         new TableDataSource(QueryRunnerTestHelper.dataSource),
         QueryRunnerTestHelper.fullOnInterval,
         null, null, DefaultDimensionSpec.toSpec("market", "quality"), null, 16, null, null
     );
 
-    List<Result<Map<String, Object>>> result = Sequences.toList(
-        runner.run(query, null),
-        Lists.<Result<Map<String, Object>>>newArrayList()
-    );
-    Assert.assertEquals(1, result.size());
-    Map<String, Object> values = result.get(0).getValue();
-    Assert.assertEquals(3, ((TypedSketch<Sketch>) values.get("market")).value().getEstimate(), 0.001);
-    Assert.assertEquals(9, ((TypedSketch<Sketch>) values.get("quality")).value().getEstimate(), 0.001);
+    for (boolean includeMetric : new boolean[] {false, true}) {
+      SketchQuery query = baseQuery.withOverriddenContext(
+          ImmutableMap.<String, Object>of(Query.ALL_METRICS_FOR_EMPTY, includeMetric)
+      );
+      List<Result<Map<String, Object>>> result = Sequences.toList(
+          runner.run(query, null),
+          Lists.<Result<Map<String, Object>>>newArrayList()
+      );
+      Assert.assertEquals(1, result.size());
+      Map<String, Object> values = result.get(0).getValue();
+      Assert.assertEquals(3, ((TypedSketch<Sketch>) values.get("market")).value().getEstimate(), 0.001);
+      Assert.assertEquals(9, ((TypedSketch<Sketch>) values.get("quality")).value().getEstimate(), 0.001);
+    }
   }
 
   @Test

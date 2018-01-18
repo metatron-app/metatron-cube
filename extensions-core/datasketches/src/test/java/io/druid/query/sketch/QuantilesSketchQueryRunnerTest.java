@@ -210,22 +210,27 @@ public class QuantilesSketchQueryRunnerTest
   @Test
   public void testSketchQuery() throws Exception
   {
-    SketchQuery query = new SketchQuery(
+    SketchQuery baseQuery = new SketchQuery(
         new TableDataSource(QueryRunnerTestHelper.dataSource),
         QueryRunnerTestHelper.fullOnInterval,
         null, null, DefaultDimensionSpec.toSpec("market", "quality"), null, 16, SketchOp.QUANTILE, null
     );
 
-    List<Result<Map<String, Object>>> result = Sequences.toList(
-        runner.run(query, null),
-        Lists.<Result<Map<String, Object>>>newArrayList()
-    );
-    Assert.assertEquals(1, result.size());
-    Map<String, Object> values = result.get(0).getValue();
-    TypedSketch<ItemsSketch> sketch1 = (TypedSketch<ItemsSketch>) values.get("market");
-    TypedSketch<ItemsSketch> sketch2 = (TypedSketch<ItemsSketch>) values.get("quality");
-    Assert.assertEquals("spot", sketch1.value().getQuantile(0.5d));
-    Assert.assertEquals("mezzanine", sketch2.value().getQuantile(0.5d));
+    for (boolean includeMetric : new boolean[] {false, true}) {
+      SketchQuery query = baseQuery.withOverriddenContext(
+          ImmutableMap.<String, Object>of(Query.ALL_METRICS_FOR_EMPTY, includeMetric)
+      );
+      List<Result<Map<String, Object>>> result = Sequences.toList(
+          runner.run(query, null),
+          Lists.<Result<Map<String, Object>>>newArrayList()
+      );
+      Assert.assertEquals(1, result.size());
+      Map<String, Object> values = result.get(0).getValue();
+      TypedSketch<ItemsSketch> sketch1 = (TypedSketch<ItemsSketch>) values.get("market");
+      TypedSketch<ItemsSketch> sketch2 = (TypedSketch<ItemsSketch>) values.get("quality");
+      Assert.assertEquals("spot", sketch1.value().getQuantile(0.5d));
+      Assert.assertEquals("mezzanine", sketch2.value().getQuantile(0.5d));
+    }
   }
 
   @Test

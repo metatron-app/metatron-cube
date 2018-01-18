@@ -45,6 +45,7 @@ import io.druid.query.filter.BitmapIndexSelector;
 import io.druid.query.filter.DimFilter;
 import io.druid.query.select.ViewSupportHelper;
 import io.druid.segment.ColumnSelectorBitmapIndexSelector;
+import io.druid.segment.ColumnSelectors;
 import io.druid.segment.Cursor;
 import io.druid.segment.DimensionSelector;
 import io.druid.segment.ObjectColumnSelector;
@@ -78,7 +79,7 @@ public class SketchQueryRunner implements QueryRunner<Result<Map<String, Object>
   @Override
   public Sequence<Result<Map<String, Object>>> run(
       final Query<Result<Map<String, Object>>> input,
-      Map<String, Object> responseContext
+      final Map<String, Object> responseContext
   )
   {
     if (!(input instanceof SketchQuery)) {
@@ -86,10 +87,16 @@ public class SketchQueryRunner implements QueryRunner<Result<Map<String, Object>
     }
     SketchQuery baseQuery = (SketchQuery) input;
     final SketchQuery query = (SketchQuery) ViewSupportHelper.rewrite(baseQuery, segment.asStorageAdapter(true));
-    final Map<String, String> majorTypes = baseQuery.getContextValue("majorTypes", ImmutableMap.<String, String>of());
+    final Map<String, String> contextTypes = baseQuery.getContextValue(
+        Query.MAJOR_TYPES, ImmutableMap.<String, String>of()
+    );
+    final Map<String, ValueDesc> majorTypes = Maps.newHashMap();
+    for (Map.Entry<String, String> entry : contextTypes.entrySet()) {
+      majorTypes.put(entry.getKey(), ValueDesc.of(entry.getValue()));
+    }
 
     final List<DimensionSpec> dimensions = query.getDimensions();
-    final List<String> metrics = query.getMetrics();
+    final List<String> metrics = Lists.newArrayList(query.getMetrics());
     final DimFilter filter = query.getFilter();
     final int sketchParam = query.getSketchParam();
     final SketchHandler<?> handler = query.getSketchOp().handler();
@@ -113,8 +120,8 @@ public class SketchQueryRunner implements QueryRunner<Result<Map<String, Object>
         if (column == null) {
           continue;
         }
-        String majorType = majorTypes.get(spec.getDimension());
-        if (majorType != null && !majorType.equalsIgnoreCase(ValueDesc.STRING_TYPE)) {
+        ValueDesc majorType = majorTypes.get(spec.getDimension());
+        if (majorType != null && !ValueDesc.isString(majorType)) {
           LOG.info(
               "Skipping %s, which is expected to be %s type but %s type",
               spec.getDimension(), majorType, ValueDesc.STRING_TYPE
@@ -166,7 +173,7 @@ public class SketchQueryRunner implements QueryRunner<Result<Map<String, Object>
   }
 
   private Accumulator<Map<String, TypedSketch>, Cursor> createAccumulator(
-      final Map<String, String> majorTypes,
+      final Map<String, ValueDesc> majorTypes,
       final List<DimensionSpec> dimensions,
       final List<String> metrics,
       final int nomEntries,
@@ -181,8 +188,8 @@ public class SketchQueryRunner implements QueryRunner<Result<Map<String, Object>
         final List<DimensionSelector> dimSelectors = Lists.newArrayList();
         final List<TypedSketch> sketches = Lists.newArrayList();
         for (DimensionSpec dimension : dimensions) {
-          String majorType = majorTypes.get(dimension.getDimension());
-          if (majorType != null && !majorType.equalsIgnoreCase(ValueDesc.STRING_TYPE)) {
+          ValueDesc majorType = majorTypes.get(dimension.getDimension());
+          if (majorType != null && !ValueDesc.isString(majorType)) {
             LOG.info(
                 "Skipping %s, which is expected to be %s type but %s type",
                 dimension.getDimension(), majorType, ValueDesc.STRING_TYPE
@@ -200,14 +207,20 @@ public class SketchQueryRunner implements QueryRunner<Result<Map<String, Object>
         for (String metric : metrics) {
           TypedSketch union = prev.get(metric);
           ValueDesc type = cursor.getColumnType(metric);
-          String majorType = majorTypes.get(metric);
-          if (majorType != null && type != null && !majorType.equalsIgnoreCase(type.typeName())) {
-            LOG.info("Skipping %s, which is expected to be %s type but %s type", metric, majorType, type);
+          ValueDesc majorType = majorTypes.get(metric);
+          if (type == null) {
             sketches.add(union);
             metricSelectors.add(null);
             continue;
           }
-          ObjectColumnSelector selector = cursor.makeObjectColumnSelector(metric);
+          ObjectColumnSelector selector;
+          if (majorType == null || majorType.equals(type)) {
+            selector = cursor.makeObjectColumnSelector(metric);
+          } else {
+            selector = ColumnSelectors.wrapAsObjectSelector(
+                cursor.makeMathExpressionSelector('"' + metric + '"'), majorType
+            );
+          }
           if (selector == null || !handler.supports(selector.type().type())) {
             sketches.add(union);
             metricSelectors.add(null);

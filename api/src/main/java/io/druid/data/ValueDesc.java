@@ -306,6 +306,11 @@ public class ValueDesc
     return type != null && type.type == ValueType.STRING;
   }
 
+  public static boolean isStringOrDimension(ValueDesc type)
+  {
+    return type != null && (type.type == ValueType.STRING || ValueDesc.isDimension(type));
+  }
+
   public static boolean isPrimitive(ValueDesc type)
   {
     return type != null && type.type.isPrimitive();
