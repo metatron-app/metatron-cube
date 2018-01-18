@@ -92,7 +92,7 @@ public class SegmentAnalyzerTest
 
       Assert.assertEquals(
           metric,
-          metric.equals("index") ? ValueDesc.DOUBLE_TYPE : ValueDesc.FLOAT_TYPE,
+          metric.equals("index") || metric.equals("indexMaxPlusTen") ? ValueDesc.DOUBLE_TYPE : ValueDesc.FLOAT_TYPE,
           columnAnalysis.getType()
       );
       if (analyses == null) {
@@ -154,7 +154,7 @@ public class SegmentAnalyzerTest
 
       Assert.assertEquals(
           metric,
-          metric.equals("index") ? ValueDesc.DOUBLE_TYPE : ValueDesc.FLOAT_TYPE,
+          metric.equals("index") || metric.equals("indexMaxPlusTen") ? ValueDesc.DOUBLE_TYPE : ValueDesc.FLOAT_TYPE,
           columnAnalysis.getType()
       );
       if (analyses == null) {

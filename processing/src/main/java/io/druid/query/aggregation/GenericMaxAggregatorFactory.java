@@ -60,7 +60,7 @@ public class GenericMaxAggregatorFactory extends GenericAggregatorFactory
   {
     switch (valueType.type()) {
       case FLOAT:
-        return DoubleMaxAggregator.create(
+        return FloatMaxAggregator.create(
             ColumnSelectors.getFloatColumnSelector(
                 metricFactory,
                 fieldName,
@@ -95,7 +95,7 @@ public class GenericMaxAggregatorFactory extends GenericAggregatorFactory
   {
     switch (valueType.type()) {
       case FLOAT:
-        return DoubleMaxBufferAggregator.create(
+        return FloatMaxBufferAggregator.create(
             ColumnSelectors.getFloatColumnSelector(
                 metricFactory,
                 fieldName,

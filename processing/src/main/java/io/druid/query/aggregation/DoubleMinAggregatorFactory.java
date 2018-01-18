@@ -167,7 +167,7 @@ public class DoubleMinAggregatorFactory extends AggregatorFactory
   @Override
   public String getTypeName()
   {
-    return "float";
+    return "double";
   }
 
   @Override

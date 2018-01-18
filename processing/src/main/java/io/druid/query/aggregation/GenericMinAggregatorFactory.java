@@ -55,7 +55,7 @@ public class GenericMinAggregatorFactory extends GenericAggregatorFactory
   {
     switch (valueType.type()) {
       case FLOAT:
-        return DoubleMinAggregator.create(
+        return FloatMinAggregator.create(
             ColumnSelectors.getFloatColumnSelector(
                 metricFactory,
                 fieldName,
