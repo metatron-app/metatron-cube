@@ -22,6 +22,7 @@ package io.druid.indexer;
 import com.google.common.base.Functions;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import com.metamx.common.Pair;
 import com.metamx.common.logger.Logger;
@@ -44,6 +45,7 @@ import io.druid.timeline.DataSegment;
 import io.druid.timeline.partition.LinearShardSpec;
 import io.druid.timeline.partition.ShardSpec;
 import org.apache.commons.io.FileUtils;
+import org.apache.commons.lang.mutable.MutableInt;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FSDataOutputStream;
 import org.apache.hadoop.fs.FileSystem;
@@ -62,6 +64,7 @@ import java.io.IOException;
 import java.lang.management.ManagementFactory;
 import java.lang.management.MemoryMXBean;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 
@@ -153,6 +156,9 @@ public class ReduceMergeIndexGeneratorJob implements HadoopDruidIndexerJob.Index
     private AggregatorFactory[] aggregators;
     private Counter flushedIndex;
 
+    private int scatterParam;
+    private Map<IndexKey, MutableInt> scatter;
+
     private long maxOccupation;
     private int maxRowCount;
     private int occupationCheckInterval = 50000;
@@ -210,6 +216,11 @@ public class ReduceMergeIndexGeneratorJob implements HadoopDruidIndexerJob.Index
 
       maxOccupation = tuningConfig.getMaxOccupationInMemory();
       maxRowCount = tuningConfig.getRowFlushBoundary();
+
+      scatterParam = Math.min(tuningConfig.getScatterParam(), context.getNumReduceTasks());
+      if (scatterParam > 1) {
+        scatter = Maps.<IndexKey, MutableInt>newHashMap();
+      }
 
       merger = config.isBuildV9Directly()
                ? HadoopDruidIndexerConfig.INDEX_MERGER_V9
@@ -321,7 +332,7 @@ public class ReduceMergeIndexGeneratorJob implements HadoopDruidIndexerJob.Index
     private IntervalIndex findIndex(long timestamp)
     {
       for (IntervalIndex entry : indices) {
-        if (entry.lhs.contains(timestamp)) {
+        if (entry.rhs.contains(timestamp)) {
           return entry;
         }
       }
@@ -393,7 +404,7 @@ public class ReduceMergeIndexGeneratorJob implements HadoopDruidIndexerJob.Index
       int rows = target.index().size();
       log.info(
           "Flushing index of %s (%s) which has %d rows and was accessed %,d msec before",
-          target.dataSource, target.interval(), rows, System.currentTimeMillis() - target.lastAccessTime
+          target.dataSource(), target.interval(), rows, System.currentTimeMillis() - target.lastAccessTime
       );
       indices.remove(target);
       return target;
@@ -430,7 +441,19 @@ public class ReduceMergeIndexGeneratorJob implements HadoopDruidIndexerJob.Index
         size = CompressionUtils.store(localFile, out, DEFAULT_FS_BUFFER_SIZE);
       }
       log.info("Persisted [%,d] bytes.. elapsed %,d msec", size, System.currentTimeMillis() - prev);
-      Text key = new Text(dataSource + ":" + interval.getStartMillis());
+      int scatterKey = 0;
+      if (scatterParam > 1) {
+        IndexKey indexKey = entry.toKey();
+        MutableInt counter = scatter.get(indexKey);
+        if (counter == null) {
+          scatter.put(indexKey, counter = new MutableInt(0));
+        }
+        scatterKey = counter.intValue();
+        counter.setValue((scatterKey + 1) % scatterParam);
+      }
+      Text key = new Text(dataSource + ":" + interval.getStartMillis() + ":" + scatterKey);
+
+      log.info(".. writing reduce key [%s]", key);
       context.write(key, new Text(outFile.toString()));
 
       FileUtils.deleteDirectory(localFile);
@@ -449,28 +472,40 @@ public class ReduceMergeIndexGeneratorJob implements HadoopDruidIndexerJob.Index
     }
   }
 
-  private static class IntervalIndex extends Pair<Interval, IncrementalIndex>
+  private static class IndexKey extends Pair<String, Interval>
   {
-    private final String dataSource;
+    public IndexKey(String dataSource, Interval interval)
+    {
+      super(dataSource, interval);
+    }
+
+    String dataSource() { return lhs; }
+
+    Interval interval() { return rhs; }
+  }
+
+  private static class IntervalIndex extends IndexKey
+  {
+    private final IncrementalIndex index;
     private final long startTime = System.currentTimeMillis();
 
     private long lastAccessTime = -1;
 
-    public IntervalIndex(String dataSource, Interval lhs, IncrementalIndex rhs)
+    public IntervalIndex(String dataSource, Interval interval, IncrementalIndex index)
     {
-      super(lhs, rhs);
-      this.dataSource = dataSource;
+      super(dataSource, interval);
+      this.index = index;
     }
 
-    private Interval interval() { return lhs;}
+    IndexKey toKey() { return new IndexKey(dataSource(), interval()); }
 
-    private IncrementalIndex index() { return rhs;}
+    IncrementalIndex index() { return index; }
 
-    private long elapsed() { return System.currentTimeMillis() - startTime;}
+    long elapsed() { return System.currentTimeMillis() - startTime; }
 
-    private void addRow(InputRow row) throws IndexSizeExceededException
+    void addRow(InputRow row) throws IndexSizeExceededException
     {
-      rhs.add(row);
+      index.add(row);
       lastAccessTime = System.currentTimeMillis();
     }
   }
@@ -486,6 +521,7 @@ public class ReduceMergeIndexGeneratorJob implements HadoopDruidIndexerJob.Index
     private AggregatorFactory[] aggregators;
 
     private long maxShardLength;
+    private int scatterParam;
 
     private FileSystem shufflingFS;
 
@@ -511,6 +547,7 @@ public class ReduceMergeIndexGeneratorJob implements HadoopDruidIndexerJob.Index
       }
 
       maxShardLength = tuningConfig.getMaxShardLength();
+      scatterParam = Math.min(tuningConfig.getScatterParam(), context.getNumReduceTasks());
 
       merger = config.isBuildV9Directly()
                ? HadoopDruidIndexerConfig.INDEX_MERGER_V9
@@ -543,10 +580,12 @@ public class ReduceMergeIndexGeneratorJob implements HadoopDruidIndexerJob.Index
     protected void reduce(Text key, Iterable<Text> values, Context context)
         throws IOException, InterruptedException
     {
+      log.info("reduce key [%s]", key);
       String[] split = key.toString().split(":");
 
       final String dataSource = split[0];
       final DateTime time = new DateTime(Long.valueOf(split[1]));
+      final int scatterKey = Integer.valueOf(split[2]);
 
       final GranularitySpec granularitySpec = config.getGranularitySpec();
       final Interval interval = granularitySpec.bucketInterval(time).get();
@@ -592,7 +631,8 @@ public class ReduceMergeIndexGeneratorJob implements HadoopDruidIndexerJob.Index
               progressIndicator
           );
         }
-        ShardSpec shardSpec = LinearShardSpec.of(appendingSpec.getPartitionNum() + i);
+        int increment = scatterParam > 1 ? (i * scatterParam + scatterKey) : i;
+        ShardSpec shardSpec = LinearShardSpec.of(appendingSpec.getPartitionNum() + increment);
         writeShard(dataSource, mergedBase, version, interval, Lists.newArrayList(dimensions), shardSpec, context);
       }
     }

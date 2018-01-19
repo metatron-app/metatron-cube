@@ -44,6 +44,7 @@ public class HadoopTuningConfig implements TuningConfig
   private static final int DEFAULT_ROW_FLUSH_BOUNDARY = 75000;
   private static final boolean DEFAULT_USE_COMBINER = false;
   private static final int DEFAULT_MAX_REDUCER = 100;
+  private static final int DEFAULT_SCATTER_PARAM = -1;
   private static final Boolean DEFAULT_BUILD_V9_DIRECTLY = Boolean.FALSE;
   private static final int DEFAULT_NUM_BACKGROUND_PERSIST_THREADS = 0;
 
@@ -68,6 +69,7 @@ public class HadoopTuningConfig implements TuningConfig
         false,
         false,
         DEFAULT_MAX_REDUCER,
+        DEFAULT_SCATTER_PARAM,
         null,
         DEFAULT_BUILD_V9_DIRECTLY,
         DEFAULT_NUM_BACKGROUND_PERSIST_THREADS
@@ -92,6 +94,7 @@ public class HadoopTuningConfig implements TuningConfig
   private final boolean combineText;
   private final boolean useCombiner;
   private final int maxReducer;
+  private final int scatterParam;
   private final Boolean buildV9Directly;
   private final int numBackgroundPersistThreads;
 
@@ -115,6 +118,7 @@ public class HadoopTuningConfig implements TuningConfig
       final @JsonProperty("combineText") boolean combineText,
       final @JsonProperty("useCombiner") Boolean useCombiner,
       final @JsonProperty("maxReducer") Integer maxReducer,
+      final @JsonProperty("scatterParam") Integer scatterParam,
       // See https://github.com/druid-io/druid/pull/1922
       final @JsonProperty("rowFlushBoundary") Integer maxRowsInMemoryCOMPAT,
       final @JsonProperty("buildV9Directly") Boolean buildV9Directly,
@@ -142,8 +146,13 @@ public class HadoopTuningConfig implements TuningConfig
     this.useCombiner = useCombiner == null ? DEFAULT_USE_COMBINER : useCombiner;
     this.buildV9Directly = buildV9Directly == null ? DEFAULT_BUILD_V9_DIRECTLY : buildV9Directly;
     this.maxReducer = maxReducer == null ? DEFAULT_MAX_REDUCER : maxReducer;
+    this.scatterParam = scatterParam == null ? DEFAULT_SCATTER_PARAM : scatterParam;
     this.numBackgroundPersistThreads = numBackgroundPersistThreads == null ? DEFAULT_NUM_BACKGROUND_PERSIST_THREADS : numBackgroundPersistThreads;
     Preconditions.checkArgument(this.numBackgroundPersistThreads >= 0, "Not support persistBackgroundCount < 0");
+    Preconditions.checkArgument(
+        this.scatterParam <= 1 || this.ingestionMode == IngestionMode.REDUCE_MERGE,
+        "scatter is supported only with REDUCE_MERGE"
+    );
   }
 
   public HadoopTuningConfig(
@@ -183,6 +192,7 @@ public class HadoopTuningConfig implements TuningConfig
         null,
         combineText,
         useCombiner,
+        null,
         null,
         maxRowsInMemoryCOMPAT,
         buildV9Directly,
@@ -309,6 +319,12 @@ public class HadoopTuningConfig implements TuningConfig
     return maxReducer;
   }
 
+  @JsonProperty
+  public int getScatterParam()
+  {
+    return scatterParam;
+  }
+
   public HadoopTuningConfig withWorkingPath(String path)
   {
     return new HadoopTuningConfig(
@@ -330,6 +346,7 @@ public class HadoopTuningConfig implements TuningConfig
         combineText,
         useCombiner,
         maxReducer,
+        scatterParam,
         null,
         buildV9Directly,
         numBackgroundPersistThreads
@@ -357,6 +374,7 @@ public class HadoopTuningConfig implements TuningConfig
         combineText,
         useCombiner,
         maxReducer,
+        scatterParam,
         null,
         buildV9Directly,
         numBackgroundPersistThreads
@@ -384,6 +402,7 @@ public class HadoopTuningConfig implements TuningConfig
         combineText,
         useCombiner,
         maxReducer,
+        scatterParam,
         null,
         buildV9Directly,
         numBackgroundPersistThreads
