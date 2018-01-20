@@ -35,6 +35,7 @@ import io.druid.data.input.MapBasedRow;
 import io.druid.data.input.Row;
 import io.druid.jackson.DefaultObjectMapper;
 import io.druid.query.Result;
+import io.druid.query.timeseries.TimeseriesResultValue;
 import io.druid.query.topn.TopNQueryEngine;
 import io.druid.segment.column.Column;
 import org.joda.time.DateTime;
@@ -43,6 +44,7 @@ import org.python.google.common.primitives.Doubles;
 
 import java.nio.ByteBuffer;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -279,7 +281,21 @@ public class TestHelper
 
   private static void assertResult(String msg, Result<?> expected, Result actual)
   {
-    Assert.assertEquals(msg, expected, actual);
+    Assert.assertEquals(msg, expected.getTimestamp(), actual.getTimestamp());
+    Object o1 = expected.getValue();
+    Object o2 = actual.getValue();
+    if (o1 instanceof TimeseriesResultValue && o2 instanceof TimeseriesResultValue) {
+      Map<String, Object> m1 = ((TimeseriesResultValue)o1).getBaseObject();
+      Map<String, Object> m2 = ((TimeseriesResultValue)o2).getBaseObject();
+      Assert.assertEquals(msg, m1.size(), m2.size());
+      List<String> columns = Lists.newArrayList(m1.keySet());
+      Collections.sort(columns);
+      for (String column : columns) {
+        Assert.assertEquals(msg, m1.get(column), m2.get(column));
+      }
+    } else {
+      Assert.assertEquals(msg, expected.getValue(), actual.getValue());
+    }
   }
 
   public static TopNQueryEngine testTopNQueryEngine()

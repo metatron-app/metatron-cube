@@ -243,6 +243,9 @@ public class QueryRunnerTestHelper
 
   public static final DateTime skippedDay = new DateTime("2011-01-21T00:00:00.000Z");
 
+  public static final QuerySegmentSpec january_20 = new MultipleIntervalSegmentSpec(
+      Arrays.asList(new Interval("2011-01-01T00:00:00.000Z/2011-01-20T00:00:00.000Z"))
+  );
   public static final QuerySegmentSpec firstToThird = new MultipleIntervalSegmentSpec(
       Arrays.asList(new Interval("2011-04-01T00:00:00.000Z/2011-04-03T00:00:00.000Z"))
   );
@@ -603,6 +606,37 @@ public class QueryRunnerTestHelper
         };
       }
     };
+  }
+
+  public static <T> QueryRunner<T> toMergeRunner(
+      QueryRunnerFactory<T, Query<T>> factory,
+      QueryRunner<T> runner,
+      Query<T> query
+  )
+  {
+    return toMergeRunner(factory, runner, query, false);
+  }
+
+  private static <T> QueryRunner<T> toMergeRunner(
+      QueryRunnerFactory<T, Query<T>> factory,
+      QueryRunner<T> runner,
+      Query<T> query,
+      boolean subQuery
+  )
+  {
+    QueryToolChest<T, Query<T>> toolChest = factory.getToolchest();
+
+    QueryRunner<T> baseRunner;
+    if (query.getDataSource() instanceof QueryDataSource) {
+      Query innerQuery = ((QueryDataSource) query.getDataSource()).getQuery().withOverriddenContext(query.getContext());
+      baseRunner = toolChest.handleSubQuery(toMergeRunner(factory, runner, innerQuery, true), null, null, 5000);
+    } else {
+      baseRunner = toolChest.mergeResults(toolChest.preMergeQueryDecoration(runner));
+    }
+    if (!subQuery) {
+      baseRunner = new FinalizeResultsQueryRunner<>(baseRunner, toolChest);
+    }
+    return toolChest.finalQueryDecoration(baseRunner);
   }
 
   public static Map<String, Object> of(Object... keyvalues)

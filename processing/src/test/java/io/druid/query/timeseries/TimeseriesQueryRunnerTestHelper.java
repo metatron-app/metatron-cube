@@ -37,7 +37,7 @@ public class TimeseriesQueryRunnerTestHelper
   {
     List<Result<TimeseriesResultValue>> events = Lists.newArrayList();
     for (Object[] value : values) {
-      DateTime timestamp = (DateTime)value[0];
+      DateTime timestamp = value[0] instanceof DateTime ? (DateTime) value[0] : new DateTime(value[0]);
       Preconditions.checkArgument(value.length == columnNames.length + 1);
       Map<String, Object> event = Maps.newHashMapWithExpectedSize(value.length);
       for (int i = 0; i < columnNames.length; i++) {

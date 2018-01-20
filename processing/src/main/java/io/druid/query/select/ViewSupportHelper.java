@@ -20,7 +20,6 @@
 package io.druid.query.select;
 
 import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.metamx.common.logger.Logger;
@@ -223,31 +222,6 @@ public class ViewSupportHelper
     }
     for (String metric : metrics) {
       columnTypes.add(resolver.resolveColumn(metric, ValueDesc.UNKNOWN));
-    }
-    List<AggregatorFactory> aggregators = Lists.newArrayList();
-    if (adapter.getMetadata() != null && adapter.getMetadata().getAggregators() != null) {
-      Map<String, AggregatorFactory> factoryMap = Maps.newHashMap();
-      for (AggregatorFactory aggregator : adapter.getMetadata().getAggregators()) {
-        factoryMap.put(aggregator.getName(), aggregator);
-      }
-      for (String metric : metrics) {
-        aggregators.add(factoryMap.get(metric));
-      }
-    }
-
-    return new Schema(dimensions, metrics, columnTypes, aggregators);
-  }
-
-  public static Schema toSchema(StorageAdapter adapter)
-  {
-    final List<String> dimensions = Lists.newArrayList(adapter.getAvailableDimensions());
-    final List<String> metrics = Lists.newArrayList(adapter.getAvailableMetrics());
-
-    final RowResolver resolver = new RowResolver(adapter, VirtualColumns.empty());
-
-    final List<ValueDesc> columnTypes = Lists.newArrayList();
-    for (String columnName : Iterables.concat(dimensions, metrics)) {
-      columnTypes.add(resolver.resolveColumn(columnName, ValueDesc.UNKNOWN));
     }
     List<AggregatorFactory> aggregators = Lists.newArrayList();
     if (adapter.getMetadata() != null && adapter.getMetadata().getAggregators() != null) {

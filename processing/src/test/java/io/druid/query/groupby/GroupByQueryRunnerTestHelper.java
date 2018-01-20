@@ -19,33 +19,117 @@
 
 package io.druid.query.groupby;
 
+import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
+import com.google.common.base.Supplier;
+import com.google.common.base.Suppliers;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.metamx.common.guava.Sequence;
 import com.metamx.common.guava.Sequences;
+import io.druid.collections.StupidPool;
 import io.druid.data.input.MapBasedRow;
 import io.druid.data.input.Row;
-import io.druid.query.FinalizeResultsQueryRunner;
 import io.druid.query.Query;
-import io.druid.query.QueryDataSource;
 import io.druid.query.QueryRunner;
 import io.druid.query.QueryRunnerFactory;
-import io.druid.query.QueryToolChest;
+import io.druid.query.QueryRunnerTestHelper;
+import io.druid.query.TestQueryRunners;
 import io.druid.segment.column.Column;
 import org.apache.commons.lang.ArrayUtils;
 import org.joda.time.DateTime;
 import org.junit.Assert;
 
+import java.io.IOException;
+import java.nio.ByteBuffer;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 
 /**
  */
-public class GroupByQueryRunnerTestHelper
+public class GroupByQueryRunnerTestHelper extends QueryRunnerTestHelper
 {
+  public static Collection<?> createRunners() throws IOException
+  {
+    final StupidPool<ByteBuffer> pool = new StupidPool<>(
+        new Supplier<ByteBuffer>()
+        {
+          @Override
+          public ByteBuffer get()
+          {
+            return ByteBuffer.allocate(1024 * 1024);
+          }
+        }
+    );
+
+    final GroupByQueryConfig config = new GroupByQueryConfig();
+    config.setMaxIntermediateRows(10000);
+
+    final Supplier<GroupByQueryConfig> configSupplier = Suppliers.ofInstance(config);
+    final GroupByQueryEngine engine = new GroupByQueryEngine(configSupplier, pool);
+
+    final GroupByQueryRunnerFactory factory = new GroupByQueryRunnerFactory(
+        engine,
+        QueryRunnerTestHelper.NOOP_QUERYWATCHER,
+        configSupplier,
+        new GroupByQueryQueryToolChest(
+            configSupplier, engine, TestQueryRunners.pool,
+            QueryRunnerTestHelper.NoopIntervalChunkingQueryRunnerDecorator()
+        ),
+        TestQueryRunners.pool
+    );
+
+    GroupByQueryConfig singleThreadedConfig = new GroupByQueryConfig()
+    {
+      @Override
+      public boolean isSingleThreaded()
+      {
+        return true;
+      }
+    };
+    singleThreadedConfig.setMaxIntermediateRows(10000);
+
+    final Supplier<GroupByQueryConfig> singleThreadedConfigSupplier = Suppliers.ofInstance(singleThreadedConfig);
+    final GroupByQueryEngine singleThreadEngine = new GroupByQueryEngine(singleThreadedConfigSupplier, pool);
+
+    final GroupByQueryRunnerFactory singleThreadFactory = new GroupByQueryRunnerFactory(
+        singleThreadEngine,
+        QueryRunnerTestHelper.NOOP_QUERYWATCHER,
+        singleThreadedConfigSupplier,
+        new GroupByQueryQueryToolChest(
+            singleThreadedConfigSupplier, singleThreadEngine, pool,
+            QueryRunnerTestHelper.NoopIntervalChunkingQueryRunnerDecorator()
+        ),
+        pool
+    );
+
+
+    Function<Object, Object> function = new Function<Object, Object>()
+    {
+      @Override
+      public Object apply(Object input)
+      {
+        return new Object[]{factory, input};
+      }
+    };
+
+    return Lists.newArrayList(
+        Iterables.concat(
+            Iterables.transform(
+                QueryRunnerTestHelper.makeQueryRunners(factory),
+                function
+            ),
+            Iterables.transform(
+                QueryRunnerTestHelper.makeQueryRunners(singleThreadFactory),
+                function
+            )
+        )
+    );
+}
   public static <T> Iterable<T> runQuery(QueryRunnerFactory factory, QueryRunner<T> runner, Query<T> query)
   {
     query = query.withOverriddenContext(ImmutableMap.<String, Object>of("TEST_AS_SORTED", true));
@@ -53,37 +137,6 @@ public class GroupByQueryRunnerTestHelper
 
     Sequence<T> queryResult = theRunner.run(query, Maps.<String, Object>newHashMap());
     return Sequences.toList(queryResult, Lists.<T>newArrayList());
-  }
-
-  public static <T> QueryRunner<T> toMergeRunner(
-      QueryRunnerFactory<T, Query<T>> factory,
-      QueryRunner<T> runner,
-      Query<T> query
-  )
-  {
-    return toMergeRunner(factory, runner, query, false);
-  }
-
-  private static <T> QueryRunner<T> toMergeRunner(
-      QueryRunnerFactory<T, Query<T>> factory,
-      QueryRunner<T> runner,
-      Query<T> query,
-      boolean subQuery
-  )
-  {
-    QueryToolChest<T, Query<T>> toolChest = factory.getToolchest();
-
-    QueryRunner<T> baseRunner;
-    if (query.getDataSource() instanceof QueryDataSource) {
-      Query innerQuery = ((QueryDataSource) query.getDataSource()).getQuery().withOverriddenContext(query.getContext());
-      baseRunner = toolChest.handleSubQuery(toMergeRunner(factory, runner, innerQuery, true), null, null, 5000);
-    } else {
-      baseRunner = toolChest.mergeResults(toolChest.preMergeQueryDecoration(runner));
-    }
-    if (!subQuery) {
-      baseRunner = new FinalizeResultsQueryRunner<>(baseRunner, toolChest);
-    }
-    return toolChest.finalQueryDecoration(baseRunner);
   }
 
   public static Row createExpectedRow(final String timestamp, Object... vals)

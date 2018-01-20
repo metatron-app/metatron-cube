@@ -31,6 +31,15 @@ import java.util.Map;
  */
 public class PostAggregators
 {
+  public static List<String> toNames(List<PostAggregator> aggregators)
+  {
+    List<String> names = Lists.newArrayList();
+    for (PostAggregator postAggregator : aggregators) {
+      names.add(postAggregator.getName());
+    }
+    return names;
+  }
+
   public static List<PostAggregator> decorate(List<PostAggregator> aggregators, AggregatorFactory[] factories)
   {
     return decorate(aggregators, Arrays.asList(factories));

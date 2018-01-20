@@ -48,6 +48,11 @@ public class RelayAggregatorFactory extends AggregatorFactory
     this.typeName = Preconditions.checkNotNull(typeName);
   }
 
+  public RelayAggregatorFactory(String name, String typeName)
+  {
+    this(name, name, typeName);
+  }
+
   @Override
   public Aggregator factorize(ColumnSelectorFactory metricFactory)
   {

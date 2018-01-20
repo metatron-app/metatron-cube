@@ -21,8 +21,6 @@ package io.druid.query.groupby;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.util.DefaultPrettyPrinter;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.common.base.Function;
 import com.google.common.base.Predicate;
 import com.google.common.base.Supplier;
 import com.google.common.base.Suppliers;
@@ -45,7 +43,6 @@ import io.druid.data.TypeResolver;
 import io.druid.data.input.Row;
 import io.druid.granularity.PeriodGranularity;
 import io.druid.granularity.QueryGranularities;
-import io.druid.jackson.DefaultObjectMapper;
 import io.druid.js.JavaScriptConfig;
 import io.druid.query.BySegmentResultValue;
 import io.druid.query.BySegmentResultValueClass;
@@ -125,7 +122,6 @@ import org.junit.rules.ExpectedException;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
-import javax.annotation.Nullable;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
@@ -158,89 +154,13 @@ public class GroupByQueryRunnerTest
   @Parameterized.Parameters
   public static Collection<?> constructorFeeder() throws IOException
   {
-    final ObjectMapper mapper = new DefaultObjectMapper();
-    final StupidPool<ByteBuffer> pool = new StupidPool<>(
-        new Supplier<ByteBuffer>()
-        {
-          @Override
-          public ByteBuffer get()
-          {
-            return ByteBuffer.allocate(1024 * 1024);
-          }
-        }
-    );
-
-    final GroupByQueryConfig config = new GroupByQueryConfig();
-    config.setMaxIntermediateRows(10000);
-
-    final Supplier<GroupByQueryConfig> configSupplier = Suppliers.ofInstance(config);
-    final GroupByQueryEngine engine = new GroupByQueryEngine(configSupplier, pool);
-
-    final GroupByQueryRunnerFactory factory = new GroupByQueryRunnerFactory(
-        engine,
-        QueryRunnerTestHelper.NOOP_QUERYWATCHER,
-        configSupplier,
-        new GroupByQueryQueryToolChest(
-            configSupplier, engine, TestQueryRunners.pool,
-            QueryRunnerTestHelper.NoopIntervalChunkingQueryRunnerDecorator()
-        ),
-        TestQueryRunners.pool
-    );
-
-    GroupByQueryConfig singleThreadedConfig = new GroupByQueryConfig()
-    {
-      @Override
-      public boolean isSingleThreaded()
-      {
-        return true;
-      }
-    };
-    singleThreadedConfig.setMaxIntermediateRows(10000);
-
-    final Supplier<GroupByQueryConfig> singleThreadedConfigSupplier = Suppliers.ofInstance(singleThreadedConfig);
-    final GroupByQueryEngine singleThreadEngine = new GroupByQueryEngine(singleThreadedConfigSupplier, pool);
-
-    final GroupByQueryRunnerFactory singleThreadFactory = new GroupByQueryRunnerFactory(
-        singleThreadEngine,
-        QueryRunnerTestHelper.NOOP_QUERYWATCHER,
-        singleThreadedConfigSupplier,
-        new GroupByQueryQueryToolChest(
-            singleThreadedConfigSupplier, singleThreadEngine, pool,
-            QueryRunnerTestHelper.NoopIntervalChunkingQueryRunnerDecorator()
-        ),
-        pool
-    );
-
-
-    Function<Object, Object> function = new Function<Object, Object>()
-    {
-      @Override
-      public Object apply(@Nullable Object input)
-      {
-        return new Object[]{factory, input};
-      }
-    };
-
-    return Lists.newArrayList(
-        Iterables.concat(
-            Iterables.transform(
-                QueryRunnerTestHelper.makeQueryRunners(factory),
-                function
-            ),
-            Iterables.transform(
-                QueryRunnerTestHelper.makeQueryRunners(singleThreadFactory),
-                function
-            )
-        )
-    );
+    return GroupByQueryRunnerTestHelper.createRunners();
   }
 
-  public GroupByQueryRunnerTest(QueryRunnerFactory<Row, Query<Row>> factory, QueryRunner runner)
+  public GroupByQueryRunnerTest(QueryRunnerFactory<Row, Query<Row>> factory, QueryRunner<Row> runner)
   {
     this.factory = factory;
-    this.runner = factory.mergeRunners(MoreExecutors.sameThreadExecutor(), ImmutableList.<QueryRunner<Row>>of(runner),
-                                       null
-    );;
+    this.runner = factory.mergeRunners(MoreExecutors.sameThreadExecutor(), ImmutableList.<QueryRunner<Row>>of(runner), null);
   }
 
   @Test
@@ -1406,7 +1326,7 @@ public class GroupByQueryRunnerTest
     );
 
     Map<String, Object> context = Maps.newHashMap();
-//    TestHelper.assertExpectedObjects(expectedResults, mergedRunner.run(fullQuery, context), "merged");
+    TestHelper.assertExpectedObjects(expectedResults, mergedRunner.run(fullQuery, context), "merged");
 
     List<Row> allGranExpectedResults = Arrays.asList(
         GroupByQueryRunnerTestHelper.createExpectedRow("2011-04-02", "alias", "automotive", "rows", 2L, "idx", 269L),

@@ -27,6 +27,7 @@ import com.google.common.collect.Sets;
 import com.metamx.common.Pair;
 import com.metamx.common.logger.Logger;
 import io.druid.common.Cacheable;
+import io.druid.common.guava.GuavaUtils;
 import io.druid.data.ValueDesc;
 import io.druid.segment.ColumnSelectorFactory;
 
@@ -202,7 +203,7 @@ public abstract class AggregatorFactory implements Cacheable
 
   public static Map<String, AggregatorFactory> asMap(List<AggregatorFactory> aggregators)
   {
-    Map<String, AggregatorFactory> map = Maps.newHashMap();
+    Map<String, AggregatorFactory> map = Maps.newLinkedHashMap();
     if (aggregators != null) {
       for (AggregatorFactory factory : aggregators) {
         map.put(factory.getName(), factory);
@@ -261,21 +262,31 @@ public abstract class AggregatorFactory implements Cacheable
   {
     List<AggregatorFactory> relay = Lists.newArrayList();
     for (AggregatorFactory aggregator : aggregators) {
-      relay.add(new RelayAggregatorFactory(aggregator.getName(), aggregator.getName(), aggregator.getTypeName()));
+      AggregatorFactory combiner = aggregator.getCombiningFactory();
+      relay.add(new RelayAggregatorFactory(combiner.getName(), combiner.getTypeName()));
     }
     return relay;
   }
 
-  public static List<AggregatorFactory> toRelay(List<String> metrics, String type)
+  public static List<AggregatorFactory> toRelay(
+      List<AggregatorFactory> aggregators,
+      List<PostAggregator> postAggregators
+  )
   {
-    List<AggregatorFactory> relay = Lists.newArrayList();
-    for (String metric : metrics) {
-      relay.add(new RelayAggregatorFactory(metric, metric, type));
+    if (GuavaUtils.isNullOrEmpty(postAggregators)) {
+      return toRelay(aggregators);
     }
-    return relay;
+    Map<String, AggregatorFactory> relay = asMap(toRelay(aggregators));
+    for (PostAggregator aggregator : postAggregators) {
+      relay.put(aggregator.getName(), new RelayAggregatorFactory(aggregator.getName(), ValueDesc.UNKNOWN_TYPE));
+    }
+    return Lists.newArrayList(relay.values());
   }
 
-  public static List<AggregatorFactory> toRelay(Iterable<Pair<String, ValueDesc>> nameTypePairs)
+  public static List<AggregatorFactory> toRelay(
+      Iterable<Pair<String, ValueDesc>> nameTypePairs,
+      List<PostAggregator> postAggregators
+  )
   {
     List<AggregatorFactory> relay = Lists.newArrayList();
     for (Pair<String, ValueDesc> nameTypePair : nameTypePairs) {

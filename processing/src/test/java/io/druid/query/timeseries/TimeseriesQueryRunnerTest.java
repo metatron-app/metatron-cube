@@ -30,7 +30,10 @@ import io.druid.granularity.PeriodGranularity;
 import io.druid.granularity.QueryGranularities;
 import io.druid.query.Druids;
 import io.druid.query.FluentQueryRunnerBuilder;
+import io.druid.query.QueryContextKeys;
+import io.druid.query.QueryDataSource;
 import io.druid.query.QueryRunner;
+import io.druid.query.QueryRunnerFactory;
 import io.druid.query.QueryRunnerTestHelper;
 import io.druid.query.Result;
 import io.druid.query.aggregation.AggregatorFactory;
@@ -40,6 +43,7 @@ import io.druid.query.aggregation.DoubleMinAggregatorFactory;
 import io.druid.query.aggregation.FilteredAggregatorFactory;
 import io.druid.query.aggregation.LongSumAggregatorFactory;
 import io.druid.query.aggregation.PostAggregator;
+import io.druid.query.aggregation.post.MathPostAggregator;
 import io.druid.query.filter.AndDimFilter;
 import io.druid.query.filter.BoundDimFilter;
 import io.druid.query.filter.DimFilter;
@@ -71,26 +75,23 @@ import java.util.Map;
 @RunWith(Parameterized.class)
 public class TimeseriesQueryRunnerTest
 {
-
   public static final Map<String, Object> CONTEXT = ImmutableMap.of();
 
-  private static TimeseriesQueryQueryToolChest toolChest =
+  private static final TimeseriesQueryQueryToolChest toolChest =
       new TimeseriesQueryQueryToolChest(QueryRunnerTestHelper.NoopIntervalChunkingQueryRunnerDecorator());
+
+  private static final QueryRunnerFactory factory = new TimeseriesQueryRunnerFactory(
+      toolChest,
+      new TimeseriesQueryEngine(),
+      QueryRunnerTestHelper.NOOP_QUERYWATCHER
+  );
 
   @Parameterized.Parameters(name="{0}:descending={1}")
   public static Iterable<Object[]> constructorFeeder() throws IOException
   {
     return QueryRunnerTestHelper.cartesian(
         // runners
-        QueryRunnerTestHelper.makeQueryRunners(
-            new TimeseriesQueryRunnerFactory(
-                new TimeseriesQueryQueryToolChest(
-                    QueryRunnerTestHelper.NoopIntervalChunkingQueryRunnerDecorator()
-                ),
-                new TimeseriesQueryEngine(),
-                QueryRunnerTestHelper.NOOP_QUERYWATCHER
-            )
-        ),
+        QueryRunnerTestHelper.makeQueryRunners(factory),
         // descending?
         Arrays.asList(false, true)
     );
@@ -104,7 +105,7 @@ public class TimeseriesQueryRunnerTest
     TestHelper.assertExpectedResults(expectedResults, results);
   }
 
-  private final QueryRunner runner;
+  private final QueryRunner<Result<TimeseriesResultValue>> runner;
   private final boolean descending;
 
   public TimeseriesQueryRunnerTest(
@@ -326,6 +327,74 @@ public class TimeseriesQueryRunnerTest
     );
 
     assertExpectedResults(expectedResults, results);
+  }
+
+  @Test
+  public void testNestedTimeseries()
+  {
+    TimeseriesQuery subQuery = Druids
+        .newTimeseriesQueryBuilder()
+        .dataSource(QueryRunnerTestHelper.dataSource)
+        .granularity(QueryRunnerTestHelper.dayGran)
+        .intervals(QueryRunnerTestHelper.january_20)
+        .aggregators(
+            Arrays.<AggregatorFactory>asList(
+                QueryRunnerTestHelper.rowsCount,
+                new LongSumAggregatorFactory("idx", "index"),
+                QueryRunnerTestHelper.qualityUniques
+            )
+        )
+        .postAggregators(Arrays.<PostAggregator>asList(new MathPostAggregator("idx+10", "idx + 10")))
+        .descending(descending)
+        .build();
+
+    List<Result<TimeseriesResultValue>> expected = TimeseriesQueryRunnerTestHelper.createExpected(
+        new String[]{"rows", "idx", "idx+10", "uniques"},
+        new Object[]{"2011-01-12", 13L, 4500L, 4510L, QueryRunnerTestHelper.UNIQUES_9},
+        new Object[]{"2011-01-13", 13L, 6071L, 6081L, QueryRunnerTestHelper.UNIQUES_9},
+        new Object[]{"2011-01-14", 13L, 4916L, 4926L, QueryRunnerTestHelper.UNIQUES_9},
+        new Object[]{"2011-01-15", 13L, 5719L, 5729L, QueryRunnerTestHelper.UNIQUES_9},
+        new Object[]{"2011-01-16", 13L, 4692L, 4702L, QueryRunnerTestHelper.UNIQUES_9},
+        new Object[]{"2011-01-17", 13L, 4644L, 4654L, QueryRunnerTestHelper.UNIQUES_9},
+        new Object[]{"2011-01-18", 13L, 4392L, 4402L, QueryRunnerTestHelper.UNIQUES_9},
+        new Object[]{"2011-01-19", 13L, 4589L, 4599L, QueryRunnerTestHelper.UNIQUES_9}
+    );
+
+    Iterable<Result<TimeseriesResultValue>> results = Sequences.toList(
+        runner.run(subQuery, CONTEXT),
+        Lists.<Result<TimeseriesResultValue>>newArrayList()
+    );
+    assertExpectedResults(expected, results);
+
+    // do post aggregation for inner query
+    subQuery = subQuery.withOverriddenContext(ImmutableMap.<String, Object>of(QueryContextKeys.FINAL_WORK, false));
+
+    TimeseriesQuery query = Druids
+        .newTimeseriesQueryBuilder()
+        .dataSource(new QueryDataSource(subQuery))
+        .granularity(QueryGranularities.WEEK)
+        .intervals(QueryRunnerTestHelper.january_20)
+        .aggregators(
+            Arrays.<AggregatorFactory>asList(
+                QueryRunnerTestHelper.rowsCount,
+                new LongSumAggregatorFactory("idx+10")
+            )
+        )
+        .postAggregators(Arrays.<PostAggregator>asList(new MathPostAggregator("(idx+10)+10", "\"idx+10\" + 10")))
+        .descending(descending)
+        .build();
+
+    QueryRunner<Result<TimeseriesResultValue>> merge = QueryRunnerTestHelper.toMergeRunner(factory, runner, query);
+    results = Sequences.toList(
+        merge.run(query, CONTEXT),
+        Lists.<Result<TimeseriesResultValue>>newArrayList()
+    );
+    expected = TimeseriesQueryRunnerTestHelper.createExpected(
+        new String[]{"rows", "idx+10", "(idx+10)+10"},
+        new Object[]{"2011-01-10", 5L, 25948L, 25958L},
+        new Object[]{"2011-01-17", 3L, 13655L, 13665L}
+    );
+    assertExpectedResults(expected, results);
   }
 
   @Test

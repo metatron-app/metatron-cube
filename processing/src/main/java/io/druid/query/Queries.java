@@ -23,7 +23,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
@@ -38,7 +37,6 @@ import io.druid.granularity.QueryGranularities;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.PostAggregator;
 import io.druid.query.aggregation.RelayAggregatorFactory;
-import io.druid.query.dimension.DimensionSpec;
 import io.druid.query.dimension.DimensionSpecs;
 import io.druid.query.groupby.GroupByQuery;
 import io.druid.query.groupby.PartitionedGroupByQuery;
@@ -49,6 +47,7 @@ import io.druid.query.select.SelectResultValue;
 import io.druid.query.select.StreamQuery;
 import io.druid.query.select.StreamQueryRow;
 import io.druid.query.timeseries.TimeseriesQuery;
+import io.druid.query.timeseries.TimeseriesResultValue;
 import io.druid.query.topn.TopNQuery;
 import io.druid.query.topn.TopNResultValue;
 import io.druid.segment.column.Column;
@@ -143,44 +142,24 @@ public class Queries
         .withQueryGranularity(QueryGranularities.ALL)
         .withFixedSchema(true);
 
-    if (subQuery instanceof GroupByQuery) {
-      final GroupByQuery groupByQuery = (GroupByQuery) subQuery;
-      List<DimensionSpec> dimensions = groupByQuery.getDimensions();
-      if (groupByQuery.needsSchemaResolution()) {
-        builder.withDimensions(QueryUtils.resolveSchema(subQuery, segmentWalker).getDimensionNames());
-      } else {
-        builder.withDimensions(DimensionSpecs.toOutputNames(dimensions));
-      }
-      List<AggregatorFactory> aggs = AggregatorFactory.toCombiner(groupByQuery.getAggregatorSpecs());
-      for (PostAggregator postAggregator : groupByQuery.getPostAggregatorSpecs()) {
-        aggs.add(new RelayAggregatorFactory(postAggregator.getName(), postAggregator.getName(), ValueDesc.UNKNOWN_TYPE));
-      }
-      return builder.withMetrics(aggs.toArray(new AggregatorFactory[aggs.size()])).build();
-    } else if (subQuery instanceof Query.MetricSupport) {
-      final Query.MetricSupport<?> metricSupport = (Query.MetricSupport) subQuery;
-      if (metricSupport.needsSchemaResolution()) {
-        Schema schema = QueryUtils.resolveSchema(subQuery, segmentWalker);
-        return builder.withDimensions(schema.getDimensionNames())
-                      .withMetrics(AggregatorFactory.toRelay(schema.metricAndTypes()))
-                      .withRollup(false)
-                      .build();
-      } else {
-        return builder.withDimensions(DimensionSpecs.toOutputNames(metricSupport.getDimensions()))
-                      .withMetrics(AggregatorFactory.toRelay(metricSupport.getMetrics(), ValueDesc.UNKNOWN_TYPE))
-                      .withRollup(false)
-                      .build();
-      }
+    if (subQuery instanceof Query.MetricSupport) {
+      Schema schema = QueryUtils.resolveSchema(subQuery, segmentWalker);
+      return builder.withDimensions(schema.getDimensionNames())
+                    .withMetrics(AggregatorFactory.toRelay(schema.metricAndTypes(), ImmutableList.<PostAggregator>of()))
+                    .withRollup(false)
+                    .build();
     } else if (subQuery instanceof Query.AggregationsSupport) {
       final Query.AggregationsSupport<?> aggrSupport = (Query.AggregationsSupport) subQuery;
+      List<PostAggregator> postAggregators = aggrSupport.getPostAggregatorSpecs();
       if (aggrSupport.needsSchemaResolution()) {
         Schema schema = QueryUtils.resolveSchema(subQuery, segmentWalker);
         return builder.withDimensions(schema.getDimensionNames())
-                      .withMetrics(AggregatorFactory.toRelay(schema.metricAndTypes()))
+                      .withMetrics(AggregatorFactory.toRelay(schema.metricAndTypes(), postAggregators))
                       .withRollup(false)
                       .build();
       } else {
         return builder.withDimensions(DimensionSpecs.toOutputNames(aggrSupport.getDimensions()))
-                      .withMetrics(AggregatorFactory.toRelay(aggrSupport.getAggregatorSpecs()))
+                      .withMetrics(AggregatorFactory.toRelay(aggrSupport.getAggregatorSpecs(), postAggregators))
                       .withRollup(false)
                       .build();
       }
@@ -201,20 +180,18 @@ public class Queries
         }
         AggregatorFactory[] aggregators = schema.getMetrics();
         for (AggregatorFactory aggregator : aggregators) {
-          String prefixed = prefix + aggregator.getName();
           Preconditions.checkArgument(aggregator instanceof RelayAggregatorFactory);
-          metrics.add(new RelayAggregatorFactory(prefixed, prefixed, aggregator.getTypeName()));
+          metrics.add(new RelayAggregatorFactory(prefix + aggregator.getName(), aggregator.getTypeName()));
         }
       }
       // multiple timestamps.. we use timestamp from the first alias as indexing timestamp and add others into metric
       if (aliases != null) {
         for (String alias : aliases) {
-          String timestamp = alias + "." + EventHolder.timestampKey;
-          metrics.add(new RelayAggregatorFactory(timestamp, timestamp, ValueDesc.LONG_TYPE));
+          metrics.add(new RelayAggregatorFactory(alias + "." + EventHolder.timestampKey, ValueDesc.LONG_TYPE));
         }
       }
       return builder.withDimensions(dimensions)
-                    .withMetrics(AggregatorFactory.toRelay(Iterables.transform(metrics, AggregatorFactory.NAME_TYPE)))
+                    .withMetrics(AggregatorFactory.toRelay(metrics))
                     .withRollup(false)
                     .build();
     } else if (subQuery instanceof PartitionedGroupByQuery.GroupByDelegate) {
@@ -309,6 +286,20 @@ public class Queries
                           }
                       )
                   );
+                }
+              }
+          )
+      );
+    } else if (subQuery instanceof TimeseriesQuery) {
+      Sequence<Result<TimeseriesResultValue>> timeseries = (Sequence<Result<TimeseriesResultValue>>) sequence;
+      return Sequences.concat(
+          Sequences.map(
+              timeseries, new Function<Result<TimeseriesResultValue>, Row>()
+              {
+                @Override
+                public Row apply(Result<TimeseriesResultValue> input)
+                {
+                  return new MapBasedRow(input.getTimestamp(), input.getValue().getBaseObject());
                 }
               }
           )
