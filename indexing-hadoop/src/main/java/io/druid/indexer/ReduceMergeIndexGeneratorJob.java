@@ -324,7 +324,7 @@ public class ReduceMergeIndexGeneratorJob implements HadoopDruidIndexerJob.Index
           indexSchema,
           true,
           !tuningConfig.isIgnoreInvalidRows(),
-          !tuningConfig.isAssumeTimeSorted(),
+          true,
           maxRowCount
       );
     }
