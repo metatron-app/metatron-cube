@@ -48,6 +48,7 @@ import io.druid.query.aggregation.hyperloglog.HyperUniquesAggregatorFactory;
 import io.druid.query.aggregation.post.ArithmeticPostAggregator;
 import io.druid.query.aggregation.post.ConstantPostAggregator;
 import io.druid.query.aggregation.post.FieldAccessPostAggregator;
+import io.druid.query.select.StreamQueryToolChest;
 import io.druid.query.spec.MultipleIntervalSegmentSpec;
 import io.druid.query.spec.QuerySegmentSpec;
 import io.druid.query.spec.SpecificSegmentSpec;
@@ -72,6 +73,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Future;
 
 /**
  */
@@ -520,12 +522,27 @@ public class QueryRunnerTestHelper
     );
   }
 
-  public static <T, QueryType extends Query<T>> QueryRunner<T> makeSegmentQueryRunner(
-      QueryRunnerFactory<T, QueryType> factory,
-      String segmentId,
-      Segment adapter
+  private static <T, QueryType extends Query<T>> QueryRunner<T> makeSegmentQueryRunner(
+      final QueryRunnerFactory<T, QueryType> factory,
+      final String segmentId,
+      final Segment adapter
   )
   {
+    QueryToolChest toolChest = factory.getToolchest();
+    if (toolChest instanceof StreamQueryToolChest) {
+      return new BySegmentQueryRunner<T>(
+          segmentId, adapter.getDataInterval().getStart(),
+          new QueryRunner<T>()
+          {
+            @Override
+            public Sequence<T> run(Query<T> query, Map<String, Object> responseContext)
+            {
+              // preFactoring should be called each run
+              return factory.createRunner(adapter, factory.preFactoring(null, null, null)).run(query, responseContext);
+            }
+          }
+      );
+    }
     return new BySegmentQueryRunner<T>(
         segmentId, adapter.getDataInterval().getStart(),
         factory.createRunner(adapter, null)
