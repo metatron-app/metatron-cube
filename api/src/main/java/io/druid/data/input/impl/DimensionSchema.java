@@ -108,13 +108,23 @@ public abstract class DimensionSchema
 
     DimensionSchema that = (DimensionSchema) o;
 
-    return name.equals(that.name);
+    return name.equals(that.name) && multiValueHandling == that.multiValueHandling;
 
   }
 
   @Override
   public int hashCode()
   {
-    return name.hashCode();
+    return name.hashCode() * 31 + multiValueHandling.ordinal();
+  }
+
+  @Override
+  public String toString()
+  {
+    return "DimensionSchema{" +
+           "type='" + getTypeName() + '\'' +
+           ", name='" + name + '\'' +
+           ", multiValueHandling=" + multiValueHandling +
+           '}';
   }
 }

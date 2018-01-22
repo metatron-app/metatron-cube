@@ -52,7 +52,6 @@ import io.druid.data.input.impl.DimensionSchema;
 import io.druid.data.input.impl.DimensionSchema.MultiValueHandling;
 import io.druid.data.input.impl.DimensionsSpec;
 import io.druid.data.input.impl.SpatialDimensionSchema;
-import io.druid.data.input.impl.StringDimensionSchema;
 import io.druid.granularity.Granularity;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.PostAggregator;
@@ -285,10 +284,7 @@ public abstract class IncrementalIndex<AggregatorType> implements Closeable
       if (dimSchema.getTypeName().equals(DimensionSchema.SPATIAL_TYPE_NAME)) {
         capabilities.setHasSpatialIndexes(true);
       } else {
-        int compareCacheEntry = dimSchema instanceof StringDimensionSchema
-                               ? ((StringDimensionSchema) dimSchema).getCompareCacheEntry()
-                               : -1;
-        addNewDimension(dimSchema.getName(), capabilities, dimSchema.getMultiValueHandling(), compareCacheEntry);
+        addNewDimension(dimSchema.getName(), capabilities, dimSchema.getMultiValueHandling(), -1);
       }
       columnCapabilities.put(dimSchema.getName(), capabilities);
     }

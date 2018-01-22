@@ -231,4 +231,14 @@ public class DimensionsSpec
     result = 31 * result + dimensionExclusions.hashCode();
     return result;
   }
+
+  @Override
+  public String toString()
+  {
+    return "DimensionsSpec{" +
+           "dimensions=" + dimensions +
+           ", dimensionExclusions=" + dimensionExclusions +
+           ", dimensionSchemaMap=" + dimensionSchemaMap +
+           '}';
+  }
 }

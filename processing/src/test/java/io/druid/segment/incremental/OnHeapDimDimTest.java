@@ -29,6 +29,7 @@ import io.druid.data.input.impl.DimensionSchema;
 import io.druid.data.input.impl.DimensionsSpec;
 import io.druid.data.input.impl.StringDimensionSchema;
 import org.junit.Assert;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import java.util.Arrays;
@@ -38,6 +39,7 @@ import java.util.Random;
 
 /**
  */
+@Ignore
 public class OnHeapDimDimTest
 {
   @Test
