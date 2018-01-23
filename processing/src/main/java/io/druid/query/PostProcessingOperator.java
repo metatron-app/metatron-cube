@@ -31,6 +31,8 @@ import io.druid.query.groupby.LimitingPostProcessor;
     @JsonSubTypes.Type(name = "tabular", value = TabularPostProcessor.class),
     @JsonSubTypes.Type(name = "holtWinters", value = HoltWintersPostProcessor.class),
     @JsonSubTypes.Type(name = "rowToMap", value = RowToMap.class),
+    @JsonSubTypes.Type(name = "tsToRow", value = TimeseriesToRow.class),
+    @JsonSubTypes.Type(name = "list", value = ListPostProcessingOperator.class),
     @JsonSubTypes.Type(name = "limit", value = LimitingPostProcessor.class),
 })
 public interface PostProcessingOperator<T>

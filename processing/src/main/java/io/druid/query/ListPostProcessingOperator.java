@@ -45,6 +45,12 @@ public class ListPostProcessingOperator<T> extends PostProcessingOperator.UnionS
     }
   }
 
+  @JsonProperty
+  public List<PostProcessingOperator> getProcessors()
+  {
+    return processors;
+  }
+
   @Override
   @SuppressWarnings("unchecked")
   public QueryRunner<T> postProcess(QueryRunner<T> baseQueryRunner)
@@ -65,7 +71,7 @@ public class ListPostProcessingOperator<T> extends PostProcessingOperator.UnionS
   @SuppressWarnings("unchecked")
   public QueryRunner<T> postProcess(UnionAllQueryRunner<T> baseQueryRunner)
   {
-    QueryRunner<T> queryRunner = ((PostProcessingOperator.UnionSupport)processors.get(0)).postProcess(baseQueryRunner);
+    QueryRunner<T> queryRunner = ((PostProcessingOperator.UnionSupport) processors.get(0)).postProcess(baseQueryRunner);
     for (PostProcessingOperator processor : processors) {
       queryRunner = processor.postProcess(queryRunner);
     }

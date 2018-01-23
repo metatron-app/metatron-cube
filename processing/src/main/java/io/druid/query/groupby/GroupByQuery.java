@@ -21,8 +21,10 @@ package io.druid.query.groupby;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Ordering;
 import com.google.common.primitives.Longs;
 import io.druid.common.guava.GuavaUtils;
@@ -31,7 +33,13 @@ import io.druid.granularity.Granularity;
 import io.druid.query.BaseAggregationQuery;
 import io.druid.query.DataSource;
 import io.druid.query.LateralViewSpec;
+import io.druid.query.ListPostProcessingOperator;
+import io.druid.query.PostProcessingOperator;
+import io.druid.query.PostProcessingOperators;
 import io.druid.query.Queries;
+import io.druid.query.Query;
+import io.druid.query.QuerySegmentWalker;
+import io.druid.query.TimeseriesToRow;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.PostAggregator;
 import io.druid.query.dimension.DimensionSpec;
@@ -40,15 +48,17 @@ import io.druid.query.filter.DimFilter;
 import io.druid.query.groupby.having.HavingSpec;
 import io.druid.query.groupby.orderby.LimitSpec;
 import io.druid.query.spec.QuerySegmentSpec;
+import io.druid.query.timeseries.TimeseriesQuery;
 import io.druid.segment.VirtualColumn;
 
+import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 
 /**
  */
-public class GroupByQuery extends BaseAggregationQuery<Row>
+public class GroupByQuery extends BaseAggregationQuery<Row> implements Query.RewritingQuery<Row>
 {
   public static Builder builder()
   {
@@ -330,6 +340,43 @@ public class GroupByQuery extends BaseAggregationQuery<Row>
         getOutputColumns(),
         getLateralView(),
         getContext()
+    );
+  }
+
+  @Override
+  public Query rewriteQuery(
+      QuerySegmentWalker segmentWalker, ObjectMapper jsonMapper
+  )
+  {
+    if (!getContextBoolean(GBY_CONVERT_TIMESERIES, true)) {
+      return this;
+    }
+    if (!dimensions.isEmpty() || needsSchemaResolution()) {
+      return this;
+    }
+    PostProcessingOperator processor = new TimeseriesToRow();
+    PostProcessingOperator current = PostProcessingOperators.load(this, jsonMapper);
+    if (current != null) {
+      processor = new ListPostProcessingOperator(Arrays.asList(processor, current));
+    }
+    return new TimeseriesQuery(
+        getDataSource(),
+        getQuerySegmentSpec(),
+        isDescending(),
+        dimFilter,
+        granularity,
+        virtualColumns,
+        aggregatorSpecs,
+        postAggregatorSpecs,
+        havingSpec,
+        limitSpec,
+        outputColumns,
+        lateralView,
+        computeOverridenContext(
+            ImmutableMap.<String, Object>of(
+                POST_PROCESSING, jsonMapper.convertValue(processor, Map.class)
+            )
+        )
     );
   }
 
