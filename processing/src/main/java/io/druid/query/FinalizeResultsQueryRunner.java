@@ -25,7 +25,6 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.metamx.common.ISE;
 import com.metamx.common.guava.Sequence;
-import com.metamx.common.guava.Sequences;
 import io.druid.common.utils.PropUtils;
 import io.druid.query.aggregation.MetricManipulationFn;
 import io.druid.query.aggregation.MetricManipulatorFns;
@@ -128,11 +127,7 @@ public class FinalizeResultsQueryRunner<T> implements QueryRunner<T>
       finalizerFn = toolChest.makePostComputeManipulatorFn(query, metricManipulationFn);
     }
 
-
-    return Sequences.map(
-        baseRunner.run(queryToRun, responseContext),
-        finalizerFn
-    );
-
+    final Sequence<T> sequence = baseRunner.run(queryToRun, responseContext);
+    return toolChest.applyPostComputeManipulatorFn(queryToRun, sequence, finalizerFn);
   }
 }

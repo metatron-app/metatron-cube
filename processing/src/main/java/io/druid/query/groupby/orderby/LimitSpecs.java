@@ -16,7 +16,10 @@
  * specific language governing permissions and limitations
  * under the License.
  */
+
 package io.druid.query.groupby.orderby;
+
+import io.druid.common.guava.GuavaUtils;
 
 /**
  */
@@ -24,8 +27,8 @@ public class LimitSpecs
 {
   public static boolean isDummy(LimitSpec limitSpec)
   {
-    return limitSpec.getColumns().isEmpty()
-           && limitSpec.getWindowingSpecs().isEmpty()
-           && limitSpec.getLimit() == Integer.MAX_VALUE;
+    return GuavaUtils.isNullOrEmpty(limitSpec.getColumns()) &&
+           GuavaUtils.isNullOrEmpty(limitSpec.getWindowingSpecs()) &&
+           limitSpec.getLimit() == Integer.MAX_VALUE;
   }
 }

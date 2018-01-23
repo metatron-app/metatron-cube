@@ -108,6 +108,8 @@ public class CovarianceQuery extends BaseQuery<Result<Map<String, Object>>>
         ImmutableList.<PostAggregator>of(),
         null,
         null,
+        null,
+        null,
         computeOverridenContext(postProcessor)
     );
   }

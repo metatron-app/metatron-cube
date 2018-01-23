@@ -29,12 +29,14 @@ import io.druid.client.cache.MapCache;
 import io.druid.client.selector.QueryableDruidServer;
 import io.druid.client.selector.ServerSelector;
 import io.druid.client.selector.TierSelectorStrategy;
+import io.druid.query.BaseAggregationQuery;
 import io.druid.query.DataSource;
 import io.druid.query.Druids;
 import io.druid.query.Query;
 import io.druid.query.QueryRunner;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.CountAggregatorFactory;
+import io.druid.query.timeseries.TimeseriesQuery;
 import io.druid.timeline.DataSegment;
 import io.druid.timeline.VersionedIntervalTimeline;
 import io.druid.timeline.partition.NoneShardSpec;
@@ -79,12 +81,13 @@ public class CachingClusteredClientFunctionalityTest {
     addToTimeline(new Interval("2015-01-04/2015-01-05"), "1");
     addToTimeline(new Interval("2015-02-04/2015-02-05"), "1");
 
-    final Druids.TimeseriesQueryBuilder builder = Druids.newTimeseriesQueryBuilder()
-        .dataSource("test")
-        .intervals("2015-01-02/2015-01-03")
-        .granularity("day")
-        .aggregators(Arrays.<AggregatorFactory>asList(new CountAggregatorFactory("rows")))
-        .context(ImmutableMap.<String, Object>of("uncoveredIntervalsLimit", 3));
+    final BaseAggregationQuery.Builder<TimeseriesQuery> builder =
+        Druids.newTimeseriesQueryBuilder()
+              .dataSource("test")
+              .intervals("2015-01-02/2015-01-03")
+              .granularity("day")
+              .aggregators(Arrays.<AggregatorFactory>asList(new CountAggregatorFactory("rows")))
+              .context(ImmutableMap.<String, Object>of("uncoveredIntervalsLimit", 3));
 
     Map<String, Object> responseContext = new HashMap<>();
     client.run(builder.build(), responseContext);

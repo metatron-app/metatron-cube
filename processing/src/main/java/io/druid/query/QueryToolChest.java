@@ -126,6 +126,15 @@ public abstract class QueryToolChest<ResultType, QueryType extends Query<ResultT
     return makePreComputeManipulatorFn(query, fn);
   }
 
+  public Sequence<ResultType> applyPostComputeManipulatorFn(
+      QueryType query,
+      Sequence<ResultType> sequence,
+      Function<ResultType, ResultType> manipulatorFn
+  )
+  {
+    return Sequences.map(sequence, manipulatorFn);
+  }
+
   /**
    * Returns a TypeReference object that is just passed through to Jackson in order to deserialize
    * the results of this type of query.

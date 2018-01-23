@@ -73,7 +73,6 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Future;
 
 /**
  */
@@ -245,6 +244,9 @@ public class QueryRunnerTestHelper
 
   public static final DateTime skippedDay = new DateTime("2011-01-21T00:00:00.000Z");
 
+  public static final QuerySegmentSpec january = new MultipleIntervalSegmentSpec(
+      Arrays.asList(new Interval("2011-01-01T00:00:00.000Z/2011-02-01T00:00:00.000Z"))
+  );
   public static final QuerySegmentSpec january_20 = new MultipleIntervalSegmentSpec(
       Arrays.asList(new Interval("2011-01-01T00:00:00.000Z/2011-01-20T00:00:00.000Z"))
   );

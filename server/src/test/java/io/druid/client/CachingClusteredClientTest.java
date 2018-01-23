@@ -63,6 +63,7 @@ import io.druid.granularity.PeriodGranularity;
 import io.druid.granularity.QueryGranularities;
 import io.druid.granularity.Granularity;
 import io.druid.jackson.DefaultObjectMapper;
+import io.druid.query.BaseAggregationQuery;
 import io.druid.query.BySegmentResultValueClass;
 import io.druid.query.DataSource;
 import io.druid.query.Druids;
@@ -418,14 +419,15 @@ public class CachingClusteredClientTest
       }
     };
 
-    final Druids.TimeseriesQueryBuilder builder = Druids.newTimeseriesQueryBuilder()
-                                                        .dataSource(DATA_SOURCE)
-                                                        .intervals(SEG_SPEC)
-                                                        .filters(DIM_FILTER)
-                                                        .granularity(GRANULARITY)
-                                                        .aggregators(AGGS)
-                                                        .postAggregators(POST_AGGS)
-                                                        .context(CONTEXT);
+    final BaseAggregationQuery.Builder<TimeseriesQuery> builder =
+        Druids.newTimeseriesQueryBuilder()
+              .dataSource(DATA_SOURCE)
+              .intervals(SEG_SPEC)
+              .filters(DIM_FILTER)
+              .granularity(GRANULARITY)
+              .aggregators(AGGS)
+              .postAggregators(POST_AGGS)
+              .context(CONTEXT);
 
     QueryRunner runner = new FinalizeResultsQueryRunner(
         client, new TimeseriesQueryQueryToolChest(
@@ -457,14 +459,15 @@ public class CachingClusteredClientTest
   @SuppressWarnings("unchecked")
   public void testTimeseriesCaching() throws Exception
   {
-    final Druids.TimeseriesQueryBuilder builder = Druids.newTimeseriesQueryBuilder()
-                                                        .dataSource(DATA_SOURCE)
-                                                        .intervals(SEG_SPEC)
-                                                        .filters(DIM_FILTER)
-                                                        .granularity(GRANULARITY)
-                                                        .aggregators(AGGS)
-                                                        .postAggregators(POST_AGGS)
-                                                        .context(CONTEXT);
+    final BaseAggregationQuery.Builder<TimeseriesQuery> builder =
+        Druids.newTimeseriesQueryBuilder()
+              .dataSource(DATA_SOURCE)
+              .intervals(SEG_SPEC)
+              .filters(DIM_FILTER)
+              .granularity(GRANULARITY)
+              .aggregators(AGGS)
+              .postAggregators(POST_AGGS)
+              .context(CONTEXT);
 
     QueryRunner runner = new FinalizeResultsQueryRunner(
         client, new TimeseriesQueryQueryToolChest(
@@ -586,14 +589,15 @@ public class CachingClusteredClientTest
   @Test
   public void testTimeseriesMergingOutOfOrderPartitions() throws Exception
   {
-    final Druids.TimeseriesQueryBuilder builder = Druids.newTimeseriesQueryBuilder()
-                                                        .dataSource(DATA_SOURCE)
-                                                        .intervals(SEG_SPEC)
-                                                        .filters(DIM_FILTER)
-                                                        .granularity(GRANULARITY)
-                                                        .aggregators(AGGS)
-                                                        .postAggregators(POST_AGGS)
-                                                        .context(CONTEXT);
+    final BaseAggregationQuery.Builder<TimeseriesQuery> builder =
+        Druids.newTimeseriesQueryBuilder()
+              .dataSource(DATA_SOURCE)
+              .intervals(SEG_SPEC)
+              .filters(DIM_FILTER)
+              .granularity(GRANULARITY)
+              .aggregators(AGGS)
+              .postAggregators(POST_AGGS)
+              .context(CONTEXT);
 
     QueryRunner runner = new FinalizeResultsQueryRunner(
         client, new TimeseriesQueryQueryToolChest(
@@ -649,14 +653,15 @@ public class CachingClusteredClientTest
   @SuppressWarnings("unchecked")
   public void testTimeseriesCachingTimeZone() throws Exception
   {
-    final Druids.TimeseriesQueryBuilder builder = Druids.newTimeseriesQueryBuilder()
-                                                        .dataSource(DATA_SOURCE)
-                                                        .intervals(SEG_SPEC)
-                                                        .filters(DIM_FILTER)
-                                                        .granularity(PT1H_TZ_GRANULARITY)
-                                                        .aggregators(AGGS)
-                                                        .postAggregators(POST_AGGS)
-                                                        .context(CONTEXT);
+    final BaseAggregationQuery.Builder<TimeseriesQuery> builder =
+        Druids.newTimeseriesQueryBuilder()
+              .dataSource(DATA_SOURCE)
+              .intervals(SEG_SPEC)
+              .filters(DIM_FILTER)
+              .granularity(PT1H_TZ_GRANULARITY)
+              .aggregators(AGGS)
+              .postAggregators(POST_AGGS)
+              .context(CONTEXT);
 
     QueryRunner runner = new FinalizeResultsQueryRunner(
         client, new TimeseriesQueryQueryToolChest(
@@ -696,14 +701,16 @@ public class CachingClusteredClientTest
   @Test
   public void testDisableUseCache() throws Exception
   {
-    final Druids.TimeseriesQueryBuilder builder = Druids.newTimeseriesQueryBuilder()
-                                                        .dataSource(DATA_SOURCE)
-                                                        .intervals(SEG_SPEC)
-                                                        .filters(DIM_FILTER)
-                                                        .granularity(GRANULARITY)
-                                                        .aggregators(AGGS)
-                                                        .postAggregators(POST_AGGS)
-                                                        .context(CONTEXT);
+    final BaseAggregationQuery.Builder<TimeseriesQuery> builder =
+        Druids.newTimeseriesQueryBuilder()
+              .dataSource(DATA_SOURCE)
+              .intervals(SEG_SPEC)
+              .filters(DIM_FILTER)
+              .granularity(GRANULARITY)
+              .aggregators(AGGS)
+              .postAggregators(POST_AGGS)
+              .context(CONTEXT);
+
     QueryRunner runner = new FinalizeResultsQueryRunner(
         client, new TimeseriesQueryQueryToolChest(
         QueryRunnerTestHelper.NoopIntervalChunkingQueryRunnerDecorator()
@@ -1249,7 +1256,7 @@ public class CachingClusteredClientTest
 
     final HashFunction hashFn = Hashing.murmur3_128();
 
-    GroupByQuery.Builder builder = new GroupByQuery.Builder()
+    BaseAggregationQuery.Builder<GroupByQuery> builder = new GroupByQuery.Builder()
         .setDataSource(DATA_SOURCE)
         .setQuerySegmentSpec(SEG_SPEC)
         .setDimFilter(DIM_FILTER)
@@ -2518,7 +2525,7 @@ public class CachingClusteredClientTest
   @Test
   public void testGroupByCachingRenamedAggs() throws Exception
   {
-    GroupByQuery.Builder builder = new GroupByQuery.Builder()
+    BaseAggregationQuery.Builder<GroupByQuery> builder = new GroupByQuery.Builder()
         .setDataSource(DATA_SOURCE)
         .setQuerySegmentSpec(SEG_SPEC)
         .setDimFilter(DIM_FILTER)

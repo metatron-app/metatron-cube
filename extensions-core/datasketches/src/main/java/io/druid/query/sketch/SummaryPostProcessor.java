@@ -180,6 +180,8 @@ public class SummaryPostProcessor extends PostProcessingOperator.UnionSupport
                 ImmutableList.<PostAggregator>of(),
                 null,
                 null,
+                null,
+                null,
                 Queries.extractContext(query, BaseQuery.QUERYID)
             );
             for (Map.Entry<String, Object> entry : value.entrySet()) {

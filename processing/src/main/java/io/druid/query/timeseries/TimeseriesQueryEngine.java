@@ -55,7 +55,7 @@ public class TimeseriesQueryEngine
       );
     }
 
-    final DimFilter filter = query.getDimensionsFilter();
+    final DimFilter filter = query.getDimFilter();
 
     return QueryRunnerHelper.makeCursorBasedQuery(
         adapter,

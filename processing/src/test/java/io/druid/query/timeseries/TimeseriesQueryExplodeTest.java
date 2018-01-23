@@ -27,6 +27,7 @@ import io.druid.data.input.impl.DelimitedParseSpec;
 import io.druid.data.input.impl.DimensionsSpec;
 import io.druid.data.input.impl.StringInputRowParser;
 import io.druid.granularity.QueryGranularities;
+import io.druid.query.BaseAggregationQuery;
 import io.druid.query.Druids;
 import io.druid.query.LateralViewSpec;
 import io.druid.query.QueryRunner;
@@ -134,7 +135,7 @@ public class TimeseriesQueryExplodeTest
   @Test
   public void testExplodeHour()
   {
-    Druids.TimeseriesQueryBuilder builder =
+    BaseAggregationQuery.Builder<TimeseriesQuery> builder =
         Druids.newTimeseriesQueryBuilder()
               .dataSource(new TableDataSource(QueryRunnerTestHelper.dataSource))
               .aggregators(
@@ -150,7 +151,7 @@ public class TimeseriesQueryExplodeTest
               )
               .intervals(QueryRunnerTestHelper.fullOnInterval)
               .granularity(QueryGranularities.HOUR)
-              .explodeSpec(
+              .lateralViewSpec(
                   new LateralViewSpec(
                       Arrays.<LateralViewSpec.LateralViewElement>asList(
                           new LateralViewSpec.LateralViewElement("market", null),
@@ -204,7 +205,7 @@ public class TimeseriesQueryExplodeTest
     TimeseriesQueryRunnerTestHelper.validate(columnNames, expectedResults, results);
 
     // single element
-    builder.explodeSpec(
+    builder.lateralViewSpec(
         new LateralViewSpec(
             Arrays.<LateralViewSpec.LateralViewElement>asList(
                 new LateralViewSpec.LateralViewElement("market", null)
@@ -236,7 +237,7 @@ public class TimeseriesQueryExplodeTest
     TimeseriesQueryRunnerTestHelper.validate(columnNames, expectedResults, results);
 
     // single element, selective
-    builder.explodeSpec(
+    builder.lateralViewSpec(
         new LateralViewSpec(
             Arrays.<LateralViewSpec.LateralViewElement>asList(
                 new LateralViewSpec.LateralViewElement("market", Arrays.asList("total_market", "upfront", "xxx"))
@@ -264,7 +265,7 @@ public class TimeseriesQueryExplodeTest
     TimeseriesQueryRunnerTestHelper.validate(columnNames, expectedResults, results);
 
     // single element, 2nd
-    builder.explodeSpec(
+    builder.lateralViewSpec(
         new LateralViewSpec(
             Arrays.<LateralViewSpec.LateralViewElement>asList(
                 null,
@@ -297,7 +298,7 @@ public class TimeseriesQueryExplodeTest
     TimeseriesQueryRunnerTestHelper.validate(columnNames, expectedResults, results);
 
     // single element, 2nd, selective
-    builder.explodeSpec(
+    builder.lateralViewSpec(
         new LateralViewSpec(
             Arrays.<LateralViewSpec.LateralViewElement>asList(
                 new LateralViewSpec.LateralViewElement(null, Arrays.asList("spot", "total_market")),
@@ -329,7 +330,7 @@ public class TimeseriesQueryExplodeTest
   @Test
   public void testExplodeDay()
   {
-    Druids.TimeseriesQueryBuilder builder =
+    BaseAggregationQuery.Builder<TimeseriesQuery> builder =
         Druids.newTimeseriesQueryBuilder()
               .dataSource(new TableDataSource(QueryRunnerTestHelper.dataSource))
               .aggregators(
@@ -345,7 +346,7 @@ public class TimeseriesQueryExplodeTest
               )
               .intervals(QueryRunnerTestHelper.fullOnInterval)
               .granularity(QueryGranularities.DAY)
-              .explodeSpec(
+              .lateralViewSpec(
                   new LateralViewSpec(
                       Arrays.<LateralViewSpec.LateralViewElement>asList(
                           new LateralViewSpec.LateralViewElement("market", null),
@@ -378,7 +379,7 @@ public class TimeseriesQueryExplodeTest
     TimeseriesQueryRunnerTestHelper.validate(columnNames, expectedResults, results);
 
     // single element
-    builder.explodeSpec(
+    builder.lateralViewSpec(
         new LateralViewSpec(
             Arrays.<LateralViewSpec.LateralViewElement>asList(
                 new LateralViewSpec.LateralViewElement("market", null)
@@ -401,7 +402,7 @@ public class TimeseriesQueryExplodeTest
     TimeseriesQueryRunnerTestHelper.validate(columnNames, expectedResults, results);
 
     // single element, selective
-    builder.explodeSpec(
+    builder.lateralViewSpec(
         new LateralViewSpec(
             Arrays.<LateralViewSpec.LateralViewElement>asList(
                 new LateralViewSpec.LateralViewElement("market", Arrays.asList("total_market", "upfront", "xxx"))
@@ -423,7 +424,7 @@ public class TimeseriesQueryExplodeTest
     TimeseriesQueryRunnerTestHelper.validate(columnNames, expectedResults, results);
 
     // single element, 2nd
-    builder.explodeSpec(
+    builder.lateralViewSpec(
         new LateralViewSpec(
             Arrays.<LateralViewSpec.LateralViewElement>asList(
                 null,
@@ -447,7 +448,7 @@ public class TimeseriesQueryExplodeTest
     TimeseriesQueryRunnerTestHelper.validate(columnNames, expectedResults, results);
 
     // single element, 2nd, selective
-    builder.explodeSpec(
+    builder.lateralViewSpec(
         new LateralViewSpec(
             Arrays.<LateralViewSpec.LateralViewElement>asList(
                 new LateralViewSpec.LateralViewElement(null, Arrays.asList("spot", "total_market")),

@@ -28,6 +28,7 @@ import io.druid.common.DateTimes;
 import io.druid.granularity.Granularity;
 import io.druid.granularity.PeriodGranularity;
 import io.druid.granularity.QueryGranularities;
+import io.druid.query.BaseAggregationQuery;
 import io.druid.query.Druids;
 import io.druid.query.FluentQueryRunnerBuilder;
 import io.druid.query.QueryContextKeys;
@@ -48,9 +49,13 @@ import io.druid.query.filter.AndDimFilter;
 import io.druid.query.filter.BoundDimFilter;
 import io.druid.query.filter.DimFilter;
 import io.druid.query.filter.InDimFilter;
+import io.druid.query.filter.MathExprFilter;
 import io.druid.query.filter.NotDimFilter;
 import io.druid.query.filter.RegexDimFilter;
 import io.druid.query.filter.SelectorDimFilter;
+import io.druid.query.groupby.orderby.DefaultLimitSpec;
+import io.druid.query.groupby.orderby.OrderByColumnSpec;
+import io.druid.query.groupby.orderby.WindowingSpec;
 import io.druid.query.spec.MultipleIntervalSegmentSpec;
 import io.druid.segment.ExprVirtualColumn;
 import io.druid.segment.TestHelper;
@@ -66,6 +71,7 @@ import org.junit.runners.Parameterized;
 
 import java.io.IOException;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -249,7 +255,7 @@ public class TimeseriesQueryRunnerTest
               .dimension(QueryRunnerTestHelper.marketDimension)
               .value("upfront")
               .build(),
-        query.getDimensionsFilter()
+        query.getDimFilter()
     );
 
     final DateTime expectedLast = descending ?
@@ -1159,6 +1165,7 @@ public class TimeseriesQueryRunnerTest
                                   .aggregators(QueryRunnerTestHelper.commonAggregators)
                                   .postAggregators(Arrays.<PostAggregator>asList(QueryRunnerTestHelper.addRowsIndexConstant))
                                   .descending(descending)
+                                  .limit(3)
                                   .build();
 
     List<Result<TimeseriesResultValue>> expectedResults = Arrays.asList(
@@ -1198,6 +1205,8 @@ public class TimeseriesQueryRunnerTest
         .create(runner)
         .applyPreMergeDecoration()
         .mergeResults()
+        .applyPostMergeDecoration()
+        .applyFinalizeResults()
         .postProcess(null);
 
     expectedResults = Arrays.asList(
@@ -2383,5 +2392,179 @@ public class TimeseriesQueryRunnerTest
         Lists.<Result<TimeseriesResultValue>>newArrayList()
     );
     TestHelper.assertExpectedResults(expectedResults, results);
+  }
+
+  @Test
+  public void testSimpleLimit()
+  {
+    TimeseriesQuery query = Druids.newTimeseriesQueryBuilder()
+                                  .dataSource(QueryRunnerTestHelper.dataSource)
+                                  .granularity(QueryGranularities.MONTH)
+                                  .intervals(QueryRunnerTestHelper.fullOnInterval)
+                                  .aggregators(
+                                      Arrays.asList(
+                                          new DoubleMaxAggregatorFactory("maxIndex", "index"),
+                                          new DoubleMinAggregatorFactory("minIndex", "index")
+                                      )
+                                  )
+                                  .descending(descending)
+                                  .build();
+
+    List<Result<TimeseriesResultValue>> expected = TimeseriesQueryRunnerTestHelper.createExpected(
+        new String[]{"maxIndex", "minIndex"},
+        new Object[]{"2011-01-01", 1870.06103515625D, 71.31593322753906D},
+        new Object[]{"2011-02-01", 1862.7379150390625D, 72.16365051269531D},
+        new Object[]{"2011-03-01", 1734.27490234375D, 59.02102279663086D},
+        new Object[]{"2011-04-01", 1522.043701171875D, 72.66842651367188D}
+    );
+    if (descending) {
+      Collections.reverse(expected);
+    }
+    for (int i = 4; i > 0; i--) {
+      List<Result<TimeseriesResultValue>> results = Sequences.toList(
+          runner.run(query.withLimitSpec(new DefaultLimitSpec(null, i)), CONTEXT),
+          Lists.<Result<TimeseriesResultValue>>newArrayList()
+      );
+      TestHelper.assertExpectedResults(expected.subList(0, i), results);
+    }
+
+    expected = TimeseriesQueryRunnerTestHelper.createExpected(
+        new String[]{"maxIndex", "minIndex"},
+        new Object[]{"2011-03-01", 1734.27490234375D, 59.02102279663086D},
+        new Object[]{"2011-01-01", 1870.06103515625D, 71.31593322753906D},
+        new Object[]{"2011-02-01", 1862.7379150390625D, 72.16365051269531D},
+        new Object[]{"2011-04-01", 1522.043701171875D, 72.66842651367188D}
+    );
+    List<Result<TimeseriesResultValue>> results = Sequences.toList(
+        runner.run(
+            query.withLimitSpec(new DefaultLimitSpec(Arrays.asList(OrderByColumnSpec.asc("minIndex")))),
+            CONTEXT
+        ),
+        Lists.<Result<TimeseriesResultValue>>newArrayList()
+    );
+    TestHelper.assertExpectedResults(expected, results);
+
+    expected = TimeseriesQueryRunnerTestHelper.createExpected(
+        new String[]{"maxIndex", "minIndex"},
+        new Object[]{"2011-01-01", 1870.06103515625D, 71.31593322753906D},
+        new Object[]{"2011-02-01", 1862.7379150390625D, 72.16365051269531D},
+        new Object[]{"2011-03-01", 1734.27490234375D, 59.02102279663086D},
+        new Object[]{"2011-04-01", 1522.043701171875D, 72.66842651367188D}
+        );
+    results = Sequences.toList(
+        runner.run(
+            query.withLimitSpec(new DefaultLimitSpec(Arrays.asList(OrderByColumnSpec.desc("maxIndex")))),
+            CONTEXT
+        ),
+        Lists.<Result<TimeseriesResultValue>>newArrayList()
+    );
+    TestHelper.assertExpectedResults(expected, results);
+  }
+
+  @Test
+  public void testWindowingSpec()
+  {
+    BaseAggregationQuery.Builder<TimeseriesQuery> builder = Druids.newTimeseriesQueryBuilder()
+        .setDataSource(QueryRunnerTestHelper.dataSource)
+        .setQuerySegmentSpec(QueryRunnerTestHelper.january)
+        .setDimFilter(new MathExprFilter("index > 100"))
+        .setAggregatorSpecs(QueryRunnerTestHelper.rowsCount, QueryRunnerTestHelper.indexDoubleSum)
+        .setPostAggregatorSpecs(QueryRunnerTestHelper.addRowsIndexConstant)
+        .setGranularity(QueryGranularities.DAY);
+
+    String[] columnNames = {"rows", "index", "addRowsIndexConstant"};
+    Iterable<Result<TimeseriesResultValue>> results;
+
+    List<Result<TimeseriesResultValue>> expectedResults = TimeseriesQueryRunnerTestHelper.createExpected(
+        columnNames,
+        new Object[]{"2011-01-12",  4L, 3600.0, 3605.0},
+        new Object[]{"2011-01-13", 12L, 5983.074401855469, 5996.074401855469},
+        new Object[]{"2011-01-14", 10L, 4644.134963989258, 4655.134963989258},
+        new Object[]{"2011-01-15",  9L, 5356.181037902832, 5366.181037902832},
+        new Object[]{"2011-01-16",  8L, 4247.914710998535, 4256.914710998535},
+        new Object[]{"2011-01-17", 11L, 4461.939956665039, 4473.939956665039},
+        new Object[]{"2011-01-18", 10L, 4127.733467102051, 4138.733467102051},
+        new Object[]{"2011-01-19",  9L, 4243.135475158691, 4253.135475158691},
+        new Object[]{"2011-01-20",  9L, 4076.9225158691406, 4086.9225158691406},
+        new Object[]{"2011-01-21",  0L, 0.0, 1.0},
+        new Object[]{"2011-01-22", 10L, 5874.600471496582, 5885.600471496582},
+        new Object[]{"2011-01-23", 11L, 5400.676559448242, 5412.676559448242},
+        new Object[]{"2011-01-24", 10L, 4710.972122192383, 4721.972122192383},
+        new Object[]{"2011-01-25", 10L, 4906.999092102051, 4917.999092102051},
+        new Object[]{"2011-01-26", 10L, 6022.893226623535, 6033.893226623535},
+        new Object[]{"2011-01-27", 12L, 5934.857353210449, 5947.857353210449},
+        new Object[]{"2011-01-28", 11L, 5579.304672241211, 5591.304672241211},
+        new Object[]{"2011-01-29", 13L, 5346.517524719238, 5360.517524719238},
+        new Object[]{"2011-01-30", 12L, 5400.307342529297, 5413.307342529297},
+        new Object[]{"2011-01-31", 11L, 5727.540992736816, 5739.540992736816}
+    );
+
+    results = Sequences.toList(
+        runner.run(builder.build(), CONTEXT),
+        Lists.<Result<TimeseriesResultValue>>newArrayList()
+    );
+    TestHelper.assertExpectedObjects(expectedResults, results, "");
+
+    expectedResults = TimeseriesQueryRunnerTestHelper.createExpected(
+        columnNames,
+        new Object[]{"2011-01-29", 13L, 5346.517524719238, 5360.517524719238},
+        new Object[]{"2011-01-30", 12L, 5400.307342529297, 5413.307342529297},
+        new Object[]{"2011-01-27", 12L, 5934.857353210449, 5947.857353210449},
+        new Object[]{"2011-01-13", 12L, 5983.074401855469, 5996.074401855469},
+        new Object[]{"2011-01-17", 11L, 4461.939956665039, 4473.939956665039},
+        new Object[]{"2011-01-23", 11L, 5400.676559448242, 5412.676559448242},
+        new Object[]{"2011-01-28", 11L, 5579.304672241211, 5591.304672241211},
+        new Object[]{"2011-01-31", 11L, 5727.540992736816, 5739.540992736816},
+        new Object[]{"2011-01-18", 10L, 4127.733467102051, 4138.733467102051},
+        new Object[]{"2011-01-14", 10L, 4644.134963989258, 4655.134963989258}
+    );
+
+    builder.setLimitSpec(
+        new DefaultLimitSpec(Arrays.asList(OrderByColumnSpec.desc("rows"), OrderByColumnSpec.asc("index")), 10)
+    );
+    results = Sequences.toList(
+        runner.run(builder.build(), CONTEXT),
+        Lists.<Result<TimeseriesResultValue>>newArrayList()
+    );
+    TestHelper.assertExpectedObjects(expectedResults, results, "");
+
+    builder.setLimitSpec(
+        new DefaultLimitSpec(
+            null, null,
+            Arrays.asList(
+                WindowingSpec.expressions("delta = $delta(index)", "runningSum = $sum(rows)")
+            )
+        )
+    );
+
+    columnNames = new String[]{"rows", "index", "addRowsIndexConstant", "delta", "runningSum"};
+    expectedResults = TimeseriesQueryRunnerTestHelper.createExpected(
+        columnNames,
+        new Object[]{"2011-01-12", 4L, 3600.0, 3605.0, 0.0, 4L},
+        new Object[]{"2011-01-13", 12L, 5983.074401855469, 5996.074401855469, 2383.0744018554688, 16L},
+        new Object[]{"2011-01-14", 10L, 4644.134963989258, 4655.134963989258, -1338.939437866211, 26L},
+        new Object[]{"2011-01-15", 9L, 5356.181037902832, 5366.181037902832, 712.0460739135742, 35L},
+        new Object[]{"2011-01-16", 8L, 4247.914710998535, 4256.914710998535, -1108.2663269042969, 43L},
+        new Object[]{"2011-01-17", 11L, 4461.939956665039, 4473.939956665039, 214.0252456665039, 54L},
+        new Object[]{"2011-01-18", 10L, 4127.733467102051, 4138.733467102051, -334.2064895629883, 64L},
+        new Object[]{"2011-01-19", 9L, 4243.135475158691, 4253.135475158691, 115.40200805664062, 73L},
+        new Object[]{"2011-01-20", 9L, 4076.9225158691406, 4086.9225158691406, -166.21295928955078, 82L},
+        new Object[]{"2011-01-21", 0L, 0.0, 1.0, -4076.9225158691406, 82L},
+        new Object[]{"2011-01-22", 10L, 5874.600471496582, 5885.600471496582, 5874.600471496582, 92L},
+        new Object[]{"2011-01-23", 11L, 5400.676559448242, 5412.676559448242, -473.92391204833984, 103L},
+        new Object[]{"2011-01-24", 10L, 4710.972122192383, 4721.972122192383, -689.7044372558594, 113L},
+        new Object[]{"2011-01-25", 10L, 4906.999092102051, 4917.999092102051, 196.02696990966797, 123L},
+        new Object[]{"2011-01-26", 10L, 6022.893226623535, 6033.893226623535, 1115.8941345214844, 133L},
+        new Object[]{"2011-01-27", 12L, 5934.857353210449, 5947.857353210449, -88.03587341308594, 145L},
+        new Object[]{"2011-01-28", 11L, 5579.304672241211, 5591.304672241211, -355.5526809692383, 156L},
+        new Object[]{"2011-01-29", 13L, 5346.517524719238, 5360.517524719238, -232.78714752197266, 169L},
+        new Object[]{"2011-01-30", 12L, 5400.307342529297, 5413.307342529297, 53.789817810058594, 181L},
+        new Object[]{"2011-01-31", 11L, 5727.540992736816, 5739.540992736816, 327.23365020751953, 192L}
+    );
+    results = Sequences.toList(
+        runner.run(builder.build(), CONTEXT),
+        Lists.<Result<TimeseriesResultValue>>newArrayList()
+    );
+    TestHelper.assertExpectedObjects(expectedResults, results, "");
   }
 }

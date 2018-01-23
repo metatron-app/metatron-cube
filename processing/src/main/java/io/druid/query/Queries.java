@@ -33,6 +33,7 @@ import io.druid.common.guava.GuavaUtils;
 import io.druid.data.ValueDesc;
 import io.druid.data.input.MapBasedRow;
 import io.druid.data.input.Row;
+import io.druid.data.input.Rows;
 import io.druid.granularity.QueryGranularities;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.PostAggregator;
@@ -292,20 +293,36 @@ public class Queries
       );
     } else if (subQuery instanceof TimeseriesQuery) {
       Sequence<Result<TimeseriesResultValue>> timeseries = (Sequence<Result<TimeseriesResultValue>>) sequence;
-      return Sequences.concat(
-          Sequences.map(
-              timeseries, new Function<Result<TimeseriesResultValue>, Row>()
-              {
-                @Override
-                public Row apply(Result<TimeseriesResultValue> input)
-                {
-                  return new MapBasedRow(input.getTimestamp(), input.getValue().getBaseObject());
-                }
-              }
-          )
+      return Sequences.map(
+          timeseries, new Function<Result<TimeseriesResultValue>, Row>()
+          {
+            @Override
+            public Row apply(Result<TimeseriesResultValue> input)
+            {
+              return new MapBasedRow(input.getTimestamp(), input.getValue().getBaseObject());
+            }
+          }
       );
     }
     return Sequences.map(sequence, GuavaUtils.<I, Row>caster());
+  }
+
+  @SuppressWarnings("unchecked")
+  public static <I> Sequence<I> convertBack(Query<I> subQuery, Sequence<Row> sequence)
+  {
+    if (subQuery instanceof TimeseriesQuery) {
+      return (Sequence<I>) Sequences.map(
+          sequence, new Function<Row, Result<TimeseriesResultValue>>()
+          {
+            @Override
+            public Result<TimeseriesResultValue> apply(Row input)
+            {
+              return new Result(input.getTimestamp(), new TimeseriesResultValue(Rows.asMap(input)));
+            }
+          }
+      );
+    }
+    throw new UnsupportedOperationException("cannot convert to " + subQuery.getType() + " result");
   }
 
   public static Map<String, Object> extractContext(Query<?> query, String... keys)

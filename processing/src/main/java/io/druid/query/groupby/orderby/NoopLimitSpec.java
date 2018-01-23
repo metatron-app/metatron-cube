@@ -21,40 +21,28 @@ package io.druid.query.groupby.orderby;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.base.Function;
 import com.google.common.base.Functions;
 import com.google.common.collect.ImmutableList;
 import com.metamx.common.guava.Sequence;
 import io.druid.data.input.Row;
-import io.druid.query.QueryCacheHelper;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.PostAggregator;
 import io.druid.query.dimension.DimensionSpec;
 
-import java.nio.ByteBuffer;
 import java.util.List;
-import java.util.Objects;
 
 /**
  */
 public class NoopLimitSpec implements LimitSpec
 {
+  public static final NoopLimitSpec INSTANCE = new NoopLimitSpec();
+
   private static final byte CACHE_KEY = 0x0;
 
-  private final List<WindowingSpec> windowingSpecs;
-
   @JsonCreator
-  public NoopLimitSpec(
-      @JsonProperty("windowingSpecs") List<WindowingSpec> windowingSpecs
-  )
-  {
-    this.windowingSpecs = windowingSpecs == null ? ImmutableList.<WindowingSpec>of() : windowingSpecs;
-  }
-
-  public NoopLimitSpec()
-  {
-    this(null);
-  }
+  public NoopLimitSpec() { }
 
   @Override
   public int getLimit()
@@ -69,10 +57,9 @@ public class NoopLimitSpec implements LimitSpec
   }
 
   @Override
-  @JsonProperty
   public List<WindowingSpec> getWindowingSpecs()
   {
-    return windowingSpecs;
+    return null;
   }
 
   @Override
@@ -83,54 +70,30 @@ public class NoopLimitSpec implements LimitSpec
       boolean sortOnTimeForLimit
   )
   {
-    if (windowingSpecs.isEmpty()) {
-      return Functions.identity();
-    }
-
-    return Functions.compose(
-        LIST_TO_SEQUENCE,
-        Functions.compose(
-            new WindowingProcessor(windowingSpecs, dimensions, aggs, postAggs),
-            SEQUENCE_TO_LIST
-        )
-    );
-  }
-
-  @Override
-  public LimitSpec merge(LimitSpec other)
-  {
-    return this;
+    return Functions.identity();
   }
 
   @Override
   public String toString()
   {
-    return "NoopLimitSpec{windowingSpec=" + windowingSpecs + '}';
+    return "NoopLimitSpec{}";
   }
 
   @Override
   public boolean equals(Object other)
   {
-    return (other instanceof NoopLimitSpec) &&
-           (Objects.equals(windowingSpecs, ((NoopLimitSpec) other).windowingSpecs));
+    return other instanceof NoopLimitSpec;
   }
 
   @Override
   public int hashCode()
   {
-    return Objects.hashCode(windowingSpecs);
+    return 0;
   }
 
   @Override
   public byte[] getCacheKey()
   {
-    if (windowingSpecs == null || windowingSpecs.isEmpty()) {
-      return new byte[]{CACHE_KEY};
-    }
-    byte[] windowingSpecBytes = QueryCacheHelper.computeAggregatorBytes(windowingSpecs);
-    return ByteBuffer.allocate(1 + windowingSpecBytes.length)
-                     .put(CACHE_KEY)
-                     .put(windowingSpecBytes)
-                     .array();
+    return new byte[]{CACHE_KEY};
   }
 }

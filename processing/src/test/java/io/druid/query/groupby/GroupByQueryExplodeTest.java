@@ -34,6 +34,7 @@ import io.druid.data.input.impl.DimensionsSpec;
 import io.druid.data.input.impl.StringInputRowParser;
 import io.druid.granularity.QueryGranularities;
 import io.druid.jackson.DefaultObjectMapper;
+import io.druid.query.BaseAggregationQuery;
 import io.druid.query.QueryRunner;
 import io.druid.query.QueryRunnerTestHelper;
 import io.druid.query.TestQueryRunners;
@@ -162,7 +163,7 @@ public class GroupByQueryExplodeTest
   @Test
   public void testGroupBy()
   {
-    GroupByQuery.Builder builder = GroupByQuery
+    BaseAggregationQuery.Builder<GroupByQuery> builder = GroupByQuery
         .builder()
         .setDataSource(QueryRunnerTestHelper.dataSource)
         .setQuerySegmentSpec(QueryRunnerTestHelper.firstToThird)

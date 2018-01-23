@@ -37,6 +37,7 @@ import java.util.List;
  */
 @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type", defaultImpl = NoopLimitSpec.class)
 @JsonSubTypes(value = {
+    @JsonSubTypes.Type(name = "noop", value = NoopLimitSpec.class),
     @JsonSubTypes.Type(name = "default", value = DefaultLimitSpec.class)
 })
 public interface LimitSpec extends Cacheable
@@ -53,8 +54,6 @@ public interface LimitSpec extends Cacheable
       List<PostAggregator> postAggs,
       boolean sortOnTimeForLimit
   );
-
-  public LimitSpec merge(LimitSpec other);
 
   Function<Sequence<Row>, List<Row>> SEQUENCE_TO_LIST = new Function<Sequence<Row>, List<Row>>()
   {

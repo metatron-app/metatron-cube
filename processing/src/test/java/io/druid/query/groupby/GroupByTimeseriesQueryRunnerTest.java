@@ -100,15 +100,7 @@ public class GroupByTimeseriesQueryRunnerTest extends TimeseriesQueryRunnerTest
 
                     return Sequences.map(
                         input.run(
-                            GroupByQuery.builder()
-                                        .setDataSource(tsQuery.getDataSource())
-                                        .setQuerySegmentSpec(tsQuery.getQuerySegmentSpec())
-                                        .setGranularity(tsQuery.getGranularity())
-                                        .setDimFilter(tsQuery.getDimensionsFilter())
-                                        .setVirtualColumns(tsQuery.getVirtualColumns())
-                                        .setAggregatorSpecs(tsQuery.getAggregatorSpecs())
-                                        .setPostAggregatorSpecs(tsQuery.getPostAggregatorSpecs())
-                                        .build(),
+                            GroupByQuery.builder(tsQuery).build(),
                             responseContext
                         ),
                         new Function<Row, Result<TimeseriesResultValue>>()
@@ -178,4 +170,10 @@ public class GroupByTimeseriesQueryRunnerTest extends TimeseriesQueryRunnerTest
     // Skip this test because the timeseries test expects a day that doesn't have a filter match to be filled in,
     // but group by just doesn't return a value if the filter doesn't match.
   }
+
+  @Override
+  public void testSimpleLimit() { }
+
+  @Override
+  public void testWindowingSpec() { }
 }

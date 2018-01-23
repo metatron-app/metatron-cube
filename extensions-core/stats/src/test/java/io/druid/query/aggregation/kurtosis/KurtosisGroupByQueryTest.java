@@ -22,6 +22,7 @@ package io.druid.query.aggregation.kurtosis;
 import com.google.common.collect.Lists;
 import io.druid.data.input.Row;
 import io.druid.granularity.QueryGranularities;
+import io.druid.query.BaseAggregationQuery;
 import io.druid.query.QueryRunner;
 import io.druid.query.QueryRunnerTestHelper;
 import io.druid.query.aggregation.AggregatorFactory;
@@ -64,7 +65,7 @@ public class KurtosisGroupByQueryTest
   @Test
   public void testGroupByKurtosisOnly()
   {
-    GroupByQuery.Builder query = GroupByQuery
+    BaseAggregationQuery.Builder<GroupByQuery> query = GroupByQuery
         .builder()
         .setDataSource(QueryRunnerTestHelper.dataSource)
         .setQuerySegmentSpec(QueryRunnerTestHelper.firstToThird)

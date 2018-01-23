@@ -74,6 +74,11 @@ public class DefaultLimitSpec implements LimitSpec
     this(columns, limit, null);
   }
 
+  public DefaultLimitSpec(List<OrderByColumnSpec> columns)
+  {
+    this(columns, null, null);
+  }
+
   @JsonProperty
   public List<OrderByColumnSpec> getColumns()
   {
@@ -126,12 +131,6 @@ public class DefaultLimitSpec implements LimitSpec
     // Materialize the Comparator first for fast-fail error checking.
     Ordering<Row> ordering = WindowingProcessor.makeComparator(columns, dimensions, aggs, postAggs, sortOnTimeForLimit);
     return Functions.compose(new ListSortingFn(ordering, limit), processed);
-  }
-
-  @Override
-  public LimitSpec merge(LimitSpec other)
-  {
-    return this;
   }
 
   @Override

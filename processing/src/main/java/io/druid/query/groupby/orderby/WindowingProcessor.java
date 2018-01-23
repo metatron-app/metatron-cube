@@ -230,19 +230,21 @@ public class WindowingProcessor implements Function<List<Row>, List<Row>>
 
   private static Ordering<Row> metricOrdering(final String column, final Comparator comparator)
   {
+    final Ordering ordering = Ordering.from(comparator).nullsFirst();
     return new Ordering<Row>()
     {
       @Override
       @SuppressWarnings("unchecked")
       public int compare(Row left, Row right)
       {
-        return comparator.compare(left.getRaw(column), right.getRaw(column));
+        return ordering.compare(left.getRaw(column), right.getRaw(column));
       }
     };
   }
 
   private static Ordering<Row> metricOrdering(final String column)
   {
+    final Ordering ordering = Ordering.natural().nullsFirst();
     return new Ordering<Row>()
     {
       @Override
@@ -251,7 +253,7 @@ public class WindowingProcessor implements Function<List<Row>, List<Row>>
       {
         Comparable l = (Comparable) left.getRaw(column);
         Comparable r = (Comparable) right.getRaw(column);
-        return l.compareTo(r);
+        return ordering.compare(l, r);
       }
     };
   }

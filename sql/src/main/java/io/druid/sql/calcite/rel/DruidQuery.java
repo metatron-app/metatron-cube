@@ -694,6 +694,8 @@ public class DruidQuery
         grouping.getPostAggregators(),
         null,
         null,
+        null,
+        null,
         ImmutableSortedMap.copyOf(theContext)
     );
   }

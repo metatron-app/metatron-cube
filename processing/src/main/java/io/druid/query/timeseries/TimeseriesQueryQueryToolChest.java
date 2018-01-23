@@ -35,6 +35,7 @@ import io.druid.query.CacheStrategy;
 import io.druid.query.DruidMetrics;
 import io.druid.query.IntervalChunkingQueryRunnerDecorator;
 import io.druid.query.LateralViewSpec;
+import io.druid.query.Queries;
 import io.druid.query.Query;
 import io.druid.query.QueryCacheHelper;
 import io.druid.query.QueryContextKeys;
@@ -49,6 +50,7 @@ import io.druid.query.aggregation.MetricManipulationFn;
 import io.druid.query.aggregation.PostAggregator;
 import io.druid.query.aggregation.PostAggregators;
 import io.druid.query.filter.DimFilter;
+import io.druid.query.groupby.orderby.LimitSpecs;
 import io.druid.query.spec.MultipleIntervalSegmentSpec;
 import io.druid.segment.Segment;
 import io.druid.segment.StorageAdapter;
@@ -96,6 +98,9 @@ public class TimeseriesQueryQueryToolChest extends QueryToolChest<Result<Timeser
         if (query.getContextBoolean(QueryContextKeys.FINAL_WORK, true)) {
           TimeseriesQuery timeseriesQuery = (TimeseriesQuery) query;
           query = timeseriesQuery.withPostAggregatorSpecs(null)
+                                 .withLimitSpec(null)
+                                 .withHavingSpec(null)
+                                 .withOutputColumns(null)
                                  .withOverriddenContext(QueryContextKeys.FINAL_WORK, false);
         }
         return super.doRun(baseRunner, query, context);
@@ -153,7 +158,7 @@ public class TimeseriesQueryQueryToolChest extends QueryToolChest<Result<Timeser
       @Override
       public byte[] computeCacheKey(TimeseriesQuery query)
       {
-        final DimFilter dimFilter = query.getDimensionsFilter();
+        final DimFilter dimFilter = query.getDimFilter();
         final byte[] filterBytes = dimFilter == null ? new byte[]{} : dimFilter.getCacheKey();
         final byte[] aggregatorBytes = QueryCacheHelper.computeAggregatorBytes(query.getAggregatorSpecs());
         final byte[] granularityBytes = query.getGranularity().getCacheKey();
@@ -254,8 +259,8 @@ public class TimeseriesQueryQueryToolChest extends QueryToolChest<Result<Timeser
           )
           {
             TimeseriesQuery timeseriesQuery = (TimeseriesQuery) query;
-            if (timeseriesQuery.getDimensionsFilter() != null) {
-              timeseriesQuery = timeseriesQuery.withDimFilter(timeseriesQuery.getDimensionsFilter().optimize());
+            if (timeseriesQuery.getDimFilter() != null) {
+              timeseriesQuery = timeseriesQuery.withDimFilter(timeseriesQuery.getDimFilter().optimize());
             }
             return runner.run(timeseriesQuery, responseContext);
           }
@@ -313,6 +318,22 @@ public class TimeseriesQueryQueryToolChest extends QueryToolChest<Result<Timeser
         );
       }
     };
+  }
+
+  @Override
+  public final Sequence<Result<TimeseriesResultValue>> applyPostComputeManipulatorFn(
+      TimeseriesQuery query,
+      Sequence<Result<TimeseriesResultValue>> sequence,
+      Function<Result<TimeseriesResultValue>, Result<TimeseriesResultValue>> manipulatorFn
+  )
+  {
+    sequence = super.applyPostComputeManipulatorFn(query, sequence, manipulatorFn);
+    if (!LimitSpecs.isDummy(query.getLimitSpec()) || query.getHavingSpec() != null) {
+      // one row per time granularity.. no mean on ordering with time..
+      // todo user can provide coarser granularity for time ordering
+      sequence = Queries.convertBack(query, query.applyLimit(Queries.convertRow(query, sequence), false));
+    }
+    return sequence;
   }
 
   @Override

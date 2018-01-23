@@ -44,6 +44,7 @@ import io.druid.data.input.Row;
 import io.druid.granularity.PeriodGranularity;
 import io.druid.granularity.QueryGranularities;
 import io.druid.js.JavaScriptConfig;
+import io.druid.query.BaseAggregationQuery;
 import io.druid.query.BySegmentResultValue;
 import io.druid.query.BySegmentResultValueClass;
 import io.druid.query.Druids;
@@ -1272,7 +1273,7 @@ public class GroupByQueryRunnerTest
   @Test
   public void testMergeResults()
   {
-    GroupByQuery.Builder builder = GroupByQuery
+    BaseAggregationQuery.Builder<GroupByQuery> builder = GroupByQuery
         .builder()
         .setDataSource(QueryRunnerTestHelper.dataSource)
         .setInterval("2011-04-02/2011-04-04")
@@ -1286,7 +1287,7 @@ public class GroupByQueryRunnerTest
         .setGranularity(new PeriodGranularity(new Period("P1M"), null, null));
 
     final GroupByQuery fullQuery = builder.build();
-    final GroupByQuery allGranQuery = builder.copy().setGranularity(QueryGranularities.ALL).build();
+    final GroupByQuery allGranQuery = builder.setGranularity(QueryGranularities.ALL).build();
 
     QueryRunner mergedRunner = factory.getToolchest().mergeResults(
         new QueryRunner<Row>()
@@ -1353,7 +1354,7 @@ public class GroupByQueryRunnerTest
 
   private void doTestMergeResultsWithValidLimit(final int limit)
   {
-    GroupByQuery.Builder builder = GroupByQuery
+    BaseAggregationQuery.Builder<GroupByQuery> builder = GroupByQuery
         .builder()
         .setDataSource(QueryRunnerTestHelper.dataSource)
         .setInterval("2011-04-02/2011-04-04")
@@ -1393,7 +1394,7 @@ public class GroupByQueryRunnerTest
   public void testMergeResultsAcrossMultipleDaysWithLimitAndOrderBy()
   {
     final int limit = 14;
-    GroupByQuery.Builder builder = GroupByQuery
+    BaseAggregationQuery.Builder<GroupByQuery> builder = GroupByQuery
         .builder()
         .setDataSource(QueryRunnerTestHelper.dataSource)
         .setInterval(QueryRunnerTestHelper.firstToThird)
@@ -1471,7 +1472,7 @@ public class GroupByQueryRunnerTest
   @Test(expected = IllegalArgumentException.class)
   public void testMergeResultsWithNegativeLimit()
   {
-    GroupByQuery.Builder builder = GroupByQuery
+    BaseAggregationQuery.Builder<GroupByQuery> builder = GroupByQuery
         .builder()
         .setDataSource(QueryRunnerTestHelper.dataSource)
         .setInterval("2011-04-02/2011-04-04")
@@ -1550,7 +1551,7 @@ public class GroupByQueryRunnerTest
 
   private void doTestMergeResultsWithOrderBy(LimitSpec orderBySpec, List<Row> expectedResults)
   {
-    GroupByQuery.Builder builder = GroupByQuery
+    BaseAggregationQuery.Builder<GroupByQuery> builder = GroupByQuery
         .builder()
         .setDataSource(QueryRunnerTestHelper.dataSource)
         .setInterval("2011-04-02/2011-04-04")
@@ -1598,7 +1599,7 @@ public class GroupByQueryRunnerTest
   @Test
   public void testGroupByOrderLimit() throws Exception
   {
-    GroupByQuery.Builder builder = GroupByQuery
+    BaseAggregationQuery.Builder<GroupByQuery> builder = GroupByQuery
         .builder()
         .setDataSource(QueryRunnerTestHelper.dataSource)
         .setInterval("2011-04-02/2011-04-04")
@@ -1700,7 +1701,7 @@ public class GroupByQueryRunnerTest
   @Test
   public void testGroupByWithOrderLimit2() throws Exception
   {
-    GroupByQuery.Builder builder = GroupByQuery
+    BaseAggregationQuery.Builder<GroupByQuery> builder = GroupByQuery
         .builder()
         .setDataSource(QueryRunnerTestHelper.dataSource)
         .setInterval("2011-04-02/2011-04-04")
@@ -1740,7 +1741,7 @@ public class GroupByQueryRunnerTest
   @Test
   public void testGroupByWithOrderLimit3() throws Exception
   {
-    GroupByQuery.Builder builder = GroupByQuery
+    BaseAggregationQuery.Builder<GroupByQuery> builder = GroupByQuery
         .builder()
         .setDataSource(QueryRunnerTestHelper.dataSource)
         .setInterval("2011-04-02/2011-04-04")
@@ -2324,7 +2325,7 @@ public class GroupByQueryRunnerTest
         )
     );
 
-    GroupByQuery.Builder builder = GroupByQuery
+    BaseAggregationQuery.Builder<GroupByQuery> builder = GroupByQuery
         .builder()
         .setDataSource(QueryRunnerTestHelper.dataSource)
         .setInterval("2011-04-02/2011-04-04")
@@ -2379,7 +2380,7 @@ public class GroupByQueryRunnerTest
   @Test
   public void testGroupByWithOrderLimitHavingSpec()
   {
-    GroupByQuery.Builder builder = GroupByQuery
+    BaseAggregationQuery.Builder<GroupByQuery> builder = GroupByQuery
         .builder()
         .setDataSource(QueryRunnerTestHelper.dataSource)
         .setInterval("2011-01-25/2011-01-28")
@@ -2489,7 +2490,7 @@ public class GroupByQueryRunnerTest
         )
     );
 
-    GroupByQuery.Builder builder = GroupByQuery
+    BaseAggregationQuery.Builder<GroupByQuery> builder = GroupByQuery
         .builder()
         .setDataSource(QueryRunnerTestHelper.dataSource)
         .setInterval("2011-04-02/2011-04-04")
@@ -2534,7 +2535,7 @@ public class GroupByQueryRunnerTest
         GroupByQueryRunnerTestHelper.createExpectedRow("2011-04-01", "alias", "premium", "rows", 6L, "idx", 4416L)
     );
 
-    GroupByQuery.Builder builder = GroupByQuery
+    BaseAggregationQuery.Builder<GroupByQuery> builder = GroupByQuery
         .builder()
         .setDataSource(QueryRunnerTestHelper.dataSource)
         .setInterval("2011-04-02/2011-04-04")
@@ -2579,7 +2580,7 @@ public class GroupByQueryRunnerTest
         GroupByQueryRunnerTestHelper.createExpectedRow("2011-04-01", "alias", "premium", "rows", 6L, "idx", 4416L)
     );
 
-    GroupByQuery.Builder builder = GroupByQuery
+    BaseAggregationQuery.Builder<GroupByQuery> builder = GroupByQuery
         .builder()
         .setDataSource(QueryRunnerTestHelper.dataSource)
         .setInterval("2011-04-02/2011-04-04")
@@ -2642,7 +2643,7 @@ public class GroupByQueryRunnerTest
         new Object[]{"2011-04-01", "premium", 6L, 4416L, 60.0}
     );
 
-    GroupByQuery.Builder builder = GroupByQuery
+    BaseAggregationQuery.Builder<GroupByQuery> builder = GroupByQuery
         .builder()
         .setDataSource(QueryRunnerTestHelper.dataSource)
         .setInterval("2011-04-02/2011-04-04")
@@ -2740,7 +2741,7 @@ public class GroupByQueryRunnerTest
   @Test
   public void testGroupByWithRegEx() throws Exception
   {
-    GroupByQuery.Builder builder = GroupByQuery
+    BaseAggregationQuery.Builder<GroupByQuery> builder = GroupByQuery
         .builder()
         .setDataSource(QueryRunnerTestHelper.dataSource)
         .setInterval("2011-04-02/2011-04-04")
@@ -2786,7 +2787,7 @@ public class GroupByQueryRunnerTest
   @Test
   public void testGroupByWithNonexistentDimension() throws Exception
   {
-    GroupByQuery.Builder builder = GroupByQuery
+    BaseAggregationQuery.Builder<GroupByQuery> builder = GroupByQuery
         .builder()
         .setDataSource(QueryRunnerTestHelper.dataSource)
         .setInterval("2011-04-02/2011-04-04")
@@ -4364,7 +4365,7 @@ public class GroupByQueryRunnerTest
     List<OrderByColumnSpec> dayPlusMarket = Arrays.asList(dayOfWeekAsc, marketDsc);
     List<OrderByColumnSpec> dayPlusRows = Arrays.asList(dayOfWeekAsc, rowsAsc);
 
-    GroupByQuery.Builder builder = GroupByQuery
+    BaseAggregationQuery.Builder<GroupByQuery> builder = GroupByQuery
         .builder()
         .setDataSource(QueryRunnerTestHelper.dataSource)
         .setQuerySegmentSpec(QueryRunnerTestHelper.fullOnInterval)
@@ -5655,7 +5656,7 @@ public class GroupByQueryRunnerTest
     for (int i = 0; i < segmentCount; i++) {
       bySegmentResults.add(singleSegmentResult);
     }
-    GroupByQuery.Builder builder = GroupByQuery
+    BaseAggregationQuery.Builder<GroupByQuery> builder = GroupByQuery
         .builder()
         .setDataSource(QueryRunnerTestHelper.dataSource)
         .setInterval("2011-04-02/2011-04-04")
@@ -5713,7 +5714,7 @@ public class GroupByQueryRunnerTest
     for (int i = 0; i < segmentCount; i++) {
       bySegmentResults.add(singleSegmentResult);
     }
-    GroupByQuery.Builder builder = GroupByQuery
+    BaseAggregationQuery.Builder<GroupByQuery> builder = GroupByQuery
         .builder()
         .setDataSource(QueryRunnerTestHelper.dataSource)
         .setInterval("2011-04-02/2011-04-04")
@@ -5788,7 +5789,7 @@ public class GroupByQueryRunnerTest
     for (int i = 0; i < segmentCount; i++) {
       bySegmentResults.add(singleSegmentResult);
     }
-    GroupByQuery.Builder builder = GroupByQuery
+    BaseAggregationQuery.Builder<GroupByQuery> builder = GroupByQuery
         .builder()
         .setDataSource(QueryRunnerTestHelper.dataSource)
         .setInterval("2011-04-02/2011-04-04")
@@ -6239,7 +6240,7 @@ public class GroupByQueryRunnerTest
     superFilterList.add(new JavaScriptDimFilter("quality", jsFn, extractionFn, JavaScriptConfig.getDefault()));
     DimFilter superFilter = new AndDimFilter(superFilterList);
 
-    GroupByQuery.Builder builder = GroupByQuery
+    BaseAggregationQuery.Builder<GroupByQuery> builder = GroupByQuery
         .builder()
         .setDataSource(QueryRunnerTestHelper.dataSource)
         .setInterval("2011-04-02/2011-04-04")

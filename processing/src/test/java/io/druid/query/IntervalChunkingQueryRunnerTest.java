@@ -23,9 +23,9 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.metamx.common.guava.Sequences;
 import com.metamx.emitter.service.ServiceEmitter;
-import io.druid.query.Druids.TimeseriesQueryBuilder;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.CountAggregatorFactory;
+import io.druid.query.timeseries.TimeseriesQuery;
 import org.easymock.EasyMock;
 import org.junit.Before;
 import org.junit.Test;
@@ -40,12 +40,12 @@ public class IntervalChunkingQueryRunnerTest
   private QueryRunner baseRunner;
   private QueryToolChest toolChest;
 
-  private final TimeseriesQueryBuilder queryBuilder;
+  private final BaseAggregationQuery.Builder<TimeseriesQuery> queryBuilder;
 
   public IntervalChunkingQueryRunnerTest() {
     queryBuilder = Druids.newTimeseriesQueryBuilder()
-              .dataSource("test")
-              .aggregators(Lists.<AggregatorFactory>newArrayList(new CountAggregatorFactory("count")));
+                         .dataSource("test")
+                         .aggregators(Lists.<AggregatorFactory>newArrayList(new CountAggregatorFactory("count")));
   }
 
   @Before

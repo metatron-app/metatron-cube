@@ -48,12 +48,6 @@ public class TimeseriesResultBuilder
     return this;
   }
 
-  public TimeseriesResultBuilder addMetric(PostAggregator postAggregator)
-  {
-    metricValues.put(postAggregator.getName(), postAggregator.compute(timestamp, metricValues));
-    return this;
-  }
-
   public Result<TimeseriesResultValue> build()
   {
     return new Result<TimeseriesResultValue>(

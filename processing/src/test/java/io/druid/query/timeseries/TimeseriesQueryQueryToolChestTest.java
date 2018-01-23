@@ -80,6 +80,8 @@ public class TimeseriesQueryQueryToolChestTest
                 null,
                 null,
                 null,
+                null,
+                null,
                 null
             )
         );

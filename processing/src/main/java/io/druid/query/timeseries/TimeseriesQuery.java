@@ -24,38 +24,30 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
+import io.druid.common.guava.GuavaUtils;
 import io.druid.granularity.Granularity;
-import io.druid.query.BaseQuery;
+import io.druid.query.BaseAggregationQuery;
 import io.druid.query.DataSource;
-import io.druid.query.Queries;
+import io.druid.query.LateralViewSpec;
 import io.druid.query.Query;
 import io.druid.query.Result;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.PostAggregator;
 import io.druid.query.dimension.DimensionSpec;
 import io.druid.query.filter.DimFilter;
-import io.druid.query.LateralViewSpec;
+import io.druid.query.groupby.having.HavingSpec;
+import io.druid.query.groupby.orderby.LimitSpec;
 import io.druid.query.spec.QuerySegmentSpec;
 import io.druid.segment.VirtualColumn;
 
-import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 
 /**
  */
 @JsonTypeName("timeseries")
-public class TimeseriesQuery extends BaseQuery<Result<TimeseriesResultValue>>
-  implements Query.AggregationsSupport<Result<TimeseriesResultValue>>
+public class TimeseriesQuery extends BaseAggregationQuery<Result<TimeseriesResultValue>>
 {
-  private final DimFilter dimFilter;
-  private final Granularity granularity;
-  private final List<VirtualColumn> virtualColumns;
-  private final List<AggregatorFactory> aggregatorSpecs;
-  private final List<PostAggregator> postAggregatorSpecs;
-  private final List<String> outputColumns;
-  private final LateralViewSpec lateralView;
-
   @JsonCreator
   public TimeseriesQuery(
       @JsonProperty("dataSource") DataSource dataSource,
@@ -66,27 +58,28 @@ public class TimeseriesQuery extends BaseQuery<Result<TimeseriesResultValue>>
       @JsonProperty("virtualColumns") List<VirtualColumn> virtualColumns,
       @JsonProperty("aggregations") List<AggregatorFactory> aggregatorSpecs,
       @JsonProperty("postAggregations") List<PostAggregator> postAggregatorSpecs,
+      @JsonProperty("having") HavingSpec havingSpec,
+      @JsonProperty("limitSpec") LimitSpec limitSpec,
       @JsonProperty("outputColumns") List<String> outputColumns,
       @JsonProperty("lateralView") LateralViewSpec lateralView,
       @JsonProperty("context") Map<String, Object> context
   )
   {
-    super(dataSource, querySegmentSpec, descending, context);
-    this.dimFilter = dimFilter;
-    this.granularity = granularity;
-    this.virtualColumns = virtualColumns == null ? ImmutableList.<VirtualColumn>of() : virtualColumns;
-    this.aggregatorSpecs = aggregatorSpecs == null ? ImmutableList.<AggregatorFactory>of() : aggregatorSpecs;
-    this.postAggregatorSpecs = postAggregatorSpecs == null ? ImmutableList.<PostAggregator>of() : postAggregatorSpecs;
-    this.outputColumns = outputColumns;
-    this.lateralView = lateralView;
-
-    Queries.verifyAggregations(Arrays.<String>asList(), this.aggregatorSpecs, this.postAggregatorSpecs);
-  }
-
-  @Override
-  public boolean hasFilters()
-  {
-    return dimFilter != null || super.hasFilters();
+    super(
+        dataSource,
+        querySegmentSpec,
+        descending,
+        dimFilter,
+        granularity,
+        virtualColumns,
+        aggregatorSpecs,
+        postAggregatorSpecs,
+        havingSpec,
+        limitSpec,
+        outputColumns,
+        lateralView,
+        context
+    );
   }
 
   @Override
@@ -95,59 +88,10 @@ public class TimeseriesQuery extends BaseQuery<Result<TimeseriesResultValue>>
     return Query.TIMESERIES;
   }
 
-  @JsonProperty("filter")
-  public DimFilter getDimensionsFilter()
-  {
-    return dimFilter;
-  }
-
-  @Override
-  public DimFilter getDimFilter()
-  {
-    return dimFilter;
-  }
-
-  @JsonProperty
-  public Granularity getGranularity()
-  {
-    return granularity;
-  }
-
   @Override
   public List<DimensionSpec> getDimensions()
   {
     return ImmutableList.of();
-  }
-
-  @Override
-  @JsonProperty("virtualColumns")
-  public List<VirtualColumn> getVirtualColumns()
-  {
-    return virtualColumns;
-  }
-
-  @JsonProperty("aggregations")
-  public List<AggregatorFactory> getAggregatorSpecs()
-  {
-    return aggregatorSpecs;
-  }
-
-  @JsonProperty("postAggregations")
-  public List<PostAggregator> getPostAggregatorSpecs()
-  {
-    return postAggregatorSpecs;
-  }
-
-  @JsonProperty("outputColumns")
-  public List<String> getOutputColumns()
-  {
-    return outputColumns;
-  }
-
-  @JsonProperty("lateralView")
-  public LateralViewSpec getLateralView()
-  {
-    return lateralView;
   }
 
   public boolean isSkipEmptyBuckets()
@@ -167,6 +111,8 @@ public class TimeseriesQuery extends BaseQuery<Result<TimeseriesResultValue>>
         virtualColumns,
         aggregatorSpecs,
         postAggregatorSpecs,
+        havingSpec,
+        limitSpec,
         outputColumns,
         lateralView,
         getContext()
@@ -185,6 +131,8 @@ public class TimeseriesQuery extends BaseQuery<Result<TimeseriesResultValue>>
         virtualColumns,
         aggregatorSpecs,
         postAggregatorSpecs,
+        havingSpec,
+        limitSpec,
         outputColumns,
         lateralView,
         getContext()
@@ -203,6 +151,8 @@ public class TimeseriesQuery extends BaseQuery<Result<TimeseriesResultValue>>
         virtualColumns,
         aggregatorSpecs,
         postAggregatorSpecs,
+        havingSpec,
+        limitSpec,
         outputColumns,
         lateralView,
         computeOverridenContext(contextOverrides)
@@ -221,12 +171,15 @@ public class TimeseriesQuery extends BaseQuery<Result<TimeseriesResultValue>>
         virtualColumns,
         aggregatorSpecs,
         postAggregatorSpecs,
+        havingSpec,
+        limitSpec,
         outputColumns,
         lateralView,
         getContext()
     );
   }
 
+  @Override
   public TimeseriesQuery withOutputColumns(List<String> outputColumns)
   {
     return new TimeseriesQuery(
@@ -238,6 +191,8 @@ public class TimeseriesQuery extends BaseQuery<Result<TimeseriesResultValue>>
         virtualColumns,
         aggregatorSpecs,
         postAggregatorSpecs,
+        havingSpec,
+        limitSpec,
         outputColumns,
         lateralView,
         getContext()
@@ -256,6 +211,8 @@ public class TimeseriesQuery extends BaseQuery<Result<TimeseriesResultValue>>
         virtualColumns,
         aggregatorSpecs,
         postAggregatorSpecs,
+        havingSpec,
+        limitSpec,
         outputColumns,
         lateralView,
         getContext()
@@ -274,6 +231,8 @@ public class TimeseriesQuery extends BaseQuery<Result<TimeseriesResultValue>>
         virtualColumns,
         aggregatorSpecs,
         postAggregatorSpecs,
+        havingSpec,
+        limitSpec,
         outputColumns,
         lateralView,
         getContext()
@@ -281,14 +240,14 @@ public class TimeseriesQuery extends BaseQuery<Result<TimeseriesResultValue>>
   }
 
   @Override
-  public AggregationsSupport<Result<TimeseriesResultValue>> withDimensionSpecs(List<DimensionSpec> dimensions)
+  public TimeseriesQuery withDimensionSpecs(List<DimensionSpec> dimensions)
   {
-    Preconditions.checkArgument(dimensions == null || dimensions.isEmpty());
+    Preconditions.checkArgument(GuavaUtils.isNullOrEmpty(dimensions));
     return this;
   }
 
   @Override
-  public AggregationsSupport<Result<TimeseriesResultValue>> withVirtualColumns(List<VirtualColumn> virtualColumns)
+  public TimeseriesQuery withVirtualColumns(List<VirtualColumn> virtualColumns)
   {
     return new TimeseriesQuery(
         getDataSource(),
@@ -299,6 +258,48 @@ public class TimeseriesQuery extends BaseQuery<Result<TimeseriesResultValue>>
         virtualColumns,
         aggregatorSpecs,
         postAggregatorSpecs,
+        havingSpec,
+        limitSpec,
+        outputColumns,
+        lateralView,
+        getContext()
+    );
+  }
+
+  @Override
+  public TimeseriesQuery withLimitSpec(LimitSpec limitSpec)
+  {
+    return new TimeseriesQuery(
+        getDataSource(),
+        getQuerySegmentSpec(),
+        isDescending(),
+        dimFilter,
+        granularity,
+        virtualColumns,
+        aggregatorSpecs,
+        postAggregatorSpecs,
+        havingSpec,
+        limitSpec,
+        outputColumns,
+        lateralView,
+        getContext()
+    );
+  }
+
+  @Override
+  public TimeseriesQuery withHavingSpec(HavingSpec havingSpec)
+  {
+    return new TimeseriesQuery(
+        getDataSource(),
+        getQuerySegmentSpec(),
+        isDescending(),
+        dimFilter,
+        granularity,
+        virtualColumns,
+        aggregatorSpecs,
+        postAggregatorSpecs,
+        havingSpec,
+        limitSpec,
         outputColumns,
         lateralView,
         getContext()
@@ -309,57 +310,19 @@ public class TimeseriesQuery extends BaseQuery<Result<TimeseriesResultValue>>
   public String toString()
   {
     return "TimeseriesQuery{" +
-        "dataSource='" + getDataSource() + '\'' +
-        ", querySegmentSpec=" + getQuerySegmentSpec() +
-        ", descending=" + isDescending() +
-        ", dimFilter=" + dimFilter +
-        ", granularity='" + granularity + '\'' +
-        ", virtualColumns=" + virtualColumns +
-        ", aggregatorSpecs=" + aggregatorSpecs +
-        ", postAggregatorSpecs=" + postAggregatorSpecs +
-        ", outputColumns=" + outputColumns +
-        ", lateralView=" + lateralView +
-        ", context=" + getContext() +
-        '}';
-  }
-
-  @Override
-  public boolean equals(Object o)
-  {
-    if (this == o) return true;
-    if (o == null || getClass() != o.getClass()) return false;
-    if (!super.equals(o)) return false;
-
-    TimeseriesQuery that = (TimeseriesQuery) o;
-
-    if (virtualColumns != null ? !virtualColumns.equals(that.virtualColumns) : that.virtualColumns != null) {
-      return false;
-    }
-    if (aggregatorSpecs != null ? !aggregatorSpecs.equals(that.aggregatorSpecs) : that.aggregatorSpecs != null)
-      return false;
-    if (dimFilter != null ? !dimFilter.equals(that.dimFilter) : that.dimFilter != null) return false;
-    if (granularity != null ? !granularity.equals(that.granularity) : that.granularity != null) return false;
-    if (postAggregatorSpecs != null ? !postAggregatorSpecs.equals(that.postAggregatorSpecs) : that.postAggregatorSpecs != null)
-      return false;
-    if (outputColumns != null ? !outputColumns.equals(that.outputColumns) : that.outputColumns != null)
-      return false;
-    if (lateralView != null ? !lateralView.equals(that.lateralView) : that.lateralView != null)
-      return false;
-
-    return true;
-  }
-
-  @Override
-  public int hashCode()
-  {
-    int result = super.hashCode();
-    result = 31 * result + (dimFilter != null ? dimFilter.hashCode() : 0);
-    result = 31 * result + (granularity != null ? granularity.hashCode() : 0);
-    result = 31 * result + (virtualColumns != null ? virtualColumns.hashCode() : 0);
-    result = 31 * result + (aggregatorSpecs != null ? aggregatorSpecs.hashCode() : 0);
-    result = 31 * result + (postAggregatorSpecs != null ? postAggregatorSpecs.hashCode() : 0);
-    result = 31 * result + (outputColumns != null ? outputColumns.hashCode() : 0);
-    result = 31 * result + (lateralView != null ? lateralView.hashCode() : 0);
-    return result;
+           "dataSource='" + getDataSource() + '\'' +
+           ", querySegmentSpec=" + getQuerySegmentSpec() +
+           ", descending=" + isDescending() +
+           ", granularity=" + granularity +
+           (limitSpec == null ? "" : ", limitSpec=" + limitSpec) +
+           (dimFilter == null ? "" : ", dimFilter=" + dimFilter) +
+           (virtualColumns.isEmpty() ? "" : ", virtualColumns=" + virtualColumns) +
+           (aggregatorSpecs.isEmpty()? "" : ", aggregatorSpecs=" + aggregatorSpecs) +
+           (postAggregatorSpecs.isEmpty() ? "" : ", postAggregatorSpecs=" + postAggregatorSpecs) +
+           (havingSpec == null ? "" : ", havingSpec=" + havingSpec) +
+           (outputColumns == null ? "" : ", outputColumns=" + outputColumns) +
+           (lateralView == null ? "" : "lateralView" + lateralView) +
+           ", context=" + getContext() +
+           '}';
   }
 }

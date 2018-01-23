@@ -25,6 +25,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;
 import com.metamx.common.guava.Sequence;
 import io.druid.data.input.Row;
+import io.druid.query.BaseAggregationQuery;
 import io.druid.query.BaseQuery;
 import io.druid.query.PostProcessingOperator;
 import io.druid.query.Query;
@@ -60,9 +61,12 @@ public class LimitingPostProcessor extends PostProcessingOperator.Abstract<Row>
       public Sequence<Row> run(Query<Row> query, Map<String, Object> responseContext)
       {
         final Query representative = BaseQuery.getRepresentative(query);
-        Preconditions.checkArgument(representative instanceof GroupByQuery, "only accepts group-by query");
-        final GroupByQuery groupByQuery = ((GroupByQuery) representative).withLimitSpec(limitSpec);
-        return groupByQuery.applyLimit(baseQueryRunner.run(query, responseContext), groupByConfig);
+        Preconditions.checkArgument(representative instanceof BaseAggregationQuery, "only accepts aggregation query");
+        final BaseAggregationQuery aggregation = ((BaseAggregationQuery) representative).withLimitSpec(limitSpec);
+        return aggregation.applyLimit(
+            baseQueryRunner.run(query, responseContext),
+            aggregation.isSortOnTimeForLimit(groupByConfig.isSortOnTime())
+        );
       }
     };
   }

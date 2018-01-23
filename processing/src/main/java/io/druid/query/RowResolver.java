@@ -33,7 +33,6 @@ import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.dimension.DimensionSpecs;
 import io.druid.query.filter.BitmapType;
 import io.druid.query.filter.DimFilter;
-import io.druid.query.groupby.GroupByQuery;
 import io.druid.segment.QueryableIndex;
 import io.druid.segment.Segment;
 import io.druid.segment.StorageAdapter;
@@ -71,13 +70,13 @@ public class RowResolver implements TypeResolver
     return index == null ? null : new RowResolver(index, virtualColumns);
   }
 
-  public static RowResolver of(GroupByQuery groupBy)
+  public static RowResolver of(Query.AggregationsSupport<?> aggregation)
   {
-    Preconditions.checkArgument(!(groupBy.getDataSource() instanceof ViewDataSource), "fix this");
+    Preconditions.checkArgument(!(aggregation.getDataSource() instanceof ViewDataSource), "fix this");
     return new RowResolver(
-        Lists.transform(groupBy.getDimensions(), DimensionSpecs.OUTPUT_NAME),
-        groupBy.getAggregatorSpecs(),
-        VirtualColumns.valueOf(groupBy.getVirtualColumns())
+        Lists.transform(aggregation.getDimensions(), DimensionSpecs.OUTPUT_NAME),
+        aggregation.getAggregatorSpecs(),
+        VirtualColumns.valueOf(aggregation.getVirtualColumns())
     );
   }
 

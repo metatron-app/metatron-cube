@@ -33,6 +33,7 @@ import io.druid.data.input.impl.DelimitedParseSpec;
 import io.druid.data.input.impl.DimensionsSpec;
 import io.druid.data.input.impl.StringInputRowParser;
 import io.druid.granularity.QueryGranularities;
+import io.druid.query.BaseAggregationQuery;
 import io.druid.query.QueryRunner;
 import io.druid.query.QueryRunnerTestHelper;
 import io.druid.query.TestQueryRunners;
@@ -178,7 +179,7 @@ public class VirtualColumnTest
     this.runner = runner;
   }
 
-  private GroupByQuery.Builder testBuilder()
+  private BaseAggregationQuery.Builder<GroupByQuery> testBuilder()
   {
     return GroupByQuery.builder()
                        .setDataSource(dataSource)
@@ -189,7 +190,7 @@ public class VirtualColumnTest
   @Test
   public void testBasic() throws Exception
   {
-    GroupByQuery.Builder builder = testBuilder();
+    BaseAggregationQuery.Builder<GroupByQuery> builder = testBuilder();
 
     List<Row> expectedResults = GroupByQueryRunnerTestHelper.createExpectedRows(
         new String[]{"__time", "a.dim_nvl", "sum_of_key1", "count"},
@@ -237,7 +238,7 @@ public class VirtualColumnTest
   @Test(expected = UnsupportedOperationException.class)
   public void testException1() throws Exception
   {
-    GroupByQuery.Builder builder = testBuilder();
+    BaseAggregationQuery.Builder<GroupByQuery> builder = testBuilder();
 
     List<VirtualColumn> virtualColumns = Arrays.<VirtualColumn>asList(
         new MapVirtualColumn("keys", null, "array", "params"),
@@ -255,7 +256,7 @@ public class VirtualColumnTest
   @Test(expected = UnsupportedOperationException.class)
   public void testException2() throws Exception
   {
-    GroupByQuery.Builder builder = testBuilder();
+    BaseAggregationQuery.Builder<GroupByQuery> builder = testBuilder();
 
     List<VirtualColumn> virtualColumns = Arrays.<VirtualColumn>asList(
         new MapVirtualColumn("keys", null, "array", "params"),
@@ -273,7 +274,7 @@ public class VirtualColumnTest
   @Test
   public void testDimensionToMetric() throws Exception
   {
-    GroupByQuery.Builder builder = testBuilder();
+    BaseAggregationQuery.Builder<GroupByQuery> builder = testBuilder();
 
     List<Row> expectedResults = GroupByQueryRunnerTestHelper.createExpectedRows(
         new String[]{"__time", "sum_of_key1", "sum_of_key2", "count", "sum_array", "min_array", "max_array"},
@@ -306,7 +307,7 @@ public class VirtualColumnTest
   @Test
   public void testArrayMetricAggregator() throws Exception
   {
-    GroupByQuery.Builder builder = testBuilder();
+    BaseAggregationQuery.Builder<GroupByQuery> builder = testBuilder();
 
     List<VirtualColumn> virtualColumns = Arrays.<VirtualColumn>asList(
         new ExprVirtualColumn("nvl(dim, 'x')", "dim_nvl")
@@ -336,7 +337,7 @@ public class VirtualColumnTest
   @Test
   public void testX() throws Exception
   {
-    GroupByQuery.Builder builder = testBuilder();
+    BaseAggregationQuery.Builder<GroupByQuery> builder = testBuilder();
 
     List<Row> expectedResults = GroupByQueryRunnerTestHelper.createExpectedRows(
         new String[]{"__time", "keys", "cardinality1", "cardinality2"},
@@ -364,7 +365,7 @@ public class VirtualColumnTest
   @Test
   public void testArrayVC() throws Exception
   {
-    GroupByQuery.Builder builder = testBuilder();
+    BaseAggregationQuery.Builder<GroupByQuery> builder = testBuilder();
 
     // implicit
     List<Row> expectedResults = GroupByQueryRunnerTestHelper.createExpectedRows(
@@ -412,7 +413,7 @@ public class VirtualColumnTest
     //  10   20   30
     //   2    4    8
     //   1    5    9
-    GroupByQuery.Builder builder = testBuilder();
+    BaseAggregationQuery.Builder<GroupByQuery> builder = testBuilder();
 
     List<Row> expectedResults = GroupByQueryRunnerTestHelper.createExpectedRows(
         new String[]{"__time", "indexed", "sumOf", "minOf", "maxOf"},
@@ -599,7 +600,7 @@ public class VirtualColumnTest
     //  10   20   30
     //   2    4    8
     //   1    5    9
-    GroupByQuery.Builder builder = testBuilder();
+    BaseAggregationQuery.Builder<GroupByQuery> builder = testBuilder();
 
     List<Row> expectedResults = GroupByQueryRunnerTestHelper.createExpectedRows(
         new String[]{"__time", "indexed", "sumOf", "minOf", "maxOf"},
@@ -636,7 +637,7 @@ public class VirtualColumnTest
     //  10  20  30
     //   2   4   8
     //   1   5   9
-    GroupByQuery.Builder builder = testBuilder();
+    BaseAggregationQuery.Builder<GroupByQuery> builder = testBuilder();
 
     List<VirtualColumn> virtualColumns = Arrays.<VirtualColumn>asList(
         new LateralViewVirtualColumn("LV", "M", null, Arrays.asList("m1", "m2", "m3"))

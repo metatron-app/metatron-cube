@@ -275,7 +275,7 @@ public class GroupByQueryQueryToolChest extends QueryToolChest<Row, GroupByQuery
           }
       );
     }
-    return query.applyLimit(mergedSequence, configSupplier.get());
+    return query.applyLimit(mergedSequence, query.isSortOnTimeForLimit(configSupplier.get().isSortOnTime()));
   }
 
   private Sequence<Row> postAggregate(GroupByQuery query, IncrementalIndex<?> index)
@@ -297,7 +297,10 @@ public class GroupByQueryQueryToolChest extends QueryToolChest<Row, GroupByQuery
           }
       );
     }
-    return query.applyLimit(Sequences.simple(sequence), configSupplier.get());
+    return query.applyLimit(
+        Sequences.simple(sequence),
+        query.isSortOnTimeForLimit(configSupplier.get().isSortOnTime())
+    );
   }
 
   @Override

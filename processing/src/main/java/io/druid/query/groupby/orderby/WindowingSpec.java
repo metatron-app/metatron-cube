@@ -51,6 +51,11 @@ import java.util.Objects;
  */
 public class WindowingSpec implements Cacheable
 {
+  public static WindowingSpec expressions(String... expressions)
+  {
+    return new WindowingSpec(null, null, Arrays.asList(expressions), null);
+  }
+
   private final List<String> partitionColumns;
   private final List<OrderByColumnSpec> sortingColumns;
   private final List<String> expressions;

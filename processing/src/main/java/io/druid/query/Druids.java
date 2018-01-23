@@ -25,6 +25,7 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+import io.druid.common.guava.GuavaUtils;
 import io.druid.granularity.QueryGranularities;
 import io.druid.granularity.Granularity;
 import io.druid.query.aggregation.AggregatorFactory;
@@ -329,34 +330,19 @@ public class Druids
    *
    * @see io.druid.query.timeseries.TimeseriesQuery
    */
-  public static class TimeseriesQueryBuilder
+  public static class TimeseriesQueryBuilder extends BaseAggregationQuery.Builder<TimeseriesQuery>
   {
-    private DataSource dataSource;
-    private QuerySegmentSpec querySegmentSpec;
-    private DimFilter dimFilter;
-    private Granularity granularity;
-    private List<VirtualColumn> virtualColumns;
-    private List<AggregatorFactory> aggregatorSpecs;
-    private List<PostAggregator> postAggregatorSpecs;
-    private List<String> outputColumns;
-    private LateralViewSpec lateralViewSpec;
-    private Map<String, Object> context;
-
-    private boolean descending;
-
     private TimeseriesQueryBuilder()
     {
-      dataSource = null;
-      querySegmentSpec = null;
-      dimFilter = null;
       granularity = QueryGranularities.ALL;
       aggregatorSpecs = Lists.newArrayList();
       postAggregatorSpecs = Lists.newArrayList();
-      context = null;
     }
 
+    @Override
     public TimeseriesQuery build()
     {
+      Preconditions.checkArgument(GuavaUtils.isNullOrEmpty(dimensions), "cannot use dimensions in timeseries query");
       return new TimeseriesQuery(
           dataSource,
           querySegmentSpec,
@@ -366,6 +352,8 @@ public class Druids
           virtualColumns,
           aggregatorSpecs,
           postAggregatorSpecs,
+          havingSpec,
+          buildLimitSpec(),
           outputColumns,
           lateralViewSpec,
           context
@@ -374,23 +362,25 @@ public class Druids
 
     public TimeseriesQueryBuilder copy(TimeseriesQuery query)
     {
-      return new TimeseriesQueryBuilder()
+      return (TimeseriesQueryBuilder) new TimeseriesQueryBuilder()
           .dataSource(query.getDataSource())
           .intervals(query.getIntervals())
-          .filters(query.getDimensionsFilter())
+          .filters(query.getDimFilter())
           .descending(query.isDescending())
           .granularity(query.getGranularity())
           .virtualColumns(query.getVirtualColumns())
           .aggregators(query.getAggregatorSpecs())
           .postAggregators(query.getPostAggregatorSpecs())
+          .havingSpec(query.getHavingSpec())
+          .limitSpec(query.getLimitSpec())
           .outputColumns(query.getOutputColumns())
-          .explodeSpec(query.getLateralView())
+          .lateralViewSpec(query.getLateralView())
           .context(query.getContext());
     }
 
     public TimeseriesQueryBuilder copy(TimeseriesQueryBuilder builder)
     {
-      return new TimeseriesQueryBuilder()
+      return (TimeseriesQueryBuilder) new TimeseriesQueryBuilder()
           .dataSource(builder.dataSource)
           .intervals(builder.querySegmentSpec)
           .filters(builder.dimFilter)
@@ -399,8 +389,10 @@ public class Druids
           .virtualColumns(builder.virtualColumns)
           .aggregators(builder.aggregatorSpecs)
           .postAggregators(builder.postAggregatorSpecs)
+          .havingSpec(builder.havingSpec)
+          .limitSpec(builder.limitSpec)
           .outputColumns(builder.outputColumns)
-          .explodeSpec(builder.lateralViewSpec)
+          .lateralViewSpec(builder.lateralViewSpec)
           .context(builder.context);
     }
 
@@ -442,120 +434,6 @@ public class Druids
     public Map<String, Object> getContext()
     {
       return context;
-    }
-
-    public TimeseriesQueryBuilder dataSource(String ds)
-    {
-      dataSource = new TableDataSource(ds);
-      return this;
-    }
-
-    public TimeseriesQueryBuilder dataSource(Query query)
-    {
-      dataSource = new QueryDataSource(query);
-      return this;
-    }
-
-    public TimeseriesQueryBuilder dataSource(DataSource ds)
-    {
-      dataSource = ds;
-      return this;
-    }
-
-    public TimeseriesQueryBuilder intervals(QuerySegmentSpec q)
-    {
-      querySegmentSpec = q;
-      return this;
-    }
-
-    public TimeseriesQueryBuilder intervals(String s)
-    {
-      querySegmentSpec = new LegacySegmentSpec(s);
-      return this;
-    }
-
-    public TimeseriesQueryBuilder intervals(List<Interval> l)
-    {
-      querySegmentSpec = new LegacySegmentSpec(l);
-      return this;
-    }
-
-    public TimeseriesQueryBuilder filters(String dimensionName, String value)
-    {
-      dimFilter = new SelectorDimFilter(dimensionName, value, null);
-      return this;
-    }
-
-    public TimeseriesQueryBuilder filters(String dimensionName, String value, String... values)
-    {
-      dimFilter = new InDimFilter(dimensionName, Lists.asList(value, values), null);
-      return this;
-    }
-
-    public TimeseriesQueryBuilder filters(DimFilter f)
-    {
-      dimFilter = f;
-      return this;
-    }
-
-    public TimeseriesQueryBuilder descending(boolean d)
-    {
-      descending = d;
-      return this;
-    }
-
-    public TimeseriesQueryBuilder granularity(String g)
-    {
-      granularity = Granularity.fromString(g);
-      return this;
-    }
-
-    public TimeseriesQueryBuilder granularity(Granularity g)
-    {
-      granularity = g;
-      return this;
-    }
-
-    public TimeseriesQueryBuilder virtualColumns(List<VirtualColumn> v)
-    {
-      virtualColumns = v;
-      return this;
-    }
-
-    public TimeseriesQueryBuilder virtualColumns(VirtualColumn... v)
-    {
-      virtualColumns = Arrays.asList(v);
-      return this;
-    }
-
-    public TimeseriesQueryBuilder aggregators(List<AggregatorFactory> a)
-    {
-      aggregatorSpecs = a;
-      return this;
-    }
-
-    public TimeseriesQueryBuilder postAggregators(List<PostAggregator> p)
-    {
-      postAggregatorSpecs = p;
-      return this;
-    }
-
-    public TimeseriesQueryBuilder outputColumns(List<String> o)
-    {
-      outputColumns = o;
-      return this;
-    }
-
-    public TimeseriesQueryBuilder explodeSpec(LateralViewSpec e)
-    {
-      lateralViewSpec = e;
-      return this;
-    }
-
-    public TimeseriesQueryBuilder context(Map<String, Object> c)
-    {
-      context = c;
-      return this;
     }
   }
 
