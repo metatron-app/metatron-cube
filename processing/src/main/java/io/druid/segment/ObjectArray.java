@@ -25,7 +25,7 @@ import java.util.Arrays;
  */
 public class ObjectArray<T>
 {
-  final T[] array;
+  protected final T[] array;
 
   public ObjectArray(T[] array)
   {
@@ -37,9 +37,14 @@ public class ObjectArray<T>
     return array.length;
   }
 
-  public Object[] array()
+  public T[] array()
   {
     return array;
+  }
+
+  public T get(int index)
+  {
+    return array[index];
   }
 
   public ObjectArray<T> pack(T[] values)

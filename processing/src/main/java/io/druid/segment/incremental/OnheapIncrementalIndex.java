@@ -22,28 +22,17 @@ package io.druid.segment.incremental;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Supplier;
 import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
 import com.google.common.primitives.Ints;
 import com.metamx.common.logger.Logger;
 import com.metamx.common.parsers.ParseException;
-import io.druid.data.ValueDesc;
 import io.druid.data.input.Row;
 import io.druid.granularity.Granularity;
 import io.druid.query.aggregation.AbstractArrayAggregatorFactory;
 import io.druid.query.aggregation.Aggregator;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.Aggregators;
-import io.druid.query.dimension.DimensionSpec;
-import io.druid.query.filter.DimFilter;
-import io.druid.query.filter.ValueMatcher;
 import io.druid.segment.ColumnSelectorFactories;
 import io.druid.segment.ColumnSelectorFactory;
-import io.druid.segment.DimensionSelector;
-import io.druid.segment.DoubleColumnSelector;
-import io.druid.segment.ExprEvalColumnSelector;
-import io.druid.segment.FloatColumnSelector;
-import io.druid.segment.LongColumnSelector;
-import io.druid.segment.ObjectColumnSelector;
 
 import java.util.Arrays;
 import java.util.List;
@@ -173,7 +162,7 @@ public class OnheapIncrementalIndex extends IncrementalIndex<Aggregator>
           metrics[i],
           deserializeComplexMetrics
       );
-      selectors[i] = new ObjectCachingColumnSelectorFactory(delegate);
+      selectors[i] = new ColumnSelectorFactories.Caching(delegate);
     }
 
     return new Aggregator[metrics.length];
@@ -335,116 +324,4 @@ public class OnheapIncrementalIndex extends IncrementalIndex<Aggregator>
       Arrays.fill(selectors, null);
     }
   }
-
-  // Caches references to selector objects for each column instead of creating a new object each time in order to save heap space.
-  // In general the selectorFactory need not to thread-safe.
-  // here its made thread safe to support the special case of groupBy where the multiple threads can add concurrently to the IncrementalIndex.
-  static class ObjectCachingColumnSelectorFactory implements ColumnSelectorFactory
-  {
-    private final ConcurrentMap<String, LongColumnSelector> longColumnSelectorMap = Maps.newConcurrentMap();
-    private final ConcurrentMap<String, FloatColumnSelector> floatColumnSelectorMap = Maps.newConcurrentMap();
-    private final ConcurrentMap<String, DoubleColumnSelector> doubleColumnSelectorMap = Maps.newConcurrentMap();
-    private final ConcurrentMap<String, ObjectColumnSelector> objectColumnSelectorMap = Maps.newConcurrentMap();
-    private final ColumnSelectorFactory delegate;
-
-    public ObjectCachingColumnSelectorFactory(ColumnSelectorFactory delegate)
-    {
-      this.delegate = delegate;
-    }
-
-    @Override
-    public Iterable<String> getColumnNames()
-    {
-      return delegate.getColumnNames();
-    }
-
-    @Override
-    public DimensionSelector makeDimensionSelector(DimensionSpec dimensionSpec)
-    {
-      return delegate.makeDimensionSelector(dimensionSpec);
-    }
-
-    @Override
-    public FloatColumnSelector makeFloatColumnSelector(String columnName)
-    {
-      FloatColumnSelector existing = floatColumnSelectorMap.get(columnName);
-      if (existing != null) {
-        return existing;
-      } else {
-        FloatColumnSelector newSelector = delegate.makeFloatColumnSelector(columnName);
-        FloatColumnSelector prev = floatColumnSelectorMap.putIfAbsent(
-            columnName,
-            newSelector
-        );
-        return prev != null ? prev : newSelector;
-      }
-    }
-
-    @Override
-    public DoubleColumnSelector makeDoubleColumnSelector(String columnName)
-    {
-      DoubleColumnSelector existing = doubleColumnSelectorMap.get(columnName);
-      if (existing != null) {
-        return existing;
-      } else {
-        DoubleColumnSelector newSelector = delegate.makeDoubleColumnSelector(columnName);
-        DoubleColumnSelector prev = doubleColumnSelectorMap.putIfAbsent(
-            columnName,
-            newSelector
-        );
-        return prev != null ? prev : newSelector;
-      }
-    }
-
-    @Override
-    public LongColumnSelector makeLongColumnSelector(String columnName)
-    {
-      LongColumnSelector existing = longColumnSelectorMap.get(columnName);
-      if (existing != null) {
-        return existing;
-      } else {
-        LongColumnSelector newSelector = delegate.makeLongColumnSelector(columnName);
-        LongColumnSelector prev = longColumnSelectorMap.putIfAbsent(
-            columnName,
-            newSelector
-        );
-        return prev != null ? prev : newSelector;
-      }
-    }
-
-    @Override
-    public ObjectColumnSelector makeObjectColumnSelector(String columnName)
-    {
-      ObjectColumnSelector existing = objectColumnSelectorMap.get(columnName);
-      if (existing != null) {
-        return existing;
-      } else {
-        ObjectColumnSelector newSelector = delegate.makeObjectColumnSelector(columnName);
-        ObjectColumnSelector prev = objectColumnSelectorMap.putIfAbsent(
-            columnName,
-            newSelector
-        );
-        return prev != null ? prev : newSelector;
-      }
-    }
-
-    @Override
-    public ExprEvalColumnSelector makeMathExpressionSelector(String expression)
-    {
-      return delegate.makeMathExpressionSelector(expression);
-    }
-
-    @Override
-    public ValueMatcher makeAuxiliaryMatcher(DimFilter filter)
-    {
-      return delegate.makeAuxiliaryMatcher(filter);
-    }
-
-    @Override
-    public ValueDesc getColumnType(String columnName)
-    {
-      return delegate.getColumnType(columnName);
-    }
-  }
-
 }

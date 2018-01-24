@@ -21,6 +21,7 @@ package io.druid.segment;
 
 import com.google.common.base.Supplier;
 import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import com.metamx.common.ISE;
 import io.druid.data.TypeResolver;
@@ -41,7 +42,9 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
+import java.util.function.Function;
 
 /**
  */
@@ -355,6 +358,94 @@ public class ColumnSelectorFactories
     }
   }
 
+    // Caches references to selector objects for each column instead of creating a new object each time in order to save heap space.
+  // In general the selectorFactory need not to thread-safe.
+  // here its made thread safe to support the special case of groupBy where the multiple threads can add concurrently to the IncrementalIndex.
+  public static class Caching extends Delegated
+  {
+    private final Map<String, LongColumnSelector> longColumnSelectorMap = Maps.newConcurrentMap();
+    private final Map<String, FloatColumnSelector> floatColumnSelectorMap = Maps.newConcurrentMap();
+    private final Map<String, DoubleColumnSelector> doubleColumnSelectorMap = Maps.newConcurrentMap();
+    private final Map<String, ObjectColumnSelector> objectColumnSelectorMap = Maps.newConcurrentMap();
+    private final Map<String, ExprEvalColumnSelector> exprColumnSelectorMap = Maps.newConcurrentMap();
+
+    private final Function<String, LongColumnSelector> LONG = new Function<String, LongColumnSelector>()
+    {
+      @Override
+      public LongColumnSelector apply(String columnName)
+      {
+        return delegate.makeLongColumnSelector(columnName);
+      }
+    };
+    private final Function<String, FloatColumnSelector> FLOAT = new Function<String, FloatColumnSelector>()
+    {
+      @Override
+      public FloatColumnSelector apply(String columnName)
+      {
+        return delegate.makeFloatColumnSelector(columnName);
+      }
+    };
+    private final Function<String, DoubleColumnSelector> DOUBLE = new Function<String, DoubleColumnSelector>()
+    {
+      @Override
+      public DoubleColumnSelector apply(String columnName)
+      {
+        return delegate.makeDoubleColumnSelector(columnName);
+      }
+    };
+    private final Function<String, ObjectColumnSelector> OBJECT = new Function<String, ObjectColumnSelector>()
+    {
+      @Override
+      public ObjectColumnSelector apply(String columnName)
+      {
+        return delegate.makeObjectColumnSelector(columnName);
+      }
+    };
+    private final Function<String, ExprEvalColumnSelector> EXPR = new Function<String, ExprEvalColumnSelector>()
+    {
+      @Override
+      public ExprEvalColumnSelector apply(String expression)
+      {
+        return delegate.makeMathExpressionSelector(expression);
+      }
+    };
+
+    public Caching(ColumnSelectorFactory delegate)
+    {
+      super(delegate);
+    }
+
+    @Override
+    public FloatColumnSelector makeFloatColumnSelector(String columnName)
+    {
+      return floatColumnSelectorMap.computeIfAbsent(columnName, FLOAT);
+    }
+
+    @Override
+    public DoubleColumnSelector makeDoubleColumnSelector(String columnName)
+    {
+      return doubleColumnSelectorMap.computeIfAbsent(columnName, DOUBLE);
+    }
+
+    @Override
+    public LongColumnSelector makeLongColumnSelector(String columnName)
+    {
+      return longColumnSelectorMap.computeIfAbsent(columnName, LONG);
+    }
+
+    @Override
+    public ObjectColumnSelector makeObjectColumnSelector(String columnName)
+    {
+      return objectColumnSelectorMap.computeIfAbsent(columnName, OBJECT);
+    }
+
+    @Override
+    public ExprEvalColumnSelector makeMathExpressionSelector(String expression)
+    {
+      return exprColumnSelectorMap.computeIfAbsent(expression, EXPR);
+    }
+  }
+
   public static abstract class AbstractFromRow extends ColumnSelectorFactory.ExprSupport
   {
     private final Supplier<Row> in;
@@ -517,20 +608,16 @@ public class ColumnSelectorFactories
     @Override
     public Iterable<String> getColumnNames()
     {
-      return null;
+      return in.get().getColumns();
     }
 
     @Override
-    public DimensionSelector makeDimensionSelector(
-        DimensionSpec dimensionSpec
-    )
+    public DimensionSelector makeDimensionSelector(DimensionSpec dimensionSpec)
     {
       return dimensionSpec.decorate(makeDimensionSelectorUndecorated(dimensionSpec));
     }
 
-    private DimensionSelector makeDimensionSelectorUndecorated(
-        DimensionSpec dimensionSpec
-    )
+    private DimensionSelector makeDimensionSelectorUndecorated(DimensionSpec dimensionSpec)
     {
       final String dimension = dimensionSpec.getDimension();
       final ExtractionFn extractionFn = dimensionSpec.getExtractionFn();

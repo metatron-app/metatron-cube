@@ -129,6 +129,9 @@ public class GroupByQueryRunnerFactory implements QueryRunnerFactory<Row, GroupB
     if (!DefaultDimensionSpec.isAllDefault(query.getDimensions())) {
       return null;
     }
+    if (query.getContextBoolean(Query.GBY_MERGE_SIMPLE, true)) {
+      return null;
+    }
     final DimFilter dimFilter = query.getDimFilter();
     final VirtualColumns vcs = VirtualColumns.valueOf(query.getVirtualColumns());
     for (Segment segment : segments) {

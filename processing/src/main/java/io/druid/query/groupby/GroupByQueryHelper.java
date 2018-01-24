@@ -19,8 +19,6 @@
 
 package io.druid.query.groupby;
 
-import com.google.common.base.Function;
-import com.google.common.collect.Lists;
 import com.google.common.util.concurrent.Futures;
 import com.metamx.common.ISE;
 import com.metamx.common.Pair;
@@ -28,8 +26,8 @@ import com.metamx.common.guava.Accumulator;
 import io.druid.collections.StupidPool;
 import io.druid.data.input.Row;
 import io.druid.granularity.QueryGranularities;
+import io.druid.query.Query;
 import io.druid.query.aggregation.AggregatorFactory;
-import io.druid.query.dimension.DimensionSpec;
 import io.druid.query.dimension.DimensionSpecs;
 import io.druid.segment.incremental.IncrementalIndex;
 import io.druid.segment.incremental.IncrementalIndexSchema;
@@ -48,26 +46,31 @@ public class GroupByQueryHelper
   public static final String CTX_KEY_MAX_RESULTS = "maxResults";
   public static final String CTX_KEY_FUDGE_TIMESTAMP = "fudgeTimestamp";
 
-  public static IncrementalIndex createMergeIndex(
+  public static MergeIndex createMergeIndex(
       final GroupByQuery query,
       final StupidPool<ByteBuffer> bufferPool,
-      final boolean sortFacts,
       final int maxResult,
       final Future<Object> optimizer
   )
   {
-    final List<DimensionSpec> dimensions = query.getDimensions();
-    final List<AggregatorFactory> aggs = Lists.transform(
-        query.getAggregatorSpecs(),
-        new Function<AggregatorFactory, AggregatorFactory>()
-        {
-          @Override
-          public AggregatorFactory apply(AggregatorFactory input)
-          {
-            return input.getCombiningFactory();
-          }
-        }
-    );
+    int maxRowCount = Math.min(query.getContextValue(CTX_KEY_MAX_RESULTS, maxResult), maxResult);
+    if (query.getContextBoolean(Query.GBY_MERGE_SIMPLE, true)) {
+      return new SimpleMergeIndex(query.getDimensions(), query.getAggregatorSpecs(), maxRowCount);
+    } else {
+      return createIncrementalIndex(query, bufferPool, false, maxRowCount, optimizer);
+    }
+  }
+
+  public static IncrementalIndex createIncrementalIndex(
+      final GroupByQuery query,
+      final StupidPool<ByteBuffer> bufferPool,
+      final boolean sortFacts,
+      final int maxRowCount,
+      final Future<Object> optimizer
+  )
+  {
+    final List<String> dimensions = DimensionSpecs.toOutputNames(query.getDimensions());
+    final List<AggregatorFactory> aggs = AggregatorFactory.toCombiner(query.getAggregatorSpecs());
 
     // use granularity truncated min timestamp since incoming truncated timestamps may precede timeStart
     IncrementalIndexSchema schema = new IncrementalIndexSchema.Builder()
@@ -78,11 +81,6 @@ public class GroupByQueryHelper
         .withRollup(true)
         .build();
 
-    int maxRowCount = Math.min(
-        query.getContextValue(CTX_KEY_MAX_RESULTS, maxResult),
-        maxResult
-    );
-
     final IncrementalIndex index;
     if (query.getContextValue("useOffheap", false)) {
       index = new OffheapIncrementalIndex(schema, false, true, sortFacts, maxRowCount, bufferPool);
@@ -92,8 +90,8 @@ public class GroupByQueryHelper
 
     if (optimizer != null) {
       index.initialize((Map<String, String[]>) Futures.getUnchecked(optimizer));
-    } else if (dimensions != null) {
-      index.initialize(DimensionSpecs.toOutputNames(dimensions));
+    } else {
+      index.initialize(dimensions);
     }
     return index;
   }
@@ -104,6 +102,19 @@ public class GroupByQueryHelper
     {
       @Override
       public IncrementalIndex accumulate(final IncrementalIndex accumulated, final T in)
+      {
+        accumulated.add((Row) in);
+        return accumulated;
+      }
+    };
+  }
+
+  public static <T> Accumulator<MergeIndex, T> newMergeAccumulator()
+  {
+    return new Accumulator<MergeIndex, T>()
+    {
+      @Override
+      public MergeIndex accumulate(final MergeIndex accumulated, final T in)
       {
         accumulated.add((Row) in);
         return accumulated;

@@ -29,8 +29,10 @@ public interface QueryContextKeys
   public static final String BY_SEGMENT = "bySegment";
   public static final String FINAL_WORK = "finalWork";
 
+  // group-by
   public static final String GBY_MERGE_PARALLELISM = "groupByMergeParallelism";
   public static final String GBY_CONVERT_TIMESERIES = "groupByConvertTimeseries";
+  public static final String GBY_MERGE_SIMPLE = "groupByMergeSimple";
 
   // CacheConfig
   public static final String USE_CACHE = "useCache";

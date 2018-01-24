@@ -215,7 +215,7 @@ public class GroupByQueryQueryToolChest extends QueryToolChest<Row, GroupByQuery
         final GroupByQuery outerQuery = (GroupByQuery) query;
         final IncrementalIndex<?> outerQueryResultIndex =
             outerSequence.accumulate(
-                GroupByQueryHelper.createMergeIndex(outerQuery, bufferPool, true, maxRowCount, null),
+                GroupByQueryHelper.createIncrementalIndex(outerQuery, bufferPool, true, maxRowCount, null),
                 GroupByQueryHelper.<Row>newIndexAccumulator()
             );
         close(segment);

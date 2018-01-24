@@ -38,10 +38,12 @@ import io.druid.collections.StupidPool;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.concurrent.Execs;
 import io.druid.data.input.Row;
+import io.druid.query.dimension.DimensionSpecs;
 import io.druid.query.groupby.GroupByQuery;
 import io.druid.query.groupby.GroupByQueryConfig;
 import io.druid.query.groupby.GroupByQueryHelper;
-import io.druid.segment.incremental.IncrementalIndex;
+import io.druid.query.groupby.MergeIndex;
+import io.druid.query.groupby.SimpleMergeIndex;
 import org.apache.commons.io.IOUtils;
 
 import java.io.Closeable;
@@ -107,8 +109,8 @@ public class GroupByMergedQueryRunner<T> implements QueryRunner<T>
       parallelism = 1;
     }
 
-    final IncrementalIndex<?> incrementalIndex = GroupByQueryHelper.createMergeIndex(
-        query, bufferPool, false, maxRowCount, optimizer
+    final MergeIndex incrementalIndex = GroupByQueryHelper.createMergeIndex(
+        query, bufferPool, maxRowCount, optimizer
     );
     final Pair<Queue, Accumulator<Queue, T>> bySegmentAccumulatorPair = GroupByQueryHelper.createBySegmentAccumulatorPair();
     final boolean bySegment = BaseQuery.getContextBySegment(query, false);
@@ -139,7 +141,7 @@ public class GroupByMergedQueryRunner<T> implements QueryRunner<T>
                           if (bySegment) {
                             sequence.accumulate(bySegmentAccumulatorPair.lhs, bySegmentAccumulatorPair.rhs);
                           } else {
-                            sequence.accumulate(incrementalIndex, GroupByQueryHelper.<T>newIndexAccumulator());
+                            sequence.accumulate(incrementalIndex, GroupByQueryHelper.<T>newMergeAccumulator());
                           }
                           log.info("accumulated in %,d msec", (System.currentTimeMillis() - start));
                           return null;

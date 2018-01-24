@@ -19,6 +19,8 @@
 
 package io.druid.data;
 
+import com.google.common.collect.Ordering;
+
 import java.util.Comparator;
 import java.util.Map;
 
@@ -47,6 +49,11 @@ public class Pair<K, V> extends com.metamx.common.Pair<K, V> implements Map.Entr
   public V setValue(V value)
   {
     throw new UnsupportedOperationException("setValue");
+  }
+
+  public static <K extends Comparable, V> Comparator<Map.Entry<K, V>> KEY_COMP()
+  {
+    return KEY_COMP(Ordering.<K>natural());
   }
 
   @SuppressWarnings("unchecked")

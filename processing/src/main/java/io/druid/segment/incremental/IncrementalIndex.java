@@ -56,6 +56,7 @@ import io.druid.granularity.Granularity;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.PostAggregator;
 import io.druid.query.aggregation.PostAggregators;
+import io.druid.query.groupby.MergeIndex;
 import io.druid.segment.ColumnSelectorFactories;
 import io.druid.segment.ColumnSelectorFactory;
 import io.druid.segment.Metadata;
@@ -66,7 +67,6 @@ import org.joda.time.Interval;
 
 import javax.annotation.Nullable;
 import javax.annotation.concurrent.GuardedBy;
-import java.io.Closeable;
 import java.lang.reflect.Array;
 import java.util.Arrays;
 import java.util.Collections;
@@ -81,7 +81,7 @@ import java.util.concurrent.atomic.AtomicLong;
 
 /**
  */
-public abstract class IncrementalIndex<AggregatorType> implements Closeable
+public abstract class IncrementalIndex<AggregatorType> implements MergeIndex
 {
   static final Logger log = new Logger(IncrementalIndex.class);
 
@@ -602,11 +602,12 @@ public abstract class IncrementalIndex<AggregatorType> implements Closeable
     }
   }
 
-  public int add(Row row)
+  @Override
+  public void add(Row row)
   {
     Preconditions.checkArgument(fixedSchema, "this is only for fixed-schema");
     try {
-      return addTimeAndDims(row, toTimeAndDims(row));
+      addTimeAndDims(row, toTimeAndDims(row));
     }
     catch (IndexSizeExceededException e) {
       throw new ISE(e, e.getMessage());
@@ -927,6 +928,7 @@ public abstract class IncrementalIndex<AggregatorType> implements Closeable
     return Iterators.transform(facts.iterator(), rowFunction(ImmutableList.<PostAggregator>of()));
   }
 
+  @Override
   public Iterable<Row> toMergeStream()
   {
     return Iterables.transform(
@@ -936,21 +938,21 @@ public abstract class IncrementalIndex<AggregatorType> implements Closeable
   }
 
   @SuppressWarnings("unchecked")
-  private List<Map.Entry<TimeAndDims, Integer>> sort(
-      Iterable<Map.Entry<TimeAndDims, Integer>> facts,
-      Comparator<Map.Entry<TimeAndDims, Integer>> comparator
+  public static <K, V> List<Map.Entry<K, V>> sort(
+      Iterable<Map.Entry<K, V>> facts,
+      Comparator<Map.Entry<K, V>> comparator
   )
   {
     final long start = System.currentTimeMillis();
-    List<Map.Entry<TimeAndDims, Integer>> sorted = Lists.newArrayList(facts.iterator());
+    List<Map.Entry<K, V>> sorted = Lists.newArrayList(facts.iterator());
     if (sorted.size() > 1 << 13) {  // Arrays.MIN_ARRAY_SORT_GRAN
-      Map.Entry<TimeAndDims, Integer>[] array = sorted.toArray(new Map.Entry[sorted.size()]);
+      Map.Entry<K, V>[] array = sorted.toArray(new Map.Entry[sorted.size()]);
       Arrays.parallelSort(array, comparator);
       sorted = Arrays.asList(array);
     } else {
       Collections.sort(sorted, comparator);
     }
-    log.info("Sorted %d rows in %,d msec", size(), (System.currentTimeMillis() - start));
+    log.info("Sorted %d rows in %,d msec", sorted.size(), (System.currentTimeMillis() - start));
     return sorted;
   }
 
