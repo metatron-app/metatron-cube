@@ -25,7 +25,6 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.primitives.Longs;
 import com.metamx.common.ISE;
-import io.druid.data.Pair;
 import io.druid.data.input.MapBasedRow;
 import io.druid.data.input.Row;
 import io.druid.query.aggregation.Aggregator;
@@ -104,7 +103,7 @@ public class SimpleMergeIndex implements MergeIndex
   public Iterable<Row> toMergeStream()
   {
     return Lists.transform(
-        IncrementalIndex.sort(mapping.entrySet(), Pair.<TimeAndDims, Aggregator[]>KEY_COMP()),
+        IncrementalIndex.sortOn(mapping.entrySet(), true),
         new com.google.common.base.Function<Map.Entry<TimeAndDims, Aggregator[]>, Row>()
         {
           @Override

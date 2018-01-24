@@ -24,7 +24,6 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Ordering;
 import com.google.common.primitives.Longs;
-import io.druid.data.input.MapBasedRow;
 import io.druid.data.input.Row;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.PostAggregator;
@@ -141,7 +140,7 @@ public class WindowingProcessor implements Function<List<Row>, List<Row>>
       Map<Object[], int[]> partitions = Maps.newLinkedHashMap();
       if (partColumns.length > 0) {
         for (int index = 0; index < input.size(); index++) {
-          MapBasedRow row = (MapBasedRow) input.get(index);
+          Row row = input.get(index);
           for (int i = 0; i < partColumns.length; i++) {
             currPartKeys[i] = row.getRaw(partColumns[i]);
           }

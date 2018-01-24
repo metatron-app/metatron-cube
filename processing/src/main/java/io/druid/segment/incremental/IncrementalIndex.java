@@ -911,7 +911,7 @@ public abstract class IncrementalIndex<AggregatorType> implements MergeIndex
       );
     }
     if (timeDescending != null) {
-      return sort(facts, SortablePair.<TimeAndDims, Integer>KEY_COMP(timeComparator(timeDescending)));
+      return sortOn(facts, timeComparator(timeDescending), true);
     }
     return entries;
   }
@@ -932,15 +932,35 @@ public abstract class IncrementalIndex<AggregatorType> implements MergeIndex
   public Iterable<Row> toMergeStream()
   {
     return Iterables.transform(
-        sort(getAll(null), Pair.<TimeAndDims, Integer>KEY_COMP(dimsComparator())),
+        sortOn(getAll(null), dimsComparator(), true),
         rowFunction(ImmutableList.<PostAggregator>of())
     );
   }
 
   @SuppressWarnings("unchecked")
-  public static <K, V> List<Map.Entry<K, V>> sort(
+  public static <K extends Comparable, V> List<Map.Entry<K, V>> sortOn(
       Iterable<Map.Entry<K, V>> facts,
-      Comparator<Map.Entry<K, V>> comparator
+      boolean timeLog
+  )
+  {
+    return sort(facts, Pair.<K, V>KEY_COMP(), timeLog);
+  }
+
+  @SuppressWarnings("unchecked")
+  public static <K, V> List<Map.Entry<K, V>> sortOn(
+      Iterable<Map.Entry<K, V>> facts,
+      Comparator<K> comparator,
+      boolean timeLog
+  )
+  {
+    return sort(facts, Pair.<K, V>KEY_COMP(comparator), timeLog);
+  }
+
+  @SuppressWarnings("unchecked")
+  private static <K, V> List<Map.Entry<K, V>> sort(
+      Iterable<Map.Entry<K, V>> facts,
+      Comparator<Map.Entry<K, V>> comparator,
+      boolean timeLog
   )
   {
     final long start = System.currentTimeMillis();
@@ -952,7 +972,9 @@ public abstract class IncrementalIndex<AggregatorType> implements MergeIndex
     } else {
       Collections.sort(sorted, comparator);
     }
-    log.info("Sorted %d rows in %,d msec", sorted.size(), (System.currentTimeMillis() - start));
+    if (timeLog) {
+      log.info("Sorted %d rows in %,d msec", sorted.size(), (System.currentTimeMillis() - start));
+    }
     return sorted;
   }
 

@@ -55,6 +55,24 @@ public class StringComparators
   public static final DayOfWeekComparator DAY_OF_WEEK = new DayOfWeekComparator(null);
   public static final MonthComparator MONTH = new MonthComparator(null);
 
+  public static StringComparator revert(final StringComparator comparator)
+  {
+    return new StringComparator()
+    {
+      @Override
+      public byte[] getCacheKey()
+      {
+        throw new UnsupportedOperationException("getCacheKey");
+      }
+
+      @Override
+      public int compare(String o1, String o2)
+      {
+        return -comparator.compare(o1, o2);
+      }
+    };
+  }
+
   public static abstract class AbstractStringComparator implements StringComparator
   {
     @Override

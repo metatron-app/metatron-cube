@@ -23,6 +23,7 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.metamx.common.IAE;
@@ -59,6 +60,34 @@ public class OrderByColumnSpec implements Cacheable
     }
   };
 
+  public static List<String> getColumns(List<? extends OrderByColumnSpec> orderByColumnSpecs)
+  {
+    return ImmutableList.copyOf(Lists.transform(orderByColumnSpecs, GET_DIMENSION));
+  }
+
+  public static String[] getColumnsAsArray(List<? extends OrderByColumnSpec> orderByColumnSpecs)
+  {
+    return getColumns(orderByColumnSpecs).toArray(new String[orderByColumnSpecs.size()]);
+  }
+
+  public static List<StringComparator> getComparator(List<? extends OrderByColumnSpec> orderByColumnSpecs)
+  {
+    List<StringComparator> comparators = Lists.newArrayList();
+    for (OrderByColumnSpec orderByColumnSpec : orderByColumnSpecs) {
+      StringComparator comparator = orderByColumnSpec.dimensionComparator;
+      if (orderByColumnSpec.direction == Direction.DESCENDING) {
+        comparator = StringComparators.revert(comparator);
+      }
+      comparators.add(comparator);
+    }
+    return comparators;
+  }
+
+  public static StringComparator[] getComparatorAsArray(List<? extends OrderByColumnSpec> orderByColumnSpecs)
+  {
+    return getComparator(orderByColumnSpecs).toArray(new StringComparator[orderByColumnSpecs.size()]);
+  }
+
   /**
    * Maintain a map of the enum values so that we can just do a lookup and get a null if it doesn't exist instead
    * of an exception thrown.
@@ -89,7 +118,7 @@ public class OrderByColumnSpec implements Cacheable
 
       final String dimension = map.get("dimension").toString();
       final Direction direction = determineDirection(map.get("direction"));
-      final StringComparator dimensionComparator = determinDimensionComparator(map.get("dimensionOrder"));
+      final StringComparator dimensionComparator = determineDimensionComparator(map.get("dimensionOrder"));
 
       return new OrderByColumnSpec(dimension, direction, dimensionComparator);
     } else {
@@ -154,7 +183,7 @@ public class OrderByColumnSpec implements Cacheable
     this(
         dimension,
         direction,
-        comparatorName == null ? DEFAULT_DIMENSION_ORDER : determinDimensionComparator(comparatorName)
+        comparatorName == null ? DEFAULT_DIMENSION_ORDER : determineDimensionComparator(comparatorName)
     );
   }
 
@@ -187,6 +216,11 @@ public class OrderByColumnSpec implements Cacheable
     return dimensionComparator;
   }
 
+  public OrderByColumnSpec withComparator(String comparatorName)
+  {
+    return new OrderByColumnSpec(dimension, direction, comparatorName);
+  }
+
   public static Direction determineDirection(Object directionObj)
   {
     if (directionObj == null) {
@@ -217,7 +251,7 @@ public class OrderByColumnSpec implements Cacheable
     return direction;
   }
 
-  private static StringComparator determinDimensionComparator(Object dimensionOrderObj)
+  static StringComparator determineDimensionComparator(Object dimensionOrderObj)
   {
     if (dimensionOrderObj == null) {
       return DEFAULT_DIMENSION_ORDER;
@@ -233,7 +267,7 @@ public class OrderByColumnSpec implements Cacheable
     if (this == o) {
       return true;
     }
-    if (o == null || getClass() != o.getClass()) {
+    if (o == null || !(o instanceof OrderByColumnSpec)) {
       return false;
     }
 

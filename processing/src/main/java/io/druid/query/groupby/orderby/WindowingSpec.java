@@ -26,7 +26,8 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
-import com.metamx.common.Pair;
+import io.druid.common.Cacheable;
+import io.druid.data.Pair;
 import io.druid.data.input.MapBasedRow;
 import io.druid.data.input.Row;
 import io.druid.math.expr.Evals;
@@ -34,7 +35,6 @@ import io.druid.math.expr.Expr;
 import io.druid.math.expr.ExprEval;
 import io.druid.math.expr.ExprType;
 import io.druid.math.expr.Parser;
-import io.druid.common.Cacheable;
 import io.druid.query.QueryCacheHelper;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.PostAggregator;
@@ -53,26 +53,49 @@ public class WindowingSpec implements Cacheable
 {
   public static WindowingSpec expressions(String... expressions)
   {
-    return new WindowingSpec(null, null, Arrays.asList(expressions), null);
+    return new WindowingSpec(null, null, Arrays.asList(expressions), null, null);
   }
 
   private final List<String> partitionColumns;
   private final List<OrderByColumnSpec> sortingColumns;
   private final List<String> expressions;
-  private final FlattenSpec flattener;
+  private final FlattenSpec flattenSpec;
+  private final PivotSpec pivotSpec;
 
   @JsonCreator
   public WindowingSpec(
       @JsonProperty("partitionColumns") List<String> partitionColumns,
       @JsonProperty("sortingColumns") List<OrderByColumnSpec> sortingColumns,
       @JsonProperty("expressions") List<String> expressions,
-      @JsonProperty("flattener") FlattenSpec flattener
+      @JsonProperty("flattenSpec") FlattenSpec flattenSpec,
+      @JsonProperty("pivotSpec") PivotSpec pivotSpec
   )
   {
     this.partitionColumns = partitionColumns == null ? ImmutableList.<String>of() : partitionColumns;
     this.sortingColumns = sortingColumns == null ? ImmutableList.<OrderByColumnSpec>of() : sortingColumns;
     this.expressions = expressions == null ? ImmutableList.<String>of() : expressions;
-    this.flattener = flattener;
+    this.flattenSpec = flattenSpec;
+    this.pivotSpec = pivotSpec;
+  }
+
+  public WindowingSpec(
+      List<String> partitionColumns,
+      List<OrderByColumnSpec> sortingColumns,
+      List<String> expressions,
+      FlattenSpec flattenSpec
+  )
+  {
+    this(partitionColumns, sortingColumns, expressions, flattenSpec, null);
+  }
+
+  public WindowingSpec(
+      List<String> partitionColumns,
+      List<OrderByColumnSpec> sortingColumns,
+      List<String> expressions,
+      PivotSpec pivotSpec
+  )
+  {
+    this(partitionColumns, sortingColumns, expressions, null, pivotSpec);
   }
 
   public WindowingSpec(
@@ -81,7 +104,7 @@ public class WindowingSpec implements Cacheable
       String... expressions
   )
   {
-    this(partitionColumns, sortingColumns, Arrays.asList(expressions), null);
+    this(partitionColumns, sortingColumns, Arrays.asList(expressions), null, null);
   }
 
   @JsonProperty
@@ -103,9 +126,15 @@ public class WindowingSpec implements Cacheable
   }
 
   @JsonProperty
-  public FlattenSpec getFlattener()
+  public FlattenSpec getFlattenSpec()
   {
-    return flattener;
+    return flattenSpec;
+  }
+
+  @JsonProperty
+  public PivotSpec getPivotSpec()
+  {
+    return pivotSpec;
   }
 
   public PartitionEvaluator toEvaluator(
@@ -148,8 +177,13 @@ public class WindowingSpec implements Cacheable
         return partition;
       }
     };
-    return flattener == null ? evaluator
-                             : chain(evaluator, flattener.toEvaluator(partitionColumns, sortingColumns));
+    if (flattenSpec != null) {
+      evaluator = chain(evaluator, flattenSpec.create(partitionColumns, sortingColumns));
+    }
+    if (pivotSpec != null) {
+      evaluator = chain(evaluator, pivotSpec.create(partitionColumns, sortingColumns));
+    }
+    return evaluator;
   }
 
   private int[] toEvalWindow(final String[] split, final int limit)
@@ -178,18 +212,77 @@ public class WindowingSpec implements Cacheable
     return new int[]{start, end};
   }
 
+  static Expr.NumericBinding withMap(final Map<String, ?> bindings)
+  {
+    return new Expr.NumericBinding()
+    {
+      private final Map<String, Integer> cache = Maps.newHashMap();
+
+      @Override
+      public Collection<String> names()
+      {
+        return bindings.keySet();
+      }
+
+      @Override
+      public Object get(String name)
+      {
+        // takes target[column.value] or target[index], use '_' instead of '-' for negative index (backward)
+        Object value = bindings.get(name);
+        if (value != null || bindings.containsKey(name)) {
+          return value;
+        }
+        int index = name.indexOf('[');
+        if (index < 0 || name.charAt(name.length() - 1) != ']') {
+          throw new RuntimeException("No binding found for " + name);
+        }
+        Object values = bindings.get(name.substring(0, index));
+        if (values == null && !bindings.containsKey(name)) {
+          throw new RuntimeException("No binding found for " + name);
+        }
+        if (!(values instanceof List)) {
+          throw new RuntimeException("Value column should be list type " + name.substring(0, index));
+        }
+        String source = name.substring(index + 1, name.length() - 1);
+        Integer indexExpr = cache.get(source);
+        if (indexExpr == null) {
+          int nameIndex = source.indexOf('.');
+          if (nameIndex < 0) {
+            boolean minus = source.charAt(0) == '_';  // cannot use '-' in identifier
+            indexExpr = minus ? -Integer.valueOf(source.substring(1)) : Integer.valueOf(source);
+          } else {
+            Object keys = bindings.get(source.substring(0, nameIndex));
+            if (!(keys instanceof List)) {
+              throw new RuntimeException("Key column should be list type " + source.substring(0, nameIndex));
+            }
+            indexExpr = ((List) keys).indexOf(source.substring(nameIndex + 1));
+            if (indexExpr < 0) {
+              indexExpr = Integer.MAX_VALUE;
+            }
+          }
+          cache.put(source, indexExpr);
+        }
+        List target = (List) values;
+        int keyIndex = indexExpr < 0 ? target.size() + indexExpr : indexExpr;
+        return keyIndex >= 0 && keyIndex < target.size() ? target.get(keyIndex) : null;
+      }
+    };
+  }
+
   @Override
   public byte[] getCacheKey()
   {
     byte[] partitionColumnsBytes = QueryCacheHelper.computeCacheBytes(partitionColumns);
     byte[] sortingColumnsBytes = QueryCacheHelper.computeAggregatorBytes(sortingColumns);
     byte[] expressionsBytes = QueryCacheHelper.computeCacheBytes(expressions);
-    byte[] flattenerBytes = QueryCacheHelper.computeCacheBytes(flattener);
+    byte[] flattenerBytes = QueryCacheHelper.computeCacheBytes(flattenSpec);
+    byte[] pivotSpecBytes = QueryCacheHelper.computeCacheBytes(pivotSpec);
 
-    int length = 3 + partitionColumnsBytes.length
+    int length = 4 + partitionColumnsBytes.length
                  + sortingColumnsBytes.length
                  + expressionsBytes.length
-                 + flattenerBytes.length;
+                 + flattenerBytes.length
+                 + pivotSpecBytes.length;
 
     return ByteBuffer.allocate(length)
                      .put(partitionColumnsBytes)
@@ -199,6 +292,8 @@ public class WindowingSpec implements Cacheable
                      .put(expressionsBytes)
                      .put(DimFilterCacheHelper.STRING_SEPARATOR)
                      .put(flattenerBytes)
+                     .put(DimFilterCacheHelper.STRING_SEPARATOR)
+                     .put(pivotSpecBytes)
                      .array();
   }
 
@@ -223,7 +318,10 @@ public class WindowingSpec implements Cacheable
     if (!expressions.equals(that.expressions)) {
       return false;
     }
-    if (!Objects.equals(flattener, that.flattener)) {
+    if (!Objects.equals(flattenSpec, that.flattenSpec)) {
+      return false;
+    }
+    if (!Objects.equals(pivotSpec, that.pivotSpec)) {
       return false;
     }
     return true;
@@ -232,11 +330,7 @@ public class WindowingSpec implements Cacheable
   @Override
   public int hashCode()
   {
-    int result = partitionColumns.hashCode();
-    result = 31 * result + sortingColumns.hashCode();
-    result = 31 * result + expressions.hashCode();
-    result = 31 * result + (flattener == null ? 0 : flattener.hashCode());
-    return result;
+    return Objects.hash(partitionColumns, sortingColumns, expressions, flattenSpec, pivotSpec);
   }
 
   @Override
@@ -246,8 +340,14 @@ public class WindowingSpec implements Cacheable
            "partitionColumns=" + partitionColumns +
            ", sortingColumns=" + sortingColumns +
            ", expressions=" + expressions +
-           ", flattener='" + flattener +
+           ", flattenSpec='" + flattenSpec +
+           ", pivotSpec='" + pivotSpec +
            '}';
+  }
+
+  public static interface PartitionEvaluatorFactory extends Cacheable
+  {
+    PartitionEvaluator create(List<String> partitionColumns, List<OrderByColumnSpec> sortingColumns);
   }
 
   public static interface PartitionEvaluator

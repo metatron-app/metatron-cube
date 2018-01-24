@@ -34,7 +34,6 @@ import io.druid.data.input.MapBasedRow;
 import io.druid.data.input.Row;
 import io.druid.math.expr.Evals;
 import io.druid.math.expr.Expr;
-import io.druid.common.Cacheable;
 import io.druid.query.QueryCacheHelper;
 import io.druid.query.filter.DimFilterCacheHelper;
 import io.druid.query.groupby.orderby.WindowingSpec.PartitionEvaluator;
@@ -43,7 +42,6 @@ import org.joda.time.DateTime;
 
 import java.nio.ByteBuffer;
 import java.util.Arrays;
-import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -51,7 +49,7 @@ import java.util.Set;
 
 /**
  */
-public class FlattenSpec implements Cacheable
+public class FlattenSpec implements WindowingSpec.PartitionEvaluatorFactory
 {
   public static FlattenSpec array(List<String> columns, String separator)
   {
@@ -232,7 +230,8 @@ public class FlattenSpec implements Cacheable
     return new FlattenSpec(type, columns, pivotColumns, prefixColumns, separator, Arrays.asList(expressions));
   }
 
-  public PartitionEvaluator toEvaluator(List<String> partitionColumns, List<OrderByColumnSpec> sortingColumns)
+  @Override
+  public PartitionEvaluator create(List<String> partitionColumns, List<OrderByColumnSpec> sortingColumns)
   {
     return type.toEvaluator(partitionColumns, sortingColumns, this);
   }
@@ -365,7 +364,7 @@ public class FlattenSpec implements Cacheable
                 }
               }
               if (!assigns.isEmpty()) {
-                Expr.NumericBinding binding = withMap(flatten);
+                Expr.NumericBinding binding = WindowingSpec.withMap(flatten);
                 for (Pair<String, Expr> assign : assigns) {
                   flatten.put(assign.lhs, assign.rhs.eval(binding).value());
                 }
@@ -410,7 +409,7 @@ public class FlattenSpec implements Cacheable
               flatten.put(columns[i], array[i]);
             }
             if (!assigns.isEmpty()) {
-              Expr.NumericBinding binding = withMap(flatten);
+              Expr.NumericBinding binding = WindowingSpec.withMap(flatten);
               for (Pair<String, Expr> assign : assigns) {
                 flatten.put(assign.lhs, assign.rhs.eval(binding).value());
               }
@@ -442,62 +441,5 @@ public class FlattenSpec implements Cacheable
         List<OrderByColumnSpec> sortingColumns,
         FlattenSpec spec
     );
-  }
-
-  private static Expr.NumericBinding withMap(final Map<String, ?> bindings)
-  {
-    return new Expr.NumericBinding()
-    {
-      private final Map<String, Integer> cache = Maps.newHashMap();
-
-      @Override
-      public Collection<String> names()
-      {
-        return bindings.keySet();
-      }
-
-      @Override
-      public Object get(String name)
-      {
-        // takes target[column.value] or target[index], use '_' instead of '-' for negative index (backward)
-        Object value = bindings.get(name);
-        if (value != null || bindings.containsKey(name)) {
-          return value;
-        }
-        int index = name.indexOf('[');
-        if (index < 0 || name.charAt(name.length() - 1) != ']') {
-          throw new RuntimeException("No binding found for " + name);
-        }
-        Object values = bindings.get(name.substring(0, index));
-        if (values == null && !bindings.containsKey(name)) {
-          throw new RuntimeException("No binding found for " + name);
-        }
-        if (!(values instanceof List)) {
-          throw new RuntimeException("Value column should be list type " + name.substring(0, index));
-        }
-        String source = name.substring(index + 1, name.length() - 1);
-        Integer indexExpr = cache.get(source);
-        if (indexExpr == null) {
-          int nameIndex = source.indexOf('.');
-          if (nameIndex < 0) {
-            boolean minus = source.charAt(0) == '_';  // cannot use '-' in identifier
-            indexExpr = minus ? -Integer.valueOf(source.substring(1)) : Integer.valueOf(source);
-          } else {
-            Object keys = bindings.get(source.substring(0, nameIndex));
-            if (!(keys instanceof List)) {
-              throw new RuntimeException("Key column should be list type " + source.substring(0, nameIndex));
-            }
-            indexExpr = ((List) keys).indexOf(source.substring(nameIndex + 1));
-            if (indexExpr < 0) {
-              indexExpr = Integer.MAX_VALUE;
-            }
-          }
-          cache.put(source, indexExpr);
-        }
-        List target = (List) values;
-        int keyIndex = indexExpr < 0 ? target.size() + indexExpr : indexExpr;
-        return keyIndex >= 0 && keyIndex < target.size() ? target.get(keyIndex) : null;
-      }
-    };
   }
 }

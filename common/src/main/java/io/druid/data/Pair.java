@@ -28,6 +28,11 @@ import java.util.Map;
  */
 public class Pair<K, V> extends com.metamx.common.Pair<K, V> implements Map.Entry<K, V>
 {
+  public static <T1, T2> Pair<T1, T2> of(T1 lhs, T2 rhs)
+  {
+    return new Pair<>(lhs, rhs);
+  }
+
   public Pair(K lhs, V rhs)
   {
     super(lhs, rhs);

@@ -129,6 +129,24 @@ public class StringUtils extends com.metamx.common.StringUtils
     return Long.parseLong(value.substring(0, index));
   }
 
+  public static String concat(String delimiter, String... strings)
+  {
+    if (strings.length == 0) {
+      return "";
+    }
+    if (strings.length == 1) {
+      return strings[0];
+    }
+    StringBuilder builder = new StringBuilder();
+    for (String string : strings) {
+      if (builder.length() > 0) {
+        builder.append(delimiter);
+      }
+      builder.append(string);
+    }
+    return builder.toString();
+  }
+
   /**
    * Equivalent of String.format(Locale.ENGLISH, message, formatArgs).
    */
