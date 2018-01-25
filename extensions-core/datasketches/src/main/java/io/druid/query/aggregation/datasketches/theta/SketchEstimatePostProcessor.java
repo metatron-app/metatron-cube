@@ -98,7 +98,7 @@ public class SketchEstimatePostProcessor extends PostProcessingOperator.Abstract
                       updatable.set(column + ".lower95", sketch.getLowerBound(2));
                     }
                   }
-                  return (Row) updatable;
+                  return updatable;
                 }
               }
           );

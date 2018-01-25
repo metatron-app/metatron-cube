@@ -19,34 +19,19 @@
 
 package io.druid.query.groupby;
 
-import com.google.common.collect.Maps;
 import com.metamx.common.guava.nary.BinaryFn;
-import io.druid.data.input.MapBasedRow;
 import io.druid.data.input.Row;
-import io.druid.granularity.AllGranularity;
+import io.druid.data.input.Rows;
 import io.druid.query.aggregation.AggregatorFactory;
-import io.druid.query.dimension.DimensionSpec;
-import org.joda.time.DateTime;
 
 import java.util.List;
-import java.util.Map;
 
 public class GroupByBinaryFnV2 implements BinaryFn<Row, Row, Row>
 {
-  private final GroupByQuery query;
-  private final boolean allGranularity;
-  private final String[] dimensionNames;
   private final AggregatorFactory[] aggregatorFactories;
 
   public GroupByBinaryFnV2(GroupByQuery query)
   {
-    this.query = query;
-    this.allGranularity = query.getGranularity() instanceof AllGranularity;
-    List<DimensionSpec> dimensions = query.getDimensions();
-    this.dimensionNames = new String[dimensions.size()];
-    for (int i = 0; i < dimensionNames.length; i++) {
-      dimensionNames[i] = dimensions.get(i).getOutputName();
-    }
     List<AggregatorFactory> aggregatorSpecs = query.getAggregatorSpecs();
     this.aggregatorFactories = new AggregatorFactory[aggregatorSpecs.size()];
     for (int i = 0; i < aggregatorFactories.length; i++) {
@@ -63,30 +48,12 @@ public class GroupByBinaryFnV2 implements BinaryFn<Row, Row, Row>
       return arg1;
     }
 
-    final Map<String, Object> newMap = Maps.newHashMapWithExpectedSize(
-        dimensionNames.length + aggregatorFactories.length
-    );
-
-    // Add dimensions
-    for (String dimensionName : dimensionNames) {
-      newMap.put(dimensionName, arg1.getRaw(dimensionName));
-    }
-
-    // Add aggregations
+    Row.Updatable updatable = Rows.toUpdatable(arg1);
     for (AggregatorFactory aggregatorFactory : aggregatorFactories) {
       final String name = aggregatorFactory.getName();
-      newMap.put(name, aggregatorFactory.combine(arg1.getRaw(name), arg2.getRaw(name)));
+      updatable.set(name, aggregatorFactory.combine(updatable.getRaw(name), arg2.getRaw(name)));
     }
 
-    return new MapBasedRow(adjustTimestamp(arg1), newMap);
-  }
-
-  private DateTime adjustTimestamp(final Row row)
-  {
-    if (allGranularity) {
-      return row.getTimestamp();
-    } else {
-      return query.getGranularity().bucketStart(row.getTimestamp());
-    }
+    return updatable;
   }
 }

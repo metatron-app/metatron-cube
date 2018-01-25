@@ -189,7 +189,7 @@ public class GroupByQueryQueryToolChest extends QueryToolChest<Row, GroupByQuery
   {
     return CombiningSequence.create(
         outerSequence,
-        outerQuery.getRowOrdering(true),
+        outerQuery.getRowOrdering(),
         new GroupByBinaryFnV2(outerQuery)
     );
   }
@@ -334,7 +334,7 @@ public class GroupByQueryQueryToolChest extends QueryToolChest<Row, GroupByQuery
           final String name = agg.getName();
           updatable.set(name, fn.manipulate(agg, input.getRaw(name)));
         }
-        return (Row) updatable;
+        return updatable;
       }
     };
   }

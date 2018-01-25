@@ -96,11 +96,9 @@ public interface Row extends Comparable<Row>
 
   public Collection<String> getColumns();
 
-  public interface Updatable
+  public interface Updatable extends Row
   {
     boolean isUpdatable();
-
-    Object getRaw(String column);
 
     void set(String column, Object value);
   }

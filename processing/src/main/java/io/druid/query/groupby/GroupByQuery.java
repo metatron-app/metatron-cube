@@ -435,7 +435,7 @@ public class GroupByQuery extends BaseAggregationQuery<Row> implements Query.Rew
   public Ordering getResultOrdering()
   {
     final Comparator naturalNullsFirst = Ordering.natural().nullsFirst();
-    final Ordering<Row> rowOrdering = getRowOrdering(false);
+    final Ordering<Row> rowOrdering = getRowOrdering();
 
     return Ordering.from(
         new Comparator<Object>()
@@ -454,32 +454,29 @@ public class GroupByQuery extends BaseAggregationQuery<Row> implements Query.Rew
     );
   }
 
-  public Ordering<Row> getRowOrdering(final boolean granular)
+  Ordering<Row> getRowOrdering()
   {
-    final Comparator<Object> naturalNullsFirst = GuavaUtils.nullFirstNatural();
     final String[] outputNames = new String[dimensions.size()];
     for (int i = 0; i < outputNames.length; i++) {
       outputNames[i] = dimensions.get(i).getOutputName();
     }
+    return getRowOrdering(outputNames);
+  }
+
+  static final Comparator<Object> naturalNullsFirst = GuavaUtils.nullFirstNatural();
+
+  static Ordering<Row> getRowOrdering(final String[] outputNames)
+  {
     return Ordering.from(
         new Comparator<Row>()
         {
           @Override
           public int compare(Row lhs, Row rhs)
           {
-            final int timeCompare;
-
-            if (granular) {
-              timeCompare = Longs.compare(
-                  granularity.bucketStart(lhs.getTimestamp()).getMillis(),
-                  granularity.bucketStart(rhs.getTimestamp()).getMillis()
-              );
-            } else {
-              timeCompare = Longs.compare(
-                  lhs.getTimestampFromEpoch(),
-                  rhs.getTimestampFromEpoch()
-              );
-            }
+            final int timeCompare = Longs.compare(
+                lhs.getTimestampFromEpoch(),
+                rhs.getTimestampFromEpoch()
+            );
 
             if (timeCompare != 0) {
               return timeCompare;
