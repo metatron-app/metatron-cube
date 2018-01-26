@@ -44,6 +44,7 @@ import io.druid.query.FluentQueryRunnerBuilder;
 import io.druid.query.PostProcessingOperator;
 import io.druid.query.PostProcessingOperators;
 import io.druid.query.Query;
+import io.druid.query.QueryConfig;
 import io.druid.query.QueryDataSource;
 import io.druid.query.QueryRunner;
 import io.druid.query.QuerySegmentWalker;
@@ -55,7 +56,6 @@ import io.druid.query.SegmentDescriptor;
 import io.druid.query.TableDataSource;
 import io.druid.query.UnionAllQuery;
 import io.druid.query.UnionAllQueryRunner;
-import io.druid.query.groupby.GroupByQueryConfig;
 import io.druid.query.groupby.GroupByQueryHelper;
 import org.joda.time.Interval;
 
@@ -77,7 +77,7 @@ public class ClientQuerySegmentWalker implements QuerySegmentWalker
   private final CachingClusteredClient baseClient;
   private final QueryToolChestWarehouse warehouse;
   private final RetryQueryRunnerConfig retryConfig;
-  private final GroupByQueryConfig groupByConfig;
+  private final QueryConfig queryConfig;
   private final ObjectMapper objectMapper;
   private final ExecutorService exec;
 
@@ -87,7 +87,7 @@ public class ClientQuerySegmentWalker implements QuerySegmentWalker
       CachingClusteredClient baseClient,
       QueryToolChestWarehouse warehouse,
       RetryQueryRunnerConfig retryConfig,
-      GroupByQueryConfig groupByConfig,
+      QueryConfig queryConfig,
       ObjectMapper objectMapper,
       @Processing ExecutorService exec
   )
@@ -96,7 +96,7 @@ public class ClientQuerySegmentWalker implements QuerySegmentWalker
     this.baseClient = baseClient;
     this.warehouse = warehouse;
     this.retryConfig = retryConfig;
-    this.groupByConfig = groupByConfig;
+    this.queryConfig = queryConfig;
     this.objectMapper = objectMapper;
     this.exec = exec;
   }
@@ -120,7 +120,7 @@ public class ClientQuerySegmentWalker implements QuerySegmentWalker
 
     if (query.getDataSource() instanceof QueryDataSource) {
       Query innerQuery = ((QueryDataSource)query.getDataSource()).getQuery().withOverriddenContext(query.getContext());
-      int maxResult = groupByConfig.getMaxResults();
+      int maxResult = queryConfig.getMaxResults();
       int maxRowCount = Math.min(
           query.getContextValue(GroupByQueryHelper.CTX_KEY_MAX_RESULTS, maxResult),
           maxResult

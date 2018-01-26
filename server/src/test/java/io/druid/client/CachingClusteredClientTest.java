@@ -70,6 +70,7 @@ import io.druid.query.Druids;
 import io.druid.query.FinalizeResultsQueryRunner;
 import io.druid.query.MapQueryToolChestWarehouse;
 import io.druid.query.Query;
+import io.druid.query.QueryConfig;
 import io.druid.query.QueryRunner;
 import io.druid.query.QueryRunnerTestHelper;
 import io.druid.query.QueryToolChest;
@@ -2228,6 +2229,7 @@ public class CachingClusteredClientTest
         cache,
         jsonMapper,
         backgroundExecutorService,
+        new QueryConfig(),
         new CacheConfig()
         {
           @Override

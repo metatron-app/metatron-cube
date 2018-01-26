@@ -45,6 +45,7 @@ import com.metamx.http.client.Request;
 import com.metamx.http.client.response.StatusResponseHandler;
 import com.metamx.http.client.response.StatusResponseHolder;
 import io.druid.concurrent.Execs;
+import io.druid.jackson.JodaStuff;
 import io.druid.query.BaseQuery;
 import io.druid.query.BySegmentResultValueClass;
 import io.druid.query.DruidMetrics;
@@ -174,7 +175,7 @@ public class DirectDruidClient<T> implements QueryRunner<T>
             {
               openConnections.getAndDecrement();
               if (future.isCancelled()) {
-                // forward the cancellation to underlying queriable node
+                // forward the cancellation to underlying queryable node
                 try {
                   StatusResponseHolder res = httpClient.go(
                       new Request(
@@ -189,7 +190,7 @@ public class DirectDruidClient<T> implements QueryRunner<T>
                   ).get();
                   if (res.getStatus().getCode() >= 500) {
                     throw new RE(
-                        "Error cancelling query[%s]: queriable node returned status[%d] [%s].",
+                        "Error cancelling query[%s]: queryable node returned status[%d] [%s].",
                         res.getStatus().getCode(),
                         res.getStatus().getReasonPhrase()
                     );
@@ -207,6 +208,10 @@ public class DirectDruidClient<T> implements QueryRunner<T>
       throw Throwables.propagate(e);
     }
 
+    final ObjectMapper mapper = query.getContextBoolean(Query.DATETIME_CUSTOM_SERDE, false)
+                                ? JodaStuff.overrideForInternal(objectMapper)
+                                : objectMapper;
+
     final boolean isBySegment = BaseQuery.getContextBySegment(query, false);
     final JavaType typeRef = isBySegment ? types.rhs : types.lhs;
 
@@ -216,7 +221,7 @@ public class DirectDruidClient<T> implements QueryRunner<T>
           @Override
           public JsonParserIterator<T> make()
           {
-            return new JsonParserIterator<T>(objectMapper, typeRef, future, url);
+            return new JsonParserIterator<T>(mapper, typeRef, future, url);
           }
 
           @Override

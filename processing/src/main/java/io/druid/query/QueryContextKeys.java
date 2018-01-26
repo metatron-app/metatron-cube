@@ -28,8 +28,9 @@ public interface QueryContextKeys
   public static final String FINALIZE = "finalize";
   public static final String BY_SEGMENT = "bySegment";
   public static final String FINAL_WORK = "finalWork";
+  public static final String DATETIME_CUSTOM_SERDE = "dateTimeCustomSerde"; // datetime serde between broker & others
 
-  // group-by
+  // group-by config.. overriding
   public static final String GBY_MERGE_PARALLELISM = "groupByMergeParallelism";
   public static final String GBY_CONVERT_TIMESERIES = "groupByConvertTimeseries";
   public static final String GBY_MERGE_SIMPLE = "groupByMergeSimple";
@@ -44,6 +45,7 @@ public interface QueryContextKeys
   public static final String ALL_METRICS_FOR_EMPTY = "allMetricsForEmpty";
   public static final String FORWARD_URL = "forwardURL";
   public static final String FORWARD_CONTEXT = "forwardContext";
+  public static final String DATETIME_STRING_SERDE = "dateTimeStringSerde";   // use string always
 
   // for sketch
   public static final String MAJOR_TYPES = "majorTypes";

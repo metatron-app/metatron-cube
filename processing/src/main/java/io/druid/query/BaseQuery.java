@@ -284,6 +284,14 @@ public abstract class BaseQuery<T extends Comparable<T>> implements Query<T>
     return PropUtils.parseInt(getContext(), key, defaultValue);
   }
 
+  public int getContextIntWithMax(String key, int defaultValue)
+  {
+    if (context != null && context.containsKey(key)) {
+      return Math.min(getContextInt(key, defaultValue), defaultValue);
+    }
+    return defaultValue;
+  }
+
   protected String toString(String key)
   {
     Object value = Objects.toString(getContextValue(key), null);

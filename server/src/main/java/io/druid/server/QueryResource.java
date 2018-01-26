@@ -47,6 +47,7 @@ import io.druid.guice.LocalDataStorageDruidModule;
 import io.druid.guice.annotations.Json;
 import io.druid.guice.annotations.Self;
 import io.druid.guice.annotations.Smile;
+import io.druid.jackson.JodaStuff;
 import io.druid.query.BaseQuery;
 import io.druid.query.DruidMetrics;
 import io.druid.query.PostProcessingOperators;
@@ -200,7 +201,6 @@ public class QueryResource
 
     final RequestContext context = new RequestContext(req, pretty != null);
     final String contentType = context.getContentType();
-    final ObjectWriter jsonWriter = context.getOutputWriter();
 
     final Thread currentThread = Thread.currentThread();
     final String currThreadName = currentThread.getName();
@@ -249,6 +249,10 @@ public class QueryResource
               return in;
             }
           }
+      );
+
+      final ObjectWriter jsonWriter = context.getOutputWriter(
+          query.getContextBoolean(Query.DATETIME_CUSTOM_SERDE, false)
       );
 
       try {
@@ -492,15 +496,18 @@ public class QueryResource
       return isSmile ? smileMapper : jsonMapper;
     }
 
-    ObjectWriter getOutputWriter()
+    ObjectWriter getOutputWriter(boolean useCustomSerdeForDateTime)
     {
       ObjectMapper mapper = getInputMapper();
+      if (useCustomSerdeForDateTime) {
+        mapper = JodaStuff.overrideForInternal(mapper);
+      }
       return isPretty ? mapper.writerWithDefaultPrettyPrinter() : mapper.writer();
     }
 
     Response ok(Object object) throws IOException
     {
-      return Response.ok(getOutputWriter().writeValueAsString(object), contentType).build();
+      return Response.ok(getOutputWriter(false).writeValueAsString(object), contentType).build();
     }
 
     Response gotError(Throwable e) throws IOException
@@ -508,7 +515,7 @@ public class QueryResource
       return Response.serverError()
                      .type(contentType)
                      .entity(
-                         getOutputWriter().writeValueAsBytes(
+                         getOutputWriter(false).writeValueAsBytes(
                              QueryInterruptedException.wrapIfNeeded(e, node.getHostAndPort())
                          )
                      )

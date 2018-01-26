@@ -33,6 +33,7 @@ import io.druid.query.BaseAggregationQuery;
 import io.druid.query.DataSource;
 import io.druid.query.Druids;
 import io.druid.query.Query;
+import io.druid.query.QueryConfig;
 import io.druid.query.QueryRunner;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.CountAggregatorFactory;
@@ -215,6 +216,7 @@ public class CachingClusteredClientFunctionalityTest {
         cache,
         CachingClusteredClientTest.jsonMapper,
         backgroundExecutorService,
+        new QueryConfig(),
         new CacheConfig()
         {
           @Override

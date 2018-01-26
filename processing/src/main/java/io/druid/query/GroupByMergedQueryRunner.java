@@ -38,12 +38,10 @@ import io.druid.collections.StupidPool;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.concurrent.Execs;
 import io.druid.data.input.Row;
-import io.druid.query.dimension.DimensionSpecs;
 import io.druid.query.groupby.GroupByQuery;
 import io.druid.query.groupby.GroupByQueryConfig;
 import io.druid.query.groupby.GroupByQueryHelper;
 import io.druid.query.groupby.MergeIndex;
-import io.druid.query.groupby.SimpleMergeIndex;
 import org.apache.commons.io.IOUtils;
 
 import java.io.Closeable;
@@ -63,11 +61,8 @@ import java.util.concurrent.TimeoutException;
 
 public class GroupByMergedQueryRunner<T> implements QueryRunner<T>
 {
-  private static final int DEFAULT_MERGE_PARALLELISM = 8;
-
-  private static final String CTX_KEY_IS_SINGLE_THREADED = "groupByIsSingleThreaded";
-
   private static final Logger log = new Logger(GroupByMergedQueryRunner.class);
+
   private final List<QueryRunner<T>> queryables;
   private final ExecutorService exec;
   private final Supplier<GroupByQueryConfig> configSupplier;
@@ -97,15 +92,16 @@ public class GroupByMergedQueryRunner<T> implements QueryRunner<T>
   {
     final GroupByQuery query = (GroupByQuery) queryParam;
 
-    GroupByQueryConfig queryConfig = configSupplier.get();
-    final int maxRowCount = queryConfig.getMaxResults();
-    final boolean isSingleThreaded = query.getContextValue(CTX_KEY_IS_SINGLE_THREADED, queryConfig.isSingleThreaded());
+    GroupByQueryConfig config = configSupplier.get();
+    final int maxRowCount = config.getMaxResults();
 
-    final ExecutorService executor = isSingleThreaded ? MoreExecutors.sameThreadExecutor() : exec;
-    int parallelism = query.getContextInt(QueryContextKeys.GBY_MERGE_PARALLELISM, DEFAULT_MERGE_PARALLELISM);
-    if (!isSingleThreaded) {
+    final ExecutorService executor;
+    int parallelism = query.getContextIntWithMax(Query.GBY_MERGE_PARALLELISM, config.getMaxMergeParallelism());
+    if (parallelism > 1) {
+      executor = exec;
       parallelism = Math.min(Iterables.size(queryables), parallelism);
     } else {
+      executor = MoreExecutors.sameThreadExecutor();
       parallelism = 1;
     }
 

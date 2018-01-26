@@ -55,6 +55,7 @@ import io.druid.query.BaseQuery;
 import io.druid.query.BySegmentResultValueClass;
 import io.druid.query.CacheStrategy;
 import io.druid.query.Query;
+import io.druid.query.QueryConfig;
 import io.druid.query.QueryRunner;
 import io.druid.query.QueryToolChest;
 import io.druid.query.QueryToolChestWarehouse;
@@ -95,6 +96,7 @@ public class CachingClusteredClient<T> implements QueryRunner<T>
   private final TimelineServerView serverView;
   private final Cache cache;
   private final ObjectMapper objectMapper;
+  private final QueryConfig queryConfig;
   private final CacheConfig cacheConfig;
   private final ListeningExecutorService backgroundExecutorService;
 
@@ -105,6 +107,7 @@ public class CachingClusteredClient<T> implements QueryRunner<T>
       Cache cache,
       @Smile ObjectMapper objectMapper,
       @BackgroundCaching ExecutorService backgroundExecutorService,
+      QueryConfig queryConfig,
       CacheConfig cacheConfig
   )
   {
@@ -112,6 +115,7 @@ public class CachingClusteredClient<T> implements QueryRunner<T>
     this.serverView = serverView;
     this.cache = cache;
     this.objectMapper = objectMapper;
+    this.queryConfig = queryConfig;
     this.cacheConfig = cacheConfig;
     this.backgroundExecutorService = MoreExecutors.listeningDecorator(backgroundExecutorService);
 
@@ -130,8 +134,14 @@ public class CachingClusteredClient<T> implements QueryRunner<T>
   }
 
   @Override
-  public Sequence<T> run(final Query<T> query, final Map<String, Object> responseContext)
+  public Sequence<T> run(final Query<T> baseQuery, final Map<String, Object> responseContext)
   {
+    final Query<T> query;
+    if (queryConfig.useCustomSerdeForDateTime(baseQuery)) {
+      query = baseQuery.withOverriddenContext(ImmutableMap.<String, Object>of(Query.DATETIME_CUSTOM_SERDE, true));
+    } else {
+      query = baseQuery;
+    }
     final QueryToolChest<T, Query<T>> toolChest = warehouse.getToolChest(query);
     final CacheStrategy<T, Object, Query<T>> strategy = toolChest.getCacheStrategy(query);
 

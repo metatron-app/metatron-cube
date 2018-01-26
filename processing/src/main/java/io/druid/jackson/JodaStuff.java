@@ -35,6 +35,7 @@ import com.fasterxml.jackson.databind.ser.std.StdSerializer;
 import com.fasterxml.jackson.databind.ser.std.ToStringSerializer;
 import com.fasterxml.jackson.datatype.joda.deser.DurationDeserializer;
 import com.fasterxml.jackson.datatype.joda.deser.PeriodDeserializer;
+import io.druid.common.DateTimes;
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
 import org.joda.time.Duration;
@@ -110,12 +111,14 @@ public class JodaStuff
     public void serialize(DateTime value, JsonGenerator jgen, SerializerProvider provider) throws IOException
     {
       DateTimeZone timeZone = value.getChronology().getZone();
-      jgen.writeStartObject();
-      jgen.writeNumberField("m", value.getMillis());
-      if (timeZone != DateTimeZone.UTC) {
+      if (timeZone == DateTimeZone.UTC) {
+        jgen.writeNumber(value.getMillis());
+      } else {
+        jgen.writeStartObject();
+        jgen.writeNumberField("m", value.getMillis());
         jgen.writeStringField("z", timeZone.getID());
+        jgen.writeEndObject();
       }
-      jgen.writeEndObject();
     }
   }
 
@@ -128,11 +131,11 @@ public class JodaStuff
 
     @Override
     public DateTime deserialize(JsonParser jp, DeserializationContext ctxt)
-        throws IOException, JsonProcessingException
+        throws IOException
     {
       JsonToken t = jp.getCurrentToken();
       if (t == JsonToken.VALUE_NUMBER_INT) {
-        return new DateTime(jp.getLongValue());
+        return DateTimes.utc(jp.getLongValue());
       }
       if (t == JsonToken.VALUE_STRING) {
         String str = jp.getText().trim();

@@ -37,6 +37,15 @@ public class GroupByQueryConfig
   @JsonProperty
   private boolean sortOnTime = true;
 
+  @JsonProperty
+  private int maxMergeParallelism = 8;
+
+  @JsonProperty
+  private boolean convertTimeseries = true; // todo
+
+  @JsonProperty
+  private boolean mergeSimple = true; // todo
+
   public boolean isSingleThreaded()
   {
     return singleThreaded;
@@ -75,5 +84,35 @@ public class GroupByQueryConfig
   public void setSortOnTime(boolean sortOnTime)
   {
     this.sortOnTime = sortOnTime;
+  }
+
+  public int getMaxMergeParallelism()
+  {
+    return maxMergeParallelism;
+  }
+
+  public void setMaxMergeParallelism(int maxMergeParallelism)
+  {
+    this.maxMergeParallelism = maxMergeParallelism;
+  }
+
+  public boolean isConvertTimeseries()
+  {
+    return convertTimeseries;
+  }
+
+  public void setConvertTimeseries(boolean convertTimeseries)
+  {
+    this.convertTimeseries = convertTimeseries;
+  }
+
+  public boolean isMergeSimple()
+  {
+    return mergeSimple;
+  }
+
+  public void setMergeSimple(boolean mergeSimple)
+  {
+    this.mergeSimple = mergeSimple;
   }
 }
