@@ -41,8 +41,8 @@ import io.druid.collections.ResourceHolder;
 import io.druid.collections.StupidPool;
 import io.druid.data.input.MapBasedRow;
 import io.druid.data.input.Row;
-import io.druid.granularity.QueryGranularities;
 import io.druid.granularity.Granularity;
+import io.druid.granularity.QueryGranularities;
 import io.druid.guice.annotations.Global;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.BufferAggregator;
@@ -186,7 +186,7 @@ public class GroupByQueryEngine
     );
   }
 
-  private static class RowUpdater
+  private static class RowUpdater implements java.util.function.Function<IntArray, Integer>
   {
     private final ByteBuffer metricValues;
     private final BufferAggregator[] aggregators;
@@ -198,15 +198,14 @@ public class GroupByQueryEngine
     public RowUpdater(
         ByteBuffer metricValues,
         BufferAggregator[] aggregators,
-        PositionMaintainer positionMaintainer,
-        int maxIntermediateRows
+        PositionMaintainer positionMaintainer
     )
     {
       this.metricValues = metricValues;
       this.aggregators = aggregators;
       this.positionMaintainer = positionMaintainer;
       this.increments = positionMaintainer.getIncrements();
-      this.positions = Maps.newHashMapWithExpectedSize(maxIntermediateRows);
+      this.positions = Maps.newHashMap();
     }
 
     private int getNumRows()
@@ -257,27 +256,30 @@ public class GroupByQueryEngine
         return retVal;
       } else {
         final IntArray wrapper = new IntArray(key);
-        final Integer position = positions.get(wrapper);
-
-        if (position == null) {
-          final int allocated = positionMaintainer.getNext();
-          if (allocated < 0) {
+        final Integer position;
+        if (positionMaintainer.hasReserve()) {
+          position = positions.computeIfAbsent(wrapper, this);
+        } else {
+          position = positions.get(wrapper);
+          if (position == null) {
             return Lists.newArrayList(key);
           }
-          positions.put(wrapper, allocated);
-
-          for (int i = 0; i < aggregators.length; ++i) {
-            aggregators[i].init(metricValues, allocated + increments[i]);
-            aggregators[i].aggregate(metricValues, allocated + increments[i]);
-          }
-        } else {
-          final int allocated = position;
-          for (int i = 0; i < aggregators.length; ++i) {
-            aggregators[i].aggregate(metricValues, allocated + increments[i]);
-          }
+        }
+        for (int i = 0; i < aggregators.length; ++i) {
+          aggregators[i].aggregate(metricValues, position + increments[i]);
         }
         return null;
       }
+    }
+
+    @Override
+    public Integer apply(IntArray wrapper)
+    {
+      final int allocated = positionMaintainer.getNext();
+      for (int i = 0; i < aggregators.length; ++i) {
+        aggregators[i].init(metricValues, allocated + increments[i]);
+      }
+      return allocated;
     }
   }
 
@@ -300,6 +302,11 @@ public class GroupByQueryEngine
       this.increments = increments;
 
       this.max = max - increment; // Make sure there is enough room for one more increment
+    }
+
+    public boolean hasReserve()
+    {
+      return nextVal <= max;
     }
 
     public int getNext()
@@ -416,7 +423,7 @@ public class GroupByQueryEngine
       }
 
       final PositionMaintainer positionMaintainer = new PositionMaintainer(0, increments, metricsBuffer.remaining());
-      final RowUpdater rowUpdater = new RowUpdater(metricsBuffer, aggregators, positionMaintainer, maxIntermediateRows);
+      final RowUpdater rowUpdater = new RowUpdater(metricsBuffer, aggregators, positionMaintainer);
       if (unprocessedKeys != null) {
         for (int[] key : unprocessedKeys) {
           final List<int[]> unprocUnproc = rowUpdater.updateValues(key, key.length, new DimensionSelector[0]);
@@ -456,7 +463,6 @@ public class GroupByQueryEngine
               {
                 private final DateTime timestamp =
                     fixedTimeForAllGranularity != null ? fixedTimeForAllGranularity : cursor.getTime();
-                private final int[] increments = positionMaintainer.getIncrements();
 
                 @Override
                 public Row apply(final Map.Entry<IntArray, Integer> input)
