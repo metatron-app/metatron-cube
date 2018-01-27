@@ -702,7 +702,7 @@ public class IncrementalIndexStorageAdapter implements StorageAdapter
               }
 
               @Override
-              public ValueMatcher makeAuxiliaryMatcher(DimFilter filter)
+              public PredicateMatcher makePredicateMatcher(DimFilter filter)
               {
                 return null;
               }

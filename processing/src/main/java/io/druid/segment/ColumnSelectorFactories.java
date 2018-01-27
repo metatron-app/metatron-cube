@@ -31,7 +31,6 @@ import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.dimension.DimensionSpec;
 import io.druid.query.extraction.ExtractionFn;
 import io.druid.query.filter.DimFilter;
-import io.druid.query.filter.ValueMatcher;
 import io.druid.segment.column.Column;
 import io.druid.segment.data.IndexedInts;
 import io.druid.segment.serde.ComplexMetricExtractor;
@@ -141,9 +140,9 @@ public class ColumnSelectorFactories
     }
 
     @Override
-    public ValueMatcher makeAuxiliaryMatcher(DimFilter filter)
+    public PredicateMatcher makePredicateMatcher(DimFilter filter)
     {
-      return delegate.makeAuxiliaryMatcher(filter);
+      return delegate.makePredicateMatcher(filter);
     }
 
     @Override
@@ -600,7 +599,7 @@ public class ColumnSelectorFactories
     }
 
     @Override
-    public ValueMatcher makeAuxiliaryMatcher(DimFilter filter)
+    public PredicateMatcher makePredicateMatcher(DimFilter filter)
     {
       return null;
     }

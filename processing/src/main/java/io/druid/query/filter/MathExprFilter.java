@@ -126,10 +126,8 @@ public class MathExprFilter implements DimFilter
       {
         final Expr expr = Parser.parse(expression);
         String dimension = Iterables.getOnlyElement(Parser.findRequiredBindings(expr));
-        BitmapIndex bitmapIndex = selector.getBitmapIndex(dimension);
 
-        BitmapFactory factory = selector.getBitmapFactory();
-
+        final BitmapIndex bitmapIndex = selector.getBitmapIndex(dimension);
         final int cardinality = bitmapIndex.getCardinality();
         final DSuppliers.HandOver<String> handOver = new DSuppliers.HandOver<>();
         final NumericBinding binding = Parser.withSuppliers(ImmutableMap.<String, Supplier>of(dimension, handOver));
@@ -142,7 +140,7 @@ public class MathExprFilter implements DimFilter
           }
         }
         handOver.set(null);
-        return factory.union(bitmaps);
+        return selector.getBitmapFactory().union(bitmaps);
       }
 
       @Override

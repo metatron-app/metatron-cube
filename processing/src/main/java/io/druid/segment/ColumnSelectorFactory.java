@@ -23,6 +23,7 @@ import com.google.common.base.Supplier;
 import com.google.common.collect.Maps;
 import io.druid.common.guava.DSuppliers;
 import io.druid.common.guava.GuavaUtils;
+import io.druid.data.Pair;
 import io.druid.data.ValueDesc;
 import io.druid.math.expr.Expr;
 import io.druid.math.expr.ExprEval;
@@ -46,8 +47,31 @@ public interface ColumnSelectorFactory
   public LongColumnSelector makeLongColumnSelector(String columnName);
   public <T> ObjectColumnSelector<T> makeObjectColumnSelector(String columnName);
   public ExprEvalColumnSelector makeMathExpressionSelector(String expression);
-  public ValueMatcher makeAuxiliaryMatcher(DimFilter filter);
+  public PredicateMatcher makePredicateMatcher(DimFilter filter);
   public ValueDesc getColumnType(String columnName);
+
+  class PredicateMatcher extends Pair<Boolean, ValueMatcher>
+  {
+    public static PredicateMatcher of(boolean lhs, ValueMatcher rhs)
+    {
+      return new PredicateMatcher(lhs, rhs);
+    }
+
+    private PredicateMatcher(Boolean lhs, ValueMatcher rhs)
+    {
+      super(lhs, rhs);
+    }
+
+    public boolean isExact()
+    {
+      return lhs;
+    }
+
+    public ValueMatcher matcher()
+    {
+      return rhs;
+    }
+  }
 
   abstract class ExprSupport implements ColumnSelectorFactory
   {
@@ -93,7 +117,7 @@ public interface ColumnSelectorFactory
     }
 
     @Override
-    public ValueMatcher makeAuxiliaryMatcher(DimFilter filter)
+    public PredicateMatcher makePredicateMatcher(DimFilter filter)
     {
       return null;
     }

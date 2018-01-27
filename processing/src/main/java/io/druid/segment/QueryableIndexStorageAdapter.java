@@ -1034,25 +1034,28 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
                     }
 
                     @Override
-                    public ValueMatcher makeAuxiliaryMatcher(DimFilter filter)
+                    public PredicateMatcher makePredicateMatcher(DimFilter filter)
                     {
-                      final ImmutableBitmap bitmap = Filters.toBitmap(filter, bitmapSelector, BitmapType.ALL);
-                      if (bitmap != null) {
+                      Filters.BitmapHolder holder = Filters.toBitmapHolder(filter, bitmapSelector, BitmapType.ALL);
+                      if (holder != null) {
+                        final ImmutableBitmap bitmap = holder.bitmap();
                         LOG.debug("%s : %,d / %,d", filter, bitmap.size(), index.getNumRows());
+                        ValueMatcher matcher;
                         if (bitmap.isEmpty()) {
-                          return ValueMatcher.FALSE;
-                        }
-                        if (bitmap.size() == index.getNumRows()) {
-                          return ValueMatcher.TRUE;
-                        }
-                        return new ValueMatcher()
-                        {
-                          @Override
-                          public boolean matches()
+                          matcher = ValueMatcher.FALSE;
+                        } else if (bitmap.size() == index.getNumRows()) {
+                          matcher = ValueMatcher.TRUE;
+                        } else {
+                          matcher = new ValueMatcher()
                           {
-                            return bitmap.get(cursorOffset.getOffset());
-                          }
-                        };
+                            @Override
+                            public boolean matches()
+                            {
+                              return bitmap.get(cursorOffset.getOffset());
+                            }
+                          };
+                        }
+                        return PredicateMatcher.of(holder.exact(), matcher);
                       }
                       return null;
                     }

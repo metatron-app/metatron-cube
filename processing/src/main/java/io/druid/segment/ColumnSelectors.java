@@ -26,6 +26,7 @@ import io.druid.data.ValueDesc;
 import io.druid.data.ValueType;
 import io.druid.math.expr.Evals;
 import io.druid.query.dimension.DefaultDimensionSpec;
+import io.druid.query.filter.DimFilter;
 import io.druid.query.filter.MathExprFilter;
 import io.druid.query.filter.ValueMatcher;
 import io.druid.segment.data.IndexedID;
@@ -305,12 +306,13 @@ public class ColumnSelectors
     if (StringUtils.isNullOrEmpty(expression)) {
       return ValueMatcher.TRUE;
     }
-    final ValueMatcher matcher = metricFactory.makeAuxiliaryMatcher(new MathExprFilter(expression));
-    if (matcher == ValueMatcher.FALSE) {
-      return matcher;
+    final DimFilter filter = new MathExprFilter(expression);
+    final ColumnSelectorFactory.PredicateMatcher holder = metricFactory.makePredicateMatcher(filter);
+    if (holder != null && (holder.isExact() || holder.matcher() == ValueMatcher.FALSE)) {
+      return holder.matcher();
     }
     final ExprEvalColumnSelector selector = metricFactory.makeMathExpressionSelector(expression);
-    if (matcher == ValueMatcher.TRUE || matcher == null) {
+    if (holder == null || holder.matcher() == ValueMatcher.TRUE) {
       return new ValueMatcher()
       {
         @Override
@@ -320,6 +322,7 @@ public class ColumnSelectors
         }
       };
     }
+    final ValueMatcher matcher = holder.matcher();
     return new ValueMatcher()
     {
       @Override

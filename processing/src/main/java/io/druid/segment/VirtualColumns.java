@@ -30,7 +30,6 @@ import io.druid.data.ValueDesc;
 import io.druid.query.dimension.DimensionSpec;
 import io.druid.query.extraction.ExtractionFn;
 import io.druid.query.filter.DimFilter;
-import io.druid.query.filter.ValueMatcher;
 import io.druid.segment.data.ArrayBasedIndexedInts;
 import io.druid.segment.data.IndexedInts;
 import io.druid.segment.filter.Filters;
@@ -304,7 +303,7 @@ public class VirtualColumns implements Iterable<VirtualColumn>
       }
 
       @Override
-      public ValueMatcher makeAuxiliaryMatcher(DimFilter filter)
+      public PredicateMatcher makePredicateMatcher(DimFilter filter)
       {
         Set<String> dependents = Filters.getDependents(filter);
         if (dependents.size() != 1) {
@@ -313,9 +312,9 @@ public class VirtualColumns implements Iterable<VirtualColumn>
         String columnName = Iterables.getOnlyElement(dependents);
         ColumnSelectorFactory wrapped = delegate.get(columnName);
         if (wrapped != null) {
-          return wrapped.makeAuxiliaryMatcher(filter);
+          return wrapped.makePredicateMatcher(filter);
         }
-        return factory.makeAuxiliaryMatcher(filter);
+        return factory.makePredicateMatcher(filter);
       }
 
       @Override

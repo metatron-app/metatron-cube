@@ -35,6 +35,7 @@ import com.metamx.common.guava.FunctionalIterable;
 import com.metamx.common.logger.Logger;
 import io.druid.common.guava.IntPredicate;
 import io.druid.common.utils.Ranges;
+import io.druid.data.Pair;
 import io.druid.data.ValueDesc;
 import io.druid.data.ValueType;
 import io.druid.math.expr.Expr;
@@ -380,6 +381,34 @@ public class Filters
     return handler;
   }
 
+  public static class BitmapHolder extends Pair<Boolean, ImmutableBitmap>
+  {
+    public static BitmapHolder exact(ImmutableBitmap rhs)
+    {
+      return new BitmapHolder(true, rhs);
+    }
+
+    public static BitmapHolder notExact(ImmutableBitmap rhs)
+    {
+      return new BitmapHolder(false, rhs);
+    }
+
+    private BitmapHolder(boolean lhs, ImmutableBitmap rhs)
+    {
+      super(lhs, rhs);
+    }
+
+    public boolean exact()
+    {
+      return lhs;
+    }
+
+    public ImmutableBitmap bitmap()
+    {
+      return rhs;
+    }
+  }
+
   public static ImmutableBitmap toBitmap(DimFilter dimFilter, BitmapIndexSelector selector)
   {
     return toBitmap(dimFilter, selector, BitmapType.EXACT);
@@ -391,31 +420,45 @@ public class Filters
       EnumSet<BitmapType> include
   )
   {
-    ImmutableBitmap baseBitmap = null;
+    BitmapHolder holder = toBitmapHolder(dimFilter, selector, include);
+    return holder == null ? null : holder.bitmap();
+  }
+
+  public static BitmapHolder toBitmapHolder(
+      DimFilter dimFilter,
+      BitmapIndexSelector selector,
+      EnumSet<BitmapType> include
+  )
+  {
+    BitmapHolder baseBitmap = null;
     if (dimFilter instanceof Expression.AndExpression) {
+      boolean exact = true;
       List<ImmutableBitmap> bitmaps = Lists.newArrayList();
       for (Expression child : ((Expression.AndExpression) dimFilter).getChildren()) {
         DimFilter filter = (DimFilter) child;
-        ImmutableBitmap bitmap = _toBitmap(filter, selector, include);
+        BitmapHolder bitmap = _toBitmapHolder(filter, selector, include);
         if (bitmap != null) {
-          logger.debug("%s : %,d / %,d", filter, bitmap.size(), selector.getNumRows());
-          bitmaps.add(bitmap);
+          logger.debug("%s : %,d / %,d", filter, bitmap.rhs.size(), selector.getNumRows());
+          bitmaps.add(bitmap.rhs);
+          exact &= bitmap.lhs;
+        } else {
+          exact = false;
         }
       }
       if (!bitmaps.isEmpty()) {
         // concise returns 1,040,187,360. roaring returns 0. makes wrong result anyway
-        baseBitmap = selector.getBitmapFactory().intersection(bitmaps);
+        baseBitmap = new BitmapHolder(exact, selector.getBitmapFactory().intersection(bitmaps));
       }
     } else {
-      baseBitmap = _toBitmap(dimFilter, selector, include);
+      baseBitmap = _toBitmapHolder(dimFilter, selector, include);
     }
     if (baseBitmap != null) {
-      logger.debug("%s : %,d / %,d", dimFilter, baseBitmap.size(), selector.getNumRows());
+      logger.debug("%s : %,d / %,d", dimFilter, baseBitmap.rhs.size(), selector.getNumRows());
     }
     return baseBitmap;
   }
 
-  private static ImmutableBitmap _toBitmap(
+  private static BitmapHolder _toBitmapHolder(
       DimFilter dimFilter,
       BitmapIndexSelector bitmapSelector,
       EnumSet<BitmapType> using
@@ -425,10 +468,10 @@ public class Filters
     if (dependents.size() == 1 && using.contains(BitmapType.DIMENSIONAL)) {
       ColumnCapabilities capabilities = bitmapSelector.getCapabilities(Iterables.getOnlyElement(dependents));
       if (capabilities != null && capabilities.hasBitmapIndexes()) {
-        return dimFilter.toFilter().getBitmapIndex(bitmapSelector, using);
+        return BitmapHolder.exact(dimFilter.toFilter().getBitmapIndex(bitmapSelector, using));
       }
     }
-    ImmutableBitmap bitmap = toExternalBitmap(dimFilter, bitmapSelector, using);
+    BitmapHolder bitmap = toExternalBitmap(dimFilter, bitmapSelector, using);
     if (bitmap == null && using.equals(BitmapType.EXACT)) {
       throw new UnsupportedOperationException("cannot make exact bitmap from " + dimFilter);
     }
@@ -436,7 +479,7 @@ public class Filters
   }
 
   @SuppressWarnings("unchecked")
-  private static ImmutableBitmap toExternalBitmap(
+  private static BitmapHolder toExternalBitmap(
       DimFilter filter,
       BitmapIndexSelector bitmapSelector,
       EnumSet<BitmapType> using
@@ -455,20 +498,21 @@ public class Filters
           }
           bitmaps.add(bitmap);
         }
-        return bitmaps.isEmpty() ? null : bitmapSelector.getBitmapFactory().union(bitmaps);
+        return bitmaps.isEmpty() ? null : BitmapHolder.notExact(bitmapSelector.getBitmapFactory().union(bitmaps));
       } else if (metricBitmap instanceof LuceneIndex) {
         List<Term> terms = Lists.newArrayList();
         for (String value : selector.getValues()) {
           terms.add(new Term(selector.getDimension(), value));
         }
-        return metricBitmap.filterFor(new TermsQuery(terms));
+        return BitmapHolder.exact(metricBitmap.filterFor(new TermsQuery(terms)));
       }
     } else if (filter instanceof MathExprFilter) {
       Expr expr = Parser.parse(((MathExprFilter) filter).getExpression());
       Expr cnf = Expressions.convertToCNF(expr, Parser.EXPR_FACTORY);
-      return toExprBitmap(cnf, bitmapSelector, using, false);
+      ImmutableBitmap bitmap = toExprBitmap(cnf, bitmapSelector, using, false);
+      return bitmap == null ? null : BitmapHolder.exact(bitmap);
     } else if (filter instanceof LuceneFilter) {
-      return filter.toFilter().getBitmapIndex(bitmapSelector, using);
+      return BitmapHolder.exact(filter.toFilter().getBitmapIndex(bitmapSelector, using));
     }
     return null;
   }
