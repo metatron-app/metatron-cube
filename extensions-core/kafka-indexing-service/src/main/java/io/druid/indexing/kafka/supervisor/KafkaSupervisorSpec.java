@@ -24,8 +24,8 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Preconditions;
+import io.druid.common.utils.UUIDUtils;
 import io.druid.guice.annotations.Json;
-import io.druid.indexing.kafka.KafkaIndexTaskClient;
 import io.druid.indexing.kafka.KafkaIndexTaskClientFactory;
 import io.druid.indexing.kafka.KafkaTuningConfig;
 import io.druid.indexing.overlord.IndexerMetadataStorageCoordinator;
@@ -61,8 +61,8 @@ public class KafkaSupervisorSpec implements SupervisorSpec
   {
     this.dataSchema = Preconditions.checkNotNull(dataSchema, "dataSchema");
     this.tuningConfig = tuningConfig != null
-                        ? tuningConfig
-                        : new KafkaTuningConfig(null, null, null, null, null, null, null, null, null);
+        ? tuningConfig
+        : new KafkaTuningConfig(null, null, null, null, null, null, null, null, null);
     this.ioConfig = Preconditions.checkNotNull(ioConfig, "ioConfig");
 
     this.taskStorage = taskStorage;
@@ -93,7 +93,7 @@ public class KafkaSupervisorSpec implements SupervisorSpec
   @Override
   public String getId()
   {
-    return dataSchema.getDataSource();
+    return UUIDUtils.generateUuid(dataSchema.getDataSource());
   }
 
   @Override
