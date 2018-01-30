@@ -911,7 +911,7 @@ public abstract class IncrementalIndex<AggregatorType> implements MergeIndex
       );
     }
     if (timeDescending != null) {
-      return sortOn(facts, timeComparator(timeDescending), true);
+      return sortOn(facts, timeComparator(timeDescending), -1, true);
     }
     return entries;
   }
@@ -932,39 +932,47 @@ public abstract class IncrementalIndex<AggregatorType> implements MergeIndex
   public Iterable<Row> toMergeStream()
   {
     return Iterables.transform(
-        sortOn(getAll(null), dimsComparator(), true),
+        sortOn(getAll(null), dimsComparator(), size(), true),
         rowFunction(ImmutableList.<PostAggregator>of())
     );
   }
 
   @SuppressWarnings("unchecked")
-  public static <K extends Comparable, V> List<Map.Entry<K, V>> sortOn(
-      Iterable<Map.Entry<K, V>> facts,
-      boolean timeLog
-  )
+  public static <K extends Comparable, V> List<Map.Entry<K, V>> sortOn(Map<K, V> facts, boolean timeLog)
   {
-    return sort(facts, Pair.<K, V>KEY_COMP(), timeLog);
+    return sort(facts.entrySet(), Pair.<K, V>KEY_COMP(), facts.size(), timeLog);
+  }
+
+  @SuppressWarnings("unchecked")
+  public static <K, V> List<Map.Entry<K, V>> sortOn(Map<K, V> facts, Comparator<K> comparator, boolean timeLog)
+  {
+    return sort(facts.entrySet(), Pair.<K, V>KEY_COMP(comparator), facts.size(), timeLog);
   }
 
   @SuppressWarnings("unchecked")
   public static <K, V> List<Map.Entry<K, V>> sortOn(
       Iterable<Map.Entry<K, V>> facts,
       Comparator<K> comparator,
+      int size,
       boolean timeLog
   )
   {
-    return sort(facts, Pair.<K, V>KEY_COMP(comparator), timeLog);
+    return sort(facts, Pair.<K, V>KEY_COMP(comparator), size, timeLog);
   }
 
   @SuppressWarnings("unchecked")
   private static <K, V> List<Map.Entry<K, V>> sort(
       Iterable<Map.Entry<K, V>> facts,
       Comparator<Map.Entry<K, V>> comparator,
+      int size,
       boolean timeLog
   )
   {
     final long start = System.currentTimeMillis();
-    List<Map.Entry<K, V>> sorted = Lists.newArrayList(facts.iterator());
+    List<Map.Entry<K, V>> sorted = size < 0
+                                   ? Lists.<Map.Entry<K, V>>newArrayList()
+                                   : Lists.<Map.Entry<K, V>>newArrayListWithCapacity(size);
+    Iterators.addAll(sorted, facts.iterator());
     if (sorted.size() > 1 << 13) {  // Arrays.MIN_ARRAY_SORT_GRAN
       Map.Entry<K, V>[] array = sorted.toArray(new Map.Entry[sorted.size()]);
       Arrays.parallelSort(array, comparator);
@@ -1545,7 +1553,7 @@ public abstract class IncrementalIndex<AggregatorType> implements MergeIndex
         @Override
         public int compare(TimeAndDims o1, TimeAndDims o2)
         {
-          return Longs.compare(o1.timestamp, o2.timestamp);
+          return Longs.compare(o2.timestamp, o1.timestamp);
         }
       };
     } else {
@@ -1554,7 +1562,7 @@ public abstract class IncrementalIndex<AggregatorType> implements MergeIndex
         @Override
         public int compare(TimeAndDims o1, TimeAndDims o2)
         {
-          return Longs.compare(o2.timestamp, o1.timestamp);
+          return Longs.compare(o1.timestamp, o2.timestamp);
         }
       };
     }

@@ -228,7 +228,7 @@ public class PivotSpec implements WindowingSpec.PartitionEvaluatorFactory
         for (int i = 0; i < partitionKey.length; i++) {
           event.put(partitionColumns.get(i), partitionKey[i]);
         }
-        for (Map.Entry<StringArray, Object> entry : IncrementalIndex.sortOn(mapping.entrySet(), comparator, false)) {
+        for (Map.Entry<StringArray, Object> entry : IncrementalIndex.sortOn(mapping, comparator, false)) {
           event.put(StringUtils.concat(separator, entry.getKey().array()), entry.getValue());
         }
         if (!assigns.isEmpty()) {

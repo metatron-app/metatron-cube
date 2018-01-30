@@ -103,7 +103,7 @@ public class SimpleMergeIndex implements MergeIndex
   public Iterable<Row> toMergeStream()
   {
     return Lists.transform(
-        IncrementalIndex.sortOn(mapping.entrySet(), true),
+        IncrementalIndex.sortOn(mapping, true),
         new com.google.common.base.Function<Map.Entry<TimeAndDims, Aggregator[]>, Row>()
         {
           @Override
