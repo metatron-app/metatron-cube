@@ -702,12 +702,6 @@ public class IncrementalIndexStorageAdapter implements StorageAdapter
               }
 
               @Override
-              public PredicateMatcher makePredicateMatcher(DimFilter filter)
-              {
-                return null;
-              }
-
-              @Override
               public ValueDesc getColumnType(String columnName)
               {
                 return resolver.resolveColumn(columnName);

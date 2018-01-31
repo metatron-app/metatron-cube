@@ -26,7 +26,6 @@ import io.druid.data.ValueDesc;
 import io.druid.data.ValueType;
 import io.druid.math.expr.Evals;
 import io.druid.query.dimension.DefaultDimensionSpec;
-import io.druid.query.filter.DimFilter;
 import io.druid.query.filter.MathExprFilter;
 import io.druid.query.filter.ValueMatcher;
 import io.druid.segment.data.IndexedID;
@@ -303,34 +302,10 @@ public class ColumnSelectors
   @SuppressWarnings("unchecked")
   public static ValueMatcher toMatcher(String expression, ColumnSelectorFactory metricFactory)
   {
-    if (StringUtils.isNullOrEmpty(expression)) {
-      return ValueMatcher.TRUE;
+    if (!StringUtils.isNullOrEmpty(expression)) {
+      return metricFactory.makePredicateMatcher(new MathExprFilter(expression));
     }
-    final DimFilter filter = new MathExprFilter(expression);
-    final ColumnSelectorFactory.PredicateMatcher holder = metricFactory.makePredicateMatcher(filter);
-    if (holder != null && (holder.isExact() || holder.matcher() == ValueMatcher.FALSE)) {
-      return holder.matcher();
-    }
-    final ExprEvalColumnSelector selector = metricFactory.makeMathExpressionSelector(expression);
-    if (holder == null || holder.matcher() == ValueMatcher.TRUE) {
-      return new ValueMatcher()
-      {
-        @Override
-        public boolean matches()
-        {
-          return selector.get().asBoolean();
-        }
-      };
-    }
-    final ValueMatcher matcher = holder.matcher();
-    return new ValueMatcher()
-    {
-      @Override
-      public boolean matches()
-      {
-        return matcher.matches() && selector.get().asBoolean();
-      }
-    };
+    return ValueMatcher.TRUE;
   }
 
   public static ObjectColumnSelector asStringSelector(final ExprEvalColumnSelector selector)

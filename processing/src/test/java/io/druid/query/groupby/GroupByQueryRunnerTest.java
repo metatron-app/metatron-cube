@@ -62,6 +62,7 @@ import io.druid.query.aggregation.CountAggregatorFactory;
 import io.druid.query.aggregation.DoubleMaxAggregatorFactory;
 import io.druid.query.aggregation.DoubleSumAggregatorFactory;
 import io.druid.query.aggregation.FilteredAggregatorFactory;
+import io.druid.query.aggregation.GenericSumAggregatorFactory;
 import io.druid.query.aggregation.JavaScriptAggregatorFactory;
 import io.druid.query.aggregation.LongSumAggregatorFactory;
 import io.druid.query.aggregation.PostAggregator;
@@ -6198,38 +6199,35 @@ public class GroupByQueryRunnerTest
             )
         )
         .setAggregatorSpecs(
-            Arrays.asList(
-                new FilteredAggregatorFactory(QueryRunnerTestHelper.rowsCount, filter),
-                (AggregatorFactory) new FilteredAggregatorFactory(
-                    new LongSumAggregatorFactory(
-                        "idx",
-                        "index"
-                    ), filter
-                )
-            )
+            new FilteredAggregatorFactory(QueryRunnerTestHelper.rowsCount, filter),
+            new FilteredAggregatorFactory(new LongSumAggregatorFactory("idx", "index"), filter),
+            new FilteredAggregatorFactory(new LongSumAggregatorFactory("idx2", "index"), new MathExprFilter("1 == 0")),
+            new GenericSumAggregatorFactory("idx3", "index", null, "index > 1000", "long")
         )
         .setGranularity(QueryRunnerTestHelper.dayGran)
         .build();
-    List<Row> expectedResults = Arrays.asList(
-        GroupByQueryRunnerTestHelper.createExpectedRow("2011-04-01", "alias", "automotive", "rows", 0L, "idx", 0L),
-        GroupByQueryRunnerTestHelper.createExpectedRow("2011-04-01", "alias", "business", "rows", 0L, "idx", 0L),
-        GroupByQueryRunnerTestHelper.createExpectedRow("2011-04-01", "alias", "entertainment", "rows", 0L, "idx", 0L),
-        GroupByQueryRunnerTestHelper.createExpectedRow("2011-04-01", "alias", "health", "rows", 0L, "idx", 0L),
-        GroupByQueryRunnerTestHelper.createExpectedRow("2011-04-01", "alias", "mezzanine", "rows", 3L, "idx", 2870L),
-        GroupByQueryRunnerTestHelper.createExpectedRow("2011-04-01", "alias", "news", "rows", 1L, "idx", 121L),
-        GroupByQueryRunnerTestHelper.createExpectedRow("2011-04-01", "alias", "premium", "rows", 0L, "idx", 0L),
-        GroupByQueryRunnerTestHelper.createExpectedRow("2011-04-01", "alias", "technology", "rows", 0L, "idx", 0L),
-        GroupByQueryRunnerTestHelper.createExpectedRow("2011-04-01", "alias", "travel", "rows", 0L, "idx", 0L),
 
-        GroupByQueryRunnerTestHelper.createExpectedRow("2011-04-02", "alias", "automotive", "rows", 0L, "idx", 0L),
-        GroupByQueryRunnerTestHelper.createExpectedRow("2011-04-02", "alias", "business", "rows", 0L, "idx", 0L),
-        GroupByQueryRunnerTestHelper.createExpectedRow("2011-04-02", "alias", "entertainment", "rows", 0L, "idx", 0L),
-        GroupByQueryRunnerTestHelper.createExpectedRow("2011-04-02", "alias", "health", "rows", 0L, "idx", 0L),
-        GroupByQueryRunnerTestHelper.createExpectedRow("2011-04-02", "alias", "mezzanine", "rows", 3L, "idx", 2447L),
-        GroupByQueryRunnerTestHelper.createExpectedRow("2011-04-02", "alias", "news", "rows", 1L, "idx", 114L),
-        GroupByQueryRunnerTestHelper.createExpectedRow("2011-04-02", "alias", "premium", "rows", 0L, "idx", 0L),
-        GroupByQueryRunnerTestHelper.createExpectedRow("2011-04-02", "alias", "technology", "rows", 0L, "idx", 0L),
-        GroupByQueryRunnerTestHelper.createExpectedRow("2011-04-02", "alias", "travel", "rows", 0L, "idx", 0L)
+    List<Row> expectedResults = GroupByQueryRunnerTestHelper.createExpectedRows(
+        new String[]{"__time", "alias", "rows", "idx", "idx2", "idx3"},
+        new Object[]{"2011-04-01", "automotive", 0L, 0L, 0L, 0L},
+        new Object[]{"2011-04-01", "business", 0L, 0L, 0L, 0L},
+        new Object[]{"2011-04-01", "entertainment", 0L, 0L, 0L, 0L},
+        new Object[]{"2011-04-01", "health", 0L, 0L, 0L, 0L},
+        new Object[]{"2011-04-01", "mezzanine", 3L, 2870L, 0L, 2761L},
+        new Object[]{"2011-04-01", "news", 1L, 121L, 0L, 0L},
+        new Object[]{"2011-04-01", "premium", 0L, 0L, 0L, 2756L},
+        new Object[]{"2011-04-01", "technology", 0L, 0L, 0L, 0L},
+        new Object[]{"2011-04-01", "travel", 0L, 0L, 0L, 0L},
+
+        new Object[]{"2011-04-02", "automotive", 0L, 0L, 0L, 0L},
+        new Object[]{"2011-04-02", "business", 0L, 0L, 0L, 0L},
+        new Object[]{"2011-04-02", "entertainment", 0L, 0L, 0L, 0L},
+        new Object[]{"2011-04-02", "health", 0L, 0L, 0L, 0L},
+        new Object[]{"2011-04-02", "mezzanine", 3L, 2447L, 0L, 2337L},
+        new Object[]{"2011-04-02", "news", 1L, 114L, 0L, 0L},
+        new Object[]{"2011-04-02", "premium", 0L, 0L, 0L, 2370L},
+        new Object[]{"2011-04-02", "technology", 0L, 0L, 0L, 0L},
+        new Object[]{"2011-04-02", "travel", 0L, 0L, 0L, 0L}
     );
 
     Iterable<Row> results = GroupByQueryRunnerTestHelper.runQuery(factory, runner, query);

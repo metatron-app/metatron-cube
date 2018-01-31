@@ -30,6 +30,7 @@ import io.druid.data.ValueDesc;
 import io.druid.query.dimension.DimensionSpec;
 import io.druid.query.extraction.ExtractionFn;
 import io.druid.query.filter.DimFilter;
+import io.druid.query.filter.ValueMatcher;
 import io.druid.segment.data.ArrayBasedIndexedInts;
 import io.druid.segment.data.IndexedInts;
 import io.druid.segment.filter.Filters;
@@ -303,18 +304,21 @@ public class VirtualColumns implements Iterable<VirtualColumn>
       }
 
       @Override
-      public PredicateMatcher makePredicateMatcher(DimFilter filter)
+      public ValueMatcher makePredicateMatcher(DimFilter filter)
       {
-        Set<String> dependents = Filters.getDependents(filter);
-        if (dependents.size() != 1) {
-          return null;
+        List<String> dependents = Lists.newArrayList(Filters.getDependents(filter));
+        if (dependents.isEmpty()) {
+          return factory.makePredicateMatcher(filter);
         }
-        String columnName = Iterables.getOnlyElement(dependents);
-        ColumnSelectorFactory wrapped = delegate.get(columnName);
-        if (wrapped != null) {
-          return wrapped.makePredicateMatcher(filter);
+        ColumnSelectorFactory prev = delegate.getOrDefault(dependents.get(0), factory);
+        for (int i = 1; i < dependents.size(); i++) {
+          ColumnSelectorFactory current = delegate.getOrDefault(dependents.get(i), factory);
+          if (prev != null && prev != current) {
+            throw new IllegalArgumentException("cannot access two independent factories");
+          }
+          prev = current;
         }
-        return factory.makePredicateMatcher(filter);
+        return prev.makePredicateMatcher(filter);
       }
 
       @Override

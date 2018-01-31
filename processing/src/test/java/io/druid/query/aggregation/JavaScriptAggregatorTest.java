@@ -25,7 +25,6 @@ import com.google.common.collect.Maps;
 import io.druid.data.ValueDesc;
 import io.druid.js.JavaScriptConfig;
 import io.druid.query.dimension.DimensionSpec;
-import io.druid.query.filter.DimFilter;
 import io.druid.segment.ColumnSelectorFactory;
 import io.druid.segment.DimensionSelector;
 import io.druid.segment.DoubleColumnSelector;
@@ -48,7 +47,7 @@ public class JavaScriptAggregatorTest
   protected static final Map<String, String> sumLogATimesBPlusTen = Maps.newHashMap();
   protected static final Map<String, String> scriptDoubleSum = Maps.newHashMap();
 
-  final ColumnSelectorFactory DUMMY_COLUMN_SELECTOR_FACTORY = new ColumnSelectorFactory()
+  final ColumnSelectorFactory DUMMY_COLUMN_SELECTOR_FACTORY = new ColumnSelectorFactory.Predicate()
   {
     @Override
     public Iterable<String> getColumnNames()
@@ -88,12 +87,6 @@ public class JavaScriptAggregatorTest
 
     @Override
     public ExprEvalColumnSelector makeMathExpressionSelector(String expression)
-    {
-      return null;
-    }
-
-    @Override
-    public PredicateMatcher makePredicateMatcher(DimFilter filter)
     {
       return null;
     }

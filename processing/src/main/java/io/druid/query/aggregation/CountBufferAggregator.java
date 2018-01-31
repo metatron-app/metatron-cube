@@ -34,11 +34,6 @@ public class CountBufferAggregator implements BufferAggregator
     this.predicate = predicate;
   }
 
-  public CountBufferAggregator()
-  {
-    this(null);
-  }
-
   @Override
   public void init(ByteBuffer buf, int position)
   {

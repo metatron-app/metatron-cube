@@ -1019,30 +1019,27 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
                     }
 
                     @Override
-                    public PredicateMatcher makePredicateMatcher(DimFilter filter)
+                    public ValueMatcher makePredicateMatcher(DimFilter filter)
                     {
                       BitmapHolder holder = Filters.toBitmapHolder(filter, context, BitmapType.ALL);
-                      if (holder != null) {
-                        final ImmutableBitmap bitmap = holder.bitmap();
-                        LOG.debug("%s : %,d / %,d", filter, bitmap.size(), index.getNumRows());
-                        ValueMatcher matcher;
-                        if (bitmap.isEmpty()) {
-                          matcher = ValueMatcher.FALSE;
-                        } else if (bitmap.size() == index.getNumRows()) {
-                          matcher = ValueMatcher.TRUE;
-                        } else {
-                          matcher = new ValueMatcher()
-                          {
-                            @Override
-                            public boolean matches()
-                            {
-                              return bitmap.get(cursorOffset.getOffset());
-                            }
-                          };
-                        }
-                        return PredicateMatcher.of(holder.exact(), matcher);
+                      if (holder == null || holder.bitmap().size() == index.getNumRows()) {
+                        return super.makePredicateMatcher(filter);
                       }
-                      return null;
+                      final ImmutableBitmap bitmap = holder.bitmap();
+                      if (bitmap.isEmpty()) {
+                        return ValueMatcher.FALSE;
+                      }
+                      final ValueMatcher valueMatcher =
+                          holder.exact() ? ValueMatcher.TRUE : super.makePredicateMatcher(filter);
+
+                      return new ValueMatcher()
+                      {
+                        @Override
+                        public boolean matches()
+                        {
+                          return bitmap.get(cursorOffset.getOffset()) && valueMatcher.matches();
+                        }
+                      };
                     }
 
                     @Override

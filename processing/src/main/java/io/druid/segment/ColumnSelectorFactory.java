@@ -23,7 +23,6 @@ import com.google.common.base.Supplier;
 import com.google.common.collect.Maps;
 import io.druid.common.guava.DSuppliers;
 import io.druid.common.guava.GuavaUtils;
-import io.druid.data.Pair;
 import io.druid.data.ValueDesc;
 import io.druid.math.expr.Expr;
 import io.druid.math.expr.ExprEval;
@@ -47,33 +46,19 @@ public interface ColumnSelectorFactory
   public LongColumnSelector makeLongColumnSelector(String columnName);
   public <T> ObjectColumnSelector<T> makeObjectColumnSelector(String columnName);
   public ExprEvalColumnSelector makeMathExpressionSelector(String expression);
-  public PredicateMatcher makePredicateMatcher(DimFilter filter);
+  public ValueMatcher makePredicateMatcher(DimFilter filter);
   public ValueDesc getColumnType(String columnName);
 
-  class PredicateMatcher extends Pair<Boolean, ValueMatcher>
+  abstract class Predicate implements ColumnSelectorFactory
   {
-    public static PredicateMatcher of(boolean lhs, ValueMatcher rhs)
+    @Override
+    public ValueMatcher makePredicateMatcher(DimFilter filter)
     {
-      return new PredicateMatcher(lhs, rhs);
-    }
-
-    private PredicateMatcher(Boolean lhs, ValueMatcher rhs)
-    {
-      super(lhs, rhs);
-    }
-
-    public boolean isExact()
-    {
-      return lhs;
-    }
-
-    public ValueMatcher matcher()
-    {
-      return rhs;
+      return filter.toFilter().makeMatcher(this);
     }
   }
 
-  abstract class ExprSupport implements ColumnSelectorFactory
+  abstract class ExprSupport extends Predicate
   {
     @Override
     @SuppressWarnings("unchecked")
@@ -108,18 +93,12 @@ public interface ColumnSelectorFactory
     }
   }
 
-  abstract class ExprUnSupport implements ColumnSelectorFactory
+  abstract class ExprUnSupport extends Predicate
   {
     @Override
     public ExprEvalColumnSelector makeMathExpressionSelector(String expression)
     {
       throw new UnsupportedOperationException("makeMathExpressionSelector");
-    }
-
-    @Override
-    public PredicateMatcher makePredicateMatcher(DimFilter filter)
-    {
-      return null;
     }
   }
 }

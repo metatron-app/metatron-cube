@@ -22,9 +22,7 @@ package io.druid.query.aggregation;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;
 import io.druid.query.filter.DimFilter;
-import io.druid.query.filter.ValueMatcher;
 import io.druid.segment.ColumnSelectorFactory;
-import io.druid.segment.filter.Filters;
 
 import java.nio.ByteBuffer;
 import java.util.Comparator;
@@ -54,38 +52,16 @@ public class FilteredAggregatorFactory extends AggregatorFactory
   public Aggregator factorize(ColumnSelectorFactory columnSelectorFactory)
   {
     return new FilteredAggregator(
-        toPredicateMatcher(columnSelectorFactory),
+        columnSelectorFactory.makePredicateMatcher(filter),
         delegate.factorize(columnSelectorFactory)
     );
-  }
-
-  private ValueMatcher toPredicateMatcher(ColumnSelectorFactory columnSelectorFactory)
-  {
-    final ColumnSelectorFactory.PredicateMatcher holder = columnSelectorFactory.makePredicateMatcher(filter);
-    if (holder != null && (holder.isExact() || holder.matcher() == ValueMatcher.FALSE)) {
-      return holder.matcher();
-    }
-    final ValueMatcher valueMatcher = Filters.toFilter(filter).makeMatcher(columnSelectorFactory);
-    if (holder == null || holder.matcher() == ValueMatcher.TRUE) {
-      return valueMatcher;
-    }
-    final ValueMatcher matcher = holder.matcher();
-    return new ValueMatcher()
-    {
-      @Override
-      public boolean matches()
-      {
-        return matcher.matches() && valueMatcher.matches();
-      }
-    };
   }
 
   @Override
   public BufferAggregator factorizeBuffered(ColumnSelectorFactory columnSelectorFactory)
   {
-    final ValueMatcher valueMatcher = Filters.toFilter(filter).makeMatcher(columnSelectorFactory);
     return new FilteredBufferAggregator(
-        valueMatcher,
+        columnSelectorFactory.makePredicateMatcher(filter),
         delegate.factorizeBuffered(columnSelectorFactory)
     );
   }
