@@ -106,7 +106,7 @@ public class GroupByMergedQueryRunner<T> implements QueryRunner<T>
     }
 
     final MergeIndex incrementalIndex = GroupByQueryHelper.createMergeIndex(
-        query, bufferPool, maxRowCount, optimizer
+        query, bufferPool, maxRowCount, parallelism, optimizer
     );
     final Pair<Queue, Accumulator<Queue, T>> bySegmentAccumulatorPair = GroupByQueryHelper.createBySegmentAccumulatorPair();
     final boolean bySegment = BaseQuery.getContextBySegment(query, false);

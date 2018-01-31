@@ -25,13 +25,15 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.primitives.Longs;
 import com.metamx.common.ISE;
+import io.druid.common.DateTimes;
 import io.druid.data.input.MapBasedRow;
 import io.druid.data.input.Row;
 import io.druid.query.aggregation.Aggregator;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.dimension.DimensionSpec;
 import io.druid.query.dimension.DimensionSpecs;
-import io.druid.segment.ColumnSelectorFactories;
+import io.druid.segment.ColumnSelectorFactories.Caching;
+import io.druid.segment.ColumnSelectorFactories.FromInputRow;
 import io.druid.segment.ColumnSelectorFactory;
 import io.druid.segment.ObjectArray;
 import io.druid.segment.incremental.IncrementalIndex;
@@ -53,19 +55,25 @@ public class SimpleMergeIndex implements MergeIndex
   private final AggregatorFactory[] metrics;
 
   private final RowSupplier rowSupplier = new RowSupplier();
-  private final Map<TimeAndDims, Aggregator[]> mapping = new ConcurrentHashMap<>();
+  private final Map<TimeAndDims, Aggregator[]> mapping;
   private final Function<TimeAndDims, Aggregator[]> populator;
 
-  public SimpleMergeIndex(List<DimensionSpec> dimensions, List<AggregatorFactory> aggregators, final int maxRowCount)
+  public SimpleMergeIndex(
+      final List<DimensionSpec> dimensions,
+      final List<AggregatorFactory> aggregators,
+      final int maxRowCount,
+      final int parallelism
+  )
   {
     this.dimensions = DimensionSpecs.toOutputNames(dimensions).toArray(new String[0]);
     this.metrics = AggregatorFactory.toCombiner(aggregators).toArray(new AggregatorFactory[0]);
+    this.mapping = parallelism == 1 ?
+                   Maps.<TimeAndDims, Aggregator[]>newHashMap() :
+                   new ConcurrentHashMap<TimeAndDims, Aggregator[]>(4 << parallelism);
 
     final ColumnSelectorFactory[] selectors = new ColumnSelectorFactory[aggregators.size()];
     for (int i = 0; i < selectors.length; i++) {
-      selectors[i] = new ColumnSelectorFactories.Caching(
-          new ColumnSelectorFactories.FromInputRow(rowSupplier, metrics[i], false)
-      );
+      selectors[i] = new Caching(new FromInputRow(rowSupplier, metrics[i], false)).asReadOnly(metrics[i]);
     }
     this.populator = new Function<TimeAndDims, Aggregator[]>()
     {
@@ -118,7 +126,7 @@ public class SimpleMergeIndex implements MergeIndex
             for (int i = 0; i < metrics.length; i++) {
               event.put(metrics[i].getName(), value[i].get());
             }
-            return new MapBasedRow(key.timestamp, event);
+            return new MapBasedRow(DateTimes.utc(key.timestamp), event);
           }
         }
     );

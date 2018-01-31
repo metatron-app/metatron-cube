@@ -20,6 +20,7 @@
 package io.druid.segment;
 
 import com.google.common.base.Supplier;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
@@ -357,7 +358,7 @@ public class ColumnSelectorFactories
     }
   }
 
-    // Caches references to selector objects for each column instead of creating a new object each time in order to save heap space.
+  // Caches references to selector objects for each column instead of creating a new object each time in order to save heap space.
   // In general the selectorFactory need not to thread-safe.
   // here its made thread safe to support the special case of groupBy where the multiple threads can add concurrently to the IncrementalIndex.
   public static class Caching extends Delegated
@@ -442,6 +443,51 @@ public class ColumnSelectorFactories
     public ExprEvalColumnSelector makeMathExpressionSelector(String expression)
     {
       return exprColumnSelectorMap.computeIfAbsent(expression, EXPR);
+    }
+
+    public ColumnSelectorFactory asReadOnly(AggregatorFactory... factories)
+    {
+      for (AggregatorFactory factory : factories) {
+        factory.factorize(this);
+      }
+      final Map<String, LongColumnSelector> longColumnSelectorMap = ImmutableMap.copyOf(this.longColumnSelectorMap);
+      final Map<String, FloatColumnSelector> floatColumnSelectorMap = ImmutableMap.copyOf(this.floatColumnSelectorMap);
+      final Map<String, DoubleColumnSelector> doubleColumnSelectorMap = ImmutableMap.copyOf(this.doubleColumnSelectorMap);
+      final Map<String, ObjectColumnSelector> objectColumnSelectorMap = ImmutableMap.copyOf(this.objectColumnSelectorMap);
+      final Map<String, ExprEvalColumnSelector> exprColumnSelectorMap = ImmutableMap.copyOf(this.exprColumnSelectorMap);
+
+      return new Delegated(delegate)
+      {
+        @Override
+        public FloatColumnSelector makeFloatColumnSelector(String columnName)
+        {
+          return floatColumnSelectorMap.get(columnName);
+        }
+
+        @Override
+        public DoubleColumnSelector makeDoubleColumnSelector(String columnName)
+        {
+          return doubleColumnSelectorMap.get(columnName);
+        }
+
+        @Override
+        public LongColumnSelector makeLongColumnSelector(String columnName)
+        {
+          return longColumnSelectorMap.get(columnName);
+        }
+
+        @Override
+        public ObjectColumnSelector makeObjectColumnSelector(String columnName)
+        {
+          return objectColumnSelectorMap.get(columnName);
+        }
+
+        @Override
+        public ExprEvalColumnSelector makeMathExpressionSelector(String expression)
+        {
+          return exprColumnSelectorMap.get(expression);
+        }
+      };
     }
   }
 

@@ -468,7 +468,8 @@ public class GroupByQueryEngine
                 public Row apply(final Map.Entry<IntArray, Integer> input)
                 {
                   // changing this will make some tests fail
-                  final Map<String, Object> theEvent = Maps.newLinkedHashMap();
+                  final Map<String, Object> theEvent = asSorted ? Maps.<String, Object>newLinkedHashMap()
+                                                                : Maps.<String, Object>newHashMap();
 
                   final int[] keyArray = input.getKey().array;
                   for (int i = 0; i < dimensions.length; ++i) {
