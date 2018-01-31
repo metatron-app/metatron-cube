@@ -193,7 +193,7 @@ public abstract class BaseFilterTest
           {
             final QueryableIndex index = input.buildMMappedIndex();
             return Pair.<StorageAdapter, Closeable>of(
-                new QueryableIndexStorageAdapter(index),
+                new QueryableIndexStorageAdapter(index, "test-mmapped"),
                 new Closeable()
                 {
                   @Override
@@ -212,7 +212,7 @@ public abstract class BaseFilterTest
           {
             final QueryableIndex index = input.buildMMappedMergedIndex();
             return Pair.<StorageAdapter, Closeable>of(
-                new QueryableIndexStorageAdapter(index),
+                new QueryableIndexStorageAdapter(index, "test-mmappedMerged"),
                 new Closeable()
                 {
                   @Override

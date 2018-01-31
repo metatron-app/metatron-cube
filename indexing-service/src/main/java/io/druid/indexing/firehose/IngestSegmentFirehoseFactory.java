@@ -257,7 +257,8 @@ public class IngestSegmentFirehoseFactory implements FirehoseFactory
                                                     segmentFileMap.get(segment),
                                                     "File for segment %s", segment.getIdentifier()
                                                 )
-                                            )
+                                            ),
+                                            segment.getIdentifier()
                                         ),
                                         holder.getInterval()
                                     );

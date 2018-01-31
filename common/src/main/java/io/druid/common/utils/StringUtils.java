@@ -129,6 +129,21 @@ public class StringUtils extends com.metamx.common.StringUtils
     return Long.parseLong(value.substring(0, index));
   }
 
+  public static byte[] concat(byte[]... array)
+  {
+    int length = 0;
+    for (byte[] bytes : array) {
+      length += bytes.length;
+    }
+    int i = 0;
+    byte[] concat = new byte[length];
+    for (byte[] bytes : array) {
+      System.arraycopy(bytes, 0, concat, i, bytes.length);
+      i += bytes.length;
+    }
+    return concat;
+  }
+
   public static String concat(String delimiter, String... strings)
   {
     if (strings.length == 0) {

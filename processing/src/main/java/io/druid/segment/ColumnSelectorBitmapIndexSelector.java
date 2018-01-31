@@ -31,7 +31,6 @@ import io.druid.segment.column.BitmapIndex;
 import io.druid.segment.column.Column;
 import io.druid.segment.column.ColumnCapabilities;
 import io.druid.segment.column.ExternalBitmap;
-import io.druid.segment.column.GenericColumn;
 import io.druid.segment.column.LuceneIndex;
 import io.druid.segment.column.MetricBitmap;
 import io.druid.segment.data.GenericIndexed;
@@ -51,16 +50,18 @@ public class ColumnSelectorBitmapIndexSelector implements BitmapIndexSelector, C
 {
   private final BitmapFactory bitmapFactory;
   private final ColumnSelector index;
+  private final int numRows;
   private final Map<String, LuceneIndex> luceneIndices = Maps.newHashMap();
   private final Map<String, MetricBitmap> metricBitmaps = Maps.newHashMap();
 
   public ColumnSelectorBitmapIndexSelector(
       final BitmapFactory bitmapFactory,
-      final ColumnSelector index
+      final QueryableIndex index
   )
   {
     this.bitmapFactory = bitmapFactory;
     this.index = index;
+    this.numRows = index.getNumRows();
   }
 
   public ColumnSelectorBitmapIndexSelector(
@@ -90,6 +91,7 @@ public class ColumnSelectorBitmapIndexSelector implements BitmapIndexSelector, C
         return index.getColumnType(columnName);
       }
     };
+    this.numRows = column.getLength();
   }
 
   @Override
@@ -137,14 +139,7 @@ public class ColumnSelectorBitmapIndexSelector implements BitmapIndexSelector, C
   @Override
   public int getNumRows()
   {
-    GenericColumn column = null;
-    try {
-      column = index.getColumn(Column.TIME_COLUMN_NAME).getGenericColumn();
-      return column.length();
-    }
-    finally {
-      CloseQuietly.close(column);
-    }
+    return numRows;
   }
 
   @Override

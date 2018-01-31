@@ -316,7 +316,7 @@ public class BatchDeltaIngestionTest
     new LocalDataSegmentPuller().getSegmentFiles(dataSegment, tmpUnzippedSegmentDir);
 
     QueryableIndex index = INDEX_IO.loadIndex(tmpUnzippedSegmentDir);
-    StorageAdapter adapter = new QueryableIndexStorageAdapter(index);
+    StorageAdapter adapter = new QueryableIndexStorageAdapter(index, "batch-test");
 
     Firehose firehose = new IngestSegmentFirehose(
         ImmutableList.of(new WindowedStorageAdapter(adapter, windowedDataSegment.getInterval())),

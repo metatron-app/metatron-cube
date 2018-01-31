@@ -95,13 +95,13 @@ public class SpatialFilterTest
     return Arrays.asList(
         new Object[][]{
             {
-                new IncrementalIndexSegment(rtIndex, null)
+                new IncrementalIndexSegment(rtIndex, "incremental")
             },
             {
-                new QueryableIndexSegment(null, mMappedTestIndex)
+                new QueryableIndexSegment("mmaped", mMappedTestIndex)
             },
             {
-                new QueryableIndexSegment(null, mergedRealtimeIndex)
+                new QueryableIndexSegment("merged", mergedRealtimeIndex)
             }
         }
     );

@@ -30,6 +30,7 @@ import com.metamx.common.guava.Accumulator;
 import com.metamx.common.guava.Sequence;
 import com.metamx.common.guava.Sequences;
 import com.metamx.common.logger.Logger;
+import io.druid.cache.Cache;
 import io.druid.data.ValueDesc;
 import io.druid.data.ValueType;
 import io.druid.granularity.QueryGranularities;
@@ -40,8 +41,8 @@ import io.druid.query.RowResolver;
 import io.druid.query.dimension.DimensionSpec;
 import io.druid.query.dimension.DimensionSpecs;
 import io.druid.query.extraction.ExtractionFn;
-import io.druid.query.filter.AndDimFilter;
 import io.druid.query.filter.BitmapIndexSelector;
+import io.druid.query.filter.BitmapType;
 import io.druid.query.filter.DimFilter;
 import io.druid.query.select.ViewSupportHelper;
 import io.druid.segment.ColumnSelectorBitmapIndexSelector;
@@ -70,10 +71,12 @@ public class SketchQueryRunner implements QueryRunner<Result<Map<String, Object>
   private static final Logger LOG = new Logger(SketchQueryRunner.class);
 
   private final Segment segment;
+  private final Cache cache;
 
-  public SketchQueryRunner(Segment segment)
+  public SketchQueryRunner(Segment segment, Cache cache)
   {
     this.segment = segment;
+    this.cache = cache;
   }
 
   @Override
@@ -97,7 +100,7 @@ public class SketchQueryRunner implements QueryRunner<Result<Map<String, Object>
 
     final List<DimensionSpec> dimensions = query.getDimensions();
     final List<String> metrics = Lists.newArrayList(query.getMetrics());
-    final DimFilter filter = query.getFilter();
+    final DimFilter filter = Filters.convertToCNF(query.getFilter());
     final int sketchParam = query.getSketchParam();
     final SketchHandler<?> handler = query.getSketchOp().handler();
 
@@ -143,7 +146,7 @@ public class SketchQueryRunner implements QueryRunner<Result<Map<String, Object>
       }
     } else {
       final Sequence<Cursor> cursors = adapter.makeCursors(
-          filter, segment.getDataInterval(), vcs, QueryGranularities.ALL, null, false
+          filter, segment.getDataInterval(), vcs, QueryGranularities.ALL, cache, false
       );
       unions = cursors.accumulate(unions, createAccumulator(majorTypes, dimensions, metrics, sketchParam, handler));
     }
@@ -158,18 +161,11 @@ public class SketchQueryRunner implements QueryRunner<Result<Map<String, Object>
 
   private ImmutableBitmap toDependentBitmap(DimFilter current, BitmapIndexSelector selector)
   {
-    current = Filters.convertToCNF(current);
-    if (current == null) {
-      return null;
+    if (current != null) {
+      Filters.FilterContext context = Filters.getFilterContext(selector, cache, segment.getIdentifier());
+      return Filters.toBitmap(current, context, BitmapType.EXACT);
     }
-    if (!(current instanceof AndDimFilter)) {
-      return Filters.toBitmap(current, selector);
-    }
-    List<ImmutableBitmap> filters = Lists.newArrayList();
-    for (DimFilter child : ((AndDimFilter) current).getChildren()) {
-      filters.add(Filters.toBitmap(child, selector));
-    }
-    return selector.getBitmapFactory().intersection(filters);
+    return null;
   }
 
   private Accumulator<Map<String, TypedSketch>, Cursor> createAccumulator(

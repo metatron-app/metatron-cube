@@ -20,6 +20,7 @@
 package io.druid.segment;
 
 import com.google.common.base.Function;
+import com.google.common.base.Preconditions;
 import com.google.common.base.Predicates;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterators;
@@ -57,12 +58,13 @@ import io.druid.segment.data.IndexedInts;
 import io.druid.segment.data.Offset;
 import io.druid.segment.filter.BooleanValueMatcher;
 import io.druid.segment.filter.Filters;
+import io.druid.segment.filter.Filters.BitmapHolder;
+import io.druid.segment.filter.Filters.FilterContext;
 import org.joda.time.DateTime;
 import org.joda.time.Interval;
 
 import java.io.Closeable;
 import java.io.IOException;
-import java.nio.ByteBuffer;
 import java.util.Iterator;
 import java.util.Map;
 
@@ -79,13 +81,8 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
 
   public QueryableIndexStorageAdapter(QueryableIndex index, String segmentId)
   {
-    this.index = index;
-    this.segmentId = segmentId;
-  }
-
-  public QueryableIndexStorageAdapter(QueryableIndex index)
-  {
-    this(index, null);
+    this.index = Preconditions.checkNotNull(index);
+    this.segmentId = Preconditions.checkNotNull(segmentId);
   }
 
   @Override
@@ -224,12 +221,12 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
 
   @Override
   public Sequence<Cursor> makeCursors(
-      DimFilter filter,
-      Interval interval,
-      VirtualColumns virtualColumns,
-      Granularity gran,
-      Cache cache,
-      boolean descending
+      final DimFilter filter,
+      final Interval interval,
+      final VirtualColumns virtualColumns,
+      final Granularity gran,
+      final Cache cache,
+      final boolean descending
   )
   {
     Interval actualInterval = interval;
@@ -263,12 +260,15 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
 
     final ColumnSelectorBitmapIndexSelector selector = new ColumnSelectorBitmapIndexSelector(bitmapFactory, index);
 
+
+    FilterContext context = Filters.getFilterContext(selector, cache, segmentId);
+
     ImmutableBitmap baseBitmap = null;
     if (bitmapFilter != null) {
-      baseBitmap = toExactBitmap(bitmapFilter, selector, cache);
+      baseBitmap = Filters.toBitmap(bitmapFilter, context, BitmapType.EXACT);
     }
     if (valuesFilter != null) {
-      ImmutableBitmap bitmap = Filters.toBitmap(valuesFilter, selector, BitmapType.HELPER);
+      ImmutableBitmap bitmap = Filters.toBitmap(valuesFilter, context, BitmapType.HELPER);
       baseBitmap = Filters.intersection(bitmapFactory, baseBitmap, bitmap);
     }
 
@@ -292,31 +292,13 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
                 minDataTimestamp,
                 maxDataTimestamp,
                 descending,
-                selector
+                selector,
+                context
             ).build(),
             Predicates.<Cursor>notNull()
         ),
         selector
     );
-  }
-
-  private ImmutableBitmap toExactBitmap(DimFilter dimFilter, BitmapIndexSelector bitmapSelector, Cache cache)
-  {
-    Cache.NamedKey key = null;
-    if (cache != null && segmentId != null) {
-      key = new Cache.NamedKey(segmentId, dimFilter.getCacheKey());
-      byte[] cached = cache.get(key);
-      if (cached != null) {
-        return bitmapSelector.getBitmapFactory().mapImmutableBitmap(ByteBuffer.wrap(cached));
-      }
-    }
-    ImmutableBitmap baseBitmap = Filters.toBitmap(dimFilter, bitmapSelector, BitmapType.EXACT);
-    if (key != null) {
-      cache.put(key, baseBitmap.toBytes());
-    }
-    // cannot be null
-    LOG.debug("%s : %,d / %,d", dimFilter, baseBitmap.size(), bitmapSelector.getNumRows());
-    return baseBitmap;
   }
 
   private static class CursorSequenceBuilder
@@ -332,6 +314,7 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
     private final boolean descending;
     private final BitmapIndexSelector bitmapSelector;
 
+    private final FilterContext context;
     private final Filter filter;
 
     public CursorSequenceBuilder(
@@ -345,7 +328,8 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
         long minDataTimestamp,
         long maxDataTimestamp,
         boolean descending,
-        BitmapIndexSelector bitmapSelector
+        BitmapIndexSelector bitmapSelector,
+        FilterContext context
     )
     {
       this.index = index;
@@ -359,6 +343,7 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
       this.maxDataTimestamp = maxDataTimestamp;
       this.descending = descending;
       this.bitmapSelector = bitmapSelector;
+      this.context = context;
     }
 
     public Sequence<Cursor> build()
@@ -1036,7 +1021,7 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
                     @Override
                     public PredicateMatcher makePredicateMatcher(DimFilter filter)
                     {
-                      Filters.BitmapHolder holder = Filters.toBitmapHolder(filter, bitmapSelector, BitmapType.ALL);
+                      BitmapHolder holder = Filters.toBitmapHolder(filter, context, BitmapType.ALL);
                       if (holder != null) {
                         final ImmutableBitmap bitmap = holder.bitmap();
                         LOG.debug("%s : %,d / %,d", filter, bitmap.size(), index.getNumRows());

@@ -20,6 +20,8 @@
 package io.druid.query.sketch;
 
 import com.google.inject.Inject;
+import io.druid.cache.BitmapCache;
+import io.druid.cache.Cache;
 import io.druid.query.ChainedExecutionQueryRunner;
 import io.druid.query.QueryRunner;
 import io.druid.query.QueryRunnerFactory;
@@ -40,6 +42,10 @@ public class SketchQueryRunnerFactory implements QueryRunnerFactory<Result<Map<S
   private final SketchQueryQueryToolChest toolChest;
   private final QueryWatcher queryWatcher;
 
+  @BitmapCache
+  @Inject(optional = true)
+  private Cache cache;
+
   @Inject
   public SketchQueryRunnerFactory(
       SketchQueryQueryToolChest toolChest,
@@ -53,7 +59,7 @@ public class SketchQueryRunnerFactory implements QueryRunnerFactory<Result<Map<S
   @Override
   public QueryRunner<Result<Map<String, Object>>> createRunner(final Segment segment, Future<Object> optimizer)
   {
-    return new SketchQueryRunner(segment);
+    return new SketchQueryRunner(segment, cache);
   }
 
   @Override

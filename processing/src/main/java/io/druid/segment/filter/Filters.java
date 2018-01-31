@@ -33,8 +33,10 @@ import com.metamx.collections.bitmap.ImmutableBitmap;
 import com.metamx.collections.bitmap.MutableBitmap;
 import com.metamx.common.guava.FunctionalIterable;
 import com.metamx.common.logger.Logger;
+import io.druid.cache.Cache;
 import io.druid.common.guava.IntPredicate;
 import io.druid.common.utils.Ranges;
+import io.druid.common.utils.StringUtils;
 import io.druid.data.Pair;
 import io.druid.data.ValueDesc;
 import io.druid.data.ValueType;
@@ -77,6 +79,7 @@ import org.apache.lucene.queries.TermsQuery;
 
 import javax.annotation.Nullable;
 import java.lang.reflect.Array;
+import java.nio.ByteBuffer;
 import java.util.Arrays;
 import java.util.BitSet;
 import java.util.EnumSet;
@@ -383,6 +386,11 @@ public class Filters
 
   public static class BitmapHolder extends Pair<Boolean, ImmutableBitmap>
   {
+    public static BitmapHolder of(boolean exact, ImmutableBitmap rhs)
+    {
+      return new BitmapHolder(exact, rhs);
+    }
+
     public static BitmapHolder exact(ImmutableBitmap rhs)
     {
       return new BitmapHolder(true, rhs);
@@ -409,36 +417,87 @@ public class Filters
     }
   }
 
-  public static ImmutableBitmap toBitmap(DimFilter dimFilter, BitmapIndexSelector selector)
+  public static FilterContext getFilterContext(
+      final BitmapIndexSelector selector,
+      final Cache cache,
+      final String segmentId
+  )
   {
-    return toBitmap(dimFilter, selector, BitmapType.EXACT);
+    if (cache == null || segmentId == null) {
+      return new FilterContext(selector);
+    }
+    return new FilterContext(selector)
+    {
+      @Override
+      public BitmapHolder createBitmap(DimFilter filter, EnumSet<BitmapType> include)
+      {
+        Cache.NamedKey key = new Cache.NamedKey(segmentId, filter.getCacheKey());
+        byte[] cached = cache.get(key);
+        if (cached != null) {
+          ByteBuffer wrapped = ByteBuffer.wrap(cached);
+          return BitmapHolder.of(wrapped.get() != 0, factory.mapImmutableBitmap(wrapped));
+        }
+        BitmapHolder holder = super.createBitmap(filter, include);
+        if (holder != null) {
+          byte exact = holder.exact() ? (byte) 0x01 : 0x00;
+          cache.put(key, StringUtils.concat(new byte[]{exact}, holder.bitmap().toBytes()));
+        }
+        return holder;
+      }
+    };
+  }
+
+  public static class FilterContext
+  {
+    protected final BitmapIndexSelector selector;
+    protected final BitmapFactory factory;
+
+    public FilterContext(BitmapIndexSelector selector) {
+      this.selector = selector;
+      this.factory = selector.getBitmapFactory();
+    }
+
+    public BitmapHolder createBitmap(DimFilter filter, EnumSet<BitmapType> include)
+    {
+      return _toBitmapHolder(filter, selector, include);
+    }
+
+    public ImmutableBitmap intersection(List<ImmutableBitmap> bitmaps)
+    {
+      return factory.intersection(bitmaps);
+    }
+
+    public int getNumRows()
+    {
+      return selector.getNumRows();
+    }
   }
 
   public static ImmutableBitmap toBitmap(
       DimFilter dimFilter,
-      BitmapIndexSelector selector,
+      FilterContext context,
       EnumSet<BitmapType> include
-  )
-  {
-    BitmapHolder holder = toBitmapHolder(dimFilter, selector, include);
+  ) {
+    BitmapHolder holder = toBitmapHolder(dimFilter, context, include);
     return holder == null ? null : holder.bitmap();
   }
 
   public static BitmapHolder toBitmapHolder(
       DimFilter dimFilter,
-      BitmapIndexSelector selector,
+      FilterContext context,
       EnumSet<BitmapType> include
   )
   {
+    long start = System.currentTimeMillis();
     BitmapHolder baseBitmap = null;
     if (dimFilter instanceof Expression.AndExpression) {
       boolean exact = true;
       List<ImmutableBitmap> bitmaps = Lists.newArrayList();
       for (Expression child : ((Expression.AndExpression) dimFilter).getChildren()) {
         DimFilter filter = (DimFilter) child;
-        BitmapHolder bitmap = _toBitmapHolder(filter, selector, include);
+        BitmapHolder bitmap = context.createBitmap(filter, include);
         if (bitmap != null) {
-          logger.debug("%s : %,d / %,d", filter, bitmap.rhs.size(), selector.getNumRows());
+          logger.debug("%s : %,d / %,d", filter, bitmap.rhs.size(), context.getNumRows());
           bitmaps.add(bitmap.rhs);
           exact &= bitmap.lhs;
         } else {
@@ -447,13 +506,15 @@ public class Filters
       }
       if (!bitmaps.isEmpty()) {
         // concise returns 1,040,187,360. roaring returns 0. makes wrong result anyway
-        baseBitmap = new BitmapHolder(exact, selector.getBitmapFactory().intersection(bitmaps));
+        baseBitmap = new BitmapHolder(exact, context.intersection(bitmaps));
       }
     } else {
-      baseBitmap = _toBitmapHolder(dimFilter, selector, include);
+      baseBitmap = context.createBitmap(dimFilter, include);
     }
+
     if (baseBitmap != null) {
-      logger.debug("%s : %,d / %,d", dimFilter, baseBitmap.rhs.size(), selector.getNumRows());
+      long elapsed = System.currentTimeMillis() - start;
+      logger.debug("%s : %,d / %,d (%,d msec)", dimFilter, baseBitmap.rhs.size(), context.getNumRows(), elapsed);
     }
     return baseBitmap;
   }

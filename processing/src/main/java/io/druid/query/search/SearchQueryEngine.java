@@ -41,6 +41,7 @@ import io.druid.query.dimension.DimensionSpecs;
 import io.druid.query.extraction.ExtractionFn;
 import io.druid.query.extraction.ExtractionFns;
 import io.druid.query.extraction.IdentityExtractionFn;
+import io.druid.query.filter.BitmapType;
 import io.druid.query.filter.DimFilter;
 import io.druid.query.search.search.SearchHit;
 import io.druid.query.search.search.SearchQuery;
@@ -61,7 +62,6 @@ import io.druid.segment.filter.Filters;
 import org.apache.commons.lang.mutable.MutableInt;
 import org.joda.time.DateTime;
 
-import java.nio.ByteBuffer;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
@@ -129,20 +129,10 @@ public class SearchQueryEngine
       final BitmapFactory bitmapFactory = index.getBitmapFactoryForDimensions();
       final ColumnSelectorBitmapIndexSelector selector = new ColumnSelectorBitmapIndexSelector(bitmapFactory, index);
 
-      Cache.NamedKey key = null;
       ImmutableBitmap baseFilter = null;
-      if (cache != null && filter != null) {
-        key = new Cache.NamedKey(segmentId, filter.getCacheKey());
-        byte[] cached = cache.get(key);
-        if (cached != null) {
-          baseFilter = selector.getBitmapFactory().mapImmutableBitmap(ByteBuffer.wrap(cached));
-        }
-      }
-      if (baseFilter == null) {
-        baseFilter = filter == null ? null : Filters.toBitmap(filter, selector);
-        if (key != null) {
-          cache.put(key, baseFilter.toBytes());
-        }
+      if (filter != null) {
+        Filters.FilterContext context = Filters.getFilterContext(selector, cache, segmentId);
+        baseFilter = Filters.toBitmap(filter, context, BitmapType.EXACT);
       }
       for (DimensionSpec dimension : dimensions) {
         final Column column = index.getColumn(dimension.getDimension());

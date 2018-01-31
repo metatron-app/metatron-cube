@@ -19,6 +19,7 @@
 
 package io.druid.segment;
 
+import com.google.common.base.Preconditions;
 import org.joda.time.Interval;
 
 import java.io.IOException;
@@ -32,8 +33,8 @@ public class QueryableIndexSegment extends AbstractSegment
 
   public QueryableIndexSegment(final String segmentIdentifier, QueryableIndex index)
   {
-    this.index = index;
-    identifier = segmentIdentifier;
+    this.index = Preconditions.checkNotNull(index);
+    this.identifier = Preconditions.checkNotNull(segmentIdentifier);
   }
 
   @Override

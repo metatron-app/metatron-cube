@@ -95,7 +95,7 @@ public class DatasourceRecordReader extends RecordReader<NullWritable, InputRow>
               numRows += index.getNumRows();
 
               return new WindowedStorageAdapter(
-                  new QueryableIndexStorageAdapter(index),
+                  new QueryableIndexStorageAdapter(index, segment.getSegment().getIdentifier()),
                   segment.getInterval()
               );
             }

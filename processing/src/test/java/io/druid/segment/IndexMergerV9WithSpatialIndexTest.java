@@ -87,13 +87,13 @@ public class IndexMergerV9WithSpatialIndexTest
     return Arrays.asList(
         new Object[][]{
             {
-                new IncrementalIndexSegment(rtIndex, null)
+                new IncrementalIndexSegment(rtIndex, "incremental")
             },
             {
-                new QueryableIndexSegment(null, mMappedTestIndex)
+                new QueryableIndexSegment("mmapped", mMappedTestIndex)
             },
             {
-                new QueryableIndexSegment(null, mergedRealtimeIndex)
+                new QueryableIndexSegment("merged", mergedRealtimeIndex)
             }
         }
     );

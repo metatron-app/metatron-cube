@@ -53,11 +53,31 @@ public class FilteredAggregatorFactory extends AggregatorFactory
   @Override
   public Aggregator factorize(ColumnSelectorFactory columnSelectorFactory)
   {
-    final ValueMatcher valueMatcher = Filters.toFilter(filter).makeMatcher(columnSelectorFactory);
     return new FilteredAggregator(
-        valueMatcher,
+        toPredicateMatcher(columnSelectorFactory),
         delegate.factorize(columnSelectorFactory)
     );
+  }
+
+  private ValueMatcher toPredicateMatcher(ColumnSelectorFactory columnSelectorFactory)
+  {
+    final ColumnSelectorFactory.PredicateMatcher holder = columnSelectorFactory.makePredicateMatcher(filter);
+    if (holder != null && (holder.isExact() || holder.matcher() == ValueMatcher.FALSE)) {
+      return holder.matcher();
+    }
+    final ValueMatcher valueMatcher = Filters.toFilter(filter).makeMatcher(columnSelectorFactory);
+    if (holder == null || holder.matcher() == ValueMatcher.TRUE) {
+      return valueMatcher;
+    }
+    final ValueMatcher matcher = holder.matcher();
+    return new ValueMatcher()
+    {
+      @Override
+      public boolean matches()
+      {
+        return matcher.matches() && valueMatcher.matches();
+      }
+    };
   }
 
   @Override

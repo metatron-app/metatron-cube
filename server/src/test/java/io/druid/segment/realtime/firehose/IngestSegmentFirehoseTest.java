@@ -66,7 +66,7 @@ public class IngestSegmentFirehoseTest
     QueryableIndex qi = null;
     try {
       qi = indexIO.loadIndex(segmentDir);
-      StorageAdapter sa = new QueryableIndexStorageAdapter(qi);
+      StorageAdapter sa = new QueryableIndexStorageAdapter(qi, "test-segment");
       WindowedStorageAdapter wsa = new WindowedStorageAdapter(sa, sa.getInterval());
       IngestSegmentFirehose firehose = new IngestSegmentFirehose(
           ImmutableList.of(wsa, wsa),

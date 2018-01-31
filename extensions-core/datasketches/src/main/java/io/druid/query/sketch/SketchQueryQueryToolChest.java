@@ -271,7 +271,7 @@ public class SketchQueryQueryToolChest extends QueryToolChest<Result<Map<String,
       )
       {
         final SketchQuery sketchQuery = (SketchQuery) query;
-        final SketchQueryRunner runner = new SketchQueryRunner(segment);
+        final SketchQueryRunner runner = new SketchQueryRunner(segment, null);
         return new Function<Interval, Sequence<Result<Map<String, Object>>>>()
         {
           @Override
