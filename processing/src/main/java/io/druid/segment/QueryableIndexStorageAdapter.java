@@ -34,6 +34,7 @@ import com.metamx.common.guava.Sequence;
 import com.metamx.common.guava.Sequences;
 import com.metamx.common.logger.Logger;
 import io.druid.cache.Cache;
+import io.druid.common.guava.IntPredicate;
 import io.druid.data.ValueDesc;
 import io.druid.data.ValueType;
 import io.druid.granularity.Granularity;
@@ -1026,12 +1027,13 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
                       final ValueMatcher valueMatcher =
                           holder.exact() ? ValueMatcher.TRUE : super.makePredicateMatcher(filter);
 
+                      final IntPredicate predicate = Filters.toMatcher(bitmap, descending);
                       return new ValueMatcher()
                       {
                         @Override
                         public boolean matches()
                         {
-                          return bitmap.get(cursorOffset.getOffset()) && valueMatcher.matches();
+                          return predicate.apply(cursorOffset.getOffset()) && valueMatcher.matches();
                         }
                       };
                     }

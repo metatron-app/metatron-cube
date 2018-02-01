@@ -31,6 +31,7 @@ import com.google.common.collect.Sets;
 import com.metamx.collections.bitmap.BitmapFactory;
 import com.metamx.collections.bitmap.ImmutableBitmap;
 import com.metamx.collections.bitmap.MutableBitmap;
+import com.metamx.collections.bitmap.WrappedImmutableRoaringBitmap;
 import com.metamx.common.guava.FunctionalIterable;
 import com.metamx.common.logger.Logger;
 import io.druid.cache.Cache;
@@ -74,12 +75,13 @@ import io.druid.segment.column.Lucenes;
 import io.druid.segment.column.MetricBitmap;
 import io.druid.segment.data.Indexed;
 import io.druid.segment.data.IndexedInts;
+import io.druid.segment.data.RoaringBitmapSerdeFactory;
 import org.apache.lucene.index.Term;
 import org.apache.lucene.queries.TermsQuery;
+import org.roaringbitmap.IntIterator;
 
 import javax.annotation.Nullable;
 import java.io.Closeable;
-import java.io.IOException;
 import java.lang.reflect.Array;
 import java.nio.ByteBuffer;
 import java.util.Arrays;
@@ -454,7 +456,8 @@ public class Filters
     protected final BitmapIndexSelector selector;
     protected final BitmapFactory factory;
 
-    public FilterContext(BitmapIndexSelector selector) {
+    public FilterContext(BitmapIndexSelector selector)
+    {
       this.selector = selector;
       this.factory = selector.getBitmapFactory();
     }
@@ -485,7 +488,8 @@ public class Filters
       DimFilter dimFilter,
       FilterContext context,
       EnumSet<BitmapType> include
-  ) {
+  )
+  {
     BitmapHolder holder = toBitmapHolder(dimFilter, context, include);
     return holder == null ? null : holder.bitmap();
   }
@@ -880,5 +884,81 @@ public class Filters
   {
     ColumnCapabilities capabilities = selector.getCapabilities(dimension);
     return capabilities == null || capabilities.hasBitmapIndexes();
+  }
+
+  public static IntPredicate toMatcher(ImmutableBitmap bitmapIndex, boolean descending)
+  {
+    final IntIterator iterator = newIterator(bitmapIndex, descending);
+    if (!iterator.hasNext()) {
+      return new IntPredicate()
+      {
+        @Override
+        public boolean apply(int value)
+        {
+          return false;
+        }
+      };
+    }
+    if (!descending) {
+      return new IntPredicate()
+      {
+        private int peek = iterator.next();
+
+        @Override
+        public boolean apply(int value)
+        {
+          while (peek >= 0) {
+            if (peek == value) {
+              peek = iterator.hasNext() ? iterator.next() : -1;
+              return true;
+            } else if (peek > value) {
+              return false;
+            } else {
+              peek = iterator.hasNext() ? iterator.next() : -1;
+            }
+          }
+          return false;
+        }
+      };
+    } else {
+      return new IntPredicate()
+      {
+        private int peek = iterator.next();
+
+        @Override
+        public boolean apply(int value)
+        {
+          while (peek >= 0) {
+            if (peek == value) {
+              peek = iterator.hasNext() ? iterator.next() : -1;
+              return true;
+            } else if (peek < value) {
+              return false;
+            } else {
+              peek = iterator.hasNext() ? iterator.next() : -1;
+            }
+          }
+          return false;
+        }
+      };
+    }
+  }
+
+  public static IntIterator newIterator(ImmutableBitmap bitmapIndex, boolean descending)
+  {
+    if (!descending) {
+      return bitmapIndex.iterator();
+    }
+    ImmutableBitmap roaringBitmap = bitmapIndex;
+    if (!(bitmapIndex instanceof WrappedImmutableRoaringBitmap)) {
+      final BitmapFactory factory = RoaringBitmapSerdeFactory.bitmapFactory;
+      final MutableBitmap bitmap = factory.makeEmptyMutableBitmap();
+      final IntIterator iterator = bitmapIndex.iterator();
+      while (iterator.hasNext()) {
+        bitmap.add(iterator.next());
+      }
+      roaringBitmap = factory.makeImmutableBitmap(bitmap);
+    }
+    return ((WrappedImmutableRoaringBitmap) roaringBitmap).getBitmap().getReverseIntIterator();
   }
 }

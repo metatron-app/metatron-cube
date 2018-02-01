@@ -65,6 +65,7 @@ import java.io.Closeable;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -185,12 +186,14 @@ public class GroupByQueryEngine
     );
   }
 
+  private static final int DEFAULT_INITIAL_CAPACITY = 1 << 10;
+
   private static class RowUpdater implements java.util.function.Function<IntArray, Integer>
   {
     private final ByteBuffer metricValues;
     private final BufferAggregator[] aggregators;
     private final PositionMaintainer positionMaintainer;
-    private final Map<IntArray, Integer> positions;
+    private final HashMap<IntArray, Integer> positions;
 
     private final int[] increments;
 
@@ -204,7 +207,7 @@ public class GroupByQueryEngine
       this.aggregators = aggregators;
       this.positionMaintainer = positionMaintainer;
       this.increments = positionMaintainer.getIncrements();
-      this.positions = Maps.newHashMap();
+      this.positions = new HashMap<>(DEFAULT_INITIAL_CAPACITY);
     }
 
     private int getNumRows()
@@ -528,13 +531,14 @@ public class GroupByQueryEngine
     @Override
     public int hashCode()
     {
-      return Arrays.hashCode(array);
+      return array.length == 1 ? array[0] : Arrays.hashCode(array);
     }
 
     @Override
     public boolean equals(Object obj)
     {
-      return Arrays.equals(array, ((IntArray)obj).array);
+      final int[] other = ((IntArray) obj).array;
+      return array.length == 1 ? array[0] == other[0] : Arrays.equals(array, other);
     }
 
     @Override

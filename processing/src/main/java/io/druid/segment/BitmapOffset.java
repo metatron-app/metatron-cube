@@ -21,10 +21,8 @@ package io.druid.segment;
 
 import com.metamx.collections.bitmap.BitmapFactory;
 import com.metamx.collections.bitmap.ImmutableBitmap;
-import com.metamx.collections.bitmap.MutableBitmap;
-import com.metamx.collections.bitmap.WrappedImmutableRoaringBitmap;
 import io.druid.segment.data.Offset;
-import io.druid.segment.data.RoaringBitmapSerdeFactory;
+import io.druid.segment.filter.Filters;
 import org.roaringbitmap.IntIterator;
 
 /**
@@ -45,26 +43,8 @@ public class BitmapOffset implements Offset
     this.bitmapFactory = bitmapFactory;
     this.bitmapIndex = bitmapIndex;
     this.descending = descending;
-    this.itr = newIterator();
+    this.itr = Filters.newIterator(bitmapIndex, descending);
     increment();
-  }
-
-  private IntIterator newIterator()
-  {
-    if (!descending) {
-      return bitmapIndex.iterator();
-    }
-    ImmutableBitmap roaringBitmap = bitmapIndex;
-    if (!(bitmapIndex instanceof WrappedImmutableRoaringBitmap)) {
-      final BitmapFactory factory = RoaringBitmapSerdeFactory.bitmapFactory;
-      final MutableBitmap bitmap = factory.makeEmptyMutableBitmap();
-      final IntIterator iterator = bitmapIndex.iterator();
-      while (iterator.hasNext()) {
-        bitmap.add(iterator.next());
-      }
-      roaringBitmap = factory.makeImmutableBitmap(bitmap);
-    }
-    return ((WrappedImmutableRoaringBitmap) roaringBitmap).getBitmap().getReverseIntIterator();
   }
 
   private BitmapOffset(BitmapOffset otherOffset)
