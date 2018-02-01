@@ -342,10 +342,16 @@ public class EvalTest
 
     Assert.assertEquals(
         1479377499662L,
-        evalLong(
-            "timestamp('2016-11-17 10:11:39.662', format='yyyy-MM-dd HH:mm:ss.SSS')",
-            bindings
-        )
+        evalLong("timestamp('2016-11-17 10:11:39.662', 'yyyy-MM-dd HH:mm:ss.SSS')", bindings)
+    );
+    Assert.assertEquals(
+        1479377499662L,
+        evalLong("timestamp('2016-11-17 10:11:39.662', format='yyyy-MM-dd HH:mm:ss.SSS')", bindings)
+    );
+
+    Assert.assertEquals(
+        1479406299662L,
+        evalLong("timestamp('2016-11-17 10:11:39.662', 'yyyy-MM-dd HH:mm:ss.SSS', 'America/Los_Angeles')", bindings)
     );
     Assert.assertEquals(
         1479406299662L,
@@ -354,7 +360,22 @@ public class EvalTest
             bindings
         )
     );
+
     DateTimeZone LA = DateTimeZone.forID("America/Los_Angeles");
+    Assert.assertEquals(
+        new DateTime("2016-11-17T10:11:39.662", LA),
+        evalDateTime(
+            "datetime('2016-11-17 10:11:39.662', 'yyyy-MM-dd HH:mm:ss.SSS', 'America/Los_Angeles')",
+            bindings
+        )
+    );
+    Assert.assertEquals(
+        new DateTime("2016-11-17T10:11:39.662", LA),
+        evalDateTime(
+            "datetime('2016-11-17 10:11:39.662', 'yyyy-MM-dd HH:mm:ss.SSS', timezone='America/Los_Angeles')",
+            bindings
+        )
+    );
     Assert.assertEquals(
         new DateTime("2016-11-17T10:11:39.662", LA),
         evalDateTime(

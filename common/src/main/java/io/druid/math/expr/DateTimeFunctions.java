@@ -518,9 +518,22 @@ public interface DateTimeFunctions extends Function.Library
     protected Map<String, Object> parameterize(List<Expr> exprs, final Map<String, ExprEval> namedParam)
     {
       Map<String, Object> parameter = super.parameterize(exprs, namedParam);
-      String format = getString(namedParam, "format");
-      String locale = getString(namedParam, "locale");
-      String timezone = getString(namedParam, "timezone");
+      int index = 1;
+      ExprEval formatEval = namedParam.get("format");
+      if (formatEval == null && exprs.size() > index && Evals.isConstant(exprs.get(index))) {
+        formatEval = Evals.getConstantEval(exprs.get(index++));
+      }
+      ExprEval timezoneEval = namedParam.get("timezone");
+      if (timezoneEval == null && exprs.size() > index && Evals.isConstant(exprs.get(index))) {
+        timezoneEval = Evals.getConstantEval(exprs.get(index++));
+      }
+      ExprEval localeEval = namedParam.get("locale");
+      if (localeEval == null && exprs.size() > index && Evals.isConstant(exprs.get(index))) {
+        localeEval = Evals.getConstantEval(exprs.get(index));
+      }
+      String format = formatEval == null ? null : formatEval.asString();
+      String locale = localeEval == null ? null : localeEval.asString();
+      String timezone = timezoneEval == null ? null : timezoneEval.asString();
 
       DateTimeFormatter formatter =
           format == null && locale == null && timezone == null ? JodaUtils.ISO8601 :
