@@ -28,9 +28,11 @@ import io.druid.segment.column.LuceneIndex;
 import io.druid.segment.column.MetricBitmap;
 import io.druid.segment.data.Indexed;
 
+import java.io.Closeable;
+
 /**
  */
-public interface BitmapIndexSelector
+public interface BitmapIndexSelector extends Closeable
 {
   public Indexed<String> getDimensionValues(String dimension);
   public int getNumRows();
@@ -41,4 +43,5 @@ public interface BitmapIndexSelector
   public LuceneIndex getLuceneIndex(String dimension);
   public MetricBitmap getMetricBitmap(String dimension);
   public ColumnCapabilities getCapabilities(String dimension);
+  public void close();
 }

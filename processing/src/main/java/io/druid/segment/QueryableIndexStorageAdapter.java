@@ -41,7 +41,6 @@ import io.druid.query.QueryInterruptedException;
 import io.druid.query.RowResolver;
 import io.druid.query.dimension.DimensionSpec;
 import io.druid.query.extraction.ExtractionFn;
-import io.druid.query.filter.BitmapIndexSelector;
 import io.druid.query.filter.BitmapType;
 import io.druid.query.filter.DimFilter;
 import io.druid.query.filter.Filter;
@@ -258,10 +257,9 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
     final DimFilter bitmapFilter = filters == null ? null : filters[0];
     final DimFilter valuesFilter = filters == null ? null : filters[1];
 
-    final ColumnSelectorBitmapIndexSelector selector = new ColumnSelectorBitmapIndexSelector(bitmapFactory, index);
-
-
-    FilterContext context = Filters.getFilterContext(selector, cache, segmentId);
+    final FilterContext context = Filters.getFilterContext(
+        new ColumnSelectorBitmapIndexSelector(bitmapFactory, index), cache, segmentId
+    );
 
     ImmutableBitmap baseBitmap = null;
     if (bitmapFilter != null) {
@@ -292,12 +290,11 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
                 minDataTimestamp,
                 maxDataTimestamp,
                 descending,
-                selector,
                 context
             ).build(),
             Predicates.<Cursor>notNull()
         ),
-        selector
+        context
     );
   }
 
@@ -312,7 +309,6 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
     private final long minDataTimestamp;
     private final long maxDataTimestamp;
     private final boolean descending;
-    private final BitmapIndexSelector bitmapSelector;
 
     private final FilterContext context;
     private final Filter filter;
@@ -328,7 +324,6 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
         long minDataTimestamp,
         long maxDataTimestamp,
         boolean descending,
-        BitmapIndexSelector bitmapSelector,
         FilterContext context
     )
     {
@@ -342,7 +337,6 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
       this.minDataTimestamp = minDataTimestamp;
       this.maxDataTimestamp = maxDataTimestamp;
       this.descending = descending;
-      this.bitmapSelector = bitmapSelector;
       this.context = context;
     }
 

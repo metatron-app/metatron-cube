@@ -192,6 +192,11 @@ public class BoundFilterBenchmark
     selector = new BitmapIndexSelector()
     {
       @Override
+      public void close()
+      {
+      }
+
+      @Override
       public Indexed<String> getDimensionValues(String dimension)
       {
         return dictionary;

@@ -31,7 +31,6 @@ import com.metamx.common.IAE;
 import com.metamx.common.ISE;
 import com.metamx.common.guava.BaseSequence;
 import com.metamx.common.guava.CloseQuietly;
-import com.metamx.common.guava.FunctionalIterator;
 import com.metamx.common.guava.Sequence;
 import com.metamx.common.guava.Sequences;
 import com.metamx.common.logger.Logger;
@@ -447,7 +446,8 @@ public class GroupByQueryEngine
 
         cursor.advance();
       }
-      log.info("%d iteration.. %,d rows in %,d msec", ++counter, rowUpdater.getNumRows(), (System.currentTimeMillis() - start));
+      long elapsed = System.currentTimeMillis() - start;
+      log.info("%d iteration.. %,d rows in %,d msec", ++counter, rowUpdater.getNumRows(), elapsed);
 
       if (rowUpdater.getNumRows() == 0 && unprocessedKeys != null) {
         throw new ISE(
@@ -456,42 +456,41 @@ public class GroupByQueryEngine
         );
       }
 
-      delegate = FunctionalIterator
-          .create(rowUpdater.getPositions(asSorted).entrySet().iterator())
-          .transform(
-              new Function<Map.Entry<IntArray, Integer>, Row>()
-              {
-                private final DateTime timestamp =
-                    fixedTimeForAllGranularity != null ? fixedTimeForAllGranularity : cursor.getTime();
+      delegate = Iterators.transform(
+          rowUpdater.getPositions(asSorted).entrySet().iterator(),
+          new Function<Map.Entry<IntArray, Integer>, Row>()
+          {
+            private final DateTime timestamp =
+                fixedTimeForAllGranularity != null ? fixedTimeForAllGranularity : cursor.getTime();
 
-                @Override
-                public Row apply(final Map.Entry<IntArray, Integer> input)
-                {
-                  // changing this will make some tests fail
-                  final Map<String, Object> theEvent = asSorted ? Maps.<String, Object>newLinkedHashMap()
-                                                                : Maps.<String, Object>newHashMap();
+            @Override
+            public Row apply(final Map.Entry<IntArray, Integer> input)
+            {
+              // changing this will make some tests fail
+              final Map<String, Object> theEvent = asSorted ? Maps.<String, Object>newLinkedHashMap()
+                                                            : Maps.<String, Object>newHashMap();
 
-                  final int[] keyArray = input.getKey().array;
-                  for (int i = 0; i < dimensions.length; ++i) {
-                    final int dimVal = keyArray[i];
-                    if (dimVal >= 0) {
-                      theEvent.put(dimNames[i], dimensions[i].lookupName(dimVal));
-                    }
-                  }
-
-                  final int position = input.getValue();
-                  for (int i = 0; i < aggregators.length; ++i) {
-                    theEvent.put(metricNames[i], aggregators[i].get(metricsBuffer, position + increments[i]));
-                  }
-
-                  for (PostAggregator postAggregator : postAggregators) {
-                    theEvent.put(postAggregator.getName(), postAggregator.compute(timestamp, theEvent));
-                  }
-
-                  return new MapBasedRow(timestamp, theEvent);
+              final int[] keyArray = input.getKey().array;
+              for (int i = 0; i < dimensions.length; ++i) {
+                final int dimVal = keyArray[i];
+                if (dimVal >= 0) {
+                  theEvent.put(dimNames[i], dimensions[i].lookupName(dimVal));
                 }
               }
-          );
+
+              final int position = input.getValue();
+              for (int i = 0; i < aggregators.length; ++i) {
+                theEvent.put(metricNames[i], aggregators[i].get(metricsBuffer, position + increments[i]));
+              }
+
+              for (PostAggregator postAggregator : postAggregators) {
+                theEvent.put(postAggregator.getName(), postAggregator.compute(timestamp, theEvent));
+              }
+
+              return new MapBasedRow(timestamp, theEvent);
+            }
+          }
+      );
 
       return delegate.hasNext();
     }

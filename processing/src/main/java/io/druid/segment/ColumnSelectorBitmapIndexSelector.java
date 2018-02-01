@@ -38,15 +38,13 @@ import io.druid.segment.data.Indexed;
 import io.druid.segment.data.IndexedIterable;
 import io.druid.segment.data.ListIndexed;
 
-import java.io.Closeable;
-import java.io.IOException;
 import java.util.Arrays;
 import java.util.Iterator;
 import java.util.Map;
 
 /**
  */
-public class ColumnSelectorBitmapIndexSelector implements BitmapIndexSelector, Closeable
+public class ColumnSelectorBitmapIndexSelector implements BitmapIndexSelector
 {
   private final BitmapFactory bitmapFactory;
   private final ColumnSelector index;
@@ -226,7 +224,7 @@ public class ColumnSelectorBitmapIndexSelector implements BitmapIndexSelector, C
   }
 
   @Override
-  public void close() throws IOException
+  public void close()
   {
     for (ExternalBitmap bitmap : luceneIndices.values()) {
       CloseQuietly.close(bitmap);

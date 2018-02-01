@@ -162,8 +162,9 @@ public class SketchQueryRunner implements QueryRunner<Result<Map<String, Object>
   private ImmutableBitmap toDependentBitmap(DimFilter current, BitmapIndexSelector selector)
   {
     if (current != null) {
-      Filters.FilterContext context = Filters.getFilterContext(selector, cache, segment.getIdentifier());
-      return Filters.toBitmap(current, context, BitmapType.EXACT);
+      try (Filters.FilterContext context = Filters.getFilterContext(selector, cache, segment.getIdentifier())) {
+        return Filters.toBitmap(current, context, BitmapType.EXACT);
+      }
     }
     return null;
   }

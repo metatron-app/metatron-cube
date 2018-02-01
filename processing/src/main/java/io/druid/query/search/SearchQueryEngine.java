@@ -131,8 +131,9 @@ public class SearchQueryEngine
 
       ImmutableBitmap baseFilter = null;
       if (filter != null) {
-        Filters.FilterContext context = Filters.getFilterContext(selector, cache, segmentId);
-        baseFilter = Filters.toBitmap(filter, context, BitmapType.EXACT);
+        try (Filters.FilterContext context = Filters.getFilterContext(selector, cache, segmentId)) {
+          baseFilter = Filters.toBitmap(filter, context, BitmapType.EXACT);
+        }
       }
       for (DimensionSpec dimension : dimensions) {
         final Column column = index.getColumn(dimension.getDimension());

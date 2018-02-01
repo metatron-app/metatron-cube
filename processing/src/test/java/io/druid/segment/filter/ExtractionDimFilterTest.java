@@ -95,6 +95,11 @@ public class ExtractionDimFilterTest
   private final BitmapIndexSelector BITMAP_INDEX_SELECTOR = new BitmapIndexSelector()
   {
     @Override
+    public void close()
+    {
+    }
+
+    @Override
     public Indexed<String> getDimensionValues(String dimension)
     {
       final String[] vals = DIM_VALS.get(dimension);

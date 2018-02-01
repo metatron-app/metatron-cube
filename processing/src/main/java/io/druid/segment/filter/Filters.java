@@ -78,6 +78,8 @@ import org.apache.lucene.index.Term;
 import org.apache.lucene.queries.TermsQuery;
 
 import javax.annotation.Nullable;
+import java.io.Closeable;
+import java.io.IOException;
 import java.lang.reflect.Array;
 import java.nio.ByteBuffer;
 import java.util.Arrays;
@@ -447,7 +449,7 @@ public class Filters
     };
   }
 
-  public static class FilterContext
+  public static class FilterContext implements Closeable
   {
     protected final BitmapIndexSelector selector;
     protected final BitmapFactory factory;
@@ -470,6 +472,12 @@ public class Filters
     public int getNumRows()
     {
       return selector.getNumRows();
+    }
+
+    @Override
+    public void close()
+    {
+      selector.close();
     }
   }
 
