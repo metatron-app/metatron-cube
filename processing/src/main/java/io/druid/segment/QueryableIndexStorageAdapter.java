@@ -278,6 +278,8 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
       LOG.info("%s : %,d / %,d", filter, baseBitmap.size(), index.getNumRows());
       offset = new BitmapOffset(bitmapFactory, baseBitmap, descending);
     }
+    context.setBaseBitmap(baseBitmap);  // this can be used for value/predicate filters
+
     return Sequences.withBaggage(
         Sequences.filter(
             new CursorSequenceBuilder(

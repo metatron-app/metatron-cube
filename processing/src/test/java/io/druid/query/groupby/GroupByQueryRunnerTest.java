@@ -6202,30 +6202,30 @@ public class GroupByQueryRunnerTest
             new FilteredAggregatorFactory(QueryRunnerTestHelper.rowsCount, filter),
             new FilteredAggregatorFactory(new LongSumAggregatorFactory("idx", "index"), filter),
             new FilteredAggregatorFactory(new LongSumAggregatorFactory("idx2", "index"), new MathExprFilter("1 == 0")),
-            new GenericSumAggregatorFactory("idx3", "index", null, "index > 1000", "long")
+            new GenericSumAggregatorFactory("idx3", "index", null, "in(quality, 'automotive', 'business')", "long")
         )
         .setGranularity(QueryRunnerTestHelper.dayGran)
         .build();
 
     List<Row> expectedResults = GroupByQueryRunnerTestHelper.createExpectedRows(
         new String[]{"__time", "alias", "rows", "idx", "idx2", "idx3"},
-        new Object[]{"2011-04-01", "automotive", 0L, 0L, 0L, 0L},
-        new Object[]{"2011-04-01", "business", 0L, 0L, 0L, 0L},
+        new Object[]{"2011-04-01", "automotive", 0L, 0L, 0L, 135L},
+        new Object[]{"2011-04-01", "business", 0L, 0L, 0L, 118L},
         new Object[]{"2011-04-01", "entertainment", 0L, 0L, 0L, 0L},
         new Object[]{"2011-04-01", "health", 0L, 0L, 0L, 0L},
-        new Object[]{"2011-04-01", "mezzanine", 3L, 2870L, 0L, 2761L},
+        new Object[]{"2011-04-01", "mezzanine", 3L, 2870L, 0L, 0L},
         new Object[]{"2011-04-01", "news", 1L, 121L, 0L, 0L},
-        new Object[]{"2011-04-01", "premium", 0L, 0L, 0L, 2756L},
+        new Object[]{"2011-04-01", "premium", 0L, 0L, 0L, 0L},
         new Object[]{"2011-04-01", "technology", 0L, 0L, 0L, 0L},
         new Object[]{"2011-04-01", "travel", 0L, 0L, 0L, 0L},
 
-        new Object[]{"2011-04-02", "automotive", 0L, 0L, 0L, 0L},
-        new Object[]{"2011-04-02", "business", 0L, 0L, 0L, 0L},
+        new Object[]{"2011-04-02", "automotive", 0L, 0L, 0L, 147L},
+        new Object[]{"2011-04-02", "business", 0L, 0L, 0L, 112L},
         new Object[]{"2011-04-02", "entertainment", 0L, 0L, 0L, 0L},
         new Object[]{"2011-04-02", "health", 0L, 0L, 0L, 0L},
-        new Object[]{"2011-04-02", "mezzanine", 3L, 2447L, 0L, 2337L},
+        new Object[]{"2011-04-02", "mezzanine", 3L, 2447L, 0L, 0L},
         new Object[]{"2011-04-02", "news", 1L, 114L, 0L, 0L},
-        new Object[]{"2011-04-02", "premium", 0L, 0L, 0L, 2370L},
+        new Object[]{"2011-04-02", "premium", 0L, 0L, 0L, 0L},
         new Object[]{"2011-04-02", "technology", 0L, 0L, 0L, 0L},
         new Object[]{"2011-04-02", "travel", 0L, 0L, 0L, 0L}
     );
@@ -6233,6 +6233,25 @@ public class GroupByQueryRunnerTest
     Iterable<Row> results = GroupByQueryRunnerTestHelper.runQuery(factory, runner, query);
     TestHelper.assertExpectedObjects(expectedResults, results, "");
 
+    query = query.withDimFilter(new RegexDimFilter("quality", "^[a-m].*$", null));
+
+    expectedResults = GroupByQueryRunnerTestHelper.createExpectedRows(
+        new String[]{"__time", "alias", "rows", "idx", "idx2", "idx3"},
+        new Object[]{"2011-04-01", "automotive", 0L, 0L, 0L, 135L},
+        new Object[]{"2011-04-01", "business", 0L, 0L, 0L, 118L},
+        new Object[]{"2011-04-01", "entertainment", 0L, 0L, 0L, 0L},
+        new Object[]{"2011-04-01", "health", 0L, 0L, 0L, 0L},
+        new Object[]{"2011-04-01", "mezzanine", 3L, 2870L, 0L, 0L},
+
+        new Object[]{"2011-04-02", "automotive", 0L, 0L, 0L, 147L},
+        new Object[]{"2011-04-02", "business", 0L, 0L, 0L, 112L},
+        new Object[]{"2011-04-02", "entertainment", 0L, 0L, 0L, 0L},
+        new Object[]{"2011-04-02", "health", 0L, 0L, 0L, 0L},
+        new Object[]{"2011-04-02", "mezzanine", 3L, 2447L, 0L, 0L}
+    );
+
+    results = GroupByQueryRunnerTestHelper.runQuery(factory, runner, query);
+    TestHelper.assertExpectedObjects(expectedResults, results, "");
   }
 
   @Test

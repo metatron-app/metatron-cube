@@ -81,7 +81,11 @@ public class InFilter implements Filter
   }
 
   @Override
-  public ImmutableBitmap getBitmapIndex(final BitmapIndexSelector selector, final EnumSet<BitmapType> using)
+  public ImmutableBitmap getBitmapIndex(
+      final BitmapIndexSelector selector,
+      final EnumSet<BitmapType> using,
+      ImmutableBitmap baseBitmap
+  )
   {
     Preconditions.checkArgument(
         extractionFn == null || Filters.hasBitmapOrNull(selector, dimension),

@@ -122,10 +122,14 @@ public class MathExprFilter implements DimFilter
       }
 
       @Override
-      public ImmutableBitmap getBitmapIndex(BitmapIndexSelector selector, EnumSet<BitmapType> using)
+      public ImmutableBitmap getBitmapIndex(
+          BitmapIndexSelector selector,
+          EnumSet<BitmapType> using,
+          ImmutableBitmap baseBitmap
+      )
       {
         final Expr expr = Parser.parse(expression);
-        String dimension = Iterables.getOnlyElement(Parser.findRequiredBindings(expr));
+        final String dimension = Iterables.getOnlyElement(Parser.findRequiredBindings(expr));
 
         final BitmapIndex bitmapIndex = selector.getBitmapIndex(dimension);
         final int cardinality = bitmapIndex.getCardinality();

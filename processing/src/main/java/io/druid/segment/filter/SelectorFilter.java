@@ -73,7 +73,11 @@ public class SelectorFilter implements Filter
 
   @Override
   @SuppressWarnings("unchecked")
-  public ImmutableBitmap getBitmapIndex(BitmapIndexSelector selector, EnumSet<BitmapType> using)
+  public ImmutableBitmap getBitmapIndex(
+      BitmapIndexSelector selector,
+      EnumSet<BitmapType> using,
+      ImmutableBitmap baseBitmap
+  )
   {
     ColumnCapabilities capabilities = selector.getCapabilities(dimension);
     if (capabilities == null) {

@@ -37,7 +37,7 @@ public interface Filter extends Expression
   ImmutableBitmap getValueBitmap(BitmapIndexSelector selector);
 
   // bitmap based filter will be applied whenever it's possible
-  ImmutableBitmap getBitmapIndex(BitmapIndexSelector selector, EnumSet<BitmapType> using);
+  ImmutableBitmap getBitmapIndex(BitmapIndexSelector selector, EnumSet<BitmapType> using, ImmutableBitmap baseBitmap);
 
   // used when bitmap filter cannot be applied
   ValueMatcher makeMatcher(ColumnSelectorFactory columnSelectorFactory);

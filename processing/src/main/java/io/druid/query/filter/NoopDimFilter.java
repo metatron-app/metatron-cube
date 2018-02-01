@@ -67,7 +67,11 @@ public class NoopDimFilter implements DimFilter
       }
 
       @Override
-      public ImmutableBitmap getBitmapIndex(BitmapIndexSelector selector, EnumSet<BitmapType> using)
+      public ImmutableBitmap getBitmapIndex(
+          BitmapIndexSelector selector,
+          EnumSet<BitmapType> using,
+          ImmutableBitmap baseBitmap
+      )
       {
         throw new UnsupportedOperationException("getBitmapIndex");
       }

@@ -120,7 +120,11 @@ public class LuceneFilter implements DimFilter
       }
 
       @Override
-      public ImmutableBitmap getBitmapIndex(BitmapIndexSelector selector, EnumSet<BitmapType> using)
+      public ImmutableBitmap getBitmapIndex(
+          BitmapIndexSelector selector,
+          EnumSet<BitmapType> using,
+          ImmutableBitmap baseBitmap
+      )
       {
         // lucene field-name == druid column-name
         LuceneIndex index = Preconditions.checkNotNull(selector.getLuceneIndex(field), "no lucene index for " + field);

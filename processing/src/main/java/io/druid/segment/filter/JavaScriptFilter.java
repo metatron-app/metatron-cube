@@ -67,7 +67,11 @@ public class JavaScriptFilter implements Filter
   }
 
   @Override
-  public ImmutableBitmap getBitmapIndex(final BitmapIndexSelector selector, EnumSet<BitmapType> using)
+  public ImmutableBitmap getBitmapIndex(
+      final BitmapIndexSelector selector,
+      EnumSet<BitmapType> using,
+      ImmutableBitmap baseBitmap
+  )
   {
     final Context cx = Context.enter();
     try {

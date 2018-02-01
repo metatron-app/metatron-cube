@@ -63,10 +63,14 @@ public class NotFilter implements Filter, Expression.NotExpression
   }
 
   @Override
-  public ImmutableBitmap getBitmapIndex(BitmapIndexSelector selector, EnumSet<BitmapType> using)
+  public ImmutableBitmap getBitmapIndex(
+      BitmapIndexSelector selector,
+      EnumSet<BitmapType> using,
+      ImmutableBitmap baseBitmap
+  )
   {
     return selector.getBitmapFactory().complement(
-        baseFilter.getBitmapIndex(selector, using),
+        this.baseFilter.getBitmapIndex(selector, using, baseBitmap),
         selector.getNumRows()
     );
   }

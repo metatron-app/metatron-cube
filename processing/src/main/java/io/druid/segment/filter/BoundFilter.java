@@ -80,7 +80,11 @@ public class BoundFilter implements Filter, Predicate<String>
   }
 
   @Override
-  public ImmutableBitmap getBitmapIndex(final BitmapIndexSelector selector, EnumSet<BitmapType> using)
+  public ImmutableBitmap getBitmapIndex(
+      final BitmapIndexSelector selector,
+      EnumSet<BitmapType> using,
+      ImmutableBitmap baseBitmap
+  )
   {
     String dimension = boundDimFilter.getDimension();
     String expression = boundDimFilter.getExpression();

@@ -68,15 +68,19 @@ public class AndFilter implements Filter, Expression.AndExpression
   }
 
   @Override
-  public ImmutableBitmap getBitmapIndex(BitmapIndexSelector selector, EnumSet<BitmapType> using)
+  public ImmutableBitmap getBitmapIndex(
+      BitmapIndexSelector selector,
+      EnumSet<BitmapType> using,
+      ImmutableBitmap baseBitmap
+  )
   {
     if (filters.size() == 1) {
-      return filters.get(0).getBitmapIndex(selector, using);
+      return filters.get(0).getBitmapIndex(selector, using, baseBitmap);
     }
 
     List<ImmutableBitmap> bitmaps = Lists.newArrayList();
     for (Filter filter : filters) {
-      bitmaps.add(filter.getBitmapIndex(selector, using));
+      bitmaps.add(filter.getBitmapIndex(selector, using, baseBitmap));
     }
 
     return selector.getBitmapFactory().intersection(bitmaps);
