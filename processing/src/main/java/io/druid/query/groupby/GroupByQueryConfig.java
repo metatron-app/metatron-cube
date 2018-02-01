@@ -46,6 +46,9 @@ public class GroupByQueryConfig
   @JsonProperty
   private boolean mergeSimple = true; // todo
 
+  @JsonProperty
+  private boolean compactTransfer = false;
+
   public boolean isSingleThreaded()
   {
     return singleThreaded;
@@ -114,5 +117,15 @@ public class GroupByQueryConfig
   public void setMergeSimple(boolean mergeSimple)
   {
     this.mergeSimple = mergeSimple;
+  }
+
+  public boolean isCompactTransfer()
+  {
+    return compactTransfer;
+  }
+
+  public void setCompactTransfer(boolean compactTransfer)
+  {
+    this.compactTransfer = compactTransfer;
   }
 }

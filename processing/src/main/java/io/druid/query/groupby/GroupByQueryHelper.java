@@ -51,12 +51,13 @@ public class GroupByQueryHelper
       final StupidPool<ByteBuffer> bufferPool,
       final int maxResult,
       final int parallelism,
+      final boolean compact,
       final Future<Object> optimizer
   )
   {
     int maxRowCount = Math.min(query.getContextValue(CTX_KEY_MAX_RESULTS, maxResult), maxResult);
     if (query.getContextBoolean(Query.GBY_MERGE_SIMPLE, true)) {
-      return new SimpleMergeIndex(query.getDimensions(), query.getAggregatorSpecs(), maxRowCount, parallelism);
+      return new SimpleMergeIndex(query.getDimensions(), query.getAggregatorSpecs(), maxRowCount, parallelism, compact);
     } else {
       return createIncrementalIndex(query, bufferPool, false, maxRowCount, optimizer);
     }

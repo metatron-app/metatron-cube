@@ -26,6 +26,7 @@ import com.google.common.hash.Hashing;
 import io.druid.data.ValueType;
 import io.druid.data.input.MapBasedRow;
 import io.druid.data.input.Row;
+import io.druid.data.input.CompactRow;
 import io.druid.query.SelectEachQuery;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.ArrayAggregatorFactory;
@@ -151,6 +152,7 @@ public class AggregatorsModule extends SimpleModule
   @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "version", defaultImpl = MapBasedRow.class)
   @JsonSubTypes(value = {
       @JsonSubTypes.Type(name = "v1", value = MapBasedRow.class),
+      @JsonSubTypes.Type(name = "x", value = CompactRow.class),
       @JsonSubTypes.Type(name = "predict", value = HoltWintersPostProcessor.PredictedRow.class)
   })
   public static interface Rows

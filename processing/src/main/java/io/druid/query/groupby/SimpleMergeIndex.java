@@ -28,6 +28,7 @@ import com.metamx.common.ISE;
 import io.druid.common.DateTimes;
 import io.druid.data.input.MapBasedRow;
 import io.druid.data.input.Row;
+import io.druid.data.input.CompactRow;
 import io.druid.query.aggregation.Aggregator;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.dimension.DimensionSpec;
@@ -57,12 +58,14 @@ public class SimpleMergeIndex implements MergeIndex
   private final RowSupplier rowSupplier = new RowSupplier();
   private final Map<TimeAndDims, Aggregator[]> mapping;
   private final Function<TimeAndDims, Aggregator[]> populator;
+  private final boolean compact;
 
   public SimpleMergeIndex(
       final List<DimensionSpec> dimensions,
       final List<AggregatorFactory> aggregators,
       final int maxRowCount,
-      final int parallelism
+      final int parallelism,
+      final boolean compact
   )
   {
     this.dimensions = DimensionSpecs.toOutputNames(dimensions).toArray(new String[0]);
@@ -90,6 +93,7 @@ public class SimpleMergeIndex implements MergeIndex
         return aggregators;
       }
     };
+    this.compact = compact;
   }
 
   @Override
@@ -110,26 +114,47 @@ public class SimpleMergeIndex implements MergeIndex
   @Override
   public Iterable<Row> toMergeStream()
   {
-    return Lists.transform(
-        IncrementalIndex.sortOn(mapping, true),
-        new com.google.common.base.Function<Map.Entry<TimeAndDims, Aggregator[]>, Row>()
+    final com.google.common.base.Function<Map.Entry<TimeAndDims, Aggregator[]>, Row> function;
+    if (compact) {
+      function = new com.google.common.base.Function<Map.Entry<TimeAndDims, Aggregator[]>, Row>()
+      {
+        @Override
+        public Row apply(Map.Entry<TimeAndDims, Aggregator[]> input)
         {
-          @Override
-          public Row apply(Map.Entry<TimeAndDims, Aggregator[]> input)
-          {
-            final TimeAndDims key = input.getKey();
-            final Aggregator[] value = input.getValue();
-            Map<String, Object> event = Maps.newLinkedHashMap();
-            for (int i = 0; i < dimensions.length; i++) {
-              event.put(dimensions[i], Strings.emptyToNull(key.get(i)));
-            }
-            for (int i = 0; i < metrics.length; i++) {
-              event.put(metrics[i].getName(), value[i].get());
-            }
-            return new MapBasedRow(DateTimes.utc(key.timestamp), event);
+          final TimeAndDims key = input.getKey();
+          final Aggregator[] value = input.getValue();
+          final Object[] values = new Object[1 + dimensions.length + value.length];
+          int x = 0;
+          values[x++] = key.timestamp;
+          for (int i = 0; i < dimensions.length; i++) {
+            values[x++] = Strings.emptyToNull(key.get(i));
           }
+          for (int i = 0; i < metrics.length; i++) {
+            values[x++] = value[i].get();
+          }
+          return new CompactRow(values);
         }
-    );
+      };
+    } else {
+      function = new com.google.common.base.Function<Map.Entry<TimeAndDims, Aggregator[]>, Row>()
+      {
+        @Override
+        public Row apply(Map.Entry<TimeAndDims, Aggregator[]> input)
+        {
+          final TimeAndDims key = input.getKey();
+          final Aggregator[] value = input.getValue();
+          final Map<String, Object> event = Maps.newLinkedHashMap();
+          for (int i = 0; i < dimensions.length; i++) {
+            event.put(dimensions[i], Strings.emptyToNull(key.get(i)));
+          }
+          for (int i = 0; i < metrics.length; i++) {
+            event.put(metrics[i].getName(), value[i].get());
+          }
+          return new MapBasedRow(DateTimes.utc(key.timestamp), event);
+        }
+      };
+    }
+    return Lists.transform(IncrementalIndex.sortOn(mapping, true), function);
   }
 
   @Override

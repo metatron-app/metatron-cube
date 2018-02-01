@@ -92,7 +92,7 @@ public class GroupByMergedQueryRunner<T> implements QueryRunner<T>
   {
     final GroupByQuery query = (GroupByQuery) queryParam;
 
-    GroupByQueryConfig config = configSupplier.get();
+    final GroupByQueryConfig config = configSupplier.get();
     final int maxRowCount = config.getMaxResults();
 
     final ExecutorService executor;
@@ -105,9 +105,11 @@ public class GroupByMergedQueryRunner<T> implements QueryRunner<T>
       parallelism = 1;
     }
 
+    final boolean compact = query.getContextBoolean(Query.GBY_COMPACT_TRANSFER, config.isCompactTransfer());
     final MergeIndex incrementalIndex = GroupByQueryHelper.createMergeIndex(
-        query, bufferPool, maxRowCount, parallelism, optimizer
+        query, bufferPool, maxRowCount, parallelism, compact, optimizer
     );
+
     final Pair<Queue, Accumulator<Queue, T>> bySegmentAccumulatorPair = GroupByQueryHelper.createBySegmentAccumulatorPair();
     final boolean bySegment = BaseQuery.getContextBySegment(query, false);
     final int priority = BaseQuery.getContextPriority(query, 0);

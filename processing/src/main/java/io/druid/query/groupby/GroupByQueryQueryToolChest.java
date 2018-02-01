@@ -29,7 +29,6 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
-import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.inject.Inject;
 import com.metamx.common.ISE;
@@ -38,7 +37,9 @@ import com.metamx.common.guava.Sequence;
 import com.metamx.common.guava.Sequences;
 import com.metamx.emitter.service.ServiceMetricEvent;
 import io.druid.collections.StupidPool;
+import io.druid.common.DateTimes;
 import io.druid.common.guava.CombiningSequence;
+import io.druid.data.input.CompactRow;
 import io.druid.data.input.MapBasedRow;
 import io.druid.data.input.Row;
 import io.druid.data.input.Rows;
@@ -65,6 +66,7 @@ import io.druid.query.aggregation.PostAggregators;
 import io.druid.query.aggregation.model.HoltWintersPostProcessor;
 import io.druid.query.dimension.DefaultDimensionSpec;
 import io.druid.query.dimension.DimensionSpec;
+import io.druid.query.dimension.DimensionSpecs;
 import io.druid.query.extraction.ExtractionFn;
 import io.druid.query.filter.DimFilter;
 import io.druid.query.spec.MultipleIntervalSegmentSpec;
@@ -79,7 +81,6 @@ import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -89,8 +90,8 @@ import java.util.concurrent.ExecutorService;
  */
 public class GroupByQueryQueryToolChest extends QueryToolChest<Row, GroupByQuery>
 {
-  private static final TypeReference<Object> OBJECT_TYPE_REFERENCE =
-      new TypeReference<Object>()
+  private static final TypeReference<Object[]> OBJECT_TYPE_REFERENCE =
+      new TypeReference<Object[]>()
       {
       };
   private static final TypeReference<Row> TYPE_REFERENCE = new TypeReference<Row>()
@@ -326,9 +327,24 @@ public class GroupByQueryQueryToolChest extends QueryToolChest<Row, GroupByQuery
     }
     return new Function<Row, Row>()
     {
+      private final List<String> dimensions = DimensionSpecs.toOutputNames(query.getDimensions());
+      private final List<AggregatorFactory> metrics = query.getAggregatorSpecs();
+
       @Override
       public Row apply(Row input)
       {
+        if (input instanceof CompactRow) {
+          final Object[] values = ((CompactRow) input).getValues();
+          Map<String, Object> event = Maps.newLinkedHashMap();
+          int x = 1;
+          for (String dimension : dimensions) {
+            event.put(dimension, values[x++]);
+          }
+          for (final AggregatorFactory metric : metrics) {
+            event.put(metric.getName(), fn.manipulate(metric, values[x++]));
+          }
+          return new MapBasedRow(DateTimes.utc(input.getTimestampFromEpoch()), event);
+        }
         Row.Updatable updatable = Rows.toUpdatable(input);
         for (AggregatorFactory agg : query.getAggregatorSpecs()) {
           final String name = agg.getName();
@@ -451,9 +467,9 @@ public class GroupByQueryQueryToolChest extends QueryToolChest<Row, GroupByQuery
   }
 
   @Override
-  public CacheStrategy<Row, Object, GroupByQuery> getCacheStrategy(final GroupByQuery query)
+  public CacheStrategy<Row, Object[], GroupByQuery> getCacheStrategy(final GroupByQuery query)
   {
-    return new CacheStrategy<Row, Object, GroupByQuery>()
+    return new CacheStrategy<Row, Object[], GroupByQuery>()
     {
       private static final byte CACHE_STRATEGY_VERSION = 0x1;
       private final List<AggregatorFactory> aggs = query.getAggregatorSpecs();
@@ -511,31 +527,38 @@ public class GroupByQueryQueryToolChest extends QueryToolChest<Row, GroupByQuery
       }
 
       @Override
-      public TypeReference<Object> getCacheObjectClazz()
+      public TypeReference<Object[]> getCacheObjectClazz()
       {
         return OBJECT_TYPE_REFERENCE;
       }
 
       @Override
-      public Function<Row, Object> prepareForCache()
+      public Function<Row, Object[]> prepareForCache()
       {
-        return new Function<Row, Object>()
+        return new Function<Row, Object[]>()
         {
+          private final List<String> dimensions = DimensionSpecs.toOutputNames(dims);
+
           @Override
-          public Object apply(Row input)
+          public Object[] apply(Row input)
           {
+            if (input instanceof CompactRow) {
+              return ((CompactRow) input).getValues();
+            }
             if (input instanceof MapBasedRow) {
               final MapBasedRow row = (MapBasedRow) input;
-              final List<Object> retVal = Lists.newArrayListWithCapacity(1 + dims.size() + aggs.size());
-              retVal.add(row.getTimestamp().getMillis());
-              Map<String, Object> event = row.getEvent();
-              for (DimensionSpec dim : dims) {
-                retVal.add(event.get(dim.getOutputName()));
+              final Map<String, Object> event = row.getEvent();
+
+              Object[] values = new Object[1 + dims.size() + aggs.size()];
+              int x = 0;
+              values[x++] = row.getTimestampFromEpoch();
+              for (String dimension : dimensions) {
+                values[x++] = event.get(dimension);
               }
               for (AggregatorFactory agg : aggs) {
-                retVal.add(event.get(agg.getName()));
+                values[x++] = event.get(agg.getName());
               }
-              return retVal;
+              return values;
             }
 
             throw new ISE("Don't know how to cache input rows of type[%s]", input.getClass());
@@ -544,45 +567,30 @@ public class GroupByQueryQueryToolChest extends QueryToolChest<Row, GroupByQuery
       }
 
       @Override
-      public Function<Object, Row> pullFromCache()
+      public Function<Object[], Row> pullFromCache()
       {
-        return new Function<Object, Row>()
+        return new Function<Object[], Row>()
         {
+          private final List<String> dimensions = DimensionSpecs.toOutputNames(dims);
           private final Granularity granularity = query.getGranularity();
 
           @Override
-          public Row apply(Object input)
+          public Row apply(final Object[] input)
           {
-            Iterator<Object> results = ((List<Object>) input).iterator();
-
-            DateTime timestamp = granularity.toDateTime(((Number) results.next()).longValue());
+            if (input.length != 1 + dimensions.size() + aggs.size()) {
+              throw new ISE("invalid cached object (length mismatch)");
+            }
+            int x = 0;
+            DateTime timestamp = granularity.toDateTime(((Number) input[x++]).longValue());
 
             Map<String, Object> event = Maps.newLinkedHashMap();
-            Iterator<DimensionSpec> dimsIter = dims.iterator();
-            while (dimsIter.hasNext() && results.hasNext()) {
-              final DimensionSpec factory = dimsIter.next();
-              event.put(factory.getOutputName(), results.next());
+            for (String dimension : dimensions) {
+              event.put(dimension, input[x++]);
             }
-
-            Iterator<AggregatorFactory> aggsIter = aggs.iterator();
-            while (aggsIter.hasNext() && results.hasNext()) {
-              final AggregatorFactory factory = aggsIter.next();
-              event.put(factory.getName(), factory.deserialize(results.next()));
+            for (final AggregatorFactory metric : aggs) {
+              event.put(metric.getName(), metric.deserialize(input[x++]));
             }
-
-            if (dimsIter.hasNext() || aggsIter.hasNext() || results.hasNext()) {
-              throw new ISE(
-                  "Found left over objects while reading from cache!! dimsIter[%s] aggsIter[%s] results[%s]",
-                  dimsIter.hasNext(),
-                  aggsIter.hasNext(),
-                  results.hasNext()
-              );
-            }
-
-            return new MapBasedRow(
-                timestamp,
-                event
-            );
+            return new MapBasedRow(timestamp, event);
           }
         };
       }
