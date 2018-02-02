@@ -31,6 +31,7 @@ import io.druid.data.ValueDesc;
 import io.druid.data.ValueType;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.dimension.DimensionSpecs;
+import io.druid.query.filter.AndDimFilter;
 import io.druid.query.filter.BitmapType;
 import io.druid.query.filter.DimFilter;
 import io.druid.segment.QueryableIndex;
@@ -260,6 +261,14 @@ public class RowResolver implements TypeResolver
 
   public boolean supportsBitmap(DimFilter filter, EnumSet<BitmapType> using)
   {
+    if (filter instanceof AndDimFilter) {
+      for (DimFilter child : ((AndDimFilter) filter).getChildren()) {
+        if (!supportsBitmap(child, using)) {
+          return false;
+        }
+      }
+      return true;
+    }
     Set<String> dependents = Filters.getDependents(filter);
     return dependents.size() == 1 && supportsBitmap(Iterables.getOnlyElement(dependents), using);
   }

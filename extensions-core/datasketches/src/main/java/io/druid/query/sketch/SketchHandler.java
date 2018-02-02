@@ -160,11 +160,21 @@ public interface SketchHandler<U>
     {
       final TypedSketch<Union> union = newUnion(sketchParam, ValueType.STRING, null);
       final int cardinality = bitmapIndex.getCardinality();
-      for (int i = 0; i < cardinality; ++i) {
-        List<ImmutableBitmap> intersecting = Arrays.asList(bitmapIndex.getBitmap(i), filter);
-        ImmutableBitmap bitmap = selector.getBitmapFactory().intersection(intersecting);
-        if (bitmap.size() > 0) {
-          union.value().update(function.apply(bitmapIndex.getValue(i)));
+      if (function == null) {
+        for (int i = 0; i < cardinality; ++i) {
+          List<ImmutableBitmap> intersecting = Arrays.asList(bitmapIndex.getBitmap(i), filter);
+          ImmutableBitmap bitmap = selector.getBitmapFactory().intersection(intersecting);
+          if (bitmap.size() > 0) {
+            union.value().update(bitmapIndex.getValueAsRaw(i));
+          }
+        }
+      } else {
+        for (int i = 0; i < cardinality; ++i) {
+          List<ImmutableBitmap> intersecting = Arrays.asList(bitmapIndex.getBitmap(i), filter);
+          ImmutableBitmap bitmap = selector.getBitmapFactory().intersection(intersecting);
+          if (bitmap.size() > 0) {
+            union.value().update(function.apply(bitmapIndex.getValue(i)));
+          }
         }
       }
       return union;
@@ -253,13 +263,14 @@ public interface SketchHandler<U>
         BitmapIndexSelector selector
     )
     {
+      final ExtractionFn extraction = function == null ? IdentityExtractionFn.nullToEmpty() : function;
       final TypedSketch<U> union = newUnion(sketchParam, ValueType.STRING, null);
       final int cardinality = bitmapIndex.getCardinality();
       for (int i = 0; i < cardinality; ++i) {
         final List<ImmutableBitmap> intersecting = Arrays.asList(bitmapIndex.getBitmap(i), filter);
         final ImmutableBitmap bitmap = selector.getBitmapFactory().intersection(intersecting);
         if (bitmap.size() > 0) {
-          final String value = function.apply(bitmapIndex.getValue(i));
+          final String value = extraction.apply(bitmapIndex.getValue(i));
           update(union, value, bitmap.size());
         }
       }

@@ -19,6 +19,7 @@
 
 package io.druid.query.aggregation.datasketches;
 
+import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import io.druid.data.input.Row;
 import io.druid.query.QueryRunner;
@@ -32,7 +33,12 @@ import io.druid.query.groupby.GroupByQuery;
 import io.druid.query.groupby.GroupByQueryRunnerFactory;
 import io.druid.query.groupby.GroupByQueryRunnerTest;
 import io.druid.query.groupby.GroupByQueryRunnerTestHelper;
+import io.druid.query.sketch.GenericSketchAggregatorFactory;
+import io.druid.query.sketch.SketchOp;
+import io.druid.query.sketch.SketchQuantilesPostAggregator;
+import io.druid.segment.ExprVirtualColumn;
 import io.druid.segment.TestHelper;
+import org.junit.Assert;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
@@ -110,6 +116,33 @@ public class SketchGroupByQueryTest
 
     results = GroupByQueryRunnerTestHelper.runQuery(factory, runner, query);
     TestHelper.assertExpectedObjects(expectedResults, results, "");
+  }
+
+  @Test
+  public void testGroupByQuantileOnVC()
+  {
+    GroupByQuery query = GroupByQuery
+        .builder()
+        .setDataSource(QueryRunnerTestHelper.dataSource)
+        .setQuerySegmentSpec(QueryRunnerTestHelper.fullOnInterval)
+        .setVirtualColumns(new ExprVirtualColumn("concat(market, '\\u0001', quality)", "VC"))
+        .setAggregatorSpecs(
+            new GenericSketchAggregatorFactory(
+                "SKETCH", "VC", SketchOp.QUANTILE, null, "stringarray.\u0001", false
+            )
+        )
+        .setPostAggregatorSpecs(
+            SketchQuantilesPostAggregator.evenSpaced("X", "SKETCH", 3)
+        )
+        .setGranularity(QueryRunnerTestHelper.allGran)
+        .setOutputColumns(Arrays.asList("X"))
+        .build();
+
+    Row result = Iterables.getOnlyElement(GroupByQueryRunnerTestHelper.runQuery(factory, runner, query));
+    Assert.assertArrayEquals(
+        new String[] {"spot\u0001automotive", "spot\u0001premium", "upfront\u0001premium"},
+        (Object[]) result.getRaw("X")
+    );
   }
 
   @Test

@@ -24,10 +24,13 @@ import com.fasterxml.jackson.databind.Module;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
+import com.metamx.common.guava.Sequence;
 import com.metamx.common.guava.Sequences;
 import com.yahoo.sketches.quantiles.ItemsSketch;
 import io.druid.data.ValueType;
 import io.druid.jackson.DefaultObjectMapper;
+import io.druid.query.PostProcessingOperator;
+import io.druid.query.PostProcessingOperators;
 import io.druid.query.Query;
 import io.druid.query.QueryRunner;
 import io.druid.query.QueryRunnerTestHelper;
@@ -79,10 +82,23 @@ public class QuantilesSketchQueryRunnerTest
 
   @SuppressWarnings("unchecked")
   public QuantilesSketchQueryRunnerTest(
-      QueryRunner runner
+      final QueryRunner baseRunner
   )
   {
-    this.runner = runner;
+    this.runner = new QueryRunner<Result<Map<String, Object>>>()
+    {
+      @Override
+      public Sequence<Result<Map<String, Object>>> run(
+          Query<Result<Map<String, Object>>> query, Map<String, Object> responseContext
+      )
+      {
+        final PostProcessingOperator processor = PostProcessingOperators.load(query, TestHelper.JSON_MAPPER);
+        if (processor != null) {
+          return processor.postProcess(baseRunner).run(query, responseContext);
+        }
+        return baseRunner.run(query, responseContext);
+      }
+    };
   }
 
   @Test
@@ -242,9 +258,14 @@ public class QuantilesSketchQueryRunnerTest
         AndDimFilter.of(
             BoundDimFilter.gt("market", "spot"),
             BoundDimFilter.lte("quality", "premium")
-        ), null, DefaultDimensionSpec.toSpec("market", "quality"), null,
-        16, SketchOp.QUANTILE, null
-        );
+        ),
+        null,
+        DefaultDimensionSpec.toSpec("market", "quality"),
+        null,
+        16,
+        SketchOp.QUANTILE,
+        ImmutableMap.<String, Object>of(Query.ALL_METRICS_FOR_EMPTY, false)
+    );
 
     List<Result<Map<String, Object>>> result = Sequences.toList(
         runner.run(query, null),
@@ -257,6 +278,19 @@ public class QuantilesSketchQueryRunnerTest
     Assert.assertEquals("total_market", sketch1.value().getQuantile(0.3d));
     Assert.assertEquals("upfront", sketch1.value().getQuantile(0.8d));
     Assert.assertEquals("mezzanine", sketch2.value().getQuantile(0.4d));
+
+    SketchQuery postProcessing = query.withOverriddenContext(
+        ImmutableMap.<String, Object>of(
+            Query.POST_PROCESSING,
+            new SketchQuantilesProcessor(SketchQuantilesOp.QUANTILES, null, 2, null, null, null)
+        )
+    );
+
+    result = Sequences.toList(runner.run(postProcessing, null), Lists.<Result<Map<String, Object>>>newArrayList());
+    Assert.assertEquals(1, result.size());
+    values = result.get(0).getValue();
+    Assert.assertArrayEquals(new String[]{"total_market", "upfront"}, (String[]) values.get("market"));
+    Assert.assertArrayEquals(new String[]{"mezzanine", "premium"}, (String[]) values.get("quality"));
   }
 
   @Test
