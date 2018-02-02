@@ -54,7 +54,7 @@ public class TimeseriesQueryMergedRunnerTest
   public static Iterable<Object[]> constructorFeeder() throws IOException
   {
     return QueryRunnerTestHelper.transformToConstructionFeeder(
-        QueryRunnerTestHelper.makeMergeQueryRunners(
+        QueryRunnerTestHelper.makeQueryRunners(
             new TimeseriesQueryRunnerFactory(
                 new TimeseriesQueryQueryToolChest(
                     QueryRunnerTestHelper.NoopIntervalChunkingQueryRunnerDecorator()

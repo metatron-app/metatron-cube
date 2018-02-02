@@ -39,6 +39,7 @@ import io.druid.data.input.impl.DimensionsSpec;
 import io.druid.data.input.impl.StringInputRowParser;
 import io.druid.granularity.QueryGranularities;
 import io.druid.jackson.DefaultObjectMapper;
+import io.druid.query.FinalizeResultsQueryRunner;
 import io.druid.query.Query;
 import io.druid.query.QueryRunner;
 import io.druid.query.QueryRunnerFactory;
@@ -75,13 +76,16 @@ public class GroupByQueryRunnerFactoryTest
   public void testMergeRunnersEnsureGroupMerging() throws Exception
   {
     QueryRunnerFactory factory = createFactory();
-    QueryRunner mergedRunner = factory.mergeRunners(
-        Executors.newSingleThreadExecutor(),
-        ImmutableList.of(
-        factory.createRunner(createSegment(), null),
-        factory.createRunner(createSegment(), null)
+    QueryRunner mergedRunner = new FinalizeResultsQueryRunner(
+        factory.mergeRunners(
+            Executors.newSingleThreadExecutor(),
+            ImmutableList.of(
+                factory.createRunner(createSegment(), null),
+                factory.createRunner(createSegment(), null)
+            ),
+            null
         ),
-        null
+        factory.getToolchest()
     );
 
     GroupByQuery query = GroupByQuery

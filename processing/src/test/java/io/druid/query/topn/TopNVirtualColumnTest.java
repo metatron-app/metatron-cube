@@ -22,7 +22,6 @@ package io.druid.query.topn;
 import com.google.common.base.Supplier;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
-import com.google.common.util.concurrent.MoreExecutors;
 import com.metamx.common.guava.Sequences;
 import io.druid.collections.StupidPool;
 import io.druid.jackson.DefaultObjectMapper;
@@ -53,12 +52,10 @@ import java.nio.ByteBuffer;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.ExecutorService;
 
 import static io.druid.query.QueryRunnerTestHelper.dataSource;
 import static io.druid.query.QueryRunnerTestHelper.dayGran;
 import static io.druid.query.QueryRunnerTestHelper.fullOnInterval;
-import static io.druid.query.QueryRunnerTestHelper.makeQueryRunnerWithMerge;
 import static io.druid.query.QueryRunnerTestHelper.transformToConstructionFeeder;
 
 /**
@@ -99,12 +96,11 @@ public class TopNVirtualColumnTest
     IncrementalIndex index1 = VirtualColumnTest.createArrayIncrementalIndex();
     QueryableIndex index2 = TestIndex.persistRealtimeAndLoadMMapped(index1);
 
-    final ExecutorService executor = MoreExecutors.sameThreadExecutor();
     final List<QueryRunner<Result<TopNResultValue>>> runners = Arrays.asList(
-        makeQueryRunnerWithMerge(factory1, executor, "index1", new IncrementalIndexSegment(index1, "index1")),
-        makeQueryRunnerWithMerge(factory1, executor, "index2", new QueryableIndexSegment("index2", index2)),
-        makeQueryRunnerWithMerge(factory2, executor, "index1", new IncrementalIndexSegment(index1, "index1")),
-        makeQueryRunnerWithMerge(factory2, executor, "index2", new QueryableIndexSegment("index2", index2))
+        QueryRunnerTestHelper.makeQueryRunner(factory1, "index1", new IncrementalIndexSegment(index1, "index1")),
+        QueryRunnerTestHelper.makeQueryRunner(factory1, "index2", new QueryableIndexSegment("index2", index2)),
+        QueryRunnerTestHelper.makeQueryRunner(factory2, "index1", new IncrementalIndexSegment(index1, "index1")),
+        QueryRunnerTestHelper.makeQueryRunner(factory2, "index2", new QueryableIndexSegment("index2", index2))
     );
 
     return transformToConstructionFeeder(runners);

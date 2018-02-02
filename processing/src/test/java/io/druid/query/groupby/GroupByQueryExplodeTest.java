@@ -35,13 +35,13 @@ import io.druid.data.input.impl.StringInputRowParser;
 import io.druid.granularity.QueryGranularities;
 import io.druid.jackson.DefaultObjectMapper;
 import io.druid.query.BaseAggregationQuery;
+import io.druid.query.LateralViewSpec;
 import io.druid.query.QueryRunner;
 import io.druid.query.QueryRunnerTestHelper;
 import io.druid.query.TestQueryRunners;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.LongSumAggregatorFactory;
 import io.druid.query.dimension.DefaultDimensionSpec;
-import io.druid.query.LateralViewSpec;
 import io.druid.segment.IncrementalIndexSegment;
 import io.druid.segment.QueryableIndex;
 import io.druid.segment.QueryableIndexSegment;
@@ -143,12 +143,8 @@ public class GroupByQueryExplodeTest
 
     return transformToConstructionFeeder(
         Arrays.asList(
-            toolChest.finalQueryDecoration(
-                makeQueryRunner(factory, "index1", new IncrementalIndexSegment(index1, "index1"))
-            ),
-            toolChest.finalQueryDecoration(
-                makeQueryRunner(factory, "index2", new QueryableIndexSegment("index2", index2))
-            )
+            makeQueryRunner(factory, "index1", new IncrementalIndexSegment(index1, "index1")),
+            makeQueryRunner(factory, "index2", new QueryableIndexSegment("index2", index2))
         )
     );
   }

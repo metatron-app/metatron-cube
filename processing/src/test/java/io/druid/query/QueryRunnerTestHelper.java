@@ -72,7 +72,6 @@ import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.ExecutorService;
 
 /**
  */
@@ -196,7 +195,10 @@ public class QueryRunnerTestHelper
   public static ArithmeticPostAggregator hyperUniqueFinalizingPostAgg = new ArithmeticPostAggregator(
       hyperUniqueFinalizingPostAggMetric,
       "+",
-      Lists.newArrayList(new HyperUniqueFinalizingPostAggregator(uniqueMetric, uniqueMetric), new ConstantPostAggregator(null, 1))
+      Lists.newArrayList(
+          new HyperUniqueFinalizingPostAggregator(uniqueMetric, uniqueMetric),
+          new ConstantPostAggregator(null, 1)
+      )
   );
 
   public static final List<AggregatorFactory> commonAggregators = Arrays.asList(
@@ -371,25 +373,6 @@ public class QueryRunnerTestHelper
     );
   }
 
-  public static <T, QueryType extends Query<T>> List<QueryRunner<T>> makeMergeQueryRunners(
-      QueryRunnerFactory<T, QueryType> factory
-  )
-      throws IOException
-  {
-    final IncrementalIndex rtIndex = TestIndex.getIncrementalTestIndex();
-    final IncrementalIndex noRollupRtIndex = TestIndex.getNoRollupIncrementalTestIndex();
-    final QueryableIndex mMappedTestIndex = TestIndex.getMMappedTestIndex();
-    final QueryableIndex noRollupMMappedTestIndex = TestIndex.getNoRollupMMappedTestIndex();
-    final QueryableIndex mergedRealtimeIndex = TestIndex.mergedRealtimeIndex();
-    return ImmutableList.of(
-        makeQueryRunnerWithMerge(factory, new IncrementalIndexSegment(rtIndex, segmentId)),
-        makeQueryRunnerWithMerge(factory, new IncrementalIndexSegment(noRollupRtIndex, segmentId)),
-        makeQueryRunnerWithMerge(factory, new QueryableIndexSegment(segmentId, mMappedTestIndex)),
-        makeQueryRunnerWithMerge(factory, new QueryableIndexSegment(segmentId, noRollupMMappedTestIndex)),
-        makeQueryRunnerWithMerge(factory, new QueryableIndexSegment(segmentId, mergedRealtimeIndex))
-    );
-  }
-
   @SuppressWarnings("unchecked")
   public static Collection<?> makeUnionQueryRunners(
       QueryRunnerFactory factory,
@@ -410,6 +393,7 @@ public class QueryRunnerTestHelper
         )
     );
   }
+
   /**
    * Iterate through the iterables in a synchronous manner and return each step as an Object[]
    * @param in The iterables to step through. (effectively columns)
@@ -491,36 +475,18 @@ public class QueryRunnerTestHelper
       Segment adapter
   )
   {
-    return new FinalizeResultsQueryRunner<T>(
-        makeSegmentQueryRunner(factory, segmentId, adapter),
-        (QueryToolChest<T, Query<T>>)factory.getToolchest()
-    );
-  }
-
-  public static <T, QueryType extends Query<T>> QueryRunner<T> makeQueryRunnerWithMerge(
-      QueryRunnerFactory<T, QueryType> factory,
-      Segment adapter
-  )
-  {
-    return makeQueryRunnerWithMerge(factory, MoreExecutors.sameThreadExecutor(), segmentId, adapter);
-  }
-
-  public static <T, QueryType extends Query<T>> QueryRunner<T> makeQueryRunnerWithMerge(
-      QueryRunnerFactory<T, QueryType> factory,
-      ExecutorService executorService,
-      String segmentId,
-      Segment adapter
-  )
-  {
-    final QueryToolChest<T, Query<T>> toolChest = (QueryToolChest<T, Query<T>>) factory.getToolchest();
-    return new FinalizeResultsQueryRunner<T>(
-        toolChest.mergeResults(
-            factory.mergeRunners(
-                executorService, Arrays.asList(makeSegmentQueryRunner(factory, segmentId, adapter)),
-                null
-            )
-        ),
-        toolChest
+    @SuppressWarnings("unchecked")
+    QueryToolChest<T, Query<T>> toolchest = (QueryToolChest<T, Query<T>>) factory.getToolchest();
+    return toolchest.finalQueryDecoration(
+        new FinalizeResultsQueryRunner<T>(
+            toolchest.mergeResults(
+                factory.mergeRunners(
+                    MoreExecutors.sameThreadExecutor(),
+                    ImmutableList.<QueryRunner<T>>of(makeSegmentQueryRunner(factory, segmentId, adapter)),
+                    null
+                )
+            ), toolchest
+        )
     );
   }
 
@@ -572,7 +538,9 @@ public class QueryRunnerTestHelper
 
   public static <T> QueryRunner<T> makeFilteringQueryRunner(
       final VersionedIntervalTimeline<String, Segment> timeline,
-      final QueryRunnerFactory<T, Query<T>> factory) {
+      final QueryRunnerFactory<T, Query<T>> factory
+  )
+  {
 
     final QueryToolChest<T, Query<T>> toolChest = factory.getToolchest();
     return new FluentQueryRunnerBuilder<T>(toolChest)
@@ -650,7 +618,7 @@ public class QueryRunnerTestHelper
       Query innerQuery = ((QueryDataSource) query.getDataSource()).getQuery().withOverriddenContext(query.getContext());
       baseRunner = toolChest.handleSubQuery(toMergeRunner(factory, runner, innerQuery, true), null, null, 5000);
     } else {
-      baseRunner = toolChest.mergeResults(toolChest.preMergeQueryDecoration(runner));
+      baseRunner = toolChest.postMergeQueryDecoration(toolChest.mergeResults(toolChest.preMergeQueryDecoration(runner)));
     }
     if (!subQuery) {
       baseRunner = new FinalizeResultsQueryRunner<>(baseRunner, toolChest);

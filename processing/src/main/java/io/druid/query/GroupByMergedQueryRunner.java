@@ -105,7 +105,10 @@ public class GroupByMergedQueryRunner<T> implements QueryRunner<T>
       parallelism = 1;
     }
 
-    final boolean compact = query.getContextBoolean(Query.GBY_COMPACT_TRANSFER, config.isCompactTransfer());
+    boolean compact = query.getContextBoolean(Query.GBY_COMPACT_TRANSFER, config.isCompactTransfer());
+    if (query.getContextBoolean(Query.FINAL_WORK, true) || query.getContextBoolean(Query.FINALIZE, true)) {
+      compact = false;  // direct call to historical
+    }
     final MergeIndex incrementalIndex = GroupByQueryHelper.createMergeIndex(
         query, bufferPool, maxRowCount, parallelism, compact, optimizer
     );

@@ -115,12 +115,8 @@ public class TimeseriesQueryExplodeTest
 
     return transformToConstructionFeeder(
         Arrays.asList(
-            toolChest.finalQueryDecoration(
-                makeQueryRunner(factory, "index1", new IncrementalIndexSegment(index1, "index1"))
-            ),
-            toolChest.finalQueryDecoration(
-                makeQueryRunner(factory, "index2", new QueryableIndexSegment("index2", index2))
-            )
+            makeQueryRunner(factory, "index1", new IncrementalIndexSegment(index1, "index1")),
+            makeQueryRunner(factory, "index2", new QueryableIndexSegment("index2", index2))
         )
     );
   }

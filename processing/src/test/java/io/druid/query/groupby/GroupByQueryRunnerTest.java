@@ -32,7 +32,6 @@ import com.google.common.collect.Maps;
 import com.google.common.collect.Ordering;
 import com.google.common.primitives.Doubles;
 import com.google.common.primitives.Ints;
-import com.google.common.util.concurrent.MoreExecutors;
 import com.metamx.common.ISE;
 import com.metamx.common.guava.MergeSequence;
 import com.metamx.common.guava.Sequence;
@@ -164,7 +163,7 @@ public class GroupByQueryRunnerTest
   public GroupByQueryRunnerTest(QueryRunnerFactory<Row, Query<Row>> factory, QueryRunner<Row> runner)
   {
     this.factory = factory;
-    this.runner = factory.mergeRunners(MoreExecutors.sameThreadExecutor(), ImmutableList.<QueryRunner<Row>>of(runner), null);
+    this.runner = runner;
   }
 
   private QueryRunner<Row> toMergeRunner(QueryRunner<Row> runner)
@@ -234,9 +233,6 @@ public class GroupByQueryRunnerTest
     TestHelper.assertExpectedObjects(expectedResults, results, "");
 
     query = query.withOutputColumns(Arrays.asList("alias", "rows"));
-    QueryRunner<Row> decorated = factory.getToolchest().finalQueryDecoration(
-        GroupByQueryRunnerTestHelper.toMergeRunner(factory, runner, query)
-    );
 
     expectedResults = GroupByQueryRunnerTestHelper.createExpectedRows(
         new String[]{"__time", "alias", "rows"},
@@ -260,7 +256,7 @@ public class GroupByQueryRunnerTest
         new Object[]{"2011-04-02", "travel", 1L}
     );
 
-    results = Sequences.toList(decorated.run(query, Maps.<String, Object>newHashMap()), Lists.<Row>newArrayList());
+    results = Sequences.toList(runner.run(query, Maps.<String, Object>newHashMap()), Lists.<Row>newArrayList());
     TestHelper.assertExpectedObjects(expectedResults, results, "");
   }
 
