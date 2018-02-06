@@ -350,12 +350,17 @@ public class WindowingSpec implements Cacheable
     PartitionEvaluator create(List<String> partitionColumns, List<OrderByColumnSpec> sortingColumns);
   }
 
-  public static interface PartitionEvaluator
+  public static abstract class PartitionEvaluator
   {
-    List<Row> evaluate(Object[] partitionKey, List<Row> partition);
+    public abstract List<Row> evaluate(Object[] partitionKey, List<Row> partition);
+
+    public List<Row> finalize(List<Row> rows)
+    {
+      return rows;
+    }
   }
 
-  private static class DummyPartitionEvaluator implements PartitionEvaluator
+  private static class DummyPartitionEvaluator extends PartitionEvaluator
   {
     @Override
     public List<Row> evaluate(Object[] partitionKey, List<Row> partition)
@@ -375,6 +380,15 @@ public class WindowingSpec implements Cacheable
           partition = evaluator.evaluate(partitionKey, partition);
         }
         return partition;
+      }
+
+      @Override
+      public List<Row> finalize(List<Row> rows)
+      {
+        for (PartitionEvaluator evaluator : evaluators) {
+          rows = evaluator.finalize(rows);
+        }
+        return rows;
       }
     };
   }

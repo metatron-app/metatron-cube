@@ -25,6 +25,7 @@ import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+import com.google.common.collect.Sets;
 import io.druid.common.utils.StringUtils;
 import io.druid.data.Pair;
 import io.druid.data.input.MapBasedRow;
@@ -41,7 +42,9 @@ import org.joda.time.DateTime;
 
 import java.nio.ByteBuffer;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -55,26 +58,29 @@ public class PivotSpec implements WindowingSpec.PartitionEvaluatorFactory
   private final List<String> valueColumns;
   private final String separator;
   private final List<String> expressions;
+  private final boolean tabularFormat;
 
   @JsonCreator
   public PivotSpec(
       @JsonProperty("pivotColumns") List<PivotColumnSpec> pivotColumns,
       @JsonProperty("valueColumns") List<String> valueColumns,
       @JsonProperty("separator") String separator,
-      @JsonProperty("expressions") List<String> expressions
+      @JsonProperty("expressions") List<String> expressions,
+      @JsonProperty("tabularFormat") boolean tabularFormat
   )
   {
     this.pivotColumns = Preconditions.checkNotNull(pivotColumns);
     this.valueColumns = Preconditions.checkNotNull(valueColumns);
     this.separator = separator == null ? "-" : separator;
     this.expressions = expressions == null ? ImmutableList.<String>of() : expressions;
+    this.tabularFormat = tabularFormat;
     Preconditions.checkArgument(!pivotColumns.isEmpty(), "'columns' should not be null or empty");
     Preconditions.checkArgument(!valueColumns.isEmpty(), "'values' should not be null or empty");
   }
 
   public PivotSpec(List<PivotColumnSpec> pivotColumns, List<String> valueColumns)
   {
-    this(pivotColumns, valueColumns, null, null);
+    this(pivotColumns, valueColumns, null, null, false);
   }
 
   @JsonProperty
@@ -95,6 +101,12 @@ public class PivotSpec implements WindowingSpec.PartitionEvaluatorFactory
     return expressions;
   }
 
+  @JsonProperty
+  public boolean isTabularFormat()
+  {
+    return tabularFormat;
+  }
+
   public byte[] getCacheKey()
   {
     byte[] columnsBytes = QueryCacheHelper.computeAggregatorBytes(pivotColumns);
@@ -106,7 +118,8 @@ public class PivotSpec implements WindowingSpec.PartitionEvaluatorFactory
                  + columnsBytes.length
                  + valuesBytes.length
                  + separatorBytes.length
-                 + expressionsBytes.length;
+                 + expressionsBytes.length
+                 + 1;
 
     return ByteBuffer.allocate(length)
                      .put(columnsBytes)
@@ -116,6 +129,7 @@ public class PivotSpec implements WindowingSpec.PartitionEvaluatorFactory
                      .put(separatorBytes)
                      .put(DimFilterCacheHelper.STRING_SEPARATOR)
                      .put(expressionsBytes)
+                     .put(tabularFormat ? (byte) 0x01 : 0)
                      .array();
   }
 
@@ -141,13 +155,13 @@ public class PivotSpec implements WindowingSpec.PartitionEvaluatorFactory
     if (!Objects.equals(expressions, that.expressions)) {
       return false;
     }
-    return true;
+    return tabularFormat == that.tabularFormat;
   }
 
   @Override
   public int hashCode()
   {
-    return Objects.hash(pivotColumns, valueColumns, separator, expressions);
+    return Objects.hash(pivotColumns, valueColumns, separator, expressions, tabularFormat);
   }
 
   @Override
@@ -158,12 +172,13 @@ public class PivotSpec implements WindowingSpec.PartitionEvaluatorFactory
            ", valueColumns=" + valueColumns +
            ", separator=" + separator +
            ", expressions=" + expressions +
+           ", tabularFormat=" + tabularFormat +
            '}';
   }
 
   public PivotSpec withExpression(String... expressions)
   {
-    return new PivotSpec(pivotColumns, valueColumns, separator, Arrays.asList(expressions));
+    return new PivotSpec(pivotColumns, valueColumns, separator, Arrays.asList(expressions), tabularFormat);
   }
 
   @Override
@@ -193,6 +208,8 @@ public class PivotSpec implements WindowingSpec.PartitionEvaluatorFactory
     for (String expression : expressions) {
       assigns.add(Evals.splitAssign(expression));
     }
+
+    final Set<StringArray> whole = Sets.newHashSet();
     return new PartitionEvaluator()
     {
       @Override
@@ -202,7 +219,7 @@ public class PivotSpec implements WindowingSpec.PartitionEvaluatorFactory
         final Map<StringArray, Object> mapping = Maps.newHashMap();
         final DateTime dateTime = partition.get(0).getTimestamp();
 
-        next:
+next:
         for (Row row : partition) {
           String[] array = new String[columns.length];
           for (int i = 0; i < array.length; i++) {
@@ -228,7 +245,13 @@ public class PivotSpec implements WindowingSpec.PartitionEvaluatorFactory
         for (int i = 0; i < partitionKey.length; i++) {
           event.put(partitionColumns.get(i), partitionKey[i]);
         }
-        for (Map.Entry<StringArray, Object> entry : IncrementalIndex.sortOn(mapping, comparator, false)) {
+        Collection<Map.Entry<StringArray, Object>> entries;
+        if (tabularFormat) {
+          entries = mapping.entrySet();
+        } else {
+          entries = IncrementalIndex.sortOn(mapping, comparator, false);
+        }
+        for (Map.Entry<StringArray, Object> entry : entries) {
           event.put(StringUtils.concat(separator, entry.getKey().array()), entry.getValue());
         }
         if (!assigns.isEmpty()) {
@@ -237,7 +260,38 @@ public class PivotSpec implements WindowingSpec.PartitionEvaluatorFactory
             event.put(assign.lhs, assign.rhs.eval(binding).value());
           }
         }
+        if (tabularFormat) {
+          whole.addAll(mapping.keySet());
+        }
         return Arrays.<Row>asList(new MapBasedRow(dateTime, event));
+      }
+
+      @Override
+      public List<Row> finalize(List<Row> rows)
+      {
+        if (tabularFormat) {
+          StringArray[] keys = whole.toArray(new StringArray[whole.size()]);
+          Arrays.parallelSort(keys, comparator);
+          final String[] sortedKeys = new String[keys.length];
+          for (int i = 0; i < sortedKeys.length; i++) {
+            sortedKeys[i] = StringUtils.concat(separator, keys[i].array());
+          }
+          for (int i = 0; i < rows.size(); i++) {
+            Row row = rows.get(i);
+            Map<String, Object> event = new LinkedHashMap<>();
+            for (String partitionColumn : partitionColumns) {
+              event.put(partitionColumn, row.getRaw(partitionColumn));
+            }
+            for (String sortedKey : sortedKeys) {
+              event.put(sortedKey, row.getRaw(sortedKey));
+            }
+            for (Pair<String, Expr> assign : assigns) {
+              event.put(assign.lhs, row.getRaw(assign.lhs));
+            }
+            rows.set(i, new MapBasedRow(row.getTimestamp(), event));
+          }
+        }
+        return rows;
       }
     };
   }

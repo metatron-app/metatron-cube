@@ -131,6 +131,11 @@ public class OrderByColumnSpec implements Cacheable
     return new OrderByColumnSpec(dimension, Direction.ASCENDING);
   }
 
+  public static OrderByColumnSpec asc(String dimension, String comparator)
+  {
+    return new OrderByColumnSpec(dimension, Direction.ASCENDING, comparator);
+  }
+
   public static List<OrderByColumnSpec> ascending(String... dimension)
   {
     return Lists.transform(
@@ -149,6 +154,11 @@ public class OrderByColumnSpec implements Cacheable
   public static OrderByColumnSpec desc(String dimension)
   {
     return new OrderByColumnSpec(dimension, Direction.DESCENDING);
+  }
+
+  public static OrderByColumnSpec desc(String dimension, String comparator)
+  {
+    return new OrderByColumnSpec(dimension, Direction.DESCENDING, comparator);
   }
 
   public static List<OrderByColumnSpec> descending(String... dimension)

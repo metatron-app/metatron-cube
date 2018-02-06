@@ -29,6 +29,7 @@ import io.druid.data.TypeResolver;
 import io.druid.data.input.Row;
 import io.druid.query.aggregation.AggregatorFactory;
 
+import java.util.Arrays;
 import java.util.List;
 
 /**
@@ -36,6 +37,11 @@ import java.util.List;
  */
 public class AndHavingSpec implements HavingSpec
 {
+  public static HavingSpec of(HavingSpec... specs)
+  {
+    return new AndHavingSpec(Arrays.asList(specs));
+  }
+
   private List<HavingSpec> havingSpecs;
 
   @JsonCreator

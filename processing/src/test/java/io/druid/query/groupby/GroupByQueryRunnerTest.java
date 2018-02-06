@@ -87,6 +87,7 @@ import io.druid.query.filter.OrDimFilter;
 import io.druid.query.filter.RegexDimFilter;
 import io.druid.query.filter.SearchQueryDimFilter;
 import io.druid.query.filter.SelectorDimFilter;
+import io.druid.query.groupby.having.AndHavingSpec;
 import io.druid.query.groupby.having.EqualToHavingSpec;
 import io.druid.query.groupby.having.ExpressionHavingSpec;
 import io.druid.query.groupby.having.GreaterThanHavingSpec;
@@ -5651,7 +5652,8 @@ public class GroupByQueryRunnerTest
                         ),
                         Arrays.asList("index"),
                         null,
-                        Arrays.<String>asList("sum = Monday + Wednesday + Friday")
+                        Arrays.<String>asList("sum = Monday + Wednesday + Friday"),
+                        false
                     )
                 )
             )
@@ -5667,6 +5669,78 @@ public class GroupByQueryRunnerTest
     );
 
     results = GroupByQueryRunnerTestHelper.runQuery(factory, runner, builder.build());
+    GroupByQueryRunnerTestHelper.validate(columnNames, expectedResults, results);
+  }
+
+  @Test
+  public void testPivotTable()
+  {
+    OrderByColumnSpec dayOfWeekAsc = OrderByColumnSpec.asc("dayOfWeek", "dayofweek");
+
+    BaseAggregationQuery.Builder<GroupByQuery> builder = GroupByQuery
+        .builder()
+        .setDataSource(QueryRunnerTestHelper.dataSource)
+        .setQuerySegmentSpec(QueryRunnerTestHelper.fullOnInterval)
+        .setDimensions(
+            DefaultDimensionSpec.of("market"),
+            DefaultDimensionSpec.of("quality"),
+            new ExtractionDimensionSpec(
+                Column.TIME_COLUMN_NAME,
+                "dayOfWeek",
+                new TimeFormatExtractionFn("EEEE", null, null)
+            )
+        )
+        .setAggregatorSpecs(QueryRunnerTestHelper.rowsCount, QueryRunnerTestHelper.indexDoubleSum)
+        .setPostAggregatorSpecs(QueryRunnerTestHelper.addRowsIndexConstant)
+        .setGranularity(QueryGranularities.ALL)
+        .setHavingSpec(
+            AndHavingSpec.of(
+                new ExpressionHavingSpec("!(dayOfWeek == 'Monday' && market == 'spot')"),
+                new ExpressionHavingSpec("!(dayOfWeek == 'Tuesday' && market == 'total_market')"),
+                new ExpressionHavingSpec("!(dayOfWeek == 'Wednesday' && quality == 'premium')")
+            )
+        );
+
+    builder.setLimitSpec(
+        new DefaultLimitSpec(
+            null, 3,
+            Arrays.asList(
+                new WindowingSpec(
+                    Arrays.asList("dayOfWeek"),
+                    Arrays.asList(dayOfWeekAsc),
+                    Arrays.<String>asList(),
+                    new PivotSpec(PivotColumnSpec.toSpec("market", "quality"), Arrays.asList("index"), null, null, true)
+                )
+            )
+        )
+    );
+    String[] columnNames = new String[]{
+        "dayOfWeek",
+        "spot-automotive", "spot-business", "spot-entertainment", "spot-health", "spot-mezzanine",
+        "spot-news", "spot-premium", "spot-technology", "spot-travel",
+        "total_market-mezzanine", "total_market-premium", "upfront-mezzanine", "upfront-premium"};
+
+    List<Row> expectedResults = GroupByQueryRunnerTestHelper.createExpectedRows(
+        columnNames,
+        array(
+            "Monday",
+            null, null, null, null, null, null, null, null, null,
+            15301.728393554688, 15167.04833984375, 15479.327270507812, 12140.257507324219
+        ),
+        array(
+            "Tuesday",
+            1664.368782043457, 1404.3215408325195, 1653.3230514526367, 1522.367774963379, 1369.873420715332,
+            1425.5140914916992, 1560.511329650879, 1068.2061462402344, 1530.9851303100586,
+            null, null, 15147.467102050781, 11820.81298828125
+        ),
+        array(
+            "Wednesday",
+            1801.9095306396484, 1559.0761184692383, 1783.8484954833984, 1556.1792068481445, 1477.5527877807617,
+            1566.9974746704102, null, 1268.3166580200195, 1623.1850204467773,
+            15749.735595703125, null, 14765.832275390625, null
+        )
+    );
+    Iterable<Row> results = GroupByQueryRunnerTestHelper.runQuery(factory, runner, builder.build());
     GroupByQueryRunnerTestHelper.validate(columnNames, expectedResults, results);
   }
 

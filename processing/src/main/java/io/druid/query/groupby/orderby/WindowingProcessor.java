@@ -167,7 +167,7 @@ public class WindowingProcessor implements Function<List<Row>, List<Row>>
           rewritten.addAll(result);
         }
       }
-      return rewritten != null ? rewritten : input;
+      return evaluator.finalize(rewritten != null ? rewritten : input);
     }
   }
 

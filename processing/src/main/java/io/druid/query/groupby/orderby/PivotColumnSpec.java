@@ -38,6 +38,21 @@ import java.util.Set;
  */
 public class PivotColumnSpec extends OrderByColumnSpec
 {
+  public static PivotColumnSpec of(String column)
+  {
+    return new PivotColumnSpec(column, null);
+  }
+
+  public static PivotColumnSpec of(OrderByColumnSpec column)
+  {
+    return new PivotColumnSpec(
+        column.getDimension(),
+        column.getDirection(),
+        column.getDimensionComparator().toString(),
+        null
+    );
+  }
+
   public static List<PivotColumnSpec> toSpec(String... columns)
   {
     List<PivotColumnSpec> columnSpecs = Lists.newArrayList();

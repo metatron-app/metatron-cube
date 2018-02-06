@@ -82,6 +82,15 @@ public class Rows extends io.druid.data.Rows
     return event;
   }
 
+  public static Map<String, Object> copy(Row row)
+  {
+    Map<String, Object> event = Maps.newLinkedHashMap();
+    for (String column : row.getColumns()) {
+      event.put(column, row.getRaw(column));
+    }
+    return event;
+  }
+
   public static Row.Updatable toUpdatable(InputRow row)
   {
     if (row instanceof Row.Updatable && ((Row.Updatable) row).isUpdatable()) {
