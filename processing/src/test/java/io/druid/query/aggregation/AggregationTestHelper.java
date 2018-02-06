@@ -470,7 +470,7 @@ public class AggregationTestHelper
         toolChest
     );
 
-    return baseRunner.run(query, Maps.newHashMap());
+    return toolChest.finalQueryDecoration(baseRunner).run(query, Maps.newHashMap());
   }
 
   public QueryRunner<Row> makeStringSerdeQueryRunner(final ObjectMapper mapper, final QueryToolChest toolChest, final Query<Row> query, final QueryRunner<Row> baseRunner)

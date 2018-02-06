@@ -31,28 +31,19 @@ import io.druid.query.RowBinding;
 import io.druid.query.aggregation.AggregatorFactory;
 
 import java.util.List;
-import java.util.Map;
 
 /**
  */
 public class ExpressionHavingSpec implements HavingSpec
 {
   private final String expression;
-  private final boolean finalize;
 
   @JsonCreator
   public ExpressionHavingSpec(
-      @JsonProperty("expression") String expression,
-      @JsonProperty("finalize") boolean finalize
+      @JsonProperty("expression") String expression
   )
   {
     this.expression = Preconditions.checkNotNull(expression, "expression should not be null");
-    this.finalize = finalize;
-  }
-
-  public ExpressionHavingSpec(String expression)
-  {
-    this(expression, false);
   }
 
   @JsonProperty("expression")
@@ -65,7 +56,7 @@ public class ExpressionHavingSpec implements HavingSpec
   public Predicate<Row> toEvaluator(TypeResolver resolver, List<AggregatorFactory> aggregators)
   {
     final Expr expr = Parser.parse(expression);
-    final RowBinding binding = toBinding(resolver, aggregators);
+    final RowBinding binding = new RowBinding(resolver);
     return new Predicate<Row>()
     {
       @Override
@@ -75,27 +66,6 @@ public class ExpressionHavingSpec implements HavingSpec
         return expr.eval(binding).asBoolean();
       }
     };
-  }
-
-  private RowBinding toBinding(final TypeResolver resolver, List<AggregatorFactory> aggregators)
-  {
-    final RowBinding binding;
-    if (finalize && !aggregators.isEmpty()) {
-      final Map<String, AggregatorFactory> factoryMap = AggregatorFactory.asMap(aggregators);
-      binding = new RowBinding(resolver)
-      {
-        @Override
-        public Object get(String name)
-        {
-          Object value = super.get(name);
-          AggregatorFactory factory = factoryMap.get(name);
-          return factory == null ? value : factory.finalizeComputation(value);
-        }
-      };
-    } else {
-      binding = new RowBinding(resolver);
-    }
-    return binding;
   }
 
   @Override
@@ -114,13 +84,13 @@ public class ExpressionHavingSpec implements HavingSpec
       return false;
     }
 
-    return finalize == that.finalize;
+    return true;
   }
 
   @Override
   public int hashCode()
   {
-    return expression.hashCode() * 31 + (finalize ? 1 : 0);
+    return expression.hashCode();
   }
 
   @Override
@@ -128,7 +98,6 @@ public class ExpressionHavingSpec implements HavingSpec
   {
     return "ExpressionHavingSpec{" +
            "expression='" + expression + '\'' +
-           ", finalize=" + finalize +
            '}';
   }
 }

@@ -264,7 +264,8 @@ public class TimeseriesQueryQueryToolChest extends QueryToolChest<Result<Timeser
             }
             return runner.run(timeseriesQuery, responseContext);
           }
-        }, this);
+        }, this
+    );
   }
 
   @Override
@@ -321,22 +322,6 @@ public class TimeseriesQueryQueryToolChest extends QueryToolChest<Result<Timeser
   }
 
   @Override
-  public final Sequence<Result<TimeseriesResultValue>> applyPostComputeManipulatorFn(
-      TimeseriesQuery query,
-      Sequence<Result<TimeseriesResultValue>> sequence,
-      Function<Result<TimeseriesResultValue>, Result<TimeseriesResultValue>> manipulatorFn
-  )
-  {
-    sequence = super.applyPostComputeManipulatorFn(query, sequence, manipulatorFn);
-    if (!LimitSpecs.isDummy(query.getLimitSpec()) || query.getHavingSpec() != null) {
-      // one row per time granularity.. no mean on ordering with time..
-      // todo user can provide coarser granularity for time ordering
-      sequence = Queries.convertBack(query, query.applyLimit(Queries.convertRow(query, sequence), false));
-    }
-    return sequence;
-  }
-
-  @Override
   public QueryRunner<Result<TimeseriesResultValue>> finalQueryDecoration(final QueryRunner<Result<TimeseriesResultValue>> runner)
   {
     return new QueryRunner<Result<TimeseriesResultValue>>()
@@ -346,11 +331,13 @@ public class TimeseriesQueryQueryToolChest extends QueryToolChest<Result<Timeser
           Query<Result<TimeseriesResultValue>> query, Map<String, Object> responseContext
       )
       {
-        final List<String> outputColumns = ((TimeseriesQuery)query).getOutputColumns();
-        final LateralViewSpec lateralViewSpec = ((TimeseriesQuery)query).getLateralView();
-        final Sequence<Result<TimeseriesResultValue>> result;
+        TimeseriesQuery timeseries = (TimeseriesQuery) query;
+        final List<String> outputColumns = timeseries.getOutputColumns();
+        final LateralViewSpec lateralViewSpec = timeseries.getLateralView();
+
+        Sequence<Result<TimeseriesResultValue>> sequence;
         if (outputColumns != null) {
-          result = Sequences.map(
+          sequence = Sequences.map(
               runner.run(query, responseContext), new Function<Result<TimeseriesResultValue>, Result<TimeseriesResultValue>>()
               {
                 @Override
@@ -368,9 +355,14 @@ public class TimeseriesQueryQueryToolChest extends QueryToolChest<Result<Timeser
               }
           );
         } else {
-          result = runner.run(query, responseContext);
+          sequence = runner.run(query, responseContext);
         }
-        return lateralViewSpec != null ? toLateralView(result, lateralViewSpec) : result;
+        if (!LimitSpecs.isDummy(timeseries.getLimitSpec()) || timeseries.getHavingSpec() != null) {
+          // one row per time granularity.. no mean on ordering with time..
+          // todo user can provide coarser granularity for time ordering
+          sequence = Queries.convertBack(query, timeseries.applyLimit(Queries.convertRow(query, sequence), false));
+        }
+        return lateralViewSpec != null ? toLateralView(sequence, lateralViewSpec) : sequence;
       }
     };
   }

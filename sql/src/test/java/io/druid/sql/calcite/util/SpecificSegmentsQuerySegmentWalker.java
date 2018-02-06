@@ -202,6 +202,7 @@ public class SpecificSegmentsQuerySegmentWalker implements QuerySegmentWalker
     return toQueryRunner(query, segments);
   }
 
+  @SuppressWarnings("unchecked")
   private <T> QueryRunner<T> toQueryRunner(Query<T> query, Iterable<Pair<SegmentDescriptor, Segment>> segments)
   {
     final QueryRunnerFactory<T, Query<T>> factory = conglomerate.findFactory(query);
@@ -230,7 +231,6 @@ public class SpecificSegmentsQuerySegmentWalker implements QuerySegmentWalker
             new Function<Pair<SegmentDescriptor, Segment>, Iterable<QueryRunner<T>>>()
             {
               @Override
-              @SuppressWarnings("unchecked")
               public Iterable<QueryRunner<T>> apply(Pair<SegmentDescriptor, Segment> input)
               {
                 if (input.rhs == null) {
@@ -257,8 +257,11 @@ public class SpecificSegmentsQuerySegmentWalker implements QuerySegmentWalker
       QueryRunner innerRunner = toQueryRunner(innerQuery, segments);
       runner = toolChest.handleSubQuery(innerRunner, this, MoreExecutors.sameThreadExecutor(), maxRowCount);
     }
-    runner = FinalizeResultsQueryRunner.finalize(toolChest.mergeResults(runner), toolChest, null);
+    runner = new FinalizeResultsQueryRunner(toolChest.mergeResults(runner), toolChest);
     PostProcessingOperator postProcessing = PostProcessingOperators.load(query, CalciteTests.getJsonMapper());
-    return postProcessing != null ? postProcessing.postProcess(runner) : runner;
+    if (postProcessing != null) {
+      runner = postProcessing.postProcess(runner);
+    }
+    return toolChest.finalQueryDecoration(runner);
   }
 }

@@ -276,7 +276,7 @@ public class GroupByQueryQueryToolChest extends QueryToolChest<Row, GroupByQuery
           }
       );
     }
-    return query.applyLimit(mergedSequence, query.isSortOnTimeForLimit(configSupplier.get().isSortOnTime()));
+    return mergedSequence;
   }
 
   private Sequence<Row> postAggregate(GroupByQuery query, IncrementalIndex<?> index)
@@ -298,10 +298,7 @@ public class GroupByQueryQueryToolChest extends QueryToolChest<Row, GroupByQuery
           }
       );
     }
-    return query.applyLimit(
-        Sequences.simple(sequence),
-        query.isSortOnTimeForLimit(configSupplier.get().isSortOnTime())
-    );
+    return Sequences.simple(sequence);
   }
 
   @Override
@@ -673,6 +670,9 @@ public class GroupByQueryQueryToolChest extends QueryToolChest<Row, GroupByQuery
 
   private Sequence<Row> finalDecoration(Query<Row> query, Sequence<Row> sequence)
   {
+    GroupByQuery groupBy = (GroupByQuery) query;
+    sequence = groupBy.applyLimit(sequence, groupBy.isSortOnTimeForLimit(configSupplier.get().isSortOnTime()));
+
     final List<String> outputColumns = ((GroupByQuery) query).getOutputColumns();
     final LateralViewSpec lateralViewSpec = ((GroupByQuery) query).getLateralView();
     if (outputColumns != null) {

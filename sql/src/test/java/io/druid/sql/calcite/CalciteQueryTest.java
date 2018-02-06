@@ -6288,7 +6288,7 @@ public class CalciteQueryTest
 
   private static HavingSpec EXPR(final String expression)
   {
-    return new ExpressionHavingSpec(expression, true);
+    return new ExpressionHavingSpec(expression);
   }
 
   private static VirtualColumn EXPRESSION_VIRTUAL_COLUMN(

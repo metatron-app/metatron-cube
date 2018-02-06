@@ -434,7 +434,7 @@ public class DruidQuery
     if (expression == null) {
       throw new CannotBuildQueryException(havingFilter, condition);
     } else {
-      return new ExpressionHavingSpec(expression.getExpression(), true);
+      return new ExpressionHavingSpec(expression.getExpression());
     }
   }
 
