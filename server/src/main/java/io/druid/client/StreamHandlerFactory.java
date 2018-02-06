@@ -53,6 +53,8 @@ import java.util.concurrent.atomic.AtomicLong;
  */
 public class StreamHandlerFactory
 {
+  protected static final Logger debug = new Logger(StreamHandlerFactory.class);
+
   protected final Logger log;
   protected final ObjectMapper mapper;
 
@@ -87,9 +89,13 @@ public class StreamHandlerFactory
       @Override
       public ClientResponse<InputStream> handleResponse(HttpResponse response)
       {
-        HttpResponseStatus status = response.getStatus();
-        log.debug("Initial response from url[%s] for queryId[%s] with status[%s]", url, queryId, status);
         response(requestStartTime, responseStartTime = System.currentTimeMillis());
+
+        HttpResponseStatus status = response.getStatus();
+        log.debug(
+            "Initial response from url[%s] for queryId[%s] with status[%s] in %,d msec",
+            url, queryId, status, responseStartTime - requestStartTime
+        );
 
         if (status.getCode() >= HttpResponseStatus.INTERNAL_SERVER_ERROR.getCode()) {
           final ByteBuffer contents = response.getContent().toByteBuffer();
@@ -191,7 +197,7 @@ public class StreamHandlerFactory
         final ChannelBuffer channelBuffer = chunk.getContent();
         final int bytes = channelBuffer.readableBytes();
         if (bytes > 0) {
-          log.debug("Chunk arrived from url[%s] for queryId[%s] with length[%d]", url, queryId, bytes);
+          debug.debug("Chunk arrived from url[%s] for queryId[%s] with length[%d]", url, queryId, bytes);
           try {
             queue.put(new ChannelBufferInputStream(channelBuffer));
           }
