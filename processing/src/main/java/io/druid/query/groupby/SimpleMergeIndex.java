@@ -26,9 +26,9 @@ import com.google.common.collect.Maps;
 import com.google.common.primitives.Longs;
 import com.metamx.common.ISE;
 import io.druid.common.DateTimes;
+import io.druid.data.input.CompactRow;
 import io.druid.data.input.MapBasedRow;
 import io.druid.data.input.Row;
-import io.druid.data.input.CompactRow;
 import io.druid.query.aggregation.Aggregator;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.dimension.DimensionSpec;
@@ -36,7 +36,6 @@ import io.druid.query.dimension.DimensionSpecs;
 import io.druid.segment.ColumnSelectorFactories.Caching;
 import io.druid.segment.ColumnSelectorFactories.FromInputRow;
 import io.druid.segment.ColumnSelectorFactory;
-import io.druid.segment.ObjectArray;
 import io.druid.segment.incremental.IncrementalIndex;
 
 import java.io.Closeable;
@@ -127,7 +126,7 @@ public class SimpleMergeIndex implements MergeIndex
           int x = 0;
           values[x++] = key.timestamp;
           for (int i = 0; i < dimensions.length; i++) {
-            values[x++] = Strings.emptyToNull(key.get(i));
+            values[x++] = Strings.emptyToNull(key.array[i]);
           }
           for (int i = 0; i < metrics.length; i++) {
             values[x++] = value[i].get();
@@ -145,7 +144,7 @@ public class SimpleMergeIndex implements MergeIndex
           final Aggregator[] value = input.getValue();
           final Map<String, Object> event = Maps.newLinkedHashMap();
           for (int i = 0; i < dimensions.length; i++) {
-            event.put(dimensions[i], Strings.emptyToNull(key.get(i)));
+            event.put(dimensions[i], Strings.emptyToNull(key.array[i]));
           }
           for (int i = 0; i < metrics.length; i++) {
             event.put(metrics[i].getName(), value[i].get());
@@ -186,21 +185,30 @@ public class SimpleMergeIndex implements MergeIndex
     }
   }
 
-  private static class TimeAndDims extends ObjectArray<String> implements Comparable<TimeAndDims>
+  private static class TimeAndDims implements Comparable<TimeAndDims>
   {
     private final long timestamp;
+    private final String[] array;
 
     public TimeAndDims(long timestamp, String[] array)
     {
-      super(array);
       this.timestamp = timestamp;
+      this.array = array;
     }
 
     @Override
     public boolean equals(Object o)
     {
       TimeAndDims other = (TimeAndDims) o;
-      return timestamp == other.timestamp && Arrays.equals(array, other.array);
+      if (timestamp != other.timestamp) {
+        return false;
+      }
+      for (int i = 0; i < array.length; i++) {
+        if (!Objects.equals(array[i], other.array[i])) {
+          return false;
+        }
+      }
+      return true;
     }
 
     @Override
