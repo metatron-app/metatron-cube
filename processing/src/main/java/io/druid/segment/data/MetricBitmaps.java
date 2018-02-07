@@ -19,31 +19,111 @@
 
 package io.druid.segment.data;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Preconditions;
 import com.google.common.collect.BoundType;
 import com.google.common.collect.Range;
 import com.google.common.io.ByteArrayDataOutput;
 import com.google.common.io.ByteStreams;
 import com.google.common.primitives.Doubles;
 import com.google.common.primitives.Floats;
+import com.google.common.primitives.Ints;
 import com.google.common.primitives.Longs;
+import com.google.inject.Provider;
 import com.metamx.collections.bitmap.BitmapFactory;
 import com.metamx.collections.bitmap.ImmutableBitmap;
 import io.druid.common.utils.Ranges;
 import io.druid.data.ValueType;
+import io.druid.segment.ColumnPartProviders;
+import io.druid.segment.SharedDictionary;
+import io.druid.segment.column.ColumnBuilder;
 import io.druid.segment.column.MetricBitmap;
+import io.druid.segment.serde.ColumnPartSerde;
 
+import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.nio.channels.WritableByteChannel;
 import java.util.Arrays;
 
 /**
  */
 public abstract class MetricBitmaps<T extends Comparable> implements MetricBitmap<T>
 {
-  public static ObjectStrategy<MetricBitmaps> getStrategy(final BitmapSerdeFactory serdeFactory, final ValueType type)
+  public static class SerDe implements ColumnPartSerde
+  {
+    private final ValueType valueType;
+    private final BitmapSerdeFactory serdeFactory;
+    private final MetricBitmaps bitmaps;
+
+    private transient byte[] bitmapPayload;
+
+    @JsonCreator
+    public SerDe()
+    {
+      valueType = null;
+      serdeFactory = null;
+      bitmaps = null;
+    }
+
+    public SerDe(ValueType valueType, BitmapSerdeFactory serdeFactory, MetricBitmaps bitmaps)
+    {
+      this.valueType = Preconditions.checkNotNull(valueType);
+      this.serdeFactory = Preconditions.checkNotNull(serdeFactory);
+      this.bitmaps = Preconditions.checkNotNull(bitmaps);
+    }
+
+    @Override
+    public Serializer getSerializer()
+    {
+      return new Serializer.Abstract()
+      {
+        @Override
+        public long getSerializedSize() throws IOException
+        {
+          bitmapPayload = MetricBitmaps.getStrategy(serdeFactory, valueType).toBytes(bitmaps);
+          return Ints.BYTES + bitmapPayload.length;
+        }
+
+        @Override
+        public void writeToChannel(WritableByteChannel channel) throws IOException
+        {
+          channel.write(ByteBuffer.wrap(Ints.toByteArray(bitmapPayload.length)));
+          channel.write(ByteBuffer.wrap(bitmapPayload));
+          bitmapPayload = null;
+        }
+      };
+    }
+
+    @Override
+    public Deserializer getDeserializer()
+    {
+      return new Deserializer()
+      {
+        @Override
+        public void read(
+            ByteBuffer buffer,
+            ColumnBuilder builder,
+            BitmapSerdeFactory serdeFactory,
+            Provider<SharedDictionary.Mapping> dictionary
+        ) throws IOException
+        {
+          builder.setMetricBitmap(
+              ColumnPartProviders.ofType(
+                  builder.getNumRows(),
+                  ByteBufferSerializer.prepareForRead(buffer),
+                  MetricBitmaps.getStrategy(serdeFactory, builder.getType())
+              )
+          );
+        }
+      };
+    }
+  }
+
+  public static ObjectStrategy<MetricBitmap> getStrategy(final BitmapSerdeFactory serdeFactory, final ValueType type)
   {
     final ObjectStrategy<ImmutableBitmap> strategy = serdeFactory.getObjectStrategy();
-    return new ObjectStrategy.NotComparable<MetricBitmaps>()
+    return new ObjectStrategy.NotComparable<MetricBitmap>()
     {
       @Override
       public Class<? extends MetricBitmaps> getClazz()
@@ -109,8 +189,9 @@ public abstract class MetricBitmaps<T extends Comparable> implements MetricBitma
       }
 
       @Override
-      public byte[] toBytes(MetricBitmaps val)
+      public byte[] toBytes(MetricBitmap bitmap)
       {
+        MetricBitmaps val = (MetricBitmaps) bitmap;
         ByteArrayDataOutput bout = ByteStreams.newDataOutput();
         bout.writeInt(val.breaks.length);
         switch (type) {
@@ -245,7 +326,8 @@ public abstract class MetricBitmaps<T extends Comparable> implements MetricBitma
   }
 
   @Override
-  public void close() {
+  public void close()
+  {
   }
 
   @Override

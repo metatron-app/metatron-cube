@@ -348,15 +348,19 @@ public class IndexViewer implements CommonShell
     for (Pair<String, int[]> value : values) {
       String columnName = value.lhs;
       int[] offset = value.rhs;
-      String columnType = dimensions.contains(columnName) ? "dimension" : "metric";
-      writer.println(
-          format("> %s '%s' (%s, %,d ~ %,d)", columnType, columnName, toChunkFile(offset[0]), offset[1], offset[2])
-      );
+
       Column column = index.index().getColumn(columnName);
       ColumnCapabilities capabilities = column.getCapabilities();
 
       long columnSize = column.getSerializedSize();
 
+      String columnType = dimensions.contains(columnName) ? "dimension" : "metric";
+      writer.println(
+          format(
+              "> %s '%s' (%s, %,d ~ %,d : %3.1f%% of total)",
+              columnType, columnName, toChunkFile(offset[0]), offset[1], offset[2], (columnSize * 100f / totalSize)
+          )
+      );
       ValueDesc desc;
       ValueType type = capabilities.getType();
       if (type == ValueType.COMPLEX) {
@@ -368,12 +372,9 @@ public class IndexViewer implements CommonShell
       }
       Map<String, Object> columnStats = column.getColumnStats();
       writer.print(
-          format(
-              "  type : %s, hasMultiValue = %s, (%,d bytes, %3.1f%% of total)",
-              desc, capabilities.hasMultipleValues(), columnSize, (columnSize * 100f / totalSize)
-          )
+          format("  type : %s, hasMultiValue = %s, (%,d bytes)", desc, capabilities.hasMultipleValues(), columnSize)
       );
-      if (columnStats != null) {
+      if (columnStats != null && !columnStats.isEmpty()) {
         writer.println(format(", stats %s", columnStats));
       } else {
         writer.println();

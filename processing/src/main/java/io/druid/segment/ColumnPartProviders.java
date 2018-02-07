@@ -19,8 +19,6 @@
 
 package io.druid.segment;
 
-import io.druid.segment.column.MetricBitmap;
-import io.druid.segment.data.MetricBitmaps;
 import io.druid.segment.data.ObjectStrategy;
 import io.druid.segment.data.VSizeIndexed;
 import io.druid.segment.data.VSizeIndexedInts;
@@ -67,15 +65,15 @@ public class ColumnPartProviders
     };
   }
 
-  public static ColumnPartProvider<MetricBitmap> ofMetricBitmap(
+  public static <T> ColumnPartProvider<T> ofType(
       final int numRows,
       final ByteBuffer buffer,
-      final ObjectStrategy<MetricBitmaps> strategy
+      final ObjectStrategy<T> strategy
   )
   {
     final int length = buffer.remaining();
 
-    return new ColumnPartProvider<MetricBitmap>()
+    return new ColumnPartProvider<T>()
     {
       @Override
       public int size()
@@ -90,7 +88,7 @@ public class ColumnPartProviders
       }
 
       @Override
-      public MetricBitmap get()
+      public T get()
       {
         return strategy.fromByteBuffer(buffer.asReadOnlyBuffer(), length);
       }

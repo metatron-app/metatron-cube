@@ -25,6 +25,8 @@ import com.google.inject.Provider;
 import io.druid.segment.SharedDictionary;
 import io.druid.segment.column.ColumnBuilder;
 import io.druid.segment.data.BitmapSerdeFactory;
+import io.druid.segment.data.ByteBufferSerializer;
+import io.druid.segment.data.MetricBitmaps;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -40,7 +42,9 @@ import java.util.Map;
     @JsonSubTypes.Type(name = "double", value = DoubleGenericColumnPartSerde.class),
     @JsonSubTypes.Type(name = "long", value = LongGenericColumnPartSerde.class),
     @JsonSubTypes.Type(name = "string", value = StringGenericColumnPartSerde.class),
-    @JsonSubTypes.Type(name = "stringDictionary", value = DictionaryEncodedColumnPartSerde.class)
+    @JsonSubTypes.Type(name = "stringDictionary", value = DictionaryEncodedColumnPartSerde.class),
+    @JsonSubTypes.Type(name = "lucene", value = ComplexColumnSerializer.LuceneIndexPartSerDe.class),
+    @JsonSubTypes.Type(name = "histogram", value = MetricBitmaps.SerDe.class)
 })
 public interface ColumnPartSerde
 {
@@ -55,6 +59,15 @@ public interface ColumnPartSerde
     public void writeToChannel(WritableByteChannel channel) throws IOException;
 
     public Map<String, Object> getSerializeStats();
+
+    public static abstract class Abstract implements Serializer
+    {
+      @Override
+      public final Map<String, Object> getSerializeStats()
+      {
+        return null;
+      }
+    }
   }
 
   public interface Deserializer
@@ -65,5 +78,32 @@ public interface ColumnPartSerde
         BitmapSerdeFactory serdeFactory,
         Provider<SharedDictionary.Mapping> dictionary
     ) throws IOException;
+  }
+
+  public class Skipper implements ColumnPartSerde
+  {
+    @Override
+    public Serializer getSerializer()
+    {
+      throw new IllegalStateException("not for use");
+    }
+
+    @Override
+    public Deserializer getDeserializer()
+    {
+      return new Deserializer()
+      {
+        @Override
+        public void read(
+            ByteBuffer buffer,
+            ColumnBuilder builder,
+            BitmapSerdeFactory serdeFactory,
+            Provider<SharedDictionary.Mapping> dictionary
+        ) throws IOException
+        {
+          ByteBufferSerializer.prepareForRead(buffer);  // skip this part
+        }
+      };
+    }
   }
 }

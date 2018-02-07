@@ -30,6 +30,7 @@ import java.util.Map;
 public class ColumnBuilder
 {
   private ValueType type = null;
+  private int numRows = -1;
   private boolean hasMultipleValues = false;
 
   private ColumnPartProvider.DictionarySupport dictionaryEncodedColumn = null;
@@ -49,6 +50,18 @@ public class ColumnBuilder
     return this;
   }
 
+  private <T> ColumnPartProvider<T> setNumRows(ColumnPartProvider<T> provider)
+  {
+    setNumRows(provider.size());
+    return provider;
+  }
+
+  private void setNumRows(int size)
+  {
+    Preconditions.checkArgument(numRows < 0 || numRows == size);
+    this.numRows = size;
+  }
+
   public ColumnBuilder setHasMultipleValues(boolean hasMultipleValues)
   {
     this.hasMultipleValues = hasMultipleValues;
@@ -57,25 +70,26 @@ public class ColumnBuilder
 
   public ColumnBuilder setDictionaryEncodedColumn(ColumnPartProvider.DictionarySupport dictionaryEncodedColumn)
   {
+    setNumRows(dictionaryEncodedColumn.size());
     this.dictionaryEncodedColumn = dictionaryEncodedColumn;
     return this;
   }
 
   public ColumnBuilder setRunLengthColumn(ColumnPartProvider<RunLengthColumn> runLengthColumn)
   {
-    this.runLengthColumn = runLengthColumn;
+    this.runLengthColumn = setNumRows(runLengthColumn);
     return this;
   }
 
   public ColumnBuilder setGenericColumn(ColumnPartProvider<GenericColumn> genericColumn)
   {
-    this.genericColumn = genericColumn;
+    this.genericColumn = setNumRows(genericColumn);
     return this;
   }
 
   public ColumnBuilder setComplexColumn(ColumnPartProvider<ComplexColumn> complexColumn)
   {
-    this.complexColumn = complexColumn;
+    this.complexColumn = setNumRows(complexColumn);
     return this;
   }
 
@@ -107,6 +121,16 @@ public class ColumnBuilder
   {
     this.stats = stats;
     return this;
+  }
+
+  public ValueType getType()
+  {
+    return type;
+  }
+
+  public int getNumRows()
+  {
+    return numRows;
   }
 
   public Column build()

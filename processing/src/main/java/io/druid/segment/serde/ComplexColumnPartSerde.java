@@ -88,11 +88,13 @@ public class ComplexColumnPartSerde implements ColumnPartSerde
     }
   }
 
+  @Deprecated
   public static LegacySerializerBuilder legacySerializerBuilder()
   {
     return new LegacySerializerBuilder();
   }
 
+  @Deprecated
   public static class LegacySerializerBuilder
   {
     private String typeName = null;

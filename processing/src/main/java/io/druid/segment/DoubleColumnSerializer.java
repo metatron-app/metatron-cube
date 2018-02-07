@@ -20,8 +20,9 @@
 package io.druid.segment;
 
 import com.google.common.collect.ImmutableMap;
-import com.google.common.primitives.Ints;
+import io.druid.data.ValueDesc;
 import io.druid.data.ValueType;
+import io.druid.segment.column.ColumnDescriptor.Builder;
 import io.druid.segment.data.BitmapSerdeFactory;
 import io.druid.segment.data.CompressedDoublesSupplierSerializer;
 import io.druid.segment.data.CompressedObjectStrategy;
@@ -29,9 +30,9 @@ import io.druid.segment.data.DoubleHistogram;
 import io.druid.segment.data.IOPeon;
 import io.druid.segment.data.MetricBitmaps;
 import io.druid.segment.data.MetricHistogram;
+import io.druid.segment.serde.DoubleGenericColumnPartSerde;
 
 import java.io.IOException;
-import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.channels.WritableByteChannel;
 import java.util.Map;
@@ -58,7 +59,6 @@ public class DoubleColumnSerializer implements GenericColumnSerializer
 
   private final BitmapSerdeFactory serdeFactory;
   private final MetricHistogram.DoubleType histogram;
-  private ByteBuffer bitmapPayload;
 
   private DoubleColumnSerializer(
       IOPeon ioPeon,
@@ -107,6 +107,35 @@ public class DoubleColumnSerializer implements GenericColumnSerializer
   }
 
   @Override
+  public Builder buildDescriptor(ValueDesc desc, Builder builder)
+  {
+    builder.setValueType(ValueType.DOUBLE);
+    builder.addSerde(
+        DoubleGenericColumnPartSerde.serializerBuilder()
+                                    .withByteOrder(IndexIO.BYTE_ORDER)
+                                    .withDelegate(this)
+                                    .build()
+    );
+    MetricBitmaps bitmaps = histogram.snapshot();
+    if (bitmaps != null) {
+      builder.addSerde(new MetricBitmaps.SerDe(ValueType.DOUBLE, serdeFactory, bitmaps));
+    }
+    return builder;
+  }
+
+  @Override
+  public void close() throws IOException
+  {
+    writer.close();
+  }
+
+  @Override
+  public long getSerializedSize()
+  {
+    return writer.getSerializedSize();
+  }
+
+  @Override
   public Map<String, Object> getSerializeStats()
   {
     if (writer.size() == 0) {
@@ -120,33 +149,8 @@ public class DoubleColumnSerializer implements GenericColumnSerializer
   }
 
   @Override
-  public void close() throws IOException
-  {
-    writer.close();
-  }
-
-  @Override
-  public long getSerializedSize()
-  {
-    long size = writer.getSerializedSize();
-    MetricBitmaps bitmaps = histogram.snapshot();
-    if (bitmaps != null) {
-      byte[] payload = MetricBitmaps.getStrategy(serdeFactory, ValueType.DOUBLE).toBytes(bitmaps);
-      bitmapPayload = (ByteBuffer) ByteBuffer.allocate(Ints.BYTES + payload.length)
-                                             .putInt(payload.length)
-                                             .put(payload)
-                                             .flip();
-      size += bitmapPayload.remaining();
-    }
-    return size;
-  }
-
-  @Override
   public void writeToChannel(WritableByteChannel channel) throws IOException
   {
     writer.writeToChannel(channel);
-    if (bitmapPayload != null) {
-      channel.write(bitmapPayload);
-    }
   }
 }

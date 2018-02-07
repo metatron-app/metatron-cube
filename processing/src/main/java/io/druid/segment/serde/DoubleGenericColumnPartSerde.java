@@ -23,14 +23,11 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.inject.Provider;
 import io.druid.data.ValueType;
-import io.druid.segment.ColumnPartProviders;
 import io.druid.segment.DoubleColumnSerializer;
 import io.druid.segment.SharedDictionary;
 import io.druid.segment.column.ColumnBuilder;
 import io.druid.segment.data.BitmapSerdeFactory;
-import io.druid.segment.data.ByteBufferSerializer;
 import io.druid.segment.data.CompressedDoublesIndexedSupplier;
-import io.druid.segment.data.MetricBitmaps;
 
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
@@ -92,11 +89,13 @@ public class DoubleGenericColumnPartSerde implements ColumnPartSerde
     }
   }
 
+  @Deprecated
   public static LegacySerializerBuilder legacySerializerBuilder()
   {
     return new LegacySerializerBuilder();
   }
 
+  @Deprecated
   public static class LegacySerializerBuilder
   {
     private ByteOrder byteOrder = null;
@@ -148,16 +147,6 @@ public class DoubleGenericColumnPartSerde implements ColumnPartSerde
         builder.setType(ValueType.DOUBLE)
                .setHasMultipleValues(false)
                .setGenericColumn(new DoubleGenericColumnSupplier(column));
-
-        if (buffer.remaining() > 0) {
-          builder.setMetricBitmap(
-              ColumnPartProviders.ofMetricBitmap(
-                  column.size(),
-                  ByteBufferSerializer.prepareForRead(buffer),
-                  MetricBitmaps.getStrategy(serdeFactory, ValueType.DOUBLE)
-              )
-          );
-        }
       }
     };
   }

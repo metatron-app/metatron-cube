@@ -66,15 +66,10 @@ import io.druid.segment.data.IndexedRTree;
 import io.druid.segment.data.TmpFileIOPeon;
 import io.druid.segment.data.VSizeIndexedIntsWriter;
 import io.druid.segment.data.VSizeIndexedWriter;
-import io.druid.segment.serde.ComplexColumnPartSerde;
 import io.druid.segment.serde.ComplexColumnSerializer;
 import io.druid.segment.serde.ComplexMetricSerde;
 import io.druid.segment.serde.ComplexMetrics;
 import io.druid.segment.serde.DictionaryEncodedColumnPartSerde;
-import io.druid.segment.serde.DoubleGenericColumnPartSerde;
-import io.druid.segment.serde.FloatGenericColumnPartSerde;
-import io.druid.segment.serde.LongGenericColumnPartSerde;
-import io.druid.segment.serde.StringGenericColumnPartSerde;
 import io.druid.segment.serde.StringMetricSerde;
 import org.apache.commons.io.FileUtils;
 import org.joda.time.DateTime;
@@ -92,7 +87,6 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Set;
 
 public class IndexMergerV9 extends IndexMerger
@@ -135,22 +129,11 @@ public class IndexMergerV9 extends IndexMerger
         }
     );
 
-    Metadata segmentMetadata = null;
+    AggregatorFactory[] combiningMetricAggs = null;
     if (metricAggs != null) {
-      AggregatorFactory[] combiningMetricAggs = new AggregatorFactory[metricAggs.length];
-      for (int i = 0; i < metricAggs.length; i++) {
-        combiningMetricAggs[i] = metricAggs[i].getCombiningFactory();
-      }
-      segmentMetadata = Metadata.merge(
-          metadataList,
-          combiningMetricAggs
-      );
-    } else {
-      segmentMetadata = Metadata.merge(
-          metadataList,
-          null
-      );
+      combiningMetricAggs = AggregatorFactory.toCombiner(metricAggs);
     }
+    Metadata segmentMetadata = Metadata.merge(metadataList, combiningMetricAggs);
 
     Closer closer = Closer.create();
     final IOPeon ioPeon = new TmpFileIOPeon(false);
@@ -427,51 +410,7 @@ public class IndexMergerV9 extends IndexMerger
       writer.close();
 
       final ColumnDescriptor.Builder builder = ColumnDescriptor.builder();
-      ValueDesc type = metricTypeNames.get(metric);
-      switch (type.type()) {
-        case LONG:
-          builder.setValueType(ValueType.LONG);
-          builder.addSerde(
-              LongGenericColumnPartSerde.serializerBuilder()
-                                        .withByteOrder(IndexIO.BYTE_ORDER)
-                                        .withDelegate((LongColumnSerializer) writer)
-                                        .build()
-          );
-          break;
-        case FLOAT:
-          builder.setValueType(ValueType.FLOAT);
-          builder.addSerde(
-              FloatGenericColumnPartSerde.serializerBuilder()
-                                         .withByteOrder(IndexIO.BYTE_ORDER)
-                                         .withDelegate((FloatColumnSerializer) writer)
-                                         .build()
-          );
-          break;
-        case DOUBLE:
-          builder.setValueType(ValueType.DOUBLE);
-          builder.addSerde(
-              DoubleGenericColumnPartSerde.serializerBuilder()
-                                         .withByteOrder(IndexIO.BYTE_ORDER)
-                                         .withDelegate((DoubleColumnSerializer) writer)
-                                         .build()
-          );
-          break;
-        case STRING:
-          builder.setValueType(ValueType.STRING);
-          builder.addSerde(new StringGenericColumnPartSerde((ComplexColumnSerializer) writer));
-          break;
-        case COMPLEX:
-          final String typeName = type.typeName();
-          builder.setValueType(ValueType.of(typeName));
-          builder.addSerde(
-              ComplexColumnPartSerde.serializerBuilder().withTypeName(typeName)
-                                    .withDelegate((ComplexColumnSerializer) writer)
-                                    .build()
-          );
-          break;
-        default:
-          throw new ISE("Unknown type[%s]", type);
-      }
+      writer.buildDescriptor(metricTypeNames.get(metric), builder);
       makeColumn(v9Smoosher, metric, builder.build());
       log.info("Completed metric column[%s] in %,d millis.", metric, System.currentTimeMillis() - metricStartTime);
     }
@@ -492,17 +431,9 @@ public class IndexMergerV9 extends IndexMerger
 
     timeWriter.close();
 
-    final ColumnDescriptor serdeficator = ColumnDescriptor
-        .builder()
-        .setValueType(ValueType.LONG)
-        .addSerde(
-            LongGenericColumnPartSerde.serializerBuilder()
-                                      .withByteOrder(IndexIO.BYTE_ORDER)
-                                      .withDelegate(timeWriter)
-                                      .build()
-        )
-        .build();
-    makeColumn(v9Smoosher, Column.TIME_COLUMN_NAME, serdeficator);
+    final ColumnDescriptor.Builder builder = ColumnDescriptor.builder();
+    timeWriter.buildDescriptor(ValueDesc.LONG, builder);
+    makeColumn(v9Smoosher, Column.TIME_COLUMN_NAME, builder.build());
     log.info("Completed time column in %,d millis.", System.currentTimeMillis() - startTime);
     progress.stopSection(section);
   }
@@ -515,7 +446,9 @@ public class IndexMergerV9 extends IndexMerger
   {
     serdeficator.finalizeSerialization();
     ByteArrayOutputStream baos = new ByteArrayOutputStream();
-    serializerUtils.writeString(baos, mapper.writeValueAsString(serdeficator));
+    String descriptor = mapper.writeValueAsString(serdeficator);
+    log.info("%s : %s", columnName, descriptor);
+    serializerUtils.writeString(baos, descriptor);
     byte[] specBytes = baos.toByteArray();
 
     final SmooshedWriter channel = v9Smoosher.addWithSmooshedWriter(
@@ -739,7 +672,7 @@ public class IndexMergerV9 extends IndexMerger
 
   private LongColumnSerializer setupTimeWriter(final IOPeon ioPeon, final IndexSpec indexSpec) throws IOException
   {
-    final boolean makeHistogram = indexSpec.isMakeHistogram();
+    final boolean makeHistogram = indexSpec.isMakeHistogram(Column.TIME_COLUMN_NAME);
     final BitmapSerdeFactory serdeFactory = indexSpec.getBitmapSerdeFactory();
     LongColumnSerializer timeWriter = LongColumnSerializer.create(
         ioPeon, "little_end_time", CompressedObjectStrategy.DEFAULT_COMPRESSION_STRATEGY, serdeFactory, makeHistogram
@@ -757,12 +690,11 @@ public class IndexMergerV9 extends IndexMerger
   ) throws IOException
   {
     ArrayList<GenericColumnSerializer> metWriters = Lists.newArrayListWithCapacity(mergedMetrics.size());
-    final boolean makeHistogram = indexSpec.isMakeHistogram();
-    final Map<String, String> luceneIndexing = indexSpec.getLuceneIndexing();
     final BitmapSerdeFactory serdeFactory = indexSpec.getBitmapSerdeFactory();
     final CompressedObjectStrategy.CompressionStrategy metCompression = indexSpec.getMetricCompressionStrategy();
     for (String metric : mergedMetrics) {
       ValueDesc type = metricTypeNames.get(metric);
+      boolean makeHistogram = indexSpec.isMakeHistogram(metric);
       GenericColumnSerializer writer;
       switch (type.type()) {
         case LONG:
@@ -775,10 +707,7 @@ public class IndexMergerV9 extends IndexMerger
           writer = DoubleColumnSerializer.create(ioPeon, metric, metCompression, serdeFactory, makeHistogram);
           break;
         case STRING:
-          String analyzer = null;
-          if (luceneIndexing.containsKey(metric)) {
-            analyzer = Objects.toString(luceneIndexing.get(metric), "standard");
-          }
+          String analyzer = indexSpec.getLuceneAnalyzer(metric);
           writer = ComplexColumnSerializer.create(ioPeon, metric, StringMetricSerde.INSTANCE, analyzer);
           break;
         case COMPLEX:

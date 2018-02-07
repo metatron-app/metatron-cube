@@ -28,6 +28,7 @@ import io.druid.segment.data.GenericIndexed;
 public interface ColumnPartProvider<T> extends Supplier<T>
 {
   int size();
+
   long getSerializedSize();
 
   interface DictionarySupport extends ColumnPartProvider<DictionaryEncodedColumn>

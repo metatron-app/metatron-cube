@@ -20,18 +20,19 @@
 package io.druid.segment;
 
 import com.google.common.collect.ImmutableMap;
-import com.google.common.primitives.Ints;
+import io.druid.data.ValueDesc;
 import io.druid.data.ValueType;
+import io.druid.segment.column.ColumnDescriptor.Builder;
 import io.druid.segment.data.BitmapSerdeFactory;
 import io.druid.segment.data.CompressedLongsSupplierSerializer;
 import io.druid.segment.data.CompressedObjectStrategy;
-import io.druid.segment.data.LongHistogram;
 import io.druid.segment.data.IOPeon;
+import io.druid.segment.data.LongHistogram;
 import io.druid.segment.data.MetricBitmaps;
 import io.druid.segment.data.MetricHistogram;
+import io.druid.segment.serde.LongGenericColumnPartSerde;
 
 import java.io.IOException;
-import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.channels.WritableByteChannel;
 import java.util.Map;
@@ -58,7 +59,6 @@ public class LongColumnSerializer implements GenericColumnSerializer
 
   private final BitmapSerdeFactory serdeFactory;
   private final MetricHistogram.LongType histogram;
-  private ByteBuffer bitmapPayload;
 
   private LongColumnSerializer(
       IOPeon ioPeon,
@@ -107,6 +107,23 @@ public class LongColumnSerializer implements GenericColumnSerializer
   }
 
   @Override
+  public Builder buildDescriptor(ValueDesc desc, Builder builder)
+  {
+    builder.setValueType(ValueType.LONG);
+    builder.addSerde(
+        LongGenericColumnPartSerde.serializerBuilder()
+                                  .withByteOrder(IndexIO.BYTE_ORDER)
+                                  .withDelegate(this)
+                                  .build()
+    );
+    MetricBitmaps bitmaps = histogram.snapshot();
+    if (bitmaps != null) {
+      builder.addSerde(new MetricBitmaps.SerDe(ValueType.LONG, serdeFactory, bitmaps));
+    }
+    return builder;
+  }
+
+  @Override
   public void close() throws IOException
   {
     writer.close();
@@ -115,17 +132,7 @@ public class LongColumnSerializer implements GenericColumnSerializer
   @Override
   public long getSerializedSize()
   {
-    long size = writer.getSerializedSize();
-    MetricBitmaps bitmaps = histogram.snapshot();
-    if (bitmaps != null) {
-      byte[] payload = MetricBitmaps.getStrategy(serdeFactory, ValueType.LONG).toBytes(bitmaps);
-      bitmapPayload = (ByteBuffer) ByteBuffer.allocate(Ints.BYTES + payload.length)
-                                             .putInt(payload.length)
-                                             .put(payload)
-                                             .flip();
-      size += bitmapPayload.remaining();
-    }
-    return size;
+    return writer.getSerializedSize();
   }
 
   @Override
@@ -145,8 +152,5 @@ public class LongColumnSerializer implements GenericColumnSerializer
   public void writeToChannel(WritableByteChannel channel) throws IOException
   {
     writer.writeToChannel(channel);
-    if (bitmapPayload != null) {
-      channel.write(bitmapPayload);
-    }
   }
 }

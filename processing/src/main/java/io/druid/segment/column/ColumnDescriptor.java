@@ -62,9 +62,9 @@ public class ColumnDescriptor
       @JsonProperty("stats") Map<String, Object> stats
   )
   {
-    this.valueType = valueType;
+    this.valueType = Preconditions.checkNotNull(valueType);
     this.hasMultipleValues = hasMultipleValues;
-    this.parts = parts;
+    this.parts = Preconditions.checkNotNull(parts);
     this.stats = stats;
   }
 

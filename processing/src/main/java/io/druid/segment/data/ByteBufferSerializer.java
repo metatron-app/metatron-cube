@@ -40,6 +40,7 @@ public class ByteBufferSerializer<T>
     return strategy.fromByteBuffer(bufferToUse, size);
   }
 
+  // make buffer for read and move forward position of original buffer
   public static ByteBuffer prepareForRead(ByteBuffer buffer)
   {
     int size = buffer.getInt();

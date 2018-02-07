@@ -428,7 +428,7 @@ public class ReduceMergeIndexGeneratorJob implements HadoopDruidIndexerJob.Index
           index,
           interval,
           nextFile(),
-          config.getIndexSpec().withMakeHistogram(false),
+          config.getIndexSpec().withSecondaryIndexing(null),
           progressIndicator
       );
 

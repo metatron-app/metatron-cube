@@ -20,12 +20,13 @@
 package io.druid.segment.serde;
 
 import com.metamx.collections.bitmap.ImmutableBitmap;
+import io.druid.data.ValueDesc;
 import io.druid.data.ValueType;
 import io.druid.segment.column.Column;
 import io.druid.segment.column.ColumnBuilder;
+import io.druid.segment.column.ColumnDescriptor;
 import io.druid.segment.column.LuceneIndex;
 import io.druid.segment.column.Lucenes;
-import io.druid.segment.data.BitmapSerdeFactory;
 import io.druid.segment.data.IOPeon;
 import io.druid.segment.data.RoaringBitmapSerdeFactory;
 import io.druid.segment.data.TmpFileIOPeon;
@@ -68,10 +69,13 @@ public class ComplexColumnSerializerTest
 
     serializer.close();
 
-    long length = serializer.getSerializedSize();
+    ColumnDescriptor descriptor = serializer.buildDescriptor(ValueDesc.STRING, new ColumnDescriptor.Builder()).build();
+    descriptor.finalizeSerialization();
+
+    long length = descriptor.numBytes();
 
     final ByteArrayOutputStream bout = new ByteArrayOutputStream();
-    serializer.writeToChannel(
+    descriptor.write(
         new WritableByteChannel()
         {
           @Override
@@ -95,18 +99,13 @@ public class ComplexColumnSerializerTest
           }
         }
     );
-    ColumnPartSerde serde = new StringGenericColumnPartSerde();
-    ColumnPartSerde.Deserializer deserializer = serde.getDeserializer();
-    BitmapSerdeFactory serdeFactory = new RoaringBitmapSerdeFactory();
 
     ColumnBuilder builder = new ColumnBuilder();
     builder.setType(ValueType.STRING);
     ByteBuffer payload = ByteBuffer.wrap(bout.toByteArray());
     Assert.assertEquals(length, payload.remaining());
 
-    deserializer.read(payload, builder, serdeFactory, null);
-
-    Column column = builder.build();
+    Column column = descriptor.read(payload, new RoaringBitmapSerdeFactory(), null);
     LuceneIndex luceneIndex = column.getLuceneIndex();
 
     Assert.assertNotNull(luceneIndex);

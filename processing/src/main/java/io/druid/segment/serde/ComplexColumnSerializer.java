@@ -19,17 +19,38 @@
 
 package io.druid.segment.serde;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
+import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.primitives.Ints;
+import com.google.inject.Provider;
+import com.metamx.collections.bitmap.BitmapFactory;
+import com.metamx.collections.bitmap.ImmutableBitmap;
+import com.metamx.collections.bitmap.MutableBitmap;
+import io.druid.data.ValueDesc;
+import io.druid.data.ValueType;
+import io.druid.segment.ColumnPartProvider;
 import io.druid.segment.GenericColumnSerializer;
+import io.druid.segment.SharedDictionary;
+import io.druid.segment.column.ColumnBuilder;
+import io.druid.segment.column.ColumnDescriptor.Builder;
+import io.druid.segment.column.LuceneIndex;
 import io.druid.segment.column.Lucenes;
+import io.druid.segment.data.BitmapSerdeFactory;
+import io.druid.segment.data.ByteBufferSerializer;
 import io.druid.segment.data.GenericIndexedWriter;
 import io.druid.segment.data.IOPeon;
 import org.apache.lucene.document.Document;
 import org.apache.lucene.document.Field;
 import org.apache.lucene.document.TextField;
+import org.apache.lucene.index.DirectoryReader;
 import org.apache.lucene.index.IndexWriter;
+import org.apache.lucene.search.IndexSearcher;
+import org.apache.lucene.search.Query;
+import org.apache.lucene.search.ScoreDoc;
+import org.apache.lucene.search.TopDocs;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -57,7 +78,6 @@ public class ComplexColumnSerializer implements GenericColumnSerializer, ColumnP
   private int numNulls;
 
   private final IndexWriter luceneIndexer;
-  private ByteBuffer lucenePayload;
 
   private GenericIndexedWriter writer;
 
@@ -105,6 +125,27 @@ public class ComplexColumnSerializer implements GenericColumnSerializer, ColumnP
   }
 
   @Override
+  public Builder buildDescriptor(ValueDesc desc, Builder builder) throws IOException
+  {
+    if (ValueDesc.isString(desc)) {
+      builder.setValueType(ValueType.STRING);
+      builder.addSerde(new StringGenericColumnPartSerde(this));
+    } else {
+      builder.setValueType(ValueType.COMPLEX);
+      builder.addSerde(
+          ComplexColumnPartSerde.serializerBuilder()
+                                .withTypeName(desc.typeName())
+                                .withDelegate(this)
+                                .build()
+      );
+    }
+    if (luceneIndexer != null && luceneIndexer.numDocs() > 0) {
+      builder.addSerde(new LuceneIndexPartSerDe(luceneIndexer));
+    }
+    return builder;
+  }
+
+  @Override
   public void close() throws IOException
   {
     writer.close();
@@ -116,34 +157,154 @@ public class ComplexColumnSerializer implements GenericColumnSerializer, ColumnP
   @Override
   public long getSerializedSize() throws IOException
   {
-    long size = writer.getSerializedSize();
-    if (luceneIndexer != null && luceneIndexer.numDocs() > 0) {
-      lucenePayload = ByteBuffer.wrap(Lucenes.serializeAndClose(luceneIndexer));
-      size += Ints.BYTES + lucenePayload.remaining();
-    }
-    return size;
+    return writer.getSerializedSize();
   }
 
   @Override
   public void writeToChannel(WritableByteChannel channel) throws IOException
   {
     writer.writeToChannel(channel);
-    if (lucenePayload != null && lucenePayload.hasRemaining()) {
-      channel.write(ByteBuffer.wrap(Ints.toByteArray(lucenePayload.remaining())));
-      channel.write(lucenePayload);
-    }
   }
 
   @Override
   public Map<String, Object> getSerializeStats()
   {
-    if (minValue == null || maxValue == null) {
+    if (numNulls > 0 && (minValue == null || maxValue == null)) {
       return null;
+    }
+    if (minValue == null || maxValue == null) {
+      return ImmutableMap.<String, Object>of(
+          "numNulls", numNulls
+      );
     }
     return ImmutableMap.<String, Object>of(
         "min", minValue,
         "max", maxValue,
         "numNulls", numNulls
     );
+  }
+
+  public static class LuceneIndexPartSerDe implements ColumnPartSerde
+  {
+    private final IndexWriter luceneIndexer;
+    private byte[] lucenePayload;
+
+    @JsonCreator
+    public LuceneIndexPartSerDe()
+    {
+      luceneIndexer = null;
+    }
+
+    public LuceneIndexPartSerDe(IndexWriter luceneIndexer)
+    {
+      this.luceneIndexer = Preconditions.checkNotNull(luceneIndexer);
+    }
+
+    @Override
+    public Serializer getSerializer()
+    {
+      return new Serializer.Abstract()
+      {
+        @Override
+        public long getSerializedSize() throws IOException
+        {
+          lucenePayload = Lucenes.serializeAndClose(luceneIndexer);
+          return Ints.BYTES + lucenePayload.length;
+        }
+
+        @Override
+        public void writeToChannel(WritableByteChannel channel) throws IOException
+        {
+          channel.write(ByteBuffer.wrap(Ints.toByteArray(lucenePayload.length)));
+          channel.write(ByteBuffer.wrap(lucenePayload));
+        }
+      };
+    }
+
+    @Override
+    public Deserializer getDeserializer()
+    {
+      return new Deserializer()
+      {
+        @Override
+        public void read(
+            ByteBuffer buffer,
+            ColumnBuilder builder,
+            BitmapSerdeFactory serdeFactory,
+            Provider<SharedDictionary.Mapping> dictionary
+        ) throws IOException
+        {
+          final ByteBuffer bufferToUse = ByteBufferSerializer.prepareForRead(buffer);
+          final int length = bufferToUse.remaining();
+
+          final int numRows = builder.getNumRows();
+          final BitmapFactory factory = serdeFactory.getBitmapFactory();
+
+          builder.setLuceneIndex(
+              new ColumnPartProvider<LuceneIndex>()
+              {
+                @Override
+                public int size()
+                {
+                  return numRows;
+                }
+
+                @Override
+                public long getSerializedSize()
+                {
+                  return length;
+                }
+
+                @Override
+                public LuceneIndex get()
+                {
+                  final DirectoryReader reader = Lucenes.deserializeWithRuntimeException(bufferToUse.asReadOnlyBuffer());
+
+                  return new LuceneIndex()
+                  {
+                    @Override
+                    public void close() throws IOException
+                    {
+                      reader.close();
+                    }
+
+                    @Override
+                    public ValueType type()
+                    {
+                      return ValueType.STRING;
+                    }
+
+                    @Override
+                    public ImmutableBitmap filterFor(Query query)
+                    {
+                      final IndexSearcher searcher = new IndexSearcher(reader);
+                      try {
+                        TopDocs searched = searcher.search(query, numRows);
+                        if (searched.totalHits == 0) {
+                          return factory.makeEmptyImmutableBitmap();
+                        }
+                        MutableBitmap bitmap = factory.makeEmptyMutableBitmap();
+                        for (ScoreDoc scoreDoc : searched.scoreDocs) {
+                          bitmap.add(scoreDoc.doc);
+                        }
+                        return factory.makeImmutableBitmap(bitmap);
+                      }
+                      catch (Exception e) {
+                        throw Throwables.propagate(e);
+                      }
+                    }
+
+                    @Override
+                    public int rows()
+                    {
+                      return numRows;
+                    }
+                  };
+                }
+              }
+          );
+        }
+      };
+    }
   }
 }
