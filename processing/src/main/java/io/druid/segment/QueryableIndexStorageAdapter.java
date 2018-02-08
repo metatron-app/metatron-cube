@@ -273,9 +273,9 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
 
     final Offset offset;
     if (baseBitmap == null) {
-      offset = new NoFilterOffset(0, index.getNumRows(), descending);
+      offset = new NoFilterOffset(0, context.getNumRows(), descending);
     } else {
-      LOG.info("%s : %,d / %,d", filter, baseBitmap.size(), index.getNumRows());
+      LOG.info("%s : %,d / %,d", bitmapFilter, baseBitmap.size(), context.getNumRows());
       offset = new BitmapOffset(bitmapFactory, baseBitmap, descending);
     }
     context.setBaseBitmap(baseBitmap);  // this can be used for value/predicate filters
@@ -345,8 +345,6 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
 
     public Sequence<Cursor> build()
     {
-      final Offset baseOffset = offset.clone();
-
       final Map<String, DictionaryEncodedColumn> dictionaryColumnCache = Maps.newHashMap();
       final Map<String, GenericColumn> genericColumnCache = Maps.newHashMap();
       final Map<String, ComplexColumn> complexColumnCache = Maps.newHashMap();
@@ -374,28 +372,28 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
                   );
 
                   if (descending) {
-                    for (; baseOffset.withinBounds(); baseOffset.increment()) {
-                      if (timestamps.getLongSingleValueRow(baseOffset.getOffset()) < timeEnd) {
+                    for (; offset.withinBounds(); offset.increment()) {
+                      if (timestamps.getLongSingleValueRow(offset.getOffset()) < timeEnd) {
                         break;
                       }
                     }
                   } else {
-                    for (; baseOffset.withinBounds(); baseOffset.increment()) {
-                      if (timestamps.getLongSingleValueRow(baseOffset.getOffset()) >= timeStart) {
+                    for (; offset.withinBounds(); offset.increment()) {
+                      if (timestamps.getLongSingleValueRow(offset.getOffset()) >= timeStart) {
                         break;
                       }
                     }
                   }
 
-                  final Offset offset = descending ?
+                  final Offset baseOffset = descending ?
                                         new DescendingTimestampCheckingOffset(
-                                            baseOffset,
+                                            offset,
                                             timestamps,
                                             timeStart,
                                             minDataTimestamp >= timeStart
                                         ) :
                                         new AscendingTimestampCheckingOffset(
-                                            baseOffset,
+                                            offset,
                                             timestamps,
                                             timeEnd,
                                             maxDataTimestamp < timeEnd
@@ -403,11 +401,11 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
 
                   return new Cursor.ExprSupport()
                   {
-                    private final Offset initOffset = offset.clone();
+                    private final Offset initOffset = baseOffset.clone();
                     final DateTime myBucket = gran.toDateTime(inputInterval.getStartMillis());
                     private final ValueMatcher filterMatcher =
                         filter == null ? BooleanValueMatcher.TRUE : filter.makeMatcher(this);
-                    private Offset cursorOffset = offset;
+                    private Offset cursorOffset = baseOffset;
 
                     {
                       if (cursorOffset.withinBounds()) {
