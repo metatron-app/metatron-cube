@@ -21,8 +21,6 @@ package io.druid.segment.serde;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.google.inject.Provider;
-import io.druid.segment.SharedDictionary;
 import io.druid.segment.column.ColumnBuilder;
 import io.druid.segment.data.BitmapSerdeFactory;
 import io.druid.segment.data.GenericIndexed;
@@ -135,8 +133,7 @@ public class ComplexColumnPartSerde implements ColumnPartSerde
       public void read(
           ByteBuffer buffer,
           ColumnBuilder builder,
-          BitmapSerdeFactory serdeFactory,
-          Provider<SharedDictionary.Mapping> dictionary
+          BitmapSerdeFactory serdeFactory
       )
       {
         if (serde != null) {

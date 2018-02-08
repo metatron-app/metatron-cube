@@ -25,7 +25,6 @@ import com.google.common.base.Strings;
 import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.primitives.Ints;
-import com.google.inject.Provider;
 import com.metamx.collections.bitmap.BitmapFactory;
 import com.metamx.collections.bitmap.ImmutableBitmap;
 import com.metamx.collections.bitmap.MutableBitmap;
@@ -33,7 +32,6 @@ import io.druid.data.ValueDesc;
 import io.druid.data.ValueType;
 import io.druid.segment.ColumnPartProvider;
 import io.druid.segment.GenericColumnSerializer;
-import io.druid.segment.SharedDictionary;
 import io.druid.segment.column.ColumnBuilder;
 import io.druid.segment.column.ColumnDescriptor.Builder;
 import io.druid.segment.column.LuceneIndex;
@@ -230,8 +228,7 @@ public class ComplexColumnSerializer implements GenericColumnSerializer, ColumnP
         public void read(
             ByteBuffer buffer,
             ColumnBuilder builder,
-            BitmapSerdeFactory serdeFactory,
-            Provider<SharedDictionary.Mapping> dictionary
+            BitmapSerdeFactory serdeFactory
         ) throws IOException
         {
           final ByteBuffer bufferToUse = ByteBufferSerializer.prepareForRead(buffer);

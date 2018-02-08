@@ -19,7 +19,6 @@
 
 package io.druid.query.groupby;
 
-import com.google.common.util.concurrent.Futures;
 import com.metamx.common.ISE;
 import com.metamx.common.Pair;
 import com.metamx.common.guava.Accumulator;
@@ -36,10 +35,8 @@ import io.druid.segment.incremental.OnheapIncrementalIndex;
 
 import java.nio.ByteBuffer;
 import java.util.List;
-import java.util.Map;
 import java.util.Queue;
 import java.util.concurrent.ConcurrentLinkedQueue;
-import java.util.concurrent.Future;
 
 public class GroupByQueryHelper
 {
@@ -51,15 +48,14 @@ public class GroupByQueryHelper
       final StupidPool<ByteBuffer> bufferPool,
       final int maxResult,
       final int parallelism,
-      final boolean compact,
-      final Future<Object> optimizer
+      final boolean compact
   )
   {
     int maxRowCount = Math.min(query.getContextValue(CTX_KEY_MAX_RESULTS, maxResult), maxResult);
     if (query.getContextBoolean(Query.GBY_MERGE_SIMPLE, true)) {
       return new SimpleMergeIndex(query.getDimensions(), query.getAggregatorSpecs(), maxRowCount, parallelism, compact);
     } else {
-      return createIncrementalIndex(query, bufferPool, false, maxRowCount, optimizer);
+      return createIncrementalIndex(query, bufferPool, false, maxRowCount);
     }
   }
 
@@ -67,8 +63,7 @@ public class GroupByQueryHelper
       final GroupByQuery query,
       final StupidPool<ByteBuffer> bufferPool,
       final boolean sortFacts,
-      final int maxRowCount,
-      final Future<Object> optimizer
+      final int maxRowCount
   )
   {
     final List<String> dimensions = DimensionSpecs.toOutputNames(query.getDimensions());
@@ -89,12 +84,7 @@ public class GroupByQueryHelper
     } else {
       index = new OnheapIncrementalIndex(schema, false, true, sortFacts, maxRowCount);
     }
-
-    if (optimizer != null) {
-      index.initialize((Map<String, String[]>) Futures.getUnchecked(optimizer));
-    } else {
-      index.initialize(dimensions);
-    }
+    index.initialize(dimensions);
     return index;
   }
 

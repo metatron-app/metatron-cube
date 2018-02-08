@@ -26,7 +26,6 @@ import com.google.common.base.Predicates;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
 import com.google.common.collect.Ordering;
 import com.google.inject.Inject;
 import com.metamx.common.Pair;
@@ -61,7 +60,6 @@ import io.druid.query.spec.SpecificSegmentQueryRunner;
 import io.druid.query.spec.SpecificSegmentSpec;
 import io.druid.segment.ReferenceCountingSegment;
 import io.druid.segment.Segment;
-import io.druid.segment.SharedDictionary;
 import io.druid.segment.loading.SegmentLoader;
 import io.druid.segment.loading.SegmentLoadingException;
 import io.druid.timeline.DataSegment;
@@ -98,7 +96,6 @@ public class ServerManager implements QuerySegmentWalker
   private final Cache cache;
   private final ObjectMapper objectMapper;
   private final CacheConfig cacheConfig;
-  private final Map<String, SharedDictionary> dictionaryMap = Maps.newHashMap();
 
   @Inject
   public ServerManager(
@@ -156,11 +153,10 @@ public class ServerManager implements QuerySegmentWalker
   public boolean loadSegment(final DataSegment segment) throws SegmentLoadingException
   {
     final String dataSource = segment.getDataSource();
-    final SharedDictionary dictionary = getDictionaryFor(dataSource);
 
     final Segment adapter;
     try {
-      adapter = segmentLoader.getSegment(segment, dictionary);
+      adapter = segmentLoader.getSegment(segment);
     }
     catch (SegmentLoadingException e) {
       try {
@@ -206,15 +202,6 @@ public class ServerManager implements QuerySegmentWalker
       }
       return true;
     }
-  }
-
-  private synchronized SharedDictionary getDictionaryFor(String dataSource)
-  {
-    SharedDictionary dictionary = dictionaryMap.get(dataSource);
-    if (dictionary == null) {
-      dictionaryMap.put(dataSource, dictionary = new SharedDictionary());
-    }
-    return dictionary;
   }
 
   public void dropSegment(final DataSegment segment) throws SegmentLoadingException

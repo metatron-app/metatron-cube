@@ -19,57 +19,29 @@
 
 package io.druid.query.groupby;
 
-import com.google.common.base.Function;
-import com.google.common.base.Strings;
 import com.google.common.base.Supplier;
-import com.google.common.collect.Iterables;
-import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
-import com.google.common.collect.Sets;
-import com.google.common.util.concurrent.Futures;
-import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.ListeningExecutorService;
 import com.google.common.util.concurrent.MoreExecutors;
-import com.google.common.util.concurrent.SettableFuture;
 import com.google.inject.Inject;
-import com.metamx.collections.bitmap.ImmutableBitmap;
 import com.metamx.common.ISE;
 import com.metamx.common.guava.Sequence;
-import com.metamx.common.logger.Logger;
 import io.druid.cache.BitmapCache;
 import io.druid.cache.Cache;
 import io.druid.collections.StupidPool;
 import io.druid.data.input.Row;
 import io.druid.guice.annotations.Global;
-import io.druid.query.AbstractPrioritizedCallable;
 import io.druid.query.GroupByMergedQueryRunner;
 import io.druid.query.Query;
 import io.druid.query.QueryRunner;
 import io.druid.query.QueryRunnerFactory;
 import io.druid.query.QueryToolChest;
 import io.druid.query.QueryWatcher;
-import io.druid.query.RowResolver;
-import io.druid.query.dimension.DefaultDimensionSpec;
-import io.druid.query.dimension.DimensionSpec;
-import io.druid.query.dimension.DimensionSpecs;
-import io.druid.query.filter.DimFilter;
-import io.druid.query.filter.Filter;
-import io.druid.segment.ColumnSelectorBitmapIndexSelector;
-import io.druid.segment.QueryableIndex;
 import io.druid.segment.Segment;
 import io.druid.segment.StorageAdapter;
-import io.druid.segment.VirtualColumns;
-import io.druid.segment.column.Column;
-import io.druid.segment.data.DictionaryLoader;
-import io.druid.segment.data.GenericIndexed;
-import io.druid.segment.filter.Filters;
-import org.roaringbitmap.IntIterator;
 
 import java.nio.ByteBuffer;
-import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
 
@@ -77,10 +49,6 @@ import java.util.concurrent.Future;
  */
 public class GroupByQueryRunnerFactory implements QueryRunnerFactory<Row, GroupByQuery>
 {
-  private static final Logger log = new Logger(GroupByQueryRunnerFactory.class);
-
-  private static final int PRE_OPTIMIZE_THRESHOLD = 4;
-
   private final GroupByQueryEngine engine;
   private final QueryWatcher queryWatcher;
   private final Supplier<GroupByQueryConfig> config;
@@ -123,172 +91,7 @@ public class GroupByQueryRunnerFactory implements QueryRunnerFactory<Row, GroupB
   @Override
   public Future<Object> preFactoring(GroupByQuery query, List<Segment> segments, ExecutorService exec)
   {
-    if (segments.size() < PRE_OPTIMIZE_THRESHOLD) {
-      return null;
-    }
-    if (!DefaultDimensionSpec.isAllDefault(query.getDimensions())) {
-      return null;
-    }
-    if (query.getContextBoolean(Query.GBY_MERGE_SIMPLE, true)) {
-      return null;
-    }
-    final DimFilter dimFilter = query.getDimFilter();
-    final VirtualColumns vcs = VirtualColumns.valueOf(query.getVirtualColumns());
-    for (Segment segment : segments) {
-      RowResolver resolver = RowResolver.of(segment.asQueryableIndex(false), vcs);
-      List<String> dimensions = Lists.transform(query.getDimensions(), DimensionSpecs.INPUT_NAME);
-      if (resolver == null || !resolver.supportsExactBitmap(dimensions, dimFilter)) {
-        return null;
-      }
-    }
-
-    final long start = System.currentTimeMillis();
-    log.info("Initializing group-by optimizer with target %d segments", segments.size());
-
-    Filter filter = null;
-    String filterDim = null;
-    if (dimFilter != null) {
-      filter = Filters.toFilter(dimFilter);
-      Set<String> dependents = Filters.getDependents(dimFilter);
-      if (dependents.size() == 1) {
-        filterDim = Iterables.getOnlyElement(dependents);
-        log.info("Using filtered loader for dimension %s: %s", filterDim, dimFilter);
-      }
-    }
-
-    final Map<String, List<DictionaryLoader<String>>> columns = Maps.newLinkedHashMap();
-    for (Segment segment : segments) {
-      QueryableIndex index = segment.asQueryableIndex(true);
-      if (index == null) {
-        return null;
-      }
-      for (DimensionSpec dimension : query.getDimensions()) {
-        String dimensionName = dimension.getDimension();
-        List<DictionaryLoader<String>> dictionaries = columns.get(dimension.getOutputName());
-        if (dictionaries == null) {
-          columns.put(dimension.getOutputName(), dictionaries = Lists.newArrayList());
-        }
-        Column column = index.getColumn(dimensionName);
-        if (column == null || !column.getCapabilities().isDictionaryEncoded()) {
-          return null;
-        }
-        final GenericIndexed<String> dictionary = column.getDictionary();
-        if (dimensionName.equals(filterDim)) {
-          final ImmutableBitmap bitmap = filter.getValueBitmap(
-              new ColumnSelectorBitmapIndexSelector(index.getBitmapFactoryForDimensions(), dimensionName, column)
-          );
-          if (bitmap == null || bitmap.size() == dictionary.size()) {
-            dictionaries.add(dictionary);
-            continue;
-          }
-          log.debug(
-              "Applied filter on segment %s, reducing dictionary %d to %d",
-              segment.getIdentifier(),
-              dictionary.size(),
-              bitmap.size()
-          );
-          dictionaries.add(
-              new DictionaryLoader<String>() {
-
-                @Override
-                public int size()
-                {
-                  return bitmap.size();
-                }
-
-                @Override
-                public void collect(Collector<String> collector)
-                {
-                  final IntIterator iterator = bitmap.iterator();
-                  while (iterator.hasNext()) {
-                    final int id = iterator.next();
-                    collector.collect(id, dictionary.get(id));
-                  }
-                }
-              }
-          );
-        } else {
-          dictionaries.add(dictionary);
-        }
-      }
-    }
-
-    final ListeningExecutorService executor = MoreExecutors.listeningDecorator(exec);
-
-    final Map<String, Future<String[]>> optimizer = Maps.newLinkedHashMap();
-    for (Map.Entry<String, List<DictionaryLoader<String>>> entry : columns.entrySet()) {
-      final String outputName = entry.getKey();
-      final Set<String> merged = Sets.newConcurrentHashSet();
-      final List<ListenableFuture<Integer>> elements = Lists.newArrayList();
-      final DictionaryLoader.Collector<String> collector = new DictionaryLoader.Collector<String>()
-      {
-        @Override
-        public void collect(int id, String value)
-        {
-          merged.add(Strings.nullToEmpty(value));
-        }
-      };
-      for (final DictionaryLoader<String> dictionary : entry.getValue()) {
-        elements.add(
-            executor.submit(
-                new AbstractPrioritizedCallable<Integer>(0)
-                {
-                  @Override
-                  public Integer call()
-                  {
-                    dictionary.collect(collector);
-                    return dictionary.size();
-                  }
-                }
-            )
-        );
-      }
-      final SettableFuture<String[]> sorted = SettableFuture.create();
-      final ListenableFuture<List<Integer>> future = Futures.allAsList(elements);
-      future.addListener(
-          new Runnable()
-          {
-            @Override
-            public void run()
-            {
-              int counter = 0;
-              try {
-                for (Integer merging : Futures.getUnchecked(future)) {
-                  counter += merging;
-                }
-                // needs sorting for faster iteration (sorting in IncrementalIndex)
-                final String[] array = merged.toArray(new String[merged.size()]);
-                long sorting = System.currentTimeMillis();
-                Arrays.parallelSort(array);
-                sorted.set(array);
-                long current = System.currentTimeMillis();
-                log.info(
-                    "Merged %,d words into %,d dictionary in %,d msec (%,d msec for sorting)",
-                    counter, merged.size(), current - start, current - sorting
-                );
-              }
-              catch (Throwable t) {
-                sorted.setException(t); // propagate exception
-              }
-            }
-          },
-          MoreExecutors.sameThreadExecutor()
-      );
-      optimizer.put(outputName, sorted);
-    }
-
-    return Futures.<Object>immediateFuture(
-        Maps.transformValues(
-            optimizer, new Function<Future<String[]>, String[]>()
-            {
-              @Override
-              public String[] apply(Future<String[]> input)
-              {
-                return Futures.getUnchecked(input);
-              }
-            }
-        )
-    );
+    return null;
   }
 
   @Override
@@ -307,7 +110,7 @@ public class GroupByQueryRunnerFactory implements QueryRunnerFactory<Row, GroupB
     // mergeRunners should take ListeningExecutorService at some point
     final ListeningExecutorService queryExecutor = MoreExecutors.listeningDecorator(exec);
     return new GroupByMergedQueryRunner<Row>(
-        queryExecutor, config, queryWatcher, computationBufferPool, queryRunners, optimizer
+        queryExecutor, config, queryWatcher, computationBufferPool, queryRunners
     );
   }
 

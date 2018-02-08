@@ -59,7 +59,6 @@ import io.druid.segment.IndexIO;
 import io.druid.segment.QueryableIndex;
 import io.druid.segment.ReferenceCountingSegment;
 import io.druid.segment.Segment;
-import io.druid.segment.SharedDictionary;
 import io.druid.segment.StorageAdapter;
 import io.druid.segment.loading.SegmentLoader;
 import io.druid.segment.loading.SegmentLoadingException;
@@ -115,7 +114,7 @@ public class ServerManagerTest
           }
 
           @Override
-          public Segment getSegment(final DataSegment segment, SharedDictionary dictionary)
+          public Segment getSegment(final DataSegment segment)
           {
             return new SegmentForTesting(
                 MapUtils.getString(segment.getLoadSpec(), "version"),

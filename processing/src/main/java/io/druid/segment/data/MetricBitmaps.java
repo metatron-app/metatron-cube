@@ -30,13 +30,11 @@ import com.google.common.primitives.Doubles;
 import com.google.common.primitives.Floats;
 import com.google.common.primitives.Ints;
 import com.google.common.primitives.Longs;
-import com.google.inject.Provider;
 import com.metamx.collections.bitmap.BitmapFactory;
 import com.metamx.collections.bitmap.ImmutableBitmap;
 import io.druid.common.utils.Ranges;
 import io.druid.data.ValueType;
 import io.druid.segment.ColumnPartProviders;
-import io.druid.segment.SharedDictionary;
 import io.druid.segment.column.ColumnBuilder;
 import io.druid.segment.column.MetricBitmap;
 import io.druid.segment.serde.ColumnPartSerde;
@@ -104,8 +102,7 @@ public abstract class MetricBitmaps<T extends Comparable> implements MetricBitma
         public void read(
             ByteBuffer buffer,
             ColumnBuilder builder,
-            BitmapSerdeFactory serdeFactory,
-            Provider<SharedDictionary.Mapping> dictionary
+            BitmapSerdeFactory serdeFactory
         ) throws IOException
         {
           builder.setMetricBitmap(

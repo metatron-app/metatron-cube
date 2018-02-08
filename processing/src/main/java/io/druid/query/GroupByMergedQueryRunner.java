@@ -54,7 +54,6 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
@@ -68,15 +67,13 @@ public class GroupByMergedQueryRunner<T> implements QueryRunner<T>
   private final Supplier<GroupByQueryConfig> configSupplier;
   private final QueryWatcher queryWatcher;
   private final StupidPool<ByteBuffer> bufferPool;
-  private final Future<Object> optimizer;
 
   public GroupByMergedQueryRunner(
       ExecutorService exec,
       Supplier<GroupByQueryConfig> configSupplier,
       QueryWatcher queryWatcher,
       StupidPool<ByteBuffer> bufferPool,
-      Iterable<QueryRunner<T>> queryables,
-      Future<Object> optimizer
+      Iterable<QueryRunner<T>> queryables
   )
   {
     this.exec = exec;
@@ -84,7 +81,6 @@ public class GroupByMergedQueryRunner<T> implements QueryRunner<T>
     this.queryables = Lists.newArrayList(Iterables.filter(queryables, Predicates.notNull()));
     this.configSupplier = configSupplier;
     this.bufferPool = bufferPool;
-    this.optimizer = optimizer;
   }
 
   @Override
@@ -110,7 +106,7 @@ public class GroupByMergedQueryRunner<T> implements QueryRunner<T>
       compact = false;  // direct call to historical
     }
     final MergeIndex incrementalIndex = GroupByQueryHelper.createMergeIndex(
-        query, bufferPool, maxRowCount, parallelism, compact, optimizer
+        query, bufferPool, maxRowCount, parallelism, compact
     );
 
     final Pair<Queue, Accumulator<Queue, T>> bySegmentAccumulatorPair = GroupByQueryHelper.createBySegmentAccumulatorPair();

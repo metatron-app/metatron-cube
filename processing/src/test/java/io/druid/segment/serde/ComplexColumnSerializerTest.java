@@ -105,7 +105,7 @@ public class ComplexColumnSerializerTest
     ByteBuffer payload = ByteBuffer.wrap(bout.toByteArray());
     Assert.assertEquals(length, payload.remaining());
 
-    Column column = descriptor.read(payload, new RoaringBitmapSerdeFactory(), null);
+    Column column = descriptor.read(payload, new RoaringBitmapSerdeFactory());
     LuceneIndex luceneIndex = column.getLuceneIndex();
 
     Assert.assertNotNull(luceneIndex);

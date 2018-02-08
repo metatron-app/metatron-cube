@@ -20,7 +20,6 @@
 package io.druid.segment.loading;
 
 import io.druid.segment.QueryableIndex;
-import io.druid.segment.SharedDictionary;
 
 import java.io.File;
 
@@ -28,5 +27,5 @@ import java.io.File;
  */
 public interface QueryableIndexFactory
 {
-  QueryableIndex factorize(File parentDir, SharedDictionary dictionary) throws SegmentLoadingException;
+  QueryableIndex factorize(File parentDir) throws SegmentLoadingException;
 }

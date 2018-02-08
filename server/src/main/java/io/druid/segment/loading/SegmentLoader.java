@@ -20,7 +20,6 @@
 package io.druid.segment.loading;
 
 import io.druid.segment.Segment;
-import io.druid.segment.SharedDictionary;
 import io.druid.timeline.DataSegment;
 
 import java.io.File;
@@ -30,7 +29,7 @@ import java.io.File;
 public interface SegmentLoader
 {
   public boolean isSegmentLoaded(DataSegment segment) throws SegmentLoadingException;
-  public Segment getSegment(DataSegment segment, SharedDictionary dictionary) throws SegmentLoadingException;
+  public Segment getSegment(DataSegment segment) throws SegmentLoadingException;
   public File getSegmentFiles(DataSegment segment) throws SegmentLoadingException;
   public void cleanup(DataSegment segment) throws SegmentLoadingException;
 }

@@ -19,16 +19,13 @@
 
 package io.druid.segment.data;
 
-import com.google.common.base.Preconditions;
 import com.google.common.primitives.Ints;
 import com.metamx.common.IAE;
 import com.metamx.common.guava.CloseQuietly;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.common.utils.StringUtils;
-import io.druid.segment.SharedDictionary;
 import io.druid.segment.serde.ColumnPartSerde;
 
-import javax.inject.Provider;
 import java.io.ByteArrayOutputStream;
 import java.io.Closeable;
 import java.io.IOException;
@@ -54,8 +51,6 @@ import java.util.Map;
 public class GenericIndexed<T> implements Indexed<T>, DictionaryLoader<T>, ColumnPartSerde.Serializer
 {
   private static final byte version = 0x1;
-
-  private static final int CACHE_THRESHOLD = 131072;
 
   public static <T> GenericIndexed<T> fromArray(T[] objects, ObjectStrategy<T> strategy)
   {
@@ -403,16 +398,10 @@ public class GenericIndexed<T> implements Indexed<T>, DictionaryLoader<T>, Colum
     };
   }
 
-  public static <T> GenericIndexed<T> read(ByteBuffer buffer, ObjectStrategy<T> strategy)
-  {
-    return read(buffer, strategy, null);
-  }
-
   @SuppressWarnings("unchecked")
   public static <T> GenericIndexed<T> read(
       ByteBuffer buffer,
-      ObjectStrategy<T> strategy,
-      Provider<SharedDictionary.Mapping> dictionary
+      ObjectStrategy<T> strategy
   )
   {
     byte versionFromBuffer = buffer.get();
@@ -423,16 +412,6 @@ public class GenericIndexed<T> implements Indexed<T>, DictionaryLoader<T>, Colum
       ByteBuffer bufferToUse = buffer.asReadOnlyBuffer();
       bufferToUse.limit(bufferToUse.position() + size);
       buffer.position(bufferToUse.limit());
-
-      int numRows = bufferToUse.getInt(bufferToUse.position());
-      if (dictionary != null && numRows < CACHE_THRESHOLD) {
-        return new GenericIndexed.Cached<T>(
-            bufferToUse,
-            strategy,
-            dictionary.get(),
-            allowReverseLookup
-        );
-      }
       return new GenericIndexed<T>(
           bufferToUse,
           strategy,
@@ -502,87 +481,4 @@ public class GenericIndexed<T> implements Indexed<T>, DictionaryLoader<T>, Colum
       return GuavaUtils.nullFirstNatural().compare(o1, o2);
     }
   };
-
-  static final class Cached<T> extends GenericIndexed<T>
-  {
-    private final SharedDictionary.Mapping<T> dictionary;
-    private final int[] cachedValues;
-
-    @SuppressWarnings("unchecked")
-    Cached(
-        ByteBuffer buffer,
-        ObjectStrategy<T> strategy,
-        SharedDictionary.Mapping<T> dictionary,
-        boolean allowReverseLookup
-    )
-    {
-      super(buffer, strategy, allowReverseLookup);
-      this.dictionary = dictionary;
-      this.cachedValues = new int[size()];
-      Arrays.fill(cachedValues, -1);
-    }
-
-    Cached(
-        ByteBuffer buffer,
-        ObjectStrategy<T> strategy,
-        boolean allowReverseLookup,
-        int size,
-        int indexOffset,
-        int valuesOffset,
-        BufferIndexed bufferIndexed,
-        SharedDictionary.Mapping<T> dictionary,
-        int[] cachedValues
-    )
-    {
-      super(buffer, strategy, allowReverseLookup, size, indexOffset, valuesOffset, bufferIndexed);
-      this.dictionary = dictionary;
-      this.cachedValues = cachedValues;
-    }
-
-    @Override
-    public T get(int index)
-    {
-      int x = cachedValues[index];
-      if (x >= 0) {
-        return dictionary.getValue(x);
-      }
-      T value = super.get(index);
-      cachedValues[index] = dictionary.getId(value);
-      return value;
-    }
-
-    @Override
-    public GenericIndexed<T> asSingleThreaded()
-    {
-      final ByteBuffer copyBuffer = theBuffer.asReadOnlyBuffer();
-      BufferIndexed bufferIndexed = new BufferIndexed()
-      {
-        @Override
-        protected ByteBuffer reader()
-        {
-          return copyBuffer;
-        }
-      };
-      return new Cached<T>(
-          copyBuffer,
-          strategy,
-          allowReverseLookup,
-          size,
-          indexOffset,
-          valuesOffset,
-          bufferIndexed,
-          dictionary,
-          cachedValues
-      );
-    }
-
-    @Override
-    public void collect(Collector<T> collector)
-    {
-      Preconditions.checkArgument(cachedValues.length == size());
-      for (int i = 0; i < size; i++) {
-        collector.collect(i, get(i));
-      }
-    }
-  }
 }
