@@ -32,6 +32,7 @@ import io.druid.data.input.MapBasedRow;
 import io.druid.data.input.Row;
 import io.druid.math.expr.Evals;
 import io.druid.math.expr.Expr;
+import io.druid.math.expr.ExprType;
 import io.druid.query.QueryCacheHelper;
 import io.druid.query.filter.DimFilterCacheHelper;
 import io.druid.query.groupby.orderby.WindowingSpec.PartitionEvaluator;
@@ -57,7 +58,8 @@ public class PivotSpec implements WindowingSpec.PartitionEvaluatorFactory
   private final List<PivotColumnSpec> pivotColumns;
   private final List<String> valueColumns;
   private final String separator;
-  private final List<String> expressions;
+  private final List<String> rowExpressions;
+  private final List<PartitionExpression> partitionExpressions;
   private final boolean tabularFormat;
 
   @JsonCreator
@@ -65,22 +67,31 @@ public class PivotSpec implements WindowingSpec.PartitionEvaluatorFactory
       @JsonProperty("pivotColumns") List<PivotColumnSpec> pivotColumns,
       @JsonProperty("valueColumns") List<String> valueColumns,
       @JsonProperty("separator") String separator,
-      @JsonProperty("expressions") List<String> expressions,
+      @JsonProperty("rowExpressions") List<String> rowExpressions,
+      @JsonProperty("partitionExpressions") List<PartitionExpression> partitionExpressions,
       @JsonProperty("tabularFormat") boolean tabularFormat
   )
   {
     this.pivotColumns = Preconditions.checkNotNull(pivotColumns);
     this.valueColumns = Preconditions.checkNotNull(valueColumns);
     this.separator = separator == null ? "-" : separator;
-    this.expressions = expressions == null ? ImmutableList.<String>of() : expressions;
+    this.rowExpressions = rowExpressions == null ? ImmutableList.<String>of() : rowExpressions;
+    this.partitionExpressions = partitionExpressions == null
+                                ? ImmutableList.<PartitionExpression>of()
+                                : partitionExpressions;
     this.tabularFormat = tabularFormat;
     Preconditions.checkArgument(!pivotColumns.isEmpty(), "'columns' should not be null or empty");
     Preconditions.checkArgument(!valueColumns.isEmpty(), "'values' should not be null or empty");
   }
 
+  public PivotSpec(List<PivotColumnSpec> pivotColumns, List<String> valueColumns, boolean tabularFormat)
+  {
+    this(pivotColumns, valueColumns, null, null, null, tabularFormat);
+  }
+
   public PivotSpec(List<PivotColumnSpec> pivotColumns, List<String> valueColumns)
   {
-    this(pivotColumns, valueColumns, null, null, false);
+    this(pivotColumns, valueColumns, null, null, null, false);
   }
 
   @JsonProperty
@@ -96,9 +107,15 @@ public class PivotSpec implements WindowingSpec.PartitionEvaluatorFactory
   }
 
   @JsonProperty
-  public List<String> getExpressions()
+  public List<String> getRowExpressions()
   {
-    return expressions;
+    return rowExpressions;
+  }
+
+  @JsonProperty
+  public List<PartitionExpression> getPartitionExpressions()
+  {
+    return partitionExpressions;
   }
 
   @JsonProperty
@@ -112,14 +129,15 @@ public class PivotSpec implements WindowingSpec.PartitionEvaluatorFactory
     byte[] columnsBytes = QueryCacheHelper.computeAggregatorBytes(pivotColumns);
     byte[] valuesBytes = QueryCacheHelper.computeCacheBytes(valueColumns);
     byte[] separatorBytes = QueryCacheHelper.computeCacheBytes(separator);
-    byte[] expressionsBytes = QueryCacheHelper.computeCacheBytes(expressions);
+    byte[] rowExpressionsBytes = QueryCacheHelper.computeCacheBytes(rowExpressions);
+    byte[] partitionExpressionsBytes = QueryCacheHelper.computeAggregatorBytes(partitionExpressions);
 
-    int length = 3
+    int length = 5
                  + columnsBytes.length
                  + valuesBytes.length
                  + separatorBytes.length
-                 + expressionsBytes.length
-                 + 1;
+                 + rowExpressionsBytes.length
+                 + partitionExpressionsBytes.length;
 
     return ByteBuffer.allocate(length)
                      .put(columnsBytes)
@@ -128,7 +146,9 @@ public class PivotSpec implements WindowingSpec.PartitionEvaluatorFactory
                      .put(DimFilterCacheHelper.STRING_SEPARATOR)
                      .put(separatorBytes)
                      .put(DimFilterCacheHelper.STRING_SEPARATOR)
-                     .put(expressionsBytes)
+                     .put(rowExpressionsBytes)
+                     .put(DimFilterCacheHelper.STRING_SEPARATOR)
+                     .put(partitionExpressionsBytes)
                      .put(tabularFormat ? (byte) 0x01 : 0)
                      .array();
   }
@@ -152,7 +172,10 @@ public class PivotSpec implements WindowingSpec.PartitionEvaluatorFactory
     if (!Objects.equals(separator, that.separator)) {
       return false;
     }
-    if (!Objects.equals(expressions, that.expressions)) {
+    if (!Objects.equals(rowExpressions, that.rowExpressions)) {
+      return false;
+    }
+    if (!Objects.equals(partitionExpressions, that.partitionExpressions)) {
       return false;
     }
     return tabularFormat == that.tabularFormat;
@@ -161,7 +184,7 @@ public class PivotSpec implements WindowingSpec.PartitionEvaluatorFactory
   @Override
   public int hashCode()
   {
-    return Objects.hash(pivotColumns, valueColumns, separator, expressions, tabularFormat);
+    return Objects.hash(pivotColumns, valueColumns, separator, rowExpressions, partitionExpressions, tabularFormat);
   }
 
   @Override
@@ -171,19 +194,16 @@ public class PivotSpec implements WindowingSpec.PartitionEvaluatorFactory
            "pivotColumns=" + pivotColumns +
            ", valueColumns=" + valueColumns +
            ", separator=" + separator +
-           ", expressions=" + expressions +
+           ", rowExpressions=" + rowExpressions +
+           ", partitionExpressions=" + partitionExpressions +
            ", tabularFormat=" + tabularFormat +
            '}';
   }
 
-  public PivotSpec withExpression(String... expressions)
-  {
-    return new PivotSpec(pivotColumns, valueColumns, separator, Arrays.asList(expressions), tabularFormat);
-  }
-
   @Override
-  public PartitionEvaluator create(final List<String> partitionColumns, final List<OrderByColumnSpec> sortingColumns)
+  public PartitionEvaluator create(final WindowContext context)
   {
+    final List<String> partitionColumns = context.partitionColumns();
     final String[] columns = OrderByColumnSpec.getColumnsAsArray(pivotColumns);
     final StringComparator[] comparators = OrderByColumnSpec.getComparatorAsArray(pivotColumns);
     final Set[] whitelist = PivotColumnSpec.getValuesAsArray(pivotColumns);
@@ -204,9 +224,18 @@ public class PivotSpec implements WindowingSpec.PartitionEvaluatorFactory
         return 0;
       }
     };
-    final List<Pair<String, Expr>> assigns = Lists.newArrayList();
-    for (String expression : expressions) {
-      assigns.add(Evals.splitAssign(expression));
+    final List<Pair<String, Expr>> rowExprs = Lists.newArrayList();
+    for (String expression : rowExpressions) {
+      rowExprs.add(Evals.splitAssign(expression));
+    }
+    final List<WindowContext.Evaluator> pivotExprs = Lists.newArrayList();
+    for (PartitionExpression expression : partitionExpressions) {
+      pivotExprs.add(
+          WindowContext.Evaluator.of(
+              expression.getCondition(),
+              Evals.splitAssign(expression.getExpression())
+          )
+      );
     }
 
     final Set<StringArray> whole = Sets.newHashSet();
@@ -252,13 +281,16 @@ next:
           entries = IncrementalIndex.sortOn(mapping, comparator, false);
         }
         for (Map.Entry<StringArray, Object> entry : entries) {
-          event.put(StringUtils.concat(separator, entry.getKey().array()), entry.getValue());
-        }
-        if (!assigns.isEmpty()) {
-          Expr.NumericBinding binding = WindowingSpec.withMap(event);
-          for (Pair<String, Expr> assign : assigns) {
-            event.put(assign.lhs, assign.rhs.eval(binding).value());
+          String newKey = StringUtils.concat(separator, entry.getKey().array());
+          Object newValue = entry.getValue();
+          event.put(newKey, newValue);
+          if (newValue != null) {
+            context.addType(newKey, ExprType.typeOf(newValue.getClass()));
           }
+        }
+        Expr.NumericBinding binding = WindowingSpec.withMap(event);
+        for (Pair<String, Expr> assign : rowExprs) {
+          event.put(assign.lhs, assign.rhs.eval(binding).value());
         }
         if (tabularFormat) {
           whole.addAll(mapping.keySet());
@@ -267,8 +299,9 @@ next:
       }
 
       @Override
-      public List<Row> finalize(List<Row> rows)
+      public List<Row> finalize(List<Row> partition)
       {
+        WindowContext current = context.on(null, null).with(partition);
         if (tabularFormat) {
           StringArray[] keys = whole.toArray(new StringArray[whole.size()]);
           Arrays.parallelSort(keys, comparator);
@@ -276,8 +309,9 @@ next:
           for (int i = 0; i < sortedKeys.length; i++) {
             sortedKeys[i] = StringUtils.concat(separator, keys[i].array());
           }
-          for (int i = 0; i < rows.size(); i++) {
-            Row row = rows.get(i);
+          // rewrite with whole pivot columns
+          for (int i = 0; i < partition.size(); i++) {
+            Row row = partition.get(i);
             Map<String, Object> event = new LinkedHashMap<>();
             for (String partitionColumn : partitionColumns) {
               event.put(partitionColumn, row.getRaw(partitionColumn));
@@ -285,13 +319,16 @@ next:
             for (String sortedKey : sortedKeys) {
               event.put(sortedKey, row.getRaw(sortedKey));
             }
-            for (Pair<String, Expr> assign : assigns) {
+            for (Pair<String, Expr> assign : rowExprs) {
               event.put(assign.lhs, row.getRaw(assign.lhs));
             }
-            rows.set(i, new MapBasedRow(row.getTimestamp(), event));
+            partition.set(i, new MapBasedRow(row.getTimestamp(), event));
           }
+          current.evaluate(sortedKeys, pivotExprs);
+        } else {
+          current.evaluate(pivotExprs);
         }
-        return rows;
+        return partition;
       }
     };
   }

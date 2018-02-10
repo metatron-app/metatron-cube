@@ -231,9 +231,9 @@ public class FlattenSpec implements WindowingSpec.PartitionEvaluatorFactory
   }
 
   @Override
-  public PartitionEvaluator create(List<String> partitionColumns, List<OrderByColumnSpec> sortingColumns)
+  public PartitionEvaluator create(WindowContext context)
   {
-    return type.toEvaluator(partitionColumns, sortingColumns, this);
+    return type.toEvaluator(context, this);
   }
 
   private String[] getColumnsExcept(List<String> partitionColumns)
@@ -247,12 +247,9 @@ public class FlattenSpec implements WindowingSpec.PartitionEvaluatorFactory
   {
     EXPAND {
       @Override
-      public PartitionEvaluator toEvaluator(
-          final List<String> partitionColumns,
-          final List<OrderByColumnSpec> sortingColumns,
-          final FlattenSpec spec
-      )
+      public PartitionEvaluator toEvaluator(final WindowContext context, final FlattenSpec spec)
       {
+        final List<String> partitionColumns = context.partitionColumns();
         final String[] columns = spec.getColumnsExcept(partitionColumns);
         final boolean prefixed = spec.prefixColumns != null && !spec.prefixColumns.isEmpty();
         return new PartitionEvaluator()
@@ -291,12 +288,9 @@ public class FlattenSpec implements WindowingSpec.PartitionEvaluatorFactory
     },
     ARRAY {
       @Override
-      public PartitionEvaluator toEvaluator(
-          final List<String> partitionColumns,
-          final List<OrderByColumnSpec> sortingColumns,
-          final FlattenSpec spec
-      )
+      public PartitionEvaluator toEvaluator(final WindowContext context, final FlattenSpec spec)
       {
+        final List<String> partitionColumns = context.partitionColumns();
         final String[] columns = spec.getColumnsExcept(partitionColumns);
         final List<Pair<String, Expr>> assigns = Lists.newArrayList();
         for (String expression : spec.expressions) {
@@ -317,7 +311,6 @@ public class FlattenSpec implements WindowingSpec.PartitionEvaluatorFactory
         if (pivotRow && spec.prefixColumns != null && !spec.prefixColumns.isEmpty()) {
           return new PartitionEvaluator()
           {
-
             @Override
             @SuppressWarnings("unchecked")
             public List<Row> evaluate(Object[] partitionKey, List<Row> partition)
@@ -436,10 +429,6 @@ public class FlattenSpec implements WindowingSpec.PartitionEvaluatorFactory
       return name == null ? ARRAY : valueOf(name.toUpperCase());
     }
 
-    public abstract PartitionEvaluator toEvaluator(
-        List<String> partitionColumns,
-        List<OrderByColumnSpec> sortingColumns,
-        FlattenSpec spec
-    );
+    public abstract PartitionEvaluator toEvaluator(WindowContext context, FlattenSpec spec);
   }
 }

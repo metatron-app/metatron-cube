@@ -25,6 +25,7 @@ import com.google.common.collect.Maps;
 import com.google.common.collect.Ordering;
 import com.google.common.primitives.Longs;
 import io.druid.data.input.Row;
+import io.druid.math.expr.ExprType;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.PostAggregator;
 import io.druid.query.dimension.DimensionSpec;
@@ -46,16 +47,29 @@ public class WindowingProcessor implements Function<List<Row>, List<Row>>
   public WindowingProcessor(
       List<WindowingSpec> windowingSpecs,
       List<DimensionSpec> dimensionSpecs,
-      List<AggregatorFactory> factories,
+      List<AggregatorFactory> aggregators,
       List<PostAggregator> postAggregators
   )
   {
+    final Map<String, ExprType> expectedTypes = Maps.newHashMap();
+    for (DimensionSpec dimensionSpec : dimensionSpecs) {
+      expectedTypes.put(dimensionSpec.getOutputName(), ExprType.STRING);
+    }
+    for (AggregatorFactory aggregator : aggregators) {
+      expectedTypes.put(aggregator.getName(), ExprType.bestEffortOf(aggregator.getTypeName()));
+    }
+    //todo provide output type for post aggregator
+    for (PostAggregator postAggregator : postAggregators) {
+      expectedTypes.put(postAggregator.getName(), ExprType.DOUBLE);
+    }
+    WindowContext context = WindowContext.newInstance(expectedTypes);
+
     for (WindowingSpec windowingSpec : windowingSpecs) {
+      List<String> partitionColumns = windowingSpec.getPartitionColumns();
       List<OrderByColumnSpec> orderingSpecs = toPartitionKey(windowingSpec);
-      Ordering<Row> ordering = makeComparator(orderingSpecs, dimensionSpecs, factories, postAggregators, false);
-      String[] partColumns = windowingSpec.getPartitionColumns().toArray(new String[0]);
-      PartitionEvaluator evaluators = windowingSpec.toEvaluator(factories, postAggregators);
-      partitions.add(new PartitionDefinition(partColumns, orderingSpecs, ordering, evaluators));
+      Ordering<Row> ordering = makeComparator(orderingSpecs, dimensionSpecs, aggregators, postAggregators, false);
+      PartitionEvaluator evaluators = windowingSpec.toEvaluator(context.on(partitionColumns, orderingSpecs));
+      partitions.add(new PartitionDefinition(partitionColumns, orderingSpecs, ordering, evaluators));
     }
   }
 
@@ -114,18 +128,18 @@ public class WindowingProcessor implements Function<List<Row>, List<Row>>
     private Object[] prevPartKeys;
 
     public PartitionDefinition(
-        String[] partColumns,
+        List<String> partColumns,
         List<OrderByColumnSpec> orderingSpecs,
         Ordering<Row> ordering,
         PartitionEvaluator evaluator
     )
     {
-      this.partColumns = partColumns;
+      this.partColumns = partColumns.toArray(new String[partColumns.size()]);
       this.orderingSpecs = orderingSpecs;
       this.ordering = ordering;
       this.evaluator = evaluator;
-      this.currPartKeys = new Object[partColumns.length];
-      if (partColumns.length == 0) {
+      this.currPartKeys = new Object[partColumns.size()];
+      if (partColumns.isEmpty()) {
         prevPartKeys = new Object[0];
       }
     }

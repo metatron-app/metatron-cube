@@ -2061,10 +2061,15 @@ public interface BuiltinFunctions extends Function.Library
       if (window != null) {
         reset();
         for (Object object : context.iterator(window[0], window[1], fieldName)) {
-          invoke(object);
+          if (object != null) {
+            invoke(object);
+          }
         }
       } else {
-        invoke(context.get(fieldName));
+        Object current = context.get(fieldName);
+        if (current != null) {
+          invoke(current);
+        }
       }
       return current();
     }

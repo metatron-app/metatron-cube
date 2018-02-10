@@ -21,23 +21,14 @@ package io.druid.query.groupby.orderby;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.google.common.base.Function;
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import io.druid.common.Cacheable;
-import io.druid.data.Pair;
-import io.druid.data.input.MapBasedRow;
 import io.druid.data.input.Row;
 import io.druid.math.expr.Evals;
 import io.druid.math.expr.Expr;
-import io.druid.math.expr.ExprEval;
-import io.druid.math.expr.ExprType;
-import io.druid.math.expr.Parser;
 import io.druid.query.QueryCacheHelper;
-import io.druid.query.aggregation.AggregatorFactory;
-import io.druid.query.aggregation.PostAggregator;
 import io.druid.query.filter.DimFilterCacheHelper;
 
 import java.nio.ByteBuffer;
@@ -137,23 +128,11 @@ public class WindowingSpec implements Cacheable
     return pivotSpec;
   }
 
-  public PartitionEvaluator toEvaluator(
-      List<AggregatorFactory> factories,
-      List<PostAggregator> postAggregators
-  )
+  public PartitionEvaluator toEvaluator(final WindowContext context)
   {
-    final Map<String, ExprType> expectedTypes = Maps.newHashMap();
-    for (AggregatorFactory factory : factories) {
-      expectedTypes.put(factory.getName(), ExprType.bestEffortOf(factory.getTypeName()));
-    }
-    //todo provide output type for post aggregator
-    for (PostAggregator postAggregator : postAggregators) {
-      expectedTypes.put(postAggregator.getName(), ExprType.DOUBLE);
-    }
-
-    final List<Pair<String, Expr>> assigns = Lists.newArrayList();
+    final List<WindowContext.Evaluator> assigns = Lists.newArrayList();
     for (String expression : expressions) {
-      assigns.add(Evals.splitAssign(expression));
+      assigns.add(WindowContext.Evaluator.of(null, Evals.splitAssign(expression)));
     }
 
     PartitionEvaluator evaluator = assigns.isEmpty() ? new DummyPartitionEvaluator() : new PartitionEvaluator()
@@ -161,55 +140,17 @@ public class WindowingSpec implements Cacheable
       @Override
       public List<Row> evaluate(Object[] partitionKey, final List<Row> partition)
       {
-        WindowContext context = new WindowContext(partition, expectedTypes);
-        for (Pair<String, Expr> assign : assigns) {
-          final String[] split = assign.lhs.split(":");
-          final String output = split[0];
-          final int[] window = toEvalWindow(split, partition.size());
-          for (context.index = window[0]; context.index < window[1]; context.index++) {
-            ExprEval eval = assign.rhs.eval(context);
-            context.expectedTypes.put(output, eval.type());
-            Map<String, Object> event = ((MapBasedRow) partition.get(context.index)).getEvent();
-            event.put(output, eval.value());
-          }
-          Parser.reset(assign.rhs);
-        }
+        context.with(partition).evaluate(assigns);
         return partition;
       }
     };
     if (flattenSpec != null) {
-      evaluator = chain(evaluator, flattenSpec.create(partitionColumns, sortingColumns));
+      evaluator = chain(evaluator, flattenSpec.create(context));
     }
     if (pivotSpec != null) {
-      evaluator = chain(evaluator, pivotSpec.create(partitionColumns, sortingColumns));
+      evaluator = chain(evaluator, pivotSpec.create(context));
     }
     return evaluator;
-  }
-
-  private int[] toEvalWindow(final String[] split, final int limit)
-  {
-    if (split.length == 1) {
-      return new int[]{0, limit};
-    }
-    int index = Integer.valueOf(split[1]);
-    if (index < 0) {
-      index = limit + index;
-    }
-    int start = index;
-    if (start < 0 || start >= limit) {
-      throw new IllegalArgumentException("invalid window start " + start + "/" + limit);
-    }
-    int end = start + 1;
-    if (split.length > 2) {
-      end = start + Integer.valueOf(split[2]);
-    }
-    if (end < 0 || end > limit) {
-      throw new IllegalArgumentException("invalid window end " + end + "/" + limit);
-    }
-    if (start > end) {
-      throw new IllegalArgumentException("invalid window " + start + " ~ " + end);
-    }
-    return new int[]{start, end};
   }
 
   static Expr.NumericBinding withMap(final Map<String, ?> bindings)
@@ -347,16 +288,16 @@ public class WindowingSpec implements Cacheable
 
   public static interface PartitionEvaluatorFactory extends Cacheable
   {
-    PartitionEvaluator create(List<String> partitionColumns, List<OrderByColumnSpec> sortingColumns);
+    PartitionEvaluator create(WindowContext context);
   }
 
   public static abstract class PartitionEvaluator
   {
     public abstract List<Row> evaluate(Object[] partitionKey, List<Row> partition);
 
-    public List<Row> finalize(List<Row> rows)
+    public List<Row> finalize(List<Row> partition)
     {
-      return rows;
+      return partition;
     }
   }
 
@@ -383,95 +324,13 @@ public class WindowingSpec implements Cacheable
       }
 
       @Override
-      public List<Row> finalize(List<Row> rows)
+      public List<Row> finalize(List<Row> partition)
       {
         for (PartitionEvaluator evaluator : evaluators) {
-          rows = evaluator.finalize(rows);
+          partition = evaluator.finalize(partition);
         }
-        return rows;
+        return partition;
       }
     };
-  }
-
-  private static class WindowContext implements Expr.WindowContext
-  {
-    private final int length;
-    private final List<Row> partition;
-    private final Map<String, ExprType> expectedTypes;
-    private int index;
-
-    private WindowContext(List<Row> partition, Map<String, ExprType> expectedTypes)
-    {
-      this.length = partition.size();
-      this.partition = partition;
-      this.expectedTypes = expectedTypes;
-    }
-
-    @Override
-    public ExprType type(String name)
-    {
-      return expectedTypes.get(name);
-    }
-
-    @Override
-    public Object get(final int index, final String name)
-    {
-      return index >= 0 && index < length ? partition.get(index).getRaw(name) : null;
-    }
-
-    @Override
-    public Iterable<Object> iterator(final String name)
-    {
-      return Iterables.transform(partition, accessFunction(name));
-    }
-
-    @Override
-    public Iterable<Object> iterator(final int startRel, final int endRel, final String name)
-    {
-      List<Row> target;
-      if (startRel > endRel) {
-        target = partition.subList(Math.max(0, index + endRel), Math.min(length, index + startRel + 1));
-        target = Lists.reverse(target);
-      } else {
-        target = partition.subList(Math.max(0, index + startRel), Math.min(length, index + endRel + 1));
-      }
-      return Iterables.transform(target, accessFunction(name));
-    }
-
-    @Override
-    public Collection<String> names()
-    {
-      return null;
-    }
-
-    @Override
-    public Object get(final String name)
-    {
-      return partition.get(index).getRaw(name);
-    }
-
-    @Override
-    public int size()
-    {
-      return length;
-    }
-
-    @Override
-    public int index()
-    {
-      return index;
-    }
-
-    private Function<Row, Object> accessFunction(final String name)
-    {
-      return new Function<Row, Object>()
-      {
-        @Override
-        public Object apply(Row input)
-        {
-          return input.getRaw(name);
-        }
-      };
-    }
   }
 }
