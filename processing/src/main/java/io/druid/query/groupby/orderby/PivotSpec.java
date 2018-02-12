@@ -80,8 +80,6 @@ public class PivotSpec implements WindowingSpec.PartitionEvaluatorFactory
                                 ? ImmutableList.<PartitionExpression>of()
                                 : partitionExpressions;
     this.tabularFormat = tabularFormat;
-    Preconditions.checkArgument(!pivotColumns.isEmpty(), "'columns' should not be null or empty");
-    Preconditions.checkArgument(!valueColumns.isEmpty(), "'values' should not be null or empty");
   }
 
   public PivotSpec(List<PivotColumnSpec> pivotColumns, List<String> valueColumns, boolean tabularFormat)
@@ -203,6 +201,9 @@ public class PivotSpec implements WindowingSpec.PartitionEvaluatorFactory
   @Override
   public PartitionEvaluator create(final WindowContext context)
   {
+    if (pivotColumns.isEmpty()) {
+      return new WindowingSpec.DummyPartitionEvaluator();
+    }
     final List<String> partitionColumns = context.partitionColumns();
     final String[] columns = OrderByColumnSpec.getColumnsAsArray(pivotColumns);
     final StringComparator[] comparators = OrderByColumnSpec.getComparatorAsArray(pivotColumns);

@@ -301,7 +301,7 @@ public class WindowingSpec implements Cacheable
     }
   }
 
-  private static class DummyPartitionEvaluator extends PartitionEvaluator
+  public static class DummyPartitionEvaluator extends PartitionEvaluator
   {
     @Override
     public List<Row> evaluate(Object[] partitionKey, List<Row> partition)
