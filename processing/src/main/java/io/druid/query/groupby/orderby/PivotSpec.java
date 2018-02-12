@@ -55,12 +55,23 @@ import java.util.Set;
  */
 public class PivotSpec implements WindowingSpec.PartitionEvaluatorFactory
 {
+  public static PivotSpec of(List<PivotColumnSpec> pivotColumns, String... valueColumns)
+  {
+    return new PivotSpec(pivotColumns, Arrays.asList(valueColumns), null, null, null, false, false);
+  }
+
+  public static PivotSpec tabular(List<PivotColumnSpec> pivotColumns, String... valueColumns)
+  {
+    return new PivotSpec(pivotColumns, Arrays.asList(valueColumns), null, null, null, true, false);
+  }
+
   private final List<PivotColumnSpec> pivotColumns;
   private final List<String> valueColumns;
   private final String separator;
   private final List<String> rowExpressions;
   private final List<PartitionExpression> partitionExpressions;
   private final boolean tabularFormat;
+  private final boolean appendValueColumn;
 
   @JsonCreator
   public PivotSpec(
@@ -69,7 +80,8 @@ public class PivotSpec implements WindowingSpec.PartitionEvaluatorFactory
       @JsonProperty("separator") String separator,
       @JsonProperty("rowExpressions") List<String> rowExpressions,
       @JsonProperty("partitionExpressions") List<PartitionExpression> partitionExpressions,
-      @JsonProperty("tabularFormat") boolean tabularFormat
+      @JsonProperty("tabularFormat") boolean tabularFormat,
+      @JsonProperty("appendValueColumn") boolean appendValueColumn
   )
   {
     this.pivotColumns = Preconditions.checkNotNull(pivotColumns);
@@ -80,16 +92,51 @@ public class PivotSpec implements WindowingSpec.PartitionEvaluatorFactory
                                 ? ImmutableList.<PartitionExpression>of()
                                 : partitionExpressions;
     this.tabularFormat = tabularFormat;
+    this.appendValueColumn = valueColumns.size() >= 1 && appendValueColumn;
   }
 
-  public PivotSpec(List<PivotColumnSpec> pivotColumns, List<String> valueColumns, boolean tabularFormat)
+  public PivotSpec withSeparator(String separator)
   {
-    this(pivotColumns, valueColumns, null, null, null, tabularFormat);
+    return new PivotSpec(
+        pivotColumns,
+        valueColumns,
+        separator,
+        rowExpressions,
+        partitionExpressions,
+        tabularFormat,
+        appendValueColumn
+    );
   }
 
-  public PivotSpec(List<PivotColumnSpec> pivotColumns, List<String> valueColumns)
+  public PivotSpec withPartitionExpressions(PartitionExpression... partitionExpressions)
   {
-    this(pivotColumns, valueColumns, null, null, null, false);
+    return withPartitionExpressions(Arrays.asList(partitionExpressions));
+  }
+
+  public PivotSpec withPartitionExpressions(List<PartitionExpression> partitionExpressions)
+  {
+    return new PivotSpec(
+        pivotColumns,
+        valueColumns,
+        separator,
+        rowExpressions,
+        partitionExpressions,
+        tabularFormat,
+        appendValueColumn
+    );
+  }
+
+  public PivotSpec withAppendValueColumn(boolean appendValueColumn)
+  {
+    return new PivotSpec(
+        pivotColumns,
+        valueColumns,
+        separator,
+        rowExpressions,
+        partitionExpressions,
+        tabularFormat,
+        appendValueColumn
+    );
   }
 
   @JsonProperty
@@ -102,6 +149,12 @@ public class PivotSpec implements WindowingSpec.PartitionEvaluatorFactory
   public List<String> getValueColumns()
   {
     return valueColumns;
+  }
+
+  @JsonProperty
+  public String getSeparator()
+  {
+    return separator;
   }
 
   @JsonProperty
@@ -122,6 +175,12 @@ public class PivotSpec implements WindowingSpec.PartitionEvaluatorFactory
     return tabularFormat;
   }
 
+  @JsonProperty
+  public boolean isAppendValueColumn()
+  {
+    return appendValueColumn;
+  }
+
   public byte[] getCacheKey()
   {
     byte[] columnsBytes = QueryCacheHelper.computeAggregatorBytes(pivotColumns);
@@ -130,7 +189,7 @@ public class PivotSpec implements WindowingSpec.PartitionEvaluatorFactory
     byte[] rowExpressionsBytes = QueryCacheHelper.computeCacheBytes(rowExpressions);
     byte[] partitionExpressionsBytes = QueryCacheHelper.computeAggregatorBytes(partitionExpressions);
 
-    int length = 5
+    int length = 6
                  + columnsBytes.length
                  + valuesBytes.length
                  + separatorBytes.length
@@ -148,6 +207,7 @@ public class PivotSpec implements WindowingSpec.PartitionEvaluatorFactory
                      .put(DimFilterCacheHelper.STRING_SEPARATOR)
                      .put(partitionExpressionsBytes)
                      .put(tabularFormat ? (byte) 0x01 : 0)
+                     .put(appendValueColumn ? (byte) 0x01 : 0)
                      .array();
   }
 
@@ -176,13 +236,21 @@ public class PivotSpec implements WindowingSpec.PartitionEvaluatorFactory
     if (!Objects.equals(partitionExpressions, that.partitionExpressions)) {
       return false;
     }
-    return tabularFormat == that.tabularFormat;
+    return tabularFormat == that.tabularFormat && appendValueColumn == that.appendValueColumn;
   }
 
   @Override
   public int hashCode()
   {
-    return Objects.hash(pivotColumns, valueColumns, separator, rowExpressions, partitionExpressions, tabularFormat);
+    return Objects.hash(
+        pivotColumns,
+        valueColumns,
+        separator,
+        rowExpressions,
+        partitionExpressions,
+        tabularFormat,
+        appendValueColumn
+    );
   }
 
   @Override
@@ -195,6 +263,7 @@ public class PivotSpec implements WindowingSpec.PartitionEvaluatorFactory
            ", rowExpressions=" + rowExpressions +
            ", partitionExpressions=" + partitionExpressions +
            ", tabularFormat=" + tabularFormat +
+           ", appendValueColumn=" + appendValueColumn +
            '}';
   }
 
@@ -238,6 +307,7 @@ public class PivotSpec implements WindowingSpec.PartitionEvaluatorFactory
           )
       );
     }
+    final int keyLength = columns.length + (appendValueColumn ? 1 : 0);
 
     final Set<StringArray> whole = Sets.newHashSet();
     return new PartitionEvaluator()
@@ -251,25 +321,37 @@ public class PivotSpec implements WindowingSpec.PartitionEvaluatorFactory
 
 next:
         for (Row row : partition) {
-          String[] array = new String[columns.length];
-          for (int i = 0; i < array.length; i++) {
+          String[] array = new String[keyLength];
+          for (int i = 0; i < columns.length; i++) {
             array[i] = Objects.toString(row.getRaw(columns[i]), "");
             if (whitelist[i] != null && !whitelist[i].contains(array[i])) {
               continue next;
             }
           }
-          StringArray key = new StringArray(array);
-          Object value;
-          if (values.length == 1) {
-            value = row.getRaw(values[0]);
-          } else {
-            Object[] holder = new Object[values.length];
-            for (int x = 0; x < holder.length; x++) {
-              holder[x] = row.getRaw(values[x]);
+          if (appendValueColumn) {
+            for (int i = 0; i < values.length; i++) {
+              if (i > 0) {
+                array = Arrays.copyOf(array, array.length);
+              }
+              array[columns.length] = values[i];
+              StringArray key = new StringArray(array);
+              Object value = row.getRaw(values[i]);
+              Preconditions.checkArgument(mapping.put(key, value) == null, "duplicated.. " + key);
             }
-            value = holder;
+          } else {
+            StringArray key = new StringArray(array);
+            Object value;
+            if (values.length == 1) {
+              value = row.getRaw(values[0]);
+            } else {
+              Object[] holder = new Object[values.length];
+              for (int x = 0; x < holder.length; x++) {
+                holder[x] = row.getRaw(values[x]);
+              }
+              value = Arrays.asList(holder);
+            }
+            Preconditions.checkArgument(mapping.put(key, value) == null, "duplicated.. " + key);
           }
-          Preconditions.checkArgument(mapping.put(key, value) == null, "duplicated.. " + key);
         }
         Map<String, Object> event = Maps.newLinkedHashMap();
         for (int i = 0; i < partitionKey.length; i++) {

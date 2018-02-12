@@ -36,7 +36,7 @@ import java.util.Objects;
  */
 public class PartitionExpression implements Cacheable
 {
-  public static List<PartitionExpression> of(Object... values)
+  public static List<PartitionExpression> from(Object... values)
   {
     List<PartitionExpression> list = Lists.newArrayList();
     for (Object value : values) {

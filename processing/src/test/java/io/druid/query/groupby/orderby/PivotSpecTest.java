@@ -44,7 +44,7 @@ public class PivotSpecTest
         mapper.writeValueAsString(mapper.readValue(json0, PivotSpec.class)),
         PivotSpec.class
     );
-    PivotSpec expected0 = new PivotSpec(PivotColumnSpec.toSpec("col0"), Arrays.asList("col1"));
+    PivotSpec expected0 = PivotSpec.of(PivotColumnSpec.toSpec("col0"), "col1");
     Assert.assertEquals(expected0.hashCode(), expected0.hashCode());
     Assert.assertEquals(expected0, spec0);
     Assert.assertTrue(Arrays.equals(expected0.getCacheKey(), expected0.getCacheKey()));
@@ -58,18 +58,45 @@ public class PivotSpecTest
         mapper.writeValueAsString(mapper.readValue(json1, PivotSpec.class)),
         PivotSpec.class
     );
-    PivotSpec expected1 = new PivotSpec(
+    PivotSpec expected1 = PivotSpec.of(
         Arrays.asList(
             new PivotColumnSpec(
                 "col0",
                 OrderByColumnSpec.Direction.DESCENDING, (String) null, Arrays.asList("val1", "val2")
             )
         ),
-        Arrays.asList("col1")
+        "col1"
     );
     Assert.assertEquals(expected1.hashCode(), spec1.hashCode());
     Assert.assertEquals(expected1, spec1);
     Assert.assertTrue(Arrays.equals(expected1.getCacheKey(), expected1.getCacheKey()));
+
+    String json2 =
+        "{" +
+        "\"pivotColumns\": ["
+        + "{\"dimension\": \"col0\", \"direction\": \"DESCENDING\", \"values\": [\"val1\", \"val2\"] } " +
+        "]," +
+        "\"valueColumns\": [\"col1\"], " +
+        "\"separator\": \"|\", " +
+        "\"partitionExpressions\": [{\"condition\": \"^value1|.*\", \"expression\": \"_=$sum(_)\"}], " +
+        "\"tabularFormat\": true" +
+        "}";
+    PivotSpec spec2 = mapper.readValue(
+        mapper.writeValueAsString(mapper.readValue(json2, PivotSpec.class)),
+        PivotSpec.class
+    );
+    PivotSpec expected2 = PivotSpec.tabular(
+        Arrays.asList(
+            new PivotColumnSpec(
+                "col0",
+                OrderByColumnSpec.Direction.DESCENDING, (String) null, Arrays.asList("val1", "val2")
+            )
+        ),
+        "col1"
+    ).withSeparator("|").withPartitionExpressions(PartitionExpression.of(new String[] {"^value1|.*", "_=$sum(_)"}));
+    Assert.assertEquals(expected2.hashCode(), spec2.hashCode());
+    Assert.assertEquals(expected2, spec2);
+    Assert.assertTrue(Arrays.equals(expected2.getCacheKey(), expected2.getCacheKey()));
   }
 
   @Test
@@ -95,7 +122,7 @@ public class PivotSpecTest
         Arrays.<String>asList("col1"),
         Arrays.<OrderByColumnSpec>asList(OrderByColumnSpec.asc("col1"))
     );
-    PivotSpec pivot = new PivotSpec(PivotColumnSpec.toSpec("col2"), Arrays.asList("col3"));
+    PivotSpec pivot = PivotSpec.of(PivotColumnSpec.toSpec("col2"), "col3");
     WindowingSpec.PartitionEvaluator evaluator = pivot.create(context);
     Iterable<Row> results = Iterables.concat(
         evaluator.evaluate(new Object[]{"a"}, Arrays.asList(rows1.get(0))),
