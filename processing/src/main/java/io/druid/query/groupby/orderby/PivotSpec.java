@@ -25,7 +25,9 @@ import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+import com.google.common.collect.Ordering;
 import com.google.common.collect.Sets;
+import io.druid.common.guava.GuavaUtils;
 import io.druid.common.utils.StringUtils;
 import io.druid.data.Pair;
 import io.druid.data.input.MapBasedRow;
@@ -36,7 +38,6 @@ import io.druid.math.expr.ExprType;
 import io.druid.query.QueryCacheHelper;
 import io.druid.query.filter.DimFilterCacheHelper;
 import io.druid.query.groupby.orderby.WindowingSpec.PartitionEvaluator;
-import io.druid.query.ordering.StringComparator;
 import io.druid.segment.ObjectArray;
 import io.druid.segment.incremental.IncrementalIndex;
 import org.joda.time.DateTime;
@@ -275,7 +276,10 @@ public class PivotSpec implements WindowingSpec.PartitionEvaluatorFactory
     }
     final List<String> partitionColumns = context.partitionColumns();
     final String[] columns = OrderByColumnSpec.getColumnsAsArray(pivotColumns);
-    final StringComparator[] comparators = OrderByColumnSpec.getComparatorAsArray(pivotColumns);
+    final List<Comparator<String>> comparators = GuavaUtils.cast(OrderByColumnSpec.getComparator(pivotColumns));
+    if (appendValueColumn) {
+      comparators.add(Ordering.<String>explicit(valueColumns));
+    }
     final Set[] whitelist = PivotColumnSpec.getValuesAsArray(pivotColumns);
     final String[] values = valueColumns.toArray(new String[0]);
     final Comparator<StringArray> comparator = new Comparator<StringArray>()
@@ -285,8 +289,8 @@ public class PivotSpec implements WindowingSpec.PartitionEvaluatorFactory
       {
         final String[] array1 = o1.array();
         final String[] array2 = o2.array();
-        for (int i = 0; i < comparators.length; i++) {
-          int compare = comparators[i].compare(array1[i], array2[i]);
+        for (int i = 0; i < comparators.size(); i++) {
+          int compare = comparators.get(i).compare(array1[i], array2[i]);
           if (compare != 0) {
             return compare;
           }
