@@ -140,7 +140,7 @@ public class GroupByMergedQueryRunner<T> implements QueryRunner<T>
                           } else {
                             sequence.accumulate(incrementalIndex, GroupByQueryHelper.<T>newMergeAccumulator());
                           }
-                          log.info("accumulated in %,d msec", (System.currentTimeMillis() - start));
+                          log.debug("accumulated in %,d msec", (System.currentTimeMillis() - start));
                           return null;
                         }
                         catch (QueryInterruptedException e) {

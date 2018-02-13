@@ -981,7 +981,7 @@ public abstract class IncrementalIndex<AggregatorType> implements MergeIndex
       Collections.sort(sorted, comparator);
     }
     if (timeLog) {
-      log.info("Sorted %d rows in %,d msec", sorted.size(), (System.currentTimeMillis() - start));
+      log.info("Sorted %,d rows in %,d msec", sorted.size(), (System.currentTimeMillis() - start));
     }
     return sorted;
   }

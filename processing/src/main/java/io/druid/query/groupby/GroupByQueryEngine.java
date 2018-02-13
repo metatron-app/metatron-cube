@@ -450,7 +450,7 @@ public class GroupByQueryEngine
         cursor.advance();
       }
       long elapsed = System.currentTimeMillis() - start;
-      log.info("%d iteration.. %,d rows in %,d msec", ++counter, rowUpdater.getNumRows(), elapsed);
+      log.debug("%d iteration.. %,d rows in %,d msec", ++counter, rowUpdater.getNumRows(), elapsed);
 
       if (rowUpdater.getNumRows() == 0 && unprocessedKeys != null) {
         throw new ISE(
