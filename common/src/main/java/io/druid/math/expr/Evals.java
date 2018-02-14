@@ -172,6 +172,11 @@ public class Evals
     return arg instanceof IdentifierExpr;
   }
 
+  public static boolean isAssign(Expr arg)
+  {
+    return arg instanceof AssignExpr;
+  }
+
   public static String getIdentifier(Expr arg)
   {
     if (!isIdentifier(arg)) {
@@ -448,6 +453,11 @@ public class Evals
       }
       return Pair.of(required.get(0), expr);
     }
+    return getAssignExpr(expr);
+  }
+
+  public static Pair<String, Expr> getAssignExpr(Expr expr)
+  {
     final AssignExpr assign = (AssignExpr) expr;
     Expr.NumericBinding bindings = new Expr.NumericBinding()
     {

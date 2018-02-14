@@ -23,6 +23,8 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Sets;
+import io.druid.data.Pair;
+import io.druid.math.expr.Evals;
 import io.druid.math.expr.Expr;
 import io.druid.math.expr.Parser;
 import io.druid.query.aggregation.AggregatorFactory;
@@ -62,6 +64,11 @@ public class MathPostAggregator implements DecoratingPostAggregator
   private final Expr parsed;
   private final List<String> dependentFields;
 
+  public MathPostAggregator(String expression)
+  {
+    this(null, expression, null);
+  }
+
   public MathPostAggregator(String name, String expression)
   {
     this(name, expression, null);
@@ -74,15 +81,19 @@ public class MathPostAggregator implements DecoratingPostAggregator
       @JsonProperty("ordering") String ordering
   )
   {
-    Preconditions.checkArgument(expression != null, "expression cannot not be null");
-
-    this.name = name;
-    this.expression = expression;
+    this.expression = Preconditions.checkNotNull(expression, "'expression' cannot not be null");
+    Expr expr = Parser.parse(expression);
+    if (Evals.isAssign(expr)) {
+      Pair<String, Expr> assign = Evals.getAssignExpr(expr);
+      this.name = assign.lhs;
+      this.parsed = assign.rhs;
+    } else {
+      this.name = Preconditions.checkNotNull(name, "'name' cannot not be null");
+      this.parsed = expr;
+    }
+    this.dependentFields = Parser.findRequiredBindings(parsed);
     this.ordering = ordering;
     this.comparator = ordering == null ? DEFAULT_COMPARATOR : Ordering.valueOf(ordering);
-
-    this.parsed = Parser.parse(expression);
-    this.dependentFields = Parser.findRequiredBindings(parsed);
   }
 
   @Override

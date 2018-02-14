@@ -2718,23 +2718,21 @@ public class GroupByQueryRunnerTest
 
     Map<String, Object> context = Maps.newHashMap();
     // add an extra layer of merging, simulate broker forwarding query to historical
-    TestHelper.assertExpectedObjects(
-        expectedResults,
-        toBrokerRunner(baseRunner).run(fullQuery, context),
-        "merged"
-    );
+    QueryRunner<Row> brokerRunner = toBrokerRunner(baseRunner);
+
+    TestHelper.assertExpectedObjects(expectedResults, brokerRunner.run(fullQuery, context), "merged");
+
+    fullQuery = fullQuery
+        .withPostAggregatorSpecs(Arrays.<PostAggregator>asList(new MathPostAggregator("rows_times_10", "rows * 10.0")))
+        .withHavingSpec(new ExpressionHavingSpec("rows_times_10 > 20 || idx == 217"));
+
+    TestHelper.assertExpectedObjects(expectedResults, brokerRunner.run(fullQuery, context), "merged");
 
     fullQuery = fullQuery.withPostAggregatorSpecs(
-        Arrays.<PostAggregator>asList(
-            new MathPostAggregator("rows_times_10", "rows * 10.0")
-        )
-    ).withHavingSpec(new ExpressionHavingSpec("rows_times_10 > 20 || idx == 217"));
-
-    TestHelper.assertExpectedObjects(
-        expectedResults,
-        toBrokerRunner(baseRunner).run(fullQuery, context),
-        "merged"
+        Arrays.<PostAggregator>asList(new MathPostAggregator("rows_times_10 = rows * 10.0"))
     );
+
+    TestHelper.assertExpectedObjects(expectedResults, brokerRunner.run(fullQuery, context), "merged");
   }
 
   @Test

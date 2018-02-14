@@ -135,7 +135,7 @@ public class AggregatorsModule extends SimpleModule
   {
   }
 
-  @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
+  @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type", defaultImpl = MathPostAggregator.class)
   @JsonSubTypes(value = {
       @JsonSubTypes.Type(name = "math", value = MathPostAggregator.class),
       @JsonSubTypes.Type(name = "arithmetic", value = ArithmeticPostAggregator.class),
