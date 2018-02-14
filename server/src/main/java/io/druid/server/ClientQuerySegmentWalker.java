@@ -125,11 +125,11 @@ public class ClientQuerySegmentWalker implements QuerySegmentWalker
           query.getContextValue(GroupByQueryHelper.CTX_KEY_MAX_RESULTS, maxResult),
           maxResult
       );
-      QueryRunner runner = toolChest.handleSubQuery(makeRunner(innerQuery, true), this, exec, maxRowCount);
-      PostProcessingOperator postProcessing = PostProcessingOperators.load(query, objectMapper);
-      return toolChest.finalQueryDecoration(
-          postProcessing != null ? postProcessing.postProcess(runner) : runner
+      QueryRunner<T> runner = toolChest.finalQueryDecoration(
+          toolChest.handleSubQuery(makeRunner(innerQuery, true), this, exec, maxRowCount)
       );
+      PostProcessingOperator postProcessing = PostProcessingOperators.load(query, objectMapper);
+      return postProcessing != null ? postProcessing.postProcess(runner) : runner;
     }
 
     if (query instanceof UnionAllQuery) {

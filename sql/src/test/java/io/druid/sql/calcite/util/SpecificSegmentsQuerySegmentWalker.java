@@ -257,11 +257,11 @@ public class SpecificSegmentsQuerySegmentWalker implements QuerySegmentWalker
       QueryRunner innerRunner = toQueryRunner(innerQuery, segments);
       runner = toolChest.handleSubQuery(innerRunner, this, MoreExecutors.sameThreadExecutor(), maxRowCount);
     }
-    runner = new FinalizeResultsQueryRunner(toolChest.mergeResults(runner), toolChest);
+    runner = toolChest.finalQueryDecoration(new FinalizeResultsQueryRunner(toolChest.mergeResults(runner), toolChest));
     PostProcessingOperator postProcessing = PostProcessingOperators.load(query, CalciteTests.getJsonMapper());
     if (postProcessing != null) {
       runner = postProcessing.postProcess(runner);
     }
-    return toolChest.finalQueryDecoration(runner);
+    return runner;
   }
 }

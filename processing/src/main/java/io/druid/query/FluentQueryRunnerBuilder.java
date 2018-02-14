@@ -104,13 +104,14 @@ public class FluentQueryRunnerBuilder<T>
       );
     }
 
+    @SuppressWarnings("unchecked")
     public FluentQueryRunner postProcess(PostProcessingOperator<T> postProcessing)
     {
-      return from(
-          toolChest.finalQueryDecoration(
-              postProcessing != null ? postProcessing.postProcess(baseRunner) : baseRunner
-          )
-      );
+      QueryRunner<T> runner = toolChest.finalQueryDecoration(baseRunner);
+      if (postProcessing != null) {
+        runner = postProcessing.postProcess(runner);
+      }
+      return from(runner);
     }
 
     public FluentQueryRunner mergeResults()
