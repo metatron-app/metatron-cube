@@ -25,6 +25,8 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import io.druid.common.Cacheable;
+import io.druid.common.guava.GuavaUtils;
+import io.druid.data.input.MapBasedRow;
 import io.druid.data.input.Row;
 import io.druid.math.expr.Evals;
 import io.druid.math.expr.Expr;
@@ -34,6 +36,7 @@ import io.druid.query.filter.DimFilterCacheHelper;
 import java.nio.ByteBuffer;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -135,7 +138,7 @@ public class WindowingSpec implements Cacheable
       assigns.add(WindowContext.Evaluator.of(null, Evals.splitAssign(expression)));
     }
 
-    PartitionEvaluator evaluator = assigns.isEmpty() ? new DummyPartitionEvaluator() : new PartitionEvaluator()
+    PartitionEvaluator evaluator = assigns.isEmpty() ? new PartitionEvaluator() : new PartitionEvaluator()
     {
       @Override
       public List<Row> evaluate(Object[] partitionKey, final List<Row> partition)
@@ -291,21 +294,32 @@ public class WindowingSpec implements Cacheable
     PartitionEvaluator create(WindowContext context);
   }
 
-  public static abstract class PartitionEvaluator
+  public static class PartitionEvaluator
   {
-    public abstract List<Row> evaluate(Object[] partitionKey, List<Row> partition);
+    private final List<String> retainColumns;
 
-    public List<Row> finalize(List<Row> partition)
+    public PartitionEvaluator(List<String> retainColumns) {this.retainColumns = retainColumns;}
+
+    public PartitionEvaluator() {this(null);}
+
+    public List<Row> evaluate(Object[] partitionKey, List<Row> partition)
     {
       return partition;
     }
-  }
 
-  public static class DummyPartitionEvaluator extends PartitionEvaluator
-  {
-    @Override
-    public List<Row> evaluate(Object[] partitionKey, List<Row> partition)
+    public List<Row> finalize(List<Row> partition)
     {
+      if (GuavaUtils.isNullOrEmpty(retainColumns)) {
+        return partition;
+      }
+      for (int i = 0; i < partition.size(); i++) {
+        Row row = partition.get(i);
+        Map<String, Object> event = new LinkedHashMap<>();
+        for (String partitionColumn : retainColumns) {
+          event.put(partitionColumn, row.getRaw(partitionColumn));
+        }
+        partition.set(i, new MapBasedRow(row.getTimestamp(), event));
+      }
       return partition;
     }
   }

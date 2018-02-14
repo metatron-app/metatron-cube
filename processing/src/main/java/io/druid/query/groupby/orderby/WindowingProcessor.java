@@ -29,8 +29,10 @@ import io.druid.math.expr.ExprType;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.PostAggregator;
 import io.druid.query.dimension.DimensionSpec;
+import io.druid.query.dimension.DimensionSpecs;
 import io.druid.query.groupby.orderby.WindowingSpec.PartitionEvaluator;
 import io.druid.query.ordering.StringComparator;
+import io.druid.segment.column.Column;
 
 import java.util.Arrays;
 import java.util.Collections;
@@ -62,7 +64,9 @@ public class WindowingProcessor implements Function<List<Row>, List<Row>>
     for (PostAggregator postAggregator : postAggregators) {
       expectedTypes.put(postAggregator.getName(), ExprType.DOUBLE);
     }
-    WindowContext context = WindowContext.newInstance(expectedTypes);
+    expectedTypes.put(Column.TIME_COLUMN_NAME, ExprType.LONG);
+
+    WindowContext context = WindowContext.newInstance(DimensionSpecs.toOutputNames(dimensionSpecs), expectedTypes);
 
     for (WindowingSpec windowingSpec : windowingSpecs) {
       List<String> partitionColumns = windowingSpec.getPartitionColumns();

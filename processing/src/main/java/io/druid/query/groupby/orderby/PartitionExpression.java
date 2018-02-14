@@ -24,10 +24,13 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 import io.druid.common.Cacheable;
+import io.druid.math.expr.Evals;
 import io.druid.query.QueryCacheHelper;
 import io.druid.query.filter.DimFilterCacheHelper;
+import io.druid.query.groupby.orderby.WindowContext.Evaluator;
 
 import java.nio.ByteBuffer;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -36,13 +39,27 @@ import java.util.Objects;
  */
 public class PartitionExpression implements Cacheable
 {
-  public static List<PartitionExpression> from(Object... values)
+  public static List<Evaluator> toEvaluators(Iterable<PartitionExpression> partitionExpressions)
+  {
+    List<Evaluator> evaluators = Lists.newArrayList();
+    for (PartitionExpression expression : partitionExpressions) {
+      evaluators.add(Evaluator.of(expression.getCondition(), Evals.splitAssign(expression.getExpression())));
+    }
+    return evaluators;
+  }
+
+  public static List<PartitionExpression> from(List values)
   {
     List<PartitionExpression> list = Lists.newArrayList();
     for (Object value : values) {
       list.add(of(value));
     }
     return list;
+  }
+
+  public static List<PartitionExpression> from(Object... values)
+  {
+    return from(Arrays.asList(values));
   }
 
   @JsonCreator

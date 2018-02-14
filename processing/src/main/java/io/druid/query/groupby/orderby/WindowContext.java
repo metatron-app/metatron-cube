@@ -32,8 +32,8 @@ import io.druid.math.expr.Expr;
 import io.druid.math.expr.ExprEval;
 import io.druid.math.expr.ExprType;
 import io.druid.math.expr.Parser;
+import io.druid.segment.column.Column;
 
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
@@ -44,21 +44,34 @@ import java.util.regex.Pattern;
  */
 public class WindowContext implements Expr.WindowContext
 {
-  public static WindowContext newInstance(Map<String, ExprType> expectedTypes)
+  public static WindowContext newInstance(List<String> groupByColumns, Map<String, ExprType> expectedTypes)
   {
-    return new WindowContext(null, null, null, expectedTypes);
+    return new WindowContext(groupByColumns, null, null, null, expectedTypes);
   }
 
   public WindowContext on(List<String> partitionColumns, List<OrderByColumnSpec> orderingSpecs)
   {
-    return new WindowContext(partitionColumns, orderingSpecs, partition, expectedTypes);
+    return new WindowContext(groupByColumns, partitionColumns, orderingSpecs, partition, expectedTypes);
   }
 
   public WindowContext with(List<Row> partition)
   {
-    return new WindowContext(partitionColumns, orderingSpecs, partition, expectedTypes);
+    return new WindowContext(groupByColumns, partitionColumns, orderingSpecs, partition, expectedTypes);
   }
 
+  public static List<String> outputNames(List<Evaluator> evaluators)
+  {
+    List<String> outputNames = Lists.newArrayList();
+    for (Evaluator evaluator : evaluators) {
+      if (evaluator.outputName == null || evaluator.outputName.equals("_") || evaluator.outputName.startsWith("#")) {
+        continue;
+      }
+      outputNames.add(evaluator.outputName);
+    }
+    return outputNames;
+  }
+
+  private final List<String> groupByColumns;
   private final List<String> partitionColumns;
   private final List<OrderByColumnSpec> orderingSpecs;
   private final List<Row> partition;
@@ -71,21 +84,23 @@ public class WindowContext implements Expr.WindowContext
   private transient String redirection;
 
   private WindowContext(
+      List<String> groupByColumns,
       List<String> partitionColumns,
       List<OrderByColumnSpec> orderingSpecs,
       List<Row> partition,
       Map<String, ExprType> expectedTypes
   )
   {
+    this.groupByColumns = groupByColumns == null ? ImmutableList.<String>of() : groupByColumns;
     this.partitionColumns = partitionColumns == null ? ImmutableList.<String>of() : partitionColumns;
     this.orderingSpecs = orderingSpecs == null ? ImmutableList.<OrderByColumnSpec>of() : orderingSpecs;
     this.partition = partition == null ? ImmutableList.<Row>of() : partition;
     this.length = partition == null ? 0 : partition.size();
-    this.expectedTypes = expectedTypes;
+    this.expectedTypes = Maps.newHashMap(expectedTypes);
     this.temporary = Maps.newHashMap();
   }
 
-  public void evaluate(String[] sortedKeys, List<Evaluator> expressions)
+  public List<Row> evaluate(Iterable<Evaluator> expressions, List<String> sortedKeys)
   {
     boolean hasRedirection = false;
     for (Evaluator evaluator : expressions) {
@@ -106,9 +121,10 @@ public class WindowContext implements Expr.WindowContext
     } else {
       evaluate(expressions);
     }
+    return partition;
   }
 
-  public void evaluate(List<Evaluator> expressions)
+  public void evaluate(Iterable<Evaluator> expressions)
   {
     for (Evaluator expression : expressions) {
       evaluate(expression);
@@ -140,6 +156,11 @@ public class WindowContext implements Expr.WindowContext
     return orderingSpecs;
   }
 
+  public List<String> groupByColumns()
+  {
+    return groupByColumns;
+  }
+
   @Override
   public List<String> partitionColumns()
   {
@@ -155,6 +176,9 @@ public class WindowContext implements Expr.WindowContext
   @Override
   public Object get(String name)
   {
+    if (name.equals(Column.TIME_COLUMN_NAME)) {
+      return partition.get(index).getTimestampFromEpoch();
+    }
     if (name.startsWith("#")) {
       if ("#_".equals(name)) {
         return temporary.get("#" + redirection);
@@ -170,6 +194,9 @@ public class WindowContext implements Expr.WindowContext
   @Override
   public ExprType type(String name)
   {
+    if (name.equals(Column.TIME_COLUMN_NAME)) {
+      return ExprType.LONG;
+    }
     if ("_".equals(name)) {
       name = redirection;
     } else if ("#_".equals(name)) {
@@ -263,13 +290,13 @@ public class WindowContext implements Expr.WindowContext
       this.matcher = condition == null ? null : Pattern.compile(condition).matcher("");
     }
 
-    private Iterable<String> filter(String[] columns)
+    private Iterable<String> filter(List<String> columns)
     {
       if (matcher == null) {
-        return Arrays.asList(columns);
+        return columns;
       }
       return Iterables.filter(
-          Arrays.asList(columns), new Predicate<String>()
+          columns, new Predicate<String>()
           {
             @Override
             public boolean apply(String input)

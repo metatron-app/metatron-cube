@@ -26,6 +26,7 @@ import com.google.common.base.Strings;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Ordering;
+import com.google.common.collect.Sets;
 import com.google.common.io.CharStreams;
 import com.google.common.io.InputSupplier;
 import com.google.common.primitives.Longs;
@@ -43,6 +44,7 @@ import java.util.Collection;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.zip.GZIPInputStream;
 
 /**
@@ -219,5 +221,19 @@ public class GuavaUtils
   public static <T> boolean isNullOrEmpty(Collection<T> collection)
   {
     return collection == null || collection.isEmpty();
+  }
+
+  @SafeVarargs
+  public static <T> List<T> dedupConcat(Iterable<T>... iterables)
+  {
+    Set<T> columns = Sets.newLinkedHashSet();
+    for (Iterable<T> iterable : iterables) {
+      for (T value : iterable) {
+        if (!columns.contains(value)) {
+          columns.add(value);
+        }
+      }
+    }
+    return Lists.newArrayList(columns);
   }
 }

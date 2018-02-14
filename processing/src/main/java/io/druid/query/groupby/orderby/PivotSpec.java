@@ -37,6 +37,7 @@ import io.druid.math.expr.Expr;
 import io.druid.math.expr.ExprType;
 import io.druid.query.QueryCacheHelper;
 import io.druid.query.filter.DimFilterCacheHelper;
+import io.druid.query.groupby.orderby.WindowContext.Evaluator;
 import io.druid.query.groupby.orderby.WindowingSpec.PartitionEvaluator;
 import io.druid.segment.ObjectArray;
 import io.druid.segment.incremental.IncrementalIndex;
@@ -85,15 +86,16 @@ public class PivotSpec implements WindowingSpec.PartitionEvaluatorFactory
       @JsonProperty("appendValueColumn") boolean appendValueColumn
   )
   {
-    this.pivotColumns = Preconditions.checkNotNull(pivotColumns);
-    this.valueColumns = Preconditions.checkNotNull(valueColumns);
+    Preconditions.checkArgument(!GuavaUtils.isNullOrEmpty(valueColumns), "'valueColumns' cannot be null or empty");
+    this.pivotColumns = pivotColumns == null ? ImmutableList.<PivotColumnSpec>of() : pivotColumns;
+    this.valueColumns = valueColumns;
     this.separator = separator == null ? "-" : separator;
     this.rowExpressions = rowExpressions == null ? ImmutableList.<String>of() : rowExpressions;
     this.partitionExpressions = partitionExpressions == null
                                 ? ImmutableList.<PartitionExpression>of()
                                 : partitionExpressions;
     this.tabularFormat = tabularFormat;
-    this.appendValueColumn = valueColumns.size() >= 1 && appendValueColumn;
+    this.appendValueColumn = GuavaUtils.isNullOrEmpty(pivotColumns) || appendValueColumn;
   }
 
   public PivotSpec withSeparator(String separator)
@@ -103,6 +105,19 @@ public class PivotSpec implements WindowingSpec.PartitionEvaluatorFactory
         valueColumns,
         separator,
         rowExpressions,
+        partitionExpressions,
+        tabularFormat,
+        appendValueColumn
+    );
+  }
+
+  public PivotSpec withRowExpressions(String... rowExpressions)
+  {
+    return new PivotSpec(
+        pivotColumns,
+        valueColumns,
+        separator,
+        Arrays.asList(rowExpressions),
         partitionExpressions,
         tabularFormat,
         appendValueColumn
@@ -272,7 +287,31 @@ public class PivotSpec implements WindowingSpec.PartitionEvaluatorFactory
   public PartitionEvaluator create(final WindowContext context)
   {
     if (pivotColumns.isEmpty()) {
-      return new WindowingSpec.DummyPartitionEvaluator();
+      // just for metatron.. I hate this
+      final List<Evaluator> rowEvals = PartitionExpression.toEvaluators(PartitionExpression.from(rowExpressions));
+      final List<Evaluator> partitionEvals = PartitionExpression.toEvaluators(partitionExpressions);
+      // it's actually not pivoting.. so group-by columns are valid (i don't know why other metrics should be removed)
+      final List<String> retainColumns = GuavaUtils.dedupConcat(
+          context.partitionColumns(), WindowContext.outputNames(rowEvals), WindowContext.outputNames(partitionEvals),
+          valueColumns
+      );
+      if (rowEvals.isEmpty() && partitionEvals.isEmpty()) {
+        return new PartitionEvaluator(retainColumns);
+      }
+      return new PartitionEvaluator(retainColumns)
+      {
+        @Override
+        public List<Row> evaluate(Object[] partitionKey, List<Row> partition)
+        {
+          return super.evaluate(partitionKey, context.with(partition).evaluate(rowEvals, valueColumns));
+        }
+
+        @Override
+        public List<Row> finalize(List<Row> partition)
+        {
+          return super.finalize(context.with(partition).evaluate(partitionEvals, valueColumns));
+        }
+      };
     }
     final List<String> partitionColumns = context.partitionColumns();
     final String[] columns = OrderByColumnSpec.getColumnsAsArray(pivotColumns);
@@ -298,19 +337,13 @@ public class PivotSpec implements WindowingSpec.PartitionEvaluatorFactory
         return 0;
       }
     };
+    // '_' is just '_'
     final List<Pair<String, Expr>> rowExprs = Lists.newArrayList();
     for (String expression : rowExpressions) {
       rowExprs.add(Evals.splitAssign(expression));
     }
-    final List<WindowContext.Evaluator> pivotExprs = Lists.newArrayList();
-    for (PartitionExpression expression : partitionExpressions) {
-      pivotExprs.add(
-          WindowContext.Evaluator.of(
-              expression.getCondition(),
-              Evals.splitAssign(expression.getExpression())
-          )
-      );
-    }
+    // when tabularFormat = true, '_' is replaced with pivot column names
+    final List<Evaluator> pivotExprs = PartitionExpression.toEvaluators(partitionExpressions);
     final int keyLength = columns.length + (appendValueColumn ? 1 : 0);
 
     final Set<StringArray> whole = Sets.newHashSet();
@@ -388,6 +421,7 @@ next:
       @Override
       public List<Row> finalize(List<Row> partition)
       {
+        // handle single partition
         WindowContext current = context.on(null, null).with(partition);
         if (tabularFormat) {
           StringArray[] keys = whole.toArray(new StringArray[whole.size()]);
@@ -411,7 +445,7 @@ next:
             }
             partition.set(i, new MapBasedRow(row.getTimestamp(), event));
           }
-          current.evaluate(sortedKeys, pivotExprs);
+          current.evaluate(pivotExprs, Arrays.asList(sortedKeys));
         } else {
           current.evaluate(pivotExprs);
         }

@@ -118,7 +118,7 @@ public class PivotSpecTest
         new Object[]{"c", null, 3}
     );
 
-    WindowContext context = WindowContext.newInstance(Maps.<String, ExprType>newHashMap()).on(
+    WindowContext context = WindowContext.newInstance(Arrays.asList("col1"), Maps.<String, ExprType>newHashMap()).on(
         Arrays.<String>asList("col1"),
         Arrays.<OrderByColumnSpec>asList(OrderByColumnSpec.asc("col1"))
     );
