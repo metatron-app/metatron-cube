@@ -22,4 +22,13 @@ package io.druid.concurrent;
 public interface PrioritizedRunnable extends Runnable
 {
   int getPriority();
+
+  abstract class Zero implements PrioritizedRunnable
+  {
+    @Override
+    public int getPriority()
+    {
+      return 0;
+    }
+  }
 }

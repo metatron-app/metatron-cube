@@ -37,6 +37,7 @@ import com.metamx.common.logger.Logger;
 import io.druid.collections.StupidPool;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.concurrent.Execs;
+import io.druid.concurrent.PrioritizedRunnable;
 import io.druid.data.input.Row;
 import io.druid.query.groupby.GroupByQuery;
 import io.druid.query.groupby.GroupByQueryConfig;
@@ -181,7 +182,7 @@ public class GroupByMergedQueryRunner<T> implements QueryRunner<T>
                 incrementalIndex.toMergeStream(),
                 GuavaUtils.<Row, T>caster()
             )
-        ), incrementalIndex
+        ), new AsyncCloser(incrementalIndex, executor)
     );
   }
 
@@ -219,6 +220,38 @@ public class GroupByMergedQueryRunner<T> implements QueryRunner<T>
     catch (ExecutionException e) {
       IOUtils.closeQuietly(closeOnFailure);
       throw Throwables.propagate(e.getCause());
+    }
+  }
+
+  private static class AsyncCloser implements Closeable
+  {
+    private final Closeable delegate;
+    private final ExecutorService exec;
+
+    private AsyncCloser(Closeable delegate, ExecutorService exec)
+    {
+      this.delegate = delegate;
+      this.exec = exec;
+    }
+
+    @Override
+    public void close() throws IOException
+    {
+      exec.execute(
+          new PrioritizedRunnable.Zero()
+          {
+            @Override
+            public void run()
+            {
+              try {
+                delegate.close();
+              }
+              catch (IOException e) {
+                log.debug(e, "Failed to close merge index..");
+              }
+            }
+          }
+      );
     }
   }
 }
