@@ -223,7 +223,7 @@ public class GenericIndexed<T> implements Indexed<T>, DictionaryLoader<T>, Colum
         return copyBuffer;
       }
     };
-    return new GenericIndexed<>(
+    return new GenericIndexed<T>(
         copyBuffer,
         strategy,
         allowReverseLookup,
@@ -231,7 +231,20 @@ public class GenericIndexed<T> implements Indexed<T>, DictionaryLoader<T>, Colum
         indexOffset,
         valuesOffset,
         bufferIndexed
-    );
+    )
+    {
+      private int cacheId = -1;
+      private T cached;
+
+      @Override
+      public T get(int index)
+      {
+        if (index != cacheId) {
+          cached = bufferIndexed.get(cacheId = index);
+        }
+        return cached;
+      }
+    };
   }
 
   protected final ByteBuffer bufferAsReadOnly()
