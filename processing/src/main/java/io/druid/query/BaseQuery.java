@@ -40,7 +40,7 @@ import java.util.Objects;
 
 /**
  */
-public abstract class BaseQuery<T extends Comparable<T>> implements Query<T>
+public abstract class BaseQuery<T> implements Query<T>
 {
   private static final QuerySegmentSpec EMPTY = new MultipleIntervalSegmentSpec(Arrays.<Interval>asList());
 
@@ -348,7 +348,7 @@ public abstract class BaseQuery<T extends Comparable<T>> implements Query<T>
   @Override
   public Ordering<T> getResultOrdering()
   {
-    Ordering<T> retVal = Ordering.natural();
+    Ordering retVal = Ordering.natural();
     return descending ? retVal.reverse() : retVal;
   }
 

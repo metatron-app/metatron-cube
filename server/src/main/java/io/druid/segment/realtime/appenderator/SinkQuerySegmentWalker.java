@@ -24,6 +24,7 @@ import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
+import com.google.common.util.concurrent.ListeningExecutorService;
 import com.google.common.util.concurrent.MoreExecutors;
 import com.metamx.common.ISE;
 import com.metamx.common.Pair;
@@ -37,6 +38,7 @@ import io.druid.cache.Cache;
 import io.druid.client.cache.CacheConfig;
 import io.druid.query.BySegmentQueryRunner;
 import io.druid.query.CPUTimeMetricQueryRunner;
+import io.druid.query.FinalizeResultsQueryRunner;
 import io.druid.query.MetricsEmittingQueryRunner;
 import io.druid.query.NoopQueryRunner;
 import io.druid.query.Query;
@@ -62,6 +64,7 @@ import org.joda.time.Interval;
 
 import javax.annotation.Nullable;
 import java.io.Closeable;
+import java.util.Arrays;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -151,6 +154,9 @@ public class SinkQuerySegmentWalker implements QuerySegmentWalker
   @Override
   public <T> QueryRunner<T> getQueryRunnerForSegments(final Query<T> query, final Iterable<SegmentDescriptor> specs)
   {
+    if (query instanceof Query.ManagementQuery) {
+      return toManagementQueryRunner(query);
+    }
     // We only handle one particular dataSource. Make sure that's what we have, then ignore from here on out.
     if (!(query.getDataSource() instanceof TableDataSource)
         || !dataSource.equals(((TableDataSource) query.getDataSource()).getName())) {
@@ -279,6 +285,21 @@ public class SinkQuerySegmentWalker implements QuerySegmentWalker
         emitter,
         cpuTimeAccumulator,
         true
+    );
+  }
+
+  private <T> QueryRunner<T> toManagementQueryRunner(Query<T> query)
+  {
+    final QueryRunnerFactory<T, Query<T>> factory = conglomerate.findFactory(query);
+    final QueryToolChest<T, Query<T>> toolChest = factory.getToolchest();
+
+    final ListeningExecutorService exec = MoreExecutors.sameThreadExecutor();
+    return FinalizeResultsQueryRunner.finalize(
+        toolChest.mergeResults(
+            factory.mergeRunners(exec, Arrays.asList(factory.createRunner(null, null)), null)
+        ),
+        toolChest,
+        objectMapper
     );
   }
 

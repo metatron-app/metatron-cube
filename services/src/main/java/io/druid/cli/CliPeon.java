@@ -69,6 +69,7 @@ import io.druid.indexing.worker.executor.ExecutorLifecycleConfig;
 import io.druid.jackson.FunctionModule;
 import io.druid.metadata.DescLookupProvider;
 import io.druid.metadata.IndexerSQLMetadataStorageCoordinator;
+import io.druid.query.ManagementQueryModule;
 import io.druid.query.MapQueryToolChestWarehouse;
 import io.druid.query.QuerySegmentWalker;
 import io.druid.query.QueryToolChestWarehouse;
@@ -270,7 +271,8 @@ public class CliPeon extends GuiceRunnable
         new IndexingServiceFirehoseModule(),
         new ChatHandlerServerModule(properties),
         new LookupModule(),
-        new FunctionModule()
+        new FunctionModule(),
+        new ManagementQueryModule()
     );
   }
 

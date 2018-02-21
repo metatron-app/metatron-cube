@@ -47,6 +47,7 @@ import io.druid.cache.Cache;
 import io.druid.client.cache.CacheConfig;
 import io.druid.client.selector.QueryableDruidServer;
 import io.druid.client.selector.ServerSelector;
+import io.druid.common.Intervals;
 import io.druid.common.utils.JodaUtils;
 import io.druid.concurrent.Execs;
 import io.druid.guice.annotations.BackgroundCaching;
@@ -69,7 +70,9 @@ import io.druid.server.coordination.DruidServerMetadata;
 import io.druid.timeline.DataSegment;
 import io.druid.timeline.TimelineLookup;
 import io.druid.timeline.TimelineObjectHolder;
+import io.druid.timeline.partition.LinearPartitionChunk;
 import io.druid.timeline.partition.PartitionChunk;
+import io.druid.timeline.partition.PartitionHolder;
 import org.joda.time.Interval;
 
 import java.io.Closeable;
@@ -150,15 +153,19 @@ public class CachingClusteredClient<T> implements QueryRunner<T>
     final List<Pair<Interval, byte[]>> cachedResults = Lists.newArrayList();
     final Map<String, CachePopulator> cachePopulatorMap = Maps.newHashMap();
 
-    final boolean useCache = BaseQuery.getContextUseCache(query, true)
+    final boolean managementQuery = query instanceof Query.ManagementQuery;
+
+    final boolean useCache = !managementQuery
+                             && BaseQuery.getContextUseCache(query, true)
                              && strategy != null
                              && cacheConfig.isUseCache()
                              && cacheConfig.isQueryCacheable(query);
-    final boolean populateCache = BaseQuery.getContextPopulateCache(query, true)
+    final boolean populateCache = !managementQuery
+                                  && BaseQuery.getContextPopulateCache(query, true)
                                   && strategy != null
                                   && cacheConfig.isPopulateCache()
                                   && cacheConfig.isQueryCacheable(query);
-    final boolean isBySegment = BaseQuery.getContextBySegment(query, false);
+    final boolean isBySegment = !managementQuery && BaseQuery.getContextBySegment(query, false);
 
 
     final ImmutableMap.Builder<String, Object> contextBuilder = new ImmutableMap.Builder<>();
@@ -172,7 +179,31 @@ public class CachingClusteredClient<T> implements QueryRunner<T>
       contextBuilder.put(Query.BY_SEGMENT, true);
     }
 
-    TimelineLookup<String, ServerSelector> timeline = serverView.getTimeline(query.getDataSource());
+    TimelineLookup<String, ServerSelector> timeline;
+    if (managementQuery) {
+      final List<QueryableDruidServer> servers = serverView.getServers();
+      timeline = new TimelineLookup.NotSupport<String, ServerSelector>()
+      {
+        @Override
+        public Iterable<TimelineObjectHolder<String, ServerSelector>> lookup(Interval interval)
+        {
+          List<TimelineObjectHolder<String, ServerSelector>> holders = Lists.newArrayList();
+          for (int i = 0 ; i < servers.size(); i++) {
+            holders.add(
+                new TimelineObjectHolder<String, ServerSelector>(
+                    Intervals.ETERNITY, "0",
+                    new PartitionHolder<ServerSelector>(
+                        LinearPartitionChunk.make(i, ServerSelector.dummy(servers.get(i)))
+                    )
+                )
+            );
+          }
+          return holders;
+        }
+      };
+    } else {
+      timeline = serverView.getTimeline(query.getDataSource());
+    }
 
     if (timeline == null) {
       return Sequences.empty();
@@ -187,7 +218,7 @@ public class CachingClusteredClient<T> implements QueryRunner<T>
     // and might blow up in some cases https://github.com/druid-io/druid/issues/2108
     int uncoveredIntervalsLimit = BaseQuery.getContextUncoveredIntervalsLimit(query, 0);
 
-    if (uncoveredIntervalsLimit > 0) {
+    if (!managementQuery && uncoveredIntervalsLimit > 0) {
       List<Interval> uncoveredIntervals = Lists.newArrayListWithCapacity(uncoveredIntervalsLimit);
       boolean uncoveredIntervalsOverflowed = false;
 

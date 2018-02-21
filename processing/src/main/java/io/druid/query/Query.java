@@ -187,4 +187,8 @@ public interface Query<T> extends QueryContextKeys
   {
     Pair<Sequence<FINAL>, Query<INTERMEDIATE>> next(Sequence<INTERMEDIATE> sequence, Query<INTERMEDIATE> prev);
   }
+
+  // marker.. broadcasts query to all known servers (see CCC)
+  interface ManagementQuery {
+  }
 }

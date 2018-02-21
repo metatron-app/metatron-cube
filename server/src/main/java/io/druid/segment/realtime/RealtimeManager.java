@@ -26,6 +26,7 @@ import com.google.common.base.Supplier;
 import com.google.common.base.Throwables;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Maps;
+import com.google.common.util.concurrent.ListeningExecutorService;
 import com.google.common.util.concurrent.MoreExecutors;
 import com.google.inject.Inject;
 import com.metamx.common.guava.CloseQuietly;
@@ -55,6 +56,7 @@ import org.joda.time.Interval;
 
 import java.io.Closeable;
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -157,6 +159,9 @@ public class RealtimeManager implements QuerySegmentWalker
   @Override
   public <T> QueryRunner<T> getQueryRunnerForIntervals(final Query<T> query, Iterable<Interval> intervals)
   {
+    if (query instanceof Query.ManagementQuery) {
+      return toManagementQueryRunner(query);
+    }
     final QueryRunnerFactory<T, Query<T>> factory = conglomerate.findFactory(query);
     final Map<Integer, FireChief> partitionChiefs = chiefs.get(Iterables.getOnlyElement(query.getDataSource()
                                                                                              .getNames()));
@@ -183,6 +188,9 @@ public class RealtimeManager implements QuerySegmentWalker
   @Override
   public <T> QueryRunner<T> getQueryRunnerForSegments(final Query<T> query, final Iterable<SegmentDescriptor> specs)
   {
+    if (query instanceof Query.ManagementQuery) {
+      return toManagementQueryRunner(query);
+    }
     final QueryRunnerFactory<T, Query<T>> factory = conglomerate.findFactory(query);
     final Map<Integer, FireChief> partitionChiefs = chiefs.get(Iterables.getOnlyElement(query.getDataSource()
                                                                                              .getNames()));
@@ -209,6 +217,21 @@ public class RealtimeManager implements QuerySegmentWalker
                    null
                )
            );
+  }
+
+  private <T> QueryRunner<T> toManagementQueryRunner(Query<T> query)
+  {
+    final QueryRunnerFactory<T, Query<T>> factory = conglomerate.findFactory(query);
+    final QueryToolChest<T, Query<T>> toolChest = factory.getToolchest();
+
+    final ListeningExecutorService exec = MoreExecutors.sameThreadExecutor();
+    return FinalizeResultsQueryRunner.finalize(
+        toolChest.mergeResults(
+            factory.mergeRunners(exec, Arrays.asList(factory.createRunner(null, null)), null)
+        ),
+        toolChest,
+        objectMapper
+    );
   }
 
   static class FireChief extends Thread implements Closeable

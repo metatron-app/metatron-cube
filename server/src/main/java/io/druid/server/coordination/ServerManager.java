@@ -255,6 +255,9 @@ public class ServerManager implements QuerySegmentWalker
   @Override
   public <T> QueryRunner<T> getQueryRunnerForIntervals(Query<T> query, Iterable<Interval> intervals)
   {
+    if (query instanceof Query.ManagementQuery) {
+      return toManagementQueryRunner(query);
+    }
     DataSource dataSource = query.getDataSource();
     if (!(dataSource instanceof TableDataSource)) {
       throw new UnsupportedOperationException("data source type '" + dataSource.getClass().getName() + "' unsupported");
@@ -325,6 +328,9 @@ public class ServerManager implements QuerySegmentWalker
   @Override
   public <T> QueryRunner<T> getQueryRunnerForSegments(Query<T> query, Iterable<SegmentDescriptor> specs)
   {
+    if (query instanceof Query.ManagementQuery) {
+      return toManagementQueryRunner(query);
+    }
     String dataSourceName = getDataSourceName(query.getDataSource());
 
     final VersionedIntervalTimeline<String, ReferenceCountingSegment> timeline = dataSources.get(dataSourceName);
@@ -354,6 +360,20 @@ public class ServerManager implements QuerySegmentWalker
         )
     );
     return toQueryRunner(query, segments);
+  }
+
+  private <T> QueryRunner<T> toManagementQueryRunner(Query<T> query)
+  {
+    final QueryRunnerFactory<T, Query<T>> factory = conglomerate.findFactory(query);
+    final QueryToolChest<T, Query<T>> toolChest = factory.getToolchest();
+
+    return FinalizeResultsQueryRunner.finalize(
+        toolChest.mergeResults(
+            factory.mergeRunners(exec, Arrays.asList(factory.createRunner(null, null)), null)
+        ),
+        toolChest,
+        objectMapper
+    );
   }
 
   private <T> QueryRunner<T> toQueryRunner(

@@ -42,6 +42,7 @@ import io.druid.guice.LazySingleton;
 import io.druid.guice.LifecycleModule;
 import io.druid.jackson.FunctionModule;
 import io.druid.metadata.DescLookupProvider;
+import io.druid.query.ManagementQueryModule;
 import io.druid.query.MapQueryToolChestWarehouse;
 import io.druid.query.QuerySegmentWalker;
 import io.druid.query.QueryToolChestWarehouse;
@@ -123,6 +124,7 @@ public class CliBroker extends ServerRunnable
         },
         new LookupModule(),
         new FunctionModule(),
+        new ManagementQueryModule(),
         new SqlModule()
     );
   }

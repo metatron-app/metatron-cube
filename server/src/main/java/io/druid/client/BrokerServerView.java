@@ -426,6 +426,12 @@ public class BrokerServerView implements TimelineServerView
   }
 
   @Override
+  public List<QueryableDruidServer> getServers()
+  {
+    return ImmutableList.copyOf(clients.values());
+  }
+
+  @Override
   public <T> QueryRunner<T> getQueryRunner(DruidServer server)
   {
     final QueryableDruidServer queryableDruidServer;

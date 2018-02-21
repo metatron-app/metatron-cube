@@ -21,8 +21,8 @@ package io.druid.sql.calcite.util;
 
 import com.google.common.collect.ImmutableList;
 import io.druid.client.DruidServer;
-import io.druid.client.ServerView;
 import io.druid.client.TimelineServerView;
+import io.druid.client.selector.QueryableDruidServer;
 import io.druid.client.selector.ServerSelector;
 import io.druid.query.DataSource;
 import io.druid.query.QueryRunner;
@@ -79,6 +79,12 @@ public class TestServerInventoryView implements TimelineServerView
     }
 
     exec.execute(callback::timelineInitialized);
+  }
+
+  @Override
+  public List<QueryableDruidServer> getServers()
+  {
+    return null;
   }
 
   @Override

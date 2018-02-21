@@ -51,6 +51,9 @@ public interface QueryContextKeys
   // for sketch
   public static final String MAJOR_TYPES = "majorTypes";
 
+  // for jmx
+  public static final String PREVIOUS_JMX = "previousJmx";
+
   // forward context
   public static final String FORWARD_TIMESTAMP_COLUMN = "timestampColumn";
   public static final String FORWARD_PARALLEL = "parallel";

@@ -50,4 +50,24 @@ public interface TimelineLookup<VersionType, ObjectType>
 
   public PartitionHolder<ObjectType> findEntry(Interval interval, VersionType version);
 
+  class NotSupport<VersionType, ObjectType> implements TimelineLookup<VersionType, ObjectType>
+  {
+    @Override
+    public Iterable<TimelineObjectHolder<VersionType, ObjectType>> lookup(Interval interval)
+    {
+      throw new UnsupportedOperationException("lookup");
+    }
+
+    @Override
+    public Iterable<TimelineObjectHolder<VersionType, ObjectType>> lookupWithIncompletePartitions(Interval interval)
+    {
+      throw new UnsupportedOperationException("lookupWithIncompletePartitions");
+    }
+
+    @Override
+    public PartitionHolder<ObjectType> findEntry(Interval interval, VersionType version)
+    {
+      throw new UnsupportedOperationException("findEntry");
+    }
+  }
 }

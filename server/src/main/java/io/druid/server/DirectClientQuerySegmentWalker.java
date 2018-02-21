@@ -30,6 +30,7 @@ import org.joda.time.Interval;
 
 /**
  */
+@Deprecated
 public class DirectClientQuerySegmentWalker implements QuerySegmentWalker
 {
   private final QueryToolChestWarehouse warehouse;

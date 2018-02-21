@@ -2222,6 +2222,12 @@ public class CachingClusteredClientTest
           }
 
           @Override
+          public List<QueryableDruidServer> getServers()
+          {
+            return null;
+          }
+
+          @Override
           public void registerServerCallback(Executor exec, ServerCallback callback)
           {
           }

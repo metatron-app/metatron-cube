@@ -28,6 +28,7 @@ import com.metamx.common.logger.Logger;
 import io.airlift.airline.Command;
 import io.druid.guice.RealtimeModule;
 import io.druid.jackson.FunctionModule;
+import io.druid.query.ManagementQueryModule;
 import io.druid.query.lookup.LookupModule;
 import io.druid.server.initialization.jetty.ChatHandlerServerModule;
 
@@ -68,7 +69,8 @@ public class CliRealtime extends ServerRunnable
         },
         new ChatHandlerServerModule(properties),
         new LookupModule(),
-        new FunctionModule()
+        new FunctionModule(),
+        new ManagementQueryModule()
     );
   }
 }

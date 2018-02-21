@@ -204,6 +204,12 @@ public class CachingClusteredClientFunctionalityTest {
           }
 
           @Override
+          public List<QueryableDruidServer> getServers()
+          {
+            return null;
+          }
+
+          @Override
           public void registerTimelineCallback(Executor exec, TimelineCallback callback)
           {
           }

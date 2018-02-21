@@ -37,6 +37,7 @@ import io.druid.guice.ManageLifecycle;
 import io.druid.guice.NodeTypeConfig;
 import io.druid.jackson.FunctionModule;
 import io.druid.metadata.DescLookupProvider;
+import io.druid.query.ManagementQueryModule;
 import io.druid.query.MapQueryToolChestWarehouse;
 import io.druid.query.QuerySegmentWalker;
 import io.druid.query.QueryToolChestWarehouse;
@@ -102,7 +103,8 @@ public class CliHistorical extends ServerRunnable
           }
         },
         new LookupModule(),
-        new FunctionModule()
+        new FunctionModule(),
+        new ManagementQueryModule()
     );
   }
 }

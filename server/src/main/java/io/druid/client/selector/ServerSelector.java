@@ -34,6 +34,14 @@ import java.util.concurrent.atomic.AtomicReference;
  */
 public class ServerSelector implements DiscoverySelector<QueryableDruidServer>
 {
+  public static ServerSelector dummy(final QueryableDruidServer server)
+  {
+    return new ServerSelector(null, null)
+    {
+      @Override
+      public QueryableDruidServer pick() { return server; }
+    };
+  }
 
   private static final EmittingLogger log = new EmittingLogger(ServerSelector.class);
 
