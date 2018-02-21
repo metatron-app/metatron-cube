@@ -265,6 +265,7 @@ public class GroupByQuery extends BaseAggregationQuery<Row> implements Query.Rew
     );
   }
 
+  @Override
   public GroupByQuery withOutputColumns(final List<String> outputColumns)
   {
     return new GroupByQuery(
@@ -280,6 +281,26 @@ public class GroupByQuery extends BaseAggregationQuery<Row> implements Query.Rew
         getLimitSpec(),
         outputColumns,
         getLateralView(),
+        getContext()
+    );
+  }
+
+  @Override
+  public BaseAggregationQuery withLateralView(LateralViewSpec lateralView)
+  {
+    return new GroupByQuery(
+        getDataSource(),
+        getQuerySegmentSpec(),
+        getDimFilter(),
+        getGranularity(),
+        getDimensions(),
+        getVirtualColumns(),
+        getAggregatorSpecs(),
+        getPostAggregatorSpecs(),
+        getHavingSpec(),
+        getLimitSpec(),
+        getOutputColumns(),
+        lateralView,
         getContext()
     );
   }
@@ -324,6 +345,7 @@ public class GroupByQuery extends BaseAggregationQuery<Row> implements Query.Rew
     );
   }
 
+  @Override
   public GroupByQuery withHavingSpec(final HavingSpec havingSpec)
   {
     return new GroupByQuery(
@@ -348,7 +370,7 @@ public class GroupByQuery extends BaseAggregationQuery<Row> implements Query.Rew
       QuerySegmentWalker segmentWalker, ObjectMapper jsonMapper
   )
   {
-    if (!getContextBoolean(GBY_CONVERT_TIMESERIES, true)) {
+    if (!getContextBoolean(GBY_CONVERT_TIMESERIES, false)) {
       return this;
     }
     if (!dimensions.isEmpty() || needsSchemaResolution()) {
@@ -373,9 +395,7 @@ public class GroupByQuery extends BaseAggregationQuery<Row> implements Query.Rew
         outputColumns,
         lateralView,
         computeOverridenContext(
-            ImmutableMap.<String, Object>of(
-                POST_PROCESSING, jsonMapper.convertValue(processor, Map.class)
-            )
+            ImmutableMap.<String, Object>of(POST_PROCESSING, processor)
         )
     );
   }

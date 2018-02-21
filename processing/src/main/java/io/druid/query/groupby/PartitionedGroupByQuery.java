@@ -31,7 +31,9 @@ import io.druid.common.utils.JodaUtils;
 import io.druid.data.input.Row;
 import io.druid.granularity.Granularity;
 import io.druid.granularity.QueryGranularities;
+import io.druid.query.BaseAggregationQuery;
 import io.druid.query.DataSource;
+import io.druid.query.LateralViewSpec;
 import io.druid.query.Query;
 import io.druid.query.QueryContextKeys;
 import io.druid.query.QuerySegmentWalker;
@@ -286,49 +288,57 @@ public class PartitionedGroupByQuery extends GroupByQuery implements Query.Rewri
   }
 
   @Override
-  public PartitionedGroupByQuery withDimensionSpecs(final List<DimensionSpec> dimensionSpecs)
+  public PartitionedGroupByQuery withDimensionSpecs(List<DimensionSpec> dimensionSpecs)
   {
-    return new PartitionedGroupByQuery(
-        getDataSource(),
-        getQuerySegmentSpec(),
-        getDimFilter(),
-        getGranularity(),
-        dimensionSpecs,
-        getVirtualColumns(),
-        getAggregatorSpecs(),
-        getPostAggregatorSpecs(),
-        getHavingSpec(),
-        getLimitSpec(),
-        getOutputColumns(),
-        numPartition,
-        scannerLen,
-        parallelism,
-        queue,
-        getContext()
-    );
+    throw new IllegalStateException();
+  }
+
+  @Override
+  public GroupByQuery withDimFilter(DimFilter dimFilter)
+  {
+    throw new IllegalStateException();
   }
 
   @Override
   public PartitionedGroupByQuery withVirtualColumns(List<VirtualColumn> virtualColumns)
   {
-    return new PartitionedGroupByQuery(
-        getDataSource(),
-        getQuerySegmentSpec(),
-        getDimFilter(),
-        getGranularity(),
-        getDimensions(),
-        virtualColumns,
-        getAggregatorSpecs(),
-        getPostAggregatorSpecs(),
-        getHavingSpec(),
-        getLimitSpec(),
-        getOutputColumns(),
-        numPartition,
-        scannerLen,
-        parallelism,
-        queue,
-        getContext()
-    );
+    throw new IllegalStateException();
+  }
+
+  @Override
+  public GroupByQuery withLimitSpec(final LimitSpec limitSpec)
+  {
+    throw new IllegalStateException();
+  }
+
+  @Override
+  public GroupByQuery withOutputColumns(final List<String> outputColumns)
+  {
+    throw new IllegalStateException();
+  }
+
+  @Override
+  public BaseAggregationQuery withLateralView(LateralViewSpec lateralView)
+  {
+    throw new IllegalStateException();
+  }
+
+  @Override
+  public GroupByQuery withAggregatorSpecs(final List<AggregatorFactory> aggregatorSpecs)
+  {
+    throw new IllegalStateException();
+  }
+
+  @Override
+  public GroupByQuery withPostAggregatorSpecs(final List<PostAggregator> postAggregatorSpecs)
+  {
+    throw new IllegalStateException();
+  }
+
+  @Override
+  public GroupByQuery withHavingSpec(final HavingSpec havingSpec)
+  {
+    throw new IllegalStateException();
   }
 
   @SuppressWarnings("unchecked")

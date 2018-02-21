@@ -200,6 +200,26 @@ public class TimeseriesQuery extends BaseAggregationQuery<Result<TimeseriesResul
   }
 
   @Override
+  public TimeseriesQuery withLateralView(LateralViewSpec lateralView)
+  {
+    return new TimeseriesQuery(
+        getDataSource(),
+        getQuerySegmentSpec(),
+        isDescending(),
+        dimFilter,
+        granularity,
+        virtualColumns,
+        aggregatorSpecs,
+        postAggregatorSpecs,
+        havingSpec,
+        limitSpec,
+        outputColumns,
+        lateralView,
+        getContext()
+    );
+  }
+
+  @Override
   public TimeseriesQuery withAggregatorSpecs(List<AggregatorFactory> aggregatorSpecs)
   {
     return new TimeseriesQuery(

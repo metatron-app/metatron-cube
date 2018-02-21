@@ -167,6 +167,8 @@ public abstract class BaseAggregationQuery<T extends Comparable<T>> extends Base
 
   public abstract BaseAggregationQuery withOutputColumns(List<String> outputColumns);
 
+  public abstract BaseAggregationQuery withLateralView(LateralViewSpec lateralView);
+
   public boolean isSortOnTimeForLimit(boolean defaultValue)
   {
     return getContextBoolean(SORT_ON_TIME, defaultValue);
