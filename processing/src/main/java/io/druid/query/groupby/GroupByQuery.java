@@ -33,7 +33,6 @@ import io.druid.granularity.Granularity;
 import io.druid.query.BaseAggregationQuery;
 import io.druid.query.DataSource;
 import io.druid.query.LateralViewSpec;
-import io.druid.query.ListPostProcessingOperator;
 import io.druid.query.PostProcessingOperator;
 import io.druid.query.PostProcessingOperators;
 import io.druid.query.Queries;
@@ -51,7 +50,6 @@ import io.druid.query.spec.QuerySegmentSpec;
 import io.druid.query.timeseries.TimeseriesQuery;
 import io.druid.segment.VirtualColumn;
 
-import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
@@ -376,10 +374,9 @@ public class GroupByQuery extends BaseAggregationQuery<Row> implements Query.Rew
     if (!dimensions.isEmpty() || needsSchemaResolution()) {
       return this;
     }
-    PostProcessingOperator processor = new TimeseriesToRow();
     PostProcessingOperator current = PostProcessingOperators.load(this, jsonMapper);
-    if (current != null) {
-      processor = new ListPostProcessingOperator(Arrays.asList(processor, current));
+    if (current == null) {
+      current = new TimeseriesToRow();
     }
     return new TimeseriesQuery(
         getDataSource(),
@@ -395,7 +392,7 @@ public class GroupByQuery extends BaseAggregationQuery<Row> implements Query.Rew
         outputColumns,
         lateralView,
         computeOverridenContext(
-            ImmutableMap.<String, Object>of(POST_PROCESSING, processor)
+            ImmutableMap.<String, Object>of(POST_PROCESSING, current)
         )
     );
   }

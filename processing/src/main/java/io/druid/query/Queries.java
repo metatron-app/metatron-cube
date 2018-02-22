@@ -293,6 +293,8 @@ public class Queries
       );
     } else if (subQuery instanceof TimeseriesQuery) {
       return Sequences.map((Sequence<Result<TimeseriesResultValue>>) sequence, TIMESERIES_TO_GROUPBY);
+    } else if (subQuery instanceof GroupByQuery) {
+      return (Sequence<Row>) sequence;
     }
     return Sequences.map(sequence, GuavaUtils.<I, Row>caster());
   }

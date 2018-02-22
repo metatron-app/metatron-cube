@@ -41,12 +41,13 @@ import io.druid.common.utils.Sequences;
 import io.druid.data.input.MapBasedRow;
 import io.druid.data.input.Row;
 import io.druid.granularity.Granularity;
+import io.druid.query.BaseAggregationQuery;
 import io.druid.query.PostProcessingOperator;
+import io.druid.query.Queries;
 import io.druid.query.Query;
 import io.druid.query.QueryRunner;
 import io.druid.query.aggregation.PostAggregator;
 import io.druid.query.dimension.DimensionSpecs;
-import io.druid.query.groupby.GroupByQuery;
 import io.druid.query.select.StreamQuery;
 import io.druid.query.select.StreamQueryRow;
 import io.druid.segment.ObjectArray;
@@ -169,10 +170,10 @@ public class HoltWintersPostProcessor extends PostProcessingOperator.Abstract
           );
           return Sequences.simple(Arrays.asList(makeArrayedPrediction(numericColumns, numbers)));
 
-        } else if (query instanceof GroupByQuery) {
-          final GroupByQuery groupBy = (GroupByQuery) query;
-          final Granularity granularity = timeColumn == null ? groupBy.getGranularity() : timeGranularity;
-          List<String> groupByColumns = DimensionSpecs.toOutputNames(groupBy.getDimensions());
+        } else if (query instanceof BaseAggregationQuery) {
+          final BaseAggregationQuery aggregation = (BaseAggregationQuery) query;
+          final Granularity granularity = timeColumn == null ? aggregation.getGranularity() : timeGranularity;
+          List<String> groupByColumns = DimensionSpecs.toOutputNames(aggregation.getDimensions());
           if (timeColumn != null) {
             groupByColumns.remove(timeColumn);
           }
@@ -180,7 +181,7 @@ public class HoltWintersPostProcessor extends PostProcessingOperator.Abstract
 
           final Map<ObjectArray<Object>, BoundedTimeseries[]> numbersMap = Maps.newHashMap();
           final MutableLong lastTimestamp = new MutableLong();
-          final Sequence<Row> sequence = baseRunner.run(groupBy, responseContext);
+          final Sequence<Row> sequence = Queries.convertRow(aggregation, baseRunner.run(aggregation, responseContext));
 
           Sequence<Row> tapping = new Sequences.PeekingSequence<Row>(sequence)
           {
@@ -199,7 +200,7 @@ public class HoltWintersPostProcessor extends PostProcessingOperator.Abstract
                   values[d] = internIfString(in.getRaw(dimensions[d]));
                 }
                 final ObjectArray key = new ObjectArray(values);
-                BoundedTimeseries[] numbers = (BoundedTimeseries[]) numbersMap.get(key);
+                BoundedTimeseries[] numbers = numbersMap.get(key);
                 if (numbers == null) {
                   numbersMap.put(key, numbers = makeReservoir(numericColumns.length, granularity));
                 }
