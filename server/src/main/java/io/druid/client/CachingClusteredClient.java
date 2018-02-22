@@ -55,6 +55,7 @@ import io.druid.guice.annotations.Smile;
 import io.druid.query.BaseQuery;
 import io.druid.query.BySegmentResultValueClass;
 import io.druid.query.CacheStrategy;
+import io.druid.query.FilterableManagementQuery;
 import io.druid.query.Query;
 import io.druid.query.QueryConfig;
 import io.druid.query.QueryRunner;
@@ -181,7 +182,12 @@ public class CachingClusteredClient<T> implements QueryRunner<T>
 
     TimelineLookup<String, ServerSelector> timeline;
     if (managementQuery) {
-      final List<QueryableDruidServer> servers = serverView.getServers();
+      final List<QueryableDruidServer> servers;
+      if (query instanceof FilterableManagementQuery) {
+        servers = ((FilterableManagementQuery)query).filter(serverView.getServers());
+      } else {
+        servers = serverView.getServers();
+      }
       timeline = new TimelineLookup.NotSupport<String, ServerSelector>()
       {
         @Override

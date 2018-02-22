@@ -21,24 +21,35 @@ package io.druid.query.jmx;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
+import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Lists;
+import com.google.common.net.HostAndPort;
+import io.druid.client.DruidServer;
+import io.druid.client.selector.QueryableDruidServer;
 import io.druid.common.Intervals;
+import io.druid.math.expr.Expr;
+import io.druid.math.expr.Parser;
 import io.druid.query.BaseQuery;
 import io.druid.query.DataSource;
-import io.druid.query.Query;
+import io.druid.query.FilterableManagementQuery;
 import io.druid.query.TableDataSource;
 import io.druid.query.spec.MultipleIntervalSegmentSpec;
 import io.druid.query.spec.QuerySegmentSpec;
 
+import java.util.List;
 import java.util.Map;
 
 /**
  */
 @JsonTypeName("jmx")
-public class JMXQuery extends BaseQuery<Map<String, Object>> implements Query.ManagementQuery
+public class JMXQuery extends BaseQuery<Map<String, Object>> implements FilterableManagementQuery
 {
+  private final String expression;
+
   public JMXQuery(
       @JsonProperty("dataSource") DataSource dataSource,
       @JsonProperty("intervals") QuerySegmentSpec querySegmentSpec,
+      @JsonProperty("expression") String expression,
       @JsonProperty("context") Map<String, Object> context
   )
   {
@@ -48,6 +59,7 @@ public class JMXQuery extends BaseQuery<Map<String, Object>> implements Query.Ma
         false,
         context
     );
+    this.expression = expression;
   }
 
   @Override
@@ -62,6 +74,7 @@ public class JMXQuery extends BaseQuery<Map<String, Object>> implements Query.Ma
     return new JMXQuery(
         dataSource,
         getQuerySegmentSpec(),
+        expression,
         getContext()
     );
   }
@@ -72,6 +85,7 @@ public class JMXQuery extends BaseQuery<Map<String, Object>> implements Query.Ma
     return new JMXQuery(
         getDataSource(),
         spec,
+        expression,
         getContext()
     );
   }
@@ -82,6 +96,7 @@ public class JMXQuery extends BaseQuery<Map<String, Object>> implements Query.Ma
     return new JMXQuery(
         getDataSource(),
         getQuerySegmentSpec(),
+        expression,
         computeOverridenContext(contextOverride)
     );
   }
@@ -89,6 +104,35 @@ public class JMXQuery extends BaseQuery<Map<String, Object>> implements Query.Ma
   @Override
   public String toString()
   {
-    return getType();
+    return "JMXQuery{" +
+           "expression='" + expression + '\'' +
+           '}';
+  }
+
+  @Override
+  public List<QueryableDruidServer> filter(List<QueryableDruidServer> servers)
+  {
+    if (expression == null) {
+      return servers;
+    }
+    Expr expr = Parser.parse(expression);
+
+    List<QueryableDruidServer> passed = Lists.newArrayList();
+    for (QueryableDruidServer server : servers) {
+      DruidServer druidServer = server.getServer();
+      HostAndPort hostAndPort = HostAndPort.fromString(druidServer.getName());
+      Expr.NumericBinding bindings = Parser.withMap(
+          ImmutableMap.<String, Object>of(
+              "name", druidServer.getName(),
+              "type", druidServer.getType(),
+              "tier", druidServer.getTier(),
+              "host", hostAndPort.getHostText(),
+              "port", hostAndPort.getPort())
+      );
+      if (expr.eval(bindings).asBoolean()) {
+        passed.add(server);
+      }
+    }
+    return passed;
   }
 }
