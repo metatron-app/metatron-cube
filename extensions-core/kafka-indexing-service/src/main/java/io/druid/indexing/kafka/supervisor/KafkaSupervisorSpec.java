@@ -37,6 +37,7 @@ import io.druid.segment.indexing.DataSchema;
 
 public class KafkaSupervisorSpec implements SupervisorSpec
 {
+  private final String id;
   private final DataSchema dataSchema;
   private final KafkaTuningConfig tuningConfig;
   private final KafkaSupervisorIOConfig ioConfig;
@@ -49,6 +50,7 @@ public class KafkaSupervisorSpec implements SupervisorSpec
 
   @JsonCreator
   public KafkaSupervisorSpec(
+      @JsonProperty("id") String id,
       @JsonProperty("dataSchema") DataSchema dataSchema,
       @JsonProperty("tuningConfig") KafkaTuningConfig tuningConfig,
       @JsonProperty("ioConfig") KafkaSupervisorIOConfig ioConfig,
@@ -64,12 +66,20 @@ public class KafkaSupervisorSpec implements SupervisorSpec
         ? tuningConfig
         : new KafkaTuningConfig(null, null, null, null, null, null, null, null, null);
     this.ioConfig = Preconditions.checkNotNull(ioConfig, "ioConfig");
+    this.id = id == null ? UUIDUtils.generateUuid(dataSchema.getDataSource()) : id;
 
     this.taskStorage = taskStorage;
     this.taskMaster = taskMaster;
     this.indexerMetadataStorageCoordinator = indexerMetadataStorageCoordinator;
     this.kafkaIndexTaskClientFactory = kafkaIndexTaskClientFactory;
     this.mapper = mapper;
+  }
+
+  @Override
+  @JsonProperty
+  public String getId()
+  {
+    return id;
   }
 
   @JsonProperty
@@ -88,12 +98,6 @@ public class KafkaSupervisorSpec implements SupervisorSpec
   public KafkaSupervisorIOConfig getIoConfig()
   {
     return ioConfig;
-  }
-
-  @Override
-  public String getId()
-  {
-    return UUIDUtils.generateUuid(dataSchema.getDataSource());
   }
 
   @Override

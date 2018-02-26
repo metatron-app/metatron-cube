@@ -1267,6 +1267,7 @@ public class KafkaSupervisorTest extends EasyMockSupport
         taskClientFactory,
         objectMapper,
         new KafkaSupervisorSpec(
+            null,
             dataSchema,
             tuningConfig,
             kafkaSupervisorIOConfig,
