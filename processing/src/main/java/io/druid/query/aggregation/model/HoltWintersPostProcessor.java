@@ -40,6 +40,7 @@ import io.druid.common.utils.JodaUtils;
 import io.druid.common.utils.Sequences;
 import io.druid.data.input.MapBasedRow;
 import io.druid.data.input.Row;
+import io.druid.data.input.Rows;
 import io.druid.granularity.Granularity;
 import io.druid.query.BaseAggregationQuery;
 import io.druid.query.PostProcessingOperator;
@@ -77,7 +78,8 @@ public class HoltWintersPostProcessor extends PostProcessingOperator.Abstract
   private final int period;
   private final HoltWintersModel.SeasonalityType seasonalityType;
   private final boolean pad;
-  private final List<String> columns;
+  private final List<String> values;
+  private final boolean keepValuesOnly;
   private final int numPrediction;
   private final int limit;
   private final int confidence;
@@ -97,7 +99,8 @@ public class HoltWintersPostProcessor extends PostProcessingOperator.Abstract
       @JsonProperty("period") Integer period,
       @JsonProperty("seasonalityType") HoltWintersModel.SeasonalityType seasonalityType,
       @JsonProperty("pad") Boolean pad,
-      @JsonProperty("columns") List<String> columns,
+      @JsonProperty("values") List<String> values,
+      @JsonProperty("keepValuesOnly") boolean keepValuesOnly,
       @JsonProperty("useLastN") Integer useLastN,
       @JsonProperty("numPrediction") Integer numPrediction,
       @JsonProperty("confidence") Integer confidence,
@@ -115,7 +118,8 @@ public class HoltWintersPostProcessor extends PostProcessingOperator.Abstract
     this.period = period == null ? HoltWintersModel.DEFAULT_PERIOD : period;
     this.seasonalityType = seasonalityType == null ? HoltWintersModel.DEFAULT_SEASONALITY_TYPE : seasonalityType;
     this.pad = pad == null ? HoltWintersModel.DEFAULT_PAD : pad;
-    this.columns = columns;
+    this.values = Preconditions.checkNotNull(values, "'columns' cannot be null");
+    this.keepValuesOnly = keepValuesOnly;
     this.limit = useLastN == null ? DEFAULT_USE_LAST_N : useLastN;
     this.numPrediction = numPrediction == null ? DEFAULT_NUM_PREDICTION : numPrediction;
     this.confidence = confidence == null ? DEFAULT_CONFIDENCE : confidence;
@@ -142,7 +146,7 @@ public class HoltWintersPostProcessor extends PostProcessingOperator.Abstract
       @SuppressWarnings("unchecked")
       public Sequence run(Query query, Map responseContext)
       {
-        final String[] numericColumns = columns.toArray(new String[columns.size()]);
+        final String[] valueColumns = values.toArray(new String[values.size()]);
         if (query instanceof StreamQuery) {
           Preconditions.checkArgument(
               dateTimeFormatter == null,
@@ -150,7 +154,7 @@ public class HoltWintersPostProcessor extends PostProcessingOperator.Abstract
           );
           final Granularity granularity = ((StreamQuery) query).getGranularity();
           // this is used for quick calculation of prediction only
-          final BoundedTimeseries[] numbers = makeReservoir(numericColumns.length, granularity);
+          final BoundedTimeseries[] numbers = makeReservoir(valueColumns.length, granularity);
           baseRunner.run(query, responseContext).accumulate(
               null, new Accumulator<Object, StreamQueryRow>()
               {
@@ -158,8 +162,8 @@ public class HoltWintersPostProcessor extends PostProcessingOperator.Abstract
                 public Object accumulate(Object accumulated, StreamQueryRow in)
                 {
                   final DateTime timestamp = DateTimes.utc(in.getTimestamp());
-                  for (int i = 0; i < numericColumns.length; i++) {
-                    Object value = in.get(numericColumns[i]);
+                  for (int i = 0; i < valueColumns.length; i++) {
+                    Object value = in.get(valueColumns[i]);
                     if (value instanceof Number) {
                       numbers[i].add(((Number) value).doubleValue(), timestamp);
                     }
@@ -168,7 +172,7 @@ public class HoltWintersPostProcessor extends PostProcessingOperator.Abstract
                 }
               }
           );
-          return Sequences.simple(Arrays.asList(makeArrayedPrediction(numericColumns, numbers)));
+          return Sequences.simple(Arrays.asList(makeArrayedPrediction(valueColumns, numbers)));
 
         } else if (query instanceof BaseAggregationQuery) {
           final BaseAggregationQuery aggregation = (BaseAggregationQuery) query;
@@ -194,7 +198,7 @@ public class HoltWintersPostProcessor extends PostProcessingOperator.Abstract
               } else {
                 timestamp = in.getTimestamp();
               }
-              for (int i = 0; i < numericColumns.length; i++) {
+              for (int i = 0; i < valueColumns.length; i++) {
                 final Object[] values = new Object[dimensions.length];
                 for (int d = 0; d < dimensions.length; d++) {
                   values[d] = internIfString(in.getRaw(dimensions[d]));
@@ -202,14 +206,17 @@ public class HoltWintersPostProcessor extends PostProcessingOperator.Abstract
                 final ObjectArray key = new ObjectArray(values);
                 BoundedTimeseries[] numbers = numbersMap.get(key);
                 if (numbers == null) {
-                  numbersMap.put(key, numbers = makeReservoir(numericColumns.length, granularity));
+                  numbersMap.put(key, numbers = makeReservoir(valueColumns.length, granularity));
                 }
-                Object value = in.getRaw(numericColumns[i]);
+                Object value = in.getRaw(valueColumns[i]);
                 if (value instanceof Number) {
                   numbers[i].add(((Number) value).doubleValue(), timestamp);
                 }
               }
               lastTimestamp.setValue(timestamp.getMillis());
+              if (keepValuesOnly) {
+                return Rows.retain(in, values);
+              }
               return in;
             }
           };
@@ -222,7 +229,7 @@ public class HoltWintersPostProcessor extends PostProcessingOperator.Abstract
               LOG.info("Calculating %d predictions.. ", numPrediction);
               return Sequences.simple(
                   makeRowedPrediction(
-                      numericColumns,
+                      valueColumns,
                       dimensions,
                       numbersMap,
                       lastTimestamp.longValue(),
@@ -245,7 +252,7 @@ public class HoltWintersPostProcessor extends PostProcessingOperator.Abstract
   {
     final BoundedTimeseries[] numbers = (BoundedTimeseries[]) Array.newInstance(
         BoundedTimeseries.class,
-        columns.size()
+        values.size()
     );
     for (int i = 0; i < length; i++) {
       numbers[i] = new BoundedTimeseries(limit, granularity);

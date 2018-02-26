@@ -113,6 +113,12 @@ public class MapBasedRow extends AbstractRow implements Row.Updatable
   }
 
   @Override
+  public void remove(String column)
+  {
+    event.remove(column);
+  }
+
+  @Override
   public String toString()
   {
     return "MapBasedRow{" +

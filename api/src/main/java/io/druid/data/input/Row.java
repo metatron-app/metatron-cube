@@ -101,5 +101,7 @@ public interface Row extends Comparable<Row>
     boolean isUpdatable();
 
     void set(String column, Object value);
+
+    void remove(String column);
   }
 }

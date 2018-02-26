@@ -28,6 +28,7 @@ import com.google.common.hash.Hasher;
 import com.metamx.common.ISE;
 import com.metamx.common.StringUtils;
 
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -37,6 +38,15 @@ import java.util.TreeMap;
  */
 public class Rows extends io.druid.data.Rows
 {
+  public static Row retain(Row row, List<String> columns)
+  {
+    Map<String, Object> event = new LinkedHashMap<>();
+    for (String column : columns) {
+      event.put(column, row.getRaw(column));
+    }
+    return new MapBasedRow(row.getTimestamp(), event);
+  }
+
   public static Function rowToMap(final String timestampColumn)
   {
     return new Function()
