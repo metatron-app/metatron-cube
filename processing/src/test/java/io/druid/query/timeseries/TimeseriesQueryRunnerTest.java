@@ -25,12 +25,13 @@ import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.metamx.common.guava.Sequences;
 import io.druid.common.DateTimes;
+import io.druid.data.input.Row;
 import io.druid.granularity.Granularity;
 import io.druid.granularity.PeriodGranularity;
 import io.druid.granularity.QueryGranularities;
 import io.druid.query.BaseAggregationQuery;
 import io.druid.query.Druids;
-import io.druid.query.FluentQueryRunnerBuilder;
+import io.druid.query.Query;
 import io.druid.query.QueryContextKeys;
 import io.druid.query.QueryDataSource;
 import io.druid.query.QueryRunner;
@@ -44,6 +45,7 @@ import io.druid.query.aggregation.DoubleMinAggregatorFactory;
 import io.druid.query.aggregation.FilteredAggregatorFactory;
 import io.druid.query.aggregation.LongSumAggregatorFactory;
 import io.druid.query.aggregation.PostAggregator;
+import io.druid.query.aggregation.model.HoltWintersPostProcessor;
 import io.druid.query.aggregation.post.MathPostAggregator;
 import io.druid.query.filter.AndDimFilter;
 import io.druid.query.filter.BoundDimFilter;
@@ -53,6 +55,8 @@ import io.druid.query.filter.MathExprFilter;
 import io.druid.query.filter.NotDimFilter;
 import io.druid.query.filter.RegexDimFilter;
 import io.druid.query.filter.SelectorDimFilter;
+import io.druid.query.groupby.GroupByQueryRunnerTest;
+import io.druid.query.groupby.GroupByQueryRunnerTestHelper;
 import io.druid.query.groupby.orderby.DefaultLimitSpec;
 import io.druid.query.groupby.orderby.OrderByColumnSpec;
 import io.druid.query.groupby.orderby.WindowingSpec;
@@ -60,6 +64,7 @@ import io.druid.query.spec.MultipleIntervalSegmentSpec;
 import io.druid.segment.ExprVirtualColumn;
 import io.druid.segment.TestHelper;
 import io.druid.segment.VirtualColumn;
+import io.druid.segment.column.Column;
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
 import org.joda.time.Interval;
@@ -401,6 +406,56 @@ public class TimeseriesQueryRunnerTest
         new Object[]{"2011-01-17", 3L, 13655L, 13665L}
     );
     assertExpectedResults(expected, results);
+  }
+
+  @Test
+  public void testHoltWinters()
+  {
+    QueryRunner broker = QueryRunnerTestHelper.toBrokerRunner(runner, toolChest);
+
+    TimeseriesQuery query = Druids
+        .newTimeseriesQueryBuilder()
+        .dataSource(QueryRunnerTestHelper.dataSource)
+        .granularity(QueryRunnerTestHelper.dayGran)
+        .intervals(QueryRunnerTestHelper.january_20)
+        .aggregators(new LongSumAggregatorFactory("idx", "index"))
+        .context(
+            ImmutableMap.<String, Object>of(
+                Query.POST_PROCESSING, HoltWintersPostProcessor.of(3, "idx")
+            )
+        )
+        .build();
+
+    String[] columnNames = {Column.TIME_COLUMN_NAME, "idx", "idx.params"};
+    List<Row> expected = GroupByQueryRunnerTestHelper.createExpectedRows(
+        columnNames,
+        new Object[]{"2011-01-12", 4500L, null},
+        new Object[]{"2011-01-13", 6071L, null},
+        new Object[]{"2011-01-14", 4916L, null},
+        new Object[]{"2011-01-15", 5719L, null},
+        new Object[]{"2011-01-16", 4692L, null},
+        new Object[]{"2011-01-17", 4644L, null},
+        new Object[]{"2011-01-18", 4392L, null},
+        new Object[]{"2011-01-19", 4589L, null},
+        new Object[]{
+            "2011-01-20",
+            new double[]{2719.4776163876427D, 5227.333335325231D, 7735.189054262819D},
+            new double[]{1.0D, 0.13930361783807885D, 0.40495181947475867D}
+        },
+        new Object[]{
+            "2011-01-21",
+            new double[]{1636.562384787635D, 5611.4196565228085D, 9586.276928257983D},
+            new double[]{1.0D, 0.13930361783807885D, 0.40495181947475867D}
+        },
+        new Object[]{
+            "2011-01-22",
+            new double[]{979.7945398452102D, 5995.505977720387D, 11011.217415595564D},
+            new double[]{1.0D, 0.13930361783807885D, 0.40495181947475867D}
+        }
+    );
+
+    Iterable<Row> results = Sequences.toList(broker.run(query, CONTEXT), Lists.<Row>newArrayList());
+    TestHelper.assertExpectedObjects(expected, results, "holt-winters");
   }
 
   @Test
@@ -1201,13 +1256,7 @@ public class TimeseriesQueryRunnerTest
 
     query = query.withOutputColumns(Arrays.asList("rows", "index"));
     // with projection processor
-    QueryRunner project = new FluentQueryRunnerBuilder(toolChest)
-        .create(runner)
-        .applyPreMergeDecoration()
-        .mergeResults()
-        .applyPostMergeDecoration()
-        .applyFinalizeResults()
-        .postProcess(null);
+    QueryRunner project = QueryRunnerTestHelper.toBrokerRunner(runner, toolChest);
 
     expectedResults = Arrays.asList(
         new Result<>(

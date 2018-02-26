@@ -42,6 +42,7 @@ import org.joda.time.DateTime;
 import org.junit.Assert;
 import org.python.google.common.primitives.Doubles;
 
+import java.lang.reflect.Array;
 import java.nio.ByteBuffer;
 import java.util.Arrays;
 import java.util.Collections;
@@ -244,7 +245,7 @@ public class TestHelper
     final Map<String, Object> expectedMap = ((MapBasedRow) expected).getEvent();
     final Map<String, Object> actualMap = ((MapBasedRow) actual).getEvent();
 
-    Assert.assertEquals(String.format("%s: map keys", msg), expectedMap.keySet(), actualMap.keySet());
+//    Assert.assertEquals(String.format("%s: map keys", msg), expectedMap.keySet(), actualMap.keySet());
     for (final String key : expectedMap.keySet()) {
       final Object expectedValue = expectedMap.get(key);
       final Object actualValue = actualMap.get(key);
@@ -264,11 +265,14 @@ public class TestHelper
             0.0001
         );
       } else if (expectedValue != null && expectedValue.getClass().isArray()) {
-        Assert.assertArrayEquals(
-            String.format("%s: key[%s]", msg, key),
-            (Object[]) expectedValue,
-            (Object[]) actualValue
-        );
+        int length = Array.getLength(expectedValue);
+        for (int i = 0; i < length; i++) {
+          Assert.assertEquals(
+              String.format("%s: key[%s.%d]", msg, key, i),
+              Array.get(expectedValue, i),
+              Array.get(actualValue, i)
+          );
+        }
       } else {
         Assert.assertEquals(
             String.format("%s: key[%s]", msg, key),

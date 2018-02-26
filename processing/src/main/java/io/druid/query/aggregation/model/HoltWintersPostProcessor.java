@@ -66,6 +66,29 @@ import java.util.Map;
  */
 public class HoltWintersPostProcessor extends PostProcessingOperator.Abstract
 {
+  public static HoltWintersPostProcessor of(int numPrediction, String... columns)
+  {
+    return new HoltWintersPostProcessor(
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        Arrays.asList(columns),
+        false,
+        null,
+        numPrediction,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null
+    );
+  }
+
   private static final Logger LOG = new Logger(HoltWintersPostProcessor.class);
 
   private static final int DEFAULT_USE_LAST_N = 4096;

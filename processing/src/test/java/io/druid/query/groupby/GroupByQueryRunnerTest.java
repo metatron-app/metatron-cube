@@ -43,7 +43,6 @@ import io.druid.query.BaseAggregationQuery;
 import io.druid.query.BySegmentResultValue;
 import io.druid.query.BySegmentResultValueClass;
 import io.druid.query.Druids;
-import io.druid.query.FinalizeResultsQueryRunner;
 import io.druid.query.Query;
 import io.druid.query.QueryDataSource;
 import io.druid.query.QueryRunner;
@@ -120,6 +119,7 @@ import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
 import java.io.IOException;
+import java.lang.reflect.Array;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -151,38 +151,12 @@ public class GroupByQueryRunnerTest
 
   private QueryRunner<Row> toBrokerRunner(QueryRunner<Row> runner)
   {
-    QueryToolChest toolChest = factory.getToolchest();
-    return toolChest.finalQueryDecoration(
-        new FinalizeResultsQueryRunner<>(
-            toolChest.postMergeQueryDecoration(
-                toolChest.mergeResults(
-                    toolChest.preMergeQueryDecoration(runner)
-                )
-            ), toolChest
-        )
-    );
+    return QueryRunnerTestHelper.toBrokerRunner(runner, factory.getToolchest());
   }
 
   private QueryRunner<Row> toBrokerRunner(QueryRunner<Row> runner, int segmentCount, ExecutorService exec)
   {
-    QueryToolChest toolChest = factory.getToolchest();
-    List<QueryRunner<Row>> singleSegmentRunners = Lists.newArrayList();
-    for (int i = 0; i < segmentCount; i++) {
-      singleSegmentRunners.add(toolChest.preMergeQueryDecoration(runner));
-    }
-    return toolChest.finalQueryDecoration(
-        new FinalizeResultsQueryRunner<>(
-            toolChest.postMergeQueryDecoration(
-                toolChest.mergeResults(
-                    factory.mergeRunners(
-                        exec,
-                        singleSegmentRunners,
-                        null
-                    )
-                )
-            ), toolChest
-        )
-    );
+    return QueryRunnerTestHelper.toBrokerRunner(runner, factory, segmentCount, exec);
   }
 
   @Test
@@ -229,8 +203,9 @@ public class GroupByQueryRunnerTest
 
     query = query.withOutputColumns(Arrays.asList("alias", "rows"));
 
+    String[] columnNames = {"__time", "alias", "rows"};
     expectedResults = GroupByQueryRunnerTestHelper.createExpectedRows(
-        new String[]{"__time", "alias", "rows"},
+        columnNames,
         new Object[]{"2011-04-01", "automotive", 1L},
         new Object[]{"2011-04-01", "business", 1L},
         new Object[]{"2011-04-01", "entertainment", 1L},
@@ -252,6 +227,34 @@ public class GroupByQueryRunnerTest
     );
 
     results = Sequences.toList(runner.run(query, Maps.<String, Object>newHashMap()), Lists.<Row>newArrayList());
+    TestHelper.assertExpectedObjects(expectedResults, results, "");
+
+    // add post processing
+    QueryRunner<Row> broker = toBrokerRunner(runner);
+    query = query.withOverriddenContext(
+        ImmutableMap.<String, Object>of(
+            Query.POST_PROCESSING,
+            new LimitingPostProcessor(
+                DefaultLimitSpec.of(10, OrderByColumnSpec.desc("alias")),
+                new GroupByQueryConfig())
+        )
+    );
+
+    expectedResults = GroupByQueryRunnerTestHelper.createExpectedRows(
+        columnNames,
+        array("2011-04-01T00:00:00.000Z", "travel", 1L),
+        array("2011-04-01T00:00:00.000Z", "technology", 1L),
+        array("2011-04-01T00:00:00.000Z", "premium", 3L),
+        array("2011-04-01T00:00:00.000Z", "news", 1L),
+        array("2011-04-01T00:00:00.000Z", "mezzanine", 3L),
+        array("2011-04-01T00:00:00.000Z", "health", 1L),
+        array("2011-04-01T00:00:00.000Z", "entertainment", 1L),
+        array("2011-04-01T00:00:00.000Z", "business", 1L),
+        array("2011-04-01T00:00:00.000Z", "automotive", 1L),
+        array("2011-04-02T00:00:00.000Z", "travel", 1L)
+    );
+
+    results = Sequences.toList(broker.run(query, Maps.<String, Object>newHashMap()), Lists.<Row>newArrayList());
     TestHelper.assertExpectedObjects(expectedResults, results, "");
   }
 
@@ -6114,7 +6117,9 @@ public class GroupByQueryRunnerTest
           continue;
         }
         Object o = x.getRaw(d);
-        if (o instanceof String) {
+        if (o == null) {
+          b.append("null");
+        } else if (o instanceof String) {
           b.append('"').append(o).append('"');
         } else if (o instanceof Long) {
           b.append(o).append('L');
@@ -6130,11 +6135,47 @@ public class GroupByQueryRunnerTest
               b.append('"').append(e).append('"');
             } else if (e instanceof Long) {
               b.append(e).append('L');
+            } else if (e instanceof Double) {
+              b.append(e).append('D');
+            } else if (e instanceof Float) {
+              b.append(e).append('F');
             } else {
               b.append(e);
             }
           }
           b.append(')');
+        } else if (o.getClass().isArray()) {
+          Class compType = o.getClass().getComponentType();
+          if (compType == Long.class || compType == Long.TYPE) {
+            b.append("new long[] {");
+          } else if (compType == Double.class || compType == Double.TYPE) {
+            b.append("new double[] {");
+          } else if (compType == Float.class || compType == Float.TYPE) {
+            b.append("new float[] {");
+          } else if (compType == String.class) {
+            b.append("new String[] {");
+          } else {
+            b.append("new Object[] {");
+          }
+          int length = Array.getLength(o);
+          for (int i = 0; i < length; i++) {
+            if (i > 0) {
+              b.append(", ");
+            }
+            Object e = Array.get(o, i);
+            if (e instanceof String) {
+              b.append('"').append(e).append('"');
+            } else if (e instanceof Long) {
+              b.append(e).append('L');
+            } else if (e instanceof Double) {
+              b.append(e).append('D');
+            } else if (e instanceof Float) {
+              b.append(e).append('F');
+            } else {
+              b.append(e);
+            }
+          }
+          b.append('}');
         } else {
           b.append(o);
         }

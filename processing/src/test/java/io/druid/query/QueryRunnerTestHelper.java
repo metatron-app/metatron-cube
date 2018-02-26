@@ -56,6 +56,7 @@ import io.druid.segment.IncrementalIndexSegment;
 import io.druid.segment.QueryableIndex;
 import io.druid.segment.QueryableIndexSegment;
 import io.druid.segment.Segment;
+import io.druid.segment.TestHelper;
 import io.druid.segment.TestIndex;
 import io.druid.segment.incremental.IncrementalIndex;
 import io.druid.timeline.TimelineObjectHolder;
@@ -72,6 +73,7 @@ import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ExecutorService;
 
 /**
  */
@@ -490,6 +492,52 @@ public class QueryRunnerTestHelper
     );
   }
 
+  @SuppressWarnings("unchecked")
+  public static <T> QueryRunner<T> toBrokerRunner(QueryRunner<T> runner, QueryToolChest toolChest)
+  {
+    return toolChest.finalQueryDecoration(
+        PostProcessingOperators.wrap(
+            new FinalizeResultsQueryRunner<>(
+                toolChest.postMergeQueryDecoration(
+                    toolChest.mergeResults(
+                        toolChest.preMergeQueryDecoration(runner)
+                    )
+                ), toolChest
+            ), TestHelper.JSON_MAPPER
+        )
+    );
+  }
+
+  public static <T> QueryRunner<T> toBrokerRunner(
+      QueryRunner<T> runner,
+      QueryRunnerFactory<T, Query<T>> factory,
+      int segmentCount,
+      ExecutorService exec
+  )
+  {
+    QueryToolChest<T, Query<T>> toolChest = factory.getToolchest();
+    List<QueryRunner<T>> singleSegmentRunners = Lists.newArrayList();
+    for (int i = 0; i < segmentCount; i++) {
+      singleSegmentRunners.add(toolChest.preMergeQueryDecoration(runner));
+    }
+    return toolChest.finalQueryDecoration(
+        PostProcessingOperators.wrap(
+            new FinalizeResultsQueryRunner<>(
+                toolChest.postMergeQueryDecoration(
+                    toolChest.mergeResults(
+                        factory.mergeRunners(
+                            exec,
+                            singleSegmentRunners,
+                            null
+                        )
+                    )
+                ), toolChest
+            ),
+            TestHelper.JSON_MAPPER
+        )
+    );
+  }
+
   private static <T, QueryType extends Query<T>> QueryRunner<T> makeSegmentQueryRunner(
       final QueryRunnerFactory<T, QueryType> factory,
       final String segmentId,
@@ -531,7 +579,7 @@ public class QueryRunnerTestHelper
                 )
             )
         )
-        .mergeResults()
+        .applyMergeResults()
         .applyPostMergeDecoration()
         .applyFinalizeResults();
   }
@@ -573,7 +621,7 @@ public class QueryRunnerTestHelper
             }
         )
         .applyPreMergeDecoration()
-        .mergeResults()
+        .applyMergeResults()
         .applyPostMergeDecoration()
         .applyFinalizeResults();
   }

@@ -32,13 +32,12 @@ import com.metamx.common.ISE;
 import com.metamx.common.guava.Sequence;
 import com.metamx.common.guava.Sequences;
 import io.druid.collections.StupidPool;
-import io.druid.granularity.QueryGranularities;
 import io.druid.granularity.Granularity;
+import io.druid.granularity.QueryGranularities;
 import io.druid.js.JavaScriptConfig;
 import io.druid.query.BySegmentResultValue;
 import io.druid.query.BySegmentResultValueClass;
 import io.druid.query.Druids;
-import io.druid.query.FluentQueryRunnerBuilder;
 import io.druid.query.QueryRunner;
 import io.druid.query.QueryRunnerTestHelper;
 import io.druid.query.QueryToolChest;
@@ -55,7 +54,6 @@ import io.druid.query.aggregation.cardinality.CardinalityAggregatorFactory;
 import io.druid.query.aggregation.hyperloglog.HyperUniqueFinalizingPostAggregator;
 import io.druid.query.aggregation.hyperloglog.HyperUniquesAggregatorFactory;
 import io.druid.query.aggregation.post.MathPostAggregator;
-import io.druid.query.dimension.DefaultDimensionSpec;
 import io.druid.query.dimension.DimensionSpec;
 import io.druid.query.dimension.ExtractionDimensionSpec;
 import io.druid.query.extraction.DimExtractionFn;
@@ -250,11 +248,7 @@ public class TopNQueryRunnerTest
 
     query = query.withOutputColumns(Arrays.asList("market", "rows", "index"));
     // with projection processor
-    QueryRunner project = new FluentQueryRunnerBuilder(toolChest)
-        .create(runner)
-        .applyPreMergeDecoration()
-        .mergeResults()
-        .postProcess(null);
+    QueryRunner project = QueryRunnerTestHelper.toBrokerRunner(runner, toolChest);
 
     expectedResults = Arrays.asList(
         new Result<TopNResultValue>(

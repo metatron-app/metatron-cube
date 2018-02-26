@@ -21,11 +21,31 @@ package io.druid.query;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.metamx.common.guava.Sequence;
+
+import java.util.Map;
 
 /**
  */
 public class PostProcessingOperators
 {
+  public static <T> QueryRunner<T> wrap(final QueryRunner<T> baseRunner, final ObjectMapper mapper)
+  {
+    return new QueryRunner<T>()
+    {
+      @Override
+      @SuppressWarnings("unchecked")
+      public Sequence<T> run(Query<T> query, Map<String, Object> responseContext)
+      {
+        PostProcessingOperator<T> processor = load(query, mapper);
+        if (processor != null) {
+          return processor.postProcess(baseRunner).run(query, responseContext);
+        }
+        return baseRunner.run(query, responseContext);
+      }
+    };
+  }
+
   @SuppressWarnings("unchecked")
   public static <T> PostProcessingOperator<T> load(Query<T> query, ObjectMapper mapper)
   {

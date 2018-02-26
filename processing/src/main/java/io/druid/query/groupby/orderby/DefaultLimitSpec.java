@@ -36,6 +36,7 @@ import io.druid.query.aggregation.PostAggregator;
 import io.druid.query.dimension.DimensionSpec;
 
 import java.nio.ByteBuffer;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
@@ -47,6 +48,11 @@ public class DefaultLimitSpec implements LimitSpec
   public static LimitSpec of(int limit)
   {
     return new DefaultLimitSpec(null, limit, null);
+  }
+
+  public static LimitSpec of(Integer limit, OrderByColumnSpec... orderByColumnSpecs)
+  {
+    return new DefaultLimitSpec(Arrays.asList(orderByColumnSpecs), limit, null);
   }
 
   private static final byte CACHE_KEY = 0x1;

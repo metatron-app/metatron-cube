@@ -128,8 +128,7 @@ public class ClientQuerySegmentWalker implements QuerySegmentWalker
       QueryRunner<T> runner = toolChest.finalQueryDecoration(
           toolChest.handleSubQuery(makeRunner(innerQuery, true), this, exec, maxRowCount)
       );
-      PostProcessingOperator postProcessing = PostProcessingOperators.load(query, objectMapper);
-      return postProcessing != null ? postProcessing.postProcess(runner) : runner;
+      return PostProcessingOperators.wrap(runner, objectMapper);
     }
 
     if (query instanceof UnionAllQuery) {
@@ -146,13 +145,13 @@ public class ClientQuerySegmentWalker implements QuerySegmentWalker
     );
 
     runner = runner.applyPreMergeDecoration()
-                   .mergeResults()
+                   .applyMergeResults()
                    .applyPostMergeDecoration();
     if (!subQuery) {
       runner = runner.applyFinalizeResults()
                      .emitCPUTimeMetric(emitter);
     }
-    return runner.postProcess(PostProcessingOperators.load(query, objectMapper));
+    return runner.applyPostProcess(objectMapper);
   }
 
   private <I, T> QueryRunner<T> getIteratingQueryRunner(final Query.IteratingQuery<I, T> iterating)

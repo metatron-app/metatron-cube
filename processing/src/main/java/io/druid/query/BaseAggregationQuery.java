@@ -616,6 +616,11 @@ public abstract class BaseAggregationQuery<T extends Comparable<T>> extends Base
       return setAggregatorSpecs(aggregatorSpecs);
     }
 
+    public Builder<T> aggregators(AggregatorFactory... aggregatorSpecs)
+    {
+      return setAggregatorSpecs(aggregatorSpecs);
+    }
+
     public Builder<T> addPostAggregator(PostAggregator postAgg)
     {
       if (postAggregatorSpecs == null) {

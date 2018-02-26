@@ -19,6 +19,7 @@
 
 package io.druid.query;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Function;
 import com.metamx.common.guava.Sequence;
 import com.metamx.emitter.service.ServiceEmitter;
@@ -32,7 +33,8 @@ public class FluentQueryRunnerBuilder<T>
 {
   final QueryToolChest<T, Query<T>> toolChest;
 
-  public FluentQueryRunner create(QueryRunner<T> baseRunner) {
+  public FluentQueryRunner create(QueryRunner<T> baseRunner)
+  {
     return new FluentQueryRunner(baseRunner);
   }
 
@@ -58,7 +60,8 @@ public class FluentQueryRunnerBuilder<T>
       return baseRunner.run(query, responseContext);
     }
 
-    public FluentQueryRunner from(QueryRunner<T> runner) {
+    public FluentQueryRunner from(QueryRunner<T> runner)
+    {
       return new FluentQueryRunner(runner);
     }
 
@@ -105,16 +108,16 @@ public class FluentQueryRunnerBuilder<T>
     }
 
     @SuppressWarnings("unchecked")
-    public FluentQueryRunner postProcess(PostProcessingOperator<T> postProcessing)
+    public FluentQueryRunner applyPostProcess(ObjectMapper mapper)
     {
-      QueryRunner<T> runner = toolChest.finalQueryDecoration(baseRunner);
-      if (postProcessing != null) {
-        runner = postProcessing.postProcess(runner);
-      }
-      return from(runner);
+      return from(
+          PostProcessingOperators.wrap(
+              toolChest.finalQueryDecoration(baseRunner), mapper
+          )
+      );
     }
 
-    public FluentQueryRunner mergeResults()
+    public FluentQueryRunner applyMergeResults()
     {
       return from(
           toolChest.mergeResults(baseRunner)
