@@ -32,6 +32,7 @@ import io.druid.data.ValueType;
 import io.druid.query.BaseQuery;
 import io.druid.query.DataSource;
 import io.druid.query.Query;
+import io.druid.query.QueryConfig;
 import io.druid.query.QueryContextKeys;
 import io.druid.query.QuerySegmentWalker;
 import io.druid.query.QueryUtils;
@@ -82,7 +83,7 @@ public class SummaryQuery extends BaseQuery<Result<Map<String, Object>>>
 
   @Override
   @SuppressWarnings("unchecked")
-  public Query rewriteQuery(QuerySegmentWalker segmentWalker, ObjectMapper jsonMapper)
+  public Query rewriteQuery(QuerySegmentWalker segmentWalker, QueryConfig queryConfig, ObjectMapper jsonMapper)
   {
     Map<String, Map<ValueDesc, MutableInt>> results = QueryUtils.analyzeTypes(segmentWalker, this);
 

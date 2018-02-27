@@ -25,31 +25,48 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Iterables;
+import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
 import com.google.common.collect.Ordering;
 import com.google.common.primitives.Longs;
+import com.metamx.common.guava.Sequences;
+import com.metamx.common.logger.Logger;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.data.input.Row;
+import io.druid.granularity.Granularities;
 import io.druid.granularity.Granularity;
 import io.druid.query.BaseAggregationQuery;
+import io.druid.query.BaseQuery;
 import io.druid.query.DataSource;
+import io.druid.query.Druids;
 import io.druid.query.LateralViewSpec;
 import io.druid.query.PostProcessingOperator;
 import io.druid.query.PostProcessingOperators;
 import io.druid.query.Queries;
 import io.druid.query.Query;
+import io.druid.query.QueryConfig;
 import io.druid.query.QuerySegmentWalker;
+import io.druid.query.Result;
 import io.druid.query.TimeseriesToRow;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.PostAggregator;
 import io.druid.query.dimension.DimensionSpec;
 import io.druid.query.dimension.DimensionSpecs;
+import io.druid.query.filter.AndDimFilter;
 import io.druid.query.filter.DimFilter;
+import io.druid.query.filter.MathExprFilter;
 import io.druid.query.groupby.having.HavingSpec;
 import io.druid.query.groupby.orderby.LimitSpec;
+import io.druid.query.groupby.orderby.OrderByColumnSpec;
 import io.druid.query.spec.QuerySegmentSpec;
 import io.druid.query.timeseries.TimeseriesQuery;
+import io.druid.query.timeseries.TimeseriesResultValue;
+import io.druid.segment.ExprVirtualColumn;
 import io.druid.segment.VirtualColumn;
+import org.apache.commons.lang.StringUtils;
 
+import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
@@ -365,12 +382,21 @@ public class GroupByQuery extends BaseAggregationQuery<Row> implements Query.Rew
 
   @Override
   public Query rewriteQuery(
-      QuerySegmentWalker segmentWalker, ObjectMapper jsonMapper
+      QuerySegmentWalker segmentWalker, QueryConfig queryConfig, ObjectMapper jsonMapper
   )
   {
-    if (!getContextBoolean(GBY_CONVERT_TIMESERIES, false)) {
-      return this;
+    GroupByQuery query = this;
+    if (getContextBoolean(GBY_LIMIT_PUSHDOWN, queryConfig.groupBy.isLimitPushdown())) {
+      query = query.tryPushdown(segmentWalker, queryConfig, jsonMapper);
     }
+    if (getContextBoolean(GBY_CONVERT_TIMESERIES, queryConfig.groupBy.isConvertTimeseries())) {
+      return query.tryConvertToTimeseries(jsonMapper);
+    }
+    return query;
+  }
+
+  private Query tryConvertToTimeseries(ObjectMapper jsonMapper)
+  {
     if (!dimensions.isEmpty() || needsSchemaResolution()) {
       return this;
     }
@@ -378,23 +404,119 @@ public class GroupByQuery extends BaseAggregationQuery<Row> implements Query.Rew
     if (current == null) {
       current = new TimeseriesToRow();
     }
-    return new TimeseriesQuery(
-        getDataSource(),
-        getQuerySegmentSpec(),
-        isDescending(),
-        dimFilter,
-        granularity,
-        virtualColumns,
-        aggregatorSpecs,
-        postAggregatorSpecs,
-        havingSpec,
-        limitSpec,
-        outputColumns,
-        lateralView,
-        computeOverridenContext(
-            ImmutableMap.<String, Object>of(POST_PROCESSING, current)
-        )
+    return Druids.newTimeseriesQueryBuilder().copy(this)
+                 .overrideContext(ImmutableMap.<String, Object>of(POST_PROCESSING, current))
+                 .build();
+  }
+
+  @SuppressWarnings("unchecked")
+  private GroupByQuery tryPushdown(QuerySegmentWalker segmentWalker, QueryConfig queryConfig, ObjectMapper jsonMapper)
+  {
+    GroupByQuery query = this;
+    LimitSpec limitSpec = query.getLimitSpec();
+    if (limitSpec.getLimit() > queryConfig.groupBy.getLimitPushdownThreshold()) {
+      return query;
+    }
+    if (!GuavaUtils.isNullOrEmpty(limitSpec.getWindowingSpecs())) {
+      return query;
+    }
+    List<String> dimensionNames = DimensionSpecs.toInputNames(query.getDimensions());
+    List<String> outputNames = DimensionSpecs.toOutputNames(query.getDimensions());
+
+    if (!OrderByColumnSpec.isGroupByOrdering(limitSpec.getColumns(), outputNames)) {
+      return query;  // todo
+    }
+    if (query.getGranularity() != Granularities.ALL) {
+      return query;  // todo
+    }
+
+    List<VirtualColumn> vcs = null;
+    Map<String, Object> ag;
+    Map<String, Object> pg = ImmutableMap.<String, Object>builder()
+                                         .put("type", "sketch.quantiles")
+                                         .put("name", "SPLIT")
+                                         .put("fieldName", "SKETCH")
+                                         .put("op", "QUANTILES_CDF")
+                                         .put("ratioAsCount", true)
+                                         .build();
+    if (dimensionNames.size() == 1) {
+      String dimension = dimensionNames.get(0);
+      ag = ImmutableMap.<String, Object>builder()
+                       .put("type", "sketch")
+                       .put("name", "SKETCH")
+                       .put("fieldName", dimension)
+                       .put("sketchOp", "QUANTILE")
+                       .build();
+    } else {
+      vcs = Arrays.<VirtualColumn>asList(
+          new ExprVirtualColumn("concat(" + StringUtils.join(dimensionNames, ", '\\\\u0001',") + ")", "VC")
+      );
+      ag = ImmutableMap.<String, Object>builder()
+                       .put("type", "sketch")
+                       .put("name", "SKETCH")
+                       .put("fieldName", "VC")
+                       .put("sketchOp", "QUANTILE")
+                       .put("stringComparator", "stringarray.\u0001")
+                       .build();
+    }
+
+    TimeseriesQuery metaQuery = new TimeseriesQuery(
+        query.getDataSource(),
+        query.getQuerySegmentSpec(),
+        query.isDescending(),
+        query.getDimFilter(),
+        query.getGranularity(),
+        vcs,
+        Arrays.asList(Queries.convert(ag, jsonMapper, AggregatorFactory.class)),
+        Arrays.asList(Queries.convert(pg, jsonMapper, PostAggregator.class)),
+        null,
+        null,
+        Arrays.asList("SPLIT"),
+        null,
+        ImmutableMap.<String, Object>of(BaseQuery.QUERYID, getId())
     );
+    Result<TimeseriesResultValue> result = Iterables.getOnlyElement(
+        Sequences.toList(
+            metaQuery.run(segmentWalker, Maps.<String, Object>newHashMap()),
+            Lists.<Result<TimeseriesResultValue>>newArrayList()
+        ), null
+    );
+    if (result == null) {
+      return query;
+    }
+    Logger logger = new Logger(GroupByQuery.class);
+
+    // made in broker.. keeps type (not "list of numbers" for cdf)
+    Map<String, Object> value = (Map<String, Object>) result.getValue().getMetric("SPLIT");
+    String[] values = (String[])value.get("splits");
+    long[] counts = (long[])value.get("cdf");
+
+    logger.info("--> values : " + Arrays.toString(values));
+    logger.info("--> counts : " + Arrays.toString(counts));
+
+    long limit = (long) (limitSpec.getLimit() * 1.1);
+
+    logger.info("--> " + limit + "  : " + Arrays.binarySearch(counts, limit));
+    int index = Math.abs(Arrays.binarySearch(counts, limit));
+    if (index == counts.length) {
+      return query;
+    }
+    String[] splits = values[index].split("\u0001");
+    if (dimensionNames.size() != splits.length) {
+      return query;
+    }
+    StringBuilder builder = new StringBuilder();
+    for (int i = 0; i < splits.length; i++) {
+      if (builder.length() > 0) {
+        builder.append(" && ");
+      }
+      builder.append(dimensionNames.get(i)).append(" < ").append("'").append(splits[i]).append("'");
+    }
+    logger.info("---------> " + builder.toString());
+
+    DimFilter newFilter = AndDimFilter.of(query.getDimFilter(), new MathExprFilter(builder.toString()));
+    logger.info("---------> " + newFilter);
+    return query.withDimFilter(newFilter);
   }
 
   public static class Builder extends BaseAggregationQuery.Builder<GroupByQuery>

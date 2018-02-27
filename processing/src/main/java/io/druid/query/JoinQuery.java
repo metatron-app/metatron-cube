@@ -253,7 +253,7 @@ public class JoinQuery<T extends Comparable<T>> extends BaseQuery<T> implements 
 
   @Override
   @SuppressWarnings("unchecked")
-  public Query rewriteQuery(QuerySegmentWalker segmentWalker, ObjectMapper jsonMapper)
+  public Query rewriteQuery(QuerySegmentWalker segmentWalker, QueryConfig queryConfig, ObjectMapper jsonMapper)
   {
     String queryId = getId();
     JoinPostProcessor joinProcessor = jsonMapper.convertValue(

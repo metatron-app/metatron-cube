@@ -33,6 +33,7 @@ import io.druid.query.BaseQuery;
 import io.druid.query.DataSource;
 import io.druid.query.Queries;
 import io.druid.query.Query;
+import io.druid.query.QueryConfig;
 import io.druid.query.QuerySegmentWalker;
 import io.druid.query.metadata.metadata.ColumnAnalysis;
 import io.druid.query.metadata.metadata.ListColumnIncluderator;
@@ -221,7 +222,7 @@ public class KMeansQuery
   }
 
   @Override
-  public Query rewriteQuery(QuerySegmentWalker segmentWalker, ObjectMapper jsonMapper)
+  public Query rewriteQuery(QuerySegmentWalker segmentWalker, QueryConfig queryConfig, ObjectMapper jsonMapper)
   {
     SegmentMetadataQuery metaQuery = new SegmentMetadataQuery(
         getDataSource(),

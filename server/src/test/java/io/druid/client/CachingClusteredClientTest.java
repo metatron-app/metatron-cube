@@ -213,8 +213,10 @@ public class CachingClusteredClientTest
   private static final DateTimeZone TIMEZONE = DateTimeZone.forID("America/Los_Angeles");
   private static final Granularity PT1H_TZ_GRANULARITY = new PeriodGranularity(new Period("PT1H"), null, TIMEZONE);
   private static final String TOP_DIM = "a_dim";
-  private static final Supplier<GroupByQueryConfig> GROUPBY_QUERY_CONFIG_SUPPLIER = Suppliers.ofInstance(new GroupByQueryConfig());
+  private static final QueryConfig QUERY_CONFIG = new QueryConfig();
+  private static final Supplier<GroupByQueryConfig> GROUPBY_QUERY_CONFIG_SUPPLIER = Suppliers.ofInstance(QUERY_CONFIG.groupBy);
   static final QueryToolChestWarehouse WAREHOUSE = new MapQueryToolChestWarehouse(
+      QUERY_CONFIG,
       ImmutableMap.<Class<? extends Query>, QueryToolChest>builder()
                   .put(
                       TimeseriesQuery.class,

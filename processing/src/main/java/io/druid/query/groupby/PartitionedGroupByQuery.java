@@ -35,6 +35,7 @@ import io.druid.query.BaseAggregationQuery;
 import io.druid.query.DataSource;
 import io.druid.query.LateralViewSpec;
 import io.druid.query.Query;
+import io.druid.query.QueryConfig;
 import io.druid.query.QueryContextKeys;
 import io.druid.query.QuerySegmentWalker;
 import io.druid.query.QueryUtils;
@@ -144,7 +145,7 @@ public class PartitionedGroupByQuery extends GroupByQuery implements Query.Rewri
 
   @Override
   @SuppressWarnings("unchecked")
-  public Query rewriteQuery(QuerySegmentWalker segmentWalker, ObjectMapper jsonMapper)
+  public Query rewriteQuery(QuerySegmentWalker segmentWalker, QueryConfig queryConfig, ObjectMapper jsonMapper)
   {
     LimitSpec limitSpec = getLimitSpec();
     Query query = tryPartitioning(segmentWalker, jsonMapper);

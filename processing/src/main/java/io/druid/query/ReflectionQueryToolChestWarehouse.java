@@ -27,6 +27,12 @@ public class ReflectionQueryToolChestWarehouse implements QueryToolChestWarehous
   ReflectionLoaderThingy<QueryToolChest> loader = ReflectionLoaderThingy.create(QueryToolChest.class);
 
   @Override
+  public QueryConfig getQueryConfig()
+  {
+    throw new UnsupportedOperationException("getQueryConfig");
+  }
+
+  @Override
   @SuppressWarnings("unchecked")
   public <T, QueryType extends Query<T>> QueryToolChest<T, QueryType> getToolChest(QueryType query)
   {

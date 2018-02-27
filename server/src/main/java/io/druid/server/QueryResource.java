@@ -463,7 +463,7 @@ public class QueryResource
               input = input.withId(queryId);
             }
             if (input instanceof Query.RewritingQuery) {
-              return ((Query.RewritingQuery) input).rewriteQuery(texasRanger, jsonMapper);
+              return ((Query.RewritingQuery) input).rewriteQuery(texasRanger, warehouse.getQueryConfig(), jsonMapper);
             }
             return input;
           }

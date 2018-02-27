@@ -180,7 +180,7 @@ public interface Query<T> extends QueryContextKeys
 
   interface RewritingQuery<T> extends Query<T>
   {
-    Query rewriteQuery(QuerySegmentWalker segmentWalker, ObjectMapper jsonMapper);
+    Query rewriteQuery(QuerySegmentWalker segmentWalker, QueryConfig queryConfig, ObjectMapper jsonMapper);
   }
 
   interface IteratingQuery<INTERMEDIATE, FINAL>

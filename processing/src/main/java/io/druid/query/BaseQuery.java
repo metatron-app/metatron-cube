@@ -326,7 +326,11 @@ public abstract class BaseQuery<T> implements Query<T>
 
   protected Map<String, Object> computeOverridenContext(Map<String, Object> overrides)
   {
-    final Map<String, Object> context = getContext();
+    return overrideContextWith(getContext(), overrides);
+  }
+
+  static Map<String, Object> overrideContextWith(Map<String, Object> context, Map<String, Object> overrides)
+  {
     if (overrides == null) {
       return context;
     }

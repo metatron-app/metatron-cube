@@ -29,6 +29,7 @@ import com.metamx.common.guava.Sequences;
 import io.druid.data.ValueDesc;
 import io.druid.data.ValueType;
 import io.druid.granularity.QueryGranularities;
+import io.druid.query.QueryConfig;
 import io.druid.query.QueryRunner;
 import io.druid.query.QueryRunnerTestHelper;
 import io.druid.query.Result;
@@ -235,7 +236,7 @@ public class SelectMetaQueryRunnerTest
         metrics,
         null,
         Maps.<String, Object>newHashMap()
-    ).rewriteQuery(null, null);
+    ).rewriteQuery(null, new QueryConfig(), null);
 
     Schema schema = Iterables.getOnlyElement(
         Sequences.toList(

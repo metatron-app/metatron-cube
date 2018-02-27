@@ -41,21 +41,21 @@ public class SketchQuantilesPostAggregator implements PostAggregator
   public static SketchQuantilesPostAggregator fraction(String name, String fieldName, double fraction)
   {
     return new SketchQuantilesPostAggregator(
-        name, fieldName, SketchQuantilesOp.QUANTILES, fraction, null, null, null, null, null, null
+        name, fieldName, SketchQuantilesOp.QUANTILES, fraction, null, null, null, null, null, null, false
     );
   }
 
   public static SketchQuantilesPostAggregator fractions(String name, String fieldName, double[] fractions)
   {
     return new SketchQuantilesPostAggregator(
-        name, fieldName, SketchQuantilesOp.QUANTILES, null, fractions, null, null, null, null, null
+        name, fieldName, SketchQuantilesOp.QUANTILES, null, fractions, null, null, null, null, null, false
     );
   }
 
   public static SketchQuantilesPostAggregator evenSpaced(String name, String fieldName, int evenSpaced)
   {
     return new SketchQuantilesPostAggregator(
-        name, fieldName, SketchQuantilesOp.QUANTILES, null, null, null, evenSpaced, null, null, null
+        name, fieldName, SketchQuantilesOp.QUANTILES, null, null, null, evenSpaced, null, null, null, false
     );
   }
 
@@ -75,20 +75,31 @@ public class SketchQuantilesPostAggregator implements PostAggregator
       @JsonProperty("evenSpaced") Integer evenSpaced,
       @JsonProperty("evenCounted") Integer evenCounted,
       @JsonProperty("slopedSpaced") Integer slopedSpaced,
-      @JsonProperty("splitPoints") String[] splitPoints
+      @JsonProperty("splitPoints") String[] splitPoints,
+      @JsonProperty("ratioAsCount") boolean ratioAsCount
   )
   {
     this.name = Preconditions.checkNotNull(name, "'name' cannot be null");
     this.fieldName = Preconditions.checkNotNull(fieldName, "'fieldName' cannot be null");
     this.op = op == null ? SketchQuantilesOp.QUANTILES : op;
-    if (op == null || op == SketchQuantilesOp.QUANTILES) {
-      parameter = fraction != null ? fraction :
-                  fractions != null ? fractions :
-                  count != null ? count :
-                  evenSpaced != null && evenSpaced > 0 ? SketchQuantilesOp.evenSpaced(evenSpaced) :
-                  evenCounted != null && evenCounted > 0 ? SketchQuantilesOp.evenCounted(evenCounted) :
-                  slopedSpaced != null && slopedSpaced > 0 ? SketchQuantilesOp.slopedSpaced(slopedSpaced) :
-                  SketchQuantilesOp.DEFAULT_QUANTILE_PARAM;
+    if (op == null ||
+        op == SketchQuantilesOp.QUANTILES ||
+        op == SketchQuantilesOp.QUANTILES_CDF ||
+        op == SketchQuantilesOp.QUANTILES_PMF) {
+      Object parameter = fraction != null ? fraction :
+                         fractions != null ? fractions :
+                         count != null ? count :
+                         evenSpaced != null && evenSpaced > 0 ? SketchQuantilesOp.evenSpaced(evenSpaced) :
+                         evenCounted != null && evenCounted > 0 ? SketchQuantilesOp.evenCounted(evenCounted) :
+                         slopedSpaced != null && slopedSpaced > 0 ? SketchQuantilesOp.slopedSpaced(slopedSpaced) :
+                         SketchQuantilesOp.DEFAULT_QUANTILE_PARAM;
+      if (op == null || op == SketchQuantilesOp.QUANTILES) {
+        this.parameter = parameter;
+      } else {
+        this.parameter = SketchQuantilesOp.quantileRatioParam(parameter, ratioAsCount);
+      }
+    } else if (op == SketchQuantilesOp.CDF || op == SketchQuantilesOp.PMF) {
+      parameter = SketchQuantilesOp.ratioParam(splitPoints, ratioAsCount);
     } else {
       parameter = splitPoints;
     }

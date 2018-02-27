@@ -27,14 +27,23 @@ import java.util.Map;
  */
 public class MapQueryToolChestWarehouse implements QueryToolChestWarehouse
 {
+  private final QueryConfig queryConfig;
   private final Map<Class<? extends Query>, QueryToolChest> toolchests;
 
   @Inject
   public MapQueryToolChestWarehouse(
+      QueryConfig queryConfig,
       Map<Class<? extends Query>, QueryToolChest> toolchests
   )
   {
+    this.queryConfig = queryConfig;
     this.toolchests = toolchests;
+  }
+
+  @Override
+  public QueryConfig getQueryConfig()
+  {
+    return queryConfig;
   }
 
   @Override

@@ -37,34 +37,34 @@ import javax.validation.constraints.NotNull;
 public class QueryConfig
 {
   @JsonProperty
-  int maxResults;
+  public int maxResults;
 
   @JsonProperty
-  boolean useCustomSerdeForDateTime;
+  public boolean useCustomSerdeForDateTime;
 
   @JacksonInject
   @NotNull
-  GroupByQueryConfig groupBy;
+  public GroupByQueryConfig groupBy = new GroupByQueryConfig();
 
   @JacksonInject
   @NotNull
-  SearchQueryConfig search;
+  public SearchQueryConfig search = new SearchQueryConfig();
 
   @JacksonInject
   @NotNull
-  SelectQueryConfig select;
+  public SelectQueryConfig select = new SelectQueryConfig();
 
   @JacksonInject
   @NotNull
-  TopNQueryConfig topN;
+  public TopNQueryConfig topN = new TopNQueryConfig();
 
   @JacksonInject
   @NotNull
-  SegmentMetadataQueryConfig segmentMeta;
+  public SegmentMetadataQueryConfig segmentMeta = new SegmentMetadataQueryConfig();
 
   @JacksonInject
   @NotNull
-  JoinQueryConfig join;
+  public JoinQueryConfig join = new JoinQueryConfig();
 
   public int getMaxResults()
   {

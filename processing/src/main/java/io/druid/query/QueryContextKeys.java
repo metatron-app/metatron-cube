@@ -35,6 +35,7 @@ public interface QueryContextKeys
   public static final String GBY_CONVERT_TIMESERIES = "groupByConvertTimeseries";
   public static final String GBY_MERGE_SIMPLE = "groupByMergeSimple";
   public static final String GBY_COMPACT_TRANSFER = "groupByCompactTransfer";
+  public static final String GBY_LIMIT_PUSHDOWN = "groupByLimitPushdown";
 
   // CacheConfig
   public static final String USE_CACHE = "useCache";

@@ -657,6 +657,11 @@ public abstract class BaseAggregationQuery<T extends Comparable<T>> extends Base
       return setContext(context);
     }
 
+    public Builder<T> overrideContext(Map<String, Object> override)
+    {
+      return setContext(BaseQuery.overrideContextWith(context, override));
+    }
+
     public Builder<T> setHavingSpec(HavingSpec havingSpec)
     {
       this.havingSpec = havingSpec;

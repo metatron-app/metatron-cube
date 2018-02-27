@@ -26,6 +26,7 @@ import io.druid.granularity.Granularities;
 import io.druid.query.BaseQuery;
 import io.druid.query.DataSource;
 import io.druid.query.Query;
+import io.druid.query.QueryConfig;
 import io.druid.query.QuerySegmentWalker;
 import io.druid.query.Result;
 import io.druid.query.dimension.DimensionSpec;
@@ -87,7 +88,7 @@ public class SchemaQuery extends BaseQuery<Result<SelectMetaResultValue>>
 
   @Override
   public SelectMetaQuery rewriteQuery(
-      QuerySegmentWalker segmentWalker, ObjectMapper jsonMapper
+      QuerySegmentWalker segmentWalker, QueryConfig queryConfig, ObjectMapper jsonMapper
   )
   {
     return new SelectMetaQuery(

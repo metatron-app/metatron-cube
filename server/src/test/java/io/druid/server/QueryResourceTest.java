@@ -31,6 +31,7 @@ import io.druid.concurrent.Execs;
 import io.druid.jackson.DefaultObjectMapper;
 import io.druid.query.MapQueryToolChestWarehouse;
 import io.druid.query.Query;
+import io.druid.query.QueryConfig;
 import io.druid.query.QueryRunner;
 import io.druid.query.QuerySegmentWalker;
 import io.druid.query.QueryToolChest;
@@ -114,7 +115,7 @@ public class QueryResourceTest
 
   private static final DruidNode node = new DruidNode("dummy", "dummy", 0);
   private static final QueryToolChestWarehouse warehouse = new MapQueryToolChestWarehouse(
-      Maps.<Class<? extends Query>, QueryToolChest>newHashMap()
+      new QueryConfig(), Maps.<Class<? extends Query>, QueryToolChest>newHashMap()
   );
   private static final ServiceEmitter noopServiceEmitter = new NoopServiceEmitter();
 

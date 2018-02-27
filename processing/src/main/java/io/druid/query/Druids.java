@@ -360,7 +360,7 @@ public class Druids
       );
     }
 
-    public TimeseriesQueryBuilder copy(TimeseriesQuery query)
+    public TimeseriesQueryBuilder copy(BaseAggregationQuery<?> query)
     {
       return (TimeseriesQueryBuilder) new TimeseriesQueryBuilder()
           .dataSource(query.getDataSource())

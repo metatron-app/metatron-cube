@@ -43,6 +43,7 @@ import io.druid.guice.GuiceInjectableValues;
 import io.druid.guice.annotations.Json;
 import io.druid.query.DefaultQueryRunnerFactoryConglomerate;
 import io.druid.query.Query;
+import io.druid.query.QueryConfig;
 import io.druid.query.QueryRunnerFactory;
 import io.druid.query.QueryRunnerFactoryConglomerate;
 import io.druid.query.QueryRunnerTestHelper;
@@ -113,12 +114,13 @@ public class CalciteTests
 
   private static final String TIMESTAMP_COLUMN = "t";
 
+  private static final QueryConfig QUERY_CONFIG = new QueryConfig();
   private static final Supplier<GroupByQueryConfig> GBY_CONF = new Supplier<GroupByQueryConfig>()
   {
     @Override
     public GroupByQueryConfig get()
     {
-      return new GroupByQueryConfig();
+      return QUERY_CONFIG.groupBy;
     }
   };
   private static final Supplier<ByteBuffer> GBY_SUP = new Supplier<ByteBuffer>()
@@ -154,6 +156,12 @@ public class CalciteTests
           binder.bind(QueryToolChestWarehouse.class).toInstance(
               new QueryToolChestWarehouse()
               {
+                @Override
+                public QueryConfig getQueryConfig()
+                {
+                  return QUERY_CONFIG;
+                }
+
                 @Override
                 public <T, QueryType extends Query<T>> QueryToolChest<T, QueryType> getToolChest(final QueryType query)
                 {

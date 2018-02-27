@@ -41,7 +41,13 @@ public class GroupByQueryConfig
   private int maxMergeParallelism = 8;
 
   @JsonProperty
-  private boolean convertTimeseries = true; // todo
+  private boolean convertTimeseries = false;
+
+  @JsonProperty
+  private boolean limitPushdown = false;
+
+  @JsonProperty
+  private int limitPushdownThreshold = maxIntermediateRows << 2;
 
   @JsonProperty
   private boolean mergeSimple = true; // todo
@@ -107,6 +113,26 @@ public class GroupByQueryConfig
   public void setConvertTimeseries(boolean convertTimeseries)
   {
     this.convertTimeseries = convertTimeseries;
+  }
+
+  public boolean isLimitPushdown()
+  {
+    return limitPushdown;
+  }
+
+  public void setLimitPushdown(boolean limitPushdown)
+  {
+    this.limitPushdown = limitPushdown;
+  }
+
+  public int getLimitPushdownThreshold()
+  {
+    return limitPushdownThreshold;
+  }
+
+  public void setLimitPushdownThreshold(int limitPushdownThreshold)
+  {
+    this.limitPushdownThreshold = limitPushdownThreshold;
   }
 
   public boolean isMergeSimple()

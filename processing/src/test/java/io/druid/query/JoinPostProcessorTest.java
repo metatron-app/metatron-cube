@@ -30,7 +30,6 @@ import io.druid.query.groupby.GroupByQueryEngine;
 import io.druid.query.groupby.GroupByQueryQueryToolChest;
 import io.druid.query.search.SearchQueryQueryToolChest;
 import io.druid.query.search.search.SearchQuery;
-import io.druid.query.search.search.SearchQueryConfig;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -48,7 +47,8 @@ public class JoinPostProcessorTest
   static final QueryToolChestWarehouse warehouse;
 
   static {
-    final Supplier<GroupByQueryConfig> supplier = Suppliers.ofInstance(new GroupByQueryConfig());
+    final QueryConfig queryConfig = new QueryConfig();
+    final Supplier<GroupByQueryConfig> supplier = Suppliers.ofInstance(queryConfig.groupBy);
     final StupidPool<ByteBuffer> pool = new StupidPool<>(
         new Supplier<ByteBuffer>()
         {
@@ -61,12 +61,12 @@ public class JoinPostProcessorTest
     );
     Map<Class<? extends Query>, QueryToolChest> mappings =
         ImmutableMap.<Class<? extends Query>, QueryToolChest>of(
-            SearchQuery.class, new SearchQueryQueryToolChest(new SearchQueryConfig(), null),
+            SearchQuery.class, new SearchQueryQueryToolChest(queryConfig.search, null),
             GroupByQuery.class, new GroupByQueryQueryToolChest(
                 supplier, new GroupByQueryEngine(supplier, pool), pool, null
             )
         );
-    warehouse = new MapQueryToolChestWarehouse(mappings);
+    warehouse = new MapQueryToolChestWarehouse(queryConfig, mappings);
   }
 
   @Test

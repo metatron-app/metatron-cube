@@ -60,6 +60,22 @@ public class OrderByColumnSpec implements Cacheable
     }
   };
 
+  public static boolean isGroupByOrdering(List<OrderByColumnSpec> orderByColumnSpecs, List<String> dimension)
+  {
+    int prev = Integer.MAX_VALUE;
+    for (OrderByColumnSpec orderBy : orderByColumnSpecs) {
+      int index = dimension.indexOf(orderBy.dimension);
+      if (index < 0 || index < prev) {
+        return false;
+      }
+      if (orderBy.direction != Direction.ASCENDING || orderBy.getDimensionComparator() != DEFAULT_DIMENSION_ORDER) {
+        return false;
+      }
+      prev = index;
+    }
+    return true;
+  }
+
   public static List<String> getColumns(List<? extends OrderByColumnSpec> orderByColumnSpecs)
   {
     return ImmutableList.copyOf(Lists.transform(orderByColumnSpecs, GET_DIMENSION));

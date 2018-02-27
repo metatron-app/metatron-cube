@@ -23,12 +23,15 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Joiner;
 import com.google.common.base.Preconditions;
+import com.google.common.base.Predicates;
+import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import io.druid.math.expr.Expression.AndExpression;
 import io.druid.query.Druids;
 import io.druid.segment.filter.AndFilter;
 import io.druid.segment.filter.Filters;
 
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -39,7 +42,8 @@ public class AndDimFilter implements DimFilter, AndExpression
 {
   public static DimFilter of(DimFilter... filters)
   {
-    return filters == null ? null : filters.length == 1 ? filters[0] : new AndDimFilter(Lists.newArrayList(filters));
+    List<DimFilter> list = Lists.newArrayList(Iterables.filter(Arrays.asList(filters), Predicates.notNull()));
+    return list.isEmpty() ? null : list.size() == 1 ? list.get(0) : new AndDimFilter(list);
   }
 
   private static final Joiner AND_JOINER = Joiner.on(" && ");

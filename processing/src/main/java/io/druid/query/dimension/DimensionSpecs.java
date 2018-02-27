@@ -23,6 +23,8 @@ import com.google.common.base.Function;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import io.druid.query.extraction.ExtractionFn;
+import io.druid.query.groupby.orderby.OrderByColumnSpec;
+import io.druid.query.groupby.orderby.OrderByColumnSpec.Direction;
 
 import java.util.List;
 
@@ -38,6 +40,15 @@ public class DimensionSpecs
   public static List<String> toOutputNames(List<DimensionSpec> dimensionSpecs)
   {
     return Lists.newArrayList(Iterables.transform(dimensionSpecs, OUTPUT_NAME));
+  }
+
+  public static List<OrderByColumnSpec> toOrderBySpec(List<DimensionSpec> dimensionSpecs)
+  {
+    List<OrderByColumnSpec> orderByColumnSpecs = Lists.newArrayList();
+    for (DimensionSpec dimensionSpec : dimensionSpecs) {
+      orderByColumnSpecs.add(new OrderByColumnSpec(dimensionSpec.getOutputName(), Direction.ASCENDING));
+    }
+    return orderByColumnSpecs;
   }
 
   public static final Function<DimensionSpec, String> INPUT_NAME = new Function<DimensionSpec, String>()
@@ -64,5 +75,15 @@ public class DimensionSpecs
       return ExtractionDimensionSpec.of(dimensionName, extractionFn);
     }
     return DefaultDimensionSpec.of(dimensionName);
+  }
+
+  public static boolean containsExtractFn(List<DimensionSpec> dimensionSpecs)
+  {
+    for (DimensionSpec dimensionSpec : dimensionSpecs) {
+      if (dimensionSpec.getExtractionFn() != null) {
+        return true;
+      }
+    }
+    return false;
   }
 }
