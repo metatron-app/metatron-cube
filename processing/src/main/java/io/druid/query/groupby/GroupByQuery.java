@@ -57,6 +57,7 @@ import io.druid.query.filter.AndDimFilter;
 import io.druid.query.filter.DimFilter;
 import io.druid.query.filter.MathExprFilter;
 import io.druid.query.groupby.having.HavingSpec;
+import io.druid.query.groupby.orderby.DefaultLimitSpec;
 import io.druid.query.groupby.orderby.LimitSpec;
 import io.druid.query.groupby.orderby.OrderByColumnSpec;
 import io.druid.query.spec.QuerySegmentSpec;
@@ -386,10 +387,17 @@ public class GroupByQuery extends BaseAggregationQuery<Row> implements Query.Rew
   )
   {
     GroupByQuery query = this;
-    if (getContextBoolean(GBY_LIMIT_PUSHDOWN, queryConfig.groupBy.isLimitPushdown())) {
+    LimitSpec limitSpec = query.getLimitSpec();
+    List<String> outputNames = DimensionSpecs.toOutputNames(query.getDimensions());
+    if (!GuavaUtils.isNullOrEmpty(limitSpec.getColumns())
+        && GuavaUtils.isNullOrEmpty(limitSpec.getWindowingSpecs())
+        && OrderByColumnSpec.isGroupByOrdering(limitSpec.getColumns(), outputNames)) {
+      query = query.withLimitSpec(new DefaultLimitSpec(null, limitSpec.getLimit(), limitSpec.getWindowingSpecs()));
+    }
+    if (query.getContextBoolean(GBY_LIMIT_PUSHDOWN, queryConfig.groupBy.isLimitPushdown())) {
       query = query.tryPushdown(segmentWalker, queryConfig, jsonMapper);
     }
-    if (getContextBoolean(GBY_CONVERT_TIMESERIES, queryConfig.groupBy.isConvertTimeseries())) {
+    if (query.getContextBoolean(GBY_CONVERT_TIMESERIES, queryConfig.groupBy.isConvertTimeseries())) {
       return query.tryConvertToTimeseries(jsonMapper);
     }
     return query;
