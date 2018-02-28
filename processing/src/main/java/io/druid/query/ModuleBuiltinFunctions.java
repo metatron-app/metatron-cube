@@ -19,12 +19,15 @@
 
 package io.druid.query;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import com.google.inject.Inject;
 import com.google.inject.Injector;
 import com.google.inject.Key;
+import com.metamx.common.IAE;
 import io.druid.granularity.Granularity;
+import io.druid.guice.annotations.Json;
 import io.druid.math.expr.BuiltinFunctions;
 import io.druid.math.expr.DateTimeFunctions;
 import io.druid.math.expr.Evals;
@@ -48,6 +51,9 @@ public class ModuleBuiltinFunctions implements Function.Library
 {
   @Inject
   public static Injector injector;
+
+  @Inject
+  public static @Json ObjectMapper jsonMapper;
 
   @Function.Named("truncatedRecent")
   public static class TruncatedRecent extends Function.AbstractFactory
@@ -79,6 +85,58 @@ public class ModuleBuiltinFunctions implements Function.Library
             );
           }
           return ExprEval.of(interval, ExprType.UNKNOWN);
+        }
+      };
+    }
+  }
+
+  @Function.Named("lookupMap")
+  public static class LookupMapFunc extends BuiltinFunctions.NamedParams
+  {
+    @Override
+    protected Map<String, Object> parameterize(List<Expr> exprs, Map<String, ExprEval> namedParam)
+    {
+      if (exprs.size() != 2) {
+        throw new IllegalArgumentException("function '" + name() + "' needs two generic arguments");
+      }
+      Map<String, Object> parameter = super.parameterize(exprs, namedParam);
+
+      String jsonMap = Evals.getConstantString(exprs.get(0));
+      parameter.put("retainMissingValue", getBoolean(namedParam, "retainMissingValue"));
+      parameter.put("replaceMissingValueWith", getString(namedParam, "replaceMissingValueWith", null));
+
+      try {
+        parameter.put(
+            "lookup",
+            Preconditions.checkNotNull(jsonMapper.readValue(jsonMap, Map.class))
+        );
+      }
+      catch (Exception e) {
+        throw new IAE(e, "failed to parse json mapping");
+      }
+
+      return parameter;
+    }
+
+    @Override
+    @SuppressWarnings("unchecked")
+    protected Function toFunction(final Map<String, Object> parameter)
+    {
+      final Map lookup = (Map) parameter.get("lookup");
+      final boolean retainMissingValue = (boolean) parameter.get("retainMissingValue");
+      final String replaceMissingValueWith = (String) parameter.get("replaceMissingValueWith");
+
+      return new StringChild()
+      {
+        @Override
+        public ExprEval apply(List<Expr> args, Expr.NumericBinding bindings)
+        {
+          Object key = args.get(1).eval(bindings).value();
+          String evaluated = Objects.toString(lookup.get(key), null);
+          if (Strings.isNullOrEmpty(evaluated)) {
+            return ExprEval.of(retainMissingValue ? Strings.emptyToNull(evaluated) : replaceMissingValueWith);
+          }
+          return ExprEval.of(evaluated);
         }
       };
     }
