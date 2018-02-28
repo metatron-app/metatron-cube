@@ -25,6 +25,7 @@ import com.google.common.base.Predicate;
 import com.google.common.base.Strings;
 import com.google.common.primitives.Ints;
 import com.metamx.common.logger.Logger;
+import io.druid.common.DateTimes;
 import io.druid.common.utils.JodaUtils;
 import io.druid.data.Pair;
 import io.druid.data.ValueDesc;
@@ -283,6 +284,14 @@ public class Evals
     }
   }
 
+  public static long assertLong(ExprEval eval)
+  {
+    if (eval.type() == ExprType.LONG) {
+      return eval.asLong();
+    }
+    throw new IllegalArgumentException("invalid type " + eval.type());
+  }
+
   private static class RelayExpr implements Constant
   {
     private final ExprEval eval;
@@ -420,7 +429,7 @@ public class Evals
       case STRING:
         return formatter.parseDateTime(arg.asString());
       default:
-        return new DateTime(arg.asLong(), timeZone);
+        return DateTimes.withZone(arg.asLong(), timeZone);
     }
   }
 
@@ -439,7 +448,7 @@ public class Evals
                  : defaultFormat.withZone(timeZone).parseDateTime(string);
         }
       default:
-        return new DateTime(arg.asLong(), timeZone);
+        return DateTimes.withZone(arg.asLong(), timeZone);
     }
   }
 

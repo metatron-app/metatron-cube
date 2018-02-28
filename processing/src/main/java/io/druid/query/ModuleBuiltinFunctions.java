@@ -97,7 +97,7 @@ public class ModuleBuiltinFunctions implements Function.Library
 
       String name = Evals.getConstantString(exprs.get(0));
       parameter.put("retainMissingValue", getBoolean(namedParam, "retainMissingValue"));
-      parameter.put("replaceMissingValueWith", getString(namedParam, "replaceMissingValueWith"));
+      parameter.put("replaceMissingValueWith", getString(namedParam, "replaceMissingValueWith", null));
 
       LookupExtractorFactory factory = injector.getInstance(Key.get(LookupReferencesManager.class)).get(name);
       parameter.put("extractor", Preconditions.checkNotNull(factory, "cannot find lookup " + name).get());

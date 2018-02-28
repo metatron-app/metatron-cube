@@ -38,6 +38,15 @@ import java.util.TreeMap;
  */
 public class Rows extends io.druid.data.Rows
 {
+  public static Map<String, Object> retain(Map<String, Object> input, List<String> columns)
+  {
+    Map<String, Object> event = new LinkedHashMap<>();
+    for (String column : columns) {
+      event.put(column, input.get(column));
+    }
+    return event;
+  }
+
   public static Row retain(Row row, List<String> columns)
   {
     Map<String, Object> event = new LinkedHashMap<>();

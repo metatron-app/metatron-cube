@@ -540,6 +540,10 @@ public interface DateTimeFunctions extends Function.Library
           JodaUtils.toTimeFormatter(format, locale, timezone);
 
       parameter.put("formatter", formatter);
+      parameter.put("format", format);
+      parameter.put("locale", locale);
+      parameter.put("timezone", timezone);
+
       return parameter;
     }
   }
@@ -617,7 +621,7 @@ public interface DateTimeFunctions extends Function.Library
     {
       Map<String, Object> parameter = super.parameterize(exprs, namedParam);
       DateTimeFormatter formatter = (DateTimeFormatter) parameter.get("formatter");
-      String timezone = getString(namedParam, "out.timezone");
+      String timezone = getString(namedParam, "out.timezone", parameter.get("timezone"));
       if (timezone != null) {
         DateTimeZone timeZone = JodaUtils.toTimeZone(timezone);
         if (!timeZone.equals(formatter.getZone())) {
@@ -685,9 +689,9 @@ public interface DateTimeFunctions extends Function.Library
     {
       Map<String, Object> parameter = super.parameterize(exprs, namedParam);
 
-      String format = getString(namedParam, "out.format");
-      String locale = getString(namedParam, "out.locale");
-      String timezone = getString(namedParam, "out.timezone");
+      String format = getString(namedParam, "out.format", parameter.get("format"));
+      String locale = getString(namedParam, "out.locale", parameter.get("locale"));
+      String timezone = getString(namedParam, "out.timezone", parameter.get("timezone"));
       parameter.put("output.formatter", JodaUtils.toOutFormatter(format, locale, timezone));
 
       return parameter;

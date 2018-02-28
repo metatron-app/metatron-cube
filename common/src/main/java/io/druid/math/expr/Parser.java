@@ -29,6 +29,7 @@ import com.metamx.common.logger.Logger;
 import io.druid.common.guava.DSuppliers;
 import io.druid.data.TypeResolver;
 import io.druid.data.ValueDesc;
+import io.druid.data.input.Row;
 import io.druid.math.expr.antlr.ExprLexer;
 import io.druid.math.expr.antlr.ExprParser;
 import org.antlr.v4.runtime.ANTLRInputStream;
@@ -277,6 +278,27 @@ public class Parser
   }
 
   private static final String TIME_COLUMN_NAME = "__time";
+
+  public static Expr.NumericBinding withRowSupplier(final Supplier<Row> rowSupplier)
+  {
+    return new Expr.NumericBinding()
+    {
+      @Override
+      public Collection<String> names()
+      {
+        return rowSupplier.get().getColumns();
+      }
+
+      @Override
+      public Object get(String name)
+      {
+        if (name.equals(TIME_COLUMN_NAME)) {
+          return rowSupplier.get().getTimestampFromEpoch();
+        }
+        return rowSupplier.get().getRaw(name);
+      }
+    };
+  }
 
   public static Expr.NumericBinding withTimeAndMap(final DateTime timestamp, final Map<String, ?> bindings)
   {

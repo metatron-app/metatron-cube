@@ -22,6 +22,7 @@ package io.druid.query.timeboundary;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonValue;
 import com.metamx.common.IAE;
+import io.druid.common.DateTimes;
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
 
@@ -119,7 +120,7 @@ public class TimeBoundaryResultValue
       if (zone != null) {
         timeZone = DateTimeZone.forID(zone);
       }
-      return new DateTime(millis.longValue(), timeZone);
+      return DateTimes.withZone(millis.longValue(), timeZone);
     } else {
       throw new IAE("Cannot get time from type[%s]", val.getClass());
     }

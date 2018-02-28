@@ -191,9 +191,9 @@ public interface BuiltinFunctions extends Function.Library
       return Maps.newHashMap();
     }
 
-    protected final String getString(Map<String, ExprEval> namedParam, String key)
+    protected final String getString(Map<String, ExprEval> namedParam, String key, Object defaultValue)
     {
-      return namedParam.containsKey(key) ? namedParam.get(key).asString() : null;
+      return namedParam.containsKey(key) ? namedParam.get(key).asString() : Objects.toString(defaultValue, null);
     }
 
     protected final boolean getBoolean(Map<String, ExprEval> namedParam, String key)

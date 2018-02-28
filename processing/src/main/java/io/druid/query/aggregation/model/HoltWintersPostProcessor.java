@@ -21,6 +21,8 @@ package io.druid.query.aggregation.model;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.google.common.base.Function;
+import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Supplier;
 import com.google.common.base.Throwables;
@@ -36,12 +38,15 @@ import com.metamx.common.guava.Sequence;
 import com.metamx.common.logger.Logger;
 import io.druid.common.DateTimes;
 import io.druid.common.Intervals;
+import io.druid.common.guava.DSuppliers;
 import io.druid.common.utils.JodaUtils;
 import io.druid.common.utils.Sequences;
 import io.druid.data.input.MapBasedRow;
 import io.druid.data.input.Row;
 import io.druid.data.input.Rows;
 import io.druid.granularity.Granularity;
+import io.druid.math.expr.Expr;
+import io.druid.math.expr.Parser;
 import io.druid.query.BaseAggregationQuery;
 import io.druid.query.PostProcessingOperator;
 import io.druid.query.Queries;
@@ -61,6 +66,7 @@ import java.lang.reflect.Array;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
 /**
  */
@@ -75,10 +81,12 @@ public class HoltWintersPostProcessor extends PostProcessingOperator.Abstract
         null,
         null,
         null,
+        null,
         Arrays.asList(columns),
         false,
         null,
         numPrediction,
+        null,
         null,
         null,
         null,
@@ -101,6 +109,7 @@ public class HoltWintersPostProcessor extends PostProcessingOperator.Abstract
   private final int period;
   private final HoltWintersModel.SeasonalityType seasonalityType;
   private final boolean pad;
+  private final List<String> dimensions;
   private final List<String> values;
   private final boolean keepValuesOnly;
   private final int numPrediction;
@@ -108,9 +117,8 @@ public class HoltWintersPostProcessor extends PostProcessingOperator.Abstract
   private final int confidence;
   private final List<PostAggregator> postAggregations;
 
-  private final String timeColumn;
+  private final Function<Row, DateTime> timeFunction;
   private final Granularity timeGranularity;
-  private final DateTimeFormatter dateTimeFormatter;
 
   private final SimpleBounds bounds;
 
@@ -122,13 +130,15 @@ public class HoltWintersPostProcessor extends PostProcessingOperator.Abstract
       @JsonProperty("period") Integer period,
       @JsonProperty("seasonalityType") HoltWintersModel.SeasonalityType seasonalityType,
       @JsonProperty("pad") Boolean pad,
+      @JsonProperty("dimensions") List<String> dimensions,
       @JsonProperty("values") List<String> values,
       @JsonProperty("keepValuesOnly") boolean keepValuesOnly,
       @JsonProperty("useLastN") Integer useLastN,
       @JsonProperty("numPrediction") Integer numPrediction,
       @JsonProperty("confidence") Integer confidence,
       @JsonProperty("postAggregations") List<PostAggregator> postAggregations,
-      @JsonProperty("timeColumn") String timeColumn,
+      @JsonProperty("timeExpression") String timeExpression,
+      @JsonProperty("timeColumn") final String timeColumn,
       @JsonProperty("timeFormat") String timeFormat,
       @JsonProperty("timeLocale") String timeLocale,
       @JsonProperty("timeZone") String timeZone,
@@ -141,23 +151,56 @@ public class HoltWintersPostProcessor extends PostProcessingOperator.Abstract
     this.period = period == null ? HoltWintersModel.DEFAULT_PERIOD : period;
     this.seasonalityType = seasonalityType == null ? HoltWintersModel.DEFAULT_SEASONALITY_TYPE : seasonalityType;
     this.pad = pad == null ? HoltWintersModel.DEFAULT_PAD : pad;
+    this.dimensions = dimensions == null ? ImmutableList.<String>of() : dimensions;
     this.values = Preconditions.checkNotNull(values, "'columns' cannot be null");
     this.keepValuesOnly = keepValuesOnly;
     this.limit = useLastN == null ? DEFAULT_USE_LAST_N : useLastN;
     this.numPrediction = numPrediction == null ? DEFAULT_NUM_PREDICTION : numPrediction;
     this.confidence = confidence == null ? DEFAULT_CONFIDENCE : confidence;
     this.postAggregations = postAggregations == null ? ImmutableList.<PostAggregator>of() : postAggregations;
-    this.timeColumn = timeColumn;
     this.timeGranularity = timeGranularity;
     this.bounds = new SimpleBounds(
         new double[]{alpha == null ? 0 : alpha, beta == null ? 0 : beta, gamma == null ? 0 : gamma},
         new double[]{alpha == null ? 1 : alpha, beta == null ? 1 : beta, gamma == null ? 1 : gamma}
     );
     Preconditions.checkArgument(
-        timeColumn == null && timeFormat == null && timeGranularity == null ||
-        timeColumn != null && timeFormat != null && timeGranularity != null
+        timeGranularity == null && timeColumn == null && timeFormat == null && timeExpression == null ||
+        timeGranularity != null && timeColumn != null && timeFormat != null && timeExpression == null ||
+        timeGranularity != null && timeColumn == null && timeFormat == null && timeExpression != null
     );
-    this.dateTimeFormatter = timeFormat != null ? JodaUtils.toTimeFormatter(timeFormat, timeLocale, timeZone) : null;
+    if (timeExpression != null) {
+      final Expr expr = Parser.parse(timeExpression);
+      final DSuppliers.HandOver<Row> rowSupplier = new DSuppliers.HandOver<>();
+      final Expr.NumericBinding binding = Parser.withRowSupplier(rowSupplier);
+      timeFunction = new Function<Row, DateTime>()
+      {
+        @Override
+        public DateTime apply(Row input)
+        {
+          rowSupplier.set(input);
+          return expr.eval(binding).asDateTime();
+        }
+      };
+    } else if (timeFormat != null) {
+      final DateTimeFormatter formatter = JodaUtils.toTimeFormatter(timeFormat, timeLocale, timeZone);
+      timeFunction = new Function<Row, DateTime>()
+      {
+        @Override
+        public DateTime apply(Row input)
+        {
+          return formatter.parseDateTime(Objects.toString(input.getRaw(timeColumn), null));
+        }
+      };
+    } else {
+      timeFunction = new Function<Row, DateTime>()
+      {
+        @Override
+        public DateTime apply(Row input)
+        {
+          return input.getTimestamp();
+        }
+      };
+    }
   }
 
   @Override
@@ -171,10 +214,6 @@ public class HoltWintersPostProcessor extends PostProcessingOperator.Abstract
       {
         final String[] valueColumns = values.toArray(new String[values.size()]);
         if (query instanceof StreamQuery) {
-          Preconditions.checkArgument(
-              dateTimeFormatter == null,
-              "Custom time column is supported only by group-by query"
-          );
           final Granularity granularity = ((StreamQuery) query).getGranularity();
           // this is used for quick calculation of prediction only
           final BoundedTimeseries[] numbers = makeReservoir(valueColumns.length, granularity);
@@ -199,12 +238,10 @@ public class HoltWintersPostProcessor extends PostProcessingOperator.Abstract
 
         } else if (query instanceof BaseAggregationQuery) {
           final BaseAggregationQuery aggregation = (BaseAggregationQuery) query;
-          final Granularity granularity = timeColumn == null ? aggregation.getGranularity() : timeGranularity;
-          List<String> groupByColumns = DimensionSpecs.toOutputNames(aggregation.getDimensions());
-          if (timeColumn != null) {
-            groupByColumns.remove(timeColumn);
-          }
-          final String[] dimensions = groupByColumns.toArray(new String[0]);
+          final Granularity granularity = timeGranularity == null ? aggregation.getGranularity() : timeGranularity;
+          List<String> copy = Lists.newArrayList(dimensions);
+          copy.retainAll(DimensionSpecs.toOutputNames(aggregation.getDimensions()));
+          final String[] dimensions = copy.toArray(new String[copy.size()]);
 
           final Map<ObjectArray<Object>, BoundedTimeseries[]> numbersMap = Maps.newHashMap();
           final MutableLong lastTimestamp = new MutableLong();
@@ -215,12 +252,7 @@ public class HoltWintersPostProcessor extends PostProcessingOperator.Abstract
             @Override
             protected final Row peek(final Row in)
             {
-              final DateTime timestamp;
-              if (dateTimeFormatter != null) {
-                timestamp = dateTimeFormatter.parseDateTime(String.valueOf(in.getRaw(timeColumn)));
-              } else {
-                timestamp = in.getTimestamp();
-              }
+              final DateTime timestamp = Optional.fromNullable(timeFunction.apply(in)).or(in.getTimestamp());
               for (int i = 0; i < valueColumns.length; i++) {
                 final Object[] values = new Object[dimensions.length];
                 for (int d = 0; d < dimensions.length; d++) {
@@ -237,10 +269,17 @@ public class HoltWintersPostProcessor extends PostProcessingOperator.Abstract
                 }
               }
               lastTimestamp.setValue(timestamp.getMillis());
-              if (keepValuesOnly) {
-                return Rows.retain(in, values);
+              if (!keepValuesOnly && postAggregations.isEmpty()) {
+                return in;
               }
-              return in;
+              Map<String, Object> event = Rows.asMap(in);
+              if (keepValuesOnly) {
+                event = Rows.retain(event, values);
+              }
+              for (PostAggregator postAggregator : postAggregations) {
+                event.put(postAggregator.getName(), postAggregator.compute(timestamp, event));
+              }
+              return new MapBasedRow(in.getTimestamp(), event);
             }
           };
 

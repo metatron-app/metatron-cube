@@ -22,6 +22,7 @@ package io.druid.common;
 import io.druid.common.utils.JodaUtils;
 import org.joda.time.Chronology;
 import org.joda.time.DateTime;
+import org.joda.time.DateTimeZone;
 import org.joda.time.chrono.ISOChronology;
 import org.joda.time.format.DateTimeFormatter;
 import org.joda.time.format.ISODateTimeFormat;
@@ -71,6 +72,11 @@ public final class DateTimes
   public static DateTime utc(long instant)
   {
     return new DateTime(instant, ISOChronology.getInstanceUTC());
+  }
+
+  public static DateTime withZone(long instant, DateTimeZone zone)
+  {
+    return zone == null ? utc(instant) : new DateTime(instant, zone);
   }
 
   public static DateTime of(String instant)
