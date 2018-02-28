@@ -28,9 +28,12 @@ import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Range;
 import com.google.common.collect.Sets;
+import com.metamx.collections.bitmap.BitSetBitmapFactory;
 import com.metamx.collections.bitmap.BitmapFactory;
+import com.metamx.collections.bitmap.ConciseBitmapFactory;
 import com.metamx.collections.bitmap.ImmutableBitmap;
 import com.metamx.collections.bitmap.MutableBitmap;
+import com.metamx.collections.bitmap.RoaringBitmapFactory;
 import com.metamx.collections.bitmap.WrappedImmutableRoaringBitmap;
 import com.metamx.common.guava.FunctionalIterable;
 import com.metamx.common.logger.Logger;
@@ -421,13 +424,18 @@ public class Filters
     }
   }
 
+  private static final BitmapFactory[] BITMAP_FACTORIES = new BitmapFactory[]{
+      new BitSetBitmapFactory(), new ConciseBitmapFactory(), new RoaringBitmapFactory()
+  };
+
   public static FilterContext getFilterContext(
       final BitmapIndexSelector selector,
       final Cache cache,
       final String segmentId
   )
   {
-    if (cache == null || segmentId == null) {
+    final byte segmentCode = codeOfFactory(selector.getBitmapFactory());
+    if (cache == null || segmentId == null || segmentCode >= BITMAP_FACTORIES.length) {
       return new FilterContext(selector);
     }
     return new FilterContext(selector)
@@ -439,16 +447,38 @@ public class Filters
         byte[] cached = cache.get(key);
         if (cached != null) {
           ByteBuffer wrapped = ByteBuffer.wrap(cached);
-          return BitmapHolder.of(wrapped.get() != 0, factory.mapImmutableBitmap(wrapped));
+          byte code = wrapped.get();
+          boolean exact = wrapped.get() != 0;
+          if (code == segmentCode) {
+            return BitmapHolder.of(exact, factory.mapImmutableBitmap(wrapped));
+          }
+          MutableBitmap mutable = factory.makeEmptyMutableBitmap();
+          IntIterator iterators = BITMAP_FACTORIES[code].mapImmutableBitmap(wrapped).iterator();
+          while (iterators.hasNext()) {
+            mutable.add(iterators.next());
+          }
+          return BitmapHolder.of(exact, factory.makeImmutableBitmap(mutable));
         }
         BitmapHolder holder = super.createBitmap(filter, include);
         if (holder != null) {
           byte exact = holder.exact() ? (byte) 0x01 : 0x00;
-          cache.put(key, StringUtils.concat(new byte[]{exact}, holder.bitmap().toBytes()));
+          cache.put(key, StringUtils.concat(new byte[]{segmentCode, exact}, holder.bitmap().toBytes()));
         }
         return holder;
       }
     };
+  }
+
+  private static byte codeOfFactory(BitmapFactory factory)
+  {
+    if (factory instanceof BitSetBitmapFactory) {
+      return 0x00;
+    } else if (factory instanceof ConciseBitmapFactory) {
+      return 0x01;
+    } else if (factory instanceof RoaringBitmapFactory) {
+      return 0x02;
+    }
+    return 0x7f;
   }
 
   public static class FilterContext implements Closeable
