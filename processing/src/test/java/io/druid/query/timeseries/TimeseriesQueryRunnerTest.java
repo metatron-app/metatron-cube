@@ -23,6 +23,7 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
 import com.metamx.common.guava.Sequences;
 import io.druid.common.DateTimes;
 import io.druid.data.input.Row;
@@ -31,6 +32,7 @@ import io.druid.granularity.PeriodGranularity;
 import io.druid.granularity.QueryGranularities;
 import io.druid.query.BaseAggregationQuery;
 import io.druid.query.Druids;
+import io.druid.query.PostAggregationsPostProcessor;
 import io.druid.query.Query;
 import io.druid.query.QueryContextKeys;
 import io.druid.query.QueryDataSource;
@@ -55,7 +57,6 @@ import io.druid.query.filter.MathExprFilter;
 import io.druid.query.filter.NotDimFilter;
 import io.druid.query.filter.RegexDimFilter;
 import io.druid.query.filter.SelectorDimFilter;
-import io.druid.query.groupby.GroupByQueryRunnerTest;
 import io.druid.query.groupby.GroupByQueryRunnerTestHelper;
 import io.druid.query.groupby.orderby.DefaultLimitSpec;
 import io.druid.query.groupby.orderby.OrderByColumnSpec;
@@ -1281,6 +1282,40 @@ public class TimeseriesQueryRunnerTest
 
     results = Sequences.toList(project.run(query, CONTEXT), Lists.<Result<TimeseriesResultValue>>newArrayList());
     assertExpectedResults(expectedResults, results);
+
+    // post-aggregations post processor
+    query = query.withOverriddenContext(
+        ImmutableMap.<String, Object>of(
+            Query.POST_PROCESSING,
+            new PostAggregationsPostProcessor(
+                Arrays.<PostAggregator>asList(
+                    new MathPostAggregator("daily = time_format(__time,'MMM dd','UTC','en')")
+                )
+            )
+        )
+    );
+
+    String[] columnNames = new String[] {"rows", "index", "daily"};
+    query = query.withOutputColumns(Arrays.asList("rows", "index", "daily"));
+    if (descending) {
+      expectedResults = TimeseriesQueryRunnerTestHelper.createExpected(
+          columnNames,
+          new Object[]{"2011-04-02", 1L, 147.42593383789062d, "Apr 02"},
+          new Object[]{"2011-04-01", 1L, 135.88510131835938d, "Apr 01"}
+      );
+    } else {
+      expectedResults = TimeseriesQueryRunnerTestHelper.createExpected(
+          columnNames,
+          new Object[]{"2011-04-01", 1L, 135.88510131835938d, "Apr 01"},
+          new Object[]{"2011-04-02", 1L, 147.42593383789062d, "Apr 02"}
+      );
+    }
+
+    results = Sequences.toList(
+        project.run(query, Maps.<String, Object>newHashMap()),
+        Lists.<Result<TimeseriesResultValue>>newArrayList()
+    );
+    TestHelper.assertExpectedObjects(expectedResults, results, "");
   }
 
   @Test

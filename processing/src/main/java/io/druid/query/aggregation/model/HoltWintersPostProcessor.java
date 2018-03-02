@@ -245,7 +245,7 @@ public class HoltWintersPostProcessor extends PostProcessingOperator.Abstract
 
           final Map<ObjectArray<Object>, BoundedTimeseries[]> numbersMap = Maps.newHashMap();
           final MutableLong lastTimestamp = new MutableLong();
-          final Sequence<Row> sequence = Queries.convertRow(aggregation, baseRunner.run(aggregation, responseContext));
+          final Sequence<Row> sequence = Queries.convertToRow(aggregation, baseRunner.run(aggregation, responseContext));
 
           Sequence<Row> tapping = new Sequences.PeekingSequence<Row>(sequence)
           {

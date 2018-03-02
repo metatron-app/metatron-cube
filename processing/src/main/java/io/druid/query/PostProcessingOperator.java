@@ -24,7 +24,7 @@ import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import io.druid.query.aggregation.model.HoltWintersPostProcessor;
 import io.druid.query.groupby.LimitingPostProcessor;
 
-@JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
+@JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type", defaultImpl = PostAggregationsPostProcessor.class)
 @JsonSubTypes(value = {
     @JsonSubTypes.Type(name = "timewarp", value = TimewarpOperator.class),
     @JsonSubTypes.Type(name = "join", value = JoinPostProcessor.class),
@@ -34,6 +34,7 @@ import io.druid.query.groupby.LimitingPostProcessor;
     @JsonSubTypes.Type(name = "tsToRow", value = TimeseriesToRow.class),
     @JsonSubTypes.Type(name = "list", value = ListPostProcessingOperator.class),
     @JsonSubTypes.Type(name = "limit", value = LimitingPostProcessor.class),
+    @JsonSubTypes.Type(name = "postAggregations", value = PostAggregationsPostProcessor.class),
 })
 public interface PostProcessingOperator<T>
 {

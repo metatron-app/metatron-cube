@@ -363,7 +363,7 @@ public class TimeseriesQueryQueryToolChest extends QueryToolChest<Result<Timeser
         if (!LimitSpecs.isDummy(timeseries.getLimitSpec()) || timeseries.getHavingSpec() != null) {
           // one row per time granularity.. no mean on ordering with time..
           // todo user can provide coarser granularity for time ordering
-          sequence = Queries.convertBack(query, timeseries.applyLimit(Queries.convertRow(query, sequence), false));
+          sequence = Queries.convertBack(query, timeseries.applyLimit(Queries.convertToRow(query, sequence), false));
         }
         return lateralViewSpec != null ? toLateralView(sequence, lateralViewSpec) : sequence;
       }

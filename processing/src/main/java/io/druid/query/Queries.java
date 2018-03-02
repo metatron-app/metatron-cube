@@ -206,7 +206,7 @@ public class Queries
   }
 
   @SuppressWarnings("unchecked")
-  public static <I> Sequence<Row> convertRow(Query<I> subQuery, Sequence<I> sequence)
+  public static <I> Sequence<Row> convertToRow(Query<I> subQuery, Sequence<I> sequence)
   {
     if (subQuery instanceof JoinQuery.JoinDelegate) {
       final JoinQuery.JoinDelegate delegate = (JoinQuery.JoinDelegate) subQuery;
@@ -292,14 +292,14 @@ public class Queries
           )
       );
     } else if (subQuery instanceof TimeseriesQuery) {
-      return Sequences.map((Sequence<Result<TimeseriesResultValue>>) sequence, TIMESERIES_TO_GROUPBY);
+      return Sequences.map((Sequence<Result<TimeseriesResultValue>>) sequence, TIMESERIES_TO_ROW);
     } else if (subQuery instanceof GroupByQuery) {
       return (Sequence<Row>) sequence;
     }
     return Sequences.map(sequence, GuavaUtils.<I, Row>caster());
   }
 
-  public static Function<Result<TimeseriesResultValue>, Row> TIMESERIES_TO_GROUPBY =
+  public static Function<Result<TimeseriesResultValue>, Row> TIMESERIES_TO_ROW =
       new Function<Result<TimeseriesResultValue>, Row>()
       {
         @Override
@@ -309,7 +309,7 @@ public class Queries
         }
       };
 
-  public static Function<Row, Result<TimeseriesResultValue>> GROUPBY_TO_TIMESERIES =
+  public static Function<Row, Result<TimeseriesResultValue>> ROW_TO_TIMESERIES =
       new Function<Row, Result<TimeseriesResultValue>>()
       {
         @Override
@@ -323,7 +323,10 @@ public class Queries
   public static <I> Sequence<I> convertBack(Query<I> subQuery, Sequence<Row> sequence)
   {
     if (subQuery instanceof TimeseriesQuery) {
-      return (Sequence<I>) Sequences.map(sequence, GROUPBY_TO_TIMESERIES);
+      return (Sequence<I>) Sequences.map(sequence, ROW_TO_TIMESERIES);
+    }
+    if (subQuery instanceof GroupByQuery) {
+      return Sequences.map(sequence, GuavaUtils.<Row, I>caster());
     }
     throw new UnsupportedOperationException("cannot convert to " + subQuery.getType() + " result");
   }

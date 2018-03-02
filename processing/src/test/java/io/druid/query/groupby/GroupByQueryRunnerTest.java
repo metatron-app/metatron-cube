@@ -43,6 +43,7 @@ import io.druid.query.BaseAggregationQuery;
 import io.druid.query.BySegmentResultValue;
 import io.druid.query.BySegmentResultValueClass;
 import io.druid.query.Druids;
+import io.druid.query.PostAggregationsPostProcessor;
 import io.druid.query.Query;
 import io.druid.query.QueryDataSource;
 import io.druid.query.QueryRunner;
@@ -252,6 +253,45 @@ public class GroupByQueryRunnerTest
         array("2011-04-01T00:00:00.000Z", "business", 1L),
         array("2011-04-01T00:00:00.000Z", "automotive", 1L),
         array("2011-04-02T00:00:00.000Z", "travel", 1L)
+    );
+
+    results = Sequences.toList(broker.run(query, Maps.<String, Object>newHashMap()), Lists.<Row>newArrayList());
+    TestHelper.assertExpectedObjects(expectedResults, results, "");
+
+    // post-aggregations post processor
+    query = query.withOverriddenContext(
+        ImmutableMap.<String, Object>of(
+            Query.POST_PROCESSING,
+            new PostAggregationsPostProcessor(
+                Arrays.<PostAggregator>asList(
+                    new MathPostAggregator("daily = time_format(__time,'MMM dd','UTC','en')")
+                )
+            )
+        )
+    );
+    columnNames = new String[] {"__time", "alias", "rows", "daily"};
+    query = query.withOutputColumns(Arrays.asList("alias", "rows", "daily"));
+
+    expectedResults = GroupByQueryRunnerTestHelper.createExpectedRows(
+        columnNames,
+        array("2011-04-01T00:00:00.000Z", "automotive", 1L, "Apr 01"),
+        array("2011-04-01T00:00:00.000Z", "business", 1L, "Apr 01"),
+        array("2011-04-01T00:00:00.000Z", "entertainment", 1L, "Apr 01"),
+        array("2011-04-01T00:00:00.000Z", "health", 1L, "Apr 01"),
+        array("2011-04-01T00:00:00.000Z", "mezzanine", 3L, "Apr 01"),
+        array("2011-04-01T00:00:00.000Z", "news", 1L, "Apr 01"),
+        array("2011-04-01T00:00:00.000Z", "premium", 3L, "Apr 01"),
+        array("2011-04-01T00:00:00.000Z", "technology", 1L, "Apr 01"),
+        array("2011-04-01T00:00:00.000Z", "travel", 1L, "Apr 01"),
+        array("2011-04-02T00:00:00.000Z", "automotive", 1L, "Apr 02"),
+        array("2011-04-02T00:00:00.000Z", "business", 1L, "Apr 02"),
+        array("2011-04-02T00:00:00.000Z", "entertainment", 1L, "Apr 02"),
+        array("2011-04-02T00:00:00.000Z", "health", 1L, "Apr 02"),
+        array("2011-04-02T00:00:00.000Z", "mezzanine", 3L, "Apr 02"),
+        array("2011-04-02T00:00:00.000Z", "news", 1L, "Apr 02"),
+        array("2011-04-02T00:00:00.000Z", "premium", 3L, "Apr 02"),
+        array("2011-04-02T00:00:00.000Z", "technology", 1L, "Apr 02"),
+        array("2011-04-02T00:00:00.000Z", "travel", 1L, "Apr 02")
     );
 
     results = Sequences.toList(broker.run(query, Maps.<String, Object>newHashMap()), Lists.<Row>newArrayList());

@@ -42,7 +42,7 @@ public class TimeseriesToRow extends PostProcessingOperator.Abstract<Result<Time
       @Override
       public Sequence run(Query query, Map responseContext)
       {
-        return Sequences.map(baseRunner.run(query, responseContext), Queries.TIMESERIES_TO_GROUPBY);
+        return Sequences.map(baseRunner.run(query, responseContext), Queries.TIMESERIES_TO_ROW);
       }
     };
   }
