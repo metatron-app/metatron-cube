@@ -22,6 +22,7 @@ package io.druid.query.aggregation.post;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;
+import com.google.common.collect.Ordering;
 import com.google.common.collect.Sets;
 import io.druid.data.Pair;
 import io.druid.math.expr.Evals;
@@ -44,18 +45,6 @@ import java.util.Set;
  */
 public class MathPostAggregator implements DecoratingPostAggregator
 {
-  private static final Comparator<Number> DEFAULT_COMPARATOR = new Comparator<Number>()
-  {
-    @Override
-    public int compare(Number o1, Number o2)
-    {
-      if (o1 instanceof Long && o2 instanceof Long) {
-        return Long.compare(o1.longValue(), o2.longValue());
-      }
-      return Double.compare(o1.doubleValue(), o2.doubleValue());
-    }
-  };
-
   private final String name;
   private final String expression;
   private final Comparator comparator;
@@ -93,7 +82,7 @@ public class MathPostAggregator implements DecoratingPostAggregator
     }
     this.dependentFields = Parser.findRequiredBindings(parsed);
     this.ordering = ordering;
-    this.comparator = ordering == null ? DEFAULT_COMPARATOR : Ordering.valueOf(ordering);
+    this.comparator = ordering == null ? Ordering.natural() : NumericOrdering.valueOf(ordering);
   }
 
   @Override
@@ -181,7 +170,7 @@ public class MathPostAggregator implements DecoratingPostAggregator
     };
   }
 
-  public static enum Ordering implements Comparator<Number>
+  public static enum NumericOrdering implements Comparator<Number>
   {
     // ensures the following order: numeric > NaN > Infinite
     numericFirst {

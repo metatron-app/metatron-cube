@@ -5621,6 +5621,36 @@ public class GroupByQueryRunnerTest
     Iterable<Row> results = GroupByQueryRunnerTestHelper.runQuery(factory, runner, builder.build());
     GroupByQueryRunnerTestHelper.validate(columnNames, expectedResults, results);
 
+    // appendValueColumn = true
+    builder.setLimitSpec(
+        new DefaultLimitSpec(
+            null, null,
+            Arrays.asList(
+                new WindowingSpec(
+                    Arrays.asList("dayOfWeek"),
+                    Arrays.asList(dayOfWeekAsc),
+                    Arrays.<String>asList(),
+                    PivotSpec.of(PivotColumnSpec.toSpec("market"), "index").withAppendValueColumn(true)
+                )
+            )
+        )
+    );
+    columnNames = new String[]{"dayOfWeek", "upfront-index", "spot-index", "total_market-index"};
+
+    expectedResults = GroupByQueryRunnerTestHelper.createExpectedRows(
+        columnNames,
+        array("Friday", 27297.8623046875, 13219.574157714844, 30173.691650390625),
+        array("Monday", 27619.58447265625, 13557.738830566406, 30468.77734375),
+        array("Saturday", 27820.83154296875, 13493.751281738281, 30940.971923828125),
+        array("Sunday", 24791.223876953125, 13585.541015625, 29305.086059570312),
+        array("Thursday", 28562.748901367188, 14279.127197265625, 32361.38720703125),
+        array("Tuesday", 26968.280639648438, 13199.471435546875, 29676.578125),
+        array("Wednesday", 28985.5751953125, 14271.368591308594, 32753.337890625)
+    );
+
+    results = GroupByQueryRunnerTestHelper.runQuery(factory, runner, builder.build());
+    GroupByQueryRunnerTestHelper.validate(columnNames, expectedResults, results);
+
     // multi-valued
     builder.setLimitSpec(
         new DefaultLimitSpec(
@@ -5648,7 +5678,7 @@ public class GroupByQueryRunnerTest
         array("Wednesday", Arrays.asList(28985.5751953125, 126L), Arrays.asList(14271.368591308594, 28L), Arrays.asList(32753.337890625, 28L))
     );
 
-    // multi-value-expanded
+    // multi-value (appendValueColumn = true)
     builder.setLimitSpec(
         new DefaultLimitSpec(
             null, null,
@@ -5994,14 +6024,13 @@ public class GroupByQueryRunnerTest
                     Arrays.asList("dayOfWeek"),
                     Arrays.asList(dayOfWeekAsc),
                     Arrays.<String>asList(),
-                    PivotSpec.tabular(
-                        PivotColumnSpec.toSpec("market", "quality"),
-                        "index").withPartitionExpressions(
-                        PartitionExpression.from(
-                            "#_ = $sum(_)",
-                            "_ = case(#_ == 0, 0.0, _ / #_ * 100)"
-                        )
-                    )
+                    PivotSpec.tabular(PivotColumnSpec.toSpec("market", "quality"), "index")
+                             .withPartitionExpressions(
+                                 PartitionExpression.from(
+                                     "#_ = $sum(_)",
+                                     "_ = case(#_ == 0, 0.0, _ / #_ * 100)"
+                                 )
+                             )
                 )
             )
         )
@@ -6038,14 +6067,13 @@ public class GroupByQueryRunnerTest
                     Arrays.asList("dayOfWeek"),
                     Arrays.asList(dayOfWeekAsc),
                     Arrays.<String>asList(),
-                    PivotSpec.tabular(
-                        PivotColumnSpec.toSpec("market", "quality"),
-                        "index").withPartitionExpressions(
-                        PartitionExpression.from(
-                            new String[] {"^spot-.*", "#_ = $sum(_)"},
-                            new String[] {"^spot-.*", "_ = case(#_ == 0, 0.0, _ / #_ * 100)"}
-                        )
-                    )
+                    PivotSpec.tabular(PivotColumnSpec.toSpec("market", "quality"), "index")
+                             .withPartitionExpressions(
+                                 PartitionExpression.from(
+                                     new String[]{"^spot-.*", "#_ = $sum(_)"},
+                                     new String[]{"^spot-.*", "_ = case(#_ == 0, 0.0, _ / #_ * 100)"}
+                                 )
+                             )
                 )
             )
         )
