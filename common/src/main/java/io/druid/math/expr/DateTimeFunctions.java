@@ -537,7 +537,7 @@ public interface DateTimeFunctions extends Function.Library
 
       DateTimeFormatter formatter =
           format == null && locale == null && timezone == null ? JodaUtils.ISO8601 :
-          JodaUtils.toTimeFormatter(format, locale, timezone);
+          JodaUtils.toTimeFormatter(format, timezone, locale);
 
       parameter.put("formatter", formatter);
       parameter.put("format", format);

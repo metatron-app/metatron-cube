@@ -125,4 +125,20 @@ public class StringComparatorsTest
     Collections.sort(cartesian, StringComparators.makeComparator("stringarray.\u0001"));
     Assert.assertEquals(sorted, cartesian);
   }
+
+  @Test
+  public void testDateTime()
+  {
+    List<String> x = Arrays.asList("09 01 2018", "03 02 2017", "12 03 2013", "04 21 2015", "06 11 2019");
+    Collections.sort(x, StringComparators.makeComparator("datetime.MM dd yyyy"));
+    Assert.assertEquals(Arrays.asList("12 03 2013", "04 21 2015", "03 02 2017", "09 01 2018", "06 11 2019"), x);
+
+    x = Arrays.asList("Oct 01 2018", "Mar 02 2017", "Dec 03 2013", "Apr 21 2015", "Jun 11 2019");
+    Collections.sort(x, StringComparators.makeComparator("datetime.MMM dd yyyy"));
+    Assert.assertEquals(Arrays.asList("Dec 03 2013", "Apr 21 2015", "Mar 02 2017", "Oct 01 2018", "Jun 11 2019"), x);
+
+    x = Arrays.asList("01 Oct 2018", "02 Mar 2017", "03 Dec 2013", "21 Apr 2015", "11 Jun 2019");
+    Collections.sort(x, StringComparators.makeComparator("datetime.dd MMM yyyy"));
+    Assert.assertEquals(Arrays.asList("03 Dec 2013", "21 Apr 2015", "02 Mar 2017", "01 Oct 2018", "11 Jun 2019"), x);
+  }
 }

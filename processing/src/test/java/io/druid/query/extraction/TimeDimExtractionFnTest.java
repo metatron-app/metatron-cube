@@ -100,7 +100,7 @@ public class TimeDimExtractionFnTest
     long time = 1479345099662L;
     String korean = Locale.KOREA.getLanguage();
     String us = Locale.US.getLanguage();
-    DateTimeFormatter formatter = JodaUtils.toTimeFormatter("yyyy-MM-dd a hh:mm:ss.SSSZZ", korean, "+0900");
+    DateTimeFormatter formatter = JodaUtils.toTimeFormatter("yyyy-MM-dd a hh:mm:ss.SSSZZ", "+0900", korean);
     String dateString = formatter.print(time);
     Assert.assertEquals("2016-11-17 오전 10:11:39.662+09:00", dateString);
 

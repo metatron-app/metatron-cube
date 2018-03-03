@@ -20,6 +20,7 @@
 package io.druid.common.utils;
 
 import com.google.common.base.Predicate;
+import com.google.common.base.Strings;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
@@ -36,6 +37,7 @@ import org.joda.time.format.DateTimeFormatterBuilder;
 import sun.util.calendar.ZoneInfo;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Comparator;
 import java.util.Iterator;
 import java.util.Locale;
@@ -266,12 +268,22 @@ public class JodaUtils
   public static final String ISO8601_FORMAT = "yyyy-MM-dd'T'HH:mm:ss[.SSS][Z]";
   public static final DateTimeFormatter ISO8601 = toTimeFormatter(ISO8601_FORMAT);
 
+  public static DateTimeFormatter toTimeFormatter(String... format)
+  {
+    switch (format.length) {
+      case 1: return toTimeFormatter(format[0]);
+      case 2: return toTimeFormatter(format[0], Strings.emptyToNull(format[1]), null);
+      case 3: return toTimeFormatter(format[0], Strings.emptyToNull(format[1]), Strings.emptyToNull(format[2]));
+    }
+    throw new IllegalArgumentException(Arrays.toString(format));
+  }
+
   public static DateTimeFormatter toTimeFormatter(String formatString)
   {
     return toTimeFormatter(formatString, null, null);
   }
 
-  public static DateTimeFormatter toTimeFormatter(String formatString, String locale, String timeZone)
+  public static DateTimeFormatter toTimeFormatter(String formatString, String timeZone, String locale)
   {
     if (formatString == null) {
       formatString = ISO8601_FORMAT;

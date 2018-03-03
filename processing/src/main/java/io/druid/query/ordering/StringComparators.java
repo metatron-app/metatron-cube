@@ -27,7 +27,9 @@ import com.google.common.primitives.UnsignedBytes;
 import com.metamx.common.IAE;
 import com.metamx.common.StringUtils;
 import io.druid.common.guava.GuavaUtils;
+import io.druid.common.utils.JodaUtils;
 import org.joda.time.DateTimeConstants;
+import org.joda.time.format.DateTimeFormatter;
 
 import java.math.BigDecimal;
 import java.text.DateFormatSymbols;
@@ -46,6 +48,7 @@ public class StringComparators
   public static final String NUMERIC_NAME = "numeric";
   public static final String DAY_OF_WEEK_NAME = "dayofweek";
   public static final String MONTH_NAME = "month";
+  public static final String DATETIME_NAME = "datetime";
 
   public static final String STRING_ARRAY_NAME = "stringarray";
 
@@ -590,6 +593,30 @@ public class StringComparators
     }
   }
 
+  public static class DateTimeComparator extends AbstractStringComparator
+  {
+    private final String format;
+    private final DateTimeFormatter formatter;
+
+    public DateTimeComparator(String format)
+    {
+      this.format = format;
+      this.formatter = JodaUtils.toTimeFormatter(format.split(","));
+    }
+
+    @Override
+    protected int _compare(String s, String s2)
+    {
+      return Longs.compare(formatter.parseMillis(s), formatter.parseMillis(s2));
+    }
+
+    @Override
+    public String toString()
+    {
+      return StringComparators.DATETIME_NAME + "." + format;
+    }
+  }
+
   public static String validate(String type)
   {
     if (type != null) {
@@ -632,13 +659,16 @@ public class StringComparators
         return MONTH;
       default:
         if (lowerCased.startsWith(StringComparators.DAY_OF_WEEK_NAME + ".")) {
-          return new DayOfWeekComparator(lowerCased.substring(DAY_OF_WEEK_NAME.length() + 1));
+          return new DayOfWeekComparator(type.substring(DAY_OF_WEEK_NAME.length() + 1));
         }
         if (lowerCased.startsWith(StringComparators.MONTH_NAME + ".")) {
-          return new MonthComparator(lowerCased.substring(MONTH_NAME.length() + 1));
+          return new MonthComparator(type.substring(MONTH_NAME.length() + 1));
+        }
+        if (lowerCased.startsWith(StringComparators.DATETIME_NAME + ".")) {
+          return new DateTimeComparator(type.substring(DATETIME_NAME.length() + 1));
         }
         if (lowerCased.startsWith(StringComparators.STRING_ARRAY_NAME + ".")) {
-          String substring = lowerCased.substring(STRING_ARRAY_NAME.length() + 1);
+          String substring = type.substring(STRING_ARRAY_NAME.length() + 1);
           Preconditions.checkArgument(substring.length() == 1, "separator should be a char");
           return new StringArrayComparator(substring.charAt(0));
         }

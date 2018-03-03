@@ -182,7 +182,7 @@ public class HoltWintersPostProcessor extends PostProcessingOperator.Abstract
         }
       };
     } else if (timeFormat != null) {
-      final DateTimeFormatter formatter = JodaUtils.toTimeFormatter(timeFormat, timeLocale, timeZone);
+      final DateTimeFormatter formatter = JodaUtils.toTimeFormatter(timeFormat, timeZone, timeLocale);
       timeFunction = new Function<Row, DateTime>()
       {
         @Override

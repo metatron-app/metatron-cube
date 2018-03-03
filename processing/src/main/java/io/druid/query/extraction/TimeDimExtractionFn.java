@@ -61,7 +61,7 @@ public class TimeDimExtractionFn extends DimExtractionFn implements ExtractionFn
     this.timeFormat = timeFormat;
     this.timeLocale = timeLocale;
     this.timeZone = timeZone;
-    this.timeFormatter = JodaUtils.toTimeFormatter(timeFormat, timeLocale, timeZone);
+    this.timeFormatter = JodaUtils.toTimeFormatter(timeFormat, timeZone, timeLocale);
 
     this.resultFormat = resultFormat;
     this.resultLocale = resultLocale;
