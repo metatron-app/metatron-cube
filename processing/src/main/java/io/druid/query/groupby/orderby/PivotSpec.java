@@ -21,6 +21,7 @@ package io.druid.query.groupby.orderby;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
@@ -314,7 +315,8 @@ public class PivotSpec implements WindowingSpec.PartitionEvaluatorFactory
       };
     }
     final List<String> partitionColumns = context.partitionColumns();
-    final String[] columns = OrderByColumnSpec.getColumnsAsArray(pivotColumns);
+    final List<Function<Row, String>> extractors = PivotColumnSpec.toExtractors(pivotColumns);
+    // this is name ordering of pivot columns.. not for row ordering
     final List<Comparator<String>> comparators = GuavaUtils.cast(OrderByColumnSpec.getComparator(pivotColumns));
     if (appendValueColumn) {
       comparators.add(Ordering.<String>explicit(valueColumns));
@@ -344,7 +346,7 @@ public class PivotSpec implements WindowingSpec.PartitionEvaluatorFactory
     }
     // when tabularFormat = true, '_' is replaced with pivot column names
     final List<Evaluator> pivotExprs = PartitionExpression.toEvaluators(partitionExpressions);
-    final int keyLength = columns.length + (appendValueColumn ? 1 : 0);
+    final int keyLength = pivotColumns.size() + (appendValueColumn ? 1 : 0);
 
     final Set<StringArray> whole = Sets.newHashSet();
     return new PartitionEvaluator()
@@ -359,8 +361,8 @@ public class PivotSpec implements WindowingSpec.PartitionEvaluatorFactory
 next:
         for (Row row : partition) {
           String[] array = new String[keyLength];
-          for (int i = 0; i < columns.length; i++) {
-            array[i] = Objects.toString(row.getRaw(columns[i]), "");
+          for (int i = 0; i < extractors.size(); i++) {
+            array[i] = Objects.toString(extractors.get(i).apply(row));
             if (whitelist[i] != null && !whitelist[i].contains(array[i])) {
               continue next;
             }
@@ -370,7 +372,7 @@ next:
               if (i > 0) {
                 array = Arrays.copyOf(array, array.length);
               }
-              array[columns.length] = values[i];
+              array[extractors.size()] = values[i];
               StringArray key = new StringArray(array);
               Object value = row.getRaw(values[i]);
               Preconditions.checkArgument(mapping.put(key, value) == null, "duplicated.. " + key);

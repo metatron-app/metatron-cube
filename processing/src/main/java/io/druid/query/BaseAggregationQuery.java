@@ -44,6 +44,7 @@ import io.druid.query.groupby.orderby.DefaultLimitSpec;
 import io.druid.query.groupby.orderby.LimitSpec;
 import io.druid.query.groupby.orderby.NoopLimitSpec;
 import io.druid.query.groupby.orderby.OrderByColumnSpec;
+import io.druid.query.ordering.Direction;
 import io.druid.query.spec.LegacySegmentSpec;
 import io.druid.query.spec.QuerySegmentSpec;
 import io.druid.segment.VirtualColumn;
@@ -437,15 +438,15 @@ public abstract class BaseAggregationQuery<T extends Comparable<T>> extends Base
 
     public Builder<T> addOrderByColumn(String dimension)
     {
-      return addOrderByColumn(dimension, (OrderByColumnSpec.Direction) null);
+      return addOrderByColumn(dimension, (Direction) null);
     }
 
     public Builder<T> addOrderByColumn(String dimension, String direction)
     {
-      return addOrderByColumn(dimension, OrderByColumnSpec.determineDirection(direction));
+      return addOrderByColumn(dimension, Direction.fromString(direction));
     }
 
-    public Builder<T> addOrderByColumn(String dimension, OrderByColumnSpec.Direction direction)
+    public Builder<T> addOrderByColumn(String dimension, Direction direction)
     {
       return addOrderByColumn(new OrderByColumnSpec(dimension, direction));
     }

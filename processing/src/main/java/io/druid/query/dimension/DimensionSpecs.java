@@ -24,7 +24,7 @@ import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import io.druid.query.extraction.ExtractionFn;
 import io.druid.query.groupby.orderby.OrderByColumnSpec;
-import io.druid.query.groupby.orderby.OrderByColumnSpec.Direction;
+import io.druid.query.ordering.Direction;
 
 import java.util.List;
 

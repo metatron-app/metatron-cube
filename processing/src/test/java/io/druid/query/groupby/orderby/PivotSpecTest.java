@@ -25,6 +25,7 @@ import com.google.common.collect.Maps;
 import io.druid.data.input.Row;
 import io.druid.math.expr.ExprType;
 import io.druid.query.groupby.GroupByQueryRunnerTestHelper;
+import io.druid.query.ordering.Direction;
 import io.druid.segment.TestHelper;
 import org.junit.Assert;
 import org.junit.Test;
@@ -44,7 +45,7 @@ public class PivotSpecTest
         mapper.writeValueAsString(mapper.readValue(json0, PivotSpec.class)),
         PivotSpec.class
     );
-    PivotSpec expected0 = PivotSpec.of(PivotColumnSpec.toSpec("col0"), "col1");
+    PivotSpec expected0 = PivotSpec.of(PivotColumnSpec.toSpecs("col0"), "col1");
     Assert.assertEquals(expected0.hashCode(), expected0.hashCode());
     Assert.assertEquals(expected0, spec0);
     Assert.assertTrue(Arrays.equals(expected0.getCacheKey(), expected0.getCacheKey()));
@@ -61,8 +62,8 @@ public class PivotSpecTest
     PivotSpec expected1 = PivotSpec.of(
         Arrays.asList(
             new PivotColumnSpec(
-                "col0",
-                OrderByColumnSpec.Direction.DESCENDING, (String) null, Arrays.asList("val1", "val2")
+                "col0", null,
+                Direction.DESCENDING, null, Arrays.asList("val1", "val2")
             )
         ),
         "col1"
@@ -88,8 +89,8 @@ public class PivotSpecTest
     PivotSpec expected2 = PivotSpec.tabular(
         Arrays.asList(
             new PivotColumnSpec(
-                "col0",
-                OrderByColumnSpec.Direction.DESCENDING, (String) null, Arrays.asList("val1", "val2")
+                "col0", null,
+                Direction.DESCENDING, null, Arrays.asList("val1", "val2")
             )
         ),
         "col1"
@@ -122,7 +123,7 @@ public class PivotSpecTest
         Arrays.<String>asList("col1"),
         Arrays.<OrderByColumnSpec>asList(OrderByColumnSpec.asc("col1"))
     );
-    PivotSpec pivot = PivotSpec.of(PivotColumnSpec.toSpec("col2"), "col3");
+    PivotSpec pivot = PivotSpec.of(PivotColumnSpec.toSpecs("col2"), "col3");
     WindowingSpec.PartitionEvaluator evaluator = pivot.create(context);
     Iterable<Row> results = Iterables.concat(
         evaluator.evaluate(new Object[]{"a"}, Arrays.asList(rows1.get(0))),

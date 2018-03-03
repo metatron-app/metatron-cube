@@ -610,7 +610,7 @@ public class StringComparators
   public static StringComparator tryMakeComparator(String type)
   {
     if (type == null) {
-      return null;
+      return LEXICOGRAPHIC;
     }
     String lowerCased = type.toLowerCase();
     switch (lowerCased) {

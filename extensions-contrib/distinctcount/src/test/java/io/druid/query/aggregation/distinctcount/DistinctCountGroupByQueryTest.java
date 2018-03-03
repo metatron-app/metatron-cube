@@ -42,6 +42,7 @@ import io.druid.query.groupby.GroupByQueryRunnerFactory;
 import io.druid.query.groupby.GroupByQueryRunnerTestHelper;
 import io.druid.query.groupby.orderby.DefaultLimitSpec;
 import io.druid.query.groupby.orderby.OrderByColumnSpec;
+import io.druid.query.ordering.Direction;
 import io.druid.segment.IncrementalIndexSegment;
 import io.druid.segment.Segment;
 import io.druid.segment.TestHelper;
@@ -133,7 +134,7 @@ public class DistinctCountGroupByQueryTest
                 Lists.newArrayList(
                     new OrderByColumnSpec(
                         client_type,
-                        OrderByColumnSpec.Direction.DESCENDING
+                        Direction.DESCENDING
                     )
                 ), 10
             )

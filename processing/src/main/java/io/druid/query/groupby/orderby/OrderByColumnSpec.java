@@ -24,33 +24,26 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
-import com.metamx.common.IAE;
 import com.metamx.common.ISE;
-import com.metamx.common.StringUtils;
 import io.druid.common.Cacheable;
+import io.druid.query.QueryCacheHelper;
+import io.druid.query.ordering.Direction;
 import io.druid.query.ordering.StringComparator;
 import io.druid.query.ordering.StringComparators;
+import io.druid.query.ordering.StringOrderingSpec;
 
 import javax.annotation.Nullable;
 import java.nio.ByteBuffer;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
 /**
  */
-public class OrderByColumnSpec implements Cacheable
+public class OrderByColumnSpec extends StringOrderingSpec implements Cacheable
 {
-  public static enum Direction
-  {
-    ASCENDING,
-    DESCENDING
-  }
-
-  public static final StringComparator DEFAULT_DIMENSION_ORDER = StringComparators.LEXICOGRAPHIC;
-
   public static final Function<OrderByColumnSpec, String> GET_DIMENSION = new Function<OrderByColumnSpec, String>()
   {
     @Override
@@ -60,6 +53,11 @@ public class OrderByColumnSpec implements Cacheable
     }
   };
 
+  public static List<String> getColumns(List<OrderByColumnSpec> orderByColumnSpecs)
+  {
+    return ImmutableList.copyOf(Lists.transform(orderByColumnSpecs, GET_DIMENSION));
+  }
+
   public static boolean isGroupByOrdering(List<OrderByColumnSpec> orderByColumnSpecs, List<String> dimension)
   {
     int prev = Integer.MAX_VALUE;
@@ -68,59 +66,13 @@ public class OrderByColumnSpec implements Cacheable
       if (index < 0 || index < prev) {
         return false;
       }
-      if (orderBy.direction != Direction.ASCENDING || orderBy.getDimensionComparator() != DEFAULT_DIMENSION_ORDER) {
+      if (orderBy.direction != Direction.ASCENDING || orderBy.getComparator() != StringComparators.LEXICOGRAPHIC) {
         return false;
       }
       prev = index;
     }
     return true;
   }
-
-  public static List<String> getColumns(List<? extends OrderByColumnSpec> orderByColumnSpecs)
-  {
-    return ImmutableList.copyOf(Lists.transform(orderByColumnSpecs, GET_DIMENSION));
-  }
-
-  public static String[] getColumnsAsArray(List<? extends OrderByColumnSpec> orderByColumnSpecs)
-  {
-    return getColumns(orderByColumnSpecs).toArray(new String[orderByColumnSpecs.size()]);
-  }
-
-  public static List<StringComparator> getComparator(List<? extends OrderByColumnSpec> orderByColumnSpecs)
-  {
-    List<StringComparator> comparators = Lists.newArrayList();
-    for (OrderByColumnSpec orderByColumnSpec : orderByColumnSpecs) {
-      StringComparator comparator = orderByColumnSpec.dimensionComparator;
-      if (orderByColumnSpec.direction == Direction.DESCENDING) {
-        comparator = StringComparators.revert(comparator);
-      }
-      comparators.add(comparator);
-    }
-    return comparators;
-  }
-
-  public static StringComparator[] getComparatorAsArray(List<? extends OrderByColumnSpec> orderByColumnSpecs)
-  {
-    return getComparator(orderByColumnSpecs).toArray(new StringComparator[orderByColumnSpecs.size()]);
-  }
-
-  /**
-   * Maintain a map of the enum values so that we can just do a lookup and get a null if it doesn't exist instead
-   * of an exception thrown.
-   */
-  private static final Map<String, Direction> stupidEnumMap;
-
-  static {
-    final ImmutableMap.Builder<String, Direction> bob = ImmutableMap.builder();
-    for (Direction direction : Direction.values()) {
-      bob.put(direction.toString(), direction);
-    }
-    stupidEnumMap = bob.build();
-  }
-
-  private final String dimension;
-  private final Direction direction;
-  private final StringComparator dimensionComparator;
 
   @JsonCreator
   public static OrderByColumnSpec create(Object obj)
@@ -133,8 +85,8 @@ public class OrderByColumnSpec implements Cacheable
       final Map map = (Map) obj;
 
       final String dimension = map.get("dimension").toString();
-      final Direction direction = determineDirection(map.get("direction"));
-      final StringComparator dimensionComparator = determineDimensionComparator(map.get("dimensionOrder"));
+      final Direction direction = Direction.fromString(Objects.toString(map.get("direction"), null));
+      final String dimensionComparator = Objects.toString(map.get("dimensionOrder"), null);
 
       return new OrderByColumnSpec(dimension, direction, dimensionComparator);
     } else {
@@ -184,7 +136,7 @@ public class OrderByColumnSpec implements Cacheable
         new Function<String, OrderByColumnSpec>()
         {
           @Override
-          public OrderByColumnSpec apply(@Nullable String input)
+          public OrderByColumnSpec apply(String input)
           {
             return desc(input);
           }
@@ -192,25 +144,11 @@ public class OrderByColumnSpec implements Cacheable
     );
   }
 
-  public OrderByColumnSpec(
-      String dimension,
-      Direction direction
-  )
-  {
-    this(dimension, direction, (StringComparator) null);
-  }
+  private final String dimension;
 
-  public OrderByColumnSpec(
-      String dimension,
-      Direction direction,
-      String comparatorName
-  )
+  public OrderByColumnSpec(String dimension, Direction direction)
   {
-    this(
-        dimension,
-        direction,
-        comparatorName == null ? DEFAULT_DIMENSION_ORDER : determineDimensionComparator(comparatorName)
-    );
+    this(dimension, direction, (String) null);
   }
 
   public OrderByColumnSpec(
@@ -219,9 +157,21 @@ public class OrderByColumnSpec implements Cacheable
       StringComparator dimensionComparator
   )
   {
+    this(
+        dimension,
+        direction,
+        dimensionComparator == null ? null : dimensionComparator.toString()
+    );
+  }
+
+  public OrderByColumnSpec(
+      String dimension,
+      Direction direction,
+      String dimensionOrder
+  )
+  {
+    super(direction, dimensionOrder);
     this.dimension = dimension;
-    this.direction = direction == null ? Direction.ASCENDING : direction;
-    this.dimensionComparator = dimensionComparator == null ? DEFAULT_DIMENSION_ORDER : dimensionComparator;
   }
 
   @JsonProperty
@@ -230,61 +180,9 @@ public class OrderByColumnSpec implements Cacheable
     return dimension;
   }
 
-  @JsonProperty
-  public Direction getDirection()
-  {
-    return direction;
-  }
-
-  @JsonProperty
-  public StringComparator getDimensionComparator()
-  {
-    return dimensionComparator;
-  }
-
   public OrderByColumnSpec withComparator(String comparatorName)
   {
     return new OrderByColumnSpec(dimension, direction, comparatorName);
-  }
-
-  public static Direction determineDirection(Object directionObj)
-  {
-    if (directionObj == null) {
-      return null;
-    }
-
-    String directionString = directionObj.toString();
-
-    Direction direction = stupidEnumMap.get(directionString);
-
-    if (direction == null) {
-      final String lowerDimension = directionString.toLowerCase();
-
-      for (Direction dir : Direction.values()) {
-        if (dir.toString().toLowerCase().startsWith(lowerDimension)) {
-          if (direction != null) {
-            throw new ISE("Ambiguous directions[%s] and [%s]", direction, dir);
-          }
-          direction = dir;
-        }
-      }
-    }
-
-    if (direction == null) {
-      throw new IAE("Unknown direction[%s]", directionString);
-    }
-
-    return direction;
-  }
-
-  static StringComparator determineDimensionComparator(Object dimensionOrderObj)
-  {
-    if (dimensionOrderObj == null) {
-      return DEFAULT_DIMENSION_ORDER;
-    }
-
-    String dimensionOrderString = dimensionOrderObj.toString().toLowerCase();
-    return StringComparators.makeComparator(dimensionOrderString);
   }
 
   @Override
@@ -293,29 +191,19 @@ public class OrderByColumnSpec implements Cacheable
     if (this == o) {
       return true;
     }
-    if (o == null || !(o instanceof OrderByColumnSpec)) {
+    if (!super.equals(o)) {
       return false;
     }
-
-    OrderByColumnSpec that = (OrderByColumnSpec) o;
-
-    if (!dimension.equals(that.dimension)) {
+    if (!(o instanceof OrderByColumnSpec)) {
       return false;
     }
-    if (!dimensionComparator.equals(that.dimensionComparator)) {
-      return false;
-    }
-    return direction == that.direction;
-
+    return dimension.equals(((OrderByColumnSpec) o).dimension);
   }
 
   @Override
   public int hashCode()
   {
-    int result = dimension.hashCode();
-    result = 31 * result + direction.hashCode();
-    result = 31 * result + dimensionComparator.hashCode();
-    return result;
+    return 31 * super.hashCode() + dimension.hashCode();
   }
 
   @Override
@@ -324,18 +212,19 @@ public class OrderByColumnSpec implements Cacheable
     return "OrderByColumnSpec{" +
            "dimension='" + dimension + '\'' +
            ", direction=" + direction + '\'' +
-           ", dimensionComparator='" + dimensionComparator + '\'' +
+           ", dimensionOrder='" + dimensionOrder + '\'' +
            '}';
   }
 
+  @Override
   public byte[] getCacheKey()
   {
-    final byte[] dimensionBytes = StringUtils.toUtf8(dimension);
-    final byte[] directionBytes = StringUtils.toUtf8(direction.name());
+    final byte[] orderingBytes = super.getCacheKey();
+    final byte[] dimensionBytes = QueryCacheHelper.computeCacheBytes(dimension);
 
-    return ByteBuffer.allocate(dimensionBytes.length + directionBytes.length)
+    return ByteBuffer.allocate(orderingBytes.length + dimensionBytes.length)
+                     .put(orderingBytes)
                      .put(dimensionBytes)
-                     .put(directionBytes)
                      .array();
   }
 }

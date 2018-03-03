@@ -72,6 +72,7 @@ import io.druid.query.groupby.having.ExpressionHavingSpec;
 import io.druid.query.groupby.having.HavingSpec;
 import io.druid.query.groupby.orderby.DefaultLimitSpec;
 import io.druid.query.groupby.orderby.OrderByColumnSpec;
+import io.druid.query.ordering.Direction;
 import io.druid.query.ordering.StringComparators;
 import io.druid.query.select.PagingSpec;
 import io.druid.query.spec.MultipleIntervalSegmentSpec;
@@ -762,7 +763,7 @@ public class CalciteQueryTest
                         ImmutableList.of(
                             new OrderByColumnSpec(
                                 "d0",
-                                OrderByColumnSpec.Direction.DESCENDING,
+                                Direction.DESCENDING,
                                 StringComparators.LEXICOGRAPHIC
                             )
                         ),
@@ -909,7 +910,7 @@ public class CalciteQueryTest
                                 ImmutableList.of(
                                     new OrderByColumnSpec(
                                         "d0",
-                                        OrderByColumnSpec.Direction.ASCENDING,
+                                        Direction.ASCENDING,
                                         StringComparators.NUMERIC
                                     )
                                 ),
@@ -967,7 +968,7 @@ public class CalciteQueryTest
                                 ImmutableList.of(
                                     new OrderByColumnSpec(
                                         "d0",
-                                        OrderByColumnSpec.Direction.ASCENDING,
+                                        Direction.ASCENDING,
                                         StringComparators.NUMERIC
                                     )
                                 ),
@@ -1356,12 +1357,12 @@ public class CalciteQueryTest
                                 ImmutableList.of(
                                     new OrderByColumnSpec(
                                         "p1",
-                                        OrderByColumnSpec.Direction.DESCENDING,
+                                        Direction.DESCENDING,
                                         StringComparators.NUMERIC
                                     ),
                                     new OrderByColumnSpec(
                                         "d0",
-                                        OrderByColumnSpec.Direction.ASCENDING,
+                                        Direction.ASCENDING,
                                         StringComparators.LEXICOGRAPHIC
                                     )
                                 ),
@@ -2202,7 +2203,7 @@ public class CalciteQueryTest
                                 ImmutableList.of(
                                     new OrderByColumnSpec(
                                         "p0",
-                                        OrderByColumnSpec.Direction.ASCENDING,
+                                        Direction.ASCENDING,
                                         StringComparators.NUMERIC
                                     )
                                 ),
@@ -2251,7 +2252,7 @@ public class CalciteQueryTest
                                 ImmutableList.of(
                                     new OrderByColumnSpec(
                                         "p0",
-                                        OrderByColumnSpec.Direction.ASCENDING,
+                                        Direction.ASCENDING,
                                         StringComparators.NUMERIC
                                     )
                                 ),
@@ -2470,7 +2471,7 @@ public class CalciteQueryTest
                                 ImmutableList.of(
                                     new OrderByColumnSpec(
                                         "d0",
-                                        OrderByColumnSpec.Direction.DESCENDING,
+                                        Direction.DESCENDING,
                                         StringComparators.NUMERIC
                                     )
                                 ),
@@ -2518,7 +2519,7 @@ public class CalciteQueryTest
                                 ImmutableList.of(
                                     new OrderByColumnSpec(
                                         "d0",
-                                        OrderByColumnSpec.Direction.DESCENDING,
+                                        Direction.DESCENDING,
                                         StringComparators.NUMERIC
                                     )
                                 ),
@@ -2569,7 +2570,7 @@ public class CalciteQueryTest
                                 ImmutableList.of(
                                     new OrderByColumnSpec(
                                         "d0",
-                                        OrderByColumnSpec.Direction.DESCENDING,
+                                        Direction.DESCENDING,
                                         StringComparators.NUMERIC
                                     )
                                 ),
@@ -3809,7 +3810,7 @@ public class CalciteQueryTest
                                 ImmutableList.of(
                                     new OrderByColumnSpec(
                                         "d0",
-                                        OrderByColumnSpec.Direction.ASCENDING,
+                                        Direction.ASCENDING,
                                         StringComparators.LEXICOGRAPHIC
                                     )
                                 ),
@@ -3871,7 +3872,7 @@ public class CalciteQueryTest
                                 ImmutableList.of(
                                     new OrderByColumnSpec(
                                         "d0",
-                                        OrderByColumnSpec.Direction.ASCENDING,
+                                        Direction.ASCENDING,
                                         StringComparators.LEXICOGRAPHIC
                                     )
                                 ),
@@ -3922,7 +3923,7 @@ public class CalciteQueryTest
                                 ImmutableList.of(
                                     new OrderByColumnSpec(
                                         "d0",
-                                        OrderByColumnSpec.Direction.ASCENDING,
+                                        Direction.ASCENDING,
                                         StringComparators.LEXICOGRAPHIC
                                     )
                                 ),
@@ -4224,7 +4225,7 @@ public class CalciteQueryTest
                             new DefaultLimitSpec(
                                 ImmutableList.of(new OrderByColumnSpec(
                                     "_d0",
-                                    OrderByColumnSpec.Direction.ASCENDING,
+                                    Direction.ASCENDING,
                                     StringComparators.LEXICOGRAPHIC
                                 )),
                                 2
@@ -4464,7 +4465,7 @@ public class CalciteQueryTest
                         .setLimitSpec(
                             new DefaultLimitSpec(
                                 ImmutableList.of(
-                                    new OrderByColumnSpec("d1", OrderByColumnSpec.Direction.ASCENDING)
+                                    new OrderByColumnSpec("d1", Direction.ASCENDING)
                                 ),
                                 4
                             )
@@ -4510,7 +4511,7 @@ public class CalciteQueryTest
                         .setLimitSpec(
                             new DefaultLimitSpec(
                                 ImmutableList.of(
-                                    new OrderByColumnSpec("d1", OrderByColumnSpec.Direction.ASCENDING)
+                                    new OrderByColumnSpec("d1", Direction.ASCENDING)
                                 ),
                                 4
                             )
@@ -4843,7 +4844,7 @@ public class CalciteQueryTest
                                 ImmutableList.of(
                                     new OrderByColumnSpec(
                                         "d0",
-                                        OrderByColumnSpec.Direction.DESCENDING,
+                                        Direction.DESCENDING,
                                         StringComparators.NUMERIC
                                     )
                                 ),
@@ -4895,17 +4896,17 @@ public class CalciteQueryTest
                                 ImmutableList.of(
                                     new OrderByColumnSpec(
                                         "d0",
-                                        OrderByColumnSpec.Direction.ASCENDING,
+                                        Direction.ASCENDING,
                                         StringComparators.NUMERIC
                                     ),
                                     new OrderByColumnSpec(
                                         "d1",
-                                        OrderByColumnSpec.Direction.ASCENDING,
+                                        Direction.ASCENDING,
                                         StringComparators.LEXICOGRAPHIC
                                     ),
                                     new OrderByColumnSpec(
                                         "a0",
-                                        OrderByColumnSpec.Direction.DESCENDING,
+                                        Direction.DESCENDING,
                                         StringComparators.NUMERIC
                                     )
                                 ),
@@ -5205,7 +5206,7 @@ public class CalciteQueryTest
                                 ImmutableList.of(
                                     new OrderByColumnSpec(
                                         "d0",
-                                        OrderByColumnSpec.Direction.ASCENDING,
+                                        Direction.ASCENDING,
                                         StringComparators.NUMERIC
                                     )
                                 ),
@@ -5460,7 +5461,7 @@ public class CalciteQueryTest
                                 ImmutableList.of(
                                     new OrderByColumnSpec(
                                         "d0",
-                                        OrderByColumnSpec.Direction.ASCENDING,
+                                        Direction.ASCENDING,
                                         StringComparators.NUMERIC
                                     )
                                 ),
@@ -5512,7 +5513,7 @@ public class CalciteQueryTest
                                 ImmutableList.of(
                                     new OrderByColumnSpec(
                                         "d0",
-                                        OrderByColumnSpec.Direction.ASCENDING,
+                                        Direction.ASCENDING,
                                         StringComparators.LEXICOGRAPHIC
                                     )
                                 ),
@@ -5641,7 +5642,7 @@ public class CalciteQueryTest
                                 ImmutableList.of(
                                     new OrderByColumnSpec(
                                         "d0",
-                                        OrderByColumnSpec.Direction.ASCENDING,
+                                        Direction.ASCENDING,
                                         StringComparators.NUMERIC
                                     )
                                 ),
@@ -5755,10 +5756,10 @@ public class CalciteQueryTest
                         .setLimitSpec(
                             new DefaultLimitSpec(
                                 ImmutableList.of(
-                                    new OrderByColumnSpec("d0", OrderByColumnSpec.Direction.ASCENDING),
+                                    new OrderByColumnSpec("d0", Direction.ASCENDING),
                                     new OrderByColumnSpec(
                                         "d1",
-                                        OrderByColumnSpec.Direction.ASCENDING,
+                                        Direction.ASCENDING,
                                         StringComparators.NUMERIC
                                     )
                                 ),
@@ -5815,7 +5816,7 @@ public class CalciteQueryTest
                         .setAggregatorSpecs(AGGS(new CountAggregatorFactory("a0")))
                         .setLimitSpec(
                             new DefaultLimitSpec(
-                                ImmutableList.of(new OrderByColumnSpec("d1", OrderByColumnSpec.Direction.ASCENDING)),
+                                ImmutableList.of(new OrderByColumnSpec("d1", Direction.ASCENDING)),
                                 Integer.MAX_VALUE
                             )
                         )
@@ -5943,7 +5944,7 @@ public class CalciteQueryTest
                                 ImmutableList.of(
                                     new OrderByColumnSpec(
                                         "d0",
-                                        OrderByColumnSpec.Direction.DESCENDING,
+                                        Direction.DESCENDING,
                                         StringComparators.LEXICOGRAPHIC
                                     )
                                 ),

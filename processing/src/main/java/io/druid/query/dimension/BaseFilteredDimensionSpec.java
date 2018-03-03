@@ -73,6 +73,12 @@ public abstract class BaseFilteredDimensionSpec implements DimensionSpec
     return delegate.preservesOrdering();
   }
 
+  @Override
+  public DimensionSelector decorate(DimensionSelector selector)
+  {
+    return selector;
+  }
+
   protected static DimensionSelector decorate(
       final DimensionSelector selector,
       final Map<Integer, Integer> forwardMapping,

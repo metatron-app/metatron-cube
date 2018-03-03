@@ -31,6 +31,7 @@ import io.druid.query.aggregation.PostAggregator;
 import io.druid.query.dimension.DimensionSpec;
 import io.druid.query.dimension.DimensionSpecs;
 import io.druid.query.groupby.orderby.WindowingSpec.PartitionEvaluator;
+import io.druid.query.ordering.Direction;
 import io.druid.query.ordering.StringComparator;
 import io.druid.segment.column.Column;
 
@@ -96,7 +97,7 @@ public class WindowingProcessor implements Function<List<Row>, List<Row>>
       return sortingColumns;
     }
     List<OrderByColumnSpec> merged = Lists.newArrayList();
-    List<String> sortingColumnNames = Lists.transform(sortingColumns, OrderByColumnSpec.GET_DIMENSION);
+    List<String> sortingColumnNames = OrderByColumnSpec.getColumns(sortingColumns);
     int i = 0;
     for (; i < partitionColumns.size(); i++) {
       if (sortingColumnNames.indexOf(partitionColumns.get(i)) != i) {
@@ -105,7 +106,7 @@ public class WindowingProcessor implements Function<List<Row>, List<Row>>
       merged.add(sortingColumns.get(0));
     }
     for (int j = i; j < partitionColumns.size(); j++) {
-      merged.add(new OrderByColumnSpec(partitionColumns.get(j), OrderByColumnSpec.Direction.ASCENDING));
+      merged.add(new OrderByColumnSpec(partitionColumns.get(j), Direction.ASCENDING));
     }
     merged.addAll(sortingColumns.subList(i, sortingColumns.size()));
     return merged;
@@ -229,7 +230,7 @@ public class WindowingProcessor implements Function<List<Row>, List<Row>>
       } else if (aggregatorsMap.containsKey(columnName)) {
         nextOrdering = metricOrdering(columnName, aggregatorsMap.get(columnName).getComparator());
       } else if (dimensionsMap.containsKey(columnName)) {
-        nextOrdering = dimensionOrdering(columnName, columnSpec.getDimensionComparator());
+        nextOrdering = dimensionOrdering(columnName, columnSpec.getComparator());
       } else {
         nextOrdering = metricOrdering(columnName);  // last resort.. assume it's assigned by expression
       }

@@ -102,6 +102,7 @@ import io.druid.query.groupby.orderby.PivotColumnSpec;
 import io.druid.query.groupby.orderby.PivotSpec;
 import io.druid.query.groupby.orderby.WindowingSpec;
 import io.druid.query.lookup.LookupExtractionFn;
+import io.druid.query.ordering.Direction;
 import io.druid.query.ordering.StringComparators;
 import io.druid.query.search.search.ContainsSearchQuerySpec;
 import io.druid.query.spec.MultipleIntervalSegmentSpec;
@@ -1466,7 +1467,7 @@ public class GroupByQueryRunnerTest
         )
         .setGranularity(QueryGranularities.DAY)
         .setLimit(limit)
-        .addOrderByColumn("idx", OrderByColumnSpec.Direction.DESCENDING);
+        .addOrderByColumn("idx", Direction.DESCENDING);
 
     GroupByQuery fullQuery = builder.build();
 
@@ -1666,7 +1667,7 @@ public class GroupByQueryRunnerTest
             )
         )
         .addOrderByColumn("rows")
-        .addOrderByColumn("alias", OrderByColumnSpec.Direction.DESCENDING)
+        .addOrderByColumn("alias", Direction.DESCENDING)
         .setGranularity(new PeriodGranularity(new Period("P1M"), null, null));
 
     final GroupByQuery query = builder.build();
@@ -1767,7 +1768,7 @@ public class GroupByQueryRunnerTest
             )
         )
         .addOrderByColumn("rows", "desc")
-        .addOrderByColumn("alias", "d")
+        .addOrderByColumn("alias", "desc")
         .setGranularity(new PeriodGranularity(new Period("P1M"), null, null));
 
     final GroupByQuery query = builder.build();
@@ -1806,7 +1807,7 @@ public class GroupByQueryRunnerTest
             )
         )
         .addOrderByColumn("idx", "desc")
-        .addOrderByColumn("alias", "d")
+        .addOrderByColumn("alias", "desc")
         .setGranularity(new PeriodGranularity(new Period("P1M"), null, null));
 
     GroupByQuery query = builder.build();
@@ -1851,7 +1852,7 @@ public class GroupByQueryRunnerTest
                 Lists.newArrayList(
                     new OrderByColumnSpec(
                         "marketalias",
-                        OrderByColumnSpec.Direction.DESCENDING
+                        Direction.DESCENDING
                     )
                 ), 3
             )
@@ -1911,7 +1912,7 @@ public class GroupByQueryRunnerTest
                 Lists.newArrayList(
                     new OrderByColumnSpec(
                         QueryRunnerTestHelper.marketDimension,
-                        OrderByColumnSpec.Direction.DESCENDING
+                        Direction.DESCENDING
                     )
                 ), 3
             )
@@ -1959,7 +1960,7 @@ public class GroupByQueryRunnerTest
                 Lists.newArrayList(
                     new OrderByColumnSpec(
                         QueryRunnerTestHelper.uniqueMetric,
-                        OrderByColumnSpec.Direction.DESCENDING
+                        Direction.DESCENDING
                     )
                 ), 3
             )
@@ -2033,7 +2034,7 @@ public class GroupByQueryRunnerTest
                 Lists.newArrayList(
                     new OrderByColumnSpec(
                         QueryRunnerTestHelper.uniqueMetric,
-                        OrderByColumnSpec.Direction.DESCENDING
+                        Direction.DESCENDING
                     )
                 ), 3
             )
@@ -2104,7 +2105,7 @@ public class GroupByQueryRunnerTest
                 Lists.newArrayList(
                     new OrderByColumnSpec(
                         QueryRunnerTestHelper.hyperUniqueFinalizingPostAggMetric,
-                        OrderByColumnSpec.Direction.DESCENDING
+                        Direction.DESCENDING
                     )
                 ), 3
             )
@@ -2176,7 +2177,7 @@ public class GroupByQueryRunnerTest
                 Lists.newArrayList(
                     new OrderByColumnSpec(
                         QueryRunnerTestHelper.hyperUniqueFinalizingPostAggMetric,
-                        OrderByColumnSpec.Direction.DESCENDING
+                        Direction.DESCENDING
                     )
                 ), 3
             )
@@ -2319,7 +2320,7 @@ public class GroupByQueryRunnerTest
                 Lists.newArrayList(
                     new OrderByColumnSpec(
                         "rows",
-                        OrderByColumnSpec.Direction.DESCENDING
+                        Direction.DESCENDING
                     )
                 ), 2
             )
@@ -2450,7 +2451,7 @@ public class GroupByQueryRunnerTest
                 Lists.newArrayList(
                     new OrderByColumnSpec(
                         "index",
-                        OrderByColumnSpec.Direction.ASCENDING
+                        Direction.ASCENDING
                     )
                 ),
                 5
@@ -3952,7 +3953,7 @@ public class GroupByQueryRunnerTest
                 Arrays.asList(
                     new OrderByColumnSpec(
                         "alias",
-                        OrderByColumnSpec.Direction.DESCENDING
+                        Direction.DESCENDING
                     )
                 ),
                 5
@@ -4337,12 +4338,12 @@ public class GroupByQueryRunnerTest
   {
     List<String> dayOfWeek = Arrays.asList("dayOfWeek");
 
-    OrderByColumnSpec dayOfWeekAsc = new OrderByColumnSpec("dayOfWeek", OrderByColumnSpec.Direction.ASCENDING);
-    OrderByColumnSpec marketDsc = new OrderByColumnSpec("market", OrderByColumnSpec.Direction.DESCENDING);
+    OrderByColumnSpec dayOfWeekAsc = new OrderByColumnSpec("dayOfWeek", Direction.ASCENDING);
+    OrderByColumnSpec marketDsc = new OrderByColumnSpec("market", Direction.DESCENDING);
     OrderByColumnSpec indexDsc = new OrderByColumnSpec(
-        "index", OrderByColumnSpec.Direction.DESCENDING, new StringComparators.FloatingPointComparator()
+        "index", Direction.DESCENDING, new StringComparators.FloatingPointComparator()
     );
-    OrderByColumnSpec rowsAsc = new OrderByColumnSpec("rows", OrderByColumnSpec.Direction.ASCENDING);
+    OrderByColumnSpec rowsAsc = new OrderByColumnSpec("rows", Direction.ASCENDING);
     List<OrderByColumnSpec> dayPlusMarket = Arrays.asList(dayOfWeekAsc, marketDsc);
     List<OrderByColumnSpec> dayPlusRows = Arrays.asList(dayOfWeekAsc, rowsAsc);
 
@@ -4381,8 +4382,8 @@ public class GroupByQueryRunnerTest
         .setLimitSpec(
             new DefaultLimitSpec(
                 Arrays.asList(
-                    new OrderByColumnSpec("dayOfWeek", OrderByColumnSpec.Direction.ASCENDING, StringComparators.DAY_OF_WEEK),
-                    new OrderByColumnSpec("rows", OrderByColumnSpec.Direction.ASCENDING)
+                    new OrderByColumnSpec("dayOfWeek", Direction.ASCENDING, StringComparators.DAY_OF_WEEK),
+                    new OrderByColumnSpec("rows", Direction.ASCENDING)
                 ),
                 30
             )
@@ -4579,7 +4580,7 @@ public class GroupByQueryRunnerTest
                     null, null, "delta_all = $delta(rows)", "sum_all = $sum(rows)"
                 ),
                 new WindowingSpec(
-                    null, Arrays.asList(new OrderByColumnSpec("sum_all", OrderByColumnSpec.Direction.DESCENDING))
+                    null, Arrays.asList(new OrderByColumnSpec("sum_all", Direction.DESCENDING))
                 )
             )
         )
@@ -4807,7 +4808,7 @@ public class GroupByQueryRunnerTest
             Arrays.asList(
                 new OrderByColumnSpec(
                     "sum_week_last",
-                    OrderByColumnSpec.Direction.DESCENDING,
+                    Direction.DESCENDING,
                     new StringComparators.FloatingPointComparator()
                 )
             ),
@@ -5600,7 +5601,7 @@ public class GroupByQueryRunnerTest
                     Arrays.asList("dayOfWeek"),
                     Arrays.asList(dayOfWeekAsc),
                     Arrays.<String>asList(),
-                    PivotSpec.of(PivotColumnSpec.toSpec("market"), "index")
+                    PivotSpec.of(PivotColumnSpec.toSpecs("market"), "index")
                 )
             )
         )
@@ -5630,7 +5631,7 @@ public class GroupByQueryRunnerTest
                     Arrays.asList("dayOfWeek"),
                     Arrays.asList(dayOfWeekAsc),
                     Arrays.<String>asList(),
-                    PivotSpec.of(PivotColumnSpec.toSpec("market"), "index").withAppendValueColumn(true)
+                    PivotSpec.of(PivotColumnSpec.toSpecs("market"), "index").withAppendValueColumn(true)
                 )
             )
         )
@@ -5660,7 +5661,7 @@ public class GroupByQueryRunnerTest
                     Arrays.asList("dayOfWeek"),
                     Arrays.asList(dayOfWeekAsc),
                     Arrays.<String>asList(),
-                    PivotSpec.of(PivotColumnSpec.toSpec("market"), "index", "rows")
+                    PivotSpec.of(PivotColumnSpec.toSpecs("market"), "index", "rows")
                 )
             )
         )
@@ -5687,7 +5688,7 @@ public class GroupByQueryRunnerTest
                     Arrays.asList("dayOfWeek"),
                     Arrays.asList(dayOfWeekAsc),
                     Arrays.<String>asList(),
-                    PivotSpec.of(PivotColumnSpec.toSpec("market"), "index", "rows").withAppendValueColumn(true)
+                    PivotSpec.of(PivotColumnSpec.toSpecs("market"), "index", "rows").withAppendValueColumn(true)
                 )
             )
         )
@@ -5718,7 +5719,7 @@ public class GroupByQueryRunnerTest
                     Arrays.asList("dayOfWeek"),
                     Arrays.asList(dayOfWeekAsc.withComparator("dayofweek")),
                     Arrays.<String>asList(),
-                    PivotSpec.of(PivotColumnSpec.toSpec("market"), "index")
+                    PivotSpec.of(PivotColumnSpec.toSpecs("market"), "index")
                 )
             )
         )
@@ -5771,6 +5772,45 @@ public class GroupByQueryRunnerTest
     results = GroupByQueryRunnerTestHelper.runQuery(factory, runner, builder.build());
     GroupByQueryRunnerTestHelper.validate(columnNames, expectedResults, results);
 
+    // expression, filtered
+    builder.setLimitSpec(
+        new DefaultLimitSpec(
+            null, null,
+            Arrays.asList(
+                new WindowingSpec(
+                    Arrays.asList("dayOfWeek"), Arrays.asList(dayOfWeekAsc),
+                    Arrays.<String>asList(),
+                    PivotSpec.of(
+                        Arrays.asList(
+                            PivotColumnSpec.ofExpression(
+                                "substring(market, 0, 4)",
+                                null,
+                                null,
+                                Arrays.asList("upfr", "spot", "dumm")
+                            )
+                        ),
+                        "index"
+                    )
+                )
+            )
+        )
+    );
+    columnNames = new String[]{"dayOfWeek", "upfr", "spot"};
+
+    expectedResults = GroupByQueryRunnerTestHelper.createExpectedRows(
+        columnNames,
+        array("Friday", 27297.8623046875, 13219.574157714844),
+        array("Monday", 27619.58447265625, 13557.738830566406),
+        array("Saturday", 27820.83154296875, 13493.751281738281),
+        array("Sunday", 24791.223876953125, 13585.541015625),
+        array("Thursday", 28562.748901367188, 14279.127197265625),
+        array("Tuesday", 26968.280639648438, 13199.471435546875),
+        array("Wednesday", 28985.5751953125, 14271.368591308594)
+    );
+
+    results = GroupByQueryRunnerTestHelper.runQuery(factory, runner, builder.build());
+    GroupByQueryRunnerTestHelper.validate(columnNames, expectedResults, results);
+
     // row expression
     builder.setLimitSpec(
         new DefaultLimitSpec(
@@ -5781,7 +5821,7 @@ public class GroupByQueryRunnerTest
                     Arrays.<String>asList(),
                     new PivotSpec(
                         Arrays.asList(
-                            new PivotColumnSpec(
+                            PivotColumnSpec.ofColumn(
                                 "dayOfWeek", null, "dayOfWeek", Arrays.asList("Monday", "Wednesday", "Friday")
                             )
                         ),
@@ -5818,7 +5858,7 @@ public class GroupByQueryRunnerTest
                     Arrays.<String>asList(),
                     new PivotSpec(
                         Arrays.asList(
-                            new PivotColumnSpec(
+                            PivotColumnSpec.ofColumn(
                                 "dayOfWeek", null, "dayOfWeek", Arrays.asList("Monday", "Wednesday", "Friday")
                             )
                         ),
@@ -5890,7 +5930,7 @@ public class GroupByQueryRunnerTest
                     Arrays.asList("dayOfWeek"),
                     Arrays.asList(dayOfWeekAsc),
                     Arrays.<String>asList(),
-                    PivotSpec.tabular(PivotColumnSpec.toSpec("market", "quality"), "index")
+                    PivotSpec.tabular(PivotColumnSpec.toSpecs("market", "quality"), "index")
                 )
             )
         )
@@ -5934,7 +5974,7 @@ public class GroupByQueryRunnerTest
                     Arrays.asList(dayOfWeekAsc),
                     Arrays.<String>asList(),
                     PivotSpec.tabular(
-                        PivotColumnSpec.toSpec("market", "quality"), "index", "rows"
+                        PivotColumnSpec.toSpecs("market", "quality"), "index", "rows"
                     ).withAppendValueColumn(true)
                 )
             )
@@ -5980,7 +6020,7 @@ public class GroupByQueryRunnerTest
                     Arrays.asList("dayOfWeek"),
                     Arrays.asList(dayOfWeekAsc),
                     Arrays.<String>asList(),
-                    PivotSpec.tabular(PivotColumnSpec.toSpec("market", "quality"), "index")
+                    PivotSpec.tabular(PivotColumnSpec.toSpecs("market", "quality"), "index")
                              .withPartitionExpressions(PartitionExpression.of("_ = $sum(_)"))
                 )
             )
@@ -6024,7 +6064,7 @@ public class GroupByQueryRunnerTest
                     Arrays.asList("dayOfWeek"),
                     Arrays.asList(dayOfWeekAsc),
                     Arrays.<String>asList(),
-                    PivotSpec.tabular(PivotColumnSpec.toSpec("market", "quality"), "index")
+                    PivotSpec.tabular(PivotColumnSpec.toSpecs("market", "quality"), "index")
                              .withPartitionExpressions(
                                  PartitionExpression.from(
                                      "#_ = $sum(_)",
@@ -6067,7 +6107,7 @@ public class GroupByQueryRunnerTest
                     Arrays.asList("dayOfWeek"),
                     Arrays.asList(dayOfWeekAsc),
                     Arrays.<String>asList(),
-                    PivotSpec.tabular(PivotColumnSpec.toSpec("market", "quality"), "index")
+                    PivotSpec.tabular(PivotColumnSpec.toSpecs("market", "quality"), "index")
                              .withPartitionExpressions(
                                  PartitionExpression.from(
                                      new String[]{"^spot-.*", "#_ = $sum(_)"},
@@ -6110,7 +6150,7 @@ public class GroupByQueryRunnerTest
                     Arrays.asList("dayOfWeek"),
                     Arrays.asList(dayOfWeekAsc),
                     Arrays.<String>asList(),
-                    PivotSpec.tabular(PivotColumnSpec.toSpec(), "index", "rows")
+                    PivotSpec.tabular(PivotColumnSpec.toSpecs(), "index", "rows")
                              .withRowExpressions("index_part = $sum(index)", "rows_part = $sum(rows)")
                              .withPartitionExpressions(PartitionExpression.of("_ = $sum(_)"))
                 )

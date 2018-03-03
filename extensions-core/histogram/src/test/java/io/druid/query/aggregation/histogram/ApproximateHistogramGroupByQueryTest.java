@@ -41,6 +41,7 @@ import io.druid.query.groupby.GroupByQueryRunnerFactory;
 import io.druid.query.groupby.GroupByQueryRunnerTestHelper;
 import io.druid.query.groupby.orderby.DefaultLimitSpec;
 import io.druid.query.groupby.orderby.OrderByColumnSpec;
+import io.druid.query.ordering.Direction;
 import io.druid.segment.TestHelper;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -176,7 +177,7 @@ public class ApproximateHistogramGroupByQueryTest
                 Lists.newArrayList(
                     new OrderByColumnSpec(
                         "marketalias",
-                        OrderByColumnSpec.Direction.DESCENDING
+                        Direction.DESCENDING
                     )
                 ), 1
             )
@@ -290,7 +291,7 @@ public class ApproximateHistogramGroupByQueryTest
                 Lists.newArrayList(
                     new OrderByColumnSpec(
                         "marketalias",
-                        OrderByColumnSpec.Direction.DESCENDING
+                        Direction.DESCENDING
                     )
                 ), 1
             )

@@ -14,9 +14,15 @@ import io.druid.query.QueryRunnerTestHelper;
 import io.druid.query.aggregation.PostAggregator;
 import io.druid.query.dimension.DefaultDimensionSpec;
 import io.druid.query.dimension.DimensionSpec;
-import io.druid.query.groupby.*;
+import io.druid.query.groupby.GroupByQuery;
+import io.druid.query.groupby.GroupByQueryConfig;
+import io.druid.query.groupby.GroupByQueryEngine;
+import io.druid.query.groupby.GroupByQueryQueryToolChest;
+import io.druid.query.groupby.GroupByQueryRunnerFactory;
+import io.druid.query.groupby.GroupByQueryRunnerTestHelper;
 import io.druid.query.groupby.orderby.DefaultLimitSpec;
 import io.druid.query.groupby.orderby.OrderByColumnSpec;
+import io.druid.query.ordering.Direction;
 import io.druid.segment.TestHelper;
 import org.junit.Assert;
 import org.junit.Test;
@@ -147,7 +153,7 @@ public class DruidTDigestGroupByQueryTest
                 Lists.newArrayList(
                     new OrderByColumnSpec(
                         "marketalias",
-                        OrderByColumnSpec.Direction.DESCENDING
+                        Direction.DESCENDING
                     )
                 ), 1
             )
@@ -206,7 +212,7 @@ public class DruidTDigestGroupByQueryTest
                 Lists.newArrayList(
                     new OrderByColumnSpec(
                         "marketalias",
-                        OrderByColumnSpec.Direction.DESCENDING
+                        Direction.DESCENDING
                     )
                 ), 1
             )

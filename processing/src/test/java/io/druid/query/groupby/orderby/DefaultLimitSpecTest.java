@@ -36,6 +36,7 @@ import io.druid.query.aggregation.post.ConstantPostAggregator;
 import io.druid.query.aggregation.post.MathPostAggregator;
 import io.druid.query.dimension.DefaultDimensionSpec;
 import io.druid.query.dimension.DimensionSpec;
+import io.druid.query.ordering.Direction;
 import io.druid.segment.TestHelper;
 import org.joda.time.DateTime;
 import org.junit.Assert;
@@ -94,7 +95,7 @@ public class DefaultLimitSpecTest
     );
 
     Assert.assertEquals(
-        new DefaultLimitSpec(ImmutableList.of(new OrderByColumnSpec("d", OrderByColumnSpec.Direction.ASCENDING)), 10),
+        new DefaultLimitSpec(ImmutableList.of(new OrderByColumnSpec("d", Direction.ASCENDING)), 10),
         spec
     );
   }
@@ -125,7 +126,7 @@ public class DefaultLimitSpecTest
   {
     DefaultLimitSpec limitSpec = new DefaultLimitSpec(
         ImmutableList.of(
-            new OrderByColumnSpec("k1", OrderByColumnSpec.Direction.ASCENDING)
+            new OrderByColumnSpec("k1", Direction.ASCENDING)
         ),
         2
     );

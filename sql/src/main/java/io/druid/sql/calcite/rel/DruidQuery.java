@@ -49,6 +49,7 @@ import io.druid.query.groupby.having.ExpressionHavingSpec;
 import io.druid.query.groupby.having.HavingSpec;
 import io.druid.query.groupby.orderby.DefaultLimitSpec;
 import io.druid.query.groupby.orderby.OrderByColumnSpec;
+import io.druid.query.ordering.Direction;
 import io.druid.query.ordering.StringComparator;
 import io.druid.query.ordering.StringComparators;
 import io.druid.query.select.PagingSpec;
@@ -468,13 +469,13 @@ public class DruidQuery
     for (int sortKey = 0; sortKey < sort.getChildExps().size(); sortKey++) {
       final RexNode sortExpression = sort.getChildExps().get(sortKey);
       final RelFieldCollation collation = sort.getCollation().getFieldCollations().get(sortKey);
-      final OrderByColumnSpec.Direction direction;
+      final Direction direction;
       final StringComparator comparator;
 
       if (collation.getDirection() == RelFieldCollation.Direction.ASCENDING) {
-        direction = OrderByColumnSpec.Direction.ASCENDING;
+        direction = Direction.ASCENDING;
       } else if (collation.getDirection() == RelFieldCollation.Direction.DESCENDING) {
-        direction = OrderByColumnSpec.Direction.DESCENDING;
+        direction = Direction.DESCENDING;
       } else {
         throw new ISE("WTF?! Don't know what to do with direction[%s]", collation.getDirection());
       }
@@ -663,7 +664,7 @@ public class DruidQuery
 
           if (firstOrderBy.getDimension().equals(dimensionSpec.getOutputName())) {
             // Order by time.
-            descending = firstOrderBy.getDirection() == OrderByColumnSpec.Direction.DESCENDING;
+            descending = firstOrderBy.getDirection() == Direction.DESCENDING;
           } else {
             // Order by something else.
             return null;
@@ -734,7 +735,7 @@ public class DruidQuery
     if (limitSpec.getColumns().isEmpty()) {
       limitColumn = new OrderByColumnSpec(
           dimensionSpec.getOutputName(),
-          OrderByColumnSpec.Direction.ASCENDING,
+          Direction.ASCENDING,
           Calcites.getStringComparatorForValueType(dimensionExpr.getOutputType())
       );
     } else {
@@ -746,15 +747,15 @@ public class DruidQuery
       // DimensionTopNMetricSpec is exact; always return it even if allowApproximate is false.
       final DimensionTopNMetricSpec baseMetricSpec = new DimensionTopNMetricSpec(
           null,
-          limitColumn.getDimensionComparator()
+          limitColumn.getComparator()
       );
-      topNMetricSpec = limitColumn.getDirection() == OrderByColumnSpec.Direction.ASCENDING
+      topNMetricSpec = limitColumn.getDirection() == Direction.ASCENDING
                        ? baseMetricSpec
                        : new InvertedTopNMetricSpec(baseMetricSpec);
     } else if (plannerContext.getPlannerConfig().isUseApproximateTopN()) {
       // ORDER BY metric
       final NumericTopNMetricSpec baseMetricSpec = new NumericTopNMetricSpec(limitColumn.getDimension());
-      topNMetricSpec = limitColumn.getDirection() == OrderByColumnSpec.Direction.ASCENDING
+      topNMetricSpec = limitColumn.getDirection() == Direction.ASCENDING
                        ? new InvertedTopNMetricSpec(baseMetricSpec)
                        : baseMetricSpec;
     } else {
@@ -891,7 +892,7 @@ public class DruidQuery
           // Select cannot handle sorting on anything other than __time.
           return null;
         }
-        descending = orderBy.getDirection() == OrderByColumnSpec.Direction.DESCENDING;
+        descending = orderBy.getDirection() == Direction.DESCENDING;
       } else {
         // Select cannot handle sorting on more than one column.
         return null;

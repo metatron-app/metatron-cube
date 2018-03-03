@@ -21,14 +21,21 @@ package io.druid.query.groupby.orderby;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import com.metamx.common.ISE;
+import io.druid.common.guava.DSuppliers;
 import io.druid.common.guava.GuavaUtils;
-import io.druid.query.ordering.StringComparator;
-import io.druid.query.ordering.StringComparators;
+import io.druid.data.input.Row;
+import io.druid.math.expr.Expr;
+import io.druid.math.expr.Parser;
+import io.druid.query.QueryCacheHelper;
+import io.druid.query.ordering.Direction;
+import io.druid.query.ordering.StringOrderingSpec;
 
+import java.nio.ByteBuffer;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -36,8 +43,26 @@ import java.util.Set;
 
 /**
  */
-public class PivotColumnSpec extends OrderByColumnSpec
+public class PivotColumnSpec extends StringOrderingSpec
 {
+  public static PivotColumnSpec ofColumn(
+      String dimension,
+      Direction direction,
+      String comparatorName,
+      List<String> values)
+  {
+    return new PivotColumnSpec(dimension, null, direction, comparatorName, values);
+  }
+
+  public static PivotColumnSpec ofExpression(
+      String expression,
+      Direction direction,
+      String comparatorName,
+      List<String> values)
+  {
+    return new PivotColumnSpec(null, expression, direction, comparatorName, values);
+  }
+
   public static PivotColumnSpec of(String column)
   {
     return new PivotColumnSpec(column, null);
@@ -47,19 +72,29 @@ public class PivotColumnSpec extends OrderByColumnSpec
   {
     return new PivotColumnSpec(
         column.getDimension(),
+        null,
         column.getDirection(),
-        column.getDimensionComparator().toString(),
+        column.getDimensionOrder(),
         null
     );
   }
 
-  public static List<PivotColumnSpec> toSpec(String... columns)
+  public static List<PivotColumnSpec> toSpecs(String... columns)
   {
     List<PivotColumnSpec> columnSpecs = Lists.newArrayList();
     for (String column : columns) {
       columnSpecs.add(create(column));
     }
     return columnSpecs;
+  }
+
+  public static List<Function<Row, String>> toExtractors(List<PivotColumnSpec> pivotColumnSpecs)
+  {
+    List<Function<Row, String>> extractors = Lists.newArrayList();
+    for (PivotColumnSpec columnSpec : pivotColumnSpecs) {
+      extractors.add(columnSpec.toExtractor());
+    }
+    return extractors;
   }
 
   public static List<Set<String>> getValues(List<PivotColumnSpec> pivotColumnSpecs)
@@ -82,58 +117,58 @@ public class PivotColumnSpec extends OrderByColumnSpec
     Preconditions.checkNotNull(obj, "Cannot build an OrderByColumnSpec from a null object.");
 
     if (obj instanceof String) {
-      return new PivotColumnSpec(obj.toString(), null, (String) null, null);
+      return new PivotColumnSpec(obj.toString(), null, null, null, null);
     } else if (obj instanceof Map) {
       final Map map = (Map) obj;
 
-      final String dimension = Preconditions.checkNotNull(map.get("dimension")).toString();
-      final Direction direction = determineDirection(map.get("direction"));
-      final StringComparator dimensionComparator = determineDimensionComparator(map.get("dimensionOrder"));
+      final String dimension = Objects.toString(map.get("dimension"), null);
+      final String expression = Objects.toString(map.get("expression"), null);
+      final Direction direction = Direction.fromString(Objects.toString(map.get("direction"), null));
+      final String dimensionOrder = Objects.toString(map.get("dimensionOrder"), null);
 
-      return new PivotColumnSpec(dimension, direction, dimensionComparator, (List) map.get("values"));
+      return new PivotColumnSpec(dimension, expression, direction, dimensionOrder, (List) map.get("values"));
     } else {
       throw new ISE("Cannot build an OrderByColumnSpec from a %s", obj.getClass());
     }
   }
 
-  static StringComparator determineDimensionComparator(Object dimensionOrderObj)
-  {
-    if (dimensionOrderObj == null) {
-      return DEFAULT_DIMENSION_ORDER;
-    }
-
-    String dimensionOrderString = dimensionOrderObj.toString().toLowerCase();
-    return StringComparators.makeComparator(dimensionOrderString);
-  }
-
+  private final String dimension;
+  private final String expression;
   private final List<String> values;
 
   public PivotColumnSpec(
       String dimension,
-      Direction direction,
-      StringComparator dimensionComparator,
-      List<String> values
-  )
-  {
-    super(dimension, direction, dimensionComparator);
-    this.values = values;
-  }
-
-  public PivotColumnSpec(
-      String dimension,
+      String expression,
       Direction direction,
       String comparatorName,
       List<String> values
   )
   {
-    super(dimension, direction, comparatorName);
+    super(direction, comparatorName);
+    this.dimension = dimension;
+    this.expression = expression;
     this.values = values;
+    Preconditions.checkArgument(
+        dimension == null ^ expression == null,
+        "Must have a valid, non-null dimension or expression"
+    );
   }
 
   public PivotColumnSpec(String dimension, List<String> values)
   {
-    super(dimension, null, (String) null);
-    this.values = values;
+    this(dimension, null, null, null, values);
+  }
+
+  @JsonProperty
+  public String getDimension()
+  {
+    return dimension;
+  }
+
+  @JsonProperty
+  public String getExpression()
+  {
+    return expression;
   }
 
   @JsonProperty
@@ -142,13 +177,41 @@ public class PivotColumnSpec extends OrderByColumnSpec
     return values;
   }
 
+  public Function<Row, String> toExtractor()
+  {
+    if (dimension != null) {
+      return new Function<Row, String>()
+      {
+        @Override
+        public String apply(Row input)
+        {
+          return Objects.toString(input.getRaw(dimension), "");
+        }
+      };
+    } else {
+      final Expr expr = Parser.parse(expression);
+      final DSuppliers.HandOver<Row> supplier = new DSuppliers.HandOver<>();
+      final Expr.NumericBinding binding = Parser.withRowSupplier(supplier);
+      return new Function<Row, String>()
+      {
+        @Override
+        public String apply(Row input)
+        {
+          supplier.set(input);
+          return expr.eval(binding).asString();
+        }
+      };
+    }
+  }
+
   @Override
   public String toString()
   {
     return "PivotColumnSpec{" +
-           "dimension='" + getDimension() + '\'' +
+           "dimension='" + dimension + '\'' +
+           ", expression='" + expression + '\'' +
+           ", dimensionOrder='" + getDimensionOrder() + '\'' +
            ", direction=" + getDirection() + '\'' +
-           ", dimensionComparator='" + getDimensionComparator() + '\'' +
            ", values='" + values + '\'' +
            '}';
   }
@@ -165,6 +228,26 @@ public class PivotColumnSpec extends OrderByColumnSpec
     if (o == null || !(o instanceof PivotColumnSpec)) {
       return false;
     }
-    return super.equals(o) && Objects.equals(values, ((PivotColumnSpec) o).values);
+    PivotColumnSpec other = (PivotColumnSpec) o;
+    return super.equals(o) &&
+           Objects.equals(dimension, other.dimension) &&
+           Objects.equals(expression, other.expression) &&
+           Objects.equals(values, other.values);
+  }
+
+  @Override
+  public byte[] getCacheKey()
+  {
+    final byte[] superBytes = super.getCacheKey();
+    final byte[] dimensionBytes = QueryCacheHelper.computeCacheBytes(dimension);
+    final byte[] expressionBytes = QueryCacheHelper.computeCacheBytes(expression);
+    final byte[] valuesBytes = QueryCacheHelper.computeCacheBytes(values);
+
+    return ByteBuffer.allocate(superBytes.length + dimensionBytes.length + expressionBytes.length + valuesBytes.length)
+                     .put(superBytes)
+                     .put(dimensionBytes)
+                     .put(expressionBytes)
+                     .put(valuesBytes)
+                     .array();
   }
 }
