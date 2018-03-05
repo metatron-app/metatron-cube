@@ -24,6 +24,7 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
+import io.druid.common.utils.JodaUtils;
 import io.druid.granularity.Granularity;
 import io.druid.granularity.GranularityType;
 import org.joda.time.DateTime;
@@ -34,6 +35,7 @@ import org.junit.Ignore;
 import org.junit.Test;
 
 import java.io.IOException;
+import java.text.ParseException;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -243,7 +245,7 @@ public class EvalTest
             + "'2016-11-17 오전 10:11:39.662+09:00', "
             + "format='yyyy-MM-dd a hh:mm:ss.SSSZ', "
             + "locale='ko', "
-            + "out.format='MM-dd-yyyy a hh:mm:ss.SSSZZ', "
+            + "out.format='MM-dd-yyyy a hh:mm:ss.SSSZ', "
             + "out.locale='us', "
             + "out.timezone='PST'"
             + ")", bindings
@@ -255,7 +257,7 @@ public class EvalTest
             + "'2016-11-17 오전 10:11:39.662+0900', "
             + "format='yyyy-MM-dd a hh:mm:ss.SSSZZ', "
             + "locale='ko', "
-            + "out.format='MM-dd-yyyy a hh:mm:ss.SSSZZ', "
+            + "out.format='MM-dd-yyyy a hh:mm:ss.SSSZ', "
             + "out.locale='us', "
             + "out.timezone='PST'"
             + ")", bindings
@@ -268,7 +270,7 @@ public class EvalTest
         "11-16-2016 PM 05:11:39.662-0800", evalString(
             "time_format("
             + time + ", "
-            + "out.format='MM-dd-yyyy a hh:mm:ss.SSSZZ', "
+            + "out.format='MM-dd-yyyy a hh:mm:ss.SSSZ', "
             + "out.locale='us', "
             + "out.timezone='PST'"
             + ")", bindings
@@ -296,6 +298,45 @@ public class EvalTest
             + ")", bindings
         )
     );
+    // escape
+    Assert.assertEquals(
+        "X Q4 2016", evalString(
+            "time_format("
+            + time + ", "
+            + "out.format='\\'X\\' qqq yyyy', "
+            + "out.locale='en', "
+            + "out.timezone='UTC'"
+            + ")", bindings
+        )
+    );
+  }
+
+  @Test
+  public void testStandard() throws ParseException
+  {
+    testStandard("2018-03-05T08:09:24.432+0100", "2018-03-05T07:09:24.432+0000");
+    testStandard("2018-03-05T08:09:24.432", "2018-03-05T08:09:24.432+0000");
+    testStandard("2018-03-05T08:09:24", "2018-03-05T08:09:24.000+0000");
+  }
+
+  private void testStandard(String time, String expected)
+  {
+    DateTime dateTime = JodaUtils.STANDARD_PARSER.parseDateTime(time);
+    Assert.assertEquals(expected, JodaUtils.STANDARD_PRINTER.print(dateTime.getMillis()));
+  }
+
+  @Test
+  public void testQuarter() throws ParseException
+  {
+    testQuarter("2018-03-05T08:09:24.432+0000", "yyyy-qq'('MMM')T'HH:mm:ss", "ko", "2018-01(3월)T08:09:24");
+    testQuarter("2018-03-05T08:09:24.432+0000", "yyyy-qqq'('MMMM')T'HH:mm:ss", "ja", "2018-Q1(3月)T08:09:24");
+    testQuarter("2018-03-05T08:09:24.432+0000", "yyyy-qqqq'('MMM')T'HH:mm:ss", "de", "2018-Q01(Mär)T08:09:24");
+  }
+
+  private void testQuarter(String time, String format, String locale, String expected)
+  {
+    DateTime dateTime = JodaUtils.STANDARD_PARSER.parseDateTime(time);
+    Assert.assertEquals(expected, JodaUtils.toTimeFormatter(format, null, locale).print(dateTime.getMillis()));
   }
 
   @Test

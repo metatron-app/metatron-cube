@@ -308,11 +308,6 @@
                 <version>4.0-beta</version>
             </dependency>
             <dependency>
-                <groupId>com.ibm.icu</groupId>
-                <artifactId>icu4j</artifactId>
-                <version>4.8.1</version>
-            </dependency>
-            <dependency>
                 <groupId>org.mozilla</groupId>
                 <artifactId>rhino</artifactId>
                 <version>1.7R5</version>

@@ -25,12 +25,12 @@ import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import com.google.common.primitives.Longs;
-import com.ibm.icu.text.SimpleDateFormat;
 import com.metamx.common.guava.Comparators;
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
 import org.joda.time.Interval;
 import org.joda.time.Period;
+import org.joda.time.chrono.QuarterFieldType;
 import org.joda.time.format.DateTimeFormat;
 import org.joda.time.format.DateTimeFormatter;
 import org.joda.time.format.DateTimeFormatterBuilder;
@@ -265,8 +265,11 @@ public class JodaUtils
   }
 
   // Z instead of ZZ (for compatible output with com.ibm.icu.SimpleDateFormat)
-  public static final String ISO8601_FORMAT = "yyyy-MM-dd'T'HH:mm:ss[.SSS][Z]";
-  public static final DateTimeFormatter ISO8601 = toTimeFormatter(ISO8601_FORMAT);
+  public static final String STANDARD_PARSER_FORMAT = "yyyy-MM-dd'T'HH:mm:ss[.SSS][Z]";
+  public static final DateTimeFormatter STANDARD_PARSER = toTimeFormatter(STANDARD_PARSER_FORMAT);
+
+  public static final String STANDARD_PRINTER_FORMAT = "yyyy-MM-dd'T'HH:mm:ss.SSSZ";
+  public static final DateTimeFormatter STANDARD_PRINTER = toTimeFormatter(STANDARD_PRINTER_FORMAT);
 
   public static DateTimeFormatter toTimeFormatter(String... format)
   {
@@ -285,30 +288,46 @@ public class JodaUtils
 
   public static DateTimeFormatter toTimeFormatter(String formatString, String timeZone, String locale)
   {
-    if (formatString == null) {
-      formatString = ISO8601_FORMAT;
-    }
     DateTimeFormatterBuilder b = new DateTimeFormatterBuilder();
     int prev = 0;
     boolean escape = false;
-    for (int i = 0; i < formatString.length(); i++) {
+    for (int i = 0; i < formatString.length(); ) {
       char c = formatString.charAt(i);
       if (c == '\'') {
         escape = !escape;
       }
       if (escape) {
+        i++;
         continue;
       }
       if (c == '[') {
         if (i > prev) {
           b.append(DateTimeFormat.forPattern(formatString.substring(prev, i)));
         }
-        prev = i + 1;
-      } else if (c == ']') {
-        if (i > prev) {
-          b.appendOptional(DateTimeFormat.forPattern(formatString.substring(prev, i)).getParser());
+        int seek = formatString.indexOf(']', i + 1);  // don't support nested optionals
+        if (seek < 0) {
+          throw new IllegalArgumentException("not matching ']' in " + formatString);
         }
-        prev = i + 1;
+        // there is no optional printer
+        b.appendOptional(toTimeFormatter(formatString.substring(i + 1, seek), timeZone, locale).getParser());
+        prev = i = seek + 1;
+      } else if (c == 'q' || c == 'Q') {
+        if (i > prev) {
+          b.append(DateTimeFormat.forPattern(formatString.substring(prev, i)));
+        }
+        int length = 0;
+        for (; i < formatString.length() && formatString.charAt(i) == c; i++) {
+          length++;
+        }
+        if (length >= 3) {
+          b.appendLiteral('Q');
+          b.appendDecimal(new QuarterFieldType(), length - 2, 1);
+        } else {
+          b.appendDecimal(new QuarterFieldType(), length, 1);
+        }
+        prev = i;
+      } else {
+        i++;
       }
     }
     if (prev < formatString.length()) {
@@ -346,39 +365,5 @@ public class JodaUtils
   public static Locale toLocale(String locale)
   {
     return locale == null ? null : new Locale(locale);
-  }
-
-  public static interface OutputFormatter
-  {
-    String format(DateTime dateTime);
-  }
-
-  // icu only supports quarter
-  public static OutputFormatter toOutFormatter(String format, String locale, String zone)
-  {
-    if (format == null) {
-      return new OutputFormatter()
-      {
-        @Override
-        public String format(DateTime dateTime)
-        {
-          return ISO8601.print(dateTime);
-        }
-      };
-    }
-    final SimpleDateFormat formatter = locale == null
-                                 ? new SimpleDateFormat(format)
-                                 : new SimpleDateFormat(format, Locale.forLanguageTag(locale));
-    if (zone != null) {
-      formatter.setTimeZone(com.ibm.icu.util.TimeZone.getTimeZone(zone));
-    }
-    return new OutputFormatter()
-    {
-      @Override
-      public String format(DateTime dateTime)
-      {
-        return formatter.format(dateTime.getMillis());
-      }
-    };
   }
 }

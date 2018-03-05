@@ -109,7 +109,7 @@ public class TimeDimExtractionFnTest
         "yyyy-MM-dd a hh:mm:ss.SSSZZ", us, "PST");
     extractionFn.getCacheKey();
 
-    Assert.assertEquals("2016-11-16 PM 05:11:39.662-0800", extractionFn.apply(dateString));
+    Assert.assertEquals("2016-11-16 PM 05:11:39.662-08:00", extractionFn.apply(dateString));
   }
 
   @Test

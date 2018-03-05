@@ -536,7 +536,7 @@ public interface DateTimeFunctions extends Function.Library
       String timezone = timezoneEval == null ? null : timezoneEval.asString();
 
       DateTimeFormatter formatter =
-          format == null && locale == null && timezone == null ? JodaUtils.ISO8601 :
+          format == null && locale == null && timezone == null ? JodaUtils.STANDARD_PARSER :
           JodaUtils.toTimeFormatter(format, timezone, locale);
 
       parameter.put("formatter", formatter);
@@ -692,7 +692,7 @@ public interface DateTimeFunctions extends Function.Library
       String format = getString(namedParam, "out.format", parameter.get("format"));
       String locale = getString(namedParam, "out.locale", parameter.get("locale"));
       String timezone = getString(namedParam, "out.timezone", parameter.get("timezone"));
-      parameter.put("output.formatter", JodaUtils.toOutFormatter(format, locale, timezone));
+      parameter.put("output.formatter", JodaUtils.toTimeFormatter(format, timezone, locale));
 
       return parameter;
     }
@@ -701,7 +701,7 @@ public interface DateTimeFunctions extends Function.Library
     protected Function toFunction(Map<String, Object> parameter)
     {
       final DateTimeFormatter formatter = (DateTimeFormatter) parameter.get("formatter");
-      final JodaUtils.OutputFormatter outputFormat = (JodaUtils.OutputFormatter) parameter.get("output.formatter");
+      final DateTimeFormatter outputFormat = (DateTimeFormatter) parameter.get("output.formatter");
       return new StringChild()
       {
         private long prevTime = -1;
@@ -712,7 +712,7 @@ public interface DateTimeFunctions extends Function.Library
           DateTime dateTime = Evals.toDateTime(args.get(0).eval(bindings), formatter);
           if (prevValue == null || dateTime.getMillis() != prevTime) {
             prevTime = dateTime.getMillis();
-            prevValue = outputFormat.format(dateTime);
+            prevValue = outputFormat.print(dateTime);
           }
           return ExprEval.of(prevValue);
         }

@@ -43,7 +43,7 @@ public class TimeDimExtractionFn extends DimExtractionFn implements ExtractionFn
   private final String resultFormat;
   private final String resultLocale;
   private final String resultZone;
-  private final JodaUtils.OutputFormatter resultFormatter;
+  private final DateTimeFormatter resultFormatter;
 
   @JsonCreator
   public TimeDimExtractionFn(
@@ -66,7 +66,7 @@ public class TimeDimExtractionFn extends DimExtractionFn implements ExtractionFn
     this.resultFormat = resultFormat;
     this.resultLocale = resultLocale;
     this.resultZone = resultZone;
-    this.resultFormatter = JodaUtils.toOutFormatter(resultFormat, resultLocale, resultZone);
+    this.resultFormatter = JodaUtils.toTimeFormatter(resultFormat, resultZone, resultLocale);
   }
 
   public TimeDimExtractionFn(String timeFormat, String resultFormat)
@@ -117,7 +117,7 @@ public class TimeDimExtractionFn extends DimExtractionFn implements ExtractionFn
     catch (IllegalArgumentException e) {
       return dimValue;
     }
-    return resultFormatter.format(date);
+    return resultFormatter.print(date);
   }
 
   @JsonProperty("timeFormat")

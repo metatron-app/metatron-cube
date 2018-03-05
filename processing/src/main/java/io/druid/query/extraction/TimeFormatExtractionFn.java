@@ -20,64 +20,52 @@
 package io.druid.query.extraction;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.ibm.icu.text.SimpleDateFormat;
-import com.ibm.icu.util.TimeZone;
+import io.druid.common.utils.JodaUtils;
 import io.druid.common.utils.StringUtils;
 import io.druid.granularity.Granularities;
 import io.druid.granularity.Granularity;
 import io.druid.query.aggregation.AggregatorUtil;
 import org.joda.time.DateTime;
+import org.joda.time.format.DateTimeFormatter;
 
 import java.nio.ByteBuffer;
-import java.util.Locale;
 import java.util.Objects;
 
 public class TimeFormatExtractionFn implements ExtractionFn.Stateful
 {
-  private final TimeZone tz;
+  private final String timeZone;
   private final String pattern;
-  private final Locale locale;
-  private final SimpleDateFormat formatter;
+  private final String locale;
+  private final DateTimeFormatter formatter;
   private final Granularity granularity;
 
   public TimeFormatExtractionFn(
       @JsonProperty("format") String pattern,
-      @JsonProperty("timeZone") String tzString,
-      @JsonProperty("locale") String localeString,
+      @JsonProperty("timeZone") String timeZone,
+      @JsonProperty("locale") String locale,
       @JsonProperty("granularity") Granularity granularity
   )
   {
-    this(
-        pattern,
-        tzString == null ? null : TimeZone.getTimeZone(tzString),
-        localeString == null ? null : Locale.forLanguageTag(localeString),
-        granularity
-    );
-  }
-
-  public TimeFormatExtractionFn(String pattern, String tzString, String localeString)
-  {
-    this(pattern, tzString, localeString, null);
-  }
-
-  private TimeFormatExtractionFn(String pattern, TimeZone tz, Locale locale, Granularity granularity)
-  {
     this.pattern = pattern;
-    this.tz = tz;
+    this.timeZone = timeZone;
     this.locale = locale;
     if (pattern != null) {
-      this.formatter = locale == null ? new SimpleDateFormat(pattern) : new SimpleDateFormat(pattern, locale);
-      this.formatter.setTimeZone(tz == null ? TimeZone.getTimeZone("UTC") : tz);
+      this.formatter = JodaUtils.toTimeFormatter(pattern, timeZone, locale);
     } else {
       this.formatter = null;
     }
     this.granularity = granularity == null ? Granularities.NONE : granularity;
   }
 
+  public TimeFormatExtractionFn(String format, String timeZone, String locale)
+  {
+    this(format, timeZone, locale, null);
+  }
+
   @JsonProperty
   public String getTimeZone()
   {
-    return tz == null ? null : tz.getID();
+    return timeZone;
   }
 
   @JsonProperty
@@ -89,7 +77,7 @@ public class TimeFormatExtractionFn implements ExtractionFn.Stateful
   @JsonProperty
   public String getLocale()
   {
-    return locale == null ? null : locale.toLanguageTag();
+    return locale;
   }
 
   @JsonProperty
@@ -122,14 +110,14 @@ public class TimeFormatExtractionFn implements ExtractionFn.Stateful
   @Override
   public ExtractionFn init()
   {
-    return new TimeFormatExtractionFn(pattern, tz, locale, granularity);
+    return new TimeFormatExtractionFn(pattern, timeZone, locale, granularity);
   }
 
   @Override
   public String apply(long value)
   {
     long truncated = granularity.truncate(value);
-    return formatter == null ? String.valueOf(truncated) : formatter.format(truncated);
+    return formatter == null ? String.valueOf(truncated) : formatter.print(truncated);
   }
 
   @Override
