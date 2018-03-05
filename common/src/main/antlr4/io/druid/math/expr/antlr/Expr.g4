@@ -8,7 +8,7 @@ expr : ('-'|'!') expr                                 # unaryOpExpr
      | expr ('&&'|'||') expr                          # logicalAndOrExpr
      | expr '=' expr                                  # assignExpr
      | '(' expr ')'                                   # nestedExpr
-     | IDENTIFIER '(' fnArgs? ')'                     # functionExpr
+     | IDENTIFIER '(' fnArgs ')'                      # functionExpr
      | IDENTIFIER                                     # identifierExpr
      | DOUBLE                                         # doubleExpr
      | LONG                                           # longExpr
