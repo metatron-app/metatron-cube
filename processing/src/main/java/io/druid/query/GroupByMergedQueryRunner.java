@@ -237,7 +237,7 @@ public class GroupByMergedQueryRunner<T> implements QueryRunner<T>
     @Override
     public void close() throws IOException
     {
-      exec.execute(
+      exec.submit(
           new PrioritizedRunnable.Zero()
           {
             @Override
