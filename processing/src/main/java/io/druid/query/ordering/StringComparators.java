@@ -601,7 +601,7 @@ public class StringComparators
     public DateTimeComparator(String format)
     {
       this.format = format;
-      this.formatter = JodaUtils.toTimeFormatter(format.split(","));
+      this.formatter = JodaUtils.toTimeFormatterQuoted(format);
     }
 
     @Override

@@ -19,8 +19,8 @@
 
 package io.druid.common.utils;
 
+import com.google.common.base.Preconditions;
 import com.google.common.base.Predicate;
-import com.google.common.base.Strings;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
@@ -37,7 +37,6 @@ import org.joda.time.format.DateTimeFormatterBuilder;
 import sun.util.calendar.ZoneInfo;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Comparator;
 import java.util.Iterator;
 import java.util.Locale;
@@ -271,14 +270,28 @@ public class JodaUtils
   public static final String STANDARD_PRINTER_FORMAT = "yyyy-MM-dd'T'HH:mm:ss.SSSZ";
   public static final DateTimeFormatter STANDARD_PRINTER = toTimeFormatter(STANDARD_PRINTER_FORMAT);
 
-  public static DateTimeFormatter toTimeFormatter(String... format)
+  public static DateTimeFormatter toTimeFormatterQuoted(String formatString)
   {
-    switch (format.length) {
-      case 1: return toTimeFormatter(format[0]);
-      case 2: return toTimeFormatter(format[0], Strings.emptyToNull(format[1]), null);
-      case 3: return toTimeFormatter(format[0], Strings.emptyToNull(format[1]), Strings.emptyToNull(format[2]));
+    Preconditions.checkArgument(!StringUtils.isNullOrEmpty(formatString));
+    Preconditions.checkArgument(formatString.charAt(0) == '\'', "not quoted");
+    int index = formatString.lastIndexOf('\'');
+    if (index < 0) {
+      throw new IllegalArgumentException("not matching quote end in " + formatString);
     }
-    throw new IllegalArgumentException(Arrays.toString(format));
+    String timeZone = null;
+    String locale = null;
+    if (index + 1 < formatString.length()) {
+      String substring = formatString.substring(index + 1).trim();
+      if (substring.charAt(0) == ',') {
+        substring = substring.substring(1, substring.length());
+      }
+      if (!substring.isEmpty()) {
+        String[] parameters = substring.split(",");
+        timeZone = parameters[0].trim();
+        locale = parameters.length > 1 ? parameters[1].trim() : null;
+      }
+    }
+    return toTimeFormatter(formatString.substring(1, index), timeZone, locale);
   }
 
   public static DateTimeFormatter toTimeFormatter(String formatString)
