@@ -317,7 +317,7 @@ public class JodaUtils
         if (i > prev) {
           b.append(DateTimeFormat.forPattern(formatString.substring(prev, i)));
         }
-        int seek = formatString.indexOf(']', i + 1);  // don't support nested optionals
+        int seek = seekTo(formatString, i + 1, ']');  // don't support nested optionals
         if (seek < 0) {
           throw new IllegalArgumentException("not matching ']' in " + formatString);
         }
@@ -354,6 +354,24 @@ public class JodaUtils
       formatter = formatter.withZone(toTimeZone(timeZone));
     }
     return formatter;
+  }
+
+  private static int seekTo(String string, int i, char f)
+  {
+    boolean escape = false;
+    for (; i < string.length(); i++) {
+      char c = string.charAt(i);
+      if (c == '\'') {
+        escape = !escape;
+      }
+      if (escape) {
+        continue;
+      }
+      if (c == f) {
+        return i;
+      }
+    }
+    return -1;
   }
 
   // DateTimeZone.forID cannot handle abbreviations like PST

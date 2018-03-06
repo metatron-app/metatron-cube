@@ -341,6 +341,19 @@ public class EvalTest
   }
 
   @Test
+  public void testOptional() throws ParseException
+  {
+    testOptional("2018-03-05T[]08:09:24.432+0000", "yyyy-MM-dd['T[]'HH:mm:ss.SSSZZ]", "2018-03-05T08:09:24.432+0000");
+    testOptional("2018-03-05", "yyyy-MM-dd['T[]'HH:mm:ss.SSSZZ]", "2018-03-05T00:00:00.000+0000");
+  }
+
+  private void testOptional(String time, String format, String expected)
+  {
+    DateTime dateTime = JodaUtils.toTimeFormatter(format).parseDateTime(time);
+    Assert.assertEquals(expected, JodaUtils.STANDARD_PRINTER.print(dateTime));
+  }
+
+  @Test
   public void testDatetimeFunctions()
   {
     DateTimeZone home = DateTimeZone.forID("Asia/Seoul");
