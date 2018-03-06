@@ -28,6 +28,7 @@ import io.druid.common.utils.StringUtils;
 import io.druid.granularity.Granularity;
 import io.druid.granularity.PeriodGranularity;
 import org.joda.time.DateTime;
+import org.joda.time.DateTimeConstants;
 import org.joda.time.DateTimeZone;
 import org.joda.time.Days;
 import org.joda.time.Duration;
@@ -268,7 +269,7 @@ public interface DateTimeFunctions extends Function.Library
 
   static enum Unit
   {
-    MILLIS, EPOCH, SECOND, MINUTE, HOUR, DAY, WEEK, MONTH, YEAR, DOW, DOY, QUARTER
+    MILLIS, EPOCH, SECOND, MINUTE, HOUR, DAY, WEEK, WEEKOFWEEKYEAR, MONTH, YEAR, WEEKYEAR, DOW, DOY, QUARTER
   }
 
   // whole time based
@@ -405,6 +406,42 @@ public interface DateTimeFunctions extends Function.Library
         {
           DateTime time = Evals.toDateTime(args.get(0).eval(bindings), timeZone);
           return ExprEval.of(time.getDayOfYear());
+        }
+      };
+    }
+  }
+
+  @Function.Named("weekofweekyear")
+  class WeekOfWeekYear extends UnaryTimeMath
+  {
+    @Override
+    protected Function evaluate(final DateTimeZone timeZone, final Locale locale)
+    {
+      return new LongChild()
+      {
+        @Override
+        public ExprEval apply(List<Expr> args, Expr.NumericBinding bindings)
+        {
+          DateTime time = Evals.toDateTime(args.get(0).eval(bindings), timeZone);
+          return ExprEval.of(time.getWeekOfWeekyear());
+        }
+      };
+    }
+  }
+
+  @Function.Named("weekyear")
+  class WeekYear extends UnaryTimeMath
+  {
+    @Override
+    protected Function evaluate(final DateTimeZone timeZone, final Locale locale)
+    {
+      return new LongChild()
+      {
+        @Override
+        public ExprEval apply(List<Expr> args, Expr.NumericBinding bindings)
+        {
+          DateTime time = Evals.toDateTime(args.get(0).eval(bindings), timeZone);
+          return ExprEval.of(time.getWeekyear());
         }
       };
     }
@@ -751,25 +788,37 @@ public interface DateTimeFunctions extends Function.Library
             case EPOCH:
               return ExprEval.of(dateTime.getMillis());
             case SECOND:
-              return ExprEval.of(dateTime.secondOfMinute().get());
+              return ExprEval.of(dateTime.getSecondOfMinute());
             case MINUTE:
-              return ExprEval.of(dateTime.minuteOfHour().get());
+              return ExprEval.of(dateTime.getMinuteOfHour());
             case HOUR:
-              return ExprEval.of(dateTime.hourOfDay().get());
+              return ExprEval.of(dateTime.getHourOfDay());
             case DAY:
-              return ExprEval.of(dateTime.dayOfMonth().get());
+              return ExprEval.of(dateTime.getDayOfMonth());
             case DOW:
-              return ExprEval.of(dateTime.dayOfWeek().get());
+              return ExprEval.of(dateTime.getDayOfWeek());
             case DOY:
-              return ExprEval.of(dateTime.dayOfYear().get());
+              return ExprEval.of(dateTime.getDayOfYear());
             case WEEK:
-              return ExprEval.of(dateTime.weekOfWeekyear().get());
+              if (dateTime.getWeekyear() != dateTime.getYear()) {
+                return ExprEval.of(1);
+              }
+              // wish it's ISOChronology
+              DateTime firstDay = dateTime.withDate(dateTime.getYear(), DateTimeConstants.JANUARY, 1);
+              if (firstDay.getDayOfWeek() >= DateTimeConstants.FRIDAY) {
+                return ExprEval.of(dateTime.getWeekOfWeekyear() + 1);
+              }
+              return ExprEval.of(dateTime.getWeekOfWeekyear());
+            case WEEKOFWEEKYEAR:
+              return ExprEval.of(dateTime.getWeekOfWeekyear());
             case MONTH:
-              return ExprEval.of(dateTime.monthOfYear().get());
+              return ExprEval.of(dateTime.getMonthOfYear());
             case QUARTER:
-              return ExprEval.of((dateTime.monthOfYear().get() - 1) / 3 + 1);
+              return ExprEval.of((dateTime.getMonthOfYear() - 1) / 3 + 1);
             case YEAR:
-              return ExprEval.of(dateTime.year().get());
+              return ExprEval.of(dateTime.getYear());
+            case WEEKYEAR:
+              return ExprEval.of(dateTime.getWeekyear());
             default:
               throw new ISE("Unhandled unit[%s]", unit);
           }

@@ -24,6 +24,7 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
+import io.druid.common.DateTimes;
 import io.druid.common.utils.JodaUtils;
 import io.druid.granularity.Granularity;
 import io.druid.granularity.GranularityType;
@@ -522,8 +523,11 @@ public class EvalTest
     Assert.assertEquals( 64, evalLong("datetime_extract('DOY', t1, 'UTC')", bindings));
     Assert.assertEquals(253, evalLong("datetime_extract('DOY', t2, 'UTC')", bindings));
 
-    Assert.assertEquals(9, evalLong("datetime_extract('WEEK', t1, 'UTC')", bindings));
+    Assert.assertEquals(10, evalLong("datetime_extract('WEEK', t1, 'UTC')", bindings));
     Assert.assertEquals(37, evalLong("datetime_extract('WEEK', t2, 'UTC')", bindings));
+
+    Assert.assertEquals( 9, evalLong("datetime_extract('WEEKOFWEEKYEAR', t1, 'UTC')", bindings));
+    Assert.assertEquals(37, evalLong("datetime_extract('WEEKOFWEEKYEAR', t2, 'UTC')", bindings));
 
     Assert.assertEquals(3, evalLong("datetime_extract('MONTH', t1, 'UTC')", bindings));
     Assert.assertEquals(9, evalLong("datetime_extract('MONTH', t2, 'UTC')", bindings));
@@ -531,8 +535,61 @@ public class EvalTest
     Assert.assertEquals(2016, evalLong("datetime_extract('YEAR', t1, 'UTC')", bindings));
     Assert.assertEquals(2032, evalLong("datetime_extract('YEAR', t2, 'UTC')", bindings));
 
+    Assert.assertEquals(2016, evalLong("datetime_extract('WEEKYEAR', t1, 'UTC')", bindings));
+    Assert.assertEquals(2032, evalLong("datetime_extract('WEEKYEAR', t2, 'UTC')", bindings));
+
     Assert.assertEquals(1, evalLong("datetime_extract('QUARTER', t1, 'UTC')", bindings));
     Assert.assertEquals(3, evalLong("datetime_extract('QUARTER', t2, 'UTC')", bindings));
+  }
+
+  @Test
+  public void testDatetimeExtractWeekYear()
+  {
+    DateTime time1 = DateTimes.of("2010-01-01");
+    DateTime time2 = DateTimes.of("2010-01-02");
+    DateTime time3 = DateTimes.of("2010-01-03");
+    DateTime time4 = DateTimes.of("2010-01-04");
+    DateTime time5 = DateTimes.of("2009-01-01");
+    Expr.NumericBinding bindings = Parser.withMap(
+        ImmutableMap.of(
+            "t1", time1.getMillis(),
+            "t2", time2.getMillis(),
+            "t3", time3.getMillis(),
+            "t4", time4.getMillis(),
+            "t5", time5.getMillis()
+        )
+    );
+
+    Assert.assertEquals(2009, evalLong("datetime_extract('WEEKYEAR', t1, 'UTC')", bindings));
+    Assert.assertEquals(53, evalLong("datetime_extract('WEEKOFWEEKYEAR', t1, 'UTC')", bindings));
+
+    Assert.assertEquals(2009, evalLong("datetime_extract('WEEKYEAR', t2, 'UTC')", bindings));
+    Assert.assertEquals(53, evalLong("datetime_extract('WEEKOFWEEKYEAR', t2, 'UTC')", bindings));
+
+    Assert.assertEquals(2009, evalLong("datetime_extract('WEEKYEAR', t3, 'UTC')", bindings));
+    Assert.assertEquals(53, evalLong("datetime_extract('WEEKOFWEEKYEAR', t3, 'UTC')", bindings));
+
+    Assert.assertEquals(2010, evalLong("datetime_extract('WEEKYEAR', t4, 'UTC')", bindings));
+    Assert.assertEquals(1, evalLong("datetime_extract('WEEKOFWEEKYEAR', t4, 'UTC')", bindings));
+
+    Assert.assertEquals(2010, evalLong("datetime_extract('YEAR', t1, 'UTC')", bindings));
+    Assert.assertEquals(1, evalLong("datetime_extract('WEEK', t1, 'UTC')", bindings));
+
+    Assert.assertEquals(2010, evalLong("datetime_extract('YEAR', t2, 'UTC')", bindings));
+    Assert.assertEquals(1, evalLong("datetime_extract('WEEK', t2, 'UTC')", bindings));
+
+    Assert.assertEquals(2010, evalLong("datetime_extract('YEAR', t3, 'UTC')", bindings));
+    Assert.assertEquals(1, evalLong("datetime_extract('WEEK', t3, 'UTC')", bindings));
+
+    Assert.assertEquals(2010, evalLong("datetime_extract('YEAR', t4, 'UTC')", bindings));
+    Assert.assertEquals(2, evalLong("datetime_extract('WEEK', t4, 'UTC')", bindings));
+
+
+    Assert.assertEquals(2009, evalLong("datetime_extract('WEEKYEAR', t5, 'UTC')", bindings));
+    Assert.assertEquals(1, evalLong("datetime_extract('WEEKOFWEEKYEAR', t5, 'UTC')", bindings));
+
+    Assert.assertEquals(2009, evalLong("datetime_extract('YEAR', t5, 'UTC')", bindings));
+    Assert.assertEquals(1, evalLong("datetime_extract('WEEK', t5, 'UTC')", bindings));
   }
 
   @Test
