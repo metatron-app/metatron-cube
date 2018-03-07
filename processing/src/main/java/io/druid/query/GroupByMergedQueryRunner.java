@@ -86,7 +86,7 @@ public class GroupByMergedQueryRunner<T> implements QueryRunner<T>
     this.queryables = Lists.newArrayList(Iterables.filter(queryables, Predicates.notNull()));
     this.configSupplier = configSupplier;
     this.bufferPool = bufferPool;
-    this.optimizer = optimizer;
+    this.optimizer = optimizer == null ? Futures.immediateFuture(null) : optimizer;
   }
 
   @Override
@@ -116,7 +116,9 @@ public class GroupByMergedQueryRunner<T> implements QueryRunner<T>
     final MergeIndex incrementalIndex = GroupByQueryHelper.createMergeIndex(
         query, bufferPool, maxRowCount, parallelism, compact, groupByTypes
     );
-    responseContext.put(Result.GROUPBY_TYPES_KEY, groupByTypes);
+    if (groupByTypes != null) {
+      responseContext.put(Result.GROUPBY_TYPES_KEY, groupByTypes);
+    }
 
     final Pair<Queue, Accumulator<Queue, T>> bySegmentAccumulatorPair = GroupByQueryHelper.createBySegmentAccumulatorPair();
     final boolean bySegment = BaseQuery.getContextBySegment(query, false);
