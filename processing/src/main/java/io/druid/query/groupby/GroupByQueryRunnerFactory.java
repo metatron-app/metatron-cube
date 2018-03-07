@@ -20,6 +20,8 @@
 package io.druid.query.groupby;
 
 import com.google.common.base.Supplier;
+import com.google.common.collect.Lists;
+import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListeningExecutorService;
 import com.google.common.util.concurrent.MoreExecutors;
 import com.google.inject.Inject;
@@ -28,6 +30,8 @@ import com.metamx.common.guava.Sequence;
 import io.druid.cache.BitmapCache;
 import io.druid.cache.Cache;
 import io.druid.collections.StupidPool;
+import io.druid.data.ValueDesc;
+import io.druid.data.ValueType;
 import io.druid.data.input.Row;
 import io.druid.guice.annotations.Global;
 import io.druid.query.GroupByMergedQueryRunner;
@@ -36,8 +40,11 @@ import io.druid.query.QueryRunner;
 import io.druid.query.QueryRunnerFactory;
 import io.druid.query.QueryToolChest;
 import io.druid.query.QueryWatcher;
+import io.druid.query.RowResolver;
+import io.druid.query.dimension.DimensionSpec;
 import io.druid.segment.Segment;
 import io.druid.segment.StorageAdapter;
+import io.druid.segment.VirtualColumns;
 
 import java.nio.ByteBuffer;
 import java.util.List;
@@ -91,7 +98,29 @@ public class GroupByQueryRunnerFactory implements QueryRunnerFactory<Row, GroupB
   @Override
   public Future<Object> preFactoring(GroupByQuery query, List<Segment> segments, ExecutorService exec)
   {
-    return null;
+    List<DimensionSpec> dimensions = query.getDimensions();
+    VirtualColumns vcs = VirtualColumns.valueOf(query.getVirtualColumns());
+
+    List<ValueType> prev = null;
+    for (Segment segment : segments) {
+      List<ValueType> types = Lists.newArrayList();
+      RowResolver resolver = RowResolver.of(segment, vcs);
+      for (DimensionSpec dimensionSpec : dimensions) {
+        ValueDesc type = dimensionSpec.resolveType(resolver);
+        if (ValueDesc.isDimension(type)) {
+          types.add(ValueType.STRING);
+        } else if (ValueDesc.isPrimitive(type)) {
+          types.add(type.type());
+        } else {
+          throw new ISE("cannot group-by on non-primitive type %s [%s]", type, dimensionSpec);
+        }
+      }
+      if (prev != null && !prev.equals(types)) {
+        throw new ISE("cannot group-by on conflicting types %s vs %s", prev, types);
+      }
+      prev = types;
+    }
+    return Futures.<Object>immediateFuture(prev);
   }
 
   @Override
@@ -110,7 +139,7 @@ public class GroupByQueryRunnerFactory implements QueryRunnerFactory<Row, GroupB
     // mergeRunners should take ListeningExecutorService at some point
     final ListeningExecutorService queryExecutor = MoreExecutors.listeningDecorator(exec);
     return new GroupByMergedQueryRunner<Row>(
-        queryExecutor, config, queryWatcher, computationBufferPool, queryRunners
+        queryExecutor, config, queryWatcher, computationBufferPool, queryRunners, optimizer
     );
   }
 

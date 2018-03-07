@@ -435,7 +435,7 @@ public class AggregationTestHelper
 
   public Sequence<Row> runQueryOnSegmentsObjs(final List<Segment> segments, final Query query)
   {
-    final FinalizeResultsQueryRunner baseRunner = new FinalizeResultsQueryRunner(
+    final QueryRunner baseRunner = toolChest.finalizeMetrics(
         toolChest.postMergeQueryDecoration(
             toolChest.mergeResults(
                 toolChest.preMergeQueryDecoration(
@@ -466,8 +466,7 @@ public class AggregationTestHelper
                         )
                 )
             )
-        ),
-        toolChest
+        )
     );
 
     return toolChest.finalQueryDecoration(baseRunner).run(query, Maps.newHashMap());

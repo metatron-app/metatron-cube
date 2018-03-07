@@ -115,6 +115,9 @@ public enum ExprType
       case STRING:
         return STRING;
       case COMPLEX:
+        if (ValueDesc.isDimension(type)) {
+          return STRING;
+        }
       default:
         return UNKNOWN;
     }

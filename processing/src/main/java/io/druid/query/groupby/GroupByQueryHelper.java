@@ -23,6 +23,7 @@ import com.metamx.common.ISE;
 import com.metamx.common.Pair;
 import com.metamx.common.guava.Accumulator;
 import io.druid.collections.StupidPool;
+import io.druid.data.ValueType;
 import io.druid.data.input.Row;
 import io.druid.granularity.QueryGranularities;
 import io.druid.query.Query;
@@ -48,14 +49,15 @@ public class GroupByQueryHelper
       final StupidPool<ByteBuffer> bufferPool,
       final int maxResult,
       final int parallelism,
-      final boolean compact
+      final boolean compact,
+      final List<ValueType> groupByTypes
   )
   {
     int maxRowCount = Math.min(query.getContextValue(CTX_KEY_MAX_RESULTS, maxResult), maxResult);
     if (query.getContextBoolean(Query.GBY_MERGE_SIMPLE, true)) {
       return new SimpleMergeIndex(query.getDimensions(), query.getAggregatorSpecs(), maxRowCount, parallelism, compact);
     } else {
-      return createIncrementalIndex(query, bufferPool, false, maxRowCount);
+      return createIncrementalIndex(query, bufferPool, false, maxRowCount, groupByTypes);
     }
   }
 
@@ -63,7 +65,8 @@ public class GroupByQueryHelper
       final GroupByQuery query,
       final StupidPool<ByteBuffer> bufferPool,
       final boolean sortFacts,
-      final int maxRowCount
+      final int maxRowCount,
+      final List<ValueType> groupByTypes
   )
   {
     final List<String> dimensions = DimensionSpecs.toOutputNames(query.getDimensions());
@@ -84,7 +87,7 @@ public class GroupByQueryHelper
     } else {
       index = new OnheapIncrementalIndex(schema, false, true, sortFacts, false, maxRowCount);
     }
-    index.initialize(dimensions);   // todo check type of dimension in pre-factoring
+    index.initialize(dimensions, groupByTypes);
     return index;
   }
 

@@ -21,17 +21,12 @@ package io.druid.sql.calcite.util;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.introspect.AnnotationIntrospectorPair;
-import com.google.common.base.Supplier;
 import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
-import com.google.inject.Binder;
-import com.google.inject.Guice;
 import com.google.inject.Injector;
 import com.google.inject.Key;
-import com.google.inject.Module;
-import io.druid.collections.StupidPool;
 import io.druid.data.input.InputRow;
 import io.druid.data.input.impl.DefaultTimestampSpec;
 import io.druid.data.input.impl.DimensionsSpec;
@@ -41,44 +36,11 @@ import io.druid.data.input.impl.TimeAndDimsParseSpec;
 import io.druid.guice.GuiceAnnotationIntrospector;
 import io.druid.guice.GuiceInjectableValues;
 import io.druid.guice.annotations.Json;
-import io.druid.query.DefaultQueryRunnerFactoryConglomerate;
-import io.druid.query.Query;
-import io.druid.query.QueryConfig;
-import io.druid.query.QueryRunnerFactory;
 import io.druid.query.QueryRunnerFactoryConglomerate;
 import io.druid.query.QueryRunnerTestHelper;
-import io.druid.query.QueryToolChest;
-import io.druid.query.QueryToolChestWarehouse;
 import io.druid.query.aggregation.CountAggregatorFactory;
 import io.druid.query.aggregation.GenericSumAggregatorFactory;
 import io.druid.query.aggregation.hyperloglog.HyperUniquesAggregatorFactory;
-import io.druid.query.groupby.GroupByQuery;
-import io.druid.query.groupby.GroupByQueryConfig;
-import io.druid.query.groupby.GroupByQueryEngine;
-import io.druid.query.groupby.GroupByQueryQueryToolChest;
-import io.druid.query.groupby.GroupByQueryRunnerFactory;
-import io.druid.query.metadata.SegmentMetadataQueryConfig;
-import io.druid.query.metadata.SegmentMetadataQueryQueryToolChest;
-import io.druid.query.metadata.SegmentMetadataQueryRunnerFactory;
-import io.druid.query.metadata.metadata.SegmentMetadataQuery;
-import io.druid.query.select.SelectQuery;
-import io.druid.query.select.SelectQueryConfig;
-import io.druid.query.select.SelectQueryEngine;
-import io.druid.query.select.SelectQueryQueryToolChest;
-import io.druid.query.select.SelectQueryRunnerFactory;
-import io.druid.query.select.StreamQueryEngine;
-import io.druid.query.select.StreamRawQuery;
-import io.druid.query.select.StreamRawQueryRunnerFactory;
-import io.druid.query.select.StreamRawQueryToolChest;
-import io.druid.query.timeseries.TimeseriesQuery;
-import io.druid.query.timeseries.TimeseriesQueryEngine;
-import io.druid.query.timeseries.TimeseriesQueryQueryToolChest;
-import io.druid.query.timeseries.TimeseriesQueryRunnerFactory;
-import io.druid.query.topn.TopNQuery;
-import io.druid.query.topn.TopNQueryConfig;
-import io.druid.query.topn.TopNQueryEngine;
-import io.druid.query.topn.TopNQueryQueryToolChest;
-import io.druid.query.topn.TopNQueryRunnerFactory;
 import io.druid.segment.IndexBuilder;
 import io.druid.segment.QueryableIndex;
 import io.druid.segment.TestHelper;
@@ -95,7 +57,6 @@ import org.joda.time.DateTime;
 import org.joda.time.chrono.ISOChronology;
 
 import java.io.File;
-import java.nio.ByteBuffer;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -114,166 +75,7 @@ public class CalciteTests
 
   private static final String TIMESTAMP_COLUMN = "t";
 
-  private static final QueryConfig QUERY_CONFIG = new QueryConfig();
-  private static final Supplier<GroupByQueryConfig> GBY_CONF = new Supplier<GroupByQueryConfig>()
-  {
-    @Override
-    public GroupByQueryConfig get()
-    {
-      return QUERY_CONFIG.groupBy;
-    }
-  };
-  private static final Supplier<ByteBuffer> GBY_SUP = new Supplier<ByteBuffer>()
-  {
-    @Override
-    public ByteBuffer get()
-    {
-      return ByteBuffer.allocate(10 * 1024 * 1024);
-    }
-  };
-  private static final StupidPool<ByteBuffer> GBY_POOL = new StupidPool<ByteBuffer>(GBY_SUP);
-  private static final GroupByQueryEngine GBY_ENGINE = new GroupByQueryEngine(
-      GBY_CONF,
-      new StupidPool<ByteBuffer>(
-          new Supplier<ByteBuffer>()
-          {
-            @Override
-            public ByteBuffer get()
-            {
-              return ByteBuffer.allocate(1024 * 1024);
-            }
-          }
-      )
-  );
-
-  private static final Injector INJECTOR = Guice.createInjector(
-      new Module()
-      {
-        @Override
-        public void configure(final Binder binder)
-        {
-          binder.bind(Key.get(ObjectMapper.class, Json.class)).toInstance(TestHelper.JSON_MAPPER);
-          binder.bind(QueryToolChestWarehouse.class).toInstance(
-              new QueryToolChestWarehouse()
-              {
-                @Override
-                public QueryConfig getQueryConfig()
-                {
-                  return QUERY_CONFIG;
-                }
-
-                @Override
-                public <T, QueryType extends Query<T>> QueryToolChest<T, QueryType> getToolChest(final QueryType query)
-                {
-                  return CONGLOMERATE.findFactory(query).getToolchest();
-                }
-              }
-          );
-          // This Module is just to get a LookupReferencesManager with a usable "lookyloo" lookup.
-
-//          binder.bind(LookupReferencesManager.class)
-//                .toInstance(
-//                    LookupEnabledTestExprMacroTable.createTestLookupReferencesManager(
-//                        ImmutableMap.of(
-//                            "a", "xa",
-//                            "abc", "xabc"
-//                        )
-//                    )
-//            );
-
-        }
-      }
-  );
-
-  private static final QueryRunnerFactoryConglomerate CONGLOMERATE = new DefaultQueryRunnerFactoryConglomerate(
-      ImmutableMap.<Class<? extends Query>, QueryRunnerFactory>builder()
-          .put(
-              SegmentMetadataQuery.class,
-              new SegmentMetadataQueryRunnerFactory(
-                  new SegmentMetadataQueryQueryToolChest(
-                      new SegmentMetadataQueryConfig("P1W")
-                  ),
-                  QueryRunnerTestHelper.NOOP_QUERYWATCHER
-              )
-          )
-          .put(
-              StreamRawQuery.class,
-              new StreamRawQueryRunnerFactory(
-                  new StreamRawQueryToolChest(),
-                  new StreamQueryEngine()
-              )
-          )
-          .put(
-              SelectQuery.class,
-              new SelectQueryRunnerFactory(
-                  new SelectQueryQueryToolChest(
-                      TestHelper.JSON_MAPPER,
-                      new SelectQueryEngine(),
-                      new SelectQueryConfig(),
-                      QueryRunnerTestHelper.NoopIntervalChunkingQueryRunnerDecorator()
-                  ),
-                  new SelectQueryEngine(),
-                  new SelectQueryConfig(),
-                  QueryRunnerTestHelper.NOOP_QUERYWATCHER
-              )
-          )
-          .put(
-              TimeseriesQuery.class,
-              new TimeseriesQueryRunnerFactory(
-                  new TimeseriesQueryQueryToolChest(
-                      QueryRunnerTestHelper.NoopIntervalChunkingQueryRunnerDecorator()
-                  ),
-                  new TimeseriesQueryEngine(),
-                  QueryRunnerTestHelper.NOOP_QUERYWATCHER
-              )
-          )
-          .put(
-              TopNQuery.class,
-              new TopNQueryRunnerFactory(
-                  new StupidPool<>(
-                      new Supplier<ByteBuffer>()
-                      {
-                        @Override
-                        public ByteBuffer get()
-                        {
-                          return ByteBuffer.allocate(10 * 1024 * 1024);
-                        }
-                      }
-                  ),
-                  new TopNQueryQueryToolChest(
-                      new TopNQueryConfig(),
-                      new TopNQueryEngine(new StupidPool<>(
-                      new Supplier<ByteBuffer>()
-                      {
-                        @Override
-                        public ByteBuffer get()
-                        {
-                          return ByteBuffer.allocate(10 * 1024 * 1024);
-                        }
-                      }
-                  )),
-                      QueryRunnerTestHelper.NoopIntervalChunkingQueryRunnerDecorator()
-                  ),
-                  QueryRunnerTestHelper.NOOP_QUERYWATCHER
-              )
-          )
-          .put(
-              GroupByQuery.class,
-              new GroupByQueryRunnerFactory(
-                  GBY_ENGINE,
-                  QueryRunnerTestHelper.NOOP_QUERYWATCHER,
-                  GBY_CONF,
-                  new GroupByQueryQueryToolChest(
-                      GBY_CONF,
-                      GBY_ENGINE,
-                      GBY_POOL,
-                      QueryRunnerTestHelper.NoopIntervalChunkingQueryRunnerDecorator()
-                  ),
-                  GBY_POOL
-              )
-          )
-          .build()
-  );
+  private static final Injector INJECTOR = QueryRunnerTestHelper.INJECTOR;
 
   private static final InputRowParser<Map<String, Object>> PARSER = new MapInputRowParser(
       new TimeAndDimsParseSpec(
@@ -334,7 +136,7 @@ public class CalciteTests
 
   public static QueryRunnerFactoryConglomerate queryRunnerFactoryConglomerate()
   {
-    return CONGLOMERATE;
+    return QueryRunnerTestHelper.CONGLOMERATE;
   }
 
   public static ObjectMapper getJsonMapper()

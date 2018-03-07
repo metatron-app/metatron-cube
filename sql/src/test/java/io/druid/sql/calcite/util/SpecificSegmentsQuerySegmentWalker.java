@@ -29,7 +29,6 @@ import com.google.common.util.concurrent.MoreExecutors;
 import com.metamx.common.Pair;
 import com.metamx.common.guava.FunctionalIterable;
 import io.druid.query.DataSource;
-import io.druid.query.FinalizeResultsQueryRunner;
 import io.druid.query.NoopQueryRunner;
 import io.druid.query.PostProcessingOperators;
 import io.druid.query.Query;
@@ -208,6 +207,23 @@ public class SpecificSegmentsQuerySegmentWalker implements QuerySegmentWalker
     if (factory == null) {
       return new NoopQueryRunner<T>();
     }
+    final QueryToolChest<T, Query<T>> toolChest = factory.getToolchest();
+
+    if (query.getDataSource() instanceof QueryDataSource) {
+      Query innerQuery = ((QueryDataSource) query.getDataSource()).getQuery().withOverriddenContext(query.getContext());
+      int maxResult = groupByConfig.getMaxResults();
+      int maxRowCount = Math.min(
+          query.getContextValue(GroupByQueryHelper.CTX_KEY_MAX_RESULTS, maxResult),
+          maxResult
+      );
+      QueryRunner runner = toQueryRunner(innerQuery, segments);
+      runner = toolChest.finalQueryDecoration(
+          toolChest.finalizeMetrics(
+              toolChest.handleSubQuery(runner, this, MoreExecutors.sameThreadExecutor(), maxRowCount)
+          )
+      );
+      return PostProcessingOperators.wrap(runner, CalciteTests.getJsonMapper());
+    }
 
     final Future<Object> optimizer = factory.preFactoring(
         query,
@@ -221,8 +237,6 @@ public class SpecificSegmentsQuerySegmentWalker implements QuerySegmentWalker
         ),
         MoreExecutors.sameThreadExecutor()
     );
-
-    final QueryToolChest<T, Query<T>> toolChest = factory.getToolchest();
 
     FunctionalIterable<QueryRunner<T>> queryRunners = FunctionalIterable
         .create(segments)
@@ -246,17 +260,15 @@ public class SpecificSegmentsQuerySegmentWalker implements QuerySegmentWalker
         );
 
     QueryRunner<T> runner = factory.mergeRunners(MoreExecutors.sameThreadExecutor(), queryRunners, optimizer);
-    if (query.getDataSource() instanceof QueryDataSource) {
-      Query innerQuery = ((QueryDataSource) query.getDataSource()).getQuery().withOverriddenContext(query.getContext());
-      int maxResult = groupByConfig.getMaxResults();
-      int maxRowCount = Math.min(
-          query.getContextValue(GroupByQueryHelper.CTX_KEY_MAX_RESULTS, maxResult),
-          maxResult
-      );
-      QueryRunner innerRunner = toQueryRunner(innerQuery, segments);
-      runner = toolChest.handleSubQuery(innerRunner, this, MoreExecutors.sameThreadExecutor(), maxRowCount);
-    }
-    runner = toolChest.finalQueryDecoration(new FinalizeResultsQueryRunner(toolChest.mergeResults(runner), toolChest));
+    runner = toolChest.finalQueryDecoration(
+        toolChest.finalizeMetrics(
+            toolChest.postMergeQueryDecoration(
+                toolChest.mergeResults(
+                    toolChest.preMergeQueryDecoration(runner)
+                )
+            )
+        )
+    );
     runner = PostProcessingOperators.wrap(runner, CalciteTests.getJsonMapper());
     return runner;
   }

@@ -19,8 +19,10 @@
 
 package io.druid.query;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
+import com.google.common.base.Supplier;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
@@ -28,14 +30,21 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.MoreExecutors;
+import com.google.inject.Binder;
+import com.google.inject.Guice;
+import com.google.inject.Injector;
+import com.google.inject.Key;
+import com.google.inject.Module;
 import com.metamx.common.UOE;
 import com.metamx.common.guava.MergeSequence;
 import com.metamx.common.guava.Sequence;
 import com.metamx.common.guava.Sequences;
+import io.druid.collections.StupidPool;
 import io.druid.data.input.MapBasedRow;
 import io.druid.data.input.Row;
 import io.druid.granularity.Granularity;
 import io.druid.granularity.QueryGranularities;
+import io.druid.guice.annotations.Json;
 import io.druid.js.JavaScriptConfig;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.CountAggregatorFactory;
@@ -48,10 +57,37 @@ import io.druid.query.aggregation.hyperloglog.HyperUniquesAggregatorFactory;
 import io.druid.query.aggregation.post.ArithmeticPostAggregator;
 import io.druid.query.aggregation.post.ConstantPostAggregator;
 import io.druid.query.aggregation.post.FieldAccessPostAggregator;
+import io.druid.query.groupby.GroupByQuery;
+import io.druid.query.groupby.GroupByQueryConfig;
+import io.druid.query.groupby.GroupByQueryEngine;
+import io.druid.query.groupby.GroupByQueryQueryToolChest;
+import io.druid.query.groupby.GroupByQueryRunnerFactory;
+import io.druid.query.metadata.SegmentMetadataQueryConfig;
+import io.druid.query.metadata.SegmentMetadataQueryQueryToolChest;
+import io.druid.query.metadata.SegmentMetadataQueryRunnerFactory;
+import io.druid.query.metadata.metadata.SegmentMetadataQuery;
+import io.druid.query.select.SelectQuery;
+import io.druid.query.select.SelectQueryConfig;
+import io.druid.query.select.SelectQueryEngine;
+import io.druid.query.select.SelectQueryQueryToolChest;
+import io.druid.query.select.SelectQueryRunnerFactory;
+import io.druid.query.select.StreamQueryEngine;
 import io.druid.query.select.StreamQueryToolChest;
+import io.druid.query.select.StreamRawQuery;
+import io.druid.query.select.StreamRawQueryRunnerFactory;
+import io.druid.query.select.StreamRawQueryToolChest;
 import io.druid.query.spec.MultipleIntervalSegmentSpec;
 import io.druid.query.spec.QuerySegmentSpec;
 import io.druid.query.spec.SpecificSegmentSpec;
+import io.druid.query.timeseries.TimeseriesQuery;
+import io.druid.query.timeseries.TimeseriesQueryEngine;
+import io.druid.query.timeseries.TimeseriesQueryQueryToolChest;
+import io.druid.query.timeseries.TimeseriesQueryRunnerFactory;
+import io.druid.query.topn.TopNQuery;
+import io.druid.query.topn.TopNQueryConfig;
+import io.druid.query.topn.TopNQueryEngine;
+import io.druid.query.topn.TopNQueryQueryToolChest;
+import io.druid.query.topn.TopNQueryRunnerFactory;
 import io.druid.segment.IncrementalIndexSegment;
 import io.druid.segment.QueryableIndex;
 import io.druid.segment.QueryableIndexSegment;
@@ -66,6 +102,7 @@ import org.joda.time.Interval;
 
 import javax.annotation.Nullable;
 import java.io.IOException;
+import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -88,6 +125,155 @@ public class QueryRunnerTestHelper
 
     }
   };
+
+  public static final Injector INJECTOR = Guice.createInjector(
+      new Module()
+      {
+        @Override
+        public void configure(final Binder binder)
+        {
+          binder.bind(Key.get(ObjectMapper.class, Json.class)).toInstance(TestHelper.JSON_MAPPER);
+          binder.bind(QueryToolChestWarehouse.class).toInstance(
+              new QueryToolChestWarehouse()
+              {
+                @Override
+                public QueryConfig getQueryConfig()
+                {
+                  return QUERY_CONFIG;
+                }
+
+                @Override
+                public <T, QueryType extends Query<T>> QueryToolChest<T, QueryType> getToolChest(final QueryType query)
+                {
+                  return CONGLOMERATE.findFactory(query).getToolchest();
+                }
+              }
+          );
+        }
+      }
+  );
+
+  private static final QueryConfig QUERY_CONFIG = new QueryConfig();
+  private static final Supplier<GroupByQueryConfig> GBY_CONF = new Supplier<GroupByQueryConfig>()
+  {
+    @Override
+    public GroupByQueryConfig get()
+    {
+      return QUERY_CONFIG.groupBy;
+    }
+  };
+  private static final Supplier<ByteBuffer> GBY_SUP = new Supplier<ByteBuffer>()
+  {
+    @Override
+    public ByteBuffer get()
+    {
+      return ByteBuffer.allocate(10 * 1024 * 1024);
+    }
+  };
+  private static final StupidPool<ByteBuffer> GBY_POOL = new StupidPool<ByteBuffer>(GBY_SUP);
+  private static final GroupByQueryEngine GBY_ENGINE = new GroupByQueryEngine(
+      GBY_CONF,
+      new StupidPool<ByteBuffer>(
+          new Supplier<ByteBuffer>()
+          {
+            @Override
+            public ByteBuffer get()
+            {
+              return ByteBuffer.allocate(1024 * 1024);
+            }
+          }
+      )
+  );
+
+  public static final QueryRunnerFactoryConglomerate CONGLOMERATE = new DefaultQueryRunnerFactoryConglomerate(
+      ImmutableMap.<Class<? extends Query>, QueryRunnerFactory>builder()
+                  .put(
+                      SegmentMetadataQuery.class,
+                      new SegmentMetadataQueryRunnerFactory(
+                          new SegmentMetadataQueryQueryToolChest(
+                              new SegmentMetadataQueryConfig("P1W")
+                          ),
+                          QueryRunnerTestHelper.NOOP_QUERYWATCHER
+                      )
+                  )
+                  .put(
+                      StreamRawQuery.class,
+                      new StreamRawQueryRunnerFactory(
+                          new StreamRawQueryToolChest(),
+                          new StreamQueryEngine()
+                      )
+                  )
+                  .put(
+                      SelectQuery.class,
+                      new SelectQueryRunnerFactory(
+                          new SelectQueryQueryToolChest(
+                              TestHelper.JSON_MAPPER,
+                              new SelectQueryEngine(),
+                              new SelectQueryConfig(),
+                              QueryRunnerTestHelper.NoopIntervalChunkingQueryRunnerDecorator()
+                          ),
+                          new SelectQueryEngine(),
+                          new SelectQueryConfig(),
+                          QueryRunnerTestHelper.NOOP_QUERYWATCHER
+                      )
+                  )
+                  .put(
+                      TimeseriesQuery.class,
+                      new TimeseriesQueryRunnerFactory(
+                          new TimeseriesQueryQueryToolChest(
+                              QueryRunnerTestHelper.NoopIntervalChunkingQueryRunnerDecorator()
+                          ),
+                          new TimeseriesQueryEngine(),
+                          QueryRunnerTestHelper.NOOP_QUERYWATCHER
+                      )
+                  )
+                  .put(
+                      TopNQuery.class,
+                      new TopNQueryRunnerFactory(
+                          new StupidPool<>(
+                              new Supplier<ByteBuffer>()
+                              {
+                                @Override
+                                public ByteBuffer get()
+                                {
+                                  return ByteBuffer.allocate(10 * 1024 * 1024);
+                                }
+                              }
+                          ),
+                          new TopNQueryQueryToolChest(
+                              new TopNQueryConfig(),
+                              new TopNQueryEngine(new StupidPool<>(
+                                  new Supplier<ByteBuffer>()
+                                  {
+                                    @Override
+                                    public ByteBuffer get()
+                                    {
+                                      return ByteBuffer.allocate(10 * 1024 * 1024);
+                                    }
+                                  }
+                              )),
+                              QueryRunnerTestHelper.NoopIntervalChunkingQueryRunnerDecorator()
+                          ),
+                          QueryRunnerTestHelper.NOOP_QUERYWATCHER
+                      )
+                  )
+                  .put(
+                      GroupByQuery.class,
+                      new GroupByQueryRunnerFactory(
+                          GBY_ENGINE,
+                          QueryRunnerTestHelper.NOOP_QUERYWATCHER,
+                          GBY_CONF,
+                          new GroupByQueryQueryToolChest(
+                              GBY_CONF,
+                              GBY_ENGINE,
+                              GBY_POOL,
+                              QueryRunnerTestHelper.NoopIntervalChunkingQueryRunnerDecorator()
+                          ),
+                          GBY_POOL
+                      )
+                  )
+                  .build()
+  );
 
   public static final String segmentId = "testSegment";
   public static final String dataSource = "testing";
@@ -480,14 +666,14 @@ public class QueryRunnerTestHelper
     @SuppressWarnings("unchecked")
     QueryToolChest<T, Query<T>> toolchest = (QueryToolChest<T, Query<T>>) factory.getToolchest();
     return toolchest.finalQueryDecoration(
-        new FinalizeResultsQueryRunner<T>(
+        toolchest.finalizeMetrics(
             toolchest.mergeResults(
                 factory.mergeRunners(
                     MoreExecutors.sameThreadExecutor(),
                     ImmutableList.<QueryRunner<T>>of(makeSegmentQueryRunner(factory, segmentId, adapter)),
                     null
                 )
-            ), toolchest
+            )
         )
     );
   }
@@ -497,12 +683,12 @@ public class QueryRunnerTestHelper
   {
     return toolChest.finalQueryDecoration(
         PostProcessingOperators.wrap(
-            new FinalizeResultsQueryRunner<>(
+            toolChest.finalizeMetrics(
                 toolChest.postMergeQueryDecoration(
                     toolChest.mergeResults(
                         toolChest.preMergeQueryDecoration(runner)
                     )
-                ), toolChest
+                )
             ), TestHelper.JSON_MAPPER
         )
     );
@@ -522,7 +708,7 @@ public class QueryRunnerTestHelper
     }
     return toolChest.finalQueryDecoration(
         PostProcessingOperators.wrap(
-            new FinalizeResultsQueryRunner<>(
+            toolChest.finalizeMetrics(
                 toolChest.postMergeQueryDecoration(
                     toolChest.mergeResults(
                         factory.mergeRunners(
@@ -531,7 +717,7 @@ public class QueryRunnerTestHelper
                             null
                         )
                     )
-                ), toolChest
+                )
             ),
             TestHelper.JSON_MAPPER
         )
@@ -669,7 +855,7 @@ public class QueryRunnerTestHelper
       baseRunner = toolChest.postMergeQueryDecoration(toolChest.mergeResults(toolChest.preMergeQueryDecoration(runner)));
     }
     if (!subQuery) {
-      baseRunner = new FinalizeResultsQueryRunner<>(baseRunner, toolChest);
+      baseRunner = toolChest.finalizeMetrics(baseRunner);
     }
     return toolChest.finalQueryDecoration(baseRunner);
   }

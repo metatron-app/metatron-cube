@@ -575,12 +575,13 @@ public abstract class IncrementalIndex<AggregatorType> implements MergeIndex
   }
 
   // fast track for group-by query
-  public void initialize(List<String> dimensions)
+  public void initialize(List<String> dimensions, List<ValueType> types)
   {
     Preconditions.checkArgument(fixedSchema, "this is only for fixed-schema");
-    for (String dimension : dimensions) {
-      // todo
-      addNewDimension(dimension, ColumnCapabilitiesImpl.of(ValueType.STRING), MultiValueHandling.ARRAY, -1);
+    Preconditions.checkArgument(types == null || dimensions.size() == types.size());
+    for (int i = 0; i < dimensions.size(); i++) {
+      ValueType type = types == null ? ValueType.STRING : types.get(i);
+      addNewDimension(dimensions.get(i), ColumnCapabilitiesImpl.of(type), MultiValueHandling.ARRAY, -1);
     }
   }
 
