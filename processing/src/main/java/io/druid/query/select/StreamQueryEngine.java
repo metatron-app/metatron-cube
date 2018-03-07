@@ -175,7 +175,7 @@ public class StreamQueryEngine
                               if (size == 1) {
                                 theEvent[index++] = selector.lookupName(vals.get(0));
                               } else {
-                                String[] dimVals = new String[size];
+                                Comparable[] dimVals = new Comparable[size];
                                 for (int i = 0; i < size; ++i) {
                                   dimVals[i] = selector.lookupName(vals.get(i));
                                 }

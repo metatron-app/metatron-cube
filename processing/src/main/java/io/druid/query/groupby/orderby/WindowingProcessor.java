@@ -55,8 +55,11 @@ public class WindowingProcessor implements Function<List<Row>, List<Row>>
   )
   {
     final Map<String, ExprType> expectedTypes = Maps.newHashMap();
+    // todo (now dimensions can be any comparable type)
     for (DimensionSpec dimensionSpec : dimensionSpecs) {
-      expectedTypes.put(dimensionSpec.getOutputName(), ExprType.STRING);
+      expectedTypes.put(
+          dimensionSpec.getOutputName(),
+          dimensionSpec.getExtractionFn() != null ? ExprType.STRING : ExprType.UNKNOWN);
     }
     for (AggregatorFactory aggregator : aggregators) {
       expectedTypes.put(aggregator.getName(), ExprType.bestEffortOf(aggregator.getTypeName()));

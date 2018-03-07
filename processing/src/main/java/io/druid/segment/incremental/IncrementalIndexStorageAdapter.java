@@ -76,7 +76,7 @@ import java.util.Map;
  */
 public class IncrementalIndexStorageAdapter implements StorageAdapter
 {
-  private static final NullDimensionSelector NULL_DIMENSION_SELECTOR = new NullDimensionSelector();
+  private static final NullDimensionSelector NULL_DIMENSION_SELECTOR = new NullDimensionSelector(String.class);
 
   private final String segmentIdentifier;
   private final IncrementalIndex<?> index;
@@ -388,7 +388,11 @@ public class IncrementalIndexStorageAdapter implements StorageAdapter
                 final ExtractionFn extractionFn = dimensionSpec.getExtractionFn();
 
                 if (dimension.equals(Column.TIME_COLUMN_NAME)) {
-                  return new SingleScanTimeDimSelector(makeLongColumnSelector(dimension), extractionFn, descending);
+                  LongColumnSelector selector = makeLongColumnSelector(dimension);
+                  if (extractionFn != null) {
+                    return new SingleScanTimeDimSelector(selector, extractionFn, descending);
+                  }
+                  return VirtualColumns.toDimensionSelector(selector);
                 }
 
                 final IncrementalIndex.DimensionDesc dimensionDesc = index.getDimension(dimension);
@@ -477,17 +481,22 @@ public class IncrementalIndexStorageAdapter implements StorageAdapter
                   }
 
                   @Override
-                  public String lookupName(int id)
+                  public Comparable lookupName(int id)
                   {
                     // TODO: needs update to DimensionSelector interface to allow multi-types, just use Strings for now
                     final Comparable value = dimValLookup.getValue(id);
                     final String strValue = value == null ? null : value.toString();
                     return extractionFn == null ? strValue : extractionFn.apply(strValue);
-
                   }
 
                   @Override
-                  public int lookupId(String name)
+                  public Class type()
+                  {
+                    return String.class;
+                  }
+
+                  @Override
+                  public int lookupId(Comparable name)
                   {
                     if (extractionFn != null) {
                       throw new UnsupportedOperationException(

@@ -19,6 +19,8 @@
 
 package io.druid.data;
 
+import com.google.common.base.Optional;
+
 import java.util.Map;
 
 /**
@@ -26,6 +28,8 @@ import java.util.Map;
 public interface TypeResolver
 {
   ValueDesc resolveColumn(String column);
+
+  ValueDesc resolveColumn(String column, ValueDesc defaultType);
 
   class WithMap implements TypeResolver
   {
@@ -37,6 +41,12 @@ public interface TypeResolver
     public ValueDesc resolveColumn(String column)
     {
       return mapping.get(column);
+    }
+
+    @Override
+    public ValueDesc resolveColumn(String column, ValueDesc defaultType)
+    {
+      return Optional.fromNullable(resolveColumn(column)).or(defaultType);
     }
   }
 }

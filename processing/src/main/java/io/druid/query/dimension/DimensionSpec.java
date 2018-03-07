@@ -22,6 +22,8 @@ package io.druid.query.dimension;
 import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import io.druid.common.Cacheable;
+import io.druid.data.TypeResolver;
+import io.druid.data.ValueDesc;
 import io.druid.query.extraction.ExtractionFn;
 import io.druid.segment.DimensionSelector;
 
@@ -43,10 +45,20 @@ public interface DimensionSpec extends Cacheable
 
   String getOutputName();
 
+  ValueDesc resolveType(TypeResolver resolver);
   //ExtractionFn can be implemented with decorate(..) fn
   ExtractionFn getExtractionFn();
 
   DimensionSelector decorate(DimensionSelector selector);
 
   boolean preservesOrdering();
+
+  abstract class Abstract implements DimensionSpec
+  {
+    @Override
+    public ValueDesc resolveType(TypeResolver resolver)
+    {
+      return getExtractionFn() == null ? resolver.resolveColumn(getDimension(), ValueDesc.UNKNOWN) : ValueDesc.STRING;
+    }
+  }
 }

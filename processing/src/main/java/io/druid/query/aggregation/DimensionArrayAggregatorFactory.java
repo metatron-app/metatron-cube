@@ -20,9 +20,9 @@
 package io.druid.query.aggregation;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.google.common.base.Strings;
 import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
+import io.druid.data.Rows;
 import io.druid.data.ValueDesc;
 import io.druid.query.dimension.DefaultDimensionSpec;
 import io.druid.query.dimension.DimensionSpec;
@@ -283,13 +283,19 @@ public class DimensionArrayAggregatorFactory extends AbstractArrayAggregatorFact
         }
 
         @Override
-        public String lookupName(int id)
+        public Comparable lookupName(int id)
         {
           return selector.lookupName(id);
         }
 
         @Override
-        public int lookupId(String name)
+        public Class type()
+        {
+          return selector.type();
+        }
+
+        @Override
+        public int lookupId(Comparable name)
         {
           return selector.lookupId(name);
         }
@@ -304,8 +310,7 @@ public class DimensionArrayAggregatorFactory extends AbstractArrayAggregatorFact
         @Override
         public float get()
         {
-          final String value = selector.lookupName(selector.getRow().get(index));
-          return Strings.isNullOrEmpty(value) ? 0.0f : Float.valueOf(value);
+          return Rows.parseFloat(selector.lookupName(selector.getRow().get(index)));
         }
       };
     }
@@ -318,8 +323,7 @@ public class DimensionArrayAggregatorFactory extends AbstractArrayAggregatorFact
         @Override
         public double get()
         {
-          final String value = selector.lookupName(selector.getRow().get(index));
-          return Strings.isNullOrEmpty(value) ? 0.0d : Double.valueOf(value);
+          return Rows.parseDouble(selector.lookupName(selector.getRow().get(index)));
         }
       };
     }
@@ -332,8 +336,7 @@ public class DimensionArrayAggregatorFactory extends AbstractArrayAggregatorFact
         @Override
         public long get()
         {
-          final String value = selector.lookupName(selector.getRow().get(index));
-          return Strings.isNullOrEmpty(value) ? 0L : Long.valueOf(value);
+          return Rows.parseLong(selector.lookupName(selector.getRow().get(index)));
         }
       };
     }

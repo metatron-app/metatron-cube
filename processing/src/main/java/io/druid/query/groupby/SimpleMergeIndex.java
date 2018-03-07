@@ -19,13 +19,13 @@
 
 package io.druid.query.groupby;
 
-import com.google.common.base.Strings;
 import com.google.common.base.Supplier;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.primitives.Longs;
 import com.metamx.common.ISE;
 import io.druid.common.DateTimes;
+import io.druid.common.utils.StringUtils;
 import io.druid.data.input.CompactRow;
 import io.druid.data.input.MapBasedRow;
 import io.druid.data.input.Row;
@@ -99,9 +99,9 @@ public class SimpleMergeIndex implements MergeIndex
   public void add(Row row)
   {
     rowSupplier.set(row);
-    final String[] key = new String[dimensions.length];
+    final Comparable[] key = new Comparable[dimensions.length];
     for (int i = 0; i < key.length; i++) {
-      key[i] = Objects.toString(row.getRaw(dimensions[i]), "");
+      key[i] = StringUtils.nullToEmpty((Comparable) row.getRaw(dimensions[i]));
     }
     final TimeAndDims timeAndDims = new TimeAndDims(row.getTimestampFromEpoch(), key);
 
@@ -126,7 +126,7 @@ public class SimpleMergeIndex implements MergeIndex
           int x = 0;
           values[x++] = key.timestamp;
           for (int i = 0; i < dimensions.length; i++) {
-            values[x++] = Strings.emptyToNull(key.array[i]);
+            values[x++] = StringUtils.emptyToNull(key.array[i]);
           }
           for (int i = 0; i < metrics.length; i++) {
             values[x++] = value[i].get();
@@ -144,7 +144,7 @@ public class SimpleMergeIndex implements MergeIndex
           final Aggregator[] value = input.getValue();
           final Map<String, Object> event = Maps.newLinkedHashMap();
           for (int i = 0; i < dimensions.length; i++) {
-            event.put(dimensions[i], Strings.emptyToNull(key.array[i]));
+            event.put(dimensions[i], StringUtils.emptyToNull(key.array[i]));
           }
           for (int i = 0; i < metrics.length; i++) {
             event.put(metrics[i].getName(), value[i].get());
@@ -188,9 +188,9 @@ public class SimpleMergeIndex implements MergeIndex
   private static class TimeAndDims implements Comparable<TimeAndDims>
   {
     private final long timestamp;
-    private final String[] array;
+    private final Comparable[] array;
 
-    public TimeAndDims(long timestamp, String[] array)
+    public TimeAndDims(long timestamp, Comparable[] array)
     {
       this.timestamp = timestamp;
       this.array = array;

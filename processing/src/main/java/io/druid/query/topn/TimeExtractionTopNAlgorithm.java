@@ -28,7 +28,7 @@ import io.druid.segment.DimensionSelector;
 
 import java.util.Map;
 
-public class TimeExtractionTopNAlgorithm extends BaseTopNAlgorithm<int[], Map<String, Aggregator[]>, TopNParams>
+public class TimeExtractionTopNAlgorithm extends BaseTopNAlgorithm<int[], Map<Comparable, Aggregator[]>, TopNParams>
 {
   public static final int[] EMPTY_INTS = new int[]{};
   private final TopNQuery query;
@@ -64,14 +64,14 @@ public class TimeExtractionTopNAlgorithm extends BaseTopNAlgorithm<int[], Map<St
   }
 
   @Override
-  protected Map<String, Aggregator[]> makeDimValAggregateStore(TopNParams params)
+  protected Map<Comparable, Aggregator[]> makeDimValAggregateStore(TopNParams params)
   {
     return Maps.newHashMap();
   }
 
   @Override
   protected void scanAndAggregate(
-      TopNParams params, int[] dimValSelector, Map<String, Aggregator[]> aggregatesStore, int numProcessed
+      TopNParams params, int[] dimValSelector, Map<Comparable, Aggregator[]> aggregatesStore, int numProcessed
   )
   {
     final Cursor cursor = params.getCursor();
@@ -79,7 +79,7 @@ public class TimeExtractionTopNAlgorithm extends BaseTopNAlgorithm<int[], Map<St
     final ColumnSelectorFactory factory = params.getFactory();
 
     while (!cursor.isDone()) {
-      final String key = dimSelector.lookupName(dimSelector.getRow().get(0));
+      final Comparable key = dimSelector.lookupName(dimSelector.getRow().get(0));
 
       Aggregator[] theAggregators = aggregatesStore.get(key);
       if (theAggregators == null) {
@@ -99,11 +99,11 @@ public class TimeExtractionTopNAlgorithm extends BaseTopNAlgorithm<int[], Map<St
   protected void updateResults(
       TopNParams params,
       int[] dimValSelector,
-      Map<String, Aggregator[]> aggregatesStore,
+      Map<Comparable, Aggregator[]> aggregatesStore,
       TopNResultBuilder resultBuilder
   )
   {
-    for (Map.Entry<String, Aggregator[]> entry : aggregatesStore.entrySet()) {
+    for (Map.Entry<Comparable, Aggregator[]> entry : aggregatesStore.entrySet()) {
       Aggregator[] aggs = entry.getValue();
       if (aggs != null && aggs.length > 0) {
         Object[] vals = new Object[aggs.length];
@@ -121,7 +121,7 @@ public class TimeExtractionTopNAlgorithm extends BaseTopNAlgorithm<int[], Map<St
   }
 
   @Override
-  protected void closeAggregators(Map<String, Aggregator[]> stringMap)
+  protected void closeAggregators(Map<Comparable, Aggregator[]> stringMap)
   {
     for (Aggregator[] aggregators : stringMap.values()) {
       for (Aggregator agg : aggregators) {

@@ -138,11 +138,11 @@ public abstract class SketchBufferAggregator implements BufferAggregator
           final int length = indexed.size();
           if (length == 1) {
             Union union = getUnion(buf, position);
-            union.update(selector.lookupName(indexed.get(0)));
+            union.update((String) selector.lookupName(indexed.get(0)));
           } else if (length > 1) {
             for (int i = 0; i < length; i++) {
               Union union = getUnion(buf, position);
-              union.update(selector.lookupName(indexed.get(i)));
+              union.update((String) selector.lookupName(indexed.get(i)));
             }
           }
         }

@@ -32,7 +32,7 @@ import java.util.Map;
 /**
  * This has to be its own strategy because the pooled topn algorithm assumes each index is unique, and cannot handle multiple index numerals referencing the same dimension value.
  */
-public class DimExtractionTopNAlgorithm extends BaseTopNAlgorithm<Aggregator[][], Map<String, Aggregator[]>, TopNParams>
+public class DimExtractionTopNAlgorithm extends BaseTopNAlgorithm<Aggregator[][], Map<Comparable, Aggregator[]>, TopNParams>
 {
   private final TopNQuery query;
 
@@ -82,7 +82,7 @@ public class DimExtractionTopNAlgorithm extends BaseTopNAlgorithm<Aggregator[][]
   }
 
   @Override
-  protected Map<String, Aggregator[]> makeDimValAggregateStore(TopNParams params)
+  protected Map<Comparable, Aggregator[]> makeDimValAggregateStore(TopNParams params)
   {
     return Maps.newHashMap();
   }
@@ -91,7 +91,7 @@ public class DimExtractionTopNAlgorithm extends BaseTopNAlgorithm<Aggregator[][]
   public void scanAndAggregate(
       TopNParams params,
       Aggregator[][] rowSelector,
-      Map<String, Aggregator[]> aggregatesStore,
+      Map<Comparable, Aggregator[]> aggregatesStore,
       int numProcessed
   )
   {
@@ -107,7 +107,7 @@ public class DimExtractionTopNAlgorithm extends BaseTopNAlgorithm<Aggregator[][]
         final int dimIndex = dimValues.get(i);
         Aggregator[] theAggregators = rowSelector[dimIndex];
         if (theAggregators == null) {
-          final String key = dimSelector.lookupName(dimIndex);
+          final Comparable key = dimSelector.lookupName(dimIndex);
           theAggregators = aggregatesStore.get(key);
           if (theAggregators == null) {
             theAggregators = makeAggregators(factory, query.getAggregatorSpecs());
@@ -129,11 +129,11 @@ public class DimExtractionTopNAlgorithm extends BaseTopNAlgorithm<Aggregator[][]
   protected void updateResults(
       TopNParams params,
       Aggregator[][] rowSelector,
-      Map<String, Aggregator[]> aggregatesStore,
+      Map<Comparable, Aggregator[]> aggregatesStore,
       TopNResultBuilder resultBuilder
   )
   {
-    for (Map.Entry<String, Aggregator[]> entry : aggregatesStore.entrySet()) {
+    for (Map.Entry<Comparable, Aggregator[]> entry : aggregatesStore.entrySet()) {
       Aggregator[] aggs = entry.getValue();
       if (aggs != null && aggs.length > 0) {
         Object[] vals = new Object[aggs.length];
@@ -151,7 +151,7 @@ public class DimExtractionTopNAlgorithm extends BaseTopNAlgorithm<Aggregator[][]
   }
 
   @Override
-  protected void closeAggregators(Map<String, Aggregator[]> stringMap)
+  protected void closeAggregators(Map<Comparable, Aggregator[]> stringMap)
   {
     for (Aggregator[] aggregators : stringMap.values()) {
       for (Aggregator agg : aggregators) {

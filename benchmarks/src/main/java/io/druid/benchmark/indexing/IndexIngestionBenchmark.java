@@ -115,6 +115,7 @@ public class IndexIngestionBenchmark
         true,
         false,
         true,
+        false,
         rowsPerSegment * 2
     );
   }

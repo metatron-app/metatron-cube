@@ -138,10 +138,10 @@ public abstract class SketchAggregator implements Aggregator
           final IndexedInts indexed = selector.getRow();
           final int length = indexed.size();
           if (length == 1) {
-            union.update(selector.lookupName(indexed.get(0)));
+            union.update((String) selector.lookupName(indexed.get(0)));
           } else if (length > 1) {
             for (int i = 0; i < length; i++) {
-              union.update(selector.lookupName(indexed.get(i)));
+              union.update((String) selector.lookupName(indexed.get(i)));
             }
           }
         }

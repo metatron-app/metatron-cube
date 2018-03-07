@@ -715,14 +715,20 @@ public class ColumnSelectorFactories
         }
 
         @Override
-        public String lookupName(int id)
+        public Comparable lookupName(int id)
         {
           final String value = in.get().getDimension(dimension).get(id);
           return extractionFn == null ? value : extractionFn.apply(value);
         }
 
         @Override
-        public int lookupId(String name)
+        public Class type()
+        {
+          return String.class;
+        }
+
+        @Override
+        public int lookupId(Comparable name)
         {
           if (extractionFn != null) {
             throw new UnsupportedOperationException("cannot perform lookup when applying an extraction function");

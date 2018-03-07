@@ -113,10 +113,10 @@ public class MapVirtualColumn implements VirtualColumn
               return null;
             }
             final int limit = Math.min(keyIndices.size(), valueIndices.size());
-            final Map<String, String> map = Maps.newHashMapWithExpectedSize(limit);
+            final Map<String, Comparable> map = Maps.newHashMapWithExpectedSize(limit);
             for (int i = 0; i < limit; i++) {
               map.put(
-                  keySelector.lookupName(keyIndices.get(i)),
+                  Objects.toString(keySelector.lookupName(keyIndices.get(i)), null),
                   valueSelector.lookupName(valueIndices.get(i))
               );
             }
@@ -130,16 +130,16 @@ public class MapVirtualColumn implements VirtualColumn
         return ColumnSelectors.nullObjectSelector(ValueDesc.STRING);
       }
 
-      return new ObjectColumnSelector<String>()
+      return new ObjectColumnSelector()
       {
         @Override
         public ValueDesc type()
         {
-          return ValueDesc.STRING;
+          return ValueDesc.ofPrimitive(valueSelector.type());
         }
 
         @Override
-        public String get()
+        public Comparable get()
         {
           final IndexedInts keyIndices = keySelector.getRow();
           final IndexedInts valueIndices = valueSelector.getRow();
@@ -182,7 +182,7 @@ public class MapVirtualColumn implements VirtualColumn
           final int limit = Math.min(keyIndices.size(), values.size());
           final Map<String, Object> map = Maps.newHashMapWithExpectedSize(limit);
           for (int i = 0; i < limit; i++) {
-            map.put(keySelector.lookupName(keyIndices.get(i)), values.get(i));
+            map.put(Objects.toString(keySelector.lookupName(keyIndices.get(i)), null), values.get(i));
           }
           return map;
         }

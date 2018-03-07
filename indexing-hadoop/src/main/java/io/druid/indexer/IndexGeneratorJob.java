@@ -266,6 +266,7 @@ public class IndexGeneratorJob implements HadoopDruidIndexerJob.IndexingStatsPro
         true,
         !tuningConfig.isIgnoreInvalidRows(),
         true,
+        true,
         boundary
     );
 

@@ -21,7 +21,6 @@ package io.druid.query.dimension;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;
-import com.google.common.base.Strings;
 import com.metamx.common.StringUtils;
 import io.druid.query.filter.DimFilterCacheHelper;
 import io.druid.segment.DimensionSelector;
@@ -29,6 +28,7 @@ import io.druid.segment.DimensionSelector;
 import java.nio.ByteBuffer;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 
 /**
@@ -91,7 +91,7 @@ public class ListFilteredDimensionSpec extends BaseFilteredDimensionSpec
       }
     } else {
       for (int i = 0; i < selectorCardinality; i++) {
-        if (!values.contains(Strings.nullToEmpty(selector.lookupName(i)))) {
+        if (!values.contains(Objects.toString(selector.lookupName(i), ""))) {
           forwardMapping.put(i, count);
           reverseMapping[count++] = i;
         }

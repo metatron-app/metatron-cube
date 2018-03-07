@@ -95,6 +95,16 @@ public class StringUtils extends com.metamx.common.StringUtils
     return value == null || (value instanceof String && ((String)value).isEmpty());
   }
 
+  public static Object emptyToNull(Object comparable)
+  {
+    return "".equals(comparable) ? null : comparable;
+  }
+
+  public static Comparable nullToEmpty(Comparable raw)
+  {
+    return raw == null ? "" : raw;
+  }
+
   public static long parseKMGT(String value)
   {
     return parseKMGT(value, 0);

@@ -299,7 +299,7 @@ public abstract class QueryToolChest<ResultType, QueryType extends Query<ResultT
           schema.getDimensionsSpec().getDimensionNames(),
           schema.getMetricNames()
       );
-      IncrementalIndex index = new OnheapIncrementalIndex(schema, false, true, true, maxRowCount);
+      IncrementalIndex index = new OnheapIncrementalIndex(schema, false, true, true, false, maxRowCount);
       final Sequence<Row> innerSequence = Queries.convertToRow(subQuery, subQueryRunner.run(subQuery, responseContext));
       IncrementalIndex accumulated = innerSequence.accumulate(index, GroupByQueryHelper.<Row>newIndexAccumulator());
       LOG.info(

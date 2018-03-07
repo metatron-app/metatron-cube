@@ -105,7 +105,7 @@ public class IncrementalIndexTest
                 @Override
                 public IncrementalIndex createIndex()
                 {
-                  return new OnheapIncrementalIndex(schema, false, true, sortFacts, 1000);
+                  return new OnheapIncrementalIndex(schema, false, true, sortFacts, false, 1000);
                 }
               }
           }
@@ -118,7 +118,7 @@ public class IncrementalIndexTest
                 public IncrementalIndex createIndex()
                 {
                   return new OffheapIncrementalIndex(
-                      schema, true, sortFacts, true, 1000000, new StupidPool<ByteBuffer>(
+                      schema, true, sortFacts, true, false, 1000000, new StupidPool<ByteBuffer>(
                       new Supplier<ByteBuffer>()
                       {
                         @Override

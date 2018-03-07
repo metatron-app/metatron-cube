@@ -51,7 +51,7 @@ public class TopNLexicographicResultBuilder implements TopNResultBuilder
       DimensionSpec dimSpec,
       int threshold,
       String previousStop,
-      final Comparator<String> comparator,
+      final Comparator<Comparable> comparator,
       List<AggregatorFactory> aggFactories
   )
   {
@@ -75,7 +75,7 @@ public class TopNLexicographicResultBuilder implements TopNResultBuilder
 
   @Override
   public TopNResultBuilder addEntry(
-      String dimName,
+      Comparable dimName,
       Object dimValIndex,
       Object[] metricVals
   )
@@ -154,7 +154,7 @@ public class TopNLexicographicResultBuilder implements TopNResultBuilder
     return new Result<>(timestamp, new TopNResultValue(sorted));
   }
 
-  private boolean shouldAdd(String dimName)
+  private boolean shouldAdd(Comparable dimName)
   {
     final boolean belowThreshold = pQueue.size() < threshold;
     final boolean belowMax = belowThreshold

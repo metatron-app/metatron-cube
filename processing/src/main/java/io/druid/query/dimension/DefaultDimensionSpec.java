@@ -34,7 +34,7 @@ import java.util.List;
 
 /**
  */
-public class DefaultDimensionSpec implements DimensionSpec
+public class DefaultDimensionSpec extends DimensionSpec.Abstract
 {
   public static DefaultDimensionSpec of(String dimensionName)
   {

@@ -30,7 +30,7 @@ import java.nio.ByteBuffer;
 
 /**
  */
-public class ExtractionDimensionSpec implements DimensionSpec
+public class ExtractionDimensionSpec extends DimensionSpec.Abstract
 {
   public static ExtractionDimensionSpec of(String dimensionName, ExtractionFn extractionFn)
   {

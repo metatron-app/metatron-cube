@@ -20,8 +20,8 @@
 package io.druid.segment;
 
 import com.google.common.base.Preconditions;
+import com.google.common.base.Supplier;
 import com.google.common.collect.ImmutableSet;
-import com.google.common.collect.Iterables;
 import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
@@ -104,6 +104,19 @@ public class VirtualColumns implements Iterable<VirtualColumn>
     return valueOf(virtualColumns).addImplicitVCs(adapter);
   }
 
+  public static DimensionSelector toDimensionSelector(final LongColumnSelector selector)
+  {
+    final Supplier<Long> supplier = new Supplier<Long>()
+    {
+      @Override
+      public Long get()
+      {
+        return selector.get();
+      }
+    };
+    return new MimicDimension(Long.class, supplier);
+  }
+
   public static DimensionSelector toDimensionSelector(
       final ObjectColumnSelector selector,
       final ExtractionFn extractionFn
@@ -111,84 +124,118 @@ public class VirtualColumns implements Iterable<VirtualColumn>
   {
     if (selector == null) {
       if (extractionFn == null) {
-        return new NullDimensionSelector();
+        return new NullDimensionSelector(String.class);
       }
       return new ColumnSelectors.SingleValuedDimensionSelector(extractionFn.apply(null));
     }
 
-    return new DimensionSelector()
+    final Class type;
+    final ValueDesc valueDesc = selector.type();
+    if (extractionFn == null && ValueDesc.isPrimitive(valueDesc)) {
+      type = valueDesc.type().classOfObject();
+    } else {
+      type = String.class;
+    }
+    final Supplier<Comparable> supplier = new Supplier<Comparable>()
     {
-      private int counter;
-      private final Map<String, Integer> valToId = Maps.newHashMap();
-      private final List<String> idToVal = Lists.newArrayList();
-
       @Override
-      public IndexedInts getRow()
+      public Comparable get()
       {
         final Object selected = selector.get();
-        final String value;
+        final Comparable value;
         if (extractionFn != null) {
           value = extractionFn.apply(selected);
-        } else {
+        } else if (type == String.class) {
           value = Objects.toString(selected, null);
+        } else {
+          value = (Comparable) selected;
         }
-        Integer index = valToId.get(value);
-        if (index == null) {
-          valToId.put(value, index = counter++);
-          idToVal.add(value);
-        }
-        final int result = index;
-        return new IndexedInts()
-        {
-          @Override
-          public int size()
-          {
-            return 1;
-          }
-
-          @Override
-          public int get(int index)
-          {
-            return result;
-          }
-
-          @Override
-          public void fill(int index, int[] toFill)
-          {
-            throw new UnsupportedOperationException("fill");
-          }
-
-          @Override
-          public void close() throws IOException
-          {
-          }
-
-          @Override
-          public Iterator<Integer> iterator()
-          {
-            return Iterators.singletonIterator(result);
-          }
-        };
-      }
-
-      @Override
-      public int getValueCardinality()
-      {
-        throw new UnsupportedOperationException();
-      }
-
-      @Override
-      public String lookupName(int id)
-      {
-        return idToVal.get(id);
-      }
-
-      @Override
-      public int lookupId(String name)
-      {
-        return valToId.get(name);
+        return value;
       }
     };
+    return new MimicDimension(type, supplier);
+  }
+
+  private static class MimicDimension implements DimensionSelector
+  {
+    private final Class type;
+    private final Supplier<? extends Comparable> supplier;
+
+    private int counter;
+    private final Map<Comparable, Integer> valToId = Maps.newHashMap();
+    private final List<Comparable> idToVal = Lists.newArrayList();
+
+    private MimicDimension(Class type, Supplier<? extends Comparable> supplier) {
+      this.type = type;
+      this.supplier = supplier;
+    }
+
+    @Override
+    public IndexedInts getRow()
+    {
+      final Comparable value = supplier.get();
+      Integer index = valToId.get(value);
+      if (index == null) {
+        valToId.put(value, index = counter++);
+        idToVal.add(value);
+      }
+      final int result = index;
+      return new IndexedInts()
+      {
+        @Override
+        public int size()
+        {
+          return 1;
+        }
+
+        @Override
+        public int get(int index)
+        {
+          return result;
+        }
+
+        @Override
+        public void fill(int index, int[] toFill)
+        {
+          throw new UnsupportedOperationException("fill");
+        }
+
+        @Override
+        public void close() throws IOException
+        {
+        }
+
+        @Override
+        public Iterator<Integer> iterator()
+        {
+          return Iterators.singletonIterator(result);
+        }
+      };
+    }
+
+    @Override
+    public int getValueCardinality()
+    {
+      throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public Comparable lookupName(int id)
+    {
+      return idToVal.get(id);
+    }
+
+    @Override
+    public Class type()
+    {
+      return type;
+    }
+
+    @Override
+    public int lookupId(Comparable name)
+    {
+      return valToId.get(name);
+    }
   }
 
   public static DimensionSelector toFixedDimensionSelector(List<String> values)
@@ -210,7 +257,6 @@ public class VirtualColumns implements Iterable<VirtualColumn>
 
     return new DimensionSelector()
     {
-
       @Override
       public IndexedInts getRow()
       {
@@ -224,13 +270,19 @@ public class VirtualColumns implements Iterable<VirtualColumn>
       }
 
       @Override
-      public String lookupName(int id)
+      public Comparable lookupName(int id)
       {
         return id >= 0 && id < cardinality ? idToVal.get(id) : null;
       }
 
       @Override
-      public int lookupId(String name)
+      public Class type()
+      {
+        return String.class;
+      }
+
+      @Override
+      public int lookupId(Comparable name)
       {
         return valToId.get(name);
       }

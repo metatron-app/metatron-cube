@@ -21,6 +21,7 @@ package io.druid.query.groupby;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.util.DefaultPrettyPrinter;
+import com.fasterxml.jackson.databind.ObjectWriter;
 import com.google.common.base.Predicate;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
@@ -38,6 +39,7 @@ import io.druid.data.TypeResolver;
 import io.druid.data.input.Row;
 import io.druid.granularity.PeriodGranularity;
 import io.druid.granularity.QueryGranularities;
+import io.druid.jackson.DefaultObjectMapper;
 import io.druid.js.JavaScriptConfig;
 import io.druid.query.BaseAggregationQuery;
 import io.druid.query.BySegmentResultValue;
@@ -311,12 +313,56 @@ public class GroupByQueryRunnerTest
         .setGranularity(QueryRunnerTestHelper.allGran)
         .build();
 
-    // todo: group-by columns are converted to string
     List<Row> expectedResults = GroupByQueryRunnerTestHelper.createExpectedRows(
         new String[]{Column.TIME_COLUMN_NAME, "index", "rows"},
-        array("2011-01-12T00:00:00.000Z", "100.0", 9L),
-        array("2011-01-12T00:00:00.000Z", "1000.0", 2L),
-        array("2011-01-12T00:00:00.000Z", "800.0", 2L)
+        array("2011-01-12T00:00:00.000Z", 100.0d, 9L),
+        array("2011-01-12T00:00:00.000Z", 800.0d, 2L),
+        array("2011-01-12T00:00:00.000Z", 1000.0d, 2L)
+    );
+    Iterable<Row> results = GroupByQueryRunnerTestHelper.runQuery(factory, runner, query);
+    TestHelper.assertExpectedObjects(expectedResults, results, "");
+  }
+
+  @Test
+  public void testGroupByOnTime()
+  {
+    GroupByQuery query = GroupByQuery
+        .builder()
+        .setDataSource(QueryRunnerTestHelper.dataSource)
+        .setInterval(new Interval("2011-01-12/2011-01-14"))
+        .setDimensions(DefaultDimensionSpec.toSpec(Column.TIME_COLUMN_NAME))
+        .setAggregatorSpecs(QueryRunnerTestHelper.rowsCount)
+        .setGranularity(QueryRunnerTestHelper.allGran)
+        .build();
+
+    List<Row> expectedResults = GroupByQueryRunnerTestHelper.createExpectedRows(
+        new String[]{Column.TIME_COLUMN_NAME, "__time", "rows"},
+        array("2011-01-12T00:00:00.000Z", 1294790400000L, 13L),
+        array("2011-01-12T00:00:00.000Z", 1294876800000L, 13L)
+    );
+    Iterable<Row> results = GroupByQueryRunnerTestHelper.runQuery(factory, runner, query);
+    TestHelper.assertExpectedObjects(expectedResults, results, "");
+  }
+
+  @Test
+  public void testGroupByOnTimeVC()
+  {
+    GroupByQuery query = GroupByQuery
+        .builder()
+        .setDataSource(QueryRunnerTestHelper.dataSource)
+        .setInterval(new Interval("2011-01-12/2011-01-31"))
+        .setVirtualColumns(new ExprVirtualColumn("bucketStart(__time, 'WEEK')", "_week"))
+        .setDimensions(DefaultDimensionSpec.toSpec("_week"))
+        .setAggregatorSpecs(QueryRunnerTestHelper.rowsCount)
+        .setPostAggregatorSpecs(new MathPostAggregator("week = time_format(_week, out.format='ww xxxx')"))
+        .setGranularity(QueryRunnerTestHelper.allGran)
+        .build();
+
+    List<Row> expectedResults = GroupByQueryRunnerTestHelper.createExpectedRows(
+        new String[]{Column.TIME_COLUMN_NAME, "week", "rows"},
+        array("2011-01-12T00:00:00.000Z", "02 2011", 65L),
+        array("2011-01-12T00:00:00.000Z", "03 2011", 78L),
+        array("2011-01-12T00:00:00.000Z", "04 2011", 91L)
     );
     Iterable<Row> results = GroupByQueryRunnerTestHelper.runQuery(factory, runner, query);
     TestHelper.assertExpectedObjects(expectedResults, results, "");
@@ -4283,14 +4329,12 @@ public class GroupByQueryRunnerTest
         .setDataSource(QueryRunnerTestHelper.dataSource)
         .setQuerySegmentSpec(QueryRunnerTestHelper.fullOnInterval)
         .setDimensions(
-            Lists.newArrayList(
-                new DefaultDimensionSpec("market", "market"),
-                new ExtractionDimensionSpec(
-                    Column.TIME_COLUMN_NAME,
-                    "dayOfWeek",
-                    new TimeFormatExtractionFn("EEEE", null, null),
-                    null
-                )
+            new DefaultDimensionSpec("market", "market"),
+            new ExtractionDimensionSpec(
+                Column.TIME_COLUMN_NAME,
+                "dayOfWeek",
+                new TimeFormatExtractionFn("EEEE", null, null),
+                null
             )
         )
         .setAggregatorSpecs(
@@ -4352,14 +4396,12 @@ public class GroupByQueryRunnerTest
         .setDataSource(QueryRunnerTestHelper.dataSource)
         .setQuerySegmentSpec(QueryRunnerTestHelper.fullOnInterval)
         .setDimensions(
-            Lists.newArrayList(
-                new DefaultDimensionSpec("market", "market"),
-                new ExtractionDimensionSpec(
-                    Column.TIME_COLUMN_NAME,
-                    "dayOfWeek",
-                    new TimeFormatExtractionFn("EEEE", null, null),
-                    null
-                )
+            new DefaultDimensionSpec("market", "market"),
+            new ExtractionDimensionSpec(
+                Column.TIME_COLUMN_NAME,
+                "dayOfWeek",
+                new TimeFormatExtractionFn("EEEE", null, null),
+                null
             )
         )
         .setAggregatorSpecs(
@@ -6204,8 +6246,10 @@ public class GroupByQueryRunnerTest
 
   public static void printJson(Object object)
   {
+    ObjectWriter writer = DefaultObjectMapper.excludeNulls(TestHelper.getObjectMapper())
+                                             .writer(new DefaultPrettyPrinter());
     try {
-      System.out.println(TestHelper.getObjectMapper().writer(new DefaultPrettyPrinter()).writeValueAsString(object));
+      System.out.println(writer.writeValueAsString(object));
     }
     catch (JsonProcessingException e) {
       throw new RuntimeException(e);

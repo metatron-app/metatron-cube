@@ -80,11 +80,11 @@ public class GroupByQueryHelper
 
     final IncrementalIndex index;
     if (query.getContextValue("useOffheap", false)) {
-      index = new OffheapIncrementalIndex(schema, false, true, sortFacts, maxRowCount, bufferPool);
+      index = new OffheapIncrementalIndex(schema, false, true, sortFacts, false, maxRowCount, bufferPool);
     } else {
-      index = new OnheapIncrementalIndex(schema, false, true, sortFacts, maxRowCount);
+      index = new OnheapIncrementalIndex(schema, false, true, sortFacts, false, maxRowCount);
     }
-    index.initialize(dimensions);
+    index.initialize(dimensions);   // todo check type of dimension in pre-factoring
     return index;
   }
 

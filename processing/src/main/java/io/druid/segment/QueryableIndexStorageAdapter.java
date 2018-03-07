@@ -74,7 +74,7 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
 {
   private static final Logger LOG = new Logger(QueryableIndexStorageAdapter.class);
 
-  private static final NullDimensionSelector NULL_DIMENSION_SELECTOR = new NullDimensionSelector();
+  private static final NullDimensionSelector NULL_DIMENSION_SELECTOR = new NullDimensionSelector(String.class);
 
   private final QueryableIndex index;
   private final String segmentId;
@@ -475,11 +475,11 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
                       final ExtractionFn extractionFn = dimensionSpec.getExtractionFn();
 
                       if (dimension.equals(Column.TIME_COLUMN_NAME)) {
-                        return new SingleScanTimeDimSelector(
-                            makeLongColumnSelector(dimension),
-                            extractionFn,
-                            descending
-                        );
+                        LongColumnSelector selector = makeLongColumnSelector(Column.TIME_COLUMN_NAME);
+                        if (extractionFn != null) {
+                          return new SingleScanTimeDimSelector(selector, extractionFn, descending);
+                        }
+                        return VirtualColumns.toDimensionSelector(selector);
                       }
 
                       final Column columnDesc = index.getColumn(dimension);
@@ -522,13 +522,19 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
                             }
 
                             @Override
-                            public String lookupName(int id)
+                            public Comparable lookupName(int id)
                             {
                               return extractionFn.apply(column.lookupName(id));
                             }
 
                             @Override
-                            public int lookupId(String name)
+                            public Class type()
+                            {
+                              return String.class;
+                            }
+
+                            @Override
+                            public int lookupId(Comparable name)
                             {
                               throw new UnsupportedOperationException(
                                   "cannot perform lookup when applying an extraction function"
@@ -552,9 +558,15 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
                             }
 
                             @Override
-                            public String lookupName(int id)
+                            public Comparable lookupName(int id)
                             {
                               return column.lookupName(id);
+                            }
+
+                            @Override
+                            public Class type()
+                            {
+                              return String.class;
                             }
 
                             @Override
@@ -564,9 +576,9 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
                             }
 
                             @Override
-                            public int lookupId(String name)
+                            public int lookupId(Comparable name)
                             {
-                              return column.lookupId(name);
+                              return column.lookupId((String) name);
                             }
                           };
                         }
@@ -619,13 +631,19 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
                             }
 
                             @Override
-                            public String lookupName(int id)
+                            public Comparable lookupName(int id)
                             {
                               return extractionFn.apply(column.lookupName(id));
                             }
 
                             @Override
-                            public int lookupId(String name)
+                            public Class type()
+                            {
+                              return String.class;
+                            }
+
+                            @Override
+                            public int lookupId(Comparable name)
                             {
                               throw new UnsupportedOperationException(
                                   "cannot perform lookup when applying an extraction function"
@@ -649,9 +667,15 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
                             }
 
                             @Override
-                            public String lookupName(int id)
+                            public Comparable lookupName(int id)
                             {
                               return column.lookupName(id);
+                            }
+
+                            @Override
+                            public Class type()
+                            {
+                              return String.class;
                             }
 
                             @Override
@@ -661,9 +685,9 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
                             }
 
                             @Override
-                            public int lookupId(String name)
+                            public int lookupId(Comparable name)
                             {
-                              return column.lookupId(name);
+                              return column.lookupId((String) name);
                             }
                           };
                         }

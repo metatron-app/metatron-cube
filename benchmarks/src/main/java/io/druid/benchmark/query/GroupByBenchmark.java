@@ -261,6 +261,7 @@ public class GroupByBenchmark
         true,
         false,
         true,
+        false,
         rowsPerSegment
     );
   }

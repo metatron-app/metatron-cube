@@ -24,6 +24,10 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Function;
 import com.google.common.collect.Iterables;
 import com.metamx.common.StringUtils;
+import io.druid.data.TypeResolver;
+import io.druid.data.ValueDesc;
+import io.druid.math.expr.Expr;
+import io.druid.math.expr.ExprType;
 import io.druid.math.expr.Parser;
 import io.druid.query.extraction.DimExtractionFn;
 import io.druid.query.extraction.ExtractionFn;
@@ -67,6 +71,21 @@ public class ExpressionDimensionSpec implements DimensionSpec
   public String getOutputName()
   {
     return outputName;
+  }
+
+  @Override
+  public ValueDesc resolveType(final TypeResolver resolver)
+  {
+    return Parser.parse(expression).type(
+        new Expr.TypeBinding()
+        {
+          @Override
+          public ExprType type(String name)
+          {
+            return ExprType.typeOf(resolver.resolveColumn(name));
+          }
+        }
+    ).asValueDesc();
   }
 
   @Override

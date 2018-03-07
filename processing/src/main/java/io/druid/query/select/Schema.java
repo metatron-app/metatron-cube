@@ -21,6 +21,7 @@ package io.druid.query.select;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
@@ -140,6 +141,12 @@ public class Schema implements TypeResolver, RowSignature
       index = metricNames.indexOf(column) + dimensionNames.size();
     }
     return columnTypes.get(index);
+  }
+
+  @Override
+  public ValueDesc resolveColumn(String column, ValueDesc defaultType)
+  {
+    return Optional.fromNullable(resolveColumn(column)).or(defaultType);
   }
 
   public Schema appendTime()

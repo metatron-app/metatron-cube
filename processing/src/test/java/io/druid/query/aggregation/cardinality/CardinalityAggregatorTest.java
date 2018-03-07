@@ -160,14 +160,20 @@ public class CardinalityAggregatorTest
     }
 
     @Override
-    public String lookupName(int i)
+    public Comparable lookupName(int i)
     {
       String val = lookup.get(i);
       return exFn == null ? val : exFn.apply(val);
     }
 
     @Override
-    public int lookupId(String s)
+    public Class type()
+    {
+      return String.class;
+    }
+
+    @Override
+    public int lookupId(Comparable s)
     {
       return ids.get(s);
     }

@@ -194,6 +194,7 @@ public abstract class IncrementalIndex<AggregatorType> implements MergeIndex
   private final boolean deserializeComplexMetrics;
   private final boolean reportParseExceptions;
   private final boolean sortFacts;    // this need to be true for query or indexing (false only for gby merging)
+  private final boolean estimate;
   private final boolean rollup;
   private final boolean fixedSchema;
   private final Metadata metadata;
@@ -244,6 +245,7 @@ public abstract class IncrementalIndex<AggregatorType> implements MergeIndex
       final boolean deserializeComplexMetrics,
       final boolean reportParseExceptions,
       final boolean sortFacts,
+      final boolean estimate,
       final int maxRowCount
   )
   {
@@ -254,6 +256,7 @@ public abstract class IncrementalIndex<AggregatorType> implements MergeIndex
     this.deserializeComplexMetrics = deserializeComplexMetrics;
     this.reportParseExceptions = reportParseExceptions;
     this.sortFacts = sortFacts;
+    this.estimate = estimate;
     this.rollup = incrementalIndexSchema.isRollup();
     this.fixedSchema = incrementalIndexSchema.isFixedSchema();
     this.maxRowCount = maxRowCount;
@@ -311,17 +314,17 @@ public abstract class IncrementalIndex<AggregatorType> implements MergeIndex
     DimDim newDimDim;
     switch (type) {
       case LONG:
-        newDimDim = new OnHeapDimDim(SizeEstimator.LONG, type.classOfObject());
+        newDimDim = new OnHeapDimDim(estimate ? SizeEstimator.LONG : SizeEstimator.NO, type.classOfObject());
         break;
       case FLOAT:
-        newDimDim = new OnHeapDimDim(SizeEstimator.FLOAT, type.classOfObject());
+        newDimDim = new OnHeapDimDim(estimate ? SizeEstimator.FLOAT : SizeEstimator.NO, type.classOfObject());
         break;
       case DOUBLE:
-        newDimDim = new OnHeapDimDim(SizeEstimator.DOUBLE, type.classOfObject());
+        newDimDim = new OnHeapDimDim(estimate ? SizeEstimator.DOUBLE : SizeEstimator.NO, type.classOfObject());
         break;
       case STRING:
         newDimDim = new NullValueConverterDimDim(
-            new OnHeapDimDim(SizeEstimator.STRING, type.classOfObject()),
+            new OnHeapDimDim(estimate ? SizeEstimator.STRING : SizeEstimator.NO, type.classOfObject()),
             sortFacts ? compareCacheEntry : -1
         );
         break;
@@ -576,29 +579,8 @@ public abstract class IncrementalIndex<AggregatorType> implements MergeIndex
   {
     Preconditions.checkArgument(fixedSchema, "this is only for fixed-schema");
     for (String dimension : dimensions) {
+      // todo
       addNewDimension(dimension, ColumnCapabilitiesImpl.of(ValueType.STRING), MultiValueHandling.ARRAY, -1);
-    }
-  }
-
-  public void initialize(Map<String, String[]> dimensions)
-  {
-    Preconditions.checkArgument(fixedSchema, "this is only for fixed-schema");
-    for (Map.Entry<String, String[]> entry : dimensions.entrySet()) {
-      String dimension = entry.getKey();
-      DimDim values = new NullValueConverterDimDim(new ReadOnlyDimDim(entry.getValue()), -1);
-      DimensionDesc desc = new DimensionDesc(
-          dimensionDescs.size(),
-          dimension,
-          values,
-          ColumnCapabilitiesImpl.of(ValueType.STRING),
-          MultiValueHandling.ARRAY
-      );
-      if (dimValues.size() != desc.getIndex()) {
-        throw new ISE("dimensionDescs and dimValues for [%s] is out of sync!!", dimension);
-      }
-
-      dimensionDescs.put(dimension, desc);
-      dimValues.add(desc.getValues());
     }
   }
 
@@ -619,7 +601,7 @@ public abstract class IncrementalIndex<AggregatorType> implements MergeIndex
     int[][] dims = new int[dimensionDescs.size()][];
     for (Map.Entry<String, DimensionDesc> entry : dimensionDescs.entrySet()) {
       DimensionDesc dimDesc = entry.getValue();
-      dims[dimDesc.index] = getDimVal(dimDesc, STRING_TRANSFORMER.apply(row.getRaw(entry.getKey())));
+      dims[dimDesc.index] = getDimVal(dimDesc, (Comparable) row.getRaw(entry.getKey()));
     }
     return createTimeAndDims(toIndexingTime(row.getTimestampFromEpoch()), dims);
   }
@@ -1165,6 +1147,11 @@ public abstract class IncrementalIndex<AggregatorType> implements MergeIndex
 
     int estimate(T object);
 
+    SizeEstimator<Object> NO = new SizeEstimator<Object>()
+    {
+      @Override
+      public int estimate(Object object) { return 0; }
+    };
     SizeEstimator<String> STRING = new SizeEstimator<String>()
     {
       @Override
@@ -1245,14 +1232,15 @@ public abstract class IncrementalIndex<AggregatorType> implements MergeIndex
    * `/ 2` comes from that a.compareTo(b) = -b.compareTo(a)
    * `/ 4` comes from that each entry is stored by using 2 bits
    */
-  static final class NullValueConverterDimDim implements DimDim<String>
+  @SuppressWarnings("unchecked")
+  static final class NullValueConverterDimDim implements DimDim
   {
-    private final DimDim<String> delegate;
+    private final DimDim delegate;
 
     private final int compareCacheEntry;
     private final byte[] cache;
 
-    NullValueConverterDimDim(DimDim<String> delegate, int compareCacheEntry)
+    NullValueConverterDimDim(DimDim delegate, int compareCacheEntry)
     {
       this.delegate = delegate;
       this.compareCacheEntry = compareCacheEntry = Math.min(compareCacheEntry, 8192);  // occupies max 8M
@@ -1260,21 +1248,21 @@ public abstract class IncrementalIndex<AggregatorType> implements MergeIndex
     }
 
     @Override
-    public int getId(String value)
+    public int getId(Comparable value)
     {
-      return delegate.getId(Strings.nullToEmpty(value));
+      return delegate.getId(StringUtils.nullToEmpty(value));
     }
 
     @Override
-    public String getValue(int id)
+    public Comparable getValue(int id)
     {
-      return Strings.emptyToNull(delegate.getValue(id));
+      return (Comparable) StringUtils.emptyToNull(delegate.getValue(id));
     }
 
     @Override
-    public boolean contains(String value)
+    public boolean contains(Comparable value)
     {
-      return delegate.contains(Strings.nullToEmpty(value));
+      return delegate.contains(StringUtils.nullToEmpty(value));
     }
 
     @Override
@@ -1284,15 +1272,15 @@ public abstract class IncrementalIndex<AggregatorType> implements MergeIndex
     }
 
     @Override
-    public String getMinValue()
+    public Comparable getMinValue()
     {
-      return Strings.nullToEmpty(delegate.getMinValue());
+      return StringUtils.nullToEmpty(delegate.getMinValue());
     }
 
     @Override
-    public String getMaxValue()
+    public Comparable getMaxValue()
     {
-      return Strings.nullToEmpty(delegate.getMaxValue());
+      return StringUtils.nullToEmpty(delegate.getMaxValue());
     }
 
     @Override
@@ -1302,9 +1290,9 @@ public abstract class IncrementalIndex<AggregatorType> implements MergeIndex
     }
 
     @Override
-    public int add(String value)
+    public int add(Comparable value)
     {
-      return delegate.add(Strings.nullToEmpty(value));
+      return delegate.add(StringUtils.nullToEmpty(value));
     }
 
     @Override

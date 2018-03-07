@@ -101,10 +101,10 @@ public class GenericSketchAggregatorFactory extends AggregatorFactory
           final IndexedInts row = selector.getRow();
           final int size = row.size();
           if (size == 1) {
-            handler.updateWithValue(sketch, Strings.nullToEmpty(selector.lookupName(row.get(0))));
+            handler.updateWithValue(sketch, Objects.toString(selector.lookupName(row.get(0)), ""));
           } else if (size > 1) {
             for (int i = 0; i < size; i++) {
-              handler.updateWithValue(sketch, Strings.nullToEmpty(selector.lookupName(row.get(i))));
+              handler.updateWithValue(sketch, Objects.toString(selector.lookupName(row.get(i)), ""));
             }
           }
         }
@@ -212,11 +212,11 @@ public class GenericSketchAggregatorFactory extends AggregatorFactory
           final int size = row.size();
           if (size == 1) {
             final TypedSketch sketch = sketches.get(buf.getInt(position));
-            handler.updateWithValue(sketch, Strings.nullToEmpty(selector.lookupName(row.get(0))));
+            handler.updateWithValue(sketch, Objects.toString(selector.lookupName(row.get(0)), ""));
           } else if (size > 1) {
             final TypedSketch sketch = sketches.get(buf.getInt(position));
             for (int i = 0; i < size; i++) {
-              handler.updateWithValue(sketch, Strings.nullToEmpty(selector.lookupName(row.get(i))));
+              handler.updateWithValue(sketch, Objects.toString(selector.lookupName(row.get(i)), ""));
             }
           }
         }

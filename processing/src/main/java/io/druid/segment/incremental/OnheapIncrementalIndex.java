@@ -60,10 +60,11 @@ public class OnheapIncrementalIndex extends IncrementalIndex<Aggregator>
       boolean deserializeComplexMetrics,
       boolean reportParseExceptions,
       boolean sortFacts,
+      boolean estimate,
       int maxRowCount
   )
   {
-    super(incrementalIndexSchema, deserializeComplexMetrics, reportParseExceptions, sortFacts, maxRowCount);
+    super(incrementalIndexSchema, deserializeComplexMetrics, reportParseExceptions, sortFacts, estimate, maxRowCount);
 
     if (sortFacts) {
       this.facts = new ConcurrentSkipListMap<>(dimsComparator());
@@ -100,6 +101,7 @@ public class OnheapIncrementalIndex extends IncrementalIndex<Aggregator>
         deserializeComplexMetrics,
         reportParseExceptions,
         sortFacts,
+        false,
         maxRowCount
     );
   }
@@ -130,6 +132,7 @@ public class OnheapIncrementalIndex extends IncrementalIndex<Aggregator>
         true,
         true,
         true,
+        true,
         maxRowCount
     );
   }
@@ -140,7 +143,7 @@ public class OnheapIncrementalIndex extends IncrementalIndex<Aggregator>
       int maxRowCount
   )
   {
-    this(incrementalIndexSchema, true, reportParseExceptions, true, maxRowCount);
+    this(incrementalIndexSchema, true, reportParseExceptions, true, true, maxRowCount);
   }
 
   @Override

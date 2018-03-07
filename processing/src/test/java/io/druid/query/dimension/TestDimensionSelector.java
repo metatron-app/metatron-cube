@@ -50,15 +50,20 @@ class TestDimensionSelector implements DimensionSelector
   }
 
   @Override
-  public String lookupName(int id)
+  public Comparable lookupName(int id)
   {
     return String.valueOf((char) (id + 'a'));
   }
 
   @Override
-  public int lookupId(String name)
+  public Class type()
   {
-    return name.charAt(0) - 'a';
+    return String.class;
   }
 
+  @Override
+  public int lookupId(Comparable name)
+  {
+    return ((String) name).charAt(0) - 'a';
+  }
 }

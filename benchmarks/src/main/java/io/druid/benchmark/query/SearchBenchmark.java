@@ -243,6 +243,7 @@ public class SearchBenchmark
         true,
         false,
         true,
+        false,
         rowsPerSegment
     );
   }

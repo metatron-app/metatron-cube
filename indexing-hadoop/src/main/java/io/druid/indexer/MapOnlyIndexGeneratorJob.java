@@ -408,6 +408,7 @@ public class MapOnlyIndexGeneratorJob implements HadoopDruidIndexerJob.IndexingS
           true,
           !tuningConfig.isIgnoreInvalidRows(),
           true,
+          true,
           tuningConfig.getRowFlushBoundary()
       );
 

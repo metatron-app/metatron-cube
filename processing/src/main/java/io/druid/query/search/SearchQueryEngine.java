@@ -20,7 +20,6 @@
 package io.druid.query.search;
 
 import com.google.common.base.Function;
-import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
@@ -67,6 +66,7 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
 /**
  */
@@ -207,7 +207,7 @@ public class SearchQueryEngine
                 if (selector != null) {
                   final IndexedInts vals = selector.getRow();
                   for (int i = 0; i < vals.size(); ++i) {
-                    final String dimVal = Strings.nullToEmpty(selector.lookupName(vals.get(i)));
+                    final String dimVal = Objects.toString(selector.lookupName(vals.get(i)), "");
                     if (searchQuerySpec.accept(dimVal)) {
                       if (valueOnly) {
                         set.put(new SearchHit(entry.getKey(), dimVal), null);

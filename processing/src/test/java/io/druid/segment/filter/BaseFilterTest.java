@@ -66,6 +66,7 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
 public abstract class BaseFilterTest
 {
@@ -305,7 +306,7 @@ public abstract class BaseFilterTest
             while (!input.isDone()) {
               IndexedInts row = selector.getRow();
               Preconditions.checkState(row.size() == 1);
-              values.add(selector.lookupName(row.get(0)));
+              values.add(Objects.toString(selector.lookupName(row.get(0)), ""));
               input.advance();
             }
 

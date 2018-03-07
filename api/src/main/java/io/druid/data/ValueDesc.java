@@ -199,6 +199,20 @@ public class ValueDesc
     return ValueType.of(subElementOf(valueType.typeName()));
   }
 
+  public static ValueDesc ofPrimitive(Class clazz)
+  {
+    if (clazz == Long.TYPE || clazz == Long.class) {
+      return LONG;
+    } else if (clazz == Float.TYPE || clazz == Float.class) {
+      return FLOAT;
+    } else if (clazz == Double.TYPE || clazz == Double.class) {
+      return DOUBLE;
+    } else if (clazz == String.class) {
+      return STRING;
+    }
+    throw new IllegalArgumentException("not primitive type " + clazz);
+  }
+
   private final ValueType type;
   private final String typeName;
 

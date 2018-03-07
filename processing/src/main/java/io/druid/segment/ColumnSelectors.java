@@ -432,7 +432,7 @@ public class ColumnSelectors
         } else if (indexed.size() == 1) {
           return selector.lookupName(indexed.get(0));
         } else {
-          final String[] array = new String[length];
+          final Comparable[] array = new Comparable[length];
           for (int i = 0; i < array.length; i++) {
             array[i] = selector.lookupName(indexed.get(i));
           }
@@ -466,13 +466,19 @@ public class ColumnSelectors
     }
 
     @Override
-    public String lookupName(int id)
+    public Comparable lookupName(int id)
     {
       return id == 0 ? value : null;
     }
 
     @Override
-    public int lookupId(String name)
+    public Class type()
+    {
+      return String.class;
+    }
+
+    @Override
+    public int lookupId(Comparable name)
     {
       return (nullOrEmpty && StringUtils.isNullOrEmpty(name)) || Objects.equals(value, name) ? 0 : -1;
     }

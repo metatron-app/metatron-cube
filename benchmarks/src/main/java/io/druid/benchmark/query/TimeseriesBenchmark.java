@@ -246,6 +246,7 @@ public class TimeseriesBenchmark
         true,
         false,
         true,
+        false,
         rowsPerSegment
     );
   }

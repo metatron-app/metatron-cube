@@ -73,11 +73,12 @@ public class OffheapIncrementalIndex extends IncrementalIndex<BufferAggregator>
       boolean deserializeComplexMetrics,
       boolean reportParseExceptions,
       boolean sortFacts,
+      boolean estimate,
       int maxRowCount,
       StupidPool<ByteBuffer> bufferPool
   )
   {
-    super(incrementalIndexSchema, deserializeComplexMetrics, reportParseExceptions, sortFacts, maxRowCount);
+    super(incrementalIndexSchema, deserializeComplexMetrics, reportParseExceptions, sortFacts, estimate, maxRowCount);
     this.bufferPool = bufferPool;
 
     if (sortFacts) {
@@ -118,6 +119,7 @@ public class OffheapIncrementalIndex extends IncrementalIndex<BufferAggregator>
         true,
         true,
         true,
+        false,
         maxRowCount,
         bufferPool
     );

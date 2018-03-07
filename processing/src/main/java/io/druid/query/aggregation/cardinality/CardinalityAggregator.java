@@ -30,6 +30,7 @@ import io.druid.segment.data.IndexedInts;
 
 import java.util.Arrays;
 import java.util.List;
+import java.util.Objects;
 
 public class CardinalityAggregator implements Aggregator
 {
@@ -54,12 +55,12 @@ public class CardinalityAggregator implements Aggregator
       final int size = row.size();
       // nothing to add to hasher if size == 0, only handle size == 1 and size != 0 cases.
       if (size == 1) {
-        final String value = selector.lookupName(row.get(0));
+        final String value = Objects.toString(selector.lookupName(row.get(0)), null);
         hasher.putUnencodedChars(value != null ? value : NULL_STRING);
       } else if (size != 0) {
         final String[] values = new String[size];
         for (int i = 0; i < size; ++i) {
-          final String value = selector.lookupName(row.get(i));
+          final String value = Objects.toString(selector.lookupName(row.get(i)), null);
           values[i] = value != null ? value : NULL_STRING;
         }
         // Values need to be sorted to ensure consistent multi-value ordering across different segments
@@ -79,7 +80,7 @@ public class CardinalityAggregator implements Aggregator
   {
     for (final DimensionSelector selector : selectors) {
       for (final Integer index : selector.getRow()) {
-        final String value = selector.lookupName(index);
+        final String value = Objects.toString(selector.lookupName(index), null);
         collector.add(hashFn.hashUnencodedChars(value == null ? NULL_STRING : value).asBytes());
       }
     }

@@ -32,7 +32,7 @@ import java.util.Map;
 
 /**
  */
-public abstract class BaseFilteredDimensionSpec implements DimensionSpec
+public abstract class BaseFilteredDimensionSpec extends DimensionSpec.Abstract
 {
   protected final DimensionSpec delegate;
 
@@ -113,13 +113,19 @@ public abstract class BaseFilteredDimensionSpec implements DimensionSpec
       }
 
       @Override
-      public String lookupName(int id)
+      public Comparable lookupName(int id)
       {
         return selector.lookupName(reverseMapping[id]);
       }
 
       @Override
-      public int lookupId(String name)
+      public Class type()
+      {
+        return selector.type();
+      }
+
+      @Override
+      public int lookupId(Comparable name)
       {
         return forwardMapping.get(selector.lookupId(name));
       }

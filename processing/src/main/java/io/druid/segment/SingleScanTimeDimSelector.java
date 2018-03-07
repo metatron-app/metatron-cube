@@ -134,7 +134,7 @@ public class SingleScanTimeDimSelector implements DimensionSelector
   }
 
   @Override
-  public String lookupName(int id)
+  public Comparable lookupName(int id)
   {
     if (id == index) {
       return currentValue;
@@ -144,7 +144,13 @@ public class SingleScanTimeDimSelector implements DimensionSelector
   }
 
   @Override
-  public int lookupId(String name)
+  public Class type()
+  {
+    return String.class;
+  }
+
+  @Override
+  public int lookupId(Comparable name)
   {
     throw new UnsupportedOperationException("time column does not support lookups");
   }

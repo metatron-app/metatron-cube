@@ -19,8 +19,8 @@
 
 package io.druid.segment;
 
-import com.google.common.base.Strings;
 import com.google.common.collect.Iterators;
+import io.druid.common.utils.StringUtils;
 import io.druid.segment.data.IndexedInts;
 
 import java.io.IOException;
@@ -28,19 +28,23 @@ import java.util.Iterator;
 
 public class NullDimensionSelector implements DimensionSelector
 {
-  public static final IndexedInts SINGLETON = new IndexedInts() {
+  public static final IndexedInts SINGLETON = new IndexedInts()
+  {
     @Override
-    public int size() {
+    public int size()
+    {
       return 1;
     }
 
     @Override
-    public int get(int index) {
+    public int get(int index)
+    {
       return 0;
     }
 
     @Override
-    public Iterator<Integer> iterator() {
+    public Iterator<Integer> iterator()
+    {
       return Iterators.singletonIterator(0);
     }
 
@@ -53,9 +57,15 @@ public class NullDimensionSelector implements DimensionSelector
     @Override
     public void close() throws IOException
     {
-
     }
   };
+
+  private final Class type;
+
+  public NullDimensionSelector(Class type)
+  {
+    this.type = type;
+  }
 
   @Override
   public IndexedInts getRow()
@@ -70,14 +80,20 @@ public class NullDimensionSelector implements DimensionSelector
   }
 
   @Override
-  public String lookupName(int id)
+  public Comparable lookupName(int id)
   {
     return null;
   }
 
   @Override
-  public int lookupId(String name)
+  public Class type()
   {
-    return Strings.isNullOrEmpty(name) ? 0 : -1;
+    return type;
+  }
+
+  @Override
+  public int lookupId(Comparable name)
+  {
+    return StringUtils.isNullOrEmpty(name) ? 0 : -1;
   }
 }

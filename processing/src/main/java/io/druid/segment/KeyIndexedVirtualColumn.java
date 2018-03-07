@@ -108,7 +108,7 @@ public class KeyIndexedVirtualColumn implements VirtualColumn
     if (valueDimensions.contains(column)) {
       final DimensionSelector selector = factory.makeDimensionSelector(DefaultDimensionSpec.of(column));
 
-      return new ObjectColumnSelector<String>()
+      return new ObjectColumnSelector()
       {
         private transient int version;
         private transient IndexedInts values;
@@ -116,11 +116,11 @@ public class KeyIndexedVirtualColumn implements VirtualColumn
         @Override
         public ValueDesc type()
         {
-          return ValueDesc.STRING;
+          return ValueDesc.ofPrimitive(selector.type());
         }
 
         @Override
-        public String get()
+        public Comparable get()
         {
           if (indexer.version != version) {
             values = selector.getRow();
@@ -488,7 +488,7 @@ public class KeyIndexedVirtualColumn implements VirtualColumn
     }
 
     @Override
-    public String lookupName(int id)
+    public Comparable lookupName(int id)
     {
       return selector.lookupName(id);
     }

@@ -43,13 +43,19 @@ public class DelegatedDimensionSelector implements DimensionSelector
   }
 
   @Override
-  public String lookupName(int id)
+  public Comparable lookupName(int id)
   {
     return delegate.lookupName(id);
   }
 
   @Override
-  public int lookupId(String name)
+  public Class type()
+  {
+    return delegate.type();
+  }
+
+  @Override
+  public int lookupId(Comparable name)
   {
     return delegate.lookupId(name);
   }

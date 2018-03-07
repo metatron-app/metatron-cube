@@ -21,7 +21,6 @@ package io.druid.query.dimension;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;
-import com.google.common.base.Strings;
 import com.metamx.common.StringUtils;
 import io.druid.query.filter.DimFilterCacheHelper;
 import io.druid.segment.DimensionSelector;
@@ -29,6 +28,7 @@ import io.druid.segment.DimensionSelector;
 import java.nio.ByteBuffer;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Objects;
 import java.util.regex.Pattern;
 
 /**
@@ -69,14 +69,14 @@ public class RegexFilteredDimensionSpec extends BaseFilteredDimensionSpec
     final Map<Integer,Integer> forwardMapping = new HashMap<>();
 
     for (int i = 0; i < selector.getValueCardinality(); i++) {
-      if (compiledRegex.matcher(Strings.nullToEmpty(selector.lookupName(i))).matches()) {
+      if (compiledRegex.matcher(Objects.toString(selector.lookupName(i), "")).matches()) {
         forwardMapping.put(i, count++);
       }
     }
 
     final int[] reverseMapping = new int[forwardMapping.size()];
     for (Map.Entry<Integer, Integer> e : forwardMapping.entrySet()) {
-      reverseMapping[e.getValue().intValue()] = e.getKey().intValue();
+      reverseMapping[e.getValue()] = e.getKey();
     }
     return BaseFilteredDimensionSpec.decorate(selector, forwardMapping, reverseMapping);
   }

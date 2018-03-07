@@ -154,6 +154,7 @@ public class IndexMergeBenchmark
         true,
         false,
         true,
+        false,
         rowsPerSegment
     );
   }

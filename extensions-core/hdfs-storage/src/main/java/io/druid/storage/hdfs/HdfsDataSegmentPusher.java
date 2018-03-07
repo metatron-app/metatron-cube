@@ -489,7 +489,7 @@ public class HdfsDataSegmentPusher implements DataSegmentPusher, ResultWriter
 
         private IncrementalIndex newIndex()
         {
-          return new OnheapIncrementalIndex(schema, true, true, true, maxRowCount)
+          return new OnheapIncrementalIndex(schema, true, true, true, false, maxRowCount)
           {
             @Override
             public Interval getInterval()

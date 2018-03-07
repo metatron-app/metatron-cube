@@ -4813,8 +4813,8 @@ public class CalciteQueryTest
         ImmutableList.of(
             new Object[]{0.0f, 3L},
             new Object[]{1.0f, 1L},
-            new Object[]{10.0f, 1L},
-            new Object[]{2.0f, 1L}
+            new Object[]{2.0f, 1L},
+            new Object[]{10.0f, 1L}
         )
     );
   }

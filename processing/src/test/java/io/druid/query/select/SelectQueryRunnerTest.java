@@ -369,12 +369,10 @@ public class SelectQueryRunnerTest
   {
     SelectQuery query = newTestQuery()
         .dimensionSpecs(
-            Arrays.asList(
-                DefaultDimensionSpec.of(QueryRunnerTestHelper.marketDimension),
-                new ExtractionDimensionSpec(
-                    QueryRunnerTestHelper.qualityDimension, "expr",
-                    new ExpressionExtractionFn("concat(quality, '+', quality)")
-                )
+            DefaultDimensionSpec.of(QueryRunnerTestHelper.marketDimension),
+            new ExtractionDimensionSpec(
+                QueryRunnerTestHelper.qualityDimension, "expr",
+                new ExpressionExtractionFn("concat(quality, '+', quality)")
             )
         )
         .build();
