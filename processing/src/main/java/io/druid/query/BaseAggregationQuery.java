@@ -181,7 +181,7 @@ public abstract class BaseAggregationQuery<T extends Comparable<T>> extends Base
         limitSpec.build(getDimensions(), aggregatorSpecs, postAggregatorSpecs, sortOnTimeForLimit);
 
     if (havingSpec != null) {
-      final Predicate<Row> predicate = havingSpec.toEvaluator(RowResolver.of(this), aggregatorSpecs);
+      final Predicate<Row> predicate = havingSpec.toEvaluator(RowResolver.outOf(this), aggregatorSpecs);
       postProcFn = Functions.compose(
           postProcFn,
           new Function<Sequence<Row>, Sequence<Row>>()

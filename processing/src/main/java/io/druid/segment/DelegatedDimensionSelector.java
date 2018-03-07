@@ -27,8 +27,10 @@ public class DelegatedDimensionSelector implements DimensionSelector
 {
   protected final DimensionSelector delegate;
 
-  public DelegatedDimensionSelector(DimensionSelector delegate) {
-    this.delegate = delegate;}
+  public DelegatedDimensionSelector(DimensionSelector delegate)
+  {
+    this.delegate = delegate;
+  }
 
   @Override
   public IndexedInts getRow()

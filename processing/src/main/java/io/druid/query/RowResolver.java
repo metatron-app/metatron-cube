@@ -22,7 +22,6 @@ package io.druid.query;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Iterables;
-import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import com.metamx.common.Pair;
@@ -30,7 +29,7 @@ import io.druid.data.TypeResolver;
 import io.druid.data.ValueDesc;
 import io.druid.data.ValueType;
 import io.druid.query.aggregation.AggregatorFactory;
-import io.druid.query.dimension.DimensionSpecs;
+import io.druid.query.dimension.DimensionSpec;
 import io.druid.query.filter.AndDimFilter;
 import io.druid.query.filter.BitmapType;
 import io.druid.query.filter.DimFilter;
@@ -59,11 +58,11 @@ public class RowResolver implements TypeResolver
 {
   public static RowResolver of(Segment segment, VirtualColumns virtualColumns)
   {
-    QueryableIndex queryable = segment.asQueryableIndex(false);
-    if (queryable != null) {
-      return new RowResolver(queryable, virtualColumns);
+    RowResolver resolver = of(segment.asQueryableIndex(false), virtualColumns);
+    if (resolver == null) {
+      resolver = of(segment.asStorageAdapter(false), virtualColumns);
     }
-    return new RowResolver(segment.asStorageAdapter(false), virtualColumns);
+    return resolver;
   }
 
   public static RowResolver of(QueryableIndex index, VirtualColumns virtualColumns)
@@ -71,11 +70,16 @@ public class RowResolver implements TypeResolver
     return index == null ? null : new RowResolver(index, virtualColumns);
   }
 
-  public static RowResolver of(Query.AggregationsSupport<?> aggregation)
+  public static RowResolver of(StorageAdapter adapter, VirtualColumns virtualColumns)
+  {
+    return new RowResolver(adapter, virtualColumns);
+  }
+
+  public static RowResolver outOf(Query.AggregationsSupport<?> aggregation)
   {
     Preconditions.checkArgument(!(aggregation.getDataSource() instanceof ViewDataSource), "fix this");
     return new RowResolver(
-        Lists.transform(aggregation.getDimensions(), DimensionSpecs.OUTPUT_NAME),
+        aggregation.getDimensions(),
         aggregation.getAggregatorSpecs(),
         VirtualColumns.valueOf(aggregation.getVirtualColumns())
     );
@@ -157,7 +161,7 @@ public class RowResolver implements TypeResolver
   private final Map<String, Pair<VirtualColumn, ValueDesc>> virtualColumnTypes = Maps.newHashMap();
   private final VirtualColumns virtualColumns;
 
-  public RowResolver(StorageAdapter adapter, VirtualColumns virtualColumns)
+  private RowResolver(StorageAdapter adapter, VirtualColumns virtualColumns)
   {
     for (String dimension : adapter.getAvailableDimensions()) {
       columnTypes.put(dimension, adapter.getColumnType(dimension));
@@ -172,18 +176,6 @@ public class RowResolver implements TypeResolver
     this.virtualColumns = virtualColumns;
   }
 
-  private RowResolver(List<String> dimensions, List<AggregatorFactory> metrics, VirtualColumns virtualColumns)
-  {
-    for (String dimension : dimensions) {
-      columnTypes.put(dimension, ValueDesc.ofDimension(ValueType.STRING));
-    }
-    for (AggregatorFactory metric : metrics) {
-      columnTypes.put(metric.getName(), ValueDesc.of(metric.getTypeName()));
-    }
-    columnTypes.put(Column.TIME_COLUMN_NAME, ValueDesc.of(ValueType.LONG));
-    this.virtualColumns = virtualColumns;
-  }
-
   private RowResolver(QueryableIndex index, VirtualColumns virtualColumns)
   {
     for (String dimension : index.getColumnNames()) {
@@ -193,6 +185,21 @@ public class RowResolver implements TypeResolver
     }
     columnTypes.put(Column.TIME_COLUMN_NAME, index.getColumnType(Column.TIME_COLUMN_NAME));
     columnCapabilities.put(Column.TIME_COLUMN_NAME, index.getColumn(Column.TIME_COLUMN_NAME).getCapabilities());
+    this.virtualColumns = virtualColumns;
+  }
+
+  private RowResolver(List<DimensionSpec> dimensions, List<AggregatorFactory> metrics, VirtualColumns virtualColumns)
+  {
+    for (DimensionSpec dimension : dimensions) {
+      columnTypes.put(
+          dimension.getOutputName(),
+          dimension.getExtractionFn() != null ? ValueDesc.ofDimension(ValueType.STRING) : ValueDesc.UNKNOWN
+      );
+    }
+    for (AggregatorFactory metric : metrics) {
+      columnTypes.put(metric.getName(), ValueDesc.of(metric.getTypeName()));
+    }
+    columnTypes.put(Column.TIME_COLUMN_NAME, ValueDesc.of(ValueType.LONG));
     this.virtualColumns = virtualColumns;
   }
 

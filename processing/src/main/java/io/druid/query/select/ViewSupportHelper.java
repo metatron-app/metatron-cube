@@ -210,12 +210,12 @@ public class ViewSupportHelper
     final List<String> metrics = Lists.newArrayList(query.getMetrics());
 
     final VirtualColumns virtualColumns = VirtualColumns.valueOf(query.getVirtualColumns(), adapter);
-    final RowResolver resolver = new RowResolver(adapter, virtualColumns);
+    final RowResolver resolver = RowResolver.of(adapter, virtualColumns);
 
     final List<ValueDesc> columnTypes = Lists.newArrayList();
     for (DimensionSpec dimensionSpec : query.getDimensions()) {
       if (dimensionSpec.getExtractionFn() == null) {
-        columnTypes.add(resolver.resolveColumn(dimensionSpec.getDimension(), ValueDesc.UNKNOWN));
+        columnTypes.add(dimensionSpec.resolveType(resolver));
       } else {
         columnTypes.add(ValueDesc.STRING);
       }

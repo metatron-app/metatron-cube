@@ -21,7 +21,7 @@ package io.druid.query.dimension;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.google.common.base.Function;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
 import com.metamx.common.StringUtils;
 import io.druid.data.TypeResolver;
@@ -29,9 +29,9 @@ import io.druid.data.ValueDesc;
 import io.druid.math.expr.Expr;
 import io.druid.math.expr.ExprType;
 import io.druid.math.expr.Parser;
-import io.druid.query.extraction.DimExtractionFn;
 import io.druid.query.extraction.ExtractionFn;
 import io.druid.segment.DimensionSelector;
+import io.druid.segment.data.IndexedInts;
 
 import java.nio.ByteBuffer;
 
@@ -39,6 +39,11 @@ import java.nio.ByteBuffer;
  */
 public class ExpressionDimensionSpec implements DimensionSpec
 {
+  public static DimensionSpec of(String expression, String outputName)
+  {
+    return new ExpressionDimensionSpec(expression, outputName);
+  }
+
   private static final byte CACHE_TYPE_ID = 0x5;
 
   private final String expression;
@@ -91,39 +96,53 @@ public class ExpressionDimensionSpec implements DimensionSpec
   @Override
   public ExtractionFn getExtractionFn()
   {
-    final Function<String, String> function = Parser.asStringFunction(Parser.parse(expression));
-    return new DimExtractionFn()
-    {
-      @Override
-      public byte[] getCacheKey()
-      {
-        throw new IllegalStateException("should not be called");
-      }
-
-      @Override
-      public String apply(String value)
-      {
-        return function.apply(value);
-      }
-
-      @Override
-      public boolean preservesOrdering()
-      {
-        return false;
-      }
-
-      @Override
-      public ExtractionType getExtractionType()
-      {
-        return ExtractionType.MANY_TO_ONE;
-      }
-    };
+    return null;
   }
 
   @Override
-  public DimensionSelector decorate(DimensionSelector selector)
+  public DimensionSelector decorate(final DimensionSelector selector)
   {
-    return selector;
+    final String dimension = getDimension();
+    final ExprType type = ExprType.typeOf(selector.type());
+    final Expr expr = Parser.parse(expression);
+    final ExprType resultType = expr.type(Parser.withTypeMap(ImmutableMap.<String, ExprType>of(dimension, type)));
+    if (!Comparable.class.isAssignableFrom(resultType.asClass())) {
+      throw new IllegalArgumentException("cannot wrap as dimension selector for type " + resultType);
+    }
+    return new DimensionSelector()
+    {
+      @Override
+      public IndexedInts getRow()
+      {
+        return selector.getRow();
+      }
+
+      @Override
+      public int getValueCardinality()
+      {
+        return selector.getValueCardinality();    // todo
+      }
+
+      @Override
+      public Comparable lookupName(int id)
+      {
+        return (Comparable) expr.eval(
+            Parser.withMap(ImmutableMap.<String, Object>of(dimension, selector.lookupName(id)))
+        ).value();
+      }
+
+      @Override
+      public Class type()
+      {
+        return resultType.asClass();
+      }
+
+      @Override
+      public int lookupId(Comparable name)
+      {
+        throw new UnsupportedOperationException("lookupId");
+      }
+    };
   }
 
   @Override

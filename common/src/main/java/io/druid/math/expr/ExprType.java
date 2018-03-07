@@ -32,30 +32,40 @@ public enum ExprType
     public boolean isNumeric() { return true; }
     @Override
     public ValueDesc asValueDesc() { return ValueDesc.DOUBLE; }
+    @Override
+    public Class asClass() { return Double.class; }
   },
   LONG {
     @Override
     public boolean isNumeric() { return true; }
     @Override
     public ValueDesc asValueDesc() { return ValueDesc.LONG; }
+    @Override
+    public Class asClass() { return Long.class; }
   },
   DATETIME {
     @Override
     public boolean isNumeric() { return false; }
     @Override
     public ValueDesc asValueDesc() { return ValueDesc.DATETIME; }
+    @Override
+    public Class asClass() { return DateTime.class; }
   },
   STRING {
     @Override
     public boolean isNumeric() { return false; }
     @Override
     public ValueDesc asValueDesc() { return ValueDesc.STRING; }
+    @Override
+    public Class asClass() { return String.class; }
   },
   UNKNOWN {
     @Override
     public boolean isNumeric() { return false; }
     @Override
     public ValueDesc asValueDesc() { return ValueDesc.UNKNOWN; }
+    @Override
+    public Class asClass() { return Object.class; }
   };
 
   public String typeName()
@@ -66,6 +76,8 @@ public enum ExprType
   public abstract boolean isNumeric();
 
   public abstract ValueDesc asValueDesc();
+
+  public abstract Class asClass();
 
   public static ExprType bestEffortOf(String name)
   {

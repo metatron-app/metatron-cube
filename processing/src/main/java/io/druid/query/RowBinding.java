@@ -51,8 +51,8 @@ public class RowBinding implements Expr.NumericBinding
     if (Column.TIME_COLUMN_NAME.equals(name)) {
       return row.getTimestampFromEpoch();
     } else {
-      ValueDesc type = resolver.resolveColumn(name);
-      return type == null ? row.getRaw(name) : type.type().get(row, name);
+      ValueDesc type = resolver.resolveColumn(name, ValueDesc.UNKNOWN);
+      return ValueDesc.isPrimitive(type) ? type.type().get(row, name) : row.getRaw(name);
     }
   }
 

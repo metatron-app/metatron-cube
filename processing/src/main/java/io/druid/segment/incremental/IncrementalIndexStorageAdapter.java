@@ -258,7 +258,7 @@ public class IncrementalIndexStorageAdapter implements StorageAdapter
       iterable = Lists.reverse(ImmutableList.copyOf(iterable));
     }
 
-    final RowResolver resolver = new RowResolver(this, virtualColumns);
+    final RowResolver resolver = RowResolver.of(this, virtualColumns);
 
     return Sequences.map(
         Sequences.simple(iterable),
