@@ -22,6 +22,8 @@ package io.druid.segment.incremental;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.collect.Lists;
+import io.druid.data.ValueType;
+import io.druid.data.input.impl.DimensionSchema;
 import io.druid.data.input.impl.DimensionsSpec;
 import io.druid.data.input.impl.InputRowParser;
 import io.druid.granularity.QueryGranularities;
@@ -181,6 +183,16 @@ public class IncrementalIndexSchema
     public Builder withDimensions(List<String> dimensions)
     {
       this.dimensionsSpec = new DimensionsSpec(DimensionsSpec.getDefaultSchemas(dimensions), null, null);
+      return this;
+    }
+
+    public Builder withDimensions(List<String> dimensions, List<ValueType> dimensionTypes)
+    {
+      List<DimensionSchema> dimensionSchemas = Lists.newArrayList();
+      for (int i = 0; i < dimensions.size(); i++) {
+        dimensionSchemas.add(DimensionSchema.of(dimensions.get(i), dimensionTypes.get(i)));
+      }
+      this.dimensionsSpec = new DimensionsSpec(dimensionSchemas, null, null);
       return this;
     }
 

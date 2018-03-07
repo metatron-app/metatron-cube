@@ -53,6 +53,7 @@ import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.PostAggregator;
 import io.druid.query.dimension.DimensionSpec;
 import io.druid.query.dimension.DimensionSpecs;
+import io.druid.query.dimension.ExpressionDimensionSpec;
 import io.druid.query.filter.AndDimFilter;
 import io.druid.query.filter.DimFilter;
 import io.druid.query.filter.MathExprFilter;
@@ -65,6 +66,7 @@ import io.druid.query.timeseries.TimeseriesQuery;
 import io.druid.query.timeseries.TimeseriesResultValue;
 import io.druid.segment.ExprVirtualColumn;
 import io.druid.segment.VirtualColumn;
+import io.druid.segment.VirtualColumns;
 import org.apache.commons.lang.StringUtils;
 
 import java.util.Arrays;
@@ -379,6 +381,25 @@ public class GroupByQuery extends BaseAggregationQuery<Row> implements Query.Rew
         getLateralView(),
         getContext()
     );
+  }
+
+  @Override
+  public boolean needsSchemaResolution()
+  {
+    if (super.needsSchemaResolution()) {
+      return true;
+    }
+    VirtualColumns vcs = VirtualColumns.valueOf(virtualColumns);
+    for (DimensionSpec dimensionSpec : dimensions) {
+      if (dimensionSpec.getExtractionFn() != null) {
+        continue;
+      }
+      if (dimensionSpec instanceof ExpressionDimensionSpec ||
+          vcs.getVirtualColumn(dimensionSpec.getDimension()) != null) {
+        return true;
+      }
+    }
+    return false;
   }
 
   @Override

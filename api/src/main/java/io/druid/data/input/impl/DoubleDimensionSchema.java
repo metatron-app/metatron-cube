@@ -25,10 +25,10 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import io.druid.data.ValueDesc;
 import io.druid.data.ValueType;
 
-public class FloatDimensionSchema extends DimensionSchema
+public class DoubleDimensionSchema extends DimensionSchema
 {
   @JsonCreator
-  public FloatDimensionSchema(
+  public DoubleDimensionSchema(
       @JsonProperty("name") String name,
       @JsonProperty("multiValueHandling") MultiValueHandling multiValueHandling
   )
@@ -36,7 +36,7 @@ public class FloatDimensionSchema extends DimensionSchema
     super(name, multiValueHandling);
   }
 
-  public FloatDimensionSchema(String name)
+  public DoubleDimensionSchema(String name)
   {
     this(name, null);
   }
@@ -44,13 +44,13 @@ public class FloatDimensionSchema extends DimensionSchema
   @Override
   public String getTypeName()
   {
-    return ValueDesc.FLOAT_TYPE;
+    return ValueDesc.DOUBLE_TYPE;
   }
 
   @Override
   @JsonIgnore
   public ValueType getValueType()
   {
-    return ValueType.FLOAT;
+    return ValueType.DOUBLE;
   }
 }

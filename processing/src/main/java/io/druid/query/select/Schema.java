@@ -31,6 +31,7 @@ import com.metamx.common.Pair;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.data.TypeResolver;
 import io.druid.data.ValueDesc;
+import io.druid.data.ValueType;
 import io.druid.query.RowSignature;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.AggregatorFactoryNotMergeableException;
@@ -77,6 +78,16 @@ public class Schema implements TypeResolver, RowSignature
   public List<String> getDimensionNames()
   {
     return dimensionNames;
+  }
+
+  @JsonProperty
+  public List<ValueType> getDimensionTypes()
+  {
+    List<ValueType> dimensionTypes = Lists.newArrayList();
+    for (int i = 0; i < dimensionNames.size(); i++) {
+      dimensionTypes.add(columnTypes.get(i).type());
+    }
+    return dimensionTypes;
   }
 
   @JsonProperty

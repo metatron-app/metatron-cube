@@ -145,7 +145,7 @@ public class Queries
 
     if (subQuery instanceof Query.MetricSupport) {
       Schema schema = QueryUtils.resolveSchema(subQuery, segmentWalker);
-      return builder.withDimensions(schema.getDimensionNames())
+      return builder.withDimensions(schema.getDimensionNames(), schema.getDimensionTypes())
                     .withMetrics(AggregatorFactory.toRelay(schema.metricAndTypes(), ImmutableList.<PostAggregator>of()))
                     .withRollup(false)
                     .build();
@@ -154,7 +154,7 @@ public class Queries
       List<PostAggregator> postAggregators = aggrSupport.getPostAggregatorSpecs();
       if (aggrSupport.needsSchemaResolution()) {
         Schema schema = QueryUtils.resolveSchema(subQuery, segmentWalker);
-        return builder.withDimensions(schema.getDimensionNames())
+        return builder.withDimensions(schema.getDimensionNames(), schema.getDimensionTypes())
                       .withMetrics(AggregatorFactory.toRelay(schema.metricAndTypes(), postAggregators))
                       .withRollup(false)
                       .build();

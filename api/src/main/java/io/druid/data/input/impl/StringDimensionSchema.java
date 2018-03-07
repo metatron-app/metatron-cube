@@ -22,6 +22,7 @@ package io.druid.data.input.impl;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import io.druid.data.ValueDesc;
 import io.druid.data.ValueType;
 
 public class StringDimensionSchema extends DimensionSchema
@@ -48,10 +49,15 @@ public class StringDimensionSchema extends DimensionSchema
     super(name, multiValueHandling);
   }
 
+  public StringDimensionSchema(String name)
+  {
+    this(name, null);
+  }
+
   @Override
   public String getTypeName()
   {
-    return DimensionSchema.STRING_TYPE_NAME;
+    return ValueDesc.STRING_TYPE;
   }
 
   @Override
