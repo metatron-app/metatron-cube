@@ -66,6 +66,10 @@ import io.druid.query.metadata.SegmentMetadataQueryConfig;
 import io.druid.query.metadata.SegmentMetadataQueryQueryToolChest;
 import io.druid.query.metadata.SegmentMetadataQueryRunnerFactory;
 import io.druid.query.metadata.metadata.SegmentMetadataQuery;
+import io.druid.query.select.SelectMetaQuery;
+import io.druid.query.select.SelectMetaQueryEngine;
+import io.druid.query.select.SelectMetaQueryRunnerFactory;
+import io.druid.query.select.SelectMetaQueryToolChest;
 import io.druid.query.select.SelectQuery;
 import io.druid.query.select.SelectQueryConfig;
 import io.druid.query.select.SelectQueryEngine;
@@ -270,6 +274,14 @@ public class QueryRunnerTestHelper
                               QueryRunnerTestHelper.NoopIntervalChunkingQueryRunnerDecorator()
                           ),
                           GBY_POOL
+                      )
+                  )
+                  .put(
+                      SelectMetaQuery.class,
+                      new SelectMetaQueryRunnerFactory(
+                          new SelectMetaQueryToolChest(),
+                          new SelectMetaQueryEngine(),
+                          QueryRunnerTestHelper.NOOP_QUERYWATCHER
                       )
                   )
                   .build()

@@ -31,7 +31,16 @@ public interface TypeResolver
 
   ValueDesc resolveColumn(String column, ValueDesc defaultType);
 
-  class WithMap implements TypeResolver
+  abstract class Abstract implements TypeResolver
+  {
+    @Override
+    public ValueDesc resolveColumn(String column, ValueDesc defaultType)
+    {
+      return Optional.fromNullable(resolveColumn(column)).or(defaultType);
+    }
+  }
+
+  class WithMap extends Abstract
   {
     private final Map<String, ValueDesc> mapping;
 
@@ -41,12 +50,6 @@ public interface TypeResolver
     public ValueDesc resolveColumn(String column)
     {
       return mapping.get(column);
-    }
-
-    @Override
-    public ValueDesc resolveColumn(String column, ValueDesc defaultType)
-    {
-      return Optional.fromNullable(resolveColumn(column)).or(defaultType);
     }
   }
 }

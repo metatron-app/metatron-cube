@@ -47,6 +47,7 @@ import io.druid.query.spec.SpecificSegmentSpec;
 import io.druid.segment.QueryableIndex;
 import io.druid.segment.QueryableIndexSegment;
 import io.druid.segment.Segment;
+import io.druid.segment.TestHelper;
 import io.druid.timeline.DataSegment;
 import io.druid.timeline.TimelineObjectHolder;
 import io.druid.timeline.VersionedIntervalTimeline;
@@ -222,7 +223,7 @@ public class SpecificSegmentsQuerySegmentWalker implements QuerySegmentWalker
               toolChest.handleSubQuery(runner, this, MoreExecutors.sameThreadExecutor(), maxRowCount)
           )
       );
-      return PostProcessingOperators.wrap(runner, CalciteTests.getJsonMapper());
+      return PostProcessingOperators.wrap(runner, TestHelper.JSON_MAPPER);
     }
 
     final Future<Object> optimizer = factory.preFactoring(
@@ -249,7 +250,7 @@ public class SpecificSegmentsQuerySegmentWalker implements QuerySegmentWalker
                 if (input.rhs == null) {
                   return Arrays.<QueryRunner<T>>asList(new ReportTimelineMissingSegmentQueryRunner<T>(input.lhs));
                 }
-                return Arrays.asList(
+                return Arrays.<QueryRunner<T>>asList(
                     new SpecificSegmentQueryRunner<T>(
                         factory.createRunner(input.rhs, optimizer),
                         new SpecificSegmentSpec(input.lhs)
@@ -269,7 +270,7 @@ public class SpecificSegmentsQuerySegmentWalker implements QuerySegmentWalker
             )
         )
     );
-    runner = PostProcessingOperators.wrap(runner, CalciteTests.getJsonMapper());
+    runner = PostProcessingOperators.wrap(runner, TestHelper.JSON_MAPPER);
     return runner;
   }
 }

@@ -22,6 +22,9 @@ package io.druid.query.dimension;
 import com.google.common.base.Function;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
+import io.druid.data.ValueDesc;
+import io.druid.query.Query;
+import io.druid.query.RowResolver;
 import io.druid.query.extraction.ExtractionFn;
 import io.druid.query.groupby.orderby.OrderByColumnSpec;
 import io.druid.query.ordering.Direction;
@@ -40,6 +43,16 @@ public class DimensionSpecs
   public static List<String> toOutputNames(List<DimensionSpec> dimensionSpecs)
   {
     return Lists.newArrayList(Iterables.transform(dimensionSpecs, OUTPUT_NAME));
+  }
+
+  public static List<ValueDesc> toOutputTypes(Query.AggregationsSupport<?> query)
+  {
+    List<ValueDesc> dimensionTypes = Lists.newArrayList();
+    RowResolver resolver = RowResolver.outOf(query);
+    for (DimensionSpec dimensionSpec : query.getDimensions()) {
+      dimensionTypes.add(dimensionSpec.resolveType(resolver));
+    }
+    return dimensionTypes;
   }
 
   public static List<OrderByColumnSpec> toOrderBySpec(List<DimensionSpec> dimensionSpecs)

@@ -54,7 +54,7 @@ public abstract class DimensionSchema
       case STRING:
         return new StringDimensionSchema(name);
     }
-    throw new ISE("not supported type " + type);
+    throw new ISE("not supported type %s [%s]", type, name);
   }
 
   public static final String SPATIAL_TYPE_NAME = "spatial";

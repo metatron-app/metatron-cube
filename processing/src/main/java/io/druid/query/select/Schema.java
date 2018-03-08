@@ -31,10 +31,13 @@ import com.metamx.common.Pair;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.data.TypeResolver;
 import io.druid.data.ValueDesc;
-import io.druid.data.ValueType;
+import io.druid.query.Query;
+import io.druid.query.RowResolver;
 import io.druid.query.RowSignature;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.AggregatorFactoryNotMergeableException;
+import io.druid.query.dimension.DimensionSpec;
+import io.druid.segment.VirtualColumns;
 
 import java.util.Collections;
 import java.util.List;
@@ -78,16 +81,6 @@ public class Schema implements TypeResolver, RowSignature
   public List<String> getDimensionNames()
   {
     return dimensionNames;
-  }
-
-  @JsonProperty
-  public List<ValueType> getDimensionTypes()
-  {
-    List<ValueType> dimensionTypes = Lists.newArrayList();
-    for (int i = 0; i < dimensionNames.size(); i++) {
-      dimensionTypes.add(columnTypes.get(i).type());
-    }
-    return dimensionTypes;
   }
 
   @JsonProperty
@@ -218,6 +211,28 @@ public class Schema implements TypeResolver, RowSignature
     }
 
     return new Schema(mergedDimensions, mergedMetrics, mergedTypes, mergedAggregators);
+  }
+
+  public List<ValueDesc> resolveDimensionTypes(Query.DimensionSupport<?> query)
+  {
+    List<ValueDesc> types = Lists.newArrayList();
+    RowResolver resolver = RowResolver.of(this, VirtualColumns.valueOf(query.getVirtualColumns()));
+    for (DimensionSpec dimensionSpec : query.getDimensions()) {
+      types.add(dimensionSpec.resolveType(resolver));
+    }
+    return types;
+  }
+
+  public List<AggregatorFactory> resolveMetricTypes(Query.MetricSupport<?> query)
+  {
+    List<AggregatorFactory> types = Lists.newArrayList();
+    for (String metric : query.getMetrics()) {
+      int index = metricNames.indexOf(metric);
+      if (index >= 0) {
+        types.add(aggregators.get(index));
+      }
+    }
+    return types;
   }
 
   @Override

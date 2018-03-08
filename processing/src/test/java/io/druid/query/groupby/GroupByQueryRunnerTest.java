@@ -37,6 +37,7 @@ import com.metamx.common.guava.Sequence;
 import com.metamx.common.guava.Sequences;
 import io.druid.data.TypeResolver;
 import io.druid.data.input.Row;
+import io.druid.granularity.Granularities;
 import io.druid.granularity.PeriodGranularity;
 import io.druid.granularity.QueryGranularities;
 import io.druid.jackson.DefaultObjectMapper;
@@ -71,6 +72,7 @@ import io.druid.query.aggregation.post.FieldAccessPostAggregator;
 import io.druid.query.aggregation.post.MathPostAggregator;
 import io.druid.query.dimension.DefaultDimensionSpec;
 import io.druid.query.dimension.DimensionSpec;
+import io.druid.query.dimension.ExpressionDimensionSpec;
 import io.druid.query.dimension.ExtractionDimensionSpec;
 import io.druid.query.extraction.ExtractionFn;
 import io.druid.query.extraction.JavaScriptExtractionFn;
@@ -330,13 +332,13 @@ public class GroupByQueryRunnerTest
         .builder()
         .setDataSource(QueryRunnerTestHelper.dataSource)
         .setInterval(new Interval("2011-01-12/2011-01-14"))
-        .setDimensions(DefaultDimensionSpec.toSpec(Column.TIME_COLUMN_NAME))
+        .setDimensions(new DefaultDimensionSpec(Column.TIME_COLUMN_NAME, "time"))
         .setAggregatorSpecs(QueryRunnerTestHelper.rowsCount)
         .setGranularity(QueryRunnerTestHelper.allGran)
         .build();
 
     List<Row> expectedResults = GroupByQueryRunnerTestHelper.createExpectedRows(
-        new String[]{Column.TIME_COLUMN_NAME, "__time", "rows"},
+        new String[]{Column.TIME_COLUMN_NAME, "time", "rows"},
         array("2011-01-12T00:00:00.000Z", 1294790400000L, 13L),
         array("2011-01-12T00:00:00.000Z", 1294876800000L, 13L)
     );
@@ -3371,6 +3373,43 @@ public class GroupByQueryRunnerTest
 
     Iterable<Row> results = GroupByQueryRunnerTestHelper.runQuery(factory, runner, query);
     Assert.assertFalse(results.iterator().hasNext());
+  }
+
+  @Test
+  public void testSubquery()
+  {
+    GroupByQuery subquery = GroupByQuery
+        .builder()
+        .setDataSource(QueryRunnerTestHelper.dataSource)
+        .setInterval(new Interval("2011-01-12/2011-02-13"))
+        .setDimensions(ExpressionDimensionSpec.of("cast(index, 'long')", "index"))  // add cast to skip schema query
+        .setAggregatorSpecs(Arrays.<AggregatorFactory>asList(QueryRunnerTestHelper.rowsCount))
+        .setGranularity(Granularities.WEEK)
+        .build();
+
+    GroupByQuery query = GroupByQuery
+        .builder()
+        .setDataSource(subquery)
+        .setInterval(new Interval("2011-01-12/2011-02-13"))
+        .setDimensions(DefaultDimensionSpec.toSpec("rows"))
+        .setAggregatorSpecs(
+            new LongSumAggregatorFactory("index", "index")
+        )
+        .setGranularity(Granularities.ALL)
+        .build();
+
+    List<Row> expectedResults = GroupByQueryRunnerTestHelper.createExpectedRows(
+        new String[]{Column.TIME_COLUMN_NAME, "rows", "index"},
+        array("2011-01-12T00:00:00.000Z", 1L, 120628L),
+        array("2011-01-12T00:00:00.000Z", 2L, 2483L),
+        array("2011-01-12T00:00:00.000Z", 3L, 1278L),
+        array("2011-01-12T00:00:00.000Z", 4L, 808L),
+        array("2011-01-12T00:00:00.000Z", 5L, 208L),
+        array("2011-01-12T00:00:00.000Z", 6L, 627L)
+    );
+
+    Iterable<Row> results = GroupByQueryRunnerTestHelper.runQuery(factory, runner, query);
+    TestHelper.assertExpectedObjects(expectedResults, results, "");
   }
 
   @Test

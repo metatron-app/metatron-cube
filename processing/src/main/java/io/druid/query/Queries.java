@@ -71,6 +71,7 @@ public class Queries
       List<PostAggregator> postAggs
   )
   {
+    Preconditions.checkArgument(!columns.contains(Column.TIME_COLUMN_NAME), "__time cannot be used as output name");
     Preconditions.checkNotNull(aggFactories, "aggregations cannot be null");
 
     final Set<String> aggNames = Sets.newHashSet();
@@ -144,22 +145,25 @@ public class Queries
         .withFixedSchema(true);
 
     if (subQuery instanceof Query.MetricSupport) {
+      Query.MetricSupport<?> metricSupport = (Query.MetricSupport) subQuery;
+      List<String> dimensionNames = DimensionSpecs.toOutputNames(metricSupport.getDimensions());
       Schema schema = QueryUtils.resolveSchema(subQuery, segmentWalker);
-      return builder.withDimensions(schema.getDimensionNames(), schema.getDimensionTypes())
-                    .withMetrics(AggregatorFactory.toRelay(schema.metricAndTypes(), ImmutableList.<PostAggregator>of()))
+      return builder.withDimensions(dimensionNames, schema.resolveDimensionTypes(metricSupport))
+                    .withMetrics(AggregatorFactory.toRelay(schema.resolveMetricTypes(metricSupport)))
                     .withRollup(false)
                     .build();
     } else if (subQuery instanceof Query.AggregationsSupport) {
-      final Query.AggregationsSupport<?> aggrSupport = (Query.AggregationsSupport) subQuery;
+      Query.AggregationsSupport<?> aggrSupport = (Query.AggregationsSupport) subQuery;
+      List<String> dimensionNames = DimensionSpecs.toOutputNames(aggrSupport.getDimensions());
       List<PostAggregator> postAggregators = aggrSupport.getPostAggregatorSpecs();
       if (aggrSupport.needsSchemaResolution()) {
         Schema schema = QueryUtils.resolveSchema(subQuery, segmentWalker);
-        return builder.withDimensions(schema.getDimensionNames(), schema.getDimensionTypes())
-                      .withMetrics(AggregatorFactory.toRelay(schema.metricAndTypes(), postAggregators))
+        return builder.withDimensions(dimensionNames, schema.resolveDimensionTypes(aggrSupport))
+                      .withMetrics(AggregatorFactory.toRelay(aggrSupport.getAggregatorSpecs(), postAggregators))
                       .withRollup(false)
                       .build();
       } else {
-        return builder.withDimensions(DimensionSpecs.toOutputNames(aggrSupport.getDimensions()))
+        return builder.withDimensions(dimensionNames, DimensionSpecs.toOutputTypes(aggrSupport))
                       .withMetrics(AggregatorFactory.toRelay(aggrSupport.getAggregatorSpecs(), postAggregators))
                       .withRollup(false)
                       .build();

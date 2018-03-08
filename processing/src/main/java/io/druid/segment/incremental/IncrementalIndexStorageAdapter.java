@@ -41,6 +41,7 @@ import io.druid.query.extraction.ExtractionFn;
 import io.druid.query.filter.DimFilter;
 import io.druid.query.filter.ValueMatcher;
 import io.druid.segment.Capabilities;
+import io.druid.segment.ColumnSelectors;
 import io.druid.segment.Cursor;
 import io.druid.segment.DimensionSelector;
 import io.druid.segment.DoubleColumnSelector;
@@ -513,6 +514,14 @@ public class IncrementalIndexStorageAdapter implements StorageAdapter
               {
                 final Integer metricIndexInt = index.getMetricIndex(columnName);
                 if (metricIndexInt == null) {
+                  final IncrementalIndex.DimensionDesc dimensionDesc = index.getDimension(columnName);
+                  if (dimensionDesc != null) {
+                    ColumnCapabilitiesImpl capabilities = dimensionDesc.getCapabilities();
+                    if (capabilities.hasMultipleValues() || !capabilities.getType().isNumeric()) {
+                      throw new IllegalArgumentException("cannot make float selector from dimension " + columnName);
+                    }
+                    return ColumnSelectors.asFloat(makeObjectColumnSelector(columnName));
+                  }
                   VirtualColumn virtualColumn = virtualColumns.getVirtualColumn(columnName);
                   if (virtualColumn != null) {
                     return virtualColumn.asFloatMetric(columnName, this);
@@ -543,6 +552,14 @@ public class IncrementalIndexStorageAdapter implements StorageAdapter
               {
                 final Integer metricIndexInt = index.getMetricIndex(columnName);
                 if (metricIndexInt == null) {
+                  final IncrementalIndex.DimensionDesc dimensionDesc = index.getDimension(columnName);
+                  if (dimensionDesc != null) {
+                    ColumnCapabilitiesImpl capabilities = dimensionDesc.getCapabilities();
+                    if (capabilities.hasMultipleValues() || !capabilities.getType().isNumeric()) {
+                      throw new IllegalArgumentException("cannot make double selector from dimension " + columnName);
+                    }
+                    return ColumnSelectors.asDouble(makeObjectColumnSelector(columnName));
+                  }
                   VirtualColumn virtualColumn = virtualColumns.getVirtualColumn(columnName);
                   if (virtualColumn != null) {
                     return virtualColumn.asDoubleMetric(columnName, this);
@@ -583,6 +600,14 @@ public class IncrementalIndexStorageAdapter implements StorageAdapter
                 }
                 final Integer metricIndexInt = index.getMetricIndex(columnName);
                 if (metricIndexInt == null) {
+                  final IncrementalIndex.DimensionDesc dimensionDesc = index.getDimension(columnName);
+                  if (dimensionDesc != null) {
+                    ColumnCapabilitiesImpl capabilities = dimensionDesc.getCapabilities();
+                    if (capabilities.hasMultipleValues() || !capabilities.getType().isNumeric()) {
+                      throw new IllegalArgumentException("cannot make long selector from dimension " + columnName);
+                    }
+                    return ColumnSelectors.asLong(makeObjectColumnSelector(columnName));
+                  }
                   VirtualColumn virtualColumn = virtualColumns.getVirtualColumn(columnName);
                   if (virtualColumn != null) {
                     return virtualColumn.asLongMetric(columnName, this);

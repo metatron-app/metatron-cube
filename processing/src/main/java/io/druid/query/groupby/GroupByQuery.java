@@ -33,6 +33,7 @@ import com.google.common.primitives.Longs;
 import com.metamx.common.guava.Sequences;
 import com.metamx.common.logger.Logger;
 import io.druid.common.guava.GuavaUtils;
+import io.druid.data.ValueDesc;
 import io.druid.data.input.Row;
 import io.druid.granularity.Granularities;
 import io.druid.granularity.Granularity;
@@ -48,12 +49,12 @@ import io.druid.query.Query;
 import io.druid.query.QueryConfig;
 import io.druid.query.QuerySegmentWalker;
 import io.druid.query.Result;
+import io.druid.query.RowResolver;
 import io.druid.query.TimeseriesToRow;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.PostAggregator;
 import io.druid.query.dimension.DimensionSpec;
 import io.druid.query.dimension.DimensionSpecs;
-import io.druid.query.dimension.ExpressionDimensionSpec;
 import io.druid.query.filter.AndDimFilter;
 import io.druid.query.filter.DimFilter;
 import io.druid.query.filter.MathExprFilter;
@@ -66,7 +67,6 @@ import io.druid.query.timeseries.TimeseriesQuery;
 import io.druid.query.timeseries.TimeseriesResultValue;
 import io.druid.segment.ExprVirtualColumn;
 import io.druid.segment.VirtualColumn;
-import io.druid.segment.VirtualColumns;
 import org.apache.commons.lang.StringUtils;
 
 import java.util.Arrays;
@@ -389,13 +389,10 @@ public class GroupByQuery extends BaseAggregationQuery<Row> implements Query.Rew
     if (super.needsSchemaResolution()) {
       return true;
     }
-    VirtualColumns vcs = VirtualColumns.valueOf(virtualColumns);
+    RowResolver resolver = RowResolver.outOf(this);
     for (DimensionSpec dimensionSpec : dimensions) {
-      if (dimensionSpec.getExtractionFn() != null) {
-        continue;
-      }
-      if (dimensionSpec instanceof ExpressionDimensionSpec ||
-          vcs.getVirtualColumn(dimensionSpec.getDimension()) != null) {
+      ValueDesc type = dimensionSpec.resolveType(resolver);
+      if (!ValueDesc.isPrimitive(type)) {
         return true;
       }
     }

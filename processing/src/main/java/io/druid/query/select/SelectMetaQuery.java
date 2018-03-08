@@ -77,9 +77,12 @@ public class SelectMetaQuery extends BaseQuery<Result<SelectMetaResultValue>>
 
   public static SelectMetaQuery forSchema(DataSource dataSource, QuerySegmentSpec querySegmentSpec, String queryId)
   {
+    Map<String, Object> context = null;
+    if (queryId != null) {
+      context = ImmutableMap.<String, Object>of(QUERYID, queryId);
+    }
     return new SelectMetaQuery(
-        dataSource, querySegmentSpec, null, QueryGranularities.ALL, null, null, null, true, null,
-        ImmutableMap.<String, Object>of(QUERYID, queryId)
+        dataSource, querySegmentSpec, null, QueryGranularities.ALL, null, null, null, true, null, context
     );
   }
 

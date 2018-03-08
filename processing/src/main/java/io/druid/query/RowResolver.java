@@ -33,6 +33,7 @@ import io.druid.query.dimension.DimensionSpec;
 import io.druid.query.filter.AndDimFilter;
 import io.druid.query.filter.BitmapType;
 import io.druid.query.filter.DimFilter;
+import io.druid.query.select.Schema;
 import io.druid.segment.QueryableIndex;
 import io.druid.segment.Segment;
 import io.druid.segment.StorageAdapter;
@@ -73,6 +74,11 @@ public class RowResolver implements TypeResolver
   public static RowResolver of(StorageAdapter adapter, VirtualColumns virtualColumns)
   {
     return new RowResolver(adapter, virtualColumns);
+  }
+
+  public static RowResolver of(Schema schema, VirtualColumns virtualColumns)
+  {
+    return new RowResolver(schema, virtualColumns);
   }
 
   public static RowResolver outOf(Query.AggregationsSupport<?> aggregation)
@@ -191,15 +197,28 @@ public class RowResolver implements TypeResolver
   private RowResolver(List<DimensionSpec> dimensions, List<AggregatorFactory> metrics, VirtualColumns virtualColumns)
   {
     for (DimensionSpec dimension : dimensions) {
-      columnTypes.put(
-          dimension.getOutputName(),
-          dimension.getExtractionFn() != null ? ValueDesc.ofDimension(ValueType.STRING) : ValueDesc.UNKNOWN
-      );
+      if (dimension.getExtractionFn() != null) {
+        columnTypes.put(dimension.getOutputName(), ValueDesc.ofDimension(ValueType.STRING));
+      }
     }
     for (AggregatorFactory metric : metrics) {
       columnTypes.put(metric.getName(), ValueDesc.of(metric.getTypeName()));
     }
-    columnTypes.put(Column.TIME_COLUMN_NAME, ValueDesc.of(ValueType.LONG));
+    columnTypes.put(Column.TIME_COLUMN_NAME, ValueDesc.LONG);
+    this.virtualColumns = virtualColumns;
+    for (DimensionSpec dimension : dimensions) {
+      if (dimension.getExtractionFn() == null) {
+        columnTypes.put(dimension.getOutputName(), dimension.resolveType(this));
+      }
+    }
+  }
+
+  private RowResolver(Schema schema, VirtualColumns virtualColumns)
+  {
+    for (Pair<String, ValueDesc> pair : schema.columnAndTypes()) {
+      columnTypes.put(pair.lhs, pair.rhs);
+    }
+    columnTypes.put(Column.TIME_COLUMN_NAME, ValueDesc.LONG);
     this.virtualColumns = virtualColumns;
   }
 
