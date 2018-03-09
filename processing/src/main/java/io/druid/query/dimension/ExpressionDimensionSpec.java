@@ -87,7 +87,7 @@ public class ExpressionDimensionSpec implements DimensionSpec
           @Override
           public ExprType type(String name)
           {
-            return ExprType.typeOf(resolver.resolveColumn(name));
+            return ExprType.typeOf(resolver.resolveColumn(name, ValueDesc.UNKNOWN));
           }
         }
     ).asValueDesc();

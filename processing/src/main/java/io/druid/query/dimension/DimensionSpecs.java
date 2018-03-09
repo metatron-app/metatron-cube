@@ -45,10 +45,10 @@ public class DimensionSpecs
     return Lists.newArrayList(Iterables.transform(dimensionSpecs, OUTPUT_NAME));
   }
 
-  public static List<ValueDesc> toOutputTypes(Query.AggregationsSupport<?> query)
+  public static List<ValueDesc> toOutputTypes(Query.DimensionSupport<?> query)
   {
-    List<ValueDesc> dimensionTypes = Lists.newArrayList();
     RowResolver resolver = RowResolver.outOf(query);
+    List<ValueDesc> dimensionTypes = Lists.newArrayList();
     for (DimensionSpec dimensionSpec : query.getDimensions()) {
       dimensionTypes.add(dimensionSpec.resolveType(resolver));
     }

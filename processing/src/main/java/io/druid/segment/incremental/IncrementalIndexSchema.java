@@ -30,6 +30,7 @@ import io.druid.data.input.impl.InputRowParser;
 import io.druid.granularity.Granularity;
 import io.druid.granularity.QueryGranularities;
 import io.druid.query.aggregation.AggregatorFactory;
+import io.druid.query.select.Schema;
 
 import java.util.Arrays;
 import java.util.List;
@@ -117,6 +118,32 @@ public class IncrementalIndexSchema
       metricNames.add(aggregatorFactory.getName());
     }
     return metricNames;
+  }
+
+  public List<String> getMetricNameTypes()
+  {
+    List<String> metricTypes = Lists.newArrayListWithCapacity(metrics.length);
+    for (AggregatorFactory aggregatorFactory : metrics) {
+      metricTypes.add(aggregatorFactory.getName() + ":" + aggregatorFactory.getTypeName());
+    }
+    return metricTypes;
+  }
+
+  public Schema asSchema()
+  {
+    List<ValueDesc> types = Lists.newArrayList();
+    for (DimensionSchema schema : dimensionsSpec.getDimensions()) {
+      types.add(ValueDesc.of(schema.getTypeName()));
+    }
+    for (AggregatorFactory aggregatorFactory : metrics) {
+      types.add(ValueDesc.of(aggregatorFactory.getTypeName()));
+    }
+    return new Schema(dimensionsSpec.getDimensionNames(), getMetricNames(), types, Arrays.asList(metrics));
+  }
+
+  public IncrementalIndexSchema withRollup(boolean rollup)
+  {
+    return new IncrementalIndexSchema(minTimestamp, gran, dimensionsSpec, metrics, rollup);
   }
 
   @Override

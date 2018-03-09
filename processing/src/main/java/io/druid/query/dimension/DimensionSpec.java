@@ -58,7 +58,9 @@ public interface DimensionSpec extends Cacheable
     @Override
     public ValueDesc resolveType(TypeResolver resolver)
     {
-      return getExtractionFn() == null ? resolver.resolveColumn(getDimension(), ValueDesc.UNKNOWN) : ValueDesc.STRING;
+      // dimension : dimensions, __time, not-existing or virtual columns
+      ValueDesc resolved = resolver.resolveColumn(getDimension(), ValueDesc.STRING);
+      return ValueDesc.isUnknown(resolved) && getExtractionFn() != null ? ValueDesc.STRING : resolved;
     }
   }
 }

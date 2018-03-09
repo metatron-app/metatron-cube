@@ -56,7 +56,6 @@ import io.druid.query.QueryContextKeys;
 import io.druid.query.QueryRunner;
 import io.druid.query.QuerySegmentWalker;
 import io.druid.query.QueryToolChest;
-import io.druid.query.SubqueryQueryRunner;
 import io.druid.query.TabularFormat;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.MetricManipulationFn;
@@ -417,7 +416,7 @@ public class GroupByQueryQueryToolChest extends QueryToolChest<Row, GroupByQuery
   @Override
   public QueryRunner<Row> preMergeQueryDecoration(final QueryRunner<Row> runner)
   {
-    return new SubqueryQueryRunner<>(
+    return
         intervalChunkingQueryRunnerDecorator.decorate(
             new QueryRunner<Row>()
             {
@@ -458,7 +457,6 @@ public class GroupByQueryQueryToolChest extends QueryToolChest<Row, GroupByQuery
                 );
               }
             }, this
-        )
     );
   }
 

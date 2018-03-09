@@ -335,6 +335,11 @@ public class ValueDesc
     return type != null && type.type.isNumeric();
   }
 
+  public static boolean isUnknown(ValueDesc type)
+  {
+    return isType(type, UNKNOWN_TYPE);
+  }
+
   public static boolean isType(ValueDesc type, String typeName)
   {
     return type != null && typeName.equals(type.typeName);

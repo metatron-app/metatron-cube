@@ -98,24 +98,16 @@ public class Queries
 
   public static List<AggregatorFactory> getAggregators(Query query)
   {
-    if (query instanceof GroupByQuery) {
-      return ((GroupByQuery) query).getAggregatorSpecs();
-    } else if (query instanceof TimeseriesQuery) {
-      return ((TimeseriesQuery) query).getAggregatorSpecs();
-    } else if (query instanceof TopNQuery) {
-      return ((TopNQuery) query).getAggregatorSpecs();
+    if (query instanceof Query.AggregationsSupport) {
+      return ((Query.AggregationsSupport<?>) query).getAggregatorSpecs();
     }
     return ImmutableList.of();
   }
 
   public static List<PostAggregator> getPostAggregators(Query query)
   {
-    if (query instanceof GroupByQuery) {
-      return ((GroupByQuery) query).getPostAggregatorSpecs();
-    } else if (query instanceof TimeseriesQuery) {
-      return ((TimeseriesQuery) query).getPostAggregatorSpecs();
-    } else if (query instanceof TopNQuery) {
-      return ((TopNQuery) query).getPostAggregatorSpecs();
+    if (query instanceof Query.AggregationsSupport) {
+      return ((Query.AggregationsSupport<?>) query).getPostAggregatorSpecs();
     }
     return ImmutableList.of();
   }
@@ -144,10 +136,12 @@ public class Queries
         .withQueryGranularity(QueryGranularities.ALL)
         .withFixedSchema(true);
 
+    // cannot handle lateral view, windowing, post-processing, etc.
+    // throw exception ?
     if (subQuery instanceof Query.MetricSupport) {
       Query.MetricSupport<?> metricSupport = (Query.MetricSupport) subQuery;
-      List<String> dimensionNames = DimensionSpecs.toOutputNames(metricSupport.getDimensions());
       Schema schema = QueryUtils.resolveSchema(subQuery, segmentWalker);
+      List<String> dimensionNames = DimensionSpecs.toOutputNames(metricSupport.getDimensions());
       return builder.withDimensions(dimensionNames, schema.resolveDimensionTypes(metricSupport))
                     .withMetrics(AggregatorFactory.toRelay(schema.resolveMetricTypes(metricSupport)))
                     .withRollup(false)

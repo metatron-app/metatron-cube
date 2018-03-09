@@ -102,6 +102,13 @@ public class TestIndex
   private static QueryableIndex noRollupMmappedIndex = null;
   private static QueryableIndex mergedRealtime = null;
 
+  public static final IncrementalIndexSchema SCHEMA = new IncrementalIndexSchema.Builder()
+      .withMinTimestamp(new DateTime("2011-01-12T00:00:00.000Z").getMillis())
+      .withQueryGranularity(QueryGranularities.NONE)
+      .withDimensions(Arrays.asList(DIMENSIONS))
+      .withMetrics(METRIC_AGGS)
+      .build();
+
   public static IncrementalIndex getIncrementalTestIndex()
   {
     synchronized (log) {
@@ -231,12 +238,7 @@ public class TestIndex
 
   public static IncrementalIndex makeRealtimeIndex(final CharSource source, boolean rollup)
   {
-    final IncrementalIndexSchema schema = new IncrementalIndexSchema.Builder()
-        .withMinTimestamp(new DateTime("2011-01-12T00:00:00.000Z").getMillis())
-        .withQueryGranularity(QueryGranularities.NONE)
-        .withMetrics(METRIC_AGGS)
-        .withRollup(rollup)
-        .build();
+    final IncrementalIndexSchema schema = SCHEMA.withRollup(rollup);
     final IncrementalIndex retVal = new OnheapIncrementalIndex(schema, true, 10000);
 
     try {

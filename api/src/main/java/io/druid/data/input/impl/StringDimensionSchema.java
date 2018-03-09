@@ -28,19 +28,6 @@ import io.druid.data.ValueType;
 public class StringDimensionSchema extends DimensionSchema
 {
   @JsonCreator
-  public static StringDimensionSchema create(String name)
-  {
-    int index = name.indexOf('?');
-    if (index < 0) {
-      return new StringDimensionSchema(name, null);
-    }
-    return new StringDimensionSchema(
-        name.substring(0, index),
-        MultiValueHandling.fromString(name.substring(index + 1))
-    );
-  }
-
-  @JsonCreator
   public StringDimensionSchema(
       @JsonProperty("name") String name,
       @JsonProperty("multiValueHandling") MultiValueHandling multiValueHandling

@@ -70,6 +70,7 @@ import io.druid.query.select.SelectMetaQuery;
 import io.druid.query.select.SelectMetaQueryEngine;
 import io.druid.query.select.SelectMetaQueryRunnerFactory;
 import io.druid.query.select.SelectMetaQueryToolChest;
+import io.druid.query.select.SelectMetaResultValue;
 import io.druid.query.select.SelectQuery;
 import io.druid.query.select.SelectQueryConfig;
 import io.druid.query.select.SelectQueryEngine;
@@ -540,6 +541,36 @@ public class QueryRunnerTestHelper
     };
   }
 
+  @SuppressWarnings("unchecked")
+  public static QuerySegmentWalker SCHEMA_ONLY = new QuerySegmentWalker()
+  {
+    @Override
+    public <T> QueryRunner<T> getQueryRunnerForIntervals(Query<T> query, Iterable<Interval> intervals)
+    {
+      return new QueryRunner<T>()
+      {
+        @Override
+        public Sequence run(Query<T> query, Map<String, Object> responseContext)
+        {
+          return Sequences.simple(
+              Arrays.asList(
+                  new Result(
+                      DateTime.now(),
+                      new SelectMetaResultValue(TestIndex.SCHEMA.asSchema())
+                  )
+              )
+          );
+        }
+      };
+    }
+
+    @Override
+    public <T> QueryRunner<T> getQueryRunnerForSegments(Query<T> query, Iterable<SegmentDescriptor> specs)
+    {
+      return getQueryRunnerForIntervals(query, null);
+    }
+  };
+
   public static <T, QueryType extends Query<T>> List<Object[]> makeQueryRunnersWithName(
       QueryRunnerFactory<T, QueryType> factory
   )
@@ -862,7 +893,7 @@ public class QueryRunnerTestHelper
     QueryRunner<T> baseRunner;
     if (query.getDataSource() instanceof QueryDataSource) {
       Query innerQuery = ((QueryDataSource) query.getDataSource()).getQuery().withOverriddenContext(query.getContext());
-      baseRunner = toolChest.handleSubQuery(toMergeRunner(factory, runner, innerQuery, true), null, null, 5000);
+      baseRunner = toolChest.handleSubQuery(toMergeRunner(factory, runner, innerQuery, true), SCHEMA_ONLY, null, 5000);
     } else {
       baseRunner = toolChest.postMergeQueryDecoration(toolChest.mergeResults(toolChest.preMergeQueryDecoration(runner)));
     }

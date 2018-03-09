@@ -24,7 +24,7 @@ public class DimensionsSpecTest
         new DimensionsSpec(DimensionsSpec.getDefaultSchemas(Arrays.asList("dim1", "dim2")), null, null),
         mapper.readValue(spec1, DimensionsSpec.class)
     );
-    String spec2 = "{\"dimensions\": [\"dim1?SET\", \"dim2\"] }";
+    String spec2 = "{\"dimensions\": [{\"name\": \"dim1\", \"multiValueHandling\": \"SET\"}, \"dim2\"] }";
     Assert.assertEquals(
         new DimensionsSpec(
             Arrays.<DimensionSchema>asList(

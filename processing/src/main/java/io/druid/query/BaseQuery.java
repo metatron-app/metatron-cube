@@ -28,6 +28,8 @@ import com.google.common.collect.Ordering;
 import com.metamx.common.StringUtils;
 import com.metamx.common.guava.Sequence;
 import io.druid.common.utils.PropUtils;
+import io.druid.data.ValueDesc;
+import io.druid.query.dimension.DimensionSpecs;
 import io.druid.query.spec.MultipleIntervalSegmentSpec;
 import io.druid.query.spec.QuerySegmentSpec;
 import org.joda.time.Duration;
@@ -194,9 +196,14 @@ public abstract class BaseQuery<T> implements Query<T>
       return false;
     }
     if (query instanceof DimensionSupport) {
-      DimensionSupport dimSupport = (DimensionSupport) query;
+      DimensionSupport<?> dimSupport = (DimensionSupport) query;
       if (dimSupport.getDimensions().isEmpty() && dimSupport.allDimensionsForEmpty()) {
         return true;
+      }
+      for (ValueDesc type : DimensionSpecs.toOutputTypes(dimSupport)) {
+        if (!ValueDesc.isPrimitive(type)) {
+          return true;
+        }
       }
     }
     if (query instanceof AggregationsSupport) {

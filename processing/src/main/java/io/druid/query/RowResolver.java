@@ -21,6 +21,7 @@ package io.druid.query;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
@@ -81,14 +82,15 @@ public class RowResolver implements TypeResolver
     return new RowResolver(schema, virtualColumns);
   }
 
-  public static RowResolver outOf(Query.AggregationsSupport<?> aggregation)
+  public static RowResolver outOf(Query.DimensionSupport<?> query)
   {
-    Preconditions.checkArgument(!(aggregation.getDataSource() instanceof ViewDataSource), "fix this");
-    return new RowResolver(
-        aggregation.getDimensions(),
-        aggregation.getAggregatorSpecs(),
-        VirtualColumns.valueOf(aggregation.getVirtualColumns())
-    );
+    Preconditions.checkArgument(!(query.getDataSource() instanceof ViewDataSource), "fix this");
+    List<AggregatorFactory> aggregatorFactories = ImmutableList.of();
+    if (query instanceof Query.AggregationsSupport) {
+      aggregatorFactories = ((Query.AggregationsSupport<?>)query).getAggregatorSpecs();
+    }
+    VirtualColumns vcs = VirtualColumns.valueOf(query.getVirtualColumns());
+    return new RowResolver(query.getDimensions(), aggregatorFactories, vcs);
   }
 
   public static Class<?> toClass(String typeName)

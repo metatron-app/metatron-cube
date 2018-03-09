@@ -33,7 +33,6 @@ import com.google.common.primitives.Longs;
 import com.metamx.common.guava.Sequences;
 import com.metamx.common.logger.Logger;
 import io.druid.common.guava.GuavaUtils;
-import io.druid.data.ValueDesc;
 import io.druid.data.input.Row;
 import io.druid.granularity.Granularities;
 import io.druid.granularity.Granularity;
@@ -49,7 +48,6 @@ import io.druid.query.Query;
 import io.druid.query.QueryConfig;
 import io.druid.query.QuerySegmentWalker;
 import io.druid.query.Result;
-import io.druid.query.RowResolver;
 import io.druid.query.TimeseriesToRow;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.PostAggregator;
@@ -381,22 +379,6 @@ public class GroupByQuery extends BaseAggregationQuery<Row> implements Query.Rew
         getLateralView(),
         getContext()
     );
-  }
-
-  @Override
-  public boolean needsSchemaResolution()
-  {
-    if (super.needsSchemaResolution()) {
-      return true;
-    }
-    RowResolver resolver = RowResolver.outOf(this);
-    for (DimensionSpec dimensionSpec : dimensions) {
-      ValueDesc type = dimensionSpec.resolveType(resolver);
-      if (!ValueDesc.isPrimitive(type)) {
-        return true;
-      }
-    }
-    return false;
   }
 
   @Override

@@ -245,6 +245,10 @@ public class QueryUtils
 
   public static Schema resolveSchema(Query<?> query, QuerySegmentWalker segmentWalker)
   {
+    if (query.getDataSource() instanceof QueryDataSource) {
+      Schema schema = ((QueryDataSource) query.getDataSource()).getSchema();
+      return Preconditions.checkNotNull(schema, "schema of subquery is null");
+    }
     return getSchema(
         SelectMetaQuery.forSchema(
             query.getDataSource(),

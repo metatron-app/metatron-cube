@@ -1283,8 +1283,8 @@ public class KafkaSupervisorTest extends EasyMockSupport
   private DataSchema getDataSchema(String dataSource)
   {
     List<DimensionSchema> dimensions = new ArrayList<>();
-    dimensions.add(StringDimensionSchema.create("dim1"));
-    dimensions.add(StringDimensionSchema.create("dim2"));
+    dimensions.add(new StringDimensionSchema("dim1"));
+    dimensions.add(new StringDimensionSchema("dim2"));
 
     return new DataSchema(
         dataSource,

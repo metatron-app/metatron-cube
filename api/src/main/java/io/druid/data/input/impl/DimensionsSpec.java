@@ -27,6 +27,7 @@ import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import com.metamx.common.parsers.ParserUtils;
+import io.druid.data.ValueType;
 
 import javax.annotation.Nullable;
 import java.util.HashMap;
@@ -50,7 +51,7 @@ public class DimensionsSpec
           @Override
           public DimensionSchema apply(String input)
           {
-            return StringDimensionSchema.create(input);
+            return new StringDimensionSchema(input);
           }
         }
     );
@@ -143,6 +144,22 @@ public class DimensionsSpec
           public String apply(DimensionSchema input)
           {
             return input.getName();
+          }
+        }
+    );
+  }
+
+  @JsonIgnore
+  public List<String> getDimensionNameTypes()
+  {
+    return Lists.transform(
+        dimensions,
+        new Function<DimensionSchema, String>()
+        {
+          @Override
+          public String apply(DimensionSchema input)
+          {
+            return input.getName() + ":" + input.getTypeName();
           }
         }
     );
