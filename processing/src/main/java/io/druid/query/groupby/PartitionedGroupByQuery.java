@@ -120,7 +120,7 @@ public class PartitionedGroupByQuery extends GroupByQuery implements Query.Rewri
     this.scannerLen = scannerLen;
     this.parallelism = parallelism;
     this.queue = queue;
-    if (numPartition != 1 && limitSpec != null && limitSpec.getWindowingSpecs() != null) {
+    if (numPartition != 1 && limitSpec != null) {
       String partitioned = getDimensions().get(0).getDimension();
       for (WindowingSpec spec : limitSpec.getWindowingSpecs()) {
         List<String> partitionColumns = spec.getPartitionColumns();

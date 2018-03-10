@@ -101,6 +101,11 @@ public class WindowingSpec implements Cacheable
     this(partitionColumns, sortingColumns, Arrays.asList(expressions), null, null);
   }
 
+  public WindowingSpec withoutOrdering()
+  {
+    return new WindowingSpec(null, null, expressions, flattenSpec, pivotSpec);
+  }
+
   @JsonProperty
   public List<String> getPartitionColumns()
   {
@@ -129,6 +134,27 @@ public class WindowingSpec implements Cacheable
   public PivotSpec getPivotSpec()
   {
     return pivotSpec;
+  }
+
+  public List<OrderByColumnSpec> asExpectedOrdering()
+  {
+    if (partitionColumns.isEmpty()) {
+      return sortingColumns;
+    }
+    List<OrderByColumnSpec> merged = Lists.newArrayList();
+    List<String> sortingColumnNames = LimitSpecs.getColumns(sortingColumns);
+    int i = 0;
+    for (; i < partitionColumns.size(); i++) {
+      if (sortingColumnNames.indexOf(partitionColumns.get(i)) != i) {
+        break;
+      }
+      merged.add(sortingColumns.get(0));
+    }
+    for (int j = i; j < partitionColumns.size(); j++) {
+      merged.add(OrderByColumnSpec.asc(partitionColumns.get(j)));
+    }
+    merged.addAll(sortingColumns.subList(i, sortingColumns.size()));
+    return merged;
   }
 
   public PartitionEvaluator toEvaluator(final WindowContext context)

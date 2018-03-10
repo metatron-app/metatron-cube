@@ -84,13 +84,13 @@ public class StringOrderingSpec implements Cacheable
       return false;
     }
 
-    StringOrderingSpec that = (StringOrderingSpec) o;
+    StringOrderingSpec other = (StringOrderingSpec) o;
+    return isSameOrdering(other.direction, other.dimensionOrder);
+  }
 
-    if (!Objects.equals(dimensionOrder, that.dimensionOrder)) {
-      return false;
-    }
-    return direction == that.direction;
-
+  public final boolean isSameOrdering(Direction direction, String dimensionOrder)
+  {
+    return this.direction == direction && Objects.equals(this.dimensionOrder, dimensionOrder);
   }
 
   @Override

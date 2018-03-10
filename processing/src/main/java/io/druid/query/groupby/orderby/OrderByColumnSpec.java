@@ -58,22 +58,6 @@ public class OrderByColumnSpec extends StringOrderingSpec implements Cacheable
     return ImmutableList.copyOf(Lists.transform(orderByColumnSpecs, GET_DIMENSION));
   }
 
-  public static boolean isGroupByOrdering(List<OrderByColumnSpec> orderByColumnSpecs, List<String> dimension)
-  {
-    int prev = Integer.MAX_VALUE;
-    for (OrderByColumnSpec orderBy : orderByColumnSpecs) {
-      int index = dimension.indexOf(orderBy.dimension);
-      if (index < 0 || index < prev) {
-        return false;
-      }
-      if (orderBy.direction != Direction.ASCENDING || orderBy.getComparator() != StringComparators.LEXICOGRAPHIC) {
-        return false;
-      }
-      prev = index;
-    }
-    return true;
-  }
-
   @JsonCreator
   public static OrderByColumnSpec create(Object obj)
   {
@@ -178,6 +162,11 @@ public class OrderByColumnSpec extends StringOrderingSpec implements Cacheable
   public String getDimension()
   {
     return dimension;
+  }
+
+  public boolean isNaturalOrdering()
+  {
+    return direction == Direction.ASCENDING && dimensionOrder.equals(StringComparators.LEXICOGRAPHIC_NAME);
   }
 
   public OrderByColumnSpec withComparator(String comparatorName)

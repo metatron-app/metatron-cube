@@ -20,6 +20,7 @@
 package io.druid.query.dimension;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.google.common.base.Preconditions;
 import io.druid.query.QueryCacheHelper;
 import io.druid.query.ordering.Direction;
 
@@ -28,41 +29,82 @@ import java.nio.ByteBuffer;
 /**
  * internal class only for group-by
  */
-public class DimensionSpecWithExpectedOrdering extends BaseFilteredDimensionSpec
+public class DimensionSpecWithOrdering extends BaseFilteredDimensionSpec
 {
   private static final byte CACHE_TYPE_ID = 0x6;
 
   private final Direction direction;
-  private final String comparatorName;
+  private final String ordering;
 
-  public DimensionSpecWithExpectedOrdering(
+  public DimensionSpecWithOrdering(
       @JsonProperty("delegate") DimensionSpec delegate,
       @JsonProperty("direction") Direction direction,
-      @JsonProperty("ordering") String comparatorName
+      @JsonProperty("ordering") String ordering
   )
   {
     super(delegate);
     this.direction = direction == null ? Direction.ASCENDING : direction;
-    this.comparatorName = comparatorName;
+    this.ordering = Preconditions.checkNotNull(ordering, "'ordering' cannot be null");
   }
 
   @JsonProperty
-  public String getDirection()
+  public Direction getDirection()
   {
-    return direction.toString();
+    return direction;
   }
 
   @JsonProperty
-  public String getComparatorName()
+  public String getOrdering()
   {
-    return comparatorName;
+    return ordering;
+  }
+
+  @Override
+  public boolean equals(Object o)
+  {
+    if (this == o) {
+      return true;
+    }
+    if (o == null || !super.equals(o) || getClass() != o.getClass()) {
+      return false;
+    }
+
+    DimensionSpecWithOrdering that = (DimensionSpecWithOrdering) o;
+
+    if (!ordering.equals(that.ordering)) {
+      return false;
+    }
+    if (direction != that.direction) {
+      return false;
+    }
+
+    return true;
+  }
+
+  @Override
+  public int hashCode()
+  {
+    int result = super.hashCode();
+    result = 31 * result + direction.hashCode();
+    result = 31 * result + ordering.hashCode();
+    return result;
+  }
+
+  @Override
+  public String toString()
+  {
+    return "DimensionSpecWithOrdering{" +
+           "dimensionSpec=" + delegate +
+           ", direction=" + direction +
+           ", ordering='" + ordering + '\'' +
+           '}';
   }
 
   @Override
   public byte[] getCacheKey()
   {
     byte[] delegateCacheKey = delegate.getCacheKey();
-    byte[] comparatorNameBytes = QueryCacheHelper.computeCacheBytes(comparatorName);
+    byte[] comparatorNameBytes = QueryCacheHelper.computeCacheBytes(ordering);
     ByteBuffer filterCacheKey = ByteBuffer.allocate(2 + delegateCacheKey.length + comparatorNameBytes.length)
                                           .put(CACHE_TYPE_ID)
                                           .put(delegateCacheKey)

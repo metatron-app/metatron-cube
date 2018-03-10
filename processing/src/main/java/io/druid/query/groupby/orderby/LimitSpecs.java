@@ -19,16 +19,80 @@
 
 package io.druid.query.groupby.orderby;
 
+import com.google.common.base.Function;
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Lists;
 import io.druid.common.guava.GuavaUtils;
+import io.druid.query.dimension.DimensionSpec;
+import io.druid.query.dimension.DimensionSpecWithOrdering;
+
+import java.util.List;
 
 /**
  */
 public class LimitSpecs
 {
+  public static final Function<OrderByColumnSpec, String> GET_DIMENSION = new Function<OrderByColumnSpec, String>()
+  {
+    @Override
+    public String apply(OrderByColumnSpec input)
+    {
+      return input.getDimension();
+    }
+  };
+
+  public static LimitSpec of(Integer limit)
+  {
+    return limit == null ? new NoopLimitSpec() : new DefaultLimitSpec(null, limit, null);
+  }
+
+  public static LimitSpec withWindowing(LimitSpec limit, List<WindowingSpec> windowingSpecs)
+  {
+    return new DefaultLimitSpec(limit.getColumns(), limit.getLimit(), windowingSpecs);
+  }
+
+  public static LimitSpec withOrderingSpec(LimitSpec limit, List<OrderByColumnSpec> orderingSpec)
+  {
+    return new DefaultLimitSpec(orderingSpec, limit.getLimit(), limit.getWindowingSpecs());
+  }
+
   public static boolean isDummy(LimitSpec limitSpec)
   {
     return GuavaUtils.isNullOrEmpty(limitSpec.getColumns()) &&
            GuavaUtils.isNullOrEmpty(limitSpec.getWindowingSpecs()) &&
            limitSpec.getLimit() == Integer.MAX_VALUE;
+  }
+
+  public static List<String> getColumns(List<? extends OrderByColumnSpec> orderByColumnSpecs)
+  {
+    return GuavaUtils.isNullOrEmpty(orderByColumnSpecs) ?
+           ImmutableList.<String>of() :
+           ImmutableList.copyOf(Lists.transform(orderByColumnSpecs, GET_DIMENSION));
+  }
+
+  public static String[] getColumnsAsArray(List<? extends OrderByColumnSpec> orderByColumnSpecs)
+  {
+    return getColumns(orderByColumnSpecs).toArray(new String[orderByColumnSpecs.size()]);
+  }
+
+  public static boolean isGroupByOrdering(List<OrderByColumnSpec> orderByColumns, List<DimensionSpec> dimensions)
+  {
+    if (orderByColumns.size() > dimensions.size()) {
+      return false;
+    }
+    for (int i = 0; i < orderByColumns.size(); i++) {
+      OrderByColumnSpec orderBy = orderByColumns.get(i);
+      DimensionSpec dimension = dimensions.get(i);
+      if (dimension instanceof DimensionSpecWithOrdering) {
+        DimensionSpecWithOrdering explicit = (DimensionSpecWithOrdering) dimension;
+        if (!orderBy.isSameOrdering(explicit.getDirection(), explicit.getOrdering())) {
+          return false;
+        }
+      }
+      if (!orderBy.isNaturalOrdering()) {
+        return false;
+      }
+    }
+    return true;
   }
 }

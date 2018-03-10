@@ -20,8 +20,6 @@
 package io.druid.query.groupby.orderby;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
-import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.base.Function;
 import com.google.common.base.Functions;
 import com.google.common.collect.ImmutableList;
@@ -59,7 +57,7 @@ public class NoopLimitSpec implements LimitSpec
   @Override
   public List<WindowingSpec> getWindowingSpecs()
   {
-    return null;
+    return ImmutableList.of();
   }
 
   @Override

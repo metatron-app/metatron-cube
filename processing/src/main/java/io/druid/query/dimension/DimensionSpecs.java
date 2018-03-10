@@ -22,13 +22,16 @@ package io.druid.query.dimension;
 import com.google.common.base.Function;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
+import com.google.common.collect.Ordering;
 import io.druid.data.ValueDesc;
 import io.druid.query.Query;
 import io.druid.query.RowResolver;
 import io.druid.query.extraction.ExtractionFn;
-import io.druid.query.groupby.orderby.OrderByColumnSpec;
 import io.druid.query.ordering.Direction;
+import io.druid.query.ordering.StringComparator;
+import io.druid.query.ordering.StringComparators;
 
+import java.util.Comparator;
 import java.util.List;
 
 /**
@@ -55,13 +58,44 @@ public class DimensionSpecs
     return dimensionTypes;
   }
 
-  public static List<OrderByColumnSpec> toOrderBySpec(List<DimensionSpec> dimensionSpecs)
+  public static List<Comparator> toComparator(List<DimensionSpec> dimensionSpecs)
   {
-    List<OrderByColumnSpec> orderByColumnSpecs = Lists.newArrayList();
-    for (DimensionSpec dimensionSpec : dimensionSpecs) {
-      orderByColumnSpecs.add(new OrderByColumnSpec(dimensionSpec.getOutputName(), Direction.ASCENDING));
+    if (hasNoOrdering(dimensionSpecs)) {
+      return null;
     }
-    return orderByColumnSpecs;
+    List<Comparator> comparators = Lists.newArrayList();
+    for (DimensionSpec dimensionSpec : dimensionSpecs) {
+      if (dimensionSpec instanceof DimensionSpecWithOrdering) {
+        DimensionSpecWithOrdering expected = (DimensionSpecWithOrdering) dimensionSpec;
+        if (!expected.getOrdering().equals(StringComparators.LEXICOGRAPHIC_NAME)) {
+          StringComparator comparator = StringComparators.makeComparator(expected.getOrdering());
+          if (expected.getDirection() == Direction.DESCENDING) {
+            comparator = StringComparators.revert(comparator);
+          }
+          comparators.add(comparator);
+        } else {
+          // use natural ordering for non-string dimension
+          Ordering<Comparable> ordering = Ordering.natural();
+          if (expected.getDirection() == Direction.DESCENDING) {
+            ordering = ordering.reverse();
+          }
+          comparators.add(ordering);
+        }
+      } else {
+        comparators.add(Ordering.natural());
+      }
+    }
+    return comparators;
+  }
+
+  private static boolean hasNoOrdering(List<DimensionSpec> dimensionSpecs)
+  {
+    for (DimensionSpec dimensionSpec : dimensionSpecs) {
+      if (dimensionSpec instanceof DimensionSpecWithOrdering) {
+        return false;
+      }
+    }
+    return true;
   }
 
   public static final Function<DimensionSpec, String> INPUT_NAME = new Function<DimensionSpec, String>()

@@ -52,14 +52,16 @@ import io.druid.query.TimeseriesToRow;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.PostAggregator;
 import io.druid.query.dimension.DimensionSpec;
+import io.druid.query.dimension.DimensionSpecWithOrdering;
 import io.druid.query.dimension.DimensionSpecs;
 import io.druid.query.filter.AndDimFilter;
 import io.druid.query.filter.DimFilter;
 import io.druid.query.filter.MathExprFilter;
 import io.druid.query.groupby.having.HavingSpec;
-import io.druid.query.groupby.orderby.DefaultLimitSpec;
 import io.druid.query.groupby.orderby.LimitSpec;
+import io.druid.query.groupby.orderby.LimitSpecs;
 import io.druid.query.groupby.orderby.OrderByColumnSpec;
+import io.druid.query.groupby.orderby.WindowingSpec;
 import io.druid.query.spec.QuerySegmentSpec;
 import io.druid.query.timeseries.TimeseriesQuery;
 import io.druid.query.timeseries.TimeseriesResultValue;
@@ -387,12 +389,11 @@ public class GroupByQuery extends BaseAggregationQuery<Row> implements Query.Rew
   )
   {
     GroupByQuery query = this;
-    LimitSpec limitSpec = query.getLimitSpec();
-    List<String> outputNames = DimensionSpecs.toOutputNames(query.getDimensions());
-    if (!GuavaUtils.isNullOrEmpty(limitSpec.getColumns())
-        && GuavaUtils.isNullOrEmpty(limitSpec.getWindowingSpecs())
-        && OrderByColumnSpec.isGroupByOrdering(limitSpec.getColumns(), outputNames)) {
-      query = query.withLimitSpec(new DefaultLimitSpec(null, limitSpec.getLimit(), limitSpec.getWindowingSpecs()));
+    if (query.getContextBoolean(GBY_PRE_ORDERING, queryConfig.groupBy.isPreOrdering())) {
+      query = query.tryPreOrdering();
+    }
+    if (query.getContextBoolean(GBY_REMOVE_ORDERING, queryConfig.groupBy.isRemoveOrdering())) {
+      query = tryRemoveOrdering(query);
     }
     if (query.getContextBoolean(GBY_LIMIT_PUSHDOWN, queryConfig.groupBy.isLimitPushdown())) {
       query = query.tryPushdown(segmentWalker, queryConfig, jsonMapper);
@@ -403,18 +404,89 @@ public class GroupByQuery extends BaseAggregationQuery<Row> implements Query.Rew
     return query;
   }
 
-  private Query tryConvertToTimeseries(ObjectMapper jsonMapper)
+  private GroupByQuery tryPreOrdering()
   {
-    if (!dimensions.isEmpty() || needsSchemaResolution()) {
-      return this;
+    GroupByQuery query = this;
+    if (!query.getContextBoolean(Query.GBY_MERGE_SIMPLE, true)) {
+      return query;     // cannot apply
     }
-    PostProcessingOperator current = PostProcessingOperators.load(this, jsonMapper);
-    if (current == null) {
-      current = new TimeseriesToRow();
+    List<DimensionSpec> dimensionSpecs = query.getDimensions();
+    if (dimensionSpecs.isEmpty()) {
+      return query;
     }
-    return Druids.newTimeseriesQueryBuilder().copy(this)
-                 .overrideContext(ImmutableMap.<String, Object>of(POST_PROCESSING, current))
-                 .build();
+    LimitSpec limitSpec = query.getLimitSpec();
+    List<WindowingSpec> windowingSpecs = Lists.newArrayList(limitSpec.getWindowingSpecs());
+    List<OrderByColumnSpec> orderingSpecs = Lists.newArrayList(limitSpec.getColumns());
+    if (windowingSpecs.isEmpty() && orderingSpecs.isEmpty()) {
+      return query;
+    }
+    if (!windowingSpecs.isEmpty()) {
+      WindowingSpec first = windowingSpecs.get(0);
+      orderingSpecs = first.asExpectedOrdering();
+      List<DimensionSpec> rewritten = applyExplicitOrdering(orderingSpecs, dimensionSpecs);
+      if (rewritten != null) {
+        windowingSpecs.set(0, first.withoutOrdering());
+        query = query.withLimitSpec(LimitSpecs.withWindowing(limitSpec, windowingSpecs))
+                     .withDimensionSpecs(rewritten);
+      }
+    } else {
+      List<DimensionSpec> rewritten = applyExplicitOrdering(orderingSpecs, dimensionSpecs);
+      if (rewritten != null) {
+        query = query.withLimitSpec(LimitSpecs.withOrderingSpec(limitSpec, null))
+                     .withDimensionSpecs(rewritten);
+      }
+    }
+    return query;
+  }
+
+  private List<DimensionSpec> applyExplicitOrdering(
+      List<OrderByColumnSpec> orderByColumns,
+      List<DimensionSpec> dimensionSpecs
+  )
+  {
+    if (orderByColumns.size() > dimensionSpecs.size()) {
+      // todo discompose order-by if possible
+      return null;
+    }
+    List<DimensionSpec> orderedDimensionSpecs = Lists.newArrayList();
+    List<String> dimensionNames = DimensionSpecs.toOutputNames(dimensionSpecs);
+    for (OrderByColumnSpec orderBy : orderByColumns) {
+      int index = dimensionNames.indexOf(orderBy.getDimension());
+      if (index < 0) {
+        return null;
+      }
+      dimensionNames.set(index, null);
+      DimensionSpec dimensionSpec = dimensionSpecs.get(index);
+      if (dimensionSpec instanceof DimensionSpecWithOrdering) {
+        DimensionSpecWithOrdering explicit = (DimensionSpecWithOrdering) dimensionSpec;
+        if (!orderBy.isSameOrdering(explicit.getDirection(), explicit.getOrdering())) {
+          return null;  // order conflict
+        }
+      }
+      if (!orderBy.isNaturalOrdering()) {
+        dimensionSpec = new DimensionSpecWithOrdering(
+            dimensionSpec, orderBy.getDirection(), orderBy.getDimensionOrder()
+        );
+      }
+      orderedDimensionSpecs.add(dimensionSpec);
+    }
+    // add remaining dimensions
+    for (int i = 0; i < dimensionNames.size(); i++) {
+      if (dimensionNames.get(i) != null) {
+        orderedDimensionSpecs.add(dimensionSpecs.get(i));
+      }
+    }
+    return orderedDimensionSpecs;
+  }
+
+  private GroupByQuery tryRemoveOrdering(GroupByQuery query)
+  {
+    LimitSpec limitSpec = query.getLimitSpec();
+    if (GuavaUtils.isNullOrEmpty(limitSpec.getWindowingSpecs()) &&
+        LimitSpecs.isGroupByOrdering(limitSpec.getColumns(), query.getDimensions())) {
+      query = query.withLimitSpec(LimitSpecs.of(limitSpec.getLimit()));
+    }
+    return query;
   }
 
   @SuppressWarnings("unchecked")
@@ -428,11 +500,8 @@ public class GroupByQuery extends BaseAggregationQuery<Row> implements Query.Rew
     if (!GuavaUtils.isNullOrEmpty(limitSpec.getWindowingSpecs())) {
       return query;
     }
-    List<String> dimensionNames = DimensionSpecs.toInputNames(query.getDimensions());
-    List<String> outputNames = DimensionSpecs.toOutputNames(query.getDimensions());
-
-    if (!OrderByColumnSpec.isGroupByOrdering(limitSpec.getColumns(), outputNames)) {
-      return query;  // todo
+    if (!LimitSpecs.isGroupByOrdering(limitSpec.getColumns(), query.getDimensions())) {
+      return query;
     }
     if (query.getGranularity() != Granularities.ALL) {
       return query;  // todo
@@ -447,6 +516,8 @@ public class GroupByQuery extends BaseAggregationQuery<Row> implements Query.Rew
                                          .put("op", "QUANTILES_CDF")
                                          .put("ratioAsCount", true)
                                          .build();
+
+    List<String> dimensionNames = DimensionSpecs.toInputNames(query.getDimensions());
     if (dimensionNames.size() == 1) {
       String dimension = dimensionNames.get(0);
       ag = ImmutableMap.<String, Object>builder()
@@ -525,6 +596,20 @@ public class GroupByQuery extends BaseAggregationQuery<Row> implements Query.Rew
     DimFilter newFilter = AndDimFilter.of(query.getDimFilter(), new MathExprFilter(builder.toString()));
     logger.info("---------> " + newFilter);
     return query.withDimFilter(newFilter);
+  }
+
+  private Query tryConvertToTimeseries(ObjectMapper jsonMapper)
+  {
+    if (!dimensions.isEmpty() || needsSchemaResolution()) {
+      return this;
+    }
+    PostProcessingOperator current = PostProcessingOperators.load(this, jsonMapper);
+    if (current == null) {
+      current = new TimeseriesToRow();
+    }
+    return Druids.newTimeseriesQueryBuilder().copy(this)
+                 .overrideContext(ImmutableMap.<String, Object>of(POST_PROCESSING, current))
+                 .build();
   }
 
   public static class Builder extends BaseAggregationQuery.Builder<GroupByQuery>

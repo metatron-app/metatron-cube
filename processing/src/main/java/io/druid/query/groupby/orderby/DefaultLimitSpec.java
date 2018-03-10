@@ -45,11 +45,6 @@ import java.util.Objects;
  */
 public class DefaultLimitSpec implements LimitSpec
 {
-  public static LimitSpec of(int limit)
-  {
-    return new DefaultLimitSpec(null, limit, null);
-  }
-
   public static LimitSpec of(Integer limit, OrderByColumnSpec... orderByColumnSpecs)
   {
     return new DefaultLimitSpec(Arrays.asList(orderByColumnSpecs), limit, null);

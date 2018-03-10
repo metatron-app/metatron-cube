@@ -44,6 +44,12 @@ public class GroupByQueryConfig
   private boolean convertTimeseries = false;
 
   @JsonProperty
+  private boolean preOrdering = false;
+
+  @JsonProperty
+  private boolean removeOrdering = false;
+
+  @JsonProperty
   private boolean limitPushdown = false;
 
   @JsonProperty
@@ -113,6 +119,26 @@ public class GroupByQueryConfig
   public void setConvertTimeseries(boolean convertTimeseries)
   {
     this.convertTimeseries = convertTimeseries;
+  }
+
+  public boolean isPreOrdering()
+  {
+    return preOrdering;
+  }
+
+  public void setPreOrdering(boolean preOrdering)
+  {
+    this.preOrdering = preOrdering;
+  }
+
+  public boolean isRemoveOrdering()
+  {
+    return removeOrdering;
+  }
+
+  public void setRemoveOrdering(boolean removeOrdering)
+  {
+    this.removeOrdering = removeOrdering;
   }
 
   public boolean isLimitPushdown()

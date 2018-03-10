@@ -41,6 +41,7 @@ import io.druid.segment.incremental.IncrementalIndex;
 import java.io.Closeable;
 import java.io.IOException;
 import java.util.Arrays;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -59,6 +60,8 @@ public class SimpleMergeIndex implements MergeIndex
   private final Function<TimeAndDims, Aggregator[]> populator;
   private final boolean compact;
 
+  private final Comparator<TimeAndDims> comparator;
+
   public SimpleMergeIndex(
       final List<DimensionSpec> dimensions,
       final List<AggregatorFactory> aggregators,
@@ -76,6 +79,25 @@ public class SimpleMergeIndex implements MergeIndex
     final ColumnSelectorFactory[] selectors = new ColumnSelectorFactory[aggregators.size()];
     for (int i = 0; i < selectors.length; i++) {
       selectors[i] = new Caching(new FromInputRow(rowSupplier, metrics[i], false)).asReadOnly(metrics[i]);
+    }
+    List<Comparator> comparators = DimensionSpecs.toComparator(dimensions);
+    if (comparators == null) {
+      this.comparator = null;
+    } else {
+      final Comparator[] array = comparators.toArray(new Comparator[comparators.size()]);
+      this.comparator = new Comparator<TimeAndDims>()
+      {
+        @Override
+        @SuppressWarnings("unchecked")
+        public int compare(TimeAndDims o1, TimeAndDims o2)
+        {
+          int compare = Longs.compare(o1.timestamp, o2.timestamp);
+          for (int i = 0; compare == 0 && i < array.length; i++) {
+            compare = array[i].compare(o1.array[i], o2.array[i]);
+          }
+          return compare;
+        }
+      };
     }
     this.populator = new Function<TimeAndDims, Aggregator[]>()
     {
@@ -153,7 +175,13 @@ public class SimpleMergeIndex implements MergeIndex
         }
       };
     }
-    return Lists.transform(IncrementalIndex.sortOn(mapping, true), function);
+    List<Map.Entry<TimeAndDims, Aggregator[]>> sorted;
+    if (comparator != null) {
+      sorted = IncrementalIndex.sortOn(mapping, comparator, true);
+    } else {
+      sorted = IncrementalIndex.sortOn(mapping, true);
+    }
+    return Lists.transform(sorted, function);
   }
 
   @Override

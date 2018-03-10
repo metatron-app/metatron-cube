@@ -79,6 +79,31 @@ public abstract class BaseFilteredDimensionSpec extends DimensionSpec.Abstract
     return selector;
   }
 
+  @Override
+  public boolean equals(Object o)
+  {
+    if (this == o) {
+      return true;
+    }
+    if (o == null || getClass() != o.getClass()) {
+      return false;
+    }
+
+    BaseFilteredDimensionSpec that = (BaseFilteredDimensionSpec) o;
+
+    if (!delegate.equals(that.delegate)) {
+      return false;
+    }
+
+    return true;
+  }
+
+  @Override
+  public int hashCode()
+  {
+    return delegate.hashCode();
+  }
+
   protected static DimensionSelector decorate(
       final DimensionSelector selector,
       final Map<Integer, Integer> forwardMapping,
