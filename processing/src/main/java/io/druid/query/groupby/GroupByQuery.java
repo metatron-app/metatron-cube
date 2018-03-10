@@ -506,6 +506,10 @@ public class GroupByQuery extends BaseAggregationQuery<Row> implements Query.Rew
     if (query.getGranularity() != Granularities.ALL) {
       return query;  // todo
     }
+    List<String> dimensionNames = DimensionSpecs.toInputNames(query.getDimensions());
+    if (dimensionNames.isEmpty()) {
+      return query;
+    }
 
     List<VirtualColumn> vcs = null;
     Map<String, Object> ag;
@@ -514,10 +518,10 @@ public class GroupByQuery extends BaseAggregationQuery<Row> implements Query.Rew
                                          .put("name", "SPLIT")
                                          .put("fieldName", "SKETCH")
                                          .put("op", "QUANTILES_CDF")
+                                         .put("slopedSpaced", 31)
                                          .put("ratioAsCount", true)
                                          .build();
 
-    List<String> dimensionNames = DimensionSpecs.toInputNames(query.getDimensions());
     if (dimensionNames.size() == 1) {
       String dimension = dimensionNames.get(0);
       ag = ImmutableMap.<String, Object>builder()
@@ -528,7 +532,7 @@ public class GroupByQuery extends BaseAggregationQuery<Row> implements Query.Rew
                        .build();
     } else {
       vcs = Arrays.<VirtualColumn>asList(
-          new ExprVirtualColumn("concat(" + StringUtils.join(dimensionNames, ", '\\\\u0001',") + ")", "VC")
+          new ExprVirtualColumn("concat(" + StringUtils.join(dimensionNames, ", '\u0001',") + ")", "VC")
       );
       ag = ImmutableMap.<String, Object>builder()
                        .put("type", "sketch")
@@ -574,24 +578,37 @@ public class GroupByQuery extends BaseAggregationQuery<Row> implements Query.Rew
     logger.info("--> counts : " + Arrays.toString(counts));
 
     long limit = (long) (limitSpec.getLimit() * 1.1);
-
-    logger.info("--> " + limit + "  : " + Arrays.binarySearch(counts, limit));
-    int index = Math.abs(Arrays.binarySearch(counts, limit));
+    int index = Arrays.binarySearch(counts, limit);
+    if (index < 0) {
+      index = -index - 1;
+    }
+    logger.info("--> " + limit + "  : " + index);
     if (index == counts.length) {
       return query;
     }
+    String[] minValues = values[0].split("\u0001");
+    String[] maxValues = values[values.length - 1].split("\u0001");
     String[] splits = values[index].split("\u0001");
     if (dimensionNames.size() != splits.length) {
       return query;
     }
+    int i = 0;
+    for (; splits[i].equals(minValues[i]) && i < splits.length; i++) {
+    }
     StringBuilder builder = new StringBuilder();
-    for (int i = 0; i < splits.length; i++) {
+    for (; i < 1; i++) {
+      if (splits[i].equals(maxValues[i])) {
+        continue;
+      }
       if (builder.length() > 0) {
         builder.append(" && ");
       }
-      builder.append(dimensionNames.get(i)).append(" < ").append("'").append(splits[i]).append("'");
+      builder.append(dimensionNames.get(i)).append(" <= ").append('\'').append(splits[i]).append('\'');
     }
     logger.info("---------> " + builder.toString());
+    if (builder.length() == 0) {
+      return query;
+    }
 
     DimFilter newFilter = AndDimFilter.of(query.getDimFilter(), new MathExprFilter(builder.toString()));
     logger.info("---------> " + newFilter);
