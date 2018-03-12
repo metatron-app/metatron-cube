@@ -138,7 +138,7 @@ public class SearchHitSort
   {
     StringComparator stringComp = null;
     for (int i = 1; i < specs.length && stringComp == null; i++) {
-      stringComp = StringComparators.tryMakeComparator(specs[i]);
+      stringComp = StringComparators.tryMakeComparator(specs[i], StringComparators.LEXICOGRAPHIC);
     }
     if (stringComp == null) {
       stringComp = StringComparators.LEXICOGRAPHIC;

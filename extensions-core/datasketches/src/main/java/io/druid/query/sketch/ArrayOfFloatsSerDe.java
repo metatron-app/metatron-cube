@@ -21,8 +21,8 @@ package io.druid.query.sketch;
 
 import com.google.common.primitives.Floats;
 import com.yahoo.memory.Memory;
-import com.yahoo.memory.NativeMemory;
 import com.yahoo.memory.UnsafeUtil;
+import com.yahoo.memory.WritableMemory;
 import com.yahoo.sketches.ArrayOfItemsSerDe;
 
 /**
@@ -32,7 +32,7 @@ public class ArrayOfFloatsSerDe extends ArrayOfItemsSerDe<Float>
   @Override
   public byte[] serializeToByteArray(final Float[] items) {
     final byte[] bytes = new byte[Floats.BYTES * items.length];
-    final Memory mem = new NativeMemory(bytes);
+    final WritableMemory mem = WritableMemory.wrap(bytes);
     long offsetBytes = 0;
     for (int i = 0; i < items.length; i++) {
       mem.putFloat(offsetBytes, items[i]);

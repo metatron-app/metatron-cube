@@ -147,7 +147,11 @@ public class StringComparatorsTest
         "spotWednesday", "spotThursday", "spotFriday", "spotSaturday", "spotSunday"
     );
     Collections.shuffle(cartesian);
-    Collections.sort(cartesian, StringComparators.makeComparator("stringarray(\u0001,lexicographic:desc,dayofweek.en)"));
+
+    String name = "stringarray(\u0001,lexicographic:desc,dayofweek.en)";
+    StringComparator c = StringComparators.makeComparator(name);
+    Assert.assertEquals(name, c.toString());
+    Collections.sort(cartesian, c);
     Assert.assertEquals(expected, cartesian);
   }
 

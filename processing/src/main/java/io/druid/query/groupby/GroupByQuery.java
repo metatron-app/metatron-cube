@@ -37,7 +37,6 @@ import io.druid.data.input.Row;
 import io.druid.granularity.Granularities;
 import io.druid.granularity.Granularity;
 import io.druid.query.BaseAggregationQuery;
-import io.druid.query.BaseQuery;
 import io.druid.query.DataSource;
 import io.druid.query.Druids;
 import io.druid.query.LateralViewSpec;
@@ -62,6 +61,8 @@ import io.druid.query.groupby.orderby.LimitSpec;
 import io.druid.query.groupby.orderby.LimitSpecs;
 import io.druid.query.groupby.orderby.OrderByColumnSpec;
 import io.druid.query.groupby.orderby.WindowingSpec;
+import io.druid.query.ordering.Direction;
+import io.druid.query.ordering.StringComparators;
 import io.druid.query.spec.QuerySegmentSpec;
 import io.druid.query.timeseries.TimeseriesQuery;
 import io.druid.query.timeseries.TimeseriesResultValue;
@@ -494,22 +495,24 @@ public class GroupByQuery extends BaseAggregationQuery<Row> implements Query.Rew
   {
     GroupByQuery query = this;
     LimitSpec limitSpec = query.getLimitSpec();
+    List<DimensionSpec> dimensionSpecs = query.getDimensions();
     if (limitSpec.getLimit() > queryConfig.groupBy.getLimitPushdownThreshold()) {
       return query;
     }
     if (!GuavaUtils.isNullOrEmpty(limitSpec.getWindowingSpecs())) {
       return query;
     }
-    if (!LimitSpecs.isGroupByOrdering(limitSpec.getColumns(), query.getDimensions())) {
+    if (!LimitSpecs.isGroupByOrdering(limitSpec.getColumns(), dimensionSpecs)) {
       return query;
     }
     if (query.getGranularity() != Granularities.ALL) {
       return query;  // todo
     }
-    List<String> dimensionNames = DimensionSpecs.toInputNames(query.getDimensions());
-    if (dimensionNames.isEmpty()) {
+    List<String> dimensions = DimensionSpecs.toInputNames(dimensionSpecs);
+    if (dimensions.isEmpty()) {
       return query;
     }
+    final char separator = '\u0001';
 
     List<VirtualColumn> vcs = null;
     Map<String, Object> ag;
@@ -522,26 +525,30 @@ public class GroupByQuery extends BaseAggregationQuery<Row> implements Query.Rew
                                          .put("ratioAsCount", true)
                                          .build();
 
-    if (dimensionNames.size() == 1) {
-      String dimension = dimensionNames.get(0);
+    if (dimensions.size() == 1) {
+      String dimension = dimensions.get(0);
       ag = ImmutableMap.<String, Object>builder()
                        .put("type", "sketch")
                        .put("name", "SKETCH")
                        .put("fieldName", dimension)
                        .put("sketchOp", "QUANTILE")
+                       .put("sketchParam", 128)
                        .build();
     } else {
+      String comparator = StringComparators.asComparatorName(separator, dimensionSpecs);
       vcs = Arrays.<VirtualColumn>asList(
-          new ExprVirtualColumn("concat(" + StringUtils.join(dimensionNames, ", '\u0001',") + ")", "VC")
+          new ExprVirtualColumn("concat(" + StringUtils.join(dimensions, ", '" + separator + "',") + ")", "VC")
       );
       ag = ImmutableMap.<String, Object>builder()
                        .put("type", "sketch")
                        .put("name", "SKETCH")
                        .put("fieldName", "VC")
                        .put("sketchOp", "QUANTILE")
-                       .put("stringComparator", "stringarray(\u0001)")
+                       .put("sketchParam", 128)
+                       .put("stringComparator", comparator)
                        .build();
     }
+    List<Direction> directions = DimensionSpecs.getDirections(dimensionSpecs);
 
     TimeseriesQuery metaQuery = new TimeseriesQuery(
         query.getDataSource(),
@@ -556,7 +563,7 @@ public class GroupByQuery extends BaseAggregationQuery<Row> implements Query.Rew
         null,
         Arrays.asList("SPLIT"),
         null,
-        ImmutableMap.<String, Object>of(BaseQuery.QUERYID, getId())
+        ImmutableMap.<String, Object>copyOf(getContext())
     );
     Result<TimeseriesResultValue> result = Iterables.getOnlyElement(
         Sequences.toList(
@@ -573,6 +580,9 @@ public class GroupByQuery extends BaseAggregationQuery<Row> implements Query.Rew
     Map<String, Object> value = (Map<String, Object>) result.getValue().getMetric("SPLIT");
     String[] values = (String[])value.get("splits");
     long[] counts = (long[])value.get("cdf");
+    if (values == null || counts == null) {
+      return query;
+    }
 
     logger.info("--> values : " + Arrays.toString(values));
     logger.info("--> counts : " + Arrays.toString(counts));
@@ -586,24 +596,25 @@ public class GroupByQuery extends BaseAggregationQuery<Row> implements Query.Rew
     if (index == counts.length) {
       return query;
     }
-    String[] minValues = values[0].split("\u0001");
-    String[] maxValues = values[values.length - 1].split("\u0001");
-    String[] splits = values[index].split("\u0001");
-    if (dimensionNames.size() != splits.length) {
+    String[] minValues = Preconditions.checkNotNull(StringUtils.split(values[0], separator));
+    String[] splits = Preconditions.checkNotNull(StringUtils.split(values[index], separator));
+    if (dimensions.size() != splits.length) {
       return query;
     }
+    logger.info("--> split : " + Arrays.toString(splits));
+
+    StringBuilder builder = new StringBuilder();
+
     int i = 0;
     for (; splits[i].equals(minValues[i]) && i < splits.length; i++) {
+      builder.append(dimensions.get(i)).append(" == ").append('\'').append(minValues[i]).append('\'');
     }
-    StringBuilder builder = new StringBuilder();
-    for (; i < 1; i++) {
-      if (splits[i].equals(maxValues[i])) {
-        continue;
-      }
+    if (i < splits.length) {
       if (builder.length() > 0) {
         builder.append(" && ");
       }
-      builder.append(dimensionNames.get(i)).append(" <= ").append('\'').append(splits[i]).append('\'');
+      String x = directions.get(i) == Direction.ASCENDING ? " <= " : " >= ";
+      builder.append(dimensions.get(i)).append(x).append('\'').append(splits[i]).append('\'');
     }
     logger.info("---------> " + builder.toString());
     if (builder.length() == 0) {

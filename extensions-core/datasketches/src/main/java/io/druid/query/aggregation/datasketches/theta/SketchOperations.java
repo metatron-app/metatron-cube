@@ -20,9 +20,7 @@
 package io.druid.query.aggregation.datasketches.theta;
 
 import com.google.common.base.Charsets;
-import com.google.common.collect.Ordering;
 import com.yahoo.memory.Memory;
-import com.yahoo.memory.NativeMemory;
 import com.yahoo.sketches.Family;
 import com.yahoo.sketches.quantiles.ItemsSketch;
 import com.yahoo.sketches.sampling.ReservoirItemsSketch;
@@ -35,6 +33,8 @@ import com.yahoo.sketches.theta.Union;
 import io.druid.data.ValueType;
 import io.druid.query.sketch.TypedSketch;
 import org.apache.commons.codec.binary.Base64;
+
+import java.util.Comparator;
 
 public class SketchOperations
 {
@@ -86,7 +86,7 @@ public class SketchOperations
 
   public static Sketch deserializeFromByteArray(byte[] data)
   {
-    return deserializeFromMemory(new NativeMemory(data));
+    return deserializeFromMemory(Memory.wrap(data));
   }
 
   public static Sketch deserializeFromMemory(Memory mem)
@@ -100,10 +100,15 @@ public class SketchOperations
 
   public static ItemsSketch deserializeQuantile(Object serializedSketch, ValueType type)
   {
+    return deserializeQuantile(serializedSketch, type, null);
+  }
+
+  public static ItemsSketch deserializeQuantile(Object serializedSketch, ValueType type, Comparator comparator)
+  {
     if (serializedSketch instanceof String) {
-      return deserializeQuantileFromBase64EncodedString((String) serializedSketch, type);
+      return deserializeQuantileFromBase64EncodedString((String) serializedSketch, type, comparator);
     } else if (serializedSketch instanceof byte[]) {
-      return deserializeQuantileFromByteArray((byte[]) serializedSketch, type);
+      return deserializeQuantileFromByteArray((byte[]) serializedSketch, type, comparator);
     } else if (serializedSketch instanceof ItemsSketch) {
       return (ItemsSketch) serializedSketch;
     }
@@ -114,19 +119,24 @@ public class SketchOperations
     );
   }
 
-  public static ItemsSketch deserializeQuantileFromBase64EncodedString(String str, ValueType type)
+  public static ItemsSketch deserializeQuantileFromBase64EncodedString(
+      String str,
+      ValueType type,
+      Comparator comparator
+  )
   {
-    return deserializeQuantileFromByteArray(Base64.decodeBase64(str.getBytes(Charsets.UTF_8)), type);
+    return deserializeQuantileFromByteArray(Base64.decodeBase64(str.getBytes(Charsets.UTF_8)), type, comparator);
   }
 
-  public static ItemsSketch deserializeQuantileFromByteArray(byte[] data, ValueType type)
+  public static ItemsSketch deserializeQuantileFromByteArray(byte[] data, ValueType type, Comparator comparator)
   {
-    return deserializeQuantileFromMemory(new NativeMemory(data), type);
+    return deserializeQuantileFromMemory(Memory.wrap(data), type, comparator);
   }
 
-  public static ItemsSketch deserializeQuantileFromMemory(Memory memory, ValueType type)
+  public static ItemsSketch deserializeQuantileFromMemory(Memory memory, ValueType type, Comparator comparator)
   {
-    return ItemsSketch.getInstance(memory, Ordering.natural(), TypedSketch.toItemsSerDe(type));
+    comparator = comparator == null ? type.comparator() : comparator;
+    return ItemsSketch.getInstance(memory, comparator, TypedSketch.toItemsSerDe(type));
   }
 
   public static com.yahoo.sketches.frequencies.ItemsSketch deserializeFrequency(Object serializedSketch, ValueType type)
@@ -152,7 +162,7 @@ public class SketchOperations
 
   public static com.yahoo.sketches.frequencies.ItemsSketch deserializeFrequencyFromByteArray(byte[] data, ValueType type)
   {
-    return deserializeFrequencyFromMemory(new NativeMemory(data), type);
+    return deserializeFrequencyFromMemory(Memory.wrap(data), type);
   }
 
   public static com.yahoo.sketches.frequencies.ItemsSketch deserializeFrequencyFromMemory(Memory memory, ValueType type)
@@ -183,12 +193,12 @@ public class SketchOperations
 
   public static ReservoirItemsSketch deserializeSamplingFromByteArray(byte[] data, ValueType type)
   {
-    return deserializeSamplingFromMemory(new NativeMemory(data), type);
+    return deserializeSamplingFromMemory(Memory.wrap(data), type);
   }
 
   public static ReservoirItemsSketch deserializeSamplingFromMemory(Memory memory, ValueType type)
   {
-    return ReservoirItemsSketch.getInstance(memory, TypedSketch.toItemsSerDe(type));
+    return ReservoirItemsSketch.heapify(memory, TypedSketch.toItemsSerDe(type));
   }
 
   public static Sketch sketchSetOperation(Func func, int sketchSize, Sketch... sketches)
@@ -200,13 +210,14 @@ public class SketchOperations
     //the final stages of query processing, ordered sketch would be of no use.
     switch (func) {
       case UNION:
-        Union union = (Union) SetOperation.builder().build(sketchSize, Family.UNION);
+        Union union = (Union) SetOperation.builder().setNominalEntries(sketchSize).build(Family.UNION);
         for (Sketch sketch : sketches) {
           union.update(sketch);
         }
         return union.getResult(false, null);
       case INTERSECT:
-        Intersection intersection = (Intersection) SetOperation.builder().build(sketchSize, Family.INTERSECTION);
+        Intersection intersection = (Intersection) SetOperation.builder().setNominalEntries(sketchSize)
+                                                               .build(Family.INTERSECTION);
         for (Sketch sketch : sketches) {
           intersection.update(sketch);
         }
@@ -222,7 +233,7 @@ public class SketchOperations
 
         Sketch result = sketches[0];
         for (int i = 1; i < sketches.length; i++) {
-          AnotB anotb = (AnotB) SetOperation.builder().build(sketchSize, Family.A_NOT_B);
+          AnotB anotb = (AnotB) SetOperation.builder().setNominalEntries(sketchSize).build(Family.A_NOT_B);
           anotb.update(result, sketches[i]);
           result = anotb.getResult(false, null);
         }

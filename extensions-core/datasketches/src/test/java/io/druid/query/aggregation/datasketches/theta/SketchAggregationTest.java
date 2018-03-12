@@ -321,7 +321,7 @@ public class SketchAggregationTest
   @Test
   public void testSketchMergeFinalization() throws Exception
   {
-    Sketch sketch = Sketches.updateSketchBuilder().build(128);
+    Sketch sketch = Sketches.updateSketchBuilder().setNominalEntries(128).build();
 
     SketchMergeAggregatorFactory agg = new SketchMergeAggregatorFactory("name", "fieldName", 16, null, null, null);
     Assert.assertEquals(0.0, ((Double) agg.finalizeComputation(sketch)).doubleValue(), 0.0001);
@@ -443,7 +443,7 @@ public class SketchAggregationTest
   {
     int size = 4;
 
-    Union union1 = (Union) SetOperation.builder().build(size, Family.UNION);
+    Union union1 = (Union) SetOperation.builder().setNominalEntries(size).build(Family.UNION);
     union1.update("automotive");
     union1.update("automotive");
     union1.update("business");
@@ -453,7 +453,7 @@ public class SketchAggregationTest
     union1.update("news");
     Sketch sketch1 = union1.getResult();
 
-    Union union2 = (Union) SetOperation.builder().build(size, Family.UNION);
+    Union union2 = (Union) SetOperation.builder().setNominalEntries(size).build(Family.UNION);
     union2.update("automotive");
     union2.update("business");
     union2.update("entertainment");

@@ -362,11 +362,11 @@ public class JodaUtils
     List<String> splits = Lists.newArrayList();
     int prev = 0;
     for (int i = JodaUtils.seekTo(string, prev, f); i >= 0; i = JodaUtils.seekTo(string, prev, f)) {
-      splits.add(string.substring(prev, i).trim());
+      splits.add(trimStartingSpaces(string.substring(prev, i)));
       prev = i + 1;
     }
     if (prev < string.length()) {
-      splits.add(string.substring(prev));
+      splits.add(trimStartingSpaces(string.substring(prev)));
     }
     return splits;
   }
@@ -387,6 +387,17 @@ public class JodaUtils
       }
     }
     return -1;
+  }
+
+  private static String trimStartingSpaces(String string)
+  {
+    int i = 0;
+    for (; i < string.length(); i++) {
+      if (string.charAt(i) != ' ') {
+        break;
+      }
+    }
+    return string.substring(i);
   }
 
   // DateTimeZone.forID cannot handle abbreviations like PST

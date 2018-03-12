@@ -20,7 +20,7 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonValue;
 import com.metamx.common.Pair;
-import com.yahoo.memory.NativeMemory;
+import com.yahoo.memory.Memory;
 import com.yahoo.sketches.ArrayOfDoublesSerDe;
 import com.yahoo.sketches.ArrayOfItemsSerDe;
 import com.yahoo.sketches.ArrayOfLongsSerDe;
@@ -34,27 +34,32 @@ import com.yahoo.sketches.theta.Union;
 import io.druid.data.ValueType;
 import io.druid.query.aggregation.datasketches.theta.SketchOperations;
 
-import java.util.Arrays;
+import java.util.Comparator;
 
 /**
  */
 public abstract class TypedSketch<T> extends Pair<ValueType, T>
 {
-  public static TypedSketch deserialize(SketchOp sketchOp, Object bytes)
+  public static TypedSketch deserialize(SketchOp sketchOp, Object bytes, Comparator comparator)
   {
     byte[] value = SketchOperations.asBytes(bytes);
     ValueType type = TypedSketch.fromByte(value[0]);
-    NativeMemory memory = new NativeMemory(Arrays.copyOfRange(value, 1, value.length));
-    return TypedSketch.of(type, deserialize(sketchOp, type, memory));
+    Memory memory = Memory.wrap(value).region(1, value.length - 1);
+    return TypedSketch.of(type, deserialize(sketchOp, memory, type, comparator));
   }
 
-  private static Object deserialize(SketchOp sketchOp, ValueType type, NativeMemory memory)
+  private static Object deserialize(
+      SketchOp sketchOp,
+      Memory memory,
+      ValueType type,
+      Comparator comparator
+  )
   {
     switch (sketchOp) {
       case THETA:
         return SketchOperations.deserializeFromMemory(memory);
       case QUANTILE:
-        return SketchOperations.deserializeQuantileFromMemory(memory, type);
+        return SketchOperations.deserializeQuantileFromMemory(memory, type, comparator);
       case FREQUENCY:
         return SketchOperations.deserializeFrequencyFromMemory(memory, type);
       case SAMPLING:

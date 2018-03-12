@@ -38,7 +38,7 @@ public abstract class SketchAggregator implements Aggregator
 
   public SketchAggregator(int size)
   {
-    union = new SynchronizedUnion((Union) SetOperation.builder().build(size, Family.UNION));
+    union = new SynchronizedUnion((Union) SetOperation.builder().setNominalEntries(size).build(Family.UNION));
   }
 
   @Override

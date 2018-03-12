@@ -29,6 +29,8 @@ import com.metamx.common.IAE;
 import com.metamx.common.StringUtils;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.common.utils.JodaUtils;
+import io.druid.query.dimension.DimensionSpec;
+import io.druid.query.dimension.DimensionSpecWithOrdering;
 import org.joda.time.DateTimeConstants;
 import org.joda.time.format.DateTimeFormatter;
 
@@ -643,19 +645,16 @@ public class StringComparators
 
   public static StringComparator makeComparator(String type)
   {
-    StringComparator comparator = tryMakeComparator(type);
+    StringComparator comparator = tryMakeComparator(type, LEXICOGRAPHIC);
     if (comparator == null) {
       throw new IAE("Unknown string comparator[%s]", type);
     }
     return comparator;
   }
 
-  public static StringComparator tryMakeComparator(String type)
+  public static StringComparator tryMakeComparator(String type, StringComparator nullValue)
   {
-    if (type == null) {
-      return LEXICOGRAPHIC;
-    }
-    return toComparator(type);
+    return type == null ? nullValue : toComparator(type);
   }
 
   private static StringComparator toComparator(String type)
@@ -703,7 +702,12 @@ public class StringComparators
           String separator = splits.get(0);
           List<StringComparator> comparators = Lists.newArrayList();
           for (int i = 1; i < splits.size(); i++) {
-            comparators.add(Preconditions.checkNotNull(toComparatorWithPossibleDirection(splits.get(i))));
+            comparators.add(
+                Preconditions.checkNotNull(
+                    toComparatorWithPossibleDirection(splits.get(i)),
+                    "invalid comparator type '" + splits.get(i) + "'"
+                )
+            );
           }
           return new StringArrayComparator(argument, separator.charAt(0), comparators.toArray(new StringComparator[0]));
         }
@@ -721,5 +725,25 @@ public class StringComparators
       return StringComparators.revert(toComparator(type.substring(0, type.length() - 5)));
     }
     return toComparator(type);
+  }
+
+  public static String asComparatorName(char separator, List<DimensionSpec> dimensionSpecs)
+  {
+    StringBuilder builder = new StringBuilder();
+    for (DimensionSpec dimension : dimensionSpecs) {
+      if (builder.length() > 0) {
+        builder.append(',');
+      }
+      if (dimension instanceof DimensionSpecWithOrdering) {
+        DimensionSpecWithOrdering explicit = (DimensionSpecWithOrdering) dimension;
+        builder.append(explicit.getOrdering());
+        if (explicit.getDirection() == Direction.DESCENDING) {
+          builder.append(":desc");
+        }
+      } else {
+        builder.append("lexicographic");
+      }
+    }
+    return STRING_ARRAY_NAME + "(" + separator + "," + builder.toString() + ")";
   }
 }

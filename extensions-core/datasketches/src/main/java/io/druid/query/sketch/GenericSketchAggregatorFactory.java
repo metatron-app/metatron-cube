@@ -60,6 +60,7 @@ public class GenericSketchAggregatorFactory extends AggregatorFactory
   private final String stringComparator;
   private final boolean merge;
 
+  private transient final Comparator comparator;
   @JsonCreator
   public GenericSketchAggregatorFactory(
       @JsonProperty("name") String name,
@@ -74,7 +75,8 @@ public class GenericSketchAggregatorFactory extends AggregatorFactory
     this.fieldName = fieldName == null ? name : fieldName;
     this.sketchOp = sketchOp == null ? SketchOp.THETA : sketchOp;
     this.sketchParam = sketchParam == null ? this.sketchOp.defaultParam() : this.sketchOp.normalize(sketchParam);
-    this.stringComparator = StringComparators.validate(stringComparator);
+    this.stringComparator = stringComparator;
+    this.comparator = StringComparators.tryMakeComparator(stringComparator, null);
     this.merge = merge;
   }
 
@@ -86,7 +88,6 @@ public class GenericSketchAggregatorFactory extends AggregatorFactory
     if (type == null) {
       return new Aggregator.Null();
     }
-    final Comparator comparator = stringComparator != null ? StringComparators.makeComparator(stringComparator) : null;
     final SketchHandler<?> handler = new SketchHandler.Synchronized<>(sketchOp.handler());
     if (ValueDesc.isDimension(type)) {
       Preconditions.checkArgument(!merge, "invalid state");
@@ -189,7 +190,6 @@ public class GenericSketchAggregatorFactory extends AggregatorFactory
     if (type == null) {
       return new BufferAggregator.Null();
     }
-    final Comparator comparator = stringComparator != null ? StringComparators.makeComparator(stringComparator) : null;
     final SketchHandler<?> handler = sketchOp.handler();
     if (ValueDesc.isDimension(type)) {
       Preconditions.checkArgument(!merge, "invalid state");
@@ -295,7 +295,7 @@ public class GenericSketchAggregatorFactory extends AggregatorFactory
   @Override
   public Object deserialize(Object object)
   {
-    return TypedSketch.deserialize(sketchOp, object);
+    return TypedSketch.deserialize(sketchOp, object, comparator);
   }
 
   @Override
@@ -325,7 +325,6 @@ public class GenericSketchAggregatorFactory extends AggregatorFactory
         "Type mismatch.. " + object1.type() + " with " + object2.type()
     );
     SketchHandler<?> handler = sketchOp.handler();
-    Comparator comparator = stringComparator != null ? StringComparators.makeComparator(stringComparator) : null;
     TypedSketch union = handler.newUnion(sketchParam, object1.type(), comparator);
     handler.updateWithSketch(union, object1.value());
     handler.updateWithSketch(union, object2.value());

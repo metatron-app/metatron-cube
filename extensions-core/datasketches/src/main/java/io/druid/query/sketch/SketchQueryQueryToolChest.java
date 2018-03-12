@@ -119,9 +119,10 @@ public class SketchQueryQueryToolChest extends QueryToolChest<Result<Map<String,
       @Override
       public Result<Map<String, Object>> apply(Result<Map<String, Object>> input)
       {
+        // todo currently, sketch query supports natural ordering only
         Map<String, Object> sketches = input.getValue();
         for (Map.Entry<String, Object> entry : sketches.entrySet()) {
-          entry.setValue(TypedSketch.deserialize(query.getSketchOp(), entry.getValue()));
+          entry.setValue(TypedSketch.deserialize(query.getSketchOp(), entry.getValue(), null));
         }
         return input;
       }
@@ -233,10 +234,10 @@ public class SketchQueryQueryToolChest extends QueryToolChest<Result<Map<String,
             int index = 1;
 
             for (String dimension : dimensions) {
-              row.put(dimension, TypedSketch.deserialize(sketchOp, input[index++]));
+              row.put(dimension, TypedSketch.deserialize(sketchOp, input[index++], null));
             }
             for (String metric : metrics) {
-              row.put(metric, TypedSketch.deserialize(sketchOp, input[index++]));
+              row.put(metric, TypedSketch.deserialize(sketchOp, input[index++], null));
             }
             return new Result<>(new DateTime(((Number) input[0]).longValue()), row);
           }

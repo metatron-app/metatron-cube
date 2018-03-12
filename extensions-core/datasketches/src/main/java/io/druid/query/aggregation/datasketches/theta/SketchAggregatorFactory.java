@@ -117,7 +117,7 @@ public abstract class SketchAggregatorFactory extends AggregatorFactory
   @Override
   public Object combine(Object lhs, Object rhs)
   {
-    Union union = (Union) SetOperation.builder().build(size, Family.UNION);
+    Union union = (Union) SetOperation.builder().setNominalEntries(size).build(Family.UNION);
     updateUnion(union, lhs);
     updateUnion(union, rhs);
     return union.getResult(false, null);

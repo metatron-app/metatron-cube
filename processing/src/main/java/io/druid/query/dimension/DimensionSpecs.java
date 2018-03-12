@@ -98,6 +98,19 @@ public class DimensionSpecs
     return true;
   }
 
+  public static List<Direction> getDirections(List<DimensionSpec> dimensionSpecs)
+  {
+    List<Direction> directions = Lists.newArrayList();
+    for (DimensionSpec dimensionSpec : dimensionSpecs) {
+      if (dimensionSpec instanceof DimensionSpecWithOrdering) {
+        directions.add(((DimensionSpecWithOrdering)dimensionSpec).getDirection());
+      } else{
+        directions.add(Direction.ASCENDING);
+      }
+    }
+    return directions;
+  }
+
   public static final Function<DimensionSpec, String> INPUT_NAME = new Function<DimensionSpec, String>()
   {
     @Override

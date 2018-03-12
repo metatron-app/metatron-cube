@@ -99,9 +99,9 @@ public interface SketchHandler<U>
     }
 
     @Override
-    public TypedSketch<X> newUnion(int sketchParam, ValueType type, Comparator comparator)
+    public synchronized TypedSketch<X> newUnion(int sketchParam, ValueType type, Comparator comparator)
     {
-      return handler.newUnion(sketchParam, type, null);
+      return handler.newUnion(sketchParam, type, comparator);
     }
 
     @Override
@@ -189,7 +189,7 @@ public interface SketchHandler<U>
     @Override
     public TypedSketch<Union> newUnion(int sketchParam, ValueType type, Comparator comparator)
     {
-      return TypedSketch.of(type, (Union) SetOperation.builder().build(sketchParam, Family.UNION));
+      return TypedSketch.of(type, (Union) SetOperation.builder().setNominalEntries(sketchParam).build(Family.UNION));
     }
 
     @Override
@@ -385,7 +385,7 @@ public interface SketchHandler<U>
     @Override
     public TypedSketch<ReservoirItemsUnion> newUnion(int sketchParam, ValueType type, Comparator comparator)
     {
-      return TypedSketch.of(type, (ReservoirItemsUnion) ReservoirItemsUnion.getInstance(sketchParam));
+      return TypedSketch.of(type, (ReservoirItemsUnion) ReservoirItemsUnion.newInstance(sketchParam));
     }
 
     @Override

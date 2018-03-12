@@ -20,8 +20,7 @@
 package io.druid.query.aggregation.datasketches.theta;
 
 import com.yahoo.memory.Memory;
-import com.yahoo.memory.MemoryRegion;
-import com.yahoo.memory.NativeMemory;
+import com.yahoo.memory.WritableMemory;
 import com.yahoo.sketches.Family;
 import com.yahoo.sketches.theta.SetOperation;
 import com.yahoo.sketches.theta.Union;
@@ -39,7 +38,7 @@ public abstract class SketchBufferAggregator implements BufferAggregator
   private final int size;
   private final int maxIntermediateSize;
 
-  private NativeMemory nm;
+  private WritableMemory nm;
   private final Map<Integer, Union> unions = new HashMap<>(); //position in BB -> Union Object
 
   public SketchBufferAggregator(int size, int maxIntermediateSize)
@@ -52,11 +51,11 @@ public abstract class SketchBufferAggregator implements BufferAggregator
   public void init(ByteBuffer buf, int position)
   {
     if (nm == null) {
-      nm = new NativeMemory(buf);
+      nm = WritableMemory.wrap(buf);
     }
 
-    Memory mem = new MemoryRegion(nm, position, maxIntermediateSize);
-    unions.put(position, (Union) SetOperation.builder().initMemory(mem).build(size, Family.UNION));
+    WritableMemory mem = nm.writableRegion(position, maxIntermediateSize);
+    unions.put(position, (Union) SetOperation.builder().setNominalEntries(size).build(Family.UNION, mem));
   }
 
   @Override
@@ -75,7 +74,7 @@ public abstract class SketchBufferAggregator implements BufferAggregator
   {
     Union union = unions.get(position);
     if (union == null) {
-      Memory mem = new MemoryRegion(nm, position, maxIntermediateSize);
+      Memory mem = nm.writableRegion(position, maxIntermediateSize);
       union = (Union) SetOperation.wrap(mem);
       unions.put(position, union);
     }

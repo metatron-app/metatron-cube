@@ -91,7 +91,7 @@ public class ThetaSketchQueryRunnerTest
       mapper = mapper.registerModule(module);
     }
     int nomEntries = 16;
-    Union union1 = (Union) SetOperation.builder().build(nomEntries, Family.UNION);
+    Union union1 = (Union) SetOperation.builder().setNominalEntries(nomEntries).build(Family.UNION);
     union1.update("automotive");
     union1.update("business");
     union1.update("entertainment");
@@ -99,7 +99,7 @@ public class ThetaSketchQueryRunnerTest
     union1.update("mezzanine");
     union1.update("news");
     Sketch sketch1 = union1.getResult(true, null);
-    Union union2 = (Union) SetOperation.builder().build(nomEntries, Family.UNION);
+    Union union2 = (Union) SetOperation.builder().setNominalEntries(nomEntries).build(Family.UNION);
     union2.update("automotive1");
     union2.update("automotive2");
     union2.update("automotive3");

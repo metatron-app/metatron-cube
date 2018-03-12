@@ -78,7 +78,7 @@ public class BoundDimFilter implements DimFilter
                           StringComparators.LEXICOGRAPHIC_NAME;
     this.extractionFn = extractionFn;
     Preconditions.checkArgument(
-        StringComparators.tryMakeComparator(this.comparatorType) != null,
+        StringComparators.tryMakeComparator(this.comparatorType, null) != null,
         "invalid comparator type" + this.comparatorType
     );
   }
