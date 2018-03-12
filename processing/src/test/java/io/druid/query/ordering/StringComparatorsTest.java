@@ -122,31 +122,56 @@ public class StringComparatorsTest
     }
     List<String> sorted = Lists.newArrayList(cartesian);
     Collections.shuffle(cartesian);
-    Collections.sort(cartesian, StringComparators.makeComparator("stringarray.\u0001"));
+    Collections.sort(cartesian, StringComparators.makeComparator("stringarray(\u0001)"));
     Assert.assertEquals(sorted, cartesian);
+  }
+
+  @Test
+  public void testStringArrayComplex()
+  {
+    List<String> x1 = Arrays.asList("spot", "total_market", "upfront");
+    List<String> x2 = Arrays.asList(
+        "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"
+    );
+
+    List<String> cartesian = Lists.newArrayList();
+    for (String a : x1) {
+      for (String y : x2) {
+        cartesian.add(a + "\u0001" + y);
+      }
+    }
+    List<String> expected = Arrays.asList(
+        "upfrontMonday", "upfrontTuesday", "upfrontWednesday", "upfrontThursday", "upfrontFriday", "upfrontSaturday",
+        "upfrontSunday", "total_marketMonday", "total_marketTuesday", "total_marketWednesday", "total_marketThursday",
+        "total_marketFriday", "total_marketSaturday", "total_marketSunday", "spotMonday", "spotTuesday",
+        "spotWednesday", "spotThursday", "spotFriday", "spotSaturday", "spotSunday"
+    );
+    Collections.shuffle(cartesian);
+    Collections.sort(cartesian, StringComparators.makeComparator("stringarray(\u0001,lexicographic:desc,dayofweek.en)"));
+    Assert.assertEquals(expected, cartesian);
   }
 
   @Test
   public void testDateTime()
   {
     List<String> x = Arrays.asList("09 01 2018", "03 02 2017", "12 03 2013", "04 21 2015", "06 11 2019");
-    Collections.sort(x, StringComparators.makeComparator("datetime.'MM dd yyyy'"));
+    Collections.sort(x, StringComparators.makeComparator("datetime('MM dd yyyy')"));
     Assert.assertEquals(Arrays.asList("12 03 2013", "04 21 2015", "03 02 2017", "09 01 2018", "06 11 2019"), x);
 
     x = Arrays.asList("Oct 01 2018", "Mar 02 2017", "Dec 03 2013", "Apr 21 2015", "Jun 11 2019");
-    Collections.sort(x, StringComparators.makeComparator("datetime.'MMM dd yyyy'"));
+    Collections.sort(x, StringComparators.makeComparator("datetime('MMM dd yyyy')"));
     Assert.assertEquals(Arrays.asList("Dec 03 2013", "Apr 21 2015", "Mar 02 2017", "Oct 01 2018", "Jun 11 2019"), x);
 
     x = Arrays.asList("01 Oct 2018", "02 Mar 2017", "03 Dec 2013", "21 Apr 2015", "11 Jun 2019");
-    Collections.sort(x, StringComparators.makeComparator("datetime.'dd MMM yyyy'"));
+    Collections.sort(x, StringComparators.makeComparator("datetime('dd MMM yyyy')"));
     Assert.assertEquals(Arrays.asList("03 Dec 2013", "21 Apr 2015", "02 Mar 2017", "01 Oct 2018", "11 Jun 2019"), x);
 
     x = Arrays.asList("01 10월,2018", "02 3월,2017", "03 12월,2013", "21 4월,2015", "11 6월,2019");
-    Collections.sort(x, StringComparators.makeComparator("datetime.'dd MMM,yyyy',UTC,ko"));
+    Collections.sort(x, StringComparators.makeComparator("datetime('dd MMM,yyyy',UTC,ko)"));
     Assert.assertEquals(Arrays.asList("03 12월,2013", "21 4월,2015", "02 3월,2017", "01 10월,2018", "11 6월,2019"), x);
 
     x = Arrays.asList("Week 45, 2012", "Week 36, 2013", "Week 01, 2014", "Week 03, 2013", "Week 17, 2013");
-    Collections.sort(x, StringComparators.makeComparator("datetime.''Week' w, xxxx'"));
+    Collections.sort(x, StringComparators.makeComparator("datetime(''Week' w, xxxx')"));
     Assert.assertEquals(Arrays.asList("Week 45, 2012", "Week 03, 2013", "Week 17, 2013", "Week 36, 2013", "Week 01, 2014"), x);
   }
 }

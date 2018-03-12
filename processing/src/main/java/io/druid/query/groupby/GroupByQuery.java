@@ -539,7 +539,7 @@ public class GroupByQuery extends BaseAggregationQuery<Row> implements Query.Rew
                        .put("name", "SKETCH")
                        .put("fieldName", "VC")
                        .put("sketchOp", "QUANTILE")
-                       .put("stringComparator", "stringarray.\u0001")
+                       .put("stringComparator", "stringarray(\u0001)")
                        .build();
     }
 

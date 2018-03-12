@@ -128,7 +128,7 @@ public class SketchGroupByQueryTest
         .setVirtualColumns(new ExprVirtualColumn("concat(market, '\\u0001', quality)", "VC"))
         .setAggregatorSpecs(
             new GenericSketchAggregatorFactory(
-                "SKETCH", "VC", SketchOp.QUANTILE, null, "stringarray.\u0001", false
+                "SKETCH", "VC", SketchOp.QUANTILE, null, "stringarray(\u0001)", false
             )
         )
         .setPostAggregatorSpecs(

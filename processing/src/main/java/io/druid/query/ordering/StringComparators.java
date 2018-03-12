@@ -20,6 +20,7 @@
 package io.druid.query.ordering;
 
 import com.google.common.base.Preconditions;
+import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.primitives.Ints;
 import com.google.common.primitives.Longs;
@@ -34,6 +35,7 @@ import org.joda.time.format.DateTimeFormatter;
 import java.math.BigDecimal;
 import java.text.DateFormatSymbols;
 import java.util.Calendar;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 
@@ -145,11 +147,15 @@ public class StringComparators
 
   public static class StringArrayComparator extends AbstractStringComparator
   {
+    private final String format;
     private final char separator;
+    private final StringComparator[] comparators;
 
-    public StringArrayComparator(char separator)
+    public StringArrayComparator(String format, char separator, StringComparator[] comparators)
     {
+      this.format = format;
       this.separator = separator;
+      this.comparators = comparators;
     }
 
     @Override
@@ -157,28 +163,38 @@ public class StringComparators
     {
       int i1 = 0;
       int i2 = 0;
+      int index = 0;
       while (true) {
         int index1 = s1.indexOf(separator, i1);
         int index2 = s2.indexOf(separator, i2);
         if (index1 >= 0 && index2 >= 0) {
-          int compare = s1.substring(i1, index1).compareTo(s2.substring(i2, index2));
+          int compare = _compareElement(s1.substring(i1, index1), s2.substring(i2, index2), index++);
           if (compare != 0) {
             return compare;
           }
           i1 = index1 + 1;
           i2 = index2 + 1;
         } else if (index1 < 0 && index2 < 0) {
-          return s1.substring(i1).compareTo(s2.substring(i2));
+          return _compareElement(s1.substring(i1), s2.substring(i2), index);
         } else {
           return index2 < 0 ? 1 : -1;
         }
       }
     }
 
+    private int _compareElement(String e1, String e2, int index)
+    {
+      if (comparators.length > 0) {
+        return comparators[index].compare(e1, e2);
+      } else {
+        return e1.compareTo(e2);
+      }
+    }
+
     @Override
     public String toString()
     {
-      return StringComparators.LEXICOGRAPHIC_NAME;
+      return StringComparators.STRING_ARRAY_NAME + "(" + format + ")";
     }
   }
 
@@ -613,7 +629,7 @@ public class StringComparators
     @Override
     public String toString()
     {
-      return StringComparators.DATETIME_NAME + "." + format;
+      return StringComparators.DATETIME_NAME + "(" + format + ")";
     }
   }
 
@@ -639,6 +655,11 @@ public class StringComparators
     if (type == null) {
       return LEXICOGRAPHIC;
     }
+    return toComparator(type);
+  }
+
+  private static StringComparator toComparator(String type)
+  {
     String lowerCased = type.toLowerCase();
     switch (lowerCased) {
       case StringComparators.LEXICOGRAPHIC_NAME:
@@ -664,15 +685,41 @@ public class StringComparators
         if (lowerCased.startsWith(StringComparators.MONTH_NAME + ".")) {
           return new MonthComparator(type.substring(MONTH_NAME.length() + 1));
         }
-        if (lowerCased.startsWith(StringComparators.DATETIME_NAME + ".")) {
-          return new DateTimeComparator(type.substring(DATETIME_NAME.length() + 1));
+        if (lowerCased.startsWith(StringComparators.DATETIME_NAME + "(")) {
+          int seek = JodaUtils.seekTo(type, DATETIME_NAME.length() + 1, ')');
+          if (seek < 0) {
+            throw new IllegalArgumentException("not matching ')' in " + type);
+          }
+          return new DateTimeComparator(type.substring(DATETIME_NAME.length() + 1, seek));
         }
-        if (lowerCased.startsWith(StringComparators.STRING_ARRAY_NAME + ".")) {
-          String substring = type.substring(STRING_ARRAY_NAME.length() + 1);
-          Preconditions.checkArgument(substring.length() == 1, "separator should be a char");
-          return new StringArrayComparator(substring.charAt(0));
+        if (lowerCased.startsWith(StringComparators.STRING_ARRAY_NAME + "(")) {
+          int seek = JodaUtils.seekTo(type, STRING_ARRAY_NAME.length() + 1, ')');
+          if (seek < 0) {
+            throw new IllegalArgumentException("not matching ')' in " + type);
+          }
+          String argument = type.substring(STRING_ARRAY_NAME.length() + 1, seek);
+          List<String> splits = JodaUtils.split(argument, ',');
+          Preconditions.checkArgument(!splits.isEmpty() && splits.get(0).length() == 1, "separator should be a char");
+          String separator = splits.get(0);
+          List<StringComparator> comparators = Lists.newArrayList();
+          for (int i = 1; i < splits.size(); i++) {
+            comparators.add(Preconditions.checkNotNull(toComparatorWithPossibleDirection(splits.get(i))));
+          }
+          return new StringArrayComparator(argument, separator.charAt(0), comparators.toArray(new StringComparator[0]));
         }
         return null;
     }
+  }
+
+  // internal use for dimension handling.. (damn)
+  private static StringComparator toComparatorWithPossibleDirection(String type)
+  {
+    String lowerCased = type.toLowerCase();
+    if (lowerCased.endsWith(":asc")) {
+      return toComparator(type.substring(0, type.length() - 4));
+    } else if (lowerCased.endsWith(":desc")) {
+      return StringComparators.revert(toComparator(type.substring(0, type.length() - 5)));
+    }
+    return toComparator(type);
   }
 }

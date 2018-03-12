@@ -39,6 +39,7 @@ import sun.util.calendar.ZoneInfo;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Locale;
 import java.util.TimeZone;
 import java.util.TreeSet;
@@ -356,7 +357,21 @@ public class JodaUtils
     return formatter;
   }
 
-  private static int seekTo(String string, int i, char f)
+  public static List<String> split(String string, char f)
+  {
+    List<String> splits = Lists.newArrayList();
+    int prev = 0;
+    for (int i = JodaUtils.seekTo(string, prev, f); i >= 0; i = JodaUtils.seekTo(string, prev, f)) {
+      splits.add(string.substring(prev, i).trim());
+      prev = i + 1;
+    }
+    if (prev < string.length()) {
+      splits.add(string.substring(prev));
+    }
+    return splits;
+  }
+
+  public static int seekTo(String string, int i, char f)
   {
     boolean escape = false;
     for (; i < string.length(); i++) {
