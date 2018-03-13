@@ -23,14 +23,12 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.base.Preconditions;
-import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Ordering;
 import com.google.common.primitives.Ints;
 import com.yahoo.sketches.theta.Sketch;
 import io.druid.common.utils.StringUtils;
 import io.druid.data.ValueDesc;
-import io.druid.data.ValueType;
 import io.druid.query.aggregation.Aggregator;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.BufferAggregator;
@@ -94,7 +92,7 @@ public class GenericSketchAggregatorFactory extends AggregatorFactory
       final DimensionSelector selector = metricFactory.makeDimensionSelector(DefaultDimensionSpec.of(fieldName));
       return new Aggregator.Abstract()
       {
-        final TypedSketch sketch = handler.newUnion(sketchParam, ValueType.STRING, comparator);
+        final TypedSketch sketch = handler.newUnion(sketchParam, ValueDesc.STRING, comparator);
 
         @Override
         public void aggregate()
@@ -155,12 +153,12 @@ public class GenericSketchAggregatorFactory extends AggregatorFactory
         }
       };
     }
-    if (!handler.supports(type.type())) {
+    if (!handler.supports(type)) {
       throw new UnsupportedOperationException("not supported type " + type);
     }
     return new Aggregator.Abstract()
     {
-      final TypedSketch sketch = handler.newUnion(sketchParam, type.type(), comparator);
+      final TypedSketch sketch = handler.newUnion(sketchParam, type, comparator);
 
       @Override
       public void aggregate()
@@ -202,7 +200,7 @@ public class GenericSketchAggregatorFactory extends AggregatorFactory
         public void init(ByteBuffer buf, int position)
         {
           buf.putInt(position, sketches.size());
-          sketches.add(handler.newUnion(sketchParam, ValueType.STRING, comparator));
+          sketches.add(handler.newUnion(sketchParam, ValueDesc.STRING, comparator));
         }
 
         @Override
@@ -264,7 +262,7 @@ public class GenericSketchAggregatorFactory extends AggregatorFactory
         }
       };
     }
-    if (!handler.supports(type.type())) {
+    if (!handler.supports(type)) {
       throw new UnsupportedOperationException("not supported type " + type);
     }
     return new BufferAggregator.Abstract()
@@ -275,7 +273,7 @@ public class GenericSketchAggregatorFactory extends AggregatorFactory
       public void init(ByteBuffer buf, int position)
       {
         buf.putInt(position, sketches.size());
-        sketches.add(handler.newUnion(sketchParam, type.type(), comparator));
+        sketches.add(handler.newUnion(sketchParam, type, comparator));
       }
 
       @Override

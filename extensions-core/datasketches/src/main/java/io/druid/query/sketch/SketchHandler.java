@@ -28,7 +28,7 @@ import com.yahoo.sketches.sampling.ReservoirItemsUnion;
 import com.yahoo.sketches.theta.SetOperation;
 import com.yahoo.sketches.theta.Sketch;
 import com.yahoo.sketches.theta.Union;
-import io.druid.data.ValueType;
+import io.druid.data.ValueDesc;
 import io.druid.query.extraction.ExtractionFn;
 import io.druid.query.extraction.IdentityExtractionFn;
 import io.druid.query.filter.BitmapIndexSelector;
@@ -56,9 +56,9 @@ public interface SketchHandler<U>
       BitmapIndexSelector selector
   );
 
-  boolean supports(ValueType type);
+  boolean supports(ValueDesc type);
 
-  TypedSketch<U> newUnion(int sketchParam, ValueType type, Comparator comparator);
+  TypedSketch<U> newUnion(int sketchParam, ValueDesc type, Comparator comparator);
 
   void updateWithValue(TypedSketch<U> union, Object value);
 
@@ -93,13 +93,13 @@ public interface SketchHandler<U>
     }
 
     @Override
-    public synchronized boolean supports(ValueType type)
+    public synchronized boolean supports(ValueDesc type)
     {
       return handler.supports(type);
     }
 
     @Override
-    public synchronized TypedSketch<X> newUnion(int sketchParam, ValueType type, Comparator comparator)
+    public synchronized TypedSketch<X> newUnion(int sketchParam, ValueDesc type, Comparator comparator)
     {
       return handler.newUnion(sketchParam, type, comparator);
     }
@@ -134,7 +134,7 @@ public interface SketchHandler<U>
     @Override
     public TypedSketch<Union> calculate(int sketchParam, BitmapIndex bitmapIndex, ExtractionFn function)
     {
-      final TypedSketch<Union> union = newUnion(sketchParam, ValueType.STRING, null);
+      final TypedSketch<Union> union = newUnion(sketchParam, ValueDesc.STRING, null);
       final Union sketch = union.value();
       final int cardinality = bitmapIndex.getCardinality();
       if (function == null) {
@@ -158,7 +158,7 @@ public interface SketchHandler<U>
         BitmapIndexSelector selector
     )
     {
-      final TypedSketch<Union> union = newUnion(sketchParam, ValueType.STRING, null);
+      final TypedSketch<Union> union = newUnion(sketchParam, ValueDesc.STRING, null);
       final int cardinality = bitmapIndex.getCardinality();
       if (function == null) {
         for (int i = 0; i < cardinality; ++i) {
@@ -181,13 +181,13 @@ public interface SketchHandler<U>
     }
 
     @Override
-    public boolean supports(ValueType type)
+    public boolean supports(ValueDesc type)
     {
       return type.isPrimitive();
     }
 
     @Override
-    public TypedSketch<Union> newUnion(int sketchParam, ValueType type, Comparator comparator)
+    public TypedSketch<Union> newUnion(int sketchParam, ValueDesc type, Comparator comparator)
     {
       return TypedSketch.of(type, (Union) SetOperation.builder().setNominalEntries(sketchParam).build(Family.UNION));
     }
@@ -195,7 +195,7 @@ public interface SketchHandler<U>
     @Override
     public void updateWithValue(TypedSketch<Union> union, Object value)
     {
-      switch (union.type()) {
+      switch (union.type().type()) {
         case STRING:
           union.value().update((String) value);
           break;
@@ -235,7 +235,7 @@ public interface SketchHandler<U>
   public abstract static class CardinalitySensitive<U> implements SketchHandler<U>
   {
     @Override
-    public boolean supports(ValueType type)
+    public boolean supports(ValueDesc type)
     {
 //      return type != ValueType.COMPLEX || Comparable.class.isAssignableFrom(type.classOfObject());
       return type.isPrimitive();
@@ -245,7 +245,7 @@ public interface SketchHandler<U>
     public final TypedSketch<U> calculate(int sketchParam, BitmapIndex bitmapIndex, ExtractionFn function)
     {
       final ExtractionFn extraction = function == null ? IdentityExtractionFn.nullToEmpty() : function;
-      final TypedSketch<U> union = newUnion(sketchParam, ValueType.STRING, null);
+      final TypedSketch<U> union = newUnion(sketchParam, ValueDesc.STRING, null);
       final int cardinality = bitmapIndex.getCardinality();
       for (int i = 0; i < cardinality; ++i) {
         final String value = extraction.apply(bitmapIndex.getValue(i));
@@ -264,7 +264,7 @@ public interface SketchHandler<U>
     )
     {
       final ExtractionFn extraction = function == null ? IdentityExtractionFn.nullToEmpty() : function;
-      final TypedSketch<U> union = newUnion(sketchParam, ValueType.STRING, null);
+      final TypedSketch<U> union = newUnion(sketchParam, ValueDesc.STRING, null);
       final int cardinality = bitmapIndex.getCardinality();
       for (int i = 0; i < cardinality; ++i) {
         final List<ImmutableBitmap> intersecting = Arrays.asList(bitmapIndex.getBitmap(i), filter);
@@ -292,7 +292,7 @@ public interface SketchHandler<U>
     }
 
     @Override
-    public TypedSketch<ItemsUnion> newUnion(int sketchParam, ValueType type, Comparator comparator)
+    public TypedSketch<ItemsUnion> newUnion(int sketchParam, ValueDesc type, Comparator comparator)
     {
       comparator = comparator == null ? type.comparator() : comparator;
       return TypedSketch.of(type, ItemsUnion.getInstance(sketchParam, comparator));
@@ -337,7 +337,7 @@ public interface SketchHandler<U>
     @Override
     public TypedSketch<com.yahoo.sketches.frequencies.ItemsSketch> newUnion(
         int sketchParam,
-        ValueType type,
+        ValueDesc type,
         Comparator comparator
     )
     {
@@ -383,7 +383,7 @@ public interface SketchHandler<U>
     }
 
     @Override
-    public TypedSketch<ReservoirItemsUnion> newUnion(int sketchParam, ValueType type, Comparator comparator)
+    public TypedSketch<ReservoirItemsUnion> newUnion(int sketchParam, ValueDesc type, Comparator comparator)
     {
       return TypedSketch.of(type, (ReservoirItemsUnion) ReservoirItemsUnion.newInstance(sketchParam));
     }

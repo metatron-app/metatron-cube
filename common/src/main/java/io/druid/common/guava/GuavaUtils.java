@@ -236,4 +236,16 @@ public class GuavaUtils
     }
     return Lists.newArrayList(columns);
   }
+
+  public static String arrayOfArrayToString(Object[][] array)
+  {
+    StringBuilder b = new StringBuilder();
+    for (Object[] x : array) {
+      if (b.length() > 0) {
+        b.append(", ");
+      }
+      b.append(Arrays.toString(x));
+    }
+    return b.toString();
+  }
 }

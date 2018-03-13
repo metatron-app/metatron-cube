@@ -32,7 +32,6 @@ import com.metamx.common.guava.Sequences;
 import com.metamx.common.logger.Logger;
 import io.druid.cache.Cache;
 import io.druid.data.ValueDesc;
-import io.druid.data.ValueType;
 import io.druid.granularity.QueryGranularities;
 import io.druid.query.Query;
 import io.druid.query.QueryRunner;
@@ -196,7 +195,7 @@ public class SketchQueryRunner implements QueryRunner<Result<Map<String, Object>
           dimSelectors.add(cursor.makeDimensionSelector(dimension));
           TypedSketch union = prev.get(dimension.getOutputName());
           if (union == null) {
-            prev.put(dimension.getOutputName(), union = handler.newUnion(nomEntries, ValueType.STRING, null));
+            prev.put(dimension.getOutputName(), union = handler.newUnion(nomEntries, ValueDesc.STRING, null));
           }
           sketches.add(union);
         }
@@ -218,13 +217,13 @@ public class SketchQueryRunner implements QueryRunner<Result<Map<String, Object>
                 cursor.makeMathExpressionSelector('"' + metric + '"'), majorType
             );
           }
-          if (selector == null || !handler.supports(selector.type().type())) {
+          if (selector == null || !handler.supports(selector.type())) {
             sketches.add(union);
             metricSelectors.add(null);
           } else {
             metricSelectors.add(selector);
             if (union == null) {
-              prev.put(metric, union = handler.newUnion(nomEntries, selector.type().type(), null));
+              prev.put(metric, union = handler.newUnion(nomEntries, selector.type(), null));
             }
             sketches.add(union);
           }

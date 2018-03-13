@@ -201,7 +201,7 @@ public abstract class BaseQuery<T> implements Query<T>
         return true;
       }
       for (ValueDesc type : DimensionSpecs.toOutputTypes(dimSupport)) {
-        if (!ValueDesc.isPrimitive(type)) {
+        if (!type.isPrimitive()) {
           return true;
         }
       }

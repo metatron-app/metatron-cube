@@ -30,7 +30,7 @@ import com.yahoo.sketches.theta.SetOperation;
 import com.yahoo.sketches.theta.Sketch;
 import com.yahoo.sketches.theta.Sketches;
 import com.yahoo.sketches.theta.Union;
-import io.druid.data.ValueType;
+import io.druid.data.ValueDesc;
 import io.druid.query.sketch.TypedSketch;
 import org.apache.commons.codec.binary.Base64;
 
@@ -98,12 +98,12 @@ public class SketchOperations
     }
   }
 
-  public static ItemsSketch deserializeQuantile(Object serializedSketch, ValueType type)
+  public static ItemsSketch deserializeQuantile(Object serializedSketch, ValueDesc type)
   {
     return deserializeQuantile(serializedSketch, type, null);
   }
 
-  public static ItemsSketch deserializeQuantile(Object serializedSketch, ValueType type, Comparator comparator)
+  public static ItemsSketch deserializeQuantile(Object serializedSketch, ValueDesc type, Comparator comparator)
   {
     if (serializedSketch instanceof String) {
       return deserializeQuantileFromBase64EncodedString((String) serializedSketch, type, comparator);
@@ -121,25 +121,25 @@ public class SketchOperations
 
   public static ItemsSketch deserializeQuantileFromBase64EncodedString(
       String str,
-      ValueType type,
+      ValueDesc type,
       Comparator comparator
   )
   {
     return deserializeQuantileFromByteArray(Base64.decodeBase64(str.getBytes(Charsets.UTF_8)), type, comparator);
   }
 
-  public static ItemsSketch deserializeQuantileFromByteArray(byte[] data, ValueType type, Comparator comparator)
+  public static ItemsSketch deserializeQuantileFromByteArray(byte[] data, ValueDesc type, Comparator comparator)
   {
     return deserializeQuantileFromMemory(Memory.wrap(data), type, comparator);
   }
 
-  public static ItemsSketch deserializeQuantileFromMemory(Memory memory, ValueType type, Comparator comparator)
+  public static ItemsSketch deserializeQuantileFromMemory(Memory memory, ValueDesc type, Comparator comparator)
   {
     comparator = comparator == null ? type.comparator() : comparator;
     return ItemsSketch.getInstance(memory, comparator, TypedSketch.toItemsSerDe(type));
   }
 
-  public static com.yahoo.sketches.frequencies.ItemsSketch deserializeFrequency(Object serializedSketch, ValueType type)
+  public static com.yahoo.sketches.frequencies.ItemsSketch deserializeFrequency(Object serializedSketch, ValueDesc type)
   {
     if (serializedSketch instanceof String) {
       return deserializeFrequencyFromBase64EncodedString((String) serializedSketch, type);
@@ -155,22 +155,22 @@ public class SketchOperations
     );
   }
 
-  public static com.yahoo.sketches.frequencies.ItemsSketch deserializeFrequencyFromBase64EncodedString(String str, ValueType type)
+  public static com.yahoo.sketches.frequencies.ItemsSketch deserializeFrequencyFromBase64EncodedString(String str, ValueDesc type)
   {
     return deserializeFrequencyFromByteArray(Base64.decodeBase64(str.getBytes(Charsets.UTF_8)), type);
   }
 
-  public static com.yahoo.sketches.frequencies.ItemsSketch deserializeFrequencyFromByteArray(byte[] data, ValueType type)
+  public static com.yahoo.sketches.frequencies.ItemsSketch deserializeFrequencyFromByteArray(byte[] data, ValueDesc type)
   {
     return deserializeFrequencyFromMemory(Memory.wrap(data), type);
   }
 
-  public static com.yahoo.sketches.frequencies.ItemsSketch deserializeFrequencyFromMemory(Memory memory, ValueType type)
+  public static com.yahoo.sketches.frequencies.ItemsSketch deserializeFrequencyFromMemory(Memory memory, ValueDesc type)
   {
     return com.yahoo.sketches.frequencies.ItemsSketch.getInstance(memory, TypedSketch.toItemsSerDe(type));
   }
 
-  public static ReservoirItemsSketch deserializeSampling(Object serializedSketch, ValueType type)
+  public static ReservoirItemsSketch deserializeSampling(Object serializedSketch, ValueDesc type)
   {
     if (serializedSketch instanceof String) {
       return deserializeSamplingFromBase64EncodedString((String) serializedSketch, type);
@@ -186,17 +186,17 @@ public class SketchOperations
     );
   }
 
-  public static ReservoirItemsSketch deserializeSamplingFromBase64EncodedString(String str, ValueType type)
+  public static ReservoirItemsSketch deserializeSamplingFromBase64EncodedString(String str, ValueDesc type)
   {
     return deserializeSamplingFromByteArray(Base64.decodeBase64(str.getBytes(Charsets.UTF_8)), type);
   }
 
-  public static ReservoirItemsSketch deserializeSamplingFromByteArray(byte[] data, ValueType type)
+  public static ReservoirItemsSketch deserializeSamplingFromByteArray(byte[] data, ValueDesc type)
   {
     return deserializeSamplingFromMemory(Memory.wrap(data), type);
   }
 
-  public static ReservoirItemsSketch deserializeSamplingFromMemory(Memory memory, ValueType type)
+  public static ReservoirItemsSketch deserializeSamplingFromMemory(Memory memory, ValueDesc type)
   {
     return ReservoirItemsSketch.heapify(memory, TypedSketch.toItemsSerDe(type));
   }

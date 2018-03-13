@@ -27,7 +27,7 @@ import com.google.common.collect.Sets;
 import com.google.common.primitives.Ints;
 import com.yahoo.sketches.quantiles.ItemsSketch;
 import com.yahoo.sketches.quantiles.ItemsUnion;
-import io.druid.data.ValueType;
+import io.druid.data.ValueDesc;
 import io.druid.query.ordering.StringComparator;
 import io.druid.query.ordering.StringComparators;
 import org.apache.commons.lang.StringUtils;
@@ -65,7 +65,7 @@ public class SketchHandlerTest
     List<Integer> x = Ints.asList(values);
     for (Comparator c : Arrays.asList(natural, reverse, numeric)) {
       SketchHandler.Quantile q = new SketchHandler.Quantile();
-      TypedSketch<ItemsUnion> sketch = q.newUnion(16, ValueType.STRING, c);
+      TypedSketch<ItemsUnion> sketch = q.newUnion(16, ValueDesc.STRING, c);
       Collections.shuffle(x);
       for (int value : values) {
         q.updateWithValue(sketch, String.valueOf(value));
@@ -81,7 +81,7 @@ public class SketchHandlerTest
   public void testQuantile()
   {
     SketchHandler.Quantile q = new SketchHandler.Quantile();
-    TypedSketch<ItemsUnion> sketch = q.newUnion(16, ValueType.FLOAT, null);
+    TypedSketch<ItemsUnion> sketch = q.newUnion(16, ValueDesc.FLOAT, null);
 
     q.updateWithValue(sketch, 1.5f);
     q.updateWithValue(sketch, 2.5f);
@@ -115,7 +115,7 @@ public class SketchHandlerTest
   public void testQuantileMerge()
   {
     SketchHandler.Quantile q = new SketchHandler.Quantile();
-    TypedSketch<ItemsUnion> sketch1 = q.newUnion(16, ValueType.FLOAT, null);
+    TypedSketch<ItemsUnion> sketch1 = q.newUnion(16, ValueDesc.FLOAT, null);
 
     q.updateWithValue(sketch1, 1.5f);
     q.updateWithValue(sketch1, 2.5f);
@@ -129,7 +129,7 @@ public class SketchHandlerTest
     q.updateWithValue(sketch1, 7.5f);
     q.updateWithValue(sketch1, 11.5f);
 
-    TypedSketch<ItemsUnion> sketch2 = q.newUnion(16, ValueType.FLOAT, null);
+    TypedSketch<ItemsUnion> sketch2 = q.newUnion(16, ValueDesc.FLOAT, null);
     q.updateWithValue(sketch2, 1.2f);
     q.updateWithValue(sketch2, 2.2f);
     q.updateWithValue(sketch2, 3.2f);
@@ -164,7 +164,7 @@ public class SketchHandlerTest
     );
 
     SketchHandler.Quantile q = new SketchHandler.Quantile();
-    TypedSketch<ItemsUnion> sketch = q.newUnion(16, ValueType.STRING, Ordering.natural());
+    TypedSketch<ItemsUnion> sketch = q.newUnion(16, ValueDesc.STRING, Ordering.natural());
     for (String value : values) {
       q.updateWithValue(sketch, value);
     }
@@ -172,7 +172,7 @@ public class SketchHandlerTest
     ItemsSketch<String> r = q.toSketch(sketch).value();
     Assert.assertArrayEquals(new String[]{"automotive", "mezzanine", "travel"}, r.getQuantiles(3));
 
-    sketch = q.newUnion(16, ValueType.STRING, Ordering.natural().reverse());
+    sketch = q.newUnion(16, ValueDesc.STRING, Ordering.natural().reverse());
     for (String value : values) {
       q.updateWithValue(sketch, value);
     }
@@ -218,7 +218,7 @@ public class SketchHandlerTest
     );
 
     SketchHandler.Quantile q = new SketchHandler.Quantile();
-    TypedSketch<ItemsUnion> sketch = q.newUnion(32, ValueType.STRING, comparator);
+    TypedSketch<ItemsUnion> sketch = q.newUnion(32, ValueDesc.STRING, comparator);
     for (String value : values) {
       q.updateWithValue(sketch, value);
     }
@@ -232,7 +232,7 @@ public class SketchHandlerTest
     };
     Assert.assertArrayEquals(expected, r.getQuantiles(14));
 
-    sketch = q.newUnion(32, ValueType.STRING, StringComparators.revert(comparator));
+    sketch = q.newUnion(32, ValueDesc.STRING, StringComparators.revert(comparator));
     for (String value : values) {
       q.updateWithValue(sketch, value);
     }
@@ -245,5 +245,78 @@ public class SketchHandlerTest
         "travel\u0001Friday", "travel\u0001Monday"
     };
     Assert.assertArrayEquals(expected, r.getQuantiles(14));
+  }
+
+  @Test
+  public void testStructQuantile()
+  {
+    final char separator = '\u0001';
+    Set<Object> x1 = Sets.<Object>newHashSet(
+        "automotive",
+        "business",
+        "entertainment",
+        "health",
+        "mezzanine",
+        "news",
+        "premium",
+        "technology",
+        "travel"
+    );
+    Set<Object> x2 = Sets.<Object>newHashSet(
+        "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"
+    );
+    Set<Object> x3 = Sets.<Object>newHashSet(
+        6, 5, 4, 3, 2, 1
+    );
+    List<Object[]> values = Lists.newArrayList(
+        Iterables.transform(
+            Sets.cartesianProduct(x1, x2, x3), new Function<List<Object>, Object[]>()
+            {
+              @Override
+              public Object[] apply(List<Object> input)
+              {
+                return input.toArray(new Object[3]);
+              }
+            }
+        )
+    );
+    Collections.shuffle(values);
+
+    final Comparator c1 = Ordering.natural().reverse();
+    final Comparator c2 = StringComparators.DAY_OF_WEEK;
+    final Comparator c3 = Ordering.natural();
+    final Comparator[] cx = new Comparator[] {c1, c2, c3};
+    final Comparator<Object[]> c = new Comparator<Object[]>()
+    {
+      @Override
+      public int compare(Object[] o1, Object[] o2)
+      {
+        int compare = 0;
+        for (int i = 0; compare == 0 && i < cx.length; i++) {
+          compare = cx[i].compare(o1[i], o2[i]);
+        }
+        return compare;
+      }
+    };
+
+    SketchHandler.Quantile q = new SketchHandler.Quantile();
+    TypedSketch<ItemsUnion> sketch = q.newUnion(256, ValueDesc.STRING, c);
+    for (Object[] value : values) {
+      q.updateWithValue(sketch, value);
+    }
+
+    ItemsSketch<Object[]> r = q.toSketch(sketch).value();
+    Object[][] expected = {
+        a("travel", "Monday", 1), a("travel", "Saturday", 5), a("technology", "Friday", 3), a("premium", "Thursday", 2),
+        a("news", "Tuesday", 6), a("mezzanine", "Monday", 4), a("mezzanine", "Sunday", 3), a("health", "Saturday", 1),
+        a("entertainment", "Thursday", 5), a("business", "Wednesday", 4), a("automotive", "Tuesday", 2),
+        a("automotive", "Sunday", 6)
+    };
+    Assert.assertArrayEquals(expected, r.getQuantiles(12));
+  }
+
+  private static Object[] a(Object... x)
+  {
+    return x;
   }
 }

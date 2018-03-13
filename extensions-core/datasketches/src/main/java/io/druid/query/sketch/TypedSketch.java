@@ -31,6 +31,7 @@ import com.yahoo.sketches.sampling.ReservoirItemsSketch;
 import com.yahoo.sketches.sampling.ReservoirItemsUnion;
 import com.yahoo.sketches.theta.Sketch;
 import com.yahoo.sketches.theta.Union;
+import io.druid.data.ValueDesc;
 import io.druid.data.ValueType;
 import io.druid.query.aggregation.datasketches.theta.SketchOperations;
 
@@ -38,12 +39,12 @@ import java.util.Comparator;
 
 /**
  */
-public abstract class TypedSketch<T> extends Pair<ValueType, T>
+public abstract class TypedSketch<T> extends Pair<ValueDesc, T>
 {
   public static TypedSketch deserialize(SketchOp sketchOp, Object bytes, Comparator comparator)
   {
     byte[] value = SketchOperations.asBytes(bytes);
-    ValueType type = TypedSketch.fromByte(value[0]);
+    ValueDesc type = TypedSketch.fromByte(value[0]);
     Memory memory = Memory.wrap(value).region(1, value.length - 1);
     return TypedSketch.of(type, deserialize(sketchOp, memory, type, comparator));
   }
@@ -51,7 +52,7 @@ public abstract class TypedSketch<T> extends Pair<ValueType, T>
   private static Object deserialize(
       SketchOp sketchOp,
       Memory memory,
-      ValueType type,
+      ValueDesc type,
       Comparator comparator
   )
   {
@@ -68,7 +69,7 @@ public abstract class TypedSketch<T> extends Pair<ValueType, T>
     throw new UnsupportedOperationException("invalid type " + sketchOp);
   }
 
-  public static TypedSketch of(final ValueType type, final Object value)
+  public static TypedSketch of(final ValueDesc type, final Object value)
   {
     if (value instanceof Union) {
       return of(type, (Union)value);
@@ -94,7 +95,7 @@ public abstract class TypedSketch<T> extends Pair<ValueType, T>
     throw new IllegalArgumentException("Not supported type.. " + value);
   }
 
-  public static TypedSketch<Union> of(final ValueType type, final Union sketch)
+  public static TypedSketch<Union> of(final ValueDesc type, final Union sketch)
   {
     return new TypedSketch<Union>(type, sketch) {
 
@@ -106,7 +107,7 @@ public abstract class TypedSketch<T> extends Pair<ValueType, T>
     };
   }
 
-  public static TypedSketch<Sketch> of(final ValueType type, final Sketch sketch)
+  public static TypedSketch<Sketch> of(final ValueDesc type, final Sketch sketch)
   {
     return new TypedSketch<Sketch>(type, sketch) {
 
@@ -118,7 +119,7 @@ public abstract class TypedSketch<T> extends Pair<ValueType, T>
     };
   }
 
-  public static TypedSketch<ItemsUnion> of(final ValueType type, final ItemsUnion sketch)
+  public static TypedSketch<ItemsUnion> of(final ValueDesc type, final ItemsUnion sketch)
   {
     return new TypedSketch<ItemsUnion>(type, sketch) {
 
@@ -131,7 +132,7 @@ public abstract class TypedSketch<T> extends Pair<ValueType, T>
     };
   }
 
-  public static TypedSketch<ItemsSketch> of(final ValueType type, final ItemsSketch sketch)
+  public static TypedSketch<ItemsSketch> of(final ValueDesc type, final ItemsSketch sketch)
   {
     return new TypedSketch<ItemsSketch>(type, sketch) {
 
@@ -144,7 +145,9 @@ public abstract class TypedSketch<T> extends Pair<ValueType, T>
     };
   }
 
-  public static TypedSketch<com.yahoo.sketches.frequencies.ItemsSketch> of(final ValueType type, final com.yahoo.sketches.frequencies.ItemsSketch sketch)
+  public static TypedSketch<com.yahoo.sketches.frequencies.ItemsSketch> of(
+      final ValueDesc type, final com.yahoo.sketches.frequencies.ItemsSketch sketch
+  )
   {
     return new TypedSketch<com.yahoo.sketches.frequencies.ItemsSketch>(type, sketch) {
 
@@ -157,7 +160,7 @@ public abstract class TypedSketch<T> extends Pair<ValueType, T>
     };
   }
 
-  public static TypedSketch<ReservoirItemsUnion> of(final ValueType type, final ReservoirItemsUnion sketch)
+  public static TypedSketch<ReservoirItemsUnion> of(final ValueDesc type, final ReservoirItemsUnion sketch)
   {
     return new TypedSketch<ReservoirItemsUnion>(type, sketch) {
 
@@ -170,7 +173,7 @@ public abstract class TypedSketch<T> extends Pair<ValueType, T>
     };
   }
 
-  public static TypedSketch<ReservoirItemsSketch> of(final ValueType type, final ReservoirItemsSketch sketch)
+  public static TypedSketch<ReservoirItemsSketch> of(final ValueDesc type, final ReservoirItemsSketch sketch)
   {
     return new TypedSketch<ReservoirItemsSketch>(type, sketch) {
 
@@ -184,13 +187,13 @@ public abstract class TypedSketch<T> extends Pair<ValueType, T>
   }
 
   @JsonCreator
-  public TypedSketch(@JsonProperty ValueType lhs, @JsonProperty T rhs)
+  public TypedSketch(@JsonProperty ValueDesc lhs, @JsonProperty T rhs)
   {
     super(lhs, rhs);
   }
 
   @JsonProperty
-  public ValueType type() { return lhs; }
+  public ValueDesc type() { return lhs; }
 
   @JsonProperty
   public T value() { return rhs; }
@@ -213,9 +216,9 @@ public abstract class TypedSketch<T> extends Pair<ValueType, T>
   private static final ArrayOfItemsSerDe<String> stringsSerDe = new ArrayOfStringsSerDe();
 
 
-  public static ArrayOfItemsSerDe toItemsSerDe(ValueType type)
+  public static ArrayOfItemsSerDe toItemsSerDe(ValueDesc type)
   {
-    switch (type) {
+    switch (type.type()) {
       case FLOAT:
         return floatsSerDe;
       case DOUBLE:
@@ -229,9 +232,9 @@ public abstract class TypedSketch<T> extends Pair<ValueType, T>
     }
   }
 
-  public static byte toByte(ValueType type)
+  public static byte toByte(ValueDesc type)
   {
-    switch (type) {
+    switch (type.type()) {
       case FLOAT:
         return 0;
       case DOUBLE:
@@ -245,17 +248,17 @@ public abstract class TypedSketch<T> extends Pair<ValueType, T>
     }
   }
 
-  public static ValueType fromByte(byte type)
+  public static ValueDesc fromByte(byte type)
   {
     switch (type) {
       case 0:
-        return ValueType.FLOAT;
+        return ValueDesc.FLOAT;
       case 1:
-        return ValueType.DOUBLE;
+        return ValueDesc.DOUBLE;
       case 2:
-        return ValueType.LONG;
+        return ValueDesc.LONG;
       case 3:
-        return ValueType.STRING;
+        return ValueDesc.STRING;
       default:
         throw new UnsupportedOperationException("unsupported type " + type);
     }

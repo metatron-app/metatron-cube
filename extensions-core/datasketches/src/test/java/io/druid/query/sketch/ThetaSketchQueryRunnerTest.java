@@ -29,7 +29,7 @@ import com.yahoo.sketches.Family;
 import com.yahoo.sketches.theta.SetOperation;
 import com.yahoo.sketches.theta.Sketch;
 import com.yahoo.sketches.theta.Union;
-import io.druid.data.ValueType;
+import io.druid.data.ValueDesc;
 import io.druid.query.Query;
 import io.druid.query.QueryRunner;
 import io.druid.query.QueryRunnerTestHelper;
@@ -149,7 +149,7 @@ public class ThetaSketchQueryRunnerTest
   {
     SketchHandler<Union> handler = SketchOp.THETA.handler();
     int nomEntries = 16;
-    TypedSketch<Union> union1 = handler.newUnion(nomEntries, ValueType.STRING, null);
+    TypedSketch<Union> union1 = handler.newUnion(nomEntries, ValueDesc.STRING, null);
     handler.updateWithValue(union1, "automotive");
     handler.updateWithValue(union1, "business");
     handler.updateWithValue(union1, "entertainment");
@@ -158,7 +158,7 @@ public class ThetaSketchQueryRunnerTest
     handler.updateWithValue(union1, "news");
     TypedSketch<Sketch> sketch1 = handler.toSketch(union1);
     Assert.assertEquals(6, sketch1.value().getEstimate(), 0.001);
-    TypedSketch<Union> union2 = handler.newUnion(nomEntries, ValueType.STRING, null);
+    TypedSketch<Union> union2 = handler.newUnion(nomEntries, ValueDesc.STRING, null);
     handler.updateWithValue(union2, "automotive");
     handler.updateWithValue(union2, "health");
     handler.updateWithValue(union2, "premium");

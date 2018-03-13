@@ -40,6 +40,7 @@ import com.metamx.common.logger.Logger;
 import com.yahoo.sketches.quantiles.ItemsSketch;
 import com.yahoo.sketches.theta.Sketch;
 import io.druid.common.guava.GuavaUtils;
+import io.druid.data.ValueDesc;
 import io.druid.data.ValueType;
 import io.druid.granularity.QueryGranularities;
 import io.druid.guice.annotations.Processing;
@@ -147,12 +148,12 @@ public class SummaryPostProcessor extends PostProcessingOperator.UnionSupport
             final Map<String, ValueType> numericColumns = Maps.newTreeMap();
             for (Map.Entry<String, Object> entry : value.entrySet()) {
               final String column = entry.getKey();
-              final ValueType type = ((TypedSketch<ItemsSketch>) entry.getValue()).type();
+              final ValueDesc type = ((TypedSketch<ItemsSketch>) entry.getValue()).type();
               if (type.isPrimitive()) {
-                primitiveColumns.put(column, type);
+                primitiveColumns.put(column, type.type());
               }
               if (type.isNumeric()) {
-                numericColumns.put(column, type);
+                numericColumns.put(column, type.type());
               }
             }
             List<AggregatorFactory> aggregators = Lists.newArrayList();
@@ -192,7 +193,7 @@ public class SummaryPostProcessor extends PostProcessingOperator.UnionSupport
                 results.put(column, result = Maps.newLinkedHashMap());
               }
               final ItemsSketch itemsSketch = sketch.value();
-              final ValueType type = sketch.type();
+              final ValueDesc type = sketch.type();
               Object[] quantiles = (Object[]) SketchQuantilesOp.QUANTILES.calculate(
                   itemsSketch,
                   SketchQuantilesOp.DEFAULT_QUANTILE_PARAM
@@ -225,7 +226,7 @@ public class SummaryPostProcessor extends PostProcessingOperator.UnionSupport
                 result.put("outlierThreshold", new double[]{q1 - delta, q3 + delta});
               }
 
-              if (type == ValueType.STRING) {
+              if (type.isString()) {
                 final SearchQuery search = new SearchQuery(
                     representative.getDataSource(),
                     null,
@@ -398,7 +399,7 @@ public class SummaryPostProcessor extends PostProcessingOperator.UnionSupport
       String column,
       Object lower,
       Object upper,
-      ValueType type
+      ValueDesc type
   )
   {
     String escaped = "\"" + column + "\"";

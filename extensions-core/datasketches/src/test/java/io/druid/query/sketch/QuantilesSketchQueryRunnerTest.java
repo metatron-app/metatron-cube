@@ -27,7 +27,7 @@ import com.google.common.collect.Lists;
 import com.metamx.common.guava.Sequence;
 import com.metamx.common.guava.Sequences;
 import com.yahoo.sketches.quantiles.ItemsSketch;
-import io.druid.data.ValueType;
+import io.druid.data.ValueDesc;
 import io.druid.jackson.DefaultObjectMapper;
 import io.druid.query.PostProcessingOperator;
 import io.druid.query.PostProcessingOperators;
@@ -110,7 +110,7 @@ public class QuantilesSketchQueryRunnerTest
       mapper = mapper.registerModule(module);
     }
     int nomEntries = 16;
-    TypedSketch union1 = handler.newUnion(nomEntries, ValueType.STRING, null);
+    TypedSketch union1 = handler.newUnion(nomEntries, ValueDesc.STRING, null);
     handler.updateWithValue(union1, "automotive");
     handler.updateWithValue(union1, "business");
     handler.updateWithValue(union1, "entertainment");
@@ -118,7 +118,7 @@ public class QuantilesSketchQueryRunnerTest
     handler.updateWithValue(union1, "mezzanine");
     handler.updateWithValue(union1, "news");
     ItemsSketch sketch1 = (ItemsSketch) handler.toSketch(union1).value();
-    TypedSketch union2 = handler.newUnion(nomEntries, ValueType.STRING, null);
+    TypedSketch union2 = handler.newUnion(nomEntries, ValueDesc.STRING, null);
     handler.updateWithValue(union2, "automotive1");
     handler.updateWithValue(union2, "automotive2");
     handler.updateWithValue(union2, "automotive3");
@@ -159,8 +159,8 @@ public class QuantilesSketchQueryRunnerTest
         {
         }
     );
-    assertEqual(sketch1, SketchOperations.deserializeQuantile(deserialized.getValue().get("quality1"), ValueType.STRING));
-    assertEqual(sketch2, SketchOperations.deserializeQuantile(deserialized.getValue().get("quality2"), ValueType.STRING));
+    assertEqual(sketch1, SketchOperations.deserializeQuantile(deserialized.getValue().get("quality1"), ValueDesc.STRING));
+    assertEqual(sketch2, SketchOperations.deserializeQuantile(deserialized.getValue().get("quality2"), ValueDesc.STRING));
 
     Map<String, Object> object = ImmutableMap.<String, Object>builder()
                 .put("queryType", "sketch")
@@ -189,7 +189,7 @@ public class QuantilesSketchQueryRunnerTest
   {
     SketchHandler handler = SketchOp.QUANTILE.handler();
     int nomEntries = 16;
-    TypedSketch union1 = handler.newUnion(nomEntries, ValueType.STRING, null);
+    TypedSketch union1 = handler.newUnion(nomEntries, ValueDesc.STRING, null);
     handler.updateWithValue(union1, "automotive");
     handler.updateWithValue(union1, "business");
     handler.updateWithValue(union1, "entertainment");
@@ -198,7 +198,7 @@ public class QuantilesSketchQueryRunnerTest
     handler.updateWithValue(union1, "news");
     TypedSketch<ItemsSketch> sketch1 = handler.toSketch(union1);
     Assert.assertEquals("health", sketch1.value().getQuantile(0.5f));
-    TypedSketch union2 = handler.newUnion(nomEntries, ValueType.STRING, null);
+    TypedSketch union2 = handler.newUnion(nomEntries, ValueDesc.STRING, null);
     handler.updateWithValue(union2, "premium");
     handler.updateWithValue(union2, "premium");
     handler.updateWithValue(union2, "premium");

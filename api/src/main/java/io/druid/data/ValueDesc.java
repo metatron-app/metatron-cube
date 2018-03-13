@@ -23,6 +23,8 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonValue;
 import com.google.common.base.Preconditions;
 
+import java.util.Comparator;
+
 /**
  */
 public class ValueDesc
@@ -317,7 +319,7 @@ public class ValueDesc
 
   public static boolean isString(ValueDesc type)
   {
-    return type != null && type.type == ValueType.STRING;
+    return type != null && type.isString();
   }
 
   public static boolean isStringOrDimension(ValueDesc type)
@@ -327,12 +329,12 @@ public class ValueDesc
 
   public static boolean isPrimitive(ValueDesc type)
   {
-    return type != null && type.type.isPrimitive();
+    return type != null && type.isPrimitive();
   }
 
   public static boolean isNumeric(ValueDesc type)
   {
-    return type != null && type.type.isNumeric();
+    return type != null && type.isNumeric();
   }
 
   public static boolean isUnknown(ValueDesc type)
@@ -343,5 +345,25 @@ public class ValueDesc
   public static boolean isType(ValueDesc type, String typeName)
   {
     return type != null && typeName.equals(type.typeName);
+  }
+
+  public Comparator comparator()
+  {
+    return type.comparator();
+  }
+
+  public boolean isPrimitive()
+  {
+    return type.isPrimitive();
+  }
+
+  public boolean isNumeric()
+  {
+    return type.isNumeric();
+  }
+
+  public boolean isString()
+  {
+    return type == ValueType.STRING;
   }
 }
