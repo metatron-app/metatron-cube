@@ -66,6 +66,7 @@ import io.druid.query.Query;
 import io.druid.query.QueryContextKeys;
 import io.druid.query.QueryRunner;
 import io.druid.query.QuerySegmentWalker;
+import io.druid.query.QueryToolChest;
 import io.druid.query.QueryToolChestWarehouse;
 import io.druid.query.RegexDataSource;
 import io.druid.query.ResultWriter;
@@ -246,12 +247,16 @@ public class BrokerQueryResource extends QueryResource
 
   @Override
   @SuppressWarnings("unchecked")
-  protected Query prepareQuery(Query query) throws Exception
+  protected Query prepareQuery(Query baseQuery) throws Exception
   {
-    query = super.prepareQuery(query);
+    Query query = baseQuery;
     query = rewriteDataSources(query);
+    query = rewriteQuery(query);
     if (BaseQuery.optimizeQuery(query, false)) {
-      query = warehouse.getToolChest(query).optimizeQuery(query, texasRanger);
+      QueryToolChest toolChest = warehouse.getToolChest(query);
+      if (toolChest != null) {
+        query = toolChest.optimizeQuery(query, texasRanger);
+      }
     }
     if (BaseQuery.isParallelForwarding(query)) {
       // todo support partitioned group-by or join queries
@@ -283,7 +288,10 @@ public class BrokerQueryResource extends QueryResource
       context.remove(Query.FORWARD_CONTEXT);
       query = new SelectForwardQuery(query, context);
     }
-    return query;
+    if (query != baseQuery) {
+      log.info("Base query is rewritten to %s", query);
+    }
+    return super.prepareQuery(query);
   }
 
   private Query rewriteDataSources(Query query)
@@ -305,6 +313,23 @@ public class BrokerQueryResource extends QueryResource
               } else {
                 input = input.withDataSource(UnionDataSource.of(exploded));
               }
+            }
+            return input;
+          }
+        }
+    );
+  }
+
+  private Query rewriteQuery(Query query)
+  {
+    return Queries.iterate(
+        query, new Function<Query, Query>()
+        {
+          @Override
+          public Query apply(Query input)
+          {
+            if (input instanceof Query.RewritingQuery) {
+              return ((Query.RewritingQuery) input).rewriteQuery(texasRanger, warehouse.getQueryConfig(), jsonMapper);
             }
             return input;
           }

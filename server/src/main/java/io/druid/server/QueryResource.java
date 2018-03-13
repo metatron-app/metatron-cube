@@ -443,27 +443,23 @@ public class QueryResource
 
   protected Query prepareQuery(Query query) throws Exception
   {
-    Query rewritten = rewriteQuery(query);
-    if (query != rewritten) {
-      log.info("Base query is rewritten to %s", rewritten);
+    String queryId = query.getId();
+    if (queryId == null) {
+      return query;   // some test queries
     }
-    return rewritten;
+    return setQueryId(query, queryId);
   }
 
-  private Query rewriteQuery(final Query query)
+  private Query setQueryId(Query query, final String queryId)
   {
-    final String queryId = query.getId();
     return Queries.iterate(
         query, new Function<Query, Query>()
         {
           @Override
           public Query apply(Query input)
           {
-            if (queryId != null && input.getId() == null) {
+            if (input.getId() == null) {
               input = input.withId(queryId);
-            }
-            if (input instanceof Query.RewritingQuery) {
-              return ((Query.RewritingQuery) input).rewriteQuery(texasRanger, warehouse.getQueryConfig(), jsonMapper);
             }
             return input;
           }
