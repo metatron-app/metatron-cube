@@ -187,9 +187,7 @@ public class ReduceMergeIndexGeneratorJob implements HadoopDruidIndexerJob.Index
         while (context.nextKeyValue()) {
           map(context.getCurrentKey(), context.getCurrentValue(), context);
         }
-      }
-      catch (Exception e) {
-        log.warn(e, "Failed.. ");
+        persistAll(context);
       }
       finally {
         cleanup(context);
@@ -301,9 +299,8 @@ public class ReduceMergeIndexGeneratorJob implements HadoopDruidIndexerJob.Index
     @Override
     protected void cleanup(Context context) throws IOException, InterruptedException
     {
-      super.cleanup(context);
       try {
-        persistAll(context);
+        super.cleanup(context);
       }
       finally {
         FileUtils.deleteDirectory(baseFlushFile);

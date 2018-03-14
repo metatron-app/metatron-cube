@@ -192,17 +192,23 @@ public abstract class HadoopDruidIndexerMapper<KEYOUT, VALUEOUT> extends Mapper<
         }
       }
     }
-    catch (Exception e) {
+    catch (Throwable e) {
       errRows.increment(1);
       if (config.isIgnoreInvalidRows()) {
         handelInvalidRow(value, e);
         return; // we're ignoring this invalid row
       }
+      if (e instanceof IOException) {
+        throw (IOException) e;
+      }
+      if (e instanceof InterruptedException) {
+        throw (InterruptedException) e;
+      }
       throw Throwables.propagate(e);
     }
   }
 
-  private void handelInvalidRow(Object value, Exception e)
+  private void handelInvalidRow(Object value, Throwable e)
   {
     invalidRows.increment(1);
     if (invalidRows.getValue() <= INVALID_LOG_THRESHOLD) {

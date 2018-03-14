@@ -29,6 +29,7 @@ import org.apache.hadoop.io.BytesWritable;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapreduce.Counter;
 import org.apache.hadoop.mapreduce.Job;
+import org.apache.hadoop.mapreduce.Mapper;
 import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
 import org.joda.time.Interval;
 
@@ -145,8 +146,7 @@ public class MapOnlyIndexGeneratorJob implements HadoopDruidIndexerJob.IndexingS
         while (context.nextKeyValue()) {
           map(context.getCurrentKey(), context.getCurrentValue(), context);
         }
-      } catch (Exception e) {
-        log.warn(e, "Failed.. ");
+        persistAll(context);
       } finally {
         cleanup(context);
       }
@@ -256,6 +256,14 @@ public class MapOnlyIndexGeneratorJob implements HadoopDruidIndexerJob.IndexingS
         Context context
     ) throws IOException, InterruptedException
     {
+      for (File file : toMerge) {
+        FileUtils.deleteDirectory(file);
+      }
+      toMerge.clear();
+    }
+
+    private void persistAll(Context context) throws IOException
+    {
       if (index != null) {
         allDimensionNames.addAll(index.getDimensionOrder());
       }
@@ -316,10 +324,6 @@ public class MapOnlyIndexGeneratorJob implements HadoopDruidIndexerJob.IndexingS
           writeShard(mergedBase, version, shardSpec, context);
         }
       }
-      for (File file : toMerge) {
-        FileUtils.deleteDirectory(file);
-      }
-      toMerge.clear();
     }
 
     private List<List<File>> groupToShards(Set<File> toMerge, long limit)
