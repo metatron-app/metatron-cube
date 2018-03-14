@@ -67,7 +67,8 @@ public interface ColumnSelectorFactory
       final Expr parsed = Parser.parse(expression);
       final Map<String, DSuppliers.TypedSupplier> values = Maps.newHashMap();
       for (String columnName : Parser.findRequiredBindings(parsed)) {
-        values.put(columnName, makeObjectColumnSelector(columnName));
+        ObjectColumnSelector<Object> value = makeObjectColumnSelector(columnName);
+        values.put(columnName, value == null ? ColumnSelectors.nullObjectSelector(ValueDesc.UNKNOWN) : value);
       }
       final ExprType expected = parsed.type(Parser.withTypeSuppliers(values));
       final Expr.NumericBinding binding = Parser.withSuppliers(
