@@ -19,6 +19,8 @@
 
 package io.druid.math.expr;
 
+import io.druid.data.ValueDesc;
+
 import java.util.List;
 
 /**
@@ -61,7 +63,7 @@ public class Functions
           }
 
           @Override
-          public ExprType apply(List<Expr> args, Expr.TypeBinding bindings)
+          public ValueDesc apply(List<Expr> args, Expr.TypeBinding bindings)
           {
             return expr.type();
           }

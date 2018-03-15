@@ -26,6 +26,7 @@ import com.google.inject.Inject;
 import com.google.inject.Injector;
 import com.google.inject.Key;
 import com.metamx.common.IAE;
+import io.druid.data.ValueDesc;
 import io.druid.granularity.Granularity;
 import io.druid.guice.annotations.Json;
 import io.druid.math.expr.BuiltinFunctions;
@@ -33,7 +34,6 @@ import io.druid.math.expr.DateTimeFunctions;
 import io.druid.math.expr.Evals;
 import io.druid.math.expr.Expr;
 import io.druid.math.expr.ExprEval;
-import io.druid.math.expr.ExprType;
 import io.druid.math.expr.Function;
 import io.druid.query.lookup.LookupExtractor;
 import io.druid.query.lookup.LookupExtractorFactory;
@@ -84,7 +84,7 @@ public class ModuleBuiltinFunctions implements Function.Library
                 granularity.bucketEnd(interval.getEnd())
             );
           }
-          return ExprEval.of(interval, ExprType.UNKNOWN);
+          return ExprEval.of(interval, ValueDesc.UNKNOWN);
         }
       };
     }

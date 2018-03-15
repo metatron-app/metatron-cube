@@ -54,7 +54,7 @@ public class ValueDesc
   public static final String DIMENSION_PREFIX = "dimension.";
 
   // descriptive type
-  public static final String DECIMAL = "decimal";
+  public static final String DECIMAL_TYPE = "decimal";
 
   // primitives
   public static ValueDesc STRING = new ValueDesc(ValueType.STRING);
@@ -72,6 +72,7 @@ public class ValueDesc
 
   // from expression
   public static ValueDesc DATETIME = of(DATETIME_TYPE);
+  public static ValueDesc DECIMAL = of(DECIMAL_TYPE);
   public static ValueDesc UNKNOWN = of(UNKNOWN_TYPE);
 
   public static ValueDesc ofArray(ValueDesc valueType)
@@ -142,7 +143,12 @@ public class ValueDesc
 
   public static boolean isDecimal(ValueDesc valueType)
   {
-    return valueType != null && valueType.typeName.startsWith(DECIMAL);
+    return valueType != null && valueType.typeName.startsWith(DECIMAL_TYPE);
+  }
+
+  public static boolean isDateTime(ValueDesc valueType)
+  {
+    return valueType != null && valueType.typeName.equals(DATETIME_TYPE);
   }
 
   private static boolean isPrefixed(String typeName, String prefix)
@@ -201,7 +207,7 @@ public class ValueDesc
     return ValueType.of(subElementOf(valueType.typeName()));
   }
 
-  public static ValueDesc ofPrimitive(Class clazz)
+  public static ValueDesc onlyPrimitive(Class clazz)
   {
     if (clazz == Long.TYPE || clazz == Long.class) {
       return LONG;
@@ -365,5 +371,25 @@ public class ValueDesc
   public boolean isString()
   {
     return type == ValueType.STRING;
+  }
+
+  public boolean isStringOrDimension()
+  {
+    return isString() || isDimension(typeName);
+  }
+
+  public boolean isFloat()
+  {
+    return type == ValueType.FLOAT;
+  }
+
+  public boolean isDouble()
+  {
+    return type == ValueType.DOUBLE;
+  }
+
+  public boolean isLong()
+  {
+    return type == ValueType.LONG;
   }
 }

@@ -33,7 +33,6 @@ import io.druid.data.ValueDesc;
 import io.druid.granularity.Granularities;
 import io.druid.granularity.Granularity;
 import io.druid.math.expr.Evals;
-import io.druid.math.expr.ExprType;
 import io.druid.math.expr.Parser;
 import io.druid.query.DataSource;
 import io.druid.query.Query;
@@ -249,7 +248,7 @@ public class DruidQuery
         rexBuilder
     );
 
-    final RowSignature aggregateRowSignature = RowSignature.from(
+    RowSignature aggregateRowSignature = RowSignature.from(
         ImmutableList.copyOf(
             Iterators.concat(
                 dimensions.stream().map(DimensionExpression::getOutputName).iterator(),
@@ -259,13 +258,12 @@ public class DruidQuery
         aggregate.getRowType()
     );
 
-    final HavingSpec havingFilter = computeHavingFilter(
-        partialQuery,
-        aggregateRowSignature,
-        plannerContext
-    );
-
     if (postProject == null) {
+      final HavingSpec havingFilter = computeHavingFilter(
+          partialQuery,
+          aggregateRowSignature,
+          plannerContext
+      );
       return Grouping.create(dimensions, aggregations, havingFilter, aggregateRowSignature);
     } else {
       final List<String> rowOrder = new ArrayList<>();
@@ -283,7 +281,8 @@ public class DruidQuery
           throw new CannotBuildQueryException(postProject, postAggregatorRexNode);
         }
 
-        if (postAggregatorDirectColumnIsOk(aggregateRowSignature, postAggregatorExpression, postAggregatorRexNode)) {
+        ValueDesc toExprType = Calcites.getValueDescForSqlTypeName(postAggregatorRexNode.getType().getSqlTypeName());
+        if (postAggregatorDirectColumnIsOk(aggregateRowSignature, postAggregatorExpression, toExprType)) {
           // Direct column access, without any type cast as far as Druid's runtime is concerned.
           // (There might be a SQL-level type cast that we don't care about)
           rowOrder.add(postAggregatorExpression.getDirectColumn());
@@ -291,11 +290,12 @@ public class DruidQuery
           final String postAggregatorName = "p" + outputNameCounter++;
           final PostAggregator postAggregator = new MathPostAggregator(
               postAggregatorName,
-              postAggregatorExpression.getExpression(),
-              null
+              postAggregatorExpression.getExpression()
           );
           aggregations.add(Aggregation.create(postAggregator));
           rowOrder.add(postAggregator.getName());
+
+          aggregateRowSignature = aggregateRowSignature.addColumn(postAggregator.getName(), toExprType);
         }
       }
 
@@ -309,7 +309,11 @@ public class DruidQuery
           dimensions.remove(i);
         }
       }
-
+      final HavingSpec havingFilter = computeHavingFilter(
+          partialQuery,
+          aggregateRowSignature,
+          plannerContext
+      );
       return Grouping.create(
           dimensions,
           aggregations,
@@ -508,14 +512,14 @@ public class DruidQuery
    *
    * @param aggregateRowSignature signature of the aggregation
    * @param expression            post-aggregation expression
-   * @param rexNode               RexNode for the post-aggregation expression
+   * @param toExprType            type of RexNode for the post-aggregation expression
    *
    * @return yes or no
    */
   private static boolean postAggregatorDirectColumnIsOk(
-      final RowSignature aggregateRowSignature,
-      final DruidExpression expression,
-      final RexNode rexNode
+      RowSignature aggregateRowSignature,
+      DruidExpression expression,
+      ValueDesc toExprType
   )
   {
     if (!expression.isDirectColumnAccess()) {
@@ -523,13 +527,7 @@ public class DruidQuery
     }
 
     // Check if a cast is necessary.
-    final ExprType toExprType = Expressions.exprTypeForValueType(
-        aggregateRowSignature.getColumnType(expression.getDirectColumn())
-    );
-
-    final ExprType fromExprType = Expressions.exprTypeForValueType(
-        Calcites.getValueDescForSqlTypeName(rexNode.getType().getSqlTypeName())
-    );
+    final ValueDesc fromExprType = aggregateRowSignature.getColumnType(expression.getDirectColumn());
 
     return toExprType.equals(fromExprType);
   }

@@ -22,13 +22,13 @@ package io.druid.query.sql;
 import com.google.common.base.Preconditions;
 import com.metamx.common.IAE;
 import io.druid.common.DateTimes;
+import io.druid.data.ValueDesc;
 import io.druid.granularity.Granularity;
 import io.druid.granularity.PeriodGranularity;
 import io.druid.math.expr.DateTimeFunctions;
 import io.druid.math.expr.Evals;
 import io.druid.math.expr.Expr;
 import io.druid.math.expr.ExprEval;
-import io.druid.math.expr.ExprType;
 import io.druid.math.expr.Function;
 import org.joda.time.Chronology;
 import org.joda.time.DateTimeZone;
@@ -166,7 +166,7 @@ public interface SQLFunctions extends Function.Library
         {
           final String value = arg.eval(bindings).asString();
           if (value == null) {
-            return ExprEval.of(null, ExprType.LONG);
+            return ExprEval.of(null, ValueDesc.LONG);
           }
 
           try {
@@ -175,7 +175,7 @@ public interface SQLFunctions extends Function.Library
           catch (IllegalArgumentException e) {
             // Catch exceptions potentially thrown by formatter.parseDateTime. Our docs say that unparseable timestamps
             // are returned as nulls.
-            return ExprEval.of(null, ExprType.LONG);
+            return ExprEval.of(null, ValueDesc.LONG);
           }
         }
       };

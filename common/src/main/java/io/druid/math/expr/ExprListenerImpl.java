@@ -70,6 +70,15 @@ public class ExprListenerImpl extends ExprBaseListener
   }
 
   @Override
+  public void exitFloatExpr(ExprParser.FloatExprContext ctx)
+  {
+    nodes.put(
+        ctx,
+        new FloatExpr(Float.parseFloat(ctx.getText()))
+    );
+  }
+
+  @Override
   public void exitDoubleExpr(ExprParser.DoubleExprContext ctx)
   {
     nodes.put(

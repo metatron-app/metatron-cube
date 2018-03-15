@@ -28,11 +28,14 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.net.InetAddresses;
 import com.google.common.primitives.Doubles;
+import com.google.common.primitives.Floats;
 import com.google.common.primitives.Ints;
 import com.google.common.primitives.Longs;
 import com.google.common.primitives.UnsignedBytes;
 import com.metamx.common.logger.Logger;
 import io.druid.common.guava.GuavaUtils;
+import io.druid.data.ValueDesc;
+import io.druid.data.ValueType;
 import io.druid.math.expr.Expr.NumericBinding;
 import io.druid.math.expr.Expr.TypeBinding;
 import io.druid.math.expr.Expr.WindowContext;
@@ -83,9 +86,9 @@ public interface BuiltinFunctions extends Function.Library
   abstract class SingleParam extends Function.NamedFunction
   {
     @Override
-    public final ExprType apply(List<Expr> args, TypeBinding bindings)
+    public final ValueDesc apply(List<Expr> args, TypeBinding bindings)
     {
-      return args.size() == 1 ? type(args.get(0).type(bindings)) : ExprType.UNKNOWN;
+      return args.size() == 1 ? type(args.get(0).type(bindings)) : ValueDesc.UNKNOWN;
     }
 
     @Override
@@ -100,15 +103,15 @@ public interface BuiltinFunctions extends Function.Library
 
     protected abstract ExprEval eval(ExprEval param);
 
-    protected abstract ExprType type(ExprType param);
+    protected abstract ValueDesc type(ValueDesc param);
   }
 
   abstract class DoubleParam extends Function.NamedFunction
   {
     @Override
-    public final ExprType apply(List<Expr> args, TypeBinding bindings)
+    public final ValueDesc apply(List<Expr> args, TypeBinding bindings)
     {
-      return args.size() == 2 ? eval(args.get(0).type(bindings), args.get(1).type(bindings)) : ExprType.UNKNOWN;
+      return args.size() == 2 ? type(args.get(0).type(bindings), args.get(1).type(bindings)) : ValueDesc.UNKNOWN;
     }
 
     @Override
@@ -122,9 +125,9 @@ public interface BuiltinFunctions extends Function.Library
       return eval(expr1.eval(bindings), expr2.eval(bindings));
     }
 
-    protected abstract ExprEval eval(ExprEval x, ExprEval y);
+    protected abstract ValueDesc type(ValueDesc x, ValueDesc y);
 
-    protected abstract ExprType eval(ExprType x, ExprType y);
+    protected abstract ExprEval eval(ExprEval x, ExprEval y);
   }
 
   abstract class TripleParam extends Function.NamedFunction
@@ -173,7 +176,7 @@ public interface BuiltinFunctions extends Function.Library
       return new Child()
       {
         @Override
-        public ExprType apply(List<Expr> args, TypeBinding bindings)
+        public ValueDesc apply(List<Expr> args, TypeBinding bindings)
         {
           return function.apply(args, bindings);
         }
@@ -204,133 +207,75 @@ public interface BuiltinFunctions extends Function.Library
     protected abstract Function toFunction(final Map<String, Object> parameter);
   }
 
-  abstract class SingleParamMath extends SingleParam
+  abstract class SingleParamDoubleMath extends SingleParam
   {
     @Override
-    public ExprType type(ExprType param)
+    public ValueDesc type(ValueDesc param)
     {
-      if (param == ExprType.LONG) {
-        return supports(Long.TYPE) ? ExprType.LONG : ExprType.DOUBLE;
-      } else if (param == ExprType.DOUBLE) {
-        return supports(Double.TYPE) ? ExprType.DOUBLE : ExprType.LONG;
-      }
-      return ExprType.UNKNOWN;
-    }
-
-    private boolean supports(Class<?> type)
-    {
-      try {
-        return getClass().getDeclaredMethod("eval", type).getDeclaringClass() != SingleParamMath.class;
-      }
-      catch (Exception e) {
-        return false;
-      }
+      return param.isNumeric() ? ValueDesc.DOUBLE : ValueDesc.UNKNOWN;
     }
 
     @Override
     protected ExprEval eval(ExprEval param)
     {
-      if (param.type() == ExprType.LONG) {
-        return eval(param.longValue());
-      } else if (param.type() == ExprType.DOUBLE) {
-        return eval(param.doubleValue());
-      }
-      return ExprEval.of(null, ExprType.UNKNOWN);
+      return param.type().isNumeric() ? ExprEval.of(eval(param.doubleValue())) : ExprEval.UNKNOWN;
     }
-
-    protected ExprEval eval(long param)
-    {
-      return eval((double) param);
-    }
-
-    protected ExprEval eval(double param)
-    {
-      return eval((long) param);
-    }
+ 
+    protected abstract double eval(double value);
   }
 
-  abstract class DoubleParamMath extends DoubleParam
+  abstract class SingleParamRealMath extends SingleParam
   {
     @Override
-    public ExprType eval(ExprType x, ExprType y)
+    public ValueDesc type(ValueDesc param)
     {
-      if (x.isNumeric() || y.isNumeric()) {
-        if (x == ExprType.LONG && y == ExprType.LONG) {
-          return supports(Long.TYPE) ? ExprType.LONG : ExprType.DOUBLE;
-        } else {
-          return supports(Double.TYPE) ? ExprType.DOUBLE : ExprType.LONG;
-        }
-      }
-      return ExprType.UNKNOWN;
+      return param.isFloat() ? ValueDesc.FLOAT : param.isNumeric() ? ValueDesc.DOUBLE : ValueDesc.UNKNOWN;
     }
 
-    private boolean supports(Class<?> type)
+    @Override
+    protected ExprEval eval(ExprEval param)
     {
-      try {
-        return getClass().getDeclaredMethod("eval", type, type).getDeclaringClass() != SingleParamMath.class;
+      ValueDesc type = param.type();
+      if (type.isFloat()) {
+        return ExprEval.of(param.floatValue());
+      } else if (type.isNumeric()) {
+        return ExprEval.of(param.doubleValue());
       }
-      catch (Exception e) {
-        return false;
-      }
+      return ExprEval.UNKNOWN;
+    }
+ 
+    protected abstract float eval(float value);
+
+    protected abstract double eval(double value);
+  }
+
+  abstract class DoubleParamDoubleMath extends DoubleParam
+  {
+    @Override
+    public ValueDesc type(ValueDesc x, ValueDesc y)
+    {
+      return x.isNumeric() && y.isNumeric() ? ValueDesc.DOUBLE : ValueDesc.UNKNOWN;
     }
 
     @Override
     protected ExprEval eval(ExprEval x, ExprEval y)
     {
-      if (x.type().isNumeric() || y.type().isNumeric()) {
-        if (x.type() == ExprType.LONG && y.type() == ExprType.LONG) {
-          return eval(x.longValue(), y.longValue());
-        } else {
-          return eval(x.doubleValue(), y.doubleValue());
-        }
+      if (x.isNumeric() && y.isNumeric()) {
+        return ExprEval.of(eval(x.doubleValue(), y.doubleValue()));
       }
-      return ExprEval.of(null, ExprType.UNKNOWN);
+      return ExprEval.UNKNOWN;
     }
-
-    protected ExprEval eval(long x, long y)
-    {
-      return eval((double) x, (double) y);
-    }
-
-    protected ExprEval eval(double x, double y)
-    {
-      return eval((long) x, (long) y);
-    }
-  }
-
-  abstract class TripleParamMath extends TripleParam
-  {
-    @Override
-    protected ExprEval eval(ExprEval x, ExprEval y, ExprEval z)
-    {
-      if (x.type().isNumeric() || y.type().isNumeric() || z.type().isNumeric()) {
-        if (x.type() == ExprType.LONG && y.type() == ExprType.LONG && z.type() == ExprType.LONG) {
-          return eval(x.longValue(), y.longValue(), z.longValue());
-        } else {
-          return eval(x.doubleValue(), y.doubleValue(), z.doubleValue());
-        }
-      }
-      return ExprEval.of(null, ExprType.STRING);
-    }
-
-    protected ExprEval eval(long x, long y, long z)
-    {
-      return eval((double) x, (double) y, (double) z);
-    }
-
-    protected ExprEval eval(double x, double y, double z)
-    {
-      return eval((long) x, (long) y, (long) z);
-    }
+ 
+    protected abstract double eval(double x, double y);
   }
 
   @Function.Named("size")
   final class Size extends SingleParam
   {
     @Override
-    public ExprType type(ExprType param)
+    public ValueDesc type(ValueDesc param)
     {
-      return ExprType.LONG;
+      return ValueDesc.LONG;
     }
 
     @Override
@@ -465,7 +410,8 @@ public interface BuiltinFunctions extends Function.Library
       if (eval.isNull()) {
         return null;
       }
-      switch (eval.type()) {
+      ValueDesc type = eval.type();
+      switch (type.type()) {
         case DOUBLE:
           return new REXP(new double[]{eval.doubleValue()});
         case LONG:
@@ -531,17 +477,17 @@ public interface BuiltinFunctions extends Function.Library
           return ExprEval.of(expr.asInt());
         case REXP.XT_ARRAY_INT:
           int[] ints = expr.asIntArray();
-          return ints.length == 1 ? ExprEval.of(ints[0]) : ExprEval.of(ints, ExprType.UNKNOWN);
+          return ints.length == 1 ? ExprEval.of(ints[0]) : ExprEval.of(ints, ValueDesc.UNKNOWN);
         case REXP.XT_DOUBLE:
           return ExprEval.of(expr.asDouble());
         case REXP.XT_ARRAY_DOUBLE:
           double[] doubles = expr.asDoubleArray();
-          return doubles.length == 1 ? ExprEval.of(doubles[0]) : ExprEval.of(doubles, ExprType.UNKNOWN);
+          return doubles.length == 1 ? ExprEval.of(doubles[0]) : ExprEval.of(doubles, ValueDesc.UNKNOWN);
         case REXP.XT_STR:
           return ExprEval.of(expr.asString());
         case REXP.XT_ARRAY_STR:
           String[] strings = expr.asStringArray();
-          return strings.length == 1 ? ExprEval.of(strings[0]) : ExprEval.of(strings, ExprType.UNKNOWN);
+          return strings.length == 1 ? ExprEval.of(strings[0]) : ExprEval.of(strings, ValueDesc.UNKNOWN);
         case REXP.XT_VECTOR:
           RVector vector = expr.asVector();
           Vector names = vector.getNames();
@@ -550,20 +496,20 @@ public interface BuiltinFunctions extends Function.Library
             for (Object element : vector) {
               result.add(toJava((REXP) element).value());
             }
-            return ExprEval.of(result, ExprType.UNKNOWN);
+            return ExprEval.of(result, ValueDesc.UNKNOWN);
           }
           Map<String, Object> result = Maps.newLinkedHashMap();
           for (int i = 0; i < names.size(); i++) {
             result.put(String.valueOf(names.get(i)), toJava((REXP) vector.get(i)).value());
           }
-          return ExprEval.of(result, ExprType.UNKNOWN);
+          return ExprEval.of(result, ValueDesc.UNKNOWN);
         case REXP.XT_FACTOR:
           RFactor factor = expr.asFactor();
           String[] array = new String[factor.size()];
           for (int i = 0; i < factor.size(); i++) {
             array[i] = factor.at(i);
           }
-          return ExprEval.of(array, ExprType.UNKNOWN);
+          return ExprEval.of(array, ValueDesc.UNKNOWN);
         case REXP.XT_LIST:
           // RList.. what the fuck is this?
         default:
@@ -672,19 +618,19 @@ public interface BuiltinFunctions extends Function.Library
     final ExprEval toExprEval(PyObject result, boolean evaluation)
     {
       if (result == null || result instanceof PyNone) {
-        return ExprEval.of(null, ExprType.UNKNOWN);
+        return ExprEval.UNKNOWN;
       }
       if (result instanceof PyString) {
-        return ExprEval.of(result.asString(), ExprType.STRING);
+        return ExprEval.of(result.asString(), ValueDesc.STRING);
       }
       if (result instanceof PyFloat) {
-        return ExprEval.of(result.asDouble(), ExprType.DOUBLE);
+        return ExprEval.of(result.asDouble(), ValueDesc.DOUBLE);
       }
       if (result instanceof PyInteger || result instanceof PyLong) {
-        return ExprEval.of(result.asLong(), ExprType.LONG);
+        return ExprEval.of(result.asLong(), ValueDesc.LONG);
       }
       if (result instanceof PyArray) {
-        return ExprEval.of(((PyArray)result).getArray(), ExprType.UNKNOWN);
+        return ExprEval.of(((PyArray)result).getArray(), ValueDesc.UNKNOWN);
       }
       if (result instanceof PyList) {
         PyList pyList = (PyList) result;
@@ -692,7 +638,7 @@ public interface BuiltinFunctions extends Function.Library
         for (int i = 0; i < pyList.size(); i++) {
           list.add(toExprEval(pyList.pyget(i)).value());
         }
-        return ExprEval.of(list, ExprType.UNKNOWN);
+        return ExprEval.of(list, ValueDesc.UNKNOWN);
       }
       if (result instanceof PyDictionary) {
         Map<PyObject, PyObject> internal = ((PyDictionary) result).getMap();
@@ -703,7 +649,7 @@ public interface BuiltinFunctions extends Function.Library
             map.put(key.asString(), toExprEval(entry.getValue()).value());
           }
         }
-        return ExprEval.of(map, ExprType.UNKNOWN);
+        return ExprEval.of(map, ValueDesc.UNKNOWN);
       }
       if (result instanceof PyTuple) {
         PyObject[] array = ((PyTuple)result).getArray();
@@ -714,9 +660,9 @@ public interface BuiltinFunctions extends Function.Library
         for (PyObject element : array) {
           list.add(toExprEval(element).value());
         }
-        return ExprEval.of(list, ExprType.UNKNOWN);
+        return ExprEval.of(list, ValueDesc.UNKNOWN);
       }
-      return ExprEval.of(result.toString(), ExprType.UNKNOWN);
+      return ExprEval.of(result.toString(), ValueDesc.UNKNOWN);
     }
   }
 
@@ -805,335 +751,451 @@ public interface BuiltinFunctions extends Function.Library
   }
 
   @Function.Named("abs")
-  final class Abs extends SingleParamMath
+  final class Abs extends SingleParam
   {
     @Override
-    protected ExprEval eval(long param)
+    protected ValueDesc type(ValueDesc param)
     {
-      return ExprEval.of(Math.abs(param));
+      return param;
     }
 
     @Override
-    protected ExprEval eval(double param)
+    protected ExprEval eval(ExprEval param)
     {
-      return ExprEval.of(Math.abs(param));
+      ValueDesc type = param.type();
+      if (type.isFloat()) {
+        return ExprEval.of(Math.abs(param.asFloat()));
+      } else if (type.isDouble()) {
+        return ExprEval.of(Math.abs(param.asDouble()));
+      } else if (type.isLong()) {
+        return ExprEval.of(Math.abs(param.asLong()));
+      }
+      return param;
     }
   }
 
   @Function.Named("acos")
-  final class Acos extends SingleParamMath
+  final class Acos extends SingleParamDoubleMath
   {
     @Override
-    protected ExprEval eval(double param)
+    protected double eval(double param)
     {
-      return ExprEval.of(Math.acos(param));
+      return Math.acos(param);
     }
   }
 
   @Function.Named("asin")
-  final class Asin extends SingleParamMath
+  final class Asin extends SingleParamDoubleMath
   {
     @Override
-    protected ExprEval eval(double param)
+    protected double eval(double param)
     {
-      return ExprEval.of(Math.asin(param));
+      return Math.asin(param);
     }
   }
 
   @Function.Named("atan")
-  final class Atan extends SingleParamMath
+  final class Atan extends SingleParamDoubleMath
   {
     @Override
-    protected ExprEval eval(double param)
+    protected double eval(double param)
     {
-      return ExprEval.of(Math.atan(param));
+      return Math.atan(param);
     }
   }
 
   @Function.Named("cbrt")
-  final class Cbrt extends SingleParamMath
+  final class Cbrt extends SingleParamDoubleMath
   {
     @Override
-    protected ExprEval eval(double param)
+    protected double eval(double param)
     {
-      return ExprEval.of(Math.cbrt(param));
+      return Math.cbrt(param);
     }
   }
 
   @Function.Named("ceil")
-  final class Ceil extends SingleParamMath
+  final class Ceil extends SingleParamDoubleMath
   {
     @Override
-    protected ExprEval eval(double param)
+    protected double eval(double param)
     {
-      return ExprEval.of(Math.ceil(param));
+      return Math.ceil(param);
     }
   }
 
   @Function.Named("cos")
-  final class Cos extends SingleParamMath
+  final class Cos extends SingleParamDoubleMath
   {
     @Override
-    protected ExprEval eval(double param)
+    protected double eval(double param)
     {
-      return ExprEval.of(Math.cos(param));
+      return Math.cos(param);
     }
   }
 
   @Function.Named("cosh")
-  final class Cosh extends SingleParamMath
+  final class Cosh extends SingleParamDoubleMath
   {
     @Override
-    protected ExprEval eval(double param)
+    protected double eval(double param)
     {
-      return ExprEval.of(Math.cosh(param));
+      return Math.cosh(param);
     }
   }
 
   @Function.Named("exp")
-  final class Exp extends SingleParamMath
+  final class Exp extends SingleParamDoubleMath
   {
     @Override
-    protected ExprEval eval(double param)
+    protected double eval(double param)
     {
-      return ExprEval.of(Math.exp(param));
+      return Math.exp(param);
     }
   }
 
   @Function.Named("expm1")
-  final class Expm1 extends SingleParamMath
+  final class Expm1 extends SingleParamDoubleMath
   {
     @Override
-    protected ExprEval eval(double param)
+    protected double eval(double param)
     {
-      return ExprEval.of(Math.expm1(param));
+      return Math.expm1(param);
     }
   }
 
-
   @Function.Named("floor")
-  final class Floor extends SingleParamMath
+  final class Floor extends SingleParamDoubleMath
   {
     @Override
-    protected ExprEval eval(double param)
+    protected double eval(double param)
     {
-      return ExprEval.of(Math.floor(param));
+      return Math.floor(param);
     }
   }
 
   @Function.Named("getExponent")
-  final class GetExponent extends SingleParamMath
+  final class GetExponent extends SingleParam
   {
     @Override
-    protected ExprEval eval(double param)
+    protected ValueDesc type(ValueDesc param)
     {
-      return ExprEval.of(Math.getExponent(param));
+      return param.isNumeric() ? ValueDesc.LONG : ValueDesc.UNKNOWN;
+    }
+
+    @Override
+    protected ExprEval eval(ExprEval param)
+    {
+      return param.isNumeric() ? ExprEval.of(Math.getExponent(param.doubleValue()))
+                               : ExprEval.UNKNOWN;
     }
   }
 
   @Function.Named("log")
-  final class Log extends SingleParamMath
+  final class Log extends SingleParamDoubleMath
   {
     @Override
-    protected ExprEval eval(double param)
+    protected double eval(double param)
     {
-      return ExprEval.of(Math.log(param));
+      return Math.log(param);
     }
   }
 
   @Function.Named("log10")
-  final class Log10 extends SingleParamMath
+  final class Log10 extends SingleParamDoubleMath
   {
     @Override
-    protected ExprEval eval(double param)
+    protected double eval(double param)
     {
-      return ExprEval.of(Math.log10(param));
+      return Math.log10(param);
     }
   }
 
   @Function.Named("log1p")
-  final class Log1p extends SingleParamMath
+  final class Log1p extends SingleParamDoubleMath
   {
     @Override
-    protected ExprEval eval(double param)
+    protected double eval(double param)
     {
-      return ExprEval.of(Math.log1p(param));
+      return Math.log1p(param);
     }
   }
 
   @Function.Named("nextUp")
-  final class NextUp extends SingleParamMath
+  final class NextUp extends SingleParamRealMath
   {
     @Override
-    protected ExprEval eval(double param)
+    protected float eval(float param)
     {
-      return ExprEval.of(Math.nextUp(param));
+      return Math.nextUp(param);
+    }
+
+    @Override
+    protected double eval(double param)
+    {
+      return Math.nextUp(param);
     }
   }
 
   @Function.Named("rint")
-  final class Rint extends SingleParamMath
+  final class Rint extends SingleParamDoubleMath
   {
     @Override
-    protected ExprEval eval(double param)
+    protected double eval(double param)
     {
-      return ExprEval.of(Math.rint(param));
+      return Math.rint(param);
     }
   }
 
   @Function.Named("round")
-  final class Round extends SingleParamMath
+  final class Round extends SingleParam
   {
     @Override
-    protected ExprEval eval(double param)
+    public ValueDesc type(ValueDesc param)
     {
-      return ExprEval.of(Math.round(param));
+      return param.isNumeric() ? ValueDesc.LONG : ValueDesc.UNKNOWN;
+    }
+
+    @Override
+    protected ExprEval eval(ExprEval param)
+    {
+      ValueDesc type = param.type();
+      if (type.isFloat()) {
+        return ExprEval.of(Math.round(param.floatValue()));
+      } else if (type.isNumeric()) {
+        return ExprEval.of(Math.round(param.doubleValue()));
+      }
+      return ExprEval.UNKNOWN;
     }
   }
 
   @Function.Named("signum")
-  final class Signum extends SingleParamMath
+  final class Signum extends SingleParamRealMath
   {
     @Override
-    protected ExprEval eval(double param)
+    protected float eval(float param)
     {
-      return ExprEval.of(Math.signum(param));
+      return Math.signum(param);
+    }
+
+    @Override
+    protected double eval(double param)
+    {
+      return Math.signum(param);
     }
   }
 
   @Function.Named("sin")
-  final class Sin extends SingleParamMath
+  final class Sin extends SingleParamDoubleMath
   {
     @Override
-    protected ExprEval eval(double param)
+    protected double eval(double param)
     {
-      return ExprEval.of(Math.sin(param));
+      return Math.sin(param);
     }
   }
 
   @Function.Named("sinh")
-  final class Sinh extends SingleParamMath
+  final class Sinh extends SingleParamDoubleMath
   {
     @Override
-    protected ExprEval eval(double param)
+    protected double eval(double param)
     {
-      return ExprEval.of(Math.sinh(param));
+      return Math.sinh(param);
     }
   }
 
   @Function.Named("sqrt")
-  final class Sqrt extends SingleParamMath
+  final class Sqrt extends SingleParamDoubleMath
   {
     @Override
-    protected ExprEval eval(double param)
+    protected double eval(double param)
     {
-      return ExprEval.of(Math.sqrt(param));
+      return Math.sqrt(param);
     }
   }
 
   @Function.Named("tan")
-  final class Tan extends SingleParamMath
+  final class Tan extends SingleParamDoubleMath
   {
     @Override
-    protected ExprEval eval(double param)
+    protected double eval(double param)
     {
-      return ExprEval.of(Math.tan(param));
+      return Math.tan(param);
     }
   }
 
   @Function.Named("tanh")
-  final class Tanh extends SingleParamMath
+  final class Tanh extends SingleParamDoubleMath
   {
     @Override
-    protected ExprEval eval(double param)
+    protected double eval(double param)
     {
-      return ExprEval.of(Math.tanh(param));
+      return Math.tanh(param);
     }
   }
 
   @Function.Named("toDegrees")
-  final class ToDegrees extends SingleParamMath
+  final class ToDegrees extends SingleParamDoubleMath
   {
     @Override
-    protected ExprEval eval(double param)
+    protected double eval(double param)
     {
-      return ExprEval.of(Math.toDegrees(param));
+      return Math.toDegrees(param);
     }
   }
 
   @Function.Named("toRadians")
-  final class ToRadians extends SingleParamMath
+  final class ToRadians extends SingleParamDoubleMath
   {
     @Override
-    protected ExprEval eval(double param)
+    protected double eval(double param)
     {
-      return ExprEval.of(Math.toRadians(param));
+      return Math.toRadians(param);
     }
   }
 
   @Function.Named("ulp")
-  final class Ulp extends SingleParamMath
+  final class Ulp extends SingleParamRealMath
   {
     @Override
-    protected ExprEval eval(double param)
+    protected float eval(float param)
     {
-      return ExprEval.of(Math.ulp(param));
+      return Math.ulp(param);
+    }
+
+    @Override
+    protected double eval(double param)
+    {
+      return Math.ulp(param);
     }
   }
 
   @Function.Named("atan2")
-  final class Atan2 extends DoubleParamMath
+  final class Atan2 extends DoubleParamDoubleMath
   {
     @Override
-    protected ExprEval eval(double y, double x)
+    protected double eval(double y, double x)
     {
-      return ExprEval.of(Math.atan2(y, x));
+      return Math.atan2(y, x);
     }
   }
 
   @Function.Named("copySign")
-  final class CopySign extends DoubleParamMath
+  final class CopySign extends DoubleParamRealMath
   {
     @Override
-    protected ExprEval eval(double x, double y)
+    protected float eval(float x, float y)
     {
-      return ExprEval.of(Math.copySign(x, y));
+      return Math.copySign(x, y);
+    }
+
+    @Override
+    protected double eval(double x, double y)
+    {
+      return Math.copySign(x, y);
     }
   }
 
   @Function.Named("hypot")
-  final class Hypot extends DoubleParamMath
+  final class Hypot extends DoubleParamDoubleMath
   {
     @Override
-    protected ExprEval eval(double x, double y)
+    protected double eval(double x, double y)
     {
-      return ExprEval.of(Math.hypot(x, y));
+      return Math.hypot(x, y);
     }
   }
 
   @Function.Named("remainder")
-  final class Remainder extends DoubleParamMath
+  final class Remainder extends DoubleParamDoubleMath
   {
     @Override
-    protected ExprEval eval(double x, double y)
+    protected double eval(double x, double y)
     {
-      return ExprEval.of(Math.IEEEremainder(x, y));
+      return Math.IEEEremainder(x, y);
     }
+  }
+
+  abstract class DoubleParamRealMath extends DoubleParam
+  {
+    @Override
+    protected ValueDesc type(ValueDesc x, ValueDesc y)
+    {
+      if (!x.isNumeric() || !y.isNumeric()) {
+        return ValueDesc.UNKNOWN;
+      }
+      return x.isFloat() && y.isFloat() ? ValueDesc.FLOAT : ValueDesc.DOUBLE;
+    }
+
+    protected ExprEval eval(ExprEval x, ExprEval y)
+    {
+      if (!x.isNumeric() || !y.isNumeric()) {
+        return ExprEval.UNKNOWN;
+      }
+      if (x.isFloat() && y.isFloat()) {
+        return ExprEval.of(eval(x.floatValue(), y.floatValue()));
+      } else {
+        return ExprEval.of(eval(x.doubleValue(), y.doubleValue()));
+      }
+    }
+
+    protected abstract float eval(float x, float y);
+
+    protected abstract double eval(double x, double y);
+  }
+
+  abstract class DoubleParamMath extends DoubleParam
+  {
+    @Override
+    protected ValueDesc type(ValueDesc x, ValueDesc y)
+    {
+      if (!x.isNumeric() || !y.isNumeric()) {
+        return ValueDesc.UNKNOWN;
+      }
+      return x.equals(y) ? x : ValueDesc.DOUBLE;
+    }
+
+    protected ExprEval eval(ExprEval x, ExprEval y)
+    {
+      if (!x.isNumeric() || !y.isNumeric()) {
+        return ExprEval.UNKNOWN;
+      }
+      if (x.isLong() && y.isLong()) {
+        return ExprEval.of(eval(x.longValue(), y.longValue()));
+      } else if (x.isFloat() && y.isFloat()) {
+        return ExprEval.of(eval(x.floatValue(), y.floatValue()));
+      } else {
+        return ExprEval.of(eval(x.doubleValue(), y.doubleValue()));
+      }
+    }
+
+    protected abstract long eval(long x, long y);
+
+    protected abstract float eval(float x, float y);
+
+    protected abstract double eval(double x, double y);
   }
 
   @Function.Named("max")
   final class Max extends DoubleParamMath
   {
     @Override
-    protected ExprEval eval(long x, long y)
+    protected long eval(long x, long y)
     {
-      return ExprEval.of(Math.max(x, y));
+      return Math.max(x, y);
     }
 
     @Override
-    protected ExprEval eval(double x, double y)
+    protected float eval(float x, float y)
     {
-      return ExprEval.of(Math.max(x, y));
+      return Math.max(x, y);
+    }
+
+    @Override
+    protected double eval(double x, double y)
+    {
+      return Math.max(x, y);
     }
   }
 
@@ -1141,15 +1203,21 @@ public interface BuiltinFunctions extends Function.Library
   final class Min extends DoubleParamMath
   {
     @Override
-    protected ExprEval eval(long x, long y)
+    protected long eval(long x, long y)
     {
-      return ExprEval.of(Math.min(x, y));
+      return Math.min(x, y);
     }
 
     @Override
-    protected ExprEval eval(double x, double y)
+    protected float eval(float x, float y)
     {
-      return ExprEval.of(Math.min(x, y));
+      return Math.min(x, y);
+    }
+
+    @Override
+    protected double eval(double x, double y)
+    {
+      return Math.min(x, y);
     }
   }
 
@@ -1157,35 +1225,47 @@ public interface BuiltinFunctions extends Function.Library
   final class Div extends DoubleParamMath
   {
     @Override
-    protected ExprEval eval(final long x, final long y)
+    protected long eval(long x, long y)
     {
-      return ExprEval.of(x / y);
+      return x / y;
     }
 
     @Override
-    protected ExprEval eval(final double x, final double y)
+    protected float eval(float x, float y)
     {
-      return ExprEval.of((long) (x / y));
+      return x / y;
+    }
+
+    @Override
+    protected double eval(double x, double y)
+    {
+      return x / y;
     }
   }
 
   @Function.Named("nextAfter")
-  final class NextAfter extends DoubleParamMath
+  final class NextAfter extends DoubleParamRealMath
   {
     @Override
-    protected ExprEval eval(double x, double y)
+    protected float eval(float x, float y)
     {
-      return ExprEval.of(Math.nextAfter(x, y));
+      return Math.nextAfter(x, y);
+    }
+
+    @Override
+    protected double eval(double x, double y)
+    {
+      return Math.nextAfter(x, y);
     }
   }
 
   @Function.Named("pow")
-  final class Pow extends DoubleParamMath
+  final class Pow extends DoubleParamDoubleMath
   {
     @Override
-    protected ExprEval eval(double x, double y)
+    protected double eval(double x, double y)
     {
-      return ExprEval.of(Math.pow(x, y));
+      return Math.pow(x, y);
     }
   }
 
@@ -1193,43 +1273,46 @@ public interface BuiltinFunctions extends Function.Library
   final class Scalb extends DoubleParam
   {
     @Override
-    protected ExprEval eval(ExprEval x, ExprEval y)
+    protected ValueDesc type(ValueDesc x, ValueDesc y)
     {
       if (x.isNumeric() && y.isNumeric()) {
-        return ExprEval.of(Math.scalb(x.doubleValue(), y.intValue()));
+        return x.isFloat() ? ValueDesc.FLOAT : ValueDesc.DOUBLE;
       }
-      return ExprEval.of(null, ExprType.UNKNOWN);
+      return ValueDesc.UNKNOWN;
     }
 
     @Override
-    protected ExprType eval(ExprType x, ExprType y)
+    protected ExprEval eval(ExprEval x, ExprEval y)
     {
       if (x.isNumeric() && y.isNumeric()) {
-        return ExprType.DOUBLE;
+        if (x.isFloat()) {
+          return ExprEval.of(Math.scalb(x.floatValue(), y.intValue()));
+        }
+        return ExprEval.of(Math.scalb(x.doubleValue(), y.intValue()));
       }
-      return ExprType.UNKNOWN;
+      return ExprEval.UNKNOWN;
     }
   }
 
   @Function.Named("if")
-  final class ConditionFunc extends Function.NamedFunction
+  final class IfFunc extends Function.NamedFunction
   {
     @Override
-    public ExprType apply(List<Expr> args, TypeBinding bindings)
+    public ValueDesc apply(List<Expr> args, TypeBinding bindings)
     {
       if (args.size() < 3 || args.size() % 2 == 0) {
-        return ExprType.UNKNOWN;
+        return ValueDesc.UNKNOWN;
       }
-      ExprType prev = args.get(1).type(bindings);
+      ValueDesc prev = args.get(1).type(bindings);
       for (int i = 3; i < args.size() - 1; i += 2) {
-        ExprType type = args.get(i).type(bindings);
-        if (prev != null && prev != type) {
-          return ExprType.UNKNOWN;
+        ValueDesc type = args.get(i).type(bindings);
+        if (prev != null && !prev.equals(type)) {
+          return ValueDesc.UNKNOWN;
         }
         prev = type;
       }
       if (!prev.equals(args.get(args.size() - 1).type(bindings))) {
-        return ExprType.UNKNOWN;
+        return ValueDesc.UNKNOWN;
       }
       return prev;
     }
@@ -1262,11 +1345,11 @@ public interface BuiltinFunctions extends Function.Library
       if (args.size() != 2) {
         throw new RuntimeException("function '" + name() + "' needs 2 argument");
       }
-      final ExprType castTo = ExprType.bestEffortOf(Evals.getConstantString(args.get(1)));
+      final ValueDesc castTo = ExprType.bestEffortOf(Evals.getConstantString(args.get(1)));
       return new Child()
       {
         @Override
-        public ExprType apply(List<Expr> args, TypeBinding bindings)
+        public ValueDesc apply(List<Expr> args, TypeBinding bindings)
         {
           return castTo;
         }
@@ -1289,9 +1372,9 @@ public interface BuiltinFunctions extends Function.Library
   final class IsNullFunc extends Function.NamedFunction
   {
     @Override
-    public ExprType apply(List<Expr> args, TypeBinding bindings)
+    public ValueDesc apply(List<Expr> args, TypeBinding bindings)
     {
-      return args.size() == 1 ? ExprType.LONG : ExprType.UNKNOWN;
+      return args.size() == 1 ? ValueDesc.LONG : ValueDesc.UNKNOWN;
     }
 
     @Override
@@ -1309,16 +1392,16 @@ public interface BuiltinFunctions extends Function.Library
   class NvlFunc extends Function.NamedFunction
   {
     @Override
-    public ExprType apply(List<Expr> args, TypeBinding bindings)
+    public ValueDesc apply(List<Expr> args, TypeBinding bindings)
     {
       if (args.size() == 2) {
-        ExprType x = args.get(0).type(bindings);
-        ExprType y = args.get(1).type(bindings);
-        if (x == y) {
+        ValueDesc x = args.get(0).type(bindings);
+        ValueDesc y = args.get(1).type(bindings);
+        if (x.equals(y)) {
           return x;
         }
       }
-      return ExprType.UNKNOWN;
+      return ValueDesc.UNKNOWN;
     }
 
     @Override
@@ -1344,9 +1427,9 @@ public interface BuiltinFunctions extends Function.Library
   final class DateDiffFunc extends Function.NamedFunction
   {
     @Override
-    public ExprType apply(List<Expr> args, TypeBinding bindings)
+    public ValueDesc apply(List<Expr> args, TypeBinding bindings)
     {
-      return args.size() == 2 ? ExprType.LONG : ExprType.UNKNOWN;
+      return args.size() == 2 ? ValueDesc.LONG : ValueDesc.UNKNOWN;
     }
 
     @Override
@@ -1365,19 +1448,19 @@ public interface BuiltinFunctions extends Function.Library
   final class SwitchFunc extends Function.NamedFunction
   {
     @Override
-    public ExprType apply(List<Expr> args, TypeBinding bindings)
+    public ValueDesc apply(List<Expr> args, TypeBinding bindings)
     {
       if (args.size() < 3) {
-        return ExprType.UNKNOWN;
+        return ValueDesc.UNKNOWN;
       }
-      ExprType prev = args.get(2).type(bindings);
+      ValueDesc prev = args.get(2).type(bindings);
       for (int i = 4; i < args.size(); i += 2) {
-        if (prev != args.get(i).type(bindings)) {
-          return ExprType.UNKNOWN;
+        if (!prev.equals(args.get(i).type(bindings))) {
+          return ValueDesc.UNKNOWN;
         }
       }
-      if (args.size() % 2 != 1 && prev != args.get(args.size() - 1).type(bindings)) {
-        return ExprType.UNKNOWN;
+      if (args.size() % 2 != 1 && !prev.equals(args.get(args.size() - 1).type(bindings))) {
+        return ValueDesc.UNKNOWN;
       }
       return prev;
     }
@@ -1405,22 +1488,22 @@ public interface BuiltinFunctions extends Function.Library
   final class CaseFunc extends Function.NamedFunction
   {
     @Override
-    public ExprType apply(List<Expr> args, TypeBinding bindings)
+    public ValueDesc apply(List<Expr> args, TypeBinding bindings)
     {
       if (args.size() < 2) {
-        return ExprType.UNKNOWN;
+        return ValueDesc.UNKNOWN;
       }
-      ExprType prev = null;
+      ValueDesc prev = null;
       for (int i = 1; i < args.size() - 1; i += 2) {
-        ExprType type = args.get(i).type(bindings);
-        if (prev == null || prev == type) {
+        ValueDesc type = args.get(i).type(bindings);
+        if (prev == null || prev.equals(type)) {
           prev = type;
           continue;
         }
-        return ExprType.UNKNOWN;
+        return ValueDesc.UNKNOWN;
       }
-      if (args.size() % 2 == 1 && prev != args.get(args.size() - 1).type(bindings)) {
-        return ExprType.UNKNOWN;
+      if (args.size() % 2 == 1 && (prev != null && !prev.equals(args.get(args.size() - 1).type(bindings)))) {
+        return ValueDesc.UNKNOWN;
       }
       return prev;
     }
@@ -1431,14 +1514,14 @@ public interface BuiltinFunctions extends Function.Library
       if (args.size() < 2) {
         throw new RuntimeException("function 'case' needs at least 2 arguments");
       }
-      ExprType type = null;
+      ValueDesc type = null;
       for (int i = 0; i < args.size() - 1; i += 2) {
         ExprEval eval = Evals.eval(args.get(i), bindings);
         if (eval.asBoolean()) {
           return args.get(i + 1).eval(bindings);
         }
-        if (type != null && type != eval.type()) {
-          type = ExprType.UNKNOWN;
+        if (type != null && !type.equals(eval.type())) {
+          type = ValueDesc.UNKNOWN;
         } else {
           type = eval.type();
         }
@@ -1804,7 +1887,7 @@ public interface BuiltinFunctions extends Function.Library
     protected ExprEval eval(String input, int start, int end)
     {
       if (input == null || start >= input.length()) {
-        return ExprEval.of(null, ExprType.STRING);
+        return ExprEval.of(null, ValueDesc.STRING);
       }
       if (end < 0) {
         return ExprEval.of(input.substring(start));
@@ -1821,7 +1904,7 @@ public interface BuiltinFunctions extends Function.Library
     protected ExprEval eval(String input, int start, int length)
     {
       if (input == null || start >= input.length()) {
-        return ExprEval.of(null, ExprType.STRING);
+        return ExprEval.of(null, ValueDesc.STRING);
       }
       if (length < 0) {
         return ExprEval.of(input.substring(start));
@@ -1986,7 +2069,7 @@ public interface BuiltinFunctions extends Function.Library
   abstract class PartitionFunction extends Function.IndecisiveOut implements Factory
   {
     protected String fieldName;
-    protected ExprType fieldType;
+    protected ValueDesc fieldType;
     protected Object[] parameters;
 
     @Override
@@ -2195,6 +2278,7 @@ public interface BuiltinFunctions extends Function.Library
   final class RunningDelta extends PartitionFunction
   {
     private long longPrev;
+    private float floatPrev;
     private double doublePrev;
 
     @Override
@@ -2202,10 +2286,13 @@ public interface BuiltinFunctions extends Function.Library
     {
       Object current = context.get(fieldName);
       if (context.index() == 0) {
-        switch (fieldType) {
+        switch (fieldType.type()) {
           case LONG:
             longPrev = ((Number) current).longValue();
             return 0L;
+          case FLOAT:
+            floatPrev = ((Number) current).floatValue();
+            return 0F;
           case DOUBLE:
             doublePrev = ((Number) current).doubleValue();
             return 0D;
@@ -2213,12 +2300,17 @@ public interface BuiltinFunctions extends Function.Library
             throw new IllegalArgumentException("unsupported type " + fieldType);
         }
       }
-      switch (fieldType) {
+      switch (fieldType.type()) {
         case LONG:
           long currentLong = ((Number) current).longValue();
           long deltaLong = currentLong - longPrev;
           longPrev = currentLong;
           return deltaLong;
+        case FLOAT:
+          float currentFloat = ((Number) current).floatValue();
+          float deltaFloat = currentFloat - floatPrev;
+          floatPrev = currentFloat;
+          return deltaFloat;
         case DOUBLE:
           double currentDouble = ((Number) current).doubleValue();
           double deltaDouble = currentDouble - doublePrev;
@@ -2246,10 +2338,11 @@ public interface BuiltinFunctions extends Function.Library
     @Override
     protected void invoke(Object current)
     {
-      switch (fieldType) {
+      switch (fieldType.type()) {
         case LONG:
           longSum += ((Number) current).longValue();
           break;
+        case FLOAT:
         case DOUBLE:
           doubleSum += ((Number) current).doubleValue();
           break;
@@ -2261,7 +2354,7 @@ public interface BuiltinFunctions extends Function.Library
     @Override
     protected Object current()
     {
-      if (fieldType == ExprType.LONG) {
+      if (fieldType.isLong()) {
         return longSum;
       } else {
         return doubleSum;
@@ -2485,20 +2578,26 @@ public interface BuiltinFunctions extends Function.Library
   {
     private float percentile;
 
+    private ValueType type;
+
     private int size;
     private long[] longs;
+    private float[] floats;
     private double[] doubles;
 
     @Override
     protected void initialize(WindowContext context, Object[] parameters)
     {
       super.initialize(context, parameters);
-      Evals.assertNumeric(fieldType);
+      Preconditions.checkArgument(fieldType.isNumeric());
+      type = fieldType.type();
       percentile = ((Number) parameters[0]).floatValue();
 
       int limit = window == null ? context.size() : sizeOfWindow();
-      if (fieldType == ExprType.LONG) {
+      if (type == ValueType.LONG) {
         longs = new long[limit];
+      } else if (type == ValueType.FLOAT) {
+        floats = new float[limit];
       } else {
         doubles = new double[limit];
       }
@@ -2508,7 +2607,7 @@ public interface BuiltinFunctions extends Function.Library
     protected void invoke(Object current)
     {
       if (window == null) {
-        if (fieldType == ExprType.LONG) {
+        if (type == ValueType.LONG) {
           long longValue = ((Number) current).longValue();
           int index = Arrays.binarySearch(longs, 0, size, longValue);
           if (index < 0) {
@@ -2516,6 +2615,14 @@ public interface BuiltinFunctions extends Function.Library
           }
           System.arraycopy(longs, index, longs, index + 1, size - index);
           longs[index] = longValue;
+        } else if (type == ValueType.FLOAT) {
+          float floatValue = ((Number) current).floatValue();
+          int index = Arrays.binarySearch(floats, 0, size, floatValue);
+          if (index < 0) {
+            index = -index - 1;
+          }
+          System.arraycopy(floats, index, floats, index + 1, size - index);
+          floats[index] = floatValue;
         } else {
           double doubleValue = ((Number) current).doubleValue();
           int index = Arrays.binarySearch(doubles, 0, size, doubleValue);
@@ -2526,8 +2633,10 @@ public interface BuiltinFunctions extends Function.Library
           doubles[index] = doubleValue;
         }
       } else {
-        if (fieldType == ExprType.LONG) {
+        if (type == ValueType.LONG) {
           longs[size] = ((Number) current).longValue();
+        } else if (type == ValueType.FLOAT) {
+          floats[size] = ((Number) current).floatValue();
         } else {
           doubles[size] = ((Number) current).doubleValue();
         }
@@ -2539,15 +2648,19 @@ public interface BuiltinFunctions extends Function.Library
     protected Object current()
     {
       if (window != null) {
-        if (fieldType == ExprType.LONG) {
+        if (type == ValueType.LONG) {
           Arrays.sort(longs, 0, size);
+        } else if (type == ValueType.FLOAT) {
+          Arrays.sort(floats, 0, size);
         } else {
           Arrays.sort(doubles, 0, size);
         }
       }
       int index = (int) (size * percentile);
-      if (fieldType == ExprType.LONG) {
+      if (type == ValueType.LONG) {
         return longs[index];
+      } else if (type == ValueType.FLOAT) {
+        return floats[index];
       } else {
         return doubles[index];
       }
@@ -2568,7 +2681,9 @@ public interface BuiltinFunctions extends Function.Library
     private double from = Double.MAX_VALUE;
     private double step = Double.MAX_VALUE;
 
+    private ValueType type;
     private long[] longs;
+    private float[] floats;
     private double[] doubles;
 
     @Override
@@ -2578,6 +2693,9 @@ public interface BuiltinFunctions extends Function.Library
       if (parameters.length == 0) {
         throw new IllegalArgumentException(name() + " should have at least one argument (binCount)");
       }
+      Preconditions.checkArgument(fieldType.isNumeric());
+      type = fieldType.type();
+
       binCount = ((Number)parameters[0]).intValue();
 
       if (parameters.length > 1) {
@@ -2587,12 +2705,12 @@ public interface BuiltinFunctions extends Function.Library
         step = ((Number)parameters[2]).doubleValue();
       }
 
-      if (fieldType == ExprType.LONG) {
+      if (type == ValueType.LONG) {
         longs = new long[context.size()];
-      } else if (fieldType == ExprType.DOUBLE) {
-        doubles = new double[context.size()];
+      } else if (type == ValueType.FLOAT) {
+        floats = new float[context.size()];
       } else {
-        throw new IllegalArgumentException("unsupported type " + fieldType);
+        doubles = new double[context.size()];
       }
     }
 
@@ -2600,20 +2718,24 @@ public interface BuiltinFunctions extends Function.Library
     protected Object invoke(WindowContext context)
     {
       Object current = context.get(fieldName);
-      if (fieldType == ExprType.LONG) {
+      if (type == ValueType.LONG) {
         longs[context.index()] = ((Number) current).longValue();
+      } else if (type == ValueType.FLOAT) {
+        floats[context.index()] = ((Number) current).floatValue();
       } else {
         doubles[context.index()] = ((Number) current).doubleValue();
       }
       if (context.index() < context.size() - 1) {
         return null;
       }
-      if (fieldType == ExprType.LONG) {
+      if (type == ValueType.LONG) {
         Arrays.sort(longs);
+      } else if (type == ValueType.FLOAT) {
+        Arrays.sort(floats);
       } else {
         Arrays.sort(doubles);
       }
-      if (fieldType == ExprType.LONG) {
+      if (type == ValueType.LONG) {
         Arrays.sort(longs);
 
         long min = longs[0];
@@ -2642,6 +2764,35 @@ public interface BuiltinFunctions extends Function.Library
           counts[index == counts.length  ? index - 1 : index]++;
         }
         return ImmutableMap.of("min", min, "max", max, "breaks", Longs.asList(breaks), "counts", Ints.asList(counts));
+      } else if (type == ValueType.FLOAT) {
+        Arrays.sort(floats);
+
+        float min = floats[0];
+        float max = floats[floats.length - 1];
+
+        double start = from == Double.MAX_VALUE ? min : from;
+        double delta = step == Double.MAX_VALUE ? (max - start) / binCount : step;
+
+        float[] breaks = new float[binCount + 1];
+        int[] counts = new int[binCount];
+        for (int i = 0; i < breaks.length; i++) {
+          breaks[i] = (float) (start + (delta * i));
+        }
+        for (float floatVal : floats) {
+          if (floatVal < breaks[0]) {
+            continue;
+          }
+          if (floatVal > breaks[binCount]) {
+            break;
+          }
+          int index = Arrays.binarySearch(breaks, floatVal);
+          if (index < 0) {
+            counts[-index - 2]++;
+          } else {
+            counts[index == counts.length ? index - 1 : index]++;
+          }
+        }
+        return ImmutableMap.of("min", min, "max", max, "breaks", Floats.asList(breaks), "counts", Ints.asList(counts));
       } else {
         Arrays.sort(doubles);
 

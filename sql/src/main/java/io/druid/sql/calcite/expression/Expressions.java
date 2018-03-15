@@ -432,24 +432,6 @@ public class Expressions
     }
   }
 
-  public static ExprType exprTypeForValueType(final ValueDesc valueDesc)
-  {
-    if (!ValueDesc.isPrimitive(valueDesc)) {
-      throw new ISE("No ExprType for valueType[%s]", valueDesc);
-    }
-    switch (valueDesc.type()) {
-      case LONG:
-        return ExprType.LONG;
-      case FLOAT:
-      case DOUBLE:
-        return ExprType.DOUBLE;
-      case STRING:
-        return ExprType.STRING;
-      default:
-        throw new ISE("No ExprType for valueDesc[%s]", valueDesc);
-    }
-  }
-
   /**
    * Translates to an "expression" type leaf filter. Used as a fallback if we can't use a simple leaf filter.
    */

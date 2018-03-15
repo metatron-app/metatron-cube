@@ -23,8 +23,8 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.metamx.common.ISE;
 import io.druid.common.utils.StringUtils;
+import io.druid.data.ValueType;
 import io.druid.granularity.PeriodGranularity;
-import io.druid.math.expr.ExprType;
 import io.druid.sql.calcite.expression.DruidExpression;
 import io.druid.sql.calcite.expression.Expressions;
 import io.druid.sql.calcite.expression.SqlOperatorConversion;
@@ -42,29 +42,30 @@ import java.util.function.Function;
 
 public class CastOperatorConversion implements SqlOperatorConversion
 {
-  private static final Map<SqlTypeName, ExprType> EXPRESSION_TYPES;
+  private static final Map<SqlTypeName, ValueType> EXPRESSION_TYPES;
 
   static {
-    final ImmutableMap.Builder<SqlTypeName, ExprType> builder = ImmutableMap.builder();
+    final ImmutableMap.Builder<SqlTypeName, ValueType> builder = ImmutableMap.builder();
 
-    for (SqlTypeName type : SqlTypeName.FRACTIONAL_TYPES) {
-      builder.put(type, ExprType.DOUBLE);
-    }
+    builder.put(SqlTypeName.FLOAT, ValueType.FLOAT);
+    builder.put(SqlTypeName.DOUBLE, ValueType.DOUBLE);
+    builder.put(SqlTypeName.REAL, ValueType.DOUBLE);
+    builder.put(SqlTypeName.DECIMAL, ValueType.DOUBLE);
 
     for (SqlTypeName type : SqlTypeName.INT_TYPES) {
-      builder.put(type, ExprType.LONG);
+      builder.put(type, ValueType.LONG);
     }
 
     for (SqlTypeName type : SqlTypeName.STRING_TYPES) {
-      builder.put(type, ExprType.STRING);
+      builder.put(type, ValueType.STRING);
     }
 
     // Booleans are treated as longs in Druid expressions, using two-value logic (positive = true, nonpositive = false).
-    builder.put(SqlTypeName.BOOLEAN, ExprType.LONG);
+    builder.put(SqlTypeName.BOOLEAN, ValueType.LONG);
 
     // Timestamps are treated as longs (millis since the epoch) in Druid expressions.
-    builder.put(SqlTypeName.TIMESTAMP, ExprType.LONG);
-    builder.put(SqlTypeName.DATE, ExprType.LONG);
+    builder.put(SqlTypeName.TIMESTAMP, ValueType.LONG);
+    builder.put(SqlTypeName.DATE, ValueType.LONG);
 
     EXPRESSION_TYPES = builder.build();
   }
@@ -102,21 +103,21 @@ public class CastOperatorConversion implements SqlOperatorConversion
       return castDateTimeToChar(plannerContext, operandExpression, fromType);
     } else {
       // Handle other casts.
-      final ExprType fromExprType = EXPRESSION_TYPES.get(fromType);
-      final ExprType toExprType = EXPRESSION_TYPES.get(toType);
+      final ValueType fromValueDesc = EXPRESSION_TYPES.get(fromType);
+      final ValueType toValueDesc = EXPRESSION_TYPES.get(toType);
 
-      if (fromExprType == null || toExprType == null) {
+      if (fromValueDesc == null || toValueDesc == null) {
         // We have no runtime type for these SQL types.
         return null;
       }
 
       final DruidExpression typeCastExpression;
 
-      if (fromExprType != toExprType) {
+      if (fromValueDesc != toValueDesc) {
         // Ignore casts for simple extractions (use Function.identity) since it is ok in many cases.
         typeCastExpression = operandExpression.map(
             Function.identity(),
-            expression -> StringUtils.format("CAST(%s, '%s')", expression, toExprType.toString())
+            expression -> StringUtils.format("CAST(%s, '%s')", expression, toValueDesc.toString().toUpperCase())
         );
       } else {
         typeCastExpression = operandExpression;

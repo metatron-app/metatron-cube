@@ -1211,9 +1211,10 @@ public class CalciteQueryTest
                         .setDataSource(CalciteTests.DATASOURCE1)
                         .setInterval(QSS(Filtration.eternity()))
                         .setGranularity(Granularities.ALL)
-                        .setDimensions(DIMS(new DefaultDimensionSpec("dim1", "d0")))
-                        .setAggregatorSpecs(AGGS(new GenericSumAggregatorFactory("a0", "m1", "double")))
-                        .setHavingSpec(EXPR("(\"a0\" > 1)"))
+                        .setDimensions(new DefaultDimensionSpec("dim1", "d0"))
+                        .setAggregatorSpecs(new GenericSumAggregatorFactory("a0", "m1", "double"))
+                        .setPostAggregatorSpecs(new MathPostAggregator("p0", "CAST(\"a0\", 'FLOAT')"))
+                        .setHavingSpec(EXPR("(CAST(\"a0\", 'FLOAT') > 1)"))
                         .setContext(QUERY_CONTEXT_DEFAULT)
                         .build()
         ),
@@ -1223,6 +1224,29 @@ public class CalciteQueryTest
             new Object[]{"2", 3.0f},
             new Object[]{"abc", 6.0f},
             new Object[]{"def", 5.0f}
+        )
+    );
+
+    testQuery(
+        PLANNER_CONFIG_FALLBACK,
+        "SELECT dim1, SUM(m1) AS m1_sum FROM druid.foo GROUP BY dim1 HAVING CAST(SUM(m1) AS FLOAT) > 1",
+        ImmutableList.of(
+            GroupByQuery.builder()
+                        .setDataSource(CalciteTests.DATASOURCE1)
+                        .setInterval(QSS(Filtration.eternity()))
+                        .setGranularity(Granularities.ALL)
+                        .setDimensions(new DefaultDimensionSpec("dim1", "d0"))
+                        .setAggregatorSpecs(new GenericSumAggregatorFactory("a0", "m1", "double"))
+                        .setHavingSpec(EXPR("(CAST(\"a0\", 'FLOAT') > 1)"))
+                        .setContext(QUERY_CONTEXT_DEFAULT)
+                        .build()
+        ),
+        ImmutableList.of(
+            new Object[]{"1", 4.0d},
+            new Object[]{"10.1", 2.0d},
+            new Object[]{"2", 3.0d},
+            new Object[]{"abc", 6.0d},
+            new Object[]{"def", 5.0d}
         )
     );
   }
@@ -2080,7 +2104,7 @@ public class CalciteQueryTest
                             OR(
                                 SELECTOR("dim1", "10", null),
                                 AND(
-                                    EXPRESSION_FILTER("(floor(CAST(\"dim1\", 'DOUBLE')) == 10.00)"),
+                                    EXPRESSION_FILTER("(CAST(floor(CAST(\"dim1\", 'FLOAT')), 'DOUBLE') == 10.00)"),
                                     BOUND("dim1", "9", "10.5", true, false, null, StringComparators.NUMERIC_NAME)
                                 )
                             )
@@ -2557,11 +2581,11 @@ public class CalciteQueryTest
                         .setVirtualColumns(
                             EXPRESSION_VIRTUAL_COLUMN(
                                 "d0:v",
-                                "(floor((CAST(\"dim1\", 'DOUBLE') / 2)) * 2)"
+                                "(floor((CAST(\"dim1\", 'FLOAT') / 2)) * 2)"
                             )
                         )
                         .setDimFilter(
-                            EXPRESSION_FILTER("((floor((CAST(\"dim1\", 'DOUBLE') / 2)) * 2) > -1)")
+                            EXPRESSION_FILTER("((floor((CAST(\"dim1\", 'FLOAT') / 2)) * 2) > -1)")
                         )
                         .setDimensions(DIMS(new DefaultDimensionSpec("d0:v", "d0")))
                         .setAggregatorSpecs(AGGS(new CountAggregatorFactory("a0")))
@@ -4272,12 +4296,12 @@ public class CalciteQueryTest
                       )
                   )
                   .postAggregators(ImmutableList.of(
-                                       EXPRESSION_POST_AGG("p0", "CAST(\"a1\", 'DOUBLE')"),
+                                       EXPRESSION_POST_AGG("p0", "CAST(\"a1\", 'FLOAT')"),
                                        EXPRESSION_POST_AGG("p1", "(\"a0\" / \"a1\")"),
                                        EXPRESSION_POST_AGG("p2", "((\"a0\" / \"a1\") + 3)"),
                                        EXPRESSION_POST_AGG(
                                            "p3",
-                                           "((CAST(\"a0\", 'DOUBLE') / CAST(\"a1\", 'DOUBLE')) + 3)"
+                                           "((CAST(\"a0\", 'FLOAT') / CAST(\"a1\", 'FLOAT')) + 3)"
                                        )
                                    )
                   )
@@ -4803,7 +4827,7 @@ public class CalciteQueryTest
                         .setInterval(QSS(Filtration.eternity()))
                         .setGranularity(Granularities.ALL)
                         .setVirtualColumns(
-                            EXPRESSION_VIRTUAL_COLUMN("d0:v", "floor(CAST(\"dim1\", 'DOUBLE'))")
+                            EXPRESSION_VIRTUAL_COLUMN("d0:v", "floor(CAST(\"dim1\", 'FLOAT'))")
                         )
                         .setDimensions(DIMS(new DefaultDimensionSpec("d0:v", "d0")))
                         .setAggregatorSpecs(AGGS(new CountAggregatorFactory("a0")))
@@ -4832,7 +4856,7 @@ public class CalciteQueryTest
                         .setVirtualColumns(
                             EXPRESSION_VIRTUAL_COLUMN(
                                 "d0:v",
-                                "floor(CAST(\"dim1\", 'DOUBLE'))"
+                                "floor(CAST(\"dim1\", 'FLOAT'))"
                             )
                         )
                         .setDimensions(

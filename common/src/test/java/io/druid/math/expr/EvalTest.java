@@ -26,6 +26,7 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import io.druid.common.DateTimes;
 import io.druid.common.utils.JodaUtils;
+import io.druid.data.ValueDesc;
 import io.druid.granularity.Granularity;
 import io.druid.granularity.GranularityType;
 import org.joda.time.DateTime;
@@ -54,35 +55,35 @@ public class EvalTest
   private long evalLong(String x, Expr.NumericBinding bindings)
   {
     ExprEval ret = _eval(x, bindings);
-    Assert.assertEquals(ExprType.LONG, ret.type());
+    Assert.assertEquals(ValueDesc.LONG, ret.type());
     return ret.longValue();
   }
 
   private double evalDouble(String x, Expr.NumericBinding bindings)
   {
     ExprEval ret = _eval(x, bindings);
-    Assert.assertEquals(ExprType.DOUBLE, ret.type());
+    Assert.assertEquals(ValueDesc.DOUBLE, ret.type());
     return ret.doubleValue();
   }
 
   private String evalString(String x, Expr.NumericBinding bindings)
   {
     ExprEval ret = _eval(x, bindings);
-    Assert.assertEquals(ExprType.STRING, ret.type());
+    Assert.assertEquals(ValueDesc.STRING, ret.type());
     return ret.stringValue();
   }
 
   private DateTime evalDateTime(String x, Expr.NumericBinding bindings)
   {
     ExprEval ret = _eval(x, bindings);
-    Assert.assertEquals(ExprType.DATETIME, ret.type());
+    Assert.assertEquals(ValueDesc.DATETIME, ret.type());
     return ret.asDateTime();
   }
 
   private Object eval(String x, Expr.NumericBinding bindings)
   {
     ExprEval ret = _eval(x, bindings);
-    Assert.assertEquals(ExprType.UNKNOWN, ret.type());
+    Assert.assertEquals(ValueDesc.UNKNOWN, ret.type());
     return ret.value();
   }
 
@@ -965,16 +966,16 @@ public class EvalTest
   public void testTypes()
   {
     Expr.TypeBinding bindings = Parser.withTypeMap(
-        ImmutableMap.<String, ExprType>of("a", ExprType.LONG, "b", ExprType.STRING, "c", ExprType.DOUBLE)
+        ImmutableMap.<String, ValueDesc>of("a", ValueDesc.LONG, "b", ValueDesc.STRING, "c", ValueDesc.DOUBLE)
     );
-    Assert.assertEquals(ExprType.LONG, Parser.parse("a * cast(b, 'long')").type(bindings));
-    Assert.assertEquals(ExprType.DOUBLE, Parser.parse("a * cast(b, 'double')").type(bindings));
-    Assert.assertEquals(ExprType.STRING, Parser.parse("concat(a, cast(b, 'double'))").type(bindings));
-    Assert.assertEquals(ExprType.LONG, Parser.parse("a * cast(b, 'long')").type(bindings));
+    Assert.assertEquals(ValueDesc.LONG, Parser.parse("a * cast(b, 'long')").type(bindings));
+    Assert.assertEquals(ValueDesc.DOUBLE, Parser.parse("a * cast(b, 'double')").type(bindings));
+    Assert.assertEquals(ValueDesc.STRING, Parser.parse("concat(a, cast(b, 'double'))").type(bindings));
+    Assert.assertEquals(ValueDesc.LONG, Parser.parse("a * cast(b, 'long')").type(bindings));
 
-    Assert.assertEquals(ExprType.LONG, Parser.parse("if(C == '', 0, CAST(C, 'INT') / 10 * 10)").type(bindings));
-    Assert.assertEquals(ExprType.UNKNOWN, Parser.parse("if(C == '', 0, CAST(C, 'INT') / 10 * 10.0)").type(bindings));
-    Assert.assertEquals(ExprType.DOUBLE, Parser.parse("if(C == '', 0.0, CAST(C, 'INT') / 10 * 10.0)").type(bindings));
+    Assert.assertEquals(ValueDesc.LONG, Parser.parse("if(C == '', 0, CAST(C, 'INT') / 10 * 10)").type(bindings));
+    Assert.assertEquals(ValueDesc.UNKNOWN, Parser.parse("if(C == '', 0, CAST(C, 'INT') / 10 * 10.0)").type(bindings));
+    Assert.assertEquals(ValueDesc.DOUBLE, Parser.parse("if(C == '', 0.0, CAST(C, 'INT') / 10 * 10.0)").type(bindings));
   }
 
   @Test

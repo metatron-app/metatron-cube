@@ -16,17 +16,28 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-
-package io.druid.segment;
-
-import io.druid.data.ValueDesc;
-import io.druid.math.expr.ExprEval;
+package io.druid.data;
 
 /**
  */
-public interface ExprEvalColumnSelector
+public enum ComplexType
 {
-  ValueDesc typeOfObject();
+  MAP,
+  LIST,
+  INDEXED_ID,
+  DATETIME,
+  UNKNOWN,
+  ARRAY,
+  // aka. IndexedInts.WithLookup
+  // this is return type of object selector which simulates dimension selector (used for some filter optimization)
+  INDEXED,
+  // this is return type of object selector which can return element type or array of element type,
+  // which is trait of dimension
+  MULTIVALUED,
 
-  ExprEval get();
+  // prefix of dimension
+  DIMENSION,
+
+  // descriptive type
+  DECIMAL
 }

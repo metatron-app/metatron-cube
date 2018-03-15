@@ -222,7 +222,7 @@ public class IncrementalIndexSchema
         dimensionSchemas.add(
             DimensionSchema.of(
                 dimensions.get(i),
-                ValueDesc.isDimension(valueDesc) ? ValueType.STRING : valueDesc.type()
+                valueDesc.isStringOrDimension() ? ValueType.STRING : valueDesc.type()
             )
         );
       }

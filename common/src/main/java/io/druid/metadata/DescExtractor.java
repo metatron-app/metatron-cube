@@ -23,9 +23,9 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonValue;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.google.common.base.Preconditions;
+import io.druid.data.ValueDesc;
 import io.druid.math.expr.Expr;
 import io.druid.math.expr.ExprEval;
-import io.druid.math.expr.ExprType;
 import io.druid.math.expr.Function;
 import io.druid.math.expr.Functions;
 
@@ -169,16 +169,16 @@ public enum DescExtractor
               String column = args.get(0).eval(bindings).asString();
               Map<String, String> values = mapping.get(column);
               if (values == null) {
-                return ExprEval.of(null, ExprType.STRING);
+                return ExprEval.of(null, ValueDesc.STRING);
               }
               String value = args.get(1).eval(bindings).asString();
               return ExprEval.of(values.get(value));
             }
 
             @Override
-            public ExprType apply(List<Expr> args, Expr.TypeBinding bindings)
+            public ValueDesc apply(List<Expr> args, Expr.TypeBinding bindings)
             {
-              return ExprType.STRING;
+              return ValueDesc.STRING;
             }
           };
         }
@@ -240,9 +240,9 @@ public enum DescExtractor
         }
 
         @Override
-        public ExprType apply(List<Expr> args, Expr.TypeBinding bindings)
+        public ValueDesc apply(List<Expr> args, Expr.TypeBinding bindings)
         {
-          return ExprType.STRING;
+          return ValueDesc.STRING;
         }
       };
     }

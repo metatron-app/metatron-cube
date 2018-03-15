@@ -125,7 +125,7 @@ public class MathPostAggregator implements DecoratingPostAggregator
   @Override
   public String toString()
   {
-    return "ArithmeticPostAggregator{" +
+    return "MathPostAggregator{" +
            "name='" + name + '\'' +
            ", expression='" + expression + '\'' +
            ", ordering=" + ordering +

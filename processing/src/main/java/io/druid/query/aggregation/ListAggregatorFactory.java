@@ -158,7 +158,7 @@ public class ListAggregatorFactory extends AggregatorFactory
       @Override
       public void aggregate()
       {
-        Object value = Evals.castTo(selector.get(), elementType);
+        Object value = Evals.castToValue(selector.get(), elementType);
         synchronized (list) {
           list.add(value);
           if (limit > 0 && list.size() > limit) {
@@ -254,7 +254,7 @@ public class ListAggregatorFactory extends AggregatorFactory
       public void aggregate(ByteBuffer buf, int position)
       {
         Collection<Object> list = lists.get(buf.getInt(position));
-        list.add(Evals.castTo(selector.get(), elementType));
+        list.add(Evals.castToValue(selector.get(), elementType));
         if (limit > 0 && list.size() > limit) {
           throw new IllegalStateException("Exceeding limit " + limit);
         }

@@ -139,7 +139,7 @@ public class SelectorFilter implements Filter
         }
       };
     }
-    final Object casted = ValueDesc.isNumeric(valueType) ? Evals.castTo(ExprEval.of(value), valueType) : value;
+    final Object casted = ValueDesc.isNumeric(valueType) ? Evals.castToValue(ExprEval.of(value), valueType) : value;
     return Filters.toValueMatcher(
         selector, new Predicate()
         {

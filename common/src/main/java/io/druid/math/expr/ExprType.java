@@ -23,120 +23,80 @@ import com.google.common.base.Strings;
 import io.druid.data.ValueDesc;
 import org.joda.time.DateTime;
 
+import java.math.BigDecimal;
+import java.util.List;
+import java.util.Map;
+
 /**
  */
-public enum ExprType
+public class ExprType
 {
-  DOUBLE {
-    @Override
-    public boolean isNumeric() { return true; }
-    @Override
-    public ValueDesc asValueDesc() { return ValueDesc.DOUBLE; }
-    @Override
-    public Class asClass() { return Double.class; }
-  },
-  LONG {
-    @Override
-    public boolean isNumeric() { return true; }
-    @Override
-    public ValueDesc asValueDesc() { return ValueDesc.LONG; }
-    @Override
-    public Class asClass() { return Long.class; }
-  },
-  DATETIME {
-    @Override
-    public boolean isNumeric() { return false; }
-    @Override
-    public ValueDesc asValueDesc() { return ValueDesc.DATETIME; }
-    @Override
-    public Class asClass() { return DateTime.class; }
-  },
-  STRING {
-    @Override
-    public boolean isNumeric() { return false; }
-    @Override
-    public ValueDesc asValueDesc() { return ValueDesc.STRING; }
-    @Override
-    public Class asClass() { return String.class; }
-  },
-  UNKNOWN {
-    @Override
-    public boolean isNumeric() { return false; }
-    @Override
-    public ValueDesc asValueDesc() { return ValueDesc.UNKNOWN; }
-    @Override
-    public Class asClass() { return Object.class; }
-  };
-
-  public String typeName()
-  {
-    return name().toLowerCase();
-  }
-
-  public abstract boolean isNumeric();
-
-  public abstract ValueDesc asValueDesc();
-
-  public abstract Class asClass();
-
-  public static ExprType bestEffortOf(String name)
+  public static ValueDesc bestEffortOf(String name)
   {
     if (Strings.isNullOrEmpty(name)) {
-      return STRING;
+      return ValueDesc.STRING;
     }
     switch (name.toUpperCase()) {
       case "FLOAT":
+        return ValueDesc.FLOAT;
       case "DOUBLE":
-        return DOUBLE;
+        return ValueDesc.DOUBLE;
       case "BYTE":
       case "SHORT":
       case "INT":
       case "INTEGER":
       case "LONG":
       case "BIGINT":
-        return LONG;
+        return ValueDesc.LONG;
       case "DATETIME":
-        return DATETIME;
+        return ValueDesc.DATETIME;
       case "STRING":
-        return STRING;
+        return ValueDesc.STRING;
       default:
-        return UNKNOWN;
+        return ValueDesc.UNKNOWN;
     }
   }
 
-  public static ExprType typeOf(ValueDesc type)
-  {
-    switch (type.type()) {
-      case LONG:
-        return LONG;
-      case FLOAT:
-      case DOUBLE:
-        return DOUBLE;
-      case STRING:
-        return STRING;
-      case COMPLEX:
-        if (ValueDesc.isDimension(type)) {
-          return STRING;
-        }
-      default:
-        return UNKNOWN;
-    }
-  }
-
-  public static ExprType typeOf(Class clazz)
+  public static ValueDesc typeOf(Class clazz)
   {
     if (clazz == String.class) {
-      return STRING;
+      return ValueDesc.STRING;
     }
     if (clazz == Long.TYPE || clazz == Long.class) {
-      return LONG;
+      return ValueDesc.LONG;
     }
-    if (clazz == Float.TYPE || clazz == Float.class || clazz == Double.TYPE || clazz == Double.class) {
-      return DOUBLE;
+    if (clazz == Float.TYPE || clazz == Float.class) {
+      return ValueDesc.FLOAT;
+    }
+    if (clazz == Double.TYPE || clazz == Double.class) {
+      return ValueDesc.DOUBLE;
     }
     if (clazz == DateTime.class) {
-      return DATETIME;
+      return ValueDesc.DATETIME;
     }
-    return UNKNOWN;
+    if (clazz == BigDecimal.class) {
+      return ValueDesc.DECIMAL;
+    }
+    if (clazz == Map.class) {
+      return ValueDesc.MAP;
+    }
+    return ValueDesc.UNKNOWN;
+  }
+
+  public static Class asClass(ValueDesc valueDesc)
+  {
+    if (valueDesc.isPrimitive()) {
+      return valueDesc.type().classOfObject();
+    }
+    if (ValueDesc.isDateTime(valueDesc)) {
+      return DateTime.class;
+    }
+    if (ValueDesc.isDecimal(valueDesc)) {
+      return BigDecimal.class;
+    }
+    if (ValueDesc.isMap(valueDesc)) {
+      return Map.class;
+    }
+    return Object.class;
   }
 }

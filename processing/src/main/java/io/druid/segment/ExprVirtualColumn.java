@@ -87,7 +87,7 @@ public class ExprVirtualColumn implements VirtualColumn
   public ValueDesc resolveType(String column, TypeResolver types)
   {
     Preconditions.checkArgument(column.equals(outputName));
-    return Parser.parse(expression).type(Parser.withTypes(types)).asValueDesc();
+    return Parser.parse(expression).type(Parser.withTypes(types));
   }
 
   @Override

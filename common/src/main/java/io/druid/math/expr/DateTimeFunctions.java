@@ -25,6 +25,7 @@ import com.metamx.common.ISE;
 import io.druid.common.DateTimes;
 import io.druid.common.utils.JodaUtils;
 import io.druid.common.utils.StringUtils;
+import io.druid.data.ValueDesc;
 import io.druid.granularity.Granularity;
 import io.druid.granularity.PeriodGranularity;
 import org.joda.time.DateTime;
@@ -79,7 +80,7 @@ public interface DateTimeFunctions extends Function.Library
       if (args.size() != 1 && args.size() != 2) {
         throw new IllegalArgumentException("function '" + name() + "' needs one or two arguments");
       }
-      return ExprEval.of(toInterval(args, bindings), ExprType.UNKNOWN);
+      return ExprEval.of(toInterval(args, bindings), ValueDesc.UNKNOWN);
     }
 
     public Interval toInterval(List<Expr> args, Expr.NumericBinding bindings)
@@ -160,9 +161,9 @@ public interface DateTimeFunctions extends Function.Library
       return new Child()
       {
         @Override
-        public ExprType apply(List<Expr> args, Expr.TypeBinding bindings)
+        public ValueDesc apply(List<Expr> args, Expr.TypeBinding bindings)
         {
-          return ExprType.DATETIME;
+          return ValueDesc.DATETIME;
         }
 
         @Override
@@ -184,9 +185,9 @@ public interface DateTimeFunctions extends Function.Library
       return new Child()
       {
         @Override
-        public ExprType apply(List<Expr> args, Expr.TypeBinding bindings)
+        public ValueDesc apply(List<Expr> args, Expr.TypeBinding bindings)
         {
-          return ExprType.DATETIME;
+          return ValueDesc.DATETIME;
         }
 
         @Override
@@ -229,9 +230,9 @@ public interface DateTimeFunctions extends Function.Library
       return new Child()
       {
         @Override
-        public ExprType apply(List<Expr> args, Expr.TypeBinding bindings)
+        public ValueDesc apply(List<Expr> args, Expr.TypeBinding bindings)
         {
-          return ExprType.DATETIME;
+          return ValueDesc.DATETIME;
         }
 
         @Override
@@ -594,7 +595,7 @@ public interface DateTimeFunctions extends Function.Library
       return new Child()
       {
         @Override
-        public ExprType apply(List<Expr> args, Expr.TypeBinding bindings)
+        public ValueDesc apply(List<Expr> args, Expr.TypeBinding bindings)
         {
           return eval(args, bindings);
         }
@@ -613,7 +614,7 @@ public interface DateTimeFunctions extends Function.Library
       };
     }
 
-    protected abstract ExprType eval(List<Expr> args, Expr.TypeBinding bindings);
+    protected abstract ValueDesc eval(List<Expr> args, Expr.TypeBinding bindings);
 
     protected abstract ExprEval eval(DateTime date);
 
@@ -628,15 +629,15 @@ public interface DateTimeFunctions extends Function.Library
   class TimestampFromEpochFunc extends DateTimeInput
   {
     @Override
-    public ExprType eval(List<Expr> args, Expr.TypeBinding bindings)
+    public ValueDesc eval(List<Expr> args, Expr.TypeBinding bindings)
     {
-      return ExprType.LONG;
+      return ValueDesc.LONG;
     }
 
     @Override
     protected ExprEval eval(DateTime date)
     {
-      return ExprEval.of(date.getMillis(), ExprType.LONG);
+      return ExprEval.of(date.getMillis(), ValueDesc.LONG);
     }
   }
 
@@ -646,7 +647,7 @@ public interface DateTimeFunctions extends Function.Library
     @Override
     protected final ExprEval eval(DateTime date)
     {
-      return ExprEval.of(date.getMillis() / 1000, ExprType.LONG);
+      return ExprEval.of(date.getMillis() / 1000, ValueDesc.LONG);
     }
   }
 
@@ -689,9 +690,9 @@ public interface DateTimeFunctions extends Function.Library
   class DateTimeMillisFunc extends DateTimeInput
   {
     @Override
-    public ExprType eval(List<Expr> args, Expr.TypeBinding bindings)
+    public ValueDesc eval(List<Expr> args, Expr.TypeBinding bindings)
     {
-      return ExprType.LONG;
+      return ValueDesc.LONG;
     }
 
     @Override

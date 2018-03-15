@@ -22,8 +22,8 @@ package io.druid.query.groupby.orderby;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Maps;
+import io.druid.data.ValueDesc;
 import io.druid.data.input.Row;
-import io.druid.math.expr.ExprType;
 import io.druid.query.groupby.GroupByQueryRunnerTestHelper;
 import io.druid.query.ordering.Direction;
 import io.druid.segment.TestHelper;
@@ -119,7 +119,7 @@ public class PivotSpecTest
         new Object[]{"c", null, 3}
     );
 
-    WindowContext context = WindowContext.newInstance(Arrays.asList("col1"), Maps.<String, ExprType>newHashMap()).on(
+    WindowContext context = WindowContext.newInstance(Arrays.asList("col1"), Maps.<String, ValueDesc>newHashMap()).on(
         Arrays.<String>asList("col1"),
         Arrays.<OrderByColumnSpec>asList(OrderByColumnSpec.asc("col1"))
     );

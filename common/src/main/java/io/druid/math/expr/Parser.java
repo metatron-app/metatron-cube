@@ -348,15 +348,15 @@ public class Parser
     };
   }
 
-  public static Expr.TypeBinding withTypeMap(final Map<String, ExprType> bindings)
+  public static Expr.TypeBinding withTypeMap(final Map<String, ValueDesc> bindings)
   {
     return new Expr.TypeBinding()
     {
       @Override
-      public ExprType type(String name)
+      public ValueDesc type(String name)
       {
-        ExprType type = bindings.get(name);
-        return type == null ? ExprType.UNKNOWN : type;
+        ValueDesc type = bindings.get(name);
+        return type == null ? ValueDesc.UNKNOWN : type;
       }
     };
   }
@@ -366,10 +366,10 @@ public class Parser
     return new Expr.TypeBinding()
     {
       @Override
-      public ExprType type(String name)
+      public ValueDesc type(String name)
       {
         DSuppliers.Typed supplier = bindings.get(name);
-        return supplier == null ? ExprType.UNKNOWN : ExprType.bestEffortOf(supplier.type().typeName());
+        return supplier == null ? ValueDesc.UNKNOWN : supplier.type();
       }
     };
   }
@@ -379,10 +379,9 @@ public class Parser
     return new Expr.TypeBinding()
     {
       @Override
-      public ExprType type(String name)
+      public ValueDesc type(String name)
       {
-        ValueDesc valueType = bindings.resolveColumn(name);
-        return valueType == null ? ExprType.UNKNOWN : ExprType.typeOf(valueType);
+        return bindings.resolveColumn(name, ValueDesc.UNKNOWN);
       }
     };
   }

@@ -24,8 +24,8 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Ordering;
 import com.google.common.primitives.Longs;
+import io.druid.data.ValueDesc;
 import io.druid.data.input.Row;
-import io.druid.math.expr.ExprType;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.PostAggregator;
 import io.druid.query.dimension.DimensionSpec;
@@ -54,21 +54,21 @@ public class WindowingProcessor implements Function<List<Row>, List<Row>>
       List<PostAggregator> postAggregators
   )
   {
-    final Map<String, ExprType> expectedTypes = Maps.newHashMap();
+    final Map<String, ValueDesc> expectedTypes = Maps.newHashMap();
     // todo (now dimensions can be any comparable type)
     for (DimensionSpec dimensionSpec : dimensionSpecs) {
       expectedTypes.put(
           dimensionSpec.getOutputName(),
-          dimensionSpec.getExtractionFn() != null ? ExprType.STRING : ExprType.UNKNOWN);
+          dimensionSpec.getExtractionFn() != null ? ValueDesc.STRING : ValueDesc.UNKNOWN);
     }
     for (AggregatorFactory aggregator : aggregators) {
-      expectedTypes.put(aggregator.getName(), ExprType.bestEffortOf(aggregator.getTypeName()));
+      expectedTypes.put(aggregator.getName(), ValueDesc.of(aggregator.getTypeName()));
     }
     //todo provide output type for post aggregator
     for (PostAggregator postAggregator : postAggregators) {
-      expectedTypes.put(postAggregator.getName(), ExprType.DOUBLE);
+      expectedTypes.put(postAggregator.getName(), ValueDesc.DOUBLE);
     }
-    expectedTypes.put(Column.TIME_COLUMN_NAME, ExprType.LONG);
+    expectedTypes.put(Column.TIME_COLUMN_NAME, ValueDesc.LONG);
 
     WindowContext context = WindowContext.newInstance(DimensionSpecs.toOutputNames(dimensionSpecs), expectedTypes);
 

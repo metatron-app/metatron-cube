@@ -258,7 +258,7 @@ public class ColumnSelectors
       @Override
       public Object get()
       {
-        return Evals.castTo(selector.get(), castTo);
+        return Evals.castToValue(selector.get(), castTo);
       }
     };
   }
@@ -270,7 +270,7 @@ public class ColumnSelectors
       @Override
       public ValueDesc type()
       {
-        return selector.typeOfObject().asValueDesc();
+        return selector.typeOfObject();
       }
 
       @Override

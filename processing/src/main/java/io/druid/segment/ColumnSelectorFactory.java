@@ -26,7 +26,6 @@ import io.druid.common.guava.GuavaUtils;
 import io.druid.data.ValueDesc;
 import io.druid.math.expr.Expr;
 import io.druid.math.expr.ExprEval;
-import io.druid.math.expr.ExprType;
 import io.druid.math.expr.Parser;
 import io.druid.query.dimension.DimensionSpec;
 import io.druid.query.filter.DimFilter;
@@ -70,7 +69,7 @@ public interface ColumnSelectorFactory
         ObjectColumnSelector<Object> value = makeObjectColumnSelector(columnName);
         values.put(columnName, value == null ? ColumnSelectors.nullObjectSelector(ValueDesc.UNKNOWN) : value);
       }
-      final ExprType expected = parsed.type(Parser.withTypeSuppliers(values));
+      final ValueDesc expected = parsed.type(Parser.withTypeSuppliers(values));
       final Expr.NumericBinding binding = Parser.withSuppliers(
           Maps.transformValues(
               values,
@@ -80,7 +79,7 @@ public interface ColumnSelectorFactory
       return new ExprEvalColumnSelector()
       {
         @Override
-        public ExprType typeOfObject()
+        public ValueDesc typeOfObject()
         {
           return expected;
         }

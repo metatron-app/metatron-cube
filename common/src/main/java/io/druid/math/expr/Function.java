@@ -20,6 +20,7 @@
 package io.druid.math.expr;
 
 import com.google.common.base.Preconditions;
+import io.druid.data.ValueDesc;
 import io.druid.math.expr.Expr.NumericBinding;
 import io.druid.math.expr.Expr.TypeBinding;
 
@@ -35,7 +36,7 @@ public interface Function
 {
   String name();
 
-  ExprType apply(List<Expr> args, TypeBinding bindings);
+  ValueDesc apply(List<Expr> args, TypeBinding bindings);
 
   ExprEval apply(List<Expr> args, NumericBinding bindings);
 
@@ -95,45 +96,45 @@ public interface Function
     public abstract class ExternalChild extends Child implements External
     {
       @Override
-      public final ExprType apply(List<Expr> args, TypeBinding bindings)
+      public final ValueDesc apply(List<Expr> args, TypeBinding bindings)
       {
-        return ExprType.UNKNOWN;
+        return ValueDesc.UNKNOWN;
       }
     }
 
     public abstract class StringChild extends Child
     {
       @Override
-      public final ExprType apply(List<Expr> args, TypeBinding bindings)
+      public final ValueDesc apply(List<Expr> args, TypeBinding bindings)
       {
-        return ExprType.STRING;
+        return ValueDesc.STRING;
       }
     }
 
     public abstract class LongChild extends Child
     {
       @Override
-      public final ExprType apply(List<Expr> args, TypeBinding bindings)
+      public final ValueDesc apply(List<Expr> args, TypeBinding bindings)
       {
-        return ExprType.LONG;
+        return ValueDesc.LONG;
       }
     }
 
     public abstract class IndecisiveChild extends Child
     {
       @Override
-      public final ExprType apply(List<Expr> args, TypeBinding bindings)
+      public final ValueDesc apply(List<Expr> args, TypeBinding bindings)
       {
-        return ExprType.UNKNOWN;
+        return ValueDesc.UNKNOWN;
       }
     }
 
     public abstract class DateTimeChild extends Child
     {
       @Override
-      public final ExprType apply(List<Expr> args, TypeBinding bindings)
+      public final ValueDesc apply(List<Expr> args, TypeBinding bindings)
       {
-        return ExprType.DATETIME;
+        return ValueDesc.DATETIME;
       }
     }
   }
@@ -167,45 +168,45 @@ public interface Function
   abstract class StringOut extends NamedFunction
   {
     @Override
-    public final ExprType apply(List<Expr> args, TypeBinding bindings)
+    public final ValueDesc apply(List<Expr> args, TypeBinding bindings)
     {
-      return ExprType.STRING;
+      return ValueDesc.STRING;
     }
   }
 
   abstract class LongOut extends NamedFunction
   {
     @Override
-    public final ExprType apply(List<Expr> args, TypeBinding bindings)
+    public final ValueDesc apply(List<Expr> args, TypeBinding bindings)
     {
-      return ExprType.LONG;
+      return ValueDesc.LONG;
     }
   }
 
   abstract class DoubleOut extends NamedFunction
   {
     @Override
-    public final ExprType apply(List<Expr> args, TypeBinding bindings)
+    public final ValueDesc apply(List<Expr> args, TypeBinding bindings)
     {
-      return ExprType.DOUBLE;
+      return ValueDesc.DOUBLE;
     }
   }
 
   abstract class DateTimeOut extends NamedFunction
   {
     @Override
-    public final ExprType apply(List<Expr> args, TypeBinding bindings)
+    public final ValueDesc apply(List<Expr> args, TypeBinding bindings)
     {
-      return ExprType.DATETIME;
+      return ValueDesc.DATETIME;
     }
   }
 
   abstract class IndecisiveOut extends NamedFunction
   {
     @Override
-    public final ExprType apply(List<Expr> args, TypeBinding bindings)
+    public final ValueDesc apply(List<Expr> args, TypeBinding bindings)
     {
-      return ExprType.UNKNOWN;
+      return ValueDesc.UNKNOWN;
     }
   }
 }

@@ -85,12 +85,12 @@ public class ExpressionDimensionSpec implements DimensionSpec
         new Expr.TypeBinding()
         {
           @Override
-          public ExprType type(String name)
+          public ValueDesc type(String name)
           {
-            return ExprType.typeOf(resolver.resolveColumn(name, ValueDesc.UNKNOWN));
+            return resolver.resolveColumn(name, ValueDesc.UNKNOWN);
           }
         }
-    ).asValueDesc();
+    );
   }
 
   @Override
@@ -103,10 +103,10 @@ public class ExpressionDimensionSpec implements DimensionSpec
   public DimensionSelector decorate(final DimensionSelector selector)
   {
     final String dimension = getDimension();
-    final ExprType type = ExprType.typeOf(selector.type());
+    final ValueDesc type = ExprType.typeOf(selector.type());
     final Expr expr = Parser.parse(expression);
-    final ExprType resultType = expr.type(Parser.withTypeMap(ImmutableMap.<String, ExprType>of(dimension, type)));
-    if (!Comparable.class.isAssignableFrom(resultType.asClass())) {
+    final ValueDesc resultType = expr.type(Parser.withTypeMap(ImmutableMap.<String, ValueDesc>of(dimension, type)));
+    if (!Comparable.class.isAssignableFrom(ExprType.asClass(resultType))) {
       throw new IllegalArgumentException("cannot wrap as dimension selector for type " + resultType);
     }
     return new DimensionSelector()
@@ -134,7 +134,7 @@ public class ExpressionDimensionSpec implements DimensionSpec
       @Override
       public Class type()
       {
-        return resultType.asClass();
+        return ExprType.asClass(resultType);
       }
 
       @Override

@@ -22,6 +22,7 @@ package io.druid.math.expr;
 import com.google.common.base.Optional;
 import com.google.common.base.Strings;
 import com.google.common.math.LongMath;
+import io.druid.data.ValueDesc;
 
 import java.util.Arrays;
 import java.util.Collection;
@@ -32,7 +33,7 @@ import java.util.Objects;
  */
 public interface Expr extends Expression
 {
-  ExprType type(TypeBinding bindings);
+  ValueDesc type(TypeBinding bindings);
 
   ExprEval eval(NumericBinding bindings);
 
@@ -45,7 +46,7 @@ public interface Expr extends Expression
 
   interface TypeBinding
   {
-    ExprType type(String name);
+    ValueDesc type(String name);
   }
 
   interface WindowContext extends NumericBinding, TypeBinding
@@ -84,15 +85,15 @@ class LongExpr implements Constant
   }
 
   @Override
-  public ExprType type(TypeBinding bindings)
+  public ValueDesc type(TypeBinding bindings)
   {
-    return ExprType.LONG;
+    return ValueDesc.LONG;
   }
 
   @Override
   public ExprEval eval(NumericBinding bindings)
   {
-    return ExprEval.of(value, ExprType.LONG);
+    return ExprEval.of(value, ValueDesc.LONG);
   }
 
   @Override
@@ -118,19 +119,53 @@ class StringExpr implements Constant
   }
 
   @Override
-  public ExprType type(TypeBinding bindings)
+  public ValueDesc type(TypeBinding bindings)
   {
-    return ExprType.STRING;
+    return ValueDesc.STRING;
   }
 
   @Override
   public ExprEval eval(NumericBinding bindings)
   {
-    return ExprEval.of(value, ExprType.STRING);
+    return ExprEval.of(value, ValueDesc.STRING);
   }
 
   @Override
   public String get()
+  {
+    return value;
+  }
+}
+
+class FloatExpr implements Constant
+{
+  private final float value;
+
+  public FloatExpr(float value)
+  {
+    this.value = value;
+  }
+
+  @Override
+  public String toString()
+  {
+    return String.valueOf(value);
+  }
+
+  @Override
+  public ValueDesc type(TypeBinding bindings)
+  {
+    return ValueDesc.FLOAT;
+  }
+
+  @Override
+  public ExprEval eval(NumericBinding bindings)
+  {
+    return ExprEval.of(value, ValueDesc.FLOAT);
+  }
+
+  @Override
+  public Float get()
   {
     return value;
   }
@@ -152,15 +187,15 @@ class DoubleExpr implements Constant
   }
 
   @Override
-  public ExprType type(TypeBinding bindings)
+  public ValueDesc type(TypeBinding bindings)
   {
-    return ExprType.DOUBLE;
+    return ValueDesc.DOUBLE;
   }
 
   @Override
   public ExprEval eval(NumericBinding bindings)
   {
-    return ExprEval.of(value, ExprType.DOUBLE);
+    return ExprEval.of(value, ValueDesc.DOUBLE);
   }
 
   @Override
@@ -186,9 +221,9 @@ class IdentifierExpr implements Expr
   }
 
   @Override
-  public ExprType type(TypeBinding bindings)
+  public ValueDesc type(TypeBinding bindings)
   {
-    return Optional.fromNullable(bindings.type(value)).or(ExprType.UNKNOWN);
+    return Optional.fromNullable(bindings.type(value)).or(ValueDesc.UNKNOWN);
   }
 
   @Override
@@ -216,7 +251,7 @@ class AssignExpr implements Expr
   }
 
   @Override
-  public ExprType type(TypeBinding bindings)
+  public ValueDesc type(TypeBinding bindings)
   {
     throw new IllegalStateException("cannot evaluated directly");
   }
@@ -261,7 +296,7 @@ class FunctionExpr implements Expr, Expression.FuncExpression
   }
 
   @Override
-  public ExprType type(TypeBinding bindings)
+  public ValueDesc type(TypeBinding bindings)
   {
     return function.apply(args, bindings);
   }
@@ -289,23 +324,23 @@ class UnaryMinusExpr implements Unary
   }
 
   @Override
-  public ExprType type(TypeBinding bindings)
+  public ValueDesc type(TypeBinding bindings)
   {
-    ExprType ret = expr.type(bindings);
-    if (ret != ExprType.LONG && ret != ExprType.DOUBLE) {
-      return ExprType.UNKNOWN;
-    }
-    return ret;
+    ValueDesc ret = expr.type(bindings);
+    return ret.isNumeric() ? ret : ValueDesc.UNKNOWN;
   }
 
   @Override
   public ExprEval eval(NumericBinding bindings)
   {
     ExprEval ret = expr.eval(bindings);
-    if (ret.type() == ExprType.LONG) {
+    if (ret.isLong()) {
       return ExprEval.of(-ret.longValue());
     }
-    if (ret.type() == ExprType.DOUBLE) {
+    if (ret.isFloat()) {
+      return ExprEval.of(-ret.floatValue());
+    }
+    if (ret.isDouble()) {
       return ExprEval.of(-ret.doubleValue());
     }
     throw new IllegalArgumentException("unsupported type " + ret.type());
@@ -328,23 +363,23 @@ class UnaryNotExpr implements Unary, Expression.NotExpression
   }
 
   @Override
-  public ExprType type(TypeBinding bindings)
+  public ValueDesc type(TypeBinding bindings)
   {
-    ExprType ret = expr.type(bindings);
-    if (ret != ExprType.LONG && ret != ExprType.DOUBLE) {
-      return ExprType.UNKNOWN;
-    }
-    return ret;
+    ValueDesc ret = expr.type(bindings);
+    return ret.isNumeric() ? ret : ValueDesc.UNKNOWN;
   }
 
   @Override
   public ExprEval eval(NumericBinding bindings)
   {
     ExprEval ret = expr.eval(bindings);
-    if (ret.type() == ExprType.LONG) {
+    if (ret.isLong()) {
       return ExprEval.of(ret.asBoolean() ? 0L : 1L);
     }
-    if (ret.type() == ExprType.DOUBLE) {
+    if (ret.isFloat()) {
+      return ExprEval.of(ret.asBoolean() ? 0.0f :1.0f);
+    }
+    if (ret.isDouble()) {
       return ExprEval.of(ret.asBoolean() ? 0.0d :1.0d);
     }
     throw new IllegalArgumentException("unsupported type " + ret.type());
@@ -404,28 +439,30 @@ abstract class BinaryNumericOpExprBase extends BinaryOpExprBase implements Expre
   }
 
   @Override
-  public ExprType type(TypeBinding bindings)
+  public ValueDesc type(TypeBinding bindings)
   {
-    ExprType leftType = left.type(bindings);
-    ExprType rightType = right.type(bindings);
-    if (leftType == ExprType.STRING || rightType == ExprType.STRING) {
-      return supportsStringEval() ? ExprType.STRING : ExprType.UNKNOWN;
+    ValueDesc leftType = left.type(bindings);
+    ValueDesc rightType = right.type(bindings);
+    if (leftType.isString() || rightType.isString()) {
+      return ValueDesc.STRING;
     }
-    if (leftType == ExprType.LONG && rightType == ExprType.LONG) {
-      return ExprType.LONG;
+    if (leftType.isFloat() && rightType.isFloat()) {
+      return ValueDesc.FLOAT;
     }
-    return ExprType.DOUBLE;
+    if (leftType.isLong() && rightType.isLong()) {
+      return ValueDesc.LONG;
+    }
+    return ValueDesc.DOUBLE;
   }
 
-  private boolean supportsStringEval()
+  protected boolean supportsStringEval()
   {
-    try {
-      return getClass().getDeclaredMethod("evalString", String.class, String.class).getDeclaringClass()
-             != BinaryNumericOpExprBase.class;
-    }
-    catch (Exception e) {
-      return false;
-    }
+    return true;
+  }
+
+  protected boolean supportsFloatEval()
+  {
+    return true;
   }
 
   @Override
@@ -433,18 +470,24 @@ abstract class BinaryNumericOpExprBase extends BinaryOpExprBase implements Expre
   {
     ExprEval leftVal = left.eval(bindings);
     ExprEval rightVal = right.eval(bindings);
+    if (leftVal.isString() && rightVal.isString() || !leftVal.isNumeric() && !rightVal.isNumeric()) {
+      return evalString(Strings.nullToEmpty(leftVal.asString()), Strings.nullToEmpty(rightVal.asString()));
+    }
     if (leftVal.isNull() && rightVal.isNumeric()) {
       leftVal = Evals.castNullToNumeric(leftVal, rightVal.type());
     } else if (rightVal.isNull() && leftVal.isNumeric()) {
       rightVal = Evals.castNullToNumeric(rightVal, leftVal.type());
     }
-    if (leftVal.type() == ExprType.STRING || rightVal.type() == ExprType.STRING) {
+    if (!leftVal.isNumeric() || !rightVal.isNumeric()) {
       return evalString(Strings.nullToEmpty(leftVal.asString()), Strings.nullToEmpty(rightVal.asString()));
     }
     if (leftVal.isNull() || rightVal.isNull()) {
       throw new IllegalArgumentException("null value");
     }
-    if (leftVal.type() == ExprType.LONG && rightVal.type() == ExprType.LONG) {
+    if (supportsFloatEval() && leftVal.isFloat() && rightVal.isFloat()) {
+      return ExprEval.of(evalFloat(leftVal.floatValue(), rightVal.floatValue()));
+    }
+    if (leftVal.isLong() && rightVal.isLong()) {
       return ExprEval.of(evalLong(leftVal.longValue(), rightVal.longValue()));
     }
     return ExprEval.of(evalDouble(leftVal.doubleValue(), rightVal.doubleValue()));
@@ -452,10 +495,12 @@ abstract class BinaryNumericOpExprBase extends BinaryOpExprBase implements Expre
 
   protected ExprEval evalString(String left, String right)
   {
-    throw new IllegalArgumentException("unsupported type " + ExprType.STRING + " in operation " + op);
+    throw new IllegalArgumentException("unsupported type " + ValueDesc.STRING + " in operation " + op);
   }
 
   protected abstract long evalLong(long left, long right);
+
+  protected abstract float evalFloat(float left, float right);
 
   protected abstract double evalDouble(double left, double right);
 }
@@ -469,7 +514,19 @@ class BinMinusExpr extends BinaryNumericOpExprBase
   }
 
   @Override
+  protected boolean supportsStringEval()
+  {
+    return false;
+  }
+
+  @Override
   protected final long evalLong(long left, long right)
+  {
+    return left - right;
+  }
+
+  @Override
+  protected float evalFloat(float left, float right)
   {
     return left - right;
   }
@@ -487,6 +544,23 @@ class BinPowExpr extends BinaryNumericOpExprBase
   BinPowExpr(String op, Expr left, Expr right)
   {
     super(op, left, right);
+  }
+
+  @Override
+  protected boolean supportsStringEval()
+  {
+    return false;
+  }
+
+  protected boolean supportsFloatEval()
+  {
+    return false;
+  }
+
+  @Override
+  protected float evalFloat(float left, float right)
+  {
+    throw new IllegalStateException("should not be called");
   }
 
   @Override
@@ -511,7 +585,19 @@ class BinMulExpr extends BinaryNumericOpExprBase
   }
 
   @Override
+  protected boolean supportsStringEval()
+  {
+    return false;
+  }
+
+  @Override
   protected final long evalLong(long left, long right)
+  {
+    return left * right;
+  }
+
+  @Override
+  protected final float evalFloat(float left, float right)
   {
     return left * right;
   }
@@ -532,7 +618,19 @@ class BinDivExpr extends BinaryNumericOpExprBase
   }
 
   @Override
+  protected boolean supportsStringEval()
+  {
+    return false;
+  }
+
+  @Override
   protected final long evalLong(long left, long right)
+  {
+    return left / right;
+  }
+
+  @Override
+  protected final float evalFloat(float left, float right)
   {
     return left / right;
   }
@@ -553,7 +651,19 @@ class BinModuloExpr extends BinaryNumericOpExprBase
   }
 
   @Override
+  protected boolean supportsStringEval()
+  {
+    return false;
+  }
+
+  @Override
   protected final long evalLong(long left, long right)
+  {
+    return left % right;
+  }
+
+  @Override
+  protected final float evalFloat(float left, float right)
   {
     return left % right;
   }
@@ -586,6 +696,12 @@ class BinPlusExpr extends BinaryNumericOpExprBase
   }
 
   @Override
+  protected final float evalFloat(float left, float right)
+  {
+    return left + right;
+  }
+
+  @Override
   protected final double evalDouble(double left, double right)
   {
     return left + right;
@@ -610,6 +726,12 @@ class BinLtExpr extends BinaryNumericOpExprBase
   protected final long evalLong(long left, long right)
   {
     return left < right ? 1L : 0L;
+  }
+
+  @Override
+  protected final float evalFloat(float left, float right)
+  {
+    return left < right ? 1f : 0f;
   }
 
   @Override
@@ -640,6 +762,12 @@ class BinLeqExpr extends BinaryNumericOpExprBase
   }
 
   @Override
+  protected final float evalFloat(float left, float right)
+  {
+    return left <= right ? 1f : 0f;
+  }
+
+  @Override
   protected final double evalDouble(double left, double right)
   {
     return left <= right ? 1.0d : 0.0d;
@@ -664,6 +792,12 @@ class BinGtExpr extends BinaryNumericOpExprBase
   protected final long evalLong(long left, long right)
   {
     return left > right ? 1L : 0L;
+  }
+
+  @Override
+  protected final float evalFloat(float left, float right)
+  {
+    return left > right ? 1f : 0f;
   }
 
   @Override
@@ -694,6 +828,12 @@ class BinGeqExpr extends BinaryNumericOpExprBase
   }
 
   @Override
+  protected final float evalFloat(float left, float right)
+  {
+    return left >= right ? 1f : 0f;
+  }
+
+  @Override
   protected final double evalDouble(double left, double right)
   {
     return left >= right ? 1.0d : 0.0d;
@@ -718,6 +858,12 @@ class BinEqExpr extends BinaryNumericOpExprBase
   protected final long evalLong(long left, long right)
   {
     return left == right ? 1L : 0L;
+  }
+
+  @Override
+  protected final float evalFloat(float left, float right)
+  {
+    return left == right ? 1f : 0f;
   }
 
   @Override
@@ -748,6 +894,12 @@ class BinNeqExpr extends BinaryNumericOpExprBase
   }
 
   @Override
+  protected final float evalFloat(float left, float right)
+  {
+    return left != right ? 1f : 0f;
+  }
+
+  @Override
   protected final double evalDouble(double left, double right)
   {
     return left != right ? 1.0d : 0.0d;
@@ -762,11 +914,11 @@ class BinAndExpr extends BinaryOpExprBase implements Expression.AndExpression
   }
 
   @Override
-  public ExprType type(TypeBinding bindings)
+  public ValueDesc type(TypeBinding bindings)
   {
-    ExprType leftType = left.type(bindings);
-    ExprType rightType = right.type(bindings);
-    return leftType == rightType ? leftType : ExprType.UNKNOWN;
+    ValueDesc leftType = left.type(bindings);
+    ValueDesc rightType = right.type(bindings);
+    return leftType.equals(rightType) ? leftType : ValueDesc.UNKNOWN;
   }
 
   @Override
@@ -792,11 +944,11 @@ class BinOrExpr extends BinaryOpExprBase implements Expression.OrExpression
   }
 
   @Override
-  public ExprType type(TypeBinding bindings)
+  public ValueDesc type(TypeBinding bindings)
   {
-    ExprType leftType = left.type(bindings);
-    ExprType rightType = right.type(bindings);
-    return leftType == rightType ? leftType : ExprType.UNKNOWN;
+    ValueDesc leftType = left.type(bindings);
+    ValueDesc rightType = right.type(bindings);
+    return leftType.equals(rightType) ? leftType : ValueDesc.UNKNOWN;
   }
 
   @Override

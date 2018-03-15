@@ -23,7 +23,6 @@ import io.druid.common.DateTimes;
 import io.druid.math.expr.Evals;
 import io.druid.math.expr.Expr;
 import io.druid.math.expr.ExprEval;
-import io.druid.math.expr.ExprType;
 import io.druid.math.expr.Parser;
 import io.druid.sql.calcite.expression.DruidExpression;
 import io.druid.sql.calcite.expression.Expressions;
@@ -96,7 +95,7 @@ public class DruidRexExecutor implements RexExecutor
         } else if (SqlTypeName.NUMERIC_TYPES.contains(sqlTypeName)) {
           final BigDecimal bigDecimal;
 
-          if (exprResult.type() == ExprType.LONG) {
+          if (exprResult.type().isLong()) {
             bigDecimal = BigDecimal.valueOf(exprResult.asLong());
           } else {
             bigDecimal = BigDecimal.valueOf(exprResult.asDouble());

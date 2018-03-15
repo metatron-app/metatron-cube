@@ -89,35 +89,13 @@ public class Evals
 
   static boolean eq(ExprEval leftVal, ExprEval rightVal)
   {
-    if (isSameType(leftVal, rightVal)) {
+    if (leftVal.type().equals(rightVal.type())) {
       return Objects.equals(leftVal.value(), rightVal.value());
     }
-    if (isAllNumeric(leftVal, rightVal)) {
+    if (leftVal.isNumeric() && rightVal.isNumeric()) {
       return leftVal.doubleValue() == rightVal.doubleValue();
     }
     return false;
-  }
-
-  private static boolean isSameType(ExprEval leftVal, ExprEval rightVal)
-  {
-    return leftVal.type() == rightVal.type();
-  }
-
-  static boolean isAllNumeric(ExprEval left, ExprEval right)
-  {
-    return left.isNumeric() && right.isNumeric();
-  }
-
-  static boolean isAllString(ExprEval left, ExprEval right)
-  {
-    return left.type() == ExprType.STRING && right.type() == ExprType.STRING;
-  }
-
-  static void assertNumeric(ExprType type)
-  {
-    if (type != ExprType.LONG && type != ExprType.DOUBLE) {
-      throw new IllegalArgumentException("unsupported type " + type);
-    }
   }
 
   public static String evalOptionalString(Expr arg, Expr.NumericBinding binding)
@@ -272,7 +250,8 @@ public class Evals
   // do not use except flattening purpose
   static Expr toConstant(ExprEval eval)
   {
-    switch (eval.type()) {
+    ValueDesc type = eval.type();
+    switch (type.type()) {
       case DOUBLE:
         return new DoubleExpr(eval.asDouble());
       case LONG:
@@ -286,7 +265,7 @@ public class Evals
 
   public static long assertLong(ExprEval eval)
   {
-    if (eval.type() == ExprType.LONG) {
+    if (eval.isLong()) {
       return eval.asLong();
     }
     throw new IllegalArgumentException("invalid type " + eval.type());
@@ -308,7 +287,7 @@ public class Evals
     }
 
     @Override
-    public ExprType type(TypeBinding bindings)
+    public ValueDesc type(TypeBinding bindings)
     {
       return eval.type();
     }
@@ -329,25 +308,29 @@ public class Evals
     return constants;
   }
 
-  static ExprEval castTo(ExprEval eval, ExprType castTo)
+  static ExprEval castTo(ExprEval eval, ValueDesc castTo)
   {
-    if (eval.type() == castTo) {
+    if (castTo.equals(eval.type())) {
       return eval;
     }
-    switch (castTo) {
+    switch (castTo.type()) {
+      case FLOAT:
+        return ExprEval.of(eval.asFloat());
       case DOUBLE:
         return ExprEval.of(eval.asDouble());
       case LONG:
         return ExprEval.of(eval.asLong());
       case STRING:
         return ExprEval.of(eval.asString());
-      case DATETIME:
-        return ExprEval.of(eval.asDateTime());
+      case COMPLEX:
+        if (ValueDesc.isDateTime(castTo)) {
+          return ExprEval.of(eval.asDateTime());
+        }
     }
     throw new IllegalArgumentException("not supported type " + castTo);
   }
 
-  public static Object castTo(ExprEval eval, ValueDesc castTo)
+  public static Object castToValue(ExprEval eval, ValueDesc castTo)
   {
     switch (castTo.type()) {
       case FLOAT:
@@ -358,17 +341,19 @@ public class Evals
         return eval.asLong();
       case STRING:
         return eval.asString();
-      default:
-        // todo
-        throw new IllegalArgumentException("not supported type " + castTo);
+      case COMPLEX:
+        if (ValueDesc.isDateTime(castTo)) {
+          return eval.asDateTime();
+        }
     }
+    throw new IllegalArgumentException("not supported type " + castTo);
   }
 
-  static ExprEval castNullToNumeric(ExprEval eval, ExprType castTo)
+  static ExprEval castNullToNumeric(ExprEval eval, ValueDesc castTo)
   {
     Preconditions.checkArgument(eval.isNull());
     Preconditions.checkArgument(castTo.isNumeric());
-    if (eval.type() == ExprType.LONG && castTo == ExprType.LONG) {
+    if (eval.isLong() && castTo.isLong()) {
       return ExprEval.of(0L);
     }
     return ExprEval.of(0D);
@@ -422,34 +407,35 @@ public class Evals
 
   static DateTime toDateTime(ExprEval arg, DateTimeFormatter formatter)
   {
+    ValueDesc type = arg.type();
     DateTimeZone timeZone = formatter.getZone();
-    switch (arg.type()) {
-      case DATETIME:
-        return timeZone == null ? arg.dateTimeValue() : arg.dateTimeValue().withZone(timeZone);
-      case STRING:
-        return formatter.parseDateTime(arg.asString());
-      default:
-        return DateTimes.withZone(arg.asLong(), timeZone);
+    if (type.isString()) {
+      return formatter.parseDateTime(arg.asString());
     }
+    if (ValueDesc.isDateTime(type)) {
+      return timeZone == null ? arg.dateTimeValue() : arg.dateTimeValue().withZone(timeZone);
+    }
+    return DateTimes.withZone(arg.asLong(), timeZone);
   }
 
   static DateTime toDateTime(ExprEval arg, DateTimeZone timeZone)
   {
-    switch (arg.type()) {
-      case DATETIME:
-        return timeZone == null ? arg.dateTimeValue() : arg.dateTimeValue().withZone(timeZone);
-      case STRING:
-        final String string = arg.stringValue();
-        if (StringUtils.isNumeric(string)) {
-          return new DateTime(Long.valueOf(string), timeZone);
-        } else {
-          return timeZone == null
-                 ? defaultFormat.parseDateTime(string)
-                 : defaultFormat.withZone(timeZone).parseDateTime(string);
-        }
-      default:
-        return DateTimes.withZone(arg.asLong(), timeZone);
+    ValueDesc type = arg.type();
+    if (type.isString()) {
+      final String string = arg.stringValue();
+      if (StringUtils.isNumeric(string)) {
+        return new DateTime(Long.valueOf(string), timeZone);
+      } else {
+        return timeZone == null
+               ? defaultFormat.parseDateTime(string)
+               : defaultFormat.withZone(timeZone).parseDateTime(string);
+      }
+
     }
+    if (ValueDesc.isDateTime(type)) {
+      return timeZone == null ? arg.dateTimeValue() : arg.dateTimeValue().withZone(timeZone);
+    }
+    return DateTimes.withZone(arg.asLong(), timeZone);
   }
 
   public static Pair<String, Expr> splitAssign(String expression)
@@ -498,21 +484,6 @@ public class Evals
       LOG.warn(e, "failed to rewrite expression " + binary);
       return binary;  // best effort.. keep it working
     }
-  }
-
-  public static long asLong(boolean x)
-  {
-    return x ? 1L : 0L;
-  }
-
-  public static double asDouble(boolean x)
-  {
-    return x ? 1D : 0D;
-  }
-
-  public static String asString(boolean x)
-  {
-    return String.valueOf(x);
   }
 
   public static boolean asBoolean(long x)

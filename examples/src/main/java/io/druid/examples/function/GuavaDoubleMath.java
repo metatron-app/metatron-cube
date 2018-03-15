@@ -21,11 +21,10 @@ package io.druid.examples.function;
 
 import com.google.common.math.DoubleMath;
 import com.google.common.primitives.Ints;
-import io.druid.math.expr.BuiltinFunctions.SingleParamMath;
-import io.druid.math.expr.BuiltinFunctions.TripleParamMath;
+import io.druid.data.ValueDesc;
+import io.druid.math.expr.BuiltinFunctions;
 import io.druid.math.expr.Expr;
 import io.druid.math.expr.ExprEval;
-import io.druid.math.expr.ExprType;
 import io.druid.math.expr.Function;
 
 import java.util.List;
@@ -35,34 +34,34 @@ import java.util.List;
 public class GuavaDoubleMath implements Function.Library
 {
   @Function.Named("factorial")
-  public static class Factorial extends SingleParamMath
+  public static class Factorial extends BuiltinFunctions.SingleParam
   {
     @Override
-    public ExprType type(ExprType param)
+    public ValueDesc type(ValueDesc param)
     {
-      return ExprType.DOUBLE;
+      return ValueDesc.DOUBLE;
     }
 
     @Override
-    protected ExprEval eval(long param)
+    protected ExprEval eval(ExprEval param)
     {
-      return ExprEval.of(DoubleMath.factorial(Ints.checkedCast(param)));
+      return ExprEval.of(DoubleMath.factorial(Ints.checkedCast(param.longValue())));
     }
   }
 
   @Function.Named("fuzzyCompare")
-  public static class FuzzyCompare extends TripleParamMath
+  public static class FuzzyCompare extends BuiltinFunctions.TripleParam
   {
     @Override
-    public ExprType apply(List<Expr> args, Expr.TypeBinding bindings)
+    public ValueDesc apply(List<Expr> args, Expr.TypeBinding bindings)
     {
-      return ExprType.DOUBLE;
+      return ValueDesc.DOUBLE;
     }
 
     @Override
-    protected ExprEval eval(double x, double y, double z)
+    protected ExprEval eval(ExprEval x, ExprEval y, ExprEval z)
     {
-      return ExprEval.of(DoubleMath.fuzzyCompare(x, y, z));
+      return ExprEval.of(DoubleMath.fuzzyCompare(x.asDouble(), y.asDouble(), z.asDouble()));
     }
   }
 }

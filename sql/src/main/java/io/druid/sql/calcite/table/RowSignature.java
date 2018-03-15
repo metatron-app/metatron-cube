@@ -92,6 +92,12 @@ public class RowSignature implements io.druid.query.RowSignature, Function<Strin
     this.columnNames = columnNamesBuilder.build();
   }
 
+  private RowSignature(final List<String> names, Map<String, ValueDesc> types)
+  {
+    this.columnTypes = ImmutableMap.copyOf(types);
+    this.columnNames = ImmutableList.copyOf(names);
+  }
+
   public static RowSignature from(final List<String> rowOrder, final RelDataType rowType)
   {
     if (rowOrder.size() != rowType.getFieldCount()) {
@@ -124,6 +130,18 @@ public class RowSignature implements io.druid.query.RowSignature, Function<Strin
     return columnTypes.get(name);
   }
 
+  public RowSignature addColumn(String name, ValueDesc type)
+  {
+    List<String> names = Lists.newArrayList(columnNames);
+    Map<String, ValueDesc> types = Maps.newHashMap(columnTypes);
+    int index = names.indexOf(name);
+    if (index < 0) {
+      names.add(name);
+    }
+    types.put(name, type);
+    return new RowSignature(names, types);
+  }
+
   @Override
   public ValueDesc apply(String input)
   {
@@ -153,8 +171,7 @@ public class RowSignature implements io.druid.query.RowSignature, Function<Strin
   {
     Preconditions.checkNotNull(simpleExtraction, "simpleExtraction");
     if (simpleExtraction.getExtractionFn() != null
-        || ValueDesc.isDimension(getColumnType(simpleExtraction.getColumn()))
-        || ValueDesc.isString(getColumnType(simpleExtraction.getColumn()))) {
+        || ValueDesc.isStringOrDimension(getColumnType(simpleExtraction.getColumn()))) {
       return StringComparators.LEXICOGRAPHIC_NAME;
     } else {
       return StringComparators.NUMERIC_NAME;

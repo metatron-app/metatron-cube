@@ -22,6 +22,7 @@ package io.druid.math.expr;
 import com.google.common.collect.Range;
 import com.google.common.collect.Sets;
 import com.metamx.common.Pair;
+import io.druid.data.ValueDesc;
 
 import java.util.List;
 import java.util.Set;
@@ -90,7 +91,7 @@ public interface PredicateFunctions extends Function.Library
       ExprEval eval1 = Evals.getConstantEval(args.get(1));
       ExprEval eval2 = Evals.castTo(Evals.getConstantEval(args.get(2)), eval1.type());
       final Range<Comparable> range = Range.closed((Comparable) eval1.value(), (Comparable) eval2.value());
-      final ExprType type = eval1.type();
+      final ValueDesc type = eval1.type();
       return new LongChild()
       {
         @Override

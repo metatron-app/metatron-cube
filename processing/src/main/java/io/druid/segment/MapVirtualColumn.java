@@ -135,7 +135,7 @@ public class MapVirtualColumn implements VirtualColumn
         @Override
         public ValueDesc type()
         {
-          return ValueDesc.ofPrimitive(valueSelector.type());
+          return ValueDesc.onlyPrimitive(valueSelector.type());
         }
 
         @Override

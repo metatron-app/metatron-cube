@@ -26,11 +26,11 @@ import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import io.druid.data.Pair;
+import io.druid.data.ValueDesc;
 import io.druid.data.input.MapBasedRow;
 import io.druid.data.input.Row;
 import io.druid.math.expr.Expr;
 import io.druid.math.expr.ExprEval;
-import io.druid.math.expr.ExprType;
 import io.druid.math.expr.Parser;
 import io.druid.segment.column.Column;
 
@@ -44,7 +44,7 @@ import java.util.regex.Pattern;
  */
 public class WindowContext implements Expr.WindowContext
 {
-  public static WindowContext newInstance(List<String> groupByColumns, Map<String, ExprType> expectedTypes)
+  public static WindowContext newInstance(List<String> groupByColumns, Map<String, ValueDesc> expectedTypes)
   {
     return new WindowContext(groupByColumns, null, null, null, expectedTypes);
   }
@@ -76,7 +76,7 @@ public class WindowContext implements Expr.WindowContext
   private final List<OrderByColumnSpec> orderingSpecs;
   private final List<Row> partition;
   private final int length;
-  private final Map<String, ExprType> expectedTypes;
+  private final Map<String, ValueDesc> expectedTypes;
   private final Map<String, ExprEval> temporary;
   private int index;
 
@@ -88,7 +88,7 @@ public class WindowContext implements Expr.WindowContext
       List<String> partitionColumns,
       List<OrderByColumnSpec> orderingSpecs,
       List<Row> partition,
-      Map<String, ExprType> expectedTypes
+      Map<String, ValueDesc> expectedTypes
   )
   {
     this.groupByColumns = groupByColumns == null ? ImmutableList.<String>of() : groupByColumns;
@@ -192,10 +192,10 @@ public class WindowContext implements Expr.WindowContext
   }
 
   @Override
-  public ExprType type(String name)
+  public ValueDesc type(String name)
   {
     if (name.equals(Column.TIME_COLUMN_NAME)) {
-      return ExprType.LONG;
+      return ValueDesc.LONG;
     }
     if ("_".equals(name)) {
       name = redirection;
@@ -205,7 +205,7 @@ public class WindowContext implements Expr.WindowContext
     return expectedTypes.get(name);
   }
 
-  public void addType(String name, ExprType type)
+  public void addType(String name, ValueDesc type)
   {
     expectedTypes.put(name, type);
   }

@@ -187,7 +187,7 @@ public class InFilter implements Filter
       Preconditions.checkArgument(!containsNull, "cannot use null value for numeric type");
       container = Sets.newHashSet();
       for (String value : values) {
-        container.add(Evals.castTo(ExprEval.of(value), valueType));
+        container.add(Evals.castToValue(ExprEval.of(value), valueType));
       }
     } else {
       container = values;
