@@ -322,10 +322,8 @@ public class Evals
         return ExprEval.of(eval.asLong());
       case STRING:
         return ExprEval.of(eval.asString());
-      case COMPLEX:
-        if (ValueDesc.isDateTime(castTo)) {
-          return ExprEval.of(eval.asDateTime());
-        }
+      case DATETIME:
+        return ExprEval.of(eval.asDateTime());
     }
     throw new IllegalArgumentException("not supported type " + castTo);
   }
@@ -341,10 +339,8 @@ public class Evals
         return eval.asLong();
       case STRING:
         return eval.asString();
-      case COMPLEX:
-        if (ValueDesc.isDateTime(castTo)) {
-          return eval.asDateTime();
-        }
+      case DATETIME:
+        return eval.asDateTime();
     }
     throw new IllegalArgumentException("not supported type " + castTo);
   }
@@ -412,7 +408,7 @@ public class Evals
     if (type.isString()) {
       return formatter.parseDateTime(arg.asString());
     }
-    if (ValueDesc.isDateTime(type)) {
+    if (type.isDateTime()) {
       return timeZone == null ? arg.dateTimeValue() : arg.dateTimeValue().withZone(timeZone);
     }
     return DateTimes.withZone(arg.asLong(), timeZone);
@@ -432,7 +428,7 @@ public class Evals
       }
 
     }
-    if (ValueDesc.isDateTime(type)) {
+    if (type.isDateTime()) {
       return timeZone == null ? arg.dateTimeValue() : arg.dateTimeValue().withZone(timeZone);
     }
     return DateTimes.withZone(arg.asLong(), timeZone);

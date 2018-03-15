@@ -67,7 +67,7 @@ public interface DateTimeFunctions extends Function.Library
     @Override
     public ExprEval apply(List<Expr> args, Expr.NumericBinding bindings)
     {
-      return ExprEval.of(new DateTime(System.currentTimeMillis()));
+      return ExprEval.of(DateTimes.nowUtc());
     }
   }
 
@@ -85,7 +85,7 @@ public interface DateTimeFunctions extends Function.Library
 
     public Interval toInterval(List<Expr> args, Expr.NumericBinding bindings)
     {
-      final DateTime now = new DateTime(System.currentTimeMillis());
+      final DateTime now = DateTimes.nowUtc();
       Period beforeNow = JodaUtils.toPeriod(args.get(0).eval(bindings).asString());
       if (args.size() == 1) {
         return new Interval(now.minus(beforeNow), now);

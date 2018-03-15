@@ -117,7 +117,7 @@ public class CastOperatorConversion implements SqlOperatorConversion
         // Ignore casts for simple extractions (use Function.identity) since it is ok in many cases.
         typeCastExpression = operandExpression.map(
             Function.identity(),
-            expression -> StringUtils.format("CAST(%s, '%s')", expression, toValueDesc.toString().toUpperCase())
+            expression -> StringUtils.format("CAST(%s, '%s')", expression, toValueDesc.name())
         );
       } else {
         typeCastExpression = operandExpression;

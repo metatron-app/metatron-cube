@@ -976,6 +976,9 @@ public class EvalTest
     Assert.assertEquals(ValueDesc.LONG, Parser.parse("if(C == '', 0, CAST(C, 'INT') / 10 * 10)").type(bindings));
     Assert.assertEquals(ValueDesc.UNKNOWN, Parser.parse("if(C == '', 0, CAST(C, 'INT') / 10 * 10.0)").type(bindings));
     Assert.assertEquals(ValueDesc.DOUBLE, Parser.parse("if(C == '', 0.0, CAST(C, 'INT') / 10 * 10.0)").type(bindings));
+
+    Assert.assertEquals(ValueDesc.UNKNOWN, Parser.parse("if(C == '', 0, CAST(C, 'INT') / 10 * 10d)").type(bindings));
+    Assert.assertEquals(ValueDesc.DOUBLE, Parser.parse("if(C == '', 0d, CAST(C, 'INT') / 10 * 10d)").type(bindings));
   }
 
   @Test

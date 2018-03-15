@@ -24,7 +24,6 @@ import io.druid.data.ValueDesc;
 import org.joda.time.DateTime;
 
 import java.math.BigDecimal;
-import java.util.List;
 import java.util.Map;
 
 /**
@@ -53,7 +52,7 @@ public class ExprType
       case "STRING":
         return ValueDesc.STRING;
       default:
-        return ValueDesc.UNKNOWN;
+        return ValueDesc.of(name);
     }
   }
 
@@ -87,9 +86,6 @@ public class ExprType
   {
     if (valueDesc.isPrimitive()) {
       return valueDesc.type().classOfObject();
-    }
-    if (ValueDesc.isDateTime(valueDesc)) {
-      return DateTime.class;
     }
     if (ValueDesc.isDecimal(valueDesc)) {
       return BigDecimal.class;

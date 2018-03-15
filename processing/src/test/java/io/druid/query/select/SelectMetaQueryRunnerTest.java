@@ -38,6 +38,8 @@ import io.druid.query.dimension.DefaultDimensionSpec;
 import io.druid.query.dimension.ExpressionDimensionSpec;
 import io.druid.query.filter.InDimFilter;
 import io.druid.query.spec.MultipleIntervalSegmentSpec;
+import io.druid.segment.ExprVirtualColumn;
+import io.druid.segment.VirtualColumn;
 import org.joda.time.DateTime;
 import org.joda.time.Interval;
 import org.junit.Assert;
@@ -234,11 +236,14 @@ public class SelectMetaQueryRunnerTest
         TableDataSource.of(QueryRunnerTestHelper.dataSource),
         MultipleIntervalSegmentSpec.of(new Interval("2011-01-12/2011-01-14")),
         Arrays.asList(
+            DefaultDimensionSpec.of("time"),
             DefaultDimensionSpec.of("market"),
             ExpressionDimensionSpec.of("bucketStart(__time, 'WEEK')", "week")
         ),
         metrics,
-        null,
+        Arrays.<VirtualColumn>asList(
+            new ExprVirtualColumn("cast(__time, 'datetime')", "time")
+        ),
         Maps.<String, Object>newHashMap()
     ).rewriteQuery(null, new QueryConfig(), null);
 
@@ -250,6 +255,7 @@ public class SelectMetaQueryRunnerTest
     ).getValue().getSchema();
 
     List<Pair<String, ValueDesc>> expected = Arrays.asList(
+        Pair.of("time", ValueDesc.DATETIME),
         Pair.of("market", ValueDesc.ofDimension(ValueType.STRING)),
         Pair.of("week", ValueDesc.LONG),
         Pair.of("index", ValueDesc.DOUBLE),
@@ -257,7 +263,6 @@ public class SelectMetaQueryRunnerTest
         Pair.of("indexMaxPlusTen", ValueDesc.DOUBLE),
         Pair.of("quality_uniques", ValueDesc.of("hyperUnique"))
     );
-    System.out.println("[SelectMetaQueryRunnerTest/testSchema] " + schema);
     Assert.assertTrue(Iterables.elementsEqual(expected, schema.columnAndTypes()));
   }
 }

@@ -22,6 +22,7 @@ package io.druid.data;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonValue;
 import com.google.common.base.Preconditions;
+import org.joda.time.DateTime;
 
 import java.util.Comparator;
 
@@ -29,17 +30,17 @@ import java.util.Comparator;
  */
 public class ValueDesc
 {
-  // primitives (should be conform with ValueType.name())
+  // primitives (should be conform with JsonValue of ValueType)
   public static final String STRING_TYPE = "string";
   public static final String FLOAT_TYPE = "float";
   public static final String DOUBLE_TYPE = "double";
   public static final String LONG_TYPE = "long";
+  public static final String DATETIME_TYPE = "datetime";
 
   // non primitives
   public static final String MAP_TYPE = "map";
   public static final String LIST_TYPE = "list";
   public static final String INDEXED_ID_TYPE = "indexed";
-  public static final String DATETIME_TYPE = "datetime";
   public static final String UNKNOWN_TYPE = "unknown";
 
   public static final String ARRAY_PREFIX = "array.";
@@ -61,19 +62,19 @@ public class ValueDesc
   public static ValueDesc FLOAT = new ValueDesc(ValueType.FLOAT);
   public static ValueDesc DOUBLE = new ValueDesc(ValueType.DOUBLE);
   public static ValueDesc LONG = new ValueDesc(ValueType.LONG);
+  public static ValueDesc DATETIME = new ValueDesc(ValueType.DATETIME);
 
   // dimension
   public static ValueDesc DIM_STRING = new ValueDesc(DIMENSION_PREFIX + STRING_TYPE);
 
   // internal types
-  public static ValueDesc MAP = of(MAP_TYPE);
-  public static ValueDesc LIST = of(LIST_TYPE);
-  public static ValueDesc INDEXED_ID = of(INDEXED_ID_TYPE);
+  public static ValueDesc MAP = new ValueDesc(MAP_TYPE);
+  public static ValueDesc LIST = new ValueDesc(LIST_TYPE);
+  public static ValueDesc INDEXED_ID = new ValueDesc(INDEXED_ID_TYPE);
 
   // from expression
-  public static ValueDesc DATETIME = of(DATETIME_TYPE);
-  public static ValueDesc DECIMAL = of(DECIMAL_TYPE);
-  public static ValueDesc UNKNOWN = of(UNKNOWN_TYPE);
+  public static ValueDesc DECIMAL = new ValueDesc(DECIMAL_TYPE);
+  public static ValueDesc UNKNOWN = new ValueDesc(UNKNOWN_TYPE);
 
   public static ValueDesc ofArray(ValueDesc valueType)
   {
@@ -88,12 +89,12 @@ public class ValueDesc
   public static ValueDesc ofDimension(ValueType valueType)
   {
     Preconditions.checkArgument(valueType.isPrimitive(), "complex type dimension is not allowed");
-    return of(DIMENSION_PREFIX + valueType.toString());
+    return of(DIMENSION_PREFIX + valueType.getName());
   }
 
   public static ValueDesc ofMultiValued(ValueType valueType)
   {
-    return ValueDesc.of(MULTIVALUED_PREFIX + valueType.toString());
+    return ValueDesc.of(MULTIVALUED_PREFIX + valueType.getName());
   }
 
   public static ValueDesc ofMultiValued(ValueDesc valueType)
@@ -103,7 +104,7 @@ public class ValueDesc
 
   public static ValueDesc ofIndexedId(ValueType valueType)
   {
-    return ValueDesc.of(INDEXED_ID_PREFIX + valueType.toString());
+    return ValueDesc.of(INDEXED_ID_PREFIX + valueType.getName());
   }
 
   public static boolean isArray(ValueDesc valueType)
@@ -144,11 +145,6 @@ public class ValueDesc
   public static boolean isDecimal(ValueDesc valueType)
   {
     return valueType != null && valueType.typeName.startsWith(DECIMAL_TYPE);
-  }
-
-  public static boolean isDateTime(ValueDesc valueType)
-  {
-    return valueType != null && valueType.typeName.equals(DATETIME_TYPE);
   }
 
   private static boolean isPrefixed(String typeName, String prefix)
@@ -209,14 +205,16 @@ public class ValueDesc
 
   public static ValueDesc onlyPrimitive(Class clazz)
   {
-    if (clazz == Long.TYPE || clazz == Long.class) {
+    if (clazz == String.class) {
+      return STRING;
+    } else if (clazz == Long.TYPE || clazz == Long.class) {
       return LONG;
     } else if (clazz == Float.TYPE || clazz == Float.class) {
       return FLOAT;
     } else if (clazz == Double.TYPE || clazz == Double.class) {
       return DOUBLE;
-    } else if (clazz == String.class) {
-      return STRING;
+    } else if (clazz == DateTime.class) {
+      return DATETIME;
     }
     throw new IllegalArgumentException("not primitive type " + clazz);
   }
@@ -228,13 +226,13 @@ public class ValueDesc
   {
     Preconditions.checkArgument(primitive.isPrimitive(), "should be primitive type");
     this.type = primitive;
-    this.typeName = primitive.toString();
+    this.typeName = primitive.getName();
   }
 
   private ValueDesc(String typeName)
   {
     this.type = ValueType.of(Preconditions.checkNotNull(typeName, "typeName cannot be null"));
-    this.typeName = type.isPrimitive() ? type.toString() : normalize(typeName);
+    this.typeName = type.isPrimitive() ? type.getName() : normalize(typeName);
   }
 
   // complex types are case sensitive (same with serde-name) but primitive types are not.. fuck
@@ -242,13 +240,14 @@ public class ValueDesc
   {
     ValueType valueType = ValueType.of(typeName);
     if (valueType.isPrimitive()) {
-      return valueType.toString();
+      return valueType.getName();
     }
     int index = typeName.lastIndexOf('.');
     if (index < 0) {
       return typeName;
     }
-    return typeName.substring(0, index) + "." + normalize(typeName.substring(index + 1));
+    // todo fix this
+    return typeName.substring(0, index + 1) + normalize(typeName.substring(index + 1));
   }
 
   public ValueType type()
@@ -273,7 +272,7 @@ public class ValueDesc
 
   public boolean hasSubElement()
   {
-    return typeName.indexOf('.') >= 0;
+    return !type.isPrimitive() && typeName.indexOf('.') >= 0;
   }
 
   @Override
@@ -286,13 +285,13 @@ public class ValueDesc
       return false;
     }
 
-    ValueDesc valueType = (ValueDesc) o;
+    ValueDesc other = (ValueDesc) o;
 
-    if (!typeName.equals(valueType.typeName)) {
-      return false;
+    if (type.isPrimitive()) {
+      return type == other.type;
     }
 
-    return true;
+    return typeName.equals(other.typeName);
   }
 
   @Override
@@ -391,5 +390,10 @@ public class ValueDesc
   public boolean isLong()
   {
     return type == ValueType.LONG;
+  }
+
+  public boolean isDateTime()
+  {
+    return type == ValueType.DATETIME;
   }
 }

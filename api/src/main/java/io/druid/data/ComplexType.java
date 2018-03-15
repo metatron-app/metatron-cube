@@ -22,22 +22,57 @@ package io.druid.data;
  */
 public enum ComplexType
 {
+  UNKNOWN,
   MAP,
   LIST,
-  INDEXED_ID,
-  DATETIME,
-  UNKNOWN,
-  ARRAY,
+
+  ARRAY {
+    @Override
+    public boolean isPrefixed() { return true; }
+    @Override
+    public String prefix() { return ValueDesc.ARRAY_PREFIX; }
+  },
   // aka. IndexedInts.WithLookup
   // this is return type of object selector which simulates dimension selector (used for some filter optimization)
-  INDEXED,
+  INDEXED_ID {
+    @Override
+    public boolean isPrefixed() { return true; }
+    @Override
+    public String prefix() { return ValueDesc.INDEXED_ID_PREFIX; }
+  },
   // this is return type of object selector which can return element type or array of element type,
   // which is trait of dimension
-  MULTIVALUED,
-
+  MULTIVALUED {
+    @Override
+    public boolean isPrefixed() { return true; }
+    @Override
+    public String prefix() { return ValueDesc.MULTIVALUED_PREFIX; }
+  },
   // prefix of dimension
-  DIMENSION,
-
+  DIMENSION {
+    @Override
+    public boolean isPrefixed() { return true; }
+    @Override
+    public String prefix() { return ValueDesc.DIMENSION_PREFIX; }
+  },
   // descriptive type
-  DECIMAL
+  DECIMAL {
+    @Override
+    public boolean isDescriptive() { return true; }
+  };
+
+  public boolean isPrefixed()
+  {
+    return false;
+  }
+
+  public String prefix()
+  {
+    throw new UnsupportedOperationException("prefix");
+  }
+
+  public boolean isDescriptive()
+  {
+    return false;
+  }
 }

@@ -105,14 +105,14 @@ public class RowResolver implements TypeResolver
         return Double.class;
       case LONG:
         return Long.class;
+      case DATETIME:
+        return DateTime.class;
     }
     switch (typeName.toLowerCase()) {
       case ValueDesc.MAP_TYPE:
         return Map.class;
       case ValueDesc.LIST_TYPE:
         return List.class;
-      case ValueDesc.DATETIME_TYPE:
-        return DateTime.class;
       case ValueDesc.UNKNOWN_TYPE:
         return Object.class;
     }
@@ -179,7 +179,7 @@ public class RowResolver implements TypeResolver
       columnTypes.put(metric, adapter.getColumnType(metric));
       columnCapabilities.put(metric, adapter.getColumnCapabilities(metric));
     }
-    columnTypes.put(Column.TIME_COLUMN_NAME, ValueDesc.of(ValueType.LONG));
+    columnTypes.put(Column.TIME_COLUMN_NAME, ValueDesc.LONG);
     columnCapabilities.put(Column.TIME_COLUMN_NAME, ColumnCapabilitiesImpl.of(ValueType.LONG));
     this.virtualColumns = virtualColumns;
   }

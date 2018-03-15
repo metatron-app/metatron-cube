@@ -22,10 +22,9 @@ package io.druid.data;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonValue;
 import com.google.common.collect.Ordering;
-import com.google.common.primitives.Doubles;
-import com.google.common.primitives.Floats;
-import com.google.common.primitives.Longs;
 import io.druid.data.input.Row;
+import org.joda.time.DateTime;
+import org.joda.time.chrono.ISOChronology;
 
 import java.util.Comparator;
 import java.util.Objects;
@@ -39,19 +38,6 @@ public enum ValueType
     public Class classOfObject()
     {
       return Float.class;
-    }
-
-    @Override
-    public Comparator<Float> comparator()
-    {
-      return new Comparator<Float>()
-      {
-        @Override
-        public int compare(Float o1, Float o2)
-        {
-          return Floats.compare(o1, o2);
-        }
-      };
     }
 
     @Override
@@ -77,19 +63,6 @@ public enum ValueType
     }
 
     @Override
-    public Comparator<Long> comparator()
-    {
-      return new Comparator<Long>()
-      {
-        @Override
-        public int compare(Long o1, Long o2)
-        {
-          return Longs.compare(o1, o2);
-        }
-      };
-    }
-
-    @Override
     public Object get(Row row, String column)
     {
       return row.getLongMetric(column);
@@ -109,19 +82,6 @@ public enum ValueType
     public Class classOfObject()
     {
       return Double.class;
-    }
-
-    @Override
-    public Comparator<Double> comparator()
-    {
-      return new Comparator<Double>()
-      {
-        @Override
-        public int compare(Double o1, Double o2)
-        {
-          return Doubles.compare(o1, o2);
-        }
-      };
     }
 
     @Override
@@ -146,9 +106,29 @@ public enum ValueType
       return String.class;
     }
 
-    public Comparator<String> comparator()
+    @Override
+    public boolean isNumeric()
     {
-      return Ordering.natural().nullsFirst();
+      return false;
+    }
+
+    @Override
+    public Object get(Row row, String column)
+    {
+      return Objects.toString(row.getRaw(column), null);
+    }
+
+    @Override
+    public Comparable cast(Object value)
+    {
+      return Objects.toString(value, null);
+    }
+  },
+  DATETIME {
+    @Override
+    public Class classOfObject()
+    {
+      return DateTime.class;
     }
 
     @Override
@@ -158,9 +138,26 @@ public enum ValueType
     }
 
     @Override
+    public Object get(Row row, String column)
+    {
+      Object value = row.getRaw(column);
+      if (value instanceof DateTime) {
+        return value;
+      } else if (value instanceof Number) {
+        return new DateTime(((Number)value).longValue(), ISOChronology.getInstanceUTC());
+      }
+      return value;
+    }
+
+    @Override
     public Comparable cast(Object value)
     {
-      return Objects.toString(value, null);
+      if (value instanceof DateTime) {
+        return (DateTime) value;
+      } else if (value instanceof Number) {
+        return new DateTime(((Number)value).longValue(), ISOChronology.getInstanceUTC());
+      }
+      return super.cast(value);
     }
   },
   COMPLEX {
@@ -191,7 +188,10 @@ public enum ValueType
 
   public abstract Class classOfObject();
 
-  public abstract Comparator comparator();
+  public Comparator comparator()
+  {
+    return Ordering.natural().nullsFirst();
+  }
 
   public Comparable cast(Object value)
   {
@@ -214,10 +214,9 @@ public enum ValueType
   }
 
   @JsonValue
-  @Override
-  public String toString()
+  public String getName()
   {
-    return this.name().toLowerCase();
+    return name().toLowerCase();
   }
 
   @JsonCreator
@@ -254,6 +253,9 @@ public enum ValueType
     }
     if (clazz == Double.TYPE || clazz == Double.class) {
       return DOUBLE;
+    }
+    if (clazz == DateTime.class) {
+      return DATETIME;
     }
     return COMPLEX;
   }

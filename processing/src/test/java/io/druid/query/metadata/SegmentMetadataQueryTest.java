@@ -166,7 +166,7 @@ public class SegmentMetadataQueryTest
         ImmutableMap.of(
             "__time",
             new ColumnAnalysis(
-                ValueType.LONG.toString(),
+                ValueType.LONG.getName(),
                 false,
                 mmap1 ? 916 : 0,
                 -1,
@@ -176,7 +176,7 @@ public class SegmentMetadataQueryTest
             ),
             "index",
             new ColumnAnalysis(
-                ValueType.DOUBLE.toString(),
+                ValueType.DOUBLE.getName(),
                 false,
                 mmap1 ? 6477 : 0,
                 -1,
@@ -208,7 +208,7 @@ public class SegmentMetadataQueryTest
         ImmutableMap.of(
             "__time",
             new ColumnAnalysis(
-                ValueType.LONG.toString(),
+                ValueType.LONG.getName(),
                 false,
                 mmap2 ? 916 : 0,
                 -1,
@@ -218,7 +218,7 @@ public class SegmentMetadataQueryTest
             ),
             "index",
             new ColumnAnalysis(
-                ValueType.DOUBLE.toString(),
+                ValueType.DOUBLE.getName(),
                 false,
                 mmap2 ? 6477 : 0,
                 -1,
@@ -609,7 +609,7 @@ public class SegmentMetadataQueryTest
         ImmutableMap.of(
             "__time",
             new ColumnAnalysis(
-                ValueType.LONG.toString(),
+                ValueType.LONG.getName(),
                 false,
                 (mmap1 ? 916 : 0) + (mmap2 ? 916 : 0),
                 -1,
@@ -619,7 +619,7 @@ public class SegmentMetadataQueryTest
             ),
             "index",
             new ColumnAnalysis(
-                ValueType.DOUBLE.toString(),
+                ValueType.DOUBLE.getName(),
                 false,
                 (mmap1 ? 6477 : 0) + (mmap2 ? 6477 : 0),
                 -1,

@@ -110,7 +110,7 @@ public class SummaryQuery extends BaseQuery<Result<Map<String, Object>>>
         continue;
       }
       ValueDesc major;
-      if (containsComplex || value.containsKey(ValueDesc.STRING)) {
+      if (containsComplex || value.containsKey(ValueDesc.STRING) || value.containsKey(ValueDesc.DATETIME)) {
         major = ValueDesc.STRING;
       } else if (value.containsKey(ValueDesc.DOUBLE)) {
         major = ValueDesc.DOUBLE;

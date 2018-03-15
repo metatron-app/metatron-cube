@@ -80,8 +80,8 @@ public class TestIndex
   private static final Logger log = new Logger(TestIndex.class);
   private static final Interval DATA_INTERVAL = new Interval("2011-01-12T00:00:00.000Z/2011-05-01T00:00:00.000Z");
   public static final AggregatorFactory[] METRIC_AGGS = new AggregatorFactory[]{
-      new GenericSumAggregatorFactory(METRICS[0], METRICS[0], ValueType.FLOAT.toString()),
-      new GenericMinAggregatorFactory(METRICS[1], METRICS[0], ValueType.FLOAT.toString()),
+      new GenericSumAggregatorFactory(METRICS[0], METRICS[0], ValueType.FLOAT.getName()),
+      new GenericMinAggregatorFactory(METRICS[1], METRICS[0], ValueType.FLOAT.getName()),
       new DoubleMaxAggregatorFactory(METRICS[2], null, "index + 10"),
       new HyperUniquesAggregatorFactory("quality_uniques", "quality")
   };

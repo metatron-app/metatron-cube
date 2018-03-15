@@ -222,10 +222,8 @@ public class ExprEval extends Pair<Object, ValueDesc>
         return floatValue();
       case STRING:
         return isNull() ? 0F : Rows.tryParseFloat(asString());
-      case COMPLEX:
-        if (ValueDesc.isDateTime(rhs)) {
-          return isNull() ? 0F : dateTimeValue().getMillis();
-        }
+      case DATETIME:
+        return isNull() ? 0F : dateTimeValue().getMillis();
     }
     return 0F;
   }
@@ -239,10 +237,8 @@ public class ExprEval extends Pair<Object, ValueDesc>
         return doubleValue();
       case STRING:
         return isNull() ? 0D : Rows.tryParseDouble(asString());
-      case COMPLEX:
-        if (ValueDesc.isDateTime(rhs)) {
-          return isNull() ? 0D : dateTimeValue().getMillis();
-        }
+      case DATETIME:
+        return isNull() ? 0D : dateTimeValue().getMillis();
     }
     return 0D;
   }
@@ -256,10 +252,8 @@ public class ExprEval extends Pair<Object, ValueDesc>
         return longValue();
       case STRING:
         return isNull() ? 0L : Rows.tryParseLong(asString());
-      case COMPLEX:
-        if (ValueDesc.isDateTime(rhs)) {
-          return isNull() ? 0L : dateTimeValue().getMillis();
-        }
+      case DATETIME:
+        return isNull() ? 0L : dateTimeValue().getMillis();
     }
     return 0L;
   }
@@ -273,7 +267,7 @@ public class ExprEval extends Pair<Object, ValueDesc>
         return intValue();
       case STRING:
         return isNull() ? 0 : Rows.tryParseInt(asString());
-      case COMPLEX:
+      case DATETIME:
         return isNull() ? 0 : Ints.checkedCast(dateTimeValue().getMillis());
     }
     return 0;
@@ -290,10 +284,8 @@ public class ExprEval extends Pair<Object, ValueDesc>
         return ExprEval.of(0L);
       case STRING:
         return ExprEval.of((String)null);
-      case COMPLEX:
-        if (ValueDesc.isDateTime(rhs)) {
-          return ExprEval.of((DateTime) null);
-        }
+      case DATETIME:
+        return ExprEval.of((DateTime) null);
     }
     return ExprEval.of(null, ValueDesc.UNKNOWN);
   }
