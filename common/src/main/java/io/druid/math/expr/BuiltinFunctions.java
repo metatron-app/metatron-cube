@@ -88,7 +88,10 @@ public interface BuiltinFunctions extends Function.Library
     @Override
     public final ValueDesc apply(List<Expr> args, TypeBinding bindings)
     {
-      return args.size() == 1 ? type(args.get(0).type(bindings)) : ValueDesc.UNKNOWN;
+      if (args.size() != 1) {
+        throw new RuntimeException("function '" + name() + "' needs 1 argument");
+      }
+      return type(args.get(0).type(bindings));
     }
 
     @Override
@@ -1300,8 +1303,11 @@ public interface BuiltinFunctions extends Function.Library
     @Override
     public ValueDesc apply(List<Expr> args, TypeBinding bindings)
     {
-      if (args.size() < 3 || args.size() % 2 == 0) {
-        return ValueDesc.UNKNOWN;
+      if (args.size() < 3) {
+        throw new RuntimeException("function 'if' needs at least 3 argument");
+      }
+      if (args.size() % 2 == 0) {
+        throw new RuntimeException("function 'if' needs default value");
       }
       ValueDesc prev = args.get(1).type(bindings);
       for (int i = 3; i < args.size() - 1; i += 2) {
@@ -1369,22 +1375,18 @@ public interface BuiltinFunctions extends Function.Library
   }
 
   @Function.Named("isNull")
-  final class IsNullFunc extends Function.NamedFunction
+  final class IsNullFunc extends SingleParam
   {
     @Override
-    public ValueDesc apply(List<Expr> args, TypeBinding bindings)
+    public ValueDesc type(ValueDesc param)
     {
-      return args.size() == 1 ? ValueDesc.LONG : ValueDesc.UNKNOWN;
+      return ValueDesc.LONG;
     }
 
     @Override
-    public ExprEval apply(List<Expr> args, NumericBinding bindings)
+    public ExprEval eval(ExprEval param)
     {
-      if (args.size() != 1) {
-        throw new RuntimeException("function 'isnull' needs 1 argument");
-      }
-      ExprEval eval = args.get(0).eval(bindings);
-      return ExprEval.of(eval.isNull());
+      return ExprEval.of(param.isNull());
     }
   }
 
@@ -1394,14 +1396,13 @@ public interface BuiltinFunctions extends Function.Library
     @Override
     public ValueDesc apply(List<Expr> args, TypeBinding bindings)
     {
-      if (args.size() == 2) {
-        ValueDesc x = args.get(0).type(bindings);
-        ValueDesc y = args.get(1).type(bindings);
-        if (x.equals(y)) {
-          return x;
-        }
+      if (args.size() != 2) {
+        throw new RuntimeException("function 'nvl' needs 2 arguments");
       }
-      return ValueDesc.UNKNOWN;
+      ValueDesc x = args.get(0).type(bindings);
+      ValueDesc y = args.get(1).type(bindings);
+
+      return x.equals(y) ? x : ValueDesc.UNKNOWN;
     }
 
     @Override
@@ -1429,7 +1430,10 @@ public interface BuiltinFunctions extends Function.Library
     @Override
     public ValueDesc apply(List<Expr> args, TypeBinding bindings)
     {
-      return args.size() == 2 ? ValueDesc.LONG : ValueDesc.UNKNOWN;
+      if (args.size() < 2) {
+        throw new RuntimeException("function 'datediff' need at least 2 arguments");
+      }
+      return ValueDesc.LONG;
     }
 
     @Override
@@ -1451,7 +1455,7 @@ public interface BuiltinFunctions extends Function.Library
     public ValueDesc apply(List<Expr> args, TypeBinding bindings)
     {
       if (args.size() < 3) {
-        return ValueDesc.UNKNOWN;
+        throw new RuntimeException("function 'switch' needs at least 3 arguments");
       }
       ValueDesc prev = args.get(2).type(bindings);
       for (int i = 4; i < args.size(); i += 2) {
@@ -1491,7 +1495,7 @@ public interface BuiltinFunctions extends Function.Library
     public ValueDesc apply(List<Expr> args, TypeBinding bindings)
     {
       if (args.size() < 2) {
-        return ValueDesc.UNKNOWN;
+        throw new RuntimeException("function 'case' needs at least 2 arguments");
       }
       ValueDesc prev = null;
       for (int i = 1; i < args.size() - 1; i += 2) {

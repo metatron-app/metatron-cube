@@ -64,7 +64,7 @@ interface Constant extends Expr, Expression.ConstExpression
 {
 }
 
-interface Unary extends Expr
+interface UnaryOp extends Expr
 {
   Expr getChild();
 }
@@ -308,7 +308,7 @@ class FunctionExpr implements Expr, Expression.FuncExpression
   }
 }
 
-class UnaryMinusExpr implements Unary
+class UnaryMinusExpr implements UnaryOp
 {
   final Expr expr;
 
@@ -353,7 +353,7 @@ class UnaryMinusExpr implements Unary
   }
 }
 
-class UnaryNotExpr implements Unary, Expression.NotExpression
+class UnaryNotExpr implements UnaryOp, Expression.NotExpression
 {
   final Expr expr;
 
@@ -399,13 +399,13 @@ class UnaryNotExpr implements Unary, Expression.NotExpression
   }
 }
 
-abstract class BinaryOpExprBase implements Expr
+abstract class BinaryOp implements Expr
 {
   protected final String op;
   protected final Expr left;
   protected final Expr right;
 
-  public BinaryOpExprBase(String op, Expr left, Expr right)
+  public BinaryOp(String op, Expr left, Expr right)
   {
     this.op = op;
     this.left = left;
@@ -424,7 +424,7 @@ abstract class BinaryOpExprBase implements Expr
   }
 }
 
-abstract class BinaryNumericOpExprBase extends BinaryOpExprBase implements Expression.FuncExpression
+abstract class BinaryNumericOpExprBase extends BinaryOp implements Expression.FuncExpression
 {
   public BinaryNumericOpExprBase(String op, Expr left, Expr right)
   {
@@ -906,7 +906,7 @@ class BinNeqExpr extends BinaryNumericOpExprBase
   }
 }
 
-class BinAndExpr extends BinaryOpExprBase implements Expression.AndExpression
+class BinAndExpr extends BinaryOp implements Expression.AndExpression
 {
   BinAndExpr(String op, Expr left, Expr right)
   {
@@ -936,7 +936,7 @@ class BinAndExpr extends BinaryOpExprBase implements Expression.AndExpression
   }
 }
 
-class BinOrExpr extends BinaryOpExprBase implements Expression.OrExpression
+class BinOrExpr extends BinaryOp implements Expression.OrExpression
 {
   BinOrExpr(String op, Expr left, Expr right)
   {

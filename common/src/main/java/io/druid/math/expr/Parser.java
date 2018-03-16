@@ -160,8 +160,8 @@ public class Parser
   {
     if (expr instanceof IdentifierExpr) {
       found.add(expr.toString());
-    } else if (expr instanceof BinaryOpExprBase) {
-      BinaryOpExprBase binary = (BinaryOpExprBase) expr;
+    } else if (expr instanceof BinaryOp) {
+      BinaryOp binary = (BinaryOp) expr;
       findBindingsRecursive(binary.left, found);
       findBindingsRecursive(binary.right, found);
     } else if (expr instanceof UnaryMinusExpr) {
@@ -186,8 +186,8 @@ public class Parser
 
   static Expr flatten(Expr expr)
   {
-    if (expr instanceof BinaryOpExprBase) {
-      BinaryOpExprBase binary = (BinaryOpExprBase) expr;
+    if (expr instanceof BinaryOp) {
+      BinaryOp binary = (BinaryOp) expr;
       Expr left = flatten(binary.left);
       Expr right = flatten(binary.right);
       if (Evals.isAllConstants(left, right)) {
@@ -195,37 +195,24 @@ public class Parser
       } else if (left != binary.left || right != binary.right) {
         return Evals.binaryOp(binary, left, right);
       }
-    } else if (expr instanceof Unary) {
-      Unary unary = (Unary) expr;
+    } else if (expr instanceof UnaryOp) {
+      UnaryOp unary = (UnaryOp) expr;
       Expr eval = flatten(unary.getChild());
       if (eval instanceof Constant) {
         expr = Evals.toConstant(expr.eval(null));
       } else if (eval != unary.getChild()) {
-        if (expr instanceof UnaryMinusExpr) {
-          expr = new UnaryMinusExpr(eval);
-        } else if (expr instanceof UnaryNotExpr) {
-          expr = new UnaryNotExpr(eval);
-        } else {
-          expr = unary; // unknown type..
-        }
+        expr = Evals.unaryOp(unary, expr);
       }
     } else if (expr instanceof FunctionExpr) {
       FunctionExpr functionExpr = (FunctionExpr) expr;
       if (functionExpr.function instanceof Function.External) {
         return expr;
       }
-      List<Expr> args = functionExpr.args;
-      boolean flattened = false;
-      List<Expr> flattening = Lists.newArrayListWithCapacity(args.size());
-      for (Expr arg : args) {
-        Expr flatten = flatten(arg);
-        flattened |= flatten != arg;
-        flattening.add(flatten);
-      }
-      if (Evals.isAllConstants(flattening)) {
+      List<Expr> flatten = flatten(functionExpr.args);
+      if (Evals.isAllConstants(flatten)) {
         expr = Evals.toConstant(expr.eval(null));
-      } else if (flattened) {
-        expr = new FunctionExpr(functionExpr.function, functionExpr.name, flattening);
+      } else if (!Evals.isIdentical(functionExpr.args, flatten)) {
+        expr = new FunctionExpr(functionExpr.function, functionExpr.name, flatten);
       }
     }
     return expr;
@@ -233,26 +220,41 @@ public class Parser
 
   public static interface Visitor<T>
   {
-    T visit(Expr expr, List<T> children);
+    T visit(Constant expr);
+    T visit(IdentifierExpr expr);
+    T visit(AssignExpr expr, T assignee, T assigned);
+    T visit(UnaryOp expr, T child);
+    T visit(BinaryOp expr, T left, T right);
+    T visit(FunctionExpr expr, List<T> children);
+    T visit(Expr other);
   }
 
   public static <T> T traverse(Expr expr, Visitor<T> visitor)
   {
-    List<T> params = Lists.newArrayList();
-    if (expr instanceof BinaryOpExprBase) {
-      BinaryOpExprBase binary = (BinaryOpExprBase) expr;
-      params.add(traverse(binary.left, visitor));
-      params.add(traverse(binary.right, visitor));
-    } else if (expr instanceof UnaryMinusExpr) {
-      params.add(traverse(((UnaryMinusExpr) expr).expr, visitor));
-    } else if (expr instanceof UnaryNotExpr) {
-      params.add(traverse(((UnaryNotExpr) expr).expr, visitor));
+    if (expr instanceof Constant) {
+      return visitor.visit((Constant) expr);
+    } else if (expr instanceof IdentifierExpr) {
+      return visitor.visit((IdentifierExpr) expr);
+    } else if (expr instanceof AssignExpr) {
+      T assignee = traverse(((AssignExpr) expr).assignee, visitor);
+      T assigned = traverse(((AssignExpr) expr).assigned, visitor);
+      return visitor.visit((AssignExpr) expr, assignee, assigned);
+    } else if (expr instanceof UnaryOp) {
+      T child = traverse(((UnaryOp) expr).getChild(), visitor);
+      return visitor.visit((UnaryOp) expr, child);
+    } else if (expr instanceof BinaryOp) {
+      BinaryOp binary = (BinaryOp) expr;
+      T left = traverse(binary.left, visitor);
+      T right = traverse(binary.right, visitor);
+      return visitor.visit((BinaryOp) expr, left, right);
     } else if (expr instanceof FunctionExpr) {
+      List<T> params = Lists.newArrayList();
       for (Expr child : ((FunctionExpr) expr).args) {
         params.add(traverse(child, visitor));
       }
+      return visitor.visit((FunctionExpr) expr, params);
     }
-    return visitor.visit(expr, params);
+    return visitor.visit(expr);
   }
 
   public static Expr.NumericBinding withMap(final Map<String, ?> bindings)
@@ -417,8 +419,8 @@ public class Parser
 
   public static void reset(Expr expr)
   {
-    if (expr instanceof BinaryOpExprBase) {
-      BinaryOpExprBase binary = (BinaryOpExprBase) expr;
+    if (expr instanceof BinaryOp) {
+      BinaryOp binary = (BinaryOp) expr;
       reset(binary.left);
       reset(binary.right);
     } else if (expr instanceof UnaryMinusExpr) {

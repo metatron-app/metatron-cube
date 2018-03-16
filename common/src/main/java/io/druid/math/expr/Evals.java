@@ -247,6 +247,17 @@ public class Evals
     return true;
   }
 
+  public static boolean isIdentical(List<Expr> exprs1, List<Expr> exprs2)
+  {
+    Preconditions.checkArgument(exprs1.size() == exprs2.size());
+    for (int i = 0; i < exprs1.size(); i++) {
+      if (exprs1.get(i) != exprs2.get(i)) {
+        return false;
+      }
+    }
+    return true;
+  }
+
   // do not use except flattening purpose
   static Expr toConstant(ExprEval eval)
   {
@@ -467,9 +478,20 @@ public class Evals
     return Pair.of(evalString(assign.assignee, bindings), assign.assigned);
   }
 
+  public static Expr unaryOp(UnaryOp unary, Expr expr)
+  {
+    if (expr instanceof UnaryMinusExpr) {
+      return new UnaryMinusExpr(expr);
+    } else if (expr instanceof UnaryNotExpr) {
+      return new UnaryNotExpr(expr);
+    } else {
+      return unary; // unknown type..
+    }
+  }
+
   // for binary operator not providing constructor of form <init>(String, Expr, Expr),
   // you should create it explicitly in here
-  public static Expr binaryOp(BinaryOpExprBase binary, Expr left, Expr right)
+  public static Expr binaryOp(BinaryOp binary, Expr left, Expr right)
   {
     try {
       return binary.getClass()
