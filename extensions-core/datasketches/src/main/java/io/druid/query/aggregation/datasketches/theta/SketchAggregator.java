@@ -24,6 +24,7 @@ import com.yahoo.memory.Memory;
 import com.yahoo.sketches.Family;
 import com.yahoo.sketches.theta.SetOperation;
 import com.yahoo.sketches.theta.Sketch;
+import com.yahoo.sketches.theta.SynchronizedUnion;
 import com.yahoo.sketches.theta.Union;
 import io.druid.query.aggregation.Aggregator;
 import io.druid.segment.DimensionSelector;

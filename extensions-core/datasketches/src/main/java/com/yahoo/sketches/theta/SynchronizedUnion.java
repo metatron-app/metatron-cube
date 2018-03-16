@@ -17,7 +17,7 @@
  * under the License.
  */
 
-package io.druid.query.aggregation.datasketches.theta;
+package com.yahoo.sketches.theta;
 
 import com.yahoo.memory.Memory;
 import com.yahoo.memory.WritableMemory;
@@ -125,5 +125,35 @@ public class SynchronizedUnion extends Union
   public synchronized boolean isSameResource(Memory mem)
   {
     return delegate.isSameResource(mem);
+  }
+
+  @Override
+  boolean isEmpty()
+  {
+    return delegate.isEmpty();
+  }
+
+  @Override
+  long[] getCache()
+  {
+    return delegate.getCache();
+  }
+
+  @Override
+  int getRetainedEntries(boolean valid)
+  {
+    return delegate.getRetainedEntries(valid);
+  }
+
+  @Override
+  short getSeedHash()
+  {
+    return delegate.getSeedHash();
+  }
+
+  @Override
+  long getThetaLong()
+  {
+    return delegate.getThetaLong();
   }
 }
