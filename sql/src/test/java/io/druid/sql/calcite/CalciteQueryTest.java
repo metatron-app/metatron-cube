@@ -764,7 +764,7 @@ public class CalciteQueryTest
                             new OrderByColumnSpec(
                                 "d0",
                                 Direction.DESCENDING,
-                                StringComparators.LEXICOGRAPHIC
+                                StringComparators.LEXICOGRAPHIC_NAME
                             )
                         ),
                         Integer.MAX_VALUE
@@ -911,7 +911,7 @@ public class CalciteQueryTest
                                     new OrderByColumnSpec(
                                         "d0",
                                         Direction.ASCENDING,
-                                        StringComparators.NUMERIC
+                                        StringComparators.NUMERIC_NAME
                                     )
                                 ),
                                 Integer.MAX_VALUE
@@ -969,7 +969,7 @@ public class CalciteQueryTest
                                     new OrderByColumnSpec(
                                         "d0",
                                         Direction.ASCENDING,
-                                        StringComparators.NUMERIC
+                                        StringComparators.NUMERIC_NAME
                                     )
                                 ),
                                 Integer.MAX_VALUE
@@ -1382,12 +1382,12 @@ public class CalciteQueryTest
                                     new OrderByColumnSpec(
                                         "p1",
                                         Direction.DESCENDING,
-                                        StringComparators.NUMERIC
+                                        StringComparators.NUMERIC_NAME
                                     ),
                                     new OrderByColumnSpec(
                                         "d0",
                                         Direction.ASCENDING,
-                                        StringComparators.LEXICOGRAPHIC
+                                        StringComparators.LEXICOGRAPHIC_NAME
                                     )
                                 ),
                                 Integer.MAX_VALUE
@@ -1428,7 +1428,7 @@ public class CalciteQueryTest
                         EXPRESSION_POST_AGG("p0", "substring(\"d0\", 1, -1)")
                     )
                 )
-                .metric(new DimensionTopNMetricSpec(null, StringComparators.LEXICOGRAPHIC))
+                .metric(new DimensionTopNMetricSpec(null, StringComparators.LEXICOGRAPHIC_NAME))
                 .threshold(10)
                 .context(QUERY_CONTEXT_DEFAULT)
                 .build()
@@ -2228,7 +2228,7 @@ public class CalciteQueryTest
                                     new OrderByColumnSpec(
                                         "p0",
                                         Direction.ASCENDING,
-                                        StringComparators.NUMERIC
+                                        StringComparators.NUMERIC_NAME
                                     )
                                 ),
                                 3
@@ -2277,7 +2277,7 @@ public class CalciteQueryTest
                                     new OrderByColumnSpec(
                                         "p0",
                                         Direction.ASCENDING,
-                                        StringComparators.NUMERIC
+                                        StringComparators.NUMERIC_NAME
                                     )
                                 ),
                                 3
@@ -2496,7 +2496,7 @@ public class CalciteQueryTest
                                     new OrderByColumnSpec(
                                         "d0",
                                         Direction.DESCENDING,
-                                        StringComparators.NUMERIC
+                                        StringComparators.NUMERIC_NAME
                                     )
                                 ),
                                 Integer.MAX_VALUE
@@ -2544,7 +2544,7 @@ public class CalciteQueryTest
                                     new OrderByColumnSpec(
                                         "d0",
                                         Direction.DESCENDING,
-                                        StringComparators.NUMERIC
+                                        StringComparators.NUMERIC_NAME
                                     )
                                 ),
                                 Integer.MAX_VALUE
@@ -2595,7 +2595,7 @@ public class CalciteQueryTest
                                     new OrderByColumnSpec(
                                         "d0",
                                         Direction.DESCENDING,
-                                        StringComparators.NUMERIC
+                                        StringComparators.NUMERIC_NAME
                                     )
                                 ),
                                 Integer.MAX_VALUE
@@ -3279,7 +3279,7 @@ public class CalciteQueryTest
                 .intervals(QSS(Filtration.eternity()))
                 .granularity(Granularities.ALL)
                 .dimension(new DefaultDimensionSpec("dim2", "d0"))
-                .metric(new DimensionTopNMetricSpec(null, StringComparators.LEXICOGRAPHIC))
+                .metric(new DimensionTopNMetricSpec(null, StringComparators.LEXICOGRAPHIC_NAME))
                 .threshold(10)
                 .context(QUERY_CONTEXT_DEFAULT)
                 .build()
@@ -3303,7 +3303,7 @@ public class CalciteQueryTest
                 .intervals(QSS(Filtration.eternity()))
                 .granularity(Granularities.ALL)
                 .dimension(new DefaultDimensionSpec("dim2", "d0"))
-                .metric(new DimensionTopNMetricSpec(null, StringComparators.LEXICOGRAPHIC))
+                .metric(new DimensionTopNMetricSpec(null, StringComparators.LEXICOGRAPHIC_NAME))
                 .threshold(10)
                 .context(QUERY_CONTEXT_DEFAULT)
                 .build()
@@ -3327,7 +3327,7 @@ public class CalciteQueryTest
                 .intervals(QSS(Filtration.eternity()))
                 .granularity(Granularities.ALL)
                 .dimension(new DefaultDimensionSpec("dim2", "d0"))
-                .metric(new DimensionTopNMetricSpec(null, StringComparators.LEXICOGRAPHIC))
+                .metric(new DimensionTopNMetricSpec(null, StringComparators.LEXICOGRAPHIC_NAME))
                 .threshold(5)
                 .context(QUERY_CONTEXT_DEFAULT)
                 .build()
@@ -3363,7 +3363,7 @@ public class CalciteQueryTest
                 .intervals(QSS(Filtration.eternity()))
                 .granularity(Granularities.ALL)
                 .dimension(new DefaultDimensionSpec("dim2", "d0"))
-                .metric(new InvertedTopNMetricSpec(new DimensionTopNMetricSpec(null, StringComparators.LEXICOGRAPHIC)))
+                .metric(new InvertedTopNMetricSpec(new DimensionTopNMetricSpec(null, StringComparators.LEXICOGRAPHIC_NAME)))
                 .threshold(5)
                 .context(QUERY_CONTEXT_DEFAULT)
                 .build()
@@ -3835,7 +3835,7 @@ public class CalciteQueryTest
                                     new OrderByColumnSpec(
                                         "d0",
                                         Direction.ASCENDING,
-                                        StringComparators.LEXICOGRAPHIC
+                                        StringComparators.LEXICOGRAPHIC_NAME
                                     )
                                 ),
                                 Integer.MAX_VALUE
@@ -3897,7 +3897,7 @@ public class CalciteQueryTest
                                     new OrderByColumnSpec(
                                         "d0",
                                         Direction.ASCENDING,
-                                        StringComparators.LEXICOGRAPHIC
+                                        StringComparators.LEXICOGRAPHIC_NAME
                                     )
                                 ),
                                 Integer.MAX_VALUE
@@ -3948,7 +3948,7 @@ public class CalciteQueryTest
                                     new OrderByColumnSpec(
                                         "d0",
                                         Direction.ASCENDING,
-                                        StringComparators.LEXICOGRAPHIC
+                                        StringComparators.LEXICOGRAPHIC_NAME
                                     )
                                 ),
                                 Integer.MAX_VALUE
@@ -4104,7 +4104,7 @@ public class CalciteQueryTest
                           .intervals(QSS(Filtration.eternity()))
                           .granularity(Granularities.ALL)
                           .dimension(new DefaultDimensionSpec("dim2", "d0"))
-                          .metric(new DimensionTopNMetricSpec(null, StringComparators.LEXICOGRAPHIC))
+                          .metric(new DimensionTopNMetricSpec(null, StringComparators.LEXICOGRAPHIC_NAME))
                           .aggregators(AGGS(new GenericSumAggregatorFactory("a0", "cnt", "long")))
                           .threshold(1)
                           .context(QUERY_CONTEXT_DEFAULT)
@@ -4250,7 +4250,7 @@ public class CalciteQueryTest
                                 ImmutableList.of(new OrderByColumnSpec(
                                     "_d0",
                                     Direction.ASCENDING,
-                                    StringComparators.LEXICOGRAPHIC
+                                    StringComparators.LEXICOGRAPHIC_NAME
                                 )),
                                 2
                             )
@@ -4869,7 +4869,7 @@ public class CalciteQueryTest
                                     new OrderByColumnSpec(
                                         "d0",
                                         Direction.DESCENDING,
-                                        StringComparators.NUMERIC
+                                        StringComparators.NUMERIC_NAME
                                     )
                                 ),
                                 Integer.MAX_VALUE
@@ -4921,17 +4921,17 @@ public class CalciteQueryTest
                                     new OrderByColumnSpec(
                                         "d0",
                                         Direction.ASCENDING,
-                                        StringComparators.NUMERIC
+                                        StringComparators.NUMERIC_NAME
                                     ),
                                     new OrderByColumnSpec(
                                         "d1",
                                         Direction.ASCENDING,
-                                        StringComparators.LEXICOGRAPHIC
+                                        StringComparators.LEXICOGRAPHIC_NAME
                                     ),
                                     new OrderByColumnSpec(
                                         "a0",
                                         Direction.DESCENDING,
-                                        StringComparators.NUMERIC
+                                        StringComparators.NUMERIC_NAME
                                     )
                                 ),
                                 Integer.MAX_VALUE
@@ -5231,7 +5231,7 @@ public class CalciteQueryTest
                                     new OrderByColumnSpec(
                                         "d0",
                                         Direction.ASCENDING,
-                                        StringComparators.NUMERIC
+                                        StringComparators.NUMERIC_NAME
                                     )
                                 ),
                                 Integer.MAX_VALUE
@@ -5486,7 +5486,7 @@ public class CalciteQueryTest
                                     new OrderByColumnSpec(
                                         "d0",
                                         Direction.ASCENDING,
-                                        StringComparators.NUMERIC
+                                        StringComparators.NUMERIC_NAME
                                     )
                                 ),
                                 Integer.MAX_VALUE
@@ -5538,7 +5538,7 @@ public class CalciteQueryTest
                                     new OrderByColumnSpec(
                                         "d0",
                                         Direction.ASCENDING,
-                                        StringComparators.LEXICOGRAPHIC
+                                        StringComparators.LEXICOGRAPHIC_NAME
                                     )
                                 ),
                                 Integer.MAX_VALUE
@@ -5667,7 +5667,7 @@ public class CalciteQueryTest
                                     new OrderByColumnSpec(
                                         "d0",
                                         Direction.ASCENDING,
-                                        StringComparators.NUMERIC
+                                        StringComparators.NUMERIC_NAME
                                     )
                                 ),
                                 1
@@ -5706,7 +5706,7 @@ public class CalciteQueryTest
                     )
                 )
                 .aggregators(AGGS(new GenericSumAggregatorFactory("a0", "cnt", "long")))
-                .metric(new DimensionTopNMetricSpec(null, StringComparators.NUMERIC))
+                .metric(new DimensionTopNMetricSpec(null, StringComparators.NUMERIC_NAME))
                 .threshold(1)
                 .context(QUERY_CONTEXT_DEFAULT)
                 .build()
@@ -5742,7 +5742,7 @@ public class CalciteQueryTest
                     )
                 )
                 .aggregators(AGGS(new GenericSumAggregatorFactory("a0", "cnt", "long")))
-                .metric(new DimensionTopNMetricSpec(null, StringComparators.NUMERIC))
+                .metric(new DimensionTopNMetricSpec(null, StringComparators.NUMERIC_NAME))
                 .threshold(1)
                 .context(QUERY_CONTEXT_DEFAULT)
                 .build()
@@ -5784,7 +5784,7 @@ public class CalciteQueryTest
                                     new OrderByColumnSpec(
                                         "d1",
                                         Direction.ASCENDING,
-                                        StringComparators.NUMERIC
+                                        StringComparators.NUMERIC_NAME
                                     )
                                 ),
                                 Integer.MAX_VALUE
@@ -5969,7 +5969,7 @@ public class CalciteQueryTest
                                     new OrderByColumnSpec(
                                         "d0",
                                         Direction.DESCENDING,
-                                        StringComparators.LEXICOGRAPHIC
+                                        StringComparators.LEXICOGRAPHIC_NAME
                                     )
                                 ),
                                 Integer.MAX_VALUE

@@ -283,12 +283,9 @@ public interface SketchHandler<U>
   public static class Quantile extends CardinalitySensitive<ItemsUnion>
   {
     @Override
-    @SuppressWarnings("unchecked")
-    protected final void update(TypedSketch<ItemsUnion> sketch, Object value, int count)
+    public boolean supports(ValueDesc type)
     {
-      for (int i = 0; i < count; i++) {
-        sketch.value().update(value);
-      }
+      return type.isPrimitive() || type.isStruct();
     }
 
     @Override
@@ -296,6 +293,15 @@ public interface SketchHandler<U>
     {
       comparator = comparator == null ? type.comparator() : comparator;
       return TypedSketch.of(type, ItemsUnion.getInstance(sketchParam, comparator));
+    }
+
+    @Override
+    @SuppressWarnings("unchecked")
+    protected final void update(TypedSketch<ItemsUnion> sketch, Object value, int count)
+    {
+      for (int i = 0; i < count; i++) {
+        sketch.value().update(value);
+      }
     }
 
     @Override

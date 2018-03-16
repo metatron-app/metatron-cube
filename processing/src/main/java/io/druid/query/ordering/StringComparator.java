@@ -42,6 +42,6 @@ import java.util.Comparator;
     @JsonSubTypes.Type(name = StringComparators.DAY_OF_WEEK_NAME, value = StringComparators.DayOfWeekComparator.class),
     @JsonSubTypes.Type(name = StringComparators.MONTH_NAME, value = StringComparators.MonthComparator.class)
 })
-public interface StringComparator extends Comparator<String>, Cacheable
+public interface StringComparator extends Comparator<String>
 {
 }

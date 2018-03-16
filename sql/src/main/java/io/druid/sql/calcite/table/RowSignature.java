@@ -31,7 +31,6 @@ import com.metamx.common.Pair;
 import io.druid.data.ValueDesc;
 import io.druid.data.input.impl.DimensionSchema;
 import io.druid.query.aggregation.AggregatorFactory;
-import io.druid.query.ordering.StringComparator;
 import io.druid.query.ordering.StringComparators;
 import io.druid.segment.column.Column;
 import io.druid.segment.incremental.IncrementalIndexSchema;
@@ -159,7 +158,7 @@ public class RowSignature implements io.druid.query.RowSignature, Function<Strin
   }
 
   /**
-   * Return the "natural" {@link StringComparator} for an extraction from this row signature. This will be a
+   * Return the "natural" comparator for an extraction from this row signature. This will be a
    * lexicographic comparator for String types and a numeric comparator for Number types.
    *
    * @param simpleExtraction extraction from this kind of row

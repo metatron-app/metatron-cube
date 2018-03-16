@@ -19,23 +19,36 @@
 
 package io.druid.query.ordering;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.collect.Lists;
+import com.metamx.common.ISE;
 import io.druid.common.Cacheable;
 import io.druid.query.QueryCacheHelper;
 
 import java.nio.ByteBuffer;
+import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 
 /**
  */
-public class StringOrderingSpec implements Cacheable
+public class OrderingSpec implements Cacheable
 {
-  public static List<StringComparator> getComparator(List<? extends StringOrderingSpec> orderByColumnSpecs)
+  public static List<OrderingSpec> toOrderingSpecs(String... specs)
+  {
+    List<OrderingSpec> orderingSpecs = Lists.newArrayList();
+    for (String spec : specs) {
+      orderingSpecs.add(new OrderingSpec(null, spec));
+    }
+    return orderingSpecs;
+  }
+
+  public static List<StringComparator> getComparator(List<? extends OrderingSpec> orderByColumnSpecs)
   {
     List<StringComparator> comparators = Lists.newArrayList();
-    for (StringOrderingSpec orderByColumnSpec : orderByColumnSpecs) {
+    for (OrderingSpec orderByColumnSpec : orderByColumnSpecs) {
       StringComparator comparator = StringComparators.makeComparator(orderByColumnSpec.dimensionOrder);
       if (orderByColumnSpec.direction == Direction.DESCENDING) {
         comparator = StringComparators.revert(comparator);
@@ -45,10 +58,29 @@ public class StringOrderingSpec implements Cacheable
     return comparators;
   }
 
+    @JsonCreator
+  public static OrderingSpec create(Object obj)
+  {
+    if (obj == null) {
+      return new OrderingSpec(null, null);
+    } if (obj instanceof String) {
+      return new OrderingSpec(null, obj.toString());
+    } else if (obj instanceof Map) {
+      final Map map = (Map) obj;
+
+      final Direction direction = Direction.fromString(Objects.toString(map.get("direction"), null));
+      final String dimensionOrder = Objects.toString(map.get("dimensionOrder"), null);
+
+      return new OrderingSpec(direction, dimensionOrder);
+    } else {
+      throw new ISE("Cannot build an OrderingSpec from a %s", obj.getClass());
+    }
+  }
+
   protected final Direction direction;
   protected final String dimensionOrder;
 
-  public StringOrderingSpec(
+  public OrderingSpec(
       Direction direction,
       String dimensionOrder
   )
@@ -69,7 +101,7 @@ public class StringOrderingSpec implements Cacheable
     return dimensionOrder;
   }
 
-  public StringComparator getComparator()
+  public Comparator getComparator()
   {
     return StringComparators.makeComparator(dimensionOrder);
   }
@@ -80,11 +112,11 @@ public class StringOrderingSpec implements Cacheable
     if (this == o) {
       return true;
     }
-    if (o == null || !(o instanceof StringOrderingSpec)) {
+    if (o == null || !(o instanceof OrderingSpec)) {
       return false;
     }
 
-    StringOrderingSpec other = (StringOrderingSpec) o;
+    OrderingSpec other = (OrderingSpec) o;
     return isSameOrdering(other.direction, other.dimensionOrder);
   }
 
@@ -102,7 +134,7 @@ public class StringOrderingSpec implements Cacheable
   @Override
   public String toString()
   {
-    return "OrderByColumnSpec{" +
+    return "OrderingSpec{" +
            "direction=" + direction + '\'' +
            ", dimensionOrder='" + dimensionOrder + '\'' +
            '}';
@@ -114,8 +146,8 @@ public class StringOrderingSpec implements Cacheable
     final byte[] dimensionOrderBytes = QueryCacheHelper.computeCacheBytes(dimensionOrder);
 
     return ByteBuffer.allocate(dimensionOrderBytes.length + 1)
-                     .put(dimensionOrderBytes)
                      .put((byte) direction.ordinal())
+                     .put(dimensionOrderBytes)
                      .array();
   }
 }

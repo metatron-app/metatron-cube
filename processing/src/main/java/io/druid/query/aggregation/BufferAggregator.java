@@ -150,7 +150,7 @@ public interface BufferAggregator
     }
   }
 
-  class Null extends Abstract
+  public BufferAggregator NULL = new Abstract()
   {
     @Override
     public void aggregate(ByteBuffer buf, int position)
@@ -162,5 +162,5 @@ public interface BufferAggregator
     {
       return null;
     }
-  }
+  };
 }

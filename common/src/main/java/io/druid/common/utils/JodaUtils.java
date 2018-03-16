@@ -26,6 +26,7 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import com.google.common.primitives.Longs;
 import com.metamx.common.guava.Comparators;
+import io.druid.data.TypeUtils;
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
 import org.joda.time.Interval;
@@ -39,7 +40,6 @@ import sun.util.calendar.ZoneInfo;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.Iterator;
-import java.util.List;
 import java.util.Locale;
 import java.util.TimeZone;
 import java.util.TreeSet;
@@ -318,7 +318,7 @@ public class JodaUtils
         if (i > prev) {
           b.append(DateTimeFormat.forPattern(formatString.substring(prev, i)));
         }
-        int seek = seekTo(formatString, i + 1, ']');  // don't support nested optionals
+        int seek = TypeUtils.seekWithEscape(formatString, i + 1, ']');  // don't support nested optionals
         if (seek < 0) {
           throw new IllegalArgumentException("not matching ']' in " + formatString);
         }
@@ -355,49 +355,6 @@ public class JodaUtils
       formatter = formatter.withZone(toTimeZone(timeZone));
     }
     return formatter;
-  }
-
-  public static List<String> split(String string, char f)
-  {
-    List<String> splits = Lists.newArrayList();
-    int prev = 0;
-    for (int i = JodaUtils.seekTo(string, prev, f); i >= 0; i = JodaUtils.seekTo(string, prev, f)) {
-      splits.add(trimStartingSpaces(string.substring(prev, i)));
-      prev = i + 1;
-    }
-    if (prev < string.length()) {
-      splits.add(trimStartingSpaces(string.substring(prev)));
-    }
-    return splits;
-  }
-
-  public static int seekTo(String string, int i, char f)
-  {
-    boolean escape = false;
-    for (; i < string.length(); i++) {
-      char c = string.charAt(i);
-      if (c == '\'') {
-        escape = !escape;
-      }
-      if (escape) {
-        continue;
-      }
-      if (c == f) {
-        return i;
-      }
-    }
-    return -1;
-  }
-
-  private static String trimStartingSpaces(String string)
-  {
-    int i = 0;
-    for (; i < string.length(); i++) {
-      if (string.charAt(i) != ' ') {
-        break;
-      }
-    }
-    return string.substring(i);
   }
 
   // DateTimeZone.forID cannot handle abbreviations like PST

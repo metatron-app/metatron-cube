@@ -179,7 +179,7 @@ public class BoundDimFilter implements DimFilter
 
   public boolean isLexicographic()
   {
-    return comparatorType.equalsIgnoreCase(StringComparators.LEXICOGRAPHIC_NAME);
+    return StringComparators.isLexicographicString(comparatorType);
   }
 
   public Comparator<String> getComparator()

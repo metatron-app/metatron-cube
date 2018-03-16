@@ -33,7 +33,7 @@ import io.druid.math.expr.Expr;
 import io.druid.math.expr.Parser;
 import io.druid.query.QueryCacheHelper;
 import io.druid.query.ordering.Direction;
-import io.druid.query.ordering.StringOrderingSpec;
+import io.druid.query.ordering.OrderingSpec;
 
 import java.nio.ByteBuffer;
 import java.util.List;
@@ -43,7 +43,7 @@ import java.util.Set;
 
 /**
  */
-public class PivotColumnSpec extends StringOrderingSpec
+public class PivotColumnSpec extends OrderingSpec
 {
   public static PivotColumnSpec ofColumn(
       String dimension,

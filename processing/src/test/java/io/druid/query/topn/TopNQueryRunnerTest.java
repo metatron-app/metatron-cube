@@ -3179,7 +3179,7 @@ public class TopNQueryRunnerTest
         .dataSource(QueryRunnerTestHelper.dataSource)
         .granularity(QueryGranularities.ALL)
         .dimension(QueryRunnerTestHelper.marketDimension)
-        .metric(new DimensionTopNMetricSpec(null, StringComparators.NUMERIC))
+        .metric(new DimensionTopNMetricSpec(null, StringComparators.NUMERIC_NAME))
         .threshold(2)
         .intervals(QueryRunnerTestHelper.secondOnly)
         .aggregators(Lists.<AggregatorFactory>newArrayList(QueryRunnerTestHelper.rowsCount))

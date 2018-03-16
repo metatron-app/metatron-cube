@@ -23,7 +23,6 @@ import com.google.common.base.Preconditions;
 import com.google.common.collect.Ordering;
 import com.google.common.primitives.Ints;
 import com.metamx.common.guava.Comparators;
-import io.druid.query.ordering.StringComparator;
 import io.druid.query.ordering.StringComparators;
 
 import java.util.Comparator;
@@ -46,7 +45,7 @@ public class SearchHitSort
   {
     ordering = Preconditions.checkNotNull(ordering, "'ordering' cannot be null");
     if (ordering.size() == 1 && !ordering.get(0).startsWith("$")) {
-      final StringComparator stringComp = StringComparators.makeComparator(ordering.get(0));
+      final Comparator stringComp = StringComparators.makeComparator(ordering.get(0));
       this.comparator = new Comparator<SearchHit>()
       {
         @Override
@@ -75,13 +74,14 @@ public class SearchHitSort
     }
   }
 
+  @SuppressWarnings("unchecked")
   private Comparator<SearchHit> toSearchHitComparator(String[] specs)
   {
     boolean invert = false;
     Comparator<SearchHit> comparator;
     switch (specs[0]) {
       case SearchHit.VALUE: {
-        final StringComparator stringComp = makeBaseComparator(specs);
+        final Comparator stringComp = makeBaseComparator(specs);
         comparator = new Comparator<SearchHit>()
         {
           @Override
@@ -93,7 +93,7 @@ public class SearchHitSort
         break;
       }
       case SearchHit.DIMENSION: {
-        final StringComparator stringComp = makeBaseComparator(specs);
+        final Comparator stringComp = makeBaseComparator(specs);
         comparator = new Comparator<SearchHit>()
         {
           @Override
@@ -134,9 +134,9 @@ public class SearchHitSort
     return invert ? Comparators.inverse(comparator) : comparator;
   }
 
-  private StringComparator makeBaseComparator(String[] specs)
+  private Comparator makeBaseComparator(String[] specs)
   {
-    StringComparator stringComp = null;
+    Comparator stringComp = null;
     for (int i = 1; i < specs.length && stringComp == null; i++) {
       stringComp = StringComparators.tryMakeComparator(specs[i], StringComparators.LEXICOGRAPHIC);
     }

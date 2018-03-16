@@ -28,7 +28,6 @@ import com.google.common.primitives.Ints;
 import com.yahoo.sketches.quantiles.ItemsSketch;
 import com.yahoo.sketches.quantiles.ItemsUnion;
 import io.druid.data.ValueDesc;
-import io.druid.query.ordering.StringComparator;
 import io.druid.query.ordering.StringComparators;
 import org.apache.commons.lang.StringUtils;
 import org.junit.Assert;
@@ -211,7 +210,7 @@ public class SketchHandlerTest
     );
     Collections.shuffle(values);
 
-    StringComparator comparator = StringComparators.makeComparator(
+    Comparator comparator = StringComparators.makeComparator(
         "stringArray(" + separator + ", lexicographic:desc, dayOfWeek.en)"
     );
 
@@ -230,7 +229,7 @@ public class SketchHandlerTest
     };
     Assert.assertArrayEquals(expected, r.getQuantiles(14));
 
-    sketch = q.newUnion(32, ValueDesc.STRING, StringComparators.revert(comparator));
+    sketch = q.newUnion(32, ValueDesc.STRING, Ordering.from(comparator).reverse());
     for (String value : values) {
       q.updateWithValue(sketch, value);
     }

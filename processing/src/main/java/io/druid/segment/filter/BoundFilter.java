@@ -45,7 +45,7 @@ import java.util.Iterator;
 public class BoundFilter implements Filter, Predicate<String>
 {
   private final BoundDimFilter boundDimFilter;
-  private final Comparator<String> comparator;
+  private final Comparator comparator;
   private final ExtractionFn extractionFn;
 
   public BoundFilter(final BoundDimFilter boundDimFilter)
@@ -207,6 +207,8 @@ public class BoundFilter implements Filter, Predicate<String>
     return Filters.toValueMatcher(ColumnSelectors.asStringSelector(selector), this);
   }
 
+  @Override
+  @SuppressWarnings("unchecked")
   public boolean apply(String input)
   {
     if (extractionFn != null) {

@@ -79,7 +79,7 @@ public interface Aggregator {
     }
   }
 
-  class Null extends Abstract
+  Aggregator NULL = new Abstract()
   {
     @Override
     public void aggregate()
@@ -91,5 +91,5 @@ public interface Aggregator {
     {
       return null;
     }
-  }
+  };
 }

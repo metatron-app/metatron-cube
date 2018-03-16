@@ -51,7 +51,7 @@ public class TopNLexicographicResultBuilder implements TopNResultBuilder
       DimensionSpec dimSpec,
       int threshold,
       String previousStop,
-      final Comparator<Comparable> comparator,
+      final Comparator comparator,
       List<AggregatorFactory> aggFactories
   )
   {
@@ -62,6 +62,7 @@ public class TopNLexicographicResultBuilder implements TopNResultBuilder
     this.aggFactoryNames = TopNQueryQueryToolChest.extractFactoryName(aggFactories);
     this.threshold = threshold;
 
+    @SuppressWarnings("unchecked")
     Comparator<DimValHolder> ordering = new Comparator<DimValHolder>()
     {
       @Override

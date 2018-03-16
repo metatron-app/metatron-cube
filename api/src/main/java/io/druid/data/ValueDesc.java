@@ -56,6 +56,7 @@ public class ValueDesc
 
   // descriptive type
   public static final String DECIMAL_TYPE = "decimal";
+  public static final String STRUCT_TYPE = "struct";
 
   // primitives
   public static ValueDesc STRING = new ValueDesc(ValueType.STRING);
@@ -74,6 +75,7 @@ public class ValueDesc
 
   // from expression
   public static ValueDesc DECIMAL = new ValueDesc(DECIMAL_TYPE);
+  public static ValueDesc STRUCT = new ValueDesc(STRUCT_TYPE);
   public static ValueDesc UNKNOWN = new ValueDesc(UNKNOWN_TYPE);
 
   public static ValueDesc ofArray(ValueDesc valueType)
@@ -395,5 +397,10 @@ public class ValueDesc
   public boolean isDateTime()
   {
     return type == ValueType.DATETIME;
+  }
+
+  public boolean isStruct()
+  {
+    return typeName.toLowerCase().startsWith(STRUCT_TYPE);
   }
 }

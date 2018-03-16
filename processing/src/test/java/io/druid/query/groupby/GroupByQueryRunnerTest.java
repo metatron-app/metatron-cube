@@ -2314,7 +2314,7 @@ public class GroupByQueryRunnerTest
             )
         )
         .setLimitSpec(new DefaultLimitSpec(Lists.<OrderByColumnSpec>newArrayList(
-            new OrderByColumnSpec("alias", null, StringComparators.ALPHANUMERIC)), null))
+            new OrderByColumnSpec("alias", null, StringComparators.ALPHANUMERIC_NAME)), null))
         .setGranularity(QueryRunnerTestHelper.dayGran)
         .build();
 
@@ -4424,7 +4424,7 @@ public class GroupByQueryRunnerTest
     OrderByColumnSpec dayOfWeekAsc = new OrderByColumnSpec("dayOfWeek", Direction.ASCENDING);
     OrderByColumnSpec marketDsc = new OrderByColumnSpec("market", Direction.DESCENDING);
     OrderByColumnSpec indexDsc = new OrderByColumnSpec(
-        "index", Direction.DESCENDING, new StringComparators.FloatingPointComparator()
+        "index", Direction.DESCENDING, StringComparators.FLOATING_POINT_NAME
     );
     OrderByColumnSpec rowsAsc = new OrderByColumnSpec("rows", Direction.ASCENDING);
     List<OrderByColumnSpec> dayPlusMarket = Arrays.asList(dayOfWeekAsc, marketDsc);
@@ -4463,7 +4463,7 @@ public class GroupByQueryRunnerTest
         .setLimitSpec(
             new DefaultLimitSpec(
                 Arrays.asList(
-                    new OrderByColumnSpec("dayOfWeek", Direction.ASCENDING, StringComparators.DAY_OF_WEEK),
+                    new OrderByColumnSpec("dayOfWeek", Direction.ASCENDING, StringComparators.DAY_OF_WEEK_NAME),
                     new OrderByColumnSpec("rows", Direction.ASCENDING)
                 ),
                 30
@@ -4890,7 +4890,7 @@ public class GroupByQueryRunnerTest
                 new OrderByColumnSpec(
                     "sum_week_last",
                     Direction.DESCENDING,
-                    new StringComparators.FloatingPointComparator()
+                    StringComparators.FLOATING_POINT_NAME
                 )
             ),
             null,

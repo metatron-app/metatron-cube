@@ -29,9 +29,8 @@ import com.metamx.common.ISE;
 import io.druid.common.Cacheable;
 import io.druid.query.QueryCacheHelper;
 import io.druid.query.ordering.Direction;
-import io.druid.query.ordering.StringComparator;
 import io.druid.query.ordering.StringComparators;
-import io.druid.query.ordering.StringOrderingSpec;
+import io.druid.query.ordering.OrderingSpec;
 
 import javax.annotation.Nullable;
 import java.nio.ByteBuffer;
@@ -42,7 +41,7 @@ import java.util.Objects;
 
 /**
  */
-public class OrderByColumnSpec extends StringOrderingSpec implements Cacheable
+public class OrderByColumnSpec extends OrderingSpec implements Cacheable
 {
   public static final Function<OrderByColumnSpec, String> GET_DIMENSION = new Function<OrderByColumnSpec, String>()
   {
@@ -132,20 +131,7 @@ public class OrderByColumnSpec extends StringOrderingSpec implements Cacheable
 
   public OrderByColumnSpec(String dimension, Direction direction)
   {
-    this(dimension, direction, (String) null);
-  }
-
-  public OrderByColumnSpec(
-      String dimension,
-      Direction direction,
-      StringComparator dimensionComparator
-  )
-  {
-    this(
-        dimension,
-        direction,
-        dimensionComparator == null ? null : dimensionComparator.toString()
-    );
+    this(dimension, direction, null);
   }
 
   public OrderByColumnSpec(

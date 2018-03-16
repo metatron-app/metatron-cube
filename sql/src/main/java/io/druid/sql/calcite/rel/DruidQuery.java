@@ -49,7 +49,6 @@ import io.druid.query.groupby.having.HavingSpec;
 import io.druid.query.groupby.orderby.DefaultLimitSpec;
 import io.druid.query.groupby.orderby.OrderByColumnSpec;
 import io.druid.query.ordering.Direction;
-import io.druid.query.ordering.StringComparator;
 import io.druid.query.ordering.StringComparators;
 import io.druid.query.select.PagingSpec;
 import io.druid.query.select.SelectQuery;
@@ -206,8 +205,7 @@ public class DruidQuery
     );
     int virtualColumnNameCounter = 0;
 
-    for (int i = 0; i < expressions.size(); i++) {
-      final DruidExpression expression = expressions.get(i);
+    for (DruidExpression expression : expressions) {
       if (expression.isDirectColumnAccess()) {
         directColumns.add(expression.getDirectColumn());
         rowOrder.add(expression.getDirectColumn());
@@ -474,7 +472,7 @@ public class DruidQuery
       final RexNode sortExpression = sort.getChildExps().get(sortKey);
       final RelFieldCollation collation = sort.getCollation().getFieldCollations().get(sortKey);
       final Direction direction;
-      final StringComparator comparator;
+      final String ordering;
 
       if (collation.getDirection() == RelFieldCollation.Direction.ASCENDING) {
         direction = Direction.ASCENDING;
@@ -488,15 +486,15 @@ public class DruidQuery
       if (SqlTypeName.NUMERIC_TYPES.contains(sortExpressionType)
           || SqlTypeName.TIMESTAMP == sortExpressionType
           || SqlTypeName.DATE == sortExpressionType) {
-        comparator = StringComparators.NUMERIC;
+        ordering = StringComparators.NUMERIC_NAME;
       } else {
-        comparator = StringComparators.LEXICOGRAPHIC;
+        ordering = StringComparators.LEXICOGRAPHIC_NAME;
       }
 
       if (sortExpression.isA(SqlKind.INPUT_REF)) {
         final RexInputRef ref = (RexInputRef) sortExpression;
         final String fieldName = outputRowSignature.getRowOrder().get(ref.getIndex());
-        orderBys.add(new OrderByColumnSpec(fieldName, direction, comparator));
+        orderBys.add(new OrderByColumnSpec(fieldName, direction, ordering));
       } else {
         // We don't support sorting by anything other than refs which actually appear in the query result.
         throw new CannotBuildQueryException(sort, sortExpression);
@@ -745,7 +743,7 @@ public class DruidQuery
       // DimensionTopNMetricSpec is exact; always return it even if allowApproximate is false.
       final DimensionTopNMetricSpec baseMetricSpec = new DimensionTopNMetricSpec(
           null,
-          limitColumn.getComparator()
+          limitColumn.getDimensionOrder()
       );
       topNMetricSpec = limitColumn.getDirection() == Direction.ASCENDING
                        ? baseMetricSpec

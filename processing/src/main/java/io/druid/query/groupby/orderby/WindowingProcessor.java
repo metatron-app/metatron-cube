@@ -32,7 +32,6 @@ import io.druid.query.dimension.DimensionSpec;
 import io.druid.query.dimension.DimensionSpecs;
 import io.druid.query.groupby.orderby.WindowingSpec.PartitionEvaluator;
 import io.druid.query.ordering.Direction;
-import io.druid.query.ordering.StringComparator;
 import io.druid.segment.column.Column;
 
 import java.util.Arrays;
@@ -279,9 +278,10 @@ public class WindowingProcessor implements Function<List<Row>, List<Row>>
     };
   }
 
+  @SuppressWarnings("unchecked")
   private static Ordering<Row> dimensionOrdering(
       final String dimension,
-      final StringComparator comparator
+      final Comparator comparator
   )
   {
     return Ordering

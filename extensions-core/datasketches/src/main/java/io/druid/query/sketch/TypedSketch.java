@@ -19,7 +19,12 @@ package io.druid.query.sketch;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonValue;
+import com.google.common.base.Preconditions;
+import com.google.common.collect.Lists;
+import com.google.common.primitives.Bytes;
+import com.google.common.primitives.UnsignedBytes;
 import com.metamx.common.Pair;
+import com.metamx.common.StringUtils;
 import com.yahoo.memory.Memory;
 import com.yahoo.sketches.ArrayOfDoublesSerDe;
 import com.yahoo.sketches.ArrayOfItemsSerDe;
@@ -31,11 +36,14 @@ import com.yahoo.sketches.sampling.ReservoirItemsSketch;
 import com.yahoo.sketches.sampling.ReservoirItemsUnion;
 import com.yahoo.sketches.theta.Sketch;
 import com.yahoo.sketches.theta.Union;
+import io.druid.data.TypeUtils;
 import io.druid.data.ValueDesc;
 import io.druid.data.ValueType;
 import io.druid.query.aggregation.datasketches.theta.SketchOperations;
 
+import java.nio.ByteBuffer;
 import java.util.Comparator;
+import java.util.List;
 
 /**
  */
@@ -43,10 +51,9 @@ public abstract class TypedSketch<T> extends Pair<ValueDesc, T>
 {
   public static TypedSketch deserialize(SketchOp sketchOp, Object bytes, Comparator comparator)
   {
-    byte[] value = SketchOperations.asBytes(bytes);
-    ValueDesc type = TypedSketch.fromByte(value[0]);
-    Memory memory = Memory.wrap(value).region(1, value.length - 1);
-    return TypedSketch.of(type, deserialize(sketchOp, memory, type, comparator));
+    ByteBuffer value = ByteBuffer.wrap(SketchOperations.asBytes(bytes));
+    ValueDesc type = TypedSketch.typeFromBytes(value);
+    return TypedSketch.of(type, deserialize(sketchOp, Memory.wrap(value.slice()), type, comparator));
   }
 
   private static Object deserialize(
@@ -201,11 +208,7 @@ public abstract class TypedSketch<T> extends Pair<ValueDesc, T>
   @JsonValue
   public byte[] toByteArray()
   {
-    byte[] sketch = sketchToBytes();
-    byte[] typed = new byte[sketch.length + 1];
-    typed[0] = toByte(lhs);
-    System.arraycopy(sketch, 0, typed, 1, sketch.length);
-    return typed;
+    return Bytes.concat(toBytes(lhs), sketchToBytes());
   }
 
   public abstract byte[] sketchToBytes();
@@ -214,7 +217,6 @@ public abstract class TypedSketch<T> extends Pair<ValueDesc, T>
   private static final ArrayOfItemsSerDe<Double> doublesSerDe = new ArrayOfDoublesSerDe();
   private static final ArrayOfItemsSerDe<Long> longsSerDe = new ArrayOfLongsSerDe();
   private static final ArrayOfItemsSerDe<String> stringsSerDe = new ArrayOfStringsSerDe();
-
 
   public static ArrayOfItemsSerDe toItemsSerDe(ValueDesc type)
   {
@@ -228,28 +230,49 @@ public abstract class TypedSketch<T> extends Pair<ValueDesc, T>
       case STRING:
         return stringsSerDe;
       default:
+        if (type.isStruct()) {
+          String[] split = Preconditions.checkNotNull(
+              TypeUtils.splitDescriptiveType(type.typeName()),
+              "invalid description " + type
+          );
+          List<ValueType> fields = Lists.newArrayList();
+          for (String element : split[1].split(",")) {
+            element = element.trim();
+            int index = element.indexOf(':');
+            if (index >= 0) {
+              element = split[1].substring(index);    // named field
+            }
+            fields.add(ValueType.ofPrimitive(element));
+          }
+          return new ArrayOfStructSerDe(fields);
+        }
         throw new UnsupportedOperationException("unsupported type " + type);
     }
   }
 
-  public static byte toByte(ValueDesc type)
+  private static byte[] toBytes(ValueDesc type)
   {
     switch (type.type()) {
       case FLOAT:
-        return 0;
+        return new byte[] {0x00};
       case DOUBLE:
-        return 1;
+        return new byte[] {0x01};
       case LONG:
-        return 2;
+        return new byte[] {0x02};
       case STRING:
-        return 3;
+        return new byte[] {0x03};
+      case COMPLEX:
+        byte[] bytes = StringUtils.toUtf8(type.typeName());
+        Preconditions.checkArgument(bytes.length < 0xFF);
+        return ByteBuffer.allocate(1 + 1 + bytes.length).put((byte) 0x04).put((byte) bytes.length).put(bytes).array();
       default:
         throw new UnsupportedOperationException("unsupported type " + type);
     }
   }
 
-  public static ValueDesc fromByte(byte type)
+  private static ValueDesc typeFromBytes(ByteBuffer value)
   {
+    byte type = value.get();
     switch (type) {
       case 0:
         return ValueDesc.FLOAT;
@@ -259,6 +282,10 @@ public abstract class TypedSketch<T> extends Pair<ValueDesc, T>
         return ValueDesc.LONG;
       case 3:
         return ValueDesc.STRING;
+      case 4:
+        byte[] desc = new byte[UnsignedBytes.toInt(value.get())];
+        value.get(desc);
+        return ValueDesc.of(StringUtils.fromUtf8(desc));
       default:
         throw new UnsupportedOperationException("unsupported type " + type);
     }

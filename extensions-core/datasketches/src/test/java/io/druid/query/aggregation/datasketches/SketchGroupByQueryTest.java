@@ -33,6 +33,7 @@ import io.druid.query.groupby.GroupByQuery;
 import io.druid.query.groupby.GroupByQueryRunnerFactory;
 import io.druid.query.groupby.GroupByQueryRunnerTest;
 import io.druid.query.groupby.GroupByQueryRunnerTestHelper;
+import io.druid.query.ordering.OrderingSpec;
 import io.druid.query.sketch.GenericSketchAggregatorFactory;
 import io.druid.query.sketch.SketchOp;
 import io.druid.query.sketch.SketchQuantilesPostAggregator;
@@ -128,7 +129,13 @@ public class SketchGroupByQueryTest
         .setVirtualColumns(new ExprVirtualColumn("concat(market, '\\u0001', quality)", "VC"))
         .setAggregatorSpecs(
             new GenericSketchAggregatorFactory(
-                "SKETCH", "VC", SketchOp.QUANTILE, null, "stringarray(\u0001)", false
+                "SKETCH",
+                "VC",
+                null,
+                SketchOp.QUANTILE,
+                null,
+                OrderingSpec.toOrderingSpecs("stringarray(\u0001)"),
+                false
             )
         )
         .setPostAggregatorSpecs(

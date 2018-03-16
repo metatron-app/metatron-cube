@@ -22,12 +22,11 @@ package io.druid.segment.serde;
 import com.google.common.collect.Maps;
 import com.metamx.common.ISE;
 import com.metamx.common.logger.Logger;
+import io.druid.data.TypeUtils;
 import io.druid.data.ValueDesc;
 import io.druid.query.aggregation.ArrayMetricSerde;
 
 import java.util.Map;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 /**
  */
@@ -38,8 +37,6 @@ public class ComplexMetrics
   private static final Map<String, ComplexMetricSerde> complexSerializers = Maps.newHashMap();
   private static final Map<Class, String> classToTypeName = Maps.newHashMap();
 
-  private static Pattern DESCRIPTION = Pattern.compile("^(.+)\\((.*)\\)$");
-
   public static ComplexMetricSerde getSerdeForType(ValueDesc type)
   {
     return getSerdeForType(type.typeName());
@@ -49,11 +46,11 @@ public class ComplexMetrics
   {
     ComplexMetricSerde serde = complexSerializers.get(type);
     if (serde == null) {
-      Matcher matcher = DESCRIPTION.matcher(type);
-      if (matcher.matches()) {
-        ComplexMetricSerde.Factory factory = complexSerializerFactories.get(matcher.group(1));
+      String[] descriptiveType = TypeUtils.splitDescriptiveType(type);
+      if (descriptiveType != null) {
+        ComplexMetricSerde.Factory factory = complexSerializerFactories.get(descriptiveType[0]);
         if (factory != null) {
-          serde = factory.create(matcher.group(2));
+          serde = factory.create(descriptiveType[1]);
         }
       }
     }

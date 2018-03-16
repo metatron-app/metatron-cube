@@ -2016,6 +2016,26 @@ public interface BuiltinFunctions extends Function.Library
     }
   }
 
+  @Function.Named("struct")
+  final class Struct extends Function.NamedFunction
+  {
+    @Override
+    public ValueDesc apply(List<Expr> args, TypeBinding bindings)
+    {
+      return ValueDesc.STRUCT;
+    }
+
+    @Override
+    public ExprEval apply(List<Expr> args, NumericBinding bindings)
+    {
+      Object[] array = new Object[args.size()];
+      for (int i = 0; i < array.length; i++) {
+        array[i] = args.get(i).eval(bindings).value();
+      }
+      return ExprEval.of(array, ValueDesc.STRUCT);
+    }
+  }
+
   @Function.Named("ipv4_in")
   final class IPv4In extends Function.AbstractFactory
   {

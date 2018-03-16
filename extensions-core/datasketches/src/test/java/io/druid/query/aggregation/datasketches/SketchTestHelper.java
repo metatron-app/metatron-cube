@@ -19,6 +19,7 @@
 
 package io.druid.query.aggregation.datasketches;
 
+import io.druid.data.ValueDesc;
 import io.druid.query.QueryRunnerTestHelper;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.PostAggregator;
@@ -42,6 +43,7 @@ public class SketchTestHelper extends QueryRunnerTestHelper
   public static final AggregatorFactory indexQuantileAggr = new GenericSketchAggregatorFactory(
       indexSketchMetric,
       indexMetric,
+      null,
       SketchOp.QUANTILE,
       null,
       null,
@@ -51,6 +53,7 @@ public class SketchTestHelper extends QueryRunnerTestHelper
   public static final AggregatorFactory indexThetaAggr = new GenericSketchAggregatorFactory(
       indexSketchMetric,
       indexMetric,
+      ValueDesc.DOUBLE,
       SketchOp.THETA,
       null,
       null,
@@ -62,6 +65,7 @@ public class SketchTestHelper extends QueryRunnerTestHelper
   public static final AggregatorFactory qualityQuantileAggr = new GenericSketchAggregatorFactory(
       qualitySketchMetric,
       qualityDimension,
+      null,
       SketchOp.QUANTILE,
       null,
       null,
@@ -71,6 +75,7 @@ public class SketchTestHelper extends QueryRunnerTestHelper
   public static final AggregatorFactory qualityThetaAggr = new GenericSketchAggregatorFactory(
       qualitySketchMetric,
       qualityDimension,
+      null,
       SketchOp.THETA,
       null,
       null,

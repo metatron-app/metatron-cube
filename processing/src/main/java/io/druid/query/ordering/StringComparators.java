@@ -22,6 +22,7 @@ package io.druid.query.ordering;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+import com.google.common.collect.Ordering;
 import com.google.common.primitives.Ints;
 import com.google.common.primitives.Longs;
 import com.google.common.primitives.UnsignedBytes;
@@ -29,14 +30,20 @@ import com.metamx.common.IAE;
 import com.metamx.common.StringUtils;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.common.utils.JodaUtils;
+import io.druid.data.TypeUtils;
+import io.druid.data.ValueDesc;
+import io.druid.data.ValueType;
 import io.druid.query.dimension.DimensionSpec;
 import io.druid.query.dimension.DimensionSpecWithOrdering;
+import io.netty.util.internal.StringUtil;
 import org.joda.time.DateTimeConstants;
 import org.joda.time.format.DateTimeFormatter;
 
 import java.math.BigDecimal;
 import java.text.DateFormatSymbols;
+import java.util.Arrays;
 import java.util.Calendar;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -65,16 +72,16 @@ public class StringComparators
   public static final DayOfWeekComparator DAY_OF_WEEK = new DayOfWeekComparator(null);
   public static final MonthComparator MONTH = new MonthComparator(null);
 
+  public static boolean isLexicographicString(String ordering)
+  {
+    return ordering.equalsIgnoreCase(StringComparators.LEXICOGRAPHIC_NAME) ||
+           ordering.equalsIgnoreCase(ValueDesc.STRING_TYPE);
+  }
+
   public static StringComparator revert(final StringComparator comparator)
   {
     return new StringComparator()
     {
-      @Override
-      public byte[] getCacheKey()
-      {
-        throw new UnsupportedOperationException("getCacheKey");
-      }
-
       @Override
       public int compare(String o1, String o2)
       {
@@ -102,31 +109,7 @@ public class StringComparators
       return _compare(s, s2);
     }
 
-    @Override
-    public int hashCode()
-    {
-      return toString().hashCode();
-    }
-
-    @Override
-    public boolean equals(Object o)
-    {
-      if (this == o) {
-        return true;
-      }
-      if (o == null || getClass() != o.getClass()) {
-        return false;
-      }
-      return true;
-    }
-
     protected abstract int _compare(String s, String s2);
-
-    @Override
-    public byte[] getCacheKey()
-    {
-      return StringUtils.toUtf8(toString());
-    }
   }
 
   public static class LexicographicComparator extends AbstractStringComparator
@@ -643,21 +626,100 @@ public class StringComparators
     return type;
   }
 
+  public static Comparator makeComparator(ValueDesc sourceType)
+  {
+    return makeComparator(sourceType, null);
+  }
+
+  // used in sketch aggregator
+  public static Comparator makeComparator(ValueDesc sourceType, List<OrderingSpec> orderingSpecs)
+  {
+    if (sourceType.isPrimitive()) {
+      Preconditions.checkArgument(orderingSpecs == null || orderingSpecs.size() == 1);
+      if (orderingSpecs == null) {
+        return sourceType.comparator();
+      }
+      OrderingSpec orderingSpec = orderingSpecs.get(0);
+      Comparator comparator = makeComparator(orderingSpec.getDimensionOrder());
+      if (orderingSpec.getDirection() == Direction.DESCENDING) {
+        comparator = Ordering.from(comparator).reverse();
+      }
+      return comparator;
+    }
+    Preconditions.checkArgument(sourceType.isStruct());
+    String[] descriptive = TypeUtils.splitDescriptiveType(sourceType.typeName());
+    List<String> elements = TypeUtils.splitWithEscape(descriptive[1], ',');
+    Comparator[] comparators = new Comparator[elements.size()];
+    if (orderingSpecs == null) {
+      Arrays.fill(comparators, Ordering.natural().nullsFirst());
+      return toStructComparator(comparators);
+    }
+    Preconditions.checkArgument(elements.size() >= orderingSpecs.size(), "not matching number of elements");
+    for (int i = 0; i < elements.size(); i++) {
+      ValueType elementType = ValueType.ofPrimitive(elements.get(i).trim());
+      OrderingSpec orderingSpec = i < orderingSpecs.size() ? orderingSpecs.get(i) : null;
+      if (orderingSpec != null) {
+        String ordering = orderingSpec.getDimensionOrder();
+        comparators[i] = elementType == ValueType.STRING ? makeComparator(ordering) : elementType.comparator();
+        if (orderingSpec.getDirection() == Direction.DESCENDING) {
+          comparators[i] = Ordering.from(comparators[i]).reverse();
+        }
+      } else {
+        comparators[i] = elementType.comparator();
+      }
+    }
+    return toStructComparator(comparators);
+  }
+
+  private static Comparator toStructComparator(final Comparator[] cx)
+  {
+    return new Comparator<Object[]>()
+    {
+      @Override
+      @SuppressWarnings("unchecked")
+      public int compare(Object[] o1, Object[] o2)
+      {
+        int compare = 0;
+        for (int i = 0; compare == 0 && i < cx.length; i++) {
+          compare = cx[i].compare(o1[i], o2[i]);
+        }
+        return compare;
+      }
+    };
+  }
+
   public static StringComparator makeComparator(String type)
   {
     StringComparator comparator = tryMakeComparator(type, LEXICOGRAPHIC);
     if (comparator == null) {
-      throw new IAE("Unknown string comparator[%s]", type);
+      throw new IAE("Unknown string comparator [%s]", type);
     }
     return comparator;
   }
 
   public static StringComparator tryMakeComparator(String type, StringComparator nullValue)
   {
-    return type == null ? nullValue : toComparator(type);
+    boolean descending = false;
+    String lowerCased = type.toLowerCase();
+    if (lowerCased.endsWith(":asc")) {
+      type = type.substring(0, type.length() - 4);
+    } else if (lowerCased.endsWith(":desc")) {
+      type = type.substring(0, type.length() - 5);
+      descending = true;
+    }
+    return _toComparator(type, nullValue, descending);
   }
 
-  private static StringComparator toComparator(String type)
+  private static StringComparator _toComparator(String type, StringComparator nullValue, boolean descending)
+  {
+    StringComparator comparator = StringUtil.isNullOrEmpty(type) ? nullValue : _toStringComparator(type);
+    if (comparator != null && descending) {
+      comparator = revert(comparator);
+    }
+    return comparator;
+  }
+
+  private static StringComparator _toStringComparator(String type)
   {
     String lowerCased = type.toLowerCase();
     switch (lowerCased) {
@@ -685,46 +747,29 @@ public class StringComparators
           return new MonthComparator(type.substring(MONTH_NAME.length() + 1));
         }
         if (lowerCased.startsWith(StringComparators.DATETIME_NAME + "(")) {
-          int seek = JodaUtils.seekTo(type, DATETIME_NAME.length() + 1, ')');
+          int seek = TypeUtils.seekWithEscape(type, DATETIME_NAME.length() + 1, ')');
           if (seek < 0) {
             throw new IllegalArgumentException("not matching ')' in " + type);
           }
           return new DateTimeComparator(type.substring(DATETIME_NAME.length() + 1, seek));
         }
         if (lowerCased.startsWith(StringComparators.STRING_ARRAY_NAME + "(")) {
-          int seek = JodaUtils.seekTo(type, STRING_ARRAY_NAME.length() + 1, ')');
+          int seek = TypeUtils.seekWithEscape(type, STRING_ARRAY_NAME.length() + 1, ')');
           if (seek < 0) {
             throw new IllegalArgumentException("not matching ')' in " + type);
           }
           String argument = type.substring(STRING_ARRAY_NAME.length() + 1, seek);
-          List<String> splits = JodaUtils.split(argument, ',');
+          List<String> splits = TypeUtils.splitWithEscape(argument, ',');
           Preconditions.checkArgument(!splits.isEmpty() && splits.get(0).length() == 1, "separator should be a char");
           String separator = splits.get(0);
           List<StringComparator> comparators = Lists.newArrayList();
           for (int i = 1; i < splits.size(); i++) {
-            comparators.add(
-                Preconditions.checkNotNull(
-                    toComparatorWithPossibleDirection(splits.get(i)),
-                    "invalid comparator type '" + splits.get(i) + "'"
-                )
-            );
+            comparators.add(makeComparator(splits.get(i)));
           }
           return new StringArrayComparator(argument, separator.charAt(0), comparators.toArray(new StringComparator[0]));
         }
         return null;
     }
-  }
-
-  // internal use for dimension handling.. (damn)
-  private static StringComparator toComparatorWithPossibleDirection(String type)
-  {
-    String lowerCased = type.toLowerCase();
-    if (lowerCased.endsWith(":asc")) {
-      return toComparator(type.substring(0, type.length() - 4));
-    } else if (lowerCased.endsWith(":desc")) {
-      return StringComparators.revert(toComparator(type.substring(0, type.length() - 5)));
-    }
-    return toComparator(type);
   }
 
   public static String asComparatorName(char separator, List<DimensionSpec> dimensionSpecs)

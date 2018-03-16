@@ -537,15 +537,16 @@ public class GroupByQuery extends BaseAggregationQuery<Row> implements Query.Rew
     } else {
       String comparator = StringComparators.asComparatorName(separator, dimensionSpecs);
       vcs = Arrays.<VirtualColumn>asList(
-          new ExprVirtualColumn("concat(" + StringUtils.join(dimensions, ", '" + separator + "',") + ")", "VC")
+          new ExprVirtualColumn("array(" + StringUtils.join(dimensions, ", '" + separator + "',") + ")", "VC")
       );
       ag = ImmutableMap.<String, Object>builder()
                        .put("type", "sketch")
                        .put("name", "SKETCH")
                        .put("fieldName", "VC")
+                       .put("sourceType", "SKETCH")
                        .put("sketchOp", "QUANTILE")
                        .put("sketchParam", 128)
-                       .put("stringComparator", comparator)
+                       .put("orderingSpecs", comparator)
                        .build();
     }
     List<Direction> directions = DimensionSpecs.getDirections(dimensionSpecs);

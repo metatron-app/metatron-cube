@@ -71,9 +71,10 @@ public class Bounds
     }
   }
 
+  @SuppressWarnings("unchecked")
   public static Range<BoundValue> toRange(final BoundDimFilter bound)
   {
-    final Comparator<String> comparator = bound.getComparator();
+    final Comparator comparator = bound.getComparator();
     final BoundValue upper = bound.getUpper() != null ? new BoundValue(bound.getUpper(), comparator) : null;
     final BoundValue lower = bound.getLower() != null ? new BoundValue(bound.getLower(), comparator) : null;
 

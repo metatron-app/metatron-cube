@@ -19,7 +19,11 @@
 
 package io.druid.query.ordering;
 
+import com.google.common.base.Function;
+import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
+import com.google.common.collect.Sets;
+import io.druid.data.ValueDesc;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -27,8 +31,10 @@ import java.text.DateFormatSymbols;
 import java.util.Arrays;
 import java.util.Calendar;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
+import java.util.Set;
 
 public class StringComparatorsTest
 {
@@ -49,7 +55,7 @@ public class StringComparatorsTest
   {
     boolean defaultLocale = language == null;
     DateFormatSymbols symbols = defaultLocale ? new DateFormatSymbols() : new DateFormatSymbols(new Locale(language));
-    StringComparator comparator = StringComparators.makeComparator(
+    Comparator comparator = StringComparators.makeComparator(
         defaultLocale ? "dayofweek" : "dayofweek." + language
     );
     for (String[] dayOfWeek : new String[][]{symbols.getWeekdays(), symbols.getShortWeekdays()}) {
@@ -73,7 +79,7 @@ public class StringComparatorsTest
   {
     boolean defaultLocale = language == null;
     DateFormatSymbols symbols = defaultLocale ? new DateFormatSymbols() : new DateFormatSymbols(new Locale(language));
-    StringComparator comparator = StringComparators.makeComparator(
+    Comparator comparator = StringComparators.makeComparator(
         defaultLocale ? "month" : "month." + language
     );
     for (String[] months : new String[][]{symbols.getMonths(), symbols.getShortMonths()}) {
@@ -149,7 +155,7 @@ public class StringComparatorsTest
     Collections.shuffle(cartesian);
 
     String name = "stringarray(\u0001,lexicographic:desc,dayofweek.en)";
-    StringComparator c = StringComparators.makeComparator(name);
+    Comparator c = StringComparators.makeComparator(name);
     Assert.assertEquals(name, c.toString());
     Collections.sort(cartesian, c);
     Assert.assertEquals(expected, cartesian);
@@ -177,5 +183,47 @@ public class StringComparatorsTest
     x = Arrays.asList("Week 45, 2012", "Week 36, 2013", "Week 01, 2014", "Week 03, 2013", "Week 17, 2013");
     Collections.sort(x, StringComparators.makeComparator("datetime(''Week' w, xxxx')"));
     Assert.assertEquals(Arrays.asList("Week 45, 2012", "Week 03, 2013", "Week 17, 2013", "Week 36, 2013", "Week 01, 2014"), x);
+  }
+
+  @Test
+  @SuppressWarnings("unchecked")
+  public void testStructType()
+  {
+    Set x1 = Sets.newHashSet(100L, 200L, 300L);
+    Set x2 = Sets.newHashSet("aaa", "bbb", "ccc");
+    Set x3 = Sets.newHashSet("Thursday", "Friday");
+    List<Object[]> arrayList = Lists.newArrayList(
+        Iterables.transform(
+            Sets.cartesianProduct(x1, x2, x3), new Function<List<Object>, Object[]>()
+            {
+              @Override
+              public Object[] apply(List<Object> input)
+              {
+                return input.toArray(new Object[3]);
+              }
+            }
+        )
+    );
+    Collections.shuffle(arrayList);
+    Object[][] values = arrayList.toArray(new Object[0][]);
+
+    Comparator<Object[]> c = StringComparators.makeComparator(ValueDesc.of("struct(long,string,string)"), null);
+    Arrays.sort(values, c);
+
+    Object[][] expected = new Object[][] {
+        a(100L, "aaa", "Friday"), a(100L, "aaa", "Thursday"), a(100L, "bbb", "Friday"), a(100L, "bbb", "Thursday"),
+        a(100L, "ccc", "Friday"), a(100L, "ccc", "Thursday"), a(200L, "aaa", "Friday"), a(200L, "aaa", "Thursday"),
+        a(200L, "bbb", "Friday"), a(200L, "bbb", "Thursday"), a(200L, "ccc", "Friday"), a(200L, "ccc", "Thursday"),
+        a(300L, "aaa", "Friday"), a(300L, "aaa", "Thursday"), a(300L, "bbb", "Friday"), a(300L, "bbb", "Thursday"),
+        a(300L, "ccc", "Friday"), a(300L, "ccc", "Thursday")
+    };
+    Assert.assertArrayEquals(expected, values);
+
+
+  }
+
+  private static Object[] a(Object... x)
+  {
+    return x;
   }
 }

@@ -23,6 +23,7 @@ package io.druid.data;
 public enum ComplexType
 {
   UNKNOWN,
+  OTHER,
   MAP,
   LIST,
 

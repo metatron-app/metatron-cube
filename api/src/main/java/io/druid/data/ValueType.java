@@ -21,6 +21,7 @@ package io.druid.data;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonValue;
+import com.google.common.base.Preconditions;
 import com.google.common.collect.Ordering;
 import io.druid.data.input.Row;
 import org.joda.time.DateTime;
@@ -238,6 +239,13 @@ public enum ValueType
     catch (IllegalArgumentException e) {
       return defaultType;
     }
+  }
+
+  public static ValueType ofPrimitive(String name)
+  {
+    ValueType type = of(name);
+    Preconditions.checkArgument(type.isPrimitive(), name + " is not primitive type");
+    return type;
   }
 
   public static ValueType of(Class clazz)

@@ -21,11 +21,10 @@ package io.druid.query.topn;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import io.druid.common.utils.StringUtils;
+import io.druid.query.QueryCacheHelper;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.PostAggregator;
 import io.druid.query.dimension.DimensionSpec;
-import io.druid.query.ordering.StringComparator;
 import io.druid.query.ordering.StringComparators;
 import org.joda.time.DateTime;
 
@@ -37,21 +36,20 @@ import java.util.List;
  */
 public class DimensionTopNMetricSpec implements TopNMetricSpec
 {
-  private static final StringComparator DEFAULT_ORDERING = StringComparators.LEXICOGRAPHIC;
   private static final byte STRING_SEPARATOR = (byte) 0xFF;
 
   private static final byte CACHE_TYPE_ID = 0x4;
   private final String previousStop;
-  private final StringComparator ordering;
+  private final String ordering;
 
   @JsonCreator
   public DimensionTopNMetricSpec(
       @JsonProperty("previousStop") String previousStop,
-      @JsonProperty("ordering") StringComparator ordering
+      @JsonProperty("ordering") String ordering
   )
   {
     this.previousStop = previousStop;
-    this.ordering = ordering == null ? DEFAULT_ORDERING : ordering;
+    this.ordering = ordering == null ? StringComparators.LEXICOGRAPHIC_NAME : ordering;
   }
 
   @Override
@@ -66,7 +64,7 @@ public class DimensionTopNMetricSpec implements TopNMetricSpec
   }
 
   @JsonProperty
-  public StringComparator getOrdering()
+  public String getOrdering()
   {
     return ordering;
   }
@@ -74,7 +72,7 @@ public class DimensionTopNMetricSpec implements TopNMetricSpec
   @Override
   public Comparator getComparator(List<AggregatorFactory> aggregatorSpecs, List<PostAggregator> postAggregatorSpecs)
   {
-    return ordering;
+    return StringComparators.makeComparator(ordering);
   }
 
   @Override
@@ -100,8 +98,8 @@ public class DimensionTopNMetricSpec implements TopNMetricSpec
   @Override
   public byte[] getCacheKey()
   {
-    byte[] previousStopBytes = previousStop == null ? new byte[]{} : StringUtils.toUtf8(previousStop);
-    byte[] orderingBytes = ordering.getCacheKey();
+    byte[] previousStopBytes = QueryCacheHelper.computeCacheBytes(previousStop);
+    byte[] orderingBytes = QueryCacheHelper.computeCacheBytes(ordering);
 
     int totalLen = 2 + previousStopBytes.length + orderingBytes.length;
 
@@ -116,7 +114,7 @@ public class DimensionTopNMetricSpec implements TopNMetricSpec
   @Override
   public <T> TopNMetricSpecBuilder<T> configureOptimizer(TopNMetricSpecBuilder<T> builder)
   {
-    if (ordering.equals(StringComparators.LEXICOGRAPHIC)) {
+    if (StringComparators.isLexicographicString(ordering)) {
       builder.skipTo(previousStop);
       builder.ignoreAfterThreshold();
     }
