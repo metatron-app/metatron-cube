@@ -21,6 +21,7 @@ package io.druid.query.dimension;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;
+import io.druid.data.ValueDesc;
 import io.druid.query.extraction.ExtractionFn;
 import io.druid.segment.DimensionSelector;
 import io.druid.segment.data.IndexedInts;
@@ -144,7 +145,7 @@ public abstract class BaseFilteredDimensionSpec extends DimensionSpec.Abstract
       }
 
       @Override
-      public Class type()
+      public ValueDesc type()
       {
         return selector.type();
       }

@@ -17,7 +17,10 @@
  * under the License.
  */
 
-package io.druid.segment;import io.druid.segment.data.IndexedInts;
+package io.druid.segment;
+
+import io.druid.data.ValueDesc;
+import io.druid.segment.data.IndexedInts;
 
 /**
  */
@@ -72,7 +75,7 @@ public interface DimensionSelector
    */
   public Comparable lookupName(int id);
 
-  public Class type();
+  public ValueDesc type();
 
   /**
    * The ID is the int id value of the field.

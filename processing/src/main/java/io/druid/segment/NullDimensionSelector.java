@@ -21,6 +21,7 @@ package io.druid.segment;
 
 import com.google.common.collect.Iterators;
 import io.druid.common.utils.StringUtils;
+import io.druid.data.ValueDesc;
 import io.druid.segment.data.IndexedInts;
 
 import java.io.IOException;
@@ -28,6 +29,8 @@ import java.util.Iterator;
 
 public class NullDimensionSelector implements DimensionSelector
 {
+  public static final DimensionSelector STRING_TYPE = new NullDimensionSelector(ValueDesc.STRING);
+
   public static final IndexedInts SINGLETON = new IndexedInts()
   {
     @Override
@@ -60,9 +63,9 @@ public class NullDimensionSelector implements DimensionSelector
     }
   };
 
-  private final Class type;
+  private final ValueDesc type;
 
-  public NullDimensionSelector(Class type)
+  public NullDimensionSelector(ValueDesc type)
   {
     this.type = type;
   }
@@ -86,7 +89,7 @@ public class NullDimensionSelector implements DimensionSelector
   }
 
   @Override
-  public Class type()
+  public ValueDesc type()
   {
     return type;
   }

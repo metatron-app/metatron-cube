@@ -22,7 +22,6 @@ package io.druid.data;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonValue;
 import com.google.common.base.Preconditions;
-import org.joda.time.DateTime;
 
 import java.util.Comparator;
 
@@ -205,20 +204,10 @@ public class ValueDesc
     return ValueType.of(subElementOf(valueType.typeName()));
   }
 
-  public static ValueDesc onlyPrimitive(Class clazz)
+  public static ValueDesc assertPrimitive(ValueDesc valueDesc)
   {
-    if (clazz == String.class) {
-      return STRING;
-    } else if (clazz == Long.TYPE || clazz == Long.class) {
-      return LONG;
-    } else if (clazz == Float.TYPE || clazz == Float.class) {
-      return FLOAT;
-    } else if (clazz == Double.TYPE || clazz == Double.class) {
-      return DOUBLE;
-    } else if (clazz == DateTime.class) {
-      return DATETIME;
-    }
-    throw new IllegalArgumentException("not primitive type " + clazz);
+    Preconditions.checkArgument(valueDesc.isPrimitive(), "should be primitive type but " + valueDesc);
+    return valueDesc;
   }
 
   private final ValueType type;

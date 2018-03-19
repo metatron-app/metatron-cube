@@ -19,6 +19,7 @@
 
 package io.druid.query.dimension;
 
+import io.druid.data.ValueDesc;
 import io.druid.segment.DimensionSelector;
 import io.druid.segment.data.ArrayBasedIndexedInts;
 import io.druid.segment.data.IndexedInts;
@@ -56,9 +57,9 @@ class TestDimensionSelector implements DimensionSelector
   }
 
   @Override
-  public Class type()
+  public ValueDesc type()
   {
-    return String.class;
+    return ValueDesc.STRING;
   }
 
   @Override

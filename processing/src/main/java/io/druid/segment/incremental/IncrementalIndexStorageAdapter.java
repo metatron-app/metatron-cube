@@ -77,8 +77,6 @@ import java.util.Map;
  */
 public class IncrementalIndexStorageAdapter implements StorageAdapter
 {
-  private static final NullDimensionSelector NULL_DIMENSION_SELECTOR = new NullDimensionSelector(String.class);
-
   private final String segmentIdentifier;
   private final IncrementalIndex<?> index;
 
@@ -406,7 +404,7 @@ public class IncrementalIndexStorageAdapter implements StorageAdapter
                     // todo: group-by columns are converted to string
                     return VirtualColumns.toDimensionSelector(makeObjectColumnSelector(dimension), extractionFn);
                   }
-                  return NULL_DIMENSION_SELECTOR;
+                  return NullDimensionSelector.STRING_TYPE;
                 }
 
                 final int dimIndex = dimensionDesc.getIndex();
@@ -491,9 +489,9 @@ public class IncrementalIndexStorageAdapter implements StorageAdapter
                   }
 
                   @Override
-                  public Class type()
+                  public ValueDesc type()
                   {
-                    return String.class;
+                    return ValueDesc.STRING;
                   }
 
                   @Override

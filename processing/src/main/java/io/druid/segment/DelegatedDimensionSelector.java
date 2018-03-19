@@ -19,6 +19,7 @@
 
 package io.druid.segment;
 
+import io.druid.data.ValueDesc;
 import io.druid.segment.data.IndexedInts;
 
 /**
@@ -51,7 +52,7 @@ public class DelegatedDimensionSelector implements DimensionSelector
   }
 
   @Override
-  public Class type()
+  public ValueDesc type()
   {
     return delegate.type();
   }

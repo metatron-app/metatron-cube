@@ -472,9 +472,9 @@ public class ColumnSelectors
     }
 
     @Override
-    public Class type()
+    public ValueDesc type()
     {
-      return String.class;
+      return ValueDesc.STRING;
     }
 
     @Override

@@ -26,6 +26,7 @@ import com.google.common.collect.Iterables;
 import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+import io.druid.data.ValueDesc;
 import io.druid.jackson.DefaultObjectMapper;
 import io.druid.js.JavaScriptConfig;
 import io.druid.query.aggregation.Aggregator;
@@ -167,9 +168,9 @@ public class CardinalityAggregatorTest
     }
 
     @Override
-    public Class type()
+    public ValueDesc type()
     {
-      return String.class;
+      return ValueDesc.STRING;
     }
 
     @Override

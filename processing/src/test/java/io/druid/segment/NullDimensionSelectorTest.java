@@ -27,7 +27,7 @@ import java.util.Iterator;
 
 public class NullDimensionSelectorTest {
 
-  private final NullDimensionSelector selector = new NullDimensionSelector(String.class);
+  private final DimensionSelector selector = NullDimensionSelector.STRING_TYPE;
 
   @Test
   public void testGetRow() throws Exception {

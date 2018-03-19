@@ -114,7 +114,7 @@ public class VirtualColumns implements Iterable<VirtualColumn>
         return selector.get();
       }
     };
-    return new MimicDimension(Long.class, supplier);
+    return new MimicDimension(ValueDesc.LONG, supplier);
   }
 
   public static DimensionSelector toDimensionSelector(
@@ -124,17 +124,17 @@ public class VirtualColumns implements Iterable<VirtualColumn>
   {
     if (selector == null) {
       if (extractionFn == null) {
-        return new NullDimensionSelector(String.class);
+        return NullDimensionSelector.STRING_TYPE;
       }
       return new ColumnSelectors.SingleValuedDimensionSelector(extractionFn.apply(null));
     }
 
-    final Class type;
+    final ValueDesc type;
     final ValueDesc valueDesc = selector.type();
-    if (extractionFn == null && ValueDesc.isPrimitive(valueDesc)) {
-      type = valueDesc.type().classOfObject();
+    if (extractionFn != null || !ValueDesc.isPrimitive(valueDesc)) {
+      type = ValueDesc.STRING;
     } else {
-      type = String.class;
+      type = valueDesc;
     }
     final Supplier<Comparable> supplier = new Supplier<Comparable>()
     {
@@ -145,7 +145,7 @@ public class VirtualColumns implements Iterable<VirtualColumn>
         final Comparable value;
         if (extractionFn != null) {
           value = extractionFn.apply(selected);
-        } else if (type == String.class) {
+        } else if (!type.isPrimitive()) {
           value = Objects.toString(selected, null);
         } else {
           value = (Comparable) selected;
@@ -158,14 +158,14 @@ public class VirtualColumns implements Iterable<VirtualColumn>
 
   private static class MimicDimension implements DimensionSelector
   {
-    private final Class type;
+    private final ValueDesc type;
     private final Supplier<? extends Comparable> supplier;
 
     private int counter;
     private final Map<Comparable, Integer> valToId = Maps.newHashMap();
     private final List<Comparable> idToVal = Lists.newArrayList();
 
-    private MimicDimension(Class type, Supplier<? extends Comparable> supplier) {
+    private MimicDimension(ValueDesc type, Supplier<? extends Comparable> supplier) {
       this.type = type;
       this.supplier = supplier;
     }
@@ -226,7 +226,7 @@ public class VirtualColumns implements Iterable<VirtualColumn>
     }
 
     @Override
-    public Class type()
+    public ValueDesc type()
     {
       return type;
     }
@@ -276,9 +276,9 @@ public class VirtualColumns implements Iterable<VirtualColumn>
       }
 
       @Override
-      public Class type()
+      public ValueDesc type()
       {
-        return String.class;
+        return ValueDesc.STRING;
       }
 
       @Override

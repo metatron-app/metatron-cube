@@ -74,8 +74,6 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
 {
   private static final Logger LOG = new Logger(QueryableIndexStorageAdapter.class);
 
-  private static final NullDimensionSelector NULL_DIMENSION_SELECTOR = new NullDimensionSelector(String.class);
-
   private final QueryableIndex index;
   private final String segmentId;
 
@@ -488,7 +486,7 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
                         if (virtualColumn != null) {
                           return virtualColumn.asDimension(dimension, extractionFn, this);
                         }
-                        return NULL_DIMENSION_SELECTOR;
+                        return NullDimensionSelector.STRING_TYPE;
                       }
 
                       DictionaryEncodedColumn cachedColumn = dictionaryColumnCache.get(dimension);
@@ -528,9 +526,9 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
                             }
 
                             @Override
-                            public Class type()
+                            public ValueDesc type()
                             {
-                              return String.class;
+                              return ValueDesc.STRING;
                             }
 
                             @Override
@@ -564,9 +562,9 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
                             }
 
                             @Override
-                            public Class type()
+                            public ValueDesc type()
                             {
-                              return String.class;
+                              return ValueDesc.STRING;
                             }
 
                             @Override
@@ -637,9 +635,9 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
                             }
 
                             @Override
-                            public Class type()
+                            public ValueDesc type()
                             {
-                              return String.class;
+                              return ValueDesc.STRING;
                             }
 
                             @Override
@@ -673,9 +671,9 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
                             }
 
                             @Override
-                            public Class type()
+                            public ValueDesc type()
                             {
-                              return String.class;
+                              return ValueDesc.STRING;
                             }
 
                             @Override

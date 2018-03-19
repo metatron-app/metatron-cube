@@ -131,9 +131,9 @@ public class FilteredAggregatorTest
                 }
 
                 @Override
-                public Class type()
+                public ValueDesc type()
                 {
-                  return String.class;
+                  return ValueDesc.STRING;
                 }
 
                 @Override

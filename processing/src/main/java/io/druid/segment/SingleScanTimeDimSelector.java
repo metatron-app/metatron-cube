@@ -21,6 +21,7 @@ package io.druid.segment;
 
 import com.google.common.collect.Iterators;
 import com.google.common.collect.Maps;
+import io.druid.data.ValueDesc;
 import io.druid.query.extraction.ExtractionFn;
 import io.druid.segment.data.IndexedInts;
 
@@ -144,9 +145,9 @@ public class SingleScanTimeDimSelector implements DimensionSelector
   }
 
   @Override
-  public Class type()
+  public ValueDesc type()
   {
-    return String.class;
+    return ValueDesc.STRING;
   }
 
   @Override

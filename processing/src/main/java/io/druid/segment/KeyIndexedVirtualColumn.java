@@ -116,7 +116,7 @@ public class KeyIndexedVirtualColumn implements VirtualColumn
         @Override
         public ValueDesc type()
         {
-          return ValueDesc.onlyPrimitive(selector.type());
+          return ValueDesc.assertPrimitive(selector.type());
         }
 
         @Override

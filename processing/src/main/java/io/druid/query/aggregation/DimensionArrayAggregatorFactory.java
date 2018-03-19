@@ -289,7 +289,7 @@ public class DimensionArrayAggregatorFactory extends AbstractArrayAggregatorFact
         }
 
         @Override
-        public Class type()
+        public ValueDesc type()
         {
           return selector.type();
         }
