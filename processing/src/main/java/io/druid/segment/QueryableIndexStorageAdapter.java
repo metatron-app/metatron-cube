@@ -23,7 +23,6 @@ import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Predicates;
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
@@ -65,7 +64,6 @@ import org.joda.time.Interval;
 
 import java.io.Closeable;
 import java.io.IOException;
-import java.util.Iterator;
 import java.util.Map;
 
 /**
@@ -582,35 +580,12 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
                         }
                       } else {
                         // using an anonymous class is faster than creating a class that stores a copy of the value
-                        final IndexedInts row = new IndexedInts()
+                        final IndexedInts row = new IndexedInts.SingleValued()
                         {
                           @Override
-                          public int size()
-                          {
-                            return 1;
-                          }
-
-                          @Override
-                          public int get(int index)
+                          protected final int get()
                           {
                             return column.getSingleValueRow(cursorOffset.getOffset());
-                          }
-
-                          @Override
-                          public Iterator<Integer> iterator()
-                          {
-                            return Iterators.singletonIterator(column.getSingleValueRow(cursorOffset.getOffset()));
-                          }
-
-                          @Override
-                          public void fill(int index, int[] toFill)
-                          {
-                            throw new UnsupportedOperationException("fill not supported");
-                          }
-
-                          @Override
-                          public void close() throws IOException
-                          {
                           }
                         };
                         if (extractionFn != null) {

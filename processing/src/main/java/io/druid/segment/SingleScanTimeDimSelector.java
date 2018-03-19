@@ -19,14 +19,11 @@
 
 package io.druid.segment;
 
-import com.google.common.collect.Iterators;
 import com.google.common.collect.Maps;
 import io.druid.data.ValueDesc;
 import io.druid.query.extraction.ExtractionFn;
 import io.druid.segment.data.IndexedInts;
 
-import java.io.IOException;
-import java.util.Iterator;
 import java.util.Map;
 
 public class SingleScanTimeDimSelector implements DimensionSelector
@@ -94,36 +91,12 @@ public class SingleScanTimeDimSelector implements DimensionSelector
     // keep using the same dimension value index
 
     final int dimensionValueIndex = index;
-    return new IndexedInts()
+    return new IndexedInts.SingleValued()
     {
       @Override
-      public int size()
-      {
-        return 1;
-      }
-
-      @Override
-      public int get(int i)
+      protected final int get()
       {
         return dimensionValueIndex;
-      }
-
-      @Override
-      public Iterator<Integer> iterator()
-      {
-        return Iterators.singletonIterator(dimensionValueIndex);
-      }
-
-      @Override
-      public void fill(int index, int[] toFill)
-      {
-        throw new UnsupportedOperationException("fill not supported");
-      }
-
-      @Override
-      public void close() throws IOException
-      {
-
       }
     };
   }

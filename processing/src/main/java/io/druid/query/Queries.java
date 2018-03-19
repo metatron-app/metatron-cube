@@ -23,6 +23,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
@@ -34,10 +36,13 @@ import io.druid.data.ValueDesc;
 import io.druid.data.input.MapBasedRow;
 import io.druid.data.input.Row;
 import io.druid.data.input.Rows;
+import io.druid.granularity.Granularities;
 import io.druid.granularity.QueryGranularities;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.PostAggregator;
 import io.druid.query.aggregation.RelayAggregatorFactory;
+import io.druid.query.dimension.DefaultDimensionSpec;
+import io.druid.query.dimension.DimensionSpec;
 import io.druid.query.dimension.DimensionSpecs;
 import io.druid.query.groupby.GroupByQuery;
 import io.druid.query.groupby.PartitionedGroupByQuery;
@@ -55,6 +60,7 @@ import io.druid.segment.column.Column;
 import io.druid.segment.incremental.IncrementalIndexSchema;
 import org.joda.time.DateTime;
 
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -194,7 +200,7 @@ public class Queries
                     .withRollup(false)
                     .build();
     } else if (subQuery instanceof PartitionedGroupByQuery.GroupByDelegate) {
-      GroupByQuery query = (GroupByQuery) ((UnionAllQuery)subQuery).getQueries().get(0);
+      GroupByQuery query = (GroupByQuery) ((UnionAllQuery) subQuery).getQueries().get(0);
       return relaySchema(query, segmentWalker);
     } else {
       // todo union-all (partitioned-join, etc.)
@@ -377,5 +383,75 @@ public class Queries
       }
     }
     return function.apply(query);
+  }
+
+  public static ColumnHistogram getColumnHistogramOfFirstDimension(
+      QuerySegmentWalker segmentWalker,
+      ObjectMapper jsonMapper,
+      GroupByQuery query,
+      int numSplits
+  )
+  {
+    if (query.getDimensions().isEmpty() || !Granularities.ALL.equals(query.getGranularity())) {
+      return null;
+    }
+    DimensionSpec dimension = query.getDimensions().get(0);
+    if (!(dimension instanceof DefaultDimensionSpec)) {
+      return null;  // todo (see DimensionSpecVC)
+    }
+
+    Map<String, Object> ag = ImmutableMap.<String, Object>builder()
+                                         .put("type", "sketch")
+                                         .put("name", "SKETCH")
+                                         .put("fieldName", dimension.getDimension())
+                                         .put("sketchOp", "QUANTILE")
+                                         .put("sketchParam", 128)
+                                         .build();
+
+    Map<String, Object> pg = ImmutableMap.<String, Object>builder()
+                                         .put("type", "sketch.quantiles")
+                                         .put("name", "SPLIT")
+                                         .put("fieldName", "SKETCH")
+                                         .put("op", "QUANTILES_CDF")
+                                         .put("slopedSpaced", numSplits + 1)
+                                         .put("ratioAsCount", true)
+                                         .build();
+
+    Map<String, Object> context = Maps.<String, Object>newHashMap(query.getContext());
+    context.put(Query.LOCAL_POST_PROCESSING, true);
+
+    TimeseriesQuery metaQuery = new TimeseriesQuery(
+        query.getDataSource(),
+        query.getQuerySegmentSpec(),
+        query.isDescending(),
+        query.getDimFilter(),
+        query.getGranularity(),
+        query.getVirtualColumns(),
+        Arrays.asList(Queries.convert(ag, jsonMapper, AggregatorFactory.class)),
+        Arrays.asList(Queries.convert(pg, jsonMapper, PostAggregator.class)),
+        null,
+        null,
+        Arrays.asList("SPLIT"),
+        null,
+        context
+    );
+    Result<TimeseriesResultValue> result = Iterables.getOnlyElement(
+        Sequences.toList(
+            metaQuery.run(segmentWalker, Maps.<String, Object>newHashMap()),
+            Lists.<Result<TimeseriesResultValue>>newArrayList()
+        ), null
+    );
+    if (result == null) {
+      return null;
+    }
+
+    @SuppressWarnings("unchecked")
+    Map<String, Object> thresholds = (Map<String, Object>) result.getValue().getMetric("SPLIT");
+    Object[] values = (Object[]) thresholds.get("splits");
+    long[] counts = (long[]) thresholds.get("cdf");
+    if (values == null || counts == null) {
+      return null;
+    }
+    return new ColumnHistogram(values, counts);
   }
 }

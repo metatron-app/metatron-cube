@@ -49,7 +49,7 @@ public class FinalizeResultsQueryRunner<T> implements QueryRunner<T>
       public Sequence<T> run(Query<T> query, Map<String, Object> responseContext)
       {
         QueryRunner<T> baseRunner = finalized;
-        if (PropUtils.parseBoolean(query.getContext(), Query.FORWARD_PREFIX_LOCATION, false)) {
+        if (PropUtils.parseBoolean(query.getContext(), Query.LOCAL_POST_PROCESSING, false)) {
           // for parallel forwarding..
           baseRunner = toolChest.finalQueryDecoration(baseRunner);
           PostProcessingOperator<T> processor = PostProcessingOperators.load(query, objectMapper);

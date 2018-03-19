@@ -237,6 +237,7 @@ public class RowResolver implements TypeResolver
     return resolveColumn(column, null);
   }
 
+  @Override
   public ValueDesc resolveColumn(String column, ValueDesc defaultType)
   {
     ValueDesc columnType = columnTypes.get(column);

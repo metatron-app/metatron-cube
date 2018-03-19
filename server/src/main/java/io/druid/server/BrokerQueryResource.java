@@ -275,7 +275,7 @@ public class BrokerQueryResource extends QueryResource
 
       Map<String, Object> forwardContext = BaseQuery.getResultForwardContext(query);
       forwardContext.put(Query.FORWARD_PARALLEL, false);
-      forwardContext.put(Query.FORWARD_PREFIX_LOCATION, true);
+      forwardContext.put(Query.LOCAL_POST_PROCESSING, true);
 
       query = query.withOverriddenContext(
           ImmutableMap.of(

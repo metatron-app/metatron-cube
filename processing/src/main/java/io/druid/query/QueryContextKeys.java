@@ -28,6 +28,7 @@ public interface QueryContextKeys
   public static final String FINALIZE = "finalize";
   public static final String BY_SEGMENT = "bySegment";
   public static final String FINAL_WORK = "finalWork";
+  public static final String LOCAL_POST_PROCESSING = "localPostProcessing";
   public static final String DATETIME_CUSTOM_SERDE = "dateTimeCustomSerde"; // datetime serde between broker & others
 
   // group-by config.. overriding
@@ -35,9 +36,9 @@ public interface QueryContextKeys
   public static final String GBY_CONVERT_TIMESERIES = "groupByConvertTimeseries";
   public static final String GBY_MERGE_SIMPLE = "groupByMergeSimple";
   public static final String GBY_COMPACT_TRANSFER = "groupByCompactTransfer";
-  public static final String GBY_LIMIT_PUSHDOWN = "groupByLimitPushdown";
   public static final String GBY_PRE_ORDERING = "groupByPreOrdering";
   public static final String GBY_REMOVE_ORDERING = "groupByRemoveOrdering";
+  public static final String GBY_LOCAL_SPLIT_NUM = "groupByLocalSplitNum";
 
   // CacheConfig
   public static final String USE_CACHE = "useCache";
@@ -60,5 +61,4 @@ public interface QueryContextKeys
   // forward context
   public static final String FORWARD_TIMESTAMP_COLUMN = "timestampColumn";
   public static final String FORWARD_PARALLEL = "parallel";
-  public static final String FORWARD_PREFIX_LOCATION = "wrapWithLocation";
 }

@@ -563,7 +563,7 @@ public class QueryResource
       {
         URI rewritten = uri;
         try {
-          if (PropUtils.parseBoolean(forwardContext, Query.FORWARD_PREFIX_LOCATION)) {
+          if (PropUtils.parseBoolean(forwardContext, Query.LOCAL_POST_PROCESSING)) {
             rewritten = rewriteURI(uri, scheme, null, uri.getPath() + "/" + node.toPathName());
           }
           if (scheme.equals(ResultWriter.FILE_SCHEME) || scheme.equals(LocalDataStorageDruidModule.SCHEME)) {

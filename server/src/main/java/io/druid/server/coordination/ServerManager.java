@@ -21,8 +21,6 @@ package io.druid.server.coordination;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Function;
-import com.google.common.base.Functions;
-import com.google.common.base.Predicates;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
@@ -30,6 +28,8 @@ import com.google.common.collect.Ordering;
 import com.google.inject.Inject;
 import com.metamx.common.Pair;
 import com.metamx.common.guava.FunctionalIterable;
+import com.metamx.common.guava.Sequence;
+import com.metamx.common.guava.Sequences;
 import com.metamx.emitter.EmittingLogger;
 import com.metamx.emitter.service.ServiceEmitter;
 import com.metamx.emitter.service.ServiceMetricEvent;
@@ -391,27 +391,15 @@ public class ServerManager implements QuerySegmentWalker
       return new NoopQueryRunner<T>();
     }
 
-    final Future<Object> optimizer = factory.preFactoring(query,
-        Lists.newArrayList(
-            Iterables.filter(
-                Lists.transform(
-                    segments,
-                    Functions.compose(
-                        new Function<ReferenceCountingSegment, Segment>()
-                        {
-                          @Override
-                          public Segment apply(ReferenceCountingSegment input)
-                          {
-                            return input == null ? null : input.getBaseSegment();
-                          }
-                        },
-                        Pair.<SegmentDescriptor, ReferenceCountingSegment>rhsFn()
-                    )
-                ), Predicates.notNull()
-            )
-        ),
-        exec
-    );
+    List<Segment> targets = Lists.newArrayList();
+    for (Pair<SegmentDescriptor, ReferenceCountingSegment> segment : segments) {
+      Segment target = segment.rhs == null ? null : segment.rhs.getBaseSegment();
+      if (target != null) {
+        targets.add(target);
+      }
+    }
+
+    final Future<Object> optimizer = factory.preFactoring(query, targets, exec);
 
     final QueryToolChest<T, Query<T>> toolChest = factory.getToolchest();
 
@@ -445,7 +433,7 @@ public class ServerManager implements QuerySegmentWalker
             }
         );
 
-    return CPUTimeMetricQueryRunner.safeBuild(
+    final QueryRunner<T> runner = CPUTimeMetricQueryRunner.safeBuild(
         FinalizeResultsQueryRunner.finalize(
             toolChest.mergeResults(
                 factory.mergeRunners(exec, queryRunners, optimizer)
@@ -458,6 +446,39 @@ public class ServerManager implements QuerySegmentWalker
         cpuTimeAccumulator,
         true
     );
+
+    if (factory instanceof QueryRunnerFactory.Splitable) {
+      QueryRunnerFactory.Splitable<T, Query<T>> splitable = (QueryRunnerFactory.Splitable<T, Query<T>>) factory;
+      Iterable<Query<T>> queries = splitable.splitQuery(query, targets, optimizer, this, objectMapper);
+      return toConcatRunner(queries, runner);
+    }
+    return runner;
+  }
+
+  private <T> QueryRunner<T> toConcatRunner(
+      final Iterable<Query<T>> queries,
+      final QueryRunner<T> runner
+  )
+  {
+    return new QueryRunner<T>()
+    {
+      @Override
+      public Sequence<T> run(Query<T> baseQuery, final Map<String, Object> responseContext)
+      {
+        return Sequences.concat(
+            Iterables.transform(
+                queries, new Function<Query<T>, Sequence<T>>()
+                {
+                  @Override
+                  public Sequence<T> apply(final Query<T> splitQuery)
+                  {
+                    return runner.run(splitQuery, responseContext);
+                  }
+                }
+            )
+        );
+      }
+    };
   }
 
   private <T> QueryRunner<T> buildAndDecorateQueryRunner(

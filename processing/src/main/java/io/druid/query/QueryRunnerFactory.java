@@ -19,6 +19,7 @@
 
 package io.druid.query;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import io.druid.segment.Segment;
 
 import java.util.List;
@@ -77,4 +78,15 @@ public interface QueryRunnerFactory<T, QueryType extends Query<T>>
    * @return an instance of the toolchest for this specific query type.
    */
   public QueryToolChest<T, QueryType> getToolchest();
+
+  interface Splitable<T, QueryType extends Query<T>> extends QueryRunnerFactory<T, QueryType>
+  {
+    public Iterable<QueryType> splitQuery(
+        QueryType query,
+        List<Segment> targets,
+        Future<Object> optimizer,
+        QuerySegmentWalker segmentWalker,
+        ObjectMapper mapper
+    );
+  }
 }

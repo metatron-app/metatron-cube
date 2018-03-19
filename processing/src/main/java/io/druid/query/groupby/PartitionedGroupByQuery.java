@@ -113,7 +113,7 @@ public class PartitionedGroupByQuery extends GroupByQuery implements Query.Rewri
         numPartition > 0 || scannerLen > 0, "one of 'numPartition' or 'scannerLen' should be configured"
     );
     Preconditions.checkArgument(
-        getGranularity() == QueryGranularities.ALL || numPartition > 0,
+        QueryGranularities.ALL.equals(getGranularity()) || numPartition > 0,
         "if 'granularity' is not 'ALL', only 'numPartition' can be applicable"
     );
     this.numPartition = numPartition;
@@ -169,7 +169,7 @@ public class PartitionedGroupByQuery extends GroupByQuery implements Query.Rewri
       return asGroupByQuery(null, null);
     }
     Granularity granularity = getGranularity();
-    if (granularity == QueryGranularities.ALL) {
+    if (QueryGranularities.ALL.equals(getGranularity())) {
       return splitOnDimension(null, numPartition, segmentWalker, jsonMapper);
     }
     // split first on time.. only possible to use numPartition

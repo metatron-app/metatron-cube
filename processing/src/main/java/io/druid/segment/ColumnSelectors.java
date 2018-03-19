@@ -334,7 +334,7 @@ public class ColumnSelectors
       return nullObjectSelector(ValueDesc.STRING);
     }
     if (ValueDesc.isDimension(type)) {
-      return asArray(factory.makeDimensionSelector(DefaultDimensionSpec.of(column)));
+      return asMultiValued(factory.makeDimensionSelector(DefaultDimensionSpec.of(column)));
     }
 
     final ObjectColumnSelector selector = factory.makeObjectColumnSelector(column);
@@ -412,7 +412,7 @@ public class ColumnSelectors
     };
   }
 
-  public static ObjectColumnSelector asArray(final DimensionSelector selector)
+  public static ObjectColumnSelector asMultiValued(final DimensionSelector selector)
   {
     return new ObjectColumnSelector()
     {

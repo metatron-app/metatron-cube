@@ -22,7 +22,6 @@ package io.druid.segment;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Supplier;
 import com.google.common.collect.ImmutableSet;
-import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
@@ -35,7 +34,6 @@ import io.druid.segment.data.ArrayBasedIndexedInts;
 import io.druid.segment.data.IndexedInts;
 import io.druid.segment.filter.Filters;
 
-import java.io.IOException;
 import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
@@ -180,35 +178,12 @@ public class VirtualColumns implements Iterable<VirtualColumn>
         idToVal.add(value);
       }
       final int result = index;
-      return new IndexedInts()
+      return new IndexedInts.SingleValued()
       {
         @Override
-        public int size()
-        {
-          return 1;
-        }
-
-        @Override
-        public int get(int index)
+        protected final int get()
         {
           return result;
-        }
-
-        @Override
-        public void fill(int index, int[] toFill)
-        {
-          throw new UnsupportedOperationException("fill");
-        }
-
-        @Override
-        public void close() throws IOException
-        {
-        }
-
-        @Override
-        public Iterator<Integer> iterator()
-        {
-          return Iterators.singletonIterator(result);
         }
       };
     }

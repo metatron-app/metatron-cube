@@ -19,6 +19,7 @@
 
 package io.druid.query.groupby;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Supplier;
 import com.google.common.collect.Lists;
 import com.google.common.util.concurrent.Futures;
@@ -27,6 +28,7 @@ import com.google.common.util.concurrent.MoreExecutors;
 import com.google.inject.Inject;
 import com.metamx.common.ISE;
 import com.metamx.common.guava.Sequence;
+import com.metamx.common.logger.Logger;
 import io.druid.cache.BitmapCache;
 import io.druid.cache.Cache;
 import io.druid.collections.StupidPool;
@@ -34,19 +36,25 @@ import io.druid.data.ValueDesc;
 import io.druid.data.ValueType;
 import io.druid.data.input.Row;
 import io.druid.guice.annotations.Global;
+import io.druid.query.ColumnHistogram;
 import io.druid.query.GroupByMergedQueryRunner;
+import io.druid.query.Queries;
 import io.druid.query.Query;
 import io.druid.query.QueryRunner;
 import io.druid.query.QueryRunnerFactory;
+import io.druid.query.QuerySegmentWalker;
 import io.druid.query.QueryToolChest;
 import io.druid.query.QueryWatcher;
 import io.druid.query.RowResolver;
 import io.druid.query.dimension.DimensionSpec;
+import io.druid.query.filter.AndDimFilter;
+import io.druid.query.filter.MathExprFilter;
 import io.druid.segment.Segment;
 import io.druid.segment.StorageAdapter;
 import io.druid.segment.VirtualColumns;
 
 import java.nio.ByteBuffer;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutorService;
@@ -54,8 +62,10 @@ import java.util.concurrent.Future;
 
 /**
  */
-public class GroupByQueryRunnerFactory implements QueryRunnerFactory<Row, GroupByQuery>
+public class GroupByQueryRunnerFactory implements QueryRunnerFactory.Splitable<Row, GroupByQuery>
 {
+  private static final Logger logger = new Logger(GroupByQueryRunnerFactory.class);
+
   private final GroupByQueryEngine engine;
   private final QueryWatcher queryWatcher;
   private final Supplier<GroupByQueryConfig> config;
@@ -121,6 +131,48 @@ public class GroupByQueryRunnerFactory implements QueryRunnerFactory<Row, GroupB
       prev = types;
     }
     return Futures.<Object>immediateFuture(prev);
+  }
+
+  @Override
+  public Iterable<GroupByQuery> splitQuery(
+      GroupByQuery query,
+      List<Segment> segments,
+      Future<Object> optimizer,
+      QuerySegmentWalker segmentWalker,
+      ObjectMapper mapper
+  )
+  {
+    int numSplit = query.getContextInt(Query.GBY_LOCAL_SPLIT_NUM, config.get().getLocalSplitNum());
+    if (numSplit < 2) {
+      return Arrays.asList(query);
+    }
+    ColumnHistogram result = Queries.getColumnHistogramOfFirstDimension(segmentWalker, mapper, query, numSplit);
+    if (result == null) {
+      return Arrays.asList(query);
+    }
+    Object[] values = result.getValues();
+    long[] counts = result.getCounts();
+
+    logger.info("--> values : " + Arrays.toString(values));
+    logger.info("--> counts : " + Arrays.toString(counts));
+
+    String dimension = query.getDimensions().get(0).getDimension();
+
+    List<GroupByQuery> splits = Lists.newArrayList();
+    for (int i = 1; i < values.length; i++) {
+      String expression;
+      if (i == 1) {
+        expression = dimension + " < " + values[i];
+      } else if (i < values.length - 1) {
+        expression = values[i - 1] + " <= " + dimension + " && " + dimension + " < " + values[i];
+      } else {
+        expression = dimension + " >= " + values[i - 1];
+      }
+      splits.add(
+          query.withDimFilter(AndDimFilter.of(query.getDimFilter(), new MathExprFilter(expression)))
+      );
+    }
+    return splits;
   }
 
   @Override

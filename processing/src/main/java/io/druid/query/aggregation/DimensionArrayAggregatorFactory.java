@@ -20,7 +20,6 @@
 package io.druid.query.aggregation;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
 import io.druid.data.Rows;
 import io.druid.data.ValueDesc;
@@ -34,9 +33,7 @@ import io.druid.segment.LongColumnSelector;
 import io.druid.segment.ObjectColumnSelector;
 import io.druid.segment.data.IndexedInts;
 
-import java.io.IOException;
 import java.nio.ByteBuffer;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Objects;
 
@@ -243,35 +240,12 @@ public class DimensionArrayAggregatorFactory extends AbstractArrayAggregatorFact
         @Override
         public IndexedInts getRow()
         {
-          return new IndexedInts()
+          return new IndexedInts.SingleValued()
           {
             @Override
-            public int size()
-            {
-              return 1;
-            }
-
-            @Override
-            public int get(int index)
+            protected final int get()
             {
               return selector.getRow().get(index);
-            }
-
-            @Override
-            public void fill(int index, int[] toFill)
-            {
-              throw new UnsupportedOperationException("fill");
-            }
-
-            @Override
-            public void close() throws IOException
-            {
-            }
-
-            @Override
-            public Iterator<Integer> iterator()
-            {
-              return Iterators.singletonIterator(get(0));
             }
           };
         }

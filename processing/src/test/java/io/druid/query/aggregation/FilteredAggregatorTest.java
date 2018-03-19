@@ -197,7 +197,7 @@ public class FilteredAggregatorTest
           };
         }
         if (columnName.equals("dim")) {
-          return ColumnSelectors.asArray(makeDimensionSelector(DefaultDimensionSpec.of(columnName)));
+          return ColumnSelectors.asMultiValued(makeDimensionSelector(DefaultDimensionSpec.of(columnName)));
         }
         throw new UnsupportedOperationException();
       }

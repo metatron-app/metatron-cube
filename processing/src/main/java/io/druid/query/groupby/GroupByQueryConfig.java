@@ -50,16 +50,13 @@ public class GroupByQueryConfig
   private boolean removeOrdering = false;
 
   @JsonProperty
-  private boolean limitPushdown = false;
-
-  @JsonProperty
-  private int limitPushdownThreshold = maxIntermediateRows << 2;
-
-  @JsonProperty
   private boolean mergeSimple = true; // todo
 
   @JsonProperty
   private boolean compactTransfer = false;
+
+  @JsonProperty
+  private int localSplitNum = -1;
 
   public boolean isSingleThreaded()
   {
@@ -141,26 +138,6 @@ public class GroupByQueryConfig
     this.removeOrdering = removeOrdering;
   }
 
-  public boolean isLimitPushdown()
-  {
-    return limitPushdown;
-  }
-
-  public void setLimitPushdown(boolean limitPushdown)
-  {
-    this.limitPushdown = limitPushdown;
-  }
-
-  public int getLimitPushdownThreshold()
-  {
-    return limitPushdownThreshold;
-  }
-
-  public void setLimitPushdownThreshold(int limitPushdownThreshold)
-  {
-    this.limitPushdownThreshold = limitPushdownThreshold;
-  }
-
   public boolean isMergeSimple()
   {
     return mergeSimple;
@@ -179,5 +156,15 @@ public class GroupByQueryConfig
   public void setCompactTransfer(boolean compactTransfer)
   {
     this.compactTransfer = compactTransfer;
+  }
+
+  public int getLocalSplitNum()
+  {
+    return localSplitNum;
+  }
+
+  public void setLocalSplitNum(int localSplitNum)
+  {
+    this.localSplitNum = localSplitNum;
   }
 }
