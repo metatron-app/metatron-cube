@@ -28,15 +28,11 @@ import java.util.List;
 
 public class GroupByBinaryFnV2 implements BinaryFn<Row, Row, Row>
 {
-  private final AggregatorFactory[] aggregatorFactories;
+  private final List<AggregatorFactory> aggregatorFactories;
 
   public GroupByBinaryFnV2(GroupByQuery query)
   {
-    List<AggregatorFactory> aggregatorSpecs = query.getAggregatorSpecs();
-    this.aggregatorFactories = new AggregatorFactory[aggregatorSpecs.size()];
-    for (int i = 0; i < aggregatorFactories.length; i++) {
-      aggregatorFactories[i] = aggregatorSpecs.get(i);
-    }
+    aggregatorFactories = AggregatorFactory.toCombiner(query.getAggregatorSpecs());
   }
 
   @Override

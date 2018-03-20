@@ -66,7 +66,6 @@ import io.druid.query.dimension.DefaultDimensionSpec;
 import io.druid.query.dimension.DimensionSpec;
 import io.druid.query.dimension.DimensionSpecs;
 import io.druid.query.extraction.ExtractionFn;
-import io.druid.query.filter.DimFilter;
 import io.druid.query.spec.MultipleIntervalSegmentSpec;
 import io.druid.segment.Segment;
 import io.druid.segment.StorageAdapter;
@@ -473,50 +472,28 @@ public class GroupByQueryQueryToolChest extends QueryToolChest<Row, GroupByQuery
       @Override
       public byte[] computeCacheKey(GroupByQuery query)
       {
-        final DimFilter dimFilter = query.getDimFilter();
-        final byte[] filterBytes = dimFilter == null ? new byte[]{} : dimFilter.getCacheKey();
-        final byte[] aggregatorBytes = QueryCacheHelper.computeAggregatorBytes(query.getAggregatorSpecs());
-        final byte[] granularityBytes = query.getGranularity().getCacheKey();
-        final byte[][] dimensionsBytes = new byte[query.getDimensions().size()][];
-        int dimensionsBytesSize = 0;
-        int index = 0;
-        for (DimensionSpec dimension : query.getDimensions()) {
-          dimensionsBytes[index] = dimension.getCacheKey();
-          dimensionsBytesSize += dimensionsBytes[index].length;
-          ++index;
-        }
+        final byte[] granularityBytes = QueryCacheHelper.computeCacheBytes(query.getGranularity());
+        final byte[] filterBytes = QueryCacheHelper.computeCacheBytes(query.getDimFilter());
         final byte[] vcBytes = QueryCacheHelper.computeAggregatorBytes(query.getVirtualColumns());
-        final byte[] explodeBytes = QueryCacheHelper.computeCacheBytes(query.getLateralView());
-        final byte[] limitBytes = query.getLimitSpec().getCacheKey();
-        final byte[] outputColumnsBytes = QueryCacheHelper.computeCacheBytes(query.getOutputColumns());
+        final byte[] dimensionsBytes = QueryCacheHelper.computeCacheKey(query.getDimensions());
+        final byte[] aggregatorBytes = QueryCacheHelper.computeAggregatorBytes(query.getAggregatorSpecs());
 
-        ByteBuffer buffer = ByteBuffer
+        return ByteBuffer
             .allocate(
                 2
                 + granularityBytes.length
                 + filterBytes.length
-                + aggregatorBytes.length
-                + dimensionsBytesSize
                 + vcBytes.length
-                + explodeBytes.length
-                + limitBytes.length
-                + outputColumnsBytes.length
+                + dimensionsBytes.length
+                + aggregatorBytes.length
             )
             .put(GROUPBY_QUERY)
             .put(CACHE_STRATEGY_VERSION)
             .put(granularityBytes)
             .put(filterBytes)
-            .put(aggregatorBytes);
-
-        for (byte[] dimensionsByte : dimensionsBytes) {
-          buffer.put(dimensionsByte);
-        }
-
-        return buffer
             .put(vcBytes)
-            .put(explodeBytes)
-            .put(limitBytes)
-            .put(outputColumnsBytes)
+            .put(dimensionsBytes)
+            .put(aggregatorBytes)
             .array();
       }
 

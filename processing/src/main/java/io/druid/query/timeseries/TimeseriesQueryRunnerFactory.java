@@ -19,11 +19,14 @@
 
 package io.druid.query.timeseries;
 
+import com.google.common.collect.Iterables;
+import com.google.common.collect.Ordering;
 import com.google.inject.Inject;
 import com.metamx.common.ISE;
 import com.metamx.common.guava.Sequence;
 import io.druid.cache.BitmapCache;
 import io.druid.cache.Cache;
+import io.druid.granularity.QueryGranularities;
 import io.druid.query.ChainedExecutionQueryRunner;
 import io.druid.query.Query;
 import io.druid.query.QueryRunner;
@@ -34,6 +37,7 @@ import io.druid.query.Result;
 import io.druid.segment.Segment;
 import io.druid.segment.StorageAdapter;
 
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutorService;
@@ -87,7 +91,20 @@ public class TimeseriesQueryRunnerFactory
   {
     return new ChainedExecutionQueryRunner<Result<TimeseriesResultValue>>(
         queryExecutor, queryWatcher, queryRunners
-    );
+    ) {
+      @Override
+      protected Iterator<Result<TimeseriesResultValue>> toIterator(
+          Query<Result<TimeseriesResultValue>> query,
+          List<Iterable<Result<TimeseriesResultValue>>> results
+      )
+      {
+        TimeseriesQuery timeseriesQuery = (TimeseriesQuery) query;
+        if (QueryGranularities.ALL.equals(timeseriesQuery.getGranularity())) {
+          return Iterables.concat(results).iterator();
+        }
+        return super.toIterator(query, results);
+      }
+    };
   }
 
   @Override

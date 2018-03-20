@@ -26,6 +26,7 @@ import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Ordering;
 import com.google.common.primitives.Ints;
+import com.yahoo.sketches.quantiles.ItemsSketch;
 import com.yahoo.sketches.theta.Sketch;
 import io.druid.data.ValueDesc;
 import io.druid.query.QueryCacheHelper;
@@ -334,6 +335,9 @@ public class GenericSketchAggregatorFactory extends AggregatorFactory
         object1.type().equals(object2.type()),
         "Type mismatch.. " + object1.type() + " with " + object2.type()
     );
+    // hack to get consistent sketch from cached segment
+    ItemsSketch.rand.setSeed(0);
+//    ItemsSketch.rand.get().setSeed(0);    // pending PR (https://github.com/DataSketches/sketches-core/pull/190)
     SketchHandler<?> handler = sketchOp.handler();
     TypedSketch union = handler.newUnion(sketchParam, sourceType, sourceComparator);
     handler.updateWithSketch(union, object1.value());

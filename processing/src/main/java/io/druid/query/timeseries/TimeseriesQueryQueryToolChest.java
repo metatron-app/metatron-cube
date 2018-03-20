@@ -58,7 +58,6 @@ import io.druid.segment.StorageAdapter;
 import org.joda.time.DateTime;
 import org.joda.time.Interval;
 
-import javax.annotation.Nullable;
 import java.nio.ByteBuffer;
 import java.util.Iterator;
 import java.util.List;
@@ -167,8 +166,6 @@ public class TimeseriesQueryQueryToolChest extends QueryToolChest<Result<Timeser
         final byte[] granularityBytes = query.getGranularity().getCacheKey();
         final byte descending = query.isDescending() ? (byte) 1 : 0;
         final byte skipEmptyBuckets = query.isSkipEmptyBuckets() ? (byte) 1 : 0;
-        final byte[] outputColumnsBytes = QueryCacheHelper.computeCacheBytes(query.getOutputColumns());
-        final byte[] explodeSpecBytes = QueryCacheHelper.computeCacheBytes(query.getLateralView());
 
         return ByteBuffer
             .allocate(
@@ -176,8 +173,6 @@ public class TimeseriesQueryQueryToolChest extends QueryToolChest<Result<Timeser
                 + granularityBytes.length
                 + filterBytes.length
                 + aggregatorBytes.length
-                + outputColumnsBytes.length
-                + explodeSpecBytes.length
             )
             .put(TIMESERIES_QUERY)
             .put(descending)
@@ -185,8 +180,6 @@ public class TimeseriesQueryQueryToolChest extends QueryToolChest<Result<Timeser
             .put(granularityBytes)
             .put(filterBytes)
             .put(aggregatorBytes)
-            .put(outputColumnsBytes)
-            .put(explodeSpecBytes)
             .array();
       }
 
@@ -225,7 +218,7 @@ public class TimeseriesQueryQueryToolChest extends QueryToolChest<Result<Timeser
           private final Granularity granularity = query.getGranularity();
 
           @Override
-          public Result<TimeseriesResultValue> apply(@Nullable Object input)
+          public Result<TimeseriesResultValue> apply(Object input)
           {
             List<Object> results = (List<Object>) input;
             Map<String, Object> retVal = Maps.newLinkedHashMap();

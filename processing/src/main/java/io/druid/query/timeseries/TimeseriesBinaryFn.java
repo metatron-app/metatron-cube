@@ -43,7 +43,7 @@ public class TimeseriesBinaryFn
   )
   {
     this.gran = granularity;
-    this.aggregations = aggregations;
+    this.aggregations = AggregatorFactory.toCombiner(aggregations);
   }
 
   @Override

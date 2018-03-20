@@ -23,7 +23,6 @@ import com.google.common.base.Function;
 import com.google.common.base.Throwables;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
-import com.google.common.collect.Ordering;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.ListeningExecutorService;
@@ -35,7 +34,6 @@ import com.metamx.common.guava.Sequence;
 import com.metamx.common.guava.Sequences;
 import com.metamx.common.logger.Logger;
 
-import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -69,15 +67,6 @@ public class ChainedExecutionQueryRunner<T> implements QueryRunner<T>
   public ChainedExecutionQueryRunner(
       ExecutorService exec,
       QueryWatcher queryWatcher,
-      QueryRunner<T>... queryables
-  )
-  {
-    this(exec, queryWatcher, Arrays.asList(queryables));
-  }
-
-  public ChainedExecutionQueryRunner(
-      ExecutorService exec,
-      QueryWatcher queryWatcher,
       Iterable<QueryRunner<T>> queryables
   )
   {
@@ -92,7 +81,6 @@ public class ChainedExecutionQueryRunner<T> implements QueryRunner<T>
   public Sequence<T> run(final Query<T> query, final Map<String, Object> responseContext)
   {
     final int priority = BaseQuery.getContextPriority(query, 0);
-    final Ordering ordering = query.getResultOrdering();
 
     return new BaseSequence<T, Iterator<T>>(
         new BaseSequence.IteratorMaker<T, Iterator<T>>()
@@ -153,12 +141,10 @@ public class ChainedExecutionQueryRunner<T> implements QueryRunner<T>
 
             try {
               final Number timeout = query.getContextValue(QueryContextKeys.TIMEOUT, (Number) null);
-              return new MergeIterable<>(
-                  ordering.nullsFirst(),
-                  timeout == null ?
-                  futures.get() :
-                  futures.get(timeout.longValue(), TimeUnit.MILLISECONDS)
-              ).iterator();
+              List<Iterable<T>> iterables = timeout == null ?
+                                            futures.get() :
+                                            futures.get(timeout.longValue(), TimeUnit.MILLISECONDS);
+              return toIterator(query, iterables);
             }
             catch (InterruptedException e) {
               log.warn(e, "Query interrupted, cancelling pending results, query id [%s]", query.getId());
@@ -185,5 +171,10 @@ public class ChainedExecutionQueryRunner<T> implements QueryRunner<T>
           }
         }
     );
+  }
+
+  protected Iterator<T> toIterator(Query<T> query, List<Iterable<T>> results)
+  {
+    return new MergeIterable<>(query.getResultOrdering().nullsFirst(), results).iterator();
   }
 }
