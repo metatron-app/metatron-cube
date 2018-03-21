@@ -19,27 +19,23 @@
 
 package org.joda.time.chrono;
 
+import org.joda.time.DateTimeConstants;
 import org.joda.time.DurationField;
 import org.joda.time.ReadablePartial;
-import org.joda.time.field.FieldUtils;
 import org.joda.time.field.ImpreciseDateTimeField;
 
 /**
  */
-public class QuarterOfYearDateTimeField extends ImpreciseDateTimeField
+public class WeekInMonthDateTimeField extends ImpreciseDateTimeField
 {
-  private static final int MIN = 1;
-  private static final int MAX = 4;
-
-  private static final int[] QUARTER_TO_MONTH = new int[]{-1, 1, 4, 7, 10};
-  private static final int[] MONTH_TO_QUARTER = new int[]{-1, 1, 1, 1, 2, 2, 2, 3, 3, 3, 4, 4, 4};
-  private static final int[] MONTH_ROUND = new int[]{-1, 1, 1, 1, 4, 4, 4, 7, 7, 7, 10, 10, 10};
+  private static final int MIN = 0;
+  private static final int MAX = 5;
 
   private final BasicChronology iChronology;
 
-  public QuarterOfYearDateTimeField(BasicChronology chronology, QuarterFieldType type)
+  public WeekInMonthDateTimeField(BasicChronology chronology, WeekInMonthFieldType type)
   {
-    super(type, chronology.getAverageMillisPerMonth() * 3);
+    super(type, DateTimeConstants.MILLIS_PER_WEEK);
     this.iChronology = chronology;
   }
 
@@ -52,7 +48,27 @@ public class QuarterOfYearDateTimeField extends ImpreciseDateTimeField
   @Override
   public int get(long instant)
   {
-    return MONTH_TO_QUARTER[iChronology.getMonthOfYear(instant)];
+    // copied from ICU
+    int dayOfMonth = iChronology.getDayOfMonth(instant);
+    int dayOfWeek = iChronology.getDayOfWeek(instant);
+    int firstDayOfWeek = iChronology.dayOfWeek().getMinimumValue(instant);
+    // Determine the day of the week of the first day of the period
+    // in question (either a year or a month).  Zero represents the
+    // first day of the week on this calendar.
+    int periodStartDayOfWeek = (dayOfWeek - firstDayOfWeek - dayOfMonth + 1) % 7;
+    if (periodStartDayOfWeek < 0) periodStartDayOfWeek += 7;
+
+    // Compute the week number.  Initially, ignore the first week, which
+    // may be fractional (or may not be).  We add periodStartDayOfWeek in
+    // order to fill out the first week, if it is fractional.
+    int weekNo = (dayOfMonth + periodStartDayOfWeek - 1)/7;
+
+    // If the first week is long enough, then count it.  If
+    // the minimal days in the first week is one, or if the period start
+    // is zero, we always increment weekNo.
+    if ((7 - periodStartDayOfWeek) >= iChronology.getMinimumDaysInFirstWeek()) ++weekNo;
+
+    return weekNo;
   }
 
   @Override
@@ -70,7 +86,7 @@ public class QuarterOfYearDateTimeField extends ImpreciseDateTimeField
   @Override
   public DurationField getRangeDurationField()
   {
-    return iChronology.years();
+    return iChronology.months();
   }
 
   @Override
@@ -88,9 +104,8 @@ public class QuarterOfYearDateTimeField extends ImpreciseDateTimeField
   @Override
   public long roundFloor(long instant)
   {
-    int year = iChronology.getYear(instant);
-    int month = MONTH_ROUND[iChronology.getMonthOfYear(instant, year)];
-    return iChronology.getYearMonthMillis(year, month);
+    // todo
+    throw new UnsupportedOperationException("roundFloor");
   }
 
   @Override
@@ -100,21 +115,9 @@ public class QuarterOfYearDateTimeField extends ImpreciseDateTimeField
   }
 
   @Override
-  public long set(long instant, int quarter)
+  public long set(long instant, int value)
   {
-    FieldUtils.verifyValueBounds(this, quarter, MIN, MAX);
-    int month = QUARTER_TO_MONTH[quarter];
-    //
-    int thisYear = iChronology.getYear(instant);
-    //
-    int thisDom = iChronology.getDayOfMonth(instant, thisYear);
-    int maxDom = iChronology.getDaysInYearMonth(thisYear, month);
-    if (thisDom > maxDom) {
-      // Quietly force DOM to nearest sane value.
-      thisDom = maxDom;
-    }
-    // Return newly calculated millis value
-    return iChronology.getYearMonthDayMillis(thisYear, month, thisDom) +
-           iChronology.getMillisOfDay(instant);
+    // todo
+    throw new UnsupportedOperationException("set");
   }
 }

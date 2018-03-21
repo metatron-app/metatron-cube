@@ -32,6 +32,7 @@ import org.joda.time.DateTimeZone;
 import org.joda.time.Interval;
 import org.joda.time.Period;
 import org.joda.time.chrono.QuarterFieldType;
+import org.joda.time.chrono.WeekInMonthFieldType;
 import org.joda.time.format.DateTimeFormat;
 import org.joda.time.format.DateTimeFormatter;
 import org.joda.time.format.DateTimeFormatterBuilder;
@@ -339,6 +340,13 @@ public class JodaUtils
         } else {
           b.appendDecimal(new QuarterFieldType(), length, 1);
         }
+        prev = i;
+      } else if (c == 'W') {
+        int length = 0;
+        for (; i < formatString.length() && formatString.charAt(i) == c; i++) {
+          length++;
+        }
+        b.appendDecimal(new WeekInMonthFieldType(), length, 1);
         prev = i;
       } else {
         i++;

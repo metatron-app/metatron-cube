@@ -311,8 +311,71 @@ public class EvalTest
             + ")", bindings
         )
     );
+    // week in month
+    Assert.assertEquals(
+        "3, 11 2016", evalString(
+            "time_format("
+            + time + ", "
+            + "out.format='W, MM yyyy', "
+            + "out.locale='en', "
+            + "out.timezone='UTC'"
+            + ")", bindings
+        )
+    );
   }
 
+  @Test
+  public void testWeekInMonth() {
+
+    Expr.NumericBinding bindings = Parser.withMap(ImmutableMap.<String, Object>of());
+
+    // thursday
+    long time = new DateTime("2016-07-01T10:11:39.662+0900").getMillis();
+    Assert.assertEquals(
+        "0th Jul 2016", evalString(
+            "time_format("
+            + time + ", "
+            + "out.format='W\\'th\\' MMM yyyy', "
+            + "out.locale='en', "
+            + "out.timezone='UTC'"
+            + ")", bindings
+        )
+    );
+    // wednesday
+    time = new DateTime("2016-09-01T10:11:39.662+0900").getMillis();
+    Assert.assertEquals(
+        "1th Sep 2016", evalString(
+            "time_format("
+            + time + ", "
+            + "out.format='W\\'th\\' MMM yyyy', "
+            + "out.locale='en', "
+            + "out.timezone='UTC'"
+            + ")", bindings
+        )
+    );
+    time = new DateTime("2016-01-31T10:11:39.662+0900").getMillis();
+    Assert.assertEquals(
+        "4th Jan 2016", evalString(
+            "time_format("
+            + time + ", "
+            + "out.format='W\\'th\\' MMM yyyy', "
+            + "out.locale='en', "
+            + "out.timezone='UTC'"
+            + ")", bindings
+        )
+    );
+    time = new DateTime("2016-05-31T10:11:39.662+0900").getMillis();
+    Assert.assertEquals(
+        "5th May 2016", evalString(
+            "time_format("
+            + time + ", "
+            + "out.format='W\\'th\\' MMM yyyy', "
+            + "out.locale='en', "
+            + "out.timezone='UTC'"
+            + ")", bindings
+        )
+    );
+  }
   @Test
   public void testStandard() throws ParseException
   {
