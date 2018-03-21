@@ -30,6 +30,7 @@ import com.metamx.common.guava.Sequences;
 import io.druid.common.utils.JodaUtils;
 import io.druid.data.input.InputRow;
 import io.druid.granularity.QueryGranularities;
+import io.druid.query.RowResolver;
 import io.druid.query.aggregation.Aggregator;
 import io.druid.query.aggregation.CountAggregatorFactory;
 import io.druid.query.aggregation.FilteredAggregatorFactory;
@@ -272,16 +273,15 @@ public abstract class BaseFilterTest
 
   protected Sequence<Cursor> makeCursorSequence(final DimFilter filter)
   {
-    final Sequence<Cursor> cursors = adapter.makeCursors(
+
+    return adapter.makeCursors(
         filter,
         new Interval(JodaUtils.MIN_INSTANT, JodaUtils.MAX_INSTANT),
-        VirtualColumns.empty(),
+        RowResolver.of(adapter, VirtualColumns.empty()),
         QueryGranularities.ALL,
         null,
         false
     );
-
-    return cursors;
   }
 
   /**

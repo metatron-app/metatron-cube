@@ -19,6 +19,7 @@
 
 package io.druid.segment;
 
+import io.druid.query.RowResolver;
 import org.joda.time.Interval;
 
 import java.io.Closeable;
@@ -32,4 +33,10 @@ public interface Segment extends Closeable
   public QueryableIndex asQueryableIndex(boolean forQuery);
   public StorageAdapter asStorageAdapter(boolean forQuery);
   public long getLastAccessTime();
+
+  // for minimizing changes in factory
+  public interface WithResolver extends Segment
+  {
+    RowResolver resolver();
+  }
 }

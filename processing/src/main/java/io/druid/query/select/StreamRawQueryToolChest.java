@@ -163,13 +163,12 @@ public class StreamRawQueryToolChest extends QueryToolChest<RawRows, StreamRawQu
     {
       @Override
       protected Function<Interval, Sequence<RawRows>> function(
-          Query<RawRows> query, Map<String, Object> context,
-          Segment segment
+          final Query<RawRows> query, Map<String, Object> context,
+          final Segment segment
       )
       {
         final StreamQueryEngine engine = new StreamQueryEngine();
         final StreamRawQuery outerQuery = (StreamRawQuery) query;
-        final StorageAdapter adapter = segment.asStorageAdapter(true);
         return new Function<Interval, Sequence<RawRows>>()
         {
           @Override
@@ -177,7 +176,7 @@ public class StreamRawQueryToolChest extends QueryToolChest<RawRows, StreamRawQu
           {
             return engine.process(
                 outerQuery.withQuerySegmentSpec(MultipleIntervalSegmentSpec.of(interval)),
-                adapter,
+                segment,
                 null,
                 null
             );

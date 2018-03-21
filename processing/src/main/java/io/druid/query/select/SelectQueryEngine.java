@@ -28,13 +28,15 @@ import com.metamx.common.guava.Sequence;
 import io.druid.cache.Cache;
 import io.druid.query.QueryRunnerHelper;
 import io.druid.query.Result;
+import io.druid.query.RowResolver;
 import io.druid.query.dimension.DimensionSpec;
 import io.druid.segment.Cursor;
 import io.druid.segment.DimensionSelector;
 import io.druid.segment.LongColumnSelector;
 import io.druid.segment.ObjectColumnSelector;
+import io.druid.segment.Segment;
+import io.druid.segment.Segments;
 import io.druid.segment.StorageAdapter;
-import io.druid.segment.VirtualColumns;
 import io.druid.segment.column.Column;
 import io.druid.segment.data.IndexedInts;
 import io.druid.timeline.DataSegmentUtils;
@@ -52,20 +54,20 @@ public class SelectQueryEngine
   public Sequence<Result<SelectResultValue>> process(
       final SelectQuery baseQuery,
       final SelectQueryConfig config,
-      final StorageAdapter adapter
+      final Segment segment
   )
   {
-    return process(baseQuery, config, adapter, null);
+    return process(baseQuery, config, segment, null);
   }
 
   public Sequence<Result<SelectResultValue>> process(
-      final SelectQuery baseQuery,
+      final SelectQuery query,
       final SelectQueryConfig config,
-      final StorageAdapter adapter,
+      final Segment segment,
       final Cache cache
   )
   {
-    final SelectQuery query = (SelectQuery) ViewSupportHelper.rewrite(baseQuery, adapter);
+    final RowResolver resolver = Segments.getResolver(segment, query);
     // at the point where this code is called, only one datasource should exist.
     String dataSource = Iterables.getOnlyElement(query.getDataSource().getNames());
 
@@ -73,12 +75,13 @@ public class SelectQueryEngine
     Preconditions.checkArgument(intervals.size() == 1, "Can only handle a single interval, got[%s]", intervals);
 
     // should be rewritten with given interval
+    final StorageAdapter adapter = segment.asStorageAdapter(true);
     final String segmentId = DataSegmentUtils.withInterval(dataSource, adapter.getSegmentIdentifier(), intervals.get(0));
 
     return QueryRunnerHelper.makeCursorBasedQuery(
         adapter,
         query.getQuerySegmentSpec().getIntervals(),
-        VirtualColumns.valueOf(query.getVirtualColumns()),
+        resolver,
         query.getDimensionsFilter(),
         cache,
         query.isDescending(),

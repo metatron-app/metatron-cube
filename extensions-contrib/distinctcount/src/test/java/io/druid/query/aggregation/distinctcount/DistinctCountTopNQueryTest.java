@@ -34,9 +34,9 @@ import io.druid.query.topn.TopNQuery;
 import io.druid.query.topn.TopNQueryBuilder;
 import io.druid.query.topn.TopNQueryEngine;
 import io.druid.query.topn.TopNResultValue;
+import io.druid.segment.IncrementalIndexSegment;
 import io.druid.segment.TestHelper;
 import io.druid.segment.incremental.IncrementalIndex;
-import io.druid.segment.incremental.IncrementalIndexStorageAdapter;
 import io.druid.segment.incremental.OnheapIncrementalIndex;
 import org.joda.time.DateTime;
 import org.junit.Test;
@@ -111,7 +111,7 @@ public class DistinctCountTopNQueryTest
     final Iterable<Result<TopNResultValue>> results = Sequences.toList(
         engine.query(
             query,
-            new IncrementalIndexStorageAdapter(index)
+            new IncrementalIndexSegment(index, null)
         ),
         Lists.<Result<TopNResultValue>>newLinkedList()
     );

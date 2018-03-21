@@ -19,6 +19,7 @@
 
 package io.druid.query.kmeans;
 
+import com.google.common.base.Supplier;
 import com.google.common.util.concurrent.Futures;
 import com.google.inject.Inject;
 import com.metamx.common.Pair;
@@ -33,11 +34,11 @@ import io.druid.query.QueryRunner;
 import io.druid.query.QueryRunnerFactory;
 import io.druid.query.QueryToolChest;
 import io.druid.query.QueryWatcher;
+import io.druid.query.RowResolver;
 import io.druid.query.select.Schema;
 import io.druid.query.select.StreamQuery;
 import io.druid.query.select.StreamQueryEngine;
 import io.druid.segment.Segment;
-import io.druid.segment.StorageAdapter;
 import org.apache.commons.lang.mutable.MutableInt;
 
 import java.util.Arrays;
@@ -72,7 +73,12 @@ public class FindNearestQueryRunnerFactory
   }
 
   @Override
-  public Future<Object> preFactoring(FindNearestQuery query, List<Segment> segments, ExecutorService exec)
+  public Future<Object> preFactoring(
+      FindNearestQuery query,
+      List<Segment> segments,
+      Supplier<RowResolver> resolver,
+      ExecutorService exec
+  )
   {
     return Futures.<Object>immediateFuture(new MutableInt(0));
   }
@@ -89,8 +95,7 @@ public class FindNearestQueryRunnerFactory
         final int dimension = nearestQuery.getMetrics().size();
 
         final StreamQuery stream = nearestQuery.asInput();
-        final StorageAdapter adapter = segment.asStorageAdapter(true);
-        final Pair<Schema, Sequence<Object[]>> result = engine.processRaw(stream, adapter, optimizer, cache);
+        final Pair<Schema, Sequence<Object[]>> result = engine.processRaw(stream, segment, optimizer, cache);
 
         final Centroid[] centroids = nearestQuery.getCentroids().toArray(new Centroid[0]);
         final CentroidDesc[] descs = new CentroidDesc[centroids.length];

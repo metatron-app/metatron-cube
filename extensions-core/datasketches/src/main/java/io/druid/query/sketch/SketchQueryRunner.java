@@ -43,7 +43,6 @@ import io.druid.query.extraction.ExtractionFn;
 import io.druid.query.filter.BitmapIndexSelector;
 import io.druid.query.filter.BitmapType;
 import io.druid.query.filter.DimFilter;
-import io.druid.query.select.ViewSupportHelper;
 import io.druid.segment.ColumnSelectorBitmapIndexSelector;
 import io.druid.segment.ColumnSelectors;
 import io.druid.segment.Cursor;
@@ -51,8 +50,8 @@ import io.druid.segment.DimensionSelector;
 import io.druid.segment.ObjectColumnSelector;
 import io.druid.segment.QueryableIndex;
 import io.druid.segment.Segment;
+import io.druid.segment.Segments;
 import io.druid.segment.StorageAdapter;
-import io.druid.segment.VirtualColumns;
 import io.druid.segment.column.BitmapIndex;
 import io.druid.segment.column.Column;
 import io.druid.segment.data.IndexedInts;
@@ -80,16 +79,17 @@ public class SketchQueryRunner implements QueryRunner<Result<Map<String, Object>
 
   @Override
   public Sequence<Result<Map<String, Object>>> run(
-      final Query<Result<Map<String, Object>>> input,
+      final Query<Result<Map<String, Object>>> baseQuery,
       final Map<String, Object> responseContext
   )
   {
-    if (!(input instanceof SketchQuery)) {
-      throw new ISE("Got a [%s] which isn't a %s", input.getClass(), SketchQuery.class);
+    if (!(baseQuery instanceof SketchQuery)) {
+      throw new ISE("Got a [%s] which isn't a %s", baseQuery.getClass(), SketchQuery.class);
     }
-    SketchQuery baseQuery = (SketchQuery) input;
-    final SketchQuery query = (SketchQuery) ViewSupportHelper.rewrite(baseQuery, segment.asStorageAdapter(true));
-    final Map<String, String> contextTypes = baseQuery.getContextValue(
+    final SketchQuery query = (SketchQuery) baseQuery;
+    final RowResolver resolver = Segments.getResolver(segment, query);
+
+    final Map<String, String> contextTypes = query.getContextValue(
         Query.MAJOR_TYPES, ImmutableMap.<String, String>of()
     );
     final Map<String, ValueDesc> majorTypes = Maps.newHashMap();
@@ -106,9 +106,6 @@ public class SketchQueryRunner implements QueryRunner<Result<Map<String, Object>
     // Closing this will cause segfaults in unit tests.
     final QueryableIndex index = segment.asQueryableIndex(true);
     final StorageAdapter adapter = segment.asStorageAdapter(true);
-
-    final VirtualColumns vcs = VirtualColumns.valueOf(query.getVirtualColumns(), adapter);
-    final RowResolver resolver = RowResolver.of(index, vcs);
 
     Map<String, TypedSketch> unions = Maps.newLinkedHashMap();
 
@@ -145,7 +142,7 @@ public class SketchQueryRunner implements QueryRunner<Result<Map<String, Object>
       }
     } else {
       final Sequence<Cursor> cursors = adapter.makeCursors(
-          filter, segment.getDataInterval(), vcs, QueryGranularities.ALL, cache, false
+          filter, segment.getDataInterval(), resolver, QueryGranularities.ALL, cache, false
       );
       unions = cursors.accumulate(unions, createAccumulator(majorTypes, dimensions, metrics, sketchParam, handler));
     }

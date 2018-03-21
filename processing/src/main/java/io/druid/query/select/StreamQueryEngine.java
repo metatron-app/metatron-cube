@@ -29,13 +29,15 @@ import com.metamx.common.guava.Sequence;
 import com.metamx.common.guava.Sequences;
 import io.druid.cache.Cache;
 import io.druid.query.QueryRunnerHelper;
+import io.druid.query.RowResolver;
 import io.druid.query.dimension.DimensionSpec;
 import io.druid.segment.Cursor;
 import io.druid.segment.DimensionSelector;
 import io.druid.segment.LongColumnSelector;
 import io.druid.segment.ObjectColumnSelector;
+import io.druid.segment.Segment;
+import io.druid.segment.Segments;
 import io.druid.segment.StorageAdapter;
-import io.druid.segment.VirtualColumns;
 import io.druid.segment.column.Column;
 import io.druid.segment.data.IndexedInts;
 import org.apache.commons.lang.StringUtils;
@@ -55,12 +57,12 @@ public class StreamQueryEngine
 {
   public Sequence<StreamQueryRow> process(
       final StreamQuery query,
-      final StorageAdapter adapter,
+      final Segment segment,
       final Future optimizer,
       final Cache cache
   )
   {
-    Pair<Schema, Sequence<Object[]>> result = processRaw(query, adapter, optimizer, cache);
+    Pair<Schema, Sequence<Object[]>> result = processRaw(query, segment, optimizer, cache);
     final String[] columnNames = result.lhs.getColumnNames().toArray(new String[0]);
     return Sequences.map(
         result.rhs, new Function<Object[], StreamQueryRow>()
@@ -80,13 +82,13 @@ public class StreamQueryEngine
 
   public Sequence<RawRows> process(
       final StreamRawQuery query,
-      final StorageAdapter adapter,
+      final Segment segment,
       final Future optimizer,
       final Cache cache
   )
   {
-    Pair<Schema, Sequence<Object[]>> result = processRaw(query, adapter, optimizer, cache);
-    DateTime start = adapter.getInterval().getStart();
+    Pair<Schema, Sequence<Object[]>> result = processRaw(query, segment, optimizer, cache);
+    DateTime start = segment.getDataInterval().getStart();
     return Sequences.simple(
         Arrays.asList(
             new RawRows(start, result.lhs, Sequences.toList(result.rhs, Lists.<Object[]>newArrayList()))
@@ -95,37 +97,38 @@ public class StreamQueryEngine
   }
 
   public Pair<Schema, Sequence<Object[]>> processRaw(
-      final AbstractStreamQuery baseQuery,
-      final StorageAdapter adapter,
+      final AbstractStreamQuery<?> query,
+      final Segment segment,
       final Future optimizer,
       final Cache cache
   )
   {
+    final StorageAdapter adapter = segment.asStorageAdapter(true);
     if (adapter == null) {
       throw new ISE(
           "Null storage adapter found. Probably trying to issue a query against a segment being memory unmapped."
       );
     }
-
-    @SuppressWarnings("unchecked")
-    final MutableInt counter = Futures.<MutableInt>getUnchecked(optimizer);
-    final AbstractStreamQuery<?> query = (AbstractStreamQuery) ViewSupportHelper.rewrite(baseQuery, adapter);
-
     List<Interval> intervals = query.getQuerySegmentSpec().getIntervals();
     Preconditions.checkArgument(intervals.size() == 1, "Can only handle a single interval, got[%s]", intervals);
 
     final int limit = query.getLimit();
     final String concatString = query.getConcatString();
-    final Schema schema = ViewSupportHelper.toSchema(query, adapter).appendTime();
+
+    final RowResolver resolver = Segments.getResolver(segment, query);
+    final Schema schema = ViewSupportHelper.toSchema(query, resolver).appendTime();   // todo fix this
 
     final List<DimensionSpec> dimensions = query.getDimensions();
     final List<String> metrics = query.getMetrics();
+
+    @SuppressWarnings("unchecked")
+    final MutableInt counter = Futures.<MutableInt>getUnchecked(optimizer);
 
     Sequence<Object[]> sequence = Sequences.concat(
         QueryRunnerHelper.makeCursorBasedQuery(
             adapter,
             Iterables.getOnlyElement(intervals),
-            VirtualColumns.valueOf(query.getVirtualColumns()),
+            resolver,
             query.getDimensionsFilter(),
             cache,
             query.isDescending(),

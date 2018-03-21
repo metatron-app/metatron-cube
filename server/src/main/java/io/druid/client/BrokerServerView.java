@@ -557,7 +557,7 @@ public class BrokerServerView implements TimelineServerView
                                 return toolChest.makeMetricBuilder(input);
                               }
                             },
-                            new ReferenceCountingSegmentQueryRunner<T>(factory, adapter, segmentDescriptor, null),
+                            new ReferenceCountingSegmentQueryRunner<T>(null, factory, adapter, segmentDescriptor, null),
                             "query/segment/time",
                             ImmutableMap.of("segment", adapter.getIdentifier())
                         )

@@ -21,6 +21,7 @@ package io.druid.server.coordination;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Function;
+import com.google.common.base.Supplier;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
@@ -54,6 +55,7 @@ import io.druid.query.QuerySegmentWalker;
 import io.druid.query.QueryToolChest;
 import io.druid.query.ReferenceCountingSegmentQueryRunner;
 import io.druid.query.ReportTimelineMissingSegmentQueryRunner;
+import io.druid.query.RowResolver;
 import io.druid.query.SegmentDescriptor;
 import io.druid.query.TableDataSource;
 import io.druid.query.spec.SpecificSegmentQueryRunner;
@@ -381,11 +383,11 @@ public class ServerManager implements QuerySegmentWalker
       List<Pair<SegmentDescriptor, ReferenceCountingSegment>> segments
   )
   {
-    log.info("Running query [%s:%s] on [%d] segments", query.getType(), query.getId(), segments.size());
+    log.info("Running resolved [%s:%s] on [%d] segments", query.getType(), query.getId(), segments.size());
 
     final QueryRunnerFactory<T, Query<T>> factory = conglomerate.findFactory(query);
     if (factory == null) {
-      log.makeAlert("Unknown query type, [%s]", query.getClass())
+      log.makeAlert("Unknown resolved type, [%s]", query.getClass())
          .addData("dataSource", query.getDataSource())
          .emit();
       return new NoopQueryRunner<T>();
@@ -399,7 +401,10 @@ public class ServerManager implements QuerySegmentWalker
       }
     }
 
-    final Future<Object> optimizer = factory.preFactoring(query, targets, exec);
+    final Supplier<RowResolver> resolver = RowResolver.supplier(targets, query);
+    final Query<T> resolved = query.resolveQuery(resolver);
+
+    final Future<Object> optimizer = factory.preFactoring(resolved, targets, resolver, exec);
 
     final QueryToolChest<T, Query<T>> toolChest = factory.getToolchest();
 
@@ -420,6 +425,7 @@ public class ServerManager implements QuerySegmentWalker
                 }
                 return Arrays.asList(
                     buildAndDecorateQueryRunner(
+                        resolver,
                         factory,
                         toolChest,
                         input.rhs,
@@ -449,7 +455,7 @@ public class ServerManager implements QuerySegmentWalker
 
     if (factory instanceof QueryRunnerFactory.Splitable) {
       QueryRunnerFactory.Splitable<T, Query<T>> splitable = (QueryRunnerFactory.Splitable<T, Query<T>>) factory;
-      Iterable<Query<T>> queries = splitable.splitQuery(query, targets, optimizer, this, objectMapper);
+      Iterable<Query<T>> queries = splitable.splitQuery(resolved, targets, optimizer, resolver, this, objectMapper);
       return toConcatRunner(queries, runner);
     }
     return runner;
@@ -482,6 +488,7 @@ public class ServerManager implements QuerySegmentWalker
   }
 
   private <T> QueryRunner<T> buildAndDecorateQueryRunner(
+      final Supplier<RowResolver> resolver,
       final QueryRunnerFactory<T, Query<T>> factory,
       final QueryToolChest<T, Query<T>> toolChest,
       final ReferenceCountingSegment adapter,
@@ -516,7 +523,13 @@ public class ServerManager implements QuerySegmentWalker
                                 return toolChest.makeMetricBuilder(input);
                               }
                             },
-                            new ReferenceCountingSegmentQueryRunner<T>(factory, adapter, segmentDescriptor, optimizer),
+                            new ReferenceCountingSegmentQueryRunner<T>(
+                                resolver,
+                                factory,
+                                adapter,
+                                segmentDescriptor,
+                                optimizer
+                            ),
                             "query/segment/time",
                             ImmutableMap.of("segment", adapter.getIdentifier())
                         ),

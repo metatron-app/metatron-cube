@@ -31,6 +31,7 @@ import io.druid.data.input.Firehose;
 import io.druid.data.input.InputRow;
 import io.druid.data.input.MapBasedInputRow;
 import io.druid.granularity.Granularity;
+import io.druid.query.RowResolver;
 import io.druid.query.dimension.DefaultDimensionSpec;
 import io.druid.query.filter.DimFilter;
 import io.druid.query.select.EventHolder;
@@ -75,7 +76,7 @@ public class IngestSegmentFirehose implements Firehose
                         adapter.getAdapter().makeCursors(
                             dimFilter,
                             adapter.getInterval(),
-                            VirtualColumns.empty(),
+                            RowResolver.of(adapter.getAdapter(), VirtualColumns.empty()),
                             granularity,
                             null, false
                         ), new Function<Cursor, Sequence<InputRow>>()

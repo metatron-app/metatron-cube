@@ -77,7 +77,6 @@ import io.druid.query.select.SelectQueryEngine;
 import io.druid.query.select.SelectQueryQueryToolChest;
 import io.druid.query.select.SelectQueryRunnerFactory;
 import io.druid.query.select.StreamQueryEngine;
-import io.druid.query.select.StreamQueryToolChest;
 import io.druid.query.select.StreamRawQuery;
 import io.druid.query.select.StreamRawQueryRunnerFactory;
 import io.druid.query.select.StreamRawQueryToolChest;
@@ -116,6 +115,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Future;
 
 /**
  */
@@ -770,27 +770,30 @@ public class QueryRunnerTestHelper
   private static <T, QueryType extends Query<T>> QueryRunner<T> makeSegmentQueryRunner(
       final QueryRunnerFactory<T, QueryType> factory,
       final String segmentId,
-      final Segment adapter
+      final Segment segment
   )
   {
-    QueryToolChest toolChest = factory.getToolchest();
-    if (toolChest instanceof StreamQueryToolChest) {
-      return new BySegmentQueryRunner<T>(
-          segmentId, adapter.getDataInterval().getStart(),
-          new QueryRunner<T>()
-          {
-            @Override
-            public Sequence<T> run(Query<T> query, Map<String, Object> responseContext)
-            {
-              // preFactoring should be called each run
-              return factory.createRunner(adapter, factory.preFactoring(null, null, null)).run(query, responseContext);
-            }
-          }
-      );
-    }
     return new BySegmentQueryRunner<T>(
-        segmentId, adapter.getDataInterval().getStart(),
-        factory.createRunner(adapter, null)
+        segmentId, segment.getDataInterval().getStart(),
+        new QueryRunner<T>()
+        {
+          @Override
+          @SuppressWarnings("unchecked")
+          public Sequence<T> run(Query<T> query, Map<String, Object> responseContext)
+          {
+            // this should be done at the most outer side (see server manager).. but who cares?
+            final Supplier<RowResolver> resolver = RowResolver.supplier(segment, query);
+            final QueryType resolved = (QueryType) query.resolveQuery(resolver);
+            final Future<Object> optimizer = factory.preFactoring(
+                resolved,
+                Arrays.asList(segment),
+                resolver,
+                MoreExecutors.sameThreadExecutor()
+            );
+            QueryRunner<T> runner = factory.createRunner(segment, optimizer);
+            return runner.run(resolved, responseContext);
+          }
+        }
     );
   }
 

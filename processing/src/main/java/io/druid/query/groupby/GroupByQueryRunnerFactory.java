@@ -47,11 +47,9 @@ import io.druid.query.QueryToolChest;
 import io.druid.query.QueryWatcher;
 import io.druid.query.RowResolver;
 import io.druid.query.dimension.DimensionSpec;
-import io.druid.query.filter.AndDimFilter;
+import io.druid.query.filter.DimFilters;
 import io.druid.query.filter.MathExprFilter;
 import io.druid.segment.Segment;
-import io.druid.segment.StorageAdapter;
-import io.druid.segment.VirtualColumns;
 
 import java.nio.ByteBuffer;
 import java.util.Arrays;
@@ -106,31 +104,25 @@ public class GroupByQueryRunnerFactory implements QueryRunnerFactory.Splitable<R
   }
 
   @Override
-  public Future<Object> preFactoring(GroupByQuery query, List<Segment> segments, ExecutorService exec)
+  public Future<Object> preFactoring(
+      GroupByQuery query,
+      List<Segment> segments,
+      Supplier<RowResolver> resolver,
+      ExecutorService exec
+  )
   {
-    List<DimensionSpec> dimensions = query.getDimensions();
-    VirtualColumns vcs = VirtualColumns.valueOf(query.getVirtualColumns());
-
-    List<ValueType> prev = null;
-    for (Segment segment : segments) {
-      List<ValueType> types = Lists.newArrayList();
-      RowResolver resolver = RowResolver.of(segment, vcs);
-      for (DimensionSpec dimensionSpec : dimensions) {
-        ValueDesc type = dimensionSpec.resolveType(resolver);
-        if (ValueDesc.isDimension(type)) {
-          types.add(ValueType.STRING);
-        } else if (ValueDesc.isPrimitive(type)) {
-          types.add(type.type());
-        } else {
-          throw new ISE("cannot group-by on non-primitive type %s [%s]", type, dimensionSpec);
-        }
+    List<ValueType> types = Lists.newArrayList();
+    for (DimensionSpec dimensionSpec : query.getDimensions()) {
+      ValueDesc type = dimensionSpec.resolveType(resolver.get());
+      if (ValueDesc.isDimension(type)) {
+        types.add(ValueType.STRING);
+      } else if (ValueDesc.isPrimitive(type)) {
+        types.add(type.type());
+      } else {
+        throw new ISE("cannot group-by on non-primitive type %s [%s]", type, dimensionSpec);
       }
-      if (prev != null && !prev.equals(types)) {
-        throw new ISE("cannot group-by on conflicting types %s vs %s", prev, types);
-      }
-      prev = types;
     }
-    return Futures.<Object>immediateFuture(prev);
+    return Futures.<Object>immediateFuture(types);
   }
 
   @Override
@@ -138,6 +130,7 @@ public class GroupByQueryRunnerFactory implements QueryRunnerFactory.Splitable<R
       GroupByQuery query,
       List<Segment> segments,
       Future<Object> optimizer,
+      Supplier<RowResolver> resolver,
       QuerySegmentWalker segmentWalker,
       ObjectMapper mapper
   )
@@ -169,7 +162,7 @@ public class GroupByQueryRunnerFactory implements QueryRunnerFactory.Splitable<R
         expression = dimension + " >= " + values[i - 1];
       }
       splits.add(
-          query.withDimFilter(AndDimFilter.of(query.getDimFilter(), new MathExprFilter(expression)))
+          query.withDimFilter(DimFilters.and(query.getDimFilter(), new MathExprFilter(expression)))
       );
     }
     return splits;
@@ -203,13 +196,13 @@ public class GroupByQueryRunnerFactory implements QueryRunnerFactory.Splitable<R
 
   private static class GroupByQueryRunner implements QueryRunner<Row>
   {
-    private final StorageAdapter adapter;
+    private final Segment segment;
     private final GroupByQueryEngine engine;
     private final Cache cache;
 
     public GroupByQueryRunner(Segment segment, GroupByQueryEngine engine, Cache cache)
     {
-      this.adapter = segment.asStorageAdapter(true);
+      this.segment = segment;
       this.engine = engine;
       this.cache = cache;
     }
@@ -221,12 +214,13 @@ public class GroupByQueryRunnerFactory implements QueryRunnerFactory.Splitable<R
         throw new ISE("Got a [%s] which isn't a %s", input.getClass(), GroupByQuery.class);
       }
 
-      return engine.process((GroupByQuery) input, adapter, cache);
+      return engine.process((GroupByQuery) input, segment, cache);
     }
 
     @Override
-    public String toString() {
-      return adapter.toString();
+    public String toString()
+    {
+      return segment.getIdentifier();
     }
   }
 }

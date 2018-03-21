@@ -26,11 +26,11 @@ import io.druid.query.QueryRunnerHelper;
 import io.druid.query.Result;
 import io.druid.query.aggregation.Aggregator;
 import io.druid.query.aggregation.AggregatorFactory;
-import io.druid.query.filter.DimFilter;
 import io.druid.segment.Cursor;
+import io.druid.segment.Segment;
 import io.druid.segment.SegmentMissingException;
+import io.druid.segment.Segments;
 import io.druid.segment.StorageAdapter;
-import io.druid.segment.VirtualColumns;
 
 import java.util.List;
 
@@ -38,30 +38,29 @@ import java.util.List;
  */
 public class TimeseriesQueryEngine
 {
-  public Sequence<Result<TimeseriesResultValue>> process(final TimeseriesQuery query, final StorageAdapter adapter)
+  public Sequence<Result<TimeseriesResultValue>> process(final TimeseriesQuery query, final Segment segment)
   {
-    return process(query, adapter, null);
+    return process(query, segment, null);
   }
 
   public Sequence<Result<TimeseriesResultValue>> process(
       final TimeseriesQuery query,
-      final StorageAdapter adapter,
+      final Segment segment,
       final Cache cache
   )
   {
+    final StorageAdapter adapter = segment.asStorageAdapter(true);
     if (adapter == null) {
       throw new SegmentMissingException(
           "Null storage adapter found. Probably trying to issue a query against a segment being memory unmapped."
       );
     }
 
-    final DimFilter filter = query.getDimFilter();
-
     return QueryRunnerHelper.makeCursorBasedQuery(
         adapter,
         query.getQuerySegmentSpec().getIntervals(),
-        VirtualColumns.valueOf(query.getVirtualColumns()),
-        filter,
+        Segments.getResolver(segment, query),
+        query.getDimFilter(),
         cache,
         query.isDescending(),
         query.getGranularity(),
@@ -94,8 +93,7 @@ public class TimeseriesQueryEngine
                 bob.addMetric(aggregatorNames[i], aggregators[i]);
               }
 
-              Result<TimeseriesResultValue> retVal = bob.build();
-              return retVal;
+              return bob.build();
             }
             finally {
               // cleanup

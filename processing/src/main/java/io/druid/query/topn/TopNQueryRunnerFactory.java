@@ -19,6 +19,7 @@
 
 package io.druid.query.topn;
 
+import com.google.common.base.Supplier;
 import com.google.inject.Inject;
 import com.metamx.common.ISE;
 import com.metamx.common.guava.Sequence;
@@ -33,6 +34,7 @@ import io.druid.query.QueryRunnerFactory;
 import io.druid.query.QueryToolChest;
 import io.druid.query.QueryWatcher;
 import io.druid.query.Result;
+import io.druid.query.RowResolver;
 import io.druid.segment.Segment;
 
 import java.nio.ByteBuffer;
@@ -92,7 +94,7 @@ public class TopNQueryRunnerFactory implements QueryRunnerFactory<Result<TopNRes
           throw new ISE("Got a [%s] which isn't a %s", input.getClass(), TopNQuery.class);
         }
 
-        return queryEngine.query((TopNQuery) input, segment.asStorageAdapter(true), cache);
+        return queryEngine.query((TopNQuery) input, segment, cache);
       }
     };
 
@@ -116,7 +118,12 @@ public class TopNQueryRunnerFactory implements QueryRunnerFactory<Result<TopNRes
   }
 
   @Override
-  public Future<Object> preFactoring(TopNQuery query, List<Segment> segments, ExecutorService exec)
+  public Future<Object> preFactoring(
+      TopNQuery query,
+      List<Segment> segments,
+      Supplier<RowResolver> resolver,
+      ExecutorService exec
+  )
   {
     return null;
   }

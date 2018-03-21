@@ -19,6 +19,10 @@
 
 package io.druid.segment;
 
+import com.google.common.base.Optional;
+import com.google.common.base.Supplier;
+import io.druid.query.Query;
+import io.druid.query.RowResolver;
 import io.druid.segment.data.Indexed;
 
 /**
@@ -39,5 +43,12 @@ public class Segments
       return segment.asQueryableIndex(false).getNumRows();
     }
     return segment.asStorageAdapter(false).getNumRows();
+  }
+
+  public static RowResolver getResolver(Segment segment, Query query) {
+    Optional<RowResolver> resolver = Optional.fromNullable(
+        segment instanceof Segment.WithResolver ? ((Segment.WithResolver)segment).resolver() : null
+    );
+    return resolver.or(RowResolver.supplier(segment, query));
   }
 }

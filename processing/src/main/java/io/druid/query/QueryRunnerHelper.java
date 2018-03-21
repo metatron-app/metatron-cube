@@ -34,7 +34,6 @@ import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.filter.DimFilter;
 import io.druid.segment.Cursor;
 import io.druid.segment.StorageAdapter;
-import io.druid.segment.VirtualColumns;
 import org.joda.time.Interval;
 
 import java.io.Closeable;
@@ -69,9 +68,9 @@ public class QueryRunnerHelper
   }
 
   public static <T> Sequence<Result<T>> makeCursorBasedQuery(
-      final StorageAdapter adapter,
+      StorageAdapter adapter,
       List<Interval> queryIntervals,
-      VirtualColumns virtualColumns,
+      RowResolver resolver,
       DimFilter filter,
       Cache cache,
       boolean descending,
@@ -84,13 +83,13 @@ public class QueryRunnerHelper
     );
 
     Interval interval = Iterables.getOnlyElement(queryIntervals);
-    return makeCursorBasedQuery(adapter, interval, virtualColumns, filter, cache, descending, granularity, mapFn);
+    return makeCursorBasedQuery(adapter, interval, resolver, filter, cache, descending, granularity, mapFn);
   }
 
   public static <T> Sequence<T> makeCursorBasedQuery(
       final StorageAdapter adapter,
       Interval interval,
-      VirtualColumns virtualColumns,
+      RowResolver resolver,
       DimFilter filter,
       Cache cache,
       boolean descending,
@@ -100,7 +99,7 @@ public class QueryRunnerHelper
   {
     return Sequences.filter(
         Sequences.map(
-            adapter.makeCursors(filter, interval, virtualColumns, granularity, cache, descending),
+            adapter.makeCursors(filter, interval, resolver, granularity, cache, descending),
             new Function<Cursor, T>()
             {
               @Override

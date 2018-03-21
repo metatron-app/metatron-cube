@@ -21,6 +21,7 @@ package io.druid.sql.calcite.util;
 
 import com.google.common.base.Function;
 import com.google.common.base.Predicates;
+import com.google.common.base.Supplier;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
@@ -28,6 +29,7 @@ import com.google.common.collect.Ordering;
 import com.google.common.util.concurrent.MoreExecutors;
 import com.metamx.common.Pair;
 import com.metamx.common.guava.FunctionalIterable;
+import com.metamx.common.guava.Sequence;
 import io.druid.query.DataSource;
 import io.druid.query.NoopQueryRunner;
 import io.druid.query.PostProcessingOperators;
@@ -39,6 +41,7 @@ import io.druid.query.QueryRunnerFactoryConglomerate;
 import io.druid.query.QuerySegmentWalker;
 import io.druid.query.QueryToolChest;
 import io.druid.query.ReportTimelineMissingSegmentQueryRunner;
+import io.druid.query.RowResolver;
 import io.druid.query.SegmentDescriptor;
 import io.druid.query.groupby.GroupByQueryConfig;
 import io.druid.query.groupby.GroupByQueryHelper;
@@ -226,16 +229,21 @@ public class SpecificSegmentsQuerySegmentWalker implements QuerySegmentWalker
       return PostProcessingOperators.wrap(runner, TestHelper.JSON_MAPPER);
     }
 
+    final List<Segment> targets = Lists.newArrayList(
+        Iterables.filter(
+            Iterables.transform(
+                segments,
+                Pair.<SegmentDescriptor, Segment>rhsFn()
+            ), Predicates.notNull()
+        )
+    );
+
+    final Supplier<RowResolver> resolver = RowResolver.supplier(targets, query);
+    final Query<T> resolved = query.resolveQuery(resolver);
     final Future<Object> optimizer = factory.preFactoring(
         query,
-        Lists.newArrayList(
-            Iterables.filter(
-                Iterables.transform(
-                    segments,
-                    Pair.<SegmentDescriptor, Segment>rhsFn()
-                ), Predicates.notNull()
-            )
-        ),
+        targets,
+        resolver,
         MoreExecutors.sameThreadExecutor()
     );
 
@@ -270,7 +278,14 @@ public class SpecificSegmentsQuerySegmentWalker implements QuerySegmentWalker
             )
         )
     );
-    runner = PostProcessingOperators.wrap(runner, TestHelper.JSON_MAPPER);
-    return runner;
+    final QueryRunner<T> baseRunner = PostProcessingOperators.wrap(runner, TestHelper.JSON_MAPPER);
+    return new QueryRunner<T>()
+    {
+      @Override
+      public Sequence<T> run(Query<T> query, Map<String, Object> responseContext)
+      {
+        return baseRunner.run(resolved, responseContext);
+      }
+    };
   }
 }

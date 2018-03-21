@@ -54,7 +54,6 @@ import io.druid.query.filter.DimFilter;
 import io.druid.query.groupby.orderby.LimitSpecs;
 import io.druid.query.spec.MultipleIntervalSegmentSpec;
 import io.druid.segment.Segment;
-import io.druid.segment.StorageAdapter;
 import org.joda.time.DateTime;
 import org.joda.time.Interval;
 
@@ -408,13 +407,12 @@ public class TimeseriesQueryQueryToolChest extends QueryToolChest<Result<Timeser
     {
       @Override
       protected Function<Interval, Sequence<Result<TimeseriesResultValue>>> function(
-          Query<Result<TimeseriesResultValue>> query, Map<String, Object> context,
-          Segment segment
+          final Query<Result<TimeseriesResultValue>> query, Map<String, Object> context,
+          final Segment segment
       )
       {
         final TimeseriesQueryEngine engine = new TimeseriesQueryEngine();
         final TimeseriesQuery outerQuery = (TimeseriesQuery) query;
-        final StorageAdapter adapter = segment.asStorageAdapter(true);
         return new Function<Interval, Sequence<Result<TimeseriesResultValue>>>()
         {
           @Override
@@ -422,7 +420,7 @@ public class TimeseriesQueryQueryToolChest extends QueryToolChest<Result<Timeser
           {
             return engine.process(
                 outerQuery.withQuerySegmentSpec(MultipleIntervalSegmentSpec.of(interval)),
-                adapter,
+                segment,
                 null
             );
           }

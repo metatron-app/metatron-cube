@@ -20,6 +20,7 @@
 package io.druid.query;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.base.Supplier;
 import io.druid.segment.Segment;
 
 import java.util.List;
@@ -27,13 +28,18 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
 
 /**
- * An interface that defines the nitty gritty implementation detauls of a Query on a Segment
+ * An interface that defines the nitty gritty implementation details of a Query on a Segment
  */
 public interface QueryRunnerFactory<T, QueryType extends Query<T>>
 {
   /**
    */
-  public Future<Object> preFactoring(QueryType query, List<Segment> segments, ExecutorService exec);
+  public Future<Object> preFactoring(
+      QueryType query,
+      List<Segment> segments,
+      Supplier<RowResolver> resolver,
+      ExecutorService exec
+  );
 
   /**
    * Given a specific segment, this method will create a QueryRunner.
@@ -85,6 +91,7 @@ public interface QueryRunnerFactory<T, QueryType extends Query<T>>
         QueryType query,
         List<Segment> targets,
         Future<Object> optimizer,
+        Supplier<RowResolver> resolver,
         QuerySegmentWalker segmentWalker,
         ObjectMapper mapper
     );

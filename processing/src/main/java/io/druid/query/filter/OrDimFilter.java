@@ -24,10 +24,10 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Joiner;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
+import io.druid.math.expr.Expression.OrExpression;
 import io.druid.query.Druids;
 import io.druid.segment.filter.Filters;
 import io.druid.segment.filter.OrFilter;
-import io.druid.math.expr.Expression.OrExpression;
 
 import java.util.List;
 import java.util.Map;
@@ -37,11 +37,6 @@ import java.util.Set;
  */
 public class OrDimFilter implements DimFilter, OrExpression
 {
-  public static DimFilter of(DimFilter... filters)
-  {
-    return filters == null ? null : filters.length == 1 ? filters[0] : new OrDimFilter(Lists.newArrayList(filters));
-  }
-
   private static final Joiner OR_JOINER = Joiner.on(" || ");
 
   final private List<DimFilter> fields;
@@ -120,7 +115,7 @@ public class OrDimFilter implements DimFilter, OrExpression
 
     OrDimFilter that = (OrDimFilter) o;
 
-    if (fields != null ? !fields.equals(that.fields) : that.fields != null) {
+    if (!fields.equals(that.fields)) {
       return false;
     }
 
@@ -130,7 +125,7 @@ public class OrDimFilter implements DimFilter, OrExpression
   @Override
   public int hashCode()
   {
-    return fields != null ? fields.hashCode() : 0;
+    return fields.hashCode();
   }
 
   @Override

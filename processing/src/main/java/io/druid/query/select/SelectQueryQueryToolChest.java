@@ -57,7 +57,6 @@ import io.druid.query.dimension.DimensionSpec;
 import io.druid.query.filter.DimFilter;
 import io.druid.query.spec.MultipleIntervalSegmentSpec;
 import io.druid.segment.Segment;
-import io.druid.segment.StorageAdapter;
 import io.druid.segment.VirtualColumn;
 import io.druid.timeline.DataSegmentUtils;
 import io.druid.timeline.LogicalSegment;
@@ -158,12 +157,11 @@ public class SelectQueryQueryToolChest extends QueryToolChest<Result<SelectResul
     {
       @Override
       protected Function<Interval, Sequence<Result<SelectResultValue>>> function(
-          Query<Result<SelectResultValue>> query, Map<String, Object> context,
-          Segment segment
+          final Query<Result<SelectResultValue>> query, Map<String, Object> context,
+          final Segment segment
       )
       {
         final SelectQuery outerQuery = (SelectQuery) query;
-        final StorageAdapter adapter = segment.asStorageAdapter(true);
         return new Function<Interval, Sequence<Result<SelectResultValue>>>()
         {
           @Override
@@ -172,7 +170,7 @@ public class SelectQueryQueryToolChest extends QueryToolChest<Result<SelectResul
             return engine.process(
                 outerQuery.withQuerySegmentSpec(MultipleIntervalSegmentSpec.of(interval)),
                 config,
-                adapter
+                segment
             );
           }
         };

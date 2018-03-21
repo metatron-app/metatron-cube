@@ -22,7 +22,9 @@ package io.druid.query;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
+import com.google.common.base.Supplier;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Ordering;
 import com.metamx.common.StringUtils;
@@ -30,8 +32,11 @@ import com.metamx.common.guava.Sequence;
 import io.druid.common.utils.PropUtils;
 import io.druid.data.ValueDesc;
 import io.druid.query.dimension.DimensionSpecs;
+import io.druid.query.select.ViewSupportHelper;
 import io.druid.query.spec.MultipleIntervalSegmentSpec;
 import io.druid.query.spec.QuerySegmentSpec;
+import io.druid.segment.VirtualColumn;
+import io.druid.segment.VirtualColumns;
 import org.joda.time.Duration;
 import org.joda.time.Interval;
 
@@ -223,6 +228,24 @@ public abstract class BaseQuery<T> implements Query<T>
       return !view.getColumns().isEmpty();
     }
     return false;
+  }
+
+  public static VirtualColumns getVirtualColumns(Query query)
+  {
+    List<VirtualColumn> vcs = Lists.newArrayList();
+    if (query instanceof VCSupport) {
+      vcs = Lists.newArrayList(((VCSupport<?>) query).getVirtualColumns());
+    }
+    if (query.getDataSource() instanceof ViewDataSource) {
+      vcs.addAll(((ViewDataSource)query.getDataSource()).getVirtualColumns());
+    }
+    return VirtualColumns.valueOf(vcs);
+  }
+
+  @Override
+  public Query<T> resolveQuery(Supplier<RowResolver> resolver)
+  {
+    return ViewSupportHelper.rewrite(this, resolver);
   }
 
   @Override

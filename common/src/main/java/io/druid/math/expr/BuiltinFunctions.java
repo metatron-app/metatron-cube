@@ -1402,7 +1402,10 @@ public interface BuiltinFunctions extends Function.Library
       ValueDesc x = args.get(0).type(bindings);
       ValueDesc y = args.get(1).type(bindings);
 
-      return x.equals(y) ? x : ValueDesc.UNKNOWN;
+      // hate this..
+      return x.equals(y) ? x :
+             x.isStringOrDimension() && y.isStringOrDimension() ? ValueDesc.STRING :
+             ValueDesc.UNKNOWN;
     }
 
     @Override

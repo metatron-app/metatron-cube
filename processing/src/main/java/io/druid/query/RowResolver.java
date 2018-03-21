@@ -21,8 +21,12 @@ package io.druid.query;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
+import com.google.common.base.Supplier;
+import com.google.common.base.Suppliers;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
+import com.google.common.collect.MapDifference;
+import com.google.common.collect.MapDifference.ValueDifference;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import com.metamx.common.Pair;
@@ -48,6 +52,7 @@ import io.druid.segment.filter.Filters;
 import io.druid.segment.serde.ComplexMetricSerde;
 import io.druid.segment.serde.ComplexMetrics;
 import org.joda.time.DateTime;
+import org.python.google.common.collect.ImmutableMap;
 
 import java.util.EnumSet;
 import java.util.List;
@@ -58,6 +63,72 @@ import java.util.Set;
  */
 public class RowResolver implements TypeResolver
 {
+  public static Supplier<RowResolver> supplier(final List<Segment> segments, final Query query)
+  {
+    return Suppliers.memoize(
+        new Supplier<RowResolver>()
+        {
+          @Override
+          public RowResolver get()
+          {
+            return of(segments, BaseQuery.getVirtualColumns(query));
+          }
+        }
+    );
+  }
+
+  public static Supplier<RowResolver> supplier(final Segment segment, final Query query)
+  {
+    return Suppliers.memoize(
+        new Supplier<RowResolver>()
+        {
+          @Override
+          public RowResolver get()
+          {
+            return RowResolver.of(segment, BaseQuery.getVirtualColumns(query));
+          }
+        }
+    );
+  }
+
+  public static RowResolver of(List<Segment> segments, VirtualColumns virtualColumns)
+  {
+    Preconditions.checkArgument(!segments.isEmpty());
+    RowResolver resolver = of(segments.get(0), virtualColumns);
+    for (int i = 1; i < segments.size(); i++) {
+      RowResolver other = of(segments.get(i), virtualColumns);
+      if (!resolver.columnTypes.equals(other.columnTypes)) {
+        MapDifference<String, ValueDesc> difference = Maps.difference(resolver.columnTypes, other.columnTypes);
+        if (difference.areEqual()) {
+          continue;
+        }
+        for (Map.Entry<String, ValueDesc> entry : difference.entriesOnlyOnRight().entrySet()) {
+          String columnName = entry.getKey();
+          resolver.columnTypes.put(columnName, entry.getValue());
+          resolver.columnCapabilities.put(columnName, other.getColumnCapabilities(columnName));
+          if (!resolver.dimensionNames.contains(columnName) && other.isDimension(columnName)) {
+            resolver.dimensionNames.add(columnName);
+          } else if (!resolver.metricNames.contains(columnName) && other.isMetric(columnName)) {
+            resolver.metricNames.add(columnName);
+            resolver.aggregators.put(columnName, other.aggregators.get(columnName));
+          }
+        }
+        for (Map.Entry<String, ValueDifference<ValueDesc>> entry : difference.entriesDiffering().entrySet()) {
+          ValueDifference<ValueDesc> value = entry.getValue();
+          ValueDesc left = value.leftValue();
+          ValueDesc right = value.rightValue();
+          ValueDesc resolved = ValueDesc.UNKNOWN;
+          if (left.isNumeric() && right.isNumeric()) {
+            resolved = ValueDesc.DOUBLE;
+          }
+          resolver.columnTypes.put(entry.getKey(), resolved);
+        }
+      }
+    }
+    virtualColumns.addImplicitVCs(resolver);
+    return resolver;
+  }
+
   public static RowResolver of(Segment segment, VirtualColumns virtualColumns)
   {
     RowResolver resolver = of(segment.asQueryableIndex(false), virtualColumns);
@@ -145,6 +216,8 @@ public class RowResolver implements TypeResolver
       return ValueDesc.DOUBLE;
     } else if (clazz == Long.class || clazz == Long.TYPE) {
       return ValueDesc.LONG;
+    } else if (clazz == DateTime.class) {
+      return ValueDesc.DATETIME;
     } else if (Map.class.isAssignableFrom(clazz)) {
       return ValueDesc.MAP;
     } else if (List.class.isAssignableFrom(clazz)) {
@@ -164,13 +237,22 @@ public class RowResolver implements TypeResolver
     return ValueDesc.UNKNOWN;
   }
 
-  private final Map<String, ColumnCapabilities> columnCapabilities = Maps.newHashMap();
-  private final Map<String, ValueDesc> columnTypes = Maps.newHashMap();
-  private final Map<String, Pair<VirtualColumn, ValueDesc>> virtualColumnTypes = Maps.newHashMap();
+  private final List<String> dimensionNames;
+  private final List<String> metricNames;
   private final VirtualColumns virtualColumns;
+  private final Map<String, AggregatorFactory> aggregators;
+
+  private final Map<String, ValueDesc> columnTypes = Maps.newHashMap();
+  private final Map<String, ColumnCapabilities> columnCapabilities = Maps.newHashMap();
+  private final Map<String, Pair<VirtualColumn, ValueDesc>> virtualColumnTypes = Maps.newConcurrentMap();
 
   private RowResolver(StorageAdapter adapter, VirtualColumns virtualColumns)
   {
+    this.dimensionNames = ImmutableList.copyOf(adapter.getAvailableDimensions());
+    this.metricNames = ImmutableList.copyOf(adapter.getAvailableMetrics());
+    this.virtualColumns = virtualColumns;
+    this.aggregators = AggregatorFactory.getAggregatorsFromMeta(adapter.getMetadata());
+
     for (String dimension : adapter.getAvailableDimensions()) {
       columnTypes.put(dimension, adapter.getColumnType(dimension));
       columnCapabilities.put(dimension, adapter.getColumnCapabilities(dimension));
@@ -181,11 +263,16 @@ public class RowResolver implements TypeResolver
     }
     columnTypes.put(Column.TIME_COLUMN_NAME, ValueDesc.LONG);
     columnCapabilities.put(Column.TIME_COLUMN_NAME, ColumnCapabilitiesImpl.of(ValueType.LONG));
-    this.virtualColumns = virtualColumns;
+    virtualColumns.addImplicitVCs(this);
   }
 
   private RowResolver(QueryableIndex index, VirtualColumns virtualColumns)
   {
+    this.dimensionNames = ImmutableList.copyOf(index.getAvailableDimensions());
+    this.metricNames = ImmutableList.copyOf(index.getAvailableMetrics());
+    this.virtualColumns = virtualColumns;
+    this.aggregators = AggregatorFactory.getAggregatorsFromMeta(index.getMetadata());
+
     for (String dimension : index.getColumnNames()) {
       Column column = index.getColumn(dimension);
       columnTypes.put(dimension, index.getColumnType(dimension));
@@ -193,11 +280,15 @@ public class RowResolver implements TypeResolver
     }
     columnTypes.put(Column.TIME_COLUMN_NAME, index.getColumnType(Column.TIME_COLUMN_NAME));
     columnCapabilities.put(Column.TIME_COLUMN_NAME, index.getColumn(Column.TIME_COLUMN_NAME).getCapabilities());
-    this.virtualColumns = virtualColumns;
+    virtualColumns.addImplicitVCs(this);
   }
 
   private RowResolver(List<DimensionSpec> dimensions, List<AggregatorFactory> metrics, VirtualColumns virtualColumns)
   {
+    this.dimensionNames = ImmutableList.of();
+    this.metricNames = ImmutableList.of();
+    this.virtualColumns = virtualColumns;
+    this.aggregators = ImmutableMap.of();
     for (DimensionSpec dimension : dimensions) {
       if (dimension.getExtractionFn() != null) {
         columnTypes.put(dimension.getOutputName(), ValueDesc.ofDimension(ValueType.STRING));
@@ -207,28 +298,76 @@ public class RowResolver implements TypeResolver
       columnTypes.put(metric.getName(), ValueDesc.of(metric.getTypeName()));
     }
     columnTypes.put(Column.TIME_COLUMN_NAME, ValueDesc.LONG);
-    this.virtualColumns = virtualColumns;
     for (DimensionSpec dimension : dimensions) {
       if (dimension.getExtractionFn() == null) {
         columnTypes.put(dimension.getOutputName(), dimension.resolveType(this));
       }
     }
+    virtualColumns.addImplicitVCs(this);
   }
 
   private RowResolver(Schema schema, VirtualColumns virtualColumns)
   {
+    this.dimensionNames = schema.getDimensionNames();
+    this.metricNames = schema.getMetricNames();
+    this.virtualColumns = virtualColumns;
+    this.aggregators = ImmutableMap.of();
     for (Pair<String, ValueDesc> pair : schema.columnAndTypes()) {
       columnTypes.put(pair.lhs, pair.rhs);
     }
     columnTypes.put(Column.TIME_COLUMN_NAME, ValueDesc.LONG);
-    this.virtualColumns = virtualColumns;
+    virtualColumns.addImplicitVCs(this);
   }
 
   @VisibleForTesting
   public RowResolver(Map<String, ValueDesc> columnTypes, VirtualColumns virtualColumns)
   {
-    this.columnTypes.putAll(columnTypes);
+    this.dimensionNames = ImmutableList.of();
+    this.metricNames = ImmutableList.of();
+    this.aggregators = ImmutableMap.of();
     this.virtualColumns = virtualColumns;
+    this.columnTypes.putAll(columnTypes);
+    virtualColumns.addImplicitVCs(this);
+  }
+
+  public List<String> getDimensionNames()
+  {
+    return dimensionNames;
+  }
+
+  public List<String> getMetricNames()
+  {
+    return metricNames;
+  }
+
+  public boolean isDimension(String columnName)
+  {
+    return dimensionNames.contains(columnName);
+  }
+
+  public boolean isMetric(String columnName)
+  {
+    return metricNames.contains(columnName);
+  }
+
+  public Map<String, AggregatorFactory> getAggregators()
+  {
+    return aggregators;
+  }
+
+  public VirtualColumns getVirtualColumns()
+  {
+    return virtualColumns;
+  }
+
+  public ColumnCapabilities getColumnCapabilities(String column)
+  {
+    return columnCapabilities.get(column);
+  }
+
+  public VirtualColumn getVirtualColumn(String columnName)
+  {
+    return virtualColumns.getVirtualColumn(columnName);
   }
 
   @Override
@@ -269,16 +408,6 @@ public class RowResolver implements TypeResolver
       return resolved.lhs;
     }
     return null;
-  }
-
-  public VirtualColumns getVirtualColumns()
-  {
-    return virtualColumns;
-  }
-
-  public ColumnCapabilities getColumnCapabilities(String column)
-  {
-    return columnCapabilities.get(column);
   }
 
   public Iterable<String> getAllColumnNames()

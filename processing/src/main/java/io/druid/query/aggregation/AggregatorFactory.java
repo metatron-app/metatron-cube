@@ -30,6 +30,7 @@ import io.druid.common.Cacheable;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.data.ValueDesc;
 import io.druid.segment.ColumnSelectorFactory;
+import io.druid.segment.Metadata;
 
 import java.util.Arrays;
 import java.util.Comparator;
@@ -238,6 +239,14 @@ public abstract class AggregatorFactory implements Cacheable
       }
     }
     return types;
+  }
+
+  public static Map<String, AggregatorFactory> getAggregatorsFromMeta(Metadata metadata)
+  {
+    if (metadata != null && metadata.getAggregators() != null) {
+      return asMap(metadata.getAggregators());
+    }
+    return Maps.newHashMap();
   }
 
   public static AggregatorFactory[] toCombiner(AggregatorFactory[] aggregators)

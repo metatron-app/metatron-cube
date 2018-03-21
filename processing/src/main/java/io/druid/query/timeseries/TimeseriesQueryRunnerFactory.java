@@ -19,8 +19,8 @@
 
 package io.druid.query.timeseries;
 
+import com.google.common.base.Supplier;
 import com.google.common.collect.Iterables;
-import com.google.common.collect.Ordering;
 import com.google.inject.Inject;
 import com.metamx.common.ISE;
 import com.metamx.common.guava.Sequence;
@@ -34,8 +34,8 @@ import io.druid.query.QueryRunnerFactory;
 import io.druid.query.QueryToolChest;
 import io.druid.query.QueryWatcher;
 import io.druid.query.Result;
+import io.druid.query.RowResolver;
 import io.druid.segment.Segment;
-import io.druid.segment.StorageAdapter;
 
 import java.util.Iterator;
 import java.util.List;
@@ -80,7 +80,7 @@ public class TimeseriesQueryRunnerFactory
   @Override
   public QueryRunner<Result<TimeseriesResultValue>> createRunner(final Segment segment, Future<Object> optimizer)
   {
-    return new TimeseriesQueryRunner(engine, segment.asStorageAdapter(true), cache);
+    return new TimeseriesQueryRunner(engine, segment, cache);
   }
 
   @Override
@@ -114,7 +114,12 @@ public class TimeseriesQueryRunnerFactory
   }
 
   @Override
-  public Future<Object> preFactoring(TimeseriesQuery query, List<Segment> segments, ExecutorService exec)
+  public Future<Object> preFactoring(
+      TimeseriesQuery query,
+      List<Segment> segments,
+      Supplier<RowResolver> resolver,
+      ExecutorService exec
+  )
   {
     return null;
   }
@@ -122,13 +127,13 @@ public class TimeseriesQueryRunnerFactory
   private static class TimeseriesQueryRunner implements QueryRunner<Result<TimeseriesResultValue>>
   {
     private final TimeseriesQueryEngine engine;
-    private final StorageAdapter adapter;
+    private final Segment segment;
     private final Cache cache;
 
-    private TimeseriesQueryRunner(TimeseriesQueryEngine engine, StorageAdapter adapter, Cache cache)
+    private TimeseriesQueryRunner(TimeseriesQueryEngine engine, Segment segment, Cache cache)
     {
       this.engine = engine;
-      this.adapter = adapter;
+      this.segment = segment;
       this.cache = cache;
     }
 
@@ -142,7 +147,7 @@ public class TimeseriesQueryRunnerFactory
         throw new ISE("Got a [%s] which isn't a %s", input.getClass(), TimeseriesQuery.class);
       }
 
-      return engine.process((TimeseriesQuery) input, adapter, cache);
+      return engine.process((TimeseriesQuery) input, segment, cache);
     }
   }
 }

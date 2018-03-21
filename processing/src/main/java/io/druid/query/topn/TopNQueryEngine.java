@@ -31,14 +31,16 @@ import io.druid.collections.StupidPool;
 import io.druid.granularity.Granularity;
 import io.druid.guice.annotations.Global;
 import io.druid.query.Result;
+import io.druid.query.RowResolver;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.extraction.ExtractionFn;
 import io.druid.query.filter.DimFilter;
 import io.druid.segment.Capabilities;
 import io.druid.segment.Cursor;
+import io.druid.segment.Segment;
 import io.druid.segment.SegmentMissingException;
+import io.druid.segment.Segments;
 import io.druid.segment.StorageAdapter;
-import io.druid.segment.VirtualColumns;
 import io.druid.segment.column.Column;
 import org.joda.time.Interval;
 
@@ -59,19 +61,20 @@ public class TopNQueryEngine
     this.bufferPool = bufferPool;
   }
 
-  public Sequence<Result<TopNResultValue>> query(final TopNQuery query, final StorageAdapter adapter)
+  public Sequence<Result<TopNResultValue>> query(final TopNQuery query, final Segment segment)
   {
-    return query(query, adapter, null);
+    return query(query, segment, null);
   }
 
-  public Sequence<Result<TopNResultValue>> query(final TopNQuery query, final StorageAdapter adapter, final Cache cache)
+  public Sequence<Result<TopNResultValue>> query(final TopNQuery query, final Segment segment, final Cache cache)
   {
+    final StorageAdapter adapter = segment.asStorageAdapter(true);
     if (adapter == null) {
       throw new SegmentMissingException(
           "Null storage adapter found. Probably trying to issue a query against a segment being memory unmapped."
       );
     }
-
+    final RowResolver resolver = Segments.getResolver(segment, query);
     final List<Interval> queryIntervals = query.getQuerySegmentSpec().getIntervals();
     final DimFilter filter = query.getDimensionsFilter();
     final Granularity granularity = query.getGranularity();
@@ -80,11 +83,9 @@ public class TopNQueryEngine
     Preconditions.checkArgument(
         queryIntervals.size() == 1, "Can only handle a single interval, got[%s]", queryIntervals
     );
-    VirtualColumns virtualColumns = VirtualColumns.valueOf(query.getVirtualColumns());
-
     return Sequences.filter(
         Sequences.map(
-            adapter.makeCursors(filter, queryIntervals.get(0), virtualColumns, granularity, null, query.isDescending()),
+            adapter.makeCursors(filter, queryIntervals.get(0), resolver, granularity, cache, query.isDescending()),
             new Function<Cursor, Result<TopNResultValue>>()
             {
               @Override

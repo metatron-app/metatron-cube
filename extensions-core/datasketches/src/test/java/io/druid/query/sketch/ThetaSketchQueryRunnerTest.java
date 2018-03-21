@@ -38,8 +38,8 @@ import io.druid.query.TableDataSource;
 import io.druid.query.aggregation.datasketches.theta.SketchModule;
 import io.druid.query.aggregation.datasketches.theta.SketchOperations;
 import io.druid.query.dimension.DefaultDimensionSpec;
-import io.druid.query.filter.AndDimFilter;
 import io.druid.query.filter.BoundDimFilter;
+import io.druid.query.filter.DimFilters;
 import io.druid.segment.TestHelper;
 import org.joda.time.DateTime;
 import org.junit.Assert;
@@ -211,9 +211,10 @@ public class ThetaSketchQueryRunnerTest
     SketchQuery query = new SketchQuery(
         new TableDataSource(QueryRunnerTestHelper.dataSource),
         QueryRunnerTestHelper.fullOnInterval,
-        AndDimFilter.of(
+        DimFilters.and(
             BoundDimFilter.between("market", "spot", "upfront"),
-            BoundDimFilter.between("quality", "health", "premium")),
+            BoundDimFilter.between("quality", "health", "premium")
+        ),
         null,
         DefaultDimensionSpec.toSpec("market", "quality"), null,
         16, null, null

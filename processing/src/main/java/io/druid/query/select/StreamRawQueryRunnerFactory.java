@@ -33,6 +33,7 @@ import io.druid.query.Query;
 import io.druid.query.QueryRunner;
 import io.druid.query.QueryRunnerFactory;
 import io.druid.query.QueryToolChest;
+import io.druid.query.RowResolver;
 import io.druid.segment.Segment;
 import org.apache.commons.lang.mutable.MutableInt;
 
@@ -67,7 +68,12 @@ public class StreamRawQueryRunnerFactory
   }
 
   @Override
-  public Future<Object> preFactoring(StreamRawQuery query, List<Segment> segments, ExecutorService exec)
+  public Future<Object> preFactoring(
+      StreamRawQuery query,
+      List<Segment> segments,
+      Supplier<RowResolver> resolver,
+      ExecutorService exec
+  )
   {
     return Futures.<Object>immediateFuture(new MutableInt(0));
   }
@@ -80,7 +86,7 @@ public class StreamRawQueryRunnerFactory
       @Override
       public Sequence<RawRows> run(Query<RawRows> query, Map<String, Object> responseContext)
       {
-        return engine.process((StreamRawQuery) query, segment.asStorageAdapter(true), optimizer, cache);
+        return engine.process((StreamRawQuery) query, segment, optimizer, cache);
       }
     };
   }

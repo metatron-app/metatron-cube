@@ -39,8 +39,8 @@ import io.druid.query.TableDataSource;
 import io.druid.query.aggregation.datasketches.theta.SketchModule;
 import io.druid.query.aggregation.datasketches.theta.SketchOperations;
 import io.druid.query.dimension.DefaultDimensionSpec;
-import io.druid.query.filter.AndDimFilter;
 import io.druid.query.filter.BoundDimFilter;
+import io.druid.query.filter.DimFilters;
 import io.druid.segment.ExprVirtualColumn;
 import io.druid.segment.TestHelper;
 import io.druid.segment.VirtualColumn;
@@ -255,7 +255,7 @@ public class QuantilesSketchQueryRunnerTest
     SketchQuery query = new SketchQuery(
         new TableDataSource(QueryRunnerTestHelper.dataSource),
         QueryRunnerTestHelper.fullOnInterval,
-        AndDimFilter.of(
+        DimFilters.and(
             BoundDimFilter.gt("market", "spot"),
             BoundDimFilter.lte("quality", "premium")
         ),
@@ -299,7 +299,7 @@ public class QuantilesSketchQueryRunnerTest
     SketchQuery query = new SketchQuery(
         new TableDataSource(QueryRunnerTestHelper.dataSource),
         QueryRunnerTestHelper.fullOnInterval,
-        AndDimFilter.of(
+        DimFilters.and(
             BoundDimFilter.gt("market_aa", "spot_aa"),
             BoundDimFilter.lte("quality", "premium")
         ),

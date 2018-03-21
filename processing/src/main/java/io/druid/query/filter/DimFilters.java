@@ -38,36 +38,21 @@ public class DimFilters
 
   public static DimFilter and(DimFilter... filters)
   {
-    return and(Arrays.asList(filters));
-  }
-
-  public static DimFilter andNullable(DimFilter... filters)
-  {
-    if (filters == null) {
-      return null;
-    }
-    List<DimFilter> filtered = Lists.newArrayList();
-    for (DimFilter filter : filters) {
-      if (filter != null) {
-        filtered.add(filter);
-      }
-    }
-    return filtered.isEmpty() ? null : and(filtered);
-  }
-
-  public static DimFilter and(List<DimFilter> filters)
-  {
-    return filters.size() == 1 ? filters.get(0) : new AndDimFilter(filters);
+    List<DimFilter> list = filterNull(filters);
+    return list.isEmpty() ? null : list.size() == 1 ? list.get(0) : new AndDimFilter(list);
   }
 
   public static DimFilter or(DimFilter... filters)
   {
-    return or(Arrays.asList(filters));
+    List<DimFilter> list = filterNull(filters);
+    return list.isEmpty() ? null : list.size() == 1 ? list.get(0) : new OrDimFilter(list);
   }
 
-  public static DimFilter or(List<DimFilter> filters)
+  private static List<DimFilter> filterNull(DimFilter... filters)
   {
-    return filters.size() == 1 ? filters.get(0) : new OrDimFilter(filters);
+    return Lists.newArrayList(
+        Iterables.filter(Arrays.asList(filters), Predicates.notNull())
+    );
   }
 
   public static NotDimFilter not(DimFilter filter)
@@ -78,23 +63,6 @@ public class DimFilters
   public static RegexDimFilter regex(String dimension, String pattern)
   {
     return new RegexDimFilter(dimension, pattern, null);
-  }
-
-  public static DimFilter dimEquals(final String dimension, String... values)
-  {
-    return or(
-        Lists.transform(
-            Arrays.asList(values),
-            new Function<String, DimFilter>()
-            {
-              @Override
-              public DimFilter apply(String input)
-              {
-                return dimEquals(dimension, input);
-              }
-            }
-        )
-    );
   }
 
   public static List<DimFilter> optimize(List<DimFilter> filters)

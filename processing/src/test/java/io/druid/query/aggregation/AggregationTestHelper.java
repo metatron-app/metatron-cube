@@ -48,7 +48,6 @@ import io.druid.data.input.impl.InputRowParser;
 import io.druid.data.input.impl.StringInputRowParser;
 import io.druid.granularity.Granularity;
 import io.druid.jackson.DefaultObjectMapper;
-import io.druid.query.FinalizeResultsQueryRunner;
 import io.druid.query.IntervalChunkingQueryRunnerDecorator;
 import io.druid.query.Query;
 import io.druid.query.QueryRunner;
@@ -56,6 +55,7 @@ import io.druid.query.QueryRunnerFactory;
 import io.druid.query.QueryRunnerTestHelper;
 import io.druid.query.QueryToolChest;
 import io.druid.query.QueryWatcher;
+import io.druid.query.RowResolver;
 import io.druid.query.groupby.GroupByQueryConfig;
 import io.druid.query.groupby.GroupByQueryEngine;
 import io.druid.query.groupby.GroupByQueryQueryToolChest;
@@ -435,6 +435,7 @@ public class AggregationTestHelper
 
   public Sequence<Row> runQueryOnSegmentsObjs(final List<Segment> segments, final Query query)
   {
+    final Supplier<RowResolver> resolver = RowResolver.supplier(segments, query);
     final QueryRunner baseRunner = toolChest.finalizeMetrics(
         toolChest.postMergeQueryDecoration(
             toolChest.mergeResults(
@@ -469,7 +470,7 @@ public class AggregationTestHelper
         )
     );
 
-    return toolChest.finalQueryDecoration(baseRunner).run(query, Maps.newHashMap());
+    return toolChest.finalQueryDecoration(baseRunner).run(query.resolveQuery(resolver), Maps.newHashMap());
   }
 
   public QueryRunner<Row> makeStringSerdeQueryRunner(final ObjectMapper mapper, final QueryToolChest toolChest, final Query<Row> query, final QueryRunner<Row> baseRunner)

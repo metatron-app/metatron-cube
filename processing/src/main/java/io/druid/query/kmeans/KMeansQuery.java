@@ -51,7 +51,7 @@ import java.util.Random;
  */
 public class KMeansQuery
     extends BaseQuery<Centroid>
-    implements Query.RewritingQuery<Centroid>, Query.IteratingQuery<CentroidDesc, Centroid>
+    implements Query.RewritingQuery<Centroid>, Query.IteratingQuery<CentroidDesc, Centroid>, Query.VCSupport<Centroid>
 {
   private static final int DEFAULT_MAX_ITERATION = 10;
   private static final double DEFAULT_DELTA_THRESHOLD = 0.01;
@@ -218,6 +218,23 @@ public class KMeansQuery
         getRanges(),
         getCentroids(),
         computeOverridenContext(contextOverride)
+    );
+  }
+
+  @Override
+  public VCSupport<Centroid> withVirtualColumns(List<VirtualColumn> virtualColumns)
+  {
+    return new KMeansQuery(
+        getDataSource(),
+        getQuerySegmentSpec(),
+        virtualColumns,
+        getMetrics(),
+        getNumK(),
+        getMaxIteration(),
+        getDeltaThreshold(),
+        getRanges(),
+        getCentroids(),
+        getContext()
     );
   }
 

@@ -20,6 +20,7 @@
 package io.druid.query.metadata;
 
 import com.google.common.base.Function;
+import com.google.common.base.Supplier;
 import com.google.common.base.Throwables;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Maps;
@@ -41,6 +42,7 @@ import io.druid.query.QueryRunner;
 import io.druid.query.QueryRunnerFactory;
 import io.druid.query.QueryToolChest;
 import io.druid.query.QueryWatcher;
+import io.druid.query.RowResolver;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.metadata.metadata.ColumnAnalysis;
 import io.druid.query.metadata.metadata.SegmentAnalysis;
@@ -241,7 +243,12 @@ public class SegmentMetadataQueryRunnerFactory implements QueryRunnerFactory<Seg
   }
 
   @Override
-  public Future<Object> preFactoring(SegmentMetadataQuery query, List<Segment> segments, ExecutorService exec)
+  public Future<Object> preFactoring(
+      SegmentMetadataQuery query,
+      List<Segment> segments,
+      Supplier<RowResolver> resolver,
+      ExecutorService exec
+  )
   {
     return null;
   }

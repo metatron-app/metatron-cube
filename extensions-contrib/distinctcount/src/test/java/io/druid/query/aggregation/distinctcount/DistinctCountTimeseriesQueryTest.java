@@ -32,9 +32,9 @@ import io.druid.query.aggregation.CountAggregatorFactory;
 import io.druid.query.timeseries.TimeseriesQuery;
 import io.druid.query.timeseries.TimeseriesQueryEngine;
 import io.druid.query.timeseries.TimeseriesResultValue;
+import io.druid.segment.IncrementalIndexSegment;
 import io.druid.segment.TestHelper;
 import io.druid.segment.incremental.IncrementalIndex;
-import io.druid.segment.incremental.IncrementalIndexStorageAdapter;
 import io.druid.segment.incremental.OnheapIncrementalIndex;
 import org.joda.time.DateTime;
 import org.junit.Test;
@@ -94,7 +94,7 @@ public class DistinctCountTimeseriesQueryTest
     final Iterable<Result<TimeseriesResultValue>> results = Sequences.toList(
         engine.process(
             query,
-            new IncrementalIndexStorageAdapter(index)
+            new IncrementalIndexSegment(index, null)
         ),
         Lists.<Result<TimeseriesResultValue>>newLinkedList()
     );

@@ -28,8 +28,10 @@ import io.druid.data.ValueDesc;
 import io.druid.data.ValueType;
 import io.druid.granularity.Granularities;
 import io.druid.granularity.Granularity;
+import io.druid.query.BaseQuery;
 import io.druid.query.Druids;
 import io.druid.query.QueryContextKeys;
+import io.druid.query.RowResolver;
 import io.druid.query.TableDataSource;
 import io.druid.query.ViewDataSource;
 import io.druid.query.aggregation.AggregatorFactory;
@@ -190,7 +192,7 @@ public class ViewSupportHelperTest
     public Sequence<Cursor> makeCursors(
         DimFilter filter,
         Interval interval,
-        VirtualColumns virtualColumns,
+        RowResolver resolver,
         Granularity gran,
         Cache cache,
         boolean descending
@@ -229,7 +231,8 @@ public class ViewSupportHelperTest
         .setGranularity(Granularities.ALL)
         .build();
 
-    GroupByQuery x = (GroupByQuery) ViewSupportHelper.rewrite(base, adapter);
+    RowResolver resolver = RowResolver.of(adapter, VirtualColumns.valueOf(view.getVirtualColumns()));
+    GroupByQuery x = (GroupByQuery) ViewSupportHelper.rewrite(base, resolver);
     Assert.assertTrue(x.getDataSource() instanceof TableDataSource);
     Assert.assertEquals(Arrays.<VirtualColumn>asList(vc1, vc2), x.getVirtualColumns());
     Assert.assertEquals(DefaultDimensionSpec.toSpec(), x.getDimensions());
@@ -239,8 +242,9 @@ public class ViewSupportHelperTest
     GroupByQuery q0 = base.withOverriddenContext(
         ImmutableMap.<String, Object>of(QueryContextKeys.ALL_DIMENSIONS_FOR_EMPTY, true)
     );
+    RowResolver r0 = RowResolver.of(adapter, VirtualColumns.valueOf(q0.getVirtualColumns()));
 
-    x = (GroupByQuery) ViewSupportHelper.rewrite(q0, adapter);
+    x = (GroupByQuery) ViewSupportHelper.rewrite(q0, r0);
     Assert.assertTrue(x.getDataSource() instanceof TableDataSource);
     Assert.assertEquals(Arrays.<VirtualColumn>asList(vc1, vc2), x.getVirtualColumns());
     Assert.assertEquals(DefaultDimensionSpec.toSpec("dim1"), x.getDimensions());  // dimension from segment
@@ -248,8 +252,9 @@ public class ViewSupportHelperTest
 
     // override dimension
     GroupByQuery q1 = q0.withDimensionSpecs(DefaultDimensionSpec.toSpec("dim2"));
+    RowResolver r1 = RowResolver.of(adapter, BaseQuery.getVirtualColumns(q1));
 
-    x = (GroupByQuery) ViewSupportHelper.rewrite(q1, adapter);
+    x = (GroupByQuery) ViewSupportHelper.rewrite(q1, r1);
     Assert.assertTrue(x.getDataSource() instanceof TableDataSource);
     Assert.assertEquals(Arrays.<VirtualColumn>asList(vc1, vc2), x.getVirtualColumns());
     Assert.assertEquals(DefaultDimensionSpec.toSpec("dim2"), x.getDimensions());  // do not modify
@@ -259,19 +264,19 @@ public class ViewSupportHelperTest
     GroupByQuery q2 = base.withOverriddenContext(
         ImmutableMap.<String, Object>of(QueryContextKeys.ALL_METRICS_FOR_EMPTY, true)
     );
+    RowResolver r2 = RowResolver.of(adapter, BaseQuery.getVirtualColumns(q2));
 
-    x = (GroupByQuery) ViewSupportHelper.rewrite(q2, adapter);
+    x = (GroupByQuery) ViewSupportHelper.rewrite(q2, r2);
     Assert.assertTrue(x.getDataSource() instanceof TableDataSource);
     Assert.assertEquals(Arrays.<VirtualColumn>asList(vc1, vc2), x.getVirtualColumns());
     Assert.assertEquals(DefaultDimensionSpec.toSpec(), x.getDimensions());  // dimension from segment
     Assert.assertEquals(Arrays.<AggregatorFactory>asList(met1, met2), x.getAggregatorSpecs());
 
     // override metric
-    GroupByQuery q3 = q2.withAggregatorSpecs(
-        Arrays.<AggregatorFactory>asList(met3)
-    );
+    GroupByQuery q3 = q2.withAggregatorSpecs(Arrays.<AggregatorFactory>asList(met3));
+    RowResolver r3 = RowResolver.of(adapter, BaseQuery.getVirtualColumns(q3));
 
-    x = (GroupByQuery) ViewSupportHelper.rewrite(q3, adapter);
+    x = (GroupByQuery) ViewSupportHelper.rewrite(q3, r3);
     Assert.assertTrue(x.getDataSource() instanceof TableDataSource);
     Assert.assertEquals(Arrays.<VirtualColumn>asList(vc1, vc2), x.getVirtualColumns());
     Assert.assertEquals(DefaultDimensionSpec.toSpec(), x.getDimensions());  // dimension from segment
@@ -279,8 +284,9 @@ public class ViewSupportHelperTest
 
     // override vc
     GroupByQuery q4 = base.withVirtualColumns(Arrays.<VirtualColumn>asList(vc3));
+    RowResolver r4 = RowResolver.of(adapter, BaseQuery.getVirtualColumns(q4));
 
-    x = (GroupByQuery) ViewSupportHelper.rewrite(q4, adapter);
+    x = (GroupByQuery) ViewSupportHelper.rewrite(q4, r4);
     Assert.assertTrue(x.getDataSource() instanceof TableDataSource);
     Assert.assertEquals(Arrays.<VirtualColumn>asList(vc1, vc2, vc3), x.getVirtualColumns());
     Assert.assertEquals(DefaultDimensionSpec.toSpec(), x.getDimensions());
@@ -302,8 +308,9 @@ public class ViewSupportHelperTest
         .dataSource(view)
         .granularity(Granularities.ALL)
         .build();
+    RowResolver resolver = RowResolver.of(adapter, BaseQuery.getVirtualColumns(base));
 
-    SelectQuery x = (SelectQuery) ViewSupportHelper.rewrite(base, adapter);
+    SelectQuery x = (SelectQuery) ViewSupportHelper.rewrite(base, resolver);
     Assert.assertTrue(x.getDataSource() instanceof TableDataSource);
     Assert.assertEquals(Arrays.<VirtualColumn>asList(vc1, vc2), x.getVirtualColumns());
     Assert.assertEquals(DefaultDimensionSpec.toSpec("dim1"), x.getDimensions());
@@ -311,8 +318,9 @@ public class ViewSupportHelperTest
 
     // override dimension
     SelectQuery q1 = base.withDimensionSpecs(DefaultDimensionSpec.toSpec("dim2"));
+    RowResolver r1 = RowResolver.of(adapter, BaseQuery.getVirtualColumns(q1));
 
-    x = (SelectQuery) ViewSupportHelper.rewrite(q1, adapter);
+    x = (SelectQuery) ViewSupportHelper.rewrite(q1, r1);
     Assert.assertTrue(x.getDataSource() instanceof TableDataSource);
     Assert.assertEquals(Arrays.<VirtualColumn>asList(vc1, vc2), x.getVirtualColumns());
     Assert.assertEquals(DefaultDimensionSpec.toSpec("dim2"), x.getDimensions());
@@ -320,16 +328,18 @@ public class ViewSupportHelperTest
 
     // override vc
     SelectQuery q2 = base.withVirtualColumns(Arrays.<VirtualColumn>asList(vc3));
+    RowResolver r2 = RowResolver.of(adapter, BaseQuery.getVirtualColumns(q2));
 
-    x = (SelectQuery) ViewSupportHelper.rewrite(q2, adapter);
+    x = (SelectQuery) ViewSupportHelper.rewrite(q2, r2);
     Assert.assertTrue(x.getDataSource() instanceof TableDataSource);
     Assert.assertEquals(Arrays.<VirtualColumn>asList(vc1, vc2, vc3), x.getVirtualColumns());
     Assert.assertEquals(DefaultDimensionSpec.toSpec("dim1"), x.getDimensions());
     Assert.assertEquals(Arrays.asList("met1", "vc1", "vc2", "vc3"), x.getMetrics());
 
     SelectQuery q3 = base.withMetrics(Arrays.<String>asList("met2"));
+    RowResolver r3 = RowResolver.of(adapter, BaseQuery.getVirtualColumns(q3));
 
-    x = (SelectQuery) ViewSupportHelper.rewrite(q3, adapter);
+    x = (SelectQuery) ViewSupportHelper.rewrite(q3, r3);
     Assert.assertTrue(x.getDataSource() instanceof TableDataSource);
     Assert.assertEquals(Arrays.<VirtualColumn>asList(vc1, vc2), x.getVirtualColumns());
     Assert.assertEquals(DefaultDimensionSpec.toSpec("dim1"), x.getDimensions());

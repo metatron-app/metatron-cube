@@ -19,6 +19,7 @@
 
 package io.druid.query.datasourcemetadata;
 
+import com.google.common.base.Supplier;
 import com.google.inject.Inject;
 import com.metamx.common.ISE;
 import com.metamx.common.guava.BaseSequence;
@@ -30,6 +31,7 @@ import io.druid.query.QueryRunnerFactory;
 import io.druid.query.QueryToolChest;
 import io.druid.query.QueryWatcher;
 import io.druid.query.Result;
+import io.druid.query.RowResolver;
 import io.druid.segment.Segment;
 import io.druid.segment.StorageAdapter;
 
@@ -77,7 +79,12 @@ public class DataSourceMetadataQueryRunnerFactory
   }
 
   @Override
-  public Future<Object> preFactoring(DataSourceMetadataQuery query, List<Segment> segments, ExecutorService exec)
+  public Future<Object> preFactoring(
+      DataSourceMetadataQuery query,
+      List<Segment> segments,
+      Supplier<RowResolver> resolver,
+      ExecutorService exec
+  )
   {
     return null;
   }

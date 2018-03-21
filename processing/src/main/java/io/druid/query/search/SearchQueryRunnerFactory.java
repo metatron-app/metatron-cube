@@ -19,6 +19,7 @@
 
 package io.druid.query.search;
 
+import com.google.common.base.Supplier;
 import com.google.inject.Inject;
 import io.druid.cache.BitmapCache;
 import io.druid.cache.Cache;
@@ -28,6 +29,7 @@ import io.druid.query.QueryRunnerFactory;
 import io.druid.query.QueryToolChest;
 import io.druid.query.QueryWatcher;
 import io.druid.query.Result;
+import io.druid.query.RowResolver;
 import io.druid.query.search.search.SearchQuery;
 import io.druid.segment.Segment;
 
@@ -90,7 +92,12 @@ public class SearchQueryRunnerFactory implements QueryRunnerFactory<Result<Searc
   }
 
   @Override
-  public Future<Object> preFactoring(SearchQuery query, List<Segment> segments, ExecutorService exec)
+  public Future<Object> preFactoring(
+      SearchQuery query,
+      List<Segment> segments,
+      Supplier<RowResolver> resolver,
+      ExecutorService exec
+  )
   {
     return null;
   }

@@ -19,10 +19,13 @@
 
 package io.druid.query;
 
+import com.google.common.base.Supplier;
 import com.metamx.common.guava.CloseQuietly;
 import com.metamx.common.guava.ResourceClosingSequence;
 import com.metamx.common.guava.Sequence;
 import io.druid.segment.ReferenceCountingSegment;
+import io.druid.segment.Segment;
+import io.druid.segment.SegmentWithResolver;
 
 import java.io.Closeable;
 import java.util.Map;
@@ -32,18 +35,21 @@ import java.util.concurrent.Future;
  */
 public class ReferenceCountingSegmentQueryRunner<T> implements QueryRunner<T>
 {
+  private final Supplier<RowResolver> resolver;
   private final QueryRunnerFactory<T, Query<T>> factory;
   private final ReferenceCountingSegment adapter;
   private final SegmentDescriptor descriptor;
   private final Future<Object> optimizer;
 
   public ReferenceCountingSegmentQueryRunner(
+      Supplier<RowResolver> resolver,
       QueryRunnerFactory<T, Query<T>> factory,
       ReferenceCountingSegment adapter,
       SegmentDescriptor descriptor,
       Future<Object> optimizer
   )
   {
+    this.resolver = resolver;
     this.factory = factory;
     this.adapter = adapter;
     this.descriptor = descriptor;
@@ -56,7 +62,8 @@ public class ReferenceCountingSegmentQueryRunner<T> implements QueryRunner<T>
     final Closeable closeable = adapter.increment();
     if (closeable != null) {
       try {
-        final Sequence<T> baseSequence = factory.createRunner(adapter, optimizer).run(query, responseContext);
+        final Segment segment = new SegmentWithResolver(adapter, resolver);
+        final Sequence<T> baseSequence = factory.createRunner(segment, optimizer).run(query, responseContext);
 
         return new ResourceClosingSequence<T>(baseSequence, closeable);
       }

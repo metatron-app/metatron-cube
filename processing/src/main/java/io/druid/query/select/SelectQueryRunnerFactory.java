@@ -19,6 +19,7 @@
 
 package io.druid.query.select;
 
+import com.google.common.base.Supplier;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 import com.google.inject.Inject;
@@ -36,6 +37,7 @@ import io.druid.query.QueryRunnerFactory;
 import io.druid.query.QueryToolChest;
 import io.druid.query.QueryWatcher;
 import io.druid.query.Result;
+import io.druid.query.RowResolver;
 import io.druid.query.spec.MultipleIntervalSegmentSpec;
 import io.druid.segment.Segment;
 import org.python.google.common.util.concurrent.Futures;
@@ -88,7 +90,12 @@ public class SelectQueryRunnerFactory
   }
 
   @Override
-  public Future<Object> preFactoring(SelectQuery query, List<Segment> segments, ExecutorService exec)
+  public Future<Object> preFactoring(
+      SelectQuery query,
+      List<Segment> segments,
+      Supplier<RowResolver> resolver,
+      ExecutorService exec
+  )
   {
     if (segments.size() < config.getOptimizeSegmentThreshold()) {
       return null;
@@ -177,7 +184,7 @@ public class SelectQueryRunnerFactory
         throw new ISE("Got a [%s] which isn't a %s", input.getClass(), SelectQuery.class);
       }
 
-      return engine.process((SelectQuery) input, config, segment.asStorageAdapter(true), cache);
+      return engine.process((SelectQuery) input, config, segment, cache);
     }
   }
 }

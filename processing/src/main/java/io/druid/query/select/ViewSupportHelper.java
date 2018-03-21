@@ -19,6 +19,8 @@
 
 package io.druid.query.select;
 
+import com.google.common.base.Supplier;
+import com.google.common.base.Suppliers;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
@@ -38,7 +40,6 @@ import io.druid.query.dimension.DimensionSpecs;
 import io.druid.query.filter.DimFilter;
 import io.druid.query.filter.DimFilters;
 import io.druid.segment.ExprVirtualColumn;
-import io.druid.segment.StorageAdapter;
 import io.druid.segment.VirtualColumn;
 import io.druid.segment.VirtualColumns;
 
@@ -51,37 +52,60 @@ public class ViewSupportHelper
 {
   private static final Logger log = new Logger(ViewSupportHelper.class);
 
-  public static <T> Query.DimFilterSupport<T> rewrite(Query.DimFilterSupport<T> query, StorageAdapter adapter)
+  public static <T> Query<T> rewrite(Query<T> query, Supplier<RowResolver> resolver)
+  {
+    return query instanceof Query.VCSupport ? rewrite((Query.VCSupport<T>) query, resolver) : query;
+  }
+
+  public static <T> Query.VCSupport<T> rewrite(Query.VCSupport<T> query, RowResolver resolver)
+  {
+    return rewrite(query, Suppliers.ofInstance(resolver));
+  }
+
+  public static <T> Query.VCSupport<T> rewrite(Query.VCSupport<T> query, Supplier<RowResolver> supplier)
   {
     if (query.getDataSource() instanceof ViewDataSource) {
-      return rewriteWithView(query, adapter);
+      return rewriteWithView(query, supplier);
     }
     if (query instanceof Query.DimensionSupport) {
       Query.DimensionSupport<T> dimensionSupport = (Query.DimensionSupport<T>)query;
       if (dimensionSupport.getDimensions().isEmpty() && dimensionSupport.allDimensionsForEmpty()) {
         query = dimensionSupport.withDimensionSpecs(
-            DefaultDimensionSpec.toSpec(adapter.getAvailableDimensions())
+            DefaultDimensionSpec.toSpec(supplier.get().getDimensionNames())
         );
       }
     }
     if (query instanceof Query.AggregationsSupport) {
       Query.AggregationsSupport<T> aggrSupport = (Query.AggregationsSupport<T>)query;
       if (aggrSupport.getAggregatorSpecs().isEmpty() && aggrSupport.allMetricsForEmpty()) {
-        query = aggrSupport.withAggregatorSpecs(Lists.newArrayList(adapter.getMetadata().getAggregators()));
+        RowResolver resolver = supplier.get();
+        List<AggregatorFactory> aggregators = Lists.newArrayList();
+        Map<String, AggregatorFactory> aggregatorsMap = resolver.getAggregators();
+        for (String metric : resolver.getMetricNames()) {
+          AggregatorFactory aggregator = aggregatorsMap.get(metric);
+          if (aggregator != null) {
+            aggregators.add(aggregator);
+          }
+        }
+        query = aggrSupport.withAggregatorSpecs(aggregators);
       }
     }
     if (query instanceof Query.MetricSupport) {
       Query.MetricSupport<T> metricSupport = (Query.MetricSupport<T>)query;
       if (metricSupport.getMetrics().isEmpty() && metricSupport.allMetricsForEmpty()) {
-        query = metricSupport.withMetrics(Lists.newArrayList(adapter.getAvailableMetrics()));
+        RowResolver resolver = supplier.get();
+        query = metricSupport.withMetrics(Lists.newArrayList(resolver.getMetricNames()));
       }
     }
-    if (query.getDimFilter() != null) {
-      Map<String, String> aliasMapping = aliasMapping(query.getVirtualColumns());
-      if (!aliasMapping.isEmpty()) {
-        DimFilter optimized = query.getDimFilter().withRedirection(aliasMapping);
-        if (query.getDimFilter() != optimized) {
-          query = query.withDimFilter(optimized);
+    if (query instanceof Query.DimFilterSupport) {
+      Query.DimFilterSupport<T> filterSupport = (Query.DimFilterSupport<T>) query;
+      if (filterSupport.getDimFilter() != null) {
+        Map<String, String> aliasMapping = aliasMapping(query.getVirtualColumns());
+        if (!aliasMapping.isEmpty()) {
+          DimFilter optimized = filterSupport.getDimFilter().withRedirection(aliasMapping);
+          if (filterSupport.getDimFilter() != optimized) {
+            query = filterSupport.withDimFilter(optimized);
+          }
         }
       }
     }
@@ -90,28 +114,28 @@ public class ViewSupportHelper
 
   // todo we need to retain storage adapter itself with view.columns (or throw exception?)
   @SuppressWarnings("unchecked")
-  private static <T> Query.DimFilterSupport<T> rewriteWithView(
-      Query.DimFilterSupport<T> baseQuery,
-      StorageAdapter adapter
+  private static <T> Query.VCSupport<T> rewriteWithView(
+      Query.VCSupport<T> baseQuery,
+      Supplier<RowResolver> supplier
   )
   {
     ViewDataSource view = (ViewDataSource) baseQuery.getDataSource();
-    Query.DimFilterSupport<T> query = (Query.DimFilterSupport<T>) rewriteWithView(baseQuery);
+    Query.VCSupport<T> query = (Query.VCSupport<T>) rewriteWithView(baseQuery);
 
-    VirtualColumns vcs = VirtualColumns.valueOf(query.getVirtualColumns());
-    List<String> dimensions = Lists.newArrayList(adapter.getAvailableDimensions());
-    List<String> metrics = Lists.newArrayList(adapter.getAvailableMetrics());
     List<String> retainer = null;
     if (!view.getColumns().isEmpty()) {
       retainer = Lists.newArrayList(view.getColumns());
-      dimensions.retainAll(retainer);
-      metrics.retainAll(retainer);
     }
 
     if (query instanceof Query.DimensionSupport) {
       Query.DimensionSupport<T> dimSupport = (Query.DimensionSupport<T>) query;
       List<DimensionSpec> dimensionSpecs = dimSupport.getDimensions();
       if (dimensionSpecs.isEmpty() && dimSupport.allDimensionsForEmpty()) {
+        RowResolver resolver = supplier.get();
+        List<String> dimensions = Lists.newArrayList(resolver.getDimensionNames());
+        if (retainer != null) {
+          dimensions.retainAll(retainer);
+        }
         dimSupport = dimSupport.withDimensionSpecs(
             DefaultDimensionSpec.toSpec(dimensions, view.isLowerCasedOutput())
         );
@@ -125,9 +149,14 @@ public class ViewSupportHelper
       Query.AggregationsSupport<T> aggrSupport = (Query.AggregationsSupport<T>) query;
       List<AggregatorFactory> aggregatorSpecs = Lists.newArrayList(aggrSupport.getAggregatorSpecs());
       if (aggregatorSpecs.isEmpty() && aggrSupport.allMetricsForEmpty()) {
-        Map<String, AggregatorFactory> aggregators = AggregatorFactory.asMap(adapter.getMetadata().getAggregators());
+        RowResolver resolver = supplier.get();
+        List<String> metrics = Lists.newArrayList(resolver.getMetricNames());
+        if (retainer != null) {
+          metrics.retainAll(retainer);
+        }
+        Map<String, AggregatorFactory> aggregatorsMap = resolver.getAggregators();
         for (String metric : metrics) {
-          AggregatorFactory aggregator = aggregators.get(metric);
+          AggregatorFactory aggregator = aggregatorsMap.get(metric);
           if (aggregator != null) {
             aggregatorSpecs.add(aggregator);
           }
@@ -139,14 +168,22 @@ public class ViewSupportHelper
       Query.MetricSupport<T> metricSupport = (Query.MetricSupport<T>) query;
       List<String> metricSpecs = Lists.newArrayList(metricSupport.getMetrics());
       if (metricSpecs.isEmpty() && metricSupport.allMetricsForEmpty()) {
+        RowResolver resolver = supplier.get();
+        List<String> metrics = Lists.newArrayList(resolver.getMetricNames());
+        if (retainer != null) {
+          metrics.retainAll(retainer);
+        }
         metricSpecs = metrics;
       }
       // add remaining retainers to metrics if vc exists (special handling only for metric support)
       if (retainer != null) {
         retainer.removeAll(metricSpecs);
-        for (String remain : retainer) {
-          if (vcs.getVirtualColumn(remain) != null) {
-            metricSpecs.add(remain);
+        if (!retainer.isEmpty()) {
+          RowResolver resolver = supplier.get();
+          for (String remain : retainer) {
+            if (resolver.getVirtualColumn(remain) != null) {
+              metricSpecs.add(remain);
+            }
           }
         }
       }
@@ -158,20 +195,20 @@ public class ViewSupportHelper
     return query;
   }
 
-  private static Query rewriteWithView(Query baseQuery)
+  private static Query rewriteWithView(Query.VCSupport<?> baseQuery)
   {
     ViewDataSource view = (ViewDataSource) baseQuery.getDataSource();
-    if (baseQuery instanceof Query.DimFilterSupport) {
-      Query.DimFilterSupport<?>  query = (Query.DimFilterSupport<?>) baseQuery;
+    if (!view.getVirtualColumns().isEmpty()) {
       // merge vcs.. in will be used selectively by cursor
       Map<String, VirtualColumn> vcs = VirtualColumns.asMap(view.getVirtualColumns());
-      for (VirtualColumn vc : query.getVirtualColumns()) {
+      for (VirtualColumn vc : baseQuery.getVirtualColumns()) {
         vcs.put(vc.getOutputName(), vc);  // override
       }
-      if (!view.getVirtualColumns().isEmpty()) {
-        query = query.withVirtualColumns(Lists.newArrayList(vcs.values()));
-      }
-      DimFilter dimFilter = DimFilters.andNullable(view.getFilter(), query.getDimFilter());
+      baseQuery = baseQuery.withVirtualColumns(Lists.newArrayList(vcs.values()));
+    }
+    if (baseQuery instanceof Query.DimFilterSupport) {
+      Query.DimFilterSupport<?>  query = (Query.DimFilterSupport<?>) baseQuery;
+      DimFilter dimFilter = DimFilters.and(view.getFilter(), query.getDimFilter());
       if (dimFilter != null) {
         Map<String, String> aliasMapping = aliasMapping(query.getVirtualColumns());
         if (!aliasMapping.isEmpty()) {
@@ -204,13 +241,10 @@ public class ViewSupportHelper
     return mapping;
   }
 
-  public static Schema toSchema(Query.MetricSupport<?> query, StorageAdapter adapter)
+  public static Schema toSchema(Query.MetricSupport<?> query, RowResolver resolver)
   {
     final List<String> dimensions = DimensionSpecs.toOutputNames(query.getDimensions());
     final List<String> metrics = Lists.newArrayList(query.getMetrics());
-
-    final VirtualColumns virtualColumns = VirtualColumns.valueOf(query.getVirtualColumns(), adapter);
-    final RowResolver resolver = RowResolver.of(adapter, virtualColumns);
 
     final List<ValueDesc> columnTypes = Lists.newArrayList();
     for (DimensionSpec dimensionSpec : query.getDimensions()) {
@@ -224,14 +258,9 @@ public class ViewSupportHelper
       columnTypes.add(resolver.resolveColumn(metric, ValueDesc.UNKNOWN));
     }
     List<AggregatorFactory> aggregators = Lists.newArrayList();
-    if (adapter.getMetadata() != null && adapter.getMetadata().getAggregators() != null) {
-      Map<String, AggregatorFactory> factoryMap = Maps.newHashMap();
-      for (AggregatorFactory aggregator : adapter.getMetadata().getAggregators()) {
-        factoryMap.put(aggregator.getName(), aggregator);
-      }
-      for (String metric : metrics) {
-        aggregators.add(factoryMap.get(metric));
-      }
+    Map<String, AggregatorFactory> factoryMap = resolver.getAggregators();
+    for (String metric : metrics) {
+      aggregators.add(factoryMap.get(metric));
     }
 
     return new Schema(dimensions, metrics, columnTypes, aggregators);

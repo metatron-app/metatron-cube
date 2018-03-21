@@ -22,6 +22,7 @@ package io.druid.query;
 import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.base.Supplier;
 import com.google.common.collect.Ordering;
 import com.metamx.common.Pair;
 import com.metamx.common.guava.Sequence;
@@ -100,6 +101,8 @@ public interface Query<T> extends QueryContextKeys
 
   String getType();
 
+  Query<T> resolveQuery(Supplier<RowResolver> resolver);
+
   Sequence<T> run(QuerySegmentWalker walker, Map<String, Object> context);
 
   Sequence<T> run(QueryRunner<T> runner, Map<String, Object> context);
@@ -134,15 +137,18 @@ public interface Query<T> extends QueryContextKeys
 
   Query<T> withDataSource(DataSource dataSource);
 
-  interface DimFilterSupport<T> extends Query<T>
+  interface VCSupport<T> extends Query<T>
+  {
+    List<VirtualColumn> getVirtualColumns();
+
+    VCSupport<T> withVirtualColumns(List<VirtualColumn> virtualColumns);
+  }
+
+  interface DimFilterSupport<T> extends VCSupport<T>
   {
     DimFilter getDimFilter();
 
     DimFilterSupport<T> withDimFilter(DimFilter filter);
-
-    List<VirtualColumn> getVirtualColumns();
-
-    DimFilterSupport<T> withVirtualColumns(List<VirtualColumn> virtualColumns);
   }
 
   interface DimensionSupport<T> extends DimFilterSupport<T>

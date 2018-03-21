@@ -29,12 +29,11 @@ import io.druid.data.ValueDesc;
 import io.druid.data.ValueType;
 import io.druid.query.QueryRunnerTestHelper;
 import io.druid.query.RowResolver;
-import io.druid.query.filter.AndDimFilter;
 import io.druid.query.filter.BoundDimFilter;
 import io.druid.query.filter.DimFilter;
+import io.druid.query.filter.DimFilters;
 import io.druid.query.filter.MathExprFilter;
 import io.druid.query.filter.NotDimFilter;
-import io.druid.query.filter.OrDimFilter;
 import io.druid.query.filter.SelectorDimFilter;
 import io.druid.segment.VirtualColumns;
 import org.junit.Assert;
@@ -60,8 +59,8 @@ public class FiltersTest
     DimFilter dim2 = BoundDimFilter.lt("market", "b");
     DimFilter dim3 = BoundDimFilter.gt("market", "s");
 
-    DimFilter cnf = Filters.convertToCNF(OrDimFilter.of(AndDimFilter.of(dim1, dim2), dim3));
-    assertEquals(AndDimFilter.of(OrDimFilter.of(dim3, dim1), OrDimFilter.of(dim3, dim2)), cnf);
+    DimFilter cnf = Filters.convertToCNF(DimFilters.or(DimFilters.and(dim1, dim2), dim3));
+    assertEquals(DimFilters.and(DimFilters.or(dim3, dim1), DimFilters.or(dim3, dim2)), cnf);
   }
 
   @Test
@@ -71,12 +70,12 @@ public class FiltersTest
 
     DimFilter dim2 = new MathExprFilter("market == \"spot\" && quality == \"business\"");
 
-    DimFilter dim3 = AndDimFilter.of(dim1, dim2);
+    DimFilter dim3 = DimFilters.and(dim1, dim2);
 
-    DimFilter dim4 = OrDimFilter.of(dim1, dim2);
+    DimFilter dim4 = DimFilters.or(dim1, dim2);
 
     // DIM1 AND !(DIM1 OR DIM2) -> DIM1 AND !DIM1 AND !DIM2
-    DimFilter dim5 = AndDimFilter.of(dim1, NotDimFilter.of(dim4));
+    DimFilter dim5 = DimFilters.and(dim1, NotDimFilter.of(dim4));
 
     DimFilter[] filters;
 
@@ -100,7 +99,7 @@ public class FiltersTest
     assertEquals(dim4, filters[1]);
 
     filters = Filters.partitionWithBitmapSupport(dim5, resolver);
-    assertEquals(AndDimFilter.of(dim1, NotDimFilter.of(dim1)), filters[0]);
+    assertEquals(DimFilters.and(dim1, NotDimFilter.of(dim1)), filters[0]);
     assertEquals(NotDimFilter.of(dim2), filters[1]);
   }
 

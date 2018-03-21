@@ -44,7 +44,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 
-public class SegmentMetadataQuery extends BaseQuery<SegmentAnalysis>
+public class SegmentMetadataQuery extends BaseQuery<SegmentAnalysis> implements Query.VCSupport<SegmentAnalysis>
 {
   /* The SegmentMetadataQuery cache key may contain UTF-8 column name strings.
    * Prepend 0xFF before the analysisTypes as a separator to avoid

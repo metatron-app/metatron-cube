@@ -19,6 +19,7 @@
 
 package io.druid.query.sketch;
 
+import com.google.common.base.Supplier;
 import com.google.inject.Inject;
 import io.druid.cache.BitmapCache;
 import io.druid.cache.Cache;
@@ -28,6 +29,7 @@ import io.druid.query.QueryRunnerFactory;
 import io.druid.query.QueryToolChest;
 import io.druid.query.QueryWatcher;
 import io.druid.query.Result;
+import io.druid.query.RowResolver;
 import io.druid.segment.Segment;
 
 import java.util.List;
@@ -80,7 +82,12 @@ public class SketchQueryRunnerFactory implements QueryRunnerFactory<Result<Map<S
   }
 
   @Override
-  public Future<Object> preFactoring(SketchQuery query, List<Segment> segments, ExecutorService exec)
+  public Future<Object> preFactoring(
+      SketchQuery query,
+      List<Segment> segments,
+      Supplier<RowResolver> resolver,
+      ExecutorService exec
+  )
   {
     return null;
   }

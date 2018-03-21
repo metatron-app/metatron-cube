@@ -46,14 +46,13 @@ import io.druid.query.search.search.SearchHit;
 import io.druid.query.search.search.SearchQuery;
 import io.druid.query.search.search.SearchQuerySpec;
 import io.druid.query.search.search.SearchSortSpec;
-import io.druid.query.select.ViewSupportHelper;
 import io.druid.segment.ColumnSelectorBitmapIndexSelector;
 import io.druid.segment.Cursor;
 import io.druid.segment.DimensionSelector;
 import io.druid.segment.QueryableIndex;
 import io.druid.segment.Segment;
+import io.druid.segment.Segments;
 import io.druid.segment.StorageAdapter;
-import io.druid.segment.VirtualColumns;
 import io.druid.segment.column.BitmapIndex;
 import io.druid.segment.column.Column;
 import io.druid.segment.data.IndexedInts;
@@ -86,7 +85,7 @@ public class SearchQueryEngine
   }
 
   public Sequence<Result<SearchResultValue>> process(
-      final SearchQuery baseQuery,
+      final SearchQuery query,
       final Segment segment,
       final boolean merge
   )
@@ -97,14 +96,14 @@ public class SearchQueryEngine
     if (adapter == null) {
       log.makeAlert("WTF!? Unable to process search query on segment.")
          .addData("segment", segment.getIdentifier())
-         .addData("query", baseQuery).emit();
+         .addData("query", query).emit();
       throw new ISE(
           "Null storage adapter found. Probably trying to issue a query against a segment being memory unmapped."
       );
     }
     final String segmentId = segment.getIdentifier();
 
-    final SearchQuery query = (SearchQuery) ViewSupportHelper.rewrite(baseQuery, adapter);
+    final RowResolver resolver = Segments.getResolver(segment, query);
 
     final DimFilter filter = query.getDimensionsFilter();
     final List<DimensionSpec> dimensions = query.getDimensions();
@@ -118,12 +117,9 @@ public class SearchQueryEngine
     final Comparator<SearchHit> resultComparator = sort.getResultComparator();
     final boolean needsFullScan = limit < 0 || (!query.isValueOnly() && sort.sortOnCount());
 
-    final VirtualColumns vcs = VirtualColumns.valueOf(query.getVirtualColumns(), adapter);
-    final RowResolver resolver = RowResolver.of(index, vcs);
-
     final DateTime timestamp = segment.getDataInterval().getStart();
-    Iterable<String> columns = Iterables.transform(dimensions, DimensionSpecs.INPUT_NAME);
-    if (resolver != null && resolver.supportsExactBitmap(columns, filter)) {
+    final Iterable<String> columns = Iterables.transform(dimensions, DimensionSpecs.INPUT_NAME);
+    if (index != null && resolver.supportsExactBitmap(columns, filter)) {
       final Map<SearchHit, MutableInt> retVal = Maps.newHashMap();
 
       final BitmapFactory bitmapFactory = index.getBitmapFactoryForDimensions();
@@ -178,7 +174,7 @@ public class SearchQueryEngine
     }
 
     final Sequence<Cursor> cursors = adapter.makeCursors(
-        filter, segment.getDataInterval(), vcs, QueryGranularities.ALL, null, descending
+        filter, segment.getDataInterval(), resolver, QueryGranularities.ALL, null, descending
     );
 
     final Map<SearchHit, MutableInt> retVal = cursors.accumulate(

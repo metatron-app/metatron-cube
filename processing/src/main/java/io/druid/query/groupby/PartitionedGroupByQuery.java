@@ -45,8 +45,8 @@ import io.druid.query.aggregation.PostAggregator;
 import io.druid.query.dimension.DefaultDimensionSpec;
 import io.druid.query.dimension.DimensionSpec;
 import io.druid.query.dimension.ExpressionDimensionSpec;
-import io.druid.query.filter.AndDimFilter;
 import io.druid.query.filter.DimFilter;
+import io.druid.query.filter.DimFilters;
 import io.druid.query.groupby.having.HavingSpec;
 import io.druid.query.groupby.orderby.LimitSpec;
 import io.druid.query.groupby.orderby.LimitSpecs;
@@ -232,7 +232,7 @@ public class PartitionedGroupByQuery extends GroupByQuery implements Query.Rewri
     return new GroupByQuery(
         getDataSource(),
         interval == null ? getQuerySegmentSpec() : new MultipleIntervalSegmentSpec(interval),
-        filter == null ? current : current != null ? AndDimFilter.of(current, filter) : filter,
+        filter == null ? current : current != null ? DimFilters.and(current, filter) : filter,
         getGranularity(),
         getDimensions(),
         getVirtualColumns(),

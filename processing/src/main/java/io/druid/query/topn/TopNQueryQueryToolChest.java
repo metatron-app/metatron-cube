@@ -57,7 +57,6 @@ import io.druid.query.dimension.DimensionSpec;
 import io.druid.query.filter.DimFilter;
 import io.druid.query.spec.MultipleIntervalSegmentSpec;
 import io.druid.segment.Segment;
-import io.druid.segment.StorageAdapter;
 import org.joda.time.DateTime;
 import org.joda.time.Interval;
 
@@ -697,12 +696,11 @@ public class TopNQueryQueryToolChest extends QueryToolChest<Result<TopNResultVal
         {
           @Override
           protected Function<Interval, Sequence<Result<TopNResultValue>>> function(
-              Query<Result<TopNResultValue>> query, Map<String, Object> context,
-              Segment segment
+              final Query<Result<TopNResultValue>> query, Map<String, Object> context,
+              final Segment segment
           )
           {
             final TopNQuery topNQuery = (TopNQuery) query;
-            final StorageAdapter adapter = segment.asStorageAdapter(true);
             return new Function<Interval, Sequence<Result<TopNResultValue>>>()
             {
               @Override
@@ -710,7 +708,7 @@ public class TopNQueryQueryToolChest extends QueryToolChest<Result<TopNResultVal
               {
                 return engine.query(
                     topNQuery.withQuerySegmentSpec(MultipleIntervalSegmentSpec.of(interval)),
-                    adapter
+                    segment
                 );
               }
             };

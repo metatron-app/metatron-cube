@@ -43,17 +43,19 @@ import io.druid.data.input.Row;
 import io.druid.granularity.Granularity;
 import io.druid.granularity.QueryGranularities;
 import io.druid.guice.annotations.Global;
+import io.druid.query.RowResolver;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.BufferAggregator;
 import io.druid.query.aggregation.PostAggregator;
 import io.druid.query.aggregation.PostAggregators;
 import io.druid.query.dimension.DimensionSpec;
 import io.druid.query.filter.DimFilter;
-import io.druid.query.select.ViewSupportHelper;
 import io.druid.segment.ColumnSelectorFactory;
 import io.druid.segment.Cursor;
 import io.druid.segment.DimensionSelector;
 import io.druid.segment.IndexProvidingSelector;
+import io.druid.segment.Segment;
+import io.druid.segment.Segments;
 import io.druid.segment.StorageAdapter;
 import io.druid.segment.VirtualColumns;
 import io.druid.segment.data.IndexedInts;
@@ -114,19 +116,20 @@ public class GroupByQueryEngine
     this.intermediateResultsBufferPool = intermediateResultsBufferPool;
   }
 
-  public Sequence<Row> process(final GroupByQuery query, final StorageAdapter storageAdapter)
+  public Sequence<Row> process(final GroupByQuery query, final Segment segment)
   {
-    return process(query, storageAdapter, null);
+    return process(query, segment, null);
   }
 
-  public Sequence<Row> process(final GroupByQuery baseQuery, final StorageAdapter storageAdapter, final Cache cache)
+  public Sequence<Row> process(final GroupByQuery query, final Segment segment, final Cache cache)
   {
+    final StorageAdapter storageAdapter = segment.asStorageAdapter(true);
     if (storageAdapter == null) {
       throw new ISE(
           "Null storage adapter found. Probably trying to issue a baseQuery against a segment being memory unmapped."
       );
     }
-    final GroupByQuery query = (GroupByQuery) ViewSupportHelper.rewrite(baseQuery, storageAdapter);
+    final RowResolver resolver = Segments.getResolver(segment, query);
 
     final List<Interval> intervals = query.getQuerySegmentSpec().getIntervals();
     if (intervals.size() != 1) {
@@ -138,7 +141,7 @@ public class GroupByQueryEngine
     final Sequence<Cursor> cursors = storageAdapter.makeCursors(
         filter,
         intervals.get(0),
-        VirtualColumns.valueOf(query.getVirtualColumns()),
+        resolver,
         query.getGranularity(),
         cache,
         false

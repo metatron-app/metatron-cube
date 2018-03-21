@@ -22,6 +22,7 @@ package io.druid.server.coordination;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.google.common.base.Function;
 import com.google.common.base.Functions;
+import com.google.common.base.Supplier;
 import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
@@ -51,7 +52,9 @@ import io.druid.query.QueryRunnerFactory;
 import io.druid.query.QueryRunnerFactoryConglomerate;
 import io.druid.query.QueryToolChest;
 import io.druid.query.Result;
+import io.druid.query.RowResolver;
 import io.druid.query.aggregation.MetricManipulationFn;
+import io.druid.query.dimension.DefaultDimensionSpec;
 import io.druid.query.search.SearchResultValue;
 import io.druid.query.search.search.SearchQuery;
 import io.druid.segment.AbstractSegment;
@@ -59,6 +62,7 @@ import io.druid.segment.IndexIO;
 import io.druid.segment.QueryableIndex;
 import io.druid.segment.ReferenceCountingSegment;
 import io.druid.segment.Segment;
+import io.druid.segment.SegmentWithResolver;
 import io.druid.segment.StorageAdapter;
 import io.druid.segment.loading.SegmentLoader;
 import io.druid.segment.loading.SegmentLoadingException;
@@ -421,6 +425,7 @@ public class ServerManagerTest
                                     .dataSource(dataSource)
                                     .intervals(intervals)
                                     .granularity(granularity)
+                                    .dimensions(DefaultDimensionSpec.of("dummy"))
                                     .limit(10000)
                                     .query("wow")
                                     .build();
@@ -521,10 +526,11 @@ public class ServerManagerTest
     @Override
     public QueryRunner<Result<SearchResultValue>> createRunner(Segment adapter, Future<Object> optimizer)
     {
-      if (!(adapter instanceof ReferenceCountingSegment)) {
+      final Segment delegated = ((SegmentWithResolver) adapter).getSegment();
+      if (!(delegated instanceof ReferenceCountingSegment)) {
         throw new IAE("Expected instance of ReferenceCountingSegment, got %s", adapter.getClass());
       }
-      final ReferenceCountingSegment segment = (ReferenceCountingSegment) adapter;
+      final ReferenceCountingSegment segment = (ReferenceCountingSegment) delegated;
 
       Assert.assertTrue(segment.getNumReferences() > 0);
       segmentReferences.add(segment);
@@ -550,7 +556,12 @@ public class ServerManagerTest
     }
 
     @Override
-    public Future<Object> preFactoring(SearchQuery query, List<Segment> segments, ExecutorService exec)
+    public Future<Object> preFactoring(
+        SearchQuery query,
+        List<Segment> segments,
+        Supplier<RowResolver> resolver,
+        ExecutorService exec
+    )
     {
       return null;
     }

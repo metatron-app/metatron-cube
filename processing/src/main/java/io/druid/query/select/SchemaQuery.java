@@ -40,7 +40,7 @@ import java.util.Objects;
 /**
  */
 public class SchemaQuery extends BaseQuery<Result<SelectMetaResultValue>>
-    implements Query.RewritingQuery<Result<SelectMetaResultValue>>
+    implements Query.RewritingQuery<Result<SelectMetaResultValue>>, Query.VCSupport<Result<SelectMetaResultValue>>
 {
   private final List<DimensionSpec> dimensions;
   private final List<String> metrics;
@@ -134,6 +134,19 @@ public class SchemaQuery extends BaseQuery<Result<SelectMetaResultValue>>
         getMetrics(),
         getVirtualColumns(),
         computeOverridenContext(contextOverride)
+    );
+  }
+
+  @Override
+  public VCSupport<Result<SelectMetaResultValue>> withVirtualColumns(List<VirtualColumn> virtualColumns)
+  {
+    return new SchemaQuery(
+        getDataSource(),
+        getQuerySegmentSpec(),
+        getDimensions(),
+        getMetrics(),
+        virtualColumns,
+        getContext()
     );
   }
 

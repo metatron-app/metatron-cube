@@ -26,6 +26,7 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import io.druid.data.ValueDesc;
+import io.druid.query.RowResolver;
 import io.druid.query.dimension.DimensionSpec;
 import io.druid.query.extraction.ExtractionFn;
 import io.druid.query.filter.DimFilter;
@@ -95,11 +96,6 @@ public class VirtualColumns implements Iterable<VirtualColumn>
       return empty();
     }
     return new VirtualColumns(asMap(virtualColumns));
-  }
-
-  public static VirtualColumns valueOf(List<VirtualColumn> virtualColumns, StorageAdapter adapter)
-  {
-    return valueOf(virtualColumns).addImplicitVCs(adapter);
   }
 
   public static DimensionSelector toDimensionSelector(final LongColumnSelector selector)
@@ -472,13 +468,12 @@ public class VirtualColumns implements Iterable<VirtualColumn>
     return ImmutableSet.copyOf(virtualColumns.keySet());
   }
 
-  public VirtualColumns addImplicitVCs(StorageAdapter adapter)
+  public void addImplicitVCs(RowResolver resolver)
   {
-    for (String metric : adapter.getAvailableMetrics()) {
-      if (!virtualColumns.containsKey(metric) && ValueDesc.isArray(adapter.getColumnType(metric))) {
+    for (String metric : resolver.getMetricNames()) {
+      if (!virtualColumns.containsKey(metric) && ValueDesc.isArray(resolver.resolveColumn(metric))) {
         virtualColumns.put(metric, ArrayVirtualColumn.implicit(metric));  // implicit array vc
       }
     }
-    return this;
   }
 }

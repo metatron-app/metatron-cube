@@ -28,15 +28,16 @@ import com.metamx.common.ISE;
 import com.metamx.common.guava.BaseSequence;
 import com.metamx.common.guava.Sequence;
 import com.metamx.common.guava.Sequences;
-import io.druid.granularity.QueryGranularities;
 import io.druid.granularity.Granularity;
+import io.druid.granularity.QueryGranularities;
 import io.druid.query.QueryRunnerHelper;
 import io.druid.query.Result;
+import io.druid.query.RowResolver;
 import io.druid.query.dimension.DimensionSpecs;
 import io.druid.segment.Cursor;
 import io.druid.segment.Segment;
+import io.druid.segment.Segments;
 import io.druid.segment.StorageAdapter;
-import io.druid.segment.VirtualColumns;
 import org.joda.time.Interval;
 
 import java.util.Arrays;
@@ -47,7 +48,7 @@ import java.util.Set;
  */
 public class SelectMetaQueryEngine
 {
-  public Sequence<Result<SelectMetaResultValue>> process(final SelectMetaQuery baseQuery, final Segment segment)
+  public Sequence<Result<SelectMetaResultValue>> process(final SelectMetaQuery query, final Segment segment)
   {
     final StorageAdapter adapter = segment.asStorageAdapter(false);
 
@@ -57,7 +58,6 @@ public class SelectMetaQueryEngine
       );
     }
 
-    final SelectMetaQuery query = (SelectMetaQuery) ViewSupportHelper.rewrite(baseQuery, adapter);
     final List<Interval> intervals = query.getQuerySegmentSpec().getIntervals();
     Preconditions.checkArgument(intervals.size() == 1, "Can only handle a single interval, got[%s]", intervals);
 
@@ -67,7 +67,9 @@ public class SelectMetaQueryEngine
     final String segmentId = segment.getIdentifier();
     final StorageAdapter storageAdapter = segment.asStorageAdapter(false);
 
-    final Schema schema = ViewSupportHelper.toSchema(query, storageAdapter);
+    final RowResolver resolver = Segments.getResolver(segment, query);
+    final Schema schema = ViewSupportHelper.toSchema(query, resolver);    // todo fix this
+
     if (query.isSchemaOnly()) {
       return Sequences.simple(
           Arrays.asList(
@@ -103,7 +105,7 @@ public class SelectMetaQueryEngine
     return QueryRunnerHelper.makeCursorBasedQuery(
         adapter,
         intervals,
-        VirtualColumns.valueOf(query.getVirtualColumns()),
+        resolver,
         query.getDimensionsFilter(),
         null,
         query.isDescending(),

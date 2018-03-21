@@ -35,7 +35,6 @@ import io.druid.query.TabularFormat;
 import io.druid.query.aggregation.MetricManipulationFn;
 import io.druid.query.spec.MultipleIntervalSegmentSpec;
 import io.druid.segment.Segment;
-import io.druid.segment.StorageAdapter;
 import org.joda.time.Interval;
 
 import java.util.Map;
@@ -120,13 +119,12 @@ public class StreamQueryToolChest extends QueryToolChest<StreamQueryRow, StreamQ
     {
       @Override
       protected Function<Interval, Sequence<StreamQueryRow>> function(
-          Query<StreamQueryRow> query, Map<String, Object> context,
-          Segment segment
+          final Query<StreamQueryRow> query, Map<String, Object> context,
+          final Segment segment
       )
       {
         final StreamQueryEngine engine = new StreamQueryEngine();
         final StreamQuery outerQuery = (StreamQuery) query;
-        final StorageAdapter adapter = segment.asStorageAdapter(true);
         return new Function<Interval, Sequence<StreamQueryRow>>()
         {
           @Override
@@ -134,7 +132,7 @@ public class StreamQueryToolChest extends QueryToolChest<StreamQueryRow, StreamQ
           {
             return engine.process(
                 outerQuery.withQuerySegmentSpec(MultipleIntervalSegmentSpec.of(interval)),
-                adapter,
+                segment,
                 null,
                 null
             );

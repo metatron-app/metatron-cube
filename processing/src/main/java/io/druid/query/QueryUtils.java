@@ -80,7 +80,7 @@ public class QueryUtils
     if (dataSource instanceof ViewDataSource) {
       view = (ViewDataSource) dataSource;
       view = view.withColumns(Arrays.asList(column))
-                 .withFilter(DimFilters.andNullable(view.getFilter(), filter));
+                 .withFilter(DimFilters.and(view.getFilter(), filter));
     } else {
       String name = Iterables.getOnlyElement(dataSource.getNames());
       view = new ViewDataSource(name, Arrays.asList(column), null, filter, false);

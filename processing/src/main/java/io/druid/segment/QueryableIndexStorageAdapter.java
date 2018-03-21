@@ -219,7 +219,7 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
   public Sequence<Cursor> makeCursors(
       final DimFilter filter,
       final Interval interval,
-      final VirtualColumns virtualColumns,
+      final RowResolver resolver,
       final Granularity gran,
       final Cache cache,
       final boolean descending
@@ -237,8 +237,6 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
       return Sequences.empty();
     }
 
-    virtualColumns.addImplicitVCs(this);
-
     if (actualInterval.getStart().isBefore(dataInterval.getStart())) {
       actualInterval = actualInterval.withStart(dataInterval.getStart());
     }
@@ -248,7 +246,6 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
 
     final BitmapFactory bitmapFactory = index.getBitmapFactoryForDimensions();
 
-    final RowResolver resolver = RowResolver.of(this, virtualColumns);
     final DimFilter[] filters = Filters.partitionWithBitmapSupport(filter, resolver);
 
     final DimFilter bitmapFilter = filters == null ? null : filters[0];
@@ -281,7 +278,6 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
             new CursorSequenceBuilder(
                 index,
                 actualInterval,
-                virtualColumns,
                 resolver,
                 gran,
                 offset,
@@ -301,7 +297,6 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
   {
     private final QueryableIndex index;
     private final Interval interval;
-    private final VirtualColumns virtualColumns;
     private final RowResolver resolver;
     private final Granularity gran;
     private final Offset offset;
@@ -315,7 +310,6 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
     public CursorSequenceBuilder(
         QueryableIndex index,
         Interval interval,
-        VirtualColumns virtualColumns,
         RowResolver resolver,
         Granularity gran,
         Offset offset,
@@ -328,7 +322,6 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
     {
       this.index = index;
       this.interval = interval;
-      this.virtualColumns = virtualColumns;
       this.resolver = resolver;
       this.gran = gran;
       this.offset = offset;
@@ -480,7 +473,7 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
 
                       final Column columnDesc = index.getColumn(dimension);
                       if (columnDesc == null) {
-                        VirtualColumn virtualColumn = virtualColumns.getVirtualColumn(dimension);
+                        VirtualColumn virtualColumn = resolver.getVirtualColumn(dimension);
                         if (virtualColumn != null) {
                           return virtualColumn.asDimension(dimension, extractionFn, this);
                         }
@@ -675,7 +668,7 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
                       if (cachedMetricVals == null) {
                         Column holder = index.getColumn(columnName);
                         if (holder == null) {
-                          VirtualColumn vc = virtualColumns.getVirtualColumn(columnName);
+                          VirtualColumn vc = resolver.getVirtualColumn(columnName);
                           if (vc != null) {
                             return vc.asFloatMetric(columnName, this);
                           }
@@ -716,7 +709,7 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
                       if (cachedMetricVals == null) {
                         Column holder = index.getColumn(columnName);
                         if (holder == null) {
-                          VirtualColumn vc = virtualColumns.getVirtualColumn(columnName);
+                          VirtualColumn vc = resolver.getVirtualColumn(columnName);
                           if (vc != null) {
                             return vc.asDoubleMetric(columnName, this);
                           }
@@ -757,7 +750,7 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
                       if (cachedMetricVals == null) {
                         Column holder = index.getColumn(columnName);
                         if (holder == null) {
-                          VirtualColumn vc = virtualColumns.getVirtualColumn(columnName);
+                          VirtualColumn vc = resolver.getVirtualColumn(columnName);
                           if (vc != null) {
                             return vc.asLongMetric(columnName, this);
                           }
@@ -818,7 +811,7 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
 
                       Column holder = index.getColumn(column);
                       if (holder == null) {
-                        VirtualColumn vc = virtualColumns.getVirtualColumn(column);
+                        VirtualColumn vc = resolver.getVirtualColumn(column);
                         if (vc != null) {
                           objectColumnCache.put(column, cachedColumnVals = vc.asMetric(column, this));
                           return cachedColumnVals;

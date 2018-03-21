@@ -232,7 +232,7 @@ public class IncrementalIndexStorageAdapter implements StorageAdapter
   public Sequence<Cursor> makeCursors(
       final DimFilter filter,
       final Interval interval,
-      final VirtualColumns virtualColumns,
+      final RowResolver resolver,
       final Granularity gran,
       final Cache cache,
       final boolean descending
@@ -248,16 +248,12 @@ public class IncrementalIndexStorageAdapter implements StorageAdapter
       return Sequences.empty();
     }
 
-    virtualColumns.addImplicitVCs(this);
-
     final Interval actualInterval = interval.overlap(dataInterval);
 
     Iterable<Interval> iterable = gran.getIterable(actualInterval);
     if (descending) {
       iterable = Lists.reverse(ImmutableList.copyOf(iterable));
     }
-
-    final RowResolver resolver = RowResolver.of(this, virtualColumns);
 
     return Sequences.map(
         Sequences.simple(iterable),
@@ -396,7 +392,7 @@ public class IncrementalIndexStorageAdapter implements StorageAdapter
 
                 final IncrementalIndex.DimensionDesc dimensionDesc = index.getDimension(dimension);
                 if (dimensionDesc == null) {
-                  VirtualColumn virtualColumn = virtualColumns.getVirtualColumn(dimension);
+                  VirtualColumn virtualColumn = resolver.getVirtualColumn(dimension);
                   if (virtualColumn != null) {
                     return virtualColumn.asDimension(dimension, extractionFn, this);
                   }
@@ -520,7 +516,7 @@ public class IncrementalIndexStorageAdapter implements StorageAdapter
                     }
                     return ColumnSelectors.asFloat(makeObjectColumnSelector(columnName));
                   }
-                  VirtualColumn virtualColumn = virtualColumns.getVirtualColumn(columnName);
+                  VirtualColumn virtualColumn = resolver.getVirtualColumn(columnName);
                   if (virtualColumn != null) {
                     return virtualColumn.asFloatMetric(columnName, this);
                   }
@@ -558,7 +554,7 @@ public class IncrementalIndexStorageAdapter implements StorageAdapter
                     }
                     return ColumnSelectors.asDouble(makeObjectColumnSelector(columnName));
                   }
-                  VirtualColumn virtualColumn = virtualColumns.getVirtualColumn(columnName);
+                  VirtualColumn virtualColumn = resolver.getVirtualColumn(columnName);
                   if (virtualColumn != null) {
                     return virtualColumn.asDoubleMetric(columnName, this);
                   }
@@ -606,7 +602,7 @@ public class IncrementalIndexStorageAdapter implements StorageAdapter
                     }
                     return ColumnSelectors.asLong(makeObjectColumnSelector(columnName));
                   }
-                  VirtualColumn virtualColumn = virtualColumns.getVirtualColumn(columnName);
+                  VirtualColumn virtualColumn = resolver.getVirtualColumn(columnName);
                   if (virtualColumn != null) {
                     return virtualColumn.asLongMetric(columnName, this);
                   }
@@ -681,7 +677,7 @@ public class IncrementalIndexStorageAdapter implements StorageAdapter
                 IncrementalIndex.DimensionDesc dimensionDesc = index.getDimension(column);
 
                 if (dimensionDesc == null) {
-                  VirtualColumn virtualColumn = virtualColumns.getVirtualColumn(column);
+                  VirtualColumn virtualColumn = resolver.getVirtualColumn(column);
                   if (virtualColumn != null) {
                     return virtualColumn.asMetric(column, this);
                   }

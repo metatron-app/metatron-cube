@@ -68,7 +68,6 @@ import io.druid.query.dimension.DimensionSpecs;
 import io.druid.query.extraction.ExtractionFn;
 import io.druid.query.spec.MultipleIntervalSegmentSpec;
 import io.druid.segment.Segment;
-import io.druid.segment.StorageAdapter;
 import io.druid.segment.incremental.IncrementalIndex;
 import org.joda.time.DateTime;
 import org.joda.time.Interval;
@@ -226,13 +225,12 @@ public class GroupByQueryQueryToolChest extends QueryToolChest<Row, GroupByQuery
 
       @Override
       protected Function<Interval, Sequence<Row>> function(
-          Query<Row> query,
-          Map<String, Object> context,
-          Segment segment
+          final Query<Row> query,
+          final Map<String, Object> context,
+          final Segment segment
       )
       {
         final GroupByQuery outerQuery = (GroupByQuery) query;
-        final StorageAdapter storageAdapter = segment.asStorageAdapter(true);
         return new Function<Interval, Sequence<Row>>()
         {
           @Override
@@ -240,7 +238,7 @@ public class GroupByQueryQueryToolChest extends QueryToolChest<Row, GroupByQuery
           {
             return engine.process(
                 outerQuery.withQuerySegmentSpec(MultipleIntervalSegmentSpec.of(interval)),
-                storageAdapter
+                segment
             );
           }
         };

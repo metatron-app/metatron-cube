@@ -37,8 +37,8 @@ import io.druid.segment.DimensionSelector;
 import io.druid.segment.ObjectColumnSelector;
 import io.druid.segment.QueryableIndex;
 import io.druid.segment.Segment;
+import io.druid.segment.Segments;
 import io.druid.segment.StorageAdapter;
-import io.druid.segment.VirtualColumns;
 import io.druid.segment.column.BitmapIndex;
 import io.druid.segment.column.Column;
 import io.druid.segment.column.ColumnCapabilities;
@@ -61,8 +61,7 @@ public class SegmentAnalyzer
     final QueryableIndex index = segment.asQueryableIndex(false);
     final StorageAdapter adapter = segment.asStorageAdapter(false);
 
-    final VirtualColumns vcs = VirtualColumns.valueOf(query.getVirtualColumns(), adapter);
-    final RowResolver resolver = RowResolver.of(segment, vcs);
+    final RowResolver resolver = Segments.getResolver(segment, query);
 
     final ColumnIncluderator predicate = query.getToInclude();
 
@@ -79,9 +78,9 @@ public class SegmentAnalyzer
 
       ColumnAnalysis analysis;
       if (ValueDesc.isDimension(valueDesc)) {
-        analysis = analyzeDimensionColumn(column, columnName, valueDesc, vcs, adapter, analysisTypes);
+        analysis = analyzeDimensionColumn(column, columnName, valueDesc, resolver, adapter, analysisTypes);
       } else {
-        analysis = analyzeSimpleColumn(column, columnName, valueDesc, vcs, adapter, analysisTypes);
+        analysis = analyzeSimpleColumn(column, columnName, valueDesc, resolver, adapter, analysisTypes);
       }
       columns.put(columnName, analysis);
     }
@@ -92,7 +91,7 @@ public class SegmentAnalyzer
       final Column column,
       final String columnName,
       final ValueDesc valueDesc,
-      final VirtualColumns virtualColumns,
+      final RowResolver resolver,
       final StorageAdapter storageAdapter,
       final EnumSet<AnalysisType> analysisTypes
   )
@@ -133,7 +132,7 @@ public class SegmentAnalyzer
     if (ValueDesc.isPrimitive(valueDesc) &&
         (analyzingMinMax && !minMaxEvaluated || analyzingNullCount && nullCount < 0)) {
       Object[] accumulated = accumulate(
-          storageAdapter, virtualColumns,
+          storageAdapter, resolver,
           new Object[]{null, null, new MutableInt()}, new Accumulator<Object[], Cursor>()
           {
             @Override
@@ -188,7 +187,7 @@ public class SegmentAnalyzer
       final Column column,
       final String columnName,
       final ValueDesc valueDesc,
-      final VirtualColumns virtualColumns,
+      final RowResolver resolver,
       final StorageAdapter storageAdapter,
       final EnumSet<AnalysisType> analysisTypes
   )
@@ -231,7 +230,7 @@ public class SegmentAnalyzer
       } else {
         final Comparator comparator = valueType.comparator();
         Object[] accumulated = accumulate(
-            storageAdapter, virtualColumns,
+            storageAdapter, resolver,
             new Object[]{null, null, new MutableInt()},
             new Accumulator<Object[], Cursor>()
             {
@@ -299,7 +298,7 @@ public class SegmentAnalyzer
 
   private static <T> T accumulate(
       StorageAdapter storageAdapter,
-      VirtualColumns vcs,
+      RowResolver resolver,
       T initial,
       Accumulator<T, Cursor> accumulator
   )
@@ -308,7 +307,7 @@ public class SegmentAnalyzer
         storageAdapter.getMinTime().getMillis(),
         storageAdapter.getMaxTime().getMillis() + 1
     );
-    return storageAdapter.makeCursors(null, interval, vcs, QueryGranularities.ALL, null, false)
+    return storageAdapter.makeCursors(null, interval, resolver, QueryGranularities.ALL, null, false)
                          .accumulate(initial, accumulator);
   }
 }

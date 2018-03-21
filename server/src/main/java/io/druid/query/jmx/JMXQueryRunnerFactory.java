@@ -19,6 +19,7 @@
 
 package io.druid.query.jmx;
 
+import com.google.common.base.Supplier;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
 import com.google.inject.Inject;
@@ -31,6 +32,7 @@ import io.druid.query.QueryRunner;
 import io.druid.query.QueryRunnerFactory;
 import io.druid.query.QueryToolChest;
 import io.druid.query.QueryWatcher;
+import io.druid.query.RowResolver;
 import io.druid.segment.Segment;
 import io.druid.server.DruidNode;
 import org.joda.time.DateTime;
@@ -68,7 +70,7 @@ public class JMXQueryRunnerFactory implements QueryRunnerFactory<Map<String, Obj
   }
 
   @Override
-  public Future<Object> preFactoring(JMXQuery query, List<Segment> segments, ExecutorService exec)
+  public Future<Object> preFactoring(JMXQuery query, List<Segment> segments, Supplier<RowResolver> resolver, ExecutorService exec)
   {
     return null;
   }

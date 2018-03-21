@@ -27,7 +27,6 @@ import com.google.common.collect.Lists;
 import com.metamx.common.guava.Sequences;
 import com.yahoo.sketches.frequencies.ItemsSketch;
 import io.druid.data.ValueDesc;
-import io.druid.data.ValueDesc;
 import io.druid.query.Query;
 import io.druid.query.QueryRunner;
 import io.druid.query.QueryRunnerTestHelper;
@@ -36,8 +35,8 @@ import io.druid.query.TableDataSource;
 import io.druid.query.aggregation.datasketches.theta.SketchModule;
 import io.druid.query.aggregation.datasketches.theta.SketchOperations;
 import io.druid.query.dimension.DefaultDimensionSpec;
-import io.druid.query.filter.AndDimFilter;
 import io.druid.query.filter.BoundDimFilter;
+import io.druid.query.filter.DimFilters;
 import io.druid.segment.TestHelper;
 import org.joda.time.DateTime;
 import org.joda.time.Interval;
@@ -253,7 +252,7 @@ public class FrequencySketchQueryRunnerTest
     SketchQuery query = new SketchQuery(
         new TableDataSource(QueryRunnerTestHelper.dataSource),
         QueryRunnerTestHelper.fullOnInterval,
-        AndDimFilter.of(
+        DimFilters.and(
             BoundDimFilter.gt("market", "spot"),
             BoundDimFilter.lte("quality", "premium")
         ),

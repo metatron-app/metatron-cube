@@ -63,8 +63,8 @@ public class SelectMetaQuery extends BaseQuery<Result<SelectMetaResultValue>>
         .setContext(Maps.newHashMap(source.getContext()))
         .addContext(BaseQuery.BY_SEGMENT, bySegment);
 
-    if (source instanceof DimFilterSupport) {
-      builder.setVirtualColumns(((DimFilterSupport) source).getVirtualColumns());
+    if (source instanceof VCSupport) {
+      builder.setVirtualColumns(((VCSupport) source).getVirtualColumns());
     }
     if (source instanceof DimensionSupport) {
       builder.setDimensions(((DimensionSupport) source).getDimensions());

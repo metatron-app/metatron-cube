@@ -23,8 +23,8 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
-import io.druid.query.filter.AndDimFilter;
 import io.druid.query.filter.DimFilter;
+import io.druid.query.filter.DimFilters;
 import io.druid.query.spec.QuerySegmentSpec;
 
 import java.util.List;
@@ -191,7 +191,7 @@ public class JoinElement
       if (filter != null) {
         Query.DimFilterSupport filterSupport = (Query.DimFilterSupport) query;
         if (filterSupport.getDimFilter() != null) {
-          filter = AndDimFilter.of(filterSupport.getDimFilter(), filter);
+          filter = DimFilters.and(filterSupport.getDimFilter(), filter);
           query = filterSupport.withDimFilter(filter);
         }
       }

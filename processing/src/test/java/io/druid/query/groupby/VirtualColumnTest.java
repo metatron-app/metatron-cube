@@ -24,6 +24,7 @@ import com.google.common.base.Suppliers;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.common.io.CharSource;
+import com.metamx.common.ISE;
 import com.metamx.common.guava.Sequences;
 import io.druid.collections.StupidPool;
 import io.druid.data.input.Row;
@@ -231,7 +232,7 @@ public class VirtualColumnTest
     checkQueryResult(query, expectedResults);
   }
 
-  @Test(expected = UnsupportedOperationException.class)
+  @Test(expected = ISE.class)
   public void testException1() throws Exception
   {
     BaseAggregationQuery.Builder<GroupByQuery> builder = testBuilder();
