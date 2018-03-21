@@ -21,6 +21,7 @@ package io.druid.query.ordering;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonValue;
+import io.druid.common.utils.StringUtils;
 
 public enum Direction
 {
@@ -37,16 +38,25 @@ public enum Direction
   @JsonCreator
   public static Direction fromString(String name)
   {
-    if (name == null) {
+    Direction direction = tryFromString(name);
+    if (direction == null) {
+      throw new IllegalArgumentException("invalid direction " + name);
+    }
+    return direction;
+  }
+
+  public static Direction tryFromString(String name)
+  {
+    if (StringUtils.isNullOrEmpty(name)) {
       return ASCENDING;
     }
     name = name.toUpperCase();
-    if (name.equals("DESC")) {
+    if (name.equals("DESC") || name.equals("DESCENDING")) {
       return DESCENDING;
-    } else if (name.equals("ASC")) {
+    } else if (name.equals("ASC") || name.equals("ASCENDING")) {
       return ASCENDING;
     }
-    return valueOf(name);
+    return null;
   }
 }
 

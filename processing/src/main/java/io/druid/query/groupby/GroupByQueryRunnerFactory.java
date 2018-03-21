@@ -47,8 +47,10 @@ import io.druid.query.QueryToolChest;
 import io.druid.query.QueryWatcher;
 import io.druid.query.RowResolver;
 import io.druid.query.dimension.DimensionSpec;
+import io.druid.query.dimension.DimensionSpecWithOrdering;
 import io.druid.query.filter.DimFilters;
 import io.druid.query.filter.MathExprFilter;
+import io.druid.query.ordering.Direction;
 import io.druid.segment.Segment;
 
 import java.nio.ByteBuffer;
@@ -146,21 +148,33 @@ public class GroupByQueryRunnerFactory implements QueryRunnerFactory.Splitable<R
     Object[] values = result.getValues();
     long[] counts = result.getCounts();
 
-    logger.info("--> values : " + Arrays.toString(values));
-    logger.info("--> counts : " + Arrays.toString(counts));
+    logger.info("--> values : %s", Arrays.toString(values));
+    logger.info("--> counts : %s", Arrays.toString(counts));
 
-    String dimension = query.getDimensions().get(0).getDimension();
+    Direction direction = Direction.ASCENDING;
+    DimensionSpec dimensionSpec = query.getDimensions().get(0);
+    if (dimensionSpec instanceof DimensionSpecWithOrdering) {
+      direction = ((DimensionSpecWithOrdering) dimensionSpec).getDirection();
+    }
+    String dimension = dimensionSpec.getDimension();
 
     List<GroupByQuery> splits = Lists.newArrayList();
     for (int i = 1; i < values.length; i++) {
       String expression;
       if (i == 1) {
-        expression = dimension + " < " + values[i];
+        expression = direction == Direction.ASCENDING ?
+                     dimension + " < " + values[i] :
+                     dimension + " > " + values[i];
       } else if (i < values.length - 1) {
-        expression = values[i - 1] + " <= " + dimension + " && " + dimension + " < " + values[i];
+        expression = direction == Direction.ASCENDING ?
+                     values[i - 1] + " <= " + dimension + " && " + dimension + " < " + values[i] :
+                     values[i - 1] + " >= " + dimension + " && " + dimension + " > " + values[i];
       } else {
-        expression = dimension + " >= " + values[i - 1];
+        expression = direction == Direction.ASCENDING ?
+                     dimension + " >= " + values[i - 1] :
+                     dimension + " <= " + values[i - 1];
       }
+      logger.info("--> expression : %s ", expression);
       splits.add(
           query.withDimFilter(DimFilters.and(query.getDimFilter(), new MathExprFilter(expression)))
       );

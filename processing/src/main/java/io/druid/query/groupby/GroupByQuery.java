@@ -446,7 +446,7 @@ public class GroupByQuery extends BaseAggregationQuery<Row> implements Query.Rew
           return null;  // order conflict
         }
       }
-      if (!orderBy.isNaturalOrdering()) {
+      if (!orderBy.isBasicOrdering()) {
         dimensionSpec = new DimensionSpecWithOrdering(
             dimensionSpec, orderBy.getDirection(), orderBy.getDimensionOrder()
         );

@@ -89,7 +89,7 @@ public class LimitSpecs
           return false;
         }
       }
-      if (!orderBy.isNaturalOrdering()) {
+      if (!orderBy.isBasicOrdering()) {
         return false;
       }
     }

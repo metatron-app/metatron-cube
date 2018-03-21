@@ -106,6 +106,16 @@ public class OrderingSpec implements Cacheable
     return StringComparators.makeComparator(dimensionOrder);
   }
 
+  public boolean isBasicOrdering()
+  {
+    return direction == Direction.ASCENDING && dimensionOrder.equals(StringComparators.LEXICOGRAPHIC_NAME);
+  }
+
+  public boolean isNaturalOrdering()
+  {
+    return dimensionOrder.equals(StringComparators.LEXICOGRAPHIC_NAME);
+  }
+
   @Override
   public boolean equals(Object o)
   {

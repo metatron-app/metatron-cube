@@ -43,9 +43,11 @@ import io.druid.query.aggregation.PostAggregator;
 import io.druid.query.aggregation.RelayAggregatorFactory;
 import io.druid.query.dimension.DefaultDimensionSpec;
 import io.druid.query.dimension.DimensionSpec;
+import io.druid.query.dimension.DimensionSpecWithOrdering;
 import io.druid.query.dimension.DimensionSpecs;
 import io.druid.query.groupby.GroupByQuery;
 import io.druid.query.groupby.PartitionedGroupByQuery;
+import io.druid.query.ordering.OrderingSpec;
 import io.druid.query.select.EventHolder;
 import io.druid.query.select.Schema;
 import io.druid.query.select.SelectQuery;
@@ -395,8 +397,19 @@ public class Queries
     if (query.getDimensions().isEmpty() || !Granularities.ALL.equals(query.getGranularity())) {
       return null;
     }
+    List<OrderingSpec> orderingSpecs = Lists.newArrayList();
     DimensionSpec dimension = query.getDimensions().get(0);
-    if (!(dimension instanceof DefaultDimensionSpec)) {
+    if (dimension instanceof DimensionSpecWithOrdering) {
+      DimensionSpecWithOrdering explicit = (DimensionSpecWithOrdering) dimension;
+      if (!(explicit.getDelegate() instanceof DefaultDimensionSpec)) {
+        return null;
+      }
+      OrderingSpec orderingSpec = explicit.asOrderingSpec();
+      if (!orderingSpec.isNaturalOrdering()) {
+        return null;  // todo
+      }
+      orderingSpecs.add(orderingSpec);
+    } else if (!(dimension instanceof DefaultDimensionSpec)) {
       return null;  // todo (see DimensionSpecVC)
     }
 
@@ -406,6 +419,7 @@ public class Queries
                                          .put("fieldName", dimension.getDimension())
                                          .put("sketchOp", "QUANTILE")
                                          .put("sketchParam", 128)
+                                         .put("orderingSpecs", orderingSpecs)
                                          .build();
 
     Map<String, Object> pg = ImmutableMap.<String, Object>builder()

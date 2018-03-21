@@ -23,6 +23,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;
 import io.druid.query.QueryCacheHelper;
 import io.druid.query.ordering.Direction;
+import io.druid.query.ordering.OrderingSpec;
 
 import java.nio.ByteBuffer;
 
@@ -57,6 +58,11 @@ public class DimensionSpecWithOrdering extends BaseFilteredDimensionSpec
   public String getOrdering()
   {
     return ordering;
+  }
+
+  public OrderingSpec asOrderingSpec()
+  {
+    return new OrderingSpec(direction, ordering);
   }
 
   @Override

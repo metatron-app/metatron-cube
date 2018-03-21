@@ -163,8 +163,12 @@ public class GenericSketchAggregatorFactory extends AggregatorFactory
     if (selector == null) {
       return Aggregator.NULL;
     }
-    if (!handler.supports(selector.type())) {
-      throw new UnsupportedOperationException("not supported type " + selector.type());
+    ValueDesc dataType = selector.type();
+    if (!handler.supports(dataType)) {
+      throw new UnsupportedOperationException("not supported type " + dataType);
+    }
+    if (sourceType.isPrimitive() && !sourceType.equals(dataType)) {
+      throw new UnsupportedOperationException("type mismatch.. " + sourceType + " with real type " + dataType);
     }
     return new Aggregator.Abstract()
     {

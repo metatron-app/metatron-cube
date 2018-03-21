@@ -150,11 +150,6 @@ public class OrderByColumnSpec extends OrderingSpec implements Cacheable
     return dimension;
   }
 
-  public boolean isNaturalOrdering()
-  {
-    return direction == Direction.ASCENDING && dimensionOrder.equals(StringComparators.LEXICOGRAPHIC_NAME);
-  }
-
   public OrderByColumnSpec withComparator(String comparatorName)
   {
     return new OrderByColumnSpec(dimension, direction, comparatorName);

@@ -634,9 +634,10 @@ public class StringComparators
   // used in sketch aggregator
   public static Comparator makeComparator(ValueDesc sourceType, List<OrderingSpec> orderingSpecs)
   {
+    boolean defaultOrdering = GuavaUtils.isNullOrEmpty(orderingSpecs);
     if (sourceType.isPrimitive()) {
-      Preconditions.checkArgument(orderingSpecs == null || orderingSpecs.size() == 1);
-      if (orderingSpecs == null) {
+      Preconditions.checkArgument(defaultOrdering || orderingSpecs.size() == 1);
+      if (defaultOrdering) {
         return sourceType.comparator();
       }
       OrderingSpec orderingSpec = orderingSpecs.get(0);
@@ -650,7 +651,7 @@ public class StringComparators
     String[] descriptive = TypeUtils.splitDescriptiveType(sourceType.typeName());
     List<String> elements = TypeUtils.splitWithEscape(descriptive[1], ',');
     Comparator[] comparators = new Comparator[elements.size()];
-    if (orderingSpecs == null) {
+    if (defaultOrdering) {
       Arrays.fill(comparators, Ordering.natural().nullsFirst());
       return toStructComparator(comparators);
     }
