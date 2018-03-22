@@ -43,7 +43,7 @@ public class SketchTestHelper extends QueryRunnerTestHelper
   public static final AggregatorFactory indexQuantileAggr = new GenericSketchAggregatorFactory(
       indexSketchMetric,
       indexMetric,
-      null,
+      ValueDesc.DOUBLE,
       SketchOp.QUANTILE,
       null,
       null,

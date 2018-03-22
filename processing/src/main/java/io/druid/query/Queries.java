@@ -58,6 +58,8 @@ import io.druid.query.timeseries.TimeseriesQuery;
 import io.druid.query.timeseries.TimeseriesResultValue;
 import io.druid.query.topn.TopNQuery;
 import io.druid.query.topn.TopNResultValue;
+import io.druid.segment.DimensionSpecVirtualColumn;
+import io.druid.segment.VirtualColumn;
 import io.druid.segment.column.Column;
 import io.druid.segment.incremental.IncrementalIndexSchema;
 import org.joda.time.DateTime;
@@ -387,6 +389,8 @@ public class Queries
     return function.apply(query);
   }
 
+  private static final String DUMMY_VC = "$VC";
+
   public static ColumnHistogram getColumnHistogramOfFirstDimension(
       QuerySegmentWalker segmentWalker,
       ObjectMapper jsonMapper,
@@ -397,26 +401,29 @@ public class Queries
     if (query.getDimensions().isEmpty() || !Granularities.ALL.equals(query.getGranularity())) {
       return null;
     }
+    List<VirtualColumn> virtualColumns = Lists.newArrayList(query.getVirtualColumns());
     List<OrderingSpec> orderingSpecs = Lists.newArrayList();
+
     DimensionSpec dimension = query.getDimensions().get(0);
+    String fieldName = dimension.getDimension();
     if (dimension instanceof DimensionSpecWithOrdering) {
       DimensionSpecWithOrdering explicit = (DimensionSpecWithOrdering) dimension;
-      if (!(explicit.getDelegate() instanceof DefaultDimensionSpec)) {
-        return null;
-      }
       OrderingSpec orderingSpec = explicit.asOrderingSpec();
       if (!orderingSpec.isNaturalOrdering()) {
         return null;  // todo
       }
       orderingSpecs.add(orderingSpec);
-    } else if (!(dimension instanceof DefaultDimensionSpec)) {
-      return null;  // todo (see DimensionSpecVC)
+      dimension = explicit.getDelegate();
+    }
+    if (!(dimension instanceof DefaultDimensionSpec)) {
+      virtualColumns.add(DimensionSpecVirtualColumn.wrap(dimension, DUMMY_VC));
+      fieldName = DUMMY_VC;
     }
 
     Map<String, Object> ag = ImmutableMap.<String, Object>builder()
                                          .put("type", "sketch")
                                          .put("name", "SKETCH")
-                                         .put("fieldName", dimension.getDimension())
+                                         .put("fieldName", fieldName)
                                          .put("sketchOp", "QUANTILE")
                                          .put("sketchParam", 128)
                                          .put("orderingSpecs", orderingSpecs)
@@ -434,15 +441,18 @@ public class Queries
     Map<String, Object> context = Maps.<String, Object>newHashMap(query.getContext());
     context.put(Query.LOCAL_POST_PROCESSING, true);
 
+    AggregatorFactory aggregator = Queries.convert(ag, jsonMapper, AggregatorFactory.class);
+    PostAggregator postAggregator = Queries.convert(pg, jsonMapper, PostAggregator.class);
+
     TimeseriesQuery metaQuery = new TimeseriesQuery(
         query.getDataSource(),
         query.getQuerySegmentSpec(),
         query.isDescending(),
         query.getDimFilter(),
         query.getGranularity(),
-        query.getVirtualColumns(),
-        Arrays.asList(Queries.convert(ag, jsonMapper, AggregatorFactory.class)),
-        Arrays.asList(Queries.convert(pg, jsonMapper, PostAggregator.class)),
+        virtualColumns,
+        Arrays.asList(aggregator),
+        Arrays.asList(postAggregator),
         null,
         null,
         Arrays.asList("SPLIT"),

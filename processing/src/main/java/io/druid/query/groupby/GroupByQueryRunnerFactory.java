@@ -117,7 +117,7 @@ public class GroupByQueryRunnerFactory implements QueryRunnerFactory.Splitable<R
     for (DimensionSpec dimensionSpec : query.getDimensions()) {
       ValueDesc type = dimensionSpec.resolveType(resolver.get());
       if (ValueDesc.isDimension(type)) {
-        types.add(ValueType.STRING);
+        types.add(ValueType.of(type.subElement().typeName()));
       } else if (ValueDesc.isPrimitive(type)) {
         types.add(type.type());
       } else {

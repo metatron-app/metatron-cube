@@ -41,6 +41,7 @@ import io.druid.segment.DimensionSelector;
 import io.druid.segment.ObjectColumnSelector;
 import io.druid.segment.data.IndexedInts;
 
+import java.lang.reflect.Array;
 import java.nio.ByteBuffer;
 import java.util.Collections;
 import java.util.Comparator;
@@ -87,118 +88,127 @@ public class GenericSketchAggregatorFactory extends AggregatorFactory
 
   @Override
   @SuppressWarnings("unchecked")
-  public Aggregator factorize(ColumnSelectorFactory metricFactory)
+  public Aggregator factorize(final ColumnSelectorFactory metricFactory)
   {
-    final SketchHandler<?> handler = new SketchHandler.Synchronized<>(sketchOp.handler());
     if (merge) {
       final ObjectColumnSelector selector = metricFactory.makeObjectColumnSelector(fieldName);
       if (selector == null) {
         return Aggregator.NULL;
       }
-      return new Aggregator.Abstract()
+      return new BaseAggregator(sourceType)
       {
-        private TypedSketch union;
-
         @Override
         public void aggregate()
         {
-          final TypedSketch sketch = (TypedSketch) selector.get();
+          TypedSketch sketch = (TypedSketch) selector.get();
           if (sketch != null) {
-            if (union == null) {
-              union = handler.newUnion(sketchParam, sourceType, sourceComparator);
-            }
-            handler.updateWithSketch(union, sketch.value());
+            updateWithSketch(sketch.value());
           }
-        }
-
-        @Override
-        public void reset()
-        {
-          handler.reset(union);
-        }
-
-        @Override
-        public Object get()
-        {
-          return union == null ? null : handler.toSketch(union);
         }
       };
     }
-    if (ValueDesc.isDimension(metricFactory.getColumnType(fieldName))) {
+
+    ValueDesc columnType = metricFactory.getColumnType(fieldName);
+    if (columnType == null) {
+      return Aggregator.NULL;
+    }
+    if (ValueDesc.isDimension(columnType)) {
       final DimensionSelector selector = metricFactory.makeDimensionSelector(DefaultDimensionSpec.of(fieldName));
-      Preconditions.checkArgument(sourceType.equals(ValueDesc.STRING), "type mismatch " + ValueDesc.STRING);
-
-      return new Aggregator.Abstract()
+      return new BaseAggregator(selector.type())
       {
-        final TypedSketch sketch = handler.newUnion(sketchParam, sourceType, sourceComparator);
-
         @Override
         public void aggregate()
         {
           final IndexedInts row = selector.getRow();
           final int size = row.size();
           if (size == 1) {
-            handler.updateWithValue(sketch, Objects.toString(selector.lookupName(row.get(0)), ""));
+            updateWithValue(selector.lookupName(row.get(0)));
           } else if (size > 1) {
             for (int i = 0; i < size; i++) {
-              handler.updateWithValue(sketch, Objects.toString(selector.lookupName(row.get(i)), ""));
+              updateWithValue(selector.lookupName(row.get(i)));
             }
           }
         }
-
+      };
+    }
+    if (ValueDesc.isMultiValued(columnType)) {
+      ValueDesc elementType = columnType.subElement();
+      final ObjectColumnSelector selector = metricFactory.makeObjectColumnSelector(fieldName);
+      return new BaseAggregator(elementType)
+      {
         @Override
-        public void reset()
+        public void aggregate()
         {
-          handler.reset(sketch);
-        }
-
-        @Override
-        public Object get()
-        {
-          return handler.toSketch(sketch);
+          Object value = selector.get();
+          if (value == null) {
+            return;
+          }
+          if (value.getClass().isArray()) {
+            int size = Array.getLength(value);
+            for (int i = 0; i < size; i++) {
+              updateWithValue(Array.get(value, i));
+            }
+          } else {
+            updateWithValue(value);
+          }
         }
       };
     }
-    final ObjectColumnSelector selector = metricFactory.makeObjectColumnSelector(fieldName);
-    if (selector == null) {
-      return Aggregator.NULL;
-    }
-    ValueDesc dataType = selector.type();
-    if (!handler.supports(dataType)) {
-      throw new UnsupportedOperationException("not supported type " + dataType);
-    }
-    if (sourceType.isPrimitive() && !sourceType.equals(dataType)) {
-      throw new UnsupportedOperationException("type mismatch.. " + sourceType + " with real type " + dataType);
-    }
-    return new Aggregator.Abstract()
+    return new BaseAggregator(columnType)
     {
-      final TypedSketch sketch = handler.newUnion(sketchParam, sourceType, sourceComparator);
+      final ObjectColumnSelector selector = metricFactory.makeObjectColumnSelector(fieldName);
 
       @Override
       public void aggregate()
       {
-        handler.updateWithValue(sketch, selector.get());
-      }
-
-      @Override
-      public void reset()
-      {
-        handler.reset(sketch);
-      }
-
-      @Override
-      public Object get()
-      {
-        return handler.toSketch(sketch);
+        updateWithValue(selector.get());
       }
     };
   }
 
+  @SuppressWarnings("unchecked")
+  abstract class BaseAggregator extends Aggregator.Abstract
+  {
+    private final SketchHandler<?> handler = new SketchHandler.Synchronized<>(sketchOp.handler());
+    private final TypedSketch sketch = handler.newUnion(sketchParam, sourceType, sourceComparator);
+
+    protected BaseAggregator(ValueDesc type)
+    {
+      if (!handler.supports(type)) {
+        throw new UnsupportedOperationException("not supported type " + type);
+      }
+      if (!ValueDesc.isSameCategory(sourceType, type)) {
+        throw new UnsupportedOperationException("type mismatch.. " + sourceType + " with real type " + type);
+      }
+    }
+
+    final void updateWithValue(Object value)
+    {
+      handler.updateWithValue(sketch, value);
+    }
+
+    final void updateWithSketch(Object value)
+    {
+      handler.updateWithSketch(sketch, value);
+    }
+
+    @Override
+    public void reset()
+    {
+      handler.reset(sketch);
+    }
+
+    @Override
+    public Object get()
+    {
+      return handler.toSketch(sketch);
+    }
+  }
+
   @Override
   @SuppressWarnings("unchecked")
-  public BufferAggregator factorizeBuffered(ColumnSelectorFactory metricFactory)
+  public BufferAggregator factorizeBuffered(final ColumnSelectorFactory metricFactory)
   {
-    final SketchHandler<?> handler = sketchOp.handler();
     if (merge) {
       final ObjectColumnSelector selector = metricFactory.makeObjectColumnSelector(fieldName);
       if (selector == null) {
@@ -206,6 +216,7 @@ public class GenericSketchAggregatorFactory extends AggregatorFactory
       }
       return new BufferAggregator.Abstract()
       {
+        private final SketchHandler<?> handler = new SketchHandler.Synchronized<>(sketchOp.handler());
         private final List<TypedSketch> sketches = Lists.newArrayList();
 
         @Override
@@ -238,73 +249,102 @@ public class GenericSketchAggregatorFactory extends AggregatorFactory
       };
     }
 
-    if (ValueDesc.isDimension(metricFactory.getColumnType(fieldName))) {
+    ValueDesc columnType = metricFactory.getColumnType(fieldName);
+    if (columnType == null) {
+      return BufferAggregator.NULL;
+    }
+    if (ValueDesc.isDimension(columnType)) {
       final DimensionSelector selector = metricFactory.makeDimensionSelector(DefaultDimensionSpec.of(fieldName));
-      Preconditions.checkArgument(sourceType.equals(ValueDesc.STRING), "type mismatch " + ValueDesc.STRING);
-      return new BufferAggregator.Abstract()
+      return new BaseBufferAggregator(selector.type())
       {
-        private final List<TypedSketch> sketches = Lists.newArrayList();
-
-        @Override
-        public void init(ByteBuffer buf, int position)
-        {
-          buf.putInt(position, sketches.size());
-          sketches.add(handler.newUnion(sketchParam, sourceType, sourceComparator));
-        }
-
         @Override
         public void aggregate(ByteBuffer buf, int position)
         {
           final IndexedInts row = selector.getRow();
           final int size = row.size();
           if (size == 1) {
-            final TypedSketch sketch = sketches.get(buf.getInt(position));
-            handler.updateWithValue(sketch, Objects.toString(selector.lookupName(row.get(0)), ""));
+            updateWithValue(buf, position, selector.lookupName(row.get(0)));
           } else if (size > 1) {
-            final TypedSketch sketch = sketches.get(buf.getInt(position));
             for (int i = 0; i < size; i++) {
-              handler.updateWithValue(sketch, Objects.toString(selector.lookupName(row.get(i)), ""));
+              updateWithValue(buf, position, selector.lookupName(row.get(i)));
             }
           }
         }
-
+      };
+    }
+    if (ValueDesc.isMultiValued(columnType)) {
+      ValueDesc elementType = columnType.subElement();
+      final ObjectColumnSelector selector = metricFactory.makeObjectColumnSelector(fieldName);
+      return new BaseBufferAggregator(elementType)
+      {
         @Override
-        public Object get(ByteBuffer buf, int position)
+        public void aggregate(ByteBuffer buf, int position)
         {
-          return handler.toSketch(sketches.get(buf.getInt(position)));
+          Object value = selector.get();
+          if (value == null) {
+            return;
+          }
+          if (value.getClass().isArray()) {
+            int size = Array.getLength(value);
+            for (int i = 0; i < size; i++) {
+              updateWithValue(buf, position, Array.get(value, i));
+            }
+          } else {
+            updateWithValue(buf, position, value);
+          }
         }
       };
     }
-    final ObjectColumnSelector selector = metricFactory.makeObjectColumnSelector(fieldName);
-    if (selector == null) {
-      return BufferAggregator.NULL;
-    }
-    if (!handler.supports(selector.type())) {
-      throw new UnsupportedOperationException("not supported type " + selector.type());
-    }
-    return new BufferAggregator.Abstract()
+    return new BaseBufferAggregator(columnType)
     {
-      private final List<TypedSketch> sketches = Lists.newArrayList();
-
-      @Override
-      public void init(ByteBuffer buf, int position)
-      {
-        buf.putInt(position, sketches.size());
-        sketches.add(handler.newUnion(sketchParam, sourceType, sourceComparator));
-      }
+      final ObjectColumnSelector selector = metricFactory.makeObjectColumnSelector(fieldName);
 
       @Override
       public void aggregate(ByteBuffer buf, int position)
       {
-        handler.updateWithValue(sketches.get(buf.getInt(position)), selector.get());
-      }
-
-      @Override
-      public Object get(ByteBuffer buf, int position)
-      {
-        return handler.toSketch(sketches.get(buf.getInt(position)));
+        updateWithValue(buf, position, selector.get());
       }
     };
+  }
+
+  @SuppressWarnings("unchecked")
+  private abstract class BaseBufferAggregator extends BufferAggregator.Abstract
+  {
+    private final SketchHandler<?> handler = sketchOp.handler();
+    private final List<TypedSketch> sketches = Lists.newArrayList();
+
+    protected BaseBufferAggregator(ValueDesc type)
+    {
+      if (!handler.supports(type)) {
+        throw new UnsupportedOperationException("not supported type " + type);
+      }
+      if (!ValueDesc.isSameCategory(sourceType, type)) {
+        throw new UnsupportedOperationException("type mismatch.. " + sourceType + " with real type " + type);
+      }
+    }
+
+    @Override
+    public void init(ByteBuffer buf, int position)
+    {
+      buf.putInt(position, sketches.size());
+      sketches.add(handler.newUnion(sketchParam, sourceType, sourceComparator));
+    }
+
+    final void updateWithValue(ByteBuffer buf, int position, Object value)
+    {
+      handler.updateWithValue(sketches.get(buf.getInt(position)), value);
+    }
+
+    final void updateWithSketch(ByteBuffer buf, int position, Object value)
+    {
+      handler.updateWithSketch(sketches.get(buf.getInt(position)), value);
+    }
+
+    @Override
+    public Object get(ByteBuffer buf, int position)
+    {
+      return handler.toSketch(sketches.get(buf.getInt(position)));
+    }
   }
 
   @Override

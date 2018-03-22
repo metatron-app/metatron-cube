@@ -22,7 +22,10 @@ package io.druid.query.sketch;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonValue;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Lists;
 import com.yahoo.sketches.quantiles.ItemsSketch;
+
+import java.util.List;
 
 /**
  */
@@ -120,7 +123,7 @@ public enum SketchQuantilesOp
     public Object calculate(ItemsSketch sketch, Object parameter)
     {
       QuantileRatioParam param = (QuantileRatioParam) parameter;
-      Object[] splits = (Object[]) QUANTILES.calculate(sketch, param.quantileParam);
+      Object[] splits = removeDuplicates((Object[]) QUANTILES.calculate(sketch, param.quantileParam));
       return ImmutableMap.of("splits", splits, "cdf", CDF.calculate(sketch, ratioParam(splits, param.ratioAsCount)));
     }
   },
@@ -129,7 +132,7 @@ public enum SketchQuantilesOp
     public Object calculate(ItemsSketch sketch, Object parameter)
     {
       QuantileRatioParam param = (QuantileRatioParam) parameter;
-      Object[] splits = (Object[]) QUANTILES.calculate(sketch, param.quantileParam);
+      Object[] splits = removeDuplicates((Object[]) QUANTILES.calculate(sketch, param.quantileParam));
       return ImmutableMap.of("splits", splits, "pmf", PMF.calculate(sketch, ratioParam(splits, param.ratioAsCount)));
     }
   },
@@ -147,6 +150,19 @@ public enum SketchQuantilesOp
   };
 
   public abstract Object calculate(ItemsSketch sketch, Object parameter);
+
+  private static Object[] removeDuplicates(Object[] splits)
+  {
+    List<Object> result = Lists.newArrayList();
+    Object prev = null;
+    for (Object split : splits) {
+      if (prev == null || !prev.equals(split)) {
+        result.add(split);
+      }
+      prev = split;
+    }
+    return result.toArray();
+  }
 
   private static long[] asCounts(double[] ratio, long n)
   {

@@ -210,6 +210,26 @@ public class ValueDesc
     return valueDesc;
   }
 
+  public static boolean isSameCategory(ValueDesc type1, ValueDesc type2)
+  {
+    if (type1.isPrimitive()) {
+      return type1.equals(type2);
+    }
+    if (type1.hasSubElement()) {
+      ValueDesc category1 = type1.categoryType();
+      ValueDesc element1 = type1.subElement();
+      if (type2.hasSubElement()) {
+        return category1.equals(type2.categoryType()) && element1.equals(type2.subElement());
+      } else {
+        return category1.equals(type2);
+      }
+    }
+    if (type2.hasSubElement()) {
+      return type1.equals(type2.categoryType());
+    }
+    return type1.equals(type2);
+  }
+
   private final ValueType type;
   private final String typeName;
 
@@ -250,6 +270,15 @@ public class ValueDesc
   public String typeName()
   {
     return typeName;
+  }
+
+  public ValueDesc categoryType()
+  {
+    int index = typeName.indexOf('.');
+    if (index > 0) {
+      return ValueDesc.of(typeName.substring(0, index));
+    }
+    throw new IllegalStateException("does not have sub element");
   }
 
   public ValueDesc subElement()

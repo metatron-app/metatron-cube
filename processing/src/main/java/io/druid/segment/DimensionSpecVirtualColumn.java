@@ -37,7 +37,12 @@ import java.util.Objects;
  */
 public class DimensionSpecVirtualColumn implements VirtualColumn
 {
-  private static final byte VC_TYPE_ID = 0x01;
+  public static VirtualColumn wrap(DimensionSpec dimensionSpec, String outputName)
+  {
+    return new DimensionSpecVirtualColumn(dimensionSpec, outputName);
+  }
+
+  private static final byte VC_TYPE_ID = 0x04;
 
   private final String outputName;
   private final DimensionSpec dimensionSpec;
@@ -83,7 +88,7 @@ public class DimensionSpecVirtualColumn implements VirtualColumn
       final ColumnSelectorFactory factory
   )
   {
-    Preconditions.checkArgument(dimension.equals(dimensionSpec.getOutputName()));
+    Preconditions.checkArgument(dimension.equals(outputName));
     DimensionSelector selector = factory.makeDimensionSelector(dimensionSpec);
     if (extractionFn == null) {
       return selector;
@@ -91,7 +96,7 @@ public class DimensionSpecVirtualColumn implements VirtualColumn
     return new DelegatedDimensionSelector(selector)
     {
       @Override
-      public String lookupName(int id)
+      public Comparable lookupName(int id)
       {
         return extractionFn.apply(delegate.lookupName(id));
       }
@@ -114,8 +119,14 @@ public class DimensionSpecVirtualColumn implements VirtualColumn
   public ValueDesc resolveType(String column, TypeResolver types)
   {
     Preconditions.checkArgument(column.equals(outputName));
-    ValueDesc valueDesc = types.resolveColumn(column);
-    return ValueDesc.isDimension(valueDesc) ? valueDesc : ValueDesc.STRING;
+    ValueDesc valueDesc = dimensionSpec.resolveType(types);
+    if (ValueDesc.isDimension(valueDesc)) {
+      return ValueDesc.ofMultiValued(valueDesc.subElement());
+    }
+    if (!ValueDesc.isMultiValued(valueDesc)) {
+      return ValueDesc.ofMultiValued(valueDesc);
+    }
+    return valueDesc;
   }
 
   @Override
