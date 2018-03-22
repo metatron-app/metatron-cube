@@ -149,7 +149,7 @@ public class GroupByMergedQueryRunner<T> implements QueryRunner<T>
                           if (bySegment) {
                             sequence.accumulate(bySegmentAccumulatorPair.lhs, bySegmentAccumulatorPair.rhs);
                           } else {
-                            sequence.accumulate(incrementalIndex, GroupByQueryHelper.<T>newMergeAccumulator());
+                            sequence.accumulate(incrementalIndex, GroupByQueryHelper.<T>newMergeAccumulator(semaphore));
                           }
                           log.debug("accumulated in %,d msec", (System.currentTimeMillis() - start));
                           return null;
@@ -211,20 +211,15 @@ public class GroupByMergedQueryRunner<T> implements QueryRunner<T>
         future.get(timeout.longValue(), TimeUnit.MILLISECONDS);
       }
     }
-    catch (InterruptedException e) {
-      log.warn(e, "Query interrupted, cancelling pending results, query id [%s]", query.getId());
+    catch (InterruptedException | TimeoutException | CancellationException e) {
+      if (e instanceof CancellationException) {
+        log.info("Query canceled, id [%s]", query.getId());
+      } else {
+        String message = e instanceof InterruptedException ? "interrupted" : "timed-out";
+        log.warn(e, "Query %s, cancelling pending results, query id [%s]", message, query.getId());
+      }
       future.cancel(true);
       IOUtils.closeQuietly(closeOnFailure);
-      throw new QueryInterruptedException(e);
-    }
-    catch (CancellationException e) {
-      IOUtils.closeQuietly(closeOnFailure);
-      throw new QueryInterruptedException(e);
-    }
-    catch (TimeoutException e) {
-      IOUtils.closeQuietly(closeOnFailure);
-      log.info("Query timeout, cancelling pending results for query id [%s]", query.getId());
-      future.cancel(true);
       throw new QueryInterruptedException(e);
     }
     catch (ExecutionException e) {

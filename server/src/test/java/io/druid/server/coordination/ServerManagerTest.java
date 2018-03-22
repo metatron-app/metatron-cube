@@ -66,6 +66,7 @@ import io.druid.segment.SegmentWithResolver;
 import io.druid.segment.StorageAdapter;
 import io.druid.segment.loading.SegmentLoader;
 import io.druid.segment.loading.SegmentLoadingException;
+import io.druid.server.QueryManager;
 import io.druid.server.metrics.NoopServiceEmitter;
 import io.druid.timeline.DataSegment;
 import io.druid.timeline.partition.NoneShardSpec;
@@ -109,6 +110,7 @@ public class ServerManagerTest
     factory = new MyQueryRunnerFactory(queryWaitLatch, queryWaitYieldLatch, queryNotifyLatch);
     serverManagerExec = Executors.newFixedThreadPool(2);
     serverManager = new ServerManager(
+        new QueryManager(),
         new SegmentLoader()
         {
           @Override

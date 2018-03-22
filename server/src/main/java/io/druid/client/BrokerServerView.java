@@ -41,6 +41,7 @@ import io.druid.client.selector.ServerSelector;
 import io.druid.client.selector.TierSelectorStrategy;
 import io.druid.concurrent.Execs;
 import io.druid.guice.annotations.Client;
+import io.druid.guice.annotations.Processing;
 import io.druid.guice.annotations.Self;
 import io.druid.guice.annotations.Smile;
 import io.druid.query.BySegmentQueryRunner;
@@ -106,6 +107,7 @@ public class BrokerServerView implements TimelineServerView
   private final FilteredServerInventoryView baseView;
   private final TierSelectorStrategy tierSelectorStrategy;
   private final ServiceEmitter emitter;
+  private final ExecutorService backgroundExecutorService;
   private final Predicate<Pair<DruidServerMetadata, DataSegment>> segmentFilter;
 
   private volatile boolean initialized = false;
@@ -121,7 +123,8 @@ public class BrokerServerView implements TimelineServerView
       FilteredServerInventoryView baseView,
       TierSelectorStrategy tierSelectorStrategy,
       ServiceEmitter emitter,
-      final BrokerSegmentWatcherConfig segmentWatcherConfig
+      final BrokerSegmentWatcherConfig segmentWatcherConfig,
+      @Processing ExecutorService backgroundExecutorService
   )
   {
     this.node = node == null ? null : new DruidServer(node, new DruidServerConfig(), "broker");
@@ -133,6 +136,7 @@ public class BrokerServerView implements TimelineServerView
     this.baseView = baseView;
     this.tierSelectorStrategy = tierSelectorStrategy;
     this.emitter = emitter;
+    this.backgroundExecutorService = backgroundExecutorService;
     this.clients = Maps.newConcurrentMap();
     this.selectors = Maps.newHashMap();
     this.timelines = Maps.newHashMap();
@@ -239,7 +243,15 @@ public class BrokerServerView implements TimelineServerView
 
   private DirectDruidClient makeDirectClient(DruidServer server)
   {
-    return new DirectDruidClient(warehouse, queryWatcher, smileMapper, httpClient, server.getHost(), emitter);
+    return new DirectDruidClient(
+        warehouse,
+        queryWatcher,
+        smileMapper,
+        httpClient,
+        server.getHost(),
+        emitter,
+        backgroundExecutorService
+    );
   }
 
   private QueryableDruidServer removeServer(DruidServer server)

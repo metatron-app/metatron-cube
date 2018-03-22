@@ -23,10 +23,12 @@ import com.metamx.common.ISE;
 import com.metamx.common.Pair;
 import com.metamx.common.guava.Accumulator;
 import io.druid.collections.StupidPool;
+import io.druid.concurrent.Execs;
 import io.druid.data.ValueType;
 import io.druid.data.input.Row;
 import io.druid.granularity.QueryGranularities;
 import io.druid.query.Query;
+import io.druid.query.QueryInterruptedException;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.dimension.DimensionSpecs;
 import io.druid.segment.incremental.IncrementalIndex;
@@ -104,13 +106,20 @@ public class GroupByQueryHelper
     };
   }
 
-  public static <T> Accumulator<MergeIndex, T> newMergeAccumulator()
+  private static final int DEFAULT_POLLING_INTERVAL = 100000;
+
+  public static <T> Accumulator<MergeIndex, T> newMergeAccumulator(final Execs.Semaphore semaphore)
   {
     return new Accumulator<MergeIndex, T>()
     {
+      private int counter;
+
       @Override
       public MergeIndex accumulate(final MergeIndex accumulated, final T in)
       {
+        if (++counter % DEFAULT_POLLING_INTERVAL == 0 && semaphore.isDestroyed()) {
+          throw new QueryInterruptedException(new InterruptedException());
+        }
         accumulated.add((Row) in);
         return accumulated;
       }

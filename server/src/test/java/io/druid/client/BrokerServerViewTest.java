@@ -28,6 +28,7 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
+import com.google.common.util.concurrent.MoreExecutors;
 import com.metamx.common.Pair;
 import com.metamx.http.client.HttpClient;
 import io.druid.client.selector.HighestPriorityTierSelectorStrategy;
@@ -338,7 +339,8 @@ public class BrokerServerViewTest extends CuratorTestBase
         baseView,
         new HighestPriorityTierSelectorStrategy(new RandomServerSelectorStrategy()),
         new NoopServiceEmitter(),
-        new BrokerSegmentWatcherConfig()
+        new BrokerSegmentWatcherConfig(),
+        MoreExecutors.sameThreadExecutor()
     );
 
     baseView.start();

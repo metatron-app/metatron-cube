@@ -34,7 +34,6 @@ import com.google.common.util.concurrent.ListenableFuture;
 import com.metamx.common.Pair;
 import com.metamx.common.RE;
 import com.metamx.common.guava.BaseSequence;
-import com.metamx.common.guava.CloseQuietly;
 import com.metamx.common.guava.Sequence;
 import com.metamx.common.guava.Sequences;
 import com.metamx.common.logger.Logger;
@@ -45,6 +44,7 @@ import com.metamx.http.client.Request;
 import com.metamx.http.client.response.StatusResponseHandler;
 import com.metamx.http.client.response.StatusResponseHolder;
 import io.druid.concurrent.Execs;
+import io.druid.concurrent.PrioritizedCallable;
 import io.druid.jackson.JodaStuff;
 import io.druid.query.BaseQuery;
 import io.druid.query.BySegmentResultValueClass;
@@ -65,6 +65,7 @@ import java.io.InputStream;
 import java.net.URL;
 import java.util.Map;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
@@ -80,6 +81,7 @@ public class DirectDruidClient<T> implements QueryRunner<T>
   private final ObjectMapper objectMapper;
   private final HttpClient httpClient;
   private final String host;
+  private final ExecutorService backgroundExecutorService;
 
   private final AtomicInteger openConnections;
   private final String contentType;
@@ -92,7 +94,8 @@ public class DirectDruidClient<T> implements QueryRunner<T>
       ObjectMapper objectMapper,
       HttpClient httpClient,
       String host,
-      ServiceEmitter emitter
+      ServiceEmitter emitter,
+      ExecutorService backgroundExecutorService
   )
   {
     this.warehouse = warehouse;
@@ -100,7 +103,7 @@ public class DirectDruidClient<T> implements QueryRunner<T>
     this.objectMapper = objectMapper;
     this.httpClient = httpClient;
     this.host = host;
-
+    this.backgroundExecutorService = backgroundExecutorService;
     this.contentType = objectMapper.getFactory() instanceof SmileFactory
                        ? SmileMediaTypes.APPLICATION_JACKSON_SMILE
                        : MediaType.APPLICATION_JSON;
@@ -135,10 +138,13 @@ public class DirectDruidClient<T> implements QueryRunner<T>
     }
 
     final URL url;
+    final URL cancelUrl;
     final ListenableFuture<InputStream> future;
 
+    final byte[] bytes;
     try {
       url = new URL(String.format("http://%s/druid/v2/", host));
+      cancelUrl = new URL(String.format("http://%s/druid/v2/%s", host, query.getId()));
 
       log.debug("Querying queryId[%s] url[%s]", query.getId(), url);
 
@@ -146,15 +152,11 @@ public class DirectDruidClient<T> implements QueryRunner<T>
       builder.setDimension("server", host);
       builder.setDimension(DruidMetrics.ID, Strings.nullToEmpty(query.getId()));
 
+      bytes = objectMapper.writeValueAsBytes(query);
       future = httpClient.go(
-          new Request(
-              HttpMethod.POST,
-              url
-          ).setContent(objectMapper.writeValueAsBytes(query))
-           .setHeader(
-               HttpHeaders.Names.CONTENT_TYPE,
-               contentType
-           ),
+          new Request(HttpMethod.POST, url)
+              .setContent(bytes)
+              .setHeader(HttpHeaders.Names.CONTENT_TYPE, contentType),
           handlerFactory.create(query, url, builder, context)
       );
 
@@ -178,14 +180,9 @@ public class DirectDruidClient<T> implements QueryRunner<T>
                 // forward the cancellation to underlying queryable node
                 try {
                   StatusResponseHolder res = httpClient.go(
-                      new Request(
-                          HttpMethod.DELETE,
-                          new URL(String.format("http://%s/druid/v2/%s", host, query.getId()))
-                      ).setContent(objectMapper.writeValueAsBytes(query))
-                       .setHeader(
-                           HttpHeaders.Names.CONTENT_TYPE,
-                           contentType
-                       ),
+                      new Request(HttpMethod.DELETE, cancelUrl)
+                          .setContent(bytes)
+                          .setHeader(HttpHeaders.Names.CONTENT_TYPE, contentType),
                       new StatusResponseHandler(Charsets.UTF_8)
                   ).get();
                   if (res.getStatus().getCode() >= 500) {
@@ -196,7 +193,7 @@ public class DirectDruidClient<T> implements QueryRunner<T>
                     );
                   }
                 }
-                catch (IOException | ExecutionException | InterruptedException e) {
+                catch (ExecutionException | InterruptedException e) {
                   Throwables.propagate(e);
                 }
               }
@@ -227,7 +224,23 @@ public class DirectDruidClient<T> implements QueryRunner<T>
           @Override
           public void cleanup(JsonParserIterator<T> iterFromMake)
           {
-            CloseQuietly.close(iterFromMake);
+            if (!iterFromMake.close()) {
+              backgroundExecutorService.submit(
+                  new PrioritizedCallable.Background<StatusResponseHolder>()
+                  {
+                    @Override
+                    public StatusResponseHolder call() throws Exception
+                    {
+                      return httpClient.go(
+                          new Request(HttpMethod.DELETE, cancelUrl)
+                              .setContent(bytes)
+                              .setHeader(HttpHeaders.Names.CONTENT_TYPE, contentType),
+                          new StatusResponseHandler(Charsets.UTF_8)
+                      ).get();
+                    }
+                  }
+              );
+            }
           }
         }
     );

@@ -43,6 +43,7 @@ import io.druid.query.NoopQueryRunnerFactoryConglomerate;
 import io.druid.segment.IndexIO;
 import io.druid.segment.loading.CacheTestSegmentLoader;
 import io.druid.segment.loading.SegmentLoaderConfig;
+import io.druid.server.QueryManager;
 import io.druid.server.initialization.BatchDataSegmentAnnouncerConfig;
 import io.druid.server.initialization.ZkPathsConfig;
 import io.druid.server.metrics.NoopServiceEmitter;
@@ -117,6 +118,7 @@ public class ZkCoordinatorTest extends CuratorTestBase
     segmentLoader = new CacheTestSegmentLoader();
 
     serverManager = new ServerManager(
+        new QueryManager(),
         segmentLoader,
         new NoopQueryRunnerFactoryConglomerate(),
         new NoopServiceEmitter(),

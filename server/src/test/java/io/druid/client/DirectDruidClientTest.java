@@ -24,6 +24,7 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
+import com.google.common.util.concurrent.MoreExecutors;
 import com.google.common.util.concurrent.SettableFuture;
 import com.metamx.common.guava.Sequence;
 import com.metamx.common.guava.Sequences;
@@ -122,7 +123,8 @@ public class DirectDruidClientTest
         new DefaultObjectMapper(),
         httpClient,
         "foo",
-        new NoopServiceEmitter()
+        new NoopServiceEmitter(),
+        MoreExecutors.sameThreadExecutor()
     );
     DirectDruidClient client2 = new DirectDruidClient(
         new ReflectionQueryToolChestWarehouse(),
@@ -130,7 +132,8 @@ public class DirectDruidClientTest
         new DefaultObjectMapper(),
         httpClient,
         "foo2",
-        new NoopServiceEmitter()
+        new NoopServiceEmitter(),
+        MoreExecutors.sameThreadExecutor()
     );
 
     QueryableDruidServer queryableDruidServer1 = new QueryableDruidServer(
@@ -232,7 +235,8 @@ public class DirectDruidClientTest
         new DefaultObjectMapper(),
         httpClient,
         "foo",
-        new NoopServiceEmitter()
+        new NoopServiceEmitter(),
+        MoreExecutors.sameThreadExecutor()
     );
 
     QueryableDruidServer queryableDruidServer1 = new QueryableDruidServer(
@@ -301,7 +305,8 @@ public class DirectDruidClientTest
         new DefaultObjectMapper(),
         httpClient,
         hostName,
-        new NoopServiceEmitter()
+        new NoopServiceEmitter(),
+        MoreExecutors.sameThreadExecutor()
     );
 
     QueryableDruidServer queryableDruidServer = new QueryableDruidServer(

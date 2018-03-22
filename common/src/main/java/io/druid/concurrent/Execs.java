@@ -149,6 +149,8 @@ public class Execs
     private final java.util.concurrent.Semaphore semaphore;
     private final String name = Integer.toHexString(System.identityHashCode(this));
 
+    private volatile boolean destroyed;
+
     public Semaphore(int parallelism)
     {
       log.debug("init parallelism = %d", parallelism);
@@ -178,7 +180,13 @@ public class Execs
     public void destroy()
     {
       log.debug("> destroy %s", name);
+      destroyed = true;
       semaphore.release(semaphore.getQueueLength());
+    }
+
+    public boolean isDestroyed()
+    {
+      return destroyed;
     }
   }
 
@@ -209,7 +217,7 @@ public class Execs
             {
               for (WaitingFuture<V> work = queue.poll(); work != null; work = queue.poll()) {
                 if (!semaphore.acquire(work) || !work.execute()) {
-                  log.warn("Something wrong.. aborting");
+                  log.debug("Something wrong.. aborting");  // can be normal process
                   break;
                 }
               }

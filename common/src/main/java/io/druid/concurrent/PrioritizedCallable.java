@@ -24,4 +24,13 @@ import java.util.concurrent.Callable;
 public interface PrioritizedCallable<V> extends Callable<V>
 {
   int getPriority();
+
+  public abstract class Background<V> implements PrioritizedCallable<V>
+  {
+    @Override
+    public int getPriority()
+    {
+      return 0;
+    }
+  }
 }

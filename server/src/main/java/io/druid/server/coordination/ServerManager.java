@@ -64,6 +64,7 @@ import io.druid.segment.ReferenceCountingSegment;
 import io.druid.segment.Segment;
 import io.druid.segment.loading.SegmentLoader;
 import io.druid.segment.loading.SegmentLoadingException;
+import io.druid.server.QueryManager;
 import io.druid.timeline.DataSegment;
 import io.druid.timeline.TimelineObjectHolder;
 import io.druid.timeline.VersionedIntervalTimeline;
@@ -78,7 +79,10 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 
 /**
@@ -101,6 +105,7 @@ public class ServerManager implements QuerySegmentWalker
 
   @Inject
   public ServerManager(
+      QueryManager queryManager,
       SegmentLoader segmentLoader,
       QueryRunnerFactoryConglomerate conglomerate,
       ServiceEmitter emitter,
@@ -122,6 +127,20 @@ public class ServerManager implements QuerySegmentWalker
 
     this.dataSources = new HashMap<>();
     this.cacheConfig = cacheConfig;
+
+    final ThreadFactory factory = Executors.defaultThreadFactory();
+    Executors.newSingleThreadScheduledExecutor(
+        new ThreadFactory()
+        {
+          @Override
+          public Thread newThread(Runnable r)
+          {
+            Thread thread = factory.newThread(r);
+            thread.setName("QueryManager");
+            return thread;
+          }
+        }
+    ).scheduleWithFixedDelay(queryManager, 1, 1, TimeUnit.HOURS);
   }
 
   public Map<String, Long> getDataSourceSizes()

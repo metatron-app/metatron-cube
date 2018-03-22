@@ -27,15 +27,13 @@ import com.google.common.collect.Sets;
 import com.google.common.primitives.Longs;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.MoreExecutors;
-import com.google.inject.Inject;
-import com.google.inject.name.Named;
 import com.metamx.common.logger.Logger;
 import io.druid.common.Progressing;
 import io.druid.common.Tagged;
 import io.druid.common.utils.StringUtils;
 import io.druid.query.Query;
+import io.druid.query.QueryInterruptedException;
 import io.druid.query.QueryWatcher;
-import io.druid.server.router.TieredBrokerConfig;
 
 import java.io.IOException;
 import java.util.Collections;
@@ -52,18 +50,9 @@ public class QueryManager implements QueryWatcher, Runnable
 
   private final Map<String, QueryStatus> queries;
 
-  @Named("serviceName")
-  @Inject(optional = true)
-  private String serviceName;
-
   public QueryManager()
   {
     this.queries = Maps.newConcurrentMap();
-  }
-
-  public boolean isBroker()
-  {
-    return TieredBrokerConfig.DEFAULT_BROKER_SERVICE_NAME.equals(serviceName);
   }
 
   public boolean cancelQuery(String id)
@@ -75,6 +64,7 @@ public class QueryManager implements QueryWatcher, Runnable
     return true;
   }
 
+  @Override
   public void registerQuery(final Query query, final ListenableFuture future)
   {
     final String id = query.getId();
@@ -92,6 +82,9 @@ public class QueryManager implements QueryWatcher, Runnable
           }
         }
     );
+    if (status.canceled) {
+      throw new QueryInterruptedException(new InterruptedException());
+    }
     final List<String> dataSources = query.getDataSource().getNames();
 
     status.start(future, dataSources);
@@ -103,11 +96,7 @@ public class QueryManager implements QueryWatcher, Runnable
           {
             if (status.end(future, dataSources)) {
               // query completed
-              if (isBroker()) {
-                status.log();
-              } else {
-                queries.remove(id);
-              }
+              status.log();
             }
           }
         },
@@ -147,6 +136,7 @@ public class QueryManager implements QueryWatcher, Runnable
     private final Map<ListenableFuture, Timer> timers =
         Collections.synchronizedMap(Maps.<ListenableFuture, Timer>newIdentityHashMap());
 
+    private volatile boolean canceled;
     private volatile long end = -1;
 
     private void start(ListenableFuture future, List<String> dataSource)
@@ -166,7 +156,7 @@ public class QueryManager implements QueryWatcher, Runnable
         timers.get(future).end();
       }
       // this is possible because druid registers queries before fire to historical nodes
-      if (futures.isEmpty() && dataSources.isEmpty()) {
+      if (!canceled && futures.isEmpty() && dataSources.isEmpty()) {
         end = System.currentTimeMillis();
         return true;
       }
@@ -175,6 +165,7 @@ public class QueryManager implements QueryWatcher, Runnable
 
     private boolean cancel()
     {
+      canceled = true;
       end = System.currentTimeMillis();
 
       boolean success = true;
@@ -193,6 +184,9 @@ public class QueryManager implements QueryWatcher, Runnable
 
     public void log()
     {
+      if (timers.isEmpty()) {
+        return;
+      }
       List<Timer> filtered = Lists.newArrayList(
           Iterables.filter(
               timers.values(), new Predicate<Timer>()

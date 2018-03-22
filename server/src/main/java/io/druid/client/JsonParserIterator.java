@@ -30,7 +30,6 @@ import com.metamx.common.RE;
 import com.metamx.common.guava.CloseQuietly;
 import io.druid.query.QueryInterruptedException;
 
-import java.io.Closeable;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URL;
@@ -41,7 +40,7 @@ import java.util.concurrent.Future;
 
 /**
  */
-public class JsonParserIterator<T> implements Iterator<T>, Closeable
+public class JsonParserIterator<T> implements Iterator<T>
 {
   private JsonParser jp;
   private ObjectCodec objectCodec;
@@ -120,11 +119,10 @@ public class JsonParserIterator<T> implements Iterator<T>, Closeable
     }
   }
 
-  @Override
-  public void close() throws IOException
+  public boolean close()
   {
-    if (jp != null) {
-      jp.close();
-    }
+    boolean normalClose = jp == null || jp.isClosed();
+    CloseQuietly.close(jp);
+    return normalClose;
   }
 }
