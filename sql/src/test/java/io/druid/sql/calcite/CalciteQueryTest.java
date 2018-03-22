@@ -6278,7 +6278,7 @@ public class CalciteQueryTest
       final String comparator
   )
   {
-    return new BoundDimFilter(fieldName, lower, upper, lowerStrict, upperStrict, null, extractionFn, comparator);
+    return new BoundDimFilter(fieldName, lower, upper, lowerStrict, upperStrict, false, extractionFn, comparator);
   }
 
   private static BoundDimFilter TIME_BOUND(final Object intervalObj)
@@ -6290,7 +6290,7 @@ public class CalciteQueryTest
         String.valueOf(interval.getEndMillis()),
         false,
         true,
-        null,
+        false,
         null,
         StringComparators.NUMERIC_NAME
     );

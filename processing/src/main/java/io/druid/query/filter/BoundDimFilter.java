@@ -22,9 +22,11 @@ package io.druid.query.filter;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;
+import com.google.common.collect.Ordering;
 import io.druid.common.utils.StringUtils;
 import io.druid.math.expr.Parser;
 import io.druid.query.extraction.ExtractionFn;
+import io.druid.query.ordering.Comparators;
 import io.druid.query.ordering.StringComparators;
 import io.druid.segment.filter.BoundFilter;
 
@@ -51,9 +53,9 @@ public class BoundDimFilter implements DimFilter
       @JsonProperty("expression") String expression,
       @JsonProperty("lower") String lower,
       @JsonProperty("upper") String upper,
-      @JsonProperty("lowerStrict") Boolean lowerStrict,
-      @JsonProperty("upperStrict") Boolean upperStrict,
-      @JsonProperty("alphaNumeric") Boolean alphaNumeric,
+      @JsonProperty("lowerStrict") boolean lowerStrict,
+      @JsonProperty("upperStrict") boolean upperStrict,
+      @JsonProperty("alphaNumeric") boolean alphaNumeric,
       @JsonProperty("comparatorType") String comparatorType,
       @JsonProperty("extractionFn") ExtractionFn extractionFn
   )
@@ -71,25 +73,24 @@ public class BoundDimFilter implements DimFilter
     this.expression = expression;
     this.upper = upper;
     this.lower = lower;
-    this.lowerStrict = (lowerStrict == null) ? false : lowerStrict;
-    this.upperStrict = (upperStrict == null) ? false : upperStrict;
-    this.comparatorType = comparatorType != null ? comparatorType :
-                          alphaNumeric != null && alphaNumeric ? StringComparators.ALPHANUMERIC_NAME :
-                          StringComparators.LEXICOGRAPHIC_NAME;
-    this.extractionFn = extractionFn;
+    this.lowerStrict = lowerStrict;
+    this.upperStrict = upperStrict;
     Preconditions.checkArgument(
-        StringComparators.tryMakeComparator(this.comparatorType, null) != null,
-        "invalid comparator type" + this.comparatorType
+        StringUtils.isNullOrEmpty(comparatorType) || alphaNumeric ||
+        Comparators.createGeneric(comparatorType, null) != null,
+        "invalid comparator type " + comparatorType
     );
+    this.comparatorType = alphaNumeric ? StringComparators.ALPHANUMERIC_NAME : comparatorType;
+    this.extractionFn = extractionFn;
   }
 
   public BoundDimFilter(
       String dimension,
       String lower,
       String upper,
-      Boolean lowerStrict,
-      Boolean upperStrict,
-      Boolean alphaNumeric,
+      boolean lowerStrict,
+      boolean upperStrict,
+      boolean alphaNumeric,
       ExtractionFn extractionFn
   )
   {
@@ -100,9 +101,9 @@ public class BoundDimFilter implements DimFilter
       String dimension,
       String lower,
       String upper,
-      Boolean lowerStrict,
-      Boolean upperStrict,
-      Boolean alphaNumeric,
+      boolean lowerStrict,
+      boolean upperStrict,
+      boolean alphaNumeric,
       ExtractionFn extractionFn,
       String comparatorType
       )
@@ -179,12 +180,12 @@ public class BoundDimFilter implements DimFilter
 
   public boolean isLexicographic()
   {
-    return StringComparators.isLexicographicString(comparatorType);
+    return comparatorType == null || StringComparators.isLexicographicString(comparatorType);
   }
 
-  public Comparator<String> getComparator()
+  public Comparator getComparator()
   {
-    return StringComparators.makeComparator(comparatorType);
+    return Comparators.createGeneric(comparatorType, Ordering.natural().nullsFirst());
   }
 
   public boolean hasLowerBound()
@@ -267,7 +268,7 @@ public class BoundDimFilter implements DimFilter
         upper,
         lowerStrict,
         upperStrict,
-        null,
+        false,
         comparatorType,
         extractionFn
     );
@@ -322,8 +323,8 @@ public class BoundDimFilter implements DimFilter
         upper,
         lowerStrict,
         upperStrict,
-        null,
-        comparatorType,
+        false,
+        Preconditions.checkNotNull(comparatorType),
         extractionFn
     );
   }
@@ -346,7 +347,7 @@ public class BoundDimFilter implements DimFilter
     if (isUpperStrict() != that.isUpperStrict()) {
       return false;
     }
-    if (!comparatorType.equals(that.comparatorType)) {
+    if (!Objects.equals(comparatorType, that.comparatorType)) {
       return false;
     }
     if (!Objects.equals(dimension, that.dimension)) {
@@ -355,10 +356,10 @@ public class BoundDimFilter implements DimFilter
     if (!Objects.equals(expression, that.expression)) {
       return false;
     }
-    if (getUpper() != null ? !getUpper().equals(that.getUpper()) : that.getUpper() != null) {
+    if (!Objects.equals(upper, that.upper)) {
       return false;
     }
-    if (getLower() != null ? !getLower().equals(that.getLower()) : that.getLower() != null) {
+    if (!Objects.equals(lower, that.lower)) {
       return false;
     }
     return getExtractionFn() != null
@@ -370,12 +371,10 @@ public class BoundDimFilter implements DimFilter
   @Override
   public int hashCode()
   {
-    int result = Objects.hash(dimension, expression);
-    result = 31 * result + (getUpper() != null ? getUpper().hashCode() : 0);
-    result = 31 * result + (getLower() != null ? getLower().hashCode() : 0);
+    int result = Objects.hash(dimension, expression, lower, upper);
     result = 31 * result + (isLowerStrict() ? 1 : 0);
     result = 31 * result + (isUpperStrict() ? 1 : 0);
-    result = 31 * result + comparatorType.hashCode();
+    result = 31 * result + Objects.hashCode(comparatorType);
     result = 31 * result + (getExtractionFn() != null ? getExtractionFn().hashCode() : 0);
     return result;
   }

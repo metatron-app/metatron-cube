@@ -700,6 +700,9 @@ public class StringComparators
 
   public static StringComparator tryMakeComparator(String type, StringComparator nullValue)
   {
+    if (StringUtil.isNullOrEmpty(type)) {
+      return nullValue;
+    }
     boolean descending = false;
     String lowerCased = type.toLowerCase();
     if (lowerCased.endsWith(":asc")) {

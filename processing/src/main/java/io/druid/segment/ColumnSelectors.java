@@ -338,7 +338,7 @@ public class ColumnSelectors
     }
 
     final ObjectColumnSelector selector = factory.makeObjectColumnSelector(column);
-    if (ValueDesc.isString(type)) {
+    if (type.isPrimitive()) {
       return selector;
     }
     if (ValueDesc.isIndexedId(type)) {

@@ -317,7 +317,7 @@ public class PivotSpec implements WindowingSpec.PartitionEvaluatorFactory
     final List<String> partitionColumns = context.partitionColumns();
     final List<Function<Row, String>> extractors = PivotColumnSpec.toExtractors(pivotColumns);
     // this is name ordering of pivot columns.. not for row ordering
-    final List<Comparator<String>> comparators = GuavaUtils.cast(OrderByColumnSpec.getComparator(pivotColumns));
+    final List<Comparator<String>> comparators = OrderByColumnSpec.getComparator(pivotColumns);
     if (appendValueColumn) {
       comparators.add(Ordering.<String>explicit(valueColumns));
     }

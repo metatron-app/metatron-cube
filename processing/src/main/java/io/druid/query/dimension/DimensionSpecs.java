@@ -28,7 +28,7 @@ import io.druid.query.Query;
 import io.druid.query.RowResolver;
 import io.druid.query.extraction.ExtractionFn;
 import io.druid.query.ordering.Direction;
-import io.druid.query.ordering.StringComparator;
+import io.druid.query.ordering.OrderingSpec;
 import io.druid.query.ordering.StringComparators;
 
 import java.util.Comparator;
@@ -65,25 +65,17 @@ public class DimensionSpecs
     }
     List<Comparator> comparators = Lists.newArrayList();
     for (DimensionSpec dimensionSpec : dimensionSpecs) {
+      Comparator comparator = Ordering.natural().nullsFirst();
       if (dimensionSpec instanceof DimensionSpecWithOrdering) {
-        DimensionSpecWithOrdering expected = (DimensionSpecWithOrdering) dimensionSpec;
-        if (!expected.getOrdering().equals(StringComparators.LEXICOGRAPHIC_NAME)) {
-          StringComparator comparator = StringComparators.makeComparator(expected.getOrdering());
-          if (expected.getDirection() == Direction.DESCENDING) {
-            comparator = StringComparators.revert(comparator);
-          }
-          comparators.add(comparator);
-        } else {
-          // use natural ordering for non-string dimension
-          Ordering<Comparable> ordering = Ordering.natural();
-          if (expected.getDirection() == Direction.DESCENDING) {
-            ordering = ordering.reverse();
-          }
-          comparators.add(ordering);
+        OrderingSpec orderingSpec = ((DimensionSpecWithOrdering) dimensionSpec).asOrderingSpec();
+        if (!orderingSpec.isNaturalOrdering()) {
+          comparator = StringComparators.makeComparator(orderingSpec.getDimensionOrder());
         }
-      } else {
-        comparators.add(Ordering.natural());
+        if (orderingSpec.getDirection() == Direction.DESCENDING) {
+          comparator = Ordering.from(comparator).reverse();
+        }
       }
+      comparators.add(comparator);
     }
     return comparators;
   }

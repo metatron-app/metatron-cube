@@ -52,7 +52,7 @@ public class Bounds
           null,
           !bound.isUpperStrict(),
           false,
-          null,
+          false,
           bound.getExtractionFn(),
           bound.getComparatorType()
       );
@@ -64,7 +64,7 @@ public class Bounds
           bound.getLower(),
           false,
           !bound.isLowerStrict(),
-          null,
+          false,
           bound.getExtractionFn(),
           bound.getComparatorType()
       );
@@ -115,7 +115,7 @@ public class Bounds
         range.hasUpperBound() ? range.upperEndpoint().getValue() : null,
         range.hasLowerBound() && range.lowerBoundType() == BoundType.OPEN,
         range.hasUpperBound() && range.upperBoundType() == BoundType.OPEN,
-        null,
+        false,
         boundRefKey.getExtractionFn(),
         boundRefKey.getComparator()
     );
@@ -129,7 +129,7 @@ public class Bounds
         value,
         false,
         false,
-        null,
+        false,
         boundRefKey.getExtractionFn(),
         boundRefKey.getComparator()
     );
@@ -143,7 +143,7 @@ public class Bounds
         null,
         true,
         false,
-        null,
+        false,
         boundRefKey.getExtractionFn(),
         boundRefKey.getComparator()
     );
@@ -157,7 +157,7 @@ public class Bounds
         null,
         false,
         false,
-        null,
+        false,
         boundRefKey.getExtractionFn(),
         boundRefKey.getComparator()
     );
@@ -171,7 +171,7 @@ public class Bounds
         value,
         false,
         true,
-        null,
+        false,
         boundRefKey.getExtractionFn(),
         boundRefKey.getComparator()
     );
@@ -185,7 +185,7 @@ public class Bounds
         value,
         false,
         false,
-        null,
+        false,
         boundRefKey.getExtractionFn(),
         boundRefKey.getComparator()
     );
@@ -204,7 +204,7 @@ public class Bounds
         String.valueOf(interval.getEndMillis()),
         false,
         true,
-        null,
+        false,
         boundRefKey.getExtractionFn(),
         boundRefKey.getComparator()
     );

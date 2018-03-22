@@ -2410,26 +2410,26 @@ public class TimeseriesQueryRunnerTest
                                                   "spa",
                                                   "spot",
                                                   true,
-                                                  null,
-                                                  null,
+                                                  false,
+                                                  false,
                                                   null
                                               ),
                                               new BoundDimFilter(
                                                   QueryRunnerTestHelper.marketDimension,
                                                   "spot",
                                                   "spotify",
-                                                  null,
+                                                  false,
                                                   true,
-                                                  null,
+                                                  false,
                                                   null
                                               ),
                                               (DimFilter) new BoundDimFilter(
                                                   QueryRunnerTestHelper.marketDimension,
                                                   "SPOT",
                                                   "spot",
-                                                  null,
-                                                  null,
-                                                  null,
+                                                  false,
+                                                  false,
+                                                  false,
                                                   null
                                               )
                                           )

@@ -50,10 +50,7 @@ public enum ValueType
     @Override
     public Comparable cast(Object value)
     {
-      if (value instanceof Number) {
-        return ((Number) value).floatValue();
-      }
-      return super.cast(value);
+      return Rows.parseFloat(value);
     }
   },
   LONG {
@@ -72,10 +69,7 @@ public enum ValueType
     @Override
     public Comparable cast(Object value)
     {
-      if (value instanceof Number) {
-        return ((Number) value).longValue();
-      }
-      return super.cast(value);
+      return Rows.parseLong(value);
     }
   },
   DOUBLE {
@@ -94,10 +88,7 @@ public enum ValueType
     @Override
     public Comparable cast(Object value)
     {
-      if (value instanceof Number) {
-        return ((Number) value).doubleValue();
-      }
-      return super.cast(value);
+      return Rows.parseDouble(value);
     }
   },
   STRING {
@@ -196,7 +187,7 @@ public enum ValueType
 
   public Comparable cast(Object value)
   {
-    throw new UnsupportedOperationException("cast");
+    return (Comparable) classOfObject().cast(value);
   }
 
   public Object get(Row row, String column)

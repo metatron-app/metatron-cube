@@ -22,6 +22,7 @@ package io.druid.query.ordering;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.collect.Lists;
+import com.google.common.collect.Ordering;
 import com.metamx.common.ISE;
 import io.druid.common.Cacheable;
 import io.druid.query.QueryCacheHelper;
@@ -45,13 +46,13 @@ public class OrderingSpec implements Cacheable
     return orderingSpecs;
   }
 
-  public static List<StringComparator> getComparator(List<? extends OrderingSpec> orderByColumnSpecs)
+  public static List<Comparator<String>> getComparator(List<? extends OrderingSpec> orderByColumnSpecs)
   {
-    List<StringComparator> comparators = Lists.newArrayList();
+    List<Comparator<String>> comparators = Lists.newArrayList();
     for (OrderingSpec orderByColumnSpec : orderByColumnSpecs) {
-      StringComparator comparator = StringComparators.makeComparator(orderByColumnSpec.dimensionOrder);
+      Comparator<String> comparator = StringComparators.makeComparator(orderByColumnSpec.dimensionOrder);
       if (orderByColumnSpec.direction == Direction.DESCENDING) {
-        comparator = StringComparators.revert(comparator);
+        comparator = Ordering.from(comparator).reverse();
       }
       comparators.add(comparator);
     }
