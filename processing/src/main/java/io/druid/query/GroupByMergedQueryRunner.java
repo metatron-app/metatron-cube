@@ -59,6 +59,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 
 public class GroupByMergedQueryRunner<T> implements QueryRunner<T>
@@ -221,8 +222,10 @@ public class GroupByMergedQueryRunner<T> implements QueryRunner<T>
       future.cancel(true);
       IOUtils.closeQuietly(closeOnFailure);
       throw new QueryInterruptedException(e);
-    }
-    catch (ExecutionException e) {
+    } catch (QueryInterruptedException e) {
+      IOUtils.closeQuietly(closeOnFailure);
+      throw e;
+    } catch (ExecutionException e) {
       IOUtils.closeQuietly(closeOnFailure);
       throw Throwables.propagate(e.getCause());
     }
@@ -230,6 +233,7 @@ public class GroupByMergedQueryRunner<T> implements QueryRunner<T>
 
   private static class AsyncCloser implements Closeable
   {
+    private final AtomicBoolean closed = new AtomicBoolean();
     private final Closeable delegate;
     private final ExecutorService exec;
 
@@ -242,6 +246,9 @@ public class GroupByMergedQueryRunner<T> implements QueryRunner<T>
     @Override
     public void close() throws IOException
     {
+      if (!closed.compareAndSet(false, true)) {
+        return;
+      }
       exec.submit(
           new PrioritizedRunnable.Zero()
           {

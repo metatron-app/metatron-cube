@@ -392,9 +392,14 @@ public class ValueDesc
     return type == ValueType.STRING;
   }
 
+  public boolean isDimension()
+  {
+    return isDimension(typeName);
+  }
+
   public boolean isStringOrDimension()
   {
-    return isString() || isDimension(typeName);
+    return isString() || isDimension();
   }
 
   public boolean isFloat()

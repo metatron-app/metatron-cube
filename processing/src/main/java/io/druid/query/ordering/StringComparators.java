@@ -647,7 +647,7 @@ public class StringComparators
       }
       return comparator;
     }
-    Preconditions.checkArgument(sourceType.isStruct());
+    Preconditions.checkArgument(sourceType.isStruct(), "not supported type " + sourceType);
     String[] descriptive = TypeUtils.splitDescriptiveType(sourceType.typeName());
     List<String> elements = TypeUtils.splitWithEscape(descriptive[1], ',');
     Comparator[] comparators = new Comparator[elements.size()];

@@ -22,6 +22,7 @@ package io.druid.query;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
+import com.google.common.base.Supplier;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
@@ -392,6 +393,7 @@ public class Queries
   private static final String DUMMY_VC = "$VC";
 
   public static ColumnHistogram getColumnHistogramOfFirstDimension(
+      Supplier<RowResolver> resolver,
       QuerySegmentWalker segmentWalker,
       ObjectMapper jsonMapper,
       GroupByQuery query,
@@ -404,19 +406,22 @@ public class Queries
     List<VirtualColumn> virtualColumns = Lists.newArrayList(query.getVirtualColumns());
     List<OrderingSpec> orderingSpecs = Lists.newArrayList();
 
-    DimensionSpec dimension = query.getDimensions().get(0);
-    String fieldName = dimension.getDimension();
-    if (dimension instanceof DimensionSpecWithOrdering) {
-      DimensionSpecWithOrdering explicit = (DimensionSpecWithOrdering) dimension;
-      OrderingSpec orderingSpec = explicit.asOrderingSpec();
-      if (!orderingSpec.isNaturalOrdering()) {
-        return null;  // todo
-      }
-      orderingSpecs.add(orderingSpec);
-      dimension = explicit.getDelegate();
+    DimensionSpec dimensionSpec = query.getDimensions().get(0);
+    ValueDesc type = dimensionSpec.resolveType(resolver.get());
+    if (type.isDimension()) {
+      type = ValueDesc.STRING;
     }
-    if (!(dimension instanceof DefaultDimensionSpec)) {
-      virtualColumns.add(DimensionSpecVirtualColumn.wrap(dimension, DUMMY_VC));
+    if (!type.isPrimitive()) {
+      return null;  // todo
+    }
+    String fieldName = dimensionSpec.getDimension();
+    if (dimensionSpec instanceof DimensionSpecWithOrdering) {
+      DimensionSpecWithOrdering explicit = (DimensionSpecWithOrdering) dimensionSpec;
+      orderingSpecs.add(explicit.asOrderingSpec());
+      dimensionSpec = explicit.getDelegate();
+    }
+    if (!(dimensionSpec instanceof DefaultDimensionSpec)) {
+      virtualColumns.add(DimensionSpecVirtualColumn.wrap(dimensionSpec, DUMMY_VC));
       fieldName = DUMMY_VC;
     }
 
@@ -424,9 +429,10 @@ public class Queries
                                          .put("type", "sketch")
                                          .put("name", "SKETCH")
                                          .put("fieldName", fieldName)
+                                         .put("sourceType", type)
+                                         .put("orderingSpecs", orderingSpecs)
                                          .put("sketchOp", "QUANTILE")
                                          .put("sketchParam", 128)
-                                         .put("orderingSpecs", orderingSpecs)
                                          .build();
 
     Map<String, Object> pg = ImmutableMap.<String, Object>builder()

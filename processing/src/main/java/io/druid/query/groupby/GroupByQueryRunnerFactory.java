@@ -46,11 +46,13 @@ import io.druid.query.QuerySegmentWalker;
 import io.druid.query.QueryToolChest;
 import io.druid.query.QueryWatcher;
 import io.druid.query.RowResolver;
+import io.druid.query.dimension.DefaultDimensionSpec;
 import io.druid.query.dimension.DimensionSpec;
 import io.druid.query.dimension.DimensionSpecWithOrdering;
+import io.druid.query.filter.BoundDimFilter;
 import io.druid.query.filter.DimFilters;
-import io.druid.query.filter.MathExprFilter;
 import io.druid.query.ordering.Direction;
+import io.druid.query.ordering.OrderingSpec;
 import io.druid.segment.Segment;
 
 import java.nio.ByteBuffer;
@@ -141,7 +143,13 @@ public class GroupByQueryRunnerFactory implements QueryRunnerFactory.Splitable<R
     if (numSplit < 2) {
       return Arrays.asList(query);
     }
-    ColumnHistogram result = Queries.getColumnHistogramOfFirstDimension(segmentWalker, mapper, query, numSplit);
+    final ColumnHistogram result = Queries.getColumnHistogramOfFirstDimension(
+        resolver,
+        segmentWalker,
+        mapper,
+        query,
+        numSplit
+    );
     if (result == null) {
       return Arrays.asList(query);
     }
@@ -149,34 +157,46 @@ public class GroupByQueryRunnerFactory implements QueryRunnerFactory.Splitable<R
     long[] counts = result.getCounts();
 
     logger.info("--> values : %s", Arrays.toString(values));
-    logger.info("--> counts : %s", Arrays.toString(counts));
+    logger.info("--> counts : %s", Arrays.toString(counts));    // warn : this is not a cardinality
 
-    Direction direction = Direction.ASCENDING;
+    OrderingSpec orderingSpec = OrderingSpec.create(null);
     DimensionSpec dimensionSpec = query.getDimensions().get(0);
-    if (dimensionSpec instanceof DimensionSpecWithOrdering) {
-      direction = ((DimensionSpecWithOrdering) dimensionSpec).getDirection();
+    ValueDesc type = dimensionSpec.resolveType(resolver.get());
+    if (type.isDimension()) {
+      type = ValueDesc.STRING;
     }
-    String dimension = dimensionSpec.getDimension();
+    if (dimensionSpec instanceof DimensionSpecWithOrdering) {
+      DimensionSpecWithOrdering explicit = (DimensionSpecWithOrdering) dimensionSpec;
+      orderingSpec = explicit.asOrderingSpec();
+      dimensionSpec = explicit.getDelegate();
+    }
+    String dimension = dimensionSpec instanceof DefaultDimensionSpec
+                       ? dimensionSpec.getDimension()
+                       : dimensionSpec.getOutputName();
 
+    Direction direction = orderingSpec.getDirection();
     List<GroupByQuery> splits = Lists.newArrayList();
     for (int i = 1; i < values.length; i++) {
-      String expression;
+      BoundDimFilter filter;
       if (i == 1) {
-        expression = direction == Direction.ASCENDING ?
-                     dimension + " < " + values[i] :
-                     dimension + " > " + values[i];
+        filter = direction == Direction.ASCENDING ?
+                     BoundDimFilter.lt(dimension, values[i]) :
+                     BoundDimFilter.gte(dimension, values[i]);
       } else if (i < values.length - 1) {
-        expression = direction == Direction.ASCENDING ?
-                     values[i - 1] + " <= " + dimension + " && " + dimension + " < " + values[i] :
-                     values[i - 1] + " >= " + dimension + " && " + dimension + " > " + values[i];
+        filter = direction == Direction.ASCENDING ?
+                     BoundDimFilter.between(dimension, values[i - 1], values[i]) :
+                     BoundDimFilter.between(dimension, values[i], values[i - 1]);
       } else {
-        expression = direction == Direction.ASCENDING ?
-                     dimension + " >= " + values[i - 1] :
-                     dimension + " <= " + values[i - 1];
+        filter = direction == Direction.ASCENDING ?
+                     BoundDimFilter.gte(dimension, values[i - 1]) :
+                     BoundDimFilter.lt(dimension, values[i - 1]);
       }
-      logger.info("--> expression : %s ", expression);
+      if (type.isStringOrDimension() && !orderingSpec.isNaturalOrdering()) {
+        filter = filter.withComparatorType(orderingSpec.getDimensionOrder());
+      }
+      logger.info("--> filter : %s ", filter);
       splits.add(
-          query.withDimFilter(DimFilters.and(query.getDimFilter(), new MathExprFilter(expression)))
+          query.withDimFilter(DimFilters.and(query.getDimFilter(), filter))
       );
     }
     return splits;

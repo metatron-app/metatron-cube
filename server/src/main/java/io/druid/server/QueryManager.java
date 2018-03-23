@@ -64,6 +64,19 @@ public class QueryManager implements QueryWatcher, Runnable
     return true;
   }
 
+  public boolean isCanceled(Query query)
+  {
+    String id = query.getId();
+    if (id == null) {
+      return false;
+    }
+    QueryStatus status = queries.get(id);
+    if (status != null) {
+      return status.canceled;
+    }
+    return false;
+  }
+
   @Override
   public void registerQuery(final Query query, final ListenableFuture future)
   {

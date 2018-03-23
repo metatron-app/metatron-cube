@@ -111,29 +111,29 @@ public class BoundDimFilter implements DimFilter
     this(dimension, null, lower, upper, lowerStrict, upperStrict, alphaNumeric, comparatorType, extractionFn);
   }
 
-  public static BoundDimFilter between(String dimension, String lower, String upper)
+  public static BoundDimFilter between(String dimension, Object lower, Object upper)
   {
-    return new BoundDimFilter(dimension, lower, upper, false, true, false, null);
+    return new BoundDimFilter(dimension, String.valueOf(lower), String.valueOf(upper), false, true, false, null);
   }
 
-  public static BoundDimFilter gt(String dimension, String lower)
+  public static BoundDimFilter gt(String dimension, Object lower)
   {
-    return new BoundDimFilter(dimension, lower, null, true, false, false, null);
+    return new BoundDimFilter(dimension, String.valueOf(lower), null, true, false, false, null);
   }
 
-  public static BoundDimFilter gte(String dimension, String lower)
+  public static BoundDimFilter gte(String dimension, Object lower)
   {
-    return new BoundDimFilter(dimension, lower, null, false, false, false, null);
+    return new BoundDimFilter(dimension, String.valueOf(lower), null, false, false, false, null);
   }
 
-  public static BoundDimFilter lt(String dimension, String upper)
+  public static BoundDimFilter lt(String dimension, Object upper)
   {
-    return new BoundDimFilter(dimension, null, upper, false, true, false, null);
+    return new BoundDimFilter(dimension, null, String.valueOf(upper), false, true, false, null);
   }
 
-  public static BoundDimFilter lte(String dimension, String upper)
+  public static BoundDimFilter lte(String dimension, Object upper)
   {
-    return new BoundDimFilter(dimension, null, upper, false, false, false, null);
+    return new BoundDimFilter(dimension, null, String.valueOf(upper), false, false, false, null);
   }
 
   @JsonProperty
@@ -207,7 +207,8 @@ public class BoundDimFilter implements DimFilter
   @Override
   public byte[] getCacheKey()
   {
-    byte[] dimensionBytes = StringUtils.toUtf8(this.getDimension());
+    byte[] dimensionBytes = StringUtils.toUtf8WithNullToEmpty(dimension);
+    byte[] expressionBytes = StringUtils.toUtf8WithNullToEmpty(expression);
     byte[] lowerBytes = StringUtils.toUtf8WithNullToEmpty(getLower());
     byte[] upperBytes = StringUtils.toUtf8WithNullToEmpty(getUpper());
     byte boundType = 0x1;
@@ -226,6 +227,7 @@ public class BoundDimFilter implements DimFilter
     ByteBuffer boundCacheBuffer = ByteBuffer.allocate(
         9
         + dimensionBytes.length
+        + expressionBytes.length
         + upperBytes.length
         + lowerBytes.length
         + comparatorBytes.length
@@ -237,6 +239,7 @@ public class BoundDimFilter implements DimFilter
                     .put(lowerStrictByte)
                     .put(DimFilterCacheHelper.STRING_SEPARATOR)
                     .put(dimensionBytes)
+                    .put(expressionBytes)
                     .put(DimFilterCacheHelper.STRING_SEPARATOR)
                     .put(upperBytes)
                     .put(DimFilterCacheHelper.STRING_SEPARATOR)
@@ -314,7 +317,7 @@ public class BoundDimFilter implements DimFilter
     return builder.toString();
   }
 
-  public BoundDimFilter withType(String comparatorType)
+  public BoundDimFilter withComparatorType(String comparatorType)
   {
     return new BoundDimFilter(
         dimension,
