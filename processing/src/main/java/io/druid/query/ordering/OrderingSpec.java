@@ -59,13 +59,15 @@ public class OrderingSpec implements Cacheable
     return comparators;
   }
 
-    @JsonCreator
+  @JsonCreator
   public static OrderingSpec create(Object obj)
   {
     if (obj == null) {
       return new OrderingSpec(null, null);
-    } if (obj instanceof String) {
-      return new OrderingSpec(null, obj.toString());
+    } else if (obj instanceof String) {
+      String value = Objects.toString(obj, null);
+      Direction direction = Direction.tryFromString(value);
+      return direction == null ? new OrderingSpec(null, value) : new OrderingSpec(direction, null);
     } else if (obj instanceof Map) {
       final Map map = (Map) obj;
 

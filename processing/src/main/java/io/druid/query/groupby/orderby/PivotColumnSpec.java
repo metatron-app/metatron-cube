@@ -114,9 +114,9 @@ public class PivotColumnSpec extends OrderingSpec
   @JsonCreator
   public static PivotColumnSpec create(Object obj)
   {
-    Preconditions.checkNotNull(obj, "Cannot build an OrderByColumnSpec from a null object.");
-
-    if (obj instanceof String) {
+    if (obj == null) {
+      return null;
+    } else if (obj instanceof String) {
       return new PivotColumnSpec(obj.toString(), null, null, null, null);
     } else if (obj instanceof Map) {
       final Map map = (Map) obj;
@@ -128,7 +128,7 @@ public class PivotColumnSpec extends OrderingSpec
 
       return new PivotColumnSpec(dimension, expression, direction, dimensionOrder, (List) map.get("values"));
     } else {
-      throw new ISE("Cannot build an OrderByColumnSpec from a %s", obj.getClass());
+      throw new ISE("Cannot build an PivotColumnSpec from a %s", obj.getClass());
     }
   }
 

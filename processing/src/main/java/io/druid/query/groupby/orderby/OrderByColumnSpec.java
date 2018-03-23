@@ -22,14 +22,12 @@ package io.druid.query.groupby.orderby;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Function;
-import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import com.metamx.common.ISE;
 import io.druid.common.Cacheable;
 import io.druid.query.QueryCacheHelper;
 import io.druid.query.ordering.Direction;
-import io.druid.query.ordering.StringComparators;
 import io.druid.query.ordering.OrderingSpec;
 
 import javax.annotation.Nullable;
@@ -60,9 +58,9 @@ public class OrderByColumnSpec extends OrderingSpec implements Cacheable
   @JsonCreator
   public static OrderByColumnSpec create(Object obj)
   {
-    Preconditions.checkNotNull(obj, "Cannot build an OrderByColumnSpec from a null object.");
-
-    if (obj instanceof String) {
+    if (obj == null) {
+      return null;
+    } else if (obj instanceof String) {
       return new OrderByColumnSpec(obj.toString(), null);
     } else if (obj instanceof Map) {
       final Map map = (Map) obj;

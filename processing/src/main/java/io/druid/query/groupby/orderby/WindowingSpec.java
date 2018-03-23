@@ -148,11 +148,12 @@ public class WindowingSpec implements Cacheable
       if (sortingColumnNames.indexOf(partitionColumns.get(i)) != i) {
         break;
       }
-      merged.add(sortingColumns.get(0));
+      merged.add(sortingColumns.get(i));
     }
     for (int j = i; j < partitionColumns.size(); j++) {
       merged.add(OrderByColumnSpec.asc(partitionColumns.get(j)));
     }
+    // partition columns are all the same in a partition.. so it's safe to consider them ordered
     merged.addAll(sortingColumns.subList(i, sortingColumns.size()));
     return merged;
   }
