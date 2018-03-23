@@ -226,7 +226,7 @@ public class SummaryPostProcessor extends PostProcessingOperator.UnionSupport
                 result.put("outlierThreshold", new double[]{q1 - delta, q3 + delta});
               }
 
-              if (type.isString()) {
+              if (type.isStringOrDimension()) {
                 final SearchQuery search = new SearchQuery(
                     representative.getDataSource(),
                     null,

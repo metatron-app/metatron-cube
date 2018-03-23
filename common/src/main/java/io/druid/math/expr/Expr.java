@@ -443,7 +443,7 @@ abstract class BinaryNumericOpExprBase extends BinaryOp implements Expression.Fu
   {
     ValueDesc leftType = left.type(bindings);
     ValueDesc rightType = right.type(bindings);
-    if (leftType.isString() || rightType.isString()) {
+    if (leftType.isStringOrDimension() || rightType.isStringOrDimension()) {
       return ValueDesc.STRING;
     }
     if (leftType.isFloat() && rightType.isFloat()) {
