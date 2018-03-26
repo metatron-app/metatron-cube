@@ -31,6 +31,7 @@ import com.metamx.common.StringUtils;
 import com.metamx.common.guava.Sequence;
 import io.druid.common.utils.PropUtils;
 import io.druid.data.ValueDesc;
+import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.dimension.DimensionSpecs;
 import io.druid.query.select.ViewSupportHelper;
 import io.druid.query.spec.MultipleIntervalSegmentSpec;
@@ -245,7 +246,21 @@ public abstract class BaseQuery<T> implements Query<T>
   @Override
   public Query<T> resolveQuery(Supplier<RowResolver> resolver)
   {
-    return ViewSupportHelper.rewrite(this, resolver);
+    Query<T> query = ViewSupportHelper.rewrite(this, resolver);
+    if (query instanceof AggregationsSupport) {
+      @SuppressWarnings("unchecked")
+      AggregationsSupport<T> aggregationsSupport = (AggregationsSupport) query;
+      List<AggregatorFactory> resolved = Lists.newArrayList();
+      for (AggregatorFactory factory : aggregationsSupport.getAggregatorSpecs()) {
+        if (factory instanceof AggregatorFactory.TypeResolving &&
+            ((AggregatorFactory.TypeResolving)factory).needResolving()) {
+          factory = ((AggregatorFactory.TypeResolving)factory).resolve(resolver.get());
+        }
+        resolved.add(factory);
+      }
+      return aggregationsSupport.withAggregatorSpecs(resolved);
+    }
+    return query;
   }
 
   @Override

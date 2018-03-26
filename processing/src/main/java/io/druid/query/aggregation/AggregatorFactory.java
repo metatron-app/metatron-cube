@@ -29,6 +29,7 @@ import com.metamx.common.logger.Logger;
 import io.druid.common.Cacheable;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.data.ValueDesc;
+import io.druid.query.RowResolver;
 import io.druid.segment.ColumnSelectorFactory;
 import io.druid.segment.Metadata;
 
@@ -152,6 +153,14 @@ public abstract class AggregatorFactory implements Cacheable
   public boolean providesEstimation()
   {
     return false;
+  }
+
+  // this is possible only when intermediate type conveys resolved-type back to broker
+  public static abstract class TypeResolving extends AggregatorFactory
+  {
+    public abstract boolean needResolving();
+
+    public abstract AggregatorFactory resolve(RowResolver resolver);
   }
 
   /**

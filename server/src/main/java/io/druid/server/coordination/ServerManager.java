@@ -430,9 +430,9 @@ public class ServerManager implements QuerySegmentWalker
     final Function<Query<T>, ServiceMetricEvent.Builder> builderFn = getBuilderFn(toolChest);
     final AtomicLong cpuTimeAccumulator = new AtomicLong(0L);
 
-    FunctionalIterable<QueryRunner<T>> queryRunners = FunctionalIterable
-        .create(segments)
-        .transformCat(
+    final Iterable<QueryRunner<T>> queryRunners = Iterables.concat(
+        Iterables.transform(
+            segments,
             new Function<Pair<SegmentDescriptor, ReferenceCountingSegment>, Iterable<QueryRunner<T>>>()
             {
               @Override
@@ -456,7 +456,8 @@ public class ServerManager implements QuerySegmentWalker
                 );
               }
             }
-        );
+        )
+    );
 
     final QueryRunner<T> runner = CPUTimeMetricQueryRunner.safeBuild(
         FinalizeResultsQueryRunner.finalize(
@@ -477,7 +478,14 @@ public class ServerManager implements QuerySegmentWalker
       Iterable<Query<T>> queries = splitable.splitQuery(resolved, targets, optimizer, resolver, this, objectMapper);
       return toConcatRunner(queries, runner);
     }
-    return runner;
+    return new QueryRunner<T>()
+    {
+      @Override
+      public Sequence<T> run(Query<T> query, Map<String, Object> responseContext)
+      {
+        return runner.run(resolved, responseContext);
+      }
+    };
   }
 
   private <T> QueryRunner<T> toConcatRunner(

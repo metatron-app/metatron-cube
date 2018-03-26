@@ -65,7 +65,7 @@ public class SketchTestHelper extends QueryRunnerTestHelper
   public static final AggregatorFactory qualityQuantileAggr = new GenericSketchAggregatorFactory(
       qualitySketchMetric,
       qualityDimension,
-      null,
+      ValueDesc.STRING,
       SketchOp.QUANTILE,
       null,
       null,
@@ -75,7 +75,7 @@ public class SketchTestHelper extends QueryRunnerTestHelper
   public static final AggregatorFactory qualityThetaAggr = new GenericSketchAggregatorFactory(
       qualitySketchMetric,
       qualityDimension,
-      null,
+      ValueDesc.STRING,
       SketchOp.THETA,
       null,
       null,

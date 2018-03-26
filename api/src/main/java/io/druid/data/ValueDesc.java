@@ -329,7 +329,7 @@ public class ValueDesc
   @JsonCreator
   public static ValueDesc of(String typeName)
   {
-    return typeName == null ? ValueDesc.UNKNOWN : new ValueDesc(typeName);
+    return typeName == null ? null : new ValueDesc(typeName);
   }
 
   public static ValueDesc of(ValueType valueType)

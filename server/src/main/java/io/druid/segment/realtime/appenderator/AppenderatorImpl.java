@@ -21,6 +21,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Function;
 import com.google.common.base.Joiner;
 import com.google.common.base.Preconditions;
+import com.google.common.base.Predicates;
 import com.google.common.base.Stopwatch;
 import com.google.common.base.Supplier;
 import com.google.common.base.Throwables;
@@ -39,12 +40,14 @@ import com.metamx.common.ISE;
 import com.metamx.common.Pair;
 import com.metamx.common.guava.CloseQuietly;
 import com.metamx.common.guava.FunctionalIterable;
+import com.metamx.common.guava.Sequence;
 import com.metamx.emitter.EmittingLogger;
 import com.metamx.emitter.service.ServiceEmitter;
 import com.metamx.emitter.service.ServiceMetricEvent;
 import io.druid.cache.Cache;
 import io.druid.client.CachingQueryRunner;
 import io.druid.client.cache.CacheConfig;
+import io.druid.common.guava.GuavaUtils;
 import io.druid.common.guava.ThreadRenamingCallable;
 import io.druid.concurrent.Execs;
 import io.druid.data.input.Committer;
@@ -60,6 +63,7 @@ import io.druid.query.QueryRunnerFactoryConglomerate;
 import io.druid.query.QueryRunnerHelper;
 import io.druid.query.QueryToolChest;
 import io.druid.query.ReportTimelineMissingSegmentQueryRunner;
+import io.druid.query.RowResolver;
 import io.druid.query.SegmentDescriptor;
 import io.druid.query.spec.SpecificSegmentQueryRunner;
 import io.druid.query.spec.SpecificSegmentSpec;
@@ -101,6 +105,7 @@ import java.util.Set;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -353,6 +358,11 @@ public class AppenderatorImpl implements Appenderator
       return new NoopQueryRunner<>();
     }
 
+    return toQuery(query, specs);
+  }
+
+  private <T> QueryRunner<T> toQuery(final Query<T> query, Iterable<SegmentDescriptor> specs)
+  {
     final QueryRunnerFactory<T, Query<T>> factory = conglomerate.findFactory(query);
     if (factory == null) {
       throw new ISE("Unknown query type[%s].", query.getClass());
@@ -371,31 +381,76 @@ public class AppenderatorImpl implements Appenderator
         };
     final boolean skipIncrementalSegment = query.getContextValue(CONTEXT_SKIP_INCREMENTAL_SEGMENT, false);
 
-    return toolchest.mergeResults(
-        factory.mergeRunners(
-            queryExecutorService,
-            FunctionalIterable
-                .create(specs)
-                .transform(
-                    new Function<SegmentDescriptor, QueryRunner<T>>()
+    final List<SegmentDescriptor> descriptors = Lists.newArrayList(specs);
+    final List<Sink> sinks = Lists.newArrayList(
+        Iterables.transform(
+            specs, new Function<SegmentDescriptor, Sink>()
+            {
+              @Override
+              public Sink apply(final SegmentDescriptor descriptor)
+              {
+                final PartitionHolder<Sink> holder = sinkTimeline.findEntry(
+                    descriptor.getInterval(),
+                    descriptor.getVersion()
+                );
+                if (holder == null) {
+                  return null;
+                }
+                final PartitionChunk<Sink> chunk = holder.getChunk(descriptor.getPartitionNumber());
+                if (chunk == null) {
+                  return null;
+                }
+                return chunk.getObject();
+              }
+            }
+        )
+    );
+    final List<Segment> segments = Lists.newArrayList(
+        Iterables.concat(
+            Iterables.transform(
+                Iterables.filter(sinks, Predicates.notNull()), new Function<Sink, Iterable<Segment>>()
+                {
+                  @Override
+                  public Iterable<Segment> apply(Sink input)
+                  {
+                    List<Segment> segmentList = Lists.newArrayList();
+                    for (FireHydrant hydrant : input) {
+                      if (!skipIncrementalSegment || hydrant.hasSwapped()) {
+                        segmentList.add(hydrant.getSegment());
+                      }
+                    }
+                    return segmentList;
+                  }
+                }
+            )
+        )
+    );
+    final Supplier<RowResolver> resolver = RowResolver.supplier(segments, query);
+    final Query<T> resolved = query.resolveQuery(resolver);
+    final Future<Object> optimizer = factory.preFactoring(resolved, segments, resolver, queryExecutorService);
+
+    final List<Pair<SegmentDescriptor, Sink>> targets = GuavaUtils.zip(descriptors, sinks);
+    return new QueryRunner<T>()
+    {
+      @Override
+      public Sequence<T> run( Query<T> query, Map<String, Object> responseContext)
+      {
+        QueryRunner<T> baseRunner = toolchest.mergeResults(
+            factory.mergeRunners(
+                queryExecutorService,
+                Iterables.transform(
+                    targets,
+                    new Function<Pair<SegmentDescriptor, Sink>, QueryRunner<T>>()
                     {
                       @Override
-                      public QueryRunner<T> apply(final SegmentDescriptor descriptor)
+                      public QueryRunner<T> apply(final Pair<SegmentDescriptor, Sink> pair)
                       {
-                        final PartitionHolder<Sink> holder = sinkTimeline.findEntry(
-                            descriptor.getInterval(),
-                            descriptor.getVersion()
-                        );
-                        if (holder == null) {
+                        final Sink theSink = pair.rhs;
+                        final SegmentDescriptor descriptor = pair.lhs;
+
+                        if (theSink == null) {
                           return new ReportTimelineMissingSegmentQueryRunner<>(descriptor);
                         }
-
-                        final PartitionChunk<Sink> chunk = holder.getChunk(descriptor.getPartitionNumber());
-                        if (chunk == null) {
-                          return new ReportTimelineMissingSegmentQueryRunner<>(descriptor);
-                        }
-
-                        final Sink theSink = chunk.getObject();
 
                         return new SpecificSegmentQueryRunner<>(
                             new MetricsEmittingQueryRunner<>(
@@ -425,7 +480,7 @@ public class AppenderatorImpl implements Appenderator
                                                 final Pair<Segment, Closeable> segment = hydrant.getAndIncrementSegment();
                                                 try {
                                                   QueryRunner<T> baseRunner = QueryRunnerHelper.makeClosingQueryRunner(
-                                                      factory.createRunner(segment.lhs, null),
+                                                      factory.createRunner(segment.lhs, optimizer),
                                                       segment.rhs
                                                   );
 
@@ -462,9 +517,12 @@ public class AppenderatorImpl implements Appenderator
                       }
                     }
                 ),
-            null
-        )
-    );
+                null
+            )
+        );
+        return baseRunner.run(resolved, responseContext);
+      }
+    };
   }
 
   private <T> QueryRunner<T> toManagementQueryRunner(Query<T> query)

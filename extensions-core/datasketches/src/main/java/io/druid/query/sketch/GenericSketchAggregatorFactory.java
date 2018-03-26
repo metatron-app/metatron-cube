@@ -30,6 +30,7 @@ import com.yahoo.sketches.quantiles.ItemsSketch;
 import com.yahoo.sketches.theta.Sketch;
 import io.druid.data.ValueDesc;
 import io.druid.query.QueryCacheHelper;
+import io.druid.query.RowResolver;
 import io.druid.query.aggregation.Aggregator;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.BufferAggregator;
@@ -49,7 +50,7 @@ import java.util.List;
 import java.util.Objects;
 
 @JsonTypeName("sketch")
-public class GenericSketchAggregatorFactory extends AggregatorFactory
+public class GenericSketchAggregatorFactory extends AggregatorFactory.TypeResolving
 {
   private static final byte CACHE_TYPE_ID = 24;
 
@@ -78,12 +79,24 @@ public class GenericSketchAggregatorFactory extends AggregatorFactory
   {
     this.name = Preconditions.checkNotNull(name, "'name' cannot be null");
     this.fieldName = fieldName == null ? name : fieldName;
-    this.sourceType = sourceType == null ? ValueDesc.STRING : sourceType;
+    this.sourceType = sourceType;
     this.sketchOp = sketchOp == null ? SketchOp.THETA : sketchOp;
     this.sketchParam = sketchParam == null ? this.sketchOp.defaultParam() : this.sketchOp.normalize(sketchParam);
     this.orderingSpecs = orderingSpecs;
     this.merge = merge;
-    this.sourceComparator = StringComparators.makeComparator(this.sourceType, orderingSpecs);
+  }
+
+  private ValueDesc sourceType()
+  {
+    return sourceType == null ? ValueDesc.STRING : sourceType;
+  }
+
+  private Comparator sourceComparator()
+  {
+    if (sourceComparator == null) {
+      sourceComparator = StringComparators.makeComparator(sourceType(), orderingSpecs);
+    }
+    return sourceComparator;
   }
 
   @Override
@@ -95,7 +108,7 @@ public class GenericSketchAggregatorFactory extends AggregatorFactory
       if (selector == null) {
         return Aggregator.NULL;
       }
-      return new BaseAggregator(sourceType)
+      return new BaseAggregator(sourceType())
       {
         @Override
         public void aggregate()
@@ -166,19 +179,32 @@ public class GenericSketchAggregatorFactory extends AggregatorFactory
     };
   }
 
+  @Override
+  public boolean needResolving()
+  {
+    return sourceType == null;
+  }
+
+  @Override
+  public AggregatorFactory resolve(RowResolver resolver)
+  {
+    ValueDesc sourceType = resolver.resolveColumn(fieldName);
+    return new GenericSketchAggregatorFactory(name, fieldName, sourceType, sketchOp, sketchParam, orderingSpecs, merge);
+  }
+
   @SuppressWarnings("unchecked")
   abstract class BaseAggregator extends Aggregator.Abstract
   {
     private final SketchHandler<?> handler = new SketchHandler.Synchronized<>(sketchOp.handler());
-    private final TypedSketch sketch = handler.newUnion(sketchParam, sourceType, sourceComparator);
+    private final TypedSketch sketch = handler.newUnion(sketchParam, sourceType(), sourceComparator());
 
     protected BaseAggregator(ValueDesc type)
     {
       if (!handler.supports(type)) {
         throw new UnsupportedOperationException("not supported type " + type);
       }
-      if (!ValueDesc.isSameCategory(sourceType, type)) {
-        throw new UnsupportedOperationException("type mismatch.. " + sourceType + " with real type " + type);
+      if (!ValueDesc.isSameCategory(sourceType(), type)) {
+        throw new UnsupportedOperationException("type mismatch.. " + sourceType() + " with real type " + type);
       }
     }
 
@@ -234,7 +260,7 @@ public class GenericSketchAggregatorFactory extends AggregatorFactory
             final int index = buf.getInt(position);
             TypedSketch union = sketches.get(index);
             if (union == null) {
-              sketches.set(index, union = handler.newUnion(sketchParam, sourceType, sourceComparator));
+              sketches.set(index, union = handler.newUnion(sketchParam, sourceType(), sourceComparator()));
             }
             handler.updateWithSketch(union, sketch.value());
           }
@@ -318,8 +344,8 @@ public class GenericSketchAggregatorFactory extends AggregatorFactory
       if (!handler.supports(type)) {
         throw new UnsupportedOperationException("not supported type " + type);
       }
-      if (!ValueDesc.isSameCategory(sourceType, type)) {
-        throw new UnsupportedOperationException("type mismatch.. " + sourceType + " with real type " + type);
+      if (!ValueDesc.isSameCategory(sourceType(), type)) {
+        throw new UnsupportedOperationException("type mismatch.. " + sourceType() + " with real type " + type);
       }
     }
 
@@ -327,7 +353,7 @@ public class GenericSketchAggregatorFactory extends AggregatorFactory
     public void init(ByteBuffer buf, int position)
     {
       buf.putInt(position, sketches.size());
-      sketches.add(handler.newUnion(sketchParam, sourceType, sourceComparator));
+      sketches.add(handler.newUnion(sketchParam, sourceType(), sourceComparator()));
     }
 
     final void updateWithValue(ByteBuffer buf, int position, Object value)
@@ -350,7 +376,7 @@ public class GenericSketchAggregatorFactory extends AggregatorFactory
   @Override
   public Object deserialize(Object object)
   {
-    return TypedSketch.deserialize(sketchOp, object, sourceComparator);
+    return TypedSketch.deserialize(sketchOp, object, sourceComparator());
   }
 
   @Override
@@ -383,7 +409,7 @@ public class GenericSketchAggregatorFactory extends AggregatorFactory
     ItemsSketch.rand.setSeed(0);
 //    ItemsSketch.rand.get().setSeed(0);    // pending PR (https://github.com/DataSketches/sketches-core/pull/190)
     SketchHandler<?> handler = sketchOp.handler();
-    TypedSketch union = handler.newUnion(sketchParam, sourceType, sourceComparator);
+    TypedSketch union = handler.newUnion(sketchParam, object1.type(), sourceComparator());
     handler.updateWithSketch(union, object1.value());
     handler.updateWithSketch(union, object2.value());
     return handler.toSketch(union);
@@ -409,9 +435,9 @@ public class GenericSketchAggregatorFactory extends AggregatorFactory
   }
 
   @JsonProperty
-  public String getSourceType()
+  public ValueDesc getSourceType()
   {
-    return sourceType.typeName();
+    return sourceType;
   }
 
   @JsonProperty
@@ -454,7 +480,7 @@ public class GenericSketchAggregatorFactory extends AggregatorFactory
   public byte[] getCacheKey()
   {
     byte[] fieldNameBytes = QueryCacheHelper.computeCacheBytes(fieldName);
-    byte[] sourceTypeBytes = QueryCacheHelper.computeCacheBytes(sourceType.typeName());
+    byte[] sourceTypeBytes = QueryCacheHelper.computeCacheBytes(sourceType == null  ? null : sourceType.typeName());
     byte[] orderingSpecsBytes = QueryCacheHelper.computeAggregatorBytes(orderingSpecs);
     int length = 7 + fieldNameBytes.length + sourceTypeBytes.length + orderingSpecsBytes.length;
 
@@ -508,7 +534,7 @@ public class GenericSketchAggregatorFactory extends AggregatorFactory
     if (!fieldName.equals(that.fieldName)) {
       return false;
     }
-    if (!sourceType.equals(that.sourceType)) {
+    if (!Objects.equals(sourceType, that.sourceType)) {
       return false;
     }
     if (sketchOp != that.sketchOp) {
@@ -528,7 +554,7 @@ public class GenericSketchAggregatorFactory extends AggregatorFactory
   {
     int result = name.hashCode();
     result = 31 * result + fieldName.hashCode();
-    result = 31 * result + sourceType.hashCode();
+    result = 31 * result + Objects.hashCode(sourceType);
     result = 31 * result + sketchOp.ordinal();
     result = 31 * result + sketchParam;
     result = 31 * result + Objects.hashCode(orderingSpecs);
