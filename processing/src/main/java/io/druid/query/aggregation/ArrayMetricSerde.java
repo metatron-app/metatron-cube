@@ -121,6 +121,10 @@ public class ArrayMetricSerde extends ComplexMetricSerde
             dummy.setObject(list.get(i));
             list.set(i, extractor.extractValue(dummy, "dummy"));
           }
+        } else {
+          for (int i = 0; i < list.size(); i++) {
+            list.set(i, element.cast(list.get(i)));
+          }
         }
         return list;
       }

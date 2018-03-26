@@ -31,6 +31,7 @@ public class ColumnBuilder
 {
   private ValueType type = null;
   private int numRows = -1;
+  private String typeName = null;
   private boolean hasMultipleValues = false;
 
   private ColumnPartProvider.DictionarySupport dictionaryEncodedColumn = null;
@@ -60,6 +61,12 @@ public class ColumnBuilder
   {
     Preconditions.checkArgument(numRows < 0 || numRows == size);
     this.numRows = size;
+  }
+
+  public ColumnBuilder setTypeName(String typeName)
+  {
+    this.typeName = typeName;
+    return this;
   }
 
   public ColumnBuilder setHasMultipleValues(boolean hasMultipleValues)
@@ -140,6 +147,7 @@ public class ColumnBuilder
     return new SimpleColumn(
         new ColumnCapabilitiesImpl()
             .setType(type)
+            .setTypeName(typeName)
             .setDictionaryEncoded(dictionaryEncodedColumn != null)
             .setHasBitmapIndexes(bitmapIndex != null)
             .setHasMetricBitmap(metricBitmap != null)

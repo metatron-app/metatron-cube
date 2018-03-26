@@ -42,7 +42,7 @@ public interface ObjectStrategy<T> extends Comparator<T>
   abstract class NotComparable<T> implements ObjectStrategy<T>
   {
     @Override
-    public final int compare(Object o1, Object o2)
+    public final int compare(T o1, T o2)
     {
       throw new UnsupportedOperationException();
     }

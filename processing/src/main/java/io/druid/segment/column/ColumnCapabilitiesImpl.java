@@ -23,15 +23,15 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.metamx.common.ISE;
 import io.druid.data.ValueType;
 
+import java.util.Objects;
+
 /**
  */
 public class ColumnCapabilitiesImpl implements ColumnCapabilities
 {
   public static ColumnCapabilitiesImpl of(ValueType type)
   {
-    ColumnCapabilitiesImpl capabilities = new ColumnCapabilitiesImpl();
-    capabilities.setType(type);
-    return capabilities;
+    return new ColumnCapabilitiesImpl().setType(type);
   }
 
   public static ColumnCapabilitiesImpl copyOf(ColumnCapabilities capabilities)
@@ -49,6 +49,7 @@ public class ColumnCapabilitiesImpl implements ColumnCapabilities
   }
 
   private ValueType type = null;
+  private String typeName = null;
   private boolean dictionaryEncoded = false;
   private boolean runLengthEncoded = false;
   private boolean hasInvertedIndexes = false;
@@ -64,9 +65,21 @@ public class ColumnCapabilitiesImpl implements ColumnCapabilities
     return type;
   }
 
+  @Override
+  public String getTypeName()
+  {
+    return typeName;
+  }
+
   public ColumnCapabilitiesImpl setType(ValueType type)
   {
     this.type = type;
+    return this;
+  }
+
+  public ColumnCapabilitiesImpl setTypeName(String typeName)
+  {
+    this.typeName = typeName;
     return this;
   }
 
@@ -174,6 +187,14 @@ public class ColumnCapabilitiesImpl implements ColumnCapabilities
 
     if (!type.equals(other.getType())) {
       throw new ISE("Cannot merge columns of type[%s] and [%s]", type, other.getType());
+    }
+
+    if (typeName == null) {
+      typeName = other.getTypeName();
+    }
+
+    if (!Objects.equals(typeName, other.getTypeName())) {
+      throw new ISE("Cannot merge columns of typeName[%s] and [%s]", typeName, other.getTypeName());
     }
 
     this.dictionaryEncoded |= other.isDictionaryEncoded();

@@ -19,7 +19,6 @@
 
 package io.druid.segment.serde;
 
-import io.druid.data.input.InputRow;
 import io.druid.data.input.Row;
 
 /**

@@ -23,10 +23,11 @@ import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.fasterxml.jackson.databind.module.SimpleModule;
 import com.google.common.hash.Hashing;
+import io.druid.data.ValueDesc;
 import io.druid.data.ValueType;
+import io.druid.data.input.CompactRow;
 import io.druid.data.input.MapBasedRow;
 import io.druid.data.input.Row;
-import io.druid.data.input.CompactRow;
 import io.druid.query.SelectEachQuery;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.ArrayAggregatorFactory;
@@ -66,6 +67,7 @@ import io.druid.query.aggregation.post.MathPostAggregator;
 import io.druid.segment.serde.ComplexMetricSerde;
 import io.druid.segment.serde.ComplexMetrics;
 import io.druid.segment.serde.StringMetricSerde;
+import io.druid.segment.serde.StructMetricSerde;
 
 /**
  */
@@ -91,11 +93,14 @@ public class AggregatorsModule extends SimpleModule
     if (ComplexMetrics.getSerdeForType("string") == null) {
       ComplexMetrics.registerSerde("string", StringMetricSerde.INSTANCE);
     }
-    if (ComplexMetrics.getSerdeForType("decimal") == null) {
-      ComplexMetrics.registerSerde("decimal", new DecimalMetricSerde());
+    if (ComplexMetrics.getSerdeForType(ValueDesc.DECIMAL_TYPE) == null) {
+      ComplexMetrics.registerSerde(ValueDesc.DECIMAL_TYPE, new DecimalMetricSerde());
     }
-    if (ComplexMetrics.getSerdeFactory("decimal") == null) {
-      ComplexMetrics.registerSerdeFactory("decimal", new DecimalMetricSerde.Factory());
+    if (ComplexMetrics.getSerdeFactory(ValueDesc.DECIMAL_TYPE) == null) {
+      ComplexMetrics.registerSerdeFactory(ValueDesc.DECIMAL_TYPE, new DecimalMetricSerde.Factory());
+    }
+    if (ComplexMetrics.getSerdeFactory(ValueDesc.STRUCT_TYPE) == null) {
+      ComplexMetrics.registerSerdeFactory(ValueDesc.STRUCT_TYPE, new StructMetricSerde.Factory());
     }
 
     setMixInAnnotation(AggregatorFactory.class, AggregatorFactoryMixin.class);

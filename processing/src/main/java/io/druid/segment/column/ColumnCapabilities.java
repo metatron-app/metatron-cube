@@ -26,6 +26,7 @@ import io.druid.data.ValueType;
 public interface ColumnCapabilities
 {
   public ValueType getType();
+  public String getTypeName();
 
   public boolean isDictionaryEncoded();
   public boolean isRunLengthEncoded();

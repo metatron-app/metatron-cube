@@ -38,7 +38,6 @@ import io.druid.query.QueryRunner;
 import io.druid.query.QueryRunnerTestHelper;
 import io.druid.query.TestQueryRunners;
 import io.druid.query.aggregation.AggregatorFactory;
-import io.druid.query.aggregation.ArrayAggregatorFactory;
 import io.druid.query.aggregation.CountAggregatorFactory;
 import io.druid.query.aggregation.DimensionArrayAggregatorFactory;
 import io.druid.query.aggregation.GenericMaxAggregatorFactory;
@@ -47,11 +46,13 @@ import io.druid.query.aggregation.GenericSumAggregatorFactory;
 import io.druid.query.aggregation.LongMaxAggregatorFactory;
 import io.druid.query.aggregation.LongMinAggregatorFactory;
 import io.druid.query.aggregation.LongSumAggregatorFactory;
+import io.druid.query.aggregation.RelayAggregatorFactory;
 import io.druid.query.aggregation.cardinality.CardinalityAggregatorFactory;
 import io.druid.query.dimension.DefaultDimensionSpec;
 import io.druid.query.dimension.DimensionSpecs;
 import io.druid.query.extraction.ExpressionExtractionFn;
 import io.druid.query.filter.InDimFilter;
+import io.druid.query.ordering.Direction;
 import io.druid.segment.ArrayVirtualColumn;
 import io.druid.segment.ExprVirtualColumn;
 import io.druid.segment.IncrementalIndexSegment;
@@ -60,6 +61,7 @@ import io.druid.segment.LateralViewVirtualColumn;
 import io.druid.segment.MapVirtualColumn;
 import io.druid.segment.QueryableIndex;
 import io.druid.segment.QueryableIndexSegment;
+import io.druid.segment.StructVirtualColumn;
 import io.druid.segment.TestHelper;
 import io.druid.segment.TestIndex;
 import io.druid.segment.VirtualColumn;
@@ -135,12 +137,14 @@ public class VirtualColumnTest
         .withQueryGranularity(QueryGranularities.NONE)
         .withMetrics(
             new AggregatorFactory[]{
-                new ArrayAggregatorFactory("array", new LongSumAggregatorFactory("array", "array"), -1),
+                new RelayAggregatorFactory("array", "array", "array.float"),
                 new LongSumAggregatorFactory("m1"),
                 new LongSumAggregatorFactory("m2"),
-                new LongSumAggregatorFactory("m3")
+                new LongSumAggregatorFactory("m3"),
+                new RelayAggregatorFactory("gis", "struct", "struct(long:double,lat:double,city:string)"),
             }
         )
+        .withRollup(false)
         .build();
     final IncrementalIndex index = new OnheapIncrementalIndex(schema, true, 10000);
 
@@ -150,20 +154,20 @@ public class VirtualColumnTest
             new DimensionsSpec(
                 DimensionsSpec.getDefaultSchemas(Arrays.asList("dim", "keys", "values", "value")), null, null
             ),
-            "\t",
+            "|",
             ",",
-            Arrays.asList("ts", "dim", "keys", "values", "value", "array", "m1", "m2", "m3")
+            Arrays.asList("ts", "dim", "keys", "values", "value", "array", "m1", "m2", "m3", "struct")
         )
         , "utf8"
     );
 
     CharSource input = CharSource.wrap(
-        "2011-01-12T00:00:00.000Z\ta\tkey1,key2,key3\t100,200,300\t100\t100,200,300\t100\t200\t300\n" +
-        "2011-01-12T00:00:00.000Z\tc\tkey1,key2\t100,500,900\t200\t100,500,900\t100\t500\t900\n" +
-        "2011-01-12T00:00:00.000Z\ta\tkey1,key2,key3\t400,500,600\t300\t400,500,600\t400\t500\t600\n" +
-        "2011-01-12T01:00:00.000Z\t\tkey1,key2,key3\t10,20,30\t400\t10,20,30\t10\t20\t30\n" +
-        "2011-01-12T01:00:00.000Z\tc\tkey1,key2,key3\t1,5,9\t500\t1,5,9\t1\t5\t9\n" +
-        "2011-01-12T01:00:00.000Z\t\tkey1,key2,key3\t2,4,8\t600\t2,4,8\t2\t4\t8\n"
+        "2011-01-12T00:00:00.000Z|a|key1,key2,key3|100,200,300|100|100,200,300|100|200|300|0.1,0.2,seoul\n" +
+        "2011-01-12T00:00:00.000Z|c|key1,key2|100,500,900|200|100,500,900|100|500|900|0.3,0.4,daejeon\n" +
+        "2011-01-12T00:00:00.000Z|a|key1,key2,key3|400,500,600|300|400,500,600|400|500|600|0.5,0.6,daegu\n" +
+        "2011-01-12T01:00:00.000Z||key1,key2,key3|10,20,30|400|10,20,30|10|20|30|0.7,0.8,pusan\n" +
+        "2011-01-12T01:00:00.000Z|c|key1,key2,key3|1,5,9|500|1,5,9|1|5|9|0.9,1.0,pusan\n" +
+        "2011-01-12T01:00:00.000Z||key1,key2,key3|2,4,8|600|2,4,8|2|4|8|1.1,1.2,daejeon\n"
     );
 
     return TestIndex.loadIncrementalIndex(index, input, parser);
@@ -182,6 +186,72 @@ public class VirtualColumnTest
                        .setDataSource(dataSource)
                        .setGranularity(dayGran)
                        .setInterval(fullOnInterval);
+  }
+
+  @Test
+  public void testArray() throws Exception
+  {
+    BaseAggregationQuery.Builder<GroupByQuery> builder = testBuilder();
+
+    List<Row> expectedResults = GroupByQueryRunnerTestHelper.createExpectedRows(
+        new String[]{"__time", "dim", "sum_of_array[0]", "sum_of_array[1]", "sum_of_array[2]", "count"},
+        new Object[]{"2011-01-12T00:00:00.000Z", null, 12L, 24L, 38L, 2L},
+        new Object[]{"2011-01-12T00:00:00.000Z", "c", 101L, 505L, 909L, 2L},
+        new Object[]{"2011-01-12T00:00:00.000Z", "a", 500L, 700L, 900L, 2L}
+    );
+
+    List<VirtualColumn> virtualColumns = Arrays.<VirtualColumn>asList(
+        new ArrayVirtualColumn("array", "array")
+    );
+    GroupByQuery query = builder
+        .setDimensions(DefaultDimensionSpec.toSpec("dim"))
+        .setAggregatorSpecs(
+            Arrays.asList(
+                new LongSumAggregatorFactory("sum_of_array[0]", "array.0"),
+                new LongSumAggregatorFactory("sum_of_array[1]", "array.1"),
+                new LongSumAggregatorFactory("sum_of_array[2]", "array.2"),
+                new CountAggregatorFactory("count")
+            )
+        )
+        .setVirtualColumns(virtualColumns)
+        .addOrderByColumn("count")
+        .build();
+
+    checkQueryResult(query, expectedResults);
+  }
+
+  @Test
+  public void testStruct() throws Exception
+  {
+    BaseAggregationQuery.Builder<GroupByQuery> builder = testBuilder();
+
+    List<Row> expectedResults = GroupByQueryRunnerTestHelper.createExpectedRows(
+        new String[]{"__time", "gis.city", "sum_of_array[0]", "sum_of_array[1]", "sum_of_array[2]", "count"},
+        new Object[]{"2011-01-12T00:00:00.000Z", "daejeon", 102L, 504L, 908L, 2L},
+        new Object[]{"2011-01-12T00:00:00.000Z", "pusan", 11L, 25L, 39L, 2L},
+        new Object[]{"2011-01-12T00:00:00.000Z", "seoul", 100L, 200L, 300L, 1L},
+        new Object[]{"2011-01-12T00:00:00.000Z", "daegu", 400L, 500L, 600L, 1L}
+    );
+
+    List<VirtualColumn> virtualColumns = Arrays.<VirtualColumn>asList(
+        new ArrayVirtualColumn("array", "array"),
+        new StructVirtualColumn("gis", "gis")
+    );
+    GroupByQuery query = builder
+        .setDimensions(DefaultDimensionSpec.toSpec("gis.city"))
+        .setAggregatorSpecs(
+            Arrays.asList(
+                new LongSumAggregatorFactory("sum_of_array[0]", "array.0"),
+                new LongSumAggregatorFactory("sum_of_array[1]", "array.1"),
+                new LongSumAggregatorFactory("sum_of_array[2]", "array.2"),
+                new CountAggregatorFactory("count")
+            )
+        )
+        .setVirtualColumns(virtualColumns)
+        .addOrderByColumn("count", Direction.DESCENDING)
+        .build();
+
+    checkQueryResult(query, expectedResults);
   }
 
   @Test

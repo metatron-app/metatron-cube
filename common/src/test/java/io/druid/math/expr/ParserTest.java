@@ -22,8 +22,6 @@ package io.druid.math.expr;
 import org.junit.Assert;
 import org.junit.Test;
 
-import java.io.IOException;
-
 /**
  */
 public class ParserTest

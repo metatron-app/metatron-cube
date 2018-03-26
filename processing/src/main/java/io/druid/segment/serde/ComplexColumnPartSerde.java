@@ -139,6 +139,7 @@ public class ComplexColumnPartSerde implements ColumnPartSerde
         if (serde != null) {
           serde.deserializeColumn(buffer, builder);
         }
+        builder.setTypeName(typeName);
       }
     };
   }

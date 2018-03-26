@@ -977,6 +977,7 @@ public class IndexIO
               metric,
               new ColumnBuilder()
                   .setType(ValueType.of(metricHolder.getTypeName()))
+                  .setTypeName(metricHolder.getTypeName())
                   .setComplexColumn(
                       new ComplexColumnPartSupplier(
                           metricHolder.getTypeName(), (GenericIndexed) metricHolder.complexType

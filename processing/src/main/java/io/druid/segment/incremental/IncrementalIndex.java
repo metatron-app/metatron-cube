@@ -1121,6 +1121,9 @@ public abstract class IncrementalIndex<AggregatorType> implements MergeIndex
       this.name = factory.getName();
       this.type = ValueDesc.of(factory.getTypeName());
       this.capabilities = ColumnCapabilitiesImpl.of(type.type());
+      if (type.type() == ValueType.COMPLEX) {
+        capabilities.setTypeName(type.typeName());
+      }
     }
 
     public int getIndex()

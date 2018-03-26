@@ -471,8 +471,14 @@ public class VirtualColumns implements Iterable<VirtualColumn>
   public void addImplicitVCs(RowResolver resolver)
   {
     for (String metric : resolver.getMetricNames()) {
-      if (!virtualColumns.containsKey(metric) && ValueDesc.isArray(resolver.resolveColumn(metric))) {
+      if (virtualColumns.containsKey(metric)) {
+        continue;
+      }
+      ValueDesc valueType = resolver.resolveColumn(metric);
+      if (ValueDesc.isArray(valueType)) {
         virtualColumns.put(metric, ArrayVirtualColumn.implicit(metric));  // implicit array vc
+      } else if (valueType.isStruct()) {
+        virtualColumns.put(metric, StructVirtualColumn.implicit(metric));  // implicit struct vc
       }
     }
   }

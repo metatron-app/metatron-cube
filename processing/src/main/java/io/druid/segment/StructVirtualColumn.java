@@ -22,32 +22,34 @@ package io.druid.segment;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;
-import com.google.common.primitives.Ints;
-import io.druid.common.utils.StringUtils;
+import com.metamx.common.StringUtils;
 import io.druid.data.TypeResolver;
 import io.druid.data.ValueDesc;
+import io.druid.data.ValueType;
 import io.druid.query.extraction.ExtractionFn;
 import io.druid.query.filter.DimFilterCacheHelper;
+import io.druid.segment.serde.ComplexMetrics;
+import io.druid.segment.serde.StructMetricSerde;
 
 import java.nio.ByteBuffer;
-import java.util.List;
+import java.util.Objects;
 
 /**
  */
-public class ArrayVirtualColumn implements VirtualColumn
+public class StructVirtualColumn implements VirtualColumn
 {
-  private static final byte VC_TYPE_ID = 0x04;
+  private static final byte VC_TYPE_ID = 0x05;
 
-  public static VirtualColumn implicit(String metric)
+  public static StructVirtualColumn implicit(String metric)
   {
-    return new ArrayVirtualColumn(metric, metric);
+    return new StructVirtualColumn(metric, metric);
   }
 
   private final String columnName;
   private final String outputName;
 
   @JsonCreator
-  public ArrayVirtualColumn(
+  public StructVirtualColumn(
       @JsonProperty("columnName") String columnName,
       @JsonProperty("outputName") String outputName
   )
@@ -60,63 +62,59 @@ public class ArrayVirtualColumn implements VirtualColumn
   public ValueDesc resolveType(String column, TypeResolver types)
   {
     Preconditions.checkArgument(column.startsWith(outputName));
-    if (column.equals(columnName)) {
-      return types.resolveColumn(columnName);
+    final ValueDesc columnType = types.resolveColumn(columnName);
+    Preconditions.checkArgument(columnType.isStruct(), columnName + " is not struct type");
+    if (column.equals(outputName)) {
+      return columnType;
     }
-    int index = column.indexOf('.', outputName.length());
-    final Integer access = Ints.tryParse(column.substring(index + 1));
-    if (access == null || access < 0) {
-      throw new IllegalArgumentException("expects index attached in " + column);
-    }
-    ValueDesc valueDesc = types.resolveColumn(columnName);
-    if (ValueDesc.isArray(valueDesc)) {
-      return ValueDesc.subElementOf(valueDesc, ValueDesc.UNKNOWN);
-    }
-    return null;
+    final String fieldName = column.substring(columnName.length() + 1);
+    final StructMetricSerde serde = (StructMetricSerde) ComplexMetrics.getSerdeForType(columnType);
+    return ValueDesc.of(serde.getTypeOf(fieldName));
   }
 
   @Override
-  public ObjectColumnSelector asMetric(String column, ColumnSelectorFactory factory)
+  public ObjectColumnSelector asMetric(String dimension, ColumnSelectorFactory factory)
   {
-    Preconditions.checkArgument(column.startsWith(outputName));
-    final int index = column.indexOf('.', outputName.length());
-    if (index < 0) {
-      return factory.makeObjectColumnSelector(columnName);
-    }
-    final Integer access = Ints.tryParse(column.substring(index + 1));
-    if (access == null || access < 0) {
-      throw new IllegalArgumentException("expects index attached in " + column);
-    }
-    ValueDesc indexed = factory.getColumnType(columnName);
-    if (ValueDesc.isArray(indexed)) {
-      @SuppressWarnings("unchecked")
-      final ObjectColumnSelector<List> selector = factory.makeObjectColumnSelector(columnName);
-      final ValueDesc elementType = ValueDesc.subElementOf(indexed, ValueDesc.UNKNOWN);
-      return new ObjectColumnSelector()
-      {
-        @Override
-        public Object get()
-        {
-          List list = selector.get();
-          return access < list.size() ? list.get(access) : null;
-        }
+    Preconditions.checkArgument(dimension.startsWith(outputName));
+    ValueDesc columnType = factory.getColumnType(columnName);
+    Preconditions.checkArgument(columnType.isStruct(), columnName + " is not struct type");
 
-        @Override
-        public ValueDesc type()
-        {
-          return elementType;
-        }
-      };
+    final ObjectColumnSelector selector = factory.makeObjectColumnSelector(columnName);
+    if (dimension.equals(outputName)) {
+      return selector;
     }
-    return null;
+    final String fieldName = dimension.substring(columnName.length() + 1);
+    final StructMetricSerde serde = (StructMetricSerde) ComplexMetrics.getSerdeForType(columnType);
+    final int index = serde.indexOf(fieldName);
+    if (index < 0) {
+      return ColumnSelectors.nullObjectSelector(ValueDesc.UNKNOWN);
+    }
+    ValueType elementType = serde.type(index);
+    Preconditions.checkArgument(elementType.isPrimitive(), "only primitives are allowed in struct");
+
+    final ValueDesc fieldType = ValueDesc.of(elementType);
+    return new ObjectColumnSelector()
+    {
+      @Override
+      public Object get()
+      {
+        return ((Object[])selector.get())[index];
+      }
+
+      @Override
+      public ValueDesc type()
+      {
+        return fieldType;
+      }
+    };
   }
 
   @Override
   public FloatColumnSelector asFloatMetric(String dimension, ColumnSelectorFactory factory)
   {
     final ObjectColumnSelector selector = asMetric(dimension, factory);
-    if (ValueDesc.isMap(selector.type())) {
-      throw new UnsupportedOperationException("asFloatMetric");
+    if (ValueDesc.isMap(selector.type()) || ValueDesc.isArray(selector.type())) {
+      throw new UnsupportedOperationException(selector.type() + " cannot be used as a float");
     }
     return ColumnSelectors.asFloat(selector);
   }
@@ -125,8 +123,8 @@ public class ArrayVirtualColumn implements VirtualColumn
   public DoubleColumnSelector asDoubleMetric(String dimension, ColumnSelectorFactory factory)
   {
     final ObjectColumnSelector selector = asMetric(dimension, factory);
-    if (ValueDesc.isMap(selector.type())) {
-      throw new UnsupportedOperationException("asDoubleMetric");
+    if (ValueDesc.isMap(selector.type()) || ValueDesc.isArray(selector.type())) {
+      throw new UnsupportedOperationException(selector.type() + " cannot be used as a double");
     }
     return ColumnSelectors.asDouble(selector);
   }
@@ -135,8 +133,8 @@ public class ArrayVirtualColumn implements VirtualColumn
   public LongColumnSelector asLongMetric(String dimension, ColumnSelectorFactory factory)
   {
     final ObjectColumnSelector selector = asMetric(dimension, factory);
-    if (ValueDesc.isMap(selector.type())) {
-      throw new UnsupportedOperationException("asLongMetric");
+    if (ValueDesc.isMap(selector.type()) || ValueDesc.isArray(selector.type())) {
+      throw new UnsupportedOperationException(selector.type() + " cannot be used as a long");
     }
     return ColumnSelectors.asLong(selector);
   }
@@ -145,8 +143,8 @@ public class ArrayVirtualColumn implements VirtualColumn
   public DimensionSelector asDimension(String dimension, ExtractionFn extractionFn, ColumnSelectorFactory factory)
   {
     ObjectColumnSelector selector = asMetric(dimension, factory);
-    if (selector == null || !ValueDesc.isString(selector.type())) {
-      throw new UnsupportedOperationException(dimension + " cannot be used as dimension");
+    if (ValueDesc.isMap(selector.type()) || ValueDesc.isArray(selector.type())) {
+      throw new UnsupportedOperationException(selector.type() + " cannot be used as a Dimension");
     }
     return VirtualColumns.toDimensionSelector(selector, extractionFn);
   }
@@ -154,13 +152,14 @@ public class ArrayVirtualColumn implements VirtualColumn
   @Override
   public VirtualColumn duplicate()
   {
-    return new ArrayVirtualColumn(columnName, outputName);
+    return new StructVirtualColumn(columnName, outputName);
   }
+
 
   @Override
   public byte[] getCacheKey()
   {
-    byte[] columnNameBytes = StringUtils.toUtf8WithNullToEmpty(columnName);
+    byte[] columnNameBytes = StringUtils.toUtf8(columnName);
     byte[] outputNameBytes = StringUtils.toUtf8(outputName);
 
     return ByteBuffer.allocate(2 + columnNameBytes.length + outputNameBytes.length)
@@ -195,11 +194,11 @@ public class ArrayVirtualColumn implements VirtualColumn
     if (this == o) {
       return true;
     }
-    if (!(o instanceof ArrayVirtualColumn)) {
+    if (!(o instanceof StructVirtualColumn)) {
       return false;
     }
 
-    ArrayVirtualColumn that = (ArrayVirtualColumn) o;
+    StructVirtualColumn that = (StructVirtualColumn) o;
 
     if (!columnName.equals(that.columnName)) {
       return false;
@@ -214,15 +213,13 @@ public class ArrayVirtualColumn implements VirtualColumn
   @Override
   public int hashCode()
   {
-    int result = columnName.hashCode();
-    result = 31 * result + outputName.hashCode();
-    return result;
+    return Objects.hash(columnName, outputName);
   }
 
   @Override
   public String toString()
   {
-    return "ArrayVirtualColumn{" +
+    return "StructVirtualColumn{" +
            "columnName='" + columnName + '\'' +
            ", outputName='" + outputName + '\'' +
            '}';
