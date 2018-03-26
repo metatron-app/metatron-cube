@@ -36,7 +36,6 @@ import io.druid.data.ValueDesc;
 import io.druid.data.ValueType;
 import io.druid.data.input.Row;
 import io.druid.guice.annotations.Global;
-import io.druid.query.ColumnHistogram;
 import io.druid.query.GroupByMergedQueryRunner;
 import io.druid.query.Queries;
 import io.druid.query.Query;
@@ -143,21 +142,17 @@ public class GroupByQueryRunnerFactory implements QueryRunnerFactory.Splitable<R
     if (numSplit < 2) {
       return Arrays.asList(query);
     }
-    final ColumnHistogram result = Queries.getColumnHistogramOfFirstDimension(
+    final Object[] values = Queries.getColumnHistogramOfFirstDimension(
         resolver,
         segmentWalker,
         mapper,
         query,
         numSplit
     );
-    if (result == null) {
+    if (values == null) {
       return Arrays.asList(query);
     }
-    Object[] values = result.getValues();
-    long[] counts = result.getCounts();
-
     logger.info("--> values : %s", Arrays.toString(values));
-    logger.info("--> counts : %s", Arrays.toString(counts));    // warn : this is not a cardinality
 
     OrderingSpec orderingSpec = OrderingSpec.create(null);
     DimensionSpec dimensionSpec = query.getDimensions().get(0);

@@ -327,37 +327,18 @@ public class JoinQuery<T extends Comparable<T>> extends BaseQuery<T> implements 
     String partitionKey = rightJoin ? element.getRightJoinColumns().get(0) : element.getLeftJoinColumns().get(0);
 
     DataSource dataSource = dataSources.get(alias);
-    List<String> partitions = runSketchQuery(
+    List<String> partitions = QueryUtils.runSketchQuery(
+        new DummyQuery(dataSource, getQuerySegmentSpec(), false, getContext()),
         segmentWalker,
         jsonMapper,
-        null,
-        dataSource,
-        partitionKey
+        partitionKey,
+        numPartition,
+        scannerLen
     );
     if (partitions != null && partitions.size() > 2) {
       return new JoinPartitionSpec(element.getFirstKeys(), partitions);
     }
     return null;
-  }
-
-  private List<String> runSketchQuery(
-      QuerySegmentWalker segmentWalker,
-      ObjectMapper jsonMapper,
-      DimFilter filter,
-      DataSource dataSource,
-      String column
-  )
-  {
-    return QueryUtils.runSketchQuery(
-        segmentWalker,
-        jsonMapper,
-        getQuerySegmentSpec(),
-        filter,
-        dataSource,
-        column,
-        numPartition,
-        scannerLen
-    );
   }
 
   @Override

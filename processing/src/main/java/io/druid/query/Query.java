@@ -32,7 +32,6 @@ import io.druid.query.datasourcemetadata.DataSourceMetadataQuery;
 import io.druid.query.dimension.DimensionSpec;
 import io.druid.query.filter.DimFilter;
 import io.druid.query.groupby.GroupByQuery;
-import io.druid.query.groupby.PartitionedGroupByQuery;
 import io.druid.query.kmeans.FindNearestQuery;
 import io.druid.query.kmeans.KMeansQuery;
 import io.druid.query.metadata.metadata.SegmentMetadataQuery;
@@ -70,7 +69,6 @@ import java.util.Map;
     @JsonSubTypes.Type(name = Query.DATASOURCE_METADATA, value = DataSourceMetadataQuery.class),
     @JsonSubTypes.Type(name = Query.UNION_ALL, value = UnionAllQuery.class),
     @JsonSubTypes.Type(name = Query.JOIN, value = JoinQuery.class),
-    @JsonSubTypes.Type(name = Query.GROUP_BY_PARTITIONED, value = PartitionedGroupByQuery.class),
     @JsonSubTypes.Type(name = Query.SELECT_DELEGATE, value = SelectForwardQuery.class),
     @JsonSubTypes.Type(name = "kmeans", value = KMeansQuery.class),
     @JsonSubTypes.Type(name = "kmeans.nearest", value = FindNearestQuery.class),
@@ -81,7 +79,6 @@ public interface Query<T> extends QueryContextKeys
   String SEARCH = "search";
   String TIME_BOUNDARY = "timeBoundary";
   String GROUP_BY = "groupBy";
-  String GROUP_BY_PARTITIONED = "groupBy.partitioned";
   String SEGMENT_METADATA = "segmentMetadata";
   String SELECT = "select";
   String SELECT_META = "selectMeta";

@@ -33,6 +33,7 @@ import io.druid.common.utils.PropUtils;
 import io.druid.data.ValueDesc;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.dimension.DimensionSpecs;
+import io.druid.query.filter.DimFilter;
 import io.druid.query.select.ViewSupportHelper;
 import io.druid.query.spec.MultipleIntervalSegmentSpec;
 import io.druid.query.spec.QuerySegmentSpec;
@@ -241,6 +242,11 @@ public abstract class BaseQuery<T> implements Query<T>
       vcs.addAll(((ViewDataSource)query.getDataSource()).getVirtualColumns());
     }
     return VirtualColumns.valueOf(vcs);
+  }
+
+  public static DimFilter getDimFilter(Query query)
+  {
+    return query instanceof DimFilterSupport ? ((DimFilterSupport)query).getDimFilter() : null;
   }
 
   @Override

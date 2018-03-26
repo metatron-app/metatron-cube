@@ -40,7 +40,6 @@ import io.druid.query.metadata.metadata.SegmentMetadataQuery;
 import io.druid.query.select.Schema;
 import io.druid.query.select.SelectMetaQuery;
 import io.druid.query.select.SelectMetaResultValue;
-import io.druid.query.spec.QuerySegmentSpec;
 import org.apache.commons.lang.mutable.MutableInt;
 import org.joda.time.Interval;
 
@@ -58,38 +57,36 @@ public class QueryUtils
   private static final Logger log = new Logger(QueryUtils.class);
 
   public static List<String> runSketchQuery(
+      Query baseQuery,
       QuerySegmentWalker segmentWalker,
       ObjectMapper jsonMapper,
-      QuerySegmentSpec segmentSpec,
-      DimFilter filter,
-      DataSource dataSource,
       String column,
       int slopedSpaced,
       int evenCounted
   )
   {
+    DataSource dataSource = baseQuery.getDataSource();
+    ViewDataSource view;
+    if (dataSource instanceof ViewDataSource) {
+      view = (ViewDataSource) dataSource;
+      view = view.withColumns(Arrays.asList(column))
+                 .withFilter(DimFilters.and(view.getFilter(), BaseQuery.getDimFilter(baseQuery)));
+    } else {
+      String name = Iterables.getOnlyElement(dataSource.getNames());
+      view = new ViewDataSource(name, Arrays.asList(column), null, BaseQuery.getDimFilter(baseQuery), false);
+    }
     // default.. regard skewed
-    Object postProc = ImmutableMap.<String, Object>of(
+    Map<String, Object> postProc = ImmutableMap.<String, Object>of(
         "type", "sketch.quantiles",
         "op", "QUANTILES",
         "slopedSpaced", slopedSpaced > 0 ? slopedSpaced + 1 : -1,
         "evenCounted", evenCounted > 0 ? evenCounted : -1
     );
-
-    ViewDataSource view;
-    if (dataSource instanceof ViewDataSource) {
-      view = (ViewDataSource) dataSource;
-      view = view.withColumns(Arrays.asList(column))
-                 .withFilter(DimFilters.and(view.getFilter(), filter));
-    } else {
-      String name = Iterables.getOnlyElement(dataSource.getNames());
-      view = new ViewDataSource(name, Arrays.asList(column), null, filter, false);
-    }
     Query.DimFilterSupport query = (Query.DimFilterSupport) Queries.toQuery(
         ImmutableMap.<String, Object>builder()
                     .put("queryType", "sketch")
                     .put("dataSource", Queries.convert(view, jsonMapper, Map.class))
-                    .put("intervals", segmentSpec)
+                    .put("intervals", baseQuery.getQuerySegmentSpec())
                     .put("sketchOp", "QUANTILE")
                     .put("context", ImmutableMap.of(QueryContextKeys.POST_PROCESSING, postProc))
                     .build(), jsonMapper

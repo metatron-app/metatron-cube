@@ -75,6 +75,23 @@ public class SketchHandlerTest
   }
 
   @Test
+  public void testCardinalityQuantile()
+  {
+    SketchHandler.Quantile q = new SketchHandler.Quantile();
+    TypedSketch<ItemsUnion> sketch = q.newUnion(16, ValueDesc.FLOAT, null);
+    for (int i = 0; i < 100; i++) {
+      q.updateWithValue(sketch, 1);
+    }
+    for (int i = 2; i < 10; i++) {
+      for (int j = 0; j < 5; j++) {
+        q.updateWithValue(sketch, i);
+      }
+    }
+    ItemsSketch v = q.toSketch(sketch).rhs;
+    Assert.assertEquals(1, v.getQuantile(0.5f));
+  }
+
+  @Test
   public void testQuantile()
   {
     SketchHandler.Quantile q = new SketchHandler.Quantile();

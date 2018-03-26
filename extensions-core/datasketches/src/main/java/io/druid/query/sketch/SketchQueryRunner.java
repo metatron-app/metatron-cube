@@ -103,14 +103,12 @@ public class SketchQueryRunner implements QueryRunner<Result<Map<String, Object>
     final int sketchParam = query.getSketchParam();
     final SketchHandler<?> handler = query.getSketchOp().handler();
 
-    // Closing this will cause segfaults in unit tests.
-    final QueryableIndex index = segment.asQueryableIndex(true);
-    final StorageAdapter adapter = segment.asStorageAdapter(true);
-
     Map<String, TypedSketch> unions = Maps.newLinkedHashMap();
 
     Iterable<String> columns = Iterables.transform(dimensions, DimensionSpecs.INPUT_NAME);
-    if (metrics.isEmpty() && resolver != null && resolver.supportsExactBitmap(columns, filter)) {
+    if (metrics.isEmpty() && resolver.supportsExactBitmap(columns, filter)) {
+      // Closing this will cause segfaults in unit tests.
+      final QueryableIndex index = segment.asQueryableIndex(true);
       final BitmapFactory bitmapFactory = index.getBitmapFactoryForDimensions();
       final ColumnSelectorBitmapIndexSelector selector = new ColumnSelectorBitmapIndexSelector(bitmapFactory, index);
       final ImmutableBitmap filterBitmap = toDependentBitmap(filter, selector);
@@ -127,7 +125,7 @@ public class SketchQueryRunner implements QueryRunner<Result<Map<String, Object>
           );
           continue;
         }
-        BitmapIndex bitmapIndex = column.getBitmapIndex();
+        BitmapIndex bitmapIndex = column.getBitmapIndex();  // this is light
         if (bitmapIndex == null) {
           continue;
         }
@@ -141,6 +139,7 @@ public class SketchQueryRunner implements QueryRunner<Result<Map<String, Object>
         unions.put(spec.getOutputName(), calculate);
       }
     } else {
+      final StorageAdapter adapter = segment.asStorageAdapter(true);
       final Sequence<Cursor> cursors = adapter.makeCursors(
           filter, segment.getDataInterval(), resolver, QueryGranularities.ALL, cache, false
       );

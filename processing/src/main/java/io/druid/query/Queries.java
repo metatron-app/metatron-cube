@@ -47,7 +47,6 @@ import io.druid.query.dimension.DimensionSpec;
 import io.druid.query.dimension.DimensionSpecWithOrdering;
 import io.druid.query.dimension.DimensionSpecs;
 import io.druid.query.groupby.GroupByQuery;
-import io.druid.query.groupby.PartitionedGroupByQuery;
 import io.druid.query.ordering.OrderingSpec;
 import io.druid.query.select.EventHolder;
 import io.druid.query.select.Schema;
@@ -204,9 +203,6 @@ public class Queries
                     .withMetrics(AggregatorFactory.toRelay(metrics))
                     .withRollup(false)
                     .build();
-    } else if (subQuery instanceof PartitionedGroupByQuery.GroupByDelegate) {
-      GroupByQuery query = (GroupByQuery) ((UnionAllQuery) subQuery).getQueries().get(0);
-      return relaySchema(query, segmentWalker);
     } else {
       // todo union-all (partitioned-join, etc.)
       // todo timeseries topN query
@@ -392,8 +388,8 @@ public class Queries
 
   private static final String DUMMY_VC = "$VC";
 
-  public static ColumnHistogram getColumnHistogramOfFirstDimension(
-      Supplier<RowResolver> resolver,
+  public static Object[] getColumnHistogramOfFirstDimension(
+      Supplier<RowResolver> supplier,
       QuerySegmentWalker segmentWalker,
       ObjectMapper jsonMapper,
       GroupByQuery query,
@@ -406,8 +402,14 @@ public class Queries
     List<VirtualColumn> virtualColumns = Lists.newArrayList(query.getVirtualColumns());
     List<OrderingSpec> orderingSpecs = Lists.newArrayList();
 
+    RowResolver resolver = supplier.get();
     DimensionSpec dimensionSpec = query.getDimensions().get(0);
-    ValueDesc type = dimensionSpec.resolveType(resolver.get());
+    if (dimensionSpec instanceof DefaultDimensionSpec) {
+      if (resolver.resolveColumn(dimensionSpec.getDimension()).isDimension()) {
+
+      }
+    }
+    ValueDesc type = dimensionSpec.resolveType(resolver);
     if (type.isDimension()) {
       type = ValueDesc.STRING;
     }
@@ -439,9 +441,8 @@ public class Queries
                                          .put("type", "sketch.quantiles")
                                          .put("name", "SPLIT")
                                          .put("fieldName", "SKETCH")
-                                         .put("op", "QUANTILES_CDF")
+                                         .put("op", "QUANTILES")
                                          .put("slopedSpaced", numSplits + 1)
-                                         .put("ratioAsCount", true)
                                          .build();
 
     Map<String, Object> context = Maps.<String, Object>newHashMap(query.getContext());
@@ -475,13 +476,6 @@ public class Queries
       return null;
     }
 
-    @SuppressWarnings("unchecked")
-    Map<String, Object> thresholds = (Map<String, Object>) result.getValue().getMetric("SPLIT");
-    Object[] values = (Object[]) thresholds.get("splits");
-    long[] counts = (long[]) thresholds.get("cdf");
-    if (values == null || counts == null) {
-      return null;
-    }
-    return new ColumnHistogram(values, counts);
+    return (Object[]) result.getValue().getMetric("SPLIT");
   }
 }

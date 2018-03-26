@@ -327,6 +327,14 @@ public class RowResolver implements TypeResolver
     this.aggregators = ImmutableMap.of();
     this.virtualColumns = virtualColumns;
     this.columnTypes.putAll(columnTypes);
+    for (Map.Entry<String, ValueDesc> entry : columnTypes.entrySet()) {
+      if (entry.getValue().isDimension()) {
+        columnCapabilities.put(
+            entry.getKey(),
+            new ColumnCapabilitiesImpl().setType(ValueType.STRING).setHasBitmapIndexes(true)
+        );
+      }
+    }
     virtualColumns.addImplicitVCs(this);
   }
 
@@ -435,7 +443,7 @@ public class RowResolver implements TypeResolver
   {
     ColumnCapabilities capabilities = columnCapabilities.get(column);
     if (capabilities == null) {
-      return using.contains(BitmapType.DIMENSIONAL) && ValueDesc.isDimension(resolveColumn(column));
+      return false;   // dimension type does not asserts existence of bitmap (incremental index, for example)
     }
     if (using.contains(BitmapType.DIMENSIONAL) && capabilities.hasBitmapIndexes()) {
       return true;
