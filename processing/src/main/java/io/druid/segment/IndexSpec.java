@@ -29,6 +29,7 @@ import com.google.common.collect.Sets;
 import io.druid.segment.data.BitmapSerdeFactory;
 import io.druid.segment.data.CompressedObjectStrategy;
 import io.druid.segment.data.ConciseBitmapSerdeFactory;
+import io.druid.segment.lucene.LuceneIndexingSpec;
 
 import javax.annotation.Nullable;
 import java.util.Arrays;
@@ -65,7 +66,7 @@ public class IndexSpec
   private final BitmapSerdeFactory bitmapSerdeFactory;
   private final String dimensionCompression;
   private final String metricCompression;
-  private final Map<String, String> secondaryIndexing;
+  private final Map<String, SecondaryIndexingSpec> secondaryIndexing;
 
   /**
    * Creates an IndexSpec with default parameters
@@ -94,7 +95,7 @@ public class IndexSpec
       @JsonProperty("bitmap") BitmapSerdeFactory bitmapSerdeFactory,
       @JsonProperty("dimensionCompression") String dimensionCompression,
       @JsonProperty("metricCompression") String metricCompression,
-      @JsonProperty("secondaryIndexing") Map<String, String> secondaryIndexing
+      @JsonProperty("secondaryIndexing") Map<String, SecondaryIndexingSpec> secondaryIndexing
   )
   {
     Preconditions.checkArgument(dimensionCompression == null || dimensionCompression.equals(UNCOMPRESSED) || COMPRESSION_NAMES.contains(dimensionCompression),
@@ -106,7 +107,9 @@ public class IndexSpec
     this.bitmapSerdeFactory = bitmapSerdeFactory != null ? bitmapSerdeFactory : new ConciseBitmapSerdeFactory();
     this.metricCompression = metricCompression;
     this.dimensionCompression = dimensionCompression;
-    this.secondaryIndexing = secondaryIndexing == null ? ImmutableMap.<String, String>of() : secondaryIndexing;
+    this.secondaryIndexing = secondaryIndexing == null
+                             ? ImmutableMap.<String, SecondaryIndexingSpec>of()
+                             : secondaryIndexing;
   }
 
   public IndexSpec(
@@ -137,27 +140,22 @@ public class IndexSpec
   }
 
   @JsonProperty("secondaryIndexing")
-  public Map<String, String> getSecondaryIndexing()
+  public Map<String, SecondaryIndexingSpec> getSecondaryIndexing()
   {
     return secondaryIndexing;
   }
 
   public boolean isMakeHistogram(String column)
   {
-    return "histogram".equals(secondaryIndexing.get(column));
+    SecondaryIndexingSpec indexing = secondaryIndexing.get(column);
+    return indexing instanceof HistogramIndexingSpec;
   }
 
-  public String getLuceneAnalyzer(String column)
+  public LuceneIndexingSpec getLuceneIndexingSpec(String column)
   {
-    String indexing = secondaryIndexing.get(column);
-    if (indexing == null) {
-      return null;
-    }
-    if (indexing.equals("lucene")) {
-      return "standard";
-    }
-    if (indexing.startsWith("lucene.")) {
-      return indexing.substring("lucene.".length(), indexing.length());
+    SecondaryIndexingSpec indexing = secondaryIndexing.get(column);
+    if (indexing instanceof LuceneIndexingSpec) {
+      return (LuceneIndexingSpec) indexing;
     }
     return null;
   }
@@ -182,7 +180,7 @@ public class IndexSpec
            CompressedObjectStrategy.CompressionStrategy.valueOf(compression.toUpperCase());
   }
 
-  public IndexSpec withSecondaryIndexing(Map<String, String> secondaryIndexing)
+  public IndexSpec withSecondaryIndexing(Map<String, SecondaryIndexingSpec> secondaryIndexing)
   {
     return new IndexSpec(
         bitmapSerdeFactory,

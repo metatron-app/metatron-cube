@@ -38,7 +38,7 @@ import io.druid.segment.DimensionSelector;
 import io.druid.segment.ObjectColumnSelector;
 import io.druid.segment.column.BitmapIndex;
 import io.druid.segment.column.ColumnCapabilities;
-import io.druid.segment.column.Lucenes;
+import io.druid.segment.lucene.Lucenes;
 import io.druid.segment.data.IndexedID;
 
 import java.util.EnumSet;

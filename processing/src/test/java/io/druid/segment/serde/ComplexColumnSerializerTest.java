@@ -26,10 +26,15 @@ import io.druid.segment.column.Column;
 import io.druid.segment.column.ColumnBuilder;
 import io.druid.segment.column.ColumnDescriptor;
 import io.druid.segment.column.LuceneIndex;
-import io.druid.segment.column.Lucenes;
 import io.druid.segment.data.IOPeon;
 import io.druid.segment.data.RoaringBitmapSerdeFactory;
 import io.druid.segment.data.TmpFileIOPeon;
+import io.druid.segment.lucene.LatLonPointIndexingStrategy;
+import io.druid.segment.lucene.LuceneIndexingSpec;
+import io.druid.segment.lucene.Lucenes;
+import io.druid.segment.lucene.TextIndexingStrategy;
+import org.apache.lucene.document.LatLonPoint;
+import org.apache.lucene.geo.Polygon;
 import org.apache.lucene.queryparser.classic.QueryParser;
 import org.apache.lucene.search.Query;
 import org.junit.Assert;
@@ -46,6 +51,9 @@ public class ComplexColumnSerializerTest
     if (ComplexMetrics.getSerdeForType("string") == null) {
       ComplexMetrics.registerSerde("string", StringMetricSerde.INSTANCE);
     }
+    if (ComplexMetrics.getSerdeFactory(ValueDesc.STRUCT_TYPE) == null) {
+      ComplexMetrics.registerSerdeFactory(ValueDesc.STRUCT_TYPE, new StructMetricSerde.Factory());
+    }
   }
 
   private final IOPeon ioPeon = new TmpFileIOPeon();
@@ -57,7 +65,7 @@ public class ComplexColumnSerializerTest
         ioPeon,
         "test-lucene",
         StringMetricSerde.INSTANCE,
-        "standard"
+        LuceneIndexingSpec.ofAnalyzer(null)
     );
     serializer.open();
 
@@ -120,5 +128,121 @@ public class ComplexColumnSerializerTest
     Assert.assertEquals(true, bitmap.get(2));
     Assert.assertEquals(false, bitmap.get(3));
     Assert.assertEquals(false, bitmap.get(4));
+  }
+
+  @Test
+  public void testLatLon() throws Exception
+  {
+    ValueDesc type = ValueDesc.of("struct(address:string,lat:double,lon:double)");
+    ComplexMetricSerde serde = ComplexMetrics.getSerdeForType(type);
+    ComplexColumnSerializer serializer = ComplexColumnSerializer.create(
+        ioPeon,
+        "test-lucene",
+        serde,
+        LuceneIndexingSpec.of(
+            null,
+            new LatLonPointIndexingStrategy("coord", "lat", "lon"),
+            new TextIndexingStrategy("address")
+        )
+    );
+    serializer.open();
+
+    serializer.serialize(new Object[] {"home", 37.492929d, 127.020784d});
+    serializer.serialize(new Object[] {"school", 37.491055d, 127.026020d});
+    serializer.serialize(new Object[] {"cathedral", 37.492899d, 127.021772d});
+    serializer.serialize(new Object[] {"college", 37.489955d, 127.016485d});
+    serializer.serialize(new Object[] {"subway", 37.493021d, 127.013834d});
+
+    serializer.close();
+
+    ColumnDescriptor descriptor = serializer.buildDescriptor(type, new ColumnDescriptor.Builder()).build();
+    descriptor.finalizeSerialization();
+
+    long length = descriptor.numBytes();
+
+    final ByteArrayOutputStream bout = new ByteArrayOutputStream();
+    descriptor.write(
+        new WritableByteChannel()
+        {
+          @Override
+          public int write(ByteBuffer src) throws IOException
+          {
+            byte[] array = new byte[src.remaining()];
+            src.get(array);
+            bout.write(array);
+            return array.length;
+          }
+
+          @Override
+          public boolean isOpen()
+          {
+            return true;
+          }
+
+          @Override
+          public void close() throws IOException
+          {
+          }
+        }
+    );
+
+    ColumnBuilder builder = new ColumnBuilder();
+    builder.setType(type);
+    ByteBuffer payload = ByteBuffer.wrap(bout.toByteArray());
+    Assert.assertEquals(length, payload.remaining());
+
+    Column column = descriptor.read(payload, new RoaringBitmapSerdeFactory());
+    LuceneIndex luceneIndex = column.getLuceneIndex();
+
+    Assert.assertNotNull(luceneIndex);
+
+    QueryParser parser = new QueryParser("address", Lucenes.createAnalyzer("standard"));
+    Query query = parser.parse("\"school\"");
+    ImmutableBitmap bitmap = luceneIndex.filterFor(query);
+    Assert.assertEquals(1, bitmap.size());
+    Assert.assertEquals(true, bitmap.get(1));
+
+    // from home
+    query = LatLonPoint.newDistanceQuery("coord", 37.492929d, 127.020784d, 10);
+    bitmap = luceneIndex.filterFor(query);
+    Assert.assertEquals(1, bitmap.size());
+    Assert.assertEquals(true, bitmap.get(0));
+
+    query = LatLonPoint.newDistanceQuery("coord", 37.492929d, 127.020784d, 100);
+    bitmap = luceneIndex.filterFor(query);
+    Assert.assertEquals(2, bitmap.size());
+    Assert.assertEquals(true, bitmap.get(0));
+    Assert.assertEquals(true, bitmap.get(2));
+
+    query = LatLonPoint.newDistanceQuery("coord", 37.492929d, 127.020784d, 600);
+    bitmap = luceneIndex.filterFor(query);
+    Assert.assertEquals(4, bitmap.size());
+    Assert.assertEquals(true, bitmap.get(0));
+    Assert.assertEquals(true, bitmap.get(1));
+    Assert.assertEquals(true, bitmap.get(2));
+    Assert.assertEquals(true, bitmap.get(3));
+
+    query = LatLonPoint.newDistanceQuery("coord", 37.492929d, 127.020784d, 800);
+    bitmap = luceneIndex.filterFor(query);
+    Assert.assertEquals(5, bitmap.size());
+
+    // 래미안 ~ 우성
+    query = LatLonPoint.newBoxQuery("coord", 37.490215, 37.493298, 127.019866, 127.028222);
+    bitmap = luceneIndex.filterFor(query);
+    Assert.assertEquals(3, bitmap.size());
+    Assert.assertEquals(true, bitmap.get(0));
+    Assert.assertEquals(true, bitmap.get(1));
+    Assert.assertEquals(true, bitmap.get(2));
+
+    // 래미안 ~ 성당놀이터 ~ 한일
+    // 37.493296, 127.019841, 37.492742, 127.021931, 37.494323, 127.021177
+    Polygon polygon = new Polygon(
+        new double[] {37.493296, 37.492742, 37.494323, 37.493296},
+        new double[] {127.019841, 127.021931, 127.021177, 127.019841}
+    );
+    query = LatLonPoint.newPolygonQuery("coord", polygon);
+    bitmap = luceneIndex.filterFor(query);
+    Assert.assertEquals(1, bitmap.size());
+    Assert.assertEquals(true, bitmap.get(2));
   }
 }

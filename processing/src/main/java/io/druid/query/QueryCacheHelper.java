@@ -20,6 +20,8 @@
 package io.druid.query;
 
 import com.google.common.collect.Lists;
+import com.google.common.io.ByteArrayDataOutput;
+import com.google.common.io.ByteStreams;
 import io.druid.common.Cacheable;
 import io.druid.common.utils.StringUtils;
 import io.druid.query.filter.DimFilterCacheHelper;
@@ -87,5 +89,17 @@ public class QueryCacheHelper
       buffer.put(cache[i]);
     }
     return buffer.array();
+  }
+
+  public static byte[] toBytes(double[] longitudes, boolean writeLength)
+  {
+    ByteArrayDataOutput output = ByteStreams.newDataOutput();
+    if (writeLength) {
+      output.write(longitudes.length);
+    }
+    for (double longitude : longitudes) {
+      output.writeDouble(longitude);
+    }
+    return output.toByteArray();
   }
 }

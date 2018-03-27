@@ -442,6 +442,10 @@ public class RowResolver implements TypeResolver
   private boolean supportsBitmap(String column, EnumSet<BitmapType> using)
   {
     ColumnCapabilities capabilities = columnCapabilities.get(column);
+    if (capabilities == null && column.contains(".")) {
+      // struct type (mostly for lucene)
+      capabilities = columnCapabilities.get(column.substring(0, column.indexOf('.')));
+    }
     if (capabilities == null) {
       return false;   // dimension type does not asserts existence of bitmap (incremental index, for example)
     }

@@ -33,6 +33,7 @@ import io.druid.query.SegmentDescriptor;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.segment.BaseProgressIndicator;
 import io.druid.segment.IndexMerger;
+import io.druid.segment.IndexSpec;
 import io.druid.segment.ProgressIndicator;
 import io.druid.segment.QueryableIndex;
 import io.druid.segment.incremental.IncrementalIndex;
@@ -589,6 +590,7 @@ public class ReduceMergeIndexGeneratorJob implements HadoopDruidIndexerJob.Index
       final Interval interval = granularitySpec.bucketInterval(time).get();
 
       String version = tuningConfig.getVersion();
+      IndexSpec indexSpec = tuningConfig.getIndexSpec();
       LinearShardSpec appendingSpec = LinearShardSpec.of(0);
       if (granularitySpec instanceof AppendingGranularitySpec) {
         SegmentDescriptor descriptor = ((AppendingGranularitySpec) granularitySpec).getSegmentDescriptor(interval);
@@ -608,7 +610,7 @@ public class ReduceMergeIndexGeneratorJob implements HadoopDruidIndexerJob.Index
         Set<String> dimensions = Sets.newLinkedHashSet();
         List<File> shard = groups.get(i);
         File mergedBase;
-        if (shard.size() == 1) {
+        if (shard.size() == 1 && indexSpec.getSecondaryIndexing().isEmpty()) {
           mergedBase = shard.get(0);
           QueryableIndex index = HadoopDruidIndexerConfig.INDEX_IO.loadIndex(mergedBase);
           dimensions.addAll(Lists.newArrayList(index.getAvailableDimensions()));

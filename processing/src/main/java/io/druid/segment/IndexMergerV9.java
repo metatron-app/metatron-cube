@@ -66,6 +66,7 @@ import io.druid.segment.data.IndexedRTree;
 import io.druid.segment.data.TmpFileIOPeon;
 import io.druid.segment.data.VSizeIndexedIntsWriter;
 import io.druid.segment.data.VSizeIndexedWriter;
+import io.druid.segment.lucene.LuceneIndexingSpec;
 import io.druid.segment.serde.ComplexColumnSerializer;
 import io.druid.segment.serde.ComplexMetricSerde;
 import io.druid.segment.serde.ComplexMetrics;
@@ -707,8 +708,8 @@ public class IndexMergerV9 extends IndexMerger
           writer = DoubleColumnSerializer.create(ioPeon, metric, metCompression, serdeFactory, makeHistogram);
           break;
         case STRING:
-          String analyzer = indexSpec.getLuceneAnalyzer(metric);
-          writer = ComplexColumnSerializer.create(ioPeon, metric, StringMetricSerde.INSTANCE, analyzer);
+          LuceneIndexingSpec indexingSpec = indexSpec.getLuceneIndexingSpec(metric);
+          writer = ComplexColumnSerializer.create(ioPeon, metric, StringMetricSerde.INSTANCE, indexingSpec);
           break;
         case COMPLEX:
           final String typeName = type.typeName();
@@ -716,7 +717,7 @@ public class IndexMergerV9 extends IndexMerger
           if (serde == null) {
             throw new ISE("Unknown type[%s]", typeName);
           }
-          writer = ComplexColumnSerializer.create(ioPeon, metric, serde, null);
+          writer = ComplexColumnSerializer.create(ioPeon, metric, serde, indexSpec.getLuceneIndexingSpec(metric));
           break;
         default:
           throw new ISE("Unknown type[%s]", type);

@@ -27,8 +27,8 @@ import com.metamx.collections.bitmap.ImmutableBitmap;
 import io.druid.common.utils.StringUtils;
 import io.druid.segment.ColumnSelectorFactory;
 import io.druid.segment.column.LuceneIndex;
-import io.druid.segment.column.Lucenes;
-import org.apache.lucene.queryparser.classic.QueryParser;
+import org.apache.lucene.document.LatLonPoint;
+import org.apache.lucene.geo.Polygon;
 import org.apache.lucene.search.Query;
 
 import java.nio.ByteBuffer;
@@ -39,22 +39,20 @@ import java.util.Set;
 
 /**
  */
-public class LuceneFilter implements DimFilter
+public class LuceneGeoJsonPolygonFilter implements DimFilter.LuceneFilter
 {
   private final String field;
-  private final String analyzer;
-  private final String expression;
+  private final String geoJson;
 
   @JsonCreator
-  public LuceneFilter(
+  public LuceneGeoJsonPolygonFilter(
       @JsonProperty("field") String field,
-      @JsonProperty("analyzer") String analyzer,
-      @JsonProperty("expression") String expression
+      @JsonProperty("polygon") String geoJson
   )
   {
     this.field = Preconditions.checkNotNull(field, "field can not be null");
-    this.analyzer = Objects.toString(analyzer, "standard");
-    this.expression = Preconditions.checkNotNull(expression, "expression can not be null");
+    this.geoJson = Preconditions.checkNotNull(geoJson, "geoJson can not be null");
+    Preconditions.checkArgument(field.contains("."), "should reference lat-lon point in struct field");
   }
 
   @JsonProperty
@@ -64,28 +62,21 @@ public class LuceneFilter implements DimFilter
   }
 
   @JsonProperty
-  public String getAnalyzer()
+  public String getGeoJson()
   {
-    return analyzer;
-  }
-
-  @JsonProperty
-  public String getExpression()
-  {
-    return expression;
+    return geoJson;
   }
 
   @Override
   public byte[] getCacheKey()
   {
     byte[] fieldBytes = StringUtils.toUtf8(field);
-    byte[] analyzerBytes = StringUtils.toUtf8WithNullToEmpty(analyzer);
-    byte[] expressionBytes = StringUtils.toUtf8(expression);
-    return ByteBuffer.allocate(3 + fieldBytes.length + analyzerBytes.length + expressionBytes.length)
-                     .put(DimFilterCacheHelper.LUCENE_CACHE_ID)
-                     .put(fieldBytes).put(DimFilterCacheHelper.STRING_SEPARATOR)
-                     .put(analyzerBytes).put(DimFilterCacheHelper.STRING_SEPARATOR)
-                     .put(expressionBytes)
+    byte[] geoJsonBytes = StringUtils.toUtf8(geoJson);
+    return ByteBuffer.allocate(2 + fieldBytes.length + geoJsonBytes.length)
+                     .put(DimFilterCacheHelper.LUCENE_GEOJSON_CACHE_ID)
+                     .put(fieldBytes)
+                     .put(DimFilterCacheHelper.STRING_SEPARATOR)
+                     .put(geoJsonBytes)
                      .array();
   }
 
@@ -115,7 +106,6 @@ public class LuceneFilter implements DimFilter
       @Override
       public ImmutableBitmap getValueBitmap(BitmapIndexSelector selector)
       {
-        // todo values are not included in lucene index itself.. I think we can embed values in LuceneIndex class
         return null;
       }
 
@@ -126,13 +116,17 @@ public class LuceneFilter implements DimFilter
           ImmutableBitmap baseBitmap
       )
       {
-        // lucene field-name == druid column-name
-        LuceneIndex index = Preconditions.checkNotNull(selector.getLuceneIndex(field), "no lucene index for " + field);
+        // column-name.field-name
+        int index = field.indexOf(".");
+        String columnName = field.substring(0, index);
+        String fieldName = field.substring(index + 1);
+        LuceneIndex lucene = Preconditions.checkNotNull(
+            selector.getLuceneIndex(columnName),
+            "no lucene index for " + columnName
+        );
         try {
-          QueryParser parser = new QueryParser(field, Lucenes.createAnalyzer(analyzer));
-          Query query = parser.parse(expression);
-
-          return index.filterFor(query);
+          Query query = LatLonPoint.newPolygonQuery(fieldName, Polygon.fromGeoJSON(geoJson));
+          return lucene.filterFor(query);
         }
         catch (Exception e) {
           throw Throwables.propagate(e);
@@ -148,7 +142,7 @@ public class LuceneFilter implements DimFilter
       @Override
       public String toString()
       {
-        return LuceneFilter.this.toString();
+        return LuceneGeoJsonPolygonFilter.this.toString();
       }
     };
   }
@@ -156,17 +150,16 @@ public class LuceneFilter implements DimFilter
   @Override
   public String toString()
   {
-    return "LuceneFilter{" +
+    return "LuceneGeoJsonPolygonFilter{" +
            "field='" + field + '\'' +
-           ", analyzer='" + analyzer + '\'' +
-           ", expression='" + expression + '\'' +
+           ", geoJson='" + geoJson + '\'' +
            '}';
   }
 
   @Override
   public int hashCode()
   {
-    return Objects.hash(field, analyzer, expression);
+    return Objects.hash(field, geoJson);
   }
 
   @Override
@@ -179,18 +172,14 @@ public class LuceneFilter implements DimFilter
       return false;
     }
 
-    LuceneFilter that = (LuceneFilter) o;
+    LuceneGeoJsonPolygonFilter that = (LuceneGeoJsonPolygonFilter) o;
 
     if (!field.equals(that.field)) {
       return false;
     }
-    if (!analyzer.equals(that.analyzer)) {
+    if (!geoJson.equals(that.geoJson)) {
       return false;
     }
-    if (!expression.equals(that.expression)) {
-      return false;
-    }
-
     return true;
   }
 }

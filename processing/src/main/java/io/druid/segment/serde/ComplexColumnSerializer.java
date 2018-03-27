@@ -20,29 +20,31 @@
 package io.druid.segment.serde;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
+import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
-import com.google.common.base.Strings;
 import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Lists;
 import com.google.common.primitives.Ints;
 import com.metamx.collections.bitmap.BitmapFactory;
 import com.metamx.collections.bitmap.ImmutableBitmap;
 import com.metamx.collections.bitmap.MutableBitmap;
+import io.druid.common.guava.GuavaUtils;
 import io.druid.data.ValueDesc;
 import io.druid.data.ValueType;
 import io.druid.segment.ColumnPartProvider;
 import io.druid.segment.GenericColumnSerializer;
+import io.druid.segment.lucene.LuceneIndexingSpec;
 import io.druid.segment.column.ColumnBuilder;
 import io.druid.segment.column.ColumnDescriptor.Builder;
 import io.druid.segment.column.LuceneIndex;
-import io.druid.segment.column.Lucenes;
+import io.druid.segment.lucene.Lucenes;
 import io.druid.segment.data.BitmapSerdeFactory;
 import io.druid.segment.data.ByteBufferSerializer;
 import io.druid.segment.data.GenericIndexedWriter;
 import io.druid.segment.data.IOPeon;
 import org.apache.lucene.document.Document;
 import org.apache.lucene.document.Field;
-import org.apache.lucene.document.TextField;
 import org.apache.lucene.index.DirectoryReader;
 import org.apache.lucene.index.IndexWriter;
 import org.apache.lucene.search.IndexSearcher;
@@ -53,6 +55,7 @@ import org.apache.lucene.search.TopDocs;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.WritableByteChannel;
+import java.util.List;
 import java.util.Map;
 
 public class ComplexColumnSerializer implements GenericColumnSerializer, ColumnPartSerde.Serializer
@@ -61,36 +64,52 @@ public class ComplexColumnSerializer implements GenericColumnSerializer, ColumnP
       IOPeon ioPeon,
       String filenameBase,
       ComplexMetricSerde serde,
-      String luceneAnalyzer
+      LuceneIndexingSpec indexingSpec
   )
   {
-    return new ComplexColumnSerializer(ioPeon, filenameBase, serde, luceneAnalyzer);
+    return new ComplexColumnSerializer(ioPeon, filenameBase, serde, indexingSpec);
   }
 
   private final IOPeon ioPeon;
-  private final String filenameBase;
+  private final String columnName;
   private final ComplexMetricSerde serde;
 
   private String minValue;
   private String maxValue;
   private int numNulls;
 
+  private final List<Function<Object, Field>> fieldGenerators;
   private final IndexWriter luceneIndexer;
 
   private GenericIndexedWriter writer;
 
   public ComplexColumnSerializer(
       IOPeon ioPeon,
-      String filenameBase,
+      String columnName,
       ComplexMetricSerde serde,
-      String luceneAnalyzer
+      LuceneIndexingSpec indexingSpec
   )
   {
     this.ioPeon = ioPeon;
-    this.filenameBase = filenameBase;
+    this.columnName = columnName;
     this.serde = serde;
-    this.luceneIndexer =
-        luceneAnalyzer != null && serde == StringMetricSerde.INSTANCE ? Lucenes.buildRamWriter(luceneAnalyzer) : null;
+    if (indexingSpec != null) {
+      fieldGenerators = Lists.newArrayList();
+      ValueDesc type = ValueDesc.of(serde.getTypeName());
+      if (type.isString()) {
+        Preconditions.checkArgument(
+            GuavaUtils.isNullOrEmpty(indexingSpec.getStrategies()),
+            "string column cannot have indexing strategy"
+        );
+        fieldGenerators.add(Lucenes.makeTextFieldGenerator(columnName));
+      } else {
+        fieldGenerators.addAll(Lists.transform(indexingSpec.getStrategies(), Lucenes.makeGenerator(type)));
+      }
+      luceneIndexer = Lucenes.buildRamWriter(indexingSpec.getTextAnalyzer());
+    } else {
+      fieldGenerators = null;
+      luceneIndexer = null;
+    }
   }
 
   @SuppressWarnings(value = "unchecked")
@@ -98,7 +117,7 @@ public class ComplexColumnSerializer implements GenericColumnSerializer, ColumnP
   public void open() throws IOException
   {
     writer = new GenericIndexedWriter(
-        ioPeon, String.format("%s.complex_column", filenameBase), serde.getObjectStrategy()
+        ioPeon, String.format("%s.complex_column", columnName), serde.getObjectStrategy()
     );
     writer.open();
   }
@@ -110,7 +129,9 @@ public class ComplexColumnSerializer implements GenericColumnSerializer, ColumnP
     writer.write(obj);
     if (luceneIndexer != null) {
       Document doc = new Document();
-      doc.add(new TextField(filenameBase, Strings.nullToEmpty((String) obj), Field.Store.NO));
+      for (Function<Object, Field> generator : fieldGenerators) {
+        doc.add(generator.apply(obj));
+      }
       luceneIndexer.addDocument(doc);
     }
     if (obj == null) {

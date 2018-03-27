@@ -20,6 +20,7 @@
 package io.druid.segment.column;
 
 import com.google.common.base.Preconditions;
+import io.druid.data.ValueDesc;
 import io.druid.data.ValueType;
 import io.druid.segment.ColumnPartProvider;
 
@@ -44,6 +45,15 @@ public class ColumnBuilder
   private ColumnPartProvider<LuceneIndex> luceneIndex = null;
 
   private Map<String, Object> stats;
+
+  public ColumnBuilder setType(ValueDesc type)
+  {
+    this.type = type.type();
+    if (!type.isPrimitive()) {
+      this.typeName = type.typeName();
+    }
+    return this;
+  }
 
   public ColumnBuilder setType(ValueType type)
   {

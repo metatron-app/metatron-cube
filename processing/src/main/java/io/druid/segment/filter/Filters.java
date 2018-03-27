@@ -61,7 +61,6 @@ import io.druid.query.filter.BoundDimFilter;
 import io.druid.query.filter.DimFilter;
 import io.druid.query.filter.Filter;
 import io.druid.query.filter.InDimFilter;
-import io.druid.query.filter.LuceneFilter;
 import io.druid.query.filter.MathExprFilter;
 import io.druid.query.filter.OrDimFilter;
 import io.druid.query.filter.SelectorDimFilter;
@@ -74,11 +73,11 @@ import io.druid.segment.column.BitmapIndex;
 import io.druid.segment.column.ColumnCapabilities;
 import io.druid.segment.column.ExternalBitmap;
 import io.druid.segment.column.LuceneIndex;
-import io.druid.segment.column.Lucenes;
 import io.druid.segment.column.MetricBitmap;
 import io.druid.segment.data.Indexed;
 import io.druid.segment.data.IndexedInts;
 import io.druid.segment.data.RoaringBitmapSerdeFactory;
+import io.druid.segment.lucene.Lucenes;
 import org.apache.lucene.index.Term;
 import org.apache.lucene.queries.TermsQuery;
 import org.roaringbitmap.IntIterator;
@@ -636,7 +635,7 @@ public class Filters
       Expr cnf = Expressions.convertToCNF(expr, Parser.EXPR_FACTORY);
       ImmutableBitmap bitmap = toExprBitmap(cnf, selector, using, false);
       return bitmap == null ? null : BitmapHolder.exact(bitmap);
-    } else if (filter instanceof LuceneFilter) {
+    } else if (filter instanceof DimFilter.LuceneFilter) {
       return BitmapHolder.exact(filter.toFilter().getBitmapIndex(selector, using, context.baseBitmap));
     }
     return null;

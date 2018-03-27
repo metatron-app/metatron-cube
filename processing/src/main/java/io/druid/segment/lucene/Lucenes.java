@@ -17,14 +17,16 @@
  * under the License.
  */
 
-package io.druid.segment.column;
+package io.druid.segment.lucene;
 
+import com.google.common.base.Function;
 import com.google.common.base.Throwables;
 import com.google.common.io.ByteArrayDataOutput;
 import com.google.common.io.ByteStreams;
 import com.google.common.primitives.Ints;
 import com.metamx.common.StringUtils;
 import com.metamx.common.logger.Logger;
+import io.druid.data.ValueDesc;
 import org.apache.lucene.analysis.Analyzer;
 import org.apache.lucene.analysis.ar.ArabicAnalyzer;
 import org.apache.lucene.analysis.bg.BulgarianAnalyzer;
@@ -65,6 +67,8 @@ import org.apache.lucene.analysis.standard.UAX29URLEmailAnalyzer;
 import org.apache.lucene.analysis.sv.SwedishAnalyzer;
 import org.apache.lucene.analysis.th.ThaiAnalyzer;
 import org.apache.lucene.analysis.tr.TurkishAnalyzer;
+import org.apache.lucene.document.Field;
+import org.apache.lucene.document.TextField;
 import org.apache.lucene.index.DirectoryReader;
 import org.apache.lucene.index.IndexWriter;
 import org.apache.lucene.index.IndexWriterConfig;
@@ -83,6 +87,7 @@ import org.apache.lucene.util.BytesRef;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.util.Objects;
 
 /**
  */
@@ -107,6 +112,31 @@ public class Lucenes
     catch (IOException e) {
       throw Throwables.propagate(e);
     }
+  }
+
+  public static Function<Object, Field> makeTextFieldGenerator(final String fieldName)
+  {
+    return new Function<Object, Field>()
+    {
+      @Override
+      public Field apply(Object input)
+      {
+        // to string whatever..
+        return new TextField(fieldName, Objects.toString(input, ""), Field.Store.NO);
+      }
+    };
+  }
+
+  public static Function<LuceneIndexingStrategy, Function<Object, Field>> makeGenerator(final ValueDesc type)
+  {
+    return new Function<LuceneIndexingStrategy, Function<Object, Field>>()
+    {
+      @Override
+      public Function<Object, Field> apply(LuceneIndexingStrategy input)
+      {
+        return input.createIndexableField(type);
+      }
+    };
   }
 
   public static byte[] serializeAndClose(IndexWriter writer) throws IOException
