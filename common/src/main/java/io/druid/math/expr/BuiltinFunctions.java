@@ -2039,6 +2039,48 @@ public interface BuiltinFunctions extends Function.Library
     }
   }
 
+  @Function.Named("struct_desc")
+  final class StructDesc extends Function.AbstractFactory
+  {
+    @Override
+    public Function create(List<Expr> args)
+    {
+      if (args.size() < 2) {
+        throw new RuntimeException("function 'struct_desc' at least 2 arguments");
+      }
+      final ValueType[] fieldTypes = new ValueType[args.size() - 1];
+      final String desc = Evals.getConstantString(args.get(0));
+      String[] split = desc.split(",");
+      Preconditions.checkArgument(split.length == fieldTypes.length);
+
+      int i = 0;
+      for (String field : split) {
+        int index = field.indexOf(':');
+        fieldTypes[i++] = ValueType.ofPrimitive(index < 0 ? field : field.substring(index + 1));
+      }
+      final ValueDesc type = ValueDesc.of(ValueDesc.STRUCT_TYPE + "(" + desc + ")");
+
+      return new Child()
+      {
+        @Override
+        public ValueDesc apply(List<Expr> args, TypeBinding bindings)
+        {
+          return type;
+        }
+
+        @Override
+        public ExprEval apply(List<Expr> args, NumericBinding bindings)
+        {
+          final Object[] array = new Object[fieldTypes.length];
+          for (int i = 0; i < fieldTypes.length; i++) {
+            array[i] = fieldTypes[i].cast(args.get(i + 1).eval(bindings).value());
+          }
+          return ExprEval.of(array, type);
+        }
+      };
+    }
+  }
+
   @Function.Named("ipv4_in")
   final class IPv4In extends Function.AbstractFactory
   {
