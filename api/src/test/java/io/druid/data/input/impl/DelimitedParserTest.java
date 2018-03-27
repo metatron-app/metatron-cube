@@ -32,8 +32,7 @@ public class DelimitedParserTest
     DelimitedParser delimitedParser = new DelimitedParser(
         Optional.of("\t"),
         Optional.<String>absent(),
-        Arrays.asList("x", "y", "z"),
-        null
+        Arrays.asList("x", "y", "z")
     );
     String body = "hello\tworld\tfoo";
     Map jsonMap = delimitedParser.parse(body);
@@ -50,8 +49,7 @@ public class DelimitedParserTest
     DelimitedParser delimitedParser = new DelimitedParser(
         Optional.of("\t"),
         Optional.<String>absent(),
-        Arrays.asList("x", "y", "z", "w"),
-        null
+        Arrays.asList("x", "y", "z", "w")
     );
     String body = "hello\tworld\tfoo";
     Map jsonMap = delimitedParser.parse(body);
@@ -68,8 +66,7 @@ public class DelimitedParserTest
     DelimitedParser delimitedParser = new DelimitedParser(
         Optional.of("\t"),
         Optional.<String>absent(),
-        Arrays.asList("x", "y", "z"),
-        null
+        Arrays.asList("x", "y", "z")
     );
     String body = "hello\tworld\tfoo\txxx";
     Map jsonMap = delimitedParser.parse(body);
@@ -81,13 +78,31 @@ public class DelimitedParserTest
   }
 
   @Test
+  public void testDequote()
+  {
+    DelimitedParser delimitedParser = new DelimitedParser(
+        Optional.of("\t"),
+        Optional.<String>absent(),
+        Arrays.asList("x", "y", "z"),
+        null,
+        true
+    );
+    String body = "\"hello\"\t\"world\t\"foo\"\txxx";
+    Map jsonMap = delimitedParser.parse(body);
+    Assert.assertEquals(
+        "jsonMap",
+        ImmutableMap.of("x", "hello", "y", "\"world", "z", "foo"),
+        jsonMap
+    );
+  }
+
+  @Test
   public void testListParsing()
   {
     DelimitedParser delimitedParser = new DelimitedParser(
         Optional.of("\t"),
         Optional.of(":"),
-        Arrays.asList("x", "y"),
-        null
+        Arrays.asList("x", "y")
     );
     String body = "hello:world\tfoo:xxx";
     Map jsonMap = delimitedParser.parse(body);
@@ -105,7 +120,8 @@ public class DelimitedParserTest
         Optional.of("\t"),
         Optional.of(":"),
         Arrays.asList("x", "y"),
-        Arrays.asList("y")
+        Arrays.asList("y"),
+        false
     );
     String body = "hello:world\tfoo:xxx";
     Map jsonMap = delimitedParser.parse(body);

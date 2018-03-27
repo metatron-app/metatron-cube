@@ -46,11 +46,14 @@ public class DelimitedParser implements Parser<String, Object>
   private final List<String> columns;
   private final Set<String> listColumns;
 
+  private final boolean dequote;
+
   public DelimitedParser(
       Optional<String> delimiter,
       Optional<String> listDelimiter,
       List<String> columnNames,
-      List<String> listColumnNames
+      List<String> listColumnNames,
+      boolean dequote
   )
   {
     this.delimiter = delimiter.isPresent() ? delimiter.get() : DEFAULT_DELIMITER;
@@ -68,6 +71,16 @@ public class DelimitedParser implements Parser<String, Object>
     this.listColumns = listColumnNames == null ? null : Sets.newHashSet(listColumnNames);
     this.splitter = Splitter.on(this.delimiter);
     this.listSplitter = Splitter.on(this.listDelimiter);
+    this.dequote = dequote;
+  }
+
+  public DelimitedParser(
+      Optional<String> delimiter,
+      Optional<String> listDelimiter,
+      List<String> columnNames
+  )
+  {
+    this(delimiter, listDelimiter, columnNames, null, false);
   }
 
   public String getDelimiter()
@@ -114,6 +127,9 @@ public class DelimitedParser implements Parser<String, Object>
         if (Strings.isNullOrEmpty(value)) {
           row.put(key, null);
           continue;
+        }
+        if (dequote && value.charAt(0) == '"' && value.charAt(value.length() - 1) == '"') {
+          value = value.substring(1, value.length() - 1);
         }
         if ((listColumns == null || listColumns.contains(key)) && value.contains(listDelimiter)) {
           List<String> elements = Lists.newArrayList();

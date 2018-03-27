@@ -34,6 +34,7 @@ public class DelimitedParseSpec extends ParseSpec
   private final String listDelimiter;
   private final List<String> columns;
   private final List<String> listColumns;
+  private final boolean dequote;
 
   @JsonCreator
   public DelimitedParseSpec(
@@ -42,7 +43,8 @@ public class DelimitedParseSpec extends ParseSpec
       @JsonProperty("delimiter") String delimiter,
       @JsonProperty("listDelimiter") String listDelimiter,
       @JsonProperty("columns") List<String> columns,
-      @JsonProperty("listColumns") List<String> listColumns
+      @JsonProperty("listColumns") List<String> listColumns,
+      @JsonProperty("dequote") boolean dequote
   )
   {
     super(timestampSpec, dimensionsSpec);
@@ -55,6 +57,7 @@ public class DelimitedParseSpec extends ParseSpec
     for (String column : this.columns) {
       Preconditions.checkArgument(!column.contains(","), "Column[%s] has a comma, it cannot", column);
     }
+    this.dequote = dequote;
   }
 
   public DelimitedParseSpec(
@@ -65,7 +68,7 @@ public class DelimitedParseSpec extends ParseSpec
       List<String> columns
   )
   {
-    this(timestampSpec, dimensionsSpec, delimiter, listDelimiter, columns, null);
+    this(timestampSpec, dimensionsSpec, delimiter, listDelimiter, columns, null, false);
   }
 
   @JsonProperty("delimiter")
@@ -99,34 +102,35 @@ public class DelimitedParseSpec extends ParseSpec
         Optional.fromNullable(delimiter),
         Optional.fromNullable(listDelimiter),
         columns,
-        listColumns
+        listColumns,
+        dequote
     );
   }
 
   @Override
   public ParseSpec withTimestampSpec(TimestampSpec spec)
   {
-    return new DelimitedParseSpec(spec, getDimensionsSpec(), delimiter, listDelimiter, columns, listColumns);
+    return new DelimitedParseSpec(spec, getDimensionsSpec(), delimiter, listDelimiter, columns, listColumns, dequote);
   }
 
   @Override
   public ParseSpec withDimensionsSpec(DimensionsSpec spec)
   {
-    return new DelimitedParseSpec(getTimestampSpec(), spec, delimiter, listDelimiter, columns, listColumns);
+    return new DelimitedParseSpec(getTimestampSpec(), spec, delimiter, listDelimiter, columns, listColumns, dequote);
   }
 
   public ParseSpec withDelimiter(String delim)
   {
-    return new DelimitedParseSpec(getTimestampSpec(), getDimensionsSpec(), delim, listDelimiter, columns, listColumns);
+    return new DelimitedParseSpec(getTimestampSpec(), getDimensionsSpec(), delim, listDelimiter, columns, listColumns, dequote);
   }
 
   public ParseSpec withListDelimiter(String delim)
   {
-    return new DelimitedParseSpec(getTimestampSpec(), getDimensionsSpec(), delimiter, delim, columns, listColumns);
+    return new DelimitedParseSpec(getTimestampSpec(), getDimensionsSpec(), delimiter, delim, columns, listColumns, dequote);
   }
 
   public ParseSpec withColumns(List<String> cols)
   {
-    return new DelimitedParseSpec(getTimestampSpec(), getDimensionsSpec(), delimiter, listDelimiter, cols, listColumns);
+    return new DelimitedParseSpec(getTimestampSpec(), getDimensionsSpec(), delimiter, listDelimiter, cols, listColumns, dequote);
   }
 }
