@@ -18,7 +18,6 @@ package io.druid.data.input.impl;
 
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
-import com.google.common.base.Splitter;
 import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
@@ -27,7 +26,6 @@ import com.metamx.common.parsers.ParseException;
 import com.metamx.common.parsers.Parser;
 import com.metamx.common.parsers.Parsers;
 
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -39,9 +37,6 @@ public class DelimitedParser implements Parser<String, Object>
 
   private final String delimiter;
   private final String listDelimiter;
-
-  private final Splitter splitter;
-  private final Splitter listSplitter;
 
   private final List<String> columns;
   private final Set<String> listColumns;
@@ -69,8 +64,6 @@ public class DelimitedParser implements Parser<String, Object>
 
     this.columns = columnNames;
     this.listColumns = listColumnNames == null ? null : Sets.newHashSet(listColumnNames);
-    this.splitter = Splitter.on(this.delimiter);
-    this.listSplitter = Splitter.on(this.listDelimiter);
     this.dequote = dequote;
   }
 
@@ -105,25 +98,16 @@ public class DelimitedParser implements Parser<String, Object>
     throw new UnsupportedOperationException("setFieldNames");
   }
 
-  public void setFieldNames(String header)
-  {
-    try {
-      setFieldNames(splitter.split(header));
-    }
-    catch (Exception e) {
-      throw new ParseException(e, "Unable to parse header [%s]", header);
-    }
-  }
-
   @Override
   public Map<String, Object> parse(final String input)
   {
     Map<String, Object> row = Maps.newLinkedHashMap();
     try {
-      Iterator<String> fields = splitter.split(input).iterator();
-      for (int i = 0; i < columns.size() && fields.hasNext(); i++) {
+      List<String> fields = split(input, delimiter);
+      int limit = Math.min(columns.size(), fields.size());
+      for (int i = 0; i < limit; i++) {
         String key = columns.get(i);
-        String value = fields.next();
+        String value = fields.get(i);
         if (Strings.isNullOrEmpty(value)) {
           row.put(key, null);
           continue;
@@ -133,7 +117,7 @@ public class DelimitedParser implements Parser<String, Object>
         }
         if ((listColumns == null || listColumns.contains(key)) && value.contains(listDelimiter)) {
           List<String> elements = Lists.newArrayList();
-          for (String element : listSplitter.split(value)) {
+          for (String element : split(value, listDelimiter)) {
             elements.add(Strings.isNullOrEmpty(element) ? null : element);
           }
           row.put(key, elements);
@@ -146,5 +130,43 @@ public class DelimitedParser implements Parser<String, Object>
     catch (Exception e) {
       throw new ParseException(e, "Unable to parse row [%s]", input);
     }
+  }
+
+  public static List<String> split(String string, String separator)
+  {
+    List<String> splits = Lists.newArrayList();
+    int index = 0;
+    while (index < string.length()) {
+      char quote = checkQuote(string, index);
+      if (quote != 0x00) {
+        // todo handle escaped quote
+        int quoteEnd = string.indexOf(quote, index + 1);
+        if (quoteEnd > 0 && string.substring(quoteEnd + 1).startsWith(separator)) {
+          splits.add(string.substring(index + 1, quoteEnd));
+          index = quoteEnd + 1 + separator.length();
+          continue;
+        }
+        // ignore quote
+      }
+      int splitEnd = string.indexOf(separator, index);
+      if (splitEnd < 0) {
+        splits.add(string.substring(index, string.length()));
+        break;
+      }
+      splits.add(string.substring(index, splitEnd));
+      index = splitEnd + separator.length();
+    }
+    return splits;
+  }
+
+  private static char checkQuote(String string, int index)
+  {
+    // handle white space?
+    char escape = 0x00;
+    char c = string.charAt(index);
+    if (c == '\'' || c == '"') {
+      escape = c;
+    }
+    return escape;
   }
 }

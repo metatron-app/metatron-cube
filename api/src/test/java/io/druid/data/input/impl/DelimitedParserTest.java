@@ -81,17 +81,17 @@ public class DelimitedParserTest
   public void testDequote()
   {
     DelimitedParser delimitedParser = new DelimitedParser(
-        Optional.of("\t"),
+        Optional.of(","),
         Optional.<String>absent(),
         Arrays.asList("x", "y", "z"),
         null,
         true
     );
-    String body = "\"hello\"\t\"world\t\"foo\"\txxx";
+    String body = "\"hello, world\",\"foo,xxx";
     Map jsonMap = delimitedParser.parse(body);
     Assert.assertEquals(
         "jsonMap",
-        ImmutableMap.of("x", "hello", "y", "\"world", "z", "foo"),
+        ImmutableMap.of("x", "hello, world", "y", "\"foo", "z", "xxx"),
         jsonMap
     );
   }
