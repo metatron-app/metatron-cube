@@ -19,10 +19,12 @@
 
 package io.druid.segment.column;
 
+import org.apache.lucene.search.IndexSearcher;
 import org.apache.lucene.search.Query;
 
 /**
  */
 public interface LuceneIndex extends ExternalBitmap<Query>
 {
+  IndexSearcher searcher();
 }

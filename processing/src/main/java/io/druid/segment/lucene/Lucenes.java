@@ -24,6 +24,9 @@ import com.google.common.base.Throwables;
 import com.google.common.io.ByteArrayDataOutput;
 import com.google.common.io.ByteStreams;
 import com.google.common.primitives.Ints;
+import com.metamx.collections.bitmap.BitmapFactory;
+import com.metamx.collections.bitmap.ImmutableBitmap;
+import com.metamx.collections.bitmap.MutableBitmap;
 import com.metamx.common.StringUtils;
 import com.metamx.common.logger.Logger;
 import io.druid.data.ValueDesc;
@@ -77,8 +80,10 @@ import org.apache.lucene.index.NoMergePolicy;
 import org.apache.lucene.index.NoMergeScheduler;
 import org.apache.lucene.index.Term;
 import org.apache.lucene.search.Query;
+import org.apache.lucene.search.ScoreDoc;
 import org.apache.lucene.search.TermQuery;
 import org.apache.lucene.search.TermRangeQuery;
+import org.apache.lucene.search.TopDocs;
 import org.apache.lucene.store.Directory;
 import org.apache.lucene.store.IndexInput;
 import org.apache.lucene.store.IndexOutput;
@@ -198,6 +203,18 @@ public class Lucenes
       output.close();
     }
     return DirectoryReader.open(directory);
+  }
+
+  public static ImmutableBitmap toBitmap(BitmapFactory factory, TopDocs searched)
+  {
+    if (searched.totalHits == 0) {
+      return factory.makeEmptyImmutableBitmap();
+    }
+    MutableBitmap bitmap = factory.makeEmptyMutableBitmap();
+    for (ScoreDoc scoreDoc : searched.scoreDocs) {
+      bitmap.add(scoreDoc.doc);   // can be slow
+    }
+    return factory.makeImmutableBitmap(bitmap);
   }
 
   // gt

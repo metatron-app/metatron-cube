@@ -28,28 +28,26 @@ import com.google.common.collect.Lists;
 import com.google.common.primitives.Ints;
 import com.metamx.collections.bitmap.BitmapFactory;
 import com.metamx.collections.bitmap.ImmutableBitmap;
-import com.metamx.collections.bitmap.MutableBitmap;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.data.ValueDesc;
 import io.druid.data.ValueType;
 import io.druid.segment.ColumnPartProvider;
 import io.druid.segment.GenericColumnSerializer;
-import io.druid.segment.lucene.LuceneIndexingSpec;
 import io.druid.segment.column.ColumnBuilder;
 import io.druid.segment.column.ColumnDescriptor.Builder;
 import io.druid.segment.column.LuceneIndex;
-import io.druid.segment.lucene.Lucenes;
 import io.druid.segment.data.BitmapSerdeFactory;
 import io.druid.segment.data.ByteBufferSerializer;
 import io.druid.segment.data.GenericIndexedWriter;
 import io.druid.segment.data.IOPeon;
+import io.druid.segment.lucene.LuceneIndexingSpec;
+import io.druid.segment.lucene.Lucenes;
 import org.apache.lucene.document.Document;
 import org.apache.lucene.document.Field;
 import org.apache.lucene.index.DirectoryReader;
 import org.apache.lucene.index.IndexWriter;
 import org.apache.lucene.search.IndexSearcher;
 import org.apache.lucene.search.Query;
-import org.apache.lucene.search.ScoreDoc;
 import org.apache.lucene.search.TopDocs;
 
 import java.io.IOException;
@@ -277,6 +275,7 @@ public class ComplexColumnSerializer implements GenericColumnSerializer, ColumnP
                 public LuceneIndex get()
                 {
                   final DirectoryReader reader = Lucenes.deserializeWithRuntimeException(bufferToUse.asReadOnlyBuffer());
+                  final IndexSearcher searcher = new IndexSearcher(reader);
 
                   return new LuceneIndex()
                   {
@@ -295,21 +294,19 @@ public class ComplexColumnSerializer implements GenericColumnSerializer, ColumnP
                     @Override
                     public ImmutableBitmap filterFor(Query query)
                     {
-                      final IndexSearcher searcher = new IndexSearcher(reader);
                       try {
                         TopDocs searched = searcher.search(query, numRows);
-                        if (searched.totalHits == 0) {
-                          return factory.makeEmptyImmutableBitmap();
-                        }
-                        MutableBitmap bitmap = factory.makeEmptyMutableBitmap();
-                        for (ScoreDoc scoreDoc : searched.scoreDocs) {
-                          bitmap.add(scoreDoc.doc);
-                        }
-                        return factory.makeImmutableBitmap(bitmap);
+                        return Lucenes.toBitmap(factory, searched);
                       }
                       catch (Exception e) {
                         throw Throwables.propagate(e);
                       }
+                    }
+
+                    @Override
+                    public IndexSearcher searcher()
+                    {
+                      return searcher;
                     }
 
                     @Override
