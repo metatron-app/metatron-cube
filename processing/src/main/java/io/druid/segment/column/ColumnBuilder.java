@@ -21,7 +21,6 @@ package io.druid.segment.column;
 
 import com.google.common.base.Preconditions;
 import io.druid.data.ValueDesc;
-import io.druid.data.ValueType;
 import io.druid.segment.ColumnPartProvider;
 
 import java.util.Map;
@@ -30,9 +29,8 @@ import java.util.Map;
  */
 public class ColumnBuilder
 {
-  private ValueType type = null;
+  private ValueDesc type = null;
   private int numRows = -1;
-  private String typeName = null;
   private boolean hasMultipleValues = false;
 
   private ColumnPartProvider.DictionarySupport dictionaryEncodedColumn = null;
@@ -48,15 +46,6 @@ public class ColumnBuilder
 
   public ColumnBuilder setType(ValueDesc type)
   {
-    this.type = type.type();
-    if (!type.isPrimitive()) {
-      this.typeName = type.typeName();
-    }
-    return this;
-  }
-
-  public ColumnBuilder setType(ValueType type)
-  {
     this.type = type;
     return this;
   }
@@ -71,12 +60,6 @@ public class ColumnBuilder
   {
     Preconditions.checkArgument(numRows < 0 || numRows == size);
     this.numRows = size;
-  }
-
-  public ColumnBuilder setTypeName(String typeName)
-  {
-    this.typeName = typeName;
-    return this;
   }
 
   public ColumnBuilder setHasMultipleValues(boolean hasMultipleValues)
@@ -140,7 +123,7 @@ public class ColumnBuilder
     return this;
   }
 
-  public ValueType getType()
+  public ValueDesc getType()
   {
     return type;
   }
@@ -156,8 +139,8 @@ public class ColumnBuilder
 
     return new SimpleColumn(
         new ColumnCapabilitiesImpl()
-            .setType(type)
-            .setTypeName(typeName)
+            .setType(type.type())
+            .setTypeName(type.typeName())
             .setDictionaryEncoded(dictionaryEncodedColumn != null)
             .setHasBitmapIndexes(bitmapIndex != null)
             .setHasMetricBitmap(metricBitmap != null)

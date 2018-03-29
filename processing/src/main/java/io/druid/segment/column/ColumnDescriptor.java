@@ -26,7 +26,7 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import com.metamx.common.IAE;
-import io.druid.data.ValueType;
+import io.druid.data.ValueDesc;
 import io.druid.segment.data.BitmapSerdeFactory;
 import io.druid.segment.serde.ColumnPartSerde;
 
@@ -46,7 +46,7 @@ public class ColumnDescriptor
     return new Builder();
   }
 
-  private final ValueType valueType;
+  private final ValueDesc valueType;
   private final boolean hasMultipleValues;
   private final List<ColumnPartSerde> parts;
 
@@ -54,7 +54,7 @@ public class ColumnDescriptor
 
   @JsonCreator
   public ColumnDescriptor(
-      @JsonProperty("valueType") ValueType valueType,
+      @JsonProperty("valueType") ValueDesc valueType,
       @JsonProperty("hasMultipleValues") boolean hasMultipleValues,
       @JsonProperty("parts") List<ColumnPartSerde> parts,
       @JsonProperty("stats") Map<String, Object> stats
@@ -67,7 +67,7 @@ public class ColumnDescriptor
   }
 
   @JsonProperty
-  public ValueType getValueType()
+  public ValueDesc getValueType()
   {
     return valueType;
   }
@@ -143,14 +143,14 @@ public class ColumnDescriptor
 
   public static class Builder
   {
-    private ValueType valueType = null;
+    private ValueDesc valueType = null;
     private Boolean hasMultipleValues = null;
 
     private final List<ColumnPartSerde> parts = Lists.newArrayList();
 
-    public Builder setValueType(ValueType valueType)
+    public Builder setValueType(ValueDesc valueType)
     {
-      if (this.valueType != null && this.valueType != valueType) {
+      if (this.valueType != null && !this.valueType.equals(valueType)) {
         throw new IAE("valueType[%s] is already set, cannot change to[%s]", this.valueType, valueType);
       }
       this.valueType = valueType;

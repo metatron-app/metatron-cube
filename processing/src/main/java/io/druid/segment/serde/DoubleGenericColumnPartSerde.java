@@ -21,7 +21,7 @@ package io.druid.segment.serde;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import io.druid.data.ValueType;
+import io.druid.data.ValueDesc;
 import io.druid.segment.DoubleColumnSerializer;
 import io.druid.segment.column.ColumnBuilder;
 import io.druid.segment.data.BitmapSerdeFactory;
@@ -141,7 +141,7 @@ public class DoubleGenericColumnPartSerde implements ColumnPartSerde
             buffer,
             byteOrder
         );
-        builder.setType(ValueType.DOUBLE)
+        builder.setType(ValueDesc.DOUBLE)
                .setHasMultipleValues(false)
                .setGenericColumn(new DoubleGenericColumnSupplier(column));
       }

@@ -20,6 +20,7 @@
 package io.druid.segment.column;
 
 import com.metamx.collections.bitmap.ImmutableBitmap;
+import io.druid.data.ValueDesc;
 import io.druid.data.ValueType;
 
 import java.io.Closeable;
@@ -28,7 +29,7 @@ import java.io.Closeable;
  */
 public interface ExternalBitmap<T> extends Closeable
 {
-  ValueType type();
+  ValueDesc type();
 
   ImmutableBitmap filterFor(T query);
 

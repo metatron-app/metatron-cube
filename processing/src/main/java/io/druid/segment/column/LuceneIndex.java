@@ -21,10 +21,13 @@ package io.druid.segment.column;
 
 import org.apache.lucene.search.IndexSearcher;
 import org.apache.lucene.search.Query;
+import org.apache.lucene.search.TopDocs;
 
 /**
  */
 public interface LuceneIndex extends ExternalBitmap<Query>
 {
+  TopDocs query(Query query);
+
   IndexSearcher searcher();
 }

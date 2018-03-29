@@ -28,7 +28,6 @@ import io.druid.query.filter.Filter;
 import io.druid.query.filter.ValueMatcher;
 import io.druid.segment.ColumnSelectorFactory;
 
-import java.util.Arrays;
 import java.util.EnumSet;
 import java.util.List;
 
@@ -36,16 +35,9 @@ import java.util.List;
  */
 public class AndFilter implements Filter, Expression.AndExpression
 {
-  public static Filter of(Filter... filters)
-  {
-    return filters == null ? null : filters.length == 1 ? filters[0] : new AndFilter(Arrays.asList(filters));
-  }
-
   private final List<Filter> filters;
 
-  public AndFilter(
-      List<Filter> filters
-  )
+  public AndFilter(List<Filter> filters)
   {
     this.filters = filters;
   }

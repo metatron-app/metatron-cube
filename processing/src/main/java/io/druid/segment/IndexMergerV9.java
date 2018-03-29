@@ -372,7 +372,7 @@ public class IndexMergerV9 extends IndexMerger
       boolean hasMultiValue = dimCapabilities.get(i).hasMultipleValues();
 
       final ColumnDescriptor.Builder builder = ColumnDescriptor.builder();
-      builder.setValueType(ValueType.STRING);
+      builder.setValueType(ValueDesc.STRING);
       builder.setHasMultipleValues(hasMultiValue);
       final DictionaryEncodedColumnPartSerde.SerializerBuilder partBuilder = DictionaryEncodedColumnPartSerde
           .serializerBuilder()

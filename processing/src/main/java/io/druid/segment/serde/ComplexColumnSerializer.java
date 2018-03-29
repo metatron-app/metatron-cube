@@ -145,10 +145,10 @@ public class ComplexColumnSerializer implements GenericColumnSerializer, ColumnP
   public Builder buildDescriptor(ValueDesc desc, Builder builder) throws IOException
   {
     if (ValueDesc.isString(desc)) {
-      builder.setValueType(ValueType.STRING);
+      builder.setValueType(ValueDesc.STRING);
       builder.addSerde(new StringGenericColumnPartSerde(this));
     } else {
-      builder.setValueType(ValueType.COMPLEX);
+      builder.setValueType(ValueDesc.of(desc.typeName()));
       builder.addSerde(
           ComplexColumnPartSerde.serializerBuilder()
                                 .withTypeName(desc.typeName())
@@ -256,6 +256,8 @@ public class ComplexColumnSerializer implements GenericColumnSerializer, ColumnP
           final int numRows = builder.getNumRows();
           final BitmapFactory factory = serdeFactory.getBitmapFactory();
 
+          final ValueDesc type  = builder.getType();
+
           builder.setLuceneIndex(
               new ColumnPartProvider<LuceneIndex>()
               {
@@ -286,19 +288,24 @@ public class ComplexColumnSerializer implements GenericColumnSerializer, ColumnP
                     }
 
                     @Override
-                    public ValueType type()
+                    public ValueDesc type()
                     {
-                      return ValueType.STRING;
+                      return type;
                     }
 
                     @Override
                     public ImmutableBitmap filterFor(Query query)
                     {
+                      return Lucenes.toBitmap(factory, query(query));
+                    }
+
+                    @Override
+                    public TopDocs query(Query query)
+                    {
                       try {
-                        TopDocs searched = searcher.search(query, numRows);
-                        return Lucenes.toBitmap(factory, searched);
+                        return searcher.search(query, numRows);
                       }
-                      catch (Exception e) {
+                      catch (IOException e) {
                         throw Throwables.propagate(e);
                       }
                     }

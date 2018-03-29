@@ -21,6 +21,7 @@ package io.druid.segment.serde;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import io.druid.data.ValueDesc;
 import io.druid.segment.column.ColumnBuilder;
 import io.druid.segment.data.BitmapSerdeFactory;
 import io.druid.segment.data.GenericIndexed;
@@ -139,7 +140,7 @@ public class ComplexColumnPartSerde implements ColumnPartSerde
         if (serde != null) {
           serde.deserializeColumn(buffer, builder);
         }
-        builder.setTypeName(typeName);
+        builder.setType(ValueDesc.of(typeName));
       }
     };
   }

@@ -109,7 +109,7 @@ public class DoubleColumnSerializer implements GenericColumnSerializer
   @Override
   public Builder buildDescriptor(ValueDesc desc, Builder builder)
   {
-    builder.setValueType(ValueType.DOUBLE);
+    builder.setValueType(ValueDesc.DOUBLE);
     builder.addSerde(
         DoubleGenericColumnPartSerde.serializerBuilder()
                                     .withByteOrder(IndexIO.BYTE_ORDER)

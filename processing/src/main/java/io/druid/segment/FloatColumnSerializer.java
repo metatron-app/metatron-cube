@@ -109,7 +109,7 @@ public class FloatColumnSerializer implements GenericColumnSerializer
   @Override
   public Builder buildDescriptor(ValueDesc desc, Builder builder)
   {
-    builder.setValueType(ValueType.FLOAT);
+    builder.setValueType(ValueDesc.FLOAT);
     builder.addSerde(
         FloatGenericColumnPartSerde.serializerBuilder()
                                    .withByteOrder(IndexIO.BYTE_ORDER)

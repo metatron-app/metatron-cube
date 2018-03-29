@@ -33,6 +33,7 @@ import com.google.common.primitives.Longs;
 import com.metamx.collections.bitmap.BitmapFactory;
 import com.metamx.collections.bitmap.ImmutableBitmap;
 import io.druid.common.utils.Ranges;
+import io.druid.data.ValueDesc;
 import io.druid.data.ValueType;
 import io.druid.segment.ColumnPartProviders;
 import io.druid.segment.column.ColumnBuilder;
@@ -109,7 +110,7 @@ public abstract class MetricBitmaps<T extends Comparable> implements MetricBitma
               ColumnPartProviders.ofType(
                   builder.getNumRows(),
                   ByteBufferSerializer.prepareForRead(buffer),
-                  MetricBitmaps.getStrategy(serdeFactory, builder.getType())
+                  MetricBitmaps.getStrategy(serdeFactory, ValueDesc.assertPrimitive(builder.getType()).type())
               )
           );
         }
@@ -238,7 +239,7 @@ public abstract class MetricBitmaps<T extends Comparable> implements MetricBitma
   }
 
   @Override
-  public abstract ValueType type();
+  public abstract ValueDesc type();
 
   @Override
   public ImmutableBitmap filterFor(Range<T> range)
@@ -344,9 +345,9 @@ public abstract class MetricBitmaps<T extends Comparable> implements MetricBitma
     }
 
     @Override
-    public ValueType type()
+    public ValueDesc type()
     {
-      return ValueType.FLOAT;
+      return ValueDesc.FLOAT;
     }
 
     @Override
@@ -378,9 +379,9 @@ public abstract class MetricBitmaps<T extends Comparable> implements MetricBitma
     }
 
     @Override
-    public ValueType type()
+    public ValueDesc type()
     {
-      return ValueType.DOUBLE;
+      return ValueDesc.DOUBLE;
     }
 
     @Override
@@ -412,9 +413,9 @@ public abstract class MetricBitmaps<T extends Comparable> implements MetricBitma
     }
 
     @Override
-    public ValueType type()
+    public ValueDesc type()
     {
-      return ValueType.LONG;
+      return ValueDesc.LONG;
     }
 
     @Override

@@ -43,6 +43,7 @@ import io.druid.query.dimension.DimensionSpec;
 import io.druid.query.extraction.ExtractionFn;
 import io.druid.query.filter.BitmapType;
 import io.druid.query.filter.DimFilter;
+import io.druid.query.filter.DimFilters;
 import io.druid.query.filter.Filter;
 import io.druid.query.filter.ValueMatcher;
 import io.druid.segment.column.BitmapIndex;
@@ -268,7 +269,7 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
     if (baseBitmap == null) {
       offset = new NoFilterOffset(0, context.getNumRows(), descending);
     } else {
-      LOG.info("%s : %,d / %,d", bitmapFilter, baseBitmap.size(), context.getNumRows());
+      LOG.info("%s : %,d / %,d", DimFilters.and(bitmapFilter, valuesFilter), baseBitmap.size(), context.getNumRows());
       offset = new BitmapOffset(bitmapFactory, baseBitmap, descending);
     }
     context.setBaseBitmap(baseBitmap);  // this can be used for value/predicate filters

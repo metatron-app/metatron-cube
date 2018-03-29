@@ -109,7 +109,7 @@ public class ComplexColumnSerializerTest
     );
 
     ColumnBuilder builder = new ColumnBuilder();
-    builder.setType(ValueType.STRING);
+    builder.setType(ValueDesc.STRING);
     ByteBuffer payload = ByteBuffer.wrap(bout.toByteArray());
     Assert.assertEquals(length, payload.remaining());
 

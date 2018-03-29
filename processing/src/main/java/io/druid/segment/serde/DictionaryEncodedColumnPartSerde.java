@@ -26,7 +26,7 @@ import com.google.common.primitives.Ints;
 import com.metamx.collections.bitmap.ImmutableBitmap;
 import com.metamx.collections.spatial.ImmutableRTree;
 import com.metamx.common.IAE;
-import io.druid.data.ValueType;
+import io.druid.data.ValueDesc;
 import io.druid.segment.ColumnPartProvider;
 import io.druid.segment.ColumnPartProviders;
 import io.druid.segment.CompressedVSizeIndexedSupplier;
@@ -456,7 +456,7 @@ public class DictionaryEncodedColumnPartSerde implements ColumnPartSerde
             buffer,
             GenericIndexed.STRING_STRATEGY
         );
-        builder.setType(ValueType.STRING);
+        builder.setType(ValueDesc.STRING);
 
         final ColumnPartProvider<IndexedInts> rSingleValuedColumn;
         final ColumnPartProvider<IndexedMultivalue<IndexedInts>> rMultiValuedColumn;

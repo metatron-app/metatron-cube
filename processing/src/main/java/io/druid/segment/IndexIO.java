@@ -48,6 +48,7 @@ import com.metamx.common.io.smoosh.SmooshedWriter;
 import com.metamx.common.logger.Logger;
 import com.metamx.emitter.EmittingLogger;
 import io.druid.common.utils.SerializerUtils;
+import io.druid.data.ValueDesc;
 import io.druid.data.ValueType;
 import io.druid.segment.column.Column;
 import io.druid.segment.column.ColumnBuilder;
@@ -581,7 +582,7 @@ public class IndexIO
         log.info("Processing file[%s]", filename);
         if (filename.startsWith("dim_")) {
           final ColumnDescriptor.Builder builder = ColumnDescriptor.builder();
-          builder.setValueType(ValueType.STRING);
+          builder.setValueType(ValueDesc.STRING);
 
           final List<ByteBuffer> outParts = Lists.newArrayList();
 
@@ -756,7 +757,7 @@ public class IndexIO
 
           switch (holder.getType()) {
             case LONG:
-              builder.setValueType(ValueType.LONG);
+              builder.setValueType(ValueDesc.LONG);
               builder.addSerde(
                   LongGenericColumnPartSerde.legacySerializerBuilder()
                                             .withByteOrder(BYTE_ORDER)
@@ -765,7 +766,7 @@ public class IndexIO
               );
               break;
             case FLOAT:
-              builder.setValueType(ValueType.FLOAT);
+              builder.setValueType(ValueDesc.FLOAT);
               builder.addSerde(
                   FloatGenericColumnPartSerde.legacySerializerBuilder()
                                              .withByteOrder(BYTE_ORDER)
@@ -774,7 +775,7 @@ public class IndexIO
               );
               break;
             case DOUBLE:
-              builder.setValueType(ValueType.DOUBLE);
+              builder.setValueType(ValueDesc.DOUBLE);
               builder.addSerde(
                   DoubleGenericColumnPartSerde.legacySerializerBuilder()
                                              .withByteOrder(BYTE_ORDER)
@@ -788,7 +789,7 @@ public class IndexIO
               }
               final GenericIndexed column = (GenericIndexed) holder.complexType;
               final String complexType = holder.getTypeName();
-              builder.setValueType(ValueType.of(complexType));
+              builder.setValueType(ValueDesc.of(complexType));
               builder.addSerde(
                   ComplexColumnPartSerde.legacySerializerBuilder()
                                         .withTypeName(complexType)
@@ -818,7 +819,7 @@ public class IndexIO
           );
 
           final ColumnDescriptor.Builder builder = ColumnDescriptor.builder();
-          builder.setValueType(ValueType.LONG);
+          builder.setValueType(ValueDesc.LONG);
           builder.addSerde(
               LongGenericColumnPartSerde.legacySerializerBuilder()
                                         .withByteOrder(BYTE_ORDER)
@@ -923,7 +924,7 @@ public class IndexIO
       for (String dimension : index.getAvailableDimensions()) {
         VSizeIndexed column = index.getDimColumn(dimension);
         ColumnBuilder builder = new ColumnBuilder()
-            .setType(ValueType.STRING)
+            .setType(ValueDesc.STRING)
             .setHasMultipleValues(true)
             .setDictionaryEncodedColumn(
                 new DictionaryEncodedColumnSupplier(
@@ -960,7 +961,7 @@ public class IndexIO
           columns.put(
               metric,
               new ColumnBuilder()
-                  .setType(ValueType.FLOAT)
+                  .setType(ValueDesc.FLOAT)
                   .setGenericColumn(new FloatGenericColumnSupplier(metricHolder.floatType))
                   .build()
           );
@@ -968,7 +969,7 @@ public class IndexIO
           columns.put(
               metric,
               new ColumnBuilder()
-                  .setType(ValueType.DOUBLE)
+                  .setType(ValueDesc.DOUBLE)
                   .setGenericColumn(new DoubleGenericColumnSupplier(metricHolder.doubleType))
                   .build()
           );
@@ -976,8 +977,7 @@ public class IndexIO
           columns.put(
               metric,
               new ColumnBuilder()
-                  .setType(ValueType.of(metricHolder.getTypeName()))
-                  .setTypeName(metricHolder.getTypeName())
+                  .setType(ValueDesc.of(metricHolder.getTypeName()))
                   .setComplexColumn(
                       new ComplexColumnPartSupplier(
                           metricHolder.getTypeName(), (GenericIndexed) metricHolder.complexType
@@ -999,7 +999,7 @@ public class IndexIO
       String[] cols = colSet.toArray(new String[colSet.size()]);
       columns.put(
           Column.TIME_COLUMN_NAME, new ColumnBuilder()
-              .setType(ValueType.LONG)
+              .setType(ValueDesc.LONG)
               .setGenericColumn(new LongGenericColumnSupplier(index.timestamps))
               .build()
       );

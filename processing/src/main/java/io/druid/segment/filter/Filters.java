@@ -711,7 +711,7 @@ public class Filters
       boolean withNot
   )
   {
-    final ValueType type = metric.type();
+    final ValueType type = ValueDesc.assertPrimitive(metric.type()).type();
 
     final Comparable constant = getOnlyConstant(expression.getChildren(), type);
     switch (expression.op()) {
@@ -1011,5 +1011,19 @@ public class Filters
       roaringBitmap = factory.makeImmutableBitmap(bitmap);
     }
     return ((WrappedImmutableRoaringBitmap) roaringBitmap).getBitmap().getReverseIntIterator();
+  }
+
+  public static boolean isAllLucene(DimFilter filter)
+  {
+    return Expressions.traverse(
+        filter, new Expressions.Visitor.Void()
+        {
+          @Override
+          public boolean visit(Expression expression)
+          {
+            return expression instanceof DimFilter.LuceneFilter;
+          }
+        }
+    );
   }
 }

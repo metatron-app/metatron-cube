@@ -20,7 +20,7 @@
 package io.druid.segment.serde;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
-import io.druid.data.ValueType;
+import io.druid.data.ValueDesc;
 import io.druid.segment.column.ColumnBuilder;
 import io.druid.segment.data.BitmapSerdeFactory;
 import io.druid.segment.data.GenericIndexed;
@@ -64,7 +64,7 @@ public class StringGenericColumnPartSerde implements ColumnPartSerde
       ) throws IOException
       {
         final GenericIndexed<String> indexed = GenericIndexed.read(buffer, GenericIndexed.STRING_STRATEGY);
-        builder.setType(ValueType.STRING)
+        builder.setType(ValueDesc.STRING)
                .setHasMultipleValues(false)
                .setGenericColumn(new StringColumnPartSupplier(indexed));
       }

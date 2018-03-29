@@ -109,7 +109,7 @@ public class LongColumnSerializer implements GenericColumnSerializer
   @Override
   public Builder buildDescriptor(ValueDesc desc, Builder builder)
   {
-    builder.setValueType(ValueType.LONG);
+    builder.setValueType(ValueDesc.LONG);
     builder.addSerde(
         LongGenericColumnPartSerde.serializerBuilder()
                                   .withByteOrder(IndexIO.BYTE_ORDER)
