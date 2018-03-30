@@ -148,7 +148,7 @@ public class GuavaUtils
 
   public static <A, B> List<Pair<A, B>> zip(List<A> as, List<B> bs)
   {
-    Preconditions.checkArgument(as.size() == bs.size());
+    Preconditions.checkArgument(as.size() == bs.size(), "size differs.. " + as.size() + " vs " + bs.size());
     List<Pair<A, B>> result = Lists.newArrayListWithCapacity(as.size());
     for (int i = 0; i < as.size(); i++) {
       result.add(Pair.of(as.get(i), bs.get(i)));

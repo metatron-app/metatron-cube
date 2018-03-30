@@ -384,7 +384,7 @@ public class AppenderatorImpl implements Appenderator
     final List<SegmentDescriptor> descriptors = Lists.newArrayList(specs);
     final List<Sink> sinks = Lists.newArrayList(
         Iterables.transform(
-            specs, new Function<SegmentDescriptor, Sink>()
+            descriptors, new Function<SegmentDescriptor, Sink>()
             {
               @Override
               public Sink apply(final SegmentDescriptor descriptor)
