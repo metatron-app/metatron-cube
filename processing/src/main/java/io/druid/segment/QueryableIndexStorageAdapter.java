@@ -146,9 +146,13 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
   @Override
   public DateTime getMinTime()
   {
-    GenericColumn column = null;
+    Column timeColumn = index.getColumn(Column.TIME_COLUMN_NAME);
+    Map<String, Object> columnStats = timeColumn.getColumnStats();
+    if (columnStats != null && columnStats.get("min") instanceof Number) {
+      return new DateTime(((Number)columnStats.get("min")).longValue());
+    }
+    GenericColumn column = timeColumn.getGenericColumn();
     try {
-      column = index.getColumn(Column.TIME_COLUMN_NAME).getGenericColumn();
       return new DateTime(column.getLongSingleValueRow(0));
     }
     finally {
@@ -159,9 +163,13 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
   @Override
   public DateTime getMaxTime()
   {
-    GenericColumn column = null;
+    Column timeColumn = index.getColumn(Column.TIME_COLUMN_NAME);
+    Map<String, Object> columnStats = timeColumn.getColumnStats();
+    if (columnStats != null && columnStats.get("max") instanceof Number) {
+      return new DateTime(((Number)columnStats.get("max")).longValue());
+    }
+    GenericColumn column = timeColumn.getGenericColumn();
     try {
-      column = index.getColumn(Column.TIME_COLUMN_NAME).getGenericColumn();
       return new DateTime(column.getLongSingleValueRow(column.length() - 1));
     }
     finally {
