@@ -40,6 +40,7 @@ import com.metamx.common.parsers.CSVParser;
 import com.metamx.common.parsers.DelimitedParser;
 import com.metamx.common.parsers.JSONParser;
 import com.metamx.common.parsers.Parser;
+import io.druid.data.input.impl.ParseSpec;
 import io.druid.guice.annotations.Json;
 import org.apache.commons.collections.keyvalue.MultiKey;
 import org.joda.time.Period;
@@ -192,7 +193,7 @@ public class URIExtractionNamespace implements ExtractionNamespace
     return result;
   }
 
-  private static class DelegateParser implements Parser<Object, String>
+  private static class DelegateParser extends ParseSpec.AbstractParser<Object, String>
   {
     private final Parser<String, Object> delegate;
     private final List<String> keys;
@@ -243,18 +244,6 @@ public class URIExtractionNamespace implements ExtractionNamespace
           input
       ).toString();
       return ImmutableMap.of(keyObject, val);
-    }
-
-    @Override
-    public void setFieldNames(Iterable<String> fieldNames)
-    {
-      delegate.setFieldNames(fieldNames);
-    }
-
-    @Override
-    public List<String> getFieldNames()
-    {
-      return delegate.getFieldNames();
     }
   }
 

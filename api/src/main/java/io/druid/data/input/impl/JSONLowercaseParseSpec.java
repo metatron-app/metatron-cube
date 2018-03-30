@@ -28,7 +28,7 @@ import io.druid.data.input.TimestampSpec;
  * This class is only here for backwards compatibility
  */
 @Deprecated
-public class JSONLowercaseParseSpec extends ParseSpec
+public class JSONLowercaseParseSpec extends AbstractParseSpec
 {
   private final ObjectMapper objectMapper;
 

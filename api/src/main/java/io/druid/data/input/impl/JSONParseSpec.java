@@ -32,7 +32,7 @@ import java.util.Map;
 
 /**
  */
-public class JSONParseSpec extends ParseSpec
+public class JSONParseSpec extends AbstractParseSpec
 {
   private final ObjectMapper objectMapper;
   private final JSONPathSpec flattenSpec;
@@ -112,10 +112,10 @@ public class JSONParseSpec extends ParseSpec
           throw new IllegalArgumentException("Invalid type for field " + druidSpec.getName());
       }
 
+      String name = druidSpec.getName();
+      String expr = druidSpec.getExpr();
       JSONPathParser.FieldSpec newSpec = new JSONPathParser.FieldSpec(
-          type,
-          druidSpec.getName(),
-          druidSpec.getExpr()
+          type, name, expr == null ? name : expr
       );
       newSpecs.add(newSpec);
     }

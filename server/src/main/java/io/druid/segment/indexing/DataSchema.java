@@ -182,9 +182,10 @@ public class DataSchema
       dimensionExclusions.add(aggregator.getName());
     }
 
-    if (inputRowParser.getParseSpec() != null) {
-      final DimensionsSpec dimensionsSpec = inputRowParser.getParseSpec().getDimensionsSpec();
-      final TimestampSpec timestampSpec = inputRowParser.getParseSpec().getTimestampSpec();
+    ParseSpec parseSpec = inputRowParser.getParseSpec();
+    if (parseSpec != null) {
+      final DimensionsSpec dimensionsSpec = parseSpec.getDimensionsSpec();
+      final TimestampSpec timestampSpec = parseSpec.getTimestampSpec();
 
       // exclude timestamp from dimensions by default, unless explicitly included in the list of dimensions
       if (timestampSpec != null && timestampSpec.getTimestampColumn() != null) {
@@ -208,13 +209,11 @@ public class DataSchema
         }
 
         return inputRowParser.withParseSpec(
-            inputRowParser.getParseSpec()
-                  .withDimensionsSpec(
-                      dimensionsSpec
-                          .withDimensionExclusions(
-                              Sets.difference(dimensionExclusions, dimSet)
-                          )
-                  )
+            parseSpec.withDimensionsSpec(
+                dimensionsSpec.withDimensionExclusions(
+                    Sets.difference(dimensionExclusions, dimSet)
+                )
+            )
         );
       } else {
         return inputRowParser;

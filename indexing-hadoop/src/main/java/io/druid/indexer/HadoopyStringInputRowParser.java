@@ -35,10 +35,19 @@ import java.nio.ByteBuffer;
 public class HadoopyStringInputRowParser implements InputRowParser<Object>
 {
   private final StringInputRowParser parser;
+  private final String encoding;
 
-  public HadoopyStringInputRowParser(@JsonProperty("parseSpec") ParseSpec parseSpec)
+  public HadoopyStringInputRowParser(
+      @JsonProperty("parseSpec") ParseSpec parseSpec,
+      @JsonProperty("encoding") String encoding)
   {
-    this.parser = new StringInputRowParser(parseSpec);
+    this.encoding = encoding;
+    this.parser = new StringInputRowParser(parseSpec, encoding);
+  }
+
+  public HadoopyStringInputRowParser(ParseSpec parseSpec)
+  {
+    this(parseSpec, null);
   }
 
   @Override
@@ -64,6 +73,6 @@ public class HadoopyStringInputRowParser implements InputRowParser<Object>
   @Override
   public InputRowParser withParseSpec(ParseSpec parseSpec)
   {
-    return new HadoopyStringInputRowParser(parseSpec);
+    return new HadoopyStringInputRowParser(parseSpec, encoding);
   }
 }

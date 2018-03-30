@@ -29,7 +29,7 @@ import java.util.Map;
 
 /**
  */
-public class TimeAndDimsParseSpec extends ParseSpec
+public class TimeAndDimsParseSpec extends AbstractParseSpec
 {
   @JsonCreator
   public TimeAndDimsParseSpec(

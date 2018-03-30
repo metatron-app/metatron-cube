@@ -17,11 +17,12 @@
 
 package io.druid.data.input.impl;
 
-import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.metamx.common.parsers.Parser;
 import io.druid.data.input.TimestampSpec;
+
+import java.util.List;
 
 /**
  */
@@ -33,73 +34,33 @@ import io.druid.data.input.TimestampSpec;
     @JsonSubTypes.Type(name = "jsonLowercase", value = JSONLowercaseParseSpec.class),
     @JsonSubTypes.Type(name = "timeAndDims", value = TimeAndDimsParseSpec.class),
     @JsonSubTypes.Type(name = "regex", value = RegexParseSpec.class),
-    @JsonSubTypes.Type(name = "javascript", value = JavaScriptParseSpec.class)
-
+    @JsonSubTypes.Type(name = "javascript", value = JavaScriptParseSpec.class),
+    @JsonSubTypes.Type(name = "nested", value = NestedParseSpec.class)
 })
-public abstract class ParseSpec
+public interface ParseSpec
 {
-  private final TimestampSpec timestampSpec;
-  private final DimensionsSpec dimensionsSpec;
+  TimestampSpec getTimestampSpec();
 
-  protected ParseSpec(TimestampSpec timestampSpec, DimensionsSpec dimensionsSpec)
-  {
-    this.timestampSpec = timestampSpec;
-    this.dimensionsSpec = dimensionsSpec;
-  }
+  DimensionsSpec getDimensionsSpec();
 
-  @JsonProperty
-  public TimestampSpec getTimestampSpec()
-  {
-    return timestampSpec;
-  }
+  Parser<String, Object> makeParser();
 
-  @JsonProperty
-  public DimensionsSpec getDimensionsSpec()
-  {
-    return dimensionsSpec;
-  }
+  ParseSpec withTimestampSpec(TimestampSpec spec);
 
-  public Parser<String, Object> makeParser()
-  {
-    return null;
-  }
+  ParseSpec withDimensionsSpec(DimensionsSpec spec);
 
-  public ParseSpec withTimestampSpec(TimestampSpec spec)
+  abstract class AbstractParser<K, V> implements com.metamx.common.parsers.Parser<K, V>
   {
-    throw new UnsupportedOperationException();
-  }
-
-  public ParseSpec withDimensionsSpec(DimensionsSpec spec)
-  {
-    throw new UnsupportedOperationException();
-  }
-
-  @Override
-  public boolean equals(Object o)
-  {
-    if (this == o) {
-      return true;
-    }
-    if (o == null || getClass() != o.getClass()) {
-      return false;
+    @Override
+    public final void setFieldNames(Iterable<String> fieldNames)
+    {
+      throw new UnsupportedOperationException("deprecated");
     }
 
-    ParseSpec parseSpec = (ParseSpec) o;
-
-    if (timestampSpec != null ? !timestampSpec.equals(parseSpec.timestampSpec) : parseSpec.timestampSpec != null) {
-      return false;
+    @Override
+    public final List<String> getFieldNames()
+    {
+      throw new UnsupportedOperationException("deprecated");
     }
-    return !(dimensionsSpec != null
-             ? !dimensionsSpec.equals(parseSpec.dimensionsSpec)
-             : parseSpec.dimensionsSpec != null);
-
-  }
-
-  @Override
-  public int hashCode()
-  {
-    int result = timestampSpec != null ? timestampSpec.hashCode() : 0;
-    result = 31 * result + (dimensionsSpec != null ? dimensionsSpec.hashCode() : 0);
-    return result;
   }
 }

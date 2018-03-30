@@ -21,6 +21,10 @@ package io.druid.data.input.impl;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.google.common.collect.Lists;
+
+import java.util.List;
+import java.util.Objects;
 
 public class JSONPathFieldSpec
 {
@@ -58,6 +62,37 @@ public class JSONPathFieldSpec
     return expr;
   }
 
+  @Override
+  public int hashCode()
+  {
+    return Objects.hash(type, name, expr);
+  }
+
+  @Override
+  public boolean equals(Object o)
+  {
+    if (this == o) {
+      return true;
+    }
+    if (o == null || getClass() != o.getClass()) {
+      return false;
+    }
+
+    JSONPathFieldSpec that = (JSONPathFieldSpec) o;
+
+    if (!Objects.equals(expr, expr)) {
+      return false;
+    }
+    if (!Objects.equals(name, name)) {
+      return false;
+    }
+    if (type != that.type) {
+      return false;
+    }
+
+    return true;
+  }
+
   @JsonCreator
   public static JSONPathFieldSpec fromString(String name)
   {
@@ -72,5 +107,14 @@ public class JSONPathFieldSpec
   public static JSONPathFieldSpec createRootField(String name)
   {
     return new JSONPathFieldSpec(JSONPathFieldType.ROOT, name, name);
+  }
+
+  public static List<JSONPathFieldSpec> createRootFields(String... names)
+  {
+    List<JSONPathFieldSpec> specs = Lists.newArrayList();
+    for (String name : names) {
+      specs.add(createRootField(name));
+    }
+    return specs;
   }
 }

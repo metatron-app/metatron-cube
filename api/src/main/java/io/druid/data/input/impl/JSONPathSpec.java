@@ -51,4 +51,34 @@ public class JSONPathSpec
   {
     return fields;
   }
+
+  @Override
+  public boolean equals(Object o)
+  {
+    if (this == o) {
+      return true;
+    }
+    if (o == null || getClass() != o.getClass()) {
+      return false;
+    }
+
+    JSONPathSpec pathSpec = (JSONPathSpec) o;
+
+    if (useFieldDiscovery != pathSpec.useFieldDiscovery) {
+      return false;
+    }
+    if (!fields.equals(pathSpec.fields)) {
+      return false;
+    }
+
+    return true;
+  }
+
+  @Override
+  public int hashCode()
+  {
+    int result = (useFieldDiscovery ? 1 : 0);
+    result = 31 * result + fields.hashCode();
+    return result;
+  }
 }

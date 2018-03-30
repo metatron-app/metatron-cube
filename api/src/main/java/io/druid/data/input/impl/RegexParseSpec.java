@@ -30,7 +30,7 @@ import java.util.List;
 
 /**
  */
-public class RegexParseSpec extends ParseSpec
+public class RegexParseSpec extends AbstractParseSpec
 {
   private final String listDelimiter;
   private final List<String> columns;

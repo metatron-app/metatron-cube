@@ -30,7 +30,7 @@ import io.druid.js.JavaScriptConfig;
 
 /**
  */
-public class JavaScriptParseSpec extends ParseSpec
+public class JavaScriptParseSpec extends AbstractParseSpec
 {
   private final String function;
   private final JavaScriptConfig config;
@@ -75,10 +75,5 @@ public class JavaScriptParseSpec extends ParseSpec
   public ParseSpec withDimensionsSpec(DimensionsSpec spec)
   {
     return new JavaScriptParseSpec(getTimestampSpec(), spec, function, config);
-  }
-
-  public ParseSpec withFunction(String fn)
-  {
-    return new JavaScriptParseSpec(getTimestampSpec(), getDimensionsSpec(), fn, config);
   }
 }

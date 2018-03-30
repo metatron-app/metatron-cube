@@ -28,7 +28,7 @@ import java.util.List;
 
 /**
  */
-public class DelimitedParseSpec extends ParseSpec
+public class DelimitedParseSpec extends AbstractParseSpec
 {
   private final String delimiter;
   private final String listDelimiter;

@@ -29,7 +29,7 @@ import java.util.List;
 
 /**
  */
-public class CSVParseSpec extends ParseSpec
+public class CSVParseSpec extends AbstractParseSpec
 {
   private final String listDelimiter;
   private final List<String> columns;
