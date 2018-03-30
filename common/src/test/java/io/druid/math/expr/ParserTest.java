@@ -35,6 +35,17 @@ public class ParserTest
   }
 
   @Test
+  public void testNumbers()
+  {
+    Assert.assertTrue(Parser.parse("1") instanceof LongExpr);
+    Assert.assertTrue(Parser.parse("1d") instanceof DoubleExpr);
+    Assert.assertTrue(Parser.parse("1f") instanceof FloatExpr);
+    Assert.assertTrue(Parser.parse("1.0") instanceof DoubleExpr);
+    Assert.assertTrue(Parser.parse("1.00000000000001") instanceof DoubleExpr);
+    Assert.assertTrue(Parser.parse("1.00000000000001f") instanceof FloatExpr);
+  }
+
+  @Test
   public void testUnicode()
   {
     Assert.assertTrue(Parser.parse("한글") instanceof IdentifierExpr);

@@ -113,6 +113,11 @@ public class Evals
     return eval(arg, binding).asString();
   }
 
+  public static double evalDouble(Expr arg, Expr.NumericBinding binding)
+  {
+    return eval(arg, binding).asDouble();
+  }
+
   public static long evalLong(Expr arg, Expr.NumericBinding binding)
   {
     return eval(arg, binding).asLong();

@@ -39,6 +39,7 @@ import io.druid.query.lookup.LookupExtractor;
 import io.druid.query.lookup.LookupExtractorFactory;
 import io.druid.query.lookup.LookupReferencesManager;
 import org.apache.commons.collections.keyvalue.MultiKey;
+import org.apache.lucene.util.SloppyMath;
 import org.joda.time.Interval;
 
 import java.util.List;
@@ -193,6 +194,23 @@ public class ModuleBuiltinFunctions implements Function.Library
           return ExprEval.of(Strings.isNullOrEmpty(evaluated) ? replaceMissingValueWith : evaluated);
         }
       };
+    }
+  }
+
+  @Function.Named("haversin_meter")
+  public static class HaversinMeter extends Function.DoubleOut
+  {
+    @Override
+    public ExprEval apply(List<Expr> args, Expr.NumericBinding bindings)
+    {
+      if (args.size() != 4) {
+        throw new RuntimeException("function 'haversin_meter' needs 4 arguments (lat1,lon1,lat2,lon2)");
+      }
+      double lat1 = Evals.evalDouble(args.get(0), bindings);
+      double lon1 = Evals.evalDouble(args.get(1), bindings);
+      double lat2 = Evals.evalDouble(args.get(2), bindings);
+      double lon2 = Evals.evalDouble(args.get(3), bindings);
+      return ExprEval.of(SloppyMath.haversinMeters(lat1, lon1, lat2, lon2));
     }
   }
 }
