@@ -33,7 +33,8 @@ import io.druid.query.filter.BoundDimFilter;
 import io.druid.segment.column.BitmapIndex;
 import io.druid.segment.column.ColumnCapabilities;
 import io.druid.segment.column.LuceneIndex;
-import io.druid.segment.column.MetricBitmap;
+import io.druid.segment.column.HistogramBitmap;
+import io.druid.segment.data.BitSlicedBitmap;
 import io.druid.segment.data.BitmapSerdeFactory;
 import io.druid.segment.data.GenericIndexed;
 import io.druid.segment.data.Indexed;
@@ -239,7 +240,13 @@ public class BoundFilterBenchmark
       }
 
       @Override
-      public MetricBitmap getMetricBitmap(String dimension)
+      public HistogramBitmap getMetricBitmap(String dimension)
+      {
+        throw new UnsupportedOperationException();
+      }
+
+      @Override
+      public BitSlicedBitmap getBitSlicedBitmap(String dimension)
       {
         throw new UnsupportedOperationException();
       }

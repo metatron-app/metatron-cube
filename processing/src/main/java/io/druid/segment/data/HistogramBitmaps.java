@@ -37,7 +37,7 @@ import io.druid.data.ValueDesc;
 import io.druid.data.ValueType;
 import io.druid.segment.ColumnPartProviders;
 import io.druid.segment.column.ColumnBuilder;
-import io.druid.segment.column.MetricBitmap;
+import io.druid.segment.column.HistogramBitmap;
 import io.druid.segment.serde.ColumnPartSerde;
 
 import java.io.IOException;
@@ -47,13 +47,13 @@ import java.util.Arrays;
 
 /**
  */
-public abstract class MetricBitmaps<T extends Comparable> implements MetricBitmap<T>
+public abstract class HistogramBitmaps<T extends Comparable> implements HistogramBitmap<T>
 {
   public static class SerDe implements ColumnPartSerde
   {
     private final ValueType valueType;
     private final BitmapSerdeFactory serdeFactory;
-    private final MetricBitmaps bitmaps;
+    private final HistogramBitmaps bitmaps;
 
     private transient byte[] bitmapPayload;
 
@@ -65,7 +65,7 @@ public abstract class MetricBitmaps<T extends Comparable> implements MetricBitma
       bitmaps = null;
     }
 
-    public SerDe(ValueType valueType, BitmapSerdeFactory serdeFactory, MetricBitmaps bitmaps)
+    public SerDe(ValueType valueType, BitmapSerdeFactory serdeFactory, HistogramBitmaps bitmaps)
     {
       this.valueType = Preconditions.checkNotNull(valueType);
       this.serdeFactory = Preconditions.checkNotNull(serdeFactory);
@@ -80,7 +80,7 @@ public abstract class MetricBitmaps<T extends Comparable> implements MetricBitma
         @Override
         public long getSerializedSize() throws IOException
         {
-          bitmapPayload = MetricBitmaps.getStrategy(serdeFactory, valueType).toBytes(bitmaps);
+          bitmapPayload = HistogramBitmaps.getStrategy(serdeFactory, valueType).toBytes(bitmaps);
           return Ints.BYTES + bitmapPayload.length;
         }
 
@@ -110,7 +110,7 @@ public abstract class MetricBitmaps<T extends Comparable> implements MetricBitma
               ColumnPartProviders.ofType(
                   builder.getNumRows(),
                   ByteBufferSerializer.prepareForRead(buffer),
-                  MetricBitmaps.getStrategy(serdeFactory, ValueDesc.assertPrimitive(builder.getType()).type())
+                  HistogramBitmaps.getStrategy(serdeFactory, ValueDesc.assertPrimitive(builder.getType()).type())
               )
           );
         }
@@ -118,19 +118,19 @@ public abstract class MetricBitmaps<T extends Comparable> implements MetricBitma
     }
   }
 
-  public static ObjectStrategy<MetricBitmap> getStrategy(final BitmapSerdeFactory serdeFactory, final ValueType type)
+  public static ObjectStrategy<HistogramBitmap> getStrategy(final BitmapSerdeFactory serdeFactory, final ValueType type)
   {
     final ObjectStrategy<ImmutableBitmap> strategy = serdeFactory.getObjectStrategy();
-    return new ObjectStrategy.NotComparable<MetricBitmap>()
+    return new ObjectStrategy.NotComparable<HistogramBitmap>()
     {
       @Override
-      public Class<? extends MetricBitmaps> getClazz()
+      public Class<? extends HistogramBitmaps> getClazz()
       {
-        return MetricBitmaps.class;
+        return HistogramBitmaps.class;
       }
 
       @Override
-      public MetricBitmaps fromByteBuffer(ByteBuffer buffer, int numBytes)
+      public HistogramBitmaps fromByteBuffer(ByteBuffer buffer, int numBytes)
       {
         BitmapFactory bitmapFactory = serdeFactory.getBitmapFactory();
         int size = buffer.getInt();
@@ -140,7 +140,7 @@ public abstract class MetricBitmaps<T extends Comparable> implements MetricBitma
             for (int i = 0; i < floats.length; i++) {
               floats[i] = buffer.getFloat();
             }
-            return new MetricBitmaps.FloatBitmaps(
+            return new HistogramBitmaps.FloatBitmaps(
                 bitmapFactory,
                 floats,
                 loadBitmaps(buffer, strategy, size - 1),
@@ -151,7 +151,7 @@ public abstract class MetricBitmaps<T extends Comparable> implements MetricBitma
             for (int i = 0; i < longs.length; i++) {
               longs[i] = buffer.getLong();
             }
-            return new MetricBitmaps.LongBitmaps(
+            return new HistogramBitmaps.LongBitmaps(
                 bitmapFactory,
                 longs,
                 loadBitmaps(buffer, strategy, size - 1),
@@ -162,7 +162,7 @@ public abstract class MetricBitmaps<T extends Comparable> implements MetricBitma
             for (int i = 0; i < doubles.length; i++) {
               doubles[i] = buffer.getDouble();
             }
-            return new MetricBitmaps.DoubleBitmaps(
+            return new HistogramBitmaps.DoubleBitmaps(
                 bitmapFactory,
                 doubles,
                 loadBitmaps(buffer, strategy, size - 1),
@@ -187,9 +187,9 @@ public abstract class MetricBitmaps<T extends Comparable> implements MetricBitma
       }
 
       @Override
-      public byte[] toBytes(MetricBitmap bitmap)
+      public byte[] toBytes(HistogramBitmap bitmap)
       {
-        MetricBitmaps val = (MetricBitmaps) bitmap;
+        HistogramBitmaps val = (HistogramBitmaps) bitmap;
         ByteArrayDataOutput bout = ByteStreams.newDataOutput();
         bout.writeInt(val.breaks.length);
         switch (type) {
@@ -230,7 +230,7 @@ public abstract class MetricBitmaps<T extends Comparable> implements MetricBitma
   private final ImmutableBitmap[] bins;
   private final ImmutableBitmap zeros;
 
-  public MetricBitmaps(BitmapFactory factory, T[] breaks, ImmutableBitmap[] bins, ImmutableBitmap zeros)
+  public HistogramBitmaps(BitmapFactory factory, T[] breaks, ImmutableBitmap[] bins, ImmutableBitmap zeros)
   {
     this.breaks = breaks;
     this.bins = bins;
@@ -334,7 +334,7 @@ public abstract class MetricBitmaps<T extends Comparable> implements MetricBitma
     return Arrays.toString(breaks) + ":" + Arrays.toString(getSizes());
   }
 
-  public static class FloatBitmaps extends MetricBitmaps<Float>
+  public static class FloatBitmaps extends HistogramBitmaps<Float>
   {
     private final float[] breaks;   // in-ex in-ex... in-in (includes max)
 
@@ -368,7 +368,7 @@ public abstract class MetricBitmaps<T extends Comparable> implements MetricBitma
     }
   }
 
-  public static class DoubleBitmaps extends MetricBitmaps<Double>
+  public static class DoubleBitmaps extends HistogramBitmaps<Double>
   {
     private final double[] breaks;   // in-ex in-ex... in-in (includes max)
 
@@ -402,7 +402,7 @@ public abstract class MetricBitmaps<T extends Comparable> implements MetricBitma
     }
   }
 
-  public static class LongBitmaps extends MetricBitmaps<Long>
+  public static class LongBitmaps extends HistogramBitmaps<Long>
   {
     private final long[] breaks;   // in-ex in-ex... in-in (includes max)
 

@@ -30,9 +30,10 @@ import io.druid.query.filter.BitmapIndexSelector;
 import io.druid.segment.column.BitmapIndex;
 import io.druid.segment.column.Column;
 import io.druid.segment.column.ColumnCapabilities;
-import io.druid.segment.column.ExternalBitmap;
+import io.druid.segment.column.SecondaryIndex;
 import io.druid.segment.column.LuceneIndex;
-import io.druid.segment.column.MetricBitmap;
+import io.druid.segment.column.HistogramBitmap;
+import io.druid.segment.data.BitSlicedBitmap;
 import io.druid.segment.data.GenericIndexed;
 import io.druid.segment.data.Indexed;
 import io.druid.segment.data.IndexedIterable;
@@ -50,7 +51,8 @@ public class ColumnSelectorBitmapIndexSelector implements BitmapIndexSelector
   private final ColumnSelector index;
   private final int numRows;
   private final Map<String, LuceneIndex> luceneIndices = Maps.newHashMap();
-  private final Map<String, MetricBitmap> metricBitmaps = Maps.newHashMap();
+  private final Map<String, HistogramBitmap> metricBitmaps = Maps.newHashMap();
+  private final Map<String, BitSlicedBitmap> bitSlicedBitmapMaps = Maps.newHashMap();
 
   public ColumnSelectorBitmapIndexSelector(
       final BitmapFactory bitmapFactory,
@@ -203,15 +205,29 @@ public class ColumnSelectorBitmapIndexSelector implements BitmapIndexSelector
   }
 
   @Override
-  public MetricBitmap getMetricBitmap(String dimension)
+  public HistogramBitmap getMetricBitmap(String dimension)
   {
-    MetricBitmap metric = metricBitmaps.get(dimension);
+    HistogramBitmap metric = metricBitmaps.get(dimension);
     if (metric == null) {
       final Column column = index.getColumn(dimension);
       if (column == null || !column.getCapabilities().hasMetricBitmap()) {
         return null;
       }
       metricBitmaps.put(dimension, metric = column.getMetricBitmap());
+    }
+    return metric;
+  }
+
+  @Override
+  public BitSlicedBitmap getBitSlicedBitmap(String dimension)
+  {
+    BitSlicedBitmap metric = bitSlicedBitmapMaps.get(dimension);
+    if (metric == null) {
+      final Column column = index.getColumn(dimension);
+      if (column == null || !column.getCapabilities().hasBitSlicedBitmap()) {
+        return null;
+      }
+      bitSlicedBitmapMaps.put(dimension, metric = column.getBitSlicedBitmap());
     }
     return metric;
   }
@@ -226,13 +242,17 @@ public class ColumnSelectorBitmapIndexSelector implements BitmapIndexSelector
   @Override
   public void close()
   {
-    for (ExternalBitmap bitmap : luceneIndices.values()) {
+    for (SecondaryIndex bitmap : luceneIndices.values()) {
       CloseQuietly.close(bitmap);
     }
-    for (ExternalBitmap bitmap : metricBitmaps.values()) {
+    for (SecondaryIndex bitmap : metricBitmaps.values()) {
+      CloseQuietly.close(bitmap);
+    }
+    for (SecondaryIndex bitmap : bitSlicedBitmapMaps.values()) {
       CloseQuietly.close(bitmap);
     }
     luceneIndices.clear();
     metricBitmaps.clear();
+    bitSlicedBitmapMaps.clear();
   }
 }

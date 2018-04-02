@@ -52,6 +52,12 @@ public enum ValueType
     {
       return Rows.parseFloat(value);
     }
+
+    @Override
+    public int lengthOfBinary()
+    {
+      return Float.SIZE;
+    }
   },
   LONG {
     @Override
@@ -71,6 +77,12 @@ public enum ValueType
     {
       return Rows.parseLong(value);
     }
+
+    @Override
+    public int lengthOfBinary()
+    {
+      return Long.SIZE;
+    }
   },
   DOUBLE {
     @Override
@@ -89,6 +101,12 @@ public enum ValueType
     public Comparable cast(Object value)
     {
       return Rows.parseDouble(value);
+    }
+
+    @Override
+    public int lengthOfBinary()
+    {
+      return Double.SIZE;
     }
   },
   STRING {
@@ -198,6 +216,11 @@ public enum ValueType
   public boolean isNumeric()
   {
     return true;
+  }
+
+  public int lengthOfBinary()
+  {
+    return -1;
   }
 
   public boolean isPrimitive()

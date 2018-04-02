@@ -87,8 +87,10 @@ public class SelectorFilter implements Filter
       return selector.getBitmapIndex(dimension, value);
     } else if (using.contains(BitmapType.LUCENE_INDEX) && capabilities.hasLuceneIndex()) {
       return selector.getLuceneIndex(dimension).filterFor(Lucenes.point(dimension, value));
-    } else if (using.contains(BitmapType.METRIC_HISTOGRAM) && capabilities.hasMetricBitmap()) {
+    } else if (using.contains(BitmapType.HISTOGRAM_BITMAP) && capabilities.hasMetricBitmap()) {
       return selector.getMetricBitmap(dimension).filterFor(Range.closed(value, value));
+    } else if (using.contains(BitmapType.BSB) && capabilities.hasBitSlicedBitmap()) {
+      return selector.getBitSlicedBitmap(dimension).filterFor(Range.closed(value, value));
     }
     throw new IllegalArgumentException("column " + dimension + " is not indexed with " + using);
   }

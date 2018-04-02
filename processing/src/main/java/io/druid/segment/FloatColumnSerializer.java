@@ -23,12 +23,14 @@ import com.google.common.collect.ImmutableMap;
 import io.druid.data.ValueDesc;
 import io.druid.data.ValueType;
 import io.druid.segment.column.ColumnDescriptor.Builder;
+import io.druid.segment.data.BitSlicedBitmaps;
+import io.druid.segment.data.BitSlicer;
 import io.druid.segment.data.BitmapSerdeFactory;
 import io.druid.segment.data.CompressedFloatsSupplierSerializer;
 import io.druid.segment.data.CompressedObjectStrategy;
 import io.druid.segment.data.FloatHistogram;
 import io.druid.segment.data.IOPeon;
-import io.druid.segment.data.MetricBitmaps;
+import io.druid.segment.data.HistogramBitmaps;
 import io.druid.segment.data.MetricHistogram;
 import io.druid.segment.serde.FloatGenericColumnPartSerde;
 
@@ -44,10 +46,10 @@ public class FloatColumnSerializer implements GenericColumnSerializer
       String filenameBase,
       CompressedObjectStrategy.CompressionStrategy compression,
       BitmapSerdeFactory serdeFactory,
-      boolean histogram
+      SecondaryIndexingSpec indexing
   )
   {
-    return new FloatColumnSerializer(ioPeon, filenameBase, IndexIO.BYTE_ORDER, compression, serdeFactory, histogram);
+    return new FloatColumnSerializer(ioPeon, filenameBase, IndexIO.BYTE_ORDER, compression, serdeFactory, indexing);
   }
 
   private final IOPeon ioPeon;
@@ -59,6 +61,7 @@ public class FloatColumnSerializer implements GenericColumnSerializer
 
   private final BitmapSerdeFactory serdeFactory;
   private final MetricHistogram.FloatType histogram;
+  private final BitSlicer.FloatType slicer;
 
   private FloatColumnSerializer(
       IOPeon ioPeon,
@@ -66,7 +69,7 @@ public class FloatColumnSerializer implements GenericColumnSerializer
       ByteOrder byteOrder,
       CompressedObjectStrategy.CompressionStrategy compression,
       BitmapSerdeFactory serdeFactory,
-      boolean histogram
+      SecondaryIndexingSpec indexing
   )
   {
     this.ioPeon = ioPeon;
@@ -74,15 +77,20 @@ public class FloatColumnSerializer implements GenericColumnSerializer
     this.byteOrder = byteOrder;
     this.compression = compression;
     this.serdeFactory = serdeFactory;
-    if (histogram) {
+    if (indexing instanceof HistogramIndexingSpec) {
       this.histogram = new FloatHistogram(
           serdeFactory.getBitmapFactory(),
           DEFAULT_NUM_SAMPLE,
           DEFAULT_NUM_GROUP,
           DEFAULT_COMPACT_INTERVAL
       );
+      this.slicer = null;
+    } else if (indexing instanceof BitSlicedBitmapSpec) {
+      this.histogram = new FloatMinMax();
+      this.slicer = new BitSlicer.FloatType(serdeFactory.getBitmapFactory());
     } else {
       this.histogram = new FloatMinMax();
+      this.slicer = null;
     }
   }
 
@@ -103,6 +111,9 @@ public class FloatColumnSerializer implements GenericColumnSerializer
   {
     float val = (obj == null) ? 0 : ((Number) obj).floatValue();
     histogram.offer(val);
+    if (slicer != null) {
+      slicer.add(val);
+    }
     writer.add(val);
   }
 
@@ -116,9 +127,12 @@ public class FloatColumnSerializer implements GenericColumnSerializer
                                    .withDelegate(this)
                                    .build()
     );
-    MetricBitmaps bitmaps = histogram.snapshot();
+    HistogramBitmaps bitmaps = histogram.snapshot();
     if (bitmaps != null) {
-      builder.addSerde(new MetricBitmaps.SerDe(ValueType.FLOAT, serdeFactory, bitmaps));
+      builder.addSerde(new HistogramBitmaps.SerDe(ValueType.FLOAT, serdeFactory, bitmaps));
+    }
+    if (slicer != null) {
+      builder.addSerde(new BitSlicedBitmaps.SerDe(ValueType.FLOAT, serdeFactory, slicer.build()));
     }
     return builder;
   }

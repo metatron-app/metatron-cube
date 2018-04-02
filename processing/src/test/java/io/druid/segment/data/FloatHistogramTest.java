@@ -24,7 +24,7 @@ import com.google.common.collect.Range;
 import com.metamx.collections.bitmap.ConciseBitmapFactory;
 import com.metamx.collections.bitmap.ImmutableBitmap;
 import com.metamx.collections.bitmap.RoaringBitmapFactory;
-import io.druid.segment.data.MetricBitmaps.FloatBitmaps;
+import io.druid.segment.data.HistogramBitmaps.FloatBitmaps;
 import org.junit.Assert;
 import org.junit.Test;
 import org.roaringbitmap.IntIterator;

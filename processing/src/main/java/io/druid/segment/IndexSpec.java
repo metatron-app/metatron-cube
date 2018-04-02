@@ -145,10 +145,9 @@ public class IndexSpec
     return secondaryIndexing;
   }
 
-  public boolean isMakeHistogram(String column)
+  public SecondaryIndexingSpec getSecondaryIndexingSpec(String column)
   {
-    SecondaryIndexingSpec indexing = secondaryIndexing.get(column);
-    return indexing instanceof HistogramIndexingSpec;
+    return secondaryIndexing.get(column);
   }
 
   public LuceneIndexingSpec getLuceneIndexingSpec(String column)

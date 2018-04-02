@@ -28,7 +28,8 @@ import io.druid.segment.lucene.LuceneIndexingSpec;
 @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
 @JsonSubTypes(value = {
     @JsonSubTypes.Type(name = "histogram", value = HistogramIndexingSpec.class),
-    @JsonSubTypes.Type(name = "lucene", value = LuceneIndexingSpec.class)
+    @JsonSubTypes.Type(name = "lucene", value = LuceneIndexingSpec.class),
+    @JsonSubTypes.Type(name = "bsb", value = BitSlicedBitmapSpec.class)
 })
 public interface SecondaryIndexingSpec
 {

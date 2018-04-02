@@ -19,6 +19,7 @@
 
 package io.druid.segment;
 
+import io.druid.segment.data.BitSlicedBitmap;
 import io.druid.segment.data.ObjectStrategy;
 import io.druid.segment.data.VSizeIndexed;
 import io.druid.segment.data.VSizeIndexedInts;
@@ -89,6 +90,36 @@ public class ColumnPartProviders
 
       @Override
       public T get()
+      {
+        return strategy.fromByteBuffer(buffer.asReadOnlyBuffer(), length);
+      }
+    };
+  }
+
+  public static ColumnPartProvider<BitSlicedBitmap> ofBitSlicedBitmap(
+      final int numRows,
+      final ByteBuffer buffer,
+      final ObjectStrategy<BitSlicedBitmap> strategy
+  )
+  {
+    final int length = buffer.remaining();
+
+    return new ColumnPartProvider<BitSlicedBitmap>()
+    {
+      @Override
+      public int size()
+      {
+        return numRows;
+      }
+
+      @Override
+      public long getSerializedSize()
+      {
+        return length;
+      }
+
+      @Override
+      public BitSlicedBitmap get()
       {
         return strategy.fromByteBuffer(buffer.asReadOnlyBuffer(), length);
       }

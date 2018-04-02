@@ -23,12 +23,14 @@ import com.google.common.collect.ImmutableMap;
 import io.druid.data.ValueDesc;
 import io.druid.data.ValueType;
 import io.druid.segment.column.ColumnDescriptor.Builder;
+import io.druid.segment.data.BitSlicedBitmaps;
+import io.druid.segment.data.BitSlicer;
 import io.druid.segment.data.BitmapSerdeFactory;
 import io.druid.segment.data.CompressedLongsSupplierSerializer;
 import io.druid.segment.data.CompressedObjectStrategy;
 import io.druid.segment.data.IOPeon;
 import io.druid.segment.data.LongHistogram;
-import io.druid.segment.data.MetricBitmaps;
+import io.druid.segment.data.HistogramBitmaps;
 import io.druid.segment.data.MetricHistogram;
 import io.druid.segment.serde.LongGenericColumnPartSerde;
 
@@ -44,10 +46,10 @@ public class LongColumnSerializer implements GenericColumnSerializer
       String filenameBase,
       CompressedObjectStrategy.CompressionStrategy compression,
       BitmapSerdeFactory serdeFactory,
-      boolean histogram
+      SecondaryIndexingSpec indexing
   )
   {
-    return new LongColumnSerializer(ioPeon, filenameBase, IndexIO.BYTE_ORDER, compression, serdeFactory, histogram);
+    return new LongColumnSerializer(ioPeon, filenameBase, IndexIO.BYTE_ORDER, compression, serdeFactory, indexing);
   }
 
   private final IOPeon ioPeon;
@@ -59,6 +61,7 @@ public class LongColumnSerializer implements GenericColumnSerializer
 
   private final BitmapSerdeFactory serdeFactory;
   private final MetricHistogram.LongType histogram;
+  private final BitSlicer.LongType slicer;
 
   private LongColumnSerializer(
       IOPeon ioPeon,
@@ -66,7 +69,7 @@ public class LongColumnSerializer implements GenericColumnSerializer
       ByteOrder byteOrder,
       CompressedObjectStrategy.CompressionStrategy compression,
       BitmapSerdeFactory serdeFactory,
-      boolean histogram
+      SecondaryIndexingSpec indexing
   )
   {
     this.ioPeon = ioPeon;
@@ -74,15 +77,20 @@ public class LongColumnSerializer implements GenericColumnSerializer
     this.byteOrder = byteOrder;
     this.compression = compression;
     this.serdeFactory = serdeFactory;
-    if (histogram) {
+    if (indexing instanceof HistogramIndexingSpec) {
       this.histogram = new LongHistogram(
           serdeFactory.getBitmapFactory(),
           DEFAULT_NUM_SAMPLE,
           DEFAULT_NUM_GROUP,
           DEFAULT_COMPACT_INTERVAL
       );
+      this.slicer = null;
+    } else if (indexing instanceof BitSlicedBitmapSpec) {
+      this.histogram = new LongMinMax();
+      this.slicer = new BitSlicer.LongType(serdeFactory.getBitmapFactory());
     } else {
       this.histogram = new LongMinMax();
+      this.slicer = null;
     }
   }
 
@@ -103,6 +111,9 @@ public class LongColumnSerializer implements GenericColumnSerializer
   {
     long val = (obj == null) ? 0 : ((Number) obj).longValue();
     histogram.offer(val);
+    if (slicer != null) {
+      slicer.add(val);
+    }
     writer.add(val);
   }
 
@@ -116,9 +127,12 @@ public class LongColumnSerializer implements GenericColumnSerializer
                                   .withDelegate(this)
                                   .build()
     );
-    MetricBitmaps bitmaps = histogram.snapshot();
+    HistogramBitmaps bitmaps = histogram.snapshot();
     if (bitmaps != null) {
-      builder.addSerde(new MetricBitmaps.SerDe(ValueType.LONG, serdeFactory, bitmaps));
+      builder.addSerde(new HistogramBitmaps.SerDe(ValueType.LONG, serdeFactory, bitmaps));
+    }
+    if (slicer != null) {
+      builder.addSerde(new BitSlicedBitmaps.SerDe(ValueType.LONG, serdeFactory, slicer.build()));
     }
     return builder;
   }

@@ -19,6 +19,7 @@
 
 package io.druid.segment.column;
 
+import io.druid.segment.data.BitSlicedBitmap;
 import io.druid.segment.data.GenericIndexed;
 
 import java.util.Map;
@@ -36,6 +37,7 @@ public interface Column
     BITMAP,
     SPATIAL,
     METRIC_BITMAP,
+    BITSLICED_BITMAP,
     LUCENE_INDEX
   }
 
@@ -53,7 +55,8 @@ public interface Column
   public ComplexColumn getComplexColumn();
   public BitmapIndex getBitmapIndex();
   public SpatialIndex getSpatialIndex();
-  public MetricBitmap getMetricBitmap();
+  public HistogramBitmap getMetricBitmap();
+  public BitSlicedBitmap getBitSlicedBitmap();
   public LuceneIndex getLuceneIndex();
   public Map<String, Object> getColumnStats();
 }

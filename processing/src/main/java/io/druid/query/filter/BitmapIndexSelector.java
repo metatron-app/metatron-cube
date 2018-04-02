@@ -25,7 +25,8 @@ import com.metamx.collections.spatial.ImmutableRTree;
 import io.druid.segment.column.BitmapIndex;
 import io.druid.segment.column.ColumnCapabilities;
 import io.druid.segment.column.LuceneIndex;
-import io.druid.segment.column.MetricBitmap;
+import io.druid.segment.column.HistogramBitmap;
+import io.druid.segment.data.BitSlicedBitmap;
 import io.druid.segment.data.Indexed;
 
 import java.io.Closeable;
@@ -41,7 +42,8 @@ public interface BitmapIndexSelector extends Closeable
   public ImmutableBitmap getBitmapIndex(String dimension, String value);
   public ImmutableRTree getSpatialIndex(String dimension);
   public LuceneIndex getLuceneIndex(String dimension);
-  public MetricBitmap getMetricBitmap(String dimension);
+  public HistogramBitmap getMetricBitmap(String dimension);
+  public BitSlicedBitmap getBitSlicedBitmap(String dimension);
   public ColumnCapabilities getCapabilities(String dimension);
   public void close();
 }

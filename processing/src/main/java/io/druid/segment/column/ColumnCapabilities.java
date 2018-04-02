@@ -34,6 +34,7 @@ public interface ColumnCapabilities
   public boolean hasSpatialIndexes();
   public boolean hasMultipleValues();
   public boolean hasMetricBitmap();
+  public boolean hasBitSlicedBitmap();
   public boolean hasLuceneIndex();
 
   public ColumnCapabilitiesImpl merge(ColumnCapabilities other);

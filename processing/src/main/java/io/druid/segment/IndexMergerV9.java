@@ -673,10 +673,10 @@ public class IndexMergerV9 extends IndexMerger
 
   private LongColumnSerializer setupTimeWriter(final IOPeon ioPeon, final IndexSpec indexSpec) throws IOException
   {
-    final boolean makeHistogram = indexSpec.isMakeHistogram(Column.TIME_COLUMN_NAME);
+    final SecondaryIndexingSpec indexing = indexSpec.getSecondaryIndexingSpec(Column.TIME_COLUMN_NAME);
     final BitmapSerdeFactory serdeFactory = indexSpec.getBitmapSerdeFactory();
     LongColumnSerializer timeWriter = LongColumnSerializer.create(
-        ioPeon, "little_end_time", CompressedObjectStrategy.DEFAULT_COMPRESSION_STRATEGY, serdeFactory, makeHistogram
+        ioPeon, "little_end_time", CompressedObjectStrategy.DEFAULT_COMPRESSION_STRATEGY, serdeFactory, indexing
     );
     // we will close this writer after we added all the timestamps
     timeWriter.open();
@@ -695,17 +695,17 @@ public class IndexMergerV9 extends IndexMerger
     final CompressedObjectStrategy.CompressionStrategy metCompression = indexSpec.getMetricCompressionStrategy();
     for (String metric : mergedMetrics) {
       ValueDesc type = metricTypeNames.get(metric);
-      boolean makeHistogram = indexSpec.isMakeHistogram(metric);
+      SecondaryIndexingSpec provider = indexSpec.getSecondaryIndexingSpec(metric);
       GenericColumnSerializer writer;
       switch (type.type()) {
         case LONG:
-          writer = LongColumnSerializer.create(ioPeon, metric, metCompression, serdeFactory, makeHistogram);
+          writer = LongColumnSerializer.create(ioPeon, metric, metCompression, serdeFactory, provider);
           break;
         case FLOAT:
-          writer = FloatColumnSerializer.create(ioPeon, metric, metCompression, serdeFactory, makeHistogram);
+          writer = FloatColumnSerializer.create(ioPeon, metric, metCompression, serdeFactory, provider);
           break;
         case DOUBLE:
-          writer = DoubleColumnSerializer.create(ioPeon, metric, metCompression, serdeFactory, makeHistogram);
+          writer = DoubleColumnSerializer.create(ioPeon, metric, metCompression, serdeFactory, provider);
           break;
         case STRING:
           LuceneIndexingSpec indexingSpec = indexSpec.getLuceneIndexingSpec(metric);

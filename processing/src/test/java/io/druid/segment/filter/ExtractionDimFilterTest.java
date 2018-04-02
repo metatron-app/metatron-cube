@@ -38,8 +38,9 @@ import io.druid.query.filter.SelectorDimFilter;
 import io.druid.segment.column.BitmapIndex;
 import io.druid.segment.column.ColumnCapabilities;
 import io.druid.segment.column.LuceneIndex;
-import io.druid.segment.column.MetricBitmap;
+import io.druid.segment.column.HistogramBitmap;
 import io.druid.segment.data.ArrayIndexed;
+import io.druid.segment.data.BitSlicedBitmap;
 import io.druid.segment.data.BitmapSerdeFactory;
 import io.druid.segment.data.ConciseBitmapSerdeFactory;
 import io.druid.segment.data.GenericIndexed;
@@ -147,7 +148,13 @@ public class ExtractionDimFilterTest
     }
 
     @Override
-    public MetricBitmap getMetricBitmap(String dimension)
+    public HistogramBitmap getMetricBitmap(String dimension)
+    {
+      return null;
+    }
+
+    @Override
+    public BitSlicedBitmap getBitSlicedBitmap(String dimension)
     {
       return null;
     }

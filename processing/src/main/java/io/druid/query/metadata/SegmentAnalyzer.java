@@ -42,7 +42,7 @@ import io.druid.segment.StorageAdapter;
 import io.druid.segment.column.BitmapIndex;
 import io.druid.segment.column.Column;
 import io.druid.segment.column.ColumnCapabilities;
-import io.druid.segment.column.MetricBitmap;
+import io.druid.segment.column.HistogramBitmap;
 import io.druid.segment.data.IndexedInts;
 import org.apache.commons.lang.mutable.MutableInt;
 import org.joda.time.Interval;
@@ -118,7 +118,7 @@ public class SegmentAnalyzer
     }
     if (analyzingMinMax && !minMaxEvaluated || analyzingNullCount && nullCount < 0) {
       if (capabilities != null && capabilities.hasMetricBitmap()) {
-        MetricBitmap metricBitmap = column.getMetricBitmap();
+        HistogramBitmap metricBitmap = column.getMetricBitmap();
         if (analyzingMinMax) {
           minValue = metricBitmap.getMin();
           maxValue = metricBitmap.getMax();

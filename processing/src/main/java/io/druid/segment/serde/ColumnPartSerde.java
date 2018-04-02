@@ -22,9 +22,10 @@ package io.druid.segment.serde;
 import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import io.druid.segment.column.ColumnBuilder;
+import io.druid.segment.data.BitSlicedBitmaps;
 import io.druid.segment.data.BitmapSerdeFactory;
 import io.druid.segment.data.ByteBufferSerializer;
-import io.druid.segment.data.MetricBitmaps;
+import io.druid.segment.data.HistogramBitmaps;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -42,7 +43,8 @@ import java.util.Map;
     @JsonSubTypes.Type(name = "string", value = StringGenericColumnPartSerde.class),
     @JsonSubTypes.Type(name = "stringDictionary", value = DictionaryEncodedColumnPartSerde.class),
     @JsonSubTypes.Type(name = "lucene", value = ComplexColumnSerializer.LuceneIndexPartSerDe.class),
-    @JsonSubTypes.Type(name = "histogram", value = MetricBitmaps.SerDe.class)
+    @JsonSubTypes.Type(name = "histogram", value = HistogramBitmaps.SerDe.class),
+    @JsonSubTypes.Type(name = "bsb", value = BitSlicedBitmaps.SerDe.class)
 })
 public interface ColumnPartSerde
 {

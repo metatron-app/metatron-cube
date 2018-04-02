@@ -32,7 +32,7 @@ import io.druid.segment.column.Column;
 import io.druid.segment.column.ColumnCapabilities;
 import io.druid.segment.column.ComplexColumn;
 import io.druid.segment.column.DictionaryEncodedColumn;
-import io.druid.segment.column.MetricBitmap;
+import io.druid.segment.column.HistogramBitmap;
 import io.druid.segment.data.GenericIndexed;
 import io.druid.segment.loading.DataSegmentPusherUtil;
 import io.druid.segment.loading.SegmentLoaderConfig;
@@ -415,12 +415,20 @@ public class IndexViewer implements CommonShell
         if (builder.length() > 2) {
           builder.append(", ");
         }
-        MetricBitmap bitmap = column.getMetricBitmap();
+        HistogramBitmap bitmap = column.getMetricBitmap();
         builder.append(
             format(
                 "metric bitmap (%d bitmaps, %,d zeros, %,d bytes)",
                 bitmap.numBins(), bitmap.zeroRows(), column.getSerializedSize(Column.EncodeType.METRIC_BITMAP)
             )
+        );
+      }
+      if (capabilities.hasBitSlicedBitmap()) {
+        if (builder.length() > 2) {
+          builder.append(", ");
+        }
+        builder.append(
+            format("bit sliced bitmap (%,d bytes)", column.getSerializedSize(Column.EncodeType.BITSLICED_BITMAP))
         );
       }
       if (capabilities.hasLuceneIndex()) {

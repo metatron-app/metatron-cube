@@ -17,21 +17,14 @@
  * under the License.
  */
 
-package io.druid.segment.column;
+package io.druid.segment;
 
-import com.metamx.collections.bitmap.ImmutableBitmap;
-import io.druid.data.ValueDesc;
-import io.druid.data.ValueType;
-
-import java.io.Closeable;
+import com.fasterxml.jackson.annotation.JsonCreator;
 
 /**
  */
-public interface ExternalBitmap<T> extends Closeable
+public class BitSlicedBitmapSpec implements SecondaryIndexingSpec
 {
-  ValueDesc type();
-
-  ImmutableBitmap filterFor(T query);
-
-  int rows();
+  @JsonCreator
+  public BitSlicedBitmapSpec() {}
 }

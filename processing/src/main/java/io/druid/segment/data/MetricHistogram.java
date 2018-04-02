@@ -23,7 +23,7 @@ package io.druid.segment.data;
  */
 public interface MetricHistogram<T extends Comparable>
 {
-  MetricBitmaps<T> snapshot();
+  HistogramBitmaps<T> snapshot();
 
   int getNumZeros();
 

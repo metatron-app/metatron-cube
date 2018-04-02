@@ -71,9 +71,10 @@ import io.druid.segment.DimensionSelector;
 import io.druid.segment.ObjectColumnSelector;
 import io.druid.segment.column.BitmapIndex;
 import io.druid.segment.column.ColumnCapabilities;
-import io.druid.segment.column.ExternalBitmap;
+import io.druid.segment.column.SecondaryIndex;
 import io.druid.segment.column.LuceneIndex;
-import io.druid.segment.column.MetricBitmap;
+import io.druid.segment.column.HistogramBitmap;
+import io.druid.segment.data.BitSlicedBitmap;
 import io.druid.segment.data.Indexed;
 import io.druid.segment.data.IndexedInts;
 import io.druid.segment.data.RoaringBitmapSerdeFactory;
@@ -612,8 +613,8 @@ public class Filters
     BitmapIndexSelector selector = context.selector;
     if (filter instanceof InDimFilter) {
       InDimFilter inFilter = (InDimFilter) filter;
-      ExternalBitmap metricBitmap = getWhatever(selector, inFilter.getDimension(), using);
-      if (metricBitmap instanceof MetricBitmap) {
+      SecondaryIndex metricBitmap = getWhatever(selector, inFilter.getDimension(), using);
+      if (metricBitmap instanceof HistogramBitmap || metricBitmap instanceof BitSlicedBitmap) {
         List<ImmutableBitmap> bitmaps = Lists.newArrayList();
         for (String value : inFilter.getValues()) {
           ImmutableBitmap bitmap = metricBitmap.filterFor(Range.closed(value, value));
@@ -655,7 +656,7 @@ public class Filters
         return null;
       }
       String column = required.get(0);
-      ExternalBitmap metric = getWhatever(bitmapSelector, column, using);
+      SecondaryIndex metric = getWhatever(bitmapSelector, column, using);
       if (metric == null) {
         return null;
       }
@@ -689,11 +690,14 @@ public class Filters
     return null;
   }
 
-  private static ExternalBitmap getWhatever(BitmapIndexSelector bitmaps, String column, EnumSet<BitmapType> using)
+  private static SecondaryIndex getWhatever(BitmapIndexSelector bitmaps, String column, EnumSet<BitmapType> using)
   {
-    ExternalBitmap bitmap = null;
-    if (using.contains(BitmapType.METRIC_HISTOGRAM)) {
+    SecondaryIndex bitmap = null;
+    if (using.contains(BitmapType.HISTOGRAM_BITMAP)) {
       bitmap = bitmaps.getMetricBitmap(column);
+    }
+    if (bitmap == null && using.contains(BitmapType.BSB)) {
+      bitmap = bitmaps.getBitSlicedBitmap(column);
     }
     if (bitmap == null && using.contains(BitmapType.LUCENE_INDEX)) {
       bitmap = bitmaps.getLuceneIndex(column);
@@ -707,65 +711,66 @@ public class Filters
       String column,
       FuncExpression expression,
       BitmapFactory factory,
-      ExternalBitmap metric,
+      SecondaryIndex metric,
       boolean withNot
   )
   {
     final ValueType type = ValueDesc.assertPrimitive(metric.type()).type();
 
-    final Comparable constant = getOnlyConstant(expression.getChildren(), type);
+    if (Expressions.isCompare(expression.op())) {
+      final Comparable constant = getOnlyConstant(expression.getChildren(), type);
+      if (constant == null) {
+        return null;
+      }
+      switch (expression.op()) {
+        case "<":
+          return metric instanceof HistogramBitmap || metric instanceof BitSlicedBitmap ? metric.filterFor(
+                     withNot ? Range.atLeast(constant) : Range.lessThan(constant)
+                 ) :
+                 metric instanceof LuceneIndex ? metric.filterFor(
+                     withNot ? Lucenes.atLeast(column, constant) : Lucenes.lessThan(column, constant)
+                 ) : null;
+        case ">":
+          return metric instanceof HistogramBitmap || metric instanceof BitSlicedBitmap ? metric.filterFor(
+                     withNot ? Range.atMost(constant) : Range.greaterThan(constant)
+                 ) :
+                 metric instanceof LuceneIndex ? metric.filterFor(
+                     withNot ? Lucenes.atMost(column, constant) : Lucenes.greaterThan(column, constant)
+                 ) : null;
+        case "<=":
+          return metric instanceof HistogramBitmap || metric instanceof BitSlicedBitmap ? metric.filterFor(
+                     withNot ? Range.greaterThan(constant) : Range.atMost(constant)
+                 ) :
+                 metric instanceof LuceneIndex ? metric.filterFor(
+                     withNot ? Lucenes.greaterThan(column, constant) : Lucenes.atMost(column, constant)
+                 ) : null;
+        case ">=":
+          return metric instanceof HistogramBitmap || metric instanceof BitSlicedBitmap ? metric.filterFor(
+                     withNot ? Range.lessThan(constant) : Range.atLeast(constant)
+                 ) :
+                 metric instanceof LuceneIndex ? metric.filterFor(
+                     withNot ? Lucenes.lessThan(column, constant) : Lucenes.atLeast(column, constant)
+                 ) : null;
+        case "==":
+          if (withNot) {
+            return factory.union(
+                Arrays.asList(
+                    metric instanceof HistogramBitmap || metric instanceof BitSlicedBitmap ?
+                    metric.filterFor(Range.lessThan(constant)) :
+                    metric.filterFor(Lucenes.lessThan(column, constant)),
+                    metric instanceof HistogramBitmap || metric instanceof BitSlicedBitmap ?
+                    metric.filterFor(Range.greaterThan(constant)) :
+                    metric.filterFor(Lucenes.greaterThan(column, constant))
+                )
+            );
+          }
+          return metric instanceof HistogramBitmap || metric instanceof BitSlicedBitmap ?
+                 metric.filterFor(Range.closed(constant, constant)) :
+                 metric.filterFor(Lucenes.point(column, constant));
+      }
+    }
+
     switch (expression.op()) {
-      case "<":
-        return constant == null ? null :
-               metric instanceof MetricBitmap ? metric.filterFor(
-                   withNot ? Range.atLeast(constant) : Range.lessThan(constant)
-               ) :
-               metric instanceof LuceneIndex ? metric.filterFor(
-                   withNot ? Lucenes.atLeast(column, constant) : Lucenes.lessThan(column, constant)
-               ) : null;
-      case ">":
-        return constant == null ? null :
-               metric instanceof MetricBitmap ? metric.filterFor(
-                   withNot ? Range.atMost(constant) : Range.greaterThan(constant)
-               ) :
-               metric instanceof LuceneIndex ? metric.filterFor(
-                   withNot ? Lucenes.atMost(column, constant) : Lucenes.greaterThan(column, constant)
-               ) : null;
-      case "<=":
-        return constant == null ? null :
-               metric instanceof MetricBitmap ? metric.filterFor(
-                   withNot ? Range.greaterThan(constant) : Range.atMost(constant)
-               ) :
-               metric instanceof LuceneIndex ? metric.filterFor(
-                   withNot ? Lucenes.greaterThan(column, constant) : Lucenes.atMost(column, constant)
-               ) : null;
-      case ">=":
-        return constant == null ? null :
-               metric instanceof MetricBitmap ? metric.filterFor(
-                   withNot ? Range.lessThan(constant) : Range.atLeast(constant)
-               ) :
-               metric instanceof LuceneIndex ? metric.filterFor(
-                   withNot ? Lucenes.lessThan(column, constant) : Lucenes.atLeast(column, constant)
-               ) : null;
-      case "==":
-        if (constant == null) {
-          return null;
-        }
-        if (withNot) {
-          return factory.union(
-              Arrays.asList(
-                  metric instanceof MetricBitmap ?
-                  metric.filterFor(Range.lessThan(constant)) :
-                  metric.filterFor(Lucenes.lessThan(column, constant)),
-                  metric instanceof MetricBitmap ?
-                  metric.filterFor(Range.greaterThan(constant)) :
-                  metric.filterFor(Lucenes.greaterThan(column, constant))
-              )
-          );
-        }
-        return metric instanceof MetricBitmap ?
-               metric.filterFor(Range.closed(constant, constant)) :
-               metric.filterFor(Lucenes.point(column, constant));
       case "between":
         List<Comparable> constants = getConstants(expression.getChildren(), type);
         if (constants.size() != 2) {
@@ -784,16 +789,16 @@ public class Filters
         if (withNot) {
           return factory.union(
               Arrays.asList(
-                  metric instanceof MetricBitmap ?
+                  metric instanceof HistogramBitmap || metric instanceof BitSlicedBitmap ?
                   metric.filterFor(Range.lessThan(value1)) :
                   metric.filterFor(Lucenes.lessThan(column, value1)),
-                  metric instanceof MetricBitmap ?
+                  metric instanceof HistogramBitmap || metric instanceof BitSlicedBitmap ?
                   metric.filterFor(Range.greaterThan(value2)) :
                   metric.filterFor(Lucenes.greaterThan(column, value2))
               )
           );
         }
-        return metric instanceof MetricBitmap ?
+        return metric instanceof HistogramBitmap || metric instanceof BitSlicedBitmap ?
                metric.filterFor(Range.closed(value1, value2)) :
                metric.filterFor(Lucenes.closed(column, value1, value2));
       case "in":
@@ -803,7 +808,7 @@ public class Filters
         List<ImmutableBitmap> bitmaps = Lists.newArrayList();
         for (Comparable value : getConstants(expression.getChildren(), type)) {
           bitmaps.add(
-              metric instanceof MetricBitmap ?
+              metric instanceof HistogramBitmap || metric instanceof BitSlicedBitmap ?
               metric.filterFor(Range.closed(value, value)) :
               metric.filterFor(Lucenes.point(column, value))
           );

@@ -21,7 +21,7 @@ package io.druid.segment;
 
 import io.druid.data.ValueDesc;
 import io.druid.segment.column.ColumnDescriptor.Builder;
-import io.druid.segment.data.MetricBitmaps;
+import io.druid.segment.data.HistogramBitmaps;
 import io.druid.segment.data.MetricHistogram;
 import io.druid.segment.serde.ColumnPartSerde;
 
@@ -79,7 +79,7 @@ public interface GenericColumnSerializer extends ColumnPartSerde.Serializer, Clo
     }
 
     @Override
-    public MetricBitmaps<Float> snapshot()
+    public HistogramBitmaps<Float> snapshot()
     {
       return null;
     }
@@ -124,7 +124,7 @@ public interface GenericColumnSerializer extends ColumnPartSerde.Serializer, Clo
     }
 
     @Override
-    public MetricBitmaps<Double> snapshot()
+    public HistogramBitmaps<Double> snapshot()
     {
       return null;
     }
@@ -169,7 +169,7 @@ public interface GenericColumnSerializer extends ColumnPartSerde.Serializer, Clo
     }
 
     @Override
-    public MetricBitmaps<Long> snapshot()
+    public HistogramBitmaps<Long> snapshot()
     {
       return null;
     }

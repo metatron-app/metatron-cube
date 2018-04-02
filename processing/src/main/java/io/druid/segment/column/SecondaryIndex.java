@@ -17,22 +17,20 @@
  * under the License.
  */
 
-package io.druid.query.filter;
+package io.druid.segment.column;
 
-import java.util.EnumSet;
+import com.metamx.collections.bitmap.ImmutableBitmap;
+import io.druid.data.ValueDesc;
+
+import java.io.Closeable;
 
 /**
  */
-public enum BitmapType
+public interface SecondaryIndex<T> extends Closeable
 {
-  DIMENSIONAL,
-  LUCENE_INDEX,
-  HISTOGRAM_BITMAP,
-  BSB;
+  ValueDesc type();
 
-  public static EnumSet<BitmapType> EXACT = EnumSet.of(DIMENSIONAL, LUCENE_INDEX, BSB);
+  ImmutableBitmap filterFor(T query);
 
-  public static EnumSet<BitmapType> HELPER = EnumSet.of(DIMENSIONAL, HISTOGRAM_BITMAP);
-
-  public static EnumSet<BitmapType> ALL = EnumSet.allOf(BitmapType.class);
+  int rows();
 }

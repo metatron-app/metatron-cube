@@ -210,6 +210,12 @@ public class ValueDesc
     return valueDesc;
   }
 
+  public static ValueDesc assertNumeric(ValueDesc valueDesc)
+  {
+    Preconditions.checkArgument(valueDesc.isNumeric(), "should be numeric type but " + valueDesc);
+    return valueDesc;
+  }
+
   public static boolean isSameCategory(ValueDesc type1, ValueDesc type2)
   {
     if (type1.isPrimitive()) {

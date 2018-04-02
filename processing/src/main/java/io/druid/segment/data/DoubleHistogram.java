@@ -27,7 +27,7 @@ import com.google.common.primitives.Ints;
 import com.metamx.collections.bitmap.BitmapFactory;
 import com.metamx.collections.bitmap.ImmutableBitmap;
 import com.metamx.collections.bitmap.MutableBitmap;
-import io.druid.segment.data.MetricBitmaps.DoubleBitmaps;
+import io.druid.segment.data.HistogramBitmaps.DoubleBitmaps;
 
 import java.util.Arrays;
 import java.util.Collections;

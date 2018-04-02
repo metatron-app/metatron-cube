@@ -19,6 +19,7 @@
 
 package io.druid.math.expr;
 
+import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Lists;
 import io.druid.math.expr.Expression.AndExpression;
 import io.druid.math.expr.Expression.BooleanExpression;
@@ -27,6 +28,7 @@ import io.druid.math.expr.Expression.OrExpression;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 
 /**
  */
@@ -232,5 +234,12 @@ public class Expressions
       return result;
     }
     return visitor.visit(expression);
+  }
+
+  private static final Set<String> COMPARES = ImmutableSet.of("==", ">", "<", "=>", "<=");
+
+  public static boolean isCompare(String op)
+  {
+    return COMPARES.contains(op);
   }
 }

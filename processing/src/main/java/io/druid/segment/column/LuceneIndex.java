@@ -25,7 +25,7 @@ import org.apache.lucene.search.TopDocs;
 
 /**
  */
-public interface LuceneIndex extends ExternalBitmap<Query>
+public interface LuceneIndex extends SecondaryIndex<Query>
 {
   TopDocs query(Query query);
 

@@ -20,6 +20,7 @@
 package io.druid.segment.column;
 
 import io.druid.segment.ColumnPartProvider;
+import io.druid.segment.data.BitSlicedBitmap;
 import io.druid.segment.data.GenericIndexed;
 
 import java.io.IOException;
@@ -36,7 +37,8 @@ class SimpleColumn implements Column
   private final ColumnPartProvider<ComplexColumn> complexColumn;
   private final ColumnPartProvider<BitmapIndex> bitmapIndex;
   private final ColumnPartProvider<SpatialIndex> spatialIndex;
-  private final ColumnPartProvider<MetricBitmap> metricBitmap;
+  private final ColumnPartProvider<HistogramBitmap> metricBitmap;
+  private final ColumnPartProvider<BitSlicedBitmap> bitSlicedBitmap;
   private final ColumnPartProvider<LuceneIndex> luceneIndex;
   private final Map<String, Object> stats;
 
@@ -48,7 +50,8 @@ class SimpleColumn implements Column
       ColumnPartProvider<ComplexColumn> complexColumn,
       ColumnPartProvider<BitmapIndex> bitmapIndex,
       ColumnPartProvider<SpatialIndex> spatialIndex,
-      ColumnPartProvider<MetricBitmap> metricBitmap,
+      ColumnPartProvider<HistogramBitmap> metricBitmap,
+      ColumnPartProvider<BitSlicedBitmap> bitSlicedBitmap,
       ColumnPartProvider<LuceneIndex> luceneIndex,
       Map<String, Object> stats
   )
@@ -61,6 +64,7 @@ class SimpleColumn implements Column
     this.bitmapIndex = bitmapIndex;
     this.spatialIndex = spatialIndex;
     this.metricBitmap = metricBitmap;
+    this.bitSlicedBitmap = bitSlicedBitmap;
     this.luceneIndex = luceneIndex;
     this.stats = stats;
   }
@@ -111,6 +115,9 @@ class SimpleColumn implements Column
     if (bitmapIndex != null) {
       serialized += bitmapIndex.getSerializedSize();
     }
+    if (bitSlicedBitmap != null) {
+      serialized += bitSlicedBitmap.getSerializedSize();
+    }
     if (spatialIndex != null) {
       serialized += spatialIndex.getSerializedSize();
     }
@@ -141,6 +148,8 @@ class SimpleColumn implements Column
         return spatialIndex == null ? -1 : spatialIndex.getSerializedSize();
       case METRIC_BITMAP:
         return metricBitmap == null ? -1 : metricBitmap.getSerializedSize();
+      case BITSLICED_BITMAP:
+        return bitSlicedBitmap == null ? -1 : bitSlicedBitmap.getSerializedSize();
       case LUCENE_INDEX:
         return luceneIndex == null ? -1 : luceneIndex.getSerializedSize();
     }
@@ -171,6 +180,9 @@ class SimpleColumn implements Column
     }
     if (metricBitmap != null) {
       return metricBitmap.getSerializedSize() / metricBitmap.size();
+    }
+    if (bitSlicedBitmap != null) {
+      return bitSlicedBitmap.getSerializedSize() / bitSlicedBitmap.size();
     }
     if (luceneIndex != null) {
       return luceneIndex.getSerializedSize() / luceneIndex.size();
@@ -221,9 +233,15 @@ class SimpleColumn implements Column
   }
 
   @Override
-  public MetricBitmap getMetricBitmap()
+  public HistogramBitmap getMetricBitmap()
   {
     return metricBitmap == null ? null : metricBitmap.get();
+  }
+
+  @Override
+  public BitSlicedBitmap getBitSlicedBitmap()
+  {
+    return bitSlicedBitmap == null ? null : bitSlicedBitmap.get();
   }
 
   @Override

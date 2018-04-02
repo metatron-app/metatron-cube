@@ -56,6 +56,7 @@ public class ColumnCapabilitiesImpl implements ColumnCapabilities
   private boolean hasSpatialIndexes = false;
   private boolean hasMultipleValues = false;
   private boolean hasMetricBitmap = false;
+  private boolean hasBitSlicedBitmap = false;
   private boolean hasLuceneIndex = false;
 
   @Override
@@ -158,6 +159,19 @@ public class ColumnCapabilitiesImpl implements ColumnCapabilities
   public ColumnCapabilitiesImpl setHasMetricBitmap(boolean hasMetricBitmap)
   {
     this.hasMetricBitmap = hasMetricBitmap;
+    return this;
+  }
+
+  @Override
+  @JsonProperty("hasMetricBitmap")
+  public boolean hasBitSlicedBitmap()
+  {
+    return hasBitSlicedBitmap;
+  }
+
+  public ColumnCapabilitiesImpl setHasBitSlicedBitmap(boolean hasBitSlicedBitmap)
+  {
+    this.hasBitSlicedBitmap = hasBitSlicedBitmap;
     return this;
   }
 

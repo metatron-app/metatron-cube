@@ -455,7 +455,10 @@ public class RowResolver implements TypeResolver
     if (using.contains(BitmapType.LUCENE_INDEX) && capabilities.hasLuceneIndex()) {
       return true;
     }
-    if (using.contains(BitmapType.METRIC_HISTOGRAM) && capabilities.hasMetricBitmap()) {
+    if (using.contains(BitmapType.HISTOGRAM_BITMAP) && capabilities.hasMetricBitmap()) {
+      return true;
+    }
+    if (using.contains(BitmapType.BSB) && capabilities.hasBitSlicedBitmap()) {
       return true;
     }
     return false;

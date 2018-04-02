@@ -22,6 +22,7 @@ package io.druid.segment.column;
 import com.google.common.base.Preconditions;
 import io.druid.data.ValueDesc;
 import io.druid.segment.ColumnPartProvider;
+import io.druid.segment.data.BitSlicedBitmap;
 
 import java.util.Map;
 
@@ -39,7 +40,8 @@ public class ColumnBuilder
   private ColumnPartProvider<ComplexColumn> complexColumn = null;
   private ColumnPartProvider<BitmapIndex> bitmapIndex = null;
   private ColumnPartProvider<SpatialIndex> spatialIndex = null;
-  private ColumnPartProvider<MetricBitmap> metricBitmap = null;
+  private ColumnPartProvider<HistogramBitmap> metricBitmap = null;
+  private ColumnPartProvider<BitSlicedBitmap> bitSlicedBitmap = null;
   private ColumnPartProvider<LuceneIndex> luceneIndex = null;
 
   private Map<String, Object> stats;
@@ -105,9 +107,15 @@ public class ColumnBuilder
     return this;
   }
 
-  public ColumnBuilder setMetricBitmap(ColumnPartProvider<MetricBitmap> metricBitmap)
+  public ColumnBuilder setMetricBitmap(ColumnPartProvider<HistogramBitmap> metricBitmap)
   {
     this.metricBitmap = metricBitmap;
+    return this;
+  }
+
+  public ColumnBuilder setBitSlicedBitmap(ColumnPartProvider<BitSlicedBitmap> bitSlicedBitmap)
+  {
+    this.bitSlicedBitmap = bitSlicedBitmap;
     return this;
   }
 
@@ -144,6 +152,7 @@ public class ColumnBuilder
             .setDictionaryEncoded(dictionaryEncodedColumn != null)
             .setHasBitmapIndexes(bitmapIndex != null)
             .setHasMetricBitmap(metricBitmap != null)
+            .setHasBitSlicedBitmap(bitSlicedBitmap != null)
             .setHasLuceneIndex(luceneIndex != null)
             .setHasSpatialIndexes(spatialIndex != null)
             .setRunLengthEncoded(runLengthColumn != null)
@@ -156,6 +165,7 @@ public class ColumnBuilder
         bitmapIndex,
         spatialIndex,
         metricBitmap,
+        bitSlicedBitmap,
         luceneIndex,
         stats
     );

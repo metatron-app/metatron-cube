@@ -23,7 +23,7 @@ import com.google.common.collect.Range;
 
 /**
  */
-public interface MetricBitmap<T extends Comparable> extends ExternalBitmap<Range<T>>
+public interface HistogramBitmap<T extends Comparable> extends SecondaryIndex<Range<T>>
 {
   T getMin();
 
