@@ -23,8 +23,8 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Supplier;
 import com.google.common.base.Suppliers;
-import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
+import com.google.common.collect.Lists;
 import com.google.common.collect.MapDifference;
 import com.google.common.collect.MapDifference.ValueDifference;
 import com.google.common.collect.Maps;
@@ -52,7 +52,6 @@ import io.druid.segment.filter.Filters;
 import io.druid.segment.serde.ComplexMetricSerde;
 import io.druid.segment.serde.ComplexMetrics;
 import org.joda.time.DateTime;
-import org.python.google.common.collect.ImmutableMap;
 
 import java.util.EnumSet;
 import java.util.List;
@@ -156,7 +155,7 @@ public class RowResolver implements TypeResolver
   public static RowResolver outOf(Query.DimensionSupport<?> query)
   {
     Preconditions.checkArgument(!(query.getDataSource() instanceof ViewDataSource), "fix this");
-    List<AggregatorFactory> aggregatorFactories = ImmutableList.of();
+    List<AggregatorFactory> aggregatorFactories = Lists.newArrayList();
     if (query instanceof Query.AggregationsSupport) {
       aggregatorFactories = ((Query.AggregationsSupport<?>)query).getAggregatorSpecs();
     }
@@ -248,8 +247,8 @@ public class RowResolver implements TypeResolver
 
   private RowResolver(StorageAdapter adapter, VirtualColumns virtualColumns)
   {
-    this.dimensionNames = ImmutableList.copyOf(adapter.getAvailableDimensions());
-    this.metricNames = ImmutableList.copyOf(adapter.getAvailableMetrics());
+    this.dimensionNames = Lists.newArrayList(adapter.getAvailableDimensions());
+    this.metricNames = Lists.newArrayList(adapter.getAvailableMetrics());
     this.virtualColumns = virtualColumns;
     this.aggregators = AggregatorFactory.getAggregatorsFromMeta(adapter.getMetadata());
 
@@ -268,8 +267,8 @@ public class RowResolver implements TypeResolver
 
   private RowResolver(QueryableIndex index, VirtualColumns virtualColumns)
   {
-    this.dimensionNames = ImmutableList.copyOf(index.getAvailableDimensions());
-    this.metricNames = ImmutableList.copyOf(index.getAvailableMetrics());
+    this.dimensionNames = Lists.newArrayList(index.getAvailableDimensions());
+    this.metricNames = Lists.newArrayList(index.getAvailableMetrics());
     this.virtualColumns = virtualColumns;
     this.aggregators = AggregatorFactory.getAggregatorsFromMeta(index.getMetadata());
 
@@ -285,10 +284,10 @@ public class RowResolver implements TypeResolver
 
   private RowResolver(List<DimensionSpec> dimensions, List<AggregatorFactory> metrics, VirtualColumns virtualColumns)
   {
-    this.dimensionNames = ImmutableList.of();
-    this.metricNames = ImmutableList.of();
+    this.dimensionNames = Lists.newArrayList();
+    this.metricNames = Lists.newArrayList();
     this.virtualColumns = virtualColumns;
-    this.aggregators = ImmutableMap.of();
+    this.aggregators = Maps.newHashMap();
     for (DimensionSpec dimension : dimensions) {
       if (dimension.getExtractionFn() != null) {
         columnTypes.put(dimension.getOutputName(), ValueDesc.ofDimension(ValueType.STRING));
@@ -311,7 +310,7 @@ public class RowResolver implements TypeResolver
     this.dimensionNames = schema.getDimensionNames();
     this.metricNames = schema.getMetricNames();
     this.virtualColumns = virtualColumns;
-    this.aggregators = ImmutableMap.of();
+    this.aggregators = Maps.newHashMap();
     for (Pair<String, ValueDesc> pair : schema.columnAndTypes()) {
       columnTypes.put(pair.lhs, pair.rhs);
     }
@@ -322,9 +321,9 @@ public class RowResolver implements TypeResolver
   @VisibleForTesting
   public RowResolver(Map<String, ValueDesc> columnTypes, VirtualColumns virtualColumns)
   {
-    this.dimensionNames = ImmutableList.of();
-    this.metricNames = ImmutableList.of();
-    this.aggregators = ImmutableMap.of();
+    this.dimensionNames = Lists.newArrayList();
+    this.metricNames = Lists.newArrayList();
+    this.aggregators = Maps.newHashMap();
     this.virtualColumns = virtualColumns;
     this.columnTypes.putAll(columnTypes);
     for (Map.Entry<String, ValueDesc> entry : columnTypes.entrySet()) {

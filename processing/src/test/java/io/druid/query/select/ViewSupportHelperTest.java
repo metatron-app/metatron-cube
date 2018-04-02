@@ -45,7 +45,9 @@ import io.druid.segment.Capabilities;
 import io.druid.segment.Cursor;
 import io.druid.segment.ExprVirtualColumn;
 import io.druid.segment.Metadata;
+import io.druid.segment.Segment;
 import io.druid.segment.StorageAdapter;
+import io.druid.segment.StorageAdapterSegment;
 import io.druid.segment.VirtualColumn;
 import io.druid.segment.VirtualColumns;
 import io.druid.segment.column.ColumnCapabilities;
@@ -213,6 +215,18 @@ public class ViewSupportHelperTest
   private final VirtualColumn vc1 = new ExprVirtualColumn("met1 + met2", "vc1");
   private final VirtualColumn vc2 = new ExprVirtualColumn("met1 + met3", "vc2");
   private final VirtualColumn vc3 = new ExprVirtualColumn("met3 + met4", "vc3");
+
+  @Test
+  public void testRowResolverMerge()
+  {
+    Segment segment1 = new StorageAdapterSegment("id1", adapter);
+    Segment segment2 = new StorageAdapterSegment(
+        "id2", new TestStorageAdapter(Arrays.asList("dim1", "dim3"), Arrays.asList(met1, met2, met3))
+    );
+    RowResolver merged = RowResolver.of(Arrays.asList(segment1, segment2), VirtualColumns.empty());
+    Assert.assertEquals(Arrays.asList("dim1", "dim2", "dim3"), merged.getDimensionNames());
+    Assert.assertEquals(Arrays.asList("met1", "met2", "met3"), merged.getMetricNames());
+  }
 
   @Test
   public void testBasicOverrideGroupBy()

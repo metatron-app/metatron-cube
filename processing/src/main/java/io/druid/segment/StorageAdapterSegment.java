@@ -19,20 +19,49 @@
 
 package io.druid.segment;
 
-public abstract class AbstractSegment implements Segment
-{
-  protected volatile long lastAccessTime;
+import org.joda.time.Interval;
 
-  protected void accessed(boolean forQuery)
-  {
-    if (forQuery) {
-      lastAccessTime = System.currentTimeMillis();
-    }
+import java.io.IOException;
+
+/**
+ */
+public class StorageAdapterSegment extends AbstractSegment
+{
+  private final String identifier;
+  private final StorageAdapter adapter;
+
+  public StorageAdapterSegment(String identifier, StorageAdapter adapter) {
+    this.identifier = identifier;
+    this.adapter = adapter;
   }
 
   @Override
-  public long getLastAccessTime()
+  public String getIdentifier()
   {
-    return lastAccessTime;
+    return identifier;
+  }
+
+  @Override
+  public Interval getDataInterval()
+  {
+    return adapter.getInterval();
+  }
+
+  @Override
+  public QueryableIndex asQueryableIndex(boolean forQuery)
+  {
+    return null;
+  }
+
+  @Override
+  public StorageAdapter asStorageAdapter(boolean forQuery)
+  {
+    accessed(forQuery);
+    return adapter;
+  }
+
+  @Override
+  public void close() throws IOException
+  {
   }
 }
