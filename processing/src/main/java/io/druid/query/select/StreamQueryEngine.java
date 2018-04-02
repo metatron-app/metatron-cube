@@ -88,12 +88,12 @@ public class StreamQueryEngine
   )
   {
     Pair<Schema, Sequence<Object[]>> result = processRaw(query, segment, optimizer, cache);
+    List<Object[]> rows = Sequences.toList(result.rhs, Lists.<Object[]>newArrayList());
+    if (rows.isEmpty()) {
+      return Sequences.empty();
+    }
     DateTime start = segment.getDataInterval().getStart();
-    return Sequences.simple(
-        Arrays.asList(
-            new RawRows(start, result.lhs, Sequences.toList(result.rhs, Lists.<Object[]>newArrayList()))
-        )
-    );
+    return Sequences.simple(Arrays.asList(new RawRows(start, result.lhs, rows)));
   }
 
   public Pair<Schema, Sequence<Object[]>> processRaw(

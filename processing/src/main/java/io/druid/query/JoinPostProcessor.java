@@ -39,6 +39,7 @@ import com.metamx.common.logger.Logger;
 import io.druid.collections.LimitedArrayLit;
 import io.druid.data.input.MapBasedRow;
 import io.druid.guice.annotations.Processing;
+import io.druid.query.ordering.Comparators;
 import io.druid.segment.ObjectArray;
 import org.apache.commons.lang.mutable.MutableInt;
 import org.python.google.common.util.concurrent.Futures;
@@ -468,7 +469,7 @@ public class JoinPostProcessor extends PostProcessingOperator.UnionSupport
     public int compareTo(JoiningRow o)
     {
       for (int i = 0; i < joinKeys.length; i++) {
-        int compare = JoinPostProcessor.compare(joinKeys[i], o.joinKeys[i]);
+        int compare = Comparators.compareNF(joinKeys[i], o.joinKeys[i]);
         if (compare != 0) {
           return compare;
         }
@@ -614,7 +615,7 @@ public class JoinPostProcessor extends PostProcessingOperator.UnionSupport
       boolean next = false;
       while (!next && ++index < limit) {
         for (int i = peek.length - 1; i >= 0; i--) {
-          if (next || JoinPostProcessor.compare(peek[i], readL(i)) != 0) {
+          if (next || Comparators.compareNF(peek[i], readL(i)) != 0) {
             peek[i] = readL(i);
             next = true;
           }
@@ -629,7 +630,7 @@ public class JoinPostProcessor extends PostProcessingOperator.UnionSupport
     {
       final Comparable[] otherKey = other.peek;
       for (int i = 0; i < keyLength; i++) {
-        int compare = JoinPostProcessor.compare(peek[i], otherKey[i]);
+        int compare = Comparators.compareNF(peek[i], otherKey[i]);
         if (compare != 0) {
           return compare;
         }
@@ -681,24 +682,6 @@ public class JoinPostProcessor extends PostProcessingOperator.UnionSupport
       return input.source;
     }
   };
-
-  static final int LEFT_IS_GREATER = 1;
-  static final int RIGHT_IS_GREATER = -1;
-
-  @SuppressWarnings("unchecked")
-  private static int compare(Comparable d1, Comparable d2)
-  {
-    if (d1 == d2) {
-      return 0;
-    }
-    if (d1 == null) {
-      return RIGHT_IS_GREATER;
-    }
-    if (d2 == null) {
-      return LEFT_IS_GREATER;
-    }
-    return d1.compareTo(d2);
-  }
 
   private static class Hashed
   {

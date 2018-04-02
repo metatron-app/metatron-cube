@@ -26,8 +26,8 @@ import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import io.druid.common.guava.GuavaUtils;
-import io.druid.granularity.QueryGranularities;
 import io.druid.granularity.Granularity;
+import io.druid.granularity.QueryGranularities;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.PostAggregator;
 import io.druid.query.datasourcemetadata.DataSourceMetadataQuery;
@@ -1066,6 +1066,11 @@ public class Druids
 
     public StreamRawQuery streamingRaw()
     {
+      return streamingRaw(null);
+    }
+
+    public StreamRawQuery streamingRaw(List<String> sortOn)
+    {
       return new StreamRawQuery(
           dataSource,
           querySegmentSpec,
@@ -1075,6 +1080,7 @@ public class Druids
           metrics,
           virtualColumns,
           concatString,
+          sortOn,
           pagingSpec == null ? -1 : pagingSpec.getThreshold(),
           context
       );

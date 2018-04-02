@@ -60,7 +60,7 @@ public class DimensionSpecs
 
   public static List<Comparator> toComparator(List<DimensionSpec> dimensionSpecs)
   {
-    if (hasNoOrdering(dimensionSpecs)) {
+    if (isAllBasicOrdering(dimensionSpecs)) {
       return null;
     }
     List<Comparator> comparators = Lists.newArrayList();
@@ -80,12 +80,20 @@ public class DimensionSpecs
     return comparators;
   }
 
-  private static boolean hasNoOrdering(List<DimensionSpec> dimensionSpecs)
+  public static boolean isAllBasicOrdering(List<DimensionSpec> dimensionSpecs)
   {
     for (DimensionSpec dimensionSpec : dimensionSpecs) {
-      if (dimensionSpec instanceof DimensionSpecWithOrdering) {
+      if (!isBaseOrdering(dimensionSpec)) {
         return false;
       }
+    }
+    return true;
+  }
+
+  private static boolean isBaseOrdering(DimensionSpec dimensionSpec)
+  {
+    if (dimensionSpec instanceof DimensionSpecWithOrdering) {
+      return ((DimensionSpecWithOrdering) dimensionSpec).asOrderingSpec().isBasicOrdering();
     }
     return true;
   }

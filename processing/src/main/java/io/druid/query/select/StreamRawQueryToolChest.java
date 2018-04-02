@@ -22,26 +22,35 @@ package io.druid.query.select;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.google.common.base.Function;
 import com.google.common.base.Functions;
+import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+import com.google.common.primitives.Ints;
+import com.metamx.common.guava.Accumulator;
 import com.metamx.common.guava.Sequence;
 import com.metamx.common.guava.Sequences;
 import com.metamx.emitter.service.ServiceMetricEvent;
+import io.druid.common.SteppingSequence;
+import io.druid.common.guava.GuavaUtils;
 import io.druid.query.DruidMetrics;
 import io.druid.query.Query;
+import io.druid.query.QueryContextKeys;
 import io.druid.query.QueryRunner;
 import io.druid.query.QuerySegmentWalker;
 import io.druid.query.QueryToolChest;
 import io.druid.query.TabularFormat;
 import io.druid.query.aggregation.MetricManipulationFn;
+import io.druid.query.ordering.Comparators;
 import io.druid.query.spec.MultipleIntervalSegmentSpec;
 import io.druid.segment.Segment;
-import io.druid.segment.StorageAdapter;
+import org.joda.time.DateTime;
 import org.joda.time.Interval;
 
+import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.atomic.AtomicReference;
 
 /**
  */
@@ -62,11 +71,68 @@ public class StreamRawQueryToolChest extends QueryToolChest<RawRows, StreamRawQu
           Query<RawRows> query, Map<String, Object> responseContext
       )
       {
-        Sequence<RawRows> sequence = queryRunner.run(query, responseContext);
-        if (((StreamRawQuery)query).getLimit() > 0) {
-          sequence = Sequences.limit(sequence, ((StreamRawQuery)query).getLimit());
+        final boolean finalWork = query.getContextBoolean(QueryContextKeys.FINAL_WORK, true);
+        final StreamRawQuery stream = (StreamRawQuery) query.withOverriddenContext(QueryContextKeys.FINAL_WORK, false);
+
+        final int limit = stream.getLimit();
+        final List<String> sortOn = stream.getSortOn();
+        if (GuavaUtils.isNullOrEmpty(sortOn)) {
+          Sequence<RawRows> sequence = queryRunner.run(stream, responseContext);
+          if (limit > 0 && finalWork) {
+            return new SteppingSequence.Limit<RawRows>(sequence, limit)
+            {
+              @Override
+              protected void accumulating(RawRows in)
+              {
+                count += in.getRows().size();
+              }
+            };
+          }
+          return sequence;
         }
-        return sequence;
+
+        // remove limit.. sort whole
+        final Sequence<RawRows> sequence = queryRunner.run(stream.withLimit(-1), responseContext);
+
+        final AtomicReference<DateTime> dateTime = new AtomicReference<>();
+        final AtomicReference<Schema> schema = new AtomicReference<>();
+        List<Object[]> rows = sequence.accumulate(
+            Lists.<Object[]>newArrayList(), new Accumulator<List<Object[]>, RawRows>()
+            {
+              @Override
+              public List<Object[]> accumulate(List<Object[]> accumulated, RawRows in)
+              {
+                if (dateTime.get() == null || dateTime.get().compareTo(in.getTimestamp()) > 0) {
+                  dateTime.set(in.getTimestamp());
+                }
+                schema.compareAndSet(null, in.getSchema());   // should be the same (same, afaik)
+                accumulated.addAll(in.getRows());
+                return accumulated;
+              }
+            }
+        );
+        if (rows.isEmpty()) {
+          return Sequences.empty();
+        }
+        List<Integer> sortIndices = Lists.newArrayList();
+        List<String> columnNames = schema.get().getColumnNames();
+        for (String sortColumn : sortOn) {
+          int index = columnNames.indexOf(sortColumn);
+          if (index >= 0) {
+            sortIndices.add(index);
+          }
+        }
+        if (!sortIndices.isEmpty()) {
+          long start = System.currentTimeMillis();
+          Object[][] array = rows.toArray(new Object[rows.size()][]);
+          Arrays.parallelSort(array, Comparators.toArrayComparator(Ints.toArray(sortIndices)));
+          LOG.info("Sorted %,d rows in %,d msec", array.length, (System.currentTimeMillis() - start));
+          rows = Arrays.asList(array);
+        }
+        if (limit > 0 && rows.size() > limit) {
+          rows = rows.subList(0, limit);
+        }
+        return Sequences.simple(Arrays.asList(new RawRows(dateTime.get(), schema.get(), rows)));
       }
     };
   }

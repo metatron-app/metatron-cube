@@ -21,6 +21,7 @@ package io.druid.query.select;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
+import com.google.common.collect.ImmutableList;
 import io.druid.granularity.Granularity;
 import io.druid.query.DataSource;
 import io.druid.query.Query;
@@ -37,6 +38,7 @@ import java.util.Map;
 @JsonTypeName(Query.SELECT_STREAM_RAW)
 public class StreamRawQuery extends AbstractStreamQuery<RawRows>
 {
+  private final List<String> sortOn;
   public StreamRawQuery(
       @JsonProperty("dataSource") DataSource dataSource,
       @JsonProperty("intervals") QuerySegmentSpec querySegmentSpec,
@@ -46,6 +48,7 @@ public class StreamRawQuery extends AbstractStreamQuery<RawRows>
       @JsonProperty("metrics") List<String> metrics,
       @JsonProperty("virtualColumns") List<VirtualColumn> virtualColumns,
       @JsonProperty("concatString") String concatString,
+      @JsonProperty("sortOn") List<String> sortOn,
       @JsonProperty("limit") int limit,
       @JsonProperty("context") Map<String, Object> context
   )
@@ -62,12 +65,19 @@ public class StreamRawQuery extends AbstractStreamQuery<RawRows>
         limit,
         context
     );
+    this.sortOn = sortOn == null ? ImmutableList.<String>of() : sortOn;
   }
 
   @Override
   public String getType()
   {
     return SELECT_STREAM_RAW;
+  }
+
+  @JsonProperty
+  public List<String> getSortOn()
+  {
+    return sortOn;
   }
 
   @Override
@@ -82,6 +92,7 @@ public class StreamRawQuery extends AbstractStreamQuery<RawRows>
         getMetrics(),
         getVirtualColumns(),
         getConcatString(),
+        getSortOn(),
         getLimit(),
         getContext()
     );
@@ -99,6 +110,7 @@ public class StreamRawQuery extends AbstractStreamQuery<RawRows>
         getMetrics(),
         getVirtualColumns(),
         getConcatString(),
+        getSortOn(),
         getLimit(),
         getContext()
     );
@@ -116,6 +128,7 @@ public class StreamRawQuery extends AbstractStreamQuery<RawRows>
         getMetrics(),
         getVirtualColumns(),
         getConcatString(),
+        getSortOn(),
         getLimit(),
         computeOverridenContext(contextOverride)
     );
@@ -133,6 +146,7 @@ public class StreamRawQuery extends AbstractStreamQuery<RawRows>
         getMetrics(),
         getVirtualColumns(),
         getConcatString(),
+        getSortOn(),
         getLimit(),
         getContext()
     );
@@ -150,6 +164,7 @@ public class StreamRawQuery extends AbstractStreamQuery<RawRows>
         getMetrics(),
         getVirtualColumns(),
         getConcatString(),
+        getSortOn(),
         getLimit(),
         getContext()
     );
@@ -167,6 +182,7 @@ public class StreamRawQuery extends AbstractStreamQuery<RawRows>
         metrics,
         getVirtualColumns(),
         getConcatString(),
+        getSortOn(),
         getLimit(),
         getContext()
     );
@@ -184,7 +200,25 @@ public class StreamRawQuery extends AbstractStreamQuery<RawRows>
         getMetrics(),
         virtualColumns,
         getConcatString(),
+        getSortOn(),
         getLimit(),
+        getContext()
+    );
+  }
+
+  public StreamRawQuery withLimit(int limit)
+  {
+    return new StreamRawQuery(
+        getDataSource(),
+        getQuerySegmentSpec(),
+        getDimFilter(),
+        getGranularity(),
+        getDimensions(),
+        getMetrics(),
+        getVirtualColumns(),
+        getConcatString(),
+        getSortOn(),
+        limit,
         getContext()
     );
   }

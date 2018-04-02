@@ -20,12 +20,12 @@
 package io.druid.query.dimension;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.google.common.base.Preconditions;
 import io.druid.query.QueryCacheHelper;
 import io.druid.query.ordering.Direction;
 import io.druid.query.ordering.OrderingSpec;
 
 import java.nio.ByteBuffer;
+import java.util.Objects;
 
 /**
  * internal class only for group-by
@@ -45,7 +45,7 @@ public class DimensionSpecWithOrdering extends BaseFilteredDimensionSpec
   {
     super(delegate);
     this.direction = direction == null ? Direction.ASCENDING : direction;
-    this.ordering = Preconditions.checkNotNull(ordering, "'ordering' cannot be null");
+    this.ordering = ordering;
   }
 
   @JsonProperty
@@ -77,7 +77,7 @@ public class DimensionSpecWithOrdering extends BaseFilteredDimensionSpec
 
     DimensionSpecWithOrdering that = (DimensionSpecWithOrdering) o;
 
-    if (!ordering.equals(that.ordering)) {
+    if (!Objects.equals(ordering, that.ordering)) {
       return false;
     }
     if (direction != that.direction) {
@@ -91,8 +91,8 @@ public class DimensionSpecWithOrdering extends BaseFilteredDimensionSpec
   public int hashCode()
   {
     int result = super.hashCode();
-    result = 31 * result + direction.hashCode();
-    result = 31 * result + ordering.hashCode();
+    result = 31 * result + Objects.hashCode(direction);
+    result = 31 * result + Objects.hashCode(ordering);
     return result;
   }
 

@@ -33,8 +33,6 @@ import io.druid.common.utils.JodaUtils;
 import io.druid.data.TypeUtils;
 import io.druid.data.ValueDesc;
 import io.druid.data.ValueType;
-import io.druid.query.dimension.DimensionSpec;
-import io.druid.query.dimension.DimensionSpecWithOrdering;
 import io.netty.util.internal.StringUtil;
 import org.joda.time.DateTimeConstants;
 import org.joda.time.format.DateTimeFormatter;
@@ -653,7 +651,7 @@ public class StringComparators
     Comparator[] comparators = new Comparator[elements.size()];
     if (defaultOrdering) {
       Arrays.fill(comparators, Ordering.natural().nullsFirst());
-      return toStructComparator(comparators);
+      return Comparators.toArrayComparator(comparators);
     }
     Preconditions.checkArgument(elements.size() >= orderingSpecs.size(), "not matching number of elements");
     for (int i = 0; i < elements.size(); i++) {
@@ -669,24 +667,7 @@ public class StringComparators
         comparators[i] = elementType.comparator();
       }
     }
-    return toStructComparator(comparators);
-  }
-
-  private static Comparator toStructComparator(final Comparator[] cx)
-  {
-    return new Comparator<Object[]>()
-    {
-      @Override
-      @SuppressWarnings("unchecked")
-      public int compare(Object[] o1, Object[] o2)
-      {
-        int compare = 0;
-        for (int i = 0; compare == 0 && i < cx.length; i++) {
-          compare = cx[i].compare(o1[i], o2[i]);
-        }
-        return compare;
-      }
-    };
+    return Comparators.toArrayComparator(comparators);
   }
 
   public static StringComparator makeComparator(String type)
@@ -774,25 +755,5 @@ public class StringComparators
         }
         return null;
     }
-  }
-
-  public static String asComparatorName(char separator, List<DimensionSpec> dimensionSpecs)
-  {
-    StringBuilder builder = new StringBuilder();
-    for (DimensionSpec dimension : dimensionSpecs) {
-      if (builder.length() > 0) {
-        builder.append(',');
-      }
-      if (dimension instanceof DimensionSpecWithOrdering) {
-        DimensionSpecWithOrdering explicit = (DimensionSpecWithOrdering) dimension;
-        builder.append(explicit.getOrdering());
-        if (explicit.getDirection() == Direction.DESCENDING) {
-          builder.append(":desc");
-        }
-      } else {
-        builder.append("lexicographic");
-      }
-    }
-    return STRING_ARRAY_NAME + "(" + separator + "," + builder.toString() + ")";
   }
 }

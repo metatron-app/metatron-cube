@@ -36,6 +36,7 @@ import io.druid.query.RowResolver;
 import io.druid.query.RowSignature;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.AggregatorFactoryNotMergeableException;
+import io.druid.query.aggregation.RelayAggregatorFactory;
 import io.druid.query.dimension.DimensionSpec;
 import io.druid.segment.VirtualColumns;
 
@@ -159,7 +160,7 @@ public class Schema implements TypeResolver, RowSignature
         Lists.newArrayList(dimensionNames),
         GuavaUtils.concat(metricNames, EventHolder.timestampKey),
         GuavaUtils.concat(columnTypes, ValueDesc.LONG),
-        GuavaUtils.concat(aggregators, (AggregatorFactory) null)
+        GuavaUtils.concat(aggregators, RelayAggregatorFactory.ofTime())
     );
   }
 

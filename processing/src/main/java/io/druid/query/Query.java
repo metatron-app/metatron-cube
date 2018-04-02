@@ -126,6 +126,8 @@ public interface Query<T> extends QueryContextKeys
 
   Query<T> withOverriddenContext(Map<String, Object> contextOverride);
 
+  Query<T> withOverriddenContext(String contextKey, Object contextValue);
+
   Query<T> withQuerySegmentSpec(QuerySegmentSpec spec);
 
   Query<T> withId(String id);

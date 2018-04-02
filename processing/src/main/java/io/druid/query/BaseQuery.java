@@ -275,6 +275,7 @@ public abstract class BaseQuery<T> implements Query<T>
     return run(querySegmentSpec.lookup(this, walker), context);
   }
 
+  @Override
   public Sequence<T> run(QueryRunner<T> runner, Map<String, Object> context)
   {
     return runner.run(this, context);
@@ -335,6 +336,14 @@ public abstract class BaseQuery<T> implements Query<T>
     return PropUtils.parseInt(getContext(), key, defaultValue);
   }
 
+  @Override
+  public Query<T> withOverriddenContext(String contextKey, Object contextValue)
+  {
+    return withOverriddenContext(
+        ImmutableMap.of(Preconditions.checkNotNull(contextKey), Preconditions.checkNotNull(contextValue))
+    );
+  }
+
   public int getContextIntWithMax(String key, int defaultValue)
   {
     if (context != null && context.containsKey(key)) {
@@ -359,11 +368,6 @@ public abstract class BaseQuery<T> implements Query<T>
       }
     }
     return builder.toString();
-  }
-
-  public Query<T> withOverriddenContext(String key, Object value)
-  {
-    return withOverriddenContext(ImmutableMap.of(Preconditions.checkNotNull(key), Preconditions.checkNotNull(value)));
   }
 
   public static Map<String, Object> removeContext(String... keys)

@@ -857,6 +857,7 @@ public class DruidQuery
         null,
         null,
         null,
+        null,
         Ints.checkedCast(scanLimit),
         ImmutableSortedMap.copyOf(plannerContext.getQueryContext())
     );

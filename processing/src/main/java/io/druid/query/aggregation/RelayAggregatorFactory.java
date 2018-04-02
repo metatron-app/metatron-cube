@@ -22,7 +22,9 @@ package io.druid.query.aggregation;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;
+import io.druid.data.ValueDesc;
 import io.druid.segment.ColumnSelectorFactory;
+import io.druid.segment.column.Column;
 
 import java.util.Arrays;
 import java.util.Comparator;
@@ -32,6 +34,11 @@ import java.util.List;
  */
 public class RelayAggregatorFactory extends AggregatorFactory
 {
+  public static AggregatorFactory ofTime()
+  {
+    return new RelayAggregatorFactory(Column.TIME_COLUMN_NAME, Column.TIME_COLUMN_NAME, ValueDesc.LONG_TYPE);
+  }
+
   private final String name;
   private final String columnName;
   private final String typeName;

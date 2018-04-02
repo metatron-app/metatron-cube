@@ -24,6 +24,7 @@ import io.druid.common.utils.StringUtils;
 import io.druid.data.ValueDesc;
 
 import java.util.Comparator;
+import java.util.List;
 
 /**
  */
@@ -60,5 +61,63 @@ public class Comparators
       return defaultValue;
     }
     return comparator;
+  }
+
+  public static Comparator<Object[]> toArrayComparator(List<Comparator> comparators)
+  {
+    return toArrayComparator(comparators.toArray(new Comparator[comparators.size()]));
+  }
+
+  public static Comparator<Object[]> toArrayComparator(final Comparator[] cx)
+  {
+    return new Comparator<Object[]>()
+    {
+      @Override
+      @SuppressWarnings("unchecked")
+      public int compare(Object[] o1, Object[] o2)
+      {
+        int compare = 0;
+        for (int i = 0; compare == 0 && i < cx.length; i++) {
+          compare = cx[i].compare(o1[i], o2[i]);
+        }
+        return compare;
+      }
+    };
+  }
+
+  public static Comparator<Object[]> toArrayComparator(final int[] indices)
+  {
+    return new Comparator<Object[]>()
+    {
+      @Override
+      @SuppressWarnings("unchecked")
+      public int compare(Object[] o1, Object[] o2)
+      {
+        int compare = 0;
+        for (int i = 0; compare == 0 && i < indices.length; i++) {
+          compare = compareNF((Comparable) o1[indices[i]], (Comparable) o2[indices[i]]);
+        }
+        return compare;
+      }
+    };
+  }
+
+  // from com.google.common.collect.NullsFirstOrdering
+  private static final int RIGHT_IS_GREATER = -1;
+  private static final int LEFT_IS_GREATER = 1;
+
+  @SuppressWarnings("unchecked")
+  public static int compareNF(Comparable d1, Comparable d2)
+  {
+    if (d1 == d2) {
+      return 0;
+    }
+    if (d1 == null) {
+      return RIGHT_IS_GREATER;
+    }
+    if (d2 == null) {
+      return LEFT_IS_GREATER;
+    }
+    return d1.compareTo(d2);
   }
 }
