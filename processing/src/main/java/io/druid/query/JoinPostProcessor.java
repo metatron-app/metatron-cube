@@ -30,6 +30,7 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.SettableFuture;
 import com.metamx.common.Pair;
 import com.metamx.common.guava.Accumulator;
@@ -42,7 +43,6 @@ import io.druid.guice.annotations.Processing;
 import io.druid.query.ordering.Comparators;
 import io.druid.segment.ObjectArray;
 import org.apache.commons.lang.mutable.MutableInt;
-import org.python.google.common.util.concurrent.Futures;
 
 import java.util.Arrays;
 import java.util.Collections;

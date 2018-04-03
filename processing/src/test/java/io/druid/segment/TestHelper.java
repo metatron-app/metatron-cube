@@ -26,6 +26,7 @@ import com.google.common.base.Preconditions;
 import com.google.common.base.Supplier;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+import com.google.common.primitives.Doubles;
 import com.metamx.common.guava.Sequence;
 import com.metamx.common.guava.Sequences;
 import io.druid.collections.StupidPool;
@@ -40,7 +41,6 @@ import io.druid.query.topn.TopNQueryEngine;
 import io.druid.segment.column.Column;
 import org.joda.time.DateTime;
 import org.junit.Assert;
-import org.python.google.common.primitives.Doubles;
 
 import java.lang.reflect.Array;
 import java.nio.ByteBuffer;

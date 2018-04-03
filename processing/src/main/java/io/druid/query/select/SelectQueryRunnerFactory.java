@@ -22,6 +22,7 @@ package io.druid.query.select;
 import com.google.common.base.Supplier;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
+import com.google.common.util.concurrent.Futures;
 import com.google.inject.Inject;
 import com.metamx.common.ISE;
 import com.metamx.common.guava.Sequence;
@@ -40,7 +41,6 @@ import io.druid.query.Result;
 import io.druid.query.RowResolver;
 import io.druid.query.spec.MultipleIntervalSegmentSpec;
 import io.druid.segment.Segment;
-import org.python.google.common.util.concurrent.Futures;
 
 import java.util.Arrays;
 import java.util.List;
