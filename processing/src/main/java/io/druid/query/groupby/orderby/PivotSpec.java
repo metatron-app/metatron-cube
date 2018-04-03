@@ -35,8 +35,8 @@ import io.druid.data.input.MapBasedRow;
 import io.druid.data.input.Row;
 import io.druid.math.expr.Evals;
 import io.druid.math.expr.Expr;
-import io.druid.math.expr.ExprType;
 import io.druid.query.QueryCacheHelper;
+import io.druid.query.RowResolver;
 import io.druid.query.filter.DimFilterCacheHelper;
 import io.druid.query.groupby.orderby.WindowContext.Evaluator;
 import io.druid.query.groupby.orderby.WindowingSpec.PartitionEvaluator;
@@ -407,7 +407,7 @@ next:
           Object newValue = entry.getValue();
           event.put(newKey, newValue);
           if (newValue != null) {
-            context.addType(newKey, ExprType.typeOf(newValue.getClass()));
+            context.addType(newKey, RowResolver.toValueType(newValue));
           }
         }
         Expr.NumericBinding binding = WindowingSpec.withMap(event);

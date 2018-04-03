@@ -21,10 +21,6 @@ package io.druid.math.expr;
 
 import com.google.common.base.Strings;
 import io.druid.data.ValueDesc;
-import org.joda.time.DateTime;
-
-import java.math.BigDecimal;
-import java.util.Map;
 
 /**
  */
@@ -47,52 +43,7 @@ public class ExprType
       case "LONG":
       case "BIGINT":
         return ValueDesc.LONG;
-      case "DATETIME":
-        return ValueDesc.DATETIME;
-      case "STRING":
-        return ValueDesc.STRING;
-      default:
-        return ValueDesc.of(name);
     }
-  }
-
-  public static ValueDesc typeOf(Class clazz)
-  {
-    if (clazz == String.class) {
-      return ValueDesc.STRING;
-    }
-    if (clazz == Long.TYPE || clazz == Long.class) {
-      return ValueDesc.LONG;
-    }
-    if (clazz == Float.TYPE || clazz == Float.class) {
-      return ValueDesc.FLOAT;
-    }
-    if (clazz == Double.TYPE || clazz == Double.class) {
-      return ValueDesc.DOUBLE;
-    }
-    if (clazz == DateTime.class) {
-      return ValueDesc.DATETIME;
-    }
-    if (clazz == BigDecimal.class) {
-      return ValueDesc.DECIMAL;
-    }
-    if (clazz == Map.class) {
-      return ValueDesc.MAP;
-    }
-    return ValueDesc.UNKNOWN;
-  }
-
-  public static Class asClass(ValueDesc valueDesc)
-  {
-    if (valueDesc.isPrimitive()) {
-      return valueDesc.type().classOfObject();
-    }
-    if (ValueDesc.isDecimal(valueDesc)) {
-      return BigDecimal.class;
-    }
-    if (ValueDesc.isMap(valueDesc)) {
-      return Map.class;
-    }
-    return Object.class;
+    return ValueDesc.of(name);
   }
 }

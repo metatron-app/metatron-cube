@@ -53,6 +53,7 @@ import io.druid.segment.serde.ComplexMetricSerde;
 import io.druid.segment.serde.ComplexMetrics;
 import org.joda.time.DateTime;
 
+import java.math.BigDecimal;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.Map;
@@ -163,9 +164,8 @@ public class RowResolver implements TypeResolver
     return new RowResolver(query.getDimensions(), aggregatorFactories, vcs);
   }
 
-  public static Class<?> toClass(String typeName)
+  public static Class<?> toClass(ValueDesc valueDesc)
   {
-    ValueDesc valueDesc = ValueDesc.of(typeName);
     switch (valueDesc.type()) {
       case STRING:
         return String.class;
@@ -178,6 +178,7 @@ public class RowResolver implements TypeResolver
       case DATETIME:
         return DateTime.class;
     }
+    String typeName = valueDesc.typeName();
     switch (typeName.toLowerCase()) {
       case ValueDesc.MAP_TYPE:
         return Map.class;
@@ -217,6 +218,8 @@ public class RowResolver implements TypeResolver
       return ValueDesc.LONG;
     } else if (clazz == DateTime.class) {
       return ValueDesc.DATETIME;
+    } else if (clazz == BigDecimal.class) {
+      return ValueDesc.DECIMAL;
     } else if (Map.class.isAssignableFrom(clazz)) {
       return ValueDesc.MAP;
     } else if (List.class.isAssignableFrom(clazz)) {

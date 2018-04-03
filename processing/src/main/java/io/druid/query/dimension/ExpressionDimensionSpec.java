@@ -27,8 +27,8 @@ import com.metamx.common.StringUtils;
 import io.druid.data.TypeResolver;
 import io.druid.data.ValueDesc;
 import io.druid.math.expr.Expr;
-import io.druid.math.expr.ExprType;
 import io.druid.math.expr.Parser;
+import io.druid.query.RowResolver;
 import io.druid.query.extraction.ExtractionFn;
 import io.druid.segment.DimensionSelector;
 import io.druid.segment.data.IndexedInts;
@@ -108,7 +108,7 @@ public class ExpressionDimensionSpec implements DimensionSpec
     );
     final Expr expr = Parser.parse(expression);
     final ValueDesc resultType = expr.type(bindings);
-    if (!Comparable.class.isAssignableFrom(ExprType.asClass(resultType))) {
+    if (!Comparable.class.isAssignableFrom(RowResolver.toClass(resultType))) {
       throw new IllegalArgumentException("cannot wrap as dimension selector for type " + resultType);
     }
     return new DimensionSelector()
