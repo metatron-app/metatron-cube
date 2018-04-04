@@ -22,12 +22,14 @@ package io.druid.query.select;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Maps;
 import io.druid.granularity.Granularity;
 import io.druid.query.DataSource;
 import io.druid.query.Query;
 import io.druid.query.dimension.DimensionSpec;
 import io.druid.query.filter.DimFilter;
 import io.druid.query.spec.QuerySegmentSpec;
+import io.druid.query.timeseries.TimeseriesQuery;
 import io.druid.segment.VirtualColumn;
 
 import java.util.List;
@@ -220,6 +222,26 @@ public class StreamRawQuery extends AbstractStreamQuery<RawRows>
         getSortOn(),
         limit,
         getContext()
+    );
+  }
+
+
+  public TimeseriesQuery asTimeseriesQuery()
+  {
+    return new TimeseriesQuery(
+        getDataSource(),
+        getQuerySegmentSpec(),
+        isDescending(),
+        getDimFilter(),
+        getGranularity(),
+        getVirtualColumns(),
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        Maps.<String, Object>newHashMap(getContext())
     );
   }
 }

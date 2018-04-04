@@ -19,24 +19,34 @@
 
 package io.druid.query.select;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Function;
 import com.google.common.base.Supplier;
 import com.google.common.collect.Iterables;
+import com.google.common.collect.Lists;
 import com.google.common.util.concurrent.Futures;
 import com.google.inject.Inject;
 import com.metamx.common.guava.LazySequence;
 import com.metamx.common.guava.Sequence;
 import com.metamx.common.guava.Sequences;
+import com.metamx.common.logger.Logger;
 import io.druid.cache.BitmapCache;
 import io.druid.cache.Cache;
+import io.druid.common.guava.GuavaUtils;
+import io.druid.query.Queries;
 import io.druid.query.Query;
 import io.druid.query.QueryRunner;
 import io.druid.query.QueryRunnerFactory;
+import io.druid.query.QuerySegmentWalker;
 import io.druid.query.QueryToolChest;
 import io.druid.query.RowResolver;
+import io.druid.query.dimension.DefaultDimensionSpec;
+import io.druid.query.filter.BoundDimFilter;
+import io.druid.query.filter.DimFilters;
 import io.druid.segment.Segment;
 import org.apache.commons.lang.mutable.MutableInt;
 
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutorService;
@@ -45,8 +55,10 @@ import java.util.concurrent.Future;
 /**
  */
 public class StreamRawQueryRunnerFactory
-    implements QueryRunnerFactory<RawRows, StreamRawQuery>
+    implements QueryRunnerFactory.Splitable<RawRows, StreamRawQuery>
 {
+  private static final Logger logger = new Logger(StreamRawQueryRunnerFactory.class);
+
   private final StreamRawQueryToolChest toolChest;
   private final StreamQueryEngine engine;
 
@@ -76,6 +88,52 @@ public class StreamRawQueryRunnerFactory
   )
   {
     return Futures.<Object>immediateFuture(new MutableInt(0));
+  }
+
+  @Override
+  public Iterable<StreamRawQuery> splitQuery(
+      StreamRawQuery query,
+      List<Segment> segments,
+      Future<Object> optimizer,
+      Supplier<RowResolver> resolver,
+      QuerySegmentWalker segmentWalker,
+      ObjectMapper mapper
+  )
+  {
+    int numSplit = query.getContextInt(Query.RAW_LOCAL_SPLIT_NUM, 5);
+    if (GuavaUtils.isNullOrEmpty(query.getSortOn()) || numSplit < 2) {
+      return Arrays.asList(query);
+    }
+    String sortColumn = query.getSortOn().get(0);
+    final Object[] values = Queries.makeColumnHistogramOn(
+        resolver,
+        segmentWalker,
+        mapper,
+        query.asTimeseriesQuery(),
+        DefaultDimensionSpec.of(sortColumn),
+        numSplit
+    );
+    if (values == null) {
+      return Arrays.asList(query);
+    }
+    logger.info("--> values : %s", Arrays.toString(values));
+
+    List<StreamRawQuery> splits = Lists.newArrayList();
+    for (int i = 1; i < values.length; i++) {
+      BoundDimFilter filter;
+      if (i == 1) {
+        filter = BoundDimFilter.lt(sortColumn, values[i]);
+      } else if (i < values.length - 1) {
+        filter = BoundDimFilter.between(sortColumn, values[i - 1], values[i]);
+      } else {
+        filter = BoundDimFilter.gte(sortColumn, values[i - 1]);
+      }
+      logger.info("--> filter : %s ", filter);
+      splits.add(
+          query.withDimFilter(DimFilters.and(query.getDimFilter(), filter))
+      );
+    }
+    return splits;
   }
 
   @Override

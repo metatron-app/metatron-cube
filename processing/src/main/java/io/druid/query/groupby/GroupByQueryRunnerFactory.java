@@ -142,11 +142,16 @@ public class GroupByQueryRunnerFactory implements QueryRunnerFactory.Splitable<R
     if (numSplit < 2) {
       return Arrays.asList(query);
     }
-    final Object[] values = Queries.getColumnHistogramOfFirstDimension(
+    List<DimensionSpec> dimensionSpecs = query.getDimensions();
+    if (dimensionSpecs.isEmpty()) {
+      return Arrays.asList(query);
+    }
+    final Object[] values = Queries.makeColumnHistogramOn(
         resolver,
         segmentWalker,
         mapper,
-        query,
+        query.asTimeseriesQuery(),
+        dimensionSpecs.get(0),
         numSplit
     );
     if (values == null) {

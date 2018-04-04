@@ -40,6 +40,8 @@ public interface QueryContextKeys
   public static final String GBY_REMOVE_ORDERING = "groupByRemoveOrdering";
   public static final String GBY_LOCAL_SPLIT_NUM = "groupByLocalSplitNum";
 
+  public static final String RAW_LOCAL_SPLIT_NUM = "rawLocalSplitNum";
+
   // CacheConfig
   public static final String USE_CACHE = "useCache";
   public static final String POPULATE_CACHE = "populateCache";

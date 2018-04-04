@@ -26,6 +26,7 @@ import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
 import com.google.common.collect.Ordering;
 import com.google.common.primitives.Longs;
 import io.druid.common.guava.GuavaUtils;
@@ -54,6 +55,7 @@ import io.druid.query.groupby.orderby.LimitSpecs;
 import io.druid.query.groupby.orderby.OrderByColumnSpec;
 import io.druid.query.groupby.orderby.WindowingSpec;
 import io.druid.query.spec.QuerySegmentSpec;
+import io.druid.query.timeseries.TimeseriesQuery;
 import io.druid.segment.VirtualColumn;
 
 import java.util.Comparator;
@@ -601,6 +603,25 @@ public class GroupByQuery extends BaseAggregationQuery<Row> implements Query.Rew
             return 0;
           }
         }
+    );
+  }
+
+  public TimeseriesQuery asTimeseriesQuery()
+  {
+    return new TimeseriesQuery(
+        getDataSource(),
+        getQuerySegmentSpec(),
+        isDescending(),
+        dimFilter,
+        granularity,
+        virtualColumns,
+        aggregatorSpecs,
+        postAggregatorSpecs,
+        havingSpec,
+        limitSpec,
+        outputColumns,
+        lateralView,
+        Maps.<String, Object>newHashMap(getContext())
     );
   }
 }

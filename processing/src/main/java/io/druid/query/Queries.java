@@ -388,34 +388,27 @@ public class Queries
 
   private static final String DUMMY_VC = "$VC";
 
-  public static Object[] getColumnHistogramOfFirstDimension(
+  public static Object[] makeColumnHistogramOn(
       Supplier<RowResolver> supplier,
       QuerySegmentWalker segmentWalker,
       ObjectMapper jsonMapper,
-      GroupByQuery query,
+      TimeseriesQuery metaQuery,
+      DimensionSpec dimensionSpec,
       int numSplits
   )
   {
-    if (query.getDimensions().isEmpty() || !Granularities.ALL.equals(query.getGranularity())) {
+    if (!Granularities.ALL.equals(metaQuery.getGranularity())) {
       return null;
     }
-    List<VirtualColumn> virtualColumns = Lists.newArrayList(query.getVirtualColumns());
-    List<OrderingSpec> orderingSpecs = Lists.newArrayList();
-
-    RowResolver resolver = supplier.get();
-    DimensionSpec dimensionSpec = query.getDimensions().get(0);
-    if (dimensionSpec instanceof DefaultDimensionSpec) {
-      if (resolver.resolveColumn(dimensionSpec.getDimension()).isDimension()) {
-
-      }
-    }
-    ValueDesc type = dimensionSpec.resolveType(resolver);
+    ValueDesc type = dimensionSpec.resolveType(supplier.get());
     if (type.isDimension()) {
       type = ValueDesc.STRING;
     }
     if (!type.isPrimitive()) {
       return null;  // todo
     }
+    List<OrderingSpec> orderingSpecs = Lists.newArrayList();
+    List<VirtualColumn> virtualColumns = Lists.newArrayList(metaQuery.getVirtualColumns());
     String fieldName = dimensionSpec.getDimension();
     if (dimensionSpec instanceof DimensionSpecWithOrdering) {
       DimensionSpecWithOrdering explicit = (DimensionSpecWithOrdering) dimensionSpec;
@@ -445,27 +438,14 @@ public class Queries
                                          .put("slopedSpaced", numSplits + 1)
                                          .build();
 
-    Map<String, Object> context = Maps.<String, Object>newHashMap(query.getContext());
-    context.put(Query.LOCAL_POST_PROCESSING, true);
-
     AggregatorFactory aggregator = Queries.convert(ag, jsonMapper, AggregatorFactory.class);
     PostAggregator postAggregator = Queries.convert(pg, jsonMapper, PostAggregator.class);
 
-    TimeseriesQuery metaQuery = new TimeseriesQuery(
-        query.getDataSource(),
-        query.getQuerySegmentSpec(),
-        query.isDescending(),
-        query.getDimFilter(),
-        query.getGranularity(),
-        virtualColumns,
-        Arrays.asList(aggregator),
-        Arrays.asList(postAggregator),
-        null,
-        null,
-        Arrays.asList("SPLIT"),
-        null,
-        context
-    );
+    metaQuery = (TimeseriesQuery) metaQuery.withAggregatorSpecs(Arrays.asList(aggregator))
+                                           .withPostAggregatorSpecs(Arrays.asList(postAggregator))
+                                           .withOutputColumns(Arrays.asList("SPLIT"))
+                                           .withOverriddenContext(Query.LOCAL_POST_PROCESSING, true);
+
     Result<TimeseriesResultValue> result = Iterables.getOnlyElement(
         Sequences.toList(
             metaQuery.run(segmentWalker, Maps.<String, Object>newHashMap()),
