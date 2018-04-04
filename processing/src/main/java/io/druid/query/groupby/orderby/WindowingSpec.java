@@ -103,7 +103,7 @@ public class WindowingSpec implements Cacheable
 
   public WindowingSpec withoutOrdering()
   {
-    return new WindowingSpec(null, null, expressions, flattenSpec, pivotSpec);
+    return new WindowingSpec(partitionColumns, null, expressions, flattenSpec, pivotSpec);
   }
 
   @JsonProperty

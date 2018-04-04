@@ -562,45 +562,29 @@ public class GroupByQuery extends BaseAggregationQuery<Row> implements Query.Rew
     );
   }
 
+  @SuppressWarnings("unchecked")
   Ordering<Row> getRowOrdering()
   {
-    final String[] outputNames = new String[dimensions.size()];
-    for (int i = 0; i < outputNames.length; i++) {
-      outputNames[i] = dimensions.get(i).getOutputName();
-    }
-    return getRowOrdering(outputNames);
-  }
+    final String[] outputNames = DimensionSpecs.toOutputNamesAsArray(dimensions);
+    final Comparator[] comparators = DimensionSpecs.toComparatorWithDefault(dimensions);
 
-  static final Comparator<Object> naturalNullsFirst = GuavaUtils.nullFirstNatural();
-
-  static Ordering<Row> getRowOrdering(final String[] outputNames)
-  {
     return Ordering.from(
         new Comparator<Row>()
         {
           @Override
           public int compare(Row lhs, Row rhs)
           {
-            final int timeCompare = Longs.compare(
+            int compare = Longs.compare(
                 lhs.getTimestampFromEpoch(),
                 rhs.getTimestampFromEpoch()
             );
-
-            if (timeCompare != 0) {
-              return timeCompare;
-            }
-
-            for (String outputName : outputNames) {
-              final int dimCompare = naturalNullsFirst.compare(
-                  lhs.getRaw(outputName),
-                  rhs.getRaw(outputName)
+            for (int i = 0; compare == 0 && i < outputNames.length; i++) {
+              compare = comparators[i].compare(
+                  lhs.getRaw(outputNames[i]),
+                  rhs.getRaw(outputNames[i])
               );
-              if (dimCompare != 0) {
-                return dimCompare;
-              }
             }
-
-            return 0;
+            return compare;
           }
         }
     );

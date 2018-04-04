@@ -80,11 +80,10 @@ public class SimpleMergeIndex implements MergeIndex
     for (int i = 0; i < selectors.length; i++) {
       selectors[i] = new Caching(new FromInputRow(rowSupplier, metrics[i], false)).asReadOnly(metrics[i]);
     }
-    List<Comparator> comparators = DimensionSpecs.toComparator(dimensions);
+    final Comparator[] comparators = DimensionSpecs.toComparator(dimensions);
     if (comparators == null) {
       this.comparator = null;
     } else {
-      final Comparator[] array = comparators.toArray(new Comparator[comparators.size()]);
       this.comparator = new Comparator<TimeAndDims>()
       {
         @Override
@@ -92,8 +91,8 @@ public class SimpleMergeIndex implements MergeIndex
         public int compare(TimeAndDims o1, TimeAndDims o2)
         {
           int compare = Longs.compare(o1.timestamp, o2.timestamp);
-          for (int i = 0; compare == 0 && i < array.length; i++) {
-            compare = array[i].compare(o1.array[i], o2.array[i]);
+          for (int i = 0; compare == 0 && i < comparators.length; i++) {
+            compare = comparators[i].compare(o1.array[i], o2.array[i]);
           }
           return compare;
         }

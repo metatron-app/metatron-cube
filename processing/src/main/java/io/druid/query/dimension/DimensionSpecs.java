@@ -23,6 +23,7 @@ import com.google.common.base.Function;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Ordering;
+import io.druid.common.guava.GuavaUtils;
 import io.druid.data.ValueDesc;
 import io.druid.query.Query;
 import io.druid.query.RowResolver;
@@ -31,6 +32,7 @@ import io.druid.query.ordering.Direction;
 import io.druid.query.ordering.OrderingSpec;
 import io.druid.query.ordering.StringComparators;
 
+import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
 
@@ -48,6 +50,11 @@ public class DimensionSpecs
     return Lists.newArrayList(Iterables.transform(dimensionSpecs, OUTPUT_NAME));
   }
 
+  public static String[] toOutputNamesAsArray(List<DimensionSpec> dimensionSpecs)
+  {
+    return toOutputNames(dimensionSpecs).toArray(new String[dimensionSpecs.size()]);
+  }
+
   public static List<ValueDesc> toOutputTypes(Query.DimensionSupport<?> query)
   {
     RowResolver resolver = RowResolver.outOf(query);
@@ -58,9 +65,9 @@ public class DimensionSpecs
     return dimensionTypes;
   }
 
-  public static List<Comparator> toComparator(List<DimensionSpec> dimensionSpecs)
+  public static Comparator[] toComparator(List<DimensionSpec> dimensionSpecs)
   {
-    if (isAllBasicOrdering(dimensionSpecs)) {
+    if (isAllDefaultOrdering(dimensionSpecs)) {
       return null;
     }
     List<Comparator> comparators = Lists.newArrayList();
@@ -77,20 +84,30 @@ public class DimensionSpecs
       }
       comparators.add(comparator);
     }
+    return comparators.toArray(new Comparator[comparators.size()]);
+  }
+
+  public static Comparator[] toComparatorWithDefault(List<DimensionSpec> dimensionSpecs)
+  {
+    Comparator[] comparators = toComparator(dimensionSpecs);
+    if (comparators == null) {
+      comparators = new Comparator[dimensionSpecs.size()];
+      Arrays.fill(comparators, GuavaUtils.nullFirstNatural());
+    }
     return comparators;
   }
 
-  public static boolean isAllBasicOrdering(List<DimensionSpec> dimensionSpecs)
+  private static boolean isAllDefaultOrdering(List<DimensionSpec> dimensionSpecs)
   {
     for (DimensionSpec dimensionSpec : dimensionSpecs) {
-      if (!isBaseOrdering(dimensionSpec)) {
+      if (!isDefaultOrdering(dimensionSpec)) {
         return false;
       }
     }
     return true;
   }
 
-  private static boolean isBaseOrdering(DimensionSpec dimensionSpec)
+  private static boolean isDefaultOrdering(DimensionSpec dimensionSpec)
   {
     if (dimensionSpec instanceof DimensionSpecWithOrdering) {
       return ((DimensionSpecWithOrdering) dimensionSpec).asOrderingSpec().isBasicOrdering();
