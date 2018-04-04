@@ -68,7 +68,7 @@ public class LatLonPointIndexingStrategy implements LuceneIndexingStrategy
   }
 
   @Override
-  public Function<Object, Field> createIndexableField(ValueDesc type)
+  public Function<Object, Field[]> createIndexableField(ValueDesc type)
   {
     Preconditions.checkArgument(type.isStruct(), "only struct type can be used");
     StructMetricSerde serde = (StructMetricSerde) Preconditions.checkNotNull(ComplexMetrics.getSerdeForType(type));
@@ -86,17 +86,19 @@ public class LatLonPointIndexingStrategy implements LuceneIndexingStrategy
         serde.type(indexLon).isNumeric(),
         "invalid field type " + serde.type(indexLon) + " for " + longitude
     );
-    return new Function<Object, Field>()
+    return new Function<Object, Field[]>()
     {
       @Override
-      public Field apply(Object input)
+      public Field[] apply(Object input)
       {
         Object[] struct = (Object[]) input;
-        return new LatLonPoint(
-            fieldName,
-            ((Number) struct[indexLat]).doubleValue(),
-            ((Number) struct[indexLon]).doubleValue()
-        );
+        return new Field[]{
+            new LatLonPoint(
+                fieldName,
+                ((Number) struct[indexLat]).doubleValue(),
+                ((Number) struct[indexLon]).doubleValue()
+            )
+        };
       }
     };
   }

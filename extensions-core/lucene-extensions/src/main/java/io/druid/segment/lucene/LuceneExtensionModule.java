@@ -19,20 +19,28 @@
 
 package io.druid.segment.lucene;
 
-import com.fasterxml.jackson.annotation.JsonSubTypes;
-import com.fasterxml.jackson.annotation.JsonTypeInfo;
-import com.google.common.base.Function;
-import io.druid.data.ValueDesc;
-import org.apache.lucene.document.Field;
+import com.fasterxml.jackson.databind.module.SimpleModule;
+import com.google.common.collect.ImmutableList;
+import com.google.inject.Binder;
+import io.druid.initialization.DruidModule;
+import io.druid.query.filter.LuceneSpatialFilter;
 
-/**
- */
-@JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type")
-@JsonSubTypes(value = {
-    @JsonSubTypes.Type(name = "text", value = TextIndexingStrategy.class),
-    @JsonSubTypes.Type(name = "latlon", value = LatLonPointIndexingStrategy.class)
-})
-public interface LuceneIndexingStrategy
+import java.util.List;
+
+public class LuceneExtensionModule implements DruidModule
 {
-  Function<Object, Field[]> createIndexableField(ValueDesc type);
+  @Override
+  public List<? extends com.fasterxml.jackson.databind.Module> getJacksonModules()
+  {
+    return ImmutableList.of(
+        new SimpleModule("lucene-extension")
+            .registerSubtypes(SpatialIndexingStrategy.class)
+            .registerSubtypes(LuceneSpatialFilter.class)
+    );
+  }
+
+  @Override
+  public void configure(Binder binder)
+  {
+  }
 }

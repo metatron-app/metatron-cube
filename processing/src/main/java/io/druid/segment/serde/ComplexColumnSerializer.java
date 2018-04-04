@@ -30,7 +30,6 @@ import com.metamx.collections.bitmap.BitmapFactory;
 import com.metamx.collections.bitmap.ImmutableBitmap;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.data.ValueDesc;
-import io.druid.data.ValueType;
 import io.druid.segment.ColumnPartProvider;
 import io.druid.segment.GenericColumnSerializer;
 import io.druid.segment.column.ColumnBuilder;
@@ -76,7 +75,7 @@ public class ComplexColumnSerializer implements GenericColumnSerializer, ColumnP
   private String maxValue;
   private int numNulls;
 
-  private final List<Function<Object, Field>> fieldGenerators;
+  private final List<Function<Object, Field[]>> fieldGenerators;
   private final IndexWriter luceneIndexer;
 
   private GenericIndexedWriter writer;
@@ -91,18 +90,9 @@ public class ComplexColumnSerializer implements GenericColumnSerializer, ColumnP
     this.ioPeon = ioPeon;
     this.columnName = columnName;
     this.serde = serde;
-    if (indexingSpec != null) {
-      fieldGenerators = Lists.newArrayList();
+    if (indexingSpec != null && !GuavaUtils.isNullOrEmpty(indexingSpec.getStrategies())) {
       ValueDesc type = ValueDesc.of(serde.getTypeName());
-      if (type.isString()) {
-        Preconditions.checkArgument(
-            GuavaUtils.isNullOrEmpty(indexingSpec.getStrategies()),
-            "string column cannot have indexing strategy"
-        );
-        fieldGenerators.add(Lucenes.makeTextFieldGenerator(columnName));
-      } else {
-        fieldGenerators.addAll(Lists.transform(indexingSpec.getStrategies(), Lucenes.makeGenerator(type)));
-      }
+      fieldGenerators = Lists.newArrayList(Lists.transform(indexingSpec.getStrategies(), Lucenes.makeGenerator(type)));
       luceneIndexer = Lucenes.buildRamWriter(indexingSpec.getTextAnalyzer());
     } else {
       fieldGenerators = null;
@@ -127,8 +117,13 @@ public class ComplexColumnSerializer implements GenericColumnSerializer, ColumnP
     writer.write(obj);
     if (luceneIndexer != null) {
       Document doc = new Document();
-      for (Function<Object, Field> generator : fieldGenerators) {
-        doc.add(generator.apply(obj));
+      for (Function<Object, Field[]> generator : fieldGenerators) {
+        Field[] fields = generator.apply(obj);
+        if (fields != null) {
+          for (Field field : fields) {
+            doc.add(field);
+          }
+        }
       }
       luceneIndexer.addDocument(doc);
     }

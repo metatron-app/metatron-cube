@@ -48,7 +48,7 @@ public class TextIndexingStrategy implements LuceneIndexingStrategy
   }
 
   @Override
-  public Function<Object, Field> createIndexableField(ValueDesc type)
+  public Function<Object, Field[]> createIndexableField(ValueDesc type)
   {
     if (type.isPrimitive()) {
       return Lucenes.makeTextFieldGenerator(fieldName);

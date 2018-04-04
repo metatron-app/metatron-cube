@@ -157,7 +157,7 @@ public class LucenePointFilter implements DimFilter.LuceneFilter
       )
       {
         // column-name.field-name
-        int index = field.indexOf(".");
+        int index = field.indexOf('.');
         String columnName = field.substring(0, index);
         String fieldName = field.substring(index + 1);
         LuceneIndex lucene = Preconditions.checkNotNull(

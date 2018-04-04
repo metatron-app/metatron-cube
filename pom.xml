@@ -104,6 +104,7 @@
         <module>extensions-core/lookups-cached-global</module>
         <module>extensions-core/s3-extensions</module>
         <module>extensions-core/hive-extensions</module>
+        <module>extensions-core/lucene-extensions</module>
         <!-- Community extensions -->
         <module>extensions-contrib/azure-extensions</module>
         <module>extensions-contrib/cassandra-storage</module>

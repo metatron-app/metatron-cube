@@ -27,8 +27,8 @@ import com.google.common.primitives.Ints;
 import com.metamx.collections.bitmap.BitmapFactory;
 import com.metamx.collections.bitmap.ImmutableBitmap;
 import com.metamx.collections.bitmap.MutableBitmap;
-import com.metamx.common.StringUtils;
 import com.metamx.common.logger.Logger;
+import io.druid.common.utils.StringUtils;
 import io.druid.data.ValueDesc;
 import org.apache.lucene.analysis.Analyzer;
 import org.apache.lucene.analysis.ar.ArabicAnalyzer;
@@ -119,25 +119,25 @@ public class Lucenes
     }
   }
 
-  public static Function<Object, Field> makeTextFieldGenerator(final String fieldName)
+  public static Function<Object, Field[]> makeTextFieldGenerator(final String fieldName)
   {
-    return new Function<Object, Field>()
+    return new Function<Object, Field[]>()
     {
       @Override
-      public Field apply(Object input)
+      public Field[] apply(Object input)
       {
         // to string whatever..
-        return new TextField(fieldName, Objects.toString(input, ""), Field.Store.NO);
+        return new Field[]{new TextField(fieldName, Objects.toString(input, ""), Field.Store.NO)};
       }
     };
   }
 
-  public static Function<LuceneIndexingStrategy, Function<Object, Field>> makeGenerator(final ValueDesc type)
+  public static Function<LuceneIndexingStrategy, Function<Object, Field[]>> makeGenerator(final ValueDesc type)
   {
-    return new Function<LuceneIndexingStrategy, Function<Object, Field>>()
+    return new Function<LuceneIndexingStrategy, Function<Object, Field[]>>()
     {
       @Override
-      public Function<Object, Field> apply(LuceneIndexingStrategy input)
+      public Function<Object, Field[]> apply(LuceneIndexingStrategy input)
       {
         return input.createIndexableField(type);
       }
@@ -189,7 +189,7 @@ public class Lucenes
     RAMDirectory directory = new RAMDirectory();
     int fileNum = bufferToUse.getInt();
     for (int i = 0; i < fileNum; i++) {
-      final String fileName = io.druid.common.utils.StringUtils.fromUtf8(bufferToUse, bufferToUse.getInt());
+      final String fileName = StringUtils.fromUtf8(bufferToUse, bufferToUse.getInt());
       final int length = bufferToUse.getInt();
       LOGGER.debug("-----------------> %s, %,d", fileName, length);
       IndexOutput output = directory.createOutput(fileName, null);

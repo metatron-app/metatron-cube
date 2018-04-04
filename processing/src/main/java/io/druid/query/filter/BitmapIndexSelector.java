@@ -46,4 +46,72 @@ public interface BitmapIndexSelector extends Closeable
   public BitSlicedBitmap getBitSlicedBitmap(String dimension);
   public ColumnCapabilities getCapabilities(String dimension);
   public void close();
+
+  class Abstract implements BitmapIndexSelector {
+
+    @Override
+    public Indexed<String> getDimensionValues(String dimension)
+    {
+      return null;
+    }
+
+    @Override
+    public int getNumRows()
+    {
+      return 0;
+    }
+
+    @Override
+    public BitmapFactory getBitmapFactory()
+    {
+      return null;
+    }
+
+    @Override
+    public BitmapIndex getBitmapIndex(String dimension)
+    {
+      return null;
+    }
+
+    @Override
+    public ImmutableBitmap getBitmapIndex(String dimension, String value)
+    {
+      return null;
+    }
+
+    @Override
+    public ImmutableRTree getSpatialIndex(String dimension)
+    {
+      return null;
+    }
+
+    @Override
+    public LuceneIndex getLuceneIndex(String dimension)
+    {
+      return null;
+    }
+
+    @Override
+    public HistogramBitmap getMetricBitmap(String dimension)
+    {
+      return null;
+    }
+
+    @Override
+    public BitSlicedBitmap getBitSlicedBitmap(String dimension)
+    {
+      return null;
+    }
+
+    @Override
+    public ColumnCapabilities getCapabilities(String dimension)
+    {
+      return null;
+    }
+
+    @Override
+    public void close()
+    {
+    }
+  }
 }
