@@ -22,6 +22,7 @@ package io.druid.query.search;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.google.common.base.Function;
 import com.google.common.base.Functions;
+import com.google.common.base.Supplier;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
@@ -77,13 +78,13 @@ public class SearchQueryQueryToolChest extends QueryToolChest<Result<SearchResul
   {
   };
 
-  private final SearchQueryConfig config;
+  private final Supplier<SearchQueryConfig> config;
 
   private final IntervalChunkingQueryRunnerDecorator intervalChunkingQueryRunnerDecorator;
 
   @Inject
   public SearchQueryQueryToolChest(
-      SearchQueryConfig config,
+      Supplier<SearchQueryConfig> config,
       IntervalChunkingQueryRunnerDecorator intervalChunkingQueryRunnerDecorator
   )
   {
@@ -197,7 +198,7 @@ public class SearchQueryQueryToolChest extends QueryToolChest<Result<SearchResul
               }
             };
           }
-        }, config
+        }, config.get()
     );
   }
 
@@ -341,7 +342,7 @@ public class SearchQueryQueryToolChest extends QueryToolChest<Result<SearchResul
                 return runner.run(searchQuery, responseContext);
               }
             } , this),
-        config
+        config.get()
     );
   }
 

@@ -20,6 +20,7 @@
 package io.druid.query;
 
 import com.google.common.base.Supplier;
+import com.google.common.base.Suppliers;
 import io.druid.collections.StupidPool;
 import io.druid.query.search.SearchQueryQueryToolChest;
 import io.druid.query.search.SearchQueryRunnerFactory;
@@ -50,7 +51,7 @@ public class TestQueryRunners
         }
       }
   );
-  public static final TopNQueryConfig topNConfig = new TopNQueryConfig();
+  public static final Supplier<TopNQueryConfig> topNConfig = Suppliers.ofInstance(new TopNQueryConfig());
 
   public static StupidPool<ByteBuffer> getPool()
   {
@@ -96,7 +97,7 @@ public class TestQueryRunners
   )
   {
     QueryRunnerFactory factory = new SearchQueryRunnerFactory(new SearchQueryQueryToolChest(
-          new SearchQueryConfig(),
+          Suppliers.ofInstance(new SearchQueryConfig()),
           QueryRunnerTestHelper.NoopIntervalChunkingQueryRunnerDecorator()),
         QueryRunnerTestHelper.NOOP_QUERYWATCHER);
     return factory.getToolchest().finalizeMetrics(

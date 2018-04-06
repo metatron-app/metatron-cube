@@ -214,7 +214,7 @@ public class CachingClusteredClientTest
   private static final Granularity PT1H_TZ_GRANULARITY = new PeriodGranularity(new Period("PT1H"), null, TIMEZONE);
   private static final String TOP_DIM = "a_dim";
   private static final QueryConfig QUERY_CONFIG = new QueryConfig();
-  private static final Supplier<GroupByQueryConfig> GROUPBY_QUERY_CONFIG_SUPPLIER = Suppliers.ofInstance(QUERY_CONFIG.groupBy);
+  private static final Supplier<GroupByQueryConfig> GROUPBY_QUERY_CONFIG_SUPPLIER = QUERY_CONFIG.getGroupBy();
   static final QueryToolChestWarehouse WAREHOUSE = new MapQueryToolChestWarehouse(
       QUERY_CONFIG,
       ImmutableMap.<Class<? extends Query>, QueryToolChest>builder()
@@ -226,14 +226,14 @@ public class CachingClusteredClientTest
                   )
                   .put(
                       TopNQuery.class, new TopNQueryQueryToolChest(
-                          new TopNQueryConfig(),
+                          Suppliers.ofInstance(new TopNQueryConfig()),
                           TestHelper.testTopNQueryEngine(),
                           QueryRunnerTestHelper.NoopIntervalChunkingQueryRunnerDecorator()
                       )
                   )
                   .put(
                       SearchQuery.class, new SearchQueryQueryToolChest(
-                          new SearchQueryConfig(),
+                          Suppliers.ofInstance(new SearchQueryConfig()),
                           QueryRunnerTestHelper.NoopIntervalChunkingQueryRunnerDecorator()
                       )
                   )
@@ -791,7 +791,7 @@ public class CachingClusteredClientTest
 
     QueryRunner runner = new FinalizeResultsQueryRunner(
         client, new TopNQueryQueryToolChest(
-        new TopNQueryConfig(),
+        Suppliers.ofInstance(new TopNQueryConfig()),
         TestHelper.testTopNQueryEngine(),
         QueryRunnerTestHelper.NoopIntervalChunkingQueryRunnerDecorator()
     )
@@ -869,7 +869,7 @@ public class CachingClusteredClientTest
 
     QueryRunner runner = new FinalizeResultsQueryRunner(
         client, new TopNQueryQueryToolChest(
-        new TopNQueryConfig(),
+        Suppliers.ofInstance(new TopNQueryConfig()),
         TestHelper.testTopNQueryEngine(),
         QueryRunnerTestHelper.NoopIntervalChunkingQueryRunnerDecorator()
     )
@@ -973,7 +973,7 @@ public class CachingClusteredClientTest
 
     QueryRunner runner = new FinalizeResultsQueryRunner(
         client, new TopNQueryQueryToolChest(
-        new TopNQueryConfig(),
+        Suppliers.ofInstance(new TopNQueryConfig()),
         TestHelper.testTopNQueryEngine(),
         QueryRunnerTestHelper.NoopIntervalChunkingQueryRunnerDecorator()
     )
@@ -1048,7 +1048,7 @@ public class CachingClusteredClientTest
 
     QueryRunner runner = new FinalizeResultsQueryRunner(
         client, new TopNQueryQueryToolChest(
-        new TopNQueryConfig(),
+        Suppliers.ofInstance(new TopNQueryConfig()),
         TestHelper.testTopNQueryEngine(),
         QueryRunnerTestHelper.NoopIntervalChunkingQueryRunnerDecorator()
     )
@@ -1149,7 +1149,7 @@ public class CachingClusteredClientTest
 
     QueryRunner runner = new FinalizeResultsQueryRunner(
         client, new SearchQueryQueryToolChest(
-        new SearchQueryConfig(),
+        Suppliers.ofInstance(new SearchQueryConfig()),
         QueryRunnerTestHelper.NoopIntervalChunkingQueryRunnerDecorator()
     )
     );

@@ -21,6 +21,7 @@ package io.druid.query.topn;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.google.common.base.Function;
+import com.google.common.base.Supplier;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
@@ -77,13 +78,13 @@ public class TopNQueryQueryToolChest extends QueryToolChest<Result<TopNResultVal
   {
   };
 
-  private final TopNQueryConfig config;
+  private final Supplier<TopNQueryConfig> config;
   private final TopNQueryEngine engine;
   private final IntervalChunkingQueryRunnerDecorator intervalChunkingQueryRunnerDecorator;
 
   @Inject
   public TopNQueryQueryToolChest(
-      TopNQueryConfig config,
+      Supplier<TopNQueryConfig> config,
       TopNQueryEngine engine,
       IntervalChunkingQueryRunnerDecorator intervalChunkingQueryRunnerDecorator
   )
@@ -524,11 +525,11 @@ public class TopNQueryQueryToolChest extends QueryToolChest<Result<TopNResultVal
   static class ThresholdAdjustingQueryRunner implements QueryRunner<Result<TopNResultValue>>
   {
     private final QueryRunner<Result<TopNResultValue>> runner;
-    private final TopNQueryConfig config;
+    private final Supplier<TopNQueryConfig> config;
 
     public ThresholdAdjustingQueryRunner(
         QueryRunner<Result<TopNResultValue>> runner,
-        TopNQueryConfig config
+        Supplier<TopNQueryConfig> config
     )
     {
       this.runner = runner;
@@ -546,7 +547,7 @@ public class TopNQueryQueryToolChest extends QueryToolChest<Result<TopNResultVal
       }
 
       final TopNQuery query = (TopNQuery) input;
-      final int minTopNThreshold = query.getContextValue("minTopNThreshold", config.getMinTopNThreshold());
+      final int minTopNThreshold = query.getContextValue("minTopNThreshold", config.get().getMinTopNThreshold());
       if (query.getThreshold() > minTopNThreshold) {
         return runner.run(query, responseContext);
       }

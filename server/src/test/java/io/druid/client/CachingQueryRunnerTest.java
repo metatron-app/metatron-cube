@@ -20,6 +20,7 @@
 package io.druid.client;
 
 import com.google.common.base.Function;
+import com.google.common.base.Suppliers;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Iterators;
@@ -102,7 +103,7 @@ public class CachingQueryRunnerTest
         .granularity(QueryGranularities.ALL);
 
     QueryToolChest toolchest = new TopNQueryQueryToolChest(
-        new TopNQueryConfig(),
+        Suppliers.ofInstance(new TopNQueryConfig()),
         TestHelper.testTopNQueryEngine(),
         QueryRunnerTestHelper.NoopIntervalChunkingQueryRunnerDecorator()
     );

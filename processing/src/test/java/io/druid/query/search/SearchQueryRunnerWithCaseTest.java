@@ -19,6 +19,7 @@
 
 package io.druid.query.search;
 
+import com.google.common.base.Suppliers;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
@@ -70,7 +71,7 @@ public class SearchQueryRunnerWithCaseTest
   {
     SearchQueryRunnerFactory factory = new SearchQueryRunnerFactory(
         new SearchQueryQueryToolChest(
-            new SearchQueryConfig(),
+            Suppliers.ofInstance(new SearchQueryConfig()),
             NoopIntervalChunkingQueryRunnerDecorator()
         ),
         NOOP_QUERYWATCHER

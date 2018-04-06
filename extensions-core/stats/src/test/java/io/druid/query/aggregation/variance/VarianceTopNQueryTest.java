@@ -19,6 +19,7 @@
 
 package io.druid.query.aggregation.variance;
 
+import com.google.common.base.Suppliers;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
@@ -137,7 +138,7 @@ public class VarianceTopNQueryTest
   )
   {
     final TopNQueryQueryToolChest chest = new TopNQueryQueryToolChest(
-        new TopNQueryConfig(),
+        Suppliers.ofInstance(new TopNQueryConfig()),
         TestHelper.testTopNQueryEngine(),
         QueryRunnerTestHelper.NoopIntervalChunkingQueryRunnerDecorator()
     );

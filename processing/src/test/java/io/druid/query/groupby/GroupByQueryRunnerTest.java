@@ -23,6 +23,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.util.DefaultPrettyPrinter;
 import com.fasterxml.jackson.databind.ObjectWriter;
 import com.google.common.base.Predicate;
+import com.google.common.base.Suppliers;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
@@ -245,7 +246,7 @@ public class GroupByQueryRunnerTest
             Query.POST_PROCESSING,
             new LimitingPostProcessor(
                 DefaultLimitSpec.of(10, OrderByColumnSpec.desc("alias")),
-                new GroupByQueryConfig())
+                Suppliers.ofInstance(new GroupByQueryConfig()))
         )
     );
 

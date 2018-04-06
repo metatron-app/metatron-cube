@@ -23,6 +23,7 @@ import com.fasterxml.jackson.annotation.JacksonInject;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;
+import com.google.common.base.Supplier;
 import com.metamx.common.guava.Sequence;
 import io.druid.data.input.Row;
 import io.druid.query.BaseAggregationQuery;
@@ -39,12 +40,12 @@ import java.util.Map;
 public class LimitingPostProcessor extends PostProcessingOperator.Abstract<Row>
 {
   private final LimitSpec limitSpec;
-  private final GroupByQueryConfig groupByConfig;
+  private final Supplier<GroupByQueryConfig> groupByConfig;
 
   @JsonCreator
   public LimitingPostProcessor(
       @JsonProperty("limitSpec") LimitSpec limitSpec,
-      @JacksonInject GroupByQueryConfig groupByConfig
+      @JacksonInject Supplier<GroupByQueryConfig> groupByConfig
   )
   {
     this.limitSpec = Preconditions.checkNotNull(limitSpec);
@@ -65,7 +66,7 @@ public class LimitingPostProcessor extends PostProcessingOperator.Abstract<Row>
         final BaseAggregationQuery aggregation = ((BaseAggregationQuery) representative).withLimitSpec(limitSpec);
         return aggregation.applyLimit(
             baseQueryRunner.run(query, responseContext),
-            aggregation.isSortOnTimeForLimit(groupByConfig.isSortOnTime())
+            aggregation.isSortOnTimeForLimit(groupByConfig.get().isSortOnTime())
         );
       }
     };

@@ -22,6 +22,7 @@ package io.druid.query.topn;
 import com.carrotsearch.junitbenchmarks.AbstractBenchmark;
 import com.carrotsearch.junitbenchmarks.BenchmarkOptions;
 import com.google.common.base.Supplier;
+import com.google.common.base.Suppliers;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
@@ -101,7 +102,7 @@ public class TopNQueryRunnerBenchmark extends AbstractBenchmark
             }
         ),
         new TopNQueryQueryToolChest(
-            new TopNQueryConfig(),
+            Suppliers.ofInstance(new TopNQueryConfig()),
             TestHelper.testTopNQueryEngine(),
             QueryRunnerTestHelper.NoopIntervalChunkingQueryRunnerDecorator()),
         QueryRunnerTestHelper.NOOP_QUERYWATCHER

@@ -21,14 +21,22 @@ package io.druid.guice;
 
 import com.google.common.base.Supplier;
 import com.google.common.base.Suppliers;
+import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
 import com.google.inject.Binder;
+import com.google.inject.Binding;
 import com.google.inject.Inject;
+import com.google.inject.Injector;
 import com.google.inject.Key;
 import com.google.inject.Provider;
+import com.google.inject.spi.ProviderInstanceBinding;
 import com.google.inject.util.Types;
 
 import java.lang.annotation.Annotation;
 import java.lang.reflect.ParameterizedType;
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
 import java.util.Properties;
 
 
@@ -78,6 +86,8 @@ import java.util.Properties;
  */
 public class JsonConfigProvider<T> implements Provider<Supplier<T>>
 {
+  private static final Map<String, Key> BASE_TO_CLASS = Maps.newConcurrentMap();
+
   @SuppressWarnings("unchecked")
   public static <T> void bind(Binder binder, String propertyBase, Class<T> classToProvide)
   {
@@ -156,6 +166,48 @@ public class JsonConfigProvider<T> implements Provider<Supplier<T>>
   {
     binder.bind(supplierKey).toProvider((Provider) of(propertyBase, clazz, defaultValue)).in(LazySingleton.class);
     binder.bind(instanceKey).toProvider(new SupplierProvider<T>(supplierKey));
+    BASE_TO_CLASS.put(propertyBase, supplierKey);
+  }
+
+  public static boolean configure(Injector injector, String propertyBase, Map<String, String> properties)
+  {
+    Provider provider = getProvider(injector, propertyBase);
+    if (provider instanceof JsonConfigProvider) {
+      try {
+        ((JsonConfigProvider) provider).configure(properties);
+        return true;
+      }
+      catch (Exception e) {
+        // ignore
+      }
+    }
+    return false;
+  }
+
+  public static <T> T get(Injector injector, String propertyBase)
+  {
+    Provider<T> provider = getProvider(injector, propertyBase);
+    return provider == null ? null : provider.get();
+  }
+
+  public static List<String> getKeys()
+  {
+    List<String> keys = Lists.newArrayList(BASE_TO_CLASS.keySet());
+    Collections.sort(keys);
+    return keys;
+  }
+
+  @SuppressWarnings("unchecked")
+  private static <T> Provider<T> getProvider(Injector injector, String propertyBase)
+  {
+    Key supplierKey = BASE_TO_CLASS.get(propertyBase);
+    if (supplierKey != null) {
+      Binding<T> binding = injector.getBinding(supplierKey);
+      if (binding instanceof ProviderInstanceBinding) {
+        return ((ProviderInstanceBinding) binding).getProviderInstance();
+      }
+    }
+    return null;
   }
 
   @SuppressWarnings("unchecked")
@@ -231,7 +283,7 @@ public class JsonConfigProvider<T> implements Provider<Supplier<T>>
     }
 
     try {
-      final T config = configurator.configurate(props, propertyBase, classToProvide, defaultValue);
+      final T config = configurator.configurate(props, propertyBase, classToProvide, defaultValue, null);
       retVal = Suppliers.ofInstance(config);
     }
     catch (RuntimeException e) {
@@ -243,5 +295,13 @@ public class JsonConfigProvider<T> implements Provider<Supplier<T>>
       throw e;
     }
     return retVal;
+  }
+
+  private void configure(Map<String, String> properties)
+  {
+    Supplier<T> supplier = get();
+    retVal = Suppliers.ofInstance(
+        configurator.configurate(props, propertyBase, classToProvide, supplier.get(), properties)
+    );
   }
 }

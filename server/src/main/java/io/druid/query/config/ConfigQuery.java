@@ -17,128 +17,98 @@
  * under the License.
  */
 
-package io.druid.query.jmx;
+package io.druid.query.config;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
-import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.Lists;
-import com.google.common.net.HostAndPort;
-import io.druid.client.DruidServer;
-import io.druid.client.selector.QueryableDruidServer;
 import io.druid.common.Intervals;
-import io.druid.math.expr.Expr;
-import io.druid.math.expr.Parser;
-import io.druid.query.BaseQuery;
 import io.druid.query.DataSource;
 import io.druid.query.FilterableManagementQuery;
 import io.druid.query.TableDataSource;
+import io.druid.query.jmx.JMXQuery;
 import io.druid.query.spec.MultipleIntervalSegmentSpec;
 import io.druid.query.spec.QuerySegmentSpec;
 
-import java.util.List;
 import java.util.Map;
 
 /**
  */
-@JsonTypeName("jmx")
-public class JMXQuery extends BaseQuery<Map<String, Object>> implements FilterableManagementQuery
+@JsonTypeName("config")
+public class ConfigQuery extends JMXQuery implements FilterableManagementQuery
 {
-  private final String expression;
+  private final Map<String, Map<String, String>> config;
 
-  public JMXQuery(
+  public ConfigQuery(
       @JsonProperty("dataSource") DataSource dataSource,
       @JsonProperty("intervals") QuerySegmentSpec querySegmentSpec,
       @JsonProperty("expression") String expression,
+      @JsonProperty("config") Map<String, Map<String, String>> config,
       @JsonProperty("context") Map<String, Object> context
   )
   {
     super(
-        dataSource == null ? TableDataSource.of("jmx") : dataSource,
+        dataSource == null ? TableDataSource.of("config") : dataSource,
         querySegmentSpec == null ? new MultipleIntervalSegmentSpec(Intervals.ONLY_ETERNITY) : querySegmentSpec,
-        false,
+        expression,
         context
     );
-    this.expression = expression;
+    this.config = config;
   }
 
   @Override
   public String getType()
   {
-    return "jmx";
+    return "config";
   }
 
   @Override
-  public JMXQuery withDataSource(DataSource dataSource)
+  public ConfigQuery withDataSource(DataSource dataSource)
   {
-    return new JMXQuery(
+    return new ConfigQuery(
         dataSource,
         getQuerySegmentSpec(),
-        expression,
+        getExpression(),
+        config,
         getContext()
     );
   }
 
   @Override
-  public JMXQuery withQuerySegmentSpec(QuerySegmentSpec spec)
+  public ConfigQuery withQuerySegmentSpec(QuerySegmentSpec spec)
   {
-    return new JMXQuery(
+    return new ConfigQuery(
         getDataSource(),
         spec,
-        expression,
+        getExpression(),
+        config,
         getContext()
     );
   }
 
   @Override
-  public JMXQuery withOverriddenContext(Map<String, Object> contextOverride)
+  public ConfigQuery withOverriddenContext(Map<String, Object> contextOverride)
   {
-    return new JMXQuery(
+    return new ConfigQuery(
         getDataSource(),
         getQuerySegmentSpec(),
-        expression,
+        getExpression(),
+        config,
         computeOverridenContext(contextOverride)
     );
   }
 
   @JsonProperty
-  public String getExpression()
+  public Map<String, Map<String, String>> getConfig()
   {
-    return expression;
+    return config;
   }
 
   @Override
   public String toString()
   {
-    return "JMXQuery{" +
-           "expression='" + expression + '\'' +
+    return "ConfigQuery{" +
+           "expression='" + getExpression() + '\'' +
+           ", config=" + config +
            '}';
-  }
-
-  @Override
-  public List<QueryableDruidServer> filter(List<QueryableDruidServer> servers)
-  {
-    if (expression == null) {
-      return servers;
-    }
-    Expr expr = Parser.parse(expression);
-
-    List<QueryableDruidServer> passed = Lists.newArrayList();
-    for (QueryableDruidServer server : servers) {
-      DruidServer druidServer = server.getServer();
-      HostAndPort hostAndPort = HostAndPort.fromString(druidServer.getName());
-      Expr.NumericBinding bindings = Parser.withMap(
-          ImmutableMap.<String, Object>of(
-              "name", druidServer.getName(),
-              "type", druidServer.getType(),
-              "tier", druidServer.getTier(),
-              "host", hostAndPort.getHostText(),
-              "port", hostAndPort.getPort())
-      );
-      if (expr.eval(bindings).asBoolean()) {
-        passed.add(server);
-      }
-    }
-    return passed;
   }
 }

@@ -20,6 +20,7 @@
 package io.druid.query.aggregation.histogram;
 
 import com.google.common.base.Supplier;
+import com.google.common.base.Suppliers;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
@@ -63,7 +64,7 @@ public class ApproximateHistogramTopNQueryTest
                 new TopNQueryRunnerFactory(
                     TestQueryRunners.getPool(),
                     new TopNQueryQueryToolChest(
-                        new TopNQueryConfig(),
+                        Suppliers.ofInstance(new TopNQueryConfig()),
                         TestHelper.testTopNQueryEngine(),
                         QueryRunnerTestHelper.NoopIntervalChunkingQueryRunnerDecorator()
                     ),
@@ -83,7 +84,7 @@ public class ApproximateHistogramTopNQueryTest
                         }
                     ),
                     new TopNQueryQueryToolChest(
-                        new TopNQueryConfig(),
+                        Suppliers.ofInstance(new TopNQueryConfig()),
                         TestHelper.testTopNQueryEngine(),
                         QueryRunnerTestHelper.NoopIntervalChunkingQueryRunnerDecorator()
                     ),

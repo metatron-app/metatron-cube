@@ -19,6 +19,7 @@
 
 package io.druid.query.search;
 
+import com.google.common.base.Suppliers;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.metamx.common.guava.Sequence;
@@ -69,7 +70,7 @@ public class SearchQueryRunnerTest
 
   private static final Logger LOG = new Logger(SearchQueryRunnerTest.class);
   private static final SearchQueryQueryToolChest toolChest = new SearchQueryQueryToolChest(
-      new SearchQueryConfig(),
+      Suppliers.ofInstance(new SearchQueryConfig()),
       QueryRunnerTestHelper.NoopIntervalChunkingQueryRunnerDecorator()
   );
 

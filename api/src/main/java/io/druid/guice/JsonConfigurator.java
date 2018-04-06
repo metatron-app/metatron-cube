@@ -21,8 +21,9 @@ package io.druid.guice;
 
 import com.fasterxml.jackson.annotation.JacksonInject;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.databind.MapperFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.introspect.AnnotatedField;
+import com.fasterxml.jackson.databind.SerializationConfig;
 import com.fasterxml.jackson.databind.introspect.BeanPropertyDefinition;
 import com.google.common.base.Function;
 import com.google.common.base.Strings;
@@ -30,6 +31,7 @@ import com.google.common.base.Throwables;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+import com.google.common.collect.Sets;
 import com.google.inject.Inject;
 import com.google.inject.ProvisionException;
 import com.google.inject.spi.Message;
@@ -56,6 +58,8 @@ public class JsonConfigurator
   private final ObjectMapper jsonMapper;
   private final Validator validator;
 
+  private final SerializationConfig beanAccess;
+
   @Inject
   public JsonConfigurator(
       ObjectMapper jsonMapper,
@@ -64,22 +68,47 @@ public class JsonConfigurator
   {
     this.jsonMapper = jsonMapper;
     this.validator = validator;
+    this.beanAccess = jsonMapper.getSerializationConfig()
+                                .with(MapperFeature.AUTO_DETECT_GETTERS)
+                                .with(MapperFeature.AUTO_DETECT_IS_GETTERS);
   }
 
   public <T> T configurate(Properties props, String propertyPrefix, Class<T> clazz)
       throws ProvisionException
   {
-    return configurate(props, propertyPrefix, clazz, null);
+    return configurate(props, propertyPrefix, clazz, null, null);
   }
 
-  public <T> T configurate(Properties props, String propertyPrefix, Class<T> clazz, T defaultValue)
+  public <T> T configurate(
+      Properties props,
+      final String propertyPrefix,
+      Class<T> clazz,
+      T defaultValue,
+      Map<String, String> override
+  )
       throws ProvisionException
   {
-    Map<String, Object> jsonMap = verifyClazzIsConfigurable(clazz, defaultValue);
+    final List<BeanPropertyDefinition> beanDefs = beanAccess.introspect(jsonMapper.constructType(clazz))
+                                                            .findProperties();
 
+    Map<String, Object> values = Maps.newHashMap();
+    if (defaultValue != null) {
+      Set<String> skipped = Sets.newHashSet();
+      for (BeanPropertyDefinition beanDef : beanDefs) {
+        if (beanDef.hasGetter() && beanDef.getGetter().isPublic()) {
+          values.put(beanDef.getName(), beanDef.getGetter().getValue(defaultValue));
+        } else if (beanDef.hasField() && beanDef.getField().isPublic()) {
+          values.put(beanDef.getName(), beanDef.getField().getValue(defaultValue));
+        } else {
+          skipped.add(beanDef.getName());
+        }
+      }
+      if (!skipped.isEmpty()) {
+        log.info("Skipping.. %s", skipped);
+      }
+    }
     // Make it end with a period so we only include properties with sub-object thingies.
     final String propertyBase = propertyPrefix.endsWith(".") ? propertyPrefix : propertyPrefix + ".";
-
     for (String prop : props.stringPropertyNames()) {
       if (prop.startsWith(propertyBase)) {
         final String propValue = props.getProperty(prop);
@@ -97,13 +126,16 @@ public class JsonConfigurator
           value = propValue;
         }
 
-        jsonMap.put(prop.substring(propertyBase.length()), value);
+        values.put(prop.substring(propertyBase.length()), value);
       }
+    }
+    if (override != null) {
+      values.putAll(override);
     }
 
     final T config;
     try {
-      config = jsonMapper.convertValue(jsonMap, clazz);
+      config = jsonMapper.convertValue(values, clazz);
     }
     catch (IllegalArgumentException e) {
       throw new ProvisionException(
@@ -168,34 +200,5 @@ public class JsonConfigurator
     log.info("Loaded class[%s] from props[%s] as [%s]", clazz, propertyBase, config);
 
     return config;
-  }
-
-  private <T> Map<String, Object> verifyClazzIsConfigurable(Class<T> clazz, T defaultValue)
-  {
-    final List<BeanPropertyDefinition> beanDefs = jsonMapper.getSerializationConfig()
-                                                            .introspect(jsonMapper.constructType(clazz))
-                                                            .findProperties();
-    for (BeanPropertyDefinition beanDef : beanDefs) {
-      final AnnotatedField field = beanDef.getField();
-      if (field == null || !field.hasAnnotation(JsonProperty.class)) {
-        throw new ProvisionException(
-            String.format(
-                "JsonConfigurator requires Jackson-annotated Config objects to have field annotations. %s doesn't",
-                clazz
-            )
-        );
-      }
-    }
-    Map<String, Object> values = Maps.newHashMap();
-    if (defaultValue != null) {
-      for (BeanPropertyDefinition beanDef : beanDefs) {
-        if (beanDef.hasGetter()) {
-          values.put(beanDef.getName(), beanDef.getGetter().getValue(defaultValue));
-        } else if (beanDef.hasField()) {
-          values.put(beanDef.getName(), beanDef.getField().getValue(defaultValue));
-        }
-      }
-    }
-    return values;
   }
 }

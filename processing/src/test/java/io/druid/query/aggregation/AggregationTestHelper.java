@@ -228,13 +228,13 @@ public class AggregationTestHelper
     ObjectMapper mapper = new DefaultObjectMapper();
 
     SearchQueryQueryToolChest toolchest = new SearchQueryQueryToolChest(
-        new SearchQueryConfig(),
+        Suppliers.ofInstance(new SearchQueryConfig()),
         QueryRunnerTestHelper.NoopIntervalChunkingQueryRunnerDecorator()
     );
 
     SearchQueryRunnerFactory factory = new SearchQueryRunnerFactory(
         new SearchQueryQueryToolChest(
-            new SearchQueryConfig(),
+            Suppliers.ofInstance(new SearchQueryConfig()),
             QueryRunnerTestHelper.NoopIntervalChunkingQueryRunnerDecorator()
         ),
         QueryRunnerTestHelper.NOOP_QUERYWATCHER

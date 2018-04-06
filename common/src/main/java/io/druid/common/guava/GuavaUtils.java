@@ -218,7 +218,12 @@ public class GuavaUtils
     list.add(value);
   }
 
-  public static <T> boolean isNullOrEmpty(Collection<T> collection)
+  public static boolean isNullOrEmpty(Collection<?> collection)
+  {
+    return collection == null || collection.isEmpty();
+  }
+
+  public static boolean isNullOrEmpty(Map<?, ?> collection)
   {
     return collection == null || collection.isEmpty();
   }

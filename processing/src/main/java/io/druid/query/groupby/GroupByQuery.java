@@ -377,13 +377,14 @@ public class GroupByQuery extends BaseAggregationQuery<Row> implements Query.Rew
   )
   {
     GroupByQuery query = this;
-    if (query.getContextBoolean(GBY_PRE_ORDERING, queryConfig.groupBy.isPreOrdering())) {
+    GroupByQueryConfig groupByConfig = queryConfig.getGroupBy().get();
+    if (query.getContextBoolean(GBY_PRE_ORDERING, groupByConfig.isPreOrdering())) {
       query = query.tryPreOrdering();
     }
-    if (query.getContextBoolean(GBY_REMOVE_ORDERING, queryConfig.groupBy.isRemoveOrdering())) {
+    if (query.getContextBoolean(GBY_REMOVE_ORDERING, groupByConfig.isRemoveOrdering())) {
       query = tryRemoveOrdering(query);
     }
-    if (query.getContextBoolean(GBY_CONVERT_TIMESERIES, queryConfig.groupBy.isConvertTimeseries())) {
+    if (query.getContextBoolean(GBY_CONVERT_TIMESERIES, groupByConfig.isConvertTimeseries())) {
       return query.tryConvertToTimeseries(jsonMapper);
     }
     return query;

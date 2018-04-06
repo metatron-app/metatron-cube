@@ -26,6 +26,9 @@ import com.google.inject.multibindings.MapBinder;
 import io.druid.guice.LazySingleton;
 import io.druid.guice.QueryToolBinders;
 import io.druid.initialization.DruidModule;
+import io.druid.query.config.ConfigQuery;
+import io.druid.query.config.ConfigQueryRunnerFactory;
+import io.druid.query.config.ConfigQueryToolChest;
 import io.druid.query.jmx.JMXQuery;
 import io.druid.query.jmx.JMXQueryRunnerFactory;
 import io.druid.query.jmx.JMXQueryToolChest;
@@ -43,10 +46,14 @@ public class ManagementQueryModule implements DruidModule
       MapBinder<Class<? extends Query>, QueryToolChest> toolChests = QueryToolBinders.queryToolChestBinder(binder);
       toolChests.addBinding(JMXQuery.class).to(JMXQueryToolChest.class);
       binder.bind(JMXQueryToolChest.class).in(LazySingleton.class);
+      toolChests.addBinding(ConfigQuery.class).to(ConfigQueryToolChest.class);
+      binder.bind(ConfigQueryToolChest.class).in(LazySingleton.class);
 
       MapBinder<Class<? extends Query>, QueryRunnerFactory> factories = QueryToolBinders.queryRunnerFactoryBinder(binder);
       factories.addBinding(JMXQuery.class).to(JMXQueryRunnerFactory.class);
       binder.bind(JMXQueryRunnerFactory.class).in(LazySingleton.class);
+      factories.addBinding(ConfigQuery.class).to(ConfigQueryRunnerFactory.class);
+      binder.bind(ConfigQueryRunnerFactory.class).in(LazySingleton.class);
     }
   }
 
@@ -56,6 +63,7 @@ public class ManagementQueryModule implements DruidModule
     return Arrays.asList(
         new SimpleModule("ManagementModule")
             .registerSubtypes(JMXQuery.class)
+            .registerSubtypes(ConfigQuery.class)
     );
   }
 }

@@ -21,6 +21,8 @@ package io.druid.query;
 
 import com.fasterxml.jackson.annotation.JacksonInject;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.google.common.base.Supplier;
+import com.google.common.base.Suppliers;
 import io.druid.query.groupby.GroupByQueryConfig;
 import io.druid.query.metadata.SegmentMetadataQueryConfig;
 import io.druid.query.search.search.SearchQueryConfig;
@@ -44,31 +46,31 @@ public class QueryConfig
 
   @JacksonInject
   @NotNull
-  public GroupByQueryConfig groupBy = new GroupByQueryConfig();
+  public Supplier<GroupByQueryConfig> groupBy = Suppliers.ofInstance(new GroupByQueryConfig());
 
   @JacksonInject
   @NotNull
-  public SearchQueryConfig search = new SearchQueryConfig();
+  public Supplier<SearchQueryConfig> search = Suppliers.ofInstance(new SearchQueryConfig());
 
   @JacksonInject
   @NotNull
-  public SelectQueryConfig select = new SelectQueryConfig();
+  public Supplier<SelectQueryConfig> select = Suppliers.ofInstance(new SelectQueryConfig());
 
   @JacksonInject
   @NotNull
-  public TopNQueryConfig topN = new TopNQueryConfig();
+  public Supplier<TopNQueryConfig> topN = Suppliers.ofInstance(new TopNQueryConfig());
 
   @JacksonInject
   @NotNull
-  public SegmentMetadataQueryConfig segmentMeta = new SegmentMetadataQueryConfig();
+  public Supplier<SegmentMetadataQueryConfig> segmentMeta = Suppliers.ofInstance(new SegmentMetadataQueryConfig());
 
   @JacksonInject
   @NotNull
-  public JoinQueryConfig join = new JoinQueryConfig();
+  public Supplier<JoinQueryConfig> join = Suppliers.ofInstance(new JoinQueryConfig());
 
   public int getMaxResults()
   {
-    return maxResults <= 0 ? groupBy.getMaxResults() : maxResults;
+    return maxResults <= 0 ? getGroupBy().get().getMaxResults() : maxResults;
   }
 
   public boolean useCustomSerdeForDateTime(Query query)
@@ -78,8 +80,38 @@ public class QueryConfig
     }
     // events containing DateTime in Map
     if (query instanceof SelectQuery || query instanceof StreamQuery || query instanceof StreamRawQuery) {
-      return !select.isUseDateTime();
+      return !getSelect().get().isUseDateTime();
     }
     return true;
+  }
+
+  public Supplier<GroupByQueryConfig> getGroupBy()
+  {
+    return groupBy;
+  }
+
+  public Supplier<SearchQueryConfig> getSearch()
+  {
+    return search;
+  }
+
+  public Supplier<SelectQueryConfig> getSelect()
+  {
+    return select;
+  }
+
+  public Supplier<TopNQueryConfig> getTopN()
+  {
+    return topN;
+  }
+
+  public Supplier<SegmentMetadataQueryConfig> getSegmentMeta()
+  {
+    return segmentMeta;
+  }
+
+  public Supplier<JoinQueryConfig> getJoin()
+  {
+    return join;
   }
 }

@@ -20,6 +20,7 @@
 package io.druid.query;
 
 import com.fasterxml.jackson.databind.Module;
+import com.google.common.base.Suppliers;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
@@ -293,7 +294,7 @@ public class MultiValuedDimensionTest
     QueryRunnerFactory factory = new TopNQueryRunnerFactory(
         TestQueryRunners.getPool(),
         new TopNQueryQueryToolChest(
-            new TopNQueryConfig(),
+            Suppliers.ofInstance(new TopNQueryConfig()),
             TestHelper.testTopNQueryEngine(),
             QueryRunnerTestHelper.NoopIntervalChunkingQueryRunnerDecorator()
         ),

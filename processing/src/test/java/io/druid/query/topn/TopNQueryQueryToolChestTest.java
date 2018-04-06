@@ -20,6 +20,8 @@
 package io.druid.query.topn;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.base.Supplier;
+import com.google.common.base.Suppliers;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
@@ -112,7 +114,7 @@ public class TopNQueryQueryToolChestTest
   @Test
   public void testMinTopNThreshold() throws Exception
   {
-    TopNQueryConfig config = new TopNQueryConfig();
+    Supplier<TopNQueryConfig> config = Suppliers.ofInstance(new TopNQueryConfig());
     final TopNQueryQueryToolChest chest = new TopNQueryQueryToolChest(
         config,
         TestHelper.testTopNQueryEngine(),

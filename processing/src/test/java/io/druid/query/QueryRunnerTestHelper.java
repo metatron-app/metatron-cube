@@ -58,7 +58,6 @@ import io.druid.query.aggregation.post.ArithmeticPostAggregator;
 import io.druid.query.aggregation.post.ConstantPostAggregator;
 import io.druid.query.aggregation.post.FieldAccessPostAggregator;
 import io.druid.query.groupby.GroupByQuery;
-import io.druid.query.groupby.GroupByQueryConfig;
 import io.druid.query.groupby.GroupByQueryEngine;
 import io.druid.query.groupby.GroupByQueryQueryToolChest;
 import io.druid.query.groupby.GroupByQueryRunnerFactory;
@@ -88,7 +87,6 @@ import io.druid.query.timeseries.TimeseriesQueryEngine;
 import io.druid.query.timeseries.TimeseriesQueryQueryToolChest;
 import io.druid.query.timeseries.TimeseriesQueryRunnerFactory;
 import io.druid.query.topn.TopNQuery;
-import io.druid.query.topn.TopNQueryConfig;
 import io.druid.query.topn.TopNQueryEngine;
 import io.druid.query.topn.TopNQueryQueryToolChest;
 import io.druid.query.topn.TopNQueryRunnerFactory;
@@ -159,14 +157,6 @@ public class QueryRunnerTestHelper
   );
 
   private static final QueryConfig QUERY_CONFIG = new QueryConfig();
-  private static final Supplier<GroupByQueryConfig> GBY_CONF = new Supplier<GroupByQueryConfig>()
-  {
-    @Override
-    public GroupByQueryConfig get()
-    {
-      return QUERY_CONFIG.groupBy;
-    }
-  };
   private static final Supplier<ByteBuffer> GBY_SUP = new Supplier<ByteBuffer>()
   {
     @Override
@@ -177,7 +167,7 @@ public class QueryRunnerTestHelper
   };
   private static final StupidPool<ByteBuffer> GBY_POOL = new StupidPool<ByteBuffer>(GBY_SUP);
   private static final GroupByQueryEngine GBY_ENGINE = new GroupByQueryEngine(
-      GBY_CONF,
+      QUERY_CONFIG.getGroupBy(),
       new StupidPool<ByteBuffer>(
           new Supplier<ByteBuffer>()
           {
@@ -246,7 +236,7 @@ public class QueryRunnerTestHelper
                               }
                           ),
                           new TopNQueryQueryToolChest(
-                              new TopNQueryConfig(),
+                              QUERY_CONFIG.getTopN(),
                               new TopNQueryEngine(new StupidPool<>(
                                   new Supplier<ByteBuffer>()
                                   {
@@ -267,9 +257,9 @@ public class QueryRunnerTestHelper
                       new GroupByQueryRunnerFactory(
                           GBY_ENGINE,
                           QueryRunnerTestHelper.NOOP_QUERYWATCHER,
-                          GBY_CONF,
+                          QUERY_CONFIG.getGroupBy(),
                           new GroupByQueryQueryToolChest(
-                              GBY_CONF,
+                              QUERY_CONFIG.getGroupBy(),
                               GBY_ENGINE,
                               GBY_POOL,
                               QueryRunnerTestHelper.NoopIntervalChunkingQueryRunnerDecorator()
