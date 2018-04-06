@@ -23,6 +23,9 @@ import com.google.common.base.Preconditions;
 import com.google.common.primitives.Ints;
 import com.metamx.common.StringUtils;
 import com.metamx.emitter.service.ServiceEmitter;
+import net.jpountz.lz4.LZ4Compressor;
+import net.jpountz.lz4.LZ4Factory;
+import net.jpountz.lz4.LZ4FastDecompressor;
 
 import java.nio.ByteBuffer;
 import java.util.Arrays;
@@ -103,6 +106,35 @@ public interface Cache
       int result = namespace.hashCode();
       result = 31 * result + Arrays.hashCode(key);
       return result;
+    }
+  }
+
+  abstract class ZipSupport implements Cache
+  {
+    private static final LZ4Factory LZ4_FACTORY = LZ4Factory.fastestInstance();
+    private static final LZ4FastDecompressor LZ4_DECOMPRESSOR = LZ4_FACTORY.fastDecompressor();
+    private static final LZ4Compressor LZ4_COMPRESSOR = LZ4_FACTORY.fastCompressor();
+
+    protected final byte[] deserialize(byte[] bytes)
+    {
+      if (bytes == null) {
+        return null;
+      }
+      final int decompressedLen = ByteBuffer.wrap(bytes).getInt();
+      final byte[] out = new byte[decompressedLen];
+      LZ4_DECOMPRESSOR.decompress(bytes, Ints.BYTES, out, 0, out.length);
+      return out;
+    }
+
+    protected final byte[] serialize(byte[] value)
+    {
+      final int len = LZ4_COMPRESSOR.maxCompressedLength(value.length);
+      final byte[] out = new byte[len];
+      final int compressedSize = LZ4_COMPRESSOR.compress(value, 0, value.length, out, 0);
+      return ByteBuffer.allocate(compressedSize + Ints.BYTES)
+                       .putInt(value.length)
+                       .put(out, 0, compressedSize)
+                       .array();
     }
   }
 }

@@ -98,9 +98,9 @@ public class HybridCacheTest
 
     // test put puts to both
     cache.put(key1, value1);
-    Assert.assertEquals(value1, l1.get(key1));
-    Assert.assertEquals(value1, l2.get(key1));
-    Assert.assertEquals(value1, cache.get(key1));
+    Assert.assertArrayEquals(value1, l1.get(key1));
+    Assert.assertArrayEquals(value1, l2.get(key1));
+    Assert.assertArrayEquals(value1, cache.get(key1));
 
     int hits = 0;
     Assert.assertEquals(0, cache.getStats().getNumMisses());
@@ -108,13 +108,13 @@ public class HybridCacheTest
 
     // test l1
     l1.put(key2, value2);
-    Assert.assertEquals(value2, cache.get(key2));
+    Assert.assertArrayEquals(value2, cache.get(key2));
     Assert.assertEquals(0, cache.getStats().getNumMisses());
     Assert.assertEquals(++hits, cache.getStats().getNumHits());
 
     // test l2
     l2.put(key3, value3);
-    Assert.assertEquals(value3, cache.get(key3));
+    Assert.assertArrayEquals(value3, cache.get(key3));
     Assert.assertEquals(0, cache.getStats().getNumMisses());
     Assert.assertEquals(++hits, cache.getStats().getNumHits());
 

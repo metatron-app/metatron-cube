@@ -28,7 +28,6 @@ import io.druid.cache.Cache;
 import io.druid.cache.CacheStats;
 
 import java.nio.ByteBuffer;
-import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -37,7 +36,7 @@ import java.util.concurrent.atomic.AtomicLong;
 
 /**
  */
-public class MapCache implements Cache
+public class MapCache extends Cache.ZipSupport
 {
   private static final Logger logger = new Logger(MapCache.class);
 
@@ -47,26 +46,20 @@ public class MapCache implements Cache
   }
 
   private final Map<ByteBuffer, byte[]> baseMap;
-  private final ByteCountingLRUMap byteCountingLRUMap;
 
   private final Map<String, byte[]> namespaceId;
-  private final AtomicInteger ids;
+  private final AtomicInteger ids = new AtomicInteger();
 
   private final Object clearLock = new Object();
 
   private final AtomicLong hitCount = new AtomicLong(0);
   private final AtomicLong missCount = new AtomicLong(0);
 
-  MapCache(
-      ByteCountingLRUMap byteCountingLRUMap
-  )
+  MapCache(ByteCountingLRUMap baseMap)
   {
-    logger.info("Creating local cache with size " + byteCountingLRUMap.getSizeInBytes());
-    this.byteCountingLRUMap = byteCountingLRUMap;
-    this.baseMap = Collections.synchronizedMap(byteCountingLRUMap);
-
-    namespaceId = Maps.newHashMap();
-    ids = new AtomicInteger();
+    this.baseMap = baseMap;
+    this.namespaceId = Maps.newHashMap();
+    logger.info("Creating local cache with size " + baseMap.getSizeInBytes());
   }
 
   @Override
@@ -75,9 +68,9 @@ public class MapCache implements Cache
     return new CacheStats(
         hitCount.get(),
         missCount.get(),
-        byteCountingLRUMap.size(),
-        byteCountingLRUMap.getNumBytes(),
-        byteCountingLRUMap.getEvictionCount(),
+        baseMap.size(),
+        ((ByteCountingLRUMap)baseMap).getNumBytes(),
+        ((ByteCountingLRUMap)baseMap).getEvictionCount(),
         0,
         0
     );
@@ -86,23 +79,26 @@ public class MapCache implements Cache
   @Override
   public byte[] get(NamedKey key)
   {
-    final byte[] retVal;
+    final ByteBuffer computed = computeKey(getNamespaceId(key.namespace), key.key);
+    final byte[] compressed;
     synchronized (clearLock) {
-      retVal = baseMap.get(computeKey(getNamespaceId(key.namespace), key.key));
+      compressed = baseMap.get(computed);
     }
-    if (retVal == null) {
+    if (compressed == null) {
       missCount.incrementAndGet();
     } else {
       hitCount.incrementAndGet();
     }
-    return retVal;
+    return deserialize(compressed);
   }
 
   @Override
   public void put(NamedKey key, byte[] value)
   {
+    final ByteBuffer computed = computeKey(getNamespaceId(key.namespace), key.key);
+    final byte[] compressed = serialize(value);
     synchronized (clearLock) {
-      baseMap.put(computeKey(getNamespaceId(key.namespace), key.key), value);
+      baseMap.put(computed, compressed);
     }
   }
 
