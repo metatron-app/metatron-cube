@@ -25,9 +25,11 @@ import com.google.common.collect.Maps;
 import com.google.common.collect.Ordering;
 import io.druid.client.DirectDruidClient;
 import io.druid.client.DruidServer;
+import io.druid.client.DruidServerConfig;
 import io.druid.client.ReferenceCountingSegment;
 import io.druid.segment.QueryableIndex;
 import io.druid.segment.QueryableIndexSegment;
+import io.druid.server.DruidNode;
 import io.druid.timeline.DataSegment;
 import io.druid.timeline.VersionedIntervalTimeline;
 import io.druid.timeline.partition.NoneShardSpec;
@@ -42,6 +44,11 @@ import java.util.TreeMap;
  */
 public class QueryableDruidServer
 {
+  public static QueryableDruidServer broker(DruidNode node)
+  {
+    return new QueryableDruidServer(new DruidServer(node, new DruidServerConfig(), "broker"), null);
+  }
+
   private final DruidServer server;
   private final DirectDruidClient client;
   private final Map<String, VersionedIntervalTimeline<String, ReferenceCountingSegment>> localTimelineView = Maps.newHashMap();

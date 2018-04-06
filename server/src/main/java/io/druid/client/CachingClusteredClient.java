@@ -51,6 +51,7 @@ import io.druid.common.Intervals;
 import io.druid.common.utils.JodaUtils;
 import io.druid.concurrent.Execs;
 import io.druid.guice.annotations.BackgroundCaching;
+import io.druid.guice.annotations.Self;
 import io.druid.guice.annotations.Smile;
 import io.druid.query.BaseQuery;
 import io.druid.query.BySegmentResultValueClass;
@@ -59,6 +60,8 @@ import io.druid.query.FilterableManagementQuery;
 import io.druid.query.Query;
 import io.druid.query.QueryConfig;
 import io.druid.query.QueryRunner;
+import io.druid.query.QueryRunnerFactoryConglomerate;
+import io.druid.query.QueryRunnerHelper;
 import io.druid.query.QueryToolChest;
 import io.druid.query.QueryToolChestWarehouse;
 import io.druid.query.Result;
@@ -67,6 +70,7 @@ import io.druid.query.aggregation.MetricManipulatorFns;
 import io.druid.query.metadata.metadata.SegmentAnalysis;
 import io.druid.query.metadata.metadata.SegmentMetadataQuery;
 import io.druid.query.spec.MultipleSpecificSegmentSpec;
+import io.druid.server.DruidNode;
 import io.druid.server.coordination.DruidServerMetadata;
 import io.druid.timeline.DataSegment;
 import io.druid.timeline.TimelineLookup;
@@ -96,6 +100,8 @@ import java.util.concurrent.atomic.AtomicLong;
 public class CachingClusteredClient<T> implements QueryRunner<T>
 {
   private static final EmittingLogger log = new EmittingLogger(CachingClusteredClient.class);
+  private final DruidNode node;
+  private final QueryRunnerFactoryConglomerate conglomerate;
   private final QueryToolChestWarehouse warehouse;
   private final TimelineServerView serverView;
   private final Cache cache;
@@ -106,6 +112,8 @@ public class CachingClusteredClient<T> implements QueryRunner<T>
 
   @Inject
   public CachingClusteredClient(
+      @Self DruidNode node,
+      QueryRunnerFactoryConglomerate conglomerate,
       QueryToolChestWarehouse warehouse,
       TimelineServerView serverView,
       Cache cache,
@@ -115,6 +123,8 @@ public class CachingClusteredClient<T> implements QueryRunner<T>
       CacheConfig cacheConfig
   )
   {
+    this.node = node;
+    this.conglomerate = conglomerate;
     this.warehouse = warehouse;
     this.serverView = serverView;
     this.cache = cache;
@@ -406,7 +416,22 @@ public class CachingClusteredClient<T> implements QueryRunner<T>
             }
             addSequencesFromServer(sequencesByInterval);
 
+            if (managementQuery && includeSelf()) {
+              // add self
+              QueryRunner<T> runner = QueryRunnerHelper.toManagementRunner(query, conglomerate, null, objectMapper);
+              sequencesByInterval.add(runner.run(query, responseContext));
+            }
+
             return mergeCachedAndUncachedSequences(query, sequencesByInterval, cachedResults.size(), cacheAccessTime);
+          }
+
+          private boolean includeSelf()
+          {
+            if (query instanceof FilterableManagementQuery) {
+              FilterableManagementQuery filterable = (FilterableManagementQuery) query;
+              return !filterable.filter(Arrays.asList(QueryableDruidServer.broker(node))).isEmpty();
+            }
+            return true;
           }
 
           private void addSequencesFromCache(

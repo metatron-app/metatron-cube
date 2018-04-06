@@ -51,6 +51,7 @@ import io.druid.query.Query;
 import io.druid.query.QueryRunner;
 import io.druid.query.QueryRunnerFactory;
 import io.druid.query.QueryRunnerFactoryConglomerate;
+import io.druid.query.QueryRunnerHelper;
 import io.druid.query.QuerySegmentWalker;
 import io.druid.query.QueryToolChest;
 import io.druid.query.ReferenceCountingSegmentQueryRunner;
@@ -277,7 +278,7 @@ public class ServerManager implements QuerySegmentWalker
   public <T> QueryRunner<T> getQueryRunnerForIntervals(Query<T> query, Iterable<Interval> intervals)
   {
     if (query instanceof Query.ManagementQuery) {
-      return toManagementQueryRunner(query);
+      return QueryRunnerHelper.toManagementRunner(query, conglomerate, exec, objectMapper);
     }
     DataSource dataSource = query.getDataSource();
     if (!(dataSource instanceof TableDataSource)) {
@@ -350,7 +351,7 @@ public class ServerManager implements QuerySegmentWalker
   public <T> QueryRunner<T> getQueryRunnerForSegments(Query<T> query, Iterable<SegmentDescriptor> specs)
   {
     if (query instanceof Query.ManagementQuery) {
-      return toManagementQueryRunner(query);
+      return QueryRunnerHelper.toManagementRunner(query, conglomerate, exec, objectMapper);
     }
     String dataSourceName = getDataSourceName(query.getDataSource());
 
@@ -381,20 +382,6 @@ public class ServerManager implements QuerySegmentWalker
         )
     );
     return toQueryRunner(query, segments);
-  }
-
-  private <T> QueryRunner<T> toManagementQueryRunner(Query<T> query)
-  {
-    final QueryRunnerFactory<T, Query<T>> factory = conglomerate.findFactory(query);
-    final QueryToolChest<T, Query<T>> toolChest = factory.getToolchest();
-
-    return FinalizeResultsQueryRunner.finalize(
-        toolChest.mergeResults(
-            factory.mergeRunners(exec, Arrays.asList(factory.createRunner(null, null)), null)
-        ),
-        toolChest,
-        objectMapper
-    );
   }
 
   private <T> QueryRunner<T> toQueryRunner(

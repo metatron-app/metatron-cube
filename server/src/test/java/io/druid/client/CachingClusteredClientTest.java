@@ -2198,6 +2198,8 @@ public class CachingClusteredClientTest
   )
   {
     return new CachingClusteredClient(
+        null,
+        null,
         WAREHOUSE,
         new TimelineServerView()
         {

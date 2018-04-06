@@ -19,10 +19,12 @@
 
 package io.druid.query;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Predicates;
 import com.google.common.collect.Iterables;
+import com.google.common.util.concurrent.MoreExecutors;
 import com.metamx.common.guava.ResourceClosingSequence;
 import com.metamx.common.guava.Sequence;
 import com.metamx.common.guava.Sequences;
@@ -37,8 +39,10 @@ import io.druid.segment.StorageAdapter;
 import org.joda.time.Interval;
 
 import java.io.Closeable;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ExecutorService;
 
 /**
  */
@@ -123,5 +127,25 @@ public class QueryRunnerHelper
         return new ResourceClosingSequence<>(runner.run(query, responseContext), closeable);
       }
     };
+  }
+
+  public static <T> QueryRunner<T> toManagementRunner(
+      Query<T> query,
+      QueryRunnerFactoryConglomerate conglomerate,
+      ExecutorService exec,
+      ObjectMapper mapper
+  )
+  {
+    QueryRunnerFactory<T, Query<T>> factory = conglomerate.findFactory(query);
+    QueryToolChest<T, Query<T>> toolChest = factory.getToolchest();
+
+    exec = exec == null ? MoreExecutors.sameThreadExecutor() : exec;
+    return FinalizeResultsQueryRunner.finalize(
+        toolChest.mergeResults(
+            factory.mergeRunners(exec, Arrays.asList(factory.createRunner(null, null)), null)
+        ),
+        toolChest,
+        mapper
+    );
   }
 }

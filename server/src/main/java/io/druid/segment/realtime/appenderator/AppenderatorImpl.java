@@ -53,7 +53,6 @@ import io.druid.concurrent.Execs;
 import io.druid.data.input.Committer;
 import io.druid.data.input.InputRow;
 import io.druid.query.BySegmentQueryRunner;
-import io.druid.query.FinalizeResultsQueryRunner;
 import io.druid.query.MetricsEmittingQueryRunner;
 import io.druid.query.NoopQueryRunner;
 import io.druid.query.Query;
@@ -344,7 +343,7 @@ public class AppenderatorImpl implements Appenderator
   public <T> QueryRunner<T> getQueryRunnerForSegments(final Query<T> query, final Iterable<SegmentDescriptor> specs)
   {
     if (query instanceof Query.ManagementQuery) {
-      return toManagementQueryRunner(query);
+      return QueryRunnerHelper.toManagementRunner(query, conglomerate, null, objectMapper);
     }
     if (conglomerate == null) {
       throw new IllegalStateException("Don't query me, bro.");
@@ -523,21 +522,6 @@ public class AppenderatorImpl implements Appenderator
         return baseRunner.run(resolved, responseContext);
       }
     };
-  }
-
-  private <T> QueryRunner<T> toManagementQueryRunner(Query<T> query)
-  {
-    final QueryRunnerFactory<T, Query<T>> factory = conglomerate.findFactory(query);
-    final QueryToolChest<T, Query<T>> toolChest = factory.getToolchest();
-
-    final ListeningExecutorService exec = MoreExecutors.sameThreadExecutor();
-    return FinalizeResultsQueryRunner.finalize(
-        toolChest.mergeResults(
-            factory.mergeRunners(exec, Arrays.asList(factory.createRunner(null, null)), null)
-        ),
-        toolChest,
-        objectMapper
-    );
   }
 
   @Override

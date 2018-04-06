@@ -31,7 +31,6 @@ import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.primitives.Ints;
-import com.google.common.util.concurrent.ListeningExecutorService;
 import com.google.common.util.concurrent.MoreExecutors;
 import com.metamx.common.ISE;
 import com.metamx.common.Pair;
@@ -52,7 +51,6 @@ import io.druid.concurrent.TaskThreadPriority;
 import io.druid.data.input.Committer;
 import io.druid.data.input.InputRow;
 import io.druid.granularity.Granularity;
-import io.druid.query.FinalizeResultsQueryRunner;
 import io.druid.query.MetricsEmittingQueryRunner;
 import io.druid.query.NoopQueryRunner;
 import io.druid.query.Query;
@@ -306,7 +304,7 @@ public class RealtimePlumber implements Plumber
   public <T> QueryRunner<T> getQueryRunner(final Query<T> query)
   {
     if (query instanceof Query.ManagementQuery) {
-      return toManagementQueryRunner(query);
+      return QueryRunnerHelper.toManagementRunner(query, conglomerate, null, objectMapper);
     }
     final boolean skipIncrementalSegment = query.getContextBoolean(SKIP_INCREMENTAL_SEGMENT, false);
     final QueryRunnerFactory<T, Query<T>> factory = conglomerate.findFactory(query);
@@ -423,21 +421,6 @@ public class RealtimePlumber implements Plumber
                 ),
             null
         )
-    );
-  }
-
-  private <T> QueryRunner<T> toManagementQueryRunner(Query<T> query)
-  {
-    final QueryRunnerFactory<T, Query<T>> factory = conglomerate.findFactory(query);
-    final QueryToolChest<T, Query<T>> toolChest = factory.getToolchest();
-
-    final ListeningExecutorService exec = MoreExecutors.sameThreadExecutor();
-    return FinalizeResultsQueryRunner.finalize(
-        toolChest.mergeResults(
-            factory.mergeRunners(exec, Arrays.asList(factory.createRunner(null, null)), null)
-        ),
-        toolChest,
-        objectMapper
     );
   }
 

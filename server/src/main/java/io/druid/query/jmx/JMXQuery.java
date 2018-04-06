@@ -21,8 +21,11 @@ package io.druid.query.jmx;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
+import com.google.common.base.Function;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
+import com.google.common.collect.Ordering;
 import com.google.common.net.HostAndPort;
 import io.druid.client.DruidServer;
 import io.druid.client.selector.QueryableDruidServer;
@@ -98,6 +101,21 @@ public class JMXQuery extends BaseQuery<Map<String, Object>> implements Filterab
         getQuerySegmentSpec(),
         expression,
         computeOverridenContext(contextOverride)
+    );
+  }
+
+  @Override
+  public Ordering<Map<String, Object>> getResultOrdering()
+  {
+    return Ordering.natural().onResultOf(
+        new Function<Map<String, Object>, Comparable>()
+        {
+          @Override
+          public Comparable apply(Map<String, Object> input)
+          {
+            return Iterables.getFirst(input.keySet(), null);
+          }
+        }
     );
   }
 

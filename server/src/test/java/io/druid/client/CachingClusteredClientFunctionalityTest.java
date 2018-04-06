@@ -183,6 +183,8 @@ public class CachingClusteredClientFunctionalityTest {
   )
   {
     return new CachingClusteredClient(
+        null,
+        null,
         CachingClusteredClientTest.WAREHOUSE,
         new TimelineServerView()
         {
