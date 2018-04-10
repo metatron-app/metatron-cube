@@ -101,9 +101,9 @@ import io.druid.query.groupby.having.ExpressionHavingSpec;
 import io.druid.query.groupby.having.GreaterThanHavingSpec;
 import io.druid.query.groupby.having.HavingSpec;
 import io.druid.query.groupby.having.OrHavingSpec;
-import io.druid.query.groupby.orderby.DefaultLimitSpec;
-import io.druid.query.groupby.orderby.FlattenSpec;
 import io.druid.query.groupby.orderby.LimitSpec;
+import io.druid.query.groupby.orderby.FlattenSpec;
+import io.druid.query.groupby.orderby.LimitSpecs;
 import io.druid.query.groupby.orderby.OrderByColumnSpec;
 import io.druid.query.groupby.orderby.PartitionExpression;
 import io.druid.query.groupby.orderby.PivotColumnSpec;
@@ -245,7 +245,7 @@ public class GroupByQueryRunnerTest
         ImmutableMap.<String, Object>of(
             Query.POST_PROCESSING,
             new LimitingPostProcessor(
-                DefaultLimitSpec.of(10, OrderByColumnSpec.desc("alias")),
+                LimitSpecs.of(10, OrderByColumnSpec.desc("alias")),
                 Suppliers.ofInstance(new GroupByQueryConfig()))
         )
     );
@@ -1601,10 +1601,10 @@ public class GroupByQueryRunnerTest
   public void testMergeResultsWithOrderBy()
   {
     LimitSpec[] orderBySpecs = new LimitSpec[]{
-        new DefaultLimitSpec(OrderByColumnSpec.ascending("idx"), null),
-        new DefaultLimitSpec(OrderByColumnSpec.ascending("rows", "idx"), null),
-        new DefaultLimitSpec(OrderByColumnSpec.descending("idx"), null),
-        new DefaultLimitSpec(OrderByColumnSpec.descending("rows", "idx"), null),
+        new LimitSpec(OrderByColumnSpec.ascending("idx"), null),
+        new LimitSpec(OrderByColumnSpec.ascending("rows", "idx"), null),
+        new LimitSpec(OrderByColumnSpec.descending("idx"), null),
+        new LimitSpec(OrderByColumnSpec.descending("rows", "idx"), null),
     };
 
     final Comparator<Row> idxComparator =
@@ -1900,7 +1900,7 @@ public class GroupByQueryRunnerTest
         )
         .setInterval(QueryRunnerTestHelper.fullOnInterval)
         .setLimitSpec(
-            new DefaultLimitSpec(
+            new LimitSpec(
                 Lists.newArrayList(
                     new OrderByColumnSpec(
                         "marketalias",
@@ -1953,7 +1953,7 @@ public class GroupByQueryRunnerTest
         .setDimensions(DefaultDimensionSpec.of(QueryRunnerTestHelper.marketDimension))
         .setInterval(QueryRunnerTestHelper.fullOnInterval)
         .setLimitSpec(
-            new DefaultLimitSpec(
+            new LimitSpec(
                 Lists.newArrayList(
                     new OrderByColumnSpec(
                         QueryRunnerTestHelper.marketDimension,
@@ -2005,7 +2005,7 @@ public class GroupByQueryRunnerTest
         )
         .setInterval(QueryRunnerTestHelper.fullOnInterval)
         .setLimitSpec(
-            new DefaultLimitSpec(
+            new LimitSpec(
                 Lists.newArrayList(
                     new OrderByColumnSpec(
                         QueryRunnerTestHelper.uniqueMetric,
@@ -2079,7 +2079,7 @@ public class GroupByQueryRunnerTest
         )
         .setInterval(QueryRunnerTestHelper.fullOnInterval)
         .setLimitSpec(
-            new DefaultLimitSpec(
+            new LimitSpec(
                 Lists.newArrayList(
                     new OrderByColumnSpec(
                         QueryRunnerTestHelper.uniqueMetric,
@@ -2150,7 +2150,7 @@ public class GroupByQueryRunnerTest
         )
         .setInterval(QueryRunnerTestHelper.fullOnInterval)
         .setLimitSpec(
-            new DefaultLimitSpec(
+            new LimitSpec(
                 Lists.newArrayList(
                     new OrderByColumnSpec(
                         QueryRunnerTestHelper.hyperUniqueFinalizingPostAggMetric,
@@ -2222,13 +2222,10 @@ public class GroupByQueryRunnerTest
         )
         .setInterval(QueryRunnerTestHelper.fullOnInterval)
         .setLimitSpec(
-            new DefaultLimitSpec(
-                Lists.newArrayList(
-                    new OrderByColumnSpec(
-                        QueryRunnerTestHelper.hyperUniqueFinalizingPostAggMetric,
-                        Direction.DESCENDING
-                    )
-                ), 3
+            LimitSpecs.of(
+                3,
+                OrderByColumnSpec.desc(QueryRunnerTestHelper.hyperUniqueFinalizingPostAggMetric),
+                OrderByColumnSpec.desc(QueryRunnerTestHelper.marketDimension)
             )
         )
         .setAggregatorSpecs(
@@ -2314,7 +2311,7 @@ public class GroupByQueryRunnerTest
                 new LongSumAggregatorFactory("idx", "index")
             )
         )
-        .setLimitSpec(new DefaultLimitSpec(Lists.<OrderByColumnSpec>newArrayList(
+        .setLimitSpec(new LimitSpec(Lists.<OrderByColumnSpec>newArrayList(
             new OrderByColumnSpec("alias", Direction.DESCENDING, StringComparators.ALPHANUMERIC_NAME)), null))
         .setGranularity(QueryRunnerTestHelper.dayGran)
         .build();
@@ -2375,7 +2372,7 @@ public class GroupByQueryRunnerTest
         // Using a limitSpec here to achieve a per group limit is incorrect.
         // Limit is applied on the overall results.
         .setLimitSpec(
-            new DefaultLimitSpec(
+            new LimitSpec(
                 Lists.newArrayList(
                     new OrderByColumnSpec(
                         "rows",
@@ -2505,17 +2502,7 @@ public class GroupByQueryRunnerTest
         )
         .setGranularity(QueryGranularities.ALL)
         .setHavingSpec(new GreaterThanHavingSpec("index", 310L))
-        .setLimitSpec(
-            new DefaultLimitSpec(
-                Lists.newArrayList(
-                    new OrderByColumnSpec(
-                        "index",
-                        Direction.ASCENDING
-                    )
-                ),
-                5
-            )
-        );
+        .setLimitSpec(LimitSpecs.of(5, OrderByColumnSpec.asc("index")));
 
     List<Row> expectedResults = Arrays.asList(
         GroupByQueryRunnerTestHelper.createExpectedRow(
@@ -4045,7 +4032,7 @@ public class GroupByQueryRunnerTest
             )
         )
         .setLimitSpec(
-            new DefaultLimitSpec(
+            new LimitSpec(
                 Arrays.asList(
                     new OrderByColumnSpec(
                         "alias",
@@ -4472,7 +4459,7 @@ public class GroupByQueryRunnerTest
             )
         )
         .setLimitSpec(
-            new DefaultLimitSpec(
+            new LimitSpec(
                 Arrays.asList(
                     new OrderByColumnSpec("dayOfWeek", Direction.ASCENDING, StringComparators.DAY_OF_WEEK_NAME),
                     new OrderByColumnSpec("rows", Direction.ASCENDING)
@@ -4513,8 +4500,7 @@ public class GroupByQueryRunnerTest
     TestHelper.assertExpectedObjects(expectedResults, results, "");
 
     builder.setLimitSpec(
-        new DefaultLimitSpec(
-            null, null,
+        new LimitSpec(
             Arrays.asList(
                 new WindowingSpec(
                     dayOfWeek, dayPlusMarket, "delta_week = $delta(rows)", "sum_week = $sum(rows)"
@@ -4568,8 +4554,7 @@ public class GroupByQueryRunnerTest
 
     builder.setGranularity(QueryGranularities.MONTH);
     builder.setLimitSpec(
-        new DefaultLimitSpec(
-            null, null,
+        new LimitSpec(
             Arrays.asList(
                 new WindowingSpec(
                     dayOfWeek, dayPlusMarket, "delta_week = $delta(rows)", "sum_week = $sum(rows)"
@@ -4673,8 +4658,7 @@ public class GroupByQueryRunnerTest
 
     builder.setGranularity(QueryGranularities.ALL);
     builder.setLimitSpec(
-        new DefaultLimitSpec(
-            null, null,
+        new LimitSpec(
             Arrays.asList(
                 new WindowingSpec(
                     dayOfWeek, dayPlusMarket, "delta_week = $delta(rows)", "sum_week = $sum(rows)"
@@ -4719,8 +4703,7 @@ public class GroupByQueryRunnerTest
     GroupByQueryRunnerTestHelper.validate(columnNames, expectedResults, results);
 
     builder.setLimitSpec(
-        new DefaultLimitSpec(
-            null, null,
+        new LimitSpec(
             Arrays.asList(
                 new WindowingSpec(null, dayPlusMarket, "min_all = $min(index)"),
                 new WindowingSpec(dayOfWeek, Arrays.asList(marketDsc), "min_week = $min(index)")
@@ -4759,8 +4742,7 @@ public class GroupByQueryRunnerTest
 
     // don't know what the fuck is irr
     builder.setLimitSpec(
-        new DefaultLimitSpec(
-            null, null,
+        new LimitSpec(
             Arrays.asList(
                 new WindowingSpec(null, dayPlusMarket, "irr_all = $irr(index)"),
                 new WindowingSpec(dayOfWeek, Arrays.asList(marketDsc), "irr_week = $irr(index)")
@@ -4799,8 +4781,7 @@ public class GroupByQueryRunnerTest
 
     // don't know what the fuck is npv
     builder.setLimitSpec(
-        new DefaultLimitSpec(
-            null, null,
+        new LimitSpec(
             Arrays.asList(
                 new WindowingSpec(null, dayPlusMarket, "npv_all = $npv(index, 0.1)"),
                 new WindowingSpec(dayOfWeek, Arrays.asList(marketDsc), "npv_week = $npv(index, 0.1)")
@@ -4838,8 +4819,7 @@ public class GroupByQueryRunnerTest
     GroupByQueryRunnerTestHelper.validate(columnNames, expectedResults, results);
 
     builder.setLimitSpec(
-        new DefaultLimitSpec(
-            null, null,
+        new LimitSpec(
             Arrays.asList(
                 new WindowingSpec(null, dayPlusMarket, "min_all = $min(index)"),
                 new WindowingSpec(
@@ -4907,7 +4887,7 @@ public class GroupByQueryRunnerTest
     // order by on partition sum.. NMC requirement
     // changed identifier spec to accept index. use '_' for minus instead of '-'
     builder.setLimitSpec(
-        new DefaultLimitSpec(
+        new LimitSpec(
             Arrays.asList(
                 new OrderByColumnSpec(
                     "sum_week_last",
@@ -4973,8 +4953,7 @@ public class GroupByQueryRunnerTest
 
     // unstack, {d, m} + {}
     builder.setLimitSpec(
-        new DefaultLimitSpec(
-            null, null,
+        new LimitSpec(
             Arrays.asList(
                 new WindowingSpec(
                     null, dayPlusMarket, Arrays.asList("min_all = $min(index)"),
@@ -5029,8 +5008,7 @@ public class GroupByQueryRunnerTest
 
     // unstack, {d} + {m}
     builder.setLimitSpec(
-        new DefaultLimitSpec(
-            null, null,
+        new LimitSpec(
             Arrays.asList(
                 new WindowingSpec(
                     null, dayPlusMarket, Arrays.asList("min_all = $min(index)"),
@@ -5075,8 +5053,7 @@ public class GroupByQueryRunnerTest
 
     // unstack, {m} + {d}
     builder.setLimitSpec(
-        new DefaultLimitSpec(
-            null, null,
+        new LimitSpec(
             Arrays.asList(
                 new WindowingSpec(
                     null, dayPlusMarket, Arrays.asList("min_all = $min(index)"),
@@ -5116,8 +5093,7 @@ public class GroupByQueryRunnerTest
     GroupByQueryRunnerTestHelper.validate(columnNames, expectedResults, results);
 
     builder.setLimitSpec(
-        new DefaultLimitSpec(
-            null, null,
+        new LimitSpec(
             Arrays.asList(
                 new WindowingSpec(null, dayPlusMarket, "sum_all = $sum(addRowsIndexConstant)"),
                 new WindowingSpec(dayOfWeek, Arrays.asList(marketDsc), "sum_week = $sum(addRowsIndexConstant)")
@@ -5155,7 +5131,7 @@ public class GroupByQueryRunnerTest
     GroupByQueryRunnerTestHelper.validate(columnNames, expectedResults, results);
 
     builder.setLimitSpec(
-        new DefaultLimitSpec(
+        new LimitSpec(
             dayPlusMarket, 17,
             Arrays.asList(
                 new WindowingSpec(
@@ -5197,7 +5173,7 @@ public class GroupByQueryRunnerTest
     GroupByQueryRunnerTestHelper.validate(columnNames, expectedResults, results);
 
     builder.setLimitSpec(
-        new DefaultLimitSpec(
+        new LimitSpec(
             dayPlusMarket, 18,
             Arrays.asList(
                 new WindowingSpec(
@@ -5237,7 +5213,7 @@ public class GroupByQueryRunnerTest
     GroupByQueryRunnerTestHelper.validate(columnNames, expectedResults, results);
 
     builder.setLimitSpec(
-        new DefaultLimitSpec(
+        new LimitSpec(
             null, 17,
             Arrays.asList(
                 new WindowingSpec(
@@ -5285,8 +5261,7 @@ public class GroupByQueryRunnerTest
     GroupByQueryRunnerTestHelper.validate(columnNames, expectedResults, results);
 
     builder.setLimitSpec(
-        new DefaultLimitSpec(
-            null, null,
+        new LimitSpec(
             Arrays.asList(
                 new WindowingSpec(null, dayPlusRows, "lead_all = $lead(rows, 2)", "lag_all = $lag(rows, 2)"),
                 new WindowingSpec(
@@ -5327,8 +5302,7 @@ public class GroupByQueryRunnerTest
     GroupByQueryRunnerTestHelper.validate(columnNames, expectedResults, results);
 
     builder.setLimitSpec(
-        new DefaultLimitSpec(
-            null, null,
+        new LimitSpec(
             Arrays.asList(
                 new WindowingSpec(
                     null, dayPlusRows,
@@ -5373,8 +5347,7 @@ public class GroupByQueryRunnerTest
     GroupByQueryRunnerTestHelper.validate(columnNames, expectedResults, results);
 
     builder.setLimitSpec(
-        new DefaultLimitSpec(
-            null, null,
+        new LimitSpec(
             Arrays.asList(
                 new WindowingSpec(
                     null, dayPlusRows,
@@ -5419,8 +5392,7 @@ public class GroupByQueryRunnerTest
     GroupByQueryRunnerTestHelper.validate(columnNames, expectedResults, results);
 
     builder.setLimitSpec(
-        new DefaultLimitSpec(
-            null, null,
+        new LimitSpec(
             Arrays.asList(
                 new WindowingSpec(
                     null, dayPlusRows,
@@ -5465,8 +5437,7 @@ public class GroupByQueryRunnerTest
     GroupByQueryRunnerTestHelper.validate(columnNames, expectedResults, results);
 
     builder.setLimitSpec(
-        new DefaultLimitSpec(
-            null, null,
+        new LimitSpec(
             Arrays.asList(
                 new WindowingSpec(
                     null, dayPlusRows,
@@ -5524,8 +5495,7 @@ public class GroupByQueryRunnerTest
     GroupByQueryRunnerTestHelper.validate(columnNames, expectedResults, results);
 
     builder.setLimitSpec(
-        new DefaultLimitSpec(
-            null, null,
+        new LimitSpec(
             Arrays.asList(
                 new WindowingSpec(
                     null, dayPlusRows,
@@ -5574,8 +5544,7 @@ public class GroupByQueryRunnerTest
     GroupByQueryRunnerTestHelper.validate(columnNames, expectedResults, results);
 
     builder.setLimitSpec(
-        new DefaultLimitSpec(
-            null, null,
+        new LimitSpec(
             Arrays.asList(
                 new WindowingSpec( null, dayPlusRows, "index_bin = $histogram(index, 3)")
             )
@@ -5620,8 +5589,7 @@ public class GroupByQueryRunnerTest
     GroupByQueryRunnerTestHelper.validate(columnNames, expectedResults, results);
 
     builder.setLimitSpec(
-        new DefaultLimitSpec(
-            null, null,
+        new LimitSpec(
             Arrays.asList(
                 new WindowingSpec(null, dayPlusRows, "index_bin = $histogram(index, 8, 26000, 1000)")
             )
@@ -5697,8 +5665,7 @@ public class GroupByQueryRunnerTest
 
     // basic
     builder.setLimitSpec(
-        new DefaultLimitSpec(
-            null, null,
+        new LimitSpec(
             Arrays.asList(
                 new WindowingSpec(
                     Arrays.asList("dayOfWeek"),
@@ -5727,8 +5694,7 @@ public class GroupByQueryRunnerTest
 
     // appendValueColumn = true
     builder.setLimitSpec(
-        new DefaultLimitSpec(
-            null, null,
+        new LimitSpec(
             Arrays.asList(
                 new WindowingSpec(
                     Arrays.asList("dayOfWeek"),
@@ -5757,8 +5723,7 @@ public class GroupByQueryRunnerTest
 
     // multi-valued
     builder.setLimitSpec(
-        new DefaultLimitSpec(
-            null, null,
+        new LimitSpec(
             Arrays.asList(
                 new WindowingSpec(
                     Arrays.asList("dayOfWeek"),
@@ -5784,8 +5749,7 @@ public class GroupByQueryRunnerTest
 
     // multi-value (appendValueColumn = true)
     builder.setLimitSpec(
-        new DefaultLimitSpec(
-            null, null,
+        new LimitSpec(
             Arrays.asList(
                 new WindowingSpec(
                     Arrays.asList("dayOfWeek"),
@@ -5815,8 +5779,7 @@ public class GroupByQueryRunnerTest
 
     // custom comparator
     builder.setLimitSpec(
-        new DefaultLimitSpec(
-            null, null,
+        new LimitSpec(
             Arrays.asList(
                 new WindowingSpec(
                     Arrays.asList("dayOfWeek"),
@@ -5845,8 +5808,7 @@ public class GroupByQueryRunnerTest
 
     // filtered
     builder.setLimitSpec(
-        new DefaultLimitSpec(
-            null, null,
+        new LimitSpec(
             Arrays.asList(
                 new WindowingSpec(
                     Arrays.asList("dayOfWeek"), Arrays.asList(dayOfWeekAsc),
@@ -5877,8 +5839,7 @@ public class GroupByQueryRunnerTest
 
     // expression, filtered
     builder.setLimitSpec(
-        new DefaultLimitSpec(
-            null, null,
+        new LimitSpec(
             Arrays.asList(
                 new WindowingSpec(
                     Arrays.asList("dayOfWeek"), Arrays.asList(dayOfWeekAsc),
@@ -5916,8 +5877,7 @@ public class GroupByQueryRunnerTest
 
     // row expression
     builder.setLimitSpec(
-        new DefaultLimitSpec(
-            null, null,
+        new LimitSpec(
             Arrays.asList(
                 new WindowingSpec(
                     Arrays.asList("market"), Arrays.asList(marketDesc),
@@ -5953,8 +5913,7 @@ public class GroupByQueryRunnerTest
 
     // partition expression
     builder.setLimitSpec(
-        new DefaultLimitSpec(
-            null, null,
+        new LimitSpec(
             Arrays.asList(
                 new WindowingSpec(
                     Arrays.asList("market"), Arrays.asList(marketDesc),
@@ -6026,7 +5985,7 @@ public class GroupByQueryRunnerTest
         );
 
     builder.setLimitSpec(
-        new DefaultLimitSpec(
+        new LimitSpec(
             null, 3,
             Arrays.asList(
                 new WindowingSpec(
@@ -6069,7 +6028,7 @@ public class GroupByQueryRunnerTest
 
     // multi-value-expanded
     builder.setLimitSpec(
-        new DefaultLimitSpec(
+        new LimitSpec(
             null, 3,
             Arrays.asList(
                 new WindowingSpec(
@@ -6116,7 +6075,7 @@ public class GroupByQueryRunnerTest
     GroupByQueryRunnerTestHelper.validate(columnNames, expectedResults, results);
 
     builder.setLimitSpec(
-        new DefaultLimitSpec(
+        new LimitSpec(
             null, 3,
             Arrays.asList(
                 new WindowingSpec(
@@ -6160,7 +6119,7 @@ public class GroupByQueryRunnerTest
     GroupByQueryRunnerTestHelper.validate(columnNames, expectedResults, results);
 
     builder.setLimitSpec(
-        new DefaultLimitSpec(
+        new LimitSpec(
             null, 3,
             Arrays.asList(
                 new WindowingSpec(
@@ -6203,7 +6162,7 @@ public class GroupByQueryRunnerTest
     GroupByQueryRunnerTestHelper.validate(columnNames, expectedResults, results);
 
     builder.setLimitSpec(
-        new DefaultLimitSpec(
+        new LimitSpec(
             null, 3,
             Arrays.asList(
                 new WindowingSpec(
@@ -6246,7 +6205,7 @@ public class GroupByQueryRunnerTest
     GroupByQueryRunnerTestHelper.validate(columnNames, expectedResults, results);
 
     builder.setLimitSpec(
-        new DefaultLimitSpec(
+        new LimitSpec(
             null, 24,
             Arrays.asList(
                 new WindowingSpec(

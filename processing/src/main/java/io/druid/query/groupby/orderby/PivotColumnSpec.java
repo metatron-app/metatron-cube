@@ -209,9 +209,9 @@ public class PivotColumnSpec extends OrderingSpec
   {
     return "PivotColumnSpec{" +
            "dimension='" + dimension + '\'' +
+           (dimensionOrder == null ? "" : ", dimensionOrder='" + dimensionOrder + '\'') +
+           ", direction=" + direction + '\'' +
            ", expression='" + expression + '\'' +
-           ", dimensionOrder='" + getDimensionOrder() + '\'' +
-           ", direction=" + getDirection() + '\'' +
            ", values='" + values + '\'' +
            '}';
   }
@@ -219,7 +219,7 @@ public class PivotColumnSpec extends OrderingSpec
   @Override
   public int hashCode()
   {
-    return super.hashCode() * 31 + Objects.hashCode(values);
+    return Objects.hash(dimension, getDimensionOrder(), getDirection(), expression, values);
   }
 
   @Override

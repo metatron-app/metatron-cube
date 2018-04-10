@@ -170,7 +170,7 @@ public class GroupByQueryQueryToolChest extends QueryToolChest<Row, GroupByQuery
         ImmutableList.<PostAggregator>of(),
         // Don't do "having" clause until the end of this method.
         null,
-        null,
+        query.getLimitSpec().withNoProcessing(),
         null,
         null,
         query.getContext()

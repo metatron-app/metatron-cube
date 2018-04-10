@@ -37,7 +37,7 @@ import io.druid.query.groupby.GroupByQueryRunnerTestHelper;
 import io.druid.query.groupby.having.GreaterThanHavingSpec;
 import io.druid.query.groupby.having.HavingSpec;
 import io.druid.query.groupby.having.OrHavingSpec;
-import io.druid.query.groupby.orderby.DefaultLimitSpec;
+import io.druid.query.groupby.orderby.LimitSpec;
 import io.druid.query.groupby.orderby.OrderByColumnSpec;
 import io.druid.segment.TestHelper;
 import org.joda.time.Period;
@@ -203,7 +203,7 @@ public class VarianceGroupByQueryTest
     TestHelper.assertExpectedObjects(expectedResults, results, "");
 
     query = query.withLimitSpec(
-        new DefaultLimitSpec(
+        new LimitSpec(
             Arrays.<OrderByColumnSpec>asList(
                 OrderByColumnSpec.asc(
                     VarianceTestHelper.stddevOfIndexMetric

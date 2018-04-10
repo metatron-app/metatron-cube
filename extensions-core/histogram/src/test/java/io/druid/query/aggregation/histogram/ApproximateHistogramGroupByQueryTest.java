@@ -39,7 +39,7 @@ import io.druid.query.groupby.GroupByQueryEngine;
 import io.druid.query.groupby.GroupByQueryQueryToolChest;
 import io.druid.query.groupby.GroupByQueryRunnerFactory;
 import io.druid.query.groupby.GroupByQueryRunnerTestHelper;
-import io.druid.query.groupby.orderby.DefaultLimitSpec;
+import io.druid.query.groupby.orderby.LimitSpec;
 import io.druid.query.groupby.orderby.OrderByColumnSpec;
 import io.druid.query.ordering.Direction;
 import io.druid.segment.TestHelper;
@@ -173,7 +173,7 @@ public class ApproximateHistogramGroupByQueryTest
         )
         .setInterval(QueryRunnerTestHelper.fullOnInterval)
         .setLimitSpec(
-            new DefaultLimitSpec(
+            new LimitSpec(
                 Lists.newArrayList(
                     new OrderByColumnSpec(
                         "marketalias",
@@ -287,7 +287,7 @@ public class ApproximateHistogramGroupByQueryTest
         )
         .setInterval(QueryRunnerTestHelper.fullOnInterval)
         .setLimitSpec(
-            new DefaultLimitSpec(
+            new LimitSpec(
                 Lists.newArrayList(
                     new OrderByColumnSpec(
                         "marketalias",

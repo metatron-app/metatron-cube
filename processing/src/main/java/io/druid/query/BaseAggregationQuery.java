@@ -40,7 +40,6 @@ import io.druid.query.filter.DimFilter;
 import io.druid.query.filter.InDimFilter;
 import io.druid.query.filter.SelectorDimFilter;
 import io.druid.query.groupby.having.HavingSpec;
-import io.druid.query.groupby.orderby.DefaultLimitSpec;
 import io.druid.query.groupby.orderby.LimitSpec;
 import io.druid.query.groupby.orderby.NoopLimitSpec;
 import io.druid.query.groupby.orderby.OrderByColumnSpec;
@@ -334,7 +333,7 @@ public abstract class BaseAggregationQuery<T extends Comparable<T>> extends Base
         if (orderByColumnSpecs.isEmpty() && limit == Integer.MAX_VALUE) {
           theLimitSpec = NoopLimitSpec.INSTANCE;
         } else {
-          theLimitSpec = new DefaultLimitSpec(orderByColumnSpecs, limit);
+          theLimitSpec = new LimitSpec(orderByColumnSpecs, limit);
         }
       } else {
         theLimitSpec = limitSpec;

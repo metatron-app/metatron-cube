@@ -23,9 +23,11 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 
+import java.util.AbstractMap;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  */
@@ -38,6 +40,11 @@ public class PostAggregators
       names.add(postAggregator.getName());
     }
     return names;
+  }
+
+  public static String[] toNamesAsArray(List<PostAggregator> aggregators)
+  {
+    return toNames(aggregators).toArray(new String[aggregators.size()]);
   }
 
   public static List<PostAggregator> decorate(List<PostAggregator> aggregators, AggregatorFactory[] factories)
@@ -62,5 +69,14 @@ public class PostAggregators
       decorated.add(aggregator);
     }
     return decorated;
+  }
+
+  public abstract static class MapAccess extends AbstractMap<String, Object>
+  {
+    @Override
+    public Set<Entry<String, Object>> entrySet()
+    {
+      throw new UnsupportedOperationException("entrySet");
+    }
   }
 }

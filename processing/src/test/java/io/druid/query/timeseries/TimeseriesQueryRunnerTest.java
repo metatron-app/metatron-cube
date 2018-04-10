@@ -58,7 +58,8 @@ import io.druid.query.filter.NotDimFilter;
 import io.druid.query.filter.RegexDimFilter;
 import io.druid.query.filter.SelectorDimFilter;
 import io.druid.query.groupby.GroupByQueryRunnerTestHelper;
-import io.druid.query.groupby.orderby.DefaultLimitSpec;
+import io.druid.query.groupby.orderby.LimitSpec;
+import io.druid.query.groupby.orderby.LimitSpecs;
 import io.druid.query.groupby.orderby.OrderByColumnSpec;
 import io.druid.query.groupby.orderby.WindowingSpec;
 import io.druid.query.spec.MultipleIntervalSegmentSpec;
@@ -2506,7 +2507,7 @@ public class TimeseriesQueryRunnerTest
     }
     for (int i = 4; i > 0; i--) {
       List<Result<TimeseriesResultValue>> results = Sequences.toList(
-          runner.run(query.withLimitSpec(new DefaultLimitSpec(null, i)), CONTEXT),
+          runner.run(query.withLimitSpec(new LimitSpec(null, i)), CONTEXT),
           Lists.<Result<TimeseriesResultValue>>newArrayList()
       );
       TestHelper.assertExpectedResults(expected.subList(0, i), results);
@@ -2521,7 +2522,7 @@ public class TimeseriesQueryRunnerTest
     );
     List<Result<TimeseriesResultValue>> results = Sequences.toList(
         runner.run(
-            query.withLimitSpec(new DefaultLimitSpec(Arrays.asList(OrderByColumnSpec.asc("minIndex")))),
+            query.withLimitSpec(LimitSpecs.of(null, OrderByColumnSpec.asc("minIndex"))),
             CONTEXT
         ),
         Lists.<Result<TimeseriesResultValue>>newArrayList()
@@ -2537,7 +2538,7 @@ public class TimeseriesQueryRunnerTest
         );
     results = Sequences.toList(
         runner.run(
-            query.withLimitSpec(new DefaultLimitSpec(Arrays.asList(OrderByColumnSpec.desc("maxIndex")))),
+            query.withLimitSpec(LimitSpecs.of(null, OrderByColumnSpec.desc("maxIndex"))),
             CONTEXT
         ),
         Lists.<Result<TimeseriesResultValue>>newArrayList()
@@ -2604,7 +2605,7 @@ public class TimeseriesQueryRunnerTest
     );
 
     builder.setLimitSpec(
-        new DefaultLimitSpec(Arrays.asList(OrderByColumnSpec.desc("rows"), OrderByColumnSpec.asc("index")), 10)
+        new LimitSpec(Arrays.asList(OrderByColumnSpec.desc("rows"), OrderByColumnSpec.asc("index")), 10)
     );
     results = Sequences.toList(
         runner.run(builder.build(), CONTEXT),
@@ -2613,7 +2614,7 @@ public class TimeseriesQueryRunnerTest
     TestHelper.assertExpectedObjects(expectedResults, results, "");
 
     builder.setLimitSpec(
-        new DefaultLimitSpec(
+        new LimitSpec(
             null, null,
             Arrays.asList(
                 WindowingSpec.expressions("delta = $delta(index)", "runningSum = $sum(rows)")

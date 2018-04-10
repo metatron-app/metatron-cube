@@ -89,7 +89,7 @@ public class OrderingSpec implements Cacheable
   )
   {
     this.direction = direction == null ? Direction.ASCENDING : direction;
-    this.dimensionOrder = dimensionOrder == null ? StringComparators.LEXICOGRAPHIC_NAME : dimensionOrder;
+    this.dimensionOrder = dimensionOrder;
   }
 
   @JsonProperty
@@ -106,17 +106,21 @@ public class OrderingSpec implements Cacheable
 
   public Comparator getComparator()
   {
-    return StringComparators.makeComparator(dimensionOrder);
+    StringComparator comparator = StringComparators.makeComparator(dimensionOrder);
+    if (direction == Direction.DESCENDING) {
+      comparator = StringComparators.revert(comparator);
+    }
+    return comparator;
   }
 
   public boolean isBasicOrdering()
   {
-    return direction == Direction.ASCENDING && dimensionOrder.equals(StringComparators.LEXICOGRAPHIC_NAME);
+    return direction == Direction.ASCENDING && isNaturalOrdering();
   }
 
   public boolean isNaturalOrdering()
   {
-    return dimensionOrder.equals(StringComparators.LEXICOGRAPHIC_NAME);
+    return dimensionOrder == null || dimensionOrder.equals(StringComparators.LEXICOGRAPHIC_NAME);
   }
 
   @Override
@@ -135,7 +139,10 @@ public class OrderingSpec implements Cacheable
 
   public final boolean isSameOrdering(Direction direction, String dimensionOrder)
   {
-    return this.direction == direction && Objects.equals(this.dimensionOrder, dimensionOrder);
+    return this.direction == direction && Objects.equals(
+        Objects.toString(this.dimensionOrder, StringComparators.LEXICOGRAPHIC_NAME),
+        Objects.toString(dimensionOrder, StringComparators.LEXICOGRAPHIC_NAME)
+    );
   }
 
   @Override
@@ -149,14 +156,15 @@ public class OrderingSpec implements Cacheable
   {
     return "OrderingSpec{" +
            "direction=" + direction + '\'' +
-           ", dimensionOrder='" + dimensionOrder + '\'' +
+           (dimensionOrder == null ? "" : ", dimensionOrder='" + dimensionOrder + '\'') +
            '}';
   }
 
   @Override
   public byte[] getCacheKey()
   {
-    final byte[] dimensionOrderBytes = QueryCacheHelper.computeCacheBytes(dimensionOrder);
+    final String normalized = Objects.toString(dimensionOrder, StringComparators.LEXICOGRAPHIC_NAME);
+    final byte[] dimensionOrderBytes = QueryCacheHelper.computeCacheBytes(normalized);
 
     return ByteBuffer.allocate(dimensionOrderBytes.length + 1)
                      .put((byte) direction.ordinal())

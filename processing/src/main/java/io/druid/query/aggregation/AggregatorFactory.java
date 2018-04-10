@@ -238,6 +238,11 @@ public abstract class AggregatorFactory implements Cacheable
     );
   }
 
+  public static String[] toNamesAsArray(List<AggregatorFactory> aggregators)
+  {
+    return toNames(aggregators).toArray(new String[aggregators.size()]);
+  }
+
   public static Map<String, ValueDesc> toExpectedInputType(AggregatorFactory[] aggregators)
   {
     Map<String, ValueDesc> types = Maps.newHashMap();

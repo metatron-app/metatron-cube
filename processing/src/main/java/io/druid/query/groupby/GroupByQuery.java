@@ -412,13 +412,13 @@ public class GroupByQuery extends BaseAggregationQuery<Row> implements Query.Rew
       List<DimensionSpec> rewritten = applyExplicitOrdering(orderingSpecs, dimensionSpecs);
       if (rewritten != null) {
         windowingSpecs.set(0, first.withoutOrdering());
-        query = query.withLimitSpec(LimitSpecs.withWindowing(limitSpec, windowingSpecs))
+        query = query.withLimitSpec(limitSpec.withWindowing(windowingSpecs))
                      .withDimensionSpecs(rewritten);
       }
     } else {
       List<DimensionSpec> rewritten = applyExplicitOrdering(orderingSpecs, dimensionSpecs);
       if (rewritten != null) {
-        query = query.withLimitSpec(LimitSpecs.withOrderingSpec(limitSpec, null))
+        query = query.withLimitSpec(limitSpec.withOrderingSpec(null))
                      .withDimensionSpecs(rewritten);
       }
     }

@@ -46,7 +46,8 @@ import io.druid.query.filter.DimFilter;
 import io.druid.query.groupby.GroupByQuery;
 import io.druid.query.groupby.having.ExpressionHavingSpec;
 import io.druid.query.groupby.having.HavingSpec;
-import io.druid.query.groupby.orderby.DefaultLimitSpec;
+import io.druid.query.groupby.orderby.LimitSpec;
+import io.druid.query.groupby.orderby.LimitSpecs;
 import io.druid.query.groupby.orderby.OrderByColumnSpec;
 import io.druid.query.ordering.Direction;
 import io.druid.query.ordering.StringComparators;
@@ -109,7 +110,7 @@ public class DruidQuery
   private final Grouping grouping;
   private final RowSignature outputRowSignature;
   private final RelDataType outputRowType;
-  private final DefaultLimitSpec limitSpec;
+  private final LimitSpec limitSpec;
 
   public DruidQuery(
       final PartialDruidQuery partialQuery,
@@ -442,7 +443,7 @@ public class DruidQuery
   }
 
   @Nullable
-  private static DefaultLimitSpec computeLimitSpec(
+  private static LimitSpec computeLimitSpec(
       final PartialDruidQuery partialQuery,
       final RowSignature outputRowSignature
   )
@@ -501,7 +502,7 @@ public class DruidQuery
       }
     }
 
-    return new DefaultLimitSpec(orderBys, limit);
+    return new LimitSpec(orderBys, limit);
   }
 
   /**
@@ -554,7 +555,7 @@ public class DruidQuery
     return grouping;
   }
 
-  public DefaultLimitSpec getLimitSpec()
+  public LimitSpec getLimitSpec()
   {
     return limitSpec;
   }
@@ -832,7 +833,7 @@ public class DruidQuery
 
     final Filtration filtration = Filtration.create(filter).optimize(sourceRowSignature);
 
-    // DefaultLimitSpec (which we use to "remember" limits) is int typed, and Integer.MAX_VALUE means "no limit".
+    // LimitSpec (which we use to "remember" limits) is int typed, and Integer.MAX_VALUE means "no limit".
     final long scanLimit = limitSpec == null || limitSpec.getLimit() == Integer.MAX_VALUE
                            ? 0L
                            : (long) limitSpec.getLimit();

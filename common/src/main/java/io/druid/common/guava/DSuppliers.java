@@ -22,6 +22,8 @@ package io.druid.common.guava;
 import com.google.common.base.Supplier;
 import io.druid.data.ValueDesc;
 
+import java.io.Closeable;
+import java.io.IOException;
 import java.util.concurrent.atomic.AtomicReference;
 
 /**
@@ -62,6 +64,28 @@ public class DSuppliers
     public void set(T object)
     {
       this.object = object;
+    }
+  }
+
+  public static class ThreadSafe<T> implements Supplier<T>, Closeable
+  {
+    private final ThreadLocal<T> threadLocal = new ThreadLocal<>();
+
+    @Override
+    public T get()
+    {
+      return threadLocal.get();
+    }
+
+    public void set(T object)
+    {
+      threadLocal.set(object);
+    }
+
+    @Override
+    public void close() throws IOException
+    {
+      threadLocal.remove();
     }
   }
 }

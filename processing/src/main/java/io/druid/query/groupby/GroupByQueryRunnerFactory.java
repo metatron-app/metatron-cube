@@ -138,6 +138,10 @@ public class GroupByQueryRunnerFactory implements QueryRunnerFactory.Splitable<R
       ObjectMapper mapper
   )
   {
+    if (query.getLimitSpec().getSegmentLimit() != null) {
+      // disable
+      return Arrays.asList(query);
+    }
     int numSplit = query.getContextInt(Query.GBY_LOCAL_SPLIT_NUM, config.get().getLocalSplitNum());
     if (numSplit < 2) {
       return Arrays.asList(query);

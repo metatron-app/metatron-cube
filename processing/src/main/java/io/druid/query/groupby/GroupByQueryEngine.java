@@ -20,11 +20,13 @@
 package io.druid.query.groupby;
 
 import com.google.common.base.Function;
+import com.google.common.base.Functions;
 import com.google.common.base.Strings;
 import com.google.common.base.Supplier;
 import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+import com.google.common.collect.Ordering;
 import com.google.common.collect.Sets;
 import com.google.inject.Inject;
 import com.metamx.common.IAE;
@@ -38,6 +40,7 @@ import com.metamx.common.parsers.CloseableIterator;
 import io.druid.cache.Cache;
 import io.druid.collections.ResourceHolder;
 import io.druid.collections.StupidPool;
+import io.druid.data.Pair;
 import io.druid.data.input.MapBasedRow;
 import io.druid.data.input.Row;
 import io.druid.granularity.Granularity;
@@ -49,7 +52,11 @@ import io.druid.query.aggregation.BufferAggregator;
 import io.druid.query.aggregation.PostAggregator;
 import io.druid.query.aggregation.PostAggregators;
 import io.druid.query.dimension.DimensionSpec;
+import io.druid.query.dimension.DimensionSpecs;
 import io.druid.query.filter.DimFilter;
+import io.druid.query.groupby.orderby.LimitSpec;
+import io.druid.query.groupby.orderby.OrderByColumnSpec;
+import io.druid.query.groupby.orderby.OrderedLimitSpec;
 import io.druid.segment.ColumnSelectorFactory;
 import io.druid.segment.Cursor;
 import io.druid.segment.DimensionSelector;
@@ -66,7 +73,10 @@ import org.joda.time.Interval;
 import java.io.Closeable;
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.util.AbstractMap;
 import java.util.Arrays;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
@@ -123,6 +133,14 @@ public class GroupByQueryEngine
 
   public Sequence<Row> process(final GroupByQuery query, final Segment segment, final Cache cache)
   {
+    return Sequences.map(
+        takeTopN(query).apply(processInternal(query, segment, cache)),
+        converter(query)
+    );
+  }
+
+  public Sequence<Object[]> processInternal(final GroupByQuery query, final Segment segment, final Cache cache)
+  {
     final StorageAdapter storageAdapter = segment.asStorageAdapter(true);
     if (storageAdapter == null) {
       throw new ISE(
@@ -153,13 +171,13 @@ public class GroupByQueryEngine
         Sequences.withBaggage(
             Sequences.map(
                 cursors,
-                new Function<Cursor, Sequence<Row>>()
+                new Function<Cursor, Sequence<Object[]>>()
                 {
                   @Override
-                  public Sequence<Row> apply(final Cursor cursor)
+                  public Sequence<Object[]> apply(final Cursor cursor)
                   {
                     return new BaseSequence<>(
-                        new BaseSequence.IteratorMaker<Row, RowIterator>()
+                        new BaseSequence.IteratorMaker<Object[], RowIterator>()
                         {
                           @Override
                           public RowIterator make()
@@ -336,7 +354,7 @@ public class GroupByQueryEngine
     }
   }
 
-  private static class RowIterator implements CloseableIterator<Row>
+  private static class RowIterator implements CloseableIterator<Object[]>
   {
     private final Cursor cursor;
     private final ByteBuffer metricsBuffer;
@@ -354,8 +372,9 @@ public class GroupByQueryEngine
     private final boolean asSorted;
     private final DateTime fixedTimeForAllGranularity;
     private List<int[]> unprocessedKeys;
-    private Iterator<Row> delegate;
+    private Iterator<Object[]> delegate;
 
+    private final Map<String, Integer> columnMapping;
     private int counter;
 
     public RowIterator(
@@ -414,6 +433,15 @@ public class GroupByQueryEngine
         increments[i + 1] = increments[i] + aggregatorSpec.getMaxIntermediateSize();
       }
       postAggregators = PostAggregators.decorate(query.getPostAggregatorSpecs(), aggregatorSpecs);
+
+      int index = 0;
+      columnMapping = Maps.newHashMap();
+      for (String dimName: dimNames) {
+        columnMapping.put(dimName, index++);
+      }
+      for (String metName: metricNames) {
+        columnMapping.put(metName, index++);
+      }
     }
 
     @Override
@@ -464,36 +492,44 @@ public class GroupByQueryEngine
 
       delegate = Iterators.transform(
           rowUpdater.getPositions(asSorted).entrySet().iterator(),
-          new Function<Map.Entry<IntArray, Integer>, Row>()
+          new Function<Map.Entry<IntArray, Integer>, Object[]>()
           {
             private final DateTime timestamp =
                 fixedTimeForAllGranularity != null ? fixedTimeForAllGranularity : cursor.getTime();
 
             @Override
-            public Row apply(final Map.Entry<IntArray, Integer> input)
+            public Object[] apply(final Map.Entry<IntArray, Integer> input)
             {
-              // changing this will make some tests fail
-              final Map<String, Object> theEvent = asSorted ? Maps.<String, Object>newLinkedHashMap()
-                                                            : Maps.<String, Object>newHashMap();
+              final Object[] array = new Object[dimNames.length + metricNames.length + postAggregators.size() + 1];
 
+              int i = 0;
               final int[] keyArray = input.getKey().array;
-              for (int i = 0; i < dimensions.length; ++i) {
-                final int dimVal = keyArray[i];
-                if (dimVal >= 0) {
-                  theEvent.put(dimNames[i], dimensions[i].lookupName(dimVal));
-                }
+              for (int x = 0; x < dimensions.length; ++x) {
+                array[i++] = dimensions[x].lookupName(keyArray[x]);
               }
 
               final int position = input.getValue();
-              for (int i = 0; i < aggregators.length; ++i) {
-                theEvent.put(metricNames[i], aggregators[i].get(metricsBuffer, position + increments[i]));
+              for (int x = 0; x < aggregators.length; ++x) {
+                array[i++] = aggregators[x].get(metricsBuffer, position + increments[x]);
               }
 
-              for (PostAggregator postAggregator : postAggregators) {
-                theEvent.put(postAggregator.getName(), postAggregator.compute(timestamp, theEvent));
+              if (!postAggregators.isEmpty()) {
+                final AbstractMap<String, Object> accessor = new PostAggregators.MapAccess()
+                {
+                  @Override
+                  public Object get(Object key)
+                  {
+                    Integer index = columnMapping.get(key);
+                    return index < 0 ? null : array[index];
+                  }
+                };
+                for (PostAggregator postAggregator : postAggregators) {
+                  array[i++] = postAggregator.compute(timestamp, accessor);
+                }
               }
+              array[i] = timestamp;
 
-              return new MapBasedRow(timestamp, theEvent);
+              return array;
             }
           }
       );
@@ -502,7 +538,7 @@ public class GroupByQueryEngine
     }
 
     @Override
-    public Row next()
+    public Object[] next()
     {
       return delegate.next();
     }
@@ -556,5 +592,109 @@ public class GroupByQueryEngine
       }
       return 0;
     }
+  }
+
+  public static Function<Sequence<Object[]>, Sequence<Object[]>> takeTopN(final GroupByQuery query)
+  {
+    final LimitSpec limitSpec = query.getLimitSpec();
+    final OrderedLimitSpec segmentLimit = limitSpec.getSegmentLimit();
+    if (segmentLimit == null || segmentLimit.getLimit() <= 0) {
+      return Functions.identity();
+    }
+    final List<String> columnNames = toColumnNames(query);
+    final Map<String, Comparator> comparatorMap = toComparatorMap(query);
+    final List<Pair<Integer, Comparator>> comparators = Lists.newArrayList();
+    for (OrderByColumnSpec orderings : limitSpec.getSegmentLimitOrdering()) {
+      int index = columnNames.lastIndexOf(orderings.getDimension());
+      if (index < 0) {
+        continue;
+      }
+      Comparator comparator;
+      if (orderings.getDimensionOrder() == null) {
+        comparator = Ordering.from(comparatorMap.get(orderings.getDimension())).reversed();
+      } else {
+        comparator = orderings.getComparator();
+      }
+      comparators.add(Pair.of(index, comparator));
+    }
+    if (comparators.isEmpty()) {
+      return Functions.identity();
+    }
+
+    final int limit = segmentLimit.getLimit();
+
+    return new Function<Sequence<Object[]>, Sequence<Object[]>>()
+    {
+      @Override
+      public Sequence<Object[]> apply(Sequence<Object[]> input)
+      {
+        List<Object[]> list = Sequences.toList(input, Lists.<Object[]>newArrayList());
+        if (list.size() > limit) {
+          Collections.sort(
+              list, new Comparator<Object[]>()
+              {
+                @Override
+                @SuppressWarnings("unchecked")
+                public int compare(Object[] o1, Object[] o2)
+                {
+                  for (Pair<Integer, Comparator> pair : comparators) {
+                    int compared = pair.rhs.compare(o1[pair.lhs], o2[pair.lhs]);
+                    if (compared != 0) {
+                      return compared;
+                    }
+                  }
+                  return 0;
+                }
+              }
+          );
+          list = list.subList(0, limit);
+        }
+        return Sequences.simple(list);
+      }
+    };
+  }
+  public static Function<Object[], Row> converter(final GroupByQuery query)
+  {
+    final boolean asSorted = query.getContextBoolean("TEST_AS_SORTED", false);
+    final List<String> columnNames = toColumnNames(query);
+
+    return new Function<Object[], Row>()
+    {
+      @Override
+      public Row apply(Object[] input)
+      {
+        final Map<String, Object> theEvent = asSorted ? Maps.<String, Object>newLinkedHashMap()
+                                                      : Maps.<String, Object>newHashMap();
+        int i = 0;
+        for (String columnName : columnNames) {
+          theEvent.put(columnName, input[i++]);
+        }
+        return new MapBasedRow((DateTime) input[i], theEvent);
+      }
+    };
+  }
+
+  private static List<String> toColumnNames(GroupByQuery query)
+  {
+    List<String> columns = Lists.newArrayList();
+    columns.addAll(DimensionSpecs.toOutputNames(query.getDimensions()));
+    columns.addAll(AggregatorFactory.toNames(query.getAggregatorSpecs()));
+    columns.addAll(PostAggregators.toNames(query.getPostAggregatorSpecs()));
+    return columns;
+  }
+
+  private static Map<String, Comparator> toComparatorMap(GroupByQuery query)
+  {
+    Map<String, Comparator> comparatorMap = Maps.newHashMap();
+    for (DimensionSpec dimensionSpec : query.getDimensions()) {
+      comparatorMap.put(dimensionSpec.getOutputName(), Ordering.natural().nullsFirst());
+    }
+    for (AggregatorFactory aggregator : query.getAggregatorSpecs()) {
+      comparatorMap.put(aggregator.getName(), aggregator.getComparator());
+    }
+    for (PostAggregator aggregator : query.getPostAggregatorSpecs()) {
+      comparatorMap.put(aggregator.getName(), aggregator.getComparator());
+    }
+    return comparatorMap;
   }
 }

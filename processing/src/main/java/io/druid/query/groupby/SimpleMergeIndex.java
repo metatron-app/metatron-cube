@@ -19,12 +19,12 @@
 
 package io.druid.query.groupby;
 
-import com.google.common.base.Supplier;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.primitives.Longs;
 import com.metamx.common.ISE;
 import io.druid.common.DateTimes;
+import io.druid.common.guava.DSuppliers;
 import io.druid.common.utils.StringUtils;
 import io.druid.data.input.CompactRow;
 import io.druid.data.input.MapBasedRow;
@@ -38,7 +38,6 @@ import io.druid.segment.ColumnSelectorFactories.FromInputRow;
 import io.druid.segment.ColumnSelectorFactory;
 import io.druid.segment.incremental.IncrementalIndex;
 
-import java.io.Closeable;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.Comparator;
@@ -55,7 +54,7 @@ public class SimpleMergeIndex implements MergeIndex
   private final String[] dimensions;
   private final AggregatorFactory[] metrics;
 
-  private final RowSupplier rowSupplier = new RowSupplier();
+  private final DSuppliers.ThreadSafe<Row> rowSupplier = new DSuppliers.ThreadSafe<>();
   private final Map<TimeAndDims, Aggregator[]> mapping;
   private final Function<TimeAndDims, Aggregator[]> populator;
   private final boolean compact;
@@ -190,28 +189,6 @@ public class SimpleMergeIndex implements MergeIndex
     rowSupplier.close();
   }
 
-  private static class RowSupplier implements Supplier<Row>, Closeable
-  {
-    private final ThreadLocal<Row> in = new ThreadLocal<>();
-
-    public void set(Row row)
-    {
-      in.set(row);
-    }
-
-    @Override
-    public Row get()
-    {
-      return in.get();
-    }
-
-    @Override
-    public void close()
-    {
-      in.remove();
-    }
-  }
-
   private static class TimeAndDims implements Comparable<TimeAndDims>
   {
     private final long timestamp;
@@ -251,6 +228,7 @@ public class SimpleMergeIndex implements MergeIndex
     }
 
     @Override
+    @SuppressWarnings("unchecked")
     public int compareTo(TimeAndDims o)
     {
       int compare = Longs.compare(timestamp, o.timestamp);

@@ -70,7 +70,7 @@ import io.druid.query.filter.SelectorDimFilter;
 import io.druid.query.groupby.GroupByQuery;
 import io.druid.query.groupby.having.ExpressionHavingSpec;
 import io.druid.query.groupby.having.HavingSpec;
-import io.druid.query.groupby.orderby.DefaultLimitSpec;
+import io.druid.query.groupby.orderby.LimitSpec;
 import io.druid.query.groupby.orderby.OrderByColumnSpec;
 import io.druid.query.ordering.Direction;
 import io.druid.query.ordering.StringComparators;
@@ -759,7 +759,7 @@ public class CalciteQueryTest
                 .setDimensions(DIMS(new DefaultDimensionSpec("dim1", "d0")))
                 .setGranularity(Granularities.ALL)
                 .setLimitSpec(
-                    new DefaultLimitSpec(
+                    new LimitSpec(
                         ImmutableList.of(
                             new OrderByColumnSpec(
                                 "d0",
@@ -906,7 +906,7 @@ public class CalciteQueryTest
                         .setDimensions(DIMS(new DefaultDimensionSpec("cnt", "d0")))
                         .setAggregatorSpecs(AGGS(new CountAggregatorFactory("a0")))
                         .setLimitSpec(
-                            new DefaultLimitSpec(
+                            new LimitSpec(
                                 ImmutableList.of(
                                     new OrderByColumnSpec(
                                         "d0",
@@ -964,7 +964,7 @@ public class CalciteQueryTest
                         .setDimensions(DIMS(new DefaultDimensionSpec("cnt", "d0")))
                         .setAggregatorSpecs(AGGS(new CountAggregatorFactory("a0")))
                         .setLimitSpec(
-                            new DefaultLimitSpec(
+                            new LimitSpec(
                                 ImmutableList.of(
                                     new OrderByColumnSpec(
                                         "d0",
@@ -1377,7 +1377,7 @@ public class CalciteQueryTest
                             )
                         )
                         .setLimitSpec(
-                            new DefaultLimitSpec(
+                            new LimitSpec(
                                 ImmutableList.of(
                                     new OrderByColumnSpec(
                                         "p1",
@@ -2223,7 +2223,7 @@ public class CalciteQueryTest
                         )
                         .setPostAggregatorSpecs(ImmutableList.of(EXPRESSION_POST_AGG("p0", "(\"a0\" + \"a1\")")))
                         .setLimitSpec(
-                            new DefaultLimitSpec(
+                            new LimitSpec(
                                 ImmutableList.of(
                                     new OrderByColumnSpec(
                                         "p0",
@@ -2272,7 +2272,7 @@ public class CalciteQueryTest
                             )
                         )
                         .setLimitSpec(
-                            new DefaultLimitSpec(
+                            new LimitSpec(
                                 ImmutableList.of(
                                     new OrderByColumnSpec(
                                         "p0",
@@ -2491,7 +2491,7 @@ public class CalciteQueryTest
                         .setDimensions(DIMS(new DefaultDimensionSpec("d0:v", "d0")))
                         .setAggregatorSpecs(AGGS(new CountAggregatorFactory("a0")))
                         .setLimitSpec(
-                            new DefaultLimitSpec(
+                            new LimitSpec(
                                 ImmutableList.of(
                                     new OrderByColumnSpec(
                                         "d0",
@@ -2539,7 +2539,7 @@ public class CalciteQueryTest
                         .setDimensions(DIMS(new DefaultDimensionSpec("d0:v", "d0")))
                         .setAggregatorSpecs(AGGS(new CountAggregatorFactory("a0")))
                         .setLimitSpec(
-                            new DefaultLimitSpec(
+                            new LimitSpec(
                                 ImmutableList.of(
                                     new OrderByColumnSpec(
                                         "d0",
@@ -2590,7 +2590,7 @@ public class CalciteQueryTest
                         .setDimensions(DIMS(new DefaultDimensionSpec("d0:v", "d0")))
                         .setAggregatorSpecs(AGGS(new CountAggregatorFactory("a0")))
                         .setLimitSpec(
-                            new DefaultLimitSpec(
+                            new LimitSpec(
                                 ImmutableList.of(
                                     new OrderByColumnSpec(
                                         "d0",
@@ -3830,7 +3830,7 @@ public class CalciteQueryTest
                         .setDimensions(DIMS(new DefaultDimensionSpec("dim1", "d0")))
                         .setAggregatorSpecs(AGGS(new GenericSumAggregatorFactory("a0", "cnt", "long")))
                         .setLimitSpec(
-                            new DefaultLimitSpec(
+                            new LimitSpec(
                                 ImmutableList.of(
                                     new OrderByColumnSpec(
                                         "d0",
@@ -3892,7 +3892,7 @@ public class CalciteQueryTest
                         .setDimensions(DIMS(new DefaultDimensionSpec("dim1", "d0")))
                         .setAggregatorSpecs(AGGS(new GenericSumAggregatorFactory("a0", "cnt", "long")))
                         .setLimitSpec(
-                            new DefaultLimitSpec(
+                            new LimitSpec(
                                 ImmutableList.of(
                                     new OrderByColumnSpec(
                                         "d0",
@@ -3943,7 +3943,7 @@ public class CalciteQueryTest
                         .setDimensions(DIMS(new DefaultDimensionSpec("dim1", "d0")))
                         .setAggregatorSpecs(AGGS(new GenericSumAggregatorFactory("a0", "cnt", "long")))
                         .setLimitSpec(
-                            new DefaultLimitSpec(
+                            new LimitSpec(
                                 ImmutableList.of(
                                     new OrderByColumnSpec(
                                         "d0",
@@ -4246,7 +4246,7 @@ public class CalciteQueryTest
                             new CountAggregatorFactory("_a0")
                         ))
                         .setLimitSpec(
-                            new DefaultLimitSpec(
+                            new LimitSpec(
                                 ImmutableList.of(new OrderByColumnSpec(
                                     "_d0",
                                     Direction.ASCENDING,
@@ -4487,7 +4487,7 @@ public class CalciteQueryTest
                             )
                         )
                         .setLimitSpec(
-                            new DefaultLimitSpec(
+                            new LimitSpec(
                                 ImmutableList.of(
                                     new OrderByColumnSpec("d1", Direction.ASCENDING)
                                 ),
@@ -4533,7 +4533,7 @@ public class CalciteQueryTest
                             )
                         )
                         .setLimitSpec(
-                            new DefaultLimitSpec(
+                            new LimitSpec(
                                 ImmutableList.of(
                                     new OrderByColumnSpec("d1", Direction.ASCENDING)
                                 ),
@@ -4864,7 +4864,7 @@ public class CalciteQueryTest
                         )
                         .setAggregatorSpecs(AGGS(new CountAggregatorFactory("a0")))
                         .setLimitSpec(
-                            new DefaultLimitSpec(
+                            new LimitSpec(
                                 ImmutableList.of(
                                     new OrderByColumnSpec(
                                         "d0",
@@ -4916,7 +4916,7 @@ public class CalciteQueryTest
                             )
                         )
                         .setLimitSpec(
-                            new DefaultLimitSpec(
+                            new LimitSpec(
                                 ImmutableList.of(
                                     new OrderByColumnSpec(
                                         "d0",
@@ -5226,7 +5226,7 @@ public class CalciteQueryTest
                         .setDimensions(DIMS(new DefaultDimensionSpec("d0:v", "d0")))
                         .setAggregatorSpecs(AGGS(new GenericSumAggregatorFactory("a0", "cnt", "long")))
                         .setLimitSpec(
-                            new DefaultLimitSpec(
+                            new LimitSpec(
                                 ImmutableList.of(
                                     new OrderByColumnSpec(
                                         "d0",
@@ -5481,7 +5481,7 @@ public class CalciteQueryTest
                         )
                         .setAggregatorSpecs(AGGS(new GenericSumAggregatorFactory("a0", "cnt", "long")))
                         .setLimitSpec(
-                            new DefaultLimitSpec(
+                            new LimitSpec(
                                 ImmutableList.of(
                                     new OrderByColumnSpec(
                                         "d0",
@@ -5533,7 +5533,7 @@ public class CalciteQueryTest
                         )
                         .setAggregatorSpecs(AGGS(new GenericSumAggregatorFactory("a0", "cnt", "long")))
                         .setLimitSpec(
-                            new DefaultLimitSpec(
+                            new LimitSpec(
                                 ImmutableList.of(
                                     new OrderByColumnSpec(
                                         "d0",
@@ -5662,7 +5662,7 @@ public class CalciteQueryTest
                         )
                         .setAggregatorSpecs(AGGS(new GenericSumAggregatorFactory("a0", "cnt", "long")))
                         .setLimitSpec(
-                            new DefaultLimitSpec(
+                            new LimitSpec(
                                 ImmutableList.of(
                                     new OrderByColumnSpec(
                                         "d0",
@@ -5778,7 +5778,7 @@ public class CalciteQueryTest
                         )
                         .setAggregatorSpecs(AGGS(new GenericSumAggregatorFactory("a0", "cnt", "long")))
                         .setLimitSpec(
-                            new DefaultLimitSpec(
+                            new LimitSpec(
                                 ImmutableList.of(
                                     new OrderByColumnSpec("d0", Direction.ASCENDING),
                                     new OrderByColumnSpec(
@@ -5839,7 +5839,7 @@ public class CalciteQueryTest
                         )
                         .setAggregatorSpecs(AGGS(new CountAggregatorFactory("a0")))
                         .setLimitSpec(
-                            new DefaultLimitSpec(
+                            new LimitSpec(
                                 ImmutableList.of(new OrderByColumnSpec("d1", Direction.ASCENDING)),
                                 Integer.MAX_VALUE
                             )
@@ -5964,7 +5964,7 @@ public class CalciteQueryTest
                         .setGranularity(Granularities.ALL)
                         .setDimensions(DIMS(new DefaultDimensionSpec("dim2", "d0")))
                         .setLimitSpec(
-                            new DefaultLimitSpec(
+                            new LimitSpec(
                                 ImmutableList.of(
                                     new OrderByColumnSpec(
                                         "d0",

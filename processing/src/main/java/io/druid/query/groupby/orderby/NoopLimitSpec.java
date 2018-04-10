@@ -20,9 +20,9 @@
 package io.druid.query.groupby.orderby;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.google.common.base.Function;
 import com.google.common.base.Functions;
-import com.google.common.collect.ImmutableList;
 import com.metamx.common.guava.Sequence;
 import io.druid.data.input.Row;
 import io.druid.query.aggregation.AggregatorFactory;
@@ -33,32 +33,14 @@ import java.util.List;
 
 /**
  */
-public class NoopLimitSpec implements LimitSpec
+public class NoopLimitSpec extends LimitSpec
 {
   public static final NoopLimitSpec INSTANCE = new NoopLimitSpec();
 
   private static final byte CACHE_KEY = 0x0;
 
   @JsonCreator
-  public NoopLimitSpec() { }
-
-  @Override
-  public int getLimit()
-  {
-    return Integer.MAX_VALUE;
-  }
-
-  @Override
-  public List<OrderByColumnSpec> getColumns()
-  {
-    return ImmutableList.of();
-  }
-
-  @Override
-  public List<WindowingSpec> getWindowingSpecs()
-  {
-    return ImmutableList.of();
-  }
+  public NoopLimitSpec() {super(null, Integer.MAX_VALUE); }
 
   @Override
   public Function<Sequence<Row>, Sequence<Row>> build(
@@ -69,6 +51,42 @@ public class NoopLimitSpec implements LimitSpec
   )
   {
     return Functions.identity();
+  }
+
+  @JsonIgnore
+  public List<OrderByColumnSpec> getColumns()
+  {
+    return super.getColumns();
+  }
+
+  @JsonIgnore
+  public int getLimit()
+  {
+    return super.getLimit();
+  }
+
+  @JsonIgnore
+  public OrderedLimitSpec getSegmentLimit()
+  {
+    return super.getSegmentLimit();
+  }
+
+  @JsonIgnore
+  public OrderedLimitSpec getNodeLimit()
+  {
+    return super.getNodeLimit();
+  }
+
+  @JsonIgnore
+  public List<WindowingSpec> getWindowingSpecs()
+  {
+    return super.getWindowingSpecs();
+  }
+
+  @Override
+  public LimitSpec withNoProcessing()
+  {
+    return this;
   }
 
   @Override

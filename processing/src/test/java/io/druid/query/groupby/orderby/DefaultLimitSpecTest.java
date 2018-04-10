@@ -72,13 +72,13 @@ public class DefaultLimitSpecTest
     //defaults
     String json = "{\"type\": \"default\"}";
 
-    DefaultLimitSpec spec = mapper.readValue(
-        mapper.writeValueAsString(mapper.readValue(json, DefaultLimitSpec.class)),
-        DefaultLimitSpec.class
+    LimitSpec spec = mapper.readValue(
+        mapper.writeValueAsString(mapper.readValue(json, LimitSpec.class)),
+        LimitSpec.class
     );
 
     Assert.assertEquals(
-        new DefaultLimitSpec(null, null),
+        new LimitSpec(null, null),
         spec
     );
 
@@ -90,12 +90,12 @@ public class DefaultLimitSpecTest
            + "}";
 
     spec = mapper.readValue(
-        mapper.writeValueAsString(mapper.readValue(json, DefaultLimitSpec.class)),
-        DefaultLimitSpec.class
+        mapper.writeValueAsString(mapper.readValue(json, LimitSpec.class)),
+        LimitSpec.class
     );
 
     Assert.assertEquals(
-        new DefaultLimitSpec(ImmutableList.of(new OrderByColumnSpec("d", Direction.ASCENDING)), 10),
+        new LimitSpec(ImmutableList.of(new OrderByColumnSpec("d", Direction.ASCENDING)), 10),
         spec
     );
   }
@@ -103,10 +103,7 @@ public class DefaultLimitSpecTest
   @Test
   public void testBuildSimple()
   {
-    DefaultLimitSpec limitSpec = new DefaultLimitSpec(
-        ImmutableList.<OrderByColumnSpec>of(),
-        2
-    );
+    LimitSpec limitSpec = LimitSpecs.of(2);
 
     Function<Sequence<Row>, Sequence<Row>> limitFn = limitSpec.build(
         ImmutableList.<DimensionSpec>of(),
@@ -124,12 +121,7 @@ public class DefaultLimitSpecTest
   @Test
   public void testBuildWithExplicitOrder()
   {
-    DefaultLimitSpec limitSpec = new DefaultLimitSpec(
-        ImmutableList.of(
-            new OrderByColumnSpec("k1", Direction.ASCENDING)
-        ),
-        2
-    );
+    LimitSpec limitSpec = LimitSpecs.of(2, new OrderByColumnSpec("k1", Direction.ASCENDING));
 
     Function<Sequence<Row>, Sequence<Row>> limitFn = limitSpec.build(
         ImmutableList.<DimensionSpec>of(

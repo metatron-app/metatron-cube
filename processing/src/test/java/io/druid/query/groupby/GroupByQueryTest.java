@@ -31,7 +31,7 @@ import io.druid.query.aggregation.PostAggregator;
 import io.druid.query.aggregation.post.FieldAccessPostAggregator;
 import io.druid.query.dimension.DefaultDimensionSpec;
 import io.druid.query.dimension.DimensionSpec;
-import io.druid.query.groupby.orderby.DefaultLimitSpec;
+import io.druid.query.groupby.orderby.LimitSpec;
 import io.druid.query.groupby.orderby.OrderByColumnSpec;
 import org.junit.Assert;
 import org.junit.Test;
@@ -60,7 +60,7 @@ public class GroupByQueryTest
         .setGranularity(QueryRunnerTestHelper.dayGran)
         .setPostAggregatorSpecs(ImmutableList.<PostAggregator>of(new FieldAccessPostAggregator("x", "idx")))
         .setLimitSpec(
-            new DefaultLimitSpec(
+            new LimitSpec(
                 ImmutableList.of(OrderByColumnSpec.asc("alias")),
                 100
             )

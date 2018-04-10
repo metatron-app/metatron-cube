@@ -39,6 +39,7 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
 /**
  */
@@ -225,21 +226,17 @@ public class WindowingProcessor implements Function<List<Row>, List<Row>>
     }
 
     for (OrderByColumnSpec columnSpec : orderingSpecs) {
+      boolean descending = columnSpec.getDirection() == Direction.DESCENDING;
       String columnName = columnSpec.getDimension();
       Ordering<Row> nextOrdering;
       if (postAggregatorsMap.containsKey(columnName)) {
-        nextOrdering = metricOrdering(columnName, postAggregatorsMap.get(columnName).getComparator());
+        nextOrdering = metricOrdering(columnName, postAggregatorsMap.get(columnName).getComparator(), descending);
       } else if (aggregatorsMap.containsKey(columnName)) {
-        nextOrdering = metricOrdering(columnName, aggregatorsMap.get(columnName).getComparator());
+        nextOrdering = metricOrdering(columnName, aggregatorsMap.get(columnName).getComparator(), descending);
       } else if (dimensionsMap.containsKey(columnName)) {
         nextOrdering = dimensionOrdering(columnName, columnSpec.getComparator());
       } else {
-        nextOrdering = metricOrdering(columnName);  // last resort.. assume it's assigned by expression
-      }
-
-      switch (columnSpec.getDirection()) {
-        case DESCENDING:
-          nextOrdering = nextOrdering.reverse();
+        nextOrdering = metricOrdering(columnName, descending);  // last resort.. assume it's assigned by expression
       }
 
       ordering = ordering == null ? nextOrdering : ordering.compound(nextOrdering);
@@ -248,10 +245,10 @@ public class WindowingProcessor implements Function<List<Row>, List<Row>>
     return ordering;
   }
 
-  private static Ordering<Row> metricOrdering(final String column, final Comparator comparator)
+  private static Ordering<Row> metricOrdering(final String column, final Comparator comparator, boolean descending)
   {
     final Ordering ordering = Ordering.from(comparator).nullsFirst();
-    return new Ordering<Row>()
+    Ordering<Row> metric = new Ordering<Row>()
     {
       @Override
       @SuppressWarnings("unchecked")
@@ -260,12 +257,13 @@ public class WindowingProcessor implements Function<List<Row>, List<Row>>
         return ordering.compare(left.getRaw(column), right.getRaw(column));
       }
     };
+    return descending ? metric.reverse() : metric;
   }
 
-  private static Ordering<Row> metricOrdering(final String column)
+  private static Ordering<Row> metricOrdering(final String column, boolean descending)
   {
     final Ordering ordering = Ordering.natural().nullsFirst();
-    return new Ordering<Row>()
+    Ordering<Row> metric = new Ordering<Row>()
     {
       @Override
       @SuppressWarnings("unchecked")
@@ -276,6 +274,7 @@ public class WindowingProcessor implements Function<List<Row>, List<Row>>
         return ordering.compare(l, r);
       }
     };
+    return descending ? metric.reverse() : metric;
   }
 
   @SuppressWarnings("unchecked")
@@ -286,7 +285,6 @@ public class WindowingProcessor implements Function<List<Row>, List<Row>>
   {
     return Ordering
         .from(comparator)
-        .nullsFirst()
         .onResultOf(
             new Function<Row, String>()
             {
@@ -294,8 +292,7 @@ public class WindowingProcessor implements Function<List<Row>, List<Row>>
               public String apply(Row input)
               {
                 // Multi-value dimensions have all been flattened at this point;
-                Object value = input.getRaw(dimension);
-                return value == null ? null : String.valueOf(value);
+                return Objects.toString(input.getRaw(dimension), null);
               }
             }
         );

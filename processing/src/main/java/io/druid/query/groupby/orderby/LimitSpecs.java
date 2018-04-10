@@ -26,6 +26,7 @@ import io.druid.common.guava.GuavaUtils;
 import io.druid.query.dimension.DimensionSpec;
 import io.druid.query.dimension.DimensionSpecWithOrdering;
 
+import java.util.Arrays;
 import java.util.List;
 
 /**
@@ -43,17 +44,13 @@ public class LimitSpecs
 
   public static LimitSpec of(Integer limit)
   {
-    return limit == null ? new NoopLimitSpec() : new DefaultLimitSpec(null, limit, null);
+    return limit == null ? NoopLimitSpec.INSTANCE : new LimitSpec(null, limit, null, null, null);
   }
 
-  public static LimitSpec withWindowing(LimitSpec limit, List<WindowingSpec> windowingSpecs)
+  public static LimitSpec of(Integer limit, OrderByColumnSpec... specs)
   {
-    return new DefaultLimitSpec(limit.getColumns(), limit.getLimit(), windowingSpecs);
-  }
-
-  public static LimitSpec withOrderingSpec(LimitSpec limit, List<OrderByColumnSpec> orderingSpec)
-  {
-    return new DefaultLimitSpec(orderingSpec, limit.getLimit(), limit.getWindowingSpecs());
+    return limit == null && specs.length == 0 ?
+           NoopLimitSpec.INSTANCE : new LimitSpec(Arrays.asList(specs), limit, null, null, null);
   }
 
   public static boolean isDummy(LimitSpec limitSpec)
