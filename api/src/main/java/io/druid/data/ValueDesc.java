@@ -23,6 +23,7 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonValue;
 import com.google.common.base.Preconditions;
 
+import javax.annotation.Nullable;
 import java.util.Comparator;
 
 /**
@@ -214,6 +215,23 @@ public class ValueDesc
   {
     Preconditions.checkArgument(valueDesc.isNumeric(), "should be numeric type but " + valueDesc);
     return valueDesc;
+  }
+
+  public static ValueDesc toCommonType(@Nullable ValueDesc type1, ValueDesc type2)
+  {
+    if (type1 == null) {
+      return type2;
+    }
+    if (type1.equals(type2)) {
+      return type1;
+    }
+    if (type1.isNumeric() && type2.isNumeric()) {
+      return ValueDesc.DOUBLE;
+    }
+    if (type1.isStringOrDimension() && type2.isStringOrDimension()) {
+      return ValueDesc.STRING;
+    }
+    return ValueDesc.UNKNOWN;
   }
 
   public static boolean isSameCategory(ValueDesc type1, ValueDesc type2)

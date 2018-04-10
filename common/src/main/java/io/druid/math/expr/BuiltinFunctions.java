@@ -1309,18 +1309,14 @@ public interface BuiltinFunctions extends Function.Library
       if (args.size() % 2 == 0) {
         throw new RuntimeException("function 'if' needs default value");
       }
-      ValueDesc prev = args.get(1).type(bindings);
-      for (int i = 3; i < args.size() - 1; i += 2) {
-        ValueDesc type = args.get(i).type(bindings);
-        if (prev != null && !prev.equals(type)) {
+      ValueDesc prev = null;
+      for (int i = 1; i < args.size() - 1; i += 2) {
+        prev = ValueDesc.toCommonType(prev, args.get(i).type(bindings));
+        if (prev.equals(ValueDesc.UNKNOWN)) {
           return ValueDesc.UNKNOWN;
         }
-        prev = type;
       }
-      if (!prev.equals(args.get(args.size() - 1).type(bindings))) {
-        return ValueDesc.UNKNOWN;
-      }
-      return prev;
+      return ValueDesc.toCommonType(prev, args.get(args.size() - 1).type(bindings));
     }
 
     @Override
@@ -1403,9 +1399,7 @@ public interface BuiltinFunctions extends Function.Library
       ValueDesc y = args.get(1).type(bindings);
 
       // hate this..
-      return x.equals(y) ? x :
-             x.isStringOrDimension() && y.isStringOrDimension() ? ValueDesc.STRING :
-             ValueDesc.UNKNOWN;
+      return ValueDesc.toCommonType(x, y);
     }
 
     @Override
@@ -1460,14 +1454,15 @@ public interface BuiltinFunctions extends Function.Library
       if (args.size() < 3) {
         throw new RuntimeException("function 'switch' needs at least 3 arguments");
       }
-      ValueDesc prev = args.get(2).type(bindings);
-      for (int i = 4; i < args.size(); i += 2) {
-        if (!prev.equals(args.get(i).type(bindings))) {
+      ValueDesc prev = null;
+      for (int i = 2; i < args.size(); i += 2) {
+        prev = ValueDesc.toCommonType(prev, args.get(i).type(bindings));
+        if (prev.equals(ValueDesc.UNKNOWN)) {
           return ValueDesc.UNKNOWN;
         }
       }
-      if (args.size() % 2 != 1 && !prev.equals(args.get(args.size() - 1).type(bindings))) {
-        return ValueDesc.UNKNOWN;
+      if (args.size() % 2 != 1) {
+        prev = ValueDesc.toCommonType(prev, args.get(args.size() - 1).type(bindings));
       }
       return prev;
     }
@@ -1502,15 +1497,13 @@ public interface BuiltinFunctions extends Function.Library
       }
       ValueDesc prev = null;
       for (int i = 1; i < args.size() - 1; i += 2) {
-        ValueDesc type = args.get(i).type(bindings);
-        if (prev == null || prev.equals(type)) {
-          prev = type;
-          continue;
+        prev = ValueDesc.toCommonType(prev, args.get(i).type(bindings));
+        if (prev.equals(ValueDesc.UNKNOWN)) {
+          return ValueDesc.UNKNOWN;
         }
-        return ValueDesc.UNKNOWN;
       }
-      if (args.size() % 2 == 1 && (prev != null && !prev.equals(args.get(args.size() - 1).type(bindings)))) {
-        return ValueDesc.UNKNOWN;
+      if (args.size() % 2 == 1) {
+        prev = ValueDesc.toCommonType(prev, args.get(args.size() - 1).type(bindings));
       }
       return prev;
     }
@@ -1527,11 +1520,7 @@ public interface BuiltinFunctions extends Function.Library
         if (eval.asBoolean()) {
           return args.get(i + 1).eval(bindings);
         }
-        if (type != null && !type.equals(eval.type())) {
-          type = ValueDesc.UNKNOWN;
-        } else {
-          type = eval.type();
-        }
+        type = ValueDesc.toCommonType(type, eval.type());
       }
       if (args.size() % 2 == 1) {
         return args.get(args.size() - 1).eval(bindings);
