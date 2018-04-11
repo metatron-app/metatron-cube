@@ -23,14 +23,15 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Predicate;
+import com.google.common.base.Supplier;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
+import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Ordering;
 import com.google.inject.Inject;
 import com.metamx.common.Pair;
-import com.metamx.common.guava.FunctionalIterable;
 import com.metamx.common.guava.Sequence;
 import com.metamx.common.logger.Logger;
 import com.metamx.emitter.service.ServiceEmitter;
@@ -59,11 +60,13 @@ import io.druid.query.QueryToolChestWarehouse;
 import io.druid.query.QueryWatcher;
 import io.druid.query.ReferenceCountingSegmentQueryRunner;
 import io.druid.query.ReportTimelineMissingSegmentQueryRunner;
+import io.druid.query.RowResolver;
 import io.druid.query.SegmentDescriptor;
 import io.druid.query.spec.MultipleSpecificSegmentSpec;
 import io.druid.query.spec.SpecificSegmentQueryRunner;
 import io.druid.query.spec.SpecificSegmentSpec;
 import io.druid.segment.QueryableIndex;
+import io.druid.segment.Segment;
 import io.druid.server.DruidNode;
 import io.druid.server.coordination.DruidServerMetadata;
 import io.druid.timeline.DataSegment;
@@ -82,6 +85,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicLong;
 
 /**
@@ -494,58 +498,105 @@ public class BrokerServerView implements TimelineServerView
       return new NoopQueryRunner<T>();
     }
 
+    final List<Pair<SegmentDescriptor, ReferenceCountingSegment>> segments = Lists.newArrayList(
+        Iterables.transform(
+            specs, new Function<SegmentDescriptor, Pair<SegmentDescriptor, ReferenceCountingSegment>>()
+            {
+              @Override
+              public Pair<SegmentDescriptor, ReferenceCountingSegment> apply(SegmentDescriptor input)
+              {
+                PartitionHolder<ReferenceCountingSegment> entry = timeline.findEntry(
+                    input.getInterval(), input.getVersion()
+                );
+                if (entry != null) {
+                  PartitionChunk<ReferenceCountingSegment> chunk = entry.getChunk(input.getPartitionNumber());
+                  if (chunk != null) {
+                    return Pair.of(input, chunk.getObject());
+                  }
+                }
+                return Pair.of(input, null);
+              }
+            }
+        )
+    );
+
+    final List<Segment> targets = Lists.newArrayList();
+    for (Pair<SegmentDescriptor, ReferenceCountingSegment> segment : segments) {
+      Segment target = segment.rhs == null ? null : segment.rhs.getBaseSegment();
+      if (target != null) {
+        targets.add(target);
+      }
+    }
+    final ExecutorService exec = Execs.singleThreaded("BrokerLocalProcessor-%s");
+
+    final Supplier<RowResolver> resolver = RowResolver.supplier(targets, query);
+    final Query<T> resolved = query.resolveQuery(resolver);
+
+    final Future<Object> optimizer = factory.preFactoring(resolved, targets, resolver, exec);
+
     final Function<Query<T>, ServiceMetricEvent.Builder> builderFn = getBuilderFn(toolChest);
     final AtomicLong cpuTimeAccumulator = new AtomicLong(0L);
 
-    FunctionalIterable<QueryRunner<T>> queryRunners = FunctionalIterable
-        .create(specs)
-        .transformCat(
-            new Function<SegmentDescriptor, Iterable<QueryRunner<T>>>()
+    final Iterable<QueryRunner<T>> queryRunners = Iterables.concat(
+        Iterables.transform(
+            segments,
+            new Function<Pair<SegmentDescriptor, ReferenceCountingSegment>, Iterable<QueryRunner<T>>>()
             {
               @Override
               @SuppressWarnings("unchecked")
-              public Iterable<QueryRunner<T>> apply(SegmentDescriptor input)
+              public Iterable<QueryRunner<T>> apply(Pair<SegmentDescriptor, ReferenceCountingSegment> input)
               {
-                final PartitionHolder<ReferenceCountingSegment> entry = timeline.findEntry(
-                    input.getInterval(), input.getVersion()
-                );
-
-                if (entry == null) {
-                  return Arrays.<QueryRunner<T>>asList(new ReportTimelineMissingSegmentQueryRunner<T>(input));
+                if (input.rhs == null) {
+                  return Arrays.<QueryRunner<T>>asList(new ReportTimelineMissingSegmentQueryRunner<T>(input.lhs));
                 }
-
-                final PartitionChunk<ReferenceCountingSegment> chunk = entry.getChunk(input.getPartitionNumber());
-                if (chunk == null) {
-                  return Arrays.<QueryRunner<T>>asList(new ReportTimelineMissingSegmentQueryRunner<T>(input));
-                }
-
-                final ReferenceCountingSegment adapter = chunk.getObject();
                 return Arrays.asList(
-                    buildAndDecorateQueryRunner(factory, toolChest, adapter, input, builderFn, cpuTimeAccumulator)
+                    buildAndDecorateQueryRunner(
+                        resolver,
+                        factory,
+                        toolChest,
+                        input.rhs,
+                        input.lhs,
+                        optimizer,
+                        builderFn,
+                        cpuTimeAccumulator
+                    )
                 );
               }
             }
-        );
+        )
+    );
 
-    ExecutorService executor = Execs.singleThreaded("BrokerLocalProcessor-%s");
-    return CPUTimeMetricQueryRunner.safeBuild(
-        new FinalizeResultsQueryRunner<>(
-            toolChest.mergeResults(factory.mergeRunners(executor, queryRunners, null)),
-            toolChest
+    final QueryRunner<T> runner = CPUTimeMetricQueryRunner.safeBuild(
+        FinalizeResultsQueryRunner.finalize(
+            toolChest.mergeResults(
+                factory.mergeRunners(exec, queryRunners, optimizer)
+            ),
+            toolChest,
+            smileMapper
         ),
         builderFn,
         emitter,
         cpuTimeAccumulator,
         true
     );
+    return new QueryRunner<T>()
+    {
+      @Override
+      public Sequence<T> run(Query<T> query, Map<String, Object> responseContext)
+      {
+        return runner.run(resolved, responseContext);
+      }
+    };
   }
 
   // copied from server manager, except cache populator
   private <T> QueryRunner<T> buildAndDecorateQueryRunner(
+      final Supplier<RowResolver> resolver,
       final QueryRunnerFactory<T, Query<T>> factory,
       final QueryToolChest<T, Query<T>> toolChest,
       final ReferenceCountingSegment adapter,
       final SegmentDescriptor segmentDescriptor,
+      final Future<Object> optimizer,
       final Function<Query<T>, ServiceMetricEvent.Builder> builderFn,
       final AtomicLong cpuTimeAccumulator
   )
@@ -569,7 +620,9 @@ public class BrokerServerView implements TimelineServerView
                                 return toolChest.makeMetricBuilder(input);
                               }
                             },
-                            new ReferenceCountingSegmentQueryRunner<T>(null, factory, adapter, segmentDescriptor, null),
+                            new ReferenceCountingSegmentQueryRunner<T>(
+                                resolver, factory, adapter, segmentDescriptor, optimizer
+                            ),
                             "query/segment/time",
                             ImmutableMap.of("segment", adapter.getIdentifier())
                         )
