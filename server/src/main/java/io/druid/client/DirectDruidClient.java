@@ -73,6 +73,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 public class DirectDruidClient<T> implements QueryRunner<T>
 {
   private static final Logger log = new Logger(DirectDruidClient.class);
+  private static final long WRITE_DELAY_LOG_THRESHOLD = 100;
 
   private static final Map<Class<? extends Query>, Pair<JavaType, JavaType>> typesMap = Maps.newConcurrentMap();
 
@@ -124,6 +125,7 @@ public class DirectDruidClient<T> implements QueryRunner<T>
   @Override
   public Sequence<T> run(final Query<T> query, final Map<String, Object> context)
   {
+    final long start = System.currentTimeMillis();
     QueryToolChest<T, Query<T>> toolChest = warehouse.getToolChest(query);
 
     Pair<JavaType, JavaType> types = typesMap.get(query.getClass());
@@ -159,6 +161,10 @@ public class DirectDruidClient<T> implements QueryRunner<T>
               .setHeader(HttpHeaders.Names.CONTENT_TYPE, contentType),
           handlerFactory.create(query, url, builder, context)
       );
+      final long elapsed = System.currentTimeMillis() - start;
+      if (elapsed > WRITE_DELAY_LOG_THRESHOLD) {
+        log.info("Took %,d msec to write query[%s] to url[%s]", elapsed, query.getId(), url);
+      }
 
       queryWatcher.registerQuery(query, Execs.tag(future, host));
 
