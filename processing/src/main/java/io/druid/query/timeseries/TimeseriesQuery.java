@@ -155,7 +155,7 @@ public class TimeseriesQuery extends BaseAggregationQuery<Result<TimeseriesResul
         limitSpec,
         outputColumns,
         lateralView,
-        computeOverridenContext(contextOverrides)
+        computeOverriddenContext(contextOverrides)
     );
   }
 

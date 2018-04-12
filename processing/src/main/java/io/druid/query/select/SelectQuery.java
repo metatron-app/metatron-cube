@@ -24,8 +24,8 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
-import io.druid.granularity.QueryGranularities;
 import io.druid.granularity.Granularity;
+import io.druid.granularity.QueryGranularities;
 import io.druid.query.BaseQuery;
 import io.druid.query.DataSource;
 import io.druid.query.LateralViewSpec;
@@ -114,12 +114,6 @@ public class SelectQuery extends BaseQuery<Result<SelectResultValue>>
         getPagingSpec(),
         getContext()
     );
-  }
-
-  @Override
-  public boolean hasFilters()
-  {
-    return dimFilter != null || super.hasFilters();
   }
 
   @Override
@@ -247,7 +241,7 @@ public class SelectQuery extends BaseQuery<Result<SelectResultValue>>
         concatString,
         outputColumns,
         lateralView,
-        computeOverridenContext(contextOverrides)
+        computeOverriddenContext(contextOverrides)
     );
   }
 

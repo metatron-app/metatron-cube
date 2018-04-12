@@ -101,12 +101,6 @@ public class TopNQuery extends BaseQuery<Result<TopNResultValue>>
   }
 
   @Override
-  public boolean hasFilters()
-  {
-    return dimFilter != null || super.hasFilters();
-  }
-
-  @Override
   public String getType()
   {
     return TOPN;
@@ -349,7 +343,7 @@ public class TopNQuery extends BaseQuery<Result<TopNResultValue>>
         aggregatorSpecs,
         postAggregatorSpecs,
         outputColumns,
-        computeOverridenContext(contextOverrides)
+        computeOverriddenContext(contextOverrides)
     );
   }
 

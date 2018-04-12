@@ -21,18 +21,14 @@ package io.druid.query.select;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.google.common.base.Function;
-import com.google.common.base.Functions;
 import com.metamx.common.guava.Sequence;
 import com.metamx.common.guava.Sequences;
-import com.metamx.emitter.service.ServiceMetricEvent;
 import io.druid.common.guava.GuavaUtils;
-import io.druid.query.DruidMetrics;
 import io.druid.query.Query;
 import io.druid.query.QueryRunner;
 import io.druid.query.QuerySegmentWalker;
 import io.druid.query.QueryToolChest;
 import io.druid.query.TabularFormat;
-import io.druid.query.aggregation.MetricManipulationFn;
 import io.druid.query.spec.MultipleIntervalSegmentSpec;
 import io.druid.segment.Segment;
 import org.joda.time.Interval;
@@ -66,20 +62,6 @@ public class StreamQueryToolChest extends QueryToolChest<StreamQueryRow, StreamQ
         return sequence;
       }
     };
-  }
-
-  @Override
-  public ServiceMetricEvent.Builder makeMetricBuilder(StreamQuery query)
-  {
-    return DruidMetrics.makePartialQueryTimeMetric(query);
-  }
-
-  @Override
-  public Function<StreamQueryRow, StreamQueryRow> makePreComputeManipulatorFn(
-      final StreamQuery query, final MetricManipulationFn fn
-  )
-  {
-    return Functions.identity();
   }
 
   @Override

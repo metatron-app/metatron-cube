@@ -21,8 +21,8 @@ package io.druid.query.select;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.collect.ImmutableList;
-import io.druid.granularity.QueryGranularities;
 import io.druid.granularity.Granularity;
+import io.druid.granularity.QueryGranularities;
 import io.druid.query.BaseQuery;
 import io.druid.query.DataSource;
 import io.druid.query.Query;
@@ -69,12 +69,6 @@ public abstract class AbstractStreamQuery<T extends Comparable<T>> extends BaseQ
     this.virtualColumns = virtualColumns == null ? ImmutableList.<VirtualColumn>of() : virtualColumns;
     this.concatString = concatString;
     this.limit = limit > 0 ? limit : -1;
-  }
-
-  @Override
-  public boolean hasFilters()
-  {
-    return dimFilter != null || super.hasFilters();
   }
 
   @JsonProperty("filter")

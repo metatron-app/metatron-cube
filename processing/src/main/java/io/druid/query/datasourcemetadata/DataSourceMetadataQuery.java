@@ -61,12 +61,6 @@ public class DataSourceMetadataQuery extends BaseQuery<Result<DataSourceMetadata
   }
 
   @Override
-  public boolean hasFilters()
-  {
-    return false;
-  }
-
-  @Override
   public String getType()
   {
     return Query.DATASOURCE_METADATA;
@@ -78,7 +72,7 @@ public class DataSourceMetadataQuery extends BaseQuery<Result<DataSourceMetadata
     return new DataSourceMetadataQuery(
         getDataSource(),
         getQuerySegmentSpec(),
-        computeOverridenContext(contextOverrides)
+        computeOverriddenContext(contextOverrides)
     );
   }
 

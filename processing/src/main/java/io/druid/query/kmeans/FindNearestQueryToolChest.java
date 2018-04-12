@@ -20,17 +20,12 @@
 package io.druid.query.kmeans;
 
 import com.fasterxml.jackson.core.type.TypeReference;
-import com.google.common.base.Function;
-import com.google.common.base.Functions;
 import com.google.common.collect.Ordering;
 import com.metamx.common.guava.nary.BinaryFn;
-import com.metamx.emitter.service.ServiceMetricEvent;
-import io.druid.query.DruidMetrics;
 import io.druid.query.Query;
 import io.druid.query.QueryRunner;
 import io.druid.query.QueryToolChest;
 import io.druid.query.ResultMergeQueryRunner;
-import io.druid.query.aggregation.MetricManipulationFn;
 
 /**
  */
@@ -75,20 +70,6 @@ public class FindNearestQueryToolChest extends QueryToolChest<CentroidDesc, Find
         };
       }
     };
-  }
-
-  @Override
-  public ServiceMetricEvent.Builder makeMetricBuilder(FindNearestQuery query)
-  {
-    return DruidMetrics.makePartialQueryTimeMetric(query);
-  }
-
-  @Override
-  public Function<CentroidDesc, CentroidDesc> makePreComputeManipulatorFn(
-      final FindNearestQuery query, final MetricManipulationFn fn
-  )
-  {
-    return Functions.identity();
   }
 
   @Override

@@ -261,7 +261,7 @@ public class SegmentMetadataQuery extends BaseQuery<SegmentAnalysis> implements 
         virtualColumns,
         toInclude,
         merge,
-        computeOverridenContext(contextOverride),
+        computeOverriddenContext(contextOverride),
         analysisTypes,
         usingDefaultInterval,
         lenientAggregatorMerge

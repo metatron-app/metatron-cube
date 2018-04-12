@@ -21,6 +21,7 @@ package io.druid.query;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.google.common.base.Function;
+import com.google.common.base.Functions;
 import com.google.common.base.Throwables;
 import com.google.common.collect.Iterables;
 import com.metamx.common.guava.ResourceClosingSequence;
@@ -87,7 +88,10 @@ public abstract class QueryToolChest<ResultType, QueryType extends Query<ResultT
    *
    * @return A MetricEvent.Builder that can be used to make metrics for the provided query
    */
-  public abstract ServiceMetricEvent.Builder makeMetricBuilder(QueryType query);
+  public ServiceMetricEvent.Builder makeMetricBuilder(QueryType query)
+  {
+    return DruidMetrics.makePartialQueryTimeMetric(query);
+  }
 
   /**
    * Creates a Function that can take in a ResultType and return a new ResultType having applied
@@ -104,10 +108,10 @@ public abstract class QueryToolChest<ResultType, QueryType extends Query<ResultT
    *
    * @return A function that will apply the provided fn to all metrics in the input ResultType object
    */
-  public abstract Function<ResultType, ResultType> makePreComputeManipulatorFn(
-      QueryType query,
-      MetricManipulationFn fn
-  );
+  public Function<ResultType, ResultType> makePreComputeManipulatorFn(QueryType query, MetricManipulationFn fn)
+  {
+    return Functions.identity();
+  }
 
   /**
    * Generally speaking this is the exact same thing as makePreComputeManipulatorFn.  It is leveraged in
@@ -123,16 +127,7 @@ public abstract class QueryToolChest<ResultType, QueryType extends Query<ResultT
    */
   public Function<ResultType, ResultType> makePostComputeManipulatorFn(QueryType query, MetricManipulationFn fn)
   {
-    return makePreComputeManipulatorFn(query, fn);
-  }
-
-  public Sequence<ResultType> applyPostComputeManipulatorFn(
-      QueryType query,
-      Sequence<ResultType> sequence,
-      Function<ResultType, ResultType> manipulatorFn
-  )
-  {
-    return Sequences.map(sequence, manipulatorFn);
+    return Functions.identity();
   }
 
   /**

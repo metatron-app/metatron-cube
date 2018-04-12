@@ -235,7 +235,7 @@ public class JoinQuery<T extends Comparable<T>> extends BaseQuery<T> implements 
         limit,
         parallelism,
         queue,
-        computeOverridenContext(contextOverride)
+        computeOverriddenContext(contextOverride)
     );
   }
 
@@ -278,7 +278,7 @@ public class JoinQuery<T extends Comparable<T>> extends BaseQuery<T> implements 
       for (JoinElement element : elements) {
         queries.add(JoinElement.toQuery(dataSources.get(element.getRightAlias()), segmentSpec).withId(queryId));
       }
-      Map<String, Object> context = computeOverridenContext(joinContext);
+      Map<String, Object> context = computeOverriddenContext(joinContext);
       return new JoinDelegate(queries, prefixAlias ? aliases : null, limit, parallelism, queue, context);
     }
 
@@ -302,7 +302,7 @@ public class JoinQuery<T extends Comparable<T>> extends BaseQuery<T> implements 
           );
         }
       }
-      Map<String, Object> context = computeOverridenContext(joinContext);
+      Map<String, Object> context = computeOverriddenContext(joinContext);
       queries.add(new JoinDelegate(partitioned, prefixAlias ? aliases : null, -1, 0, 0, context));
       first = false;
     }

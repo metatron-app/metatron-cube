@@ -155,12 +155,6 @@ public abstract class BaseAggregationQuery<T extends Comparable<T>> extends Base
     return lateralView;
   }
 
-  @Override
-  public boolean hasFilters()
-  {
-    return dimFilter != null || super.hasFilters();
-  }
-
   public abstract BaseAggregationQuery withLimitSpec(LimitSpec limitSpec);
 
   public abstract BaseAggregationQuery withHavingSpec(HavingSpec havingSpec);

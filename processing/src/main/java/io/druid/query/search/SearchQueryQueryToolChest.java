@@ -21,7 +21,6 @@ package io.druid.query.search;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.google.common.base.Function;
-import com.google.common.base.Functions;
 import com.google.common.base.Supplier;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
@@ -34,10 +33,8 @@ import com.metamx.common.ISE;
 import com.metamx.common.guava.Sequence;
 import com.metamx.common.guava.Sequences;
 import com.metamx.common.guava.nary.BinaryFn;
-import com.metamx.emitter.service.ServiceMetricEvent;
 import io.druid.query.BaseQuery;
 import io.druid.query.CacheStrategy;
-import io.druid.query.DruidMetrics;
 import io.druid.query.IntervalChunkingQueryRunnerDecorator;
 import io.druid.query.Query;
 import io.druid.query.QueryCacheHelper;
@@ -47,7 +44,6 @@ import io.druid.query.QueryToolChest;
 import io.druid.query.Result;
 import io.druid.query.ResultGranularTimestampComparator;
 import io.druid.query.ResultMergeQueryRunner;
-import io.druid.query.aggregation.MetricManipulationFn;
 import io.druid.query.dimension.DimensionSpec;
 import io.druid.query.filter.DimFilter;
 import io.druid.query.search.search.SearchHit;
@@ -120,20 +116,6 @@ public class SearchQueryQueryToolChest extends QueryToolChest<Result<SearchResul
         return new SearchBinaryFn.WithCount(query.getSort(), query.getGranularity(), query.getLimit());
       }
     };
-  }
-
-  @Override
-  public ServiceMetricEvent.Builder makeMetricBuilder(SearchQuery query)
-  {
-    return DruidMetrics.makePartialQueryTimeMetric(query);
-  }
-
-  @Override
-  public Function<Result<SearchResultValue>, Result<SearchResultValue>> makePreComputeManipulatorFn(
-      SearchQuery query, MetricManipulationFn fn
-  )
-  {
-    return Functions.identity();
   }
 
   @Override

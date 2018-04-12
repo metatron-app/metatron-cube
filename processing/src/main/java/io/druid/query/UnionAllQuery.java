@@ -168,7 +168,7 @@ public class UnionAllQuery<T extends Comparable<T>> extends BaseQuery<T>
   @SuppressWarnings("unchecked")
   public Query<T> withOverriddenContext(final Map<String, Object> contextOverride)
   {
-    Map<String, Object> context = computeOverridenContext(contextOverride);
+    Map<String, Object> context = computeOverriddenContext(contextOverride);
     if (queries == null) {
       return newInstance(overrideContext(query, contextOverride), null, context);
     }

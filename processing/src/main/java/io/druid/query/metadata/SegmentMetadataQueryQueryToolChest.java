@@ -22,7 +22,6 @@ package io.druid.query.metadata;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Function;
-import com.google.common.base.Functions;
 import com.google.common.base.Predicate;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
@@ -34,19 +33,16 @@ import com.google.inject.Inject;
 import com.metamx.common.guava.MappedSequence;
 import com.metamx.common.guava.Sequence;
 import com.metamx.common.guava.nary.BinaryFn;
-import com.metamx.emitter.service.ServiceMetricEvent;
 import io.druid.common.guava.CombiningSequence;
 import io.druid.common.utils.JodaUtils;
 import io.druid.granularity.Granularity;
 import io.druid.query.CacheStrategy;
-import io.druid.query.DruidMetrics;
 import io.druid.query.Query;
 import io.druid.query.QueryRunner;
 import io.druid.query.QueryToolChest;
 import io.druid.query.ResultMergeQueryRunner;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.AggregatorFactoryNotMergeableException;
-import io.druid.query.aggregation.MetricManipulationFn;
 import io.druid.query.metadata.metadata.ColumnAnalysis;
 import io.druid.query.metadata.metadata.SegmentAnalysis;
 import io.druid.query.metadata.metadata.SegmentMetadataQuery;
@@ -142,20 +138,6 @@ public class SegmentMetadataQueryQueryToolChest extends QueryToolChest<SegmentAn
         };
       }
     };
-  }
-
-  @Override
-  public ServiceMetricEvent.Builder makeMetricBuilder(SegmentMetadataQuery query)
-  {
-    return DruidMetrics.makePartialQueryTimeMetric(query);
-  }
-
-  @Override
-  public Function<SegmentAnalysis, SegmentAnalysis> makePreComputeManipulatorFn(
-      SegmentMetadataQuery query, MetricManipulationFn fn
-  )
-  {
-    return Functions.identity();
   }
 
   @Override

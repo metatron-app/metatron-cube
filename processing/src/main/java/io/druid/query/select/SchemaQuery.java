@@ -133,7 +133,7 @@ public class SchemaQuery extends BaseQuery<Result<SelectMetaResultValue>>
         getDimensions(),
         getMetrics(),
         getVirtualColumns(),
-        computeOverridenContext(contextOverride)
+        computeOverriddenContext(contextOverride)
     );
   }
 

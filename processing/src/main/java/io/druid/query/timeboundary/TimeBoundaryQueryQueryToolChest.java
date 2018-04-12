@@ -21,7 +21,6 @@ package io.druid.query.timeboundary;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.google.common.base.Function;
-import com.google.common.base.Functions;
 import com.google.common.base.Predicate;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
@@ -36,7 +35,6 @@ import io.druid.query.Query;
 import io.druid.query.QueryRunner;
 import io.druid.query.QueryToolChest;
 import io.druid.query.Result;
-import io.druid.query.aggregation.MetricManipulationFn;
 import io.druid.timeline.LogicalSegment;
 import org.joda.time.DateTime;
 
@@ -110,14 +108,6 @@ public class TimeBoundaryQueryQueryToolChest
     return new ServiceMetricEvent.Builder()
             .setDimension(DruidMetrics.DATASOURCE, DataSourceUtil.getMetricName(query.getDataSource()))
             .setDimension(DruidMetrics.TYPE, query.getType());
-  }
-
-  @Override
-  public Function<Result<TimeBoundaryResultValue>, Result<TimeBoundaryResultValue>> makePreComputeManipulatorFn(
-      TimeBoundaryQuery query, MetricManipulationFn fn
-  )
-  {
-    return Functions.identity();
   }
 
   @Override

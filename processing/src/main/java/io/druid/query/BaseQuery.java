@@ -171,7 +171,12 @@ public abstract class BaseQuery<T> implements Query<T>
   @Override
   public boolean hasFilters()
   {
-    return this instanceof DimFilterSupport && DataSources.hasFilter(getDataSource());
+    if (this instanceof DimFilterSupport) {
+      if (((DimFilterSupport)this).getDimFilter() != null) {
+        return true;
+      }
+    }
+    return DataSources.hasFilter(getDataSource());
   }
 
   public boolean allDimensionsForEmpty()
@@ -379,7 +384,7 @@ public abstract class BaseQuery<T> implements Query<T>
     return remover;
   }
 
-  protected Map<String, Object> computeOverridenContext(Map<String, Object> overrides)
+  protected Map<String, Object> computeOverriddenContext(Map<String, Object> overrides)
   {
     return overrideContextWith(getContext(), overrides);
   }
@@ -405,6 +410,7 @@ public abstract class BaseQuery<T> implements Query<T>
   }
 
   @Override
+  @SuppressWarnings("unchecked")
   public Ordering<T> getResultOrdering()
   {
     Ordering retVal = Ordering.natural();

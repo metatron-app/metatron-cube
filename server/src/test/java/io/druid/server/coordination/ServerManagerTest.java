@@ -20,8 +20,6 @@
 package io.druid.server.coordination;
 
 import com.fasterxml.jackson.core.type.TypeReference;
-import com.google.common.base.Function;
-import com.google.common.base.Functions;
 import com.google.common.base.Supplier;
 import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
@@ -40,8 +38,8 @@ import com.metamx.emitter.EmittingLogger;
 import com.metamx.emitter.service.ServiceMetricEvent;
 import io.druid.client.cache.CacheConfig;
 import io.druid.client.cache.LocalCacheProvider;
-import io.druid.granularity.QueryGranularities;
 import io.druid.granularity.Granularity;
+import io.druid.granularity.QueryGranularities;
 import io.druid.jackson.DefaultObjectMapper;
 import io.druid.query.ConcatQueryRunner;
 import io.druid.query.Druids;
@@ -53,7 +51,6 @@ import io.druid.query.QueryRunnerFactoryConglomerate;
 import io.druid.query.QueryToolChest;
 import io.druid.query.Result;
 import io.druid.query.RowResolver;
-import io.druid.query.aggregation.MetricManipulationFn;
 import io.druid.query.dimension.DefaultDimensionSpec;
 import io.druid.query.search.SearchResultValue;
 import io.druid.query.search.search.SearchQuery;
@@ -596,12 +593,6 @@ public class ServerManagerTest
     public ServiceMetricEvent.Builder makeMetricBuilder(QueryType query)
     {
       return new ServiceMetricEvent.Builder();
-    }
-
-    @Override
-    public Function<T, T> makePreComputeManipulatorFn(QueryType query, MetricManipulationFn fn)
-    {
-      return Functions.identity();
     }
 
     @Override

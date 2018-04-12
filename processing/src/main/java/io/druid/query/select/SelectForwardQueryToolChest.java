@@ -20,14 +20,8 @@
 package io.druid.query.select;
 
 import com.fasterxml.jackson.core.type.TypeReference;
-import com.google.common.base.Function;
-import com.google.common.base.Functions;
-import com.metamx.emitter.service.ServiceMetricEvent;
-import io.druid.query.DruidMetrics;
-import io.druid.query.Query;
 import io.druid.query.QueryRunner;
 import io.druid.query.QueryToolChest;
-import io.druid.query.aggregation.MetricManipulationFn;
 
 import java.util.Map;
 
@@ -44,18 +38,6 @@ public class SelectForwardQueryToolChest extends QueryToolChest
   public QueryRunner mergeResults(QueryRunner runner)
   {
     return runner;  // concat sequence (see SelectQueryRunnerFactory.mergeRunners)
-  }
-
-  @Override
-  public ServiceMetricEvent.Builder makeMetricBuilder(Query query)
-  {
-    return DruidMetrics.makePartialQueryTimeMetric(query);
-  }
-
-  @Override
-  public Function makePreComputeManipulatorFn(Query query, MetricManipulationFn fn)
-  {
-    return Functions.identity();
   }
 
   @Override

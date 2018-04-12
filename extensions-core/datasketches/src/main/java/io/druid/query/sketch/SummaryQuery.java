@@ -145,15 +145,9 @@ public class SummaryQuery extends BaseQuery<Result<Map<String, Object>>>
         QueryContextKeys.POST_PROCESSING,
         ImmutableMap.of("type", "sketch.summary", "includeTimeStats", includeTimeStats, "typeDetail", typeDetail)
     );
-    Map<String, Object> summaryContext = computeOverridenContext(postProcessor);
+    Map<String, Object> summaryContext = computeOverriddenContext(postProcessor);
 
     return new UnionAllQuery(null, Arrays.asList(quantile, theta), false, -1, 2, -1, summaryContext);
-  }
-
-  @Override
-  public boolean hasFilters()
-  {
-    return dimFilter != null || super.hasFilters();
   }
 
   @Override
@@ -282,7 +276,7 @@ public class SummaryQuery extends BaseQuery<Result<Map<String, Object>>>
         metrics,
         dimFilter,
         includeTimeStats,
-        computeOverridenContext(contextOverride)
+        computeOverriddenContext(contextOverride)
     );
   }
 

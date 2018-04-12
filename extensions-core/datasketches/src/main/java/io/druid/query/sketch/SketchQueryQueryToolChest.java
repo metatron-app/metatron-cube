@@ -27,10 +27,8 @@ import com.google.common.collect.Ordering;
 import com.google.inject.Inject;
 import com.metamx.common.guava.Sequence;
 import com.metamx.common.guava.nary.BinaryFn;
-import com.metamx.emitter.service.ServiceMetricEvent;
 import io.druid.granularity.QueryGranularities;
 import io.druid.query.CacheStrategy;
-import io.druid.query.DruidMetrics;
 import io.druid.query.IntervalChunkingQueryRunnerDecorator;
 import io.druid.query.Query;
 import io.druid.query.QueryCacheHelper;
@@ -100,12 +98,6 @@ public class SketchQueryQueryToolChest extends QueryToolChest<Result<Map<String,
         return new SketchBinaryFn(sketch.getSketchParam(), sketch.getSketchOp().handler());
       }
     };
-  }
-
-  @Override
-  public ServiceMetricEvent.Builder makeMetricBuilder(SketchQuery query)
-  {
-    return DruidMetrics.makePartialQueryTimeMetric(query);
   }
 
   @Override

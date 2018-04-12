@@ -49,7 +49,7 @@ public abstract class AbstractIteratingQuery<T extends Comparable<T>, V> extends
   @Override
   public Query<T> withOverriddenContext(Map<String, Object> contextOverride)
   {
-    Map<String, Object> context = computeOverridenContext(contextOverride);
+    Map<String, Object> context = computeOverriddenContext(contextOverride);
     return newInstance(query.withOverriddenContext(contextOverride), context);
   }
 

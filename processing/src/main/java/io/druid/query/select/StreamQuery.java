@@ -119,7 +119,7 @@ public class StreamQuery extends AbstractStreamQuery<StreamQueryRow>
         getVirtualColumns(),
         getConcatString(),
         getLimit(),
-        computeOverridenContext(contextOverrides)
+        computeOverriddenContext(contextOverrides)
     );
   }
 

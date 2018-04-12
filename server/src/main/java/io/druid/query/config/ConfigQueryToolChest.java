@@ -20,13 +20,8 @@
 package io.druid.query.config;
 
 import com.fasterxml.jackson.core.type.TypeReference;
-import com.google.common.base.Function;
-import com.google.common.base.Functions;
-import com.metamx.emitter.service.ServiceMetricEvent;
-import io.druid.query.DruidMetrics;
 import io.druid.query.QueryRunner;
 import io.druid.query.QueryToolChest;
-import io.druid.query.aggregation.MetricManipulationFn;
 
 import java.util.Map;
 
@@ -43,20 +38,6 @@ public class ConfigQueryToolChest extends QueryToolChest<Map<String, Object>, Co
   public QueryRunner<Map<String, Object>> mergeResults(QueryRunner<Map<String, Object>> queryRunner)
   {
     return queryRunner;
-  }
-
-  @Override
-  public ServiceMetricEvent.Builder makeMetricBuilder(ConfigQuery query)
-  {
-    return DruidMetrics.makePartialQueryTimeMetric(query);
-  }
-
-  @Override
-  public Function<Map<String, Object>, Map<String, Object>> makePreComputeManipulatorFn(
-      final ConfigQuery query, final MetricManipulationFn fn
-  )
-  {
-    return Functions.identity();
   }
 
   @Override

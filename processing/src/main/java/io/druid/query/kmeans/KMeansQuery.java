@@ -217,7 +217,7 @@ public class KMeansQuery
         getDeltaThreshold(),
         getRanges(),
         getCentroids(),
-        computeOverridenContext(contextOverride)
+        computeOverriddenContext(contextOverride)
     );
   }
 

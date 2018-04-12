@@ -25,11 +25,9 @@ import com.google.common.base.Functions;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Ordering;
 import com.metamx.common.guava.nary.BinaryFn;
-import com.metamx.emitter.service.ServiceMetricEvent;
 import io.druid.granularity.AllGranularity;
 import io.druid.granularity.Granularity;
 import io.druid.query.CacheStrategy;
-import io.druid.query.DruidMetrics;
 import io.druid.query.Query;
 import io.druid.query.QueryCacheHelper;
 import io.druid.query.QueryRunner;
@@ -37,7 +35,6 @@ import io.druid.query.QueryToolChest;
 import io.druid.query.Result;
 import io.druid.query.ResultGranularTimestampComparator;
 import io.druid.query.ResultMergeQueryRunner;
-import io.druid.query.aggregation.MetricManipulationFn;
 import io.druid.query.dimension.DimensionSpec;
 import io.druid.timeline.LogicalSegment;
 import org.joda.time.DateTime;
@@ -186,20 +183,6 @@ public class SelectMetaQueryToolChest extends QueryToolChest<Result<SelectMetaRe
   {
     // shares same logic
     return SelectQueryQueryToolChest.filterSegmentsOnPagingSpec(query.toBaseQuery(), segments);
-  }
-
-  @Override
-  public ServiceMetricEvent.Builder makeMetricBuilder(SelectMetaQuery query)
-  {
-    return DruidMetrics.makePartialQueryTimeMetric(query);
-  }
-
-  @Override
-  public Function<Result<SelectMetaResultValue>, Result<SelectMetaResultValue>> makePreComputeManipulatorFn(
-      SelectMetaQuery query, MetricManipulationFn fn
-  )
-  {
-    return Functions.identity();
   }
 
   @Override

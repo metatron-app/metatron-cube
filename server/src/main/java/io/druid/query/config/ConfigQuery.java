@@ -93,7 +93,7 @@ public class ConfigQuery extends JMXQuery implements FilterableManagementQuery
         getQuerySegmentSpec(),
         getExpression(),
         config,
-        computeOverridenContext(contextOverride)
+        computeOverriddenContext(contextOverride)
     );
   }
 

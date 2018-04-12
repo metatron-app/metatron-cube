@@ -20,8 +20,6 @@
 package io.druid.query.datasourcemetadata;
 
 import com.fasterxml.jackson.core.type.TypeReference;
-import com.google.common.base.Function;
-import com.google.common.base.Functions;
 import com.google.common.base.Predicate;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
@@ -34,7 +32,6 @@ import io.druid.query.Query;
 import io.druid.query.QueryRunner;
 import io.druid.query.QueryToolChest;
 import io.druid.query.Result;
-import io.druid.query.aggregation.MetricManipulationFn;
 import io.druid.timeline.LogicalSegment;
 
 import java.util.List;
@@ -106,14 +103,6 @@ public class DataSourceQueryQueryToolChest
     return new ServiceMetricEvent.Builder()
         .setDimension("dataSource", DataSourceUtil.getMetricName(query.getDataSource()))
         .setDimension("type", query.getType());
-  }
-
-  @Override
-  public Function<Result<DataSourceMetadataResultValue>, Result<DataSourceMetadataResultValue>> makePreComputeManipulatorFn(
-      DataSourceMetadataQuery query, MetricManipulationFn fn
-  )
-  {
-    return Functions.identity();
   }
 
   @Override

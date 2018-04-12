@@ -147,7 +147,7 @@ public class GroupByQuery extends BaseAggregationQuery<Row> implements Query.Rew
         limitSpec,
         outputColumns,
         lateralView,
-        computeOverridenContext(contextOverride)
+        computeOverriddenContext(contextOverride)
     );
   }
 

@@ -100,7 +100,7 @@ public class JMXQuery extends BaseQuery<Map<String, Object>> implements Filterab
         getDataSource(),
         getQuerySegmentSpec(),
         expression,
-        computeOverridenContext(contextOverride)
+        computeOverriddenContext(contextOverride)
     );
   }
 

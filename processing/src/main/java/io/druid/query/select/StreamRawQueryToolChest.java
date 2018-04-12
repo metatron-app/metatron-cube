@@ -21,24 +21,20 @@ package io.druid.query.select;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.google.common.base.Function;
-import com.google.common.base.Functions;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.primitives.Ints;
 import com.metamx.common.guava.Accumulator;
 import com.metamx.common.guava.Sequence;
 import com.metamx.common.guava.Sequences;
-import com.metamx.emitter.service.ServiceMetricEvent;
 import io.druid.common.SteppingSequence;
 import io.druid.common.guava.GuavaUtils;
-import io.druid.query.DruidMetrics;
 import io.druid.query.Query;
 import io.druid.query.QueryContextKeys;
 import io.druid.query.QueryRunner;
 import io.druid.query.QuerySegmentWalker;
 import io.druid.query.QueryToolChest;
 import io.druid.query.TabularFormat;
-import io.druid.query.aggregation.MetricManipulationFn;
 import io.druid.query.ordering.Comparators;
 import io.druid.query.spec.MultipleIntervalSegmentSpec;
 import io.druid.segment.Segment;
@@ -138,20 +134,6 @@ public class StreamRawQueryToolChest extends QueryToolChest<RawRows, StreamRawQu
   }
 
   @Override
-  public ServiceMetricEvent.Builder makeMetricBuilder(StreamRawQuery query)
-  {
-    return DruidMetrics.makePartialQueryTimeMetric(query);
-  }
-
-  @Override
-  public Function<RawRows, RawRows> makePreComputeManipulatorFn(
-      final StreamRawQuery query, final MetricManipulationFn fn
-  )
-  {
-    return Functions.identity();
-  }
-
-  @Override
   public TypeReference<RawRows> getResultTypeReference()
   {
     return TYPE_REFERENCE;
@@ -183,6 +165,7 @@ public class StreamRawQueryToolChest extends QueryToolChest<RawRows, StreamRawQu
                             return new Iterator<Map<String, Object>>()
                             {
                               private final Iterator<Object[]> rowStream = rows.iterator();
+
                               @Override
                               public boolean hasNext()
                               {

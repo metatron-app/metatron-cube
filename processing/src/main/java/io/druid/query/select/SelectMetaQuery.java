@@ -191,12 +191,6 @@ public class SelectMetaQuery extends BaseQuery<Result<SelectMetaResultValue>>
   }
 
   @Override
-  public boolean hasFilters()
-  {
-    return dimFilter != null || super.hasFilters();
-  }
-
-  @Override
   public String getType()
   {
     return SELECT_META;
@@ -215,7 +209,7 @@ public class SelectMetaQuery extends BaseQuery<Result<SelectMetaResultValue>>
         getVirtualColumns(),
         isSchemaOnly(),
         getPagingSpec(),
-        computeOverridenContext(contextOverride)
+        computeOverriddenContext(contextOverride)
     );
   }
 

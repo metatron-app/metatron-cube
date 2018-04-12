@@ -72,12 +72,6 @@ public class SketchQuery extends BaseQuery<Result<Map<String, Object>>>
   }
 
   @Override
-  public boolean hasFilters()
-  {
-    return filter != null || super.hasFilters();
-  }
-
-  @Override
   public String getType()
   {
     return "sketch";
@@ -127,7 +121,7 @@ public class SketchQuery extends BaseQuery<Result<Map<String, Object>>>
         metrics,
         sketchParam,
         sketchOp,
-        computeOverridenContext(contextOverrides)
+        computeOverriddenContext(contextOverrides)
     );
   }
 

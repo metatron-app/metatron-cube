@@ -22,7 +22,6 @@ package io.druid.query.select;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Function;
-import com.google.common.base.Functions;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
@@ -33,12 +32,10 @@ import com.metamx.common.StringUtils;
 import com.metamx.common.guava.Sequence;
 import com.metamx.common.guava.Sequences;
 import com.metamx.common.guava.nary.BinaryFn;
-import com.metamx.emitter.service.ServiceMetricEvent;
 import io.druid.common.utils.JodaUtils;
 import io.druid.data.input.MapBasedRow;
 import io.druid.granularity.Granularity;
 import io.druid.query.CacheStrategy;
-import io.druid.query.DruidMetrics;
 import io.druid.query.IntervalChunkingQueryRunnerDecorator;
 import io.druid.query.LateralViewSpec;
 import io.druid.query.Query;
@@ -52,7 +49,6 @@ import io.druid.query.ResultMergeQueryRunner;
 import io.druid.query.TableDataSource;
 import io.druid.query.TabularFormat;
 import io.druid.query.UnionDataSource;
-import io.druid.query.aggregation.MetricManipulationFn;
 import io.druid.query.dimension.DimensionSpec;
 import io.druid.query.filter.DimFilter;
 import io.druid.query.spec.MultipleIntervalSegmentSpec;
@@ -176,20 +172,6 @@ public class SelectQueryQueryToolChest extends QueryToolChest<Result<SelectResul
         };
       }
     };
-  }
-
-  @Override
-  public ServiceMetricEvent.Builder makeMetricBuilder(SelectQuery query)
-  {
-    return DruidMetrics.makePartialQueryTimeMetric(query);
-  }
-
-  @Override
-  public Function<Result<SelectResultValue>, Result<SelectResultValue>> makePreComputeManipulatorFn(
-      final SelectQuery query, final MetricManipulationFn fn
-  )
-  {
-    return Functions.identity();
   }
 
   @Override

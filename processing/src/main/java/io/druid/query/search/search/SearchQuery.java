@@ -81,12 +81,6 @@ public class SearchQuery extends BaseQuery<Result<SearchResultValue>>
   }
 
   @Override
-  public boolean hasFilters()
-  {
-    return dimFilter != null || super.hasFilters();
-  }
-
-  @Override
   public String getType()
   {
     return Query.SEARCH;
@@ -148,7 +142,7 @@ public class SearchQuery extends BaseQuery<Result<SearchResultValue>>
         querySpec,
         sortSpec,
         valueOnly,
-        computeOverridenContext(contextOverrides)
+        computeOverriddenContext(contextOverrides)
     );
   }
 

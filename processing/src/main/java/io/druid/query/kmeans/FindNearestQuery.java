@@ -114,7 +114,7 @@ public class FindNearestQuery extends BaseQuery<CentroidDesc>
         getVirtualColumns(),
         getMetrics(),
         getCentroids(),
-        computeOverridenContext(contextOverride)
+        computeOverriddenContext(contextOverride)
     );
   }
 
@@ -130,7 +130,7 @@ public class FindNearestQuery extends BaseQuery<CentroidDesc>
         getVirtualColumns(),
         null,
         -1,
-        computeOverridenContext(ImmutableMap.<String, Object>of(ALL_DIMENSIONS_FOR_EMPTY, false))
+        computeOverriddenContext(ImmutableMap.<String, Object>of(ALL_DIMENSIONS_FOR_EMPTY, false))
     );
   }
 

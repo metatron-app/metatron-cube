@@ -111,14 +111,8 @@ public class CovarianceQuery extends BaseQuery<Result<Map<String, Object>>>
         null,
         null,
         null,
-        computeOverridenContext(postProcessor)
+        computeOverriddenContext(postProcessor)
     );
-  }
-
-  @Override
-  public boolean hasFilters()
-  {
-    return dimFilter != null || super.hasFilters();
   }
 
   @Override
@@ -199,7 +193,7 @@ public class CovarianceQuery extends BaseQuery<Result<Map<String, Object>>>
         column,
         dimFilter,
         excludes,
-        computeOverridenContext(contextOverride)
+        computeOverriddenContext(contextOverride)
     );
   }
 

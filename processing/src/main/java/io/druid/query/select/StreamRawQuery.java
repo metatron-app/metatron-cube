@@ -132,7 +132,7 @@ public class StreamRawQuery extends AbstractStreamQuery<RawRows>
         getConcatString(),
         getSortOn(),
         getLimit(),
-        computeOverridenContext(contextOverride)
+        computeOverriddenContext(contextOverride)
     );
   }
 

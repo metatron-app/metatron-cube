@@ -57,7 +57,7 @@ public class DummyQuery<T extends Comparable<T>> extends BaseQuery<T>
         getDataSource(),
         getQuerySegmentSpec(),
         isDescending(),
-        computeOverridenContext(contextOverride)
+        computeOverriddenContext(contextOverride)
     );
   }
 
