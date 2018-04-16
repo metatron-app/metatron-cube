@@ -21,12 +21,15 @@ package io.druid.data;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonValue;
+import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
+import com.google.common.base.Strings;
 import com.google.common.collect.Ordering;
 import io.druid.data.input.Row;
 import org.joda.time.DateTime;
 import org.joda.time.chrono.ISOChronology;
 
+import javax.annotation.Nullable;
 import java.util.Comparator;
 import java.util.Objects;
 
@@ -234,10 +237,22 @@ public enum ValueType
     return name().toLowerCase();
   }
 
+  @Nullable
   @JsonCreator
-  public static ValueType fromString(String name)
+  public static ValueType fromString(@Nullable String name)
   {
-    return name == null ? null : valueOf(name.toUpperCase());
+    if (Strings.isNullOrEmpty(name)) {
+      return null;
+    }
+    switch (name.toUpperCase()) {
+      case "FLOAT" : return FLOAT;
+      case "DOUBLE" : return DOUBLE;
+      case "LONG" : return LONG;
+      case "DATETIME" : return DATETIME;
+      case "STRING" : return STRING;
+      case "COMPLEX" : return COMPLEX;
+    }
+    return null;
   }
 
   public static ValueType of(String name)
@@ -247,12 +262,7 @@ public enum ValueType
 
   public static ValueType of(String name, ValueType defaultType)
   {
-    try {
-      return name == null ? defaultType : fromString(name);
-    }
-    catch (IllegalArgumentException e) {
-      return defaultType;
-    }
+    return Optional.fromNullable(fromString(name)).or(defaultType);
   }
 
   public static ValueType ofPrimitive(String name)
