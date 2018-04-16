@@ -74,12 +74,14 @@ import io.druid.server.security.AuthConfig;
 import io.druid.server.security.AuthorizationInfo;
 import io.druid.server.security.Resource;
 import io.druid.server.security.ResourceType;
+import org.apache.commons.io.input.ReaderInputStream;
 import org.joda.time.DateTime;
 import org.joda.time.Interval;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.ws.rs.Consumes;
 import javax.ws.rs.DELETE;
+import javax.ws.rs.GET;
 import javax.ws.rs.POST;
 import javax.ws.rs.Path;
 import javax.ws.rs.PathParam;
@@ -93,6 +95,7 @@ import javax.ws.rs.core.StreamingOutput;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.io.StringReader;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.Arrays;
@@ -184,6 +187,50 @@ public class QueryResource
     }
     queryManager.cancelQuery(queryId);
     return Response.status(Response.Status.ACCEPTED).build();
+  }
+
+  @GET
+  @Path("/jmx")
+  @Produces(MediaType.APPLICATION_JSON)
+  public Response getJMX(
+      @QueryParam("expression") String expression,
+      @Context final HttpServletRequest req
+  ) throws IOException
+  {
+    String query = "{ \"queryType\": \"jmx\"";
+    if (!Strings.isNullOrEmpty(expression)) {
+      query += ", \"expression\": " + expression;
+    }
+    query += "}";
+    return doPost(new ReaderInputStream(new StringReader(query)), "pretty", req);
+  }
+
+  @GET
+  @Path("/config")
+  @Produces(MediaType.APPLICATION_JSON)
+  public Response getConfig(
+      @QueryParam("keys") String keys,
+      @QueryParam("expression") String expression,
+      @Context final HttpServletRequest req
+  ) throws IOException
+  {
+    String query = "{ \"queryType\": \"config\"";
+    if (!Strings.isNullOrEmpty(expression)) {
+      query += ", \"expression\": " + expression;
+    }
+    if (!Strings.isNullOrEmpty(keys)) {
+      query += ", \"config\": {";
+      final String[] split = keys.split(",");
+      for (int i = 0; i < split.length; i++) {
+        if (i > 0) {
+          query += ", ";
+        }
+        query += "\"" + split[i] + "\": null";
+      }
+      query += "}";
+    }
+    query += "}";
+    return doPost(new ReaderInputStream(new StringReader(query)), "pretty", req);
   }
 
   @POST
