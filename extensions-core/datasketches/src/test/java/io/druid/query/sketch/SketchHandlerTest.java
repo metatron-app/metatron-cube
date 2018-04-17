@@ -27,8 +27,11 @@ import com.google.common.collect.Sets;
 import com.google.common.primitives.Ints;
 import com.yahoo.sketches.quantiles.ItemsSketch;
 import com.yahoo.sketches.quantiles.ItemsUnion;
+import com.yahoo.sketches.theta.Sketch;
+import com.yahoo.sketches.theta.Union;
 import io.druid.data.ValueDesc;
 import io.druid.query.ordering.StringComparators;
+import io.druid.segment.TestHelper;
 import org.apache.commons.lang.StringUtils;
 import org.junit.Assert;
 import org.junit.Test;
@@ -37,6 +40,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Random;
 import java.util.Set;
 
 /**
@@ -160,6 +164,104 @@ public class SketchHandlerTest
     TypedSketch<ItemsSketch> sketch = binary.merge(q.toSketch(sketch1), q.toSketch(sketch2));
     ItemsSketch<Float> r = sketch.value();
     Assert.assertArrayEquals(new Float[]{-3.5f, -1.2f, 1.5f, 2.5f, 4.2f, 7.2f, 11.5f}, r.getQuantiles(7));
+  }
+
+  @Test
+  public void testQuantileMergePerf() throws Exception
+  {
+    final Random r = new Random();
+    final int nomEntries = 16384;
+    final ValueDesc type = ValueDesc.DOUBLE;
+
+    SketchHandler.Quantile handler = new SketchHandler.Quantile();
+    TypedSketch<ItemsUnion> sketch1 = handler.newUnion(nomEntries, type, null);
+    for (int i = 0; i < 200_0000; i++) {
+      handler.updateWithValue(sketch1, r.nextLong() + r.nextDouble());
+    }
+    TypedSketch<ItemsUnion> sketch2 = handler.newUnion(nomEntries, type, null);
+    for (int i = 0; i < 200_0000; i++) {
+      handler.updateWithValue(sketch2, r.nextLong() + r.nextDouble());
+    }
+    TypedSketch<ItemsUnion> sketch3 = handler.newUnion(nomEntries, type, null);
+    for (int i = 0; i < 200_0000; i++) {
+      handler.updateWithValue(sketch3, r.nextLong() + r.nextDouble());
+    }
+    long p = System.currentTimeMillis();
+    TypedSketch<ItemsUnion> union = handler.newUnion(nomEntries, type, null);
+    handler.updateWithSketch(union, handler.toSketch(sketch1).value());
+    handler.updateWithSketch(union, handler.toSketch(sketch2).value());
+    handler.updateWithSketch(union, handler.toSketch(sketch3).value());
+
+    ItemsSketch sketch = handler.toSketch(union).value();
+    System.out.println("Quantiles.. " + Arrays.toString(sketch.getQuantiles(10)));
+    System.out.println("Elapsed.. " + (System.currentTimeMillis() - p));
+    Assert.assertTrue((System.currentTimeMillis() - p) < 50);
+
+    sketch1 = writeAndRead(handler, sketch1);
+    sketch2 = writeAndRead(handler, sketch2);
+    sketch3 = writeAndRead(handler, sketch3);
+
+    p = System.currentTimeMillis();
+    union = handler.newUnion(nomEntries, type, null);
+    handler.updateWithSketch(union, sketch1.value());
+    handler.updateWithSketch(union, sketch2.value());
+    handler.updateWithSketch(union, sketch3.value());
+    sketch = handler.toSketch(union).value();
+    System.out.println("Quantiles.. " + Arrays.toString(sketch.getQuantiles(10)));
+    System.out.println("Elapsed.. " + (System.currentTimeMillis() - p));
+    Assert.assertTrue((System.currentTimeMillis() - p) < 50);
+  }
+
+  @Test
+  public void testThetaMergePerf() throws Exception
+  {
+    final Random r = new Random();
+    final int nomEntries = 16384;
+    final ValueDesc type = ValueDesc.DOUBLE;
+
+    SketchHandler.Theta handler = new SketchHandler.Theta();
+    TypedSketch<Union> sketch1 = handler.newUnion(nomEntries, type, null);
+    for (int i = 0; i < 200_0000; i++) {
+      handler.updateWithValue(sketch1, r.nextLong() + r.nextDouble());
+    }
+    TypedSketch<Union> sketch2 = handler.newUnion(nomEntries, type, null);
+    for (int i = 0; i < 200_0000; i++) {
+      handler.updateWithValue(sketch2, r.nextLong() + r.nextDouble());
+    }
+    TypedSketch<Union> sketch3 = handler.newUnion(nomEntries, type, null);
+    for (int i = 0; i < 200_0000; i++) {
+      handler.updateWithValue(sketch3, r.nextLong() + r.nextDouble());
+    }
+    long p = System.currentTimeMillis();
+    TypedSketch<Union> union = handler.newUnion(nomEntries, type, null);
+    handler.updateWithSketch(union, handler.toSketch(sketch1).value());
+    handler.updateWithSketch(union, handler.toSketch(sketch2).value());
+    handler.updateWithSketch(union, handler.toSketch(sketch3).value());
+
+    Sketch sketch = handler.toSketch(union).value();
+    System.out.println("Cardinality.. " + sketch.getEstimate());
+    System.out.println("Elapsed.. " + (System.currentTimeMillis() - p));
+    Assert.assertTrue((System.currentTimeMillis() - p) < 50);
+
+    sketch1 = writeAndRead(handler, sketch1);
+    sketch2 = writeAndRead(handler, sketch2);
+    sketch3 = writeAndRead(handler, sketch3);
+
+    p = System.currentTimeMillis();
+    union = handler.newUnion(nomEntries, type, null);
+    handler.updateWithSketch(union, sketch1.value());
+    handler.updateWithSketch(union, sketch2.value());
+    handler.updateWithSketch(union, sketch3.value());
+    sketch = handler.toSketch(union).value();
+    System.out.println("Cardinality.. " + sketch.getEstimate());
+    System.out.println("Elapsed.. " + (System.currentTimeMillis() - p));
+    Assert.assertTrue((System.currentTimeMillis() - p) < 50);
+  }
+
+  private TypedSketch writeAndRead(SketchHandler handler, TypedSketch sketch) throws Exception
+  {
+    final Object object = TestHelper.JSON_MAPPER.writeValueAsString(handler.toSketch(sketch));
+    return TypedSketch.deserialize(handler.op(), object, null);
   }
 
   @Test

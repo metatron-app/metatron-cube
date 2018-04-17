@@ -42,6 +42,8 @@ import java.util.List;
  */
 public interface SketchHandler<U>
 {
+  SketchOp op();
+
   TypedSketch<U> calculate(
       int sketchParam,
       BitmapIndex bitmapIndex,
@@ -73,6 +75,12 @@ public interface SketchHandler<U>
     private final SketchHandler<X> handler;
 
     public Synchronized(SketchHandler<X> handler) {this.handler = handler;}
+
+    @Override
+    public SketchOp op()
+    {
+      return handler.op();
+    }
 
     @Override
     public synchronized TypedSketch<X> calculate(int sketchParam, BitmapIndex bitmapIndex, ExtractionFn function)
@@ -131,6 +139,12 @@ public interface SketchHandler<U>
 
   public static class Theta implements SketchHandler<Union>
   {
+    @Override
+    public SketchOp op()
+    {
+      return SketchOp.THETA;
+    }
+
     @Override
     public TypedSketch<Union> calculate(int sketchParam, BitmapIndex bitmapIndex, ExtractionFn function)
     {
@@ -226,7 +240,7 @@ public interface SketchHandler<U>
     }
 
     @Override
-    public TypedSketch toSketch(TypedSketch<Union> input)
+    public TypedSketch<Sketch> toSketch(TypedSketch<Union> input)
     {
       return TypedSketch.of(input.type(), input.value().getResult());
     }
@@ -282,6 +296,12 @@ public interface SketchHandler<U>
 
   public static class Quantile extends CardinalitySensitive<ItemsUnion>
   {
+    @Override
+    public SketchOp op()
+    {
+      return SketchOp.QUANTILE;
+    }
+
     @Override
     public boolean supports(ValueDesc type)
     {
@@ -341,6 +361,12 @@ public interface SketchHandler<U>
     }
 
     @Override
+    public SketchOp op()
+    {
+      return SketchOp.FREQUENCY;
+    }
+
+    @Override
     public TypedSketch<com.yahoo.sketches.frequencies.ItemsSketch> newUnion(
         int sketchParam,
         ValueDesc type,
@@ -386,6 +412,12 @@ public interface SketchHandler<U>
       for (int i = 0; i < count; i++) {
         sketch.value().update(value);
       }
+    }
+
+    @Override
+    public SketchOp op()
+    {
+      return SketchOp.SAMPLING;
     }
 
     @Override
