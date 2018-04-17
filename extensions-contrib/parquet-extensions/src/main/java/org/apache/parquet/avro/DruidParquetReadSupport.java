@@ -88,6 +88,12 @@ public class DruidParquetReadSupport extends AvroReadSupport<GenericRecord>
 
     MessageType parquetSchema = readContext.getRequestedSchema();
     Schema avroSchema = new AvroSchemaConverter(configuration).convert(parquetSchema);
+    for (Schema.Field avroField : avroSchema.getFields()) {
+      Schema nonNullSchema = AvroSchemaConverter.getNonNull(avroField.schema());
+      if (nonNullSchema.getType() == Schema.Type.STRING) {
+        nonNullSchema.addProp("avro.java.string", "String");  // Utf8 by default
+      }
+    }
 
     Class<? extends AvroDataSupplier> suppClass = configuration.getClass(
         AVRO_DATA_SUPPLIER,

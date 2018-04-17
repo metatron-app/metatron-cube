@@ -20,7 +20,6 @@ package io.druid.data.input.parquet;
 
 import io.druid.indexer.HadoopDruidIndexerConfig;
 import org.apache.avro.generic.GenericRecord;
-import org.apache.avro.util.Utf8;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.mapreduce.Job;
@@ -70,7 +69,7 @@ public class DruidParquetInputTest
 
     // field not read, should return null
     assertEquals(data.get("added"), null);
-    assertEquals(data.get("page"), new Utf8("Gypsy Danger"));
+    assertEquals(data.get("page"), "Gypsy Danger");
     assertEquals(config.getParser().parse(data).getDimension("page").get(0), "Gypsy Danger");
 
     reader.close();

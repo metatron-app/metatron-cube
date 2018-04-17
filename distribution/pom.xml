@@ -117,6 +117,8 @@
                                 <argument>-c</argument>
                                 <argument>io.druid.extensions.contrib:druid-orc-extensions</argument>
                                 <argument>-c</argument>
+                                <argument>io.druid.extensions.contrib:druid-parquet-extensions</argument>
+                                <argument>-c</argument>
                                 <argument>io.druid.extensions.contrib:druid-kafka-eight-simple-consumer</argument>
                             </arguments>
                         </configuration>

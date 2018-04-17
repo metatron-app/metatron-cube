@@ -178,6 +178,9 @@ public class DefaultTimestampSpec implements TimestampSpec
       @Override
       public DateTime apply(Object input)
       {
+        if (input instanceof DateTime) {
+          return (DateTime) input;
+        }
         if (input instanceof Number) {
           return numericFunc.apply((Number) input);
         }
