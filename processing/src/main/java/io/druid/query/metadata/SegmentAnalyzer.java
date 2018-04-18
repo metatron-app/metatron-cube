@@ -139,19 +139,25 @@ public class SegmentAnalyzer
             @SuppressWarnings("unchecked")
             public Object[] accumulate(Object[] accumulated, Cursor cursor)
             {
-              ObjectColumnSelector selector = cursor.makeObjectColumnSelector(columnName);
-              Preconditions.checkArgument(valueDesc.equals(selector.type()), valueDesc + " vs " + selector.type());
-              for (; !cursor.isDone(); cursor.advance()) {
-                Comparable comparable = (Comparable) selector.get();
-                if (comparable == null) {
+              final ObjectColumnSelector selector = cursor.makeObjectColumnSelector(columnName);
+              if (selector == null) {
+                for (; !cursor.isDone(); cursor.advance()) {
                   ((MutableInt) accumulated[2]).increment();
-                  continue;
                 }
-                if (accumulated[0] == null || comparable.compareTo(accumulated[0]) < 0) {
-                  accumulated[0] = comparable;
-                }
-                if (accumulated[1] == null || comparable.compareTo(accumulated[1]) > 0) {
-                  accumulated[1] = comparable;
+              } else {
+                Preconditions.checkArgument(valueDesc.equals(selector.type()), valueDesc + " vs " + selector.type());
+                for (; !cursor.isDone(); cursor.advance()) {
+                  Comparable comparable = (Comparable) selector.get();
+                  if (comparable == null) {
+                    ((MutableInt) accumulated[2]).increment();
+                    continue;
+                  }
+                  if (accumulated[0] == null || comparable.compareTo(accumulated[0]) < 0) {
+                    accumulated[0] = comparable;
+                  }
+                  if (accumulated[1] == null || comparable.compareTo(accumulated[1]) > 0) {
+                    accumulated[1] = comparable;
+                  }
                 }
               }
               return accumulated;
@@ -195,6 +201,7 @@ public class SegmentAnalyzer
     Preconditions.checkArgument(ValueDesc.isDimension(valueDesc));
     final ValueType valueType = valueDesc.subElement().type();
     final Map<String, Object> stats = column == null ? null : column.getColumnStats();
+    final ColumnCapabilities capabilities = column == null ? null : column.getCapabilities();
 
     final boolean analyzingMinMax = analysisTypes.contains(AnalysisType.MINMAX);
     final boolean analyzingNullCount = analysisTypes.contains(AnalysisType.NULL_COUNT);
@@ -214,7 +221,7 @@ public class SegmentAnalyzer
       }
     }
     if (analyzingMinMax && !minMaxEvaluated || analyzingNullCount && nullCount < 0) {
-      if (column != null && column.getCapabilities().hasBitmapIndexes()) {
+      if (capabilities != null && capabilities.hasBitmapIndexes()) {
         BitmapIndex bitmapIndex = column.getBitmapIndex();
         int cardinality = bitmapIndex.getCardinality();
         if (analyzingMinMax && cardinality > 0) {
@@ -240,23 +247,25 @@ public class SegmentAnalyzer
               {
                 final DimensionSelector selector = cursor.makeDimensionSelector(DefaultDimensionSpec.of(columnName));
                 if (selector == null) {
-                  return accumulated;
-                }
-                final int nullIndex = selector.lookupId(null);
-
-                for (; !cursor.isDone(); cursor.advance()) {
-                  final IndexedInts vals = selector.getRow();
-                  for (int i = 0; i < vals.size(); ++i) {
-                    final int id = vals.get(i);
-                    if (id == nullIndex) {
-                      ((MutableInt) accumulated[2]).increment();
-                    }
-                    Comparable comparable = id == nullIndex ? "" : selector.lookupName(id);
-                    if (accumulated[0] == null || comparator.compare(comparable, accumulated[0]) < 0) {
-                      accumulated[0] = comparable;
-                    }
-                    if (accumulated[1] == null || comparator.compare(comparable, accumulated[1]) > 0) {
-                      accumulated[1] = comparable;
+                  for (; !cursor.isDone(); cursor.advance()) {
+                    ((MutableInt) accumulated[2]).increment();
+                  }
+                } else {
+                  final int nullIndex = selector.lookupId(null);
+                  for (; !cursor.isDone(); cursor.advance()) {
+                    final IndexedInts vals = selector.getRow();
+                    for (int i = 0; i < vals.size(); ++i) {
+                      final int id = vals.get(i);
+                      if (id == nullIndex) {
+                        ((MutableInt) accumulated[2]).increment();
+                      }
+                      Comparable comparable = id == nullIndex ? "" : selector.lookupName(id);
+                      if (accumulated[0] == null || comparator.compare(comparable, accumulated[0]) < 0) {
+                        accumulated[0] = comparable;
+                      }
+                      if (accumulated[1] == null || comparator.compare(comparable, accumulated[1]) > 0) {
+                        accumulated[1] = comparable;
+                      }
                     }
                   }
                 }

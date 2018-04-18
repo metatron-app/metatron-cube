@@ -23,7 +23,6 @@ import com.google.common.base.Function;
 import com.google.common.base.Supplier;
 import com.google.common.base.Throwables;
 import com.google.common.collect.Iterables;
-import com.google.common.collect.Maps;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.ListeningExecutorService;
 import com.google.common.util.concurrent.MoreExecutors;
@@ -112,14 +111,11 @@ public class SegmentMetadataQueryRunnerFactory implements QueryRunnerFactory<Seg
 
         List<Interval> retIntervals = query.analyzingInterval() ? Arrays.asList(segment.getDataInterval()) : null;
 
-        Metadata metadata = segment.asStorageAdapter(false).getMetadata();;
+        Metadata metadata = adapter.getMetadata();;
 
         Map<String, AggregatorFactory> aggregators = null;
         if (query.hasAggregators() && metadata != null && metadata.getAggregators() != null) {
-          aggregators = Maps.newHashMap();
-          for (AggregatorFactory aggregator : metadata.getAggregators()) {
-            aggregators.put(aggregator.getName(), aggregator);
-          }
+          aggregators = AggregatorFactory.asMap(metadata.getAggregators());
         }
 
         Granularity queryGranularity = null;
