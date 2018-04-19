@@ -951,24 +951,63 @@ public interface BuiltinFunctions extends Function.Library
   }
 
   @Function.Named("round")
-  final class Round extends SingleParam
+  final class Round extends Function.AbstractFactory
   {
     @Override
-    public ValueDesc type(ValueDesc param)
+    public Function create(List<Expr> args)
     {
-      return param.isNumeric() ? ValueDesc.LONG : ValueDesc.UNKNOWN;
-    }
-
-    @Override
-    protected ExprEval eval(ExprEval param)
-    {
-      ValueDesc type = param.type();
-      if (type.isFloat()) {
-        return ExprEval.of(Math.round(param.floatValue()));
-      } else if (type.isNumeric()) {
-        return ExprEval.of(Math.round(param.doubleValue()));
+      if (args.size() != 1 && args.size() != 2) {
+        throw new RuntimeException("function '" + name() + "' needs 1 or 2");
       }
-      return ExprEval.UNKNOWN;
+      if (args.size() == 1) {
+        return new Child()
+        {
+          @Override
+          public ValueDesc apply(List<Expr> args, TypeBinding bindings)
+          {
+            ValueDesc param = args.get(0).type(bindings);
+            return param.isNumeric() ? ValueDesc.LONG : param;
+          }
+
+          @Override
+          public ExprEval apply(List<Expr> args, NumericBinding bindings)
+          {
+            ExprEval param = Evals.eval(args.get(0), bindings);
+            ValueDesc type = param.type();
+            if (type.isFloat()) {
+              return ExprEval.of(Math.round(param.floatValue()));
+            } else if (type.isNumeric()) {
+              return ExprEval.of(Math.round(param.doubleValue()));
+            }
+            return param;
+          }
+        };
+      }
+      final int value = Evals.getConstantInt(args.get(1));
+      if (value < 0) {
+        throw new RuntimeException("2nd argument of '" + name() + "' should be positive integer");
+      }
+      final double x = Math.pow(10, value);
+      return new Child()
+      {
+        @Override
+        public ValueDesc apply(List<Expr> args, TypeBinding bindings)
+        {
+          ValueDesc param = args.get(0).type(bindings);
+          return param.isNumeric() ? ValueDesc.DOUBLE : param;
+        }
+
+        @Override
+        public ExprEval apply(List<Expr> args, NumericBinding bindings)
+        {
+          ExprEval param = Evals.eval(args.get(0), bindings);
+          ValueDesc type = param.type();
+          if (type.isNumeric()) {
+            return ExprEval.of(Math.round(param.doubleValue() * x) / x);
+          }
+          return param;
+        }
+      };
     }
   }
 
