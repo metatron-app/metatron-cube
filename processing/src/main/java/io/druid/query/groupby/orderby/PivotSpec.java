@@ -293,7 +293,9 @@ public class PivotSpec implements WindowingSpec.PartitionEvaluatorFactory
       final List<Evaluator> partitionEvals = PartitionExpression.toEvaluators(partitionExpressions);
       // it's actually not pivoting.. so group-by columns are valid (i don't know why other metrics should be removed)
       final List<String> retainColumns = GuavaUtils.dedupConcat(
-          context.partitionColumns(), WindowContext.outputNames(rowEvals), WindowContext.outputNames(partitionEvals),
+          context.partitionColumns(),
+          WindowContext.outputNames(rowEvals, valueColumns),
+          WindowContext.outputNames(partitionEvals, valueColumns),
           valueColumns
       );
       if (rowEvals.isEmpty() && partitionEvals.isEmpty()) {
@@ -342,10 +344,10 @@ public class PivotSpec implements WindowingSpec.PartitionEvaluatorFactory
     // '_' is just '_'
     final List<Pair<String, Expr>> rowExprs = Lists.newArrayList();
     for (String expression : rowExpressions) {
-      rowExprs.add(Evals.splitAssign(expression));
+      rowExprs.add(Evals.splitSimpleAssign(expression));
     }
     // when tabularFormat = true, '_' is replaced with pivot column names
-    final List<Evaluator> pivotExprs = PartitionExpression.toEvaluators(partitionExpressions);
+    final List<Evaluator> partitionEvals = PartitionExpression.toEvaluators(partitionExpressions);
     final int keyLength = pivotColumns.size() + (appendValueColumn ? 1 : 0);
 
     final Set<StringArray> whole = Sets.newHashSet();
@@ -447,9 +449,9 @@ next:
             }
             partition.set(i, new MapBasedRow(row.getTimestamp(), event));
           }
-          current.evaluate(pivotExprs, Arrays.asList(sortedKeys));
+          current.evaluate(partitionEvals, Arrays.asList(sortedKeys));
         } else {
-          current.evaluate(pivotExprs);
+          current.evaluate(partitionEvals);
         }
         return partition;
       }

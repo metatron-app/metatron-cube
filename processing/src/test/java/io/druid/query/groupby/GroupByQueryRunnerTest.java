@@ -6252,6 +6252,58 @@ public class GroupByQueryRunnerTest
 
     results = GroupByQueryRunnerTestHelper.runQuery(factory, runner, builder.build());
     GroupByQueryRunnerTestHelper.validate(columnNames, expectedResults, results);
+
+    // someone can understand this, maybe
+    builder.setLimitSpec(
+        new LimitSpec(
+            null, 24,
+            Arrays.asList(
+                new WindowingSpec(
+                    Arrays.asList("dayOfWeek"),
+                    Arrays.asList(dayOfWeekAsc),
+                    Arrays.<String>asList(),
+                    PivotSpec.tabular(PivotColumnSpec.toSpecs(), "index", "rows")
+                             .withRowExpressions(
+                                 "#_ = $sum(_)",
+                                 "concat(_, '.percent') = _ / #_ * 100"
+                             )
+                )
+            )
+        )
+    );
+
+    columnNames = new String[]{"dayOfWeek", "index.percent", "rows.percent", "index", "rows"};
+
+    expectedResults = GroupByQueryRunnerTestHelper.createExpectedRows(
+        columnNames,
+        array("Monday", 26.342158731050347, 25.0, 15301.728393554688, 13L),
+        array("Monday", 26.11030496515458, 25.0, 15167.04833984375, 13L),
+        array("Monday", 26.647897905529888, 25.0, 15479.327270507812, 13L),
+        array("Monday", 20.899638398265186, 25.0, 12140.257507324219, 13L),
+        array("Tuesday", 4.143544823329122, 9.090909090909092, 1664.368782043457, 13L),
+        array("Tuesday", 3.496141788757865, 9.090909090909092, 1404.3215408325195, 13L),
+        array("Tuesday", 4.116045821723667, 9.090909090909092, 1653.3230514526367, 13L),
+        array("Tuesday", 3.7900248918438786, 9.090909090909092, 1522.367774963379, 13L),
+        array("Tuesday", 3.4103811500550987, 9.090909090909092, 1369.873420715332, 13L),
+        array("Tuesday", 3.548901900894294, 9.090909090909092, 1425.5140914916992, 13L),
+        array("Tuesday", 3.8849855341449877, 9.090909090909092, 1560.511329650879, 13L),
+        array("Tuesday", 2.659362573520383, 9.090909090909092, 1068.2061462402344, 13L),
+        array("Tuesday", 3.8114783092131246, 9.090909090909092, 1530.9851303100586, 13L),
+        array("Tuesday", 37.71051799000391, 9.090909090909092, 15147.467102050781, 13L),
+        array("Tuesday", 29.428615216513677, 9.090909090909092, 11820.81298828125, 13L),
+        array("Wednesday", 4.175665303701013, 10.0, 1801.9095306396484, 14L),
+        array("Wednesday", 3.6129339142847208, 10.0, 1559.0761184692383, 14L),
+        array("Wednesday", 4.133811461114307, 10.0, 1783.8484954833984, 14L),
+        array("Wednesday", 3.6062207396561394, 10.0, 1556.1792068481445, 14L),
+        array("Wednesday", 3.4240153600456664, 10.0, 1477.5527877807617, 14L),
+        array("Wednesday", 3.631290514150058, 10.0, 1566.9974746704102, 14L),
+        array("Wednesday", 2.939140824190104, 10.0, 1268.3166580200195, 14L),
+        array("Wednesday", 3.761497043062308, 10.0, 1623.1850204467773, 14L),
+        array("Wednesday", 36.49773939876806, 10.0, 15749.735595703125, 14L)
+    );
+
+    results = GroupByQueryRunnerTestHelper.runQuery(factory, runner, builder.build());
+    GroupByQueryRunnerTestHelper.validate(columnNames, expectedResults, results);
   }
 
   private Object[] array(Object... objects)

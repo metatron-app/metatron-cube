@@ -294,7 +294,7 @@ public class FlattenSpec implements WindowingSpec.PartitionEvaluatorFactory
         final String[] columns = spec.getColumnsExcept(partitionColumns);
         final List<Pair<String, Expr>> assigns = Lists.newArrayList();
         for (String expression : spec.expressions) {
-          assigns.add(Evals.splitAssign(expression));
+          assigns.add(Evals.splitSimpleAssign(expression));
         }
         final String separator = spec.separator == null ? "-" : spec.separator;
         final boolean pivotRow = spec.pivotColumns != null && !spec.pivotColumns.isEmpty();

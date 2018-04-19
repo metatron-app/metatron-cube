@@ -22,6 +22,7 @@ package io.druid.query.groupby.orderby;
 import com.google.common.base.Function;
 import com.google.common.base.Predicate;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
@@ -29,6 +30,7 @@ import io.druid.data.Pair;
 import io.druid.data.ValueDesc;
 import io.druid.data.input.MapBasedRow;
 import io.druid.data.input.Row;
+import io.druid.math.expr.Evals;
 import io.druid.math.expr.Expr;
 import io.druid.math.expr.ExprEval;
 import io.druid.math.expr.Parser;
@@ -59,14 +61,20 @@ public class WindowContext implements Expr.WindowContext
     return new WindowContext(groupByColumns, partitionColumns, orderingSpecs, partition, expectedTypes);
   }
 
-  public static List<String> outputNames(List<Evaluator> evaluators)
+  public static List<String> outputNames(List<Evaluator> evaluators, List<String> valueColumns)
   {
     List<String> outputNames = Lists.newArrayList();
     for (Evaluator evaluator : evaluators) {
-      if (evaluator.outputName == null || evaluator.outputName.equals("_") || evaluator.outputName.startsWith("#")) {
-        continue;
+      if (evaluator.outputName == null) {
+        for (String valueColumn : valueColumns) {
+          String outputName = evaluator.outputName(valueColumn);
+          if (!outputName.startsWith("#")) {
+            outputNames.add(outputName);
+          }
+        }
+      } else if (!evaluator.outputName.startsWith("#")) {
+        outputNames.add(evaluator.outputName);
       }
-      outputNames.add(evaluator.outputName);
     }
     return outputNames;
   }
@@ -77,7 +85,7 @@ public class WindowContext implements Expr.WindowContext
   private final List<Row> partition;
   private final int length;
   private final Map<String, ValueDesc> expectedTypes;
-  private final Map<String, ExprEval> temporary;
+  private final Map<String, Object> temporary;
   private int index;
 
   // redirected name for "_".. todo replace expression itself
@@ -114,7 +122,7 @@ public class WindowContext implements Expr.WindowContext
       for (Evaluator expression : expressions) {
         for (String sortedKey : expression.filter(sortedKeys)) {
           redirection = sortedKey;
-          evaluate(expression);
+          _evaluate(expression);
         }
         redirection = null;
       }
@@ -127,25 +135,27 @@ public class WindowContext implements Expr.WindowContext
   public void evaluate(Iterable<Evaluator> expressions)
   {
     for (Evaluator expression : expressions) {
-      evaluate(expression);
+      _evaluate(expression);
     }
   }
 
-  private void evaluate(Evaluator expression)
+  private void _evaluate(Evaluator expression)
   {
     final int[] window = expression.toEvalWindow(length);
+    final String outputName = expression.outputName(redirection);
+    final boolean temporaryAssign = outputName.startsWith("#");
+
     ExprEval eval = null;
-    String outputName = expression.outputName(redirection);
     for (index = window[0]; index < window[1]; index++) {
       eval = expression.assigned.eval(this);
-      if (!expression.temporary) {
+      if (!temporaryAssign) {
         expectedTypes.put(outputName, eval.type());
         Map<String, Object> event = ((MapBasedRow) partition.get(index)).getEvent();
         event.put(outputName, eval.value());
       }
     }
-    if (eval != null && expression.temporary) {
-      temporary.put(outputName, eval);
+    if (eval != null && temporaryAssign) {
+      temporary.put(outputName, eval.value());
       expectedTypes.put(outputName, eval.type());
     }
     Parser.reset(expression.assigned);
@@ -261,33 +271,45 @@ public class WindowContext implements Expr.WindowContext
 
   static class Evaluator
   {
-    public static Evaluator of(String condition, Pair<String, Expr> assign)
+    public static Evaluator of(String condition, Pair<Expr, Expr> assign)
     {
       return new Evaluator(condition, assign.lhs, assign.rhs);
     }
 
     private final Matcher matcher;
-    private final boolean temporary;
     private final String outputName;
     private final int[] window;
+    private final Expr assignee;
     private final Expr assigned;
 
-    public Evaluator(String condition, String assignee, Expr assigned)
+    private Evaluator(String condition, Expr assignee, Expr assigned)
     {
-      String[] splits = assignee.split(":");
-      if (splits.length == 1) {
-        outputName = splits[0];
-        window = new int[0];
-      } else if (splits.length == 2) {
-        outputName = splits[0];
-        window = new int[]{Integer.valueOf(splits[1])};
-      } else {
-        outputName = splits[0];
-        window = new int[]{Integer.valueOf(splits[1]), Integer.valueOf(splits[2])};
-      }
+      this.assignee = assignee;
       this.assigned = assigned;
-      this.temporary = outputName.startsWith("#");
+
+      if (containsRedirect(assigned)) {
+        outputName = null;
+        window = new int[0];
+      } else {
+        Object eval = Evals.toAssigneeEval(assignee).value();
+        if (eval instanceof Object[]) {
+          Object[] windowed = (Object[]) eval;
+          outputName = (String) windowed[0];
+          window = new int[]{(Integer)windowed[1], (Integer)windowed[2]};
+        } else if (eval instanceof String) {
+          outputName = (String) eval;
+          window = new int[0];
+        } else {
+          throw new IllegalArgumentException("invalid assignee expression " + assignee);
+        }
+      }
       this.matcher = condition == null ? null : Pattern.compile(condition).matcher("");
+    }
+
+    private boolean containsRedirect(Expr expr)
+    {
+      final List<String> required = Parser.findRequiredBindings(expr);
+      return required.contains("_") || required.contains("#_");
     }
 
     private Iterable<String> filter(List<String> columns)
@@ -309,13 +331,14 @@ public class WindowContext implements Expr.WindowContext
 
     private String outputName(String redirection)
     {
-      if (outputName.equals("_")) {
-        return redirection;
+      if (outputName != null) {
+        return outputName;
       }
-      if (outputName.equals("#_")) {
-        return "#" + redirection;
-      }
-      return outputName;
+      ImmutableMap<String, Object> overrides = ImmutableMap.<String, Object>of(
+          "_", redirection,
+          "#_", "#" + redirection
+      );
+      return Evals.toAssigneeEval(assignee, overrides).asString();
     }
 
     private int[] toEvalWindow(int limit)

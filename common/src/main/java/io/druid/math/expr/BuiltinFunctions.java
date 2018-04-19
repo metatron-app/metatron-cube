@@ -2900,7 +2900,7 @@ public interface BuiltinFunctions extends Function.Library
     @Override
     public Function create(List<Expr> args)
     {
-      return new StringChild()
+      return new IndecisiveChild()
       {
         @Override
         public ExprEval apply(List<Expr> args, NumericBinding bindings)
@@ -2908,12 +2908,12 @@ public interface BuiltinFunctions extends Function.Library
           if (args.isEmpty()) {
             throw new IllegalArgumentException(name() + " should have at least output field name");
           }
-          StringBuilder builder = new StringBuilder();
-          builder.append(args.get(0).eval(bindings).stringValue());
+          Object[] result = new Object[] {null, 0, 1};
+          result[0] = Evals.evalString(args.get(0), bindings);
           for (int i = 1; i < args.size(); i++) {
-            builder.append(':').append(args.get(i).eval(bindings).longValue());
+            result[i] = Evals.evalInt(args.get(i), bindings);
           }
-          return ExprEval.of(builder.toString());
+          return ExprEval.of(result, ValueDesc.STRUCT);
         }
       };
     }
@@ -2925,7 +2925,7 @@ public interface BuiltinFunctions extends Function.Library
     @Override
     public Function create(List<Expr> args)
     {
-      return new StringChild()
+      return new IndecisiveChild()
       {
         @Override
         public ExprEval apply(List<Expr> args, NumericBinding bindings)
@@ -2933,7 +2933,7 @@ public interface BuiltinFunctions extends Function.Library
           if (args.size() != 1) {
             throw new IllegalArgumentException(name() + " should have one argument (output field name)");
           }
-          return ExprEval.of(args.get(0).eval(bindings).stringValue() + ":0");
+          return ExprEval.of(new Object[] {Evals.evalString(args.get(0), bindings), 0, 1}, ValueDesc.STRUCT);
         }
       };
     }

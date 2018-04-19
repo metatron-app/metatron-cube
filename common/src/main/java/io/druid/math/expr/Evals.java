@@ -23,6 +23,7 @@ import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Predicate;
 import com.google.common.base.Strings;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.primitives.Ints;
 import com.metamx.common.logger.Logger;
 import io.druid.common.DateTimes;
@@ -39,6 +40,7 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 
 /**
@@ -450,7 +452,13 @@ public class Evals
     return DateTimes.withZone(arg.asLong(), timeZone);
   }
 
-  public static Pair<String, Expr> splitAssign(String expression)
+  public static Pair<String, Expr> splitSimpleAssign(String expression)
+  {
+    Pair<Expr, Expr> assign = splitAssign(expression);
+    return Pair.of(toAssigneeEval(assign.lhs).asString(), assign.rhs);
+  }
+
+  public static Pair<Expr, Expr> splitAssign(String expression)
   {
     Expr expr = Parser.parse(expression);
     if (!(expr instanceof AssignExpr)) {
@@ -458,29 +466,39 @@ public class Evals
       if (required.size() != 1) {
         throw new RuntimeException("cannot resolve output column " + expression);
       }
-      return Pair.of(required.get(0), expr);
+      return Pair.<Expr, Expr>of(new StringExpr(required.get(0)), expr);
     }
-    return getAssignExpr(expr);
+    final AssignExpr assign = (AssignExpr) expr;
+    return Pair.of(assign.assignee, assign.assigned);
   }
 
-  public static Pair<String, Expr> getAssignExpr(Expr expr)
+  public static ExprEval toAssigneeEval(final Expr assignee)
   {
-    final AssignExpr assign = (AssignExpr) expr;
-    Expr.NumericBinding bindings = new Expr.NumericBinding()
+    return toAssigneeEval(assignee, ImmutableMap.<String, Object>of());
+  }
+
+  public static ExprEval toAssigneeEval(final Expr assignee, final Map<String, Object> overrides)
+  {
+    if (Parser.findRequiredBindings(assignee).isEmpty()) {
+      return Evals.getConstantEval(assignee);
+    }
+
+    final Expr.NumericBinding bindings = new Expr.NumericBinding()
     {
       @Override
       public Collection<String> names()
       {
-        return Parser.findRequiredBindings(assign.assignee);
+        return Parser.findRequiredBindings(assignee);
       }
 
       @Override
       public Object get(String name)
       {
-        return name;
+        Object overridden = overrides.get(name);
+        return overridden != null || overrides.containsKey(name) ? overridden : name;
       }
     };
-    return Pair.of(evalString(assign.assignee, bindings), assign.assigned);
+    return eval(assignee, bindings);
   }
 
   public static Expr unaryOp(UnaryOp unary, Expr expr)
