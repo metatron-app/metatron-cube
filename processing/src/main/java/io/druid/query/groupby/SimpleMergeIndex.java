@@ -21,6 +21,7 @@ package io.druid.query.groupby;
 
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+import com.google.common.collect.Ordering;
 import com.google.common.primitives.Longs;
 import com.metamx.common.ISE;
 import io.druid.common.DateTimes;
@@ -57,13 +58,15 @@ public class SimpleMergeIndex implements MergeIndex
   private final DSuppliers.ThreadSafe<Row> rowSupplier = new DSuppliers.ThreadSafe<>();
   private final Map<TimeAndDims, Aggregator[]> mapping;
   private final Function<TimeAndDims, Aggregator[]> populator;
+  private final int[][] groupings;
   private final boolean compact;
 
-  private final Comparator<TimeAndDims> comparator;
+  private final Comparator<TimeAndDims> resultComparator;
 
   public SimpleMergeIndex(
       final List<DimensionSpec> dimensions,
       final List<AggregatorFactory> aggregators,
+      final int[][] groupings,
       final int maxRowCount,
       final int parallelism,
       final boolean compact
@@ -71,6 +74,7 @@ public class SimpleMergeIndex implements MergeIndex
   {
     this.dimensions = DimensionSpecs.toOutputNames(dimensions).toArray(new String[0]);
     this.metrics = AggregatorFactory.toCombiner(aggregators).toArray(new AggregatorFactory[0]);
+    this.groupings = groupings;
     this.mapping = parallelism == 1 ?
                    Maps.<TimeAndDims, Aggregator[]>newHashMap() :
                    new ConcurrentHashMap<TimeAndDims, Aggregator[]>(4 << parallelism);
@@ -81,9 +85,9 @@ public class SimpleMergeIndex implements MergeIndex
     }
     final Comparator[] comparators = DimensionSpecs.toComparator(dimensions);
     if (comparators == null) {
-      this.comparator = null;
+      this.resultComparator = null;
     } else {
-      this.comparator = new Comparator<TimeAndDims>()
+      this.resultComparator = new Comparator<TimeAndDims>()
       {
         @Override
         @SuppressWarnings("unchecked")
@@ -123,8 +127,20 @@ public class SimpleMergeIndex implements MergeIndex
     for (int i = 0; i < key.length; i++) {
       key[i] = StringUtils.nullToEmpty((Comparable) row.getRaw(dimensions[i]));
     }
-    final TimeAndDims timeAndDims = new TimeAndDims(row.getTimestampFromEpoch(), key);
+    if (groupings.length == 0) {
+      _addRow(new TimeAndDims(row.getTimestampFromEpoch(), key));
+    }
+    for (int[] grouping : groupings) {
+      final Comparable[] copy = new Comparable[dimensions.length];
+      for (int index : grouping) {
+        copy[index] = key[index];
+      }
+      _addRow(new TimeAndDims(row.getTimestampFromEpoch(), copy));
+    }
+  }
 
+  private void _addRow(TimeAndDims timeAndDims)
+  {
     for (Aggregator agg : mapping.computeIfAbsent(timeAndDims, populator)) {
       agg.aggregate();
     }
@@ -174,8 +190,8 @@ public class SimpleMergeIndex implements MergeIndex
       };
     }
     List<Map.Entry<TimeAndDims, Aggregator[]>> sorted;
-    if (comparator != null) {
-      sorted = IncrementalIndex.sortOn(mapping, comparator, true);
+    if (resultComparator != null) {
+      sorted = IncrementalIndex.sortOn(mapping, resultComparator, true);
     } else {
       sorted = IncrementalIndex.sortOn(mapping, true);
     }
@@ -188,6 +204,8 @@ public class SimpleMergeIndex implements MergeIndex
     mapping.clear();
     rowSupplier.close();
   }
+
+  private static final Comparator comparator = Ordering.natural().nullsFirst();
 
   private static class TimeAndDims implements Comparable<TimeAndDims>
   {
@@ -233,7 +251,7 @@ public class SimpleMergeIndex implements MergeIndex
     {
       int compare = Longs.compare(timestamp, o.timestamp);
       for (int i = 0; compare == 0 && i < array.length; i++) {
-        compare = array[i].compareTo(o.array[i]);
+        compare = comparator.compare(array[i], o.array[i]);
       }
       return compare;
     }

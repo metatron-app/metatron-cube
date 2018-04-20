@@ -47,7 +47,6 @@ import io.druid.query.groupby.GroupByQuery;
 import io.druid.query.groupby.having.ExpressionHavingSpec;
 import io.druid.query.groupby.having.HavingSpec;
 import io.druid.query.groupby.orderby.LimitSpec;
-import io.druid.query.groupby.orderby.LimitSpecs;
 import io.druid.query.groupby.orderby.OrderByColumnSpec;
 import io.druid.query.ordering.Direction;
 import io.druid.query.ordering.StringComparators;
@@ -797,6 +796,7 @@ public class DruidQuery
         filtration.getDimFilter(),
         Granularities.ALL,
         grouping.getDimensionSpecs(),
+        ImmutableList.of(),
         getVirtualColumns(),
         grouping.getAggregatorFactories(),
         grouping.getPostAggregators(),

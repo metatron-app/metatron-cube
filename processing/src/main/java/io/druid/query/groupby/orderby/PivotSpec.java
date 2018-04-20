@@ -125,6 +125,11 @@ public class PivotSpec implements WindowingSpec.PartitionEvaluatorFactory
     );
   }
 
+  public PivotSpec withPartitionExpressions(String... partitionExpressions)
+  {
+    return withPartitionExpressions(PartitionExpression.from(partitionExpressions));
+  }
+
   public PivotSpec withPartitionExpressions(PartitionExpression... partitionExpressions)
   {
     return withPartitionExpressions(Arrays.asList(partitionExpressions));
@@ -364,7 +369,7 @@ next:
         for (Row row : partition) {
           String[] array = new String[keyLength];
           for (int i = 0; i < extractors.size(); i++) {
-            array[i] = Objects.toString(extractors.get(i).apply(row));
+            array[i] = extractors.get(i).apply(row);
             if (whitelist[i] != null && !whitelist[i].contains(array[i])) {
               continue next;
             }

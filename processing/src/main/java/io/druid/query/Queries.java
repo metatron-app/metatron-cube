@@ -81,9 +81,29 @@ public class Queries
       List<PostAggregator> postAggs
   )
   {
+    verifyAggregations(columns, aggFactories, postAggs, ImmutableList.<List<String>>of());
+  }
+
+  public static void verifyAggregations(
+      List<String> columns,
+      List<AggregatorFactory> aggFactories,
+      List<PostAggregator> postAggs,
+      List<List<String>> groupingSets
+  )
+  {
     Preconditions.checkArgument(!columns.contains(Column.TIME_COLUMN_NAME), "__time cannot be used as output name");
     Preconditions.checkNotNull(aggFactories, "aggregations cannot be null");
 
+    for (List<String> groupingSet : groupingSets) {
+      Preconditions.checkArgument(columns.containsAll(groupingSet), "invalid column in grouping set " + groupingSet);
+      Preconditions.checkArgument(groupingSet.size() == Sets.newHashSet(groupingSet).size(), "duplicated columns in " + groupingSet);
+      int prev = -1;
+      for (String dimension : groupingSet) {
+        int index = columns.indexOf(dimension);
+        Preconditions.checkArgument(prev < 0 || index > prev, "invalid grouping set " + groupingSet);
+        prev = index;
+      }
+    }
     final Set<String> aggNames = Sets.newHashSet();
     for (AggregatorFactory aggFactory : aggFactories) {
       Preconditions.checkArgument(aggNames.add(aggFactory.getName()), "[%s] already defined", aggFactory.getName());

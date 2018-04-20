@@ -308,6 +308,74 @@ public class GroupByQueryRunnerTest
   }
 
   @Test
+  public void testGroupByGroupingSet()
+  {
+    GroupByQuery query = GroupByQuery
+        .builder()
+        .setGroupingSets(
+            Arrays.asList(Arrays.asList("quality"), Arrays.asList("alias"), Arrays.asList("quality", "alias"))
+        )
+        .setDataSource(QueryRunnerTestHelper.dataSource)
+        .setQuerySegmentSpec(QueryRunnerTestHelper.firstToThird)
+        .setDimensions(Lists.<DimensionSpec>newArrayList(
+            new DefaultDimensionSpec("quality", "quality"),
+            new DefaultDimensionSpec("placementish", "alias")
+        ))
+        .setAggregatorSpecs(
+            Arrays.asList(
+                QueryRunnerTestHelper.rowsCount,
+                new LongSumAggregatorFactory("idx", "index")
+            )
+        )
+        .setGranularity(QueryRunnerTestHelper.allGran)
+        .build();
+
+    String[] columnNames = {"__time", "quality", "alias", "rows", "idx"};
+    List<Row> expectedResults = expectedResults = GroupByQueryRunnerTestHelper.createExpectedRows(
+        columnNames,
+        array("2011-04-01T00:00:00.000Z", null, "a", 2L, 282L),
+        array("2011-04-01T00:00:00.000Z", null, "b", 2L, 230L),
+        array("2011-04-01T00:00:00.000Z", null, "e", 2L, 324L),
+        array("2011-04-01T00:00:00.000Z", null, "h", 2L, 233L),
+        array("2011-04-01T00:00:00.000Z", null, "m", 6L, 5317L),
+        array("2011-04-01T00:00:00.000Z", null, "n", 2L, 235L),
+        array("2011-04-01T00:00:00.000Z", null, "p", 6L, 5405L),
+        array("2011-04-01T00:00:00.000Z", null, "preferred", 26L, 12446L),
+        array("2011-04-01T00:00:00.000Z", null, "t", 4L, 420L),
+        array("2011-04-01T00:00:00.000Z", "automotive", null, 4L, 564L),
+        array("2011-04-01T00:00:00.000Z", "automotive", "a", 2L, 282L),
+        array("2011-04-01T00:00:00.000Z", "automotive", "preferred", 2L, 282L),
+        array("2011-04-01T00:00:00.000Z", "business", null, 4L, 460L),
+        array("2011-04-01T00:00:00.000Z", "business", "b", 2L, 230L),
+        array("2011-04-01T00:00:00.000Z", "business", "preferred", 2L, 230L),
+        array("2011-04-01T00:00:00.000Z", "entertainment", null, 4L, 648L),
+        array("2011-04-01T00:00:00.000Z", "entertainment", "e", 2L, 324L),
+        array("2011-04-01T00:00:00.000Z", "entertainment", "preferred", 2L, 324L),
+        array("2011-04-01T00:00:00.000Z", "health", null, 4L, 466L),
+        array("2011-04-01T00:00:00.000Z", "health", "h", 2L, 233L),
+        array("2011-04-01T00:00:00.000Z", "health", "preferred", 2L, 233L),
+        array("2011-04-01T00:00:00.000Z", "mezzanine", null, 12L, 10634L),
+        array("2011-04-01T00:00:00.000Z", "mezzanine", "m", 6L, 5317L),
+        array("2011-04-01T00:00:00.000Z", "mezzanine", "preferred", 6L, 5317L),
+        array("2011-04-01T00:00:00.000Z", "news", null, 4L, 470L),
+        array("2011-04-01T00:00:00.000Z", "news", "n", 2L, 235L),
+        array("2011-04-01T00:00:00.000Z", "news", "preferred", 2L, 235L),
+        array("2011-04-01T00:00:00.000Z", "premium", null, 12L, 10810L),
+        array("2011-04-01T00:00:00.000Z", "premium", "p", 6L, 5405L),
+        array("2011-04-01T00:00:00.000Z", "premium", "preferred", 6L, 5405L),
+        array("2011-04-01T00:00:00.000Z", "technology", null, 4L, 350L),
+        array("2011-04-01T00:00:00.000Z", "technology", "preferred", 2L, 175L),
+        array("2011-04-01T00:00:00.000Z", "technology", "t", 2L, 175L),
+        array("2011-04-01T00:00:00.000Z", "travel", null, 4L, 490L),
+        array("2011-04-01T00:00:00.000Z", "travel", "preferred", 2L, 245L),
+        array("2011-04-01T00:00:00.000Z", "travel", "t", 2L, 245L)
+    );
+
+    Iterable<Row> results = GroupByQueryRunnerTestHelper.runQuery(factory, runner, query);
+    TestHelper.assertExpectedObjects(expectedResults, results, "");
+  }
+
+  @Test
   public void testGroupByOnMetric()
   {
     GroupByQuery query = GroupByQuery
@@ -5774,7 +5842,6 @@ public class GroupByQueryRunnerTest
     );
 
     results = GroupByQueryRunnerTestHelper.runQuery(factory, runner, builder.build());
-    printToExpected(columnNames, results);
     GroupByQueryRunnerTestHelper.validate(columnNames, expectedResults, results);
 
     // custom comparator
@@ -6053,6 +6120,19 @@ public class GroupByQueryRunnerTest
         "total_market-mezzanine-index", "total_market-mezzanine-rows", "total_market-premium-index", "total_market-premium-rows",
         "upfront-mezzanine-index", "upfront-mezzanine-rows", "upfront-premium-index", "upfront-premium-rows"};
 
+    // market-quality-<metrics>
+    // c(market,index) = sum(c(market,index))
+    //
+    // spot-index.sum = !sum(spot-<quality>-index)
+    // spot-rows.sum = !sum(spot-<quality>-rows)
+    // total_market-index.sum = !sum(total_market-<quality>-index)
+    // total_market-rows.sum = !sum(total_market-<quality>-rows)
+    // upfront-index.sum = !sum(upfront-<quality>-index)
+    // upfront-rows.sum = !sum(upfront-<quality>-rows)
+    //
+    // index.sum = spot-index.sum + total_market-index.sum + upfront-index.sum
+    // rows.sum = spot-rows.sum + total_market-rows.sum + upfront-rows.sum
+    //
     expectedResults = GroupByQueryRunnerTestHelper.createExpectedRows(
         columnNames,
         array("Monday",
@@ -6303,6 +6383,142 @@ public class GroupByQueryRunnerTest
     );
 
     results = GroupByQueryRunnerTestHelper.runQuery(factory, runner, builder.build());
+    GroupByQueryRunnerTestHelper.validate(columnNames, expectedResults, results);
+  }
+
+  @Test
+  public void testPivotWithGroupingSet()
+  {
+    OrderByColumnSpec dayOfWeekAsc = OrderByColumnSpec.asc("dayOfWeek", "dayofweek");
+
+    BaseAggregationQuery.Builder<GroupByQuery> builder = GroupByQuery
+        .builder()
+        .setGroupingSets(Arrays.asList(Arrays.asList("market", "dayOfWeek"), Arrays.asList("market", "quality", "dayOfWeek")))
+        .setDataSource(QueryRunnerTestHelper.dataSource)
+        .setQuerySegmentSpec(QueryRunnerTestHelper.fullOnInterval)
+        .setDimensions(
+            DefaultDimensionSpec.of("market"),
+            DefaultDimensionSpec.of("quality"),
+            new ExtractionDimensionSpec(
+                Column.TIME_COLUMN_NAME,
+                "dayOfWeek",
+                new TimeFormatExtractionFn("EEEE", null, null)
+            )
+        )
+        .setDimFilter(new InDimFilter("quality", Arrays.asList("mezzanine", "premium"), null))
+        .setAggregatorSpecs(QueryRunnerTestHelper.rowsCount, QueryRunnerTestHelper.indexDoubleSum)
+        .setPostAggregatorSpecs(QueryRunnerTestHelper.addRowsIndexConstant)
+        .setGranularity(QueryGranularities.ALL)
+        .setHavingSpec(
+            AndHavingSpec.of(
+                new ExpressionHavingSpec("!(dayOfWeek == 'Monday' && market == 'spot')"),
+                new ExpressionHavingSpec("!(dayOfWeek == 'Tuesday' && market == 'total_market')"),
+                new ExpressionHavingSpec("!(dayOfWeek == 'Wednesday' && quality == 'premium')")
+            )
+        );
+
+    String[] columnNames = new String[]{
+        "market", "quality", "dayOfWeek", "rows", "index", "addRowsIndexConstant"
+    };
+    List<Row> expectedResults = GroupByQueryRunnerTestHelper.createExpectedRows(
+        columnNames,
+        array("spot", null, "Friday", 26L, 2880.166572570801, 2907.166572570801),
+        array("spot", null, "Saturday", 26L, 2912.418525695801, 2939.418525695801),
+        array("spot", null, "Sunday", 26L, 2925.456039428711, 2952.456039428711),
+        array("spot", null, "Thursday", 28L, 3121.1823120117188, 3150.1823120117188),
+        array("spot", null, "Tuesday", 26L, 2930.384750366211, 2957.384750366211),
+        array("spot", null, "Wednesday", 28L, 3111.8562088012695, 3140.8562088012695),
+        array("spot", "mezzanine", "Friday", 13L, 1358.3970184326172, 1372.3970184326172),
+        array("spot", "mezzanine", "Saturday", 13L, 1398.4330215454102, 1412.4330215454102),
+        array("spot", "mezzanine", "Sunday", 13L, 1392.425064086914, 1406.425064086914),
+        array("spot", "mezzanine", "Thursday", 14L, 1486.202865600586, 1501.202865600586),
+        array("spot", "mezzanine", "Tuesday", 13L, 1369.873420715332, 1383.873420715332),
+        array("spot", "mezzanine", "Wednesday", 14L, 1477.5527877807617, 1492.5527877807617),
+        array("spot", "premium", "Friday", 13L, 1521.7695541381836, 1535.7695541381836),
+        array("spot", "premium", "Saturday", 13L, 1513.9855041503906, 1527.9855041503906),
+        array("spot", "premium", "Sunday", 13L, 1533.0309753417969, 1547.0309753417969),
+        array("spot", "premium", "Thursday", 14L, 1634.9794464111328, 1649.9794464111328),
+        array("spot", "premium", "Tuesday", 13L, 1560.511329650879, 1574.511329650879),
+        array("total_market", null, "Friday", 26L, 30173.691955566406, 30200.691955566406),
+        array("total_market", null, "Monday", 26L, 30468.776733398438, 30495.776733398438),
+        array("total_market", null, "Saturday", 26L, 30940.971740722656, 30967.971740722656),
+        array("total_market", null, "Sunday", 26L, 29305.0859375, 29332.0859375),
+        array("total_market", null, "Thursday", 28L, 32361.38690185547, 32390.38690185547),
+        array("total_market", null, "Wednesday", 28L, 32753.337280273438, 32782.33728027344),
+        array("total_market", "mezzanine", "Friday", 13L, 14696.267150878906, 14710.267150878906),
+        array("total_market", "mezzanine", "Monday", 13L, 15301.728393554688, 15315.728393554688),
+        array("total_market", "mezzanine", "Saturday", 13L, 14784.656677246094, 14798.656677246094),
+        array("total_market", "mezzanine", "Sunday", 13L, 14311.892395019531, 14325.892395019531),
+        array("total_market", "mezzanine", "Thursday", 14L, 16161.914001464844, 16176.914001464844),
+        array("total_market", "mezzanine", "Wednesday", 14L, 15749.735595703125, 15764.735595703125),
+        array("total_market", "premium", "Friday", 13L, 15477.4248046875, 15491.4248046875),
+        array("total_market", "premium", "Monday", 13L, 15167.04833984375, 15181.04833984375),
+        array("total_market", "premium", "Saturday", 13L, 16156.315063476562, 16170.315063476562),
+        array("total_market", "premium", "Sunday", 13L, 14993.193542480469, 15007.193542480469),
+        array("total_market", "premium", "Thursday", 14L, 16199.472900390625, 16214.472900390625),
+        array("upfront", null, "Friday", 26L, 27297.862365722656, 27324.862365722656),
+        array("upfront", null, "Monday", 26L, 27619.58477783203, 27646.58477783203),
+        array("upfront", null, "Saturday", 26L, 27820.831176757812, 27847.831176757812),
+        array("upfront", null, "Sunday", 26L, 24791.22381591797, 24818.22381591797),
+        array("upfront", null, "Thursday", 28L, 28562.748779296875, 28591.748779296875),
+        array("upfront", null, "Tuesday", 26L, 26968.28009033203, 26995.28009033203),
+        array("upfront", null, "Wednesday", 28L, 28985.57501220703, 29014.57501220703),
+        array("upfront", "mezzanine", "Friday", 13L, 14354.38134765625, 14368.38134765625),
+        array("upfront", "mezzanine", "Monday", 13L, 15479.327270507812, 15493.327270507812),
+        array("upfront", "mezzanine", "Saturday", 13L, 13736.503540039062, 13750.503540039062),
+        array("upfront", "mezzanine", "Sunday", 13L, 12682.70849609375, 12696.70849609375),
+        array("upfront", "mezzanine", "Thursday", 14L, 15828.224243164062, 15843.224243164062),
+        array("upfront", "mezzanine", "Tuesday", 13L, 15147.467102050781, 15161.467102050781),
+        array("upfront", "mezzanine", "Wednesday", 14L, 14765.832275390625, 14780.832275390625),
+        array("upfront", "premium", "Friday", 13L, 12943.481018066406, 12957.481018066406),
+        array("upfront", "premium", "Monday", 13L, 12140.257507324219, 12154.257507324219),
+        array("upfront", "premium", "Saturday", 13L, 14084.32763671875, 14098.32763671875),
+        array("upfront", "premium", "Sunday", 13L, 12108.515319824219, 12122.515319824219),
+        array("upfront", "premium", "Thursday", 14L, 12734.524536132812, 12749.524536132812),
+        array("upfront", "premium", "Tuesday", 13L, 11820.81298828125, 11834.81298828125)
+    );
+    Iterable<Row> results = GroupByQueryRunnerTestHelper.runQuery(factory, runner, builder.build());
+
+    builder.setLimitSpec(
+        new LimitSpec(
+            null, 3,
+            Arrays.asList(
+                new WindowingSpec(
+                    Arrays.asList("dayOfWeek"),
+                    Arrays.asList(dayOfWeekAsc),
+                    Arrays.<String>asList(),
+                    PivotSpec.tabular(PivotColumnSpec.toSpecs("market", "quality"), "index")
+                )
+            )
+        )
+    );
+    columnNames = new String[]{
+        "dayOfWeek",
+        "spot", "spot-mezzanine", "spot-premium",
+        "total_market", "total_market-mezzanine", "total_market-premium",
+        "upfront", "upfront-mezzanine", "upfront-premium"
+    };
+
+    expectedResults = GroupByQueryRunnerTestHelper.createExpectedRows(
+        columnNames,
+        array("Monday",
+              null, null, null,
+              30468.776733398438, 15301.728393554688, 15167.04833984375,
+              27619.58477783203, 15479.327270507812, 12140.257507324219),
+        array("Tuesday",
+              2930.384750366211, 1369.873420715332, 1560.511329650879,
+              null, null, null,
+              26968.28009033203, 15147.467102050781, 11820.81298828125
+        ),
+        array(
+            "Wednesday",
+            3111.8562088012695, 1477.5527877807617, null,
+            32753.337280273438, 15749.735595703125, null,
+            28985.57501220703, 14765.832275390625, null
+        )
+    );
+    results = GroupByQueryRunnerTestHelper.runQuery(factory, runner, builder.build());
+
     GroupByQueryRunnerTestHelper.validate(columnNames, expectedResults, results);
   }
 

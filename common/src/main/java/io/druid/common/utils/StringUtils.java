@@ -160,10 +160,13 @@ public class StringUtils extends com.metamx.common.StringUtils
       return "";
     }
     if (strings.length == 1) {
-      return strings[0];
+      return strings[0] == null ? "" : strings[0];
     }
     StringBuilder builder = new StringBuilder();
     for (String string : strings) {
+      if (Strings.isNullOrEmpty(string)) {
+        continue;
+      }
       if (builder.length() > 0) {
         builder.append(delimiter);
       }

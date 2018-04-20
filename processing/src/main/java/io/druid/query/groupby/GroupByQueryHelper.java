@@ -57,7 +57,14 @@ public class GroupByQueryHelper
   {
     int maxRowCount = Math.min(query.getContextValue(CTX_KEY_MAX_RESULTS, maxResult), maxResult);
     if (query.getContextBoolean(Query.GBY_MERGE_SIMPLE, true)) {
-      return new SimpleMergeIndex(query.getDimensions(), query.getAggregatorSpecs(), maxRowCount, parallelism, compact);
+      return new SimpleMergeIndex(
+          query.getDimensions(),
+          query.getAggregatorSpecs(),
+          query.getGroupings(),
+          maxRowCount,
+          parallelism,
+          compact
+      );
     } else {
       return createIncrementalIndex(query, bufferPool, false, maxRowCount, groupByTypes);
     }

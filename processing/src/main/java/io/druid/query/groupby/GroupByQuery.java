@@ -77,6 +77,7 @@ public class GroupByQuery extends BaseAggregationQuery<Row> implements Query.Rew
   }
 
   private final List<DimensionSpec> dimensions;
+  private final List<List<String>> groupingSets;
 
   @JsonCreator
   public GroupByQuery(
@@ -85,6 +86,7 @@ public class GroupByQuery extends BaseAggregationQuery<Row> implements Query.Rew
       @JsonProperty("filter") DimFilter dimFilter,
       @JsonProperty("granularity") Granularity granularity,
       @JsonProperty("dimensions") List<DimensionSpec> dimensions,
+      @JsonProperty("groupingSets") List<List<String>> groupingSets,
       @JsonProperty("virtualColumns") List<VirtualColumn> virtualColumns,
       @JsonProperty("aggregations") List<AggregatorFactory> aggregatorSpecs,
       @JsonProperty("postAggregations") List<PostAggregator> postAggregatorSpecs,
@@ -111,11 +113,12 @@ public class GroupByQuery extends BaseAggregationQuery<Row> implements Query.Rew
         context
     );
     this.dimensions = dimensions == null ? ImmutableList.<DimensionSpec>of() : dimensions;
+    this.groupingSets = groupingSets == null ? ImmutableList.<List<String>>of() : groupingSets;
     for (DimensionSpec spec : this.dimensions) {
       Preconditions.checkArgument(spec != null, "dimensions has null DimensionSpec");
     }
     Queries.verifyAggregations(
-        DimensionSpecs.toOutputNames(getDimensions()), getAggregatorSpecs(), getPostAggregatorSpecs()
+        DimensionSpecs.toOutputNames(getDimensions()), getAggregatorSpecs(), getPostAggregatorSpecs(), getGroupingSets()
     );
   }
 
@@ -123,6 +126,26 @@ public class GroupByQuery extends BaseAggregationQuery<Row> implements Query.Rew
   public List<DimensionSpec> getDimensions()
   {
     return dimensions;
+  }
+
+  @JsonProperty
+  public List<List<String>> getGroupingSets()
+  {
+    return groupingSets;
+  }
+
+  public int[][] getGroupings()
+  {
+    List<String> dimensionNames = DimensionSpecs.toOutputNames(dimensions);
+    int[][] groupings = new int[groupingSets.size()][];
+    for (int i = 0; i < groupings.length; i++) {
+      List<String> groupingSet = groupingSets.get(i);
+      groupings[i] = new int[groupingSet.size()];
+      for (int j = 0; j < groupings[i].length; j++) {
+        groupings[i][j] = dimensionNames.indexOf(groupingSet.get(j));
+      }
+    }
+    return groupings;
   }
 
   @Override
@@ -140,6 +163,7 @@ public class GroupByQuery extends BaseAggregationQuery<Row> implements Query.Rew
         dimFilter,
         granularity,
         dimensions,
+        groupingSets,
         virtualColumns,
         aggregatorSpecs,
         postAggregatorSpecs,
@@ -160,6 +184,7 @@ public class GroupByQuery extends BaseAggregationQuery<Row> implements Query.Rew
         dimFilter,
         granularity,
         dimensions,
+        groupingSets,
         virtualColumns,
         aggregatorSpecs,
         postAggregatorSpecs,
@@ -180,6 +205,7 @@ public class GroupByQuery extends BaseAggregationQuery<Row> implements Query.Rew
         dimFilter,
         getGranularity(),
         getDimensions(),
+        getGroupingSets(),
         getVirtualColumns(),
         getAggregatorSpecs(),
         getPostAggregatorSpecs(),
@@ -200,6 +226,7 @@ public class GroupByQuery extends BaseAggregationQuery<Row> implements Query.Rew
         dimFilter,
         granularity,
         dimensions,
+        groupingSets,
         virtualColumns,
         aggregatorSpecs,
         postAggregatorSpecs,
@@ -220,6 +247,7 @@ public class GroupByQuery extends BaseAggregationQuery<Row> implements Query.Rew
         getDimFilter(),
         getGranularity(),
         dimensionSpecs,
+        getGroupingSets(),
         getVirtualColumns(),
         getAggregatorSpecs(),
         getPostAggregatorSpecs(),
@@ -240,6 +268,7 @@ public class GroupByQuery extends BaseAggregationQuery<Row> implements Query.Rew
         getDimFilter(),
         getGranularity(),
         getDimensions(),
+        getGroupingSets(),
         virtualColumns,
         getAggregatorSpecs(),
         getPostAggregatorSpecs(),
@@ -260,6 +289,7 @@ public class GroupByQuery extends BaseAggregationQuery<Row> implements Query.Rew
         getDimFilter(),
         getGranularity(),
         getDimensions(),
+        getGroupingSets(),
         getVirtualColumns(),
         getAggregatorSpecs(),
         getPostAggregatorSpecs(),
@@ -280,6 +310,7 @@ public class GroupByQuery extends BaseAggregationQuery<Row> implements Query.Rew
         getDimFilter(),
         getGranularity(),
         getDimensions(),
+        getGroupingSets(),
         getVirtualColumns(),
         getAggregatorSpecs(),
         getPostAggregatorSpecs(),
@@ -300,6 +331,7 @@ public class GroupByQuery extends BaseAggregationQuery<Row> implements Query.Rew
         getDimFilter(),
         getGranularity(),
         getDimensions(),
+        getGroupingSets(),
         getVirtualColumns(),
         getAggregatorSpecs(),
         getPostAggregatorSpecs(),
@@ -320,6 +352,7 @@ public class GroupByQuery extends BaseAggregationQuery<Row> implements Query.Rew
         getDimFilter(),
         getGranularity(),
         getDimensions(),
+        getGroupingSets(),
         getVirtualColumns(),
         aggregatorSpecs,
         getPostAggregatorSpecs(),
@@ -340,6 +373,7 @@ public class GroupByQuery extends BaseAggregationQuery<Row> implements Query.Rew
         getDimFilter(),
         getGranularity(),
         getDimensions(),
+        getGroupingSets(),
         getVirtualColumns(),
         getAggregatorSpecs(),
         postAggregatorSpecs,
@@ -360,6 +394,7 @@ public class GroupByQuery extends BaseAggregationQuery<Row> implements Query.Rew
         getDimFilter(),
         getGranularity(),
         getDimensions(),
+        getGroupingSets(),
         getVirtualColumns(),
         getAggregatorSpecs(),
         getPostAggregatorSpecs(),
@@ -491,11 +526,24 @@ public class GroupByQuery extends BaseAggregationQuery<Row> implements Query.Rew
 
   public static class Builder extends BaseAggregationQuery.Builder<GroupByQuery>
   {
+    private List<List<String>> groupingSets;
+
     public Builder() { }
 
     public Builder(BaseAggregationQuery<?> aggregationQuery)
     {
       super(aggregationQuery);
+    }
+
+    public Builder setGroupingSets(List<List<String>> groupingSets)
+    {
+      this.groupingSets = groupingSets;
+      return this;
+    }
+
+    public Builder groupingSets(List<List<String>> groupingSets)
+    {
+      return setGroupingSets(groupingSets);
     }
 
     @Override
@@ -507,6 +555,7 @@ public class GroupByQuery extends BaseAggregationQuery<Row> implements Query.Rew
           dimFilter,
           granularity,
           dimensions,
+          groupingSets,
           virtualColumns,
           aggregatorSpecs,
           postAggregatorSpecs,
@@ -527,6 +576,7 @@ public class GroupByQuery extends BaseAggregationQuery<Row> implements Query.Rew
            ", querySegmentSpec=" + getQuerySegmentSpec() +
            ", granularity=" + granularity +
            ", dimensions=" + dimensions +
+           ", groupingSets=" + groupingSets +
            (dimFilter == null ? "" : ", dimFilter=" + dimFilter) +
            (virtualColumns.isEmpty() ? "" : ", virtualColumns=" + virtualColumns) +
            (aggregatorSpecs.isEmpty() ? "" : ", aggregatorSpecs=" + aggregatorSpecs) +

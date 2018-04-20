@@ -164,6 +164,7 @@ public class GroupByQueryQueryToolChest extends QueryToolChest<Row, GroupByQuery
         query.getDimFilter(),
         query.getGranularity(),
         query.getDimensions(),
+        query.getGroupingSets(),
         query.getVirtualColumns(),
         query.getAggregatorSpecs(),
         // Don't do post aggs until the end of this method.
