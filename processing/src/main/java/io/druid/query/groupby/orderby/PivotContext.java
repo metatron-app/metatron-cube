@@ -35,11 +35,13 @@ import io.druid.query.RowResolver;
 import io.druid.segment.StringArray;
 import io.druid.segment.incremental.IncrementalIndex;
 
+import java.util.Arrays;
 import java.util.BitSet;
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
+import java.util.function.BiFunction;
 
 /**
  */
@@ -63,6 +65,10 @@ public class PivotContext
     for (PivotColumnSpec columnSpec : pivotSpec.getPivotColumns()) {
       pivotColumns.add(columnSpec.getDimension());
     }
+    final String separator = pivotSpec.getSeparator();
+    final boolean appendingValue = pivotSpec.isAppendValueColumn();
+    final List<String> valueColumns = pivotSpec.getValueColumns();
+
     // snapshot
     final Map<String, Object> event = Maps.newLinkedHashMap();
     for (int i = 0; i < partitionKey.length; i++) {
@@ -128,41 +134,70 @@ next:
         }
         Map<String, Object> assigneeOverrides = Maps.newHashMap();
         final Map<String, Object> assignedOverrides = Maps.newHashMap();
-        for (int i = 0; i < bitSets.size(); i++) {
-          int groupId = groupIds.get(i);
-          BitSet bitSet = bitSets.get(i);
-          String[] keys = new String[pivotColumns.size()];
-          for (int j = 0; j < keys.length; j++) {
-            keys[j] = bitSet.get(j) ? key.get(j) : "";  // see PivotColumnSpec.toExtractor()
-          }
-          final Object value = mapping.get(StringArray.of(keys));
-          if (value == null) {
-            continue next;
-          }
-          String groupKey = "$" + groupId;
-          assigneeOverrides.put(groupKey, StringUtils.concat(pivotSpec.getSeparator(), keys));
-          assignedOverrides.put(groupKey, value);
-        }
-        ExprEval assignee = Evals.toAssigneeEval(assign.lhs, assigneeOverrides);
-        ExprEval assigned = Evals.eval(
-            assign.rhs, new Expr.NumericBinding()
-            {
-              @Override
-              public Collection<String> names()
-              {
-                return Sets.newHashSet(Iterables.concat(event.keySet(), assignedOverrides.keySet()));
-              }
-
-              @Override
-              public Object get(String name)
-              {
-                Object value = assignedOverrides.get(name);
-                return value != null && assignedOverrides.containsKey(name) ? value : binding.get(name);
-              }
+        for (int i = 0; i < valueColumns.size(); i++) {
+          for (int j = 0; j < bitSets.size(); j++) {
+            int groupId = groupIds.get(j);
+            BitSet bitSet = bitSets.get(j);
+            String[] keys = new String[pivotColumns.size() + (appendingValue ? 1 : 0)];
+            for (int k = 0; k < keys.length; k++) {
+              keys[k] = bitSet.get(k) ? key.get(k) : "";  // see PivotColumnSpec.toExtractor()
             }
-        );
-        event.put(assignee.stringValue(), assigned.value());
-        context.addType(assignee.stringValue(), assigned.type());
+            if (appendingValue) {
+              keys[pivotColumns.size()] = valueColumns.get(i);
+            }
+            Object value = mapping.get(StringArray.of(keys));
+            if (value == null) {
+              continue next;
+            }
+            if (valueColumns.size() > 1 && !appendingValue) {
+              value = ((List)value).get(i);
+            }
+            String groupKey = "$" + groupId;
+            assigneeOverrides.put(groupKey, StringUtils.concat(separator, keys));
+            assignedOverrides.put(groupKey, value);
+          }
+          ExprEval assignee = Evals.toAssigneeEval(assign.lhs, assigneeOverrides);
+          final ExprEval assigned = Evals.eval(
+              assign.rhs, new Expr.NumericBinding()
+              {
+                @Override
+                public Collection<String> names()
+                {
+                  return Sets.newHashSet(Iterables.concat(event.keySet(), assignedOverrides.keySet()));
+                }
+
+                @Override
+                public Object get(String name)
+                {
+                  Object value = assignedOverrides.get(name);
+                  return value != null && assignedOverrides.containsKey(name) ? value : binding.get(name);
+                }
+              }
+          );
+
+          String newAssignee = assignee.stringValue();
+          if (valueColumns.size() > 1 && !appendingValue) {
+            final int x = i;
+            event.compute(
+                newAssignee, new BiFunction<String, Object, Object>()
+                {
+                  @Override
+                  @SuppressWarnings("unchecked")
+                  public Object apply(String s, Object o)
+                  {
+                    if (o == null) {
+                      o = Arrays.asList(new Object[valueColumns.size()]);
+                    }
+                    ((List)o).set(x, assigned.value());
+                    return o;
+                  }
+                }
+            );
+          } else {
+            event.put(newAssignee, assigned.value());
+            context.addType(newAssignee, assigned.type());
+          }
+        }
       }
     }
     return event;
