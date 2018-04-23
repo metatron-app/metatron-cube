@@ -20,6 +20,8 @@
 package io.druid.query.filter;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Predicate;
@@ -61,7 +63,7 @@ public class SelectorDimFilter implements DimFilter
   public byte[] getCacheKey()
   {
     byte[] dimensionBytes = StringUtils.toUtf8(dimension);
-    byte[] valueBytes = (value == null) ? new byte[]{} : StringUtils.toUtf8(value);
+    byte[] valueBytes = StringUtils.toUtf8(value);
     byte[] extractionFnBytes = extractionFn == null ? new byte[0] : extractionFn.getCacheKey();
 
     return ByteBuffer.allocate(3 + dimensionBytes.length + valueBytes.length + extractionFnBytes.length)
@@ -128,6 +130,7 @@ public class SelectorDimFilter implements DimFilter
   }
 
   @JsonProperty
+  @JsonInclude(Include.NON_NULL)
   public ExtractionFn getExtractionFn()
   {
     return extractionFn;
@@ -158,7 +161,7 @@ public class SelectorDimFilter implements DimFilter
     if (!dimension.equals(that.dimension)) {
       return false;
     }
-    if (value != null ? !value.equals(that.value) : that.value != null) {
+    if (!value.equals(that.value)) {
       return false;
     }
     return extractionFn != null ? extractionFn.equals(that.extractionFn) : that.extractionFn == null;
@@ -168,7 +171,7 @@ public class SelectorDimFilter implements DimFilter
   public int hashCode()
   {
     int result = dimension.hashCode();
-    result = 31 * result + (value != null ? value.hashCode() : 0);
+    result = 31 * result + value.hashCode();
     result = 31 * result + (extractionFn != null ? extractionFn.hashCode() : 0);
     return result;
   }

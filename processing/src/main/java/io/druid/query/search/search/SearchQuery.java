@@ -20,6 +20,8 @@
 package io.druid.query.search.search;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
@@ -164,6 +166,7 @@ public class SearchQuery extends BaseQuery<Result<SearchResultValue>>
   }
 
   @JsonProperty("filter")
+  @JsonInclude(Include.NON_NULL)
   public DimFilter getDimensionsFilter()
   {
     return dimFilter;

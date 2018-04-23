@@ -199,7 +199,7 @@ public class SqlResourceTest
         ImmutableList.of(
             ImmutableMap.<String, Object>of(
                 "PLAN",
-                "DruidQueryRel(query=[{\"queryType\":\"timeseries\",\"dataSource\":{\"type\":\"table\",\"name\":\"foo\"},\"intervals\":{\"type\":\"intervals\",\"intervals\":[\"-146136543-09-08T08:23:32.096Z/146140482-04-24T15:36:27.903Z\"]},\"descending\":false,\"filter\":null,\"granularity\":{\"type\":\"all\"},\"virtualColumns\":[],\"aggregations\":[{\"type\":\"count\",\"name\":\"a0\",\"predicate\":null}],\"postAggregations\":[],\"having\":null,\"limitSpec\":{\"type\":\"noop\"},\"outputColumns\":null,\"lateralView\":null,\"context\":{\"skipEmptyBuckets\":true}}], signature=[{a0:long}])\n"
+                "DruidQueryRel(query=[{\"queryType\":\"timeseries\",\"dataSource\":{\"type\":\"table\",\"name\":\"foo\"},\"intervals\":{\"type\":\"intervals\",\"intervals\":[\"-146136543-09-08T08:23:32.096Z/146140482-04-24T15:36:27.903Z\"]},\"descending\":false,\"granularity\":{\"type\":\"all\"},\"virtualColumns\":[],\"aggregations\":[{\"type\":\"count\",\"name\":\"a0\"}],\"postAggregations\":[],\"limitSpec\":{\"type\":\"noop\"},\"context\":{\"skipEmptyBuckets\":true}}], signature=[{a0:long}])\n"
             )
         ),
         rows

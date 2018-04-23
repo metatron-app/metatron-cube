@@ -20,6 +20,8 @@
 package io.druid.query.filter;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
@@ -54,7 +56,7 @@ public class InDimFilter implements DimFilter
   )
   {
     Preconditions.checkNotNull(dimension, "dimension can not be null");
-    Preconditions.checkArgument(values != null && !values.isEmpty(), "values can not be null or empty");
+    Preconditions.checkNotNull(values, "values can not be null");
     this.values = ImmutableSortedSet.copyOf(
         Iterables.transform(
             values, new Function<String, String>()
@@ -68,6 +70,7 @@ public class InDimFilter implements DimFilter
             }
         )
     );
+    Preconditions.checkNotNull(this.values, "values can not be empty");
     this.dimension = dimension;
     this.extractionFn = extractionFn;
   }
@@ -85,6 +88,7 @@ public class InDimFilter implements DimFilter
   }
 
   @JsonProperty
+  @JsonInclude(Include.NON_NULL)
   public ExtractionFn getExtractionFn()
   {
     return extractionFn;

@@ -20,6 +20,8 @@
 package io.druid.query.select;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.base.Preconditions;
@@ -123,6 +125,7 @@ public class SelectQuery extends BaseQuery<Result<SelectResultValue>>
   }
 
   @JsonProperty("filter")
+  @JsonInclude(Include.NON_NULL)
   public DimFilter getDimensionsFilter()
   {
     return dimFilter;
@@ -153,6 +156,7 @@ public class SelectQuery extends BaseQuery<Result<SelectResultValue>>
   }
 
   @JsonProperty
+  @JsonInclude(Include.NON_NULL)
   public String getConcatString()
   {
     return concatString;
@@ -171,12 +175,14 @@ public class SelectQuery extends BaseQuery<Result<SelectResultValue>>
   }
 
   @JsonProperty
+  @JsonInclude(Include.NON_NULL)
   public List<String> getOutputColumns()
   {
     return outputColumns;
   }
 
   @JsonProperty
+  @JsonInclude(Include.NON_NULL)
   public LateralViewSpec getLateralView()
   {
     return lateralView;
@@ -226,6 +232,7 @@ public class SelectQuery extends BaseQuery<Result<SelectResultValue>>
     );
   }
 
+  @Override
   public SelectQuery withOverriddenContext(Map<String, Object> contextOverrides)
   {
     return new SelectQuery(

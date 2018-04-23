@@ -19,6 +19,8 @@
 
 package io.druid.query.select;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.collect.ImmutableList;
 import io.druid.granularity.Granularity;
@@ -72,6 +74,7 @@ public abstract class AbstractStreamQuery<T extends Comparable<T>> extends BaseQ
   }
 
   @JsonProperty("filter")
+  @JsonInclude(Include.NON_NULL)
   public DimFilter getDimensionsFilter()
   {
     return dimFilter;
@@ -96,6 +99,7 @@ public abstract class AbstractStreamQuery<T extends Comparable<T>> extends BaseQ
   }
 
   @JsonProperty
+  @JsonInclude(Include.NON_NULL)
   public String getConcatString()
   {
     return concatString;

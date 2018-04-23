@@ -32,6 +32,7 @@ import com.metamx.common.StringUtils;
 import com.metamx.common.guava.Sequence;
 import com.metamx.common.guava.Sequences;
 import com.metamx.common.guava.nary.BinaryFn;
+import io.druid.common.guava.GuavaUtils;
 import io.druid.common.utils.JodaUtils;
 import io.druid.data.input.MapBasedRow;
 import io.druid.granularity.Granularity;
@@ -569,7 +570,7 @@ public class SelectQueryQueryToolChest extends QueryToolChest<Result<SelectResul
         final Sequence<Result<SelectResultValue>> result;
         final List<String> outputColumns = ((SelectQuery) query).getOutputColumns();
         final LateralViewSpec lateralViewSpec = ((SelectQuery) query).getLateralView();
-        if (outputColumns != null) {
+        if (!GuavaUtils.isNullOrEmpty(outputColumns)) {
           result = Sequences.map(
               runner.run(query, responseContext),
               new Function<Result<SelectResultValue>, Result<SelectResultValue>>()

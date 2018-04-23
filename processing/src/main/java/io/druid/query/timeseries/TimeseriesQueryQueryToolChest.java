@@ -30,6 +30,7 @@ import com.metamx.common.guava.Sequence;
 import com.metamx.common.guava.Sequences;
 import com.metamx.common.guava.nary.BinaryFn;
 import com.metamx.emitter.service.ServiceMetricEvent;
+import io.druid.common.guava.GuavaUtils;
 import io.druid.granularity.Granularity;
 import io.druid.query.BaseQuery;
 import io.druid.query.CacheStrategy;
@@ -326,7 +327,7 @@ public class TimeseriesQueryQueryToolChest extends QueryToolChest<Result<Timeser
         final LateralViewSpec lateralViewSpec = timeseries.getLateralView();
 
         Sequence<Result<TimeseriesResultValue>> sequence;
-        if (outputColumns != null) {
+        if (!GuavaUtils.isNullOrEmpty(outputColumns)) {
           sequence = Sequences.map(
               runner.run(query, responseContext), new Function<Result<TimeseriesResultValue>, Result<TimeseriesResultValue>>()
               {

@@ -20,6 +20,8 @@
 package io.druid.query.filter;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;
 import com.metamx.common.StringUtils;
@@ -48,10 +50,8 @@ public class RegexDimFilter implements DimFilter
       @JsonProperty("extractionFn") ExtractionFn extractionFn
   )
   {
-    Preconditions.checkArgument(dimension != null, "dimension must not be null");
-    Preconditions.checkArgument(pattern != null, "pattern must not be null");
-    this.dimension = dimension;
-    this.pattern = pattern;
+    this.dimension = Preconditions.checkNotNull(dimension, "dimension must not be null");
+    this.pattern = Preconditions.checkNotNull(pattern, "pattern must not be null");
     this.extractionFn = extractionFn;
     this.compiledPattern = Pattern.compile(pattern);
   }
@@ -69,6 +69,7 @@ public class RegexDimFilter implements DimFilter
   }
 
   @JsonProperty
+  @JsonInclude(Include.NON_NULL)
   public ExtractionFn getExtractionFn()
   {
     return extractionFn;

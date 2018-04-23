@@ -20,6 +20,8 @@
 package io.druid.query.select;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.collect.ImmutableList;
@@ -137,6 +139,7 @@ public class SelectMetaQuery extends BaseQuery<Result<SelectMetaResultValue>>
   }
 
   @JsonProperty("filter")
+  @JsonInclude(Include.NON_NULL)
   public DimFilter getDimensionsFilter()
   {
     return dimFilter;
@@ -161,6 +164,7 @@ public class SelectMetaQuery extends BaseQuery<Result<SelectMetaResultValue>>
   }
 
   @JsonProperty
+  @JsonInclude(Include.NON_NULL)
   public PagingSpec getPagingSpec()
   {
     return pagingSpec;

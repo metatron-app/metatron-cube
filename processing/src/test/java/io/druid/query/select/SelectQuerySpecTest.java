@@ -57,13 +57,11 @@ public class SelectQuerySpecTest
         "{\"queryType\":\"select\",\"dataSource\":{\"type\":\"table\",\"name\":\"testing\"},"
         + "\"intervals\":{\"type\":\"LegacySegmentSpec\",\"intervals\":[\"2011-01-12T00:00:00.000Z/2011-01-14T00:00:00.000Z\"]},"
         + "\"descending\":true,"
-        + "\"filter\":null,"
         + "\"granularity\":{\"type\":\"all\"},"
         + "\"dimensions\":[{\"type\":\"default\",\"dimension\":\"market\",\"outputName\":\"market\"},{\"type\":\"default\",\"dimension\":\"quality\",\"outputName\":\"quality\"}],"
         + "\"metrics\":[\"index\"],"
         + "\"virtualColumns\":[],"
         + "\"pagingSpec\":{\"pagingIdentifiers\":{},\"threshold\":3,\"fromNext\":false},"
-        + "\"concatString\":null,\"outputColumns\":null,\"lateralView\":null,"
         + "\"context\":null}";
 
     SelectQuery query = new SelectQuery(

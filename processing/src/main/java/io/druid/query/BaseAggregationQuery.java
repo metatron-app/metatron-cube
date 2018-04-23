@@ -20,6 +20,7 @@
 package io.druid.query;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Function;
 import com.google.common.base.Functions;
@@ -102,6 +103,7 @@ public abstract class BaseAggregationQuery<T extends Comparable<T>> extends Base
 
   @Override
   @JsonProperty("filter")
+  @JsonInclude(JsonInclude.Include.NON_NULL)
   public DimFilter getDimFilter()
   {
     return dimFilter;
@@ -132,6 +134,7 @@ public abstract class BaseAggregationQuery<T extends Comparable<T>> extends Base
   }
 
   @JsonProperty("having")
+  @JsonInclude(JsonInclude.Include.NON_NULL)
   public HavingSpec getHavingSpec()
   {
     return havingSpec;
@@ -144,12 +147,14 @@ public abstract class BaseAggregationQuery<T extends Comparable<T>> extends Base
   }
 
   @JsonProperty
+  @JsonInclude(JsonInclude.Include.NON_NULL)
   public List<String> getOutputColumns()
   {
     return outputColumns;
   }
 
   @JsonProperty
+  @JsonInclude(JsonInclude.Include.NON_NULL)
   public LateralViewSpec getLateralView()
   {
     return lateralView;

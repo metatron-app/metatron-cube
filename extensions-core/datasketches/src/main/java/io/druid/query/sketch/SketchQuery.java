@@ -20,6 +20,8 @@
 package io.druid.query.sketch;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.collect.ImmutableList;
@@ -190,7 +192,6 @@ public class SketchQuery extends BaseQuery<Result<Map<String, Object>>>
   }
 
   @Override
-  @JsonProperty
   public DimFilter getDimFilter()
   {
     return filter;
@@ -218,6 +219,7 @@ public class SketchQuery extends BaseQuery<Result<Map<String, Object>>>
   }
 
   @JsonProperty
+  @JsonInclude(Include.NON_NULL)
   public DimFilter getFilter()
   {
     return filter;

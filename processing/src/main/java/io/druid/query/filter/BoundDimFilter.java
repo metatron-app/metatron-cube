@@ -20,6 +20,8 @@
 package io.druid.query.filter;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Ordering;
@@ -137,24 +139,28 @@ public class BoundDimFilter implements DimFilter
   }
 
   @JsonProperty
+  @JsonInclude(Include.NON_NULL)
   public String getDimension()
   {
     return dimension;
   }
 
   @JsonProperty
+  @JsonInclude(Include.NON_NULL)
   public String getExpression()
   {
     return expression;
   }
 
   @JsonProperty
+  @JsonInclude(Include.NON_NULL)
   public String getUpper()
   {
     return upper;
   }
 
   @JsonProperty
+  @JsonInclude(Include.NON_NULL)
   public String getLower()
   {
     return lower;
@@ -173,6 +179,7 @@ public class BoundDimFilter implements DimFilter
   }
 
   @JsonProperty
+  @JsonInclude(Include.NON_NULL)
   public String getComparatorType()
   {
     return comparatorType;
@@ -199,6 +206,7 @@ public class BoundDimFilter implements DimFilter
   }
 
   @JsonProperty
+  @JsonInclude(Include.NON_NULL)
   public ExtractionFn getExtractionFn()
   {
     return extractionFn;

@@ -39,6 +39,7 @@ import com.metamx.emitter.service.ServiceMetricEvent;
 import io.druid.collections.StupidPool;
 import io.druid.common.DateTimes;
 import io.druid.common.guava.CombiningSequence;
+import io.druid.common.guava.GuavaUtils;
 import io.druid.data.input.CompactRow;
 import io.druid.data.input.MapBasedRow;
 import io.druid.data.input.Row;
@@ -647,7 +648,7 @@ public class GroupByQueryQueryToolChest extends QueryToolChest<Row, GroupByQuery
 
     final List<String> outputColumns = ((GroupByQuery) query).getOutputColumns();
     final LateralViewSpec lateralViewSpec = ((GroupByQuery) query).getLateralView();
-    if (outputColumns != null) {
+    if (!GuavaUtils.isNullOrEmpty(outputColumns)) {
       sequence = Sequences.map(
           sequence, new Function<Row, Row>()
           {

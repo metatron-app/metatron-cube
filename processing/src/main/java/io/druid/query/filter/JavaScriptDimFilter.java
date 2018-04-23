@@ -21,6 +21,8 @@ package io.druid.query.filter;
 
 import com.fasterxml.jackson.annotation.JacksonInject;
 import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Predicate;
@@ -81,6 +83,7 @@ public class JavaScriptDimFilter implements DimFilter
   }
 
   @JsonProperty
+  @JsonInclude(Include.NON_NULL)
   public ExtractionFn getExtractionFn()
   {
     return extractionFn;

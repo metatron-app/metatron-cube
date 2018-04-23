@@ -20,6 +20,8 @@
 package io.druid.query.sketch;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -158,6 +160,7 @@ public class SummaryQuery extends BaseQuery<Result<Map<String, Object>>>
 
   @Override
   @JsonProperty
+  @JsonInclude(Include.NON_NULL)
   public DimFilter getDimFilter()
   {
     return dimFilter;

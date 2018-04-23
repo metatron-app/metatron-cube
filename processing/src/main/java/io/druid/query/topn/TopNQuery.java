@@ -20,6 +20,8 @@
 package io.druid.query.topn;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
@@ -137,6 +139,7 @@ public class TopNQuery extends BaseQuery<Result<TopNResultValue>>
   }
 
   @JsonProperty("filter")
+  @JsonInclude(Include.NON_NULL)
   public DimFilter getDimensionsFilter()
   {
     return dimFilter;
@@ -167,6 +170,7 @@ public class TopNQuery extends BaseQuery<Result<TopNResultValue>>
   }
 
   @JsonProperty("outputColumns")
+  @JsonInclude(Include.NON_NULL)
   public List<String> getOutputColumns()
   {
     return outputColumns;
@@ -180,6 +184,7 @@ public class TopNQuery extends BaseQuery<Result<TopNResultValue>>
     topNMetricSpec.initTopNAlgorithmSelector(selector);
   }
 
+  @Override
   public TopNQuery withQuerySegmentSpec(QuerySegmentSpec querySegmentSpec)
   {
     return new TopNQuery(
@@ -329,6 +334,7 @@ public class TopNQuery extends BaseQuery<Result<TopNResultValue>>
     );
   }
 
+  @Override
   public TopNQuery withOverriddenContext(Map<String, Object> contextOverrides)
   {
     return new TopNQuery(
@@ -347,6 +353,7 @@ public class TopNQuery extends BaseQuery<Result<TopNResultValue>>
     );
   }
 
+  @Override
   public TopNQuery withDimFilter(DimFilter dimFilter)
   {
     return new TopNQuery(
