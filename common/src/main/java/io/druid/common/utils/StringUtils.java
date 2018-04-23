@@ -23,6 +23,7 @@ import com.google.common.base.Function;
 import com.google.common.base.Strings;
 
 import java.util.IllegalFormatException;
+import java.util.List;
 import java.util.Locale;
 
 /**
@@ -152,6 +153,11 @@ public class StringUtils extends com.metamx.common.StringUtils
       i += bytes.length;
     }
     return concat;
+  }
+
+  public static String concat(String delimiter, List<String> strings)
+  {
+    return concat(delimiter, strings.toArray(new String[0]));
   }
 
   public static String concat(String delimiter, String... strings)

@@ -73,8 +73,8 @@ public class MathPostAggregator implements DecoratingPostAggregator
     this.expression = Preconditions.checkNotNull(expression, "'expression' cannot not be null");
     Expr expr = Parser.parse(expression);
     if (Evals.isAssign(expr)) {
-      Pair<Expr, Expr> assign = Evals.splitAssign(expression);
-      this.name = Evals.toAssigneeEval(assign.lhs).asString();
+      Pair<String, Expr> assign = Evals.splitSimpleAssign(expression);
+      this.name = assign.lhs;
       this.parsed = assign.rhs;
     } else {
       this.name = Preconditions.checkNotNull(name, "'name' cannot not be null");

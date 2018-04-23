@@ -6093,6 +6093,53 @@ public class GroupByQueryRunnerTest
     Iterable<Row> results = GroupByQueryRunnerTestHelper.runQuery(factory, runner, builder.build());
     GroupByQueryRunnerTestHelper.validate(columnNames, expectedResults, results);
 
+    // with row evaluation
+    builder.setLimitSpec(
+        new LimitSpec(
+            null, 3,
+            Arrays.asList(
+                new WindowingSpec(
+                    Arrays.asList("dayOfWeek"),
+                    Arrays.asList(dayOfWeekAsc),
+                    Arrays.<String>asList(),
+                    PivotSpec.tabular(PivotColumnSpec.toSpecs("market", "quality"), "index")
+                             .withRowExpressions("test = round(\"upfront-mezzanine\", 1)")
+                )
+            )
+        )
+    );
+    columnNames = new String[]{
+        "dayOfWeek",
+        "spot-automotive", "spot-business", "spot-entertainment", "spot-health", "spot-mezzanine",
+        "spot-news", "spot-premium", "spot-technology", "spot-travel",
+        "total_market-mezzanine", "total_market-premium", "upfront-mezzanine", "upfront-premium", "test"};
+
+    expectedResults = GroupByQueryRunnerTestHelper.createExpectedRows(
+        columnNames,
+        array(
+            "Monday",
+            null, null, null, null, null, null, null, null, null,
+            15301.728393554688, 15167.04833984375, 15479.327270507812, 12140.257507324219, 15479.3
+        ),
+        array(
+            "Tuesday",
+            1664.368782043457, 1404.3215408325195, 1653.3230514526367, 1522.367774963379, 1369.873420715332,
+            1425.5140914916992, 1560.511329650879, 1068.2061462402344, 1530.9851303100586,
+            null, null, 15147.467102050781, 11820.81298828125, 15147.5
+        ),
+        array(
+            "Wednesday",
+            1801.9095306396484, 1559.0761184692383, 1783.8484954833984, 1556.1792068481445, 1477.5527877807617,
+            1566.9974746704102, null, 1268.3166580200195, 1623.1850204467773,
+            15749.735595703125, null, 14765.832275390625, null, 14765.8
+        )
+    );
+    results = GroupByQueryRunnerTestHelper.runQuery(factory, runner, builder.build());
+    for (Object x : results) {
+      System.out.println(x);
+    }
+    GroupByQueryRunnerTestHelper.validate(columnNames, expectedResults, results);
+
     // multi-value-expanded
     builder.setLimitSpec(
         new LimitSpec(
@@ -6393,7 +6440,7 @@ public class GroupByQueryRunnerTest
 
     BaseAggregationQuery.Builder<GroupByQuery> builder = GroupByQuery
         .builder()
-        .setGroupingSets(Arrays.asList(Arrays.asList("market", "dayOfWeek"), Arrays.asList("market", "quality", "dayOfWeek")))
+        .setGroupingSets(Arrays.asList(list("market", "dayOfWeek"), list("market", "quality", "dayOfWeek")))
         .setDataSource(QueryRunnerTestHelper.dataSource)
         .setQuerySegmentSpec(QueryRunnerTestHelper.fullOnInterval)
         .setDimensions(
@@ -6478,6 +6525,7 @@ public class GroupByQueryRunnerTest
         array("upfront", "premium", "Tuesday", 13L, 11820.81298828125, 11834.81298828125)
     );
     Iterable<Row> results = GroupByQueryRunnerTestHelper.runQuery(factory, runner, builder.build());
+    GroupByQueryRunnerTestHelper.validate(columnNames, expectedResults, results);
 
     builder.setLimitSpec(
         new LimitSpec(
@@ -6518,13 +6566,63 @@ public class GroupByQueryRunnerTest
         )
     );
     results = GroupByQueryRunnerTestHelper.runQuery(factory, runner, builder.build());
+    GroupByQueryRunnerTestHelper.validate(columnNames, expectedResults, results);
 
+    builder.setLimitSpec(
+        new LimitSpec(
+            null, 3,
+            Arrays.asList(
+                new WindowingSpec(
+                    Arrays.asList("dayOfWeek"),
+                    Arrays.asList(dayOfWeekAsc),
+                    Arrays.<String>asList(),
+                    PivotSpec.tabular(PivotColumnSpec.toSpecs("market", "quality"), "index")
+                             .withRowExpressions(
+                                 "concat($3, '.percent') = round($3 / $1 * 100, 3)"
+                             )
+                )
+            )
+        )
+    );
+    columnNames = new String[]{
+        "dayOfWeek",
+        "spot", "spot-mezzanine", "spot-premium",
+        "total_market", "total_market-mezzanine", "total_market-premium",
+        "upfront", "upfront-mezzanine", "upfront-premium",
+        "spot-mezzanine.percent", "spot-premium.percent",
+        "total_market-mezzanine.percent", "total_market-premium.percent",
+        "upfront-mezzanine.percent", "upfront-premium.percent"
+    };
+    expectedResults = GroupByQueryRunnerTestHelper.createExpectedRows(
+        columnNames,
+        array("Monday",
+              null, null, null,
+              30468.776733398438, 15301.728393554688, 15167.04833984375,
+              27619.58477783203, 15479.327270507812, 12140.257507324219,
+              null, null, 50.221, 49.779, 56.045, 43.955),
+        array("Tuesday",
+              2930.384750366211, 1369.873420715332, 1560.511329650879,
+              null, null, null,
+              26968.28009033203, 15147.467102050781, 11820.81298828125,
+              46.747, 53.253, null, null, 56.168, 43.832),
+        array("Wednesday",
+              3111.8562088012695, 1477.5527877807617, null,
+              32753.337280273438, 15749.735595703125, null,
+              28985.57501220703, 14765.832275390625, null,
+              47.481, null, 48.086, null, 50.942, null)
+    );
+    results = GroupByQueryRunnerTestHelper.runQuery(factory, runner, builder.build());
     GroupByQueryRunnerTestHelper.validate(columnNames, expectedResults, results);
   }
 
   private Object[] array(Object... objects)
   {
     return objects;
+  }
+
+  private List<String> list(String... objects)
+  {
+    return Arrays.asList(objects);
   }
 
   private List list(Object... objects)

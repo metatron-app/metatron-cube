@@ -19,11 +19,14 @@
 
 package io.druid.segment;
 
+import com.google.common.collect.Ordering;
+
 import java.util.Arrays;
+import java.util.Comparator;
 
 /**
  */
-public class ObjectArray<T>
+public class ObjectArray<T> implements Comparable<ObjectArray<T>>
 {
   protected final T[] array;
 
@@ -83,26 +86,19 @@ public class ObjectArray<T>
     return Arrays.toString(array);
   }
 
-  public static class Comparable<T extends java.lang.Comparable<T>> extends ObjectArray<T>
-      implements java.lang.Comparable<Comparable<T>>
+  private static final Comparator comparator = Ordering.natural().nullsFirst();
+
+  @Override
+  @SuppressWarnings("unchecked")
+  public int compareTo(ObjectArray<T> o)
   {
-
-    public Comparable(T[] array)
-    {
-      super(array);
-    }
-
-    @Override
-    public int compareTo(Comparable<T> o)
-    {
-      T[] other = o.array;
-      for (int i = 0; i < array.length; i++) {
-        final int compare = array[i].compareTo(other[i]);
-        if (compare != 0) {
-          return compare;
-        }
+    T[] other = o.array;
+    for (int i = 0; i < array.length; i++) {
+      final int compare = comparator.compare(array[i], other[i]);
+      if (compare != 0) {
+        return compare;
       }
-      return 0;
     }
+    return 0;
   }
 }

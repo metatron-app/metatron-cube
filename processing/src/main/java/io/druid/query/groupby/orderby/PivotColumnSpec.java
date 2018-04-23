@@ -198,7 +198,7 @@ public class PivotColumnSpec extends OrderingSpec
         public String apply(Row input)
         {
           supplier.set(input);
-          return expr.eval(binding).asString();
+          return Objects.toString(expr.eval(binding).asString(), "");
         }
       };
     }

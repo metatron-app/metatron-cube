@@ -36,17 +36,14 @@ import io.druid.data.input.Row;
 import io.druid.math.expr.Evals;
 import io.druid.math.expr.Expr;
 import io.druid.query.QueryCacheHelper;
-import io.druid.query.RowResolver;
 import io.druid.query.filter.DimFilterCacheHelper;
 import io.druid.query.groupby.orderby.WindowContext.Evaluator;
 import io.druid.query.groupby.orderby.WindowingSpec.PartitionEvaluator;
-import io.druid.segment.ObjectArray;
-import io.druid.segment.incremental.IncrementalIndex;
+import io.druid.segment.StringArray;
 import org.joda.time.DateTime;
 
 import java.nio.ByteBuffer;
 import java.util.Arrays;
-import java.util.Collection;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -73,7 +70,7 @@ public class PivotSpec implements WindowingSpec.PartitionEvaluatorFactory
   private final String separator;
   private final List<String> rowExpressions;
   private final List<PartitionExpression> partitionExpressions;
-  private final boolean tabularFormat;
+  private final boolean tabularFormat;  // I really fucking hate this
   private final boolean appendValueColumn;
 
   @JsonCreator
@@ -323,39 +320,20 @@ public class PivotSpec implements WindowingSpec.PartitionEvaluatorFactory
     }
     final List<String> partitionColumns = context.partitionColumns();
     final List<Function<Row, String>> extractors = PivotColumnSpec.toExtractors(pivotColumns);
-    // this is name ordering of pivot columns.. not for row ordering
-    final List<Comparator<String>> comparators = OrderByColumnSpec.getComparator(pivotColumns);
-    if (appendValueColumn) {
-      comparators.add(Ordering.<String>explicit(valueColumns));
-    }
+
     final Set[] whitelist = PivotColumnSpec.getValuesAsArray(pivotColumns);
-    final String[] values = valueColumns.toArray(new String[0]);
-    final Comparator<StringArray> comparator = new Comparator<StringArray>()
-    {
-      @Override
-      public int compare(StringArray o1, StringArray o2)
-      {
-        final String[] array1 = o1.array();
-        final String[] array2 = o2.array();
-        for (int i = 0; i < comparators.size(); i++) {
-          int compare = comparators.get(i).compare(array1[i], array2[i]);
-          if (compare != 0) {
-            return compare;
-          }
-        }
-        return 0;
-      }
-    };
+    final String[] values = valueColumns.toArray(new String[valueColumns.size()]);
     // '_' is just '_'
-    final List<Pair<String, Expr>> rowExprs = Lists.newArrayList();
+    final List<Pair<Expr, Expr>> rowExprs = Lists.newArrayList();
     for (String expression : rowExpressions) {
-      rowExprs.add(Evals.splitSimpleAssign(expression));
+      rowExprs.add(Evals.splitAssign(expression));
     }
     // when tabularFormat = true, '_' is replaced with pivot column names
     final List<Evaluator> partitionEvals = PartitionExpression.toEvaluators(partitionExpressions);
     final int keyLength = pivotColumns.size() + (appendValueColumn ? 1 : 0);
 
-    final Set<StringArray> whole = Sets.newHashSet();
+    final Set<StringArray> allPivotColumns = Sets.newHashSet();
+    final Set<String> allColumns = Sets.newHashSet();
     return new PartitionEvaluator()
     {
       @Override
@@ -399,30 +377,11 @@ next:
             Preconditions.checkArgument(mapping.put(key, value) == null, "duplicated.. " + key);
           }
         }
-        Map<String, Object> event = Maps.newLinkedHashMap();
-        for (int i = 0; i < partitionKey.length; i++) {
-          event.put(partitionColumns.get(i), partitionKey[i]);
-        }
-        Collection<Map.Entry<StringArray, Object>> entries;
+        PivotContext pivot = new PivotContext(PivotSpec.this, context, partitionKey);
+        Map<String, Object> event = pivot.evaluate(mapping);
         if (tabularFormat) {
-          entries = mapping.entrySet();
-        } else {
-          entries = IncrementalIndex.sortOn(mapping, comparator, false);
-        }
-        for (Map.Entry<StringArray, Object> entry : entries) {
-          String newKey = StringUtils.concat(separator, entry.getKey().array());
-          Object newValue = entry.getValue();
-          event.put(newKey, newValue);
-          if (newValue != null) {
-            context.addType(newKey, RowResolver.toValueType(newValue));
-          }
-        }
-        Expr.NumericBinding binding = WindowingSpec.withMap(event);
-        for (Pair<String, Expr> assign : rowExprs) {
-          event.put(assign.lhs, assign.rhs.eval(binding).value());
-        }
-        if (tabularFormat) {
-          whole.addAll(mapping.keySet());
+          allPivotColumns.addAll(mapping.keySet());
+          allColumns.addAll(event.keySet());
         }
         return Arrays.<Row>asList(new MapBasedRow(dateTime, event));
       }
@@ -433,12 +392,16 @@ next:
         // handle single partition
         WindowContext current = context.on(null, null).with(partition);
         if (tabularFormat) {
-          StringArray[] keys = whole.toArray(new StringArray[whole.size()]);
-          Arrays.parallelSort(keys, comparator);
-          final String[] sortedKeys = new String[keys.length];
+          StringArray[] pivotColumns = allPivotColumns.toArray(new StringArray[allPivotColumns.size()]);
+          Arrays.parallelSort(pivotColumns, makeColumnOrdering());
+          final String[] sortedKeys = new String[pivotColumns.length];
           for (int i = 0; i < sortedKeys.length; i++) {
-            sortedKeys[i] = StringUtils.concat(separator, keys[i].array());
+            sortedKeys[i] = StringUtils.concat(separator, pivotColumns[i].array());
           }
+          allColumns.removeAll(partitionColumns);
+          allColumns.removeAll(Arrays.asList(sortedKeys));
+          String[] remainingColumns = allColumns.toArray(new String[allColumns.size()]);
+          Arrays.parallelSort(remainingColumns);
           // rewrite with whole pivot columns
           for (int i = 0; i < partition.size(); i++) {
             Row row = partition.get(i);
@@ -449,8 +412,8 @@ next:
             for (String sortedKey : sortedKeys) {
               event.put(sortedKey, row.getRaw(sortedKey));
             }
-            for (Pair<String, Expr> assign : rowExprs) {
-              event.put(assign.lhs, row.getRaw(assign.lhs));
+            for (String sortedKey : remainingColumns) {
+              event.put(sortedKey, row.getRaw(sortedKey));
             }
             partition.set(i, new MapBasedRow(row.getTimestamp(), event));
           }
@@ -463,11 +426,28 @@ next:
     };
   }
 
-  private static class StringArray extends ObjectArray<String>
+  // this is name ordering of pivot columns.. not for row ordering
+  public Comparator<StringArray> makeColumnOrdering()
   {
-    public StringArray(String[] array)
-    {
-      super(array);
+    final List<Comparator<String>> comparators = OrderByColumnSpec.getComparator(pivotColumns);
+    if (appendValueColumn) {
+      comparators.add(Ordering.<String>explicit(valueColumns));
     }
+    return new Comparator<StringArray>()
+    {
+      @Override
+      public int compare(StringArray o1, StringArray o2)
+      {
+        final String[] array1 = o1.array();
+        final String[] array2 = o2.array();
+        for (int i = 0; i < comparators.size(); i++) {
+          int compare = comparators.get(i).compare(array1[i], array2[i]);
+          if (compare != 0) {
+            return compare;
+          }
+        }
+        return 0;
+      }
+    };
   }
 }
