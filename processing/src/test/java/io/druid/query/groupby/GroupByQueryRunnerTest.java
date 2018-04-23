@@ -313,7 +313,7 @@ public class GroupByQueryRunnerTest
     GroupByQuery query = GroupByQuery
         .builder()
         .setGroupingSets(
-            Arrays.asList(Arrays.asList("quality"), Arrays.asList("alias"), Arrays.asList("quality", "alias"))
+            new GroupingSetSpec.Names.Builder().add("quality").add("alias").add("quality", "alias").build()
         )
         .setDataSource(QueryRunnerTestHelper.dataSource)
         .setQuerySegmentSpec(QueryRunnerTestHelper.firstToThird)
@@ -342,6 +342,62 @@ public class GroupByQueryRunnerTest
         array("2011-04-01T00:00:00.000Z", null, "p", 6L, 5405L),
         array("2011-04-01T00:00:00.000Z", null, "preferred", 26L, 12446L),
         array("2011-04-01T00:00:00.000Z", null, "t", 4L, 420L),
+        array("2011-04-01T00:00:00.000Z", "automotive", null, 4L, 564L),
+        array("2011-04-01T00:00:00.000Z", "automotive", "a", 2L, 282L),
+        array("2011-04-01T00:00:00.000Z", "automotive", "preferred", 2L, 282L),
+        array("2011-04-01T00:00:00.000Z", "business", null, 4L, 460L),
+        array("2011-04-01T00:00:00.000Z", "business", "b", 2L, 230L),
+        array("2011-04-01T00:00:00.000Z", "business", "preferred", 2L, 230L),
+        array("2011-04-01T00:00:00.000Z", "entertainment", null, 4L, 648L),
+        array("2011-04-01T00:00:00.000Z", "entertainment", "e", 2L, 324L),
+        array("2011-04-01T00:00:00.000Z", "entertainment", "preferred", 2L, 324L),
+        array("2011-04-01T00:00:00.000Z", "health", null, 4L, 466L),
+        array("2011-04-01T00:00:00.000Z", "health", "h", 2L, 233L),
+        array("2011-04-01T00:00:00.000Z", "health", "preferred", 2L, 233L),
+        array("2011-04-01T00:00:00.000Z", "mezzanine", null, 12L, 10634L),
+        array("2011-04-01T00:00:00.000Z", "mezzanine", "m", 6L, 5317L),
+        array("2011-04-01T00:00:00.000Z", "mezzanine", "preferred", 6L, 5317L),
+        array("2011-04-01T00:00:00.000Z", "news", null, 4L, 470L),
+        array("2011-04-01T00:00:00.000Z", "news", "n", 2L, 235L),
+        array("2011-04-01T00:00:00.000Z", "news", "preferred", 2L, 235L),
+        array("2011-04-01T00:00:00.000Z", "premium", null, 12L, 10810L),
+        array("2011-04-01T00:00:00.000Z", "premium", "p", 6L, 5405L),
+        array("2011-04-01T00:00:00.000Z", "premium", "preferred", 6L, 5405L),
+        array("2011-04-01T00:00:00.000Z", "technology", null, 4L, 350L),
+        array("2011-04-01T00:00:00.000Z", "technology", "preferred", 2L, 175L),
+        array("2011-04-01T00:00:00.000Z", "technology", "t", 2L, 175L),
+        array("2011-04-01T00:00:00.000Z", "travel", null, 4L, 490L),
+        array("2011-04-01T00:00:00.000Z", "travel", "preferred", 2L, 245L),
+        array("2011-04-01T00:00:00.000Z", "travel", "t", 2L, 245L)
+    );
+
+    Iterable<Row> results = GroupByQueryRunnerTestHelper.runQuery(factory, runner, query);
+    TestHelper.assertExpectedObjects(expectedResults, results, "");
+  }
+
+  @Test
+  public void testGroupByGroupingSetRollup()
+  {
+    GroupByQuery query = GroupByQuery
+        .builder()
+        .setGroupingSets(new GroupingSetSpec.Rollup())
+        .setDataSource(QueryRunnerTestHelper.dataSource)
+        .setQuerySegmentSpec(QueryRunnerTestHelper.firstToThird)
+        .setDimensions(
+            new DefaultDimensionSpec("quality", "quality"),
+            new DefaultDimensionSpec("placementish", "alias")
+        )
+        .setAggregatorSpecs(
+            QueryRunnerTestHelper.rowsCount,
+            new LongSumAggregatorFactory("idx", "index")
+        )
+        .setGranularity(QueryRunnerTestHelper.allGran)
+        .build();
+
+    String[] columnNames = {"__time", "quality", "alias", "rows", "idx"};
+    List<Row> expectedResults = expectedResults = GroupByQueryRunnerTestHelper.createExpectedRows(
+        columnNames,
+        array("2011-04-01T00:00:00.000Z", null, null, 52L, 24892L),
         array("2011-04-01T00:00:00.000Z", "automotive", null, 4L, 564L),
         array("2011-04-01T00:00:00.000Z", "automotive", "a", 2L, 282L),
         array("2011-04-01T00:00:00.000Z", "automotive", "preferred", 2L, 282L),
@@ -6440,7 +6496,7 @@ public class GroupByQueryRunnerTest
 
     BaseAggregationQuery.Builder<GroupByQuery> builder = GroupByQuery
         .builder()
-        .setGroupingSets(Arrays.asList(list("market", "dayOfWeek"), list("market", "quality", "dayOfWeek")))
+        .setGroupingSets(new GroupingSetSpec.Indices.Builder().add(0, 2).add(0, 1, 2).build())
         .setDataSource(QueryRunnerTestHelper.dataSource)
         .setQuerySegmentSpec(QueryRunnerTestHelper.fullOnInterval)
         .setDimensions(
@@ -6595,21 +6651,26 @@ public class GroupByQueryRunnerTest
     };
     expectedResults = GroupByQueryRunnerTestHelper.createExpectedRows(
         columnNames,
-        array("Monday",
-              null, null, null,
-              30468.776733398438, 15301.728393554688, 15167.04833984375,
-              27619.58477783203, 15479.327270507812, 12140.257507324219,
-              null, null, 50.221, 49.779, 56.045, 43.955),
-        array("Tuesday",
-              2930.384750366211, 1369.873420715332, 1560.511329650879,
-              null, null, null,
-              26968.28009033203, 15147.467102050781, 11820.81298828125,
-              46.747, 53.253, null, null, 56.168, 43.832),
-        array("Wednesday",
-              3111.8562088012695, 1477.5527877807617, null,
-              32753.337280273438, 15749.735595703125, null,
-              28985.57501220703, 14765.832275390625, null,
-              47.481, null, 48.086, null, 50.942, null)
+        array(
+            "Monday",
+            null, null, null,
+            30468.776733398438, 15301.728393554688, 15167.04833984375,
+            27619.58477783203, 15479.327270507812, 12140.257507324219,
+            null, null, 50.221, 49.779, 56.045, 43.955
+        ),
+        array(
+            "Tuesday",
+            2930.384750366211, 1369.873420715332, 1560.511329650879,
+            null, null, null,
+            26968.28009033203, 15147.467102050781, 11820.81298828125,
+            46.747, 53.253, null, null, 56.168, 43.832
+        ),
+        array(
+            "Wednesday",
+            3111.8562088012695, 1477.5527877807617, null,
+            32753.337280273438, 15749.735595703125, null,
+            28985.57501220703, 14765.832275390625, null,
+            47.481, null, 48.086, null, 50.942, null)
     );
     results = GroupByQueryRunnerTestHelper.runQuery(factory, runner, builder.build());
     GroupByQueryRunnerTestHelper.validate(columnNames, expectedResults, results);
@@ -6618,11 +6679,6 @@ public class GroupByQueryRunnerTest
   private Object[] array(Object... objects)
   {
     return objects;
-  }
-
-  private List<String> list(String... objects)
-  {
-    return Arrays.asList(objects);
   }
 
   private List list(Object... objects)

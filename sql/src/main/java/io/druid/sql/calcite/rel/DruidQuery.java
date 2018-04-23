@@ -796,7 +796,7 @@ public class DruidQuery
         filtration.getDimFilter(),
         Granularities.ALL,
         grouping.getDimensionSpecs(),
-        ImmutableList.of(),
+        null,
         getVirtualColumns(),
         grouping.getAggregatorFactories(),
         grouping.getPostAggregators(),

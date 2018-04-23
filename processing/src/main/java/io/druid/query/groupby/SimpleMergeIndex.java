@@ -129,13 +129,14 @@ public class SimpleMergeIndex implements MergeIndex
     }
     if (groupings.length == 0) {
       _addRow(new TimeAndDims(row.getTimestampFromEpoch(), key));
-    }
-    for (int[] grouping : groupings) {
-      final Comparable[] copy = new Comparable[dimensions.length];
-      for (int index : grouping) {
-        copy[index] = key[index];
+    } else {
+      for (int[] grouping : groupings) {
+        final Comparable[] copy = new Comparable[dimensions.length];
+        for (int index : grouping) {
+          copy[index] = key[index];
+        }
+        _addRow(new TimeAndDims(row.getTimestampFromEpoch(), copy));
       }
-      _addRow(new TimeAndDims(row.getTimestampFromEpoch(), copy));
     }
   }
 

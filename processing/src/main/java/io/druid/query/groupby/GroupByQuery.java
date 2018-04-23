@@ -20,6 +20,8 @@
 package io.druid.query.groupby;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Preconditions;
@@ -61,6 +63,7 @@ import io.druid.segment.VirtualColumn;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
 /**
  */
@@ -77,7 +80,7 @@ public class GroupByQuery extends BaseAggregationQuery<Row> implements Query.Rew
   }
 
   private final List<DimensionSpec> dimensions;
-  private final List<List<String>> groupingSets;
+  private final GroupingSetSpec groupingSets;
 
   @JsonCreator
   public GroupByQuery(
@@ -86,7 +89,7 @@ public class GroupByQuery extends BaseAggregationQuery<Row> implements Query.Rew
       @JsonProperty("filter") DimFilter dimFilter,
       @JsonProperty("granularity") Granularity granularity,
       @JsonProperty("dimensions") List<DimensionSpec> dimensions,
-      @JsonProperty("groupingSets") List<List<String>> groupingSets,
+      @JsonProperty("groupingSets") GroupingSetSpec groupingSets,
       @JsonProperty("virtualColumns") List<VirtualColumn> virtualColumns,
       @JsonProperty("aggregations") List<AggregatorFactory> aggregatorSpecs,
       @JsonProperty("postAggregations") List<PostAggregator> postAggregatorSpecs,
@@ -113,13 +116,16 @@ public class GroupByQuery extends BaseAggregationQuery<Row> implements Query.Rew
         context
     );
     this.dimensions = dimensions == null ? ImmutableList.<DimensionSpec>of() : dimensions;
-    this.groupingSets = groupingSets == null ? ImmutableList.<List<String>>of() : groupingSets;
+    this.groupingSets = groupingSets;
     for (DimensionSpec spec : this.dimensions) {
       Preconditions.checkArgument(spec != null, "dimensions has null DimensionSpec");
     }
     Queries.verifyAggregations(
-        DimensionSpecs.toOutputNames(getDimensions()), getAggregatorSpecs(), getPostAggregatorSpecs(), getGroupingSets()
+        DimensionSpecs.toOutputNames(getDimensions()), getAggregatorSpecs(), getPostAggregatorSpecs()
     );
+    if (groupingSets != null) {
+      groupingSets.validate(DimensionSpecs.toOutputNames(getDimensions()));
+    }
   }
 
   @JsonProperty
@@ -129,23 +135,10 @@ public class GroupByQuery extends BaseAggregationQuery<Row> implements Query.Rew
   }
 
   @JsonProperty
-  public List<List<String>> getGroupingSets()
+  @JsonInclude(Include.NON_NULL)
+  public GroupingSetSpec getGroupingSets()
   {
     return groupingSets;
-  }
-
-  public int[][] getGroupings()
-  {
-    List<String> dimensionNames = DimensionSpecs.toOutputNames(dimensions);
-    int[][] groupings = new int[groupingSets.size()][];
-    for (int i = 0; i < groupings.length; i++) {
-      List<String> groupingSet = groupingSets.get(i);
-      groupings[i] = new int[groupingSet.size()];
-      for (int j = 0; j < groupings[i].length; j++) {
-        groupings[i][j] = dimensionNames.indexOf(groupingSet.get(j));
-      }
-    }
-    return groupings;
   }
 
   @Override
@@ -524,9 +517,14 @@ public class GroupByQuery extends BaseAggregationQuery<Row> implements Query.Rew
                  .build();
   }
 
+  public int[][] getGroupings()
+  {
+    return groupingSets == null ? new int[0][0] : groupingSets.getGroupings(DimensionSpecs.toOutputNames(dimensions));
+  }
+
   public static class Builder extends BaseAggregationQuery.Builder<GroupByQuery>
   {
-    private List<List<String>> groupingSets;
+    private GroupingSetSpec groupingSets;
 
     public Builder() { }
 
@@ -535,13 +533,13 @@ public class GroupByQuery extends BaseAggregationQuery<Row> implements Query.Rew
       super(aggregationQuery);
     }
 
-    public Builder setGroupingSets(List<List<String>> groupingSets)
+    public Builder setGroupingSets(GroupingSetSpec groupingSets)
     {
       this.groupingSets = groupingSets;
       return this;
     }
 
-    public Builder groupingSets(List<List<String>> groupingSets)
+    public Builder groupingSets(GroupingSetSpec groupingSets)
     {
       return setGroupingSets(groupingSets);
     }
@@ -569,6 +567,15 @@ public class GroupByQuery extends BaseAggregationQuery<Row> implements Query.Rew
   }
 
   @Override
+  public boolean equals(Object o)
+  {
+    if (!super.equals(o)) {
+      return false;
+    }
+    return Objects.equals(groupingSets, ((GroupByQuery) o).groupingSets);
+  }
+
+  @Override
   public String toString()
   {
     return "GroupByQuery{" +
@@ -576,8 +583,8 @@ public class GroupByQuery extends BaseAggregationQuery<Row> implements Query.Rew
            ", querySegmentSpec=" + getQuerySegmentSpec() +
            ", granularity=" + granularity +
            ", dimensions=" + dimensions +
-           ", groupingSets=" + groupingSets +
            (dimFilter == null ? "" : ", dimFilter=" + dimFilter) +
+           (groupingSets == null ? "" : ", groupingSets=" + groupingSets) +
            (virtualColumns.isEmpty() ? "" : ", virtualColumns=" + virtualColumns) +
            (aggregatorSpecs.isEmpty() ? "" : ", aggregatorSpecs=" + aggregatorSpecs) +
            (postAggregatorSpecs.isEmpty() ? "" : ", postAggregatorSpecs=" + postAggregatorSpecs) +
