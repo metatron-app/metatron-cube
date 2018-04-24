@@ -145,7 +145,7 @@ public class DruidCoordinatorRuleRunner implements DruidCoordinatorHelper
       final SegmentReplicantLookup replicantLookup = coordinatorParam.getSegmentReplicantLookup();
       return coordinator.makeOrdered(
           Iterables.filter(
-              coordinator.getAvailableDataSegments(), new Predicate<DataSegment>()
+              coordinatorParam.getNonOvershadowedSegments(), new Predicate<DataSegment>()
               {
                 @Override
                 public boolean apply(DataSegment input)
@@ -157,6 +157,6 @@ public class DruidCoordinatorRuleRunner implements DruidCoordinatorHelper
       );
     }
     currentTick = 0;
-    return coordinatorParam.getAvailableSegments();
+    return coordinatorParam.getNonOvershadowedSegments();
   }
 }

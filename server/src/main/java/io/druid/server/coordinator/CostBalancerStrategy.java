@@ -172,12 +172,10 @@ public class CostBalancerStrategy implements BalancerStrategy
   }
 
   private final ListeningExecutorService exec;
-  private final int threadCount;
 
-  public CostBalancerStrategy(ListeningExecutorService exec, int threadCount)
+  public CostBalancerStrategy(ListeningExecutorService exec)
   {
     this.exec = exec;
-    this.threadCount = threadCount;
   }
 
   @Override
@@ -201,18 +199,11 @@ public class CostBalancerStrategy implements BalancerStrategy
     return chooseBestServer(proposalSegment, serverHolders, true).rhs;
   }
 
-  static double computeJointSegmentsCost(
-      final DataSegment segment,
-      final Iterable<DataSegment> segmentSet,
-      final double currentCost
-  )
+  static double computeJointSegmentsCost(final DataSegment segment, final Iterable<DataSegment> segmentSet)
   {
     double totalCost = 0;
     for (DataSegment s : segmentSet) {
       totalCost += computeJointSegmentsCost(segment, s);
-      if (totalCost > currentCost) {
-        break;
-      }
     }
     return totalCost;
   }
@@ -237,7 +228,7 @@ public class CostBalancerStrategy implements BalancerStrategy
     for (ServerHolder server : serverHolders) {
       Iterable<DataSegment> segments = server.getServer().getSegments().values();
       for (DataSegment s : segments) {
-        cost += computeJointSegmentsCost(s, segments, Double.POSITIVE_INFINITY);
+        cost += computeJointSegmentsCost(s, segments);
       }
     }
     return cost;
@@ -288,10 +279,7 @@ public class CostBalancerStrategy implements BalancerStrategy
   }
 
   protected double computeCost(
-      final DataSegment proposalSegment,
-      final ServerHolder server,
-      final boolean includeCurrentServer,
-      final double currentCost
+      final DataSegment proposalSegment, final ServerHolder server, final boolean includeCurrentServer
   )
   {
     final long proposalSegmentSize = proposalSegment.getSize();
@@ -311,14 +299,11 @@ public class CostBalancerStrategy implements BalancerStrategy
           Iterables.filter(
               server.getServer().getSegments().values(),
               Predicates.not(Predicates.equalTo(proposalSegment))
-          ),
-          currentCost
+          )
       );
 
       /**  plus the costs of segments that will be loaded */
-      if (cost < currentCost) {
-        cost += computeJointSegmentsCost(proposalSegment, server.getPeon().getSegmentsToLoad(), currentCost);
-      }
+      cost += computeJointSegmentsCost(proposalSegment, server.getPeon().getSegmentsToLoad());
 
       return cost;
     }
@@ -336,7 +321,7 @@ public class CostBalancerStrategy implements BalancerStrategy
 
   protected Pair<Double, ServerHolder> chooseBestServer(
       final DataSegment proposalSegment,
-      final List<ServerHolder> serverHolders,
+      final Iterable<ServerHolder> serverHolders,
       final boolean includeCurrentServer
   )
   {
@@ -344,9 +329,7 @@ public class CostBalancerStrategy implements BalancerStrategy
 
     List<ListenableFuture<Pair<Double, ServerHolder>>> futures = Lists.newArrayList();
 
-    int numServer = serverHolders.size();
-    int size = numServer / threadCount + (numServer % threadCount == 0 ? 0 : 1);
-    for (final List<ServerHolder> servers : Lists.partition(serverHolders, size)) {
+    for (final ServerHolder server : serverHolders) {
       futures.add(
           exec.submit(
               new Callable<Pair<Double, ServerHolder>>()
@@ -354,16 +337,7 @@ public class CostBalancerStrategy implements BalancerStrategy
                 @Override
                 public Pair<Double, ServerHolder> call() throws Exception
                 {
-                  ServerHolder currentServer = null;
-                  double currentCost = Double.POSITIVE_INFINITY;
-                  for (ServerHolder server : servers) {
-                    double cost = computeCost(proposalSegment, server, includeCurrentServer, currentCost);
-                    if (currentServer == null || cost < currentCost) {
-                      currentServer = server;
-                      currentCost = cost;
-                    }
-                  }
-                  return Pair.of(currentCost, currentServer);
+                  return Pair.of(computeCost(proposalSegment, server, includeCurrentServer), server);
                 }
               }
           )

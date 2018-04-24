@@ -22,19 +22,21 @@ package io.druid.server.coordinator;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Supplier;
 import com.google.common.base.Suppliers;
-import com.google.common.collect.ImmutableSet;
-import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+import com.google.common.collect.Ordering;
 import com.google.common.collect.Sets;
 import com.metamx.emitter.service.ServiceEmitter;
 import io.druid.client.DruidDataSource;
 import io.druid.metadata.MetadataRuleManager;
 import io.druid.timeline.DataSegment;
+import io.druid.timeline.TimelineObjectHolder;
+import io.druid.timeline.VersionedIntervalTimeline;
 import org.joda.time.DateTime;
 
 import java.util.Collection;
 import java.util.Collections;
-import java.util.List;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 
@@ -47,16 +49,17 @@ public class DruidCoordinatorRuntimeParams
   private final MetadataRuleManager databaseRuleManager;
   private final SegmentReplicantLookup segmentReplicantLookup;
   private final Set<DruidDataSource> dataSources;
-  private final List<Supplier<Set<DataSegment>>> availableSegments;
+  private final Supplier<Set<DataSegment>> availableSegments;
   private final Map<String, LoadQueuePeon> loadManagementPeons;
   private final ReplicationThrottler replicationManager;
   private final ServiceEmitter emitter;
   private final CoordinatorDynamicConfig coordinatorDynamicConfig;
   private final CoordinatorStats stats;
   private final DateTime balancerReferenceTimestamp;
-  private final BalancerStrategyFactory strategyFactory;
+  private final BalancerStrategy balancerStrategy;
 
   private Set<DataSegment> materializedSegments;
+  private Set<DataSegment> materializedNonOvershadowedSegments;
 
   public DruidCoordinatorRuntimeParams(
       long startTime,
@@ -64,14 +67,14 @@ public class DruidCoordinatorRuntimeParams
       MetadataRuleManager databaseRuleManager,
       SegmentReplicantLookup segmentReplicantLookup,
       Set<DruidDataSource> dataSources,
-      List<Supplier<Set<DataSegment>>> availableSegments,
+      Supplier<Set<DataSegment>> availableSegments,
       Map<String, LoadQueuePeon> loadManagementPeons,
       ReplicationThrottler replicationManager,
       ServiceEmitter emitter,
       CoordinatorDynamicConfig coordinatorDynamicConfig,
       CoordinatorStats stats,
       DateTime balancerReferenceTimestamp,
-      BalancerStrategyFactory strategyFactory
+      BalancerStrategy balancerStrategy
   )
   {
     this.startTime = startTime;
@@ -86,7 +89,7 @@ public class DruidCoordinatorRuntimeParams
     this.coordinatorDynamicConfig = coordinatorDynamicConfig;
     this.stats = stats;
     this.balancerReferenceTimestamp = balancerReferenceTimestamp;
-    this.strategyFactory = strategyFactory;
+    this.balancerStrategy = balancerStrategy;
   }
 
   public long getStartTime()
@@ -117,19 +120,50 @@ public class DruidCoordinatorRuntimeParams
   public Set<DataSegment> getAvailableSegments()
   {
     if (materializedSegments == null) {
-      if (availableSegments.isEmpty()) {
-        materializedSegments = ImmutableSet.of();
-      } else if (availableSegments.size() == 1) {
-        materializedSegments = Collections.unmodifiableSet(availableSegments.get(0).get());
-      } else {
-        Set<DataSegment> merged = Sets.newTreeSet(DruidCoordinator.SEGMENT_COMPARATOR);
-        for (Supplier<Set<DataSegment>> supplier : availableSegments) {
-          merged.addAll(supplier.get());
-        }
-        materializedSegments = Collections.unmodifiableSet(merged);
-      }
+      materializedSegments = Collections.unmodifiableSet(availableSegments.get());
     }
     return materializedSegments;
+  }
+
+  public Set<DataSegment> getNonOvershadowedSegments()
+  {
+    if (materializedNonOvershadowedSegments == null) {
+      materializedNonOvershadowedSegments = Collections.unmodifiableSet(retainNonOverShadowed(getAvailableSegments()));
+    }
+    return materializedNonOvershadowedSegments;
+  }
+
+  private Set<DataSegment> retainNonOverShadowed(Set<DataSegment> segments)
+  {
+    Map<String, VersionedIntervalTimeline<String, DataSegment>> timelines = new HashMap<>();
+    for (DataSegment segment : segments) {
+      VersionedIntervalTimeline<String, DataSegment> timeline = timelines.get(segment.getDataSource());
+      if (timeline == null) {
+        timeline = new VersionedIntervalTimeline<>(Ordering.natural());
+        timelines.put(segment.getDataSource(), timeline);
+      }
+
+      timeline.add(
+          segment.getInterval(), segment.getVersion(), segment.getShardSpec().createChunk(segment)
+      );
+    }
+
+    Set<DataSegment> overshadowed = new HashSet<>();
+    for (VersionedIntervalTimeline<String, DataSegment> timeline : timelines.values()) {
+      for (TimelineObjectHolder<String, DataSegment> holder : timeline.findOvershadowed()) {
+        for (DataSegment dataSegment : holder.getObject().payloads()) {
+          overshadowed.add(dataSegment);
+        }
+      }
+    }
+
+    Set<DataSegment> nonOvershadowed = new HashSet<>();
+    for (DataSegment dataSegment : segments) {
+      if (!overshadowed.contains(dataSegment)) {
+        nonOvershadowed.add(dataSegment);
+      }
+    }
+    return nonOvershadowed;
   }
 
   public Map<String, LoadQueuePeon> getLoadManagementPeons()
@@ -162,9 +196,9 @@ public class DruidCoordinatorRuntimeParams
     return balancerReferenceTimestamp;
   }
 
-  public BalancerStrategyFactory getBalancerStrategyFactory()
+  public BalancerStrategy getBalancerStrategy()
   {
-    return strategyFactory;
+    return balancerStrategy;
   }
 
   public boolean hasDeletionWaitTimeElapsed()
@@ -179,7 +213,7 @@ public class DruidCoordinatorRuntimeParams
 
   public Builder buildFromExisting()
   {
-    return new Builder(
+    Builder builder = new Builder(
         startTime,
         druidCluster,
         databaseRuleManager,
@@ -192,8 +226,11 @@ public class DruidCoordinatorRuntimeParams
         coordinatorDynamicConfig,
         stats,
         balancerReferenceTimestamp,
-        strategyFactory
+        balancerStrategy
     );
+    builder.materializedSegments = materializedSegments;
+    builder.materializedNonOvershadowedSegments = materializedNonOvershadowedSegments;
+    return builder;
   }
 
   public static class Builder
@@ -203,14 +240,17 @@ public class DruidCoordinatorRuntimeParams
     private MetadataRuleManager databaseRuleManager;
     private SegmentReplicantLookup segmentReplicantLookup;
     private final Set<DruidDataSource> dataSources;
-    private final List<Supplier<Set<DataSegment>>> availableSegments;
+    private Supplier<Set<DataSegment>> availableSegments;
     private final Map<String, LoadQueuePeon> loadManagementPeons;
     private ReplicationThrottler replicationManager;
     private ServiceEmitter emitter;
     private CoordinatorDynamicConfig coordinatorDynamicConfig;
     private CoordinatorStats stats;
     private DateTime balancerReferenceTimestamp;
-    private BalancerStrategyFactory strategyFactory;
+    private BalancerStrategy balancerStrategy;
+
+    private Set<DataSegment> materializedSegments;
+    private Set<DataSegment> materializedNonOvershadowedSegments;
 
     Builder()
     {
@@ -219,7 +259,7 @@ public class DruidCoordinatorRuntimeParams
       this.databaseRuleManager = null;
       this.segmentReplicantLookup = null;
       this.dataSources = Sets.newHashSet();
-      this.availableSegments = Lists.newArrayList();
+      this.availableSegments = null;
       this.loadManagementPeons = Maps.newHashMap();
       this.replicationManager = null;
       this.emitter = null;
@@ -234,14 +274,14 @@ public class DruidCoordinatorRuntimeParams
         MetadataRuleManager databaseRuleManager,
         SegmentReplicantLookup segmentReplicantLookup,
         Set<DruidDataSource> dataSources,
-        List<Supplier<Set<DataSegment>>> availableSegments,
+        Supplier<Set<DataSegment>> availableSegments,
         Map<String, LoadQueuePeon> loadManagementPeons,
         ReplicationThrottler replicationManager,
         ServiceEmitter emitter,
         CoordinatorDynamicConfig coordinatorDynamicConfig,
         CoordinatorStats stats,
         DateTime balancerReferenceTimestamp,
-        BalancerStrategyFactory strategyFactory
+        BalancerStrategy balancerStrategy
     )
     {
       this.startTime = startTime;
@@ -256,12 +296,12 @@ public class DruidCoordinatorRuntimeParams
       this.coordinatorDynamicConfig = coordinatorDynamicConfig;
       this.stats = stats;
       this.balancerReferenceTimestamp = balancerReferenceTimestamp;
-      this.strategyFactory=strategyFactory;
+      this.balancerStrategy = balancerStrategy;
     }
 
     public DruidCoordinatorRuntimeParams build()
     {
-      return new DruidCoordinatorRuntimeParams(
+      DruidCoordinatorRuntimeParams params = new DruidCoordinatorRuntimeParams(
           startTime,
           druidCluster,
           databaseRuleManager,
@@ -274,8 +314,11 @@ public class DruidCoordinatorRuntimeParams
           coordinatorDynamicConfig,
           stats,
           balancerReferenceTimestamp,
-          strategyFactory
+          balancerStrategy
       );
+      params.materializedSegments = materializedSegments;
+      params.materializedNonOvershadowedSegments = materializedNonOvershadowedSegments;
+      return params;
     }
 
     public Builder withStartTime(long time)
@@ -317,13 +360,15 @@ public class DruidCoordinatorRuntimeParams
       } else {
         segmentSet = Sets.newHashSet(availableSegmentsCollection);
       }
-      availableSegments.add(Suppliers.ofInstance(segmentSet));
+      availableSegments = Suppliers.ofInstance(segmentSet);
+      materializedSegments = materializedNonOvershadowedSegments = null;
       return this;
     }
 
     public Builder withAvailableSegments(Supplier<Set<DataSegment>> availableSegmentsCollection)
     {
-      availableSegments.add(availableSegmentsCollection);
+      availableSegments = availableSegmentsCollection;
+      materializedSegments = materializedNonOvershadowedSegments = null;
       return this;
     }
 
@@ -363,9 +408,9 @@ public class DruidCoordinatorRuntimeParams
       return this;
     }
 
-    public Builder withBalancerStrategyFactory(BalancerStrategyFactory strategyFactory)
+    public Builder withBalancerStrategy(BalancerStrategy balancerStrategy)
     {
-      this.strategyFactory=strategyFactory;
+      this.balancerStrategy = balancerStrategy;
       return this;
     }
   }

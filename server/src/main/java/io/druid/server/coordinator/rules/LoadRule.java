@@ -32,10 +32,10 @@ import io.druid.server.coordinator.LoadPeonCallback;
 import io.druid.server.coordinator.ReplicationThrottler;
 import io.druid.server.coordinator.ServerHolder;
 import io.druid.timeline.DataSegment;
-import org.joda.time.DateTime;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * LoadRules indicate the number of replicants a segment should have in a given tier.
@@ -50,6 +50,7 @@ public abstract class LoadRule implements Rule
   public CoordinatorStats run(DruidCoordinator coordinator, DruidCoordinatorRuntimeParams params, DataSegment segment)
   {
     final CoordinatorStats stats = new CoordinatorStats();
+    final Set<DataSegment> availableSegments = params.getAvailableSegments();
 
     final Map<String, Integer> loadStatus = Maps.newHashMap();
 
@@ -69,20 +70,21 @@ public abstract class LoadRule implements Rule
       }
 
       final List<ServerHolder> serverHolderList = Lists.newArrayList(serverQueue);
-      final DateTime referenceTimestamp = params.getBalancerReferenceTimestamp();
-      final BalancerStrategy strategy = params.getBalancerStrategyFactory().createBalancerStrategy(referenceTimestamp);
-      CoordinatorStats assignStats = assign(
-          params.getReplicationManager(),
-          tier,
-          totalReplicantsInCluster,
-          expectedReplicantsInTier,
-          totalReplicantsInTier,
-          strategy,
-          serverHolderList,
-          segment
-      );
-      stats.accumulate(assignStats);
-      totalReplicantsInCluster += assignStats.getPerTierStats().get(assignedCount).get(tier).get();
+      final BalancerStrategy strategy = params.getBalancerStrategy();
+      if (availableSegments.contains(segment)) {
+        CoordinatorStats assignStats = assign(
+            params.getReplicationManager(),
+            tier,
+            totalReplicantsInCluster,
+            expectedReplicantsInTier,
+            totalReplicantsInTier,
+            strategy,
+            serverHolderList,
+            segment
+        );
+        stats.accumulate(assignStats);
+        totalReplicantsInCluster += assignStats.getPerTierStats().get(assignedCount).get(tier).get();
+      }
 
       loadStatus.put(tier, expectedReplicantsInTier - loadedReplicantsInTier);
     }
