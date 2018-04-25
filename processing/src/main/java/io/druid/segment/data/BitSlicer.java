@@ -31,6 +31,7 @@ public abstract class BitSlicer<T extends Comparable>
   protected final ValueType valueType;
   protected final BitmapFactory factory;
   protected final MutableBitmap[] bitmaps;
+  protected final MutableBitmap nans;
 
   protected int rowCount;
 
@@ -42,6 +43,7 @@ public abstract class BitSlicer<T extends Comparable>
     for (int i = 0; i < bitmaps.length; i++) {
       bitmaps[i] = factory.makeEmptyMutableBitmap();
     }
+    nans = factory.makeEmptyMutableBitmap();
   }
 
   public abstract void add(T value);
@@ -64,9 +66,15 @@ public abstract class BitSlicer<T extends Comparable>
 
   protected ImmutableBitmap[] toFinalized()
   {
-    ImmutableBitmap[] immutable = new ImmutableBitmap[bitmaps.length];
-    for (int i = 0; i < bitmaps.length; i++) {
+    boolean hasNan = nans != null && nans.isEmpty();
+    ImmutableBitmap[] immutable = new ImmutableBitmap[hasNan ? bitmaps.length + 1: bitmaps.length];
+
+    int i = 0;
+    for (; i < bitmaps.length; i++) {
       immutable[i] = factory.makeImmutableBitmap(bitmaps[i]);
+    }
+    if (hasNan) {
+      immutable[i] = factory.makeImmutableBitmap(nans);
     }
     return immutable;
   }
@@ -81,14 +89,18 @@ public abstract class BitSlicer<T extends Comparable>
     @Override
     public void add(T value)
     {
-      int val = normalize(value);
-      for (MutableBitmap bitmap : bitmaps) {
-        if ((val & Integer.MIN_VALUE) != 0) {
-          bitmap.add(rowCount);
+      if (isNan(value)) {
+        nans.add(rowCount++);
+      } else {
+        int val = normalize(value);
+        for (MutableBitmap bitmap : bitmaps) {
+          if ((val & Integer.MIN_VALUE) != 0) {
+            bitmap.add(rowCount);
+          }
+          val <<= 1;
         }
-        val <<= 1;
+        rowCount++;
       }
-      rowCount++;
     }
 
     @Override
@@ -101,6 +113,8 @@ public abstract class BitSlicer<T extends Comparable>
       }
       return b.append(x).toString();
     }
+
+    protected abstract boolean isNan(T value);
 
     protected abstract int normalize(T value);
   }
@@ -115,14 +129,18 @@ public abstract class BitSlicer<T extends Comparable>
     @Override
     public void add(T value)
     {
-      long val = normalize(value);
-      for (MutableBitmap bitmap : bitmaps) {
-        if ((val & Long.MIN_VALUE) != 0) {
-          bitmap.add(rowCount);
+      if (isNan(value)) {
+        nans.add(rowCount++);
+      } else {
+        long val = normalize(value);
+        for (MutableBitmap bitmap : bitmaps) {
+          if ((val & Long.MIN_VALUE) != 0) {
+            bitmap.add(rowCount);
+          }
+          val <<= 1;
         }
-        val <<= 1;
+        rowCount++;
       }
-      rowCount++;
     }
 
     @Override
@@ -136,6 +154,8 @@ public abstract class BitSlicer<T extends Comparable>
       return b.append(x).toString();
     }
 
+    protected abstract boolean isNan(T value);
+
     protected abstract long normalize(T value);
   }
 
@@ -144,6 +164,12 @@ public abstract class BitSlicer<T extends Comparable>
     public FloatType(BitmapFactory factory)
     {
       super(ValueType.FLOAT, factory);
+    }
+
+    @Override
+    protected boolean isNan(Float value)
+    {
+      return value.isNaN();
     }
 
     @Override
@@ -167,6 +193,12 @@ public abstract class BitSlicer<T extends Comparable>
     }
 
     @Override
+    protected boolean isNan(Long value)
+    {
+      return false;
+    }
+
+    @Override
     protected final long normalize(Long v)
     {
       return BitSlicer.normalize(v);
@@ -184,6 +216,12 @@ public abstract class BitSlicer<T extends Comparable>
     public DoubleType(BitmapFactory factory)
     {
       super(ValueType.DOUBLE, factory);
+    }
+
+    @Override
+    protected boolean isNan(Double value)
+    {
+      return value.isNaN();
     }
 
     @Override
@@ -206,6 +244,9 @@ public abstract class BitSlicer<T extends Comparable>
 
   static int normalize(float f)
   {
+    if (Float.isNaN(f)) {
+      return 0x00;
+    }
     int i = Float.floatToIntBits(f);
     if (f >= 0) {
       i |= Integer.MIN_VALUE; // cannot flip (-0f)
@@ -218,6 +259,9 @@ public abstract class BitSlicer<T extends Comparable>
 
   static long normalize(double d)
   {
+    if (Double.isNaN(d)) {
+      return 0x00;
+    }
     long l = Double.doubleToLongBits(d);
     if (d >= 0) {
       l |= Long.MIN_VALUE; // cannot flip (-0d)

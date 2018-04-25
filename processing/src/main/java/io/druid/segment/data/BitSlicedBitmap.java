@@ -34,6 +34,7 @@ import it.uniroma3.mat.extendedset.intset.ConciseSet;
 import org.roaringbitmap.IntIterator;
 
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.BitSet;
 
 /**
@@ -43,21 +44,37 @@ public abstract class BitSlicedBitmap<T extends Comparable> implements Secondary
   protected final ValueDesc type;
   protected final BitmapFactory factory;
   protected final ImmutableBitmap[] bitmaps;
+  protected final ImmutableBitmap nans;
   protected final int rowCount;
 
   public BitSlicedBitmap(ValueDesc type, BitmapFactory factory, ImmutableBitmap[] bitmaps, int rowCount)
   {
     Preconditions.checkArgument(type.isNumeric(), "only primitive numeric types allowed");
     if (type.isFloat()) {
-      Preconditions.checkArgument(bitmaps.length == 32);
+      if (bitmaps.length == Float.SIZE) {
+        this.bitmaps = bitmaps;
+        this.nans = factory.makeEmptyImmutableBitmap();
+      } else if (bitmaps.length == Float.SIZE + 1) {
+        this.bitmaps = Arrays.copyOf(bitmaps, Float.SIZE);
+        this.nans = bitmaps[Float.SIZE];
+      } else {
+        throw new IllegalArgumentException("Invalid number of bitmaps " + bitmaps.length);
+      }
     } else if (type.isLong() || type.isDouble()) {
-      Preconditions.checkArgument(bitmaps.length == 64);
+      if (bitmaps.length == Double.SIZE) {
+        this.bitmaps = bitmaps;
+        this.nans = factory.makeEmptyImmutableBitmap();
+      } else if (bitmaps.length == Double.SIZE + 1) {
+        this.bitmaps = Arrays.copyOf(bitmaps, Double.SIZE);
+        this.nans = bitmaps[Double.SIZE];
+      } else {
+        throw new IllegalArgumentException("Invalid number of bitmaps " + bitmaps.length);
+      }
     } else {
       throw new IllegalArgumentException("Not supported type " + type);
     }
     this.type = type;
     this.factory = factory;
-    this.bitmaps = bitmaps;
     this.rowCount = rowCount;
   }
 
@@ -239,18 +256,23 @@ public abstract class BitSlicedBitmap<T extends Comparable> implements Secondary
 
   private MutableBitmap makeRunner(BitmapFactory factory)
   {
-    if (factory instanceof ConciseBitmapFactory) {
-      ConciseSet conciseSet = new ConciseSet();
-      conciseSet.fill(0, rowCount);
-      return new WrappedConciseBitmap(conciseSet);
-    } else if (factory instanceof BitSetBitmapFactory) {
-      BitSet bitset = new BitSet();
-      bitset.flip(0, rowCount);
-      return new WrappedBitSetBitmap(bitset);
+    final boolean noNan = nans.isEmpty();
+    if (noNan) {
+      if (factory instanceof ConciseBitmapFactory) {
+        ConciseSet conciseSet = new ConciseSet();
+        conciseSet.fill(0, rowCount);
+        return new WrappedConciseBitmap(conciseSet);
+      } else if (factory instanceof BitSetBitmapFactory) {
+        BitSet bitset = new BitSet();
+        bitset.flip(0, rowCount);
+        return new WrappedBitSetBitmap(bitset);
+      }
     }
     MutableBitmap mutable = factory.makeEmptyMutableBitmap();
     for (int i = 0; i < rowCount; i++) {
-      mutable.add(i);
+      if (noNan || !nans.get(i)) {
+        mutable.add(i);
+      }
     }
     return mutable;
   }

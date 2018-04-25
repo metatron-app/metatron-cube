@@ -24,9 +24,11 @@ import com.google.common.collect.Range;
 import com.metamx.collections.bitmap.BitmapFactory;
 import com.metamx.collections.bitmap.RoaringBitmapFactory;
 import org.junit.Assert;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.Map;
 import java.util.Random;
 
@@ -106,28 +108,76 @@ public class BitSlicedBitmapTest
   public void ensureFloatSorted()
   {
     BitSlicer<Float> slicer = new BitSlicer.FloatType(factory);
-    Random r = new Random();
-    final int expDelta = Float.MAX_EXPONENT - Float.MIN_EXPONENT;
-    for (int x = 0; x < 32; x++) {
-      Map<Float, String> values = Maps.newTreeMap();
-      for (int i = 0; i < 65536; i++) {
-        float v = (r.nextFloat() - 0.5f) * ((float) Math.pow(10, r.nextInt(expDelta) - Float.MAX_EXPONENT));
-        values.put(v, slicer.toBitmapString(v));
-      }
-      values.put(Float.MAX_VALUE, slicer.toBitmapString(Float.MAX_VALUE));
-      values.put(Float.MIN_VALUE, slicer.toBitmapString(Float.MIN_VALUE));
-      values.put(Float.MIN_NORMAL, slicer.toBitmapString(Float.MIN_NORMAL));
-      values.put(Float.intBitsToFloat(0x01), slicer.toBitmapString(Float.intBitsToFloat(0x01)));
-      values.put(Float.intBitsToFloat(0x80000001), slicer.toBitmapString(Float.intBitsToFloat(0x80000001)));
-      values.put(0F, slicer.toBitmapString(0F));
-      values.put(-0F, slicer.toBitmapString(-0F));
+    String ZERO = slicer.toBitmapString(0f);
+    String POSITIVE_MIN = slicer.toBitmapString(Float.intBitsToFloat(0b0_00000000_0000000_00000000_00000001)); // MIN_VALUE
+    String POSITIVE_1 = slicer.toBitmapString(Float.intBitsToFloat(0b0_00000000_1111111_11111111_11111111));
+    String POSITIVE_2 = slicer.toBitmapString(Float.intBitsToFloat(0b0_00000001_0000000_00000000_00000001));  // MIN_NORMAL
+    String NEGATIVE_MIN = slicer.toBitmapString(Float.intBitsToFloat(0b1_00000000_0000000_00000000_00000001));
+    String NEGATIVE_1 = slicer.toBitmapString(Float.intBitsToFloat(0b1_00000000_1111111_11111111_11111111));
+    String NEGATIVE_2 = slicer.toBitmapString(Float.intBitsToFloat(0b1_00000001_0000000_00000000_00000001));
 
-      String[] duplicate = values.values().toArray(new String[values.size()]);
-      Arrays.parallelSort(duplicate);
-      int i = 0;
-      for (Map.Entry<Float, String> e : values.entrySet()) {
-        Assert.assertEquals(i + " th.. " + e + " vs " + duplicate[i], e.getValue(), duplicate[i]);
-        i++;
+    String MAX_VALUE = slicer.toBitmapString(Float.MAX_VALUE);
+    String POSITIVE_INFINITY = slicer.toBitmapString(Float.POSITIVE_INFINITY);
+    String MIN_VALUE = slicer.toBitmapString(-Float.MAX_VALUE);
+    String NEGATIVE_INFINITY = slicer.toBitmapString(Float.NEGATIVE_INFINITY);
+
+    String NAN = slicer.toBitmapString(Float.NaN);
+    Assert.assertEquals(NAN, slicer.toBitmapString(-Float.NaN));
+
+    String[] expected = new String[]{
+        NAN,
+        NEGATIVE_INFINITY,
+        MIN_VALUE,
+        NEGATIVE_2,
+        NEGATIVE_1,
+        NEGATIVE_MIN,
+        ZERO,
+        POSITIVE_MIN,
+        POSITIVE_1,
+        POSITIVE_2,
+        MAX_VALUE,
+        POSITIVE_INFINITY,
+    };
+    String[] array = Arrays.copyOf(expected, expected.length);
+    for (int x = 0; x < 10; x++) {
+      Collections.shuffle(Arrays.asList(array));
+      Arrays.sort(array);
+    }
+    Assert.assertArrayEquals(expected, array);
+    for (int i = 1; i < array.length; i++) {
+      Assert.assertTrue(array[i - 1].compareTo(array[i]) != 0);
+    }
+  }
+
+  @Test
+  @Ignore("takes too much time")
+  public void ensureSorted()
+  {
+    BitSlicer<Float> slicer = new BitSlicer.FloatType(factory);
+    String prev = null;
+    for (int i = 0; i <= Float.floatToIntBits(Float.POSITIVE_INFINITY); i++) {
+      String c = slicer.toBitmapString(Float.intBitsToFloat(i));
+      if (prev != null && c.compareTo(prev) <= 0) {
+        throw new RuntimeException("[BitSlicedBitmapTest/ensureSorted] " + i + " --> " + c + " (" + prev + ")");
+      }
+      prev = c;
+      if (i % 1_0000_0000 == 0) {
+        System.out.print("x");
+      } else if (i % 100_0000 == 0) {
+        System.out.print(".");
+      }
+    }
+    prev = null;
+    for (int i = 0; i <= Float.floatToIntBits(Float.POSITIVE_INFINITY); i++) {
+      String c = slicer.toBitmapString(-Float.intBitsToFloat(i));
+      if (prev != null && c.compareTo(prev) >= 0) {
+        throw new RuntimeException("[BitSlicedBitmapTest/ensureSorted] " + i + " --> " + c + " (" + prev + ")");
+      }
+      prev = c;
+      if (i % 1_0000_0000 == 0) {
+        System.out.print("x");
+      } else if (i % 100_0000 == 0) {
+        System.out.print(".");
       }
     }
   }
@@ -148,8 +198,13 @@ public class BitSlicedBitmapTest
       values.put(Double.MIN_VALUE, slicer.toBitmapString(Double.MIN_VALUE));
       values.put(Double.MIN_NORMAL, slicer.toBitmapString(Double.MIN_NORMAL));
       values.put(Double.longBitsToDouble(0x01), slicer.toBitmapString(Double.longBitsToDouble(0x01)));
-      values.put(Double.longBitsToDouble(0x8000000000000001L), slicer.toBitmapString(Double.longBitsToDouble(
-                                                                                         0x8000000000000001L)));
+      values.put(
+          Double.longBitsToDouble(0x8000000000000001L), slicer.toBitmapString(
+              Double.longBitsToDouble(
+                  0x8000000000000001L
+              )
+          )
+      );
       values.put(0D, slicer.toBitmapString(0D));
       values.put(-0D, slicer.toBitmapString(-0D));
 

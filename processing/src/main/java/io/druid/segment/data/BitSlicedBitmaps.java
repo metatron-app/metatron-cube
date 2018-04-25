@@ -128,7 +128,7 @@ public class BitSlicedBitmaps
       {
         BitmapFactory bitmapFactory = serdeFactory.getBitmapFactory();
         int rowCount = buffer.getInt();
-        ImmutableBitmap[] bitmaps = loadBitmaps(buffer, strategy, type.lengthOfBinary());
+        ImmutableBitmap[] bitmaps = loadBitmaps(buffer, strategy, buffer.get());
         switch (type) {
           case FLOAT:
             return new FloatType(bitmapFactory, bitmaps, rowCount);
@@ -159,6 +159,7 @@ public class BitSlicedBitmaps
       {
         ByteArrayDataOutput bout = ByteStreams.newDataOutput();
         bout.writeInt(val.rowCount);
+        bout.write(val.bitmaps.length);
         for (ImmutableBitmap bin : val.bitmaps) {
           byte[] bytes = strategy.toBytes(bin);
           bout.writeInt(bytes.length);
