@@ -59,6 +59,7 @@ public class DruidCoordinatorRuntimeParams
   private final BalancerStrategy balancerStrategy;
 
   private Set<DataSegment> materializedSegments;
+  private Set<DataSegment> materializedOvershadowedSegments;
   private Set<DataSegment> materializedNonOvershadowedSegments;
 
   public DruidCoordinatorRuntimeParams(
@@ -125,15 +126,25 @@ public class DruidCoordinatorRuntimeParams
     return materializedSegments;
   }
 
+  public Set<DataSegment> getOvershadowedSegments()
+  {
+    if (materializedOvershadowedSegments == null) {
+      materializedOvershadowedSegments = Collections.unmodifiableSet(retainOverShadowed(getAvailableSegments()));
+    }
+    return materializedOvershadowedSegments;
+  }
+
   public Set<DataSegment> getNonOvershadowedSegments()
   {
     if (materializedNonOvershadowedSegments == null) {
-      materializedNonOvershadowedSegments = Collections.unmodifiableSet(retainNonOverShadowed(getAvailableSegments()));
+      materializedNonOvershadowedSegments = Collections.unmodifiableSet(
+          retainNonOverShadowed(getAvailableSegments(), getOvershadowedSegments())
+      );
     }
     return materializedNonOvershadowedSegments;
   }
 
-  private Set<DataSegment> retainNonOverShadowed(Set<DataSegment> segments)
+  private Set<DataSegment> retainOverShadowed(Set<DataSegment> segments)
   {
     Map<String, VersionedIntervalTimeline<String, DataSegment>> timelines = new HashMap<>();
     for (DataSegment segment : segments) {
@@ -142,7 +153,6 @@ public class DruidCoordinatorRuntimeParams
         timeline = new VersionedIntervalTimeline<>(Ordering.natural());
         timelines.put(segment.getDataSource(), timeline);
       }
-
       timeline.add(
           segment.getInterval(), segment.getVersion(), segment.getShardSpec().createChunk(segment)
       );
@@ -156,7 +166,11 @@ public class DruidCoordinatorRuntimeParams
         }
       }
     }
+    return overshadowed;
+  }
 
+  private Set<DataSegment> retainNonOverShadowed(Set<DataSegment> segments, Set<DataSegment> overshadowed)
+  {
     Set<DataSegment> nonOvershadowed = new HashSet<>();
     for (DataSegment dataSegment : segments) {
       if (!overshadowed.contains(dataSegment)) {
@@ -229,6 +243,7 @@ public class DruidCoordinatorRuntimeParams
         balancerStrategy
     );
     builder.materializedSegments = materializedSegments;
+    builder.materializedOvershadowedSegments = materializedOvershadowedSegments;
     builder.materializedNonOvershadowedSegments = materializedNonOvershadowedSegments;
     return builder;
   }
@@ -250,6 +265,7 @@ public class DruidCoordinatorRuntimeParams
     private BalancerStrategy balancerStrategy;
 
     private Set<DataSegment> materializedSegments;
+    private Set<DataSegment> materializedOvershadowedSegments;
     private Set<DataSegment> materializedNonOvershadowedSegments;
 
     Builder()
@@ -317,6 +333,7 @@ public class DruidCoordinatorRuntimeParams
           balancerStrategy
       );
       params.materializedSegments = materializedSegments;
+      params.materializedOvershadowedSegments = materializedOvershadowedSegments;
       params.materializedNonOvershadowedSegments = materializedNonOvershadowedSegments;
       return params;
     }
@@ -361,14 +378,14 @@ public class DruidCoordinatorRuntimeParams
         segmentSet = Sets.newHashSet(availableSegmentsCollection);
       }
       availableSegments = Suppliers.ofInstance(segmentSet);
-      materializedSegments = materializedNonOvershadowedSegments = null;
+      materializedSegments = materializedOvershadowedSegments = materializedNonOvershadowedSegments = null;
       return this;
     }
 
     public Builder withAvailableSegments(Supplier<Set<DataSegment>> availableSegmentsCollection)
     {
       availableSegments = availableSegmentsCollection;
-      materializedSegments = materializedNonOvershadowedSegments = null;
+      materializedSegments = materializedOvershadowedSegments = materializedNonOvershadowedSegments = null;
       return this;
     }
 

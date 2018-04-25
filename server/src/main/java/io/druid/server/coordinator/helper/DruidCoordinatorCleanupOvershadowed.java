@@ -19,20 +19,10 @@
 
 package io.druid.server.coordinator.helper;
 
-import com.google.common.collect.Maps;
-import com.google.common.collect.MinMaxPriorityQueue;
-import com.metamx.common.guava.Comparators;
-import io.druid.client.ImmutableDruidDataSource;
-import io.druid.client.ImmutableDruidServer;
 import io.druid.server.coordinator.CoordinatorStats;
-import io.druid.server.coordinator.DruidCluster;
 import io.druid.server.coordinator.DruidCoordinator;
 import io.druid.server.coordinator.DruidCoordinatorRuntimeParams;
-import io.druid.server.coordinator.ServerHolder;
 import io.druid.timeline.DataSegment;
-import io.druid.timeline.VersionedIntervalTimeline;
-
-import java.util.Map;
 
 public class DruidCoordinatorCleanupOvershadowed extends DruidCoordinatorHelper.WithLazyTicks
 {
@@ -57,36 +47,16 @@ public class DruidCoordinatorCleanupOvershadowed extends DruidCoordinatorHelper.
     // Delete segments that are old
     // Unservice old partitions if we've had enough time to make sure we aren't flapping with old data
     if (params.hasDeletionWaitTimeElapsed()) {
-      DruidCluster cluster = params.getDruidCluster();
-      Map<String, VersionedIntervalTimeline<String, DataSegment>> timelines = Maps.newHashMap();
-
-      for (MinMaxPriorityQueue<ServerHolder> serverHolders : cluster.getSortedServersByTier()) {
-        for (ServerHolder serverHolder : serverHolders) {
-          ImmutableDruidServer server = serverHolder.getServer();
-
-          for (ImmutableDruidDataSource dataSource : server.getDataSources()) {
-            VersionedIntervalTimeline<String, DataSegment> timeline = timelines.get(dataSource.getName());
-            if (timeline == null) {
-              timeline = new VersionedIntervalTimeline<>(Comparators.comparable());
-              timelines.put(dataSource.getName(), timeline);
-            }
-
-            for (DataSegment segment : dataSource.getSegments()) {
-              timeline.add(
-                  segment.getInterval(), segment.getVersion(), segment.getShardSpec().createChunk(segment)
-              );
-            }
-          }
+      //Remove all segments in db that are overshadowed by served segments
+      int count = 0;
+      try {
+        for (DataSegment dataSegment : params.getOvershadowedSegments()) {
+          coordinator.removeSegment(dataSegment);
+          count++;
         }
       }
-
-      //Remove all segments in db that are overshadowed by served segments
-      for (DataSegment dataSegment : params.getAvailableSegments()) {
-        VersionedIntervalTimeline<String, DataSegment> timeline = timelines.get(dataSegment.getDataSource());
-        if (timeline != null && timeline.isOvershadowed(dataSegment.getInterval(), dataSegment.getVersion())) {
-          coordinator.removeSegment(dataSegment);
-          stats.addToGlobalStat("overShadowedCount", 1);
-        }
+      finally {
+        stats.addToGlobalStat("overShadowedCount", count);
       }
     }
     return params.buildFromExisting()

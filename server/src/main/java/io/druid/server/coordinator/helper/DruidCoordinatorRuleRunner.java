@@ -22,6 +22,7 @@ package io.druid.server.coordinator.helper;
 import com.google.common.base.Predicate;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
 import com.metamx.emitter.EmittingLogger;
 import io.druid.metadata.MetadataRuleManager;
 import io.druid.server.coordinator.CoordinatorStats;
@@ -35,7 +36,9 @@ import io.druid.timeline.DataSegment;
 import org.joda.time.DateTime;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
+import java.util.function.Function;
 
 /**
  */
@@ -104,12 +107,22 @@ public class DruidCoordinatorRuleRunner implements DruidCoordinatorHelper
 
     // Run through all matched rules for available segments
     DateTime now = new DateTime();
-    MetadataRuleManager databaseRuleManager = paramsWithReplicationManager.getDatabaseRuleManager();
+    final MetadataRuleManager databaseRuleManager = paramsWithReplicationManager.getDatabaseRuleManager();
 
     final List<String> segmentsWithMissingRules = Lists.newArrayListWithCapacity(MAX_MISSING_RULES);
+    final Map<String, List<Rule>> rulesPerDataSource = Maps.newHashMap();
     int missingRules = 0;
     for (DataSegment segment : getTargetSegments(paramsWithReplicationManager)) {
-      List<Rule> rules = databaseRuleManager.getRulesWithDefault(segment.getDataSource());
+      List<Rule> rules = rulesPerDataSource.computeIfAbsent(
+          segment.getDataSource(), new Function<String, List<Rule>>()
+          {
+            @Override
+            public List<Rule> apply(String dataSource)
+            {
+              return databaseRuleManager.getRulesWithDefault(dataSource);
+            }
+          }
+      );
       boolean foundMatchingRule = false;
       for (Rule rule : rules) {
         if (rule.appliesTo(segment, now)) {
