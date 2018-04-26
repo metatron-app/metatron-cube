@@ -6624,6 +6624,54 @@ public class GroupByQueryRunnerTest
     results = GroupByQueryRunnerTestHelper.runQuery(factory, runner, builder.build());
     GroupByQueryRunnerTestHelper.validate(columnNames, expectedResults, results);
 
+    // pivot + partition expression
+    builder.setLimitSpec(
+        new LimitSpec(
+            null, 3,
+            Arrays.asList(
+                new WindowingSpec(
+                    Arrays.asList("dayOfWeek"),
+                    Arrays.asList(dayOfWeekAsc),
+                    Arrays.<String>asList(),
+                    PivotSpec.tabular(
+                        Arrays.<PivotColumnSpec>asList(
+                            PivotColumnSpec.ofExpression("market"),
+                            PivotColumnSpec.ofExpression("quality")
+                        ), "index"
+                    ).withPartitionExpressions(PartitionExpression.of("_ = $sum(_)")
+                    ).withAppendValueColumn(true)
+                )
+            )
+        )
+    );
+    columnNames = new String[]{
+        "dayOfWeek",
+        "spot-index", "spot-mezzanine-index", "spot-premium-index",
+        "total_market-index", "total_market-mezzanine-index", "total_market-premium-index",
+        "upfront-index", "upfront-mezzanine-index", "upfront-premium-index"
+    };
+
+    expectedResults = GroupByQueryRunnerTestHelper.createExpectedRows(
+        columnNames,
+        array("Monday",
+              0.0, 0.0, 0.0,
+              30468.776733398438, 15301.728393554688, 15167.04833984375,
+              27619.58477783203, 15479.327270507812, 12140.257507324219),
+        array("Tuesday",
+              2930.384750366211, 1369.873420715332, 1560.511329650879,
+              30468.776733398438, 15301.728393554688, 15167.04833984375,
+              54587.86486816406, 30626.794372558594, 23961.07049560547
+        ),
+        array(
+            "Wednesday",
+            6042.2409591674805, 2847.4262084960938, 1560.511329650879,
+            63222.114013671875, 31051.463989257812, 15167.04833984375,
+            83573.4398803711, 45392.62664794922, 23961.07049560547
+        )
+    );
+    results = GroupByQueryRunnerTestHelper.runQuery(factory, runner, builder.build());
+    GroupByQueryRunnerTestHelper.validate(columnNames, expectedResults, results);
+
     builder.setLimitSpec(
         new LimitSpec(
             null, 3,

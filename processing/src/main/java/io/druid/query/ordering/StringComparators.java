@@ -20,6 +20,7 @@
 package io.druid.query.ordering;
 
 import com.google.common.base.Preconditions;
+import com.google.common.base.Strings;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Ordering;
@@ -98,10 +99,10 @@ public class StringComparators
         return 0;
       }
       // null first
-      if (s == null) {
+      if (Strings.isNullOrEmpty(s)) {
         return -1;
       }
-      if (s2 == null) {
+      if (Strings.isNullOrEmpty(s2)) {
         return 1;
       }
       return _compare(s, s2);

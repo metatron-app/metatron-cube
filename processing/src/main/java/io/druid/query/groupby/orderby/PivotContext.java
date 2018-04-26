@@ -61,10 +61,7 @@ public class PivotContext
   public Map<String, Object> evaluate(final Map<StringArray, Object> mapping)
   {
     List<String> partitionColumns = context.partitionColumns();
-    List<String> pivotColumns = Lists.newArrayList();
-    for (PivotColumnSpec columnSpec : pivotSpec.getPivotColumns()) {
-      pivotColumns.add(columnSpec.getDimension());
-    }
+    final int numPivotColumn = pivotSpec.getPivotColumns().size();
     final String separator = pivotSpec.getSeparator();
     final boolean appendingValue = pivotSpec.isAppendValueColumn();
     final List<String> valueColumns = pivotSpec.getValueColumns();
@@ -97,7 +94,7 @@ public class PivotContext
           Parser.findRequiredBindings(assign.lhs),
           Parser.findRequiredBindings(assign.rhs)
       )) {
-        int groupId = extractGroupId(required, pivotColumns.size());
+        int groupId = extractGroupId(required, numPivotColumn);
         if (groupId > 0 && !groupIds.contains(groupId)) {
           groupIds.add(groupId);
         }
@@ -129,7 +126,7 @@ public class PivotContext
 next:
       for (Map.Entry<StringArray, Object> entry : entries) {
         final StringArray key = entry.getKey();
-        if (!isTarget(key, union, pivotColumns.size())) {
+        if (!isTarget(key, union, numPivotColumn)) {
           continue;
         }
         Map<String, Object> assigneeOverrides = Maps.newHashMap();
@@ -138,12 +135,12 @@ next:
           for (int j = 0; j < bitSets.size(); j++) {
             int groupId = groupIds.get(j);
             BitSet bitSet = bitSets.get(j);
-            String[] keys = new String[pivotColumns.size() + (appendingValue ? 1 : 0)];
+            String[] keys = new String[numPivotColumn + (appendingValue ? 1 : 0)];
             for (int k = 0; k < keys.length; k++) {
               keys[k] = bitSet.get(k) ? key.get(k) : "";  // see PivotColumnSpec.toExtractor()
             }
             if (appendingValue) {
-              keys[pivotColumns.size()] = valueColumns.get(i);
+              keys[numPivotColumn] = valueColumns.get(i);
             }
             Object value = mapping.get(StringArray.of(keys));
             if (value == null) {
