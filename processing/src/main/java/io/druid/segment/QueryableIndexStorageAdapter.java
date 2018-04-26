@@ -255,7 +255,8 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
 
     final BitmapFactory bitmapFactory = index.getBitmapFactoryForDimensions();
 
-    final DimFilter[] filters = Filters.partitionWithBitmapSupport(filter, resolver);
+    final RowResolver localResolver = RowResolver.of(index, resolver.getVirtualColumns());
+    final DimFilter[] filters = Filters.partitionWithBitmapSupport(filter, localResolver);
 
     final DimFilter bitmapFilter = filters == null ? null : filters[0];
     final DimFilter valuesFilter = filters == null ? null : filters[1];
