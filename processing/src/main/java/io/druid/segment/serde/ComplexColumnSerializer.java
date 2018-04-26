@@ -90,9 +90,11 @@ public class ComplexColumnSerializer implements GenericColumnSerializer, ColumnP
     this.ioPeon = ioPeon;
     this.columnName = columnName;
     this.serde = serde;
-    if (indexingSpec != null && !GuavaUtils.isNullOrEmpty(indexingSpec.getStrategies())) {
-      ValueDesc type = ValueDesc.of(serde.getTypeName());
-      fieldGenerators = Lists.newArrayList(Lists.transform(indexingSpec.getStrategies(), Lucenes.makeGenerator(type)));
+    ValueDesc type = ValueDesc.of(serde.getTypeName());
+    if (indexingSpec != null && !GuavaUtils.isNullOrEmpty(indexingSpec.getStrategies(columnName, type))) {
+      fieldGenerators = Lists.newArrayList(
+          Lists.transform(indexingSpec.getStrategies(columnName, type), Lucenes.makeGenerator(type))
+      );
       luceneIndexer = Lucenes.buildRamWriter(indexingSpec.getTextAnalyzer());
     } else {
       fieldGenerators = null;

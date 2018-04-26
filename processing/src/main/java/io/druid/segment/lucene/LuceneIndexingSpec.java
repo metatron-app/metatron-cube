@@ -22,6 +22,7 @@ package io.druid.segment.lucene;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.collect.ImmutableList;
+import io.druid.data.ValueDesc;
 import io.druid.segment.SecondaryIndexingSpec;
 
 import java.util.Arrays;
@@ -63,6 +64,14 @@ public class LuceneIndexingSpec implements SecondaryIndexingSpec
   @JsonProperty
   public List<LuceneIndexingStrategy> getStrategies()
   {
+    return strategies;
+  }
+
+  public List<LuceneIndexingStrategy> getStrategies(String fieldName, ValueDesc valueDesc)
+  {
+    if (strategies.isEmpty() && valueDesc.isString()) {
+      return Arrays.<LuceneIndexingStrategy>asList(new TextIndexingStrategy(fieldName));
+    }
     return strategies;
   }
 
