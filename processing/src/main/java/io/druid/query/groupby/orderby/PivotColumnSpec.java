@@ -20,6 +20,8 @@
 package io.druid.query.groupby.orderby;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
@@ -169,18 +171,21 @@ public class PivotColumnSpec extends OrderingSpec
   }
 
   @JsonProperty
+  @JsonInclude(Include.NON_NULL)
   public String getDimension()
   {
     return dimension;
   }
 
   @JsonProperty
+  @JsonInclude(Include.NON_NULL)
   public String getExpression()
   {
     return expression;
   }
 
   @JsonProperty
+  @JsonInclude(Include.NON_EMPTY)
   public List<String> getValues()
   {
     return values;
@@ -188,7 +193,7 @@ public class PivotColumnSpec extends OrderingSpec
 
   public Function<Row, String> toExtractor()
   {
-    if (dimension != null) {
+    if (expression == null) {
       return new Function<Row, String>()
       {
         @Override
@@ -223,11 +228,11 @@ public class PivotColumnSpec extends OrderingSpec
   public String toString()
   {
     return "PivotColumnSpec{" +
-           "dimension='" + dimension + '\'' +
+           "direction=" + direction + '\'' +
+           (dimension == null ? "" : "dimension='" + dimension + '\'') +
+           (expression == null ? "" : ", expression='" + expression + '\'') +
            (dimensionOrder == null ? "" : ", dimensionOrder='" + dimensionOrder + '\'') +
-           ", direction=" + direction + '\'' +
-           ", expression='" + expression + '\'' +
-           ", values='" + values + '\'' +
+           (values == null ? "" : ", values=" + values) +
            '}';
   }
 

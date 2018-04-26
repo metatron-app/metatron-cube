@@ -20,6 +20,8 @@
 package io.druid.query.metadata.metadata;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonValue;
 import com.google.common.base.Preconditions;
@@ -147,6 +149,7 @@ public class SegmentMetadataQuery extends BaseQuery<SegmentAnalysis> implements 
   }
 
   @JsonProperty
+  @JsonInclude(Include.NON_EMPTY)
   public List<VirtualColumn> getVirtualColumns()
   {
     return virtualColumns;
@@ -315,6 +318,7 @@ public class SegmentMetadataQuery extends BaseQuery<SegmentAnalysis> implements 
     );
   }
 
+  @Override
   public SegmentMetadataQuery withVirtualColumns(List<VirtualColumn> virtualColumns)
   {
     return new SegmentMetadataQuery(

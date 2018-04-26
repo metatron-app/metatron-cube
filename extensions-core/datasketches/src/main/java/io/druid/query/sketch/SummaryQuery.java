@@ -168,6 +168,7 @@ public class SummaryQuery extends BaseQuery<Result<Map<String, Object>>>
 
   @Override
   @JsonProperty
+  @JsonInclude(Include.NON_EMPTY)
   public List<DimensionSpec> getDimensions()
   {
     return dimensions;
@@ -175,6 +176,7 @@ public class SummaryQuery extends BaseQuery<Result<Map<String, Object>>>
 
   @Override
   @JsonProperty
+  @JsonInclude(Include.NON_EMPTY)
   public List<VirtualColumn> getVirtualColumns()
   {
     return virtualColumns;
@@ -182,6 +184,7 @@ public class SummaryQuery extends BaseQuery<Result<Map<String, Object>>>
 
   @Override
   @JsonProperty
+  @JsonInclude(Include.NON_EMPTY)
   public List<String> getMetrics()
   {
     return metrics;

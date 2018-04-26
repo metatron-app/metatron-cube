@@ -22,6 +22,7 @@ package io.druid.query.groupby.orderby;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Function;
+import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import com.metamx.common.ISE;
@@ -139,7 +140,7 @@ public class OrderByColumnSpec extends OrderingSpec implements Cacheable
   )
   {
     super(direction, dimensionOrder);
-    this.dimension = dimension;
+    this.dimension = Preconditions.checkNotNull(dimension, "'dimension' cannot be null");
   }
 
   @JsonProperty

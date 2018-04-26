@@ -20,6 +20,7 @@ package io.druid.query;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.base.Preconditions;
@@ -62,19 +63,21 @@ public class ViewDataSource extends TableDataSource
   }
 
   @JsonProperty
+  @JsonInclude(Include.NON_EMPTY)
   public List<String> getColumns()
   {
     return columns;
   }
 
   @JsonProperty
+  @JsonInclude(Include.NON_EMPTY)
   public List<VirtualColumn> getVirtualColumns()
   {
     return virtualColumns;
   }
 
   @JsonProperty
-  @JsonInclude(JsonInclude.Include.NON_NULL)
+  @JsonInclude(Include.NON_NULL)
   public DimFilter getFilter()
   {
     return filter;

@@ -20,6 +20,8 @@
 package io.druid.query.groupby.orderby;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
@@ -91,6 +93,7 @@ public class PartitionExpression implements Cacheable
   }
 
   @JsonProperty
+  @JsonInclude(Include.NON_NULL)
   public String getCondition()
   {
     return condition;

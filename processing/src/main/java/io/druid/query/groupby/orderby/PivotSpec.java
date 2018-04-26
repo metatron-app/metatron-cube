@@ -200,6 +200,7 @@ public class PivotSpec implements WindowingSpec.PartitionEvaluatorFactory
     return appendValueColumn;
   }
 
+  @Override
   public byte[] getCacheKey()
   {
     byte[] columnsBytes = QueryCacheHelper.computeAggregatorBytes(pivotColumns);

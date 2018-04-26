@@ -121,18 +121,21 @@ public class SelectMetaQuery extends BaseQuery<Result<SelectMetaResultValue>>
   }
 
   @JsonProperty
+  @JsonInclude(Include.NON_EMPTY)
   public List<DimensionSpec> getDimensions()
   {
     return dimensions;
   }
 
   @JsonProperty
+  @JsonInclude(Include.NON_EMPTY)
   public List<String> getMetrics()
   {
     return metrics;
   }
 
   @JsonProperty
+  @JsonInclude(Include.NON_EMPTY)
   public List<VirtualColumn> getVirtualColumns()
   {
     return virtualColumns;

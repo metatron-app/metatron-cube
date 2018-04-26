@@ -93,6 +93,7 @@ public abstract class AbstractStreamQuery<T extends Comparable<T>> extends BaseQ
   }
 
   @JsonProperty
+  @JsonInclude(Include.NON_EMPTY)
   public List<DimensionSpec> getDimensions()
   {
     return dimensions;
@@ -112,12 +113,14 @@ public abstract class AbstractStreamQuery<T extends Comparable<T>> extends BaseQ
   }
 
   @JsonProperty
+  @JsonInclude(Include.NON_EMPTY)
   public List<String> getMetrics()
   {
     return metrics;
   }
 
   @JsonProperty
+  @JsonInclude(Include.NON_EMPTY)
   public List<VirtualColumn> getVirtualColumns()
   {
     return virtualColumns;

@@ -20,6 +20,8 @@
 package io.druid.query.select;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.druid.granularity.Granularities;
@@ -63,18 +65,21 @@ public class SchemaQuery extends BaseQuery<Result<SelectMetaResultValue>>
   }
 
   @JsonProperty
+  @JsonInclude(Include.NON_EMPTY)
   public List<DimensionSpec> getDimensions()
   {
     return dimensions;
   }
 
   @JsonProperty
+  @JsonInclude(Include.NON_EMPTY)
   public List<String> getMetrics()
   {
     return metrics;
   }
 
   @JsonProperty
+  @JsonInclude(Include.NON_EMPTY)
   public List<VirtualColumn> getVirtualColumns()
   {
     return virtualColumns;

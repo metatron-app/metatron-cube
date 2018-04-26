@@ -133,6 +133,7 @@ public class CovarianceQuery extends BaseQuery<Result<Map<String, Object>>>
 
   @Override
   @JsonProperty
+  @JsonInclude(Include.NON_EMPTY)
   public List<VirtualColumn> getVirtualColumns()
   {
     return virtualColumns;

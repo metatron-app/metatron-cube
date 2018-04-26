@@ -19,6 +19,8 @@
 
 package io.druid.query.kmeans;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Preconditions;
@@ -129,12 +131,14 @@ public class KMeansQuery
   }
 
   @JsonProperty
+  @JsonInclude(Include.NON_EMPTY)
   public List<VirtualColumn> getVirtualColumns()
   {
     return virtualColumns;
   }
 
   @JsonProperty
+  @JsonInclude(Include.NON_EMPTY)
   public List<String> getMetrics()
   {
     return metrics;
@@ -159,12 +163,14 @@ public class KMeansQuery
   }
 
   @JsonProperty
+  @JsonInclude(Include.NON_EMPTY)
   public List<Range<Double>> getRanges()
   {
     return ranges;
   }
 
   @JsonProperty
+  @JsonInclude(Include.NON_EMPTY)
   public List<Centroid> getCentroids()
   {
     return centroids;

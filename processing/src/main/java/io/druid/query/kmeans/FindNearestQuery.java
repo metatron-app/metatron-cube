@@ -19,6 +19,8 @@
 
 package io.druid.query.kmeans;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.collect.ImmutableMap;
 import io.druid.granularity.QueryGranularities;
@@ -62,18 +64,21 @@ public class FindNearestQuery extends BaseQuery<CentroidDesc>
   }
 
   @JsonProperty
+  @JsonInclude(Include.NON_EMPTY)
   public List<VirtualColumn> getVirtualColumns()
   {
     return virtualColumns;
   }
 
   @JsonProperty
+  @JsonInclude(Include.NON_EMPTY)
   public List<String> getMetrics()
   {
     return metrics;
   }
 
   @JsonProperty
+  @JsonInclude(Include.NON_EMPTY)
   public List<Centroid> getCentroids()
   {
     return centroids;

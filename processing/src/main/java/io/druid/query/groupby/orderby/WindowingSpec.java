@@ -20,6 +20,8 @@
 package io.druid.query.groupby.orderby;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
@@ -107,30 +109,35 @@ public class WindowingSpec implements Cacheable
   }
 
   @JsonProperty
+  @JsonInclude(Include.NON_EMPTY)
   public List<String> getPartitionColumns()
   {
     return partitionColumns;
   }
 
   @JsonProperty
+  @JsonInclude(Include.NON_EMPTY)
   public List<OrderByColumnSpec> getSortingColumns()
   {
     return sortingColumns;
   }
 
   @JsonProperty
+  @JsonInclude(Include.NON_EMPTY)
   public List<String> getExpressions()
   {
     return expressions;
   }
 
   @JsonProperty
+  @JsonInclude(Include.NON_NULL)
   public FlattenSpec getFlattenSpec()
   {
     return flattenSpec;
   }
 
   @JsonProperty
+  @JsonInclude(Include.NON_NULL)
   public PivotSpec getPivotSpec()
   {
     return pivotSpec;
@@ -311,8 +318,8 @@ public class WindowingSpec implements Cacheable
            "partitionColumns=" + partitionColumns +
            ", sortingColumns=" + sortingColumns +
            ", expressions=" + expressions +
-           ", flattenSpec='" + flattenSpec +
-           ", pivotSpec='" + pivotSpec +
+           (flattenSpec == null ? "" : ", flattenSpec=" + flattenSpec) +
+           (pivotSpec == null ? "" : ", pivotSpec=" + pivotSpec) +
            '}';
   }
 

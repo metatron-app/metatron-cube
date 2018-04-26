@@ -115,6 +115,7 @@ public class TopNQuery extends BaseQuery<Result<TopNResultValue>>
   }
 
   @JsonProperty("virtualColumns")
+  @JsonInclude(Include.NON_EMPTY)
   public List<VirtualColumn> getVirtualColumns()
   {
     return virtualColumns;
@@ -158,19 +159,21 @@ public class TopNQuery extends BaseQuery<Result<TopNResultValue>>
   }
 
   @JsonProperty("aggregations")
+  @JsonInclude(Include.NON_EMPTY)
   public List<AggregatorFactory> getAggregatorSpecs()
   {
     return aggregatorSpecs;
   }
 
   @JsonProperty("postAggregations")
+  @JsonInclude(Include.NON_EMPTY)
   public List<PostAggregator> getPostAggregatorSpecs()
   {
     return postAggregatorSpecs;
   }
 
   @JsonProperty("outputColumns")
-  @JsonInclude(Include.NON_NULL)
+  @JsonInclude(Include.NON_EMPTY)
   public List<String> getOutputColumns()
   {
     return outputColumns;

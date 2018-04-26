@@ -144,6 +144,7 @@ public class SelectQuery extends BaseQuery<Result<SelectResultValue>>
   }
 
   @JsonProperty
+  @JsonInclude(Include.NON_EMPTY)
   public List<DimensionSpec> getDimensions()
   {
     return dimensions;
@@ -163,19 +164,21 @@ public class SelectQuery extends BaseQuery<Result<SelectResultValue>>
   }
 
   @JsonProperty
+  @JsonInclude(Include.NON_EMPTY)
   public List<String> getMetrics()
   {
     return metrics;
   }
 
   @JsonProperty
+  @JsonInclude(Include.NON_EMPTY)
   public List<VirtualColumn> getVirtualColumns()
   {
     return virtualColumns;
   }
 
   @JsonProperty
-  @JsonInclude(Include.NON_NULL)
+  @JsonInclude(Include.NON_EMPTY)
   public List<String> getOutputColumns()
   {
     return outputColumns;
@@ -193,6 +196,7 @@ public class SelectQuery extends BaseQuery<Result<SelectResultValue>>
     return pagingSpec.getOffset(identifier, isDescending());
   }
 
+  @Override
   public SelectQuery withQuerySegmentSpec(QuerySegmentSpec querySegmentSpec)
   {
     return new SelectQuery(

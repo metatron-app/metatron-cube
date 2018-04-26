@@ -199,6 +199,7 @@ public class SketchQuery extends BaseQuery<Result<Map<String, Object>>>
 
   @Override
   @JsonProperty
+  @JsonInclude(Include.NON_NULL)
   public List<DimensionSpec> getDimensions()
   {
     return dimensions;
@@ -206,6 +207,7 @@ public class SketchQuery extends BaseQuery<Result<Map<String, Object>>>
 
   @Override
   @JsonProperty
+  @JsonInclude(Include.NON_NULL)
   public List<String> getMetrics()
   {
     return metrics;
@@ -213,6 +215,7 @@ public class SketchQuery extends BaseQuery<Result<Map<String, Object>>>
 
   @Override
   @JsonProperty
+  @JsonInclude(Include.NON_NULL)
   public List<VirtualColumn> getVirtualColumns()
   {
     return virtualColumns;

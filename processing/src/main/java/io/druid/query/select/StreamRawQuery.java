@@ -19,6 +19,8 @@
 
 package io.druid.query.select;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.collect.ImmutableList;
@@ -77,6 +79,7 @@ public class StreamRawQuery extends AbstractStreamQuery<RawRows>
   }
 
   @JsonProperty
+  @JsonInclude(Include.NON_EMPTY)
   public List<String> getSortOn()
   {
     return sortOn;

@@ -60,7 +60,6 @@ public class SelectQuerySpecTest
         + "\"granularity\":{\"type\":\"all\"},"
         + "\"dimensions\":[{\"type\":\"default\",\"dimension\":\"market\",\"outputName\":\"market\"},{\"type\":\"default\",\"dimension\":\"quality\",\"outputName\":\"quality\"}],"
         + "\"metrics\":[\"index\"],"
-        + "\"virtualColumns\":[],"
         + "\"pagingSpec\":{\"pagingIdentifiers\":{},\"threshold\":3,\"fromNext\":false},"
         + "\"context\":null}";
 

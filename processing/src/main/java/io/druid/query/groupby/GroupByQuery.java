@@ -129,6 +129,7 @@ public class GroupByQuery extends BaseAggregationQuery<Row> implements Query.Rew
   }
 
   @JsonProperty
+  @JsonInclude(Include.NON_EMPTY)
   public List<DimensionSpec> getDimensions()
   {
     return dimensions;
