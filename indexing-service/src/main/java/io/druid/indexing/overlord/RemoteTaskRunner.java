@@ -475,6 +475,19 @@ public class RemoteTaskRunner implements WorkerTaskRunner, TaskLogStreamer
     }
   }
 
+  @Override
+  public TaskRunnerWorkItem getWorkerItem(String taskId)
+  {
+    RemoteTaskRunnerWorkItem item = pendingTasks.get(taskId);
+    if (item == null) {
+      item = runningTasks.get(taskId);
+      if (item == null) {
+        item = completeTasks.get(taskId);
+      }
+    }
+    return item;
+  }
+
   /**
    * Finds the worker running the task and forwards the shutdown signal to the worker.
    *

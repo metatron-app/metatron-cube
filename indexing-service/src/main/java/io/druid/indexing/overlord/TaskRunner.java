@@ -67,6 +67,8 @@ public interface TaskRunner
    */
   ListenableFuture<TaskStatus> run(Task task);
 
+  TaskRunnerWorkItem getWorkerItem(String taskId);
+
   /**
    * Inform the task runner it can clean up any resources associated with a task. This implies shutdown of any
    * currently-running tasks.

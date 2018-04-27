@@ -206,7 +206,9 @@ public class OverlordTest
         null,
         null,
         null,
-        new AuthConfig()
+        new AuthConfig(),
+        null,
+        null
     );
     Response response = overlordResource.getLeader();
     Assert.assertEquals(druidNode.getHostAndPort(), response.getEntity());
@@ -375,6 +377,12 @@ public class OverlordTest
       };
       taskRunnerWorkItems.put(taskId, taskRunnerWorkItem);
       return future;
+    }
+
+    @Override
+    public TaskRunnerWorkItem getWorkerItem(String taskId)
+    {
+      return taskRunnerWorkItems.get(taskId);
     }
 
     @Override

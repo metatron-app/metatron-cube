@@ -20,15 +20,23 @@
 package io.druid.segment.realtime.plumber;
 
 import com.google.common.base.Supplier;
+import com.google.common.collect.ImmutableList;
 import com.metamx.common.ISE;
 import com.metamx.common.logger.Logger;
 import com.metamx.common.parsers.ParseException;
+import io.druid.common.guava.GuavaUtils;
 import io.druid.data.input.Committer;
 import io.druid.data.input.Firehose;
 import io.druid.data.input.FirehoseV2;
 import io.druid.data.input.InputRow;
+import io.druid.segment.QueryableIndexSegment;
+import io.druid.segment.Segment;
 import io.druid.segment.incremental.IndexSizeExceededException;
 import io.druid.segment.realtime.FireDepartmentMetrics;
+import io.druid.segment.realtime.FireHydrant;
+import io.druid.segment.realtime.appenderator.AppenderatorPlumber;
+
+import java.util.List;
 
 public class Plumbers
 {
@@ -123,5 +131,41 @@ public class Plumbers
       // plumber.add should be swapping out indexes before they fill up.
       throw new ISE(e, "WTF?! Index size exceeded, this shouldn't happen. Bad Plumber!");
     }
+  }
+
+  public static long estimatedFinishTime(Plumber plumber)
+  {
+    if (plumber instanceof RealtimePlumber) {
+      return estimatedFinishTime(ImmutableList.<Sink>copyOf(((RealtimePlumber) plumber).getSinks().values()));
+    }
+    if (plumber instanceof AppenderatorPlumber) {
+      return estimatedFinishTime(((AppenderatorPlumber) plumber).getSinks());
+    }
+    return -1;
+  }
+
+  private static long estimatedFinishTime(List<Sink> sinks)
+  {
+    if (GuavaUtils.isNullOrEmpty(sinks)) {
+      return -1;
+    }
+    int totalRows = 0;
+    int persistedRows = 0;
+    long persistTime = 0;
+    for (Sink sink : sinks) {
+      for (FireHydrant hydrant : sink) {
+        Segment segment = hydrant.getSegment();
+        int numRows = segment.asStorageAdapter(false).getNumRows();
+        if (segment instanceof QueryableIndexSegment) {
+          persistTime += hydrant.getPersistTime();
+          persistedRows += numRows;
+        }
+        totalRows += numRows;
+      }
+    }
+    if (totalRows > 0) {
+      return (long) ((totalRows - persistedRows) / (double) totalRows * persistTime);
+    }
+    return -1;  // cannot know
   }
 }

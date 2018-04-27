@@ -31,6 +31,7 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.primitives.Ints;
 import com.metamx.common.guava.CloseQuietly;
 import com.metamx.emitter.EmittingLogger;
+import io.druid.common.Progressing;
 import io.druid.common.utils.JodaUtils;
 import io.druid.data.input.Committer;
 import io.druid.data.input.Firehose;
@@ -146,6 +147,9 @@ public class RealtimeIndexTask extends AbstractTask
   @JsonIgnore
   private volatile QueryRunnerFactoryConglomerate queryRunnerFactoryConglomerate = null;
 
+  @JsonIgnore
+  private long startTime;
+
   @JsonCreator
   public RealtimeIndexTask(
       @JsonProperty("id") String id,
@@ -205,8 +209,7 @@ public class RealtimeIndexTask extends AbstractTask
     if (this.plumber != null) {
       throw new IllegalStateException("WTF?!? run with non-null plumber??!");
     }
-
-    boolean normalExit = true;
+    startTime = System.currentTimeMillis();
 
     // It would be nice to get the PlumberSchool in the constructor.  Although that will need jackson injectables for
     // stuff like the ServerView, which seems kind of odd?  Perhaps revisit this when Guice has been introduced.
@@ -356,8 +359,8 @@ public class RealtimeIndexTask extends AbstractTask
             committerSupplier = Committers.supplierFromFirehoseV2(firehoseV2);
             try {
               firehoseV2.start();
-            } catch (FirehoseV2CloseBeforeStartException e)
-            {
+            }
+            catch (FirehoseV2CloseBeforeStartException e) {
               normalStart = false;
             }
           }
@@ -411,82 +414,78 @@ public class RealtimeIndexTask extends AbstractTask
       }
     }
     catch (Throwable e) {
-      normalExit = false;
       log.makeAlert(e, "Exception aborted realtime processing[%s]", dataSchema.getDataSource())
          .emit();
       throw e;
     }
-    finally {
-      if (normalExit) {
-        try {
-          // Persist if we had actually started.
-          if (firehose != null || firehoseV2 != null) {
-            log.info("Persisting remaining data.");
 
-            final Committer committer = committerSupplier.get();
-            final CountDownLatch persistLatch = new CountDownLatch(1);
-            plumber.persist(
-                new Committer()
-                {
-                  @Override
-                  public Object getMetadata()
-                  {
-                    return committer.getMetadata();
-                  }
+    try {
+      // Persist if we had actually started.
+      if (firehose != null || firehoseV2 != null) {
+        log.info("Persisting remaining data.");
 
-                  @Override
-                  public void run()
-                  {
-                    try {
-                      committer.run();
-                    }
-                    finally {
-                      persistLatch.countDown();
-                    }
-                  }
+        final Committer committer = committerSupplier.get();
+        final CountDownLatch persistLatch = new CountDownLatch(1);
+        plumber.persist(
+            new Committer()
+            {
+              @Override
+              public Object getMetadata()
+              {
+                return committer.getMetadata();
+              }
+
+              @Override
+              public void run()
+              {
+                try {
+                  committer.run();
                 }
-            );
-            persistLatch.await();
-          }
-
-          if (gracefullyStopped) {
-            log.info("Gracefully stopping.");
-          } else {
-            log.info("Finishing the job.");
-            synchronized (this) {
-              if (gracefullyStopped) {
-                // Someone called stopGracefully after we checked the flag. That's okay, just stop now.
-                log.info("Gracefully stopping.");
-              } else {
-                finishingJob = true;
+                finally {
+                  persistLatch.countDown();
+                }
               }
             }
+        );
+        persistLatch.await();
+      }
 
-            if (finishingJob) {
-              plumber.finishJob();
-            }
+      if (gracefullyStopped) {
+        log.info("Gracefully stopping.");
+      } else {
+        log.info("Finishing the job.");
+        synchronized (this) {
+          if (gracefullyStopped) {
+            // Someone called stopGracefully after we checked the flag. That's okay, just stop now.
+            log.info("Gracefully stopping.");
+          } else {
+            finishingJob = true;
           }
         }
-        catch (InterruptedException e) {
-          log.debug(e, "Interrupted while finishing the job");
-        }
-        catch (Exception e) {
-          log.makeAlert(e, "Failed to finish realtime task").emit();
-          throw e;
-        }
-        finally {
-          if (firehose != null) {
-            CloseQuietly.close(firehose);
-          }
-          if (firehoseV2 != null) {
-            CloseQuietly.close(firehoseV2);
-          }
-          toolbox.getMonitorScheduler().removeMonitor(metricsMonitor);
+
+        if (finishingJob) {
+          plumber.finishJob();
         }
       }
     }
+    catch (InterruptedException e) {
+      log.debug(e, "Interrupted while finishing the job");
+    }
+    catch (Exception e) {
+      log.makeAlert(e, "Failed to finish realtime task").emit();
+      throw e;
+    }
+    finally {
+      if (firehose != null) {
+        CloseQuietly.close(firehose);
+      }
+      if (firehoseV2 != null) {
+        CloseQuietly.close(firehoseV2);
+      }
+      toolbox.getMonitorScheduler().removeMonitor(metricsMonitor);
+    }
 
-    log.info("Job done!");
+    log.info("Job done! %,d msec", (System.currentTimeMillis() - startTime));
     return TaskStatus.success(getId());
   }
 
@@ -557,6 +556,26 @@ public class RealtimeIndexTask extends AbstractTask
   public FireDepartment getRealtimeIngestionSchema()
   {
     return spec;
+  }
+
+  @Override
+  public float progress()
+  {
+    float progress = -1;
+    if (firehose instanceof Progressing) {
+      progress = ((Progressing) firehose).progress();
+    } else if (firehoseV2 instanceof Progressing) {
+      progress = ((Progressing) firehoseV2).progress();
+    }
+    if (plumber == null || progress <= 0) {
+      return progress;
+    }
+    long estimated = Plumbers.estimatedFinishTime(plumber);
+    if (estimated >= 0) {
+      long elapsed = System.currentTimeMillis() - startTime;
+      return elapsed * progress / (elapsed + estimated);
+    }
+    return progress * 0.66f;  // assume 1/3 for persisting / handoff time
   }
 
   /**

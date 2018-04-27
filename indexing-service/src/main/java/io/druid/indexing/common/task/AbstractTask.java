@@ -225,4 +225,9 @@ public abstract class AbstractTask implements Task
     return context == null ? null : context.get(key);
   }
 
+  @Override
+  public float progress()
+  {
+    return -1;
+  }
 }

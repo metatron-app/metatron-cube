@@ -77,6 +77,16 @@ public class TestIndex
       "null_column",
       };
   public static final String[] METRICS = new String[]{"index", "indexMin", "indexMaxPlusTen"};
+  public static final StringInputRowParser PARSER = new StringInputRowParser(
+        new DelimitedParseSpec(
+            new DefaultTimestampSpec("ts", "iso", null),
+            new DimensionsSpec(DimensionsSpec.getDefaultSchemas(Arrays.asList(DIMENSIONS)), null, null),
+            "\t",
+            "\u0001",
+            Arrays.asList(COLUMNS)
+        )
+        , "utf8"
+    );
   private static final Logger log = new Logger(TestIndex.class);
   private static final Interval DATA_INTERVAL = new Interval("2011-01-12T00:00:00.000Z/2011-05-01T00:00:00.000Z");
   public static final AggregatorFactory[] METRIC_AGGS = new AggregatorFactory[]{
@@ -259,17 +269,8 @@ public class TestIndex
       final CharSource source
   ) throws IOException
   {
-    final StringInputRowParser parser = new StringInputRowParser(
-        new DelimitedParseSpec(
-            new DefaultTimestampSpec("ts", "iso", null),
-            new DimensionsSpec(DimensionsSpec.getDefaultSchemas(Arrays.asList(DIMENSIONS)), null, null),
-            "\t",
-            "\u0001",
-            Arrays.asList(COLUMNS)
-        )
-        , "utf8"
-    );
-    return loadIncrementalIndex(retVal, source, parser);
+
+    return loadIncrementalIndex(retVal, source, PARSER);
   }
 
   public static IncrementalIndex loadIncrementalIndex(

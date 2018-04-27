@@ -508,7 +508,7 @@ public class BrokerQueryResource extends QueryResource
     }
 
     @Override
-    public float progress() throws IOException, InterruptedException
+    public float progress()
     {
       return progressing instanceof Progressing ? ((Progressing)progressing).progress() : -1;
     }

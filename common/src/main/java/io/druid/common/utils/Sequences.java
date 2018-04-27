@@ -57,7 +57,7 @@ public class Sequences extends com.metamx.common.guava.Sequences
     return new Sequences.WithProgress<T>()
     {
       @Override
-      public float progress() throws IOException, InterruptedException
+      public float progress()
       {
         return reader.progress();
       }
@@ -144,7 +144,7 @@ public class Sequences extends com.metamx.common.guava.Sequences
     }
 
     @Override
-    public float progress() throws IOException, InterruptedException
+    public float progress()
     {
       return -1;
     }

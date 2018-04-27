@@ -439,6 +439,7 @@ public class RealtimePlumber implements Plumber
         indexesToPersist.add(Pair.of(hydrant, sink.getInterval()));
       }
     }
+    log.info("Persisting %d hydrants", indexesToPersist.size());
     persist(committer, indexesToPersist);
   }
 
@@ -457,14 +458,14 @@ public class RealtimePlumber implements Plumber
     }
     FireHydrant hydrant = oldestSink == null ? null : oldestSink.swap();
     if (hydrant != null) {
-      persist(committer, Arrays.asList(Pair.of(hydrant, oldestSink.getInterval())));
+      Interval interval = oldestSink.getInterval();
+      log.info("Persisting oldest one %s (%,d msec before)", interval, (System.currentTimeMillis() - oldestAccessTime));
+      persist(committer, Arrays.asList(Pair.of(hydrant, interval)));
     }
   }
 
   private void persist(final Committer committer, final List<Pair<FireHydrant, Interval>> indexesToPersist)
   {
-    log.info("Submitting persist runnable for dataSource[%s]", schema.getDataSource());
-
     final Stopwatch runExecStopwatch = Stopwatch.createStarted();
     final Stopwatch persistStopwatch = Stopwatch.createStarted();
 
@@ -1127,6 +1128,8 @@ public class RealtimePlumber implements Plumber
         final IndexSpec indexSpec = config.getIndexSpec();
 
         indexToPersist.getIndex().getMetadata().putAll(metadataElems);
+
+        final long start = System.currentTimeMillis();
         final File persistedFile = indexMerger.persist(
             indexToPersist.getIndex(),
             interval,
@@ -1138,7 +1141,8 @@ public class RealtimePlumber implements Plumber
             new QueryableIndexSegment(
                 indexToPersist.getSegment().getIdentifier(),
                 indexIO.loadIndex(persistedFile)
-            )
+            ),
+            System.currentTimeMillis() - start
         );
         return numRows;
       }

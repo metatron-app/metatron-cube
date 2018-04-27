@@ -34,7 +34,6 @@ import com.metamx.common.ISE;
 import com.metamx.common.concurrent.ScheduledExecutors;
 import com.metamx.common.guava.Sequence;
 import com.metamx.emitter.EmittingLogger;
-
 import io.druid.common.guava.ThreadRenamingCallable;
 import io.druid.concurrent.Execs;
 import io.druid.data.input.Committer;
@@ -51,10 +50,10 @@ import io.druid.segment.realtime.plumber.Committers;
 import io.druid.segment.realtime.plumber.Plumber;
 import io.druid.segment.realtime.plumber.RejectionPolicy;
 import io.druid.segment.realtime.plumber.SegmentHandoffNotifier;
+import io.druid.segment.realtime.plumber.Sink;
 import io.druid.segment.realtime.plumber.VersioningPolicy;
 import io.druid.server.coordination.DataSegmentAnnouncer;
 import io.druid.timeline.DataSegment;
-
 import org.joda.time.DateTime;
 import org.joda.time.Duration;
 import org.joda.time.Interval;
@@ -497,5 +496,10 @@ public class AppenderatorPlumber implements Plumber
           }
         }
     );
+  }
+
+  public List<Sink> getSinks()
+  {
+    return appenderator instanceof AppenderatorImpl ? ((AppenderatorImpl) appenderator).getSinks() : null;
   }
 }

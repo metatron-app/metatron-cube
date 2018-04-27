@@ -36,6 +36,7 @@ public class FireHydrant
   private final int count;
   private IncrementalIndex index;
   private ReferenceCountingSegment adapter;
+  private long persistTime;
   private final Object swapLock = new Object();
 
   public FireHydrant(
@@ -96,6 +97,11 @@ public class FireHydrant
     return count;
   }
 
+  public long getPersistTime()
+  {
+    return persistTime;
+  }
+
   public boolean hasSwapped()
   {
     synchronized (swapLock) {
@@ -103,7 +109,7 @@ public class FireHydrant
     }
   }
 
-  public void swapSegment(Segment adapter)
+  public void swapSegment(Segment adapter, long persistTime)
   {
     synchronized (swapLock) {
       if (this.adapter != null) {
@@ -115,6 +121,7 @@ public class FireHydrant
         }
       }
       this.adapter = new ReferenceCountingSegment(adapter);
+      this.persistTime = persistTime;
       this.index = null;
     }
   }

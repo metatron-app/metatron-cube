@@ -134,6 +134,7 @@ public class IndexTaskTest
                 new LocalFirehoseFactory(
                     tmpDir,
                     "druid*",
+                    null,
                     null
                 )
             ),
@@ -205,6 +206,7 @@ public class IndexTaskTest
                 new LocalFirehoseFactory(
                     tmpDir,
                     "druid*",
+                    null,
                     null
                 )
             ),
@@ -312,6 +314,7 @@ public class IndexTaskTest
                 new LocalFirehoseFactory(
                     tmpDir,
                     "druid*",
+                    null,
                     null
                 )
             ),

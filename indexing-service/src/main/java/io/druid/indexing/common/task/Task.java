@@ -21,6 +21,7 @@ package io.druid.indexing.common.task;
 
 import com.fasterxml.jackson.annotation.JsonSubTypes;
 import com.fasterxml.jackson.annotation.JsonTypeInfo;
+import io.druid.common.Progressing;
 import io.druid.indexing.common.TaskStatus;
 import io.druid.indexing.common.TaskToolbox;
 import io.druid.indexing.common.actions.TaskActionClient;
@@ -62,7 +63,7 @@ import java.util.Map;
     @JsonSubTypes.Type(name = "convert_segment_sub", value = ConvertSegmentTask.SubTask.class),
     @JsonSubTypes.Type(name = "ds_metadata_update", value = DataSourceMetadataUpdateTask.class)
 })
-public interface Task
+public interface Task extends Progressing
 {
   // task context conf
   final String RUNNER_PREFERRED_HOSTS = "druid.task.runner.preferred.hosts";

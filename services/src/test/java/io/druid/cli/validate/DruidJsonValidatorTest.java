@@ -153,7 +153,7 @@ public class DruidJsonValidatorTest
                 jsonMapper
             ),
             new RealtimeIOConfig(
-                new LocalFirehoseFactory(new File("lol"), "rofl", null), new PlumberSchool()
+                new LocalFirehoseFactory(new File("lol"), "rofl", null, null), new PlumberSchool()
             {
               @Override
               public Plumber findPlumber(

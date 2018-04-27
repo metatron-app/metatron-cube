@@ -31,9 +31,12 @@ import com.google.common.io.CharStreams;
 import com.google.common.io.InputSupplier;
 import com.google.common.primitives.Longs;
 import com.metamx.common.Pair;
+import io.druid.common.Progressing;
+import org.apache.commons.io.IOUtils;
 
 import javax.annotation.Nullable;
 import java.io.BufferedReader;
+import java.io.Closeable;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
@@ -42,8 +45,10 @@ import java.io.InputStreamReader;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Comparator;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.NoSuchElementException;
 import java.util.Set;
 import java.util.zip.GZIPInputStream;
 
@@ -156,6 +161,24 @@ public class GuavaUtils
     return result;
   }
 
+  public static <T> List<Pair<T, Integer>> zipWithIndex(Iterable<T> as)
+  {
+    return Lists.newArrayList(
+        Iterables.transform(
+            as, new Function<T, Pair<T, Integer>>()
+            {
+              private int indexer;
+
+              @Override
+              public Pair<T, Integer> apply(T input)
+              {
+                return Pair.of(input, indexer++);
+              }
+            }
+        )
+    );
+  }
+
   public static List<String> exclude(Iterable<String> name, Collection<String> exclusions)
   {
     if (name == null) {
@@ -252,5 +275,81 @@ public class GuavaUtils
       b.append(Arrays.toString(x));
     }
     return b.toString();
+  }
+
+  public static interface CloseableIterator<T> extends Iterator<T>, Closeable {
+  }
+
+  public static <T> Iterator<T> withResource(final Iterator<T> iterator)
+  {
+    if (iterator instanceof Closeable) {
+      return withResource(iterator, (Closeable) iterator);
+    }
+    return iterator;
+  }
+
+  public static <T> Iterator<T> withResource(final Iterator<T> iterator, final Closeable closeable)
+  {
+    return new CloseableIterator<T>()
+    {
+      @Override
+      public void close() throws IOException
+      {
+        closeable.close();
+      }
+
+      @Override
+      public boolean hasNext()
+      {
+        final boolean hasNext = iterator.hasNext();
+        if (!hasNext) {
+          IOUtils.closeQuietly(closeable);
+        }
+        return hasNext;
+      }
+
+      @Override
+      public T next()
+      {
+        try {
+          return iterator.next();
+        }
+        catch (NoSuchElementException e) {
+          IOUtils.closeQuietly(closeable);
+          throw e;
+        }
+      }
+    };
+  }
+
+  public static class DelegatedProgressing<T> implements Progressing.OnIterator<T>
+  {
+    private final Iterator<T> delegate;
+
+    public DelegatedProgressing(Iterator<T> delegate) {this.delegate = delegate;}
+
+    @Override
+    public boolean hasNext()
+    {
+      return delegate.hasNext();
+    }
+
+    @Override
+    public T next()
+    {
+      return delegate.next();
+    }
+
+    @Override
+    public void remove()
+    {
+      delegate.remove();
+    }
+
+    @Override
+    public float progress()
+    {
+      return delegate instanceof Progressing ? ((Progressing) delegate).progress() : hasNext() ? 0 : 1;
+    }
   }
 }

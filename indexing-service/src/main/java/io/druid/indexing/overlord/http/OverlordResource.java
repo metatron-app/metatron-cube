@@ -20,10 +20,13 @@
 package io.druid.indexing.overlord.http;
 
 import com.fasterxml.jackson.annotation.JsonValue;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.base.Charsets;
 import com.google.common.base.Function;
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Predicate;
+import com.google.common.base.Throwables;
 import com.google.common.collect.Collections2;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
@@ -34,14 +37,20 @@ import com.google.common.collect.Sets;
 import com.google.common.io.ByteSource;
 import com.google.common.util.concurrent.SettableFuture;
 import com.google.inject.Inject;
+import com.metamx.common.ISE;
 import com.metamx.common.Pair;
 import com.metamx.common.logger.Logger;
+import com.metamx.http.client.HttpClient;
+import com.metamx.http.client.Request;
+import com.metamx.http.client.response.StatusResponseHandler;
+import com.metamx.http.client.response.StatusResponseHolder;
 import com.sun.jersey.spi.container.ResourceFilters;
 import io.druid.audit.AuditInfo;
 import io.druid.audit.AuditManager;
 import io.druid.common.config.JacksonConfigManager;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.common.utils.JodaUtils;
+import io.druid.guice.annotations.Global;
 import io.druid.indexing.common.TaskLocation;
 import io.druid.indexing.common.TaskLock;
 import io.druid.indexing.common.TaskStatus;
@@ -56,6 +65,7 @@ import io.druid.indexing.overlord.TaskQueue;
 import io.druid.indexing.overlord.TaskRunner;
 import io.druid.indexing.overlord.TaskRunnerWorkItem;
 import io.druid.indexing.overlord.TaskStorageQueryAdapter;
+import io.druid.indexing.overlord.ThreadPoolTaskRunner;
 import io.druid.indexing.overlord.WorkerTaskRunner;
 import io.druid.indexing.overlord.autoscaling.ScalingStats;
 import io.druid.indexing.overlord.http.security.TaskResourceFilter;
@@ -71,6 +81,8 @@ import io.druid.server.security.Resource;
 import io.druid.server.security.ResourceType;
 import io.druid.tasklogs.TaskLogStreamer;
 import io.druid.timeline.DataSegment;
+import org.jboss.netty.handler.codec.http.HttpMethod;
+import org.jboss.netty.handler.codec.http.HttpResponseStatus;
 import org.joda.time.DateTime;
 import org.joda.time.Interval;
 
@@ -89,6 +101,7 @@ import javax.ws.rs.core.Context;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
 import java.io.IOException;
+import java.net.URL;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
@@ -110,6 +123,8 @@ public class OverlordResource
   private final JacksonConfigManager configManager;
   private final AuditManager auditManager;
   private final AuthConfig authConfig;
+  private final HttpClient client;
+  private final ObjectMapper jsonMapper;
 
   private AtomicReference<WorkerBehaviorConfig> workerConfigRef = null;
 
@@ -120,7 +135,9 @@ public class OverlordResource
       TaskLogStreamer taskLogStreamer,
       JacksonConfigManager configManager,
       AuditManager auditManager,
-      AuthConfig authConfig
+      AuthConfig authConfig,
+      @Global HttpClient client,
+      ObjectMapper jsonMapper
   ) throws Exception
   {
     this.taskMaster = taskMaster;
@@ -129,6 +146,8 @@ public class OverlordResource
     this.configManager = configManager;
     this.auditManager = auditManager;
     this.authConfig = authConfig;
+    this.client = client;
+    this.jsonMapper = jsonMapper;
   }
 
   @POST
@@ -339,10 +358,9 @@ public class OverlordResource
     Optional<TaskRunner> taskRunner = taskMaster.getTaskRunner();
     if (taskRunner.isPresent() && task.isPresent() &&
         status.isPresent() && status.get().getStatusCode() == TaskStatus.Status.RUNNING) {
-      Map<String, Object> results = Maps.newHashMapWithExpectedSize(3);
+      Map<String, Object> results = makeStatusDetail(taskid, task.get(), taskRunner.get());
       results.put("task", taskid);
       results.put("status", status.get());
-      results.put("statusDetail", getRunningStatusDetail(taskid, task.get(), taskRunner.get()));
 
       return Response.status(Response.Status.OK).entity(results).build();
     }
@@ -936,12 +954,55 @@ public class OverlordResource
     }
   }
 
-  private String getRunningStatusDetail(String taskId, Task task, TaskRunner taskRunner)
+  private Map<String, Object> makeStatusDetail(String taskId, Task task, TaskRunner taskRunner)
   {
+    Map<String, Object> status = Maps.newHashMap();
     if (isPendingTask(taskId, taskRunner)) {
-      return "PENDING";   // in queue
+      status.put("statusDetail", "PENDING");  //in queue
+    } else {
+      status.put("statusDetail", getRunningStatusDetail(taskId, task, "RUNNING"));
     }
-    return getRunningStatusDetail(taskId, task, "RUNNING");
+    float progress = workerProgress(taskRunner.getWorkerItem(taskId));
+    if (progress >= 0) {
+      status.put("progress", Math.round(progress * 1000) / 1000);
+    }
+    return status;
+  }
+
+  private float workerProgress(TaskRunnerWorkItem workerItem)
+  {
+    float progress = -1;
+    if (workerItem instanceof ThreadPoolTaskRunner.ThreadPoolTaskRunnerWorkItem) {
+      progress = ((ThreadPoolTaskRunner.ThreadPoolTaskRunnerWorkItem)workerItem).getTask().progress();
+    } else if (workerItem != null && workerItem.getLocation() != TaskLocation.unknown()) {
+      try {
+        progress = execute(workerItem.getLocation(), "/task/" + workerItem.getTaskId(), Float.class);
+      }
+      catch (Exception e) {
+        // ignore
+      }
+    }
+    return progress;
+  }
+
+  private <T> T execute(TaskLocation location, String resource, Class<T> resultType)
+  {
+    try {
+      URL url = new URL(String.format("http://%s:%d/druid/v2%s", location.getHost(), location.getPort(), resource));
+      Request request = new Request(HttpMethod.GET, url);
+      StatusResponseHolder response = client.go(request, new StatusResponseHandler(Charsets.UTF_8)).get();
+      if (!response.getStatus().equals(HttpResponseStatus.OK)) {
+        throw new ISE(
+            "Error while fetching serverView status[%s] content[%s]",
+            response.getStatus(),
+            response.getContent()
+        );
+      }
+      return jsonMapper.readValue(response.getContent(), resultType);
+    }
+    catch (Exception e) {
+      throw Throwables.propagate(e);
+    }
   }
 
   private String getRunningStatusDetail(String taskId, Task task, String defaultValue)

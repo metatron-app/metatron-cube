@@ -89,7 +89,7 @@ public class TaskSerdeTest
                 ),
                 jsonMapper
             ),
-            new IndexTask.IndexIOConfig(new LocalFirehoseFactory(new File("lol"), "rofl", null)),
+            new IndexTask.IndexIOConfig(new LocalFirehoseFactory(new File("lol"), "rofl", null, null)),
             new IndexTask.IndexTuningConfig(10000, 10, -1, indexSpec, null)
         ),
         jsonMapper,
@@ -130,7 +130,7 @@ public class TaskSerdeTest
                 ),
                 jsonMapper
             ),
-            new IndexTask.IndexIOConfig(new LocalFirehoseFactory(new File("lol"), "rofl", null)),
+            new IndexTask.IndexIOConfig(new LocalFirehoseFactory(new File("lol"), "rofl", null, null)),
             new IndexTask.IndexTuningConfig(10000, 10, -1, indexSpec, null)
         ),
         jsonMapper,
@@ -310,7 +310,7 @@ public class TaskSerdeTest
                 jsonMapper
             ),
             new RealtimeIOConfig(
-                new LocalFirehoseFactory(new File("lol"), "rofl", null), new PlumberSchool()
+                new LocalFirehoseFactory(new File("lol"), "rofl", null, null), new PlumberSchool()
             {
               @Override
               public Plumber findPlumber(

@@ -513,6 +513,14 @@ public class ForkingTaskRunner implements TaskRunner, TaskLogStreamer
     }
   }
 
+  @Override
+  public TaskRunnerWorkItem getWorkerItem(String taskId)
+  {
+    synchronized (tasks) {
+      return tasks.get(taskId);
+    }
+  }
+
   @LifecycleStop
   public void stop()
   {

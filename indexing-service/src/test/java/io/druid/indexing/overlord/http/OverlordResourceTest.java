@@ -77,7 +77,9 @@ public class OverlordResourceTest
         null,
         null,
         null,
-        new AuthConfig(true)
+        new AuthConfig(true),
+        null,
+        null
     );
 
     EasyMock.expect(req.getAttribute(AuthConfig.DRUID_AUTH_TOKEN)).andReturn(

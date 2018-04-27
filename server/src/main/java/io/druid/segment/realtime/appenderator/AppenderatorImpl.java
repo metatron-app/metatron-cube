@@ -1205,10 +1205,11 @@ public class AppenderatorImpl implements Appenderator
       try {
         int numRows = indexToPersist.getIndex().size();
 
-        final File persistedFile;
         final File persistDir = createPersistDirIfNeeded(identifier);
         final IndexSpec indexSpec = tuningConfig.getIndexSpec();
-        persistedFile = indexMerger.persist(
+
+        final long start = System.currentTimeMillis();
+        final File persistedFile = indexMerger.persist(
             indexToPersist.getIndex(),
             identifier.getInterval(),
             new File(persistDir, String.valueOf(indexToPersist.getCount())),
@@ -1219,7 +1220,8 @@ public class AppenderatorImpl implements Appenderator
             new QueryableIndexSegment(
                 indexToPersist.getSegment().getIdentifier(),
                 indexIO.loadIndex(persistedFile)
-            )
+            ),
+            System.currentTimeMillis() - start
         );
         return numRows;
       }
@@ -1252,5 +1254,10 @@ public class AppenderatorImpl implements Appenderator
   private static String makeHydrantCacheIdentifier(FireHydrant input, Segment segment)
   {
     return segment.getIdentifier() + "_" + input.getCount();
+  }
+
+  public List<Sink> getSinks()
+  {
+    return ImmutableList.<Sink>copyOf(sinks.values());
   }
 }

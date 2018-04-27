@@ -218,9 +218,14 @@ public class HdfsDataSegmentPusher implements DataSegmentPusher, ResultWriter
               }
 
               @Override
-              public float progress() throws IOException, InterruptedException
+              public float progress()
               {
-                return (thresholds[index] + open.getPos()) / thresholds[thresholds.length - 1];
+                try {
+                  return (thresholds[index] + open.getPos()) / thresholds[thresholds.length - 1];
+                }
+                catch (IOException e) {
+                  return thresholds[index] / thresholds[thresholds.length - 1];
+                }
               }
 
               @Override
@@ -257,7 +262,7 @@ public class HdfsDataSegmentPusher implements DataSegmentPusher, ResultWriter
           }
 
           @Override
-          public float progress() throws IOException, InterruptedException
+          public float progress()
           {
             return current.progress();
           }

@@ -289,6 +289,17 @@ public class ThreadPoolTaskRunner implements TaskRunner, QuerySegmentWalker
   }
 
   @Override
+  public TaskRunnerWorkItem getWorkerItem(String taskId)
+  {
+    for (final TaskRunnerWorkItem runningItem : runningItems) {
+      if (runningItem.getTaskId().equals(taskId)) {
+        return runningItem;
+      }
+    }
+    return null;
+  }
+
+  @Override
   public void shutdown(final String taskid)
   {
     for (final TaskRunnerWorkItem runningItem : runningItems) {
@@ -365,7 +376,7 @@ public class ThreadPoolTaskRunner implements TaskRunner, QuerySegmentWalker
     return queryRunner == null ? new NoopQueryRunner<T>() : queryRunner;
   }
 
-  private static class ThreadPoolTaskRunnerWorkItem extends TaskRunnerWorkItem
+  public static class ThreadPoolTaskRunnerWorkItem extends TaskRunnerWorkItem
   {
     private static final Comparator<ThreadPoolTaskRunnerWorkItem> COMPARATOR = new Comparator<ThreadPoolTaskRunnerWorkItem>()
     {
