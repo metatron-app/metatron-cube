@@ -211,6 +211,11 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
     return index.getColumn(column).getCapabilities();
   }
 
+  public Column getColumn(String column)
+  {
+    return index.getColumn(column);
+  }
+
   @Override
   public ValueDesc getColumnType(String columnName)
   {

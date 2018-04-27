@@ -52,7 +52,10 @@ import io.druid.query.filter.BoundDimFilter;
 import io.druid.query.filter.DimFilters;
 import io.druid.query.ordering.Direction;
 import io.druid.query.ordering.OrderingSpec;
+import io.druid.segment.QueryableIndex;
+import io.druid.segment.QueryableIndexStorageAdapter;
 import io.druid.segment.Segment;
+import io.druid.segment.column.Column;
 
 import java.nio.ByteBuffer;
 import java.util.Arrays;
@@ -142,12 +145,33 @@ public class GroupByQueryRunnerFactory implements QueryRunnerFactory.Splitable<R
       // disable
       return Arrays.asList(query);
     }
-    int numSplit = query.getContextInt(Query.GBY_LOCAL_SPLIT_NUM, config.get().getLocalSplitNum());
-    if (numSplit < 2) {
-      return Arrays.asList(query);
-    }
     List<DimensionSpec> dimensionSpecs = query.getDimensions();
     if (dimensionSpecs.isEmpty()) {
+      return Arrays.asList(query);
+    }
+    QueryableIndexStorageAdapter adapter = null;
+    for (Segment segment : Lists.reverse(segments)) {
+      QueryableIndex index = segment.asQueryableIndex(false);
+      if (index != null) {
+        adapter = new QueryableIndexStorageAdapter(index, segment.getIdentifier());
+        break;
+      }
+    }
+    int numSplit = query.getContextInt(Query.GBY_LOCAL_SPLIT_NUM, config.get().getLocalSplitNum());
+    if (adapter != null) {
+      int maxCardinality = -1;
+      for (DimensionSpec dimensionSpec : dimensionSpecs) {
+        Column column = adapter.getColumn(dimensionSpec.getDimension());
+        if (column != null && column.getCapabilities().isDictionaryEncoded()) {
+          int cardinality = column.getBitmapIndex().getCardinality();
+          if (cardinality > maxCardinality) {
+            maxCardinality = cardinality;
+          }
+        }
+      }
+      numSplit = Math.max(numSplit, 1 + (maxCardinality >> 18));
+    }
+    if (numSplit < 2) {
       return Arrays.asList(query);
     }
     final Object[] values = Queries.makeColumnHistogramOn(
@@ -161,7 +185,7 @@ public class GroupByQueryRunnerFactory implements QueryRunnerFactory.Splitable<R
     if (values == null) {
       return Arrays.asList(query);
     }
-    logger.info("--> values : %s", Arrays.toString(values));
+    logger.info("split on values : %s", Arrays.toString(values));
 
     OrderingSpec orderingSpec = OrderingSpec.create(null);
     DimensionSpec dimensionSpec = query.getDimensions().get(0);
