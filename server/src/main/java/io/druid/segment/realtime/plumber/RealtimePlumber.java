@@ -51,6 +51,7 @@ import io.druid.concurrent.TaskThreadPriority;
 import io.druid.data.input.Committer;
 import io.druid.data.input.InputRow;
 import io.druid.granularity.Granularity;
+import io.druid.query.BySegmentQueryRunner;
 import io.druid.query.MetricsEmittingQueryRunner;
 import io.druid.query.NoopQueryRunner;
 import io.druid.query.Query;
@@ -386,7 +387,7 @@ public class RealtimePlumber implements Plumber
                                               if (hydrantDefinitelySwapped // only use caching if data is immutable
                                                   && cache.isLocal() // hydrants may not be in sync between replicas, make sure cache is local
                                                   ) {
-                                                return new CachingQueryRunner<>(
+                                                baseRunner = new CachingQueryRunner<>(
                                                     makeHydrantIdentifier(input, segment.lhs),
                                                     descriptor,
                                                     objectMapper,
@@ -396,9 +397,12 @@ public class RealtimePlumber implements Plumber
                                                     MoreExecutors.sameThreadExecutor(),
                                                     cacheConfig
                                                 );
-                                              } else {
-                                                return baseRunner;
                                               }
+                                              return new BySegmentQueryRunner<T>(
+                                                  segment.lhs.getIdentifier(),
+                                                  segment.lhs.getDataInterval().getStart(),
+                                                  baseRunner
+                                              );
                                             }
                                             catch (RuntimeException e) {
                                               CloseQuietly.close(segment.rhs);

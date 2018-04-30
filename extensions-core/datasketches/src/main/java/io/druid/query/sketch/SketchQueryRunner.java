@@ -181,7 +181,7 @@ public class SketchQueryRunner implements QueryRunner<Result<Map<String, Object>
         final List<TypedSketch> sketches = Lists.newArrayList();
         for (DimensionSpec dimension : dimensions) {
           ValueDesc majorType = majorTypes.get(dimension.getDimension());
-          if (majorType != null && !ValueDesc.isString(majorType)) {
+          if (majorType != null && !ValueDesc.isStringOrDimension(majorType)) {
             LOG.info(
                 "Skipping %s, which is expected to be %s type but %s type",
                 dimension.getDimension(), majorType, ValueDesc.STRING_TYPE
@@ -226,7 +226,7 @@ public class SketchQueryRunner implements QueryRunner<Result<Map<String, Object>
         }
 
         while (!cursor.isDone()) {
-          for (int i = 0; i < dimensions.size(); i++) {
+          for (int i = 0; i < dimSelectors.size(); i++) {
             final TypedSketch sketch = sketches.get(i);
             final DimensionSelector selector = dimSelectors.get(i);
             if (selector != null) {
@@ -239,7 +239,7 @@ public class SketchQueryRunner implements QueryRunner<Result<Map<String, Object>
           for (int i = 0; i < metrics.size(); i++) {
             final ObjectColumnSelector selector = metricSelectors.get(i);
             if (selector != null) {
-              final TypedSketch sketch = sketches.get(dimensions.size() + i);
+              final TypedSketch sketch = sketches.get(dimSelectors.size() + i);
               handler.updateWithValue(sketch, selector.get());
             }
           }

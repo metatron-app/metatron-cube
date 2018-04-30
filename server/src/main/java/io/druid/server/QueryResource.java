@@ -411,7 +411,7 @@ public class QueryResource
       final String queryString =
           query == null
           ? "unparsable query"
-          : query.toString();
+          : jsonMapper.writeValueAsString(query);
 
       log.warn(e, "Exception occurred on request [%s]", queryString);
 

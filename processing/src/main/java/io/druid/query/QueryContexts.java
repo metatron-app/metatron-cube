@@ -47,7 +47,7 @@ public class QueryContexts
 
   public static <T> boolean isBySegment(Query<T> query, boolean defaultValue)
   {
-    return parseBoolean(query, "bySegment", defaultValue);
+    return parseBoolean(query, Query.BY_SEGMENT, defaultValue);
   }
 
   public static <T> boolean isPopulateCache(Query<T> query)

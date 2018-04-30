@@ -130,7 +130,9 @@ public class SummaryQuery extends BaseQuery<Result<Map<String, Object>>>
     }
 
     Map<String, Object> sketchContext = Maps.newHashMap(getContext());
-    sketchContext.put(Query.MAJOR_TYPES, majorTypes);
+    if (!majorTypes.isEmpty()) {
+      sketchContext.put(Query.MAJOR_TYPES, majorTypes);
+    }
     sketchContext.put(Query.ALL_DIMENSIONS_FOR_EMPTY, allDimensionsForEmpty(this, false));
     sketchContext.put(Query.ALL_METRICS_FOR_EMPTY, allMetricsForEmpty(this, false));
 
