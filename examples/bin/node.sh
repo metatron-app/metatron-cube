@@ -12,7 +12,10 @@ fi
 
 mkdir -p var/druid/pids
 
+IFS=':' read -ra ARRAY <<< "$1"
 nodeType=$1
+conf=${ARRAY[1]:-${ARRAY[0]}}
+
 shift
 
 startStop=$1
@@ -35,7 +38,7 @@ case $startStop in
       log=$1
     fi
 
-    nohup java `cat conf/druid/$nodeType/jvm.config | xargs` -cp conf/druid:conf/druid/$nodeType:lib/* io.druid.cli.Main server $nodeType > $log 2>&1 &
+    nohup java `cat conf/druid/$conf/jvm.config | xargs` -cp conf/druid:conf/druid/$conf:lib/* io.druid.cli.Main server $nodeType > $log 2>&1 &
     nodeType_PID=$!
     echo $nodeType_PID > $pid
     echo "Started $nodeType node ($nodeType_PID)"

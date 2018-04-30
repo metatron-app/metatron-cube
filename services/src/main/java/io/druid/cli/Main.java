@@ -86,9 +86,18 @@ public class Main
            .withDefaultCommand(Help.class)
            .withCommands(CliPeon.class, CliInternalHadoopIndexer.class);
 
-    String[] properties = args.length > 1 && args[0].equals("server") ?
-                          new String[]{args[1] + "/runtime.properties"} :
-                          new String[]{};
+    String[] properties = new String[]{};
+    if (args.length > 1 && args[0].equals("server")) {
+      int index = args[1].indexOf(':');
+      if (index > 0) {
+        // specified base path for property
+        properties = new String[]{args[1].substring(index + 1) + "/runtime.properties"};
+        args[1] = args[1].substring(0, index);  // overwrite
+      } else {
+        properties = new String[]{args[1] + "/runtime.properties"};
+      }
+    }
+
     final Injector injector = GuiceInjectors.makeStartupInjector(properties);
     final ExtensionsConfig config = injector.getInstance(ExtensionsConfig.class);
     final Collection<CliCommandCreator> extensionCommands = Initialization.getFromExtensions(

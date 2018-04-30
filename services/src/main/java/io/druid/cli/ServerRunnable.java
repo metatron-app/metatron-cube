@@ -115,20 +115,26 @@ public abstract class ServerRunnable extends GuiceRunnable
           }
         }
       };
+      zookeeper.setDaemon(true);
       zookeeper.start();
+      zookeeper.join(1000);
 
       params.remove("zookeeper");
     }
 
     Lifecycle[] runners = new Lifecycle[params.size()];
     for (int i = 0; i < params.size(); i++) {
-      Class<? extends ServerRunnable> clazz = COMMANDS.get(params.get(i));
+      String param = params.get(i);
+      int index = param.indexOf(':');
+      String command = index < 0 ? param : param.substring(0, index);
+      String config = index < 0 ? param : param.substring(index + 1);
+      Class<? extends ServerRunnable> clazz = COMMANDS.get(command);
       final ServerRunnable target = clazz.newInstance();
       final Injector injector = GuiceInjectors.makeStartupInjector(
-          params.get(i) + "/runtime.properties"
+          config + "/runtime.properties"
       );
       injector.injectMembers(target);
-      LOGGER.info("Starting "  + params.get(i));
+      LOGGER.warn("Starting.. %s", param);
       runners[i] = target.start();
     }
     for (Lifecycle thread : runners) {
