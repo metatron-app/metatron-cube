@@ -50,34 +50,25 @@ public class DruidCoordinatorRuleRunner implements DruidCoordinatorHelper
   private final ReplicationThrottler replicatorThrottler;
 
   private final DruidCoordinator coordinator;
-  private final int ruleLazyTicks;
-  private int currentTick;
 
-  public DruidCoordinatorRuleRunner(DruidCoordinator coordinator, int ruleLazyTicks)
+  public DruidCoordinatorRuleRunner(DruidCoordinator coordinator)
   {
     this(
         new ReplicationThrottler(
             coordinator.getDynamicConfigs().getReplicationThrottleLimit(),
             coordinator.getDynamicConfigs().getReplicantLifetime()
         ),
-        coordinator,
-        ruleLazyTicks
+        coordinator
     );
-  }
-
-  public DruidCoordinatorRuleRunner(ReplicationThrottler replicatorThrottler, DruidCoordinator coordinator) {
-    this(replicatorThrottler, coordinator, 1);
   }
 
   public DruidCoordinatorRuleRunner(
       ReplicationThrottler replicatorThrottler,
-      DruidCoordinator coordinator,
-      int ruleLazyTicks
+      DruidCoordinator coordinator
   )
   {
     this.replicatorThrottler = replicatorThrottler;
     this.coordinator = coordinator;
-    this.ruleLazyTicks = ruleLazyTicks;
   }
 
   @Override
@@ -154,7 +145,7 @@ public class DruidCoordinatorRuleRunner implements DruidCoordinatorHelper
 
   protected Set<DataSegment> getTargetSegments(DruidCoordinatorRuntimeParams coordinatorParam)
   {
-    if (++currentTick < ruleLazyTicks) {
+    if (!coordinatorParam.isMajorTick()) {
       final SegmentReplicantLookup replicantLookup = coordinatorParam.getSegmentReplicantLookup();
       return coordinator.makeOrdered(
           Iterables.filter(
@@ -169,7 +160,6 @@ public class DruidCoordinatorRuleRunner implements DruidCoordinatorHelper
           )
       );
     }
-    currentTick = 0;
     return coordinatorParam.getNonOvershadowedSegments();
   }
 }

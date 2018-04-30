@@ -57,6 +57,7 @@ public class DruidCoordinatorRuntimeParams
   private final CoordinatorStats stats;
   private final DateTime balancerReferenceTimestamp;
   private final BalancerStrategy balancerStrategy;
+  private final boolean majorTick;
 
   private Set<DataSegment> materializedSegments;
   private Set<DataSegment> materializedOvershadowedSegments;
@@ -75,7 +76,8 @@ public class DruidCoordinatorRuntimeParams
       CoordinatorDynamicConfig coordinatorDynamicConfig,
       CoordinatorStats stats,
       DateTime balancerReferenceTimestamp,
-      BalancerStrategy balancerStrategy
+      BalancerStrategy balancerStrategy,
+      boolean majorTick
   )
   {
     this.startTime = startTime;
@@ -91,6 +93,12 @@ public class DruidCoordinatorRuntimeParams
     this.stats = stats;
     this.balancerReferenceTimestamp = balancerReferenceTimestamp;
     this.balancerStrategy = balancerStrategy;
+    this.majorTick = majorTick;
+  }
+
+  public boolean isMajorTick()
+  {
+    return majorTick;
   }
 
   public long getStartTime()
@@ -228,6 +236,7 @@ public class DruidCoordinatorRuntimeParams
   public Builder buildFromExisting()
   {
     Builder builder = new Builder(
+        majorTick,
         startTime,
         druidCluster,
         databaseRuleManager,
@@ -263,6 +272,7 @@ public class DruidCoordinatorRuntimeParams
     private CoordinatorStats stats;
     private DateTime balancerReferenceTimestamp;
     private BalancerStrategy balancerStrategy;
+    private boolean majorTick = true;     // test compatible
 
     private Set<DataSegment> materializedSegments;
     private Set<DataSegment> materializedOvershadowedSegments;
@@ -285,6 +295,7 @@ public class DruidCoordinatorRuntimeParams
     }
 
     Builder(
+        boolean majorTick,
         long startTime,
         DruidCluster cluster,
         MetadataRuleManager databaseRuleManager,
@@ -300,6 +311,7 @@ public class DruidCoordinatorRuntimeParams
         BalancerStrategy balancerStrategy
     )
     {
+      this.majorTick = majorTick;
       this.startTime = startTime;
       this.druidCluster = cluster;
       this.databaseRuleManager = databaseRuleManager;
@@ -330,12 +342,19 @@ public class DruidCoordinatorRuntimeParams
           coordinatorDynamicConfig,
           stats,
           balancerReferenceTimestamp,
-          balancerStrategy
+          balancerStrategy,
+          majorTick
       );
       params.materializedSegments = materializedSegments;
       params.materializedOvershadowedSegments = materializedOvershadowedSegments;
       params.materializedNonOvershadowedSegments = materializedNonOvershadowedSegments;
       return params;
+    }
+
+    public Builder withMajorTick(boolean tick)
+    {
+      majorTick = tick;
+      return this;
     }
 
     public Builder withStartTime(long time)

@@ -35,7 +35,7 @@ import java.util.Set;
 
 /**
  */
-public class DruidCoordinatorSegmentKiller extends DruidCoordinatorHelper.WithLazyTicks
+public class DruidCoordinatorSegmentKiller implements DruidCoordinatorHelper
 {
   private final static Logger log = new Logger(DruidCoordinatorSegmentKiller.class);
 
@@ -55,7 +55,6 @@ public class DruidCoordinatorSegmentKiller extends DruidCoordinatorHelper.WithLa
       DruidCoordinatorConfig config
   )
   {
-    super(config.getCoordinatorLazyTicks());
     this.period = config.getCoordinatorKillPeriod().getMillis();
     Preconditions.checkArgument(
         this.period > config.getCoordinatorIndexingPeriod().getMillis(),
@@ -82,6 +81,9 @@ public class DruidCoordinatorSegmentKiller extends DruidCoordinatorHelper.WithLa
   @Override
   public DruidCoordinatorRuntimeParams run(DruidCoordinatorRuntimeParams params)
   {
+    if (!params.isMajorTick()) {
+      return params;
+    }
     Set<String> whitelist = params.getCoordinatorDynamicConfig().getKillDataSourceWhitelist();
 
     if (whitelist != null && whitelist.size() > 0 && (lastKillTime + period) < System.currentTimeMillis()) {

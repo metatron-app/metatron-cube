@@ -38,7 +38,6 @@ import io.druid.client.indexing.IndexingServiceClient;
 import io.druid.common.config.JacksonConfigManager;
 import io.druid.server.coordinator.CoordinatorStats;
 import io.druid.server.coordinator.DatasourceWhitelist;
-import io.druid.server.coordinator.DruidCoordinatorConfig;
 import io.druid.server.coordinator.DruidCoordinatorRuntimeParams;
 import io.druid.timeline.DataSegment;
 import io.druid.timeline.TimelineObjectHolder;
@@ -54,7 +53,7 @@ import java.util.concurrent.atomic.AtomicReference;
 
 /**
  */
-public class DruidCoordinatorSegmentMerger extends DruidCoordinatorHelper.WithLazyTicks
+public class DruidCoordinatorSegmentMerger implements DruidCoordinatorHelper
 {
   private static final Logger log = new Logger(DruidCoordinatorSegmentMerger.class);
 
@@ -66,11 +65,9 @@ public class DruidCoordinatorSegmentMerger extends DruidCoordinatorHelper.WithLa
   @Inject
   public DruidCoordinatorSegmentMerger(
       IndexingServiceClient indexingServiceClient,
-      JacksonConfigManager configManager,
-      DruidCoordinatorConfig config
+      JacksonConfigManager configManager
   )
   {
-    super(config.getCoordinatorLazyTicks());
     this.indexingServiceClient = indexingServiceClient;
     this.whiteListRef = configManager.watch(DatasourceWhitelist.CONFIG_KEY, DatasourceWhitelist.class);
   }
@@ -78,6 +75,9 @@ public class DruidCoordinatorSegmentMerger extends DruidCoordinatorHelper.WithLa
   @Override
   public DruidCoordinatorRuntimeParams run(DruidCoordinatorRuntimeParams params)
   {
+    if (!params.isMajorTick()) {
+      return params;
+    }
     final int mergeTaskLimit = params.getCoordinatorDynamicConfig().getMergeTaskLimit();
     final List<String> finishedTasks = Lists.newArrayList();
     for (Map.Entry<String, String> entry : pendingTasks.entrySet()) {

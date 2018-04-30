@@ -25,13 +25,12 @@ import io.druid.client.indexing.IndexingServiceClient;
 import io.druid.common.config.JacksonConfigManager;
 import io.druid.segment.IndexIO;
 import io.druid.server.coordinator.DatasourceWhitelist;
-import io.druid.server.coordinator.DruidCoordinatorConfig;
 import io.druid.server.coordinator.DruidCoordinatorRuntimeParams;
 import io.druid.timeline.DataSegment;
 
 import java.util.concurrent.atomic.AtomicReference;
 
-public class DruidCoordinatorVersionConverter extends DruidCoordinatorHelper.WithLazyTicks
+public class DruidCoordinatorVersionConverter implements DruidCoordinatorHelper
 {
   private static final EmittingLogger log = new EmittingLogger(DruidCoordinatorVersionConverter.class);
 
@@ -41,11 +40,9 @@ public class DruidCoordinatorVersionConverter extends DruidCoordinatorHelper.Wit
   @Inject
   public DruidCoordinatorVersionConverter(
       IndexingServiceClient indexingServiceClient,
-      JacksonConfigManager configManager,
-      DruidCoordinatorConfig config
+      JacksonConfigManager configManager
   )
   {
-    super(config.getCoordinatorLazyTicks());
     this.indexingServiceClient = indexingServiceClient;
     this.whitelistRef = configManager.watch(DatasourceWhitelist.CONFIG_KEY, DatasourceWhitelist.class);
   }
@@ -53,6 +50,9 @@ public class DruidCoordinatorVersionConverter extends DruidCoordinatorHelper.Wit
   @Override
   public DruidCoordinatorRuntimeParams run(DruidCoordinatorRuntimeParams params)
   {
+    if (!params.isMajorTick()) {
+      return params;
+    }
     DatasourceWhitelist whitelist = whitelistRef.get();
 
     for (DataSegment dataSegment : params.getAvailableSegments()) {

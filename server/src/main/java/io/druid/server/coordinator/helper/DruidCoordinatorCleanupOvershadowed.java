@@ -24,24 +24,21 @@ import io.druid.server.coordinator.DruidCoordinator;
 import io.druid.server.coordinator.DruidCoordinatorRuntimeParams;
 import io.druid.timeline.DataSegment;
 
-public class DruidCoordinatorCleanupOvershadowed extends DruidCoordinatorHelper.WithLazyTicks
+public class DruidCoordinatorCleanupOvershadowed implements DruidCoordinatorHelper
 {
   private final DruidCoordinator coordinator;
 
-  public DruidCoordinatorCleanupOvershadowed(DruidCoordinator coordinator, int cleanupLazyTicks)
-  {
-    super(cleanupLazyTicks);
-    this.coordinator = coordinator;
-  }
-
   public DruidCoordinatorCleanupOvershadowed(DruidCoordinator coordinator)
   {
-    this(coordinator, 1);
+    this.coordinator = coordinator;
   }
 
   @Override
   public DruidCoordinatorRuntimeParams run(DruidCoordinatorRuntimeParams params)
   {
+    if (!params.isMajorTick()) {
+      return params;
+    }
     CoordinatorStats stats = new CoordinatorStats();
 
     // Delete segments that are old

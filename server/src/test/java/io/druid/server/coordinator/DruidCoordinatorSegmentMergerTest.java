@@ -29,7 +29,6 @@ import io.druid.common.config.JacksonConfigManager;
 import io.druid.server.coordinator.helper.DruidCoordinatorSegmentMerger;
 import io.druid.timeline.DataSegment;
 import io.druid.timeline.partition.LinearShardSpec;
-import org.apache.commons.lang.StringUtils;
 import org.easymock.EasyMock;
 import org.joda.time.Interval;
 import org.junit.Assert;
@@ -469,8 +468,7 @@ public class DruidCoordinatorSegmentMergerTest
 
     final DruidCoordinatorSegmentMerger merger = new DruidCoordinatorSegmentMerger(
         indexingServiceClient,
-        configManager,
-        new DruidCoordinatorConfig.WithDefault()
+        configManager
     );
     final DruidCoordinatorRuntimeParams params =
         DruidCoordinatorRuntimeParams.newBuilder()

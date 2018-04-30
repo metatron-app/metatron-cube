@@ -88,6 +88,7 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
 /**
@@ -676,11 +677,14 @@ public class DruidCoordinator
     private final long startTime = System.currentTimeMillis();
     private final List<DruidCoordinatorHelper> helpers;
     private final int startingLeaderCounter;
+    private final AtomicInteger counter = new AtomicInteger();
+    private final int lazyTick;
 
     protected CoordinatorRunnable(List<DruidCoordinatorHelper> helpers, final int startingLeaderCounter)
     {
       this.helpers = helpers;
       this.startingLeaderCounter = startingLeaderCounter;
+      this.lazyTick = config.getCoordinatorLazyTicks();
     }
 
     @Override
@@ -716,6 +720,7 @@ public class DruidCoordinator
         // Do coordinator stuff.
         DruidCoordinatorRuntimeParams params =
             DruidCoordinatorRuntimeParams.newBuilder()
+                                         .withMajorTick(counter.getAndIncrement() % lazyTick == 0)
                                          .withStartTime(startTime)
                                          .withDatasources(metadataSegmentManager.getInventory())
                                          .withDynamicConfigs(getDynamicConfigs())
@@ -725,10 +730,7 @@ public class DruidCoordinator
         for (DruidCoordinatorHelper helper : helpers) {
           // Don't read state and run state in the same helper otherwise racy conditions may exist
           if (leader && startingLeaderCounter == leaderCounter) {
-            if (!(helper instanceof DruidCoordinatorHelper.WithLazyTicks) ||
-                ((DruidCoordinatorHelper.WithLazyTicks)helper).isTurn()) {
-              params = helper.run(params);
-            }
+            params = helper.run(params);
           }
         }
       }
@@ -838,10 +840,10 @@ public class DruidCoordinator
                                .build();
                 }
               },
-              new DruidCoordinatorRuleRunner(DruidCoordinator.this, config.getCoordinatorLazyTicks()),
-              new DruidCoordinatorCleanupUnneeded(config.getCoordinatorLazyTicks()),
-              new DruidCoordinatorCleanupOvershadowed(DruidCoordinator.this, config.getCoordinatorLazyTicks()),
-              new DruidCoordinatorBalancer(DruidCoordinator.this, config.getCoordinatorLazyTicks()),
+              new DruidCoordinatorRuleRunner(DruidCoordinator.this),
+              new DruidCoordinatorCleanupUnneeded(),
+              new DruidCoordinatorCleanupOvershadowed(DruidCoordinator.this),
+              new DruidCoordinatorBalancer(DruidCoordinator.this),
               new DruidCoordinatorLogger()
           ),
           startingLeaderCounter
