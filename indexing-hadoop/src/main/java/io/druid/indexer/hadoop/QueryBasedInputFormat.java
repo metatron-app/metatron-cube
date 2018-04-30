@@ -743,7 +743,8 @@ public class QueryBasedInputFormat extends InputFormat<NullWritable, MapWritable
                 }
             ),
             submitQuery(query, streamHandler),
-            request.getUrl()
+            request.getUrl(),
+            null
         );
       }
 

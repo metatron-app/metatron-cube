@@ -48,13 +48,15 @@ public class JsonParserIterator<T> implements Iterator<T>
   private final JavaType typeRef;
   private final Future<InputStream> future;
   private final URL url;
+  private final String type;
 
-  public JsonParserIterator(ObjectMapper mapper, JavaType typeRef, Future<InputStream> future, URL url)
+  public JsonParserIterator(ObjectMapper mapper, JavaType typeRef, Future<InputStream> future, URL url, String type)
   {
     this.mapper = mapper;
     this.typeRef = typeRef;
     this.future = future;
     this.url = url;
+    this.type = type;
     jp = null;
   }
 
@@ -102,7 +104,7 @@ public class JsonParserIterator<T> implements Iterator<T>
         final JsonToken nextToken = jp.nextToken();
         if (nextToken == JsonToken.START_OBJECT) {
           QueryInterruptedException cause = jp.getCodec().readValue(jp, QueryInterruptedException.class);
-          throw new QueryInterruptedException(cause, url.getHost() + ":" + url.getPort());
+          throw QueryInterruptedException.wrapIfNeeded(cause, url.getHost() + ":" + url.getPort(), type);
         } else if (nextToken != JsonToken.START_ARRAY) {
           throw new IAE("Next token wasn't a START_ARRAY, was[%s] from url [%s]", jp.getCurrentToken(), url);
         } else {
@@ -114,7 +116,7 @@ public class JsonParserIterator<T> implements Iterator<T>
         throw new RE(e, "Failure getting results from[%s] because of [%s]", url, e.getMessage());
       }
       catch (CancellationException e) {
-        throw new QueryInterruptedException(e, url.getHost() + ":" + url.getPort());
+        throw new QueryInterruptedException(e, url.getHost() + ":" + url.getPort(), null);
       }
     }
   }

@@ -253,6 +253,7 @@ public class BrokerServerView implements TimelineServerView
         smileMapper,
         httpClient,
         server.getHost(),
+        server.getType(),
         emitter,
         backgroundExecutorService
     );

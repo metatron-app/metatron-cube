@@ -120,10 +120,11 @@ public class QueryInterruptedExceptionTest
   @Test
   public void testHost()
   {
-    Assert.assertEquals(
-        "myhost",
-        new QueryInterruptedException(new QueryInterruptedException(new CancellationException(), "myhost")).getHost()
+    QueryInterruptedException cause = new QueryInterruptedException(
+        new QueryInterruptedException(new CancellationException(), "myhost", "service")
     );
+    Assert.assertEquals("myhost", cause.getHost());
+    Assert.assertEquals( "service", cause.getServiceName());
   }
 
   @Test

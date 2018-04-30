@@ -20,6 +20,8 @@
 package io.druid.query;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
@@ -57,6 +59,7 @@ public class QueryInterruptedException extends RuntimeException
   private final String errorClass;
   private final List<String> errorStack;
   private String host;
+  private String serviceName;
 
   @JsonCreator
   public QueryInterruptedException(
@@ -64,7 +67,8 @@ public class QueryInterruptedException extends RuntimeException
       @JsonProperty("errorMessage") String errorMessage,
       @JsonProperty("errorClass") String errorClass,
       @JsonProperty("errorStack") List<String> errorStack,
-      @JsonProperty("host") String host
+      @JsonProperty("host") String host,
+      @JsonProperty("serviceName") String serviceName
   )
   {
     super(errorMessage);
@@ -72,6 +76,7 @@ public class QueryInterruptedException extends RuntimeException
     this.errorClass = errorClass;
     this.errorStack = errorStack;
     this.host = host;
+    this.serviceName = serviceName;
   }
 
   /**
@@ -82,16 +87,17 @@ public class QueryInterruptedException extends RuntimeException
    */
   public QueryInterruptedException(Throwable cause)
   {
-    this(cause, getHostFromThrowable(cause));
+    this(cause, getHostFromThrowable(cause), getServiceNameFromThrowable(cause));
   }
 
-  public QueryInterruptedException(Throwable cause, String host)
+  public QueryInterruptedException(Throwable cause, String host, String serviceName)
   {
     super(cause == null ? null : cause.getMessage(), cause);
     this.errorCode = getErrorCodeFromThrowable(cause);
     this.errorClass = getErrorClassFromThrowable(cause);
     this.errorStack = cause == null ? null : stackTrace(cause);
     this.host = host;
+    this.serviceName = serviceName;
   }
 
   @JsonProperty("error")
@@ -108,26 +114,41 @@ public class QueryInterruptedException extends RuntimeException
   }
 
   @JsonProperty
+  @JsonInclude(Include.NON_NULL)
   public String getErrorClass()
   {
     return errorClass;
   }
 
   @JsonProperty
+  @JsonInclude(Include.NON_NULL)
   public List<String> getErrorStack()
   {
     return errorStack;
   }
 
   @JsonProperty
+  @JsonInclude(Include.NON_NULL)
   public String getHost()
   {
     return host;
   }
 
+  @JsonProperty
+  @JsonInclude(Include.NON_NULL)
+  public String getServiceName()
+  {
+    return serviceName;
+  }
+
   public void setHost(String host)
   {
     this.host = host;
+  }
+
+  public void setServiceName(String serviceName)
+  {
+    this.serviceName = serviceName;
   }
 
   private static String getErrorCodeFromThrowable(Throwable e)
@@ -160,28 +181,32 @@ public class QueryInterruptedException extends RuntimeException
 
   private static String getHostFromThrowable(Throwable e)
   {
-    if (e instanceof QueryInterruptedException) {
-      return ((QueryInterruptedException) e).getHost();
-    } else {
-      return null;
-    }
+    return e instanceof QueryInterruptedException ? ((QueryInterruptedException) e).getHost() : null;
+  }
+
+  private static String getServiceNameFromThrowable(Throwable e)
+  {
+    return e instanceof QueryInterruptedException ? ((QueryInterruptedException) e).getServiceName() : null;
   }
 
   public static QueryInterruptedException wrapIfNeeded(Throwable e)
   {
-    return wrapIfNeeded(e, null);
+    return wrapIfNeeded(e, getHostFromThrowable(e), getServiceNameFromThrowable(e));
   }
 
-  public static QueryInterruptedException wrapIfNeeded(Throwable e, String hostPort)
+  public static QueryInterruptedException wrapIfNeeded(Throwable e, String hostPort, String serviceName)
   {
     if (e instanceof QueryInterruptedException) {
       QueryInterruptedException qie = (QueryInterruptedException) e;
       if (qie.getHost() == null && hostPort != null) {
         qie.setHost(hostPort);
       }
+      if (qie.getServiceName() == null && serviceName != null) {
+        qie.setServiceName(serviceName);
+      }
       return qie;
     } else {
-      return new QueryInterruptedException(e, hostPort);
+      return new QueryInterruptedException(e, hostPort, serviceName);
     }
   }
 
@@ -200,7 +225,7 @@ public class QueryInterruptedException extends RuntimeException
     if (trace.length == 1) {
       return errorStack;
     }
-    for (StackTraceElement element : Arrays.copyOfRange(trace, 1, Math.min(6, trace.length))) {
+    for (StackTraceElement element : Arrays.copyOfRange(trace, 1, Math.min(12, trace.length))) {
       String stack = element.toString();
       if (errorStack.contains(stack)) {
         break;

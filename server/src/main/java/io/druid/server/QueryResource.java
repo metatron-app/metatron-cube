@@ -559,7 +559,7 @@ public class QueryResource
                      .type(contentType)
                      .entity(
                          getOutputWriter(false).writeValueAsBytes(
-                             QueryInterruptedException.wrapIfNeeded(e, node.getHostAndPort())
+                             QueryInterruptedException.wrapIfNeeded(e, node.getHostAndPort(), node.getServiceName())
                          )
                      )
                      .build();

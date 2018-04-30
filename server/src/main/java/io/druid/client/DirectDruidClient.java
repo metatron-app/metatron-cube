@@ -82,6 +82,7 @@ public class DirectDruidClient<T> implements QueryRunner<T>
   private final ObjectMapper objectMapper;
   private final HttpClient httpClient;
   private final String host;
+  private final String type;
   private final ExecutorService backgroundExecutorService;
 
   private final AtomicInteger openConnections;
@@ -95,6 +96,7 @@ public class DirectDruidClient<T> implements QueryRunner<T>
       ObjectMapper objectMapper,
       HttpClient httpClient,
       String host,
+      String type,
       ServiceEmitter emitter,
       ExecutorService backgroundExecutorService
   )
@@ -104,6 +106,7 @@ public class DirectDruidClient<T> implements QueryRunner<T>
     this.objectMapper = objectMapper;
     this.httpClient = httpClient;
     this.host = host;
+    this.type = type;
     this.backgroundExecutorService = backgroundExecutorService;
     this.contentType = objectMapper.getFactory() instanceof SmileFactory
                        ? SmileMediaTypes.APPLICATION_JACKSON_SMILE
@@ -224,7 +227,7 @@ public class DirectDruidClient<T> implements QueryRunner<T>
           @Override
           public JsonParserIterator<T> make()
           {
-            return new JsonParserIterator<T>(mapper, typeRef, future, url);
+            return new JsonParserIterator<T>(mapper, typeRef, future, url, type);
           }
 
           @Override

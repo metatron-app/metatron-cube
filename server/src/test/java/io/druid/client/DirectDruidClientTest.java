@@ -123,6 +123,7 @@ public class DirectDruidClientTest
         new DefaultObjectMapper(),
         httpClient,
         "foo",
+        null,
         new NoopServiceEmitter(),
         MoreExecutors.sameThreadExecutor()
     );
@@ -132,6 +133,7 @@ public class DirectDruidClientTest
         new DefaultObjectMapper(),
         httpClient,
         "foo2",
+        null,
         new NoopServiceEmitter(),
         MoreExecutors.sameThreadExecutor()
     );
@@ -235,6 +237,7 @@ public class DirectDruidClientTest
         new DefaultObjectMapper(),
         httpClient,
         "foo",
+        null,
         new NoopServiceEmitter(),
         MoreExecutors.sameThreadExecutor()
     );
@@ -305,6 +308,7 @@ public class DirectDruidClientTest
         new DefaultObjectMapper(),
         httpClient,
         hostName,
+        null,
         new NoopServiceEmitter(),
         MoreExecutors.sameThreadExecutor()
     );
