@@ -124,7 +124,6 @@ public class Plumbers
       } else {
         log.debug(e, "Discarded row due to exception, considering unparseable.");
         metrics.incrementUnparseable();
-        return;
       }
     } catch (IndexSizeExceededException e) {
       // Shouldn't happen if this is only being called by a single thread.
@@ -157,7 +156,10 @@ public class Plumbers
         Segment segment = hydrant.getSegment();
         int numRows = segment.asStorageAdapter(false).getNumRows();
         if (segment instanceof QueryableIndexSegment) {
-          persistTime += hydrant.getPersistTime();
+          if (hydrant.getPersistingTime() < 0) {
+            continue;   // revived.. skip
+          }
+          persistTime += hydrant.getPersistingTime();
           persistedRows += numRows;
         }
         totalRows += numRows;

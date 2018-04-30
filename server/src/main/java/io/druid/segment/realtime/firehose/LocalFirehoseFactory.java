@@ -47,6 +47,7 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.Reader;
+import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
 
@@ -102,18 +103,17 @@ public class LocalFirehoseFactory implements FirehoseFactory
     }
     log.info("Searching for all [%s] in and beneath [%s]", filter, baseDir.getAbsoluteFile());
 
-    final List<Pair<File, Integer>> foundFiles = GuavaUtils.zipWithIndex(
-        FileUtils.listFiles(
-            baseDir.getAbsoluteFile(),
-            new WildcardFileFilter(filter),
-            TrueFileFilter.INSTANCE
-        )
+    final Collection<File> files = FileUtils.listFiles(
+        baseDir.getAbsoluteFile(),
+        new WildcardFileFilter(filter),
+        TrueFileFilter.INSTANCE
     );
-
-    if (foundFiles.isEmpty()) {
+    if (files.isEmpty()) {
       throw new ISE("Found no files to ingest! Check your schema.");
     }
-    log.info("Found files: " + foundFiles);
+    log.info("Found files: " + files);
+
+    final List<Pair<File, Integer>> foundFiles = GuavaUtils.zipWithIndex(files);
     final long[] lengths = new long[foundFiles.size()];
     for (int i = 0; i < foundFiles.size(); i++) {
       lengths[i] = (i > 0 ? lengths[i - 1] : 0) + foundFiles.get(i).lhs.length();

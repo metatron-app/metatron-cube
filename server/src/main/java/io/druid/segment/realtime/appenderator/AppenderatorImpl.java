@@ -1013,6 +1013,7 @@ public class AppenderatorImpl implements Appenderator
                         identifier.getIdentifierAsString(),
                         indexIO.loadIndex(hydrantDir)
                     ),
+                    hydrantDir,
                     hydrantNumber
                 )
             );
@@ -1216,11 +1217,9 @@ public class AppenderatorImpl implements Appenderator
             indexSpec
         );
 
-        indexToPersist.swapSegment(
-            new QueryableIndexSegment(
-                indexToPersist.getSegment().getIdentifier(),
-                indexIO.loadIndex(persistedFile)
-            ),
+        indexToPersist.persisted(
+            indexIO.loadIndex(persistedFile),
+            persistedFile,
             System.currentTimeMillis() - start
         );
         return numRows;

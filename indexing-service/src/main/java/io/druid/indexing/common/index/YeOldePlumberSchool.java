@@ -39,7 +39,6 @@ import io.druid.segment.IndexIO;
 import io.druid.segment.IndexMerger;
 import io.druid.segment.IndexMergerV9;
 import io.druid.segment.QueryableIndex;
-import io.druid.segment.QueryableIndexSegment;
 import io.druid.segment.SegmentUtils;
 import io.druid.segment.incremental.IndexSizeExceededException;
 import io.druid.segment.indexing.DataSchema;
@@ -240,11 +239,9 @@ public class YeOldePlumberSchool implements PlumberSchool
                 dirToPersist,
                 config.getIndexSpec()
             );
-            indexToPersist.swapSegment(
-                new QueryableIndexSegment(
-                    indexToPersist.getSegment().getIdentifier(),
-                    indexIO.loadIndex(persistedFile)
-                ),
+            indexToPersist.persisted(
+                indexIO.loadIndex(persistedFile),
+                persistedFile,
                 System.currentTimeMillis() - start
             );
 

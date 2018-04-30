@@ -22,12 +22,14 @@ package io.druid.segment.realtime;
 import com.google.common.base.Throwables;
 import com.metamx.common.Pair;
 import io.druid.segment.IncrementalIndexSegment;
+import io.druid.segment.QueryableIndex;
+import io.druid.segment.QueryableIndexSegment;
 import io.druid.segment.ReferenceCountingSegment;
 import io.druid.segment.Segment;
 import io.druid.segment.incremental.IncrementalIndex;
 
 import java.io.Closeable;
-import java.io.IOException;
+import java.io.File;
 
 /**
  */
@@ -36,13 +38,14 @@ public class FireHydrant
   private final int count;
   private IncrementalIndex index;
   private ReferenceCountingSegment adapter;
-  private long persistTime;
+  private File persistedPath;
+  private long persistingTime;
   private final Object swapLock = new Object();
 
   public FireHydrant(
       IncrementalIndex index,
-      int count,
-      String segmentIdentifier
+      String segmentIdentifier,
+      int count
   )
   {
     this.index = index;
@@ -51,28 +54,34 @@ public class FireHydrant
   }
 
   public FireHydrant(
-      Segment adapter,
+      QueryableIndexSegment adapter,
+      File persistedPath,
       int count
   )
   {
     this.index = null;
     this.adapter = new ReferenceCountingSegment(adapter);
+    this.persistedPath = persistedPath;
+    this.persistingTime = -1; // unknown
     this.count = count;
   }
 
-  public int rowCount() {
+  public int rowCountInMemory()
+  {
     synchronized (swapLock) {
       return index == null ? 0 : index.size();
     }
   }
 
-  public long estimatedOccupation() {
+  public long estimatedOccupation()
+  {
     synchronized (swapLock) {
       return index == null ? 0 : index.estimatedOccupation();
     }
   }
 
-  public boolean canAppendRow() {
+  public boolean canAppendRow()
+  {
     synchronized (swapLock) {
       return index != null && index.canAppendRow();
     }
@@ -97,9 +106,18 @@ public class FireHydrant
     return count;
   }
 
-  public long getPersistTime()
+  public long getPersistingTime()
   {
-    return persistTime;
+    synchronized (swapLock) {
+      return persistingTime;
+    }
+  }
+
+  public File getPersistedPath()
+  {
+    synchronized (swapLock) {
+      return persistedPath;
+    }
   }
 
   public boolean hasSwapped()
@@ -109,19 +127,19 @@ public class FireHydrant
     }
   }
 
-  public void swapSegment(Segment adapter, long persistTime)
+  public void persisted(QueryableIndex index, File persistedPath, long persistingTime)
   {
+    final QueryableIndexSegment swapping = new QueryableIndexSegment(adapter.getIdentifier(), index);
     synchronized (swapLock) {
-      if (this.adapter != null) {
-        try {
-          this.adapter.close();
-        }
-        catch (IOException e) {
-          throw Throwables.propagate(e);
-        }
+      try {
+        adapter.close();
       }
-      this.adapter = new ReferenceCountingSegment(adapter);
-      this.persistTime = persistTime;
+      catch (Exception e) {
+        throw Throwables.propagate(e);
+      }
+      this.adapter = new ReferenceCountingSegment(swapping);
+      this.persistingTime = persistingTime;
+      this.persistedPath = persistedPath;
       this.index = null;
     }
   }
@@ -130,8 +148,7 @@ public class FireHydrant
   {
     // Prevent swapping of index before increment is called
     synchronized (swapLock) {
-      Closeable closeable = adapter.increment();
-      return new Pair<Segment, Closeable>(adapter, closeable);
+      return new Pair<Segment, Closeable>(adapter, adapter.increment());
     }
   }
 

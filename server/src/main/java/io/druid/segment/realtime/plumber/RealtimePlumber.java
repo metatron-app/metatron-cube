@@ -64,11 +64,11 @@ import io.druid.query.spec.SpecificSegmentQueryRunner;
 import io.druid.query.spec.SpecificSegmentSpec;
 import io.druid.segment.IndexIO;
 import io.druid.segment.IndexMerger;
-import io.druid.segment.IndexSpec;
 import io.druid.segment.Metadata;
 import io.druid.segment.QueryableIndex;
 import io.druid.segment.QueryableIndexSegment;
 import io.druid.segment.Segment;
+import io.druid.segment.incremental.IncrementalIndex;
 import io.druid.segment.incremental.IndexSizeExceededException;
 import io.druid.segment.indexing.DataSchema;
 import io.druid.segment.indexing.RealtimeTuningConfig;
@@ -597,21 +597,25 @@ public class RealtimePlumber implements Plumber
               final long mergeThreadCpuTime = VMUtils.safeGetThreadCpuTime();
               mergeStopwatch = Stopwatch.createStarted();
 
-              List<QueryableIndex> indexes = Lists.newArrayList();
-              for (FireHydrant fireHydrant : sink) {
-                Segment segment = fireHydrant.getSegment();
-                final QueryableIndex queryableIndex = segment.asQueryableIndex(false);
-                log.info("Adding hydrant[%s]", fireHydrant);
-                indexes.add(queryableIndex);
-              }
+              final File mergedFile;
+              List<FireHydrant> hydrants = Lists.newArrayList(sink);
+              if (hydrants.size() == 1) {
+                mergedFile = Iterables.getOnlyElement(hydrants).getPersistedPath();
+              } else {
+                List<QueryableIndex> indexes = Lists.newArrayList();
+                for (FireHydrant fireHydrant : hydrants) {
+                  log.info("Adding hydrant[%s]", fireHydrant);
+                  indexes.add(fireHydrant.getSegment().asQueryableIndex(false));
+                }
 
-              final File mergedFile = indexMerger.mergeQueryableIndex(
-                  indexes,
-                  schema.getGranularitySpec().isRollup(),
-                  schema.getAggregators(),
-                  mergedTarget,
-                  config.getIndexSpec()
-              );
+                mergedFile = indexMerger.mergeQueryableIndex(
+                    indexes,
+                    schema.getGranularitySpec().isRollup(),
+                    schema.getAggregators(),
+                    mergedTarget,
+                    config.getIndexSpec()
+                );
+              }
 
               // emit merge metrics before publishing segment
               metrics.incrementMergeCpuTime(VMUtils.safeGetThreadCpuTime() - mergeThreadCpuTime);
@@ -684,7 +688,7 @@ public class RealtimePlumber implements Plumber
     while (!sinks.isEmpty()) {
       try {
         log.info(
-            "Cannot shut down yet! Sinks remaining: %s",
+            "Waiting sinks handed-off.. remaining: %s",
             Joiner.on(", ").join(
                 Iterables.transform(
                     sinks.values(),
@@ -889,6 +893,7 @@ public class RealtimePlumber implements Plumber
                     ),
                     queryableIndex
                 ),
+                segmentDir,
                 Integer.parseInt(segmentDir.getName())
             )
         );
@@ -1122,26 +1127,23 @@ public class RealtimePlumber implements Plumber
           metadataElems,
           indexToPersist
       );
+      final IncrementalIndex index = indexToPersist.getIndex();
       try {
-        int numRows = indexToPersist.getIndex().size();
+        int numRows = index.size();
 
-        final IndexSpec indexSpec = config.getIndexSpec();
-
-        indexToPersist.getIndex().getMetadata().putAll(metadataElems);
+        index.getMetadata().putAll(metadataElems);
 
         final long start = System.currentTimeMillis();
         final File persistedFile = indexMerger.persist(
-            indexToPersist.getIndex(),
+            index,
             interval,
             new File(computePersistDir(schema, interval), String.valueOf(indexToPersist.getCount())),
-            indexSpec
+            config.getIndexSpec()
         );
 
-        indexToPersist.swapSegment(
-            new QueryableIndexSegment(
-                indexToPersist.getSegment().getIdentifier(),
-                indexIO.loadIndex(persistedFile)
-            ),
+        indexToPersist.persisted(
+            indexIO.loadIndex(persistedFile),
+            persistedFile,
             System.currentTimeMillis() - start
         );
         return numRows;

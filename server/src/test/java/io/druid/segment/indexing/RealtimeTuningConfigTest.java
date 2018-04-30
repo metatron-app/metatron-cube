@@ -65,7 +65,7 @@ public class RealtimeTuningConfigTest
     );
 
     Assert.assertNotNull(config.getBasePersistDirectory());
-    Assert.assertEquals(false, config.getBuildV9Directly());
+    Assert.assertEquals(true, config.getBuildV9Directly());
     Assert.assertEquals(0, config.getHandoffConditionTimeout());
     Assert.assertEquals(new IndexSpec(), config.getIndexSpec());
     Assert.assertEquals(new Period("PT10M"), config.getIntermediatePersistPeriod());
