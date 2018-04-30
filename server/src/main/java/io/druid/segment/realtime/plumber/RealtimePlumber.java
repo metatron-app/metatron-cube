@@ -182,7 +182,7 @@ public class RealtimePlumber implements Plumber
     this.cache = cache;
     this.cacheConfig = cacheConfig;
     this.objectMapper = objectMapper;
-    this.maxRowExceedCheckCount = Math.min(config.getMaxRowsInMemory() >> 2, MAX_ROW_EXCEED_CHECK_COUNT);
+    this.maxRowExceedCheckCount = Math.min(config.getMaxRowsInMemory(), MAX_ROW_EXCEED_CHECK_COUNT);
 
     if (!cache.isLocal()) {
       log.error("Configured cache is not local, caching will not be enabled");
@@ -235,14 +235,24 @@ public class RealtimePlumber implements Plumber
 
     final int numRows = sink.add(row);
 
-    if (!sink.canAppendRow() || System.currentTimeMillis() > nextFlush) {
+    if (!sink.canAppendRow()) {
+      log.info("Start flushing current sink.. %s", sink.getInterval());
+      persist(committerSupplier.get(), sink);
+    } else if (System.currentTimeMillis() > nextFlush) {
+      log.info("Start flushing all sinks");
       persist(committerSupplier.get());
     }
 
     if (maxRowExceedCheckCount > 0 && ++counter % maxRowExceedCheckCount == 0) {
-      if (rowCountInMemory() > config.getMaxRowsInMemory() ||
-          occupationInMemory() > config.getMaxOccupationInMemory()) {
-        persistOldest(committerSupplier.get());
+      if (rowCountInMemory() > config.getMaxRowsInMemory()) {
+        log.info("Start flushing for exceeding max rows %,d/%,d", rowCountInMemory(), config.getMaxRowsInMemory());
+        persist(committerSupplier.get(), findBiggest());
+      } else if (occupationInMemory() > config.getMaxOccupationInMemory()) {
+        log.info(
+            "Start flushing for exceeding max occupation %,d/%,d",
+            occupationInMemory(), config.getMaxOccupationInMemory()
+        );
+        persist(committerSupplier.get(), findBiggest());
       }
     }
 
@@ -447,24 +457,25 @@ public class RealtimePlumber implements Plumber
     persist(committer, indexesToPersist);
   }
 
-  public void persistOldest(final Committer committer)
+  private Sink findBiggest()
   {
-    Sink oldestSink = null;
-    long oldestAccessTime = -1;
+    Sink maxRowsSink = null;
+    long maxRowsInMemory = -1;
     for (Sink sink : sinks.values()) {
-      if (sink.swappable()) {
-        long lastAccessTime = sink.getLastAccessTime();
-        if (oldestAccessTime < 0 || lastAccessTime < oldestAccessTime) {
-          oldestAccessTime = lastAccessTime;
-          oldestSink = sink;
-        }
+      int rowsInMemory = sink.rowCountInMemory();
+      if (rowsInMemory > 0 && (maxRowsInMemory < 0 || rowsInMemory > maxRowsInMemory)) {
+        maxRowsInMemory = rowsInMemory;
+        maxRowsSink = sink;
       }
     }
-    FireHydrant hydrant = oldestSink == null ? null : oldestSink.swap();
+    return maxRowsSink;
+  }
+
+  private void persist(final Committer committer, final Sink sink)
+  {
+    FireHydrant hydrant = sink.swap();
     if (hydrant != null) {
-      Interval interval = oldestSink.getInterval();
-      log.info("Persisting oldest one %s (%,d msec before)", interval, (System.currentTimeMillis() - oldestAccessTime));
-      persist(committer, Arrays.asList(Pair.of(hydrant, interval)));
+      persist(committer, Arrays.asList(Pair.of(hydrant, sink.getInterval())));
     }
   }
 
