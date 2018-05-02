@@ -20,6 +20,7 @@
 package io.druid.cli;
 
 import com.google.inject.Injector;
+import com.metamx.common.logger.Logger;
 import io.airlift.airline.Cli;
 import io.airlift.airline.Help;
 import io.airlift.airline.ParseException;
@@ -27,7 +28,10 @@ import io.druid.cli.validate.DruidJsonValidator;
 import io.druid.guice.ExtensionsConfig;
 import io.druid.guice.GuiceInjectors;
 import io.druid.initialization.Initialization;
+import org.joda.time.DateTime;
+import org.joda.time.DateTimeZone;
 
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.ServiceLoader;
 
@@ -35,6 +39,8 @@ import java.util.ServiceLoader;
  */
 public class Main
 {
+  private static final Logger LOG = new Logger(Main.class);
+
   static {
     ServiceLoader<PropertyChecker> serviceLoader = ServiceLoader.load(PropertyChecker.class);
     for (PropertyChecker propertyChecker : serviceLoader) {
@@ -97,6 +103,8 @@ public class Main
         properties = new String[]{args[1] + "/runtime.properties"};
       }
     }
+    DateTimeZone timeZone = new DateTime().getChronology().getZone();
+    LOG.info("Starting with default timezone[%s], properties%s", timeZone, Arrays.toString(properties));
 
     final Injector injector = GuiceInjectors.makeStartupInjector(properties);
     final ExtensionsConfig config = injector.getInstance(ExtensionsConfig.class);

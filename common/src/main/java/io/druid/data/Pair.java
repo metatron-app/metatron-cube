@@ -19,6 +19,7 @@
 
 package io.druid.data;
 
+import com.google.common.base.Function;
 import com.google.common.collect.Ordering;
 
 import java.util.Comparator;
@@ -70,6 +71,30 @@ public class Pair<K, V> extends com.metamx.common.Pair<K, V> implements Map.Entr
       public int compare(Map.Entry<K, V> o1, Map.Entry<K, V> o2)
       {
         return comparator.compare(o1.getKey(), o2.getKey());
+      }
+    };
+  }
+
+  public static <L> Function<Pair<L, ?>, L> lhs()
+  {
+    return new Function<Pair<L, ?>, L>()
+    {
+      @Override
+      public L apply(Pair<L, ?> input)
+      {
+        return input.lhs;
+      }
+    };
+  }
+
+  public static <R> Function<Pair<?, R>, R> rhs()
+  {
+    return new Function<Pair<?, R>, R>()
+    {
+      @Override
+      public R apply(Pair<?, R> input)
+      {
+        return input.rhs;
       }
     };
   }

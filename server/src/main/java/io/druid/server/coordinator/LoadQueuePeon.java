@@ -215,10 +215,10 @@ public class LoadQueuePeon
       if (currentlyProcessing == null) {
         if (!segmentsToDrop.isEmpty()) {
           currentlyProcessing = segmentsToDrop.firstEntry().getValue();
-          log.info("Server[%s] dropping [%s]", basePath, currentlyProcessing.getSegmentIdentifier());
+          log.debug("Server[%s] dropping [%s]", basePath, currentlyProcessing.getSegmentIdentifier());
         } else if (!segmentsToLoad.isEmpty()) {
           currentlyProcessing = segmentsToLoad.firstEntry().getValue();
-          log.info("Server[%s] loading [%s]", basePath, currentlyProcessing.getSegmentIdentifier());
+          log.debug("Server[%s] loading [%s]", basePath, currentlyProcessing.getSegmentIdentifier());
         } else {
           return;
         }
@@ -393,7 +393,7 @@ public class LoadQueuePeon
         return;
       }
       actionCompleted();
-      log.info("Server[%s] done processing [%s]", basePath, path);
+      log.debug("Server[%s] done processing [%s]", basePath, path);
     }
 
     doNext();

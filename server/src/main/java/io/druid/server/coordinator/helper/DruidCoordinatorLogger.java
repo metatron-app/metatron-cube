@@ -181,6 +181,7 @@ public class DruidCoordinatorLogger implements DruidCoordinatorHelper
       for (ServerHolder serverHolder : serverHolders) {
         ImmutableDruidServer server = serverHolder.getServer();
         LoadQueuePeon queuePeon = serverHolder.getPeon();
+        int segments = server.getSegments().size();
         int toLoad = queuePeon.getSegmentsToLoad().size();
         int toDrop = queuePeon.getSegmentsToDrop().size();
         long queued = queuePeon.getLoadQueueSize();
@@ -190,14 +191,15 @@ public class DruidCoordinatorLogger implements DruidCoordinatorHelper
             log.info("Load Queues:");
           }
           log.info(
-              "Server[%s, %s, %s] has %,d left to load, %,d left to drop, %,d bytes queued, %,d bytes served.",
+              "Server[%s, %s, %s] has %,d left to load, %,d left to drop, %,d bytes queued, %,d bytes served (%,d segments).",
               server.getName(),
               server.getType(),
               server.getTier(),
               toLoad,
               toDrop,
               queued,
-              server.getCurrSize()
+              server.getCurrSize(),
+              segments
           );
         }
         if (log.isDebugEnabled()) {

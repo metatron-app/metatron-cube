@@ -92,6 +92,11 @@ public class ImmutableDruidServer
     return segments.get(segmentName);
   }
 
+  public Iterable<String> getDataSourceNames()
+  {
+    return dataSources.keySet();
+  }
+
   public Iterable<ImmutableDruidDataSource> getDataSources()
   {
     return dataSources.values();

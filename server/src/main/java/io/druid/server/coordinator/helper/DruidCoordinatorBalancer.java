@@ -110,6 +110,14 @@ public class DruidCoordinatorBalancer implements DruidCoordinatorHelper
       }
 
       final List<ServerHolder> serverHolderList = Lists.newArrayList(entry.getValue());
+      int segmentsToLoad = 0;
+      for (ServerHolder holder : serverHolderList) {
+        segmentsToLoad += holder.getPeon().getSegmentsToLoad().size();
+      }
+      if (segmentsToLoad > params.getCoordinatorDynamicConfig().getMaxSegmentsToMove() << 1) {
+        // skip when busy (server down, etc.)
+        continue;
+      }
 
       if (serverHolderList.size() <= 1) {
         log.info("[%s]: One or fewer servers found.  Cannot balance.", tier);
@@ -158,7 +166,7 @@ public class DruidCoordinatorBalancer implements DruidCoordinatorHelper
     if (!toPeon.getSegmentsToLoad().contains(segmentToMove) &&
         (toServer.getSegment(segmentName) == null) &&
         new ServerHolder(toServer, toPeon).getAvailableSize() > segmentToMove.getSize()) {
-      log.info("Moving [%s] from [%s] to [%s]", segmentName, fromServer.getName(), toServer.getName());
+      log.debug("Moving [%s] from [%s] to [%s]", segmentName, fromServer.getName(), toServer.getName());
 
       LoadPeonCallback callback = null;
       try {
