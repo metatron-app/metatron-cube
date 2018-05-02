@@ -19,12 +19,21 @@
 
 package io.druid.server.coordinator;
 
+import com.google.common.collect.Lists;
+import io.druid.client.ImmutableDruidServer;
+import io.druid.data.Pair;
 import io.druid.timeline.DataSegment;
 
 import java.util.List;
 
 public interface BalancerStrategy
 {
+  // why split selection logic into two ?
+  public List<Pair<BalancerSegmentHolder, ImmutableDruidServer>> select(
+      final DruidCoordinatorRuntimeParams params,
+      final List<ServerHolder> serverHolders
+  );
+
   public ServerHolder findNewSegmentHomeBalancer(final DataSegment proposalSegment, final List<ServerHolder> serverHolders);
 
   public ServerHolder findNewSegmentHomeReplicator(final DataSegment proposalSegment, final List<ServerHolder> serverHolders);
@@ -32,4 +41,46 @@ public interface BalancerStrategy
   public BalancerSegmentHolder pickSegmentToMove(final List<ServerHolder> serverHolders);
 
   public void emitStats(String tier, CoordinatorStats stats, List<ServerHolder> serverHolderList);
+
+  abstract class Abstract implements BalancerStrategy
+  {
+    @Override
+    public List<Pair<BalancerSegmentHolder, ImmutableDruidServer>> select(
+        final DruidCoordinatorRuntimeParams params,
+        final List<ServerHolder> serverHolders
+    )
+    {
+      List<Pair<BalancerSegmentHolder, ImmutableDruidServer>> found = Lists.newArrayList();
+      int maxSegmentsToMove = params.getCoordinatorDynamicConfig().getMaxSegmentsToMove();
+      for (int iter = 0; iter < maxSegmentsToMove; iter++) {
+        final BalancerSegmentHolder segmentToMove = pickSegmentToMove(serverHolders);
+
+        if (segmentToMove != null && params.getAvailableSegments().contains(segmentToMove.getSegment())) {
+          final ServerHolder holder = findNewSegmentHomeBalancer(segmentToMove.getSegment(), serverHolders);
+
+          if (holder != null) {
+            found.add(Pair.of(segmentToMove, holder.getServer()));
+          }
+        }
+      }
+      return found;
+    }
+
+    @Override
+    public ServerHolder findNewSegmentHomeBalancer(DataSegment proposalSegment, List<ServerHolder> serverHolders)
+    {
+      throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public BalancerSegmentHolder pickSegmentToMove(List<ServerHolder> serverHolders)
+    {
+      throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public void emitStats(String tier, CoordinatorStats stats, List<ServerHolder> serverHolderList)
+    {
+    }
+  }
 }

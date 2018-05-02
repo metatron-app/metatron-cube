@@ -249,8 +249,9 @@ public class ZkCoordinator implements DataSegmentChangeHandler
       return;
     }
 
-    List<DataSegment> cachedSegments = Lists.newArrayList();
-    File[] segmentsToLoad = baseDir.listFiles();
+    long total = 0;
+    final List<DataSegment> cachedSegments = Lists.newArrayList();
+    final File[] segmentsToLoad = baseDir.listFiles();
     for (int i = 0; i < segmentsToLoad.length; i++) {
       File file = segmentsToLoad[i];
       log.info("Loading segment cache file [%d/%d][%s].", i, segmentsToLoad.length, file);
@@ -258,6 +259,7 @@ public class ZkCoordinator implements DataSegmentChangeHandler
         DataSegment segment = jsonMapper.readValue(file, DataSegment.class);
         if (serverManager.isSegmentCached(segment)) {
           cachedSegments.add(segment);
+          total += segment.getSize();
         } else {
           log.warn("Unable to find cache file for %s. Deleting lookup entry", segment.getIdentifier());
 
@@ -274,6 +276,7 @@ public class ZkCoordinator implements DataSegmentChangeHandler
       }
     }
 
+    final long reading = total;
     addSegments(
         cachedSegments,
         new DataSegmentChangeCallback()
@@ -281,7 +284,8 @@ public class ZkCoordinator implements DataSegmentChangeHandler
           @Override
           public void execute()
           {
-            log.info("Cache load took %,d ms", System.currentTimeMillis() - start);
+            long elapsed = System.currentTimeMillis() - start;
+            log.info("Cache load took %,d ms.. (%,d segments : %,d bytes)", elapsed, cachedSegments.size(), reading);
           }
         }
     );

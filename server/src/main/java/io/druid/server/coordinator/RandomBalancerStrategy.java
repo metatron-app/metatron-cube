@@ -27,7 +27,7 @@ import io.druid.timeline.DataSegment;
 import java.util.List;
 import java.util.Random;
 
-public class RandomBalancerStrategy implements BalancerStrategy
+public class RandomBalancerStrategy extends BalancerStrategy.Abstract
 {
   private final ReservoirSegmentSampler sampler = new ReservoirSegmentSampler();
 
@@ -36,7 +36,7 @@ public class RandomBalancerStrategy implements BalancerStrategy
       final DataSegment proposalSegment, List<ServerHolder> serverHolders
   )
   {
-    return chooseBestServer(proposalSegment, serverHolders, false);
+    return chooseRandomServer(proposalSegment, serverHolders, false);
   }
 
   @Override
@@ -44,17 +44,27 @@ public class RandomBalancerStrategy implements BalancerStrategy
       final DataSegment proposalSegment, List<ServerHolder> serverHolders
   )
   {
-    return chooseBestServer(proposalSegment, serverHolders, true);
+    return chooseRandomServer(proposalSegment, serverHolders, true);
   }
 
-  private ServerHolder chooseBestServer(
-      final DataSegment proposalSegment,
+  private ServerHolder chooseRandomServer(
+      DataSegment proposalSegment,
       List<ServerHolder> serverHolders,
+      boolean includeCurrentServer
+  )
+  {
+    serverHolders = filter(proposalSegment, serverHolders, includeCurrentServer);
+    return serverHolders.isEmpty() ? null : serverHolders.get(new Random().nextInt(serverHolders.size()));
+  }
+
+  public static List<ServerHolder> filter(
+      final DataSegment proposalSegment,
+      final List<ServerHolder> serverHolders,
       final boolean includeCurrentServer
   )
   {
     final long proposalSegmentSize = proposalSegment.getSize();
-    serverHolders = Lists.newArrayList(
+    return Lists.newArrayList(
         Iterables.filter(
             serverHolders, new Predicate<ServerHolder>()
             {
@@ -68,15 +78,6 @@ public class RandomBalancerStrategy implements BalancerStrategy
             }
         )
     );
-
-    if (serverHolders.isEmpty())
-    {
-      return null;
-    }
-    else
-    {
-      return serverHolders.get(new Random().nextInt(serverHolders.size()));
-    }
   }
 
   @Override

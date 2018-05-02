@@ -76,10 +76,12 @@ public class DruidCoordinatorLogger implements DruidCoordinatorHelper
     Map<String, AtomicLong> assigned = stats.getPerTierStats().get("assignedCount");
     if (assigned != null) {
       for (Map.Entry<String, AtomicLong> entry : assigned.entrySet()) {
-        log.info(
-            "[%s] : Assigned %s segments among %,d servers",
-            entry.getKey(), entry.getValue().get(), cluster.get(entry.getKey()).size()
-        );
+        if (entry.getValue().get() > 0) {
+          log.info(
+              "[%s] : Assigned %s segments among %,d servers",
+              entry.getKey(), entry.getValue().get(), cluster.get(entry.getKey()).size()
+          );
+        }
       }
     }
 
@@ -91,10 +93,12 @@ public class DruidCoordinatorLogger implements DruidCoordinatorHelper
     Map<String, AtomicLong> dropped = stats.getPerTierStats().get("droppedCount");
     if (dropped != null) {
       for (Map.Entry<String, AtomicLong> entry : dropped.entrySet()) {
-        log.info(
-            "[%s] : Dropped %s segments among %,d servers",
-            entry.getKey(), entry.getValue().get(), cluster.get(entry.getKey()).size()
-        );
+        if (entry.getValue().get() > 0) {
+          log.info(
+              "[%s] : Dropped %s segments among %,d servers",
+              entry.getKey(), entry.getValue().get(), cluster.get(entry.getKey()).size()
+          );
+        }
       }
     }
 
@@ -144,10 +148,12 @@ public class DruidCoordinatorLogger implements DruidCoordinatorHelper
     Map<String, AtomicLong> unneeded = stats.getPerTierStats().get("unneededCount");
     if (unneeded != null) {
       for (Map.Entry<String, AtomicLong> entry : unneeded.entrySet()) {
-        log.info(
-            "[%s] : Removed %s unneeded segments among %,d servers",
-            entry.getKey(), entry.getValue().get(), cluster.get(entry.getKey()).size()
-        );
+        if (entry.getValue().get() > 0) {
+          log.info(
+              "[%s] : Removed %s unneeded segments among %,d servers",
+              entry.getKey(), entry.getValue().get(), cluster.get(entry.getKey()).size()
+          );
+        }
       }
     }
 
@@ -165,13 +171,12 @@ public class DruidCoordinatorLogger implements DruidCoordinatorHelper
     Map<String, AtomicLong> moved = stats.getPerTierStats().get("movedCount");
     if (moved != null) {
       for (Map.Entry<String, AtomicLong> entry : moved.entrySet()) {
-        log.info(
-            "[%s] : Moved %,d segment(s)",
-            entry.getKey(), entry.getValue().get()
-        );
+        if (entry.getValue().get() > 0) {
+          log.info("[%s] : Moved %,d segment(s)", entry.getKey(), entry.getValue().get());
+        }
       }
     }
-    log.info("Load Queues:");
+    boolean printedHeader = false;
     for (MinMaxPriorityQueue<ServerHolder> serverHolders : cluster.getSortedServersByTier()) {
       for (ServerHolder serverHolder : serverHolders) {
         ImmutableDruidServer server = serverHolder.getServer();
@@ -180,6 +185,10 @@ public class DruidCoordinatorLogger implements DruidCoordinatorHelper
         int toDrop = queuePeon.getSegmentsToDrop().size();
         long queued = queuePeon.getLoadQueueSize();
         if (toLoad > 0 || toDrop > 0 || queued > 0) {
+          if (!printedHeader) {
+            printedHeader = true;
+            log.info("Load Queues:");
+          }
           log.info(
               "Server[%s, %s, %s] has %,d left to load, %,d left to drop, %,d bytes queued, %,d bytes served.",
               server.getName(),

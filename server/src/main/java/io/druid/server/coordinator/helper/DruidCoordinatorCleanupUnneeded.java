@@ -67,7 +67,7 @@ public class DruidCoordinatorCleanupUnneeded implements DruidCoordinatorHelper
 
                 if (!queuePeon.getSegmentsToDrop().contains(segment)) {
                   queuePeon.dropSegment(
-                      segment, new LoadPeonCallback()
+                      segment, "cleanup", new LoadPeonCallback()
                       {
                         @Override
                         public void execute()

@@ -400,29 +400,21 @@ public class DruidCoordinator
         );
       }
 
-      final String toLoadQueueSegPath = ZKPaths.makePath(
-          ZKPaths.makePath(
-              zkPaths.getLoadQueuePath(),
-              toServer.getName()
-          ), segmentName
-      );
-      final String toServedSegPath = ZKPaths.makePath(
-          ZKPaths.makePath(serverInventoryView.getInventoryManagerConfig().getInventoryPath(), toServer.getName()),
-          segmentName
-      );
+      // served path check here was not valid (always null).. so removed
+      // just regard removed-from-queue means it's served (little racy but would be faster than unload + unannounce)
+      final String toLoadQueueSegPath = ZKPaths.makePath(loadPeon.getBasePath(), segmentName);
 
       loadPeon.loadSegment(
           segment,
+          "balancing",
           new LoadPeonCallback()
           {
             @Override
             public void execute()
             {
               try {
-                if (curator.checkExists().forPath(toServedSegPath) != null &&
-                    curator.checkExists().forPath(toLoadQueueSegPath) == null &&
-                    !dropPeon.getSegmentsToDrop().contains(segment)) {
-                  dropPeon.dropSegment(segment, callback);
+                if (curator.checkExists().forPath(toLoadQueueSegPath) == null) {
+                  dropPeon.dropSegment(segment, "balancing", callback);
                 } else if (callback != null) {
                   callback.execute();
                 }

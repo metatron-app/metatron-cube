@@ -25,6 +25,7 @@ import com.google.common.collect.MinMaxPriorityQueue;
 import com.metamx.common.guava.Comparators;
 import com.metamx.emitter.EmittingLogger;
 import io.druid.client.ImmutableDruidServer;
+import io.druid.data.Pair;
 import io.druid.server.coordinator.BalancerSegmentHolder;
 import io.druid.server.coordinator.BalancerStrategy;
 import io.druid.server.coordinator.CoordinatorStats;
@@ -39,6 +40,7 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Function;
 
 /**
  */
@@ -86,17 +88,22 @@ public class DruidCoordinatorBalancer implements DruidCoordinatorHelper
     }
     final CoordinatorStats stats = new CoordinatorStats();
     final BalancerStrategy strategy = params.getBalancerStrategy();
-    final int maxSegmentsToMove = params.getCoordinatorDynamicConfig().getMaxSegmentsToMove();
 
     for (Map.Entry<String, MinMaxPriorityQueue<ServerHolder>> entry :
         params.getDruidCluster().getCluster().entrySet()) {
       String tier = entry.getKey();
 
-      if (currentlyMovingSegments.get(tier) == null) {
-        currentlyMovingSegments.put(tier, new ConcurrentHashMap<String, BalancerSegmentHolder>());
-      }
-
-      if (!currentlyMovingSegments.get(tier).isEmpty()) {
+      final ConcurrentHashMap<String, BalancerSegmentHolder> tierMap = currentlyMovingSegments.computeIfAbsent(
+          tier, new Function<String, ConcurrentHashMap<String, BalancerSegmentHolder>>()
+          {
+            @Override
+            public ConcurrentHashMap<String, BalancerSegmentHolder> apply(String s)
+            {
+              return new ConcurrentHashMap<String, BalancerSegmentHolder>();
+            }
+          }
+      );
+      if (!tierMap.isEmpty()) {
         reduceLifetimes(tier);
         log.info("[%s]: Still waiting on %,d segments to be moved", tier, currentlyMovingSegments.size());
         continue;
@@ -119,26 +126,16 @@ public class DruidCoordinatorBalancer implements DruidCoordinatorHelper
         continue;
       }
 
-      for (int iter = 0; iter < maxSegmentsToMove; iter++) {
-        final BalancerSegmentHolder segmentToMove = strategy.pickSegmentToMove(serverHolderList);
-
-        if (segmentToMove != null && params.getAvailableSegments().contains(segmentToMove.getSegment())) {
-          final ServerHolder holder = strategy.findNewSegmentHomeBalancer(segmentToMove.getSegment(), serverHolderList);
-
-          if (holder != null) {
-            moveSegment(segmentToMove, holder.getServer(), params);
-          }
-        }
+      for (Pair<BalancerSegmentHolder, ImmutableDruidServer> pair : strategy.select(params, serverHolderList)) {
+        moveSegment(pair.lhs, pair.rhs, params);
       }
-      stats.addToTieredStat("movedCount", tier, currentlyMovingSegments.get(tier).size());
+      stats.addToTieredStat("movedCount", tier, tierMap.size());
       if (params.getCoordinatorDynamicConfig().emitBalancingStats()) {
         strategy.emitStats(tier, stats, serverHolderList);
-
       }
-      log.info(
-          "[%s]: Segments Moved: [%d]", tier, currentlyMovingSegments.get(tier).size()
-      );
-
+      if (tierMap.size() > 0) {
+        log.info("[%s]: Segments Moved: [%d]", tier, tierMap.size());
+      }
     }
 
     return params.buildFromExisting()

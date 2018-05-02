@@ -84,7 +84,7 @@ public class ReplicationThrottler
            .emit();
       }
     } else {
-      log.info("[%s]: Replicant %s queue is empty.", tier, type);
+      log.debug("[%s]: Replicant %s queue is empty.", tier, type);
       lookup.put(tier, true);
       holder.resetLifetime(tier);
     }

@@ -34,7 +34,7 @@ import org.joda.time.Interval;
 import java.util.List;
 import java.util.concurrent.Callable;
 
-public class CostBalancerStrategy implements BalancerStrategy
+public class CostBalancerStrategy extends BalancerStrategy.Abstract
 {
   private static final EmittingLogger log = new EmittingLogger(CostBalancerStrategy.class);
 

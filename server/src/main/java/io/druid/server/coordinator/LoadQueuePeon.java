@@ -103,6 +103,11 @@ public class LoadQueuePeon
     this.config = config;
   }
 
+  public String getBasePath()
+  {
+    return basePath;
+  }
+
   @JsonProperty
   public Set<DataSegment> getSegmentsToLoad()
   {
@@ -130,6 +135,15 @@ public class LoadQueuePeon
       final LoadPeonCallback callback
   )
   {
+    loadSegment(segment, "test", callback);
+  }
+
+  public void loadSegment(
+      final DataSegment segment,
+      final String loadReason,
+      final LoadPeonCallback callback
+  )
+  {
     synchronized (lock) {
       if ((currentlyProcessing != null) &&
           currentlyProcessing.getSegmentIdentifier().equals(segment.getIdentifier())) {
@@ -150,7 +164,7 @@ public class LoadQueuePeon
       }
     }
 
-    log.info("Asking server peon[%s] to load segment[%s]", basePath, segment.getIdentifier());
+    log.info("Asking server [%s] to load segment[%s] for [%s]", basePath, segment.getIdentifier(), loadReason);
     queuedSize.addAndGet(segment.getSize());
     segmentsToLoad.put(segment, new SegmentHolder(segment, LOAD, Arrays.asList(callback)));
     doNext();
@@ -158,6 +172,15 @@ public class LoadQueuePeon
 
   public void dropSegment(
       final DataSegment segment,
+      final LoadPeonCallback callback
+  )
+  {
+    dropSegment(segment, "test", callback);
+  }
+
+  public void dropSegment(
+      final DataSegment segment,
+      final String dropReason,
       final LoadPeonCallback callback
   )
   {
@@ -181,7 +204,7 @@ public class LoadQueuePeon
       }
     }
 
-    log.info("Asking server peon[%s] to drop segment[%s]", basePath, segment.getIdentifier());
+    log.info("Asking server [%s] to drop segment[%s] for [%s]", basePath, segment.getIdentifier(), dropReason);
     segmentsToDrop.put(segment, new SegmentHolder(segment, DROP, Arrays.asList(callback)));
     doNext();
   }
@@ -218,8 +241,10 @@ public class LoadQueuePeon
                       doNext();
                       return;
                     }
-                    log.info("Server[%s] processing segment[%s]", basePath, currentlyProcessing.getSegmentIdentifier());
-                    final String path = ZKPaths.makePath(basePath, currentlyProcessing.getSegmentIdentifier());
+                    String identifier = currentlyProcessing.getSegmentIdentifier();
+                    log.debug("Server[%s] processing segment[%s]", basePath, identifier);
+
+                    final String path = ZKPaths.makePath(basePath, identifier);
                     final byte[] payload = jsonMapper.writeValueAsBytes(currentlyProcessing.getChangeRequest());
                     curator.create().withMode(CreateMode.EPHEMERAL).forPath(path, payload);
 
@@ -286,7 +311,7 @@ public class LoadQueuePeon
             }
         );
       } else {
-        log.info(
+        log.debug(
             "Server[%s] skipping doNext() because something is currently loading[%s].",
             basePath,
             currentlyProcessing.getSegmentIdentifier()

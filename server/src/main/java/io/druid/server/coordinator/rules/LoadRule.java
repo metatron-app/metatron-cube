@@ -60,6 +60,9 @@ public abstract class LoadRule implements Rule
       final int expectedReplicantsInTier = entry.getValue();
       final int totalReplicantsInTier = params.getSegmentReplicantLookup()
                                               .getTotalReplicants(segment.getIdentifier(), tier);
+      if (totalReplicantsInTier >= expectedReplicantsInTier) {
+        continue;
+      }
       final int loadedReplicantsInTier = params.getSegmentReplicantLookup()
                                          .getLoadedReplicants(segment.getIdentifier(), tier);
 
@@ -138,6 +141,7 @@ public abstract class LoadRule implements Rule
 
       holder.getPeon().loadSegment(
           segment,
+          "under-replicated",
           new LoadPeonCallback()
           {
             @Override
@@ -185,6 +189,10 @@ public abstract class LoadRule implements Rule
       int loadedNumReplicantsForTier = entry.getValue();
       int expectedNumReplicantsForTier = getNumReplicants(tier);
 
+      if (loadedNumReplicantsForTier <= expectedNumReplicantsForTier) {
+        continue;
+      }
+
       stats.addToTieredStat(droppedCount, tier, 0);
 
       MinMaxPriorityQueue<ServerHolder> serverQueue = params.getDruidCluster().get(tier);
@@ -217,6 +225,7 @@ public abstract class LoadRule implements Rule
 
           holder.getPeon().dropSegment(
               segment,
+              "over-replicated",
               new LoadPeonCallback()
               {
                 @Override

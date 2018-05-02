@@ -19,19 +19,15 @@
 
 package io.druid.server.coordinator;
 
-import com.fasterxml.jackson.annotation.JsonSubTypes;
-import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.google.common.util.concurrent.ListeningExecutorService;
 
-@JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "strategy", defaultImpl = SimpleBalancerStrategyFactory.class)
-@JsonSubTypes(value = {
-    @JsonSubTypes.Type(name = "diskNormalized", value = DiskNormalizedCostBalancerStrategyFactory.class),
-    @JsonSubTypes.Type(name = "cost", value = CostBalancerStrategyFactory.class),
-    @JsonSubTypes.Type(name = "cachingCost", value = CachingCostBalancerStrategyFactory.class),
-    @JsonSubTypes.Type(name = "random", value = RandomBalancerStrategyFactory.class),
-    @JsonSubTypes.Type(name = "simple", value = SimpleBalancerStrategyFactory.class),
-})
-public interface BalancerStrategyFactory
+/**
+ */
+public class SimpleBalancerStrategyFactory implements BalancerStrategyFactory
 {
-  BalancerStrategy createBalancerStrategy(ListeningExecutorService exec);
+  @Override
+  public BalancerStrategy createBalancerStrategy(ListeningExecutorService exec)
+  {
+    return new SimpleBalancerStrategy();
+  }
 }

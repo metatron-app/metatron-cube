@@ -113,7 +113,11 @@ public class LoadRuleTest
   @Test
   public void testLoad() throws Exception
   {
-    mockPeon.loadSegment(EasyMock.<DataSegment>anyObject(), EasyMock.<LoadPeonCallback>anyObject());
+    mockPeon.loadSegment(
+        EasyMock.<DataSegment>anyObject(),
+        EasyMock.<String>anyObject(),
+        EasyMock.<LoadPeonCallback>anyObject()
+    );
     EasyMock.expectLastCall().atLeastOnce();
     EasyMock.expect(mockPeon.getSegmentsToLoad()).andReturn(Sets.<DataSegment>newHashSet()).atLeastOnce();
     EasyMock.expect(mockPeon.getLoadQueueSize()).andReturn(0L).atLeastOnce();
@@ -219,7 +223,11 @@ public class LoadRuleTest
   @Test
   public void testDrop() throws Exception
   {
-    mockPeon.dropSegment(EasyMock.<DataSegment>anyObject(), EasyMock.<LoadPeonCallback>anyObject());
+    mockPeon.dropSegment(
+        EasyMock.<DataSegment>anyObject(),
+        EasyMock.<String>anyObject(),
+        EasyMock.<LoadPeonCallback>anyObject()
+    );
     EasyMock.expectLastCall().atLeastOnce();
     EasyMock.expect(mockPeon.getSegmentsToLoad()).andReturn(Sets.<DataSegment>newHashSet()).atLeastOnce();
     EasyMock.expect(mockPeon.getLoadQueueSize()).andReturn(0L).anyTimes();
@@ -329,7 +337,11 @@ public class LoadRuleTest
   @Test
   public void testLoadWithNonExistentTier() throws Exception
   {
-    mockPeon.loadSegment(EasyMock.<DataSegment>anyObject(), EasyMock.<LoadPeonCallback>anyObject());
+    mockPeon.loadSegment(
+        EasyMock.<DataSegment>anyObject(),
+        EasyMock.<String>anyObject(),
+        EasyMock.<LoadPeonCallback>anyObject()
+    );
     EasyMock.expectLastCall().atLeastOnce();
     EasyMock.expect(mockPeon.getSegmentsToLoad()).andReturn(Sets.<DataSegment>newHashSet()).atLeastOnce();
     EasyMock.expect(mockPeon.getLoadQueueSize()).andReturn(0L).atLeastOnce();
@@ -418,7 +430,11 @@ public class LoadRuleTest
   @Test
   public void testDropWithNonExistentTier() throws Exception
   {
-    mockPeon.dropSegment(EasyMock.<DataSegment>anyObject(), EasyMock.<LoadPeonCallback>anyObject());
+    mockPeon.dropSegment(
+        EasyMock.<DataSegment>anyObject(),
+        EasyMock.<String>anyObject(),
+        EasyMock.<LoadPeonCallback>anyObject()
+    );
     EasyMock.expectLastCall().atLeastOnce();
     EasyMock.expect(mockPeon.getSegmentsToLoad()).andReturn(Sets.<DataSegment>newHashSet()).atLeastOnce();
     EasyMock.expect(mockPeon.getLoadQueueSize()).andReturn(0L).anyTimes();
