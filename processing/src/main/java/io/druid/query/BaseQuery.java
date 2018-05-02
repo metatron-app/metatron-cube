@@ -426,6 +426,7 @@ public abstract class BaseQuery<T> implements Query<T>
   @Override
   public Query<T> withId(String id)
   {
+    Preconditions.checkNotNull(id, "'id' should not be null");
     return withOverriddenContext(ImmutableMap.<String, Object>of(QUERYID, id));
   }
 

@@ -353,7 +353,7 @@ public class Queries
     if (query.getDataSource() instanceof QueryDataSource) {
       Query source = ((QueryDataSource) query.getDataSource()).getQuery();
       Query converted = iterate(source, function);
-      if (!source.equals(converted)) {
+      if (source != converted) {
         query = query.withDataSource(new QueryDataSource(converted));
       }
     } else if (query instanceof JoinQuery) {
@@ -362,7 +362,7 @@ public class Queries
         if (entry.getValue() instanceof QueryDataSource) {
           Query source = ((QueryDataSource) entry.getValue()).getQuery();
           Query converted = iterate(source, function);
-          if (!source.equals(converted)) {
+          if (source != converted) {
             entry.setValue(new QueryDataSource(converted));
           }
         }
@@ -372,15 +372,20 @@ public class Queries
       if (union.getQuery() != null) {
         Query source = union.getQuery();
         Query converted = iterate(source, function);
-        if (!source.equals(converted)) {
-          query = converted;
+        if (source != converted) {
+          query = union.withQuery(converted);
         }
       } else {
+        boolean changed = false;
         List<Query> queries = Lists.newArrayList();
         for (Query source : union.getQueries()) {
-          queries.add(iterate(source, function));
+          Query converted = iterate(source, function);
+          changed |= source != converted;
+          queries.add(converted);
         }
-        query = union.withQueries(queries);
+        if (changed) {
+          query = union.withQueries(queries);
+        }
       }
     }
     return function.apply(query);

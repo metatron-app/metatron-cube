@@ -199,10 +199,6 @@ public class ClientQuerySegmentWalker implements QuerySegmentWalker
       final ObjectMapper mapper
   )
   {
-    final String queryId = union.getId();
-    final boolean sortOnUnion = union.isSortOnUnion();
-    final PostProcessingOperator<T> postProcessing = PostProcessingOperators.load(union, mapper);
-
     final UnionAllQueryRunner<T> baseRunner;
     if (union.getParallelism() <= 1) {
      // executes when the first element of the sequence is accessed
@@ -211,7 +207,7 @@ public class ClientQuerySegmentWalker implements QuerySegmentWalker
         @Override
         public Sequence<Pair<Query<T>, Sequence<T>>> run(final Query<T> query, final Map<String, Object> responseContext)
         {
-          final List<Query<T>> ready = toTargetQueries((UnionAllQuery<T>) query, queryId);
+          final List<Query<T>> ready = toTargetQueries((UnionAllQuery<T>) query);
           return Sequences.simple(
               Lists.transform(
                   ready,
@@ -246,7 +242,7 @@ public class ClientQuerySegmentWalker implements QuerySegmentWalker
         @Override
         public Sequence<Pair<Query<T>, Sequence<T>>> run(final Query<T> query, final Map<String, Object> responseContext)
         {
-          final List<Query<T>> ready = toTargetQueries((UnionAllQuery<T>) query, queryId);
+          final List<Query<T>> ready = toTargetQueries((UnionAllQuery<T>) query);
           final int parallelism = Math.min(union.getParallelism(), ready.size());
           final Execs.Semaphore semaphore = new Execs.Semaphore(Math.max(parallelism, union.getQueue()));
           LOG.info("Starting %d parallel works with %d threads", ready.size(), parallelism);
@@ -296,6 +292,8 @@ public class ClientQuerySegmentWalker implements QuerySegmentWalker
       };
     }
 
+    final PostProcessingOperator<T> postProcessing = PostProcessingOperators.load(union, mapper);
+
     final QueryRunner<T> runner;
     if (postProcessing != null && postProcessing.supportsUnionProcessing()) {
       runner = ((PostProcessingOperator.UnionSupport<T>) postProcessing).postProcess(baseRunner);
@@ -308,7 +306,7 @@ public class ClientQuerySegmentWalker implements QuerySegmentWalker
           Sequence<Sequence<T>> sequences = Sequences.map(
               baseRunner.run(query, responseContext), Pair.<Query<T>, Sequence<T>>rhsFn()
           );
-          if (sortOnUnion) {
+          if (union.isSortOnUnion()) {
             return new MergeSequence<T>(query.getResultOrdering(), sequences);
           }
           return Sequences.concat(sequences);
@@ -329,29 +327,20 @@ public class ClientQuerySegmentWalker implements QuerySegmentWalker
     return runner;
   }
 
-  private <T extends Comparable<T>> List<Query<T>> toTargetQueries(UnionAllQuery<T> union, final String queryId)
+  private <T extends Comparable<T>> List<Query<T>> toTargetQueries(UnionAllQuery<T> union)
   {
     final List<Query<T>> ready;
     if (union.getQueries() != null) {
-      ready = Lists.transform(
-          union.getQueries(), new Function<Query<T>, Query<T>>()
-          {
-            @Override
-            public Query<T> apply(Query<T> query)
-            {
-              return query.withId(queryId);
-            }
-          }
-      );
+      ready = union.getQueries();
     } else {
-      final Query<T> target = union.getQuery().withId(queryId);
+      final Query<T> target = union.getQuery();
       ready = Lists.transform(
           target.getDataSource().getNames(), new Function<String, Query<T>>()
           {
             @Override
             public Query<T> apply(String dataSource)
             {
-              return target.withDataSource(new TableDataSource(dataSource));
+              return target.withDataSource(TableDataSource.of(dataSource));
             }
           }
       );

@@ -255,7 +255,6 @@ public class JoinQuery<T extends Comparable<T>> extends BaseQuery<T> implements 
   @SuppressWarnings("unchecked")
   public Query rewriteQuery(QuerySegmentWalker segmentWalker, QueryConfig queryConfig, ObjectMapper jsonMapper)
   {
-    String queryId = getId();
     JoinPostProcessor joinProcessor = jsonMapper.convertValue(
         ImmutableMap.of("type", "join", "elements", elements, "prefixAlias", prefixAlias),
         new TypeReference<JoinPostProcessor>()
@@ -274,9 +273,9 @@ public class JoinQuery<T extends Comparable<T>> extends BaseQuery<T> implements 
     if (partitions == null || partitions.size() == 1) {
       List<Query> queries = Lists.newArrayList();
       JoinElement firstJoin = elements.get(0);
-      queries.add(JoinElement.toQuery(dataSources.get(firstJoin.getLeftAlias()), segmentSpec).withId(queryId));
+      queries.add(JoinElement.toQuery(dataSources.get(firstJoin.getLeftAlias()), segmentSpec));
       for (JoinElement element : elements) {
-        queries.add(JoinElement.toQuery(dataSources.get(element.getRightAlias()), segmentSpec).withId(queryId));
+        queries.add(JoinElement.toQuery(dataSources.get(element.getRightAlias()), segmentSpec));
       }
       Map<String, Object> context = computeOverriddenContext(joinContext);
       return new JoinDelegate(queries, prefixAlias ? aliases : null, limit, parallelism, queue, context);
@@ -290,15 +289,14 @@ public class JoinQuery<T extends Comparable<T>> extends BaseQuery<T> implements 
       List<Query> partitioned = Lists.newArrayList();
       DataSource left = dataSources.get(element.getLeftAlias());
       DataSource right = dataSources.get(element.getRightAlias());
-      partitioned.add(JoinElement.toQuery(left, segmentSpec, filters.get(0)).withId(queryId));
-      partitioned.add(JoinElement.toQuery(right, segmentSpec, filters.get(1)).withId(queryId));
+      partitioned.add(JoinElement.toQuery(left, segmentSpec, filters.get(0)));
+      partitioned.add(JoinElement.toQuery(right, segmentSpec, filters.get(1)));
       if (first) {
         for (int i = 1; i < elements.size(); i++) {
           DataSource dataSource = dataSources.get(elements.get(i).getRightAlias());
           partitioned.add(
               JoinElement.toQuery(dataSource, segmentSpec)
                          .withOverriddenContext(ImmutableMap.of("hash", true))
-                         .withId(queryId)
           );
         }
       }
