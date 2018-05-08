@@ -84,10 +84,29 @@ public class Schema implements TypeResolver, RowSignature
     return dimensionNames;
   }
 
+  public List<ValueDesc> getDimensionTypes()
+  {
+    return columnTypes.subList(0, dimensionNames.size());
+  }
+
   @JsonProperty
   public List<String> getMetricNames()
   {
     return metricNames;
+  }
+
+  public List<ValueDesc> getMetricTypes()
+  {
+    return columnTypes.subList(dimensionNames.size(), columnTypes.size());
+  }
+
+  public List<AggregatorFactory> metricAsRelay()
+  {
+    List<AggregatorFactory> aggregators = Lists.newArrayList();
+    for (Pair<String, ValueDesc> metric : metricAndTypes()) {
+      aggregators.add(new RelayAggregatorFactory(metric.lhs, metric.rhs.typeName()));
+    }
+    return aggregators;
   }
 
   public List<String> getColumnNames()

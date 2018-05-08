@@ -25,7 +25,7 @@ import com.metamx.common.guava.ResourceClosingSequence;
 import com.metamx.common.guava.Sequence;
 import io.druid.segment.ReferenceCountingSegment;
 import io.druid.segment.Segment;
-import io.druid.segment.SegmentWithResolver;
+import io.druid.segment.Segments;
 
 import java.io.Closeable;
 import java.util.Map;
@@ -62,7 +62,7 @@ public class ReferenceCountingSegmentQueryRunner<T> implements QueryRunner<T>
     final Closeable closeable = adapter.increment();
     if (closeable != null) {
       try {
-        final Segment segment = new SegmentWithResolver(adapter, resolver);
+        final Segment segment = Segments.attach(adapter, resolver);
         final Sequence<T> baseSequence = factory.createRunner(segment, optimizer).run(query, responseContext);
 
         return new ResourceClosingSequence<T>(baseSequence, closeable);

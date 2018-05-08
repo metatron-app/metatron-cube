@@ -22,6 +22,7 @@ package io.druid.query;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.google.common.base.Function;
 import com.google.common.base.Functions;
+import com.google.common.base.Supplier;
 import com.google.common.base.Throwables;
 import com.google.common.collect.Iterables;
 import com.metamx.common.guava.ResourceClosingSequence;
@@ -34,6 +35,7 @@ import io.druid.query.aggregation.MetricManipulationFn;
 import io.druid.query.groupby.GroupByQueryHelper;
 import io.druid.segment.IncrementalIndexSegment;
 import io.druid.segment.Segment;
+import io.druid.segment.Segments;
 import io.druid.segment.StorageAdapter;
 import io.druid.segment.incremental.IncrementalIndex;
 import io.druid.segment.incremental.IncrementalIndexSchema;
@@ -279,13 +281,14 @@ public abstract class QueryToolChest<ResultType, QueryType extends Query<ResultT
       }
       List<String> dataSources = query.getDataSource().getNames();
       if (dataSources.size() > 1) {
-        query = query.withDataSource(new TableDataSource(StringUtils.join(dataSources, '_')));
+        query = query.withDataSource(TableDataSource.of(StringUtils.join(dataSources, '_')));
       }
       String dataSource = Iterables.getOnlyElement(query.getDataSource().getNames());
       StorageAdapter adapter = new IncrementalIndexStorageAdapter.Temporary(dataSource, accumulated);
       Segment segment = new IncrementalIndexSegment(accumulated, adapter.getSegmentIdentifier());
 
-      return runOuterQuery(query, responseContext, segment);
+      Supplier<RowResolver> resolver = RowResolver.supplier(segment, query);
+      return runOuterQuery(query.resolveQuery(resolver), responseContext, Segments.attach(segment, resolver));
     }
 
     @SuppressWarnings("unchecked")

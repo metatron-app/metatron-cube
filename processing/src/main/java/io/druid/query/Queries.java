@@ -151,19 +151,31 @@ public class Queries
     if (subQuery instanceof Query.MetricSupport) {
       Query.MetricSupport<?> metricSupport = (Query.MetricSupport) subQuery;
       Schema schema = QueryUtils.resolveSchema(subQuery, segmentWalker);
-      List<String> dimensionNames = DimensionSpecs.toOutputNames(metricSupport.getDimensions());
-      return builder.withDimensions(dimensionNames, schema.resolveDimensionTypes(metricSupport))
-                    .withMetrics(AggregatorFactory.toRelay(schema.resolveMetricTypes(metricSupport)))
-                    .withRollup(false)
-                    .build();
+      if (metricSupport.getDimensions().isEmpty() && metricSupport.allDimensionsForEmpty()) {
+        builder.withDimensions(schema.getDimensionNames(), schema.getDimensionTypes());
+      } else {
+        List<String> dimensions = DimensionSpecs.toOutputNames(metricSupport.getDimensions());
+        builder.withDimensions(dimensions, schema.resolveDimensionTypes(metricSupport));
+      }
+      if (metricSupport.getMetrics().isEmpty() && metricSupport.allMetricsForEmpty()) {
+        builder.withMetrics(schema.metricAsRelay());
+      } else {
+        builder.withMetrics(AggregatorFactory.toRelay(schema.resolveMetricTypes(metricSupport)));
+      }
+      return builder.withRollup(false).build();
     } else if (subQuery instanceof Query.AggregationsSupport) {
       Query.AggregationsSupport<?> aggrSupport = (Query.AggregationsSupport) subQuery;
       List<String> dimensionNames = DimensionSpecs.toOutputNames(aggrSupport.getDimensions());
       List<PostAggregator> postAggregators = aggrSupport.getPostAggregatorSpecs();
       if (aggrSupport.needsSchemaResolution()) {
         Schema schema = QueryUtils.resolveSchema(subQuery, segmentWalker);
-        return builder.withDimensions(dimensionNames, schema.resolveDimensionTypes(aggrSupport))
-                      .withMetrics(AggregatorFactory.toRelay(aggrSupport.getAggregatorSpecs(), postAggregators))
+        if (aggrSupport.getDimensions().isEmpty() && aggrSupport.allDimensionsForEmpty()) {
+          builder.withDimensions(schema.getDimensionNames(), schema.getDimensionTypes());
+        } else {
+          List<String> dimensions = DimensionSpecs.toOutputNames(aggrSupport.getDimensions());
+          builder.withDimensions(dimensions, schema.resolveDimensionTypes(aggrSupport));
+        }
+        return builder.withMetrics(AggregatorFactory.toRelay(aggrSupport.getAggregatorSpecs(), postAggregators))
                       .withRollup(false)
                       .build();
       } else {
@@ -172,6 +184,16 @@ public class Queries
                       .withRollup(false)
                       .build();
       }
+    } else if (subQuery instanceof Query.DimensionSupport) {
+      Query.DimensionSupport<?> dimSupport = (Query.DimensionSupport) subQuery;
+      Schema schema = QueryUtils.resolveSchema(subQuery, segmentWalker);
+      if (dimSupport.needsSchemaResolution()) {
+        builder.withDimensions(schema.getDimensionNames(), schema.getDimensionTypes());
+      } else {
+        List<String> dimensions = DimensionSpecs.toOutputNames(dimSupport.getDimensions());
+        builder.withDimensions(dimensions, schema.resolveDimensionTypes(dimSupport));
+      }
+      return builder.withRollup(false).build();
     } else if (subQuery instanceof JoinQuery.JoinDelegate) {
       final JoinQuery.JoinDelegate<?> joinQuery = (JoinQuery.JoinDelegate) subQuery;
       List<String> dimensions = Lists.newArrayList();

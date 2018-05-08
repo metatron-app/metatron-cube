@@ -33,7 +33,8 @@ public class SegmentWithResolver implements Segment.WithResolver
   private final Segment segment;
   private final Supplier<RowResolver> resolver;
 
-  public SegmentWithResolver(Segment segment, Supplier<RowResolver> resolver) {
+  public SegmentWithResolver(Segment segment, Supplier<RowResolver> resolver)
+  {
     this.segment = Preconditions.checkNotNull(segment);
     this.resolver = resolver;
   }

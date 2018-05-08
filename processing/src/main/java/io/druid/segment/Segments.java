@@ -51,4 +51,9 @@ public class Segments
     );
     return resolver.or(RowResolver.supplier(segment, query));
   }
+
+  public static Segment attach(Segment segment, Supplier<RowResolver> resolver)
+  {
+    return new SegmentWithResolver(segment, resolver);
+  }
 }
