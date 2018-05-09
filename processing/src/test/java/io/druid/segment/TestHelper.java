@@ -28,8 +28,8 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.primitives.Doubles;
 import com.metamx.common.guava.Sequence;
-import com.metamx.common.guava.Sequences;
 import io.druid.collections.StupidPool;
+import io.druid.common.utils.Sequences;
 import io.druid.data.input.InputRow;
 import io.druid.data.input.MapBasedInputRow;
 import io.druid.data.input.MapBasedRow;
@@ -109,7 +109,7 @@ public class TestHelper
 
   public static <T> void assertExpectedResults(Iterable<Result<T>> expectedResults, Sequence<Result<T>> results)
   {
-    assertResults(expectedResults, Sequences.toList(results, Lists.<Result<T>>newArrayList()), "");
+    assertResults(expectedResults, Sequences.toList(results), "");
   }
 
   public static <T> void assertExpectedResults(Iterable<Result<T>> expectedResults, Iterable<Result<T>> results)
@@ -133,7 +133,7 @@ public class TestHelper
 
   public static <T> void assertExpectedObjects(Iterable<T> expectedResults, Sequence<T> results, String failMsg)
   {
-    assertObjects(expectedResults, Sequences.toList(results, Lists.<T>newArrayList()), failMsg);
+    assertObjects(expectedResults, Sequences.toList(results), failMsg);
   }
 
   private static <T> void assertResults(

@@ -138,10 +138,7 @@ public abstract class BaseQuery<T> implements Query<T>
       Map<String, Object> context
   )
   {
-    Preconditions.checkNotNull(dataSource, "dataSource can't be null");
-    Preconditions.checkNotNull(dataSource, "dataSource can't be null");
-
-    this.dataSource = dataSource;
+    this.dataSource = Preconditions.checkNotNull(dataSource, "dataSource can't be null");
     this.querySegmentSpec = querySegmentSpec == null ? EMPTY : querySegmentSpec;
     this.descending = descending;
     this.context = context;

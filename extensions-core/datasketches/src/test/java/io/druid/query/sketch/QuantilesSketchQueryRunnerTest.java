@@ -23,16 +23,15 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.Module;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.Lists;
-import com.metamx.common.guava.Sequence;
-import com.metamx.common.guava.Sequences;
+import com.google.common.collect.Maps;
 import com.yahoo.sketches.quantiles.ItemsSketch;
+import io.druid.common.utils.Sequences;
 import io.druid.data.ValueDesc;
 import io.druid.jackson.DefaultObjectMapper;
-import io.druid.query.PostProcessingOperator;
-import io.druid.query.PostProcessingOperators;
+import io.druid.query.DefaultQueryRunnerFactoryConglomerate;
 import io.druid.query.Query;
-import io.druid.query.QueryRunner;
+import io.druid.query.QueryRunnerFactory;
+import io.druid.query.QueryRunnerFactoryConglomerate;
 import io.druid.query.QueryRunnerTestHelper;
 import io.druid.query.Result;
 import io.druid.query.TableDataSource;
@@ -43,7 +42,9 @@ import io.druid.query.filter.BoundDimFilter;
 import io.druid.query.filter.DimFilters;
 import io.druid.segment.ExprVirtualColumn;
 import io.druid.segment.TestHelper;
+import io.druid.segment.TestIndex;
 import io.druid.segment.VirtualColumn;
+import io.druid.sql.calcite.util.SpecificSegmentsQuerySegmentWalker;
 import org.joda.time.DateTime;
 import org.joda.time.Interval;
 import org.junit.Assert;
@@ -59,46 +60,44 @@ import java.util.Map;
 /**
  */
 @RunWith(Parameterized.class)
+@SuppressWarnings("unchecked")
 public class QuantilesSketchQueryRunnerTest
 {
   private static final SketchQueryQueryToolChest toolChest = new SketchQueryQueryToolChest(
       QueryRunnerTestHelper.NoopIntervalChunkingQueryRunnerDecorator()
   );
 
-  @Parameterized.Parameters
-  public static Iterable<Object[]> constructorFeeder() throws IOException
-  {
-    return QueryRunnerTestHelper.transformToConstructionFeeder(
-        QueryRunnerTestHelper.makeQueryRunners(
-            new SketchQueryRunnerFactory(
-                toolChest,
-                QueryRunnerTestHelper.NOOP_QUERYWATCHER
-            )
-        )
-    );
+  private static final SpecificSegmentsQuerySegmentWalker segmentWalker;
+
+  static {
+    QueryRunnerFactoryConglomerate conglomerate = TestIndex.segmentWalker.getQueryRunnerFactoryConglomerate();
+    if (conglomerate.findFactory(
+        new SketchQuery(TableDataSource.of("dummy"), null, null, null, null, null, null, null, null)
+    ) == null) {
+      Map<Class<? extends Query>, QueryRunnerFactory> factoryMap = Maps.newHashMap(
+          ((DefaultQueryRunnerFactoryConglomerate) conglomerate).getFactories()
+      );
+      factoryMap.put(
+          SketchQuery.class,
+          new SketchQueryRunnerFactory(toolChest, QueryRunnerTestHelper.NOOP_QUERYWATCHER)
+      );
+      conglomerate = new DefaultQueryRunnerFactoryConglomerate(factoryMap);
+    }
+    segmentWalker = TestIndex.segmentWalker.withConglomerate(conglomerate);
   }
 
-  private final QueryRunner<Result<Map<String, Object>>> runner;
 
-  @SuppressWarnings("unchecked")
-  public QuantilesSketchQueryRunnerTest(
-      final QueryRunner baseRunner
-  )
+  @Parameterized.Parameters(name = "{0}")
+  public static Iterable<Object[]> constructorFeeder() throws IOException
   {
-    this.runner = new QueryRunner<Result<Map<String, Object>>>()
-    {
-      @Override
-      public Sequence<Result<Map<String, Object>>> run(
-          Query<Result<Map<String, Object>>> query, Map<String, Object> responseContext
-      )
-      {
-        final PostProcessingOperator processor = PostProcessingOperators.load(query, TestHelper.JSON_MAPPER);
-        if (processor != null) {
-          return processor.postProcess(baseRunner).run(query, responseContext);
-        }
-        return baseRunner.run(query, responseContext);
-      }
-    };
+    return QueryRunnerTestHelper.transformToConstructionFeeder(Arrays.asList(TestIndex.DS_NAMES));
+  }
+
+  private final String dataSource;
+
+  public QuantilesSketchQueryRunnerTest(String dataSource)
+  {
+    this.dataSource = dataSource;
   }
 
   @Test
@@ -227,7 +226,7 @@ public class QuantilesSketchQueryRunnerTest
   public void testSketchQuery() throws Exception
   {
     SketchQuery baseQuery = new SketchQuery(
-        new TableDataSource(QueryRunnerTestHelper.dataSource),
+        TableDataSource.of(dataSource),
         QueryRunnerTestHelper.fullOnInterval,
         null, null, DefaultDimensionSpec.toSpec("market", "quality"), null, 16, SketchOp.QUANTILE, null
     );
@@ -237,8 +236,7 @@ public class QuantilesSketchQueryRunnerTest
           ImmutableMap.<String, Object>of(Query.ALL_METRICS_FOR_EMPTY, includeMetric)
       );
       List<Result<Map<String, Object>>> result = Sequences.toList(
-          runner.run(query, null),
-          Lists.<Result<Map<String, Object>>>newArrayList()
+          query.run(segmentWalker, Maps.<String, Object>newHashMap())
       );
       Assert.assertEquals(1, result.size());
       Map<String, Object> values = result.get(0).getValue();
@@ -253,7 +251,7 @@ public class QuantilesSketchQueryRunnerTest
   public void testSketchQueryWithFilter() throws Exception
   {
     SketchQuery query = new SketchQuery(
-        new TableDataSource(QueryRunnerTestHelper.dataSource),
+        TableDataSource.of(dataSource),
         QueryRunnerTestHelper.fullOnInterval,
         DimFilters.and(
             BoundDimFilter.gt("market", "spot"),
@@ -268,8 +266,7 @@ public class QuantilesSketchQueryRunnerTest
     );
 
     List<Result<Map<String, Object>>> result = Sequences.toList(
-        runner.run(query, null),
-        Lists.<Result<Map<String, Object>>>newArrayList()
+        query.run(segmentWalker, Maps.<String, Object>newHashMap())
     );
     Assert.assertEquals(1, result.size());
     Map<String, Object> values = result.get(0).getValue();
@@ -286,7 +283,7 @@ public class QuantilesSketchQueryRunnerTest
         )
     );
 
-    result = Sequences.toList(runner.run(postProcessing, null), Lists.<Result<Map<String, Object>>>newArrayList());
+    result = Sequences.toList(postProcessing.run(segmentWalker, Maps.<String, Object>newHashMap()));
     Assert.assertEquals(1, result.size());
     values = result.get(0).getValue();
     Assert.assertArrayEquals(new String[]{"total_market", "upfront"}, (String[]) values.get("market"));
@@ -297,7 +294,7 @@ public class QuantilesSketchQueryRunnerTest
   public void testSketchQueryWithVirtualColumnAndMetric() throws Exception
   {
     SketchQuery query = new SketchQuery(
-        new TableDataSource(QueryRunnerTestHelper.dataSource),
+        new TableDataSource(dataSource),
         QueryRunnerTestHelper.fullOnInterval,
         DimFilters.and(
             BoundDimFilter.gt("market_aa", "spot_aa"),
@@ -312,8 +309,7 @@ public class QuantilesSketchQueryRunnerTest
     );
 
     List<Result<Map<String, Object>>> result = Sequences.toList(
-        runner.run(query, null),
-        Lists.<Result<Map<String, Object>>>newArrayList()
+        query.run(segmentWalker, Maps.<String, Object>newHashMap())
     );
     Assert.assertEquals(1, result.size());
     Map<String, Object> values = result.get(0).getValue();
@@ -339,6 +335,7 @@ public class QuantilesSketchQueryRunnerTest
     Result<Map<String, Object>> deserialized = toolChest.makePreComputeManipulatorFn(query, null).apply(
         mapper.<Result<Map<String, Object>>>readValue(serialized, toolChest.getResultTypeReference())
     );
+    Assert.assertNotNull("never", deserialized);
     TypedSketch<ItemsSketch> sketch = (TypedSketch<ItemsSketch>) deserialized.getValue().get("index");
     Assert.assertEquals(545, ((Number) sketch.value().getMinValue()).doubleValue(), 100);
     Assert.assertEquals(1044, ((Number) sketch.value().getQuantile(0.4d)).doubleValue(), 100);

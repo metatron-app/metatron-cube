@@ -509,7 +509,7 @@ public class RealtimeManagerTest
               query,
               ImmutableList.<SegmentDescriptor>of(
                   new SegmentDescriptor(
-                      new Interval("2011-04-01T00:00:00.000Z/2011-04-03T00:00:00.000Z"),
+                      new Interval("2011-04-01/2011-04-03"),
                       "ver",
                       0
                   ))
@@ -524,7 +524,7 @@ public class RealtimeManagerTest
               query,
               ImmutableList.<SegmentDescriptor>of(
                   new SegmentDescriptor(
-                      new Interval("2011-04-01T00:00:00.000Z/2011-04-03T00:00:00.000Z"),
+                      new Interval("2011-04-01/2011-04-03"),
                       "ver",
                       1
                   ))
@@ -540,55 +540,84 @@ public class RealtimeManagerTest
   public void testQueryWithMultipleSegmentSpec() throws IOException, InterruptedException
   {
 
-    List<Row> expectedResults_both_partitions = Arrays.asList(
-        GroupByQueryRunnerTestHelper.createExpectedRow("2011-03-26", "alias", "business", "rows", 2L, "idx", 260L),
-        GroupByQueryRunnerTestHelper.createExpectedRow("2011-03-26", "alias", "health", "rows", 2L, "idx", 236L),
-        GroupByQueryRunnerTestHelper.createExpectedRow("2011-03-26", "alias", "mezzanine", "rows", 4L, "idx", 4556L),
-        GroupByQueryRunnerTestHelper.createExpectedRow("2011-03-26", "alias", "news", "rows", 2L, "idx", 284L),
-        GroupByQueryRunnerTestHelper.createExpectedRow("2011-03-26", "alias", "technology", "rows", 2L, "idx", 202L),
-        GroupByQueryRunnerTestHelper.createExpectedRow("2011-03-27", "alias", "automotive", "rows", 2L, "idx", 288L),
-        GroupByQueryRunnerTestHelper.createExpectedRow("2011-03-27", "alias", "entertainment", "rows", 2L, "idx", 326L),
-        GroupByQueryRunnerTestHelper.createExpectedRow("2011-03-28", "alias", "automotive", "rows", 2L, "idx", 312L),
-        GroupByQueryRunnerTestHelper.createExpectedRow("2011-03-28", "alias", "business", "rows", 2L, "idx", 248L),
-        GroupByQueryRunnerTestHelper.createExpectedRow("2011-03-28", "alias", "entertainment", "rows", 2L, "idx", 326L),
-        GroupByQueryRunnerTestHelper.createExpectedRow("2011-03-28", "alias", "health", "rows", 2L, "idx", 262L),
-        GroupByQueryRunnerTestHelper.createExpectedRow("2011-03-28", "alias", "mezzanine", "rows", 6L, "idx", 5126L),
-        GroupByQueryRunnerTestHelper.createExpectedRow("2011-03-28", "alias", "news", "rows", 2L, "idx", 254L),
-        GroupByQueryRunnerTestHelper.createExpectedRow("2011-03-28", "alias", "premium", "rows", 6L, "idx", 5276L),
-        GroupByQueryRunnerTestHelper.createExpectedRow("2011-03-28", "alias", "technology", "rows", 2L, "idx", 206L),
-        GroupByQueryRunnerTestHelper.createExpectedRow("2011-03-28", "alias", "travel", "rows", 2L, "idx", 260L)
-    );
+    String[] columns = new String[]{"__time", "alias", "rows", "idx"};
+    List<Row> expectedResults_both_partitions =
+        GroupByQueryRunnerTestHelper.createExpectedRows(
+            columns,
+            array("2011-02-26", "automotive", 2L, 450L),
+            array("2011-02-26", "business", 2L, 206L),
+            array("2011-02-26", "entertainment", 2L, 276L),
+            array("2011-02-26", "health", 2L, 206L),
+            array("2011-02-26", "mezzanine", 6L, 3846L),
+            array("2011-02-26", "news", 2L, 210L),
+            array("2011-02-26", "premium", 6L, 7446L),
+            array("2011-02-26", "technology", 2L, 166L),
+            array("2011-02-26", "travel", 2L, 262L),
+            array("2011-02-27", "automotive", 2L, 554L),
+            array("2011-02-27", "business", 2L, 192L),
+            array("2011-02-27", "entertainment", 2L, 272L),
+            array("2011-02-27", "health", 2L, 228L),
+            array("2011-02-27", "mezzanine", 6L, 4040L),
+            array("2011-02-27", "news", 2L, 198L),
+            array("2011-02-27", "premium", 6L, 6044L),
+            array("2011-02-27", "technology", 2L, 156L),
+            array("2011-02-27", "travel", 2L, 272L),
+            array("2011-03-01", "automotive", 2L, 306L),
+            array("2011-03-01", "business", 2L, 198L),
+            array("2011-03-01", "entertainment", 2L, 286L),
+            array("2011-03-01", "health", 2L, 228L),
+            array("2011-03-01", "mezzanine", 6L, 4790L),
+            array("2011-03-01", "news", 2L, 198L),
+            array("2011-03-01", "premium", 6L, 4740L),
+            array("2011-03-01", "technology", 2L, 144L),
+            array("2011-03-01", "travel", 2L, 232L)
+        );
 
-    List<Row> expectedResults_single_partition_26_28 = Arrays.asList(
-        GroupByQueryRunnerTestHelper.createExpectedRow("2011-03-26", "alias", "business", "rows", 1L, "idx", 130L),
-        GroupByQueryRunnerTestHelper.createExpectedRow("2011-03-26", "alias", "health", "rows", 1L, "idx", 118L),
-        GroupByQueryRunnerTestHelper.createExpectedRow("2011-03-26", "alias", "mezzanine", "rows", 2L, "idx", 2278L),
-        GroupByQueryRunnerTestHelper.createExpectedRow("2011-03-26", "alias", "news", "rows", 1L, "idx", 142L),
-        GroupByQueryRunnerTestHelper.createExpectedRow("2011-03-26", "alias", "technology", "rows", 1L, "idx", 101L),
-        GroupByQueryRunnerTestHelper.createExpectedRow("2011-03-27", "alias", "automotive", "rows", 1L, "idx", 144L),
-        GroupByQueryRunnerTestHelper.createExpectedRow("2011-03-27", "alias", "entertainment", "rows", 1L, "idx", 163L)
-    );
+    List<Row> expectedResults_single_partition_26_28 =
+        GroupByQueryRunnerTestHelper.createExpectedRows(
+            columns,
+            array("2011-02-26", "automotive", 1L, 225L),
+            array("2011-02-26", "business", 1L, 103L),
+            array("2011-02-26", "entertainment", 1L, 138L),
+            array("2011-02-26", "health", 1L, 103L),
+            array("2011-02-26", "mezzanine", 3L, 1923L),
+            array("2011-02-26", "news", 1L, 105L),
+            array("2011-02-26", "premium", 3L, 3723L),
+            array("2011-02-26", "technology", 1L, 83L),
+            array("2011-02-26", "travel", 1L, 131L),
+            array("2011-02-27", "automotive", 1L, 277L),
+            array("2011-02-27", "business", 1L, 96L),
+            array("2011-02-27", "entertainment", 1L, 136L),
+            array("2011-02-27", "health", 1L, 114L),
+            array("2011-02-27", "mezzanine", 3L, 2020L),
+            array("2011-02-27", "news", 1L, 99L),
+            array("2011-02-27", "premium", 3L, 3022L),
+            array("2011-02-27", "technology", 1L, 78L),
+            array("2011-02-27", "travel", 1L, 136L)
+        );
 
-    List<Row> expectedResults_single_partition_28_29 = Arrays.asList(
-        GroupByQueryRunnerTestHelper.createExpectedRow("2011-03-28", "alias", "automotive", "rows", 1L, "idx", 156L),
-        GroupByQueryRunnerTestHelper.createExpectedRow("2011-03-28", "alias", "business", "rows", 1L, "idx", 124L),
-        GroupByQueryRunnerTestHelper.createExpectedRow("2011-03-28", "alias", "entertainment", "rows", 1L, "idx", 163L),
-        GroupByQueryRunnerTestHelper.createExpectedRow("2011-03-28", "alias", "health", "rows", 1L, "idx", 131L),
-        GroupByQueryRunnerTestHelper.createExpectedRow("2011-03-28", "alias", "mezzanine", "rows", 3L, "idx", 2563L),
-        GroupByQueryRunnerTestHelper.createExpectedRow("2011-03-28", "alias", "news", "rows", 1L, "idx", 127L),
-        GroupByQueryRunnerTestHelper.createExpectedRow("2011-03-28", "alias", "premium", "rows", 3L, "idx", 2638L),
-        GroupByQueryRunnerTestHelper.createExpectedRow("2011-03-28", "alias", "technology", "rows", 1L, "idx", 103L),
-        GroupByQueryRunnerTestHelper.createExpectedRow("2011-03-28", "alias", "travel", "rows", 1L, "idx", 130L)
-    );
+    List<Row> expectedResults_single_partition_28_29 =
+        GroupByQueryRunnerTestHelper.createExpectedRows(
+            columns,
+            array("2011-03-01", "automotive", 1L, 153L),
+            array("2011-03-01", "business", 1L, 99L),
+            array("2011-03-01", "entertainment", 1L, 143L),
+            array("2011-03-01", "health", 1L, 114L),
+            array("2011-03-01", "mezzanine", 3L, 2395L),
+            array("2011-03-01", "news", 1L, 99L),
+            array("2011-03-01", "premium", 3L, 2370L),
+            array("2011-03-01", "technology", 1L, 72L),
+            array("2011-03-01", "travel", 1L, 116L)
+        );
 
     chiefStartedLatch.await();
 
-    final Interval interval_26_28 = new Interval("2011-03-26T00:00:00.000Z/2011-03-28T00:00:00.000Z");
-    final Interval interval_28_29 = new Interval("2011-03-28T00:00:00.000Z/2011-03-29T00:00:00.000Z");
+    final Interval interval_26_28 = new Interval("2011-02-26/2011-02-28");
+    final Interval interval_01_02 = new Interval("2011-03-01/2011-03-02");
     final SegmentDescriptor descriptor_26_28_0 = new SegmentDescriptor(interval_26_28, "ver0", 0);
-    final SegmentDescriptor descriptor_28_29_0 = new SegmentDescriptor(interval_28_29, "ver1", 0);
+    final SegmentDescriptor descriptor_01_02_0 = new SegmentDescriptor(interval_01_02, "ver1", 0);
     final SegmentDescriptor descriptor_26_28_1 = new SegmentDescriptor(interval_26_28, "ver0", 1);
-    final SegmentDescriptor descriptor_28_29_1 = new SegmentDescriptor(interval_28_29, "ver1", 1);
+    final SegmentDescriptor descriptor_01_02_1 = new SegmentDescriptor(interval_01_02, "ver1", 1);
 
     GroupByQuery query = GroupByQuery
         .builder()
@@ -597,9 +626,9 @@ public class RealtimeManagerTest
             new MultipleSpecificSegmentSpec(
                 ImmutableList.<SegmentDescriptor>of(
                     descriptor_26_28_0,
-                    descriptor_28_29_0,
+                    descriptor_01_02_0,
                     descriptor_26_28_1,
-                    descriptor_28_29_1
+                    descriptor_01_02_1
                 )))
         .setDimensions(Lists.<DimensionSpec>newArrayList(new DefaultDimensionSpec("quality", "alias")))
         .setAggregatorSpecs(
@@ -618,7 +647,7 @@ public class RealtimeManagerTest
             "druid.sample.tsv.top"
         )
         ,
-        interval_28_29,
+        interval_01_02,
         QueryRunnerTestHelper.makeQueryRunner(
             factory,
             "druid.sample.tsv.bottom"
@@ -638,8 +667,7 @@ public class RealtimeManagerTest
         factory,
         realtimeManager3.getQueryRunnerForSegments(
             query,
-            ImmutableList.<SegmentDescriptor>of(
-                descriptor_26_28_0)
+            ImmutableList.<SegmentDescriptor>of(descriptor_26_28_0)
         ),
         query
     );
@@ -649,8 +677,7 @@ public class RealtimeManagerTest
         factory,
         realtimeManager3.getQueryRunnerForSegments(
             query,
-            ImmutableList.<SegmentDescriptor>of(
-                descriptor_28_29_0)
+            ImmutableList.<SegmentDescriptor>of(descriptor_01_02_0)
         ),
         query
     );
@@ -660,8 +687,7 @@ public class RealtimeManagerTest
         factory,
         realtimeManager3.getQueryRunnerForSegments(
             query,
-            ImmutableList.<SegmentDescriptor>of(
-                descriptor_26_28_1)
+            ImmutableList.<SegmentDescriptor>of(descriptor_26_28_1)
         ),
         query
     );
@@ -671,13 +697,16 @@ public class RealtimeManagerTest
         factory,
         realtimeManager3.getQueryRunnerForSegments(
             query,
-            ImmutableList.<SegmentDescriptor>of(
-                descriptor_28_29_1)
+            ImmutableList.<SegmentDescriptor>of(descriptor_01_02_1)
         ),
         query
     );
     TestHelper.assertExpectedObjects(expectedResults_single_partition_28_29, results, "");
+  }
 
+  private Object[] array(Object... x)
+  {
+    return x;
   }
 
   private static GroupByQueryRunnerFactory initFactory()

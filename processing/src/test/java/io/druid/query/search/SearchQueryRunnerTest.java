@@ -62,7 +62,7 @@ public class SearchQueryRunnerTest
 
   private static final Logger LOG = new Logger(SearchQueryRunnerTest.class);
 
-  @Parameterized.Parameters
+  @Parameterized.Parameters(name = "{0}")
   public static Iterable<Object[]> constructorFeeder() throws IOException
   {
     return QueryRunnerTestHelper.transformToConstructionFeeder(Arrays.asList(TestIndex.DS_NAMES));

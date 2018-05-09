@@ -37,6 +37,11 @@ public class DefaultQueryRunnerFactoryConglomerate implements QueryRunnerFactory
     this.factories = factories;
   }
 
+  public Map<Class<? extends Query>, QueryRunnerFactory> getFactories()
+  {
+    return factories;
+  }
+
   @Override
   @SuppressWarnings("unchecked")
   public <T, QueryType extends Query<T>> QueryRunnerFactory<T, QueryType> findFactory(QueryType query)

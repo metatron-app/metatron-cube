@@ -21,7 +21,9 @@ package io.druid.common.utils;
 
 import com.google.common.base.Function;
 import com.google.common.base.Throwables;
+import com.google.common.collect.Lists;
 import com.metamx.common.guava.Accumulator;
+import com.metamx.common.guava.Accumulators;
 import com.metamx.common.guava.CloseQuietly;
 import com.metamx.common.guava.DelegatingYieldingAccumulator;
 import com.metamx.common.guava.Sequence;
@@ -31,11 +33,17 @@ import io.druid.common.Progressing;
 
 import java.io.Closeable;
 import java.io.IOException;
+import java.util.List;
 
 /**
  */
 public class Sequences extends com.metamx.common.guava.Sequences
 {
+  public static <T> List<T> toList(Sequence<T> seq)
+  {
+    return seq.accumulate(Lists.<T>newArrayList(), Accumulators.<List<T>, T>list());
+  }
+
   public static <T> Function<Iterable<T>, Sequence<T>> toSequence()
   {
     return new Function<Iterable<T>, Sequence<T>>()

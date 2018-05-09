@@ -30,6 +30,7 @@ import com.google.common.util.concurrent.MoreExecutors;
 import com.metamx.common.Pair;
 import com.metamx.common.guava.FunctionalIterable;
 import com.metamx.common.guava.Sequence;
+import io.druid.query.BySegmentQueryRunner;
 import io.druid.query.DataSource;
 import io.druid.query.NoopQueryRunner;
 import io.druid.query.PostProcessingOperators;
@@ -61,7 +62,6 @@ import io.druid.timeline.partition.PartitionHolder;
 import org.joda.time.Interval;
 
 import javax.annotation.Nullable;
-import java.io.Closeable;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
@@ -73,14 +73,38 @@ public class SpecificSegmentsQuerySegmentWalker implements QuerySegmentWalker
 {
   private final QueryRunnerFactoryConglomerate conglomerate;
   private final GroupByQueryConfig groupByConfig;
-  private final Map<String, VersionedIntervalTimeline<String, Segment>> timelines = Maps.newHashMap();
-  private final List<Closeable> closeables = Lists.newArrayList();
-  private final List<DataSegment> segments = Lists.newArrayList();
+  private final Map<String, VersionedIntervalTimeline<String, Segment>> timelines;
+  private final List<DataSegment> segments;
 
   public SpecificSegmentsQuerySegmentWalker(QueryRunnerFactoryConglomerate conglomerate)
   {
     this.conglomerate = conglomerate;
     this.groupByConfig = new GroupByQueryConfig();
+    this.timelines = Maps.newHashMap();
+    this.segments = Lists.newArrayList();
+  }
+
+  private SpecificSegmentsQuerySegmentWalker(
+      QueryRunnerFactoryConglomerate conglomerate,
+      GroupByQueryConfig groupByConfig,
+      Map<String, VersionedIntervalTimeline<String, Segment>> timelines,
+      List<DataSegment> segments
+  )
+  {
+    this.conglomerate = conglomerate;
+    this.groupByConfig = groupByConfig;
+    this.timelines = timelines;
+    this.segments = segments;
+  }
+
+  public QueryRunnerFactoryConglomerate getQueryRunnerFactoryConglomerate()
+  {
+    return conglomerate;
+  }
+
+  public SpecificSegmentsQuerySegmentWalker withConglomerate(QueryRunnerFactoryConglomerate conglomerate)
+  {
+    return new SpecificSegmentsQuerySegmentWalker(conglomerate, groupByConfig, timelines, segments);
   }
 
   public SpecificSegmentsQuerySegmentWalker add(DataSegment descriptor, IncrementalIndex index)
@@ -101,7 +125,6 @@ public class SpecificSegmentsQuerySegmentWalker implements QuerySegmentWalker
     VersionedIntervalTimeline<String, Segment> timeline = timelines.get(descriptor.getDataSource());
     timeline.add(descriptor.getInterval(), descriptor.getVersion(), descriptor.getShardSpec().createChunk(segment));
     segments.add(descriptor);
-    closeables.add(segment);
     return this;
   }
 
@@ -119,7 +142,7 @@ public class SpecificSegmentsQuerySegmentWalker implements QuerySegmentWalker
     final VersionedIntervalTimeline<String, Segment> timeline = timelines.get(dataSourceName);
 
     if (timeline == null) {
-      return new NoopQueryRunner<T>();
+      return PostProcessingOperators.wrap(new NoopQueryRunner<T>(), TestHelper.JSON_MAPPER);
     }
 
     FunctionalIterable<Pair<SegmentDescriptor, Segment>> segments = FunctionalIterable
@@ -184,7 +207,7 @@ public class SpecificSegmentsQuerySegmentWalker implements QuerySegmentWalker
 
     final VersionedIntervalTimeline<String, Segment> timeline = timelines.get(dataSourceName);
     if (timeline == null) {
-      return new NoopQueryRunner<T>();
+      return PostProcessingOperators.wrap(new NoopQueryRunner<T>(), TestHelper.JSON_MAPPER);
     }
 
     List<Pair<SegmentDescriptor, Segment>> segments = Lists.newArrayList(
@@ -216,18 +239,20 @@ public class SpecificSegmentsQuerySegmentWalker implements QuerySegmentWalker
   {
     final QueryRunnerFactory<T, Query<T>> factory = conglomerate.findFactory(query);
     if (factory == null) {
-      return new NoopQueryRunner<T>();
+      return PostProcessingOperators.wrap(new NoopQueryRunner<T>(), TestHelper.JSON_MAPPER);
     }
     final QueryToolChest<T, Query<T>> toolChest = factory.getToolchest();
 
     if (query.getDataSource() instanceof QueryDataSource) {
-      Query innerQuery = ((QueryDataSource) query.getDataSource()).getQuery().withOverriddenContext(query.getContext());
+      Query innerQuery = ((QueryDataSource) query.getDataSource()).getQuery()
+                                                                  .withOverriddenContext(query.getContext())
+                                                                  .withOverriddenContext(Query.FINALIZE, false);
       int maxResult = groupByConfig.getMaxResults();
       int maxRowCount = Math.min(
           query.getContextValue(GroupByQueryHelper.CTX_KEY_MAX_RESULTS, maxResult),
           maxResult
       );
-      QueryRunner runner = toQueryRunner(innerQuery, segments);
+      QueryRunner runner = getQueryRunnerForIntervals(innerQuery, innerQuery.getIntervals());
       runner = toolChest.finalQueryDecoration(
           toolChest.finalizeMetrics(
               toolChest.handleSubQuery(runner, this, MoreExecutors.sameThreadExecutor(), maxRowCount)
@@ -244,6 +269,9 @@ public class SpecificSegmentsQuerySegmentWalker implements QuerySegmentWalker
             ), Predicates.notNull()
         )
     );
+    if (targets.isEmpty()) {
+      return PostProcessingOperators.wrap(new NoopQueryRunner<T>(), TestHelper.JSON_MAPPER);
+    }
 
     final Supplier<RowResolver> resolver = RowResolver.supplier(targets, query);
     final Query<T> resolved = query.resolveQuery(resolver);
@@ -267,7 +295,11 @@ public class SpecificSegmentsQuerySegmentWalker implements QuerySegmentWalker
                 }
                 return Arrays.<QueryRunner<T>>asList(
                     new SpecificSegmentQueryRunner<T>(
-                        factory.createRunner(input.rhs, optimizer),
+                        new BySegmentQueryRunner<T>(
+                            input.rhs.getIdentifier(),
+                            input.rhs.getDataInterval().getStart(),
+                            factory.createRunner(input.rhs, optimizer)
+                        ),
                         new SpecificSegmentSpec(input.lhs)
                     )
                 );
