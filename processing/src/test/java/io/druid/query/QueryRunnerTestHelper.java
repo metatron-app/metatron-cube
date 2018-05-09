@@ -23,6 +23,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Supplier;
+import com.google.common.base.Suppliers;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
@@ -65,6 +66,10 @@ import io.druid.query.metadata.SegmentMetadataQueryConfig;
 import io.druid.query.metadata.SegmentMetadataQueryQueryToolChest;
 import io.druid.query.metadata.SegmentMetadataQueryRunnerFactory;
 import io.druid.query.metadata.metadata.SegmentMetadataQuery;
+import io.druid.query.search.SearchQueryQueryToolChest;
+import io.druid.query.search.SearchQueryRunnerFactory;
+import io.druid.query.search.search.SearchQuery;
+import io.druid.query.search.search.SearchQueryConfig;
 import io.druid.query.select.SelectMetaQuery;
 import io.druid.query.select.SelectMetaQueryEngine;
 import io.druid.query.select.SelectMetaQueryRunnerFactory;
@@ -272,6 +277,16 @@ public class QueryRunnerTestHelper
                       new SelectMetaQueryRunnerFactory(
                           new SelectMetaQueryToolChest(),
                           new SelectMetaQueryEngine(),
+                          QueryRunnerTestHelper.NOOP_QUERYWATCHER
+                      )
+                  )
+                  .put(
+                      SearchQuery.class,
+                      new SearchQueryRunnerFactory(
+                          new SearchQueryQueryToolChest(
+                              Suppliers.ofInstance(new SearchQueryConfig()),
+                              QueryRunnerTestHelper.NoopIntervalChunkingQueryRunnerDecorator()
+                          ),
                           QueryRunnerTestHelper.NOOP_QUERYWATCHER
                       )
                   )

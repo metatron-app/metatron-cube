@@ -209,6 +209,16 @@ public class DataSegment implements Comparable<DataSegment>
     return new SegmentDescriptor(interval, version, shardSpec.getPartitionNum());
   }
 
+  public DataSegment withDataSource(String dataSource)
+  {
+    return builder(this).dataSource(dataSource).build();
+  }
+
+  public DataSegment withInterval(Interval interval)
+  {
+    return builder(this).interval(interval).build();
+  }
+
   public DataSegment withLoadSpec(Map<String, Object> loadSpec)
   {
     return builder(this).loadSpec(loadSpec).build();

@@ -30,7 +30,6 @@ import io.druid.data.ValueDesc;
 import io.druid.data.ValueType;
 import io.druid.granularity.QueryGranularities;
 import io.druid.query.QueryConfig;
-import io.druid.query.QueryRunner;
 import io.druid.query.QueryRunnerTestHelper;
 import io.druid.query.Result;
 import io.druid.query.TableDataSource;
@@ -39,7 +38,9 @@ import io.druid.query.dimension.ExpressionDimensionSpec;
 import io.druid.query.filter.InDimFilter;
 import io.druid.query.spec.MultipleIntervalSegmentSpec;
 import io.druid.segment.ExprVirtualColumn;
+import io.druid.segment.TestIndex;
 import io.druid.segment.VirtualColumn;
+import io.druid.timeline.DataSegment;
 import org.joda.time.DateTime;
 import org.joda.time.Interval;
 import org.junit.Assert;
@@ -58,25 +59,22 @@ public class SelectMetaQueryRunnerTest
 {
   private static final List<String> metrics = Arrays.asList("index", "indexMin", "indexMaxPlusTen", "quality_uniques");
 
-  @Parameterized.Parameters(name = "{1}")
+  @Parameterized.Parameters
   public static Iterable<Object[]> constructorFeeder() throws IOException
   {
-    return QueryRunnerTestHelper.makeQueryRunnersWithName(
-        new SelectMetaQueryRunnerFactory(
-            new SelectMetaQueryToolChest(),
-            new SelectMetaQueryEngine(),
-            QueryRunnerTestHelper.NOOP_QUERYWATCHER
-        )
-    );
+    return QueryRunnerTestHelper.transformToConstructionFeeder(Arrays.asList(TestIndex.DS_NAMES));
   }
 
-  private final QueryRunner<Result<SelectMetaResultValue>> runner;
-  private final String name;
+  private final String dataSource;
 
-  public SelectMetaQueryRunnerTest(QueryRunner<Result<SelectMetaResultValue>> runner, String name)
+  public SelectMetaQueryRunnerTest(String dataSource)
   {
-    this.runner = runner;
-    this.name = name;
+    this.dataSource = dataSource;
+  }
+
+  private String getSegmentId(Interval interval)
+  {
+    return new DataSegment(dataSource, interval, "0", null, null, null, null, null, 0).getIdentifier();
   }
 
   // storing index value with input type 'float' and 'double' makes difference in stored size (about 40%)
@@ -85,11 +83,13 @@ public class SelectMetaQueryRunnerTest
   @Test
   public void testBasic()
   {
-    boolean incremental = name.equals("rtIndex") || name.equals("noRollupRtIndex");
+    boolean incremental = dataSource.equals(TestIndex.REALTIME) || dataSource.equals(TestIndex.REALTIME_NOROLLUP);
     List<String> dimensions = Arrays.asList("market");
 
+    Interval interval = dataSource.equals(TestIndex.MMAPPED_SPLIT) ? TestIndex.INTERVAL_TOP : TestIndex.INTERVAL;
+    String segmentId = getSegmentId(interval);
     SelectMetaQuery query = new SelectMetaQuery(
-        new TableDataSource(QueryRunnerTestHelper.dataSource),
+        TableDataSource.of(dataSource),
         new MultipleIntervalSegmentSpec(Arrays.asList(new Interval("2011-01-12/2011-01-14"))),
         null,
         QueryRunnerTestHelper.allGran,
@@ -102,14 +102,14 @@ public class SelectMetaQueryRunnerTest
     );
 
     List<Result<SelectMetaResultValue>> results = Sequences.toList(
-        runner.run(query, ImmutableMap.<String, Object>of()),
+        query.run(TestIndex.segmentWalker, ImmutableMap.<String, Object>of()),
         Lists.<Result<SelectMetaResultValue>>newArrayList()
     );
 
     Result<SelectMetaResultValue> r = Iterables.getOnlyElement(results);
     SelectMetaResultValue value = r.getValue();
     Assert.assertEquals(new DateTime(2011, 1, 12, 0, 0), r.getTimestamp());
-    Assert.assertEquals(ImmutableMap.of("testSegment", 26), value.getPerSegmentCounts());
+    Assert.assertEquals(ImmutableMap.of(segmentId, 26), value.getPerSegmentCounts());
     Assert.assertEquals(dimensions, value.getSchema().getDimensionNames());
     Assert.assertEquals(Sets.newHashSet(metrics), Sets.newHashSet(value.getSchema().getMetricNames()));
     Assert.assertEquals(26, value.getTotalCount());
@@ -117,13 +117,13 @@ public class SelectMetaQueryRunnerTest
 
     query = query.withDimFilter(new InDimFilter("quality", Arrays.asList("mezzanine", "health"), null));
     results = Sequences.toList(
-        runner.run(query, ImmutableMap.<String, Object>of()),
+        query.run(TestIndex.segmentWalker, ImmutableMap.<String, Object>of()),
         Lists.<Result<SelectMetaResultValue>>newArrayList()
     );
     r = Iterables.getOnlyElement(results);
     value = r.getValue();
     Assert.assertEquals(new DateTime(2011, 1, 12, 0, 0), r.getTimestamp());
-    Assert.assertEquals(ImmutableMap.of("testSegment", 8), value.getPerSegmentCounts());
+    Assert.assertEquals(ImmutableMap.of(segmentId, 8), value.getPerSegmentCounts());
     Assert.assertEquals(dimensions, value.getSchema().getDimensionNames());
     Assert.assertEquals(Sets.newHashSet(metrics), Sets.newHashSet(value.getSchema().getMetricNames()));
     Assert.assertEquals(8, value.getTotalCount());
@@ -131,14 +131,14 @@ public class SelectMetaQueryRunnerTest
 
     query = query.withQueryGranularity(QueryGranularities.DAY);
     results = Sequences.toList(
-        runner.run(query, ImmutableMap.<String, Object>of()),
+        query.run(TestIndex.segmentWalker, ImmutableMap.<String, Object>of()),
         Lists.<Result<SelectMetaResultValue>>newArrayList()
     );
     Assert.assertEquals(2, results.size());
     r = results.get(0);
     value = r.getValue();
     Assert.assertEquals(new DateTime(2011, 1, 12, 0, 0), r.getTimestamp());
-    Assert.assertEquals(ImmutableMap.of("testSegment", 4), value.getPerSegmentCounts());
+    Assert.assertEquals(ImmutableMap.of(segmentId, 4), value.getPerSegmentCounts());
     Assert.assertEquals(dimensions, value.getSchema().getDimensionNames());
     Assert.assertEquals(Sets.newHashSet(metrics), Sets.newHashSet(value.getSchema().getMetricNames()));
     Assert.assertEquals(4, value.getTotalCount());
@@ -146,7 +146,7 @@ public class SelectMetaQueryRunnerTest
 
     r = results.get(1);
     Assert.assertEquals(new DateTime(2011, 1, 13, 0, 0), r.getTimestamp());
-    Assert.assertEquals(ImmutableMap.of("testSegment", 4), value.getPerSegmentCounts());
+    Assert.assertEquals(ImmutableMap.of(segmentId, 4), value.getPerSegmentCounts());
     Assert.assertEquals(dimensions, value.getSchema().getDimensionNames());
     Assert.assertEquals(Sets.newHashSet(metrics), Sets.newHashSet(value.getSchema().getMetricNames()));
     Assert.assertEquals(4, value.getTotalCount());
@@ -156,13 +156,15 @@ public class SelectMetaQueryRunnerTest
   @Test
   public void testPaging()
   {
-    boolean incremental = name.equals("rtIndex") || name.equals("noRollupRtIndex");
+    boolean incremental = dataSource.equals(TestIndex.REALTIME) || dataSource.equals(TestIndex.REALTIME_NOROLLUP);
 
     List<String> dimensions = Arrays.asList("market");
     List<String> metrics = Arrays.asList("index", "indexMin", "indexMaxPlusTen");
 
+    Interval interval = dataSource.equals(TestIndex.MMAPPED_SPLIT) ? TestIndex.INTERVAL_TOP : TestIndex.INTERVAL;
+    String segmentId = getSegmentId(interval);
     SelectMetaQuery query = new SelectMetaQuery(
-        new TableDataSource(QueryRunnerTestHelper.dataSource),
+        TableDataSource.of(dataSource),
         new MultipleIntervalSegmentSpec(Arrays.asList(new Interval("2011-01-12/2011-01-14"))),
         null,
         QueryRunnerTestHelper.allGran,
@@ -170,19 +172,19 @@ public class SelectMetaQueryRunnerTest
         metrics,
         null,
         false,
-        new PagingSpec(ImmutableMap.of("testSegment", 3), -1),
+        new PagingSpec(ImmutableMap.of(segmentId, 3), -1),
         Maps.<String, Object>newHashMap()
     );
 
     List<Result<SelectMetaResultValue>> results = Sequences.toList(
-        runner.run(query, ImmutableMap.<String, Object>of()),
+        query.run(TestIndex.segmentWalker, ImmutableMap.<String, Object>of()),
         Lists.<Result<SelectMetaResultValue>>newArrayList()
     );
 
     Assert.assertEquals(1, results.size());
     Result<SelectMetaResultValue> r = results.get(0);
     Assert.assertEquals(new DateTime(2011, 1, 12, 0, 0), r.getTimestamp());
-    Assert.assertEquals(ImmutableMap.of("testSegment", 23), r.getValue().getPerSegmentCounts());
+    Assert.assertEquals(ImmutableMap.of(segmentId, 23), r.getValue().getPerSegmentCounts());
     Schema schema = r.getValue().getSchema();
     Assert.assertEquals(dimensions, schema.getDimensionNames());
     Assert.assertEquals(Sets.newHashSet(metrics), Sets.newHashSet(schema.getMetricNames()));
@@ -191,13 +193,13 @@ public class SelectMetaQueryRunnerTest
 
     query = query.withDimFilter(new InDimFilter("quality", Arrays.asList("mezzanine", "health"), null));
     results = Sequences.toList(
-        runner.run(query, ImmutableMap.<String, Object>of()),
+        query.run(TestIndex.segmentWalker, ImmutableMap.<String, Object>of()),
         Lists.<Result<SelectMetaResultValue>>newArrayList()
     );
     Assert.assertEquals(1, results.size());
     r = results.get(0);
     Assert.assertEquals(r.getTimestamp(), new DateTime(2011, 1, 12, 0, 0));
-    Assert.assertEquals(ImmutableMap.of("testSegment", 5), r.getValue().getPerSegmentCounts());
+    Assert.assertEquals(ImmutableMap.of(segmentId, 5), r.getValue().getPerSegmentCounts());
     schema = r.getValue().getSchema();
     Assert.assertEquals(dimensions, schema.getDimensionNames());
     Assert.assertEquals(Sets.newHashSet(metrics), Sets.newHashSet(schema.getMetricNames()));
@@ -206,13 +208,13 @@ public class SelectMetaQueryRunnerTest
 
     query = query.withQueryGranularity(QueryGranularities.DAY);
     results = Sequences.toList(
-        runner.run(query, ImmutableMap.<String, Object>of()),
+        query.run(TestIndex.segmentWalker, ImmutableMap.<String, Object>of()),
         Lists.<Result<SelectMetaResultValue>>newArrayList()
     );
     Assert.assertEquals(2, results.size());
     r = results.get(0);
     Assert.assertEquals(r.getTimestamp(), new DateTime(2011, 1, 12, 0, 0));
-    Assert.assertEquals(ImmutableMap.of("testSegment", 1), r.getValue().getPerSegmentCounts());
+    Assert.assertEquals(ImmutableMap.of(segmentId, 1), r.getValue().getPerSegmentCounts());
     schema = r.getValue().getSchema();
     Assert.assertEquals(dimensions, schema.getDimensionNames());
     Assert.assertEquals(Sets.newHashSet(metrics), Sets.newHashSet(schema.getMetricNames()));
@@ -221,7 +223,7 @@ public class SelectMetaQueryRunnerTest
 
     r = results.get(1);
     Assert.assertEquals(r.getTimestamp(), new DateTime(2011, 1, 13, 0, 0));
-    Assert.assertEquals(ImmutableMap.of("testSegment", 1), r.getValue().getPerSegmentCounts());
+    Assert.assertEquals(ImmutableMap.of(segmentId, 1), r.getValue().getPerSegmentCounts());
     schema = r.getValue().getSchema();
     Assert.assertEquals(dimensions, schema.getDimensionNames());
     Assert.assertEquals(Sets.newHashSet(metrics), Sets.newHashSet(schema.getMetricNames()));
@@ -233,7 +235,7 @@ public class SelectMetaQueryRunnerTest
   public void testSchema()
   {
     SelectMetaQuery query = new SchemaQuery(
-        TableDataSource.of(QueryRunnerTestHelper.dataSource),
+        TableDataSource.of(dataSource),
         MultipleIntervalSegmentSpec.of(new Interval("2011-01-12/2011-01-14")),
         Arrays.asList(
             DefaultDimensionSpec.of("time"),
@@ -249,7 +251,7 @@ public class SelectMetaQueryRunnerTest
 
     Schema schema = Iterables.getOnlyElement(
         Sequences.toList(
-            runner.run(query, ImmutableMap.<String, Object>of()),
+            query.run(TestIndex.segmentWalker, ImmutableMap.<String, Object>of()),
             Lists.<Result<SelectMetaResultValue>>newArrayList()
         )
     ).getValue().getSchema();

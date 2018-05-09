@@ -22,13 +22,13 @@ package io.druid.query.aggregation.variance;
 import com.google.common.collect.Lists;
 import com.metamx.common.guava.Sequences;
 import io.druid.query.Druids;
-import io.druid.query.QueryRunner;
 import io.druid.query.Result;
 import io.druid.query.aggregation.PostAggregator;
 import io.druid.query.timeseries.TimeseriesQuery;
 import io.druid.query.timeseries.TimeseriesQueryRunnerTest;
 import io.druid.query.timeseries.TimeseriesResultValue;
 import io.druid.segment.TestHelper;
+import io.druid.segment.TestIndex;
 import org.joda.time.DateTime;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -48,12 +48,12 @@ public class VarianceTimeseriesQueryTest
     return TimeseriesQueryRunnerTest.constructorFeeder();
   }
 
-  private final QueryRunner runner;
+  private final String dataSource;
   private final boolean descending;
 
-  public VarianceTimeseriesQueryTest(QueryRunner runner, boolean descending)
+  public VarianceTimeseriesQueryTest(String dataSource, boolean descending)
   {
-    this.runner = runner;
+    this.dataSource = dataSource;
     this.descending = descending;
   }
 
@@ -61,7 +61,7 @@ public class VarianceTimeseriesQueryTest
   public void testTimeseriesWithNullFilterOnNonExistentDimension()
   {
     TimeseriesQuery query = Druids.newTimeseriesQueryBuilder()
-                                  .dataSource(VarianceTestHelper.dataSource)
+                                  .dataSource(dataSource)
                                   .granularity(VarianceTestHelper.dayGran)
                                   .filters("bobby", null)
                                   .intervals(VarianceTestHelper.firstToThird)
@@ -105,7 +105,7 @@ public class VarianceTimeseriesQueryTest
     );
 
     Iterable<Result<TimeseriesResultValue>> results = Sequences.toList(
-        runner.run(query, new HashMap<String, Object>()),
+        query.run(TestIndex.segmentWalker, new HashMap<String, Object>()),
         Lists.<Result<TimeseriesResultValue>>newArrayList()
     );
     assertExpectedResults(expectedResults, results);

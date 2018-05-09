@@ -1151,6 +1151,12 @@ public class Druids
       return this;
     }
 
+    public SelectQueryBuilder interval(Interval interval)
+    {
+      querySegmentSpec = new LegacySegmentSpec(interval);
+      return this;
+    }
+
     public SelectQueryBuilder intervals(QuerySegmentSpec q)
     {
       querySegmentSpec = q;

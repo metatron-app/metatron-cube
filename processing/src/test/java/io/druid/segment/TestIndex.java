@@ -32,6 +32,7 @@ import io.druid.data.input.impl.DelimitedParseSpec;
 import io.druid.data.input.impl.DimensionsSpec;
 import io.druid.data.input.impl.StringInputRowParser;
 import io.druid.granularity.QueryGranularities;
+import io.druid.query.QueryRunnerTestHelper;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.DoubleMaxAggregatorFactory;
 import io.druid.query.aggregation.GenericMinAggregatorFactory;
@@ -42,6 +43,8 @@ import io.druid.segment.incremental.IncrementalIndex;
 import io.druid.segment.incremental.IncrementalIndexSchema;
 import io.druid.segment.incremental.OnheapIncrementalIndex;
 import io.druid.segment.serde.ComplexMetrics;
+import io.druid.sql.calcite.util.SpecificSegmentsQuerySegmentWalker;
+import io.druid.timeline.DataSegment;
 import org.joda.time.DateTime;
 import org.joda.time.Interval;
 
@@ -88,7 +91,11 @@ public class TestIndex
         , "utf8"
     );
   private static final Logger log = new Logger(TestIndex.class);
-  private static final Interval DATA_INTERVAL = new Interval("2011-01-12T00:00:00.000Z/2011-05-01T00:00:00.000Z");
+
+  public static final Interval INTERVAL = new Interval("2011-01-12T00:00:00.000Z/2011-05-01T00:00:00.000Z");
+  public static final Interval INTERVAL_TOP = new Interval("2011-01-12T00:00:00.000Z/2011-03-01T00:00:00.000Z");
+  public static final Interval INTERVAL_BOTTOM = new Interval("2011-03-01T00:00:00.000Z/2011-05-01T00:00:00.000Z");
+
   public static final AggregatorFactory[] METRIC_AGGS = new AggregatorFactory[]{
       new GenericSumAggregatorFactory(METRICS[0], METRICS[0], ValueType.FLOAT.getName()),
       new GenericMinAggregatorFactory(METRICS[1], METRICS[0], ValueType.FLOAT.getName()),
@@ -112,6 +119,9 @@ public class TestIndex
   private static QueryableIndex noRollupMmappedIndex = null;
   private static QueryableIndex mergedRealtime = null;
 
+  public static SpecificSegmentsQuerySegmentWalker segmentWalker =
+      new SpecificSegmentsQuerySegmentWalker(QueryRunnerTestHelper.CONGLOMERATE);
+
   public static final IncrementalIndexSchema SCHEMA = new IncrementalIndexSchema.Builder()
       .withMinTimestamp(new DateTime("2011-01-12T00:00:00.000Z").getMillis())
       .withQueryGranularity(QueryGranularities.NONE)
@@ -119,63 +129,65 @@ public class TestIndex
       .withMetrics(METRIC_AGGS)
       .build();
 
-  public static IncrementalIndex getIncrementalTestIndex()
-  {
-    synchronized (log) {
-      if (realtimeIndex != null) {
-        return realtimeIndex;
-      }
-    }
+  public static final DataSegment SEGMENT = new DataSegment(
+      "realtime", INTERVAL, "0", null, Arrays.asList(DIMENSIONS), Arrays.asList(METRICS), null, null, 0
+  );
 
-    return realtimeIndex = makeRealtimeIndex("druid.sample.tsv");
+  public static final String REALTIME = "realtime";
+  public static final String REALTIME_NOROLLUP = "realtime_norollup";
+  public static final String MMAPPED_SPLIT = "mmapped-split";
+
+  public static final String[] DS_NAMES = new String[]{
+      "realtime", "realtime_norollup", "mmapped", "mmapped_norollup", "mmapped-split", "mmapped_merged"
+  };
+
+  static {
+    getMMappedTestIndex();
+    getNoRollupMMappedTestIndex();
+    mergedRealtimeIndex();
   }
 
-  public static IncrementalIndex getNoRollupIncrementalTestIndex()
+  public static synchronized IncrementalIndex getIncrementalTestIndex()
   {
-    synchronized (log) {
-      if (noRollupRealtimeIndex != null) {
-        return noRollupRealtimeIndex;
-      }
+    if (realtimeIndex == null) {
+      realtimeIndex = makeRealtimeIndex("druid.sample.tsv");
+      segmentWalker.add(SEGMENT.withDataSource("realtime"), realtimeIndex);
     }
-
-    return noRollupRealtimeIndex = makeRealtimeIndex("druid.sample.tsv", false);
+    return realtimeIndex;
   }
 
-  public static QueryableIndex getMMappedTestIndex()
+  public static synchronized IncrementalIndex getNoRollupIncrementalTestIndex()
   {
-    synchronized (log) {
-      if (mmappedIndex != null) {
-        return mmappedIndex;
-      }
+    if (noRollupRealtimeIndex == null) {
+      noRollupRealtimeIndex = makeRealtimeIndex("druid.sample.tsv", false);
+      segmentWalker.add(SEGMENT.withDataSource("realtime_norollup"), noRollupRealtimeIndex);
     }
+    return noRollupRealtimeIndex;
+  }
 
-    IncrementalIndex incrementalIndex = getIncrementalTestIndex();
-    mmappedIndex = persistRealtimeAndLoadMMapped(incrementalIndex);
-
+  public static synchronized QueryableIndex getMMappedTestIndex()
+  {
+    if (mmappedIndex == null) {
+      IncrementalIndex incrementalIndex = getIncrementalTestIndex();
+      mmappedIndex = persistRealtimeAndLoadMMapped(incrementalIndex);
+      segmentWalker.add(SEGMENT.withDataSource("mmapped"), mmappedIndex);
+    }
     return mmappedIndex;
   }
 
-  public static QueryableIndex getNoRollupMMappedTestIndex()
+  public static synchronized QueryableIndex getNoRollupMMappedTestIndex()
   {
-    synchronized (log) {
-      if (noRollupMmappedIndex != null) {
-        return noRollupMmappedIndex;
-      }
+    if (noRollupMmappedIndex == null) {
+      IncrementalIndex incrementalIndex = getNoRollupIncrementalTestIndex();
+      noRollupMmappedIndex = persistRealtimeAndLoadMMapped(incrementalIndex);
+      segmentWalker.add(SEGMENT.withDataSource("mmapped_norollup"), noRollupMmappedIndex);
     }
-
-    IncrementalIndex incrementalIndex = getNoRollupIncrementalTestIndex();
-    noRollupMmappedIndex = persistRealtimeAndLoadMMapped(incrementalIndex);
-
     return noRollupMmappedIndex;
   }
 
-  public static QueryableIndex mergedRealtimeIndex()
+  public static synchronized QueryableIndex mergedRealtimeIndex()
   {
-    synchronized (log) {
-      if (mergedRealtime != null) {
-        return mergedRealtime;
-      }
-
+    if (mergedRealtime == null) {
       try {
         IncrementalIndex top = makeRealtimeIndex("druid.sample.tsv.top");
         IncrementalIndex bottom = makeRealtimeIndex("druid.sample.tsv.bottom");
@@ -194,35 +206,30 @@ public class TestIndex
         mergedFile.mkdirs();
         mergedFile.deleteOnExit();
 
-        INDEX_MERGER.persist(top, DATA_INTERVAL, topFile, indexSpec);
-        INDEX_MERGER.persist(bottom, DATA_INTERVAL, bottomFile, indexSpec);
+        INDEX_MERGER.persist(top, INTERVAL_TOP, topFile, indexSpec);
+        INDEX_MERGER.persist(bottom, INTERVAL_BOTTOM, bottomFile, indexSpec);
 
-//        QueryableIndexIndexableAdapter q1 = new QueryableIndexIndexableAdapter(INDEX_IO.loadIndex(topFile));
-//        for (Rowboat row : q1.getRows()) {
-//          System.out.println("q1" + row);
-//        }
-//        System.out.println();
-//        QueryableIndexIndexableAdapter q2 = new QueryableIndexIndexableAdapter(INDEX_IO.loadIndex(bottomFile));
-//        for (Rowboat row : q2.getRows()) {
-//          System.out.println("q2" + row);
-//        }
-//        System.out.println();
+        QueryableIndex topIndex = INDEX_IO.loadIndex(topFile);
+        QueryableIndex bottomIndex = INDEX_IO.loadIndex(bottomFile);
+        segmentWalker.add(SEGMENT.withDataSource("mmapped-split").withInterval(INTERVAL_TOP), topIndex);
+        segmentWalker.add(SEGMENT.withDataSource("mmapped-split").withInterval(INTERVAL_BOTTOM), bottomIndex);
+
         mergedRealtime = INDEX_IO.loadIndex(
             INDEX_MERGER.mergeQueryableIndex(
-                Arrays.asList(INDEX_IO.loadIndex(topFile), INDEX_IO.loadIndex(bottomFile)),
+                Arrays.asList(topIndex, bottomIndex),
                 true,
                 METRIC_AGGS,
                 mergedFile,
                 indexSpec
             )
         );
-
-        return mergedRealtime;
+        segmentWalker.add(SEGMENT.withDataSource("mmapped_merged"), mergedRealtime);
       }
       catch (IOException e) {
         throw Throwables.propagate(e);
       }
     }
+    return mergedRealtime;
   }
 
   public static IncrementalIndex makeRealtimeIndex(final String resourceFilename)

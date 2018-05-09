@@ -47,10 +47,12 @@ import io.druid.query.groupby.GroupByQueryConfig;
 import io.druid.query.groupby.GroupByQueryHelper;
 import io.druid.query.spec.SpecificSegmentQueryRunner;
 import io.druid.query.spec.SpecificSegmentSpec;
+import io.druid.segment.IncrementalIndexSegment;
 import io.druid.segment.QueryableIndex;
 import io.druid.segment.QueryableIndexSegment;
 import io.druid.segment.Segment;
 import io.druid.segment.TestHelper;
+import io.druid.segment.incremental.IncrementalIndex;
 import io.druid.timeline.DataSegment;
 import io.druid.timeline.TimelineObjectHolder;
 import io.druid.timeline.VersionedIntervalTimeline;
@@ -81,20 +83,25 @@ public class SpecificSegmentsQuerySegmentWalker implements QuerySegmentWalker
     this.groupByConfig = new GroupByQueryConfig();
   }
 
-  public SpecificSegmentsQuerySegmentWalker add(
-      final DataSegment descriptor,
-      final QueryableIndex index
-  )
+  public SpecificSegmentsQuerySegmentWalker add(DataSegment descriptor, IncrementalIndex index)
   {
-    final Segment segment = new QueryableIndexSegment(descriptor.getIdentifier(), index);
+    return addSegment(descriptor, new IncrementalIndexSegment(index, descriptor.getIdentifier()));
+  }
+
+  public SpecificSegmentsQuerySegmentWalker add(DataSegment descriptor, QueryableIndex index)
+  {
+    return addSegment(descriptor, new QueryableIndexSegment(descriptor.getIdentifier(), index));
+  }
+
+  private SpecificSegmentsQuerySegmentWalker addSegment(DataSegment descriptor, Segment segment)
+  {
     if (!timelines.containsKey(descriptor.getDataSource())) {
       timelines.put(descriptor.getDataSource(), new VersionedIntervalTimeline<String, Segment>(Ordering.natural()));
     }
-
-    final VersionedIntervalTimeline<String, Segment> timeline = timelines.get(descriptor.getDataSource());
+    VersionedIntervalTimeline<String, Segment> timeline = timelines.get(descriptor.getDataSource());
     timeline.add(descriptor.getInterval(), descriptor.getVersion(), descriptor.getShardSpec().createChunk(segment));
     segments.add(descriptor);
-    closeables.add(index);
+    closeables.add(segment);
     return this;
   }
 
