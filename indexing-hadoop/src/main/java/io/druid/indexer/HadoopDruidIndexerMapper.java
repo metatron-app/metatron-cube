@@ -27,6 +27,7 @@ import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.metamx.common.Pair;
 import com.metamx.common.logger.Logger;
+import io.druid.data.ParserInitializationFail;
 import io.druid.data.input.InputRow;
 import io.druid.data.input.MapBasedInputRow;
 import io.druid.data.input.Row;
@@ -217,6 +218,9 @@ public abstract class HadoopDruidIndexerMapper<KEYOUT, VALUEOUT> extends Mapper<
           "Ignoring invalid row [%s] due to parsing error.. %s", value,
           invalidRows.getValue() == INVALID_LOG_THRESHOLD ? "will not be logged further" : ""
       );
+    }
+    if (e instanceof ParserInitializationFail) {
+      throw (ParserInitializationFail) e;   // invalid configuration, etc.. fail early
     }
   }
 

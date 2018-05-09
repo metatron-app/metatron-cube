@@ -26,6 +26,7 @@ import com.google.common.base.Throwables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.metamx.common.logger.Logger;
+import io.druid.data.ParserInitializationFail;
 import io.druid.data.input.InputRow;
 import io.druid.data.input.MapBasedInputRow;
 import io.druid.data.input.TimestampSpec;
@@ -208,16 +209,29 @@ public class OrcHadoopInputRowParser implements HadoopAwareParser<OrcStruct>
   private StructObjectInspector initStaticInspector(String typeString)
   {
     logger.info("Using user specified spec %s", typeString);
-    OrcSerde serde = new OrcSerde();
-    TypeInfo typeInfo = TypeInfoUtils.getTypeInfoFromTypeString(typeString);
-    Properties table = getTablePropertiesFromStructTypeInfo((StructTypeInfo) typeInfo);
-    serde.initialize(new Configuration(), table);
     try {
-      return (StructObjectInspector) serde.getObjectInspector();
+      return (StructObjectInspector) fromTypeString(typeString).getObjectInspector();
     }
     catch (SerDeException e) {
       throw Throwables.propagate(e);
     }
+  }
+
+  private OrcSerde fromTypeString(String typeString)
+  {
+    try {
+      TypeInfo type = TypeInfoUtils.getTypeInfoFromTypeString(typeString);
+      if (type instanceof StructTypeInfo) {
+        Properties table = getTablePropertiesFromStructTypeInfo((StructTypeInfo)type);
+        OrcSerde serde = new OrcSerde();
+        serde.initialize(new Configuration(), table);
+        return serde;
+      }
+    }
+    catch (Exception e) {
+      throw new ParserInitializationFail(e);
+    }
+    throw new ParserInitializationFail("non-struct type " + typeString, null);
   }
 
   private List getListObject(ListObjectInspector listObjectInspector, Object listObject)
