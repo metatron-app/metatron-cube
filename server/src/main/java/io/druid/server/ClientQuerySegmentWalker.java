@@ -20,28 +20,14 @@
 package io.druid.server;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.common.base.Function;
-import com.google.common.base.Supplier;
-import com.google.common.collect.Lists;
-import com.google.common.util.concurrent.ListenableFuture;
 import com.google.inject.Inject;
 import com.metamx.common.Pair;
-import com.metamx.common.guava.LazySequence;
-import com.metamx.common.guava.MergeSequence;
-import com.metamx.common.guava.ResourceClosingSequence;
 import com.metamx.common.guava.Sequence;
 import com.metamx.common.guava.Sequences;
-import com.metamx.common.logger.Logger;
 import com.metamx.emitter.service.ServiceEmitter;
 import io.druid.client.CachingClusteredClient;
-import io.druid.common.guava.FutureSequence;
-import io.druid.common.guava.GuavaUtils;
-import io.druid.concurrent.Execs;
 import io.druid.guice.annotations.Processing;
-import io.druid.query.AbstractPrioritizedCallable;
-import io.druid.query.BaseQuery;
 import io.druid.query.FluentQueryRunnerBuilder;
-import io.druid.query.PostProcessingOperator;
 import io.druid.query.PostProcessingOperators;
 import io.druid.query.Query;
 import io.druid.query.QueryConfig;
@@ -53,26 +39,18 @@ import io.druid.query.QueryToolChestWarehouse;
 import io.druid.query.RetryQueryRunner;
 import io.druid.query.RetryQueryRunnerConfig;
 import io.druid.query.SegmentDescriptor;
-import io.druid.query.TableDataSource;
 import io.druid.query.UnionAllQuery;
-import io.druid.query.UnionAllQueryRunner;
 import io.druid.query.groupby.GroupByQueryHelper;
 import org.joda.time.Interval;
 
-import java.io.Closeable;
-import java.io.IOException;
 import java.util.Iterator;
-import java.util.List;
 import java.util.Map;
-import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
 
 /**
  */
 public class ClientQuerySegmentWalker implements QuerySegmentWalker
 {
-  private static final Logger LOG = new Logger(ClientQuerySegmentWalker.class);
-
   private final ServiceEmitter emitter;
   private final CachingClusteredClient baseClient;
   private final QueryToolChestWarehouse warehouse;
@@ -132,7 +110,7 @@ public class ClientQuerySegmentWalker implements QuerySegmentWalker
     }
 
     if (query instanceof UnionAllQuery) {
-      return getUnionQueryRunner((UnionAllQuery) query, objectMapper);
+      return ((UnionAllQuery) query).getUnionQueryRunner(objectMapper, exec, this);
     }
 
     if (query instanceof Query.IteratingQuery) {
@@ -193,158 +171,4 @@ public class ClientQuerySegmentWalker implements QuerySegmentWalker
     };
   }
 
-  @SuppressWarnings("unchecked")
-  private <T extends Comparable<T>> QueryRunner<T> getUnionQueryRunner(
-      final UnionAllQuery<T> union,
-      final ObjectMapper mapper
-  )
-  {
-    final UnionAllQueryRunner<T> baseRunner;
-    if (union.getParallelism() <= 1) {
-     // executes when the first element of the sequence is accessed
-     baseRunner = new UnionAllQueryRunner<T>()
-      {
-        @Override
-        public Sequence<Pair<Query<T>, Sequence<T>>> run(final Query<T> query, final Map<String, Object> responseContext)
-        {
-          final List<Query<T>> ready = toTargetQueries((UnionAllQuery<T>) query);
-          return Sequences.simple(
-              Lists.transform(
-                  ready,
-                  new Function<Query<T>, Pair<Query<T>, Sequence<T>>>()
-                  {
-                    @Override
-                    public Pair<Query<T>, Sequence<T>> apply(final Query<T> query)
-                    {
-                      return Pair.<Query<T>, Sequence<T>>of(
-                          query, new LazySequence<T>(
-                              new Supplier<Sequence<T>>()
-                              {
-                                @Override
-                                public Sequence<T> get()
-                                {
-                                  return makeRunner(query, false).run(query, responseContext);
-                                }
-                              }
-                          )
-                      );
-                    }
-                  }
-              )
-          );
-        }
-      };
-    } else {
-      // executing now
-      baseRunner = new UnionAllQueryRunner<T>()
-      {
-        final int priority = BaseQuery.getContextPriority(union, 0);
-        @Override
-        public Sequence<Pair<Query<T>, Sequence<T>>> run(final Query<T> query, final Map<String, Object> responseContext)
-        {
-          final List<Query<T>> ready = toTargetQueries((UnionAllQuery<T>) query);
-          final int parallelism = Math.min(union.getParallelism(), ready.size());
-          final Execs.Semaphore semaphore = new Execs.Semaphore(Math.max(parallelism, union.getQueue()));
-          LOG.info("Starting %d parallel works with %d threads", ready.size(), parallelism);
-          final List<ListenableFuture<Sequence<T>>> futures = Execs.execute(
-              exec, Lists.transform(
-                  ready, new Function<Query<T>, Callable<Sequence<T>>>()
-                  {
-                    @Override
-                    public Callable<Sequence<T>> apply(final Query<T> query)
-                    {
-                      return new AbstractPrioritizedCallable<Sequence<T>>(priority)
-                      {
-                        @Override
-                        public Sequence<T> call() throws Exception
-                        {
-                          // should eagerly retrieve result in executor
-                          Sequence<T> sequence = makeRunner(query, false).run(query, responseContext);
-                          sequence = Sequences.simple(Sequences.toList(sequence, Lists.<T>newArrayList()));
-                          return new ResourceClosingSequence<T>(sequence, semaphore);
-                        }
-
-                        @Override
-                        public String toString()
-                        {
-                          return query.toString();
-                        }
-                      };
-                    }
-                  }
-              ), semaphore, parallelism, priority
-          );
-          Sequence<Pair<Query<T>, Sequence<T>>> sequence = Sequences.simple(
-              GuavaUtils.zip(ready, Lists.transform(futures, FutureSequence.<T>toSequence()))
-          );
-          return new ResourceClosingSequence<Pair<Query<T>, Sequence<T>>>(
-              sequence,
-              new Closeable()
-              {
-                @Override
-                public void close() throws IOException
-                {
-                  semaphore.destroy();
-                }
-              }
-          );
-        }
-      };
-    }
-
-    final PostProcessingOperator<T> postProcessing = PostProcessingOperators.load(union, mapper);
-
-    final QueryRunner<T> runner;
-    if (postProcessing != null && postProcessing.supportsUnionProcessing()) {
-      runner = ((PostProcessingOperator.UnionSupport<T>) postProcessing).postProcess(baseRunner);
-    } else {
-      QueryRunner<T> merged = new QueryRunner<T>()
-      {
-        @Override
-        public Sequence<T> run(Query<T> query, Map<String, Object> responseContext)
-        {
-          Sequence<Sequence<T>> sequences = Sequences.map(
-              baseRunner.run(query, responseContext), Pair.<Query<T>, Sequence<T>>rhsFn()
-          );
-          if (union.isSortOnUnion()) {
-            return new MergeSequence<T>(query.getResultOrdering(), sequences);
-          }
-          return Sequences.concat(sequences);
-        }
-      };
-      runner = postProcessing == null ? merged : postProcessing.postProcess(merged);
-    }
-    if (union.getLimit() > 0 && union.getLimit() < Integer.MAX_VALUE) {
-      return new QueryRunner<T>()
-      {
-        @Override
-        public Sequence<T> run(Query<T> query, Map<String, Object> responseContext)
-        {
-          return Sequences.limit(query.run(runner, responseContext), union.getLimit());
-        }
-      };
-    }
-    return runner;
-  }
-
-  private <T extends Comparable<T>> List<Query<T>> toTargetQueries(UnionAllQuery<T> union)
-  {
-    final List<Query<T>> ready;
-    if (union.getQueries() != null) {
-      ready = union.getQueries();
-    } else {
-      final Query<T> target = union.getQuery();
-      ready = Lists.transform(
-          target.getDataSource().getNames(), new Function<String, Query<T>>()
-          {
-            @Override
-            public Query<T> apply(String dataSource)
-            {
-              return target.withDataSource(TableDataSource.of(dataSource));
-            }
-          }
-      );
-    }
-    return ready;
-  }
 }

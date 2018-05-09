@@ -271,7 +271,7 @@ public class BrokerQueryResource extends QueryResource
         throw new IllegalArgumentException("parallel forwarding is supported only for hdfs, for now");
       }
       // make a copy
-      Map<String, Object> context = Maps.newHashMap(query.getContext());
+      Map<String, Object> context = BaseQuery.copyContext(query);
 
       Map<String, Object> forwardContext = BaseQuery.getResultForwardContext(query);
       forwardContext.put(Query.FORWARD_PARALLEL, false);

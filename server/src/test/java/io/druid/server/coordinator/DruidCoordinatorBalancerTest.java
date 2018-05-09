@@ -26,6 +26,7 @@ import com.google.common.collect.MinMaxPriorityQueue;
 import com.google.common.util.concurrent.ListeningExecutorService;
 import com.google.common.util.concurrent.MoreExecutors;
 import io.druid.client.ImmutableDruidServer;
+import io.druid.collections.CountingMap;
 import io.druid.timeline.DataSegment;
 import io.druid.timeline.partition.NoneShardSpec;
 import org.easymock.EasyMock;
@@ -210,8 +211,10 @@ public class DruidCoordinatorBalancerTest
                                 .build();
 
     params = new DruidCoordinatorBalancerTester(coordinator).run(params);
-    Assert.assertTrue(params.getCoordinatorStats().getPerTierStats().get("movedCount").get("normal").get() > 0);
-    Assert.assertTrue(params.getCoordinatorStats().getPerTierStats().get("movedCount").get("normal").get() < segments.size());
+    Map<String, CountingMap<String>> stats = params.getCoordinatorStats().getPerTierStats();
+    CountingMap<String> movedCount = stats.get("movedCount");
+    Assert.assertTrue(stats.toString(), movedCount.get("normal").get() > 0);
+    Assert.assertTrue(stats.toString(), movedCount.get("normal").get() < segments.size());
     exec.shutdown();
   }
 

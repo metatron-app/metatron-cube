@@ -372,6 +372,11 @@ public abstract class BaseQuery<T> implements Query<T>
     return builder.toString();
   }
 
+  public static Map<String, Object> copyContext(Query<?> query)
+  {
+    return query.getContext() == null ? Maps.<String, Object>newHashMap() : Maps.newHashMap(query.getContext());
+  }
+
   public static Map<String, Object> removeContext(String... keys)
   {
     Map<String, Object> remover = Maps.newHashMap();

@@ -40,6 +40,7 @@ import com.metamx.common.logger.Logger;
 import com.yahoo.sketches.quantiles.ItemsSketch;
 import com.yahoo.sketches.theta.Sketch;
 import io.druid.common.guava.GuavaUtils;
+import io.druid.data.Rows;
 import io.druid.data.ValueDesc;
 import io.druid.data.ValueType;
 import io.druid.granularity.QueryGranularities;
@@ -93,6 +94,7 @@ public class SummaryPostProcessor extends PostProcessingOperator.UnionSupport
   private static final Logger LOG = new Logger(SimilarityProcessingOperator.class);
 
   private final boolean includeTimeStats;
+  private final boolean includeCovariance;
   private final Map<String, Map<String, Integer>> typeDetail;
   private final QuerySegmentWalker segmentWalker;
   private final ListeningExecutorService exec;
@@ -100,12 +102,14 @@ public class SummaryPostProcessor extends PostProcessingOperator.UnionSupport
   @JsonCreator
   public SummaryPostProcessor(
       @JsonProperty("includeTimeStats") boolean includeTimeStats,
+      @JsonProperty("includeCovariance") boolean includeCovariance,
       @JsonProperty("typeDetail") Map<String, Map<String, Integer>> typeDetail,
       @JacksonInject QuerySegmentWalker segmentWalker,
       @JacksonInject @Processing ExecutorService exec
   )
   {
     this.includeTimeStats = includeTimeStats;
+    this.includeCovariance = includeCovariance;
     this.typeDetail = typeDetail;
     this.segmentWalker = segmentWalker;
     this.exec = MoreExecutors.listeningDecorator(exec);
@@ -157,13 +161,13 @@ public class SummaryPostProcessor extends PostProcessingOperator.UnionSupport
               }
             }
             List<AggregatorFactory> aggregators = Lists.newArrayList();
-            if (numericColumns.size() >= 2) {
+            if (includeCovariance && numericColumns.size() >= 2) {
               List<String> columnNames = Lists.newArrayList(numericColumns.keySet());
               for (int i = 0; i < columnNames.size(); i++) {
                 for (int j = i + 1; j < columnNames.size(); j++) {
                   String from = columnNames.get(i);
                   String to = columnNames.get(j);
-                  String name = "covariance(" + from + ", " + to + ")";
+                  String name = "covariance(" + from + "," + to + ")";
                   aggregators.add(new PearsonAggregatorFactory(name, from, to, null, "double"));
                 }
               }
@@ -303,6 +307,18 @@ public class SummaryPostProcessor extends PostProcessingOperator.UnionSupport
                             stats.put("stddev", row.getDoubleMetric(column + ".stddev"));
                             stats.put("skewness", row.getDoubleMetric(column + ".skewness"));
                             stats.put("outliers", row.getLongMetric(column + ".outlier"));
+                          }
+                          if (includeCovariance && type.isNumeric()) {
+                            String covariance = "covariance(" + column + ",";
+                            for (Map.Entry<String, Object> entry : row.getBaseObject().entrySet()) {
+                              String key = entry.getKey();
+                              if (key.startsWith(covariance) && key.endsWith(")")) {
+                                stats.put(
+                                    "covariance." + key.substring(covariance.length(), key.length() - 1),
+                                    Rows.parseDouble(entry.getValue())
+                                );
+                              }
+                            }
                           }
                         }
                         return 0;

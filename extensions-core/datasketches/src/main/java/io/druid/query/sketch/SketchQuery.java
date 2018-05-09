@@ -29,10 +29,13 @@ import io.druid.query.BaseQuery;
 import io.druid.query.DataSource;
 import io.druid.query.Query;
 import io.druid.query.Result;
+import io.druid.query.TableDataSource;
 import io.druid.query.dimension.DimensionSpec;
 import io.druid.query.filter.DimFilter;
+import io.druid.query.spec.MultipleIntervalSegmentSpec;
 import io.druid.query.spec.QuerySegmentSpec;
 import io.druid.segment.VirtualColumn;
+import org.joda.time.Interval;
 
 import java.util.List;
 import java.util.Map;
@@ -44,6 +47,20 @@ import java.util.Objects;
 public class SketchQuery extends BaseQuery<Result<Map<String, Object>>>
     implements Query.MetricSupport<Result<Map<String, Object>>>
 {
+  public static SketchQuery theta(String dataSource, Interval interval)
+  {
+    return new SketchQuery(
+        TableDataSource.of(dataSource),
+        MultipleIntervalSegmentSpec.of(interval),
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null
+    );
+  }
   private final List<DimensionSpec> dimensions;
   private final List<String> metrics;
   private final List<VirtualColumn> virtualColumns;

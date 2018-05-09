@@ -20,24 +20,20 @@
 package io.druid.query.sketch;
 
 import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.Module;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.Lists;
-import com.metamx.common.guava.Sequences;
+import com.google.common.collect.Maps;
 import com.yahoo.sketches.frequencies.ItemsSketch;
+import io.druid.common.utils.Sequences;
 import io.druid.data.ValueDesc;
 import io.druid.query.Query;
-import io.druid.query.QueryRunner;
 import io.druid.query.QueryRunnerTestHelper;
 import io.druid.query.Result;
 import io.druid.query.TableDataSource;
-import io.druid.query.aggregation.datasketches.theta.SketchModule;
 import io.druid.query.aggregation.datasketches.theta.SketchOperations;
 import io.druid.query.dimension.DefaultDimensionSpec;
 import io.druid.query.filter.BoundDimFilter;
 import io.druid.query.filter.DimFilters;
-import io.druid.segment.TestHelper;
+import io.druid.segment.TestIndex;
 import org.joda.time.DateTime;
 import org.joda.time.Interval;
 import org.junit.Assert;
@@ -53,43 +49,25 @@ import java.util.Map;
 /**
  */
 @RunWith(Parameterized.class)
-public class FrequencySketchQueryRunnerTest
+public class FrequencySketchQueryRunnerTest extends SketchQueryRunnerTest
 {
-  private static final SketchQueryQueryToolChest toolChest = new SketchQueryQueryToolChest(
-      QueryRunnerTestHelper.NoopIntervalChunkingQueryRunnerDecorator()
-  );
-
-  @Parameterized.Parameters
+  @Parameterized.Parameters(name = "{0}")
   public static Iterable<Object[]> constructorFeeder() throws IOException
   {
-    return QueryRunnerTestHelper.transformToConstructionFeeder(
-        QueryRunnerTestHelper.makeQueryRunners(
-            new SketchQueryRunnerFactory(
-                toolChest,
-                QueryRunnerTestHelper.NOOP_QUERYWATCHER
-            )
-        )
-    );
+    return QueryRunnerTestHelper.transformToConstructionFeeder(Arrays.asList(TestIndex.DS_NAMES));
   }
 
-  private final QueryRunner<Result<Map<String, Object>>> runner;
+  private final String dataSource;
 
-  @SuppressWarnings("unchecked")
-  public FrequencySketchQueryRunnerTest(
-      QueryRunner runner
-  )
+  public FrequencySketchQueryRunnerTest(String dataSource)
   {
-    this.runner = runner;
+    this.dataSource = dataSource;
   }
 
   @Test
   public void testSketchResultSerDe() throws Exception
   {
     SketchHandler handler = SketchOp.FREQUENCY.handler();
-    ObjectMapper mapper = TestHelper.JSON_MAPPER;
-    for (Module module : new SketchModule().getJacksonModules()) {
-      mapper = mapper.registerModule(module);
-    }
     int nomEntries = 16;
     TypedSketch union1 = handler.newUnion(nomEntries, ValueDesc.STRING, null);
     handler.updateWithValue(union1, "automotive");
@@ -126,7 +104,7 @@ public class FrequencySketchQueryRunnerTest
     Map<String, Object> sketches = ImmutableMap.<String, Object>of("quality1", sketch1, "quality2", sketch2);
     Result<Map<String, Object>> result = new Result<>(new DateTime("2016-12-14T16:08:00"), sketches);
 
-    String serialized = mapper.writeValueAsString(result);
+    String serialized = JSON_MAPPER.writeValueAsString(result);
     Assert.assertEquals(
         "{\"timestamp\":\"2016-12-14T16:08:00.000Z\","
         + "\"result\":{"
@@ -134,7 +112,7 @@ public class FrequencySketchQueryRunnerTest
         + "\"quality2\":\"BAEKBAQAAAAIAAAAAAAAABUAAAAAAAAAAQAAAAAAAAABAAAAAAAAAAEAAAAAAAAAAQAAAAAAAAABAAAAAAAAAAEAAAAAAAAAAQAAAAAAAAABAAAAAAAAAAEAAAAAAAAACAAAAHByZW1pdW0xCgAAAG1lenphbmluZTIFAAAAbmV3czMFAAAAbmV3czIIAAAAcHJlbWl1bTIKAAAAbWV6emFuaW5lMwUAAABuZXdzMQgAAABwcmVtaXVtMw==\"}}",
         serialized
     );
-    Result<Map<String, Object>> deserialized = mapper.readValue(
+    Result<Map<String, Object>> deserialized = JSON_MAPPER.readValue(
         serialized,
         new TypeReference<Result<Map<String, Object>>>()
         {
@@ -162,7 +140,7 @@ public class FrequencySketchQueryRunnerTest
                 )
                 .build();
 
-    System.out.println(mapper.convertValue(object, Query.class));
+    System.out.println(JSON_MAPPER.convertValue(object, Query.class));
   }
 
   @Test
@@ -208,7 +186,7 @@ public class FrequencySketchQueryRunnerTest
   public void testSketchQuery() throws Exception
   {
     SketchQuery baseQuery = new SketchQuery(
-        new TableDataSource(QueryRunnerTestHelper.dataSource),
+        new TableDataSource(dataSource),
         QueryRunnerTestHelper.fullOnInterval,
         null,
         null,
@@ -221,8 +199,7 @@ public class FrequencySketchQueryRunnerTest
           ImmutableMap.<String, Object>of(Query.ALL_METRICS_FOR_EMPTY, includeMetric)
       );
       List<Result<Map<String, Object>>> result = Sequences.toList(
-          runner.run(query, null),
-          Lists.<Result<Map<String, Object>>>newArrayList()
+          query.run(segmentWalker, Maps.<String, Object>newHashMap())
       );
       Assert.assertEquals(1, result.size());
       Map<String, Object> values = result.get(0).getValue();
@@ -250,7 +227,7 @@ public class FrequencySketchQueryRunnerTest
   public void testSketchQueryWithFilter() throws Exception
   {
     SketchQuery query = new SketchQuery(
-        new TableDataSource(QueryRunnerTestHelper.dataSource),
+        new TableDataSource(dataSource),
         QueryRunnerTestHelper.fullOnInterval,
         DimFilters.and(
             BoundDimFilter.gt("market", "spot"),
@@ -262,8 +239,7 @@ public class FrequencySketchQueryRunnerTest
     );
 
     List<Result<Map<String, Object>>> result = Sequences.toList(
-        runner.run(query, null),
-        Lists.<Result<Map<String, Object>>>newArrayList()
+        query.run(segmentWalker, Maps.<String, Object>newHashMap())
     );
     Assert.assertEquals(1, result.size());
     Map<String, Object> values = result.get(0).getValue();

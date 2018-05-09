@@ -62,6 +62,7 @@ public class SummaryQuery extends BaseQuery<Result<Map<String, Object>>>
   private final List<String> metrics;
   private final List<VirtualColumn> virtualColumns;
   private final boolean includeTimeStats;
+  private final boolean includeCovariance;
 
   @JsonCreator
   public SummaryQuery(
@@ -72,6 +73,7 @@ public class SummaryQuery extends BaseQuery<Result<Map<String, Object>>>
       @JsonProperty("metrics") List<String> metrics,
       @JsonProperty("filter") DimFilter filter,
       @JsonProperty("includeTimeStats") boolean includeTimeStats,
+      @JsonProperty("includeCovariance") boolean includeCovariance,
       @JsonProperty("context") Map<String, Object> context
   )
   {
@@ -81,6 +83,7 @@ public class SummaryQuery extends BaseQuery<Result<Map<String, Object>>>
     this.metrics = metrics == null ? ImmutableList.<String>of() : metrics;
     this.virtualColumns = virtualColumns == null ? ImmutableList.<VirtualColumn>of() : virtualColumns;
     this.includeTimeStats = includeTimeStats;
+    this.includeCovariance = includeCovariance;
   }
 
   @Override
@@ -89,7 +92,7 @@ public class SummaryQuery extends BaseQuery<Result<Map<String, Object>>>
   {
     Map<String, Map<ValueDesc, MutableInt>> results = QueryUtils.analyzeTypes(segmentWalker, this);
 
-    Map<String, ValueDesc> majorTypes = Maps.newHashMap();
+    Map<String, String> majorTypes = Maps.newHashMap();
     Map<String, Map<String, Integer>> typeDetail = Maps.newHashMap();
 
     for (Map.Entry<String, Map<ValueDesc, MutableInt>> entry : results.entrySet()) {
@@ -107,7 +110,7 @@ public class SummaryQuery extends BaseQuery<Result<Map<String, Object>>>
       if (value.size() == 1) {
         ValueDesc type = containsComplex ? ValueDesc.STRING : Iterables.getOnlyElement(value.keySet());
         MutableInt count = Iterables.getOnlyElement(value.values());
-        majorTypes.put(column, type);
+        majorTypes.put(column, type.typeName());
         typeDetail.put(column, ImmutableMap.of(type.typeName(), count.intValue()));
         continue;
       }
@@ -125,11 +128,11 @@ public class SummaryQuery extends BaseQuery<Result<Map<String, Object>>>
       for (Map.Entry<ValueDesc, MutableInt> e : value.entrySet()) {
         detail.put(e.getKey().typeName(), e.getValue().intValue());
       }
-      majorTypes.put(column, major);
+      majorTypes.put(column, major.typeName());
       typeDetail.put(column, detail);
     }
 
-    Map<String, Object> sketchContext = Maps.newHashMap(getContext());
+    Map<String, Object> sketchContext = BaseQuery.copyContext(this);
     if (!majorTypes.isEmpty()) {
       sketchContext.put(Query.MAJOR_TYPES, majorTypes);
     }
@@ -147,7 +150,12 @@ public class SummaryQuery extends BaseQuery<Result<Map<String, Object>>>
 
     Map<String, Object> postProcessor = ImmutableMap.<String, Object>of(
         QueryContextKeys.POST_PROCESSING,
-        ImmutableMap.of("type", "sketch.summary", "includeTimeStats", includeTimeStats, "typeDetail", typeDetail)
+        ImmutableMap.of(
+            "type", "sketch.summary",
+            "includeTimeStats", includeTimeStats,
+            "includeCovariance", includeCovariance,
+            "typeDetail", typeDetail
+        )
     );
     Map<String, Object> summaryContext = computeOverriddenContext(postProcessor);
 
@@ -198,6 +206,12 @@ public class SummaryQuery extends BaseQuery<Result<Map<String, Object>>>
     return includeTimeStats;
   }
 
+  @JsonProperty
+  public boolean isIncludeCovariance()
+  {
+    return includeCovariance;
+  }
+
   @Override
   public SummaryQuery withDimensionSpecs(List<DimensionSpec> dimensions)
   {
@@ -209,6 +223,7 @@ public class SummaryQuery extends BaseQuery<Result<Map<String, Object>>>
         metrics,
         dimFilter,
         includeTimeStats,
+        includeCovariance,
         getContext()
     );
   }
@@ -224,6 +239,7 @@ public class SummaryQuery extends BaseQuery<Result<Map<String, Object>>>
         metrics,
         dimFilter,
         includeTimeStats,
+        includeCovariance,
         getContext()
     );
   }
@@ -239,6 +255,7 @@ public class SummaryQuery extends BaseQuery<Result<Map<String, Object>>>
         metrics,
         dimFilter,
         includeTimeStats,
+        includeCovariance,
         getContext()
     );
   }
@@ -254,6 +271,7 @@ public class SummaryQuery extends BaseQuery<Result<Map<String, Object>>>
         metrics,
         dimFilter,
         includeTimeStats,
+        includeCovariance,
         getContext()
     );
   }
@@ -269,6 +287,7 @@ public class SummaryQuery extends BaseQuery<Result<Map<String, Object>>>
         metrics,
         dimFilter,
         includeTimeStats,
+        includeCovariance,
         getContext()
     );
   }
@@ -284,6 +303,7 @@ public class SummaryQuery extends BaseQuery<Result<Map<String, Object>>>
         metrics,
         dimFilter,
         includeTimeStats,
+        includeCovariance,
         computeOverriddenContext(contextOverride)
     );
   }
@@ -299,6 +319,7 @@ public class SummaryQuery extends BaseQuery<Result<Map<String, Object>>>
         metrics,
         dimFilter,
         includeTimeStats,
+        includeCovariance,
         getContext()
     );
   }
@@ -307,7 +328,7 @@ public class SummaryQuery extends BaseQuery<Result<Map<String, Object>>>
   public String toString()
   {
     StringBuilder builder = new StringBuilder(64)
-        .append("MetatronDimensionSketchQuery{")
+        .append("SummaryQuery{")
         .append("dataSource='").append(getDataSource()).append('\'')
         .append(", querySegmentSpec=").append(getQuerySegmentSpec());
 
@@ -324,6 +345,7 @@ public class SummaryQuery extends BaseQuery<Result<Map<String, Object>>>
       builder.append(", metrics=").append(metrics);
     }
     builder.append(", includeTimeStats=").append(includeTimeStats);
+    builder.append(", includeCovariance=").append(includeCovariance);
     return builder.toString();
   }
 }

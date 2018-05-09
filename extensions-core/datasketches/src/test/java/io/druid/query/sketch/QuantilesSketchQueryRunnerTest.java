@@ -24,14 +24,12 @@ import com.fasterxml.jackson.databind.Module;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
+import com.google.common.collect.Sets;
 import com.yahoo.sketches.quantiles.ItemsSketch;
 import io.druid.common.utils.Sequences;
 import io.druid.data.ValueDesc;
 import io.druid.jackson.DefaultObjectMapper;
-import io.druid.query.DefaultQueryRunnerFactoryConglomerate;
 import io.druid.query.Query;
-import io.druid.query.QueryRunnerFactory;
-import io.druid.query.QueryRunnerFactoryConglomerate;
 import io.druid.query.QueryRunnerTestHelper;
 import io.druid.query.Result;
 import io.druid.query.TableDataSource;
@@ -41,10 +39,8 @@ import io.druid.query.dimension.DefaultDimensionSpec;
 import io.druid.query.filter.BoundDimFilter;
 import io.druid.query.filter.DimFilters;
 import io.druid.segment.ExprVirtualColumn;
-import io.druid.segment.TestHelper;
 import io.druid.segment.TestIndex;
 import io.druid.segment.VirtualColumn;
-import io.druid.sql.calcite.util.SpecificSegmentsQuerySegmentWalker;
 import org.joda.time.DateTime;
 import org.joda.time.Interval;
 import org.junit.Assert;
@@ -61,32 +57,8 @@ import java.util.Map;
  */
 @RunWith(Parameterized.class)
 @SuppressWarnings("unchecked")
-public class QuantilesSketchQueryRunnerTest
+public class QuantilesSketchQueryRunnerTest extends SketchQueryRunnerTest
 {
-  private static final SketchQueryQueryToolChest toolChest = new SketchQueryQueryToolChest(
-      QueryRunnerTestHelper.NoopIntervalChunkingQueryRunnerDecorator()
-  );
-
-  private static final SpecificSegmentsQuerySegmentWalker segmentWalker;
-
-  static {
-    QueryRunnerFactoryConglomerate conglomerate = TestIndex.segmentWalker.getQueryRunnerFactoryConglomerate();
-    if (conglomerate.findFactory(
-        new SketchQuery(TableDataSource.of("dummy"), null, null, null, null, null, null, null, null)
-    ) == null) {
-      Map<Class<? extends Query>, QueryRunnerFactory> factoryMap = Maps.newHashMap(
-          ((DefaultQueryRunnerFactoryConglomerate) conglomerate).getFactories()
-      );
-      factoryMap.put(
-          SketchQuery.class,
-          new SketchQueryRunnerFactory(toolChest, QueryRunnerTestHelper.NOOP_QUERYWATCHER)
-      );
-      conglomerate = new DefaultQueryRunnerFactoryConglomerate(factoryMap);
-    }
-    segmentWalker = TestIndex.segmentWalker.withConglomerate(conglomerate);
-  }
-
-
   @Parameterized.Parameters(name = "{0}")
   public static Iterable<Object[]> constructorFeeder() throws IOException
   {
@@ -104,10 +76,6 @@ public class QuantilesSketchQueryRunnerTest
   public void testSketchResultSerDe() throws Exception
   {
     SketchHandler handler = SketchOp.QUANTILE.handler();
-    ObjectMapper mapper = TestHelper.JSON_MAPPER;
-    for (Module module : new SketchModule().getJacksonModules()) {
-      mapper = mapper.registerModule(module);
-    }
     int nomEntries = 16;
     TypedSketch union1 = handler.newUnion(nomEntries, ValueDesc.STRING, null);
     handler.updateWithValue(union1, "automotive");
@@ -144,7 +112,7 @@ public class QuantilesSketchQueryRunnerTest
     Map<String, Object> sketches = ImmutableMap.<String, Object>of("quality1", sketch1, "quality2", sketch2);
     Result<Map<String, Object>> result = new Result<>(new DateTime("2016-12-14T16:08:00"), sketches);
 
-    String serialized = mapper.writeValueAsString(result);
+    String serialized = JSON_MAPPER.writeValueAsString(result);
     Assert.assertEquals(
         "{\"timestamp\":\"2016-12-14T16:08:00.000Z\","
         + "\"result\":{"
@@ -152,7 +120,7 @@ public class QuantilesSketchQueryRunnerTest
         + "\"quality2\":\"AgMICBAAAAAVAAAAAAAAAAsAAABhdXRvbW90aXZlMQgAAABwcmVtaXVtMwsAAABhdXRvbW90aXZlMQsAAABhdXRvbW90aXZlMgsAAABhdXRvbW90aXZlMwkAAABidXNpbmVzczEJAAAAYnVzaW5lc3MyCQAAAGJ1c2luZXNzMw4AAABlbnRlcnRhaW5tZW50MQ4AAABlbnRlcnRhaW5tZW50Mg4AAABlbnRlcnRhaW5tZW50MwcAAABoZWFsdGgxBwAAAGhlYWx0aDIHAAAAaGVhbHRoMwoAAABtZXp6YW5pbmUxCgAAAG1lenphbmluZTIKAAAAbWV6emFuaW5lMwUAAABuZXdzMQUAAABuZXdzMgUAAABuZXdzMwgAAABwcmVtaXVtMQgAAABwcmVtaXVtMggAAABwcmVtaXVtMw==\"}}",
         serialized
     );
-    Result<Map<String, Object>> deserialized = mapper.readValue(
+    Result<Map<String, Object>> deserialized = JSON_MAPPER.readValue(
         serialized,
         new TypeReference<Result<Map<String, Object>>>()
         {
@@ -180,7 +148,7 @@ public class QuantilesSketchQueryRunnerTest
                 )
                 .build();
 
-    System.out.println(mapper.convertValue(object, Query.class));
+    System.out.println(JSON_MAPPER.convertValue(object, Query.class));
   }
 
   @Test
@@ -243,7 +211,8 @@ public class QuantilesSketchQueryRunnerTest
       TypedSketch<ItemsSketch> sketch1 = (TypedSketch<ItemsSketch>) values.get("market");
       TypedSketch<ItemsSketch> sketch2 = (TypedSketch<ItemsSketch>) values.get("quality");
       Assert.assertEquals("spot", sketch1.value().getQuantile(0.5d));
-      Assert.assertEquals("mezzanine", sketch2.value().getQuantile(0.5d));
+      final Object quantile = sketch2.value().getQuantile(0.5d);
+      Assert.assertTrue(Sets.<Object>newHashSet("mezzanine", "news").contains(quantile));
     }
   }
 

@@ -169,7 +169,7 @@ public class DirectDruidClient<T> implements QueryRunner<T>
         log.info("Took %,d msec to write query[%s] to url[%s]", elapsed, query.getId(), url);
       }
 
-      queryWatcher.registerQuery(query, Execs.tag(future, host));
+      queryWatcher.registerQuery(query, Execs.tag(future, host + "(" + query.getType() + ")"));
 
       openConnections.getAndIncrement();
       Futures.addCallback(

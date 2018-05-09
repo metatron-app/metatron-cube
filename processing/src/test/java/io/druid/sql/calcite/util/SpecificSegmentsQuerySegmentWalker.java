@@ -19,7 +19,9 @@
 
 package io.druid.sql.calcite.util;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Function;
+import com.google.common.base.Preconditions;
 import com.google.common.base.Predicates;
 import com.google.common.base.Supplier;
 import com.google.common.collect.Iterables;
@@ -34,7 +36,9 @@ import io.druid.query.BySegmentQueryRunner;
 import io.druid.query.DataSource;
 import io.druid.query.NoopQueryRunner;
 import io.druid.query.PostProcessingOperators;
+import io.druid.query.Queries;
 import io.druid.query.Query;
+import io.druid.query.QueryConfig;
 import io.druid.query.QueryDataSource;
 import io.druid.query.QueryRunner;
 import io.druid.query.QueryRunnerFactory;
@@ -44,7 +48,7 @@ import io.druid.query.QueryToolChest;
 import io.druid.query.ReportTimelineMissingSegmentQueryRunner;
 import io.druid.query.RowResolver;
 import io.druid.query.SegmentDescriptor;
-import io.druid.query.groupby.GroupByQueryConfig;
+import io.druid.query.UnionAllQuery;
 import io.druid.query.groupby.GroupByQueryHelper;
 import io.druid.query.spec.SpecificSegmentQueryRunner;
 import io.druid.query.spec.SpecificSegmentSpec;
@@ -65,36 +69,82 @@ import javax.annotation.Nullable;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
 
 /**
  */
 public class SpecificSegmentsQuerySegmentWalker implements QuerySegmentWalker
 {
+  private final ObjectMapper objectMapper;
   private final QueryRunnerFactoryConglomerate conglomerate;
-  private final GroupByQueryConfig groupByConfig;
-  private final Map<String, VersionedIntervalTimeline<String, Segment>> timelines;
+  private final ExecutorService executor;
+  private final QueryConfig queryConfig;
+  private final Map<String, VersionedIntervalTimeline<String, Segment>> timeLines;
   private final List<DataSegment> segments;
 
   public SpecificSegmentsQuerySegmentWalker(QueryRunnerFactoryConglomerate conglomerate)
   {
+    this.objectMapper = TestHelper.JSON_MAPPER;
     this.conglomerate = conglomerate;
-    this.groupByConfig = new GroupByQueryConfig();
-    this.timelines = Maps.newHashMap();
+    this.executor = MoreExecutors.sameThreadExecutor();
+    this.queryConfig = new QueryConfig();
+    this.timeLines = Maps.newHashMap();
     this.segments = Lists.newArrayList();
   }
 
   private SpecificSegmentsQuerySegmentWalker(
+      ObjectMapper objectMapper,
       QueryRunnerFactoryConglomerate conglomerate,
-      GroupByQueryConfig groupByConfig,
-      Map<String, VersionedIntervalTimeline<String, Segment>> timelines,
+      ExecutorService executor,
+      QueryConfig queryConfig,
+      Map<String, VersionedIntervalTimeline<String, Segment>> timeLines,
       List<DataSegment> segments
   )
   {
+    this.objectMapper = objectMapper;
     this.conglomerate = conglomerate;
-    this.groupByConfig = groupByConfig;
-    this.timelines = timelines;
+    this.executor = executor;
+    this.queryConfig = queryConfig;
+    this.timeLines = timeLines;
     this.segments = segments;
+  }
+
+  public SpecificSegmentsQuerySegmentWalker withConglomerate(QueryRunnerFactoryConglomerate conglomerate)
+  {
+    return new SpecificSegmentsQuerySegmentWalker(
+        objectMapper,
+        conglomerate,
+        executor,
+        queryConfig,
+        timeLines,
+        segments
+    );
+  }
+
+  public SpecificSegmentsQuerySegmentWalker withObjectMapper(ObjectMapper objectMapper)
+  {
+    return new SpecificSegmentsQuerySegmentWalker(
+        objectMapper,
+        conglomerate,
+        executor,
+        queryConfig,
+        timeLines,
+        segments
+    );
+  }
+
+  public SpecificSegmentsQuerySegmentWalker withExecutor(ExecutorService executor)
+  {
+    return new SpecificSegmentsQuerySegmentWalker(
+        objectMapper,
+        conglomerate,
+        executor,
+        queryConfig,
+        timeLines,
+        segments
+    );
   }
 
   public QueryRunnerFactoryConglomerate getQueryRunnerFactoryConglomerate()
@@ -102,9 +152,9 @@ public class SpecificSegmentsQuerySegmentWalker implements QuerySegmentWalker
     return conglomerate;
   }
 
-  public SpecificSegmentsQuerySegmentWalker withConglomerate(QueryRunnerFactoryConglomerate conglomerate)
+  public ExecutorService getExecutor()
   {
-    return new SpecificSegmentsQuerySegmentWalker(conglomerate, groupByConfig, timelines, segments);
+    return executor;
   }
 
   public SpecificSegmentsQuerySegmentWalker add(DataSegment descriptor, IncrementalIndex index)
@@ -119,10 +169,10 @@ public class SpecificSegmentsQuerySegmentWalker implements QuerySegmentWalker
 
   private SpecificSegmentsQuerySegmentWalker addSegment(DataSegment descriptor, Segment segment)
   {
-    if (!timelines.containsKey(descriptor.getDataSource())) {
-      timelines.put(descriptor.getDataSource(), new VersionedIntervalTimeline<String, Segment>(Ordering.natural()));
+    if (!timeLines.containsKey(descriptor.getDataSource())) {
+      timeLines.put(descriptor.getDataSource(), new VersionedIntervalTimeline<String, Segment>(Ordering.natural()));
     }
-    VersionedIntervalTimeline<String, Segment> timeline = timelines.get(descriptor.getDataSource());
+    VersionedIntervalTimeline<String, Segment> timeline = timeLines.get(descriptor.getDataSource());
     timeline.add(descriptor.getInterval(), descriptor.getVersion(), descriptor.getShardSpec().createChunk(segment));
     segments.add(descriptor);
     return this;
@@ -133,16 +183,69 @@ public class SpecificSegmentsQuerySegmentWalker implements QuerySegmentWalker
     return segments;
   }
 
+  @SuppressWarnings("unchecked")
+  private <T> Query<T> prepareQuery(Query<T> query)
+  {
+    query = Queries.iterate(
+        query, new Function<Query, Query>()
+        {
+          @Override
+          public Query apply(Query input)
+          {
+            if (input instanceof Query.RewritingQuery) {
+              return ((Query.RewritingQuery) input).rewriteQuery(
+                  SpecificSegmentsQuerySegmentWalker.this,
+                  queryConfig,
+                  objectMapper
+              );
+            }
+            return input;
+          }
+        }
+    );
+    final String queryId = query.getId() == null ? UUID.randomUUID().toString() : query.getId();
+    return Queries.iterate(
+        query, new Function<Query, Query>()
+        {
+          @Override
+          public Query apply(Query input)
+          {
+            if (input.getId() == null) {
+              input = input.withId(queryId);
+            }
+            return input;
+          }
+        }
+    );
+  }
+
   @Override
   public <T> QueryRunner<T> getQueryRunnerForIntervals(Query<T> query, Iterable<Interval> intervals)
   {
-    DataSource dataSource = query.getDataSource();
+    final Query<T> prepared = prepareQuery(query);
+    final QueryRunner<T> runner = makeQueryRunnerForIntervals(prepared, intervals);
+    if (query == prepared) {
+      return runner;
+    }
+    return new QueryRunner<T>()
+    {
+      @Override
+      public Sequence<T> run(Query<T> query, Map<String, Object> responseContext)
+      {
+        return runner.run(prepared, responseContext);
+      }
+    };
+  }
+
+  private <T> QueryRunner<T> makeQueryRunnerForIntervals(Query<T> query, Iterable<Interval> intervals)
+  {
+    query = prepareQuery(query);    DataSource dataSource = query.getDataSource();
     String dataSourceName = getDataSourceName(dataSource);
 
-    final VersionedIntervalTimeline<String, Segment> timeline = timelines.get(dataSourceName);
+    final VersionedIntervalTimeline<String, Segment> timeline = timeLines.get(dataSourceName);
 
     if (timeline == null) {
-      return PostProcessingOperators.wrap(new NoopQueryRunner<T>(), TestHelper.JSON_MAPPER);
+      return PostProcessingOperators.wrap(new NoopQueryRunner<T>(), objectMapper);
     }
 
     FunctionalIterable<Pair<SegmentDescriptor, Segment>> segments = FunctionalIterable
@@ -203,11 +306,28 @@ public class SpecificSegmentsQuerySegmentWalker implements QuerySegmentWalker
   @Override
   public <T> QueryRunner<T> getQueryRunnerForSegments(Query<T> query, Iterable<SegmentDescriptor> specs)
   {
+    final Query<T> prepared = prepareQuery(query);
+    final QueryRunner<T> runner = makeQueryRunnerForSegments(prepared, specs);
+    if (query == prepared) {
+      return runner;
+    }
+    return new QueryRunner<T>()
+    {
+      @Override
+      public Sequence<T> run(Query<T> query, Map<String, Object> responseContext)
+      {
+        return runner.run(prepared, responseContext);
+      }
+    };
+  }
+
+  private <T> QueryRunner<T> makeQueryRunnerForSegments(Query<T> query, Iterable<SegmentDescriptor> specs)
+  {
     String dataSourceName = getDataSourceName(query.getDataSource());
 
-    final VersionedIntervalTimeline<String, Segment> timeline = timelines.get(dataSourceName);
+    final VersionedIntervalTimeline<String, Segment> timeline = timeLines.get(dataSourceName);
     if (timeline == null) {
-      return PostProcessingOperators.wrap(new NoopQueryRunner<T>(), TestHelper.JSON_MAPPER);
+      return PostProcessingOperators.wrap(new NoopQueryRunner<T>(), objectMapper);
     }
 
     List<Pair<SegmentDescriptor, Segment>> segments = Lists.newArrayList(
@@ -238,28 +358,33 @@ public class SpecificSegmentsQuerySegmentWalker implements QuerySegmentWalker
   private <T> QueryRunner<T> toQueryRunner(Query<T> query, Iterable<Pair<SegmentDescriptor, Segment>> segments)
   {
     final QueryRunnerFactory<T, Query<T>> factory = conglomerate.findFactory(query);
-    if (factory == null) {
-      return PostProcessingOperators.wrap(new NoopQueryRunner<T>(), TestHelper.JSON_MAPPER);
-    }
-    final QueryToolChest<T, Query<T>> toolChest = factory.getToolchest();
-
     if (query.getDataSource() instanceof QueryDataSource) {
+      Preconditions.checkNotNull(factory, query + " does not supports nested query");
+
+      QueryToolChest<T, Query<T>> toolChest = factory.getToolchest();
       Query innerQuery = ((QueryDataSource) query.getDataSource()).getQuery()
                                                                   .withOverriddenContext(query.getContext())
                                                                   .withOverriddenContext(Query.FINALIZE, false);
-      int maxResult = groupByConfig.getMaxResults();
+      int maxResult = queryConfig.getMaxResults();
       int maxRowCount = Math.min(
           query.getContextValue(GroupByQueryHelper.CTX_KEY_MAX_RESULTS, maxResult),
           maxResult
       );
-      QueryRunner runner = getQueryRunnerForIntervals(innerQuery, innerQuery.getIntervals());
+      QueryRunner runner = innerQuery.getQuerySegmentSpec().lookup(innerQuery, this);
       runner = toolChest.finalQueryDecoration(
           toolChest.finalizeMetrics(
-              toolChest.handleSubQuery(runner, this, MoreExecutors.sameThreadExecutor(), maxRowCount)
+              toolChest.handleSubQuery(runner, this, executor, maxRowCount)
           )
       );
-      return PostProcessingOperators.wrap(runner, TestHelper.JSON_MAPPER);
+      return PostProcessingOperators.wrap(runner, objectMapper);
     }
+    if (query instanceof UnionAllQuery) {
+      return ((UnionAllQuery) query).getUnionQueryRunner(objectMapper, executor, this);
+    }
+    if (factory == null) {
+      return PostProcessingOperators.wrap(new NoopQueryRunner<T>(), objectMapper);
+    }
+    final QueryToolChest<T, Query<T>> toolChest = factory.getToolchest();
 
     final List<Segment> targets = Lists.newArrayList(
         Iterables.filter(
@@ -270,17 +395,12 @@ public class SpecificSegmentsQuerySegmentWalker implements QuerySegmentWalker
         )
     );
     if (targets.isEmpty()) {
-      return PostProcessingOperators.wrap(new NoopQueryRunner<T>(), TestHelper.JSON_MAPPER);
+      return PostProcessingOperators.wrap(new NoopQueryRunner<T>(), objectMapper);
     }
 
     final Supplier<RowResolver> resolver = RowResolver.supplier(targets, query);
     final Query<T> resolved = query.resolveQuery(resolver);
-    final Future<Object> optimizer = factory.preFactoring(
-        query,
-        targets,
-        resolver,
-        MoreExecutors.sameThreadExecutor()
-    );
+    final Future<Object> optimizer = factory.preFactoring(query, targets, resolver, executor);
 
     FunctionalIterable<QueryRunner<T>> queryRunners = FunctionalIterable
         .create(segments)
@@ -307,7 +427,7 @@ public class SpecificSegmentsQuerySegmentWalker implements QuerySegmentWalker
             }
         );
 
-    QueryRunner<T> runner = factory.mergeRunners(MoreExecutors.sameThreadExecutor(), queryRunners, optimizer);
+    QueryRunner<T> runner = factory.mergeRunners(executor, queryRunners, optimizer);
     runner = toolChest.finalQueryDecoration(
         toolChest.finalizeMetrics(
             toolChest.postMergeQueryDecoration(
@@ -317,7 +437,7 @@ public class SpecificSegmentsQuerySegmentWalker implements QuerySegmentWalker
             )
         )
     );
-    final QueryRunner<T> baseRunner = PostProcessingOperators.wrap(runner, TestHelper.JSON_MAPPER);
+    final QueryRunner<T> baseRunner = PostProcessingOperators.wrap(runner, objectMapper);
     return new QueryRunner<T>()
     {
       @Override

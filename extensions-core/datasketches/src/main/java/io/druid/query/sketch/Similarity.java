@@ -61,4 +61,14 @@ public class Similarity
   {
     return relations;
   }
+
+  @Override
+  public String toString()
+  {
+    return "Similarity{" +
+           "from='" + from + '\'' +
+           ", to='" + to + '\'' +
+           ", relations=" + relations +
+           '}';
+  }
 }

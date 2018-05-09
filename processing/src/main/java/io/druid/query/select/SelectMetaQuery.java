@@ -62,7 +62,7 @@ public class SelectMetaQuery extends BaseQuery<Result<SelectMetaResultValue>>
         .setDataSource(source.getDataSource())
         .setQuerySegmentSpec(source.getQuerySegmentSpec())
         .setGranularity(QueryGranularities.ALL)
-        .setContext(Maps.newHashMap(source.getContext()))
+        .setContext(BaseQuery.copyContext(source))
         .addContext(BaseQuery.BY_SEGMENT, bySegment);
 
     if (source instanceof VCSupport) {
