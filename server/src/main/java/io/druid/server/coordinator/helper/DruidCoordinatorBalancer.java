@@ -164,24 +164,22 @@ public class DruidCoordinatorBalancer implements DruidCoordinatorHelper
     final String segmentName = segmentToMove.getIdentifier();
 
     if (!toPeon.getSegmentsToLoad().contains(segmentToMove) &&
-        (toServer.getSegment(segmentName) == null) &&
-        new ServerHolder(toServer, toPeon).getAvailableSize() > segmentToMove.getSize()) {
+        toServer.getSegment(segmentName) == null &&
+        ServerHolder.getAvailableSize(toServer, toPeon) > segmentToMove.getSize()) {
       log.debug("Moving [%s] from [%s] to [%s]", segmentName, fromServer.getName(), toServer.getName());
 
-      LoadPeonCallback callback = null;
-      try {
-        currentlyMovingSegments.get(toServer.getTier()).put(segmentName, segment);
-        callback = new LoadPeonCallback()
+      final Map<String, BalancerSegmentHolder> movingSegments = currentlyMovingSegments.get(toServer.getTier());
+      final LoadPeonCallback callback = new LoadPeonCallback()
+      {
+        @Override
+        public void execute()
         {
-          @Override
-          public void execute()
-          {
-            Map<String, BalancerSegmentHolder> movingSegments = currentlyMovingSegments.get(toServer.getTier());
-            if (movingSegments != null) {
-              movingSegments.remove(segmentName);
-            }
-          }
-        };
+          movingSegments.remove(segmentName);
+        }
+      };
+      movingSegments.put(segmentName, segment);
+
+      try {
         coordinator.moveSegment(
             fromServer,
             toServer,
@@ -191,13 +189,8 @@ public class DruidCoordinatorBalancer implements DruidCoordinatorHelper
       }
       catch (Exception e) {
         log.makeAlert(e, String.format("[%s] : Moving exception", segmentName)).emit();
-        if (callback != null) {
-          callback.execute();
-        }
+        callback.execute();
       }
-    } else {
-      currentlyMovingSegments.get(toServer.getTier()).remove(segmentName);
     }
-
   }
 }

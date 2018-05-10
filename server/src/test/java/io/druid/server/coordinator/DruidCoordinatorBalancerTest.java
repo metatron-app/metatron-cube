@@ -214,7 +214,7 @@ public class DruidCoordinatorBalancerTest
     Map<String, CountingMap<String>> stats = params.getCoordinatorStats().getPerTierStats();
     CountingMap<String> movedCount = stats.get("movedCount");
     Assert.assertTrue(stats.toString(), movedCount.get("normal").get() > 0);
-    Assert.assertTrue(stats.toString(), movedCount.get("normal").get() < segments.size());
+    Assert.assertTrue(stats.toString(), movedCount.get("normal").get() <= segments.size());
     exec.shutdown();
   }
 

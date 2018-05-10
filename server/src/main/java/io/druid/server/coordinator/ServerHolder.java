@@ -77,16 +77,21 @@ public class ServerHolder implements Comparable<ServerHolder>
 
   public Long getAvailableSize()
   {
-    long maxSize = getMaxSize();
-    long sizeUsed = getSizeUsed();
+    return getAvailableSize(server, peon);
+  }
+
+  public static long getAvailableSize(ImmutableDruidServer server, LoadQueuePeon peon)
+  {
+    long maxSize = server.getMaxSize();
+    long sizeUsed = server.getCurrSize() + peon.getLoadQueueSize();
     long availableSize = maxSize - sizeUsed;
 
     log.debug(
         "Server[%s], MaxSize[%,d], CurrSize[%,d], QueueSize[%,d], SizeUsed[%,d], AvailableSize[%,d]",
         server.getName(),
         maxSize,
-        getCurrServerSize(),
-        getLoadQueueSize(),
+        server.getCurrSize(),
+        peon.getLoadQueueSize(),
         sizeUsed,
         availableSize
     );
