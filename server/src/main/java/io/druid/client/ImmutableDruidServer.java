@@ -87,6 +87,11 @@ public class ImmutableDruidServer
     return metadata.getPriority();
   }
 
+  public boolean contains(DataSegment segment)
+  {
+    return segments.containsKey(segment.getIdentifier());
+  }
+
   public DataSegment getSegment(String segmentName)
   {
     return segments.get(segmentName);

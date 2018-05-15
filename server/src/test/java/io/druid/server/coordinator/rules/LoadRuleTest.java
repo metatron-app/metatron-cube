@@ -119,6 +119,7 @@ public class LoadRuleTest
         EasyMock.<LoadPeonCallback>anyObject()
     );
     EasyMock.expectLastCall().atLeastOnce();
+    EasyMock.expect(mockPeon.isLoadingSegment(EasyMock.<DataSegment>anyObject())).andReturn(false).atLeastOnce();
     EasyMock.expect(mockPeon.getSegmentsToLoad()).andReturn(Sets.<DataSegment>newHashSet()).atLeastOnce();
     EasyMock.expect(mockPeon.getLoadQueueSize()).andReturn(0L).atLeastOnce();
     EasyMock.replay(mockPeon);
@@ -343,6 +344,7 @@ public class LoadRuleTest
         EasyMock.<LoadPeonCallback>anyObject()
     );
     EasyMock.expectLastCall().atLeastOnce();
+    EasyMock.expect(mockPeon.isLoadingSegment(EasyMock.<DataSegment>anyObject())).andReturn(false).atLeastOnce();
     EasyMock.expect(mockPeon.getSegmentsToLoad()).andReturn(Sets.<DataSegment>newHashSet()).atLeastOnce();
     EasyMock.expect(mockPeon.getLoadQueueSize()).andReturn(0L).atLeastOnce();
     EasyMock.replay(mockPeon);

@@ -106,7 +106,12 @@ public class ServerHolder implements Comparable<ServerHolder>
 
   public boolean isLoadingSegment(DataSegment segment)
   {
-    return peon.getSegmentsToLoad().contains(segment);
+    return peon.isLoadingSegment(segment);
+  }
+
+  public boolean isDroppingSegment(DataSegment segment)
+  {
+    return peon.isDroppingSegment(segment);
   }
 
   @Override

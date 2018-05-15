@@ -218,6 +218,7 @@ public class DruidCoordinatorRuleRunnerTest
         EasyMock.<LoadPeonCallback>anyObject()
     );
     EasyMock.expectLastCall().atLeastOnce();
+    EasyMock.expect(mockPeon.isLoadingSegment(EasyMock.<DataSegment>anyObject())).andReturn(false).atLeastOnce();
   }
 
   private void expectDrop()
@@ -552,7 +553,7 @@ public class DruidCoordinatorRuleRunnerTest
             0, 0, 0, 0, 0, 1, 24, 0, false, null
         )
     ).anyTimes();
-    coordinator.removeSegment(EasyMock.<DataSegment>anyObject());
+    coordinator.removeSegment(EasyMock.<String>anyObject(), EasyMock.<DataSegment>anyObject());
     EasyMock.expectLastCall().atLeastOnce();
     EasyMock.replay(coordinator);
 
@@ -1098,7 +1099,7 @@ public class DruidCoordinatorRuleRunnerTest
             0, 0, 0, 0, 0, 1, 7, 0, false, null
         )
     ).atLeastOnce();
-    coordinator.removeSegment(EasyMock.<DataSegment>anyObject());
+    coordinator.removeSegment(EasyMock.<String>anyObject(), EasyMock.<DataSegment>anyObject());
     EasyMock.expectLastCall().anyTimes();
     EasyMock.replay(coordinator);
     expectLoad();
@@ -1312,6 +1313,7 @@ public class DruidCoordinatorRuleRunnerTest
     mockCoordinator();
     mockPeon.loadSegment(EasyMock.eq(v2), EasyMock.<String>anyObject(), EasyMock.<LoadPeonCallback>anyObject());
     EasyMock.expectLastCall().once();
+    EasyMock.expect(mockPeon.isLoadingSegment(EasyMock.<DataSegment>anyObject())).andReturn(false).atLeastOnce();
     EasyMock.expect(mockPeon.getSegmentsToLoad()).andReturn(Sets.<DataSegment>newHashSet()).atLeastOnce();
     EasyMock.expect(mockPeon.getLoadQueueSize()).andReturn(0L).atLeastOnce();
     EasyMock.replay(mockPeon);
@@ -1382,7 +1384,7 @@ public class DruidCoordinatorRuleRunnerTest
             0, 0, 0, 0, 0, 1, 24, 0, false, null
         )
     ).anyTimes();
-    coordinator.removeSegment(EasyMock.<DataSegment>anyObject());
+    coordinator.removeSegment(EasyMock.<String>anyObject(), EasyMock.<DataSegment>anyObject());
     EasyMock.expectLastCall().anyTimes();
     EasyMock.replay(coordinator);
   }

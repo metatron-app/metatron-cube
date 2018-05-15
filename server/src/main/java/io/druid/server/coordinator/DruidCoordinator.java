@@ -325,9 +325,9 @@ public class DruidCoordinator
     ).get();
   }
 
-  public void removeSegment(DataSegment segment)
+  public void removeSegment(String reason, DataSegment segment)
   {
-    log.info("Removing Segment[%s]", segment);
+    log.info("Removing Segment[%s] for [%s]", segment.getIdentifier(), reason);
     metadataSegmentManager.removeSegment(segment.getDataSource(), segment.getIdentifier());
   }
 

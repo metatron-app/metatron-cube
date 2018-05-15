@@ -120,6 +120,21 @@ public class LoadQueuePeon
     return segmentsToDrop.keySet();
   }
 
+  public boolean isLoadingSegment(DataSegment segment)
+  {
+    return segmentsToLoad.containsKey(segment);
+  }
+
+  public boolean isDroppingSegment(DataSegment segment)
+  {
+    return segmentsToDrop.containsKey(segment);
+  }
+
+  public boolean isDoingSomething()
+  {
+    return !segmentsToLoad.isEmpty() || !segmentsToDrop.isEmpty();
+  }
+
   public long getLoadQueueSize()
   {
     return queuedSize.get();
