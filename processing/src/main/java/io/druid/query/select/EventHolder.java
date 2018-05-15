@@ -62,18 +62,18 @@ public class EventHolder
 
   public long getTimestamp()
   {
-    Object retVal = event.get(timestampKey);
-    if (retVal instanceof Long) {
-      return (Long)retVal;
+    final Object retVal = event.get(timestampKey);
+    if (retVal instanceof Number) {
+      return ((Number) retVal).longValue();
     } else if (retVal instanceof String) {
       return new DateTime(retVal).getMillis();
     } else if (retVal instanceof DateTime) {
       return ((DateTime) retVal).getMillis();
     } else if (retVal instanceof Map) {
       Map dateTime = (Map)retVal;
-      return (Long) dateTime.get("m");
+      return ((Number) dateTime.get("m")).longValue();
     } else {
-      throw new ISE("Do not understand format [%s]", retVal.getClass());
+      throw new ISE("Do not understand format [%s]", retVal == null ? "null" : retVal.getClass());
     }
   }
 
