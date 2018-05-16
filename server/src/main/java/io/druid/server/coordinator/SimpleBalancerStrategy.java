@@ -180,33 +180,12 @@ loop:
   )
   {
     // can be used for bulk loading when server is down.. need to handle that properly
-    int min = -1;
+    int minExpectedSegments = -1;
     ServerHolder minServer = null;
-    final String dataSourceName = proposalSegment.getDataSource();
     for (ServerHolder holder : RandomBalancerStrategy.filter(proposalSegment, serverHolders, false)) {
-      int numSegments = 0;
-      long availableSize = holder.getAvailableSize();
-      for (DataSegment segment : holder.getPeon().getSegmentsToLoad()) {
-        if (dataSourceName.equals(segment.getDataSource())) {
-          availableSize -= segment.getSize();
-          numSegments += 1;
-        }
-      }
-      for (DataSegment segment : holder.getPeon().getSegmentsToDrop()) {
-        if (dataSourceName.equals(segment.getDataSource())) {
-          availableSize += segment.getSize();
-          numSegments -= 1;
-        }
-      }
-      if (availableSize < proposalSegment.getSize()) {
-        continue;
-      }
-      ImmutableDruidDataSource dataSource = holder.getServer().getDataSource(dataSourceName);
-      if (dataSource != null) {
-        numSegments += dataSource.getSegments().size();
-      }
-      if (min < 0 || numSegments < min) {
-        min = numSegments;
+      int expectedSegments = holder.getNumExpectedSegments();
+      if (minExpectedSegments < 0 || minExpectedSegments > expectedSegments) {
+        minExpectedSegments = expectedSegments;
         minServer = holder;
       }
     }

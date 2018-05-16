@@ -75,6 +75,11 @@ public class ServerHolder implements Comparable<ServerHolder>
     return (100 * getSizeUsed().doubleValue()) / getMaxSize();
   }
 
+  public int getNumExpectedSegments()
+  {
+    return peon.getSegmentsToLoad().size() - peon.getSegmentsToDrop().size() + server.getSegments().size();
+  }
+
   public Long getAvailableSize()
   {
     return getAvailableSize(server, peon);

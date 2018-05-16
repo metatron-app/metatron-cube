@@ -23,6 +23,7 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.MinMaxPriorityQueue;
 import com.metamx.common.IAE;
+import com.metamx.common.StringUtils;
 import com.metamx.emitter.EmittingLogger;
 import io.druid.server.coordinator.BalancerStrategy;
 import io.druid.server.coordinator.CoordinatorStats;
@@ -141,7 +142,7 @@ public abstract class LoadRule implements Rule
 
       holder.getPeon().loadSegment(
           segment,
-          "under-replicated",
+          StringUtils.safeFormat("under-replicated(%d/%d)", currReplicantsInTier, expectedReplicantsInTier),
           new LoadPeonCallback()
           {
             @Override
@@ -225,7 +226,11 @@ public abstract class LoadRule implements Rule
 
           holder.getPeon().dropSegment(
               segment,
-              "over-replicated",
+              StringUtils.safeFormat(
+                  "over-replicated(%d/%d)",
+                  loadedNumReplicantsForTier,
+                  expectedNumReplicantsForTier
+              ),
               new LoadPeonCallback()
               {
                 @Override
