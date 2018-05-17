@@ -32,7 +32,6 @@ import io.druid.timeline.DataSegment;
 import java.lang.reflect.Array;
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
 
@@ -48,13 +47,16 @@ public class SimpleBalancerStrategy extends BalancerStrategy.Abstract
       List<ServerHolder> serverHolders
   )
   {
+    if (serverHolders.isEmpty()) {
+      return Arrays.asList();
+    }
     for (ServerHolder holder : serverHolders) {
       if (holder.getPeon().isDoingSomething()) {
         return Arrays.asList();   // busy.. balance later
       }
     }
     final int serverCount = serverHolders.size();
-    final Set<String> dataSourceNames = Sets.newHashSet();
+    final Set<String> dataSourceNames = Sets.newTreeSet();  // just to estimate progress
     final ImmutableDruidServer[] servers = new ImmutableDruidServer[serverCount];
     for (int i = 0; i < serverCount; i++) {
       servers[i] = serverHolders.get(i).getServer();
@@ -64,7 +66,6 @@ public class SimpleBalancerStrategy extends BalancerStrategy.Abstract
     final List<Pair<BalancerSegmentHolder, ImmutableDruidServer>> found = Lists.newArrayList();
 
     for (String dataSourceName : dataSourceNames) {
-      BalancingServer[] balancing = new BalancingServer[serverCount];
       List<Pair<Integer, DataSegment>> allSegments = Lists.newArrayList();
       for (int i = 0; i < serverCount; i++) {
         ImmutableDruidDataSource dataSource = servers[i].getDataSource(dataSourceName);
@@ -73,7 +74,6 @@ public class SimpleBalancerStrategy extends BalancerStrategy.Abstract
             allSegments.add(Pair.of(i, segment));
           }
         }
-        balancing[i] = new BalancingServer(servers[i]);
       }
       Collections.sort(
           allSegments,
@@ -81,49 +81,57 @@ public class SimpleBalancerStrategy extends BalancerStrategy.Abstract
       );
       @SuppressWarnings("unchecked")
       final List<DataSegment>[] segmentsPerServer = (List<DataSegment>[]) Array.newInstance(List.class, serverCount);
-      for (int i = 0; i < serverCount; i++) {
-        segmentsPerServer[i] = Lists.newArrayList();
+      for (int x = 0; x < serverCount; x++) {
+        segmentsPerServer[x] = Lists.newArrayList();
       }
 
-      final int multiplier = 3;   // parameterize ?
-      final int reservoirSize = serverCount * multiplier;
+      final int numSegments = allSegments.size();
+      final int groupPerServer = Math.max(1, numSegments / serverCount / 12);
+      final int tolerance = groupPerServer / 6;
+
       final List<Integer> deficit = Lists.newArrayList();
       final List<Integer> excessive = Lists.newArrayList();
 
       final int[] countsPerServer = new int[serverCount];
-      final Iterator<Pair<Integer, DataSegment>> iterator = allSegments.iterator();
-      for (int round = 1; found.size() < maxSegmentsToMove && iterator.hasNext(); round++) {
-        final int expected = round * multiplier;
-        for (int i = 0; i < reservoirSize && iterator.hasNext(); i++) {
-          Pair<Integer, DataSegment> pair = iterator.next();
+      int i = 0;
+      for (int group = 1; found.size() < maxSegmentsToMove && i < numSegments; group++) {
+        final int expected = group * groupPerServer;
+        for (int x = 0; x < serverCount; x++) {
+          segmentsPerServer[x].clear();
+        }
+        excessive.clear();
+        deficit.clear();
+
+        int limit = Math.min(numSegments, i + groupPerServer * serverCount);
+        for (; i < limit; i++) {
+          Pair<Integer, DataSegment> pair = allSegments.get(i);
           segmentsPerServer[pair.lhs].add(pair.rhs);
           countsPerServer[pair.lhs]++;
         }
-        for (int i = 0; i < serverCount; i++) {
-          if (countsPerServer[i] < expected) {
-            deficit.add(i);
-          } else if (countsPerServer[i] > expected) {
-            excessive.add(i);
+        for (int x = 0; x < serverCount; x++) {
+          int count = countsPerServer[x];
+          for (; count < expected; count++) {
+            deficit.add(x);
+          }
+          for (; count > expected + tolerance; count--) {
+            excessive.add(x);
           }
         }
-        if (deficit.isEmpty() || excessive.isEmpty()) {
+        if (excessive.isEmpty()) {
           continue;
         }
 
-loop:
+        Collections.shuffle(deficit);
+        Collections.shuffle(excessive);
+
         for (int from : excessive) {
-          int to = -1;
-          Iterator<Integer> deficitIterator = deficit.iterator();
-          while (found.size() < maxSegmentsToMove && countsPerServer[from] > expected) {
-            while (to < 0 || countsPerServer[to] >= expected) {
-              if (!deficitIterator.hasNext()) {
-                break loop;
-              }
-              to = deficitIterator.next();
+          for (int to : deficit) {
+            if (segmentsPerServer[to].size() >= groupPerServer) {
+              continue;
             }
-            DataSegment segment = balancing[to].findTarget(segmentsPerServer[from]);
+            DataSegment segment = findTarget(servers[to], segmentsPerServer[from], segmentsPerServer[to]);
             if (segment == null) {
-              break; // try next excessive
+              continue;
             }
             LOG.debug(
                 "Balancing segment[%s:%s] : from %s to %s",
@@ -136,42 +144,25 @@ loop:
 
             countsPerServer[from]--;
             countsPerServer[to]++;
+            break;
           }
         }
-        for (int i = 0; i < serverCount; i++) {
-          segmentsPerServer[i].clear();
-        }
-        excessive.clear();
-        deficit.clear();
       }
     }
     return found;
   }
 
-  private static class BalancingServer
+  private DataSegment findTarget(ImmutableDruidServer server, List<DataSegment> from, List<DataSegment> to)
   {
-    private final ImmutableDruidServer server;
-    private final Set<String> loading;
-
-    private BalancingServer(ImmutableDruidServer server)
-    {
-      this.server = server;
-      this.loading = Sets.newHashSet();
-    }
-
-    private DataSegment findTarget(List<DataSegment> segments)
-    {
-      for (int i = segments.size() - 1; i >= 0; i--) {
-        DataSegment segment = segments.get(i);
-        if (segment == null || loading.contains(segment.getIdentifier()) || server.contains(segment)) {
-          continue;
-        }
-        loading.add(segment.getIdentifier());
-        segments.set(i, null);
+    for (int i = from.size() - 1; i >= 0; i--) {
+      DataSegment segment = from.get(i);
+      if (!to.contains(segment) && !server.contains(segment)) {
+        from.remove(i);
+        to.add(segment);
         return segment;
       }
-      return null;
     }
+    return null;
   }
 
   @Override
