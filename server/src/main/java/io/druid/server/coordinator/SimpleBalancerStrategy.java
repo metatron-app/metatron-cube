@@ -62,7 +62,7 @@ public class SimpleBalancerStrategy extends BalancerStrategy.Abstract
       servers[i] = serverHolders.get(i).getServer();
       Iterables.addAll(dataSourceNames, servers[i].getDataSourceNames());
     }
-    final int maxSegmentsToMove = params.getCoordinatorDynamicConfig().getMaxSegmentsToMove();
+    final int maxSegmentsToMove = params.getMaxSegmentsToMove();
     final List<Pair<BalancerSegmentHolder, ImmutableDruidServer>> found = Lists.newArrayList();
 
     for (String dataSourceName : dataSourceNames) {
@@ -96,11 +96,13 @@ public class SimpleBalancerStrategy extends BalancerStrategy.Abstract
       int i = 0;
       for (int group = 1; found.size() < maxSegmentsToMove && i < numSegments; group++) {
         final int expected = group * groupPerServer;
-        for (int x = 0; x < serverCount; x++) {
-          segmentsPerServer[x].clear();
+        if (group > 1) {
+          for (int x = 0; x < serverCount; x++) {
+            segmentsPerServer[x].clear();
+          }
+          excessive.clear();
+          deficit.clear();
         }
-        excessive.clear();
-        deficit.clear();
 
         int limit = Math.min(numSegments, i + groupPerServer * serverCount);
         for (; i < limit; i++) {

@@ -51,7 +51,7 @@ public interface BalancerStrategy
     )
     {
       List<Pair<BalancerSegmentHolder, ImmutableDruidServer>> found = Lists.newArrayList();
-      int maxSegmentsToMove = params.getCoordinatorDynamicConfig().getMaxSegmentsToMove();
+      int maxSegmentsToMove = params.getMaxSegmentsToMove();
       for (int iter = 0; iter < maxSegmentsToMove; iter++) {
         final BalancerSegmentHolder segmentToMove = pickSegmentToMove(serverHolders);
 

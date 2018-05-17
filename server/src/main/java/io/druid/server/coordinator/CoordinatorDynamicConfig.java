@@ -43,7 +43,7 @@ public class CoordinatorDynamicConfig
   private int mergeTaskLimit = 0; // unlimited
 
   @JsonProperty
-  private int maxSegmentsToMove = 5;
+  private int maxSegmentsToMove = -1;
 
   @JsonProperty
   private int replicantLifetime = 15;
@@ -62,7 +62,7 @@ public class CoordinatorDynamicConfig
 
   public CoordinatorDynamicConfig()
   {
-    this(15 * 60 * 1000L, 524288000L, 100, 0, 5, 15, 10, 1, false, null);
+    this(15 * 60 * 1000L, 524288000L, 100, 0, -1, 15, 10, 1, false, null);
   }
 
   @JsonCreator
