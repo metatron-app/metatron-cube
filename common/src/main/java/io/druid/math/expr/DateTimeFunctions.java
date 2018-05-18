@@ -747,7 +747,11 @@ public interface DateTimeFunctions extends Function.Library
         @Override
         public ExprEval apply(List<Expr> args, Expr.NumericBinding bindings)
         {
-          DateTime dateTime = Evals.toDateTime(args.get(0).eval(bindings), formatter);
+          ExprEval eval = args.get(0).eval(bindings);
+          if (eval.isNull()) {
+            return ExprEval.of((String) null);
+          }
+          DateTime dateTime = Evals.toDateTime(eval, formatter);
           if (prevValue == null || dateTime.getMillis() != prevTime) {
             prevTime = dateTime.getMillis();
             prevValue = outputFormat.print(dateTime);

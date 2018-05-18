@@ -23,6 +23,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import io.druid.common.DateTimes;
 import io.druid.common.utils.JodaUtils;
@@ -325,16 +326,30 @@ public class EvalTest
   }
 
   @Test
-  public void testWeekInMonth() {
+  public void testWeekInMonth()
+  {
+    HashMap<String, Object> mapping = Maps.<String, Object>newHashMap();
+    Expr.NumericBinding bindings = Parser.withMap(mapping);
 
-    Expr.NumericBinding bindings = Parser.withMap(ImmutableMap.<String, Object>of());
+    // null
+    mapping.put("time", null);
+    Assert.assertEquals(
+        null, evalString(
+            "time_format("
+            + "time, "
+            + "out.format='W\\'th\\' MMM yyyy', "
+            + "out.locale='en', "
+            + "out.timezone='UTC'"
+            + ")", bindings
+        )
+    );
 
     // thursday
-    long time = new DateTime("2016-07-01T10:11:39.662+0900").getMillis();
+    mapping.put("time", new DateTime("2016-07-01T10:11:39.662+0900").getMillis());
     Assert.assertEquals(
         "0th Jul 2016", evalString(
             "time_format("
-            + time + ", "
+            + "time, "
             + "out.format='W\\'th\\' MMM yyyy', "
             + "out.locale='en', "
             + "out.timezone='UTC'"
@@ -342,33 +357,33 @@ public class EvalTest
         )
     );
     // wednesday
-    time = new DateTime("2016-09-01T10:11:39.662+0900").getMillis();
+    mapping.put("time", new DateTime("2016-09-01T10:11:39.662+0900").getMillis());
     Assert.assertEquals(
         "1th Sep 2016", evalString(
             "time_format("
-            + time + ", "
+            + "time, "
             + "out.format='W\\'th\\' MMM yyyy', "
             + "out.locale='en', "
             + "out.timezone='UTC'"
             + ")", bindings
         )
     );
-    time = new DateTime("2016-01-31T10:11:39.662+0900").getMillis();
+    mapping.put("time", new DateTime("2016-01-31T10:11:39.662+0900").getMillis());
     Assert.assertEquals(
         "4th Jan 2016", evalString(
             "time_format("
-            + time + ", "
+            + "time, "
             + "out.format='W\\'th\\' MMM yyyy', "
             + "out.locale='en', "
             + "out.timezone='UTC'"
             + ")", bindings
         )
     );
-    time = new DateTime("2016-05-31T10:11:39.662+0900").getMillis();
+    mapping.put("time", new DateTime("2016-05-31T10:11:39.662+0900").getMillis());
     Assert.assertEquals(
         "5th May 2016", evalString(
             "time_format("
-            + time + ", "
+            + "time, "
             + "out.format='W\\'th\\' MMM yyyy', "
             + "out.locale='en', "
             + "out.timezone='UTC'"

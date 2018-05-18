@@ -137,7 +137,9 @@ public class PivotColumnSpec extends OrderingSpec
       final Direction direction = Direction.fromString(Objects.toString(map.get("direction"), null));
       final String dimensionOrder = Objects.toString(map.get("dimensionOrder"), null);
 
-      return new PivotColumnSpec(dimension, expression, direction, dimensionOrder, (List) map.get("values"));
+      @SuppressWarnings("unchecked")
+      final List<String> values = (List<String>) map.get("values");
+      return new PivotColumnSpec(dimension, expression, direction, dimensionOrder, values);
     } else {
       throw new ISE("Cannot build an PivotColumnSpec from a %s", obj.getClass());
     }
@@ -191,7 +193,7 @@ public class PivotColumnSpec extends OrderingSpec
     return values;
   }
 
-  public Function<Row, String> toExtractor()
+  private Function<Row, String> toExtractor()
   {
     if (expression == null) {
       return new Function<Row, String>()
@@ -216,7 +218,7 @@ public class PivotColumnSpec extends OrderingSpec
             return Objects.toString(expr.eval(binding).asString(), "");
           }
           catch (Exception e) {
-            LOG.info("Failed on expression $s", expression);
+            LOG.info("Failed on expression %s", expression);
             throw Throwables.propagate(e);
           }
         }
