@@ -23,7 +23,6 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
-import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import com.metamx.common.ISE;
 import io.druid.common.Cacheable;
@@ -53,7 +52,7 @@ public class OrderByColumnSpec extends OrderingSpec implements Cacheable
 
   public static List<String> getColumns(List<OrderByColumnSpec> orderByColumnSpecs)
   {
-    return ImmutableList.copyOf(Lists.transform(orderByColumnSpecs, GET_DIMENSION));
+    return Lists.newArrayList(Lists.transform(orderByColumnSpecs, GET_DIMENSION));
   }
 
   @JsonCreator

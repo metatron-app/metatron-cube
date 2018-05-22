@@ -48,44 +48,50 @@ public class WindowContext implements Expr.WindowContext
 {
   public static WindowContext newInstance(List<String> groupByColumns, Map<String, ValueDesc> expectedTypes)
   {
-    return new WindowContext(groupByColumns, null, null, null, expectedTypes);
+    return new WindowContext(groupByColumns, expectedTypes);
   }
 
   public WindowContext on(List<String> partitionColumns, List<OrderByColumnSpec> orderingSpecs)
   {
-    return new WindowContext(groupByColumns, partitionColumns, orderingSpecs, partition, expectedTypes);
+    this.partitionColumns = partitionColumns;
+    this.orderingSpecs = orderingSpecs;
+    return this;
   }
 
   public WindowContext with(List<Row> partition)
   {
-    return new WindowContext(groupByColumns, partitionColumns, orderingSpecs, partition, expectedTypes);
+    this.partition = partition;
+    this.length = partition.size();
+    return this;
   }
 
-  public static List<String> outputNames(List<Evaluator> evaluators, List<String> valueColumns)
+  public static List<String> outputNames(List<Frame> frames, List<String> valueColumns)
   {
     List<String> outputNames = Lists.newArrayList();
-    for (Evaluator evaluator : evaluators) {
-      if (evaluator.outputName == null) {
+    for (Frame frame : frames) {
+      if (frame.outputName == null) {
         for (String valueColumn : valueColumns) {
-          String outputName = evaluator.outputName(valueColumn);
+          String outputName = frame.outputName(valueColumn);
           if (!outputName.startsWith("#")) {
             outputNames.add(outputName);
           }
         }
-      } else if (!evaluator.outputName.startsWith("#")) {
-        outputNames.add(evaluator.outputName);
+      } else if (!frame.outputName.startsWith("#")) {
+        outputNames.add(frame.outputName);
       }
     }
     return outputNames;
   }
 
   private final List<String> groupByColumns;
-  private final List<String> partitionColumns;
-  private final List<OrderByColumnSpec> orderingSpecs;
-  private final List<Row> partition;
-  private final int length;
   private final Map<String, ValueDesc> expectedTypes;
   private final Map<String, Object> temporary;
+
+  private List<String> partitionColumns;
+  private List<OrderByColumnSpec> orderingSpecs;
+  private List<Row> partition;
+  private int length;
+
   private int index;
 
   // redirected name for "_".. todo replace expression itself
@@ -93,53 +99,51 @@ public class WindowContext implements Expr.WindowContext
 
   private WindowContext(
       List<String> groupByColumns,
-      List<String> partitionColumns,
-      List<OrderByColumnSpec> orderingSpecs,
-      List<Row> partition,
       Map<String, ValueDesc> expectedTypes
   )
   {
     this.groupByColumns = groupByColumns == null ? ImmutableList.<String>of() : groupByColumns;
-    this.partitionColumns = partitionColumns == null ? ImmutableList.<String>of() : partitionColumns;
-    this.orderingSpecs = orderingSpecs == null ? ImmutableList.<OrderByColumnSpec>of() : orderingSpecs;
-    this.partition = partition == null ? ImmutableList.<Row>of() : partition;
-    this.length = partition == null ? 0 : partition.size();
     this.expectedTypes = Maps.newHashMap(expectedTypes);
     this.temporary = Maps.newHashMap();
   }
 
-  public List<Row> evaluate(Iterable<Evaluator> expressions, List<String> sortedKeys)
+  public List<Row> evaluate(Iterable<Frame> expressions, List<String> sortedKeys)
   {
     boolean hasRedirection = false;
-    for (Evaluator evaluator : expressions) {
-      List<String> required = Parser.findRequiredBindings(evaluator.assigned);
+    for (Frame frame : expressions) {
+      List<String> required = Parser.findRequiredBindings(frame.assigned);
       if (required.contains("_") || required.contains("#_")) {
         hasRedirection = true;
         break;
       }
     }
     if (hasRedirection) {
-      for (Evaluator expression : expressions) {
+      for (Frame expression : expressions) {
         for (String sortedKey : expression.filter(sortedKeys)) {
           redirection = sortedKey;
           _evaluate(expression);
         }
-        redirection = null;
       }
     } else {
       evaluate(expressions);
     }
+    // clear temporary contexts
+    redirection = null;
+    for (String temporaryKey : temporary.keySet()) {
+      expectedTypes.remove(temporaryKey);
+    }
+    temporary.clear();
     return partition;
   }
 
-  public void evaluate(Iterable<Evaluator> expressions)
+  public void evaluate(Iterable<Frame> expressions)
   {
-    for (Evaluator expression : expressions) {
+    for (Frame expression : expressions) {
       _evaluate(expression);
     }
   }
 
-  private void _evaluate(Evaluator expression)
+  private void _evaluate(Frame expression)
   {
     final int[] window = expression.toEvalWindow(length);
     final String outputName = expression.outputName(redirection);
@@ -269,11 +273,11 @@ public class WindowContext implements Expr.WindowContext
     };
   }
 
-  static class Evaluator
+  static class Frame
   {
-    public static Evaluator of(String condition, Pair<Expr, Expr> assign)
+    public static Frame of(String condition, Pair<Expr, Expr> assign)
     {
-      return new Evaluator(condition, assign.lhs, assign.rhs);
+      return new Frame(condition, assign.lhs, assign.rhs);
     }
 
     private final Matcher matcher;
@@ -282,7 +286,7 @@ public class WindowContext implements Expr.WindowContext
     private final Expr assignee;
     private final Expr assigned;
 
-    private Evaluator(String condition, Expr assignee, Expr assigned)
+    private Frame(String condition, Expr assignee, Expr assigned)
     {
       this.assignee = assignee;
       this.assigned = assigned;

@@ -2163,7 +2163,7 @@ public interface BuiltinFunctions extends Function.Library
     }
   }
 
-  abstract class PartitionFunction extends Function.IndecisiveOut implements Factory
+  abstract class PartitionFunction extends Function.NamedFunction implements Factory
   {
     protected String fieldName;
     protected ValueDesc fieldType;
@@ -2193,6 +2193,15 @@ public interface BuiltinFunctions extends Function.Library
         parameters = new Object[0];
       }
       initialize(context, parameters);
+    }
+
+    @Override
+    public ValueDesc apply(List<Expr> args, TypeBinding bindings)
+    {
+      if (args.size() > 0) {
+        return bindings.type(Evals.getIdentifier(args.get(0)));
+      }
+      return ValueDesc.UNKNOWN;
     }
 
     protected void initialize(WindowContext context, Object[] parameters) { }
@@ -2433,6 +2442,13 @@ public interface BuiltinFunctions extends Function.Library
     private double doubleSum;
 
     @Override
+    public ValueDesc apply(List<Expr> args, TypeBinding bindings)
+    {
+      ValueDesc type = super.apply(args, bindings);
+      return type.type() == ValueType.FLOAT ? ValueDesc.DOUBLE : type;
+    }
+
+    @Override
     protected void invoke(Object current)
     {
       switch (fieldType.type()) {
@@ -2526,6 +2542,12 @@ public interface BuiltinFunctions extends Function.Library
   final class RowNum extends PartitionFunction implements Factory
   {
     @Override
+    public ValueDesc apply(List<Expr> args, TypeBinding bindings)
+    {
+      return ValueDesc.LONG;
+    }
+
+    @Override
     protected Object invoke(WindowContext context)
     {
       return context.index() + 1L;
@@ -2537,6 +2559,12 @@ public interface BuiltinFunctions extends Function.Library
   {
     private long prevRank;
     private Object prev;
+
+    @Override
+    public ValueDesc apply(List<Expr> args, TypeBinding bindings)
+    {
+      return ValueDesc.LONG;
+    }
 
     @Override
     protected Object invoke(WindowContext context)
@@ -2564,6 +2592,12 @@ public interface BuiltinFunctions extends Function.Library
     private Object prev;
 
     @Override
+    public ValueDesc apply(List<Expr> args, TypeBinding bindings)
+    {
+      return ValueDesc.LONG;
+    }
+
+    @Override
     protected Object invoke(WindowContext context)
     {
       Object current = context.get(fieldName);
@@ -2586,6 +2620,12 @@ public interface BuiltinFunctions extends Function.Library
   final class RunningMean extends RunningSum
   {
     private int count;
+
+    @Override
+    public ValueDesc apply(List<Expr> args, TypeBinding bindings)
+    {
+      return ValueDesc.DOUBLE;
+    }
 
     @Override
     protected void invoke(Object current)
@@ -2613,6 +2653,12 @@ public interface BuiltinFunctions extends Function.Library
     long count; // number of elements
     double sum; // sum of elements
     double nvariance; // sum[x-avg^2] (this is actually n times of the variance)
+
+    @Override
+    public ValueDesc apply(List<Expr> args, TypeBinding bindings)
+    {
+      return ValueDesc.DOUBLE;
+    }
 
     @Override
     protected void invoke(Object current)
@@ -2784,6 +2830,12 @@ public interface BuiltinFunctions extends Function.Library
     private double[] doubles;
 
     @Override
+    public ValueDesc apply(List<Expr> args, TypeBinding bindings)
+    {
+      return ValueDesc.MAP;
+    }
+
+    @Override
     protected void initialize(WindowContext context, Object[] parameters)
     {
       super.initialize(context, parameters);
@@ -2926,6 +2978,12 @@ public interface BuiltinFunctions extends Function.Library
   @Function.Named("$size")
   final class PartitionSize extends PartitionFunction implements Factory
   {
+    @Override
+    public ValueDesc apply(List<Expr> args, TypeBinding bindings)
+    {
+      return ValueDesc.LONG;
+    }
+
     @Override
     protected Object invoke(WindowContext context)
     {

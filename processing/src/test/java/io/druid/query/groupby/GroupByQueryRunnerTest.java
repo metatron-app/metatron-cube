@@ -101,8 +101,8 @@ import io.druid.query.groupby.having.ExpressionHavingSpec;
 import io.druid.query.groupby.having.GreaterThanHavingSpec;
 import io.druid.query.groupby.having.HavingSpec;
 import io.druid.query.groupby.having.OrHavingSpec;
-import io.druid.query.groupby.orderby.LimitSpec;
 import io.druid.query.groupby.orderby.FlattenSpec;
+import io.druid.query.groupby.orderby.LimitSpec;
 import io.druid.query.groupby.orderby.LimitSpecs;
 import io.druid.query.groupby.orderby.OrderByColumnSpec;
 import io.druid.query.groupby.orderby.PartitionExpression;
@@ -129,7 +129,6 @@ import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 
 import java.io.IOException;
-import java.lang.reflect.Array;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -142,7 +141,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 @RunWith(Parameterized.class)
-public class GroupByQueryRunnerTest
+public class GroupByQueryRunnerTest extends GroupByQueryRunnerTestHelper
 {
   private final QueryRunner<Row> runner;
   private QueryRunnerFactory<Row, Query<Row>> factory;
@@ -4630,36 +4629,41 @@ public class GroupByQueryRunnerTest
                     dayOfWeek, dayPlusMarket, "delta_week = $delta(rows)", "sum_week = $sum(rows)"
                 ),
                 new WindowingSpec(
-                    null, null, "delta_all = $delta(rows)", "sum_all = $sum(rows)"
+                    null, null,
+                    "delta_all = $delta(rows)",
+                    "sum_all = $sum(rows)",
+                    "sum_post = $sum(addRowsIndexConstant)"
                 )
             )
         )
     );
 
-    columnNames = new String[]{"__time", "dayOfWeek", "rows", "delta_week", "sum_week", "delta_all", "sum_all"};
+    columnNames = new String[]{
+        "__time", "dayOfWeek", "rows", "delta_week", "sum_week", "delta_all", "sum_all", "sum_post"
+    };
     expectedResults = GroupByQueryRunnerTestHelper.createExpectedRows(
         columnNames,
-        new Object[]{"1970-01-01", "Friday", 26L, 0L, 26L, 0L, 26L},
-        new Object[]{"1970-01-01", "Friday", 26L, 0L, 52L, 0L, 52L},
-        new Object[]{"1970-01-01", "Friday", 117L, 91L, 169L, 91L, 169L},
-        new Object[]{"1970-01-01", "Monday", 26L, 0L, 26L, -91L, 195L},
-        new Object[]{"1970-01-01", "Monday", 26L, 0L, 52L, 0L, 221L},
-        new Object[]{"1970-01-01", "Monday", 117L, 91L, 169L, 91L, 338L},
-        new Object[]{"1970-01-01", "Saturday", 26L, 0L, 26L, -91L, 364L},
-        new Object[]{"1970-01-01", "Saturday", 26L, 0L, 52L, 0L, 390L},
-        new Object[]{"1970-01-01", "Saturday", 117L, 91L, 169L, 91L, 507L},
-        new Object[]{"1970-01-01", "Sunday", 26L, 0L, 26L, -91L, 533L},
-        new Object[]{"1970-01-01", "Sunday", 26L, 0L, 52L, 0L, 559L},
-        new Object[]{"1970-01-01", "Sunday", 117L, 91L, 169L, 91L, 676L},
-        new Object[]{"1970-01-01", "Thursday", 28L, 0L, 28L, -89L, 704L},
-        new Object[]{"1970-01-01", "Thursday", 28L, 0L, 56L, 0L, 732L},
-        new Object[]{"1970-01-01", "Thursday", 126L, 98L, 182L, 98L, 858L},
-        new Object[]{"1970-01-01", "Tuesday", 26L, 0L, 26L, -100L, 884L},
-        new Object[]{"1970-01-01", "Tuesday", 26L, 0L, 52L, 0L, 910L},
-        new Object[]{"1970-01-01", "Tuesday", 117L, 91L, 169L, 91L, 1027L},
-        new Object[]{"1970-01-01", "Wednesday", 28L, 0L, 28L, -89L, 1055L},
-        new Object[]{"1970-01-01", "Wednesday", 28L, 0L, 56L, 0L, 1083L},
-        new Object[]{"1970-01-01", "Wednesday", 126L, 98L, 182L, 98L, 1209L}
+        array("1970-01-01", "Friday", 26L, 0L, 26L, 0L, 26L, 27324.8623046875),
+        array("1970-01-01", "Friday", 26L, 0L, 52L, 0L, 52L, 57525.553955078125),
+        array("1970-01-01", "Friday", 117L, 91L, 169L, 91L, 169L, 70863.12811279297),
+        array("1970-01-01", "Monday", 26L, 0L, 26L, -91L, 195L, 98509.71258544922),
+        array("1970-01-01", "Monday", 26L, 0L, 52L, 0L, 221L, 129005.48992919922),
+        array("1970-01-01", "Monday", 117L, 91L, 169L, 91L, 338L, 142681.22875976562),
+        array("1970-01-01", "Saturday", 26L, 0L, 26L, -91L, 364L, 170529.06030273438),
+        array("1970-01-01", "Saturday", 26L, 0L, 52L, 0L, 390L, 201497.0322265625),
+        array("1970-01-01", "Saturday", 117L, 91L, 169L, 91L, 507L, 215108.78350830078),
+        array("1970-01-01", "Sunday", 26L, 0L, 26L, -91L, 533L, 239927.0073852539),
+        array("1970-01-01", "Sunday", 26L, 0L, 52L, 0L, 559L, 269259.0934448242),
+        array("1970-01-01", "Sunday", 117L, 91L, 169L, 91L, 676L, 282962.6344604492),
+        array("1970-01-01", "Thursday", 28L, 0L, 28L, -89L, 704L, 311554.3833618164),
+        array("1970-01-01", "Thursday", 28L, 0L, 56L, 0L, 732L, 343944.77056884766),
+        array("1970-01-01", "Thursday", 126L, 98L, 182L, 98L, 858L, 358350.8977661133),
+        array("1970-01-01", "Tuesday", 26L, 0L, 26L, -100L, 884L, 385346.1784057617),
+        array("1970-01-01", "Tuesday", 26L, 0L, 52L, 0L, 910L, 415049.7565307617),
+        array("1970-01-01", "Tuesday", 117L, 91L, 169L, 91L, 1027L, 428367.2279663086),
+        array("1970-01-01", "Wednesday", 28L, 0L, 28L, -89L, 1055L, 457381.8031616211),
+        array("1970-01-01", "Wednesday", 28L, 0L, 56L, 0L, 1083L, 490164.1410522461),
+        array("1970-01-01", "Wednesday", 126L, 98L, 182L, 98L, 1209L, 504562.5096435547)
     );
 
     results = GroupByQueryRunnerTestHelper.runQuery(factory, runner, builder.build());
@@ -4690,6 +4694,7 @@ public class GroupByQueryRunnerTest
         )
     );
 
+    columnNames = new String[]{"__time", "dayOfWeek", "rows", "delta_week", "sum_week", "delta_all", "sum_all"};
     expectedResults = GroupByQueryRunnerTestHelper.createExpectedRows(
         columnNames,
         array("2011-01-01T00:00:00.000Z", "Friday", 4L, 0L, 4L, 0L, 4L),
@@ -6490,6 +6495,92 @@ public class GroupByQueryRunnerTest
 
     results = GroupByQueryRunnerTestHelper.runQuery(factory, runner, builder.build());
     GroupByQueryRunnerTestHelper.validate(columnNames, expectedResults, results);
+  }
+
+  @Test
+  public void test834()
+  {
+    OrderByColumnSpec dayOfWeekAsc = OrderByColumnSpec.asc("dayOfWeek", "dayofweek");
+
+    BaseAggregationQuery.Builder<GroupByQuery> builder = GroupByQuery
+        .builder()
+        .setDataSource(dataSource)
+        .setQuerySegmentSpec(QueryRunnerTestHelper.fullOnInterval)
+        .setDimensions(
+            DefaultDimensionSpec.of("market"),
+            DefaultDimensionSpec.of("quality"),
+            new ExtractionDimensionSpec(
+                Column.TIME_COLUMN_NAME,
+                "dayOfWeek",
+                new TimeFormatExtractionFn("EEEE", null, null)
+            )
+        )
+        .setAggregatorSpecs(QueryRunnerTestHelper.rowsCount, QueryRunnerTestHelper.indexDoubleSum)
+        .setPostAggregatorSpecs(QueryRunnerTestHelper.addRowsIndexConstant)
+        .setGranularity(QueryGranularities.ALL)
+        .setHavingSpec(
+            AndHavingSpec.of(
+                new ExpressionHavingSpec("!(dayOfWeek == 'Monday' && market == 'spot')"),
+                new ExpressionHavingSpec("!(dayOfWeek == 'Tuesday' && market == 'total_market')"),
+                new ExpressionHavingSpec("!(dayOfWeek == 'Wednesday' && quality == 'premium')")
+            )
+        );
+
+    builder.setLimitSpec(
+        new LimitSpec(
+            null, 24,
+            Arrays.asList(
+                new WindowingSpec(
+                    Arrays.asList("dayOfWeek"),
+                    Arrays.asList(dayOfWeekAsc),
+                    "sum_post=$sum(addRowsIndexConstant)"
+                ),
+                new WindowingSpec(
+                    Arrays.asList("dayOfWeek", "market"),
+                    Arrays.asList(dayOfWeekAsc),
+                    Arrays.<String>asList(),
+                    PivotSpec.tabular(PivotColumnSpec.toSpecs(), "sum_post")
+                             .withPartitionExpressions(
+                                 PartitionExpression.of("#_ = $sum(_)"),
+                                 PartitionExpression.of("concat(_, '.percent') = _ / #_ * 100"))
+                             .withAppendValueColumn(true)
+                )
+            )
+        )
+    );
+
+    String[] columnNames = new String[]{"dayOfWeek", "market", "sum_post", "sum_post.percent"};
+
+    List<Row> expectedResults = createExpectedRows(
+        columnNames,
+        array("Monday", "total_market", 15315.728393554688, 1.0109193500130786),
+        array("Monday", "total_market", 30496.776733398438, 2.0129491017740437),
+        array("Monday", "upfront", 45990.10400390625, 3.0355909201307147),
+        array("Monday", "upfront", 58144.36151123047, 3.837836414662108),
+        array("Tuesday", "spot", 1678.368782043457, 0.11078124622134419),
+        array("Tuesday", "spot", 3096.6903228759766, 0.20439799452900861),
+        array("Tuesday", "spot", 4764.013374328613, 0.31445016391493497),
+        array("Tuesday", "spot", 6300.381149291992, 0.41585859011166926),
+        array("Tuesday", "spot", 7684.254570007324, 0.5072015796856195),
+        array("Tuesday", "spot", 9123.768661499023, 0.602217148799385),
+        array("Tuesday", "spot", 10698.279991149902, 0.7061432520220519),
+        array("Tuesday", "spot", 11780.486137390137, 0.7775746006216872),
+        array("Tuesday", "spot", 13325.471267700195, 0.8795518180010571),
+        array("Tuesday", "upfront", 28486.938369750977, 1.8802891041558518),
+        array("Tuesday", "upfront", 40321.75135803223, 2.661449565232874),
+        array("Wednesday", "spot", 1816.9095306396484, 0.11992567082344968),
+        array("Wednesday", "spot", 3390.9856491088867, 0.22382304779859133),
+        array("Wednesday", "spot", 5189.834144592285, 0.3425565944571594),
+        array("Wednesday", "spot", 6761.01335144043, 0.4462627598922561),
+        array("Wednesday", "spot", 8253.566139221191, 0.5447791644217661),
+        array("Wednesday", "spot", 9835.563613891602, 0.6491993929424785),
+        array("Wednesday", "spot", 11118.880271911621, 0.7339051025535545),
+        array("Wednesday", "spot", 12757.065292358398, 0.8420340072661859),
+        array("Wednesday", "total_market", 28521.800888061523, 1.8825902153694163)
+    );
+
+    Iterable<Row> results = runQuery(factory, runner, builder.build());
+    validate(columnNames, expectedResults, results);
   }
 
   @Test

@@ -130,7 +130,8 @@ public class GroupByQueryRunnerTestHelper extends QueryRunnerTestHelper
             )
         )
     );
-}
+  }
+
   public static <T> Iterable<T> runQuery(QueryRunnerFactory factory, QueryRunner<T> runner, Query<T> query)
   {
     query = query.withOverriddenContext(ImmutableMap.<String, Object>of("TEST_AS_SORTED", true));

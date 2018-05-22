@@ -101,17 +101,20 @@ public class WindowingProcessor implements Function<List<Row>, List<Row>>
     }
     List<OrderByColumnSpec> merged = Lists.newArrayList();
     List<String> sortingColumnNames = OrderByColumnSpec.getColumns(sortingColumns);
-    int i = 0;
-    for (; i < partitionColumns.size(); i++) {
-      if (sortingColumnNames.indexOf(partitionColumns.get(i)) != i) {
-        break;
+    for (String partitionColumn : partitionColumns) {
+      final int index = sortingColumnNames.indexOf(partitionColumn);
+      if (index < 0) {
+        merged.add(OrderByColumnSpec.asc(partitionColumn));
+      } else {
+        sortingColumnNames.set(index, null);
+        merged.add(sortingColumns.get(index));
       }
-      merged.add(sortingColumns.get(0));
     }
-    for (int j = i; j < partitionColumns.size(); j++) {
-      merged.add(new OrderByColumnSpec(partitionColumns.get(j), Direction.ASCENDING));
+    for (int i = 0; i < sortingColumnNames.size(); i++) {
+      if (sortingColumnNames.get(i) != null) {
+        merged.add(sortingColumns.get(i));
+      }
     }
-    merged.addAll(sortingColumns.subList(i, sortingColumns.size()));
     return merged;
   }
 

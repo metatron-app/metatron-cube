@@ -29,7 +29,7 @@ import io.druid.common.Cacheable;
 import io.druid.math.expr.Evals;
 import io.druid.query.QueryCacheHelper;
 import io.druid.query.filter.DimFilterCacheHelper;
-import io.druid.query.groupby.orderby.WindowContext.Evaluator;
+import io.druid.query.groupby.orderby.WindowContext.Frame;
 
 import java.nio.ByteBuffer;
 import java.util.Arrays;
@@ -41,13 +41,13 @@ import java.util.Objects;
  */
 public class PartitionExpression implements Cacheable
 {
-  public static List<Evaluator> toEvaluators(Iterable<PartitionExpression> partitionExpressions)
+  public static List<Frame> toEvaluators(Iterable<PartitionExpression> partitionExpressions)
   {
-    List<Evaluator> evaluators = Lists.newArrayList();
+    List<Frame> frames = Lists.newArrayList();
     for (PartitionExpression expression : partitionExpressions) {
-      evaluators.add(Evaluator.of(expression.getCondition(), Evals.splitAssign(expression.getExpression())));
+      frames.add(Frame.of(expression.getCondition(), Evals.splitAssign(expression.getExpression())));
     }
-    return evaluators;
+    return frames;
   }
 
   public static List<PartitionExpression> from(List values)

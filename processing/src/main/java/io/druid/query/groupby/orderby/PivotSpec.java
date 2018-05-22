@@ -37,7 +37,7 @@ import io.druid.math.expr.Evals;
 import io.druid.math.expr.Expr;
 import io.druid.query.QueryCacheHelper;
 import io.druid.query.filter.DimFilterCacheHelper;
-import io.druid.query.groupby.orderby.WindowContext.Evaluator;
+import io.druid.query.groupby.orderby.WindowContext.Frame;
 import io.druid.query.groupby.orderby.WindowingSpec.PartitionEvaluator;
 import io.druid.segment.StringArray;
 import org.joda.time.DateTime;
@@ -292,8 +292,8 @@ public class PivotSpec implements WindowingSpec.PartitionEvaluatorFactory
   {
     if (pivotColumns.isEmpty()) {
       // just for metatron.. I hate this
-      final List<Evaluator> rowEvals = PartitionExpression.toEvaluators(PartitionExpression.from(rowExpressions));
-      final List<Evaluator> partitionEvals = PartitionExpression.toEvaluators(partitionExpressions);
+      final List<Frame> rowEvals = PartitionExpression.toEvaluators(PartitionExpression.from(rowExpressions));
+      final List<Frame> partitionEvals = PartitionExpression.toEvaluators(partitionExpressions);
       // it's actually not pivoting.. so group-by columns are valid (i don't know why other metrics should be removed)
       final List<String> retainColumns = GuavaUtils.dedupConcat(
           context.partitionColumns(),
@@ -330,7 +330,7 @@ public class PivotSpec implements WindowingSpec.PartitionEvaluatorFactory
       rowExprs.add(Evals.splitAssign(expression));
     }
     // when tabularFormat = true, '_' is replaced with pivot column names
-    final List<Evaluator> partitionEvals = PartitionExpression.toEvaluators(partitionExpressions);
+    final List<Frame> partitionEvals = PartitionExpression.toEvaluators(partitionExpressions);
     final int keyLength = pivotColumns.size() + (appendValueColumn ? 1 : 0);
 
     final Set<StringArray> allPivotColumns = Sets.newHashSet();

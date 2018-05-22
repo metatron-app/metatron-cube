@@ -167,17 +167,17 @@ public class WindowingSpec implements Cacheable
 
   public PartitionEvaluator toEvaluator(final WindowContext context)
   {
-    final List<WindowContext.Evaluator> assigns = Lists.newArrayList();
+    final List<WindowContext.Frame> frames = Lists.newArrayList();
     for (String expression : expressions) {
-      assigns.add(WindowContext.Evaluator.of(null, Evals.splitAssign(expression)));
+      frames.add(WindowContext.Frame.of(null, Evals.splitAssign(expression)));
     }
 
-    PartitionEvaluator evaluator = assigns.isEmpty() ? new PartitionEvaluator() : new PartitionEvaluator()
+    PartitionEvaluator evaluator = frames.isEmpty() ? new PartitionEvaluator() : new PartitionEvaluator()
     {
       @Override
       public List<Row> evaluate(Object[] partitionKey, final List<Row> partition)
       {
-        context.with(partition).evaluate(assigns);
+        context.with(partition).evaluate(frames);
         return partition;
       }
     };
