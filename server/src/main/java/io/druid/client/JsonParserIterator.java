@@ -24,7 +24,6 @@ import com.fasterxml.jackson.core.JsonToken;
 import com.fasterxml.jackson.core.ObjectCodec;
 import com.fasterxml.jackson.databind.JavaType;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.google.common.base.Throwables;
 import com.metamx.common.IAE;
 import com.metamx.common.RE;
 import com.metamx.common.guava.CloseQuietly;
@@ -57,7 +56,6 @@ public class JsonParserIterator<T> implements Iterator<T>
     this.future = future;
     this.url = url;
     this.type = type;
-    jp = null;
   }
 
   @Override
@@ -86,7 +84,7 @@ public class JsonParserIterator<T> implements Iterator<T>
       return retVal;
     }
     catch (IOException e) {
-      throw Throwables.propagate(e);
+      throw new QueryInterruptedException(e, url.getHost() + ":" + url.getPort(), type);
     }
   }
 
@@ -116,7 +114,7 @@ public class JsonParserIterator<T> implements Iterator<T>
         throw new RE(e, "Failure getting results from[%s] because of [%s]", url, e.getMessage());
       }
       catch (CancellationException e) {
-        throw new QueryInterruptedException(e, url.getHost() + ":" + url.getPort(), null);
+        throw new QueryInterruptedException(e, url.getHost() + ":" + url.getPort(), type);
       }
     }
   }
