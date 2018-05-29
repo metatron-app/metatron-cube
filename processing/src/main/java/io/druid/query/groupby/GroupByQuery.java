@@ -430,22 +430,17 @@ public class GroupByQuery extends BaseAggregationQuery<Row> implements Query.Rew
       return query;
     }
     LimitSpec limitSpec = query.getLimitSpec();
-    List<WindowingSpec> windowingSpecs = Lists.newArrayList(limitSpec.getWindowingSpecs());
-    List<OrderByColumnSpec> orderingSpecs = Lists.newArrayList(limitSpec.getColumns());
-    if (windowingSpecs.isEmpty() && orderingSpecs.isEmpty()) {
-      return query;
-    }
-    if (!windowingSpecs.isEmpty()) {
+    if (!GuavaUtils.isNullOrEmpty(limitSpec.getWindowingSpecs())) {
+      List<WindowingSpec> windowingSpecs = Lists.newArrayList(limitSpec.getWindowingSpecs());
       WindowingSpec first = windowingSpecs.get(0);
-      orderingSpecs = first.asExpectedOrdering();
-      List<DimensionSpec> rewritten = applyExplicitOrdering(orderingSpecs, dimensionSpecs);
+      List<DimensionSpec> rewritten = applyExplicitOrdering(first.getPartitionOrdering(), dimensionSpecs);
       if (rewritten != null) {
         windowingSpecs.set(0, first.withoutOrdering());
         query = query.withLimitSpec(limitSpec.withWindowing(windowingSpecs))
                      .withDimensionSpecs(rewritten);
       }
-    } else {
-      List<DimensionSpec> rewritten = applyExplicitOrdering(orderingSpecs, dimensionSpecs);
+    } else if (!GuavaUtils.isNullOrEmpty(limitSpec.getColumns())) {
+      List<DimensionSpec> rewritten = applyExplicitOrdering(limitSpec.getColumns(), dimensionSpecs);
       if (rewritten != null) {
         query = query.withLimitSpec(limitSpec.withOrderingSpec(null))
                      .withDimensionSpecs(rewritten);

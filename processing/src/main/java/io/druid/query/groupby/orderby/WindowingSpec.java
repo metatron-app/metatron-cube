@@ -143,25 +143,27 @@ public class WindowingSpec implements Cacheable
     return pivotSpec;
   }
 
-  public List<OrderByColumnSpec> asExpectedOrdering()
+  public List<OrderByColumnSpec> getPartitionOrdering()
   {
     if (partitionColumns.isEmpty()) {
       return sortingColumns;
     }
     List<OrderByColumnSpec> merged = Lists.newArrayList();
-    List<String> sortingColumnNames = LimitSpecs.getColumns(sortingColumns);
-    int i = 0;
-    for (; i < partitionColumns.size(); i++) {
-      if (sortingColumnNames.indexOf(partitionColumns.get(i)) != i) {
-        break;
+    List<String> sortingColumnNames = OrderByColumnSpec.getColumns(sortingColumns);
+    for (String partitionColumn : partitionColumns) {
+      final int index = sortingColumnNames.indexOf(partitionColumn);
+      if (index < 0) {
+        merged.add(OrderByColumnSpec.asc(partitionColumn));
+      } else {
+        sortingColumnNames.set(index, null);
+        merged.add(sortingColumns.get(index));
       }
-      merged.add(sortingColumns.get(i));
     }
-    for (int j = i; j < partitionColumns.size(); j++) {
-      merged.add(OrderByColumnSpec.asc(partitionColumns.get(j)));
+    for (int i = 0; i < sortingColumnNames.size(); i++) {
+      if (sortingColumnNames.get(i) != null) {
+        merged.add(sortingColumns.get(i));
+      }
     }
-    // partition columns are all the same in a partition.. so it's safe to consider them ordered
-    merged.addAll(sortingColumns.subList(i, sortingColumns.size()));
     return merged;
   }
 

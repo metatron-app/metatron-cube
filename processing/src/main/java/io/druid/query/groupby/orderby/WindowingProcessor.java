@@ -59,7 +59,8 @@ public class WindowingProcessor implements Function<List<Row>, List<Row>>
     for (DimensionSpec dimensionSpec : dimensionSpecs) {
       expectedTypes.put(
           dimensionSpec.getOutputName(),
-          dimensionSpec.getExtractionFn() != null ? ValueDesc.STRING : ValueDesc.UNKNOWN);
+          dimensionSpec.getExtractionFn() != null ? ValueDesc.STRING : ValueDesc.UNKNOWN
+      );
     }
     for (AggregatorFactory aggregator : aggregators) {
       expectedTypes.put(aggregator.getName(), ValueDesc.of(aggregator.getTypeName()));
@@ -74,7 +75,7 @@ public class WindowingProcessor implements Function<List<Row>, List<Row>>
 
     for (WindowingSpec windowingSpec : windowingSpecs) {
       List<String> partitionColumns = windowingSpec.getPartitionColumns();
-      List<OrderByColumnSpec> orderingSpecs = toPartitionKey(windowingSpec);
+      List<OrderByColumnSpec> orderingSpecs = windowingSpec.getPartitionOrdering();
       Ordering<Row> ordering = makeComparator(orderingSpecs, dimensionSpecs, aggregators, postAggregators, false);
       PartitionEvaluator evaluators = windowingSpec.toEvaluator(context.on(partitionColumns, orderingSpecs));
       partitions.add(new PartitionDefinition(partitionColumns, orderingSpecs, ordering, evaluators));
@@ -89,33 +90,6 @@ public class WindowingProcessor implements Function<List<Row>, List<Row>>
       }
     }
     return null;
-  }
-
-  private List<OrderByColumnSpec> toPartitionKey(WindowingSpec spec)
-  {
-    List<String> partitionColumns = spec.getPartitionColumns();
-    List<OrderByColumnSpec> sortingColumns = spec.getSortingColumns();
-
-    if (partitionColumns.isEmpty()) {
-      return sortingColumns;
-    }
-    List<OrderByColumnSpec> merged = Lists.newArrayList();
-    List<String> sortingColumnNames = OrderByColumnSpec.getColumns(sortingColumns);
-    for (String partitionColumn : partitionColumns) {
-      final int index = sortingColumnNames.indexOf(partitionColumn);
-      if (index < 0) {
-        merged.add(OrderByColumnSpec.asc(partitionColumn));
-      } else {
-        sortingColumnNames.set(index, null);
-        merged.add(sortingColumns.get(index));
-      }
-    }
-    for (int i = 0; i < sortingColumnNames.size(); i++) {
-      if (sortingColumnNames.get(i) != null) {
-        merged.add(sortingColumns.get(i));
-      }
-    }
-    return merged;
   }
 
   public List<Row> apply(List<Row> input)

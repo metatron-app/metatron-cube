@@ -38,7 +38,12 @@ public class DefaultDimensionSpec extends DimensionSpec.Abstract
 {
   public static DefaultDimensionSpec of(String dimensionName)
   {
-    return new DefaultDimensionSpec(dimensionName, dimensionName);
+    return of(dimensionName, dimensionName);
+  }
+
+  public static DefaultDimensionSpec of(String dimensionName, String outputName)
+  {
+    return new DefaultDimensionSpec(dimensionName, outputName);
   }
 
   public static List<DimensionSpec> toSpec(String... dimensionNames)
