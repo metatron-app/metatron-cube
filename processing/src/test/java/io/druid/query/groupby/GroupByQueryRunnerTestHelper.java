@@ -28,8 +28,8 @@ import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.metamx.common.guava.Sequence;
-import com.metamx.common.guava.Sequences;
 import io.druid.collections.StupidPool;
+import io.druid.common.utils.Sequences;
 import io.druid.data.input.MapBasedRow;
 import io.druid.data.input.Row;
 import io.druid.query.Query;
@@ -37,6 +37,7 @@ import io.druid.query.QueryRunner;
 import io.druid.query.QueryRunnerFactory;
 import io.druid.query.QueryRunnerTestHelper;
 import io.druid.query.TestQueryRunners;
+import io.druid.segment.TestIndex;
 import io.druid.segment.column.Column;
 import org.apache.commons.lang.ArrayUtils;
 import org.joda.time.DateTime;
@@ -130,6 +131,11 @@ public class GroupByQueryRunnerTestHelper extends QueryRunnerTestHelper
             )
         )
     );
+  }
+
+  public static List<Row> runQuery(GroupByQuery query)
+  {
+    return Sequences.toList(query.run(TestIndex.segmentWalker, Maps.<String, Object>newHashMap()));
   }
 
   public static <T> Iterable<T> runQuery(QueryRunnerFactory factory, QueryRunner<T> runner, Query<T> query)
@@ -278,5 +284,4 @@ public class GroupByQueryRunnerTestHelper extends QueryRunnerTestHelper
       System.out.println("array(" + b + "),");
     }
   }
-
 }

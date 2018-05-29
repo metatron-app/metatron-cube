@@ -143,11 +143,11 @@ public class GroupByQueryRunnerFactory implements QueryRunnerFactory.Splitable<R
   {
     if (query.getLimitSpec().getSegmentLimit() != null) {
       // disable
-      return Arrays.asList(query);
+      return null;
     }
     List<DimensionSpec> dimensionSpecs = query.getDimensions();
     if (dimensionSpecs.isEmpty()) {
-      return Arrays.asList(query);
+      return null;
     }
     QueryableIndexStorageAdapter adapter = null;
     for (Segment segment : Lists.reverse(segments)) {
@@ -158,45 +158,40 @@ public class GroupByQueryRunnerFactory implements QueryRunnerFactory.Splitable<R
       }
     }
     int numSplit = query.getContextInt(Query.GBY_LOCAL_SPLIT_NUM, config.get().getLocalSplitNum());
+
+    DimensionSpec dimensionSpec = dimensionSpecs.get(0);
     if (adapter != null) {
-      int maxCardinality = -1;
-      for (DimensionSpec dimensionSpec : dimensionSpecs) {
-        Column column = adapter.getColumn(dimensionSpec.getDimension());
-        if (column != null && column.getCapabilities().isDictionaryEncoded()) {
-          int cardinality = column.getBitmapIndex().getCardinality();
-          if (cardinality > maxCardinality) {
-            maxCardinality = cardinality;
-          }
-        }
+      Column column = adapter.getColumn(dimensionSpec.getDimension());
+      if (column != null && column.getCapabilities().isDictionaryEncoded()) {
+        int cardinality = column.getBitmapIndex().getCardinality();
+        numSplit = Math.max(numSplit, 1 + (cardinality >> 18));
       }
-      numSplit = Math.max(numSplit, 1 + (maxCardinality >> 18));
     }
     if (numSplit < 2) {
-      return Arrays.asList(query);
+      return null;
     }
     final Object[] values = Queries.makeColumnHistogramOn(
         resolver,
         segmentWalker,
         mapper,
         query.asTimeseriesQuery(),
-        dimensionSpecs.get(0),
+        dimensionSpec,
         numSplit
     );
-    if (values == null) {
-      return Arrays.asList(query);
+    if (values == null || values.length < 3) {
+      return null;
     }
     logger.info("split on values : %s", Arrays.toString(values));
 
-    OrderingSpec orderingSpec = OrderingSpec.create(null);
-    DimensionSpec dimensionSpec = query.getDimensions().get(0);
     ValueDesc type = dimensionSpec.resolveType(resolver.get());
     if (type.isDimension()) {
       type = ValueDesc.STRING;
     }
+    OrderingSpec orderingSpec = OrderingSpec.create(null);
     if (dimensionSpec instanceof DimensionSpecWithOrdering) {
       DimensionSpecWithOrdering explicit = (DimensionSpecWithOrdering) dimensionSpec;
-      orderingSpec = explicit.asOrderingSpec();
       dimensionSpec = explicit.getDelegate();
+      orderingSpec = explicit.asOrderingSpec();
     }
     String dimension = dimensionSpec instanceof DefaultDimensionSpec
                        ? dimensionSpec.getDimension()

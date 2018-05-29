@@ -32,6 +32,7 @@ import com.google.common.util.concurrent.MoreExecutors;
 import com.metamx.common.Pair;
 import com.metamx.common.guava.FunctionalIterable;
 import com.metamx.common.guava.Sequence;
+import com.metamx.common.guava.Sequences;
 import io.druid.query.BySegmentQueryRunner;
 import io.druid.query.DataSource;
 import io.druid.query.NoopQueryRunner;
@@ -437,6 +438,15 @@ public class SpecificSegmentsQuerySegmentWalker implements QuerySegmentWalker
             )
         )
     );
+
+    if (factory instanceof QueryRunnerFactory.Splitable) {
+      QueryRunnerFactory.Splitable<T, Query<T>> splitable = (QueryRunnerFactory.Splitable<T, Query<T>>) factory;
+      Iterable<Query<T>> queries = splitable.splitQuery(resolved, targets, optimizer, resolver, this, objectMapper);
+      if (queries != null) {
+        runner = toConcatRunner(queries, runner);
+      }
+    }
+
     final QueryRunner<T> baseRunner = PostProcessingOperators.wrap(runner, objectMapper);
     return new QueryRunner<T>()
     {
@@ -444,6 +454,32 @@ public class SpecificSegmentsQuerySegmentWalker implements QuerySegmentWalker
       public Sequence<T> run(Query<T> query, Map<String, Object> responseContext)
       {
         return baseRunner.run(resolved, responseContext);
+      }
+    };
+  }
+
+  private <T> QueryRunner<T> toConcatRunner(
+      final Iterable<Query<T>> queries,
+      final QueryRunner<T> runner
+  )
+  {
+    return new QueryRunner<T>()
+    {
+      @Override
+      public Sequence<T> run(Query<T> baseQuery, final Map<String, Object> responseContext)
+      {
+        return Sequences.concat(
+            Iterables.transform(
+                queries, new Function<Query<T>, Sequence<T>>()
+                {
+                  @Override
+                  public Sequence<T> apply(final Query<T> splitQuery)
+                  {
+                    return runner.run(splitQuery, responseContext);
+                  }
+                }
+            )
+        );
       }
     };
   }

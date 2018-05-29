@@ -32,7 +32,6 @@ import com.google.common.primitives.Ints;
 import com.metamx.common.ISE;
 import com.metamx.common.guava.Sequence;
 import io.druid.common.guava.GuavaUtils;
-import io.druid.common.utils.Sequences;
 import io.druid.data.TypeResolver;
 import io.druid.data.input.Row;
 import io.druid.granularity.Granularities;
@@ -152,11 +151,6 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
     this.dataSource = dataSource;
   }
 
-  private List<Row> runQuery(GroupByQuery query)
-  {
-    return Sequences.toList(query.run(TestIndex.segmentWalker, Maps.<String, Object>newHashMap()));
-  }
-
   @SuppressWarnings("unchecked")
   private Sequence<Result> runSegmentQuery(Query query)
   {
@@ -166,16 +160,6 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
   private String getSegmentId(Interval interval)
   {
     return new DataSegment(dataSource, interval, "0", null, null, null, null, null, 0).getIdentifier();
-  }
-
-  private Object[] array(Object... objects)
-  {
-    return objects;
-  }
-
-  private List list(Object... objects)
-  {
-    return Arrays.asList(objects);
   }
 
   @Test

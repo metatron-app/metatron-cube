@@ -463,7 +463,9 @@ public class ServerManager implements QuerySegmentWalker
     if (factory instanceof QueryRunnerFactory.Splitable) {
       QueryRunnerFactory.Splitable<T, Query<T>> splitable = (QueryRunnerFactory.Splitable<T, Query<T>>) factory;
       Iterable<Query<T>> queries = splitable.splitQuery(resolved, targets, optimizer, resolver, this, objectMapper);
-      return toConcatRunner(queries, runner);
+      if (queries != null) {
+        return toConcatRunner(queries, runner);
+      }
     }
     return new QueryRunner<T>()
     {

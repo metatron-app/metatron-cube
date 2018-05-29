@@ -102,7 +102,7 @@ public class StreamRawQueryRunnerFactory
   {
     int numSplit = query.getContextInt(Query.RAW_LOCAL_SPLIT_NUM, 5);
     if (GuavaUtils.isNullOrEmpty(query.getSortOn()) || numSplit < 2) {
-      return Arrays.asList(query);
+      return null;
     }
     String sortColumn = query.getSortOn().get(0);
     final Object[] values = Queries.makeColumnHistogramOn(
@@ -113,8 +113,8 @@ public class StreamRawQueryRunnerFactory
         DefaultDimensionSpec.of(sortColumn),
         numSplit
     );
-    if (values == null) {
-      return Arrays.asList(query);
+    if (values == null || values.length < 3) {
+      return null;
     }
     logger.info("--> values : %s", Arrays.toString(values));
 

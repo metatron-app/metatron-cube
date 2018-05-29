@@ -19,7 +19,10 @@
 
 package io.druid.query;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.core.util.DefaultPrettyPrinter;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.ObjectWriter;
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Supplier;
@@ -46,6 +49,7 @@ import io.druid.data.input.Row;
 import io.druid.granularity.Granularity;
 import io.druid.granularity.QueryGranularities;
 import io.druid.guice.annotations.Json;
+import io.druid.jackson.DefaultObjectMapper;
 import io.druid.js.JavaScriptConfig;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.CountAggregatorFactory;
@@ -957,5 +961,27 @@ public class QueryRunnerTestHelper
       DateTime ts = new DateTime(timestamp);
       return new MapBasedRow(ts, theVals);
     }
+  }
+
+  public static void printJson(Object object)
+  {
+    ObjectWriter writer = DefaultObjectMapper.excludeNulls(TestHelper.getObjectMapper())
+                                             .writer(new DefaultPrettyPrinter());
+    try {
+      System.out.println(writer.writeValueAsString(object));
+    }
+    catch (JsonProcessingException e) {
+      throw new RuntimeException(e);
+    }
+  }
+
+  public static Object[] array(Object... objects)
+  {
+    return objects;
+  }
+
+  public static List list(Object... objects)
+  {
+    return Arrays.asList(objects);
   }
 }

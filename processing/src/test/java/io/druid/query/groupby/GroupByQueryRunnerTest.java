@@ -19,9 +19,6 @@
 
 package io.druid.query.groupby;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.core.util.DefaultPrettyPrinter;
-import com.fasterxml.jackson.databind.ObjectWriter;
 import com.google.common.base.Predicate;
 import com.google.common.base.Suppliers;
 import com.google.common.collect.ImmutableList;
@@ -42,7 +39,6 @@ import io.druid.data.input.Row;
 import io.druid.granularity.Granularities;
 import io.druid.granularity.PeriodGranularity;
 import io.druid.granularity.QueryGranularities;
-import io.druid.jackson.DefaultObjectMapper;
 import io.druid.js.JavaScriptConfig;
 import io.druid.query.BaseAggregationQuery;
 import io.druid.query.BySegmentResultValue;
@@ -6939,29 +6935,6 @@ public class GroupByQueryRunnerTest extends GroupByQueryRunnerTestHelper
     results = GroupByQueryRunnerTestHelper.runQuery(factory, runner, builder.build());
     GroupByQueryRunnerTestHelper.validate(columnNames, expectedResults, results);
   }
-
-  private Object[] array(Object... objects)
-  {
-    return objects;
-  }
-
-  private List list(Object... objects)
-  {
-    return Arrays.asList(objects);
-  }
-
-  public static void printJson(Object object)
-  {
-    ObjectWriter writer = DefaultObjectMapper.excludeNulls(TestHelper.getObjectMapper())
-                                             .writer(new DefaultPrettyPrinter());
-    try {
-      System.out.println(writer.writeValueAsString(object));
-    }
-    catch (JsonProcessingException e) {
-      throw new RuntimeException(e);
-    }
-  }
-
 
   @Test
   public void testBySegmentResults()

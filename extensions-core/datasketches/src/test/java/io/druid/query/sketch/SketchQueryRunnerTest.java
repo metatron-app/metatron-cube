@@ -37,12 +37,14 @@ import io.druid.segment.TestHelper;
 import io.druid.segment.TestIndex;
 import io.druid.sql.calcite.util.SpecificSegmentsQuerySegmentWalker;
 
+import java.util.Arrays;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutorService;
 
 /**
  */
-public class SketchQueryRunnerTest
+public class SketchQueryRunnerTest extends QueryRunnerTestHelper
 {
   static final SpecificSegmentsQuerySegmentWalker segmentWalker;
 
@@ -91,5 +93,15 @@ public class SketchQueryRunnerTest
       conglomerate = new DefaultQueryRunnerFactoryConglomerate(factoryMap);
     }
     segmentWalker = TestIndex.segmentWalker.withConglomerate(conglomerate).withObjectMapper(JSON_MAPPER);
+  }
+
+  public static Object[] array(Object... objects)
+  {
+    return objects;
+  }
+
+  public static List list(Object... objects)
+  {
+    return Arrays.asList(objects);
   }
 }
