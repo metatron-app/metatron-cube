@@ -20,6 +20,7 @@
 package io.druid.server;
 
 import com.google.common.base.Predicate;
+import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
@@ -32,6 +33,7 @@ import io.druid.common.Progressing;
 import io.druid.common.Tagged;
 import io.druid.common.utils.StringUtils;
 import io.druid.query.Query;
+import io.druid.query.QueryContextKeys;
 import io.druid.query.QueryInterruptedException;
 import io.druid.query.QueryWatcher;
 
@@ -46,7 +48,7 @@ public class QueryManager implements QueryWatcher, Runnable
 {
   private static final Logger LOG = new Logger(QueryManager.class);
 
-  private static final long DEFAULT_EXPIRE = 3600000;   // 1hour
+  private static final long DEFAULT_EXPIRE = 300_000;   // 5 min
 
   private final Map<String, QueryStatus> queries;
 
@@ -85,13 +87,14 @@ public class QueryManager implements QueryWatcher, Runnable
       LOG.warn("Query id for %s is null.. fix that", query.getType());
       return;
     }
+    final int timeout = query.getContextInt(QueryContextKeys.TIMEOUT, -1);
     final QueryStatus status = queries.computeIfAbsent(
         id, new Function<String, QueryStatus>()
         {
           @Override
           public QueryStatus apply(String s)
           {
-            return new QueryStatus();
+            return new QueryStatus(timeout);
           }
         }
     );
@@ -143,6 +146,7 @@ public class QueryManager implements QueryWatcher, Runnable
 
   private static class QueryStatus
   {
+    private final int timeout;
     private final long start = System.currentTimeMillis();
     private final Set<String> dataSources = Sets.newConcurrentHashSet();
     private final Set<ListenableFuture> futures = Sets.newConcurrentHashSet();
@@ -151,6 +155,11 @@ public class QueryManager implements QueryWatcher, Runnable
 
     private volatile boolean canceled;
     private volatile long end = -1;
+
+    public QueryStatus(int timeout)
+    {
+      this.timeout = timeout;
+    }
 
     private void start(ListenableFuture future, List<String> dataSource)
     {
@@ -180,7 +189,11 @@ public class QueryManager implements QueryWatcher, Runnable
     {
       canceled = true;
       end = System.currentTimeMillis();
+      return clear();
+    }
 
+    private boolean clear()
+    {
       boolean success = true;
       for (ListenableFuture future : futures) {
         success = success & future.cancel(true);
@@ -192,7 +205,8 @@ public class QueryManager implements QueryWatcher, Runnable
 
     private boolean isExpired(long expire)
     {
-      return end > 0 && (System.currentTimeMillis() - end) > expire;
+      long endTime = end < 0 ? start + timeout : end;
+      return endTime > 0 && (System.currentTimeMillis() - end) > expire;
     }
 
     public void log()
@@ -241,17 +255,23 @@ public class QueryManager implements QueryWatcher, Runnable
   @Override
   public void run()
   {
-    for (String queryId : Maps.filterValues(
-        queries, new Predicate<QueryStatus>()
-        {
-          @Override
-          public boolean apply(QueryStatus input)
-          {
-            return input.isExpired(DEFAULT_EXPIRE);
-          }
-        }
-    ).keySet()) {
-      queries.remove(queryId);
+    List<String> expiredQueries = ImmutableList.copyOf(
+        Maps.filterValues(
+            queries, new Predicate<QueryStatus>()
+            {
+              @Override
+              public boolean apply(QueryStatus input)
+              {
+                return input.isExpired(DEFAULT_EXPIRE);
+              }
+            }
+        ).keySet()
+    );
+    for (String queryId : expiredQueries) {
+      QueryStatus status = queries.remove(queryId);
+      if (status != null) {
+        status.clear();
+      }
     }
   }
 

@@ -77,7 +77,7 @@ public class DruidBroker
             return thread;
           }
         }
-    ).scheduleWithFixedDelay(queryManager, 1, 1, TimeUnit.HOURS);
+    ).scheduleWithFixedDelay(queryManager, 5, 5, TimeUnit.MINUTES);
   }
 
   @LifecycleStart
