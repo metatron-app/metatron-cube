@@ -210,6 +210,9 @@ public class Formatters
     @Override
     public Map<String, Object> close() throws IOException
     {
+      if (rowNum == 0) {
+        nextSheet();    // make empty sheet.. or poi makes invalid excel file
+      }
       try (CountingOutputStream output = new CountingOutputStream(sink.openBufferedStream())) {
         try {
           wb.write(output);
