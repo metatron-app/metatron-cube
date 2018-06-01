@@ -62,6 +62,38 @@ public class MetricValueExtractor
     return retVal == null ? null : ((Number) retVal).doubleValue();
   }
 
+  public Double getDoubleMetricWithRound(String name, int round)
+  {
+    Double value = getDoubleMetric(name);
+    return roundValue(value, round);
+  }
+
+  public static Double roundValue(Double value, int round)
+  {
+    if (value == null || value.isInfinite() || value.isNaN() || value == 0 || round <= 0) {
+      return value;
+    }
+    double abs = Math.abs(value);
+    while (abs < 1) {
+      abs *= 10;
+      round++;
+    }
+    double remains = Math.pow(10, round);
+    return Math.round(value * remains) / remains;
+  }
+
+  public static Object[] roundValue(Object[] values, int round)
+  {
+    for (int i = 0; i < values.length; i++) {
+      if (values[i] instanceof Float) {
+        values[i] = roundValue(((Float) values[i]).doubleValue(), round).floatValue();
+      } else if (values[i] instanceof Double) {
+        values[i] = roundValue((Double) values[i], round);
+      }
+    }
+    return values;
+  }
+
   public Long getLongMetric(String name)
   {
     final Object retVal = value.get(name);

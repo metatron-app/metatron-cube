@@ -990,9 +990,11 @@ public interface BuiltinFunctions extends Function.Library
             ExprEval param = Evals.eval(args.get(0), bindings);
             ValueDesc type = param.type();
             if (type.isFloat()) {
-              return ExprEval.of(Math.round(param.floatValue()));
+              final float value = param.floatValue();
+              return ExprEval.of(Float.isNaN(value) || Float.isInfinite(value) ? value : Math.round(value));
             } else if (type.isNumeric()) {
-              return ExprEval.of(Math.round(param.doubleValue()));
+              final double value = param.doubleValue();
+              return ExprEval.of(Double.isNaN(value) || Double.isInfinite(value) ? value : Math.round(value));
             }
             return param;
           }
@@ -1018,7 +1020,8 @@ public interface BuiltinFunctions extends Function.Library
           ExprEval param = Evals.eval(args.get(0), bindings);
           ValueDesc type = param.type();
           if (type.isNumeric()) {
-            return ExprEval.of(Math.round(param.doubleValue() * x) / x);
+            final double value = param.doubleValue();
+            return ExprEval.of(Double.isNaN(value) || Double.isInfinite(value) ? value : Math.round(value * x) / x);
           }
           return param;
         }

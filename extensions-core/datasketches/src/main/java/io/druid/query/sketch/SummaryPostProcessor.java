@@ -93,6 +93,9 @@ public class SummaryPostProcessor extends PostProcessingOperator.UnionSupport
 {
   private static final Logger LOG = new Logger(SimilarityProcessingOperator.class);
 
+  private static final int DEFAULT_ROUND = 4;
+
+  private final int round;
   private final boolean includeTimeStats;
   private final boolean includeCovariance;
   private final Map<String, Map<String, Integer>> typeDetail;
@@ -101,6 +104,7 @@ public class SummaryPostProcessor extends PostProcessingOperator.UnionSupport
 
   @JsonCreator
   public SummaryPostProcessor(
+      @JsonProperty("round") Integer round,
       @JsonProperty("includeTimeStats") boolean includeTimeStats,
       @JsonProperty("includeCovariance") boolean includeCovariance,
       @JsonProperty("typeDetail") Map<String, Map<String, Integer>> typeDetail,
@@ -108,6 +112,7 @@ public class SummaryPostProcessor extends PostProcessingOperator.UnionSupport
       @JacksonInject @Processing ExecutorService exec
   )
   {
+    this.round = round == null ? DEFAULT_ROUND : round;
     this.includeTimeStats = includeTimeStats;
     this.includeCovariance = includeCovariance;
     this.typeDetail = typeDetail;
@@ -302,10 +307,10 @@ public class SummaryPostProcessor extends PostProcessingOperator.UnionSupport
                             stats.put("missing", row.getLongMetric(column + ".missing"));
                           }
                           if (type.isNumeric()) {
-                            stats.put("mean", row.getDoubleMetric(column + ".mean"));
-                            stats.put("variance", row.getDoubleMetric(column + ".variance"));
-                            stats.put("stddev", row.getDoubleMetric(column + ".stddev"));
-                            stats.put("skewness", row.getDoubleMetric(column + ".skewness"));
+                            stats.put("mean", row.getDoubleMetricWithRound(column + ".mean", round));
+                            stats.put("variance", row.getDoubleMetricWithRound(column + ".variance", round));
+                            stats.put("stddev", row.getDoubleMetricWithRound(column + ".stddev", round));
+                            stats.put("skewness", row.getDoubleMetricWithRound(column + ".skewness", round));
                             stats.put("outliers", row.getLongMetric(column + ".outlier"));
                           }
                           if (includeCovariance && type.isNumeric()) {
@@ -315,7 +320,7 @@ public class SummaryPostProcessor extends PostProcessingOperator.UnionSupport
                               if (key.startsWith(covariance) && key.endsWith(")")) {
                                 stats.put(
                                     "covariance." + key.substring(covariance.length(), key.length() - 1),
-                                    Rows.parseDouble(entry.getValue())
+                                    MetricValueExtractor.roundValue(Rows.parseDouble(entry.getValue()), round)
                                 );
                               }
                             }
@@ -336,9 +341,9 @@ public class SummaryPostProcessor extends PostProcessingOperator.UnionSupport
               }
               Sketch thetaSketch = sketch.value();
               if (thetaSketch.isEstimationMode()) {
-                result.put("cardinality(estimated)", thetaSketch.getEstimate());
-                result.put("cardinality(upper95)", thetaSketch.getUpperBound(2));
-                result.put("cardinality(lower95)", thetaSketch.getLowerBound(2));
+                result.put("cardinality(estimated)", Math.round(thetaSketch.getEstimate()));
+                result.put("cardinality(upper95)", Math.round(thetaSketch.getUpperBound(2)));
+                result.put("cardinality(lower95)", Math.round(thetaSketch.getLowerBound(2)));
               } else {
                 result.put("cardinality", thetaSketch.getEstimate());
               }

@@ -49,6 +49,7 @@ public class SummaryQueryTest extends SketchQueryRunnerTest
         DefaultDimensionSpec.toSpec("market", "quality", "partial_null_column"),
         Arrays.asList("index", "indexMin"),
         null,
+        0,
         true,
         true,
         null
@@ -214,5 +215,60 @@ public class SummaryQueryTest extends SketchQueryRunnerTest
     Assert.assertEquals(-0.397621490102432, indexMinStats.get("skewness"));
     Assert.assertEquals(0l, indexMinStats.get("outliers"));
     Assert.assertEquals(1199.0d, indexMinStats.get("cardinality"));
+  }
+
+  @Test
+  @SuppressWarnings("unchecked")
+  public void testSummaryQueryWithRound() throws Exception
+  {
+    SummaryQuery query = new SummaryQuery(
+        TableDataSource.of(TestIndex.MMAPPED_SPLIT),
+        new MultipleIntervalSegmentSpec(Arrays.asList(TestIndex.INTERVAL)),
+        null,
+        null,
+        Arrays.asList("index"),
+        null,
+        2,
+        false,
+        false,
+        null
+    );
+
+    List result = Sequences.toList(query.run(segmentWalker, Maps.<String, Object>newHashMap()));
+    Assert.assertEquals(1, result.size());
+
+    Map<String, Map<String, Object>> summary = (Map<String, Map<String, Object>>) result.get(0);
+    Assert.assertEquals(1, summary.size());
+
+    Map<String, Object> indexStats = summary.get("index");
+    Assert.assertEquals(ValueDesc.DOUBLE, indexStats.get("type"));
+    Assert.assertEquals(ImmutableMap.of("double", 2), indexStats.get("typeDetail"));
+    Assert.assertEquals(59.02102279663086d, indexStats.get("min"));
+    Assert.assertEquals(1870.06103515625d, indexStats.get("max"));
+    Assert.assertEquals(122.128173828125d, indexStats.get("median"));
+    Assert.assertArrayEquals(
+        new Double[]{
+            59.02102279663086, 96.59458923339844, 103.10391998291016, 108.39460754394531,
+            115.01331329345703, 122.128173828125, 134.415283203125, 691.9589233398438, 1006.402099609375,
+            1179.6959228515625, 1870.06103515625
+        },
+        (Double[]) indexStats.get("quantiles")
+    );
+    Assert.assertArrayEquals(
+        new Object[]{105.61347198486328, 873.3065185546875},
+        (Object[]) indexStats.get("iqr")
+    );
+    Assert.assertEquals(1209l, indexStats.get("count"));
+    Assert.assertArrayEquals(
+        new double[]{-1045.926097869873, 2024.8460884094238},
+        (double[]) indexStats.get("outlierThreshold"), 0.0001
+    );
+    Assert.assertEquals(0l, indexStats.get("zeros"));
+    Assert.assertEquals(416.32, indexStats.get("mean"));
+    Assert.assertEquals(223501.33, indexStats.get("variance"));
+    Assert.assertEquals(472.76, indexStats.get("stddev"));
+    Assert.assertEquals(-0.398, indexStats.get("skewness"));
+    Assert.assertEquals(0l, indexStats.get("outliers"));
+    Assert.assertEquals(1199.0d, indexStats.get("cardinality"));
   }
 }

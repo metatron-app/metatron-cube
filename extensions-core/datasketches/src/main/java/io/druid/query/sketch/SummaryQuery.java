@@ -61,6 +61,7 @@ public class SummaryQuery extends BaseQuery<Result<Map<String, Object>>>
   private final List<DimensionSpec> dimensions;
   private final List<String> metrics;
   private final List<VirtualColumn> virtualColumns;
+  private final int round;
   private final boolean includeTimeStats;
   private final boolean includeCovariance;
 
@@ -72,6 +73,7 @@ public class SummaryQuery extends BaseQuery<Result<Map<String, Object>>>
       @JsonProperty("dimensions") List<DimensionSpec> dimensions,
       @JsonProperty("metrics") List<String> metrics,
       @JsonProperty("filter") DimFilter filter,
+      @JsonProperty("round") int round,
       @JsonProperty("includeTimeStats") boolean includeTimeStats,
       @JsonProperty("includeCovariance") boolean includeCovariance,
       @JsonProperty("context") Map<String, Object> context
@@ -82,6 +84,7 @@ public class SummaryQuery extends BaseQuery<Result<Map<String, Object>>>
     this.dimensions = dimensions == null ? ImmutableList.<DimensionSpec>of() : dimensions;
     this.metrics = metrics == null ? ImmutableList.<String>of() : metrics;
     this.virtualColumns = virtualColumns == null ? ImmutableList.<VirtualColumn>of() : virtualColumns;
+    this.round = round;
     this.includeTimeStats = includeTimeStats;
     this.includeCovariance = includeCovariance;
   }
@@ -152,6 +155,7 @@ public class SummaryQuery extends BaseQuery<Result<Map<String, Object>>>
         QueryContextKeys.POST_PROCESSING,
         ImmutableMap.of(
             "type", "sketch.summary",
+            "round", round,
             "includeTimeStats", includeTimeStats,
             "includeCovariance", includeCovariance,
             "typeDetail", typeDetail
@@ -222,6 +226,7 @@ public class SummaryQuery extends BaseQuery<Result<Map<String, Object>>>
         dimensions,
         metrics,
         dimFilter,
+        round,
         includeTimeStats,
         includeCovariance,
         getContext()
@@ -238,6 +243,7 @@ public class SummaryQuery extends BaseQuery<Result<Map<String, Object>>>
         dimensions,
         metrics,
         dimFilter,
+        round,
         includeTimeStats,
         includeCovariance,
         getContext()
@@ -254,6 +260,7 @@ public class SummaryQuery extends BaseQuery<Result<Map<String, Object>>>
         dimensions,
         metrics,
         dimFilter,
+        round,
         includeTimeStats,
         includeCovariance,
         getContext()
@@ -270,6 +277,7 @@ public class SummaryQuery extends BaseQuery<Result<Map<String, Object>>>
         dimensions,
         metrics,
         dimFilter,
+        round,
         includeTimeStats,
         includeCovariance,
         getContext()
@@ -286,6 +294,7 @@ public class SummaryQuery extends BaseQuery<Result<Map<String, Object>>>
         dimensions,
         metrics,
         dimFilter,
+        round,
         includeTimeStats,
         includeCovariance,
         getContext()
@@ -302,6 +311,7 @@ public class SummaryQuery extends BaseQuery<Result<Map<String, Object>>>
         dimensions,
         metrics,
         dimFilter,
+        round,
         includeTimeStats,
         includeCovariance,
         computeOverriddenContext(contextOverride)
@@ -318,6 +328,7 @@ public class SummaryQuery extends BaseQuery<Result<Map<String, Object>>>
         dimensions,
         metrics,
         dimFilter,
+        round,
         includeTimeStats,
         includeCovariance,
         getContext()
@@ -343,6 +354,9 @@ public class SummaryQuery extends BaseQuery<Result<Map<String, Object>>>
     }
     if (!metrics.isEmpty()) {
       builder.append(", metrics=").append(metrics);
+    }
+    if (round > 0) {
+      builder.append(", round=").append(round);
     }
     builder.append(", includeTimeStats=").append(includeTimeStats);
     builder.append(", includeCovariance=").append(includeCovariance);
