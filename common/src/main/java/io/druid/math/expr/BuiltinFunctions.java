@@ -597,9 +597,18 @@ public interface BuiltinFunctions extends Function.Library
               }
             }
         );
-        init = true;
+        boolean success = false;
+        try {
+          new PythonInterpreter();
+          success = true;
+        }
+        catch (Exception e) {
+          log.info("failed initialize python interpreter.. disabling python functions");
+          // ignore
+        }
+        init = success;
       } else {
-        log.info("invalid or absent of python.home in system environment..");
+        log.info("invalid or absent of python.home in system environment.. disabling python functions");
         init = false;
       }
     }
@@ -675,6 +684,9 @@ public interface BuiltinFunctions extends Function.Library
     @Override
     public Function create(List<Expr> args)
     {
+      if (p == null) {
+        throw new RuntimeException("python initialization failed..");
+      }
       if (args.size() < 2) {
         throw new RuntimeException("function '" + name() + "' should have at least two arguments");
       }
@@ -735,6 +747,9 @@ public interface BuiltinFunctions extends Function.Library
     @Override
     public Function create(List<Expr> args)
     {
+      if (p == null) {
+        throw new RuntimeException("python initialization failed..");
+      }
       if (args.isEmpty()) {
         throw new RuntimeException("function '" + name() + "' should have one argument");
       }
