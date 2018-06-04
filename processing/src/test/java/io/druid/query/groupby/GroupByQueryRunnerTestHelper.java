@@ -138,6 +138,13 @@ public class GroupByQueryRunnerTestHelper extends QueryRunnerTestHelper
     return Sequences.toList(query.run(TestIndex.segmentWalker, Maps.<String, Object>newHashMap()));
   }
 
+  @SuppressWarnings("unchecked")
+  public static List<Row> runRowQuery(Query query)
+  {
+    return Sequences.toList(query.run(TestIndex.segmentWalker, Maps.<String, Object>newHashMap()));
+  }
+
+  @SuppressWarnings("unchecked")
   public static <T> Iterable<T> runQuery(QueryRunnerFactory factory, QueryRunner<T> runner, Query<T> query)
   {
     query = query.withOverriddenContext(ImmutableMap.<String, Object>of("TEST_AS_SORTED", true));

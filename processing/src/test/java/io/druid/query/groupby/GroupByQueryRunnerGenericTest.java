@@ -106,6 +106,7 @@ import io.druid.query.ordering.Direction;
 import io.druid.query.ordering.StringComparators;
 import io.druid.query.search.search.ContainsSearchQuerySpec;
 import io.druid.query.spec.MultipleIntervalSegmentSpec;
+import io.druid.query.timeseries.TimeseriesQuery;
 import io.druid.segment.ExprVirtualColumn;
 import io.druid.segment.TestHelper;
 import io.druid.segment.TestIndex;
@@ -1781,6 +1782,67 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
 
     results = runQuery(query);
     TestHelper.assertExpectedObjects(expectedResults, results, "order-limit");
+  }
+
+  @Test
+  public void testRemoveOrdering()
+  {
+    GroupByQuery query = new GroupByQuery.Builder()
+        .setDataSource(dataSource)
+        .setGranularity(allGran)
+        .setDimensions(DefaultDimensionSpec.of(marketDimension))
+        .setInterval(fullOnInterval)
+        .setLimitSpec(new LimitSpec(Lists.newArrayList(OrderByColumnSpec.asc(marketDimension)), 3))
+        .setAggregatorSpecs(rowsCount)
+        .build();
+
+    List<Row> expectedResults = createExpectedRows(
+        new String[]{"__time", "market", "rows"},
+        array("1970-01-01T00:00:00.000Z", "spot", 837L),
+        array("1970-01-01T00:00:00.000Z", "total_market", 186L),
+        array("1970-01-01T00:00:00.000Z", "upfront", 186L)
+    );
+
+    Iterable<Row> results = runQuery(query);
+    TestHelper.assertExpectedObjects(expectedResults, results, "order-remove");
+
+    query = (GroupByQuery) query.withOverriddenContext(Query.GBY_REMOVE_ORDERING, true);
+    query = (GroupByQuery) query.rewriteQuery(null, new QueryConfig(), null);
+    Assert.assertTrue(query.getLimitSpec().getColumns().isEmpty());
+
+    results = runQuery(query);
+    TestHelper.assertExpectedObjects(expectedResults, results, "order-remove");
+  }
+
+  @Test
+  public void testConvertTimeseries()
+  {
+    GroupByQuery query = new GroupByQuery.Builder()
+        .setDataSource(dataSource)
+        .setGranularity(Granularities.MONTH)
+        .setInterval(fullOnInterval)
+        .setDimFilter(new InDimFilter("market", Arrays.asList("spot", "total_market"), null))
+        .setLimitSpec(new LimitSpec(Lists.newArrayList(OrderByColumnSpec.desc("rows")), 3))
+        .setAggregatorSpecs(rowsCount)
+        .setContext(ImmutableMap.<String, Object>of(GroupByQuery.SORT_ON_TIME, false))
+        .build();
+
+    List<Row> expectedResults = createExpectedRows(
+        new String[]{"__time", "rows"},
+        array("2011-03-01T00:00:00.000Z", 341L),
+        array("2011-02-01T00:00:00.000Z", 308L),
+        array("2011-01-01T00:00:00.000Z", 209L)
+    );
+
+    Iterable<Row> results = runQuery(query);
+    TestHelper.assertExpectedObjects(expectedResults, results, "convert-timeseries");
+
+    query = (GroupByQuery) query.withOverriddenContext(Query.GBY_CONVERT_TIMESERIES, true);
+    Query timeseries = query.rewriteQuery(null, new QueryConfig(), TestHelper.JSON_MAPPER);
+    Assert.assertTrue(timeseries instanceof TimeseriesQuery);
+
+    results = runRowQuery(timeseries);
+    TestHelper.assertExpectedObjects(expectedResults, results, "convert-timeseries");
   }
 
   @Test

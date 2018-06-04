@@ -2109,6 +2109,36 @@ public class GroupByQueryRunnerTest extends GroupByQueryRunnerTestHelper
   }
 
   @Test
+  public void testRemoveOrdering()
+  {
+    GroupByQuery query = new GroupByQuery.Builder()
+        .setDataSource(dataSource)
+        .setGranularity(allGran)
+        .setDimensions(DefaultDimensionSpec.of(marketDimension))
+        .setInterval(fullOnInterval)
+        .setLimitSpec(new LimitSpec(Lists.newArrayList(OrderByColumnSpec.asc(marketDimension)), 3))
+        .setAggregatorSpecs(rowsCount)
+        .build();
+
+    List<Row> expectedResults = createExpectedRows(
+        new String[]{"__time", "market", "rows"},
+        array("1970-01-01T00:00:00.000Z", "spot", 837L),
+        array("1970-01-01T00:00:00.000Z", "total_market", 186L),
+        array("1970-01-01T00:00:00.000Z", "upfront", 186L)
+    );
+
+    Iterable<Row> results = GroupByQueryRunnerTestHelper.runQuery(factory, runner, query);
+    TestHelper.assertExpectedObjects(expectedResults, results, "order-remove");
+
+    query = (GroupByQuery) query.withOverriddenContext(Query.GBY_REMOVE_ORDERING, true);
+    query = (GroupByQuery) query.rewriteQuery(null, new QueryConfig(), null);
+    Assert.assertTrue(query.getLimitSpec().getColumns().isEmpty());
+
+    results = GroupByQueryRunnerTestHelper.runQuery(factory, runner, query);
+    TestHelper.assertExpectedObjects(expectedResults, results, "order-remove");
+  }
+
+  @Test
   public void testGroupByWithOrderOnHyperUnique()
   {
     GroupByQuery query = new GroupByQuery.Builder()

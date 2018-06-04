@@ -411,7 +411,7 @@ public class GroupByQuery extends BaseAggregationQuery<Row> implements Query.Rew
       query = query.tryPreOrdering();
     }
     if (query.getContextBoolean(GBY_REMOVE_ORDERING, groupByConfig.isRemoveOrdering())) {
-      query = tryRemoveOrdering(query);
+      query = query.tryRemoveOrdering();
     }
     if (query.getContextBoolean(GBY_CONVERT_TIMESERIES, groupByConfig.isConvertTimeseries())) {
       return query.tryConvertToTimeseries(jsonMapper);
@@ -489,14 +489,13 @@ public class GroupByQuery extends BaseAggregationQuery<Row> implements Query.Rew
     return orderedDimensionSpecs;
   }
 
-  private GroupByQuery tryRemoveOrdering(GroupByQuery query)
+  private GroupByQuery tryRemoveOrdering()
   {
-    LimitSpec limitSpec = query.getLimitSpec();
     if (GuavaUtils.isNullOrEmpty(limitSpec.getWindowingSpecs()) &&
-        LimitSpecs.isGroupByOrdering(limitSpec.getColumns(), query.getDimensions())) {
-      query = query.withLimitSpec(LimitSpecs.of(limitSpec.getLimit()));
+        LimitSpecs.isGroupByOrdering(limitSpec.getColumns(), dimensions)) {
+      return withLimitSpec(LimitSpecs.of(limitSpec.getLimit()));
     }
-    return query;
+    return this;
   }
 
   private Query tryConvertToTimeseries(ObjectMapper jsonMapper)

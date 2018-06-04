@@ -22,7 +22,6 @@
 
 package io.druid.query.groupby;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Supplier;
 import com.google.common.base.Suppliers;
 import com.google.common.collect.ImmutableList;
@@ -38,7 +37,6 @@ import io.druid.data.input.impl.DefaultTimestampSpec;
 import io.druid.data.input.impl.DimensionsSpec;
 import io.druid.data.input.impl.StringInputRowParser;
 import io.druid.granularity.QueryGranularities;
-import io.druid.jackson.DefaultObjectMapper;
 import io.druid.query.FinalizeResultsQueryRunner;
 import io.druid.query.Query;
 import io.druid.query.QueryRunner;
@@ -156,8 +154,6 @@ public class GroupByQueryRunnerFactoryTest
 
   private GroupByQueryRunnerFactory createFactory()
   {
-    ObjectMapper mapper = new DefaultObjectMapper();
-
     Supplier<GroupByQueryConfig> configSupplier = Suppliers.ofInstance(new GroupByQueryConfig());
     StupidPool<ByteBuffer> pool = new StupidPool<>(
         new Supplier<ByteBuffer>()
