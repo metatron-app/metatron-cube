@@ -26,11 +26,13 @@ import com.fasterxml.jackson.databind.Module;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.collect.Maps;
 import io.druid.query.DefaultQueryRunnerFactoryConglomerate;
+import io.druid.query.JoinQueryConfig;
 import io.druid.query.Query;
 import io.druid.query.QueryRunnerFactory;
 import io.druid.query.QueryRunnerFactoryConglomerate;
 import io.druid.query.QueryRunnerTestHelper;
 import io.druid.query.QuerySegmentWalker;
+import io.druid.query.QueryToolChestWarehouse;
 import io.druid.query.TableDataSource;
 import io.druid.query.aggregation.datasketches.theta.SketchModule;
 import io.druid.segment.TestHelper;
@@ -46,9 +48,9 @@ import java.util.concurrent.ExecutorService;
  */
 public class SketchQueryRunnerTest extends QueryRunnerTestHelper
 {
-  static final SpecificSegmentsQuerySegmentWalker segmentWalker;
+  protected static final SpecificSegmentsQuerySegmentWalker segmentWalker;
 
-  static final ObjectMapper JSON_MAPPER;
+  protected static final ObjectMapper JSON_MAPPER;
 
   static {
     ObjectMapper mapper = TestHelper.JSON_MAPPER;
@@ -67,6 +69,10 @@ public class SketchQueryRunnerTest extends QueryRunnerTestHelper
               return segmentWalker;
             } else if (valueId.equals(ExecutorService.class.getName())) {
               return segmentWalker.getExecutor();
+            } else if (valueId.equals(QueryToolChestWarehouse.class.getName())) {
+              return segmentWalker;
+            } else if (valueId.equals(JoinQueryConfig.class.getName())) {
+              return segmentWalker.getQueryConfig().getJoin().get();
             }
             return null;
           }
@@ -93,6 +99,12 @@ public class SketchQueryRunnerTest extends QueryRunnerTestHelper
       conglomerate = new DefaultQueryRunnerFactoryConglomerate(factoryMap);
     }
     segmentWalker = TestIndex.segmentWalker.withConglomerate(conglomerate).withObjectMapper(JSON_MAPPER);
+  }
+
+  @SuppressWarnings("unchecked")
+  public static List<Map<String, Object>> runTabularQuery(Query query)
+  {
+    return io.druid.common.utils.Sequences.toList(query.run(segmentWalker, Maps.<String, Object>newHashMap()));
   }
 
   public static Object[] array(Object... objects)

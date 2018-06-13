@@ -57,7 +57,7 @@ public class SelectQueryConcatTest
           "2011-01-13T00:00:00.000Z\tspot\tautomotive\tpreferred\ta\u0001preferred\t94.874713"
   );
 
-  private final IncrementalIndex index = TestIndex.makeRealtimeIndex(input);
+  private final IncrementalIndex index = TestIndex.makeRealtimeIndex(input, true);
 
   private final QueryRunner queryRunner = QueryRunnerTestHelper.makeQueryRunner(factory, "index", new IncrementalIndexSegment(index, "index"));
 

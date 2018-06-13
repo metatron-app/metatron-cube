@@ -146,6 +146,21 @@ public class IncrementalIndexSchema
     return new IncrementalIndexSchema(minTimestamp, gran, dimensionsSpec, metrics, rollup);
   }
 
+  public IncrementalIndexSchema withDimensionsSpec(DimensionsSpec dimensionsSpec)
+  {
+    return new IncrementalIndexSchema(minTimestamp, gran, dimensionsSpec, metrics, rollup);
+  }
+
+  public IncrementalIndexSchema withMetrics(AggregatorFactory... metrics)
+  {
+    return new IncrementalIndexSchema(minTimestamp, gran, dimensionsSpec, metrics, rollup);
+  }
+
+  public IncrementalIndexSchema withMinTimestamp(long minTimestamp)
+  {
+    return new IncrementalIndexSchema(minTimestamp, gran, dimensionsSpec, metrics, rollup);
+  }
+
   @Override
   public String toString()
   {

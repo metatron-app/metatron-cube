@@ -84,7 +84,10 @@ import io.druid.query.select.SelectQueryConfig;
 import io.druid.query.select.SelectQueryEngine;
 import io.druid.query.select.SelectQueryQueryToolChest;
 import io.druid.query.select.SelectQueryRunnerFactory;
+import io.druid.query.select.StreamQuery;
 import io.druid.query.select.StreamQueryEngine;
+import io.druid.query.select.StreamQueryRunnerFactory;
+import io.druid.query.select.StreamQueryToolChest;
 import io.druid.query.select.StreamRawQuery;
 import io.druid.query.select.StreamRawQueryRunnerFactory;
 import io.druid.query.select.StreamRawQueryToolChest;
@@ -204,6 +207,13 @@ public class QueryRunnerTestHelper
                       StreamRawQuery.class,
                       new StreamRawQueryRunnerFactory(
                           new StreamRawQueryToolChest(),
+                          new StreamQueryEngine()
+                      )
+                  )
+                  .put(
+                      StreamQuery.class,
+                      new StreamQueryRunnerFactory(
+                          new StreamQueryToolChest(),
                           new StreamQueryEngine()
                       )
                   )
@@ -565,7 +575,7 @@ public class QueryRunnerTestHelper
               Arrays.asList(
                   new Result(
                       DateTime.now(),
-                      new SelectMetaResultValue(TestIndex.SCHEMA.asSchema())
+                      new SelectMetaResultValue(TestIndex.SAMPLE_SCHEMA.asSchema())
                   )
               )
           );
@@ -697,7 +707,7 @@ public class QueryRunnerTestHelper
     return makeQueryRunner(
         factory,
         segmentId,
-        new IncrementalIndexSegment(TestIndex.makeRealtimeIndex(resourceFileName), segmentId)
+        new IncrementalIndexSegment(TestIndex.makeRealtimeIndex(resourceFileName, true), segmentId)
     );
   }
 
@@ -913,6 +923,13 @@ public class QueryRunnerTestHelper
       baseRunner = toolChest.finalizeMetrics(baseRunner);
     }
     return toolChest.finalQueryDecoration(baseRunner);
+  }
+
+
+  @SuppressWarnings("unchecked")
+  public static List<Map<String, Object>> runTabularQuery(Query query)
+  {
+    return io.druid.common.utils.Sequences.toList(query.run(TestIndex.segmentWalker, Maps.<String, Object>newHashMap()));
   }
 
   public static Map<String, Object> of(Object... keyvalues)

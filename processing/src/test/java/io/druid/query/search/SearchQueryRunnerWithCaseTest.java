@@ -36,6 +36,7 @@ import io.druid.segment.QueryableIndex;
 import io.druid.segment.QueryableIndexSegment;
 import io.druid.segment.TestIndex;
 import io.druid.segment.incremental.IncrementalIndex;
+import org.bouncycastle.jcajce.provider.symmetric.TEA;
 import org.joda.time.DateTime;
 import org.junit.Assert;
 import org.junit.Test;
@@ -84,8 +85,8 @@ public class SearchQueryRunnerWithCaseTest
         "2011-01-13T00:00:00.000Z\tspot\tautomotive\tpreferred\ta\u0001preferred\t94.874713"
     );
 
-    IncrementalIndex index1 = TestIndex.makeRealtimeIndex(input);
-    IncrementalIndex index2 = TestIndex.makeRealtimeIndex(input);
+    IncrementalIndex index1 = TestIndex.makeRealtimeIndex(input, true);
+    IncrementalIndex index2 = TestIndex.makeRealtimeIndex(input, true);
 
     QueryableIndex index3 = TestIndex.persistRealtimeAndLoadMMapped(index1);
     QueryableIndex index4 = TestIndex.persistRealtimeAndLoadMMapped(index2);

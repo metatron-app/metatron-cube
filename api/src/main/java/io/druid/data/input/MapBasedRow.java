@@ -22,12 +22,14 @@ package io.druid.data.input;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.collect.Maps;
+import com.google.common.primitives.Longs;
 import org.joda.time.DateTime;
 
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.Objects;
 import java.util.TreeMap;
 
 /**
@@ -73,7 +75,7 @@ public class MapBasedRow extends AbstractRow implements Row.Updatable
   @Override
   public long getTimestampFromEpoch()
   {
-    return timestamp.getMillis();
+    return timestamp == null ? Long.MIN_VALUE : timestamp.getMillis();
   }
 
   @JsonProperty
@@ -142,7 +144,7 @@ public class MapBasedRow extends AbstractRow implements Row.Updatable
     if (!event.equals(that.event)) {
       return false;
     }
-    if (!timestamp.equals(that.timestamp)) {
+    if (!Objects.equals(timestamp, that.timestamp)) {
       return false;
     }
 
@@ -152,14 +154,12 @@ public class MapBasedRow extends AbstractRow implements Row.Updatable
   @Override
   public int hashCode()
   {
-    int result = timestamp.hashCode();
-    result = 31 * result + event.hashCode();
-    return result;
+    return Objects.hash(event, timestamp);
   }
 
   @Override
   public int compareTo(Row o)
   {
-    return timestamp.compareTo(o.getTimestamp());
+    return Longs.compare(getTimestampFromEpoch(), o.getTimestampFromEpoch());
   }
 }

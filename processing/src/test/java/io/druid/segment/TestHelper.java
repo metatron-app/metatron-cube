@@ -21,6 +21,9 @@ package io.druid.segment;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.util.DefaultPrettyPrinter;
+import com.fasterxml.jackson.databind.BeanProperty;
+import com.fasterxml.jackson.databind.DeserializationContext;
+import com.fasterxml.jackson.databind.InjectableValues;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Supplier;
@@ -35,6 +38,9 @@ import io.druid.data.input.MapBasedInputRow;
 import io.druid.data.input.MapBasedRow;
 import io.druid.data.input.Row;
 import io.druid.jackson.DefaultObjectMapper;
+import io.druid.query.JoinQueryConfig;
+import io.druid.query.QuerySegmentWalker;
+import io.druid.query.QueryToolChestWarehouse;
 import io.druid.query.Result;
 import io.druid.query.timeseries.TimeseriesResultValue;
 import io.druid.query.topn.TopNQueryEngine;
@@ -49,6 +55,7 @@ import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ExecutorService;
 
 /**
  */
@@ -61,6 +68,27 @@ public class TestHelper
 
   static {
     JSON_MAPPER = new DefaultObjectMapper();
+    JSON_MAPPER.setInjectableValues(
+        new InjectableValues()
+        {
+          @Override
+          public Object findInjectableValue(
+              Object valueId, DeserializationContext ctxt, BeanProperty forProperty, Object beanInstance
+          )
+          {
+            if (valueId.equals(QuerySegmentWalker.class.getName())) {
+              return TestIndex.segmentWalker;
+            } else if (valueId.equals(ExecutorService.class.getName())) {
+              return TestIndex.segmentWalker.getExecutor();
+            } else if (valueId.equals(QueryToolChestWarehouse.class.getName())) {
+              return TestIndex.segmentWalker;
+            } else if (valueId.equals(JoinQueryConfig.class.getName())) {
+              return TestIndex.segmentWalker.getQueryConfig().getJoin().get();
+            }
+            return null;
+          }
+        }
+    );
     INDEX_IO = new IndexIO(
         JSON_MAPPER
     );

@@ -17,7 +17,7 @@
  * under the License.
  */
 
-package io.druid.segment.indexing;
+package io.druid.data.input;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
@@ -25,47 +25,45 @@ import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
-import io.druid.data.ValueDesc;
-import io.druid.data.input.InputRow;
+import io.druid.common.guava.GuavaUtils;
+import io.druid.data.TypeResolver;
 import io.druid.math.expr.Expr;
 import io.druid.math.expr.Parser;
-import io.druid.query.RowBinding;
 
 import java.util.List;
-import java.util.Map;
 import java.util.Objects;
 
 /**
  */
-public class Validation
+public class Evaluation
 {
-  public static List<RowEvaluator<Boolean>> toEvaluators(List<Validation> validations, Map<String, ValueDesc> types)
+  public static List<RowEvaluator<InputRow>> toEvaluators(List<Evaluation> evaluations, TypeResolver resolver)
   {
-    if (validations == null || validations.isEmpty()) {
+    if (GuavaUtils.isNullOrEmpty(evaluations)) {
       return ImmutableList.of();
     }
-    List<RowEvaluator<Boolean>> evaluators = Lists.newArrayList();
-    for (Validation validation : validations) {
-      evaluators.add(validation.toEvaluator(types));
+    List<RowEvaluator<InputRow>> evaluators = Lists.newArrayList();
+    for (Evaluation evaluation : evaluations) {
+      evaluators.add(evaluation.toEvaluator(resolver));
     }
     return evaluators;
   }
 
-  private final String columnName;
-  private final List<String> exclusions;
+  private final String outputName;
+  private final List<String> expressions;
   private final List<Expr> parsedExpressions;
 
   @JsonCreator
-  public Validation(
-      @JsonProperty("outputName") String columnName,
-      @JsonProperty("exclusions") List<String> exclusions
+  public Evaluation(
+      @JsonProperty("outputName") String outputName,
+      @JsonProperty("expressions") List<String> expressions
   )
   {
-    this.columnName = columnName;
-    this.exclusions = Preconditions.checkNotNull(exclusions);
+    this.outputName = Preconditions.checkNotNull(outputName);
+    this.expressions = Preconditions.checkNotNull(expressions);
     this.parsedExpressions = Lists.newArrayList(
         Lists.transform(
-            exclusions, new Function<String, Expr>()
+            expressions, new Function<String, Expr>()
             {
               @Override
               public Expr apply(String input) { return Parser.parse(input); }
@@ -75,33 +73,33 @@ public class Validation
   }
 
   @JsonProperty
-  public String getColumnName()
+  public String getOutputName()
   {
-    return columnName;
+    return outputName;
   }
 
   @JsonProperty
-  public List<String> getExclusions()
+  public List<String> getExpressions()
   {
-    return exclusions;
+    return expressions;
   }
 
-  public RowEvaluator<Boolean> toEvaluator(final Map<String, ValueDesc> types)
+  public RowEvaluator<InputRow> toEvaluator(TypeResolver resolver)
   {
-    return new RowEvaluator<Boolean>()
-    {
-      private final DataSchema.WithRecursion<Boolean> bindings = new DataSchema.WithRecursion<>(columnName, types);
+    final InputRowBinding<Object> bindings = new InputRowBinding<>(outputName, resolver);
 
+    return new RowEvaluator<InputRow>()
+    {
       @Override
-      public Boolean evaluate(InputRow inputRow)
+      public InputRow evaluate(InputRow inputRow)
       {
         bindings.reset(inputRow);
         for (Expr expression : parsedExpressions) {
-          if (expression.eval(bindings).asBoolean()) {
-            return false;
-          }
+          bindings.set(expression.eval(bindings).value());
         }
-        return true;
+        Row.Updatable updatable = Rows.toUpdatable(inputRow);
+        updatable.set(outputName, bindings.get());
+        return (InputRow) updatable;
       }
     };
   }
@@ -116,12 +114,12 @@ public class Validation
       return false;
     }
 
-    Validation that = (Validation) o;
+    Evaluation that = (Evaluation) o;
 
-    if (!Objects.equals(columnName, that.columnName)) {
+    if (!Objects.equals(outputName, that.outputName)) {
       return false;
     }
-    if (!Objects.equals(exclusions, that.exclusions)) {
+    if (!Objects.equals(expressions, that.expressions)) {
       return false;
     }
 
@@ -131,8 +129,8 @@ public class Validation
   @Override
   public int hashCode()
   {
-    int result = columnName.hashCode();
-    result = 31 * result + exclusions.hashCode();
+    int result = outputName.hashCode();
+    result = 31 * result + expressions.hashCode();
     return result;
   }
 
@@ -140,8 +138,8 @@ public class Validation
   public String toString()
   {
     return "Evaluation{" +
-           "outputName='" + columnName + '\'' +
-           ", exclusions=" + exclusions +
+           "outputName='" + outputName + '\'' +
+           ", expressions=" + expressions +
            '}';
   }
 }

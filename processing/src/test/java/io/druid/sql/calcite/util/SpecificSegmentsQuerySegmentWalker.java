@@ -46,6 +46,7 @@ import io.druid.query.QueryRunnerFactory;
 import io.druid.query.QueryRunnerFactoryConglomerate;
 import io.druid.query.QuerySegmentWalker;
 import io.druid.query.QueryToolChest;
+import io.druid.query.QueryToolChestWarehouse;
 import io.druid.query.ReportTimelineMissingSegmentQueryRunner;
 import io.druid.query.RowResolver;
 import io.druid.query.SegmentDescriptor;
@@ -76,7 +77,7 @@ import java.util.concurrent.Future;
 
 /**
  */
-public class SpecificSegmentsQuerySegmentWalker implements QuerySegmentWalker
+public class SpecificSegmentsQuerySegmentWalker implements QuerySegmentWalker, QueryToolChestWarehouse
 {
   private final ObjectMapper objectMapper;
   private final QueryRunnerFactoryConglomerate conglomerate;
@@ -184,6 +185,11 @@ public class SpecificSegmentsQuerySegmentWalker implements QuerySegmentWalker
     return segments;
   }
 
+  public boolean contains(String dataSource)
+  {
+    return timeLines.containsKey(dataSource);
+  }
+
   @SuppressWarnings("unchecked")
   private <T> Query<T> prepareQuery(Query<T> query)
   {
@@ -240,7 +246,11 @@ public class SpecificSegmentsQuerySegmentWalker implements QuerySegmentWalker
 
   private <T> QueryRunner<T> makeQueryRunnerForIntervals(Query<T> query, Iterable<Interval> intervals)
   {
-    query = prepareQuery(query);    DataSource dataSource = query.getDataSource();
+    QueryRunner<T> runner = toBrokerQueryRunner(query);
+    if (runner != null) {
+      return runner;
+    }
+    DataSource dataSource = query.getDataSource();
     String dataSourceName = getDataSourceName(dataSource);
 
     final VersionedIntervalTimeline<String, Segment> timeline = timeLines.get(dataSourceName);
@@ -296,7 +306,7 @@ public class SpecificSegmentsQuerySegmentWalker implements QuerySegmentWalker
             }
         );
 
-    return toQueryRunner(query, segments);
+    return toLocalQueryRunner(query, segments);
   }
 
   private String getDataSourceName(DataSource dataSource)
@@ -324,6 +334,10 @@ public class SpecificSegmentsQuerySegmentWalker implements QuerySegmentWalker
 
   private <T> QueryRunner<T> makeQueryRunnerForSegments(Query<T> query, Iterable<SegmentDescriptor> specs)
   {
+    QueryRunner<T> runner = toBrokerQueryRunner(query);
+    if (runner != null) {
+      return runner;
+    }
     String dataSourceName = getDataSourceName(query.getDataSource());
 
     final VersionedIntervalTimeline<String, Segment> timeline = timeLines.get(dataSourceName);
@@ -352,11 +366,11 @@ public class SpecificSegmentsQuerySegmentWalker implements QuerySegmentWalker
             }
         )
     );
-    return toQueryRunner(query, segments);
+    return toLocalQueryRunner(query, segments);
   }
 
   @SuppressWarnings("unchecked")
-  private <T> QueryRunner<T> toQueryRunner(Query<T> query, Iterable<Pair<SegmentDescriptor, Segment>> segments)
+  private <T> QueryRunner<T> toBrokerQueryRunner(Query<T> query)
   {
     final QueryRunnerFactory<T, Query<T>> factory = conglomerate.findFactory(query);
     if (query.getDataSource() instanceof QueryDataSource) {
@@ -385,16 +399,25 @@ public class SpecificSegmentsQuerySegmentWalker implements QuerySegmentWalker
     if (factory == null) {
       return PostProcessingOperators.wrap(new NoopQueryRunner<T>(), objectMapper);
     }
-    final QueryToolChest<T, Query<T>> toolChest = factory.getToolchest();
+    return null;
+  }
 
-    final List<Segment> targets = Lists.newArrayList(
-        Iterables.filter(
-            Iterables.transform(
-                segments,
-                Pair.<SegmentDescriptor, Segment>rhsFn()
-            ), Predicates.notNull()
-        )
-    );
+  private <T> QueryRunner<T> toLocalQueryRunner(
+      Query<T> query,
+      Iterable<Pair<SegmentDescriptor, Segment>> segments
+  )
+  {
+    final QueryRunnerFactory<T, Query<T>> factory = conglomerate.findFactory(query);
+    final QueryToolChest<T, Query<T>> toolChest = factory.getToolchest();
+    final List<Segment> targets = Lists
+      .newArrayList(
+          Iterables.filter(
+              Iterables.transform(
+                  segments,
+                  Pair.<SegmentDescriptor, Segment>rhsFn()
+              ), Predicates.notNull()
+          )
+      );
     if (targets.isEmpty()) {
       return PostProcessingOperators.wrap(new NoopQueryRunner<T>(), objectMapper);
     }
@@ -403,7 +426,7 @@ public class SpecificSegmentsQuerySegmentWalker implements QuerySegmentWalker
     final Query<T> resolved = query.resolveQuery(resolver);
     final Future<Object> optimizer = factory.preFactoring(query, targets, resolver, executor);
 
-    FunctionalIterable<QueryRunner<T>> queryRunners = FunctionalIterable
+    Iterable<QueryRunner<T>> queryRunners = FunctionalIterable
         .create(segments)
         .transformCat(
             new Function<Pair<SegmentDescriptor, Segment>, Iterable<QueryRunner<T>>>()
@@ -482,5 +505,18 @@ public class SpecificSegmentsQuerySegmentWalker implements QuerySegmentWalker
         );
       }
     };
+  }
+
+  @Override
+  public QueryConfig getQueryConfig()
+  {
+    return queryConfig;
+  }
+
+  @Override
+  public <T, QueryType extends Query<T>> QueryToolChest<T, QueryType> getToolChest(QueryType query)
+  {
+    QueryRunnerFactory<T, QueryType> factory = conglomerate.findFactory(query);
+    return factory == null ? null : factory.getToolchest();
   }
 }

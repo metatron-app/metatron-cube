@@ -27,6 +27,7 @@ import com.google.common.hash.HashCode;
 import com.google.common.hash.Hasher;
 import com.metamx.common.ISE;
 import com.metamx.common.StringUtils;
+import org.joda.time.DateTime;
 
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -56,14 +57,13 @@ public class Rows extends io.druid.data.Rows
     return new MapBasedRow(row.getTimestamp(), event);
   }
 
-  public static Function rowToMap(final String timestampColumn)
+  public static Function<Row, Map<String, Object>> rowToMap(final String timestampColumn)
   {
-    return new Function()
+    return new Function<Row, Map<String, Object>>()
     {
       @Override
-      public Map<String, Object> apply(Object input)
+      public Map<String, Object> apply(Row row)
       {
-        Row row = (Row) input;
         if (row instanceof MapBasedRow) {
           Map<String, Object> event = ((MapBasedRow) row).getEvent();
           if (MapBasedRow.supportInplaceUpdate(event)) {
@@ -77,6 +77,23 @@ public class Rows extends io.druid.data.Rows
         }
         event.put(timestampColumn, row.getTimestamp());
         return event;
+      }
+    };
+  }
+
+  public static Function<Map<String, Object>, Row> mapToRow()
+  {
+    return new Function<Map<String, Object>, Row>()
+    {
+      @Override
+      public Row apply(Map<String, Object> input)
+      {
+        Object timestamp = input.get("__time");
+        if (timestamp == null) {
+          timestamp = input.get("timestamp");
+        }
+        DateTime dateTime = timestamp == null ? new DateTime(0) : new DateTime(timestamp);
+        return new MapBasedRow(dateTime, input);
       }
     };
   }

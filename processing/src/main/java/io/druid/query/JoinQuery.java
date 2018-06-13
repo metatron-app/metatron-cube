@@ -304,7 +304,7 @@ public class JoinQuery<T extends Comparable<T>> extends BaseQuery<T> implements 
       queries.add(new JoinDelegate(partitioned, prefixAlias ? aliases : null, -1, 0, 0, context));
       first = false;
     }
-    return new UnionAllQuery(null, queries, false, limit, parallelism, queue, Maps.newHashMap(getContext()));
+    return new UnionAllQuery(null, queries, false, limit, parallelism, queue, BaseQuery.copyContext(this));
   }
 
   private JoinPartitionSpec partition(QuerySegmentWalker segmentWalker, ObjectMapper jsonMapper)
@@ -337,6 +337,38 @@ public class JoinQuery<T extends Comparable<T>> extends BaseQuery<T> implements 
       return new JoinPartitionSpec(element.getFirstKeys(), partitions);
     }
     return null;
+  }
+
+  public JoinQuery withNumPartition(int numPartition)
+  {
+    return new JoinQuery(
+        getDataSources(),
+        getElements(),
+        prefixAlias,
+        getQuerySegmentSpec(),
+        numPartition,
+        scannerLen,
+        limit,
+        parallelism,
+        queue,
+        getContext()
+    );
+  }
+
+  public JoinQuery withPrefixAlias(boolean prefixAlias)
+  {
+    return new JoinQuery(
+        getDataSources(),
+        getElements(),
+        prefixAlias,
+        getQuerySegmentSpec(),
+        numPartition,
+        scannerLen,
+        limit,
+        parallelism,
+        queue,
+        getContext()
+    );
   }
 
   @Override

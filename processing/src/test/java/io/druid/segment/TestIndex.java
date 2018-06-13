@@ -122,11 +122,12 @@ public class TestIndex
   public static SpecificSegmentsQuerySegmentWalker segmentWalker =
       new SpecificSegmentsQuerySegmentWalker(QueryRunnerTestHelper.CONGLOMERATE);
 
-  public static final IncrementalIndexSchema SCHEMA = new IncrementalIndexSchema.Builder()
-      .withMinTimestamp(new DateTime("2011-01-12T00:00:00.000Z").getMillis())
+  public static final IncrementalIndexSchema SAMPLE_SCHEMA = new IncrementalIndexSchema.Builder()
+      .withMinTimestamp(new DateTime("2011-01-01T00:00:00.000Z").getMillis())
       .withQueryGranularity(QueryGranularities.NONE)
       .withDimensions(Arrays.asList(DIMENSIONS))
       .withMetrics(METRIC_AGGS)
+      .withRollup(true)
       .build();
 
   public static final DataSegment SEGMENT = new DataSegment(
@@ -150,7 +151,7 @@ public class TestIndex
   public static synchronized IncrementalIndex getIncrementalTestIndex()
   {
     if (realtimeIndex == null) {
-      realtimeIndex = makeRealtimeIndex("druid.sample.tsv");
+      realtimeIndex = makeRealtimeIndex("druid.sample.tsv", true);
       segmentWalker.add(SEGMENT.withDataSource("realtime"), realtimeIndex);
     }
     return realtimeIndex;
@@ -189,8 +190,8 @@ public class TestIndex
   {
     if (mergedRealtime == null) {
       try {
-        IncrementalIndex top = makeRealtimeIndex("druid.sample.tsv.top");
-        IncrementalIndex bottom = makeRealtimeIndex("druid.sample.tsv.bottom");
+        IncrementalIndex top = makeRealtimeIndex("druid.sample.tsv.top", true);
+        IncrementalIndex bottom = makeRealtimeIndex("druid.sample.tsv.bottom", true);
 
         File tmpFile = File.createTempFile("yay", "who");
         tmpFile.delete();
@@ -232,41 +233,45 @@ public class TestIndex
     return mergedRealtime;
   }
 
-  public static IncrementalIndex makeRealtimeIndex(final String resourceFilename)
+  public static IncrementalIndex makeRealtimeIndex(String resourceFilename, boolean rollup)
   {
-    return makeRealtimeIndex(resourceFilename, true);
+    return makeRealtimeIndex(asCharSource(resourceFilename), rollup);
   }
 
-  public static IncrementalIndex makeRealtimeIndex(final String resourceFilename, boolean rollup)
+  public static CharSource asCharSource(String resourceFilename)
   {
     final URL resource = TestIndex.class.getClassLoader().getResource(resourceFilename);
     if (resource == null) {
       throw new IllegalArgumentException("cannot find resource " + resourceFilename);
     }
     log.info("Realtime loading index file[%s]", resource);
-    CharSource stream = Resources.asByteSource(resource).asCharSource(Charsets.UTF_8);
-    return makeRealtimeIndex(stream, rollup);
+    return Resources.asByteSource(resource).asCharSource(Charsets.UTF_8);
   }
 
-  public static IncrementalIndex makeRealtimeIndex(final CharSource source)
+  public static IncrementalIndex makeRealtimeIndex(
+      CharSource source,
+      IncrementalIndexSchema schema,
+      StringInputRowParser parser
+  )
   {
-    return makeRealtimeIndex(source, true);
-  }
-
-  public static IncrementalIndex makeRealtimeIndex(final CharSource source, boolean rollup)
-  {
-    final IncrementalIndexSchema schema = SCHEMA.withRollup(rollup);
     final IncrementalIndex retVal = new OnheapIncrementalIndex(schema, true, 10000);
+
+    try {
+      return loadIncrementalIndex(retVal, source, parser);
+    }
+    catch (Exception e) {
+      throw Throwables.propagate(e);
+    }
+  }
+
+  public static IncrementalIndex makeRealtimeIndex(CharSource source, boolean rollup)
+  {
+    final IncrementalIndex retVal = new OnheapIncrementalIndex(SAMPLE_SCHEMA.withRollup(rollup), true, 10000);
 
     try {
       return loadIncrementalIndex(retVal, source);
     }
     catch (Exception e) {
-      if (rollup) {
-        realtimeIndex = null;
-      } else {
-        noRollupRealtimeIndex = null;
-      }
       throw Throwables.propagate(e);
     }
   }

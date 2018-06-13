@@ -28,12 +28,18 @@ import com.google.common.collect.ImmutableList;
 import io.druid.query.filter.DimFilter;
 import io.druid.segment.VirtualColumn;
 
+import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
 
 @JsonTypeName("view")
 public class ViewDataSource extends TableDataSource
 {
+  public static ViewDataSource of(String dataSource, String... columns)
+  {
+    return new ViewDataSource(dataSource, Arrays.asList(columns), null, null, false);
+  }
+
   @JsonProperty
   private final List<String> columns;
 

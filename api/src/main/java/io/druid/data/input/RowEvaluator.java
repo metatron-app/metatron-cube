@@ -17,9 +17,7 @@
  * under the License.
  */
 
-package io.druid.segment.indexing;
-
-import io.druid.data.input.InputRow;
+package io.druid.data.input;
 
 /**
  */

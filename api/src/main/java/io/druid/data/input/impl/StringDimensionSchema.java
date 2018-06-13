@@ -22,11 +22,23 @@ package io.druid.data.input.impl;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.google.common.collect.Lists;
 import io.druid.data.ValueDesc;
 import io.druid.data.ValueType;
 
+import java.util.List;
+
 public class StringDimensionSchema extends DimensionSchema
 {
+  public static List<DimensionSchema> ofNames(String... dimensions)
+  {
+    List<DimensionSchema> schemas = Lists.newArrayList();
+    for (String dimension : dimensions) {
+      schemas.add(new StringDimensionSchema(dimension, null));
+    }
+    return schemas;
+  }
+
   @JsonCreator
   public StringDimensionSchema(
       @JsonProperty("name") String name,

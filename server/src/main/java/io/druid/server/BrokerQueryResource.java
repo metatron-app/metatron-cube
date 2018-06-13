@@ -440,7 +440,7 @@ public class BrokerQueryResource extends QueryResource
           query, new QueryRunner()
           {
             @Override
-            public Sequence run(Query query, Map responseContext)
+            public Sequence<Map<String, Object>> run(Query query, Map responseContext)
             {
               return Sequences.map(sequence, Rows.rowToMap(timestampColumn));
             }
