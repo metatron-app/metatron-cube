@@ -120,6 +120,15 @@ public interface Function
       }
     }
 
+    public abstract class DoubleChild extends Child
+    {
+      @Override
+      public final ValueDesc apply(List<Expr> args, TypeBinding bindings)
+      {
+        return ValueDesc.DOUBLE;
+      }
+    }
+
     public abstract class IndecisiveChild extends Child
     {
       @Override

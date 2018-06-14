@@ -78,6 +78,9 @@ public class ValueDesc
   public static ValueDesc STRUCT = new ValueDesc(STRUCT_TYPE);
   public static ValueDesc UNKNOWN = new ValueDesc(UNKNOWN_TYPE);
 
+  public static ValueDesc LONG_ARRAY = new ValueDesc(ARRAY_PREFIX + LONG_TYPE);
+  public static ValueDesc DOUBLE_ARRAY = new ValueDesc(ARRAY_PREFIX + DOUBLE_TYPE);
+
   public static ValueDesc ofArray(ValueDesc valueType)
   {
     return ofArray(valueType.typeName);

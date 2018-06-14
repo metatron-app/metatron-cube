@@ -291,6 +291,51 @@ public interface BuiltinFunctions extends Function.Library
     }
   }
 
+  @Function.Named("array.long")
+  final class LongArray extends Function.NamedFunction
+  {
+    @Override
+    public ValueDesc apply(List<Expr> args, TypeBinding bindings)
+    {
+      return ValueDesc.LONG_ARRAY;
+    }
+
+    @Override
+    public ExprEval apply(List<Expr> args, NumericBinding bindings)
+    {
+      List<Long> doubles = Lists.newArrayList();
+      for (Expr arg : args) {
+        doubles.add(Evals.evalLong(arg, bindings));
+      }
+      return ExprEval.of(doubles, ValueDesc.LONG_ARRAY);
+    }
+  }
+
+  @Function.Named("array.double")
+  class DoubleArray extends Function.NamedFunction
+  {
+    @Override
+    public ValueDesc apply(List<Expr> args, TypeBinding bindings)
+    {
+      return ValueDesc.DOUBLE_ARRAY;
+    }
+
+    @Override
+    public ExprEval apply(List<Expr> args, NumericBinding bindings)
+    {
+      List<Double> doubles = Lists.newArrayList();
+      for (Expr arg : args) {
+        doubles.add(Evals.evalDouble(arg, bindings));
+      }
+      return ExprEval.of(doubles, ValueDesc.DOUBLE_ARRAY);
+    }
+  }
+
+  @Function.Named("array")
+  final class Array extends DoubleArray
+  {
+  }
+
   @Function.Named("regex")
   final class Regex extends Function.AbstractFactory
   {
