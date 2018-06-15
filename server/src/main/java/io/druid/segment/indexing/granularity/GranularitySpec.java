@@ -40,6 +40,8 @@ import java.util.SortedSet;
 })
 public interface GranularitySpec
 {
+   public Interval umbrellaInterval();
+
   /**
    * Set of all time groups, broken up on segment boundaries. Should be sorted by interval start and non-overlapping.
    *

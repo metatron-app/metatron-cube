@@ -24,6 +24,7 @@ import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Objects;
 import com.google.common.base.Preconditions;
+import com.google.common.base.Predicate;
 
 /**
  * Represents the status of a task from the perspective of the coordinator. The task may be ongoing
@@ -38,6 +39,18 @@ public class TaskStatus
     RUNNING,
     SUCCESS,
     FAILED
+  }
+
+  public static Predicate<TaskStatus> asPredicate(final Status status)
+  {
+    return new Predicate<TaskStatus>()
+    {
+      @Override
+      public boolean apply(TaskStatus input)
+      {
+        return input.status == status;
+      }
+    };
   }
 
   public static TaskStatus running(String taskId)

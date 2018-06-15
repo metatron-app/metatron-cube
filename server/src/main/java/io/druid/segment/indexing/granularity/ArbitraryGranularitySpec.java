@@ -93,6 +93,12 @@ public class ArbitraryGranularitySpec implements GranularitySpec
   }
 
   @Override
+  public Interval umbrellaInterval()
+  {
+    return JodaUtils.umbrellaInterval(intervals);
+  }
+
+  @Override
   @JsonProperty("intervals")
   public Optional<SortedSet<Interval>> bucketIntervals()
   {

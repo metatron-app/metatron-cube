@@ -25,6 +25,7 @@ import com.google.common.base.Optional;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
+import io.druid.common.utils.JodaUtils;
 import io.druid.granularity.Granularity;
 import io.druid.granularity.QueryGranularities;
 import org.joda.time.DateTime;
@@ -70,6 +71,12 @@ public class UniformGranularitySpec implements GranularitySpec
   )
   {
     this(segmentGranularity, queryGranularity, true, false, inputIntervals);
+  }
+
+  @Override
+  public Interval umbrellaInterval()
+  {
+    return intervals == null ? null : JodaUtils.umbrellaInterval(intervals);
   }
 
   @Override

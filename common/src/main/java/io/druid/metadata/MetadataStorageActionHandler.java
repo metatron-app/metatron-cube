@@ -20,6 +20,7 @@
 package io.druid.metadata;
 
 import com.google.common.base.Optional;
+import com.google.common.base.Predicate;
 import com.metamx.common.Pair;
 import org.joda.time.DateTime;
 
@@ -83,7 +84,7 @@ public interface MetadataStorageActionHandler<EntryType, StatusType, LogType, Lo
    *
    * @return list of (entry, status) pairs
    */
-  public List<Pair<EntryType, StatusType>> getActiveEntriesWithStatus();
+  public List<Pair<EntryType, StatusType>> getActiveEntriesWithStatus(Predicate<StatusType> predicate);
 
   /**
    * Return all statuses for inactive entries created on or later than the given timestamp

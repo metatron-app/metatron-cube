@@ -46,7 +46,6 @@ import io.druid.metadata.MetadataStorageTablesConfig;
 import org.joda.time.DateTime;
 import org.joda.time.Duration;
 
-import javax.annotation.Nullable;
 import java.util.List;
 import java.util.Map;
 
@@ -184,28 +183,8 @@ public class MetadataTaskStorage implements TaskStorage
   {
     return ImmutableList.copyOf(
         Iterables.transform(
-            Iterables.filter(
-                handler.getActiveEntriesWithStatus(),
-                new Predicate<Pair<Task, TaskStatus>>()
-                {
-                  @Override
-                  public boolean apply(
-                      @Nullable Pair<Task, TaskStatus> input
-                  )
-                  {
-                    return input.rhs.isRunnable();
-                  }
-                }
-            ),
-            new Function<Pair<Task, TaskStatus>, Task>()
-            {
-              @Nullable
-              @Override
-              public Task apply(@Nullable Pair<Task, TaskStatus> input)
-              {
-                return input.lhs;
-              }
-            }
+            handler.getActiveEntriesWithStatus(TaskStatus.asPredicate(TaskStatus.Status.RUNNING)),
+            Pair.<Task, TaskStatus>lhsFn()
         )
     );
   }

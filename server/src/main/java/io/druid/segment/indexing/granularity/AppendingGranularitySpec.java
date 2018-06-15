@@ -60,6 +60,12 @@ public class AppendingGranularitySpec implements GranularitySpec
   }
 
   @Override
+  public Interval umbrellaInterval()
+  {
+    return granularitySpec.umbrellaInterval();
+  }
+
+  @Override
   public Optional<SortedSet<Interval>> bucketIntervals()
   {
     return granularitySpec.bucketIntervals();

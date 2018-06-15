@@ -116,11 +116,7 @@ public class IndexTask extends AbstractFixedIntervalTask
   private static Interval makeInterval(IndexIngestionSpec ingestionSchema)
   {
     GranularitySpec spec = ingestionSchema.getDataSchema().getGranularitySpec();
-
-    return new Interval(
-        spec.bucketIntervals().get().first().getStart(),
-        spec.bucketIntervals().get().last().getEnd()
-    );
+    return spec.umbrellaInterval();
   }
 
   static RealtimeTuningConfig convertTuningConfig(

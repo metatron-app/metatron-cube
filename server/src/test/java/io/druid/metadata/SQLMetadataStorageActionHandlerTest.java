@@ -22,6 +22,7 @@ package io.druid.metadata;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Optional;
+import com.google.common.base.Predicates;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
@@ -134,14 +135,14 @@ public class SQLMetadataStorageActionHandlerTest
 
     Assert.assertEquals(
         ImmutableList.of(Pair.of(entry, status1)),
-        handler.getActiveEntriesWithStatus()
+        handler.getActiveEntriesWithStatus(Predicates.<Map<String, Integer>>alwaysTrue())
     );
 
     Assert.assertTrue(handler.setStatus(entryId, true, status2));
 
     Assert.assertEquals(
         ImmutableList.of(Pair.of(entry, status2)),
-        handler.getActiveEntriesWithStatus()
+        handler.getActiveEntriesWithStatus(Predicates.<Map<String, Integer>>alwaysTrue())
     );
 
     Assert.assertEquals(

@@ -131,21 +131,21 @@ public class JodaUtils
 
   public static Interval umbrellaInterval(Iterable<Interval> intervals)
   {
-    ArrayList<DateTime> startDates = Lists.newArrayList();
-    ArrayList<DateTime> endDates = Lists.newArrayList();
+    DateTime startDate = null;
+    DateTime endDate = null;
 
     for (Interval interval : intervals) {
-      startDates.add(interval.getStart());
-      endDates.add(interval.getEnd());
+      if (startDate == null || startDate.isAfter(interval.getStart())) {
+        startDate = interval.getStart();
+      }
+      if (endDate == null || endDate.isBefore(interval.getEnd())) {
+        endDate = interval.getEnd();
+      }
     }
-
-    DateTime minStart = minDateTime(startDates.toArray(new DateTime[startDates.size()]));
-    DateTime maxEnd = maxDateTime(endDates.toArray(new DateTime[endDates.size()]));
-
-    if (minStart == null || maxEnd == null) {
+    if (startDate == null || endDate == null) {
       throw new IllegalArgumentException("Empty list of intervals");
     }
-    return new Interval(minStart, maxEnd);
+    return new Interval(startDate, endDate);
   }
 
   public static boolean overlaps(final Interval i, Iterable<Interval> intervals)
