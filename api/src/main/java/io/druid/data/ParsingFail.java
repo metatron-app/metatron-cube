@@ -21,15 +21,32 @@ import com.metamx.common.parsers.ParseException;
 
 /**
  */
-public class ParserInitializationFail extends ParseException
+public class ParsingFail extends ParseException
 {
-  public ParserInitializationFail(String message, Exception cause)
+  private final Object input;
+
+  public ParsingFail(Object input, String message, Throwable cause)
   {
     super(message, cause);
+    this.input = input;
   }
 
-  public ParserInitializationFail(Exception cause)
+  public ParsingFail(Object input, Throwable cause)
   {
     super(cause, cause.getMessage());
+    this.input = input;
+  }
+
+  public Object getInput()
+  {
+    return input;
+  }
+
+  public static ParseException propagate(Object input, Throwable t)
+  {
+    if (t instanceof ParseException) {
+      throw (ParseException) t;
+    }
+    throw new ParsingFail(input, t);
   }
 }

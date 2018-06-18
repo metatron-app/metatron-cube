@@ -143,7 +143,8 @@ public class IndexTaskTest
                 0,
                 null,
                 indexSpec,
-                null
+                null,
+                false
             )
         ),
         jsonMapper,
@@ -338,7 +339,8 @@ public class IndexTaskTest
         1000,
         null,
         new IndexSpec(),
-        null
+        null,
+        false
     );
     RealtimeTuningConfig realtimeTuningConfig = IndexTask.convertTuningConfig(
         spec,

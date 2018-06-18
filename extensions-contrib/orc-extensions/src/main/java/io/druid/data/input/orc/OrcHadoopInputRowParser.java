@@ -27,6 +27,7 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.metamx.common.logger.Logger;
 import io.druid.data.ParserInitializationFail;
+import io.druid.data.ParsingFail;
 import io.druid.data.input.InputRow;
 import io.druid.data.input.MapBasedInputRow;
 import io.druid.data.input.TimestampSpec;
@@ -122,37 +123,42 @@ public class OrcHadoopInputRowParser implements HadoopAwareParser<OrcStruct>
   @Override
   public InputRow parse(OrcStruct input)
   {
-    StructObjectInspector oip = Preconditions.checkNotNull(
-        getObjectInspector(),
-        "user should specify typeString or schema"
-    );
+    try {
+      StructObjectInspector oip = Preconditions.checkNotNull(
+          getObjectInspector(),
+          "user should specify typeString or schema"
+      );
 
-    List<? extends StructField> fields = oip.getAllStructFieldRefs();
-    final Map<String, Object> map = Maps.newHashMapWithExpectedSize(fields.size());
-    for (StructField field : fields) {
-      ObjectInspector objectInspector = field.getFieldObjectInspector();
-      switch (objectInspector.getCategory()) {
-        case PRIMITIVE:
-          PrimitiveObjectInspector primitiveObjectInspector = (PrimitiveObjectInspector) objectInspector;
-          map.put(
-              field.getFieldName(),
-              getDatum(primitiveObjectInspector, oip.getStructFieldData(input, field))
-          );
-          break;
-        case LIST:  // array case - only 1-depth array supported yet
-          ListObjectInspector listObjectInspector = (ListObjectInspector) objectInspector;
-          map.put(
-              field.getFieldName(),
-              getListObject(listObjectInspector, oip.getStructFieldData(input, field))
-          );
-          break;
-        default:
-          break;
+      List<? extends StructField> fields = oip.getAllStructFieldRefs();
+      final Map<String, Object> map = Maps.newHashMapWithExpectedSize(fields.size());
+      for (StructField field : fields) {
+        ObjectInspector objectInspector = field.getFieldObjectInspector();
+        switch (objectInspector.getCategory()) {
+          case PRIMITIVE:
+            PrimitiveObjectInspector primitiveObjectInspector = (PrimitiveObjectInspector) objectInspector;
+            map.put(
+                field.getFieldName(),
+                getDatum(primitiveObjectInspector, oip.getStructFieldData(input, field))
+            );
+            break;
+          case LIST:  // array case - only 1-depth array supported yet
+            ListObjectInspector listObjectInspector = (ListObjectInspector) objectInspector;
+            map.put(
+                field.getFieldName(),
+                getListObject(listObjectInspector, oip.getStructFieldData(input, field))
+            );
+            break;
+          default:
+            break;
+        }
       }
-    }
 
-    DateTime timestamp = timestampSpec.extractTimestamp(map);
-    return new MapBasedInputRow(timestamp, dimensions, map);
+      DateTime timestamp = timestampSpec.extractTimestamp(map);
+      return new MapBasedInputRow(timestamp, dimensions, map);
+    }
+    catch (Exception e) {
+      throw ParsingFail.propagate(input, e);
+    }
   }
 
   private Object getDatum(PrimitiveObjectInspector inspector, Object field)

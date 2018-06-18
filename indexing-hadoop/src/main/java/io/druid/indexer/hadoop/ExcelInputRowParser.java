@@ -23,6 +23,7 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Supplier;
 import com.google.common.base.Suppliers;
+import io.druid.data.ParsingFail;
 import io.druid.data.input.ExcelParser;
 import io.druid.data.input.InputRow;
 import io.druid.data.input.MapBasedInputRow;
@@ -64,10 +65,15 @@ public class ExcelInputRowParser implements InputRowParser<ExcelRow>
   @Override
   public InputRow parse(ExcelRow input)
   {
-    Supplier<String[]> supplier = columnNameSupplier != null ? columnNameSupplier : input;
-    Map<String, Object> converted = ExcelParser.convert(input.row(), sheetNameColumn, supplier);
-    DateTime dateTime = timestampSpec.extractTimestamp(converted);
-    return new MapBasedInputRow(dateTime, dimensions, converted);
+    try {
+      Supplier<String[]> supplier = columnNameSupplier != null ? columnNameSupplier : input;
+      Map<String, Object> converted = ExcelParser.convert(input.row(), sheetNameColumn, supplier);
+      DateTime dateTime = timestampSpec.extractTimestamp(converted);
+      return new MapBasedInputRow(dateTime, dimensions, converted);
+    }
+    catch (Exception e) {
+      throw ParsingFail.propagate(input, e);
+    }
   }
 
   @Override

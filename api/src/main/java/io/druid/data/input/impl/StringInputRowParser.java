@@ -22,6 +22,7 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Charsets;
 import com.metamx.common.parsers.ParseException;
 import com.metamx.common.parsers.Parser;
+import io.druid.data.ParsingFail;
 import io.druid.data.input.InputRow;
 
 import java.nio.ByteBuffer;
@@ -127,11 +128,21 @@ public class StringInputRowParser implements InputRowParser
 
   private Map<String, Object> parseString(String inputString)
   {
-    return parser.parse(inputString);
+    try {
+      return parser.parse(inputString);
+    }
+    catch (Exception e) {
+      throw ParsingFail.propagate(inputString, e);
+    }
   }
 
   private InputRow parseMap(Map<String, Object> theMap)
   {
-    return mapParser.parse(theMap);
+    try {
+      return mapParser.parse(theMap);
+    }
+    catch (Exception e) {
+      throw ParsingFail.propagate(theMap, e);
+    }
   }
 }

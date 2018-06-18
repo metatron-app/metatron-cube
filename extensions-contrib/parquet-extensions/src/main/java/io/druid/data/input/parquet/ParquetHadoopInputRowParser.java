@@ -21,6 +21,7 @@ package io.druid.data.input.parquet;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.collect.Lists;
+import io.druid.data.ParsingFail;
 import io.druid.data.input.AvroStreamInputRowParser;
 import io.druid.data.input.InputRow;
 import io.druid.data.input.MapBasedInputRow;
@@ -59,10 +60,15 @@ public class ParquetHadoopInputRowParser implements InputRowParser<GenericRecord
   @Override
   public InputRow parse(GenericRecord record)
   {
-    GenericRecordAsMap genericRecordAsMap = new GenericRecordAsMap(record, false);
-    TimestampSpec timestampSpec = parseSpec.getTimestampSpec();
-    DateTime dateTime = timestampSpec.extractTimestamp(genericRecordAsMap);
-    return new MapBasedInputRow(dateTime, dimensions, genericRecordAsMap);
+    try {
+      GenericRecordAsMap genericRecordAsMap = new GenericRecordAsMap(record, false);
+      TimestampSpec timestampSpec = parseSpec.getTimestampSpec();
+      DateTime dateTime = timestampSpec.extractTimestamp(genericRecordAsMap);
+      return new MapBasedInputRow(dateTime, dimensions, genericRecordAsMap);
+    }
+    catch (Exception e) {
+      throw ParsingFail.propagate(record, e);
+    }
   }
 
   @JsonProperty

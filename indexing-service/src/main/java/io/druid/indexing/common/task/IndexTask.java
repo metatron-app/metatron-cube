@@ -28,6 +28,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Supplier;
+import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
@@ -37,6 +38,8 @@ import com.google.common.hash.Hashing;
 import com.metamx.common.ISE;
 import com.metamx.common.logger.Logger;
 import io.druid.common.utils.JodaUtils;
+import io.druid.data.ParsingFail;
+import io.druid.data.ParserInitializationFail;
 import io.druid.data.input.Committer;
 import io.druid.data.input.Firehose;
 import io.druid.data.input.FirehoseFactory;
@@ -331,7 +334,8 @@ public class IndexTask extends AbstractFixedIntervalTask
     );
 
     final FirehoseFactory firehoseFactory = ingestionSchema.getIOConfig().getFirehoseFactory();
-    final int rowFlushBoundary = ingestionSchema.getTuningConfig().getRowFlushBoundary();
+    final IndexTuningConfig tuningConfig = ingestionSchema.getTuningConfig();
+    final int rowFlushBoundary = tuningConfig.getRowFlushBoundary();
 
     // We need to track published segments.
     final List<DataSegment> pushedSegments = new CopyOnWriteArrayList<DataSegment>();
@@ -374,8 +378,8 @@ public class IndexTask extends AbstractFixedIntervalTask
         convertTuningConfig(
             shardSpec,
             myRowFlushBoundary,
-            ingestionSchema.getTuningConfig().getIndexSpec(),
-            ingestionSchema.tuningConfig.getBuildV9Directly()
+            tuningConfig.getIndexSpec(),
+            tuningConfig.getBuildV9Directly()
         ),
         metrics
     );
@@ -385,7 +389,17 @@ public class IndexTask extends AbstractFixedIntervalTask
       plumber.startJob();
 
       while (firehose.hasMore()) {
-        final InputRow inputRow = firehose.nextRow();
+        final InputRow inputRow;
+        try {
+          inputRow = firehose.nextRow();
+        }
+        catch (Throwable e) {
+          if (tuningConfig.isIgnoreInvalidRows()) {
+            handelInvalidRow(e);
+            continue;
+          }
+          throw Throwables.propagate(e);
+        }
 
         if (shouldIndex(shardSpec, interval, inputRow, rollupGran)) {
           int numRows = plumber.add(inputRow, committerSupplier);
@@ -431,6 +445,35 @@ public class IndexTask extends AbstractFixedIntervalTask
     return Iterables.getOnlyElement(pushedSegments);
   }
 
+  private static final int INVALID_LOG_THRESHOLD = 3;
+
+  private int invalidRows;
+  private int nextLog = 1000;
+
+  private void handelInvalidRow(Throwable e)
+  {
+    invalidRows++;
+    if (e instanceof ParserInitializationFail) {
+      throw (ParserInitializationFail) e;   // invalid configuration, etc.. fail early
+    }
+    if (invalidRows <= INVALID_LOG_THRESHOLD) {
+      Object value = null;
+      if (e instanceof ParsingFail) {
+        value = ((ParsingFail) e).getInput();
+        e = e.getCause() == null ? e : e.getCause();
+      }
+      log.info(
+          e,
+          "Ignoring invalid row [%s] due to parsing error.. %s", value,
+          invalidRows == INVALID_LOG_THRESHOLD ? "will not be logged further" : ""
+      );
+    }
+    if (invalidRows % nextLog == 0) {
+      log.info("%,d invalid rows..", invalidRows);
+      nextLog = Math.min(10_000_000, nextLog * 10);
+    }
+  }
+
   public static class IndexIngestionSpec extends IngestionSpec<IndexIOConfig, IndexTuningConfig>
   {
     private final DataSchema dataSchema;
@@ -448,7 +491,7 @@ public class IndexTask extends AbstractFixedIntervalTask
 
       this.dataSchema = dataSchema;
       this.ioConfig = ioConfig;
-      this.tuningConfig = tuningConfig == null ? new IndexTuningConfig(0, 0, null, null, null) : tuningConfig;
+      this.tuningConfig = tuningConfig == null ? new IndexTuningConfig(0, 0, null, null, null, false) : tuningConfig;
     }
 
     @Override
@@ -506,6 +549,7 @@ public class IndexTask extends AbstractFixedIntervalTask
     private final int numShards;
     private final IndexSpec indexSpec;
     private final Boolean buildV9Directly;
+    private final boolean ignoreInvalidRows;
 
     @JsonCreator
     public IndexTuningConfig(
@@ -513,7 +557,8 @@ public class IndexTask extends AbstractFixedIntervalTask
         @JsonProperty("rowFlushBoundary") int rowFlushBoundary,
         @JsonProperty("numShards") @Nullable Integer numShards,
         @JsonProperty("indexSpec") @Nullable IndexSpec indexSpec,
-        @JsonProperty("buildV9Directly") Boolean buildV9Directly
+        @JsonProperty("buildV9Directly") Boolean buildV9Directly,
+        @JsonProperty("ignoreInvalidRows") boolean ignoreInvalidRows
     )
     {
       this.targetPartitionSize = targetPartitionSize == 0 ? DEFAULT_TARGET_PARTITION_SIZE : targetPartitionSize;
@@ -526,6 +571,7 @@ public class IndexTask extends AbstractFixedIntervalTask
           "targetPartitionsSize and shardCount both cannot be set"
       );
       this.buildV9Directly = buildV9Directly == null ? DEFAULT_BUILD_V9_DIRECTLY : buildV9Directly;
+      this.ignoreInvalidRows = ignoreInvalidRows;
     }
 
     @JsonProperty
@@ -556,6 +602,12 @@ public class IndexTask extends AbstractFixedIntervalTask
     public Boolean getBuildV9Directly()
     {
       return buildV9Directly;
+    }
+
+    @JsonProperty
+    public boolean isIgnoreInvalidRows()
+    {
+      return ignoreInvalidRows;
     }
   }
 }
