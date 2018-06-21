@@ -25,33 +25,46 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Maps;
 import com.google.common.io.ByteSink;
 import com.google.common.io.CountingOutputStream;
+import com.metamx.common.StringUtils;
 
 import java.io.IOException;
 import java.io.OutputStream;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  */
 public interface Formatter
 {
-  String NEW_LINE = System.lineSeparator();
-
   void write(Map<String, Object> datum) throws IOException;
 
   Map<String, Object> close() throws IOException;
 
   class XSVFormatter implements Formatter
   {
+    private static final String NEW_LINE = System.lineSeparator();
+    private static final char LF = '\n';
+    private static final char CR = '\r';
+
+    private static final char CSV_QUOTE = '"';
+    private static final String CSV_QUOTE_STR = String.valueOf(CSV_QUOTE);
+    private static final String CSV_ESCAPED_QUOTE_STR = CSV_QUOTE_STR + CSV_QUOTE_STR;
+    private static final Pattern PATTERN = Pattern.compile(CSV_QUOTE_STR, Pattern.LITERAL);
+
     private final String separator;
     private final String nullValue;
     private final String[] columns;
     private final boolean header;
+    private final String charset;
 
     private final ByteSink sink;
     private final ObjectMapper mapper;
     private final CountingOutputStream output;
+
+    private final Matcher matcher;
 
     private final StringBuilder builder = new StringBuilder();
     private boolean firstLine;
@@ -59,10 +72,10 @@ public interface Formatter
 
     public XSVFormatter(ByteSink sink, ObjectMapper mapper, String separator) throws IOException
     {
-      this(sink, mapper, separator, null, null, false);
+      this(sink, mapper, separator, null, null, false, null);
     }
 
-    public XSVFormatter(ByteSink sink, ObjectMapper mapper, String separator, String nullValue, String[] columns, boolean header)
+    public XSVFormatter(ByteSink sink, ObjectMapper mapper, String separator, String nullValue, String[] columns, boolean header, String charset)
         throws IOException
     {
       this.separator = separator == null ? "," : separator;
@@ -72,6 +85,8 @@ public interface Formatter
       this.mapper = mapper;
       this.output = new CountingOutputStream(sink.openBufferedStream());
       this.header = header;
+      this.charset = charset == null ? StringUtils.UTF8_STRING : charset;
+      this.matcher = PATTERN.matcher("");
       firstLine = true;
     }
 
@@ -98,7 +113,7 @@ public interface Formatter
       }
       if (builder.length() > 0) {
         builder.append(NEW_LINE);
-        output.write(builder.toString().getBytes());
+        output.write(builder.toString().getBytes(charset));
         firstLine = false;
       }
       counter++;
@@ -122,7 +137,21 @@ public interface Formatter
       if (value == null) {
         builder.append(nullValue);
       } else if (value instanceof String) {
-        builder.append((String)value);
+        String string = (String) value;
+        final boolean quote;
+        if (string.indexOf(CSV_QUOTE) < 0) {
+          quote = needQuote(string);
+        } else {
+          quote = true;
+          string = matcher.reset(string).replaceAll(CSV_ESCAPED_QUOTE_STR);
+        }
+        if (quote) {
+          builder.append(CSV_QUOTE);
+        }
+        builder.append(string);
+        if (quote) {
+          builder.append(CSV_QUOTE);
+        }
       } else if (value instanceof Number) {
         builder.append(String.valueOf(value));
       } else {
@@ -137,10 +166,22 @@ public interface Formatter
         if (builder.length() > 0) {
           builder.append(separator);
         }
+        final boolean quote = needQuote(dimension);
+        if (quote) {
+          builder.append(CSV_QUOTE);
+        }
         builder.append(dimension);
+        if (quote) {
+          builder.append(CSV_QUOTE);
+        }
       }
       builder.append(NEW_LINE);
-      output.write(builder.toString().getBytes());
+      output.write(builder.toString().getBytes(charset));
+    }
+
+    private boolean needQuote(String string)
+    {
+      return string.contains(separator) || string.indexOf(CR) >= 0 || string.indexOf(LF) >= 0;
     }
   }
 
