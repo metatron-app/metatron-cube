@@ -20,11 +20,14 @@
 package io.druid.granularity;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
+import com.google.common.base.Function;
+import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
 import com.google.common.primitives.Longs;
 import com.metamx.common.IAE;
 import io.druid.common.Cacheable;
 import io.druid.common.DateTimes;
+import io.druid.common.Intervals;
 import io.druid.common.utils.StringUtils;
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
@@ -203,7 +206,35 @@ public abstract class Granularity implements Cacheable
 
   public Iterable<Interval> getIterable(final Interval input)
   {
-    return new IntervalIterable(input);
+    return new Iterable<Interval>()
+    {
+      @Override
+      public Iterator<Interval> iterator()
+      {
+        return Iterators.transform(
+          new StartIterator(input), new Function<DateTime, Interval>()
+          {
+            @Override
+            public Interval apply(DateTime input)
+            {
+              return Intervals.of(input, increment(input));
+            }
+          }
+      );
+      }
+    };
+  }
+
+  public Iterable<DateTime> getStartIterable(final Interval input)
+  {
+    return new Iterable<DateTime>()
+    {
+      @Override
+      public Iterator<DateTime> iterator()
+      {
+        return new StartIterator(input);
+      }
+    };
   }
 
   public enum Formatter
@@ -213,36 +244,16 @@ public abstract class Granularity implements Cacheable
     LOWER_DEFAULT
   }
 
-  private class IntervalIterable implements Iterable<Interval>
-  {
-    private final Interval inputInterval;
-
-    private IntervalIterable(Interval inputInterval)
-    {
-      this.inputInterval = inputInterval;
-    }
-
-    @Override
-    public Iterator<Interval> iterator()
-    {
-      return new IntervalIterator(inputInterval);
-    }
-
-  }
-
-  private class IntervalIterator implements Iterator<Interval>
+  private class StartIterator implements Iterator<DateTime>
   {
     private final Interval inputInterval;
 
     private DateTime currStart;
-    private DateTime currEnd;
 
-    private IntervalIterator(Interval inputInterval)
+    private StartIterator(Interval inputInterval)
     {
       this.inputInterval = inputInterval;
-
-      currStart = bucketStart(inputInterval.getStart());
-      currEnd = increment(currStart);
+      this.currStart = bucketStart(inputInterval.getStart());
     }
 
     @Override
@@ -252,17 +263,15 @@ public abstract class Granularity implements Cacheable
     }
 
     @Override
-    public Interval next()
+    public DateTime next()
     {
       if (!hasNext()) {
         throw new NoSuchElementException("There are no more intervals");
       }
-      Interval retVal = new Interval(currStart, currEnd);
+      DateTime start = currStart;
+      currStart = increment(currStart);
 
-      currStart = currEnd;
-      currEnd = increment(currStart);
-
-      return retVal;
+      return start;
     }
 
     @Override

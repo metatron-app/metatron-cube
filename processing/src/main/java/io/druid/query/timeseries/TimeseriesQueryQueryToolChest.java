@@ -47,6 +47,7 @@ import io.druid.query.QueryToolChest;
 import io.druid.query.Result;
 import io.druid.query.ResultGranularTimestampComparator;
 import io.druid.query.ResultMergeQueryRunner;
+import io.druid.query.TabularFormat;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.MetricManipulationFn;
 import io.druid.query.aggregation.PostAggregator;
@@ -54,7 +55,9 @@ import io.druid.query.aggregation.PostAggregators;
 import io.druid.query.filter.DimFilter;
 import io.druid.query.groupby.orderby.LimitSpecs;
 import io.druid.query.spec.MultipleIntervalSegmentSpec;
+import io.druid.query.topn.TopNResultValue;
 import io.druid.segment.Segment;
+import io.druid.segment.column.Column;
 import org.joda.time.DateTime;
 import org.joda.time.Interval;
 
@@ -389,6 +392,40 @@ public class TimeseriesQueryQueryToolChest extends QueryToolChest<Result<Timeser
             }
         )
     );
+  }
+
+  @Override
+  public TabularFormat toTabularFormat(
+      final Sequence<Result<TimeseriesResultValue>> sequence, final String timestampColumn
+  )
+  {
+    return new TabularFormat()
+    {
+      @Override
+      public Sequence<Map<String, Object>> getSequence()
+      {
+        return Sequences.map(
+            sequence, new Function<Result<TimeseriesResultValue>, Map<String, Object>>()
+            {
+              @Override
+              public Map<String, Object> apply(Result<TimeseriesResultValue> input)
+              {
+                Map<String, Object> row = input.getValue().getBaseObject();
+                if (timestampColumn != null) {
+                  row.put(timestampColumn, input.getTimestamp());
+                }
+                return row;
+              }
+            }
+        );
+      }
+
+      @Override
+      public Map<String, Object> getMetaData()
+      {
+        return null;
+      }
+    };
   }
 
   @Override

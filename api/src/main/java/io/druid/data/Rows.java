@@ -23,6 +23,7 @@ import com.google.common.base.Strings;
 import com.google.common.primitives.Ints;
 import com.google.common.primitives.Longs;
 import com.metamx.common.parsers.ParseException;
+import org.joda.time.DateTime;
 
 /**
  */
@@ -34,6 +35,8 @@ public class Rows
       return 0F;
     } else if (value instanceof Number) {
       return ((Number) value).floatValue();
+    } else if (value instanceof DateTime) {
+      return ((DateTime) value).getMillis();
     } else if (value instanceof String) {
       try {
         return tryParseFloat((String) value);
@@ -52,6 +55,8 @@ public class Rows
       return 0D;
     } else if (value instanceof Number) {
       return ((Number) value).doubleValue();
+    } else if (value instanceof DateTime) {
+      return ((DateTime) value).getMillis();
     } else if (value instanceof String) {
       try {
         return tryParseDouble((String) value);
@@ -70,6 +75,8 @@ public class Rows
       return 0L;
     } else if (value instanceof Number) {
       return ((Number) value).longValue();
+    } else if (value instanceof DateTime) {
+      return ((DateTime) value).getMillis();
     } else if (value instanceof String) {
       try {
         return tryParseLong((String) value);

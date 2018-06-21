@@ -137,7 +137,7 @@ public class BitSlicedBitmaps
           case DOUBLE:
             return new DoubleType(bitmapFactory, bitmaps, rowCount);
           default:
-            throw new UnsupportedClassVersionError(type + " is not supported");
+            throw new UnsupportedOperationException(type + " is not supported");
         }
       }
 

@@ -169,7 +169,7 @@ public abstract class HistogramBitmaps<T extends Comparable> implements Histogra
                 ByteBufferSerializer.read(buffer, strategy)
             );
           default:
-            throw new UnsupportedClassVersionError(type + " is not supported");
+            throw new UnsupportedOperationException(type + " is not supported");
         }
       }
 
@@ -209,7 +209,7 @@ public abstract class HistogramBitmaps<T extends Comparable> implements Histogra
             }
             break;
           default:
-            throw new UnsupportedClassVersionError(type + " is not supported");
+            throw new UnsupportedOperationException(type + " is not supported");
         }
         for (ImmutableBitmap bin : val.bins) {
           byte[] bytes = strategy.toBytes(bin);
