@@ -2922,19 +2922,20 @@ public interface BuiltinFunctions extends Function.Library
       if (parameters.length > 2) {
         step = ((Number)parameters[2]).doubleValue();
       }
-
-      if (type == ValueType.LONG) {
-        longs = new long[context.size()];
-      } else if (type == ValueType.FLOAT) {
-        floats = new float[context.size()];
-      } else {
-        doubles = new double[context.size()];
-      }
     }
 
     @Override
     protected Object invoke(WindowContext context)
     {
+      if (context.index() == 0) {
+        if (type == ValueType.LONG) {
+          longs = new long[context.size()];
+        } else if (type == ValueType.FLOAT) {
+          floats = new float[context.size()];
+        } else {
+          doubles = new double[context.size()];
+        }
+      }
       Object current = context.get(fieldName);
       if (type == ValueType.LONG) {
         longs[context.index()] = ((Number) current).longValue();
