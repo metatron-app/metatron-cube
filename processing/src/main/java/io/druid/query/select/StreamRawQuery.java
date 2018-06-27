@@ -28,7 +28,6 @@ import com.google.common.collect.Maps;
 import io.druid.granularity.Granularity;
 import io.druid.query.DataSource;
 import io.druid.query.Query;
-import io.druid.query.dimension.DimensionSpec;
 import io.druid.query.filter.DimFilter;
 import io.druid.query.spec.QuerySegmentSpec;
 import io.druid.query.timeseries.TimeseriesQuery;
@@ -48,8 +47,7 @@ public class StreamRawQuery extends AbstractStreamQuery<RawRows>
       @JsonProperty("intervals") QuerySegmentSpec querySegmentSpec,
       @JsonProperty("filter") DimFilter dimFilter,
       @JsonProperty("granularity") Granularity granularity,
-      @JsonProperty("dimensions") List<DimensionSpec> dimensions,
-      @JsonProperty("metrics") List<String> metrics,
+      @JsonProperty("columns") List<String> columns,
       @JsonProperty("virtualColumns") List<VirtualColumn> virtualColumns,
       @JsonProperty("concatString") String concatString,
       @JsonProperty("sortOn") List<String> sortOn,
@@ -62,8 +60,7 @@ public class StreamRawQuery extends AbstractStreamQuery<RawRows>
         querySegmentSpec,
         dimFilter,
         granularity,
-        dimensions,
-        metrics,
+        columns,
         virtualColumns,
         concatString,
         limit,
@@ -93,8 +90,7 @@ public class StreamRawQuery extends AbstractStreamQuery<RawRows>
         getQuerySegmentSpec(),
         getDimFilter(),
         getGranularity(),
-        getDimensions(),
-        getMetrics(),
+        getColumns(),
         getVirtualColumns(),
         getConcatString(),
         getSortOn(),
@@ -111,8 +107,7 @@ public class StreamRawQuery extends AbstractStreamQuery<RawRows>
         spec,
         getDimFilter(),
         getGranularity(),
-        getDimensions(),
-        getMetrics(),
+        getColumns(),
         getVirtualColumns(),
         getConcatString(),
         getSortOn(),
@@ -129,8 +124,7 @@ public class StreamRawQuery extends AbstractStreamQuery<RawRows>
         getQuerySegmentSpec(),
         getDimFilter(),
         getGranularity(),
-        getDimensions(),
-        getMetrics(),
+        getColumns(),
         getVirtualColumns(),
         getConcatString(),
         getSortOn(),
@@ -147,44 +141,7 @@ public class StreamRawQuery extends AbstractStreamQuery<RawRows>
         getQuerySegmentSpec(),
         filter,
         getGranularity(),
-        getDimensions(),
-        getMetrics(),
-        getVirtualColumns(),
-        getConcatString(),
-        getSortOn(),
-        getLimit(),
-        getContext()
-    );
-  }
-
-  @Override
-  public StreamRawQuery withDimensionSpecs(List<DimensionSpec> dimensions)
-  {
-    return new StreamRawQuery(
-        getDataSource(),
-        getQuerySegmentSpec(),
-        getDimFilter(),
-        getGranularity(),
-        dimensions,
-        getMetrics(),
-        getVirtualColumns(),
-        getConcatString(),
-        getSortOn(),
-        getLimit(),
-        getContext()
-    );
-  }
-
-  @Override
-  public StreamRawQuery withMetrics(List<String> metrics)
-  {
-    return new StreamRawQuery(
-        getDataSource(),
-        getQuerySegmentSpec(),
-        getDimFilter(),
-        getGranularity(),
-        getDimensions(),
-        metrics,
+        getColumns(),
         getVirtualColumns(),
         getConcatString(),
         getSortOn(),
@@ -201,9 +158,25 @@ public class StreamRawQuery extends AbstractStreamQuery<RawRows>
         getQuerySegmentSpec(),
         getDimFilter(),
         getGranularity(),
-        getDimensions(),
-        getMetrics(),
+        getColumns(),
         virtualColumns,
+        getConcatString(),
+        getSortOn(),
+        getLimit(),
+        getContext()
+    );
+  }
+
+  @Override
+  public StreamRawQuery withColumns(List<String> columns)
+  {
+    return new StreamRawQuery(
+        getDataSource(),
+        getQuerySegmentSpec(),
+        getDimFilter(),
+        getGranularity(),
+        columns,
+        getVirtualColumns(),
         getConcatString(),
         getSortOn(),
         getLimit(),
@@ -218,8 +191,7 @@ public class StreamRawQuery extends AbstractStreamQuery<RawRows>
         getQuerySegmentSpec(),
         getDimFilter(),
         getGranularity(),
-        getDimensions(),
-        getMetrics(),
+        getColumns(),
         getVirtualColumns(),
         getConcatString(),
         getSortOn(),
@@ -227,7 +199,6 @@ public class StreamRawQuery extends AbstractStreamQuery<RawRows>
         getContext()
     );
   }
-
 
   public TimeseriesQuery asTimeseriesQuery()
   {

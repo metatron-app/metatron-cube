@@ -594,7 +594,11 @@ public class GroupByQueryQueryToolChest extends QueryToolChest<Row, GroupByQuery
   }
 
   @Override
-  public TabularFormat toTabularFormat(final Sequence<Row> sequence, final String timestampColumn)
+  public TabularFormat toTabularFormat(
+      final GroupByQuery query,
+      final Sequence<Row> sequence,
+      final String timestampColumn
+  )
   {
     return new TabularFormat()
     {

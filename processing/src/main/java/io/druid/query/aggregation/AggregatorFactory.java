@@ -291,7 +291,16 @@ public abstract class AggregatorFactory implements Cacheable
     return relay;
   }
 
-  public static List<AggregatorFactory> toRelay(
+  public static List<AggregatorFactory> toRelay(List<String> names, List<ValueDesc> types)
+  {
+    List<AggregatorFactory> relay = Lists.newArrayList();
+    for (int i = 0; i < names.size(); i++) {
+      relay.add(new RelayAggregatorFactory(names.get(i), types.get(i).typeName()));
+    }
+    return relay;
+  }
+
+  public static List<AggregatorFactory> toRelayAndMerge(
       List<AggregatorFactory> aggregators,
       List<PostAggregator> postAggregators
   )

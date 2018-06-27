@@ -130,7 +130,6 @@ public class FindNearestQuery extends BaseQuery<CentroidDesc>
         getQuerySegmentSpec(),
         null,
         QueryGranularities.ALL,
-        null,
         getMetrics(),
         getVirtualColumns(),
         null,

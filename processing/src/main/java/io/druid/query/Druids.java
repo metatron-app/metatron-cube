@@ -1029,6 +1029,7 @@ public class Druids
     private Granularity granularity;
     private List<DimensionSpec> dimensions;
     private List<String> metrics;
+    private List<String> columns;
     private List<VirtualColumn> virtualColumns;
     private PagingSpec pagingSpec;
     private String concatString;
@@ -1050,13 +1051,14 @@ public class Druids
 
     public StreamQuery streaming()
     {
+      Preconditions.checkArgument(GuavaUtils.isNullOrEmpty(dimensions));
+      Preconditions.checkArgument(GuavaUtils.isNullOrEmpty(metrics));
       return new StreamQuery(
           dataSource,
           querySegmentSpec,
           dimFilter,
           granularity,
-          dimensions,
-          metrics,
+          columns,
           virtualColumns,
           concatString,
           pagingSpec == null ? -1 : pagingSpec.getThreshold(),
@@ -1071,13 +1073,14 @@ public class Druids
 
     public StreamRawQuery streamingRaw(List<String> sortOn)
     {
+      Preconditions.checkArgument(GuavaUtils.isNullOrEmpty(dimensions));
+      Preconditions.checkArgument(GuavaUtils.isNullOrEmpty(metrics));
       return new StreamRawQuery(
           dataSource,
           querySegmentSpec,
           dimFilter,
           granularity,
-          dimensions,
-          metrics,
+          columns,
           virtualColumns,
           concatString,
           sortOn,
@@ -1088,6 +1091,7 @@ public class Druids
 
     public SelectQuery build()
     {
+      Preconditions.checkArgument(GuavaUtils.isNullOrEmpty(columns));
       return new SelectQuery(
           dataSource,
           querySegmentSpec,
@@ -1243,6 +1247,12 @@ public class Druids
     public SelectQueryBuilder dimensions(List<String> d)
     {
       dimensions = DefaultDimensionSpec.toSpec(d);
+      return this;
+    }
+
+    public SelectQueryBuilder columns(List<String> c)
+    {
+      columns = c;
       return this;
     }
 

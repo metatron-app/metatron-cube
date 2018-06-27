@@ -54,7 +54,7 @@ public class TabularPostProcessor implements PostProcessingOperator
       {
         QueryToolChest toolChest = warehouse.getToolChest(query);
         Sequence sequence = baseQueryRunner.run(query, responseContext);
-        return toolChest == null ? sequence : toolChest.toTabularFormat(sequence, timestampColumn).getSequence();
+        return toolChest == null ? sequence : toolChest.toTabularFormat(query, sequence, timestampColumn).getSequence();
       }
     };
   }

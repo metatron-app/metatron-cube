@@ -25,7 +25,6 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.metamx.common.logger.Logger;
-import io.druid.data.ValueDesc;
 import io.druid.math.expr.Evals;
 import io.druid.math.expr.Expr;
 import io.druid.math.expr.Parser;
@@ -48,6 +47,7 @@ import java.util.Map;
 
 /**
  */
+@Deprecated
 public class ViewSupportHelper
 {
   private static final Logger log = new Logger(ViewSupportHelper.class);
@@ -122,11 +122,15 @@ public class ViewSupportHelper
     ViewDataSource view = (ViewDataSource) baseQuery.getDataSource();
     Query.VCSupport<T> query = (Query.VCSupport<T>) rewriteWithView(baseQuery);
 
+    if (query instanceof Query.ColumnsSupport) {
+      if (!view.getColumns().isEmpty()) {
+        query = ((Query.ColumnsSupport)baseQuery).withColumns(view.getColumns());
+      }
+    }
     List<String> retainer = null;
     if (!view.getColumns().isEmpty()) {
       retainer = Lists.newArrayList(view.getColumns());
     }
-
     if (query instanceof Query.DimensionSupport) {
       Query.DimensionSupport<T> dimSupport = (Query.DimensionSupport<T>) query;
       List<DimensionSpec> dimensionSpecs = dimSupport.getDimensions();
@@ -241,28 +245,4 @@ public class ViewSupportHelper
     return mapping;
   }
 
-  public static Schema toSchema(Query.MetricSupport<?> query, RowResolver resolver)
-  {
-    final List<String> dimensions = DimensionSpecs.toOutputNames(query.getDimensions());
-    final List<String> metrics = Lists.newArrayList(query.getMetrics());
-
-    final List<ValueDesc> columnTypes = Lists.newArrayList();
-    for (DimensionSpec dimensionSpec : query.getDimensions()) {
-      if (dimensionSpec.getExtractionFn() == null) {
-        columnTypes.add(dimensionSpec.resolveType(resolver));
-      } else {
-        columnTypes.add(ValueDesc.STRING);
-      }
-    }
-    for (String metric : metrics) {
-      columnTypes.add(resolver.resolveColumn(metric, ValueDesc.UNKNOWN));
-    }
-    List<AggregatorFactory> aggregators = Lists.newArrayList();
-    Map<String, AggregatorFactory> factoryMap = resolver.getAggregators();
-    for (String metric : metrics) {
-      aggregators.add(factoryMap.get(metric));
-    }
-
-    return new Schema(dimensions, metrics, columnTypes, aggregators);
-  }
 }

@@ -228,10 +228,11 @@ public abstract class QueryToolChest<ResultType, QueryType extends Query<ResultT
    * converts result to tabular format to be stored file system.
    * currently, only select and group-by query supports this.
    *
+   * @param query
    * @param sequence
    * @return
    */
-  public TabularFormat toTabularFormat(Sequence<ResultType> sequence, String timestampColumn)
+  public TabularFormat toTabularFormat(QueryType query, Sequence<ResultType> sequence, String timestampColumn)
   {
     throw new UnsupportedOperationException("toTabularFormat");
   }

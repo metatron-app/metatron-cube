@@ -68,6 +68,7 @@ import io.druid.query.QueryRunner;
 import io.druid.query.QuerySegmentWalker;
 import io.druid.query.QueryToolChest;
 import io.druid.query.QueryToolChestWarehouse;
+import io.druid.query.QueryUtils;
 import io.druid.query.RegexDataSource;
 import io.druid.query.ResultWriter;
 import io.druid.query.SegmentDescriptor;
@@ -250,8 +251,10 @@ public class BrokerQueryResource extends QueryResource
   protected Query prepareQuery(Query baseQuery) throws Exception
   {
     Query query = baseQuery;
-    query = rewriteDataSources(query);
+    query = rewriteDataSource(query);
     query = rewriteQuery(query);
+    query = QueryUtils.resolveRecursively(query, texasRanger);
+
     if (BaseQuery.optimizeQuery(query, false)) {
       QueryToolChest toolChest = warehouse.getToolChest(query);
       if (toolChest != null) {
@@ -294,7 +297,7 @@ public class BrokerQueryResource extends QueryResource
     return super.prepareQuery(query);
   }
 
-  private Query rewriteDataSources(Query query)
+  private Query rewriteDataSource(Query query)
   {
     return Queries.iterate(
         query, new Function<Query, Query>()
@@ -320,7 +323,7 @@ public class BrokerQueryResource extends QueryResource
     );
   }
 
-  private Query rewriteQuery(Query query)
+  private Query rewriteQuery(final Query query)
   {
     return Queries.iterate(
         query, new Function<Query, Query>()
@@ -329,7 +332,7 @@ public class BrokerQueryResource extends QueryResource
           public Query apply(Query input)
           {
             if (input instanceof Query.RewritingQuery) {
-              return ((Query.RewritingQuery) input).rewriteQuery(texasRanger, warehouse.getQueryConfig(), jsonMapper);
+              input = ((Query.RewritingQuery) input).rewriteQuery(texasRanger, warehouse.getQueryConfig(), jsonMapper);
             }
             return input;
           }

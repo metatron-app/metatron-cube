@@ -23,7 +23,6 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.ObjectWriter;
 import com.fasterxml.jackson.jaxrs.smile.SmileMediaTypes;
-import com.google.common.base.Function;
 import com.google.common.base.Strings;
 import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableMap;
@@ -59,6 +58,7 @@ import io.druid.query.QueryInterruptedException;
 import io.druid.query.QueryRunner;
 import io.druid.query.QuerySegmentWalker;
 import io.druid.query.QueryToolChestWarehouse;
+import io.druid.query.QueryUtils;
 import io.druid.query.ResultWriter;
 import io.druid.query.TabularFormat;
 import io.druid.query.UnionAllQuery;
@@ -491,27 +491,11 @@ public class QueryResource
   protected Query prepareQuery(Query query) throws Exception
   {
     String queryId = query.getId();
-    if (queryId == null) {
-      return query;   // some test queries
+    if (queryId != null) {
+      // test queries don't have ids
+      query = QueryUtils.setQueryId(query, queryId);
     }
-    return setQueryId(query, queryId);
-  }
-
-  private Query setQueryId(Query query, final String queryId)
-  {
-    return Queries.iterate(
-        query, new Function<Query, Query>()
-        {
-          @Override
-          public Query apply(Query input)
-          {
-            if (input.getId() == null) {
-              input = input.withId(queryId);
-            }
-            return input;
-          }
-        }
-    );
+    return query;
   }
 
   protected class RequestContext
@@ -641,7 +625,7 @@ public class QueryResource
         }
         String timestampColumn = PropUtils.parseString(forwardContext, Query.FORWARD_TIMESTAMP_COLUMN);
         return warehouse.getToolChest(representative).toTabularFormat(
-            baseRunner.run(query, responseContext),
+            query, baseRunner.run(query, responseContext),
             timestampColumn
         );
       }

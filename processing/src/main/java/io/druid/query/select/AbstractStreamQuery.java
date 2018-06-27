@@ -28,7 +28,6 @@ import io.druid.granularity.QueryGranularities;
 import io.druid.query.BaseQuery;
 import io.druid.query.DataSource;
 import io.druid.query.Query;
-import io.druid.query.dimension.DimensionSpec;
 import io.druid.query.filter.DimFilter;
 import io.druid.query.spec.QuerySegmentSpec;
 import io.druid.segment.VirtualColumn;
@@ -40,12 +39,11 @@ import java.util.Objects;
 /**
  */
 public abstract class AbstractStreamQuery<T extends Comparable<T>> extends BaseQuery<T>
-    implements Query.MetricSupport<T>
+    implements Query.ColumnsSupport<T>
 {
   private final DimFilter dimFilter;
   private final Granularity granularity;
-  private final List<DimensionSpec> dimensions;
-  private final List<String> metrics;
+  private final List<String> columns;
   private final List<VirtualColumn> virtualColumns;
   private final String concatString;
   private final int limit;
@@ -55,8 +53,7 @@ public abstract class AbstractStreamQuery<T extends Comparable<T>> extends BaseQ
       QuerySegmentSpec querySegmentSpec,
       DimFilter dimFilter,
       Granularity granularity,
-      List<DimensionSpec> dimensions,
-      List<String> metrics,
+      List<String> columns,
       List<VirtualColumn> virtualColumns,
       String concatString,
       int limit,
@@ -66,8 +63,7 @@ public abstract class AbstractStreamQuery<T extends Comparable<T>> extends BaseQ
     super(dataSource, querySegmentSpec, false, context);
     this.dimFilter = dimFilter;
     this.granularity = granularity == null ? QueryGranularities.ALL : granularity;
-    this.dimensions = dimensions == null ? ImmutableList.<DimensionSpec>of() : dimensions;
-    this.metrics = metrics == null ? ImmutableList.<String>of() : metrics;
+    this.columns = columns == null ? ImmutableList.<String>of() : columns;
     this.virtualColumns = virtualColumns == null ? ImmutableList.<VirtualColumn>of() : virtualColumns;
     this.concatString = concatString;
     this.limit = limit > 0 ? limit : -1;
@@ -94,9 +90,9 @@ public abstract class AbstractStreamQuery<T extends Comparable<T>> extends BaseQ
 
   @JsonProperty
   @JsonInclude(Include.NON_EMPTY)
-  public List<DimensionSpec> getDimensions()
+  public List<String> getColumns()
   {
-    return dimensions;
+    return columns;
   }
 
   @JsonProperty
@@ -114,32 +110,9 @@ public abstract class AbstractStreamQuery<T extends Comparable<T>> extends BaseQ
 
   @JsonProperty
   @JsonInclude(Include.NON_EMPTY)
-  public List<String> getMetrics()
-  {
-    return metrics;
-  }
-
-  @JsonProperty
-  @JsonInclude(Include.NON_EMPTY)
   public List<VirtualColumn> getVirtualColumns()
   {
     return virtualColumns;
-  }
-
-  public SelectMetaQuery toMetaQuery(boolean schemaOnly)
-  {
-    return new SelectMetaQuery(
-        getDataSource(),
-        getQuerySegmentSpec(),
-        getDimFilter(),
-        getGranularity(),
-        getDimensions(),
-        getMetrics(),
-        getVirtualColumns(),
-        schemaOnly,
-        null,
-        getContext()
-    );
   }
 
   @Override
@@ -155,11 +128,8 @@ public abstract class AbstractStreamQuery<T extends Comparable<T>> extends BaseQ
     if (dimFilter != null) {
       builder.append(", dimFilter=").append(dimFilter);
     }
-    if (dimensions != null && !dimensions.isEmpty()) {
-      builder.append(", dimensions=").append(dimensions);
-    }
-    if (metrics != null && !metrics.isEmpty()) {
-      builder.append(", metrics=").append(metrics);
+    if (columns != null && !columns.isEmpty()) {
+      builder.append(", columns=").append(columns);
     }
     if (virtualColumns != null && !virtualColumns.isEmpty()) {
       builder.append(", virtualColumns=").append(virtualColumns);
@@ -192,10 +162,7 @@ public abstract class AbstractStreamQuery<T extends Comparable<T>> extends BaseQ
     if (!Objects.equals(granularity, that.granularity)) {
       return false;
     }
-    if (!Objects.equals(dimensions, that.dimensions)) {
-      return false;
-    }
-    if (!Objects.equals(metrics, that.metrics)) {
+    if (!Objects.equals(columns, that.columns)) {
       return false;
     }
     if (!Objects.equals(virtualColumns, that.virtualColumns)) {
@@ -217,8 +184,7 @@ public abstract class AbstractStreamQuery<T extends Comparable<T>> extends BaseQ
     int result = super.hashCode();
     result = 31 * result + (dimFilter != null ? dimFilter.hashCode() : 0);
     result = 31 * result + (granularity != null ? granularity.hashCode() : 0);
-    result = 31 * result + (dimensions != null ? dimensions.hashCode() : 0);
-    result = 31 * result + (metrics != null ? metrics.hashCode() : 0);
+    result = 31 * result + (columns != null ? columns.hashCode() : 0);
     result = 31 * result + (virtualColumns != null ? virtualColumns.hashCode() : 0);
     result = 31 * result + (concatString != null ? concatString.hashCode() : 0);
     result = 31 * result + limit;

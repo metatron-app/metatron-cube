@@ -47,6 +47,7 @@ import io.druid.query.QueryRunnerFactoryConglomerate;
 import io.druid.query.QuerySegmentWalker;
 import io.druid.query.QueryToolChest;
 import io.druid.query.QueryToolChestWarehouse;
+import io.druid.query.QueryUtils;
 import io.druid.query.ReportTimelineMissingSegmentQueryRunner;
 import io.druid.query.RowResolver;
 import io.druid.query.SegmentDescriptor;
@@ -200,7 +201,7 @@ public class SpecificSegmentsQuerySegmentWalker implements QuerySegmentWalker, Q
           public Query apply(Query input)
           {
             if (input instanceof Query.RewritingQuery) {
-              return ((Query.RewritingQuery) input).rewriteQuery(
+              input = ((Query.RewritingQuery) input).rewriteQuery(
                   SpecificSegmentsQuerySegmentWalker.this,
                   queryConfig,
                   objectMapper
@@ -210,6 +211,8 @@ public class SpecificSegmentsQuerySegmentWalker implements QuerySegmentWalker, Q
           }
         }
     );
+    query = QueryUtils.resolveRecursively(query, SpecificSegmentsQuerySegmentWalker.this);
+
     final String queryId = query.getId() == null ? UUID.randomUUID().toString() : query.getId();
     return Queries.iterate(
         query, new Function<Query, Query>()

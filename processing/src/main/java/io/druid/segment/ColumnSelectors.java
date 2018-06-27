@@ -19,6 +19,7 @@
 
 package io.druid.segment;
 
+import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import io.druid.common.guava.DSuppliers;
 import io.druid.common.utils.StringUtils;
@@ -437,6 +438,37 @@ public class ColumnSelectors
             array[i] = selector.lookupName(indexed.get(i));
           }
           return array;
+        }
+      }
+    };
+  }
+
+  public static ObjectColumnSelector asConcatValued(final DimensionSelector selector, final String separator)
+  {
+    Preconditions.checkNotNull(separator, "separator should not be null");
+    return new ObjectColumnSelector<String>()
+    {
+      @Override
+      public ValueDesc type()
+      {
+        return ValueDesc.of(ValueType.STRING);
+      }
+
+      @Override
+      public String get()
+      {
+        final IndexedInts indexed = selector.getRow();
+        final int length = indexed.size();
+        if (length == 0) {
+          return null;
+        } else if (indexed.size() == 1) {
+          return (String) selector.lookupName(indexed.get(0));
+        } else {
+          final Comparable[] array = new Comparable[length];
+          for (int i = 0; i < array.length; i++) {
+            array[i] = selector.lookupName(indexed.get(i));
+          }
+          return org.apache.commons.lang.StringUtils.join(array, separator);
         }
       }
     };

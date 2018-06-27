@@ -37,7 +37,6 @@ import io.druid.math.expr.Parser;
 import io.druid.query.DataSource;
 import io.druid.query.Query;
 import io.druid.query.TableDataSource;
-import io.druid.query.ViewDataSource;
 import io.druid.query.aggregation.PostAggregator;
 import io.druid.query.aggregation.post.MathPostAggregator;
 import io.druid.query.dimension.DefaultDimensionSpec;
@@ -842,21 +841,13 @@ public class DruidQuery
 
     Preconditions.checkArgument(dataSource instanceof TableDataSource);
 
-    ViewDataSource view = new ViewDataSource(
-        ((TableDataSource)dataSource).getName(),
+    return new StreamRawQuery(
+        dataSource,
+        filtration.getQuerySegmentSpec(),
+        filtration.getDimFilter(),
+        Granularities.ALL,
         columns,
         selectProjection != null ? selectProjection.getVirtualColumns() : null,
-        filtration.getDimFilter(),
-        false
-    );
-    return new StreamRawQuery(
-        view,
-        filtration.getQuerySegmentSpec(),
-        null,
-        Granularities.ALL,
-        null,
-        null,
-        null,
         null,
         null,
         Ints.checkedCast(scanLimit),

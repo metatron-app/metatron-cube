@@ -25,7 +25,6 @@ import com.fasterxml.jackson.annotation.JsonTypeName;
 import io.druid.granularity.Granularity;
 import io.druid.query.DataSource;
 import io.druid.query.Query;
-import io.druid.query.dimension.DimensionSpec;
 import io.druid.query.filter.DimFilter;
 import io.druid.query.spec.QuerySegmentSpec;
 import io.druid.segment.VirtualColumn;
@@ -44,8 +43,7 @@ public class StreamQuery extends AbstractStreamQuery<StreamQueryRow>
       @JsonProperty("intervals") QuerySegmentSpec querySegmentSpec,
       @JsonProperty("filter") DimFilter dimFilter,
       @JsonProperty("granularity") Granularity granularity,
-      @JsonProperty("dimensions") List<DimensionSpec> dimensions,
-      @JsonProperty("metrics") List<String> metrics,
+      @JsonProperty("columns") List<String> columns,
       @JsonProperty("virtualColumns") List<VirtualColumn> virtualColumns,
       @JsonProperty("concatString") String concatString,
       @JsonProperty("limit") int limit,
@@ -57,8 +55,7 @@ public class StreamQuery extends AbstractStreamQuery<StreamQueryRow>
         querySegmentSpec,
         dimFilter,
         granularity,
-        dimensions,
-        metrics,
+        columns,
         virtualColumns,
         concatString,
         limit,
@@ -80,8 +77,7 @@ public class StreamQuery extends AbstractStreamQuery<StreamQueryRow>
         querySegmentSpec,
         getDimFilter(),
         getGranularity(),
-        getDimensions(),
-        getMetrics(),
+        getColumns(),
         getVirtualColumns(),
         getConcatString(),
         getLimit(),
@@ -97,8 +93,7 @@ public class StreamQuery extends AbstractStreamQuery<StreamQueryRow>
         getQuerySegmentSpec(),
         getDimFilter(),
         getGranularity(),
-        getDimensions(),
-        getMetrics(),
+        getColumns(),
         getVirtualColumns(),
         getConcatString(),
         getLimit(),
@@ -114,8 +109,7 @@ public class StreamQuery extends AbstractStreamQuery<StreamQueryRow>
         getQuerySegmentSpec(),
         getDimFilter(),
         getGranularity(),
-        getDimensions(),
-        getMetrics(),
+        getColumns(),
         getVirtualColumns(),
         getConcatString(),
         getLimit(),
@@ -131,25 +125,7 @@ public class StreamQuery extends AbstractStreamQuery<StreamQueryRow>
         getQuerySegmentSpec(),
         dimFilter,
         getGranularity(),
-        getDimensions(),
-        getMetrics(),
-        getVirtualColumns(),
-        getConcatString(),
-        getLimit(),
-        getContext()
-    );
-  }
-
-  @Override
-  public StreamQuery withDimensionSpecs(List<DimensionSpec> dimensions)
-  {
-    return new StreamQuery(
-        getDataSource(),
-        getQuerySegmentSpec(),
-        getDimFilter(),
-        getGranularity(),
-        dimensions,
-        getMetrics(),
+        getColumns(),
         getVirtualColumns(),
         getConcatString(),
         getLimit(),
@@ -165,8 +141,7 @@ public class StreamQuery extends AbstractStreamQuery<StreamQueryRow>
         getQuerySegmentSpec(),
         getDimFilter(),
         getGranularity(),
-        getDimensions(),
-        getMetrics(),
+        getColumns(),
         virtualColumns,
         getConcatString(),
         getLimit(),
@@ -175,15 +150,14 @@ public class StreamQuery extends AbstractStreamQuery<StreamQueryRow>
   }
 
   @Override
-  public StreamQuery withMetrics(List<String> metrics)
+  public StreamQuery withColumns(List<String> columns)
   {
     return new StreamQuery(
         getDataSource(),
         getQuerySegmentSpec(),
         getDimFilter(),
         getGranularity(),
-        getDimensions(),
-        metrics,
+        columns,
         getVirtualColumns(),
         getConcatString(),
         getLimit(),

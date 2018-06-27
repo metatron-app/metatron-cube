@@ -101,7 +101,7 @@ public class JoinPostProcessor extends PostProcessingOperator.UnionSupport
     {
       @Override
       @SuppressWarnings("unchecked")
-      public Sequence run(Query query, Map responseContext)
+      public Sequence run(final Query query, Map responseContext)
       {
         final int joinAliases = elements.length + 1;
         log.info("Running %d-way join processing %s", joinAliases, toAliases());
@@ -125,7 +125,7 @@ public class JoinPostProcessor extends PostProcessingOperator.UnionSupport
 
                 QueryToolChest toolChest = warehouse.getToolChest(element);
                 if (toolChest != null) {
-                  sequence = toolChest.toTabularFormat(sequence, null).getSequence();
+                  sequence = toolChest.toTabularFormat(element, sequence, null).getSequence();
                 }
                 sequencesList[indexer.intValue()].add(sequence);
                 hashing[indexer.intValue()] = element.getContextBoolean("hash", false);

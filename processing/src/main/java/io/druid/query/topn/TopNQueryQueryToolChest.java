@@ -646,7 +646,7 @@ public class TopNQueryQueryToolChest extends QueryToolChest<Result<TopNResultVal
 
   @Override
   public TabularFormat toTabularFormat(
-      final Sequence<Result<TopNResultValue>> sequence, final String timestampColumn
+      final TopNQuery query, final Sequence<Result<TopNResultValue>> sequence, final String timestampColumn
   )
   {
     return new TabularFormat()

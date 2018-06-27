@@ -57,8 +57,6 @@ import java.util.List;
 @RunWith(Parameterized.class)
 public class SelectMetaQueryRunnerTest
 {
-  private static final List<String> metrics = Arrays.asList("index", "indexMin", "indexMaxPlusTen", "quality_uniques");
-
   @Parameterized.Parameters
   public static Iterable<Object[]> constructorFeeder() throws IOException
   {
@@ -85,6 +83,7 @@ public class SelectMetaQueryRunnerTest
   {
     boolean incremental = dataSource.equals(TestIndex.REALTIME) || dataSource.equals(TestIndex.REALTIME_NOROLLUP);
     List<String> dimensions = Arrays.asList("market");
+    List<String> metrics = Arrays.asList("__time", "index", "indexMin", "indexMaxPlusTen", "quality_uniques");
 
     Interval interval = dataSource.equals(TestIndex.MMAPPED_SPLIT) ? TestIndex.INTERVAL_TOP : TestIndex.INTERVAL;
     String segmentId = getSegmentId(interval);
@@ -242,7 +241,9 @@ public class SelectMetaQueryRunnerTest
             DefaultDimensionSpec.of("market"),
             ExpressionDimensionSpec.of("bucketStart(__time, 'WEEK')", "week")
         ),
-        metrics,
+        Arrays.asList(
+            "index", "indexMin", "indexMaxPlusTen", "quality_uniques"
+        ),
         Arrays.<VirtualColumn>asList(
             new ExprVirtualColumn("cast(__time, 'datetime')", "time")
         ),

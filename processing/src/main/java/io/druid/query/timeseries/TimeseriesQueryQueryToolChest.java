@@ -55,9 +55,7 @@ import io.druid.query.aggregation.PostAggregators;
 import io.druid.query.filter.DimFilter;
 import io.druid.query.groupby.orderby.LimitSpecs;
 import io.druid.query.spec.MultipleIntervalSegmentSpec;
-import io.druid.query.topn.TopNResultValue;
 import io.druid.segment.Segment;
-import io.druid.segment.column.Column;
 import org.joda.time.DateTime;
 import org.joda.time.Interval;
 
@@ -396,7 +394,7 @@ public class TimeseriesQueryQueryToolChest extends QueryToolChest<Result<Timeser
 
   @Override
   public TabularFormat toTabularFormat(
-      final Sequence<Result<TimeseriesResultValue>> sequence, final String timestampColumn
+      final TimeseriesQuery query, final Sequence<Result<TimeseriesResultValue>> sequence, final String timestampColumn
   )
   {
     return new TabularFormat()

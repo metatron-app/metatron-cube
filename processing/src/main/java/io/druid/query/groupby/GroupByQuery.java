@@ -500,7 +500,7 @@ public class GroupByQuery extends BaseAggregationQuery<Row> implements Query.Rew
 
   private Query tryConvertToTimeseries(ObjectMapper jsonMapper)
   {
-    if (!dimensions.isEmpty() || needsSchemaResolution()) {
+    if (!dimensions.isEmpty()) {
       return this;
     }
     PostProcessingOperator current = PostProcessingOperators.load(this, jsonMapper);

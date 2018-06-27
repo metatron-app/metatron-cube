@@ -30,9 +30,7 @@ import com.google.common.collect.Ordering;
 import com.metamx.common.StringUtils;
 import com.metamx.common.guava.Sequence;
 import io.druid.common.utils.PropUtils;
-import io.druid.data.ValueDesc;
 import io.druid.query.aggregation.AggregatorFactory;
-import io.druid.query.dimension.DimensionSpecs;
 import io.druid.query.filter.DimFilter;
 import io.druid.query.select.ViewSupportHelper;
 import io.druid.query.spec.MultipleIntervalSegmentSpec;
@@ -194,51 +192,11 @@ public abstract class BaseQuery<T> implements Query<T>
     return BaseQuery.allMetricsForEmpty(this, true);
   }
 
-  public boolean needsSchemaResolution()
-  {
-    return needsSchemaResolution(this);
-  }
-
-  public static boolean needsSchemaResolution(Query query)
-  {
-    if (!(query instanceof DimFilterSupport)) {
-      return false;
-    }
-    if (query instanceof DimensionSupport) {
-      DimensionSupport<?> dimSupport = (DimensionSupport) query;
-      if (dimSupport.getDimensions().isEmpty() && dimSupport.allDimensionsForEmpty()) {
-        return true;
-      }
-      for (ValueDesc type : DimensionSpecs.toOutputTypes(dimSupport)) {
-        if (!type.isPrimitive()) {
-          return true;
-        }
-      }
-    }
-    if (query instanceof AggregationsSupport) {
-      AggregationsSupport aggrSupport = (AggregationsSupport) query;
-      if (aggrSupport.getAggregatorSpecs().isEmpty() && aggrSupport.allMetricsForEmpty()) {
-        return true;
-      }
-    }
-    if (query instanceof MetricSupport) {
-      MetricSupport metricSupport = (MetricSupport) query;
-      if (metricSupport.getMetrics().isEmpty() && metricSupport.allMetricsForEmpty()) {
-        return true;
-      }
-    }
-    if (query.getDataSource() instanceof ViewDataSource) {
-          ViewDataSource view = (ViewDataSource) query.getDataSource();
-      return !view.getColumns().isEmpty();
-    }
-    return false;
-  }
-
   public static VirtualColumns getVirtualColumns(Query query)
   {
     List<VirtualColumn> vcs = Lists.newArrayList();
     if (query instanceof VCSupport) {
-      vcs = Lists.newArrayList(((VCSupport<?>) query).getVirtualColumns());
+      vcs.addAll(((VCSupport<?>) query).getVirtualColumns());
     }
     if (query.getDataSource() instanceof ViewDataSource) {
       vcs.addAll(((ViewDataSource)query.getDataSource()).getVirtualColumns());
@@ -254,7 +212,7 @@ public abstract class BaseQuery<T> implements Query<T>
   @Override
   public Query<T> resolveQuery(Supplier<RowResolver> resolver)
   {
-    Query<T> query = ViewSupportHelper.rewrite(this, resolver);
+    Query<T> query = ViewSupportHelper.rewrite(this, resolver); // for the fucking tests
     if (query instanceof AggregationsSupport) {
       @SuppressWarnings("unchecked")
       AggregationsSupport<T> aggregationsSupport = (AggregationsSupport) query;
@@ -391,7 +349,7 @@ public abstract class BaseQuery<T> implements Query<T>
     return overrideContextWith(getContext(), overrides);
   }
 
-  static Map<String, Object> overrideContextWith(Map<String, Object> context, Map<String, Object> overrides)
+  protected static Map<String, Object> overrideContextWith(Map<String, Object> context, Map<String, Object> overrides)
   {
     if (overrides == null) {
       return context;

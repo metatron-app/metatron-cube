@@ -31,17 +31,14 @@ import com.metamx.common.guava.Sequences;
 import io.druid.cache.Cache;
 import io.druid.query.QueryRunnerHelper;
 import io.druid.query.RowResolver;
-import io.druid.query.dimension.DimensionSpec;
+import io.druid.query.dimension.DefaultDimensionSpec;
+import io.druid.segment.ColumnSelectors;
 import io.druid.segment.Cursor;
 import io.druid.segment.DimensionSelector;
-import io.druid.segment.LongColumnSelector;
 import io.druid.segment.ObjectColumnSelector;
 import io.druid.segment.Segment;
 import io.druid.segment.Segments;
 import io.druid.segment.StorageAdapter;
-import io.druid.segment.column.Column;
-import io.druid.segment.data.IndexedInts;
-import org.apache.commons.lang.StringUtils;
 import org.apache.commons.lang.mutable.MutableInt;
 import org.joda.time.DateTime;
 import org.joda.time.Interval;
@@ -62,8 +59,8 @@ public class StreamQueryEngine
       final Cache cache
   )
   {
-    Pair<Schema, Sequence<Object[]>> result = processRaw(query, segment, optimizer, cache);
-    final String[] columnNames = result.lhs.getColumnNames().toArray(new String[0]);
+    final Pair<Schema, Sequence<Object[]>> result = processRaw(query, segment, optimizer, cache);
+    final String[] columnNames = query.getColumns().toArray(new String[0]);
     return Sequences.map(
         result.rhs, new Function<Object[], StreamQueryRow>()
         {
@@ -116,10 +113,7 @@ public class StreamQueryEngine
     final String concatString = query.getConcatString();
 
     final RowResolver resolver = Segments.getResolver(segment, query);
-    final Schema schema = ViewSupportHelper.toSchema(query, resolver).appendTime();   // todo fix this
-
-    final List<DimensionSpec> dimensions = query.getDimensions();
-    final List<String> metrics = query.getMetrics();
+    final List<String> columns = Lists.newArrayList(query.getColumns());
 
     @SuppressWarnings("unchecked")
     final MutableInt counter = Futures.<MutableInt>getUnchecked(optimizer);
@@ -138,15 +132,19 @@ public class StreamQueryEngine
               @Override
               public Sequence<Object[]> apply(final Cursor cursor)
               {
-                final LongColumnSelector timestampColumnSelector = cursor.makeLongColumnSelector(Column.TIME_COLUMN_NAME);
-
-                final DimensionSelector[] dimSelectors = new DimensionSelector[dimensions.size()];
-                for (int i = 0; i < dimSelectors.length; i++) {
-                  dimSelectors[i] = cursor.makeDimensionSelector(dimensions.get(i));
-                }
-                final ObjectColumnSelector[] metSelectors = new ObjectColumnSelector[metrics.size()];
-                for (int i = 0; i < metSelectors.length; i++) {
-                  metSelectors[i] = cursor.makeObjectColumnSelector(metrics.get(i));
+                int index = 0;
+                final ObjectColumnSelector[] selectors = new ObjectColumnSelector[columns.size()];
+                for (String column : columns) {
+                  if (resolver.isDimension(column)) {
+                    DimensionSelector selector = cursor.makeDimensionSelector(DefaultDimensionSpec.of(column));
+                    if (concatString != null) {
+                      selectors[index++] = ColumnSelectors.asConcatValued(selector, concatString);
+                    } else {
+                      selectors[index++] = ColumnSelectors.asMultiValued(selector);
+                    }
+                  } else {
+                    selectors[index++] = cursor.makeObjectColumnSelector(column);
+                  }
                 }
 
                 return Sequences.simple(
@@ -166,37 +164,12 @@ public class StreamQueryEngine
                           @Override
                           public Object[] next()
                           {
-                            final Object[] theEvent = new Object[schema.size()];
+                            final Object[] theEvent = new Object[selectors.length];
 
                             int index = 0;
-                            for (DimensionSelector selector : dimSelectors) {
-                              if (selector == null) {
-                                continue;
-                              }
-                              final IndexedInts vals = selector.getRow();
-                              final int size = vals.size();
-                              if (size == 1) {
-                                theEvent[index++] = selector.lookupName(vals.get(0));
-                              } else {
-                                Comparable[] dimVals = new Comparable[size];
-                                for (int i = 0; i < size; ++i) {
-                                  dimVals[i] = selector.lookupName(vals.get(i));
-                                }
-                                if (concatString != null) {
-                                  theEvent[index++] = StringUtils.join(dimVals, concatString);
-                                } else {
-                                  theEvent[index++] = Arrays.asList(dimVals);
-                                }
-                              }
+                            for (ObjectColumnSelector selector : selectors) {
+                              theEvent[index++] = selector == null ? null : selector.get();
                             }
-
-                            for (ObjectColumnSelector selector : metSelectors) {
-                              if (selector != null) {
-                                theEvent[index++] = selector.get();
-                              }
-                            }
-                            theEvent[index] = timestampColumnSelector.get();
-
                             counter.increment();
                             cursor.advance();
                             return theEvent;
@@ -210,6 +183,6 @@ public class StreamQueryEngine
         )
     );
 
-    return Pair.of(schema, sequence);
+    return Pair.of(resolver.toSubSchema(columns), sequence);
   }
 }

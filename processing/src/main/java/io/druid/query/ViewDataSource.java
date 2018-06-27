@@ -33,12 +33,15 @@ import java.util.List;
 import java.util.Objects;
 
 @JsonTypeName("view")
-public class ViewDataSource extends TableDataSource
+public class ViewDataSource implements DataSource
 {
   public static ViewDataSource of(String dataSource, String... columns)
   {
     return new ViewDataSource(dataSource, Arrays.asList(columns), null, null, false);
   }
+
+  @JsonProperty
+  private final String name;
 
   @JsonProperty
   private final List<String> columns;
@@ -61,11 +64,23 @@ public class ViewDataSource extends TableDataSource
       @JsonProperty("lowerCasedOutput") boolean lowerCasedOutput
   )
   {
-    super(Preconditions.checkNotNull(name));
+    this.name = Preconditions.checkNotNull(name);
     this.columns = columns == null ? ImmutableList.<String>of() : columns;
     this.virtualColumns = virtualColumns == null ? ImmutableList.<VirtualColumn>of() : virtualColumns;
     this.filter = filter;
     this.lowerCasedOutput = lowerCasedOutput;
+  }
+
+  @JsonProperty
+  public String getName()
+  {
+    return name;
+  }
+
+  @Override
+  public List<String> getNames()
+  {
+    return Arrays.asList(name);
   }
 
   @JsonProperty

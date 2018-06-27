@@ -87,7 +87,7 @@ public class CachingQueryRunner<T> implements QueryRunner<T>
   public Sequence<T> run(Query<T> query, Map<String, Object> responseContext)
   {
     final CacheStrategy<T, Object, Query<T>> strategy = toolChest.getCacheStrategy(query);
-    if (strategy == null || BaseQuery.needsSchemaResolution(query)) {
+    if (strategy == null) {
       return base.run(query, responseContext);
     }
 

@@ -37,7 +37,6 @@ import io.druid.query.Druids;
 import io.druid.query.Query;
 import io.druid.query.QueryContexts;
 import io.druid.query.QueryDataSource;
-import io.druid.query.ViewDataSource;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.CountAggregatorFactory;
 import io.druid.query.aggregation.FilteredAggregatorFactory;
@@ -256,15 +255,9 @@ public class CalciteQueryTest
         "SELECT 1 + 1, dim1 FROM foo LIMIT 1",
         ImmutableList.of(
             newScanQueryBuilder()
-                .dataSource(
-                    new ViewDataSource(
-                        CalciteTests.DATASOURCE1,
-                        Arrays.asList("dim1", "v0"),
-                        Arrays.asList(EXPRESSION_VIRTUAL_COLUMN("v0", "2")),
-                        null,
-                        false
-                    )
-                )
+                .dataSource(CalciteTests.DATASOURCE1)
+                .columns(Arrays.asList("dim1", "v0"))
+                .virtualColumns(EXPRESSION_VIRTUAL_COLUMN("v0", "2"))
                 .limit(1)
                 .intervals(QSS(Filtration.eternity()))
                 .context(QUERY_CONTEXT_DEFAULT)
@@ -481,15 +474,8 @@ public class CalciteQueryTest
         "SELECT * FROM druid.foo",
         ImmutableList.<Query>of(
             newScanQueryBuilder()
-                .dataSource(
-                    new ViewDataSource(
-                        CalciteTests.DATASOURCE1,
-                        Arrays.asList("__time", "cnt", "dim1", "dim2", "m1", "m2", "unique_dim1"),
-                        null,
-                        null,
-                        false
-                    )
-                )
+                .dataSource(CalciteTests.DATASOURCE1)
+                .columns(Arrays.asList("__time", "cnt", "dim1", "dim2", "m1", "m2", "unique_dim1"))
                 .intervals(QSS(Filtration.eternity()))
                 .context(QUERY_CONTEXT_DEFAULT)
                 .streamingRaw()
@@ -513,15 +499,8 @@ public class CalciteQueryTest
         "SELECT * FROM druid.forbiddenDatasource",
         ImmutableList.<Query>of(
             newScanQueryBuilder()
-                .dataSource(
-                    new ViewDataSource(
-                        CalciteTests.FORBIDDEN_DATASOURCE,
-                        Arrays.asList("__time", "cnt", "dim1", "dim2", "m1", "m2", "unique_dim1"),
-                        null,
-                        null,
-                        false
-                    )
-                )
+                .dataSource(CalciteTests.FORBIDDEN_DATASOURCE)
+                .columns(Arrays.asList("__time", "cnt", "dim1", "dim2", "m1", "m2", "unique_dim1"))
                 .intervals(QSS(Filtration.eternity()))
                 .context(QUERY_CONTEXT_DEFAULT)
                 .streamingRaw()
@@ -560,7 +539,7 @@ public class CalciteQueryTest
         ImmutableList.of(),
         ImmutableList.of(
             new Object[]{
-                "DruidQueryRel(query=[{\"queryType\":\"select.stream.raw\",\"dataSource\":{\"type\":\"view\",\"name\":\"foo\",\"columns\":[\"__time\",\"cnt\",\"dim1\",\"dim2\",\"m1\",\"m2\",\"unique_dim1\"],\"lowerCasedOutput\":false},\"intervals\":{\"type\":\"intervals\",\"intervals\":[\"-146136543-09-08T08:23:32.096Z/146140482-04-24T15:36:27.903Z\"]},\"granularity\":{\"type\":\"all\"},\"limit\":-1,\"context\":{\"defaultTimeout\":300000,\"maxScatterGatherBytes\":9223372036854775807,\"sqlCurrentTimestamp\":\"2000-01-01T00:00:00Z\"},\"descending\":false}], signature=[{__time:long, cnt:long, dim1:dimension.string, dim2:dimension.string, m1:double, m2:double, unique_dim1:hyperUnique}])\n"
+                "DruidQueryRel(query=[{\"queryType\":\"select.stream.raw\",\"dataSource\":{\"type\":\"table\",\"name\":\"foo\"},\"intervals\":{\"type\":\"intervals\",\"intervals\":[\"-146136543-09-08T08:23:32.096Z/146140482-04-24T15:36:27.903Z\"]},\"granularity\":{\"type\":\"all\"},\"columns\":[\"__time\",\"cnt\",\"dim1\",\"dim2\",\"m1\",\"m2\",\"unique_dim1\"],\"limit\":-1,\"context\":{\"defaultTimeout\":300000,\"maxScatterGatherBytes\":9223372036854775807,\"sqlCurrentTimestamp\":\"2000-01-01T00:00:00Z\"},\"descending\":false}], signature=[{__time:long, cnt:long, dim1:dimension.string, dim2:dimension.string, m1:double, m2:double, unique_dim1:hyperUnique}])\n"
             }
         )
     );
@@ -573,15 +552,8 @@ public class CalciteQueryTest
         "SELECT * FROM druid.foo LIMIT 2",
         ImmutableList.of(
             newScanQueryBuilder()
-                .dataSource(
-                    new ViewDataSource(
-                        CalciteTests.DATASOURCE1,
-                        Arrays.asList("__time", "cnt", "dim1", "dim2", "m1", "m2", "unique_dim1"),
-                        null,
-                        null,
-                        false
-                    )
-                )
+                .dataSource(CalciteTests.DATASOURCE1)
+                .columns(Arrays.asList("__time", "cnt", "dim1", "dim2", "m1", "m2", "unique_dim1"))
                 .limit(2)
                 .intervals(QSS(Filtration.eternity()))
                 .context(QUERY_CONTEXT_DEFAULT)
@@ -601,17 +573,9 @@ public class CalciteQueryTest
         "SELECT SUBSTRING(dim2, 1, 1) FROM druid.foo LIMIT 2",
         ImmutableList.of(
             newScanQueryBuilder()
-                .dataSource(
-                    new ViewDataSource(
-                        CalciteTests.DATASOURCE1,
-                        Arrays.asList("v0"),
-                        Arrays.asList(
-                            EXPRESSION_VIRTUAL_COLUMN("v0", "substring(\"dim2\", 0, 1)")
-                        ),
-                        null,
-                        false
-                    )
-                )
+                .dataSource(CalciteTests.DATASOURCE1)
+                .columns(Arrays.asList("v0"))
+                .virtualColumns(EXPRESSION_VIRTUAL_COLUMN("v0", "substring(\"dim2\", 0, 1)"))
                 .limit(2)
                 .intervals(QSS(Filtration.eternity()))
                 .context(QUERY_CONTEXT_DEFAULT)
@@ -700,15 +664,8 @@ public class CalciteQueryTest
         "SELECT dim2 x, dim2 y FROM druid.foo LIMIT 2",
         ImmutableList.of(
             newScanQueryBuilder()
-                .dataSource(
-                    new ViewDataSource(
-                        CalciteTests.DATASOURCE1,
-                        Arrays.asList("dim2"),
-                        null,
-                        null,
-                        false
-                    )
-                )
+                .dataSource(CalciteTests.DATASOURCE1)
+                .columns(Arrays.asList("dim2"))
                 .limit(2)
                 .intervals(QSS(Filtration.eternity()))
                 .context(QUERY_CONTEXT_DEFAULT)
@@ -796,31 +753,19 @@ public class CalciteQueryTest
         + "  x.dim1 <> ''",
         ImmutableList.of(
             newScanQueryBuilder()
-                .dataSource(
-                    new ViewDataSource(
-                        CalciteTests.DATASOURCE1,
-                        Arrays.asList("dim1"),
-                        null,
-                        NOT(SELECTOR("dim1", "", null)),
-                        false
-                    )
-                )
+                .dataSource(CalciteTests.DATASOURCE1)
+                .columns(Arrays.asList("dim1"))
+                .filters(NOT(SELECTOR("dim1", "", null)))
                 .intervals(QSS(Filtration.eternity()))
                 .context(QUERY_CONTEXT_DEFAULT)
                 .streamingRaw(),
             newScanQueryBuilder()
-                .dataSource(
-                    new ViewDataSource(
-                        CalciteTests.DATASOURCE1,
-                        Arrays.asList("dim1", "dim2"),
-                        null,
-                        null,
-                        false)
-                )
+                .dataSource(CalciteTests.DATASOURCE1)
+                .columns(Arrays.asList("dim1", "dim2"))
                 .intervals(QSS(Filtration.eternity()))
                 .context(QUERY_CONTEXT_DEFAULT)
                 .streamingRaw()
-                ),
+        ),
         ImmutableList.of(
             new Object[]{"abc", "def", "abc"}
         )
@@ -832,8 +777,8 @@ public class CalciteQueryTest
   {
     final String explanation =
         "BindableJoin(condition=[=($0, $2)], joinType=[inner])\n"
-        + "  DruidQueryRel(query=[{\"queryType\":\"select.stream.raw\",\"dataSource\":{\"type\":\"view\",\"name\":\"foo\",\"columns\":[\"dim1\"],\"filter\":{\"type\":\"not\",\"field\":{\"type\":\"selector\",\"dimension\":\"dim1\",\"value\":\"\"}},\"lowerCasedOutput\":false},\"intervals\":{\"type\":\"intervals\",\"intervals\":[\"-146136543-09-08T08:23:32.096Z/146140482-04-24T15:36:27.903Z\"]},\"granularity\":{\"type\":\"all\"},\"limit\":-1,\"context\":{\"defaultTimeout\":300000,\"maxScatterGatherBytes\":9223372036854775807,\"sqlCurrentTimestamp\":\"2000-01-01T00:00:00Z\"},\"descending\":false}], signature=[{dim1:string}])\n"
-        + "  DruidQueryRel(query=[{\"queryType\":\"select.stream.raw\",\"dataSource\":{\"type\":\"view\",\"name\":\"foo\",\"columns\":[\"dim1\",\"dim2\"],\"lowerCasedOutput\":false},\"intervals\":{\"type\":\"intervals\",\"intervals\":[\"-146136543-09-08T08:23:32.096Z/146140482-04-24T15:36:27.903Z\"]},\"granularity\":{\"type\":\"all\"},\"limit\":-1,\"context\":{\"defaultTimeout\":300000,\"maxScatterGatherBytes\":9223372036854775807,\"sqlCurrentTimestamp\":\"2000-01-01T00:00:00Z\"},\"descending\":false}], signature=[{dim1:string, dim2:string}])\n";
+        + "  DruidQueryRel(query=[{\"queryType\":\"select.stream.raw\",\"dataSource\":{\"type\":\"table\",\"name\":\"foo\"},\"intervals\":{\"type\":\"intervals\",\"intervals\":[\"-146136543-09-08T08:23:32.096Z/146140482-04-24T15:36:27.903Z\"]},\"filter\":{\"type\":\"not\",\"field\":{\"type\":\"selector\",\"dimension\":\"dim1\",\"value\":\"\"}},\"granularity\":{\"type\":\"all\"},\"columns\":[\"dim1\"],\"limit\":-1,\"context\":{\"defaultTimeout\":300000,\"maxScatterGatherBytes\":9223372036854775807,\"sqlCurrentTimestamp\":\"2000-01-01T00:00:00Z\"},\"descending\":false}], signature=[{dim1:string}])\n"
+        + "  DruidQueryRel(query=[{\"queryType\":\"select.stream.raw\",\"dataSource\":{\"type\":\"table\",\"name\":\"foo\"},\"intervals\":{\"type\":\"intervals\",\"intervals\":[\"-146136543-09-08T08:23:32.096Z/146140482-04-24T15:36:27.903Z\"]},\"granularity\":{\"type\":\"all\"},\"columns\":[\"dim1\",\"dim2\"],\"limit\":-1,\"context\":{\"defaultTimeout\":300000,\"maxScatterGatherBytes\":9223372036854775807,\"sqlCurrentTimestamp\":\"2000-01-01T00:00:00Z\"},\"descending\":false}], signature=[{dim1:string, dim2:string}])\n";
 
     testQuery(
         PLANNER_CONFIG_FALLBACK,
@@ -1683,16 +1628,12 @@ public class CalciteQueryTest
         "SELECT * FROM druid.foo WHERE dim1 > 'd' OR dim2 = 'a'",
         ImmutableList.<Query>of(
             newScanQueryBuilder()
-                .dataSource(
-                    new ViewDataSource(
-                        CalciteTests.DATASOURCE1,
-                        Arrays.asList("__time", "cnt", "dim1", "dim2", "m1", "m2", "unique_dim1"),
-                        null,
-                        OR(
-                            BOUND("dim1", "d", null, true, false, null, StringComparators.LEXICOGRAPHIC_NAME),
-                            SELECTOR("dim2", "a", null)
-                        ),
-                        false
+                .dataSource(CalciteTests.DATASOURCE1)
+                .columns(Arrays.asList("__time", "cnt", "dim1", "dim2", "m1", "m2", "unique_dim1"))
+                .filters(
+                    OR(
+                        BOUND("dim1", "d", null, true, false, null, StringComparators.LEXICOGRAPHIC_NAME),
+                        SELECTOR("dim2", "a", null)
                     )
                 )
                 .intervals(QSS(Filtration.eternity()))
@@ -5865,7 +5806,7 @@ public class CalciteQueryTest
         + "    BindableFilter(condition=[OR(=($0, 'xxx'), CAST(AND(IS NOT NULL($4), <>($2, 0))):BOOLEAN)])\n"
         + "      BindableJoin(condition=[=($1, $3)], joinType=[left])\n"
         + "        BindableJoin(condition=[true], joinType=[inner])\n"
-        + "          DruidQueryRel(query=[{\"queryType\":\"select.stream.raw\",\"dataSource\":{\"type\":\"view\",\"name\":\"foo\",\"columns\":[\"dim1\",\"dim2\"],\"lowerCasedOutput\":false},\"intervals\":{\"type\":\"intervals\",\"intervals\":[\"-146136543-09-08T08:23:32.096Z/146140482-04-24T15:36:27.903Z\"]},\"granularity\":{\"type\":\"all\"},\"limit\":-1,\"context\":{\"defaultTimeout\":300000,\"maxScatterGatherBytes\":9223372036854775807,\"sqlCurrentTimestamp\":\"2000-01-01T00:00:00Z\"},\"descending\":false}], signature=[{dim1:string, dim2:string}])\n"
+        + "          DruidQueryRel(query=[{\"queryType\":\"select.stream.raw\",\"dataSource\":{\"type\":\"table\",\"name\":\"foo\"},\"intervals\":{\"type\":\"intervals\",\"intervals\":[\"-146136543-09-08T08:23:32.096Z/146140482-04-24T15:36:27.903Z\"]},\"granularity\":{\"type\":\"all\"},\"columns\":[\"dim1\",\"dim2\"],\"limit\":-1,\"context\":{\"defaultTimeout\":300000,\"maxScatterGatherBytes\":9223372036854775807,\"sqlCurrentTimestamp\":\"2000-01-01T00:00:00Z\"},\"descending\":false}], signature=[{dim1:string, dim2:string}])\n"
         + "          DruidQueryRel(query=[{\"queryType\":\"timeseries\",\"dataSource\":{\"type\":\"table\",\"name\":\"foo\"},\"intervals\":{\"type\":\"intervals\",\"intervals\":[\"-146136543-09-08T08:23:32.096Z/146140482-04-24T15:36:27.903Z\"]},\"descending\":false,\"filter\":{\"type\":\"math\",\"expression\":\"like(\\\"dim1\\\",'%bc')\"},\"granularity\":{\"type\":\"all\"},\"aggregations\":[{\"type\":\"count\",\"name\":\"a0\"}],\"limitSpec\":{\"type\":\"noop\"},\"context\":{\"defaultTimeout\":300000,\"maxScatterGatherBytes\":9223372036854775807,\"skipEmptyBuckets\":true,\"sqlCurrentTimestamp\":\"2000-01-01T00:00:00Z\"}}], signature=[{a0:long}])\n"
         + "        DruidQueryRel(query=[{\"queryType\":\"groupBy\",\"dataSource\":{\"type\":\"table\",\"name\":\"foo\"},\"intervals\":{\"type\":\"intervals\",\"intervals\":[\"-146136543-09-08T08:23:32.096Z/146140482-04-24T15:36:27.903Z\"]},\"filter\":{\"type\":\"math\",\"expression\":\"like(\\\"dim1\\\",'%bc')\"},\"granularity\":{\"type\":\"all\"},\"dimensions\":[{\"type\":\"default\",\"dimension\":\"dim1\",\"outputName\":\"d0\"},{\"type\":\"default\",\"dimension\":\"d1:v\",\"outputName\":\"d1\"}],\"virtualColumns\":[{\"type\":\"expr\",\"expression\":\"1\",\"outputName\":\"d1:v\"}],\"limitSpec\":{\"type\":\"noop\"},\"context\":{\"defaultTimeout\":300000,\"maxScatterGatherBytes\":9223372036854775807,\"sqlCurrentTimestamp\":\"2000-01-01T00:00:00Z\"},\"descending\":false}], signature=[{d0:string, d1:long}])\n";
 
@@ -5924,16 +5865,9 @@ public class CalciteQueryTest
                         .setContext(QUERY_CONTEXT_DEFAULT)
                         .build(),
             newScanQueryBuilder()
-                .dataSource(
-                    new ViewDataSource(
-                        CalciteTests.DATASOURCE1,
-                        Arrays.asList("__time", "cnt", "dim1", "dim2"),
-                        null,
-                        AND(SELECTOR("dim1", "def", null), SELECTOR("dim2", "abc", null)),
-                        false
-                    )
-                )
-
+                .dataSource(CalciteTests.DATASOURCE1)
+                .columns(Arrays.asList("__time", "cnt", "dim1", "dim2"))
+                .filters(AND(SELECTOR("dim1", "def", null), SELECTOR("dim2", "abc", null)))
                 .intervals(QSS(Filtration.eternity()))
                 .context(QUERY_CONTEXT_DEFAULT)
                 .streamingRaw()
@@ -5978,15 +5912,9 @@ public class CalciteQueryTest
                         .setContext(QUERY_CONTEXT_DEFAULT)
                         .build(),
             new Druids.SelectQueryBuilder()
-                .dataSource(
-                    new ViewDataSource(
-                        CalciteTests.DATASOURCE1,
-                        Arrays.asList("dim1", "dim2"),
-                        null,
-                        IN("dim2", ImmutableList.of("", "a", "abc"), null),
-                        false
-                    )
-                )
+                .dataSource(CalciteTests.DATASOURCE1)
+                .columns(Arrays.asList("dim1", "dim2"))
+                .filters(IN("dim2", ImmutableList.of("", "a", "abc"), null))
                 .intervals(QSS(Filtration.eternity()))
                 .context(QUERY_CONTEXT_DEFAULT)
                 .streamingRaw()

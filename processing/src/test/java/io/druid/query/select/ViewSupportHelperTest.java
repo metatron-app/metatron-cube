@@ -57,6 +57,7 @@ import io.druid.segment.data.ListIndexed;
 import org.joda.time.DateTime;
 import org.joda.time.Interval;
 import org.junit.Assert;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import java.util.Arrays;
@@ -229,6 +230,7 @@ public class ViewSupportHelperTest
   }
 
   @Test
+  @Ignore
   public void testBasicOverrideGroupBy()
   {
     ViewDataSource view = new ViewDataSource(
@@ -308,6 +310,7 @@ public class ViewSupportHelperTest
   }
 
   @Test
+  @Ignore
   public void testBasicOverrideSelect()
   {
     ViewDataSource view = new ViewDataSource(

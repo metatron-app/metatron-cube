@@ -232,6 +232,9 @@ public class SelectQueryExplodeTest
         array("index1", 3, "x4", "upfront", 240L, 280L, null)
     ).build();
     results = Sequences.toList(runner.run(builder.build(), null), Lists.<Result<SelectResultValue>>newArrayList());
+    for (Object x : results) {
+      System.out.println(x);
+    }
     SelectQueryRunnerTestHelper.validate(columnNames, expectedResults, results);
 
     // single element, selective

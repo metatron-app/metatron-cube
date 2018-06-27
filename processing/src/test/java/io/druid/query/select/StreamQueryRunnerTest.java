@@ -32,6 +32,7 @@ import io.druid.query.dimension.DefaultDimensionSpec;
 import io.druid.query.filter.MathExprFilter;
 import io.druid.query.spec.LegacySegmentSpec;
 import io.druid.query.spec.QuerySegmentSpec;
+import io.druid.segment.column.Column;
 import org.joda.time.DateTime;
 import org.joda.time.Interval;
 import org.junit.Assert;
@@ -89,14 +90,14 @@ public class StreamQueryRunnerTest
   public void testBasic()
   {
     Druids.SelectQueryBuilder builder = testEq(newTestQuery());
-    testEq(builder.dimensions(Arrays.asList("market", "quality")));
-    testEq(builder.metrics(Arrays.asList("index", "indexMin")));
+    testEq(builder.columns(Arrays.asList("market", "quality")));
+    testEq(builder.columns(Arrays.asList("__time", "market", "quality", "index", "indexMin")));
     testEq(builder.intervals(I_0112_0114));
     testEq(builder.limit(3));
 
     StreamQuery query = builder.streaming();
 
-    String[] columnNames = {"timestamp", "market", "quality", "index", "indexMin"};
+    String[] columnNames = {"__time", "market", "quality", "index", "indexMin"};
     List<StreamQueryRow> expected = createExpected(
         columnNames,
         new Object[]{"2011-01-12T00:00:00.000Z", "spot", "automotive", 100D, 100F},
@@ -140,7 +141,7 @@ public class StreamQueryRunnerTest
       Preconditions.checkArgument(value.length == columnNames.length);
       StreamQueryRow event = new StreamQueryRow();
       for (int i = 0; i < columnNames.length; i++) {
-        if (columnNames[i].equals(EventHolder.timestampKey)) {
+        if (columnNames[i].equals(Column.TIME_COLUMN_NAME)) {
           event.put(columnNames[i], value[0] instanceof Long ? (Long) value[0] : new DateTime(value[0]).getMillis());
         } else {
           event.put(columnNames[i], value[i]);

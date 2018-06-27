@@ -36,6 +36,7 @@ import io.druid.query.JoinQuery;
 import io.druid.query.JoinType;
 import io.druid.query.Query;
 import io.druid.query.QueryUtils;
+import io.druid.query.TableDataSource;
 import io.druid.query.UnionAllQuery;
 import io.druid.query.ViewDataSource;
 import io.druid.query.aggregation.AggregatorFactory;
@@ -122,7 +123,7 @@ public class PartitionedJoinQueryRunnerTest extends SketchQueryRunnerTest
     JoinQuery joinQuery = new JoinQuery(
         ImmutableMap.<String, DataSource>of(
             dataSource, ViewDataSource.of(dataSource, "__time", "market", "quality", "index"),
-            JOIN_DS_P, ViewDataSource.of(JOIN_DS_P)
+            JOIN_DS_P, TableDataSource.of(JOIN_DS_P)
         ),
         Arrays.asList(new JoinElement(JoinType.INNER, dataSource + ".quality = " + JOIN_DS_P + ".quality")),
         false,
@@ -131,6 +132,7 @@ public class PartitionedJoinQueryRunnerTest extends SketchQueryRunnerTest
 
     // assert split on three partitions
     Query query = joinQuery.rewriteQuery(segmentWalker, segmentWalker.getQueryConfig(), JSON_MAPPER);
+    query = QueryUtils.resolveRecursively(query, segmentWalker);
     Assert.assertTrue(query instanceof UnionAllQuery);
     List<? extends Query<? extends Comparable<?>>> partitions = ((UnionAllQuery<?>) query).getQueries();
     Assert.assertEquals(3, partitions.size());

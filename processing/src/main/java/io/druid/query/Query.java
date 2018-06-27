@@ -150,13 +150,18 @@ public interface Query<T> extends QueryContextKeys
     DimFilterSupport<T> withDimFilter(DimFilter filter);
   }
 
+  interface ColumnsSupport<T> extends DimFilterSupport<T>
+  {
+    List<String> getColumns();
+
+    ColumnsSupport<T> withColumns(List<String> columns);
+  }
+
   interface DimensionSupport<T> extends DimFilterSupport<T>
   {
     List<DimensionSpec> getDimensions();
 
     DimensionSupport<T> withDimensionSpecs(List<DimensionSpec> dimensions);
-
-    boolean needsSchemaResolution();
 
     boolean allDimensionsForEmpty();
   }

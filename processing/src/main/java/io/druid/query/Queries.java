@@ -148,52 +148,50 @@ public class Queries
 
     // cannot handle lateral view, windowing, post-processing, etc.
     // throw exception ?
+    Supplier<RowResolver> supplier = QueryUtils.resolverSupplier(subQuery, segmentWalker);
+    if (subQuery instanceof Query.ColumnsSupport) {
+      Query.ColumnsSupport<?> columnsSupport = (Query.ColumnsSupport) subQuery;
+      Schema schema = supplier.get().toSubSchema(columnsSupport.getColumns());
+      if (!GuavaUtils.isNullOrEmpty(schema.getDimensionNames())) {
+        builder.withDimensions(schema.getDimensionNames(), schema.getDimensionTypes());
+      }
+      if (!GuavaUtils.isNullOrEmpty(schema.getMetricNames())) {
+        builder.withMetrics(AggregatorFactory.toRelay(schema.getMetricNames(), schema.getMetricTypes()));
+      }
+      return builder.withRollup(false).build();
+    }
+    if (subQuery instanceof Query.DimensionSupport) {
+      Query.DimensionSupport<?> dimSupport = (Query.DimensionSupport) subQuery;
+      List<DimensionSpec> dimensionSpecs = dimSupport.getDimensions();
+      if (dimensionSpecs.isEmpty() && dimSupport.allDimensionsForEmpty()) {
+        builder.withDimensions(supplier.get().getDimensionNames(), supplier.get().getDimensionTypes());
+      } else if (!dimensionSpecs.isEmpty()) {
+        List<String> dimensions = DimensionSpecs.toOutputNames(dimensionSpecs);
+        List<ValueDesc> types = DimensionSpecs.toOutputTypes(dimSupport);
+        if (GuavaUtils.containsNull(types)) {
+          types = supplier.get().resolveDimensions(dimSupport.getDimensions());
+        }
+        builder.withDimensions(dimensions, types);
+      }
+    }
     if (subQuery instanceof Query.MetricSupport) {
       Query.MetricSupport<?> metricSupport = (Query.MetricSupport) subQuery;
-      Schema schema = QueryUtils.resolveSchema(subQuery, segmentWalker);
-      if (metricSupport.getDimensions().isEmpty() && metricSupport.allDimensionsForEmpty()) {
-        builder.withDimensions(schema.getDimensionNames(), schema.getDimensionTypes());
-      } else {
-        List<String> dimensions = DimensionSpecs.toOutputNames(metricSupport.getDimensions());
-        builder.withDimensions(dimensions, schema.resolveDimensionTypes(metricSupport));
-      }
-      if (metricSupport.getMetrics().isEmpty() && metricSupport.allMetricsForEmpty()) {
-        builder.withMetrics(schema.metricAsRelay());
-      } else {
-        builder.withMetrics(AggregatorFactory.toRelay(schema.resolveMetricTypes(metricSupport)));
+      List<String> metrics = metricSupport.getMetrics();
+      if (metrics.isEmpty() && metricSupport.allMetricsForEmpty()) {
+        builder.withMetrics(AggregatorFactory.toRelay(supplier.get().getMetricNames(), supplier.get().getMetricTypes()));
+      } else if (!metrics.isEmpty()) {
+        builder.withMetrics(AggregatorFactory.toRelay(metrics, supplier.get().resolveColumns(metrics)));
       }
       return builder.withRollup(false).build();
     } else if (subQuery instanceof Query.AggregationsSupport) {
       Query.AggregationsSupport<?> aggrSupport = (Query.AggregationsSupport) subQuery;
-      List<String> dimensionNames = DimensionSpecs.toOutputNames(aggrSupport.getDimensions());
-      List<PostAggregator> postAggregators = aggrSupport.getPostAggregatorSpecs();
-      if (aggrSupport.needsSchemaResolution()) {
-        Schema schema = QueryUtils.resolveSchema(subQuery, segmentWalker);
-        if (aggrSupport.getDimensions().isEmpty() && aggrSupport.allDimensionsForEmpty()) {
-          builder.withDimensions(schema.getDimensionNames(), schema.getDimensionTypes());
-        } else {
-          List<String> dimensions = DimensionSpecs.toOutputNames(aggrSupport.getDimensions());
-          builder.withDimensions(dimensions, schema.resolveDimensionTypes(aggrSupport));
-        }
-        return builder.withMetrics(AggregatorFactory.toRelay(aggrSupport.getAggregatorSpecs(), postAggregators))
-                      .withRollup(false)
-                      .build();
-      } else {
-        return builder.withDimensions(dimensionNames, DimensionSpecs.toOutputTypes(aggrSupport))
-                      .withMetrics(AggregatorFactory.toRelay(aggrSupport.getAggregatorSpecs(), postAggregators))
-                      .withRollup(false)
-                      .build();
+      List<AggregatorFactory> aggregators = aggrSupport.getAggregatorSpecs();
+      if (aggregators.isEmpty() && aggrSupport.allMetricsForEmpty()) {
+        aggregators = supplier.get().getAggregatorsList() ;
       }
-    } else if (subQuery instanceof Query.DimensionSupport) {
-      Query.DimensionSupport<?> dimSupport = (Query.DimensionSupport) subQuery;
-      Schema schema = QueryUtils.resolveSchema(subQuery, segmentWalker);
-      if (dimSupport.needsSchemaResolution()) {
-        builder.withDimensions(schema.getDimensionNames(), schema.getDimensionTypes());
-      } else {
-        List<String> dimensions = DimensionSpecs.toOutputNames(dimSupport.getDimensions());
-        builder.withDimensions(dimensions, schema.resolveDimensionTypes(dimSupport));
-      }
-      return builder.withRollup(false).build();
+      return builder.withMetrics(AggregatorFactory.toRelayAndMerge(aggregators, aggrSupport.getPostAggregatorSpecs()))
+                    .withRollup(false)
+                    .build();
     } else if (subQuery instanceof JoinQuery.JoinDelegate) {
       final JoinQuery.JoinDelegate<?> joinQuery = (JoinQuery.JoinDelegate) subQuery;
       List<String> dimensions = Lists.newArrayList();
@@ -215,12 +213,6 @@ public class Queries
           metrics.add(new RelayAggregatorFactory(prefix + aggregator.getName(), aggregator.getTypeName()));
         }
       }
-      // multiple timestamps.. we use timestamp from the first alias as indexing timestamp and add others into metric
-      if (aliases != null) {
-        for (String alias : aliases) {
-          metrics.add(new RelayAggregatorFactory(alias + "." + EventHolder.timestampKey, ValueDesc.LONG_TYPE));
-        }
-      }
       return builder.withDimensions(dimensions)
                     .withMetrics(AggregatorFactory.toRelay(metrics))
                     .withRollup(false)
@@ -238,8 +230,8 @@ public class Queries
     if (subQuery instanceof JoinQuery.JoinDelegate) {
       final JoinQuery.JoinDelegate delegate = (JoinQuery.JoinDelegate) subQuery;
       final String timeColumn = delegate.getPrefixAliases() == null
-                                ? EventHolder.timestampKey
-                                : delegate.getPrefixAliases().get(0) + "." + EventHolder.timestampKey;
+                                ? Column.TIME_COLUMN_NAME
+                                : delegate.getPrefixAliases().get(0) + "." + Column.TIME_COLUMN_NAME;
       return Sequences.map(
           sequence, new Function<I, Row>()
           {

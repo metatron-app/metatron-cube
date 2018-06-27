@@ -31,14 +31,12 @@ import com.metamx.common.Pair;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.data.TypeResolver;
 import io.druid.data.ValueDesc;
-import io.druid.query.Query;
 import io.druid.query.RowResolver;
 import io.druid.query.RowSignature;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.AggregatorFactoryNotMergeableException;
 import io.druid.query.aggregation.RelayAggregatorFactory;
-import io.druid.query.dimension.DimensionSpec;
-import io.druid.segment.VirtualColumns;
+import io.druid.segment.column.Column;
 
 import java.util.Collections;
 import java.util.List;
@@ -98,15 +96,6 @@ public class Schema implements TypeResolver, RowSignature
   public List<ValueDesc> getMetricTypes()
   {
     return columnTypes.subList(dimensionNames.size(), columnTypes.size());
-  }
-
-  public List<AggregatorFactory> metricAsRelay()
-  {
-    List<AggregatorFactory> aggregators = Lists.newArrayList();
-    for (Pair<String, ValueDesc> metric : metricAndTypes()) {
-      aggregators.add(new RelayAggregatorFactory(metric.lhs, metric.rhs.typeName()));
-    }
-    return aggregators;
   }
 
   public List<String> getColumnNames()
@@ -177,7 +166,7 @@ public class Schema implements TypeResolver, RowSignature
   {
     return new Schema(
         Lists.newArrayList(dimensionNames),
-        GuavaUtils.concat(metricNames, EventHolder.timestampKey),
+        GuavaUtils.concat(metricNames, Column.TIME_COLUMN_NAME),
         GuavaUtils.concat(columnTypes, ValueDesc.LONG),
         GuavaUtils.concat(aggregators, RelayAggregatorFactory.ofTime())
     );
@@ -233,28 +222,6 @@ public class Schema implements TypeResolver, RowSignature
     return new Schema(mergedDimensions, mergedMetrics, mergedTypes, mergedAggregators);
   }
 
-  public List<ValueDesc> resolveDimensionTypes(Query.DimensionSupport<?> query)
-  {
-    List<ValueDesc> types = Lists.newArrayList();
-    RowResolver resolver = RowResolver.of(this, VirtualColumns.valueOf(query.getVirtualColumns()));
-    for (DimensionSpec dimensionSpec : query.getDimensions()) {
-      types.add(dimensionSpec.resolveType(resolver));
-    }
-    return types;
-  }
-
-  public List<AggregatorFactory> resolveMetricTypes(Query.MetricSupport<?> query)
-  {
-    List<AggregatorFactory> types = Lists.newArrayList();
-    for (String metric : query.getMetrics()) {
-      int index = metricNames.indexOf(metric);
-      if (index >= 0) {
-        types.add(aggregators.get(index));
-      }
-    }
-    return types;
-  }
-
   @Override
   public boolean equals(Object o)
   {
@@ -302,5 +269,23 @@ public class Schema implements TypeResolver, RowSignature
            ", columnTypes=" + columnTypes +
            ", aggregators=" + aggregators +
            '}';
+  }
+
+  public static Schema from(RowResolver resolver)
+  {
+    List<String> dimensionNames = Lists.newArrayList();
+    List<String> metricNames = Lists.newArrayList();
+    List<ValueDesc> columnTypes = Lists.newArrayList();
+    List<AggregatorFactory> aggregators = Lists.newArrayList();
+    for (String dimension : resolver.getDimensionNames()) {
+      dimensionNames.add(dimension);
+      columnTypes.add(resolver.resolveColumn(dimension));
+    }
+    for (String metric : resolver.getMetricNames()) {
+      metricNames.add(metric);
+      columnTypes.add(resolver.resolveColumn(metric));
+      aggregators.add(resolver.getAggregators().get(metric));
+    }
+    return new Schema(dimensionNames, metricNames, columnTypes, aggregators);
   }
 }

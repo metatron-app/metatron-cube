@@ -71,7 +71,11 @@ public class StreamQueryToolChest extends QueryToolChest<StreamQueryRow, StreamQ
   }
 
   @Override
-  public TabularFormat toTabularFormat(final Sequence<StreamQueryRow> sequence, final String timestampColumn)
+  public TabularFormat toTabularFormat(
+      final StreamQuery query,
+      final Sequence<StreamQueryRow> sequence,
+      final String timestampColumn
+  )
   {
     return new TabularFormat()
     {

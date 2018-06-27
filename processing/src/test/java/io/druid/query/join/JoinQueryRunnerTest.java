@@ -157,13 +157,16 @@ public class JoinQueryRunnerTest extends QueryRunnerTestHelper
     );
 
     Iterable<Row> rows = Iterables.transform(runTabularQuery(joinQuery), Rows.mapToRow());
+    for (Object x : rows) {
+      System.out.println(x);
+    }
     TestHelper.assertExpectedObjects(expectedRows, rows, "");
 
     // prefixed
     rows = Iterables.transform(runTabularQuery(joinQuery.withPrefixAlias(true)), Rows.mapToRow());
     columns = new String[]{
-        dataSource + ".market", dataSource + ".timestamp", dataSource + ".index",
-        JOIN_DS + ".market", JOIN_DS + ".timestamp", JOIN_DS + ".market_month", JOIN_DS + ".value"
+        dataSource + ".market", dataSource + ".__time", dataSource + ".index",
+        JOIN_DS + ".market", JOIN_DS + ".__time", JOIN_DS + ".market_month", JOIN_DS + ".value"
     };
     GroupByQueryRunnerTestHelper.printToExpected(columns, rows);
     expectedRows = GroupByQueryRunnerTestHelper.createExpectedRows(

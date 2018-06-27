@@ -140,7 +140,11 @@ public class StreamRawQueryToolChest extends QueryToolChest<RawRows, StreamRawQu
   }
 
   @Override
-  public TabularFormat toTabularFormat(final Sequence<RawRows> sequence, final String timestampColumn)
+  public TabularFormat toTabularFormat(
+      final StreamRawQuery query,
+      final Sequence<RawRows> sequence,
+      final String timestampColumn
+  )
   {
     return new TabularFormat()
     {
@@ -154,7 +158,7 @@ public class StreamRawQueryToolChest extends QueryToolChest<RawRows, StreamRawQu
                   @Override
                   public Sequence<Map<String, Object>> apply(RawRows input)
                   {
-                    final String[] columnNames = input.getSchema().getColumnNames().toArray(new String[0]);
+                    final String[] columnNames = query.getColumns().toArray(new String[0]);
                     final List<Object[]> rows = input.getRows();
                     return Sequences.simple(
                         new Iterable<Map<String, Object>>()

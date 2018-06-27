@@ -20,6 +20,7 @@
 package io.druid.query;
 
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Supplier;
 import com.google.common.base.Suppliers;
@@ -30,6 +31,7 @@ import com.google.common.collect.MapDifference.ValueDifference;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import com.metamx.common.Pair;
+import io.druid.common.guava.GuavaUtils;
 import io.druid.data.TypeResolver;
 import io.druid.data.ValueDesc;
 import io.druid.data.ValueType;
@@ -61,7 +63,7 @@ import java.util.Set;
 
 /**
  */
-public class RowResolver implements TypeResolver
+public class RowResolver implements TypeResolver, Function<String, ValueDesc>
 {
   public static Supplier<RowResolver> supplier(final List<Segment> segments, final Query query)
   {
@@ -345,9 +347,19 @@ public class RowResolver implements TypeResolver
     return dimensionNames;
   }
 
+  public List<ValueDesc> getDimensionTypes()
+  {
+    return resolveColumns(dimensionNames);
+  }
+
   public List<String> getMetricNames()
   {
     return metricNames;
+  }
+
+  public List<ValueDesc> getMetricTypes()
+  {
+    return resolveColumns(metricNames);
   }
 
   public boolean isDimension(String columnName)
@@ -365,6 +377,11 @@ public class RowResolver implements TypeResolver
     return aggregators;
   }
 
+  public List<AggregatorFactory> getAggregatorsList()
+  {
+    return Lists.newArrayList(aggregators.values());
+  }
+
   public VirtualColumns getVirtualColumns()
   {
     return virtualColumns;
@@ -378,6 +395,12 @@ public class RowResolver implements TypeResolver
   public VirtualColumn getVirtualColumn(String columnName)
   {
     return virtualColumns.getVirtualColumn(columnName);
+  }
+
+  @Override
+  public ValueDesc apply(String input)
+  {
+    return resolveColumn(input);
   }
 
   @Override
@@ -474,5 +497,41 @@ public class RowResolver implements TypeResolver
       }
     }
     return filter == null || supportsBitmap(filter, BitmapType.EXACT);
+  }
+
+  public Schema toSubSchema(List<String> columns)
+  {
+    final List<String> dimensions = Lists.newArrayList();
+    final List<ValueDesc> dimensionTypes = Lists.newArrayList();
+    final List<String> metrics = Lists.newArrayList();
+    final List<ValueDesc> metricTypes = Lists.newArrayList();
+    final List<AggregatorFactory> aggregators = Lists.newArrayList();
+    for (String column : columns) {
+      ValueDesc resolved = resolveColumn(column, ValueDesc.UNKNOWN);
+      if (ValueDesc.isDimension(resolved)) {
+        dimensions.add(column);
+        dimensionTypes.add(resolved);
+      } else {
+        metrics.add(column);
+        metricTypes.add(resolved);
+        aggregators.add(getAggregators().get(column));  // can be null
+      }
+    }
+    return new Schema(dimensions, metrics, GuavaUtils.concat(dimensionTypes, metricTypes), aggregators);
+  }
+
+
+  public List<ValueDesc> resolveDimensions(List<DimensionSpec> dimensionSpecs)
+  {
+    List<ValueDesc> types = Lists.newArrayList();
+    for (DimensionSpec dimensionSpec : dimensionSpecs) {
+      types.add(dimensionSpec.resolveType(this));
+    }
+    return types;
+  }
+
+  public List<ValueDesc> resolveColumns(List<String> columns)
+  {
+    return Lists.newArrayList(Iterables.transform(columns, this));
   }
 }

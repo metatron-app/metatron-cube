@@ -102,6 +102,8 @@ public class JoinQuery<T extends Comparable<T>> extends BaseQuery<T> implements 
         if (currentSpec == null || currentSpec.getIntervals().isEmpty()) {
           dataSource = new QueryDataSource(query.withQuerySegmentSpec(segmentSpec));
         }
+      } else if (dataSource instanceof TableDataSource) {
+        dataSource = ViewDataSource.of(((TableDataSource) dataSource).getName());
       }
       validated.put(entry.getKey(), dataSource);
     }
@@ -138,6 +140,9 @@ public class JoinQuery<T extends Comparable<T>> extends BaseQuery<T> implements 
   {
     if (ds instanceof ViewDataSource) {
       ViewDataSource view = (ViewDataSource) ds;
+      if (view.getColumns().isEmpty()) {
+        return ds;
+      }
       boolean changed = false;
       List<String> columns = Lists.newArrayList(view.getColumns());
       for (String joinColumn : joinColumns) {
@@ -324,9 +329,8 @@ public class JoinQuery<T extends Comparable<T>> extends BaseQuery<T> implements 
     String alias = rightJoin ? element.getRightAlias() : element.getLeftAlias();
     String partitionKey = rightJoin ? element.getRightJoinColumns().get(0) : element.getLeftJoinColumns().get(0);
 
-    DataSource dataSource = dataSources.get(alias);
     List<String> partitions = QueryUtils.runSketchQuery(
-        new DummyQuery(dataSource, getQuerySegmentSpec(), false, getContext()),
+        JoinElement.toQuery(dataSources.get(alias), getQuerySegmentSpec()),
         segmentWalker,
         jsonMapper,
         partitionKey,

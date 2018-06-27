@@ -25,6 +25,7 @@ import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
 import com.google.common.collect.Ordering;
 import com.google.common.collect.Sets;
 import com.google.common.io.CharStreams;
@@ -197,6 +198,11 @@ public class GuavaUtils
     return concat(list1, Arrays.asList(elements));
   }
 
+  public static <T> List<T> concat(T element, List<T> list2)
+  {
+    return concat(Arrays.asList(element), list2);
+  }
+
   public static <T> List<T> concat(List<T> list1, List<T> list2)
   {
     if (list1 == null && list2 == null) {
@@ -275,6 +281,35 @@ public class GuavaUtils
       b.append(Arrays.toString(x));
     }
     return b.toString();
+  }
+
+  public static boolean containsNull(List list)
+  {
+    return Lists.newArrayList(list).contains(null);
+  }
+
+  public static List<String> retain(List<String> list, List<String> retain)
+  {
+    if (isNullOrEmpty(retain)) {
+      return list;
+    }
+    List<String> retaining = Lists.newArrayList(list);
+    retaining.retainAll(retain);
+    return retain;
+  }
+
+  public static <V> Map<String, V> retain(Map<String, V> map, List<String> retain)
+  {
+    if (isNullOrEmpty(retain)) {
+      return map;
+    }
+    Map<String, V> retaining = Maps.newLinkedHashMap();
+    for (String key : retain) {
+      if (map.containsKey(key)) {
+        retaining.put(key, map.get(key));
+      }
+    }
+    return retaining;
   }
 
   public static interface CloseableIterator<T> extends Iterator<T>, Closeable {

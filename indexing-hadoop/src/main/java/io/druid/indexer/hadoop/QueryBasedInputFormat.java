@@ -65,7 +65,6 @@ import io.druid.query.LocatedSegmentDescriptor;
 import io.druid.query.Query;
 import io.druid.query.Result;
 import io.druid.query.SegmentDescriptor;
-import io.druid.query.ViewDataSource;
 import io.druid.query.filter.DimFilter;
 import io.druid.query.select.EventHolder;
 import io.druid.query.select.PagingSpec;
@@ -487,21 +486,20 @@ public class QueryBasedInputFormat extends InputFormat<NullWritable, MapWritable
       if (configuration.getBoolean(CONF_DRUID_COLUMNS_UPPERCASE, false)) {
         columns = Lists.newArrayList(Lists.transform(columns, StringUtils.TO_UPPER));
       }
-      ViewDataSource dataSource = new ViewDataSource(split.getDataSource(), columns, null, null, true);
-
-      String filters = split.getFilters();
-      if (filters != null && !filters.isEmpty()) {
-        dataSource = dataSource.withFilter(mapper.readValue(filters, DimFilter.class));
-      }
 
       builder = new Druids.SelectQueryBuilder()
-          .dataSource(dataSource)
+          .dataSource(split.getDataSource())
+          .columns(columns)
           .granularity(QueryGranularities.ALL)
           .context(ImmutableMap.<String, Object>of(
                        BaseQuery.ALL_DIMENSIONS_FOR_EMPTY, false,
                        BaseQuery.ALL_METRICS_FOR_EMPTY, false
                    )
           );
+      String filters = split.getFilters();
+      if (filters != null && !filters.isEmpty()) {
+        builder = builder.filters(mapper.readValue(filters, DimFilter.class));
+      }
 
       timeColumn = configuration.get(CONF_DRUID_TIME_COLUMN_NAME, EventHolder.timestampKey);
 

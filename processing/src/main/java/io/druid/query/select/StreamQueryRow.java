@@ -20,12 +20,13 @@
 package io.druid.query.select;
 
 import com.google.common.primitives.Longs;
+import io.druid.segment.column.Column;
 
 import java.util.LinkedHashMap;
 
 /**
  */
-public class StreamQueryRow extends LinkedHashMap<String, Object> implements Comparable<StreamQueryRow>
+public final class StreamQueryRow extends LinkedHashMap<String, Object> implements Comparable<StreamQueryRow>
 {
   @Override
   public int compareTo(StreamQueryRow o)
@@ -33,5 +34,5 @@ public class StreamQueryRow extends LinkedHashMap<String, Object> implements Com
     return Longs.compare(getTimestamp(), o.getTimestamp());
   }
 
-  public long getTimestamp() {return (Long) get(EventHolder.timestampKey);}
+  public long getTimestamp() {return (Long) get(Column.TIME_COLUMN_NAME);}
 }

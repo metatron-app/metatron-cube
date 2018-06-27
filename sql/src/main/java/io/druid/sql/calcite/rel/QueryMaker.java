@@ -40,7 +40,6 @@ import io.druid.query.Result;
 import io.druid.query.groupby.GroupByQuery;
 import io.druid.query.select.EventHolder;
 import io.druid.query.select.PagingSpec;
-import io.druid.query.select.Schema;
 import io.druid.query.select.SelectQuery;
 import io.druid.query.select.SelectResultValue;
 import io.druid.query.select.StreamRawQuery;
@@ -140,8 +139,7 @@ public class QueryMaker
         Sequences.map(
             runQuery(query),
             scanResult -> {
-              Schema schema = scanResult.getSchema();
-              List<String> columnNames = schema.getColumnNames();
+              final List<String> columnNames = query.getColumns();
               final Map<String, Integer> scanColumnOrder = Maps.newHashMap();
 
               for (int i = 0; i < columnNames.size(); i++) {
@@ -150,10 +148,7 @@ public class QueryMaker
 
               for (int i = 0; i < outputRowSignature.getRowOrder().size(); i++) {
                 String columnName = outputRowSignature.getRowOrder().get(i);
-                if (columnName.equals(Column.TIME_COLUMN_NAME)) {
-                  columnName = EventHolder.timestampKey;  // fuck
-                }
-                final Integer index = scanColumnOrder.get(columnName);
+                Integer index = scanColumnOrder.get(columnName);
                 columnMapping[i] = index == null ? -1 : index;
               }
 

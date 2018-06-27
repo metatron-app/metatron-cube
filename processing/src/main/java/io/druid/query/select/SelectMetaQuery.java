@@ -79,9 +79,11 @@ public class SelectMetaQuery extends BaseQuery<Result<SelectMetaResultValue>>
 
   public static SelectMetaQuery forSchema(DataSource dataSource, QuerySegmentSpec querySegmentSpec, String queryId)
   {
-    Map<String, Object> context = null;
+    Map<String, Object> context = Maps.newHashMap();
+    context.put(ALL_DIMENSIONS_FOR_EMPTY, false);
+    context.put(ALL_METRICS_FOR_EMPTY, false);
     if (queryId != null) {
-      context = ImmutableMap.<String, Object>of(QUERYID, queryId);
+      context.put(QUERYID, queryId);
     }
     return new SelectMetaQuery(
         dataSource, querySegmentSpec, null, QueryGranularities.ALL, null, null, null, true, null, context

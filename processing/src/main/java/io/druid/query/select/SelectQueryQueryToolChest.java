@@ -507,7 +507,11 @@ public class SelectQueryQueryToolChest extends QueryToolChest<Result<SelectResul
   }
 
   @Override
-  public TabularFormat toTabularFormat(final Sequence<Result<SelectResultValue>> sequence, final String timestampColumn)
+  public TabularFormat toTabularFormat(
+      final SelectQuery query,
+      final Sequence<Result<SelectResultValue>> sequence,
+      final String timestampColumn
+  )
   {
     return new TabularFormat()
     {

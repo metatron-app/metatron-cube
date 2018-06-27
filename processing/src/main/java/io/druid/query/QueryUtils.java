@@ -20,7 +20,10 @@
 package io.druid.query;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
+import com.google.common.base.Supplier;
+import com.google.common.base.Suppliers;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
@@ -30,7 +33,10 @@ import com.metamx.common.guava.Accumulator;
 import com.metamx.common.guava.Sequence;
 import com.metamx.common.guava.Sequences;
 import com.metamx.common.logger.Logger;
+import io.druid.common.guava.GuavaUtils;
 import io.druid.data.ValueDesc;
+import io.druid.query.aggregation.AggregatorFactory;
+import io.druid.query.dimension.DefaultDimensionSpec;
 import io.druid.query.filter.BoundDimFilter;
 import io.druid.query.filter.DimFilter;
 import io.druid.query.filter.DimFilters;
@@ -66,15 +72,6 @@ public class QueryUtils
   )
   {
     DataSource dataSource = baseQuery.getDataSource();
-    ViewDataSource view;
-    if (dataSource instanceof ViewDataSource) {
-      view = (ViewDataSource) dataSource;
-      view = view.withColumns(Arrays.asList(column))
-                 .withFilter(DimFilters.and(view.getFilter(), BaseQuery.getDimFilter(baseQuery)));
-    } else {
-      String name = Iterables.getOnlyElement(dataSource.getNames());
-      view = new ViewDataSource(name, Arrays.asList(column), null, BaseQuery.getDimFilter(baseQuery), false);
-    }
     // default.. regard skewed
     Map<String, Object> postProc = ImmutableMap.<String, Object>of(
         "type", "sketch.quantiles",
@@ -82,10 +79,10 @@ public class QueryUtils
         "slopedSpaced", slopedSpaced > 0 ? slopedSpaced + 1 : -1,
         "evenCounted", evenCounted > 0 ? evenCounted : -1
     );
-    Query.DimFilterSupport query = (Query.DimFilterSupport) Queries.toQuery(
+    Query.MetricSupport query = (Query.MetricSupport) Queries.toQuery(
         ImmutableMap.<String, Object>builder()
                     .put("queryType", "sketch")
-                    .put("dataSource", Queries.convert(view, jsonMapper, Map.class))
+                    .put("dataSource", Queries.convert(dataSource, jsonMapper, Map.class))
                     .put("intervals", baseQuery.getQuerySegmentSpec())
                     .put("sketchOp", "QUANTILE")
                     .put("context", ImmutableMap.of(QueryContextKeys.POST_PROCESSING, postProc))
@@ -95,6 +92,11 @@ public class QueryUtils
     if (query == null) {
       return null;
     }
+    if (BaseQuery.getDimFilter(baseQuery) != null) {
+      query = (Query.MetricSupport) query.withDimFilter(BaseQuery.getDimFilter(baseQuery));
+    }
+    query = query.withMetrics(Arrays.asList(column));
+
     final Query runner = query.withId(UUID.randomUUID().toString());
 
     log.info("Running sketch query on partition key %s.%s", dataSource, column);
@@ -240,15 +242,137 @@ public class QueryUtils
     };
   }
 
-  public static Schema resolveSchema(Query<?> query, QuerySegmentWalker segmentWalker)
+  public static Query setQueryId(Query query, final String queryId)
   {
-    if (query.getDataSource() instanceof QueryDataSource) {
-      Schema schema = ((QueryDataSource) query.getDataSource()).getSchema();
+    return Queries.iterate(
+        query, new Function<Query, Query>()
+        {
+          @Override
+          public Query apply(Query input)
+          {
+            if (input.getId() == null) {
+              input = input.withId(queryId);
+            }
+            return input;
+          }
+        }
+    );
+  }
+
+  public static Query resolveRecursively(Query query, final QuerySegmentWalker segmentWalker)
+  {
+    return Queries.iterate(
+        query, new Function<Query, Query>()
+        {
+          @Override
+          public Query apply(Query input)
+          {
+            return QueryUtils.resolveQuery(input, segmentWalker);
+          }
+        }
+    );
+  }
+
+  private static Query resolveQuery(Query query, QuerySegmentWalker segmentWalker)
+  {
+    final Supplier<Schema> schema = schemaSupplier(query, segmentWalker);
+
+    ViewDataSource view = ViewDataSource.of("dummy");
+    if (query.getDataSource() instanceof ViewDataSource) {
+      view = (ViewDataSource) query.getDataSource();
+      query = query.withDataSource(TableDataSource.of(view.getName()));
+    }
+    if (query instanceof Query.VCSupport && !view.getVirtualColumns().isEmpty()) {
+      Query.VCSupport<?> vcSupport = (Query.VCSupport) query;
+      query = vcSupport.withVirtualColumns(GuavaUtils.concat(view.getVirtualColumns(), vcSupport.getVirtualColumns()));
+    }
+    if (query instanceof Query.DimFilterSupport && view.getFilter() != null) {
+      Query.DimFilterSupport<?> filterSupport = (Query.DimFilterSupport) query;
+      query = filterSupport.withDimFilter(DimFilters.and(view.getFilter(), filterSupport.getDimFilter()));
+    }
+    if (query instanceof Query.ColumnsSupport) {
+      Query.ColumnsSupport<?> columnsSupport = (Query.ColumnsSupport) query;
+      if (GuavaUtils.isNullOrEmpty(columnsSupport.getColumns())) {
+        query = view.getColumns().isEmpty() ?
+                columnsSupport.withColumns(schema.get().getColumnNames()) :
+                columnsSupport.withColumns(view.getColumns());
+      }
+    }
+    if (query instanceof Query.DimensionSupport) {
+      Query.DimensionSupport<?> dimSupport = (Query.DimensionSupport) query;
+      if (dimSupport.getDimensions().isEmpty() && dimSupport.allDimensionsForEmpty()) {
+        List<String> dimensions = GuavaUtils.retain(schema.get().getDimensionNames(), view.getColumns());
+        query = dimSupport.withDimensionSpecs(DefaultDimensionSpec.toSpec(dimensions));
+      }
+    }
+    if (query instanceof Query.MetricSupport) {
+      Query.MetricSupport metricSupport = (Query.MetricSupport) query;
+      if (metricSupport.getMetrics().isEmpty() && metricSupport.allMetricsForEmpty()) {
+        List<String> metrics = GuavaUtils.retain(schema.get().getMetricNames(), view.getColumns());
+        query = metricSupport.withMetrics(metrics);
+      }
+    }
+    if (query instanceof Query.AggregationsSupport) {
+      Query.AggregationsSupport aggrSupport = (Query.AggregationsSupport) query;
+      if (aggrSupport.getAggregatorSpecs().isEmpty() && aggrSupport.allMetricsForEmpty()) {
+        List<AggregatorFactory> factories = schema.get().getAggregators();
+        if (!factories.isEmpty() && !GuavaUtils.isNullOrEmpty(view.getColumns())) {
+          Map<String, AggregatorFactory> map = AggregatorFactory.asMap(factories);
+          factories = Lists.newArrayList(GuavaUtils.retain(map, view.getColumns()).values());
+        }
+        query = aggrSupport.withDimensionSpecs(factories);
+      }
+    }
+    return query;
+  }
+
+  public static Supplier<Schema> schemaSupplier(
+      final Query query,
+      final QuerySegmentWalker segmentWalker
+  )
+  {
+    return Suppliers.memoize(
+        new Supplier<Schema>()
+        {
+          @Override
+          public Schema get()
+          {
+            return retrieveSchema(query, segmentWalker);
+          }
+        }
+    );
+  }
+
+  public static Supplier<RowResolver> resolverSupplier(
+      final Query query,
+      final QuerySegmentWalker segmentWalker)
+  {
+    return Suppliers.memoize(
+        new Supplier<RowResolver>()
+        {
+          @Override
+          public RowResolver get()
+          {
+            final Schema schema = retrieveSchema(query, segmentWalker);
+            return RowResolver.of(schema, BaseQuery.getVirtualColumns(query));
+          }
+        }
+    );
+  }
+
+  public static Schema retrieveSchema(Query<?> query, QuerySegmentWalker segmentWalker)
+  {
+    DataSource dataSource = query.getDataSource();
+    if (dataSource instanceof QueryDataSource) {
+      Schema schema = ((QueryDataSource) dataSource).getSchema();
       return Preconditions.checkNotNull(schema, "schema of subquery is null");
+    }
+    if (dataSource instanceof ViewDataSource) {
+      dataSource = TableDataSource.of(((ViewDataSource)dataSource).getName());
     }
     return getSchema(
         SelectMetaQuery.forSchema(
-            query.getDataSource(),
+            dataSource,
             query.getQuerySegmentSpec(),
             query.getId()
         ), segmentWalker
