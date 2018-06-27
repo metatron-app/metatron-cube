@@ -2380,11 +2380,11 @@ public interface BuiltinFunctions extends Function.Library
     protected final void initialize(WindowContext context, Object[] parameters)
     {
       if (parameters.length != 1 || !(parameters[0] instanceof Long)) {
-        throw new RuntimeException("function 'nth' needs 1 index argument");
+        throw new RuntimeException("function 'nth' needs 1 argument");
       }
-      nth = ((Number) parameters[0]).intValue();
+      nth = ((Number) parameters[0]).intValue() - 1;
       if (nth < 0) {
-        throw new IllegalArgumentException("nth should not be negative");
+        throw new IllegalArgumentException("nth should be a positive value");
       }
     }
 
@@ -2795,9 +2795,15 @@ public interface BuiltinFunctions extends Function.Library
     protected void initialize(WindowContext context, Object[] parameters)
     {
       super.initialize(context, parameters);
+      if (parameters.length == 0 || !(parameters[0] instanceof Number)) {
+        throw new RuntimeException("function 'percentile' needs 1 ratio argument");
+      }
       Preconditions.checkArgument(fieldType.isNumeric());
       type = fieldType.type();
       percentile = ((Number) parameters[0]).floatValue();
+      if (percentile < 0 || percentile > 1) {
+        throw new RuntimeException("percentile should be in [0 ~ 1]");
+      }
 
       int limit = window == null ? context.size() : sizeOfWindow();
       if (type == ValueType.LONG) {
