@@ -24,11 +24,16 @@ import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+import com.google.common.collect.Ordering;
+import com.google.common.primitives.Ints;
+import io.druid.common.guava.GuavaUtils;
 import io.druid.granularity.Granularity;
 import io.druid.query.DataSource;
 import io.druid.query.Query;
 import io.druid.query.filter.DimFilter;
+import io.druid.query.ordering.Comparators;
 import io.druid.query.spec.QuerySegmentSpec;
 import io.druid.query.timeseries.TimeseriesQuery;
 import io.druid.segment.VirtualColumn;
@@ -39,9 +44,10 @@ import java.util.Map;
 /**
  */
 @JsonTypeName(Query.SELECT_STREAM_RAW)
-public class StreamRawQuery extends AbstractStreamQuery<RawRows>
+public class StreamRawQuery extends AbstractStreamQuery<Object[]>
 {
-  private final List<String> sortOn;
+  private final List<String> sortOn;  // sort spec?
+
   public StreamRawQuery(
       @JsonProperty("dataSource") DataSource dataSource,
       @JsonProperty("intervals") QuerySegmentSpec querySegmentSpec,
@@ -80,6 +86,34 @@ public class StreamRawQuery extends AbstractStreamQuery<RawRows>
   public List<String> getSortOn()
   {
     return sortOn;
+  }
+
+  private int[] toSortIndices()
+  {
+    if (GuavaUtils.isNullOrEmpty(getSortOn())) {
+      return null;
+    }
+    List<String> columnNames = getColumns();
+
+    List<Integer> indices = Lists.newArrayList();
+    for (String sort : getSortOn()) {
+      int index = columnNames.indexOf(sort);
+      if (index >= 0) {
+        indices.add(index);
+      }
+    }
+    return indices.isEmpty() ? null : Ints.toArray(indices);
+  }
+
+  @Override
+  @SuppressWarnings("unchecked")
+  public Ordering<Object[]> getResultOrdering()
+  {
+    int[] indices = toSortIndices();
+    if (indices != null) {
+      return Ordering.from(Comparators.toArrayComparator(indices));
+    }
+    return null;
   }
 
   @Override
@@ -215,7 +249,8 @@ public class StreamRawQuery extends AbstractStreamQuery<RawRows>
         null,
         null,
         null,
-        Maps.<String, Object>newHashMap(getContext())
+        Maps.<String, Object>newHashMap()
     );
   }
+
 }

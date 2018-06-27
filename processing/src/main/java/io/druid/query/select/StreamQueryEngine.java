@@ -23,12 +23,13 @@ import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
+import com.google.common.collect.Ordering;
 import com.google.common.util.concurrent.Futures;
 import com.metamx.common.ISE;
 import com.metamx.common.Pair;
 import com.metamx.common.guava.Sequence;
-import com.metamx.common.guava.Sequences;
 import io.druid.cache.Cache;
+import io.druid.common.utils.Sequences;
 import io.druid.query.QueryRunnerHelper;
 import io.druid.query.RowResolver;
 import io.druid.query.dimension.DefaultDimensionSpec;
@@ -40,10 +41,9 @@ import io.druid.segment.Segment;
 import io.druid.segment.Segments;
 import io.druid.segment.StorageAdapter;
 import org.apache.commons.lang.mutable.MutableInt;
-import org.joda.time.DateTime;
 import org.joda.time.Interval;
 
-import java.util.Arrays;
+import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.concurrent.Future;
@@ -77,7 +77,7 @@ public class StreamQueryEngine
     );
   }
 
-  public Sequence<RawRows> process(
+  public Sequence<Object[]> process(
       final StreamRawQuery query,
       final Segment segment,
       final Future optimizer,
@@ -85,12 +85,13 @@ public class StreamQueryEngine
   )
   {
     Pair<Schema, Sequence<Object[]>> result = processRaw(query, segment, optimizer, cache);
-    List<Object[]> rows = Sequences.toList(result.rhs, Lists.<Object[]>newArrayList());
-    if (rows.isEmpty()) {
-      return Sequences.empty();
+    Ordering<Object[]> ordering = query.getResultOrdering();
+    if (ordering == null) {
+      return result.rhs;
     }
-    DateTime start = segment.getDataInterval().getStart();
-    return Sequences.simple(Arrays.asList(new RawRows(start, result.lhs, rows)));
+    List<Object[]> sorted = Sequences.toList(result.rhs);
+    Collections.sort(sorted, ordering);
+    return Sequences.simple(sorted);
   }
 
   public Pair<Schema, Sequence<Object[]>> processRaw(

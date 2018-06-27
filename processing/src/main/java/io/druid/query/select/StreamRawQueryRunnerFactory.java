@@ -28,7 +28,6 @@ import com.google.common.util.concurrent.Futures;
 import com.google.inject.Inject;
 import com.metamx.common.guava.LazySequence;
 import com.metamx.common.guava.Sequence;
-import com.metamx.common.guava.Sequences;
 import com.metamx.common.logger.Logger;
 import io.druid.cache.BitmapCache;
 import io.druid.cache.Cache;
@@ -39,6 +38,7 @@ import io.druid.query.QueryRunner;
 import io.druid.query.QueryRunnerFactory;
 import io.druid.query.QuerySegmentWalker;
 import io.druid.query.QueryToolChest;
+import io.druid.query.QueryUtils;
 import io.druid.query.RowResolver;
 import io.druid.query.dimension.DefaultDimensionSpec;
 import io.druid.query.filter.BoundDimFilter;
@@ -55,7 +55,7 @@ import java.util.concurrent.Future;
 /**
  */
 public class StreamRawQueryRunnerFactory
-    implements QueryRunnerFactory.Splitable<RawRows, StreamRawQuery>
+    implements QueryRunnerFactory.Splitable<Object[], StreamRawQuery>
 {
   private static final Logger logger = new Logger(StreamRawQueryRunnerFactory.class);
 
@@ -137,12 +137,12 @@ public class StreamRawQueryRunnerFactory
   }
 
   @Override
-  public QueryRunner<RawRows> createRunner(final Segment segment, final Future<Object> optimizer)
+  public QueryRunner<Object[]> createRunner(final Segment segment, final Future<Object> optimizer)
   {
-    return new QueryRunner<RawRows>()
+    return new QueryRunner<Object[]>()
     {
       @Override
-      public Sequence<RawRows> run(Query<RawRows> query, Map<String, Object> responseContext)
+      public Sequence<Object[]> run(Query<Object[]> query, Map<String, Object> responseContext)
       {
         return engine.process((StreamRawQuery) query, segment, optimizer, cache);
       }
@@ -150,45 +150,45 @@ public class StreamRawQueryRunnerFactory
   }
 
   @Override
-  public QueryRunner<RawRows> mergeRunners(
+  public QueryRunner<Object[]> mergeRunners(
       final ExecutorService queryExecutor,
-      final Iterable<QueryRunner<RawRows>> queryRunners,
-      Future<Object> optimizer
+      final Iterable<QueryRunner<Object[]>> queryRunners,
+      final Future<Object> optimizer
   )
   {
-    return new QueryRunner<RawRows>()
+    return new QueryRunner<Object[]>()
     {
       @Override
-      public Sequence<RawRows> run(final Query<RawRows> query, final Map<String, Object> responseContext)
+      public Sequence<Object[]> run(final Query<Object[]> query, final Map<String, Object> responseContext)
       {
-        return Sequences.concat(
-            Iterables.transform(
-                queryRunners,
-                new Function<QueryRunner<RawRows>, Sequence<RawRows>>()
-                {
-                  @Override
-                  public Sequence<RawRows> apply(final QueryRunner<RawRows> input)
-                  {
-                    return new LazySequence<RawRows>(
-                        new Supplier<Sequence<RawRows>>()
-                        {
-                          @Override
-                          public Sequence<RawRows> get()
-                          {
-                            return input.run(query, responseContext);
-                          }
-                        }
-                    );
-                  }
-                }
-            )
+        // segment ordered (or time-ordered)
+        final Iterable<Sequence<Object[]>> sequences = Iterables.transform(
+            queryRunners,
+            new Function<QueryRunner<Object[]>, Sequence<Object[]>>()
+            {
+              @Override
+              public Sequence<Object[]> apply(final QueryRunner<Object[]> input)
+              {
+                return new LazySequence<Object[]>(
+                    new Supplier<Sequence<Object[]>>()
+                    {
+                      @Override
+                      public Sequence<Object[]> get()
+                      {
+                        return input.run(query, responseContext);
+                      }
+                    }
+                );
+              }
+            }
         );
+        return QueryUtils.mergeSort(query, Lists.newArrayList(sequences));
       }
     };
   }
 
   @Override
-  public QueryToolChest<RawRows, StreamRawQuery> getToolchest()
+  public QueryToolChest<Object[], StreamRawQuery> getToolchest()
   {
     return toolChest;
   }

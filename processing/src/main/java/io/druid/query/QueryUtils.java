@@ -28,12 +28,13 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+import com.google.common.collect.Ordering;
 import com.metamx.common.Pair;
 import com.metamx.common.guava.Accumulator;
 import com.metamx.common.guava.Sequence;
-import com.metamx.common.guava.Sequences;
 import com.metamx.common.logger.Logger;
 import io.druid.common.guava.GuavaUtils;
+import io.druid.common.utils.Sequences;
 import io.druid.data.ValueDesc;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.dimension.DefaultDimensionSpec;
@@ -61,6 +62,24 @@ import java.util.UUID;
 public class QueryUtils
 {
   private static final Logger log = new Logger(QueryUtils.class);
+
+  public static <T> Sequence<T> mergeSort(Query<T> query, List<Sequence<T>> sequences)
+  {
+    if (sequences.isEmpty()) {
+      return Sequences.empty();
+    }
+    if (sequences.size() == 1) {
+      return sequences.get(0);
+    }
+    Ordering<T> ordering = query.getResultOrdering();
+    return ordering == null ? Sequences.concat(sequences) : Sequences.mergeSort(ordering, Sequences.simple(sequences));
+  }
+
+  public static <T> Sequence<T> mergeSort(Query<T> query, Sequence<Sequence<T>> sequences)
+  {
+    Ordering<T> ordering = query.getResultOrdering();
+    return ordering == null ? Sequences.concat(sequences) : Sequences.mergeSort(ordering, sequences);
+  }
 
   public static List<String> runSketchQuery(
       Query baseQuery,
@@ -368,19 +387,18 @@ public class QueryUtils
       return Preconditions.checkNotNull(schema, "schema of subquery is null");
     }
     if (dataSource instanceof ViewDataSource) {
-      dataSource = TableDataSource.of(((ViewDataSource)dataSource).getName());
+      query.withDataSource(TableDataSource.of(((ViewDataSource)dataSource).getName()));
     }
-    return getSchema(
-        SelectMetaQuery.forSchema(
-            dataSource,
-            query.getQuerySegmentSpec(),
-            query.getId()
-        ), segmentWalker
-    );
+    return getSchema(query, segmentWalker);
   }
 
-  private static Schema getSchema(SelectMetaQuery metaQuery, QuerySegmentWalker segmentWalker)
+  public static Schema getSchema(Query<?> query, QuerySegmentWalker segmentWalker)
   {
+    SelectMetaQuery metaQuery = SelectMetaQuery.forSchema(
+        query.getDataSource(),
+        query.getQuerySegmentSpec(),
+        query.getId()
+    );
     Result<SelectMetaResultValue> result = Iterables.getOnlyElement(
         Sequences.toList(
             metaQuery.run(segmentWalker, Maps.<String, Object>newHashMap()),

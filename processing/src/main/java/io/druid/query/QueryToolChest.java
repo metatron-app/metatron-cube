@@ -253,6 +253,11 @@ public abstract class QueryToolChest<ResultType, QueryType extends Query<ResultT
     throw new UnsupportedOperationException("handleSourceQuery");
   }
 
+  public Sequence<ResultType> mergeSequences(QueryType query, List<Sequence<ResultType>> sequences)
+  {
+    return QueryUtils.mergeSort(query, sequences);
+  }
+
   protected abstract class SubQueryRunner<I> implements QueryRunner<ResultType>
   {
     protected final QueryRunner<I> subQueryRunner;

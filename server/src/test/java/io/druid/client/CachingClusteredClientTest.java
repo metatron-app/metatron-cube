@@ -947,6 +947,11 @@ public class CachingClusteredClientTest
                 .threshold(3)
                 .aggregators(Arrays.<AggregatorFactory>asList(new CountAggregatorFactory("b")))
                 .build(),
+            new TopNQueryQueryToolChest(
+                Suppliers.ofInstance(new TopNQueryConfig()),
+                TestHelper.testTopNQueryEngine(),
+                QueryRunnerTestHelper.NoopIntervalChunkingQueryRunnerDecorator()
+            ),
             sequences,
             -1,
             null

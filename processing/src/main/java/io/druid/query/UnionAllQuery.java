@@ -31,7 +31,6 @@ import com.google.common.collect.Sets;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.metamx.common.Pair;
 import com.metamx.common.guava.LazySequence;
-import com.metamx.common.guava.MergeSequence;
 import com.metamx.common.guava.ResourceClosingSequence;
 import com.metamx.common.guava.Sequence;
 import com.metamx.common.guava.Sequences;
@@ -426,7 +425,7 @@ public class UnionAllQuery<T extends Comparable<T>> extends BaseQuery<T>
               baseRunner.run(query, responseContext), Pair.<Query<T>, Sequence<T>>rhsFn()
           );
           if (isSortOnUnion()) {
-            return new MergeSequence<T>(query.getResultOrdering(), sequences);
+            return QueryUtils.mergeSort(query, sequences);
           }
           return Sequences.concat(sequences);
         }

@@ -23,6 +23,7 @@ import com.fasterxml.jackson.core.JsonGenerator;
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.DeserializationContext;
+import com.fasterxml.jackson.databind.JavaType;
 import com.fasterxml.jackson.databind.JsonDeserializer;
 import com.fasterxml.jackson.databind.JsonSerializer;
 import com.fasterxml.jackson.databind.SerializerProvider;
@@ -31,11 +32,13 @@ import com.fasterxml.jackson.databind.ser.std.ToStringSerializer;
 import com.google.common.base.Throwables;
 import com.metamx.common.guava.Accumulator;
 import com.metamx.common.guava.Sequence;
+import com.metamx.common.guava.Sequences;
 import com.metamx.common.guava.Yielder;
 import org.joda.time.DateTimeZone;
 
 import java.io.IOException;
 import java.nio.ByteOrder;
+import java.util.List;
 import java.util.TimeZone;
 
 /**
@@ -109,6 +112,20 @@ public class DruidDefaultSerializersModule extends SimpleModule
                 }
             );
             jgen.writeEndArray();
+          }
+        }
+    );
+    addDeserializer(
+        Sequence.class,
+        new JsonDeserializer<Sequence>()
+        {
+          @Override
+          public Sequence deserialize(JsonParser jp, DeserializationContext ctxt) throws IOException
+          {
+            JavaType type = ctxt.constructType(List.class);
+            List values = (List) ctxt.findContextualValueDeserializer(type, null)
+                                     .deserialize(jp, ctxt);
+            return Sequences.simple(values);
           }
         }
     );

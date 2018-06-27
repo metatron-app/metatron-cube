@@ -19,10 +19,16 @@
 
 package io.druid.jackson;
 
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.metamx.common.guava.Sequence;
+import io.druid.common.utils.Sequences;
 import org.joda.time.DateTime;
 import org.junit.Assert;
 import org.junit.Test;
+
+import java.util.Arrays;
+import java.util.List;
 
 /**
  */
@@ -36,5 +42,25 @@ public class DefaultObjectMapperTest
     final DateTime time = new DateTime();
 
     Assert.assertEquals(String.format("\"%s\"", time), mapper.writeValueAsString(time));
+  }
+
+  @Test
+  public void testSequence() throws Exception
+  {
+    List<String> values = Arrays.asList("a", "b", "c", "d");
+    Sequence<String> sequence = Sequences.simple(values);
+    Sequence<String> read = mapper.readValue(
+        mapper.writeValueAsBytes(sequence), new TypeReference<Sequence<String>>()
+        {
+        }
+    );
+    Assert.assertEquals(values, Sequences.toList(read));
+
+    read = mapper.readValue(
+        mapper.writeValueAsString(sequence), new TypeReference<Sequence<String>>()
+        {
+        }
+    );
+    Assert.assertEquals(values, Sequences.toList(read));
   }
 }

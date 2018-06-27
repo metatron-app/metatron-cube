@@ -135,38 +135,31 @@ public class QueryMaker
     // SQL row column index -> Scan query column index
     final int[] columnMapping = new int[outputRowSignature.getRowOrder().size()];
 
-    return Sequences.concat(
-        Sequences.map(
-            runQuery(query),
-            scanResult -> {
-              final List<String> columnNames = query.getColumns();
-              final Map<String, Integer> scanColumnOrder = Maps.newHashMap();
+    final List<String> columnNames = query.getColumns();
+    final Map<String, Integer> scanColumnOrder = Maps.newHashMap();
 
-              for (int i = 0; i < columnNames.size(); i++) {
-                scanColumnOrder.put(columnNames.get(i), i);
-              }
+    for (int i = 0; i < columnNames.size(); i++) {
+      scanColumnOrder.put(columnNames.get(i), i);
+    }
 
-              for (int i = 0; i < outputRowSignature.getRowOrder().size(); i++) {
-                String columnName = outputRowSignature.getRowOrder().get(i);
-                Integer index = scanColumnOrder.get(columnName);
-                columnMapping[i] = index == null ? -1 : index;
-              }
-
-              final List<Object[]> retVals = new ArrayList<>();
-              for (Object[] row : scanResult.getRows()) {
-                final Object[] retVal = new Object[fieldList.size()];
-                for (RelDataTypeField field : fieldList) {
-                  int index = columnMapping[field.getIndex()];
-                  if (index < 0) {
-                    continue;
-                  }
-                  retVal[field.getIndex()] = coerce(row[index], field.getType().getSqlTypeName());
-                }
-                retVals.add(retVal);
-              }
-              return Sequences.<Object[]>simple(retVals);
+    for (int i = 0; i < outputRowSignature.getRowOrder().size(); i++) {
+      String columnName = outputRowSignature.getRowOrder().get(i);
+      Integer index = scanColumnOrder.get(columnName);
+      columnMapping[i] = index == null ? -1 : index;
+    }
+    return Sequences.map(
+        runQuery(query),
+        row -> {
+          final Object[] retVal = new Object[fieldList.size()];
+          for (RelDataTypeField field : fieldList) {
+            int index = columnMapping[field.getIndex()];
+            if (index < 0) {
+              continue;
             }
-        )
+            retVal[field.getIndex()] = coerce(row[index], field.getType().getSqlTypeName());
+          }
+          return retVal;
+        }
     );
   }
 

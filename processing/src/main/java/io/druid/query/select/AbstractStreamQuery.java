@@ -38,7 +38,7 @@ import java.util.Objects;
 
 /**
  */
-public abstract class AbstractStreamQuery<T extends Comparable<T>> extends BaseQuery<T>
+public abstract class AbstractStreamQuery<T> extends BaseQuery<T>
     implements Query.ColumnsSupport<T>
 {
   private final DimFilter dimFilter;

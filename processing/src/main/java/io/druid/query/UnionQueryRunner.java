@@ -21,10 +21,10 @@ package io.druid.query;
 
 import com.google.common.base.Function;
 import com.google.common.collect.Lists;
-import com.metamx.common.guava.MergeSequence;
 import com.metamx.common.guava.Sequence;
 import com.metamx.common.guava.Sequences;
 
+import java.util.List;
 import java.util.Map;
 
 public class UnionQueryRunner<T> implements QueryRunner<T>
@@ -43,26 +43,27 @@ public class UnionQueryRunner<T> implements QueryRunner<T>
   {
     DataSource dataSource = query.getDataSource();
     if (dataSource instanceof UnionDataSource) {
-
-      return new MergeSequence<>(
-          query.getResultOrdering(),
-          Sequences.simple(
-              Lists.transform(
-                  ((UnionDataSource) dataSource).getDataSources(),
-                  new Function<DataSource, Sequence<T>>()
-                  {
-                    @Override
-                    public Sequence<T> apply(DataSource singleSource)
-                    {
-                      return baseRunner.run(
-                          query.withDataSource(singleSource),
-                          responseContext
-                      );
-                    }
-                  }
-              )
-          )
+      final List<Sequence<T>> sequences = Lists.transform(
+          ((UnionDataSource) dataSource).getDataSources(),
+          new Function<DataSource, Sequence<T>>()
+          {
+            @Override
+            public Sequence<T> apply(DataSource singleSource)
+            {
+              return baseRunner.run(
+                  query.withDataSource(singleSource),
+                  responseContext
+              );
+            }
+          }
       );
+      if (sequences.isEmpty()) {
+        return Sequences.empty();
+      }
+      if (sequences.size() == 1) {
+        return sequences.get(0);
+      }
+      return QueryUtils.mergeSort(query, Sequences.simple(sequences));
     } else {
       return baseRunner.run(query, responseContext);
     }

@@ -98,12 +98,14 @@ public class Schema implements TypeResolver, RowSignature
     return columnTypes.subList(dimensionNames.size(), columnTypes.size());
   }
 
+  @Override
   public List<String> getColumnNames()
   {
     return Lists.newArrayList(Iterables.concat(dimensionNames, metricNames));
   }
 
   @JsonProperty
+  @Override
   public List<ValueDesc> getColumnTypes()
   {
     return columnTypes;

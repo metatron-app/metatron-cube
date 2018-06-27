@@ -39,7 +39,6 @@ import com.google.inject.Inject;
 import com.metamx.common.Pair;
 import com.metamx.common.guava.BaseSequence;
 import com.metamx.common.guava.LazySequence;
-import com.metamx.common.guava.MergeSequence;
 import com.metamx.common.guava.Sequence;
 import com.metamx.common.guava.Sequences;
 import com.metamx.emitter.EmittingLogger;
@@ -64,6 +63,7 @@ import io.druid.query.QueryRunnerFactoryConglomerate;
 import io.druid.query.QueryRunnerHelper;
 import io.druid.query.QueryToolChest;
 import io.druid.query.QueryToolChestWarehouse;
+import io.druid.query.QueryUtils;
 import io.druid.query.Result;
 import io.druid.query.SegmentDescriptor;
 import io.druid.query.aggregation.MetricManipulatorFns;
@@ -422,7 +422,13 @@ public class CachingClusteredClient<T> implements QueryRunner<T>
               sequencesByInterval.add(runner.run(query, responseContext));
             }
 
-            return mergeCachedAndUncachedSequences(query, sequencesByInterval, cachedResults.size(), cacheAccessTime);
+            return mergeCachedAndUncachedSequences(
+                query,
+                toolChest,
+                sequencesByInterval,
+                cachedResults.size(),
+                cacheAccessTime
+            );
           }
 
           private boolean includeSelf()
@@ -547,8 +553,8 @@ public class CachingClusteredClient<T> implements QueryRunner<T>
                     rewrittenQuery.withQuerySegmentSpec(segmentSpec),
                     responseContext
                 );
-                resultSeqToAdd = new MergeSequence(
-                    query.getResultOrdering(),
+                resultSeqToAdd = QueryUtils.mergeSort(
+                    query,
                     Sequences.<Result<BySegmentResultValueClass<T>>, Sequence<T>>map(
                         runningSequence,
                         new Function<Result<BySegmentResultValueClass<T>>, Sequence<T>>()
@@ -646,37 +652,30 @@ public class CachingClusteredClient<T> implements QueryRunner<T>
   }
 
   protected Sequence<T> mergeCachedAndUncachedSequences(
-      Query<T> query,
-      List<Sequence<T>> sequencesByInterval,
+      final Query<T> query,
+      final QueryToolChest<T, Query<T>> toolChest,
+      final List<Sequence<T>> sequencesByInterval,
       final int numCachedSegments,
       final CacheAccessTime cacheAccessTime
   )
   {
-    Sequence<T> base;
-    if (sequencesByInterval.isEmpty()) {
-      base = Sequences.empty();
-    } else {
-      base = new MergeSequence<>(
-          query.getResultOrdering(),
-          Sequences.simple(sequencesByInterval)
+    Sequence<T> sequence = toolChest.mergeSequences(query, sequencesByInterval);
+    if (numCachedSegments > 0 && cacheAccessTime != null) {
+      sequence = Sequences.withBaggage(
+          sequence, new Closeable()
+          {
+            @Override
+            public void close() throws IOException
+            {
+              log.info(
+                  "Deserialized %,d rows from %,d cached segments, took %,d msec",
+                  cacheAccessTime.rows(), numCachedSegments, cacheAccessTime.time()
+              );
+            }
+          }
       );
     }
-    if (numCachedSegments == 0 || cacheAccessTime == null) {
-      return base;
-    }
-    return Sequences.withBaggage(
-        base, new Closeable()
-        {
-          @Override
-          public void close() throws IOException
-          {
-            log.info(
-                "Deserialized %,d rows from %,d cached segments, took %,d msec",
-                cacheAccessTime.rows(), numCachedSegments, cacheAccessTime.time()
-            );
-          }
-        }
-    );
+    return sequence;
   }
 
   private static class CacheAccessTime extends Pair<AtomicLong, AtomicInteger>
