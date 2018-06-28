@@ -1489,7 +1489,7 @@ public interface BuiltinFunctions extends Function.Library
   }
 
   @Function.Named("nvl")
-  class NvlFunc extends Function.NamedFunction
+  final class NvlFunc extends Function.NamedFunction
   {
     @Override
     public ValueDesc apply(List<Expr> args, TypeBinding bindings)
@@ -1519,8 +1519,33 @@ public interface BuiltinFunctions extends Function.Library
   }
 
   @Function.Named("coalesce")
-  final class Coalesce extends NvlFunc
+  final class Coalesce extends Function.NamedFunction
   {
+    @Override
+    public ValueDesc apply(List<Expr> args, TypeBinding bindings)
+    {
+      if (args.isEmpty()) {
+        throw new RuntimeException("function 'coalesce' needs at least 1 argument");
+      }
+      ValueDesc x = args.get(0).type(bindings);
+      for (int i = 1; i < args.size(); i++) {
+        x = ValueDesc.toCommonType(x, args.get(1).type(bindings));
+      }
+      return x;
+    }
+
+    @Override
+    public ExprEval apply(List<Expr> args, NumericBinding bindings)
+    {
+      if (args.isEmpty()) {
+        throw new RuntimeException("function 'coalesce' needs at least 1 argument");
+      }
+      ExprEval eval = args.get(0).eval(bindings);
+      for (int i = 1; i < args.size() && eval.isNull(); i++) {
+        eval = args.get(1).eval(bindings);
+      }
+      return eval;
+    }
   }
 
   @Function.Named("datediff")
