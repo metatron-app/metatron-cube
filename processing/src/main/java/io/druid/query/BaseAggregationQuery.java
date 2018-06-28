@@ -32,12 +32,15 @@ import com.google.common.collect.Lists;
 import com.metamx.common.ISE;
 import com.metamx.common.guava.Sequence;
 import com.metamx.common.guava.Sequences;
+import io.druid.common.guava.GuavaUtils;
 import io.druid.data.input.Row;
 import io.druid.granularity.Granularity;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.PostAggregator;
+import io.druid.query.aggregation.PostAggregators;
 import io.druid.query.dimension.DefaultDimensionSpec;
 import io.druid.query.dimension.DimensionSpec;
+import io.druid.query.dimension.DimensionSpecs;
 import io.druid.query.filter.DimFilter;
 import io.druid.query.filter.InDimFilter;
 import io.druid.query.filter.SelectorDimFilter;
@@ -198,6 +201,31 @@ public abstract class BaseAggregationQuery<T extends Comparable<T>> extends Base
     }
 
     return postProcFn.apply(results);
+  }
+
+  @Override
+  public List<String> estimatedOutputColumns()
+  {
+    List<String> outputColumns = getOutputColumns();
+    if (!GuavaUtils.isNullOrEmpty(outputColumns)) {
+      return outputColumns;
+    }
+    if (GuavaUtils.isNullOrEmpty(limitSpec.getWindowingSpecs()) && lateralView == null) {
+      outputColumns = Lists.newArrayList();
+      outputColumns.addAll(DimensionSpecs.toOutputNames(getDimensions()));
+      for (String aggregator : AggregatorFactory.toNames(getAggregatorSpecs())) {
+        if (!outputColumns.contains(aggregator)) {
+          outputColumns.add(aggregator);
+        }
+      }
+      for (String postAggregator : PostAggregators.toNames(getPostAggregatorSpecs())) {
+        if (!outputColumns.contains(postAggregator)) {
+          outputColumns.add(postAggregator);
+        }
+      }
+      return outputColumns;
+    }
+    return null;
   }
 
   @Override

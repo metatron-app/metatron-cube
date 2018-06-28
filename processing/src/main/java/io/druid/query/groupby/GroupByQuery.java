@@ -24,6 +24,7 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
@@ -31,10 +32,13 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Ordering;
 import com.google.common.primitives.Longs;
+import com.metamx.common.guava.Sequence;
+import com.metamx.common.guava.Sequences;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.data.input.Row;
 import io.druid.granularity.Granularity;
 import io.druid.query.BaseAggregationQuery;
+import io.druid.query.BaseQuery;
 import io.druid.query.DataSource;
 import io.druid.query.Druids;
 import io.druid.query.LateralViewSpec;
@@ -643,6 +647,11 @@ public class GroupByQuery extends BaseAggregationQuery<Row> implements Query.Rew
     );
   }
 
+  public GroupByQuery withOrderingSpec(List<OrderByColumnSpec> columns)
+  {
+    return withLimitSpec(limitSpec.withOrderingSpec(columns));
+  }
+
   public TimeseriesQuery asTimeseriesQuery()
   {
     return new TimeseriesQuery(
@@ -658,7 +667,28 @@ public class GroupByQuery extends BaseAggregationQuery<Row> implements Query.Rew
         limitSpec,
         outputColumns,
         lateralView,
-        Maps.<String, Object>newHashMap(getContext())
+        Queries.extractContext(this, BaseQuery.QUERYID)
+    );
+  }
+
+  @Override
+  public Sequence<Object[]> array(Sequence<Row> sequence)
+  {
+    final String[] columns = Preconditions.checkNotNull(estimatedOutputColumns()).toArray(new String[0]);
+    return Sequences.map(
+        sequence,
+        new Function<Row, Object[]>()
+        {
+          @Override
+          public Object[] apply(Row input)
+          {
+            final Object[] array = new Object[columns.length];
+            for (int i = 0; i < columns.length; i++) {
+              array[i] = input.getRaw(columns[i]);
+            }
+            return array;
+          }
+        }
     );
   }
 }

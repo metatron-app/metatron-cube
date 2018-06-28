@@ -97,7 +97,8 @@ public class ClientQuerySegmentWalker implements QuerySegmentWalker
     QueryToolChest<T, Query<T>> toolChest = warehouse.getToolChest(query);
 
     if (query.getDataSource() instanceof QueryDataSource) {
-      Query innerQuery = ((QueryDataSource)query.getDataSource()).getQuery().withOverriddenContext(query.getContext());
+      QueryDataSource dataSource = (QueryDataSource) query.getDataSource();
+      Query innerQuery = toolChest.prepareSubQuery(query, dataSource.getQuery());
       int maxResult = queryConfig.getMaxResults();
       int maxRowCount = Math.min(
           query.getContextValue(GroupByQueryHelper.CTX_KEY_MAX_RESULTS, maxResult),

@@ -22,12 +22,17 @@ package io.druid.query;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
+import io.druid.common.guava.GuavaUtils;
 import io.druid.query.filter.DimFilter;
 import io.druid.query.filter.DimFilters;
+import io.druid.query.groupby.GroupByQuery;
+import io.druid.query.groupby.orderby.OrderByColumnSpec;
 import io.druid.query.spec.QuerySegmentSpec;
 
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 /**
@@ -179,15 +184,36 @@ public class JoinElement
     return new String[]{leftJoinColumns.get(0), rightJoinColumns.get(0)};
   }
 
-  public static Query toQuery(DataSource dataSource, QuerySegmentSpec segmentSpec)
+  public static Query toQuery(
+      DataSource dataSource,
+      List<String> sortColumns,
+      QuerySegmentSpec segmentSpec,
+      Map<String, Object> context
+  )
   {
-    return toQuery(dataSource, segmentSpec, null);
+    return toQuery(dataSource, sortColumns, segmentSpec, null, context);
   }
 
-  public static Query toQuery(DataSource dataSource, QuerySegmentSpec segmentSpec, DimFilter filter)
+  static final String SORTED_CONTEXT_KEY = "$sorted";
+  static final Map<String, Object> SORTED_TRUE = ImmutableMap.<String, Object>of(SORTED_CONTEXT_KEY, true);
+
+  public static Query toQuery(
+      DataSource dataSource,
+      List<String> sortColumns,
+      QuerySegmentSpec segmentSpec,
+      DimFilter filter,
+      Map<String, Object> context
+  )
   {
     if (dataSource instanceof QueryDataSource) {
       Query query = ((QueryDataSource) dataSource).getQuery();
+      if (query instanceof JoinQuery.JoinDelegate) {
+        return query;
+      }
+      if (!(query instanceof Query.ArrayOutputSupport) ||
+          GuavaUtils.isNullOrEmpty(((Query.ArrayOutputSupport) query).estimatedOutputColumns())) {
+        throw new UnsupportedOperationException("todo: cannot resolve output column names..");
+      }
       if (filter != null) {
         Query.DimFilterSupport filterSupport = (Query.DimFilterSupport) query;
         if (filterSupport.getDimFilter() != null) {
@@ -195,13 +221,18 @@ public class JoinElement
           query = filterSupport.withDimFilter(filter);
         }
       }
+      if (query instanceof GroupByQuery) {
+        query = ((GroupByQuery) query).withOrderingSpec(OrderByColumnSpec.ascending(sortColumns))
+                                      .withOverriddenContext(SORTED_TRUE);
+      }
       return query;
     }
     return new Druids.SelectQueryBuilder()
         .dataSource(dataSource)
         .intervals(segmentSpec)
         .filters(filter)
-        .streaming();
+        .context(BaseQuery.copyContextForMeta(context)).addContext(SORTED_TRUE)
+        .streamingRaw(sortColumns);
   }
 
   @Override

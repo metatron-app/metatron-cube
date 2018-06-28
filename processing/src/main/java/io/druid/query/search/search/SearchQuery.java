@@ -23,8 +23,12 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
+import com.google.common.collect.Lists;
+import com.metamx.common.guava.Sequence;
+import com.metamx.common.guava.Sequences;
 import io.druid.granularity.Granularity;
 import io.druid.granularity.QueryGranularities;
 import io.druid.query.BaseQuery;
@@ -37,13 +41,14 @@ import io.druid.query.search.SearchResultValue;
 import io.druid.query.spec.QuerySegmentSpec;
 import io.druid.segment.VirtualColumn;
 
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 
 /**
  */
 public class SearchQuery extends BaseQuery<Result<SearchResultValue>>
-    implements Query.DimensionSupport<Result<SearchResultValue>>
+    implements Query.DimensionSupport<Result<SearchResultValue>>, Query.ArrayOutputSupport<Result<SearchResultValue>>
 {
   private final DimFilter dimFilter;
   private final SearchSortSpec sortSpec;
@@ -319,5 +324,34 @@ public class SearchQuery extends BaseQuery<Result<SearchResultValue>>
     result = 31 * result + limit;
     result = 31 * result + (valueOnly ? 1 : 0);
     return result;
+  }
+
+  @Override
+  public List<String> estimatedOutputColumns()
+  {
+    return valueOnly ? Arrays.asList("column", "value") : Arrays.asList("column", "value", "count");
+  }
+
+  @Override
+  public Sequence<Object[]> array(Sequence<Result<SearchResultValue>> sequence)
+  {
+    return Sequences.concat(
+        Sequences.map(
+            sequence, new Function<Result<SearchResultValue>, Sequence<Object[]>>()
+            {
+              @Override
+              public Sequence<Object[]> apply(Result<SearchResultValue> input)
+              {
+                final List<Object[]> list = Lists.newArrayList();
+                for (SearchHit hit : input.getValue()) {
+                  list.add(valueOnly ?
+                           new Object[] {hit.getDimension(), hit.getValue()} :
+                           new Object[] {hit.getDimension(), hit.getValue(), hit.getCount()});
+                }
+                return Sequences.simple(list);
+              }
+            }
+        )
+    );
   }
 }

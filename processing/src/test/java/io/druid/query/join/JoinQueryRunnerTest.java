@@ -35,6 +35,7 @@ import io.druid.query.JoinElement;
 import io.druid.query.JoinQuery;
 import io.druid.query.JoinType;
 import io.druid.query.ModuleBuiltinFunctions;
+import io.druid.query.Query;
 import io.druid.query.QueryRunnerTestHelper;
 import io.druid.query.ViewDataSource;
 import io.druid.query.aggregation.AggregatorFactory;
@@ -123,7 +124,7 @@ public class JoinQueryRunnerTest extends QueryRunnerTestHelper
         ),
         Arrays.asList(new JoinElement(JoinType.INNER, dataSource + ".market = " + JOIN_DS + ".market")),
         false,
-        firstToThird, 0, 0, 0, 0, 0, null
+        firstToThird, 0, 0, 0, 0, 0, ImmutableMap.<String, Object>of(Query.RAW_LOCAL_SPLIT_NUM, -1)
     );
 
     String[] columns = new String[]{"__time", "market", "index", "market_month", "value"};

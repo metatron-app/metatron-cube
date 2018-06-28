@@ -39,7 +39,7 @@ import java.util.Objects;
 /**
  */
 public abstract class AbstractStreamQuery<T> extends BaseQuery<T>
-    implements Query.ColumnsSupport<T>
+    implements Query.ColumnsSupport<T>, Query.ArrayOutputSupport<T>
 {
   private final DimFilter dimFilter;
   private final Granularity granularity;
@@ -113,6 +113,12 @@ public abstract class AbstractStreamQuery<T> extends BaseQuery<T>
   public List<VirtualColumn> getVirtualColumns()
   {
     return virtualColumns;
+  }
+
+  @Override
+  public List<String> estimatedOutputColumns()
+  {
+    return getColumns();
   }
 
   @Override

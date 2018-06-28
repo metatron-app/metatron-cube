@@ -23,12 +23,16 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
+import com.metamx.common.guava.Sequence;
+import com.metamx.common.guava.Sequences;
+import io.druid.common.guava.GuavaUtils;
 import io.druid.query.filter.DimFilter;
 import io.druid.query.spec.QuerySegmentSpec;
 
@@ -39,7 +43,7 @@ import java.util.Set;
 
 /**
  */
-public class JoinQuery<T extends Comparable<T>> extends BaseQuery<T> implements Query.RewritingQuery<T>
+public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.RewritingQuery<Map<String, Object>>
 {
   private final Map<String, DataSource> dataSources;
   private final List<JoinElement> elements;
@@ -228,7 +232,7 @@ public class JoinQuery<T extends Comparable<T>> extends BaseQuery<T> implements 
 
   @Override
   @SuppressWarnings("unchecked")
-  public Query<T> withOverriddenContext(Map<String, Object> contextOverride)
+  public JoinQuery withOverriddenContext(Map<String, Object> contextOverride)
   {
     return new JoinQuery(
         dataSources,
@@ -245,13 +249,13 @@ public class JoinQuery<T extends Comparable<T>> extends BaseQuery<T> implements 
   }
 
   @Override
-  public Query<T> withQuerySegmentSpec(QuerySegmentSpec spec)
+  public Query<Map<String, Object>> withQuerySegmentSpec(QuerySegmentSpec spec)
   {
     throw new IllegalStateException();
   }
 
   @Override
-  public Query<T> withDataSource(DataSource dataSource)
+  public Query<Map<String, Object>> withDataSource(DataSource dataSource)
   {
     throw new IllegalStateException();
   }
@@ -260,15 +264,15 @@ public class JoinQuery<T extends Comparable<T>> extends BaseQuery<T> implements 
   @SuppressWarnings("unchecked")
   public Query rewriteQuery(QuerySegmentWalker segmentWalker, QueryConfig queryConfig, ObjectMapper jsonMapper)
   {
-    JoinPostProcessor joinProcessor = jsonMapper.convertValue(
+    XJoinPostProcessor joinProcessor = jsonMapper.convertValue(
         ImmutableMap.of("type", "join", "elements", elements, "prefixAlias", prefixAlias),
-        new TypeReference<JoinPostProcessor>()
+        new TypeReference<XJoinPostProcessor>()
         {
         }
     );
     Map<String, Object> joinContext = ImmutableMap.<String, Object>of(QueryContextKeys.POST_PROCESSING, joinProcessor);
 
-    final List<String> aliases = Lists.newArrayList();
+    List<String> aliases = Lists.newArrayList();
     aliases.add(elements.get(0).getLeftAlias());
     for (JoinElement element : elements) {
       aliases.add(element.getRightAlias());
@@ -276,37 +280,41 @@ public class JoinQuery<T extends Comparable<T>> extends BaseQuery<T> implements 
     QuerySegmentSpec segmentSpec = getQuerySegmentSpec();
     JoinPartitionSpec partitions = partition(segmentWalker, jsonMapper);
     if (partitions == null || partitions.size() == 1) {
-      List<Query> queries = Lists.newArrayList();
+      List<Query<Map<String, Object>>> queries = Lists.newArrayList();
       JoinElement firstJoin = elements.get(0);
-      queries.add(JoinElement.toQuery(dataSources.get(firstJoin.getLeftAlias()), segmentSpec));
+      DataSource left = dataSources.get(firstJoin.getLeftAlias());
+      queries.add(JoinElement.toQuery(left, firstJoin.getLeftJoinColumns(), segmentSpec, getContext()));
       for (JoinElement element : elements) {
-        queries.add(JoinElement.toQuery(dataSources.get(element.getRightAlias()), segmentSpec));
+        DataSource right = dataSources.get(element.getRightAlias());
+        queries.add(JoinElement.toQuery(right, element.getRightJoinColumns(), segmentSpec, getContext()));
       }
       Map<String, Object> context = computeOverriddenContext(joinContext);
       return new JoinDelegate(queries, prefixAlias ? aliases : null, limit, parallelism, queue, context);
     }
 
-    JoinElement element = Preconditions.checkNotNull(Iterables.getFirst(elements, null));
+    JoinElement firstJoin = Preconditions.checkNotNull(Iterables.getFirst(elements, null));
 
+    Map<String, Object> context = getContext();
     boolean first = true;
     List<Query> queries = Lists.newArrayList();
     for (List<DimFilter> filters : partitions) {
-      List<Query> partitioned = Lists.newArrayList();
-      DataSource left = dataSources.get(element.getLeftAlias());
-      DataSource right = dataSources.get(element.getRightAlias());
-      partitioned.add(JoinElement.toQuery(left, segmentSpec, filters.get(0)));
-      partitioned.add(JoinElement.toQuery(right, segmentSpec, filters.get(1)));
+      List<Query<Map<String, Object>>> partitioned = Lists.newArrayList();
+      DataSource left = dataSources.get(firstJoin.getLeftAlias());
+      DataSource right = dataSources.get(firstJoin.getRightAlias());
+      partitioned.add(JoinElement.toQuery(left, firstJoin.getLeftJoinColumns(), segmentSpec, filters.get(0), context));
+      partitioned.add(JoinElement.toQuery(right, firstJoin.getRightJoinColumns(), segmentSpec, filters.get(1), context));
       if (first) {
         for (int i = 1; i < elements.size(); i++) {
-          DataSource dataSource = dataSources.get(elements.get(i).getRightAlias());
+          JoinElement element = elements.get(i);
+          DataSource dataSource = dataSources.get(element.getRightAlias());
           partitioned.add(
-              JoinElement.toQuery(dataSource, segmentSpec)
+              JoinElement.toQuery(dataSource, element.getRightJoinColumns(), segmentSpec, context)
                          .withOverriddenContext(ImmutableMap.of("hash", true))
           );
         }
       }
-      Map<String, Object> context = computeOverriddenContext(joinContext);
-      queries.add(new JoinDelegate(partitioned, prefixAlias ? aliases : null, -1, 0, 0, context));
+      List<String> prefix = prefixAlias ? aliases : null;
+      queries.add(new JoinDelegate(partitioned, prefix, -1, 0, 0, computeOverriddenContext(joinContext)));
       first = false;
     }
     return new UnionAllQuery(null, queries, false, limit, parallelism, queue, BaseQuery.copyContext(this));
@@ -330,7 +338,7 @@ public class JoinQuery<T extends Comparable<T>> extends BaseQuery<T> implements 
     String partitionKey = rightJoin ? element.getRightJoinColumns().get(0) : element.getLeftJoinColumns().get(0);
 
     List<String> partitions = QueryUtils.runSketchQuery(
-        JoinElement.toQuery(dataSources.get(alias), getQuerySegmentSpec()),
+        JoinElement.toQuery(dataSources.get(alias), null, getQuerySegmentSpec(), getContext()),
         segmentWalker,
         jsonMapper,
         partitionKey,
@@ -438,12 +446,13 @@ public class JoinQuery<T extends Comparable<T>> extends BaseQuery<T> implements 
   }
 
   @SuppressWarnings("unchecked")
-  public static class JoinDelegate<T extends Comparable<T>> extends UnionAllQuery<T>
+  public static class JoinDelegate extends UnionAllQuery<Map<String, Object>>
+      implements ArrayOutputSupport<Map<String, Object>>
   {
     private final List<String> prefixAliases;  // for schema resolving
 
     public JoinDelegate(
-        List<Query<T>> list,
+        List<Query<Map<String, Object>>> list,
         List<String> prefixAliases,
         int limit,
         int parallelism,
@@ -474,7 +483,11 @@ public class JoinQuery<T extends Comparable<T>> extends BaseQuery<T> implements 
 
     @Override
     @SuppressWarnings("unchecked")
-    protected Query<T> newInstance(Query<T> query, List<Query<T>> queries, Map<String, Object> context)
+    protected Query newInstance(
+        Query<Map<String, Object>> query,
+        List<Query<Map<String, Object>>> queries,
+        Map<String, Object> context
+    )
     {
       Preconditions.checkArgument(query == null);
       return new JoinDelegate(queries, prefixAliases, getLimit(), getParallelism(), getQueue(), context);
@@ -490,6 +503,47 @@ public class JoinQuery<T extends Comparable<T>> extends BaseQuery<T> implements 
              ", queue=" + getQueue() +
              ", limit=" + getLimit() +
              '}';
+    }
+
+    @Override
+    public List<String> estimatedOutputColumns()
+    {
+      List<Query<Map<String, Object>>> queries = getQueries();
+      List<String> outputColumns = Lists.newArrayList();
+      for (int i = 0; i < queries.size(); i++) {
+        List<String> columns = ((ArrayOutputSupport<?>) queries.get(i)).estimatedOutputColumns();
+        Preconditions.checkArgument(!GuavaUtils.isNullOrEmpty(columns));
+        if (prefixAliases == null) {
+          outputColumns.addAll(columns);
+        } else {
+          String alias = prefixAliases.get(i) + ".";
+          for (String column : columns) {
+            outputColumns.add(alias + column);
+          }
+        }
+      }
+      return outputColumns;
+    }
+
+    @Override
+    public Sequence<Object[]> array(Sequence<Map<String, Object>> sequence)
+    {
+      return Sequences.map(
+          sequence, new Function<Map<String, Object>, Object[]>()
+          {
+            private final String[] columns = estimatedOutputColumns().toArray(new String[0]);
+
+            @Override
+            public Object[] apply(Map<String, Object> input)
+            {
+              final Object[] array = new Object[columns.length];
+              for (int i = 0; i < columns.length; i++) {
+                array[i] = input.get(columns[i]);
+              }
+              return array;
+            }
+          }
+      );
     }
   }
 }

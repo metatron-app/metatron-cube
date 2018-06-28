@@ -30,6 +30,7 @@ import com.google.common.collect.Ordering;
 import com.google.common.collect.Sets;
 import com.google.common.io.CharStreams;
 import com.google.common.io.InputSupplier;
+import com.google.common.primitives.Ints;
 import com.google.common.primitives.Longs;
 import com.metamx.common.Pair;
 import io.druid.common.Progressing;
@@ -215,6 +216,15 @@ public class GuavaUtils
       return list1;
     }
     return Lists.newArrayList(Iterables.concat(list1, list2));
+  }
+
+  public static int[] indexOf(List<String> list, List<String> indexing)
+  {
+    List<Integer> indices = Lists.newArrayList();
+    for (String sort : indexing) {
+      indices.add(list.indexOf(sort));
+    }
+    return Ints.toArray(indices);
   }
 
   public static int[] checkedCast(long[] longs)

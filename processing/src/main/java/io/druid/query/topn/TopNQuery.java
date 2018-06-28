@@ -23,9 +23,14 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
+import com.google.common.collect.Lists;
+import com.metamx.common.guava.Sequence;
+import com.metamx.common.guava.Sequences;
+import io.druid.common.guava.GuavaUtils;
 import io.druid.granularity.Granularity;
 import io.druid.query.BaseQuery;
 import io.druid.query.DataSource;
@@ -177,6 +182,41 @@ public class TopNQuery extends BaseQuery<Result<TopNResultValue>>
   public List<String> getOutputColumns()
   {
     return outputColumns;
+  }
+
+  @Override
+  public List<String> estimatedOutputColumns()
+  {
+    return outputColumns;
+  }
+
+  @Override
+  public Sequence<Object[]> array(Sequence<Result<TopNResultValue>> sequence)
+  {
+    Preconditions.checkArgument(!GuavaUtils.isNullOrEmpty(outputColumns));
+    return Sequences.concat(
+        Sequences.map(
+            sequence,
+            new Function<Result<TopNResultValue>, Sequence<Object[]>>()
+            {
+              private final String[] columns = outputColumns.toArray(new String[0]);
+
+              @Override
+              public Sequence<Object[]> apply(Result<TopNResultValue> input)
+              {
+                final List<Object[]> list = Lists.newArrayList();
+                for (Map<String, Object> event : input.getValue()) {
+                  final Object[] array = new Object[columns.length];
+                  for (int i = 0; i < columns.length; i++) {
+                    array[i] = event.get(columns[i]);
+                  }
+                  list.add(array);
+                }
+                return Sequences.simple(list);
+              }
+            }
+        )
+    );
   }
 
   public void initTopNAlgorithmSelector(TopNAlgorithmSelector selector)

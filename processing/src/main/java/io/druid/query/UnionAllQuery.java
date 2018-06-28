@@ -53,7 +53,7 @@ import java.util.concurrent.ExecutorService;
 
 /**
  */
-public class UnionAllQuery<T extends Comparable<T>> extends BaseQuery<T>
+public class UnionAllQuery<T> extends BaseQuery<T>
 {
   private static final Logger LOG = new Logger(UnionAllQuery.class);
 
@@ -376,9 +376,8 @@ public class UnionAllQuery<T extends Comparable<T>> extends BaseQuery<T>
                         @Override
                         public Sequence<T> call() throws Exception
                         {
-                          // should eagerly retrieve result in executor
+                          // removed eager loading.. especially bad for join query
                           Sequence<T> sequence = query.run(segmentWalker, responseContext);
-                          sequence = Sequences.simple(Sequences.toList(sequence, Lists.<T>newArrayList()));
                           return new ResourceClosingSequence<T>(sequence, semaphore);
                         }
 

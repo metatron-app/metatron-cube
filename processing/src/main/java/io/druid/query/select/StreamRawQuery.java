@@ -23,14 +23,19 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
+import com.google.common.base.Function;
+import com.google.common.base.Functions;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Ordering;
 import com.google.common.primitives.Ints;
+import com.metamx.common.guava.Sequence;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.granularity.Granularity;
+import io.druid.query.BaseQuery;
 import io.druid.query.DataSource;
+import io.druid.query.Queries;
 import io.druid.query.Query;
 import io.druid.query.filter.DimFilter;
 import io.druid.query.ordering.Comparators;
@@ -249,8 +254,13 @@ public class StreamRawQuery extends AbstractStreamQuery<Object[]>
         null,
         null,
         null,
-        Maps.<String, Object>newHashMap()
+        Queries.extractContext(this, BaseQuery.QUERYID)
     );
   }
 
+  @Override
+  public Sequence<Object[]> array(Sequence<Object[]> sequence)
+  {
+    return sequence;
+  }
 }

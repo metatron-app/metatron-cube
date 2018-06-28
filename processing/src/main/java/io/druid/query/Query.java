@@ -175,7 +175,7 @@ public interface Query<T> extends QueryContextKeys
     boolean allMetricsForEmpty();
   }
 
-  interface AggregationsSupport<T> extends DimensionSupport<T>
+  interface AggregationsSupport<T> extends DimensionSupport<T>, ArrayOutputSupport<T>
   {
     List<AggregatorFactory> getAggregatorSpecs();
 
@@ -186,6 +186,13 @@ public interface Query<T> extends QueryContextKeys
     AggregationsSupport<T> withPostAggregatorSpecs(List<PostAggregator> metrics);
 
     boolean allMetricsForEmpty();
+  }
+
+  interface ArrayOutputSupport<T>
+  {
+    List<String> estimatedOutputColumns();
+
+    Sequence<Object[]> array(Sequence<T> sequence);
   }
 
   interface RewritingQuery<T> extends Query<T>

@@ -106,6 +106,15 @@ public class Comparators
   private static final int RIGHT_IS_GREATER = -1;
   private static final int LEFT_IS_GREATER = 1;
 
+  public static int compareNF(Comparable[] d1, Comparable[] d2)
+  {
+    int compare = 0;
+    for (int i = 0; i < d1.length && compare == 0; i++) {
+      compare = compareNF(d1[i], d2[i]);
+    }
+    return compare;
+  }
+
   @SuppressWarnings("unchecked")
   public static int compareNF(Comparable d1, Comparable d2)
   {

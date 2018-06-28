@@ -22,6 +22,9 @@ package io.druid.query.select;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
+import com.google.common.base.Function;
+import com.metamx.common.guava.Sequence;
+import com.metamx.common.guava.Sequences;
 import io.druid.granularity.Granularity;
 import io.druid.query.DataSource;
 import io.druid.query.Query;
@@ -162,6 +165,26 @@ public class StreamQuery extends AbstractStreamQuery<StreamQueryRow>
         getConcatString(),
         getLimit(),
         getContext()
+    );
+  }
+
+  @Override
+  public Sequence<Object[]> array(Sequence<StreamQueryRow> sequence)
+  {
+    final String[] columns = getColumns().toArray(new String[0]);
+    return Sequences.map(
+        sequence, new Function<StreamQueryRow, Object[]>()
+        {
+          @Override
+          public Object[] apply(StreamQueryRow input)
+          {
+            final Object[] array = new Object[columns.length];
+            for (int i = 0; i < columns.length; i++) {
+              array[i] = input.get(columns[i]);
+            }
+            return array;
+          }
+        }
     );
   }
 }

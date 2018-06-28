@@ -362,6 +362,11 @@ public class RowResolver implements TypeResolver, Function<String, ValueDesc>
     return resolveColumns(metricNames);
   }
 
+  public List<String> getColumnNames()
+  {
+    return GuavaUtils.concat(dimensionNames, metricNames);
+  }
+
   public boolean isDimension(String columnName)
   {
     return dimensionNames.contains(columnName);

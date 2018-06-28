@@ -25,6 +25,7 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Ordering;
 import com.metamx.common.guava.Accumulator;
 import com.metamx.common.guava.Accumulators;
+import com.metamx.common.guava.BaseSequence;
 import com.metamx.common.guava.CloseQuietly;
 import com.metamx.common.guava.DelegatingYieldingAccumulator;
 import com.metamx.common.guava.MergeSequence;
@@ -32,9 +33,11 @@ import com.metamx.common.guava.Sequence;
 import com.metamx.common.guava.Yielder;
 import com.metamx.common.guava.YieldingAccumulator;
 import io.druid.common.Progressing;
+import io.druid.common.Yielders;
 
 import java.io.Closeable;
 import java.io.IOException;
+import java.util.Iterator;
 import java.util.List;
 
 /**
@@ -59,6 +62,47 @@ public class Sequences extends com.metamx.common.guava.Sequences
       public Sequence<T> apply(Iterable<T> input)
       {
         return Sequences.simple(input);
+      }
+    };
+  }
+
+  public static <T> Sequence<T> once(final Iterator<T> iterator)
+  {
+    return new BaseSequence<>(
+        new BaseSequence.IteratorMaker<T, Iterator<T>>()
+        {
+          @Override
+          public Iterator<T> make()
+          {
+            return iterator;
+          }
+
+          @Override
+          public void cleanup(Iterator<T> iterFromMake)
+          {
+          }
+        }
+    );
+  }
+
+  public static <T> Iterator<T> toIterator(final Sequence<T> sequence)
+  {
+    return new Iterator<T>()
+    {
+      private Yielder<T> yielder = Yielders.each(sequence);
+
+      @Override
+      public boolean hasNext()
+      {
+        return !yielder.isDone();
+      }
+
+      @Override
+      public T next()
+      {
+        final T yield = yielder.get();
+        yielder = yielder.next(null);
+        return yield;
       }
     };
   }

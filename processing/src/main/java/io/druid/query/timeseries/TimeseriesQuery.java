@@ -22,8 +22,11 @@ package io.druid.query.timeseries;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
+import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
+import com.metamx.common.guava.Sequence;
+import com.metamx.common.guava.Sequences;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.granularity.Granularity;
 import io.druid.query.BaseAggregationQuery;
@@ -344,5 +347,27 @@ public class TimeseriesQuery extends BaseAggregationQuery<Result<TimeseriesResul
            (lateralView == null ? "" : "lateralView" + lateralView) +
            ", context=" + getContext() +
            '}';
+  }
+
+  @Override
+  public Sequence<Object[]> array(Sequence<Result<TimeseriesResultValue>> sequence)
+  {
+    final String[] columns = Preconditions.checkNotNull(estimatedOutputColumns()).toArray(new String[0]);
+    return Sequences.map(
+        sequence,
+        new Function<Result<TimeseriesResultValue>, Object[]>()
+        {
+          @Override
+          public Object[] apply(Result<TimeseriesResultValue> input)
+          {
+            final TimeseriesResultValue value = input.getValue();
+            final Object[] array = new Object[columns.length];
+            for (int i = 0; i < columns.length; i++) {
+              array[i] = value.getMetric(columns[i]);
+            }
+            return array;
+          }
+        }
+    );
   }
 }

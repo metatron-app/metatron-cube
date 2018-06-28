@@ -41,6 +41,7 @@ import io.druid.collections.LimitedArrayLit;
 import io.druid.data.input.MapBasedRow;
 import io.druid.guice.annotations.Processing;
 import io.druid.query.ordering.Comparators;
+import io.druid.query.select.StreamRawQuery;
 import io.druid.segment.ObjectArray;
 import org.apache.commons.lang.mutable.MutableInt;
 
@@ -106,19 +107,18 @@ public class JoinPostProcessor extends PostProcessingOperator.UnionSupport
         final int joinAliases = elements.length + 1;
         log.info("Running %d-way join processing %s", joinAliases, toAliases());
         final boolean[] hashing = new boolean[joinAliases];
+        final boolean[] sorted = new boolean[joinAliases];
         final List<Sequence<Map<String, Object>>>[] sequencesList = new List[joinAliases];
         for (int i = 0; i < joinAliases; i++) {
           sequencesList[i] = Lists.<Sequence<Map<String, Object>>>newArrayList();
         }
-        final MutableInt indexer = new MutableInt();
+        final MutableInt index = new MutableInt();
         Sequence<Pair<Query, Sequence>> sequences = baseQueryRunner.run(query, responseContext);
         sequences.accumulate(
             null, new Accumulator<Object, Pair<Query, Sequence>>()
             {
               @Override
-              public Object accumulate(
-                  Object accumulated, Pair<Query, Sequence> in
-              )
+              public Object accumulate(Object accumulated, Pair<Query, Sequence> in)
               {
                 Query element = in.lhs;
                 Sequence sequence = in.rhs;
@@ -127,23 +127,22 @@ public class JoinPostProcessor extends PostProcessingOperator.UnionSupport
                 if (toolChest != null) {
                   sequence = toolChest.toTabularFormat(element, sequence, null).getSequence();
                 }
-                sequencesList[indexer.intValue()].add(sequence);
-                hashing[indexer.intValue()] = element.getContextBoolean("hash", false);
-                indexer.increment();
+                sequencesList[index.intValue()].add(sequence);
+                hashing[index.intValue()] = element.getContextBoolean("hash", false);
+                if (query instanceof StreamRawQuery &&
+                    toJoinColumns(index.intValue()).equals(((StreamRawQuery)query).getSortOn())) {
+                  sorted[index.intValue()] = true;
+                }
+                index.increment();
                 return null;
               }
             }
         );
 
-        final Future[] joining = new Future[joinAliases];
+        Future[] joining = new Future[joinAliases];
         int i = 0;
-        for (; i < indexer.intValue(); i++) {
-          int hashIndex = hashing[i] ? i : -i - 1;
-          if (i == 0) {
-            joining[i] = toList(hashIndex, sequencesList[i], elements[0].getLeftJoinColumns(), exec);
-          } else {
-            joining[i] = toList(hashIndex, sequencesList[i], elements[i - 1].getRightJoinColumns(), exec);
-          }
+        for (; i < index.intValue(); i++) {
+          joining[i] = toList(i, hashing[i], sorted[i], sequencesList[i], toJoinColumns(i), exec);
         }
         for (; i < joining.length; i++) {
           joining[i] = hashed[i];
@@ -164,6 +163,8 @@ public class JoinPostProcessor extends PostProcessingOperator.UnionSupport
 
   private Future toList(
       final int index,
+      final boolean hashing,
+      final boolean sorted,
       final List<Sequence<Map<String, Object>>> sequences,
       final List<String> joinColumns,
       final ExecutorService executor
@@ -179,14 +180,18 @@ public class JoinPostProcessor extends PostProcessingOperator.UnionSupport
             List<Map<String, Object>> rows = Sequences.toList(
                 sequence, new LimitedArrayLit<Map<String, Object>>(config.getMaxRows())
             );
-            if (index >= 0) {
-              Hashed hashing = toHash(index, sort(rows, joinColumns, prefixAlias, index));
+            JoiningRow[] joining = toJoiningRow(rows, joinColumns, prefixAlias, index);
+            if (hashing) {
+              Hashed hashing = toHash(index, sort(index, joining));
               if (!hashed[index].set(hashing)) {
                 throw new IllegalStateException("Failed to hash!");
               }
               return hashing;
             }
-            return sort(rows, joinColumns, prefixAlias, -index - 1);
+            if (!sorted) {
+              joining = sort(index, joining);
+            }
+            return joining;
           }
         }
     );
@@ -215,6 +220,11 @@ public class JoinPostProcessor extends PostProcessingOperator.UnionSupport
   private String toAlias(int index)
   {
     return index == 0 ? elements[0].getLeftAlias() : elements[index - 1].getRightAlias();
+  }
+
+  private List<String> toJoinColumns(int index)
+  {
+    return index == 0 ? elements[0].getLeftJoinColumns() : elements[index - 1].getRightJoinColumns();
   }
 
   private List<String> toAliases()
@@ -400,16 +410,33 @@ public class JoinPostProcessor extends PostProcessingOperator.UnionSupport
   }
 
   // from join result.. need prefix for key column
-  private JoiningRow[] sort(Iterable<Map<String, Object>> rows, List<String> columns, int index)
+  private JoiningRow[] sort(Iterable<Map<String, Object>> result, List<String> columns, int index)
   {
-    return sort(Lists.newArrayList(rows), toKeyColumns(columns), false, index);
+    final List<Map<String, Object>> rows = Lists.newArrayList(result);
+    log.info(".. sorting [%s] %d rows on %s", toAlias(index), rows.size(), columns);
+    JoiningRow[] joining = toJoiningRow(rows, toKeyColumns(columns), false, index);
+    long start = System.currentTimeMillis();
+    Arrays.parallelSort(joining);
+    log.info(".. sorted [%s] in %,d msec", toAlias(index), (System.currentTimeMillis() - start));
+    return joining;
   }
 
-  // from source.. need prefix for value
-  private JoiningRow[] sort(List<Map<String, Object>> rows, List<String> columns, boolean prefixAlias, int index)
+  private JoiningRow[] sort(int index, JoiningRow[] rows)
+  {
+    long start = System.currentTimeMillis();
+    Arrays.parallelSort(rows);
+    log.info(".. sorted [%s] in %,d msec", toAlias(index), (System.currentTimeMillis() - start));
+    return rows;
+  }
+
+  private JoiningRow[] toJoiningRow(
+      List<Map<String, Object>> rows,
+      List<String> columns,
+      boolean prefixAlias,
+      int index
+  )
   {
     String alias = toAlias(index);
-    log.info(".. sorting [%s] %d rows on %s", alias, rows.size(), columns);
 
     long start = System.currentTimeMillis();
     final String prefix = alias + ".";
@@ -430,8 +457,7 @@ public class JoinPostProcessor extends PostProcessingOperator.UnionSupport
       }
       sorted[i] = new JoiningRow(joinKey, row);
     }
-    Arrays.parallelSort(sorted);
-    log.info(".. sorted %d rows in %,d msec", rows.size(), (System.currentTimeMillis() - start));
+    log.info(".. converted [%s] %d rows in %,d msec", alias, rows.size(), (System.currentTimeMillis() - start));
     return sorted;
   }
 

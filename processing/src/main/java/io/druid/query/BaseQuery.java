@@ -29,6 +29,7 @@ import com.google.common.collect.Maps;
 import com.google.common.collect.Ordering;
 import com.metamx.common.StringUtils;
 import com.metamx.common.guava.Sequence;
+import io.druid.common.guava.GuavaUtils;
 import io.druid.common.utils.PropUtils;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.filter.DimFilter;
@@ -122,7 +123,6 @@ public abstract class BaseQuery<T> implements Query<T>
            PropUtils.parseBoolean(getResultForwardContext(query), FORWARD_PARALLEL, false);
   }
 
-  public static final String QUERYID = "queryId";
   private final DataSource dataSource;
   private final boolean descending;
   private final Map<String, Object> context;
@@ -212,7 +212,7 @@ public abstract class BaseQuery<T> implements Query<T>
   @Override
   public Query<T> resolveQuery(Supplier<RowResolver> resolver)
   {
-    Query<T> query = ViewSupportHelper.rewrite(this, resolver); // for the fucking tests
+    Query<T> query = ViewSupportHelper.rewrite(this, resolver);
     if (query instanceof AggregationsSupport) {
       @SuppressWarnings("unchecked")
       AggregationsSupport<T> aggregationsSupport = (AggregationsSupport) query;
@@ -224,7 +224,7 @@ public abstract class BaseQuery<T> implements Query<T>
         }
         resolved.add(factory);
       }
-      return aggregationsSupport.withAggregatorSpecs(resolved);
+      query = aggregationsSupport.withAggregatorSpecs(resolved);
     }
     return query;
   }
@@ -333,6 +333,20 @@ public abstract class BaseQuery<T> implements Query<T>
   public static Map<String, Object> copyContext(Query<?> query)
   {
     return query.getContext() == null ? Maps.<String, Object>newHashMap() : Maps.newHashMap(query.getContext());
+  }
+
+  public static Map<String, Object> copyContextForMeta(Map<String, Object> context)
+  {
+    final Map<String, Object> forMeta = Maps.newHashMap();
+    if (GuavaUtils.isNullOrEmpty(context)) {
+      return forMeta;
+    }
+    for (String contextKey : Query.FOR_META) {
+      if (context.containsKey(contextKey)) {
+        forMeta.put(contextKey, context.get(contextKey));
+      }
+    }
+    return forMeta;
   }
 
   public static Map<String, Object> removeContext(String... keys)

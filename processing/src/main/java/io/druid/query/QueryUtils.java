@@ -292,10 +292,12 @@ public class QueryUtils
     );
   }
 
-  private static Query resolveQuery(Query query, QuerySegmentWalker segmentWalker)
+  public static Query resolveQuery(Query query, QuerySegmentWalker segmentWalker)
   {
-    final Supplier<Schema> schema = schemaSupplier(query, segmentWalker);
-
+    if (query.getDataSource() instanceof QueryDataSource) {
+      // cannot be resolved before sub-query is executed
+      return query;
+    }
     ViewDataSource view = ViewDataSource.of("dummy");
     if (query.getDataSource() instanceof ViewDataSource) {
       view = (ViewDataSource) query.getDataSource();
@@ -309,6 +311,10 @@ public class QueryUtils
       Query.DimFilterSupport<?> filterSupport = (Query.DimFilterSupport) query;
       query = filterSupport.withDimFilter(DimFilters.and(view.getFilter(), filterSupport.getDimFilter()));
     }
+
+    Supplier<RowResolver> schema = QueryUtils.resolverSupplier(query, segmentWalker);
+    query = query.resolveQuery(schema);
+
     if (query instanceof Query.ColumnsSupport) {
       Query.ColumnsSupport<?> columnsSupport = (Query.ColumnsSupport) query;
       if (GuavaUtils.isNullOrEmpty(columnsSupport.getColumns())) {
@@ -334,7 +340,7 @@ public class QueryUtils
     if (query instanceof Query.AggregationsSupport) {
       Query.AggregationsSupport aggrSupport = (Query.AggregationsSupport) query;
       if (aggrSupport.getAggregatorSpecs().isEmpty() && aggrSupport.allMetricsForEmpty()) {
-        List<AggregatorFactory> factories = schema.get().getAggregators();
+        List<AggregatorFactory> factories = schema.get().getAggregatorsList();
         if (!factories.isEmpty() && !GuavaUtils.isNullOrEmpty(view.getColumns())) {
           Map<String, AggregatorFactory> map = AggregatorFactory.asMap(factories);
           factories = Lists.newArrayList(GuavaUtils.retain(map, view.getColumns()).values());

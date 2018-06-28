@@ -43,7 +43,6 @@ import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.GenericSumAggregatorFactory;
 import io.druid.query.filter.DimFilter;
 import io.druid.query.groupby.GroupByQueryRunnerTestHelper;
-import io.druid.query.select.StreamQuery;
 import io.druid.query.sketch.SketchQueryRunnerTest;
 import io.druid.segment.TestHelper;
 import io.druid.segment.TestIndex;
@@ -134,7 +133,7 @@ public class PartitionedJoinQueryRunnerTest extends SketchQueryRunnerTest
     Query query = joinQuery.rewriteQuery(segmentWalker, segmentWalker.getQueryConfig(), JSON_MAPPER);
     query = QueryUtils.resolveRecursively(query, segmentWalker);
     Assert.assertTrue(query instanceof UnionAllQuery);
-    List<? extends Query<? extends Comparable<?>>> partitions = ((UnionAllQuery<?>) query).getQueries();
+    List<? extends Query<?>> partitions = ((UnionAllQuery<?>) query).getQueries();
     Assert.assertEquals(3, partitions.size());
 
     List<DimFilter> expected = Lists.newArrayList(
@@ -142,8 +141,9 @@ public class PartitionedJoinQueryRunnerTest extends SketchQueryRunnerTest
     );
     for (int i = 0; i < partitions.size(); i++) {
       Assert.assertTrue(partitions.get(i) instanceof JoinQuery.JoinDelegate);
-      StreamQuery q1 = (StreamQuery) ((JoinQuery.JoinDelegate) partitions.get(i)).getQueries().get(0);
-      StreamQuery q2 = (StreamQuery) ((JoinQuery.JoinDelegate) partitions.get(i)).getQueries().get(1);
+      JoinQuery.JoinDelegate delegate = (JoinQuery.JoinDelegate) partitions.get(i);
+      Query.DimFilterSupport q1 = (Query.DimFilterSupport) delegate.getQueries().get(0);
+      Query.DimFilterSupport q2 = (Query.DimFilterSupport) delegate.getQueries().get(1);
       Assert.assertEquals(expected.get(i), q1.getDimFilter());
       Assert.assertEquals(expected.get(i), q2.getDimFilter());
     }

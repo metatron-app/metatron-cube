@@ -27,7 +27,7 @@ import io.druid.query.groupby.LimitingPostProcessor;
 @JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "type", defaultImpl = PostAggregationsPostProcessor.class)
 @JsonSubTypes(value = {
     @JsonSubTypes.Type(name = "timewarp", value = TimewarpOperator.class),
-    @JsonSubTypes.Type(name = "join", value = JoinPostProcessor.class),
+    @JsonSubTypes.Type(name = "join", value = XJoinPostProcessor.class),
     @JsonSubTypes.Type(name = "tabular", value = TabularPostProcessor.class),
     @JsonSubTypes.Type(name = "holtWinters", value = HoltWintersPostProcessor.class),
     @JsonSubTypes.Type(name = "rowToMap", value = RowToMap.class),

@@ -193,7 +193,7 @@ public class Queries
                     .withRollup(false)
                     .build();
     } else if (subQuery instanceof JoinQuery.JoinDelegate) {
-      final JoinQuery.JoinDelegate<?> joinQuery = (JoinQuery.JoinDelegate) subQuery;
+      final JoinQuery.JoinDelegate joinQuery = (JoinQuery.JoinDelegate) subQuery;
       List<String> dimensions = Lists.newArrayList();
       List<AggregatorFactory> metrics = Lists.newArrayList();
       List queries = joinQuery.getQueries();
@@ -371,7 +371,7 @@ public class Queries
         query = query.withDataSource(new QueryDataSource(converted));
       }
     } else if (query instanceof JoinQuery) {
-      JoinQuery<?> joinQuery = (JoinQuery) query;
+      JoinQuery joinQuery = (JoinQuery) query;
       for (Map.Entry<String, DataSource> entry : joinQuery.getDataSources().entrySet()) {
         if (entry.getValue() instanceof QueryDataSource) {
           Query source = ((QueryDataSource) entry.getValue()).getQuery();

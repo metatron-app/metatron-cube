@@ -27,6 +27,7 @@ import com.google.common.base.Strings;
 import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
 import com.google.common.io.CountingOutputStream;
 import com.google.inject.Inject;
 import com.metamx.common.IAE;
@@ -253,19 +254,18 @@ public class QueryResource
     final String currThreadName = currentThread.getName();
     try {
       query = context.getInputMapper().readValue(in, Query.class);
+
+      Map<String, Object> adding = Maps.newHashMap();
+      if (query.getId() == null) {
+        adding.put(Query.QUERYID, UUID.randomUUID().toString());
+      }
+      if (query.getContextInt(QueryContextKeys.TIMEOUT, -1) < 0) {
+        adding.put(Query.TIMEOUT, config.getMaxIdleTime().toStandardDuration().getMillis());
+      }
+      if (!adding.isEmpty()) {
+        query = query.withOverriddenContext(adding);
+      }
       queryId = query.getId();
-      if (queryId == null) {
-        queryId = UUID.randomUUID().toString();
-        query = query.withId(queryId);
-      }
-      if (query.getContextValue(QueryContextKeys.TIMEOUT) == null) {
-        query = query.withOverriddenContext(
-            ImmutableMap.of(
-                QueryContextKeys.TIMEOUT,
-                config.getMaxIdleTime().toStandardDuration().getMillis()
-            )
-        );
-      }
 
       log.info("Got query [%s]", log.isDebugEnabled() ? query : queryId + ":" + query.getType());
       currentThread.setName(String.format("%s[%s_%s]", currThreadName, query.getType(), queryId));

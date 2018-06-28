@@ -19,8 +19,13 @@
 
 package io.druid.query;
 
+import java.util.Arrays;
+import java.util.List;
+
 public interface QueryContextKeys
 {
+  public static final String QUERYID = "queryId";
+
   // internal
   public static final String PRIORITY = "priority";
   public static final String TIMEOUT = "timeout";
@@ -63,4 +68,23 @@ public interface QueryContextKeys
   // forward context
   public static final String FORWARD_TIMESTAMP_COLUMN = "timestampColumn";
   public static final String FORWARD_PARALLEL = "parallel";
+
+  public static final List<String> FOR_META = Arrays.asList(
+      QUERYID,
+      PRIORITY,
+      TIMEOUT,
+      GBY_COMPACT_TRANSFER,
+      GBY_CONVERT_TIMESERIES,
+      GBY_LOCAL_SPLIT_NUM,
+      GBY_MERGE_PARALLELISM,
+      GBY_MERGE_SIMPLE,
+      GBY_MERGE_SIMPLE,
+      GBY_PRE_ORDERING,
+      GBY_REMOVE_ORDERING,
+      RAW_LOCAL_SPLIT_NUM,
+      USE_CACHE,
+      POPULATE_CACHE,
+      ALL_DIMENSIONS_FOR_EMPTY,
+      ALL_METRICS_FOR_EMPTY
+  );
 }

@@ -1191,6 +1191,17 @@ public class Druids
       return this;
     }
 
+    public SelectQueryBuilder addContext(String key, Object value)
+    {
+      if (context == null) {
+        context = Maps.newHashMap();
+      } else {
+        context = Maps.newHashMap(context);
+      }
+      context.put(key, value);
+      return this;
+    }
+
     public SelectQueryBuilder addContext(Map<String, Object> c)
     {
       if (context == null) {

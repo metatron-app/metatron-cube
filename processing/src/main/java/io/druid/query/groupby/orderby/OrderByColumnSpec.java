@@ -85,10 +85,15 @@ public class OrderByColumnSpec extends OrderingSpec implements Cacheable
     return new OrderByColumnSpec(dimension, Direction.ASCENDING, comparator);
   }
 
-  public static List<OrderByColumnSpec> ascending(String... dimension)
+  public static List<OrderByColumnSpec> ascending(String... columns)
+  {
+    return ascending(Arrays.asList(columns));
+  }
+
+  public static List<OrderByColumnSpec> ascending(List<String> columns)
   {
     return Lists.transform(
-        Arrays.asList(dimension),
+        columns,
         new Function<String, OrderByColumnSpec>()
         {
           @Override

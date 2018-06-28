@@ -32,6 +32,8 @@ import com.metamx.common.logger.Logger;
 import com.metamx.emitter.service.ServiceMetricEvent;
 import io.druid.data.input.Row;
 import io.druid.query.aggregation.MetricManipulationFn;
+import io.druid.query.filter.DimFilter;
+import io.druid.query.filter.DimFilters;
 import io.druid.query.groupby.GroupByQueryHelper;
 import io.druid.segment.IncrementalIndexSegment;
 import io.druid.segment.Segment;
@@ -45,6 +47,7 @@ import io.druid.timeline.LogicalSegment;
 import org.apache.commons.lang.StringUtils;
 import org.joda.time.Interval;
 
+import javax.annotation.Nullable;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutorService;
@@ -237,6 +240,16 @@ public abstract class QueryToolChest<ResultType, QueryType extends Query<ResultT
     throw new UnsupportedOperationException("toTabularFormat");
   }
 
+  @SuppressWarnings("unchecked")
+  public <I> Query<I> prepareSubQuery(QueryType outerQuery, Query<I> innerQuery)
+  {
+    innerQuery = innerQuery.withOverriddenContext(BaseQuery.copyContextForMeta(outerQuery.getContext()));
+    if (innerQuery instanceof Query.DimFilterSupport) {
+      // todo pushdown predicate if possible (need input schema)
+    }
+    return innerQuery;
+  }
+
   /**
    * @param subQueryRunner
    * @param segmentWalker
@@ -286,9 +299,8 @@ public abstract class QueryToolChest<ResultType, QueryType extends Query<ResultT
         return Sequences.empty();
       }
       List<String> dataSources = query.getDataSource().getNames();
-      if (dataSources.size() > 1) {
-        query = query.withDataSource(TableDataSource.of(StringUtils.join(dataSources, '_')));
-      }
+
+      query = query.withDataSource(TableDataSource.of(StringUtils.join(dataSources, '_')));
       String dataSource = Iterables.getOnlyElement(query.getDataSource().getNames());
       StorageAdapter adapter = new IncrementalIndexStorageAdapter.Temporary(dataSource, accumulated);
       Segment segment = new IncrementalIndexSegment(accumulated, adapter.getSegmentIdentifier());
