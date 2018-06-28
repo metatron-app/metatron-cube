@@ -75,6 +75,9 @@ public class ListFilteredDimensionSpec extends BaseFilteredDimensionSpec
     }
 
     int selectorCardinality = selector.getValueCardinality();
+    if (selectorCardinality < 0) {
+      throw new UnsupportedOperationException("cannot use ListFilteredDimensionSpec on " + delegate.getDimension());
+    }
     int cardinality = isWhitelist ? values.size() : selectorCardinality - values.size();
 
     int count = 0;

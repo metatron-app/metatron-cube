@@ -187,7 +187,7 @@ public class VirtualColumns implements Iterable<VirtualColumn>
     @Override
     public int getValueCardinality()
     {
-      throw new UnsupportedOperationException();
+      return -1;
     }
 
     @Override

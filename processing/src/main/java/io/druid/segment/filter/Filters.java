@@ -204,16 +204,38 @@ public class Filters
       final Predicate predicate
   )
   {
+    final boolean allowNull = predicate.apply(null);
     // Check every value in the dimension, as a String.
     final int cardinality = selector.getValueCardinality();
+    if (cardinality < 0) {
+      return new ValueMatcher()
+      {
+        @Override
+        public boolean matches()
+        {
+          final IndexedInts row = selector.getRow();
+          final int length = row.size();
+          if (length == 0) {
+            return allowNull;
+          } else if (length == 1) {
+            return predicate.apply(selector.lookupName(row.get(0)));
+          }
+          for (int i = 0; i < length; i++) {
+            if (predicate.apply(selector.lookupName(row.get(i)))) {
+              return true;
+            }
+          }
+          return false;
+        }
+      };
+    }
+
     final BitSet valueIds = new BitSet(cardinality);
     for (int i = 0; i < cardinality; i++) {
       if (predicate.apply(selector.lookupName(i))) {
         valueIds.set(i);
       }
     }
-    final boolean allowNull = predicate.apply(null);
-
     return new ValueMatcher()
     {
       @Override

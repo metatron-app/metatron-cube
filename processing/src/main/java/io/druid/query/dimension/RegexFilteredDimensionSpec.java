@@ -62,13 +62,16 @@ public class RegexFilteredDimensionSpec extends BaseFilteredDimensionSpec
   public DimensionSelector decorate(final DimensionSelector selector)
   {
     if (selector == null) {
-      return selector;
+      return null;
     }
-
     int count = 0;
     final Map<Integer,Integer> forwardMapping = new HashMap<>();
 
-    for (int i = 0; i < selector.getValueCardinality(); i++) {
+    final int cardinality = selector.getValueCardinality();
+    if (cardinality < 0) {
+      throw new UnsupportedOperationException("cannot use RegexFilteredDimensionSpec on " + delegate.getDimension());
+    }
+    for (int i = 0; i < cardinality; i++) {
       if (compiledRegex.matcher(Objects.toString(selector.lookupName(i), "")).matches()) {
         forwardMapping.put(i, count++);
       }
