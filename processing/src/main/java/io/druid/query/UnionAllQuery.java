@@ -186,40 +186,13 @@ public class UnionAllQuery<T> extends BaseQuery<T>
   @SuppressWarnings("unchecked")
   public Query<T> withOverriddenContext(final Map<String, Object> contextOverride)
   {
-    Map<String, Object> context = computeOverriddenContext(contextOverride);
-    if (queries == null) {
-      return newInstance(overrideContext(query, contextOverride), null, context);
-    }
-    return newInstance(null, overrideContext(queries, contextOverride), context);
+    return newInstance(query, queries, computeOverriddenContext(contextOverride));
   }
 
   @SuppressWarnings("unchecked")
   protected Query newInstance(Query<T> query, List<Query<T>> queries, Map<String, Object> context)
   {
-    return new UnionAllQuery(
-        query, queries, sortOnUnion, limit, parallelism, queue, context
-    );
-  }
-
-  protected Query<T> overrideContext(Query<T> query, Map<String, Object> contextOverride)
-  {
-    return query.withOverriddenContext(contextOverride);
-  }
-
-  protected List<Query<T>> overrideContext(List<Query<T>> queries, final Map<String, Object> contextOverride)
-  {
-    return Lists.newArrayList(
-        Lists.transform(
-            queries, new Function<Query<T>, Query<T>>()
-            {
-              @Override
-              public Query<T> apply(Query<T> input)
-              {
-                return input.withOverriddenContext(contextOverride);
-              }
-            }
-        )
-    );
+    return new UnionAllQuery(query, queries, sortOnUnion, limit, parallelism, queue, context);
   }
 
   @Override

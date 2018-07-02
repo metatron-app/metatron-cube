@@ -228,10 +228,7 @@ public class Queries
   public static <I> Sequence<Row> convertToRow(Query<I> subQuery, Sequence<I> sequence)
   {
     if (subQuery instanceof JoinQuery.JoinDelegate) {
-      final JoinQuery.JoinDelegate delegate = (JoinQuery.JoinDelegate) subQuery;
-      final String timeColumn = delegate.getPrefixAliases() == null
-                                ? Column.TIME_COLUMN_NAME
-                                : delegate.getPrefixAliases().get(0) + "." + Column.TIME_COLUMN_NAME;
+      final String timeColumn = ((JoinQuery.JoinDelegate) subQuery).getTimeColumnName();
       return Sequences.map(
           sequence, new Function<I, Row>()
           {

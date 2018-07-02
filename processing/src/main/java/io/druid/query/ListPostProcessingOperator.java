@@ -51,6 +51,11 @@ public class ListPostProcessingOperator<T> extends PostProcessingOperator.UnionS
     return processors;
   }
 
+  public PostProcessingOperator getLast()
+  {
+    return processors.get(processors.size() - 1);
+  }
+
   @Override
   @SuppressWarnings("unchecked")
   public QueryRunner<T> postProcess(QueryRunner<T> baseQueryRunner)
@@ -81,6 +86,6 @@ public class ListPostProcessingOperator<T> extends PostProcessingOperator.UnionS
   @Override
   public boolean hasTabularOutput()
   {
-    return processors.get(processors.size() - 1).hasTabularOutput();
+    return getLast().hasTabularOutput();
   }
 }

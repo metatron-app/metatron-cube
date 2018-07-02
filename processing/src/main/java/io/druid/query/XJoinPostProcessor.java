@@ -57,6 +57,7 @@ public class XJoinPostProcessor extends PostProcessingOperator.UnionSupport
 
   private final JoinElement[] elements;
   private final boolean prefixAlias;
+  private final boolean asArray;
   private final ExecutorService exec;
 
   @JsonCreator
@@ -64,12 +65,24 @@ public class XJoinPostProcessor extends PostProcessingOperator.UnionSupport
   public XJoinPostProcessor(
       @JsonProperty("elements") List<JoinElement> elements,
       @JsonProperty("prefixAlias") boolean prefixAlias,
+      @JsonProperty("asArray") boolean asArray,
       @JacksonInject @Processing ExecutorService exec
   )
   {
     this.elements = elements.toArray(new JoinElement[elements.size()]);
+    this.asArray = asArray;
     this.prefixAlias = prefixAlias;
     this.exec = exec;
+  }
+
+  public boolean asArray()
+  {
+    return asArray;
+  }
+
+  public XJoinPostProcessor withAsArray(boolean asArray)
+  {
+    return new XJoinPostProcessor(Arrays.asList(elements), prefixAlias, asArray, exec);
   }
 
   @Override
@@ -129,12 +142,11 @@ public class XJoinPostProcessor extends PostProcessingOperator.UnionSupport
           );
         }
         try {
-          return Sequences.once(
-              Iterators.transform(
-                  join(joining),
-                  converter(aliasColumnsNames, prefixAlias ? aliases : null)
-              )
-          );
+          Iterator join = join(joining);
+          if (!asArray) {
+            join = Iterators.transform(join, converter(aliasColumnsNames, prefixAlias ? aliases : null));
+          }
+          return Sequences.once(join);
         }
         catch (ExecutionException e) {
           throw Throwables.propagate(e.getCause() == null ? e : e.getCause());

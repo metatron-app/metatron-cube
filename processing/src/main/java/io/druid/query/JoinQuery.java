@@ -26,17 +26,15 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import com.metamx.common.guava.Sequence;
 import com.metamx.common.guava.Sequences;
 import io.druid.common.guava.GuavaUtils;
-import io.druid.query.filter.DimFilter;
 import io.druid.query.spec.QuerySegmentSpec;
+import io.druid.segment.column.Column;
 
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -47,9 +45,8 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
 {
   private final Map<String, DataSource> dataSources;
   private final List<JoinElement> elements;
+  private final String timeColumnName;
   private final boolean prefixAlias;
-  private final int numPartition;
-  private final int scannerLen;
   private final int limit;
   private final int parallelism;
   private final int queue;
@@ -59,9 +56,8 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
       @JsonProperty("dataSources") Map<String, DataSource> dataSources,
       @JsonProperty("elements") List<JoinElement> elements,
       @JsonProperty("prefixAlias") boolean prefixAlias,
+      @JsonProperty("timeColumnName") String timeColumnName,
       @JsonProperty("intervals") QuerySegmentSpec querySegmentSpec,
-      @JsonProperty("numPartition") int numPartition,
-      @JsonProperty("scannerLen") int scannerLen,
       @JsonProperty("limit") int limit,
       @JsonProperty("parallelism") int parallelism,
       @JsonProperty("queue") int queue,
@@ -71,15 +67,11 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
     super(toDummyDataSource(dataSources), querySegmentSpec, false, context);
     this.dataSources = validateDataSources(dataSources, getQuerySegmentSpec());
     this.prefixAlias = prefixAlias;
+    this.timeColumnName = timeColumnName;
     this.elements = validateElements(this.dataSources, Preconditions.checkNotNull(elements));
-    this.numPartition = numPartition <= 0 && scannerLen <= 0 ? 1 : numPartition;
-    this.scannerLen = scannerLen;
     this.limit = limit;
     this.parallelism = parallelism;   // warn : can take "(n-way + 1) x parallelism" threads
     this.queue = queue;
-    Preconditions.checkArgument(
-        this.numPartition > 0 || this.scannerLen > 0, "one of 'numPartition' or 'scannerLen' should be configured"
-    );
   }
 
   // dummy datasource for authorization
@@ -180,16 +172,9 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
     return prefixAlias;
   }
 
-  @JsonProperty
-  public int getNumPartition()
+  public String getTimeColumnName()
   {
-    return numPartition;
-  }
-
-  @JsonProperty
-  public int getScannerLen()
-  {
-    return scannerLen;
+    return timeColumnName;
   }
 
   @JsonProperty
@@ -238,9 +223,8 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
         dataSources,
         elements,
         prefixAlias,
+        timeColumnName,
         getQuerySegmentSpec(),
-        numPartition,
-        scannerLen,
         limit,
         parallelism,
         queue,
@@ -277,94 +261,22 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
     for (JoinElement element : elements) {
       aliases.add(element.getRightAlias());
     }
+    String timeColumn = timeColumnName;
+    if (timeColumn == null) {
+      timeColumn = prefixAlias ? aliases.get(0) + "." + Column.TIME_COLUMN_NAME : Column.TIME_COLUMN_NAME;
+    }
+
     QuerySegmentSpec segmentSpec = getQuerySegmentSpec();
-    JoinPartitionSpec partitions = partition(segmentWalker, jsonMapper);
-    if (partitions == null || partitions.size() == 1) {
-      List<Query<Map<String, Object>>> queries = Lists.newArrayList();
-      JoinElement firstJoin = elements.get(0);
-      DataSource left = dataSources.get(firstJoin.getLeftAlias());
-      queries.add(JoinElement.toQuery(left, firstJoin.getLeftJoinColumns(), segmentSpec, getContext()));
-      for (JoinElement element : elements) {
-        DataSource right = dataSources.get(element.getRightAlias());
-        queries.add(JoinElement.toQuery(right, element.getRightJoinColumns(), segmentSpec, getContext()));
-      }
-      Map<String, Object> context = computeOverriddenContext(joinContext);
-      return new JoinDelegate(queries, prefixAlias ? aliases : null, limit, parallelism, queue, context);
+    List<Query<Map<String, Object>>> queries = Lists.newArrayList();
+    JoinElement firstJoin = elements.get(0);
+    DataSource left = dataSources.get(firstJoin.getLeftAlias());
+    queries.add(JoinElement.toQuery(left, firstJoin.getLeftJoinColumns(), segmentSpec, getContext()));
+    for (JoinElement element : elements) {
+      DataSource right = dataSources.get(element.getRightAlias());
+      queries.add(JoinElement.toQuery(right, element.getRightJoinColumns(), segmentSpec, getContext()));
     }
-
-    JoinElement firstJoin = Preconditions.checkNotNull(Iterables.getFirst(elements, null));
-
-    Map<String, Object> context = getContext();
-    boolean first = true;
-    List<Query> queries = Lists.newArrayList();
-    for (List<DimFilter> filters : partitions) {
-      List<Query<Map<String, Object>>> partitioned = Lists.newArrayList();
-      DataSource left = dataSources.get(firstJoin.getLeftAlias());
-      DataSource right = dataSources.get(firstJoin.getRightAlias());
-      partitioned.add(JoinElement.toQuery(left, firstJoin.getLeftJoinColumns(), segmentSpec, filters.get(0), context));
-      partitioned.add(JoinElement.toQuery(right, firstJoin.getRightJoinColumns(), segmentSpec, filters.get(1), context));
-      if (first) {
-        for (int i = 1; i < elements.size(); i++) {
-          JoinElement element = elements.get(i);
-          DataSource dataSource = dataSources.get(element.getRightAlias());
-          partitioned.add(
-              JoinElement.toQuery(dataSource, element.getRightJoinColumns(), segmentSpec, context)
-                         .withOverriddenContext(ImmutableMap.of("hash", true))
-          );
-        }
-      }
-      List<String> prefix = prefixAlias ? aliases : null;
-      queries.add(new JoinDelegate(partitioned, prefix, -1, 0, 0, computeOverriddenContext(joinContext)));
-      first = false;
-    }
-    return new UnionAllQuery(null, queries, false, limit, parallelism, queue, BaseQuery.copyContext(this));
-  }
-
-  private JoinPartitionSpec partition(QuerySegmentWalker segmentWalker, ObjectMapper jsonMapper)
-  {
-    if (numPartition <= 1 && scannerLen <= 0) {
-      return null;
-    }
-    for (DataSource dataSource : dataSources.values()) {
-      Preconditions.checkArgument(
-          !(dataSource instanceof QueryDataSource) ||
-          ((QueryDataSource) dataSource).getQuery() instanceof DimFilterSupport,
-          "cannot apply partition on dataSource " + dataSource
-      );
-    }
-    JoinElement element = elements.get(0);
-    boolean rightJoin = element.getJoinType() == JoinType.RO;
-    String alias = rightJoin ? element.getRightAlias() : element.getLeftAlias();
-    String partitionKey = rightJoin ? element.getRightJoinColumns().get(0) : element.getLeftJoinColumns().get(0);
-
-    List<String> partitions = QueryUtils.runSketchQuery(
-        JoinElement.toQuery(dataSources.get(alias), null, getQuerySegmentSpec(), getContext()),
-        segmentWalker,
-        jsonMapper,
-        partitionKey,
-        numPartition,
-        scannerLen
-    );
-    if (partitions != null && partitions.size() > 2) {
-      return new JoinPartitionSpec(element.getFirstKeys(), partitions);
-    }
-    return null;
-  }
-
-  public JoinQuery withNumPartition(int numPartition)
-  {
-    return new JoinQuery(
-        getDataSources(),
-        getElements(),
-        prefixAlias,
-        getQuerySegmentSpec(),
-        numPartition,
-        scannerLen,
-        limit,
-        parallelism,
-        queue,
-        getContext()
-    );
+    Map<String, Object> context = computeOverriddenContext(joinContext);
+    return new JoinDelegate(queries, prefixAlias ? aliases : null, timeColumn, limit, parallelism, queue, context);
   }
 
   public JoinQuery withPrefixAlias(boolean prefixAlias)
@@ -373,9 +285,8 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
         getDataSources(),
         getElements(),
         prefixAlias,
+        getTimeColumnName(),
         getQuerySegmentSpec(),
-        numPartition,
-        scannerLen,
         limit,
         parallelism,
         queue,
@@ -390,59 +301,10 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
            "dataSources=" + dataSources +
            ", elements=" + elements +
            ", prefixAlias=" + prefixAlias +
-           ", numPartition=" + numPartition +
-           ", scannerLen=" + scannerLen +
            ", parallelism=" + parallelism +
            ", queue=" + queue +
            ", limit=" + limit +
            '}';
-  }
-
-  private static class JoinPartitionSpec implements Iterable<List<DimFilter>>
-  {
-    final String[] firstKeys;
-    final List<String> partitions;
-
-    private JoinPartitionSpec(
-        String[] firstKeys,
-        List<String> partitions
-    )
-    {
-      this.firstKeys = firstKeys;
-      this.partitions = Preconditions.checkNotNull(partitions);
-    }
-
-    @Override
-    public Iterator<List<DimFilter>> iterator()
-    {
-      final List<Iterator<DimFilter>> filters = Lists.newArrayList();
-      for (String firstKey : firstKeys) {
-        filters.add(QueryUtils.toFilters(firstKey, partitions).iterator());
-      }
-      return new Iterator<List<DimFilter>>()
-      {
-        @Override
-        public boolean hasNext()
-        {
-          return filters.get(0).hasNext();
-        }
-
-        @Override
-        public List<DimFilter> next()
-        {
-          List<DimFilter> result = Lists.newArrayList();
-          for (Iterator<DimFilter> filter : filters) {
-            result.add(filter.next());
-          }
-          return result;
-        }
-      };
-    }
-
-    public int size()
-    {
-      return partitions.size();
-    }
   }
 
   @SuppressWarnings("unchecked")
@@ -450,10 +312,12 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
       implements ArrayOutputSupport<Map<String, Object>>
   {
     private final List<String> prefixAliases;  // for schema resolving
+    private final String timeColumnName;
 
     public JoinDelegate(
         List<Query<Map<String, Object>>> list,
         List<String> prefixAliases,
+        String timeColumnName,
         int limit,
         int parallelism,
         int queue,
@@ -462,6 +326,7 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
     {
       super(null, list, false, limit, parallelism, queue, context);
       this.prefixAliases = prefixAliases;
+      this.timeColumnName = Preconditions.checkNotNull(timeColumnName, "'timeColumnName' is null");
     }
 
     public List<String> getPrefixAliases()
@@ -469,10 +334,23 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
       return prefixAliases;
     }
 
+    public String getTimeColumnName()
+    {
+      return timeColumnName;
+    }
+
     @Override
     public Query withQueries(List queries)
     {
-      return new JoinDelegate(queries, prefixAliases, getLimit(), getParallelism(), getQueue(), getContext());
+      return new JoinDelegate(
+          queries,
+          prefixAliases,
+          timeColumnName,
+          getLimit(),
+          getParallelism(),
+          getQueue(),
+          getContext()
+      );
     }
 
     @Override
@@ -490,7 +368,15 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
     )
     {
       Preconditions.checkArgument(query == null);
-      return new JoinDelegate(queries, prefixAliases, getLimit(), getParallelism(), getQueue(), context);
+      return new JoinDelegate(
+          queries,
+          prefixAliases,
+          timeColumnName,
+          getLimit(),
+          getParallelism(),
+          getQueue(),
+          context
+      );
     }
 
     @Override
@@ -500,9 +386,24 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
              "queries=" + getQueries() +
              ", parallelism=" + getParallelism() +
              ", prefixAliases=" + getPrefixAliases() +
+             ", timeColumnName=" + getTimeColumnName() +
              ", queue=" + getQueue() +
              ", limit=" + getLimit() +
              '}';
+    }
+
+    public Query toArrayJoin()
+    {
+      PostProcessingOperator processor = getContextValue(QueryContextKeys.POST_PROCESSING);
+      if (processor instanceof ListPostProcessingOperator) {
+        List<PostProcessingOperator> processors = ((ListPostProcessingOperator<?>) processor).getProcessors();
+        int index = processors.size() - 1;
+        processors.set(index, ((XJoinPostProcessor) processors.get(index)).withAsArray(true));
+        processor = new ListPostProcessingOperator(processors);
+      } else {
+        processor = ((XJoinPostProcessor) processor).withAsArray(true);
+      }
+      return withOverriddenContext(QueryContextKeys.POST_PROCESSING, processor);
     }
 
     @Override
@@ -526,8 +427,15 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
     }
 
     @Override
-    public Sequence<Object[]> array(Sequence<Map<String, Object>> sequence)
+    public Sequence<Object[]> array(Sequence sequence)
     {
+      PostProcessingOperator processor = getContextValue(QueryContextKeys.POST_PROCESSING);
+      if (processor instanceof ListPostProcessingOperator) {
+        processor = ((ListPostProcessingOperator)processor).getLast();
+      }
+      if (((XJoinPostProcessor)processor).asArray()) {
+        return sequence;
+      }
       return Sequences.map(
           sequence, new Function<Map<String, Object>, Object[]>()
           {

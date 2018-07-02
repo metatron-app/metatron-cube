@@ -124,7 +124,8 @@ public class JoinQueryRunnerTest extends QueryRunnerTestHelper
         ),
         Arrays.asList(new JoinElement(JoinType.INNER, dataSource + ".market = " + JOIN_DS + ".market")),
         false,
-        firstToThird, 0, 0, 0, 0, 0, ImmutableMap.<String, Object>of(Query.RAW_LOCAL_SPLIT_NUM, -1)
+        null,
+        firstToThird, 0, 0, 0, ImmutableMap.<String, Object>of(Query.RAW_LOCAL_SPLIT_NUM, -1)
     );
 
     String[] columns = new String[]{"__time", "market", "index", "market_month", "value"};

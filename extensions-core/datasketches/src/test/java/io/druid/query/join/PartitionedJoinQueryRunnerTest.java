@@ -21,7 +21,6 @@ package io.druid.query.join;
 
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
-import com.google.common.collect.Lists;
 import com.google.common.io.CharSource;
 import io.druid.data.input.Row;
 import io.druid.data.input.Rows;
@@ -34,14 +33,10 @@ import io.druid.query.DataSource;
 import io.druid.query.JoinElement;
 import io.druid.query.JoinQuery;
 import io.druid.query.JoinType;
-import io.druid.query.Query;
-import io.druid.query.QueryUtils;
 import io.druid.query.TableDataSource;
-import io.druid.query.UnionAllQuery;
 import io.druid.query.ViewDataSource;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.GenericSumAggregatorFactory;
-import io.druid.query.filter.DimFilter;
 import io.druid.query.groupby.GroupByQueryRunnerTestHelper;
 import io.druid.query.sketch.SketchQueryRunnerTest;
 import io.druid.segment.TestHelper;
@@ -49,7 +44,6 @@ import io.druid.segment.TestIndex;
 import io.druid.segment.incremental.IncrementalIndexSchema;
 import io.druid.timeline.DataSegment;
 import org.joda.time.DateTime;
-import org.junit.Assert;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
@@ -126,27 +120,9 @@ public class PartitionedJoinQueryRunnerTest extends SketchQueryRunnerTest
         ),
         Arrays.asList(new JoinElement(JoinType.INNER, dataSource + ".quality = " + JOIN_DS_P + ".quality")),
         false,
-        firstToThird, 3, 0, 0, 0, 0, null
+        null,
+        firstToThird, 0, 0, 0, null
     );
-
-    // assert split on three partitions
-    Query query = joinQuery.rewriteQuery(segmentWalker, segmentWalker.getQueryConfig(), JSON_MAPPER);
-    query = QueryUtils.resolveRecursively(query, segmentWalker);
-    Assert.assertTrue(query instanceof UnionAllQuery);
-    List<? extends Query<?>> partitions = ((UnionAllQuery<?>) query).getQueries();
-    Assert.assertEquals(3, partitions.size());
-
-    List<DimFilter> expected = Lists.newArrayList(
-        QueryUtils.toFilters("quality", Arrays.asList("automotive", "entertainment", "mezzanine", "travel"))
-    );
-    for (int i = 0; i < partitions.size(); i++) {
-      Assert.assertTrue(partitions.get(i) instanceof JoinQuery.JoinDelegate);
-      JoinQuery.JoinDelegate delegate = (JoinQuery.JoinDelegate) partitions.get(i);
-      Query.DimFilterSupport q1 = (Query.DimFilterSupport) delegate.getQueries().get(0);
-      Query.DimFilterSupport q2 = (Query.DimFilterSupport) delegate.getQueries().get(1);
-      Assert.assertEquals(expected.get(i), q1.getDimFilter());
-      Assert.assertEquals(expected.get(i), q2.getDimFilter());
-    }
 
     String[] columns = new String[]{"__time", "quality", "market", "index", "quality_month", "value"};
     List<Row> expectedRows = GroupByQueryRunnerTestHelper.createExpectedRows(

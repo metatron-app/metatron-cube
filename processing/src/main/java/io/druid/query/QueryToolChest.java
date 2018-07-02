@@ -32,8 +32,6 @@ import com.metamx.common.logger.Logger;
 import com.metamx.emitter.service.ServiceMetricEvent;
 import io.druid.data.input.Row;
 import io.druid.query.aggregation.MetricManipulationFn;
-import io.druid.query.filter.DimFilter;
-import io.druid.query.filter.DimFilters;
 import io.druid.query.groupby.GroupByQueryHelper;
 import io.druid.segment.IncrementalIndexSegment;
 import io.druid.segment.Segment;
@@ -47,7 +45,6 @@ import io.druid.timeline.LogicalSegment;
 import org.apache.commons.lang.StringUtils;
 import org.joda.time.Interval;
 
-import javax.annotation.Nullable;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutorService;
