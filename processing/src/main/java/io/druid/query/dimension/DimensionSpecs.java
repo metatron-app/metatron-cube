@@ -163,4 +163,14 @@ public class DimensionSpecs
     }
     return false;
   }
+
+  public static boolean isAllDefault(List<DimensionSpec> dimensionSpecs)
+  {
+    for (DimensionSpec dimensionSpec : dimensionSpecs) {
+      if (!(dimensionSpec instanceof DefaultDimensionSpec)) {
+        return false;
+      }
+    }
+    return true;
+  }
 }

@@ -39,6 +39,8 @@ import io.druid.guice.annotations.Processing;
 import io.druid.query.ordering.Comparators;
 import org.apache.commons.lang.mutable.MutableInt;
 
+import java.io.Closeable;
+import java.io.IOException;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.Iterator;
@@ -144,7 +146,11 @@ public class XJoinPostProcessor extends PostProcessingOperator.UnionSupport
         try {
           Iterator join = join(joining);
           if (!asArray) {
-            join = Iterators.transform(join, converter(aliasColumnsNames, prefixAlias ? aliases : null));
+            Iterator converted = Iterators.transform(join, converter(aliasColumnsNames, prefixAlias ? aliases : null));
+            if (join instanceof Closeable) {
+              converted = GuavaUtils.withResource(converted, (Closeable) join);
+            }
+            join = converted;
           }
           return Sequences.once(join);
         }
@@ -181,7 +187,7 @@ public class XJoinPostProcessor extends PostProcessingOperator.UnionSupport
           public Object call()
           {
             return new JoinAlias(
-                Arrays.asList(alias), columnNames, indices, sort(Sequences.toList(sequence), indices).iterator()
+                Arrays.asList(alias), columnNames, indices, sort(sequence, indices).iterator()
             );
           }
         }
@@ -224,15 +230,26 @@ public class XJoinPostProcessor extends PostProcessingOperator.UnionSupport
       List<String> alias = GuavaUtils.concat(left.alias, right.alias);
       List<String> columns = GuavaUtils.concat(left.columns, right.columns);
       int[] indices = GuavaUtils.indexOf(columns, elements[i].getLeftJoinColumns());
-      left = new JoinAlias(alias, columns, indices, sort(Lists.newArrayList(iterator), indices).iterator());
+      left = new JoinAlias(alias, columns, indices, sort(Sequences.once(iterator), indices).iterator());
     }
     return iterator;
   }
 
   private Iterator<Object[]> join(final JoinAlias leftAlias, final JoinAlias rightAlias, final int index)
   {
-    return new Iterator<Object[]>()
+    return new GuavaUtils.CloseableIterator<Object[]>()
     {
+      @Override
+      public void close() throws IOException
+      {
+        if (leftAlias.rows instanceof Closeable) {
+          ((Closeable) leftAlias.rows).close();
+        }
+        if (rightAlias.rows instanceof Closeable) {
+          ((Closeable) rightAlias.rows).close();
+        }
+      }
+
       private Iterator<Object[]> iterator = Iterators.emptyIterator();
 
       @Override
@@ -343,7 +360,7 @@ public class XJoinPostProcessor extends PostProcessingOperator.UnionSupport
       this.alias = alias;
       this.columns = columns;
       this.indices = indices;
-      this.rows = Iterators.peekingIterator(rows);
+      this.rows = GuavaUtils.peekingIterator(rows);
     }
 
     private Partition next()
@@ -483,9 +500,10 @@ public class XJoinPostProcessor extends PostProcessingOperator.UnionSupport
   }
 
   // from source.. need prefix for value
-  private List<Object[]> sort(List<Object[]> rows, int[] indices)
+  private List<Object[]> sort(Sequence<Object[]> sequence, int[] indices)
   {
     long start = System.currentTimeMillis();
+    List<Object[]> rows = Sequences.toList(sequence);
     Object[][] array = rows.toArray(new Object[rows.size()][]);
     Comparator<Object[]> comparator = Comparators.toArrayComparator(indices);
     Arrays.parallelSort(array, comparator);

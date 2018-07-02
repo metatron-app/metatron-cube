@@ -34,6 +34,8 @@ import com.metamx.common.guava.Yielder;
 import com.metamx.common.guava.YieldingAccumulator;
 import io.druid.common.Progressing;
 import io.druid.common.Yielders;
+import io.druid.common.guava.GuavaUtils;
+import org.apache.commons.io.IOUtils;
 
 import java.io.Closeable;
 import java.io.IOException;
@@ -80,6 +82,9 @@ public class Sequences extends com.metamx.common.guava.Sequences
           @Override
           public void cleanup(Iterator<T> iterFromMake)
           {
+            if (iterator instanceof Closeable) {
+              IOUtils.closeQuietly((Closeable) iterator);
+            }
           }
         }
     );
@@ -87,8 +92,14 @@ public class Sequences extends com.metamx.common.guava.Sequences
 
   public static <T> Iterator<T> toIterator(final Sequence<T> sequence)
   {
-    return new Iterator<T>()
+    return new GuavaUtils.CloseableIterator<T>()
     {
+      @Override
+      public void close() throws IOException
+      {
+        yielder.close();
+      }
+
       private Yielder<T> yielder = Yielders.each(sequence);
 
       @Override

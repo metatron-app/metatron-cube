@@ -915,7 +915,8 @@ public class QueryRunnerTestHelper
     QueryRunner<T> baseRunner;
     if (query.getDataSource() instanceof QueryDataSource) {
       Query innerQuery = ((QueryDataSource) query.getDataSource()).getQuery().withOverriddenContext(query.getContext());
-      baseRunner = toolChest.handleSubQuery(toMergeRunner(factory, runner, innerQuery, true), SCHEMA_ONLY, null, 5000);
+      baseRunner = toolChest.handleSubQuery(
+          toMergeRunner(factory, runner, innerQuery, true), SCHEMA_ONLY, null, 5000);
     } else {
       baseRunner = toolChest.postMergeQueryDecoration(toolChest.mergeResults(toolChest.preMergeQueryDecoration(runner)));
     }

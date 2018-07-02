@@ -24,9 +24,11 @@ import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import com.google.common.collect.Iterables;
+import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Ordering;
+import com.google.common.collect.PeekingIterator;
 import com.google.common.collect.Sets;
 import com.google.common.io.CharStreams;
 import com.google.common.io.InputSupplier;
@@ -323,6 +325,49 @@ public class GuavaUtils
   }
 
   public static interface CloseableIterator<T> extends Iterator<T>, Closeable {
+  }
+
+  public static interface CloseablePeekingIterator<T> extends PeekingIterator<T>, Closeable {
+  }
+
+  public static <T> PeekingIterator<T> peekingIterator(final Iterator<? extends T> iterator)
+  {
+    final PeekingIterator<T> peekingIterator = Iterators.peekingIterator(iterator);
+    if (iterator instanceof Closeable) {
+      return new CloseablePeekingIterator<T>()
+      {
+        @Override
+        public void close() throws IOException
+        {
+          ((Closeable) iterator).close();
+        }
+
+        @Override
+        public T peek()
+        {
+          return peekingIterator.peek();
+        }
+
+        @Override
+        public T next()
+        {
+          return peekingIterator.next();
+        }
+
+        @Override
+        public void remove()
+        {
+          peekingIterator.remove();
+        }
+
+        @Override
+        public boolean hasNext()
+        {
+          return peekingIterator.hasNext();
+        }
+      };
+    }
+    return peekingIterator;
   }
 
   public static <T> Iterator<T> withResource(final Iterator<T> iterator)
