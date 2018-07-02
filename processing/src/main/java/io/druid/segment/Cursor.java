@@ -17,7 +17,10 @@
  * under the License.
  */
 
-package io.druid.segment;import org.joda.time.DateTime;
+package io.druid.segment;
+
+import io.druid.query.RowResolver;
+import org.joda.time.DateTime;
 
 /**
  */
@@ -29,6 +32,7 @@ public interface Cursor extends ColumnSelectorFactory
   public void advanceTo(int offset);
   public boolean isDone();
   public void reset();
+  public RowResolver resolver();
 
   abstract class ExprSupport extends ColumnSelectorFactory.ExprSupport implements Cursor {
   }

@@ -362,6 +362,12 @@ public class IncrementalIndexStorageAdapter implements StorageAdapter
               }
 
               @Override
+              public RowResolver resolver()
+              {
+                return resolver;
+              }
+
+              @Override
               public Iterable<String> getColumnNames()
               {
                 return Iterables.concat(index.getDimensionNames(), index.getMetricNames());

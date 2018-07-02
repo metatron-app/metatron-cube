@@ -29,9 +29,8 @@ import io.druid.query.QueryRunner;
 import io.druid.query.QuerySegmentWalker;
 import io.druid.query.QueryToolChest;
 import io.druid.query.TabularFormat;
-import io.druid.query.spec.MultipleIntervalSegmentSpec;
-import io.druid.segment.Segment;
-import org.joda.time.Interval;
+import io.druid.segment.Cursor;
+import org.apache.commons.lang.mutable.MutableInt;
 
 import java.util.Map;
 import java.util.concurrent.ExecutorService;
@@ -101,26 +100,35 @@ public class StreamQueryToolChest extends QueryToolChest<StreamQueryRow, StreamQ
       final int maxRowCount
   )
   {
-    return new SubQueryRunner<I>(subQueryRunner, segmentWalker, executor, maxRowCount)
+    return new StreamingSubQueryRunner<I>(subQueryRunner, segmentWalker, executor)
     {
       @Override
-      protected Function<Interval, Sequence<StreamQueryRow>> function(
-          final Query<StreamQueryRow> query, Map<String, Object> context,
-          final Segment segment
+      protected final Function<Cursor, Sequence<StreamQueryRow>> converter(
+          Query<StreamQueryRow> outerQuery,
+          Cursor cursor
       )
       {
-        final StreamQueryEngine engine = new StreamQueryEngine();
-        final StreamQuery outerQuery = (StreamQuery) query;
-        return new Function<Interval, Sequence<StreamQueryRow>>()
+        final StreamQuery query = (StreamQuery) outerQuery;
+        final String[] columns = query.getColumns().toArray(new String[0]);
+        final Function<Cursor, Sequence<Object[]>> converter = StreamQueryEngine.converter(query, new MutableInt());
+        return new Function<Cursor, Sequence<StreamQueryRow>>()
         {
           @Override
-          public Sequence<StreamQueryRow> apply(Interval interval)
+          public Sequence<StreamQueryRow> apply(Cursor input)
           {
-            return engine.process(
-                outerQuery.withQuerySegmentSpec(MultipleIntervalSegmentSpec.of(interval)),
-                segment,
-                null,
-                null
+            return Sequences.map(
+                converter.apply(input), new Function<Object[], StreamQueryRow>()
+                {
+                  @Override
+                  public StreamQueryRow apply(Object[] input)
+                  {
+                    final StreamQueryRow row = new StreamQueryRow();
+                    for (int i = 0; i < columns.length; i++) {
+                      row.put(columns[i], input[i]);
+                    }
+                    return row;
+                  }
+                }
             );
           }
         };

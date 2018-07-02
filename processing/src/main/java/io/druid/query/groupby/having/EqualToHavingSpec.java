@@ -22,8 +22,8 @@ package io.druid.query.groupby.having;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Predicate;
-import io.druid.data.TypeResolver;
 import io.druid.data.input.Row;
+import io.druid.query.RowResolver;
 import io.druid.query.aggregation.AggregatorFactory;
 
 import java.util.List;
@@ -44,7 +44,7 @@ public class EqualToHavingSpec extends CompareHavingSpec
   }
 
   @Override
-  public Predicate<Row> toEvaluator(TypeResolver resolver, List<AggregatorFactory> aggregators)
+  public Predicate<Row> toEvaluator(RowResolver resolver, List<AggregatorFactory> aggregators)
   {
     return new Predicate<Row>()
     {

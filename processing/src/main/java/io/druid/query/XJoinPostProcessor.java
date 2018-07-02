@@ -230,6 +230,7 @@ public class XJoinPostProcessor extends PostProcessingOperator.UnionSupport
       List<String> alias = GuavaUtils.concat(left.alias, right.alias);
       List<String> columns = GuavaUtils.concat(left.columns, right.columns);
       int[] indices = GuavaUtils.indexOf(columns, elements[i].getLeftJoinColumns());
+      // todo sketch on next join column & partitioned sort
       left = new JoinAlias(alias, columns, indices, sort(Sequences.once(iterator), indices).iterator());
     }
     return iterator;

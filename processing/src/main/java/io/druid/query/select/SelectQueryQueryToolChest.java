@@ -22,6 +22,7 @@ package io.druid.query.select;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.common.base.Function;
+import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
@@ -35,12 +36,14 @@ import io.druid.common.guava.GuavaUtils;
 import io.druid.common.utils.JodaUtils;
 import io.druid.common.utils.Sequences;
 import io.druid.data.input.MapBasedRow;
+import io.druid.granularity.Granularities;
 import io.druid.granularity.Granularity;
 import io.druid.query.CacheStrategy;
 import io.druid.query.IntervalChunkingQueryRunnerDecorator;
 import io.druid.query.LateralViewSpec;
 import io.druid.query.Query;
 import io.druid.query.QueryCacheHelper;
+import io.druid.query.QueryDataSource;
 import io.druid.query.QueryRunner;
 import io.druid.query.QuerySegmentWalker;
 import io.druid.query.QueryToolChest;
@@ -52,11 +55,18 @@ import io.druid.query.TabularFormat;
 import io.druid.query.UnionDataSource;
 import io.druid.query.dimension.DimensionSpec;
 import io.druid.query.filter.DimFilter;
+import io.druid.query.spec.LegacySegmentSpec;
 import io.druid.query.spec.MultipleIntervalSegmentSpec;
+import io.druid.segment.ColumnSelectors;
+import io.druid.segment.Cursor;
+import io.druid.segment.DimensionSelector;
+import io.druid.segment.ObjectColumnSelector;
 import io.druid.segment.Segment;
 import io.druid.segment.VirtualColumn;
+import io.druid.timeline.DataSegment;
 import io.druid.timeline.DataSegmentUtils;
 import io.druid.timeline.LogicalSegment;
+import io.druid.timeline.partition.NoneShardSpec;
 import org.apache.commons.lang.mutable.MutableInt;
 import org.joda.time.DateTime;
 import org.joda.time.Interval;
@@ -153,21 +163,104 @@ public class SelectQueryQueryToolChest extends QueryToolChest<Result<SelectResul
     return new SubQueryRunner<I>(subQueryRunner, segmentWalker, executor, maxRowCount)
     {
       @Override
+      public Sequence<Result<SelectResultValue>> run(
+          Query<Result<SelectResultValue>> query,
+          Map<String, Object> responseContext
+      )
+      {
+        final Query<I> subQuery = ((QueryDataSource) query.getDataSource()).getQuery();
+        if (!LegacySegmentSpec.coveredBy(subQuery.getQuerySegmentSpec(), query.getQuerySegmentSpec())) {
+          // this can be not right.. but who cares?
+          return super.run(query, responseContext);
+        }
+        if (((SelectQuery) query).getGranularity() != Granularities.ALL) {
+          return super.run(query, responseContext);
+        }
+        final PagingSpec pagingSpec = ((SelectQuery) query).getPagingSpec();
+        if (!GuavaUtils.isNullOrEmpty(pagingSpec.getPagingIdentifiers())) {
+          return super.run(query, responseContext);
+        }
+        return runStreaming(query, responseContext);
+      }
+
+      @Override
       protected Function<Interval, Sequence<Result<SelectResultValue>>> function(
           final Query<Result<SelectResultValue>> query, Map<String, Object> context,
           final Segment segment
       )
       {
-        final SelectQuery outerQuery = (SelectQuery) query;
+        final SelectQuery select = (SelectQuery) query;
         return new Function<Interval, Sequence<Result<SelectResultValue>>>()
         {
           @Override
           public Sequence<Result<SelectResultValue>> apply(Interval interval)
           {
             return engine.process(
-                outerQuery.withQuerySegmentSpec(MultipleIntervalSegmentSpec.of(interval)),
+                select.withQuerySegmentSpec(MultipleIntervalSegmentSpec.of(interval)),
                 config,
                 segment
+            );
+          }
+        };
+      }
+
+      @Override
+      protected Function<Cursor, Sequence<Result<SelectResultValue>>> converter(
+          final Query<Result<SelectResultValue>> outerQuery,
+          final Cursor cursor
+      )
+      {
+        final SelectQuery select = (SelectQuery) outerQuery;
+        final String concatString = select.getConcatString();
+        final List<String> outputColumns = Lists.newArrayList();
+        final List<ObjectColumnSelector> selectors = Lists.newArrayList();
+        for (DimensionSpec dimensionSpec : select.getDimensions()) {
+          DimensionSelector selector = cursor.makeDimensionSelector(dimensionSpec);
+          selector = dimensionSpec.decorate(selector);
+          if (concatString != null) {
+            selectors.add(ColumnSelectors.asConcatValued(selector, concatString));
+          } else {
+            selectors.add(ColumnSelectors.asMultiValued(selector));
+          }
+          outputColumns.add(dimensionSpec.getOutputName());
+        }
+        for (String metric : select.getMetrics()) {
+          selectors.add(cursor.makeObjectColumnSelector(metric));
+          outputColumns.add(metric);
+        }
+        final Interval interval = JodaUtils.umbrellaInterval(select.getQuerySegmentSpec().getIntervals());
+        final String segmentId = DataSegment.makeDataSegmentIdentifier(
+            org.apache.commons.lang.StringUtils.join(select.getDataSource().getNames(), '_'),
+            interval.getStart(),
+            interval.getEnd(),
+            "temporary",
+            NoneShardSpec.instance()
+        );
+
+        final int limit = select.getPagingSpec().getThreshold();
+        return new Function<Cursor, Sequence<Result<SelectResultValue>>>()
+        {
+          @Override
+          public Sequence<Result<SelectResultValue>> apply(Cursor input)
+          {
+            final List<EventHolder> events = Lists.newArrayList();
+            for (; limit < 0 || events.size() < limit; cursor.advance()) {
+              Map<String, Object> event = Maps.newHashMap();
+              for (int i = 0; i < selectors.size(); i++) {
+                event.put(outputColumns.get(i), selectors.get(i).get());
+              }
+              events.add(new EventHolder(segmentId, events.size(), event));
+              if (cursor.isDone()) {
+                break;
+              }
+              cursor.advance();
+            }
+
+            SelectResultValue resultValue = new SelectResultValue(ImmutableMap.of(segmentId, events.size()), events);
+            return Sequences.simple(
+                Arrays.asList(
+                    new Result<SelectResultValue>(interval.getStart(), resultValue)
+                )
             );
           }
         };

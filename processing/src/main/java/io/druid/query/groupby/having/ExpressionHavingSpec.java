@@ -23,11 +23,11 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Predicate;
-import io.druid.data.TypeResolver;
 import io.druid.data.input.Row;
 import io.druid.math.expr.Expr;
 import io.druid.math.expr.Parser;
 import io.druid.query.RowBinding;
+import io.druid.query.RowResolver;
 import io.druid.query.aggregation.AggregatorFactory;
 
 import java.util.List;
@@ -53,7 +53,7 @@ public class ExpressionHavingSpec implements HavingSpec
   }
 
   @Override
-  public Predicate<Row> toEvaluator(TypeResolver resolver, List<AggregatorFactory> aggregators)
+  public Predicate<Row> toEvaluator(RowResolver resolver, List<AggregatorFactory> aggregators)
   {
     final Expr expr = Parser.parse(expression);
     final RowBinding binding = new RowBinding(resolver);

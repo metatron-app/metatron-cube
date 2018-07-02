@@ -129,11 +129,15 @@ public class IncrementalIndexSchema
     return metricTypes;
   }
 
-  public Schema asSchema()
+  public Schema asSchema(final boolean keepDimensionMark)
   {
     List<ValueDesc> types = Lists.newArrayList();
     for (DimensionSchema schema : dimensionsSpec.getDimensions()) {
-      types.add(ValueDesc.of(schema.getTypeName()));
+      if (keepDimensionMark) {
+        types.add(ValueDesc.ofDimension(ValueType.of(schema.getTypeName())));
+      } else {
+        types.add(ValueDesc.of(schema.getTypeName()));
+      }
     }
     for (AggregatorFactory aggregatorFactory : metrics) {
       types.add(ValueDesc.of(aggregatorFactory.getTypeName()));

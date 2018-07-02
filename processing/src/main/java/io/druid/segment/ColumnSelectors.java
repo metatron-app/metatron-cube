@@ -20,9 +20,9 @@
 package io.druid.segment;
 
 import com.google.common.base.Preconditions;
-import com.google.common.base.Strings;
 import io.druid.common.guava.DSuppliers;
 import io.druid.common.utils.StringUtils;
+import io.druid.data.Rows;
 import io.druid.data.ValueDesc;
 import io.druid.data.ValueType;
 import io.druid.math.expr.Evals;
@@ -46,15 +46,7 @@ public class ColumnSelectors
       @Override
       public float get()
       {
-        Object v = selector.get();
-        if (v == null) {
-          return 0;
-        }
-        if (v instanceof Number) {
-          return ((Number) v).floatValue();
-        }
-        String string = Objects.toString(v);
-        return Strings.isNullOrEmpty(string) ? 0 : Float.valueOf(string);
+        return Rows.parseFloat(selector.get());
       }
     };
   }
@@ -66,15 +58,7 @@ public class ColumnSelectors
       @Override
       public double get()
       {
-        Object v = selector.get();
-        if (v == null) {
-          return 0;
-        }
-        if (v instanceof Number) {
-          return ((Number) v).doubleValue();
-        }
-        String string = Objects.toString(v);
-        return Strings.isNullOrEmpty(string) ? 0 : Double.valueOf(string);
+        return Rows.parseDouble(selector.get());
       }
     };
   }
@@ -86,15 +70,7 @@ public class ColumnSelectors
       @Override
       public long get()
       {
-        Object v = selector.get();
-        if (v == null) {
-          return 0;
-        }
-        if (v instanceof Number) {
-          return ((Number) v).longValue();
-        }
-        String string = Objects.toString(v);
-        return Strings.isNullOrEmpty(string) ? 0 : Long.valueOf(string);
+        return Rows.parseLong(selector.get());
       }
     };
   }

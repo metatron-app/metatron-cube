@@ -458,6 +458,12 @@ public class QueryableIndexStorageAdapter implements StorageAdapter
                     }
 
                     @Override
+                    public RowResolver resolver()
+                    {
+                      return resolver;
+                    }
+
+                    @Override
                     public Iterable<String> getColumnNames()
                     {
                       return index.getColumnNames();

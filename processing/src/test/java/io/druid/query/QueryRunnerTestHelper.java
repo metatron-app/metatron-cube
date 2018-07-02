@@ -575,7 +575,7 @@ public class QueryRunnerTestHelper
               Arrays.asList(
                   new Result(
                       DateTime.now(),
-                      new SelectMetaResultValue(TestIndex.SAMPLE_SCHEMA.asSchema())
+                      new SelectMetaResultValue(TestIndex.SAMPLE_SCHEMA.asSchema(false))
                   )
               )
           );

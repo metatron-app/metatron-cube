@@ -646,7 +646,7 @@ public class QueryResource
       }
       return union.withQuery(removeForwardContext(union.getQuery()));
     }
-    Map<String, String> override = ImmutableMap.of(Query.FORWARD_URL, "", Query.FORWARD_CONTEXT, "");
+    Map<String, Object> override = BaseQuery.removeContext(Query.FORWARD_URL, Query.FORWARD_CONTEXT);
     if (query.getDataSource() instanceof QueryDataSource) {
       QueryDataSource dataSource = (QueryDataSource) query.getDataSource();
       query = query.withDataSource(new QueryDataSource(dataSource.getQuery().withOverriddenContext(override)));

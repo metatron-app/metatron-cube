@@ -25,19 +25,26 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import com.metamx.common.ISE;
-import io.druid.data.TypeResolver;
+import com.metamx.common.guava.Sequence;
+import io.druid.common.guava.DSuppliers;
+import io.druid.common.utils.Sequences;
 import io.druid.data.ValueDesc;
 import io.druid.data.input.Row;
+import io.druid.query.BaseQuery;
+import io.druid.query.Query;
+import io.druid.query.RowResolver;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.dimension.DimensionSpec;
 import io.druid.query.extraction.ExtractionFn;
 import io.druid.query.filter.DimFilter;
 import io.druid.query.filter.ValueMatcher;
+import io.druid.query.select.Schema;
 import io.druid.segment.column.Column;
 import io.druid.segment.data.IndexedInts;
 import io.druid.segment.serde.ComplexMetricExtractor;
 import io.druid.segment.serde.ComplexMetricSerde;
 import io.druid.segment.serde.ComplexMetrics;
+import org.joda.time.DateTime;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -314,18 +321,74 @@ public class ColumnSelectorFactories
     }
   }
 
-  public static final class FromRow extends AbstractFromRow
+  public static final class FromRow extends ColumnSelectorFactory.ExprSupport
   {
-    private final TypeResolver resolver;
+    private final Supplier<Row> in;
+    private final RowResolver resolver;
 
-    public FromRow(
-        Supplier<Row> in,
-        TypeResolver resolver,
-        boolean deserializeComplexMetrics
-    )
+    public FromRow(Supplier<Row> in, RowResolver resolver)
     {
-      super(in, deserializeComplexMetrics);
+      this.in = in;
       this.resolver = resolver;
+    }
+
+    @Override
+    public Iterable<String> getColumnNames()
+    {
+      return resolver.getColumnNames();
+    }
+
+    @Override
+    public DimensionSelector makeDimensionSelector(DimensionSpec dimensionSpec)
+    {
+      return dimensionSpec.decorate(
+          VirtualColumns.toDimensionSelector(
+              makeObjectColumnSelector(dimensionSpec.getDimension()),
+              dimensionSpec.getExtractionFn()
+          )
+      );
+    }
+
+    @Override
+    public FloatColumnSelector makeFloatColumnSelector(String columnName)
+    {
+      return ColumnSelectors.asFloat(makeObjectColumnSelector(columnName));
+    }
+
+    @Override
+    public DoubleColumnSelector makeDoubleColumnSelector(String columnName)
+    {
+      return ColumnSelectors.asDouble(makeObjectColumnSelector(columnName));
+    }
+
+    @Override
+    public LongColumnSelector makeLongColumnSelector(String columnName)
+    {
+      return ColumnSelectors.asLong(makeObjectColumnSelector(columnName));
+    }
+
+    @Override
+    @SuppressWarnings("unchecked")
+    public <T> ObjectColumnSelector<T> makeObjectColumnSelector(final String columnName)
+    {
+      final ValueDesc resolved = resolver.resolveColumn(columnName);
+      if (resolver.isDimension(columnName) || resolver.isMetric(columnName)) {
+        return new ObjectColumnSelector()
+        {
+          @Override
+          public Object get()
+          {
+            return in.get().getRaw(columnName);
+          }
+
+          @Override
+          public ValueDesc type()
+          {
+            return resolved;
+          }
+        };
+      }
+      return resolver.resolveVC(columnName).asMetric(columnName, this);
     }
 
     @Override
@@ -335,9 +398,11 @@ public class ColumnSelectorFactories
     }
   }
 
-  // it's stupid
-  public static final class FromInputRow extends AbstractFromRow
+  // it's super stupid
+  public static final class FromInputRow extends ColumnSelectorFactory.ExprSupport
   {
+    private final Supplier<Row> in;
+    private final boolean deserializeComplexMetrics;
     private final Set<String> required;
     private final ValueDesc valueDesc;
 
@@ -347,163 +412,10 @@ public class ColumnSelectorFactories
         boolean deserializeComplexMetrics
     )
     {
-      super(in, deserializeComplexMetrics);
-      this.valueDesc = ValueDesc.of(factory.getInputTypeName());
-      this.required = Sets.newHashSet(factory.requiredFields());
-    }
-
-    @Override
-    public ValueDesc getColumnType(String columnName)
-    {
-      return required.contains(columnName) ? valueDesc : null;
-    }
-  }
-
-  // Caches references to selector objects for each column instead of creating a new object each time in order to save heap space.
-  // In general the selectorFactory need not to thread-safe.
-  // here its made thread safe to support the special case of groupBy where the multiple threads can add concurrently to the IncrementalIndex.
-  public static class Caching extends Delegated
-  {
-    private final Map<String, LongColumnSelector> longColumnSelectorMap = Maps.newConcurrentMap();
-    private final Map<String, FloatColumnSelector> floatColumnSelectorMap = Maps.newConcurrentMap();
-    private final Map<String, DoubleColumnSelector> doubleColumnSelectorMap = Maps.newConcurrentMap();
-    private final Map<String, ObjectColumnSelector> objectColumnSelectorMap = Maps.newConcurrentMap();
-    private final Map<String, ExprEvalColumnSelector> exprColumnSelectorMap = Maps.newConcurrentMap();
-
-    private final Function<String, LongColumnSelector> LONG = new Function<String, LongColumnSelector>()
-    {
-      @Override
-      public LongColumnSelector apply(String columnName)
-      {
-        return delegate.makeLongColumnSelector(columnName);
-      }
-    };
-    private final Function<String, FloatColumnSelector> FLOAT = new Function<String, FloatColumnSelector>()
-    {
-      @Override
-      public FloatColumnSelector apply(String columnName)
-      {
-        return delegate.makeFloatColumnSelector(columnName);
-      }
-    };
-    private final Function<String, DoubleColumnSelector> DOUBLE = new Function<String, DoubleColumnSelector>()
-    {
-      @Override
-      public DoubleColumnSelector apply(String columnName)
-      {
-        return delegate.makeDoubleColumnSelector(columnName);
-      }
-    };
-    private final Function<String, ObjectColumnSelector> OBJECT = new Function<String, ObjectColumnSelector>()
-    {
-      @Override
-      public ObjectColumnSelector apply(String columnName)
-      {
-        return delegate.makeObjectColumnSelector(columnName);
-      }
-    };
-    private final Function<String, ExprEvalColumnSelector> EXPR = new Function<String, ExprEvalColumnSelector>()
-    {
-      @Override
-      public ExprEvalColumnSelector apply(String expression)
-      {
-        return delegate.makeMathExpressionSelector(expression);
-      }
-    };
-
-    public Caching(ColumnSelectorFactory delegate)
-    {
-      super(delegate);
-    }
-
-    @Override
-    public FloatColumnSelector makeFloatColumnSelector(String columnName)
-    {
-      return floatColumnSelectorMap.computeIfAbsent(columnName, FLOAT);
-    }
-
-    @Override
-    public DoubleColumnSelector makeDoubleColumnSelector(String columnName)
-    {
-      return doubleColumnSelectorMap.computeIfAbsent(columnName, DOUBLE);
-    }
-
-    @Override
-    public LongColumnSelector makeLongColumnSelector(String columnName)
-    {
-      return longColumnSelectorMap.computeIfAbsent(columnName, LONG);
-    }
-
-    @Override
-    public ObjectColumnSelector makeObjectColumnSelector(String columnName)
-    {
-      return objectColumnSelectorMap.computeIfAbsent(columnName, OBJECT);
-    }
-
-    @Override
-    public ExprEvalColumnSelector makeMathExpressionSelector(String expression)
-    {
-      return exprColumnSelectorMap.computeIfAbsent(expression, EXPR);
-    }
-
-    public ColumnSelectorFactory asReadOnly(AggregatorFactory... factories)
-    {
-      for (AggregatorFactory factory : factories) {
-        factory.factorize(this);
-      }
-      final Map<String, LongColumnSelector> longColumnSelectorMap = ImmutableMap.copyOf(this.longColumnSelectorMap);
-      final Map<String, FloatColumnSelector> floatColumnSelectorMap = ImmutableMap.copyOf(this.floatColumnSelectorMap);
-      final Map<String, DoubleColumnSelector> doubleColumnSelectorMap = ImmutableMap.copyOf(this.doubleColumnSelectorMap);
-      final Map<String, ObjectColumnSelector> objectColumnSelectorMap = ImmutableMap.copyOf(this.objectColumnSelectorMap);
-      final Map<String, ExprEvalColumnSelector> exprColumnSelectorMap = ImmutableMap.copyOf(this.exprColumnSelectorMap);
-
-      return new Delegated(delegate)
-      {
-        @Override
-        public FloatColumnSelector makeFloatColumnSelector(String columnName)
-        {
-          return floatColumnSelectorMap.get(columnName);
-        }
-
-        @Override
-        public DoubleColumnSelector makeDoubleColumnSelector(String columnName)
-        {
-          return doubleColumnSelectorMap.get(columnName);
-        }
-
-        @Override
-        public LongColumnSelector makeLongColumnSelector(String columnName)
-        {
-          return longColumnSelectorMap.get(columnName);
-        }
-
-        @Override
-        public ObjectColumnSelector makeObjectColumnSelector(String columnName)
-        {
-          return objectColumnSelectorMap.get(columnName);
-        }
-
-        @Override
-        public ExprEvalColumnSelector makeMathExpressionSelector(String expression)
-        {
-          return exprColumnSelectorMap.get(expression);
-        }
-      };
-    }
-  }
-
-  public static abstract class AbstractFromRow extends ColumnSelectorFactory.ExprSupport
-  {
-    private final Supplier<Row> in;
-    private final boolean deserializeComplexMetrics;
-
-    public AbstractFromRow(
-        final Supplier<Row> in,
-        final boolean deserializeComplexMetrics
-    )
-    {
       this.in = in;
       this.deserializeComplexMetrics = deserializeComplexMetrics;
+      this.valueDesc = ValueDesc.of(factory.getInputTypeName());
+      this.required = Sets.newHashSet(factory.requiredFields());
     }
 
     @Override
@@ -556,7 +468,8 @@ public class ColumnSelectorFactories
     }
 
     @Override
-    public ObjectColumnSelector makeObjectColumnSelector(final String column)
+    @SuppressWarnings("unchecked")
+    public<T> ObjectColumnSelector<T> makeObjectColumnSelector(final String column)
     {
       if (Column.TIME_COLUMN_NAME.equals(column)) {
         return new ObjectColumnSelector()
@@ -737,5 +650,273 @@ public class ColumnSelectorFactories
         }
       };
     }
+
+    @Override
+    public ValueDesc getColumnType(String columnName)
+    {
+      return required.contains(columnName) ? valueDesc : null;
+    }
+  }
+
+  // Caches references to selector objects for each column instead of creating a new object each time in order to save heap space.
+  // In general the selectorFactory need not to thread-safe.
+  // here its made thread safe to support the special case of groupBy where the multiple threads can add concurrently to the IncrementalIndex.
+  public static class Caching extends Delegated
+  {
+    private final Map<String, LongColumnSelector> longColumnSelectorMap = Maps.newConcurrentMap();
+    private final Map<String, FloatColumnSelector> floatColumnSelectorMap = Maps.newConcurrentMap();
+    private final Map<String, DoubleColumnSelector> doubleColumnSelectorMap = Maps.newConcurrentMap();
+    private final Map<String, ObjectColumnSelector> objectColumnSelectorMap = Maps.newConcurrentMap();
+    private final Map<String, ExprEvalColumnSelector> exprColumnSelectorMap = Maps.newConcurrentMap();
+
+    private final Function<String, LongColumnSelector> LONG = new Function<String, LongColumnSelector>()
+    {
+      @Override
+      public LongColumnSelector apply(String columnName)
+      {
+        return delegate.makeLongColumnSelector(columnName);
+      }
+    };
+    private final Function<String, FloatColumnSelector> FLOAT = new Function<String, FloatColumnSelector>()
+    {
+      @Override
+      public FloatColumnSelector apply(String columnName)
+      {
+        return delegate.makeFloatColumnSelector(columnName);
+      }
+    };
+    private final Function<String, DoubleColumnSelector> DOUBLE = new Function<String, DoubleColumnSelector>()
+    {
+      @Override
+      public DoubleColumnSelector apply(String columnName)
+      {
+        return delegate.makeDoubleColumnSelector(columnName);
+      }
+    };
+    private final Function<String, ObjectColumnSelector> OBJECT = new Function<String, ObjectColumnSelector>()
+    {
+      @Override
+      public ObjectColumnSelector apply(String columnName)
+      {
+        return delegate.makeObjectColumnSelector(columnName);
+      }
+    };
+    private final Function<String, ExprEvalColumnSelector> EXPR = new Function<String, ExprEvalColumnSelector>()
+    {
+      @Override
+      public ExprEvalColumnSelector apply(String expression)
+      {
+        return delegate.makeMathExpressionSelector(expression);
+      }
+    };
+
+    public Caching(ColumnSelectorFactory delegate)
+    {
+      super(delegate);
+    }
+
+    @Override
+    public FloatColumnSelector makeFloatColumnSelector(String columnName)
+    {
+      return floatColumnSelectorMap.computeIfAbsent(columnName, FLOAT);
+    }
+
+    @Override
+    public DoubleColumnSelector makeDoubleColumnSelector(String columnName)
+    {
+      return doubleColumnSelectorMap.computeIfAbsent(columnName, DOUBLE);
+    }
+
+    @Override
+    public LongColumnSelector makeLongColumnSelector(String columnName)
+    {
+      return longColumnSelectorMap.computeIfAbsent(columnName, LONG);
+    }
+
+    @Override
+    public ObjectColumnSelector makeObjectColumnSelector(String columnName)
+    {
+      return objectColumnSelectorMap.computeIfAbsent(columnName, OBJECT);
+    }
+
+    @Override
+    public ExprEvalColumnSelector makeMathExpressionSelector(String expression)
+    {
+      return exprColumnSelectorMap.computeIfAbsent(expression, EXPR);
+    }
+
+    public ColumnSelectorFactory asReadOnly(AggregatorFactory... factories)
+    {
+      for (AggregatorFactory factory : factories) {
+        factory.factorize(this);
+      }
+      final Map<String, LongColumnSelector> longColumnSelectorMap = ImmutableMap.copyOf(this.longColumnSelectorMap);
+      final Map<String, FloatColumnSelector> floatColumnSelectorMap = ImmutableMap.copyOf(this.floatColumnSelectorMap);
+      final Map<String, DoubleColumnSelector> doubleColumnSelectorMap = ImmutableMap.copyOf(this.doubleColumnSelectorMap);
+      final Map<String, ObjectColumnSelector> objectColumnSelectorMap = ImmutableMap.copyOf(this.objectColumnSelectorMap);
+      final Map<String, ExprEvalColumnSelector> exprColumnSelectorMap = ImmutableMap.copyOf(this.exprColumnSelectorMap);
+
+      return new Delegated(delegate)
+      {
+        @Override
+        public FloatColumnSelector makeFloatColumnSelector(String columnName)
+        {
+          return floatColumnSelectorMap.get(columnName);
+        }
+
+        @Override
+        public DoubleColumnSelector makeDoubleColumnSelector(String columnName)
+        {
+          return doubleColumnSelectorMap.get(columnName);
+        }
+
+        @Override
+        public LongColumnSelector makeLongColumnSelector(String columnName)
+        {
+          return longColumnSelectorMap.get(columnName);
+        }
+
+        @Override
+        public ObjectColumnSelector makeObjectColumnSelector(String columnName)
+        {
+          return objectColumnSelectorMap.get(columnName);
+        }
+
+        @Override
+        public ExprEvalColumnSelector makeMathExpressionSelector(String expression)
+        {
+          return exprColumnSelectorMap.get(expression);
+        }
+      };
+    }
+  }
+
+  @SuppressWarnings("unchecked")
+  public static Cursor toCursor(Sequence<Row> sequence, Schema schema, Query query)
+  {
+    final Iterator<Row> iterator = Sequences.toIterator(sequence);
+    if (!iterator.hasNext()) {
+      return null;
+    }
+    final RowResolver resolver = RowResolver.of(schema, BaseQuery.getVirtualColumns(query));
+    final DSuppliers.HandOver<Row> supplier = new DSuppliers.HandOver<Row>();
+    final ColumnSelectorFactory factory = new ColumnSelectorFactories.FromRow(supplier, resolver);
+
+    final ValueMatcher matcher;
+    DimFilter filter = BaseQuery.getDimFilter(query);
+    if (filter == null) {
+      matcher = ValueMatcher.TRUE;
+    } else {
+      matcher = filter.toFilter().makeMatcher(factory);
+    }
+    supplier.set(iterator.next());
+    while (!matcher.matches() && iterator.hasNext()) {
+      supplier.set(iterator.next());
+    }
+    if (!matcher.matches()) {
+      return null;
+    }
+
+    return new Cursor()
+    {
+      private boolean done;
+
+      @Override
+      public DateTime getTime()
+      {
+        // todo: this is semantically not consistent with others
+        return supplier.get().getTimestamp();
+      }
+
+      @Override
+      public void advance()
+      {
+        while (iterator.hasNext()) {
+          supplier.set(iterator.next());
+          if (matcher.matches()) {
+            return;
+          }
+        }
+        done = true;
+      }
+
+      @Override
+      public void advanceTo(int offset)
+      {
+        throw new UnsupportedOperationException("advanceTo");
+      }
+
+      @Override
+      public boolean isDone()
+      {
+        return done;
+      }
+
+      @Override
+      public void reset()
+      {
+        throw new UnsupportedOperationException("reset");
+      }
+
+      @Override
+      public RowResolver resolver()
+      {
+        return resolver;
+      }
+
+      @Override
+      public Iterable<String> getColumnNames()
+      {
+        return factory.getColumnNames();
+      }
+
+      @Override
+      public DimensionSelector makeDimensionSelector(DimensionSpec dimensionSpec)
+      {
+        return factory.makeDimensionSelector(dimensionSpec);
+      }
+
+      @Override
+      public FloatColumnSelector makeFloatColumnSelector(String columnName)
+      {
+        return factory.makeFloatColumnSelector(columnName);
+      }
+
+      @Override
+      public DoubleColumnSelector makeDoubleColumnSelector(String columnName)
+      {
+        return factory.makeDoubleColumnSelector(columnName);
+      }
+
+      @Override
+      public LongColumnSelector makeLongColumnSelector(String columnName)
+      {
+        return factory.makeLongColumnSelector(columnName);
+      }
+
+      @Override
+      public <T> ObjectColumnSelector<T> makeObjectColumnSelector(String columnName)
+      {
+        return factory.makeObjectColumnSelector(columnName);
+      }
+
+      @Override
+      public ExprEvalColumnSelector makeMathExpressionSelector(String expression)
+      {
+        return factory.makeMathExpressionSelector(expression);
+      }
+
+      @Override
+      public ValueMatcher makePredicateMatcher(DimFilter filter)
+      {
+        return factory.makePredicateMatcher(filter);
+      }
+
+      @Override
+      public ValueDesc getColumnType(String columnName)
+      {
+        return factory.getColumnType(columnName);
+      }
+    };
   }
 }

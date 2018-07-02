@@ -30,9 +30,8 @@ import io.druid.query.QueryRunner;
 import io.druid.query.QuerySegmentWalker;
 import io.druid.query.QueryToolChest;
 import io.druid.query.TabularFormat;
-import io.druid.query.spec.MultipleIntervalSegmentSpec;
-import io.druid.segment.Segment;
-import org.joda.time.Interval;
+import io.druid.segment.Cursor;
+import org.apache.commons.lang.mutable.MutableInt;
 
 import java.util.List;
 import java.util.Map;
@@ -121,29 +120,15 @@ public class StreamRawQueryToolChest extends QueryToolChest<Object[], StreamRawQ
       final int maxRowCount
   )
   {
-    return new SubQueryRunner<I>(subQueryRunner, segmentWalker, executor, maxRowCount)
+    return new StreamingSubQueryRunner<I>(subQueryRunner, segmentWalker, executor)
     {
       @Override
-      protected Function<Interval, Sequence<Object[]>> function(
-          final Query<Object[]> query, Map<String, Object> context,
-          final Segment segment
+      protected final Function<Cursor, Sequence<Object[]>> converter(
+          Query<Object[]> outerQuery,
+          Cursor cursor
       )
       {
-        final StreamQueryEngine engine = new StreamQueryEngine();
-        final StreamRawQuery outerQuery = (StreamRawQuery) query;
-        return new Function<Interval, Sequence<Object[]>>()
-        {
-          @Override
-          public Sequence<Object[]> apply(Interval interval)
-          {
-            return engine.process(
-                outerQuery.withQuerySegmentSpec(MultipleIntervalSegmentSpec.of(interval)),
-                segment,
-                null,
-                null
-            );
-          }
-        };
+        return StreamQueryEngine.converter((StreamRawQuery) outerQuery, new MutableInt());
       }
     };
   }

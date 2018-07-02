@@ -33,6 +33,9 @@ import com.metamx.emitter.service.ServiceMetricEvent;
 import io.druid.data.input.Row;
 import io.druid.query.aggregation.MetricManipulationFn;
 import io.druid.query.groupby.GroupByQueryHelper;
+import io.druid.query.select.Schema;
+import io.druid.segment.ColumnSelectorFactories;
+import io.druid.segment.Cursor;
 import io.druid.segment.IncrementalIndexSegment;
 import io.druid.segment.Segment;
 import io.druid.segment.Segments;
@@ -295,9 +298,11 @@ public abstract class QueryToolChest<ResultType, QueryType extends Query<ResultT
       if (accumulated.isEmpty()) {
         return Sequences.empty();
       }
-      List<String> dataSources = query.getDataSource().getNames();
+      query = QueryUtils.resolveQuery(query, segmentWalker);
 
+      List<String> dataSources = query.getDataSource().getNames();
       query = query.withDataSource(TableDataSource.of(StringUtils.join(dataSources, '_')));
+
       String dataSource = Iterables.getOnlyElement(query.getDataSource().getNames());
       StorageAdapter adapter = new IncrementalIndexStorageAdapter.Temporary(dataSource, accumulated);
       Segment segment = new IncrementalIndexSegment(accumulated, adapter.getSegmentIdentifier());
@@ -327,7 +332,7 @@ public abstract class QueryToolChest<ResultType, QueryType extends Query<ResultT
           (System.currentTimeMillis() - start),
           accumulated.size()
       );
-      dataSource.setSchema(schema.asSchema());   // will be used to resolve schema of outer query
+      dataSource.setSchema(schema.asSchema(false));   // will be used to resolve schema of outer query
       return accumulated;
     }
 
@@ -340,10 +345,35 @@ public abstract class QueryToolChest<ResultType, QueryType extends Query<ResultT
     }
 
     protected abstract Function<Interval, Sequence<ResultType>> function(
-        Query<ResultType> query,
-        Map<String, Object> context,
-        Segment segment
+        Query<ResultType> query, Map<String, Object> context, Segment segment
     );
+
+    @SuppressWarnings("unchecked")
+    public Sequence<ResultType> runStreaming(Query<ResultType> query, Map<String, Object> responseContext)
+    {
+      QueryDataSource dataSource = (QueryDataSource) query.getDataSource();
+
+      Query<I> subQuery = dataSource.getQuery();
+      Schema schema = Queries.relaySchema(subQuery, segmentWalker).asSchema(false);
+      dataSource.setSchema(schema);   // will be used to resolve schema of outer query
+
+      query = QueryUtils.resolveQuery(query, segmentWalker);
+
+      Sequence<Row> sequence = Queries.convertToRow(subQuery, subQueryRunner.run(subQuery, responseContext));
+      Cursor cursor = ColumnSelectorFactories.toCursor(sequence, schema, query);
+      if (cursor == null) {
+        return Sequences.empty();
+      }
+      return converter(query, cursor).apply(cursor);
+    }
+
+    protected Function<Cursor, Sequence<ResultType>> converter(
+        Query<ResultType> outerQuery,
+        Cursor cursor
+    )
+    {
+      throw new UnsupportedOperationException("streaming sub-query handler");
+    }
 
     protected final void close(Segment segment)
     {
@@ -354,5 +384,38 @@ public abstract class QueryToolChest<ResultType, QueryType extends Query<ResultT
         throw Throwables.propagate(e);
       }
     }
+  }
+
+  // streaming only version
+  public abstract class StreamingSubQueryRunner<I> extends SubQueryRunner<I>
+  {
+    protected StreamingSubQueryRunner(
+        QueryRunner<I> subQueryRunner,
+        QuerySegmentWalker segmentWalker,
+        ExecutorService executor
+    )
+    {
+      super(subQueryRunner, segmentWalker, executor, -1);
+    }
+
+    @Override
+    public Sequence<ResultType> run(Query<ResultType> query, Map<String, Object> responseContext)
+    {
+      return runStreaming(query, responseContext);
+    }
+
+    @Override
+    protected Function<Interval, Sequence<ResultType>> function(
+        Query<ResultType> query, Map<String, Object> context, Segment segment
+    )
+    {
+      throw new UnsupportedOperationException("sub-query handler");
+    }
+
+    @Override
+    protected abstract Function<Cursor, Sequence<ResultType>> converter(
+        Query<ResultType> outerQuery,
+        Cursor cursor
+    );
   }
 }

@@ -46,7 +46,7 @@ public class QueryDataSource implements DataSource
   }
 
   @JsonProperty
-  public Query getQuery()
+  public <T> Query<T> getQuery()
   {
     return query;
   }

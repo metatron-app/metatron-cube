@@ -292,23 +292,25 @@ public class QueryUtils
     );
   }
 
-  public static Query resolveQuery(Query query, QuerySegmentWalker segmentWalker)
+  @SuppressWarnings("unchecked")
+  public static <T> Query<T> resolveQuery(Query<T> query, QuerySegmentWalker segmentWalker)
   {
-    if (query.getDataSource() instanceof QueryDataSource) {
+    DataSource dataSource = query.getDataSource();
+    if (dataSource instanceof QueryDataSource && ((QueryDataSource) dataSource).getSchema() == null) {
       // cannot be resolved before sub-query is executed
       return query;
     }
     ViewDataSource view = ViewDataSource.of("dummy");
-    if (query.getDataSource() instanceof ViewDataSource) {
-      view = (ViewDataSource) query.getDataSource();
+    if (dataSource instanceof ViewDataSource) {
+      view = (ViewDataSource) dataSource;
       query = query.withDataSource(TableDataSource.of(view.getName()));
     }
     if (query instanceof Query.VCSupport && !view.getVirtualColumns().isEmpty()) {
-      Query.VCSupport<?> vcSupport = (Query.VCSupport) query;
+      Query.VCSupport<T> vcSupport = (Query.VCSupport) query;
       query = vcSupport.withVirtualColumns(GuavaUtils.concat(view.getVirtualColumns(), vcSupport.getVirtualColumns()));
     }
     if (query instanceof Query.DimFilterSupport && view.getFilter() != null) {
-      Query.DimFilterSupport<?> filterSupport = (Query.DimFilterSupport) query;
+      Query.DimFilterSupport<T> filterSupport = (Query.DimFilterSupport) query;
       query = filterSupport.withDimFilter(DimFilters.and(view.getFilter(), filterSupport.getDimFilter()));
     }
 
@@ -316,7 +318,7 @@ public class QueryUtils
     query = query.resolveQuery(schema);
 
     if (query instanceof Query.ColumnsSupport) {
-      Query.ColumnsSupport<?> columnsSupport = (Query.ColumnsSupport) query;
+      Query.ColumnsSupport<T> columnsSupport = (Query.ColumnsSupport) query;
       if (GuavaUtils.isNullOrEmpty(columnsSupport.getColumns())) {
         query = view.getColumns().isEmpty() ?
                 columnsSupport.withColumns(schema.get().getColumnNames()) :
@@ -324,7 +326,7 @@ public class QueryUtils
       }
     }
     if (query instanceof Query.DimensionSupport) {
-      Query.DimensionSupport<?> dimSupport = (Query.DimensionSupport) query;
+      Query.DimensionSupport<T> dimSupport = (Query.DimensionSupport) query;
       if (dimSupport.getDimensions().isEmpty() && dimSupport.allDimensionsForEmpty()) {
         List<String> dimensions = GuavaUtils.retain(schema.get().getDimensionNames(), view.getColumns());
         query = dimSupport.withDimensionSpecs(DefaultDimensionSpec.toSpec(dimensions));

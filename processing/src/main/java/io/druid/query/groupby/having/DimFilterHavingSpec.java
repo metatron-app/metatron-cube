@@ -24,8 +24,8 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Predicate;
 import io.druid.common.guava.DSuppliers;
-import io.druid.data.TypeResolver;
 import io.druid.data.input.Row;
+import io.druid.query.RowResolver;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.filter.DimFilter;
 import io.druid.query.filter.ValueMatcher;
@@ -54,12 +54,12 @@ public class DimFilterHavingSpec implements HavingSpec
   }
 
   @Override
-  public Predicate<Row> toEvaluator(TypeResolver resolver, List<AggregatorFactory> aggregators)
+  public Predicate<Row> toEvaluator(RowResolver resolver, List<AggregatorFactory> aggregators)
   {
     final DSuppliers.HandOver<Row> supplier = new DSuppliers.HandOver<>();
     final ValueMatcher matcher =
         dimFilter.toFilter().makeMatcher(
-            new ColumnSelectorFactories.FromRow(supplier, resolver, true)
+            new ColumnSelectorFactories.FromRow(supplier, resolver)
         );
     return new Predicate<Row>()
     {

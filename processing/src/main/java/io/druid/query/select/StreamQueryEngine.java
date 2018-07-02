@@ -22,7 +22,6 @@ package io.druid.query.select;
 import com.google.common.base.Function;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Iterables;
-import com.google.common.collect.Lists;
 import com.google.common.collect.Ordering;
 import com.google.common.util.concurrent.Futures;
 import com.metamx.common.ISE;
@@ -110,11 +109,7 @@ public class StreamQueryEngine
     List<Interval> intervals = query.getQuerySegmentSpec().getIntervals();
     Preconditions.checkArgument(intervals.size() == 1, "Can only handle a single interval, got[%s]", intervals);
 
-    final int limit = query.getLimit();
-    final String concatString = query.getConcatString();
-
     final RowResolver resolver = Segments.getResolver(segment, query);
-    final List<String> columns = Lists.newArrayList(query.getColumns());
 
     @SuppressWarnings("unchecked")
     final MutableInt counter = Futures.<MutableInt>getUnchecked(optimizer);
@@ -128,62 +123,75 @@ public class StreamQueryEngine
             cache,
             query.isDescending(),
             query.getGranularity(),
-            new Function<Cursor, Sequence<Object[]>>()
-            {
-              @Override
-              public Sequence<Object[]> apply(final Cursor cursor)
-              {
-                int index = 0;
-                final ObjectColumnSelector[] selectors = new ObjectColumnSelector[columns.size()];
-                for (String column : columns) {
-                  if (resolver.isDimension(column)) {
-                    DimensionSelector selector = cursor.makeDimensionSelector(DefaultDimensionSpec.of(column));
-                    if (concatString != null) {
-                      selectors[index++] = ColumnSelectors.asConcatValued(selector, concatString);
-                    } else {
-                      selectors[index++] = ColumnSelectors.asMultiValued(selector);
-                    }
-                  } else {
-                    selectors[index++] = cursor.makeObjectColumnSelector(column);
-                  }
-                }
-
-                return Sequences.simple(
-                    new Iterable<Object[]>()
-                    {
-                      @Override
-                      public Iterator<Object[]> iterator()
-                      {
-                        return new Iterator<Object[]>()
-                        {
-                          @Override
-                          public boolean hasNext()
-                          {
-                            return !cursor.isDone() && (limit <= 0 || counter.intValue() < limit);
-                          }
-
-                          @Override
-                          public Object[] next()
-                          {
-                            final Object[] theEvent = new Object[selectors.length];
-
-                            int index = 0;
-                            for (ObjectColumnSelector selector : selectors) {
-                              theEvent[index++] = selector == null ? null : selector.get();
-                            }
-                            counter.increment();
-                            cursor.advance();
-                            return theEvent;
-                          }
-                        };
-                      }
-                    }
-                );
-              }
-            }
+            converter(query, counter)
         )
     );
 
-    return Pair.of(resolver.toSubSchema(columns), sequence);
+    return Pair.of(resolver.toSubSchema(query.getColumns()), sequence);
+  }
+
+  public static Function<Cursor, Sequence<Object[]>> converter(
+      final AbstractStreamQuery<?> query,
+      final MutableInt counter
+  )
+  {
+    return new Function<Cursor, Sequence<Object[]>>()
+    {
+      private final String[] columns = query.getColumns().toArray(new String[0]);
+      private final String concatString = query.getConcatString();
+      private final int limit = query.getLimit();
+
+      @Override
+      public Sequence<Object[]> apply(final Cursor cursor)
+      {
+        int index = 0;
+        final RowResolver resolver = cursor.resolver();
+        final ObjectColumnSelector[] selectors = new ObjectColumnSelector[columns.length];
+        for (String column : columns) {
+          if (resolver.isDimension(column)) {
+            DimensionSelector selector = cursor.makeDimensionSelector(DefaultDimensionSpec.of(column));
+            if (concatString != null) {
+              selectors[index++] = ColumnSelectors.asConcatValued(selector, concatString);
+            } else {
+              selectors[index++] = ColumnSelectors.asMultiValued(selector);
+            }
+          } else {
+            selectors[index++] = cursor.makeObjectColumnSelector(column);
+          }
+        }
+
+        return Sequences.simple(
+            new Iterable<Object[]>()
+            {
+              @Override
+              public Iterator<Object[]> iterator()
+              {
+                return new Iterator<Object[]>()
+                {
+                  @Override
+                  public boolean hasNext()
+                  {
+                    return !cursor.isDone() && (limit <= 0 || counter.intValue() < limit);
+                  }
+
+                  @Override
+                  public Object[] next()
+                  {
+                    final Object[] theEvent = new Object[selectors.length];
+
+                    int index = 0;
+                    for (ObjectColumnSelector selector : selectors) {
+                      theEvent[index++] = selector == null ? null : selector.get();
+                    }
+                    counter.increment();
+                    cursor.advance();
+                    return theEvent;
+                  }
+                };
+              }
+            }
+        );
+      }
+    };
   }
 }

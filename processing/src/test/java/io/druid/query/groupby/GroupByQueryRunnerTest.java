@@ -34,7 +34,6 @@ import com.metamx.common.guava.MergeSequence;
 import com.metamx.common.guava.Sequence;
 import com.metamx.common.guava.Sequences;
 import io.druid.common.guava.GuavaUtils;
-import io.druid.data.TypeResolver;
 import io.druid.data.input.Row;
 import io.druid.granularity.Granularities;
 import io.druid.granularity.PeriodGranularity;
@@ -53,6 +52,7 @@ import io.druid.query.QueryRunnerFactory;
 import io.druid.query.QueryRunnerTestHelper;
 import io.druid.query.QueryToolChest;
 import io.druid.query.Result;
+import io.druid.query.RowResolver;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.CountAggregatorFactory;
 import io.druid.query.aggregation.DoubleMaxAggregatorFactory;
@@ -3866,7 +3866,7 @@ public class GroupByQueryRunnerTest extends GroupByQueryRunnerTestHelper
             new HavingSpec()
             {
               @Override
-              public Predicate<Row> toEvaluator(TypeResolver resolver, List<AggregatorFactory> aggregators)
+              public Predicate<Row> toEvaluator(RowResolver resolver, List<AggregatorFactory> aggregators)
               {
                 return new Predicate<Row>()
                 {
@@ -4140,7 +4140,7 @@ public class GroupByQueryRunnerTest extends GroupByQueryRunnerTestHelper
             new HavingSpec()
             {
               @Override
-              public Predicate<Row> toEvaluator(TypeResolver resolver, List<AggregatorFactory> aggregators)
+              public Predicate<Row> toEvaluator(RowResolver resolver, List<AggregatorFactory> aggregators)
               {
                 return new Predicate<Row>()
                 {

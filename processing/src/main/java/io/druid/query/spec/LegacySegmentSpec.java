@@ -36,6 +36,17 @@ import java.util.Map;
  */
 public class LegacySegmentSpec extends MultipleIntervalSegmentSpec
 {
+  public static boolean coveredBy(QuerySegmentSpec spec1, QuerySegmentSpec spec2)
+  {
+    List<Interval> intervals1 = spec1.getIntervals();
+    List<Interval> intervals2 = spec2.getIntervals();
+    if (intervals1.size() == 1 && intervals2.size() == 1) {
+      return intervals2.get(0).contains(intervals1.get(0));
+    }
+    // todo
+    return intervals2.equals(intervals1);
+  }
+
   private static List<Interval> convertValue(Object intervals)
   {
     final List<?> intervalStringList;
