@@ -301,7 +301,7 @@ public class XJoinPostProcessor extends PostProcessingOperator.UnionSupport
           continue;
         case LO:
           if (compare < 0) {
-            Iterator<Object[]> lo = lo(leftAlias.outer(right.joinKey).rows, rightAlias.indices.length);
+            Iterator<Object[]> lo = lo(leftAlias.outer(right.joinKey).iterator(), rightAlias.indices.length);
             left = leftAlias.next();
             return lo;
           } else {
@@ -314,7 +314,7 @@ public class XJoinPostProcessor extends PostProcessingOperator.UnionSupport
             leftAlias.skip(right.joinKey);
             left = leftAlias.next();
           } else {
-            Iterator<Object[]> ro = ro(leftAlias.indices.length, rightAlias.outer(left.joinKey).rows);
+            Iterator<Object[]> ro = ro(leftAlias.indices.length, rightAlias.outer(left.joinKey).iterator());
             right = rightAlias.next();
             return ro;
           }
@@ -323,21 +323,21 @@ public class XJoinPostProcessor extends PostProcessingOperator.UnionSupport
           throw new UnsupportedOperationException("not supported type " + type);
       }
     }
-    if (type == JoinType.LO) {
-      for (; left != null; left = leftAlias.next()) {
-        lo(left.rows, rightAlias.indices.length);
-      }
-    } else if (type == JoinType.RO) {
-      for (; right != null; right = rightAlias.next()) {
-        ro(leftAlias.indices.length, right.rows);
-      }
+    if (type == JoinType.LO && left != null) {
+      Iterator<Object[]> lo = lo(Iterators.concat(left.iterator(), leftAlias.rows), rightAlias.indices.length);
+      left = null;
+      return lo;
+    } else if (type == JoinType.RO && right != null) {
+      Iterator<Object[]> ro = ro(leftAlias.indices.length, Iterators.concat(right.iterator(), rightAlias.rows));
+      right = null;
+      return ro;
     }
     left = null;
     right = null;
     return null;
   }
 
-  private static class Partition
+  private static class Partition implements Iterable<Object[]>
   {
     final Comparable[] joinKey;
     final List<Object[]> rows;
@@ -346,6 +346,12 @@ public class XJoinPostProcessor extends PostProcessingOperator.UnionSupport
     {
       this.joinKey = joinKey;
       this.rows = rows;
+    }
+
+    @Override
+    public Iterator<Object[]> iterator()
+    {
+      return rows.iterator();
     }
   }
 
@@ -463,10 +469,10 @@ public class XJoinPostProcessor extends PostProcessingOperator.UnionSupport
     };
   }
 
-  private Iterator<Object[]> lo(List<Object[]> left, final int right)
+  private Iterator<Object[]> lo(Iterator<Object[]> left, final int right)
   {
     return Iterators.transform(
-        left.iterator(), new Function<Object[], Object[]>()
+        left, new Function<Object[], Object[]>()
         {
           @Override
           public Object[] apply(Object[] row)
@@ -477,10 +483,10 @@ public class XJoinPostProcessor extends PostProcessingOperator.UnionSupport
     );
   }
 
-  private Iterator<Object[]> ro(final int left, List<Object[]> right)
+  private Iterator<Object[]> ro(final int left, Iterator<Object[]> right)
   {
     return Iterators.transform(
-        right.iterator(), new Function<Object[], Object[]>()
+        right, new Function<Object[], Object[]>()
         {
           @Override
           public Object[] apply(Object[] row)
