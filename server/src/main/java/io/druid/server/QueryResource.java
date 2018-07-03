@@ -121,6 +121,9 @@ public class QueryResource
   protected final ServerConfig config;
   protected final ObjectMapper jsonMapper;
   protected final ObjectMapper smileMapper;
+  protected final ObjectMapper jsonCustomMapper;
+  protected final ObjectMapper smileCustomMapper;
+
   protected final QuerySegmentWalker.Wrapper texasRanger;
   protected final ServiceEmitter emitter;
   protected final RequestLogger requestLogger;
@@ -152,7 +155,9 @@ public class QueryResource
   {
     this.config = config;
     this.jsonMapper = jsonMapper;
+    this.jsonCustomMapper = JodaStuff.overrideForInternal(jsonMapper);
     this.smileMapper = smileMapper;
+    this.smileCustomMapper = JodaStuff.overrideForInternal(smileMapper);
     this.emitter = emitter;
     this.eventEmitter = eventEmitter;
     this.requestLogger = requestLogger;
@@ -253,7 +258,7 @@ public class QueryResource
     final Thread currentThread = Thread.currentThread();
     final String currThreadName = currentThread.getName();
     try {
-      query = context.getInputMapper().readValue(in, Query.class);
+      query = context.getInputMapper(false).readValue(in, Query.class);
 
       Map<String, Object> adding = Maps.newHashMap();
       if (query.getId() == null) {
@@ -518,17 +523,16 @@ public class QueryResource
       return contentType;
     }
 
-    ObjectMapper getInputMapper()
+    ObjectMapper getInputMapper(boolean useCustomSerdeForDateTime)
     {
-      return isSmile ? smileMapper : jsonMapper;
+      return useCustomSerdeForDateTime ?
+             isSmile ? smileCustomMapper : jsonCustomMapper :
+             isSmile ? smileMapper : jsonMapper;
     }
 
     ObjectWriter getOutputWriter(boolean useCustomSerdeForDateTime)
     {
-      ObjectMapper mapper = getInputMapper();
-      if (useCustomSerdeForDateTime) {
-        mapper = JodaStuff.overrideForInternal(mapper);
-      }
+      ObjectMapper mapper = getInputMapper(useCustomSerdeForDateTime);
       return isPretty ? mapper.writerWithDefaultPrettyPrinter() : mapper.writer();
     }
 

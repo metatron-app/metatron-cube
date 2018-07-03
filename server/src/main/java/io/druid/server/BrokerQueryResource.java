@@ -182,7 +182,7 @@ public class BrokerQueryResource extends QueryResource
   {
     final RequestContext context = new RequestContext(req, pretty != null);
     try {
-      Query<?> query = context.getInputMapper().readValue(in, Query.class);
+      Query<?> query = context.getInputMapper(false).readValue(in, Query.class);
       return context.ok(getTargetLocations(query.getDataSource(), query.getIntervals()));
     }
     catch (Exception e) {
