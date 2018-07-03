@@ -176,13 +176,14 @@ public class WorkerTaskMonitor
   {
     // cleanup any old running task announcements which are invalid after restart
     for (TaskAnnouncement announcement : workerCuratorCoordinator.getAnnouncements()) {
-      if (!running.containsKey(announcement.getTaskStatus().getId()) && announcement.getTaskStatus().isRunnable()) {
-        log.info("Cleaning up stale announcement for task [%s].", announcement.getTaskStatus().getId());
+      TaskStatus status = announcement.getTaskStatus();
+      if (!running.containsKey(status.getId()) && status.isRunnable()) {
+        log.info("Cleaning up stale announcement for task [%s].", status.getId());
         workerCuratorCoordinator.updateTaskStatusAnnouncement(
             TaskAnnouncement.create(
-                announcement.getTaskStatus().getId(),
+                status.getId(),
                 announcement.getTaskResource(),
-                TaskStatus.failure(announcement.getTaskStatus().getId()),
+                TaskStatus.failure(status.getId(), status.getReason()),
                 TaskLocation.unknown()
             )
         );
@@ -255,7 +256,7 @@ public class WorkerTaskMonitor
           @Override
           public void onFailure(Throwable t)
           {
-            notices.add(new StatusNotice(task, TaskStatus.failure(task.getId())));
+            notices.add(new StatusNotice(task, TaskStatus.failure(task.getId(), t.toString())));
           }
         }
     );

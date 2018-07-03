@@ -1227,7 +1227,7 @@ public class KafkaIndexTaskTest
             }
             catch (Exception e) {
               log.warn(e, "Task failed");
-              return TaskStatus.failure(task.getId());
+              return TaskStatus.failure(task.getId(), e);
             }
           }
         }

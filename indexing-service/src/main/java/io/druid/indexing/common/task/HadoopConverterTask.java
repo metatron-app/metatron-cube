@@ -240,7 +240,7 @@ public class HadoopConverterTask extends ConvertSegmentTask
           loader
       );
       if (finishedSegmentString == null) {
-        return TaskStatus.failure(getId());
+        return TaskStatus.failure(getId(), "No segments");
       }
       final List<DataSegment> finishedSegments = HadoopDruidConverterConfig.jsonMapper.readValue(
           finishedSegmentString,

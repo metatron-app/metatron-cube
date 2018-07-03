@@ -76,6 +76,6 @@ public class DataSourceMetadataUpdateTask extends AbstractTask
                .submit(new DataSourceMetadataUpdateAction(dataSource, metaData))) {
       return TaskStatus.success(getId());
     }
-    return TaskStatus.failure(getId());
+    return TaskStatus.failure(getId(), "Failed to update datasource metadata");
   }
 }

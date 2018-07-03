@@ -243,7 +243,7 @@ public class HadoopIndexTask extends HadoopTask
       toolbox.publishSegments(publishedSegments);
       return TaskStatus.success(getId());
     } else {
-      return TaskStatus.failure(getId());
+      return TaskStatus.failure(getId(), "No segments found");
     }
   }
 

@@ -111,7 +111,7 @@ public class KafkaIndexTaskClientTest extends EasyMockSupport
   {
     reset(taskInfoProvider);
     expect(taskInfoProvider.getTaskLocation(TEST_ID)).andReturn(new TaskLocation(TEST_HOST, TEST_PORT)).anyTimes();
-    expect(taskInfoProvider.getTaskStatus(TEST_ID)).andReturn(Optional.of(TaskStatus.failure(TEST_ID))).anyTimes();
+    expect(taskInfoProvider.getTaskStatus(TEST_ID)).andReturn(Optional.of(TaskStatus.failure(TEST_ID, "test"))).anyTimes();
     replayAll();
 
     client.getCurrentOffsets(TEST_ID, true);

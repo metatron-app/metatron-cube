@@ -210,7 +210,7 @@ public class QueryInterruptedException extends RuntimeException
     }
   }
 
-  private static List<String> stackTrace(Throwable e)
+  public static List<String> stackTrace(Throwable e)
   {
     return stackTrace(e, Sets.<Throwable>newHashSet(), Lists.<String>newArrayList(), "");
   }

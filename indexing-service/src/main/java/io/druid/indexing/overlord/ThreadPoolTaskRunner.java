@@ -199,11 +199,15 @@ public class ThreadPoolTaskRunner implements TaskRunner, QuerySegmentWalker
              .emit();
           log.warn(e, "Graceful shutdown of task[%s] aborted with exception.", task.getId());
           error = true;
-          TaskRunnerUtils.notifyStatusChanged(listeners, task.getId(), TaskStatus.failure(task.getId()));
+          TaskRunnerUtils.notifyStatusChanged(listeners, task.getId(), TaskStatus.failure(task.getId(), e));
         }
       } else {
         graceful = false;
-        TaskRunnerUtils.notifyStatusChanged(listeners, task.getId(), TaskStatus.failure(task.getId()));
+        TaskRunnerUtils.notifyStatusChanged(
+            listeners,
+            task.getId(),
+            TaskStatus.failure(task.getId(), "shutdown task runner")
+        );
       }
 
       elapsed = System.currentTimeMillis() - start;
@@ -456,11 +460,11 @@ public class ThreadPoolTaskRunner implements TaskRunner, QuerySegmentWalker
           log.warn(e, "Interrupted while running task[%s]", task);
         }
 
-        status = TaskStatus.failure(task.getId());
+        status = TaskStatus.failure(task.getId(), e);
       }
       catch (Exception e) {
         log.error(e, "Exception while running task[%s]", task);
-        status = TaskStatus.failure(task.getId());
+        status = TaskStatus.failure(task.getId(), e);
       }
       catch (Throwable t) {
         log.error(t, "Uncaught Throwable while running task[%s]", task);

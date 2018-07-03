@@ -180,7 +180,7 @@ public abstract class MergeTaskBase extends AbstractFixedIntervalTask
          .addData("interval", mergedSegment.getInterval())
          .emit();
 
-      return TaskStatus.failure(getId());
+      return TaskStatus.failure(getId(), e);
     }
   }
 

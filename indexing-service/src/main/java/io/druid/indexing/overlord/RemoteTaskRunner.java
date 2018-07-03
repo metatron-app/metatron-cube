@@ -637,7 +637,7 @@ public class RemoteTaskRunner implements WorkerTaskRunner, TaskLogStreamer
                        .emit();
                     RemoteTaskRunnerWorkItem workItem = pendingTasks.remove(taskId);
                     if (workItem != null) {
-                      taskComplete(workItem, null, TaskStatus.failure(taskId));
+                      taskComplete(workItem, null, TaskStatus.failure(taskId, e));
                     }
                   }
                   finally {
@@ -855,7 +855,7 @@ public class RemoteTaskRunner implements WorkerTaskRunner, TaskLogStreamer
               elapsed,
               config.getTaskAssignmentTimeout()
           );
-          taskComplete(taskRunnerWorkItem, theZkWorker, TaskStatus.failure(task.getId()));
+          taskComplete(taskRunnerWorkItem, theZkWorker, TaskStatus.failure(task.getId(), "Assign timed-out"));
           break;
         }
       }
@@ -968,8 +968,9 @@ public class RemoteTaskRunner implements WorkerTaskRunner, TaskLogStreamer
                       taskRunnerWorkItem = runningTasks.remove(taskId);
                       if (taskRunnerWorkItem != null) {
                         log.info("Task[%s] just disappeared!", taskId);
-                        taskRunnerWorkItem.setResult(TaskStatus.failure(taskId));
-                        TaskRunnerUtils.notifyStatusChanged(listeners, taskId, TaskStatus.failure(taskId));
+                        TaskStatus status = TaskStatus.failure(taskId, "ZK-removed");
+                        taskRunnerWorkItem.setResult(status);
+                        TaskRunnerUtils.notifyStatusChanged(listeners, taskId, status);
                       } else {
                         log.info("Task[%s] went bye bye.", taskId);
                       }
@@ -1091,8 +1092,9 @@ public class RemoteTaskRunner implements WorkerTaskRunner, TaskLogStreamer
                 log.info("Failing task[%s]", assignedTask);
                 RemoteTaskRunnerWorkItem taskRunnerWorkItem = runningTasks.remove(assignedTask);
                 if (taskRunnerWorkItem != null) {
-                  taskRunnerWorkItem.setResult(TaskStatus.failure(assignedTask));
-                  TaskRunnerUtils.notifyStatusChanged(listeners, assignedTask, TaskStatus.failure(assignedTask));
+                  TaskStatus status = TaskStatus.failure(assignedTask, "cleanup");
+                  taskRunnerWorkItem.setResult(status);
+                  TaskRunnerUtils.notifyStatusChanged(listeners, assignedTask, status);
                 } else {
                   log.warn("RemoteTaskRunner has no knowledge of task[%s]", assignedTask);
                 }
@@ -1146,15 +1148,21 @@ public class RemoteTaskRunner implements WorkerTaskRunner, TaskLogStreamer
     Preconditions.checkNotNull(taskStatus, "taskStatus");
     if (zkWorker != null) {
       log.info(
-          "Worker[%s] completed task[%s] with status[%s]",
+          "Worker[%s] completed task[%s] with status[%s]%s",
           zkWorker.getWorker().getHost(),
           taskStatus.getId(),
-          taskStatus.getStatusCode()
+          taskStatus.getStatusCode(),
+          taskStatus.getReason() == null ? "" : ", reason[" + taskStatus.getReason() + "]"
       );
       // Worker is done with this task
       zkWorker.setLastCompletedTaskTime(new DateTime());
     } else {
-      log.info("Workerless task[%s] completed with status[%s]", taskStatus.getId(), taskStatus.getStatusCode());
+      log.info(
+          "Workerless task[%s] completed with status[%s]%s",
+          taskStatus.getId(),
+          taskStatus.getStatusCode(),
+          taskStatus.getReason() == null ? "" : ", reason[" + taskStatus.getReason() + "]"
+      );
     }
 
     // Move from running -> complete

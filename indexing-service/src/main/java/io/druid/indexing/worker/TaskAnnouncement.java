@@ -60,7 +60,7 @@ public class TaskAnnouncement
       this.taskStatus = taskStatus;
     } else {
       // Can be removed when backwards compat is no longer needed
-      this.taskStatus = TaskStatus.fromCode(taskId, status);
+      this.taskStatus = TaskStatus.fromCode(taskId, status, null);
     }
     this.taskResource = taskResource == null ? new TaskResource(this.taskStatus.getId(), 1) : taskResource;
     this.taskLocation = taskLocation == null ? TaskLocation.unknown() : taskLocation;

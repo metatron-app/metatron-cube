@@ -102,7 +102,7 @@ public class TestTasks
         Thread.sleep(1000);
       }
 
-      return TaskStatus.failure(getId());
+      return TaskStatus.failure(getId(), "test");
     }
   }
 }

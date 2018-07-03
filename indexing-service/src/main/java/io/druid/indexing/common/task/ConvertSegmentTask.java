@@ -238,7 +238,7 @@ public class ConvertSegmentTask extends AbstractFixedIntervalTask
     for (final Task subTask : generateSubTasks(getGroupId(), segmentsToUpdate, indexSpec, force, validate, getContext())) {
       final TaskStatus status = subTask.run(toolbox);
       if (!status.isSuccess()) {
-        return TaskStatus.fromCode(getId(), status.getStatusCode());
+        return TaskStatus.fromCode(getId(), status.getStatusCode(), status.getReason());
       }
     }
     return success();
