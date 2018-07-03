@@ -222,9 +222,7 @@ public class IndexGeneratorJob implements HadoopDruidIndexerJob.IndexingStatsPro
 
       boolean success = job.waitForCompletion(true);
 
-      Counter invalidRowCount = job.getCounters()
-                                   .findCounter(HadoopDruidIndexerConfig.IndexJobCounters.INVALID_ROW_COUNTER);
-      jobStats.setInvalidRowCount(invalidRowCount.getValue());
+      jobStats.setStats(job.getCounters());
 
       return success;
     }
@@ -956,21 +954,6 @@ public class IndexGeneratorJob implements HadoopDruidIndexerJob.IndexingStatsPro
       if (outDir == null) {
         throw new InvalidJobConfException("Output directory not set.");
       }
-    }
-  }
-
-  public static class IndexGeneratorStats
-  {
-    private long invalidRowCount = 0;
-
-    public long getInvalidRowCount()
-    {
-      return invalidRowCount;
-    }
-
-    public void setInvalidRowCount(long invalidRowCount)
-    {
-      this.invalidRowCount = invalidRowCount;
     }
   }
 }

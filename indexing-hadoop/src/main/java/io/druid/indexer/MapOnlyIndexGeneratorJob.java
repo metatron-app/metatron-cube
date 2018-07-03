@@ -29,7 +29,6 @@ import org.apache.hadoop.io.BytesWritable;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapreduce.Counter;
 import org.apache.hadoop.mapreduce.Job;
-import org.apache.hadoop.mapreduce.Mapper;
 import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
 import org.joda.time.Interval;
 
@@ -45,17 +44,17 @@ public class MapOnlyIndexGeneratorJob implements HadoopDruidIndexerJob.IndexingS
   private static final Logger log = new Logger(MapOnlyIndexGeneratorJob.class);
 
   private final HadoopDruidIndexerConfig config;
-  private IndexGeneratorJob.IndexGeneratorStats jobStats;
+  private IndexGeneratorStats jobStats;
 
   public MapOnlyIndexGeneratorJob(
       HadoopDruidIndexerConfig config
   )
   {
     this.config = config;
-    this.jobStats = new IndexGeneratorJob.IndexGeneratorStats();
+    this.jobStats = new IndexGeneratorStats();
   }
 
-  public IndexGeneratorJob.IndexGeneratorStats getJobStats()
+  public IndexGeneratorStats getJobStats()
   {
     return jobStats;
   }
@@ -98,9 +97,7 @@ public class MapOnlyIndexGeneratorJob implements HadoopDruidIndexerJob.IndexingS
 
       boolean success = job.waitForCompletion(true);
 
-      Counter invalidRowCount = job.getCounters()
-                                   .findCounter(HadoopDruidIndexerConfig.IndexJobCounters.INVALID_ROW_COUNTER);
-      jobStats.setInvalidRowCount(invalidRowCount.getValue());
+      jobStats.setStats(job.getCounters());
 
       return success;
     }

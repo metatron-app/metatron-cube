@@ -30,6 +30,7 @@ import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 import com.metamx.common.logger.Logger;
+import io.druid.common.guava.GuavaUtils;
 import io.druid.common.utils.JodaUtils;
 import io.druid.indexer.HadoopDruidDetermineConfigurationJob;
 import io.druid.indexer.HadoopDruidIndexerConfig;
@@ -276,7 +277,12 @@ public class HadoopIndexTask extends HadoopTask
 
       log.info("Starting a hadoop index generator job...");
       if (job.run()) {
-        return HadoopDruidIndexerConfig.JSON_MAPPER.writeValueAsString(job.getPublishedSegments());
+        List<DataSegment> publishedSegments = job.getPublishedSegments();
+        if (GuavaUtils.isNullOrEmpty(publishedSegments)) {
+          String stats = HadoopDruidIndexerConfig.JSON_MAPPER.writeValueAsString(job.getIndexJobStats());
+          throw new IllegalStateException("No segments found.. " + stats);
+        }
+        return HadoopDruidIndexerConfig.JSON_MAPPER.writeValueAsString(publishedSegments);
       }
 
       return null;

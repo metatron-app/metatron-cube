@@ -79,15 +79,15 @@ public class ReduceMergeIndexGeneratorJob implements HadoopDruidIndexerJob.Index
   private static final int DEFAULT_FS_BUFFER_SIZE = 1 << 18; // 256KB (from JobHelper)
 
   private final HadoopDruidIndexerConfig config;
-  private final IndexGeneratorJob.IndexGeneratorStats jobStats;
+  private final IndexGeneratorStats jobStats;
 
   public ReduceMergeIndexGeneratorJob(HadoopDruidIndexerConfig config)
   {
     this.config = config;
-    this.jobStats = new IndexGeneratorJob.IndexGeneratorStats();
+    this.jobStats = new IndexGeneratorStats();
   }
 
-  public IndexGeneratorJob.IndexGeneratorStats getJobStats()
+  public IndexGeneratorStats getJobStats()
   {
     return jobStats;
   }
@@ -136,9 +136,7 @@ public class ReduceMergeIndexGeneratorJob implements HadoopDruidIndexerJob.Index
 
       boolean success = job.waitForCompletion(true);
 
-      Counter invalidRowCount = job.getCounters()
-                                   .findCounter(HadoopDruidIndexerConfig.IndexJobCounters.INVALID_ROW_COUNTER);
-      jobStats.setInvalidRowCount(invalidRowCount.getValue());
+      jobStats.setStats(job.getCounters());
 
       return success;
     }
