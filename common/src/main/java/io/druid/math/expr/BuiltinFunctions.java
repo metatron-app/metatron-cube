@@ -291,6 +291,26 @@ public interface BuiltinFunctions extends Function.Library
     }
   }
 
+  @Function.Named("array.string")
+  class StringArray extends Function.NamedFunction
+  {
+    @Override
+    public ValueDesc apply(List<Expr> args, TypeBinding bindings)
+    {
+      return ValueDesc.STRING_ARRAY;
+    }
+
+    @Override
+    public ExprEval apply(List<Expr> args, NumericBinding bindings)
+    {
+      List<String> strings = Lists.newArrayList();
+      for (Expr arg : args) {
+        strings.add(Evals.evalString(arg, bindings));
+      }
+      return ExprEval.of(strings, ValueDesc.STRING_ARRAY);
+    }
+  }
+
   @Function.Named("array.long")
   final class LongArray extends Function.NamedFunction
   {
