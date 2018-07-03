@@ -195,6 +195,15 @@ public class GuavaUtils
     return retaining;
   }
 
+  public static List<String> prependEach(String prepend, List<String> list)
+  {
+    List<String> prepended = Lists.newArrayList();
+    for (String element : list) {
+      prepended.add(prepend + element);
+    }
+    return prepended;
+  }
+
   @SafeVarargs
   public static <T> List<T> concat(List<T> list1, T... elements)
   {

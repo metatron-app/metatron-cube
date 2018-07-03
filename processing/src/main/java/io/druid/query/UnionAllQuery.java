@@ -139,6 +139,12 @@ public class UnionAllQuery<T> extends BaseQuery<T>
   }
 
   @JsonProperty
+  public Query<T> getLastQuery()
+  {
+    return query == null ? queries.get(queries.size() - 1) : query;
+  }
+
+  @JsonProperty
   public boolean isSortOnUnion()
   {
     return sortOnUnion;

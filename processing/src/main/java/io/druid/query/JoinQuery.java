@@ -35,6 +35,7 @@ import io.druid.common.guava.GuavaUtils;
 import io.druid.query.spec.QuerySegmentSpec;
 import io.druid.segment.column.Column;
 
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -256,16 +257,6 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
     );
     Map<String, Object> joinContext = ImmutableMap.<String, Object>of(QueryContextKeys.POST_PROCESSING, joinProcessor);
 
-    List<String> aliases = Lists.newArrayList();
-    aliases.add(elements.get(0).getLeftAlias());
-    for (JoinElement element : elements) {
-      aliases.add(element.getRightAlias());
-    }
-    String timeColumn = timeColumnName;
-    if (timeColumn == null) {
-      timeColumn = prefixAlias ? aliases.get(0) + "." + Column.TIME_COLUMN_NAME : Column.TIME_COLUMN_NAME;
-    }
-
     QuerySegmentSpec segmentSpec = getQuerySegmentSpec();
     List<Query<Map<String, Object>>> queries = Lists.newArrayList();
     JoinElement firstJoin = elements.get(0);
@@ -275,8 +266,27 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
       DataSource right = dataSources.get(element.getRightAlias());
       queries.add(JoinElement.toQuery(right, element.getRightJoinColumns(), segmentSpec, getContext()));
     }
+
+    JoinElement lastElement = elements.get(elements.size() - 1);
+
+    List<String> prefixAliases;
+    List<List<String>> sortColumns;
+    String timeColumn;
+    if (prefixAlias) {
+      prefixAliases = JoinElement.getAliases(elements);
+      sortColumns = Arrays.asList(
+          GuavaUtils.prependEach(lastElement.getLeftAlias() + ".", lastElement.getLeftJoinColumns()),
+          GuavaUtils.prependEach(lastElement.getRightAlias() + ".", lastElement.getRightJoinColumns())
+      );
+      timeColumn = timeColumnName == null ? prefixAliases.get(0) + "." + Column.TIME_COLUMN_NAME : timeColumnName;
+    } else {
+      prefixAliases = null;
+      sortColumns = Arrays.asList(lastElement.getLeftJoinColumns(), lastElement.getRightJoinColumns());
+      timeColumn = timeColumnName == null ? Column.TIME_COLUMN_NAME : timeColumnName;
+    }
+
     Map<String, Object> context = computeOverriddenContext(joinContext);
-    return new JoinDelegate(queries, prefixAlias ? aliases : null, timeColumn, limit, parallelism, queue, context);
+    return new JoinDelegate(queries, prefixAliases, sortColumns, timeColumn, limit, parallelism, queue, context);
   }
 
   public JoinQuery withPrefixAlias(boolean prefixAlias)
@@ -312,11 +322,13 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
       implements ArrayOutputSupport<Map<String, Object>>
   {
     private final List<String> prefixAliases;  // for schema resolving
+    private final List<List<String>> sortColumns;
     private final String timeColumnName;
 
     public JoinDelegate(
         List<Query<Map<String, Object>>> list,
         List<String> prefixAliases,
+        List<List<String>> sortColumns,
         String timeColumnName,
         int limit,
         int parallelism,
@@ -326,12 +338,18 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
     {
       super(null, list, false, limit, parallelism, queue, context);
       this.prefixAliases = prefixAliases;
+      this.sortColumns = sortColumns;
       this.timeColumnName = Preconditions.checkNotNull(timeColumnName, "'timeColumnName' is null");
     }
 
     public List<String> getPrefixAliases()
     {
       return prefixAliases;
+    }
+
+    public List<List<String>> getSortColumns()
+    {
+      return sortColumns;
     }
 
     public String getTimeColumnName()
@@ -345,6 +363,7 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
       return new JoinDelegate(
           queries,
           prefixAliases,
+          sortColumns,
           timeColumnName,
           getLimit(),
           getParallelism(),
@@ -371,6 +390,7 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
       return new JoinDelegate(
           queries,
           prefixAliases,
+          sortColumns,
           timeColumnName,
           getLimit(),
           getParallelism(),
@@ -392,7 +412,7 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
              '}';
     }
 
-    public Query toArrayJoin()
+    public JoinDelegate toArrayJoin()
     {
       PostProcessingOperator processor = getContextValue(QueryContextKeys.POST_PROCESSING);
       if (processor instanceof ListPostProcessingOperator) {
@@ -403,7 +423,7 @@ public class JoinQuery extends BaseQuery<Map<String, Object>> implements Query.R
       } else {
         processor = ((XJoinPostProcessor) processor).withAsArray(true);
       }
-      return withOverriddenContext(QueryContextKeys.POST_PROCESSING, processor);
+      return (JoinDelegate) withOverriddenContext(QueryContextKeys.POST_PROCESSING, processor);
     }
 
     @Override

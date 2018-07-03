@@ -177,7 +177,7 @@ public class XJoinPostProcessor extends PostProcessingOperator.UnionSupport
     final Sequence<Object[]> sequence = Sequences.concat(sequences);
     if (!sort) {
       return Futures.immediateFuture(
-          new JoinAlias(Arrays.asList(alias), columnNames, indices, Sequences.toIterator(sequence))
+          new JoinAlias(Arrays.asList(alias), columnNames, joinColumns, indices, Sequences.toIterator(sequence))
       );
     }
     return executor.submit(
@@ -187,7 +187,7 @@ public class XJoinPostProcessor extends PostProcessingOperator.UnionSupport
           public Object call()
           {
             return new JoinAlias(
-                Arrays.asList(alias), columnNames, indices, sort(sequence, indices).iterator()
+                Arrays.asList(alias), columnNames, joinColumns, indices, sort(sequence, indices).iterator()
             );
           }
         }
@@ -229,9 +229,15 @@ public class XJoinPostProcessor extends PostProcessingOperator.UnionSupport
       }
       List<String> alias = GuavaUtils.concat(left.alias, right.alias);
       List<String> columns = GuavaUtils.concat(left.columns, right.columns);
-      int[] indices = GuavaUtils.indexOf(columns, elements[i].getLeftJoinColumns());
-      // todo sketch on next join column & partitioned sort
-      left = new JoinAlias(alias, columns, indices, sort(Sequences.once(iterator), indices).iterator());
+      List<String> joinColumns = elements[i].getLeftJoinColumns();
+      int[] indices = GuavaUtils.indexOf(columns, joinColumns);
+      Iterator<Object[]> leftRows;
+      if (joinColumns.equals(left.joinColumns) || joinColumns.equals(right.joinColumns)) {
+        leftRows = iterator;  // no need to sort
+      } else {
+        leftRows = sort(Sequences.once(iterator), indices).iterator();
+      }
+      left = new JoinAlias(alias, columns, joinColumns, indices, leftRows);
     }
     return iterator;
   }
@@ -270,52 +276,49 @@ public class XJoinPostProcessor extends PostProcessingOperator.UnionSupport
     };
   }
 
-  private Partition left;
-  private Partition right;
-
-  private Iterator<Object[]> joinPartition(final JoinAlias leftAlias, final JoinAlias rightAlias, final int index)
+  private Iterator<Object[]> joinPartition(final JoinAlias left, final JoinAlias right, final int index)
   {
     final JoinType type = elements[index].getJoinType();
 
-    if (left == null) {
-      left = leftAlias.next();
+    if (left.partition == null) {
+      left.partition = left.next();
     }
-    if (right == null) {
-      right = rightAlias.next();
+    if (right.partition == null) {
+      right.partition = right.next();
     }
-    while (left != null && right != null) {
-      final int compare = Comparators.compareNF(left.joinKey, right.joinKey);
+    while (left.partition != null && right.partition != null) {
+      final int compare = Comparators.compareNF(left.partition.joinKey, right.partition.joinKey);
       if (compare == 0) {
-        Iterator<Object[]> product = product(left.rows, right.rows);
-        left = leftAlias.next();
-        right = rightAlias.next();
+        Iterator<Object[]> product = product(left.partition.rows, right.partition.rows);
+        left.partition = left.next();
+        right.partition = right.next();
         return product;
       }
       switch (type) {
         case INNER:
           if (compare < 0) {
-            left = leftAlias.next();
+            left.partition = left.next();
           } else {
-            right = rightAlias.next();
+            right.partition = right.next();
           }
           continue;
         case LO:
           if (compare < 0) {
-            Iterator<Object[]> lo = lo(leftAlias.outer(right.joinKey).iterator(), rightAlias.indices.length);
-            left = leftAlias.next();
+            Iterator<Object[]> lo = lo(left.outer(right.partition.joinKey).iterator(), right.indices.length);
+            left.partition = left.next();
             return lo;
           } else {
-            rightAlias.skip(left.joinKey);
-            right = rightAlias.next();
+            right.skip(left.partition.joinKey);
+            right.partition = right.next();
           }
           continue;
         case RO:
           if (compare < 0) {
-            leftAlias.skip(right.joinKey);
-            left = leftAlias.next();
+            left.skip(right.partition.joinKey);
+            left.partition = left.next();
           } else {
-            Iterator<Object[]> ro = ro(leftAlias.indices.length, rightAlias.outer(left.joinKey).iterator());
-            right = rightAlias.next();
+            Iterator<Object[]> ro = ro(left.indices.length, right.outer(left.partition.joinKey).iterator());
+            right.partition = right.next();
             return ro;
           }
           continue;
@@ -323,17 +326,17 @@ public class XJoinPostProcessor extends PostProcessingOperator.UnionSupport
           throw new UnsupportedOperationException("not supported type " + type);
       }
     }
-    if (type == JoinType.LO && left != null) {
-      Iterator<Object[]> lo = lo(Iterators.concat(left.iterator(), leftAlias.rows), rightAlias.indices.length);
-      left = null;
+    if (type == JoinType.LO && left.partition != null) {
+      Iterator<Object[]> lo = lo(Iterators.concat(left.partition.iterator(), left.rows), right.indices.length);
+      left.partition = null;
       return lo;
-    } else if (type == JoinType.RO && right != null) {
-      Iterator<Object[]> ro = ro(leftAlias.indices.length, Iterators.concat(right.iterator(), rightAlias.rows));
-      right = null;
+    } else if (type == JoinType.RO && right.partition != null) {
+      Iterator<Object[]> ro = ro(left.indices.length, Iterators.concat(right.partition.iterator(), right.rows));
+      right.partition = null;
       return ro;
     }
-    left = null;
-    right = null;
+    left.partition = null;
+    right.partition = null;
     return null;
   }
 
@@ -359,13 +362,23 @@ public class XJoinPostProcessor extends PostProcessingOperator.UnionSupport
   {
     final List<String> alias;
     final List<String> columns;
+    final List<String> joinColumns;
     final int[] indices;
     final PeekingIterator<Object[]> rows;
 
-    private JoinAlias(List<String> alias, List<String> columns, int[] indices, Iterator<Object[]> rows)
+    Partition partition;
+
+    private JoinAlias(
+        List<String> alias,
+        List<String> columns,
+        List<String> joinColumns,
+        int[] indices,
+        Iterator<Object[]> rows
+    )
     {
       this.alias = alias;
       this.columns = columns;
+      this.joinColumns = joinColumns;
       this.indices = indices;
       this.rows = GuavaUtils.peekingIterator(rows);
     }

@@ -22,7 +22,6 @@ package io.druid.query;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;
-import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.query.groupby.GroupByQuery;
@@ -37,6 +36,16 @@ import java.util.Set;
  */
 public class JoinElement
 {
+  public static List<String> getAliases(List<JoinElement> elements)
+  {
+    List<String> aliases = Lists.newArrayList();
+    aliases.add(elements.get(0).getLeftAlias());
+    for (JoinElement element : elements) {
+      aliases.add(element.getRightAlias());
+    }
+    return aliases;
+  }
+
   private final JoinType joinType;
 
   private final String leftAlias;
@@ -183,7 +192,6 @@ public class JoinElement
   }
 
   static final String SORTED_CONTEXT_KEY = "$sorted";
-  static final Map<String, Object> SORTED_TRUE = ImmutableMap.<String, Object>of(SORTED_CONTEXT_KEY, true);
 
   public static Query toQuery(
       DataSource dataSource,
@@ -195,7 +203,11 @@ public class JoinElement
     if (dataSource instanceof QueryDataSource) {
       Query query = ((QueryDataSource) dataSource).getQuery();
       if (query instanceof JoinQuery.JoinDelegate) {
-        return ((JoinQuery.JoinDelegate) query).toArrayJoin();  // keep array as output
+        JoinQuery.JoinDelegate delegate = (JoinQuery.JoinDelegate) query;
+        if (delegate.getSortColumns().contains(sortColumns)) {
+          delegate = (JoinQuery.JoinDelegate) delegate.withOverriddenContext(JoinElement.SORTED_CONTEXT_KEY, true);
+        }
+        return delegate.toArrayJoin();  // keep array for output
       }
       if (!(query instanceof Query.ArrayOutputSupport) ||
           GuavaUtils.isNullOrEmpty(((Query.ArrayOutputSupport) query).estimatedOutputColumns())) {
@@ -203,14 +215,14 @@ public class JoinElement
       }
       if (query instanceof GroupByQuery) {
         query = ((GroupByQuery) query).withOrderingSpec(OrderByColumnSpec.ascending(sortColumns))
-                                      .withOverriddenContext(SORTED_TRUE);
+                                      .withOverriddenContext(SORTED_CONTEXT_KEY, true);
       }
       return query;
     }
     return new Druids.SelectQueryBuilder()
         .dataSource(dataSource)
         .intervals(segmentSpec)
-        .context(BaseQuery.copyContextForMeta(context)).addContext(SORTED_TRUE)
+        .context(BaseQuery.copyContextForMeta(context)).addContext(SORTED_CONTEXT_KEY, true)
         .streamingRaw(sortColumns);
   }
 
