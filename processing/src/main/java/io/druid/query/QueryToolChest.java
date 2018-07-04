@@ -360,11 +360,11 @@ public abstract class QueryToolChest<ResultType, QueryType extends Query<ResultT
       query = QueryUtils.resolveQuery(query, segmentWalker);
 
       Sequence<Row> sequence = Queries.convertToRow(subQuery, subQueryRunner.run(subQuery, responseContext));
-      Cursor cursor = ColumnSelectorFactories.toCursor(sequence, schema, query);
+      Cursor.WithResource cursor = ColumnSelectorFactories.toCursor(sequence, schema, query);
       if (cursor == null) {
         return Sequences.empty();
       }
-      return converter(query, cursor).apply(cursor);
+      return Sequences.withBaggage(converter(query, cursor).apply(cursor), cursor);
     }
 
     protected Function<Cursor, Sequence<ResultType>> converter(

@@ -237,7 +237,11 @@ public class Queries
             public Row apply(I input)
             {
               Map<String, Object> event = (Map<String, Object>) input;
-              return new MapBasedRow((Long) event.get(timeColumn), event);
+              Object timeValue = event.get(timeColumn);
+              if (timeValue == null) {
+                throw new IllegalArgumentException("cannot find time column '" + timeColumn + "'");
+              }
+              return new MapBasedRow(Rows.parseLong(timeValue), event);
             }
           }
       );

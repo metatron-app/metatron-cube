@@ -35,6 +35,7 @@ import com.google.common.io.InputSupplier;
 import com.google.common.primitives.Ints;
 import com.google.common.primitives.Longs;
 import com.metamx.common.Pair;
+import com.metamx.common.parsers.CloseableIterator;
 import io.druid.common.Progressing;
 import org.apache.commons.io.IOUtils;
 
@@ -331,9 +332,6 @@ public class GuavaUtils
       }
     }
     return retaining;
-  }
-
-  public static interface CloseableIterator<T> extends Iterator<T>, Closeable {
   }
 
   public static interface CloseablePeekingIterator<T> extends PeekingIterator<T>, Closeable {

@@ -32,15 +32,17 @@ import com.metamx.common.guava.MergeSequence;
 import com.metamx.common.guava.Sequence;
 import com.metamx.common.guava.Yielder;
 import com.metamx.common.guava.YieldingAccumulator;
+import com.metamx.common.parsers.CloseableIterator;
+import io.druid.common.InterruptibleSequence;
 import io.druid.common.Progressing;
 import io.druid.common.Yielders;
-import io.druid.common.guava.GuavaUtils;
 import org.apache.commons.io.IOUtils;
 
 import java.io.Closeable;
 import java.io.IOException;
 import java.util.Iterator;
 import java.util.List;
+import java.util.concurrent.Future;
 
 /**
  */
@@ -90,9 +92,14 @@ public class Sequences extends com.metamx.common.guava.Sequences
     );
   }
 
-  public static <T> Iterator<T> toIterator(final Sequence<T> sequence)
+  public static <T> Sequence<T> interruptible(Future<?> future, Sequence<T> sequence)
   {
-    return new GuavaUtils.CloseableIterator<T>()
+    return new InterruptibleSequence<>(future, sequence);
+  }
+
+  public static <T> CloseableIterator<T> toIterator(final Sequence<T> sequence)
+  {
+    return new CloseableIterator<T>()
     {
       @Override
       public void close() throws IOException

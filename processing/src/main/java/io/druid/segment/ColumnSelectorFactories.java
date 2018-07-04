@@ -26,6 +26,7 @@ import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import com.metamx.common.ISE;
 import com.metamx.common.guava.Sequence;
+import com.metamx.common.parsers.CloseableIterator;
 import io.druid.common.guava.DSuppliers;
 import io.druid.common.utils.Sequences;
 import io.druid.data.ValueDesc;
@@ -792,9 +793,9 @@ public class ColumnSelectorFactories
   }
 
   @SuppressWarnings("unchecked")
-  public static Cursor toCursor(Sequence<Row> sequence, Schema schema, Query query)
+  public static Cursor.WithResource toCursor(Sequence<Row> sequence, Schema schema, Query query)
   {
-    final Iterator<Row> iterator = Sequences.toIterator(sequence);
+    final CloseableIterator<Row> iterator = Sequences.toIterator(sequence);
     if (!iterator.hasNext()) {
       return null;
     }
@@ -817,8 +818,14 @@ public class ColumnSelectorFactories
       return null;
     }
 
-    return new Cursor()
+    return new Cursor.WithResource()
     {
+      @Override
+      public void close() throws IOException
+      {
+        iterator.close();
+      }
+
       private boolean done;
 
       @Override

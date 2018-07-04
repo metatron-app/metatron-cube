@@ -30,7 +30,6 @@ import com.google.inject.Inject;
 import com.metamx.common.Pair;
 import com.metamx.common.guava.FunctionalIterable;
 import com.metamx.common.guava.Sequence;
-import com.metamx.common.guava.Sequences;
 import com.metamx.emitter.EmittingLogger;
 import com.metamx.emitter.service.ServiceEmitter;
 import com.metamx.emitter.service.ServiceMetricEvent;
@@ -38,6 +37,8 @@ import io.druid.cache.Cache;
 import io.druid.client.CachingQueryRunner;
 import io.druid.client.cache.CacheConfig;
 import io.druid.collections.CountingMap;
+import io.druid.common.utils.Sequences;
+import io.druid.concurrent.Execs;
 import io.druid.guice.annotations.BackgroundCaching;
 import io.druid.guice.annotations.Processing;
 import io.druid.guice.annotations.Smile;
@@ -92,6 +93,7 @@ public class ServerManager implements QuerySegmentWalker
 {
   private static final EmittingLogger log = new EmittingLogger(ServerManager.class);
   private final Object lock = new Object();
+  private final QueryManager queryManager;
   private final SegmentLoader segmentLoader;
   private final QueryRunnerFactoryConglomerate conglomerate;
   private final ServiceEmitter emitter;
@@ -117,6 +119,7 @@ public class ServerManager implements QuerySegmentWalker
       CacheConfig cacheConfig
   )
   {
+    this.queryManager = queryManager;
     this.segmentLoader = segmentLoader;
     this.conglomerate = conglomerate;
     this.emitter = emitter;
@@ -487,17 +490,23 @@ public class ServerManager implements QuerySegmentWalker
       @Override
       public Sequence<T> run(Query<T> baseQuery, final Map<String, Object> responseContext)
       {
-        return Sequences.concat(
-            Iterables.transform(
-                queries, new Function<Query<T>, Sequence<T>>()
-                {
-                  @Override
-                  public Sequence<T> apply(final Query<T> splitQuery)
-                  {
-                    return runner.run(splitQuery, responseContext);
-                  }
-                }
-            )
+        // stop streaming if canceled
+        final Execs.TaggedFuture future = Execs.tag(new Execs.SettableFuture(), "split-runner");
+        queryManager.registerQuery(baseQuery, future);
+        return Sequences.withBaggage(
+            Sequences.concat(
+                Iterables.transform(
+                    queries, new Function<Query<T>, Sequence<T>>()
+                    {
+                      @Override
+                      public Sequence<T> apply(final Query<T> splitQuery)
+                      {
+                        return Sequences.interruptible(future, runner.run(splitQuery, responseContext));
+                      }
+                    }
+                )
+            ),
+            future
         );
       }
     };

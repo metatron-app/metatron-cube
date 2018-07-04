@@ -34,6 +34,7 @@ import com.metamx.common.Pair;
 import com.metamx.common.guava.Accumulator;
 import com.metamx.common.guava.Sequence;
 import com.metamx.common.logger.Logger;
+import com.metamx.common.parsers.CloseableIterator;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.common.utils.Sequences;
 import io.druid.guice.annotations.Processing;
@@ -246,7 +247,7 @@ public class XJoinPostProcessor extends PostProcessingOperator.UnionSupport
   @VisibleForTesting
   final Iterator<Object[]> join(final JoinAlias leftAlias, final JoinAlias rightAlias, final int index)
   {
-    return new GuavaUtils.CloseableIterator<Object[]>()
+    return new CloseableIterator<Object[]>()
     {
       @Override
       public void close() throws IOException

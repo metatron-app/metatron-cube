@@ -266,12 +266,13 @@ public class Execs
     }
   }
 
-  public static <V> ListenableFuture<V> tag(ListenableFuture<V> future, String tag)
+  public static <V> TaggedFuture<V> tag(ListenableFuture<V> future, String tag)
   {
     return new TaggedFuture<V>(future, tag);
   }
 
-  private static class TaggedFuture<V> extends ForwardingListenableFuture<V> implements ListenableFuture<V>, Tagged
+  public static class TaggedFuture<V> extends ForwardingListenableFuture<V>
+      implements ListenableFuture<V>, Tagged, Closeable
   {
     private final ListenableFuture<V> delegate;
     private final String tag;
@@ -292,6 +293,14 @@ public class Execs
     public String getTag()
     {
       return tag;
+    }
+
+    @Override
+    public void close() throws IOException
+    {
+      if (delegate instanceof Closeable) {
+        ((Closeable) delegate).close();
+      }
     }
   }
 

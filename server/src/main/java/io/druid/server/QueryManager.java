@@ -196,7 +196,10 @@ public class QueryManager implements QueryWatcher, Runnable
     {
       boolean success = true;
       for (ListenableFuture future : futures) {
-        success = success & future.cancel(true);
+        success = success & future.cancel(true);  // cancel all
+        if (future instanceof Tagged) {
+          timers.get(future).end();
+        }
       }
       futures.clear();
       dataSources.clear();
