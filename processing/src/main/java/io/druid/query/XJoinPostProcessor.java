@@ -22,6 +22,7 @@ package io.druid.query;
 import com.fasterxml.jackson.annotation.JacksonInject;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Function;
 import com.google.common.base.Throwables;
 import com.google.common.collect.Iterators;
@@ -214,9 +215,9 @@ public class XJoinPostProcessor extends PostProcessingOperator.UnionSupport
     return aliases;
   }
 
+  @VisibleForTesting
   @SuppressWarnings("unchecked")
-  private Iterator<Object[]> join(final Future[] futures)
-      throws Exception
+  final Iterator<Object[]> join(final Future[] futures) throws Exception
   {
     JoinAlias left = (JoinAlias) futures[0].get();
     Iterator<Object[]> iterator = Iterators.emptyIterator();
@@ -242,7 +243,8 @@ public class XJoinPostProcessor extends PostProcessingOperator.UnionSupport
     return iterator;
   }
 
-  private Iterator<Object[]> join(final JoinAlias leftAlias, final JoinAlias rightAlias, final int index)
+  @VisibleForTesting
+  final Iterator<Object[]> join(final JoinAlias leftAlias, final JoinAlias rightAlias, final int index)
   {
     return new GuavaUtils.CloseableIterator<Object[]>()
     {
@@ -304,7 +306,7 @@ public class XJoinPostProcessor extends PostProcessingOperator.UnionSupport
           continue;
         case LO:
           if (compare < 0) {
-            Iterator<Object[]> lo = lo(left.outer(right.partition.joinKey).iterator(), right.indices.length);
+            Iterator<Object[]> lo = lo(left.partition.iterator(), right.columns.size());
             left.partition = left.next();
             return lo;
           } else {
@@ -317,7 +319,7 @@ public class XJoinPostProcessor extends PostProcessingOperator.UnionSupport
             left.skip(right.partition.joinKey);
             left.partition = left.next();
           } else {
-            Iterator<Object[]> ro = ro(left.indices.length, right.outer(left.partition.joinKey).iterator());
+            Iterator<Object[]> ro = ro(left.columns.size(), right.partition.iterator());
             right.partition = right.next();
             return ro;
           }
@@ -327,11 +329,11 @@ public class XJoinPostProcessor extends PostProcessingOperator.UnionSupport
       }
     }
     if (type == JoinType.LO && left.partition != null) {
-      Iterator<Object[]> lo = lo(Iterators.concat(left.partition.iterator(), left.rows), right.indices.length);
+      Iterator<Object[]> lo = lo(Iterators.concat(left.partition.iterator(), left.rows), right.columns.size());
       left.partition = null;
       return lo;
     } else if (type == JoinType.RO && right.partition != null) {
-      Iterator<Object[]> ro = ro(left.indices.length, Iterators.concat(right.partition.iterator(), right.rows));
+      Iterator<Object[]> ro = ro(left.columns.size(), Iterators.concat(right.partition.iterator(), right.rows));
       right.partition = null;
       return ro;
     }
@@ -358,7 +360,7 @@ public class XJoinPostProcessor extends PostProcessingOperator.UnionSupport
     }
   }
 
-  private static class JoinAlias
+  static class JoinAlias
   {
     final List<String> alias;
     final List<String> columns;
@@ -368,7 +370,7 @@ public class XJoinPostProcessor extends PostProcessingOperator.UnionSupport
 
     Partition partition;
 
-    private JoinAlias(
+    JoinAlias(
         List<String> alias,
         List<String> columns,
         List<String> joinColumns,
@@ -394,11 +396,6 @@ public class XJoinPostProcessor extends PostProcessingOperator.UnionSupport
         joinKey[i] = (Comparable) row[indices[i]];
       }
       return get(joinKey, Condition.EQ);
-    }
-
-    private Partition outer(final Comparable[] joinKey)
-    {
-      return get(joinKey, Condition.LT);
     }
 
     private Partition get(final Comparable[] joinKey, final Condition condition)
