@@ -47,6 +47,7 @@ import io.druid.query.QueryDataSource;
 import io.druid.query.QueryRunner;
 import io.druid.query.QuerySegmentWalker;
 import io.druid.query.QueryToolChest;
+import io.druid.query.QueryUtils;
 import io.druid.query.Result;
 import io.druid.query.ResultGranularTimestampComparator;
 import io.druid.query.ResultMergeQueryRunner;
@@ -55,7 +56,6 @@ import io.druid.query.TabularFormat;
 import io.druid.query.UnionDataSource;
 import io.druid.query.dimension.DimensionSpec;
 import io.druid.query.filter.DimFilter;
-import io.druid.query.spec.LegacySegmentSpec;
 import io.druid.query.spec.MultipleIntervalSegmentSpec;
 import io.druid.segment.ColumnSelectors;
 import io.druid.segment.Cursor;
@@ -168,16 +168,16 @@ public class SelectQueryQueryToolChest extends QueryToolChest<Result<SelectResul
           Map<String, Object> responseContext
       )
       {
-        final Query<I> subQuery = ((QueryDataSource) query.getDataSource()).getQuery();
-        if (!LegacySegmentSpec.coveredBy(subQuery.getQuerySegmentSpec(), query.getQuerySegmentSpec())) {
-          // this can be not right.. but who cares?
+        final SelectQuery outerQuery = (SelectQuery) query;
+        if (outerQuery.getGranularity() != Granularities.ALL) {
           return super.run(query, responseContext);
         }
-        if (((SelectQuery) query).getGranularity() != Granularities.ALL) {
-          return super.run(query, responseContext);
-        }
-        final PagingSpec pagingSpec = ((SelectQuery) query).getPagingSpec();
+        final PagingSpec pagingSpec = outerQuery.getPagingSpec();
         if (!GuavaUtils.isNullOrEmpty(pagingSpec.getPagingIdentifiers())) {
+          return super.run(query, responseContext);
+        }
+        final Query<I> innerQuery = ((QueryDataSource) outerQuery.getDataSource()).getQuery();
+        if (!QueryUtils.coveredBy(innerQuery, outerQuery)) {
           return super.run(query, responseContext);
         }
         return runStreaming(query, responseContext);
@@ -244,16 +244,12 @@ public class SelectQueryQueryToolChest extends QueryToolChest<Result<SelectResul
           public Sequence<Result<SelectResultValue>> apply(Cursor input)
           {
             final List<EventHolder> events = Lists.newArrayList();
-            for (; limit < 0 || events.size() < limit; cursor.advance()) {
+            for (; !cursor.isDone() && limit < 0 || events.size() < limit; cursor.advance()) {
               Map<String, Object> event = Maps.newHashMap();
               for (int i = 0; i < selectors.size(); i++) {
                 event.put(outputColumns.get(i), selectors.get(i).get());
               }
               events.add(new EventHolder(segmentId, events.size(), event));
-              if (cursor.isDone()) {
-                break;
-              }
-              cursor.advance();
             }
 
             SelectResultValue resultValue = new SelectResultValue(ImmutableMap.of(segmentId, events.size()), events);

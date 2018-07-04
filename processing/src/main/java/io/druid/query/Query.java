@@ -26,6 +26,7 @@ import com.google.common.base.Supplier;
 import com.google.common.collect.Ordering;
 import com.metamx.common.Pair;
 import com.metamx.common.guava.Sequence;
+import io.druid.granularity.Granularity;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.PostAggregator;
 import io.druid.query.datasourcemetadata.DataSourceMetadataQuery;
@@ -95,6 +96,8 @@ public interface Query<T> extends QueryContextKeys
   DataSource getDataSource();
 
   boolean hasFilters();
+
+  Granularity getGranularity();
 
   String getType();
 

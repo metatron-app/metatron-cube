@@ -560,6 +560,6 @@ public class XJoinPostProcessor extends PostProcessingOperator.UnionSupport
   @Override
   public boolean hasTabularOutput()
   {
-    return true;
+    return !asArray;
   }
 }

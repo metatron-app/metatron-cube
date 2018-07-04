@@ -367,10 +367,7 @@ public abstract class QueryToolChest<ResultType, QueryType extends Query<ResultT
       return Sequences.withBaggage(converter(query, cursor).apply(cursor), cursor);
     }
 
-    protected Function<Cursor, Sequence<ResultType>> converter(
-        Query<ResultType> outerQuery,
-        Cursor cursor
-    )
+    protected Function<Cursor, Sequence<ResultType>> converter(Query<ResultType> outerQuery, Cursor cursor)
     {
       throw new UnsupportedOperationException("streaming sub-query handler");
     }

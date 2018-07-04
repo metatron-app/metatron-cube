@@ -29,21 +29,25 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
+import com.google.common.collect.Iterators;
 import com.google.common.collect.Maps;
 import com.google.inject.Inject;
 import com.metamx.common.ISE;
 import com.metamx.common.guava.ResourceClosingSequence;
 import com.metamx.common.guava.Sequence;
-import com.metamx.common.guava.Sequences;
+import com.metamx.common.parsers.CloseableIterator;
 import com.metamx.emitter.service.ServiceMetricEvent;
+import io.druid.collections.ResourceHolder;
 import io.druid.collections.StupidPool;
 import io.druid.common.DateTimes;
 import io.druid.common.guava.CombiningSequence;
 import io.druid.common.guava.GuavaUtils;
+import io.druid.common.utils.Sequences;
 import io.druid.data.input.CompactRow;
 import io.druid.data.input.MapBasedRow;
 import io.druid.data.input.Row;
 import io.druid.data.input.Rows;
+import io.druid.granularity.Granularities;
 import io.druid.granularity.Granularity;
 import io.druid.guice.annotations.Global;
 import io.druid.query.BaseQuery;
@@ -54,9 +58,11 @@ import io.druid.query.LateralViewSpec;
 import io.druid.query.Query;
 import io.druid.query.QueryCacheHelper;
 import io.druid.query.QueryContextKeys;
+import io.druid.query.QueryDataSource;
 import io.druid.query.QueryRunner;
 import io.druid.query.QuerySegmentWalker;
 import io.druid.query.QueryToolChest;
+import io.druid.query.QueryUtils;
 import io.druid.query.TabularFormat;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.aggregation.MetricManipulationFn;
@@ -68,6 +74,7 @@ import io.druid.query.dimension.DimensionSpec;
 import io.druid.query.dimension.DimensionSpecs;
 import io.druid.query.extraction.ExtractionFn;
 import io.druid.query.spec.MultipleIntervalSegmentSpec;
+import io.druid.segment.Cursor;
 import io.druid.segment.Segment;
 import io.druid.segment.incremental.IncrementalIndex;
 import org.joda.time.DateTime;
@@ -80,6 +87,7 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.ExecutorService;
 
@@ -204,6 +212,24 @@ public class GroupByQueryQueryToolChest extends QueryToolChest<Row, GroupByQuery
     return new SubQueryRunner<I>(subQueryRunner, segmentWalker, executor, maxRowCount)
     {
       @Override
+      public Sequence<Row> run(Query<Row> query, Map<String, Object> responseContext)
+      {
+        final GroupByQuery outerQuery = (GroupByQuery) query;
+        if (outerQuery.getGranularity() != Granularities.ALL) {
+          return super.run(query, responseContext);
+        }
+        final Query<I> innerQuery = ((QueryDataSource) outerQuery.getDataSource()).getQuery();
+        if (!QueryUtils.coveredBy(innerQuery, outerQuery)) {
+          return super.run(query, responseContext);
+        }
+        query = query.withOverriddenContext(
+            GroupByQueryHelper.CTX_KEY_FUDGE_TIMESTAMP,
+            Objects.toString(GroupByQueryEngine.getUniversalTimestamp(outerQuery), "")
+        );
+        return runStreaming(query, responseContext);
+      }
+
+      @Override
       protected Sequence<Row> runOuterQuery(
           Query<Row> query,
           Map<String, Object> context,
@@ -241,6 +267,29 @@ public class GroupByQueryQueryToolChest extends QueryToolChest<Row, GroupByQuery
             return engine.process(
                 outerQuery.withQuerySegmentSpec(MultipleIntervalSegmentSpec.of(interval)),
                 segment
+            );
+          }
+        };
+      }
+      
+      @Override
+      protected Function<Cursor, Sequence<Row>> converter(final Query<Row> outerQuery, final Cursor cursor)
+      {
+        final GroupByQuery groupByQuery = (GroupByQuery) outerQuery;
+        final ResourceHolder<ByteBuffer> bufferHolder = bufferPool.take();
+        return new Function<Cursor, Sequence<Row>>() {
+          @Override
+          public Sequence<Row> apply(Cursor input)
+          {
+            CloseableIterator<Object[]> iterator = new GroupByQueryEngine.RowIterator(
+                groupByQuery,
+                cursor,
+                bufferHolder.get(),
+                configSupplier.get()
+            );
+            return Sequences.withBaggage(
+                Sequences.<Row>once(Iterators.transform(iterator, GroupByQueryEngine.converter(groupByQuery))),
+                GuavaUtils.bind(bufferHolder, iterator)
             );
           }
         };
@@ -459,6 +508,7 @@ public class GroupByQueryQueryToolChest extends QueryToolChest<Row, GroupByQuery
   }
 
   @Override
+  @SuppressWarnings("unchecked")
   public CacheStrategy<Row, Object[], GroupByQuery> getCacheStrategy(final GroupByQuery query)
   {
     return new CacheStrategy<Row, Object[], GroupByQuery>()

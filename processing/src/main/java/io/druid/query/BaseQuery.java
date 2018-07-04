@@ -31,6 +31,7 @@ import com.metamx.common.StringUtils;
 import com.metamx.common.guava.Sequence;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.common.utils.PropUtils;
+import io.druid.granularity.Granularity;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.filter.DimFilter;
 import io.druid.query.select.ViewSupportHelper;
@@ -172,6 +173,12 @@ public abstract class BaseQuery<T> implements Query<T>
       }
     }
     return DataSources.hasFilter(getDataSource());
+  }
+
+  @Override
+  public Granularity getGranularity()
+  {
+    return null;
   }
 
   public boolean allDimensionsForEmpty()

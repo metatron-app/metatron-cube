@@ -33,9 +33,12 @@ import com.metamx.common.Pair;
 import com.metamx.common.guava.Accumulator;
 import com.metamx.common.guava.Sequence;
 import com.metamx.common.logger.Logger;
+import io.druid.common.Intervals;
 import io.druid.common.guava.GuavaUtils;
 import io.druid.common.utils.Sequences;
 import io.druid.data.ValueDesc;
+import io.druid.granularity.Granularities;
+import io.druid.granularity.Granularity;
 import io.druid.query.aggregation.AggregatorFactory;
 import io.druid.query.dimension.DefaultDimensionSpec;
 import io.druid.query.filter.BoundDimFilter;
@@ -47,6 +50,7 @@ import io.druid.query.metadata.metadata.SegmentMetadataQuery;
 import io.druid.query.select.Schema;
 import io.druid.query.select.SelectMetaQuery;
 import io.druid.query.select.SelectMetaResultValue;
+import io.druid.query.spec.QuerySegmentSpec;
 import org.apache.commons.lang.mutable.MutableInt;
 import org.joda.time.Interval;
 
@@ -414,5 +418,38 @@ public class QueryUtils
         ), null
     );
     return result == null ? Schema.EMPTY : result.getValue().getSchema();
+  }
+
+  // nasty..
+  public static boolean coveredBy(Query<?> query1, Query<?> query2)
+  {
+    final Granularity granularity = query1.getGranularity();
+    final QuerySegmentSpec spec1 = query1.getQuerySegmentSpec();
+    final QuerySegmentSpec spec2 = query2.getQuerySegmentSpec();
+
+    List<Interval> intervals1 = spec1.getIntervals();
+    if (granularity != null && granularity != Granularities.ALL) {
+      intervals1 = Lists.newArrayList(
+          Iterables.transform(
+              intervals1, new Function<Interval, Interval>()
+              {
+                @Override
+                public Interval apply(Interval input)
+                {
+                  return Intervals.of(
+                      granularity.bucketStart(input.getStart()),
+                      granularity.bucketStart(input.getEnd())
+                  );
+                }
+              }
+          )
+      );
+    }
+    List<Interval> intervals2 = spec2.getIntervals();
+    if (intervals1.size() == 1 && intervals2.size() == 1) {
+      return intervals2.get(0).contains(intervals1.get(0));
+    }
+    // todo
+    return intervals2.equals(intervals1);
   }
 }

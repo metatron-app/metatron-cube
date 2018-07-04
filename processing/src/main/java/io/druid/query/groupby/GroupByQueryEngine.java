@@ -209,7 +209,7 @@ public class GroupByQueryEngine
 
   private static final int DEFAULT_INITIAL_CAPACITY = 1 << 10;
 
-  private static class RowUpdater implements java.util.function.Function<IntArray, Integer>
+  public static class RowUpdater implements java.util.function.Function<IntArray, Integer>
   {
     private final ByteBuffer metricValues;
     private final BufferAggregator[] aggregators;
@@ -354,7 +354,7 @@ public class GroupByQueryEngine
     }
   }
 
-  private static class RowIterator implements CloseableIterator<Object[]>
+  static class RowIterator implements CloseableIterator<Object[]>
   {
     private final Cursor cursor;
     private final ByteBuffer metricsBuffer;

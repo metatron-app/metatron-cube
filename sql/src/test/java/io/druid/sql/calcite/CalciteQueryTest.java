@@ -3461,8 +3461,8 @@ public class CalciteQueryTest
                         .build()
         ),
         ImmutableList.of(
-            new Object[]{"", 3L, 3L},
             new Object[]{"a", 2L, 1L},
+            new Object[]{"", 3L, 3L},
             new Object[]{"abc", 1L, 1L}
         )
     );
@@ -4150,9 +4150,9 @@ public class CalciteQueryTest
                         .build()
         ),
         ImmutableList.of(
-            new Object[]{"1", 1L},
+            new Object[]{"3", 1L},
             new Object[]{"2", 1L},
-            new Object[]{"3", 1L}
+            new Object[]{"1", 1L}
         )
     );
   }
