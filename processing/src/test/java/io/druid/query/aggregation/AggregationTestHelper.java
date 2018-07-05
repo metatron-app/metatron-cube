@@ -155,7 +155,7 @@ public class AggregationTestHelper
       }
     };
 
-    GroupByQueryEngine engine = new GroupByQueryEngine(configSupplier, pool);
+    GroupByQueryEngine engine = new GroupByQueryEngine(pool);
     GroupByQueryQueryToolChest toolchest = new GroupByQueryQueryToolChest(
         configSupplier, engine, pool,
         NoopIntervalChunkingQueryRunnerDecorator()

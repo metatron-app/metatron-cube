@@ -29,7 +29,6 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Iterables;
-import com.google.common.collect.Iterators;
 import com.google.common.collect.Maps;
 import com.google.inject.Inject;
 import com.metamx.common.ISE;
@@ -37,7 +36,6 @@ import com.metamx.common.guava.ResourceClosingSequence;
 import com.metamx.common.guava.Sequence;
 import com.metamx.common.parsers.CloseableIterator;
 import com.metamx.emitter.service.ServiceMetricEvent;
-import io.druid.collections.ResourceHolder;
 import io.druid.collections.StupidPool;
 import io.druid.common.DateTimes;
 import io.druid.common.guava.CombiningSequence;
@@ -222,6 +220,13 @@ public class GroupByQueryQueryToolChest extends QueryToolChest<Row, GroupByQuery
         if (!QueryUtils.coveredBy(innerQuery, outerQuery)) {
           return super.run(query, responseContext);
         }
+        final int maxPage = outerQuery.getContextIntWithMax(
+            Query.GBY_MAX_STREAM_SUBQUERY_PAGE,
+            configSupplier.get().getMaxStreamSubQueryPage()
+        );
+        if (maxPage < 1) {
+          return super.run(query, responseContext);
+        }
         query = query.withOverriddenContext(
             GroupByQueryHelper.CTX_KEY_FUDGE_TIMESTAMP,
             Objects.toString(GroupByQueryEngine.getUniversalTimestamp(outerQuery), "")
@@ -275,22 +280,29 @@ public class GroupByQueryQueryToolChest extends QueryToolChest<Row, GroupByQuery
       @Override
       protected Function<Cursor, Sequence<Row>> converter(final Query<Row> outerQuery, final Cursor cursor)
       {
-        final GroupByQuery groupByQuery = (GroupByQuery) outerQuery;
-        final ResourceHolder<ByteBuffer> bufferHolder = bufferPool.take();
-        return new Function<Cursor, Sequence<Row>>() {
+        final GroupByQuery groupBy = (GroupByQuery) outerQuery;
+        final int maxPage = groupBy.getContextIntWithMax(
+            Query.GBY_MAX_STREAM_SUBQUERY_PAGE,
+            configSupplier.get().getMaxStreamSubQueryPage()
+        );
+        return new Function<Cursor, Sequence<Row>>()
+        {
           @Override
           public Sequence<Row> apply(Cursor input)
           {
-            CloseableIterator<Object[]> iterator = new GroupByQueryEngine.RowIterator(
-                groupByQuery,
-                cursor,
-                bufferHolder.get(),
-                configSupplier.get()
-            );
-            return Sequences.withBaggage(
-                Sequences.<Row>once(Iterators.transform(iterator, GroupByQueryEngine.converter(groupByQuery))),
-                GuavaUtils.bind(bufferHolder, iterator)
-            );
+            final CloseableIterator<Object[]> iterator =
+                new GroupByQueryEngine.RowIterator(groupBy, cursor, bufferPool, maxPage)
+                {
+                  @Override
+                  protected void nextIteration(long start, List<int[]> unprocessedKeys)
+                  {
+                    if (unprocessedKeys != null) {
+                      throw new IllegalStateException("cannot handle in " + maxPage + " page");
+                    }
+                  }
+                };
+            LOG.info("Running streaming subquery with max pages [%d]", maxPage);
+            return Sequences.<Row>once(GuavaUtils.map(iterator, GroupByQueryEngine.converter(groupBy)));
           }
         };
       }

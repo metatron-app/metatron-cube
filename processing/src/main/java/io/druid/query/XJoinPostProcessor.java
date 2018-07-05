@@ -148,11 +148,7 @@ public class XJoinPostProcessor extends PostProcessingOperator.UnionSupport
         try {
           Iterator join = join(joining);
           if (!asArray) {
-            Iterator converted = Iterators.transform(join, converter(aliasColumnsNames, prefixAlias ? aliases : null));
-            if (join instanceof Closeable) {
-              converted = GuavaUtils.withResource(converted, (Closeable) join);
-            }
-            join = converted;
+            join = GuavaUtils.map(join, converter(aliasColumnsNames, prefixAlias ? aliases : null));
           }
           return Sequences.once(join);
         }

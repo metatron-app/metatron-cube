@@ -21,7 +21,6 @@ package io.druid.segment.incremental;
 
 import com.google.common.base.Function;
 import com.google.common.base.Supplier;
-import com.google.common.base.Suppliers;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
@@ -43,7 +42,6 @@ import io.druid.query.dimension.DefaultDimensionSpec;
 import io.druid.query.filter.DimFilters;
 import io.druid.query.filter.SelectorDimFilter;
 import io.druid.query.groupby.GroupByQuery;
-import io.druid.query.groupby.GroupByQueryConfig;
 import io.druid.query.groupby.GroupByQueryEngine;
 import io.druid.query.topn.TopNQueryBuilder;
 import io.druid.query.topn.TopNQueryEngine;
@@ -215,16 +213,6 @@ public class IncrementalIndexStorageAdapterTest
   private static GroupByQueryEngine makeGroupByQueryEngine()
   {
     return new GroupByQueryEngine(
-        Suppliers.<GroupByQueryConfig>ofInstance(
-            new GroupByQueryConfig()
-            {
-              @Override
-              public int getMaxIntermediateRows()
-              {
-                return 5;
-              }
-            }
-        ),
         new StupidPool(
             new Supplier<ByteBuffer>()
             {

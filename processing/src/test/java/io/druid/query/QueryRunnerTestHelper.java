@@ -179,7 +179,6 @@ public class QueryRunnerTestHelper
   };
   private static final StupidPool<ByteBuffer> GBY_POOL = new StupidPool<ByteBuffer>(GBY_SUP);
   private static final GroupByQueryEngine GBY_ENGINE = new GroupByQueryEngine(
-      QUERY_CONFIG.getGroupBy(),
       new StupidPool<ByteBuffer>(
           new Supplier<ByteBuffer>()
           {

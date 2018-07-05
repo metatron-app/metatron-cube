@@ -246,7 +246,9 @@ public class GuavaUtils
         Exception exception = null;
         for (Closeable resource : resources) {
           try {
-            resource.close();
+            if (resource != null) {
+              resource.close();
+            }
           }
           catch (Exception e) {
             if (exception == null) {
@@ -410,12 +412,13 @@ public class GuavaUtils
     return peekingIterator;
   }
 
-  public static <T> Iterator<T> withResource(final Iterator<T> iterator)
+  public static <F, T> Iterator<T> map(final Iterator<F> iterator, final Function<F, T> function)
   {
+    Iterator<T> mapped = Iterators.transform(iterator, function);
     if (iterator instanceof Closeable) {
-      return withResource(iterator, (Closeable) iterator);
+      return withResource(mapped, (Closeable) iterator);
     }
-    return iterator;
+    return mapped;
   }
 
   public static <T> Iterator<T> withResource(final Iterator<T> iterator, final Closeable closeable)

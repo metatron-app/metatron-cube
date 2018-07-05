@@ -249,7 +249,6 @@ public class CachingClusteredClientTest
                       new GroupByQueryQueryToolChest(
                           GROUPBY_QUERY_CONFIG_SUPPLIER,
                           new GroupByQueryEngine(
-                              GROUPBY_QUERY_CONFIG_SUPPLIER,
                               new StupidPool<>(
                                   new Supplier<ByteBuffer>()
                                   {
@@ -1335,7 +1334,6 @@ public class CachingClusteredClientTest
         new GroupByQueryQueryToolChest(
             configSupplier,
             new GroupByQueryEngine(
-                configSupplier,
                 new StupidPool<>(
                     new Supplier<ByteBuffer>()
                     {
@@ -2598,7 +2596,6 @@ public class CachingClusteredClientTest
         new GroupByQueryQueryToolChest(
             configSupplier,
             new GroupByQueryEngine(
-                configSupplier,
                 new StupidPool<>(
                     new Supplier<ByteBuffer>()
                     {

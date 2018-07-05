@@ -62,7 +62,7 @@ public class JoinPostProcessorTest
         ImmutableMap.<Class<? extends Query>, QueryToolChest>of(
             SearchQuery.class, new SearchQueryQueryToolChest(queryConfig.getSearch(), null),
             GroupByQuery.class, new GroupByQueryQueryToolChest(
-                supplier, new GroupByQueryEngine(supplier, pool), pool, null
+                supplier, new GroupByQueryEngine(pool), pool, null
             )
         );
     warehouse = new MapQueryToolChestWarehouse(queryConfig, mappings);

@@ -94,7 +94,7 @@ public class GroupByQueryExplodeTest
     config.setMaxIntermediateRows(10000);
 
     final Supplier<GroupByQueryConfig> configSupplier = Suppliers.ofInstance(config);
-    final GroupByQueryEngine engine = new GroupByQueryEngine(configSupplier, pool);
+    final GroupByQueryEngine engine = new GroupByQueryEngine(pool);
 
     final GroupByQueryQueryToolChest toolChest = new GroupByQueryQueryToolChest(
         configSupplier, engine, TestQueryRunners.pool,

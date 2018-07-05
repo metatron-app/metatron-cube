@@ -174,7 +174,7 @@ public class GroupByQueryRunnerFactoryTest
       }
     };
 
-    GroupByQueryEngine engine = new GroupByQueryEngine(configSupplier, pool);
+    GroupByQueryEngine engine = new GroupByQueryEngine(pool);
     GroupByQueryQueryToolChest toolchest = new GroupByQueryQueryToolChest(
         configSupplier, engine, pool,
         QueryRunnerTestHelper.NoopIntervalChunkingQueryRunnerDecorator()

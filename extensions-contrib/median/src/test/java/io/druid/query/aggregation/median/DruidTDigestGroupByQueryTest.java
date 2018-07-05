@@ -60,7 +60,7 @@ public class DruidTDigestGroupByQueryTest
     config.setMaxIntermediateRows(10000);
 
     final Supplier<GroupByQueryConfig> configSupplier = Suppliers.ofInstance(config);
-    final GroupByQueryEngine engine = new GroupByQueryEngine(configSupplier, pool);
+    final GroupByQueryEngine engine = new GroupByQueryEngine(pool);
 
     final GroupByQueryRunnerFactory factory = new GroupByQueryRunnerFactory(
         engine,
@@ -84,7 +84,7 @@ public class DruidTDigestGroupByQueryTest
     singleThreadedConfig.setMaxIntermediateRows(10000);
 
     final Supplier<GroupByQueryConfig> singleThreadedConfigSupplier = Suppliers.ofInstance(singleThreadedConfig);
-    final GroupByQueryEngine singleThreadEngine = new GroupByQueryEngine(singleThreadedConfigSupplier, pool);
+    final GroupByQueryEngine singleThreadEngine = new GroupByQueryEngine(pool);
 
     final GroupByQueryRunnerFactory singleThreadFactory = new GroupByQueryRunnerFactory(
         singleThreadEngine,

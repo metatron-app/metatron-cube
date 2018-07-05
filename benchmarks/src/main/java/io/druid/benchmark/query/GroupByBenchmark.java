@@ -236,7 +236,7 @@ public class GroupByBenchmark
     config.setMaxResults(1000000);
 
     final Supplier<GroupByQueryConfig> configSupplier = Suppliers.ofInstance(config);
-    final GroupByQueryEngine engine = new GroupByQueryEngine(configSupplier, bufferPool);
+    final GroupByQueryEngine engine = new GroupByQueryEngine(bufferPool);
 
     factory = new GroupByQueryRunnerFactory(
         engine,
