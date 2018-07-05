@@ -41,6 +41,8 @@ public class StupidPool<T>
   //note that this is just the max entries in the cache, pool can still create as many buffers as needed.
   private final int objectsCacheMaxCount;
 
+  private int createdObjects;
+
   public StupidPool(
       Supplier<T> generator
   )
@@ -60,8 +62,14 @@ public class StupidPool<T>
 
   public ResourceHolder<T> take()
   {
-    final T obj = objects.poll();
-    return obj == null ? new ObjectResourceHolder(generator.get()) : new ObjectResourceHolder(obj);
+    T obj = objects.poll();
+    if (obj == null) {
+      obj = generator.get();
+      if (++createdObjects > objectsCacheMaxCount) {
+        log.warn("creating [%d] for max cache [%d].. leak?", createdObjects, objectsCacheMaxCount);
+      }
+    }
+    return new ObjectResourceHolder(obj);
   }
 
   private class ObjectResourceHolder implements ResourceHolder<T>

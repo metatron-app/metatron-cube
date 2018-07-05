@@ -41,7 +41,7 @@ public class OffheapBufferPool extends StupidPool<ByteBuffer>
           @Override
           public ByteBuffer get()
           {
-            log.info(
+            log.debug(
                 "Allocating new intermediate processing buffer[%,d] of size[%,d]",
                 count.getAndIncrement(), computationBufferSize
             );
