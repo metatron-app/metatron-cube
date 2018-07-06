@@ -21,7 +21,9 @@ package io.druid.query.config;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
+import io.druid.client.selector.QueryableDruidServer;
 import io.druid.common.Intervals;
+import io.druid.query.BaseQuery;
 import io.druid.query.DataSource;
 import io.druid.query.FilterableManagementQuery;
 import io.druid.query.TableDataSource;
@@ -29,13 +31,15 @@ import io.druid.query.jmx.JMXQuery;
 import io.druid.query.spec.MultipleIntervalSegmentSpec;
 import io.druid.query.spec.QuerySegmentSpec;
 
+import java.util.List;
 import java.util.Map;
 
 /**
  */
 @JsonTypeName("config")
-public class ConfigQuery extends JMXQuery implements FilterableManagementQuery
+public class ConfigQuery extends BaseQuery<Map<String, Object>> implements FilterableManagementQuery
 {
+  private final String expression;
   private final Map<String, Map<String, String>> config;
 
   public ConfigQuery(
@@ -49,9 +53,10 @@ public class ConfigQuery extends JMXQuery implements FilterableManagementQuery
     super(
         dataSource == null ? TableDataSource.of("config") : dataSource,
         querySegmentSpec == null ? new MultipleIntervalSegmentSpec(Intervals.ONLY_ETERNITY) : querySegmentSpec,
-        expression,
+        false,
         context
     );
+    this.expression = expression;
     this.config = config;
   }
 
@@ -67,7 +72,7 @@ public class ConfigQuery extends JMXQuery implements FilterableManagementQuery
     return new ConfigQuery(
         dataSource,
         getQuerySegmentSpec(),
-        getExpression(),
+        expression,
         config,
         getContext()
     );
@@ -79,7 +84,7 @@ public class ConfigQuery extends JMXQuery implements FilterableManagementQuery
     return new ConfigQuery(
         getDataSource(),
         spec,
-        getExpression(),
+        expression,
         config,
         getContext()
     );
@@ -91,10 +96,16 @@ public class ConfigQuery extends JMXQuery implements FilterableManagementQuery
     return new ConfigQuery(
         getDataSource(),
         getQuerySegmentSpec(),
-        getExpression(),
+        expression,
         config,
         computeOverriddenContext(contextOverride)
     );
+  }
+
+  @JsonProperty
+  public String getExpression()
+  {
+    return expression;
   }
 
   @JsonProperty
@@ -104,10 +115,16 @@ public class ConfigQuery extends JMXQuery implements FilterableManagementQuery
   }
 
   @Override
+  public List<QueryableDruidServer> filter(List<QueryableDruidServer> servers)
+  {
+    return JMXQuery.filterServers(expression, servers);
+  }
+
+  @Override
   public String toString()
   {
     return "ConfigQuery{" +
-           "expression='" + getExpression() + '\'' +
+           "expression='" + expression + '\'' +
            ", config=" + config +
            '}';
   }

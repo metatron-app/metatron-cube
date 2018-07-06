@@ -20,8 +20,14 @@
 package io.druid.query.jmx;
 
 import com.fasterxml.jackson.core.type.TypeReference;
+import com.google.common.base.Function;
+import com.google.common.collect.Iterables;
+import com.metamx.common.guava.Sequence;
+import io.druid.common.utils.Sequences;
 import io.druid.query.QueryRunner;
 import io.druid.query.QueryToolChest;
+import io.druid.query.TabularFormat;
+import org.joda.time.DateTime;
 
 import java.util.Map;
 
@@ -38,6 +44,57 @@ public class JMXQueryToolChest extends QueryToolChest<Map<String, Object>, JMXQu
   public QueryRunner<Map<String, Object>> mergeResults(QueryRunner<Map<String, Object>> queryRunner)
   {
     return queryRunner;
+  }
+
+  @Override
+  public TabularFormat toTabularFormat(
+      final JMXQuery query,
+      final Sequence<Map<String, Object>> sequence,
+      final String timestampColumn
+  )
+  {
+    return new TabularFormat()
+    {
+      @Override
+      public Sequence<Map<String, Object>> getSequence()
+      {
+        return Sequences.concat(
+            Sequences.map(
+                sequence, new Function<Map<String, Object>, Sequence<Map<String, Object>>>()
+                {
+                  private final DateTime current = DateTime.now();
+
+                  @Override
+                  @SuppressWarnings("unchecked")
+                  public Sequence<Map<String, Object>> apply(Map<String, Object> input)
+                  {
+                    return Sequences.simple(
+                        Iterables.transform(
+                            input.entrySet(), new Function<Map.Entry<String, Object>, Map<String, Object>>()
+                            {
+                              @Override
+                              public Map<String, Object> apply(Map.Entry<String, Object> entry)
+                              {
+                                Map<String, Object> value = (Map<String, Object>) entry.getValue();
+                                value.put(timestampColumn, current.getMillis());
+                                value.put("host", entry.getKey());
+                                return value;
+                              }
+                            }
+                        )
+                    );
+                  }
+                }
+            )
+        );
+      }
+
+      @Override
+      public Map<String, Object> getMetaData()
+      {
+        return null;
+      }
+    };
   }
 
   @Override

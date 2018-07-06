@@ -48,11 +48,13 @@ import java.util.Map;
 public class JMXQuery extends BaseQuery<Map<String, Object>> implements FilterableManagementQuery
 {
   private final String expression;
+  private final boolean dumpLongestStack;
 
   public JMXQuery(
       @JsonProperty("dataSource") DataSource dataSource,
       @JsonProperty("intervals") QuerySegmentSpec querySegmentSpec,
       @JsonProperty("expression") String expression,
+      @JsonProperty("dumpLongestStack") boolean dumpLongestStack,
       @JsonProperty("context") Map<String, Object> context
   )
   {
@@ -63,6 +65,7 @@ public class JMXQuery extends BaseQuery<Map<String, Object>> implements Filterab
         context
     );
     this.expression = expression;
+    this.dumpLongestStack = dumpLongestStack;
   }
 
   @Override
@@ -78,6 +81,7 @@ public class JMXQuery extends BaseQuery<Map<String, Object>> implements Filterab
         dataSource,
         getQuerySegmentSpec(),
         expression,
+        dumpLongestStack,
         getContext()
     );
   }
@@ -89,6 +93,7 @@ public class JMXQuery extends BaseQuery<Map<String, Object>> implements Filterab
         getDataSource(),
         spec,
         expression,
+        dumpLongestStack,
         getContext()
     );
   }
@@ -100,6 +105,7 @@ public class JMXQuery extends BaseQuery<Map<String, Object>> implements Filterab
         getDataSource(),
         getQuerySegmentSpec(),
         expression,
+        dumpLongestStack,
         computeOverriddenContext(contextOverride)
     );
   }
@@ -125,6 +131,12 @@ public class JMXQuery extends BaseQuery<Map<String, Object>> implements Filterab
     return expression;
   }
 
+  @JsonProperty
+  public boolean isDumpLongestStack()
+  {
+    return dumpLongestStack;
+  }
+
   @Override
   public String toString()
   {
@@ -135,6 +147,11 @@ public class JMXQuery extends BaseQuery<Map<String, Object>> implements Filterab
 
   @Override
   public List<QueryableDruidServer> filter(List<QueryableDruidServer> servers)
+  {
+    return filterServers(expression, servers);
+  }
+
+  public static List<QueryableDruidServer> filterServers(String expression, List<QueryableDruidServer> servers)
   {
     if (expression == null) {
       return servers;
@@ -151,7 +168,8 @@ public class JMXQuery extends BaseQuery<Map<String, Object>> implements Filterab
               "type", druidServer.getType(),
               "tier", druidServer.getTier(),
               "host", hostAndPort.getHostText(),
-              "port", hostAndPort.getPort())
+              "port", hostAndPort.getPort()
+          )
       );
       if (expr.eval(bindings).asBoolean()) {
         passed.add(server);
