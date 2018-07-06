@@ -98,8 +98,7 @@ public class TimeseriesQueryRunnerFactory
           List<Iterable<Result<TimeseriesResultValue>>> results
       )
       {
-        TimeseriesQuery timeseriesQuery = (TimeseriesQuery) query;
-        if (QueryGranularities.ALL.equals(timeseriesQuery.getGranularity())) {
+        if (QueryGranularities.ALL.equals(query.getGranularity())) {
           return Iterables.concat(results).iterator();
         }
         return super.toIterator(query, results);

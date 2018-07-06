@@ -214,7 +214,7 @@ public class HoltWintersPostProcessor extends PostProcessingOperator.Abstract
       {
         final String[] valueColumns = values.toArray(new String[values.size()]);
         if (query instanceof StreamQuery) {
-          final Granularity granularity = ((StreamQuery) query).getGranularity();
+          final Granularity granularity = query.getGranularity();
           // this is used for quick calculation of prediction only
           final BoundedTimeseries[] numbers = makeReservoir(valueColumns.length, granularity);
           baseRunner.run(query, responseContext).accumulate(
@@ -238,7 +238,7 @@ public class HoltWintersPostProcessor extends PostProcessingOperator.Abstract
 
         } else if (query instanceof BaseAggregationQuery) {
           final BaseAggregationQuery aggregation = (BaseAggregationQuery) query;
-          final Granularity granularity = timeGranularity == null ? aggregation.getGranularity() : timeGranularity;
+          final Granularity granularity = Optional.fromNullable(timeGranularity).or(aggregation.getGranularity());
           List<String> copy = Lists.newArrayList(dimensions);
           copy.retainAll(DimensionSpecs.toOutputNames(aggregation.getDimensions()));
           final String[] dimensions = copy.toArray(new String[copy.size()]);

@@ -42,6 +42,7 @@ import io.druid.cache.Cache;
 import io.druid.collections.ResourceHolder;
 import io.druid.collections.StupidPool;
 import io.druid.common.guava.GuavaUtils;
+import io.druid.common.utils.StringUtils;
 import io.druid.data.Pair;
 import io.druid.data.input.MapBasedRow;
 import io.druid.data.input.Row;
@@ -482,7 +483,7 @@ public class GroupByQueryEngine
                     int i = 0;
                     final int[] keyArray = input.getKey().array;
                     for (int x = 0; x < dimensions.length; ++x) {
-                      array[i++] = dimensions[x].lookupName(keyArray[x]);
+                      array[i++] = StringUtils.emptyToNull(dimensions[x].lookupName(keyArray[x]));
                     }
 
                     final int[] position = input.getValue();

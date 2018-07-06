@@ -112,9 +112,7 @@ public class TimeseriesQueryQueryToolChest extends QueryToolChest<Result<Timeser
       @Override
       protected Ordering<Result<TimeseriesResultValue>> makeOrdering(Query<Result<TimeseriesResultValue>> query)
       {
-        return ResultGranularTimestampComparator.create(
-            ((TimeseriesQuery) query).getGranularity(), query.isDescending()
-        );
+        return ResultGranularTimestampComparator.create(query.getGranularity(), query.isDescending());
       }
 
       @Override

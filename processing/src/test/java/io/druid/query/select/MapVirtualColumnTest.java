@@ -54,6 +54,7 @@ import io.druid.segment.incremental.IncrementalIndexSchema;
 import io.druid.segment.incremental.OnheapIncrementalIndex;
 import org.joda.time.DateTime;
 import org.junit.Assert;
+import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
@@ -228,6 +229,7 @@ public class MapVirtualColumnTest
     );
   }
 
+  @Ignore("supported")
   @Test(expected = UnsupportedOperationException.class)
   public void testException2() throws Exception
   {

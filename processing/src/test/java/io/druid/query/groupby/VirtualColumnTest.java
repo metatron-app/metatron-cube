@@ -69,6 +69,7 @@ import io.druid.segment.incremental.IncrementalIndex;
 import io.druid.segment.incremental.IncrementalIndexSchema;
 import io.druid.segment.incremental.OnheapIncrementalIndex;
 import org.joda.time.DateTime;
+import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
@@ -320,6 +321,7 @@ public class VirtualColumnTest
     Sequences.toList(runner.run(query, ImmutableMap.<String, Object>of()), Lists.<Row>newArrayList());
   }
 
+  @Ignore("supported")
   @Test(expected = UnsupportedOperationException.class)
   public void testException2() throws Exception
   {
@@ -398,6 +400,57 @@ public class VirtualColumnTest
             )
         )
         .build();
+    checkQueryResult(query, expectedResults);
+  }
+
+  @Test
+  public void testGroupByOnDotVC() throws Exception
+  {
+    BaseAggregationQuery.Builder<GroupByQuery> builder = testBuilder();
+
+    List<VirtualColumn> virtualColumns = Arrays.<VirtualColumn>asList(
+        new MapVirtualColumn("keys", "values", null, "params")
+    );
+    GroupByQuery query = builder
+        .setDimensions(DefaultDimensionSpec.toSpec("params.key1"))
+        .setAggregatorSpecs(new CountAggregatorFactory("count"))
+        .setVirtualColumns(virtualColumns)
+        .build();
+
+    List<Row> expectedResults = GroupByQueryRunnerTestHelper.createExpectedRows(
+        new String[]{"__time", "params.key1", "count"},
+        new Object[]{"2011-01-12T00:00:00.000Z", "1", 1L},
+        new Object[]{"2011-01-12T00:00:00.000Z", "10", 1L},
+        new Object[]{"2011-01-12T00:00:00.000Z", "100", 2L},
+        new Object[]{"2011-01-12T00:00:00.000Z", "2", 1L},
+        new Object[]{"2011-01-12T00:00:00.000Z", "400", 1L}
+    );
+    checkQueryResult(query, expectedResults);
+
+    query = query.withDimensionSpecs(DefaultDimensionSpec.toSpec("params.key3"));
+    expectedResults = GroupByQueryRunnerTestHelper.createExpectedRows(
+        new String[]{"__time", "params.key3", "count"},
+        new Object[]{"2011-01-12T00:00:00.000Z", null, 1L},
+        new Object[]{"2011-01-12T00:00:00.000Z", "30", 1L},
+        new Object[]{"2011-01-12T00:00:00.000Z", "300", 1L},
+        new Object[]{"2011-01-12T00:00:00.000Z", "600", 1L},
+        new Object[]{"2011-01-12T00:00:00.000Z", "8", 1L},
+        new Object[]{"2011-01-12T00:00:00.000Z", "9", 1L}
+    );
+    checkQueryResult(query, expectedResults);
+
+    query = query.withVirtualColumns(
+        Arrays.<VirtualColumn>asList(new MapVirtualColumn("keys", null, "array", "params"))
+    );
+    expectedResults = GroupByQueryRunnerTestHelper.createExpectedRows(
+        new String[]{"__time", "params.key3", "count"},
+        new Object[]{"2011-01-12T00:00:00.000Z", null, 1L},
+        new Object[]{"2011-01-12T00:00:00.000Z", 8.0, 1L},
+        new Object[]{"2011-01-12T00:00:00.000Z", 9.0, 1L},
+        new Object[]{"2011-01-12T00:00:00.000Z", 30.0, 1L},
+        new Object[]{"2011-01-12T00:00:00.000Z", 300.0, 1L},
+        new Object[]{"2011-01-12T00:00:00.000Z", 600.0, 1L}
+    );
     checkQueryResult(query, expectedResults);
   }
 

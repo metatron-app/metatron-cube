@@ -271,7 +271,7 @@ public class MapVirtualColumn implements VirtualColumn
       return factory.makeDimensionSelector(DimensionSpecs.of(valueDimension, extractionFn));
     }
     ObjectColumnSelector selector = asMetric(dimension, factory);
-    if (!ValueDesc.isString(selector.type())) {
+    if (!ValueDesc.isDimension(selector.type()) && !ValueDesc.isPrimitive(selector.type())) {
       throw new UnsupportedOperationException(dimension + " cannot be used as dimension");
     }
     return VirtualColumns.toDimensionSelector(selector, extractionFn);

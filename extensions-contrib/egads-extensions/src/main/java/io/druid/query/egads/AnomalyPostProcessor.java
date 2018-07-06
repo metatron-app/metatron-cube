@@ -4,6 +4,7 @@ import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonTypeName;
 import com.google.common.base.Function;
+import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Throwables;
 import com.google.common.collect.ImmutableMap;
@@ -15,7 +16,6 @@ import com.yahoo.egads.data.TimeSeries;
 import com.yahoo.egads.models.adm.AnomalyDetectionModel;
 import com.yahoo.egads.models.tsmm.TimeSeriesModel;
 import io.druid.granularity.Granularity;
-import io.druid.query.BaseAggregationQuery;
 import io.druid.query.PostProcessingOperator;
 import io.druid.query.Query;
 import io.druid.query.QueryRunner;
@@ -75,10 +75,7 @@ public class AnomalyPostProcessor extends PostProcessingOperator.Abstract
       public Sequence run(Query query, Map responseContext)
       {
         Properties properties = Utils.initProperties(parameters);
-        Granularity granularity = timeGranularity;
-        if (granularity == null && query instanceof BaseAggregationQuery) {
-          granularity = ((BaseAggregationQuery)query).getGranularity();
-        }
+        Granularity granularity = Optional.fromNullable(timeGranularity).or(query.getGranularity());
         Preconditions.checkNotNull(granularity, "cannot extract 'timeGranularity'");
 
         final TsModel ts = Utils.getTS(tsModel);

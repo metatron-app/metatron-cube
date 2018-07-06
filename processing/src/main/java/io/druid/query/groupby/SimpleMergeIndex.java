@@ -125,7 +125,7 @@ public class SimpleMergeIndex implements MergeIndex
     rowSupplier.set(row);
     final Comparable[] key = new Comparable[dimensions.length];
     for (int i = 0; i < key.length; i++) {
-      key[i] = StringUtils.nullToEmpty((Comparable) row.getRaw(dimensions[i]));
+      key[i] = (Comparable) row.getRaw(dimensions[i]);
     }
     if (groupings.length == 0) {
       _addRow(new TimeAndDims(row.getTimestampFromEpoch(), key));
@@ -163,7 +163,7 @@ public class SimpleMergeIndex implements MergeIndex
           int x = 0;
           values[x++] = key.timestamp;
           for (int i = 0; i < dimensions.length; i++) {
-            values[x++] = StringUtils.emptyToNull(key.array[i]);
+            values[x++] = key.array[i];
           }
           for (int i = 0; i < metrics.length; i++) {
             values[x++] = value[i].get();
