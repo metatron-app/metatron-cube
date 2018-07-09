@@ -33,6 +33,7 @@ import com.metamx.common.Pair;
 import com.metamx.common.guava.FunctionalIterable;
 import com.metamx.common.guava.Sequence;
 import com.metamx.common.guava.Sequences;
+import io.druid.query.BaseQuery;
 import io.druid.query.BySegmentQueryRunner;
 import io.druid.query.DataSource;
 import io.druid.query.NoopQueryRunner;
@@ -379,10 +380,12 @@ public class SpecificSegmentsQuerySegmentWalker implements QuerySegmentWalker, Q
     if (query.getDataSource() instanceof QueryDataSource) {
       Preconditions.checkNotNull(factory, query + " does not supports nested query");
 
+      QueryDataSource dataSource = (QueryDataSource) query.getDataSource();
       QueryToolChest<T, Query<T>> toolChest = factory.getToolchest();
-      Query innerQuery = ((QueryDataSource) query.getDataSource()).getQuery()
-                                                                  .withOverriddenContext(query.getContext())
-                                                                  .withOverriddenContext(Query.FINALIZE, false);
+      Query innerQuery = dataSource.getQuery()
+                                   .withOverriddenContext(BaseQuery.copyContextForMeta(query.getContext()))
+                                   .withOverriddenContext(Query.FINALIZE, false);
+
       int maxResult = queryConfig.getMaxResults();
       int maxRowCount = Math.min(
           query.getContextValue(GroupByQueryHelper.CTX_KEY_MAX_RESULTS, maxResult),

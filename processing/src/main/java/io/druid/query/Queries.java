@@ -229,88 +229,13 @@ public class Queries
   {
     if (subQuery instanceof JoinQuery.JoinDelegate) {
       final String timeColumn = ((JoinQuery.JoinDelegate) subQuery).getTimeColumnName();
-      return Sequences.map(
-          sequence, new Function<I, Row>()
-          {
-            @Override
-            @SuppressWarnings("unchecked")
-            public Row apply(I input)
-            {
-              Map<String, Object> event = (Map<String, Object>) input;
-              Object timeValue = event.get(timeColumn);
-              if (timeValue == null) {
-                throw new IllegalArgumentException("cannot find time column '" + timeColumn + "'");
-              }
-              return new MapBasedRow(Rows.parseLong(timeValue), event);
-            }
-          }
-      );
+      return Sequences.map((Sequence<Map<String, Object>>) sequence, Rows.mapToRow(timeColumn));
     } else if (subQuery instanceof SelectQuery) {
-      Sequence<Result<SelectResultValue>> select = (Sequence<Result<SelectResultValue>>) sequence;
-      return Sequences.concat(
-          Sequences.map(
-              select, new Function<Result<SelectResultValue>, Sequence<Row>>()
-              {
-                @Override
-                public Sequence<Row> apply(Result<SelectResultValue> input)
-                {
-                  final DateTime timestamp = input.getTimestamp();
-                  return Sequences.simple(
-                      Lists.transform(
-                          input.getValue().getEvents(),
-                          new Function<EventHolder, Row>()
-                          {
-                            @Override
-                            public Row apply(EventHolder input)
-                            {
-                              return new MapBasedRow(timestamp, input.getEvent());
-                            }
-                          }
-                      )
-                  );
-                }
-              }
-          )
-      );
+      return Sequences.concat(Sequences.map((Sequence<Result<SelectResultValue>>) sequence, SELECT_TO_ROWS));
     } else if (subQuery instanceof StreamQuery) {
-      Sequence<StreamQueryRow> stream = (Sequence<StreamQueryRow>) sequence;
-      return Sequences.map(
-          stream, new Function<StreamQueryRow, Row>()
-          {
-            @Override
-            public Row apply(StreamQueryRow input)
-            {
-              return new MapBasedRow(input.getTimestamp(), input);
-            }
-          }
-      );
+      return Sequences.map((Sequence<StreamQueryRow>) sequence, STREAM_TO_ROW);
     } else if (subQuery instanceof TopNQuery) {
-      Sequence<Result<TopNResultValue>> topN = (Sequence<Result<TopNResultValue>>) sequence;
-      return Sequences.concat(
-          Sequences.map(
-              topN, new Function<Result<TopNResultValue>, Sequence<Row>>()
-              {
-                @Override
-                public Sequence<Row> apply(Result<TopNResultValue> input)
-                {
-                  final DateTime timestamp = input.getTimestamp();
-                  return Sequences.simple(
-                      Lists.transform(
-                          input.getValue().getValue(),
-                          new Function<Map<String, Object>, Row>()
-                          {
-                            @Override
-                            public Row apply(Map<String, Object> input)
-                            {
-                              return new MapBasedRow(timestamp, input);
-                            }
-                          }
-                      )
-                  );
-                }
-              }
-          )
-      );
+      return Sequences.concat(Sequences.map((Sequence<Result<TopNResultValue>>) sequence, TOP_N_TO_ROWS));
     } else if (subQuery instanceof TimeseriesQuery) {
       return Sequences.map((Sequence<Result<TimeseriesResultValue>>) sequence, TIMESERIES_TO_ROW);
     } else if (subQuery instanceof GroupByQuery) {
@@ -339,6 +264,60 @@ public class Queries
         }
       };
 
+  public static Function<StreamQueryRow, Row> STREAM_TO_ROW =
+      new Function<StreamQueryRow, Row>()
+      {
+        @Override
+        public Row apply(StreamQueryRow input)
+        {
+          return new MapBasedRow(input.getTimestamp(), input);
+        }
+      };
+
+  public static Function<Result<TopNResultValue>, Sequence<Row>> TOP_N_TO_ROWS =
+      new Function<Result<TopNResultValue>, Sequence<Row>>()
+      {
+        @Override
+        public Sequence<Row> apply(Result<TopNResultValue> input)
+        {
+          final DateTime dateTime = input.getTimestamp();
+          return Sequences.simple(
+              Iterables.transform(
+                  input.getValue(), new Function<Map<String, Object>, Row>()
+                  {
+                    @Override
+                    public Row apply(Map<String, Object> input)
+                    {
+                      return new MapBasedRow(dateTime, input);
+                    }
+                  }
+              )
+          );
+        }
+      };
+
+  public static Function<Result<SelectResultValue>, Sequence<Row>> SELECT_TO_ROWS =
+      new Function<Result<SelectResultValue>, Sequence<Row>>()
+      {
+        @Override
+        public Sequence<Row> apply(Result<SelectResultValue> input)
+        {
+          final DateTime dateTime = input.getTimestamp();
+          return Sequences.simple(
+              Iterables.transform(
+                  input.getValue(), new Function<EventHolder, Row>()
+                  {
+                    @Override
+                    public Row apply(EventHolder input)
+                    {
+                      return new MapBasedRow(dateTime, input.getEvent());
+                    }
+                  }
+              )
+          );
+        }
+      };
+
   @SuppressWarnings("unchecked")
   public static <I> Sequence<I> convertBack(Query<I> subQuery, Sequence<Row> sequence)
   {
@@ -354,6 +333,9 @@ public class Queries
   public static Map<String, Object> extractContext(Query<?> query, String... keys)
   {
     Map<String, Object> context = query.getContext();
+    if (context == null) {
+      context = Maps.newHashMap();
+    }
     Map<String, Object> extracted = Maps.newHashMap();
     for (String key : keys) {
       if (context.containsKey(key)) {

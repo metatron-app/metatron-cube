@@ -32,6 +32,8 @@ import io.druid.query.groupby.LimitingPostProcessor;
     @JsonSubTypes.Type(name = "holtWinters", value = HoltWintersPostProcessor.class),
     @JsonSubTypes.Type(name = "rowToMap", value = RowToMap.class),
     @JsonSubTypes.Type(name = "tsToRow", value = TimeseriesToRow.class),
+    @JsonSubTypes.Type(name = "selectToRow", value = SelectToRow.class),
+    @JsonSubTypes.Type(name = "topNToRow", value = TopNToRow.class),
     @JsonSubTypes.Type(name = "list", value = ListPostProcessingOperator.class),
     @JsonSubTypes.Type(name = "limit", value = LimitingPostProcessor.class),
     @JsonSubTypes.Type(name = "postAggregations", value = PostAggregationsPostProcessor.class),

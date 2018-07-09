@@ -166,6 +166,9 @@ public class Schema implements TypeResolver, RowSignature
 
   public Schema appendTime()
   {
+    if (metricNames.contains(Column.TIME_COLUMN_NAME)) {
+      return this;
+    }
     return new Schema(
         Lists.newArrayList(dimensionNames),
         GuavaUtils.concat(metricNames, Column.TIME_COLUMN_NAME),

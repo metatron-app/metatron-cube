@@ -932,6 +932,12 @@ public class QueryRunnerTestHelper
     return io.druid.common.utils.Sequences.toList(query.run(TestIndex.segmentWalker, Maps.<String, Object>newHashMap()));
   }
 
+  @SuppressWarnings("unchecked")
+  public static <T> List<T> runQuery(Query query)
+  {
+    return io.druid.common.utils.Sequences.toList(query.run(TestIndex.segmentWalker, Maps.<String, Object>newHashMap()));
+  }
+
   public static Map<String, Object> of(Object... keyvalues)
   {
     ImmutableMap.Builder<String, Object> builder = ImmutableMap.builder();

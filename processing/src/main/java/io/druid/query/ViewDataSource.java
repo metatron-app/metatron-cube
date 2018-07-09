@@ -40,6 +40,11 @@ public class ViewDataSource implements DataSource
     return new ViewDataSource(dataSource, Arrays.asList(columns), null, null, false);
   }
 
+  public static ViewDataSource of(String dataSource, DimFilter filer, String... columns)
+  {
+    return new ViewDataSource(dataSource, Arrays.asList(columns), null, filer, false);
+  }
+
   @JsonProperty
   private final String name;
 

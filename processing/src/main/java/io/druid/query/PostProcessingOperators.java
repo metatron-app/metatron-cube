@@ -21,6 +21,7 @@ package io.druid.query;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.google.common.collect.ImmutableMap;
 import com.metamx.common.guava.Sequence;
 
 import java.util.Map;
@@ -44,6 +45,19 @@ public class PostProcessingOperators
         return baseRunner.run(query, responseContext);
       }
     };
+  }
+
+  public static Map<String, Object> tabular(final ObjectMapper mapper, final String timestampColumn)
+  {
+    return ImmutableMap.of(
+        Query.POST_PROCESSING,
+        mapper.convertValue(
+            ImmutableMap.of("type", "tabular", "timestampColumn", timestampColumn),
+            new TypeReference<PostProcessingOperator>()
+            {
+            }
+        )
+    );
   }
 
   @SuppressWarnings("unchecked")

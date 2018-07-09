@@ -29,6 +29,7 @@ import io.druid.data.input.impl.DelimitedParseSpec;
 import io.druid.data.input.impl.DimensionsSpec;
 import io.druid.data.input.impl.StringDimensionSchema;
 import io.druid.data.input.impl.StringInputRowParser;
+import io.druid.granularity.Granularities;
 import io.druid.math.expr.Parser;
 import io.druid.query.DataSource;
 import io.druid.query.JoinElement;
@@ -36,13 +37,25 @@ import io.druid.query.JoinQuery;
 import io.druid.query.JoinType;
 import io.druid.query.ModuleBuiltinFunctions;
 import io.druid.query.Query;
+import io.druid.query.QueryDataSource;
 import io.druid.query.QueryRunnerTestHelper;
+import io.druid.query.SelectToRow;
+import io.druid.query.TableDataSource;
+import io.druid.query.TopNToRow;
 import io.druid.query.ViewDataSource;
 import io.druid.query.aggregation.AggregatorFactory;
+import io.druid.query.aggregation.CountAggregatorFactory;
 import io.druid.query.aggregation.GenericSumAggregatorFactory;
+import io.druid.query.dimension.DefaultDimensionSpec;
+import io.druid.query.filter.BoundDimFilter;
+import io.druid.query.groupby.GroupByQuery;
 import io.druid.query.groupby.GroupByQueryRunnerTestHelper;
+import io.druid.query.select.SelectQuery;
+import io.druid.query.topn.NumericTopNMetricSpec;
+import io.druid.query.topn.TopNQuery;
 import io.druid.segment.TestHelper;
 import io.druid.segment.TestIndex;
+import io.druid.segment.column.Column;
 import io.druid.segment.incremental.IncrementalIndexSchema;
 import io.druid.timeline.DataSegment;
 import org.joda.time.DateTime;
@@ -130,7 +143,8 @@ public class JoinQueryRunnerTest extends QueryRunnerTestHelper
 
     String[] columns = new String[]{"__time", "market", "index", "market_month", "value"};
     List<Row> expectedRows = GroupByQueryRunnerTestHelper.createExpectedRows(
-        columns, array("2011-04-01T00:00:00.000Z", "spot", 135.88510131835938, "april_spot", 41111L),
+        columns,
+        array("2011-04-01T00:00:00.000Z", "spot", 135.88510131835938, "april_spot", 41111L),
         array("2011-04-01T00:00:00.000Z", "spot", 118.57034301757812, "april_spot", 41111L),
         array("2011-04-01T00:00:00.000Z", "spot", 158.74722290039062, "april_spot", 41111L),
         array("2011-04-01T00:00:00.000Z", "spot", 120.13470458984375, "april_spot", 41111L),
@@ -158,47 +172,257 @@ public class JoinQueryRunnerTest extends QueryRunnerTestHelper
         array("2011-04-01T00:00:00.000Z", "upfront", 1049.738525390625, "april_upfront", 41113L)
     );
 
-    Iterable<Row> rows = Iterables.transform(runTabularQuery(joinQuery), Rows.mapToRow());
-    for (Object x : rows) {
-      System.out.println(x);
-    }
+    Iterable<Row> rows = Iterables.transform(runTabularQuery(joinQuery), Rows.mapToRow(Column.TIME_COLUMN_NAME));
     TestHelper.assertExpectedObjects(expectedRows, rows, "");
 
     // prefixed
-    rows = Iterables.transform(runTabularQuery(joinQuery.withPrefixAlias(true)), Rows.mapToRow());
+    rows = Iterables.transform(runTabularQuery(joinQuery.withPrefixAlias(true)), Rows.mapToRow(dataSource + ".__time"));
     columns = new String[]{
+        Column.TIME_COLUMN_NAME,
         dataSource + ".market", dataSource + ".__time", dataSource + ".index",
         JOIN_DS + ".market", JOIN_DS + ".__time", JOIN_DS + ".market_month", JOIN_DS + ".value"
     };
-    GroupByQueryRunnerTestHelper.printToExpected(columns, rows);
     expectedRows = GroupByQueryRunnerTestHelper.createExpectedRows(
         columns,
-        array("spot", 1301616000000L, 135.88510131835938, "spot", 1301616000000L, "april_spot", 41111L),
-        array("spot", 1301616000000L, 118.57034301757812, "spot", 1301616000000L, "april_spot", 41111L),
-        array("spot", 1301616000000L, 158.74722290039062, "spot", 1301616000000L, "april_spot", 41111L),
-        array("spot", 1301616000000L, 120.13470458984375, "spot", 1301616000000L, "april_spot", 41111L),
-        array("spot", 1301616000000L, 109.70581817626953, "spot", 1301616000000L, "april_spot", 41111L),
-        array("spot", 1301616000000L, 121.58358001708984, "spot", 1301616000000L, "april_spot", 41111L),
-        array("spot", 1301616000000L, 144.5073699951172, "spot", 1301616000000L, "april_spot", 41111L),
-        array("spot", 1301616000000L, 78.62254333496094, "spot", 1301616000000L, "april_spot", 41111L),
-        array("spot", 1301616000000L, 119.92274475097656, "spot", 1301616000000L, "april_spot", 41111L),
-        array("spot", 1301702400000L, 147.42593383789062, "spot", 1301616000000L, "april_spot", 41111L),
-        array("spot", 1301702400000L, 112.98703002929688, "spot", 1301616000000L, "april_spot", 41111L),
-        array("spot", 1301702400000L, 166.01605224609375, "spot", 1301616000000L, "april_spot", 41111L),
-        array("spot", 1301702400000L, 113.44600677490234, "spot", 1301616000000L, "april_spot", 41111L),
-        array("spot", 1301702400000L, 110.93193054199219, "spot", 1301616000000L, "april_spot", 41111L),
-        array("spot", 1301702400000L, 114.2901382446289, "spot", 1301616000000L, "april_spot", 41111L),
-        array("spot", 1301702400000L, 135.30149841308594, "spot", 1301616000000L, "april_spot", 41111L),
-        array("spot", 1301702400000L, 97.38743591308594, "spot", 1301616000000L, "april_spot", 41111L),
-        array("spot", 1301702400000L, 126.41136169433594, "spot", 1301616000000L, "april_spot", 41111L),
-        array("total_market", 1301616000000L, 1314.8397216796875, "total_market", 1301616000000L, "april_total_market", 41112L),
-        array("total_market", 1301616000000L, 1522.043701171875, "total_market", 1301616000000L, "april_total_market", 41112L),
-        array("total_market", 1301702400000L, 1193.5562744140625, "total_market", 1301616000000L, "april_total_market", 41112L),
-        array("total_market", 1301702400000L, 1321.375, "total_market", 1301616000000L, "april_total_market", 41112L),
-        array("upfront", 1301616000000L, 1447.3411865234375, "upfront", 1301616000000L, "april_upfront", 41113L),
-        array("upfront", 1301616000000L, 1234.24755859375, "upfront", 1301616000000L, "april_upfront", 41113L),
-        array("upfront", 1301702400000L, 1144.3424072265625, "upfront", 1301616000000L, "april_upfront", 41113L),
-        array("upfront", 1301702400000L, 1049.738525390625, "upfront", 1301616000000L, "april_upfront", 41113L)
+        array("2011-04-01", "spot", 1301616000000L, 135.88510131835938, "spot", 1301616000000L, "april_spot", 41111L),
+        array("2011-04-01", "spot", 1301616000000L, 118.57034301757812, "spot", 1301616000000L, "april_spot", 41111L),
+        array("2011-04-01", "spot", 1301616000000L, 158.74722290039062, "spot", 1301616000000L, "april_spot", 41111L),
+        array("2011-04-01", "spot", 1301616000000L, 120.13470458984375, "spot", 1301616000000L, "april_spot", 41111L),
+        array("2011-04-01", "spot", 1301616000000L, 109.70581817626953, "spot", 1301616000000L, "april_spot", 41111L),
+        array("2011-04-01", "spot", 1301616000000L, 121.58358001708984, "spot", 1301616000000L, "april_spot", 41111L),
+        array("2011-04-01", "spot", 1301616000000L, 144.5073699951172, "spot", 1301616000000L, "april_spot", 41111L),
+        array("2011-04-01", "spot", 1301616000000L, 78.62254333496094, "spot", 1301616000000L, "april_spot", 41111L),
+        array("2011-04-01", "spot", 1301616000000L, 119.92274475097656, "spot", 1301616000000L, "april_spot", 41111L),
+        array("2011-04-02", "spot", 1301702400000L, 147.42593383789062, "spot", 1301616000000L, "april_spot", 41111L),
+        array("2011-04-02", "spot", 1301702400000L, 112.98703002929688, "spot", 1301616000000L, "april_spot", 41111L),
+        array("2011-04-02", "spot", 1301702400000L, 166.01605224609375, "spot", 1301616000000L, "april_spot", 41111L),
+        array("2011-04-02", "spot", 1301702400000L, 113.44600677490234, "spot", 1301616000000L, "april_spot", 41111L),
+        array("2011-04-02", "spot", 1301702400000L, 110.93193054199219, "spot", 1301616000000L, "april_spot", 41111L),
+        array("2011-04-02", "spot", 1301702400000L, 114.2901382446289, "spot", 1301616000000L, "april_spot", 41111L),
+        array("2011-04-02", "spot", 1301702400000L, 135.30149841308594, "spot", 1301616000000L, "april_spot", 41111L),
+        array("2011-04-02", "spot", 1301702400000L, 97.38743591308594, "spot", 1301616000000L, "april_spot", 41111L),
+        array("2011-04-02", "spot", 1301702400000L, 126.41136169433594, "spot", 1301616000000L, "april_spot", 41111L),
+        array("2011-04-01", "total_market", 1301616000000L, 1314.8397216796875, "total_market", 1301616000000L, "april_total_market", 41112L),
+        array("2011-04-01", "total_market", 1301616000000L, 1522.043701171875, "total_market", 1301616000000L, "april_total_market", 41112L),
+        array("2011-04-02", "total_market", 1301702400000L, 1193.5562744140625, "total_market", 1301616000000L, "april_total_market", 41112L),
+        array("2011-04-02", "total_market", 1301702400000L, 1321.375, "total_market", 1301616000000L, "april_total_market", 41112L),
+        array("2011-04-01", "upfront", 1301616000000L, 1447.3411865234375, "upfront", 1301616000000L, "april_upfront", 41113L),
+        array("2011-04-01", "upfront", 1301616000000L, 1234.24755859375, "upfront", 1301616000000L, "april_upfront", 41113L),
+        array("2011-04-02", "upfront", 1301702400000L, 1144.3424072265625, "upfront", 1301616000000L, "april_upfront", 41113L),
+        array("2011-04-02", "upfront", 1301702400000L, 1049.738525390625, "upfront", 1301616000000L, "april_upfront", 41113L)
+    );
+    TestHelper.assertExpectedObjects(expectedRows, rows, "");
+  }
+
+  @Test
+  public void testJoinOnGroupBy()
+  {
+    GroupByQuery groupByQuery = new GroupByQuery(
+        TableDataSource.of(dataSource), firstToThird, BoundDimFilter.between("index", 120, 1200),
+        Granularities.ALL, DefaultDimensionSpec.toSpec("market"), null, null,
+        Arrays.<AggregatorFactory>asList(
+            new CountAggregatorFactory("COUNT"),
+            new GenericSumAggregatorFactory("SUM", "index", "double")
+        ),
+        null, null, null, null, null, null
+    );
+
+    JoinQuery joinQuery = new JoinQuery(
+        ImmutableMap.<String, DataSource>of(
+            "X", new QueryDataSource(groupByQuery),
+            "Y", ViewDataSource.of(JOIN_DS)
+        ),
+        Arrays.asList(new JoinElement(JoinType.INNER, "X.market = Y.market")),
+        false,
+        null,
+        firstToThird, 0, 0, 0, ImmutableMap.<String, Object>of(Query.RAW_LOCAL_SPLIT_NUM, -1)
+    );
+
+    String[] columns = new String[]{"__time", "market", "COUNT", "SUM", "market_month", "value"};
+    List<Row> expectedRows = GroupByQueryRunnerTestHelper.createExpectedRows(
+        columns,
+        array("2011-04-01", "spot", 9L, 1256.012825012207, "april_spot", 41111L),
+        array("2011-04-01", "total_market", 1L, 1193.5562744140625, "april_total_market", 41112L),
+        array("2011-04-01", "upfront", 2L, 2194.0809326171875, "april_upfront", 41113L)
+    );
+    Iterable<Row> rows = Iterables.transform(runTabularQuery(joinQuery), Rows.mapToRow(Column.TIME_COLUMN_NAME));
+    TestHelper.assertExpectedObjects(expectedRows, rows, "");
+  }
+
+  @Test
+  public void testJoin3way()
+  {
+    JoinQuery joinQuery = new JoinQuery(
+        ImmutableMap.<String, DataSource>of(
+            "X", ViewDataSource.of(dataSource, BoundDimFilter.between("index", 150, 1200), "__time", "market", "index"),
+            "Y", ViewDataSource.of(dataSource, BoundDimFilter.between("index", 150, 1200), "market", "indexMin"),
+            "Z", ViewDataSource.of(dataSource, BoundDimFilter.between("index", 150, 1200), "market", "indexMaxPlusTen")
+        ),
+        Arrays.asList(
+            new JoinElement(JoinType.INNER, "X.market = Y.market"),
+            new JoinElement(JoinType.INNER, "Y.market = Z.market")
+        ),
+        false,
+        null,
+        firstToThird, 0, 0, 0, ImmutableMap.<String, Object>of(Query.RAW_LOCAL_SPLIT_NUM, -1)
+    );
+
+    String[] columns = new String[]{"__time", "market", "index", "indexMin", "indexMaxPlusTen"};
+    List<Row> expectedRows = GroupByQueryRunnerTestHelper.createExpectedRows(
+        columns, 
+        array("2011-04-01", "spot", 158.74722290039062, 158.74722, 168.74722290039062),
+        array("2011-04-01", "spot", 158.74722290039062, 158.74722, 176.01605224609375),
+        array("2011-04-01", "spot", 158.74722290039062, 166.01605, 168.74722290039062),
+        array("2011-04-01", "spot", 158.74722290039062, 166.01605, 176.01605224609375),
+        array("2011-04-02", "spot", 166.01605224609375, 158.74722, 168.74722290039062),
+        array("2011-04-02", "spot", 166.01605224609375, 158.74722, 176.01605224609375),
+        array("2011-04-02", "spot", 166.01605224609375, 166.01605, 168.74722290039062),
+        array("2011-04-02", "spot", 166.01605224609375, 166.01605, 176.01605224609375),
+        array("2011-04-02", "total_market", 1193.5562744140625, 1193.5563, 1203.5562744140625),
+        array("2011-04-02", "upfront", 1144.3424072265625, 1144.3424, 1154.3424072265625),
+        array("2011-04-02", "upfront", 1144.3424072265625, 1144.3424, 1059.738525390625),
+        array("2011-04-02", "upfront", 1144.3424072265625, 1049.7385, 1154.3424072265625),
+        array("2011-04-02", "upfront", 1144.3424072265625, 1049.7385, 1059.738525390625),
+        array("2011-04-02", "upfront", 1049.738525390625, 1144.3424, 1154.3424072265625),
+        array("2011-04-02", "upfront", 1049.738525390625, 1144.3424, 1059.738525390625),
+        array("2011-04-02", "upfront", 1049.738525390625, 1049.7385, 1154.3424072265625),
+        array("2011-04-02", "upfront", 1049.738525390625, 1049.7385, 1059.738525390625)
+    );
+
+    Iterable<Row> rows = Iterables.transform(runTabularQuery(joinQuery), Rows.mapToRow(Column.TIME_COLUMN_NAME));
+    TestHelper.assertExpectedObjects(expectedRows, rows, "");
+  }
+
+  @Test
+  public void testJoinOnJoin()
+  {
+    JoinQuery joinQuery1 = new JoinQuery(
+        ImmutableMap.<String, DataSource>of(
+            "X", ViewDataSource.of(dataSource, BoundDimFilter.between("index", 150, 1200), "__time", "market", "index"),
+            "Y", ViewDataSource.of(dataSource, BoundDimFilter.between("index", 150, 1200), "market", "indexMin")
+        ),
+        Arrays.asList( new JoinElement(JoinType.INNER, "X.market = Y.market")),
+        false,
+        null,
+        firstToThird, 0, 0, 0, ImmutableMap.<String, Object>of(Query.RAW_LOCAL_SPLIT_NUM, -1)
+    );
+
+    JoinQuery joinQuery = new JoinQuery(
+        ImmutableMap.<String, DataSource>of(
+            "A", new QueryDataSource(joinQuery1),
+            "B", ViewDataSource.of(dataSource, BoundDimFilter.between("index", 150, 1200), "market", "indexMaxPlusTen")
+        ),
+        Arrays.asList(
+            new JoinElement(JoinType.INNER, "A.market = B.market")
+        ),
+        false,
+        null,
+        firstToThird, 0, 0, 0, ImmutableMap.<String, Object>of(Query.RAW_LOCAL_SPLIT_NUM, -1)
+    );
+
+    String[] columns = new String[]{"__time", "market", "index", "indexMin", "indexMaxPlusTen"};
+    List<Row> expectedRows = GroupByQueryRunnerTestHelper.createExpectedRows(
+        columns,
+        array("2011-04-01", "spot", 158.74722290039062, 158.74722, 168.74722290039062),
+        array("2011-04-01", "spot", 158.74722290039062, 158.74722, 176.01605224609375),
+        array("2011-04-01", "spot", 158.74722290039062, 166.01605, 168.74722290039062),
+        array("2011-04-01", "spot", 158.74722290039062, 166.01605, 176.01605224609375),
+        array("2011-04-02", "spot", 166.01605224609375, 158.74722, 168.74722290039062),
+        array("2011-04-02", "spot", 166.01605224609375, 158.74722, 176.01605224609375),
+        array("2011-04-02", "spot", 166.01605224609375, 166.01605, 168.74722290039062),
+        array("2011-04-02", "spot", 166.01605224609375, 166.01605, 176.01605224609375),
+        array("2011-04-02", "total_market", 1193.5562744140625, 1193.5563, 1203.5562744140625),
+        array("2011-04-02", "upfront", 1144.3424072265625, 1144.3424, 1154.3424072265625),
+        array("2011-04-02", "upfront", 1144.3424072265625, 1144.3424, 1059.738525390625),
+        array("2011-04-02", "upfront", 1144.3424072265625, 1049.7385, 1154.3424072265625),
+        array("2011-04-02", "upfront", 1144.3424072265625, 1049.7385, 1059.738525390625),
+        array("2011-04-02", "upfront", 1049.738525390625, 1144.3424, 1154.3424072265625),
+        array("2011-04-02", "upfront", 1049.738525390625, 1144.3424, 1059.738525390625),
+        array("2011-04-02", "upfront", 1049.738525390625, 1049.7385, 1154.3424072265625),
+        array("2011-04-02", "upfront", 1049.738525390625, 1049.7385, 1059.738525390625)
+    );
+
+    Iterable<Row> rows = Iterables.transform(runTabularQuery(joinQuery), Rows.mapToRow(Column.TIME_COLUMN_NAME));
+    TestHelper.assertExpectedObjects(expectedRows, rows, "");
+  }
+
+  @Test
+  public void testQueryOnJoin()
+  {
+    JoinQuery joinQuery = new JoinQuery(
+        ImmutableMap.<String, DataSource>of(
+            dataSource, ViewDataSource.of(dataSource, "__time", "market", "quality", "index"),
+            JOIN_DS, ViewDataSource.of(JOIN_DS)
+        ),
+        Arrays.asList(new JoinElement(JoinType.INNER, dataSource + ".market = " + JOIN_DS + ".market")),
+        true,
+        null,
+        firstToThird, 0, 0, 0, ImmutableMap.<String, Object>of(Query.RAW_LOCAL_SPLIT_NUM, -1)
+    );
+
+    // select on join
+    SelectQuery selectQuery = new SelectQuery(
+        new QueryDataSource(joinQuery), firstToThird, false, BoundDimFilter.between(dataSource + ".index", 120, 1200),
+        Granularities.ALL, null, null, null, null, null, null, null,
+        ImmutableMap.<String, Object>of(Query.POST_PROCESSING, new SelectToRow())
+    );
+    List<Row> rows = runQuery(selectQuery);
+
+    String[] columns = new String[]{
+        "__time",
+        dataSource + ".market", dataSource + ".__time", dataSource + ".index",
+        JOIN_DS + ".market", JOIN_DS + ".__time", JOIN_DS + ".market_month", JOIN_DS + ".value"
+    };
+    List<Row> expectedRows = GroupByQueryRunnerTestHelper.createExpectedRows(
+        columns,
+        array("2011-04-01", "spot", 1301616000000L, 135.88510131835938, "spot", 1301616000000L, "april_spot", 41111L),
+        array("2011-04-01", "spot", 1301616000000L, 158.74722290039062, "spot", 1301616000000L, "april_spot", 41111L),
+        array("2011-04-01", "spot", 1301616000000L, 120.13470458984375, "spot", 1301616000000L, "april_spot", 41111L),
+        array("2011-04-01", "spot", 1301616000000L, 121.58358001708984, "spot", 1301616000000L, "april_spot", 41111L),
+        array("2011-04-01", "spot", 1301616000000L, 144.5073699951172, "spot", 1301616000000L, "april_spot", 41111L),
+        array("2011-04-01", "spot", 1301702400000L, 147.42593383789062, "spot", 1301616000000L, "april_spot", 41111L),
+        array("2011-04-01", "spot", 1301702400000L, 166.01605224609375, "spot", 1301616000000L, "april_spot", 41111L),
+        array("2011-04-01", "spot", 1301702400000L, 135.30149841308594, "spot", 1301616000000L, "april_spot", 41111L),
+        array("2011-04-01", "spot", 1301702400000L, 126.41136169433594, "spot", 1301616000000L, "april_spot", 41111L),
+        array("2011-04-01", "total_market", 1301702400000L, 1193.5562744140625, "total_market", 1301616000000L, "april_total_market", 41112L),
+        array("2011-04-01", "upfront", 1301702400000L, 1144.3424072265625, "upfront", 1301616000000L, "april_upfront", 41113L),
+        array("2011-04-01", "upfront", 1301702400000L, 1049.738525390625, "upfront", 1301616000000L, "april_upfront", 41113L)
+    );
+    TestHelper.assertExpectedObjects(expectedRows, rows, "");
+
+    // group-by on join
+    GroupByQuery groupByQuery = new GroupByQuery(
+        new QueryDataSource(joinQuery), firstToThird, BoundDimFilter.between(dataSource + ".index", 120, 1200),
+        Granularities.ALL, DefaultDimensionSpec.toSpec(dataSource + ".market"), null, null,
+        Arrays.<AggregatorFactory>asList(
+            new CountAggregatorFactory("COUNT"),
+            new GenericSumAggregatorFactory("SUM", dataSource + ".index", "double")
+        ),
+        null, null, null, null, null, null
+    );
+    rows = runQuery(groupByQuery);
+
+    columns = new String[]{"__time", dataSource + ".market", "COUNT", "SUM"};
+    expectedRows = GroupByQueryRunnerTestHelper.createExpectedRows(
+        columns,
+        array("2011-04-01T00:00:00.000Z", "spot", 9L, 1256.012825012207),
+        array("2011-04-01T00:00:00.000Z", "total_market", 1L, 1193.5562744140625),
+        array("2011-04-01T00:00:00.000Z", "upfront", 2L, 2194.0809326171875)
+    );
+    TestHelper.assertExpectedObjects(expectedRows, rows, "");
+
+    // top-n on join
+    TopNQuery topNQuery = groupByQuery
+        .asTopNQuery(DefaultDimensionSpec.of(dataSource + ".market"), new NumericTopNMetricSpec("SUM"))
+        .withThreshold(10)
+        .withOverriddenContext(ImmutableMap.<String, Object>of(Query.POST_PROCESSING, new TopNToRow()));
+    rows = runQuery(topNQuery);
+
+    expectedRows = GroupByQueryRunnerTestHelper.createExpectedRows(
+        columns,
+        array("2011-04-01T00:00:00.000Z", "upfront", 2L, 2194.0809326171875),
+        array("2011-04-01T00:00:00.000Z", "spot", 9L, 1256.012825012207),
+        array("2011-04-01T00:00:00.000Z", "total_market", 1L, 1193.5562744140625)
     );
     TestHelper.assertExpectedObjects(expectedRows, rows, "");
   }

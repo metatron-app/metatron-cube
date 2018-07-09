@@ -296,9 +296,9 @@ public class XJoinPostProcessor extends PostProcessingOperator.UnionSupport
       switch (type) {
         case INNER:
           if (compare < 0) {
-            left.partition = left.next();
+            left.partition = left.skip(right.partition.joinKey);
           } else {
-            right.partition = right.next();
+            right.partition = right.skip(left.partition.joinKey);
           }
           continue;
         case LO:
@@ -307,14 +307,12 @@ public class XJoinPostProcessor extends PostProcessingOperator.UnionSupport
             left.partition = left.next();
             return lo;
           } else {
-            right.skip(left.partition.joinKey);
-            right.partition = right.next();
+            right.partition = right.skip(left.partition.joinKey);
           }
           continue;
         case RO:
           if (compare < 0) {
-            left.skip(right.partition.joinKey);
-            left.partition = left.next();
+            left.partition = left.skip(right.partition.joinKey);
           } else {
             Iterator<Object[]> ro = ro(left.columns.size(), right.partition.iterator());
             right.partition = right.next();
@@ -357,7 +355,7 @@ public class XJoinPostProcessor extends PostProcessingOperator.UnionSupport
     }
   }
 
-  static class JoinAlias
+  static final class JoinAlias
   {
     final List<String> alias;
     final List<String> columns;
@@ -409,22 +407,18 @@ public class XJoinPostProcessor extends PostProcessingOperator.UnionSupport
       return partition.isEmpty() && !rows.hasNext() ? null : new Partition(joinKey, partition);
     }
 
-    private int skip(final Comparable[] joinKey)
+    private Partition skip(final Comparable[] joinKey)
     {
-      int counter = 0;
-      while (rows.hasNext()) {
-        final Object[] row = rows.peek();
-        final int compare = compareNF(row, indices, joinKey);
+      for (;rows.hasNext(); rows.next()) {
+        final int compare = compareNF(rows.peek(), indices, joinKey);
         if (!Condition.LT.match(compare)) {
           break;
         }
-        rows.next();
-        counter++;
       }
-      return counter;
+      return next();
     }
 
-    private int compareNF(Object[] row, int[] indices, Comparable[] joinKeys)
+    private int compareNF(final Object[] row, final int[] indices, final Comparable[] joinKeys)
     {
       int compare = 0;
       for (int i = 0; i < indices.length && compare == 0; i++) {
@@ -476,7 +470,7 @@ public class XJoinPostProcessor extends PostProcessingOperator.UnionSupport
     };
   }
 
-  private Iterator<Object[]> lo(Iterator<Object[]> left, final int right)
+  private Iterator<Object[]> lo(final Iterator<Object[]> left, final int right)
   {
     return Iterators.transform(
         left, new Function<Object[], Object[]>()
@@ -490,7 +484,7 @@ public class XJoinPostProcessor extends PostProcessingOperator.UnionSupport
     );
   }
 
-  private Iterator<Object[]> ro(final int left, Iterator<Object[]> right)
+  private Iterator<Object[]> ro(final int left, final Iterator<Object[]> right)
   {
     return Iterators.transform(
         right, new Function<Object[], Object[]>()
@@ -506,7 +500,7 @@ public class XJoinPostProcessor extends PostProcessingOperator.UnionSupport
     );
   }
 
-  private static Object[] concat(Object[] left, Object[] right)
+  private static Object[] concat(final Object[] left, final Object[] right)
   {
     Object[] concat = Arrays.copyOf(left, left.length + right.length);
     System.arraycopy(right, 0, concat, left.length, right.length);

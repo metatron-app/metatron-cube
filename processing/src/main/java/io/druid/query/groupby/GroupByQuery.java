@@ -61,6 +61,8 @@ import io.druid.query.groupby.orderby.OrderByColumnSpec;
 import io.druid.query.groupby.orderby.WindowingSpec;
 import io.druid.query.spec.QuerySegmentSpec;
 import io.druid.query.timeseries.TimeseriesQuery;
+import io.druid.query.topn.TopNMetricSpec;
+import io.druid.query.topn.TopNQuery;
 import io.druid.segment.VirtualColumn;
 
 import java.util.Comparator;
@@ -666,6 +668,24 @@ public class GroupByQuery extends BaseAggregationQuery<Row> implements Query.Rew
         limitSpec,
         outputColumns,
         lateralView,
+        Queries.extractContext(this, BaseQuery.QUERYID)
+    );
+  }
+
+  public TopNQuery asTopNQuery(DimensionSpec dimensionSpec, TopNMetricSpec metricSpec)
+  {
+    return new TopNQuery(
+        getDataSource(),
+        virtualColumns,
+        dimensionSpec,
+        metricSpec,
+        limitSpec.getLimit(),
+        getQuerySegmentSpec(),
+        dimFilter,
+        granularity,
+        aggregatorSpecs,
+        postAggregatorSpecs,
+        outputColumns,
         Queries.extractContext(this, BaseQuery.QUERYID)
     );
   }

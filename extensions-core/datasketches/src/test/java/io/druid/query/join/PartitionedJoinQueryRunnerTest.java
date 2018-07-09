@@ -41,6 +41,7 @@ import io.druid.query.groupby.GroupByQueryRunnerTestHelper;
 import io.druid.query.sketch.SketchQueryRunnerTest;
 import io.druid.segment.TestHelper;
 import io.druid.segment.TestIndex;
+import io.druid.segment.column.Column;
 import io.druid.segment.incremental.IncrementalIndexSchema;
 import io.druid.timeline.DataSegment;
 import org.joda.time.DateTime;
@@ -149,7 +150,7 @@ public class PartitionedJoinQueryRunnerTest extends SketchQueryRunnerTest
         array("2011-04-01", "technology", "spot", 97.38743591308594, "april_technology", 41116L)
     );
 
-    Iterable<Row> rows = Iterables.transform(runTabularQuery(joinQuery), Rows.mapToRow());
+    Iterable<Row> rows = Iterables.transform(runTabularQuery(joinQuery), Rows.mapToRow(Column.TIME_COLUMN_NAME));
     TestHelper.assertExpectedObjects(expectedRows, rows, "");
   }
 }

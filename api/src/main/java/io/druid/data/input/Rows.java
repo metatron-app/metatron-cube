@@ -81,19 +81,18 @@ public class Rows extends io.druid.data.Rows
     };
   }
 
-  public static Function<Map<String, Object>, Row> mapToRow()
+  public static Function<Map<String, Object>, Row> mapToRow(final String timestampColumn)
   {
     return new Function<Map<String, Object>, Row>()
     {
       @Override
       public Row apply(Map<String, Object> input)
       {
-        Object timestamp = input.get("__time");
+        Object timestamp = input.get(timestampColumn);
         if (timestamp == null) {
-          timestamp = input.get("timestamp");
+          throw new IllegalArgumentException("cannot find time column '" + timestampColumn + "'");
         }
-        DateTime dateTime = timestamp == null ? new DateTime(0) : new DateTime(timestamp);
-        return new MapBasedRow(dateTime, input);
+        return new MapBasedRow(new DateTime(timestamp), input);
       }
     };
   }
