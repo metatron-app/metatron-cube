@@ -1081,13 +1081,27 @@ public class EvalTest
   @Test
   public void testNullCasting()
   {
+    // changed semantic.. <null op numeric> or <numeric op null> is null
     Expr.NumericBinding bindings = Parser.withMap(ImmutableMap.<String, Object>of("a", 10, "b", 20.D, "c", ""));
-    Assert.assertEquals(10, evalDouble("a + c", bindings), 0.0001);
-    Assert.assertEquals(10, evalDouble("a - c", bindings), 0.0001);
-    Assert.assertEquals(0, evalDouble("a * c", bindings), 0.0001);
-    Assert.assertEquals(20D, evalDouble("b + c", bindings), 0.0001);
-    Assert.assertEquals(20D, evalDouble("b - c", bindings), 0.0001);
-    Assert.assertEquals(0D, evalDouble("b * c", bindings), 0.0001);
+    Assert.assertTrue(_eval("a + c", bindings).isNull());
+    Assert.assertTrue(_eval("a - c", bindings).isNull());
+    Assert.assertTrue(_eval("a * c", bindings).isNull());
+    Assert.assertTrue(_eval("a / c", bindings).isNull());
+
+    Assert.assertTrue(_eval("c + a", bindings).isNull());
+    Assert.assertTrue(_eval("c - a", bindings).isNull());
+    Assert.assertTrue(_eval("c * a", bindings).isNull());
+    Assert.assertTrue(_eval("c / a", bindings).isNull());
+
+    Assert.assertTrue(_eval("b + c", bindings).isNull());
+    Assert.assertTrue(_eval("b - c", bindings).isNull());
+    Assert.assertTrue(_eval("b * c", bindings).isNull());
+    Assert.assertTrue(_eval("b / c", bindings).isNull());
+
+    Assert.assertTrue(_eval("c + b", bindings).isNull());
+    Assert.assertTrue(_eval("c - b", bindings).isNull());
+    Assert.assertTrue(_eval("c * b", bindings).isNull());
+    Assert.assertTrue(_eval("c / b", bindings).isNull());
   }
 
   @Test

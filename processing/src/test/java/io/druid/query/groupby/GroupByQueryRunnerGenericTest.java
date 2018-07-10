@@ -3193,7 +3193,7 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
     // Subqueries are handled by the ToolChest
     TestHelper.assertExpectedObjects(expectedResults, runQuery(query), "");
 
-    query = query.withHavingSpec(new ExpressionHavingSpec("idx_subpostagg < 3800.0"));
+    query = query.withHavingSpec(new ExpressionHavingSpec("idx_subpostagg == null || idx_subpostagg < 3800.0"));
     TestHelper.assertExpectedObjects(expectedResults, runQuery(query), "");
   }
 
@@ -5259,20 +5259,20 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
         columnNames,
         array(
             "Monday",
-            0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+            null, null, null, null, null, null, null, null, null,
             16.813941650603674, 19.44656562237923, 15.17663768899694, 16.009429362202997
         ),
         array(
             "Tuesday",
             15.75634222579802, 15.882278300416639, 15.990390808152055, 17.304017518163935, 16.148675284780392,
             15.990723077592929, 20.09860503302568, 15.024990146457418, 15.946557910143886,
-            0.0, 0.0, 14.851266860403003, 15.588175986014235
+            null, null, 14.851266860403003, 15.588175986014235
         ),
         array(
             "Wednesday",
             17.058420904667074, 17.632486638624368, 17.25278950187719, 17.68833569624825, 17.418047408740776,
-            17.57781478997598, 0.0, 17.839670138962944, 16.906900932597882,
-            17.306223748562424, 0.0, 14.477094689189887, 0.0
+            17.57781478997598, null, 17.839670138962944, 16.906900932597882,
+            17.306223748562424, null, 14.477094689189887, null
         )
     );
     results = runQuery(builder.build());
@@ -5302,7 +5302,7 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
         columnNames,
         array(
             "Monday",
-            0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+            null, null, null, null, null, null, null, null, null,
             15301.728393554688, 15167.04833984375, 15479.327270507812, 12140.257507324219
         ),
         array(
@@ -5314,7 +5314,7 @@ public class GroupByQueryRunnerGenericTest extends GroupByQueryRunnerTestHelper
         array(
             "Wednesday",
             17.058420904667074, 17.632486638624368, 17.25278950187719, 17.68833569624825, 17.418047408740776,
-            17.57781478997598, 0.0, 17.839670138962944, 16.906900932597882,
+            17.57781478997598, null, 17.839670138962944, 16.906900932597882,
             15749.735595703125, null, 14765.832275390625, null
         )
     );

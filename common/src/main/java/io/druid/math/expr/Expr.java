@@ -473,16 +473,14 @@ abstract class BinaryNumericOpExprBase extends BinaryOp implements Expression.Fu
     if (leftVal.isString() && rightVal.isString() || !leftVal.isNumeric() && !rightVal.isNumeric()) {
       return evalString(Strings.nullToEmpty(leftVal.asString()), Strings.nullToEmpty(rightVal.asString()));
     }
+    // null - 100 = null
     if (leftVal.isNull() && rightVal.isNumeric()) {
-      leftVal = Evals.castNullToNumeric(leftVal, rightVal.type());
+      return leftVal;
     } else if (rightVal.isNull() && leftVal.isNumeric()) {
-      rightVal = Evals.castNullToNumeric(rightVal, leftVal.type());
+      return rightVal;
     }
     if (!leftVal.isNumeric() || !rightVal.isNumeric()) {
       return evalString(Strings.nullToEmpty(leftVal.asString()), Strings.nullToEmpty(rightVal.asString()));
-    }
-    if (leftVal.isNull() || rightVal.isNull()) {
-      throw new IllegalArgumentException("null value");
     }
     if (supportsFloatEval() && leftVal.isFloat() && rightVal.isFloat()) {
       return ExprEval.of(evalFloat(leftVal.floatValue(), rightVal.floatValue()));
