@@ -399,6 +399,9 @@ public class SpecificSegmentsQuerySegmentWalker implements QuerySegmentWalker, Q
       );
       return PostProcessingOperators.wrap(runner, objectMapper);
     }
+    if (query instanceof Query.IteratingQuery) {
+      return Queries.makeIteratingQueryRunner((Query.IteratingQuery) query, this);
+    }
     if (query instanceof UnionAllQuery) {
       return ((UnionAllQuery) query).getUnionQueryRunner(objectMapper, executor, this);
     }

@@ -21,14 +21,12 @@ package io.druid.server;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.inject.Inject;
-import com.metamx.common.Pair;
-import com.metamx.common.guava.Sequence;
-import com.metamx.common.guava.Sequences;
 import com.metamx.emitter.service.ServiceEmitter;
 import io.druid.client.CachingClusteredClient;
 import io.druid.guice.annotations.Processing;
 import io.druid.query.FluentQueryRunnerBuilder;
 import io.druid.query.PostProcessingOperators;
+import io.druid.query.Queries;
 import io.druid.query.Query;
 import io.druid.query.QueryConfig;
 import io.druid.query.QueryDataSource;
@@ -43,8 +41,6 @@ import io.druid.query.UnionAllQuery;
 import io.druid.query.groupby.GroupByQueryHelper;
 import org.joda.time.Interval;
 
-import java.util.Iterator;
-import java.util.Map;
 import java.util.concurrent.ExecutorService;
 
 /**
@@ -115,7 +111,7 @@ public class ClientQuerySegmentWalker implements QuerySegmentWalker
     }
 
     if (query instanceof Query.IteratingQuery) {
-      return getIteratingQueryRunner((Query.IteratingQuery) query);
+      return Queries.makeIteratingQueryRunner((Query.IteratingQuery) query, this);
     }
 
     FluentQueryRunnerBuilder<T> builder = new FluentQueryRunnerBuilder<>(toolChest);
@@ -132,44 +128,4 @@ public class ClientQuerySegmentWalker implements QuerySegmentWalker
     }
     return runner.applyPostProcess(objectMapper);
   }
-
-  private <I, T> QueryRunner<T> getIteratingQueryRunner(final Query.IteratingQuery<I, T> iterating)
-  {
-    return new QueryRunner<T>()
-    {
-      @Override
-      public Sequence<T> run(Query<T> query, final Map<String, Object> responseContext)
-      {
-        return Sequences.concat(
-            new Iterable<Sequence<T>>()
-            {
-              @Override
-              public Iterator<Sequence<T>> iterator()
-              {
-                return new Iterator<Sequence<T>>()
-                {
-                  private Query<I> query = iterating.next(null, null).rhs;
-
-                  @Override
-                  public boolean hasNext()
-                  {
-                    return query != null;
-                  }
-
-                  @Override
-                  public Sequence<T> next()
-                  {
-                    Sequence<I> sequence = makeRunner(query, false).run(query, responseContext);
-                    Pair<Sequence<T>, Query<I>> next = iterating.next(sequence, query);
-                    query = next.rhs;
-                    return next.lhs;
-                  }
-                };
-              }
-            }
-        );
-      }
-    };
-  }
-
 }

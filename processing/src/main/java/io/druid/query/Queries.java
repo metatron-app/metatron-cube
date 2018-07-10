@@ -29,6 +29,7 @@ import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
+import com.metamx.common.Pair;
 import com.metamx.common.guava.Sequence;
 import com.metamx.common.guava.Sequences;
 import com.metamx.common.logger.Logger;
@@ -65,6 +66,7 @@ import io.druid.segment.incremental.IncrementalIndexSchema;
 import org.joda.time.DateTime;
 
 import java.util.Arrays;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -459,5 +461,48 @@ public class Queries
     }
 
     return (Object[]) result.getValue().getMetric("SPLIT");
+  }
+
+
+  public static <I, T> QueryRunner<T> makeIteratingQueryRunner(
+      final Query.IteratingQuery<I, T> iterating,
+      final QuerySegmentWalker walker
+  )
+  {
+    return new QueryRunner<T>()
+    {
+      @Override
+      public Sequence<T> run(Query<T> query, final Map<String, Object> responseContext)
+      {
+        return Sequences.concat(
+            new Iterable<Sequence<T>>()
+            {
+              @Override
+              public Iterator<Sequence<T>> iterator()
+              {
+                return new Iterator<Sequence<T>>()
+                {
+                  private Query<I> query = iterating.next(null, null).rhs;
+
+                  @Override
+                  public boolean hasNext()
+                  {
+                    return query != null;
+                  }
+
+                  @Override
+                  public Sequence<T> next()
+                  {
+                    Sequence<I> sequence = query.run(walker, responseContext);
+                    Pair<Sequence<T>, Query<I>> next = iterating.next(sequence, query);
+                    query = next.rhs;
+                    return next.lhs;
+                  }
+                };
+              }
+            }
+        );
+      }
+    };
   }
 }

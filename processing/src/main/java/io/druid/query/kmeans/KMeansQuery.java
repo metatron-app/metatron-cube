@@ -30,6 +30,7 @@ import com.google.common.collect.Range;
 import com.metamx.common.Pair;
 import com.metamx.common.guava.Sequence;
 import com.metamx.common.guava.Sequences;
+import com.metamx.common.logger.Logger;
 import io.druid.data.ValueType;
 import io.druid.query.BaseQuery;
 import io.druid.query.DataSource;
@@ -55,6 +56,8 @@ public class KMeansQuery
     extends BaseQuery<Centroid>
     implements Query.RewritingQuery<Centroid>, Query.IteratingQuery<CentroidDesc, Centroid>, Query.VCSupport<Centroid>
 {
+  private static final Logger LOG = new Logger(KMeansQuery.class);
+
   private static final int DEFAULT_MAX_ITERATION = 10;
   private static final double DEFAULT_DELTA_THRESHOLD = 0.01;
 
@@ -343,6 +346,7 @@ public class KMeansQuery
       newCentroids.add(newCentroid);
     }
     if (underThreshold || ++iteration >= maxIteration) {
+      LOG.info("Centroid decided in %d iteration", iteration);
       return Pair.of(Sequences.simple(newCentroids), null);
     }
     return Pair.<Sequence<Centroid>, Query<CentroidDesc>>of(

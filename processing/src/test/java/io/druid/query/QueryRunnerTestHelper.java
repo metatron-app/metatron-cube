@@ -66,6 +66,9 @@ import io.druid.query.groupby.GroupByQuery;
 import io.druid.query.groupby.GroupByQueryEngine;
 import io.druid.query.groupby.GroupByQueryQueryToolChest;
 import io.druid.query.groupby.GroupByQueryRunnerFactory;
+import io.druid.query.kmeans.FindNearestQuery;
+import io.druid.query.kmeans.FindNearestQueryRunnerFactory;
+import io.druid.query.kmeans.FindNearestQueryToolChest;
 import io.druid.query.metadata.SegmentMetadataQueryConfig;
 import io.druid.query.metadata.SegmentMetadataQueryQueryToolChest;
 import io.druid.query.metadata.SegmentMetadataQueryRunnerFactory;
@@ -300,6 +303,14 @@ public class QueryRunnerTestHelper
                               Suppliers.ofInstance(new SearchQueryConfig()),
                               QueryRunnerTestHelper.NoopIntervalChunkingQueryRunnerDecorator()
                           ),
+                          QueryRunnerTestHelper.NOOP_QUERYWATCHER
+                      )
+                  )
+                  .put(
+                      FindNearestQuery.class,
+                      new FindNearestQueryRunnerFactory(
+                          new FindNearestQueryToolChest(),
+                          new StreamQueryEngine(),
                           QueryRunnerTestHelper.NOOP_QUERYWATCHER
                       )
                   )
