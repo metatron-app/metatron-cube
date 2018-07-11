@@ -103,12 +103,13 @@ public class SketchQueryRunner implements QueryRunner<Result<Map<String, Object>
     final int sketchParam = query.getSketchParam();
     final SketchHandler<?> handler = query.getSketchOp().handler();
 
+    final QueryableIndex index = segment.asQueryableIndex(true);
+
     Map<String, TypedSketch> unions = Maps.newLinkedHashMap();
 
     Iterable<String> columns = Iterables.transform(dimensions, DimensionSpecs.INPUT_NAME);
-    if (metrics.isEmpty() && resolver.supportsExactBitmap(columns, filter)) {
+    if (index != null && metrics.isEmpty() && resolver.supportsExactBitmap(columns, filter)) {
       // Closing this will cause segfaults in unit tests.
-      final QueryableIndex index = segment.asQueryableIndex(true);
       final BitmapFactory bitmapFactory = index.getBitmapFactoryForDimensions();
       final ColumnSelectorBitmapIndexSelector selector = new ColumnSelectorBitmapIndexSelector(bitmapFactory, index);
       final ImmutableBitmap filterBitmap = toDependentBitmap(filter, selector);
