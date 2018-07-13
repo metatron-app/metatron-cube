@@ -41,12 +41,13 @@ import io.druid.client.DruidServer;
 import io.druid.client.ImmutableSegmentLoadInfo;
 import io.druid.client.SegmentLoadInfo;
 import io.druid.client.indexing.IndexingServiceClient;
+import io.druid.common.Intervals;
 import io.druid.common.utils.JodaUtils;
-import io.druid.metadata.MetadataSegmentManager;
-import io.druid.query.TableDataSource;
 import io.druid.metadata.ColumnDesc;
-import io.druid.metadata.TableDesc;
 import io.druid.metadata.DescExtractor;
+import io.druid.metadata.MetadataSegmentManager;
+import io.druid.metadata.TableDesc;
+import io.druid.query.TableDataSource;
 import io.druid.server.http.security.DatasourceResourceFilter;
 import io.druid.server.security.AuthConfig;
 import io.druid.server.security.AuthorizationInfo;
@@ -272,11 +273,23 @@ public class DatasourcesResource
       @PathParam("dataSourceName") final String dataSourceName
   )
   {
-    if (!databaseSegmentManager.enableDatasource(dataSourceName)) {
-      return Response.noContent().build();
-    }
+    return databaseSegmentManager.enableDatasource(dataSourceName)
+           ? Response.ok().build()
+           : Response.noContent().build();
 
-    return Response.ok().build();
+  }
+
+  @POST
+  @Path("/{dataSourceName}/disable")
+  @ResourceFilters(DatasourceResourceFilter.class)
+  @Produces(MediaType.APPLICATION_JSON)
+  public Response disableDataSource(
+      @PathParam("dataSourceName") final String dataSourceName
+  )
+  {
+    return databaseSegmentManager.disableDatasource(dataSourceName)
+           ? Response.ok().build()
+           : Response.noContent().build();
   }
 
   /* When this method is removed, a new method needs to be introduced corresponding to
@@ -300,39 +313,45 @@ public class DatasourcesResource
       return Response.ok(ImmutableMap.of("error", "no indexing service found")).build();
     }
 
-    if (kill != null && Boolean.valueOf(kill)) {
+    if (Boolean.valueOf(kill)) {
       try {
-        indexingServiceClient.killSegments(dataSourceName, new Interval(interval));
-      }
-      catch (IllegalArgumentException e) {
-        return Response.status(Response.Status.BAD_REQUEST)
-                       .entity(
-                           ImmutableMap.of(
-                               "error",
-                               "Exception occurred. Probably the interval is invalid",
-                               "message",
-                               e.toString()
-                           )
-                       )
-                       .build();
+        indexingServiceClient.killSegments(dataSourceName, Intervals.of(interval));
       }
       catch (Exception e) {
-        return Response.serverError().entity(
-            ImmutableMap.of(
-                "error",
-                "Exception occurred. Are you sure you have an indexing service?",
-                "message",
-                e.toString()
-            )
-        )
-                       .build();
+        return toDeleteExceptionResponse(e);
       }
+      return Response.ok().build();
     } else {
-      if (!databaseSegmentManager.removeDatasource(dataSourceName)) {
+      if (!databaseSegmentManager.disableDatasource(dataSourceName)) {
         return Response.noContent().build();
       }
     }
 
+    return Response.ok().build();
+  }
+
+  @DELETE
+  @Path("/{dataSourceName}/purge")
+  @ResourceFilters(DatasourceResourceFilter.class)
+  @Produces(MediaType.APPLICATION_JSON)
+  public Response purgeDataSource(
+      @PathParam("dataSourceName") final String dataSourceName
+  )
+  {
+    // disable + delete all
+    if (indexingServiceClient == null) {
+      return Response.ok(ImmutableMap.of("error", "no indexing service found")).build();
+    }
+    final Interval interval = databaseSegmentManager.getUmbrellaInterval(dataSourceName);
+    if (interval == null) {
+      return Response.noContent().build();
+    }
+    databaseSegmentManager.disableDatasource(dataSourceName);
+    try {
+      indexingServiceClient.killSegments(dataSourceName, interval);
+    } catch (Exception e) {
+      return toDeleteExceptionResponse(e);
+    }
     return Response.ok().build();
   }
 
@@ -352,16 +371,31 @@ public class DatasourcesResource
       indexingServiceClient.killSegments(dataSourceName, new Interval(theInterval));
     }
     catch (Exception e) {
-      return Response.serverError()
-                     .entity(ImmutableMap.of(
-                         "error",
-                         "Exception occurred. Are you sure you have an indexing service?",
-                         "message",
-                         e.toString()
-                     ))
-                     .build();
+      return toDeleteExceptionResponse(e);
     }
     return Response.ok().build();
+  }
+
+  private Response toDeleteExceptionResponse(Exception e)
+  {
+    if (e instanceof IllegalArgumentException) {
+      return Response.status(Response.Status.BAD_REQUEST)
+                     .entity(
+                         ImmutableMap.of(
+                             "error", "Exception occurred. Probably the interval is invalid",
+                             "message", e.toString()
+                         )
+                     )
+                     .build();
+    }
+    return Response.serverError()
+                   .entity(
+                       ImmutableMap.of(
+                           "error", "Exception occurred. Are you sure you have an indexing service?",
+                           "message", e.toString()
+                       )
+                   )
+                   .build();
   }
 
   @GET

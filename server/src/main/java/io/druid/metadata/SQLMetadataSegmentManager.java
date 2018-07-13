@@ -25,6 +25,7 @@ import com.google.common.base.Supplier;
 import com.google.common.base.Throwables;
 import com.google.common.collect.Collections2;
 import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Ordering;
 import com.google.common.util.concurrent.ListenableFuture;
@@ -325,45 +326,35 @@ public class SQLMetadataSegmentManager implements MetadataSegmentManager
   }
 
   @Override
-  public boolean removeDatasource(final String ds)
+  public boolean disableDatasource(final String ds)
   {
+    final Map<String, DruidDataSource> dataSourceMap = dataSources.get();
+    final String sql = String.format("UPDATE %s SET used=false WHERE dataSource = :dataSource", getSegmentsTable());
+
     try {
-      ConcurrentHashMap<String, DruidDataSource> dataSourceMap = dataSources.get();
-
-      if (!dataSourceMap.containsKey(ds)) {
-        log.warn("Cannot delete datasource %s, does not exist", ds);
-        return false;
-      }
-
-      connector.getDBI().withHandle(
-          new HandleCallback<Void>()
+      int update = connector.getDBI().withHandle(
+          new HandleCallback<Integer>()
           {
             @Override
-            public Void withHandle(Handle handle) throws Exception
+            public Integer withHandle(Handle handle) throws Exception
             {
-              handle.createStatement(
-                  String.format("UPDATE %s SET used=false WHERE dataSource = :dataSource", getSegmentsTable())
-              )
-                    .bind("dataSource", ds)
-                    .execute();
-
-              return null;
+              return handle.createStatement(sql)
+                           .bind("dataSource", ds)
+                           .execute();
             }
           }
       );
-
       dataSourceMap.remove(ds);
+      return update > 0;
     }
     catch (Exception e) {
       log.error(e, "Error removing datasource %s", ds);
       return false;
     }
-
-    return true;
   }
 
   @Override
-  public Pair<String, DataSegment> getLastUpdatedSegment(final String dataSource)
+  public Pair<String, DataSegment> getLastUpdatedSegment(final String ds)
   {
     final String statement = String.format(
         "SELECT created_date, payload FROM %s WHERE dataSource = :dataSource AND used=true" +
@@ -378,7 +369,7 @@ public class SQLMetadataSegmentManager implements MetadataSegmentManager
           {
             return handle
                 .createQuery(statement)
-                .bind("dataSource", dataSource)
+                .bind("dataSource", ds)
                 .map(
                     new ResultSetMapper<Pair<String, DataSegment>>()
                     {
@@ -667,5 +658,43 @@ public class SQLMetadataSegmentManager implements MetadataSegmentManager
           }
         }
     );
+  }
+
+  @Override
+  public Interval getUmbrellaInterval(final String ds)
+  {
+    List<Interval> intervals = inReadOnlyTransaction(
+        new TransactionCallback<List<Interval>>()
+        {
+          @Override
+          public List<Interval> inTransaction(Handle handle, TransactionStatus status) throws Exception
+          {
+            return Lists.newArrayList(
+                handle
+                    .createQuery(
+                        String.format(
+                            "SELECT min(start) as start, max(\"end\") as \"end\" FROM %s WHERE dataSource = :dataSource",
+                            getSegmentsTable()
+                        )
+                    )
+                    .bind("dataSource", ds)
+                    .map(
+                        new BaseResultSetMapper<Interval>()
+                        {
+                          @Override
+                          protected Interval mapInternal(int index, Map<String, Object> row)
+                          {
+                            return new Interval(
+                                DateTime.parse((String) row.get("start")),
+                                DateTime.parse((String) row.get("end"))
+                            );
+                          }
+                        }
+                    )
+            );
+          }
+        }
+    );
+    return Iterables.getOnlyElement(intervals, null);
   }
 }

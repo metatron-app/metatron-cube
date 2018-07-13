@@ -331,11 +331,6 @@ public class DruidCoordinator
     metadataSegmentManager.removeSegment(segment.getDataSource(), segment.getIdentifier());
   }
 
-  public void removeDatasource(String ds)
-  {
-    metadataSegmentManager.removeDatasource(ds);
-  }
-
   public void enableDatasource(String ds)
   {
     metadataSegmentManager.enableDatasource(ds);

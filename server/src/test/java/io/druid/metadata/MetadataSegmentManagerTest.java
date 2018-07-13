@@ -151,7 +151,7 @@ public class MetadataSegmentManagerTest
   {
     manager.start();
     manager.poll();
-    Assert.assertTrue(manager.removeDatasource("wikipedia"));
+    Assert.assertTrue(manager.disableDatasource("wikipedia"));
 
     Assert.assertEquals(
         ImmutableList.of(segment2.getInterval()),

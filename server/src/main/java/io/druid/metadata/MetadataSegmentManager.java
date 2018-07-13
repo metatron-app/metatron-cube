@@ -40,7 +40,7 @@ public interface MetadataSegmentManager
 
   boolean enableSegment(final String segmentId);
 
-  boolean removeDatasource(final String ds);
+  boolean disableDatasource(final String ds);
 
   boolean removeSegment(String ds, final String segmentID);
 
@@ -54,7 +54,7 @@ public interface MetadataSegmentManager
 
   Collection<String> getAllDatasourceNames();
 
-  Pair<String, DataSegment> getLastUpdatedSegment(final String dataSource);
+  Pair<String, DataSegment> getLastUpdatedSegment(String ds);
 
   /**
    * Returns top N unused segment intervals in given interval when ordered by segment start time, end time.
@@ -65,5 +65,7 @@ public interface MetadataSegmentManager
       final int limit
   );
 
-  public void poll();
+  Interval getUmbrellaInterval(String ds);
+
+  void poll();
 }
