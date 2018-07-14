@@ -44,6 +44,8 @@ import java.util.Set;
     @JsonSubTypes.Type(name="in", value=InDimFilter.class),
     @JsonSubTypes.Type(name="bound", value=BoundDimFilter.class),
     @JsonSubTypes.Type(name="math", value=MathExprFilter.class),
+    @JsonSubTypes.Type(name="true", value=DimFilters.ALL.class),
+    @JsonSubTypes.Type(name="false", value=DimFilters.NONE.class),
     @JsonSubTypes.Type(name="lucene.query", value=LuceneQueryFilter.class),
     @JsonSubTypes.Type(name="lucene.point", value=LucenePointFilter.class),
     @JsonSubTypes.Type(name="lucene.nearest", value=LuceneNearestFilter.class),

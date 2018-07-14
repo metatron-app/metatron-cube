@@ -137,4 +137,19 @@ public class Ranges
     }
     return range.lowerEndpoint().compareTo(range.upperEndpoint()) == 0;
   }
+
+  public static <C extends Comparable> Range<C> of(C value, String op)
+  {
+    switch (op) {
+      case ">":
+        return Range.greaterThan(value);
+      case ">=":
+        return Range.atLeast(value);
+      case "<":
+        return Range.lessThan(value);
+      case "<=":
+        return Range.atMost(value);
+    }
+    throw new IllegalArgumentException(op);
+  }
 }

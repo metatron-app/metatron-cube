@@ -103,6 +103,13 @@ public class FiltersTest
     assertEquals(NotDimFilter.of(dim2), filters[1]);
   }
 
+  @Test
+  public void testAllFilter()
+  {
+    DimFilters.ALL all = new DimFilters.ALL();
+    Assert.assertSame(all, Filters.convertToCNF(all));
+  }
+
   private void assertEquals(DimFilter expected, DimFilter result)
   {
     Assert.assertEquals(expected.toString(), result.toString());

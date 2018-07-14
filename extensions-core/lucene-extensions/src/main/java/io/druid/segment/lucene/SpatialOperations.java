@@ -51,6 +51,34 @@ public enum SpatialOperations
     {
       return SpatialOperation.IsWithin;
     }
+  },
+  EQUALTO {
+    @Override
+    public SpatialOperation op()
+    {
+      return SpatialOperation.IsEqualTo;
+    }
+  },
+  OVERLAPS {
+    @Override
+    public SpatialOperation op()
+    {
+      return SpatialOperation.Overlaps;
+    }
+  },
+  BBOX_INTERSECTS {
+    @Override
+    public SpatialOperation op()
+    {
+      return SpatialOperation.BBoxIntersects;
+    }
+  },
+  BBOX_WINTHIN {
+    @Override
+    public SpatialOperation op()
+    {
+      return SpatialOperation.BBoxWithin;
+    }
   };
 
   public abstract SpatialOperation op();
@@ -69,14 +97,15 @@ public enum SpatialOperations
     }
     String normalized = name.toUpperCase().trim();
     if (ALIASES.containsKey(normalized)) {
-      normalized = ALIASES.get(normalized);
+      return ALIASES.get(normalized);
     }
     return valueOf(normalized);
   }
 
-  private static Map<String, String> ALIASES = ImmutableMap.<String, String>of(
-      "CONTAINS", "COVERS",
-      "ISWITHIN", "COVEREDBY",
-      "WITHIN", "COVEREDBY"
+  // alias to real
+  private static Map<String, SpatialOperations> ALIASES = ImmutableMap.<String, SpatialOperations>of(
+      "CONTAINS", COVERS,
+      "ISWITHIN", COVEREDBY,
+      "WITHIN", COVEREDBY
   );
 }

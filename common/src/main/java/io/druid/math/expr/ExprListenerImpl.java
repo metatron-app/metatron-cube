@@ -166,9 +166,12 @@ public class ExprListenerImpl extends ExprBaseListener
   public void exitString(ExprParser.StringContext ctx)
   {
     String text = ctx.getText();
-    String unquoted = text.substring(1, text.length() - 1);
-    String unescaped = unquoted.indexOf('\\') >= 0 ? StringEscapeUtils.unescapeJava(unquoted) : unquoted;
-    nodes.put(ctx, new StringExpr(unescaped));
+    String value = null;
+    if (!"NULL".equals(text)) {
+      String unquoted = text.substring(1, text.length() - 1);
+      value = unquoted.indexOf('\\') >= 0 ? StringEscapeUtils.unescapeJava(unquoted) : unquoted;
+    }
+    nodes.put(ctx, new StringExpr(value));
   }
 
   @Override

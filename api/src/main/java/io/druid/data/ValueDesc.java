@@ -24,11 +24,12 @@ import com.fasterxml.jackson.annotation.JsonValue;
 import com.google.common.base.Preconditions;
 
 import javax.annotation.Nullable;
+import java.io.Serializable;
 import java.util.Comparator;
 
 /**
  */
-public class ValueDesc
+public class ValueDesc implements Serializable
 {
   // primitives (should be conform with JsonValue of ValueType)
   public static final String STRING_TYPE = "string";

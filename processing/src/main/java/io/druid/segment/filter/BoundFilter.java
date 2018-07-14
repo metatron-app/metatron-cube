@@ -35,6 +35,7 @@ import io.druid.query.extraction.ExtractionFn;
 import io.druid.query.filter.BitmapIndexSelector;
 import io.druid.query.filter.BitmapType;
 import io.druid.query.filter.BoundDimFilter;
+import io.druid.query.filter.DimFilters;
 import io.druid.query.filter.Filter;
 import io.druid.query.filter.ValueMatcher;
 import io.druid.segment.ColumnSelectorFactory;
@@ -66,10 +67,9 @@ public class BoundFilter implements Filter
     BitmapFactory factory = selector.getBitmapFactory();
     final int[] range = toRange(selector.getBitmapIndex(boundDimFilter.getDimension()));
     if (range == ALL) {
-      return factory.complement(factory.makeEmptyImmutableBitmap(), selector.getNumRows());
-    }
-    if (range == NONE) {
-      return factory.makeEmptyImmutableBitmap();
+      return DimFilters.makeTrue(factory, selector.getNumRows());
+    } else if (range == NONE) {
+      return DimFilters.makeFalse(factory);
     }
     final MutableBitmap bitmap = factory.makeEmptyMutableBitmap();
     for (int i = range[0]; i < range[1]; i++) {
@@ -149,9 +149,9 @@ public class BoundFilter implements Filter
 
     final BitmapFactory factory = selector.getBitmapFactory();
     if (range == ALL) {
-      return factory.complement(factory.makeEmptyImmutableBitmap(), selector.getNumRows());
+      return DimFilters.makeTrue(factory, selector.getNumRows());
     } else if (range == NONE) {
-      return factory.makeEmptyImmutableBitmap();
+      return DimFilters.makeFalse(factory);
     }
 
     // search for start, end indexes in the bitmaps; then include all bitmaps between those points

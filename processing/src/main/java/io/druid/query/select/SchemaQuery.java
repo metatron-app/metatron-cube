@@ -24,6 +24,7 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.druid.common.utils.JodaUtils;
 import io.druid.granularity.Granularities;
 import io.druid.query.BaseQuery;
 import io.druid.query.DataSource;
@@ -31,10 +32,14 @@ import io.druid.query.Query;
 import io.druid.query.QueryConfig;
 import io.druid.query.QuerySegmentWalker;
 import io.druid.query.Result;
+import io.druid.query.TableDataSource;
 import io.druid.query.dimension.DimensionSpec;
+import io.druid.query.spec.MultipleIntervalSegmentSpec;
 import io.druid.query.spec.QuerySegmentSpec;
 import io.druid.segment.VirtualColumn;
+import org.joda.time.Interval;
 
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -44,6 +49,15 @@ import java.util.Objects;
 public class SchemaQuery extends BaseQuery<Result<SelectMetaResultValue>>
     implements Query.RewritingQuery<Result<SelectMetaResultValue>>, Query.VCSupport<Result<SelectMetaResultValue>>
 {
+  public static SchemaQuery of(String dataSource)
+  {
+    return new SchemaQuery(
+        TableDataSource.of(dataSource),
+        new MultipleIntervalSegmentSpec(Arrays.asList(new Interval(JodaUtils.MIN_INSTANT, JodaUtils.MAX_INSTANT))),
+        null, null, null, null
+    );
+  }
+
   private final List<DimensionSpec> dimensions;
   private final List<String> metrics;
   private final List<VirtualColumn> virtualColumns;

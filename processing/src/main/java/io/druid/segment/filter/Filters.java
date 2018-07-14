@@ -59,6 +59,7 @@ import io.druid.query.filter.BitmapIndexSelector;
 import io.druid.query.filter.BitmapType;
 import io.druid.query.filter.BoundDimFilter;
 import io.druid.query.filter.DimFilter;
+import io.druid.query.filter.DimFilters;
 import io.druid.query.filter.Filter;
 import io.druid.query.filter.InDimFilter;
 import io.druid.query.filter.MathExprFilter;
@@ -333,12 +334,9 @@ public class Filters
     final Indexed<String> dimValues = selector.getDimensionValues(dimension);
     if (dimValues == null || dimValues.size() == 0) {
       if (predicate.apply(null)) {
-        return selector.getBitmapFactory().complement(
-            selector.getBitmapFactory().makeEmptyImmutableBitmap(),
-            selector.getNumRows()
-        );
+        return DimFilters.makeTrue(selector.getBitmapFactory(), selector.getNumRows());
       } else {
-        return selector.getBitmapFactory().makeEmptyImmutableBitmap();
+        return DimFilters.makeFalse(selector.getBitmapFactory());
       }
     }
 

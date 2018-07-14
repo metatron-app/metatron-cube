@@ -23,9 +23,15 @@ import com.google.common.base.Function;
 import com.google.common.base.Predicates;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
+import com.metamx.collections.bitmap.BitmapFactory;
+import com.metamx.collections.bitmap.ImmutableBitmap;
+import io.druid.segment.ColumnSelectorFactory;
 
 import java.util.Arrays;
+import java.util.EnumSet;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 /**
  */
@@ -38,21 +44,29 @@ public class DimFilters
 
   public static DimFilter and(DimFilter... filters)
   {
+    return and(Arrays.asList(filters));
+  }
+
+  public static DimFilter and(List<DimFilter> filters)
+  {
     List<DimFilter> list = filterNull(filters);
     return list.isEmpty() ? null : list.size() == 1 ? list.get(0) : new AndDimFilter(list);
   }
 
   public static DimFilter or(DimFilter... filters)
   {
+    return or(Arrays.asList(filters));
+  }
+
+  public static DimFilter or(List<DimFilter> filters)
+  {
     List<DimFilter> list = filterNull(filters);
     return list.isEmpty() ? null : list.size() == 1 ? list.get(0) : new OrDimFilter(list);
   }
 
-  private static List<DimFilter> filterNull(DimFilter... filters)
+  private static List<DimFilter> filterNull(List<DimFilter> filters)
   {
-    return Lists.newArrayList(
-        Iterables.filter(Arrays.asList(filters), Predicates.notNull())
-    );
+    return Lists.newArrayList(Iterables.filter(filters, Predicates.notNull()));
   }
 
   public static NotDimFilter not(DimFilter filter)
@@ -84,5 +98,121 @@ public class DimFilters
   public static List<DimFilter> filterNulls(List<DimFilter> optimized)
   {
     return Lists.newArrayList(Iterables.filter(optimized, Predicates.notNull()));
+  }
+
+  public static class NONE implements DimFilter
+  {
+    @Override
+    public byte[] getCacheKey()
+    {
+      return new byte[] {0x7f, 0x00};
+    }
+
+    @Override
+    public DimFilter optimize()
+    {
+      return this;
+    }
+
+    @Override
+    public DimFilter withRedirection(Map<String, String> mapping)
+    {
+      return this;
+    }
+
+    @Override
+    public void addDependent(Set<String> handler)
+    {
+    }
+
+    @Override
+    public Filter toFilter()
+    {
+      return new Filter()
+      {
+        @Override
+        public ImmutableBitmap getValueBitmap(BitmapIndexSelector selector)
+        {
+          return selector.getBitmapFactory().makeEmptyImmutableBitmap();
+        }
+
+        @Override
+        public ImmutableBitmap getBitmapIndex(
+            BitmapIndexSelector selector, EnumSet<BitmapType> using, ImmutableBitmap baseBitmap
+        )
+        {
+          return selector.getBitmapFactory().makeEmptyImmutableBitmap();
+        }
+
+        @Override
+        public ValueMatcher makeMatcher(ColumnSelectorFactory columnSelectorFactory)
+        {
+          return ValueMatcher.FALSE;
+        }
+      };
+    }
+  };
+
+  public static class ALL implements DimFilter
+  {
+    @Override
+    public byte[] getCacheKey()
+    {
+      return new byte[] {0x7f, 0x01};
+    }
+
+    @Override
+    public DimFilter optimize()
+    {
+      return this;
+    }
+
+    @Override
+    public DimFilter withRedirection(Map<String, String> mapping)
+    {
+      return this;
+    }
+
+    @Override
+    public void addDependent(Set<String> handler)
+    {
+    }
+
+    @Override
+    public Filter toFilter()
+    {
+      return new Filter()
+      {
+        @Override
+        public ImmutableBitmap getValueBitmap(BitmapIndexSelector selector)
+        {
+          return makeTrue(selector.getBitmapFactory(), selector.getNumRows());
+        }
+
+        @Override
+        public ImmutableBitmap getBitmapIndex(
+            BitmapIndexSelector selector, EnumSet<BitmapType> using, ImmutableBitmap baseBitmap
+        )
+        {
+          return baseBitmap != null ? baseBitmap : makeTrue(selector.getBitmapFactory(), selector.getNumRows());
+        }
+
+        @Override
+        public ValueMatcher makeMatcher(ColumnSelectorFactory columnSelectorFactory)
+        {
+          return ValueMatcher.TRUE;
+        }
+      };
+    }
+  };
+
+  public static ImmutableBitmap makeTrue(BitmapFactory factory, int numRows)
+  {
+    return factory.complement(factory.makeEmptyImmutableBitmap(), numRows);
+  }
+
+  public static ImmutableBitmap makeFalse(BitmapFactory factory)
+  {
+    return factory.makeEmptyImmutableBitmap();
   }
 }

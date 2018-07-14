@@ -42,6 +42,16 @@ import java.util.Set;
  */
 public class LucenePointFilter implements DimFilter.LuceneFilter
 {
+  public static LucenePointFilter bound(String field, double[] latitudes, double[] longitudes)
+  {
+    return new LucenePointFilter(field, PointQueryType.BOX, null, null, latitudes, longitudes, -1d);
+  }
+
+  public static LucenePointFilter distance(String field, double radiusMeters)
+  {
+    return new LucenePointFilter(field, PointQueryType.DISTANCE, null, null, null, null, radiusMeters);
+  }
+
   private final String field;
   private final PointQueryType type;
   private final double[] latitudes;

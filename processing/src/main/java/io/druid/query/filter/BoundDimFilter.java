@@ -25,7 +25,10 @@ import com.fasterxml.jackson.annotation.JsonInclude.Include;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Ordering;
+import com.google.common.collect.Range;
+import io.druid.common.utils.Ranges;
 import io.druid.common.utils.StringUtils;
+import io.druid.data.Rows;
 import io.druid.math.expr.Parser;
 import io.druid.query.extraction.ExtractionFn;
 import io.druid.query.ordering.Comparators;
@@ -33,7 +36,9 @@ import io.druid.query.ordering.StringComparators;
 import io.druid.segment.filter.BoundFilter;
 
 import java.nio.ByteBuffer;
+import java.util.Arrays;
 import java.util.Comparator;
+import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
@@ -118,6 +123,11 @@ public class BoundDimFilter implements DimFilter
     return new BoundDimFilter(dimension, String.valueOf(lower), String.valueOf(upper), false, true, false, null);
   }
 
+  public static BoundDimFilter betweenStrict(String dimension, Object lower, Object upper)
+  {
+    return new BoundDimFilter(dimension, String.valueOf(lower), String.valueOf(upper), false, false, false, null);
+  }
+
   public static BoundDimFilter gt(String dimension, Object lower)
   {
     return new BoundDimFilter(dimension, String.valueOf(lower), null, true, false, false, null);
@@ -136,6 +146,44 @@ public class BoundDimFilter implements DimFilter
   public static BoundDimFilter lte(String dimension, Object upper)
   {
     return new BoundDimFilter(dimension, null, String.valueOf(upper), false, false, false, null);
+  }
+
+  public List<Range> toTimeRanges(boolean withNot)
+  {
+    if (extractionFn != null) {
+      throw new IllegalStateException();
+    }
+    if (lower == null && upper == null) {
+      throw new IllegalStateException();
+    }
+    if (lower != null && upper != null) {
+      long lowerTime = Rows.parseLong(lower);
+      long upperTime = Rows.parseLong(upper);
+      if (withNot) {
+        return Arrays.<Range>asList(
+            Ranges.of(lowerTime, lowerStrict ? "<=" : "<"),
+            Ranges.of(upperTime, upperStrict ? ">=" : ">")
+        );
+      }
+      return Arrays.<Range>asList(
+          lowerStrict && upperStrict ? Range.open(lowerTime, upperTime) :
+          lowerStrict ? Range.openClosed(lowerTime, upperTime) :
+          upperStrict ? Range.closedOpen(lowerTime, upperTime) :
+          Range.closed(lowerTime, upperTime)
+      );
+    }
+    if (lower != null) {
+      long lowerTime = Rows.parseLong(lower);
+      if (withNot) {
+        return Arrays.<Range>asList(Ranges.of(lowerTime, lowerStrict ? "<=" : "<"));
+      }
+      return Arrays.<Range>asList(Ranges.of(lowerTime, lowerStrict ? ">" : ">="));
+    }
+    long upperTime = Rows.parseLong(upper);
+    if (withNot) {
+      return Arrays.<Range>asList(Ranges.of(upperTime, upperStrict ? ">=" : ">"));
+    }
+    return Arrays.<Range>asList(Ranges.of(upperTime, upperStrict ? "<" : "<="));
   }
 
   @JsonProperty

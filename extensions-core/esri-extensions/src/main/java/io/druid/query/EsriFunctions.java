@@ -55,6 +55,26 @@ import static io.druid.query.EsriUtils.OGC_GEOMETRY_TYPE;
  */
 public interface EsriFunctions extends Function.Library
 {
+  @Function.Named("ST_GeomToText")
+  class ST_GeomToText extends Function.AbstractFactory
+  {
+    @Override
+    public Function create(final List<Expr> args)
+    {
+      if (args.size() != 1) {
+        throw new IAE("Function[%s] must have 1 argument", name());
+      }
+      return new StringChild()
+      {
+        @Override
+        public ExprEval apply(List<Expr> args, Expr.NumericBinding bindings)
+        {
+          return ExprEval.of(EsriUtils.toGeometry(Evals.eval(args.get(0), bindings)).asText());
+        }
+      };
+    }
+  }
+
   @Function.Named("ST_GeomFromText")
   class ST_GeomFromText extends Function.AbstractFactory
   {

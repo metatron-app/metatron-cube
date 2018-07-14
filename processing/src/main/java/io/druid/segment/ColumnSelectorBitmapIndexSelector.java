@@ -27,6 +27,7 @@ import com.metamx.collections.spatial.ImmutableRTree;
 import com.metamx.common.guava.CloseQuietly;
 import io.druid.data.ValueDesc;
 import io.druid.query.filter.BitmapIndexSelector;
+import io.druid.query.filter.DimFilters;
 import io.druid.segment.column.BitmapIndex;
 import io.druid.segment.column.Column;
 import io.druid.segment.column.ColumnCapabilities;
@@ -165,7 +166,7 @@ public class ColumnSelectorBitmapIndexSelector implements BitmapIndexSelector
     final Column column = index.getColumn(dimension);
     if (column == null) {
       if (Strings.isNullOrEmpty(value)) {
-        return bitmapFactory.complement(bitmapFactory.makeEmptyImmutableBitmap(), getNumRows());
+        return DimFilters.makeTrue(bitmapFactory, getNumRows());
       } else {
         return bitmapFactory.makeEmptyImmutableBitmap();
       }

@@ -24,6 +24,7 @@ import com.google.common.base.Preconditions;
 import com.google.common.io.ByteArrayDataOutput;
 import com.google.common.io.ByteStreams;
 import com.metamx.common.IAE;
+import com.metamx.common.Pair;
 import io.druid.data.ValueDesc;
 import io.druid.data.ValueType;
 import io.druid.data.input.Row;
@@ -35,12 +36,13 @@ import io.druid.segment.data.ObjectStrategy;
 import java.lang.reflect.Array;
 import java.nio.ByteBuffer;
 import java.util.Arrays;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Objects;
 
 /**
  */
-public class StructMetricSerde extends ComplexMetricSerde
+public class StructMetricSerde extends ComplexMetricSerde implements Iterable<Pair<String, ValueType>>
 {
   private final String typeName;
 
@@ -84,6 +86,37 @@ public class StructMetricSerde extends ComplexMetricSerde
   public ValueType type(int index)
   {
     return index < 0 ? null : fieldTypes[index];
+  }
+
+  public String[] getFieldNames()
+  {
+    return fieldNames;
+  }
+
+  public ValueType[] getFieldTypes()
+  {
+    return fieldTypes;
+  }
+
+  @Override
+  public Iterator<Pair<String, ValueType>> iterator()
+  {
+    return new Iterator<Pair<String, ValueType>>()
+    {
+      private int index;
+
+      @Override
+      public boolean hasNext()
+      {
+        return index < fieldNames.length;
+      }
+
+      @Override
+      public Pair<String, ValueType> next()
+      {
+        return Pair.of(fieldNames[index], fieldTypes[index++]);
+      }
+    };
   }
 
   @Override

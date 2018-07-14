@@ -43,7 +43,11 @@ public enum PointQueryType
     public Query toQuery(String fieldName, double[] latitudes, double[] longitudes, double radiusMeters)
     {
       Preconditions.checkArgument(latitudes.length == 2 && longitudes.length == 2);
-      return LatLonPoint.newBoxQuery(fieldName, latitudes[0], latitudes[1], longitudes[0], longitudes[1]);
+      return LatLonPoint.newBoxQuery(
+          fieldName,
+          Math.min(latitudes[0], latitudes[1]), Math.max(latitudes[0], latitudes[1]),
+          Math.min(longitudes[0], longitudes[1]), Math.max(longitudes[0], longitudes[1])
+      );
     }
   },
   POLYGON {

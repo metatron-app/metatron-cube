@@ -8,6 +8,7 @@ expr : ('-'|'!') expr                                 # unaryOpExpr
      | expr ('&&'|'||') expr                          # logicalAndOrExpr
      | expr '=' expr                                  # assignExpr
      | '(' expr ')'                                   # nestedExpr
+     | 'NULL'                                         # string
      | IDENTIFIER '(' fnArgs ')'                      # functionExpr
      | IDENTIFIER                                     # identifierExpr
      | FLOAT                                          # floatExpr

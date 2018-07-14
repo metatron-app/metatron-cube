@@ -68,6 +68,14 @@ public class ParserTest
   }
 
   @Test
+  public void testNull()
+  {
+    Expr expr = Parser.parse("NULL");
+    Assert.assertTrue(expr instanceof StringExpr);
+    Assert.assertNull(((StringExpr)expr).get());
+  }
+
+  @Test
   public void testSimpleUnaryOps1()
   {
     String actual = Parser.parse("-x").toString();
