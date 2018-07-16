@@ -350,6 +350,10 @@ public class BrokerQueryResource extends QueryResource
       result.put("broker", node.getHostAndPort());
       result.put("queryId", query.getId());
       Map<String, Object> dataMeta = (Map<String, Object>) result.get("data");
+      if (dataMeta == null) {
+        log.info("Nothing to publish..");
+        return Sequences.simple(Arrays.asList(result));
+      }
       URI location = (URI) dataMeta.get("location");
       DataSegment segment = (DataSegment) dataMeta.get("segment");
       ImmutableMap.Builder<String, Object> builder = ImmutableMap.builder();
